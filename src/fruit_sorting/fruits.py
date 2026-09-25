@@ -100,11 +100,10 @@ class FruitSpawner:
 
         xform = UsdGeom.Xformable(sphere)
         xform.ClearXformOpOrder()
-        # NOTE: no non-uniform squash here. PhysX cannot cook a collision shape
-        # for a non-uniformly scaled sphere ("Non-uniform scale may result in a
-        # non matching collision representation"), which leaves the fruit with no
-        # collision at all - the gripper then closes straight through it.
-        xform.AddScaleOp().Set(Gf.Vec3f(1.0, 1.0, 1.0))
+        # No Scale op: even a scale of exactly (1, 1, 1) routes this prim through
+        # PhysX's scaled-collision path, and the resulting collider does not
+        # interact with the robot at all (scripts/44_sphere_vs_fruit.py: an
+        # identical sphere authored without the Scale op blocks the gripper).
         xform.AddTranslateOp().Set(Gf.Vec3d(0.0, 0.0, -5.0))
 
         rgb, roughness = self.CATEGORY_STYLE[category]
@@ -125,11 +124,12 @@ class FruitSpawner:
         UsdShade.MaterialBindingAPI.Apply(sphere.GetPrim()).Bind(phys_material)
 
         rigid_api = PhysxSchema.PhysxRigidBodyAPI.Apply(sphere.GetPrim())
-        rigid_api.CreateEnableCCDAttr().Set(True)
-        # A sleeping body ignores the conveyor's contact forces, so fruit would
-        # freeze mid-belt. Disable sleeping entirely for the fruit.
-        rigid_api.CreateSleepThresholdAttr().Set(0.0)
-        rigid_api.CreateStabilizationThresholdAttr().Set(0.0)
+        rigid_api.CreateEnableCCDAttr().Set(False)
+        # NOTE: do not zero sleepThreshold / stabilizationThreshold here. Setting
+        # stabilizationThreshold to 0 leaves the body permanently stabilised, and
+        # such a body ignores contacts - the gripper closes straight through it
+        # (see scripts/43_fruit_vs_box.py: a static box of the same size blocks
+        # the fingers, the fruit does not).
 
         self.samples.append(
             FruitSample(

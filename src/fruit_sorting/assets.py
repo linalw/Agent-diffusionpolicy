@@ -72,7 +72,7 @@ class SceneConfig:
     # Belt surface at z = 1.01 m: the gripper's jaw centre cannot go below
     # ~0.976 m (the wrist bottom is ~0.898 m and the jaws sit 0.078 m above the
     # tool point), so fruit must sit high enough for the fingers to straddle them.
-    belt_center: tuple[float, float, float] = (0.95, 0.0, 1.12)
+    belt_center: tuple[float, float, float] = (0.95, 0.0, 1.14)
     belt_size: tuple[float, float, float] = (1.60, 0.34, 0.06)
     # Commanded PhysX surface velocity. Transport runs at roughly 2/3 of the
     # command because the surface-velocity solver clamps tangential force by
@@ -100,7 +100,7 @@ class SceneConfig:
     bin_positions: tuple[tuple[float, float], ...] = ((0.34, 0.44), (0.34, -0.44))
     bin_size_xy: float = 0.28
     bin_height: float = 0.22
-    bin_stand_height: float = 1.00
+    bin_stand_height: float = 1.02
 
     # Head camera (single RGB-D camera mounted on a short mast above the torso,
     # standing in for a humanoid head)
@@ -138,3 +138,8 @@ class SceneConfig:
     #: 0.098 m apart at full opening, which leaves 0.0758 m between the finger
     #: faces. Keep a small margin for off-centre fruit.
     gripper_max_object: float = 0.072
+
+    #: How far above the fruit's centre the jaw centre must sit for the finger
+    #: span to straddle the fruit. Measured in scripts/45_grasp_height_test.py:
+    #: contact stops happening above ~0.06 m and is reliable at 0.03-0.04 m.
+    grasp_palm_offset: float = 0.040

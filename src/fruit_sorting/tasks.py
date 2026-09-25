@@ -101,9 +101,10 @@ class PickAndPlaceTask:
         if name == "ready":
             return np.array([cfg.pick_x, sign * 0.05, belt_top + 0.20])
         if name == "grasp":
-            # Aim the middle of the finger span (jaw centre minus ~4 cm) at the
-            # fruit's equator so the fingers straddle it instead of closing above.
-            return np.array([cfg.pick_x, 0.0, belt_top + 0.070])
+            # Aim the middle of the finger span at the fruit's equator. See
+            # scripts/45_grasp_height_test.py: the fingers only contact the fruit
+            # when the palm sits about 3-4 cm above the fruit's centre.
+            return np.array([cfg.pick_x, 0.0, belt_top + 0.055])
         if name == "grasp_lift":
             return np.array([cfg.pick_x, sign * 0.05, belt_top + 0.28])
         if name.startswith("bin"):
@@ -307,10 +308,18 @@ class PickAndPlaceTask:
         # the jaws hit the fruit edge-on. The calibrated grasp configuration is
         # used as the seed and the IK solves the small lateral offset.
         t0 = self._sim_time()
+        # Per-fruit grasp height: the jaw centre must sit `grasp_palm_offset`
+        # above this fruit's centre for the fingers to straddle it.
+        grasp_goal = self.jaw_target(arm_name, "grasp").copy()
+        grasp_goal[2] = self.belt_top + sample.diameter / 2.0 + self.cfg.grasp_palm_offset
         arm.teleport_joints(self._pose(arm_name, "grasp"))
-        residual = arm.solve_to(
-            self.jaw_target(arm_name, "grasp"), iterations=400, tolerance=0.008
-        )[1]
+        # The low grasp pose is near the edge of the workspace, so fall back to
+        # random restarts if the calibrated seed does not converge.
+        residual = arm.solve_to(grasp_goal, iterations=400, tolerance=0.008)[1]
+        if residual > 0.015:
+            residual = arm.solve_to(
+                grasp_goal, iterations=400, tolerance=0.008, restarts=4, seed=7
+            )[1]
         grasp_config = arm.joint_positions()
         # Re-assert the open gripper: the teleport above moves the fingers too.
         arm.set_gripper(arm.OPEN)
@@ -365,9 +374,11 @@ class PickAndPlaceTask:
                 # jaws. This models the conveyor-to-gripper transfer; everything
                 # before and after it is physical.
                 jaw_now = arm.jaw_centre()
+                # Place the fruit exactly on the jaw centre line, then keep it
+                # there while the jaws close.
                 self.spawner.place(
                     sample,
-                    np.array([jaw_now[0], jaw_now[1],
+                    np.array([float(jaw_now[0]), float(jaw_now[1]),
                               self.belt_top + sample.diameter / 2.0 + 0.002]),
                 )
                 for _ in range(20):
@@ -415,7 +426,10 @@ class PickAndPlaceTask:
                 f"[task]   finger_l=({fl[0]:+.4f},{fl[1]:+.4f},{fl[2]:+.4f}) "
                 f"finger_r=({fr[0]:+.4f},{fr[1]:+.4f},{fr[2]:+.4f}) sep={arm.jaw_separation():.4f}"
             )
-        for value in np.linspace(arm.OPEN, fingers, 24):
+        # Close to the fruit's width (a light squeeze), re-centring the fruit on
+        # the jaw centre line as the fingers come in.
+        fingers = max(fingers, arm.gripper_value_for_separation(sample.diameter))
+        for value in np.linspace(arm.OPEN, fingers, 30):
             arm.set_gripper(float(value))
             SimulationManager.step(steps=2)
             self._tick_frame()
@@ -423,9 +437,10 @@ class PickAndPlaceTask:
         for _ in range(40):
             SimulationManager.step(steps=1)
             self._record(self._action9(grasp_config, arm, float(fingers)))
-        # Represent the closed grasp by attaching the fruit to the gripper (see
-        # FruitSpawner.attach for why this is needed in this build).
-        self.spawner.attach(sample, arm.jaw_centre())
+        # Optional grasp attachment. Set FRUIT_NO_ATTACH=1 to test whether the
+        # fingers hold the fruit purely through contact.
+        if os.environ.get("FRUIT_NO_ATTACH", "0") != "1":
+            self.spawner.attach(sample, arm.jaw_centre())
         if verbose:
             q_fingers = arm.dof_positions()[arm.finger_dofs]
             t_fingers = np.asarray(arm.robot.get_dof_position_targets().numpy())[0][arm.finger_dofs]
