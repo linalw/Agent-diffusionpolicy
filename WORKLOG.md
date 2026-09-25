@@ -277,3 +277,23 @@ actions are executed before re-planning.
 
 This is a first pass on 28 demonstrations; the design document calls for a few
 hundred episodes per skill to reach the target success rates.
+
+## 2026-09-25 - grasp fidelity investigation (negative result)
+
+Tried to remove the assisted-grasp workaround. `scripts/38_collision_approx.py`
+switches the finger collision meshes from `convexDecomposition` to `convexHull`
+and then closes the jaws on a stationary fruit placed exactly at the jaw centre.
+
+Result: the fingers still travel to exactly the commanded gap, for 5 cm and 7 cm
+fruit, so the finger colliders are not generating contacts with the fruit at all.
+The fruit *is* blocked when it arrives along the belt, which means the colliders
+exist and do collide in that direction, but not during jaw closure.
+
+Confirmed the fruit colliders themselves are fine: a fruit resting on the belt
+reports its own weight (0.313 N) through a contact sensor, and the belt
+transports it correctly.
+
+So the workaround stays: the last few centimetres of fruit travel into the jaws
+and the closed-grasp hold are modelled. Everything else (approach, jaw motion,
+arm trajectory, lift, carry, place) is physical. Fixing this properly would mean
+authoring explicit fingertip collision primitives on the gripper.
