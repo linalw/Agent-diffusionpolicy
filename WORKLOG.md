@@ -297,3 +297,32 @@ So the workaround stays: the last few centimetres of fruit travel into the jaws
 and the closed-grasp hold are modelled. Everything else (approach, jaw motion,
 arm trajectory, lift, carry, place) is physical. Fixing this properly would mean
 authoring explicit fingertip collision primitives on the gripper.
+
+## 2026-09-25 - stale camera frames (important fix)
+
+Found a defect in the recorded data: **304 of 305 consecutive RGB frames in an
+episode were byte-identical**. The control loops drive physics with
+`SimulationManager.step(1)` for exact 1/120 s timing, and rendering only happens
+on `app_utils.update_app(...)`, which I was calling with `steps=0` - a no-op. So
+the camera never refreshed during a cycle and the visual channel in the dataset
+was effectively frozen (the policy was learning from proprioception and the goal
+vector only).
+
+Fix, found with `scripts/39_render_probe.py`:
+
+| Loop | Sim advanced per 40 iters | Distinct frames |
+| --- | --- | --- |
+| `step(1)` + `update_app(0)` (old) | 333 ms (correct) | 1/4 (stale) |
+| `step(1)` + `RenderingManager.render()` (new) | 333 ms (correct) | 4/4 (fresh) |
+| `render()` only | 0 ms | 1/4 |
+
+`RenderingManager.render()` renders without advancing physics, so the control
+loop keeps its exact timing and the camera refreshes. Re-collected data now has
+~47/305 identical frames instead of 304/305 - the remainder are the stationary
+waits at the start of an episode.
+
+## 2026-09-25 - video recording
+
+`scripts/70_record_video.py` writes `logs/video/{observer,head,side_by_side}.mp4`
+so the behaviour can be watched without a display. The observer camera and the
+robot's head camera are captured every 4 physics steps (30 fps).

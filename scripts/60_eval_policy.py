@@ -18,6 +18,7 @@ import numpy as np
 
 import isaacsim.core.experimental.utils.app as app_utils
 from isaacsim.core.simulation_manager import SimulationManager
+from isaacsim.core.rendering_manager import RenderingManager
 from fruit_sorting.assets import SceneConfig
 from fruit_sorting.common import install_failure_handler, say
 from fruit_sorting.fruits import FruitSpawner
@@ -153,8 +154,10 @@ def main() -> int:
 
             spawner.enforce_transport()
             SimulationManager.step(steps=1)
-            if step % 40 == 0:
-                app_utils.update_app(steps=0)
+            if step % 4 == 0:
+                # Render without advancing physics so the control loop keeps its
+                # exact 1/120 s timing (see scripts/39_render_probe.py).
+                RenderingManager.render()
 
             pos = spawner.position(sample)
             # Hand the fruit into the jaws once it reaches the pick station, the

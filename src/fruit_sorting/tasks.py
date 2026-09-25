@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 import numpy as np
 
 import isaacsim.core.experimental.utils.app as app_utils
+from isaacsim.core.rendering_manager import RenderingManager
 
 from .common import say
 from .control import ArmController
@@ -72,6 +73,8 @@ class PickAndPlaceTask:
         self.belt_top = cfg.belt_center[2] + cfg.belt_size[2] / 2.0
         self.waypoints = self._load_waypoints(waypoint_path)
         self.recorder: EpisodeRecorder | None = None
+        #: Optional hook called on every rendered tick (used by the video recorder).
+        self.frame_callback = None
         self.current_sample = None
         self.current_arm = "left"
         self.current_goal = np.zeros(8, dtype=np.float32)
@@ -135,6 +138,7 @@ class PickAndPlaceTask:
             arm.robot.set_dof_position_targets([command], dof_indices=arm.arm_dofs)
             SimulationManager.step(steps=1)
             self.spawner.follow(sample, arm.jaw_centre())
+            self._tick_frame()
             self._record(self._action9(command, arm))
         for _ in range(40):
             arm.robot.set_dof_position_targets([target], dof_indices=arm.arm_dofs)
@@ -183,6 +187,18 @@ class PickAndPlaceTask:
         if self.current_sample is not None:
             observation["fruit_position"] = self.spawner.position(self.current_sample).astype(np.float32)
         self.recorder.add(observation, action)
+
+    def _tick_frame(self) -> None:
+        """Refresh the camera / hand a frame to the video recorder.
+
+        ``RenderingManager.render()`` renders without advancing physics, so the
+        control loop keeps its exact 1/120 s timing. ``update_app`` would render
+        too, but it advances the simulation by a variable amount.
+        """
+        if self.frame_callback is not None:
+            self.frame_callback()
+        elif self.recorder is not None:
+            RenderingManager.render()
 
     # ------------------------------------------------------------------ #
     # Helpers
@@ -364,8 +380,12 @@ class PickAndPlaceTask:
             arm.robot.set_dof_position_targets([grasp_config], dof_indices=arm.arm_dofs)
             SimulationManager.step(steps=1)
             self._record(self._action9(grasp_config, arm))
-            if step % 40 == 0:
-                app_utils.update_app(steps=0)
+            # Refresh the camera every 4 physics steps (30 Hz, matching the
+            # dataset decimation). `RenderingManager.render()` renders without
+            # advancing physics, unlike `update_app`, so the control loop keeps
+            # its exact 1/120 s timing.
+            if step % 4 == 0:
+                self._tick_frame()
         if verbose:
             say(f"[task] fruit at pick point: dx={dx:+.4f} m arrived={arrived} after {step} steps")
         if not arrived:
@@ -398,6 +418,7 @@ class PickAndPlaceTask:
         for value in np.linspace(arm.OPEN, fingers, 24):
             arm.set_gripper(float(value))
             SimulationManager.step(steps=2)
+            self._tick_frame()
             self._record(self._action9(grasp_config, arm, float(value)))
         for _ in range(40):
             SimulationManager.step(steps=1)
