@@ -56,6 +56,18 @@ def main() -> int:
             say(f"   jaw={np.round(arm.jaw_centre(), 4).tolist()} sep={arm.jaw_separation():.4f}")
             say("   tactile: skipped")
 
+        # Close the gripper while the arm is parked at the grasp pose.
+        say("--- closing at grasp pose ---")
+        for value in (0.044, 0.030, 0.020, 0.010, 0.005):
+            arm.set_gripper(value)
+            app_utils.update_app(steps=20)
+            q = arm.dof_positions()[arm.finger_dofs]
+            t = np.asarray(scene.robot.get_dof_position_targets().numpy())[0][arm.finger_dofs]
+            say(
+                f"   cmd={value:.3f} q={np.round(q, 4).tolist()} target={np.round(t, 4).tolist()} "
+                f"sep={arm.jaw_separation():.4f} jaw={np.round(arm.jaw_centre(), 3).tolist()}"
+            )
+
     app_utils.pause()
     say("DONE")
     return 0

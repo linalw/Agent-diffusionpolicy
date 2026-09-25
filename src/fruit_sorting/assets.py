@@ -81,7 +81,7 @@ class SceneConfig:
     # Kept deliberately slow: one `app_utils.update_app()` advances several
     # hundred milliseconds of simulated time on this machine, so a fast belt
     # would jump past the gripper in a handful of control iterations.
-    belt_speed: float = -0.05
+    belt_speed: float = -0.15
     belt_friction: float = 0.9
     #: Fraction of the commanded surface velocity that fruit actually reach.
     transport_efficiency: float = 0.68
@@ -90,7 +90,10 @@ class SceneConfig:
     spawn_x: float = 1.62
     despawn_x: float = 0.24
     pick_x: float = 0.34
-    spawn_y_jitter: float = 0.02
+    spawn_y_jitter: float = 0.005
+    #: Guide rails funnel fruit along the centre line so they arrive between the
+    #: jaws. The finger gap is only ~6.5 cm, so lateral drift breaks the grasp.
+    belt_channel_y: float = 0.045
     spawn_period_s: float = 1.6
 
     # Output bins (raised on stands so the TCP can reach into them)
@@ -113,19 +116,25 @@ class SceneConfig:
     fruit_dimensions: dict[str, tuple[float, float]] = field(
         default_factory=lambda: {
             # name -> (min diameter m, max diameter m)
+            #
+            # Capped at 7 cm: the OpenArm gripper's finger faces are only 7.6 cm
+            # apart at full opening, so larger fruit need a wider gripper. The
+            # design targets 2-9 cm; the simulation pool covers what the hardware
+            # in the asset catalogue can actually hold.
             "strawberry": (0.030, 0.045),
             "lychee": (0.028, 0.038),
-            "kiwi": (0.050, 0.070),
-            "tomato": (0.050, 0.070),
-            "apple": (0.070, 0.090),
-            "orange": (0.070, 0.085),
-            "peach": (0.060, 0.080),
-            "pear": (0.060, 0.080),
+            "kiwi": (0.050, 0.068),
+            "tomato": (0.050, 0.068),
+            "apple": (0.062, 0.070),
+            "orange": (0.060, 0.070),
+            "peach": (0.058, 0.070),
+            "pear": (0.058, 0.070),
         }
     )
     grades: tuple[str, ...] = ("A", "B", "C")
 
     #: Largest object the OpenArm 1-DoF parallel gripper can straddle. Measured
-    #: on the asset: at full opening the jaw separation is 0.098 m and each
-    #: finger is ~0.033 m thick, leaving an inner gap of about 0.065 m.
-    gripper_max_object: float = 0.062
+    #: at the pick pose (scripts/36_static_grasp.py): the link origins are
+    #: 0.098 m apart at full opening, which leaves 0.0758 m between the finger
+    #: faces. Keep a small margin for off-centre fruit.
+    gripper_max_object: float = 0.072

@@ -31,7 +31,7 @@ OUT_PATH = os.environ.get("WAYPOINT_PATH", "configs/waypoints.json")
 #: The fingers hang ~8 cm below the jaw centre, so the jaw cannot go lower than
 #: `belt_top + 0.081` without the finger tips hitting the belt. That height also
 #: straddles every fruit in the pool, so one grasp pose covers all of them.
-GRASP_CLEARANCE = 0.090
+GRASP_CLEARANCE = 0.070
 
 
 def main() -> int:

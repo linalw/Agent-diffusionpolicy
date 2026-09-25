@@ -60,7 +60,11 @@ def main() -> int:
         states = spawner.state()
         target = task.select_target(states)
         if target is None:
-            say(f"[run] attempt {attempt}: no eligible fruit")
+            summary = [
+                (s["category"], round(float(s["position"][0]), 3), round(s["diameter"], 3))
+                for s in states
+            ]
+            say(f"[run] attempt {attempt}: no eligible fruit; active={summary} stats={spawner.stats}")
             continue
         grade = target["grade"]
         bin_xy = cfg.bin_positions[0] if grade == "A" else cfg.bin_positions[1]

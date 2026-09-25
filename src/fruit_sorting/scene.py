@@ -151,8 +151,9 @@ class SortingScene:
         surface_velocity = PhysxSchema.PhysxSurfaceVelocityAPI.Apply(belt.GetPrim())
         surface_velocity.CreateSurfaceVelocityAttr().Set(Gf.Vec3f(cfg.belt_speed, 0.0, 0.0))
 
-        # Low side rails keep fruit from drifting off the belt without blocking
-        # the downward gripper approach.
+        # Low guide rails funnel fruit along the centre line. They are set just
+        # wider than the largest fruit so a fruit cannot wander off the fingers'
+        # narrow (~6.5 cm) lateral gap before the jaws close.
         bx, by, bz = cfg.belt_center
         sx, sy, sz = cfg.belt_size
         belt_top = bz + sz / 2.0
@@ -161,7 +162,7 @@ class SortingScene:
                 self.stage,
                 f"/World/Conveyor/{name}",
                 size=(sx, 0.02, 0.04),
-                center=(bx, by + y_sign * (sy / 2.0 + 0.01), belt_top + 0.02),
+                center=(bx, by + y_sign * (cfg.belt_channel_y + 0.01), belt_top + 0.02),
             )
             _set_color(rail, (0.55, 0.56, 0.58))
             UsdPhysics.CollisionAPI.Apply(rail.GetPrim())

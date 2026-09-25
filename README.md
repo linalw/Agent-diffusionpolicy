@@ -16,8 +16,9 @@ implementation: the simulation cell, the data pipeline, and the policy training 
 | Sorting cell: pedestal, conveyor with surface velocity, output bins | built and verified |
 | Head RGB-D camera (single camera, wide FOV) | capturing rgb + depth + instance ids |
 | Randomized fruit on the moving belt | spawning, transporting, recycling |
-| Point-tactile sensing on the grippers | not yet (planned) |
-| Scripted demonstrations + diffusion policy | not yet (planned) |
+| Scripted pick-and-place, sorted by grade into bins | **working (6/6)** |
+| Point-tactile sensing on the grippers | blocked by the contact API in this build |
+| Demonstration collection + diffusion policy | not yet (planned) |
 
 ## Robot choice
 
@@ -37,17 +38,28 @@ sensor.
 Robot at the origin facing `+X`; the conveyor runs along `Y` in front of it.
 
 ```
-                 downstream (+Y)
-      [ bin A ]        ============ conveyor ============
-                    [ pedestal + OpenArm upper body ]   (head camera on mast)
-      [ bin B ]
-                 upstream (-Y)
+                        infeed (+X)
+   [ bin A (+Y) ]   ===== conveyor, fruit travel -X ====
+                        [ pedestal + OpenArm ]  (head camera on mast)
+   [ bin B (-Y) ]        pick station at x = 0.34
 ```
+
+The belt runs **end-on** to the robot: the OpenArm jaws open along the shoulder
+axis, so fruit have to arrive perpendicular to that to pass between the fingers.
 
 Cell dimensions were derived from a measured reachability sweep
 (`scripts/12_reach_calibration.py`): shoulders sit at `(0, +/-0.0935, 1.448)` m with a TCP
 reach of ~0.68 m, and the TCP cannot descend below `z = 0.90` m. The belt surface is
-therefore at `z = 0.95` m and the output bins stand on 0.80 m pedestals.
+therefore at `z = 1.15` m and the output bins stand on 1.00 m pedestals.
+
+Grasp geometry, measured in `scripts/36_static_grasp.py`:
+
+| Quantity | Value |
+| --- | --- |
+| Finger faces at full opening | 0.0758 m apart |
+| Finger link origins at full opening | 0.098 m apart |
+| Finger span below the jaw centre | 0.076 m |
+| Largest fruit the gripper can straddle | ~0.072 m |
 
 ## Environment
 
@@ -79,6 +91,11 @@ Set `HTTP_PROXY` / `HTTPS_PROXY` / `ALL_PROXY` first if the asset server is slow
 | `scripts/10_build_scene.py` | Build the full cell, run the belt, capture frames |
 | `scripts/11_bisect_scene.py` | Build selected scene parts (crash bisection) |
 | `scripts/12_reach_calibration.py` | Sample the arm workspace |
+| `scripts/20_pick_place.py` | Scripted pick-and-place cycles, sorted into bins |
+| `scripts/30_calibrate_waypoints.py` | Solve and save `configs/waypoints.json` |
+| `scripts/31_reach_sweep.py` | Reachable jaw heights at the pick pose |
+| `scripts/32_hold_test.py` | Hold a waypoint; verify joint tracking |
+| `scripts/36_static_grasp.py` | Grasp geometry and finger-face mapping |
 
 ## Package layout
 

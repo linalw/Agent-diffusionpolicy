@@ -34,6 +34,10 @@ class FruitSample:
     ripeness: float
     defective: bool
     parked: bool = True
+    #: Set once the gripper has closed on this fruit, so the belt stops driving it.
+    held: bool = False
+    #: Set while the gripper is carrying this fruit (see ``attach``).
+    attached: bool = False
 
 
 def _preview_material(stage: Usd.Stage, path: str, rgb: tuple[float, float, float], roughness: float = 0.45):
@@ -69,6 +73,7 @@ class FruitSpawner:
         self.samples: list[FruitSample] = []
         self.active: list[FruitSample] = []
         self._rigids: dict[int, RigidPrim] = {}
+        self._attach_offset: dict[int, np.ndarray] = {}
         self._cursor = 0
         self._next_release = 0.0
         self.stats = {"released": 0, "reached_end": 0, "fell_off": 0}
@@ -95,14 +100,11 @@ class FruitSpawner:
 
         xform = UsdGeom.Xformable(sphere)
         xform.ClearXformOpOrder()
-        # Slightly squash the sphere so fruit are not perfect balls.
-        xform.AddScaleOp().Set(
-            Gf.Vec3f(
-                self.rng.uniform(0.92, 1.0),
-                self.rng.uniform(0.92, 1.0),
-                self.rng.uniform(0.85, 1.0),
-            )
-        )
+        # NOTE: no non-uniform squash here. PhysX cannot cook a collision shape
+        # for a non-uniformly scaled sphere ("Non-uniform scale may result in a
+        # non matching collision representation"), which leaves the fruit with no
+        # collision at all - the gripper then closes straight through it.
+        xform.AddScaleOp().Set(Gf.Vec3f(1.0, 1.0, 1.0))
         xform.AddTranslateOp().Set(Gf.Vec3d(0.0, 0.0, -5.0))
 
         rgb, roughness = self.CATEGORY_STYLE[category]
@@ -189,6 +191,8 @@ class FruitSpawner:
             angular_velocities=[[0.0, 0.0, 0.0]],
         )
         sample.parked = False
+        sample.held = False
+        sample.attached = False
 
     # ------------------------------------------------------------------ #
     # Conveyor feeding
@@ -247,16 +251,19 @@ class FruitSpawner:
                 self.active.remove(sample)
         return released
 
-    def enforce_transport(self) -> None:
-        """Re-assert belt motion on fruit that PhysX has put to sleep.
+    def enforce_transport(self, dt: float = 1.0 / 120.0) -> None:
+        """Drive fruit along the belt at the belt velocity.
 
-        A sleeping rigid body stops receiving the conveyor's contact forces and
-        would sit frozen mid-belt, so any fruit resting on the belt with almost
-        no velocity is woken and given the belt's transport velocity.
+        Driving the velocity directly, rather than relying on PhysX surface
+        velocity plus friction, keeps transport exact: the friction model decays
+        and can stall a fruit mid-belt, and a sleeping body ignores it entirely.
+        The pose is written each step as well as the velocity, because a sleeping
+        rigid body accepts the velocity write without waking up. Fruit that the
+        gripper is holding are left alone.
         """
         expected = self.cfg.belt_speed * self.cfg.transport_efficiency
         for sample in self.active:
-            if sample.parked:
+            if sample.parked or sample.held:
                 continue
             pos = self.position(sample)
             on_belt = (
@@ -265,14 +272,17 @@ class FruitSpawner:
             )
             if not on_belt:
                 continue
-            vel = self.velocity(sample)
-            # Only nudge fruit that have genuinely stalled. Writing the velocity
-            # every step injects energy into the contact and launches the fruit.
-            if abs(float(vel[0])) < 0.05:
-                self._rigids[sample.index].set_velocities(
-                    linear_velocities=[[expected, 0.0, 0.0]],
-                    angular_velocities=[[0.0, 0.0, 0.0]],
-                )
+            rigid = self._rigids[sample.index]
+            # Pin y to the lane centre line: the jaws' lateral gap is only about
+            # 6.5 cm and any drift makes the fingers hit the fruit edge-on.
+            rigid.set_world_poses(
+                positions=[[float(pos[0]) + expected * dt, 0.0, float(pos[2])]],
+                orientations=[[1.0, 0.0, 0.0, 0.0]],
+            )
+            rigid.set_velocities(
+                linear_velocities=[[expected, 0.0, 0.0]],
+                angular_velocities=[[0.0, 0.0, 0.0]],
+            )
 
     def prime(self, count: int = 2) -> None:
         """Pre-load a few fruit so the belt is not empty at t=0."""
@@ -286,6 +296,54 @@ class FruitSpawner:
     def position(self, sample: FruitSample) -> np.ndarray:
         pos = self._rigids[sample.index].get_world_poses()[0]
         return np.asarray(pos.numpy() if hasattr(pos, "numpy") else pos)[0]
+
+    def stop(self, sample: FruitSample) -> None:
+        """Zero a fruit's velocity so it stays where the gripper found it."""
+        self._rigids[sample.index].set_velocities(
+            linear_velocities=[[0.0, 0.0, 0.0]], angular_velocities=[[0.0, 0.0, 0.0]]
+        )
+
+    def place(self, sample: FruitSample, position: np.ndarray) -> None:
+        """Teleport a fruit to an exact position and hold it there."""
+        self._rigids[sample.index].set_world_poses(
+            positions=[np.asarray(position, dtype=float).tolist()],
+            orientations=[[1.0, 0.0, 0.0, 0.0]],
+        )
+        self.stop(sample)
+
+    # ------------------------------------------------------------------ #
+    # Grasp attachment
+    # ------------------------------------------------------------------ #
+    def attach(self, sample: FruitSample, gripper_point: np.ndarray) -> None:
+        """Attach a fruit to the gripper.
+
+        The OpenArm finger collision meshes do not reliably contact small fruit
+        in this build (see WORKLOG), so a closed, centred grasp is represented by
+        attaching the fruit to the gripper and carrying it kinematically. The
+        recorded offset is the fruit's position relative to the gripper point at
+        the moment of the grasp, so the payload keeps its pose in the hand.
+        """
+        position = self.position(sample).copy()
+        self._attach_offset[sample.index] = position - np.asarray(gripper_point, dtype=float)
+        sample.attached = True
+        sample.held = True
+
+    def detach(self, sample: FruitSample) -> None:
+        sample.attached = False
+        self._attach_offset.pop(sample.index, None)
+
+    def follow(self, sample: FruitSample, gripper_point: np.ndarray) -> None:
+        """Place an attached fruit at the gripper, preserving the grasp offset."""
+        if not sample.attached:
+            return
+        offset = self._attach_offset[sample.index]
+        target = np.asarray(gripper_point, dtype=float) + offset
+        self._rigids[sample.index].set_world_poses(
+            positions=[target.tolist()], orientations=[[1.0, 0.0, 0.0, 0.0]]
+        )
+        self._rigids[sample.index].set_velocities(
+            linear_velocities=[[0.0, 0.0, 0.0]], angular_velocities=[[0.0, 0.0, 0.0]]
+        )
 
     def velocity(self, sample: FruitSample) -> np.ndarray:
         vel = self._rigids[sample.index].get_velocities()[0]

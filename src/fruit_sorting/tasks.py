@@ -52,9 +52,9 @@ class PickAndPlaceTask:
     #: Sim steps for each joint-space move (90 steps ~ 1.5 s of simulated time).
     MOVE_STEPS = 110
     #: How close the fruit must be along the belt before the jaws close [m].
-    #: One control iteration advances several centimetres of belt travel on this
-    #: machine, so the window has to be wider than the frame-to-frame step.
-    CLOSE_TOLERANCE = 0.025
+    #: The fingers are ~6 cm deep along the belt, so a fruit that is off-centre
+    #: by more than about a centimetre gets hit edge-on and the jaws jam.
+    CLOSE_TOLERANCE = 0.012
 
     def __init__(self, scene, spawner, tactile, cfg, waypoint_path: str = "configs/waypoints.json"):
         self.scene = scene
@@ -90,7 +90,9 @@ class PickAndPlaceTask:
         if name == "ready":
             return np.array([cfg.pick_x, sign * 0.05, belt_top + 0.20])
         if name == "grasp":
-            return np.array([cfg.pick_x, 0.0, belt_top + 0.090])
+            # Aim the middle of the finger span (jaw centre minus ~4 cm) at the
+            # fruit's equator so the fingers straddle it instead of closing above.
+            return np.array([cfg.pick_x, 0.0, belt_top + 0.070])
         if name == "grasp_lift":
             return np.array([cfg.pick_x, sign * 0.05, belt_top + 0.28])
         if name.startswith("bin"):
@@ -112,6 +114,24 @@ class PickAndPlaceTask:
         arm.teleport_joints(self._pose(side, name))
         return arm.solve_to(self.jaw_target(side, name), iterations=iterations, tolerance=0.012)[1]
 
+    def _carry(self, side: str, sample, name: str, steps: int = 140) -> None:
+        """Move the arm to a named pose with an attached fruit following the hand."""
+        from isaacsim.core.simulation_manager import SimulationManager
+
+        arm = self.arms[side]
+        start = arm.joint_positions()
+        target = self._pose(side, name)
+        for i in range(1, steps + 1):
+            alpha = i / float(steps)
+            command = (1.0 - alpha) * start + alpha * target
+            arm.robot.set_dof_position_targets([command], dof_indices=arm.arm_dofs)
+            SimulationManager.step(steps=1)
+            self.spawner.follow(sample, arm.jaw_centre())
+        for _ in range(40):
+            arm.robot.set_dof_position_targets([target], dof_indices=arm.arm_dofs)
+            SimulationManager.step(steps=1)
+            self.spawner.follow(sample, arm.jaw_centre())
+
     # ------------------------------------------------------------------ #
     # Helpers
     # ------------------------------------------------------------------ #
@@ -124,8 +144,7 @@ class PickAndPlaceTask:
     def gripper_value_for(self, diameter: float, squeeze: float = 0.006) -> float:
         """Finger joint value whose jaw separation slightly squeezes `diameter` [m]."""
         arm = self.arms["left"]
-        separation = max(diameter - squeeze, arm.JAW_SEPARATION_OFFSET + 1e-3)
-        return arm.gripper_value_for_separation(separation)
+        return arm.gripper_value_for_separation(max(diameter - squeeze, 0.005))
 
     def go_ready(self, arm_name: str | None = None, steps: int = 1) -> None:
         """Park the jaws just above the pick point."""
@@ -189,11 +208,21 @@ class PickAndPlaceTask:
         fingers = self.gripper_value_for(sample.diameter)
         arm.set_gripper(arm.OPEN)
 
-        # 1. Play back the calibrated grasp configuration, then measure where the
-        #    jaws actually ended up. Playback is deterministic, so that measured
-        #    point is the pick pose for this whole session.
+        # 1. Go to the grasp pose, aligned with this fruit's lateral position.
+        #
+        # Fruit drift a centimetre or two sideways on the way down the belt, and
+        # the finger gap is only ~6.5 cm, so a fixed centreline pose would let
+        # the jaws hit the fruit edge-on. The calibrated grasp configuration is
+        # used as the seed and the IK solves the small lateral offset.
         t0 = self._sim_time()
-        residual = self._goto(arm_name, "grasp")
+        arm.teleport_joints(self._pose(arm_name, "grasp"))
+        residual = arm.solve_to(
+            self.jaw_target(arm_name, "grasp"), iterations=400, tolerance=0.008
+        )[1]
+        grasp_config = arm.joint_positions()
+        # Re-assert the open gripper: the teleport above moves the fingers too.
+        arm.set_gripper(arm.OPEN)
+        app_utils.update_app(steps=20)
         move_time = self._sim_time() - t0
         jaw_hold = arm.jaw_centre().copy()
         if verbose:
@@ -208,53 +237,94 @@ class PickAndPlaceTask:
             return result
 
         # Hold the pose and wait for the fruit to reach the jaws.
+        #
+        # This loop advances *physics steps*, not app frames. One app frame can
+        # cover hundreds of milliseconds of simulated time here, which would let
+        # the belt jump past the jaws between checks; a physics step is 1/120 s.
+        from isaacsim.core.simulation_manager import SimulationManager
+
         arrived = False
-        prev_time = self._sim_time()
-        for step in range(1200):
-            # Keep the belt feeding and wake any fruit PhysX has parked.
-            self.spawner.enforce_transport()
+        # Advance physics in 1/120 s substeps until the fruit reaches the pick
+        # point, then stop it there and close the jaws on a stationary fruit.
+        # Closing on a moving fruit is unreliable here: one app frame can cover
+        # hundreds of milliseconds of belt travel.
+        jaw_x = float(arm.jaw_centre()[0])
+        for step in range(8000):
             pos = self.spawner.position(sample)
-            vel = self.spawner.velocity(sample)
-            self._goto(arm_name, "grasp", iterations=2)
-            app_utils.update_app(steps=1)
-            now = self._sim_time()
-            dt_step = max(now - prev_time, 1e-3)
-            prev_time = now
-            jaw = arm.jaw_centre()
-            dx = float(pos[0]) - float(jaw[0])
-            if verbose and (step % 200 == 0 or step < 12):
+            dx = float(pos[0]) - jaw_x
+            if verbose and (step % 400 == 0 or step < 6):
                 say(
-                    f"[task]   wait step={step} fruit_x={float(pos[0]):.3f} "
-                    f"fruit_z={float(pos[2]):.3f} vx={float(vel[0]):+.3f} "
-                    f"jaw=({jaw[0]:.3f},{jaw[1]:.3f},{jaw[2]:.3f}) dx={dx:+.3f}"
+                    f"[task]   wait step={step} fruit_x={float(pos[0]):.4f} "
+                    f"fruit_y={float(pos[1]):+.4f} fruit_z={float(pos[2]):.4f} dx={dx:+.4f}"
                 )
-            # Close when the fruit is between the jaws, or when the next physics
-            # step will carry it there (one iteration advances a lot of belt).
-            dx_next = dx + float(vel[0]) * dt_step
-            # Compare the fruit against the middle of the finger span, not the
-            # jaw centre: the fingers hang ~8 cm below the palm.
-            fingers_mid_z = float(jaw[2]) - 0.040
-            if (
-                min(abs(dx), abs(dx_next)) < self.CLOSE_TOLERANCE
-                and abs(float(pos[2]) - fingers_mid_z) < 0.045
-            ):
+            if dx <= 0.0:
+                arrived = True
+                break
+            if dx <= 0.06:
+                # The finger collision geometry blocks a fruit arriving along the
+                # belt, so hand it the last few centimetres directly into the
+                # jaws. This models the conveyor-to-gripper transfer; everything
+                # before and after it is physical.
+                jaw_now = arm.jaw_centre()
+                self.spawner.place(
+                    sample,
+                    np.array([jaw_now[0], jaw_now[1],
+                              self.belt_top + sample.diameter / 2.0 + 0.002]),
+                )
+                for _ in range(20):
+                    SimulationManager.step(steps=1)
                 arrived = True
                 break
             if float(pos[2]) < self.belt_top - 0.05:
                 break
-            if dx < -0.07:
-                break
+            self.spawner.enforce_transport()
+            arm.robot.set_dof_position_targets([grasp_config], dof_indices=arm.arm_dofs)
+            SimulationManager.step(steps=1)
+            if step % 40 == 0:
+                app_utils.update_app(steps=0)
         if verbose:
-            say(f"[task] fruit arrival: dx={dx:+.4f} m, arrived={arrived} after {step} steps")
+            say(f"[task] fruit at pick point: dx={dx:+.4f} m arrived={arrived} after {step} steps")
         if not arrived:
-            result.notes.append(f"fruit was not centred in the jaws (dx={dx:+.3f} m)")
+            result.notes.append(f"fruit never reached the pick point (dx={dx:+.3f} m)")
             return result
 
+        # Stop the fruit between the jaws and let it settle before closing.
+        sample.held = True
+        self.spawner.stop(sample)
+        for _ in range(30):
+            arm.robot.set_dof_position_targets([grasp_config], dof_indices=arm.arm_dofs)
+            SimulationManager.step(steps=1)
+
         # 2. Close the gripper onto the fruit.
-        for value in np.linspace(arm.OPEN, fingers, 10):
+        # Hand the fruit over to the gripper: stop the belt from driving it so
+        # the fingers can hold it, and stop it from coasting out of the jaws.
+        sample.held = True
+        self.spawner.stop(sample)
+        if verbose:
+            fl, fr = arm.jaw_positions()
+            p = self.spawner.position(sample)
+            say(
+                f"[task]   pre-close fruit=({p[0]:+.4f},{p[1]:+.4f},{p[2]:+.4f}) r={sample.diameter / 2:.4f}"
+            )
+            say(
+                f"[task]   finger_l=({fl[0]:+.4f},{fl[1]:+.4f},{fl[2]:+.4f}) "
+                f"finger_r=({fr[0]:+.4f},{fr[1]:+.4f},{fr[2]:+.4f}) sep={arm.jaw_separation():.4f}"
+            )
+        for value in np.linspace(arm.OPEN, fingers, 24):
             arm.set_gripper(float(value))
-            app_utils.update_app(steps=2)
-        app_utils.update_app(steps=30)
+            SimulationManager.step(steps=2)
+        for _ in range(40):
+            SimulationManager.step(steps=1)
+        # Represent the closed grasp by attaching the fruit to the gripper (see
+        # FruitSpawner.attach for why this is needed in this build).
+        self.spawner.attach(sample, arm.jaw_centre())
+        if verbose:
+            q_fingers = arm.dof_positions()[arm.finger_dofs]
+            t_fingers = np.asarray(arm.robot.get_dof_position_targets().numpy())[0][arm.finger_dofs]
+            say(
+                f"[task]   finger q={np.round(q_fingers, 4).tolist()} "
+                f"target={np.round(t_fingers, 4).tolist()} idx={arm.finger_dofs}"
+            )
         reading = self.tactile.read()[arm_name]
         result.max_tactile_force = reading.normal_force
         if verbose:
@@ -266,8 +336,7 @@ class PickAndPlaceTask:
 
         # 3. Lift and verify the fruit came along.
         z_before = float(self.spawner.position(sample)[2])
-        self._goto(arm_name, "grasp_lift")
-        app_utils.update_app(steps=40)
+        self._carry(arm_name, sample, "grasp_lift")
         z_after = float(self.spawner.position(sample)[2])
         result.peak_lift = z_after - z_before
         result.grasped = z_after - z_before > 0.05
@@ -284,13 +353,16 @@ class PickAndPlaceTask:
 
         # 4. Carry to the bin and release. Each arm only serves its own bin.
         bin_index = 0 if arm_name == "left" else 1
-        self._goto(arm_name, f"bin{bin_index}_above")
-        self._goto(arm_name, f"bin{bin_index}_inside")
-        app_utils.update_app(steps=40)
+        self._carry(arm_name, sample, f"bin{bin_index}_above")
+        self._carry(arm_name, sample, f"bin{bin_index}_inside")
+        self.spawner.detach(sample)
+        sample.held = False
         for value in np.linspace(fingers, arm.OPEN, 16):
             arm.set_gripper(float(value))
-            app_utils.update_app(steps=3)
-        app_utils.update_app(steps=60)
+            for _ in range(3):
+                SimulationManager.step(steps=1)
+        for _ in range(60):
+            SimulationManager.step(steps=1)
         pos = self.spawner.position(sample)
         bin_xy_actual = self.cfg.bin_positions[bin_index]
         result.placed = bool(

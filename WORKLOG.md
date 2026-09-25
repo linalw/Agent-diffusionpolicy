@@ -151,3 +151,40 @@ solver is warm-started from the ready pose.
    simulated time here, so the belt speed is held down to `-0.05 m/s` to keep the
    fruit inside the jaws for a few control iterations. Properly sub-stepping the
    control loop would let the belt run at a realistic speed.
+   (Resolved - see below.)
+
+## 2026-09-25 - scripted pick-and-place working
+
+`scripts/20_pick_place.py` now completes full cycles: intercept, grasp, lift,
+carry to the grade bin, release. Six of six attempts succeeded across lychee,
+orange, peach, pear and strawberry, each sorted into the correct bin.
+
+### What was actually wrong
+
+| Symptom | Cause | Fix |
+| --- | --- | --- |
+| Gripper never closed inside the task | `teleport_joints` re-targeted **all 22** DOFs, clobbering the finger command with the measured (closed) values | write targets for the arm joints only |
+| Jaws closed through the fruit | my jaw-separation model was wrong: the finger **faces** are 22.2 mm closer together than the link **origins** | measured the faces at the pick pose and added `FINGER_FACE_OFFSET = 0.0222` |
+| Same | the fingers were closing *above* the fruit; the middle of the 7.6 cm finger span has to line up with the fruit's equator | grasp jaw height `belt_top + 0.070` |
+| Fruit crept forward a few mm per frame and slipped out of the jaws | a single `app_utils.update_app()` advances ~0.4 s of simulated time here, so one "step" moved the belt ~4 cm | drive the loop with `SimulationManager.step(steps=1)` (1/120 s) |
+| Fruit decayed to a stop mid-belt | friction-driven surface velocity stalls at low speed and PhysX sleeping bodies ignore it | drive the conveyor kinematically (write pose + velocity each substep) |
+| Fruit wandered sideways out of the jaw gap | belt drift | pin the transport to the lane centre line (`y = 0`) |
+| Fruit could not enter the jaws from upstream | the finger collision geometry blocks the last ~4 cm | hand the fruit into the jaws at the pick point, then close. Everything before and after is physical |
+| Grasp had no detectable force | the OpenArm finger collision meshes do not reliably contact small fruit in this build (a 9 cm fruit *is* detected, a 3 cm one is not) | on a closed, centred grasp the fruit is attached to the gripper and carried kinematically (`FruitSpawner.attach`) |
+| `gripper_max_object` excluded most fruit | the earlier 6.2 cm figure came from the wrong face offset | real limit is 0.0758 m, fruit pool capped at 7 cm |
+
+### Verified state
+
+* `scripts/20_pick_place.py`: 6/6 successful pick-and-place cycles.
+* `scripts/36_static_grasp.py`: finger-face geometry measured at the pick pose;
+  the jaw command maps exactly onto the achieved finger separation.
+* Fruit are sorted by their randomly assigned grade into the two bins.
+
+### Honest limitations
+
+* The grasp itself is assisted: the last few centimetres of fruit travel and the
+  closed-grasp attachment are modelled rather than resolved by contact. The
+  approach, jaw motion, arm trajectory, and place are physical.
+* Point tactile still reads zero - the contact view is invalid on this build.
+* The OpenArm gripper cannot hold fruit wider than ~7.6 cm, so the 2-9 cm design
+  range is currently realised as 2-7 cm.

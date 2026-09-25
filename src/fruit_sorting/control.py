@@ -63,6 +63,12 @@ class ArmController:
     #: jaw separation = JAW_SEPARATION_OFFSET + JAW_SEPARATION_PER_JOINT * q
     JAW_SEPARATION_OFFSET = 0.010
     JAW_SEPARATION_PER_JOINT = 2.0
+    #: The finger link origins sit further apart than the gap between the finger
+    #: faces. Measured at the pick pose (scripts/36_static_grasp.py): origins
+    #: 0.098 m apart, faces 0.0758 m apart, so subtract this when converting a
+    #: desired grip gap into a jaw separation. It depends on wrist orientation,
+    #: which is fixed at the pick pose.
+    FINGER_FACE_OFFSET = 0.0222
 
     def __init__(
         self,
@@ -188,8 +194,9 @@ class ArmController:
         )
 
     def gripper_value_for_separation(self, separation: float) -> float:
-        """Finger joint command that opens the jaws to `separation` [m]."""
-        value = (separation - self.JAW_SEPARATION_OFFSET) / self.JAW_SEPARATION_PER_JOINT
+        """Finger joint command whose finger faces span `separation` [m]."""
+        origin_separation = separation + self.FINGER_FACE_OFFSET
+        value = (origin_separation - self.JAW_SEPARATION_OFFSET) / self.JAW_SEPARATION_PER_JOINT
         return float(np.clip(value, self.closed_value, self.open_value))
 
     def ik_step(self, target: np.ndarray) -> float:
@@ -257,7 +264,11 @@ class ArmController:
         full = self.dof_positions()
         full[self.arm_dofs] = np.asarray(config, dtype=float).reshape(-1)
         self.robot.set_dof_positions(full)
-        self.robot.set_dof_position_targets(full)
+        # Only re-target the arm joints. Writing all 22 targets would clobber the
+        # gripper command with whatever the fingers happen to be doing.
+        self.robot.set_dof_position_targets(
+            [full[self.arm_dofs]], dof_indices=self.arm_dofs
+        )
         app_utils.update_app(steps=settle)
         self.sync_command_to_measured()
 

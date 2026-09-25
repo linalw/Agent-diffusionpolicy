@@ -62,17 +62,19 @@ def main() -> int:
     after3 = np.asarray(robot.get_dof_positions().numpy())[0]
     say(f"2D set_dof_positions: q[{target_idx}]={after3[target_idx]:+.4f}")
 
-    # 4) gripper: command the finger joints closed and read back
-    finger_idx = arm.finger_dofs
-    say(f"right finger_dofs={finger_idx}")
-    for value in (0.044, 0.02, 0.005, 0.0):
-        robot.set_dof_position_targets([[value] * len(finger_idx)], dof_indices=finger_idx)
-        app_utils.update_app(steps=40)
-        q = np.asarray(robot.get_dof_positions().numpy())[0]
-        say(
-            f"  gripper cmd={value:.3f} -> q={np.round(q[finger_idx], 4).tolist()} "
-            f"separation={arm.jaw_separation():.4f}"
-        )
+    # 4) gripper: command both grippers closed and read back
+    for side in ("left", "right"):
+        side_arm = ArmController(scene, side)
+        finger_idx = side_arm.finger_dofs
+        say(f"{side} finger_dofs={finger_idx}")
+        for value in (0.044, 0.02, 0.005, 0.0):
+            robot.set_dof_position_targets([[value] * len(finger_idx)], dof_indices=finger_idx)
+            app_utils.update_app(steps=40)
+            q = np.asarray(robot.get_dof_positions().numpy())[0]
+            say(
+                f"  {side} cmd={value:.3f} -> q={np.round(q[finger_idx], 4).tolist()} "
+                f"separation={side_arm.jaw_separation():.4f}"
+            )
 
     app_utils.pause()
     say("DONE")
