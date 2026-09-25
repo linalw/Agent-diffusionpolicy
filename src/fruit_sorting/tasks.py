@@ -20,7 +20,7 @@ import numpy as np
 import isaacsim.core.experimental.utils.app as app_utils
 from isaacsim.core.rendering_manager import RenderingManager
 
-from .common import say
+from .common import say, to_numpy
 from .control import ArmController
 from .dataset import EpisodeMeta, EpisodeRecorder, camera_observation
 from .tactile import TactileReading
@@ -146,6 +146,9 @@ class PickAndPlaceTask:
             SimulationManager.step(steps=1)
             self.spawner.follow(sample, arm.jaw_centre())
             self._record(self._action9(target, arm))
+        if os.environ.get("FRUIT_CARRY_DEBUG") == "1":
+            err = float(np.max(np.abs(arm.joint_positions() - target)))
+            say(f"[task]   carry {name}: joint_err={err:.3f} rad jaw={np.round(arm.jaw_centre(), 3).tolist()}")
 
     # ------------------------------------------------------------------ #
     # Data collection
@@ -185,6 +188,30 @@ class PickAndPlaceTask:
             observation.update(
                 camera_observation(self.scene.camera_sensor, ("rgb", "distance_to_image_plane"))
             )
+            # Target mask: instance-id segmentation, reduced to the fruit the
+            # slow-loop decision selected. This is the 5th visual channel the
+            # design calls for (RGB + depth + mask).
+            try:
+                raw = self.scene.camera_sensor.get_data("instance_id_segmentation")
+                seg = to_numpy(raw)
+                if seg is not None:
+                    seg = np.asarray(seg)
+                    if seg.ndim == 3:
+                        seg = seg[..., 0]
+                    # Map the target fruit's prim path to its rendered instance id
+                    # so the mask channel isolates *this* fruit.
+                    target_id = 0
+                    info = raw[1] if isinstance(raw, tuple) and len(raw) > 1 else {}
+                    labels = info.get("idToLabels", {}) if isinstance(info, dict) else {}
+                    want = self.current_sample.prim_path if self.current_sample else None
+                    for key, value in labels.items():
+                        if want and want in str(value):
+                            target_id = int(key)
+                            break
+                    observation["instance_ids"] = seg.astype(np.int32)
+                    observation["target_instance_id"] = np.array([target_id], dtype=np.int32)
+            except Exception:  # noqa: BLE001
+                pass
         if self.current_sample is not None:
             observation["fruit_position"] = self.spawner.position(self.current_sample).astype(np.float32)
         self.recorder.add(observation, action)
@@ -476,7 +503,16 @@ class PickAndPlaceTask:
 
         # 4. Carry to the bin and release. Each arm only serves its own bin.
         self._carry(arm_name, sample, f"bin{bin_index}_above")
+        if verbose:
+            jaw = arm.jaw_centre()
+            fr = self.spawner.position(sample)
+            say(f"[task]   over bin: jaw={np.round(jaw, 3).tolist()} fruit={np.round(fr, 3).tolist()} "
+                f"target_bin={self.cfg.bin_positions[bin_index]}")
         self._carry(arm_name, sample, f"bin{bin_index}_inside")
+        if verbose:
+            jaw = arm.jaw_centre()
+            fr = self.spawner.position(sample)
+            say(f"[task]   at bin: jaw={np.round(jaw, 3).tolist()} fruit={np.round(fr, 3).tolist()}")
         self.spawner.detach(sample)
         sample.held = False
         for value in np.linspace(fingers, arm.OPEN, 16):

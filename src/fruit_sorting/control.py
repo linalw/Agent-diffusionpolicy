@@ -8,6 +8,7 @@ import numpy as np
 
 import isaacsim.core.experimental.utils.app as app_utils
 from isaacsim.core.experimental.prims import RigidPrim
+from isaacsim.core.simulation_manager import SimulationManager
 
 from .common import say, to_numpy
 
@@ -269,7 +270,8 @@ class ArmController:
         self.robot.set_dof_position_targets(
             [full[self.arm_dofs]], dof_indices=self.arm_dofs
         )
-        app_utils.update_app(steps=settle)
+        for _ in range(settle):
+            SimulationManager.step(steps=1)
         self.sync_command_to_measured()
 
     def capture_hold_pose(self) -> None:
@@ -283,7 +285,7 @@ class ArmController:
         residual = float("inf")
         for _ in range(max_steps):
             residual = self.ik_step(target)
-            app_utils.update_app(steps=steps_per_update)
+            SimulationManager.step(steps=steps_per_update)
             if residual <= tolerance:
                 break
         return residual
@@ -320,7 +322,9 @@ class ArmController:
                 if i % 25 == 0 and i > 0:
                     offset = self.tcp_position() - self.jaw_centre()
                 self.ik_step(target + offset)
-                app_utils.update_app(steps=1)
+                # Physics step, not an app update: an app update renders and
+                # costs ~0.4 s here, which made IK solves take minutes.
+                SimulationManager.step(steps=1)
                 residual = float(np.linalg.norm(self.jaw_centre() - target))
                 if residual <= tolerance:
                     break
@@ -343,7 +347,8 @@ class ArmController:
         full[self.arm_dofs] = arm_target
         self.robot.set_dof_positions(full)
         self.robot.set_dof_position_targets(full)
-        app_utils.update_app(steps=20)
+        for _ in range(20):
+            SimulationManager.step(steps=1)
         self.sync_command_to_measured()
 
     def move_joints(
@@ -365,18 +370,19 @@ class ArmController:
             alpha = i / float(steps)
             command = (1.0 - alpha) * start + alpha * target
             self.robot.set_dof_position_targets([command], dof_indices=self.arm_dofs)
-            app_utils.update_app(steps=1)
+            SimulationManager.step(steps=1)
         error = float(np.max(np.abs(self.joint_positions() - target)))
         for _ in range(settle):
             if error <= tolerance:
                 break
             self.robot.set_dof_position_targets([target], dof_indices=self.arm_dofs)
-            app_utils.update_app(steps=1)
+            SimulationManager.step(steps=1)
             error = float(np.max(np.abs(self.joint_positions() - target)))
         return error
 
     def hold(self, steps: int = 30) -> None:
-        app_utils.update_app(steps=steps)
+        for _ in range(steps):
+            SimulationManager.step(steps=1)
 
     def park_pose(self) -> np.ndarray:
         """A safe resting pose slightly above and behind the belt."""

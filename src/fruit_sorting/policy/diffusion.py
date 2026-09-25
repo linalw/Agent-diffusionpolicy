@@ -31,11 +31,12 @@ class DiffusionSchedule:
 
     # ------------------------------------------------------------------ #
     @torch.no_grad()
-    def ddim_sample(self, model, condition: torch.Tensor, shape: tuple[int, ...],
-                    num_steps: int = 16, eta: float = 0.0) -> torch.Tensor:
-        """Deterministic DDIM sampling; 16 steps is plenty for smooth actions."""
+    def ddim_sample(self, model, condition, shape: tuple[int, ...],
+                    num_steps: int = 16, eta: float = 0.0,
+                    dtype: torch.dtype = torch.float32) -> torch.Tensor:
+        """Deterministic DDIM sampling; 8 steps is plenty for smooth actions."""
         device = self.device
-        sample = torch.randn(shape, device=device)
+        sample = torch.randn(shape, device=device, dtype=dtype)
         times = torch.linspace(
             self.num_train_steps - 1, 0, num_steps, dtype=torch.long, device=device
         )

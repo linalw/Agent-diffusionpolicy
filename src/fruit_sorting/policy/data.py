@@ -8,6 +8,8 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from .skills import label_episode
+
 
 @dataclass
 class Normalizer:
@@ -46,8 +48,8 @@ class Normalizer:
 class EpisodeStore:
     """Loads recorded ``.npz`` episodes and slices observation/action windows."""
 
-    #: Channels fed to the visual encoder: RGB (3) + depth (1).
-    IMAGE_CHANNELS = 4
+    #: Channels fed to the visual encoder: RGB (3) + depth (1) [+ target mask (1)].
+    IMAGE_CHANNELS = 5
 
     def __init__(
         self,
@@ -75,8 +77,19 @@ class EpisodeStore:
         self.episodes: list[dict] = []
         for entry in entries:
             data = np.load(os.path.join(root, entry["file"]))
+            has_mask = "instance_ids" in data.files and "target_instance_id" in data.files
+            skills = None
+            if all(k in data.files for k in ("fruit_position", "finger_opening", "goal")):
+                skills = label_episode(
+                    data["fruit_position"], data["finger_opening"], data["goal"]
+                )
             self.episodes.append(
                 {
+                    "mask": (
+                        (data["instance_ids"] == data["target_instance_id"][..., None]).astype(np.float32)
+                        if has_mask else None
+                    ),
+                    "skills": skills,
                     "rgb": data["image_rgb"],
                     "depth": data["image_distance_to_image_plane"],
                     "joint": data["joint_positions"],
@@ -125,7 +138,12 @@ class EpisodeStore:
             depth = self._downsample(episode["depth"][t - k][..., 0]).astype(np.float32)
             # Depth is metres; clip and normalise into a sane range for the CNN.
             depth = np.clip(depth, 0.0, 3.0) / 3.0
-            frames.append(np.concatenate([rgb, depth[..., None]], axis=-1))
+            channels = [rgb, depth[..., None]]
+            if episode["mask"] is not None:
+                # Target mask channel isolates the fruit the slow loop selected.
+                mask = self._downsample(episode["mask"][t - k]).astype(np.float32)
+                channels.append(mask[..., None])
+            frames.append(np.concatenate(channels, axis=-1))
         image = np.stack(frames, axis=0)  # (obs_horizon, H, W, C)
         image = np.transpose(image, (0, 3, 1, 2))  # (obs_horizon, C, H, W)
 
@@ -138,7 +156,15 @@ class EpisodeStore:
         )
         goal = episode["goal"][t].astype(np.float32)
         action = episode["action"][t : t + self.action_horizon].astype(np.float32)
-        return {"image": image, "proprio": proprio, "goal": goal, "action": action}
+        skills = episode["skills"]
+        skill = int(skills[t]) if skills is not None else 0
+        return {
+            "image": image,
+            "proprio": proprio,
+            "goal": goal,
+            "action": action,
+            "skill": np.int64(skill),
+        }
 
     # ------------------------------------------------------------------ #
     def compute_normalizer(self) -> Normalizer:
@@ -162,6 +188,18 @@ class EpisodeStore:
             goal_mean=goals.mean(0).astype(np.float32),
             goal_std=(goals.std(0) + 1e-6).astype(np.float32),
         )
+
+    def skill_histogram(self) -> dict[str, int]:
+        counts: dict[str, int] = {}
+        from .skills import SKILLS
+
+        for episode in self.episodes:
+            if episode["skills"] is None:
+                continue
+            for value in np.unique(episode["skills"]):
+                name = SKILLS[int(value)]
+                counts[name] = counts.get(name, 0) + int((episode["skills"] == value).sum())
+        return counts
 
     def summary(self) -> str:
         categories: dict[str, int] = {}

@@ -153,13 +153,11 @@ class CleatedBelt:
         start = bx - cfg.belt_size[0] / 2.0 + cfg.cleat_width
         for i, cleat in enumerate(self.cleats):
             x = start + ((i * cfg.cleat_spacing + offset) % self.cleat_span)
+            # Kinematic bodies cannot take velocity commands; writing the pose
+            # each step is what conveys their motion to the fruit.
             cleat.set_world_poses(
                 positions=[[x, by, self.belt_top + cfg.cleat_height / 2.0]],
                 orientations=[[1.0, 0.0, 0.0, 0.0]],
-            )
-            cleat.set_velocities(
-                linear_velocities=[[cfg.belt_speed, 0.0, 0.0]],
-                angular_velocities=[[0.0, 0.0, 0.0]],
             )
 
     def step(self, dt: float) -> None:

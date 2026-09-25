@@ -34,6 +34,7 @@ class WindowDataset(Dataset):
             "action": torch.from_numpy(
                 self.normalizer.normalize_action(sample["action"]).T.copy()
             ),  # (action_dim, horizon)
+            "skill": torch.tensor(int(sample["skill"]), dtype=torch.long),
         }
 
 
@@ -50,6 +51,10 @@ def train(
     val_fraction: float = 0.15,
     seed: int = 0,
     device: str | None = None,
+    num_skills: int = 5,
+    hard_epochs: int = 2,
+    router_loss_weight: float = 0.1,
+    balance_loss_weight: float = 0.01,
 ) -> str:
     torch.manual_seed(seed)
     np.random.seed(seed)
@@ -64,6 +69,7 @@ def train(
     )
     normalizer = store.compute_normalizer()
     print(f"[train] {store.summary()}", flush=True)
+    print(f"[train] skill label histogram: {store.skill_histogram()}", flush=True)
 
     # Split by window for now; with more data this should split by episode.
     total = len(store)
@@ -80,10 +86,11 @@ def train(
     sample = full[0]
     model = ConditionalUNet1D(
         action_dim=sample["action"].shape[0],
-        image_channels=4,
+        image_channels=sample["image"].shape[1] // obs_horizon,
         obs_horizon=obs_horizon,
         goal_dim=sample["goal"].shape[0],
         proprio_dim=sample["proprio"].shape[0],
+        num_skills=num_skills,
     ).to(device)
     schedule = DiffusionSchedule(num_diffusion_steps, device=device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=1e-6)
@@ -95,9 +102,12 @@ def train(
     for epoch in range(epochs):
         model.train()
         running, count = 0.0, 0
+        metrics = {"router_loss": 0.0, "balance": 0.0, "router_acc": 0.0, "seen": 0}
         start = time.time()
+        hard = epoch < hard_epochs
         for batch in train_loader:
             action = batch["action"].to(device)
+            skill = batch["skill"].to(device)
             noise = torch.randn_like(action)
             timesteps = schedule.sample_timesteps(action.shape[0])
             noisy = schedule.add_noise(action, noise, timesteps)
@@ -106,14 +116,30 @@ def train(
                 batch["goal"].to(device),
                 batch["proprio"].to(device),
             )
-            predicted = model.denoise(noisy, condition, timesteps)
+            # Hard routing early (force the expert from the label), soft routing
+            # later so the router learns to switch on its own.
+            predicted = model.denoise(
+                noisy, condition, timesteps, skill_labels=skill if hard else None
+            )
             loss = torch.nn.functional.mse_loss(predicted, noise)
+            logits = model.last_router_logits
+            router_loss = torch.nn.functional.cross_entropy(logits, skill)
+            balance = model.load_balancing_loss(model.last_router_weights)
+            total = loss + router_loss_weight * router_loss
+            if not hard:
+                total = total + balance_loss_weight * balance
             optimizer.zero_grad(set_to_none=True)
-            loss.backward()
+            total.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             optimizer.step()
             running += float(loss.item()) * action.shape[0]
             count += action.shape[0]
+            metrics["router_loss"] += float(router_loss.item()) * action.shape[0]
+            metrics["balance"] += float(balance.item()) * action.shape[0]
+            with torch.no_grad():
+                correct = (logits.argmax(dim=-1) == skill).float().sum().item()
+            metrics["router_acc"] += correct
+            metrics["seen"] += action.shape[0]
 
         model.eval()
         val_running, val_count = 0.0, 0
@@ -134,10 +160,22 @@ def train(
 
         train_loss = running / max(count, 1)
         val_loss = val_running / max(val_count, 1)
-        history.append({"epoch": epoch, "train": train_loss, "val": val_loss})
+        seen = max(metrics["seen"], 1)
+        history.append({
+            "epoch": epoch,
+            "routing": "hard" if hard else "soft",
+            "train": train_loss,
+            "val": val_loss,
+            "router_ce": metrics["router_loss"] / seen,
+            "router_acc": metrics["router_acc"] / seen,
+            "balance": metrics["balance"] / seen,
+        })
         print(
-            f"[train] epoch {epoch + 1}/{epochs} train={train_loss:.4f} val={val_loss:.4f} "
-            f"({time.time() - start:.1f}s)",
+            f"[train] epoch {epoch + 1}/{epochs} "
+            f"{'HARD' if hard else 'SOFT'} routing train={train_loss:.4f} val={val_loss:.4f} "
+            f"router_ce={metrics['router_loss'] / seen:.3f} "
+            f"router_acc={metrics['router_acc'] / seen:.3f} "
+            f"balance={metrics['balance'] / seen:.3f} ({time.time() - start:.1f}s)",
             flush=True,
         )
         if val_loss < best_val:
@@ -148,13 +186,15 @@ def train(
                     "normalizer": normalizer.as_dict(),
                     "config": {
                         "action_dim": int(sample["action"].shape[0]),
-                        "image_channels": 4,
+                        "image_channels": int(sample["image"].shape[1] // obs_horizon),
                         "obs_horizon": obs_horizon,
                         "action_horizon": action_horizon,
                         "goal_dim": int(sample["goal"].shape[0]),
                         "proprio_dim": int(sample["proprio"].shape[0]),
                         "num_diffusion_steps": num_diffusion_steps,
                         "image_size": image_size,
+                        "num_skills": num_skills,
+                        "hard_epochs": hard_epochs,
                     },
                     "val_loss": val_loss,
                 },

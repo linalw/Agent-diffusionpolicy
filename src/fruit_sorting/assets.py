@@ -56,9 +56,12 @@ class SceneConfig:
     0.86 m pedestals.
     """
 
-    # Robot mounting
-    table_top_z: float = 0.75
-    robot_base_z: float = 0.75
+    # Robot mounting. Raised so the fingertips (which hang 0.076 m below the jaw
+    # centre) reach a fruit's equator without clipping the belt: the wrist cannot
+    # descend below ~1.24 m at the pick pose, so the fingertips bottom out at
+    # ~1.164 m, which has to sit just above the belt surface.
+    table_top_z: float = 0.79
+    robot_base_z: float = 0.79
     pedestal_center_xy: tuple[float, float] = (-0.10, 0.0)
     pedestal_size: tuple[float, float] = (0.40, 0.70)
 
@@ -147,7 +150,7 @@ class SceneConfig:
     #: faces. Keep a small margin for off-centre fruit.
     gripper_max_object: float = 0.072
 
-    #: How far above the fruit's centre the jaw centre must sit for the finger
-    #: span to straddle the fruit. Measured in scripts/45_grasp_height_test.py:
-    #: contact stops happening above ~0.06 m and is reliable at 0.03-0.04 m.
-    grasp_palm_offset: float = 0.040
+    #: Distance from the jaw centre down to the fingertips. Put the fingertips at
+    #: the fruit's equator and the fingers straddle it.
+    finger_length: float = 0.076
+    grasp_palm_offset: float = 0.076
