@@ -76,3 +76,78 @@ Consequences for the cell: belt surface at `z = 0.95` m, belt width 0.32 m centr
 
 Point-tactile sensors on the gripper fingers, then a scripted pick-and-place state machine
 to generate demonstrations.
+
+## 2026-09-25 - scripted picking (part 2)
+
+### Cell re-laid out around the real gripper geometry
+
+Measurements from `scripts/21_grasp_geometry.py` and `scripts/31_reach_sweep.py`:
+
+* Jaw separation = `0.010 + 2.0 * finger_joint` m (0.010 m closed, 0.098 m open).
+* The finger links span about **8 cm below** the jaw centre, so the fingers - not
+  the palm - define the grasp height.
+* At the pick pose the jaw centre cannot descend below `z ~ 1.20` m with the
+  wrist orientation that the pose needs.
+* The jaws open along the robot's shoulder axis, so the belt must run along the
+  robot's facing direction: fruit travel **toward** the robot along `-X` and
+  pass between the jaws.
+* The gripper can straddle objects up to ~6.2 cm: 0.098 m opening minus two
+  ~0.033 m thick fingers. Larger fruit need a different gripper.
+
+The cell was rebuilt accordingly: belt surface at `z = 1.15` m, belt 1.6 m long
+along X, bins on 1.00 m pedestals either side at `y = +/-0.44` m, head camera at
+`z = 1.86` m.
+
+### IK
+
+`ArmController` now does 6-DoF damped least-squares IK with an incremental
+command (`_q_cmd`) and a *predicted* task error, so the lagging measured pose no
+longer winds the integrator up. Two indexing details mattered:
+
+* `Articulation.get_jacobian_matrices()` returns one 6 x n_dof block per link
+  **excluding the base link**, so block `k` describes `link_names[k + 1]`
+  (verified against a finite-difference Jacobian in `scripts/19_jacobian_map.py`).
+* `robot.dof_names` interleaves left/right, so the right arm's DOFs are
+  `[1, 3, 5, 7, 9, 11, 13]`, not `[7..13]`.
+
+### Waypoints
+
+`scripts/30_calibrate_waypoints.py` solves and stores `configs/waypoints.json`
+(ready / grasp / grasp_lift / bin_above / bin_inside per arm). All poses solve to
+about 1 cm. Solving order matters: the low grasp pose only converges when the
+solver is warm-started from the ready pose.
+
+### Failures and fixes in this stretch
+
+| Symptom | Cause | Fix |
+| --- | --- | --- |
+| Every teleport silently did nothing | `dof_positions()` returned a **view** onto the warp buffer, so in-place edits were lost | `np.array(...)` copy |
+| Arms stalled at a fixed pose | same aliasing bug | same fix |
+| IK oscillated / ran away | error measured at the lagging pose while integrating the commanded joints | predict the task error with the Jacobian |
+| IK converged to a wrong configuration | local minima from the hanging pose | random restarts, then warm-started ordering |
+| Fruit froze mid-belt | PhysX sleeping bodies ignore conveyor contact forces | sleep threshold 0 + a stalled-fruit keep-alive |
+| Fruit launched across the scene | the keep-alive rewrote velocity every step | only nudge fruit whose speed is below 0.05 m/s |
+| Waypoints solved in the wrong cell | belt/bin heights were below the arm's reachable band | raise the cell, re-measure with `scripts/31_reach_sweep.py` |
+
+### Verified state
+
+* `scripts/32_hold_test.py`: the arm tracks the calibrated `ready` and `grasp`
+  joint configurations to within 0.055 rad and holds the jaw at
+  `(0.339, 0.000, 1.242)` m.
+* `scripts/33_dof_probe.py`: the gripper tracks commands exactly
+  (0.044 -> 9.8 cm, 0.020 -> 5.0 cm, 0.005 -> 2.0 cm, 0.000 -> 1.0 cm).
+* `scripts/20_pick_place.py`: reaches the pick pose in 0.52 s (2 mm residual),
+  tracks the incoming fruit and detects its arrival between the jaws.
+
+### Open issues
+
+1. The gripper close inside `PickAndPlaceTask.run` does not take effect even
+   though the same command works standalone - the finger targets appear to be
+   overwritten (or the loop does not advance physics) after the wait loop.
+2. `GripperTactile` contact view is invalid: `get_net_contact_forces` asserts,
+   so tactile currently reports zero. `Contact`/`IsaacContactSensor` reports
+   `is_valid = False` on this build.
+3. One `app_utils.update_app(steps=1)` advances several hundred milliseconds of
+   simulated time here, so the belt speed is held down to `-0.05 m/s` to keep the
+   fruit inside the jaws for a few control iterations. Properly sub-stepping the
+   control loop would let the belt run at a realistic speed.

@@ -149,7 +149,7 @@ class SortingScene:
 
         # PhysX surface velocity moves whatever rests on the collision surface.
         surface_velocity = PhysxSchema.PhysxSurfaceVelocityAPI.Apply(belt.GetPrim())
-        surface_velocity.CreateSurfaceVelocityAttr().Set(Gf.Vec3f(0.0, cfg.belt_speed, 0.0))
+        surface_velocity.CreateSurfaceVelocityAttr().Set(Gf.Vec3f(cfg.belt_speed, 0.0, 0.0))
 
         # Low side rails keep fruit from drifting off the belt without blocking
         # the downward gripper approach.
@@ -157,20 +157,19 @@ class SortingScene:
         sx, sy, sz = cfg.belt_size
         belt_top = bz + sz / 2.0
         for name, y_sign in (("RailNeg", -1.0), ("RailPos", 1.0)):
-            x_off = -1.0 if name == "RailNeg" else 1.0
             rail = _define_box(
                 self.stage,
                 f"/World/Conveyor/{name}",
-                size=(0.02, sy, 0.04),
-                center=(bx + x_off * (sx / 2.0 + 0.01), by, belt_top + 0.02),
+                size=(sx, 0.02, 0.04),
+                center=(bx, by + y_sign * (sy / 2.0 + 0.01), belt_top + 0.02),
             )
             _set_color(rail, (0.55, 0.56, 0.58))
             UsdPhysics.CollisionAPI.Apply(rail.GetPrim())
 
         # Support legs at both ends of the frame.
         leg_height = bz - sz / 2.0
-        for i, leg_y in enumerate((-sy / 2.0 + 0.08, sy / 2.0 - 0.08)):
-            for j, leg_x in enumerate((bx - sx / 2.0 + 0.05, bx + sx / 2.0 - 0.05)):
+        for i, leg_x in enumerate((bx - sx / 2.0 + 0.08, bx + sx / 2.0 - 0.08)):
+            for j, leg_y in enumerate((by - sy / 2.0 + 0.05, by + sy / 2.0 - 0.05)):
                 leg = _define_box(
                     self.stage,
                     f"/World/Conveyor/Leg{i}{j}",
@@ -178,7 +177,10 @@ class SortingScene:
                     center=(leg_x, leg_y, leg_height / 2.0),
                 )
                 _set_color(leg, (0.30, 0.30, 0.32))
-        say(f"conveyor added, belt surface z={belt_top:.3f}, speed={cfg.belt_speed} m/s, span_y={sy:.2f} m")
+        say(
+            f"conveyor added, belt surface z={belt_top:.3f}, surface velocity="
+            f"{cfg.belt_speed:+.2f} m/s along X, span_x={sx:.2f} m"
+        )
 
     def _add_bins(self) -> None:
         cfg = self.cfg
@@ -288,7 +290,16 @@ class SortingScene:
     # ------------------------------------------------------------------ #
     def start(self, physics_dt: float = 1.0 / 120.0, warmup_steps: int = 60) -> None:
         """Start physics and instantiate the articulation handle."""
+        import carb
+
         from isaacsim.core.simulation_manager import SimulationManager
+
+        # Pin the simulation to a fixed timestep. Otherwise Kit advances physics
+        # by wall-clock time, so a slow frame (camera + sensors + IK) makes the
+        # world jump many physics steps at once and the belt appears to teleport.
+        settings = carb.settings.get_settings()
+        settings.set("/app/player/useFixedTimeStep", True)
+        settings.set("/app/player/fixedTimeStep", physics_dt)
 
         say("setting tensor backend = torch")
         SimulationManager.set_backend("torch")

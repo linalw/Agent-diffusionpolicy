@@ -44,14 +44,16 @@ OPENARM_FINGER_JOINT_MAX = 0.044
 class SceneConfig:
     """Geometry of the sorting cell, in meters, with the robot at the origin.
 
-    The robot faces ``+X``. The conveyor runs along ``Y`` in front of the robot,
-    downstream toward ``+Y``. Bins sit at the far end of the conveyor.
+    The robot faces ``+X``. The conveyor runs along ``X``, end-on to the robot,
+    with fruit travelling toward the robot (``-X``) so they pass between the
+    gripper jaws. Bins sit either side of the belt at the picking station.
 
     Dimensions were calibrated against the real OpenArm workspace measured by
     ``scripts/12_reach_calibration.py``: shoulders at ``(0, +/-0.0935, 1.448)``
-    and a TCP reach radius of ~0.68 m (p90 0.63 m). The TCP cannot go below
-    ``z = 0.90 m``, so the belt surface sits at ``z = 0.95 m`` and the bins are
-    raised on stands.
+    m and a TCP reach radius of ~0.68 m (p90 0.63 m). The TCP cannot descend
+    below ``z = 0.90`` m, and the finger links span about 8 cm *below* the jaw
+    centre, so the belt surface sits at ``z = 1.01`` m and the bins stand on
+    0.86 m pedestals.
     """
 
     # Robot mounting
@@ -60,34 +62,48 @@ class SceneConfig:
     pedestal_center_xy: tuple[float, float] = (-0.10, 0.0)
     pedestal_size: tuple[float, float] = (0.40, 0.70)
 
-    # Conveyor. Width is limited to the reachable band: at belt height the TCP
-    # can only reach |horizontal offset| <= ~0.46 m from the shoulders.
-    belt_center: tuple[float, float, float] = (0.28, 0.0, 0.93)
-    belt_size: tuple[float, float, float] = (0.32, 2.40, 0.06)
-    # Commanded PhysX surface velocity along +Y. Measured belt transport is about
-    # 2/3 of this value because the surface-velocity solver clamps the tangential
-    # force by Coulomb friction, so 0.30 gives ~0.20 m/s of real transport.
-    belt_speed: float = 0.30
+    # Conveyor.
+    #
+    # The OpenArm gripper's jaws open along the shoulder axis (the robot's local
+    # Y). Fruit must therefore travel perpendicular to that, i.e. along the
+    # robot's facing direction X, so a fruit moving down the belt passes between
+    # the jaws instead of hitting one of them. The belt is end-on to the robot.
+    #
+    # Belt surface at z = 1.01 m: the gripper's jaw centre cannot go below
+    # ~0.976 m (the wrist bottom is ~0.898 m and the jaws sit 0.078 m above the
+    # tool point), so fruit must sit high enough for the fingers to straddle them.
+    belt_center: tuple[float, float, float] = (0.95, 0.0, 1.12)
+    belt_size: tuple[float, float, float] = (1.60, 0.34, 0.06)
+    # Commanded PhysX surface velocity. Transport runs at roughly 2/3 of the
+    # command because the surface-velocity solver clamps tangential force by
+    # Coulomb friction. Negative: fruit travel toward the robot (-X).
+    #
+    # Kept deliberately slow: one `app_utils.update_app()` advances several
+    # hundred milliseconds of simulated time on this machine, so a fast belt
+    # would jump past the gripper in a handful of control iterations.
+    belt_speed: float = -0.05
     belt_friction: float = 0.9
+    #: Fraction of the commanded surface velocity that fruit actually reach.
+    transport_efficiency: float = 0.68
 
-    # Fruit spawn / removal window along the belt, and the arm picking window
-    spawn_y: float = -1.05
-    # Recycle fruit before they roll off the downstream end of the belt (y = 1.2).
-    despawn_y: float = 1.05
-    pick_y_range: tuple[float, float] = (-0.35, 0.35)
+    # Fruit spawn / removal window along the belt, and the arm picking window.
+    spawn_x: float = 1.62
+    despawn_x: float = 0.24
+    pick_x: float = 0.34
+    spawn_y_jitter: float = 0.02
     spawn_period_s: float = 1.6
 
     # Output bins (raised on stands so the TCP can reach into them)
-    bin_positions: tuple[tuple[float, float], ...] = ((-0.08, 0.52), (-0.08, -0.52))
+    bin_positions: tuple[tuple[float, float], ...] = ((0.34, 0.44), (0.34, -0.44))
     bin_size_xy: float = 0.28
     bin_height: float = 0.22
-    bin_stand_height: float = 0.80
+    bin_stand_height: float = 1.00
 
     # Head camera (single RGB-D camera mounted on a short mast above the torso,
     # standing in for a humanoid head)
-    head_camera_z: float = 1.72
+    head_camera_z: float = 1.86
     head_camera_forward: float = 0.15
-    head_camera_target: tuple[float, float, float] = (0.34, 0.0, 0.92)
+    head_camera_target: tuple[float, float, float] = (0.60, 0.0, 1.15)
     camera_focal_length: float = 0.016  # 16 mm on a meter stage
     camera_aperture: tuple[float, float] = (0.036, 0.02025)
     camera_resolution: tuple[int, int] = (480, 848)  # (height, width)
@@ -108,3 +124,8 @@ class SceneConfig:
         }
     )
     grades: tuple[str, ...] = ("A", "B", "C")
+
+    #: Largest object the OpenArm 1-DoF parallel gripper can straddle. Measured
+    #: on the asset: at full opening the jaw separation is 0.098 m and each
+    #: finger is ~0.033 m thick, leaving an inner gap of about 0.065 m.
+    gripper_max_object: float = 0.062

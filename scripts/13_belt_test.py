@@ -46,7 +46,7 @@ def main() -> int:
 
     samples = spawner.samples[:3]
     for i, sample in enumerate(samples):
-        spawner.respawn(sample, y=cfg.spawn_y + 0.5 * i)
+        spawner.respawn(sample, y=cfg.spawn_x - 0.5 * i)
         sample.parked = False
         spawner.active.append(sample)
         p = spawner.position(sample)

@@ -122,7 +122,12 @@ class FruitSpawner:
         phys_api.CreateRestitutionAttr().Set(self.rng.uniform(0.02, 0.2))
         UsdShade.MaterialBindingAPI.Apply(sphere.GetPrim()).Bind(phys_material)
 
-        PhysxSchema.PhysxRigidBodyAPI.Apply(sphere.GetPrim()).CreateEnableCCDAttr().Set(True)
+        rigid_api = PhysxSchema.PhysxRigidBodyAPI.Apply(sphere.GetPrim())
+        rigid_api.CreateEnableCCDAttr().Set(True)
+        # A sleeping body ignores the conveyor's contact forces, so fruit would
+        # freeze mid-belt. Disable sleeping entirely for the fruit.
+        rigid_api.CreateSleepThresholdAttr().Set(0.0)
+        rigid_api.CreateStabilizationThresholdAttr().Set(0.0)
 
         self.samples.append(
             FruitSample(
@@ -171,8 +176,8 @@ class FruitSpawner:
         it, so the physics engine never has to resolve an interpenetration.
         """
         cfg = self.cfg
-        y = cfg.spawn_y if y is None else y
-        x = cfg.belt_center[0] + self.rng.uniform(-x_jitter, x_jitter)
+        x = cfg.spawn_x if y is None else y
+        y = self.rng.uniform(-cfg.spawn_y_jitter, cfg.spawn_y_jitter)
         z = cfg.belt_center[2] + cfg.belt_size[2] / 2.0 + sample.diameter / 2.0 + 0.03
         rigid = self._rigids[sample.index]
         rigid.set_world_poses(
@@ -180,7 +185,7 @@ class FruitSpawner:
             orientations=[[1.0, 0.0, 0.0, 0.0]],
         )
         rigid.set_velocities(
-            linear_velocities=[[0.0, cfg.belt_speed, 0.0]],
+            linear_velocities=[[cfg.belt_speed, 0.0, 0.0]],
             angular_velocities=[[0.0, 0.0, 0.0]],
         )
         sample.parked = False
@@ -226,20 +231,48 @@ class FruitSpawner:
         if sim_time >= self._next_release:
             released.append(self.release_next())
             self._next_release = sim_time + self.cfg.spawn_period_s
+        self.enforce_transport()
         for sample in list(self.active):
             if sample.parked:
                 self.active.remove(sample)
                 continue
             pos = self.position(sample)
-            y = float(pos[1])
+            x = float(pos[0])
             # Recycle fruit that reached the end of the line, or that fell off
             # the belt for any reason (small round fruit can escape low rails).
             fell_off = float(pos[2]) < self.cfg.belt_center[2] - 0.25
-            if y > self.cfg.despawn_y or fell_off:
+            if x < self.cfg.despawn_x or fell_off:
                 self.stats["fell_off" if fell_off else "reached_end"] += 1
                 self.park(sample)
                 self.active.remove(sample)
         return released
+
+    def enforce_transport(self) -> None:
+        """Re-assert belt motion on fruit that PhysX has put to sleep.
+
+        A sleeping rigid body stops receiving the conveyor's contact forces and
+        would sit frozen mid-belt, so any fruit resting on the belt with almost
+        no velocity is woken and given the belt's transport velocity.
+        """
+        expected = self.cfg.belt_speed * self.cfg.transport_efficiency
+        for sample in self.active:
+            if sample.parked:
+                continue
+            pos = self.position(sample)
+            on_belt = (
+                abs(pos[2] - (self.cfg.belt_center[2] + self.cfg.belt_size[2] / 2.0 + sample.diameter / 2.0))
+                < 0.02
+            )
+            if not on_belt:
+                continue
+            vel = self.velocity(sample)
+            # Only nudge fruit that have genuinely stalled. Writing the velocity
+            # every step injects energy into the contact and launches the fruit.
+            if abs(float(vel[0])) < 0.05:
+                self._rigids[sample.index].set_velocities(
+                    linear_velocities=[[expected, 0.0, 0.0]],
+                    angular_velocities=[[0.0, 0.0, 0.0]],
+                )
 
     def prime(self, count: int = 2) -> None:
         """Pre-load a few fruit so the belt is not empty at t=0."""
@@ -247,7 +280,7 @@ class FruitSpawner:
             sample = self.release_next()
             # Space the pre-loaded fruit downstream along the belt, not past its
             # upstream end.
-            self.respawn(sample, y=self.cfg.spawn_y + 0.30 * (len(self.active) - 1))
+            self.respawn(sample, y=self.cfg.spawn_x - 0.30 * (len(self.active) - 1))
         app_utils.update_app(steps=1)
 
     def position(self, sample: FruitSample) -> np.ndarray:
