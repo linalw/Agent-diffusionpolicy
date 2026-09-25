@@ -12,7 +12,10 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 
 from isaacsim import SimulationApp
 
-simulation_app = SimulationApp({"headless": True, "width": 640, "height": 480})
+# Set HEADLESS=0 to watch the run in the Isaac Sim GUI.
+HEADLESS = os.environ.get("HEADLESS", "1") == "1"
+
+simulation_app = SimulationApp({"headless": HEADLESS, "width": 640, "height": 480})
 
 import numpy as np
 

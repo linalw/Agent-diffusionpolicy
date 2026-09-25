@@ -114,6 +114,31 @@ FRUIT_CKPT=checkpoints/policy_v1/policy_best.pt FRUIT_EPISODES=10 \
 
 `datasets/` and `checkpoints/` are gitignored; regenerate them with the commands above.
 
+## Seeing it run
+
+**Watch it live.** Every run script takes `HEADLESS=0`, which opens the Isaac Sim
+GUI on the machine's display:
+
+```bash
+HEADLESS=0 $ISAAC_SIM_DIR/python.sh scripts/20_pick_place.py   # scripted cycles
+HEADLESS=0 $ISAAC_SIM_DIR/python.sh scripts/70_record_video.py # and record
+```
+
+**Watch a recording.** `scripts/70_record_video.py` writes:
+
+| File | Content |
+| --- | --- |
+| `logs/video/observer.mp4` | fixed external view of the whole cell |
+| `logs/video/head.mp4` | what the robot's head camera sees (the policy input) |
+| `logs/video/side_by_side.mp4` | both views stacked |
+
+**Look at stills.** `scripts/20_pick_place.py` with `FRUIT_CAPTURE=1` saves
+`logs/pick_observer.png` and `logs/pick_head.png` after the cycles finish.
+
+**Inspect the data.** Each episode in `datasets/*/` is a compressed `.npz` with
+`image_rgb`, `image_distance_to_image_plane`, `joint_positions`, `tactile`,
+`goal`, `action` and `fruit_position`, plus an `index.json` summary.
+
 ## Scripts
 
 | Script | Purpose |
