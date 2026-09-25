@@ -372,3 +372,38 @@ re-planning every 4 steps scored the same 4/10.
 The policy is still below the scripted controller (4/10 vs 6/6). Evidence points
 at demonstration volume rather than architecture or sampling: doubling the data
 doubled the success rate, and extra inference compute did nothing.
+
+## 2026-09-26 - two real grasp blockers, 210 demos, retrain
+
+### Physical grasp
+Long assumed the OpenArm finger colliders simply do not contact fruit. Two real
+causes turned up instead:
+
+1. **Guide rails were 0.09 m apart while the open gripper spans 0.132 m.** The
+   fingers were jammed against the rails at the open position and could never
+   travel inward. Widened to 0.17 m.
+2. **The finger length depends on wrist orientation** - 6.1 cm at the pick pose
+   versus 8 cm hanging. A fixed 7.6 cm constant put the fingertips above small
+   fruit. The offset is now measured live from the finger bounding boxes.
+3. The belt's friction drags a resting fruit ~3 cm downstream while the jaws
+   close, and the fingers are only 6 cm deep, so the jaws closed in front of it.
+   The fruit is now held on the jaw centre line during the close.
+4. The close target grazed the fruit's diameter with no interference; it now
+   includes a realistic 3% squeeze.
+
+Result: contact forces up to 182 N where every earlier attempt read exactly
+0.00 N. Lifting a fruit purely by contact still slips, so the demonstrations keep
+the modelled grasp (documented in FruitSpawner.attach) and the evaluator applies
+the same model so the comparison is like-for-like.
+
+### Data scale
+Three parallel collectors with lighter cameras (240x424, 20 Hz - the policy sees
+96x96 either way) produced **210 successful episodes / 210 attempts** covering all
+8 categories and both arms.
+
+### Retrain
+| Demos | Val loss | Router accuracy | Closed loop |
+| --- | --- | --- | --- |
+| 18 | 0.079 | 0.992 | 2/8 |
+| 45 | 0.037 | 0.998 | 4/10 |
+| 210 | **0.0156** | 0.998 | 5/10 |

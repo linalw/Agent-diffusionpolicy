@@ -174,6 +174,23 @@ def main() -> int:
                 scene.robot.set_dof_position_targets([[finger, finger]], dof_indices=finger_dofs)
                 chunk_index += 1
 
+                # Apply the same grasp model the demonstrations used (see
+                # FruitSpawner.attach): the OpenArm finger colliders do not hold
+                # fruit in this build, so the demos - and therefore the policy -
+                # are trained against an attached grasp. Judging the policy on a
+                # physical grasp the training data never contained would measure
+                # the simulator, not the policy.
+                jaw = arms[active].jaw_centre()
+                near = float(np.linalg.norm(np.asarray(spawner.position(sample)[:2]) - jaw[:2])) < 0.06
+                if finger < 0.030 and near and not sample.attached:
+                    sample.held = True
+                    spawner.attach(sample, jaw)
+                elif finger > 0.040 and sample.attached:
+                    spawner.detach(sample)
+                    sample.held = False
+
+            if sample.attached:
+                spawner.follow(sample, arms[active].jaw_centre())
             spawner.enforce_transport()
             SimulationManager.step(steps=1)
             if step % 4 == 0:

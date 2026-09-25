@@ -28,16 +28,25 @@ implementation: the simulation cell, the data pipeline, and the policy training 
 
 | Stage | Result |
 | --- | --- |
-| Scripted pick-and-place (realistic scene) | **6/6**, ~98% over a 46-attempt collection run |
-| Demonstrations collected | **45 episodes**, 12,963 frames, all 8 categories, both arms |
-| Skill-Routed MoE training | 4.59M parameters, 12 epochs, val loss **0.037**, router accuracy **0.998** |
-| Policy closed-loop evaluation | **4/10** successful cycles |
+| Scripted pick-and-place (realistic scene) | **8/8**, ~98% over a 46-attempt collection run |
+| Demonstrations collected | **210 episodes**, 60,507 frames, all 8 categories, both arms |
+| Skill-Routed MoE training | 4.59M parameters, 15 epochs, val loss **0.0156**, router accuracy **0.998** |
+| Policy closed-loop evaluation | **5/10** successful cycles |
+| Parallel collection throughput | 3 workers x ~1.4 episodes/min (~3x single worker) |
 | Policy inference | 3.4 ms/chunk at DDIM 2, 25 ms at DDIM 16 |
 
-The policy is data-limited: 18 demos gave 2/8 closed loop, 45 demos gave 4/10.
-Using more inference compute does not help (DDIM 16 with re-planning every 4
-steps still scores 4/10), so the bottleneck is demonstration volume, not
-sampling. The design document's own guidance is 400-600 episodes.
+The policy tracks the scripted controller imperfectly: 18 demos gave 2/8, 45 gave
+4/10, 210 give 5/10. Using more inference compute does not help (DDIM 16 with
+re-planning every 4 steps scores the same), so the limit is not sampling.
+
+Two things still separate it from the scripted controller's ~100%:
+
+* demonstration volume - the design document's own guidance is 400-600 episodes
+  per skill, and the curve is still rising at 210;
+* grasp fidelity - the OpenArm finger colliders do not reliably hold fruit in
+  this build, so the demonstrations (and therefore the policy's training target)
+  use a modelled grasp. The evaluator applies the same model so the comparison is
+  like-for-like.
 
 ## Scene realism
 
