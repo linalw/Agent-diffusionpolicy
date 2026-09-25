@@ -77,7 +77,7 @@ class EpisodeStore:
         self.episodes: list[dict] = []
         for entry in entries:
             data = np.load(os.path.join(root, entry["file"]))
-            has_mask = "instance_ids" in data.files and "target_instance_id" in data.files
+            has_mask = "target_mask" in data.files
             skills = None
             if all(k in data.files for k in ("fruit_position", "finger_opening", "goal")):
                 skills = label_episode(
@@ -86,7 +86,7 @@ class EpisodeStore:
             self.episodes.append(
                 {
                     "mask": (
-                        (data["instance_ids"] == data["target_instance_id"][..., None]).astype(np.float32)
+                        (data["target_mask"].astype(np.float32) / 255.0)
                         if has_mask else None
                     ),
                     "skills": skills,

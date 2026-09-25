@@ -208,8 +208,11 @@ class PickAndPlaceTask:
                         if want and want in str(value):
                             target_id = int(key)
                             break
-                    observation["instance_ids"] = seg.astype(np.int32)
-                    observation["target_instance_id"] = np.array([target_id], dtype=np.int32)
+                    # Store the binary target mask (uint8), not the raw int32 id
+                    # map: same information for the policy and ~8x smaller.
+                    observation["target_mask"] = (
+                        (seg == target_id).astype(np.uint8) * 255
+                    )
             except Exception:  # noqa: BLE001
                 pass
         if self.current_sample is not None:

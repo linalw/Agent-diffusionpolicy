@@ -19,7 +19,10 @@ implementation: the simulation cell, the data pipeline, and the policy training 
 | Scripted pick-and-place, sorted by grade into bins | **working (8/8)** |
 | Point-tactile sensing on the grippers | **working** (per-finger contact sensors) |
 | Demonstration collection | **working** (`scripts/40_collect_demos.py`) |
-| Diffusion policy training + closed-loop evaluation | **working (8/10)** |
+| Skill-Routed MoE diffusion policy | **implemented + trained** (router accuracy 0.993) |
+| Inference speed | 3.4 ms/chunk at 2 DDIM steps, 6.5 ms at 4 (budget is 50 ms) |
+| Realistic fruit assets | procedural meshes, per-category shape/colour/friction/density |
+| Cleated belt conveyor with friction transport | working |
 
 ## Results so far
 
@@ -28,6 +31,100 @@ implementation: the simulation cell, the data pipeline, and the policy training 
 | Scripted demonstrations collected | 28/28 successful cycles, all 8 categories, both arms |
 | Diffusion policy training | 3.59M parameters, 8 epochs, best val loss 0.054 |
 | Diffusion policy closed-loop evaluation | **8/10** successful pick-and-place cycles |
+
+## Scene realism
+
+**Fruit** (`src/fruit_sorting/meshes.py`) are procedural meshes, not spheres. Each
+is a surface of revolution generated **at its final size in metres** - never via
+a Scale xform op, because PhysX mis-cooks scaled collision shapes (a scaled
+sphere ends up with no collider that the robot can touch at all; see WORKLOG).
+
+| Category | Profile | Colour | mu | Density |
+| --- | --- | --- | --- | --- |
+| apple | hand-traced silhouette, stem cavity, 5-lobe lobing | red / green / golden | 0.45-0.70 | 850 |
+| pear | narrow neck, bulbous base | yellow-green | 0.45-0.70 | 880 |
+| orange | sphere, dimple, bumpy peel | orange | 0.70-1.00 | 900 |
+| tomato | flattened sphere | red | 0.50-0.75 | 780 |
+| peach | soft dimple | pink-orange | 0.55-0.85 | 820 |
+| kiwi | elongated, strong surface noise | brown | 0.75-1.05 | 900 |
+| lychee | small, bumpy | red-brown | 0.55-0.85 | 850 |
+| strawberry | conical, pointed | deep red | 0.55-0.85 | 700 |
+
+Every instance gets its own deformation, colour jitter and friction sample, so no
+two fruit are identical. Apple and pear also get a stalk. Mass follows the real
+density: a 6.4 cm apple is 94 g, a 3.7 cm strawberry is 15 g.
+
+**Conveyor** (`src/fruit_sorting/conveyor.py`) is a cleated track belt rather
+than a sliding slab:
+
+* a rubber belt surface with `PhysxSurfaceVelocityAPI` plus a friction material,
+  so fruit are carried by **friction**;
+* 8 transverse cleats as kinematic bodies travelling with the belt, which push
+  the fruit along the way a real cleated conveyor does;
+* head and tail pulleys, an aluminium frame, and low guide rails that keep
+  produce on the centre line.
+
+Measured transport is about 0.28 m/s with fruit staying within a few millimetres
+of the centre line.
+
+**Lighting** is a studio setup: sky dome, a 2.5-degree sun with soft shadows, a
+large rectangular fill panel, a concrete floor and a backdrop wall.
+
+## Policy architecture
+
+The policy follows the design discussion rather than a single monolithic net:
+
+```
+head-camera RGB + depth + target mask   goal: pose, velocity, size, bin
+              │                                    │
+        VisualEncoder                        ConditionEncoder  ──┐
+              └──────────────┬───────────────────────┘            │
+                       condition vector                         proprioception
+                             │                                    │
+                    Skill Router (5 classes)                      │
+                             │                                    │
+     action chunk → shared 1-D UNet backbone ←─────────────────────┘
+                             │
+          + Σ_k w_k · Expert_k(features)      (residual adapters)
+                             │
+                        predicted noise
+```
+
+* **Skill Router**: 5 classes (approach / grasp / lift / place / recovery).
+  Labels come from robot state rules in `policy/skills.py` - no manual annotation.
+* **Experts**: lightweight residual adapters initialised as no-ops, so the routed
+  model starts identical to the shared backbone.
+* **Training**: first 2 epochs **hard routing** (the labelled expert is forced),
+  then **soft routing** with a router cross-entropy and a load-balancing loss.
+
+Measured training run (26 episodes, 6379 windows, 4.59M parameters):
+
+| Epoch | Routing | Router accuracy | Val loss |
+| --- | --- | --- | --- |
+| 1 | hard | 0.536 | 0.169 |
+| 2 | hard | 0.770 | 0.115 |
+| 3 | soft | 0.923 | 0.096 |
+| 5 | soft | 0.989 | 0.076 |
+| 8 | soft | **0.993** | **0.056** |
+
+## Inference speed
+
+`scripts/80_benchmark_policy.py` on the RTX 5090, single action chunk:
+
+| Variant | ms/chunk | Control rate if re-planned every step |
+| --- | --- | --- |
+| eager fp32, DDIM 16 | 25.2 | 40 Hz |
+| eager fp32, DDIM 8 | 12.8 | 78 Hz |
+| eager fp32, DDIM 4 | 6.5 | 155 Hz |
+| eager fp32, DDIM 2 | 3.4 | 299 Hz |
+| fp16, DDIM 8 | 13.3 | 75 Hz |
+| torch.compile, DDIM 8 | 12.4 | 81 Hz |
+
+The dominant lever is the DDIM step count, not precision: this model is small
+enough that fp16 and `torch.compile` are overhead-bound. Because the policy
+produces an action chunk and only re-plans every N steps, the amortised cost is
+`ms/chunk / N` - at DDIM 8 with N = 8 that is **1.6 ms per control step**, far
+inside the 50 ms / 20 Hz sorting budget.
 
 ## Robot choice
 

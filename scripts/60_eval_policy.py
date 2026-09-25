@@ -128,8 +128,24 @@ def main() -> int:
                 depth = scene.camera_sensor.get_data("distance_to_image_plane")
                 rgb = np.asarray(rgb[0].numpy()) if rgb is not None else None
                 depth = np.asarray(depth[0].numpy()) if depth is not None else None
+                mask = None
+                if policy.config["image_channels"] == 5:
+                    # Same target-mask channel the demonstrations recorded.
+                    raw = scene.camera_sensor.get_data("instance_id_segmentation")
+                    seg = np.asarray(raw[0].numpy()) if raw is not None else None
+                    if seg is not None:
+                        if seg.ndim == 3:
+                            seg = seg[..., 0]
+                        info = raw[1] if isinstance(raw, tuple) and len(raw) > 1 else {}
+                        labels = info.get("idToLabels", {}) if isinstance(info, dict) else {}
+                        target_id = 0
+                        for key, value in labels.items():
+                            if sample.prim_path in str(value):
+                                target_id = int(key)
+                                break
+                        mask = (seg == target_id).astype(np.float32)
                 if rgb is not None and depth is not None:
-                    policy.push_frame(rgb, depth)
+                    policy.push_frame(rgb, depth, mask)
 
             if chunk is None or chunk_index >= EXECUTE_STEPS:
                 if policy.ready:
@@ -167,9 +183,13 @@ def main() -> int:
             # Hand the fruit into the jaws once it reaches the pick station, the
             # same transfer the demonstrations used.
             if not handoff_done and float(pos[0]) <= 0.44:
+                # Match the demonstrations: hand the fruit to the jaw centre the
+                # policy actually produced, not a hardcoded station.
+                jaw = arms[active].jaw_centre()
                 spawner.place(
                     sample,
-                    np.array([cfg.pick_x, 0.0, belt_top + target["diameter"] / 2.0 + 0.002]),
+                    np.array([float(jaw[0]), float(jaw[1]),
+                              belt_top + target["diameter"] / 2.0 + 0.002]),
                 )
                 sample.held = True
                 for _ in range(20):

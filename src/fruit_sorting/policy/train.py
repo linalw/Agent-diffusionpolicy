@@ -86,7 +86,7 @@ def train(
     sample = full[0]
     model = ConditionalUNet1D(
         action_dim=sample["action"].shape[0],
-        image_channels=sample["image"].shape[1] // obs_horizon,
+        image_channels=sample["image"].shape[1],
         obs_horizon=obs_horizon,
         goal_dim=sample["goal"].shape[0],
         proprio_dim=sample["proprio"].shape[0],
@@ -186,7 +186,7 @@ def train(
                     "normalizer": normalizer.as_dict(),
                     "config": {
                         "action_dim": int(sample["action"].shape[0]),
-                        "image_channels": int(sample["image"].shape[1] // obs_horizon),
+                        "image_channels": int(sample["image"].shape[1]),
                         "obs_horizon": obs_horizon,
                         "action_horizon": action_horizon,
                         "goal_dim": int(sample["goal"].shape[0]),

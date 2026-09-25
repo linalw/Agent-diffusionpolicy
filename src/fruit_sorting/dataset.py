@@ -68,6 +68,15 @@ class EpisodeRecorder:
         if not self._frames:
             self.meta = None
             return None
+        if not success:
+            # Failed attempts would otherwise overwrite the previous attempt's
+            # file, since the index is the success count.
+            self.meta = None
+            self._frames = []
+            return None
+        if not self._frames:
+            self.meta = None
+            return None
 
         self.meta.success = success
         self.meta.notes = list(notes or [])
