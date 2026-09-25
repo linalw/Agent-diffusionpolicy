@@ -21,6 +21,10 @@ import isaacsim.core.experimental.utils.app as app_utils
 
 from .common import say
 from .control import ArmController
+from .dataset import EpisodeMeta, EpisodeRecorder, camera_observation
+from .tactile import TactileReading
+
+_EMPTY_TACTILE = TactileReading(side="none")
 
 
 @dataclass
@@ -67,6 +71,10 @@ class PickAndPlaceTask:
         }
         self.belt_top = cfg.belt_center[2] + cfg.belt_size[2] / 2.0
         self.waypoints = self._load_waypoints(waypoint_path)
+        self.recorder: EpisodeRecorder | None = None
+        self.current_sample = None
+        self.current_arm = "left"
+        self.current_goal = np.zeros(8, dtype=np.float32)
         for arm in self.arms.values():
             arm.set_gripper(arm.OPEN)
 
@@ -127,10 +135,54 @@ class PickAndPlaceTask:
             arm.robot.set_dof_position_targets([command], dof_indices=arm.arm_dofs)
             SimulationManager.step(steps=1)
             self.spawner.follow(sample, arm.jaw_centre())
+            self._record(self._action9(command, arm))
         for _ in range(40):
             arm.robot.set_dof_position_targets([target], dof_indices=arm.arm_dofs)
             SimulationManager.step(steps=1)
             self.spawner.follow(sample, arm.jaw_centre())
+            self._record(self._action9(target, arm))
+
+    # ------------------------------------------------------------------ #
+    # Data collection
+    # ------------------------------------------------------------------ #
+    @staticmethod
+    def _action9(arm_config: np.ndarray, arm, finger_value: float | None = None) -> np.ndarray:
+        """Pack an action as 7 arm joints + 2 finger joints."""
+        value = arm.finger_opening() if finger_value is None else float(finger_value)
+        return np.concatenate(
+            [np.asarray(arm_config, dtype=np.float32).reshape(-1)[:7], [value, value]]
+        ).astype(np.float32)
+
+    def _record(self, action: np.ndarray | None = None) -> None:
+        """Sample one training frame if a recorder is attached."""
+        if self.recorder is None or not self.recorder.recording:
+            return
+        if not self.recorder.tick():
+            return
+        # Actions are always 9-D: 7 arm joints plus the two finger joints.
+        if action is None or np.asarray(action).shape[-1] != 9:
+            return
+        arm = self.arms[self.current_arm]
+        observation: dict = {
+            "joint_positions": arm.dof_positions().astype(np.float32),
+            "finger_opening": np.array([arm.finger_opening()], dtype=np.float32),
+            "goal": self.current_goal,
+        }
+        tactile = self.tactile.read()
+        observation["tactile"] = np.array(
+            [
+                tactile.get("left", _EMPTY_TACTILE).normal_force,
+                tactile.get("right", _EMPTY_TACTILE).normal_force,
+            ],
+            dtype=np.float32,
+        )
+        if self.scene.camera_sensor is not None:
+            observation.update(
+                camera_observation(self.scene.camera_sensor, ("rgb", "distance_to_image_plane"))
+            )
+        if self.current_sample is not None:
+            observation["fruit_position"] = self.spawner.position(self.current_sample).astype(np.float32)
+        self.recorder.add(observation, action)
 
     # ------------------------------------------------------------------ #
     # Helpers
@@ -201,6 +253,28 @@ class PickAndPlaceTask:
         arm_name = "left" if bin_index == 0 else "right"
         arm = self.arms[arm_name]
         result.arm = arm_name
+        self.current_arm = arm_name
+        self.current_sample = sample
+        self.current_goal = np.array(
+            [
+                *np.asarray(state["position"], dtype=np.float32),
+                *np.asarray(state["velocity"], dtype=np.float32),
+                float(sample.diameter),
+                float(bin_index),
+            ],
+            dtype=np.float32,
+        )
+        if self.recorder is not None:
+            self.recorder.begin(
+                EpisodeMeta(
+                    index=int(os.environ.get("FRUIT_EPISODE_INDEX", "0")),
+                    category=sample.category,
+                    grade=sample.grade,
+                    arm=arm_name,
+                    bin_index=bin_index,
+                    diameter=sample.diameter,
+                )
+            )
         if verbose:
             say(
                 f"[task] target {sample.category} (grade {sample.grade}, "
@@ -289,6 +363,7 @@ class PickAndPlaceTask:
             self.spawner.enforce_transport()
             arm.robot.set_dof_position_targets([grasp_config], dof_indices=arm.arm_dofs)
             SimulationManager.step(steps=1)
+            self._record(self._action9(grasp_config, arm))
             if step % 40 == 0:
                 app_utils.update_app(steps=0)
         if verbose:
@@ -303,6 +378,7 @@ class PickAndPlaceTask:
         for _ in range(30):
             arm.robot.set_dof_position_targets([grasp_config], dof_indices=arm.arm_dofs)
             SimulationManager.step(steps=1)
+            self._record(self._action9(grasp_config, arm))
 
         # 2. Close the gripper onto the fruit.
         # Hand the fruit over to the gripper: stop the belt from driving it so
@@ -322,8 +398,10 @@ class PickAndPlaceTask:
         for value in np.linspace(arm.OPEN, fingers, 24):
             arm.set_gripper(float(value))
             SimulationManager.step(steps=2)
+            self._record(self._action9(grasp_config, arm, float(value)))
         for _ in range(40):
             SimulationManager.step(steps=1)
+            self._record(self._action9(grasp_config, arm, float(fingers)))
         # Represent the closed grasp by attaching the fruit to the gripper (see
         # FruitSpawner.attach for why this is needed in this build).
         self.spawner.attach(sample, arm.jaw_centre())
@@ -378,4 +456,7 @@ class PickAndPlaceTask:
         )
         if verbose:
             say(f"[task] released at {np.round(pos, 3).tolist()}, placed={result.placed}")
+        if self.recorder is not None:
+            self.recorder.save(result.success, result.notes)
+        self.current_sample = None
         return result

@@ -16,9 +16,10 @@ implementation: the simulation cell, the data pipeline, and the policy training 
 | Sorting cell: pedestal, conveyor with surface velocity, output bins | built and verified |
 | Head RGB-D camera (single camera, wide FOV) | capturing rgb + depth + instance ids |
 | Randomized fruit on the moving belt | spawning, transporting, recycling |
-| Scripted pick-and-place, sorted by grade into bins | **working (6/6)** |
+| Scripted pick-and-place, sorted by grade into bins | **working (8/8)** |
 | Point-tactile sensing on the grippers | **working** (per-finger contact sensors) |
-| Demonstration collection + diffusion policy | not yet (planned) |
+| Demonstration collection | **working** (`scripts/40_collect_demos.py`) |
+| Diffusion policy training | not yet (next step) |
 
 ## Robot choice
 
@@ -96,6 +97,7 @@ Set `HTTP_PROXY` / `HTTPS_PROXY` / `ALL_PROXY` first if the asset server is slow
 | `scripts/31_reach_sweep.py` | Reachable jaw heights at the pick pose |
 | `scripts/32_hold_test.py` | Hold a waypoint; verify joint tracking |
 | `scripts/36_static_grasp.py` | Grasp geometry and finger-face mapping |
+| `scripts/40_collect_demos.py` | Collect scripted demonstrations into `datasets/demos` |
 
 ## Package layout
 

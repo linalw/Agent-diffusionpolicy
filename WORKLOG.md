@@ -217,3 +217,23 @@ right arm.
 
 Measured grasp forces during pick cycles: 4.95 N for a 3.1 cm fruit up to
 15.7 N for a 6.7 cm fruit, with contact counts of 1-2 fingers.
+
+## 2026-09-25 - demonstration collection
+
+`scripts/40_collect_demos.py` runs the scripted picker and records every cycle.
+Each episode is a compressed `.npz` in `datasets/demos` plus an entry in
+`index.json`:
+
+| Field | Shape | Meaning |
+| --- | --- | --- |
+| `image_rgb` | (T, 480, 848, 3) uint8 | head camera RGB |
+| `image_distance_to_image_plane` | (T, 480, 848, 1) float32 | head camera depth |
+| `joint_positions` | (T, 22) | all DOFs, proprioception |
+| `finger_opening` | (T, 1) | gripper state |
+| `tactile` | (T, 2) | left/right finger contact force [N] |
+| `goal` | (T, 8) | target pose (3) + velocity (3) + diameter (1) + bin (1) |
+| `fruit_position` | (T, 3) | for reward/eval only |
+| `action` | (T, 9) | 7 arm joint targets + 2 finger targets |
+
+Sampling is every 4 physics steps (30 Hz). Verified with two episodes of 306 and
+361 frames, both successful.
