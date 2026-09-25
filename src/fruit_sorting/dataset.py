@@ -32,8 +32,10 @@ class EpisodeMeta:
 class EpisodeRecorder:
     """Samples observations and actions at a fixed decimation of the physics rate."""
 
-    def __init__(self, out_dir: str = "datasets/demos", decimation: int = 4):
+    def __init__(self, out_dir: str = "datasets/demos", decimation: int | None = None):
         self.out_dir = out_dir
+        if decimation is None:
+            decimation = int(os.environ.get("FRUIT_DECIMATION", "4"))
         self.decimation = max(1, int(decimation))
         self._counter = 0
         self._frames: list[dict] = []

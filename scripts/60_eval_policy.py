@@ -120,6 +120,8 @@ def main() -> int:
         chunk: np.ndarray | None = None
         chunk_index = 0
         handoff_done = False
+        lifted = False
+        belt_rest = belt_top + target["diameter"] / 2.0
         for step in range(1500):
             # Observation.
             # Match the 30 Hz decimation used when recording the demonstrations.
@@ -197,6 +199,8 @@ def main() -> int:
                 handoff_done = True
                 continue
 
+            if float(pos[2]) > belt_rest + 0.05:
+                lifted = True
             if float(pos[2]) < belt_top - 0.25:
                 break
 
@@ -204,7 +208,10 @@ def main() -> int:
             np.linalg.norm(np.asarray(spawner.position(sample)[:2]) - np.asarray(cfg.bin_positions[bin_index]))
         ) < 0.25
         results.append(placed)
-        say(f"[eval] episode {len(results) - 1}: placed={placed}")
+        say(
+            f"[eval] episode {len(results) - 1}: handoff={handoff_done} "
+            f"lifted={lifted} placed={placed}"
+        )
 
     success = sum(1 for r in results if r)
     say(f"[eval] policy success {success}/{len(results)} (attempts={attempts})")

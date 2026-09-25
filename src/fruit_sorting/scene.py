@@ -248,7 +248,10 @@ class SortingScene:
             if a.strip()
         ]
         resolution = tuple(
-            int(v) for v in os.environ.get("FRUIT_CAMERA_RES", f"{cfg.camera_resolution[0]},{cfg.camera_resolution[1]}").split(",")
+            int(v) for v in os.environ.get(
+                "FRUIT_CAMERA_RES",
+                f"{cfg.camera_resolution[0]},{cfg.camera_resolution[1]}",
+            ).split(",")
         )
         eye = (cfg.head_camera_forward, 0.0, cfg.head_camera_z)
         target = cfg.head_camera_target
