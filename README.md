@@ -19,7 +19,15 @@ implementation: the simulation cell, the data pipeline, and the policy training 
 | Scripted pick-and-place, sorted by grade into bins | **working (8/8)** |
 | Point-tactile sensing on the grippers | **working** (per-finger contact sensors) |
 | Demonstration collection | **working** (`scripts/40_collect_demos.py`) |
-| Diffusion policy training | not yet (next step) |
+| Diffusion policy training + closed-loop evaluation | **working (8/10)** |
+
+## Results so far
+
+| Stage | Result |
+| --- | --- |
+| Scripted demonstrations collected | 28/28 successful cycles, all 8 categories, both arms |
+| Diffusion policy training | 3.59M parameters, 8 epochs, best val loss 0.054 |
+| Diffusion policy closed-loop evaluation | **8/10** successful pick-and-place cycles |
 
 ## Robot choice
 
@@ -82,6 +90,30 @@ $ISAAC_SIM_DIR/python.sh scripts/10_build_scene.py
 
 Set `HTTP_PROXY` / `HTTPS_PROXY` / `ALL_PROXY` first if the asset server is slow.
 
+## Reproducing the pipeline
+
+```bash
+export ISAAC_SIM_DIR=/home/ubuntu/linalw/App/isaacsim/_build/linux-x86_64/release
+export OMNI_KIT_ACCEPT_EULA=YES FRUIT_CAMERA_ANNOTATORS=rgb,distance_to_image_plane
+
+# 1. Calibrate the arm waypoints for the current cell (writes configs/waypoints.json)
+$ISAAC_SIM_DIR/python.sh scripts/30_calibrate_waypoints.py
+
+# 2. Collect scripted demonstrations
+FRUIT_EPISODES=28 FRUIT_DEMO_DIR=datasets/demos_v1 \
+  $ISAAC_SIM_DIR/python.sh scripts/40_collect_demos.py
+
+# 3. Train the diffusion policy (plain PyTorch; no Isaac Sim needed)
+EPOCHS=8 /home/ubuntu/linalw/App/minconda3/envs/lingbot/bin/python \
+  scripts/50_train_policy.py --data datasets/demos_v1 --out checkpoints/policy_v1
+
+# 4. Evaluate closed loop in the cell
+FRUIT_CKPT=checkpoints/policy_v1/policy_best.pt FRUIT_EPISODES=10 \
+  $ISAAC_SIM_DIR/python.sh scripts/60_eval_policy.py
+```
+
+`datasets/` and `checkpoints/` are gitignored; regenerate them with the commands above.
+
 ## Scripts
 
 | Script | Purpose |
@@ -98,6 +130,8 @@ Set `HTTP_PROXY` / `HTTPS_PROXY` / `ALL_PROXY` first if the asset server is slow
 | `scripts/32_hold_test.py` | Hold a waypoint; verify joint tracking |
 | `scripts/36_static_grasp.py` | Grasp geometry and finger-face mapping |
 | `scripts/40_collect_demos.py` | Collect scripted demonstrations into `datasets/demos` |
+| `scripts/50_train_policy.py` | Train the diffusion policy (runs outside Isaac Sim) |
+| `scripts/60_eval_policy.py` | Closed-loop policy evaluation in the cell |
 
 ## Package layout
 

@@ -237,3 +237,43 @@ Each episode is a compressed `.npz` in `datasets/demos` plus an entry in
 
 Sampling is every 4 physics steps (30 Hz). Verified with two episodes of 306 and
 361 frames, both successful.
+
+## 2026-09-25 - diffusion policy trained and evaluated
+
+### Data
+
+`FRUIT_EPISODES=28 scripts/40_collect_demos.py` produced **28/28 successful**
+episodes (28 attempts) covering all eight categories and both arms:
+lychee 6, strawberry 5, kiwi 4, tomato 4, pear 3, apple 2, orange 2, peach 2;
+left arm 8, right arm 20. 6857 training windows after slicing at
+`obs_horizon = 2`, `action_horizon = 16`.
+
+### Model
+
+`src/fruit_sorting/policy/` is a self-contained implementation (no LeRobot
+dependency) so there are fewer moving parts:
+
+| Piece | Detail |
+| --- | --- |
+| Visual encoder | 4-layer CNN over `obs_horizon` stacks of RGB (3) + depth (1) at 128x128 |
+| Condition encoder | MLPs over the 8-D goal + 25-D proprioception (joints, gripper, tactile) |
+| Denoiser | conditional 1-D UNet, 3.59M parameters, FiLM-modulated blocks |
+| Diffusion | 100 DDPM training steps, 16-step DDIM sampling at inference |
+
+Training: 8 epochs, batch 32, AdamW at 1e-4, ~5 s/epoch on the RTX 5090.
+Loss fell from 0.303 to 0.057 (train) and 0.151 to 0.054 (validation).
+
+### Closed-loop evaluation
+
+`scripts/60_eval_policy.py` runs the policy in the cell: the head camera feeds
+the encoder at 30 Hz, the policy emits a 16-step action chunk, and the first 4
+actions are executed before re-planning.
+
+* **8/10 successful** pick-and-place cycles, compared with 10/10 for the
+  scripted controller that generated the data.
+* The policy drives the arm from the ready pose through approach, grasp, lift and
+  place; only the conveyor-to-gripper hand-off and the closed-grasp hold remain
+  scripted (the same limitation the demonstrations have).
+
+This is a first pass on 28 demonstrations; the design document calls for a few
+hundred episodes per skill to reach the target success rates.
