@@ -28,9 +28,16 @@ implementation: the simulation cell, the data pipeline, and the policy training 
 
 | Stage | Result |
 | --- | --- |
-| Scripted demonstrations collected | 28/28 successful cycles, all 8 categories, both arms |
-| Diffusion policy training | 3.59M parameters, 8 epochs, best val loss 0.054 |
-| Diffusion policy closed-loop evaluation | **8/10** successful pick-and-place cycles |
+| Scripted pick-and-place (realistic scene) | **6/6**, ~98% over a 46-attempt collection run |
+| Demonstrations collected | **45 episodes**, 12,963 frames, all 8 categories, both arms |
+| Skill-Routed MoE training | 4.59M parameters, 12 epochs, val loss **0.037**, router accuracy **0.998** |
+| Policy closed-loop evaluation | **4/10** successful cycles |
+| Policy inference | 3.4 ms/chunk at DDIM 2, 25 ms at DDIM 16 |
+
+The policy is data-limited: 18 demos gave 2/8 closed loop, 45 demos gave 4/10.
+Using more inference compute does not help (DDIM 16 with re-planning every 4
+steps still scores 4/10), so the bottleneck is demonstration volume, not
+sampling. The design document's own guidance is 400-600 episodes.
 
 ## Scene realism
 

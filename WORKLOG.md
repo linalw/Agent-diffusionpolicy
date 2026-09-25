@@ -326,3 +326,49 @@ waits at the start of an episode.
 `scripts/70_record_video.py` writes `logs/video/{observer,head,side_by_side}.mp4`
 so the behaviour can be watched without a display. The observer camera and the
 robot's head camera are captured every 4 physics steps (30 fps).
+
+## 2026-09-26 - realistic scene, routed MoE, and the carry fix
+
+### Scene
+* Fruit are procedural meshes at final size (never a Scale op - PhysX mis-cooks
+  scaled colliders). Apple has a hand-traced silhouette with a stem cavity and
+  5-lobe lobing; per-category colour, roughness, friction and density; a stalk on
+  apple and pear; per-instance deformation.
+* Conveyor is a cleated track: rubber surface with PhysX surface velocity plus a
+  friction material, 8 kinematic cleats that physically push fruit, head and tail
+  pulleys, an aluminium frame and guide rails. Transport is friction-driven at
+  about 0.28 m/s with the fruit staying on the centre line.
+* Lighting is a studio rig: sky dome, 2.5-degree soft sun, rectangular fill,
+  concrete floor, backdrop.
+
+### Carry fix (the big one)
+`_carry` interpolated arm joints in a straight line from the pick pose to the
+bin. That line passes through configurations the arm cannot reach, so it stalled
+with ~1.6 rad of joint error and the release missed the bin. Switching the carry
+to Cartesian IK (the same solver the calibration uses) put the jaw within 3-6 cm
+of the bin pose and took the scripted picker from ~50% to 6/6. A 46-attempt
+collection run then yielded 45 successful episodes.
+
+### Routed MoE
+`Skill Router (5 classes) + 5 residual experts + shared 1-D UNet decoder`, with
+hard routing for the first 2 epochs then soft routing with router cross-entropy
+and a load-balancing loss. Skill labels are rule-derived from robot state, so no
+manual annotation.
+
+| Demos | Val loss | Router accuracy | Closed-loop |
+| --- | --- | --- | --- |
+| 18 | 0.079 | 0.992 | 2/8 |
+| 45 | 0.037 | 0.998 | 4/10 |
+
+### Speed
+DDIM step count is the dominant lever, not precision: 25 ms/chunk at 16 steps,
+12.8 at 8, 6.5 at 4, 3.4 at 2. fp16 (13.3) and torch.compile (12.4) are
+overhead-bound on a model this small. With chunk reuse the amortised cost is
+`ms/chunk / N`, so DDIM 8 with N=8 is 1.6 ms per control step, ~30x inside the
+50 ms / 20 Hz budget. That headroom does not buy accuracy here - DDIM 16 with
+re-planning every 4 steps scored the same 4/10.
+
+### Known gap
+The policy is still below the scripted controller (4/10 vs 6/6). Evidence points
+at demonstration volume rather than architecture or sampling: doubling the data
+doubled the success rate, and extra inference compute did nothing.
