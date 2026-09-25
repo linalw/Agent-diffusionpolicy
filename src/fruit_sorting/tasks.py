@@ -190,13 +190,15 @@ class PickAndPlaceTask:
     # ------------------------------------------------------------------ #
     # Main routine
     # ------------------------------------------------------------------ #
-    def run(self, state: dict, bin_xy: tuple[float, float], lead_time: float = 1.2,
+    def run(self, state: dict, bin_index: int, lead_time: float = 1.2,
             verbose: bool = True) -> EpisodeResult:
         sample = next(s for s in self.spawner.samples if s.index == state["index"])
         result = EpisodeResult(
             sample_index=sample.index, category=sample.category, grade=sample.grade
         )
-        arm_name = self.choose_arm(float(state["position"][1]))
+        # Each arm only reaches the bin on its own side (crossing the body is
+        # outside the workspace), so the destination bin decides which arm picks.
+        arm_name = "left" if bin_index == 0 else "right"
         arm = self.arms[arm_name]
         result.arm = arm_name
         if verbose:
@@ -249,6 +251,8 @@ class PickAndPlaceTask:
         # Closing on a moving fruit is unreliable here: one app frame can cover
         # hundreds of milliseconds of belt travel.
         jaw_x = float(arm.jaw_centre()[0])
+        last_x = None
+        stalled = 0
         for step in range(8000):
             pos = self.spawner.position(sample)
             dx = float(pos[0]) - jaw_x
@@ -260,7 +264,12 @@ class PickAndPlaceTask:
             if dx <= 0.0:
                 arrived = True
                 break
-            if dx <= 0.06:
+            if last_x is not None and abs(float(pos[0]) - last_x) < 5e-4:
+                stalled += 1
+            else:
+                stalled = 0
+            last_x = float(pos[0])
+            if dx <= 0.06 or stalled > 150:
                 # The finger collision geometry blocks a fruit arriving along the
                 # belt, so hand it the last few centimetres directly into the
                 # jaws. This models the conveyor-to-gripper transfer; everything
@@ -352,7 +361,6 @@ class PickAndPlaceTask:
             return result
 
         # 4. Carry to the bin and release. Each arm only serves its own bin.
-        bin_index = 0 if arm_name == "left" else 1
         self._carry(arm_name, sample, f"bin{bin_index}_above")
         self._carry(arm_name, sample, f"bin{bin_index}_inside")
         self.spawner.detach(sample)

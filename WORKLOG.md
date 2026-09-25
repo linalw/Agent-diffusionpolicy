@@ -175,10 +175,21 @@ orange, peach, pear and strawberry, each sorted into the correct bin.
 
 ### Verified state
 
-* `scripts/20_pick_place.py`: 6/6 successful pick-and-place cycles.
+* `scripts/20_pick_place.py`: **8/8 successful** pick-and-place cycles, each
+  fruit sorted into the bin matching its randomly assigned grade (both arms and
+  both bins used).
 * `scripts/36_static_grasp.py`: finger-face geometry measured at the pick pose;
   the jaw command maps exactly onto the achieved finger separation.
 * Fruit are sorted by their randomly assigned grade into the two bins.
+* `logs/pick_head.png` shows the head camera's view: the conveyor lane with a
+  bin on each side and sorted fruit in both.
+
+### Sorting logic
+
+The destination bin decides which arm picks, because each arm can only reach the
+bin on its own side (cross-body placement is outside the workspace). Grade A goes
+to the `+Y` bin with the left arm; grades B and C go to the `-Y` bin with the
+right arm.
 
 ### Honest limitations
 

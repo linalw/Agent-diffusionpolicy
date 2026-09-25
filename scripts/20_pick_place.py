@@ -18,11 +18,12 @@ import numpy as np
 
 import isaacsim.core.experimental.utils.app as app_utils
 from fruit_sorting.assets import SceneConfig
-from fruit_sorting.common import install_failure_handler, say
+from fruit_sorting.common import install_failure_handler, look_at_quat, say
 from fruit_sorting.fruits import FruitSpawner
 from fruit_sorting.scene import SortingScene
 from fruit_sorting.tactile import GripperTactile
 from fruit_sorting.tasks import PickAndPlaceTask
+from isaacsim.sensors.experimental.rtx import CameraSensor, RtxCamera
 
 install_failure_handler("20_pick_place")
 
@@ -33,6 +34,20 @@ ATTEMPTS = int(os.environ.get("ATTEMPTS", "4"))
 def main() -> int:
     cfg = SceneConfig()
     scene = SortingScene(cfg).build()
+
+    capture = os.environ.get("FRUIT_CAPTURE", "0") == "1"
+    if capture:
+        eye = (1.75, 1.55, 2.35)
+        observer = RtxCamera(
+            "/World/ObserverCamera",
+            tick_rate=30.0,
+            positions=[eye],
+            orientations=[look_at_quat(eye, (0.45, 0.0, 1.05))],
+        )
+        observer.camera.set_focal_lengths(0.016)
+        observer.camera.set_apertures((0.036, 0.02025))
+        observer.camera.set_clipping_ranges(0.01, 50.0)
+        observer_sensor = CameraSensor(observer, resolution=(600, 1000), annotators=["rgb"])
 
     tactile = GripperTactile()
     # Attach before play() so the contact views are valid.
@@ -67,12 +82,13 @@ def main() -> int:
             say(f"[run] attempt {attempt}: no eligible fruit; active={summary} stats={spawner.stats}")
             continue
         grade = target["grade"]
-        bin_xy = cfg.bin_positions[0] if grade == "A" else cfg.bin_positions[1]
+        bin_index = 0 if grade == "A" else 1
+        bin_xy = cfg.bin_positions[bin_index]
         say(
             f"[run] attempt {attempt}: picking {target['category']} grade {grade} "
             f"into bin at {bin_xy}"
         )
-        result = task.run(target, bin_xy)
+        result = task.run(target, bin_index)
         results.append(result)
         say(
             f"[run] attempt {attempt}: grasped={result.grasped} placed={result.placed} "
@@ -81,6 +97,18 @@ def main() -> int:
         )
         task.go_ready()
         app_utils.update_app(steps=30)
+
+    if capture:
+        for tag, sensor in (("observer", observer_sensor), ("head", scene.camera_sensor)):
+            data = sensor.get_data("rgb")
+            if data is None:
+                continue
+            arr = np.asarray(data[0].numpy() if hasattr(data, "__getitem__") else data)
+            from PIL import Image
+
+            path = f"logs/pick_{tag}.png"
+            Image.fromarray(arr[..., :3].astype(np.uint8)).save(path)
+            say(f"saved {path}")
 
     if results:
         successes = sum(1 for r in results if r.success)
