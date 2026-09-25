@@ -9,6 +9,7 @@ does not cook collision correctly for scaled shapes (see WORKLOG).
 from __future__ import annotations
 
 import math
+import os
 import random
 from dataclasses import dataclass, field
 
@@ -227,29 +228,50 @@ def build_mesh_points(
     phase = rng.uniform(0.0, math.tau)
 
     points: list[tuple[float, float, float]] = []
+    rows: list[list[int]] = []  # vertex indices per profile row (poles = 1 index)
+    pole_rows: list[bool] = []
     for (r_norm, z_norm) in profile:
+        if r_norm * scale < 1e-4:
+            # A true pole is a single vertex. Emitting `segments` coincident
+            # vertices there creates degenerate triangles and PhysX then fails to
+            # cook the convex hull - the collider silently disappears and the
+            # gripper closes straight through the fruit.
+            index = len(points)
+            points.append((0.0, 0.0, z_norm * scale * length))
+            rows.append([index])
+            pole_rows.append(True)
+            continue
+        row: list[int] = []
         for j in range(segments):
             phi = math.tau * j / segments
-            # low-frequency lobing gives the silhouette a natural asymmetry
-            if shape.lobes:
-                lobe = 1.0 + shape.lobe_amount * math.cos(shape.lobes * phi + phase)
-            else:
-                lobe = 1.0 + 0.03 * math.cos(2.0 * phi + phase)
+            lobe = (
+                1.0 + shape.lobe_amount * math.cos(shape.lobes * phi + phase)
+                if shape.lobes else 1.0 + 0.03 * math.cos(2.0 * phi + phase)
+            )
             noise = 1.0 + shape.bumpy * rng.uniform(-1.0, 1.0)
             r = r_norm * scale * lobe * noise * (bias_a if math.cos(phi) > 0 else bias_b)
             z = z_norm * scale * length * (1.0 + 0.01 * rng.uniform(-1.0, 1.0))
+            row.append(len(points))
             points.append((r * math.cos(phi), r * math.sin(phi), z))
+        rows.append(row)
+        pole_rows.append(False)
 
-    rows = len(profile)
     faces: list[int] = []
-    for i in range(rows - 1):
+    for i in range(len(rows) - 1):
+        lower, upper = rows[i], rows[i + 1]
+        if pole_rows[i]:
+            pole = lower[0]
+            for j in range(segments):
+                faces += [pole, upper[(j + 1) % segments], upper[j]]
+            continue
+        if pole_rows[i + 1]:
+            pole = upper[0]
+            for j in range(segments):
+                faces += [lower[j], lower[(j + 1) % segments], pole]
+            continue
         for j in range(segments):
             jn = (j + 1) % segments
-            a = i * segments + j
-            b = i * segments + jn
-            c = (i + 1) * segments + jn
-            d = (i + 1) * segments + j
-            faces += [a, b, c, a, c, d]
+            faces += [lower[j], lower[jn], upper[jn], lower[j], upper[jn], upper[j]]
 
     points_arr = np.asarray(points, dtype=np.float32)
     faces_arr = np.asarray(faces, dtype=np.int32).reshape(-1, 3)
@@ -313,7 +335,12 @@ def author_fruit(
 
     UsdPhysics.CollisionAPI.Apply(mesh.GetPrim())
     mesh_collision = UsdPhysics.MeshCollisionAPI.Apply(mesh.GetPrim())
-    mesh_collision.CreateApproximationAttr().Set("convexHull")
+    # Approximation is tunable because PhysX fails to cook some of them for these
+    # procedurally generated meshes: with "convexHull" the collider silently
+    # vanishes and the gripper closes straight through the fruit.
+    mesh_collision.CreateApproximationAttr().Set(
+        os.environ.get("FRUIT_COLLISION_APPROX", "convexHull")
+    )
     return mesh
 
 

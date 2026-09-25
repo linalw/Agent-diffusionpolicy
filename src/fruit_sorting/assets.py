@@ -102,9 +102,10 @@ class SceneConfig:
     despawn_x: float = 0.24
     pick_x: float = 0.34
     spawn_y_jitter: float = 0.005
-    #: Guide rails funnel fruit along the centre line so they arrive between the
-    #: jaws. The finger gap is only ~6.5 cm, so lateral drift breaks the grasp.
-    belt_channel_y: float = 0.045
+    #: Guide rails funnel fruit along the centre line. They must be wider than the
+    #: OPEN gripper (which spans +/-0.066 m), otherwise the fingers jam against
+    #: them and can never close - that was blocking every physical grasp.
+    belt_channel_y: float = 0.085
     spawn_period_s: float = 1.6
 
     # Output bins (raised on stands so the TCP can reach into them)

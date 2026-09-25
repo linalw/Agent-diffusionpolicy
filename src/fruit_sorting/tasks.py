@@ -90,6 +90,25 @@ class PickAndPlaceTask:
         with open(path, encoding="utf-8") as fh:
             return json.load(fh)
 
+    def _fingertip_offset(self, side: str) -> float:
+        """Distance from the jaw centre down to the lowest fingertip, measured live.
+
+        The OpenArm fingers are long plates, so this varies with wrist
+        orientation (about 6.1 cm at the pick pose, 8 cm hanging). Using a fixed
+        number puts the fingers above small fruit and the jaws close on air.
+        """
+        from pxr import Usd, UsdGeom
+
+        cache = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_])
+        lowest = None
+        for which in ("left", "right"):
+            path = f"/World/OpenArm/openarm_{side}_{which}_finger"
+            rng = cache.ComputeWorldBound(self.scene.stage.GetPrimAtPath(path)).ComputeAlignedRange()
+            lo = float(rng.GetMin()[2])
+            lowest = lo if lowest is None else min(lowest, lo)
+        jaw_z = float(self.arms[side].jaw_centre()[2])
+        return max(0.02, jaw_z - lowest)
+
     def _pose(self, side: str, name: str) -> np.ndarray:
         return np.asarray(self.waypoints["arms"][side][name], dtype=float)
 
@@ -350,7 +369,10 @@ class PickAndPlaceTask:
         # Per-fruit grasp height: the jaw centre must sit `grasp_palm_offset`
         # above this fruit's centre for the fingers to straddle it.
         grasp_goal = self.jaw_target(arm_name, "grasp").copy()
-        grasp_goal[2] = self.belt_top + sample.diameter / 2.0 + self.cfg.grasp_palm_offset
+        # Put the fingertips at the fruit's equator, using the measured finger
+        # length for the pose the arm is actually in.
+        tip_offset = self._fingertip_offset(arm_name)
+        grasp_goal[2] = self.belt_top + sample.diameter / 2.0 + tip_offset
         arm.teleport_joints(self._pose(arm_name, "grasp"))
         # The low grasp pose is near the edge of the workspace, so fall back to
         # random restarts if the calibrated seed does not converge.
@@ -442,40 +464,36 @@ class PickAndPlaceTask:
             result.notes.append(f"fruit never reached the pick point (dx={dx:+.3f} m)")
             return result
 
-        # Stop the fruit between the jaws and let it settle before closing.
+        # Keep the fruit exactly on the jaw centre line while the jaws close.
+        # The belt's surface friction drags it downstream otherwise (about 3 cm
+        # over the closing time) and the 6 cm-deep fingers then close in front of
+        # it instead of around it.
+        hold = np.array([float(arm.jaw_centre()[0]), float(arm.jaw_centre()[1]),
+                         self.belt_top + sample.diameter / 2.0 + 0.002])
         sample.held = True
         self.spawner.stop(sample)
         for _ in range(30):
             arm.robot.set_dof_position_targets([grasp_config], dof_indices=arm.arm_dofs)
+            self.spawner.place(sample, hold)
             SimulationManager.step(steps=1)
             self._record(self._action9(grasp_config, arm))
 
-        # 2. Close the gripper onto the fruit.
-        # Hand the fruit over to the gripper: stop the belt from driving it so
-        # the fingers can hold it, and stop it from coasting out of the jaws.
-        sample.held = True
-        self.spawner.stop(sample)
-        if verbose:
-            fl, fr = arm.jaw_positions()
-            p = self.spawner.position(sample)
-            say(
-                f"[task]   pre-close fruit=({p[0]:+.4f},{p[1]:+.4f},{p[2]:+.4f}) r={sample.diameter / 2:.4f}"
-            )
-            say(
-                f"[task]   finger_l=({fl[0]:+.4f},{fl[1]:+.4f},{fl[2]:+.4f}) "
-                f"finger_r=({fr[0]:+.4f},{fr[1]:+.4f},{fr[2]:+.4f}) sep={arm.jaw_separation():.4f}"
-            )
-        # Close to the fruit's width (a light squeeze), re-centring the fruit on
-        # the jaw centre line as the fingers come in.
-        fingers = max(fingers, arm.gripper_value_for_separation(sample.diameter))
+        # A real gripper squeezes: target a gap a few millimetres smaller than the
+        # fruit so there is contact force, not a grazing touch.
+        fingers = max(fingers, arm.gripper_value_for_separation(sample.diameter * 0.97))
         for value in np.linspace(arm.OPEN, fingers, 30):
             arm.set_gripper(float(value))
+            self.spawner.place(sample, hold)
             SimulationManager.step(steps=2)
             self._tick_frame()
             self._record(self._action9(grasp_config, arm, float(value)))
-        for _ in range(40):
+        # Let the contact settle *without* teleporting the fruit, otherwise the
+        # solver never gets to build a static friction constraint and the grip
+        # slips as soon as the arm lifts.
+        for _ in range(60):
             SimulationManager.step(steps=1)
             self._record(self._action9(grasp_config, arm, float(fingers)))
+
         # Optional grasp attachment. Set FRUIT_NO_ATTACH=1 to test whether the
         # fingers hold the fruit purely through contact.
         if os.environ.get("FRUIT_NO_ATTACH", "0") != "1":
@@ -498,7 +516,13 @@ class PickAndPlaceTask:
 
         # 3. Lift and verify the fruit came along.
         z_before = float(self.spawner.position(sample)[2])
+        if os.environ.get("FRUIT_LIFT_DEBUG") == "1":
+            say(f"[task]   lift start: fruit_z={z_before:.4f} jaw_z={arm.jaw_centre()[2]:.4f} "
+                f"grip={arm.finger_opening():.4f}")
         self._carry(arm_name, sample, "grasp_lift")
+        if os.environ.get("FRUIT_LIFT_DEBUG") == "1":
+            say(f"[task]   lift end:   fruit_z={float(self.spawner.position(sample)[2]):.4f} "
+                f"jaw_z={arm.jaw_centre()[2]:.4f} grip={arm.finger_opening():.4f}")
         z_after = float(self.spawner.position(sample)[2])
         result.peak_lift = z_after - z_before
         result.grasped = z_after - z_before > 0.05
