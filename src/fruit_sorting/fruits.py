@@ -18,6 +18,7 @@ from isaacsim.core.experimental.prims import RigidPrim
 
 from .assets import SceneConfig
 from .common import say
+from .meshes import FRUIT_SHAPES, author_fruit, author_stem, make_material
 
 
 @dataclass
@@ -77,6 +78,8 @@ class FruitSpawner:
         self._cursor = 0
         self._next_release = 0.0
         self.stats = {"released": 0, "reached_end": 0, "fell_off": 0}
+        #: Set to a CleatedBelt so the cleats advance with the physics loop.
+        self.belt = None
         stage.DefinePrim(root, "Xform")
 
     # ------------------------------------------------------------------ #
@@ -95,25 +98,26 @@ class FruitSpawner:
         friction = self.rng.uniform(0.4, 1.1)
 
         path = f"{self.root}/Fruit_{index:02d}"
-        sphere = UsdGeom.Sphere.Define(self.stage, path)
-        sphere.GetRadiusAttr().Set(diameter / 2.0)
+        # Real fruit geometry: a procedural mesh at the final size, authored with
+        # no Scale op (PhysX mis-cooks scaled shapes - see WORKLOG).
+        shape = FRUIT_SHAPES[category]
+        base = shape.colors[self.rng.randrange(len(shape.colors))]
+        colour = tuple(
+            float(np.clip(c + self.rng.uniform(-0.05, 0.05), 0.0, 1.0)) for c in base
+        )
+        fruit_mesh = author_fruit(self.stage, path, shape, diameter, self.rng, colour)
+        author_stem(self.stage, f"{path}_stem", shape, diameter, self.rng)
 
-        xform = UsdGeom.Xformable(sphere)
+        xform = UsdGeom.Xformable(fruit_mesh)
         xform.ClearXformOpOrder()
-        # No Scale op: even a scale of exactly (1, 1, 1) routes this prim through
-        # PhysX's scaled-collision path, and the resulting collider does not
-        # interact with the robot at all (scripts/44_sphere_vs_fruit.py: an
-        # identical sphere authored without the Scale op blocks the gripper).
         xform.AddTranslateOp().Set(Gf.Vec3d(0.0, 0.0, -5.0))
 
-        rgb, roughness = self.CATEGORY_STYLE[category]
-        jitter = tuple(float(np.clip(c + self.rng.uniform(-0.06, 0.06), 0.0, 1.0)) for c in rgb)
-        material = _preview_material(self.stage, f"{path}_mat", jitter, roughness)
-        UsdShade.MaterialBindingAPI.Apply(sphere.GetPrim()).Bind(material)
-
-        UsdPhysics.CollisionAPI.Apply(sphere.GetPrim())
-        UsdPhysics.RigidBodyAPI.Apply(sphere.GetPrim())
-        mass_api = UsdPhysics.MassAPI.Apply(sphere.GetPrim())
+        prim = fruit_mesh.GetPrim()
+        # Mass follows the volume of the actual shape, not just the diameter.
+        mass = float(shape.density * (4.0 / 3.0) * np.pi * (diameter / 2.0) ** 3 * 0.82)
+        friction = self.rng.uniform(*shape.friction)
+        UsdPhysics.RigidBodyAPI.Apply(prim)
+        mass_api = UsdPhysics.MassAPI.Apply(prim)
         mass_api.CreateMassAttr().Set(mass)
 
         phys_material = UsdShade.Material.Define(self.stage, f"{path}_physmat")
@@ -121,9 +125,11 @@ class FruitSpawner:
         phys_api.CreateStaticFrictionAttr().Set(friction)
         phys_api.CreateDynamicFrictionAttr().Set(friction)
         phys_api.CreateRestitutionAttr().Set(self.rng.uniform(0.02, 0.2))
-        UsdShade.MaterialBindingAPI.Apply(sphere.GetPrim()).Bind(phys_material)
+        UsdShade.MaterialBindingAPI.Apply(prim).Bind(
+            phys_material, UsdShade.Tokens.weakerThanDescendants, "physics"
+        )
 
-        rigid_api = PhysxSchema.PhysxRigidBodyAPI.Apply(sphere.GetPrim())
+        rigid_api = PhysxSchema.PhysxRigidBodyAPI.Apply(prim)
         rigid_api.CreateEnableCCDAttr().Set(False)
         # NOTE: do not zero sleepThreshold / stabilizationThreshold here. Setting
         # stabilizationThreshold to 0 leaves the body permanently stabilised, and
@@ -153,23 +159,46 @@ class FruitSpawner:
             self._rigids[sample.index] = RigidPrim(sample.prim_path)
 
     def rescale(self, sample: FruitSample, category: str, diameter: float) -> None:
-        """Change a recycled fruit's category/size for domain randomization."""
+        """Change a recycled fruit's category/size (rebuilds its mesh)."""
         lo, hi = self.cfg.fruit_dimensions[category]
         sample.category = category
         sample.diameter = float(np.clip(diameter, lo, hi))
-        sample.mass = float(700.0 * (4.0 / 3.0) * np.pi * (sample.diameter / 2.0) ** 3)
-        sample.friction = self.rng.uniform(0.4, 1.1)
+        shape = FRUIT_SHAPES[category]
+        sample.mass = float(
+            shape.density * (4.0 / 3.0) * np.pi * (sample.diameter / 2.0) ** 3 * 0.82
+        )
+        sample.friction = self.rng.uniform(*shape.friction)
         sample.grade = self.rng.choice(self.cfg.grades)
         sample.ripeness = self.rng.uniform(0.4, 1.0)
         sample.defective = self.rng.random() < 0.12
 
-        prim = self.stage.GetPrimAtPath(sample.prim_path)
-        UsdGeom.Sphere(prim).GetRadiusAttr().Set(sample.diameter / 2.0)
-        UsdPhysics.MassAPI(prim).GetMassAttr().Set(sample.mass)
-        rgb, roughness = self.CATEGORY_STYLE[category]
-        jitter = tuple(float(np.clip(c + self.rng.uniform(-0.06, 0.06), 0.0, 1.0)) for c in rgb)
-        material = _preview_material(self.stage, f"{sample.prim_path}_mat", jitter, roughness)
-        UsdShade.MaterialBindingAPI.Apply(prim).Bind(material)
+        # Re-author the mesh at the new size rather than scaling the prim.
+        stage = self.stage
+        stem_path = f"{sample.prim_path}_stem"
+        if stage.GetPrimAtPath(stem_path).IsValid():
+            stage.RemovePrim(stem_path)
+        stage.RemovePrim(sample.prim_path)
+        base = shape.colors[self.rng.randrange(len(shape.colors))]
+        colour = tuple(
+            float(np.clip(c + self.rng.uniform(-0.05, 0.05), 0.0, 1.0)) for c in base
+        )
+        mesh = author_fruit(stage, sample.prim_path, shape, sample.diameter, self.rng, colour)
+        author_stem(stage, stem_path, shape, sample.diameter, self.rng)
+        xform = UsdGeom.Xformable(mesh)
+        xform.ClearXformOpOrder()
+        xform.AddTranslateOp().Set(Gf.Vec3d(0.0, 0.0, -5.0))
+        prim = mesh.GetPrim()
+        UsdPhysics.RigidBodyAPI.Apply(prim)
+        UsdPhysics.MassAPI.Apply(prim).CreateMassAttr().Set(sample.mass)
+        phys_material = UsdShade.Material.Define(stage, f"{sample.prim_path}_physmat")
+        phys_api = UsdPhysics.MaterialAPI.Apply(phys_material.GetPrim())
+        phys_api.CreateStaticFrictionAttr().Set(sample.friction)
+        phys_api.CreateDynamicFrictionAttr().Set(sample.friction)
+        phys_api.CreateRestitutionAttr().Set(self.rng.uniform(0.02, 0.2))
+        UsdShade.MaterialBindingAPI.Apply(prim).Bind(
+            phys_material, UsdShade.Tokens.weakerThanDescendants, "physics"
+        )
+        PhysxSchema.PhysxRigidBodyAPI.Apply(prim)
 
     def respawn(self, sample: FruitSample, y: float | None = None, x_jitter: float = 0.10) -> None:
         """Drop a fruit onto the belt at the upstream end.
@@ -252,15 +281,15 @@ class FruitSpawner:
         return released
 
     def enforce_transport(self, dt: float = 1.0 / 120.0) -> None:
-        """Drive fruit along the belt at the belt velocity.
+        """Keep fruit moving on the belt.
 
-        Driving the velocity directly, rather than relying on PhysX surface
-        velocity plus friction, keeps transport exact: the friction model decays
-        and can stall a fruit mid-belt, and a sleeping body ignores it entirely.
-        The pose is written each step as well as the velocity, because a sleeping
-        rigid body accepts the velocity write without waking up. Fruit that the
-        gripper is holding are left alone.
+        Transport itself is physical: the belt's surface velocity plus the rubber
+        friction material carry the fruit, and the cleats push them along. This
+        method only wakes a fruit that PhysX has put to sleep (a sleeping body
+        ignores conveyor contact forces), so nothing freezes mid-belt.
         """
+        if self.belt is not None:
+            self.belt.step(dt)
         expected = self.cfg.belt_speed * self.cfg.transport_efficiency
         for sample in self.active:
             if sample.parked or sample.held:
@@ -268,21 +297,16 @@ class FruitSpawner:
             pos = self.position(sample)
             on_belt = (
                 abs(pos[2] - (self.cfg.belt_center[2] + self.cfg.belt_size[2] / 2.0 + sample.diameter / 2.0))
-                < 0.02
+                < 0.03
             )
             if not on_belt:
                 continue
-            rigid = self._rigids[sample.index]
-            # Pin y to the lane centre line: the jaws' lateral gap is only about
-            # 6.5 cm and any drift makes the fingers hit the fruit edge-on.
-            rigid.set_world_poses(
-                positions=[[float(pos[0]) + expected * dt, 0.0, float(pos[2])]],
-                orientations=[[1.0, 0.0, 0.0, 0.0]],
-            )
-            rigid.set_velocities(
-                linear_velocities=[[expected, 0.0, 0.0]],
-                angular_velocities=[[0.0, 0.0, 0.0]],
-            )
+            vel = self.velocity(sample)
+            if abs(float(vel[0])) < 0.02:
+                self._rigids[sample.index].set_velocities(
+                    linear_velocities=[[expected, 0.0, 0.0]],
+                    angular_velocities=[[0.0, 0.0, 0.0]],
+                )
 
     def prime(self, count: int = 2) -> None:
         """Pre-load a few fruit so the belt is not empty at t=0."""

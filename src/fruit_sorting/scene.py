@@ -79,6 +79,7 @@ class SortingScene:
     camera: RtxCamera | None = None
     camera_sensor: CameraSensor | None = None
     belt_prim_path: str = "/World/Conveyor/Belt"
+    belt: object | None = None
     bin_paths: list[str] = field(default_factory=list)
 
     # ------------------------------------------------------------------ #
@@ -110,14 +111,50 @@ class SortingScene:
         return self
 
     def _add_environment(self) -> None:
-        GroundPlane("/World/GroundPlane", positions=[0.0, 0.0, 0.0])
-        key = DistantLight("/World/KeyLight", positions=[2.0, -2.0, 4.0])
-        key.set_intensities(900.0)
-        fill = DistantLight("/World/FillLight", positions=[-2.0, 3.0, 3.0])
-        fill.set_intensities(350.0)
-        dome = DistantLight("/World/TopLight", positions=[0.0, 0.0, 6.0])
-        dome.set_intensities(250.0)
-        say("lighting added")
+        """Studio-style lighting and a real floor, instead of an infinite grid."""
+        from isaacsim.core.experimental.objects import DomeLight, RectLight
+
+        # Matte concrete floor.
+        floor = _define_box(
+            self.stage, "/World/Floor", size=(8.0, 8.0, 0.04), center=(0.9, 0.0, -0.02)
+        )
+        _set_color(floor, (0.42, 0.42, 0.43))
+        UsdPhysics.CollisionAPI.Apply(floor.GetPrim())
+
+        # Backdrop wall so the cell does not float in a void.
+        back = _define_box(
+            self.stage, "/World/BackWall", size=(8.0, 0.06, 2.6), center=(0.9, 2.6, 1.3)
+        )
+        _set_color(back, (0.55, 0.56, 0.58))
+
+        # Sky / ambient dome.
+        dome = DomeLight("/World/SkyDome", positions=[0.0, 0.0, 6.0])
+        dome.set_intensities(140.0)
+        dome.set_colors([0.72, 0.80, 0.92])
+
+        # Sun: a few degrees wide so shadows have a soft edge.
+        sun = DistantLight("/World/Sun", positions=[3.5, -3.0, 6.0])
+        sun.set_intensities(620.0)
+        sun.set_colors([1.0, 0.96, 0.90])
+        if hasattr(sun, "set_angles"):
+            sun.set_angles(2.5)
+        if hasattr(sun, "set_color_temperatures"):
+            sun.set_color_temperatures(5400.0)
+
+        # Large soft fill from the camera side, so the fruit do not go black
+        # underneath.
+        try:
+            fill = RectLight(
+                "/World/FillPanel",
+                positions=[2.2, -2.4, 1.9],
+                orientations=[look_at_quat((2.2, -2.4, 1.9), (0.5, 0.0, 1.1))],
+            )
+            fill.set_intensities(2200.0)
+            fill.set_colors([0.95, 0.97, 1.0])
+        except Exception as exc:  # noqa: BLE001
+            say(f"rect fill light unavailable: {exc}")
+
+        say("studio lighting + floor + backdrop added")
 
     def _add_pedestal(self) -> None:
         cfg = self.cfg
@@ -141,47 +178,12 @@ class SortingScene:
         say("robot referenced (first run downloads the asset)")
 
     def _add_conveyor(self) -> None:
-        cfg = self.cfg
-        belt = _define_box(self.stage, self.belt_prim_path, size=cfg.belt_size, center=cfg.belt_center)
-        _set_color(belt, (0.12, 0.13, 0.15))
-        UsdPhysics.CollisionAPI.Apply(belt.GetPrim())
-        _add_physics_material(belt, cfg.belt_friction, cfg.belt_friction)
+        """Cleated track conveyor: belt surface, cleats, pulleys, frame."""
+        from .conveyor import CleatedBelt
 
-        # PhysX surface velocity moves whatever rests on the collision surface.
-        surface_velocity = PhysxSchema.PhysxSurfaceVelocityAPI.Apply(belt.GetPrim())
-        surface_velocity.CreateSurfaceVelocityAttr().Set(Gf.Vec3f(cfg.belt_speed, 0.0, 0.0))
-
-        # Low guide rails funnel fruit along the centre line. They are set just
-        # wider than the largest fruit so a fruit cannot wander off the fingers'
-        # narrow (~6.5 cm) lateral gap before the jaws close.
-        bx, by, bz = cfg.belt_center
-        sx, sy, sz = cfg.belt_size
-        belt_top = bz + sz / 2.0
-        for name, y_sign in (("RailNeg", -1.0), ("RailPos", 1.0)):
-            rail = _define_box(
-                self.stage,
-                f"/World/Conveyor/{name}",
-                size=(sx, 0.02, 0.04),
-                center=(bx, by + y_sign * (cfg.belt_channel_y + 0.01), belt_top + 0.02),
-            )
-            _set_color(rail, (0.55, 0.56, 0.58))
-            UsdPhysics.CollisionAPI.Apply(rail.GetPrim())
-
-        # Support legs at both ends of the frame.
-        leg_height = bz - sz / 2.0
-        for i, leg_x in enumerate((bx - sx / 2.0 + 0.08, bx + sx / 2.0 - 0.08)):
-            for j, leg_y in enumerate((by - sy / 2.0 + 0.05, by + sy / 2.0 - 0.05)):
-                leg = _define_box(
-                    self.stage,
-                    f"/World/Conveyor/Leg{i}{j}",
-                    size=(0.04, 0.04, leg_height),
-                    center=(leg_x, leg_y, leg_height / 2.0),
-                )
-                _set_color(leg, (0.30, 0.30, 0.32))
-        say(
-            f"conveyor added, belt surface z={belt_top:.3f}, surface velocity="
-            f"{cfg.belt_speed:+.2f} m/s along X, span_x={sx:.2f} m"
-        )
+        self.belt = CleatedBelt(self.stage, self.cfg)
+        self.belt.build()
+        say(f"belt surface z={self.belt.belt_top:.3f}")
 
     def _add_bins(self) -> None:
         cfg = self.cfg
@@ -312,6 +314,8 @@ class SortingScene:
         app_utils.play(commit=True)
         say(f"warm-up {warmup_steps} steps")
         app_utils.update_app(steps=warmup_steps)
+        if self.belt is not None:
+            self.belt.reset()
         if self.stage.GetPrimAtPath("/World/OpenArm").IsValid():
             self.robot = Articulation("/World/OpenArm")
             say(f"simulation running, dt={physics_dt:.5f}s, joints={len(self.robot.joint_names)}")

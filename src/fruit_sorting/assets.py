@@ -81,10 +81,18 @@ class SceneConfig:
     # Kept deliberately slow: one `app_utils.update_app()` advances several
     # hundred milliseconds of simulated time on this machine, so a fast belt
     # would jump past the gripper in a handful of control iterations.
-    belt_speed: float = -0.15
+    belt_speed: float = -0.34
     belt_friction: float = 0.9
+    #: Cleats turn the belt into a track. They travel with the belt and push
+    #: fruit along, which is how a real cleated conveyor carries produce.
+    cleat_count: int = 14
+    cleat_spacing: float = 0.18
+    cleat_width: float = 0.022
+    cleat_height: float = 0.020
     #: Fraction of the commanded surface velocity that fruit actually reach.
-    transport_efficiency: float = 0.68
+    #: Lower than 1 because the cleats only push intermittently and the fruit
+    #: slip against the belt between cleats.
+    transport_efficiency: float = 0.40
 
     # Fruit spawn / removal window along the belt, and the arm picking window.
     spawn_x: float = 1.62

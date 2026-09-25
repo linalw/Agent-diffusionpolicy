@@ -39,6 +39,7 @@ def main() -> int:
     spawner.create_pool()
     app_utils.update_app(steps=30)
     spawner.refresh_rigids()
+    spawner.belt = scene.belt
     spawner.reset()
 
     belt_top = cfg.belt_center[2] + cfg.belt_size[2] / 2.0
@@ -53,7 +54,10 @@ def main() -> int:
         say(f"fruit {sample.index} {sample.category} d={sample.diameter * 100:.1f}cm start={np.round(p, 3).tolist()}")
 
     for step in range(int(SECONDS / DT)):
-        app_utils.update_app(steps=1)
+        spawner.enforce_transport()
+        SimulationManager.step(steps=1)
+        if step % 20 == 0:
+            app_utils.update_app(steps=0)
         if step % int(0.5 / DT) == 0:
             t = SimulationManager.get_simulation_time()
             for sample in samples:

@@ -86,6 +86,7 @@ def main() -> int:
     spawner.create_pool()
     app_utils.update_app(steps=30)
     spawner.refresh_rigids()
+    spawner.belt = scene.belt
     spawner.reset()
     spawner.prime(count=6)
 
