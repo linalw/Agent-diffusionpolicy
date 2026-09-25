@@ -126,29 +126,38 @@ class PickAndPlaceTask:
         arm.teleport_joints(self._pose(side, name))
         return arm.solve_to(self.jaw_target(side, name), iterations=iterations, tolerance=0.012)[1]
 
-    def _carry(self, side: str, sample, name: str, steps: int = 140) -> None:
-        """Move the arm to a named pose with an attached fruit following the hand."""
+    def _carry(self, side: str, sample, name: str, steps: int = 200) -> None:
+        """Move the arm to a named pose with an attached fruit following the hand.
+
+        Cartesian IK, not straight-line joint interpolation: a joint-space line
+        from the pick pose to the bin passes through configurations the arm cannot
+        physically reach and stalled there with ~1.6 rad of joint error, which is
+        what made placements miss the bin.
+        """
         from isaacsim.core.simulation_manager import SimulationManager
 
         arm = self.arms[side]
-        start = arm.joint_positions()
-        target = self._pose(side, name)
-        for i in range(1, steps + 1):
-            alpha = i / float(steps)
-            command = (1.0 - alpha) * start + alpha * target
-            arm.robot.set_dof_position_targets([command], dof_indices=arm.arm_dofs)
+        goal = self.jaw_target(side, name)
+        offset = arm.tcp_position() - arm.jaw_centre()
+        for _ in range(steps):
+            arm.ik_step(goal + offset)
             SimulationManager.step(steps=1)
             self.spawner.follow(sample, arm.jaw_centre())
             self._tick_frame()
-            self._record(self._action9(command, arm))
-        for _ in range(40):
-            arm.robot.set_dof_position_targets([target], dof_indices=arm.arm_dofs)
+            self._record(self._action9(arm.joint_positions(), arm))
+            if np.linalg.norm(arm.jaw_centre() - goal) < 0.010:
+                break
+        for _ in range(30):
+            arm.ik_step(goal + offset)
             SimulationManager.step(steps=1)
             self.spawner.follow(sample, arm.jaw_centre())
-            self._record(self._action9(target, arm))
+            self._record(self._action9(arm.joint_positions(), arm))
         if os.environ.get("FRUIT_CARRY_DEBUG") == "1":
-            err = float(np.max(np.abs(arm.joint_positions() - target)))
-            say(f"[task]   carry {name}: joint_err={err:.3f} rad jaw={np.round(arm.jaw_centre(), 3).tolist()}")
+            say(
+                f"[task]   carry {name}: jaw={np.round(arm.jaw_centre(), 3).tolist()} "
+                f"goal={np.round(goal, 3).tolist()} "
+                f"err={float(np.linalg.norm(arm.jaw_centre() - goal)):.4f} m"
+            )
 
     # ------------------------------------------------------------------ #
     # Data collection

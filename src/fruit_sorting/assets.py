@@ -123,7 +123,7 @@ class SceneConfig:
     camera_resolution: tuple[int, int] = (480, 848)  # (height, width)
 
     # Fruit population
-    num_fruits: int = 12
+    num_fruits: int = 16
     fruit_dimensions: dict[str, tuple[float, float]] = field(
         default_factory=lambda: {
             # name -> (min diameter m, max diameter m)
