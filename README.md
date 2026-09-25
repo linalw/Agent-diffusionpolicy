@@ -17,7 +17,7 @@ implementation: the simulation cell, the data pipeline, and the policy training 
 | Head RGB-D camera (single camera, wide FOV) | capturing rgb + depth + instance ids |
 | Randomized fruit on the moving belt | spawning, transporting, recycling |
 | Scripted pick-and-place, sorted by grade into bins | **working (6/6)** |
-| Point-tactile sensing on the grippers | blocked by the contact API in this build |
+| Point-tactile sensing on the grippers | **working** (per-finger contact sensors) |
 | Demonstration collection + diffusion policy | not yet (planned) |
 
 ## Robot choice

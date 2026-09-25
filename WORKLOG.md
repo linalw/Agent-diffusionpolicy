@@ -196,6 +196,24 @@ right arm.
 * The grasp itself is assisted: the last few centimetres of fruit travel and the
   closed-grasp attachment are modelled rather than resolved by contact. The
   approach, jaw motion, arm trajectory, and place are physical.
-* Point tactile still reads zero - the contact view is invalid on this build.
 * The OpenArm gripper cannot hold fruit wider than ~7.6 cm, so the 2-9 cm design
   range is currently realised as 2-7 cm.
+
+## 2026-09-25 - point tactile working
+
+`GripperTactile` now reports real contact forces. The fix was to read
+`ContactSensor.get_sensor_reading()` instead of
+`RigidPrim.get_net_contact_forces()`:
+
+* The contact sensor wrapper works on both plain rigid bodies and articulation
+  links, but only once a contact exists is there anything to read - before that
+  `is_valid` can be false, which is what made it look broken.
+* `get_net_contact_forces()` asserts "Physics contact view is not valid" for
+  articulation links in this build, which is why the earlier implementation
+  always returned zero.
+* Verified in `scripts/37_contact_probe.py`: a fruit resting on the belt reports
+  0.313 N, which matches its 32 g mass, and `get_raw_data()` returns the contact
+  point, normal and impulse.
+
+Measured grasp forces during pick cycles: 4.95 N for a 3.1 cm fruit up to
+15.7 N for a 6.7 cm fruit, with contact counts of 1-2 fingers.

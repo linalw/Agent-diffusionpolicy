@@ -28,6 +28,8 @@ class TactileReading:
     side: str
     normal_force: float = 0.0
     contact_count: int = 0
+    #: True when at least one finger sensor is attached to a valid rigid body.
+    valid: bool = False
     fingertip_forces: dict[str, float] = field(default_factory=dict)
 
     @property
@@ -103,20 +105,23 @@ class GripperTactile:
 
     def read(self) -> dict[str, TactileReading]:
         readings: dict[str, TactileReading] = {}
-        for key, prim in self._prims.items():
+        for key, sensor in self.sensors.items():
             side = key.rsplit("_", 1)[0]
             reading = readings.setdefault(side, TactileReading(side=side))
             try:
-                forces = to_numpy(prim.get_net_contact_forces(dt=1.0))
-            except AssertionError:
-                # Contact view not available in this build/setup; report zero
-                # rather than aborting the control loop.
+                sample = sensor.get_sensor_reading()
+            except Exception:  # noqa: BLE001
                 reading.fingertip_forces[key] = 0.0
                 continue
-            vector = np.asarray(forces).reshape(-1)[:3] if forces is not None else np.zeros(3)
-            magnitude = float(np.linalg.norm(vector))
+            # ContactSensorReading: .value is the summed contact force [N],
+            # .in_contact is the boolean contact flag, .is_valid says whether the
+            # sensor is attached to a rigid body at all.
+            valid = bool(getattr(sample, "is_valid", False))
+            magnitude = float(getattr(sample, "value", 0.0) or 0.0) if valid else 0.0
+            in_contact = bool(getattr(sample, "in_contact", False)) if valid else False
+            reading.valid = reading.valid and valid if reading.fingertip_forces else valid
             reading.normal_force += magnitude
-            reading.contact_count += int(magnitude > 1e-3)
+            reading.contact_count += int(in_contact)
             reading.fingertip_forces[key] = magnitude
         return readings
 
