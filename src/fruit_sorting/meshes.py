@@ -215,6 +215,40 @@ FRUIT_SHAPES: dict[str, FruitShape] = {
 
 
 # --------------------------------------------------------------------------- #
+def axis_extent(shape: FruitShape, diameter: float, local_axis) -> float:
+    """Extent of the fruit along `local_axis` (unit, in the fruit's own frame) [m].
+
+    The mesh is a surface of revolution about its local z, so its support along
+    any direction follows from the profile alone - no mesh query, no USD access.
+    That matters twice over: the per-grasp USD traversal used for this measurement
+    slowed a closed-loop run by ~4x, and reads inside the control loop perturb the
+    simulation (see the WORKLOG).
+
+    The per-instance deformation is not reproduced (each fruit gets a +/-6 % length
+    bias and a small lobing), so this is the undeformed extent: good to a few
+    percent, which is what a closure diagnostic needs.
+    """
+    axis = np.asarray(local_axis, dtype=float)
+    length = float(np.linalg.norm(axis))
+    if length < 1e-9:
+        return 0.0
+    axis = axis / length
+    scale = diameter / 2.0
+    radial = float(np.hypot(axis[0], axis[1]))
+    axial = shape.length_scale * axis[2]
+    # A surface of revolution has a point at every azimuth, so the support in +u
+    # comes from the widest row on that side and the support in -u from the widest
+    # row on the other: the extent is the sum, not the range, of the two.
+    profile = shape.profile()
+    support_plus = max(
+        r_norm * scale * radial + z_norm * scale * axial for (r_norm, z_norm) in profile
+    )
+    support_minus = max(
+        r_norm * scale * radial - z_norm * scale * axial for (r_norm, z_norm) in profile
+    )
+    return float(support_plus + support_minus)
+
+
 def build_mesh_points(
     shape: FruitShape, diameter: float, rng: random.Random, segments: int = 28
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:

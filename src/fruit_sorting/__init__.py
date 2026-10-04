@@ -4,7 +4,7 @@ Package layout:
 
 * :mod:`fruit_sorting.common` -- small shared helpers (arrays, quaternions, logging).
 * :mod:`fruit_sorting.assets` -- asset URLs and robot constants.
-* :mod:`fruit_sorting.scene` -- builds the sorting cell (table, robot, conveyor, bins, head camera).
+* :mod:`fruit_sorting.scene` -- builds the sorting cell (table, robot, main and output conveyors, head camera).
 * :mod:`fruit_sorting.fruits` -- randomized fruit objects and the conveyor spawner.
 * :mod:`fruit_sorting.tactile` -- point-tactile sensors on the gripper fingers.
 """

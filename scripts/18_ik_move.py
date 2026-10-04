@@ -24,7 +24,7 @@ from fruit_sorting.scene import SortingScene
 
 PARTS = tuple(
     p.strip()
-    for p in os.environ.get("FRUIT_PARTS", "environment,pedestal,robot,conveyor,bins").split(",")
+    for p in os.environ.get("FRUIT_PARTS", "environment,pedestal,robot,conveyor,output_belts").split(",")
     if p.strip()
 )
 

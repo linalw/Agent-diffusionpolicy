@@ -100,20 +100,31 @@ class EpisodeRecorder:
         if os.path.exists(index_path):
             with open(index_path, encoding="utf-8") as fh:
                 entries = json.load(fh)
-        entries.append(
-            {
-                "file": os.path.basename(path),
-                "index": self.meta.index,
-                "category": self.meta.category,
-                "grade": self.meta.grade,
-                "arm": self.meta.arm,
-                "bin_index": self.meta.bin_index,
-                "diameter": self.meta.diameter,
-                "success": self.meta.success,
-                "notes": self.meta.notes,
-                "frames": int(arrays["action"].shape[0]) if "action" in arrays else 0,
-            }
-        )
+        name = os.path.basename(path)
+        record = {
+            "file": name,
+            "index": self.meta.index,
+            "category": self.meta.category,
+            "grade": self.meta.grade,
+            "arm": self.meta.arm,
+            "bin_index": self.meta.bin_index,
+            "diameter": self.meta.diameter,
+            "success": self.meta.success,
+            "notes": self.meta.notes,
+            "frames": int(arrays["action"].shape[0]) if "action" in arrays else 0,
+        }
+        # A collector restarted onto an existing output directory re-uses the
+        # episode filenames, so this file name may already have an entry that
+        # describes the *previous* content (and its frame count). Replace it
+        # instead of appending a second, stale row: two rows for one file made the
+        # merge copy the same episode twice and carry the old frame count into the
+        # dataset (WORKLOG "the dataset index did not match the dataset").
+        for position, existing in enumerate(entries):
+            if existing.get("file") == name:
+                entries[position] = record
+                break
+        else:
+            entries.append(record)
         with open(index_path, "w", encoding="utf-8") as fh:
             json.dump(entries, fh, indent=2)
 

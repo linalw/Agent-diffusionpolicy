@@ -42,7 +42,7 @@ def main() -> int:
     scene.start(physics_dt=1.0 / 120.0, warmup_steps=30)
     spawner.refresh_rigids()
     spawner.reset()
-    spawner.respawn(sample, y=cfg.spawn_x)
+    spawner.respawn(sample, along=cfg.spawn_y)
     spawner.active.append(sample)
     say("dropped a fruit on the belt")
 

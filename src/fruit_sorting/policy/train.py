@@ -38,6 +38,29 @@ class WindowDataset(Dataset):
         }
 
 
+def _data_provenance(data_dir: str) -> dict:
+    """What a checkpoint was trained on: the dataset index and its manifests.
+
+    A checkpoint is only quotable with the dataset that produced it (AGENTS),
+    and the merged dataset writes `manifest.json` with the shard hashes, so pin
+    both here instead of relying on a directory name in the training log.
+    """
+    import hashlib
+
+    def _md5(path: str) -> str:
+        try:
+            with open(path, "rb") as handle:
+                return hashlib.md5(handle.read()).hexdigest()
+        except OSError:
+            return ""
+
+    return {
+        "dir": data_dir,
+        "index_md5": _md5(os.path.join(data_dir, "index.json")),
+        "manifest_md5": _md5(os.path.join(data_dir, "manifest.json")),
+    }
+
+
 def train(
     data_dir: str,
     out_dir: str = "checkpoints/policy",
@@ -48,6 +71,7 @@ def train(
     action_horizon: int = 16,
     image_size: int = 128,
     num_diffusion_steps: int = 100,
+    beta_schedule: str = "cosine",
     val_fraction: float = 0.15,
     seed: int = 0,
     device: str | None = None,
@@ -92,7 +116,8 @@ def train(
         proprio_dim=sample["proprio"].shape[0],
         num_skills=num_skills,
     ).to(device)
-    schedule = DiffusionSchedule(num_diffusion_steps, device=device)
+    schedule = DiffusionSchedule(num_diffusion_steps, device=device,
+                                 beta_schedule=beta_schedule)
     optimizer = torch.optim.AdamW(model.parameters(), lr=learning_rate, weight_decay=1e-6)
     parameters = sum(p.numel() for p in model.parameters())
     print(f"[train] device={device} parameters={parameters/1e6:.2f}M", flush=True)
@@ -192,11 +217,13 @@ def train(
                         "goal_dim": int(sample["goal"].shape[0]),
                         "proprio_dim": int(sample["proprio"].shape[0]),
                         "num_diffusion_steps": num_diffusion_steps,
+                        "beta_schedule": beta_schedule,
                         "image_size": image_size,
                         "num_skills": num_skills,
                         "hard_epochs": hard_epochs,
                     },
                     "val_loss": val_loss,
+                    "data": _data_provenance(data_dir),
                 },
                 os.path.join(out_dir, "policy_best.pt"),
             )

@@ -11,6 +11,49 @@ import numpy as np
 from .skills import label_episode
 
 
+def _area_resize_axis(v: np.ndarray, out_n: int, axis: int) -> np.ndarray:
+    """Area-average `v` along `axis` to `out_n` samples (exact overlap weights).
+
+    `np.interp` over the cumulative sum of `v`: the integral between two
+    fractional edges is the difference of the interpolated prefix sums, so a
+    resize to any size (integer or not) is exact and needs no scipy/cv2.
+    """
+    v = np.moveaxis(v, axis, 0)
+    n = v.shape[0]
+    flat = np.ascontiguousarray(v.reshape(n, -1), dtype=np.float32)
+    cumulative = np.empty((n + 1, flat.shape[1]), dtype=np.float32)
+    cumulative[0] = 0.0
+    np.cumsum(flat, axis=0, out=cumulative[1:])
+    edges = np.linspace(0.0, float(n), out_n + 1)
+    lower = np.minimum(np.floor(edges).astype(np.intp), n - 1)
+    frac = (edges - lower).astype(np.float32)
+    values = (
+        cumulative[lower] * (1.0 - frac)[:, None]
+        + cumulative[lower + 1] * frac[:, None]
+    )
+    out = (values[1:] - values[:-1]) / (edges[1:] - edges[:-1]).astype(np.float32)[:, None]
+    out = out.reshape((out_n,) + v.shape[1:])
+    return np.moveaxis(out, 0, axis)
+
+
+def downsample_frame(image: np.ndarray, size: int = 128) -> np.ndarray:
+    """Resize a camera frame to the square `size` policy input.
+
+    The head camera is 240x424 but the policy consumes 128x128.  The old
+    top-left stride crop cut the pick station out of the input (measured on
+    `demos_v8`: 27 % of the target blobs sat entirely below row 127 and only
+    53 % were fully inside - WORKLOG "P4 follow-up diagnosis"), so the whole
+    frame is area-averaged down to the square input instead.  Training
+    (`EpisodeStore`) and inference (`PolicyRunner`) must call this same
+    function or the policy sees a different camera than it learned on.
+    """
+    image = np.asarray(image)
+    if image.shape[0] == size and image.shape[1] == size:
+        return image
+    out = _area_resize_axis(image, size, axis=0)
+    return np.ascontiguousarray(_area_resize_axis(out, size, axis=1))
+
+
 @dataclass
 class Normalizer:
     """Per-channel mean/std for the low-dimensional inputs and the actions."""
@@ -119,13 +162,7 @@ class EpisodeStore:
         return len(self.windows)
 
     def _downsample(self, image: np.ndarray) -> np.ndarray:
-        """Nearest-neighbour downsample (avoids a scipy/torchvision dependency)."""
-        if image.shape[0] == self.image_size and image.shape[1] == self.image_size:
-            return image
-        stride_y = max(1, image.shape[0] // self.image_size)
-        stride_x = max(1, image.shape[1] // self.image_size)
-        cropped = image[: self.image_size * stride_y, : self.image_size * stride_x]
-        return cropped[::stride_y, ::stride_x]
+        return downsample_frame(image, self.image_size)
 
     def __getitem__(self, index: int) -> dict:
         ep_index, t = self.windows[index]

@@ -10,6 +10,20 @@ import numpy as np
 
 LOG_PREFIX = os.environ.get("FRUIT_LOG_PREFIX", "fruit")
 
+#: Physics substeps per control tick. The control loop (IK, trajectories, jaw
+#: commands) runs at 120 Hz, but the *physics* can run faster, which is what a
+#: stiff/compliant contact needs to be stable: at dt = 1/120 s the equivalent
+#: contact frequency of a ~0.1 kg payload is limited to ~40 Hz, so the
+#: interference grip can only be modelled as an impulse (that is why the payload
+#: rattles, see WORKLOG 2026-09-27). `FRUIT_SUBSTEPS=4` runs physics at 480 Hz
+#: while the controller keeps its 1/120 s cadence.
+_SUBSTEPS = max(1, int(os.environ.get("FRUIT_SUBSTEPS", "1")))
+
+
+def substeps() -> int:
+    """Physics steps per control tick (>= 1)."""
+    return _SUBSTEPS
+
 
 def say(msg: str) -> None:
     """Print and flush; Isaac Sim's fast shutdown drops buffered stdout."""

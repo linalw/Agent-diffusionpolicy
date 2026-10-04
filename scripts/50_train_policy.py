@@ -26,6 +26,12 @@ def main() -> int:
     parser.add_argument("--obs-horizon", type=int, default=int(os.environ.get("OBS_H", "2")))
     parser.add_argument("--action-horizon", type=int, default=int(os.environ.get("ACT_H", "16")))
     parser.add_argument("--image-size", type=int, default=int(os.environ.get("IMG", "128")))
+    parser.add_argument("--num-diffusion-steps", type=int,
+                        default=int(os.environ.get("DIFFUSION_STEPS", "100")))
+    parser.add_argument("--beta-schedule", choices=["linear", "cosine"],
+                        default=os.environ.get("BETA_SCHEDULE", "cosine"),
+                        help="noise schedule; cosine reaches ~zero alpha at t=max "
+                             "(the linear one stops at 0.364 and biases DDIM sampling)")
     args = parser.parse_args()
 
     train(
@@ -37,6 +43,8 @@ def main() -> int:
         obs_horizon=args.obs_horizon,
         action_horizon=args.action_horizon,
         image_size=args.image_size,
+        num_diffusion_steps=args.num_diffusion_steps,
+        beta_schedule=args.beta_schedule,
     )
     return 0
 

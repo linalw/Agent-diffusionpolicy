@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 
 import numpy as np
@@ -10,7 +11,7 @@ import isaacsim.core.experimental.utils.app as app_utils
 from isaacsim.core.experimental.prims import RigidPrim
 from isaacsim.core.simulation_manager import SimulationManager
 
-from .common import say, to_numpy
+from .common import say, substeps, to_numpy
 
 
 def quaternion_error(target: np.ndarray, current: np.ndarray) -> np.ndarray:
@@ -64,12 +65,18 @@ class ArmController:
     #: jaw separation = JAW_SEPARATION_OFFSET + JAW_SEPARATION_PER_JOINT * q
     JAW_SEPARATION_OFFSET = 0.010
     JAW_SEPARATION_PER_JOINT = 2.0
-    #: The finger link origins sit further apart than the gap between the finger
-    #: faces. Measured at the pick pose (scripts/36_static_grasp.py): origins
-    #: 0.098 m apart, faces 0.0758 m apart, so subtract this when converting a
-    #: desired grip gap into a jaw separation. It depends on wrist orientation,
-    #: which is fixed at the pick pose.
-    FINGER_FACE_OFFSET = 0.0222
+    #: Offset between the finger *link origins* and the gap between the pad
+    #: surfaces. Every earlier estimate was wrong by 1-2 cm because it came from
+    #: bounding boxes or from projecting the finger point clouds onto a closing
+    #: axis that is tilted ~30 deg away from the pad normal, both of which
+    #: overestimate the free gap. The authoritative number is the kinematic-sphere
+    #: sweep (scripts/55_grasp_sweep.py): a sphere of diameter d is stopped by the
+    #: pads at an *origin* separation of about d (2 cm -> 2.46, 3 -> 3.50,
+    #: 5 -> 4.86, 7 -> 5.95, 9 -> 8.99 cm), i.e. the pad surfaces are
+    #: essentially at the link origins. Commanding a wider gap leaves the pads
+    #: short of the fruit and every grasp reads zero contact force - which is
+    #: exactly what the 2.22 cm and 1.15 cm constants did.
+    FINGER_FACE_OFFSET = 0.0
 
     def __init__(
         self,
@@ -91,6 +98,17 @@ class ArmController:
         self.gain = gain
         self.max_step = max_step
         self._debug_steps = int(__import__("os").environ.get("FRUIT_IK_DEBUG", "0"))
+        #: Set to a list to record every IK step (see `begin_trace`/`end_trace`).
+        self._trace_rows: list[dict] | None = None
+        #: Triggered diagnostic. `ik_step` already reads the measured joints every
+        #: tick, so an external push can be detected *online* from data the
+        #: baseline collects anyway: the joint moves far more than the command
+        #: asked for. Reading more state per tick disturbs the run (see the
+        #: WORKLOG), but reading it once, on the tick that matters, does not.
+        self._prev_measured: np.ndarray | None = None
+        self._last_dq: np.ndarray | None = None
+        self.anomaly_hook = None
+        self.anomaly_kicks = 0
         self.hold_quaternion: np.ndarray | None = None
         #: Incremental IK integrator. Advancing the *commanded* joints (rather
         #: than re-deriving from the lagging measured position every step) is
@@ -143,6 +161,16 @@ class ArmController:
             k = float(os.environ.get("FRUIT_ARM_STIFFNESS", 1500.0))
             c = float(os.environ.get("FRUIT_ARM_DAMPING", 60.0))
             self.robot.set_dof_gains(k, c, dof_indices=self.arm_dofs)
+        # The finger drives are stiff and weakly actuated in this asset: with the
+        # jaw centre down at the pick pose they sometimes refuse to move at all
+        # (logs/85: commanded 0.044 -> 0.0, measured q stayed 0.044), which reads
+        # as "no contact" in every grasp test. Raise their stiffness so a small
+        # jam cannot stall the close.
+        finger_default = "60000" if os.environ.get("FRUIT_FINGER_PADS", "0") == "1" else "0"
+        finger_k = float(os.environ.get("FRUIT_FINGER_STIFFNESS", finger_default))
+        if finger_k > 0.0:
+            finger_c = float(os.environ.get("FRUIT_FINGER_DAMPING", str(finger_k * 0.02)))
+            self.robot.set_dof_gains(finger_k, finger_c, dof_indices=self.finger_dofs)
 
     # ------------------------------------------------------------------ #
     # State
@@ -163,6 +191,22 @@ class ArmController:
     def jaw_centre(self) -> np.ndarray:
         left, right = self.jaw_positions()
         return (left + right) / 2.0
+
+    def approach_axis(self) -> np.ndarray:
+        """Unit vector from the jaw centre towards the TCP (down the fingers).
+
+        The fingertip pads sit about 1 cm along this axis from the jaw centre, so
+        aiming the *pads* at a fruit means offsetting the commanded jaw centre
+        backwards along it.
+        """
+        axis = self.tcp_position() - self.jaw_centre()
+        return axis / max(float(np.linalg.norm(axis)), 1e-9)
+
+    def jaw_axis(self) -> np.ndarray:
+        """Unit vector along the closing axis (left finger -> right finger)."""
+        left, right = self.jaw_positions()
+        axis = np.asarray(right, dtype=float) - np.asarray(left, dtype=float)
+        return axis / max(float(np.linalg.norm(axis)), 1e-9)
 
     def jaw_separation(self) -> float:
         left, right = self.jaw_positions()
@@ -200,7 +244,7 @@ class ArmController:
         value = (origin_separation - self.JAW_SEPARATION_OFFSET) / self.JAW_SEPARATION_PER_JOINT
         return float(np.clip(value, self.closed_value, self.open_value))
 
-    def ik_step(self, target: np.ndarray) -> float:
+    def ik_step(self, target: np.ndarray, target_velocity: np.ndarray | None = None) -> float:
         """One 6-DoF differential-IK update towards `target`; returns position error [m].
 
         Orientation is held at `self.hold_quaternion` (captured by
@@ -212,6 +256,36 @@ class ArmController:
         error = np.asarray(target, dtype=float) - tcp
         distance = float(np.linalg.norm(error))
         if distance < 1e-5:
+            if self._trace_rows is not None:
+                # Keep the trace one row per control tick even on the early return,
+                # so a row index is a tick index.
+                self._trace_rows.append(
+                    {
+                        "dq": [0.0] * len(self.arm_dofs),
+                        "dq_norm": 0.0,
+                        "task_err": error.tolist(),
+                        "task_err_norm": distance,
+                        "lag": [0.0] * len(self.arm_dofs),
+                        "lag_norm": 0.0,
+                        "error6": error.tolist(),
+                        "error6_norm": distance,
+                        "sigma_min": float("nan"),
+                        "command": None if self._q_cmd is None else self._q_cmd.tolist(),
+                        "limit_clipped": False,
+                        "limit_margin": float("nan"),
+                        "jac_rows": 0,
+                        "tcp": tcp.tolist(),
+                        "measured": None,
+                        "q_cmd": None if self._q_cmd is None else self._q_cmd.tolist(),
+                        "sim_time": float(
+                            __import__(
+                                "isaacsim.core.simulation_manager",
+                                fromlist=["SimulationManager"],
+                            ).SimulationManager.get_simulation_time()
+                        ),
+                        "early_return": True,
+                    }
+                )
             return distance
 
         jacobian = self.robot.get_jacobian_matrices().numpy()[0, self.tcp_jacobian_index]
@@ -228,6 +302,32 @@ class ArmController:
             jac = j_full
 
         measured = self.dof_positions()[self.arm_dofs]
+        # Every line of the detector is behind the hook: the shipped control loop
+        # must not carry even two small array copies, because the run is measurably
+        # sensitive to what `ik_step` does per tick (a run with the hook installed
+        # but no kick fires still diverges from the baseline - logs/453/455).
+        if self.anomaly_hook is not None:
+            if self._prev_measured is not None and self._last_dq is not None:
+                achieved = float(np.linalg.norm(measured - self._prev_measured))
+                commanded = float(np.linalg.norm(self._last_dq))
+                # The arm cannot move much further than it was told to: when it
+                # does, something other than the drive moved it.
+                if achieved > float(
+                    os.environ.get("FRUIT_ANOMALY_STEP", "0.015")
+                ) and (achieved > 5.0 * commanded):
+                    self.anomaly_kicks += 1
+                    self.anomaly_hook(
+                        {
+                            "achieved_rad": achieved,
+                            "commanded_rad": commanded,
+                            "measured": measured.tolist(),
+                            "previous_measured": self._prev_measured.tolist(),
+                            "last_dq": self._last_dq.tolist(),
+                            "tcp": tcp.tolist(),
+                            "task_err_m": distance,
+                        }
+                    )
+            self._prev_measured = measured.copy()
         if self._q_cmd is None:
             self._q_cmd = measured.copy()
         # Predict the task error that the *commanded* joints will produce. The
@@ -238,10 +338,96 @@ class ArmController:
         lam = self.damping**2
         dq = jac.T @ np.linalg.solve(jac @ jac.T + lam * np.eye(jac.shape[0]), error6)
         dq = np.clip(dq * self.gain, -self.max_step, self.max_step)
+        if self._trace_rows is not None:
+            # Per-tick record for the one-descent-in-ten lurch: the interesting
+            # question is whether the integrator runs away because it saturates at
+            # a joint limit, because the Jacobian goes near-singular, or because
+            # the lag-compensation term inverts sign.
+            unclipped = self._q_cmd + dq
+            singular = float(np.linalg.svd(jac, compute_uv=False)[-1])
+            self._trace_rows.append(
+                {
+                    "dq": dq.tolist(),
+                    "dq_norm": float(np.linalg.norm(dq)),
+                    "task_err": error.tolist(),
+                    "task_err_norm": distance,
+                    "lag": (self._q_cmd - measured).tolist(),
+                    "lag_norm": float(np.linalg.norm(self._q_cmd - measured)),
+                    "error6": error6.tolist(),
+                    "error6_norm": float(np.linalg.norm(error6)),
+                    "sigma_min": singular,
+                    "command": unclipped.tolist(),
+                    "limit_clipped": bool(
+                        np.any(unclipped < self.arm_lo - 1e-12)
+                        or np.any(unclipped > self.arm_hi + 1e-12)
+                    ),
+                    "limit_margin": float(
+                        min(np.min(unclipped - self.arm_lo), np.min(self.arm_hi - unclipped))
+                    ),
+                    "jac_rows": int(jac.shape[0]),
+                    "tcp": tcp.tolist(),
+                    "measured": measured.tolist(),
+                    "q_cmd": self._q_cmd.tolist() if self._q_cmd is not None else None,
+                    "drive_target": np.asarray(
+                        self.robot.get_dof_position_targets().numpy()
+                    )[0][self.arm_dofs].tolist(),
+                    "drive_velocity_target": np.asarray(
+                        self.robot.get_dof_velocity_targets().numpy()
+                    )[0][self.arm_dofs].tolist(),
+                    "sim_time": float(
+                        __import__(
+                            "isaacsim.core.simulation_manager",
+                            fromlist=["SimulationManager"],
+                        ).SimulationManager.get_simulation_time()
+                    ),
+                    "early_return": False,
+                }
+            )
+        # Command rate limit. The position step cap above is *not* what bounds the
+        # visible smoothness: the integrator's `jac @ (q_cmd - q_measured)` lag
+        # compensation can inject a single-tick joint command of ~9 mrad (~4.5 mm
+        # of tip motion in 8 ms) while the task residual is 0.01 mm, and the drive
+        # answers that with a 2-3 m/s^2 lurch (measured, logs/420). `FRUIT_IK_RATE`
+        # bounds the command change per control tick instead; 0 disables it.
+        rate = float(os.environ.get("FRUIT_IK_RATE", "0.0"))
+        if rate > 0.0:
+            magnitude = float(np.linalg.norm(dq))
+            if magnitude > rate:
+                dq = dq * (rate / magnitude)
+        if self.anomaly_hook is not None:
+            self._last_dq = np.asarray(dq, dtype=float).copy()
+        warn = float(os.environ.get("FRUIT_IK_WARN", "0.0"))
+        if warn > 0.0 and float(np.linalg.norm(dq)) > warn:
+            say(
+                f"[ik:{self.spec.side}] LARGE command |dq|={np.linalg.norm(dq):.4f} rad "
+                f"task_err={np.linalg.norm(error):.4f} m "
+                f"lag|q_cmd-q|={np.linalg.norm(self._q_cmd - measured):.4f} rad"
+            )
 
         command = np.clip(self._q_cmd + dq, self.arm_lo, self.arm_hi)
         self._q_cmd = command
         self.robot.set_dof_position_targets([command], dof_indices=self.arm_dofs)
+        # Velocity feed-forward: the PD drives lag the position reference, and that
+        # lag is what showed up as 3.5-7 m/s^2 of *achieved* TCP acceleration in
+        # the approach (logs/374 - the reference itself was smooth). Feeding the
+        # reference's Cartesian velocity through the pseudo-inverse gives the
+        # drives the velocity term they need to track it.
+        # Default 0 (off): the joint-velocity feed-forward was measured with gain
+        # 1.0 and did not help - achieved approach |a|max went 3.5/4.7/15.1 m/s^2
+        # versus 3.7/5.4/6.4 m/s^2 without it (logs/375 vs /376), with one attempt
+        # clearly worse, so the velocity-target convention needs its own study.
+        ff = float(os.environ.get("FRUIT_FF_GAIN", "0.0"))
+        if target_velocity is not None and ff > 0.0:
+            lam = self.damping**2
+            dq_rate = jac.T @ np.linalg.solve(
+                jac @ jac.T + lam * np.eye(jac.shape[0]), np.asarray(target_velocity, dtype=float)[: jac.shape[0]]
+            )
+            setter = getattr(self.robot, "set_dof_velocity_targets", None)
+            if setter is not None:
+                try:
+                    setter([[float(v) * ff for v in dq_rate]], dof_indices=self.arm_dofs)
+                except (AttributeError, TypeError, ValueError):
+                    pass
         if self._debug_steps > 0:
             self._debug_steps -= 1
             say(
@@ -254,6 +440,27 @@ class ArmController:
     def sync_command_to_measured(self) -> None:
         """Reset the IK integrator to the measured joints (after a jump or reset)."""
         self._q_cmd = self.joint_positions()
+        # The achieved-motion detector compares consecutive ticks; a jump or a
+        # reset makes that comparison meaningless.
+        self._prev_measured = None
+        self._last_dq = None
+
+    def begin_trace(self) -> None:
+        """Start recording every IK step (see `end_trace`)."""
+        self._trace_rows = []
+
+    def end_trace(self, path: str) -> int:
+        """Write the recorded IK steps to `path` and stop recording."""
+        import json
+
+        rows = self._trace_rows or []
+        self._trace_rows = None
+        if not rows:
+            return 0
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        with open(path, "w", encoding="utf-8") as handle:
+            json.dump(rows, handle)
+        return len(rows)
 
     def teleport_joints(self, config: np.ndarray, settle: int = 30) -> None:
         """Place the arm at `config` without driving through intermediate poses.
@@ -271,7 +478,7 @@ class ArmController:
             [full[self.arm_dofs]], dof_indices=self.arm_dofs
         )
         for _ in range(settle):
-            SimulationManager.step(steps=1)
+            SimulationManager.step(steps=substeps())
         self.sync_command_to_measured()
 
     def capture_hold_pose(self) -> None:
@@ -285,7 +492,7 @@ class ArmController:
         residual = float("inf")
         for _ in range(max_steps):
             residual = self.ik_step(target)
-            SimulationManager.step(steps=steps_per_update)
+            SimulationManager.step(steps=steps_per_update * substeps())
             if residual <= tolerance:
                 break
         return residual
@@ -298,7 +505,7 @@ class ArmController:
 
     def solve_to(self, jaw_target: np.ndarray, iterations: int = 2000,
                  tolerance: float = 0.008, restarts: int = 1,
-                 seed: int = 0) -> tuple[np.ndarray, float]:
+                 seed: int = 0, move_on_fail: bool = True) -> tuple[np.ndarray, float]:
         """Solve IK to `jaw_target` and return the joint configuration and residual.
 
         The TCP->jaw offset is re-measured periodically: with position-only IK
@@ -324,7 +531,7 @@ class ArmController:
                 self.ik_step(target + offset)
                 # Physics step, not an app update: an app update renders and
                 # costs ~0.4 s here, which made IK solves take minutes.
-                SimulationManager.step(steps=1)
+                SimulationManager.step(steps=substeps())
                 residual = float(np.linalg.norm(self.jaw_centre() - target))
                 if residual <= tolerance:
                     break
@@ -334,7 +541,7 @@ class ArmController:
             if best_residual <= tolerance:
                 break
 
-        if best_residual > tolerance:
+        if best_residual > tolerance and move_on_fail:
             self.move_joints(best_config, steps=60)
         return best_config, best_residual
 
@@ -348,7 +555,7 @@ class ArmController:
         self.robot.set_dof_positions(full)
         self.robot.set_dof_position_targets(full)
         for _ in range(20):
-            SimulationManager.step(steps=1)
+            SimulationManager.step(steps=substeps())
         self.sync_command_to_measured()
 
     def move_joints(
@@ -358,31 +565,44 @@ class ArmController:
         settle: int = 260,
         tolerance: float = 0.06,
     ) -> float:
-        """Interpolate to `target`, then hold until the joints actually get there.
+        """Blend to `target` along a quintic, then hold until the joints get there.
 
         Returns the final maximum joint error [rad]. The drives are heavily
         damped, so the commanded position is not reached within the interpolation
         alone.
+
+        The blend is minimum-jerk (`10u^3 - 15u^4 + 6u^5`) rather than linear:
+        a straight joint-space line starts and stops with a velocity step, which
+        the drives answer with a lurch and which is visible in the demo videos.
         """
+        from .motion import min_jerk_ramp
+
         start = self.joint_positions()
         target = np.asarray(target, dtype=float).reshape(-1)
+        blend = min_jerk_ramp(0.0, 1.0, steps)
         for i in range(1, steps + 1):
-            alpha = i / float(steps)
-            command = (1.0 - alpha) * start + alpha * target
+            alpha = float(blend[i - 1])
+            command = start + alpha * (target - start)
             self.robot.set_dof_position_targets([command], dof_indices=self.arm_dofs)
-            SimulationManager.step(steps=1)
+            SimulationManager.step(steps=substeps())
         error = float(np.max(np.abs(self.joint_positions() - target)))
         for _ in range(settle):
             if error <= tolerance:
                 break
             self.robot.set_dof_position_targets([target], dof_indices=self.arm_dofs)
-            SimulationManager.step(steps=1)
+            SimulationManager.step(steps=substeps())
             error = float(np.max(np.abs(self.joint_positions() - target)))
+        # Re-seat the differential-IK integrator on the pose the arm actually
+        # reached. This function writes position targets directly, so `_q_cmd`
+        # would otherwise still hold the configuration from before the move; the
+        # next `ik_step` would then fold the whole difference into one command and
+        # the stiff drive snaps to it (the 1.79 m/s single-tick lurch in logs/423).
+        self.sync_command_to_measured()
         return error
 
     def hold(self, steps: int = 30) -> None:
         for _ in range(steps):
-            SimulationManager.step(steps=1)
+            SimulationManager.step(steps=substeps())
 
     def park_pose(self) -> np.ndarray:
         """A safe resting pose slightly above and behind the belt."""

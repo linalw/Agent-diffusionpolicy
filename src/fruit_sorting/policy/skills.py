@@ -7,7 +7,7 @@ annotation is needed - the same rules the design document specifies:
     approach  gripper open, fruit still on the belt
     grasp     gripper closing/closed on the fruit
     lift      fruit off the belt (carried)
-    place     fruit over/inside the destination bin
+    place     fruit over the destination output conveyor
     recovery  a failure is being handled (no failures in the current demos)
 """
 
@@ -24,9 +24,9 @@ def label_episode(
     fruit_positions: np.ndarray,
     finger_opening: np.ndarray,
     goal: np.ndarray,
-    bin_positions: tuple[tuple[float, float], ...] = ((0.34, 0.44), (0.34, -0.44)),
+    bin_positions: tuple[tuple[float, float], ...] = ((0.43, 0.55), (0.43, -0.55)),
     lift_height: float = 0.06,
-    bin_radius: float = 0.20,
+    bin_radius: float = 0.30,
     closed_threshold: float = 0.030,
 ) -> np.ndarray:
     """Return an int array of skill indices, one per frame."""

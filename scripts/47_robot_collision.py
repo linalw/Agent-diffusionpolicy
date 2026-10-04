@@ -30,11 +30,22 @@ CONFIG = json.load(open("configs/waypoints.json"))
 
 def main() -> int:
     cfg = SceneConfig()
-    scene = SortingScene(cfg).build(parts=("environment", "pedestal", "robot", "conveyor"))
+    # `FRUIT_PARTS` lets this probe drop the conveyor: the first run showed the jaw
+    # stopped 8 cm above the belt top with the finger bounding boxes overlapping it,
+    # so "with conveyor" vs "without conveyor" is what attributes the stop.
+    parts = tuple(
+        piece.strip()
+        for piece in os.environ.get(
+            "FRUIT_PARTS", "environment,pedestal,robot,conveyor"
+        ).split(",")
+        if piece.strip()
+    )
+    scene = SortingScene(cfg).build(parts=parts)
     scene.start(physics_dt=1.0 / 120.0, warmup_steps=60)
     arm = ArmController(scene, "left")
-    belt_top = scene.belt.belt_top
-    say(f"belt top {belt_top:.3f}; robot base z={cfg.robot_base_z}")
+    belt = getattr(scene, "belt", None)
+    belt_top = belt.belt_top if belt is not None else float("nan")
+    say(f"parts={parts} belt top {belt_top:.3f}; robot base z={cfg.robot_base_z}")
 
     # Drive the TCP straight down into the belt and see whether it is stopped.
     arm.teleport_joints(np.asarray(CONFIG["arms"]["left"]["grasp"], dtype=float))
