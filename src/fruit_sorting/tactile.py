@@ -73,6 +73,20 @@ class GripperTactile:
             for side, names in finger_links.items():
                 finger_paths[side] = [f"{robot_root}/{n}" for n in names]
 
+        # D2 mechanism (opt-in): when the compliant soft pads are authored
+        # (`scene._add_soft_pads`, `FRUIT_FINGER_SOFT_PAD=1`) they are the
+        # loaded bodies, so the grip force lives on *them* - the finger meshes
+        # are filtered from the fruit and their sensors would read zero. Attach
+        # the same contact readers to the pads so `read()` keeps the force the
+        # close/probe/force-servo logic consumes. Nothing is added when the
+        # pads are absent (the shipped build).
+        if stage is not None:
+            for side in ("left", "right"):
+                for which in ("left", "right"):
+                    pad_path = f"/World/SoftPads/{side}_{which}"
+                    if stage.GetPrimAtPath(pad_path).IsValid():
+                        finger_paths.setdefault(side, []).append(pad_path)
+
         for side, links in finger_paths.items():
             for i, link_path in enumerate(links):
                 sensor_path = f"{link_path}/tactile_{i}"

@@ -234,12 +234,6 @@ def main() -> int:
             spawner.update(task._sim_time())
             spawner.enforce_transport()
             capture()
-        state = task.select_target(spawner.state())
-        if state is None:
-            continue
-        bin_index = 0 if state["grade"] == "A" else 1
-        say(f"[video] cycle {captured}: {state['category']} grade={state['grade']} lane={bin_index}")
-
         # Run the task while capturing. A failed attempt is *not* kept: its frames
         # show a fruit being knocked about, and the demo should not show that (the
         # clip is a demonstration of the working cycle, while the acceptance runs
@@ -261,15 +255,42 @@ def main() -> int:
             len(capture_stats),
         )
         task.frame_callback = capture
-        result = task.run(state, bin_index, verbose=True)
-        say(f"[video] cycle {captured} result grasped={result.grasped} placed={result.placed}")
-        if result.success:
-            captured += 1
+        bimanual = task.bimanual_enabled()
+        if bimanual:
+            # F2 clip: both arms work the shared station in the same session. The
+            # batch is kept when at least one arm succeeded; each success counts
+            # toward CYCLES.
+            made = task.run_bimanual(max(CYCLES * 2, 4))
+            if not made:
+                say("[video] bimanual batch launched no attempt; retrying")
+                continue
+            successes = sum(1 for item in made if item.success)
+            for item in made:
+                say(
+                    f"[video] cycle {captured} ({item.arm}): {item.category} "
+                    f"grasped={item.grasped} placed={item.placed} sim={item.sim_span:.1f}s"
+                )
+            captured += successes
+            if successes == 0:
+                observer_frames[mark[0]:] = []
+                head_frames[mark[1]:] = []
+                close_frames[mark[2]:] = []
+                capture_stats[mark[3]:] = []
         else:
-            observer_frames[mark[0]:] = []
-            head_frames[mark[1]:] = []
-            close_frames[mark[2]:] = []
-            capture_stats[mark[3]:] = []
+            state = task.select_target(spawner.state())
+            if state is None:
+                continue
+            bin_index = 0 if state["grade"] == "A" else 1
+            say(f"[video] cycle {captured}: {state['category']} grade={state['grade']} lane={bin_index}")
+            result = task.run(state, bin_index, verbose=True)
+            say(f"[video] cycle {captured} result grasped={result.grasped} placed={result.placed}")
+            if result.success:
+                captured += 1
+            else:
+                observer_frames[mark[0]:] = []
+                head_frames[mark[1]:] = []
+                close_frames[mark[2]:] = []
+                capture_stats[mark[3]:] = []
         task.go_ready()
         for _ in range(40):
             SimulationManager.step(steps=1)

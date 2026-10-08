@@ -28,6 +28,14 @@ Knobs (all read from the environment, `RTCSettings.from_env`):
                                  formulation here needs no >1 gain)
     FRUIT_RTC_SCHEDULE           EXP|LINEAR|ONES|ZEROS (EXP is the reference
                                  default; LeRobot ships LINEAR)
+    FRUIT_RTC_GUIDANCE           1|0: freeze + soft inpaint (default 1; the
+                                 VLASH deployment sets 0)
+    FRUIT_VLASH                  0|1 master switch for the VLASH deployment
+                                 (default 0): enables the interleaved async
+                                 chunker with guidance off and conditions the
+                                 new chunk on the state rolled forward under
+                                 the previous chunk's pending actions. The
+                                 matching fine-tune is scripts/133_vlash_finetune.py.
 """
 
 from __future__ import annotations
@@ -57,15 +65,32 @@ class RTCSettings:
     execution_horizon: int = 10
     max_guidance_weight: float = 1.0
     schedule: str = "EXP"
+    #: RTC prefix guidance (freeze + EXP soft inpaint). The VLASH-style
+    #: deployment runs the same interleaved async chunker with guidance off
+    #: (a plain chunk switch, no freeze/inpaint), so `FRUIT_VLASH=1` implies
+    #: guidance off unless `FRUIT_RTC_GUIDANCE=1` is set explicitly.
+    guidance: bool = True
+    #: VLASH-style state roll-forward (arXiv 2512.01031), default off. The env
+    #: conditions the new chunk on the execution-time state estimated by
+    #: rolling the measured state forward under the previous chunk's pending
+    #: actions; needs the env's `roll` callback (see `RealtimeChunker`).
+    vlash: bool = False
+    #: Roll-forward offset in chunk steps; 0 = the inference delay (the
+    #: VLASH paper's rule: the smallest offset covering the measured latency).
+    vlash_delta: int = 0
 
     @classmethod
     def from_env(cls) -> "RTCSettings":
-        enabled = os.environ.get("FRUIT_RTC", "0").strip() == "1"
+        vlash = os.environ.get("FRUIT_VLASH", "0").strip() == "1"
+        enabled = os.environ.get("FRUIT_RTC", "0").strip() == "1" or vlash
         schedule = os.environ.get("FRUIT_RTC_SCHEDULE", "EXP").strip().upper()
         if schedule not in RTC_SCHEDULES:
             raise ValueError(
                 f"FRUIT_RTC_SCHEDULE must be one of {RTC_SCHEDULES}, got {schedule!r}"
             )
+        guidance = os.environ.get("FRUIT_RTC_GUIDANCE", "").strip()
+        if guidance == "":
+            guidance = "0" if vlash else "1"
         return cls(
             enabled=enabled,
             inference_delay=int(os.environ.get("FRUIT_RTC_INFERENCE_DELAY", "0") or 0),
@@ -76,13 +101,17 @@ class RTCSettings:
                 os.environ.get("FRUIT_RTC_MAX_GUIDANCE_WEIGHT", "1.0")
             ),
             schedule=schedule,
+            guidance=guidance.strip() != "0",
+            vlash=vlash,
+            vlash_delta=int(os.environ.get("FRUIT_VLASH_DELTA", "0") or 0),
         )
 
     def summary(self) -> str:
         return (
             f"rtc={'on' if self.enabled else 'off'} delay={self.inference_delay} "
             f"horizon={self.execution_horizon} maxw={self.max_guidance_weight} "
-            f"schedule={self.schedule}"
+            f"schedule={self.schedule} guidance={'on' if self.guidance else 'off'} "
+            f"vlash={'on' if self.vlash else 'off'} vlash_delta={self.vlash_delta}"
         )
 
 
@@ -285,6 +314,13 @@ class RealtimeChunker:
     ``execute_steps=1/2/4`` is the same tight-loop knob as in the synchronous
     path. The first chunk of an episode is sampled synchronously (nothing to
     continue from).
+
+    Two deployment variants share the queue. RTC (default) freezes the first
+    ``inference_delay`` actions to the old chunk and soft-inpaints the rest
+    (``guidance``). VLASH (``vlash``, guidance off) conditions each new chunk on
+    the state the caller rolls forward under the pending actions instead
+    (``next_action(..., roll=...)``); it needs a checkpoint fine-tuned with
+    temporal offsets (``scripts/133_vlash_finetune.py``).
     """
 
     def __init__(
@@ -302,6 +338,12 @@ class RealtimeChunker:
         delay = int(settings.inference_delay) or self.execute_steps
         self.inference_delay = max(1, min(delay, runner.action_horizon))
         self.execution_horizon = max(1, int(settings.execution_horizon))
+        #: RTC prefix guidance (freeze + soft inpaint); off for VLASH.
+        self.guidance = bool(settings.guidance)
+        #: VLASH state roll-forward; needs the caller's `roll(measured, window)`
+        #: callback on each `next_action`.
+        self.vlash = bool(settings.vlash)
+        self.vlash_delta = int(settings.vlash_delta) or self.inference_delay
         #: Offline diagnostics only (`scripts/124_rtc_boundary.py`): one row per
         #: completed sampler with the previous leftover and the new chunk. Never
         #: enabled in the env loop.
@@ -326,12 +368,19 @@ class RealtimeChunker:
             np.asarray(observe(), dtype=np.float32), self._goal
         )
 
-    def next_action(self, observe, goal: np.ndarray, num_steps: int) -> np.ndarray:
+    def next_action(self, observe, goal: np.ndarray, num_steps: int,
+                    roll=None) -> np.ndarray:
         """One action for this control step. ``observe`` returns the 25-D proprio.
 
         ``observe`` is called only when a chunk sample starts, in the same order
         the synchronous path reads proprio (once per act call), so the extra
         read cost stays out of the control loop.
+
+        ``roll(measured_proprio, pending_actions)`` (VLASH only, optional) maps
+        the measured proprio and the slice of the current chunk that will
+        execute during the inference delay to the estimated execution-time
+        proprio; the sampler is then conditioned on it. Without the callback
+        the measured proprio is used, exactly as the RTC path.
         """
         self._goal = np.asarray(goal, dtype=np.float32)
         self.last_switch = False
@@ -356,10 +405,21 @@ class RealtimeChunker:
                 self.chunks_sampled += 1
             else:
                 self.start_pos = self.pos
+                previous = self.actions[self.pos :] if self.guidance else None
+                if self.vlash and roll is not None:
+                    measured = np.asarray(observe(), dtype=np.float32)
+                    window = self.actions[
+                        self.pos : self.pos + self.vlash_delta
+                    ]
+                    condition = self.runner._condition(
+                        roll(measured, window), self._goal
+                    )
+                else:
+                    condition = self._observe(observe)
                 self.sampler = RTCSampler(
                     self.runner,
-                    self._observe(observe),
-                    self.actions[self.pos :],
+                    condition,
+                    previous,
                     num_steps=int(num_steps),
                     inference_delay=self.inference_delay,
                     execution_horizon=self.execution_horizon,

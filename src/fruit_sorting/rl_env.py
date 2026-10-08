@@ -104,7 +104,31 @@ from .policy.trigger import TriggerSettings, should_fire
 #: while a dynamic capture is active); the indexed path and all control are
 #: unchanged, so the policy loop (which never sets `_dynamic_capture_active`)
 #: runs the same scenario.
-TASKS_MD5 = "ae841a17bbacdb19180451315193486c"
+#: `085256b2` is the v5-A integrated revision: the shipped place is the lowered,
+#: accompanied descent (`FRUIT_PLACE_LOW=1`, the new default; `=0` restores the
+#: historical free drop bit-for-bit). The indexed line's descents are unchanged
+#: and the policy loop (which never sets `_dynamic_capture_active`) runs the
+#: same scenario with the lowered place at the end of `grasp_carry_place`; the
+#: D-entry canary re-measured the hybrid policy path on it (`logs/d_v5entry/`).
+#: `3003679b` was the first D2-integrated revision (compliant soft pads opt-in,
+#: default off). The D2 lane kept iterating while the entry work ran, and the
+#: pin moved with it - it is now `25281bb1`, the revision the second place-low
+#: canary ran on (7/10 PASS; `logs/d_v5entry/08_canary_placelow_d2.*`). The
+#: re-pin smoke for this revision is queued in `entry_batch3` because the D2
+#: lane holds the simulator. The D1 baseline was measured on the earlier
+#: `29db6b64` merge and is bit-identical to the pre-merge `085256b2` outputs.
+#: The F1 lane moved `tasks.py` again (dynamic line the shipped default, faster
+#: dynamic profiles, cycle report), so the pin is now `d47be123`, the revision
+#: the F1 acceptance ran on (`logs/fast/11_accept_v7fast_verified.log`; the F2
+#: bimanual lane must move it again when it edits `tasks.py`).
+#: The P2b lane (left-handover diagnosis + fix) moved `tasks.py`; the pin below
+#: is the P2b revision measured in `logs/p2b/` (diagnostic revision first, then
+#: the frozen fix revision - the hash follows the file).
+#: The final-review pass (2026-10-08) touched only the `_dynamic_pick_mode`
+#: docstring (the stale "ceiling is 8/10" -> the Gate-19 9/10), so the pin moved
+#: with the docstring-only revision (`2574ceac...`); no control logic changed,
+#: and the P2b/G measurements remain valid for this tree.
+TASKS_MD5 = "2574ceacf7544c1465d8636ce2e56d92"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(
@@ -328,8 +352,16 @@ class RolloutRecorder:
         index_path = os.path.join(self.out_dir, "index.json")
         entries = []
         if os.path.exists(index_path):
-            with open(index_path, encoding="utf-8") as fh:
-                entries = json.load(fh)
+            try:
+                with open(index_path, encoding="utf-8") as fh:
+                    entries = json.load(fh)
+                if not isinstance(entries, list):
+                    entries = []
+            except (OSError, ValueError):
+                # A run killed mid-write (the contact-grind wedge) can leave a
+                # truncated/empty index; treat it as empty instead of crashing
+                # the next episode's recorder. The npz files are unaffected.
+                entries = []
         name = os.path.basename(path)
         for position, existing in enumerate(entries):
             if existing.get("file") == name:
@@ -337,8 +369,11 @@ class RolloutRecorder:
                 break
         else:
             entries.append(row)
-        with open(index_path, "w", encoding="utf-8") as fh:
+        # Atomic write: a SIGKILL during json.dump must not corrupt the index.
+        tmp_path = index_path + ".tmp"
+        with open(tmp_path, "w", encoding="utf-8") as fh:
             json.dump(entries, fh, indent=2)
+        os.replace(tmp_path, index_path)
 
 
 class SortingRLEnv:
@@ -413,6 +448,33 @@ class SortingRLEnv:
         #: arrival at the jaw, from the belt encoder / measured velocity.
         self.trigger_settings = TriggerSettings.from_env()
 
+        # --- event-triggered replanning (path-3 arm), default off ----------- #
+        #: DVAC/ChunkTrust-spirited test-time horizon adaptation: the execute
+        #: horizon for each newly sampled chunk is chosen from the continuity
+        #: between the new chunk's clean actions and the previous chunk's
+        #: overlapping prediction (see `_event_horizon`). Off by default; when
+        #: off the loop is the shipped fixed `execute_steps`.
+        self._event = os.environ.get("FRUIT_POLICY_EVENT", "0") == "1"
+        self._event_min = max(2, int(os.environ.get("FRUIT_POLICY_EVENT_MIN", "2")))
+        self._event_max = max(
+            self._event_min, int(os.environ.get("FRUIT_POLICY_EVENT_MAX", "6"))
+        )
+        self._event_default = min(
+            self._event_max,
+            max(
+                self._event_min,
+                int(os.environ.get("FRUIT_POLICY_EVENT_HORIZON", str(self.execute_steps))),
+            ),
+        )
+        if self._event and presentation != "direct":
+            raise ValueError(
+                "event-triggered replanning is only defined for presentation='direct'"
+            )
+        #: A2C2-style per-step correction head (path-3 arm), default off. Loaded
+        #: after the policy below (it only needs the checkpoint normalizer).
+        self._a2c2_path = os.environ.get("FRUIT_A2C2", "").strip()
+        self._a2c2 = None
+
         # --- RTC (real-time chunking), default off --------------------------- #
         from .policy.runtime import RTCSettings
 
@@ -430,8 +492,10 @@ class SortingRLEnv:
         self.rtc = None
         #: Run-level RTC report accumulators (only filled when `_rtc_report`).
         self._rtc_totals: dict = {
-            "boundary": [], "within": [], "control_ms": [], "policy_ms": [],
-            "switches": 0, "steps": 0, "chunks": 0,
+            "boundary": [], "within": [], "step": [], "jerk": [],
+            "control_ms": [], "policy_ms": [],
+            "switches": 0, "steps": 0, "chunks": 0, "decisions": 0,
+            "policy_ms_total": 0.0,
         }
 
         # --- frozen-tree check, before any simulator state is spent ---------- #
@@ -491,6 +555,16 @@ class SortingRLEnv:
                 f"[rl] loaded {checkpoint} (obs_horizon={self.policy.obs_horizon}, "
                 f"action_horizon={self.policy.action_horizon})"
             )
+            if self._a2c2_path:
+                from .policy.correction import CorrectionController
+
+                self._a2c2 = CorrectionController(
+                    self._a2c2_path, device=self.policy.device
+                )
+                say(
+                    f"[rl] A2C2 correction head {self._a2c2_path} "
+                    f"(gain={self._a2c2.gain}, clamp={self._a2c2.clamp})"
+                )
             self.action_dim = int(self.policy.config["action_dim"])
             self.action_horizon = int(self.policy.config["action_horizon"])
             self._image_channels = int(self.policy.config["image_channels"])
@@ -618,6 +692,26 @@ class SortingRLEnv:
             "rtc": asdict(self.rtc_settings) if self.rtc_settings.enabled else None,
             "rtc_report": bool(self._rtc_report),
             "policy_track": bool(self._policy_track),
+            "event_replan": {
+                "enabled": bool(self._event),
+                "min": int(self._event_min),
+                "max": int(self._event_max),
+                "default": int(self._event_default),
+            },
+            "a2c2": (
+                {
+                    "path": self._a2c2_path,
+                    "md5": _md5(
+                        self._a2c2_path
+                        if os.path.isabs(self._a2c2_path)
+                        else os.path.join(_REPO_ROOT, self._a2c2_path)
+                    ),
+                    "gain": os.environ.get("FRUIT_A2C2_GAIN", "1.0"),
+                    "clamp": os.environ.get("FRUIT_A2C2_CLAMP", "0.2"),
+                }
+                if self._a2c2_path
+                else None
+            ),
             "dynamic_force": {
                 # OpenArm grip force servo (tasks.py; default off). Recorded even
                 # when off so a run is identifiable from its manifest alone.
@@ -848,11 +942,21 @@ class SortingRLEnv:
         # RTC report buffers for this episode (empty and unused when off).
         self._report_boundary: list[float] = []
         self._report_within: list[float] = []
+        self._report_step: list[float] = []
+        self._report_jerk: list[float] = []
         self._report_control_ms: list[float] = []
         self._report_policy_ms: list[float] = []
+        self._report_decisions = 0
+        self._last7: np.ndarray | None = None
+        self._prev7: np.ndarray | None = None
         self._switch_flag = False
         self._pending_switch = False
         self._applied_any = False
+        # Event-triggered replanning state for this episode (empty when off).
+        self._prev_chunk: np.ndarray | None = None
+        self._prev_exec = 0
+        self._event_continuities: list[float] = []
+        self._event_horizons: list[int] = []
         # DAgger bookkeeping for this episode (the expert label buffer starts
         # empty; `_observe`/`_record_tick` fill it at the decision points).
         self._expert_until = -1
@@ -1004,11 +1108,17 @@ class SortingRLEnv:
         )
         if self._rtc_report:
             self._report_policy_ms.append((time.perf_counter() - start) * 1e3)
+            self._report_decisions += 1
             self._pending_switch = True
         return chunk
 
     def act(self, chunk: np.ndarray | None, execute_steps: int | None = None) -> StepResult:
-        """Execute up to ``execute_steps`` actions; returns the step result."""
+        """Execute up to ``execute_steps`` actions; returns the step result.
+
+        With event-triggered replanning (``FRUIT_POLICY_EVENT=1``) the horizon
+        for this chunk is chosen by `_event_horizon` instead of the passed
+        ``execute_steps``; the argument is then the reference/default only.
+        """
         steps = self.execute_steps if execute_steps is None else max(1, int(execute_steps))
         if self._done:
             return self._step_result()
@@ -1017,7 +1127,10 @@ class SortingRLEnv:
         if self.ablate == "scripted":
             self._run_scripted()
             return self._step_result()
+        if self._event:
+            steps = self._event_horizon(chunk)
 
+        executed = 0
         for index in range(steps):
             step_start = time.perf_counter() if self._rtc_report else 0.0
             if self._step % 4 == 0:
@@ -1039,7 +1152,8 @@ class SortingRLEnv:
                     if self._rtc_report:
                         start = time.perf_counter()
                     action = self.rtc.next_action(
-                        self.proprio, self._goal, self.ddim_steps
+                        self.proprio, self._goal, self.ddim_steps,
+                        roll=self._roll_proprio if self.rtc_settings.vlash else None,
                     )
                     if self._rtc_report:
                         self._report_policy_ms.append((time.perf_counter() - start) * 1e3)
@@ -1053,8 +1167,9 @@ class SortingRLEnv:
             if self.dagger is not None:
                 action = self._dagger_action(action)
             if action is not None:
-                self._apply(action)
+                self._apply(action, index)
                 if self._done:
+                    executed = index + 1
                     break
                 self._record_tick()
                 self.advance(1)
@@ -1067,6 +1182,7 @@ class SortingRLEnv:
             self._tick += 1
             self.spawner.enforce_transport()
             self._step += 1
+            executed = index + 1
             if self._episode_events():
                 continue
             if self._tick >= int(self.reward.horizon):
@@ -1076,14 +1192,27 @@ class SortingRLEnv:
                     ]
                 )
                 break
+        if self._event:
+            # The next chunk is sampled at the state after these `executed`
+            # steps; its index `i` then corresponds to this chunk's index
+            # `executed + i` (the same absolute control step).
+            self._prev_chunk = (
+                None if chunk is None else np.asarray(chunk, dtype=np.float64).copy()
+            )
+            self._prev_exec = int(executed)
         return self._step_result()
 
-    def _apply(self, action) -> None:
+    def _apply(self, action, index: int = 0) -> None:
         action = np.asarray(action, dtype=np.float64).reshape(-1)
         if not np.isfinite(action).all():
             self._notes.append("non-finite policy action")
             return
         arm = self.task.arms[self._active]
+        if self._a2c2 is not None and not self._triggered:
+            # A2C2-style per-step correction on the frozen base policy, before
+            # the primitive owns the arm. The head only shifts the 7 arm
+            # channels; the finger command (and so the trigger) is unchanged.
+            action = self._a2c2.correct(action, self.proprio(), self._goal, index)
         if self._policy_track and self._sample is not None and not self._sample.attached:
             action = self._tracking_action(action, arm)
         self.scene.robot.set_dof_position_targets(
@@ -1102,18 +1231,23 @@ class SortingRLEnv:
         if self._rtc_report:
             # Executed-stream diagnostics (off for rate runs): the 7-D arm command
             # jump between consecutive applied actions, split into switch
-            # boundaries and within-chunk steps.
+            # boundaries and within-chunk steps, plus the second difference
+            # (jerk) of the whole executed stream. Pure reporting over
+            # already-materialised arrays.
+            current7 = np.asarray(action[:7], dtype=np.float64)
             if self._applied_any:
-                delta = float(
-                    np.linalg.norm(
-                        np.asarray(action[:7], dtype=np.float64)
-                        - np.asarray(self._last_action[:7], dtype=np.float64)
-                    )
-                )
+                delta = float(np.linalg.norm(current7 - self._last7))
                 if self._switch_flag:
                     self._report_boundary.append(delta)
                 else:
                     self._report_within.append(delta)
+                self._report_step.append(delta)
+                if self._prev7 is not None:
+                    self._report_jerk.append(
+                        float(np.linalg.norm(current7 - 2.0 * self._last7 + self._prev7))
+                    )
+            self._prev7 = self._last7
+            self._last7 = current7
             self._applied_any = True
         self._last_action = action.astype(np.float32)
         self._last_finger = finger
@@ -1239,6 +1373,51 @@ class SortingRLEnv:
                     self._notes.append(presented_note)
                 self._run_primitive()
 
+    def _event_horizon(self, chunk: np.ndarray | None) -> int:
+        """Event-triggered execute horizon from chunk-to-chunk continuity.
+
+        The new chunk is sampled at the state after ``_prev_exec`` steps of the
+        previous chunk, so new index ``i`` and prev index ``_prev_exec + i`` are
+        the same absolute control step. Their mean 7-D arm disagreement over the
+        first few indices is a direct continuity read on the clean actions
+        (ChunkTrust's stability idea; DVAC's "variance decides the replan" at
+        chunk turnover). With the run's online median ``m``: ``hi = 1.5 m``,
+        ``lo = 0.5 m``; horizon = min (2) above hi, max (6) below lo, the
+        default (4) in between. Test-time only; no retraining.
+        """
+        if chunk is None or self._prev_chunk is None:
+            return self._event_default
+        new = np.asarray(chunk, dtype=np.float64)
+        prev = self._prev_chunk
+        start = int(self._prev_exec)
+        window = min(
+            self._event_default + 2,
+            self._event_max,
+            new.shape[0],
+            int(prev.shape[0]) - start,
+        )
+        if window <= 0:
+            return self._event_default
+        delta = new[:window, :7] - prev[start : start + window, :7]
+        continuity = float(np.linalg.norm(delta, axis=1).mean())
+        self._event_continuities.append(continuity)
+        median = float(np.median(self._event_continuities))
+        hi = max(1.5 * median, 1e-4)
+        lo = max(0.5 * median, 1e-4)
+        if continuity >= hi:
+            steps = self._event_min
+        elif continuity <= lo:
+            steps = self._event_max
+        else:
+            steps = self._event_default
+        self._event_horizons.append(int(steps))
+        if os.environ.get("FRUIT_POLICY_EVENT_LOG", "0") == "1":
+            self._say(
+                f"[event] step={self._step} continuity={continuity:.5f} "
+                f"median={median:.5f} horizon={steps}"
+            )
+        return int(steps)
+
     def _tracking_action(self, action: np.ndarray, arm) -> np.ndarray:
         """GEM-style tracking half: shift the arm command with the fruit velocity.
 
@@ -1265,6 +1444,29 @@ class SortingRLEnv:
         tracked = np.array(action, dtype=float, copy=True)
         tracked[:7] += gain * dq
         return tracked
+
+    def _roll_proprio(self, measured: np.ndarray, window) -> np.ndarray:
+        """VLASH state roll-forward: the execution-time proprio under the chunk.
+
+        arXiv 2512.01031: for absolute actions, "the last action in the executed
+        sequence directly serves as the estimated future state". ``window`` is
+        the slice of the current chunk that will execute while the next chunk is
+        sampled (the inference delay); its last action replaces the active
+        arm's 7 joint channels and the finger channel, the other arm and the
+        two tactile reads stay measured. The rolled state is only fed to the
+        sampler; once a chunk is executing, the action applied to the robot is
+        still the chunk's own command.
+        """
+        out = np.array(measured, dtype=np.float32, copy=True)
+        if window is None or len(window) == 0:
+            return out
+        last = np.asarray(window[-1], dtype=np.float32)
+        if last.shape[0] < 8:
+            return out
+        arm = self.task.arms[self._active]
+        out[list(arm.arm_dofs)] = last[:7]
+        out[22] = float(np.clip(last[7], 0.0, 0.044))
+        return out
 
     def _handoff_action_extras(self, finger: float) -> None:
         """The hybrid evaluator's attach / grasp-primitive branch (P0a)."""
@@ -1576,6 +1778,19 @@ class SortingRLEnv:
             "interventions": int(self._ep_interventions),
             "expert_ticks": int(self._ep_expert_ticks),
         }
+        if self._event:
+            horizons = np.asarray(self._event_horizons, dtype=float)
+            continuity = np.asarray(self._event_continuities, dtype=float)
+            self._outcome["event_chunks"] = int(horizons.size)
+            self._outcome["event_horizon_2"] = int((horizons == 2).sum())
+            self._outcome["event_horizon_4"] = int((horizons == 4).sum())
+            self._outcome["event_horizon_6"] = int((horizons == 6).sum())
+            self._outcome["event_mean_horizon"] = (
+                float(horizons.mean()) if horizons.size else float("nan")
+            )
+            self._outcome["event_continuity_median"] = (
+                float(np.median(continuity)) if continuity.size else float("nan")
+            )
         if self._recorder is not None:
             self._recorder.finish(
                 success=success,
@@ -1603,9 +1818,23 @@ class SortingRLEnv:
                 f"[rtc]   boundaries={report['rtc_boundaries']} "
                 f"median={report['rtc_boundary_median']:.4f} "
                 f"within={report['rtc_within_median']:.4f} "
+                f"step={report['rtc_step_median']:.4f} "
+                f"jerk={report['rtc_jerk_median']:.4f} "
                 f"switches={report['rtc_switches']} "
+                f"decisions={report['rtc_decisions']} "
+                f"rate={report['rtc_decision_rate']:.1f}/s "
                 f"policy_ms={report['rtc_policy_ms_median']:.1f} "
+                f"policy_ms/step={report['rtc_policy_ms_per_step']:.2f} "
                 f"control_ms={report['rtc_control_ms_median']:.1f}"
+            )
+        if self._event:
+            self._say(
+                f"[event] chunks={self._outcome['event_chunks']} "
+                f"h2={self._outcome['event_horizon_2']} "
+                f"h4={self._outcome['event_horizon_4']} "
+                f"h6={self._outcome['event_horizon_6']} "
+                f"mean={self._outcome['event_mean_horizon']:.2f} "
+                f"continuity_med={self._outcome['event_continuity_median']:.5f}"
             )
         if self.dagger is not None:
             decisions = max(1, int(self._step) // 4)
@@ -1620,18 +1849,35 @@ class SortingRLEnv:
             return {}
         boundary = np.asarray(self._report_boundary, dtype=np.float64)
         within = np.asarray(self._report_within, dtype=np.float64)
+        step = np.asarray(self._report_step, dtype=np.float64)
+        jerk = np.asarray(self._report_jerk, dtype=np.float64)
         controls = np.asarray(self._report_control_ms, dtype=np.float64)
         policy = np.asarray(self._report_policy_ms, dtype=np.float64)
+        decisions = (
+            int(self.rtc.chunks_sampled)
+            if self.rtc is not None
+            else int(self._report_decisions)
+        )
+        # Decision rate over the *policy phase* (the steps before the scripted
+        # primitive takes over), not the whole episode: the primitive's carry
+        # ticks would dilute it (measured: an E=1 episode reads 119/s on its
+        # policy steps and 13/s over the full episode).
+        seconds = max(int(self._step), 1) / 120.0
+        policy_total = float(policy.sum()) if policy.size else 0.0
 
         def _median(values: np.ndarray) -> float:
             return float(np.median(values)) if values.size else float("nan")
 
         self._rtc_totals["boundary"].extend(boundary.tolist())
         self._rtc_totals["within"].extend(within.tolist())
+        self._rtc_totals["step"].extend(step.tolist())
+        self._rtc_totals["jerk"].extend(jerk.tolist())
         self._rtc_totals["control_ms"].extend(controls.tolist())
         self._rtc_totals["policy_ms"].extend(policy.tolist())
+        self._rtc_totals["policy_ms_total"] += policy_total
         self._rtc_totals["switches"] += int(boundary.size)
         self._rtc_totals["steps"] += int(self._step)
+        self._rtc_totals["decisions"] += decisions
         self._rtc_totals["chunks"] += int(
             self.rtc.chunks_sampled if self.rtc is not None else 0
         )
@@ -1645,11 +1891,22 @@ class SortingRLEnv:
             "rtc_within_p90": (
                 float(np.percentile(within, 90)) if within.size else float("nan")
             ),
+            "rtc_step_median": _median(step),
+            "rtc_step_p90": (
+                float(np.percentile(step, 90)) if step.size else float("nan")
+            ),
+            "rtc_jerk_median": _median(jerk),
+            "rtc_jerk_p90": (
+                float(np.percentile(jerk, 90)) if jerk.size else float("nan")
+            ),
             "rtc_switches": int(boundary.size),
+            "rtc_decisions": decisions,
+            "rtc_decision_rate": decisions / seconds,
             "rtc_policy_ms_median": _median(policy),
             "rtc_policy_ms_p90": (
                 float(np.percentile(policy, 90)) if policy.size else float("nan")
             ),
+            "rtc_policy_ms_per_step": policy_total / max(int(self._step), 1),
             "rtc_control_ms_median": _median(controls),
         }
 
@@ -1659,8 +1916,13 @@ class SortingRLEnv:
             return None
         boundary = np.asarray(self._rtc_totals["boundary"], dtype=np.float64)
         within = np.asarray(self._rtc_totals["within"], dtype=np.float64)
+        step = np.asarray(self._rtc_totals["step"], dtype=np.float64)
+        jerk = np.asarray(self._rtc_totals["jerk"], dtype=np.float64)
         controls = np.asarray(self._rtc_totals["control_ms"], dtype=np.float64)
         policy = np.asarray(self._rtc_totals["policy_ms"], dtype=np.float64)
+        steps = max(int(self._rtc_totals["steps"]), 1)
+        decisions = int(self._rtc_totals["decisions"])
+        seconds = steps / 120.0
 
         def _stats(values: np.ndarray, label: str) -> str:
             if not values.size:
@@ -1673,9 +1935,14 @@ class SortingRLEnv:
         return (
             f"[rtc] summary: steps={self._rtc_totals['steps']} "
             f"chunks={self._rtc_totals['chunks']} "
+            f"decisions={decisions} "
+            f"decisions/s={decisions / seconds:.1f} "
             f"switches={self._rtc_totals['switches']} | "
+            f"step {_stats(step, 'rad')} | jerk {_stats(jerk, 'rad')} | "
             f"boundary {_stats(boundary, 'rad')} | within {_stats(within, 'rad')} | "
-            f"policy_ms {_stats(policy, 'ms')} | control_ms {_stats(controls, 'ms')}"
+            f"policy_ms {_stats(policy, 'ms')} | "
+            f"policy_ms/step {self._rtc_totals['policy_ms_total'] / steps:.2f} | "
+            f"control_ms {_stats(controls, 'ms')}"
         )
 
     def _step_result(self) -> StepResult:

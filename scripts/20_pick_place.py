@@ -144,7 +144,34 @@ def main() -> int:
         memory = ExperienceMemory(os.environ.get("FRUIT_MEMORY", "logs/experience.jsonl"))
         agent = SlowLoopAgent(cfg, memory)
         say(f"[agent] slow loop enabled, policy={agent.policy}, memory={memory.summary()}")
+    # F2 pipelined bimanual line (FRUIT_BIARM=1): the whole batch runs in one
+    # session; both arms keep taking station slots until ATTEMPTS attempts are
+    # done (each arm selects its own fruit after acquiring the station). The
+    # per-iteration driver loop below is the single-arm path.
+    bimanual_batch = agent is None and task.bimanual_enabled()
+    if bimanual_batch:
+        made = task.run_bimanual(ATTEMPTS)
+        results.extend(made)
+        for index, result in enumerate(made):
+            bin_index = 0 if result.arm == "left" else 1
+            lane_xy = cfg.output_belt_drop_points[bin_index]
+            say(
+                f"[run] attempt {index} ({result.arm}): picking {result.category} "
+                f"grade {result.grade} into output lane {bin_index} at {lane_xy} "
+                f"sim={result.sim_start:.1f}-{result.sim_end:.1f}s"
+            )
+            say(
+                f"[run] attempt {index} ({result.arm}): grasped={result.grasped} "
+                f"placed={result.placed} lift={result.peak_lift:+.3f} m "
+                f"force={result.max_tactile_force:.2f} N sim={result.sim_span:.1f}s "
+                f"notes={result.notes}"
+            )
+        task.go_ready()
+        advance(30)
+
     for attempt in range(ATTEMPTS):
+        if bimanual_batch:
+            continue
         for _ in range(60):
             advance(1)
             spawner.update(__import__("isaacsim.core.simulation_manager", fromlist=["SimulationManager"]).SimulationManager.get_simulation_time())
@@ -244,13 +271,32 @@ def main() -> int:
     say(task.stats_line())
     if agent is not None:
         say(f"[agent] {agent.summary()}")
+    pairs = int(task.stats.get("biarm_sessions", 0))
+    if pairs:
+        # Throughput of the pipelined line: fruits per simulated minute and the
+        # per-fruit time, against the F1 single-arm dynamic line's 18.4 s/attempt.
+        per_arm = {"left": [0, 0], "right": [0, 0]}
+        for result in results:
+            slot = per_arm.setdefault(result.arm, [0, 0])
+            slot[0] += 1
+            slot[1] += int(result.success)
+        attempts_n = max(1, int(task.stats["attempts"]))
+        span = float(task.stats["sim_time"])
+        say(
+            f"[biarm] {pairs} pipelined slots, {attempts_n} attempts, "
+            f"{int(task.stats['successes'])} successes, {span:.1f}s sim span, "
+            f"{span / attempts_n:.1f}s/attempt, {span / max(1, int(task.stats['successes'])):.1f}s/success, "
+            f"{int(task.stats['successes']) / max(span, 1e-9) * 60.0:.2f} fruits/min; "
+            f"per arm left={per_arm['left'][1]}/{per_arm['left'][0]} "
+            f"right={per_arm['right'][1]}/{per_arm['right'][0]}"
+        )
     if results:
         successes = sum(1 for r in results if r.success)
         say(f"[run] summary: {successes}/{len(results)} successful")
     for r in results:
         say(
             f"[run]   {r.category:10s} arm={r.arm:5s} grasped={r.grasped} placed={r.placed} "
-            f"lift={r.peak_lift:+.3f} N={r.max_tactile_force:.2f}"
+            f"lift={r.peak_lift:+.3f} N={r.max_tactile_force:.2f} sim={r.sim_span:.1f}s"
         )
 
     app_utils.pause()

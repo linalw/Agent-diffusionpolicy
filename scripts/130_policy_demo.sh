@@ -10,13 +10,20 @@
 # What runs: `scripts/110_rl_rollout.py` drives `SortingRLEnv(presentation=
 # "direct")` - the fruit keeps moving on the belt and the scripted primitive is
 # triggered by the belt encoder's predicted arrival at the pick station
-# (`FRUIT_POLICY_TRIGGER=arrival`), not by the station hand-off teleport. This
-# is the interface the v5/v7 RL work measured; see `src/fruit_sorting/rl_env.py`.
+# (`FRUIT_POLICY_TRIGGER=arrival`), not by the station hand-off teleport. The
+# primitive itself runs the **dynamic never-stop catch** (`FRUIT_DYNAMIC_PICK=1`,
+# the P2b left-handover-fixed configuration); `FRUIT_DYNAMIC_PICK=0` restores the
+# indexed P1 handover. This is the interface the v5/v7 RL work measured; see
+# `src/fruit_sorting/rl_env.py`.
 #
 # Fixed configuration (override with the same-named env vars):
-#   CKPT                      checkpoints/moe_v10/policy_best.pt
-#                             (the openarm-hand recollection + retrain,
-#                             `datasets/demos_v9`; manifest records its md5)
+#   CKPT                      checkpoints/moe_v12/policy_best.pt
+#                             (the P2b left-handover-fixed checkpoint; direct at
+#                             belt 0.12: 32/45 = 71.1 %, left 0/17 -> 6/17,
+#                             `logs/p2b/ab012/`; manifest records its md5)
+#   FRUIT_DYNAMIC_PICK        1         (the dynamic never-stop catch, the
+#                             configuration the P2b 71.1 % was measured on; the
+#                             env unset would keep the indexed P1 primitive)
 #   FRUIT_CAMERA_RES          240,424   (height,width - the A/B resolution, half
 #                             the 480x848 default, kept so the loop is fast)
 #   FRUIT_POLICY_TRIGGER      arrival   (default in code is `off`; `arrival`
@@ -33,8 +40,10 @@
 #                             line per episode, then a success summary
 #
 # The environment refuses to start unless `src/fruit_sorting/tasks.py` is the
-# frozen v7 revision (`TASKS_MD5=ae841a17bbacdb19180451315193486c`), so this
-# demo runs the exact scenario the checkpoint was measured on.
+# pinned integrated revision (`TASKS_MD5` in `src/fruit_sorting/rl_env.py`; now
+# the P2b/G tree, the Gate-19 place 0.35 + the P2b handover fix + the 2026-10-08
+# docstring-only re-pin), so this demo runs the exact scenario the checkpoint
+# was measured on.
 #
 # GUI notes. `HEADLESS=0` opens the Isaac window on the display
 # (`DISPLAY` defaults to `:1` if unset). The policy phase renders and pumps the
@@ -47,9 +56,10 @@
 #
 # One simulator at a time (AGENTS.md): this script refuses to start if any
 # `python.sh` process is already running. Watch the window; stop with Ctrl-C.
-# The measured trigger arm is ~30-50 % success per episode (B1: 23/45 = 51 %
-# with LEAD 0.9; P4b2 re-run: 13/45 = 29 %) - a single run is one sample, the
-# per-episode table above the summary is what to read.
+# The measured trigger arm at belt 0.12 with the fixed dynamic handover is
+# 32/45 = 71.1 % (`moe_v12`, P2b; the pre-fix arm was 25/45 = 55.6 % and the
+# indexed handover 16/45 = 36 %) - a single run is one sample, the per-episode
+# table above the summary is what to read.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -57,7 +67,7 @@ cd "$(dirname "$0")/.."
 headless=${HEADLESS:-0}
 episodes=${EPISODES:-20}
 seeds=${SEEDS:-77}
-ckpt=${CKPT:-checkpoints/moe_v10/policy_best.pt}
+ckpt=${CKPT:-checkpoints/moe_v12/policy_best.pt}
 out=${OUT_DIR:-datasets/rl_rollouts_demo}
 
 if [ "$(pgrep -fc "[p]ython.sh" 2>/dev/null || true)" -gt 0 ]; then
@@ -72,6 +82,7 @@ fi
 
 export HEADLESS="$headless"
 export FRUIT_CAMERA_RES="${FRUIT_CAMERA_RES:-240,424}"
+export FRUIT_DYNAMIC_PICK="${FRUIT_DYNAMIC_PICK:-1}"
 export FRUIT_POLICY_TRIGGER="${FRUIT_POLICY_TRIGGER:-arrival}"
 export FRUIT_POLICY_TRIGGER_LEAD="${FRUIT_POLICY_TRIGGER_LEAD:-0.9}"
 export FRUIT_POLICY_SEED="${FRUIT_POLICY_SEED:-11}"
@@ -84,7 +95,8 @@ fi
 
 echo "=== policy demo: ${episodes} episodes, seed(s) ${seeds}, HEADLESS=${headless} ==="
 echo "ckpt=${ckpt}"
-echo "camera=${FRUIT_CAMERA_RES} trigger=${FRUIT_POLICY_TRIGGER} " \
+echo "camera=${FRUIT_CAMERA_RES} dynamic_pick=${FRUIT_DYNAMIC_PICK} " \
+     "trigger=${FRUIT_POLICY_TRIGGER} " \
      "lead=${FRUIT_POLICY_TRIGGER_LEAD}s policy_seed=${FRUIT_POLICY_SEED} " \
      "gui_smooth=${FRUIT_GUI_SMOOTH:-0}"
 echo "output=${out}"

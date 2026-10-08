@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # One-command acceptance for the *policy* closed loop (hybrid evaluation).
 #
-#   scripts/accept_policy.sh                      # ten hybrid episodes, shipped checkpoint
+#   scripts/accept_policy.sh                      # ten hybrid episodes, deployed checkpoint
 #   FRUIT_EPISODES=15 scripts/accept_policy.sh    # a longer run
 #   SKIP_SELFCHECK=1 scripts/accept_policy.sh     # skip the offline pre-flight
 #   JUDGE_ONLY=1 ACCEPT_POLICY_LOG=logs/336_hybrid_v3all.log scripts/accept_policy.sh
@@ -9,7 +9,7 @@
 #
 # `scripts/accept.sh` gates the *scripted* line; this gates the policy in the loop,
 # which is the number the learning side is judged on. It runs
-# `scripts/60_eval_policy.py` in hybrid mode with the shipped checkpoint, writes
+# `scripts/60_eval_policy.py` in hybrid mode with the deployed checkpoint, writes
 # `logs/accept_policy.log`, and judges two things:
 #
 #   1. the success rate is at least `MIN_RATE` (default 0.60);
@@ -17,6 +17,15 @@
 #      ("fruit did not follow the gripper"), or a grasp that was not placed with no
 #      note attached. Anything else is listed and fails the gate, because a new
 #      failure *reason* is the interesting signal, not the count.
+#
+# Default checkpoint: `checkpoints/moe_v12/policy_best.pt` (the P2b deployment
+# checkpoint; override with `FRUIT_CKPT=...`). **At the v7 scenario (belt 0.12,
+# openarm hand, dynamic scripted default) the recorded hybrid-canary samples for
+# this path spread 5-8/10**: `moe_v11` 8/10 (F2), `moe_v12` 6/10 (P2), then
+# 5/10 and 6/10 (P2b) - all failures baseline grip losses, inside the one-run
+# spread of an unchanged path. The 0.60 floor therefore passes some samples and
+# trips on others; a single canary is one sample, and the direct A/B batches
+# (`logs/p2b/ab012/`) are the rate evidence, not the canary.
 #
 # Baseline: `logs/336_hybrid_v3all.log` scores 12/15 - 2 grip losses and 1 place
 # failure with an empty note.
@@ -53,7 +62,7 @@ set -uo pipefail
 
 cd "$(dirname "$0")/.."
 
-checkpoint=${FRUIT_CKPT:-checkpoints/policy_kin_v3all/policy_best.pt}
+checkpoint=${FRUIT_CKPT:-checkpoints/moe_v12/policy_best.pt}
 episodes=${FRUIT_EPISODES:-10}
 min_rate=${MIN_RATE:-0.60}
 log=${ACCEPT_POLICY_LOG:-logs/accept_policy.log}

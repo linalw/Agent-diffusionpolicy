@@ -48,6 +48,21 @@ OPENARM_FLAT_USD = os.path.join(
 )
 
 
+# --------------------------------------------------------------------------- #
+# Shipped contact material for the OpenArm finger faces (v7 directive).
+#
+# `scene.py` authors the PhysX material from these two variables when it builds
+# the cell; the measured dynamic winner (every 8/10 batch since P3-face) runs
+# the compliant contact (`FRUIT_FINGER_COMPLIANCE=30000`, damping 80), which is
+# what fixes the A4 strawberry crush. They are set as process defaults here -
+# every entry script imports this configuration module before the scene is
+# built - so the shipped scenario does not depend on the launcher; an explicit
+# environment value still wins.
+# --------------------------------------------------------------------------- #
+os.environ.setdefault("FRUIT_FINGER_COMPLIANCE", "30000")
+os.environ.setdefault("FRUIT_FINGER_CONTACT_DAMPING", "80")
+
+
 def _default_robot_usd() -> str:
     override = os.environ.get("FRUIT_ROBOT_USD")
     if override:
@@ -190,15 +205,14 @@ class SceneConfig:
     belt_size: tuple[float, float, float] = (0.46, 1.60, 0.06)
     # Commanded surface velocity, along the belt (-Y).
     #
-    # Slow enough that a fruit crosses the pick window in about the time a
-    # descent takes, which is what makes a *tracking* pick possible at all.
-    # `FRUIT_BELT_SPEED` is the magnitude in m/s (the sign is the belt
-    # direction). The shipped default stays the P1 0.06 m/s: the P2 moving catch
-    # was measured at 0.06-0.12 (4-8/10, the drops in the lift grip) and cannot
-    # ship green yet - see the WORKLOG "P2: the moving catch is built and
-    # measured". The moving-line band is selected with this env.
+    # The shipped default (v7 directive) is the dynamic line's measured band,
+    # **0.12 m/s**: the moving catch was measured at 0.06-0.12 m/s (7-8/10, the
+    # residual failures in the first-lift grip, not in the belt speed) and the
+    # owner asked for the line to move ("still letting the belt stop?").
+    # `FRUIT_BELT_SPEED` overrides the magnitude in m/s (the sign is the belt
+    # direction); 0.06 restores the old P1 feed.
     belt_speed: float = field(
-        default_factory=lambda: -abs(float(os.environ.get("FRUIT_BELT_SPEED", "0.06")))
+        default_factory=lambda: -abs(float(os.environ.get("FRUIT_BELT_SPEED", "0.12")))
     )
     belt_friction: float = 0.9
     #: Cleats turn the belt into a track. They travel with the belt and push
@@ -299,7 +313,12 @@ class SceneConfig:
     output_belt_friction: float = 0.9
     #: Where the robot releases, relative to the belt: `output_place_x` along the
     #: belt, `output_place_y` across it, `output_place_clearance` above the
-    #: surface. **Not** the belt centre: the measured TCP reach is 0.678 m from
+    #: surface. This is the **transfer waypoint** the carry leg ends at (the
+    #: OpenArm finger plates need the height to clear the rail while crossing it);
+    #: on the shipped line the hand then descends with the payload to the
+    #: finger-limited clearance before the jaws open (`tasks.py::_place_low`,
+    #: `FRUIT_PLACE_LOW`), so the *released* height is measured, not this number.
+    #: **Not** the belt centre: the measured TCP reach is 0.678 m from
     #: the shoulder (scripts/12_reach_calibration.py) and IK measured
     #: (`scripts/422_v3_layout_probe.py`, `logs/422/423`) shows the release point
     #: at the centre (0.65, +-0.55) leaves a 211 mm residual and even (0.43, +-0.55)

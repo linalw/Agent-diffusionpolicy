@@ -7,23 +7,119 @@ The long-term design (slow Agent loop, skill-routed diffusion policy, experience
 is summarised in [`实现方案总结.md`](实现方案总结.md). This repository holds the working
 implementation: the simulation cell, the data pipeline, and the policy training code.
 
+> **v7 / F1 directive (shipped 2026-10-06): the line is dynamic by default and
+> the motion speeds are raised.** The OpenArm *scripted* line takes the fruit on
+> the fly - the belt never stops (`gate_open=0.0 s`) - with `FRUIT_DYNAMIC_PICK=0`
+> as the indexed opt-out. The OpenArm *policy* handover runs the P1 primitive
+> by default and the dynamic never-stop catch with `FRUIT_DYNAMIC_PICK=1` (v8/P1
+> directive). At belt 0.12 the dynamic handover measured **27/45 = 60 %** before
+> the P2b left-handover fix and **32/45 = 71.1 %** after it (`moe_v12`, left
+> 0/17 -> 6/17, one attempt short of the scripted ceiling 33/45 = 73.3 %),
+> against the indexed handover's **16/45 = 36 %** (`logs/p1/`,
+> `logs/p2b/ab012/`); the 0.15 ladder is a wash (`moe_v12` 31/45, fine-tuned
+> `moe_v13` 30/45) and 0.18 was not run. **The dynamic handover stays opt-in**
+> (with the env unset the handover keeps the P1 indexed primitive); the policy
+> demo below enables it. The shipped scenario is the measured
+> v3-C2/v5/v7 winner
+> (compliant finger contact `k=30000 c=80`, the force servo, the bounded x-seek
+> with the walk latch, the 0.15/0.20 place cap) at a **0.12 m/s belt**, now
+> expressed as code defaults (`tasks.py`; the material/belt defaults live in
+> `assets.py` so every launcher gets them). **Speed sweep** (10 attempts per
+> config, trace off, `logs/fast/`): approach 0.03 -> 0.08 -> 0.15 -> 0.22 m/s
+> scored 8 -> 6 -> 9 -> 7 of 10; the lift 0.12 -> (0.18, inert) -> 0.30 scored
+> 8/10 at every step with the held-leg cone/slip unchanged; the x-track raise
+> (0.12 -> 0.20) alone scored 7/10. The F1 place raise (0.15/0.20 -> 0.35/1.0)
+> was measured with the approach and x-track changed alongside, so its 7/10 was
+> not attributable; the **Gate-19 isolation sweep** (approach 0.15/0.8, lift
+> 0.30/1.0, x-track 0.12 fixed, place varied alone, `logs/fast/sweep_iso_*`)
+> measured place 0.20 -> 7/10, 0.25 -> 7/10, 0.30 -> 8/10, **0.35 -> 9/10 at
+> 15.8 s/attempt** (bit-identical double-run; the 0.20/0.25 steps flip the A8
+> marginal lift, 0.30 holds it) - the unisolated 7/10 came from the
+> approach/x-track change, not the place.
+> **Shipped: approach 0.15 m/s (a 0.8), lift 0.30 (a 1.0), place 0.35 (a 1.089,
+> scaled with v to keep the profile shape: `a = 0.20*(v/0.15)^2`), x-track
+> 0.12 -> 9/10 at 15.8 s/attempt** (old dynamic 8/10 at 21.1 s; the one failure
+> is the A6 kiwi catch-window miss). The approach raise shortens the *descent*
+> (412 -> 88 profile samples, commanded peak 0.029 -> 0.109 m/s) but not the
+> cycle: the catch is arrival-scheduled, so the saved time reappears as hover
+> wait; the cycle win is the lift (3.78 -> 1.79 s) plus the place (5.64 ->
+> 2.85 s). The motion gate derives the descent budget from the shipped profile
+> (per-leg distance; 1.10x the *profile peak* - the fast-profile clean legs
+> achieve ~0.75 of that peak because the conveyor boundary ends the descent
+> 40-90 mm short, so the effective slack is ~1.47x), reports the dynamic line's
+> carry cone instead of gating it (those escapes *are* the failures;
+> `--strict-cone` restores the old rule), and floors the dynamic rate at 7.5/10
+> (indexed 9/10). The fingerprint was re-recorded from the accepted run;
+> `logs/fast/motion_reference_pre_place035.json` preserves the pre-Gate-19 file
+> (`motion_reference_pre_v7fast.json` the pre-v7 one).
+
+> **P2b left-handover fix (2026-10-07, policy line; measured, not a default
+> change).** The direct dynamic handover's catch-up used to begin with the fruit
+> **5-8 cm downstream** (the encoder trigger fires at 0.9 s, but the primitive's
+> setup + profiled descent takes ~1.4 s); chasing it drove the left arm's
+> **joint2** into its upper limit (`+0.1745 rad`; the mirrored right range is
+> `+3.3161`), so the IK was clipped **200/200 ticks**, the attitude ran away, and
+> every left attempt failed with `fruit did not follow the gripper` - the
+> **left 0/17** behind the 55.6 % direct rate. The direct branch now parks at
+> the station's grip pose, holds it until the fruit arrives, skips the profiled
+> final approach, and caps the catch-up's downstream command at 3.5 cm
+> (`FRUIT_DIRECT_*`, all defaults = fixed; the scripted line and the indexed
+> opt-out read none of it). Measured at 0.12 (N=3x15, seeds 77/101/202, trace
+> off): `moe_v12` **25/45 = 55.6 % -> 32/45 = 71.1 %** with the left
+> **0/17 -> 6/17** and the right 26/28 unchanged - within 1/45 of the scripted
+> ceiling 33/45 = 73.3 %; every post-fix failure is the carry/place contact
+> class both lines share (**10 of the 13 are `grasped=True placed=False`**) or
+> one of the **3 catch misses (kiwi, lychee, pear)** - not three kiwi misses -
+> and the strawberry class goes 1/6 -> 5/6. The raised
+> belt holds: 0.15 -> 31/45 = 68.9 % unfine-tuned, and a 25-episode 0.15
+> fine-tune (`moe_v13`) is a measured wash (30/45); 0.18 was not run. Acceptance
+> 9/10 + motion gate PASS + fingerprint matches; evidence `logs/p2b/`, WORKLOG
+> "P2b: the left direct handover...".
+
+> **G integration (2026-10-07): the final throughput and the wall conventions.**
+> Shipped single-arm dynamic default **9/10, 15.8 s/attempt, 3.42 placed
+> fruit/min** (Gate-19, `logs/g/40_accept_default.log`); opt-in bimanual
+> **9/10 x5 bit-identical, 15.0 s/attempt, 3.59 placed/min = 1.051x** with its
+> own fingerprint - but its new-default clearance trace reads **6.2 mm**
+> minimum inter-arm link-origin separation (257/15024 samples under 30 mm), so
+> it is **opt-in and not production-safe** and the default was **not** flipped
+> (`logs/g/`). Policy direct line (`moe_v12` + trigger + the fixed handover)
+> **71.1 % = 32/45**, N=3x15 per checkpoint (seeds 77/101/202; the pre-fix arm
+> was 55.6 %, the scripted ceiling 73.3 % in the same env). Wall ratios are
+> measured, not budgets: the scripted single 1.86x and bimanual 2.38x are
+> **app elapsed / simulated span including startup**; the policy loop's ~1.93x
+> is its `[rl] run wall` / sim span (startup excluded; ~2.0x app-elapsed).
+> Prefer **wall per placed fruit: 32.7 s single, 39.8 s bimanual, ~42 s
+> policy** (`logs/g/NOTES.md`). The earlier order-of-magnitude expectation
+> (policy 2.2-2.4x, scripted 1.0-1.3x) did **not** reproduce on these runs and
+> must not be quoted as a wall budget. WORKLOG "G integration".
+
 > **Layout v3 (current).** The output bins, the pop-up pick lifter and the belt
 > gate are **gone** - none of them has a counterpart in a real produce line, and
 > the owner asked for them out. Two **raised output conveyors** now flank the
 > robot, running along +X above the main belt (top `z=1.35`, surface `0.10 m/s`):
-> the robot lifts the fruit over the line and releases it 10 cm above the near
-> half of the belt, and the belt carries it away. Each belt ends in a **discharge
+> the robot lifts the fruit over the line, carries it down to the belt and
+> releases it there, and the belt carries it away. Each belt ends in a **discharge
 > chute and a shallow collection tray** at `x=1.65` (a settled fruit is counted
-> `discharged`, not `fell_off`). The release is a free drop
-> (`FRUIT_RELEASE_SUPPORT=0`; the old floor-supported set-down is kept as a knob).
-> The release point is `(0.43, +-0.50, 1.45)`, **not** the belt centre, because
-> IK measured the belt centre `(0.65, +-0.55)` 211 mm outside the reach at this
-> height (`logs/422/423`). The main line is unchanged: it still runs across the
+> `discharged`, not `fell_off`). The release is an **accompanied descent**
+> (`FRUIT_PLACE_LOW=1`, shipped since v5-A): the carry ends at the
+> `(0.43, +-0.50, 1.45)` transfer waypoint, the hand lowers the payload to the
+> measured finger-limited clearance (~50 mm above the belt top - the OpenArm
+> finger plates extend ~43 mm below the fruit bottom at this reach-constrained
+> attitude, so they bind first), the jaws open there, and the hand retreats. The
+> free 10 cm drop is still available with `FRUIT_PLACE_LOW=0`
+> (`FRUIT_RELEASE_SUPPORT=0` keeps the older floor-supported set-down as a
+> separate knob). The release point is `(0.43, +-0.50, 1.45)`, **not** the belt
+> centre, because IK measured the belt centre `(0.65, +-0.55)` 211 mm outside the
+> reach at this height (`logs/422/423`). The main line is unchanged: it still runs across the
 > robot's front (along Y, robot beside the line like a worker), the grasp is
 > solved top-down with the jaws closing across the belt, and the guide rails are
 > gone. A four-attempt smoke run scored 3/4 with every placement on the belt
 > (`logs/424`). The **shipped hand** is now the robot's own visible jaws
-> (`FRUIT_GRIPPER_KIND=openarm`): their close takes ~1 s, so they take an
+> (`FRUIT_GRIPPER_KIND=openarm`). *(Superseded by the v7/F1 block above: the
+> shipped default is now the dynamic never-stop line; `FRUIT_DYNAMIC_PICK=0`
+> restores the indexed pick described here.)* Their close takes ~1 s, so the
+> P1-era line took an
 > **indexed** pick (`FRUIT_DYNAMIC_PICK=0` - the belt stops the fruit at the
 > station and restarts after the lift). The **kinematic pad hand**
 > (`FRUIT_GRIPPER_KIND=kinematic`) keeps the older **dynamic on-the-fly** line
@@ -202,11 +298,12 @@ implementation: the simulation cell, the data pipeline, and the policy training 
 | Sorting cell: pedestal, main conveyor with surface velocity, two raised output conveyors with discharge chutes and collection trays | built and verified |
 | Head RGB-D camera (single camera, wide FOV) | capturing rgb + depth + instance ids |
 | Randomized fruit on the moving belt | spawning, transporting, recycling |
-| Scripted pick-and-place, **layout v3, shipped OpenArm hand** (`FRUIT_GRIPPER_KIND=openarm`, indexed pick `FRUIT_DYNAMIC_PICK=0`, two raised output conveyors) | **working** - **10/10** in `logs/accept.log`, motion gate PASS and fingerprint matches `configs/motion_reference.json` (descent `\|v\|max` 0.029 against 0.06, lurch 0.016 against 0.12, carry cones 0.85-0.96x), visible jaws pinch the fruit at 2.38-23.00 N |
+| Scripted pick-and-place, **layout v3, shipped OpenArm hand, dynamic default** (`FRUIT_GRIPPER_KIND=openarm`, `FRUIT_DYNAMIC_PICK` unset → never-stop catch, two raised output conveyors, **lowered place** `FRUIT_PLACE_LOW=1`) | **working** - **9/10** in `logs/fast/15_accept_place035_verified.log` (motion gate PASS, fingerprint matches the re-recorded `configs/motion_reference.json`; descents `\|v\|max` 0.109 against the profile-derived 0.160-0.161, lurch 0.017 against 0.291, carry cone/slip reported), **15.8 s/attempt**, visible jaws pinch at 2.4-13.7 N; the one failure is the A6 kiwi catch window. The indexed opt-out at the v7 defaults (`FRUIT_DYNAMIC_PICK=0`) is **10/10** in `logs/fast/16_accept_indexed_v7.log` (`gate_open=42.3 s`, belt stopped at the station; own reference `logs/fast/motion_reference_indexed_v7.json`, verified bit-identical by `logs/fast/17_accept_indexed_v7_verified.log`; the P1-era 10/10 in `logs/place_low/06_accept_default_low.log` was measured before the v7 scenario defaults) |
+| Scripted pick-and-place, **bimanual pipelined line** (opt-in `FRUIT_BIARM=1`): both arms work the shared station, one owns it from its pre-pose until its payload clears a box around it while the other pre-poses | **working** - F2: **9/10 x5 bit-identical** (left 4/4, right 5/6), 16.0 s/attempt, 3.38 placed/min vs the then-shipped single arm 8/10, 18.4 s, 2.61 = 1.30x (`logs/biarm/`). **G re-derivation on the Gate-19 default (place 0.35)**: **9/10 x5 bit-identical** (`logs/g/10_rate_biarm_1..5.log`; left **3/4**, right **6/6**; the failure is a left apple first-lift escape), **15.0 s/attempt**, **3.59 placed/min** vs the single arm **9/10, 15.8 s/attempt, 3.42 placed/min** = **1.05x** - below the pre-registered "clearly higher" bar (1.10x), so the default **was not flipped** (`logs/g/`, WORKLOG "G integration"); `FRUIT_BIARM=0` is the explicit opt-out. The new default's clearance trace reads **6.2 mm** minimum inter-arm link-origin separation, 257/15024 samples under 30 mm (`logs/g/30_trace_biarm.log`; the F2 45 mm / zero-under-30 figure is pre-Gate-19 timing and does not carry; no attempt fails by arm-arm contact) |
 | Scripted pick-and-place, layout v3 **pad hand, dynamic line** (`FRUIT_GRIPPER_KIND=kinematic`) *(pad-era history)* | **10/10** in `logs/482_v3b.log`, belt never stopped, 35.6 s of simulated time per attempt, motion gate PASS against the then-shipped baseline |
 | Point-tactile sensing on the grippers | **working** (per-finger contact sensors) |
 | Demonstration collection | **working** (`scripts/40_collect_demos.py`) |
-| Skill-Routed MoE diffusion policy | **implemented + trained**; current checkpoint `checkpoints/moe_v6` (v2 layout, val 0.0297, router 0.988, hybrid 9/10) |
+| Skill-Routed MoE diffusion policy | **implemented + trained**; deployment checkpoint `checkpoints/moe_v12` (fine-tuned from `moe_v11` on 50 v7-scenario episodes; direct at belt 0.12 **32/45 = 71.1 %** with the trigger + fixed dynamic handover, N=3x15 - one sample per checkpoint, state the power; v2-layout history: `moe_v6` val 0.0297, router 0.988) |
 | Inference speed | 3.3 ms/chunk at 2 DDIM steps, 6.4 ms at 4 (budget is 50 ms; `scripts/80_benchmark_policy.py`) |
 | Realistic fruit assets | procedural meshes, per-category shape/colour/friction/density |
 | Cleated belt conveyor with friction transport | working |
@@ -221,7 +318,8 @@ implementation: the simulation cell, the data pipeline, and the policy training 
 
 | Stage | Result |
 | --- | --- |
-| **Scripted pick-and-place, layout v3, shipped OpenArm hand** (indexed pick `FRUIT_DYNAMIC_PICK=0`; the visible jaws are the gripping bodies) | **10/10** (`logs/accept.log`, motion gate **PASS**, fingerprint matches `configs/motion_reference.json`); descents `\|v\|max` **0.029** (budget 0.06), single-tick lurch **0.016** (0.12), all carry legs inside the friction cone (0.85-0.96x), finger tactile **2.38-23.00 N**, lift **+0.287-0.303 m**; belt **indexed** (stops at the station, restarts after the lift) |
+| **Scripted pick-and-place, layout v3, shipped OpenArm hand, dynamic default** (`FRUIT_DYNAMIC_PICK` unset; the visible jaws are the gripping bodies; belt never stops) | **9/10** (`logs/fast/15_accept_place035_verified.log`, motion gate **PASS**, fingerprint matches the re-recorded `configs/motion_reference.json`); descents `\|v\|max` **0.109** (profile budget 0.160-0.161), single-tick lurch **0.017** (0.291), held place cone **0.86-1.23x** reported, **15.8 s/attempt**; the one failure is the A6 kiwi catch window. The indexed opt-out at the v7 defaults is **10/10** (`logs/fast/16_accept_indexed_v7.log`, 24.6 s/attempt, `gate_open=42.3s`, own reference `logs/fast/motion_reference_indexed_v7.json`, verified bit-identical) |
+| **Scripted pick-and-place, bimanual pipelined line** (`FRUIT_BIARM=1`, opt-in; both arms share the station, the lock covers pre-pose → payload-clear, a main-thread arbiter shares one physics tick per round and grants a single run permit) | F2: **9/10 x5 bit-identical** (`logs/biarm/rate_biarm_1..5.log`; left **4/4**, right **5/6**), **16.0 s/attempt**, **17.7 s/success**, **3.38 placed fruit/min** against the pre-Gate-19 single-arm 18.4 s/attempt / 2.61 = **1.30x**. **G re-derivation on the Gate-19 default** (`logs/g/`, 2026-10-07): **9/10 x5 bit-identical** (left 3/4, right 6/6), **15.0 s/attempt**, **16.7 s/success**, **3.59 placed fruit/min** vs the single arm **9/10 / 15.8 s/attempt / 3.42 placed/min** = **1.05x** - below the pre-registered 1.10x "clearly higher" bar, so the default **was not flipped**; `FRUIT_BIARM=0` is the explicit opt-out. `gate_open=0.0s`, zero `indexed:`; the new default's clearance trace reads **6.2 mm** minimum inter-arm link-origin separation (257/15024 samples under 30 mm, no arm-arm contact failure, `logs/g/30_trace_biarm.log`), replacing the F2 45 mm figure for this configuration |
 | Scripted pick-and-place, layout v3, pad hand (`FRUIT_GRIPPER_KIND=kinematic`), dynamic line *(pad-era history)* | **10/10** (`logs/482_v3b.log`, motion gate **PASS** against the then-shipped baseline), belt **never stopped** (`gate_open=0.0s`), **35.6 s of simulated time per attempt**; descents `\|v\|max` **0.029** (budget 0.06), single-tick lurch **0.020** (0.12), all 20 carry legs inside the friction cone (0.83-0.85x), **0/20** hand-speed rescues; 8 of the 10 placed fruit were followed all the way into the discharge trays and recycled as `discharged` during the run (the last two were still on the line when it ended). The current reference no longer matches this run (re-recorded for the OpenArm hand, `logs/motion_reference_pad_baseline.json` preserves the pad-era fingerprint) |
 | **Scripted pick-and-place, layout v2 (belt across the front, taken on the fly)** | **10/10** (`logs/370`, motion gate PASS), belt **never stopped** (`gate_open=0.0s`), **33.6 s of simulated time per attempt**; descent `end=` **4-35 mm** (v1: 40-90 mm short on every leg), `\|v\|max` worst 0.057 against 0.06, one carry rescue reported |
 | Scripted pick-and-place (realistic scene) | 8/8, ~98% over a 46-attempt collection run *(history)* |
@@ -771,6 +869,144 @@ produces an action chunk and only re-plans every N steps, the amortised cost is
 `ms/chunk / N` - at DDIM 8 with N = 8 that is **1.6 ms per control step**, far
 inside the 50 ms / 20 Hz sorting budget.
 
+### Distilled 4-step sampler (v5-C)
+
+The DDIM-16 head is distilled into a 4-step sampler on the same backbone
+(progressive distillation, `src/fruit_sorting/policy/distill.py`, teacher
+`checkpoints/moe_v10`, student `checkpoints/distill_s4`; the stock DDIM chain at
+4 steps *is* the distilled sampler - see the module docstring - so nothing in
+the runtime changes). On 192 held-out `demos_v9` windows the student's
+first-action error is 0.487 rad against the teacher's 0.134 (the un-distilled
+model sampled at 4 steps reads 1.349; 1/2 steps are unusable at 10.46/10.11
+rad), finger 0.0030 vs 0.0005, open/close phase 90 % vs 99 %; strawberry (all-
+episode pass) 0.543 vs 0.140 rad. Sampler latency (fp16): 4 steps 10.4 ms vs
+the teacher's 16 steps 41.6 ms in a contended first pass (the quiet teacher
+reference is 25.9 ms from the P4 budget run), i.e. the 4-step student is ~4x
+cheaper. The executed stream is ~6x jerkier than the teacher's (step 0.369 vs
+0.058 rad, jerk 0.643 vs 0.127, boundary ratio 1.43 vs 3.06;
+`scripts/125_loop_metrics.py`).
+
+**Deployability: negative (partial run).** Direct interface, frozen tree,
+encoder trigger, camera 240,424: the teacher seed 77 scored 3/15 (20 %) and the
+student seeds 77+101 scored 2/20 (10 %), with all four student strawberries lost
+(including the 3.2-3.4 cm class the teacher placed) and 13/20 post-fire grip
+losses; the student shows the **same close-gate failure class more frequently**
+(the learned finger crosses the 0.030 close gate early in 6/20 episodes, firing
+at |jaw-fruit| 5.9-6.0 cm) - not a new failure mode. The deploy counts are
+underpowered (the student's seed 202 and the teacher's seeds 101/202 were blocked
+behind the other lane's simulator batches; the B lane's RTC A/B occupied the
+simulator 16:42-22:10, its VLASH A/B started 22:50): the kill rests on the
+offline evidence (0.134 vs 0.487 rad, 191/192 windows worse, phase 99 -> 90 %,
+strawberry 0.140 -> 0.543, 5-6x jerk). The 4-step distillation is therefore not
+deployable as-is; a re-attempt needs ~3x the demos (~200), a recipe change
+(train against the deployment DDIM-4 trajectory) and a pre-registered offline
+bar - it is parked behind D. The 8-step student (0.298 rad) or a fixed
+progressive scheme are the next candidates. See WORKLOG "v5-C" and the Gate 13
+corrections.
+
+### Decision rate and smoothness of the fast loop (v5-B)
+
+The shipped loop re-plans every 4 control steps at DDIM-16: **29.9 decisions/s**,
+26.4 ms/chunk = 6.6 ms per 8.33 ms control tick (79 %). `scripts/125_loop_metrics.py`
+measures the executed stream offline (step, jerk, chunk-boundary jump, decisions/s)
+and `FRUIT_RTC_REPORT=1` records the same in-sim. On the frozen `tasks.py ae841a17`
+tree (`moe_v10`, encoder trigger for every arm, N=3x15, seeds 77/101/202,
+`logs/v5b/03_grid_report.txt`):
+
+| arm | direct rate | decisions/s | step med (rad) | jerk med | policy ms/step |
+| --- | --- | --- | --- | --- | --- |
+| E4 legacy (shipped) | 49 % | 29.9 | 0.08 | 0.15 | 13.6 |
+| E4 + RTC | 53 % | 30.0 | 0.04 | 0.06 | 14.1 |
+| E2 + RTC | 49 % | 59.7 | 0.03 | 0.05 | 25.6 |
+| E1 + RTC | 49 % | 119.3 | 0.03 | 0.04 | 51.1 |
+
+RTC (freeze + soft inpaint) cuts the executed stream at the same policy cost per
+step - it is the deterministic smoothness win and the enabler of per-control-step
+re-planning. Per metric (medians, legacy -> RTC): step **2.0-5.3x** lower (E1
+0.16 -> 0.03, E2 0.11 -> 0.03, E4 0.08 -> 0.04), jerk 2.5-7.0x, boundary
+**4.3-5.3x** (E4 0.19 -> 0.04 = 4.8x; the E4 step ratio is the weakest at 2.0x,
+so "3-5x at every E" overstated E4 - Gate 12). RTC shortens the median cycle only
+at E1/E2 (3323 -> 3059 and 3140 -> 3047 ticks) and **lengthens it at E4 (+9 %,
+2799 -> 3043)**. The rate effect is only suggestive - at E=2 the pooled rate went
+11/45 -> 22/45 (+24 pt, per-run +5/+4/+2, class-matched sign test p=0.09), E1/E4
+were +2/+4 pt - and **not quotable**: that is one pooled contrast from three
+endpoints at N=3, with the whole E2 delta concentrated in run 1's legacy dip
+(Gate 12). A quotable rate claim needs the pre-registered protocol (E=2
+pre-registered, N>=5x15, run-major interleaved, frozen tree, run-level
+consistency or pooled p<=0.05), and RTC default-ON needs its own pre-declared
+non-inferiority batch. The VLASH-style temporal-offset fine-tune
+(`checkpoints/moe_v10_vlash`, offset U{0..4}, 8 epochs) did **not** beat RTC:
+equal at E=2 (21 vs 22/45), below at E1/E4 (33 % vs 49/53 %); Gate 12 drops it.
+Per-step re-planning is a capability knob, not a throughput win: the full in-sim
+per-tick cost is ~62/35/23 ms at E=1/2/4 (0.14/0.25/0.36x real time). See
+WORKLOG "v5-B" and the Gate 12 corrections.
+
+### Path 2: the RTC non-inferiority batch (the default decision, 2026-10-05)
+
+The Gate-12 protocol was run pre-registered (`logs/path2/PREREGISTRATION.md`, written
+before the first run): frozen worktree (git `32b95c9` + the working-tree diff;
+`tasks.py` `25281bb1`, `runtime.py` `ffb76bfd`), `moe_v10` md5 `9b691b03` (no
+`moe_v11` exists), E=4, **N=5 runs x 15 episodes per arm**, seeds
+77/101/202/303/404, run-major interleaved, encoder trigger on both arms, camera
+240,424. **legacy 27/75 (36.0 %) -> RTC 39/75 (52.0 %) = +16.0 pt**, per-run
+2->5, 6->7, 7->10, 6->8, 6->9 (all above the -2/15 consistency bar); the smoothness
+is reproduced (step 2.00x, jerk 2.50x, boundary 4.75x, boundary/within 1.00;
+decision rate 29.9 -> 30.0/s, `policy_ms/step` +9.3 %). **The pre-registered wall
+criterion failed**: pooled rate-run wall 1.163x against the 1.10x bar. The
+decomposition (`logs/path2/05_wall_decomposition.txt`) shows the increase is
+simulated time spent in *failures* (both-fail median ticks +27 %, both-success
+-1 %, time per success -20 %), a consequence of the +12 successes, not loop
+overhead (+1.0 % ms/tick over 464k ticks). Under the pre-declared rule (any
+criterion failure -> no default change) **RTC stays default-off**; the two-file
+flip and the canary are prepared and the decision goes to the owner. WORKLOG
+"Path 2 (D4)".
+
+### Path 2b: the horizon-matched wall batch (the default decision, 2026-10-06)
+
+The owner-option follow-up ("a fresh pre-registration with a horizon-matched wall
+criterion") was run as its own pre-registered batch (`logs/path2b/PREREGISTRATION.md`):
+the path-2 rate/smoothness criteria verbatim plus **C4' = wall per successful
+episode** (`W_R/S_R <= W_L/S_L` - the mechanism path 2 named, where successes are
+the horizon-matched denominator), same protocol (E=4, N=5 x 15/arm, seeds
+77/101/202/303/404, interleaved, trigger `arrival`, camera 240,424), same frozen
+baseline, but on the **newest in-distribution checkpoint at claim time:
+`moe_v11` md5 `9f50596a`** (path-1's rebuild, 154 episodes, finished and stable
+before the first run). **legacy 54/75 (72 %) vs RTC 39/75 (52 %) = -20 pt; per-run
+deltas -3/-3/-3/-3/-3; paired rtc-only 3 vs legacy-only 18.** C4' fails at
+**116.7 s vs 90.9 s per success = 1.285x** while the secondary total wall is
+0.928x (ticks 0.947x, ms/tick 0.980x) - the success deficit is the whole story.
+Smoothness still holds in absolute terms (RTC step/jerk/boundary 0.02/0.02/0.02,
+identical to path 2) but the moe_v11 legacy stream is already smooth (step 0.02
+vs 0.08 on moe_v10), so the run-level C3 read is 1.00x/2.00x/3.00x and also
+fails. **C1/C2/C3/C4' all fail; per the pre-declared rule RTC stays default-off**
+- no flip, no canary/demo. Reading: path-2's +16 pt was a moe_v10-specific
+result; on the stronger current checkpoint the same RTC configuration is 20 pt
+worse in every paired run. WORKLOG "Path 2b (D4b)".
+
+### Path 3: the frontier components on `moe_v11` + the encoder trigger (2026-10-06)
+
+Pre-registered before any run (`logs/path3/PREREGISTRATION.md`): on `moe_v11`
+(md5 `9f50596a`) + `FRUIT_POLICY_TRIGGER=arrival`, four components measured one
+at a time against the same-batch base, N=3 x 15 each (seeds 77/101/202,
+run-major interleaved, camera 240,424, E=4, frozen tree), with a pre-declared
+**+8 pt pooled margin** and run-consistency/no-new-reason/strawberry gates.
+Pooled: **base 30/45 = 66.7 %**; **track** (GEM-style fruit-velocity
+feed-forward) **31/45 = 68.9 % (+2.2 pt)**; **event** (continuity-triggered
+execute horizon: 2/4/6 steps from the chunk-to-chunk clean-action disagreement,
+self-calibrating median) **33/45 = 73.3 % (+6.7 pt, the best of the four, all
+run deltas >= 0)**; **vlash** (temporal-offset fine-tune + rolled-state async
+deployment) **16/45 = 35.6 % (-31.1 pt, a new "fruit fell off the line" class)**;
+**a2c2** (per-step correction head trained on 18 DAgger episodes)
+**21/45 = 46.7 % (-20.0 pt, 4x jerkier executed stream)**. No arm passes C1 ->
+per the rule **the base stands, no N=5 batch, no combination arm**; event's
+mechanism is real (decisions/s 29.9 -> 33.3, mean horizon 3.58, h2/h4/h6 =
+29/63/8 %) but it missed the margin by 2 episodes in 45. Track leaves the
+trigger fire geometry unchanged (dy 5.40 cm, |dx| 0.90 cm, t_arrive 0.900 s).
+Report `logs/path3/01_report.txt`, decision `logs/path3/02_decision.txt`,
+WORKLOG "PATH-3 RESULT". The GUI demo of the chosen (base) configuration is
+green (`CKPT=checkpoints/moe_v11/policy_best.pt HEADLESS=0 EPISODES=3
+scripts/130_policy_demo.sh`).
+
 ## Robot choice
 
 The task calls for an **upper-body-only, dual-arm, gripper** robot. The OpenArm bimanual
@@ -849,8 +1085,14 @@ measured IK residual for a release at the belt centre `(0.65, +-0.55, 1.45)` is
 **211 mm**; even `(0.43, +-0.55)` leaves 13-40 mm. The reach boundary at this
 height sits at about `y_off = 0.41` from the shoulder, so the release point is
 `(0.43, +-0.50, 1.45)`, where both arms solve to **7.9-8.0 mm** (`logs/422/423`).
-The pads open there (the fruit drops the last ~10 cm onto the moving belt) and the
-fingers stay above the belt top; the belt does the rest of the transport.
+That height is the **transfer** waypoint. On the shipped line the hand then lowers
+the payload to the measured finger floor - ~47-60 mm of fruit-bottom clearance,
+because the OpenArm finger plates hang ~43 mm below the fruit bottom at this
+reach-constrained attitude - and opens the jaws there (`FRUIT_PLACE_LOW=1`,
+`tasks.py::_place_low`); the fruit is set down at **0.61-0.87 m/s** impact instead
+of the old **1.44-1.57 m/s** free drop, and the belt does the rest of the
+transport. The released height and the landing are measured by
+`FRUIT_PLACE_TRACE=1` + `scripts/145_place_low_report.py` (WORKLOG "v5-A").
 
 The pop-up pick lifter (`FRUIT_LIFTER`) and the belt gate (`FRUIT_PICK_STOP`) that
 the v2 cell used are **removed**: neither exists on a real line. `grasp.py` still
@@ -970,6 +1212,57 @@ failures concentrate on the 3.4 cm strawberry, which fails in three of them. The
 floor is a regression alarm, not a claim - quote the mean over runs, and see the
 WORKLOG entry "five runs of the policy loop".
 
+### Bimanual (two-arm) runs
+
+The shipped scripted line is single-arm (`FRUIT_BIARM` unset; its acceptance is
+bit-identical to the Gate-19 `logs/fast/15_accept_place035_verified.log`). The
+opt-in pipelined line runs both arms on the shared station:
+
+```bash
+FRUIT_BIARM=1 ATTEMPTS=10 scripts/run.sh scripts/20_pick_place.py   # one pipelined batch
+bash logs/g/run_g_rates.sh 5                                        # G re-derivation: interleaved FRUIT_BIARM=1/0, N=5 x 10
+python3 scripts/151_biarm_report.py logs/g/10_rate_biarm_1.log      # per-attempt table + throughput
+FRUIT_BIARM=1 scripts/accept.sh                                     # bimanual acceptance (own fingerprint)
+FRUIT_BIARM=1 FRUIT_BIARM_TRACE=1 FRUIT_BIARM_TRACE_FILE=logs/g/trace_biarm.jsonl \
+    ATTEMPTS=10 scripts/run.sh scripts/20_pick_place.py             # clearance trace (default off)
+```
+
+(`scripts/153_biarm_rates.sh` is the F2-era driver; it skips existing
+`logs/biarm/rate_*` logs, which are pre-Gate-19 history now, so a fresh batch on
+the current tree goes through `logs/g/run_g_rates.sh`.)
+
+Measured on the F2 tree: **9/10 x5 bit-identical** (`logs/biarm/rate_biarm_1..5.log`;
+left 4/4, right 5/6; the one failure is the right kiwi catch window), **16.0
+s/attempt** and **3.38 placed fruit/min** against the then-shipped single-arm
+**8/10, 18.4 s/attempt, 2.61 placed fruit/min** = **1.30x**; `gate_open=0.0s`,
+zero `indexed:`. **G re-derived it on the Gate-19 default (place 0.35,
+2026-10-07)**: `logs/g/10_rate_biarm_1..5.log` are **9/10 x5 bit-identical**
+(left 3/4, right 6/6; the failure is a left apple first-lift escape), **15.0
+s/attempt, 3.59 placed/min**, against the single arm's **9/10 x5, 15.8
+s/attempt, 3.42 placed/min** (`logs/g/20_rate_single_1..5.log`) = **1.05x**,
+below the pre-registered "placed/min clearly higher" bar (1.10x); the **default
+was therefore not flipped** - `FRUIT_BIARM=1` stays opt-in and `FRUIT_BIARM=0` is
+the explicit opt-out (the shipped default's acceptance remains bit-identical to
+the Gate-19 `logs/fast/15_accept_place035_verified.log`). The bimanual's own
+acceptance on the new default (`FRUIT_BIARM=1 ACCEPT_LOG=logs/g/43_accept_biarm.log`)
+is 9/10 with every motion budget passing and its fingerprint recorded at
+`logs/g/motion_reference_biarm_g.json` (F2's preserved at
+`logs/g/motion_reference_biarm_pre_g.json`).
+The clearance trace on the new default (`logs/g/30_trace_biarm.log`, same attempt
+sequence, outcomes bit-identical) reports a minimum inter-arm link-origin
+separation of **6.2 mm** (`openarm_left_hand` vs `openarm_right_ee_tcp`, a smooth
+pass while the left hand carries away and the right pre-poses) with **257/15024
+samples under 30 mm**; the F2 `logs/biarm/42_trace_biarm.log` figure (**45 mm,
+zero samples under 30 mm**) is pre-Gate-19 timing and **does not carry** to the
+new default. No attempt fails by arm-arm contact in either trace, but quote the
+clearance per configuration.
+A bimanual log is a *different scenario*: judge its budgets/rate, and record its
+own fingerprint (`scripts/105_motion_regression.py LOG --write-fingerprint
+logs/biarm/motion_reference_biarm.json`) rather than reading a mismatch against
+the single-arm reference as a break. The scheduler's invariants (paired/exclusive
+ticks, deterministic segment order, the station handover) are pinned offline by
+`scripts/152_biarm_selftest.py`, a `selfcheck` leg.
+
 The checker itself needs no simulator:
 
 ```bash
@@ -1074,6 +1367,10 @@ in the training logs. Each episode in `datasets/*/` is a compressed `.npz` with
 | `scripts/accept.sh` | One-command acceptance: ten attempts, then that gate, non-zero exit on failure |
 | `scripts/accept_policy.sh` | One-command policy acceptance: ten hybrid episodes, then the policy floor + failure-reason gate |
 | `scripts/demo_2min.sh` | One-command demo: a few picks, a video clip, then the gate |
+| `scripts/151_biarm_report.py` | Per-attempt table, per-arm counts and throughput from bimanual run logs (no simulator) |
+| `scripts/152_biarm_selftest.py` | Offline invariants of the bimanual scheduler (paired/exclusive ticks, determinism, station handover) |
+| `scripts/153_biarm_rates.sh` | N x 10-attempt rate batch for one arm configuration (`biarm`/`single`), one simulator at a time |
+| `scripts/154_claim_run.sh` | Claim the single simulator, run one command with a stall guard (used by the rate batch) |
 
 ## Package layout
 

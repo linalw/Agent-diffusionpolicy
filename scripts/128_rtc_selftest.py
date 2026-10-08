@@ -171,6 +171,47 @@ def main() -> int:
     assert switch_deltas, "no switches recorded"
     assert float(np.median(switch_deltas)) < 3.0 * float(np.median(within_deltas))
 
+    # 5b. VLASH deployment: guidance off, state roll-forward wiring ---------- #
+    runner = make_runner()
+    settings = RTCSettings(
+        enabled=True, inference_delay=2, execution_horizon=10,
+        max_guidance_weight=1.0, schedule="EXP", guidance=False, vlash=True,
+        vlash_delta=2,
+    )
+    chunker = RealtimeChunker(runner, execute_steps=2, settings=settings)
+    rolled = np.zeros(25, dtype=np.float32)
+    rolled[0] = 123.0
+    seen: dict = {}
+
+    def roll(measured, window):
+        seen["measured"] = np.asarray(measured).copy()
+        seen["window"] = np.asarray(window).copy()
+        return rolled
+
+    rng = np.random.RandomState(7)
+    proprio = (rng.randn(25) * 0.01).astype(np.float32)
+    chunker.next_action(lambda: proprio, np.zeros(8, dtype=np.float32), 8, roll=roll)
+    sampler = chunker.sampler
+    assert sampler is not None, "VLASH sampler did not start"
+    assert sampler.weights is None and sampler.prefix_length == 0, (
+        "VLASH must switch chunks without freeze/inpaint guidance"
+    )
+    assert float(sampler.condition[2][0, 0].float().cpu()) == 123.0, (
+        "the sampler was not conditioned on the rolled state"
+    )
+    assert seen["window"].shape[0] == 2, (
+        f"roll window is the pending delay (got {seen['window'].shape})"
+    )
+    assert np.allclose(seen["measured"], proprio)
+    # Env parsing: FRUIT_VLASH implies async + guidance off, and the delta knob.
+    os.environ["FRUIT_VLASH"] = "1"
+    os.environ["FRUIT_VLASH_DELTA"] = "3"
+    parsed = RTCSettings.from_env()
+    assert parsed.enabled and parsed.vlash and not parsed.guidance
+    assert parsed.vlash_delta == 3
+    del os.environ["FRUIT_VLASH"]
+    del os.environ["FRUIT_VLASH_DELTA"]
+
     # 6. a non-finite prediction does not poison the queue ------------------ #
     # (a) the inpaint target drops non-finite rows: a weight of 0 alone does
     # not neutralise NaN, so the sampler must still return a finite chunk.

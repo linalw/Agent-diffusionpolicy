@@ -364,6 +364,10 @@ class ArmController:
                     "limit_margin": float(
                         min(np.min(unclipped - self.arm_lo), np.min(self.arm_hi - unclipped))
                     ),
+                    # Joint limits: static, trace-only, so a clipping read can name
+                    # the saturated joint instead of only its margin [rad].
+                    "arm_lo": self.arm_lo.tolist(),
+                    "arm_hi": self.arm_hi.tolist(),
                     "jac_rows": int(jac.shape[0]),
                     "tcp": tcp.tolist(),
                     "measured": measured.tolist(),

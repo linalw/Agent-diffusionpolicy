@@ -43,3 +43,58 @@ v2 on-the-fly line 6/10 and grip-geometry-limited. *Italic = one-line assessment
 6. **Flow-matching head or 1-4-step consistency distillation** - only if control moves to 60-200 Hz or RTC guidance autodiff pushes inference near the tick. *Medium-low value / medium cost at 20 Hz, since 12 ms already fits.*
 7. **Block diffusion / discrete-token VLA / speculative decoding** - gains are for discrete AR backbones with large pretraining; tokenizing this 4.59 M continuous policy still needs RTC's recipe for continuity. *Low value / high cost; skip.*
 Cautions from repo evidence: policy runs are not samples (renderer-dependent variance), so every arm needs N runs and per-episode outcomes; new correction terms stay off by default when not under test; none of these fixes the gripper's contact geometry - they buy the time window in which a correct close can happen.
+
+## 5. Decision rate and motion smoothness (2026-10 update, librarian; condensed)
+
+Current budget: DDIM-16 ~26 ms/chunk, execute-steps 4 -> 30 Hz decisions (33.3 ms period at
+120 Hz physics, ~78 % duty). The interleaved RTC runner means execute-steps 1 still implies
+d~4 at 26 ms: the action switch rate rises, the sampler cost still sets the decision rate.
+
+**Theory**: RTC's sweep shows the solve rate strictly increasing as the execution horizon
+shrinks *once cross-chunk continuity exists* (naive async and temporal ensembling do not
+benefit; TE oscillates into protective stops). With long observation context (12-20 frames)
+an execution horizon of 1 is optimal - long open-loop chunks mainly compensate a
+non-Markovian expert with short context (arXiv 2608.15938); the repo's `obs_horizon=2` is the
+likely blocker for very short horizons. Chunking's measured benefit is non-Markovian
+expressivity + implicit ensembling, not temporal consistency (arXiv 2608.02547).
+Event-triggered replanning: DVAC (denoising-variance prefix, -43 % replans, LIBERO +3.3)
+arXiv 2606.03847; ChunkTrust (spectral stability, +6.8 pt on pi0.5) arXiv 2609.39754.
+Industrial: encoder line tracking with a trigger/FIFO is exactly the repo's trigger; 1 kHz
+loops run on the servo/intercept channel, not the learned policy.
+
+**Smoothness**: temporal ensembling is the losing baseline on dynamic tasks; soft/training-time
+RTC reduce high-delay delta and jerk ~9-10 % vs hard RTC (arXiv 2605.25537). Velocity-aware
+representations: B-spline knot+control-point policies (arXiv 2607.09648), delta actions
+dominate absolute for modern backbones (arXiv 2602.23408), GEM's tracking/interaction split
+(arXiv 2508.14042). Metrics to standardise: jaw-TCP **SPARC** + the existing boundary-jump
+script (`scripts/124_rtc_boundary.py`).
+
+**Heads that buy rate**: for a 4.59 M conv UNet the drop-in is **consistency distillation**
+(Consistency Policy arXiv 2405.07503; OneDP 1.5 -> 62 Hz arXiv 2410.21257; MP1 MeanFlow 1 NFE
+6.8 ms arXiv 2507.10543; FlowPolicy arXiv 2412.04987). Block/speculative decoding needs
+tokenized actions or a large AR backbone - does not transfer.
+
+**Per-step correction**: A2C2 (a correction head every control step, base frozen; +23 pt over
+RTC on Kinetix) arXiv 2509.23224; DCDP (dynamic features, +19 % dynamic-PushT) arXiv 2603.01953;
+ResiP residual RL (54 -> 98 %) arXiv 2407.16677. Two-tier references: piR^2 ~25 Hz one-denoise
+(arXiv 2607.26055), FiS-VLA 117.7 Hz fast path (arXiv 2506.01953).
+
+**Ranked shortlist for this repo** (gain/cost; the librarian's falsifier in parentheses):
+1. **RTC on + execute-steps sweep 4 -> 2 -> 1** (boundary jump + seeded per-episode outcomes).
+2. **A2C2/DCDP-style per-tick correction head on the frozen checkpoint** (fixed-seed A/B at
+   execute-steps 4; if the fire-to-close timing distribution and outcomes are unchanged it adds
+   nothing) - the only genuine 120 Hz reactivity without shrinking the sampler.
+3. **Distill DDIM-16 to a 1-4 step head** (Consistency Policy / FlowPolicy recipe; teacher =
+   the current checkpoint) - 26 ms -> ~3-7 ms is what unlocks 60-120 Hz; compare the student vs
+   the teacher on chunk fidelity *and* the per-episode outcome distribution; a wide-strawberry
+   regression kills it. 42-63 demos is the risk.
+4. **Event-triggered replanning** (DVAC/ChunkTrust; check whether clean-action variance
+   separates the approach/intercept/carry phases, AUC > 0.5).
+5. **B-spline / delta-action targets** (SPARC + executed-stream boundary jump).
+6. **SAIL-style faster-than-demo execution** (time-scale the existing min-jerk until |a|max
+   reaches the cone budget; the repo's own evidence says the tracker/contact is the limit).
+7. **Block/speculative decoding** - skip (needs tokenized actions).
+
+Cross-cutting falsifier: none of these buys contact geometry - if the finger-extent failures
+do not move, the gain is real but not the one the sorter needs. Protocol: N runs per arm,
+per-episode outcomes, distributions not single numbers.

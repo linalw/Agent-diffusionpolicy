@@ -138,6 +138,35 @@ def main() -> int:
         monitor.add(i * carrying.dt, [0.0, 0.0, 1.18 + float(p)], [0.0, 0.0, 1.18 + float(p) - 0.001])
     print("  " + MotionMonitor.format(monitor.summary()))
 
+    print("\n== motion gate profile defaults ==")
+    # The v7 gate derives its descent budget from the shipped profile
+    # (`descent_profile_peak`), so its two defaults must equal the ones the task
+    # actually uses. `tasks.py` imports Isaac Sim and cannot be imported here, so
+    # the two files' literals are compared directly; drift is a hard failure
+    # because it would silently mis-derive every budget.
+    import re as _re
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parent.parent
+    tasks_src = (root / "src" / "fruit_sorting" / "tasks.py").read_text(encoding="utf-8")
+    gate_src = (root / "scripts" / "105_motion_regression.py").read_text(encoding="utf-8")
+
+    def _first(pattern: str, text: str) -> str | None:
+        found = _re.search(pattern, text)
+        return found.group(1) if found else None
+
+    task_vmax = _first(
+        r'FRUIT_DYNAMIC_APPROACH_VMAX",\s*os\.environ\.get\(\s*"FRUIT_APPROACH_VMAX",\s*"([0-9.]+)"',
+        tasks_src,
+    )
+    task_amax = _first(r'FRUIT_APPROACH_AMAX",\s*"([0-9.]+)"', tasks_src)
+    gate_vmax = _first(r"SHIPPED_DYNAMIC_APPROACH_VMAX\s*=\s*([0-9.]+)", gate_src)
+    gate_amax = _first(r"SHIPPED_APPROACH_AMAX\s*=\s*([0-9.]+)", gate_src)
+    print(f"  tasks.py approach v_max={task_vmax} a_max={task_amax}; "
+          f"gate defaults v_max={gate_vmax} a_max={gate_amax}")
+    check("gate dynamic v_max default equals the task's", task_vmax is not None and task_vmax == gate_vmax)
+    check("gate a_max default equals the task's", task_amax is not None and task_amax == gate_amax)
+
     print()
     if FAILURES:
         print(f"{len(FAILURES)} check(s) failed: {FAILURES}")

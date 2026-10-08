@@ -399,6 +399,14 @@ class SortingScene:
         face_shape = os.environ.get("FRUIT_FINGER_FACE", "flat").strip().lower()
         if openarm_hand and finger_colliders and face_shape not in ("", "flat", "none", "0"):
             self._add_contact_faces(face_shape)
+        # D2 mechanism attempt (task option 1, opt-in, default off): a real
+        # compliant pad body on each finger face. See `_add_soft_pads`.
+        if (
+            openarm_hand
+            and finger_colliders
+            and os.environ.get("FRUIT_FINGER_SOFT_PAD", "0") == "1"
+        ):
+            self._add_soft_pads()
         say(f"scene built (parts={list(parts)})")
         return self
 
@@ -875,6 +883,235 @@ class SortingScene:
             prim.GetPrim(), mu, mu, 0.0, stiffness, damping, colour=(0.07, 0.07, 0.08)
         )
         return 1
+
+    def _add_soft_pads(self) -> None:
+        """Author the opt-in compliant pad bodies on the OpenArm finger faces.
+
+        This is the D2 mechanism attempt (task option 1): the shipped rigid
+        finger face holds a *fixed* separation, so when the payload's local width
+        shrinks under the first lift the contact force collapses in the tick the
+        faces run out of travel - measured on A2: the in-hand slide grows while
+        the force dies and the pop precedes the force signal (`logs/dyn_v5`,
+        `logs/dyn_v7`: escape at carry tick 124, hand-frame dev 10.1 mm -> a
+        279 mm runaway). Each pad here is a real body on a linear spring-damper
+        prismatic joint whose axis is the finger's face normal, so the pad
+        follows the local width with millimetres of travel instead of losing
+        contact, and it does so passively (no force feedback, no control tick).
+
+        Geometry per finger (link-local, from `_finger_face_frame`):
+
+        * front face `FRUIT_FINGER_SOFT_PAD_PROUD` (0.25 mm) in front of the
+          true face plane at rest - a real, visible feature, deliberately much
+          smaller than the rejected additive shapes (3-12 mm);
+        * the pad spans `FRUIT_FINGER_SOFT_PAD_LEN` (22 mm) along the finger and
+          ends `FRUIT_FINGER_SOFT_PAD_BACK` (1 mm) above the fingertip, where
+          the dynamic grip and the A2 walk-out sit; it is `WIDE` (24 mm) across
+          the finger - a soft-layer footprint, not a narrow strip;
+        * with `FRUIT_FINGER_SOFT_PAD_MESH=1` (default) the finger link's own
+          colliders are disabled: the pad *is* the contact surface. The first
+          form filtered the link from the fruit-pool paths with
+          `FilteredPairsAPI`, and that is **measured not to resolve** - the
+          fruits are spawned after `play()`, so their paths do not exist at
+          PhysX parse (smoke1: the meshes carried ~3 of 4.6 N while the pads
+          compressed 0.29 mm). A real pad assembly replaces the contact surface,
+          which is what this does (the shipped `FRUIT_PAD_ONLY` mode does the
+          same for the kinematic pads); `=0` keeps the meshes for an A/B;
+        * `FRUIT_FINGER_SOFT_PAD_FILTER=1` additionally removes the
+          pad<->own-link pair, so the pad can compress into the finger volume
+          (its bounds are the joint limits, not the mesh).
+
+        The joint is `body0 = pad, body1 = finger link`, `axis = X` in the pad's
+        own frame (whose first column is `e_face`), limits `[-TRAVEL, +RELEASE]`
+        and a drive of type `force` with `targetPosition = 0`: the spring pushes
+        the pad towards the fruit, the fruit pushes it in, and as the local width
+        shrinks the spring extends the pad back out to maintain contact. All
+        values are baked at build time (before `play()`), so the pad body,
+        collider and joint are parsed with the robot.
+
+        Default off: `FRUIT_FINGER_SOFT_PAD=1` selects it and the shipped build
+        authors nothing.
+        """
+        k = float(os.environ.get("FRUIT_FINGER_SOFT_PAD_K", "5000"))
+        damp = float(os.environ.get("FRUIT_FINGER_SOFT_PAD_C", "25"))
+        travel = max(0.0, float(os.environ.get("FRUIT_FINGER_SOFT_PAD_TRAVEL", "0.005")))
+        release = max(0.0, float(os.environ.get("FRUIT_FINGER_SOFT_PAD_RELEASE", "0.001")))
+        proud = float(os.environ.get("FRUIT_FINGER_SOFT_PAD_PROUD", "0.00025"))
+        thick = max(0.001, float(os.environ.get("FRUIT_FINGER_SOFT_PAD_THICK", "0.003")))
+        length = max(0.004, float(os.environ.get("FRUIT_FINGER_SOFT_PAD_LEN", "0.022")))
+        wide = max(0.004, float(os.environ.get("FRUIT_FINGER_SOFT_PAD_WIDE", "0.024")))
+        back = max(0.0, float(os.environ.get("FRUIT_FINGER_SOFT_PAD_BACK", "0.001")))
+        mass = max(1e-4, float(os.environ.get("FRUIT_FINGER_SOFT_PAD_MASS", "0.02")))
+        max_force = float(os.environ.get("FRUIT_FINGER_SOFT_PAD_MAX_FORCE", "50"))
+        mu = float(os.environ.get("FRUIT_FINGER_MU", "2.0"))
+        stiffness = float(os.environ.get("FRUIT_FINGER_COMPLIANCE", "0"))
+        damping = float(os.environ.get("FRUIT_FINGER_CONTACT_DAMPING", "60"))
+        filter_pairs = os.environ.get("FRUIT_FINGER_SOFT_PAD_FILTER", "1") == "1"
+        mesh_off = os.environ.get("FRUIT_FINGER_SOFT_PAD_MESH", "1") == "1"
+        colour = (0.85, 0.35, 0.10)
+
+        self.stage.DefinePrim("/World/SoftPads", "Xform")
+        info: dict[str, list[dict]] = {"left": [], "right": []}
+        made = 0
+        disabled_total = 0
+        for side in ("left", "right"):
+            for which in ("left", "right"):
+                path = f"/World/OpenArm/openarm_{side}_{which}_finger"
+                other = "right" if which == "left" else "left"
+                link = self.stage.GetPrimAtPath(path)
+                other_link = self.stage.GetPrimAtPath(
+                    f"/World/OpenArm/openarm_{side}_{other}_finger"
+                )
+                tcp = self.stage.GetPrimAtPath(f"/World/OpenArm/openarm_{side}_ee_tcp")
+                visuals = self.stage.GetPrimAtPath(f"{path}/visuals")
+                if not (
+                    link.IsValid() and other_link.IsValid() and tcp.IsValid()
+                    and visuals.IsValid()
+                ):
+                    continue
+                points = _link_local_mesh_points(visuals, np.linalg.inv(_world_matrix(link)))
+                if len(points) < 32:
+                    say(f"soft pads: {path} has {len(points)} visual points; skipped")
+                    continue
+                (
+                    e_face, e_mid, e_long, face_coord, mid_coord, tip_coord,
+                    extents, _bounds,
+                ) = _finger_face_frame(link, other_link, tcp, points)
+                # Pad body frame in the link frame: column 0 is the face normal
+                # (the joint axis, `axis="X"`), column 1 across the finger,
+                # column 2 along it (towards the tip). Right-handed so the quat
+                # authoring is unambiguous.
+                e_a = np.asarray(e_mid, dtype=float).copy()
+                e_g = np.cross(e_face, e_a)
+                if float(e_g @ e_long) < 0.0:
+                    e_a = -e_a
+                    e_g = -e_g
+                frame = np.column_stack([e_face, e_a, e_g])
+                pad_len = min(length, max(0.9 * float(extents[2]) - back, 0.004))
+                pad_wide = min(wide, 0.9 * float(extents[1]))
+                # Centre: front face at `face_coord + proud`; distal end `back`
+                # above the fingertip (the pad never extends past the tip - the
+                # v6 experiment 2 distal plate batted the catch).
+                face_off = face_coord + proud - thick / 2.0
+                long_off = tip_coord - back - pad_len / 2.0
+                local = e_face * face_off + e_mid * mid_coord + e_long * long_off
+                link_world = _world_matrix(link)
+                world_pos = (link_world @ np.append(local, 1.0))[:3]
+                world_rot = link_world[:3, :3] @ frame
+                pad_path = f"/World/SoftPads/{side}_{which}"
+                pad = UsdGeom.Cube.Define(self.stage, pad_path)
+                pad.GetSizeAttr().Set(1.0)
+                xf = UsdGeom.Xformable(pad)
+                xf.ClearXformOpOrder()
+                xf.AddTranslateOp().Set(Gf.Vec3d(*[float(v) for v in world_pos]))
+                quat = _matrix_to_quat(world_rot)
+                xf.AddOrientOp().Set(Gf.Quatf(quat[0], Gf.Vec3f(quat[1], quat[2], quat[3])))
+                xf.AddScaleOp().Set(Gf.Vec3f(thick, pad_wide, pad_len))
+                UsdPhysics.CollisionAPI.Apply(pad.GetPrim())
+                UsdPhysics.RigidBodyAPI.Apply(pad.GetPrim())
+                UsdPhysics.MassAPI.Apply(pad.GetPrim()).CreateMassAttr().Set(mass)
+                _add_physics_material(
+                    pad.GetPrim(), mu, mu, 0.0, stiffness, damping, colour=colour
+                )
+                joint = UsdPhysics.PrismaticJoint.Define(self.stage, f"{pad_path}_joint")
+                joint.CreateBody0Rel().SetTargets([pad.GetPath()])
+                joint.CreateBody1Rel().SetTargets([link.GetPath()])
+                joint.CreateAxisAttr().Set("X")
+                joint.CreateLowerLimitAttr().Set(-travel)
+                joint.CreateUpperLimitAttr().Set(release)
+                joint.CreateLocalPos0Attr().Set(Gf.Vec3f(0.0, 0.0, 0.0))
+                joint.CreateLocalRot0Attr().Set(Gf.Quatf(1.0, 0.0, 0.0, 0.0))
+                joint.CreateLocalPos1Attr().Set(Gf.Vec3f(*[float(v) for v in local]))
+                jq = _matrix_to_quat(frame)
+                joint.CreateLocalRot1Attr().Set(Gf.Quatf(jq[0], Gf.Vec3f(jq[1], jq[2], jq[3])))
+                drive = UsdPhysics.DriveAPI.Apply(joint.GetPrim(), "linear")
+                drive.CreateTypeAttr().Set("force")
+                drive.CreateStiffnessAttr().Set(k)
+                drive.CreateDampingAttr().Set(damp)
+                drive.CreateMaxForceAttr().Set(max_force)
+                drive.CreateTargetPositionAttr().Set(0.0)
+                if filter_pairs:
+                    # The pad compresses into the finger volume (its bounds are
+                    # the joint limits, not the mesh), so it must not collide
+                    # with its own link.
+                    pairs = UsdPhysics.FilteredPairsAPI.Apply(pad.GetPrim())
+                    pairs.CreateFilteredPairsRel().AddTarget(link.GetPath())
+                if mesh_off:
+                    # The pad is the grip surface, so the rigid finger mesh
+                    # must not take the fruit back after `proud` of travel.
+                    # The first form was `FilteredPairsAPI` on the link against
+                    # the fruit-pool paths, and it is **measured not to resolve**:
+                    # the fruits are spawned *after* `play()`, so their paths do
+                    # not exist at PhysX parse and the pair is silently dropped
+                    # (`logs/d2_mechanism/smoke1.log`: the finger meshes carried
+                    # ~3 of the 4.6 N while the pads compressed only 0.29 mm).
+                    # Disable the link's colliders for the pads-on configuration
+                    # instead - the pad assembly *is* the contact surface,
+                    # exactly like the shipped `FRUIT_PAD_ONLY` kinematic-pad
+                    # mode. `FRUIT_FINGER_SOFT_PAD_MESH=0` restores the meshes
+                    # for an A/B.
+                    disabled = 0
+                    for prim in Usd.PrimRange(
+                        link, Usd.TraverseInstanceProxies(Usd.PrimAllPrimsPredicate)
+                    ):
+                        if prim.HasAPI(UsdPhysics.CollisionAPI):
+                            UsdPhysics.CollisionAPI(prim).GetCollisionEnabledAttr().Set(False)
+                            disabled += 1
+                    disabled_total += disabled
+                info[side].append(
+                    {
+                        "which": which,
+                        "pad_path": pad_path,
+                        "link_name": f"openarm_{side}_{which}_finger",
+                        "e_face": e_face.copy(),
+                        # Projection of the pad centre on the face normal at
+                        # rest; the trace reads this back to report compression.
+                        "rest_proj": float(face_off),
+                    }
+                )
+                made += 1
+                say(
+                    f"soft pad {side}_{which}: face={face_coord * 1000:.1f} mm "
+                    f"proud={proud * 1000:.2f} mm at {face_off * 1000:.2f} mm, "
+                    f"long {pad_len * 1000:.1f} mm ending {back * 1000:.1f} mm "
+                    f"above the tip ({tip_coord * 1000:.1f} mm), wide "
+                    f"{pad_wide * 1000:.1f} mm, k={k:.0f} N/m c={damp:.0f} Ns/m "
+                    f"travel=-{travel * 1000:.1f}/+{release * 1000:.1f} mm "
+                    f"mass={mass * 1000:.0f} g"
+                )
+        self._soft_pad_info = info
+        say(
+            f"soft pads: {made} compliant pad bodies on the finger faces "
+            f"(D2 mechanism; filter_pairs={filter_pairs}, "
+            f"finger-mesh colliders disabled={disabled_total} (mesh_off={mesh_off}))"
+        )
+
+    def soft_pad_states(self, side: str) -> list[dict]:
+        """Per-pad compression [mm] for the dynamic trace (trace-on only).
+
+        `comp_mm` is how far the pad has been pushed *into* the finger relative
+        to its authored rest position, positive = compressed. Read live from the
+        pad body and its finger link; a trace must never change an outcome, so
+        any failure returns `None` rather than raising.
+        """
+        info = getattr(self, "_soft_pad_info", {}).get(side)
+        if not info:
+            return []
+        out: list[dict] = []
+        for pad in info:
+            try:
+                handle = pad.get("handle")
+                if handle is None:
+                    handle = RigidPrim(pad["pad_path"])
+                    pad["handle"] = handle
+                pos = np.asarray(to_numpy(handle.get_world_poses()[0])[0], dtype=float)
+                link_pos, link_quat = self.link_pose(pad["link_name"])
+                rot = _quat_to_matrix(link_quat)
+                face_world = rot @ np.asarray(pad["e_face"], dtype=float)
+                comp = float(pad["rest_proj"]) - float(np.dot(pos - link_pos, face_world))
+                out.append({"which": pad["which"], "comp_mm": round(comp * 1000.0, 3)})
+            except Exception:  # noqa: BLE001 - a trace must never change an outcome
+                out.append({"which": pad["which"], "comp_mm": None})
+        return out
 
     def _add_environment(self) -> None:
         """Studio-style lighting and a real floor, instead of an infinite grid."""

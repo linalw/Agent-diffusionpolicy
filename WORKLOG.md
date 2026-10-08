@@ -8924,3 +8924,1851 @@ live run (the user's launch) is one sample of the trigger arm, not a rate. The
 Vulkan window content could not be captured as a still (`xwd` of the window
 decodes to no stream), so the window evidence is the window list, not a frame.
 
+### v5-C: consistency/progressive distillation of the policy - a 4-step sampler that keeps the boundary, the 1-step map does not (2026-10-04)
+
+The owner's first v5 ask (ranked lever 3 of `docs/research_dynamic_grasp_methods.md`
+§5): the shipped DDIM-16 sampler is ~26 ms/chunk = 78 % of the 33.3 ms control
+period, so the decision rate is capped at 30 Hz. Distill `checkpoints/moe_v10`
+into a 1-4 step sampler, then measure whether it is deployable. New files only
+(the B lane owned `runtime.py`/`rl_env.py`/`finetune.py` in this window):
+`src/fruit_sorting/policy/distill.py`, `scripts/111_distill_policy.py`,
+`scripts/112_distill_fidelity.py`, `scripts/131_distill_selftest.py` (selfcheck
+leg), `scripts/136_policy_sparc.py`, `scripts/137_student_latency.py`,
+`scripts/138_distill_runs.sh`, `scripts/139_distill_deploy_report.py`.
+`checkpoints/moe_v10` and `datasets/demos_v9` untouched; `scripts/selfcheck.sh`
+PASS (9 legs + the new distill leg). The deployability batches run from a frozen
+copy of the pinned tree (`/tmp/opencode/frozen_distill_v1`, `tasks.py
+ae841a17`), because the A lane changed the working `tasks.py` mid-phase.
+
+**The deployment trick: the stock DDIM chain is the consistency sampler.** The
+student keeps the teacher's epsilon parameterization, so
+`f(x_t,t) = clamp((x_t - sqrt(1-a_t) eps(x_t,t)) / sqrt(a_t))`; the shipped
+`DiffusionSchedule.ddim_sample(num_steps=k)` evaluates `f` at the k chain times
+`linspace(99,0,k)` and re-noises between them with the same formula a consistency
+sampler uses. DDIM-1 returns exactly `f(x_99,99)`. No runtime change, no RTC
+change, and RTC's interleaved sampler applies unchanged. Pinned by the
+`distill selftest` leg.
+
+**Three objectives measured on held-out demos_v9 windows (offline, paired):**
+
+* **CD (consistency distillation, EMA target + x0 anchor), 8 epochs**: the CD
+  loss falls (0.23 -> 0.13 val) but the 1-step endpoint does not move in 6000
+  steps: `f(x_99,99)` stays ~10.4-11.3 normalized rad from the teacher's
+  DDIM-16. The endpoint information has to propagate from the clean end through
+  99 adjacent levels; 6 k steps is not enough. Negative, kept as evidence
+  (`logs/distill/111_v1_cd.log`).
+* **Endpoint (sampling distillation: `f(x_t,t) -> teacher DDIM-16 endpoint`),
+  8 epochs with 45 % of every batch focused on t=99**: the loss falls but the
+  first-action deviation stays ~9.0-9.2 normalized rad through 6 epochs; at
+  t=99 the input is ~pure noise and the target is the generated action, i.e.
+  one-step generation from scratch - the hardest map, and the one with the
+  least curriculum. Negative (`logs/distill/111_v1_endpoint*.log`).
+* **Progressive distillation (Salimans & Ho 2022), rounds 16 -> 8 -> 4 -> 2 -> 1**:
+  each round's student replaces two teacher DDIM steps by one; the round
+  teacher is the previous student. This one works for the first two rounds:
+  measured on 48 held-out windows, the 8-step sampler reads **0.298 rad**
+  first-action error vs the teacher's 0.123 (vs-recorded, paired), and the
+  4-step sampler **0.487 rad**. Rounds 3-4 query the round-2 student at the
+  interval midpoint (t=50) which that student never trained on; its response
+  there is garbage, and the 2-step/1-step students collapse (3.53/11.87 rad).
+  A corrected continuous-time variant that trains every timestep and the
+  next round's midpoints *regressed round 1* to 3.86 rad - data-noised `x_t`
+  training is not the previous stage's sampler trajectory in this setup - so
+  the shipped student is the round-2 checkpoint of the first scheme, deployed
+  at `--ddim 4` (`checkpoints/distill_s4`).
+
+**Offline fidelity (192 held-out windows; 9 val episodes; paired noise;
+`logs/distill/112_student4_fidelity.txt`):** teacher DDIM-16 first-action error
+vs the recorded command 0.134 rad, finger 0.0005, open/close phase 99 %; the
+4-step student 0.487 rad, finger 0.0030, phase 90 %; per-skill approach
+0.481 / grasp 0.395 / lift 0.541 / place 0.607 rad. The student-vs-teacher
+first-action deviation is 0.406 rad. Strawberries are absent from the seeded
+val split (the 9 held-out episodes contain none), so the supplementary
+all-episode pass is quoted for them
+(`logs/distill/112_student4_fidelity_all.txt`): strawberry 0.543 vs teacher
+0.140 rad, phase 100 %. **What the distillation buys:** on the same windows the
+*stock* teacher sampled at 4 steps reads **1.349 rad** (1/2 steps are unusable:
+10.46/10.11 rad), so the distilled 4-step sampler is ~2.8x closer to the
+recorded command than the un-distilled 4-step chain, at 4x lower sampler cost.
+
+**Latency and smoothness (offline, fp16; `logs/distill/137_*`; the first pass
+ran while the other lane's simulator occupied the GPU, so the quiet re-measure
+is the quotable one and is appended below):** first pass medians - teacher
+DDIM-16 41.6 ms/chunk, student4 DDIM-4 10.4 ms, teacher DDIM-1 3.3 ms,
+`push_frame` 2.3 ms CPU. Boundary/jerk of the executed stream (`125_loop_metrics`
+on 3 recorded rollouts, legacy E=4, `logs/distill/125_*_boundary.txt`): teacher
+boundary 0.169 / within 0.047 rad (**ratio 3.06**), step 0.058, jerk 0.127;
+student4 boundary 0.485 / within 0.340 rad (**ratio 1.43**), step 0.369, jerk
+0.643. The student's boundary *ratio* is lower only because its within-chunk
+jitter is ~7x the teacher's: four DDIM steps leave more sampler noise in the
+chunk, so fresh-noise re-planning moves the command more between chunks. That
+is exactly the RTC temporal-ensembling case, and it is a smoothness warning
+the deployability outcomes have to be read against.
+
+**Deployability (direct interface, frozen tree, `FRUIT_POLICY_TRIGGER=arrival`,
+camera 240,424, seeds 77/101/202 x 15 episodes):** the teacher and student
+batches are queued behind the other lane's 6-arm x 3-run RTC A/B on the shared
+simulator (`scripts/138_distill_runs.sh` polls `pgrep -f '[p]ython.sh'` and
+`127_rtc_ab.sh`; never kills another lane's run). Results are appended below
+when the batches finish; a wide-strawberry regression or more than one net
+episode lost kills the student (`scripts/139_distill_deploy_report.py`).
+
+**v5-C deployability result (partial, 2026-10-04 22:50): the 4-step student does not hold - reported as a negative with the numbers.**
+
+What ran, on the frozen tree (`/tmp/opencode/frozen_distill_v1`, `tasks.py
+ae841a17`, camera 240,424, `FRUIT_POLICY_TRIGGER=arrival`, `FRUIT_POLICY_SEED=11`,
+E=4): the teacher seed 77 (15 episodes, salvaged from the first run before a
+wedged primitive; its manifest is
+`datasets/rl_rollouts_distill/teacher_trigger/direct_none_seed77/manifest.json`)
+and the student seeds 77 + 101 (10 episodes each; the student seed 202 and the
+teacher seeds 101/202 were queued behind the other lane's VLASH A/B, which took
+the simulator at 22:50 and is still running - see "not done" below).
+
+| arm | episodes | successes | strawberry | failure anatomy |
+| --- | --- | --- | --- | --- |
+| teacher `moe_v10` DDIM-16, seed 77 | 15 | **3/15 (20 %)** | 1/3 (3.4 cm ok; 2x4.2 cm grip loss) | 6 grip loss, 4 timeout, 1 left station; trigger fired 8/15 |
+| student `distill_s4` DDIM-4, seeds 77+101 | 20 | **2/20 (10 %)** | 0/4 (4.2, 3.9, 3.2, 3.2 cm all grip loss) | 13 grip loss, 3 timeout, 1 left station, 1 closed-early; trigger fired 11/20, policy-close gate fired 6/20 |
+
+Per-run: student 1/10 and 1/10 (seed 77 and 101); teacher 3/15.
+`scripts/139_distill_deploy_report.py --teacher
+logs/distill/138_teacher_trigger_seed77_clean.log --student
+logs/distill/138_student4_trigger_seed77.log,logs/distill/138_student4_trigger_seed101.log`
+prints the full per-episode table. **The literal falsifier's two named
+conditions both pass on this underpowered sample** (net loss +1 on N=15, the
+allowed maximum; wide strawberry >=3.9 cm 0/2 vs 0/2), but the weight of
+evidence is negative: the pooled rate is half the teacher's, all four student
+strawberries were lost (including the 3.2-3.4 cm class the teacher placed), the
+trigger fires at the same rate but the post-fire grip losses dominate (13/20),
+and the student adds a new failure mode - the learned finger crosses the 0.030
+close gate early in 6/20 episodes, firing the primitive at |jaw-fruit| = 5.9-6.0
+cm before the fruit is between the jaws. The offline prediction (0.49 rad
+first-action error, 90 % phase agreement, 7x chunk jitter) is consistent with
+that: the 4-step sampler's commands are close enough to trigger the same
+primitive but not stable enough to hold the aim or the finger phase.
+
+**Not done (blocked, not failed):** the student seed-202 run (1 of the required
+3 runs), the teacher seeds 101/202 (the teacher baseline is seed 77 only), the
+two jaw-TCP SPARC probes, and the RTC A/B with the student. The B lane's RTC A/B
+ran 16:42-22:10 on the shared simulator and its VLASH A/B (3 arms x 3 runs)
+started at 22:50; `scripts/138_distill_runs.sh` and the chained SPARC/teacher
+stages were queued behind it the whole time and never got a slot. The queued
+driver was stopped at the end of the session rather than left to race the other
+lane. A future window needs roughly 2 h of simulator time to finish the three
+missing pieces (student seed 202, teacher 101/202, SPARC probes).
+### v5-B (fast loop): RTC is a deterministic 3-5x smoother at no extra policy cost; the E=2 rate edge (+24 pt pooled) and VLASH are not conclusive; A2C2 not attempted
+
+Lane `v5-B` (policy side: `policy/runtime.py`, `policy/finetune.py`, `rl_env.py`,
+`scripts/125_loop_metrics.py`, `127/129/133`). The owner's ask: raise the
+decision rate and make the arm's motion smoother/faster so a moving fruit can
+be sorted at higher accuracy and speed. **The shipped loop's defaults are
+unchanged** (`FRUIT_RTC`/`FRUIT_VLASH`/`FRUIT_RTC_REPORT` off; guidance only
+matters when RTC is on; `finetune.py` is offline). selfcheck PASS with the new
+`loop metrics selftest` leg.
+
+**Frozen tree.** The A lane's place-low `tasks.py` was uncommitted in the
+shared tree, so every simulator number below was measured in a frozen worktree
+`/tmp/opencode/frozen_v5b` at **`tasks.py` `ae841a17`** / `scene.py` `8910bd16`
+(HEAD `32b95c9`) with the policy-side files copied in (`rl_env.py` `5ba289e5`,
+`runtime.py` `ffb76bfd`; hashes in each run's manifest, batch pins in
+`logs/v5b/*/tree_before.sha256`). That is the v7 revision `moe_v10` was
+measured on and the policy loop never sets `_dynamic_capture_active`, so the
+scenario is the one the checkpoint was trained/evaluated in.
+
+**1. The metric (deliverable 1).** New `scripts/125_loop_metrics.py` (offline
+executed-stream step/jerk/boundary/decision-rate + per-call latency; self-test
+wired into selfcheck) and the env's `FRUIT_RTC_REPORT` now records the executed
+step, the second difference (jerk), the decision count and the decision rate.
+Baseline (shipped: execute-steps 4, DDIM-16, RTC off, trigger off):
+
+* **decision rate 29.9 chunks/s** (120/4), median cycle 3323 ticks, 1441 s per
+  15-episode run (`logs/v5b/01_timing_summaries.txt`, no-trigger 3-episode run).
+* **offline chunk latency 26.36 ms fp16** (`logs/v5b/123_budget_moe_v10.json`,
+  moe_v10) = 3.16 control steps; amortised **6.6 ms/tick = 79 % of the 8.33 ms
+  tick**; UNet step 1.70 ms; `push_frame` 2.30 ms.
+* in-sim `policy_ms/step` 13.35 ms + `control_ms` 10.14 ms/tick (the in-sim
+  policy is ~2x the isolated number: it shares the GPU with the renderer; all
+  arms measured the same way).
+* executed stream: **step med 0.10 rad, jerk 0.19, boundary 0.23 vs within
+  0.08** (2.9x). The P4 `124` baseline (moe_v9, pad-era rollouts) was boundary
+  0.140 vs within 0.032 (4.7x).
+* the offline replay of `scripts/125_loop_metrics.py` on 6 `demos_v9` episodes
+  (teacher-forced, one executed action per recorded 30 Hz frame;
+  `logs/v5b/125_baseline_demos_v9.txt`) reproduces the same shape on
+  in-distribution data: legacy boundary/within 0.127/0.035-0.040 (ratio
+  3.05-3.85), RTC 0.021-0.024/0.019-0.023 (ratio 1.00-1.06), step 0.046-0.122
+  legacy vs 0.018-0.024 RTC, jerk 0.083-0.205 vs 0.019-0.025. (That run's
+  latency column is contended: the A lane's scripted acceptance shared the GPU;
+  the quiet numbers are the 123 budget and the timing runs.)
+
+**2. The E x RTC grid (deliverable 2).** All arms run with
+`FRUIT_POLICY_TRIGGER=arrival` (the B1 candidate; without it the direct loop
+spends 78 % of episodes in `timeout`, and every arm needs the same shared
+component). N=3 runs x 15 episodes, seeds 77/101/202, run-major interleaved,
+`moe_v10`, camera 240x424, policy seed 11; report `logs/v5b/03_grid_report.txt`:
+
+| arm | run1 | run2 | run3 | pooled | rate | median cycle (ticks) | wall/run (s) |
+|---|---|---|---|---|---|---|---|
+| E1 legacy | 6/15 | 9/15 | 6/15 | 21/45 | 47 % | 3323 | 1441 |
+| E1 rtc | 5/15 | 8/15 | 9/15 | 22/45 | 49 % | 3059 | 1240 |
+| E2 legacy | 1/15 | 3/15 | 7/15 | 11/45 | 24 % | 3140 | 970 |
+| E2 rtc | 6/15 | 7/15 | 9/15 | 22/45 | 49 % | 3047 | 939 |
+| E4 legacy | 6/15 | 7/15 | 9/15 | 22/45 | 49 % | 2799 | 828 |
+| E4 rtc | 7/15 | 8/15 | 9/15 | 24/45 | 53 % | 3043 | 862 |
+
+Paired per-run deltas (RTC - legacy, same seed): E1 -1/-1/+3; **E2 +5/+4/+2**;
+E4 +1/+1/0. Class-matched paired sign tests (the arms diverge into different
+fruit sequences after the first outcome difference, so 5-21 of 45 pairs are
+excluded): E1 worse 3 / better 0 (p=1.0), **E2 better 7 / worse 2 (p=0.09)**,
+E4 better 9 / worse 5 (p=0.21). The E2 legacy dip is concentrated in run 1
+(1/15), so the E2 +24 pt is directionally consistent but not significant.
+
+Timing runs (3 episodes/arm, report on; `dec/s` over the policy phase):
+
+| arm | dec/s | step med | jerk med | boundary med | within med | policy ms/step | control ms |
+|---|---|---|---|---|---|---|---|
+| E4 legacy (no trigger) | 29.9 | 0.10 | 0.19 | 0.23 | 0.08 | 13.35 | 10.14 |
+| E1 legacy | 118.9 | 0.16 | 0.28 | 0.16 | n/a | 51.80 | 10.03 |
+| E1 rtc | 119.3 | 0.03 | 0.04 | 0.03 | n/a | 51.10 | 59.78 |
+| E2 legacy | 59.6 | 0.11 | 0.22 | 0.17 | 0.09 | 25.28 | 9.54 |
+| E2 rtc | 59.7 | 0.03 | 0.05 | 0.04 | 0.03 | 25.63 | 33.50 |
+| E4 legacy | 29.9 | 0.08 | 0.15 | 0.19 | 0.07 | 13.60 | 9.67 |
+| E4 rtc | 30.0 | 0.04 | 0.06 | 0.04 | 0.04 | 14.10 | 22.45 |
+
+**Mechanism of the smoothness win.** RTC freezes the actions already committed
+and soft-inpaints the overlap, so the executed stream's boundary jump falls to
+the within-chunk step level at every E: step/jerk **3-5x lower** (E1 0.16/0.28
+-> 0.03/0.04; E2 0.11/0.22 -> 0.03/0.05; E4 0.08/0.15 -> 0.04/0.06), at
+**identical policy cost per control step** (51.8 vs 51.1, 25.3 vs 25.6, 13.6
+vs 14.1 ms). Legacy `control_ms` excludes the policy call (the driver samples
+outside `act`); adding `policy_ms/step` gives the full per-tick cost: ~62 ms at
+E=1, ~35 ms at E=2, ~23 ms at E=4 in-sim (real-time factors 0.14/0.25/0.36).
+
+**3. VLASH (deliverable 3).** `checkpoints/moe_v10_vlash` continues `moe_v10`
+(`9b691b03`) on `datasets/demos_v9` with the VLASH temporal-offset augmentation
+(`_OffsetWindows`, arXiv 2512.01031): image at t, state and action chunk at
+t+delta, delta ~ U{0..4}; 8 epochs at 2e-5, batch 32, last weighted loss
+0.0048 (provenance `checkpoints/moe_v10_vlash/finetune_history.json`). At
+deployment (`FRUIT_VLASH=1`) the async chunker runs with guidance off and
+conditions each new chunk on the proprio rolled forward under the pending
+actions (absolute actions: the last action to execute is the estimated future
+state). N=3 x 15, trigger=arrival, same protocol:
+
+| arm | run1 | run2 | run3 | pooled | base legacy | base rtc |
+|---|---|---|---|---|---|---|
+| E1 vlash | 3/15 | 4/15 | 8/15 | 15/45 (33 %) | 21/45 (47 %) | 22/45 (49 %) |
+| E2 vlash | 6/15 | 7/15 | 8/15 | 21/45 (47 %) | 11/45 (24 %) | 22/45 (49 %) |
+| E4 vlash | 4/15 | 4/15 | 7/15 | 15/45 (33 %) | 22/45 (49 %) | 24/45 (53 %) |
+
+**VLASH does not beat RTC**: equal at E=2 (21 vs 22/45, paired better 3 / worse
+2, p=0.50) and below at E1 (33 % vs 49 %) and E4 (33 % vs 53 %). The
+fine-tune+roll-forward combination is a measured negative at this data scale
+(63 demos, 8 epochs); the fine-tune alone was not isolated (a tuned-RTC control
+was not run - session budget). One E4 run wedged in a contact grind (fingertips
+read 107 m, no log progress for 65 min) and was re-run; that wedge is the
+contact-grind failure the v5 lane named - a policy episode can hang the
+scripted primitive indefinitely.
+
+**4. What I could not do.** (a) **A2C2** (step 4 of the brief) was not
+attempted: after (2)/(3) the residual is the post-trigger grip (contact
+geometry, the D/C lanes' class), not the policy's arm timing - the trigger
+already fires 44/45 with the wide gates and the failures are "fruit did not
+follow the gripper"; a per-step correction head on the arm command cannot fix
+a contact-face hold, and its training data/deployment would overlap the C
+lane's distillation work. (b) **Per-step re-planning is a capability knob, not
+a throughput win**: at E=1 the in-sim policy cost is ~60 ms per 8.33 ms tick
+(0.14x real time) and the isolated chunk is 26.4 ms; a faster sampler is the C
+lane's distillation line (their `ddim=4` student). (c) The tuned-RTC control at
+E=2 (fine-tune without the roll) was not run. (d) `124` was not re-run: the new
+`125` metric supersedes its legacy start-to-start boundary approximation and
+the P4 numbers are quoted as history.
+
+**Evidence index.** `logs/v5b/NOTES.md` (artifact list), `00_batch_base_driver.log`,
+`01_timing_summaries.txt`, `02_rates_driver.log`, `03_grid_report.txt`,
+`04_grid_sign_tests.txt`, `05_vlash_sign_tests.txt`, `06_vlash_vs_base.txt`,
+`10_vlash_finetune.log`, `10_batch_vlash_driver.log`, `15_batch_rerun_driver.log`,
+`123_budget_moe_v10.json`, `125_baseline_demos_v9.*`; raw run logs under
+`logs/v5b/rtc_ab/`, `logs/v5b/vlash_ab/`, `logs/v5b/baseline_ab/`,
+`logs/v5b/vlash_smoke/`.
+
+### v5-A: the place is lowered, not dropped - the shipped floor is ~5 cm, set by the fingers
+
+(2026-10-05, lane A1: `tasks.py`'s place/release regions, `assets.py`'s place
+comment. Owner's v5 directive: "the arm releases the fruit ~10 cm above the output
+belt and it drops; it must lower the fruit to the belt and place it like a human".)
+
+**The drop, measured first.** `FRUIT_PLACE_TRACE=1` (new, default off) samples the
+fruit's lowest point every tick through the release and prints one landing row per
+place; `scripts/145_place_low_report.py` summarises it. On the shipped indexed line
+(10 attempts, `logs/place_low/01_base_trace.log`; the trace is inert - the first 40
+`[task]` lines are bit-identical to `logs/accept.log`):
+
+| drop (old default) | fruit bottom above belt | impact | bounce | cross-belt scatter | settle | cycle |
+|---|---|---|---|---|---|---|
+| min/mean/max | 116/124/137 mm | 1.44/1.49/1.57 m/s | 0.3-5.9 mm | 33-141 mm | 300-1000 ms | 27.5 s/attempt |
+
+The measured release height is **more than the nominal `output_place_clearance`
+(100 mm)**: the OpenArm hand hangs the fruit below the pad centre that number
+measures.
+
+**Built: the accompanied descent.** `FRUIT_PLACE_LOW` (default now **1**; `=0`
+restores the old drop bit-for-bit). After the carry reaches the `(0.43, +-0.50,
+1.45)` transfer waypoint, `_place_low` lowers the hand (and the payload in it)
+until the fruit's lowest point is `FRUIT_PLACE_LOW_CLEARANCE` (25 mm target) above
+the output-belt top, the release ordering runs there, and the hand retreats 8 cm
+(`FRUIT_PLACE_LOW_RETREAT`). The stop condition reads the *fruit* every tick; the
+descent profile is cone-budgeted on +z (the binding direction is the upward
+deceleration: peak **1.2 m/s^2** against the **1.96 m/s^2** budget, 0.7 s,
+0.25-0.29 m/s peak speed); the OpenArm jaw hand is additionally capped by the
+measured fingertip BBox (`FRUIT_PLACE_LOW_FINGER_MARGIN` 5 mm above the belt), so
+the visible fingers cannot be driven into the belt.
+
+**The lowest safe clearance is set by the fingers, not the belt/rails/chute.**
+Every attempt binds on the fingertip cap (budget 81-94 mm at the place attitude):
+the OpenArm finger plates extend **~43 mm below the fruit's lowest point** at this
+reach-constrained pose (consistent with the README's "finger span below the jaw
+centre 0.076 m"), so the fruit stops at **47-60 mm (mean 53 mm)** bottom clearance
+- the requested 25 mm is not reachable without driving the finger plates into the
+belt. The side rails (35 mm; 75+ mm inboard of the finger faces) and the chute are
+not the limit. Two wrist-tuck screens (`FRUIT_PLACE_LOW_TUCK_DEG` +/-60 deg) are
+negatives: +60 deg lifts the payload during the rotation (a held object is
+kinematically held, so the hand cannot re-seat it in the air; the fruit stopped
+123-142 mm up), -60 deg reaches 35-42 mm but leaves the fruit resting on the hand
+at the end of the window (skid -214..-258 mm, settle never reached, final z 13-50 mm
+above the belt) - `logs/place_low/04_tuck_p60.log` / `05_tuck_n60.log`.
+
+**Drop vs lowered place, same line and seed** (indexed, trace on, 10 attempts,
+`logs/place_low/01_base_trace.log` vs `03_low25_trace.log`):
+
+| metric | drop | lowered (shipped) |
+|---|---|---|
+| release (fruit bottom, mm) | 116/124/137 | **47/53/60** |
+| impact (m/s) | 1.44/1.49/1.57 | **0.61/0.73/0.87** |
+| bounce (mm) | 0.3/2.7/5.9 | 0.1/3.1/6.0 |
+| cross-belt scatter (mm) | 33/84/141 | 43/75/117 |
+| settle (ms) | 300/636/1000 | 442/776/1175 |
+| cycle (s/attempt) | 27.5 | 28.3 |
+| indexed rate | 10/10 | 10/10 |
+
+**Dynamic line, trace off, N=5 x 10 at 0.12 m/s** (`FRUIT_DYNAMIC_PICK=1`, the
+frozen dyn_v7 env): base **8/10 x5**, `sim=203.7 s`; lowered place **8/10 x5**,
+`sim=210.9 s` (+0.72 s/attempt). Each arm is bit-identical within itself (N=5); the
+base's `[fruit]` lines are md5-identical to `logs/dyn_v7/rate_v7base_1..5.log`
+(the default path is provably unchanged); the failure set is the same two attempts
+in both (A2 peach and A8 apple, left-arm carry escapes, `placed=False`), so the
+place change does not move the dynamic rate. The failed payloads' release positions
+differ (the timing shifts the failure state), which is why the two arms are
+compared by outcome, not by state.
+
+**Acceptance / checks / clip.**
+* `ACCEPT_LOG=logs/place_low/06_accept_default_low.log scripts/accept.sh` (shipped
+  default): **10/10, motion gate PASS, fingerprint matches**
+  `configs/motion_reference.json` - no re-record; the `[stats]` line is
+  `sim=283.1 s` (`28.3 s/attempt`). `logs/accept.log` untouched.
+* `ACCEPT_LOG=logs/place_low/07_accept_restore_off.log FRUIT_PLACE_LOW=0`: **10/10,
+  gate PASS, fingerprint matches**, every task/motion line **bit-identical to
+  `logs/accept.log`** - the knob really restores the old path.
+* `scripts/selfcheck.sh`: **PASS** (0 failures, 1 skipped).
+* `FRUIT_CYCLES=3 FRUIT_VIDEO_DIR=logs/video_place_low scripts/run.sh
+  scripts/70_record_video.py`: **3/3** cycles grasped+placed, 2768 frames over
+  11073 ticks = **x1.00 real time** at 30 fps (gaps {4: 2762, 5: 5}), four views
+  (`logs/place_low/08_video_low.out`); the `place low:` rows show the floor
+  (`bottom -> 57 mm`, budget 89 mm).
+* `scripts/demo_2min.sh`: **3/3**, motion gate PASS (`logs/place_low/09_demo.out`).
+
+**Knobs** (new, all diagnostics default off): `FRUIT_PLACE_LOW` (default **1**),
+`FRUIT_PLACE_LOW_CLEARANCE` (0.025), `FRUIT_PLACE_LOW_FINGER_MARGIN` (0.005),
+`FRUIT_PLACE_LOW_MAX_DROP` (0.30), `FRUIT_PLACE_LOW_STEPS` (40),
+`FRUIT_PLACE_LOW_VMAX` (0.30), `FRUIT_PLACE_LOW_AMAX` (2.0),
+`FRUIT_PLACE_LOW_RETREAT` (0.08), `FRUIT_PLACE_LOW_HOLD_QUAT` (0),
+`FRUIT_PLACE_LOW_TUCK_DEG` (0, measured negative), `FRUIT_PLACE_LOW_DEBUG` (0),
+`FRUIT_PLACE_TRACE` (0). New report: `scripts/145_place_low_report.py`; evidence
+index `logs/place_low/NOTES.md`.
+
+**Left open.** `rl_env.TASKS_MD5` is stale against the new `tasks.py` (`085256b2...`
+vs `ae841a17...`): the policy demo's fail-fast guard will refuse to start until the
+B/C lane re-pins it at the tree freeze (their file to own). The lowered place also
+runs on the policy/hybrid `grasp_carry_place` path, so a policy canary should be
+read after that re-pin; the scripted gates above do not cover it (out of this lane's
+scope). A truly on-belt (<=25 mm) place needs the grip re-seated closer to the
+OpenArm fingertips, which the coherent carry does not do at this attitude.
+
+### D entry: the re-pin, the place-low policy canary is green, the dynamic place trace is inert, and D1 is 8/10 x5 (A2/A8); the Gate 12/13 report fixes landed
+
+(2026-10-05, D-entry lane; the Oracle entry list from the GATES 11-13 verdicts,
+`ses_ef63178aeffesQHNwz90a1I6CD`. All diagnostics default off, one simulator at
+a time; evidence `logs/d_v5entry/`, driver transcripts `entry_batch_driver.log`,
+`entry_batch2_driver.log`, `entry_batch3_driver.log`.)
+
+**Tree and pin (a moving target; recorded).** `rl_env.TASKS_MD5` held
+`ae841a17` (v7) while the integrated `tasks.py` was `085256b2` (v5-A place-low),
+so the env's hard fail blocked every policy run. The pin was moved to
+`085256b2` at 10:23; the re-pin verification and the first canary ran on it.
+Then the D2 lane merged its opt-in compliant soft pads (`FRUIT_FINGER_SOFT_PAD`,
+default off; `tasks.py`/`scene.py`/`tactile.py` changed 10:28) and kept
+iterating (`tasks.py` changed again 11:56), so the pin was moved with it:
+`3003679b` at 11:53 and `25281bb1` at 12:17. The final smoke **07b** built the
+env on `25281bb1` (`tasks_md5=25281bb1` in the ready line; the manifest
+`datasets/rl_rollouts/direct_none_seed77/manifest.json` records
+`tasks_md5=25281bb172a426f1d4da7f758326d422`, checkpoint md5 `9b691b03`), and
+the tree was unchanged through that batch. Every D-entry measurement is on one
+of `085256b2`, `29db6b64` (the first D2 merge; `tasks.py` md5 `3003679b`) or
+`25281bb1`; on the measured paths all three are behaviorally identical - the
+dynamic trace, all five D1 runs and the post-pin dynamic run are bit-identical
+to the v5-A `rate_low_*` logs, and acceptance is bit-identical to the v5-A
+acceptance. **If `tasks.py` moves again the pin must move with it before any
+policy run (the D2 lane owns that at its freeze).** Hashes:
+`tree_before.sha256`, `tree_merged_10h28.sha256`, `04_tree_hashes.txt`
+(`tasks.py` sha256 constant `29db6b64` across all five D1 runs),
+`tree_batch2.*`, `tree_batch3.*`.
+
+**1. Re-pin verification.** `01_repin_direct.log` (085256b2): a 2-episode direct
+rollout with `checkpoints/moe_v10` built the env, printed `tasks_md5=085256b2`
+and wrote it into the manifest; 93.8 s wall, both episodes trigger-off timeouts
+(the shipped default config; the guard was the point). The D2 revision re-check
+`07b_repin_smoke.log` (25281bb1) is the same run: env ready, manifest carries
+`25281bb1`, 0/2 timeouts. The direct-rollout attempt in between failed **on the
+guard** when `tasks.py` moved from `3003679b` to `25281bb1` before the process
+started (`RuntimeError ... md5 is 25281bb1..., expected 3003679b`; traceback
+`logs/110_rl_rollout_traceback.txt`) - the fail-fast is working as designed.
+
+**2. Place-low policy canary** (the low place shares `grasp_carry_place` and was
+never canaried). Command: `FRUIT_CKPT=checkpoints/moe_v10/policy_best.pt
+FRUIT_PLACE_LOW=1 FRUIT_EPISODES=10 ACCEPT_POLICY_LOG=... scripts/accept_policy.sh`.
+* `02_canary_placelow.*` (085256b2, imported at 10:27:11 before the 10:28 merge):
+  **10/10 = 100 % PASS**, zero failures (floor 0.60); all ten targets placed,
+  including the 3.4 cm strawberry, the 6.0 cm kiwi and the 6.6 cm peach. The
+  recorded canary on the pre-place-low tree is `logs/834_canary_moe_v10_e_phase.log`
+  **9/10** (tasks `738eff0f`), so the lowered place did **not** regress the
+  policy path. One run is one sample and the trees differ: this is a
+  no-regression read, not a rate claim.
+* `08_canary_placelow_d2.*` (25281bb1, the pinned revision): **7/10 PASS**, 3
+  baseline grip losses. That is inside the recorded policy-loop spread (five
+  runs 70-100 %, `accept_policy.sh` header) and one sample cannot say more; the
+  gate passes, so the low place stays on for the policy path - no gating off
+  needed.
+
+**3. Dynamic-line place trace is inert** (`03_trace_place.log`,
+`FRUIT_DYNAMIC_PICK=1 FRUIT_PLACE_TRACE=1`, 0.12 m/s, 10 attempts, the frozen
+dyn_v7 `rate_batch.sh` env: compliance k30 c80, x-track latch, place
+vmax 0.15/amax 0.20, force servo). Result **8/10**, `sim=210.9 s`,
+`gate_open=0.0 s`, zero `indexed:`; the trace adds 10 rows and **changes
+nothing**: every `[fruit]` line minus the `place trace` rows is bit-identical to
+the trace-off `logs/place_low/rate_low_1.log`
+(`e4f799c026243017224177d4d43d2f66`; `diff` empty). The two failure rows
+(A2 peach, A8 apple, both left arm) are **not landing measurements**: by the
+time the release ordering starts the payload is already off the belt (release
+bottom **-1354 mm**, `on_belt=False`), i.e. the known carry escape, unchanged by
+the place. On the 8 held attempts: release bottom **25-59 mm** (mean ~49),
+impact **0.14-0.87 m/s** (mean 0.66), skid **-31..-180 mm**; all 8 are
+`FINGER FLOOR` bound (budgets 90-185 mm), so when the cap fully executes the
+visible finger plates end `FRUIT_PLACE_LOW_FINGER_MARGIN` = **5 mm** above the
+belt top.
+
+**4. D1 - the integrated 0.12 m/s baseline** (`04_rate_1..5.log`, trace off):
+**8/10 x5**, bit-identical to each other and to the preserved
+`logs/place_low/rate_low_1..5.log` (`[fruit]` md5 `e4f799c0...` for all ten
+logs), the same failure set in every run **A2 (peach) + A8 (apple)** (both
+`grasped=True placed=False`, left-arm carry escapes), `sim=210.9 s` per run,
+`gate_open=0.0 s`, zero `indexed:`, `tasks.py` sha256 constant `29db6b64`
+before/after every run (`04_tree_hashes.txt`). Per-class pooled (N=50,
+`logs/d_v5entry/d1_summary.py`): peach **0/5**, apple **5/10** (the A0 right-arm
+apple holds every run, the A8 left-arm apple escapes every run), orange 10/10,
+kiwi/lychee/pear/strawberry/tomato **5/5 each**; pooled **40/50 = 80 %**. The
+post-pin run `04b_rate_pin.log` (25281bb1) is again bit-identical (8/10,
+`e4f799c0...`). The bar is >=9/10, so the dynamic line stays opt-in and no
+speed curve is run.
+
+**5. Acceptance and restore (post-merge).** `ACCEPT_LOG=logs/d_v5entry/05_accept_entry.log
+scripts/accept.sh` (29db6b64): **10/10, motion gate PASS, fingerprint matches**
+`configs/motion_reference.json`; `sim=283.1 s`; every `[fruit]` line is
+bit-identical to the v5-A `logs/place_low/06_accept_default_low.log`. The
+`FRUIT_PLACE_LOW=0` restore (`06_accept_restore_off.log`, same tree): **10/10,
+gate PASS, fingerprint matches**, every `[fruit]` line bit-identical to
+`logs/accept.log` - the knob still restores the old path exactly after the
+merge. `scripts/selfcheck.sh` PASS on `29db6b64` and again on `25281bb1`
+(0 failures, 1 skipped).
+
+**6. Gate 12/13 report fixes.**
+* `scripts/129_rtc_report.py`: the per-arm configuration now comes from each
+  run's own `[rl] rollout:` line, never from the shared manifest. The manifest
+  is keyed by `(presentation, ablate, seed)`, so every arm that ran the same
+  seed rewrote it - the old report showed the *VLASH A/B's* settings
+  (`vlash=True, delay=4`) for every arm of the v5b RTC batch. The report prefers
+  a run-labeled manifest snapshot `<run log>.manifest.json` (new writes by
+  `scripts/127_rtc_ab.sh` immediately after each run) and quotes tree digests
+  only from those; a batch without snapshots gets the log-derived config and an
+  explicit "digests not quoted" note. Re-run on `logs/v5b/rtc_ab` now reads
+  E1/E2/E4 legacy `rtc=off` and each RTC arm its own delay/horizon/schedule
+  (`logs/d_v5entry/129_rtc_report_v5b_after_fix.txt`).
+* README, `.slim/deepwork/dynamic-grasp-v1.md` and `项目总结报告.md` corrected:
+  "3-5x at every E" -> per-metric (step **2.0-5.3x**, jerk 2.5-7.0x, boundary
+  **4.3-5.3x**; E4 step 2.0x / boundary 4.8x); "RTC shortens the cycle" -> only
+  at E1/E2 (E4 **+9 %**, 2799 -> 3043 ticks); the E2 +24 pt contrast is marked
+  **not quotable** (N=3, one pooled contrast, concentrated in run 1's legacy
+  dip) with the pre-registered protocol named; VLASH dropped; the distill
+  deploy counts are marked underpowered and the 6/20 early close-gate fires
+  recast as the **same close-gate class, more frequent** - not a new failure
+  mode.
+* `scripts/130_policy_demo.sh`'s stale "frozen v7 pin" comment now points at
+  `TASKS_MD5` in `rl_env.py`.
+
+**Not done / left open.** The D2 decision and the final tree freeze are the
+other lane's (its mechanism was in flight throughout this entry - the pin moved
+three times); D3's speed curve stays blocked by the 8/10 ceiling and D4's RTC
+non-inferiority protocol is unrun; the second canary is one sample and supports
+no rate claim. `logs/d_v5entry/NOTES.md` indexes the artifacts.
+### D2 mechanism attempt: compliant pad bodies on the finger faces - the pre-registered A2 falsifier is NOT MET (A2 313 mm slide), and A6 regresses; 8/10 stays the sim ceiling
+
+Lane: the single bounded D2 new-mechanism attempt (orchestrator decision D2(b), take
+exactly one new-mechanism A2 attempt; if the falsifier fails, accept 8/10 as the sim's
+dynamic ceiling). Scope: `src/fruit_sorting/scene.py` (the pads) plus a trace-only
+readout in `tasks.py` and the pad force readers in `tactile.py`. Pre-registration
+(before any code edit or simulator run): `logs/d2_mechanism/PREREGISTRATION.md`.
+Evidence index: `logs/d2_mechanism/` (pre-registration, analysis tools, logs, traces,
+clip, tree hashes).
+
+**Pre-registered falsifier, verbatim:** *"A2 in-hand slide < 30 mm through the first
+lift AND `placed=True`."* Trace ON, 0.12 m/s, 10 attempts, on the frozen tree. If
+met -> N>=5 x 10 trace OFF, then the A4/A6/A8 class checks, then the speed curve if
+>=9/10 across >=3 runs; **if not met, stop and report the negative with the per-tick
+numbers** - do not iterate on the mechanism.
+
+**Mechanism (task option 1, why it best fits the trace).** A real compliant pad body
+per OpenArm finger face: a rigid pad on a linear spring-damper **prismatic joint**
+whose axis is the finger's face normal (k=5000 N/m, c=25 Ns/m, travel -5/+1 mm, pad
+20 g, front face 0.25 mm proud), so the pad deforms around the fruit's local width
+instead of holding a fixed separation. With `FRUIT_FINGER_SOFT_PAD=1` the finger
+link's own colliders are disabled (`FRUIT_FINGER_SOFT_PAD_MESH=1`) and the pad
+bodies are added to `GripperTactile` as force readers; a trace-only field reports
+each pad's compression. The shipped default (knob off) is behaviorally unchanged.
+Why this one: the mechanism trace says the payload leaves **along the tool axis while
+the fixed-separation faces hold**, the local width shrinks, and **the pop precedes the
+force signal** (v5: in-hand z +20 mm by carry tick 161, last contact 168 at 1.45 N;
+v7: escape carry 123-124, dev 10.1 mm -> 279-313 mm). The alternatives are already
+falsified: face shapes without travel (v/h/x/c 2-6/10; deep plates 5-7/10), the
+contact-verification dwell + ramped lift (7/10, contact verified 10/10 and still
+ejects), the jaw-level force servo (a no-op on A2 - it moves the whole jaw and is
+rate-bounded), the gentler lift (7/10), tracking/walk-lead/reaction, and the material
+compliance (contact penetration, sub-mm at k=30 kN/m; fixes A4 only). A compliant
+*body* is the only untried lever with the right force-displacement law.
+
+**Frozen tree.** `logs/d2_mechanism/tree_before.sha256` (pre-edit: tasks `1e641c04`,
+scene `f7b63f32`), `logs/d2_mechanism/tree_final.sha256` (measured: tasks `2f14fdec`
+= md5 `25281bb1`, scene `fb528a9c`, tactile `08ec5fd0`, rl_env `58830d3a`;
+control/kinematic/common unchanged). All new knobs default off. The D-entry lane's
+`rl_env.TASKS_MD5` pin (`25281bb1...`) already matches the measured `tasks.py`
+(their canary on this tree: 7/10 PASS, `logs/d_v5entry/08_canary_placelow_d2.out`).
+
+**Implementation correction before the falsifier batch** (documented in the
+pre-registration; the mechanism and the falsifier unchanged). The first build is
+`logs/d2_mechanism/smoke1.log` (2/2 but the mechanism was not engaged): the first
+form authored `FilteredPairsAPI` on the link against `/World/Fruits/Fruit_NN`, and
+the fruits are spawned **after** `play()`, so the paths do not exist at PhysX parse
+and the pair is silently dropped - the smoke showed the finger meshes carrying ~3 of
+the 4.6 N with the pads compressed only 0.29 mm (a pad-only 4.6 N load needs ~0.9 mm
+at k=5000). Corrected to: the link's own colliders are disabled while the pads are on
+(the pad assembly *is* the contact surface, like the shipped `FRUIT_PAD_ONLY` mode),
+and the pad grew from a 14x20 mm strip to a 24x22 mm soft-layer footprint. Verified
+in `logs/d2_mechanism/smoke2.log` and the mechanism run: the pad sensors carry the
+whole grip (e.g. A8: `ft left_2/left_3 = 2.42/2.43 N` each, finger-link sensors 0
+N), and the pads compress 0.2-1.0 mm.
+
+**Falsifier measurement (trace ON, 0.12 m/s, frozen tree, 10 attempts):
+`logs/d2_mechanism/rate_d2pad_mech_1.log`, 7/10, `sim=207.4 s`, `gate_open=0.0 s`,
+zero `indexed:`.** Trace-off confirmation (`rate_d2pad_rate_1.log`) is
+**bit-identical in every `[run] attempt` line**: 7/10, `sim=207.4 s`.
+
+| # | fruit | grasped | placed | lift | pads comp L/R [mm] | failure |
+|---|---|---|---|---|---|---|
+| 0 | apple | True | True | +0.338 | 0.22..0.48 / 0.09..0.35 | - |
+| 1 | orange | True | True | +0.275 | 0.19..0.29 / 0.24..0.33 | - |
+| 2 | peach | True | **False** | +0.168 | -0.37..1.01 / -0.34..0.30 | carry escape @252, slide 313.1 mm |
+| 3 | pear | True | True | +0.345 | 0.22..0.57 / -0.0..0.35 | - |
+| 4 | strawberry | True | True | +0.325 | 0.33..0.44 / 0.24..0.40 | held, F 5.0-6.1 N (A4 no regression) |
+| 5 | lychee | True | True | +0.319 | 0.08..0.42 / 0.15..0.40 | - |
+| 6 | kiwi | **False** | **False** | +0.000 | ~0 (no contact) | **hold: never gripped, F 0.00 N, slide 1315.6 mm** |
+| 7 | tomato | True | True | +0.342 | 0.25..0.42 / 0.14..0.31 | - |
+| 8 | apple | True | **False** | +0.091 | -0.20..0.54 / -0.02..0.98 | carry escape @156, slide 314.1 mm |
+| 9 | orange | True | True | +0.289 | -0.10..0.30 / 0.21..0.65 | - |
+
+**A2 per-tick (the falsifier's subject; pads on).** Hold pose constant
+`hand_rel=[1.2,1.3,66.0] mm`, pads L/R = 0.30/0.27 mm, F 4.90 N, sep 75.6 mm,
+gap_cmd 65.7 mm for **240 carry ticks** (baseline crashes at carry 115-130). Then:
+
+| carry tick | hand_rel [mm] | slide [mm] | sep [mm] | F [N] | pads L/R [mm] |
+|---|---|---|---|---|---|
+| 240 | [2.1, 1.1, 67.7] | 1.6 | 75.6 | 4.89 | 0.31 / 0.27 |
+| 246 | [2.8, 2.6, 71.8] | 5.7 | 75.6 | 5.11 | 0.70 / -0.12 |
+| 252 | [1.8, 8.2, 76.7] | 10.7 | 87.5 | 4.70 | 1.00 / -0.06 |
+| 258 | [0.7, 14.2, 81.5] | 15.5 | 98.1 | 6.56 | 1.00 / 0.07 |
+| 264 | [-0.2, 16.7, 86.6] | 20.5 | 98.5 | 32.56 | 1.01 / 0.00 |
+| 270 | [0.4, 11.7, 96.3] | 30.2 | 85.3 | 0.71 | 0.20 / 0.02 |
+| 276 | [-2.3, -3.1, 126.8] | 60.8 | 66.5 | 0.00 | ~0 |
+| 288 | [-24.1, -19.8, 261.3] | 195.2 | 61.7 | 0.00 | ~0 |
+
+Baseline comparator (same command, pads off, D1 lane): `logs/d_v5entry/04_rate_1..5.log`
+**8/10 x5 bit-identical**, failures A2 (`placed=False`, +0.133) and A8
+(`placed=False`, +0.078), `sim=210.9 s`. The v5 base trace
+(`logs/dyn_v5/traces_final/dynamic_trace_02.json`) has A2 escape at carry 129:
+sep 79.7 -> 93.1 mm, the fruit's z 71.1 -> 82.7 mm, force stays 4.3-5.2 N.
+
+**Result: the pre-registered falsifier is NOT MET.** A2's in-hand slide over the
+recorded attempt is **313.1 mm** and `placed=False`, so both conjuncts fail (the slide
+through the take-off probe + belt-break alone is 0.0 mm - the mechanism *does* hold
+the first lift - but the peach wedges out later in the carry). The compliant pad did
+what it was built to do and bought **~2x time**: the pads carried the load
+(0.3-1.0 mm compression), the hold survived 240 carry ticks vs the baseline's ~120,
+and the ejection only came when the peach wedged the jaws open (sep 75.6 -> 98.5 mm)
+and ran the pad to its 1 mm compression range. It is not enough: the peach's escape is
+a wedge/tool-axis walk-out that the local-width compliance delays but does not stop.
+
+**Class check (in the same 10 attempts; A4 no regression, A6 regresses).** A4
+strawberry: held and placed with the pads at 5.0-6.1 N (no crush - the compliant body
+absorbs it; the material-compliance baseline was 13.9-22.8 N Fmax). A8 apple: fails in
+the carry at 156 (the same physical class as the 8/10 baseline). **A6 kiwi: NEW
+regression** - with the finger meshes off, the kiwi is never gripped: at hold tick 0
+`sep=gap_cmd=53.8 mm`, pad compression ~0, F 0.00 N, and the fruit slides away
+immediately (slide 1315.6 mm, `fruit did not follow the gripper`). The baseline (D1) places
+the kiwi. The tapered fruit needs the rigid mesh contact; a 24 mm-wide pad behind a
+fixed face does not catch it. That regression plus the unchanged A2 failure makes the
+pads-on line **7/10**, one below the 8/10 baseline.
+
+**Acceptance / selfcheck / clip.** `ACCEPT_LOG=logs/d2_mechanism/01_accept_default.log
+scripts/accept.sh` (pads off): **10/10, motion gate PASS, fingerprint matches**
+`configs/motion_reference.json` (`[stats]` `sim=283.1 s`, identical to the v5-A
+place-low acceptance); `scripts/selfcheck.sh` **PASS** (0 failures, 1 skipped).
+Labelled mechanism clip: `logs/d2_mechanism/video_mechanism_softpad/`
+(`FRUIT_FINGER_SOFT_PAD=1`, dynamic line, SEED=5, 7 cycles, four views +
+`side_by_side.mp4`). The recorder retries and keeps only successful cycles: the
+stream is strawberry placements (A4 - the pads hold and place; one lychee, two
+strawberry and two peach attempts failed and were discarded), so the clip documents
+the tested configuration, not the A2 ejection; the failure mechanism is the trace
+evidence above. Capture cadence 6992 frames / 44227 ticks = x1.58 (the failed
+attempts' frames are dropped from the stream).
+All new knobs are default off and the shipped indexed line is bit-unchanged (the
+acceptance `[stats]` and fingerprint above).
+
+**What could not be done / open.** No N>=5 rate batch and no 0.18/0.24/0.30 curve:
+the falsifier was not met, so per the protocol the mechanism work stops here (one
+trace-off confirmation run only). The pads-on configuration was not tuned further
+(one parameter set was pre-registered; no sweep). The pads-on line is 7/10 with a new
+A6 regression, so it does not reach the 8/10 baseline, let alone the 9/10 ship bar.
+The orchestrator records the D2 decision: accept 8/10 as the sim's dynamic ceiling.
+The remaining named lever for any future attempt would be a *cradle/scoop* (passive
+support under the tool-axis walk-out) or a face geometry that both cradles and does
+not bat the catch - but this lane's evidence says the wedge escape survives compliant
+local-width travel, and the rigid mesh contact is load-bearing for the tapered fruit.
+
+**D2 evidence files.** `PREREGISTRATION.md`; `tree_before.sha256`/`tree_final.sha256`;
+`smoke1.log` (filter failure), `smoke2.log` + `traces_smoke2/` (corrected build,
+3 attempts); `rate_d2pad_mech_1.log` + `traces_d2pad_mech_1/` (falsifier run, trace
+on); `rate_d2pad_rate_1.log` (trace off, identical); `01_accept_default.log/.out`;
+`video_mechanism_softpad/`; tools `analyze.py`, `ticks.py`, `run_batch.sh`,
+`run_one.sh`, `accept_d2.sh`, `clip_d2.sh`.
+
+### v8-E lane: the owner's v6 CORRECTION stopped the combination grid before the screen; the base calibration (8/10, A2+A4) and the A4 provenance
+
+Lane: the E combination grid (the v6 directive). Scope was `tasks.py`'s
+`FRUIT_DYNAMIC_PICK=1` path + `scene.py`'s finger knobs. The lane
+pre-registered (`logs/dyn_v8_stopped/PREREGISTRATION.md`: the A2 mechanism
+metric "A2 in-hand slide < 30 mm through the first lift AND placed=True", the
+12-cell grid + a calibration cell, trace-on screen / trace-off N>=5 survivors,
+the >=9/10 bar, the honest-negative rule, the lever inventory with single-lever
+results) and froze the tree (`logs/dyn_v8_stopped/tree_before.sha256`: `tasks.py`
+`2f14fdec` / md5 `25281bb1`, `scene.py` `fb528a9c`). **No source was edited.**
+
+The owner's v6 CORRECTION (this file above, `.slim/deepwork/dynamic-grasp-v1.md`)
+rejects the grid and excludes the stop/ramp/geometry levers; the orchestrator
+killed the screen batch and renamed the evidence directory
+`logs/dyn_v8 -> logs/dyn_v8_stopped`. **The grid was not run** (one calibration
+cell only); the lane did not resume it.
+
+**The one measured cell - base calibration (trace ON, 10 attempts, 0.12 m/s,
+servo OFF, seek/latch/guard + k30, frozen tree): `8/10`, `sim=213.8 s`,
+failures A2 (peach) + A4 (strawberry).** A2: slide 302.6 mm, cross10 carry@125,
+cross30 carry@155, last contact carry@156, `placed=False` - the known carry
+escape. A4: close 14.25 N / span 36.0 mm / freeze 23.4 mm, carry force escalates
+to 21.3 N, slide 338.0 mm, cross10 carry@213, lost carry@247, `placed=False`.
+A8 crossed 10 mm (carry@154) but recovered and was placed; the other seven held.
+`logs/dyn_v8_stopped/analyze.py` was validated first by reproducing the recorded
+v7 dwell mechanism (A2 carry@123, 10.1 mm -> 279 mm, `placed=False`).
+
+**A4/strawberry provenance (the orchestrator's watch item).** The recorded 8/10
+batches in which A4 holds are **servo-on**: `logs/d_v5entry/04_rate_1` A4
+`placed=True` 16.30 N with the servo line `opened=3.00mm trips=8` (the servo
+backed off exactly on the crush), `logs/dyn_v7/rate_v7base_1` A4 `placed=True`
+14.27 N; every batch script (`entry_batch.sh`, `rate_v7_batch.sh`,
+`rate_v6_batch.sh`, `d2_mechanism/run_batch.sh`) sets
+`FRUIT_DYNAMIC_FORCE_SERVO=1`. This lane's base was servo-OFF **by design**
+(PREREGISTRATION.md; the v6 directive's grid treats the servo as one of the
+default-off levers). So the "contradiction" is at least partly the base-config
+difference, not necessarily a drift. It is **not** proven that the servo is the
+cause: `logs/dyn_v5/rate_fixonly1.log` (v5 tree, servo OFF, trace OFF) held A4
+at 13.82 N with 8/10 A2+A8; a post-v5 change (place-low default or the D2 edits)
+or dynamic-line run variation is not excluded. The D2 pads were off in this run,
+so the pads cannot be the cause. Missing sample: one trace-OFF servo-OFF
+10-attempt run on the frozen tree - the frontier lanes' runs are servo-on, so
+they settle the shipped-config A4 question but not this one.
+
+**Not done (reported, not failed):** c1-c10/c11-c12 (c1 was attempted twice;
+both times a concurrently running policy lane held the simulator and the batch
+process was reaped before the claim - zero attempts), the survivors' N>=5 rates,
+the 0.18/0.24/0.30 curve, the ship decision, the mechanism clip, a versioned
+acceptance (no source changed; the v7/D2 acceptance remains the green record),
+and the optional policy-side trigger+RTC+GEM combination (a ready driver is at
+`logs/dyn_v8_stopped/policy_combo.sh`). Full stop record and files:
+`logs/dyn_v8_stopped/NOTES.md`.
+
+## 2026-10-05 - Path 2 (D4): the RTC non-inferiority batch - success (+16 pt) and smoothness pass, the pre-registered wall criterion fails; no default flip
+
+Lane: path 2 of the owner's v6 CORRECTION (the policy fast loop only; no
+stop/dwell/ramp/geometry work, no collection, no retraining). **Pre-registration
+written before the first run: `logs/path2/PREREGISTRATION.md`.** Frozen tree:
+worktree `/tmp/opencode/frozen_path2` (git `32b95c9` + `logs/path2/tree_before.patch`,
+sha256 `79e7bd31...`), every pinned file byte-identical to the main working tree,
+`tasks.py` sha256 `2f14fdec` / md5 `25281bb1` (the `TASKS_MD5` pin, verified);
+`tree_after.sha256` is identical (no source moved during the batch; 127's guard
+would have aborted). Checkpoint **`checkpoints/moe_v10/policy_best.pt` md5
+`9b691b03`** - the newest in-distribution checkpoint on disk at freeze time (no
+`moe_v11` exists; the path-1 rebuild has not landed one). Harness
+`scripts/127_rtc_ab.sh` unchanged: arms `4:legacy` vs `4:rtc` (delay 4, horizon 10,
+EXP, guidance on), **N=5 runs x 15 episodes per arm**, seeds
+**77/101/202/303/404**, run-major interleaved, `FRUIT_POLICY_TRIGGER=arrival` and
+camera 240,424 on both arms, policy seed 11, report-on timing block first (3
+episodes/arm, seed 77; diagnostics, not the rate table).
+
+**The numbers.** Pooled **legacy 27/75 = 36.0 % vs RTC 39/75 = 52.0 % (+16.0 pt)**.
+Per-run (legacy -> rtc): 2->5, 6->7, 7->10, 6->8, 6->9; deltas **+3/+1/+3/+2/+3**
+(all five runs at or above legacy). Per class (pooled, legacy vs rtc): apple 2/5
+vs 3/7, kiwi 5/13 vs 5/12, lychee 5/11 vs **10/10**, orange 2/4 vs 2/3, peach 3/12
+vs 4/12, pear 1/9 vs 3/9, strawberry 5/9 vs 5/10, tomato 4/12 vs 7/12. Paired
+episodes (75): both 14, neither 23, rtc-only 25, legacy-only 13 (secondary).
+
+**Smoothness/timing (report-on, E=4).** Reproduced against v5-B:
+run-level `[rtc] summary` medians legacy step 0.08 / jerk 0.15 / boundary 0.19 /
+within 0.07 -> RTC 0.04 / 0.06 / 0.04 / 0.04 (**2.00x / 2.50x / 4.75x / 1.00**;
+v5-B 2.00/2.50/4.75/1.00); per-episode medians (`129_rtc_report.py`) 0.0781 /
+0.1489 / 0.1841 / 0.0638 -> 0.0381 / 0.0581 / 0.0429 / 0.0366
+(**2.05x / 2.56x / 4.29x / 1.17**; v5-B 2.07/2.66/4.34/1.18). Decision rate
+29.9 vs 30.0/s; `policy_ms/step` 13.29 -> 14.53 (+9.3 %).
+
+**Pre-registered criteria: C1 pooled non-inferiority PASS (+16.0 pt, not below by
+>5 pt); C2 run consistency PASS (no run below by >2/15); C3 smoothness reproduced
+PASS under the run-level read (2.00/2.50/4.75, boundary/within 1.00) but the
+per-episode read lands at the thresholds (boundary 4.29 < 4.3; boundary/within
+1.17 > 1.1) while matching v5-B's own 4.34/1.18 - an aggregation-rounding
+artifact, the effect is reproduced; C4 wall FAIL as written (see below); C5
+canary not run (no flip).**
+
+**C4 (wall) FAIL: pooled RTC run wall 4704 s vs legacy 4046 s = 1.163x** (bar
+1.10x); per-run 1.133, 1.309, 0.990, 1.334, 1.084 (3/5 above +10 %); robust to
+medians (946/798 = 1.185x) and to dropping the longest RTC run (1.119x). **The
+mechanism is outcome-mix, not loop overhead** (`logs/path2/05_wall_decomposition.txt`):
+wall 1.163x = simulated ticks 1.151x (215 859 vs 248 551) x ms/tick 1.010x (18.74
+vs 18.92 over 464k ticks). The extra ticks are **longer failures** (paired
+both-fail median ticks 2797 -> 3565, +27 %; paired both-success 3210 -> 3164,
+-1 %; mean ticks/success 3093 vs 3096), a consequence of +12 successes (a timeout
+is capped at 1500 ticks; a live attempt runs on). Time per success is **20 %
+better for RTC** (7995 -> 6373 ticks). The loop's own cost is +1.0 % ms/tick and
++9.3 % `policy_ms/step`, decision rate identical; the report-on timing-run wall
+(this 3-episode sample 135.8 -> 153.9 s = 1.133x; v5-B's same shape 142.5 ->
+147.1 s = 1.032x) is too small a sample to read the loop from.
+
+**Decision: RTC stays default-OFF** - the pre-registered rule says any criterion
+failure means no default change. What the owner would get if they accept the
+loop-overhead reading (the mechanism is clean: successes identical, per-tick
++1.0 %, per-success -20 %): the prepared patch `logs/path2/default_flip.patch`
+(`FRUIT_RTC` default `1` in `RTCSettings.from_env`; incompatible
+handoff/DAgger configurations fall back to legacy while an explicit
+`FRUIT_RTC=1` still errors; 127's `legacy` arm made explicit with
+`FRUIT_RTC=0`), validated offline against the frozen tree (applies cleanly,
+`from_env` default/opt-out check, `128_rtc_selftest.py` PASS). Applying it is a
+separate, owner-authorized step followed by the canary + demo. The alternative
+is a fresh pre-registration with a wall criterion that holds the simulated
+horizon fixed. Neither is done here - the pre-registered rule governs.
+
+**What could not be done.** The canary/demo confirmation (C5) - no default flip
+to confirm; the unchanged default's canary is on record (D entry: 10/10 at
+`085256b2`, 7/10 at the pinned `25281bb1`). No curve (D3, owner-excluded line),
+no E=1/2 arms, no VLASH/A2C2. The path-1 collection took the simulator at 17:22,
+so no extra simulator work was attempted. The timing-block wall sample is one
+3-episode run per arm; the wall verdict rests on the 10 rate runs.
+
+**Process notes.** The stopped E-grid lane held the simulator 14:27-14:47; this
+lane's driver waited through `127`'s 60 s poll loop and never killed a foreign
+process (the E batch was later reaped and renamed `logs/dyn_v8_stopped` by the
+orchestrator). The timing block and rate block ran back-to-back once the
+simulator freed (14:44-17:20). Evidence: `logs/path2/` -
+`PREREGISTRATION.md`, `00_driver.log`, `01_timing_driver.log`,
+`02_rates_driver.log`, `03_rtc_report.txt` (`129`), `04_evaluation.txt` (the five
+criteria), `05_wall_decomposition.txt`, `rtc_ab/` (10 rate logs + 2 timing logs +
+per-run manifest snapshots + the batch's own tree pin), `tree_before/after.sha256`,
+`tree_before.patch`, `evaluate.py`, `watch.sh`.
+
+## 2026-10-06 - Path 2b (D4b): the horizon-matched wall criterion is fixed but the rate is not - on moe_v11 RTC is -20 pt and every paired run -3/15; C1/C2/C3/C4' all fail, default stays OFF
+
+Lane: the path-2 follow-up of the v6 CORRECTION (policy fast loop only). **Pre-
+registration written before any run: `logs/path2b/PREREGISTRATION.md`** (criteria
+fixed 2026-10-05 ~18:30; the frozen-tree/checkpoint addendum appended 02:21
+before the first run). Frozen worktree `/tmp/opencode/frozen_path2b`
+(git `32b95c9` + `logs/path2/tree_before.patch` sha256 `79e7bd31...`, the exact
+path-2 baseline); all 19 pinned files byte-identical in
+`logs/path2b/tree_before.sha256` = `tree_after.sha256` (127's guard never
+fired). **Checkpoint: `checkpoints/moe_v11/policy_best.pt`, md5
+`9f50596a76ec080a1cfdcefe79429050`** - the newest in-distribution checkpoint at
+claim time (path-1's rebuild: 15/15 epochs on `datasets/demos_v10` = 154
+episodes, openarm hand, best val 0.0061, finished 02:12; md5 stable at
+02:15:36/02:20:37, `torch.load` OK). Protocol identical to path 2: arms
+`4:legacy` vs `4:rtc` (delay 4, horizon 10, EXP, guidance on), N=5 x 15/arm,
+seeds 77/101/202/303/404, run-major interleaved, trigger `arrival` and camera
+240,424 on both arms, policy seed 11; report-on timing block first (3
+episodes/arm, seed 77; diagnostics, not the rate table).
+
+**The rate reversed on the newer checkpoint.** Pooled **legacy 54/75 = 72.0 %
+vs RTC 39/75 = 52.0 % = -20.0 pt** (path 2 on moe_v10 was 36 -> 52 %, +16 pt).
+Per-run deltas **-3, -3, -3, -3, -3** (legacy 10/9/13/11/11, RTC 7/6/10/8/8):
+RTC is 3/15 worse in **every** paired run. Per class (pooled, legacy vs RTC):
+apple 7/10 vs 4/9, kiwi 7/10 vs 6/12, lychee 12/13 vs 11/13, orange 3/3 vs 2/2,
+peach 5/8 vs 2/11, pear 5/8 vs 2/6, strawberry 7/13 vs 7/12, tomato 8/10 vs
+5/10 (regressions concentrate on peach/pear/tomato). Paired episodes (75):
+both 36, neither 18, rtc-only 3, legacy-only 18.
+
+**Smoothness is still real in absolute terms, but the legacy stream is already
+smooth on moe_v11.** Run-level `[rtc] summary` medians: legacy step 0.02 /
+jerk 0.04 / boundary 0.06 / within 0.01 -> RTC 0.02 / 0.02 / 0.02 / 0.02 =
+**1.00x / 2.00x / 3.00x / 1.00**; decisions 29.9 -> 30.0/s, `policy_ms/step`
+12.95 -> 14.10. On moe_v10 the legacy stream read step 0.08 / jerk 0.15 /
+boundary 0.19 - i.e. moe_v11's legacy stream is already ~4x smoother, so RTC's
+relative margins fall below the path-2 thresholds.
+
+**Pre-registered criteria: C1 FAIL (-20.0 pt); C2 FAIL ([-3,-3,-3,-3,-3]);
+C3 FAIL under the run-level read (1.00x/2.00x/3.00x vs 2.0/2.5/4.3; per-episode
+read 1.15x/2.36x/3.59x/1.10 also fails); C4' horizon-matched wall FAIL (RTC
+116.7 s vs legacy 90.9 s per success = 1.285x).** C4' was fixed as
+`W_R/S_R <= W_L/S_L` (wall-seconds per successful episode; edge cases in the
+preregistration) because the path-2 decomposition showed a total-wall budget
+charges RTC for converting short failures into longer successes. The
+decomposition (`05_wall_decomposition.txt`): total wall is actually **0.928x**
+(4552 vs 4907 s; ticks 0.947x, ms/tick 0.980x) but per success RTC costs
+28.5 % more because the successes do not come - paired both-success median ticks
+are identical (3438 vs 3438) and RTC wins only **3 of the 21 discordant
+episodes**.
+
+**Decision: RTC stays default-OFF.** Per the pre-declared rule, any criterion
+failure means no default change; no flip was applied, so no canary/demo (C5 is
+the post-flip confirmation only). `logs/path2/default_flip.patch` remains unused
+and offline-validated. The reading: path-2's +16 pt was measured on moe_v10 (the
+weaker base); on the newest in-distribution checkpoint the same RTC
+configuration loses 20 pt and every paired run, so the RTC-default question is
+settled negatively for the current checkpoint. The absolute smoothing effect
+(step/jerk/boundary 2-3x on the metrics that move) still holds; it does not buy
+rate or wall-per-success here.
+
+**What could not be done.** No canary/demo (only defined after a flip); no
+E=1/2, VLASH/A2C2, no speed curve (owner-excluded line); no re-run on moe_v10 -
+the pre-registered checkpoint rule selected the newest in-distribution
+checkpoint and this batch is the RTC decision for it. One batch, N=5 per arm;
+the policy loop conditions on rendered frames, so a single run is one sample -
+but the rate verdict is run-consistent (-3 x5) and the wall gap is +28.5 %
+pooled.
+
+**Process notes.** The original path-1 collection driver stalled on
+pathological episodes (s2 killed at 21:48 with 35/50, s3 at 00:32 with 19/50);
+a second path-1 session finished the missing 46 in 10-episode timeout-bounded
+chunks (`logs/path1/finish_driver.log` `[finish] DONE 01:48:36`; 200 total).
+The batch launched 02:20:55 and yielded to the path-1 moe_v11 teacher seed-77
+run at the same minute (127's wait loop held; no double sim); first run 02:52,
+rate block 03:35:57-06:44:53, with path-1's remaining teacher runs queued behind
+the batch. Evidence: `logs/path2b/` - `PREREGISTRATION.md`, `00_driver.log`,
+`01_timing_driver.log`, `02_rates_driver.log`, `03_rtc_report.txt`,
+`04_evaluation.txt`, `05_wall_decomposition.txt`, `rtc_ab/` (10 rate + 2 timing
+logs + manifest snapshots + the 127 tree pin), `tree_before/after.sha256`,
+`evaluate.py`, `run_batch.sh`.
+
+## PATH-1b RESULT (lane path-1 follow-up): moe_v11 direct 28/45 = 62 %; the distillation re-attempt is a pre-registered bar failure at every k (no student sim time)
+
+Full report `logs/path1b/REPORT.md`; plan `logs/path1b/PLAN.md`; evidence
+`logs/path1b/` (`tree_before/after.sha256`, `ckpt_md5*.txt`,
+`01_teacher_table.txt`, `02_canary_v11.log`, `04_distill_v11.log`,
+`05_fidelity_v11.txt`, `05_bar_verdict.txt`). Frozen tree at start: `tasks.py`
+md5 `25281bb1` = `rl_env.TASKS_MD5`, `scene.py` md5 `920a5b16`;
+`sha256sum -c tree_before.sha256` clean right after the direct batch; the
+path-3 lane edited `scripts/110_rl_rollout.py` (07:37) and `rl_env.py` (09:19)
+only after this lane's simulator work (the canary ran 07:18-07:33 on the same
+tree; no student sim ran); `checkpoints/moe_v10` and `datasets/demos_v9`
+untouched; new names only.
+
+* **moe_v11 direct (N=3x15, seeds 77/101/202, `FRUIT_POLICY_TRIGGER=arrival`,
+  camera 240,424, E=4, DDIM=16, policy seed 11): 8/15, 9/15, 11/15 =
+  pooled 28/45 = 62 %** vs `moe_v10`'s 8/45 = 18 %. Per class: lychee 6/7,
+  tomato 5/6, kiwi 3/5, peach 4/7, apple 3/6, pear 2/4, orange 2/3,
+  strawberry 3/7. Failures: 11 grip loss, 3 timeout, 2 `left the pick
+  station`, 1 held-cross-lane (`grasped=True placed=True success=False`,
+  `cross-lane station fruit (index 0) placed on lane 0`). No wedge; walls
+  946/940/972 s; the three seeds span 02:19-07:17 because path 2b held the
+  simulator in between and the driver queued (no double sim).
+* **Canary: 6/10 = 60 % PASS** (floor 60 %; 3 grip losses, baseline reasons).
+* **Distillation**: teacher `moe_v11` frozen (md5 `9f50596a`); data
+  `datasets/demos_v10` = **154 episodes**, 70 219 windows (the pre-registered
+  ~200 target is the compromised collection, reported as 154); frozen `deploy`
+  recipe (teacher-steps 16, chain-steps 4, student-clamp 4, eps-weight 0,
+  mixed 0.5, best_probe, 12 epochs, batch 64, lr 5e-5, seed 0;
+  deviation note: the written freeze says batch 64 - the pilot *runs* all used
+  32). 12 epochs at ~207 s; val objective 0.0420 -> 0.0212; `best_probe` =
+  online@epoch2 (probe 0.0902; all 12 epoch probes 0.090-0.101);
+  `checkpoints/distill_v11/policy_best.pt` md5 `f3099b3b`.
+* **Held-out fidelity** (23 val episodes, 192 windows, seed 7): teacher
+  DDIM-16 **0.049 rad / 100 % phase**; student1 8.890 / 63 %; student2
+  8.479 / 63 %; **student4 0.086 / 99 %**; strawberry (n=21): teacher 0.070
+  vs student4 0.114; paired student4 vs teacher 38 better / 154 worse.
+* **Bar (`logs/path1/check_bar.py`): FAIL at every k -> pre-registered
+  negative, no student simulator time.** k=4 misses the first-action ratio
+  (0.086/0.049 = 1.76x > 1.5) and the strawberry ratio (0.114/0.070 = 1.63x
+  > 1.5); phase 99 % passes. k=1/2 remain ~8.5-8.9 rad (the stock +/-4 clamp
+  at t=T-1, as in the pilot). The student is the best yet in absolute terms
+  (pilot 0.156, round-2 0.487) and the strawberry went 0.543 -> 0.114, but the
+  teacher improved more (0.130 -> 0.049) on the 2.4x data, so the *relative*
+  bar (1.20x -> 1.76x) misses.
+* **Not run, per the stop rule**: student deployability (N=3x15), decision
+  rate at 1/2/4, latency, SPARC/boundary smoothness.
+* **Measurement note**: the stock `scripts/112_distill_fidelity.py` built the
+  ~59 GB `demos_v10` store twice (an unused `store_probe` first) and was
+  kernel-OOM-killed (global OOM, anon-rss 72.9 GB); it is patched to build the
+  probe only when the history lacks the split. The reported table is from the
+  lane-local memory-lean clone `logs/path1b/fidelity_v11.py` (loads only the
+  23 held-out episodes; inherits `EpisodeStore`'s window indexing and
+  `__getitem__`; imports 112's `collect`/metrics/format; `192 sampled of
+  70219` matches the training store's window count). `scripts/selfcheck.sh`
+  PASS on the final tree.
+
+## PATH-3 RESULT (lane path-3, frontier combinations on `moe_v11` + the encoder trigger): all four components measured non-wins against the pre-registered +8 pt margin; `event` is the best at +6.7 pt but is dropped by the rule; the base stands
+
+Pre-registration `logs/path3/PREREGISTRATION.md` (written before any run;
+includes the frozen update that records the VLASH data subset and the DAgger
+run shape). Frozen tree `logs/path3/tree_before.sha256` / `tree_after.sha256`:
+all manifest sources byte-identical through the batch (`tasks.py` md5
+`25281bb1` = `rl_env.TASKS_MD5`; the only changed files between the two hashes
+are the driver `scripts/147_path3_screen.sh` - a local-variable shadowing bug
+fixed **before** the first rate run; the only pre-fix run was the orphaned
+`timing_vlash` run, whose command spec was already correct - and the analysis
+script `scripts/148_path3_report.py`). Checkpoints: base `moe_v11` md5
+`9f50596a76ec080a1cfdcefe79429050` (never modified); `moe_v11_vlash` md5
+`f3465f4bf410174c087ab7fed45ae095` (offset fine-tune, delta~U{0..4}, 8 epochs
+on the 80-episode `datasets/demos_v10_vlash` subset - see the frozen update);
+`moe_v11_correction` md5 `5d52d1b1ebc1f0fa6e30befa131ef7a4` (A2C2 head, 18
+DAgger episodes / 3147 frames, target mean |delta| 0.0505 rad). Every arm:
+`moe_v11` + `FRUIT_POLICY_TRIGGER=arrival`, camera 240,424, E=4, DDIM-16,
+policy seed 11; N=3 x 15 per arm, seeds 77/101/202, run-major interleaved in
+one batch; one simulator at a time; a 3-episode report-on block per arm first
+(not in the rate table).
+
+| arm | config | pooled | delta | C1 +8 pt | C2 runs | C3 reasons | C4 straw |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| base | trigger | 30/45 = 66.7 % | - | - | - | - | - |
+| track | +`FRUIT_POLICY_TRACK=1` (GEM FF) | 31/45 = 68.9 % | +2.2 pt | FAIL | ok | ok | ok |
+| event | +`FRUIT_POLICY_EVENT=1` (continuity-triggered horizon) | 33/45 = 73.3 % | +6.7 pt | FAIL | ok | ok | ok |
+| vlash | +`FRUIT_VLASH=1` (`moe_v11_vlash`) | 16/45 = 35.6 % | -31.1 pt | FAIL | FAIL | FAIL | FAIL |
+| a2c2 | +`FRUIT_A2C2` (per-step head) | 21/45 = 46.7 % | -20.0 pt | FAIL | FAIL | ok | ok |
+
+**Decision (pre-declared, `logs/path3/02_decision.txt`)**: no arm passes ->
+the base (`moe_v11` + trigger) stands; all four components are measured
+non-wins; no N=5 batch and no combination arm (the rule triggers them only for
+passing candidates; a budget is not re-interpreted after the data).
+
+**Mechanism reads.** `track` leaves the paired outcome table identical
+(0/0 discordant) and the trigger fire-time distribution unchanged (median
+dy 5.40 cm, |dx| 0.90 cm, t_arrive 0.900 s, finger 0.019) - the joint-space
+fruit-velocity feed-forward does not move the fire geometry. `event` is the
+best arm (+6.7 pt, every run delta >= 0, no new reason, strawberry +5 pt) and
+its report-on block shows the mechanism working: decisions/s 29.9 -> 33.3 at
++12.6 % `policy_ms/step`, executed-stream medians unchanged, mean execute
+horizon 3.58 (h2/h4/h6 = 29 %/63 %/8 %); the paired table has no class-matched
+discordant pair, so the N=3 screen has no paired power for it. `a2c2` is -20 pt
+with a 4x jerkier executed stream (step 0.12 vs 0.03, jerk 0.20 vs 0.06) and
+fewer trigger fires (26/45 vs 34/45): the head trained to imitate the scripted
+pick-phase expert on DAgger states pulls the arm away from the base approach
+the trigger is timed against. `vlash` is -31 pt, -18 % median cycle, a new
+failure class (`fruit fell off the line`) and the finger left open at fire
+(0.0439 vs 0.020): the async deployment with guidance off does not carry
+`moe_v11`, consistent with path 2b's RTC negative on the same checkpoint. The
+base's residual classes stay the recorded post-trigger grip classes
+(`fruit did not follow the gripper`, `left the pick station during the close`,
+cross-lane placement, timeout).
+
+**Incidents recorded** (all in the frozen update / NOTES): the first VLASH
+fine-tune on all 154 `demos_v10` episodes was kernel-killed while loading
+(~80 GB); the DAgger collection hit the contact-grind wedge (one 15-episode
+attempt spent 30 min in episode 0) and a truncated `index.json` from a killed
+run crashed the next attempt - the recorder index write is now atomic and
+tolerates a truncated index (robustness only; it cannot change a completed
+run's data). The run cap (1500 s/run) never fired in the rate batch; no run
+was dropped.
+
+**Evidence**: `logs/path3/` (`PREREGISTRATION.md`, `tree_before/after.sha256`,
+`00_screen_driver.log`, `timing_*.log`, `<arm>_<run>.log` x 15,
+`01_report.txt`, `02_decision.txt`, `03_demo_gui.log`,
+`04_accept_scripted.log`, `NOTES.md`, `dagger/` collection, `vlash_finetune.log`,
+`a2c2_train.log`). **GUI demo**: `CKPT=checkpoints/moe_v11/policy_best.pt
+HEADLESS=0 EPISODES=3 scripts/130_policy_demo.sh` (the chosen configuration
+needs no script change - only the checkpoint override; the trigger is the
+script's default) came up, ran 3 episodes (1/3, one intercept success at
+dy=5.4 cm, t_arrive=0.89 s) and shut down cleanly. `scripts/selfcheck.sh`
+PASS (13 legs, including the new path-3 event/a2c2/report selftests).
+
+**Not done (per the rule / the exclusions)**: the N=5 x 15 final comparison
+and the combination arm (no passing candidate); RTC and the excluded
+belt/dwell/ramp/face-shape levers; the flow/consistency distillation (path 1b
+negative).
+
+## PATH-3b RESULT (lane path-3b): the pre-registered N=5 x 15 confirmation does not replicate the `event` screen - +1.3 pt, FAIL by the fixed criteria; the base (`moe_v11` + trigger, event off) stands
+
+Pre-registration first (`logs/path3b/PREREGISTRATION.md`, written before the
+first run): base = `moe_v11` + trigger vs event = the same + the
+continuity-triggered execute horizon (`FRUIT_POLICY_EVENT=1`); E=4, DDIM-16,
+camera 240,424, `FRUIT_POLICY_TRIGGER=arrival`, policy seed 11; N=5 x 15 per
+arm, seeds 77/101/202/303/404, run-major interleaved, all ten runs fresh (no
+path-3 run re-used); one 3-episode report-on block per arm first (not in the
+rate table); pass = pooled delta >= +5 pt AND >= 4/5 runs non-negative AND no
+new reason AND strawberry not worse by >1, OR class-matched one-sided sign
+p <= 0.05 (C3/C4 guards always). One simulator at a time; 1500 s/run cap with
+one retry; frozen tree (22 sources, `tree_before` == `tree_after`; tasks md5
+`25281bb1`; checkpoint md5 `9f50596a` in every manifest).
+
+| arm | pooled (75) | delta | C1 +5 pt | C2 4/5 | C3 | C4 | ALT |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| base | 52 = 69.3 % | - | - | - | - | - | - |
+| event | 53 = 70.7 % | +1.3 pt | FAIL | ok* | ok | ok | p=0.3125 FAIL |
+
+`*` C2 is 4/5 on the class-matched per-run deltas (+2/0/0/-1/+1, the path-3
+pairing) and 3/5 on all-episode deltas (+2/0/-1/-1/+1); C1 and the alternative
+fail either way. Per-run all episodes: base 8/9/13/12/10 vs event
+10/9/12/11/11. Paired class-matched: 49 both ok, 20 both fail, 3 event-only
+wins, 1 base-only win, 2 excluded (class); per-class strawberry 7/13 vs 6/12
+(failures 6 vs 6), pear the only class behind (5/8 vs 4/8).
+
+**Decision (pre-declared)**: FAIL -> the base stands; no deployment change, no
+`DEPLOY.md`, every shipped default unchanged (`FRUIT_POLICY_EVENT` stays an
+opt-in, default off). The screen's +6.7 pt did not replicate at N=5: the
+screen-vs-batch movement (event 73.3 -> 70.7 %, base 66.7 -> 69.3 %) is inside
+each arm's per-run spread (base 8-13/15, event 9-12/15), which is the "single
+policy run is one sample" caveat measured directly.
+
+**Mechanism** (report-on block): the rule fires and adapts as before -
+decisions/s 29.9 -> 35.1, `policy_ms/step` 12.88 -> 15.21, mean horizon 3.42
+(h2/h4/h6 = 98/162/17 of 277 chunks = 35 %/58 %/6 %); executed-stream medians
+(jerk 0.05 -> 0.07 rad, boundary 0.07 -> 0.08) and the trigger fire geometry
+(dy 5.40 cm, t_arrive 0.900 s) are unchanged; median cycle -0.4 %. The lever is
+mechanistically present and outcome-inert at this sample size.
+
+**Incidents**: event run 5 (seed 404) attempt 1 hit the contact-grind wedge and
+was killed at the 1500 s cap (preserved
+`logs/path3b/event_5.log.failed.1791284860`); the pre-registered single retry
+completed 11/15 and is the run in the table. No other timeout/drop; tree frozen
+before/after.
+
+**Evidence**: `logs/path3b/` (`PREREGISTRATION.md`, `tree_before/after.sha256`,
+`00_driver.log`, `timing_*.log`, `base_*.log`/`event_*.log` x 5,
+`01_report.txt` = `scripts/150_path3b_report.py`, `02_decision.txt`,
+`NOTES.md`, `raw/` manifests). `scripts/selfcheck.sh` PASS;
+`scripts/150_path3b_report.py --self-test` PASS. The canary and GUI demo are
+not re-run (fail branch: no configuration change).
+
+### v7/F1: the dynamic line is the shipped default and the motion speeds are raised to the accepted ceiling (8/10, 18.4 s/attempt)
+
+Lane: F1 (`@general`). Scope: `tasks.py`'s dynamic path + profiles, the scenario
+defaults in `assets.py`, `scripts/105_motion_regression.py` (the gate), the docs.
+One simulator at a time; the F2 bimanual lane is queued behind this lane on
+`tasks.py`. Evidence index: `logs/fast/NOTES.md` (tree hashes before/after, the
+sweep logs, the acceptance logs, the preserved reference, the clip).
+
+**Default diff (exact).**
+
+* `tasks.py::_dynamic_pick_mode`: with `FRUIT_DYNAMIC_PICK` unset the result is
+  now `(openarm and scripted) or not openarm`. The OpenArm *scripted* line takes
+  the fruit on the fly - the belt never stops (`gate_open=0.0 s`);
+  `FRUIT_DYNAMIC_PICK=0` restores the P1 indexed line; the OpenArm *policy*
+  handover (`scripted=False`) keeps the P1 indexed primitive (its hybrid canary
+  was measured there); the pad hand is unchanged.
+* `tasks.py` dynamic defaults: `FRUIT_DYNAMIC_APPROACH_VMAX` 0.03 -> **0.15**,
+  `FRUIT_APPROACH_AMAX` 0.4 -> **0.8**; `FRUIT_DYNAMIC_LIFT_VMAX` 0.12 -> **0.30**
+  and `FRUIT_DYNAMIC_LIFT_AMAX` 0.6 -> **1.0**, with the dynamic cap now
+  *authoritative* rather than a `min()` against the indexed `FRUIT_LIFT_VMAX`
+  (0.18) - with the `min()` the 0.20/0.30 screening steps are inert (measured:
+  `sweep_a3_l020` and `sweep_a3_l030` are identical at `|v|cmd=0.176`);
+  `FRUIT_DYNAMIC_PLACE_VMAX/AMAX` 0.0 -> **0.15/0.20**;
+  `FRUIT_DYNAMIC_X_TRACK_VMAX` 0.0 -> **0.12** and `FRUIT_DYNAMIC_X_TRACK_LATCH`
+  off -> **on**; `FRUIT_DYNAMIC_FORCE_SERVO` defaults **on when the dynamic line
+  is the default** (with `FRUIT_DYNAMIC_PICK=0` it stays off, so the indexed
+  opt-out still reproduces the P1 primitive).
+* `assets.py`: belt speed 0.06 -> **0.12 m/s**; `FRUIT_FINGER_COMPLIANCE`=30000
+  and `FRUIT_FINGER_CONTACT_DAMPING`=80 applied as `os.environ.setdefault`
+  process defaults. `scene.py` is not edited (lane rule); every entry script
+  imports `assets` before the scene is built, so the compliant finger material
+  and the moving belt are the shipped scenario for every launcher.
+* New diagnostic `FRUIT_CYCLE_REPORT=1` (off by default): per-attempt sim-time
+  marks at the phase boundaries. Proven inert: `logs/fast/sweep_base.log` is
+  **bit-identical** to `logs/place_low/rate_low_1.log` in every `[fruit]` line
+  once the `[cycle]` lines are removed (same env, same run config), i.e. the
+  default flips changed nothing on the measured winner configuration.
+* `scripts/105_motion_regression.py`: the descent speed budget is derived from
+  the shipped profile (the same `jerk_limited` the task emits, per-leg distance,
+  `ACHIEVED_MARGIN = 1.10`) instead of the frozen 0.06; a log that prints a
+  moving pick is the dynamic line, where the carry cone is *reported* (the cone
+  escapes *are* the failure mechanism) and the success floor is 0.75
+  (`DYNAMIC_SUCCESS_FLOOR`); an indexed log keeps the 0.9 floor. `--strict-cone`
+  restores the hard cone gate. `scripts/96_motion_check.py` pins the gate's two
+  defaults against `tasks.py`.
+
+**The speed sweep** (10 attempts per config, trace off, one run per step; held
+cone/slip split from `logs/fast/sweep_table.py`; the base row reproduces the v7
+winner `logs/place_low/rate_low_1.log` bit-for-bit):
+
+| # | approach v/a | lift v/a | place v/a | x-track | rate | sim/att | descent `\|v\|max` | held lift cone | held lift slip | held place cone | failures |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| base | 0.03/0.4 | 0.12/0.6 | 0.15/0.20 | 0.12 | 8/10 | 21.1 | 0.028-0.030 | 0.86-1.46 | 18.7-39.8 | 0.85-1.55 | A2, A8 |
+| A1 | 0.08/0.4 | 0.12/0.6 | 0.15/0.20 | 0.12 | 6/10 | 21.5 | 0.068-0.069 | 0.86-1.00 | 26.5-37.7 | 0.85-1.18 | A2, A3, A6, A8 |
+| A2 | 0.15/0.8 | 0.12/0.6 | 0.15/0.20 | 0.12 | 9/10 | 20.6 | 0.108-0.109 | 0.86-0.98 | 27.9-42.3 | 0.86-1.15 | A6 |
+| A3 | 0.22/1.2 | 0.12/0.6 | 0.15/0.20 | 0.12 | 7/10 | 20.6 | 0.130-0.131 | 0.86-0.99 | 29.6-38.5 | 0.86-1.15 | A2, A6, A8 |
+| L1 | 0.22/1.2 | 0.20/0.6 | 0.15/0.20 | 0.12 | 8/10 | 19.5 | 0.130-0.131 | 0.86-0.99 | 28.8-38.2 | 0.86-1.16 | A2, A6 |
+| L2 | 0.22/1.2 | 0.30/1.0 | 0.15/0.20 | 0.12 | 8/10 | 19.5 | 0.130-0.131 | 0.86-0.99 | 28.8-38.2 | 0.86-1.16 | A2, A6 |
+| P1 | 0.22/1.2 | 0.30/1.0 | 0.35/1.0 | 0.20 | 7/10 x2 | 16.5 | 0.130-0.132 | 0.86-0.99 | 29.0-38.2 | 0.86-1.23 | A2, A6, A8 |
+| A2L | 0.15/0.8 | 0.30/1.0 (capped 0.18) | 0.15/0.20 | 0.12 | 8/10 | 19.4 | 0.109 | 0.86-0.99 | 29.6-38.6 | 0.86-1.16 | A2, A6 |
+| A2Lx | 0.15/0.8 | 0.30/1.0 (capped 0.18) | 0.15/0.20 | 0.20 | 7/10 | 19.4 | 0.109 | 0.86-0.99 | 28.1-38.1 | 0.86-1.15 | A2, A6, A8 |
+| **A2L true** | **0.15/0.8** | **0.30/1.0** | **0.15/0.20** | **0.12** | **8/10** | **18.4** | 0.108-0.109 | 0.88-0.98 | 25.8-43.5 | 0.86-1.15 | **A2, A6** |
+
+Reading the table: no raise degrades the held-leg cone or slip distribution (the
+craft is acceleration-limited and the vertical cone caps `a <= 1.96 m/s^2`, so
+1.0 is half the budget); the steps that fail the 7.5/10 dynamic floor (approach
+0.22, place 0.35 + x-track 0.20, x-track 0.20 alone) are not shipped. The two
+screening steps `L1`/`L2` repeated bit-identical because the `min()` against
+`FRUIT_LIFT_VMAX=0.18` dominated; after making the dynamic cap authoritative,
+the true 0.30/1.0 run (`A2L true`) holds 8/10 and saves another 1.0 s.
+
+**Chosen shipped values**: approach **0.15 m/s** (a 0.8), lift **0.30 m/s**
+(a 1.0), place **0.15/0.20** (the measured winner's cap; the 0.35/1.0 raise
+measures 7/10 twice, bit-identical), x-track **0.12** (0.20 alone measures
+7/10). The rate stays the accepted dynamic ceiling of **8/10**; the failure set
+moved from A2+A8 to **A2 (peach place escape) + A6 (kiwi catch-window miss)**
+- the A6 kiwi's catch-up residual at the narrow arrival window is ~100 mm
+(`dynamic catch-up: residual=101.4/97.9/102.0 mm`), while every held attempt
+reads 5.3-6.0 mm. The A2 first-lift ceiling is still the documented rate
+limiter.
+
+**Cycle time** (`[cycle]` medians per phase, seconds; `FRUIT_CYCLE_REPORT=1`):
+
+| config | prepose | hover | descent | close | grip | lift | place | release | return | total |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| base (0.12 m/s lift) | 0.88 | 0.76 | 3.56 | 1.15 | 1.58 | 3.78 | 6.42 | 2.33 | 0.67 | 21.17 |
+| shipped (lift 0.30) | 0.88 | 0.76 | 3.46 | 1.18 | 1.58 | 1.79 | 5.64 | 2.34 | 0.67 | 18.21 |
+| place-raise variant | 0.88 | 0.76 | 3.43 | 1.25 | 1.58 | 2.70 | 2.79 | 2.30 | 0.67 | 16.51 |
+
+`[stats]`: **21.1 -> 18.4 s/attempt** (26.4 -> 23.0 s/success). The approach
+raise does **not** shorten the cycle: the catch is arrival-scheduled, so the
+descending profile shrinks (412 -> 88 samples, commanded `|v|max` 0.029 -> 0.109)
+and the saved time reappears as hover wait (the "descent" segment
+3.56 -> 3.46 s). The cycle win is the **lift** (3.78 -> 1.79 s); the place raise
+would save another 2.7 s/attempt but measures 7/10 x2.
+
+**Acceptance** (2 runs, versioned):
+* `ACCEPT_LOG=logs/fast/10_accept_v7fast.log scripts/accept.sh` -> **8/10,
+  `sim=184.2 s`, 18.4 s/attempt, 23.0 s/success**; every budget passes and the
+  gate fails only the *fingerprint* check (expected - the descents are the new
+  profile). Descents: 88-90 samples, `|v|max` 0.108-0.109 against the
+  profile-derived budget 0.160-0.161, lurch 0.011-0.017 against 0.291; 19 carry
+  legs, held-lift cone 0.88-0.98x; the failing A6 kiwi leg reads 1.58x/296.3 mm and
+  is reported, not gated. (**Gate-19 correction**: the first writing attributed
+  the 1.58x/296.3 mm carry to A2 - it is attempt 6's **A6 kiwi** `grasp_lift`;
+  the A2 peach's failing leg is its `place0` carry at 1672.9 mm.)
+* The pre-v7 reference is preserved at
+  `logs/fast/motion_reference_pre_v7fast.json` (the old
+  `[[429, 0.029] ...]`) and `configs/motion_reference.json` was re-recorded
+  from the accepted run: `[[88, 0.109], ..., [90, 0.109], ...]`.
+* `ACCEPT_LOG=logs/fast/11_accept_v7fast_verified.log scripts/accept.sh` ->
+  **8/10 bit-identical, fingerprint matches** -> `accept_fast.sh` exit 0;
+  selfcheck PASS (both runs).
+
+**Clip**: `FRUIT_CYCLES=3 FRUIT_VIDEO_DIR=logs/video_fast scripts/run.sh
+scripts/70_record_video.py` - 3 successful cycles, 2015 observer/head frames
+over 8060 ticks (67.2 s, x1.00 real time); `logs/fast/12_video_fast.log`. The
+pre-finish demo (`scripts/demo_2min.sh`, 3 picks + its own clip + the gate) is
+also green on the shipped default: **2/3 = 67 %** (floor 66 %), 18.4 s/attempt,
+motion gate PASS (`logs/fast/13_demo_2min.log`).
+
+**Gate-semantics change (flagged for the Oracle).** The dynamic line's cone
+breaches are the failure mechanism itself (the A2/A8 lifts carried cone
+1.46-2.47x on the failing legs, and even the held kiwi leg reached 1.46/1.55x at
+base). Gating them would make every dynamic acceptance red by construction -
+exactly what the P2b correction recorded. The gate therefore reports the carry
+cone on a dynamic log and keeps the descent budget (now profile-derived), the
+lurch bound, the fingerprint, and a success floor one episode below the accepted
+ceiling (0.75). A `--strict-cone` run re-imposes the old rule; the indexed
+opt-out log keeps the 0.9 floor and the hard cone gate.
+
+**Consequences / not done.** The policy path is not re-canaried on the new
+belt/compliance scenario (F1's acceptance deliverable is the scripted line; the
+policy handover primitive is unchanged, but its environment now moves twice as
+fast - a policy canary is the F2/G follow-up). The indexed opt-out
+(`FRUIT_DYNAMIC_PICK=0`) runs the P1 primitive but was **not** re-measured under
+the v7 scenario defaults (belt 0.12, compliant material), so it is not
+bit-identical to the P1 `logs/accept.log`. `rl_env.TASKS_MD5` is re-pinned
+to the F1 `tasks.py` (`d47be123...`, the revision both acceptance runs used).
+The A6 kiwi catch-window miss and the A2 place escape are the two named
+remaining classes; the place-speed lever is measured and parked (7/10 x2, would
+save 2.7 s/attempt). The F2 bimanual work starts from this tree.
+
+**Evidence**: `logs/fast/` (`tree_before.md5`, the sweep logs `sweep_*.log`,
+`sweep_table.py`, the acceptance logs `10_accept_v7fast.log` /
+`11_accept_v7fast_verified.log`, `accept_fast.sh`, `motion_reference_pre_v7fast.json`,
+`12_video_fast.log`, `logs/video_fast/`).
+
+### F2: bimanual pipelined sorting - one shared station, shared ticks, 1.30x placed-fruit rate (9/10 x5 bit-identical)
+
+Lane F2 (`@general`). Scope: `tasks.py`'s task loop + arm scheduler, the new
+`src/fruit_sorting/bimanual.py`, `fruits.py` (spawner protection + feeder
+cursor), the two scripted drivers (`20_pick_place.py`, `70_record_video.py`)
+and the offline tooling (`152_biarm_selftest.py`, `151_biarm_report.py`,
+`153/154` runners). Evidence index: `logs/biarm/NOTES.md`.
+
+**Scheme: pipelined two-arm operation at the shared pick station**, not the
+lane split. Both arms reach the station (measured 2.1 mm residual,
+`scripts/97_reach_probe.py`) and the two output belts already are the arms'
+lanes (left reaches only +Y, right only -Y) with the fruit's grade choosing the
+lane. A lane split would re-measure the catch primitive at new Y positions for
+no mechanism the shared-station pipeline does not have. `FRUIT_BIARM=1` is the
+opt-in switch; the v7/F1 single-arm default is untouched (`FRUIT_BIARM` unset →
+bit-identical to `logs/fast/10_accept_v7fast.log`, see the acceptance below), so
+the default flip remains the integration phase's decision.
+
+**Mechanism.** One arm owns the station from its pre-pose until its carried
+payload has cleared a station box (|y - pick_y| > 0.28 m or x > 0.52 m); the
+other waits (paused) and then pre-poses while the first carries and places. Two
+attempts run in two threads arbitrated by a **main-thread scheduler**
+(`bimanual.TickRelay`): a `SimulationManager.step` call from an attempt thread
+files a request and parks; the scheduler executes one **shared** physics tick
+when every live attempt has requested one (the world advances for both arms, so
+both control loops stay at 120 Hz in *simulated* time) and then grants a single
+run permit, so exactly one attempt thread executes its segment at a time (the
+"PhysX read during `simulate()`" class is excluded) and every step runs on the
+main thread. `app_utils.update_app` from a worker is bridged to the main thread;
+under the session the pre-pose and the post-lift pump step physics explicitly
+(`step(20/1) + update_app(0)`) because Kit's `update_app` is not a fixed step
+(measured: twenty app updates advanced the pre-pose 1.37 s against the
+single-arm 0.88 s and pushed fruit selection out of calibration).
+
+**Two scheduler rewrites, both forced by measurement.** (1) A first version
+passed a token between the two threads and deadlocked when both parked
+(`logs/biarm/06_diag.log` carries the thread dumps: both attempts waiting for
+each other's permit); the single-arbiter form replaced it. (2) The first
+arbiter stepped each arm independently (one physical tick per arm per round),
+which halved each arm's simulated control rate: every phase doubled (place
+5.1 → 8.5 s, grip 1.6 → 12 s with retries) and the catch timing missed; the
+shared-tick rule restores the single-arm phase times (pre-pose 0.71, descent
+3.7-4.2, close 1.18, grip 1.58, lift 1.8, place 5.1-7.5 s).
+
+**Defenses in the shipped path:** the station lock; both in-flight fruit stored
+in `FruitSpawner.protected_indices`; a feeder cursor that skips held/protected
+samples (the bimanual line feeds while the other arm carries, so the
+wrap-around respawn the video recorder measured must not steal a payload); a
+park gate (a finished arm's return to ready waits until the other neither owns
+the station nor carries - measured on `07_smoke6`: a return that started while
+the other arm was at the station re-blended its wrist and knocked the station
+hand's payload out of the jaws mid-place); a 1.4 s selection lead for the
+bimanual workers (fruits selected in the station window arrived after the setup
+and were catch misses - `05_smoke6`/`07_smoke6`); and per-slot cleanup of stale
+grip state and `held` flags so a failed attempt never releases the station
+early or blocks the feeder.
+
+**Rates (trace off, `ATTEMPTS=10`, seed 5, frozen tree `tasks.py` md5
+`fe54f795`):**
+
+| config | runs | rate | span | s/attempt | s/success | placed/min | per arm |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `FRUIT_BIARM=1` | 5 | **9/10 x5 bit-identical** | 159.5 s | **16.0** | **17.7** | **3.38** | left 4/4, right 5/6 |
+| `FRUIT_BIARM=0` | 2 | 8/10 x2 bit-identical | 184.2 s | 18.4 | 23.0 | 2.61 | A2 peach place, A6 kiwi catch |
+
+The bimanual placed-fruit rate is **1.30x** the single-arm line (16.0/18.4 =
+1.15x per attempt; the rate floor is 0.75 and the line scores 0.90). The five
+bimanual runs are **bit-identical in every `[fruit]`/`[run]` line** (and so is
+`08_rate10_a.log`, the pre-batch run, once the `[biarm] result` lines added
+between them are removed): the line is a deterministic branch, so N=5 is one
+measurable sample of the configuration, not a distribution - quote the
+per-attempt table (`logs/biarm/11_rate_table.txt`), not a rate delta. The
+single-arm runs reproduce the F1 canonical log bit-for-bit (modulo the `[cycle]`
+lines this run adds), i.e. F2 changed nothing on the shipped path.
+
+**Clearance evidence** (`FRUIT_BIARM_TRACE=1`, USD link-origin reads every 2
+ticks, `logs/biarm/42_trace_biarm.log` + `trace_biarm.jsonl`, 9 889 samples over
+the same six-attempt sequence): the minimum inter-arm link-origin separation is
+**45.4 mm** (left `ee_tcp` vs right `right_finger`, t=92.5 s), **zero samples
+below 30 mm** and 21 below 50 mm; the only sub-50 mm phases are the station
+handovers. No attempt failed by arm-arm contact. (The first trace attempt used
+`RigidPrim` reads and spent 13 minutes in one pre-pose - `41_trace_biarm.log` -
+so the trace now reads the USD transforms the renderer already uses; still
+default off, and it is a report, not a control input.)
+
+**Acceptance/selfcheck.** `FRUIT_BIARM=0 ACCEPT_LOG=logs/biarm/20_accept_single.log
+scripts/accept.sh`: **8/10, motion gate PASS, fingerprint matches
+`configs/motion_reference.json`** (the shipped default is unchanged); the
+final-tree rerun `23_accept_single_final.log` is bit-identical and green too.
+`FRUIT_BIARM=1 ACCEPT_LOG=logs/biarm/21_accept_biarm.log scripts/accept.sh`:
+**9/10, 16.0 s/attempt**, every descent inside its budget (worst `|v|max`
+0.111 against 0.160-0.161, lurch 0.017 against 0.291), the dynamic 0.75 floor
+passed; the gate's fingerprint check fails against the single-arm reference (a
+different scenario), so the bimanual fingerprint was recorded to
+`logs/biarm/motion_reference_biarm.json` (the F1 reference preserved at
+`logs/biarm/motion_reference_v7fast_single.json`) and both bimanual acceptance
+runs (`21_` and the bit-identical `22_accept_biarm_verified.log`) pass against
+it. `21_accept_biarm.log` is also bit-identical to `rate_biarm_1.log` on every
+`[fruit]`/`[run]` line, so the trace-sampler edit that landed after the rate
+batch is inert on the default path. `scripts/selfcheck.sh` PASS (the new
+`152_biarm_selftest` leg pins paired/exclusive ticks, determinism, the station
+handover and steps-on-main-thread offline).
+
+**Tree.** Final `tasks.py` md5 `fe345f8c` (`bimanual.py` `668c76f2`, `fruits.py`
+`b05a9fd6`; `logs/biarm/tree_after_code.md5`); the rate batch ran at
+`fe54f795` and the only delta is the trace sampler. `rl_env.TASKS_MD5` re-pinned
+to the final revision for the policy path, and the documented deployment
+checkpoint canary `FRUIT_CKPT=checkpoints/moe_v11/policy_best.pt
+ACCEPT_POLICY_LOG=logs/biarm/30_canary_moe_v11.log scripts/accept_policy.sh`
+passes **8/10 >= 0.60** with only baseline reasons. Clip: `logs/video_biarm/`
+(3 cycles x 2 arms, 3572 frames / 14284 ticks = x1.00 real time, constant
+4-tick capture stride).
+
+**Limits / not done.** The left lane is grade-A only (~1/3 of the stream) and
+idles when its fruit is not at the station (measured timeline: one 2.5 s empty
+wait in `rate_biarm_1`); the ready park hands the station over and only then
+returns, costing ~2 s per handover, so 1.30x is below the ~1.8x that full
+overlap would allow. The default is not flipped (G's decision), and the
+cross-lane fallback (a starved arm taking the other lane's fruit, as the
+indexed reselect already permits with a recorded note) was not enabled.
+
+## v8/P1 (policy lane, 2026-10-07): the v7 scenario is OOD on TWO axes, and the dynamic handover recovers +24 pt at belt 0.12
+
+Full tables and the evidence index: `logs/p1/NOTES.md`; frozen trees
+`/tmp/opencode/frozen_p1` (`tasks.py` `fe54f795`, F2's rate revision) and
+`/tmp/opencode/frozen_p1_dyn` (`c8c3cffd`, + patch). The main tree carries the
+patch rebased onto F2-final: `fe345f8c` + patch = `178bb267`, `rl_env.TASKS_MD5`
+re-pinned, selfcheck PASS. All policy runs camera 240,424, `moe_v11`
+(`9f50596a`), E=4, DDIM-16, policy seed 11, trigger `arrival`, N=3 x 15, seeds
+77/101/202, one simulator at a time.
+
+**Canary at 0.12** (F1 tree): 5/10 = 50 % FAIL (floor 60 %, 5 grip losses) vs
+the recorded 0.06 canary 6/10; F2's own canary on its final tree at 0.12 is
+8/10 PASS (`logs/biarm/30_canary_moe_v11.log`), so the hybrid loop's one-run
+spread at 0.12 is 5-8/10 and the canary alone does not establish the drop.
+
+**Direct 2x2 (the decisive numbers).** The base arm (trigger arrival, indexed
+primitive) at the v7 scenario collapses:
+- 0.06, hard fingers (pre-v7 material; `FRUIT_FINGER_COMPLIANCE=0` on the F2
+  tree): **31/45 = 69 %** (9/9/13) - reproduces the historical 0.06 record
+  (path3b 52/75 = 69.3 %, per-run 8/9/13/12/10), so the F2 tree and session
+  are not confounds;
+- 0.06, v7 compliant fingers: **22/45 = 49 %** (6/8/8) - the material costs
+  **-20 pt at the training belt**;
+- 0.12, v7 compliant: **16/45 = 36 %** (6/5/5) - the belt raise costs **-13 pt**
+  on the v7 material; full scenario vs training: **-33 pt**.
+Failure taxonomy at 0.12: 27 grip losses + 2 fell off the line.
+`demos_v10`/`moe_v11` were collected at 0.06 with hard fingers, so the policy
+is OOD on *both* axes, the material being the larger. The P2 retrain case is
+stated and prepared (`logs/p1/P2_RETRAIN_PLAN.md`): bounded 2x25-episode
+collection at the current scenario (0.12 + compliant) -> fine-tune `moe_v11` ->
+re-measure; not run here.
+
+**Frontier re-rank at 0.12.** The path-3 `event` near-miss does not transfer:
+base **16/45** vs event **16/45**, per-run deltas 0/0/0. RTC/VLASH/A2C2 were not
+re-run (0.06 negatives on this checkpoint: -20/-31/-20 pt); `track` (+2.2 at
+0.06) is untested at 0.12. The re-test budget went to the belt/material
+controls above.
+
+**The dynamic handover (v8/P1, shipped opt-in).** `grasp_carry_place`'s
+`dynamic_capture` required `scripted=True`, so the OpenArm policy handover
+always ran the indexed P1 primitive (belt stopped at the station) even with
+`FRUIT_DYNAMIC_PICK=1`. Patch (`logs/p1/handover_dynamic.patch`): the catch
+condition drops `and scripted`, and a direct handover recomputes the
+station-relative grip/hover targets (scripted runs set them at their upstream
+hover; the attempt-local values could otherwise be None/stale). Default
+behavior with `FRUIT_DYNAMIC_PICK` unset is unchanged.
+Measured on the patched frozen tree (`c8c3cffd`, `FRUIT_DYNAMIC_PICK=1` +
+trigger): **27/45 = 60 % (9/8/10)** vs the indexed handover's 16/45 = 36 % at
+the same belt 0.12; median cycle 2113 vs 2920 ticks (**-27.6 %**); grip losses
+27 -> 17 and the fell-off-line class disappears. The dynamic line at 0.12 now
+beats the compliant-indexed line even at 0.06 (49 %). The paired 113 report
+excludes 34/45 pairs (fruit classes diverge), so quote the pooled rates.
+Remaining failures: 17 grip losses in the catch (the first-lift contact class).
+
+**Checks.** Main tree after the patch: `scripts/selfcheck.sh` PASS; the
+handover manifests pin `tasks_md5=c8c3cffd` (twin) / `178bb267` (main) and
+`checkpoint_md5=9f50596a`; AGENTS.md, README and the Chinese summary carry the
+new handover semantics and the 60 %/36 % numbers. Also of record: an abandoned
+wedged Isaac process from the completed path3b lane (run 5 retry, output
+`event_5.log.failed...`, 5.5 h past its 1500 s cap, no supervising parent) was
+TERM/KILLed to free the simulator - the lane's recorded retry log was intact.
+**Not done**: the hybrid canary of the dynamic handover; the 0.12 frontier
+battery; the P2 collection/fine-tune; a `track` arm at 0.12.
+
+### Gate-19 remediation (F1 lane, 2026-10-07): the place raise was the approach/x-track - shipped 9/10 at 15.8 s/attempt
+
+Lane scope: `tasks.py`'s dynamic place/lift profiles + docs. Frozen start
+`logs/fast/iso_tree_before.md5` (`tasks.py` md5 `178bb267...`, the F2/P1 tree).
+One simulator at a time (`logs/fast/run_one.sh` claim + 1500 s stall guard);
+every sweep run trace off (`logs/fast/sweep_iso.sh`, `FRUIT_CYCLE_REPORT=1`,
+proven inert in F1). `scripts/selfcheck.sh` PASS before and after.
+
+**CORRECTION BANNER - "the place raise scored 7/10" is not supported.** The only
+place-raise runs (`sweep_a3_l030_p035x20`, `sweep_final`) changed approach
+(0.22/1.2) AND x-track (0.20) alongside the place, and they predate the
+authoritative dynamic lift cap (their `grasp_lift |v|cmd=0.176` is the stale
+`FRUIT_LIFT_VMAX` min(); the winner runs 0.293). The F1 sentence "the place
+raise would save another 2.7 s/attempt but measures 7/10 x2" and its copies in
+README / `项目总结报告.md` are withdrawn. The F1 x-track-alone result
+(`sweep_a2_l030_x20` 7/10) and approach-alone results stand.
+
+**The isolation sweep** (approach 0.15/0.8, lift 0.30/1.0, x-track 0.12 fixed;
+place varied alone; `a` scaled with `v` to keep the shipped profile shape:
+`a = 0.20*(v/0.15)^2`; 10 attempts per config, trace off, one run each;
+`logs/fast/iso_sweep_table.txt`):
+
+| place v/a | rate | s/att | place phase | failures |
+| --- | --- | --- | --- | --- |
+| 0.15/0.20 (control = F1) | 8/10 | 18.4 | 5.64 s | a2Gp, a6gp |
+| 0.20/0.356 | 7/10 | 17.2 | 4.42 s | a2Gp, a6gp, a8Gp |
+| 0.25/0.556 | 7/10 | 16.4 | 3.68 s | a2Gp, a6gp, a8Gp |
+| 0.30/0.800 | 8/10 | 16.1 | 3.20 s | a2Gp, a6gp |
+| **0.35/1.089** | **9/10** | **15.8** | **2.85 s** | **a6gp** |
+
+* The control is bit-identical to the F1 winner `sweep_a2_l030true` and to
+  `logs/fast/10_accept_v7fast.log` in every `[fruit]` line (modulo `[cycle]`
+  rows), so F2/P1 moved nothing on the scripted line.
+* The outcome is non-monotonic - the quantized branch, measured directly: the
+  0.20/0.25 steps flip the A8 apple's marginal lift (the escape starts in the
+  lift leg, `peak@0.86`, force-servo 38 trips) and the A2 peach's place escape
+  disappears at 0.35.
+* Held legs: lift cone 0.88-0.99x / slip 25.9-43.2 mm, place cone 0.86-1.23x /
+  slip 59.9-141.7 mm (reported, not gated; no raise degrades the distributions).
+* Lift sweep at the chosen place: 0.20 -> 8/10 (16.2 s), 0.25 -> 8/10 (15.9 s),
+  0.30 -> **9/10 (15.8 s)**; the 0.30 cap stays.
+* Double-run `sweep_iso_p035_verify`: **bit-identical** to `sweep_iso_p035` in
+  every `[fruit]` line (cycle rows excluded).
+
+**Shipped defaults** (`tasks.py`): `FRUIT_DYNAMIC_PLACE_VMAX` 0.15 -> **0.35**,
+`FRUIT_DYNAMIC_PLACE_AMAX` 0.20 -> **1.089**; lift 0.30/1.0 and approach
+0.15/0.8 unchanged. Place block 5.64 -> 2.85 s, cycle 18.4 -> **15.8 s/attempt**
+(17.6 s/success). `rl_env.TASKS_MD5` re-pinned `178bb267... -> 0ca5e5da...`.
+
+**Acceptance / references.**
+* `ACCEPT_LOG=logs/fast/14_accept_place035.log scripts/accept.sh`: **9/10**
+  (`sim=158.1 s`, 15.8 s/att; the A6 kiwi catch miss only), every budget passes;
+  the fingerprint differs from the F1 reference at one rounding digit (leg 3
+  `[88, 0.109]` vs `[88, 0.108]`), so the reference was re-recorded from this
+  run - the pre-Gate-19 file is preserved at
+  `logs/fast/motion_reference_pre_place035.json` (the pre-v7 one stays at
+  `motion_reference_pre_v7fast.json`).
+* `ACCEPT_LOG=logs/fast/15_accept_place035_verified.log`: **bit-identical**,
+  fingerprint matches -> green. Run 15 equals the sweep winner in every `[fruit]`
+  line.
+* Indexed opt-out at the v7 defaults (`FRUIT_DYNAMIC_PICK=0`, belt 0.12 +
+  compliant fingers + shared `FRUIT_APPROACH_AMAX` 0.8): `logs/fast/16_accept_indexed_v7.log`
+  **10/10 = 100 %** (`sim=246.2 s`, 24.6 s/att, `gate_open=42.3 s` - the indexed
+  line stops the belt at the station; descents 426-429 samples at 0.029, the
+  shared `FRUIT_APPROACH_AMAX` 0.8 visible against the pre-v7 429-sample
+  reference), every budget and the hard cone gate pass; its own reference
+  `logs/fast/motion_reference_indexed_v7.json` (the dynamic fingerprint differs
+  by construction - a separate reference, not a break), verified by
+  `logs/fast/17_accept_indexed_v7_verified.log` (**10/10 bit-identical**,
+  fingerprint matches).
+* Clip `logs/video_fast2/` (3 cycles on the new default, 1725 frames / 6902
+  ticks, x1.00 real time; `logs/fast/18_video_fast2.log`); `demo_2min` **3/3 =
+  100 %** (floor 66 %), motion gate PASS (`logs/fast/19_demo_2min.log`).
+* `scripts/105_motion_regression.py`: the calibration wording now carries the
+  fast-profile measurement (clean legs 0.75 of the profile peak, ~1.47x effective
+  slack) and the current taxonomy (A6 kiwi catch-window miss; the floor comment
+  now says measured 9/10, floor still 0.75). `scripts/demo_2min.sh` comment
+  9/10 -> 8/10.
+
+**Taxonomy/attribution fixes.** 105's floor comment and cone-report comment no
+longer cite "A2 peach and A8 apple first-lift escapes" (that was pre-F1): the
+shipped line's one failure is the A6 kiwi catch-window miss. The WORKLOG F1 entry
+line "the failing A2 leg reads 1.58x/296.3 mm" is corrected inline: that carry is
+attempt 6's A6 kiwi; the A2 peach's failing leg was its `place0` carry at
+1672.9 mm (on the F1 config). The calibration wording (AGENTS, README, 105) now
+states the 1.10x budget is 1.10x the profile peak, not 1.10x achieved.
+
+**Consequence for F2/G.** The single-arm default is now 9/10 at 15.8 s/att =
+**3.42 placed/min**; the F2 bimanual 1.30x was measured against the pre-Gate-19
+single-arm (8/10, 18.4 s, 2.61/min) and the bimanual shares this `tasks.py`, so
+G re-derives the bimanual advantage on the new default (AGENTS/README/决策与交付
+carry the caveat).
+
+**Could not do / open.** The policy canary at the new scenario is F2/G's item
+(gate fix 2, owned elsewhere); the bimanual re-rate is G's; the A6 kiwi
+catch-window miss remains the one named failure (accepted; the dynamic line's
+own motion gate reports its cone breach, not gates it).
+
+
+### P2 retrain at the v7 scenario (2026-10-07, lane P2): offline fidelity 2.6x better, direct rate unchanged - the entire deficit is the policy path's LEFT-arm dynamic handover (0/17 vs the scripted line's 7/17 at the same slots)
+
+Protocol frozen before the first run: `logs/p2/P2_PREREG.md`. One simulator at a
+time; every run on `tasks.py` md5 **`0ca5e5da`** (the Gate-19/F1 tree;
+`rl_env.TASKS_MD5` matches).
+
+**Collection (current scenario: belt 0.12, compliance k30, dynamic never-stop,
+place 0.35)** via `logs/p2/collect_v11.sh`:
+* `datasets/v11_s0` SEED=31 **25/25** (31 attempts), manifest md5
+  `bd54f8478deaab8b04f205a7613e837d`, 11:42, tasks `0ca5e5da`;
+* `datasets/v11_s1` SEED=32 **25/25** (38 attempts), manifest md5
+  `ebd1b036f7a6e11da192bdbb290483e1`, 12:09;
+* the scripted dynamic line's own per-attempt rate while collecting **50/69 =
+  72 %** (s0 25/31, s1 25/38; left 5/18 = 28 %, right 45/51 = 88 %);
+* camera 240,424, decimation 4, fixed stepping on.
+
+**Merge + audit**: `datasets/demos_v11` = **50 episodes, 10 228 frames, 9 378
+windows**, `index_md5` `922ca995cbc849230d7adabcb959ed58`; `106_index_audit.py`
+OK on all 21 datasets, zero problems and zero warnings.
+
+**Fine-tune (recipe frozen pre-run)**: `scripts/111_rl_finetune.py`
+(`finetune.py`), init `checkpoints/moe_v11/policy_best.pt` (md5 `9f50596a`),
+data = `demos_v11` (rollout) + `demos_v10` (base), **weights 1.0 / 1.0**
+(`weight_mode=ones`, `base_weight=1.0`), EPOCHS=6, LR 5e-5, batch 32, seed 0,
+normalizer kept from the checkpoint, **last epoch** ->
+`checkpoints/moe_v12/policy_best.pt` (weighted loss 0.0064, demo_val 0.0040,
+~408 s/epoch; provenance + `tasks_md5` in
+`checkpoints/moe_v12/finetune_history.json`). `moe_v11`/`demos_v10` untouched.
+
+**Offline fidelity (`scripts/119_rl_fidelity.py`, 192 paired windows, same
+sampler noise)**: on the NEW data **0.248 rad (`moe_v11`) -> 0.096 rad
+(`moe_v12`)**, 186 improved / 6 worse, sign p~0; on the old data 0.057 -> 0.037
+(141/51). A 2.6x improvement on the deployment distribution, no forgetting.
+
+**Direct A/B (run-major interleaved, N=3x15, seeds 77/101/202, trigger
+`arrival`, dynamic handover, camera 240,424, policy seed 11, E=4, DDIM-16,
+`logs/p2/ab_b012/`)**:
+* fresh control `moe_v11` **27/45 = 60.0 %** (9/8/10) - reproduces the P1
+  handover baseline outcome-by-outcome (cycles ~500 ticks shorter from place
+  0.35);
+* `moe_v12` **25/45 = 55.6 %** (7/9/9); paired 24 both-ok / 17 both-fail /
+  1 B-only / 3 A-only (one-sided sign p=0.9375); no new failure reason; the
+  pre-registered strawberry criterion FAILS (3/6 -> 1/6); orange 1/3 -> 2/3;
+  median cycle 1920 -> 1936 ticks (+0.8 %).
+* **Decision: not recovered** (bar >= 27/45) -> per the pre-registration the
+  belt ladder was NOT run.
+
+**The mechanism (measured, arm-split, same slots)**:
+* `moe_v11` left **0/17 = 0 %**, right **27/28 = 96 %**; `moe_v12` left
+  **0/17**, right **25/28 = 89 %**; P1's `handover_b012` is identical (left
+  0/17, right 27/28). The left-arm number does not move with the checkpoint.
+* **Scripted ceiling control** (`--ablate scripted`, the scripted controller in
+  the same direct env, same seeds, `logs/p2/scripted_ceiling/`): **33/45 =
+  73.3 %** (10/13/10), **left 7/17 = 41 %**, right 26/28 = 93 %. Slot by slot
+  the scripted run wins 8 slots the policy loses (7 left-arm catches + 1 orange
+  place) and loses 2 the policy holds. So the 60 % baseline is **~13 pt below
+  the scripted line's ceiling at these seeds**, and the whole deficit is the
+  left arm.
+* **Trace-on debug** (`logs/p2/15_diag_left_debug.log`, mechanism only): at the
+  trigger the jaw has drifted downstream of the nominal station - left-episode
+  failure -6.4 cm, right-episode success -16.8 cm - so drift magnitude alone is
+  not the discriminator; the catch-up tracker recovers the right arm from 16.8
+  cm and not the left from 6.4 cm. The fingertips are ~60 mm from the fruit at
+  the close start in both. All failures carry the primitive's baseline reason
+  "fruit did not follow the gripper".
+* **Canary (hybrid, `moe_v12`, 10 episodes)**: **6/10 = 60 % PASS** (floor
+  0.60), all baseline grip losses (peach x3, pear, orange)
+  (`logs/p2/13_canary_v12.log`); the recorded `moe_v11` canaries at 0.12 are
+  5/10 (P1) and 8/10 (F2) - inside the spread.
+
+**What this means.** The owner's "raise -> retrain -> recover" loop was run to
+the letter at 0.12 and the retrain did what it should to the *policy* (offline
+2.6x) while the *line* did not move: the direct rate is capped by the policy
+path's dynamic handover on the left arm, not by the policy's imitation of the
+demos (the scripted controller at the same slots gets 73 % vs the policy's
+60 %). The next lever is a handover/control fix in the direct branch of
+`tasks.py::grasp_carry_place` (or the trigger's timing for the drifting jaw),
+with the scripted ceiling as the control; more data and the belt ladder are
+blocked behind it.
+
+**Not done / open**: the speed ladder (pre-registered gate not met), the
+frontier re-test (step 6; the budget went to the ceiling control, which was the
+decision-relevant measurement - the earlier N=5 event/track arms were +1.3/+2.2
+pt and non-significant), the left-arm handover fix (out of this lane's file
+scope: `tasks.py` must not be edited here). Acceptance: `logs/p2/16_accept_v12.log`
+(scripted, versioned), selfcheck PASS (13 legs), canary PASS.
+
+
+### P2b: the left direct handover saturated joint2; the direct path now meets the fruit at the station
+
+(Append-only entry; numbers from `logs/p2b/`. Fix scope: the direct dynamic
+handover branch of `tasks.py::grasp_carry_place`; the scripted line and the
+indexed opt-out are untouched.)
+
+**Mechanism (trace on, `logs/p2b/diag3/`; reach probe `logs/p2b/reach_ladder.log`).**
+In the direct handover at belt 0.12 the policy trigger fires at `t_arrive <= 0.9 s`
+(fruit ~10.7 cm upstream); the primitive then spends a ~0.66 s pre-descent setup
+(premove + axis + hover) and a ~0.73 s profiled descent, so the catch-up begins
+with the fruit **5-8 cm downstream**. Chasing it drives the left arm's **joint2**
+into its upper limit: left `arm_hi[1] = +0.1745 rad` vs the mirrored right
+`+3.3161`. The catch-up's IK is clipped on **200/200 ticks**, `|error6|` grows
+0.09 -> 0.83 rad and the hand sweeps across the fruit instead of following it -
+every left failure's `fruit did not follow the gripper`. The reach ladder:
+starting from the grasp pose with the catch hold, the left tracks cleanly to
+**~4.5 cm** downstream (5.3 mm at -0.04; 21 mm at -0.06 with j2 pinned at
++0.173) and the right to ~15 cm. The scripted control uses the same arm: its
+successful left catch-ups enter with the fruit still upstream (`task_err_y
++13 mm`, j2 moves the safe negative way), its rare failures are the same j2
+trap (`catch_05`: j2 starts pinned, 200/200 clipped).
+
+**Fix (direct path only; `FRUIT_DIRECT_*` knobs, defaults = fixed behaviour).**
+Park at the station's grip pose instead of the 6 cm hover (`FRUIT_DIRECT_HOVER=0`),
+hold the grip for a bounded servo so the coarse `move_to`'s ~1 cm residual is
+settled (`FRUIT_DIRECT_HOLD_TICKS=20`), skip the profiled final approach whose
+40-tick minimum let the fruit cross the station (`FRUIT_DIRECT_SKIP_APPROACH=1`;
+the catch-up tracks the fruit and completes the approach), and cap the catch-up's
+per-tick downstream command at 3.5 cm (`FRUIT_DIRECT_CATCH_MAX=0.035`) so any
+timing residual stays inside the left's measured band. The convergence lead is
+unchanged (`FRUIT_DIRECT_CATCH_LEAD=0.25`). Restore the pre-fix flow with
+`FRUIT_DIRECT_HOVER=0.06 FRUIT_DIRECT_HOLD_TICKS=0 FRUIT_DIRECT_SKIP_APPROACH=0
+FRUIT_DIRECT_CATCH_MAX=1000`. A tighter park tolerance was tried and rejected
+(500-step `move_to`, fruit 40 cm downstream; `logs/p2b/smoke_fix2`).
+
+**Smoke (trace on, seed 77, 6 episodes, `logs/p2b/smoke_fix6/`).** All six
+catch-ups converge at 5.5-6.0 mm, both left attempts included; the left
+strawberry is placed. The one failure is the left kiwi `grasped=True
+placed=False` (the known A6 walk/escape class, fruit x +8 cm through the close),
+not a joint-limit failure.
+
+**A/B (N=3x15, seeds 77/101/202, trace off, `logs/p2b/ab012/`).** The
+pre-registered step-4 criterion for `moe_v12` is met. Recorded pre-fix baselines
+(P2 lane, `logs/p2/ab_b012/`): `moe_v11` 27/45 = 60.0 %, `moe_v12`
+25/45 = 55.6 %, both left 0/17; scripted ceiling 33/45 = 73.3 % (left 7/17,
+right 26/28).
+
+| arm | pooled | per run | left | right |
+| --- | --- | --- | --- | --- |
+| `moe_v11` (A) | **28/45 = 62.2 %** | 8/11/9 | **6/17 = 35.3 %** | 22/28 = 78.6 % |
+| `moe_v12` (B) | **32/45 = 71.1 %** | 11/12/9 | **6/17 = 35.3 %** | 26/28 = 92.9 % |
+| scripted ceiling | 33/45 = 73.3 % | 10/13/10 | 7/17 = 41.2 % | 26/28 = 92.9 % |
+
+The left arm moves from **0/17 to 6/17** on both checkpoints; the pooled
+`moe_v12` rate goes 55.6 % -> 71.1 %, within one attempt of the scripted
+ceiling. No new failure reason: the remaining left failures are the known
+carry/place class (`grasped=True placed=False`) plus the walking-kiwi catch
+(2/6 kiwi); pre-fix every left failure was `grasped=False`. The strawberry
+class goes 1/6 -> 5/6. Right-arm rates are unchanged on `moe_v12` (26/28 in
+both) and 22/28 on `moe_v11` (the pre-fix 27/28 sits inside the run spread;
+A_1 held two right failures).
+
+**Acceptance / other.** `ACCEPT_LOG=logs/p2b/20_accept_fixed.log
+scripts/accept.sh`: **9/10 = 90 %** (dynamic floor 75 %), motion gate PASS,
+fingerprint **matches `configs/motion_reference.json`** (no re-record - the
+scripted `[motion]` legs are unchanged by the direct-path fix); selfcheck PASS.
+The remaining gate warnings are the dynamic line's reported carry-cone legs
+(2.41x on one rescued leg), documented and non-gating. Frozen revision hashes in
+`logs/p2b/tree_frozen.sha256` (final `tasks.py` sha256 `47625659…`), with
+versioned copies `tasks_p2b_frozen.py` / `control_p2b_frozen.py` /
+`rl_env_p2b_frozen.py`.
+
+**Speed ladder (0.15).** Step (a) control, the frozen `moe_v12` measured at
+0.15 before any fine-tune: **31/45 = 68.9 %** (8/13/10; left 6/17, right
+25/28) - only 1/45 below its 0.12 post-fix rate (32/45), i.e. the fixed handover
+already carries the raised belt. Step (b) collection: 25 successes from 45
+attempts (55.6 % scripted per-attempt at 0.15; 72 % at 0.12), shard
+`datasets/v12_s0_015` seed 41, tree hash in the shard manifest. Step (c)
+fine-tune `moe_v12 -> moe_v13` (same recipe: new shard + `demos_v10`, weights
+1.0/1.0, 6 epochs, last epoch): offline fidelity on the 0.15 shard 0.149 ->
+0.133 rad (median paired -0.0095, 115/77 windows, sign p=0.0037; the phase
+metric 91 -> 94 %), a much smaller gain than the 0.12 retrain because the
+distribution gap is smaller. Step (d) `moe_v13` at 0.15: **30/45 = 66.7 %**
+(9/12/9; left 4/17, right 26/28). **The ladder points at 0.15: `moe_v12` 68.9 %,
+`moe_v13` 66.7 %** - the fine-tune did not transfer (within the run spread; the
+failure mix moved from catch misses, 8 `grasped=False`, to the carry/place
+class, 11 `grasped=True placed=False`). 0.18 was not run (the per-registered
+step was conditional on a budget/recovery that the wash did not clear).
+
+**What this means.** The owner's "raise -> retrain -> recover" loop now moves
+the *line*: with the joint2 limit fixed, the direct policy line at 0.12 goes
+55.6 -> 71.1 % (left 0/17 -> 6/17) and sits 1/45 from the scripted ceiling
+73.3 %; the remaining failures are the same carry/place contact class the
+scripted line's left arm has (7/17 vs 6/17). At 0.15 the unfine-tuned line
+holds 68.9 %, so the belt raise costs ~1/45, and a 25-episode fine-tune on the
+0.15 distribution is a measured wash: the limiter above 0.12 is no longer the
+handover *timing* but the contact class both lines share.
+
+**Evidence index**: `logs/p2b/` (`DIAGNOSIS.md`, `FIX.md`, `NOTES.md`,
+`tree_frozen.sha256`, the versioned `*_p2b_frozen.py` copies, the diag/smoke/
+A-B/ladder logs). Frozen `tasks.py` sha256 `47625659…`; `rl_env.TASKS_MD5`
+re-pinned to `6bda8972…`. Selfcheck PASS; acceptance
+`logs/p2b/20_accept_fixed.log` 9/10 + motion gate PASS + fingerprint matches
+(no re-record). Hybrid canary on `moe_v12` (the *indexed* handover path, which
+the fix's gates do not touch): two samples **5/10 (50 %, below the 0.60 floor)
+and 6/10 (60 %, PASS)**, all failures baseline grip losses - inside the
+recorded 5-8/10 one-run spread for this loop (P1 `moe_v11` 5/10, P2
+`moe_v12` 6/10), so this is canary noise on an unchanged path, not a
+regression; the fix's own path is measured by the A/B above.
+
+**Not done**: 0.18 (conditional step), a `moe_v13` fine-tune evaluated on the
+0.12 distribution (the 0.15 wash made it uninformative), and the frontier
+re-test. The fix does not address the kiwi walk/bat class (2-3 catch misses per
+45 across both checkpoints) or the carry/place contact geometry.
+
+### G integration (2026-10-07): the single-arm default stays; the bimanual re-derivation is 1.05x, not 1.30x; the new default's limb clearance is 6.2 mm; the policy is 71.1 %
+
+**Scope.** The integration phase on the current tree (Gate-19 place 0.35 + P2b
+handover fix); evidence in `logs/g/`. No `src/` change: the bimanual stays
+opt-in. The only lane edit is `scripts/130_policy_demo.sh`'s default `CKPT`
+(`moe_v10` -> `moe_v12`, the best deployment checkpoint) and its docblock.
+
+**Re-derivation (N=5 x 10 per arm, run-major interleaved, trace off, frozen
+tree `tasks.py 6bda89726bfd0690f0fe80fd59f6e6b7`, seed 5,
+`scripts/154_claim_run.sh`).** Bimanual `FRUIT_BIARM=1`: **9/10 x5 bit-identical,
+15.0 s/attempt, 16.7 s/success, 3.59 placed/min** (left 3/4, right 6/6; the one
+failure is a left apple first-lift escape: `grasped=True placed=False`, lift
++0.065 m, carry slip 260.5 mm, in-hand |v|max 1.32 m/s). Single `FRUIT_BIARM=0`:
+**9/10 x5 bit-identical, 15.8 s/attempt, 3.42 placed/min** (right kiwi catch
+window, the Gate-19 failure); the single runs are bit-identical to
+`logs/fast/sweep_iso_p035.log` and the default acceptance to
+`logs/fast/15_accept_place035_verified.log`. The winner (bimanual) doubled
+bit-identical (`logs/g/12_rate_biarm_winner_rerun.log`). `gate_open=0.0s`, zero
+`indexed:` everywhere. Tables: `logs/g/11_rate_table.txt`,
+`logs/g/12_rate_summary.json`.
+
+**The advantage collapsed to 1.05x** (3.59 vs 3.42; s/attempt 0.949x): the
+Gate-19 place raise cut the single arm's batch span 184.2 -> 158.1 s but the
+pipeline's only 159.5 -> 150.4 s, because the pipeline was already overlapping
+part of the place, and its park/handover overhead is unchanged.
+
+**Decision: no default flip.** The pre-registered reading (`logs/g/NOTES.md`,
+written before the majority of the runs) flips only if the rate is non-inferior
+AND placed/min is clearly higher, operationalized at >=1.10x. The rate clause
+passes (9/10 >= the 0.75 floor, equal to the single arm); the throughput clause
+fails at +5.1%. The wall measurement agrees (2.38x app-elapsed/sim vs 1.86x;
+~40 s wall/placed fruit vs ~33 s), and the named lever for a real margin is the
+F2 cross-lane fallback (not enabled; a sorting-semantics change). Shipped
+default stays the single-arm dynamic line; `FRUIT_BIARM=1` stays the opt-in
+pipeline, `FRUIT_BIARM=0` explicit.
+
+**Clearance correction (new finding).** The new default's clearance trace
+(`FRUIT_BIARM_TRACE=1`, 10 attempts, outcomes bit-identical) reads **6.2 mm**
+minimum inter-arm link-origin separation (`openarm_left_hand` vs
+`openarm_right_ee_tcp`, t=87.9 s), **257/15024 samples < 30 mm** (longest
+contiguous streak 1.82 s); F2's 45.4 mm / zero-under-30 figure
+(`logs/biarm/trace_biarm.jsonl`, pre-Gate-19 timing) does not carry. No attempt
+failed by arm-arm contact in either trace; quote clearance per configuration.
+
+**Acceptance/gates.** Default `ACCEPT_LOG=logs/g/40_accept_default.log
+scripts/accept.sh`: **9/10, motion gate PASS, fingerprint matches**
+(bit-identical to Gate-19). Bimanual `FRUIT_BIARM=1
+ACCEPT_LOG=logs/g/43_accept_biarm.log scripts/accept.sh`: **9/10, all budgets
+pass**, fingerprint differs from the single-arm reference by construction;
+recorded at `logs/g/motion_reference_biarm_g.json` (F2's preserved at
+`motion_reference_biarm_pre_g.json`). `scripts/selfcheck.sh` PASS.
+
+**Throughput (final table, `logs/g/NOTES.md`).** Scripted single 9/10, 15.8
+s/attempt, 3.42 placed/min; bimanual 9/10, 15.0 s/attempt, 3.59 placed/min;
+policy direct (`moe_v12` + trigger + fixed handover, `logs/p2b/ab012`) 32/45 =
+71.1% (left 6/17, right 26/28), median successful episode 14.95 s sim, 21.1 s
+sim per placed fruit, ~42 s wall per placed fruit. Wall-clock measured: policy
+loop ~1.93-2.0x its sim span (`[rl] run wall` 434 s / 225 s), scripted single
+1.86x, bimanual 2.38x (app elapsed/sim, startup included) - the earlier rule of
+thumb (policy 2.2-2.4x, scripted 1.0-1.3x) does not reproduce on these runs.
+
+**Demo.** Shipped-default clip `logs/video_final/` (3/3 cycles, 1725 frames /
+6902 ticks = 57.5 s, x1.00 real time, `logs/g/50_video_final.log`); GUI policy
+demo with the new default `moe_v12` (`logs/g/60_policy_demo_gui.log`): window up,
+all three episodes fired the trigger, **1/3 placed** (ep2 peach; ep0/ep1 long
+`fruit did not follow the gripper` failures under GUI rendering - the same
+seed-77 ep0 succeeds at 1405 ticks headless, so this is a smoke check, one
+sample); `demo_2min.sh` (shipped default) **3/3 picks, 15.7 s/attempt, motion
+gate PASS** (`logs/g/51_demo_2min.log`); bimanual verify acceptance
+`logs/g/44_accept_biarm_verified.log` green against the recorded fingerprint.
+The clip recorder wedged after writing all four mp4s at the known RTX "Out of
+resource descriptors" shutdown class; its session was cleared (output complete).
+
+**Not done.** The default flip (decision above), the cross-lane fallback, a
+park/handover re-design for the 6.2 mm near-pass, and the policy demo is a
+smoke/look check, not a new rate measurement (the P2b A/B remains the rate
+evidence).
+
+### Final-review remediation (2026-10-08): the policy paragraph is the P2b record, the catch-miss mislabel is fixed, the policy gate defaults to `moe_v12`, the demo runs the dynamic handover, and the left joint2 asymmetry is upstream by design
+
+> **Corrections banner (stale claims fixed in this pass).**
+> 1. **The policy line's current number was the pre-fix one.** AGENTS.md,
+>    README.md and `项目总结报告.md` quoted the dynamic handover as
+>    **27/45 = 60 %** (the v8/P1 measurement). The current record is P2b:
+>    `moe_v12` **32/45 = 71.1 %** at belt 0.12 (left 0/17 -> 6/17; the scripted
+>    ceiling 33/45 = 73.3 %), the 0.15 ladder a wash (`moe_v12` 31/45 un-tuned,
+>    fine-tuned `moe_v13` 30/45), 0.18 not run, and the dynamic handover still
+>    **opt-in**. The indexed handover's 16/45 = 36 % is the P1 baseline.
+> 2. **The P2b residual was labelled "3 kiwi catch misses".** The B-arm
+>    failures are **13 = 10 `grasped=True placed=False` carry/place + 3 catch
+>    misses (kiwi, lychee, pear)**: the three `grasped=False` lines are `B_1`
+>    ep4 kiwi, `B_2` ep11 lychee, `B_3` ep1 pear (`logs/p2b/ab012/B_*.log`).
+>    Corrected in the plan file and stated in README / the Chinese summary.
+> 3. **`tasks.py::_dynamic_pick_mode`'s docstring** said "the dynamic line's
+>    measured ceiling is 8/10"; the shipped Gate-19 line is **9/10 at
+>    15.8 s/attempt** (the one failure the A6 kiwi catch-window miss).
+>    Docstring-only edit; `rl_env.TASKS_MD5` moved with the file (`6bda8972` ->
+>    `2574ceac`) so the policy env still builds - no control logic changed.
+> 4. **`scripts/accept_policy.sh` defaulted to the pre-openarm
+>    `checkpoints/policy_kin_v3all`** (that checkpoint's recorded sample is
+>    4/10, below the 0.60 floor); the default is now
+>    `checkpoints/moe_v12/policy_best.pt`, and the header records the belt-0.12
+>    hybrid-canary spread **5-8/10** (`moe_v11` 8/10 F2; `moe_v12` 6/10 P2, then
+>    5/10 and 6/10 P2b - all baseline grip losses, an unchanged path).
+> 5. **The demo did not enable the v8 "truly dynamic" policy handover**; it now
+>    does (decision below).
+
+**Docs.** `AGENTS.md` section 2 and the README v7/F1 blockquote now carry the
+P2b result (32/45 = 71.1 %, `moe_v12`, left 6/17, the ladder wash, 0.18 not
+run, opt-in); the README P2b blockquote states the 10+3 residual split; the
+README gains a **G throughput blockquote** with the wall conventions (scripted
+single 1.86x / bimanual 2.38x = app-elapsed / simulated span incl. startup;
+policy ~1.93x = `[rl] run wall` / sim, ~2.0x app-elapsed), **wall per placed
+fruit 32.7 / 39.8 / ~42 s**, the bimanual as **6.2 mm clearance / 1.051x,
+opt-in and not production-safe**, the policy as **71.1 %, N=3x15 per
+checkpoint** (state the power), and scopes the old order-of-magnitude
+expectation (policy 2.2-2.4x / scripted 1.0-1.3x) as not reproducing on these
+runs. `项目总结报告.md` paragraphs G + section five got the same numbers.
+No source control logic is touched.
+
+**Demo decision (the policy handover default).** Chosen: **enable the dynamic
+handover in the demo**, not document the indexed one.
+`scripts/130_policy_demo.sh` now exports `FRUIT_DYNAMIC_PICK=1` (the
+P2b-measured configuration, 71.1 %) while an explicit `FRUIT_DYNAMIC_PICK=0`
+still runs the indexed handover. The shipped scenario default is untouched:
+with the env unset the policy handover keeps the P1 indexed primitive, and
+`accept_policy.sh` (`60_eval_policy`, hybrid) does not set it - the canary
+history stays an indexed-handover measurement. Rationale: the demo is the
+owner-facing artifact of the v8 "the policy line must also be truly dynamic"
+directive, and the P2b A/B is its measured basis.
+
+**Smoke (GUI, one simulator, the enabled demo).**
+`logs/final_review/60_policy_demo_dynamic.log`: 3 episodes, seed 77, window up,
+all three fired the trigger, **2/3 placed** (lychee + pear right; strawberry
+left `grasped=True placed=False`), `[rl] run wall` 151.6 s. The same launcher
+with the indexed handover was 1/3 in the G smoke (`logs/g/60_policy_demo_gui.log`);
+both are single GUI samples under render variance, not rate evidence (the P2b
+A/B is). The smoke manifest
+(`datasets/rl_rollouts_demo_dyn/direct_none_seed77/manifest.json`) records the
+same checkpoint md5 the P2b batch used (`3a9ccfc0...`) and the new
+docstring-only `tasks.py` pin (`2574ceac...`).
+
+**Left joint2 audit (finding; no asset change).** Full note:
+`logs/final_review/50_joint2_audit.md`. The `arm_hi[1] = +0.1745` limit is not
+repo-introduced: the upstream OpenArm v10 description (the source `assets.py`
+cites, `enactic/openarm`) ships **mirrored shoulder joints** - left joint2
+`-3.3161..+0.1745` rad, right `-0.1745..+3.3161`, local frames mirrored
+(`joint1` likewise `-3.4907..+1.3963` vs `-1.3963..+3.4907`; joints 3-7
+identical). The de-instanced flat asset reproduces the URDF exactly (degrees),
+so it is **not an asset inconsistency**. It is, however, a real reachability
+asymmetry here: the direct catch-up drives both arms' q2 positive, and the
+left clips at +0.1745 (**200/200 ticks**, `logs/p2b/reach_ladder.log`: left
+tracks ~4.5 cm downstream vs right ~15 cm). The shipped P2b mitigation is the
+3.5 cm catch-up cap; the implied lever for a wider left band is a left
+posture/IK branch that reaches downstream through the negative q2 range (the
+mirror of the right's solution), **not** an asset edit - extending the limit in
+sim would deviate from the hardware.
+
+**Checks.** `scripts/selfcheck.sh` **PASS** (14 legs, 0 failures, 1 skip)
+after all edits. No acceptance re-run: no shipped control/scene behaviour
+changed (one docstring edit plus the `TASKS_MD5` pin, one demo-launcher default,
+one gate-script default, docs) - the fingerprint is untouched. Evidence: this
+entry, the file diffs in the working tree, `logs/final_review/` (`10_docs_fix.md`,
+`50_joint2_audit.md`, `60_policy_demo_dynamic.log`, `tree_checked.sha256`).

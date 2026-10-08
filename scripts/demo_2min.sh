@@ -66,7 +66,7 @@ echo
 echo "=== motion gate  (descent speed vs the reference, a_win5 vs the friction budget) ==="
 gate=0
 # The success floor is relaxed to 2/3 here: a three-pick smoke test is not the
-# ten-attempt acceptance, and the shipped suite's own rate is 9/10, so demanding
+# ten-attempt acceptance, and the shipped suite's own rate is 8/10, so demanding
 # 3/3 would make the demo flaky. The *motion* budgets stay strict - they are what
 # this demo is for. `scripts/accept.sh` keeps the full floor and the fingerprint.
 python3 scripts/105_motion_regression.py logs/demo_picks.log --min-success-rate 0.66 || gate=$?

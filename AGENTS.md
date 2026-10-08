@@ -41,6 +41,38 @@ the single-tick lurch bound; for a carry, the friction cone; `a_win5` on a desce
 a reported roughness warning, not a budget, because it is a *carrying* number being
 applied to a leg that carries nothing - and state which attractor a run is in.
 
+**Since the v7/F1 directive (2026-10-06) the shipped scripted default is the
+dynamic never-stop line; the Gate-19 place sweep (2026-10-07) raised the place
+profile to 0.35/1.089.** With `FRUIT_DYNAMIC_PICK` unset the OpenArm scripted
+line takes the fruit on the fly (measured **9/10, 15.8 s/attempt**, the one
+failure the A6 kiwi catch-window miss);
+`FRUIT_DYNAMIC_PICK=0` restores the indexed *pick* (the P1 primitive - note the
+scenario defaults are now the v7 ones: 0.12 m/s belt, the compliant finger
+material, and the shared `FRUIT_APPROACH_AMAX` 0.4 -> 0.8 that the indexed
+`_approach` reads too, so it is not bit-identical to the P1 logs; its v7-default
+acceptance is `logs/fast/16_accept_indexed_v7.log`). The OpenArm policy
+handover runs the P1 primitive by default and the **dynamic never-stop catch
+with `FRUIT_DYNAMIC_PICK=1`** (v8/P1 directive). At belt 0.12 the dynamic
+handover measured **27/45 = 60 %** before the P2b left-handover fix and
+**32/45 = 71.1 %** after it (`moe_v12`, left 0/17 -> 6/17, one attempt short of
+the scripted ceiling 33/45 = 73.3 %), against the indexed handover's
+**16/45 = 36 %** (`logs/p1/`, `logs/p2b/ab012/`). The 0.15 ladder is a wash
+(`moe_v12` 31/45 unfine-tuned, fine-tuned `moe_v13` 30/45) and 0.18 was not
+run. **The policy's dynamic handover stays opt-in** - with the env unset the
+handover keeps the P1 indexed primitive; `scripts/130_policy_demo.sh` enables
+it for the visible demo (`FRUIT_DYNAMIC_PICK=0` there restores the indexed
+handover). The motion gate derives the descent speed
+budget from the shipped profile (per-leg distance; the budget is 1.10x the
+*profile peak*, and the fast-profile clean legs achieve ~0.75 of that peak
+because the conveyor boundary ends every descent 40-90 mm short, so the
+effective slack is ~1.47x, not 1.10x), the
+dynamic line's carry cone is *reported* rather than gated (its escapes are the
+failure mechanism; `--strict-cone` re-imposes the old rule), and the dynamic
+success floor is 0.75 of ten attempts while the indexed floor stays 0.9. Treat a
+dynamic rate the way the v2 paragraph below says: one configuration is one
+sample of a deterministic branch, so quote the per-leg cone/slip and the
+mechanism, not cross-configuration rate deltas.
+
 **The v2 dynamic line is weaker than that.** It takes the fruit *on the fly*, so
 the tick the tracking window opens on depends on the fruit's continuously evolving
 position; two runs of the identical default scored **10/10 and 9/10** with all ten
@@ -102,6 +134,37 @@ reads and pure reporting do not. Hence every diagnostic knob defaults to off,
 `ik_step` carries a comment saying so, and traces are used for mechanism rather
 than for the numbers quoted in the documents.
 
+**The bimanual line is opt-in and shares one station.** `FRUIT_BIARM=1` runs the
+pipelined two-arm scheduler (`src/fruit_sorting/bimanual.py`): one arm owns the
+pick station from its pre-pose until its carried payload clears a box around it,
+the other pre-poses while the first carries and places, and a **main-thread
+arbiter** executes one *shared* physics tick per round (so both control loops
+stay at 120 Hz in simulated time - one tick per arm per round doubles every
+phase and breaks the catch calibration) and grants a single run permit (exactly
+one attempt thread executes at a time). Measured on the frozen F2 tree: 9/10 x5
+bit-identical (left 4/4, right 5/6), 16.0 s/attempt, 3.38 placed fruit/min
+against the then-shipped single-arm 8/10, 18.4 s/attempt, 2.61 placed/min - a
+1.30x placed-fruit rate (`logs/biarm/`, WORKLOG "F2"). **G re-derived it on the
+Gate-19 place-0.35 default (2026-10-07, `logs/g/`): the bimanual is 9/10 x5
+bit-identical, 15.0 s/attempt, 3.59 placed/min (left 3/4, right 6/6; the failure
+is a left apple first-lift escape) against the single arm 9/10, 15.8 s/attempt,
+3.42 placed/min - 1.05x, because the faster place shortened the single arm's
+cycle more than the pipeline's.** Per the pre-registered reading (non-inferior
+rate and placed/min clearly higher) the default was **not** flipped:
+`FRUIT_BIARM=1` stays opt-in, `FRUIT_BIARM=0` is explicit, and the shipped
+default remains the single-arm dynamic line. The new default's clearance trace
+reads **6.2 mm** minimum inter-arm link-origin separation with 257/15024 samples
+under 30 mm (the F2 45 mm / zero-under-30 figure is pre-Gate-19 timing; no
+attempt failed by arm-arm contact) - quote the clearance per configuration.
+A bimanual log is a *different scenario*: compare its budgets
+and rate, and give it its own fingerprint via `105_motion_regression.py
+--write-fingerprint` (preserve the single-arm reference) - do not read a
+fingerprint mismatch as a break. Its scheduler invariants are pinned offline by
+`scripts/152_biarm_selftest.py` (a selfcheck leg); rates come from
+`scripts/153_biarm_rates.sh` (the F2 shape; it skips existing logs) or
+`logs/g/run_g_rates.sh` (the Gate-19-default batch, interleaved with the single
+arm), the per-attempt table from `scripts/151_biarm_report.py`.
+
 ## 3. What changed -> what to run
 
 | you changed | run |
@@ -110,6 +173,7 @@ than for the numbers quoted in the documents.
 | motion, control, `trajectory` limits, IK | `python3 scripts/96_motion_check.py`, then `scripts/accept.sh` |
 | collection (`40_collect_demos.py`) or merging (`41_merge_demos.py`) | `scripts/107_collect_merge_test.py`, then `python3 scripts/106_index_audit.py` |
 | simulator behaviour, scene, gripper, conveyor | `scripts/accept.sh`, then `scripts/demo_2min.sh` |
+| the bimanual scheduler (`bimanual.py`, or the task loop under `FRUIT_BIARM=1`) | `scripts/selfcheck.sh` (the 152 leg), the `logs/biarm/` rate batch (`scripts/153_biarm_rates.sh biarm 5`), then `FRUIT_BIARM=1 scripts/accept.sh` |
 | the policy, training or the dataset schema | `scripts/selfcheck.sh`, `scripts/accept.sh` (scripted baseline), `scripts/accept_policy.sh` (policy loop) |
 
 To compare two **policy** arms, use the harness rather than two runs:

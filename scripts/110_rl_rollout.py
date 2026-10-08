@@ -29,6 +29,9 @@ turnover period; the sampler is interleaved over that many control steps, one
 action per step). The knobs map to `FRUIT_RTC_*` (`--rtc-delay`,
 `--rtc-horizon`, `--rtc-schedule`, `--rtc-max-weight`); `--rtc-report` records
 per-control-step wall time and the executed boundary jumps. Default off.
+`--rtc-no-guidance` runs the same async chunker without freeze/soft-inpaint and
+`--vlash` additionally conditions the sampler on the rolled-forward
+execution-time state (VLASH; needs the offset fine-tune).
 
 One simulator at a time: the caller must make sure no other Isaac process is
 running (`pgrep -fc "[p]ython.sh"`).
@@ -105,6 +108,14 @@ def main() -> int:
                         help="RTC-style async chunking: one action per control step, "
                              "the next chunk sampled interleaved over --execute-steps "
                              "control steps (direct presentation only)")
+    parser.add_argument("--rtc-no-guidance", action="store_true",
+                        help="FRUIT_RTC_GUIDANCE=0: plain async chunk switching, no "
+                             "freeze/soft-inpaint (the VLASH-style deployment)")
+    parser.add_argument("--vlash", action="store_true",
+                        help="FRUIT_VLASH=1: async chunking with guidance off and the "
+                             "sampler conditioned on the state rolled forward under the "
+                             "previous chunk's pending actions (needs a checkpoint "
+                             "fine-tuned with scripts/133_vlash_finetune.py)")
     parser.add_argument("--rtc-delay", type=int, default=None,
                         help="FRUIT_RTC_INFERENCE_DELAY: control steps the sampler is "
                              "spread over (default: --execute-steps)")
@@ -153,6 +164,10 @@ def main() -> int:
     # the same configuration the shell would have set.
     if args.rtc:
         os.environ["FRUIT_RTC"] = "1"
+    if args.rtc_no_guidance:
+        os.environ["FRUIT_RTC_GUIDANCE"] = "0"
+    if args.vlash:
+        os.environ["FRUIT_VLASH"] = "1"
     if args.rtc_delay is not None:
         os.environ["FRUIT_RTC_INFERENCE_DELAY"] = str(int(args.rtc_delay))
     if args.rtc_horizon is not None:
@@ -202,7 +217,11 @@ def main() -> int:
         f"schedule={os.environ.get('FRUIT_RTC_SCHEDULE', 'EXP')} "
         f"delay={os.environ.get('FRUIT_RTC_INFERENCE_DELAY', '0')} "
         f"horizon={os.environ.get('FRUIT_RTC_EXECUTION_HORIZON', '10')} "
+        f"guidance={os.environ.get('FRUIT_RTC_GUIDANCE', '1')} "
+        f"vlash={'on' if os.environ.get('FRUIT_VLASH', '0') == '1' else 'off'} "
         f"track={'on' if os.environ.get('FRUIT_POLICY_TRACK', '0') == '1' else 'off'} "
+        f"event={'on' if os.environ.get('FRUIT_POLICY_EVENT', '0') == '1' else 'off'} "
+        f"a2c2={os.environ.get('FRUIT_A2C2', '') or 'off'} "
         f"trigger={os.environ.get('FRUIT_POLICY_TRIGGER', 'off')} "
         f"trigger_present={'on' if os.environ.get('FRUIT_POLICY_TRIGGER_PRESENT', '0') == '1' else 'off'}"
     )

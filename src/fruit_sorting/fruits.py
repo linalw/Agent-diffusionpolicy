@@ -115,6 +115,10 @@ class FruitSpawner:
         #: logs/351: pads and "fruit" both at x = -1.5 m while the arm was at the
         #: pick station).
         self.protected: int | None = None
+        #: The bimanual scheduler protects one fruit per arm; `protected` stays
+        #: the single-arm interface (the policy env and the collector set it
+        #: directly), and both are honoured by `update`.
+        self.protected_indices: set[int] = set()
         self._waited: dict[int, float] = {}
         self._last_sim_time = 0.0
         #: Seconds each fruit has been sitting still in a discharge tray; the
@@ -282,6 +286,19 @@ class FruitSpawner:
     # ------------------------------------------------------------------ #
     # Conveyor feeding
     # ------------------------------------------------------------------ #
+    def protect(self, index: int | None) -> None:
+        """Mark one fruit as owned by an in-flight attempt (never recirculated)."""
+        if index is not None:
+            self.protected_indices.add(int(index))
+
+    def unprotect(self, index: int | None) -> None:
+        """Release one fruit's protection when its attempt ends."""
+        if index is not None:
+            self.protected_indices.discard(int(index))
+
+    def is_protected(self, sample: FruitSample) -> bool:
+        return bool(sample.index in self.protected_indices or sample.index == self.protected)
+
     def park(self, sample: FruitSample) -> None:
         """Move a fruit out of the scene.
 
@@ -307,9 +324,24 @@ class FruitSpawner:
         app_utils.update_app(steps=1)
 
     def release_next(self) -> FruitSample:
-        """Randomize and drop the next queued fruit at the belt entrance."""
-        sample = self.samples[self._cursor % len(self.samples)]
-        self._cursor += 1
+        """Randomize and drop the next queued fruit at the belt entrance.
+
+        The cursor skips a fruit that is currently held or protected by an
+        in-flight attempt: `respawn` teleports its sample upstream, and under the
+        bimanual pipeline `update` runs while the other arm carries, so the
+        feeder must never steal a payload (the same wrap-around teleport the
+        video recorder measured, `logs/902_video_before.log`). Single-arm runs
+        call `update` only between attempts, where no sample is held or
+        protected, so their cursor sequence is unchanged.
+        """
+        count = len(self.samples)
+        for _scan in range(count):
+            sample = self.samples[self._cursor % count]
+            self._cursor += 1
+            if sample.parked or (not sample.held and not self.is_protected(sample)):
+                break
+        else:
+            return None
         # The feeder's next slot can already be occupied by a fruit that is
         # sitting in a discharge tray. `respawn` teleports it upstream (that is
         # the recycle), so classify it first: a tray fruit is the output line's
@@ -343,7 +375,7 @@ class FruitSpawner:
         wait_limit = float(os.environ.get("FRUIT_MAX_WAIT_S", "60"))
         if wait_limit > 0.0:
             for sample in list(self.active):
-                if sample.parked or sample.held or sample.index == self.protected:
+                if sample.parked or sample.held or self.is_protected(sample):
                     continue
                 pos = self.position(sample)
                 along = float(pos[1])
@@ -392,8 +424,10 @@ class FruitSpawner:
             ):
                 queued += 1
         if sim_time >= self._next_release and queued < queue_max:
-            released.append(self.release_next())
-            self._next_release = sim_time + self.cfg.spawn_period_s
+            sample = self.release_next()
+            if sample is not None:
+                released.append(sample)
+                self._next_release = sim_time + self.cfg.spawn_period_s
         self.enforce_transport()
         tray_dwell_s = float(self.cfg.output_tray_dwell_s)
         for sample in list(self.active):

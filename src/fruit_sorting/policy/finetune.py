@@ -29,6 +29,12 @@ Two rules from the Oracle plan are enforced here:
 The saved ``policy_best.pt`` has the same structure the runtime loads (model /
 normalizer / config), plus a ``provenance`` block naming the base checkpoint,
 its md5, the rollout data, every weight knob and the frozen `tasks.py` md5.
+
+``vlash_offset_max > 0`` switches the sample construction to the VLASH
+temporal-offset augmentation (`_OffsetWindows`, arXiv 2512.01031): the image
+stays at ``t`` and both the robot state and the action chunk move to
+``t + delta``, ``delta ~ U{0..vlash_offset_max}``. That is a data-side change
+only - the loop, the model and the deployment path are untouched.
 """
 
 from __future__ import annotations
@@ -119,6 +125,70 @@ class _WeightedWindows(Dataset):
         }
 
 
+class _OffsetWindows(Dataset):
+    """VLASH temporal-offset augmentation over `_WeightedWindows`.
+
+    arXiv 2512.01031 ("VLASH: Real-Time VLAs via Future-State-Aware
+    Asynchronous Inference") fine-tunes with temporal offsets: for a window
+    ``(o_t, s_t, A_t)`` draw ``delta ~ U{0..delta_max}`` and train on
+    ``(o_t, s_{t+delta}, A_{t+delta})`` - the **environment observation stays at
+    t**, while the robot state and the action chunk are taken ``delta`` steps
+    later. At deployment the state is rolled forward under the previous chunk
+    by the measured inference delay (the last action to execute is the
+    estimated future state for absolute actions), so the model has seen the
+    exact ``(current image, future state) -> future action`` pairing. ``delta=0``
+    is the standard synchronous sample, so the augmentation is a strict
+    superset of the unmodified data.
+
+    ``delta`` is in recorded (30 Hz) frames - the store's window unit and the
+    policy's action-chunk index unit - and the sample is clamped so the shifted
+    action window still fits the episode.
+    """
+
+    def __init__(self, inner: _WeightedWindows, store: EpisodeStore,
+                 normalizer: Normalizer, delta_max: int, seed: int = 0):
+        self.inner = inner
+        self.store = store
+        self.normalizer = normalizer
+        self.delta_max = max(0, int(delta_max))
+        self.rng = np.random.default_rng(int(seed))
+
+    def __len__(self) -> int:
+        return len(self.inner)
+
+    def __getitem__(self, index: int) -> dict:
+        sample = self.inner[index]
+        if self.delta_max <= 0:
+            return sample
+        ep_index, t = self.store.windows[index]
+        episode = self.store.episodes[ep_index]
+        horizon = int(self.store.action_horizon)
+        length = int(episode["action"].shape[0])
+        # Only windows whose shifted action chunk still fits the episode.
+        limit = max(length - horizon - t, 0)
+        delta = int(self.rng.integers(0, self.delta_max + 1))
+        delta = min(delta, limit)
+        if delta == 0:
+            return sample
+        s = t + delta
+        proprio = np.concatenate(
+            [
+                episode["joint"][s].astype(np.float32),
+                episode["finger"][s].astype(np.float32),
+                episode["tactile"][s].astype(np.float32),
+            ]
+        )
+        action = episode["action"][s : s + horizon].astype(np.float32)
+        skills = episode["skills"]
+        skill = int(skills[s]) if skills is not None else int(sample["skill"])
+        sample["proprio"] = torch.from_numpy(self.normalizer.normalize_obs(proprio))
+        sample["action"] = torch.from_numpy(
+            self.normalizer.normalize_action(action).T.copy()
+        )
+        sample["skill"] = torch.tensor(skill, dtype=torch.long)
+        return sample
+
+
 def _window_weights(store: EpisodeStore, *, mode: str, beta: float, vbar: float,
                     failure_weight: float, base_weight: float,
                     close_weight: float = 1.0, close_lead: int = 10,
@@ -195,9 +265,16 @@ def finetune(
     close_weight: float = 1.0,
     close_lead: int = 10,
     close_tail: int = 10,
+    vlash_offset_max: int = 0,
     verbose: bool = True,
 ) -> str:
-    """Continue-train `checkpoint` on `rollouts` (+ `base` demos). Returns the path."""
+    """Continue-train `checkpoint` on `rollouts` (+ `base` demos). Returns the path.
+
+    ``vlash_offset_max > 0`` enables the VLASH temporal-offset augmentation
+    (`_OffsetWindows`): observation at t, state and action chunk at t+delta,
+    ``delta ~ U{0..vlash_offset_max}``. With an empty ``rollouts`` the fine-tune
+    runs on the base demonstrations alone, which is the VLASH configuration.
+    """
     if weight_mode not in ("ones", "success", "awr"):
         raise ValueError(f"weight_mode must be ones|success|awr, got {weight_mode!r}")
     if close_weight < 1.0:
@@ -222,10 +299,12 @@ def finetune(
     image_size = int(config["image_size"])
 
     # -------------------------------------------------------------- data --- #
-    rollout_store = EpisodeStore(
-        rollouts, obs_horizon=obs_horizon, action_horizon=action_horizon,
-        image_size=image_size, only_successful=False,
-    )
+    rollout_store = None
+    if rollouts:
+        rollout_store = EpisodeStore(
+            rollouts, obs_horizon=obs_horizon, action_horizon=action_horizon,
+            image_size=image_size, only_successful=False,
+        )
     base_store = None
     if base and os.path.exists(os.path.join(base, "index.json")):
         base_store = EpisodeStore(
@@ -233,7 +312,10 @@ def finetune(
             image_size=image_size, only_successful=True,
         )
 
-    rewards = [float(ep["meta"].get("reward", 0.0)) for ep in rollout_store.episodes]
+    rewards = (
+        [float(ep["meta"].get("reward", 0.0)) for ep in rollout_store.episodes]
+        if rollout_store is not None else []
+    )
     vbar = float(np.mean(rewards)) if rewards else 0.0
     datasets: list[Dataset] = []
     weight_stats: dict[str, float] = {}
@@ -265,20 +347,31 @@ def finetune(
             weight_stats[label]["close_episodes"] = int(
                 sum(1 for value in starts if value is not None)
             )
-        datasets.append(_WeightedWindows(store, normalizer, weights))
+        dataset: Dataset = _WeightedWindows(store, normalizer, weights)
+        if vlash_offset_max > 0:
+            dataset = _OffsetWindows(
+                dataset, store, normalizer, vlash_offset_max,
+                seed=seed + (0 if label == "rollout" else 1),
+            )
+            weight_stats[label]["vlash_offset_max"] = int(vlash_offset_max)
+        datasets.append(dataset)
     if not datasets:
         raise RuntimeError(f"no usable windows in {rollouts} (or base {base})")
     dataset = datasets[0] if len(datasets) == 1 else ConcatDataset(datasets)
     loader = DataLoader(dataset, batch_size=batch_size, shuffle=True, drop_last=False)
 
     if verbose:
-        print(f"[finetune] rollouts={rollouts} ({len(rollout_store.episodes)} episodes, "
-              f"success {sum(1 for e in rollout_store.episodes if e['meta'].get('success'))})")
+        if rollout_store is not None:
+            print(f"[finetune] rollouts={rollouts} ({len(rollout_store.episodes)} "
+                  f"episodes, success "
+                  f"{sum(1 for e in rollout_store.episodes if e['meta'].get('success'))})")
+        else:
+            print("[finetune] rollouts=(none)")
         if base_store is not None:
             print(f"[finetune] base={base} ({len(base_store.episodes)} episodes)")
         print(f"[finetune] windows={len(dataset)} weight_mode={weight_mode} "
               f"vbar={vbar:.4f} beta={beta} failure_weight={failure_weight} "
-              f"base_weight={base_weight}")
+              f"base_weight={base_weight} vlash_offset_max={vlash_offset_max}")
         for label, stats in weight_stats.items():
             print(f"[finetune]   {label}: {stats}")
 
@@ -368,12 +461,12 @@ def finetune(
         "created": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         "base_checkpoint": os.path.abspath(checkpoint),
         "base_checkpoint_md5": _md5(checkpoint),
-        "rollouts": os.path.abspath(rollouts),
-        "rollout_episodes": len(rollout_store.episodes),
-        "rollout_windows": len(rollout_store),
+        "rollouts": os.path.abspath(rollouts) if rollouts else "",
+        "rollout_episodes": len(rollout_store.episodes) if rollout_store is not None else 0,
+        "rollout_windows": len(rollout_store) if rollout_store is not None else 0,
         "rollout_successes": int(
             sum(1 for e in rollout_store.episodes if e["meta"].get("success"))
-        ),
+        ) if rollout_store is not None else 0,
         "base": os.path.abspath(base) if base else "",
         "base_episodes": len(base_store.episodes) if base_store is not None else 0,
         "base_windows": len(base_store) if base_store is not None else 0,
@@ -385,6 +478,7 @@ def finetune(
         "close_weight": float(close_weight),
         "close_lead": int(close_lead),
         "close_tail": int(close_tail),
+        "vlash_offset_max": int(vlash_offset_max),
         "weight_stats": weight_stats,
         "epochs": int(epochs),
         "lr": lr,

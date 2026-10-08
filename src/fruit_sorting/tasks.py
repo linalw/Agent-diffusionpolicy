@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import os
+import threading
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -21,6 +22,7 @@ import numpy as np
 import isaacsim.core.experimental.utils.app as app_utils
 from isaacsim.core.rendering_manager import RenderingManager
 
+from .bimanual import CoopSession
 from .common import say, substeps, to_numpy
 from .control import ArmController
 from .dataset import EpisodeMeta, EpisodeRecorder, camera_observation
@@ -30,6 +32,7 @@ from .kinematic_gripper import KinematicGripper, OpenArmHand, PAD_THICK
 from .motion import (
     MotionMonitor,
     TrajectoryLimits,
+    accel_budget,
     jerk_limited,
     min_jerk_ramp,
     mirror_across_xz,
@@ -61,7 +64,54 @@ def _quat_matrix(q) -> np.ndarray:
         ]
     )
 
+
+def _quat_about_axis(q, axis, angle: float) -> np.ndarray:
+    """`q` rotated by `angle` [rad] about the world `axis` (right-hand rule)."""
+    axis = np.asarray(axis, dtype=float)
+    axis = axis / max(float(np.linalg.norm(axis)), 1e-9)
+    half = 0.5 * float(angle)
+    dw, dx, dy, dz = np.cos(half), *(np.sin(half) * axis)
+    w, x, y, z = (float(v) for v in q)
+    out = np.array(
+        [
+            dw * w - dx * x - dy * y - dz * z,
+            dw * x + dx * w + dy * z - dz * y,
+            dw * y - dx * z + dy * w + dz * x,
+            dw * z + dx * y - dy * x + dz * w,
+        ],
+        dtype=float,
+    )
+    return out / max(float(np.linalg.norm(out)), 1e-9)
+
+
 _EMPTY_TACTILE = TactileReading(side="none")
+
+
+class _AttemptLocal:
+    """Per-attempt-thread storage for one attempt's mutable state.
+
+    The bimanual scheduler runs two attempts concurrently in two threads. Every
+    field an attempt writes through `self` must be thread-local or the two arms
+    clobber each other (the deepest grasp/carry code reads them). The per-arm
+    dicts (`_closed_gap[side]`, `_force_*[side]`, ...) stay shared because each
+    thread only ever touches its own side.
+    """
+
+    def __init__(self, name: str, default=None, factory=None):
+        self.name = name
+        self.default = default
+        self.factory = factory
+
+    def __get__(self, obj, owner=None):
+        if obj is None:
+            return self
+        local = obj._attempt_state()
+        if not hasattr(local, self.name):
+            setattr(local, self.name, self.factory() if self.factory else self.default)
+        return getattr(local, self.name)
+
+    def __set__(self, obj, value):
+        setattr(obj._attempt_state(), self.name, value)
 
 
 @dataclass
@@ -77,10 +127,18 @@ class EpisodeResult:
     max_tactile_force: float = 0.0
     peak_lift: float = 0.0
     notes: list[str] = field(default_factory=list)
+    #: Simulated-clock window of the attempt [s]. Under the bimanual scheduler
+    #: the two arms' windows overlap, so these are per-attempt, not cumulative.
+    sim_start: float = 0.0
+    sim_end: float = 0.0
 
     @property
     def success(self) -> bool:
         return self.grasped and self.placed
+
+    @property
+    def sim_span(self) -> float:
+        return max(0.0, self.sim_end - self.sim_start)
 
 
 class PickAndPlaceTask:
@@ -96,6 +154,44 @@ class PickAndPlaceTask:
     #: The fingers are ~6 cm deep along the belt, so a fruit that is off-centre
     #: by more than about a centimetre gets hit edge-on and the jaws jam.
     CLOSE_TOLERANCE = 0.012
+
+    # -- per-attempt state -------------------------------------------------- #
+    # The bimanual scheduler runs two attempts concurrently, so everything an
+    # attempt mutates through `self` lives in the calling thread's local state
+    # (`_attempt_state`). Single-arm runs see exactly the old behaviour: the
+    # main thread is the only attempt thread and gets the same defaults.
+    current_sample = _AttemptLocal("current_sample")
+    current_arm = _AttemptLocal("current_arm", "left")
+    current_goal = _AttemptLocal(
+        "current_goal", factory=lambda: np.zeros(8, dtype=np.float32)
+    )
+    _dynamic_capture_active = _AttemptLocal("_dynamic_capture_active", False)
+    _dynamic_peak_z = _AttemptLocal("_dynamic_peak_z")
+    _dynamic_grip_target = _AttemptLocal("_dynamic_grip_target")
+    _dynamic_hover_target = _AttemptLocal("_dynamic_hover_target")
+    _attempt_sim_t0 = _AttemptLocal("_attempt_sim_t0")
+    _gate_open_step = _AttemptLocal("_gate_open_step", 0)
+    _biarm_clear_streak = _AttemptLocal("_biarm_clear_streak", 0)
+    _dynamic_trace = _AttemptLocal(
+        "_dynamic_trace",
+        factory=lambda: (
+            [] if os.environ.get("FRUIT_DYNAMIC_TRACE", "0") == "1" else None
+        ),
+    )
+    _cycle_marks = _AttemptLocal(
+        "_cycle_marks",
+        factory=lambda: (
+            [] if os.environ.get("FRUIT_CYCLE_REPORT", "0") == "1" else None
+        ),
+    )
+
+    def _attempt_state(self):
+        """The calling thread's attempt-local container (created on first use)."""
+        container = self.__dict__.get("_attempt_tls")
+        if container is None:
+            container = threading.local()
+            self.__dict__["_attempt_tls"] = container
+        return container
 
     def __init__(self, scene, spawner, tactile, cfg, waypoint_path: str | None = None):
         # The v1 file reproduces the recorded datasets. Physical grasping uses the
@@ -192,7 +288,7 @@ class PickAndPlaceTask:
         #: True while a P2 moving catch is in flight: the lift that follows breaks
         #: the moving belt's contact straight up instead of dragging the payload
         #: sideways across it (`logs/p2_012_run2` first-10 carry accelerations).
-        self._dynamic_capture_active = False
+        #: (Thread-local; see the `_AttemptLocal` block above.)
         #: Peak-hold lift metric for the dynamic path (`FRUIT_DYNAMIC_LIFT_PEAK`,
         #: default on; only consulted while a dynamic capture is active). The
         #: dynamic lift is the *maximum* payload z through the probe, the
@@ -209,25 +305,29 @@ class PickAndPlaceTask:
         #: Highest payload z seen since the pre-probe origin, or None when no
         #: peak-hold is being tracked (`_dynamic_peak_z` is set in
         #: `grasp_carry_place` and updated in the probe/belt-break/first carry).
-        self._dynamic_peak_z: float | None = None
         #: Grip/hover jaw targets the arm is left holding before a moving-pick
         #: handover (set in `_run_impl`, read by `grasp_carry_place`).
-        self._dynamic_grip_target: np.ndarray | None = None
-        self._dynamic_hover_target: np.ndarray | None = None
         #: Optional hook called on every rendered tick (used by the video recorder).
         self.frame_callback = None
-        self.current_sample = None
-        self.current_arm = "left"
-        self.current_goal = np.zeros(8, dtype=np.float32)
+        #: The live bimanual session, if any (`CoopSession`); `_step_sim` and
+        #: `run` consult it. None on every single-arm path.
+        self._active_session: CoopSession | None = None
         #: Opt-in dynamic-pick mechanism trace (`FRUIT_DYNAMIC_TRACE=1`). Off by
         #: default and never part of a shipped run: the per-tick arm-link/tactile
         #: readback measurably moves the run (AGENTS.md section 2), which is
         #: exactly what a mechanism trace is for - it answers *where* a moving
         #: fruit leaves the jaws, not what the shipped line scores.
-        self._dynamic_trace: list[dict] | None = None
         if os.environ.get("FRUIT_DYNAMIC_TRACE", "0") == "1":
-            self._dynamic_trace = []
             say("[trace] dynamic-pick mechanism trace on (FRUIT_DYNAMIC_TRACE=1)")
+        #: Sequence number for the direct-path trace dumps (`_dynamic_trace_dump`).
+        #: Diagnostics only; never read by the shipped control path.
+        self._trace_dump_seq = 0
+        #: Opt-in per-attempt cycle breakdown (`FRUIT_CYCLE_REPORT=1`). Pure
+        #: `SimulationManager` simulation-time reads at phase boundaries - no
+        #: link/tactile readback - so it is the non-invasive reporting class
+        #: (AGENTS section 2); off by default like every diagnostic. The phase
+        #: names match the per-fruit cycle the speed work reports. Both the trace
+        #: and the cycle marks are thread-local (the `_AttemptLocal` block).
         #: Jaw-centre-to-pad standoff of the *moving* catch [m]. Defaults to the
         #: global `PAD_LIFT`, so the shipped line is bit-unchanged; the knob exists
         #: because the catch's grip height on a fruit is a measured variable (the
@@ -269,9 +369,10 @@ class PickAndPlaceTask:
         #: measured x every tick was measured worse (`FRUIT_DYNAMIC_TRACK_WALK`,
         #: it chases the squeeze-out once loaded), so this seeks at a *bounded*
         #: rate and only until the freeze fires: contact pins x again.
-        #: 0 keeps the shipped pinned behaviour.
+        #: 0.12 is the measured winner's centring seek (v3-C2 `s8_centre_place20`,
+        #: repeated in every 8/10 batch); 0 restores the pinned behaviour.
         self._dynamic_x_track_vmax = float(
-            os.environ.get("FRUIT_DYNAMIC_X_TRACK_VMAX", "0.0")
+            os.environ.get("FRUIT_DYNAMIC_X_TRACK_VMAX", "0.12")
         )
         #: Cross-belt walk speed below which the bounded x-seek is a *centring*
         #: action [m/s]. The A2/A8 carry slide starts from a few mm of x
@@ -283,7 +384,9 @@ class PickAndPlaceTask:
             os.environ.get("FRUIT_DYNAMIC_X_TRACK_VX_MAX", "0.05")
         )
         #: Latch the cross-belt *walk* decision at the first close tick instead of
-        #: re-testing it every tick (`FRUIT_DYNAMIC_X_TRACK_LATCH=1`, default off).
+        #: re-testing it every tick (`FRUIT_DYNAMIC_X_TRACK_LATCH`, **default on
+        #: since the v7 directive** - it is part of the measured winner; `=0`
+        #: restores the per-tick gate).
         #: The per-tick gate cuts the centring seek off mid-close when a squeeze-out
         #: briefly exceeds `VX_MAX` (measured: A2/A8 hold with the seek always on in
         #: `s6_xseek12` but are lost with the 0.05 gate in `s8_centre_place20`), while
@@ -292,7 +395,7 @@ class PickAndPlaceTask:
         #: (`s11_gate10_place15`). The latch separates the two cases by the
         #: pre-contact state.
         self._dynamic_x_track_latch = (
-            os.environ.get("FRUIT_DYNAMIC_X_TRACK_LATCH", "0") == "1"
+            os.environ.get("FRUIT_DYNAMIC_X_TRACK_LATCH", "1") == "1"
         )
         #: Record carry-leg mechanism rows for the dynamic *place* legs too
         #: (`FRUIT_DYNAMIC_TRACE=1` still required). Off by default: the existing
@@ -312,7 +415,9 @@ class PickAndPlaceTask:
             os.environ.get("FRUIT_OPENARM_REACT_MAX", "0.015")
         )
         #: Real force servo for the OpenArm grip's hold/carry legs
-        #: (`FRUIT_DYNAMIC_FORCE_SERVO=1`, default off). The close freezes the
+        #: (`FRUIT_DYNAMIC_FORCE_SERVO`, **default on since the v7 directive**: the
+        #: measured dynamic winner of v3-C2/v5 runs it; `=0` is the opt-out for a
+        #: like-for-like A/B). The close freezes the
         #: commanded jaw separation at the depth the fingers found the fruit at;
         #: the drives then hold that *fixed* face separation, so as the payload's
         #: local width shrinks under load (a rolling oblate fruit, a fruit wedged
@@ -338,7 +443,15 @@ class PickAndPlaceTask:
         #: N = m g needs 0.6-1.7 N for the 20-200 g fruit here). Gated to the
         #: visible OpenArm hand; with the knob off no tactile read happens and the
         #: shipped line is unchanged.
-        self._force_servo = os.environ.get("FRUIT_DYNAMIC_FORCE_SERVO", "0") == "1"
+        #: The force servo default follows the shipped line: on for the dynamic
+        #: OpenArm catch, off for the indexed opt-out (so `FRUIT_DYNAMIC_PICK=0`
+        #: still reproduces the P1 line) and for the policy handover.
+        dynamic_default = self._dynamic_pick_mode(
+            openarm=(kind == "openarm"), scripted=True
+        )
+        self._force_servo = os.environ.get(
+            "FRUIT_DYNAMIC_FORCE_SERVO", "1" if dynamic_default else "0"
+        ) == "1"
         self._force_min = float(os.environ.get("FRUIT_DYNAMIC_FORCE_MIN", "2.0"))
         self._force_drop = float(os.environ.get("FRUIT_DYNAMIC_FORCE_DROP", "0.8"))
         self._force_max = float(os.environ.get("FRUIT_DYNAMIC_FORCE_MAX", "12.0"))
@@ -502,7 +615,14 @@ class PickAndPlaceTask:
         # seconds of *simulated* time per pick is what a real cell's cycle time is.
         started = getattr(self, "_attempt_sim_t0", None)
         if started is not None:
-            self.stats["sim_time"] += max(0.0, self._sim_time() - started)
+            result.sim_start = float(started)
+            result.sim_end = float(self._sim_time())
+            if self._active_session is None:
+                # Cumulative accounting is meaningful only for sequential
+                # attempts; under the bimanual session the coordinator records
+                # the *span* once (overlapping attempts would double-count).
+                self.stats["sim_time"] += max(0.0, result.sim_end - float(started))
+        self._cycle_report()
         if result.success:
             self.stats["successes"] += 1
             self.failures.pop(int(result.sample_index), None)
@@ -564,12 +684,13 @@ class PickAndPlaceTask:
             f"{encoder_text}"
         )
 
-    def _fingertip_offset(self, side: str) -> float:
-        """Distance from the jaw centre down to the lowest fingertip, measured live.
+    def _fingertip_lowest_z(self, side: str) -> float:
+        """World z of the lowest fingertip point of one OpenArm hand [m].
 
-        The OpenArm fingers are long plates, so this varies with wrist
-        orientation (about 6.1 cm at the pick pose, 8 cm hanging). Using a fixed
-        number puts the fingers above small fruit and the jaws close on air.
+        One aligned-BBox read of the two finger links. `_place_low` uses it once
+        per lowered place to bound the descent so the fingers cannot be driven
+        into the output belt; it is not read per control tick (arm-link
+        readbacks are the invasive class, AGENTS section 2).
         """
         from pxr import Usd, UsdGeom
 
@@ -580,8 +701,19 @@ class PickAndPlaceTask:
             rng = cache.ComputeWorldBound(self.scene.stage.GetPrimAtPath(path)).ComputeAlignedRange()
             lo = float(rng.GetMin()[2])
             lowest = lo if lowest is None else min(lowest, lo)
+        if lowest is None:
+            return float(self.arms[side].jaw_centre()[2]) - 0.06
+        return float(lowest)
+
+    def _fingertip_offset(self, side: str) -> float:
+        """Distance from the jaw centre down to the lowest fingertip, measured live.
+
+        The OpenArm fingers are long plates, so this varies with wrist
+        orientation (about 6.1 cm at the pick pose, 8 cm hanging). Using a fixed
+        number puts the fingers above small fruit and the jaws close on air.
+        """
         jaw_z = float(self.arms[side].jaw_centre()[2])
-        return max(0.02, jaw_z - lowest)
+        return max(0.02, jaw_z - self._fingertip_lowest_z(side))
 
     def seat_height(self) -> float:
         """How high the fruit is presented for the grasp.
@@ -841,6 +973,12 @@ class PickAndPlaceTask:
                 SimulationManager.step(steps=steps)
         else:
             SimulationManager.step(steps=steps)
+        session = self._active_session
+        if session is not None and session.after_step is not None:
+            # Bimanual bookkeeping runs on the thread that just advanced the
+            # clock: the station release check (payload clear of the station
+            # box) and, with the opt-in clearance trace, the link readback.
+            session.after_step()
 
     def _hold_with_gripper(self, side: str, sample) -> None:
         """Keep the kinematic fingers wrapped around a held fruit.
@@ -867,7 +1005,7 @@ class PickAndPlaceTask:
         )
 
     # ------------------------------------------------------------------ #
-    # OpenArm grip force servo (`FRUIT_DYNAMIC_FORCE_SERVO`, default off)
+    # OpenArm grip force servo (`FRUIT_DYNAMIC_FORCE_SERVO`, default on)
     # ------------------------------------------------------------------ #
     def _force_servo_reset(self, side: str) -> None:
         """Drop the force servo's per-grip state (new grip or grip released).
@@ -1218,15 +1356,20 @@ class PickAndPlaceTask:
         if name.startswith("place") or name.startswith("bin"):
             # v3: the place target is *above the output conveyor*, not inside a
             # bin. The old `bin{0,1}_above` / `bin{0,1}_inside` names both map
-            # here - there is no lowering leg any more; the pads open
-            # `output_place_clearance` above the moving belt and the fruit drops
-            # onto it and is carried away along +X.
+            # here. This is the **transfer** pose the carry leg ends at
+            # (`output_place_z`): it keeps the OpenArm fingertips clear of the
+            # output line's side rail while the arm crosses it. On the shipped
+            # line the hand then descends with the payload to the measured
+            # finger-limited clearance before the jaws open
+            # (`tasks.py::_place_low`, `FRUIT_PLACE_LOW`); with `FRUIT_PLACE_LOW=0`
+            # the pads open here and the fruit free-drops the `output_place_clearance`
+            # onto the belt.
             index = 0 if "0" in name else 1
             px, py = cfg.output_belt_drop_points[index]
             z = float(cfg.output_place_z)
             if getattr(self.grippers.get(side), "kind", "") == "openarm":
-                # Same fingertip clearance as `grasp_lift`: the deposit is a
-                # little higher, and the fruit still falls onto the moving belt.
+                # Same fingertip clearance as `grasp_lift`: the transfer is a
+                # little higher so the long finger plates clear the output rail.
                 z += float(os.environ.get("FRUIT_OPENARM_TRANSFER_LIFT", "0.08"))
             return np.array([px, py, z])
         raise KeyError(name)
@@ -1366,25 +1509,48 @@ class PickAndPlaceTask:
                         # envelope than the indexed one: the achieved first-10
                         # acceleration overshoots the command at take-off, and the
                         # 3 cm strawberry slipped out mid-lift at 27 N tactile
-                        # (`logs/p2_smoke7`). A gentler dynamic lift keeps the
-                        # hold within the friction cone until the transfer legs.
-                        limits.v_max = min(
-                            limits.v_max, float(os.environ.get("FRUIT_DYNAMIC_LIFT_VMAX", "0.12"))
+                        # (`logs/p2_smoke7`). The v7/F1 sweep raised the dynamic
+                        # lift in bounded steps; **the dynamic caps are
+                        # authoritative here, not a min() against the indexed
+                        # lift** - the indexed `FRUIT_LIFT_VMAX` (0.18) is the pad
+                        # hand's budget, and with a min() the 0.20/0.30 steps are
+                        # inert (measured: `sweep_a3_l020` and `sweep_a3_l030` are
+                        # identical at |v|cmd=0.176). The vertical friction cone
+                        # caps a <= 1.96 m/s^2, so 1.0 is half the budget and the
+                        # held-leg read decides (`sweep_a2_l030_true`). The
+                        # Gate-19 lift sweep at the chosen place (0.20/0.25/0.30,
+                        # `logs/fast/sweep_iso_p035_l0*`) measured 8/10, 8/10 and
+                        # 9/10, so the 0.30 stays the shipped cap.
+                        limits.v_max = float(
+                            os.environ.get("FRUIT_DYNAMIC_LIFT_VMAX", "0.30")
                         )
-                        limits.a_max = min(
-                            limits.a_max, float(os.environ.get("FRUIT_DYNAMIC_LIFT_AMAX", "0.6"))
+                        limits.a_max = float(
+                            os.environ.get("FRUIT_DYNAMIC_LIFT_AMAX", "1.0")
                         )
                 elif self._dynamic_capture_active:
                     # A moving catch's grip is the most marginal at the first
                     # transfer leg: the A2 peach holds a 0.12 m/s lift but leaves
                     # the jaws somewhere in the 0.37 m/s place leg (grasped=True,
-                    # placed=False, `logs/dyn_v3c/s6_xseek12`). Opt-in slower
-                    # transfer for the dynamic path only; the indexed line's
-                    # place profile is fingerprinted and stays untouched.
-                    place_v = float(os.environ.get("FRUIT_DYNAMIC_PLACE_VMAX", "0.0"))
+                    # placed=False, `logs/dyn_v3c/s6_xseek12`). The dynamic path
+                    # caps the place profile; the indexed line's place profile is
+                    # fingerprinted and stays untouched. Set either to 0 to remove
+                    # that cap.
+                    #
+                    # Gate-19 isolation sweep (approach/lift/x-track fixed at the
+                    # F1 values, place varied alone, one run per config, trace
+                    # off, `logs/fast/sweep_iso_*`): place 0.20 -> 7/10 (17.2 s),
+                    # 0.25 -> 7/10 (16.4), 0.30 -> 8/10 (16.1), **0.35 -> 9/10
+                    # (15.8, bit-identical double-run)**; the 0.20/0.25 steps flip
+                    # the A8 marginal lift, 0.30 holds it. The acceleration is
+                    # scaled with v to keep the shipped profile shape (the F1
+                    # winner 0.15/0.20): a = 0.20*(v/0.15)^2, so v=0.35 -> 1.089.
+                    # The place block falls 5.64 -> 2.85 s and the old "place
+                    # raise is 7/10" reading was the unisolated approach+x-track
+                    # change, not the place.
+                    place_v = float(os.environ.get("FRUIT_DYNAMIC_PLACE_VMAX", "0.35"))
                     if place_v > 0.0:
                         limits.v_max = min(limits.v_max, place_v)
-                    place_a = float(os.environ.get("FRUIT_DYNAMIC_PLACE_AMAX", "0.0"))
+                    place_a = float(os.environ.get("FRUIT_DYNAMIC_PLACE_AMAX", "1.089"))
                     if place_a > 0.0:
                         limits.a_max = min(limits.a_max, place_a)
                 limits = limits.limited_by_cone(direction, mu_eff)
@@ -1605,6 +1771,17 @@ class PickAndPlaceTask:
                     )
                     self._grip_centre[side] = centre
                     arm.ik_step(arm.tcp_target_for_jaw(centre - rot @ offset_tool))
+                    if os.environ.get("FRUIT_CARRY_DIAG", "0") == "1" and i < 3:
+                        say(
+                            f"[diag] carry-assist {side} {name} tick {i}: "
+                            f"cmd_centre={np.round(centre, 4).tolist()} "
+                            f"offset={np.round(offset_tool, 4).tolist()} "
+                            f"|offset|={float(np.linalg.norm(offset_tool)) * 1000:.0f} mm "
+                            f"jaw_target={np.round(centre - rot @ offset_tool, 4).tolist()} "
+                            f"jaw={np.round(arm.jaw_centre(), 4).tolist()} "
+                            f"coherent={bool(self._coherent.get(side, False))} "
+                            f"hand_is_jaw={hand_is_jaw}"
+                        )
                 self._step_sim(1)
                 self._tick_frame()
                 self._record(self._action9(self._commanded_arm(arm), arm))
@@ -1949,10 +2126,20 @@ class PickAndPlaceTask:
 
         ``RenderingManager.render()`` renders without advancing physics, so the
         control loop keeps its exact 1/120 s timing. ``update_app`` would render
-        too, but it advances the simulation by a variable amount.
+        too, but it advances the simulation by a variable amount. Under the
+        bimanual session the callback is routed to the main thread (rendering is
+        not thread-safe); outside it, it runs inline as always.
         """
         if self.frame_callback is not None:
-            self.frame_callback()
+            session = self._active_session
+            if (
+                session is not None
+                and session.relay.participant()
+                and session.bridge.serving
+            ):
+                session.bridge.call(self.frame_callback)
+            else:
+                self.frame_callback()
         elif self.recorder is not None:
             RenderingManager.render()
 
@@ -2006,6 +2193,12 @@ class PickAndPlaceTask:
                 "gap_cmd": round(float(gap), 5),
                 "force": round(float(reading.normal_force), 3),
                 "contacts": int(reading.contact_count),
+                # Per-sensor split (`side_i` -> N): with the D2 soft pads this
+                # reads which bodies carry the load (finger meshes vs pads).
+                "ft": {
+                    str(k): round(float(v), 3)
+                    for k, v in (reading.fingertip_forces or {}).items()
+                },
                 "belt": round(float(getattr(belt, "encoder_speed", 0.0)), 5),
                 # Contact-geometry fields for the carry-slip diagnosis. `hand_rel`
                 # is the payload's position in the *hand* (tool) frame - a hold
@@ -2029,6 +2222,18 @@ class PickAndPlaceTask:
                 row["finger_right"] = [round(float(v), 5) for v in jaw_right]
             if cmd is not None:
                 row["cmd"] = [round(float(v), 5) for v in np.asarray(cmd, dtype=float)]
+            # D2 mechanism readout (trace-on only): the compliant pads'
+            # compression [mm], so the trace shows the pad following the local
+            # width while the in-hand slide is measured. No-op (empty) unless
+            # `FRUIT_FINGER_SOFT_PAD=1` authored the pads.
+            try:
+                pad_states = getattr(self.scene, "soft_pad_states", None)
+                if pad_states is not None:
+                    states = pad_states(getattr(arm.spec, "side", ""))
+                    if states:
+                        row["soft_pad"] = states
+            except Exception:  # noqa: BLE001 - the trace must never change an outcome
+                pass
             self._dynamic_trace.append(row)
         except Exception:  # noqa: BLE001 - a trace must never change an outcome
             pass
@@ -2088,6 +2293,45 @@ class PickAndPlaceTask:
         except Exception as exc:  # noqa: BLE001
             say(f"[trace] dynamic trace flush failed: {exc!r}")
 
+    def _dynamic_trace_dump(self, arm_name: str, scripted: bool, outcome: str) -> None:
+        """Write an attempt's dynamic-trace rows for the *policy* path.
+
+        `_dynamic_trace_flush` runs from `note_result`, which only the scripted
+        loop calls; the direct handover ends inside `grasp_carry_place` and its
+        rows used to die with the attempt. Diagnostics only: a no-op unless
+        `FRUIT_DYNAMIC_TRACE=1`, and it never touches the control path.
+        """
+        rows = self._dynamic_trace
+        if rows is None:
+            return
+        self._dynamic_trace = []
+        self._trace_dump_seq = int(getattr(self, "_trace_dump_seq", 0)) + 1
+        try:
+            import json
+
+            out_dir = os.environ.get("FRUIT_DYNAMIC_TRACE_DIR", "logs/dynamic_trace")
+            os.makedirs(out_dir, exist_ok=True)
+            mode = "scripted" if scripted else "direct"
+            path = os.path.join(
+                out_dir,
+                f"trace_{self._trace_dump_seq:02d}_{arm_name}_{mode}_{outcome}.json",
+            )
+            with open(path, "w", encoding="utf-8") as handle:
+                json.dump(
+                    {
+                        "arm": arm_name,
+                        "scripted": bool(scripted),
+                        "outcome": outcome,
+                        "rows": rows,
+                    },
+                    handle,
+                )
+            say(
+                f"[trace] {mode} {arm_name} {outcome}: {len(rows)} rows -> {path}"
+            )
+        except Exception as exc:  # noqa: BLE001
+            say(f"[trace] direct trace dump failed: {exc!r}")
+
     # ------------------------------------------------------------------ #
     # Helpers
     # ------------------------------------------------------------------ #
@@ -2096,6 +2340,32 @@ class PickAndPlaceTask:
         from isaacsim.core.simulation_manager import SimulationManager
 
         return float(SimulationManager.get_simulation_time())
+
+    def _cycle_begin(self) -> None:
+        """Start a per-attempt cycle breakdown (no-op unless `FRUIT_CYCLE_REPORT`)."""
+        if self._cycle_marks is not None:
+            self._cycle_marks = [("start", float(self._sim_time()))]
+
+    def _cycle_mark(self, label: str) -> None:
+        """Record one phase boundary of the per-attempt cycle (no-op unless enabled)."""
+        if self._cycle_marks is not None:
+            self._cycle_marks.append((label, float(self._sim_time())))
+
+    def _cycle_report(self) -> None:
+        """Print the phase breakdown of the attempt that just finished (see `__init__`)."""
+        marks = self._cycle_marks
+        if marks is None:
+            return
+        self._cycle_marks = []
+        if len(marks) < 2:
+            return
+        segments = " ".join(
+            f"{nxt[0]}={nxt[1] - cur[1]:.2f}s" for cur, nxt in zip(marks, marks[1:])
+        )
+        say(
+            f"[cycle] attempt {int(self.stats['attempts'])}: {segments} "
+            f"total={marks[-1][1] - marks[0][1]:.2f}s"
+        )
 
     def gripper_value_for(self, diameter: float, squeeze: float = 0.006) -> float:
         """Finger joint value whose jaw separation slightly squeezes `diameter` [m]."""
@@ -2121,16 +2391,35 @@ class PickAndPlaceTask:
     def choose_arm(self, y: float) -> str:
         return "left" if y >= 0.0 else "right"
 
-    def select_target(self, states: list[dict], lead_time: float = 0.0) -> dict | None:
+    def select_target(
+        self, states: list[dict], lead_time: float = 0.0, lane: int | None = None,
+        min_lead_s: float | None = None,
+    ) -> dict | None:
         """Choose the next fruit that will reach the pick pose.
 
         Falls back to the fruit closest to the middle of the belt window when
         nothing is upstream yet.
+
+        `lane` restricts the choice to one output lane (0 = grade A, +Y, the
+        left arm; 1 = everything else, -Y, the right arm). The bimanual
+        scheduler selects one target per arm with it; `lane=None` keeps the
+        single-arm behaviour byte-for-byte. `min_lead_s` raises the station
+        window's upstream edge to the setup a caller actually needs (the
+        bimanual worker passes its measured pre-pose + hover-move time, so a
+        fruit can never be selected so close to the station that the setup ends
+        after it has passed).
         """
         upstream: list[tuple[float, dict]] = []
         middle: list[tuple[float, dict]] = []
         station: list[tuple[float, dict]] = []
         for state in states:
+            if lane is not None:
+                # The lane is the arm (the left arm cannot cross the body to the
+                # -Y belt), and the lane is decided by the grade - see
+                # `20_pick_place.py` / `_run_impl`.
+                grade_lane = 0 if state.get("grade") == "A" else 1
+                if grade_lane != lane:
+                    continue
             if self.failures.get(int(state["index"]), 0) >= self.max_retries:
                 continue  # diverted after repeated failures
             pos = state["position"]
@@ -2177,6 +2466,10 @@ class PickAndPlaceTask:
                 abs(float(self.cfg.belt_speed))
                 * float(os.environ.get("FRUIT_PREPOSE_LEAD_S", "0.9")),
             )
+            if min_lead_s is not None:
+                prepose_lead = max(
+                    prepose_lead, abs(float(self.cfg.belt_speed)) * float(min_lead_s)
+                )
             station_floor = self.cfg.pick_y - 0.02 + prepose_lead
             upstream_floor = max(self.cfg.pick_y + 0.18, station_floor)
             if (
@@ -2204,10 +2497,13 @@ class PickAndPlaceTask:
                 upstream.append((along, state))  # smallest y first = first to arrive
         if station:
             ordered = sorted(station, key=lambda item: item[0])
-            return self._balance_arm(ordered)
+            return ordered[0][1] if lane is not None else self._balance_arm(ordered)
         if upstream:
             ordered = sorted(upstream, key=lambda item: item[0])
-            return self._balance_arm(ordered)
+            # A lane-filtered (bimanual) selection takes the fruit that arrives
+            # first in that lane: the two arms run concurrently, so the schedule
+            # cannot use the single-arm "farthest upstream" preference.
+            return ordered[0][1] if lane is not None else self._balance_arm(ordered)
         if middle:
             return min(middle, key=lambda item: item[0])[1]
         return None
@@ -2245,18 +2541,27 @@ class PickAndPlaceTask:
     def _dynamic_pick_mode(self, openarm: bool, scripted: bool) -> bool:
         """Whether this attempt takes the fruit on the fly.
 
-        `FRUIT_DYNAMIC_PICK=1` selects the P2 moving line for either hand and
-        either path. Without it the shipped default is the P1 line: the pad hand
-        tracks on the fly, the OpenArm hand indexes - because the P2 moving catch
-        was measured at **4-8/10** (`logs/p2_speed_006/009`, `logs/p2_canonical*`)
-        and cannot ship green yet; the drops are in the *grip during the lift*,
-        not in the approach or the belt speed. See the WORKLOG entry "P2: the
-        moving catch is built and measured - and it is not green".
+        **Shipped default (v7 directive): the OpenArm *scripted* line takes the
+        fruit on the fly** - the belt never stops (`gate_open=0.0s`), which is
+        the owner's standing ask ("still letting the belt stop?"). The dynamic
+        line's measured rate is the Gate-19 **9/10** (15.8 s/attempt; the one
+        failure is the A6 kiwi catch-window miss, `logs/fast/`), accepted and
+        documented, and it is why the speed sweep reports per-leg cone/slip
+        rather than a success delta.
+
+        The environment overrides both ways: `FRUIT_DYNAMIC_PICK=1` forces the
+        moving catch for either hand and either path; `FRUIT_DYNAMIC_PICK=0`
+        restores the P1 indexed line (belt stopped at the station). The pad hand
+        keeps its dynamic line. The OpenArm *policy* handover (`scripted=False`)
+        follows `FRUIT_DYNAMIC_PICK`: with the env unset it keeps the P1 indexed
+        primitive (the policy drives its own close; the hybrid canary was
+        measured on that primitive), and with `FRUIT_DYNAMIC_PICK=1` it runs the
+        same moving catch as the scripted line.
         """
         env = os.environ.get("FRUIT_DYNAMIC_PICK")
         if env is not None:
             return env == "1"
-        return not openarm
+        return (openarm and scripted) or not openarm
 
     def _dynamic_pick_lead(self) -> float:
         """Upstream distance at which the moving pick is handed over [m].
@@ -2271,7 +2576,7 @@ class PickAndPlaceTask:
         speed = abs(self._belt_speed_estimate())
         overhead = float(os.environ.get("FRUIT_DYNAMIC_OVERHEAD_S", "0.4"))
         hover = float(os.environ.get("FRUIT_DYNAMIC_HOVER", os.environ.get("FRUIT_HOVER", "0.06")))
-        v_max = float(os.environ.get("FRUIT_DYNAMIC_APPROACH_VMAX", os.environ.get("FRUIT_APPROACH_VMAX", "0.03")))
+        v_max = float(os.environ.get("FRUIT_DYNAMIC_APPROACH_VMAX", os.environ.get("FRUIT_APPROACH_VMAX", "0.15")))
         t_desc = self._approach_duration(hover, v_max)
         margin = float(os.environ.get("FRUIT_DYNAMIC_LEAD_MARGIN", "0.03"))
         # The hover wait starts the descent `FRUIT_DYNAMIC_DESCEND_MARGIN` early,
@@ -2405,13 +2710,405 @@ class PickAndPlaceTask:
         demonstration collector retried the *same* hard strawberry nine times in a
         row instead of diverting it (logs/328).
         """
-        self.spawner.protected = int(state["index"]) if "index" in state else None
+        index = int(state["index"]) if "index" in state else None
+        self.spawner.protect(index)
         try:
             result = self._run_impl(state, bin_index, lead_time, verbose)
         finally:
-            self.spawner.protected = None
+            self.spawner.unprotect(index)
+            self._biarm_clear_streak = 0
+            # A failed attempt returns before the release block, which is the
+            # only place that clears `sample.held`; a stale held flag blocks the
+            # feeder cursor (release_next skips held/protected fruit) forever.
+            if index is not None:
+                for candidate in self.spawner.samples:
+                    if candidate.index == index:
+                        candidate.held = False
+                        break
         self.note_result(result)
         return result
+
+    # ------------------------------------------------------------------ #
+    # Bimanual (pipelined shared-station) scheduling - F2
+    # ------------------------------------------------------------------ #
+    def bimanual_enabled(self) -> bool:
+        """Whether the scripted line should run the two-arm pipeline.
+
+        **Default off while F2 measures it.** The shipped v7/F1 default is the
+        single-arm dynamic line and its acceptance fingerprint is the recorded
+        reference; flipping the default is the integration phase's (G) decision.
+        `FRUIT_BIARM=1` enables the pipeline explicitly.
+
+        Only the scripted OpenArm dynamic line qualifies: the indexed path stops
+        the shared belt (`belt.stop()`), the pad hand keeps its own measured
+        line, and the policy handover drives its own primitive - none of those
+        can share a station between two concurrent attempts.
+        """
+        env = os.environ.get("FRUIT_BIARM")
+        if env != "1" or self._active_session is not None:
+            return False
+        kind = getattr(self.grippers.get("left"), "kind", "")
+        if kind != "openarm":
+            say(f"[biarm] FRUIT_BIARM=1 ignored: hand is {kind!r}, not openarm")
+            return False
+        if not self._dynamic_pick_mode(openarm=True, scripted=True):
+            say("[biarm] FRUIT_BIARM=1 ignored: the line is the indexed primitive")
+            return False
+        if self.recorder is not None:
+            # Any attached recorder owns `RenderingManager.render()` and the
+            # per-tick dataset observation; the bimanual trace/bridge does not
+            # cover it, so the pipeline refuses rather than run it off-thread.
+            say("[biarm] FRUIT_BIARM=1 ignored: a dataset recorder is attached")
+            return False
+        return True
+
+    def run_bimanual(self, attempts: int) -> list[EpisodeResult]:
+        """Run a pipelined batch of up to `attempts` scripted attempts.
+
+        The two arms each keep taking a station slot (acquire -> fresh select ->
+        the normal dynamic attempt) until the batch budget is spent; the station
+        alternates between them, so while one arm carries and places the other
+        approaches and closes on the next fruit. One session spans the whole
+        batch (not one session per pair): the station must not wait for the
+        previous pair's carry to finish, or it would idle ~8 s per pair.
+
+        Returns the attempts that ran (sorted by start time). The caller keeps
+        the single-arm loop for the policy and collector paths.
+        """
+        if not self.bimanual_enabled():
+            return []
+        trace = os.environ.get("FRUIT_BIARM_TRACE", "0") == "1"
+        session = CoopSession(["left", "right"], trace=trace)
+        session.after_step = self._biarm_after_step
+        session.budget = max(1, int(attempts))
+        session.reserved = 0
+        self._active_session = session
+        try:
+            with session:
+                threads = [
+                    threading.Thread(
+                        target=self._biarm_worker,
+                        args=(session, arm, 0 if arm == "left" else 1),
+                        name=f"biarm-{arm}",
+                        daemon=True,
+                    )
+                    for arm in ("left", "right")
+                ]
+                session.run(threads)
+            results = list(session.results)
+        finally:
+            self._active_session = None
+        results.sort(key=lambda item: float(item.sim_start))
+        if results:
+            # Throughput denominator: the simulated-clock span from the first
+            # attempt's start to the last attempt's end. Per-attempt spans
+            # overlap, so summing them would double-count.
+            span = max(item.sim_end for item in results) - min(
+                item.sim_start for item in results
+            )
+            self.stats["sim_time"] += max(0.0, span)
+        self.stats["biarm_sessions"] = int(self.stats.get("biarm_sessions", 0)) + 1
+        self._biarm_trace_report(session)
+        return results
+
+    def _biarm_clear_slot(self, arm: str) -> None:
+        """Reset one attempt thread's per-slot state before it takes a station.
+
+        A failed attempt leaves its thread-local `current_sample`/grip state and,
+        for the openarm hand, can leave `sample.held` set (the release block is
+        the only place that clears it); a later no-fruit slot must not read that
+        stale state and "release" the station the moment it takes it.
+        """
+        self._closed_gap[arm] = None
+        self._biarm_clear_streak = 0
+        sample = self.current_sample
+        if sample is not None:
+            sample.held = False
+        self.current_sample = None
+
+    def _biarm_worker(self, session: CoopSession, arm: str, bin_index: int) -> None:
+        """One attempt thread: take station slots until the batch budget is spent."""
+        relay = session.relay
+        relay.register(arm)
+        relay.enter()
+        gap_ticks = max(0, int(os.environ.get("FRUIT_BIARM_GAP_TICKS", "30")))
+        try:
+            while True:
+                self._biarm_clear_slot(arm)
+                # The reservation is atomic: only the token holder runs Python,
+                # and no step call happens between the check and the increment.
+                if session.reserved >= session.budget:
+                    break
+                session.reserved += 1
+                ran = False
+                session.station.acquire(relay)
+                say(f"[biarm] {arm}: station acquired at t={self._sim_time():.1f}s")
+                try:
+                    self._biarm_wait_station_clear(session, arm)
+                    state = self.select_target(
+                        self.spawner.state(),
+                        lane=bin_index,
+                        min_lead_s=float(
+                            os.environ.get("FRUIT_BIARM_SELECT_LEAD_S", "1.4")
+                        ),
+                    )
+                    if state is None:
+                        # Nothing to pick for this lane right now; give the slot
+                        # back, feed the line and try again later.
+                        session.reserved -= 1
+                        say(f"[biarm] {arm}: no eligible fruit; station released")
+                    else:
+                        result = self.run(state, bin_index)
+                        session.results.append(result)
+                        ran = True
+                        # Print the attempt as it completes, so a killed batch
+                        # still leaves a parseable per-attempt record.
+                        say(
+                            f"[biarm] result {arm} index={result.sample_index} "
+                            f"{result.category} grasped={result.grasped} "
+                            f"placed={result.placed} lift={result.peak_lift:+.3f} "
+                            f"force={result.max_tactile_force:.2f} "
+                            f"sim={result.sim_span:.1f}s notes={result.notes}"
+                        )
+                finally:
+                    self._biarm_clear_slot(arm)
+                    self._biarm_park(arm)
+                    session.station.release()
+                if not ran:
+                    # Starved lane: release, feed once and let the belt advance;
+                    # the release schedule advances at attempt boundaries only
+                    # (the single-arm line's cadence), so the station does not
+                    # face a permanently packed queue.
+                    self.spawner.update(self._sim_time())
+                    for _ in range(max(60, gap_ticks)):
+                        self._step_sim(1)
+                    continue
+                # A short feed gap between attempts, like the driver's between
+                # loops: recycle line traffic and let the feeder release fruit.
+                self.spawner.update(self._sim_time())
+                for _ in range(gap_ticks):
+                    self._step_sim(1)
+        except BaseException as exc:  # noqa: BLE001 - re-raised on the main thread
+            session.errors.append(exc)
+        finally:
+            relay.release()
+
+    def _biarm_park(self, arm: str) -> None:
+        """Return a finished attempt's arm to ready, gated on the other arm.
+
+        `_ready_transit` sweeps the hand up and back toward the body, i.e.
+        through the station volume, and the single-arm line does it with the
+        cell empty. Here the *other* arm may be using the station (`run 07`: the
+        right arm's return re-blended its wrist while the left arm was carrying,
+        and the left payload was knocked out of the jaws mid-place). The return
+        therefore waits until the other arm neither owns the station nor carries
+        a payload, stepping physics in place meanwhile. An arm already at ready
+        returns immediately - the starved no-fruit slots depend on that.
+        """
+        try:
+            ready = self._pose(arm, "ready")
+            if float(np.max(np.abs(self.arms[arm].joint_positions() - ready))) <= self.TRANSIT_TOL:
+                return
+            other = "right" if arm == "left" else "left"
+            limit = int(os.environ.get("FRUIT_BIARM_PARK_WAIT", "1200"))
+            for _ in range(limit):
+                session = self._active_session
+                owner = session.station.owner if session is not None else None
+                station_busy = owner is not None and owner != threading.get_ident()
+                if not station_busy and self._closed_gap.get(other) is None:
+                    break
+                self._step_sim(1)
+            else:
+                say(
+                    f"[biarm] {arm}: the other arm was busy for {limit} ticks; "
+                    "parking anyway"
+                )
+            self.go_ready(arm)
+        except Exception as exc:  # noqa: BLE001 - parking must not mask the result
+            say(f"[biarm] {arm}: park after attempt failed ({exc!r})")
+
+    def _biarm_wait_station_clear(self, session: CoopSession, arm: str) -> None:
+        """Wait for the other arm to leave the station box before pre-posing.
+
+        The station lock already hands over only after the previous payload
+        cleared the box; this additionally watches the *hand*, which trails the
+        payload out of the box. A failed attempt parks its arm at ready in the
+        worker's `finally`, so this normally passes within a few ticks.
+        """
+        other = "right" if arm == "left" else "left"
+        limit = int(os.environ.get("FRUIT_BIARM_CLEAR_WAIT", "600"))
+        for _ in range(limit):
+            if not self._biarm_arm_inside_station(other):
+                return
+            self._step_sim(1)
+        say(
+            f"[biarm] warning: {other} arm still inside the station box after "
+            f"{limit} ticks; proceeding"
+        )
+
+    def _biarm_arm_inside_station(self, side: str) -> bool:
+        """Whether one arm's measured jaw centre is inside the station box.
+
+        The box is deliberately tighter than the ready-pose offsets: the two
+        ready jaws sit at y = +-0.055 m, 55 mm apart, and coexist by design in
+        the shipped line, so they must count as *clear*.
+        """
+        jaw = np.asarray(self.arms[side].jaw_centre(), dtype=float)
+        return bool(
+            abs(float(jaw[1]) - float(self.cfg.pick_y))
+            <= float(os.environ.get("FRUIT_BIARM_GUARD_Y", "0.045"))
+            and float(jaw[0]) <= float(os.environ.get("FRUIT_BIARM_GUARD_X", "0.55"))
+            and float(jaw[2]) <= float(os.environ.get("FRUIT_BIARM_GUARD_Z", "1.45"))
+        )
+
+    def _biarm_payload_clear(self, sample) -> bool:
+        """Whether the carried payload has left the station box.
+
+        Only the lateral/forward terms are used: during the vertical belt-break
+        the payload is directly above the station at z ~ 1.4-1.45 and the other
+        arm must not descend under it, so a height criterion would release the
+        station too early.
+        """
+        pos = np.asarray(self.spawner.position(sample), dtype=float)
+        return bool(
+            abs(float(pos[1]) - float(self.cfg.pick_y))
+            > float(os.environ.get("FRUIT_BIARM_CLEAR_Y", "0.28"))
+            or float(pos[0]) > float(os.environ.get("FRUIT_BIARM_CLEAR_X", "0.52"))
+        )
+
+    def _biarm_after_step(self) -> None:
+        """Per-tick bimanual bookkeeping, called from `_step_sim`.
+
+        Station release: the holder gives the station up once the carried
+        payload has been clear of the station box for
+        `FRUIT_BIARM_CLEAR_TICKS` consecutive ticks (transients must not hand it
+        over mid-crossing). Clearance trace: with `FRUIT_BIARM_TRACE=1`, the
+        minimum inter-arm link-origin distance is sampled - link reads are the
+        invasive class, so the trace is default off.
+        """
+        session = self._active_session
+        if session is None:
+            return
+        if session.trace:
+            self._biarm_trace_sample(session)
+        if not session.station.held_by_current():
+            self._biarm_clear_streak = 0
+            return
+        sample = self.current_sample
+        if sample is None or self._closed_gap.get(self.current_arm) is None:
+            # No payload in the hand yet (or any more): the fruit's position on
+            # the belt says nothing about station occupancy. Only a *held*
+            # payload that has left the box frees the station.
+            self._biarm_clear_streak = 0
+            return
+        if self._biarm_payload_clear(sample):
+            self._biarm_clear_streak += 1
+        else:
+            self._biarm_clear_streak = 0
+        if self._biarm_clear_streak >= int(os.environ.get("FRUIT_BIARM_CLEAR_TICKS", "5")):
+            session.station.release()
+            self._biarm_clear_streak = 0
+            say(f"[biarm] station handed over by {self.current_arm} (payload clear)")
+
+    def _biarm_trace_sample(self, session: CoopSession) -> None:
+        """Sample the minimum inter-arm link-origin separation (opt-in trace).
+
+        Uses USD world transforms, not `RigidPrim.get_world_poses`: the physics
+        tensor read back-syncs per call and measured ~30 s per 20-link sample
+        (the first trace run spent 13 minutes in one pre-pose). The USD xform
+        the renderer uses is the same physics state (`_fingertip_lowest_z`
+        already reads it for the lowered place) and costs microseconds. The
+        trace is still default off: it is a report, not a control input.
+        """
+        every = max(1, int(os.environ.get("FRUIT_BIARM_TRACE_EVERY", "2")))
+        count = getattr(session, "_trace_ticks", 0) + 1
+        session._trace_ticks = count
+        if count % every:
+            return
+        from pxr import Usd, UsdGeom
+
+        paths = getattr(self, "_biarm_link_paths", None)
+        if paths is None:
+            paths = {}
+            for side in ("left", "right"):
+                names = list(self.arms[side].robot.link_names)
+                link_paths = self.arms[side].robot.link_paths
+                if link_paths and isinstance(link_paths[0], (list, tuple)):
+                    link_paths = link_paths[0]
+                entries = []
+                for index, name in enumerate(names):
+                    # `openarm_left_right_finger` contains both `_left_` and
+                    # `_right_`, so the side must be a name *prefix*; the
+                    # substring filter cross-links the arms' opposite fingers
+                    # (the first trace reported 0 mm: both sides resolved to
+                    # `openarm_left_right_finger`).
+                    if not str(name).startswith(f"openarm_{side}_"):
+                        continue
+                    path = link_paths[index]
+                    if isinstance(path, (list, tuple)):
+                        path = path[0]
+                    entries.append((name, str(path)))
+                paths[side] = entries
+            self._biarm_link_paths = paths
+        stage = self.scene.stage
+        names: dict[str, list[str]] = {"left": [], "right": []}
+        poses: dict[str, list[np.ndarray]] = {"left": [], "right": []}
+        for side in ("left", "right"):
+            for name, path in paths[side]:
+                prim = stage.GetPrimAtPath(path)
+                if not prim.IsValid():
+                    continue
+                matrix = UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(
+                    Usd.TimeCode.Default()
+                )
+                positions = np.array(matrix).reshape(4, 4).T[0:3, 3]
+                poses[side].append(np.asarray(positions, dtype=float))
+                names[side].append(name)
+        if not poses["left"] or not poses["right"]:
+            return
+        right = np.asarray(poses["right"], dtype=float)
+        best = (float("inf"), "", "")
+        for index, left_pos in enumerate(poses["left"]):
+            distances = np.linalg.norm(right - np.asarray(left_pos, dtype=float), axis=1)
+            nearest = int(np.argmin(distances))
+            if float(distances[nearest]) < best[0]:
+                best = (float(distances[nearest]), names["left"][index], names["right"][nearest])
+        session.trace_rows.append(
+            (float(self._sim_time()), best[0], best[1], best[2])
+        )
+
+    def _biarm_trace_report(self, session: CoopSession) -> None:
+        """Print (and optionally persist) the clearance trace of one pair-run."""
+        if not session.trace:
+            return
+        rows = session.trace_rows
+        if not rows:
+            say("[biarm] clearance trace: no samples")
+            return
+        best = min(rows, key=lambda row: row[1])
+        say(
+            f"[biarm] clearance trace: min link separation {best[1] * 1000:.0f} mm "
+            f"at t={best[0]:.2f}s ({best[2]} vs {best[3]}), {len(rows)} samples"
+        )
+        path = os.environ.get("FRUIT_BIARM_TRACE_FILE")
+        if path:
+            directory = os.path.dirname(path)
+            if directory:
+                os.makedirs(directory, exist_ok=True)
+            with open(path, "a", encoding="utf-8") as handle:
+                for row in rows:
+                    handle.write(
+                        json.dumps(
+                            {
+                                "t": round(row[0], 5),
+                                "min_m": round(row[1], 5),
+                                "left_link": row[2],
+                                "right_link": row[3],
+                            }
+                        )
+                        + "\n"
+                    )
+            say(f"[biarm] clearance trace appended -> {path}")
 
     def _run_impl(self, state: dict, bin_index: int, lead_time: float = 1.2,
                   verbose: bool = True) -> EpisodeResult:
@@ -2492,6 +3189,7 @@ class PickAndPlaceTask:
         # used as the seed and the IK solves the small lateral offset.
         t0 = self._sim_time()
         self._attempt_sim_t0 = t0
+        self._cycle_begin()
         # Grasp height. The wrist cannot descend to the fruit's equator with the
         # jaws across the belt (measured minimum ~belt_top + 0.08, see
         # `SceneConfig.grasp_clearance`), so the arm is aimed at the reachable pick
@@ -2577,9 +3275,23 @@ class PickAndPlaceTask:
         arm.hold_quaternion = None
         # Re-assert the open gripper: the teleport above moves the fingers too.
         arm.set_gripper(arm.OPEN)
-        app_utils.update_app(steps=20)
+        if self._active_session is not None:
+            # Under the bimanual session this pump is bridged to the main thread,
+            # and `update_app` is not a fixed step (AGENTS section 3b): measured,
+            # twenty app updates advanced the pre-pose 1.37 s instead of the
+            # single-arm 0.88 s, which pushed the selection lead out of
+            # calibration (fruits selected in the station window arrived after
+            # the pre-pose had ended). Step physics explicitly and keep the pump,
+            # exactly like the drivers' `advance()`.
+            from isaacsim.core.simulation_manager import SimulationManager
+
+            SimulationManager.step(steps=20)
+            app_utils.update_app(steps=0)
+        else:
+            app_utils.update_app(steps=20)
         move_time = self._sim_time() - t0
         jaw_hold = arm.jaw_centre().copy()
+        self._cycle_mark("prepose")
         if verbose:
             say(
                 f"[task] at pick pose after {move_time:.2f} s (residual={residual:.4f} m) "
@@ -2619,6 +3331,7 @@ class PickAndPlaceTask:
         else:
             self._dynamic_grip_target = None
             self._dynamic_hover_target = None
+        self._cycle_mark("hover")
 
         pos = self.spawner.position(sample)
         # The pads are placed on the fruit's *measured* position, so a fruit a few
@@ -2823,12 +3536,39 @@ class PickAndPlaceTask:
         # Everything from here on is the contact work: seat, grasp, carry, release.
         # It lives in its own method so the hybrid evaluator can reuse exactly the
         # same primitives after the policy has driven the approach.
-        return self.grasp_carry_place(
+        result = self.grasp_carry_place(
             arm_name, sample, bin_index, result, verbose=verbose, scripted=True
         )
+        self._cycle_mark("end")
+        return result
 
     def grasp_carry_place(self, arm_name: str, sample, bin_index: int,
                           result, verbose: bool = False, scripted: bool = False):
+        """Public entry: the contact work, with the mechanism trace kept alive.
+
+        Thin wrapper over `_grasp_carry_place_impl`. It exists only so the
+        attempt's `FRUIT_DYNAMIC_TRACE` rows survive on the *direct* path (the
+        scripted loop flushes them from `note_result`); with the trace off this
+        adds one function call and does nothing else. The handover row it
+        records before the primitive starts is what says where the policy left
+        the jaws relative to the station.
+        """
+        if not scripted and self._dynamic_trace is not None:
+            self._dynamic_trace_sample(
+                "handover", sample, self.arms[arm_name], self.grippers[arm_name], 0.0
+            )
+        outcome = "fail"
+        try:
+            result = self._grasp_carry_place_impl(
+                arm_name, sample, bin_index, result, verbose=verbose, scripted=scripted
+            )
+            outcome = "ok" if getattr(result, "success", False) else "fail"
+        finally:
+            self._dynamic_trace_dump(arm_name, scripted, outcome)
+        return result
+
+    def _grasp_carry_place_impl(self, arm_name: str, sample, bin_index: int,
+                                result, verbose: bool = False, scripted: bool = False):
         """Seat, grasp, carry and release a fruit that is already at the pick point.
 
         The contact work of an episode, without the approach: the hybrid evaluator
@@ -2837,8 +3577,9 @@ class PickAndPlaceTask:
 
         `scripted=True` marks the call from `_run_impl` (the scripted line), which
         is the path the P2 moving catch is built for. A direct call (the policy
-        handover) keeps the P1 indexed default unless `FRUIT_DYNAMIC_PICK` says
-        otherwise - `_dynamic_pick_mode` is the single place that decides.
+        handover) keeps the P1 indexed default unless `FRUIT_DYNAMIC_PICK=1`
+        asks for the true dynamic line - `_dynamic_pick_mode` is the single
+        place that decides.
         """
         belt = getattr(self.spawner, "belt", None)
         arm = self.arms[arm_name]
@@ -2850,10 +3591,76 @@ class PickAndPlaceTask:
         # carries and places (see the note at the end of the lift).
         dynamic_pick = self._dynamic_pick_mode(openarm, scripted=scripted)
         #: The P2 catch proper: the arm meets the fruit at the station with a
-        #: static descent and closes while tracking it. Only the scripted openarm
-        #: path runs it; the pad hand's dynamic close tracks by construction and
-        #: the policy handover stays on the P1 primitive.
-        dynamic_capture = bool(dynamic_pick and openarm and scripted)
+        #: static descent and closes while tracking it. The scripted openarm path
+        #: always runs it; the policy handover runs it when `FRUIT_DYNAMIC_PICK=1`
+        #: asks for the true dynamic line (the v8/P1 directive) - its trigger
+        #: hands over on the predicted arrival, so the catch only has to meet the
+        #: schedule. With the env unset the handover keeps the P1 indexed
+        #: primitive (the pad hand's dynamic close tracks by construction).
+        dynamic_capture = bool(dynamic_pick and openarm)
+        #: P2b left-arm fix. The direct (policy) handover used the scripted 6 cm
+        #: hover and paid for it: its pre-descent overhead (~0.7 s) plus the
+        #: descent itself (~0.7 s) put the fruit 5-8 cm *downstream* when the
+        #: catch-up began. Chasing it there drives the left arm's joint2 into its
+        #: upper limit (+0.1745 rad; the mirrored right range is +3.32 rad), the
+        #: IK saturates (clipped 200/200 ticks, |error6| 0.09 -> 0.83 rad,
+        #: `logs/p2b/diag3/`) and the close misses. Measured on a reach ladder
+        #: (`logs/p2b/reach_ladder.log`): with the catch hold the left tracks
+        #: cleanly to ~4.5 cm downstream of the station, the right to ~15 cm.
+        #:
+        #: The fix, direct path only (the scripted line reads none of it and is
+        #: bit-unchanged):
+        #: * park at the station's *grip* pose (`FRUIT_DIRECT_HOVER=0`) instead
+        #:   of the 6 cm hover, so the setup no longer spends the descent's 0.7 s
+        #:   after the trigger;
+        #: * hold the grip for a bounded servo (`FRUIT_DIRECT_HOLD_TICKS`) so the
+        #:   coarse `move_to`'s ~1 cm parking residual is settled before the fruit
+        #:   arrives;
+        #: * skip the profiled final approach (`FRUIT_DIRECT_SKIP_APPROACH`): its
+        #:   minimum duration (40 ticks for 11 mm) let the fruit cross the station
+        #:   before the close; the catch-up tracks the fruit and completes the
+        #:   last centimetres itself;
+        #: * cap the catch-up's per-tick downstream command
+        #:   (`FRUIT_DIRECT_CATCH_MAX=0.035`), so any timing residual stays inside
+        #:   the left arm's measured band;
+        #: * `FRUIT_DIRECT_CATCH_LEAD` (0.25 s, the same as the scripted catch-up
+        #:   lead) is the convergence compensation - it only applies while the tip
+        #:   chases, and the cap bounds it.
+        #: `FRUIT_DIRECT_HOVER=0.06 FRUIT_DIRECT_SKIP_APPROACH=0
+        #: FRUIT_DIRECT_HOLD_TICKS=0 FRUIT_DIRECT_CATCH_MAX=1000` restores the
+        #: pre-fix direct flow as the control.
+        direct_capture = bool(dynamic_capture and not scripted)
+        direct_hover = float(os.environ.get("FRUIT_DIRECT_HOVER", "0.0"))
+        direct_catch_lead = float(os.environ.get("FRUIT_DIRECT_CATCH_LEAD", "0.25"))
+        #: Safety net for the direct catch-up: never command the tip more than
+        #: this far downstream of where it is. The left arm cannot track more
+        #: than ~4.5 cm downstream of the station with the catch hold
+        #: (`logs/p2b/reach_ladder.log`); a larger command saturates joint2 and
+        #: the arm sweeps across the fruit instead of following it. The fruit
+        #: moves 1 mm/tick, so a 3.5 cm cap loses nothing: the next tick
+        #: re-commands from the improved tip.
+        direct_catch_max = float(os.environ.get("FRUIT_DIRECT_CATCH_MAX", "0.035"))
+        if direct_capture:
+            # `_run_impl` computes these at its upstream hover handover; a direct
+            # handover has no hover yet (the policy left the arm near its own
+            # pose) and the attempt-local values may be stale from a previous
+            # episode, so recompute the station-relative grip/hover for this
+            # fruit. The hover-wait and intercept below then time the descent.
+            self._dynamic_grip_target = self._dynamic_grip_point(sample)
+            self._dynamic_hover_target = (
+                self._dynamic_grip_point(sample)
+                + np.array([0.0, 0.0, direct_hover])
+            )
+            if os.environ.get("FRUIT_HANDOVER_DIAG", "0") == "1":
+                _jaw = np.asarray(arm.jaw_centre(), dtype=float)
+                say(
+                    f"[diag] handover {arm_name}: fruit="
+                    f"{np.round(np.asarray(self.spawner.position(sample), dtype=float), 4).tolist()} "
+                    f"jaw={np.round(_jaw, 4).tolist()} grip="
+                    f"{np.round(self._dynamic_grip_target, 4).tolist()} hover="
+                    f"{np.round(self._dynamic_hover_target, 4).tolist()} "
+                    f"dy_station={float(self.cfg.pick_y) - float(_jaw[1]):+.4f} m"
+                )
         self._dynamic_capture_active = dynamic_capture
         # Fresh peak-hold origin per attempt (set pre-probe below).
         self._dynamic_peak_z = None
@@ -3108,18 +3915,32 @@ class PickAndPlaceTask:
                     if dynamic_capture:
                         # Straight to the hover: the fruit is still upstream, so
                         # the hand waits for it above the station and the descent
-                        # in the block below is the measured approach leg.
+                        # in the block below is the measured approach leg. The
+                        # direct (policy) handover uses its own short hover
+                        # (`direct_hover`): its late start cannot afford the 6 cm
+                        # descent that would put the fruit past the reachable
+                        # downstream band of the left arm (`logs/p2b/diag3`).
                         premove = premove + np.array(
-                            [0.0, 0.0, float(os.environ.get(
-                                "FRUIT_DYNAMIC_HOVER",
-                                os.environ.get("FRUIT_HOVER", "0.06"),
-                            ))]
+                            [0.0, 0.0, direct_hover if direct_capture else float(
+                                os.environ.get(
+                                    "FRUIT_DYNAMIC_HOVER",
+                                    os.environ.get("FRUIT_HOVER", "0.06"),
+                                )
+                            )]
                         )
                     arm.move_to(
                         arm.tcp_target_for_jaw(premove),
                         max_steps=int(os.environ.get("FRUIT_OPENARM_PREMOVE", "400")),
                         tolerance=0.02,
                     )
+                    if os.environ.get("FRUIT_HANDOVER_DIAG", "0") == "1":
+                        _jaw = np.asarray(arm.jaw_centre(), dtype=float)
+                        _err = float(np.linalg.norm(_jaw - premove))
+                        say(
+                            f"[diag] premove {arm_name}: err={_err * 1000:.0f} mm "
+                            f"jaw={np.round(_jaw, 4).tolist()} "
+                            f"target={np.round(premove, 4).tolist()}"
+                        )
                 for _tick in range(track_ticks):
                     if dynamic_capture:
                         fruit = aim  # hold the station; see the note above
@@ -3222,7 +4043,8 @@ class PickAndPlaceTask:
                     if dynamic_capture and self._dynamic_grip_target is not None:
                         # The arm waited at this hover (see `_run_impl`): use the
                         # exact target it is already holding, so the descent starts
-                        # on schedule instead of after a fresh move.
+                        # on schedule instead of after a fresh move. A direct
+                        # handover computed this hover itself (`direct_hover`).
                         grip = np.asarray(self._dynamic_grip_target, dtype=float).copy()
                         hover = np.asarray(self._dynamic_hover_target, dtype=float).copy()
                     else:
@@ -3233,7 +4055,21 @@ class PickAndPlaceTask:
                         hover[2] += float(os.environ.get("FRUIT_HOVER", "0.06"))
                     previous_max_step = arm.max_step
                     arm.max_step = float(os.environ.get("FRUIT_HOVER_STEP", "0.04"))
-                    arm.move_to(arm.tcp_target_for_jaw(hover), max_steps=500, tolerance=0.008)
+                    # NB: a *tighter* tolerance here was measured harmful: the
+                    # drives settle at ~5-8 mm, so a 3 mm target runs `move_to` to
+                    # its full 500 steps (4.2 s) and the fruit is 40 cm downstream
+                    # before the descent (`logs/p2b/smoke_fix2`). The descent below
+                    # starts from the parked pose and absorbs the residual.
+                    hover_residual = arm.move_to(
+                        arm.tcp_target_for_jaw(hover), max_steps=500, tolerance=0.008
+                    )
+                    if os.environ.get("FRUIT_HANDOVER_DIAG", "0") == "1":
+                        _jaw = np.asarray(arm.jaw_centre(), dtype=float)
+                        say(
+                            f"[diag] hover {arm_name}: err={hover_residual * 1000:.0f} mm "
+                            f"jaw={np.round(_jaw, 4).tolist()} "
+                            f"target={np.round(hover, 4).tolist()}"
+                        )
                     if os.environ.get("FRUIT_APPROACH_SETTLE", "1") == "1":
                         # The scripted moving catch bounds this: it hands over a
                         # fixed upstream distance and every 0.1 s of settling is
@@ -3261,9 +4097,9 @@ class PickAndPlaceTask:
                         # here commands the arm but the hover hold, and no
                         # `[motion]` leg is emitted for it.
                         dyn_v_max = float(
-                            os.environ.get("FRUIT_DYNAMIC_APPROACH_VMAX", os.environ.get("FRUIT_APPROACH_VMAX", "0.03"))
+                            os.environ.get("FRUIT_DYNAMIC_APPROACH_VMAX", os.environ.get("FRUIT_APPROACH_VMAX", "0.15"))
                         )
-                        dyn_a_max = float(os.environ.get("FRUIT_APPROACH_AMAX", "0.4"))
+                        dyn_a_max = float(os.environ.get("FRUIT_APPROACH_AMAX", "0.8"))
                         # Time the descent with the duration it will actually
                         # take. The historic estimate fed `_approach_duration`
                         # the jaw-space hover height (0.06 m), 12 % longer than
@@ -3284,9 +4120,25 @@ class PickAndPlaceTask:
                         )
                         waited = 0
                         max_wait = int(os.environ.get("FRUIT_DYNAMIC_WAIT_MAX", "900"))
+                        # The direct handover parks at the grip; it must actually
+                        # *reach* it before the close starts. A held servo of
+                        # `FRUIT_DIRECT_HOLD_TICKS` settles the ~1 cm parking
+                        # residual the coarse `move_to` leaves (the drives settle
+                        # near its 8 mm tolerance), so the catch-up begins with
+                        # the tip at the station instead of a centimetre short
+                        # (`logs/p2b/smoke_fix1`, left strawberry). The scripted
+                        # line reads 0 and is bit-unchanged.
+                        hold_ticks = (
+                            int(os.environ.get("FRUIT_DIRECT_HOLD_TICKS", "20"))
+                            if direct_capture
+                            else 0
+                        )
                         while waited < max_wait:
                             fruit_now = np.asarray(self.spawner.position(sample), dtype=float)
-                            if float(fruit_now[1]) - float(grip[1]) <= deadline:
+                            if (
+                                float(fruit_now[1]) - float(grip[1]) <= deadline
+                                and waited >= hold_ticks
+                            ):
                                 break
                             arm.ik_step(arm.tcp_target_for_jaw(hover))
                             self._step_sim(1)
@@ -3326,11 +4178,37 @@ class PickAndPlaceTask:
                                 f"fruit dy={dy_now:+.4f} m, deadline={deadline:.4f} m, "
                                 f"t_desc={t_desc:.2f} s"
                             )
+                        if os.environ.get("FRUIT_HANDOVER_DIAG", "0") == "1":
+                            _jaw = np.asarray(arm.jaw_centre(), dtype=float)
+                            _fruit = np.asarray(
+                                self.spawner.position(sample), dtype=float
+                            )
+                            say(
+                                f"[diag] wait {arm_name}: waited={waited} "
+                                f"deadline={deadline:.4f} fruit_y={float(_fruit[1]):+.4f} "
+                                f"jaw={np.round(_jaw, 4).tolist()} "
+                                f"jaw_to_grip={float(np.linalg.norm(_jaw - grip)) * 1000:.0f} mm"
+                            )
                     self._dynamic_trace_sample("descent", sample, arm, gripper, 0.0,
                                                fruit=np.asarray(self.spawner.position(sample)))
-                    arm.max_step = float(os.environ.get("FRUIT_APPROACH_STEP", "0.08"))
-                    self._approach(arm, grip, verbose=verbose, v_max=dyn_v_max)
+                    # The *direct* handover's final approach is the catch-up
+                    # itself: `_approach` runs a jerk-limited profile whose
+                    # minimum duration is 40 ticks for 11 mm, and those 0.33 s
+                    # let the fruit cross the station before the close even
+                    # starts (`logs/p2b/smoke_fix4`, left strawberry). The
+                    # catch-up tracks the fruit's measured position, so it
+                    # completes the last centimetres *and* the timing in the
+                    # same ticks. The scripted line keeps the profiled descent -
+                    # the motion gate measures that leg and its timing is what
+                    # the arrival schedule is calibrated on.
+                    skip_approach = direct_capture and (
+                        os.environ.get("FRUIT_DIRECT_SKIP_APPROACH", "1") == "1"
+                    )
+                    if not skip_approach:
+                        arm.max_step = float(os.environ.get("FRUIT_APPROACH_STEP", "0.08"))
+                        self._approach(arm, grip, verbose=verbose, v_max=dyn_v_max)
                     arm.max_step = previous_max_step
+                    self._cycle_mark("descent")
                 if not coherent:
                     # Assisted frame: the pads are placed on the fruit's measured
                     # centre, and the *arm* is commanded so its jaw centre lands at
@@ -3544,8 +4422,23 @@ class PickAndPlaceTask:
                 # tolerance, 200 ticks of grazing contact, and the hand shoved
                 # the fruit off the line. Use its own (larger) lead so the
                 # achieved tip lands on the fruit.
-                catch_lead_s = float(os.environ.get("FRUIT_DYNAMIC_CATCH_LEAD", "0.25"))
+                # The direct (policy) handover uses its own smaller lead: it meets
+                # the fruit near the station with a small gap, and the scripted
+                # 0.25 s lead would command ~3 cm past a 1 cm gap - past the left
+                # arm's measured downstream band (`logs/p2b/reach_ladder.log`).
+                catch_lead_s = float(
+                    direct_catch_lead
+                    if direct_capture
+                    else os.environ.get("FRUIT_DYNAMIC_CATCH_LEAD", "0.25")
+                )
                 catch_residual = float("inf")
+                #: Per-tick IK trace of the catch-up only (diagnostic, off by
+                #: default): it carries `limit_clipped`, `limit_margin`, the
+                #: Jacobian `sigma_min` and the position/attitude split, which the
+                #: dynamic trace cannot show.
+                catch_trace = os.environ.get("FRUIT_CATCH_TRACE", "0") == "1"
+                if catch_trace:
+                    arm.begin_trace()
                 for _ in range(catch_ticks):
                     fruit_now = np.asarray(self.spawner.position(sample), dtype=float)
                     dynamic_v = np.asarray(self.spawner.velocity(sample), dtype=float)
@@ -3571,23 +4464,57 @@ class PickAndPlaceTask:
                         )
                     else:
                         catch_centre = fruit_now
-                    arm.ik_step(
-                        arm.tcp_target_for_jaw(
-                            catch_centre
-                            + np.array([0.0, 0.0, self._pad_standoff(True, sample)])
-                        )
+                    catch_target = catch_centre + np.array(
+                        [0.0, 0.0, self._pad_standoff(True, sample)]
                     )
+                    if direct_capture:
+                        # Never command more than `direct_catch_max` downstream of
+                        # the current tip (see the knob's note): the left arm's
+                        # reachable band is ~4.5 cm, and a larger jump saturates
+                        # joint2 instead of closing the gap.
+                        catch_target[1] = max(
+                            float(catch_target[1]),
+                            float(tip[1]) - direct_catch_max,
+                        )
+                    arm.ik_step(arm.tcp_target_for_jaw(catch_target))
                     gripper.follow_centre(
                         fruit_now, np.asarray(arm.tcp_pose()[1], dtype=float), gap_open
                     )
                     self._step_sim(1)
                     self._dynamic_trace_sample(
-                        "catchup", sample, arm, gripper, gap_open
+                        "catchup", sample, arm, gripper, gap_open, cmd=catch_target
+                    )
+                if catch_trace:
+                    self._catch_trace_seq = int(
+                        getattr(self, "_catch_trace_seq", 0)
+                    ) + 1
+                    _dir = os.environ.get(
+                        "FRUIT_CATCH_TRACE_DIR", "logs/p2b/catch_trace"
+                    )
+                    os.makedirs(_dir, exist_ok=True)
+                    _path = os.path.join(
+                        _dir, f"catch_{self._catch_trace_seq:02d}_{arm_name}.json"
+                    )
+                    _count = arm.end_trace(_path)
+                    say(
+                        f"[trace] catchup IK trace {_count} steps -> {_path}"
                     )
                 if verbose:
                     say(
                         f"[task] dynamic catch-up: residual={catch_residual * 1000:.1f} mm "
                         f"(tol {catch_tol * 1000:.0f} mm)"
+                    )
+                if (
+                    os.environ.get("FRUIT_HANDOVER_DIAG", "0") == "1"
+                    and dynamic_capture
+                ):
+                    _jaw = np.asarray(arm.jaw_centre(), dtype=float)
+                    _fruit = np.asarray(self.spawner.position(sample), dtype=float)
+                    say(
+                        f"[diag] catchup {arm_name}: residual={catch_residual * 1000:.1f} mm "
+                        f"jaw={np.round(_jaw, 4).tolist()} "
+                        f"fruit={np.round(_fruit, 4).tolist()} "
+                        f"tip_y-fruit_y={float(_jaw[1] - _fruit[1]):+.4f}"
                     )
             live_squeeze = float(os.environ.get("FRUIT_DYNAMIC_CLOSE_LIVE", "0.97"))
             # --- P2b: stop the close expelling the fruit ------------------- #
@@ -3997,6 +4924,7 @@ class PickAndPlaceTask:
                     f"[task] kinematic grip closed to {grip_gap * 100:.2f}cm "
                     f"around a {sample.diameter * 100:.2f}cm fruit"
                 )
+        self._cycle_mark("close")
         # v6 experiment 1 (opt-in): contact-verification dwell. The close's fixed
         # `FRUIT_DYNAMIC_HOLD` ticks have run; with the knob on, keep holding and
         # tracking until the tactile verifies a real load
@@ -4736,7 +5664,9 @@ class PickAndPlaceTask:
                     or int(ramp_book["sustained"]) >= max(1, pause - 2)
                 )
             self._settle_to_rest(arm, max_ticks=120)
+        self._cycle_mark("grip")
         self._carry(arm_name, sample, "grasp_lift")
+        self._cycle_mark("lift")
         if os.environ.get("FRUIT_GRIPPER_DEBUG") == "1":
             say(
                 f"[task]   lift debug: tcp_z={arm.tcp_position()[2]:.4f} "
@@ -4772,7 +5702,14 @@ class PickAndPlaceTask:
             result.max_tactile_force = max(
                 result.max_tactile_force, self.tactile.read()[arm_name].normal_force
             )
-            app_utils.update_app(steps=1)
+            if self._active_session is not None:
+                # Same fixed-step rule as the pre-pose: under the bimanual
+                # session the app pump must not advance physics by a
+                # wall-clock-dependent amount.
+                SimulationManager.step(steps=1)
+                app_utils.update_app(steps=0)
+            else:
+                app_utils.update_app(steps=1)
         # Indexed line: hold the queue (gate closed, belt stopped) while the arm
         # grasps, then re-open and re-start for the next attempt. A *dynamic* line
         # never stops - the rest of the fruit keep travelling and the ones that are
@@ -4795,6 +5732,7 @@ class PickAndPlaceTask:
         # conveyor on its own side (crossing the body is outside the workspace),
         # so the lane index decides which arm picks.
         self._carry(arm_name, sample, f"place{bin_index}")
+        self._cycle_mark("place")
         if verbose:
             jaw = arm.jaw_centre()
             fr = self.spawner.position(sample)
@@ -4806,6 +5744,12 @@ class PickAndPlaceTask:
             )
         self.spawner.detach(sample)
         sample.held = False
+        #: Lowered place (v5 directive, phase A): set when `FRUIT_PLACE_LOW=1`
+        #: runs the accompanied descent in the block below; read by the retreat
+        #: and the landing trace after the release.
+        place_low = False
+        place_trace = None
+        low_info = None
         if self.grippers[arm_name].enabled and self._closed_gap.get(arm_name) is not None:
             # Open the kinematic jaws or the fruit stays gripped and is dragged
             # straight back off the line with the arm (logs/175: 5/8 grasped,
@@ -4866,6 +5810,22 @@ class PickAndPlaceTask:
             # `FRUIT_RELEASE_SUPPORT=1` restores the set-down ordering (lower to
             # first contact with the belt, then relax/dwell/open) as an A/B; the
             # `FRUIT_RELEASE_*` knobs all still apply.
+            #
+            # `FRUIT_PLACE_LOW` (default 1) replaces the free drop with the
+            # accompanied descent: the hand carries the fruit down to
+            # `FRUIT_PLACE_LOW_CLEARANCE` above the belt (fingertip-bounded), and
+            # the release ordering below then runs at that low pose. `=0`
+            # restores the historical 10 cm drop bit-for-bit. The landing trace
+            # (`FRUIT_PLACE_TRACE=1`) measures both modes identically.
+            place_low = os.environ.get("FRUIT_PLACE_LOW", "1") == "1"
+            if os.environ.get("FRUIT_PLACE_TRACE", "0") == "1":
+                place_trace = self._place_trace_start(
+                    arm_name, sample, self.cfg.output_belt_drop_points[bin_index]
+                )
+            if place_low:
+                centre, low_info = self._place_low(
+                    arm_name, sample, centre, quat, gap, place_trace
+                )
             if (
                 os.environ.get("FRUIT_RELEASE_SUPPORT", "0") == "1"
                 and isinstance(gripper, KinematicGripper)
@@ -4899,6 +5859,7 @@ class PickAndPlaceTask:
                                 self._release_probe(
                                     arm_name, sample, trace, "relax", _index, float(value)
                                 )
+                            self._place_probe(place_trace, sample, "relax", _index, float(value))
                     centre = base + axis * ((relax_gap - gap) / 2.0)
                 else:
                     for _index, value in enumerate(min_jerk_ramp(gap, relax_gap, relax_steps)):
@@ -4909,18 +5870,21 @@ class PickAndPlaceTask:
                                 self._release_probe(
                                     arm_name, sample, trace, "relax", _index, float(value)
                                 )
+                            self._place_probe(place_trace, sample, "relax", _index, float(value))
                 gap = relax_gap
             for _index in range(max(0, int(os.environ.get("FRUIT_RELEASE_DWELL", "20")))):
                 gripper.follow_centre(centre, quat, gap)
                 self._step_sim(1)
                 if release_debug:
                     self._release_probe(arm_name, sample, trace, "dwell", _index, gap)
+                self._place_probe(place_trace, sample, "dwell", _index, gap)
             for _index, value in enumerate(min_jerk_ramp(gap, release_gap, 40)):
                 gripper.follow_centre(centre, quat, float(value))
                 for _ in range(3):
                     self._step_sim(1)
                     if release_debug:
                         self._release_probe(arm_name, sample, trace, "pads", _index, float(value))
+                    self._place_probe(place_trace, sample, "pads", _index, float(value))
             self._closed_gap[arm_name] = None
             self._force_servo_reset(arm_name)
             self._gripper_offset[arm_name] = None
@@ -4932,6 +5896,8 @@ class PickAndPlaceTask:
                 self._step_sim(1)
                 if os.environ.get("FRUIT_RELEASE_DEBUG", "0") == "1":
                     self._release_probe(arm_name, sample, trace, "arm", _index, float(value))
+                self._place_probe(place_trace, sample, "arm", _index, float(value))
+        self._cycle_mark("release")
         # Retreat. Once the pads are open the fruit is on its own, and holding
         # station for another second is what the release `settle` used to do (60
         # ticks after a 48-tick finger ramp). Lifting the hand away instead reads
@@ -4942,7 +5908,11 @@ class PickAndPlaceTask:
         # the A4 left return then swings to 110.2 deg (`logs/694`, against
         # 64.3 deg with the plain settle). **Default 0** for that reason;
         # `FRUIT_RELEASE_RETREAT=0.08` turns it on if the carry attitude is fixed.
+        # The lowered place ends close to the belt, so it raises the hand by
+        # `FRUIT_PLACE_LOW_RETREAT` (8 cm) before the next cycle instead.
         retreat = float(os.environ.get("FRUIT_RELEASE_RETREAT", "0.0"))
+        if place_low:
+            retreat = float(os.environ.get("FRUIT_PLACE_LOW_RETREAT", "0.08"))
         if retreat > 0.0:
             # Re-anchor the drive target on the measured arm first: the pads push
             # the arm during the release (`logs/630`), and the first retreat step
@@ -4955,13 +5925,18 @@ class PickAndPlaceTask:
                 self._step_sim(1)
                 if os.environ.get("FRUIT_RELEASE_DEBUG", "0") == "1":
                     self._release_probe(arm_name, sample, trace, "retreat", 0, float(alpha))
+                self._place_probe(place_trace, sample, "retreat", 0, float(alpha))
         else:
             for _ in range(60):
                 self._step_sim(1)
                 if os.environ.get("FRUIT_RELEASE_DEBUG", "0") == "1":
                     self._release_probe(arm_name, sample, trace, "settle", 0, 0.0)
+                self._place_probe(place_trace, sample, "settle", 0, 0.0)
+        self._cycle_mark("return")
         if os.environ.get("FRUIT_RELEASE_DEBUG", "0") == "1":
             self._release_report(arm_name, sample, trace)
+        if place_trace is not None:
+            self._place_trace_report(place_trace, low_info)
         pos = self.spawner.position(sample)
         result.placed = bool(self.cfg.on_output_belt(pos))
         if verbose:
@@ -5142,6 +6117,309 @@ class PickAndPlaceTask:
             f"fruit={np.round(trace['fruit_vmax'], 4).tolist()} "
             f"pads=({np.round(a, 4).tolist()}|{np.round(b, 4).tolist()}) "
             f"events={len(trace['events'])}"
+        )
+
+    # ------------------------------------------------------------------ #
+    # Lowered place / landing trace (v5 directive, phase A)
+    # ------------------------------------------------------------------ #
+    def _place_low(self, arm_name, sample, centre, quat, gap, trace=None):
+        """Descend with the payload to a small clearance above the output belt.
+
+        The shipped place (since v5-A, `FRUIT_PLACE_LOW=1`): the historical 10 cm
+        free-drop release is replaced by an accompanied descent - the hand (and
+        the payload held in it) goes down until the fruit's lowest point stands
+        `FRUIT_PLACE_LOW_CLEARANCE` above the output-belt top (measured: the
+        OpenArm finger plates bind first at ~50 mm, so that is the effective
+        clearance), then the release ordering runs at that pose, so the pads open
+        a few centimetres over the surface instead of ten. The stop condition
+        reads the *fruit's* measured lowest point every tick, so a hand
+        that stalls or a payload that slips down relative to the hand stops the
+        leg at the honest height. The OpenArm jaw hand's descent is additionally
+        capped by the measured fingertip height (`FRUIT_PLACE_LOW_FINGER_MARGIN`
+        above the belt), so the visible fingers cannot be driven into the belt;
+        `FRUIT_PLACE_LOW_MAX_DROP` bounds the leg. The descent is payload-carrying
+        motion (slow and vertical), so it stays inside the friction cone.
+
+        Returns `(pad/jaw centre where the leg stopped, info dict)`. Reached on the
+        shipped line (`FRUIT_PLACE_LOW` default 1); `=0` restores the historical
+        free-drop release bit-for-bit.
+        """
+        floor = float(self.cfg.output_belt_top_z)
+        clearance = float(os.environ.get("FRUIT_PLACE_LOW_CLEARANCE", "0.025"))
+        ceiling = float(os.environ.get("FRUIT_PLACE_LOW_MAX_DROP", "0.30"))
+        margin = float(os.environ.get("FRUIT_PLACE_LOW_FINGER_MARGIN", "0.005"))
+        steps = max(4, int(os.environ.get("FRUIT_PLACE_LOW_STEPS", "40")))
+        arm = self.arms[arm_name]
+        gripper = self.grippers[arm_name]
+        hand_is_jaw = getattr(gripper, "kind", "") == "openarm"
+        down = np.array([0.0, 0.0, -1.0])
+        fruit = np.asarray(self.spawner.position(sample), dtype=float)
+        bottom = float(fruit[2]) - self._shape_support(sample, down)
+        info = {
+            "target": clearance,
+            "need": bottom - floor - clearance,
+            "drop": 0.0,
+            "finger_budget": None,
+            "finger_bound": False,
+            "clearance": bottom - floor,
+            "residual": 0.0,
+            "ticks": 0,
+        }
+        need = float(info["need"])
+        if need <= 1e-4:
+            return np.asarray(centre, dtype=float), info
+        # Optional wrist hold for the vertical descent, applied *before* the
+        # fingertip floor is measured: `FRUIT_PLACE_LOW_TUCK_DEG` rotates the tool
+        # about its own closing axis so the long finger plates swing up instead of
+        # hanging below the payload (the shipped attitude leaves them ~43 mm below
+        # the fruit bottom, which is what stops the descent). Both knobs are off by
+        # default, and the tuck is a **measured negative**: +60 deg lifts the
+        # payload during the rotation (a held object is kinematically held, so the
+        # hand cannot re-seat it in the air - the fruit stopped 142 mm above the
+        # belt), -60 deg reaches 35-43 mm but the fruit then does not ride the belt
+        # (settle never reached, skid -214..-258 mm, `logs/place_low/04/05`). The
+        # place reach was also a measured constraint (a full-leg pin stalled the
+        # carry ~12 cm short, `logs/444`).
+        pinned = None
+        tuck_deg = float(os.environ.get("FRUIT_PLACE_LOW_TUCK_DEG", "0.0"))
+        if hand_is_jaw and (
+            tuck_deg != 0.0 or os.environ.get("FRUIT_PLACE_LOW_HOLD_QUAT", "0") == "1"
+        ):
+            q0 = np.asarray(arm.tcp_pose()[1], dtype=float).copy()
+            if tuck_deg != 0.0:
+                q0 = _quat_about_axis(q0, _quat_matrix(q0)[:, 1], np.deg2rad(tuck_deg))
+            pinned = q0
+            arm.hold_quaternion = pinned
+            if tuck_deg != 0.0:
+                jaw_now = np.asarray(arm.jaw_centre(), dtype=float).copy()
+                for _ in range(max(0, int(os.environ.get("FRUIT_PLACE_LOW_TUCK_SETTLE", "30")))):
+                    arm.ik_step(arm.tcp_target_for_jaw(jaw_now))
+                    self._step_sim(1)
+                    if trace is not None:
+                        self._place_probe(trace, sample, "tuck", 0, gap)
+                fruit = np.asarray(self.spawner.position(sample), dtype=float)
+                bottom = float(fruit[2]) - self._shape_support(sample, down)
+                info["need"] = float(bottom - floor - clearance)
+                need = float(info["need"])
+        drop = min(need, ceiling)
+        jaw0 = None
+        if hand_is_jaw:
+            jaw0 = np.asarray(arm.jaw_centre(), dtype=float).copy()
+            finger_budget = self._fingertip_lowest_z(arm_name) - floor - margin
+            info["finger_budget"] = float(finger_budget)
+            if finger_budget < drop:
+                drop = max(0.0, float(finger_budget))
+                info["finger_bound"] = True
+        info["drop"] = float(drop)
+        # The binding friction-cone direction of a vertical descent is the
+        # *upward* deceleration at the end (gravity hangs the payload from the
+        # faces), so the profile is budgeted on +z exactly as `grasp_lift` is;
+        # `FRUIT_PLACE_LOW_VMAX/AMAX` only tighten it further.
+        limits = TrajectoryLimits.from_env(CONTROL_DT)
+        limits.v_max = min(limits.v_max, float(os.environ.get("FRUIT_PLACE_LOW_VMAX", "0.30")))
+        limits.a_max = min(limits.a_max, float(os.environ.get("FRUIT_PLACE_LOW_AMAX", "2.0")))
+        mu_eff = float(os.environ.get("FRUIT_MU_SAFETY", "0.6")) * float(gripper.mu)
+        limits = limits.limited_by_cone(np.array([0.0, 0.0, 1.0]), mu_eff)
+        profile = jerk_limited(drop, limits)
+        steps = max(steps, len(profile[0]))
+        info["a_peak"] = float(np.abs(profile[2]).max()) if len(profile[2]) else 0.0
+        info["cone_budget"] = float(accel_budget(np.array([0.0, 0.0, 1.0]), mu_eff))
+        base = np.asarray(centre, dtype=float).copy()
+        rot = _quat_matrix(quat)
+        offset_tool = self._gripper_offset.get(arm_name)
+        offset_tool = None if offset_tool is None else np.asarray(offset_tool, dtype=float)
+        follow_arm = offset_tool is not None
+        if follow_arm and not hand_is_jaw:
+            target0 = base - rot @ offset_tool
+            follow_arm = bool(
+                np.linalg.norm(target0 - np.asarray(arm.tcp_position(), dtype=float))
+                < float(os.environ.get("FRUIT_RELEASE_ARM_TRACK", "0.20"))
+            )
+        residual = 0.0
+        placed = base
+        try:
+            for _index, dz in enumerate(min_jerk_ramp(0.0, drop, steps)):
+                if hand_is_jaw:
+                    arm.ik_step(
+                        arm.tcp_target_for_jaw(
+                            jaw0 + np.array([0.0, 0.0, -float(dz)])
+                        )
+                    )
+                    placed = np.asarray(arm.jaw_centre(), dtype=float)
+                    gripper.follow_centre(placed, quat, gap)
+                else:
+                    placed = np.asarray(
+                        gripper.follow_centre(
+                            base + np.array([0.0, 0.0, -float(dz)]), quat, gap
+                        ),
+                        dtype=float,
+                    )
+                    self._grip_centre[arm_name] = placed
+                    if follow_arm:
+                        residual = max(
+                            residual,
+                            abs(arm.ik_step(arm.tcp_target_for_jaw(placed - rot @ offset_tool))),
+                        )
+                self._step_sim(1)
+                info["ticks"] += 1
+                if trace is not None:
+                    self._place_probe(trace, sample, "lower", _index, gap)
+                fruit_now = np.asarray(self.spawner.position(sample), dtype=float)
+                bottom_now = float(fruit_now[2]) - self._shape_support(sample, down)
+                info["clearance"] = bottom_now - floor
+                if info["clearance"] <= clearance + 1e-4:
+                    break
+        finally:
+            if pinned is not None:
+                arm.hold_quaternion = None
+        info["residual"] = float(residual)
+        if hand_is_jaw:
+            placed = np.asarray(arm.jaw_centre(), dtype=float)
+        if os.environ.get("FRUIT_PLACE_LOW_DEBUG", "0") == "1" or info["finger_bound"]:
+            say(
+                f"[task] place low: bottom {bottom * 1000:.0f} -> "
+                f"{info['clearance'] * 1000:.0f} mm (target {clearance * 1000:.0f}), "
+                f"drop {info['drop'] * 1000:.0f}/{need * 1000:.0f} mm"
+                + (
+                    f", FINGER FLOOR budget {info['finger_budget'] * 1000:.0f} mm"
+                    if info["finger_bound"]
+                    else ""
+                )
+                + f", residual {info['residual'] * 1000:.1f} mm, {info['ticks']} ticks"
+            )
+        return placed, info
+
+    def _place_trace_start(self, arm_name, sample, target) -> dict:
+        """Begin one place's landing trace [diagnostic, `FRUIT_PLACE_TRACE=1`].
+
+        The trace is measurement only: it reads the fruit's pose/velocity and the
+        logger writes the landing (release height, impact, bounce, roll, settle,
+        final accuracy). It never commands anything, and fruit-pose reads are the
+        safe readback class (AGENTS section 2), so a trace-on run measures the
+        same scenario as a trace-off one.
+        """
+        return {
+            "arm": arm_name,
+            "sample": sample,
+            "target": np.asarray(target, dtype=float).copy(),
+            "t0": float(self._sim_time()),
+            "samples": [],
+        }
+
+    def _place_probe(self, trace, sample, stage: str, index: int, gap: float = 0.0) -> None:
+        """One landing-trace sample: the fruit's lowest point, pose and velocity."""
+        if trace is None:
+            return
+        fruit = np.asarray(self.spawner.position(sample), dtype=float)
+        vel = np.asarray(self.spawner.velocity(sample), dtype=float)
+        bottom = float(fruit[2]) - self._shape_support(sample, np.array([0.0, 0.0, -1.0]))
+        trace["samples"].append(
+            (
+                float(self._sim_time()),
+                stage,
+                int(index),
+                bottom,
+                float(fruit[0]),
+                float(fruit[1]),
+                float(fruit[2]),
+                float(vel[0]),
+                float(vel[1]),
+                float(vel[2]),
+            )
+        )
+
+    def _place_trace_report(self, trace, info=None) -> None:
+        """Summarise one place's landing [diagnostic, `FRUIT_PLACE_TRACE=1`].
+
+        `release` is the last sample with the pads still closed (before the
+        relax/dwell/pads opening stages; a raw `vz < 0` test would fire inside a
+        lowered descent), `impact` the largest downward speed after the release,
+        `bounce` the highest lowest-point after first contact above the belt top,
+        `roll` the along-belt travel from the release to the end of the window,
+        `skid` the part of that travel the fruit did *not* get from riding the
+        belt, `settle` the first time the fruit tracks the belt (|v - belt| <
+        0.05 m/s and |vz| < 0.03 m/s) for 10 consecutive samples. `off` is the
+        final position against the commanded place point.
+        """
+        samples = trace["samples"]
+        if not samples:
+            return
+        floor = float(self.cfg.output_belt_top_z)
+        belt_v = float(self.cfg.output_belt_speed)
+        # Release: the last sample while the pads are still closed at the place
+        # pose. The fall detector alone cannot define this on the lowered place -
+        # the descent itself moves the payload down at up to 0.3 m/s, so `vz < 0`
+        # fires inside the descent. The stage labels are the honest boundary: the
+        # last sample before the relax/dwell/pads opening begins.
+        stage_release = len(samples)
+        for index, sample in enumerate(samples):
+            if sample[1] in ("relax", "pads", "arm"):
+                stage_release = index
+                break
+        release_index = max(0, stage_release - 1)
+        release = samples[release_index]
+        first_fall = release_index
+        for index in range(release_index, len(samples)):
+            if samples[index][9] < -0.05:
+                first_fall = index
+                break
+        release_bottom = float(release[3]) - floor
+        impact = min(float(sample[9]) for sample in samples[first_fall:])
+        contact = None
+        for index in range(first_fall, len(samples)):
+            if samples[index][3] - floor <= 0.006:
+                contact = index
+                break
+        bounce = 0.0
+        settle_t = float("nan")
+        if contact is not None:
+            bounce = max(float(sample[3]) for sample in samples[contact:]) - floor
+            streak = 0
+            for sample in samples[contact:]:
+                speed = np.hypot(
+                    float(sample[7]) - belt_v, float(sample[8])
+                )
+                if speed < 0.05 and abs(float(sample[9])) < 0.03:
+                    streak += 1
+                    if streak >= 10:
+                        settle_t = float(sample[0]) - float(release[0])
+                        break
+                else:
+                    streak = 0
+        final = samples[-1]
+        roll = float(final[4]) - float(release[4])
+        # Belt-relative travel: how much of the along-belt motion the fruit did
+        # *not* get from simply riding the surface (a drop skids/slides, a
+        # settled fruit tracks the belt). Same sign as the belt, +X.
+        skid = roll - belt_v * (float(final[0]) - float(release[0]))
+        target = np.asarray(trace["target"], dtype=float)
+        off_xy = np.array([float(final[4]), float(final[5])]) - target
+        on_belt = bool(self.cfg.on_output_belt(np.array([final[4], final[5], final[6]])))
+        low_text = ""
+        if info is not None:
+            low_text = (
+                f" clearance={info['clearance'] * 1000:.1f}mm"
+                f" target={info['target'] * 1000:.1f}mm"
+                f" drop={info['drop'] * 1000:.1f}mm"
+                + (
+                    f" FINGER_FLOOR(budget {info['finger_budget'] * 1000:.0f}mm)"
+                    if info["finger_bound"]
+                    else ""
+                )
+                + f" ik={info['residual'] * 1000:.1f}mm"
+                + (
+                    f" a={info['a_peak']:.2f}/{info['cone_budget']:.2f}m/s^2"
+                    if "a_peak" in info
+                    else ""
+                )
+            )
+        say(
+            f"[task]   place trace {trace['arm']}: release_bottom={release_bottom * 1000:.1f}mm "
+            f"impact={impact:.2f}m/s bounce={bounce * 1000:.1f}mm roll={roll * 1000:+.0f}mm "
+            f"skid={skid * 1000:+.0f}mm settle={settle_t * 1000:.0f}ms "
+            f"final=({final[4]:.3f},{final[5]:+.3f},{final[6]:.3f}) "
+            f"off=({off_xy[0] * 1000:+.0f},{off_xy[1] * 1000:+.0f})mm on_belt={on_belt}"
+            f"{low_text}"
         )
 
     def pinch_width(self, sample, hand_quat) -> float:
@@ -5521,7 +6799,7 @@ class PickAndPlaceTask:
                 if v_max is None else float(v_max)
             )
             limits.a_max = (
-                float(os.environ.get("FRUIT_APPROACH_AMAX", "0.4"))
+                float(os.environ.get("FRUIT_APPROACH_AMAX", "0.8"))
                 if a_max is None else float(a_max)
             )
             positions, _, _ = jerk_limited(max(distance, 1e-3), limits)
@@ -5541,7 +6819,7 @@ class PickAndPlaceTask:
                 if v_max is None else float(v_max)
             )
             limits.a_max = (
-                float(os.environ.get("FRUIT_APPROACH_AMAX", "0.4"))
+                float(os.environ.get("FRUIT_APPROACH_AMAX", "0.8"))
                 if a_max is None else float(a_max)
             )
             positions, velocities, _ = jerk_limited(distance, limits)

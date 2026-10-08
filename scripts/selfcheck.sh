@@ -82,6 +82,21 @@ run_check "rtc runtime selftest" "$python" scripts/128_rtc_selftest.py
 # The encoder intercept trigger (P4b1/P4b2) is pure geometry over the fruit/jaw
 # vectors and the belt encoder: pin its gates and the env parsing offline.
 run_check "trigger intercept test" "$python" scripts/811_trigger_test.py
+# The consistency distillation (v5-C): implied x0, the DDIM-1 == implied-x0
+# identity the deployable 1-step sampler relies on, the EMA/CD objective and the
+# endpoint probe.
+run_check "distill selftest" "$python" scripts/131_distill_selftest.py
+# The v5-B loop metric (step/jerk/boundary/decision rate) is pure arithmetic:
+# pin it offline, before it is used to judge the fast-loop A/B.
+run_check "loop metrics selftest" "$python" scripts/125_loop_metrics.py --self-test
+# Path 3: the event-triggered replanning rule, the A2C2 correction head round
+# trip and the path-3 report criteria evaluator are all pure offline code.
+run_check "path3 event selftest" "$python" scripts/149_path3_selftest.py
+run_check "a2c2 correction selftest" "$python" scripts/146_train_correction.py --self-test
+run_check "path3 report selftest" "$python" scripts/148_path3_report.py --self-test
+# F2: the bimanual token/station invariants (exclusive stepping, alternation,
+# determinism, park/resume, steps on the main thread) are pure threading logic.
+run_check "bimanual scheduler test" "$python" scripts/152_biarm_selftest.py
 
 if [ -n "$run_log" ] && [ -f "$run_log" ]; then
     run_check "motion budgets" "$python" scripts/105_motion_regression.py "$run_log" \
