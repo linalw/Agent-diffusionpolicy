@@ -17,6 +17,11 @@
 # `src/fruit_sorting/rl_env.py`.
 #
 # Fixed configuration (override with the same-named env vars):
+#   FRUIT_SUPPLY_SCATTER      0         (the pre-v9 fixed supply: the policy is
+#                             OOD on the v9/V1 scattered supply - a frozen-tree
+#                             canary scored 2/10 there, `logs/v3/80_accept_policy_scatter.log`;
+#                             the recollection + fine-tune is the recorded next
+#                             step, `FRUIT_SUPPLY_SCATTER=1` opts back in)
 #   CKPT                      checkpoints/moe_v12/policy_best.pt
 #                             (the P2b left-handover-fixed checkpoint; direct at
 #                             belt 0.12: 32/45 = 71.1 %, left 0/17 -> 6/17,
@@ -82,6 +87,7 @@ fi
 
 export HEADLESS="$headless"
 export FRUIT_CAMERA_RES="${FRUIT_CAMERA_RES:-240,424}"
+export FRUIT_SUPPLY_SCATTER="${FRUIT_SUPPLY_SCATTER:-0}"
 export FRUIT_DYNAMIC_PICK="${FRUIT_DYNAMIC_PICK:-1}"
 export FRUIT_POLICY_TRIGGER="${FRUIT_POLICY_TRIGGER:-arrival}"
 export FRUIT_POLICY_TRIGGER_LEAD="${FRUIT_POLICY_TRIGGER_LEAD:-0.9}"

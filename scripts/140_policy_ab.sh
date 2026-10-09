@@ -16,6 +16,11 @@
 # Both arms run the small-fruit pool by default, because that is where the difference
 # under test (the closing target) lives: a strawberry's extent along the closing axis
 # is well under its nominal diameter while a lychee's is exact.
+#
+# Scenario: the pre-v9 fixed supply by default (`FRUIT_SUPPLY_SCATTER=0`); the
+# checkpoints are OOD on the v9/V1 scattered supply (a frozen-tree canary scored
+# 2/10 there, `logs/v3/80_accept_policy_scatter.log`), so the A/B numbers are
+# attributed to the fixed supply. Override with FRUIT_SUPPLY_SCATTER=1.
 set -uo pipefail
 
 cd "$(dirname "$0")/.."
@@ -44,6 +49,7 @@ run_arm() {
         log="$out/${label}_${i}.log"
         env $envs HEADLESS=1 FRUIT_HYBRID_EVAL=1 FRUIT_SIZE_FILTER="$size" \
             FRUIT_POLICY_SEED="$seed" FRUIT_CKPT="$ckpt" FRUIT_EPISODES="$episodes" \
+            FRUIT_SUPPLY_SCATTER="${FRUIT_SUPPLY_SCATTER:-0}" \
             $extra \
             scripts/run.sh scripts/60_eval_policy.py > "$log" 2>&1
         printf '  %s run %d: %s\n' "$label" "$i" \

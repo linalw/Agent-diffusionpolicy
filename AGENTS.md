@@ -43,9 +43,13 @@ applied to a leg that carries nothing - and state which attractor a run is in.
 
 **Since the v7/F1 directive (2026-10-06) the shipped scripted default is the
 dynamic never-stop line; the Gate-19 place sweep (2026-10-07) raised the place
-profile to 0.35/1.089.** With `FRUIT_DYNAMIC_PICK` unset the OpenArm scripted
-line takes the fruit on the fly (measured **9/10, 15.8 s/attempt**, the one
-failure the A6 kiwi catch-window miss);
+profile to 0.35/1.089; the v9/V1 supply change (2026-10-08) replaced the
+fixed-spacing feed with the scattered one (the supply paragraph below).**
+With `FRUIT_DYNAMIC_PICK` unset the OpenArm scripted line takes the fruit on the
+fly (on the pre-v9 fixed supply measured **9/10, 15.8 s/attempt**, the one
+failure the A6 kiwi catch-window miss; on the shipped scattered supply measured
+**9/10 x5 bit-identical, 15.2 s/attempt**, the one failure a left-arm
+place/carry escape, `logs/v1/20_rate_supply_1..5.log`);
 `FRUIT_DYNAMIC_PICK=0` restores the indexed *pick* (the P1 primitive - note the
 scenario defaults are now the v7 ones: 0.12 m/s belt, the compliant finger
 material, and the shared `FRUIT_APPROACH_AMAX` 0.4 -> 0.8 that the indexed
@@ -72,6 +76,39 @@ success floor is 0.75 of ten attempts while the indexed floor stays 0.9. Treat a
 dynamic rate the way the v2 paragraph below says: one configuration is one
 sample of a deterministic branch, so quote the per-leg cone/slip and the
 mechanism, not cross-configuration rate deltas.
+
+**The supply is scattered and mixed (v9/V1, 2026-10-08).** `FRUIT_SUPPLY_SCATTER=1`
+(shipped) builds a 16-fruit pool with the designed mix (8 A / 5 B / 3 C grades -
+the lane rule splits A vs the rest, so 50/30/20 keeps both lanes fed - and two
+of each class), a seeded shuffle of the arrival order, gaps sampled in
+0.10-0.35 m of belt travel, and a lateral band x = 0.20-0.36 m (not the belt
+width: the top-down catch's measured reach band is x = 0.18-0.39 with a hard
+cliff at 0.42 - `scripts/174_station_reach.py`,
+`logs/v1/61_station_reach_seeded.log`). The feeder keeps an absolute schedule
+and releases the backlog at the positions the fruit would have reached when the
+drivers' sparse `update` calls leave it behind, so the approach segment is
+stocked ("several at once") instead of the old one-fruit-per-attempt
+(`queue_peak=0`) line. `FRUIT_SUPPLY_SCATTER=0` restores the fixed line
+**line-identical** (`logs/v1/00_accept_scatter_off.log` matches
+`logs/g/40_accept_default.log` on every line). The moving catch's selector
+refuses candidates inside `_dynamic_select_floor()` (~0.40 m at 0.12 m/s: the
+selection-to-handover setup consumes ~1.5 s of belt travel) and takes the
+farthest-upstream eligible fruit (a lane takes the nearest usable one); without
+that floor the stocked belt hands the catch a 0.10-0.18 m fruit and the rate
+collapses to 1/10 (`logs/v1/pre_fix/`). Delivered on the shipped scenario:
+single-arm **9/10 x5 bit-identical, 15.2 s/attempt**; the bimanual (opt-in)
+stays structurally starved (74 % of its station slots report no eligible fruit)
+- the two-line rework (V2) owns that. The reference is
+`configs/motion_reference.json`, re-recorded from the identical
+`logs/v1/30_accept_supply.log` (old at
+`logs/v1/motion_reference_pre_supply.json`); the green *acceptance* run is the
+re-verified `logs/v1/31_accept_supply_verified.log` (30's own gate read FAIL
+only because the reference it was re-recorded from did not exist yet). The policy path is **OOD** on this
+supply (the demos carry one candidate per attempt, and the trigger's
+`|dx| <= 0.06` gate refuses the outer half of the new band); do not quote the
+71.1 % direct number as the current-scenario rate - one hybrid canary on the
+new supply scored **1/10** (8 grip losses + 1 handoff miss,
+`logs/v1/80_accept_policy.log`), an OOD warning the V3 phase owns.
 
 **The v2 dynamic line is weaker than that.** It takes the fruit *on the fly*, so
 the tick the tracking window opens on depends on the fruit's continuously evolving
@@ -164,6 +201,117 @@ fingerprint mismatch as a break. Its scheduler invariants are pinned offline by
 `scripts/153_biarm_rates.sh` (the F2 shape; it skips existing logs) or
 `logs/g/run_g_rates.sh` (the Gate-19-default batch, interleaved with the single
 arm), the per-attempt table from `scripts/151_biarm_report.py`.
+
+**The v9/V2 two-line scheduler is the explicit opt-in `FRUIT_BIARM_TWOLINE=1`;
+`FRUIT_BIARM=1` keeps the shared-station meaning above.** The V2
+pre-registration's decision rule (`logs/v2/PREREGISTRATION.md`) kept the
+shared-station pipeline because the two-line's placed/min gain missed the 1.25x
+replacement bar; the shipped code briefly defaulted it on, and the V3
+integration reverted that to 0 (`logs/v3/`, WORKLOG "V3 integration"). Each arm
+owns a station on the shared belt: left y = 0.00 (the shipped pick point),
+right y = -0.10 (the deepest station the right arm's top-down reach holds <= 6 mm
+across the supplied band; the left cannot cross the body), solved from the same
+calibrated grasp seed with a station-specific pre-pose configuration so the two
+approaches stay on their own sides. Selection is **grade-preferring with an
+any-grade fallback** - eligibility is not grade-filtered (that was the V1
+starvation), the +Y lane carries the left arm's stream (mostly A) and the -Y
+lane the right's (mostly B/C), and the fallback produces measured crossovers
+(3/10 on the frozen tree, 5/10 in the V2 sample). Replacing the meaning of
+`FRUIT_BIARM=1` would need the owner's sign-off on that grade-biased output
+semantics (`logs/v2/PREREGISTRATION.md` "Routing semantics"). Measured on the
+frozen tree (`logs/v3/10_rate_twoline_1.log` + the bit-identical double-run,
+`15_rate_twoline_1b.log`): **6/10 placed, 9.8 s/attempt, 3.66 placed/min
+(left 3/5, right 3/5, `gate_open=0.0 s`, zero `indexed:`)** against the
+single-arm 9/10, 15.2 s, 3.55 placed/min - **1.55x per attempt but 1.03x
+placed/min** (the contact-grip class costs it the placements, so the named path
+to a dual-arm default is the grip class, not more supply). **W1 (2026-10-09,
+`logs/w1/`) shipped the grip profile on the two-line path: after a failed
+probe lift the regrasp re-seats in place (no open phase around a walking
+fruit) and the probe is gentler (6 mm/60 ticks, step 0.01); scoped to the
+two-line by `_dynamic_profile` because the same values as global defaults
+drop the single arm 9/10 -> 6/10.** On the shipped profile: **7/10 x5
+bit-identical plus a bit-identical no-env double-run, 9.2 s/attempt, 4.59
+placed/min = 1.29x** against the single arm 3.55 (1.25x bar met); the
+single-arm default is byte-unchanged and its acceptance fingerprint matches
+(`logs/w1/50_accept_single.log`). Per-tick
+availability on the free-cadence scattered supply is **left 3.06 % / right
+0.00 % None** (the old lane filter on the same line: 38.5/42.4 %); the
+delivered per-slot starvation is **4/9 left but all four are the batch-start
+belt-prime at t = 13.4-14.9 s, steady-state 0/5 for both arms** (the report
+prints both; `scripts/175_twoline_report.py`); per-arm idle between turns
+**42 % -> 17 %/18 %**. The W1 branch's clearance (re-measured in W2,
+`logs/w2/10_trace_before.log`; that run is bit-identical to the trace-off W1
+rate run) reads **min 13.9 mm** (`openarm_left_left_finger` vs
+`openarm_right_hand`, t=95.8-96.3 s, left=grip/right=close), **62/10672
+samples < 30 mm** - the pre-W1 **6.8 mm** figure (`left_link7` vs
+`right_link6`, t=106.4 s) was the old 6/10 branch's 10 s post-attempt freeze,
+which the W1 profile removed. The W2 park/handover redesign could **not** meet
+the F2 **45 mm / zero-under-30 mm** convention at the rate floor: the moving
+catch rides the belt ~0.22 m through its dwell (longer than the reachable
+station separation; the left's upstream catch is reach-clean only to +0.10 and
+the right's downstream to about -0.13), the best measured clearance state
+(38.9 mm, zero<30) landed 6/10 at 9.8 s/attempt, and time-separating the
+dwells (a start gap) costs the span ~1:1 (4 s gap -> 11.2 s/attempt). All W2
+levers are default-off; the two-line stays opt-in and the shipped W1 branch is
+unchanged (`logs/w2/RESULT.md`). No attempt failed by arm-arm contact. A
+two-line log is a different scenario: compare its budgets and rate, and give it
+its own fingerprint.
+
+**W3 (2026-10-10, owner): the grade routing is per-arm and pure, the supply is
+a continuous dense sheet, and the two-line collects.** With the **W3 pure
+routing** (`FRUIT_GRADE_ROUTING`, default pure on the two-line selector) the
+left arm takes **grade A only**, the right **grade B only**, and **grade C is
+never selected** - it rides past both stations to the main belt's end
+(`despawn_y = -0.70`), is counted `reached_end` and recycled by the feeder;
+`FRUIT_GRADE_ROUTING=0` restores the V2 grade-preference-with-fallback. The
+single-arm selector passes no `prefer_lane`, so the shipped line is
+byte-unchanged (its acceptance still reads 9/10 + fingerprint matches).
+The **dense-sheet supply** (`FRUIT_SUPPLY_WAVE`, default on when
+`FRUIT_BIARM_TWOLINE=1`, off otherwise; owner correction 2026-10-10: the first
+pass's spaced bursts with 0.70-1.00 m empty gaps are superseded) releases
+clusters of `SIZE=5` at 0.10-0.16 m with cluster-boundary gaps of only
+0.09-0.12 m, so the clusters run **back-to-back as one continuous sheet - no
+empty stretch anywhere**; the same seeded RNG stream drives it. The
+two-line scenario defaults the pool mix to balanced **A:B:C 0.375/0.375/0.25**
+because pure routing starves the B arm under the shipped 50/30/20. Measured on
+the dense sheet (`logs/w3/30_dense_trace.log`, trace on): **8/10, 11.2
+s/attempt, 4.27 placed/min, per arm left 4/6 right 4/4, `gate_open=0.0 s`,
+zero `indexed:`** (the pick is the never-stop dynamic catch); clearance
+**min 2.6 mm / 618 samples <30 mm** - the W1/W2 belt-riding-dwell + idle-hand
+classes. **No arm-arm contact is possible in this build**
+(`openarm_flat_deinst.usda` `enabledSelfCollisions=0`) and no attempt has ever
+failed by contact. Every measured no-overlap lever trades the rate away (start
+gap, station widening, catch lead + park bias, the opt-in capture token
+`FRUIT_BIARM_CAPTURE_TOKEN=1`); the full screen table is in `logs/w3/` and the
+WORKLOG W3 entry. All W2/W3 levers stay default-off. The **collector** runs
+the two-line branch (`40_collect_demos.py` chunks through `run_bimanual`),
+records both arms with a per-episode `station_y` label (new,
+backwards-compatible index field; the recorder is thread-local and allocates
+unique indices itself) and its **stall guard is a per-episode watchdog, never
+a belt stop**: `FRUIT_COLLECT_EPISODE_S` (default 600 s) arms
+`task.episode_timeout_s`, `_step_sim` raises `AttemptTimeout` on an
+over-budget attempt, and the collector **skips and retries** it (partial
+recording discarded, fruit recycled, line still running; verified with a 6 s
+budget smoke where 6/6 attempts were skipped and `gate_open` stayed 0.0,
+`logs/w3/100_timeout_smoke.log`). A hard progress window
+(`FRUIT_COLLECT_STALL_S`, 600 s) remains only for a fully blocked C++ call the
+soft deadline cannot interrupt (the wedges were a blocking
+`RenderingManager.render()` under the bimanual bridge); it exits the shard
+with a stack dump and the shard loop advances the seed. The spaced-burst
+recollection is archived (`datasets/demos_v12_spaced`, `checkpoints/moe_v13s_spaced`
+with its own 8/10 pinned canary); the corrected dense-sheet recollection
+finished as **158 episodes in one shard with no wedge** (`datasets/v12d_s02`,
+2 h 6 min; merged to `datasets/demos_v12`, arms 80/78) and fine-tuned
+`moe_v12` -> `checkpoints/moe_v13s` (6 epochs, loss 0.0261, router 0.981;
+anchor `demos_v11` because the v12+v10 stores exceed this 125 GB machine).
+The dense checkpoint's **pinned canary is 6/10 PASS** on the gate of record
+(`logs/w3/81b_canary_v13s_pinned_dense.log`; a first sample read 7/10 but
+carried one novel reason, recorded in the WORKLOG), and its direct eval on the
+dense supply is **7/45 = 15.6 %** (single-arm presentation, no-trigger
+fruit-off-line; `logs/w3/70_direct_v13s_dense.log`). The corrected tree's
+acceptance is **9/10 + fingerprint matches** with `gate_open=0.0 s`
+(`logs/w3/62_accept_single_dense_tree.log`). The W3-supply hybrid canary is
+the remaining hand-off item (`logs/w3/HANDOFF.md`).
 
 ## 3. What changed -> what to run
 

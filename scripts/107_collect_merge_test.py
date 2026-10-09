@@ -38,6 +38,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 
 import numpy as np
 
@@ -213,6 +214,69 @@ def main() -> int:
         tail = audit.stdout.strip().splitlines()[-1] if audit.stdout.strip() else audit.stderr
         check("audit exits 0 on the merged output", audit.returncode == 0, tail)
         check("audit reports OK", "OK:" in audit.stdout, tail)
+
+        print("== 4. two-line recording: concurrent threads, auto index, station label ==")
+        two_line = os.path.join(root, "two_line")
+        recorder = EpisodeRecorder(two_line, decimation=1, auto_index=True)
+        errors: list[BaseException] = []
+
+        def record(arm: str, station: float, seed: int) -> None:
+            try:
+                for rep in range(3):
+                    recorder.begin(
+                        EpisodeMeta(
+                            index=-1,
+                            category="apple" if arm == "left" else "pear",
+                            grade="A" if arm == "left" else "B",
+                            arm=arm,
+                            bin_index=0 if arm == "left" else 1,
+                            diameter=0.06,
+                            station_y=station,
+                        )
+                    )
+                    rng = np.random.default_rng(seed + rep)
+                    for _ in range(4):
+                        recorder.add(
+                            {"joint_positions": rng.normal(size=7).astype(np.float32)},
+                            action=rng.normal(size=9).astype(np.float32),
+                        )
+                    if recorder.save(True, []) is None:
+                        raise AssertionError("save returned None")
+            except BaseException as exc:  # noqa: BLE001
+                errors.append(exc)
+
+        workers = [
+            threading.Thread(target=record, args=(arm, station, seed))
+            for arm, station, seed in (("left", 0.0, 10), ("right", -0.10, 20))
+        ]
+        for worker in workers:
+            worker.start()
+        for worker in workers:
+            worker.join()
+        check("concurrent saves raised no error", not errors, str(errors))
+        entries = load_index(two_line)
+        check("all six concurrent episodes landed", len(entries) == 6,
+              f"entries={len(entries)}")
+        check(
+            "file names are unique",
+            len({e["file"] for e in entries}) == len(entries),
+            f"{[e['file'] for e in entries]}",
+        )
+        check(
+            "auto indices are unique",
+            len({e["index"] for e in entries}) == len(entries),
+            f"{[e['index'] for e in entries]}",
+        )
+        check(
+            "per-arm station labels survive",
+            sorted({float(e["station_y"]) for e in entries}) == [-0.10, 0.0],
+            f"{[e['station_y'] for e in entries]}",
+        )
+        check(
+            "both arms labelled",
+            {e["arm"] for e in entries} == {"left", "right"},
+            f"{sorted({e['arm'] for e in entries})}",
+        )
 
         print()
         if FAILURES:

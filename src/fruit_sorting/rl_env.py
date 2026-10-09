@@ -128,7 +128,28 @@ from .policy.trigger import TriggerSettings, should_fire
 #: docstring (the stale "ceiling is 8/10" -> the Gate-19 9/10), so the pin moved
 #: with the docstring-only revision (`2574ceac...`); no control logic changed,
 #: and the P2b/G measurements remain valid for this tree.
-TASKS_MD5 = "2574ceacf7544c1465d8636ce2e56d92"
+#: The v9/V1 scattered-supply lane (2026-10-08) changed `select_target` /
+#: `_balance_arm`: the moving catch now refuses candidates inside
+#: `_dynamic_select_floor()` and takes the farthest-upstream eligible fruit
+#: (the documented schedule semantics; the lane path takes the nearest usable
+#: one). The policy handover keeps the indexed primitive unless
+#: `FRUIT_DYNAMIC_PICK=1`, but the pin follows the file as always.
+#: The v9/V3 integration (2026-10-09) froze the V2 two-line tree: the
+#: `_prepare_two_line_stations` setup now steps physics explicitly
+#: (`SimulationManager.step(10)` + `update_app(0)`, AGENTS section 3b) instead
+#: of the non-fixed `update_app(steps=10)`, the two-line scheduler is the
+#: explicit opt-in `FRUIT_BIARM_TWOLINE=1` (the pre-registration's decision
+#: rule: 1.08x placed/min missed the 1.25x bar), and the station docstrings
+#: state the shipped 0.10 m separation. The dynamic-path measurements on this
+#: revision are `logs/v3/`; the pin is the frozen revision.
+#: The W1/W2 lanes (2026-10-09) then moved `tasks.py` twice (the two-line grip
+#: profile, the W2 clearance levers - all measured in `logs/w1`/`logs/w2`), and
+#: the W3 lane (2026-10-10) added the pure per-arm grade routing
+#: (`FRUIT_GRADE_ROUTING`), the capture token (wave two-line default: one arm in
+#: its capture window at a time), allowed the recorder on the two-line branch,
+#: and bridged the recorder render; the pin follows the file as always
+#: (`logs/w3/`).
+TASKS_MD5 = "c8854d6c013714da8805cd77962f1551"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(

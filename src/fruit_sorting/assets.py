@@ -242,11 +242,17 @@ class SceneConfig:
     pick_x: float = 0.34
     #: Station Y: where along the line the robot picks.
     pick_y: float = 0.0
-    #: Lateral scatter of a spawned fruit across the belt [X].
+    #: Lateral scatter of a spawned fruit across the belt [X]. This is the
+    #: pre-v9 fixed line's value; the shipped scattered supply
+    #: (`FRUIT_SUPPLY_SCATTER=1`) draws `FRUIT_SUPPLY_LATERAL` instead (default
+    #: +/-0.12 m) and falls back to this only with `FRUIT_SUPPLY_SCATTER=0`.
     lateral_jitter: float = 0.005
     #: Guide-rail channel half width (across the belt, X), only used with rails.
     #: Must clear the OPEN gripper (+/-0.066 m) or the fingers jam against them.
     belt_channel_x: float = 0.13
+    #: Release period of the pre-v9 fixed line (0.19 m of travel at 0.12 m/s).
+    #: The scattered supply replaces it with a sampled `FRUIT_SUPPLY_GAP_*` of
+    #: belt travel; this remains the `FRUIT_SUPPLY_SCATTER=0` fallback.
     spawn_period_s: float = 1.6
 
     #: Jaw-centre height above the belt at the pick pose, in metres. The wrist

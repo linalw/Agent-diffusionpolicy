@@ -14,7 +14,8 @@
 #   6. rl report parser               scripts/113_rl_report.py --self-test
 #   7. rtc runtime selftest           scripts/128_rtc_selftest.py (no checkpoint)
 #   8. trigger intercept test         scripts/811_trigger_test.py (pure geometry)
-#   9. motion budgets                 scripts/105_motion_regression.py  (needs a run log)
+#   9. claim slot harness             scripts/181_claim_slot_selftest.sh (pure locking)
+#  10. motion budgets                 scripts/105_motion_regression.py  (needs a run log)
 #
 # Each prints "name, result, elapsed"; everything is also written to
 # `logs/selfcheck.log`. Any *failure* makes the script exit non-zero; the motion
@@ -97,6 +98,17 @@ run_check "path3 report selftest" "$python" scripts/148_path3_report.py --self-t
 # F2: the bimanual token/station invariants (exclusive stepping, alternation,
 # determinism, park/resume, steps on the main thread) are pure threading logic.
 run_check "bimanual scheduler test" "$python" scripts/152_biarm_selftest.py
+# v9/V1: the scattered-supply mix allocation, the resolved FRUIT_SUPPLY_*
+# defaults, the prime window and the backlog pump's separation rule (stubbed
+# pxr; no simulator).
+run_check "supply scatter selftest" "$python" scripts/172_supply_selftest.py
+# v9/V2: the two-line selector (per-arm station floor, grade preference with
+# the any-grade fallback, protected-fruit exclusion) and the pre-pose-lock
+# decision - pure logic over a stubbed task, no simulator.
+run_check "two-line selector test" "$python" scripts/176_twoline_selftest.py
+# X1: the slot claim (mutual exclusion, pool overlap, stale recovery after
+# SIGKILL, wait timeout, duplicate-namespace refusal) is pure locking logic.
+run_check "claim slot harness" bash scripts/181_claim_slot_selftest.sh
 
 if [ -n "$run_log" ] && [ -f "$run_log" ]; then
     run_check "motion budgets" "$python" scripts/105_motion_regression.py "$run_log" \

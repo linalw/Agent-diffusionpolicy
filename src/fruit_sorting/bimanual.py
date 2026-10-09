@@ -1,19 +1,24 @@
-"""Bimanual (shared-station) scheduling for the scripted sorting line.
+"""Bimanual scheduling for the scripted sorting line.
 
-Scheme (F2, v7 directive): **pipelined two-arm operation at the shared pick
-station**. The cell has one main belt, one pick station and two arms whose
-workspaces both cover that station (measured, ``scripts/97_reach_probe.py``: a
-2.1 mm residual for either arm at the station). One arm owns the station from
+Two schedulers live here. **`FRUIT_BIARM=1` runs the F2 shared-station pipeline
+by default** (below). `FRUIT_BIARM_TWOLINE=1` opts into the v9/V2 two-line
+scheduler: each arm owns one pick station on the shared belt (left upstream
+at y = 0, right downstream at y = -0.10, `tasks.py::run_bimanual`), the shared
+`StationLock` is not used, and the two attempts overlap from the descent
+onwards. Each off-centre station gets a station-specific pre-pose configuration
+solved once per batch (so the two approaches stay on their own sides); the
+second `StationLock` (`CoopSession.prepose`) serializes the approaches only if
+such a solve failed. The two-line's placed/min gain missed the pre-registered
+1.25x replacement bar (`logs/v2/RESULT.md`), so it stays opt-in.
+
+F2 shared-station scheme (kept for the A/B): **pipelined two-arm operation at
+the shared pick station**. The cell has one main belt, one pick station and two
+arms whose workspaces both cover that station (measured, ``scripts/97_reach_probe.py``:
+a 2.1 mm residual for either arm at the station). One arm owns the station from
 its pre-pose until its payload has cleared the station box; while it carries and
 places, the other arm pre-poses, waits for the next fruit and catches it. The
 two attempts therefore overlap in simulated time, which is the only way to gain
 throughput - re-ordering two blocking attempts cannot.
-
-Why not a lane split: the two output belts already *are* the arms' lanes (the
-left arm only reaches +Y, the right only -Y), and the fruit-to-lane assignment
-is the fruit's grade. A second station per lane would re-measure the catch
-primitive at new Y positions for no mechanism the shared-station pipeline does
-not already have; the station geometry is measured and shipped.
 
 Concurrency without rewriting the 2 000-line blocking attempt: the two attempts
 run in two threads and a **main-thread scheduler** (`TickRelay`) arbitrates.
@@ -345,6 +350,24 @@ class CoopSession:
         self.relay = TickRelay(self.bridge)
         self.relay.expect(keys)
         self.station = StationLock()
+        #: Two-line scheduler (v9/V2): each arm owns its own station, so
+        #: `station` is unused; `prepose` serializes only the approach phase,
+        #: because the two pre-poses converge on the shipped *shared* grasp
+        #: configuration (both jaws near y ~ 0) before separating to their own
+        #: stations. Same pause/resume protocol as `StationLock`.
+        self.prepose = StationLock()
+        #: W3 capture token (wave two-line scenario; `run_bimanual` sets
+        #: `capture_enabled`): at most one arm may be in its *capture window*
+        #: (pre-pose -> close -> until its payload clears its station box) at a
+        #: time. The wave supply sends both arms at the same burst; without the
+        #: token the trace measured min 1.9 mm link-origin separation and 710
+        #: samples <30 mm (both hands in the shared y band). The holder releases
+        #: the token from `tasks._biarm_after_step` when its payload has cleared
+        #: the station, or in its worker's finally.
+        self.capture = StationLock()
+        self.capture_enabled = False
+        #: True when this session runs the two-line scheduler (`run_bimanual`).
+        self.twoline = False
         self.results: list = []
         self.errors: list[BaseException] = []
         self.trace = bool(trace)

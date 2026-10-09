@@ -30,6 +30,16 @@
 # Baseline: `logs/336_hybrid_v3all.log` scores 12/15 - 2 grip losses and 1 place
 # failure with an empty note.
 #
+# **Scenario pin (V3, 2026-10-09).** This gate runs on the pre-v9 *fixed* supply
+# (`FRUIT_SUPPLY_SCATTER` defaults to 0 here; `=1` opts back into the scattered
+# supply). The demos and the `moe_v11`/`moe_v12` checkpoints predate the v9/V1
+# scattered supply and are OOD on it - one valid frozen-tree canary on the
+# scattered supply scored **2/10** (7 grip losses + 1 "fruit left the pick
+# station during the close", `logs/v3/80_accept_policy_scatter.log`), against
+# the fixed-supply spread 5-8/10. The numbers this gate reports are therefore
+# attributed to the fixed pre-v9 supply; the scattered supply needs the V3+
+# recollection + fine-tune, recorded as the next step.
+#
 # **One run is one sample.** Unlike the scripted line, the policy loop is *not*
 # bit-identical run to run: with the same spawn seed the ten targets come out in the
 # same order, but the outcomes differ. Five recorded runs score
@@ -66,6 +76,8 @@ checkpoint=${FRUIT_CKPT:-checkpoints/moe_v12/policy_best.pt}
 episodes=${FRUIT_EPISODES:-10}
 min_rate=${MIN_RATE:-0.60}
 log=${ACCEPT_POLICY_LOG:-logs/accept_policy.log}
+# Scenario pin (see the header): the fixed pre-v9 supply unless overridden.
+scatter=${FRUIT_SUPPLY_SCATTER:-0}
 
 # Fail on a missing checkpoint before starting a simulator, which is the single
 # most common way to waste a run here.
@@ -101,6 +113,7 @@ else
     HEADLESS="${HEADLESS:-1}" FRUIT_HYBRID_EVAL=1 FRUIT_CKPT="$checkpoint" \
         FRUIT_NO_ATTACH="${FRUIT_NO_ATTACH:-1}" FRUIT_NO_SLEEP="${FRUIT_NO_SLEEP:-1}" \
         FRUIT_CAMERA_RES="${FRUIT_CAMERA_RES:-240,424}" \
+        FRUIT_SUPPLY_SCATTER="$scatter" \
         FRUIT_EPISODES="$episodes" scripts/run.sh scripts/60_eval_policy.py \
         > "$log" 2>&1 || true
 fi
