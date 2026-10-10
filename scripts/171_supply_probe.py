@@ -31,9 +31,18 @@ design* (density, gaps, lateral, lane starvation of the stocked line).
 `driver` mirrors the shipped single-arm driver (a 60-tick feed window once per
 ~1900-tick attempt cycle): it is the *line state the single-arm selector asks
 about*, and it shows the old line's between-attempt emptiness (`queue_peak=0`).
-The bimanual worker is a third cadence (it feeds during every starved station
-spin); its delivered starvation is read from the real `FRUIT_BIARM=1` runs by
-`scripts/173_supply_report.py`, not from this probe.
+`worker` (W6-B) mirrors the **two-line worker's** calls into the feeder
+(`tasks.py` 3464-3472): one `update` at each attempt boundary, a
+`FRUIT_SUPPLY_PROBE_GAP`-tick (default 30, `FRUIT_BIARM_GAP_TICKS`) feed gap,
+and one `update` + a `max(60, gap)`-tick spin per starved slot, while an
+emulated attempt advances `FRUIT_SUPPLY_PROBE_WORKER_TICKS` (default 1800 =
+15 s) with no `update`. At every *selection instant* the probe records the
+approach composition (was there an abreast slice?) and the real selector's
+answer - the **delivered** 2D reading, to be read next to the free cadence's
+design reading. The probe has no consumer (an upper bound on delivered
+density; the real battery interleaves two such chains, one per arm). The
+bimanual worker's pushed starvation under a consumer is still read from the
+real `FRUIT_BIARM=1` runs by `scripts/173_supply_report.py`.
 """
 
 from __future__ import annotations
@@ -81,12 +90,20 @@ KEYS = (
 )
 #: `free` calls `spawner.update` every tick (the feeder as a continuously
 #: running device); `driver` (default) mirrors the shipped single-arm driver:
-#: a 60-tick feed window once per ~1900-tick attempt cycle. `driver` is the
-#: *delivered* supply of the shipped loop; `free` measures the supply design's
-#: spacing/density without the driver's sparse-call artifact.
+#: a 60-tick feed window once per ~1900-tick attempt cycle. `worker` (W6-B)
+#: mirrors the two-line worker: one update per attempt plus the starved-slot
+#: spins (see the module docstring). `free` measures the supply design's
+#: spacing/density without the sparse-call artifact; `worker` measures the
+#: delivered reading the selector actually faces on the two-line.
 CADENCE = os.environ.get("FRUIT_SUPPLY_PROBE_CADENCE", "driver")
 FEED_TICKS = int(os.environ.get("FRUIT_SUPPLY_PROBE_FEED", "60"))
 CYCLE_TICKS = int(os.environ.get("FRUIT_SUPPLY_PROBE_CYCLE", "1900"))
+#: Worker cadence (W6-B): emulated attempt length [ticks] between the worker's
+#: feeder calls (set it to the battery's measured per-arm span when re-reading
+#: the delivered composition) and the post-attempt feed gap [ticks]
+#: (`FRUIT_BIARM_GAP_TICKS`, tasks.py 3312).
+WORKER_TICKS = int(os.environ.get("FRUIT_SUPPLY_PROBE_WORKER_TICKS", "1800"))
+GAP_TICKS = int(os.environ.get("FRUIT_SUPPLY_PROBE_GAP", "30"))
 
 
 def main() -> int:
@@ -130,6 +147,23 @@ def main() -> int:
     starve_max = {key: 0 for key in KEYS}
     #: Grade crossing of the two-line selections: {lane: {"A": n, "BC": n}}.
     route = {0: {"A": 0, "BC": 0}, 1: {"A": 0, "BC": 0}}
+    #: W6-A 2D-ness: per-frame, the station approach grouped into along-slices
+    #: (consecutive fruit within 0.05 m) and the slices carrying >= 2 fruit
+    #: abreast. The W6 directive's "from the belt direction it reads as a
+    #: scattered patch, not a single-file queue" is exactly this count.
+    abreast_frames = 0
+    abreast_total = 0
+    abreast_max = 0
+    abreast_seps: list[float] = []
+    #: Worker cadence (W6-B): the emulated worker state machine and the
+    #: delivered per-selection composition. See the module docstring.
+    worker_phase = "select"
+    worker_left = 0
+    worker_slots = 0
+    worker_starved = 0
+    worker_abreast_slots = 0
+    worker_approach_fruit = 0
+    worker_abreast_total = 0
 
     def on_belt(states: list[dict]) -> list[dict]:
         out = []
@@ -145,7 +179,26 @@ def main() -> int:
         return out
 
     for tick in range(TICKS):
-        if CADENCE == "free" or (tick % CYCLE_TICKS) < FEED_TICKS:
+        if CADENCE == "free":
+            spawner.update(SimulationManager.get_simulation_time())
+        elif CADENCE == "worker":
+            # The two-line worker's feeder calls (tasks.py 3464-3472): at an
+            # attempt end it calls `update`, steps `gap_ticks`, then selects;
+            # a starved slot calls `update`, steps `max(60, gap_ticks)` and
+            # selects again. Selection instants are resolved below, once the
+            # states are read, so the composition is recorded on the same
+            # line of the cycle the worker would ask on.
+            if worker_phase == "attempt":
+                worker_left -= 1
+                if worker_left <= 0:
+                    spawner.update(SimulationManager.get_simulation_time())
+                    worker_phase = "gap"
+                    worker_left = GAP_TICKS
+            elif worker_phase == "gap":
+                worker_left -= 1
+                if worker_left <= 0:
+                    worker_phase = "select"
+        elif (tick % CYCLE_TICKS) < FEED_TICKS:
             spawner.update(SimulationManager.get_simulation_time())
         SimulationManager.step(steps=1)
         app_utils.update_app(steps=0)
@@ -153,6 +206,32 @@ def main() -> int:
         live = on_belt(states)
         frames += 1
         counts.append(len(live))
+        # 2D-ness (W6-A): the approach segment grouped into along-slices
+        # (consecutive fruit within 0.05 m); a slice with >= 2 members is
+        # abreast. Pure reporting over the positions `live` already reads.
+        segment = sorted(
+            (
+                (float(state["position"][1]), float(state["position"][0]))
+                for state in live
+                if float(state["position"][1]) >= cfg.pick_y + 0.10
+            ),
+            reverse=True,
+        )
+        groups: list[list[float]] = []
+        last_y: float | None = None
+        for y, x in segment:
+            if last_y is not None and last_y - y <= 0.05:
+                groups[-1].append(x)
+            else:
+                groups.append([x])
+            last_y = y
+        abreast = [xs for xs in groups if len(xs) >= 2]
+        if abreast:
+            abreast_frames += 1
+            abreast_total += len(abreast)
+            abreast_max = max(abreast_max, len(abreast))
+            for xs in abreast:
+                abreast_seps.append(max(xs) - min(xs))
         ordered = sorted(live, key=lambda item: float(item["position"][1]))
         for first, second in zip(ordered, ordered[1:]):
             gaps.append(abs(float(first["position"][1]) - float(second["position"][1])))
@@ -190,6 +269,27 @@ def main() -> int:
                 states, station_y=STATION_R, prefer_lane=1, min_lead_s=BIARM_LEAD_S
             ),
         }
+        if CADENCE == "worker" and worker_phase == "select":
+            # One selection instant (W6-B delivered reading): the worker asks
+            # for its next target here, exactly as `_biarm_worker` does after
+            # its update + feed gap (tasks.py 3384). Record the delivered
+            # approach composition this instant faces, and let the real
+            # selector's answer choose the next phase: a starved slot gets an
+            # update + the 60-tick spin (tasks.py 3464-3466), a served slot
+            # runs an attempt with no update until its end (3468-3472).
+            worker_slots += 1
+            worker_approach_fruit += len(segment)
+            worker_abreast_total += len(abreast)
+            if abreast:
+                worker_abreast_slots += 1
+            if targets["left_line"] is None and targets["right_line"] is None:
+                worker_starved += 1
+                spawner.update(SimulationManager.get_simulation_time())
+                worker_left = max(FEED_TICKS, GAP_TICKS)
+                worker_phase = "gap"
+            else:
+                worker_phase = "attempt"
+                worker_left = WORKER_TICKS
         for key, target in targets.items():
             if target is None:
                 starve[key] += 1
@@ -243,6 +343,30 @@ def main() -> int:
             f"p90 {np.percentile(lat_arr, 90):+.3f} max {lat_arr.max():+.3f} m "
             f"(belt {cfg.belt_center[0] - cfg.belt_size[0] / 2:.3f}"
             f"..{cfg.belt_center[0] + cfg.belt_size[0] / 2:.3f})"
+        )
+    say(
+        f"[supply] 2D-ness (approach y >= {cfg.pick_y + 0.10:.2f}): frames with an "
+        f"abreast slice {abreast_frames}/{frames} "
+        f"({abreast_frames / frames * 100:.1f}%), abreast slices/frame mean "
+        f"{abreast_total / frames:.2f}, max {abreast_max}"
+    )
+    sep_arr = np.asarray(abreast_seps, dtype=float)
+    if sep_arr.size:
+        say(
+            f"[supply] abreast lateral separation: n={sep_arr.size} "
+            f"min {sep_arr.min():.3f} p50 {np.percentile(sep_arr, 50):.3f} "
+            f"p90 {np.percentile(sep_arr, 90):.3f} max {sep_arr.max():.3f} m"
+        )
+    if CADENCE == "worker" and worker_slots:
+        say(
+            f"[supply] delivered 2D-ness (worker cadence, per selection instant; "
+            f"attempt={WORKER_TICKS} ticks, gap={GAP_TICKS}): slots {worker_slots}, "
+            f"selector starved {worker_starved} "
+            f"({worker_starved / worker_slots * 100:.1f}%), with an abreast slice "
+            f"{worker_abreast_slots} ({worker_abreast_slots / worker_slots * 100:.1f}%), "
+            f"mean approach fruit {worker_approach_fruit / worker_slots:.2f}, "
+            f"mean abreast slices {worker_abreast_total / worker_slots:.2f} "
+            f"(no consumer: a density upper bound)"
         )
     say(
         "[supply] mix (pool): classes="

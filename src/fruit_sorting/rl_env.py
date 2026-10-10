@@ -159,7 +159,14 @@ from .policy.trigger import TriggerSettings, should_fire
 #: W4 `[fruit]` stream; `logs/w5/30_cfg0_rate1.log` vs
 #: `logs/w4/20_dense_repeat.log`), so the W3/W4 measurements carry and the H5
 #: direct-path trace rides the same branch as `logs/w4/13_direct_v13s_pinned.log`.
-TASKS_MD5 = "69823dc15cf3269b5ca064bdb21dcb1f"
+#: The W6-C speed-lever lane (2026-10-11) added two default-off, two-line-only
+#: knobs (`FRUIT_BIARM_PARK_EARLY` - the park-gate lever; `FRUIT_BIARM_PREFETCH`
+#: - L1 prefetch/reserve) plus a prefetch-gated handover log line; with the
+#: envs unset the single-arm control path is byte-identical (the acceptance
+#: fingerprint matches and the two-line baseline stream reproduces;
+#: `logs/w6/`), so the W5-C measurements carry and the pin follows the file as
+#: always.
+TASKS_MD5 = "fa9594fb32e3518ad7968d3cc27604d1"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(

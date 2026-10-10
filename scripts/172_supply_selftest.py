@@ -232,6 +232,280 @@ def main() -> int:
     ys0 = [round(spawner.position(s)[1], 6) for s in spawner.samples if not s.parked]
     check(ys0 == [0.68, 0.38, 0.08, -0.22], "scatter=0 prime ladder unchanged")
 
+    # --- W6-A: the 2D patch sheet (FRUIT_SUPPLY_PATCH, default off) --------- #
+    # Resolved defaults and env parsing first, then the 2D-ness invariants on
+    # a 90 s free-cadence run, then the patch-off byte-identity fingerprints.
+    for key in list(os.environ):
+        if key.startswith("FRUIT_SUPPLY_"):
+            del os.environ[key]
+    os.environ.pop("FRUIT_BIARM_TWOLINE", None)
+    check(not SupplyPlan.from_env(cfg).patch, "patch default off (old supplies unchanged)")
+    os.environ["FRUIT_SUPPLY_PATCH"] = "1"
+    patch_plan = SupplyPlan.from_env(cfg)
+    check(
+        patch_plan.patch and patch_plan.scatter,
+        "FRUIT_SUPPLY_PATCH=1 enables the patch sheet",
+    )
+    check(
+        abs(patch_plan.patch_slice_min - 0.14) < 1e-9
+        and abs(patch_plan.patch_slice_max - 0.22) < 1e-9,
+        "patch slice band defaults 0.14-0.22",
+    )
+    check(abs(patch_plan.patch_pair - 0.6) < 1e-9, "patch pair probability default 0.6")
+    check(
+        abs(patch_plan.patch_sep_min - 0.085) < 1e-9
+        and abs(patch_plan.patch_sep_max - 0.12) < 1e-9,
+        "patch lateral separation default 0.085-0.12 (above the 0.08 m rule)",
+    )
+    os.environ["FRUIT_BIARM_TWOLINE"] = "1"
+    check(
+        dict(SupplyPlan.from_env(cfg).grades) == {"A": 0.375, "B": 0.375, "C": 0.25},
+        "two-line patch default mix is balanced (A/B 37.5 %, C 25 %)",
+    )
+    os.environ.pop("FRUIT_BIARM_TWOLINE", None)
+    check(
+        dict(SupplyPlan.from_env(cfg).grades) == {"A": 0.5, "B": 0.3, "C": 0.2},
+        "single-arm patch mix unchanged (50/30/20)",
+    )
+    os.environ["FRUIT_SUPPLY_PATCH_SLICE"] = "0.18"
+    scalar = SupplyPlan.from_env(cfg)
+    check(
+        abs(scalar.patch_slice_min - 0.14) < 1e-9
+        and abs(scalar.patch_slice_max - 0.22) < 1e-9,
+        "FRUIT_SUPPLY_PATCH_SLICE scalar is a centre +/-0.04",
+    )
+    os.environ["FRUIT_SUPPLY_PATCH_SLICE"] = "0.12,0.20"
+    band = SupplyPlan.from_env(cfg)
+    check(
+        abs(band.patch_slice_min - 0.12) < 1e-9
+        and abs(band.patch_slice_max - 0.20) < 1e-9,
+        "FRUIT_SUPPLY_PATCH_SLICE band LO,HI",
+    )
+    del os.environ["FRUIT_SUPPLY_PATCH_SLICE"]
+    os.environ["FRUIT_SUPPLY_SCATTER"] = "0"
+    check(
+        not SupplyPlan.from_env(cfg).patch,
+        "patch requires the scattered feeder (SCATTER=0 ignores it)",
+    )
+
+    # 2D-ness invariants on a 90 s free-cadence run. A consumer takes one fruit
+    # from the station every 5.6 s (the delivered two-line attempt cadence):
+    # without one the queue interlock stalls the line, because the offline
+    # belt has no arm to consume it.
+    os.environ["FRUIT_SUPPLY_SCATTER"] = "1"
+    spawner, plan = make_spawner(scatter=True)
+    pair_seps: list[float] = []
+    released_x: list[float] = []
+    orig_slot = spawner._release_patch_slot
+
+    def patch_slot_hook(along, queue_max, released):
+        before = len(released)
+        ok = orig_slot(along, queue_max, released)
+        xs = [float(spawner.position(s)[0]) for s in released[before:]]
+        if len(xs) == 2:
+            pair_seps.append(abs(xs[0] - xs[1]))
+        released_x.extend(xs)
+        return ok
+
+    spawner._release_patch_slot = patch_slot_hook
+    spawner.prime(count=4)
+    dt = 1.0 / 120.0
+    min_planar = 1.0
+    plane_violations = 0
+    approach_frames = 0
+    approach_big = 0
+    consume_ticks = int(5.6 / dt)
+    for tick in range(int(90.0 / dt)):
+        spawner.update(tick * dt)
+        for sample in list(spawner.active):
+            if sample.parked or sample.held:
+                continue
+            pos = spawner.position(sample)
+            pos[1] += cfg.belt_speed * dt
+            spawner._rigids[sample.index].pos = pos
+            if pos[1] < cfg.despawn_y:
+                spawner.park(sample)
+                spawner.active.remove(sample)
+        if tick > 0 and tick % consume_ticks == 0:
+            candidates = [
+                s for s in spawner.active
+                if not s.parked and not s.held
+                and abs(float(spawner.position(s)[0]) - cfg.belt_center[0]) < 0.30
+                and float(spawner.position(s)[1]) <= cfg.pick_y + 0.10
+            ]
+            if candidates:
+                picked = min(
+                    candidates,
+                    key=lambda s: abs(float(spawner.position(s)[1]) - cfg.pick_y),
+                )
+                spawner.park(picked)
+                spawner.active.remove(picked)
+        live = [
+            s for s in spawner.active
+            if not s.parked and not s.held
+            and abs(float(spawner.position(s)[0]) - cfg.belt_center[0]) < 0.30
+        ]
+        for i, first in enumerate(live):
+            pa = spawner.position(first)
+            for second in live[i + 1:]:
+                pb = spawner.position(second)
+                min_planar = min(
+                    min_planar, float(np.hypot(pa[0] - pb[0], pa[1] - pb[1]))
+                )
+                if abs(float(pa[1] - pb[1])) < 0.08 and abs(float(pa[0] - pb[0])) < 0.08:
+                    plane_violations += 1
+        seg = sorted(
+            (
+                float(spawner.position(s)[1])
+                for s in live
+                if float(spawner.position(s)[1]) >= cfg.pick_y + 0.10
+            ),
+            reverse=True,
+        )
+        if len(seg) >= 2:
+            approach_frames += 1
+            if max(a - b for a, b in zip(seg, seg[1:])) > 0.40:
+                approach_big += 1
+
+    check(len(pair_seps) >= 8, f"patch run has >= 8 abreast slices ({len(pair_seps)})")
+    check(
+        all(
+            plan.patch_sep_min - 1e-9 <= sep <= plan.patch_sep_max + 1e-9
+            for sep in pair_seps
+        ),
+        f"pair separations inside 0.085-0.12 "
+        f"({['%.3f' % s for s in pair_seps[:8]]})",
+    )
+    check(
+        min(released_x) <= plan.x_min + 0.02 and max(released_x) >= plan.x_max - 0.02,
+        f"lateral coverage reaches both band edges "
+        f"(min {min(released_x):.3f} max {max(released_x):.3f})",
+    )
+    check(
+        plane_violations == 0,
+        f"the 0.08 m release-clear rule holds in the belt plane "
+        f"({plane_violations} violations)",
+    )
+    check(min_planar >= 0.079, f"no two live fruit closer than 0.08 m ({min_planar:.4f})")
+    check(
+        approach_frames > 0 and approach_big <= approach_frames * 0.02,
+        f"station approach gap > 0.40 m in <= 2 % of frames "
+        f"({approach_big}/{approach_frames})",
+    )
+    # Schedule level (the W3 wave check's analogue): every drawn slice gap is
+    # inside the band, so the sheet has no long empty stretch by construction.
+    fresh, fresh_plan = make_spawner(scatter=True)
+    pattern = [fresh._release_gap() for _ in range(40)]
+    check(
+        all(
+            fresh_plan.patch_slice_min - 1e-9 <= gap <= fresh_plan.patch_slice_max + 1e-9
+            for gap in pattern
+        ),
+        f"slice gaps inside 0.14-0.22 ({['%.3f' % g for g in pattern[:8]]})",
+    )
+    del os.environ["FRUIT_SUPPLY_PATCH"]
+    del os.environ["FRUIT_SUPPLY_SCATTER"]
+
+    # Patch off: the old release streams stay byte-identical. The expected
+    # lines are pinned from the pre-patch tree (captured before the patch code
+    # existed; the full logs are archived in the W6-A report).
+    def release_lines(scatter: bool, seconds: float, wave: bool = False):
+        os.environ["FRUIT_SUPPLY_SCATTER"] = "1" if scatter else "0"
+        os.environ["FRUIT_SUPPLY_POOL"] = "16"
+        os.environ.pop("FRUIT_SUPPLY_PATCH", None)
+        if wave:
+            os.environ["FRUIT_BIARM_TWOLINE"] = "1"
+            os.environ["FRUIT_SUPPLY_WAVE"] = "1"
+        else:
+            os.environ.pop("FRUIT_BIARM_TWOLINE", None)
+            os.environ.pop("FRUIT_SUPPLY_WAVE", None)
+        spawner, _plan = make_spawner(scatter=scatter)
+        lines: list[str] = []
+        original = spawner.respawn
+
+        def hook(sample, along=None, x_jitter=0.10, x=None):
+            original(sample, along=along, x_jitter=x_jitter, x=x)
+            pos = spawner.position(sample)
+            lines.append(
+                f"release idx={sample.index} cat={sample.category} {sample.grade} "
+                f"y={float(pos[1]):+.6f} x={float(pos[0]):+.6f}"
+            )
+
+        spawner.respawn = hook
+        spawner.prime(count=4)
+        step = 1.0 / 120.0
+        for tick in range(int(seconds / step)):
+            spawner.update(tick * step)
+            for sample in list(spawner.active):
+                if sample.parked or sample.held:
+                    continue
+                pos = spawner.position(sample)
+                pos[1] += cfg.belt_speed * step
+                spawner._rigids[sample.index].pos = pos
+                if pos[1] < cfg.despawn_y:
+                    spawner.park(sample)
+                    spawner.active.remove(sample)
+        return lines, dict(spawner.stats)
+
+    expected_scatter = [
+        "release idx=0 cat=strawberry A y=+0.680000 x=+0.350792",
+        "release idx=0 cat=strawberry A y=+0.680000 x=+0.318384",
+        "release idx=1 cat=lychee A y=+0.680000 x=+0.347572",
+        "release idx=1 cat=lychee A y=+0.424275 x=+0.204641",
+        "release idx=2 cat=kiwi A y=+0.680000 x=+0.274500",
+        "release idx=2 cat=kiwi A y=+0.138828 x=+0.350937",
+        "release idx=3 cat=tomato A y=+0.680000 x=+0.218113",
+        "release idx=3 cat=tomato A y=+0.679244 x=+0.275051",
+        "release idx=4 cat=apple A y=+0.680000 x=+0.287002",
+        "release idx=4 cat=apple A y=+0.679469 x=+0.291831",
+        "release idx=5 cat=orange A y=+0.680000 x=+0.234677",
+        "release idx=5 cat=orange A y=+0.679112 x=+0.244717",
+    ]
+    lines, stats = release_lines(scatter=True, seconds=120.0)
+    check(
+        lines[:12] == expected_scatter,
+        "patch-off scatter release stream byte-identical (first 12)",
+    )
+    check(
+        stats.get("released") == 61
+        and stats.get("supply_skipped") == 1
+        and stats.get("fell_off", 0) == 0
+        and stats.get("reached_end", 0) == 0,
+        f"patch-off scatter run stats unchanged ({sorted(stats.items())})",
+    )
+    expected_wave = [
+        "release idx=0 cat=strawberry A y=+0.680000 x=+0.350792",
+        "release idx=0 cat=strawberry A y=+0.680000 x=+0.318384",
+        "release idx=1 cat=lychee A y=+0.680000 x=+0.347572",
+        "release idx=1 cat=lychee A y=+0.542626 x=+0.204641",
+        "release idx=2 cat=kiwi A y=+0.680000 x=+0.274500",
+        "release idx=2 cat=kiwi A y=+0.398119 x=+0.350937",
+    ]
+    lines, stats = release_lines(scatter=True, seconds=120.0, wave=True)
+    check(
+        lines[:6] == expected_wave,
+        "patch-off wave release stream byte-identical (first 6)",
+    )
+    check(
+        stats.get("released") == 118 and stats.get("supply_skipped") == 1,
+        f"patch-off wave run stats unchanged ({sorted(stats.items())})",
+    )
+    expected_fixed = [
+        "release idx=0 cat=strawberry A y=+0.680000 x=+0.341229",
+        "release idx=0 cat=strawberry A y=+0.680000 x=+0.342418",
+        "release idx=1 cat=lychee A y=+0.680000 x=+0.342952",
+        "release idx=1 cat=lychee A y=+0.380000 x=+0.344425",
+    ]
+    lines, stats = release_lines(scatter=False, seconds=60.0)
+    check(
+        lines[:4] == expected_fixed,
+        "patch-off fixed line release stream byte-identical (first 4)",
+    )
+    check(
+        stats.get("released") == 42,
+        f"patch-off fixed line stats unchanged ({sorted(stats.items())})",
+    )
+
     # Fake-physics run: the pump must never stack fruit and must keep the
     # scheduled release magnitude.
     spawner, plan = make_spawner(scatter=True)
@@ -282,6 +556,12 @@ def main() -> int:
         if key.startswith("FRUIT_SUPPLY_"):
             del os.environ[key]
     os.environ.pop("FRUIT_BIARM_TWOLINE", None)
+    print(
+        f"patch sheet (offline run): {len(pair_seps)} pair slices, separations "
+        f"{min(pair_seps):.3f}-{max(pair_seps):.3f} m, x {min(released_x):.3f}-"
+        f"{max(released_x):.3f} m, min live planar separation {min_planar:.3f} m, "
+        f"approach gaps >0.40 m {approach_big}/{approach_frames} frames"
+    )
     print(f"supply selftest ok ({checks} checks)")
     return 0
 

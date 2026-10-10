@@ -251,7 +251,7 @@ def main() -> int:
         say(
             f"[run] attempt {attempt}: grasped={result.grasped} placed={result.placed} "
             f"lift={result.peak_lift:+.3f} m force={result.max_tactile_force:.2f} N "
-            f"notes={result.notes}"
+            f"notes={result.notes} sim={result.sim_start:.1f}-{result.sim_end:.1f}s"
         )
         task.go_ready()
         advance(30)

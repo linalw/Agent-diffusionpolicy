@@ -160,6 +160,26 @@ SUPPLY_WAVE_GAP_MAX = 0.16
 SUPPLY_WAVE_SEP_MIN = 0.09
 SUPPLY_WAVE_SEP_MAX = 0.12
 
+#: 2D scattered-sheet supply (W6-A owner directive). The wave/scatter schedules
+#: are still single-file: every release slot carries one fruit, so from the belt
+#: direction the line reads one-by-one. The patch schedule places **slices**
+#: every ~slice_min..slice_max metres along the belt and each slice carries 1-2
+#: fruit **abreast** (same along position, different lateral x), with the pair
+#: probability `patch_pair` (~0.5-0.7). A pair's lateral separation is drawn in
+#: `patch_sep_min..patch_sep_max`; the floor is above `_release_clear`'s 0.08 m
+#: separation rule, so no two live fruit are ever closer than 0.08 m in the
+#: belt plane (a same-slice pair is separated laterally, a cross-slice pair
+#: along the belt). `_release_clear` gets the pair exception: a slot whose along
+#: position is within 0.08 m of a live fruit is still released when the lateral
+#: separation holds - that is the 2D reading. `FRUIT_SUPPLY_PATCH=0` (default)
+#: leaves every existing schedule byte-reproducible: none of the patch draws
+#: happen and `respawn`/`_release_clear` behave exactly as before.
+SUPPLY_PATCH_SLICE_MIN = 0.14
+SUPPLY_PATCH_SLICE_MAX = 0.22
+SUPPLY_PATCH_PAIR = 0.6
+SUPPLY_PATCH_SEP_MIN = 0.085
+SUPPLY_PATCH_SEP_MAX = 0.12
+
 
 def _default_grade_weight(grade: str, balanced: bool) -> float:
     """Default grade weight: balanced on the pure-routing two-line scenario.
@@ -244,6 +264,15 @@ class SupplyPlan:
     wave_gap_max: float = SUPPLY_WAVE_GAP_MAX
     wave_sep_min: float = SUPPLY_WAVE_SEP_MIN
     wave_sep_max: float = SUPPLY_WAVE_SEP_MAX
+    #: 2D scattered-sheet schedule (W6-A). `patch=True` replaces the single-
+    #: file gap schedule with along-slices of 1-2 fruit abreast; patch draws
+    #: are gated so `patch=False` reproduces every existing supply byte-for-byte.
+    patch: bool = False
+    patch_slice_min: float = SUPPLY_PATCH_SLICE_MIN
+    patch_slice_max: float = SUPPLY_PATCH_SLICE_MAX
+    patch_pair: float = SUPPLY_PATCH_PAIR
+    patch_sep_min: float = SUPPLY_PATCH_SEP_MIN
+    patch_sep_max: float = SUPPLY_PATCH_SEP_MAX
 
     @classmethod
     def from_env(cls, cfg: SceneConfig) -> "SupplyPlan":
@@ -260,6 +289,28 @@ class SupplyPlan:
         scatter = os.environ.get("FRUIT_SUPPLY_SCATTER", "1") == "1"
         gap_min = max(0.02, number("FRUIT_SUPPLY_GAP_MIN", SUPPLY_GAP_MIN))
         gap_max = max(gap_min, number("FRUIT_SUPPLY_GAP_MAX", SUPPLY_GAP_MAX))
+
+        def band(name: str, default_lo, default_hi, floor: float):
+            """Parse a `LO,HI` band (or a scalar as centre +/-0.04), clamped at `floor`."""
+            raw = os.environ.get(name)
+            if raw is None:
+                return float(default_lo), float(default_hi)
+            try:
+                if "," in raw:
+                    lo_raw, hi_raw = raw.split(",", 1)
+                    lo, hi = float(lo_raw), float(hi_raw)
+                else:
+                    mid = float(raw)
+                    lo, hi = mid - 0.04, mid + 0.04
+            except ValueError:
+                say(
+                    f"[supply] warning: {name}={raw!r} is not a length or LO,HI; "
+                    "using the default"
+                )
+                return float(default_lo), float(default_hi)
+            lo = max(floor, lo)
+            return lo, max(lo, hi)
+
         wave_default = (
             "1"
             if scatter and os.environ.get("FRUIT_BIARM_TWOLINE", "0") == "1"
@@ -283,7 +334,35 @@ class SupplyPlan:
         wave_sep_max = max(
             wave_sep_min, number("FRUIT_SUPPLY_WAVE_SEP_MAX", SUPPLY_WAVE_SEP_MAX)
         )
-        balanced = wave and os.environ.get("FRUIT_BIARM_TWOLINE", "0") == "1"
+        # 2D scattered-sheet schedule (W6-A). It needs the scattered feeder
+        # machinery (stream pump, recycle), so `FRUIT_SUPPLY_PATCH=1` without
+        # `FRUIT_SUPPLY_SCATTER=1` is ignored with a warning rather than
+        # silently changing the fixed line.
+        patch_env = os.environ.get("FRUIT_SUPPLY_PATCH", "0") == "1"
+        patch = bool(scatter and patch_env)
+        if patch_env and not scatter:
+            say(
+                "[supply] warning: FRUIT_SUPPLY_PATCH=1 requires "
+                "FRUIT_SUPPLY_SCATTER=1; ignored"
+            )
+        patch_slice_min, patch_slice_max = band(
+            "FRUIT_SUPPLY_PATCH_SLICE",
+            SUPPLY_PATCH_SLICE_MIN,
+            SUPPLY_PATCH_SLICE_MAX,
+            0.085,
+        )
+        patch_pair = min(
+            1.0, max(0.0, number("FRUIT_SUPPLY_PATCH_PAIR", SUPPLY_PATCH_PAIR))
+        )
+        patch_sep_min, patch_sep_max = band(
+            "FRUIT_SUPPLY_PATCH_SEP",
+            SUPPLY_PATCH_SEP_MIN,
+            SUPPLY_PATCH_SEP_MAX,
+            0.085,
+        )
+        # The balanced A:B:C mix follows the two-line scenario, whether it runs
+        # the wave or the patch schedule there (`FRUIT_SUPPLY_GRADES` still wins).
+        balanced = (wave or patch) and os.environ.get("FRUIT_BIARM_TWOLINE", "0") == "1"
         default_grades = tuple(
             (grade, _default_grade_weight(grade, balanced)) for grade in cfg.grades
         )
@@ -313,6 +392,12 @@ class SupplyPlan:
             wave_gap_max=wave_gap_max,
             wave_sep_min=wave_sep_min,
             wave_sep_max=wave_sep_max,
+            patch=patch,
+            patch_slice_min=patch_slice_min,
+            patch_slice_max=patch_slice_max,
+            patch_pair=patch_pair,
+            patch_sep_min=patch_sep_min,
+            patch_sep_max=patch_sep_max,
         )
 
     def sample_gap(self, rng: random.Random) -> float:
@@ -419,6 +504,15 @@ class FruitSpawner:
                 + ",".join(f"{key}:{weight:g}" for key, weight in self.supply.grades)
                 + " classes="
                 + ",".join(f"{name}:{counts.get(name, 0)}" for name in categories)
+                + (
+                    f" patch=on slice={self.supply.patch_slice_min:.2f}-"
+                    f"{self.supply.patch_slice_max:.2f} "
+                    f"pair={self.supply.patch_pair:.2f} "
+                    f"sep={self.supply.patch_sep_min:.3f}-"
+                    f"{self.supply.patch_sep_max:.2f}"
+                    if self.supply.patch
+                    else ""
+                )
             )
         else:
             for i in range(self.cfg.num_fruits):
@@ -547,17 +641,25 @@ class FruitSpawner:
         )
         tune_contact_body(prim)
 
-    def respawn(self, sample: FruitSample, along: float | None = None, x_jitter: float = 0.10) -> None:
+    def respawn(self, sample: FruitSample, along: float | None = None,
+                x_jitter: float = 0.10, x: float | None = None) -> None:
         """Drop a fruit onto the belt at the upstream end.
 
-        ``along`` overrides the along-the-line (Y) spawn position. The fruit is
-        placed a few centimetres above the surface and falls onto it, so the
-        physics engine never has to resolve an interpenetration.
+        ``along`` overrides the along-the-line (Y) spawn position. ``x``
+        overrides the lateral position on the scattered line (the patch
+        schedule places abreast pairs at a planned x); ``None`` keeps the
+        seeded draw, so every pre-patch path is unchanged. The fruit is placed
+        a few centimetres above the surface and falls onto it, so the physics
+        engine never has to resolve an interpenetration.
         """
         cfg = self.cfg
         y = cfg.spawn_y if along is None else along
         if self.supply.scatter:
-            x = self.rng.uniform(self.supply.x_min, self.supply.x_max)
+            x = (
+                self.rng.uniform(self.supply.x_min, self.supply.x_max)
+                if x is None
+                else float(x)
+            )
             if along is None and self.supply.along_jitter > 0.0:
                 y += self.rng.uniform(
                     -self.supply.along_jitter, self.supply.along_jitter
@@ -812,7 +914,12 @@ class FruitSpawner:
         return queued
 
     def _release_gap(self) -> float:
-        """One release gap [m] on the scattered line: dense-sheet pattern or uniform.
+        """One release gap [m] on the scattered line: patch, dense-sheet or uniform.
+
+        With `patch=True` (W6-A 2D sheet) the gap is one **slice spacing**
+        drawn from `patch_slice_min..patch_slice_max`; the slice's fruit are
+        placed abreast by `_release_patch_slot`, so the spacing here is
+        measured slice-start to slice-start.
 
         With `wave=True`: within a cluster the gap is drawn from
         `wave_gap_min..wave_gap_max`; after `wave_size` releases the
@@ -826,6 +933,10 @@ class FruitSpawner:
         """
         if not self.supply.scatter:
             return float(self.cfg.spawn_period_s)
+        if self.supply.patch:
+            return self.rng.uniform(
+                self.supply.patch_slice_min, self.supply.patch_slice_max
+            )
         if not self.supply.wave:
             return self.supply.sample_gap(self.rng)
         self._wave_count += 1
@@ -844,8 +955,16 @@ class FruitSpawner:
                 return self._release_gap() / speed
         return float(self.cfg.spawn_period_s)
 
-    def _release_clear(self, along: float) -> bool:
-        """True when no live fruit already occupies `along` on the main belt."""
+    def _release_clear(self, along: float, x: float | None = None) -> bool:
+        """True when no live fruit already occupies `along` on the main belt.
+
+        `x` is the lateral position the new fruit would take. On the patch
+        schedule a same-**slice** partner sits at the same `along` by design,
+        so the 0.08 m separation rule is applied in the belt plane: a live
+        fruit inside the along window is only in the way when its lateral
+        separation is below `patch_sep_min` (>= 0.085 m). Without `x` (every
+        pre-patch call site) the original along-only rule is unchanged.
+        """
         for sample in self.active:
             if sample.parked or sample.held:
                 continue
@@ -853,7 +972,66 @@ class FruitSpawner:
             if abs(float(pos[0]) - self.cfg.belt_center[0]) > 0.30:
                 continue
             if abs(float(pos[1]) - float(along)) < 0.08:
-                return False
+                if x is None:
+                    return False
+                if abs(float(pos[0]) - float(x)) < self.supply.patch_sep_min:
+                    return False
+        return True
+
+    def _patch_plan(self) -> tuple[float, float | None]:
+        """One patch slice's lateral plan: `(x0, partner_x)`; partner None = single.
+
+        Pair probability `patch_pair`; a pair's lateral separation is drawn
+        from `patch_sep_min..patch_sep_max` (floored above `_release_clear`'s
+        0.08 m rule and clamped to the lateral band so the partner stays
+        inside `x_min..x_max`). The draws happen only when the caller has
+        already decided to release a slice, so the patch-off RNG stream is
+        untouched.
+        """
+        span = float(self.supply.x_max) - float(self.supply.x_min)
+        if self.rng.random() < self.supply.patch_pair and span >= self.supply.patch_sep_min:
+            sep = min(
+                self.rng.uniform(self.supply.patch_sep_min, self.supply.patch_sep_max),
+                span,
+            )
+            x0 = self.rng.uniform(self.supply.x_min, self.supply.x_max - sep)
+            return x0, x0 + sep
+        return self.rng.uniform(self.supply.x_min, self.supply.x_max), None
+
+    def _release_patch_slot(
+        self, along: float, queue_max: int, released: list[FruitSample]
+    ) -> bool:
+        """Release one patch slice: 1-2 fruit abreast at the same belt position.
+
+        Returns False when the feeder had no recyclable sample (the pump then
+        stops, like the uniform path); a refusal by the clearance/queue rules
+        degrades the slice (or its partner half) to `supply_skipped`, exactly
+        how the uniform pump counts a slot that never existed.
+        """
+        x0, partner = self._patch_plan()
+        if not self._release_clear(along, x0):
+            self.stats["supply_skipped"] += 1
+            return True
+        sample = self.release_next()
+        if sample is None:
+            return False
+        self.respawn(sample, along=along, x=x0)
+        released.append(sample)
+        if partner is None:
+            return True
+        if (
+            len(released) >= self.supply.burst_max
+            or self._queue_depth() >= queue_max
+            or not self._release_clear(along, partner)
+        ):
+            self.stats["supply_skipped"] += 1
+            return True
+        partner_sample = self.release_next()
+        if partner_sample is None:
+            self.stats["supply_skipped"] += 1
+            return False
+        self.respawn(partner_sample, along=along, x=partner)
+        released.append(partner_sample)
         return True
 
     def _pump_supply(self, sim_time: float, queue_max: int) -> list[FruitSample]:
@@ -872,6 +1050,9 @@ class FruitSpawner:
         as fallen), the queue interlock still caps the station window, and a
         placement that would overlap a live fruit is skipped rather than dropped
         on top of it.
+
+        On the patch schedule each due slot is a **slice**: `_release_patch_slot`
+        places its 1-2 fruit abreast at `along` (see there for the pair rules).
         """
         cfg = self.cfg
         speed = max(abs(float(cfg.belt_speed)), 0.03)
@@ -888,6 +1069,10 @@ class FruitSpawner:
             if self._queue_depth() >= queue_max:
                 self._next_release = max(self._next_release, sim_time + period)
                 break
+            if self.supply.patch:
+                if not self._release_patch_slot(along, queue_max, released):
+                    break
+                continue
             if not self._release_clear(along):
                 self.stats["supply_skipped"] += 1
                 continue
@@ -1006,10 +1191,12 @@ class FruitSpawner:
         which put the last two of a four-fruit pre-load downstream of the
         selector's window before the first attempt even started. The scattered
         feed samples the same gaps it releases with (the wave schedule when
-        `FRUIT_SUPPLY_WAVE=1`, so the pre-load is the first wave), and stops
-        filling once the next position would sit inside the station window
-        (`pick_y + 0.12`), so the pre-load covers the selector's upstream
-        window. `scatter=0` keeps the 0.30 m ladder bit-for-bit.
+        `FRUIT_SUPPLY_WAVE=1`, so the pre-load is the first wave; with
+        `FRUIT_SUPPLY_PATCH=1` it samples slice spacings and places one fruit
+        per slice - the abreast pairs start with the pump's first slice), and
+        stops filling once the next position would sit inside the station
+        window (`pick_y + 0.12`), so the pre-load covers the selector's
+        upstream window. `scatter=0` keeps the 0.30 m ladder bit-for-bit.
         """
         alongs: list[float] = []
         along = float(self.cfg.spawn_y)

@@ -392,6 +392,58 @@ configs/motion_reference.json`; the acceptance's **385/385** physics
 knob + comments) and the metadata-only `rl_env.py` `TASKS_MD5` pin 280d0951
 -> 69823dc1.
 
+**W6 (Gates W6-A/B/C, 2026-10-10/11, `logs/w6/`): the throughput metrics are
+the inter-placement interval and the lock-on; the supply is the designed 2D
+patch sheet; the park-gate lever is the measured win and L1 prefetch is a
+measured null.** The tree pin: `tasks.py` **fa9594fb** (the two default-off,
+two-line-only knobs `FRUIT_BIARM_PARK_EARLY` and `FRUIT_BIARM_PREFETCH` + the
+prefetch-gated handover line), `fruits.py` **a0ea1f54** (`FRUIT_SUPPLY_PATCH=1`
+- 0.14-0.22 m along-slices of 1-2 fruit abreast, pair probability 0.6,
+0.085-0.12 m separation, shipped x band; default off and every pre-patch supply
+stays byte-reproducible), `scripts/186_w6_report.py` **49242875** (the
+interval/lock-on/idle/park-split report - the `41`/`45` artifacts are from this
+pin), `scripts/188_w6c_levers.sh` **b4308c66** (the lever driver), `rl_env.py`
+`TASKS_MD5` metadata-only follow `69823dc1` -> `fa9594fb`. The battery is the
+two-line (`FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=1`) on the patch sheet,
+`ATTEMPTS=20`, SEED=5, balanced mix, Tier A solo, plus the same-scenario
+single-arm run; the metrics are the per-arm + pooled **inter-placement
+interval** (t1 of consecutive placements), the **lock-on** latency (previous
+attempt end -> station acquired = selection time), the idle fraction and the
+`[cycle]`-mark decomposition (SPEC section 2). **Baseline** (`BASELINE.md`):
+two-line **10/20**, batch 2.78 / placement-window **2.70 placed/min**, pooled
+interval **22.20 s mean / 45.50 s p90**, idle 26 %/29 %; single arm **13/18**,
+2.12/2.17 placed/min -> the same-scenario **window ratio 1.24x** (1.31x by
+batch span is the boundary-inclusive variant; do not mix the two
+denominators). The delivered 2D-ness is the worker-cadence per-selection read
+**7/9 = 77.8 %** of selection instants facing an abreast slice; the free-
+cadence design number (93.5 %) must never be quoted as delivered. **W6-C
+(`C_RESULTS.md`)**: the **park-gate lever** (`FRUIT_BIARM_PARK_EARLY=1`, opens
+the park gate as soon as the other arm's payload clears its station box)
+moves the pre-registered pair - pooled interval **22.20 -> 16.53 s** mean,
+**45.50 -> 19.90 s** p90, left gate-blocked idle **25.2 -> 0.2 s**, placement
+window **2.70 -> 3.63 placed/min** - but it is a **different branch** (12/20
+vs 10/20; 7 placed-False + 1 takeoff vs 6 + 4), so quote the timing-only
+**+10 %** and the residual **x1.22** factor, not the raw +34 %.
+**L1 prefetch (`FRUIT_BIARM_PREFETCH=1`) is a measured null: 0/40
+attempt-ends reserved** (0 reservations in each of the two prefetch runs; the
+combined pair 1/40, which went stale at slot start - 0.22 m past the right
+station, below the +0.30 m floor): the feeder's release cadence runs at the
+attempt boundary **after** the park and `state()` reads live positions, so the
+attempt-end lane is empty; the consume path was never exercised. L1 stays a
+default-off **hook** (re-fire gate: reservations > 0 AND a consumption) and
+**L2 (adaptive lead) is next**, with the measured wait-to-handover inputs left
+mean 2.93 s / p90 3.7, right 3.39 / 4.4 and the SPEC 7.3 floor-override
+prerequisite. Clearance is unchanged by both levers: **1.9 mm min, 4.7 %
+< 30 mm** (`37`/`38`/`39` JSONLs - the two scripted hover poses; no arm-arm
+contact is possible in this build, `enabledSelfCollisions=0`). **No-harm:**
+every config pair bit-identical (821/850/843 physics lines), knobs-off
+two-line 830/830 vs the W6-B record and single-arm 643/643 vs the W5-C record,
+`selfcheck.sh` PASS, acceptance **9/10 + `fingerprint: matches`**
+(`logs/w6/60_accept_w6c.log`) - the single-arm default is byte-unchanged. Both
+W6-C knobs default **OFF** and two-line-only, pending the owner (W6-D); the
+placed-False and takeoff grip failure classes are W6-E's recollection +
+fine-tune territory (`logs/w6/C_RESULTS.md` section 5).
+
 ## 3. What changed -> what to run
 
 | you changed | run |

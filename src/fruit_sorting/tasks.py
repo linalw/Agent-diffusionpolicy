@@ -3216,6 +3216,17 @@ class PickAndPlaceTask:
         #: W2: whether each arm's held payload is clear of its station box
         #: (published per tick by `_biarm_after_step`; read by the park gate).
         session.payload_clear: dict[str, bool] = {"left": True, "right": True}
+        #: W6-C L1 prefetch (`FRUIT_BIARM_PREFETCH=1`, two-line only, default
+        #: off): the arm's next target selected at attempt end and reserved
+        #: (`spawner.protect`) through the park/gap, consumed (or dropped) at
+        #: the next slot start. `next_target_t` is the selection sim time, so
+        #: the report can quote the reservation age (selection -> station
+        #: acquired); lock-on itself collapses under prefetch by construction.
+        session.prefetch_enabled = bool(
+            two_line and os.environ.get("FRUIT_BIARM_PREFETCH", "0") == "1"
+        )
+        session.next_target: dict[str, dict | None] = {"left": None, "right": None}
+        session.next_target_t: dict[str, float | None] = {"left": None, "right": None}
         self._active_session = session
         try:
             with session:
@@ -3381,15 +3392,66 @@ class PickAndPlaceTask:
                                     f"[biarm] {arm}: start gate waited {waited} ticks "
                                     f"(other started {ago:.1f}s ago)"
                                 )
-                        state = self.select_target(
-                            self.spawner.state(),
-                            station_y=self.station_y_for(arm),
-                            prefer_lane=bin_index,
-                            exclude=set(self.spawner.protected_indices),
-                            min_lead_s=float(
-                                os.environ.get("FRUIT_BIARM_SELECT_LEAD_S", "1.4")
-                            ),
-                        )
+                        state = None
+                        if session.prefetch_enabled:
+                            # W6-C L1: a target reserved at the previous
+                            # attempt's end. Re-check it against the floor
+                            # *now* (the slot start, when the catch's setup
+                            # actually begins), never the prefetch-time floor:
+                            # a fruit that has since arrived inside
+                            # `_dynamic_select_floor()` is already past the
+                            # point the catch can meet (the v9 miss,
+                            # `logs/v1/20_rate_supply_1.log`), so it is dropped
+                            # and the slot selects fresh below. The one-item
+                            # `select_target` call reuses the exact eligibility
+                            # rules (grade/floor/diverted/fall-off) instead of
+                            # duplicating them.
+                            reserved = session.next_target.get(arm)
+                            if reserved is not None:
+                                session.next_target[arm] = None
+                                index = int(reserved["index"])
+                                fresh = [
+                                    row
+                                    for row in self.spawner.state()
+                                    if int(row["index"]) == index
+                                ]
+                                state = self.select_target(
+                                    fresh,
+                                    station_y=self.station_y_for(arm),
+                                    prefer_lane=bin_index,
+                                    min_lead_s=float(
+                                        os.environ.get("FRUIT_BIARM_SELECT_LEAD_S", "1.4")
+                                    ),
+                                )
+                                now = self._sim_time()
+                                if state is None:
+                                    self.spawner.unprotect(index)
+                                    say(
+                                        f"[biarm] {arm}: prefetch stale index={index} "
+                                        f"at t={now:.1f}s"
+                                    )
+                                else:
+                                    reserved_t = session.next_target_t.get(arm)
+                                    session.next_target_t[arm] = None
+                                    age = (
+                                        now - float(reserved_t)
+                                        if reserved_t is not None
+                                        else float("nan")
+                                    )
+                                    say(
+                                        f"[biarm] {arm}: prefetch consumed index={index} "
+                                        f"at t={now:.1f}s (age {age:.1f}s)"
+                                    )
+                        if state is None:
+                            state = self.select_target(
+                                self.spawner.state(),
+                                station_y=self.station_y_for(arm),
+                                prefer_lane=bin_index,
+                                exclude=set(self.spawner.protected_indices),
+                                min_lead_s=float(
+                                    os.environ.get("FRUIT_BIARM_SELECT_LEAD_S", "1.4")
+                                ),
+                            )
                         if start_gap > 0.0 and state is not None:
                             # Record only real attempts: a starved slot must not
                             # delay the other arm (the batch-start priming loops
@@ -3449,6 +3511,13 @@ class PickAndPlaceTask:
                 finally:
                     self._release_prepose()
                     self._biarm_clear_slot(arm)
+                    if two_line and ran and session.prefetch_enabled:
+                        # W6-C L1: reserve the next target while this arm is
+                        # still busy (the park follows, and the reservation
+                        # rides through it); the slot start consumes it. Placed
+                        # after `run()` so the just-finished attempt has already
+                        # unprotected its own fruit.
+                        self._biarm_prefetch(session, arm, bin_index)
                     self._biarm_park(arm)
                     if not two_line:
                         session.station.release()
@@ -3474,7 +3543,55 @@ class PickAndPlaceTask:
             session.errors.append(exc)
         finally:
             self._release_prepose()
+            if two_line:
+                # Drop a reservation that was made but never consumed (the
+                # budget ran out before the next slot): an abandoned
+                # `protected_indices` entry would keep the feeder from
+                # recirculating that fruit for the rest of the batch.
+                leftover = session.next_target.get(arm)
+                if leftover is not None:
+                    self.spawner.unprotect(int(leftover["index"]))
+                    session.next_target[arm] = None
             relay.release()
+
+    def _biarm_prefetch(self, session: CoopSession, arm: str, bin_index: int) -> None:
+        """W6-C L1: select + reserve this arm's next target while it parks.
+
+        `FRUIT_BIARM_PREFETCH=1` (two-line only, default off). The selection
+        runs at attempt end, before `_biarm_park`; the candidate is reserved
+        with `spawner.protect(index)` so the other arm's next selection skips
+        it, and the reservation rides through the park and the feed gap. At
+        the following slot start the target is consumed if it still passes
+        `select_target` (the slot-start floor - see the worker), otherwise it
+        is dropped and the slot selects fresh.
+
+        Pre-registered expectation (`logs/w6/SPEC.md`, W6-C L1): the handover
+        time is set by the fruit's arrival, not by the selection time, so the
+        interval effect is expected to be ~0 with a branch-reshuffle risk; the
+        possible win is fewer starved-slot spins. Lock-on collapses by
+        construction (the selection precedes the arm-free moment), so the
+        report quotes the **reservation age** (selection -> station acquired)
+        instead.
+        """
+        state = self.select_target(
+            self.spawner.state(),
+            station_y=self.station_y_for(arm),
+            prefer_lane=bin_index,
+            exclude=set(self.spawner.protected_indices),
+            min_lead_s=float(os.environ.get("FRUIT_BIARM_SELECT_LEAD_S", "1.4")),
+        )
+        if state is None:
+            return
+        index = int(state["index"])
+        self.spawner.protect(index)
+        session.next_target[arm] = state
+        session.next_target_t[arm] = self._sim_time()
+        say(
+            f"[biarm] {arm}: prefetch reserved index={index} "
+            f"{state.get('category', '?')} "
+            f"along={float(state['position'][1]):+.3f}m "
+            f"at t={session.next_target_t[arm]:.1f}s"
+        )
 
     def _biarm_park(self, arm: str) -> None:
         """Return a finished attempt's arm to ready, gated on the other arm.
@@ -3518,8 +3635,15 @@ class PickAndPlaceTask:
                 # by the return any more, so the gate can open then instead of
                 # at the other arm's release. The shipped F2 rule waits for the
                 # whole grip. `FRUIT_BIARM_PARK_GATE=1` enables the
-                # payload-clear reading (published by `_biarm_after_step`).
-                if two_line_ctx and os.environ.get("FRUIT_BIARM_PARK_GATE", "0") == "1":
+                # payload-clear reading (published by `_biarm_after_step`);
+                # `FRUIT_BIARM_PARK_EARLY=1` is the W6-C park-gate lever - the
+                # same physical predicate, re-measured on the W6-B patch
+                # battery under the W6 clearance convention (one clearance
+                # trace per config). Both are default off and two-line-only.
+                if two_line_ctx and (
+                    os.environ.get("FRUIT_BIARM_PARK_GATE", "0") == "1"
+                    or os.environ.get("FRUIT_BIARM_PARK_EARLY", "0") == "1"
+                ):
                     other_blocked = other_gripping and not bool(
                         session.payload_clear.get(other, True)
                     )
@@ -3660,9 +3784,10 @@ class PickAndPlaceTask:
             return
         if session.trace:
             self._biarm_trace_sample(session)
-        if getattr(session, "twoline", False) and os.environ.get(
-            "FRUIT_BIARM_PARK_GATE", "0"
-        ) == "1":
+        if getattr(session, "twoline", False) and (
+            os.environ.get("FRUIT_BIARM_PARK_GATE", "0") == "1"
+            or os.environ.get("FRUIT_BIARM_PARK_EARLY", "0") == "1"
+        ):
             # W2 lever (default off): publish whether this arm's payload is
             # clear of its station box, so the other arm's park gate
             # (`_biarm_park`) can open while the payload is over the output
@@ -3671,6 +3796,8 @@ class PickAndPlaceTask:
             # (`logs/w2/60_...` park waits 3.2/4.4 s). Off by default: the
             # per-tick position read is the instrumentation class (AGENTS
             # section 2) and the lever did not meet the W2 gate.
+            # `FRUIT_BIARM_PARK_EARLY=1` (W6-C) re-enables the same reading for
+            # the W6-B patch battery; it is the park-gate lever's actuator.
             sample_now = self.current_sample
             if sample_now is not None and self._closed_gap.get(self.current_arm) is not None:
                 session.payload_clear[self.current_arm] = bool(
@@ -4129,6 +4256,19 @@ class PickAndPlaceTask:
                                 f"(fruit |v_y|={abs(fruit_v):.3f} m/s, ratio {ratio:.2f}x, "
                                 f"queue={self._queue_depth()})"
                             )
+                            session_ctx = self._active_session
+                            if session_ctx is not None and getattr(
+                                session_ctx, "prefetch_enabled", False
+                            ):
+                                # W6-C L1 tooling: the wait-loop break *is* the
+                                # handover (the descent starts from here), so
+                                # the report can quote wait-to-handover =
+                                # this - station acquired. Two-line prefetch
+                                # only; pure reporting.
+                                say(
+                                    f"[biarm] {self.current_arm}: handover "
+                                    f"at t={self._sim_time():.1f}s"
+                                )
                         break
                     if dy < -0.25:
                         # Already past the downstream end of the reach: the fruit

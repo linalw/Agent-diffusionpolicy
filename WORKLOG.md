@@ -12252,3 +12252,145 @@ into the WORKLOG record (append-only). Five items:
    README two-line and policy rows, and the Chinese docs `项目总结报告.md` /
    `决策与交付.md`. `logs/` is gitignored, so the WORKLOG + those docs are the
    durable record.
+
+### W6-C: the park gate is the idle reducer (left 25.2 -> 0.2 s blocked); L1 prefetch is a measured null (0/40 reservations)
+
+(2026-10-11, Tier A solo; no commit.) **Tree pin:** `tasks.py` `fa9594fb`
+(two default-off, two-line-only knobs - `FRUIT_BIARM_PARK_EARLY`, the
+park-gate lever; `FRUIT_BIARM_PREFETCH`, L1 - plus the prefetch-gated handover
+log line), `scripts/186_w6_report.py` `49242875` (additive: prefetch
+reservation-age / wait-to-handover + park-trace idle split),
+`scripts/188_w6c_levers.sh` `b4308c66`; `rl_env.py` `TASKS_MD5` metadata-only
+follow `69823dc1` -> `fa9594fb`. The pre-registration is `logs/w6/SPEC.md`
+section 7; the baseline P1 corrections (headline 1.24x with the 2.25 -> 1.237
+truncation check; the L1 mechanism rewritten - handover time is set by the
+fruit's *arrival*, not the selection time; the idle split; attempts-per-
+placement 1.83/2.25/1.38 and the failure classes as the interval's first-order
+driver; the `wave=on`-under-`patch=on` / manual-870-line / `queue_peak=0`
+provenance notes) are in `logs/w6/BASELINE.md`. Results:
+**`logs/w6/C_RESULTS.md`**. **Provenance (the gate W6-C reconciliation):** the
+battery-time md5 captures `43`/`44` record `186` = **a0051d54** (before the
+wait-to-handover / park-split addendum); the pinned revision is **49242875**,
+and the report artifacts `41`/`45` were **regenerated offline from the pin**
+(bit-identical to what was measured) - `43`/`44` are the in-battery tree
+no-change check, not the report-artifact provenance.
+
+**Runs** (`logs/w6/40_levers_driver.log`, all exit=0; extra trace driver
+`46_extra_driver.log`): `30_parktrace_baseline` (knobs off + park trace),
+`31/32` park lever x2 (32 trace-on), `33/34` prefetch x2, `35/36` both x2,
+`20_single_noharm`, then `37` park lever + park trace + persisted clearance,
+`38` baseline clearance, `39` prefetch clearance. Every pair is **bit-identical
+on the physics stream** (821/821, 850/850, 843/843), the baseline park-trace
+run is **830/830 identical to the W6-B battery run**, `37` is identical to
+`32`, `38` to `30` and `39` to `33` (all three pairs in
+`48_extra_identity_check.txt`), and the single-arm no-harm run is **643/643
+identical to `20_battery_single`** - the knobs are two-line-scoped and inert
+when off. The extra runs' reports/idle splits are `47_extra_trace_report.txt`
+and the per-JSONL clearance is `49_clearance_check.txt`.
+`ACCEPT_LOG=logs/w6/60_accept_w6c.log scripts/accept.sh`: **9/10, gate PASS,
+`fingerprint: matches`**; `selfcheck.sh` PASS 0 failures; `172` 52 checks PASS.
+Tooling caveat: `logs/w4/compare_streams.py` drops the park/clearance trace
+lines but not the new prefetch/handover reporting lines, so the
+prefetch-vs-baseline physics comparison is quoted after stripping them (the
+pinned W4 tool was deliberately not edited; same-config pairs need no strip).
+
+**Park-gate lever - WIN on the pre-registered reading.** The pre-registered
+pair moved: pooled interval **22.20 -> 16.53 s mean, 45.50 -> 19.90 s p90**,
+and the left arm's **gate-blocked idle is deleted (25.2 -> 0.2 s**; all four
+3.4-7.5 s block events gone, 24 ticks total). `_biarm_park` opens the gate when
+the other arm's held payload has left its station box instead of at its
+release. Right blocked 7.8 -> 7.9 s (its parks overlap the other arm's
+pre-clear close->lift window, which no payload predicate can open earlier - the
+lever's floor); per-park return motion unchanged (2.3-2.6 s left, 2.5-2.6 s
+right). Idle: left 56.0 -> 33.6 s (26 -> 18 %), right 56.3 -> 47.4 s
+(29 -> 24 %; mostly fewer starved-slot spins, 41 -> 22, a schedule
+side-effect); placement-window rate 2.70 -> 3.63 placed/min (batch
+2.78 -> 3.64). Descriptive secondaries (not the verdict): the config is a
+**different branch** (12/20 vs 10/20; 7 placed-False + 1 takeoff vs 6 + 4), so
+the raw +34 % is not a lever success-rate effect - timing-only (baseline count
+over the park window) `9/181.8 = 2.97` -> **+10 %**, the remaining factor 1.22
+the branch's two extra placements. Clearance per config (persisted JSONLs):
+**1.9 mm min, 4.7 % <30 mm, the same `left_ee_tcp`/`right_ee_tcp` event at
+t=56.3 s in baseline and both lever configs** - the minimum is the two scripted
+hover poses coinciding, unchanged by the levers; no contact failure ever
+(`enabledSelfCollisions=0`).
+
+**L1 prefetch - measured null, stronger than pre-registered.** The
+prefetch-only pair (two 20-attempt runs) made **0 reservations in 40
+attempt-ends** (`prefetch reserved = 0` in both runs): the feeder's release
+cadence runs at the attempt boundary **after the park** and `state()` reads
+live positions, so the backlog lands only after the park - the attempt-end lane
+is empty. Its physics is **bit-identical to the baseline** and every
+interval/idle/throughput number is identical. The combined pair produced
+exactly one reservation in its branch (**1/40 attempt-ends**; right pear
+index 11, `along=+0.398 m`, t=68.6 s), which went **stale at slot start**
+(t=74.6 s: 6.0 s of park+gap carried it 0.72 m downstream to `along=-0.32 m` -
+**0.22 m past the right station, below the +0.30 m floor threshold**) - the
+pre-registered stale-drop outcome; it was otherwise inert (physics identical to
+the park config). **The consume path was never exercised** (`prefetch consumed`
+= 0 in all four knob runs); the knob stays a default-off hook with the re-fire
+gate: reservations > 0 AND a consumption. New record metrics: reservation age
+n/a (that is the result); wait-to-handover (station acquired -> wait-loop
+break) left n=11 mean **2.93 s** (p90 3.7), right n=9 mean **3.39 s** (p90
+4.4) - the distribution an L2 adaptive lead needs (SPEC 7.3 floor-override
+prerequisite).
+
+**Remains for W6-D:** the park-gate default decision (owner sign-off; knob
+stays default-off and two-line-only), the commit (the AGENTS/README/Chinese
+integration is done in the W6-D docs entry below), and the deferred
+`next_target_t` nit (the reservation timestamp is not cleared on a stale drop
+or an abandoned reservation - harmless today because it is only read on a
+consume and the next reservation overwrites it, but a code edit now would
+invalidate the W6-C tree pins); the L1/L2 route needs a feeder cadence that
+keeps the attempt-end segment stocked; the right arm's residual ~8 s pre-clear
+gate and the placed-False/takeoff classes are W6-D/E items.
+
+### W6-D docs: the W6-C gate fixes applied and the W6 record integrated (2026-10-11; no code edits)
+
+(2026-10-11, docs/evidence only - no simulator, no `src/` edits, so the W6-C
+tree pins stay valid; no commit - the parent commits.) The gate W6-C ordered
+fixes, applied:
+
+* **`186` provenance reconciled.** `43`/`44` record the battery-time md5
+  `a0051d54` (before the wait-to-handover / park-split addendum); the pin is
+  `49242875`. `41_levers_report.txt` / `45_all_levers_report.txt` were
+  **regenerated offline from the pinned tool** (`python3
+  scripts/186_w6_report.py --label w6c-levers|w6c-all` on the same log set) and
+  are bit-identical to what was measured; `C_RESULTS.md` now carries the
+  provenance paragraph.
+* **Extra-run artifacts added** for `37`/`38`/`39`: `47_extra_trace_report.txt`
+  (the park/prefetch/baseline idle splits, incl. the park lever's 0.2 s blocked
+  after-column next to the in-batch 22.0 s motion), `48_extra_identity_check.txt`
+  (37v32 / 38v30 / 39v33 physics identity, 821/830/850 IDENTICAL) and
+  `49_clearance_check.txt` (per-JSONL min/<30 mm/<10 mm - 1.9 mm / 4.7 % on all
+  three configs; the gaps were previously prose only).
+* **FRONTIER corrected**: row 1 + section 3.1 are **measured null on the
+  shipped cadence** with the corrected mechanism (the release cadence runs at
+  the attempt boundary after the park; `state()` reads live positions, so the
+  backlog lands only after the park); the section-3.0 L1-first step is
+  **discharged** (knob = hook; re-fire gate: reservations > 0 AND a
+  consumption); **L2 named next** with the measured wait-to-handover (left
+  2.93 s / p90 3.7, right 3.39 / 4.4) and the `max(1.5, min_lead)`
+  floor-override prerequisite (SPEC 7.3); the **park-gate lever** recorded as
+  W6-C's implemented win (12/20 branch; timing-only +10 %, residual x1.22).
+* **C_RESULTS/WORKLOG wording**: the park verdict leads with the pre-registered
+  pair (pooled 22.20 -> 16.53 s mean, p90 45.50 -> 19.90 s) plus the
+  **25.2 -> 0.2 s** gate-blocked deletion, with +10 %/x1.22 as the secondary
+  descriptive line; L1 as **0/40 attempt-ends** (1/40 in the combined pair);
+  the stale drop as "0.22 m past the right station, below the +0.30 m floor
+  threshold"; the consume-path-unexercised note.
+* **Integration**: the AGENTS section-2 W6 paragraph (patch sheet + metrics,
+  the 20-attempt battery, the 1.24x baseline, the park win with its branch, the
+  L1 null, the 1.9 mm / 4.7 % clearance, the no-harm, the pins `tasks.py`
+  `fa9594fb` / `fruits.py` `a0ea1f54` / `186` `49242875` / the rl_env
+  `TASKS_MD5` follow `69823dc1 -> fa9594fb`, the park lever default **OFF**
+  pending the owner, W6-E named next); the README W6 clauses in both two-line
+  rows; the Chinese `项目总结报告.md` W6 section and `决策与交付.md` section 7.
+
+Checks: `scripts/selfcheck.sh` PASS (0 failures, 1 skipped - the motion-budget
+leg needs a run log; `logs/selfcheck.log`). `git status` shows only the doc
+edits plus the pre-existing W6 tree changes (no new `src/` diffs; `logs/` is
+gitignored). The `next_target_t` nit (the reservation timestamp is not cleared
+on a stale drop or an abandoned reservation - harmless today: only read on a
+consume and overwritten by the next reservation) is **deferred** per the gate:
+a code edit would invalidate the W6-C tree pins.
