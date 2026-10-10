@@ -18,7 +18,7 @@ unset the env's trigger code is the shipped ``finger < 0.030 and distance <
     FRUIT_POLICY_TRIGGER_LEAD   predicted seconds to the jaw line at fire time
                                 (default 0.90 s: the 10 closed episodes of
                                 `logs/798` fired at 5.9-6.0 cm at 0.06 m/s)
-    FRUIT_POLICY_TRIGGER_LATERAL  max |dx| (cross-belt) at fire time [m] (0.06)
+    FRUIT_POLICY_TRIGGER_LATERAL  max |dx| (cross-belt) at fire time [m] (0.16)
     FRUIT_POLICY_TRIGGER_REACH  max upstream distance the trigger considers [m]
                                 (0.20)
     FRUIT_POLICY_TRIGGER_FINGER `assist` mode: the policy finger must be below
@@ -36,6 +36,16 @@ unset the env's trigger code is the shipped ``finger < 0.030 and distance <
                                 differs, the env adopts it (the same fruit the
                                 scripted primitive's station re-select would
                                 grasp) and fires. Default 0.
+
+The lateral default is **0.16 m** (W4, 2026-10-10): the pre-v9 fixed supply
+kept fruit within ~5 mm of the belt centre, where 0.06 was calibrated, but the
+shipped v9/V1 scattered/dense band is x = 0.20-0.36 m against the grasp-pose
+jaw at x ~ 0.30-0.34 m, so the old gate refused the outer half of the band and
+the direct interface stalled in a no-fire class (`moe_v13s` dense, N=3x15:
+0.06 -> 7/45 with 21/45 no-fire, 0.16 -> 19/45 with 1/45 no-fire,
+`logs/w4/table_2x2.txt`). 0.16 also stays inside the measured top-down station
+reach band (x = 0.18-0.39, `scripts/174_station_reach.py`); pin `=0.06` to
+reproduce the pre-W4 gate (the P2b-era direct logs were recorded with it).
 
 ``arrival`` fires from the schedule alone; ``assist`` additionally requires the
 policy to be *near* closing so the learned approach stays causally necessary.
@@ -63,7 +73,10 @@ class TriggerSettings:
 
     mode: str = "off"
     lead: float = 0.90
-    lateral: float = 0.06
+    #: W4: the v9/V1 scattered/dense supply band (x = 0.20-0.36 m) sits up to
+    #: ~0.14 m off the grasp-pose jaw line; 0.06 refused its outer half (see
+    #: the module docstring). Pin 0.06 via env to reproduce the pre-W4 gate.
+    lateral: float = 0.16
     reach: float = 0.20
     finger: float = 0.040
     use_encoder: bool = True
@@ -88,7 +101,7 @@ class TriggerSettings:
         return cls(
             mode=mode,
             lead=float(os.environ.get("FRUIT_POLICY_TRIGGER_LEAD", "0.90")),
-            lateral=float(os.environ.get("FRUIT_POLICY_TRIGGER_LATERAL", "0.06")),
+            lateral=float(os.environ.get("FRUIT_POLICY_TRIGGER_LATERAL", "0.16")),
             reach=float(os.environ.get("FRUIT_POLICY_TRIGGER_REACH", "0.20")),
             finger=float(os.environ.get("FRUIT_POLICY_TRIGGER_FINGER", "0.040")),
             use_encoder=os.environ.get("FRUIT_POLICY_TRIGGER_ENCODER", "1") != "0",

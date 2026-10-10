@@ -11754,3 +11754,125 @@ dense `checkpoints/moe_v13s` (loss 0.0261, router 0.981):
 * Not run (hand-off): the W3-supply hybrid canary (10 episodes; on the spaced
   supply it measured ~15-20 min/episode, so budget a long window or diagnose
   the handoff's station wait on the dense sheet first).
+
+### W4 (Gate 30, 2026-10-10): the dense direct collapse is the trigger's lateral gate; the two-line recollection is the wrong anchor for the single-arm direct interface; the dense two-line repeat is bit-identical; the same-scenario bar is 1.19x
+
+**Scope and provenance.** All simulator work Tier A (one at a time), direct
+cells N=3x15 seeds 77/101/202, trace off, camera 240,424, `FRUIT_POLICY_SEED=11`,
+manifests under `logs/w4/raw/` (`--out`, so `datasets/` is untouched). Cells
+1-4 ran on the frozen `tasks.py c8854d6c`; the trigger re-scope, the
+`_biarm_park` comment and the two offline nit fixes landed after, and cells
+4b/5/6 + the acceptance ran on the final tree (`tasks.py 280d0951`,
+comment-only; `rl_env.TASKS_MD5` re-pinned) - cell 4b with
+`FRUIT_POLICY_TRIGGER_LATERAL=0.06` pinned explicitly to keep the 2x2's gate,
+cells 5/6 on the new 0.16 default. Checkpoints: `moe_v12` md5 `3a9ccfc0...`
+(P2b deployment, trained on single-arm `demos_v10/v11`), `moe_v13s` md5
+`61da390a...` (dense two-line fine-tune of `moe_v12`).
+
+**1. The direct 2x2 + gate cell (`logs/w4/table_2x2.txt`).**
+
+| cell | ckpt | supply | lateral | pooled | seeds 77/101/202 | left | right | fires | no-fire |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 1 | `moe_v13s` | dense | 0.06 | **7/45 = 15.6 %** | 1/5/1 | 0/20 | 7/25 | 25/45 | 21 |
+| 2 | `moe_v12` | dense | 0.06 | **14/45 = 31.1 %** | 5/6/3 | 1/20 | 13/25 | 26/45 | 19 |
+| 3 | `moe_v13s` | pinned | 0.06 | **28/45 = 62.2 %** | 10/10/8 | 2/18 | 26/27 | 45/45 | 0 |
+| 4b | `moe_v12` | pinned | 0.06 | **33/45 = 73.3 %** | 11/12/10 | **8/18** | 25/27 | 45/45 | 0 |
+| 4 | `moe_v13s` | dense | 0.16 (env) | **19/45 = 42.2 %** | 6/8/5 | 2/17 | 17/28 | 44/45 | 1 |
+| 5 | `moe_v13s` | dense | 0.16 (new default) | **17/45 = 37.8 %** | 8/5/4 | 1/18 | 16/27 | 45/45 | 0 |
+| 6 | `moe_v12` | dense | 0.16 (new default) | **15/45 = 33.3 %** | 6/5/4 | 0/16 | 15/29 | 45/45 | 0 |
+
+* **The no-fire class is the trigger's `|dx| <= 0.06` lateral gate vs the
+  scattered band.** The debug run (`logs/w4/51_direct_debug_rlenv.log`;
+  the real knob is `RL_ENV_DEBUG`, not `FRUIT_RL_DEBUG`) shows the left
+  no-fire fruit at x = 0.210-0.239 against the grasp-pose jaw x ~ 0.30-0.32
+  (|dx| = 0.07-0.12). On the pinned supply every episode fires (cells 3/4b:
+  45/45) and the no-fire class is gone; on dense the gate cell (4) fires
+  44/45 and the shipped default 45/45. Cell 1's 21/45 no-fire -> cells 4/5/6's
+  1/0/0.
+* **The two-line recollection is the wrong anchor for the single-arm direct
+  interface.** On the same pinned scenario and tree, `moe_v12` reads
+  **33/45 (left 8/18)** against `moe_v13s` **28/45 (left 2/18)**; on dense at
+  the old gate `moe_v12` 14/45 > `moe_v13s` 7/45 (right 13/25 vs 7/25). Cell
+  4b also reproduces the P2b measurement on the current tree (P2b `moe_v12`
+  pinned was 32/45, left 6/17, `logs/p2b/ab012/`), so the W1/W2/W3 additions
+  did not regress the single-arm direct path (they are two-line-scoped:
+  `prefer_lane`-only routing, session-scoped `_dynamic_profile`, capture
+  token).
+* **The left residual splits by supply.** On pinned, `moe_v12`'s left failures
+  are the carry class (8 `grasped=True placed=False` + 2 grip loss; 8/18 =
+  44 % success). On dense with the gate fixed, the left fires everywhere but
+  still fails (v13s 1-2/17-18, v12 0/16, almost all `grasped-not-placed`) -
+  the dense sheet's left carry/place is a separate open mechanism, not the
+  gate and not the checkpoint.
+* **Decision rule.** (2) does not recover the left arm *on dense* (1/20, the
+  gate dominates); (3) recovers the no-fire class and the right arm (26/27)
+  but not the left (2/18); the completed 2x2's cell 4b recovers the left with
+  the pre-two-line checkpoint (8/18) and reproduces P2b on the current tree.
+  The supply/band branch and the wrong-anchor branch are both real and
+  separable; the W3-left-branch-code branch is excluded (cell 4b), so no
+  bisect against the P2b frozen `tasks.py` was run.
+
+**2. Dense two-line trace-off repeat (`logs/w4/20_dense_repeat.log`).**
+**8/10, `diverted=1` (orange index 10 after 2 failed attempts), 11.2
+s/attempt, 4.27 placed/min, left 4/6 right 4/4, `gate_open=0.0 s`, zero
+`indexed:`** - and **bit-identical to the trace-on `logs/w3/30_dense_trace.log`
+on all 476 physics `[fruit]` lines** (`logs/w4/compare_streams.py` drops only
+the clearance/park-trace reporting lines; `logs/w4/repeat_vs_trace.txt`). The
+clearance trace does not change the branch, so the W3 trace run is the W4
+decision number.
+
+**3. Pinned canary sample.** `FRUIT_CKPT=checkpoints/moe_v13s/policy_best.pt
+FRUIT_SUPPLY_SCATTER=0 scripts/accept_policy.sh` -> **8/10 = 80 %, PASS**,
+2 grip losses, only baseline reasons (`logs/w4/30_canary_v13s_pinned.log`).
+`moe_v13s` pinned samples now read 7/10 (one novel reason - cross-lane station
+fruit placed on lane 0 + fruit left the station during the close, **still
+unattributed**), 6/10 PASS (the gate of record, `logs/w3/81b`), 8/10 PASS.
+The spaced checkpoint's 8/10 stays the pinned-supply comparison for the
+spaced scenario.
+
+**4. Same-scenario single-arm dense baseline (`logs/w4/40_single_dense_supply.log`).**
+One 10-attempt run of the single arm on the two-line's supply
+(`FRUIT_SUPPLY_WAVE=1` + balanced mix): **9/10, 15.1 s/attempt, 3.59
+placed/min**, motion budgets PASS (fingerprint skipped - different supply).
+Against the dense two-line 4.27 placed/min that is **1.19x** - the W1 1.29x
+was the shipped-scattered-supply comparison and does **not** carry to the
+dense sheet; the 1.25x bar is not met same-scenario, so the default-flip
+recommendation is **no**.
+
+**5. The bounded improvement attempt (the clear single lever).** The gate
+re-scope: `FRUIT_POLICY_TRIGGER_LATERAL` default 0.06 -> **0.16** in
+`src/fruit_sorting/policy/trigger.py` (covers the x = 0.20-0.36 band against
+the jaw at x ~ 0.30-0.34 and stays inside the measured reach band x =
+0.18-0.39; `=0.06` still reproducible via env), the offline
+`scripts/811_trigger_test.py` updated (misaligned case moved past the new
+default + the outer-band case pinned both ways). Confirmation N=3x15 dense
+with no lateral override: **17/45 = 37.8 %** (cell 5), 0/45 no-fire -
+consistent with the env-var cell (19/45, 42.2 %) and ~2.4x the old default.
+The hybrid path does not use the trigger (canary unchanged, and the
+`accept.sh` acceptance on the final tree reads 9/10 + fingerprint matches).
+
+**Micro-nits.** `scripts/175_twoline_report.py` now reads the exact minimum
+from the appended clearance `.jsonl` (2.58 mm, 618 <30 mm) instead of the
+log's rounded "3 mm"; `scripts/40_collect_demos.py`'s manifest field is
+`episodes_target` (with the note that the shard's `index.json` holds the
+actual count; the dense shard recorded 158 against a 150 target); a comment
+at `_biarm_park`'s broad `except` documents the swallowed `AttemptTimeout`
+(safe because `run()`'s finally already cleared the per-attempt deadline -
+had it not, the swallow would silently disarm the soft watchdog).
+
+**Evidence.** `logs/w4/` (NOTES.md, table_2x2.txt, repeat_vs_trace.txt,
+VERDICT.md, the raw logs + manifests, `tree_md5_before/final.txt`);
+acceptance `logs/w4/70_accept_w4_tree.log` (9/10, motion gate PASS,
+fingerprint matches); `scripts/selfcheck.sh` PASS on the final tree.
+
+### Correction (2026-10-10, Gate 31): the W4 debug reference line
+
+The W4 entry above quotes "no-fire fruit at x = 0.210-0.239 against the
+grasp-pose jaw x ~ 0.30-0.32". The debug log's no-fire fruit x values are
+0.200/0.210/0.239, and the trigger's `frame=station` reference is the
+reset-captured grasp jaw at ~0.34 (the 0.30-0.32 values are the *drifting*
+jaw the debug prints, not the trigger reference). The correct reading is
+**x = 0.20-0.24 vs the ~0.34 station line, |dx| ~ 0.10-0.14**; the
+mechanism (the 0.06 gate refusing the band's outer half) is unchanged. Gate
+31's ordered list items 1-3 applied to AGENTS/README/Chinese/deepwork; the
+remaining items are the demo + the one-pager + the sync.

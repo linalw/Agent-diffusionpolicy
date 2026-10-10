@@ -20,7 +20,9 @@ prints:
   semantics change: +Y is the left arm's stream, mostly A; -Y the right's,
   mostly B/C, with the crossover counts);
 * the throughput from the `[biarm] ... pipelined slots` summary line and the
-  clearance trace when the run recorded one.
+  clearance trace when the run recorded one - the *exact* minimum is read from
+  the appended `.jsonl` (`min_m`, 5 decimals) and the log's rounded "N mm"
+  value is only printed alongside it (the log rounds to whole mm: 2.58 -> "3").
 """
 
 from __future__ import annotations
@@ -56,10 +58,34 @@ CLEARANCE = re.compile(
     r"\[biarm\] clearance trace: min link separation (?P<mm>[-\d.]+) mm "
     r"at t=(?P<t>[\d.]+)s \((?P<left>\w+) vs (?P<right>\w+)\), (?P<n>\d+) samples"
 )
+CLEARANCE_APPEND = re.compile(r"\[biarm\] clearance trace appended -> (?P<path>\S+)")
 STATIONS = re.compile(r"\[biarm\] two-line scheduler: (?P<text>.*)")
 GRADE_ROUTING = re.compile(r"\[biarm\] grade routing: (?P<text>.*)")
 SOLVE = re.compile(r"\[biarm\] station (?P<arm>\w+) y=(?P<y>[+\-\d.]+): pre-pose solve residual (?P<mm>[\d.]+) mm")
 STATS = re.compile(r"\[stats\] attempts=(?P<attempts>\d+) successes=(?P<successes>\d+) .*?sim=(?P<sim>[\d.]+)s total")
+
+
+def _jsonl_clearance(path: str) -> tuple[float, int, int] | None:
+    """Exact `(min_mm, samples, under_30mm)` from an appended clearance `.jsonl`.
+
+    The log's clearance line rounds to whole millimetres (2.58 -> "3 mm"); the
+    jsonl rows carry `min_m` with 5 decimals. The file is append-mode per
+    batch, so a multi-batch log's file holds the union - report it as such.
+    """
+    import json
+
+    try:
+        rows = [
+            json.loads(line)
+            for line in open(path, encoding="utf-8", errors="ignore")
+            if line.strip()
+        ]
+    except OSError:
+        return None
+    values = [float(row["min_m"]) for row in rows if "min_m" in row]
+    if not values:
+        return None
+    return min(values) * 1000.0, len(values), sum(1 for v in values if v < 0.030)
 
 
 def report(path: str) -> bool:
@@ -76,6 +102,7 @@ def report(path: str) -> bool:
     routes: dict[tuple[str, int], int] = {}
     summary = None
     clearance = None
+    clearance_path = None
     stats = None
     station_line = None
     grade_routing = None
@@ -132,6 +159,10 @@ def report(path: str) -> bool:
             found = CLEARANCE.search(line)
             if found:
                 clearance = found.groupdict()
+                continue
+            found = CLEARANCE_APPEND.search(line)
+            if found:
+                clearance_path = found.group("path")
                 continue
             found = STATS.search(line)
             if found:
@@ -212,11 +243,23 @@ def report(path: str) -> bool:
     elif stats:
         print(f"   [stats]: {stats}")
     if clearance:
-        print(
-            f"   clearance: min {float(clearance['mm']):.0f} mm at "
-            f"t={float(clearance['t']):.2f}s ({clearance['left']} vs "
-            f"{clearance['right']}), {clearance['n']} samples"
-        )
+        exact = _jsonl_clearance(clearance_path) if clearance_path else None
+        if exact is not None:
+            min_mm, samples, under30 = exact
+            print(
+                f"   clearance: min {min_mm:.2f} mm at "
+                f"t={float(clearance['t']):.2f}s ({clearance['left']} vs "
+                f"{clearance['right']}), {samples} samples, {under30} <30 mm "
+                f"(jsonl {clearance_path}; log rounds to "
+                f"{float(clearance['mm']):.0f} mm)"
+            )
+        else:
+            print(
+                f"   clearance: min {float(clearance['mm']):.0f} mm at "
+                f"t={float(clearance['t']):.2f}s ({clearance['left']} vs "
+                f"{clearance['right']}), {clearance['n']} samples"
+                + (f" (jsonl {clearance_path} unreadable)" if clearance_path else "")
+            )
     return bool(summary or stats)
 
 

@@ -138,7 +138,11 @@ def write_manifest(out_dir: str, cfg: SceneConfig) -> None:
     The index alone cannot tell two datasets apart; a policy number is only
     quotable with the tree that collected it (AGENTS: a run is one sample of a
     configuration). Written before the first episode, so even a failed shard is
-    identifiable afterwards. The `supply` block pins the scattered-supply
+    identifiable afterwards. `episodes_target` is the collection *quota*, not
+    the recorded count: the two-line collector records every success in its
+    last chunk, so the shard's `index.json` can hold more than the target (the
+    dense W3 shard recorded 158 against a 150 target). Read the actual count
+    from `index.json`. The `supply` block pins the scattered-supply
     parameters (v9/V1) next to the seed they were drawn with: a shard's class
     mix and gap distribution are part of its provenance. The `collection`
     block pins the W3 two-line/wave/routing/stall-guard knobs.
@@ -164,7 +168,10 @@ def write_manifest(out_dir: str, cfg: SceneConfig) -> None:
     supply = SupplyPlan.from_env(cfg)
     manifest = {
         "created": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
-        "episodes": EPISODES,
+        # The collection quota, not the recorded count: the collector records
+        # every success in its last chunk, so `index.json` can hold more (the
+        # dense W3 shard: 158 recorded against this 150 target).
+        "episodes_target": EPISODES,
         "seed": os.environ.get("SEED", "21"),
         "camera_res": os.environ.get("FRUIT_CAMERA_RES", ""),
         "fixed_stepping": FIXED_STEPPING,

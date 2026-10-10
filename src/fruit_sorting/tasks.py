@@ -3556,6 +3556,11 @@ class PickAndPlaceTask:
             if trace:
                 say(f"[biarm] {arm}: park done t={self._sim_time():.1f}s")
         except Exception as exc:  # noqa: BLE001 - parking must not mask the result
+            # A swallowed `AttemptTimeout` here is safe: `run()`'s finally has
+            # already cleared the per-attempt deadline (thread-local), and
+            # `_step_sim` clears it before raising - were it still armed,
+            # swallowing it would silently disarm the soft watchdog for this
+            # thread's attempt, and the park loop steps physics.
             say(f"[biarm] {arm}: park after attempt failed ({exc!r})")
 
     def _park_bias(self, side: str, dy: float, ticks: int = 80) -> None:

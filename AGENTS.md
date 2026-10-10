@@ -105,10 +105,32 @@ stays structurally starved (74 % of its station slots report no eligible fruit)
 re-verified `logs/v1/31_accept_supply_verified.log` (30's own gate read FAIL
 only because the reference it was re-recorded from did not exist yet). The policy path is **OOD** on this
 supply (the demos carry one candidate per attempt, and the trigger's
-`|dx| <= 0.06` gate refuses the outer half of the new band); do not quote the
+`|dx| <= 0.06` gate (pre-W4; now 0.16) refuses the outer half of the new band); do not quote the
 71.1 % direct number as the current-scenario rate - one hybrid canary on the
 new supply scored **1/10** (8 grip losses + 1 handoff miss,
 `logs/v1/80_accept_policy.log`), an OOD warning the V3 phase owns.
+
+**W4 (Gate 30, 2026-10-10, `logs/w4/`): the dense direct collapse is the
+trigger's lateral gate, and the two-line recollection is the wrong anchor for
+the single-arm direct interface.** Direct 2x2 + gate cell (N=3x15, seeds
+77/101/202): `moe_v13s` dense 0.06 **7/45** (left 0/20, 21/45 no-fire);
+`moe_v12` dense 0.06 **14/45**; `moe_v13s` pinned 0.06 **28/45** (left 2/18,
+45/45 fires); **`moe_v12` pinned 0.06 33/45 (left 8/18)** - reproducing the
+P2b 32/45 / left 6/17 on the current tree, so the single-arm direct path is
+unchanged by W1/W2/W3 (their additions are two-line-scoped); `moe_v13s` dense
+0.16 **19/45** and the shipped-default re-run **17/45** (1/45 then 0/45
+no-fire). The `|dx| <= 0.06` gate was calibrated to the fixed line's ~5 mm
+spread and refuses the outer half of the x = 0.20-0.36 band (debug: no-fire
+fruit x = 0.20-0.24 vs the ~0.34 station line, |dx| ~ 0.10-0.14), so
+**`FRUIT_POLICY_TRIGGER_LATERAL` defaults to 0.16 now** (still inside the
+measured reach band x = 0.18-0.39; `=0.06` reproduces the old gate). The
+residual left-arm failures are the carry/grip class on every supply. Pinned
+canary samples with `moe_v13s`: 7/10 (one novel reason, unattributed), 6/10
+PASS (gate of record), 8/10 PASS; the hybrid loop never runs the direct
+trigger, so the gate of record does not depend on 0.06 vs 0.16. The
+final-tree acceptance `logs/w4/70_accept_w4_tree.log` (9/10, fingerprint
+matches) ran with `SKIP_SELFCHECK=1`; the final-tree selfcheck is
+`logs/selfcheck.log` (failed=0).
 
 **The v2 dynamic line is weaker than that.** It takes the fruit *on the fly*, so
 the tick the tracking window opens on depends on the fruit's continuously evolving
@@ -278,7 +300,13 @@ the dense sheet (`logs/w3/30_dense_trace.log`, trace on): **8/10, 11.2
 s/attempt, 4.27 placed/min, per arm left 4/6 right 4/4, `gate_open=0.0 s`,
 zero `indexed:`** (the pick is the never-stop dynamic catch); clearance
 **min 2.6 mm / 618 samples <30 mm** - the W1/W2 belt-riding-dwell + idle-hand
-classes. **No arm-arm contact is possible in this build**
+classes. **W4 (2026-10-10)**: the trace-off repeat is **bit-identical** to the
+trace-on run on all 476 physics `[fruit]` lines (`logs/w4/20_dense_repeat.log`:
+8/10, `diverted=1` orange index 10, 11.2 s/attempt, 4.27 placed/min); the
+same-scenario single-arm baseline (dense sheet + balanced mix) is **9/10,
+15.1 s/attempt, 3.59 placed/min** -> the W1 1.29x does **not** carry to the
+dense supply (**1.19x** < the 1.25x bar), so the default-flip recommendation
+is **no**. **No arm-arm contact is possible in this build**
 (`openarm_flat_deinst.usda` `enabledSelfCollisions=0`) and no attempt has ever
 failed by contact. Every measured no-overlap lever trades the rate away (start
 gap, station widening, catch lead + park bias, the opt-in capture token

@@ -149,7 +149,11 @@ from .policy.trigger import TriggerSettings, should_fire
 #: its capture window at a time), allowed the recorder on the two-line branch,
 #: and bridged the recorder render; the pin follows the file as always
 #: (`logs/w3/`).
-TASKS_MD5 = "c8854d6c013714da8805cd77962f1551"
+#: The W4 gate-30 pass (2026-10-10) added one comment at `_biarm_park`'s broad
+#: `except` (a swallowed `AttemptTimeout` is safe because the per-attempt
+#: deadline is already cleared); comment-only, so the control path is unchanged
+#: and the W3 measurements carry (`logs/w4/`).
+TASKS_MD5 = "280d0951583b627e825d175407de86d2"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(

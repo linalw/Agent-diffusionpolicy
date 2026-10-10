@@ -57,9 +57,18 @@ def main() -> int:
                               encoder_speed=-0.06)
     check("does not fire early", not fired, f"t_arrive={info['t_arrive']:.3f}")
 
-    # Out of lateral alignment: the jaws would close on air.
-    fired, _ = should_fire(settings, (0.44, 0.0, 1.184), jaw, encoder_speed=-0.06)
+    # Out of lateral alignment: the jaws would close on air. The W4 default
+    # (0.16 m) admits the v9/V1 scattered band; an explicit 0.06 still refuses
+    # the same fruit.
+    fired, _ = should_fire(settings, (0.55, 0.0, 1.184), jaw, encoder_speed=-0.06)
     check("lateral gate rejects a misaligned fruit", not fired)
+    fired, _ = should_fire(settings, (0.44, 0.0, 1.184), jaw, encoder_speed=-0.06)
+    check("default lateral admits the outer band (dx=0.107)", fired)
+    fired, _ = should_fire(
+        TriggerSettings(mode="arrival", lead=1.0, lateral=0.06),
+        (0.44, 0.0, 1.184), jaw, encoder_speed=-0.06,
+    )
+    check("explicit lateral=0.06 still refuses dx=0.107", not fired)
 
     # A stationary fruit: the policy's own gate owns that case.
     fired, _ = should_fire(settings, (0.340, 0.0, 1.184), jaw, encoder_speed=0.0,

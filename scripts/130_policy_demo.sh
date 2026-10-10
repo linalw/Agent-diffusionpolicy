@@ -35,7 +35,7 @@
 #                             fires the primitive when the encoder predicts the
 #                             fruit reaches the station in <= LEAD seconds)
 #   FRUIT_POLICY_TRIGGER_LEAD 0.9 s     (the B1 A/B setting; other trigger
-#                             defaults are lateral 0.06 m, reach 0.20 m,
+#                             defaults are lateral 0.16 m (W4; 0.06 pre-W4), reach 0.20 m,
 #                             finger 0.040, encoder on, frame=station,
 #                             present off - `policy/trigger.py`)
 #   FRUIT_POLICY_SEED         11        (removes the unseeded torch.randn in DDIM)
