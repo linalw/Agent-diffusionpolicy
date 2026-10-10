@@ -341,6 +341,57 @@ acceptance is **9/10 + fingerprint matches** with `gate_open=0.0 s`
 (`logs/w3/62_accept_single_dense_tree.log`). The W3-supply hybrid canary is
 the remaining hand-off item (`logs/w3/HANDOFF.md`).
 
+**W5 (Gate W5-C, 2026-10-10, `logs/w5/`): the existing-knob mechanism screens
+are all negative - H1 is falsified as the cause, not repaired; the watcher is
+not built; the policy's left deficit is acquisition, not takeoff.** On the
+dense two-line (SEED=5, `ATTEMPTS=10`, Tier A solo, `logs/w5/run_screens.sh`)
+five configurations were screened - cfg0 shipped, cfg1
+`FRUIT_DYNAMIC_FORCE_SERVO=0`, cfg2 `+FRUIT_DYNAMIC_TAKEOFF_SQUEEZE=0`, cfg3
+`FRUIT_DYNAMIC_TAKEOFF_TRACK=0.2`, cfg4 `FRUIT_DYNAMIC_TAKEOFF_LOCK_X=1` -
+each a trace-off double-run plus one trace-on run; every config is
+bit-identical within itself (cfg1 476, cfg2 474, cfg3 453, cfg4 484 physics
+`[fruit]` lines) and cfg0 is a byte-no-harm replay of the W4 record
+(`logs/w4/20_dense_repeat.log`, 476 lines). **Every screened configuration
+leaves the left class alive** (cfg1 6/10, 3/5+3/5; cfg2 8/10, 3/5+5/5; cfg3
+6/10, 2/5+4/5; cfg4 7/10, 3/5+4/5). **H1 (takeoff squeeze-out as the cause)
+is not supported**: cfg2's `trace_05` attempt 4 is byte-identical through the
+loss with the squeeze and the servo off (first difference carry row 2,
+t=59.925), so the named actuators are not its actuator; removing them (cfg2
+attempt 7) or pinning x (cfg4) only moves the loss to carry with the same
+failed outcome. **H2 is closed as a recovery lever** - the pre-registered
+"inert" closure did not obtain (the failure set changes: 4 failures, both
+arms) and the "amplifier" reading is equally unsupported (the servo's removal
+is inert on the replicated attempt 4, bit-identical, and recovers nothing on
+its own branch, 6/10). **TRACK and LOCK_X are negative**: cfg3 destroys the
+signature's specificity (the composite fires on a success), and cfg4's own
+branch is not a controlled replay (it first diverges inside attempt 1's
+probe, row 120, t=18.64) - on it the probe/takeoff stays clean and the loss
+moves to carry, consistent with, not proof of, the x-tracking hosting the
+escape. **The watcher is not built**: with the sanctioned both-finger force
+AND relative-pose key there is no detection/react window (carry losses keep
+2-8 N on one finger, cfg1's right pear 32-46 N; where force collapses the
+payload is out within 0-3 ticks), a pose-only key fires on successes, and
+there is no drop-at-output phenomenon to contain. **H5, scoped to the
+W4-pinned `0.06` branch: the policy's left failures differ from the scripted
+takeoff squeeze-out** - one direct-path trace (`moe_v13s`, pinned supply,
+`FRUIT_POLICY_TRIGGER_LATERAL=0.06`, seed 77; 11 complete + 1 started of 15,
+7 success, left 0/3) shows 2/3 traced left failures never make contact
+(pre-contact acquisition; one catch-up diverges at the +5.2 cm lateral
+trigger edge; ep8's automated `takeoff`/`span_open` label is a no-contact
+pad-clamp artifact) and the third is a healthy close/probe lost ~1 s into
+carry (the carry-escape class shared with the scripted line); do not quote it
+as the current-scenario mechanism outside that branch. The surviving
+directions: the **policy acquisition knob first**, then the
+**second-seed/size-pinned scripted control**, then the **scripted grip-margin
+lever only if the wedge recurs**. No-harm (knobs off, single arm):
+`scripts/selfcheck.sh` PASS 0 failures; acceptance **9/10, 15.2 s/attempt,
+`diverted=0`**, motion gate PASS and `fingerprint: matches
+configs/motion_reference.json`; the acceptance's **385/385** physics
+`[fruit]` lines are IDENTICAL to the W4 record. Final tree: `tasks.py
+69823dc1` (the whole diff is the default-off `FRUIT_DYNAMIC_TAKEOFF_LOCK_X`
+knob + comments) and the metadata-only `rl_env.py` `TASKS_MD5` pin 280d0951
+-> 69823dc1.
+
 ## 3. What changed -> what to run
 
 | you changed | run |

@@ -11876,3 +11876,379 @@ jaw the debug prints, not the trigger reference). The correct reading is
 mechanism (the 0.06 gate refusing the band's outer half) is unchanged. Gate
 31's ordered list items 1-3 applied to AGENTS/README/Chinese/deepwork; the
 remaining items are the demo + the one-pager + the sync.
+
+### W5-A (2026-10-10): the two-line diagnosis - the dense left losses are takeoff squeeze-outs after a healthy close; the clearance splits into an idle-hand lane and an x-separation class
+
+Owner directive (W5): do not flip the two-line default; diagnose the causes
+first. Tier-A solo: one dynamic-trace run of the dense screen (SEED=5,
+`FRUIT_DYNAMIC_TRACE=1 FRUIT_DYNAMIC_TRACE_PLACE=1 FRUIT_CATCH_TRACE=1
+FRUIT_BIARM_TRACE=1`, `logs/w5/20_dense_mech_trace.log`, claimed 11:37-11:43)
+plus an offline re-classification of every two-line attempt in `logs/w1/`,
+`logs/w2/`, `logs/w3/` and the W4 repeat. No code change; tree `tasks.py
+280d0951` / `bimanual.py 9f9989c7` / `control.py 54e6fb5c`
+(`logs/w5_md5_record.txt`). Full write-up: **`logs/w5/DIAGNOSIS.md`**.
+
+**The trace run is the same branch**: bit-identical to the trace-off
+`logs/w4/20_dense_repeat.log` on all 476 physics `[fruit]` lines (0 diff;
+only park/clearance trace-report lines extra). Its numbers are mechanism-only;
+rates stay from the untraced runs.
+
+**Taxonomy (886 attempts; `logs/w5/taxonomy.py`, `11_aggregate.txt`).**
+ok 549; **grip-loss-in-carry 178 (53 % of failures - lost in the pre-lift /
+takeoff block after a sustained-contact close)**; carried-then-slip 140;
+place-escape 15; grip-loss-at-close 4 (all in the `CLOSE_FREEZE=0` A/B screen,
+where the close line is off by construction); **`grasped-not-placed` 0/886**
+(every scripted `grasped=True placed=False` released below the output line -
+the class is a policy-path artifact). By scenario/arm: scatter screens right
+62/130 (47.7 %) vs left 36/130 (27.7 %); wave screens left 44/63 (69.8 %) vs
+right 20/57 (35.1 %); **dense screens left 4/12, right 0/8; the 216-attempt
+dense collection is level, left 28/108 (25.9 %) vs right 30/108 (27.8 %)** -
+the "left-only on dense" reading is the SEED=5 ten-attempt branch, not a
+standing arm asymmetry. Per-run sets: `11_aggregate_full.txt`; the W1/W2 7/10
+runs repeat the identical set (right peach carried; left strawberry + right
+lychee in-carry).
+
+**Mechanism (both dense failures are the left orange, index 10, attempted
+twice then diverted).** The closes are healthy (F 4.57/5.48 N sustained,
+span 68-76 mm, hold 4.5-4.7 N; first-contact height, cross-belt drift and
+freeze depth do not separate failures from successes,
+`logs/w5/22_close_geometry.txt`). The loss is in the takeoff block:
+attempt 4 - probe passes with 0.0 mm relative motion, then at takeoff
+t=58.950 the force spikes 8.61 N on **one** finger while the other reads 0,
+the span opens 68 -> 85 mm and the fruit leaves at (+0.378,-0.089,-0.140) m/s;
+attempt 7 - the probe loses one finger at t=90.250, force 0 at t=90.267, the
+span opens 68 -> 93 mm while the command closes 58 -> 50 mm, the fruit pops
+up (-x,+z) and falls at 2.3 m/s. The **force servo is a follower** (attempt 7:
+loss t=90.250, first servo step t=90.275; attempt 4: gap constant through the
+ejection) and both failures are the only attempts to exhaust the servo's
+closing range (`closed=15.00mm trips=38`; all successes read `closed=0.00mm`,
+one of them opening 3.00 mm), while every success holds both fingers at
+4.2-4.5 N with 0.0-0.1 mm relative motion.
+
+**Clearance (`logs/w5/30_dwell_clearance.txt`).** 618/12 020 samples < 30 mm,
+9 bands. **237 (38.3 %) idle-hand**: the left's close/hold drifts to y=-0.05
+at z=1.28-1.30, exactly through the right's parked ready lane (hand
+(0.34,-0.05,1.37), tool tip hanging to z=1.283) - min **2.58 mm** at t=57.61
+(`left_hand` vs `right_ee_tcp`). **236 (38.2 %) capture-vs-station**: the
+catch aims at the fruit's measured x, so the left can catch at x=0.246 (band
+edge) while the right works at x=0.336 - min **7.10 mm** at t=90.16
+(`left_right_finger` vs `right_right_finger`, on the failed orange attempt).
+145 more are both-at-station/settling. `enabledSelfCollisions=0`: no arm-arm
+contact is possible; the samples are a convention violation, not a near-miss.
+
+**Ranked hypotheses** (full text in DIAGNOSIS.md section 4; each with its
+falsifier): **H1** takeoff squeeze-out (env tests: `TAKEOFF_SQUEEZE=0`,
+`TAKEOFF_TRACK`); **H2** the force servo amplifies a slide it should leave
+alone (env test: `FRUIT_DYNAMIC_FORCE_SERVO=0`, the X2 pending test);
+**H3** the clearance classes are geometry (ready-pose tool tip in the dwell
+lane; x-separation at the band edge), not the y-levers W2 tried; H4
+orange-specific - **not supported** (dense collection orange 7/24 = arm
+average); H5 the policy's left deficit shares the capture transition (needs a
+policy-path trace).
+
+**Could not determine**: the exact contact-force path of the wedge (no contact
+reports); policy-path mechanism (one-run budget); whether `FORCE_SERVO=0`
+changes the outcome; the collection logs' phase split (no `[motion]` lines -
+result-level proxies only).
+
+**Rate hand-over**: dense two-line 8/10 at 11.2 s = 4.27 placed/min vs the
+same-supply single arm 9/10 at 15.1 s = 3.59 -> 1.19x < the 1.25x bar. One
+recovered placement (9/10) is 4.82/min = **1.34x** - the bar is exactly the
+failure class. No selfcheck needed (no code change).
+
+### W5-A addendum (2026-10-10, after Gate W5-B read the in-flight outputs): the place-escape corpus number, the interference check, and the failure grade/size
+
+Three additions to `logs/w5/DIAGNOSIS.md` (all offline, no extra sim):
+
+1. **Place-escape corpus (a)**: the final number is **15 (left 11 / right 4)**;
+   the in-flight 44 (left 41) was the pre-correction classifier. Applying W1's
+   lift-lost rule (lift clearance <= 0 with lift slip > 150 mm) moved **26
+   wave-screen left records** to carried-then-slip - they were **post-loss
+   reporting** (the place legs echoed a payload already lost in the lift). Of
+   the 15: 4 clean (<=3 distinct genuine mechanisms; the W1 left peach is
+   trace-verified), 5 lift-slide (clean clearance, lift slip 115-320 mm), 6
+   cross-arm-attribution artifacts. `logs/w5/12_place_escape.txt`.
+2. **Interference (b)**: at both traced failure ticks (attempt 4 t=58.950,
+   attempt 7 t=90.250) the right arm is in a continuous pre-pose/hover/descent
+   (attempt 5 / attempt 8; `station acquired` 58.5/89.4; **zero** right capture
+   trace rows within +/-0.5 s); exact-tick min inter-arm distance **28.87 mm /
+   15.94 mm**, window minima 20.91 mm (after the ejection) / 7.10 mm (before
+   the loss onset). Arm-arm contact is impossible in this build
+   (`enabledSelfCollisions=0`), and the payload sits between the left's own
+   pads. **Interference ruled out**; the 7.10 mm is the H3 clearance
+   convention, not a cause. `logs/w5/23_interference.txt`.
+3. **Grade/size (c)**: the dense failures are orange index 10, **grade A,
+   6.1 cm**, attempted twice then diverted. The taxonomy now carries
+   grade/size for 886/886 attempts (0 mismatches vs the `[run] attempt` grade
+   lines; the spaced-collection maps may shift 1-2 - flagged). Dense
+   collection: left 6.0-6.4 cm 6/11 (the worst left bucket), right 6.5-7.0
+   7/17; grade is confounded with arm on dense (pure routing left=A/right=B).
+   Screens: left orange 27/37 (73 %), peach 29/43 (67 %) vs tomato 29/121
+   (24 %). H4 is downgraded to "weakly supported corpus pattern, not
+   established as the cause". `logs/w5/13_grade_size.txt`.
+
+### W5-A correction banner (2026-10-10, Gate W5-A read of DIAGNOSIS.md): the place-escape chain, the tick, the signature, and the disclosures
+
+The two W5-A entries above already stand; this banner corrects the numbers in
+them, per the gate's correction list. `logs/w5/DIAGNOSIS.md` carries the same
+list at the top; evidence regenerated by `logs/w5/12_place_escape.py`
+(`12_place_escape.txt`) and the extended `logs/w5/interference.py`
+(`23_interference.txt`). All offline; no code or simulator change.
+
+**Place-escape chain (replaces "44 -> 26 moved -> 15" and "v1 left 40-41").**
+`12_place_escape.py` pins the classifier variants: v1 = clearance <= -10 mm
+only (a small-negative -3..-9 mm never demoted); v2 = W1's rule, clearance
+<= 0 with lift slip > 150 mm. The clone reproduces `taxonomy.json` on all 886
+records (asserted), and the chain closes: **v1 45 (left 41 / right 4) -> moved
+30 left (18 wave-screen + 12 scatter-screen) -> v2 15 (left 11 / right 4)**;
+left 11 + 30 = 41. The gate's recount is the wave share: **28** wave-screen-left
+records carry place evidence + the v2 lift-loss predicate, 10 already demoted
+by v1 and **18 newly moved** - so the old "26 wave-screen left moved" was
+neither the moved count nor the candidate count. The v3 buckets stand at
+**clean 4 / lift-slide 5 / unreliable 6**; the clean 4 are left 2 / right 2,
+and the one trace-verified record (W1 peach) slid 239 mm in the *lift* - it is
+a lift loss, not a genuine place loss. `place-escape 15` is a reporting class
+(place evidence + no lift-loss clue), never "15 genuine place losses".
+
+**Master-table disclosure (886 is not 886 independent samples).** The W3 `30`
+and W4 `20` dense screens are the same branch twice (bit-identical), the W1
+peach appears x3 (frozen/placesq2/xseek0), and the 7/10 rate runs repeat their
+failure sets; quote the per-scenario table, never the pooled 38.0 % as a rate.
+The §1.1 screens split also read carried-then-slip 64 / place-escape 14 and is
+corrected to **63 / 15** (the aggregate file's own split). **The pre-loss
+warning is nil**: until the loss tick the in-hand displacement and asymmetry
+sit at the noise floor (<= 2 mm / <= 1.4 N strictly pre-loss), and the payload
+is gone 8-17 ms later (1-2 ticks at 120 Hz) - the basis for demoting the
+reactive watcher.
+
+**Mechanism corrections.** §2.2: the force/velocity jump is **tick 44/60**
+(t=90.250); tick 53 is when the in-hand displacement first exceeds 10 mm -
+after the loss. §2.3: the "all successes hold F 4.2-4.5 N, 0.0-0.1 mm" claim is
+wrong (`trace_04` hold Fmax 65.2 N / probe 93.9 N; `trace_10` 19.3 N;
+`trace_07` 11.7 N; `trace_09` 4.6 mm probe displacement); the discriminating
+signature is the combination - a finger force -> 0 (successes' per-finger
+minimum 1.59 N), the span growing +24/+26 mm against the command (successes
++2.5 mm max), the x-velocity step 0.365/0.193 m/s (successes <= 0.092) - at the
+loss tick. H2 is demoted: the servo's first step is 3 ticks after the pop
+(t=90.250 -> 90.275) and the ejection is not the servo's; it *follows an
+already-lost payload*, so the old "amplifier / turns a recoverable slide into a
+loss" reading is dropped (the `FORCE_SERVO=0` X2 test remains).
+
+**Artifact A.** The `grip-loss-at-close` = 4 records are the `CLOSE_FREEZE=0`
+A/B screen: the close line is absent by construction and `taxonomy.py` 353-355
+classifies by that absence - not a close class of the shipped build.
+
+**Grade/size join scope.** "0 mismatches" covers only the 400 screen records
+(against the `[run] attempt ... picking` grade lines); the dense collection
+(216) maps exactly by per-arm target/result counts; the spaced collection (270)
+is a positional zip with 1-2 extra target lines per arm (flagged, possible 1-2
+shift). Claims are scoped to screens + dense collection.
+
+**Payload vs the other arm (correction 9).** The assertion "the right arm has
+no path to act on the left's grip" was unmeasured and is replaced by the
+partial measured metric: payload centre vs the right `hand`/`ee_tcp`
+(nearest-t join; these are the only frames the clearance jsonl carries): at
+attempt 4's loss tick **32.2 mm** to `ee_tcp` (payload radius ~30 mm) and
+**14.0 mm after the ejection** (+x, toward the right station); attempt 7 never
+closer than **77.8 mm**. `enabledSelfCollisions=0` means no contact can act in
+this build, but the full payload-vs-other-arm-links metric needs the other
+arm's link poses in the trace - a W5-C battery addition, not fabricated here.
+
+### W5-C (2026-10-10): the mechanism screens - the squeeze-out signature moves, the failure does not; the watcher is not built; the policy's left deficit is acquisition, not takeoff
+
+The Gate W5-B order was: existing-knob mechanism screens BEFORE any watcher
+code, mechanism-removal first and rate second, on the dense two-line
+(`FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=1`, pure routing, `SEED=5`, ATTEMPTS=10,
+Tier A solo, `logs/w5/run_screens.sh`; battery done 14:41:51). Fifteen runs
+exit=0: cfg0 shipped, cfg1 `FORCE_SERVO=0`, cfg2 `+TAKEOFF_SQUEEZE=0`, cfg3
+`TAKEOFF_TRACK=0.2`, cfg4 `TAKEOFF_LOCK_X=1`, each a trace-off double-run plus
+one trace-on run. Tree `tasks.py 69823dc1` (the whole diff vs the W5-A tree
+280d0951 is the default-off LOCK_X knob + comments; `git diff` checked). One
+edit outside `tasks.py` is disclosed: `rl_env.py` `TASKS_MD5` moved
+280d0951 -> 69823dc1 (`b0baf89d` -> `04a48dea`) so the prepared H5 run could
+execute on the frozen tree - metadata-only, no behavioural change
+(`logs/w5/32_rl_env_md5.txt`).
+
+**Determinism and no-harm (stream compare on physics `[fruit]` lines).** cfg0
+rate1 == rate2 == `logs/w4/20_dense_repeat.log` (476 lines, IDENTICAL) - the
+knob-off screen is a byte-no-harm replay of the W4 record branch. rate1 ==
+rate2 bit-identical for every config (cfg1 476, cfg2 474, cfg3 453, cfg4 484)
+and trace == rate bit-identical for every config: the W5-C trace
+instrumentation did not move these branches, and each configuration is one
+deterministic sample (`logs/w5/32_screens_analysis.log` part 1).
+
+**The signature table (`logs/w5/31_signature_table.txt`,
+`logs/w5/33_loss_phases.txt`; rates first, mechanism from the traces).**
+
+| cfg | rate (L/R) | failures | loss onset | signature |
+| --- | --- | --- | --- | --- |
+| cfg0 shipped | 8/10 (4/6, 4/4) | 4L, 7L | takeoff@58.950; takeoff_probe@90.250 | composite present on both: finger 4.08->0 / 2.47->0, span +24.0/+24.1 mm against the command, vx +0.391 / -0.190 |
+| cfg1 fs0 | 6/10 (3/5, 3/5) | 4L, 5R, 8L, 9R | hold@56.975; carry@67.892; carry@103.258; probe@109.700 | left failures have loss=none in probe/takeoff (weak close / carry); one right both-unloaded probe event |
+| cfg2 fs0+sq0 | 8/10 (3/5, 5/5) | 4L, 7L | takeoff@58.950; **carry@91.650** | attempt 4 **persists bit-identically**; attempt 7 **moves** to carry |
+| cfg3 track0.2 | 6/10 (2/5, 4/5) | 4L, 6R, 7L, 8L | all carry/hold (61.408 / 86.200 / 86.367 / 102.083) | gone from the failures; **fires on a success** (trace_04 R) |
+| cfg4 lockx | 7/10 (3/5, 4/5) | 4L, 8L, 9R | left carry@60.592 / 104.292; right probe@111.850 | left ejection **moves** to carry; finger dropout on a success (trace_07 R) |
+
+Two branch-identity diffs make the mechanism attribution: **cfg0 vs cfg2
+attempt 4 is bit-identical through the capture and the loss** (first difference
+carry row 2, t=59.925, after the ejection; the gap command is constant 59.3 mm
+in cfg0 too), so the probe squeeze/servo are provably not its actuator; **cfg0
+vs cfg4 attempt 4 differs at row 0 only in `fruit_omega`'s last digit** (same
+fruit x, same close/probe geometry) and the x-pin keeps the probe/takeoff clean
+- the per-tick x-tracking command is what hosts the ejection; **cfg0 vs cfg2
+attempt 7 has the same capture geometry** (fruit x 0.2438/0.2439) and the loss
+moves from the probe to the carry with the commands off.
+
+**H1 (takeoff squeeze-out as the cause): NOT SUPPORTED - negative.** The
+signature is real and specific on the shipped branch (2/2 failures, 0/8
+successes) but it is an expression, not a separable cause: the named actuators
+are uninvolved in the replicated attempt-4 ejection (cfg2 identical through the
+loss), and removing them (cfg2 attempt 7) or pinning x (cfg4) only moves the
+loss to the carry leg with the same failed outcome. No knob recovers a single
+left failure; the +x walk out of the pads appears in hold (cfg1 with the servo
+off), probe/takeoff (cfg0) and carry (cfg2/cfg4) depending on the commands. Per
+the pre-registration, class-count/signature shuffle with no recovery ->
+publish the negative; the surviving direction is the grip margin (close
+geometry/friction), not a takeoff-command fix.
+
+**H2 (force servo): NOT SUPPORTED, and not inert either.** The pre-registered
+"inert / follower -> unchanged failure set" closure did not obtain: with the
+servo off the failure set changed (4 failures, both arms; 6/10 on its own
+branch) and the left squeeze-out signature vanished (hold/carry losses). The
+"amplifier" reading is equally unsupported (removal keeps no grip; attempt 4's
+rejection is command-independent). The servo re-times a loss the grip margin
+decides; `FRUIT_DYNAMIC_FORCE_SERVO=0` is closed as a recovery lever. cfg3
+(`TAKEOFF_TRACK=0.2`) is a regression (6/10, left 2/5) and destroys the
+signature's specificity (a success shows the composite trigger), so the
+tracking pre-phase is closed too; cfg4's pin stays default-off.
+
+**Watcher (Lever 2 re-scoped): NOT BUILT.** The pre-registered condition ("only
+if the screens leave a detection/react gap") is not met: with the sanctioned
+both-finger force AND relative-pose key there is no window - the carry losses
+keep 2-8 N on one finger while the other sensor is out (cfg1's right pear
+holds 32-46 N), and where force collapses the payload is out within 0-3 ticks
+(successes' whole-probe slip <= 4.6 mm vs failures crossing 5 mm at/1-3 ticks
+after the signature tick; W5-A's <= 3 mm pre-loss floor). A pose-only key is
+what the plan excluded (successes show finger dropouts: cfg3 trace_04, cfg4
+trace_07), and there is no drop-at-output phenomenon to contain (every failed
+fruit leaves the hand mid-transfer; cfg0 release z=0.818 near the station, all
+z<1.30, recycled). The plan file carries the decision
+(`logs/w5/50_watcher_plan.md`).
+
+**H5 (policy trace): the left deficit DIFFERS from the scripted takeoff
+mechanism.** One direct-path traced run (`logs/w5/run_h5.sh`: v13s pinned,
+`SUPPLY_SCATTER=0`, gate 0.06, seed 77, dynamic+place+clearance traces) reached
+11/15 episodes (7 success) before the second contact-grind crawl hit
+`RUN_LIMIT=3600`; the first attempt (archived `50_*_run1`) corroborates. Left
+0/3 traced: **ep2 strawberry** - catch-up converged (0.026->0.005 m), close
+healthy (freeze F 4.6-16.6 N, tip 4-9 mm), probe/takeoff clean (slip 0.1 mm),
+lost **1.0 s into the carry** (one finger 2.27->0.12 N, x-chatter +/-0.5 m/s,
+slip 1110 mm); **ep4 kiwi** at the trigger's lateral edge (dx=5.2 cm) -
+catch-up **diverged to 1.23 m**, close Fmax **0.00** through 168 ticks, tip
+2.1 m behind the fruit, it rides off the line (slip 1977 mm); **ep8 peach** -
+close F=0 throughout (tip 0.28->0.44 m), no contact. No traced left failure
+shows the scripted composite (one finger -> 0 + span opening + x ejection in
+the probe/takeoff); the policy deficit is a **pre-contact acquisition/timing**
+deficit plus the shared carry-escape family (the same run's right ep6 apple
+lost in carry, slip 373 mm). The same-fruit contrast: run1's ep2 strawberry
+succeeded despite a mid-carry transient (F 0.21 N, vx +0.985, slip 21 mm) at
+t=43.475 - run2 failed at t=43.583 on the same phase. Readout
+`logs/w5/51_h5_run2_readout.txt`; the crawl is the W3-documented creep wedge
+(carb thread ~90 % CPU, GPU idle, no file progress), resolved by a restart in
+both attempts.
+
+**No-harm and final tree.** All knobs off, single arm: `scripts/selfcheck.sh`
+PASS 0 failures; `ACCEPT_LOG=logs/w5/40_accept_screens.log scripts/accept.sh`
+9/10 = 90 %, 15.2 s/attempt, `diverted=0`, motion gate PASS with `fingerprint:
+matches configs/motion_reference.json` (5 carry-cone warnings reported);
+the acceptance's 385 physics `[fruit]` lines are **IDENTICAL** to the W4
+record `logs/w4/70_accept_w4_tree.log`. Final tree: `tasks.py 69823dc1`,
+`rl_env.py 04a48dea`.
+
+**What remains (W5-D).** (1) The grip-margin lever (FRONTIER rows 1-3) is the
+surviving scripted direction - the negative H1 leaves close
+acquisition/geometry/friction as the cause to attack. (2) The policy's
+dominant left class is acquisition at the trigger edge (H5) - FRONTIER lever 1
+now has direct-path evidence; the carry escapes are shared with the scripted
+line and belong to (1). (3) H1 stays dense-branch-scoped until a second
+seed/supply screen runs. (4) The W3-supply hybrid canary is still open. The
+watcher stays closed; a reactive path needs new pre-loss evidence (e.g., a
+tangential-force sensor the sim's tactile does not have).
+
+### W5-C addendum (2026-10-10): the wrap re-check and the frozen artifact set
+
+The final tree (knobs off; `tasks.py 69823dc1`, `rl_env.py 04a48dea`; `git diff`
+vs `8fc21a8` = the default-off LOCK_X knob + comments and the metadata pin only)
+was re-verified without the simulator. `python3 scripts/105_motion_regression.py
+logs/w5/40_accept_screens.log --fingerprint configs/motion_reference.json` exits
+0: **PASS**, `fingerprint: matches configs/motion_reference.json`, worst descent
+`|v|max=0.116` vs budget 0.160-0.161, lurch 0.017 vs budget 0.291, 5 carry-cone
+warnings reported (not gated) - line-identical to the gate captured at run time
+(`logs/w5/41_accept_driver.log`). `python3 logs/w4/compare_streams.py
+logs/w5/40_accept_screens.log logs/w4/70_accept_w4_tree.log` reads **385/385
+physics `[fruit]` lines IDENTICAL**, closing the
+`FRUIT_DYNAMIC_TAKEOFF_LOCK_X` default-off no-harm claim. Raw output
+`logs/w5/42_wrap_check.log`.
+
+The frozen W5-C artifact set: battery `logs/w5/run_screens.sh` +
+`logs/w5/30_screens_driver.log` with the 15 `logs/w5/30_cfg*` runs and their
+`30_traces_*` / `30_catch_*` / `30_clear_*.jsonl`; `31_signature_table.txt`;
+`32_screens_analysis.log`; `33_loss_phases.txt`; watcher decision
+`50_watcher_plan.md`; H5 `50_direct_v13s_trace.log` + `51_h5_run2_readout.txt`;
+acceptance `40_accept_screens.log` / `41_accept_driver.log` / `42_wrap_check.log`.
+The consolidated verdict document is `logs/w5/SCREENS.md` (all five screens
+negative - H1 falsified as the cause, H2 neither inert nor amplifier, TRACK 6/10,
+LOCK_X 7/10; watcher not built; H5 differs).
+
+### W5-C correction addendum (2026-10-10, Gate W5-C read of SCREENS.md): the cfg4 branch identity, the H2/TRACK wording, and the H5 crawl/artifact scope
+
+`logs/w5/SCREENS.md` was corrected in place per the gate's ordered list; the
+W5-C entries above stand as written, and this addendum carries the corrections
+into the WORKLOG record (append-only). Five items:
+
+1. **The cfg4 attempt-4 branch claim is corrected.** "cfg0 vs cfg4 attempt 4
+   differs at row 0 only in `fruit_omega`'s last digit (same fruit x, same
+   close/probe geometry) ... the per-tick x-tracking command is what hosts the
+   ejection" was false: the two runs are **not the same branch** - cfg4 first
+   diverges inside attempt 1's probe (row 120, t=18.64). On attempt 4 only the
+   descent row and the first-contact sample coincide (t=57.125; offset
+   [-4.3, 0.4, 10.8] mm; sep 78.09 mm; F 2.814 vs 2.816 N); the close freeze
+   gap differs (61.9 vs 58.0 mm) and the fruit x diverges through
+   close/hold/probe/takeoff (<= 2.4 / 5.4 / 10.1 / 14.4 mm). Correct reading:
+   on cfg4's own branch the probe/takeoff stays clean and the loss moves to
+   carry - **consistent with, not proof of**, the x-tracking hosting the
+   escape. The cfg2 comparisons are unaffected (attempt 4 bit-identical to
+   row 236, carry t=59.925; attempt 7 capture geometry with fruit x
+   **0.2439/0.2438** - the order was also reversed in the entry above).
+2. **H2 wording.** "NOT SUPPORTED, and not inert either" / "the servo re-times
+   a loss the grip margin decides" over-claimed (and the W5-C addendum's
+   closing "H2 neither inert nor amplifier" is superseded): the accurate
+   statement is that the **pre-registered closure did not obtain**, the
+   servo's removal is **inert on the replicated attempt 4** (bit-identical)
+   and **recovers nothing on its own branch (6/10)**, and
+   `FRUIT_DYNAMIC_FORCE_SERVO=0` is **closed as a recovery lever**. SCREENS.md
+   and the W5-C update banners in DIAGNOSIS.md/FRONTIER.md now read this way.
+3. **TRACK wording.** cfg3's "Regression on its own branch (6/10, left 2/5)"
+   was a cross-configuration success-rate comparison; the mechanism-only
+   reading is: **no recovery** (4 failures, all losing with a clean
+   probe/takeoff), and the composite trigger firing on a *success* (trace_04
+   R) makes it **non-specific**.
+4. **H5 crawl attribution and scope.** The only documented end cause is the
+   harness's **3600 s `RUN_LIMIT`** (run2; driver `50_h5_driver.log`); run1's
+   ~37-min kill has **no recorded cause**, and neither end is documented as
+   the W3 contact-grind wedge (the earlier "second contact-grind crawl hit
+   `RUN_LIMIT` / resolved by a restart in both attempts" is softened to
+   that). The run reached **11 complete + 1 started** of 15, and the readout
+   header states the W4 **`0.06`** pin explicitly. ep8's automated
+   `loss=takeoff@157.600` / `span_open=True` label is the **no-contact
+   pad-clamp artifact**: F = 0 through the whole close (84 ticks for ep8; the
+   168-tick no-contact close is ep4's), hold and probe, and the first contact
+   is the pads pressing on each other in the takeoff (sep ~10 mm, F 72-150 N)
+   after the fruit has ridden away.
+5. **W5-D docs.** The durable record now carries W5-C in `AGENTS.md` (a W5-C
+   paragraph: every screened configuration keeps left failures; H1 falsified
+   as the cause with the bit-identical cfg2 attempt 4; H2 closed as a recovery
+   lever; TRACK/LOCK_X negative; the watcher not built; H5 scoped to the
+   W4-pinned branch; no-harm 9/10 + fingerprint matches + 385/385), the
+   README two-line and policy rows, and the Chinese docs `项目总结报告.md` /
+   `决策与交付.md`. `logs/` is gitignored, so the WORKLOG + those docs are the
+   durable record.

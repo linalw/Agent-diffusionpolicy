@@ -6046,6 +6046,16 @@ class PickAndPlaceTask:
         # slip detection with a regrasp). A fruit that slips usually sits too
         # low between the pads, which the firmer squeeze corrects.
         squeeze_gap: float | None = None
+        #: W5-C x-pin through the probe and belt-break (`FRUIT_DYNAMIC_TAKEOFF_LOCK_X`,
+        #: default off). The probe/takeoff targets re-aim at the fruit's *measured* x
+        #: every tick, and the dense-screen escapes leave along exactly that axis - a
+        #: tracking command cannot oppose a sideways squeeze-out. This is the P2b
+        #: close `lock_x` analogue, scoped to the dynamic probe/belt-break: pin the
+        #: target x when the probe starts, so a fruit that starts walking sideways
+        #: presses against a stationary finger. Unset -> the historical per-tick
+        #: tracking, byte-identical.
+        lock_takeoff_x = os.environ.get("FRUIT_DYNAMIC_TAKEOFF_LOCK_X", "0") == "1"
+        takeoff_x: float | None = None
         for _regrasp in range(int(os.environ.get("FRUIT_REGRASPS", "3"))):
             probe = grasp_goal + np.array([0.0, 0.0, 0.010])
             # The grip was taken from a *moving* fruit; a coarse test lift (the
@@ -6076,6 +6086,9 @@ class PickAndPlaceTask:
                     probe_ticks = int(probe_ticks_default)
                     probe_lift = float(probe_lift_default)
                     lead_s = float(os.environ.get("FRUIT_DYNAMIC_TRACK_LEAD", "0.18"))
+                    # Re-pin on each probe: a regrasp takes a new grip, so the
+                    # x it starts from is the new fruit position.
+                    takeoff_x = None
                     squeeze_max = float(
                         os.environ.get("FRUIT_DYNAMIC_TAKEOFF_SQUEEZE", "0.001")
                     )
@@ -6104,9 +6117,15 @@ class PickAndPlaceTask:
                                     float(grip_gap) - squeeze_max,
                                     squeeze_gap - squeeze_max / squeeze_ticks,
                                 )
+                        probe_aim = fruit_now
+                        if lock_takeoff_x:
+                            if takeoff_x is None:
+                                takeoff_x = float(fruit_now[0])
+                            probe_aim = fruit_now.copy()
+                            probe_aim[0] = takeoff_x
                         arm.ik_step(
                             arm.tcp_target_for_jaw(
-                                fruit_now
+                                probe_aim
                                 + np.array(
                                     [
                                         0.0,
@@ -6432,9 +6451,13 @@ class PickAndPlaceTask:
                     y_cmd = y_ref + float(
                         np.clip(float(fruit_now[1]) - y_ref, -correction, correction)
                     )
+                    x_ref = float(fruit_now[0])
+                    if lock_takeoff_x and takeoff_x is not None:
+                        # W5-C: the belt-break keeps the probe's pinned x.
+                        x_ref = float(takeoff_x)
                     target = np.array(
                         [
-                            float(fruit_now[0]),
+                            x_ref,
                             y_cmd,
                             z_cmd,
                         ]

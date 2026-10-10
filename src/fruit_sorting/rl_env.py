@@ -153,7 +153,13 @@ from .policy.trigger import TriggerSettings, should_fire
 #: `except` (a swallowed `AttemptTimeout` is safe because the per-attempt
 #: deadline is already cleared); comment-only, so the control path is unchanged
 #: and the W3 measurements carry (`logs/w4/`).
-TASKS_MD5 = "280d0951583b627e825d175407de86d2"
+#: The W5-C mechanism-screens lane (2026-10-10) added the default-off
+#: probe/belt-break x-pin (`FRUIT_DYNAMIC_TAKEOFF_LOCK_X`, `69823dc1`); with the
+#: env unset the control path is byte-identical (the cfg0 screen reproduced the
+#: W4 `[fruit]` stream; `logs/w5/30_cfg0_rate1.log` vs
+#: `logs/w4/20_dense_repeat.log`), so the W3/W4 measurements carry and the H5
+#: direct-path trace rides the same branch as `logs/w4/13_direct_v13s_pinned.log`.
+TASKS_MD5 = "69823dc15cf3269b5ca064bdb21dcb1f"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(
