@@ -12409,11 +12409,16 @@ evaluate it; `FRUIT_BIARM_PARK_GATE` unchanged default off); `rl_env.py`
 `TASKS_MD5` metadata-only follow `fa9594fb -> bf822c09`; driver
 `scripts/189_w7a_chain.sh` `3a675d68`. Results: `logs/w7/A_RESULTS.md`.
 
-**Runs** (`logs/w7/00_driver.log`, all exit=0; `43`/`44` tree pins identical):
+**Runs** (`logs/w7/00_driver.log`; the simulator runs and the acceptance exit 0
+and are the only exits the driver checks - `43`/`44` tree pins identical):
 dense two-line wave-sheet re-record x2 (`10`/`11`), W6-B patch battery x2
 (`20`/`21`), single-arm patch no-harm (`30`), then `ACCEPT_LOG=logs/w7/50_accept_w7a.log
 scripts/accept.sh` (claim-wrapped, full output `51`). Offline: `selfcheck.sh`
-PASS 0 failures (`01`), `172_supply_selftest.py` 52 checks PASS (`02`).
+PASS 0 failures (`01`), `172_supply_selftest.py` 52 checks PASS (`02`). The
+`105` write/check invocations and the expected-DIFFERENT dense compare exit 1
+by design (see the fingerprint paragraph); the W7-A driver did not assert
+those - W7-A.1 (below) made every compare and the fingerprint checks
+assertions.
 
 **The W6-C pair replays bit-identically.** `20` is IDENTICAL 861/861 physics
 `[fruit]` lines to `logs/w6/31_lever_park_1.log` (the same config with the env
@@ -12437,7 +12442,7 @@ configuration: the fingerprint and the per-leg motion are the comparison. All
 `a_win5` worst 1.62 is the reported carrying warning), 18 carry legs reported,
 0 over the 0.45 hand report.
 
-**The two-line fingerprint.** `python3 scripts/105_motion_regression.py
+**The dense 10-attempt two-line fingerprint.** `python3 scripts/105_motion_regression.py
 logs/w7/10_dense_twoline_1.log --write-fingerprint
 configs/motion_reference_twoline.json` (`181c9151`) and `11` checks against it
 (`fingerprint: matches`, `42_fingerprint.txt`); the single-arm
@@ -12461,4 +12466,67 @@ configs/motion_reference.json`**.
 (adaptive lead) is still the named next lever; the W6-E failure classes are
 unchanged; the two-line's own success bar is not formalised (the 105 floor is
 single-arm) - until it is, gate two-line runs on the fingerprint + per-leg
-motion and quote rates with the scenario.
+motion and quote rates with the scenario (W7-A.1 below formalises it:
+`scripts/190_twoline_gate.sh`).
+
+### W7-A.1: the attribution control replays the W4 record bit-for-bit; the chain asserts its evidence; the two-line bar is formalised
+
+(2026-10-12, Tier A solo; no commit - the parent commits.) The Gate W7-A
+ordered follow-ups, applied on `w7-park-default` (parent `3e5f1bb`).
+
+**Control (the substantive item).** The dense two-line W3/W4 scenario (seed 5,
+10 attempts, wave sheet, balanced mix) with `FRUIT_BIARM_PARK_EARLY=0` on the
+W7-A tree (`logs/w7/15_dense_control_park_off.log`) is **IDENTICAL to
+`logs/w4/20_dense_repeat.log` - 476/476 on the full `[fruit]` stream and
+456/456 physics-only** (8/10, 11.2 s/attempt, `diverted=1` orange idx 10). So
+the default flip, not an incidental W6-C code delta, is the only cause of the
+moved branch; W5's cfg0 (`logs/w5/30_cfg0_rate1.log`) is the intervening
+control between W4 and W6, also 476/476. **Clearance of the moved branch**
+(`logs/w7/16_dense_trace_default.log`, `FRUIT_BIARM_TRACE=1`; the trace run is
+bit-identical to the `10`/`11` pair, 422/422 physics-only): 10042 samples, min
+**2.59 mm** (`openarm_left_hand` vs `openarm_right_right_finger`, t=57.14 s),
+**863/10042 = 8.6 %** of samples < 30 mm (12.2 % < 45 mm; 9 bands;
+left=grip/lift vs right=descent/prepose) - the W1/W2/W3 carry-past class. The
+F2 45 mm / zero-under-30 convention is not met (W3's dense branch read min
+2.6 mm / 618 samples < 30 mm) and is not claimed; no arm-arm contact is
+possible in this build (`enabledSelfCollisions=0`) and no attempt failed by
+contact.
+
+**Chain hardening** (`scripts/189_w7a_chain.sh` `3a675d68 -> 15f66bea`).
+Every compare is now an `IDENTICAL`/`DIFFERENT` assertion (a wrong verdict or a
+first difference that is not the left station acquisition fails the run); the
+chain also produces and asserts the acceptance compares (W6-C 365/365
+physics-only + 385/385 full, W4 365/365), the floor-override re-check, the
+`wrote fingerprint`/`fingerprint: matches` lines and the md5 pin of the
+freshly written reference, plus the `190` gate. The W7-A driver's
+`status=0` had asserted only the simulator exits; the W7-A entry's "all
+exit=0" wording was corrected (the `105` write/check exit 1 by design - the
+single-arm 0.75 floor meeting the two-line 7/10 - and the expected-DIFFERENT
+dense compare exits 1). A new `W7A_OFFLINE=1` mode re-asserts the whole
+offline evidence from existing logs without the simulator
+(`logs/w7/64_offline_driver.log`, exit 0).
+
+**Tooling.** `scripts/105_motion_regression.py` (`1041611d -> 16a3d790`):
+`--write-fingerprint` now **refuses a motion-budget-failing run** (descent
+speed/lurch or held-grip cone; verified: `logs/428_seat10.log` writes nothing,
+the dense log writes with only the rate failure). `scripts/190_twoline_gate.sh`
+(`8c81a757`, new) formalises the two-line success bar: the
+`[biarm] two-line scheduler:` scenario pin + a per-scenario reference +
+an explicit two-line floor (dense 10-attempt default **0.60** - the 7/10
+branch of record; the 20-attempt W6-B patch battery measures 10-12/20 and
+takes `-m 0.5` with its own reference). 105's own floor stays the single-arm
+0.75. Guardrail recorded in AGENTS and A_RESULTS: the two-line *collector*
+gets the lever silently (`40_collect_demos.py` + `TWOLINE=1` runs the
+default-on session); `datasets/demos_v12` (shard `v12d_s02`, `tasks.py` pin
+`c8854d6c`) is pre-flip, a post-W7-A two-line recollection is a new branch
+identified by the shard manifest's `tasks.py` md5 pin (`bf822c09` on this
+tree), and the `collection` block does not name the lever (W7-B item).
+
+**No-harm after the edits:** `selfcheck.sh` PASS (`logs/w7/01_selfcheck_offline.log`),
+`172` 52 checks PASS (`02_supply_selftest_offline.log`); the offline chain
+re-run passed every no-harm compare (single-arm acceptance fingerprint
+matches, 385/385 + 643/643 + 681/681 IDENTICAL). The single-arm path is
+byte-untouched; `configs/motion_reference_twoline.json` stays `181c9151`
+(the re-write reproduces it byte-for-byte) and
+`configs/motion_reference.json` stays `b9e72ca7`. Tree: `tasks.py` unchanged
+`bf822c09`; `rl_env.py` file `3c580e71` (the comment-date fix only).

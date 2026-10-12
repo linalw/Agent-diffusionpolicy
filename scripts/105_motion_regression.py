@@ -4,6 +4,12 @@
     python3 scripts/105_motion_regression.py LOG --write-fingerprint configs/motion_reference.json
     python3 scripts/105_motion_regression.py LOG --fingerprint configs/motion_reference.json
 
+`--write-fingerprint` refuses a *motion-budget-failing* run: the reference may
+only be written from a log whose descents respect the speed/lurch bounds and
+whose held-grip carries stay inside the cone. A success-floor failure alone
+(such as the single-arm 0.75 floor meeting a two-line log - different scenario)
+does not block the write; pass `--min-success-rate` to judge the rate.
+
 The run this guards is
 
     FRUIT_MOTION_REPORT=1 ATTEMPTS=10 scripts/run.sh scripts/20_pick_place.py
@@ -310,7 +316,7 @@ def main() -> int:
         help="success floor; default 0.9 indexed / 0.75 dynamic (the measured baseline)",
     )
     parser.add_argument("--fingerprint", help="reference fingerprint JSON to compare against")
-    parser.add_argument("--write-fingerprint", help="write this log's fingerprint here")
+    parser.add_argument("--write-fingerprint", help="write this log's fingerprint here (refused if a motion budget fails; a success-floor failure alone does not block it)")
     args = parser.parse_args()
 
     legs, carries, tally, dynamic = parse(args.log)
@@ -455,6 +461,11 @@ def main() -> int:
     else:
         print("\n  (no `[motion] carry` lines in this log - carry budget not checked)")
 
+    #: Failures accumulated so far are the *motion budgets* (descent speed/lurch,
+    #: carry cone). The success floor is added below and is a scenario-rate
+    #: question, so a rate-only failure must not block a reference write.
+    motion_failures = len(failures)
+
     if tally is None:
         failures.append("no [stats] attempts/successes line found")
         print("\n  success: not found")
@@ -480,9 +491,22 @@ def main() -> int:
             )
 
     if args.write_fingerprint:
-        with open(args.write_fingerprint, "w", encoding="utf-8") as handle:
-            json.dump(fingerprint_of(legs), handle)
-        print(f"  wrote fingerprint -> {args.write_fingerprint}")
+        if motion_failures:
+            # The reference is what future runs are compared against; writing it
+            # from a budget-failing log would enshrine the violation. The
+            # single-arm 0.75 floor (or an explicit --min-success-rate) is a
+            # scenario rate, not a motion budget, so a rate-only failure is fine.
+            print(
+                f"  NOT writing fingerprint -> {args.write_fingerprint}: "
+                f"{motion_failures} motion-budget failure(s) above"
+            )
+            failures.append(
+                "refusing to write the fingerprint from a motion-budget-failing run"
+            )
+        else:
+            with open(args.write_fingerprint, "w", encoding="utf-8") as handle:
+                json.dump(fingerprint_of(legs), handle)
+            print(f"  wrote fingerprint -> {args.write_fingerprint}")
 
     if args.fingerprint:
         with open(args.fingerprint, encoding="utf-8") as handle:

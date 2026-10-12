@@ -463,16 +463,43 @@ residual **x1.22** reading stand. The dense W3/W4 wave-sheet re-record is a
 left station acquisition t=30.4 vs 31.4) against the pre-flip 8/10, 11.2 s,
 4.27/min - a quantized-outcome count, so quote the fingerprint and the per-leg
 motion (all 10 descents inside budget; worst `|v|max` 0.111/0.161, lurch
-0.023/0.291), not the delta. The two-line fingerprint is now
-`configs/motion_reference_twoline.json` (**181c9151**, written from
-`logs/w7/10`, matched by `11`); the single-arm `configs/motion_reference.json`
+0.023/0.291), not the delta. The **dense 10-attempt** two-line fingerprint is
+now `configs/motion_reference_twoline.json` (**181c9151**, written from
+`logs/w7/10`, matched by `11`; references are per-scenario - the multi-scenario
+battery would need its own); the single-arm `configs/motion_reference.json`
 is byte-untouched (`b9e72ca7`). No-harm: the single-arm patch run is 643/643
 identical to the W6-C record (681/681 on the full stream), the acceptance
 stream is 385/385 identical to `logs/w6/60_accept_w6c.log`, `accept.sh` reads
-**9/10 + `fingerprint: matches`**, `selfcheck.sh` PASS, `172` 52 checks.
-Tooling note: gating a two-line log with `105_motion_regression.py` trips its
-*single-arm* 0.75 success floor even when the motion budgets pass - use the
-two-line fingerprint and an explicit floor override for the rate line.
+**9/10 + `fingerprint: matches`**, `selfcheck.sh` PASS, `172` 52 checks. The
+W7-A.1 attribution control - the same dense run with `FRUIT_BIARM_PARK_EARLY=0`
+(`logs/w7/15_dense_control_park_off.log`) - replays the W4 record
+**bit-for-bit** (476/476 full, 456/456 physics-only; 8/10, 11.2 s/attempt,
+`diverted=1`), so the flip is the only cause of the moved branch; the moved
+branch's clearance (its trace run is bit-identical to the pair) reads
+min **2.59 mm**, 863/10042 = 8.6 % of samples < 30 mm - the W1/W2/W3 carry-past
+class, no arm-arm contact possible in this build.
+Tooling note: gating a two-line log with `105_motion_regression.py` directly
+trips its *single-arm* 0.75 success floor even when the motion budgets pass -
+use `scripts/190_twoline_gate.sh`: it pins the two-line scenario (the
+`[biarm] two-line scheduler:` banner), the per-scenario reference (default the
+dense 10-attempt `configs/motion_reference_twoline.json`) and an explicit
+two-line floor (default 0.60 - the 7/10 branch of record; the 20-attempt W6-B
+patch battery takes `-m 0.5` and its own reference). 105's own floor stays the
+single-arm 0.75, and `--write-fingerprint` now refuses a motion-budget-failing
+run (a rate-only failure still writes). The chain's compares are assertions
+now (`scripts/189_w7a_chain.sh`, `W7A_OFFLINE=1` re-asserts them offline).
+
+**W7-B guardrail (the flip's other consumers).** The two-line *collector*
+(`40_collect_demos.py` with `FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=1`) drives the
+same `run_bimanual` session, so a post-W7-A two-line collection gets the
+park-gate lever with no env set - the flip silently changes that path too.
+`datasets/demos_v12` (shard `v12d_s02`; its manifest pins `tasks.py`
+`c8854d6c`) is **pre-flip**, so a post-W7-A two-line recollection is a **new
+branch**: the shard manifest's `src/fruit_sorting/tasks.py` md5 pin
+(`bf822c09` on this tree) identifies it, while the `collection` block does not
+name the lever (adding it is a W7-B item). Do not mix the two; gate a
+re-collected two-line arm with `scripts/190_twoline_gate.sh` (its own reference
+if the supply differs) plus the scenario's floor.
 
 ## 3. What changed -> what to run
 
