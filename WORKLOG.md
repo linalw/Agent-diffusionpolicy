@@ -12607,3 +12607,49 @@ W7-C recollection should target the carry class, keeping the single-arm direct
 anchor distinct (the W4 lesson). Deliverables: `logs/w7/B_RESULTS.md`, the
 knob + the `[acq]` diagnostic, `logs/w7/B_readout.py` /
 `logs/w7/B_ab_report.py`, branch `w7-policy-acq` (not pushed).
+
+### W7-B.1: the acquisition-evidence gate fixes - the policy-gate subset is named, the `[acq]` stage values are stamps, the W4 block is trigger-path-only
+
+**Gate follow-up; evidence only, no code or default change.** Four fixes:
+
+* `logs/w7/B_mech_summary.txt`'s W4 block read as if its dx lists were the whole
+  left population ("left 14/2"), which contradicts
+  `logs/w4/13_direct_v13s_pinned.log` (left 2/18 = 13 no-contact + 3 carried +
+  2 ok) and `B_RESULTS.md` 1.1. The block is now labelled **trigger-path only**
+  (14 attempts = 10 no-contact + 2 carried + 2 ok, the scope of the dx lists)
+  with the policy-gate subset named (4 = 3 no-contact + 1 carried; no dx by
+  construction). Re-derived from the raw: the W4 left class split is 13
+  no-contact = 10 trigger + 3 gate, 3 carried = 2 + 1, and both ok are trigger.
+* `B_RESULTS.md` 1.3/3.3 now state the policy-gate subset explicitly: the A/B's
+  arm A 9 no-contact = **8 trigger-path + 1 policy-gate** (its 7 carried = 6 +
+  1); the knob's reach is the trigger path (8 -> 1; the aggregate quote stays
+  9 -> 1), B has **zero gate attempts**, and B's one residual no-contact is a
+  **trigger-fired** flail - the same run1 ep4 kiwi as A's gate-path failure, now
+  trigger-fired at dx +5.2 cm and failing unchanged (both `move_to` caps, j1 at
+  its limit). The off-band refutation is re-ordered to the primary legs: the
+  close-start downstream overshoot (`+171...+501 mm` past the fingertips against
+  `<= 5.7 mm` on the successes/carry escapes) and the `vx0 ~ 0` /
+  `latch=centring` reads; the gate-bounded dx medians (no-contact 0.8 cm vs ok
+  2.5 cm) are labelled supporting color and exist on the trigger path only
+  (`logs/w7/B_ab_mech.txt` now prints the split).
+* `B_RESULTS.md` 3.1's metric definitions were wrong in two places and are
+  fixed: the `[acq]` stage values are **stamps** from the fire, so
+  "setup (premove+axis+hover)" double-counted the premove (the `axis` stamp
+  equals `premove` whenever the attitude servo converges immediately: 43/45 A,
+  45/45 B; the 2 A exceptions, +0.20/+0.58 s, are flails), and the `wait`
+  1.1-1.8 s figure was a **timestamp**, not a duration. Corrected readouts:
+  time to park = the `hover` stamp (median 0.72 s A / 0.65 s B), the handover
+  hold = `wait` - `hover` (A 0.16-0.17 s = the 20-tick `FRUIT_DIRECT_HOLD_TICKS`
+  floor; B 0.43-1.11 s - the primitive parks early and *holds*). The batch is
+  also labelled batch-scoped: arm A's instrumented class mix 9 no-contact /
+  7 carried is not the *clean* W4 population's 13 / 3 (instrumentation is part
+  of the measurement), so the absolute counts are quoted per batch.
+* `logs/w7/B_ab_report.py` prints `dx= gate` (was `+nan`) for policy-gate fires
+  and prints the per-class trigger-path/policy-gate split plus the corrected
+  park/hold/attitude-servo-extra summary; `logs/w7/B_ab_mech.txt` was
+  regenerated with it (the per-episode `[acq]` values, close-start distributions
+  and the section 3.2 rates are unchanged otherwise). The AGENTS W7-B paragraph
+  carries the split too.
+
+**No-harm.** No shipped file changes (the four artifacts are under `logs/w7/`,
+which stays ignored and is not pushed); `scripts/selfcheck.sh` PASS 0 failures.
