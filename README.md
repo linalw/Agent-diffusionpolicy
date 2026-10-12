@@ -1228,6 +1228,19 @@ the band): one valid frozen-tree hybrid canary on the scattered supply scored
 until the recollection + fine-tune on the scattered supply lands (recorded as
 the next step in the WORKLOG "V3 integration" entry).
 
+### Periodic ops self-check (long multi-lane work)
+
+`scripts/191_ops_selfcheck.sh` answers one question in a few seconds - *is the
+project moving, and if not, what exactly should be resumed?* It reads (never
+kills) the running sims and their log growth, the slot claims, the newest
+artifact per area, git/branch/tag, the GPU, and pending permission asks, and
+verdicts `OK` / `STALLED` / `ACTION` with the recovery command. Run it at the
+start and end of every work block and every 30-60 min during a simulator phase
+(`--watch 300` loops). The full contract and the anti-stall playbook for the
+observed stall classes are in [`docs/OPS.md`](docs/OPS.md); the long-form plan
+(the phases R0-R6, the budgets, the owner-decision register) is
+[`docs/ROADMAP.md`](docs/ROADMAP.md).
+
 ### Bimanual (two-arm) runs
 
 The shipped scripted line is single-arm (`FRUIT_BIARM` unset; its acceptance is

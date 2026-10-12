@@ -12870,3 +12870,131 @@ scripts/accept.sh` through the claim wrapper: **9/10 = 90 %**
 0.291; carry cone/slip reported, 5 dynamic-line warnings) and **`fingerprint:
 matches configs/motion_reference.json`**. No tracked file changed in the batch;
 the commit is this entry.
+
+### P1.1: the P-PLAN ops deliverables land (PP-P1 the ops self-check, PP-P2 the roadmap) - the gate fixes and the live evidence
+
+**Scope (2026-10-12, branch `w8-confirm`).** This entry is the P-PLAN ops
+pair's WORKLOG record (the repo rule; until now only `c973020` carried one):
+**PP-P1** = `scripts/191_ops_selfcheck.sh` + `docs/OPS.md` (`cb39de8`) and
+**PP-P2** = `docs/ROADMAP.md` (`38d4699`), both offline and run in parallel
+with the W8-A wrap. P1.1 is the gate pass over them plus this entry; no
+simulator, control, task or dataset code is touched (`tasks.py` unchanged) and
+nothing under `logs/` is committed (`logs/` is ignored).
+
+**What PP-P1 ships.** A read-only one-shot check (plus `--watch N` and
+`--selftest`) over: the running sims with each log's size/age/growth
+(`logs/ops/state.tsv`), the `lanes` (claim wrappers/drivers alive), the slot
+claims, the newest log per area, git/branch/tag state, `nvidia-smi`, load, and
+best-effort pending permission asks from the OpenCode store. Verdicts: **OK**
+(0), **STALLED-SIM / STALLED-CHAIN** (report-only, 0), **ACTION** (an
+identified recovery printed, 2). **Shipped thresholds: `OPS_STALL_S=300 s`
+(sim log frozen) and `OPS_CHAIN_S=600 s` (chain log stale); a frozen sim
+escalates to ACTION only with corroboration - a wedge marker, zero growth
+across the state window, or an idle GPU with the freeze age >= 2x
+`OPS_STALL_S` (600 s).**
+
+**The five stall classes (a)-(e)** (detection -> recovery; full playbook
+`docs/OPS.md`, specification `docs/ROADMAP.md` section 4): (a) a lane parked
+on an unanswerable permission -> respawn with a no-`/tmp` prompt; (b) a
+renderer wedge -> kill the session, resume by re-running the same wrapper
+invocation; (c) chain done but wrap never ran -> finish the wrap (the lane's
+own files only); (d) long idle lanes -> ping/respawn; (e) resource waste
+(stale claims, wedged sim + idle GPU) -> release/stop.
+
+**The P1.1 gate fixes (the five ordered items).** (1) this WORKLOG entry.
+(2) The two false recovery claims: the tool's action text and `docs/OPS.md`
+(b) said the claim wrappers "retry it themselves" - they do **not**; the real
+resume is **re-running the same wrapper invocation** (`180_claim_slot.sh` /
+`154_claim_run.sh` reclaim a slot via flock; 180 also refuses a duplicate log
+namespace), and a collector shard **restarts from zero** (`while saved <
+EPISODES`, `scripts/40_collect_demos.py:487`) into its own dir - the store is
+the union of shard dirs, merged by `41_merge_demos.py`. The class-(e) bullet's
+"GPU idle while a sim's log grows" was never implemented and is superseded by
+the actual GPU-idle gate. (3) Evidence preserved in `logs/ops/`:
+`11_selftest.txt` (the selftest, 9 assertions, exit 0), `12_stalled_chain.txt`
+(the `OPS_CHAIN_S=60` real-data run: a live `ACTION [wrap]` on this session's
+genuinely unfinished wrap), and `13_live_capture.txt` - the **live Tier A
+capture** (a real `20_pick_place` ATTEMPTS=2 run through `180_claim_slot.sh`;
+two checks 26 s apart: `sims: 1` mapped by fd 1 to the run log,
+`growth=n/a (first check)` -> `+26537B/26s`, `lanes: 1` with the wrapper pid,
+`slot0: held`, gpu 2 % -> 47 %, verdict OK). (4) The GPU-idle escalation is
+gated on the freeze age >= 2x `OPS_STALL_S`; below it the hint says the GPU is
+idle but not yet corroborating (an idle GPU alone is not evidence). (5) The
+false-match paths hardened: the group-kill line is **refused** when the sim's
+pgid equals the tool's own pgid (the action says kill from the launching shell
+/ through the claim wrapper instead - a group kill would take the tool down),
+the sim pattern is path-anchored
+(`(^|/)[p]ython\.sh( |$)|(^|/)[k]it/python/bin/python3( |$)`), the done-marker
+regex dropped the bare `PASS`/`exit=0` (now `fingerprint: matches` /
+`[claim_(run|slot)] exit=0` / `[fruit] DONE`), and the new `lanes` section
+downgrades the `[wrap]` action to a hint while a claim wrapper/driver is alive.
+(6) Integration: `--selftest` is a `scripts/selfcheck.sh` leg ("ops selfcheck
+selftest", header list renumbered), and `docs/ROADMAP.md` section 4 + WS-6.3
+carry the shipped 300/600 s defaults and the delivered status.
+
+**Selftest coverage** (all asserted in `logs/ops/11_selftest.txt`): OK does not
+fire on a fresh sim log; STALLED-SIM on 15 min of no growth; ACTION on a wedge
+marker **with the own-pgid guard** (the group-kill line is absent) and on a
+separately grouped sim (the group-kill line is present); STALLED-CHAIN on a
+stale chain log; ACTION on a stale claim owner; ACTION `[wrap]` on a done
+marker + dirty temp repo; and the wrap suppression with a fake
+`154_claim_run` process alive.
+
+**Checks.** `bash scripts/191_ops_selfcheck.sh --selftest` PASS (9 assertions);
+`scripts/selfcheck.sh` PASS with the new leg; the live capture and the
+real-data run above are on the real repo state. Evidence pointers:
+`logs/ops/10_live.txt` (PP-P1's no-sim one-shot), `logs/ops/11_selftest.txt`,
+`logs/ops/12_stalled_chain.txt`, `logs/ops/13_live_capture.txt` (+
+`13_live_capture_run.log`).
+
+### P2.1: the roadmap gate fixes (docs only) - the R0-R6/PP numbering, the corrected W7 citations and spans, the completeness sweep, the AGENTS/README pointers
+
+**Scope (2026-10-12, branch `w8-confirm`).** The P2 gate's ordered fixes over
+`docs/ROADMAP.md` (`38d4699`), plus the integration pointers. **Docs only, no
+simulator**: `docs/ROADMAP.md`, `AGENTS.md`, `README.md`, this entry. The ops
+pair's own record is the P1.1 entry above; this entry covers the roadmap pass.
+
+**The fixes (the gate's ordered list).**
+1. **The numbering collision**: the roadmap's phases were P0-P6 while the
+   P-PLAN's deliverables were P1/P2/P3 - the same letters for different
+   things. The plan phases are now **R0-R6** and the P-PLAN items are
+   **PP-P1/PP-P2/PP-P3** throughout, including the R0 row's gate cell
+   (PP-P3 validation, folded).
+2. **PP-P1 folded in** (`cb39de8`): the R0 row, WS-6.3 ("ship" -> delivered,
+   selftest PASS + live OK), and section 4 ("until it lands..." -> the tool +
+   `docs/OPS.md`); PP-P3's remaining tail is stated (the real-state checks are
+   recorded in `logs/ops/10`/`12`/`13`; the push remains).
+3. **Budget-table citations**: the quoted W7 times live in
+   `logs/w7/00_driver.log` (lines 8-26, 690-692) - `63_sims_driver.log` is the
+   W7-A.1 control/trace runs and never carried them.
+4. **The W7-C spans**: the collection started **13:02:20** (first wedge
+   13:52) and ran to 16:43:49 = **3 h 41 m** of shard-runs (the old 2 h 51 m
+   took the first wedge as the start); the single-shard units are
+   `C_probe1_driver.log` (32 episodes, 14:54:47 -> 15:35:36) and
+   `C_final_driver.log` (30 episodes, 16:02:46 -> 16:43:35); the full chain is
+   13:02:20 -> 18:13:08 = **~5 h 11 m**; WS-4.3's "2-3 h" budget is now
+   "~3 h 41 m as run".
+5. **The canary row names `moe_v13p`** (not the shipped default `moe_v12`).
+6. **WS-1's evidence pointer** -> W7-C section 7 (also W7-B section 4 item 3).
+7. **WS-3.2's clearance class** is the **carry-past** (the carrying hand
+   passing the other arm's descent/pre-pose; `logs/w7/A_RESULTS.md` section
+   4), not the W3-era "idle hand".
+8. **WS-7 row pointers**: row 8 = the learned catch (WS-7.3), row 9 = space
+   separation [S8][S13]; WS-7.4 reads rows 2-3, names row 1 as the ACQ-knob
+   line, and retires rows 5 (TPG-lite) / 10 (soft fingers) as closed/stretch.
+9. **WS-6.2's divergence note**: 16/17 bit-identical over **N = 1-4**, one N=4
+   divergence (the force servo).
+10. **Completeness**: the X1-pending items (the force-servo N=4 mechanism
+    test; the stopped 3-concurrent equivalence batch, `logs/x1/REPORT.md`
+    sections 1/5) are in WS-6.2; the policy-gate fire path (`finger < 0.030`
+    / jaw-fruit `xy < 0.06`; 4/18 of the W4 left) is the new WS-4.6.
+11. **The register**: row 4's dependency on row 5 - if the hybrid stays the
+    gate of record the ACQ mirror is mechanism-only; if the direct loop
+    becomes the gate it is mandatory (~70 min).
+12. **Integration**: this entry; the AGENTS.md + README.md pointers to
+    `docs/ROADMAP.md` + `docs/OPS.md` (AGENTS.md also carries the working-tree
+    W7-C -> W8-A supersession correction to the N=3 3-0 claim).
+
+**No-harm.** Docs/pointers only; `scripts/selfcheck.sh` PASS 0 failures, 1
+skipped (the motion-budget leg, no run log; `logs/selfcheck.log`); `tasks.py`
+and every simulator path untouched.

@@ -549,8 +549,9 @@ W7-C implication: the remaining left deficit is the carry/grip-margin class
 (`finger < 0.030 and |jaw-fruit|xy < 0.06`, 4/18 of the W4 left attempts,
 which bypasses the trigger); the collector is unaffected (the scripted
 primitive never uses the trigger), so the W7-C recollection targets the carry
-class. W7-C (above) ran it: the fine-tune converted right-arm carry escapes
-(carried 32 -> 29, carried-class 3-0 paired) and left the left carry class
+class. W7-C (above) ran it: at N=3 the fine-tune converted right-arm carry escapes
+(carried 32 -> 29, carried-class 3-0 paired; **not confirmed - the W8-A N=5
+batch below reads 0 B-only / 2 A-only**) and left the left carry class
 untouched (3/16 -> 3/18) - the recollection *did* target the carry class, but
 the left residue needs a lever aimed at the scripted branch's own open item,
 not another behaviour-cloning pass.
@@ -592,11 +593,14 @@ right ok 7/29 -> 10/27, left unchanged 3/16 -> 3/18, sign **p = 0.125** at
 N=3; the one new reason (`timeout: no grasp within 1500 ticks`, one episode) is
 a no-fire/horizon timeout, *not* the policy-gate class (B has zero gate fires).
 **Verdict: no measured improvement by the P4 criteria - no adoption**
-(`accept_policy.sh` keeps the shipped default `moe_v12`); publish the mechanism
-movement (carried 32 -> 29, right ok 7 -> 10, the carried-class 3-0 paired) with
-the 22 -> 29 % as a secondary, underpowered readout, and keep the two-line
-rollout-store -> direct-interface transfer as an open W4 risk this A/B tested
-only weakly. **Collector (W7-C.1, `scripts/40_collect_demos.py`):** the shard
+(`accept_policy.sh` keeps the shipped default `moe_v12`). **W8-A superseded
+the N=3 read with the confirmatory N=5 batch** (`logs/w8/A_RESULTS.md`):
+pooled **21/75 (28 %) vs 22/75 (29 %)**, sign **p = 1.0000**, carried-class
+pairing **0 B-only / 2 A-only** (carried 49 -> 47, right ok flat
+20/52 -> 19/49) - the 3-0 pairing and the 32 -> 29 movement did **not**
+confirm, so only the negative is published. The two-line rollout-store ->
+direct-interface transfer stays an open W4 risk the W7-C A/B tested only
+weakly. **Collector (W7-C.1, `scripts/40_collect_demos.py`):** the shard
 manifest now records the patch sheet (`supply.patch` + slice/pair/sep), and
 `_stall_dump` flushes a `[collect] stats:` line before its `os._exit(3)`, so a
 wedged shard carries the gate-open invariant instead of implying it; existing
@@ -703,3 +707,10 @@ Report-ready summaries are in `项目总结报告.md` (Chinese) and `README.md`;
 trade-offs are in `决策与交付.md`; design-intent vs actual is in
 `实现方案总结.md`. When a number changes, update those *and* the log entry that
 justifies it.
+
+The long-form plan is `docs/ROADMAP.md` (the current state in one screen, the
+backlog grouped into WS-1..WS-7, the phases R0-R6, the resource budget and the
+owner-decision register); the periodic ops self-check and its anti-stall
+playbook are in `docs/OPS.md` - run `scripts/191_ops_selfcheck.sh` (verdicts
+OK / STALLED / ACTION), at the start and end of every work block and every
+30-60 min while a simulator phase is active.
