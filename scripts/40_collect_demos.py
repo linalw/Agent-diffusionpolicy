@@ -184,6 +184,12 @@ def write_manifest(out_dir: str, cfg: SceneConfig) -> None:
             "station_r": os.environ.get("FRUIT_BIARM_STATION_R", "-0.10"),
             "capture_token": os.environ.get("FRUIT_BIARM_CAPTURE_TOKEN", "auto"),
             "catch_lead_l": os.environ.get("FRUIT_BIARM_CATCH_LEAD_L", "0.0"),
+            # W7-A: the park-gate lever resolves through `_dynamic_profile`, so
+            # an unset env means **on for a two-line session** (`auto` here
+            # records that; `0`/`1` record an explicit override). Without this
+            # field a post-W7-A two-line shard is identified only by its
+            # `tasks.py` md5 pin (`logs/w7/A_RESULTS.md` section 6).
+            "park_early": os.environ.get("FRUIT_BIARM_PARK_EARLY", "auto"),
             "park_bias": os.environ.get("FRUIT_BIARM_PARK_BIAS", "0.0"),
             "start_gap": os.environ.get("FRUIT_BIARM_START_GAP", "0.0"),
             "chunk": TWO_LINE_CHUNK,
