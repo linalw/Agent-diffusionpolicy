@@ -12653,3 +12653,85 @@ knob + the `[acq]` diagnostic, `logs/w7/B_readout.py` /
 
 **No-harm.** No shipped file changes (the four artifacts are under `logs/w7/`,
 which stays ignored and is not pushed); `scripts/selfcheck.sh` PASS 0 failures.
+
+### W7-C: the 2D-patch recollection and fine-tune - the acquisition knob cleans the interface, the recollection moves the carry class, the rate verdict is underpowered
+
+**Tier A solo, branch `w7-policy-recollect` (from main at `e66daad`); full
+detail `logs/w7/C_RESULTS.md`.** The W7-B verdict left three named tasks: pin
+the eval interface for the knob on the W7-C supply, re-derive the class split
+on the patch sheet (the W3 dense-direct caution), and target the carry class
+with a patch recollection while keeping the single-arm direct anchor distinct.
+All three are now measured; `tasks.py` is untouched from W7-B (`e98d9836`).
+
+**1. The interface precondition (C_ab).** The W7-C ACQ A/B on the W6-A patch
+sheet (`FRUIT_SUPPLY_SCATTER=1 FRUIT_SUPPLY_PATCH=1`, balanced mix, lateral
+0.16 - the W4 value for the x = 0.20-0.36 band - lead 0.9, dynamic handover,
+`FRUIT_ACQ_DIAG=1` both arms, N=3x15, seeds 77/101/202, sampler seed 11,
+`moe_v13s` both arms): the knob acts as designed on this supply too - left
+no-contact **15 -> 0** (13 trigger + 1 gate + 1 no-note -> none), left
+close-start `|y|` offset **120.1 -> 2.5 mm**. The pooled rate is *worse*
+(16/45 = 36 % -> 12/45 = 27 %; p = 0.875, N=3) because the classes trade:
+the acquisition failures become **carry escapes** (left carried 6 -> 10,
+right 8 -> 22), the terminal failure class of the interface. **Decision: the
+W7-C direct evaluation runs with `FRUIT_POLICY_TRIGGER_ACQ=1`** - the
+mechanism endpoint (acquisition removed so the carry class is the measurement),
+not the rate; ACQ stays default off and the shipped hybrid canary never runs
+the trigger.
+
+**2. The class split on the patch sheet.** Arm A (the shipped interface): left
+1/22 (15 no-contact / 6 carried), right 15/23 (8 carried). Arm B (ACQ=1): left
+3/13 (0 no-contact / 10 carried), right 9/32 (1 no-contact / 22 carried).
+With the knob on, **32 of 45 failures are carried-not-placed on both arms** -
+the named carry target (the W7-B "carry-grip-margin class"), not acquisition.
+
+**3. The recollection (Tier A data run).** The two-line branch on the patch
+sheet (`FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=1 FRUIT_SUPPLY_PATCH=1`,
+`FRUIT_CAMERA_RES=240,424`, collector soft+hard watchdogs). Post-W7-A branch:
+`FRUIT_BIARM_PARK_EARLY` defaults on, every shard manifest pins `tasks.py
+e98d9836` and records `park_early: "auto"`. **Nine shard dirs, seeds
+41/42/43/61/62/63/71/91/92 -> `datasets/demos_v13p` = 173 episodes, 0 dedup
+drops**, left 89 / right 84, grades A 89 / B 84, station labels {+0.000,
+-0.100}, merged `index_md5 acd304870b4d5d29eb253dafb0281ddc`, `106_index_audit`
+OK. **The wedge is documented**: the 13:52 three-shard batch hit the known
+blocking `RenderingManager.render()` under the bimanual bridge in all three
+chunks at once; the guard dumped thread stacks and exited each shard with
+**every flushed episode indexed and the belt never stopped** (the collector's
+soft watchdog also skipped/retried the two attempts that overran the 600 s
+wall budget); seven wedges total across nine shard-runs, the single-shard
+shape clean for many minutes (the 14:54 probe: 32 episodes). `gate_open=0.0 s`
+and zero `indexed:` in every collector run - the never-stop dynamic catch
+throughout.
+
+**4. The fine-tune.** `checkpoints/moe_v13p/policy_best.pt` (md5
+**fed54993b4aebdaf2c779bf09a18698e**): `scripts/111_rl_finetune.py` from
+`moe_v12` (md5 `3a9ccfc0`) on the v13p rollouts + the single-arm base
+`datasets/demos_v11`, 6 epochs, lr 5e-5, `--weight-mode ones` (the deployed
+`moe_v13s` recipe; 32,284 + 9,378 windows; final weighted loss 0.0277, router
+0.981, demo_val 0.0152; `tasks_md5 e98d9836`). **Anchor policy**: the rollout
+store is the two-line patch recollection, the base anchor stays the single-arm
+store - the W4 wrong-anchor lesson in its positive form.
+
+**5. The evaluation.** Pinned canary (shipped pre-v9 supply, the gate of
+record): **8/10 = 80 % PASS**, only baseline reasons (2 grip losses;
+`logs/w7/C_eval/canary_pinned.log`). Patch-supply hybrid canary: 5/10, two
+failures carrying the harness's "cross-lane station fruit ... placed on lane
+N" label (the hybrid station handoff on an abreast patch presentation) - the
+hybrid is inert by construction, so this is reported as scenario coverage; a
+patch canary would need its own floor/label handling. **Paired direct A/B**
+(`moe_v13s` vs `moe_v13p`, both ACQ=1, N=3x15, interleaved):
+A 10/45 = 22 % vs B 13/45 = 29 %; **paired 3 B-only ok / 0 A-only ok** (1 both
+ok, 11 both fail, 30 excluded by fruit-class shift); sign p = 0.125; carried
+32 -> 29; right ok 7/29 -> 10/27; left unchanged 3/16 -> 3/18; one new
+on-paper reason (`timeout: no grasp within 1500 ticks`, one B episode - the
+policy-gate close path that never engages, i.e. the existing policy-gate
+class). **Verdict: no measured improvement by the P4 criteria** (p > 0.05,
+strawberry not better); publish the mechanism movement (carried 32 -> 29, right
+ok 7 -> 10, 3-0 paired) and the pooled 22 -> 29 % as a secondary, underpowered
+readout - never as an established gain. The carry class (left 13-14/batch) is
+the residual, shared with the scripted branch's own open item.
+
+**No-harm.** No shipped source change (the W7-C diff is the new
+`logs/w7/` drivers/readouts, the new `datasets/v13p_*` + `demos_v13p` stores
+and `checkpoints/moe_v13p`); `scripts/selfcheck.sh` PASS 0 failures. The
+single-arm shipped default is byte-unchanged (`e98d9836` tasks.py; the W7-B
+acceptance of record stands).
