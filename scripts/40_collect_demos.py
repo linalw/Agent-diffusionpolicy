@@ -214,6 +214,19 @@ def write_manifest(out_dir: str, cfg: SceneConfig) -> None:
             "wave_gap_max": supply.wave_gap_max,
             "wave_sep_min": supply.wave_sep_min,
             "wave_sep_max": supply.wave_sep_max,
+            # W7-C.1: the 2D patch sheet (W6-A) is now part of the supply
+            # provenance. A patch shard's class mix, abreast-pair probability
+            # and separation are set by these draws; without them two shards
+            # whose `wave`/slice blocks differ only in the patch draws are
+            # indistinguishable from the manifest. `patch` is false unless
+            # `FRUIT_SUPPLY_PATCH=1` (and scatter on), so pre-patch shards keep
+            # their meaning and no existing manifest is rewritten.
+            "patch": supply.patch,
+            "patch_slice_min": supply.patch_slice_min,
+            "patch_slice_max": supply.patch_slice_max,
+            "patch_pair": supply.patch_pair,
+            "patch_sep_min": supply.patch_sep_min,
+            "patch_sep_max": supply.patch_sep_max,
             "grades": {key: weight for key, weight in supply.grades},
             "classes": {key: weight for key, weight in supply.classes},
         },
@@ -225,14 +238,35 @@ def write_manifest(out_dir: str, cfg: SceneConfig) -> None:
     say(f"[collect] manifest -> {os.path.join(out_dir, 'manifest.json')}")
 
 
-def _stall_dump(trigger: str, detail: str) -> None:
-    """Log the wedge, dump thread stacks, exit non-zero (the shard restarts)."""
+def _stall_dump(trigger: str, detail: str, stats=None) -> None:
+    """Log the wedge, dump thread stacks, exit non-zero (the shard restarts).
+
+    `stats` (optional callable) flushes the collector's own physics summary
+    before the exit. The guard's `os._exit(3)` skips `main`'s final line, so
+    without this a wedged shard's log never carries the `gate_open=0.0 s`
+    never-stop invariant the collector is built around; the W7-C
+    recollection's nine shard runs all exited here (nothing adversarial, just
+    missing evidence).
+    """
     message = f"[collect] STALL ({trigger}): {detail}"
     print(message, flush=True)
     try:
         say(message)
     except Exception:  # noqa: BLE001
         pass
+
+    if stats is not None:
+        try:
+            summary = stats()
+        except Exception:  # noqa: BLE001 - a stats read must not mask the wedge
+            summary = None
+        if summary:
+            print(summary, flush=True)
+            try:
+                say(summary)
+            except Exception:  # noqa: BLE001
+                pass
+
     try:
         faulthandler.dump_traceback()
     except Exception:  # noqa: BLE001
@@ -264,13 +298,15 @@ class StallGuard(threading.Thread):
     """
 
     def __init__(self, sim_time_fn, stall_s: float, episode_s: float,
-                 interval_s: float = 20.0, min_progress_s: float = 5.0):
+                 interval_s: float = 20.0, min_progress_s: float = 5.0,
+                 stats_fn=None):
         super().__init__(name="collect-stall-guard", daemon=True)
         self.sim_time_fn = sim_time_fn
         self.stall_s = float(stall_s)
         self.episode_s = float(episode_s)
         self.interval_s = max(1.0, float(interval_s))
         self.min_progress_s = float(min_progress_s)
+        self.stats_fn = stats_fn
         self._window_start = time.monotonic()
         self._window_sim: float | None = None
         self._episode_start = time.monotonic()
@@ -303,6 +339,7 @@ class StallGuard(threading.Thread):
                             f"{now - self._window_start:.0f}s wall "
                             f"(minimum {self.min_progress_s:.1f}s) during "
                             f"{self._label}",
+                            self.stats_fn,
                         )
                     self._window_sim = sim
                     self._window_start = now
@@ -311,6 +348,7 @@ class StallGuard(threading.Thread):
                     "episode timeout",
                     f"{self._label} has run for "
                     f"{now - self._episode_start:.0f}s (cap {self.episode_s:.0f}s)",
+                    self.stats_fn,
                 )
 
 
@@ -395,9 +433,28 @@ def main() -> int:
     task.episode_timeout_s = EPISODE_TIMEOUT_S
     task.go_ready()
 
+    def collect_stats() -> str:
+        """The physics invariant, safe to call from the guard thread.
+
+        The guard's `os._exit(3)` skips `main`'s clean-path line, so a wedged
+        shard would otherwise carry no `gate_open` reading even though the
+        collector never stops the belt. `gate_open_ticks` is the task's own
+        counter (float, incremented on the control thread; a plain read is
+        safe) and the collector already refuses the indexed line that would
+        open the gate, so zero is the enforced value, not an artefact.
+        """
+        gate_open = float(task.stats.get("gate_open_ticks", 0.0)) * DT
+        return (
+            f"[collect] stats: attempts={int(task.stats['attempts'])} "
+            f"successes={int(task.stats['successes'])} "
+            f"gate_open={gate_open:.2f}s "
+            "(0.0 = the never-stop dynamic catch throughout; "
+            "the indexed line is refused at startup)"
+        )
+
     guard = StallGuard(
         task._sim_time, GUARD_STALL_S, HARD_EPISODE_S, GUARD_INTERVAL_S,
-        GUARD_MIN_PROGRESS_S,
+        GUARD_MIN_PROGRESS_S, stats_fn=collect_stats,
     )
     guard.start()
     dynamic = task._dynamic_pick_mode(openarm=True, scripted=True)

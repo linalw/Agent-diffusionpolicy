@@ -496,8 +496,9 @@ park-gate lever with no env set - the flip silently changes that path too.
 `datasets/demos_v12` (shard `v12d_s02`; its manifest pins `tasks.py`
 `c8854d6c`) is **pre-flip**, so a post-W7-A two-line recollection is a **new
 branch**: the shard manifest's `src/fruit_sorting/tasks.py` md5 pin
-(`bf822c09` on this tree) identifies it, while the `collection` block does not
-name the lever (adding it is a W7-B item). Do not mix the two; gate a
+(`e98d9836` on the W7-B/W7-C tree; `bf822c09` after W7-A) identifies it, and
+since W7-C the manifest's `collection.park_early` field names the lever
+(`"auto"` = the flip's on-for-two-line default). Do not mix the two; gate a
 re-collected two-line arm with `scripts/190_twoline_gate.sh` (its own reference
 if the supply differs) plus the scenario's floor.
 
@@ -547,8 +548,63 @@ W7-C implication: the remaining left deficit is the carry/grip-margin class
 (7 -> 9 carried) plus the reach-cliff flail and the policy-gate fire path
 (`finger < 0.030 and |jaw-fruit|xy < 0.06`, 4/18 of the W4 left attempts,
 which bypasses the trigger); the collector is unaffected (the scripted
-primitive never uses the trigger), so a W7-C recollection should target the
-carry class.
+primitive never uses the trigger), so the W7-C recollection targets the carry
+class. W7-C (above) ran it: the fine-tune converted right-arm carry escapes
+(carried 32 -> 29, carried-class 3-0 paired) and left the left carry class
+untouched (3/16 -> 3/18) - the recollection *did* target the carry class, but
+the left residue needs a lever aimed at the scripted branch's own open item,
+not another behaviour-cloning pass.
+
+**W7-C (2026-10-12, `logs/w7/`, `logs/w7/C_RESULTS.md`): the patch-sheet
+direct interface - the acquisition knob is pinned in-scenario, the
+recollection moves the carry class, the rate verdict is underpowered and
+`moe_v13p` is not adopted; the two-line collector's manifest and stall-guard
+gaps are closed.** The `collection.park_early` field above is operative
+(every W7-C shard manifest records `"auto"`); the W7-C.1 additions are the
+`supply.patch` block and the guard's stats flush. The scenario is the W6-A 2D
+patch sheet
+(`FRUIT_SUPPLY_SCATTER=1 FRUIT_SUPPLY_PATCH=1`, balanced A:B:C
+0.375/0.375/0.25, lateral 0.16, lead 0.9); the two-line collection
+(`FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=1`, camera 240,424, post-W7-A branch with
+the park-gate lever on) records **173 episodes** into `datasets/demos_v13p`
+(nine shard dirs, left 89 / right 84, `106_index_audit` OK; **nine renderer
+wedges across the nine shard-runs** with **14 soft-watchdog attempt skips** -
+the union is the store, the shard dirs are the provenance unit, and
+`gate_open=0.0 s` / zero `indexed:` hold as the collector's *enforced*
+never-stop invariant). Fine-tune `moe_v12 -> moe_v13p`
+(`checkpoints/moe_v13p/policy_best.pt` md5 **fed54993b4aebdaf2c779bf09a18698e**;
+`demos_v13p` rollouts + the single-arm base `demos_v11`, the `moe_v13s` recipe;
+both checkpoints sit on the single-arm lineage - v13s also used the `demos_v11`
+base). **Pins.** The W7-C direct evaluation runs with
+`FRUIT_POLICY_TRIGGER_ACQ=1` in-scenario because the A/B on this supply
+measures the knob's mechanism endpoint (left no-contact 15 -> 0, close-start
+median 120.1 -> 2.5 mm) while the recollection targets the carry class; the
+knob stays default **off** and the shipped hybrid canary never runs the trigger
+(the canary of record reads **8/10 PASS** and matches the v13s sample). The
+class split (C_ab): with the knob on **32 of 45 attempts (32 of 33 failures)
+are carried-not-placed** - the single failure mode of this interface - and the
+per-arm n shifts with the fire timing, so compare per-arm *classes*, not
+per-arm rates (the direct env sets the arm from the fruit grade). **The
+evaluation:** paired direct A/B `moe_v13s` vs `moe_v13p` (both ACQ=1, N=3x15,
+interleaved): 10/45 (22 %) -> 13/45 (29 %), **carried-class 3 B-only / 0
+A-only** (the overall rate pairing is 1 B-only / 2 A-only), carried 32 -> 29,
+right ok 7/29 -> 10/27, left unchanged 3/16 -> 3/18, sign **p = 0.125** at
+N=3; the one new reason (`timeout: no grasp within 1500 ticks`, one episode) is
+a no-fire/horizon timeout, *not* the policy-gate class (B has zero gate fires).
+**Verdict: no measured improvement by the P4 criteria - no adoption**
+(`accept_policy.sh` keeps the shipped default `moe_v12`); publish the mechanism
+movement (carried 32 -> 29, right ok 7 -> 10, the carried-class 3-0 paired) with
+the 22 -> 29 % as a secondary, underpowered readout, and keep the two-line
+rollout-store -> direct-interface transfer as an open W4 risk this A/B tested
+only weakly. **Collector (W7-C.1, `scripts/40_collect_demos.py`):** the shard
+manifest now records the patch sheet (`supply.patch` + slice/pair/sep), and
+`_stall_dump` flushes a `[collect] stats:` line before its `os._exit(3)`, so a
+wedged shard carries the gate-open invariant instead of implying it; existing
+shard manifests are not rewritten (their md5 pins are the provenance record).
+Tooling: `logs/w7/C_class_split.py` / `C_acq_forces.py` are the read-only
+re-derivations; `logs/w7/C_acq_forces.py` is what withdrew the first pass's
+Fmax force split (close-phase `Fmax` does not separate the classes - the
+grip-margin reading is a hypothesis, not a measured force split).
 
 ## 3. What changed -> what to run
 

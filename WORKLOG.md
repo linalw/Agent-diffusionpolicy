@@ -12681,8 +12681,14 @@ the trigger.
 **2. The class split on the patch sheet.** Arm A (the shipped interface): left
 1/22 (15 no-contact / 6 carried), right 15/23 (8 carried). Arm B (ACQ=1): left
 3/13 (0 no-contact / 10 carried), right 9/32 (1 no-contact / 22 carried).
-With the knob on, **32 of 45 failures are carried-not-placed on both arms** -
-the named carry target (the W7-B "carry-grip-margin class"), not acquisition.
+With the knob on, **32 of the 45 attempts are carried-not-placed on both arms**
+(32 of the 33 failures) - the named carry target (the W7-B "carry-grip-margin
+class"), not acquisition. (W7-C.1: the first pass's Fmax force split as
+evidence for the mechanism did not survive the class-by-class derivation -
+close-phase Fmax is 5.47 N median on the successes vs 5.96 N on the carried
+(n=12/32), i.e. it does not separate the classes; the grip-margin reading is
+recorded as the *hypothesis* the hold/freeze geometry states,
+`logs/w7/C_acq_forces.py`.)
 
 **3. The recollection (Tier A data run).** The two-line branch on the patch
 sheet (`FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=1 FRUIT_SUPPLY_PATCH=1`,
@@ -12696,11 +12702,17 @@ OK. **The wedge is documented**: the 13:52 three-shard batch hit the known
 blocking `RenderingManager.render()` under the bimanual bridge in all three
 chunks at once; the guard dumped thread stacks and exited each shard with
 **every flushed episode indexed and the belt never stopped** (the collector's
-soft watchdog also skipped/retried the two attempts that overran the 600 s
-wall budget); seven wedges total across nine shard-runs, the single-shard
-shape clean for many minutes (the 14:54 probe: 32 episodes). `gate_open=0.0 s`
-and zero `indexed:` in every collector run - the never-stop dynamic catch
-throughout.
+soft watchdog also skipped and retried attempts that overran the 600 s wall
+budget: **14** total - per shard-run 2/4/4/2/4/4/4/2/2 across the nine runs);
+**nine wedge events total across the nine shard-runs** (the 13:52 and 14:47
+three-shard batches plus one boundary wedge in each of three single-shard
+runs; the W7-C.1 gate fix corrected this from the first pass's "7"), the
+single-shard shape clean for many minutes (the 14:54 probe: 32 episodes), the
+three-way parallel shape fastest until it wedges. `gate_open=0.0 s` and zero
+`indexed:` in every collector run - the never-stop dynamic catch throughout
+(the invariant is *enforced*: the collector refuses the indexed line before
+collection; the final `[stats]` line was not reached because the guard exits
+via `os._exit(3)`, and W7-C.1 gives `_stall_dump` a stats flush).
 
 **4. The fine-tune.** `checkpoints/moe_v13p/policy_best.pt` (md5
 **fed54993b4aebdaf2c779bf09a18698e**): `scripts/111_rl_finetune.py` from
@@ -12713,25 +12725,87 @@ store - the W4 wrong-anchor lesson in its positive form.
 
 **5. The evaluation.** Pinned canary (shipped pre-v9 supply, the gate of
 record): **8/10 = 80 % PASS**, only baseline reasons (2 grip losses;
-`logs/w7/C_eval/canary_pinned.log`). Patch-supply hybrid canary: 5/10, two
-failures carrying the harness's "cross-lane station fruit ... placed on lane
-N" label (the hybrid station handoff on an abreast patch presentation) - the
-hybrid is inert by construction, so this is reported as scenario coverage; a
-patch canary would need its own floor/label handling. **Paired direct A/B**
-(`moe_v13s` vs `moe_v13p`, both ACQ=1, N=3x15, interleaved):
-A 10/45 = 22 % vs B 13/45 = 29 %; **paired 3 B-only ok / 0 A-only ok** (1 both
-ok, 11 both fail, 30 excluded by fruit-class shift); sign p = 0.125; carried
-32 -> 29; right ok 7/29 -> 10/27; left unchanged 3/16 -> 3/18; one new
-on-paper reason (`timeout: no grasp within 1500 ticks`, one B episode - the
-policy-gate close path that never engages, i.e. the existing policy-gate
-class). **Verdict: no measured improvement by the P4 criteria** (p > 0.05,
-strawberry not better); publish the mechanism movement (carried 32 -> 29, right
-ok 7 -> 10, 3-0 paired) and the pooled 22 -> 29 % as a secondary, underpowered
-readout - never as an established gain. The carry class (left 13-14/batch) is
-the residual, shared with the scripted branch's own open item.
+`logs/w7/C_eval/canary_pinned.log`). Patch-supply hybrid canary: 5/10, all five
+failures carrying the hybrid's `fruit did not follow the gripper` class, two
+also the harness's cross-lane label (which is **not** failure-specific - three
+successes carry it too; the hybrid station handoff on an abreast patch
+presentation) - the hybrid is inert by construction, so this is reported as
+scenario coverage; a patch canary would need its own floor/label handling.
+**Paired direct A/B** (`moe_v13s` vs `moe_v13p`, both ACQ=1, N=3x15,
+interleaved): A 10/45 = 22 % vs B 13/45 = 29 %; the **carried-class** paired
+test is 3 B-only ok / 0 A-only ok (1 both ok, 11 both fail, 30 excluded by the
+fruit-class shift), the overall rate pairing 1 B-only / 2 A-only; sign
+p = 0.125; carried 32 -> 29; right ok 7/29 -> 10/27; left unchanged 3/16 ->
+3/18. One new on-paper reason (`timeout: no grasp within 1500 ticks`, one B
+episode - `B_3` ep12, left peach, 1500 ticks, no `[acq]` line: a **no-fire /
+horizon** timeout, *not* the policy-gate class, which never fires on B's 45
+attempts). **Verdict: no measured improvement by the P4 criteria** (p > 0.05,
+strawberry not better at these counts); publish the mechanism movement
+(carried 32 -> 29, right ok 7 -> 10, the carried-class 3-0 paired) and the
+pooled 22 -> 29 % as a secondary, underpowered readout - never as an
+established gain. The carry class (left 13-14/batch) is the residual, shared
+with the scripted branch's own open item.
 
 **No-harm.** No shipped source change (the W7-C diff is the new
 `logs/w7/` drivers/readouts, the new `datasets/v13p_*` + `demos_v13p` stores
 and `checkpoints/moe_v13p`); `scripts/selfcheck.sh` PASS 0 failures. The
 single-arm shipped default is byte-unchanged (`e98d9836` tasks.py; the W7-B
 acceptance of record stands).
+
+### W7-C.1: the gate fixes - the counts, the Fmax claim (derived and withdrawn), the no-fire timeout, and the collector's manifest/stats gaps
+
+**Gate follow-up; branch `w7-policy-recollect`, no push. One shipped-code
+change (`scripts/40_collect_demos.py`); everything else is evidence/docs.**
+
+* **Counts corrected** (both entries above and `C_RESULTS.md`): wedge events
+  **9** (not 7) - a `STALL (physics progress)` dump in each of the nine
+  shard-runs (13:52 three + 14:47 three + three single-shard boundary wedges);
+  soft-watchdog skips **14** (not 2), per shard-run 2/4/4/2/4/4/4/2/2. The
+  first pass counted the wedges from the three-shard batches and missed the
+  single-shard boundary cases.
+* **The Fmax/grip-margin sentence is withdrawn as evidence.** It was not
+  derivable from the cited files: the derivation
+  (`logs/w7/C_acq_forces.py`, class-by-class over the arm-B population) shows
+  the close-phase `Fmax` **does not separate the classes** - **5.47 N median
+  on the successes (n=12) vs 5.96 N on the carried-not-placed (n=32)**, both
+  ranges straddling 5 N - because the loss happens after the window the `[acq]`
+  line covers (first-contact force likewise, 2.38 vs 2.23 N). The grip-margin
+  reading now stands as the *hypothesis* the hold/freeze geometry states, to be
+  measured in the carry window (which the recollection already supplies
+  offline). Also fixed: "32 of the 45 failures" -> "32 of the 45 attempts
+  (32 of the 33 failures)".
+* **The B timeout is a no-fire/horizon timeout, not the policy-gate class.**
+  `B_3` ep12 (left peach, 1500 ticks, no `[acq]` line): B's 45 attempts
+  contain zero policy-gate fires, so the gate close path cannot be its
+  mechanism; the attempt never reached a close. The `gate_open=0.0 s` /
+  zero-`indexed:` claim is re-labelled as the **enforced** dynamic-mode
+  invariant (the collector refuses the indexed line before collection), and
+  the reason the final `[stats]` summary never appeared is named: the hard
+  guard exits via `os._exit(3)`.
+* **Collector gaps closed (`scripts/40_collect_demos.py`, new md5
+  `abf3e09d`, was `530e403d`).** The shard manifest now records the W6-A patch
+  sheet (`supply.patch` + slice/pair/sep parameters, next to `wave`), so a
+  W7-C-style shard is self-describing without a tasks.py md5 lookup; and
+  `_stall_dump` accepts a stats callback and prints a `[collect] stats:`
+  gate-open line before exiting, so a wedged shard carries the invariant
+  instead of implying it (all nine W7-C shard logs exited through the guard
+  and none contains the clean-path summary). Existing shard manifests are
+  **not** rewritten (their md5 pins are the provenance record); the change is
+  for future collections.
+* **Evidence/wording.** `C_ab_class_split.txt` is saved (regenerated by
+  `logs/w7/C_class_split.py`); the step-1 knob's "3.8-4.0 mm" is scoped to
+  the per-arm medians with the two right-arm outliers (624/308 mm) named; the
+  strawberry row is stated as B 2/5 vs A 2/4 (the recollection is not better
+  there) and the paired rows separate the carried-class (3-0) from the rate
+  pairing (1 B-only / 2 A-only); the patch canary's failure line now says all
+  five failures carry `fruit did not follow the gripper` and the cross-lane
+  label is **not** failure-specific (it appears on three successes); the
+  anchor text names both checkpoints as single-arm-lineage (v13s also used
+  the `demos_v11` base) and records the open W4 **two-line-store -> direct**
+  transfer risk as tested only weakly by this A/B; the *deployed* checkpoint
+  is corrected to the shipped default `moe_v12` (v13s is the comparison arm).
+* **No-harm / checks.** `scripts/107_collect_merge_test.py` PASS,
+  `python3 scripts/106_index_audit.py` OK, `scripts/selfcheck.sh` PASS 0
+  failures; no motion/task code touched (`tasks.py e98d9836` still), the
+  single-arm default is byte-unchanged and no existing shard manifest or
+  dataset is modified.
