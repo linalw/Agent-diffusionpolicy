@@ -449,6 +449,60 @@ class PickAndPlaceTask:
         self._dynamic_trace_place = (
             os.environ.get("FRUIT_DYNAMIC_TRACE_PLACE", "0") == "1"
         )
+        #: W8-B carry-phase grip-margin guard (default off, direct handover
+        #: only - `_carry_guard_active` is set from `direct_capture` in
+        #: `_grasp_carry_place_impl`, so the scripted two-line and the shipped
+        #: single arm never see it). The carry window's measured escape is a
+        #: loaded slide: the payload stops following the fingers and keeps
+        #: walking out while the tactile still reads the grip's carry force
+        #: (4-10 N) - the pads' own profile keeps feeding the relative
+        #: displacement (W8-B `logs/w8/B_RESULTS.md`). The guard reacts the way
+        #: the W5 frontier's slip-guard row prescribes (no squeeze escalation):
+        #: when the *self-consistent* in-hand displacement crosses
+        #: `FRUIT_CARRY_GUARD_TRIGGER` it (a) freezes the profile for a bounded
+        #: hold (so the pads stop feeding the slide) and (b) re-seats the hand
+        #: by moving the commanded pad centre toward the payload at a bounded
+        #: rate (the OpenArm fingers are the hand, so the re-seat moves the arm),
+        #: then (c) resumes the remaining profile at `FRUIT_CARRY_GUARD_DERATE`
+        #: speed. Trigger/hold/derate/reseat and the active legs are all
+        #: env-tunable; the whole reaction is bounded per leg.
+        #:
+        #: The displacement is computed with a *per-leg self-consistent frame*
+        #: (the tcp quaternion at the leg's own first tick). The legacy
+        #: `slip_max` read in the motion report uses the quat stored at the
+        #: close, which is up to 36 deg away by the carry and reads tens of mm
+        #: of ghost slip on a held payload (successes print 18-111 mm,
+        #: `logs/v1/31_accept_supply_verified.log` vs the trace's < 0.5 mm) - so
+        #: it cannot be the guard's trigger and must not be.
+        self._carry_guard = os.environ.get("FRUIT_CARRY_GUARD", "0") == "1"
+        self._carry_guard_trigger = float(
+            os.environ.get("FRUIT_CARRY_GUARD_TRIGGER", "0.002")
+        )
+        self._carry_guard_hold = max(
+            0, int(os.environ.get("FRUIT_CARRY_GUARD_HOLD_TICKS", "24"))
+        )
+        self._carry_guard_hold_budget = max(
+            0, int(os.environ.get("FRUIT_CARRY_GUARD_HOLD_BUDGET", "72"))
+        )
+        self._carry_guard_derate = min(
+            1.0, max(0.05, float(os.environ.get("FRUIT_CARRY_GUARD_DERATE", "0.5")))
+        )
+        self._carry_guard_reseat_step = float(
+            os.environ.get("FRUIT_CARRY_GUARD_RESEAT_STEP", "0.002")
+        )
+        self._carry_guard_reseat_max = float(
+            os.environ.get("FRUIT_CARRY_GUARD_RESEAT_MAX", "0.020")
+        )
+        self._carry_guard_legs = os.environ.get("FRUIT_CARRY_GUARD_LEGS", "grasp_lift")
+        #: Set per attempt from `direct_capture` (never a global default).
+        self._carry_guard_active = False
+        #: W8-B carry-window readout (default off): one `[carry]` summary per
+        #: dynamic carry leg with the self-consistent in-hand displacement, the
+        #: onset (first row past the trigger), the force/contact state at the
+        #: onset, the geometry (sep vs gap) and the guard's own firings. Pure
+        #: per-leg reporting built from values the loop already computes; the
+        #: per-tick clean-slip read is only taken when this or the guard is on.
+        self._carry_diag = os.environ.get("FRUIT_CARRY_DIAG", "0") == "1"
         #: W7-B acquisition readout (default off, policy direct path only): one
         #: `[acq]` line per attempt with the setup stage times, the close-start
         #: tip-fruit offset, the walk-latch state, the first sustained contact,
@@ -1772,8 +1826,127 @@ class PickAndPlaceTask:
                     np.asarray(self.spawner.position(sample), dtype=float)
                     - np.asarray(arm.jaw_centre(), dtype=float)
                 ).copy()
-            for i in range(len(commands)):
-                centre = commands[i]
+            # ---- W8-B carry guard / diag (default off; see `__init__`) ------
+            guard_armed = bool(
+                (self._carry_guard_active or self._carry_diag)
+                and hand_is_jaw
+                and self._dynamic_capture_active
+            )
+            guard_acts = bool(
+                self._carry_guard_active
+                and hand_is_jaw
+                and self._dynamic_capture_active
+                and name in [s for s in self._carry_guard_legs.split(",") if s]
+            )
+            guard_trigger = self._carry_guard_trigger
+            guard_ref = None
+            guard_fruit_prev = None
+            guard_pads_prev = None
+            guard_rot_prev = None
+            guard_slip = 0.0
+            guard_slip_max = 0.0
+            guard_vmax = 0.0
+            guard_onset_i = None
+            guard_onset_force = None
+            guard_onset_sep = None
+            guard_onset_contacts = None
+            guard_loss_i = None
+            guard_contacts_min = 10
+            guard_force_min = float("inf")
+            guard_events = 0
+            guard_holds = 0
+            guard_fired = False
+            guard_u = 0.0
+            guard_done = False
+            guard_hold_left = 0
+            guard_hold_budget = self._carry_guard_hold_budget
+            guard_reseat = np.zeros(3)
+            guard_reseat_used = 0.0
+            n_ticks = len(commands)
+            if guard_acts:
+                # The profile may be frozen for up to the hold budget; the
+                # derate then stretches the remainder. Bounded by construction.
+                n_ticks = int(
+                    len(commands)
+                    + guard_hold_budget
+                    + len(commands) * (1.0 / self._carry_guard_derate - 1.0)
+                    + 8
+                )
+            for i in range(n_ticks):
+                if guard_acts and guard_done:
+                    break
+                if guard_acts:
+                    # Profile cursor (`guard_u`): one command per tick normally,
+                    # the derate rate after the first guard event, frozen during
+                    # a hold. `commands` is the same jerk-limited path; only its
+                    # time parameterisation changes, so no new discontinuities.
+                    # Tick 0 issues `commands[0]` exactly as the un-guarded loop
+                    # does; the cursor advances at the top of later ticks.
+                    firing = (
+                        guard_hold_left <= 0
+                        and guard_slip > guard_trigger
+                        and guard_hold_budget > 0
+                        and guard_contacts_min > 0
+                    )
+                    if firing:
+                        guard_hold_left = min(
+                            self._carry_guard_hold, guard_hold_budget
+                        )
+                        guard_hold_budget -= guard_hold_left
+                        guard_events += 1
+                        guard_fired = True
+                    if guard_hold_left > 0:
+                        guard_hold_left -= 1
+                        guard_holds += 1
+                        holding = True
+                    else:
+                        holding = False
+                        if i > 0:
+                            guard_u = min(
+                                guard_u
+                                + (
+                                    self._carry_guard_derate
+                                    if guard_fired
+                                    else 1.0
+                                ),
+                                float(len(commands) - 1),
+                            )
+                    kf = int(guard_u)
+                    frac = guard_u - kf
+                    if kf + 1 < len(commands):
+                        centre = (1.0 - frac) * commands[kf] + frac * commands[kf + 1]
+                    else:
+                        centre = commands[-1]
+                        guard_done = True
+                    if holding and guard_contacts_min > 0:
+                        # Bounded re-seat: move the pads toward the payload by
+                        # the measured relative displacement (rate and total
+                        # bounded), never squeeze harder.
+                        if (
+                            guard_fruit_prev is not None
+                            and guard_rot_prev is not None
+                        ):
+                            dev = (guard_fruit_prev - guard_pads_prev) - (
+                                guard_rot_prev @ guard_ref
+                            )
+                            delta = dev - guard_reseat
+                            norm = float(np.linalg.norm(delta))
+                            step = self._carry_guard_reseat_step
+                            if norm > step > 0.0:
+                                delta = delta * (step / norm)
+                            guard_reseat = guard_reseat + delta
+                            rn = float(np.linalg.norm(guard_reseat))
+                            if rn > self._carry_guard_reseat_max:
+                                guard_reseat = guard_reseat * (
+                                    self._carry_guard_reseat_max / rn
+                                )
+                            guard_reseat_used = float(
+                                np.linalg.norm(guard_reseat)
+                            )
+                    centre = centre + guard_reseat
+                else:
+                    centre = commands[i]
+                centre_ref = centre   # the commanded centre (pre-IK) for the trace
                 if place_hold_active and i >= place_hold_ticks:
                     # Release the place-start wrist hold; the position-only IK
                     # takes the wrist back from here (see the hold above).
@@ -1868,7 +2041,7 @@ class PickAndPlaceTask:
                     # summary only reports the extremes.
                     self._dynamic_trace_sample(
                         "carry", sample, arm, self.grippers[side], gap_command,
-                        cmd=commands[i],
+                        cmd=centre_ref,
                     )
                 # Always *measure* the payload's motion in the hand frame - it is
                 # the honest slip/jitter signal and it goes into the motion report;
@@ -1893,6 +2066,57 @@ class PickAndPlaceTask:
                     slip_vel_max, float(np.linalg.norm(rel_now - rel_prev)) / CONTROL_DT
                 )
                 rel_prev = rel_now
+                if guard_armed:
+                    # W8-B clean in-hand read: the payload's displacement since
+                    # the leg's first tick, in the leg's own (self-consistent)
+                    # frame, plus the onset/loss/force bookkeeping the `[carry]`
+                    # diag and the guard consume. Only taken when the diag or
+                    # the guard is on. The rotation and the reference are read
+                    # *after* the physics step, exactly like the trace rows -
+                    # the loop's `rot` is the pre-step wrist, and mixing it with
+                    # post-step positions accumulates a rotation artifact
+                    # (34-88 mm on a held payload, measured).
+                    rot_now = _quat_matrix(np.asarray(arm.tcp_pose()[1], dtype=float))
+                    rel_frame = rot_now.T @ (fruit - pads)
+                    if guard_ref is None:
+                        # First tick of the leg: the reference is this tick's
+                        # own state, so `clean_slip` starts at zero.
+                        guard_ref = rel_frame.copy()
+                        guard_rot_prev = rot_now
+                        guard_fruit_prev = fruit.copy()
+                        guard_pads_prev = pads.copy()
+                    else:
+                        guard_slip = float(np.linalg.norm(rel_frame - guard_ref))
+                        guard_slip_max = max(guard_slip_max, guard_slip)
+                        guard_vmax = max(
+                            guard_vmax,
+                            float(
+                                np.linalg.norm(
+                                    (fruit - pads)
+                                    - (guard_fruit_prev - guard_pads_prev)
+                                )
+                            )
+                            / CONTROL_DT,
+                        )
+                        reading_now = self.tactile.read().get(side, _EMPTY_TACTILE)
+                        force_now = float(reading_now.normal_force)
+                        contacts_now = int(reading_now.contact_count)
+                        guard_force_min = min(guard_force_min, force_now)
+                        guard_contacts_min = min(guard_contacts_min, contacts_now)
+                        if guard_onset_i is None and guard_slip > guard_trigger:
+                            guard_onset_i = i
+                            guard_onset_force = force_now
+                            guard_onset_sep = float(arm.jaw_separation())
+                            guard_onset_contacts = contacts_now
+                        if (
+                            guard_loss_i is None
+                            and guard_onset_i is not None
+                            and contacts_now == 0
+                        ):
+                            guard_loss_i = i
+                        guard_fruit_prev = fruit.copy()
+                        guard_pads_prev = pads.copy()
+                        guard_rot_prev = rot_now
                 if slip_enabled:
                     if slip_trigger < slip <= slip_react_max:
                         recoveries += 1
@@ -1946,6 +2170,28 @@ class PickAndPlaceTask:
                     # following the payload within a few millimetres without the
                     # teleporting that used to do the carrying.
                     self._recentre_gripper(side, sample)
+            if guard_armed:
+                # W8-B carry-window readout: one line per dynamic carry leg.
+                force_at = (
+                    "n/a" if guard_onset_force is None
+                    else f"{guard_onset_force:.2f}"
+                )
+                sep_at = (
+                    "n/a" if guard_onset_sep is None
+                    else f"{guard_onset_sep * 1000:.1f}"
+                )
+                fmin = guard_force_min if guard_force_min < float("inf") else -1.0
+                say(
+                    f"[carry] {side} {name}: ticks={i + 1}/{len(commands)} "
+                    f"clean_slip_max={guard_slip_max * 1000:.1f}mm "
+                    f"in-hand_vmax={guard_vmax:.3f} "
+                    f"onset_row={guard_onset_i} force@onset={force_at}N "
+                    f"sep@onset={sep_at}mm contacts@onset={guard_onset_contacts} "
+                    f"min_contacts={guard_contacts_min} force_min={fmin:.2f}N "
+                    f"loss_row={guard_loss_i} guard={int(guard_acts)} "
+                    f"events={guard_events} holds={guard_holds} "
+                    f"reseat={guard_reseat_used * 1000:.1f}mm"
+                )
             if monitor is not None:
                 summary = monitor.summary()
                 summary["label"] = (
@@ -4522,6 +4768,10 @@ class PickAndPlaceTask:
         #: FRUIT_DIRECT_HOLD_TICKS=0 FRUIT_DIRECT_CATCH_MAX=1000` restores the
         #: pre-fix direct flow as the control.
         direct_capture = bool(dynamic_capture and not scripted)
+        # W8-B carry guard scope: the policy handover's own dynamic carry legs
+        # only (see the knob block in `__init__`). A scripted call always clears
+        # it, and `_carry` additionally requires the attempt to be dynamic.
+        self._carry_guard_active = bool(self._carry_guard and direct_capture)
         direct_hover = float(os.environ.get("FRUIT_DIRECT_HOVER", "0.0"))
         direct_catch_lead = float(os.environ.get("FRUIT_DIRECT_CATCH_LEAD", "0.25"))
         #: Safety net for the direct catch-up: never command the tip more than

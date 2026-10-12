@@ -176,7 +176,7 @@ from .policy.trigger import TriggerSettings, should_fire
 #: `FRUIT_ACQ_DIAG` acquisition report (a handful of state reads on close
 #: boundary ticks; the same single-arm invariance argument holds - the knob is
 #: off on every shipped path), so the pin follows the file.
-TASKS_MD5 = "e98d9836c96080967fa7e4054a90cba1"
+TASKS_MD5 = "a3b82a11a83835af55d4c72c92e0e7f9"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(
