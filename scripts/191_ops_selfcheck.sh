@@ -12,14 +12,20 @@
 # WHAT IT CHECKS (all read-only; the tool never kills, restarts or moves
 # anything - recovery commands are PRINTED, the operator or wrapper runs them):
 #
-#   sims      running simulator processes (`pgrep -f python.sh|kit-python`),
-#             deduplicated by process group. Each is mapped to its log (fd 1,
-#             fallback: the newest *.log under logs/, excluding logs/ops), and
-#             the report shows that log's size, mtime age and the growth since
-#             the previous check (state: logs/ops/state.tsv).
+#   sims      running simulator processes, matched by a PATH-ANCHORED pattern
+#             (`(^|/)python\.sh( |$)` / `(^|/)kit/python/bin/python3( |$)`, so
+#             a stray `foo_python.sh` helper is not read as a sim), deduplicated
+#             by process group. Each is mapped to its log (fd 1, fallback: the
+#             newest *.log under logs/, excluding logs/ops), and the report
+#             shows that log's size, mtime age and the growth since the
+#             previous check (state: logs/ops/state.tsv).
 #   claims    logs/claims/slotN.lock + slotN.owner: live owner, stale owner
 #             (dead pid - the kernel already released the lock) or free/locked
 #             (probed with `flock -n`, no content change).
+#   lanes     claim wrappers / lane drivers alive (default pattern
+#             `[1]54_claim_run|[1]80_claim_slot|_driver`): while one is alive
+#             the `[wrap]` action is downgraded to a hint - the lane may still
+#             be wrapping, and a manual wrap could collide with it.
 #   artifacts the newest logs per area (default logs/w*/*.log), top OPS_TOP_N
 #             by mtime, with age and size.
 #   git       current branch, dirty-path count, last commit's age, the newest
@@ -48,12 +54,14 @@
 #   (a) a lane stuck on an unanswerable permission (detect pending asks;
 #       respawn the lane with a corrected prompt);
 #   (b) a renderer wedge - a sim process whose log stops growing (kill the
-#       stale session, resume its chain);
+#       stale session, resume its chain by re-running the wrapper invocation);
 #   (c) a dead lane after a detached chain - "chain done, wrap never
 #       happened" (detect the completion marker + a dirty tree, finish the
-#       wrap);
+#       wrap - unless a claim wrapper is still alive);
 #   (d) long idle lanes (STALLED-CHAIN: flag and ping/respawn);
-#   (e) resource waste - stale claims, a wedged sim with an idle GPU.
+#   (e) resource waste - stale claims, a wedged sim with an idle GPU (the
+#       GPU-idle clause escalates only once the log has been frozen >= 2x
+#       OPS_STALL_S: an idle GPU alone is not corroboration).
 # The recovery playbook per class is in docs/OPS.md.
 #
 # DEFAULT MODE IS SAFE TO RUN WHILE A SIM IS RUNNING: it only reads (stat,
@@ -70,11 +78,16 @@
 #   OPS_CHAIN_S         chain-log stale threshold  (default: 600 s)
 #   OPS_TOP_N           artifact rows              (default: 5)
 #   OPS_CHAIN_GLOB      chain-log glob under logs  (default: w*/*.log)
-#   OPS_SIM_PATTERN     pgrep -f pattern           (default: python.sh|kit python)
+#   OPS_SIM_PATTERN     pgrep -f pattern, path-anchored
+#                       (default: (^|/)[p]ython\.sh( |$)|(^|/)[k]it/python/bin/python3( |$))
+#   OPS_LANE_PATTERN    pgrep -f pattern for claim wrappers / lane drivers
+#                       (default: [1]54_claim_run|[1]80_claim_slot|_driver)
 #   OPS_GPU_QUERY       nvidia-smi command; set empty to skip (default: query)
-#   OPS_GPU_IDLE_PCT    idle-clause escalation pct (default: 5)
+#   OPS_GPU_IDLE_PCT    idle-clause escalation pct (default: 5; the clause
+#                       needs the log frozen >= 2x OPS_STALL_S to escalate)
 #   OPS_WEDGE_MARKERS   grep -E crash/wedge regex used on log tails
-#   OPS_DONE_MARKERS    grep -E completion regex   (dirty-tree wrap hint)
+#   OPS_DONE_MARKERS    grep -E completion regex   (dirty-tree wrap hint;
+#                       default: fingerprint: matches|[claim_(run|slot)] exit=0|[fruit] DONE)
 #   OPS_PERMISSION_S    "recent permission ask" window (default: 3600 s)
 #   OPS_OPENCODE_DB     session store path; point at a missing file to skip
 #
@@ -94,12 +107,17 @@ stall_s=${OPS_STALL_S:-300}
 chain_s=${OPS_CHAIN_S:-600}
 top_n=${OPS_TOP_N:-5}
 chain_glob=${OPS_CHAIN_GLOB:-'w*/*.log'}
-sim_pattern=${OPS_SIM_PATTERN:-'[p]ython\.sh|[k]it/python/bin/python3'}
+sim_pattern=${OPS_SIM_PATTERN:-'(^|/)[p]ython\.sh( |$)|(^|/)[k]it/python/bin/python3( |$)'}
+lane_pattern=${OPS_LANE_PATTERN:-'[1]54_claim_run|[1]80_claim_slot|_driver'}
 # NOTE the `-` (not `:-`): an explicitly empty OPS_GPU_QUERY disables the probe.
 gpu_query=${OPS_GPU_QUERY-nvidia-smi --query-gpu=utilization.gpu,memory.used --format=csv,noheader}
 gpu_idle_pct=${OPS_GPU_IDLE_PCT:-5}
 wedge_re=${OPS_WEDGE_MARKERS:-'Too many open files|\[collect\] STALL|Texture creation failed|core dumped|SIGSEGV|Segmentation fault|Traceback \(most recent call last\)|TIMEOUT'}
-done_re=${OPS_DONE_MARKERS:-'fingerprint: matches|PASS|exit=0|\[fruit\] DONE'}
+done_re=${OPS_DONE_MARKERS:-'fingerprint: matches|\[claim_(run|slot)\] exit=0|\[fruit\] DONE'}
+# The group-kill line is refused when the sim's pgid equals this tool's own:
+# `kill -- -$pgid` would take the tool (and the shell that launched it) down.
+own_pgid=$(ps -o pgid= -p $$ 2>/dev/null | tr -d ' ')
+[ -n "$own_pgid" ] || own_pgid=$$
 permission_s=${OPS_PERMISSION_S:-3600}
 opencode_db=${OPS_OPENCODE_DB:-$HOME/.local/share/opencode/opencode.db}
 
@@ -271,6 +289,21 @@ collect_sims() {
     done
 }
 
+# --- claim wrappers / lane drivers -------------------------------------------
+# A live wrapper means the lane is between its own steps: the `[wrap]` action
+# is downgraded to a hint while one exists (the lane may still be wrapping).
+declare -a LANE_PIDS=() LANE_CMDS=()
+collect_lanes() {
+    LANE_PIDS=(); LANE_CMDS=()
+    local pid cmd
+    while read -r pid; do
+        [ -n "$pid" ] || continue
+        cmd=$(ps -o args= -p "$pid" 2>/dev/null) || continue
+        [ -n "$cmd" ] || continue
+        LANE_PIDS+=("$pid"); LANE_CMDS+=("$cmd")
+    done < <(pgrep -f "$lane_pattern" 2>/dev/null | sort -n)
+}
+
 # --- claims ------------------------------------------------------------------
 # prints human lines; sets CLAIM_STALE=1 when an owner file names a dead pid
 CLAIM_STALE=0
@@ -372,7 +405,7 @@ collect_perms() {
 declare -a ACTIONS=() HINTS=() SEEN=()
 
 run_all() {
-    local sim_count frozen_count chain_m chain_s_ chain_path chain_age chain_tail
+    local sim_count frozen_count lane_count chain_m chain_s_ chain_path chain_age chain_tail
     local crash_marker done_marker i verdict code
 
     now=$(date +%s)
@@ -380,6 +413,7 @@ run_all() {
     load_state
     scan_globs
     collect_sims
+    collect_lanes
     collect_git
     collect_gpu
     collect_load
@@ -414,12 +448,17 @@ run_all() {
             [ "$frozen" = 1 ] && frozen_count=$((frozen_count + 1))
             if [ "$frozen" = 1 ] && [ -n "$p" ] && [ -f "$p" ]; then
                 # class (b) corroboration: an actual wedge signature, an idle
-                # GPU while the sim runs, or a state snapshot proving zero
-                # growth across at least OPS_STALL_S
-                local marker gpu_corr=0 state_corr=0 pe ps psd
+                # GPU once the log has been frozen >= 2x OPS_STALL_S, or a
+                # state snapshot proving zero growth across at least OPS_STALL_S
+                local marker gpu_corr=0 gpu_seen=0 state_corr=0 pe ps psd
                 marker=$(tail -c 4000 "$p" 2>/dev/null | grep -Eo "$wedge_re" | head -1)
                 if [ -n "$GPU_UTIL" ] && is_num "$GPU_UTIL" && [ "$GPU_UTIL" -le "$gpu_idle_pct" ]; then
-                    gpu_corr=1
+                    gpu_seen=1
+                    # GPU-idle alone is weak corroboration (an idle GPU with a
+                    # quiet log can be a startup or a buffered writer); require
+                    # the freeze to have persisted 2x OPS_STALL_S before it
+                    # escalates, otherwise it only annotates the hint.
+                    [ "$age" -ge $((stall_s * 2)) ] && gpu_corr=1
                 fi
                 pe=${PREV_EPOCH[$p]:-}
                 ps=${PREV_SIZE[$p]:-}
@@ -430,7 +469,7 @@ run_all() {
                 if [ -n "$marker" ] || [ "$gpu_corr" = 1 ] || [ "$state_corr" = 1 ]; then
                     local why=""
                     [ -n "$marker" ] && why="wedge marker '$marker'"
-                    [ "$gpu_corr" = 1 ] && why="${why:+$why, }GPU idle (${GPU_UTIL}%)"
+                    [ "$gpu_corr" = 1 ] && why="${why:+$why, }GPU idle (${GPU_UTIL}%) and frozen ${age}s (>= 2x${stall_s}s)"
                     [ "$state_corr" = 1 ] && why="${why:+$why, }zero growth across ${psd}s"
                     local resume=""
                     case "${SIM_CMDS[$i]}" in
@@ -439,15 +478,33 @@ run_all() {
                     if [ -n "$resume" ]; then
                         resume="$resume   # env not recovered from the process; prefer the claim wrapper"
                     else
-                        resume="re-run the command that wrote $p (the claim wrapper retries it)"
+                        resume="re-run the SAME wrapper invocation that wrote $p (180_claim_slot.sh / 154_claim_run.sh reclaim a slot via flock; they do NOT retry by themselves); a collector shard restarts from zero in a fresh dir - the store is the union of shard dirs, later merged"
                     fi
-                    ACTIONS+=("[sim] pid $pid frozen ${age}s ($why): kill -TERM -- -$pgid && sleep 5 && kill -KILL -- -$pgid 2>/dev/null; resume: $resume")
+                    if [ "$pgid" = "$own_pgid" ]; then
+                        # A group kill on our own pgid would kill this tool (and
+                        # the shell that launched it): the sim was started
+                        # without setsid inside the launching shell's group.
+                        ACTIONS+=("[sim] pid $pid frozen ${age}s ($why): pid $pid shares this tool's own process group ($pgid) - kill from the launching shell / through the claim wrapper (a process-group kill here would take the tool down); resume: $resume")
+                    else
+                        ACTIONS+=("[sim] pid $pid frozen ${age}s ($why): kill -TERM -- -$pgid && sleep 5 && kill -KILL -- -$pgid 2>/dev/null; resume: $resume")
+                    fi
                 else
-                    HINTS+=("[sim] pid $pid frozen ${age}s with no corroboration yet (empty/quiet startup or buffered log): watch one more check before killing")
+                    local gpu_note=""
+                    if [ "$gpu_seen" = 1 ]; then
+                        gpu_note="; the GPU is idle (${GPU_UTIL}%) but the log is frozen only ${age}s (< 2x${stall_s}s), not corroborating yet"
+                    fi
+                    HINTS+=("[sim] pid $pid frozen ${age}s with no corroboration yet (empty/quiet startup or buffered log): watch one more check before killing${gpu_note}")
                 fi
             fi
         done
     fi
+
+    # ---- lanes (claim wrappers / drivers) ----
+    lane_count=${#LANE_PIDS[@]}
+    echo "lanes: ${lane_count} claim wrapper(s) / driver(s) alive"
+    for i in "${!LANE_PIDS[@]}"; do
+        printf '  pid=%s cmd=%s\n' "${LANE_PIDS[$i]}" "${LANE_CMDS[$i]}"
+    done
 
     # ---- chain (newest log per area) ----
     chain_m=""; chain_s_=""; chain_path=""; chain_age=-1
@@ -514,7 +571,11 @@ run_all() {
         if [ -n "$crash_marker" ]; then
             ACTIONS+=("[chain] $chain_path (stale $(fmt_age "$chain_age")) ends with a crash marker '$crash_marker': resume the failed step / re-dispatch the lane (see the log tail)")
         elif [ -n "$done_marker" ] && [ "$GIT_OK" = 1 ] && [ "$GIT_DIRTY" -gt 0 ]; then
-            ACTIONS+=("[wrap] chain log $chain_path looks finished ('$done_marker') but the tree has $GIT_DIRTY uncommitted path(s): finish the wrap (commit the lane's own files, tag) or re-dispatch the lane")
+            if [ "${#LANE_PIDS[@]}" -gt 0 ]; then
+                HINTS+=("[chain] $chain_path looks finished ('$done_marker') with $GIT_DIRTY uncommitted path(s), but a claim wrapper / driver is alive (pid ${LANE_PIDS[*]}): the lane may still be wrapping - let it finish before any manual wrap")
+            else
+                ACTIONS+=("[wrap] chain log $chain_path looks finished ('$done_marker') but the tree has $GIT_DIRTY uncommitted path(s): finish the wrap (commit the lane's own files, tag) or re-dispatch the lane")
+            fi
         else
             HINTS+=("[chain] no chain log growth for $(fmt_age "$chain_age") (newest: $chain_path) and no sim running: if work was queued this is stall class (c)/(d) - check the lane's last log and resume it")
         fi
@@ -570,17 +631,18 @@ watch_loop() {
 }
 
 # --- selftest ----------------------------------------------------------------
-# ST_TMP/ST_FAKE are deliberately globals: the EXIT trap runs after this
-# function has returned, so function-local variables would be gone by then.
-ST_TMP="" ST_FAKE=""
+# ST_TMP/ST_FAKE/ST_WRAP are deliberately globals: the EXIT trap runs after
+# this function has returned, so function-local variables would be gone by then.
+ST_TMP="" ST_FAKE="" ST_WRAP=""
 st_cleanup() {
     [ -n "$ST_FAKE" ] && kill "$ST_FAKE" 2>/dev/null
+    [ -n "$ST_WRAP" ] && kill "$ST_WRAP" 2>/dev/null
     [ -n "$ST_TMP" ] && rm -rf "$ST_TMP"
 }
 selftest() {
-    local fail=0 sim_pat='[o]ps-fake-sim-191'
+    local fail=0 sim_pat='[o]ps-fake-sim-191' lane_pat='[o]ps-fake-lane-191'
     ST_TMP=$(mktemp -d) || { echo "FAIL: mktemp -d"; return 1; }
-    ST_FAKE=""
+    ST_FAKE=""; ST_WRAP=""
     trap st_cleanup EXIT
     local tmp=$ST_TMP
     mkdir -p "$tmp/logs/w9" "$tmp/logs/claims" "$tmp/logs/ops"
@@ -588,9 +650,13 @@ selftest() {
     printf 'chain step 1: collecting\n' > "$tmp/logs/w9/chain.log"
 
     run_case() {
+        # Both patterns are pinned to selftest-only names: the real `lanes`
+        # pattern would otherwise see the claim-slot harness's own 180 children
+        # (or a parallel lane) and change the verdict mid-test.
         OPS_ROOT="$tmp" OPS_LOGS_DIR="$tmp/logs" OPS_CLAIM_DIR="$tmp/logs/claims" \
         OPS_STATE_FILE="$tmp/logs/ops/state.tsv" OPS_WATCH_LOG="$tmp/logs/ops/watch.log" \
         OPS_STALL_S=300 OPS_CHAIN_S=600 OPS_SIM_PATTERN="$sim_pat" \
+        OPS_LANE_PATTERN="$lane_pat" \
         OPS_OPENCODE_DB="$tmp/none.db" OPS_GPU_QUERY= \
         bash "$self_path"
     }
@@ -618,11 +684,23 @@ selftest() {
         echo "ok: $desc"
     }
 
+    start_fake_sim() { # own|shared : argv[0]=ops-fake-sim-191, stdout -> sim.log
+        if [ "$1" = own ]; then
+            setsid bash -c 'exec -a ops-fake-sim-191 sleep 120' >> "$tmp/logs/w9/sim.log" 2>&1 &
+        else
+            bash -c 'exec -a ops-fake-sim-191 sleep 120' >> "$tmp/logs/w9/sim.log" 2>&1 &
+        fi
+        local spawned=$!
+        sleep 0.3
+        ST_FAKE=$(pgrep -f '[o]ps-fake-sim-191' | head -1)
+        [ -n "$ST_FAKE" ] || ST_FAKE=$spawned
+    }
+
     echo "ops selfcheck selftest (temp dir $tmp, no simulator, no GPU, no DB)"
 
-    # fake sim: argv[0] = ops-fake-sim-191, stdout -> the synthetic log
-    bash -c 'exec -a ops-fake-sim-191 sleep 60' > "$tmp/logs/w9/sim.log" 2>&1 &
-    ST_FAKE=$!
+    # fake sim launched without setsid: it shares this script's process group,
+    # which is exactly the case the own-pgid guard must catch.
+    start_fake_sim shared
 
     # 1. OK: a sim with a fresh log does NOT fire a stall verdict
     local out code
@@ -634,11 +712,13 @@ selftest() {
     out=$(run_case); code=$?
     case_ok "STALLED-SIM fires (frozen sim log, no corroboration)" '^verdict: STALLED-SIM' "$out" "$code" 0
 
-    # 3. ACTION: a wedge marker in the frozen log escalates to a kill/resume
+    # 3. ACTION + own-pgid guard: the wedge marker escalates, but the group-kill
+    # line is refused because the sim shares this tool's process group.
     printf 'Too many open files\n' >> "$tmp/logs/w9/sim.log"
     touch -d '15 minutes ago' "$tmp/logs/w9/sim.log"
     out=$(run_case); code=$?
-    case_ok "ACTION fires on a wedge marker (kill line printed)" 'kill -TERM -- -' "$out" "$code" 2
+    case_ok "ACTION fires on a wedge marker" "shares this tool's own process group" \
+        "$out" "$code" 2 'kill -TERM -- -'
     if printf '%s\n' "$out" | grep -q '^verdict: ACTION'; then
         echo "ok: ACTION verdict on a wedged sim"
     else
@@ -646,6 +726,16 @@ selftest() {
         printf '%s\n' "$out" | sed 's/^/    | /'
         fail=1
     fi
+
+    # 3b. ACTION with the group-kill line: the sim in its own session/pgid
+    kill "$ST_FAKE" 2>/dev/null; wait "$ST_FAKE" 2>/dev/null; ST_FAKE=""
+    rm -f "$tmp/logs/w9/sim.log"
+    start_fake_sim own
+    printf 'Too many open files\n' >> "$tmp/logs/w9/sim.log"
+    touch -d '15 minutes ago' "$tmp/logs/w9/sim.log"
+    out=$(run_case); code=$?
+    case_ok "ACTION on a separately grouped sim (kill line printed)" \
+        'kill -TERM -- -' "$out" "$code" 2 "shares this tool's own process group"
 
     # 4. STALLED-CHAIN: no sim, stale chain log (the wedge-marked sim log is
     # removed so it cannot be the newest chain log and mask the case)
@@ -667,6 +757,24 @@ cmd=true
 EOF
     out=$(run_case); code=$?
     case_ok "ACTION fires on a stale claim (dead owner pid)" 'STALE owner' "$out" "$code" 2 'STALLED'
+
+    # 6. ACTION [wrap]: a completion marker + a dirty tree with no live wrapper
+    rm -f "$tmp/logs/claims/slot0.owner"
+    printf 'fingerprint: matches\n' > "$tmp/logs/w9/chain.log"
+    touch -d '15 minutes ago' "$tmp/logs/w9/chain.log"
+    git -C "$tmp" init -q 2>/dev/null
+    touch "$tmp/pending.txt"
+    out=$(run_case); code=$?
+    case_ok "ACTION [wrap] fires (done marker + dirty tree)" '\[wrap\] chain log' "$out" "$code" 2
+
+    # 7. the wrap action is downgraded while a claim wrapper is alive
+    bash -c 'exec -a ops-fake-lane-191 sleep 120' >/dev/null 2>&1 &
+    ST_WRAP=$!
+    sleep 0.3
+    out=$(run_case); code=$?
+    case_ok "wrap action suppressed while a wrapper is alive" \
+        'claim wrapper / driver is alive' "$out" "$code" 0 '\[wrap\]'
+    kill "$ST_WRAP" 2>/dev/null; wait "$ST_WRAP" 2>/dev/null; ST_WRAP=""
 
     if [ "$fail" -ne 0 ]; then
         echo "FAIL: ops selfcheck selftest"

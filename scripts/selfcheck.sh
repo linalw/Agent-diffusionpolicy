@@ -15,7 +15,9 @@
 #   7. rtc runtime selftest           scripts/128_rtc_selftest.py (no checkpoint)
 #   8. trigger intercept test         scripts/811_trigger_test.py (pure geometry)
 #   9. claim slot harness             scripts/181_claim_slot_selftest.sh (pure locking)
-#  10. motion budgets                 scripts/105_motion_regression.py  (needs a run log)
+#  10. ops selfcheck selftest         scripts/191_ops_selfcheck.sh --selftest (fake
+#                                     sim/claim/wrapper in a temp dir; the P1 ops probe)
+#  11. motion budgets                 scripts/105_motion_regression.py  (needs a run log)
 #
 # Each prints "name, result, elapsed"; everything is also written to
 # `logs/selfcheck.log`. Any *failure* makes the script exit non-zero; the motion
@@ -109,6 +111,11 @@ run_check "two-line selector test" "$python" scripts/176_twoline_selftest.py
 # X1: the slot claim (mutual exclusion, pool overlap, stale recovery after
 # SIGKILL, wait timeout, duplicate-namespace refusal) is pure locking logic.
 run_check "claim slot harness" bash scripts/181_claim_slot_selftest.sh
+# P1: the ops self-check's synthetic-stall test (a fake sim, a stale claim and
+# a fake claim wrapper in a temp dir; asserts OK does not fire and
+# STALLED-SIM/STALLED-CHAIN/ACTION do, incl. the own-process-group guard and
+# the wrap suppression while a wrapper is alive).
+run_check "ops selfcheck selftest" bash scripts/191_ops_selfcheck.sh --selftest
 
 if [ -n "$run_log" ] && [ -f "$run_log" ]; then
     run_check "motion budgets" "$python" scripts/105_motion_regression.py "$run_log" \
