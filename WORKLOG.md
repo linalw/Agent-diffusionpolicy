@@ -12809,3 +12809,64 @@ change (`scripts/40_collect_demos.py`); everything else is evidence/docs.**
   failures; no motion/task code touched (`tasks.py e98d9836` still), the
   single-arm default is byte-unchanged and no existing shard manifest or
   dataset is modified.
+
+### W8-A: the confirmatory direct A/B (N=5/arm) - the W7-C carry-class movement does not confirm; `moe_v13p` is not adopted
+
+**Tier A solo, branch `w8-confirm` (from the W7 tree at `11dd539`); full
+detail `logs/w8/A_RESULTS.md` (local). No shipped code change; this entry is
+the whole commit.** The W8 plan's confirmatory batch: `moe_v13s` vs
+`moe_v13p`, both ACQ=1, the W7-C patch scenario verbatim
+(`FRUIT_SUPPLY_SCATTER=1 FRUIT_SUPPLY_PATCH=1`, balanced A:B:C
+0.375/0.375/0.25, lateral 0.16, lead 0.9, dynamic never-stop, `FRUIT_ACQ_DIAG=1`
+both arms), interleaved A,B,A,B..., N=5 runs/arm x 15 episodes, seeds
+77/101/202/303/404, sampler seed 11. Checkpoints: `moe_v13s`
+`61da390a85fa209496b54477a8255d23`, `moe_v13p`
+`fed54993b4aebdaf2c779bf09a18698e`; tree pins (`tasks.py e98d9836`, `rl_env`
+`9318fe3e`, `trigger` `d35fba2c`, `runtime` `ffb76bfd`) identical before and
+after (`A_tree_md5_before/after.txt`). One claim run 20:31-21:41.
+
+**Result: the W7-C directional movement did NOT confirm at N=5.** Pooled
+**A 21/75 = 28 % vs B 22/75 = 29 %** (per-run A 4,4,4,4,5; B 3,5,4,3,7;
+median cycle 1858 vs 1854 ticks, -0.2 %). The P4 criteria: rate not-worse
+[ok], the **sign test p = 1.0000 [no]** (same-fruit pairs 4 both ok / 13 both
+fail / **0 B-only / 2 A-only**, 56 of 75 pairs excluded by the fruit-class
+shift), strawberry 3/5 = 60 % vs 6/11 = 55 % [ok, thin], new reasons none,
+cycle not >= 5 % faster. **VERDICT: no measured improvement; `moe_v13p` is
+NOT adopted and the shipped default stays `moe_v12`.** The W7-C 3-0
+carried-class pairing was **noise / branch variance**: at N=5 the same test
+reads **0-2**, the right arm (the W7-C conversion arm) is flat (20/52 =
+38.5 % -> 19/49 = 38.8 %), the pooled carried class only moves 49 -> 47
+(-2.7 points of attempts), and even on the W7-C seed subset (runs 1-3) this
+batch reads 12/45 vs 12/45 - the N=3 10-vs-13 does not reproduce on its own
+seeds. The carry class remains the interface's failure mode on **both** arms
+(49/54 = 90.7 % and 47/53 = 88.7 % of failures), all trigger-path; acquisition
+stays clean (close-start `|y|` medians 2.8-4.0 mm, zero policy-gate fires,
+zero horizon timeouts). Named residual classes for W8-B: the carry escape
+(dominant), the left reach-cliff flail (A 276.8 mm / B 387.5 + 301.7 mm,
+200-tick catchup, contact NONE), the crush/no-slip close (F 24-29 N,
+`freeze=none`).
+
+**W8-B implication.** Another behaviour-cloning pass is not the lever for the
+carry class at this measurement strength (the second null against the W7-C
+recollection, after W3's 15.6 % dense direct eval); W8-B owns the carry window
+- the payload-in-hand metric from the existing traces (+ a `[carry]` diag line
+only if they cannot separate the classes; the W7-C.1 lesson is that the `[acq]`
+close-phase `Fmax` does not), then one bounded default-off lever. The
+two-line-store -> single-arm-direct transfer question stays open (a null
+cannot distinguish "the store does not transfer" from "no lever is present").
+
+**Batch completion note.** The lane died after `B_5` and the verdict block,
+before the wrap commands; the four reports (`A_mech.txt`, `A_class_split.txt`,
+`A_verdict.txt`, `A_pairs.txt`) were regenerated offline from the batch's own
+per-run logs with the pinned read-only scripts (no simulator re-run), and
+`A_tree_md5_after.txt` written post-batch; the regenerated verdict block
+matches `A_driver.log` line-for-line.
+
+**No-harm.** `scripts/selfcheck.sh` PASS 0 failures
+(`logs/w8/00_selfcheck_w8a.log`); `ACCEPT_LOG=logs/w8/60_accept_w8a.log
+scripts/accept.sh` through the claim wrapper: **9/10 = 90 %**
+(`diverted=0`, 15.2 s/attempt, `gate_open=0.0 s`), motion gate **PASS** (all
+10 descents inside budget; worst `|v|max` 0.116 vs 0.160-0.161, lurch 0.017 vs
+0.291; carry cone/slip reported, 5 dynamic-line warnings) and **`fingerprint:
+matches configs/motion_reference.json`**. No tracked file changed in the batch;
+the commit is this entry.
