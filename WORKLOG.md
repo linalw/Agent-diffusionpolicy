@@ -12998,3 +12998,52 @@ pair's own record is the P1.1 entry above; this entry covers the roadmap pass.
 **No-harm.** Docs/pointers only; `scripts/selfcheck.sh` PASS 0 failures, 1
 skipped (the motion-budget leg, no run log; `logs/selfcheck.log`); `tasks.py`
 and every simulator path untouched.
+
+### W8-A.1 (gate fixes): the W8-A supersession, the crush-class co-occurrence, the reach-cliff metric, the resolution wording (docs only)
+
+**Scope (2026-10-12, branch `w8-confirm`).** The Gate W8-A review's ordered
+fixes - all six applied, **no simulator re-run**. The tracked docs edits
+(`AGENTS.md`, `docs/ROADMAP.md`) were swept into the neighbouring P2.1 docs
+commit `e03d33d` by that lane's `git add` before this pass could stage them
+(its entry already names the AGENTS correction as working-tree content); this
+commit carries the W8-A.1 entry, and `logs/w8/A_RESULTS.md` /
+`logs/w7/C_RESULTS.md` (the ignored evidence store) carry the rest.
+
+* **W8-A supersession** (AGENTS.md W7-C paragraph, in `e03d33d`; mirrored as
+  the `logs/w7/C_RESULTS.md` section 5.2 note, with a pointer on its section 7
+  "durable result" bullet): **N=5, 21/75 (28 %) vs 22/75 (29 %), sign
+  p = 1.0000, carried-class pairing 0 B-only / 2 A-only**; the W7-C 3-0
+  pairing and the 32 -> 29 movement did **not** confirm; the "publish the
+  mechanism movement as durable" instruction is dropped (publish the
+  negative); the shipped default stays `moe_v12`.
+* **The resolution wording** (`logs/w8/A_RESULTS.md` section 2): the "worth
+  <= 1 episode per 45 attempts / resolves it as null" sentence is replaced -
+  the pre-registered test fails, the W7-C signal does not reproduce, and the
+  design cannot exclude a W7-C-sized effect (run deltas -1, +1, 0, -1, +2;
+  95 % CI on the mean ~ +/-4.9 episodes/45).
+* **The crush/no-slip close co-occurrence** (A_RESULTS section 4; ROADMAP
+  WS-1 evidence, in `e03d33d`): the `[acq]` `Fmax` >= 24 N + `freeze=none`
+  close occurs on **4 successes** (A r1e12, A r1e13, A r5e10; B r3e5) as well
+  as the **4 strawberry failures** (A r2e7, A r4e5; B r2e2, B r4e8) - a
+  strawberry-heavy close *style*, not a failure signature; W8-B must find the
+  separator in the carry window. (Re-derived from the raw `[acq]` lines: the
+  review note's `A r4e12` carries `freeze=24.0mm@69t`, not `freeze=none`, and
+  `B r3e13` reads `Fmax=23.73`; the metric read is the span `Fmax`, not the
+  first-contact `F`.)
+* **The reach-cliff quote** (A_RESULTS sections 3/4; ROADMAP WS-2.3, in
+  `e03d33d`): one metric, close-start `|y|` - A 276.8 / B 388.3 + 301.7 mm;
+  "contact NONE" is reworded: the two ep7 peach attempts end `contact=NONE`,
+  and B's ep13 orange closes after its catch-up with only a distant 323 mm
+  graze (F 0.25 N).
+* **The W3 cross-reference** (A_RESULTS section 4): the dense direct eval is
+  named - `moe_v13s` 7/45 = 15.6 %, single-arm.
+* **Cosmetic**: the acceptance's pre-flight selfcheck file-of-record is the
+  acceptance console `logs/w8/60_accept_w8a.out` (`selfcheck.sh`'s full log is
+  the shared default `logs/selfcheck.log`, overwritten by later runs);
+  `A_pairs.py`'s "paired, all pairs" line is same-fruit-only (noted in
+  A_RESULTS section 3).
+
+**No-harm.** `scripts/selfcheck.sh` PASS 0 failures, 1 skipped (the
+motion-budget leg, no run log; `logs/selfcheck.log` 23:41) on the post-P1.1
+tree. Docs only: no code, scenario, checkpoint or log-file-of-record change.
+Not pushed.
