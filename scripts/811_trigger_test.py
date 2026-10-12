@@ -81,6 +81,38 @@ def main() -> int:
     fired, _ = should_fire(settings, fruit, jaw, encoder_speed=-0.06, finger=0.036)
     check("assist fires once the policy is near closed", fired)
 
+    # W7-B adaptive acquisition lead (default off): a fruit that needs a
+    # 2.0 s lead is refused at the fixed 0.90 s; with a jaw 0.30 m from the
+    # station the acquisition term puts the effective lead past 2.0 s and the
+    # reach gate grows with it (or the earlier fire would be refused).
+    station = (0.34, 0.0)
+    far_jaw = (0.39, 0.30, 1.253)
+    early_fruit = (0.34, 0.12, 1.184)
+    base = TriggerSettings(mode="arrival", lead=0.90)
+    fired, _ = should_fire(base, early_fruit, jaw, encoder_speed=-0.06,
+                           jaw_pos=far_jaw, station=station)
+    check("acquisition lead off keeps the fixed gate", not fired)
+    acq = TriggerSettings(mode="arrival", lead=0.90, acq=True)
+    fired, info = should_fire(acq, early_fruit, jaw, encoder_speed=-0.06,
+                              jaw_pos=far_jaw, station=station)
+    check("acquisition lead fires earlier for a far jaw", fired,
+          f"lead={info['lead']:.2f}s reach={info['reach']:.2f}")
+    check("acquisition lead grows with the distance",
+          info["lead"] > 2.0 and info["reach"] > 0.20)
+    # Off means off: the same call without the knob's inputs is unchanged.
+    fired_plain, info_plain = should_fire(base, early_fruit, jaw, encoder_speed=-0.06)
+    _, info_off = should_fire(base, early_fruit, jaw, encoder_speed=-0.06,
+                              jaw_pos=far_jaw, station=station)
+    check("acquisition off is byte-neutral (lead/reach unchanged)",
+          not fired_plain and info_off["lead"] == info_plain["lead"]
+          and info_off["reach"] == info_plain["reach"])
+    # The cap bounds the effective lead.
+    capped = TriggerSettings(mode="arrival", lead=0.90, acq=True, acq_cap=1.5)
+    _, info_cap = should_fire(capped, early_fruit, jaw, encoder_speed=-0.06,
+                              jaw_pos=(0.9, 0.9, 1.253), station=station)
+    check("acquisition lead is capped", abs(info_cap["lead"] - 1.5) < 1e-9,
+          f"lead={info_cap['lead']:.2f}")
+
     env = dict(os.environ)
     try:
         os.environ["FRUIT_POLICY_TRIGGER"] = "arrival"
@@ -93,6 +125,16 @@ def main() -> int:
               parsed.mode == "arrival" and parsed.lead == 0.5
               and not parsed.use_encoder and parsed.frame == "jaw"
               and parsed.present)
+        check("acquisition lead defaults off", not parsed.acq)
+        os.environ["FRUIT_POLICY_TRIGGER_ACQ"] = "1"
+        os.environ["FRUIT_POLICY_TRIGGER_ACQ_SPEED"] = "0.25"
+        os.environ["FRUIT_POLICY_TRIGGER_ACQ_MARGIN"] = "0.4"
+        os.environ["FRUIT_POLICY_TRIGGER_ACQ_CAP"] = "3.0"
+        os.environ["FRUIT_POLICY_TRIGGER_ACQ_REACH"] = "0.07"
+        parsed = TriggerSettings.from_env()
+        check("from_env parses the acquisition knob",
+              parsed.acq and parsed.acq_speed == 0.25 and parsed.acq_margin == 0.4
+              and parsed.acq_cap == 3.0 and parsed.acq_reach_margin == 0.07)
         del os.environ["FRUIT_POLICY_TRIGGER_PRESENT"]
         check("present defaults off", not TriggerSettings.from_env().present)
         os.environ["FRUIT_POLICY_TRIGGER"] = "bogus"

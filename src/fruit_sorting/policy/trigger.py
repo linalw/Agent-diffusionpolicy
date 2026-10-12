@@ -37,6 +37,26 @@ unset the env's trigger code is the shipped ``finger < 0.030 and distance <
                                 scripted primitive's station re-select would
                                 grasp) and fires. Default 0.
 
+The adaptive acquisition lead (**W7-B**, default **off**):
+
+    FRUIT_POLICY_TRIGGER_ACQ      1 = fire earlier when the jaw is farther
+                                from the station: the scripted handover's
+                                setup (wrist attitude + park at the grip) has
+                                to finish before the fruit arrives, and the
+                                W7-B mechanism run measured that setup at
+                                1.4-4.1 s on the left's no-contact failures
+                                against a 0.9 s fixed lead (`logs/w7/B_*`).
+                                With the knob on, the effective lead is
+                                `lead + margin + |jaw - station| / speed`
+                                and the reach gate is raised with it (or the
+                                earlier fire would be refused for a fruit
+                                still upstream). Only the direct policy path
+                                uses this module.
+    FRUIT_POLICY_TRIGGER_ACQ_SPEED  jaw->station approach speed [m/s] (0.20)
+    FRUIT_POLICY_TRIGGER_ACQ_MARGIN constant setup overhead [s] (0.60)
+    FRUIT_POLICY_TRIGGER_ACQ_CAP   cap on the effective lead [s] (4.5)
+    FRUIT_POLICY_TRIGGER_ACQ_REACH extra reach margin [m] (0.05)
+
 The lateral default is **0.16 m** (W4, 2026-10-10): the pre-v9 fixed supply
 kept fruit within ~5 mm of the belt centre, where 0.06 was calibrated, but the
 shipped v9/V1 scattered/dense band is x = 0.20-0.36 m against the grasp-pose
@@ -84,6 +104,15 @@ class TriggerSettings:
     #: Also fire on a firable fruit the feeder is presenting at the station
     #: when it differs from the selected sample (P4b2). Default off.
     present: bool = False
+    #: W7-B adaptive acquisition lead (default off): extend the lead by the
+    #: jaw->station distance over `acq_speed` (+ `acq_margin`), so the
+    #: scripted handover's setup finishes before the fruit arrives; the reach
+    #: gate is raised with the lead. Off = the settings' own lead/reach.
+    acq: bool = False
+    acq_speed: float = 0.20
+    acq_margin: float = 0.60
+    acq_cap: float = 4.50
+    acq_reach_margin: float = 0.05
 
     @classmethod
     def from_env(cls) -> "TriggerSettings":
@@ -107,6 +136,13 @@ class TriggerSettings:
             use_encoder=os.environ.get("FRUIT_POLICY_TRIGGER_ENCODER", "1") != "0",
             frame=frame,
             present=os.environ.get("FRUIT_POLICY_TRIGGER_PRESENT", "0").strip() == "1",
+            acq=os.environ.get("FRUIT_POLICY_TRIGGER_ACQ", "0").strip() == "1",
+            acq_speed=float(os.environ.get("FRUIT_POLICY_TRIGGER_ACQ_SPEED", "0.20")),
+            acq_margin=float(os.environ.get("FRUIT_POLICY_TRIGGER_ACQ_MARGIN", "0.60")),
+            acq_cap=float(os.environ.get("FRUIT_POLICY_TRIGGER_ACQ_CAP", "4.50")),
+            acq_reach_margin=float(
+                os.environ.get("FRUIT_POLICY_TRIGGER_ACQ_REACH", "0.05")
+            ),
         )
 
     @property
@@ -114,12 +150,18 @@ class TriggerSettings:
         return self.mode != "off"
 
     def summary(self) -> str:
-        return (
+        text = (
             f"trigger={self.mode} lead={self.lead:.2f}s lateral={self.lateral:.3f} "
             f"reach={self.reach:.2f} finger={self.finger:.3f} frame={self.frame} "
             f"encoder={'on' if self.use_encoder else 'off'} "
             f"present={'on' if self.present else 'off'}"
         )
+        if self.acq:
+            text += (
+                f" acq=on(speed={self.acq_speed:.2f},margin={self.acq_margin:.2f},"
+                f"cap={self.acq_cap:.2f},reach_margin={self.acq_reach_margin:.2f})"
+            )
+        return text
 
 
 def transport_speed(
@@ -149,6 +191,35 @@ def transport_speed(
     return fallback, "measured"
 
 
+def acquisition_window(
+    settings: TriggerSettings,
+    jaw_pos: np.ndarray | None,
+    station: np.ndarray | None,
+    speed: float,
+) -> tuple[float, float]:
+    """`(lead, reach)` for this tick, with the adaptive acquisition term (W7-B).
+
+    Off by default: returns the settings' own `lead`/`reach` so the shipped
+    behaviour is unchanged. With `FRUIT_POLICY_TRIGGER_ACQ=1` the lead is
+    extended by the jaw->station distance over `acq_speed` plus `acq_margin`
+    (capped at `acq_cap`), and the reach gate is raised with it - the fire has
+    to be *earlier* than the fixed lead, so the fruit is still farther
+    upstream than `reach` admits. Both inputs are measured at the tick of the
+    decision; no state is carried between ticks.
+    """
+    if not settings.acq or jaw_pos is None or station is None:
+        return settings.lead, settings.reach
+    jaw_pos = np.asarray(jaw_pos, dtype=float)
+    station = np.asarray(station, dtype=float)
+    distance = float(np.linalg.norm(jaw_pos[:2] - station[:2]))
+    lead = settings.lead + settings.acq_margin + distance / max(settings.acq_speed, 1e-6)
+    lead = min(lead, max(settings.acq_cap, settings.lead))
+    reach = settings.reach
+    if math.isfinite(speed) and speed > 1e-3:
+        reach = max(reach, speed * lead + settings.acq_reach_margin)
+    return lead, reach
+
+
 def should_fire(
     settings: TriggerSettings,
     fruit: np.ndarray,
@@ -157,6 +228,8 @@ def should_fire(
     encoder_speed: float | None = None,
     measured_velocity: np.ndarray | None = None,
     finger: float | None = None,
+    jaw_pos: np.ndarray | None = None,
+    station: np.ndarray | None = None,
 ) -> tuple[bool, dict]:
     """Whether the intercept trigger fires now, plus the numbers behind it.
 
@@ -167,6 +240,10 @@ def should_fire(
     predicted to reach its y line within ``lead`` seconds. ``assist``
     additionally needs the policy's finger command below ``settings.finger`` at
     this tick.
+
+    ``jaw_pos``/``station`` are the measured jaw and the captured station
+    (W7-B, optional): with `FRUIT_POLICY_TRIGGER_ACQ` on they widen the
+    effective lead/reach through `acquisition_window`.
     """
     fruit = np.asarray(fruit, dtype=float)
     jaw = np.asarray(jaw, dtype=float)
@@ -176,6 +253,7 @@ def should_fire(
         fruit, jaw, encoder_speed=encoder_speed,
         measured_velocity=measured_velocity, use_encoder=settings.use_encoder,
     )
+    lead, reach = acquisition_window(settings, jaw_pos, station, speed)
     info = {
         "dx": dx,
         "dy": dy,
@@ -183,12 +261,14 @@ def should_fire(
         "source": source,
         "t_arrive": float("nan"),
         "finger": float("nan") if finger is None else float(finger),
+        "lead": lead,
+        "reach": reach,
     }
     if not settings.enabled:
         return False, info
     if abs(dx) > settings.lateral:
         return False, info
-    if dy > settings.reach or dy < -0.05:
+    if dy > reach or dy < -0.05:
         return False, info
     if speed <= 1e-3:
         # No transport: only an already-arrived fruit qualifies (the policy
@@ -196,7 +276,7 @@ def should_fire(
         return False, info
     t_arrive = max(dy, 0.0) / speed
     info["t_arrive"] = t_arrive
-    if t_arrive > settings.lead:
+    if t_arrive > lead:
         return False, info
     if settings.mode == "assist":
         if finger is None or float(finger) >= settings.finger:

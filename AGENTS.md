@@ -501,6 +501,50 @@ name the lever (adding it is a W7-B item). Do not mix the two; gate a
 re-collected two-line arm with `scripts/190_twoline_gate.sh` (its own reference
 if the supply differs) plus the scenario's floor.
 
+**W7-B (2026-10-12, `logs/w7/`): the policy's left deficit is pre-contact
+acquisition, not the lateral off-band; the adaptive trigger lead is the
+default-off acquisition knob.** The direct-path mechanism run on the W4-pinned
+branch (`moe_v13s`, pinned supply, `FRUIT_POLICY_TRIGGER_LATERAL=0.06`, lead
+0.9 s, seed 77, `FRUIT_DYNAMIC_TRACE=1`) reads left 0/6 as 3 no-contact + 3
+carry escapes (right 9/9), and the W4 pinned population is left 2/18 with 13
+`grasped=False` + 3 carried: the no-contact acquisition class is the left's
+majority failure. Its measured actuator is the scripted handover's setup
+(0.60-0.93 s on successes/carry escapes, **1.36-7.68 s on every traced
+no-contact failure**) against the fixed 0.9 s lead - the fruit is 171-2119 mm
+downstream of the fingertips when the close starts, past the left's ~4.5 cm
+downstream reach, so the 200-tick catch-up expires and the pads clamp each
+other at take-off. The off-band reading is refuted on the population (left
+fire `|dx|` no-contact median 0.8 cm vs ok 2.5 cm, both inside the 0.06 gate;
+every first-close-tick `vx0` ~ 0, `latch=centring`; no probe/takeoff
+squeeze-out signature), so the W5 FRONTIER Lever 1's close-phase x-seek /
+ramp-start form is not built. The shipped knob is `FRUIT_POLICY_TRIGGER_ACQ`
+(default off, direct-path trigger only): `lead_eff = lead + 0.6 s +
+|jaw-station| / 0.20 m/s` (cap 4.5 s) with the reach gate raised with it
+(`..._ACQ_SPEED/MARGIN/CAP/REACH` override); `FRUIT_ACQ_DIAG=1` adds one
+`[acq]` line per direct attempt (setup stage times, close-start tip-fruit
+offset, walk latch, first contact, freeze, joint-limit margin). The A/B
+(`scripts/112_rl_ab.sh`, N=3x15, seeds 77/101/202, interleaved, both arms
+instrumented, `logs/w7/B_ab/`): **left no-contact 9 -> 1** (the residual is
+the measured arm flail at the lateral reach cliff, both `move_to` caps
+3.33+4.17 s with the joint at its limit), left close-start median **88.8 ->
+1.4 mm**, 10/18 left episodes improve class with zero left regressions; pooled
+**26/45 (58 %) -> 31/45 (69 %)**, left **2/18 -> 8/18**, paired 7 B-only / 2
+A-only (both right-arm carry escapes - the branch shift), sign p = 0.0898
+(N=3; the P4 p<=0.05 criterion was for 5 runs/arm - the W7-B pre-registered
+endpoint is the mechanism readout); strawberry 3/6 -> 5/6; median cycle
+1851 -> 1826 ticks (successes +1.8 %); no new failure reason once the note
+suffix is normalized out. The knob **stays default off** (W7-B spec, no
+shipped-default change). No-harm: selfcheck PASS, acceptance **9/10 + gate
+PASS + fingerprint matches**, stream **385/385 identical** to the W7-A
+acceptance; pins `tasks.py` **e98d9836**, `rl_env.py` **9318fe3e**,
+`policy/trigger.py` **d35fba2c** (the A/B manifests pin all three per run).
+W7-C implication: the remaining left deficit is the carry/grip-margin class
+(7 -> 9 carried) plus the reach-cliff flail and the policy-gate fire path
+(`finger < 0.030 and |jaw-fruit|xy < 0.06`, 4/18 of the W4 left attempts,
+which bypasses the trigger); the collector is unaffected (the scripted
+primitive never uses the trigger), so a W7-C recollection should target the
+carry class.
+
 ## 3. What changed -> what to run
 
 | you changed | run |

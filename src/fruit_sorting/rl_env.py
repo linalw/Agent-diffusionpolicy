@@ -172,7 +172,11 @@ from .policy.trigger import TriggerSettings, should_fire
 #: gate). Single-arm, shared-station and policy paths are byte-unchanged (the
 #: single-arm no-harm stream and the acceptance fingerprint match; `logs/w7/`),
 #: so the pin follows the file as always.
-TASKS_MD5 = "bf822c09832883c00b47572c203c3a1f"
+#: The W7-B lane (2026-10-12) added the default-off, direct-path-only
+#: `FRUIT_ACQ_DIAG` acquisition report (a handful of state reads on close
+#: boundary ticks; the same single-arm invariance argument holds - the knob is
+#: off on every shipped path), so the pin follows the file.
+TASKS_MD5 = "e98d9836c96080967fa7e4054a90cba1"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(
@@ -1331,6 +1335,8 @@ class SortingRLEnv:
                     encoder_speed=encoder,
                     measured_velocity=self.spawner.velocity(self._sample),
                     finger=finger,
+                    jaw_pos=jaw,
+                    station=self._trigger_station,
                 )
                 # P4b2: the scripted primitive re-selects the fruit the feeder
                 # presents (`task.station_sample`) at grasp time, but this trigger
@@ -1362,6 +1368,8 @@ class SortingRLEnv:
                             encoder_speed=encoder,
                             measured_velocity=self.spawner.velocity(presented),
                             finger=finger,
+                            jaw_pos=jaw,
+                            station=self._trigger_station,
                         )
                         if p_fire:
                             selected_dy = float(
@@ -1404,6 +1412,14 @@ class SortingRLEnv:
                     )
                 if intercept:
                     info = intercept_info or {}
+                    # W7-B: with the adaptive acquisition lead on, record the
+                    # effective lead/reach at the fire tick (diagnostic; the
+                    # note is not parsed by the physics compares).
+                    acq_note = (
+                        f", lead={info.get('lead', float('nan')):.2f}s/"
+                        f"reach={info.get('reach', float('nan')):.2f}"
+                        if self.trigger_settings.acq else ""
+                    )
                     self._notes.append(
                         "intercept trigger ("
                         f"dy={info.get('dy', float('nan')) * 100:.1f}cm, "
@@ -1411,7 +1427,7 @@ class SortingRLEnv:
                         f"t_arrive={info.get('t_arrive', float('nan')):.2f}s, "
                         f"speed={info.get('speed', float('nan')):.3f}m/s/"
                         f"{info.get('source', '?')}, frame={self.trigger_settings.frame}, "
-                        f"finger={finger:.4f})"
+                        f"finger={finger:.4f}{acq_note})"
                     )
                 if presented_note is not None:
                     self._notes.append(presented_note)

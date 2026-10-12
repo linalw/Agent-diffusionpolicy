@@ -449,6 +449,12 @@ class PickAndPlaceTask:
         self._dynamic_trace_place = (
             os.environ.get("FRUIT_DYNAMIC_TRACE_PLACE", "0") == "1"
         )
+        #: W7-B acquisition readout (default off, policy direct path only): one
+        #: `[acq]` line per attempt with the setup stage times, the close-start
+        #: tip-fruit offset, the walk-latch state, the first sustained contact,
+        #: the freeze depth and the joint-limit margin. Pure reporting (a handful
+        #: of state reads on boundary ticks); it never changes a command.
+        self._acq_diag = os.environ.get("FRUIT_ACQ_DIAG", "0") == "1"
         #: GEM-style tracking action for the jaw hand's dynamic `grasp_lift`
         #: carry: proportional gain (0 = off) on the payload's *change* of
         #: position in the hand frame, added to the world-frame carry command so
@@ -4526,6 +4532,14 @@ class PickAndPlaceTask:
         #: moves 1 mm/tick, so a 3.5 cm cap loses nothing: the next tick
         #: re-commands from the improved tip.
         direct_catch_max = float(os.environ.get("FRUIT_DIRECT_CATCH_MAX", "0.035"))
+        #: W7-B acquisition readout state (see `_acq_diag` in `__init__`): the
+        #: direct path only, off otherwise. `stages` collects sim-time stamps at
+        #: the boundary ticks; the rest is filled at the close's first tick, the
+        #: first sustained contact and the freeze.
+        acq_diag = bool(self._acq_diag and direct_capture)
+        acq_info: dict = {"stages": {}}
+        if acq_diag:
+            acq_info["stages"]["t0"] = self._sim_time()
         if direct_capture:
             # `_run_impl` computes these at its upstream hover handover; a direct
             # handover has no hover yet (the policy left the arm near its own
@@ -4837,6 +4851,8 @@ class PickAndPlaceTask:
                         max_steps=int(os.environ.get("FRUIT_OPENARM_PREMOVE", "400")),
                         tolerance=0.02,
                     )
+                    if acq_diag:
+                        acq_info["stages"]["premove"] = self._sim_time()
                     if os.environ.get("FRUIT_HANDOVER_DIAG", "0") == "1":
                         _jaw = np.asarray(arm.jaw_centre(), dtype=float)
                         _err = float(np.linalg.norm(_jaw - premove))
@@ -4892,6 +4908,8 @@ class PickAndPlaceTask:
                         )
                     )
                     self._step_sim(1)
+                if acq_diag:
+                    acq_info["stages"]["axis"] = self._sim_time()
                 if verbose:
                     say(
                         f"[task] coherent axis: 1-cos={axis_error:.4f} "
@@ -4967,6 +4985,8 @@ class PickAndPlaceTask:
                     hover_residual = arm.move_to(
                         arm.tcp_target_for_jaw(hover), max_steps=500, tolerance=0.008
                     )
+                    if acq_diag:
+                        acq_info["stages"]["hover"] = self._sim_time()
                     if os.environ.get("FRUIT_HANDOVER_DIAG", "0") == "1":
                         _jaw = np.asarray(arm.jaw_centre(), dtype=float)
                         say(
@@ -5047,6 +5067,9 @@ class PickAndPlaceTask:
                             arm.ik_step(arm.tcp_target_for_jaw(hover))
                             self._step_sim(1)
                             waited += 1
+                        if acq_diag:
+                            acq_info["stages"]["wait"] = self._sim_time()
+                            acq_info["waited"] = int(waited)
                         # Reachable intercept (P3 arrival fix). Compute where the
                         # fruit will be when this leg ends and use it to *time*
                         # the descent. A target shift was tried first and is
@@ -5392,6 +5415,14 @@ class PickAndPlaceTask:
                     self._dynamic_trace_sample(
                         "catchup", sample, arm, gripper, gap_open, cmd=catch_target
                     )
+                    if acq_diag:
+                        acq_info["catchup_ticks"] = int(_) + 1
+                        acq_info["catchup_offset"] = (
+                            np.asarray(tip, dtype=float) - fruit_now
+                        )
+                if acq_diag:
+                    acq_info["stages"]["catchup"] = self._sim_time()
+                    acq_info["catchup_residual"] = float(catch_residual)
                 if catch_trace:
                     self._catch_trace_seq = int(
                         getattr(self, "_catch_trace_seq", 0)
@@ -5523,6 +5554,23 @@ class PickAndPlaceTask:
                                             dtype=float,
                                         )
                                     )
+                                    if acq_diag and "start_offset" not in acq_info:
+                                        acq_info["start_offset"] = (
+                                            np.asarray(arm.jaw_centre(), dtype=float)
+                                            + rot0 @ np.array([0.0, 0.0, finger_len])
+                                            - fruit_now
+                                        )
+                                        acq_info["vx0"] = float(dynamic_v[0])
+                                        acq_info["latch"] = bool(walk_latched)
+                                        acq_info["sep0"] = float(arm.jaw_separation())
+                                        _q = np.asarray(arm.joint_positions(), dtype=float)
+                                        _lo = np.asarray(arm.arm_lo, dtype=float)
+                                        _hi = np.asarray(arm.arm_hi, dtype=float)
+                                        _margins = np.minimum(_q - _lo, _hi - _q)
+                                        acq_info["q2"] = float(_q[1])
+                                        acq_info["q2_hi"] = float(_hi[1])
+                                        acq_info["clip_min"] = float(_margins.min())
+                                        acq_info["clip_joint"] = int(np.argmin(_margins))
                                 # Anti-walk lead (opt-in): a fruit already
                                 # walking across the belt at `vx` gets the span
                                 # placed *ahead* of it by `vx * lead`, so the
@@ -5623,6 +5671,19 @@ class PickAndPlaceTask:
                         # travelling (even slowly) does not.
                         reading = self.tactile.read().get(arm.spec.side, _EMPTY_TACTILE)
                         force_now = float(reading.normal_force)
+                        if acq_diag:
+                            acq_info["fmax"] = max(acq_info.get("fmax", 0.0), force_now)
+                            if "contact_tick" not in acq_info and (
+                                force_now >= 0.5 or int(reading.contact_count) > 0
+                            ):
+                                _tipc = np.asarray(
+                                    arm.jaw_centre(), dtype=float
+                                ) + _quat_matrix(close_quat) @ np.array(
+                                    [0.0, 0.0, finger_len]
+                                )
+                                acq_info["contact_tick"] = int(_close_step)
+                                acq_info["contact_force"] = float(force_now)
+                                acq_info["contact_offset"] = _tipc - fruit_now
                         sep_meas = float(
                             arm.JAW_SEPARATION_OFFSET
                             + arm.JAW_SEPARATION_PER_JOINT * arm.finger_opening()
@@ -5638,6 +5699,9 @@ class PickAndPlaceTask:
                             contact_run = 0
                         if contact_run >= contact_ticks:
                             freeze_cmd = float(cmd)
+                            if acq_diag and "freeze_tick" not in acq_info:
+                                acq_info["freeze_tick"] = int(_close_step)
+                                acq_info["freeze_depth"] = float(freeze_cmd)
                             if verbose:
                                 say(
                                     f"[task] dynamic close: sustained contact after "
@@ -5755,6 +5819,73 @@ class PickAndPlaceTask:
                 rest = np.asarray(self.spawner.position(sample), dtype=float).copy()
                 for _ in range(30):
                     self._step_sim(1)
+            if acq_diag and "start_offset" in acq_info:
+                # W7-B acquisition readout: one line per direct attempt.
+                stages = acq_info.get("stages", {})
+                t0 = stages.get("t0", float("nan"))
+
+                def _stage(key: str) -> str:
+                    value = stages.get(key)
+                    return "-" if value is None else f"{value - t0:.2f}"
+
+                off = np.asarray(acq_info["start_offset"], dtype=float) * 1000.0
+                cu_off = acq_info.get("catchup_offset")
+                if cu_off is None:
+                    cu_txt = "(0.0,0.0,0.0)"
+                else:
+                    cu_off = np.asarray(cu_off, dtype=float) * 1000.0
+                    cu_txt = f"({cu_off[0]:+.1f},{cu_off[1]:+.1f},{cu_off[2]:+.1f})"
+                contact = acq_info.get("contact_tick")
+                if contact is None:
+                    contact_txt = "NONE"
+                else:
+                    c_off = np.asarray(
+                        acq_info.get("contact_offset", (0.0, 0.0, 0.0)), dtype=float
+                    ) * 1000.0
+                    contact_txt = "@{}t({:+.1f},{:+.1f},{:+.1f})mm F={:.2f}N".format(
+                        contact, c_off[0], c_off[1], c_off[2],
+                        acq_info.get("contact_force", 0.0),
+                    )
+                freeze = acq_info.get("freeze_tick")
+                freeze_txt = (
+                    "none"
+                    if freeze is None
+                    else "{:.1f}mm@{}t".format(
+                        acq_info.get("freeze_depth", 0.0) * 1000.0, freeze
+                    )
+                )
+                say(
+                    "[acq] {} idx={}: setup[premove={} axis={} hover={} wait={} "
+                    "catchup={}]s catchup={}t res={:.1f}mm last={}mm | "
+                    "close_start=({:+.1f},{:+.1f},{:+.1f})mm vx0={:+.3f} latch={} | "
+                    "contact={} freeze={} span={:.1f}->{:.1f}mm Fmax={:.2f} | "
+                    "q2={:+.4f}/{:.4f} clip_min={:+.1f}mrad@j{}".format(
+                        arm_name,
+                        sample.index,
+                        _stage("premove"),
+                        _stage("axis"),
+                        _stage("hover"),
+                        _stage("wait"),
+                        _stage("catchup"),
+                        acq_info.get("catchup_ticks", 0),
+                        acq_info.get("catchup_residual", float("nan")) * 1000.0,
+                        cu_txt,
+                        off[0],
+                        off[1],
+                        off[2],
+                        acq_info.get("vx0", 0.0),
+                        "walking" if acq_info.get("latch") else "centring",
+                        contact_txt,
+                        freeze_txt,
+                        acq_info.get("sep0", 0.0) * 1000.0,
+                        float(arm.jaw_separation()) * 1000.0,
+                        acq_info.get("fmax", 0.0),
+                        acq_info.get("q2", 0.0),
+                        acq_info.get("q2_hi", 0.0),
+                        acq_info.get("clip_min", 0.0) * 1000.0,
+                        acq_info.get("clip_joint", -1),
+                    )
+                )
             self._closed_gap[arm_name] = grip_gap
             if coherent and os.environ.get("FRUIT_COHERENT_DEBUG") == "1":
                 say(

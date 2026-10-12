@@ -12530,3 +12530,80 @@ byte-untouched; `configs/motion_reference_twoline.json` stays `181c9151`
 (the re-write reproduces it byte-for-byte) and
 `configs/motion_reference.json` stays `b9e72ca7`. Tree: `tasks.py` unchanged
 `bf822c09`; `rl_env.py` file `3c580e71` (the comment-date fix only).
+
+### W7-B: the policy's left deficit is pre-contact acquisition, not the lateral off-band; the adaptive trigger lead is the default-off acquisition knob
+
+**Mechanism (the W5-A "could not determine" item), Tier A solo.** One
+direct-path trace on the W4-pinned branch (`moe_v13s`, `FRUIT_SUPPLY_SCATTER=0`,
+`FRUIT_POLICY_TRIGGER_LATERAL=0.06`, arrival lead 0.9 s, spawner seed 77,
+sampler seed 11, `FRUIT_DYNAMIC_TRACE=1` + `FRUIT_HANDOVER_DIAG=1`;
+`logs/w7/B_mechanism_trace.log` + 15 traces, readout `logs/w7/B_mech_readout.txt`
++ `B_mech_summary.txt`): left 0/6 = **3 no-contact (`grasped=False`) + 3 carry
+escapes**; right 9/9. The W4 pinned population (45 episodes) is left 2/18 with
+**13 `grasped=False` + 3 carried**; W5 H5's 2 no-contact + 1 carry agrees. The
+traced no-contact failures never make contact: their handover-to-ready setup is
+**1.36-7.68 s** against the 0.9 s fixed lead and the fruit is **171-2119 mm
+downstream** of the fingertips when the close starts - past the left's ~4.5 cm
+downstream reach (`logs/p2b/reach_ladder.log`, the `FRUIT_DIRECT_CATCH_MAX
+0.035` rationale) - so the 200-tick catch-up expires and the pads clamp each
+other at take-off. Successes and carry escapes set up in 0.60-0.93 s with
+close-start offsets <= 5.7 mm and a healthy close (F 7-25 N). **The off-band
+premise is refuted on the population**: left fire `|dx|` no-contact median
+0.8 cm vs ok 2.5 cm (both inside the 0.06 gate; several failures better aligned
+than the successes), every first-close-tick `vx0` ~ 0 (`latch=centring` - the
+x-seek gate's walking case never occurs), and no probe/takeoff squeeze-out
+signature appears. The fix must buy the primitive setup time, not raise the
+close-phase x-seek; the W5 FRONTIER Lever 1's close-phase x-seek/ramp-start
+form is not built.
+
+**The knob (default off, direct path only).** `FRUIT_POLICY_TRIGGER_ACQ=1` in
+`policy/trigger.py`: `lead_eff = lead + acq_margin + |jaw-station|/acq_speed`
+(cap `acq_cap`; defaults 0.60 s / 0.20 m/s / 4.5 s / reach margin 0.05 m, each
+env-overridable) with the reach gate raised with it, so a far jaw fires the
+handover earlier. The env records the effective values in the fire note
+(`..., lead=1.87s/reach=0.27)`); `FRUIT_ACQ_DIAG=1` adds one `[acq]` line per
+direct attempt (setup stage times, close-start tip-fruit offset, walk latch,
+first contact, freeze depth, joint-limit margin) - pure reporting, a handful of
+state reads on boundary ticks, both A/B arms instrumented.
+`scripts/811_trigger_test.py` pins the off-path byte-neutrality, the far-jaw
+earlier fire, the reach growth and the cap.
+
+**The A/B (N=3x15, seeds 77/101/202, interleaved, `logs/w7/B_ab/`).** Arm A
+baseline vs arm B knob, both `checkpoints/moe_v13s/policy_best.pt`, the W4 pin,
+one instrumented batch (each run's manifest pins `tasks.py` e98d9836,
+`rl_env.py` 9318fe3e, `policy/trigger.py` d35fba2c): **left no-contact 9 -> 1**
+(the residual is the measured arm flail at the lateral reach cliff - both
+`move_to` calls run to their caps, 3.33 + 4.17 s, the joint at its limit),
+left close-start `|y|` median **88.8 -> 1.4 mm**, **10/18 left episodes improve
+class with zero left regressions** (4 no-contact -> ok, 4 -> carried, 2 carried
+-> ok); pooled **26/45 (58 %) -> 31/45 (69 %)**, left **2/18 -> 8/18**, right
+24/27 -> 23/27 (its single no-contact -> ok, two A-only right carry losses in
+the branch shift); paired 7 B-only / 2 A-only; one-sided sign p = 0.0898 (N=3;
+the P4 p<=0.05 criterion was calibrated for 5 runs/arm - the W7-B
+pre-registered endpoint is the mechanism readout); strawberry 3/6 -> 5/6,
+lychee 4/6 -> 6/6; median cycle 1851 -> 1826 ticks (successes 1776 -> 1808,
++1.8 %); no new failure reason once the acquisition note suffix is normalized
+out (the `113` "NEW reasons" line is that suffix artifact, verified in
+`B_ab_transitions.txt`). The knob **stays default off** (W7-B spec; no shipped
+default changes).
+
+**No-harm.** `scripts/selfcheck.sh` PASS 0 failures (the trigger test extended);
+`ACCEPT_LOG=logs/w7/B_accept.log scripts/accept.sh` = **9/10, 15.2 s/attempt,
+`diverted=0`, motion gate PASS, `fingerprint: matches
+configs/motion_reference.json`**; the acceptance stream is **IDENTICAL 385/385
+full (365/365 physics-only) to the W7-A acceptance of record**
+(`logs/w7/50_accept_w7a.log`) - the single-arm default is byte-unchanged (the
+`tasks.py` additions are `FRUIT_ACQ_DIAG`-gated, default off; the trigger
+knob's off-path is byte-neutral).
+
+**W7-C implication.** The acquisition class is an interface problem with a
+default-off fix; the remaining left deficit is the carry/grip-margin class
+(7 -> 9 carried after the conversion), the reach-cliff flail (fruit x ~
+0.39-0.42, both `move_to` caps, the left joint at its limit) and the
+policy-gate fire path (`finger < 0.030 and |jaw-fruit|xy < 0.06`, 4/18 of the
+W4 left attempts, which bypasses the trigger entirely). The collector is
+unaffected by the knob (the scripted primitive never uses the trigger), so a
+W7-C recollection should target the carry class, keeping the single-arm direct
+anchor distinct (the W4 lesson). Deliverables: `logs/w7/B_RESULTS.md`, the
+knob + the `[acq]` diagnostic, `logs/w7/B_readout.py` /
+`logs/w7/B_ab_report.py`, branch `w7-policy-acq` (not pushed).
