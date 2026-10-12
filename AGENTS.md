@@ -610,6 +610,36 @@ re-derivations; `logs/w7/C_acq_forces.py` is what withdrew the first pass's
 Fmax force split (close-phase `Fmax` does not separate the classes - the
 grip-margin reading is a hypothesis, not a measured force split).
 
+**W8-B (2026-10-13, branch `w8-carry`, `logs/w8/`): the carry-window metric
+exists and separates; the one bounded guard lever is measured and NOT adopted;
+the legacy `[motion] carry slip_max` must not be quoted for the OpenArm hand.**
+The metric is the frame-free `clean_slip` (payload displacement in the leg's own
+frame, reference = the leg's first tick): over four trace corpora (55 attempts)
+the clean leg-outs read **0.02-1.43 mm** (median 0.04, n=33) and the carry
+escapes **17.9-957 mm** (median 278, n=31) with **no overlap**; 25 never-held
+legs (reach-cliff class) are excluded. It is live in the default-off
+`FRUIT_CARRY_DIAG=1` `[carry]` line and offline in `logs/w8/B_metric.py`
+(agreement <= 0.06 mm on 29/29 legs; the live onset bookkeeping is
+contact-agnostic and includes no-contact legs - onset rows 1-3, `F=0` - unlike
+the offline classes). The mechanism is a **loaded slide** (force at its carry
+level at onset, median 4.90 N; single-sided contact; jaws pried to their
+98-99 mm limit in 17/31 escapes; contact loss 2-132 ticks after the 2 mm
+crossing, median 25). The lever `FRUIT_CARRY_GUARD` stays **default off**
+(direct-scoped: `_carry_guard_active` needs `direct_capture`, so a scripted call
+never reaches it; `FRUIT_CARRY_GUARD_LEGS` is an exact per-leg-name match, so a
+place scope reads `place0,place1`): it moved the paired carried class 5-1 and
+carried-not-placed 50 -> 42, but sign p = 0.1094 and +5.4 % cycle -> **not
+adopted**; the R1 lever slot is closed with the named residuals
+(`logs/w8/B_RESULTS.md`). No-harm: acceptance **9/10 + motion gate PASS +
+`fingerprint: matches`**, its 385/385 `[fruit]` lines byte-identical to
+`logs/w7/50_accept_w7a.log`; the two-line half is gated by
+`scripts/190_twoline_gate.sh` (PASS on the frozen-tree re-record
+`logs/w8/70_w8b1_twoline.log`, whose 442/442 `[fruit]` lines are identical to
+the W7-A dense record). **Do not quote the
+legacy `slip_max` for the OpenArm hand**: it is frame-contaminated
+(25.6-104.7 mm of ghost slip on the acceptance's placed carries) - use
+`clean_slip`; `README.md`'s grip-quality paragraph carries the same correction.
+
 ## 3. What changed -> what to run
 
 | you changed | run |

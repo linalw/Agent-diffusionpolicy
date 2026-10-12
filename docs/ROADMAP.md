@@ -1,7 +1,9 @@
 # ROADMAP: the long project-optimization plan
 
 Status: **written 2026-10-12** on branch `w8-confirm` (PP-P2 of the P-PLAN,
-`.slim/deepwork/sorting-pipeline-v3.md`), **gate-fixed as P2.1** (docs only).
+`.slim/deepwork/sorting-pipeline-v3.md`), **gate-fixed as P2.1**; **state
+updated by W8-B.1** (2026-10-13, branch `w8-carry` - R1's outcome and the
+tree/branch pins in section 1).
 Numbering: the plan's phases are **R0-R6** (this document), and the P-PLAN
 deliverables carry the **`PP-` prefix** (PP-P1 ops tool / PP-P2 this roadmap /
 PP-P3 validation) so the two schemes cannot collide. Scope: the work after
@@ -38,17 +40,17 @@ menus in `logs/w5/FRONTIER.md` (failure mechanisms) and
 | piece | state | evidence |
 | --- | --- | --- |
 | **Shipped single-arm dynamic line** (OpenArm, never-stop catch, v9/V1 scattered supply, `FRUIT_DYNAMIC_PICK` unset) | **9/10, 15.2 s/attempt, 3.55 placed/min**; the one failure is a left place/carry escape; x5 bit-identical | `logs/v1/31_accept_supply_verified.log`, `logs/v1/20_rate_supply_1..5.log`, AGENTS.md section 2 |
-| Acceptance of record on the current code tree (`tasks.py` `e98d9836`) | **9/10, motion gate PASS, `fingerprint: matches`** | `logs/w8/60_accept_w8a.log` / `.out`; single-arm reference `configs/motion_reference.json` (`b9e72ca7`) |
+| Acceptance of record on the current code tree (`tasks.py` `a3b82a11`, W8-B; guard off) | **9/10, motion gate PASS, `fingerprint: matches`**; its 385/385 `[fruit]` lines are byte-identical to the W7-A acceptance | `logs/w8/60_accept_w8b.log` / `.out`; single-arm reference `configs/motion_reference.json` (`b9e72ca7`) |
 | **Two-line opt-in** (`FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=1`; left station y=0.00 grade A, right y=-0.10 grade B, C passes; patch sheet) | W6-B baseline **10/20, 2.78 batch / 2.70 window placed/min**; same-scenario single arm **13/18, 2.12/2.17** -> pre-registered window ratio **1.24x** (< the 1.25x flip bar); pooled interval 22.20 / p90 45.50 s | `logs/w6/BASELINE.md` |
 | **Park-gate lever is the two-line default** (W7-A; `FRUIT_BIARM_PARK_EARLY` resolves to 1 under a two-line session) | replays W6-C bit-for-bit: **12/20, 3.64 batch / 3.63 window**, pooled interval **16.53 / 17.30 / 19.90 s**, left gate-blocked idle **25.2 -> 0.2 s**, idle 18 %/24 %; timing-only +10 %, residual x1.22 branch factor | `logs/w7/A_RESULTS.md` (861/861 physics lines vs `logs/w6/31/32`) |
-| Dense W3/W4 wave sheet re-record (moved branch) | **7/10, 9.1 s/attempt, 4.60 placed/min**, `diverted=0`; own reference `configs/motion_reference_twoline.json` (`181c9151`); pre-flip control replays W4 bit-for-bit with `PARK_EARLY=0` | `logs/w7/A_RESULTS.md`, `logs/w7/15_dense_control_park_off.log` |
+| Dense W3/W4 wave sheet re-record (moved branch) | **7/10, 9.1 s/attempt, 4.60 placed/min**, `diverted=0`; own reference `configs/motion_reference_twoline.json` (`181c9151`); pre-flip control replays W4 bit-for-bit with `PARK_EARLY=0`; re-recorded on the W8-B tree (W8-B.1): `logs/w8/70_w8b1_twoline.log` is 442/442 `[fruit]`-identical to the W7-A pair and `scripts/190_twoline_gate.sh` PASS | `logs/w7/A_RESULTS.md`, `logs/w7/15_dense_control_park_off.log`, `logs/w8/B_RESULTS.md` |
 | **Policy** | shipped default **`moe_v12`** (`accept_policy.sh` line 75); direct causal loop is the measurement, the hybrid canary is the gate | `logs/w4/VERDICT.md`, `logs/w7/C_RESULTS.md` |
 | `moe_v13p` (W7-C patch recollection) | **not adopted**: W8-A N=5 confirmatory batch **21/75 = 28 % vs 22/75 = 29 %, sign p = 1.0000**, carried-class pairing 0 B-only / 2 A-only (the N=3 3-0 was noise); the carry class is 89-91 % of failures on both arms | `logs/w8/A_RESULTS.md` |
 | ACQ knob (`FRUIT_POLICY_TRIGGER_ACQ`) | default **off**; the direct evaluation pins `=1` (it removes the acquisition class: left no-contact 15 -> 0, close-start 120 -> 2.5 mm); no N=5 ACQ-off mirror exists | `logs/w7/C_RESULTS.md` section 1, `logs/w7/B_RESULTS.md` |
 | Pinned canary, `moe_v13p` ckpt (shipped scenario, fixed supply; **not** the shipped default `moe_v12`) | **8/10 PASS** (floor 60 %); matches the `moe_v13s` sample | `logs/w7/C_eval/canary_pinned.log` / `.out` |
 | W3-supply (dense sheet) hybrid canary | **still open** (spaced supply measured ~15-20 min/episode; diagnose the handoff station wait first) | `logs/w3/HANDOFF.md` |
 | **Clearance** | dense W3/W4 moved branch **2.59 mm min, 863/10042 = 8.6 % < 30 mm**; patch battery **1.9 mm, 4.7 % < 30 mm**; the F2 **45 mm / zero-under-30 convention is not met**; no arm-arm contact is possible (`enabledSelfCollisions=0`) and no attempt has ever failed by contact | `logs/w7/A_RESULTS.md` section 4, `logs/w6/C_RESULTS.md` section 3 |
-| Branch/tag state | `w8-confirm` = the P1.1 ops wrap + this P2.1 docs pass on top of `cb39de8` (PP-P1, the ops tool) on top of `38d4699` (PP-P2, this doc) on top of `c973020` (the W8-A WORKLOG entry, landed 2026-10-12 23:10) on top of `11dd539` (W7-C.1); `main`/`origin/main` are still at `11dd539` (the W8-A + P commits are not pushed); tags `v0.6-w6` (`9f91c75`), `v0.7-w7a/b/c` | `git log`, `WORKLOG.md` "W8-A" / "P-PLAN", `logs/w8/A_RESULTS.md` |
+| Branch/tag state | `w8-carry` = the W8-B commit `d682a62` (the carry metric + the default-off guard, measured-not-adopted) + the W8-B.1 gate-fix docs, on top of `78e822e` (W8-A.1), which carries the W8-A/plan chain (`c973020`, `38d4699`, `cb39de8`, `459b00f`); `w8-confirm` sits at `78e822e`; `main` and `origin/main` are at `78e822e` (the W8-A + P-PLAN chain is pushed); the W8-B + W8-B.1 commits are not pushed; tags `v0.6-w6` (`9f91c75`), `v0.7-w7a/b/c`, `v0.8` (`78e822e`) | `git log` / `git rev-parse`, `WORKLOG.md` "W8-A" / "W8-B" / "P-PLAN", `logs/w8/B_RESULTS.md` |
 
 Open thread carried from the record: the two-line **store -> single-arm direct
 transfer** question (does a two-line recollection transfer to the direct
@@ -66,7 +68,7 @@ Budgets are Tier A wall estimates from the measured units in section 3.2
 run ~7 min, acceptance ~5 min sim + offline checks, single-shard collection
 ~1.3 min/episode).
 
-### WS-1 - W8-B: the carry mechanism (the named next phase)
+### WS-1 - W8-B (R1, done 2026-10-13): the carry mechanism
 
 | | |
 | --- | --- |
@@ -75,6 +77,32 @@ run ~7 min, acceptance ~5 min sim + offline checks, single-shard collection
 | **Dependency** | W8-A done (the class population is named); the metric before the lever (W7-C.1 lesson); one `tasks.py` lane |
 | **Budget** | 1 mechanism trace run + analysis (~1.5 h), 1-2 lever batteries (2 x 20-attempt ~20 min), acceptance (~10 min); offline readouts are free |
 | **Success criterion** | the metric **separates** success vs carry-loss classes with a gap (or the mechanism is named and the metric is discarded); the lever converts carry losses on the **paired class counts** (not a rate delta) with zero per-arm regressions; no-harm: single arm 9/10 + `fingerprint: matches`, two-line gated by `scripts/190_twoline_gate.sh` |
+
+**Outcome (R1, 2026-10-13, `logs/w8/B_RESULTS.md` + WORKLOG "W8-B"):** the
+metric half is **met** - the frame-free `clean_slip` separates the clean
+leg-outs (**0.02-1.43 mm**, median 0.04, n=33) from the carry escapes
+(**17.9-957 mm**, median 278, n=31) with **no overlap** (the 2 mm trigger is
+~50x the clean median and ~9x below the smallest escape) - and the mechanism
+is named (a **loaded slide**: force at its carry level at onset, median
+4.90 N; single-sided contact; the pads feed the relative motion; the jaws pry
+toward the 98-99 mm limit in 17/31 escapes; contact loss 2-132 ticks after
+the 2 mm crossing, median 25). The lever half is **negative at adoption
+strength**: `FRUIT_CARRY_GUARD` (default off, direct-scoped) moved the paired
+carried class 5 B-only / 1 A-only, carried-not-placed 50 -> 42 and the rate
+22/75 -> 28/75, but reads sign **p = 0.1094** (> 0.05) with **+5.4 % cycle**,
+so per the pre-registered rule it is **not adopted** and the R1 lever slot is
+**closed by that negative**, with the named residuals (the place-leg scope;
+the untuned hold/derate cost; the tail-escape class). No-harm: the acceptance
+`logs/w8/60_accept_w8b.log` reads **9/10 + motion gate PASS +
+`fingerprint: matches`**, its 385/385 `[fruit]` lines byte-identical to the
+W7-A acceptance (`logs/w7/50_accept_w7a.log`); the frozen-tree two-line
+re-record (`logs/w8/70_w8b1_twoline.log`, `SEED=5`, 10 attempts) is
+**bit-identical to the W7-A dense records** (442/442 `[fruit]` lines vs
+`logs/w7/10_dense_twoline_1.log` / `11`) and **190 PASS** (7/10,
+9.1 s/attempt, 4.60 placed/min). The legacy
+`[motion] carry slip_max` must not be quoted for the OpenArm hand
+(frame-contaminated; use `clean_slip` - `logs/w8/B_RESULTS.md` section 1 and
+README's grip-quality paragraph).
 
 ### WS-2 - W8-C: the residuals
 
@@ -99,7 +127,7 @@ run ~7 min, acceptance ~5 min sim + offline checks, single-shard collection
 | --- | --- | --- | --- | --- | --- |
 | **4.1 ACQ shipping decision (the ACQ=0 mirror)** | before any ACQ=1 direct interface ships, run the **ACQ=0 vs ACQ=1 mirror at N=5** on the patch scenario; the W7-C N=3 read (off 36 % vs on 27 %, p = 0.875, different branches) is underpowered and points the wrong way, and W8-A ran **both arms ACQ=1** so the knob itself is untested | `logs/w7/C_RESULTS.md` section 1; `logs/w8/run_w8a.sh` (`FRUIT_POLICY_TRIGGER_ACQ=1` on both arms) | owner interface decision (4.5); the W8-A harness (`scripts/112_rl_ab.sh` + `logs/w8/run_w8a.sh`) | ~70 min Tier A | p <= 0.05 with the strawberry bucket non-inferior (the P4 criteria), or the knob stays default off and every direct report states the pin |
 | **4.2 N=5 confirmation protocol for any future lever** | one template for every policy lever: N=5 runs/arm x 15 episodes, interleaved, seeds [77,101,202,303,404], sampler seed 11, **both arms inside one instrumented batch**, manifests pinning `tasks.py` / `rl_env.py` / `trigger.py`, and the P4 rule (paired sign p <= 0.05 + strawberry non-inferior, or cycle >= 5 % lower with success non-inferior; no new failure reason) | W8-A is the calibration: the W7-C 3-0 carried pairing was **noise** at N=5 (0-2), p = 1.0000; one run = one sample (rendered frames) | none | ~70 min per lever | the pre-registered rule is applied and negatives are published; a directional N=3 read is never promoted to a rate |
-| **4.3 Recollection improvements (the carry class, anchor discipline)** | if recollection resumes: target the **carry/lift windows** (the W8-B metric decides the target), keep the **single-arm base anchor** `demos_v11` distinct (two-line stores are rollout stores, never the base), and re-test with the N=5 shape | W8-A section 4: another behaviour-cloning pass is **not** the lever for the carry class at this measurement strength (second null for `moe_v13p`); W7-C section 4/5.2 anchor discipline; W3's dense direct eval `moe_v13s` 15.6 % | WS-1's metric; the owner interface decision | collection **~3 h 41 m as run** (the W7-C chain: 173 episodes over 9 shard-runs, wedges + skips included; ~1.3 min/episode per clean single shard) + fine-tune ~22 min + N=5 A/B ~70 min | the carry metric moves **and** the paired class/rate test confirms at N=5; or the negative is published and the line stops |
+| **4.3 Recollection improvements (the carry class, anchor discipline)** | if recollection resumes: target the **carry/lift windows** (the W8-B metric now names them per attempt - `[carry]` onset row/force/contact/direction, `logs/w8/B_RESULTS.md` - so the target no longer has to be guessed), keep the **single-arm base anchor** `demos_v11` distinct (two-line stores are rollout stores, never the base), and re-test with the N=5 shape | W8-B: the carry window is measurable per attempt and the metric separates, but its one scripted lever screen is negative at adoption strength - W8-A's "not another behaviour-cloning pass" still governs a further pass; W8-A section 4: another behaviour-cloning pass is **not** the lever for the carry class at this measurement strength (second null for `moe_v13p`); W7-C section 4/5.2 anchor discipline; W3's dense direct eval `moe_v13s` 15.6 % | WS-1's metric (**delivered**: `clean_slip` + `logs/w8/B_metric.py`); the owner interface decision | collection **~3 h 41 m as run** (the W7-C chain: 173 episodes over 9 shard-runs, wedges + skips included; ~1.3 min/episode per clean single shard) + fine-tune ~22 min + N=5 A/B ~70 min | the carry metric moves **and** the paired class/rate test confirms at N=5; or the negative is published and the line stops |
 | **4.4 W3-supply hybrid canary** | close the open canary on the W3 dense/wave supply (or diagnose the handoff's station wait first - ~15-20 min/episode there) | `logs/w3/HANDOFF.md`; the W6-E scope names it | none | a long window (~3 h) or 1 diagnosis run | a PASS/FAIL canary on the W3 supply is on the record, or the scenario is retired with the reason |
 | **4.5 Interface decision** | decide whether the **shipped policy interface** stays the hybrid station handoff (inert by construction: zero actions scored 10/10) or the **causal direct loop** becomes the gate of record | P4 design review (the handoff teleports the fruit to the policy's jaw); `logs/w8/A_RESULTS.md` (the direct loop is the measurement); never compare direct vs hybrid | owner | offline | one interface is named the gate of record and the other scoped mechanism-only; no mixed rate claim |
 | **4.6 The policy-gate fire path** | name and close the class that bypasses the trigger entirely: the `finger < 0.030` and jaw-fruit `\|xy\| < 0.06` gate fires on **4/18 of the W4 left attempts** (W7-B section 4 item 3b); a future lever could route it through the same acquisition window the ACQ knob fixes | `logs/w7/B_RESULTS.md` section 4 item 3(b); W4 left 4/18 (3 no-contact + 1 carried) | owner interface decision (4.5); interacts with 4.1 | offline + the 4.2 N=5 shape if the gate path changes | the gate class is named and either folded into the interface decision or fixed with zero regressions |
@@ -127,7 +155,7 @@ run ~7 min, acceptance ~5 min sim + offline checks, single-shard collection
 | **7.1 Sim-to-real directions** | domain randomization + CACTI-style scene augmentation before any real-cell transfer; the cell is deterministic and measured, so transfer starts from the dynamic-line calibration | `logs/w6/FRONTIER_THROUGHPUT.md` section 1.3 [T29-T31]; the cell's scenario pins |
 | **7.2 RL / DAgger lanes** | one lane continues the P4 line on the **fixed action semantics** (v8; `moe_v9` direct 53 % before the v13 recollections): DAgger in the direct env with the ACQ interface pinned, then RWR with AWR clipping or the trigger-margin fix - under the 4.2 N=5 protocol | WORKLOG "P4"; `docs/research_dynamic_grasp_methods.md` section 4; W7-B section 4 item 4 (the knob shrinks the policy-controlled window - pin the interface) |
 | **7.3 Learned catch** | keep closed unless the scripted catch becomes the ceiling; the frontier menu is MPC interception / learned catch / vision+RL conveyor picking | `logs/w5/FRONTIER.md` **row 8** (learned catch / MPC interception; [S2][S5-S7]); **row 9 is the space-separation rework [S8][S13]**, not the learned catch; the scripted catch is ~9/10 and not the blocker |
-| **7.4 Grip-margin methods** | the WS-1 metric first, then the W5 survey **rows 2-3** (slip guard with derate+abort, place-entry contact maintenance) and the tactile fast branch (RDP/TDP/FARM) if the carry class survives a scripted lever; **row 1 is the ACQ-knob line** (shipped default-off, WS-4.1); **rows 5 (TPG-lite) and 10 (soft fingers) stay closed/stretch** (`logs/w5/FRONTIER.md` section 5), not budgeted | `logs/w5/FRONTIER.md` sections (c) and the ranked table; W7-C.1 (the close-phase force does not separate - measure the carry window) |
+| **7.4 Grip-margin methods** | the WS-1 metric first (**satisfied** 2026-10-13: `clean_slip` separates clean vs escape with no overlap, `logs/w8/B_RESULTS.md`), then the W5 survey **rows 2-3** - row 2's form (slip guard with derate + bounded re-seat) is measured **negative at adoption strength in R1** (`FRUIT_CARRY_GUARD`), row 3 (place-entry contact maintenance) is untested - and the tactile fast branch (RDP/TDP/FARM) if the carry class survives a scripted lever; **row 1 is the ACQ-knob line** (shipped default-off, WS-4.1); **rows 5 (TPG-lite) and 10 (soft fingers) stay closed/stretch** (`logs/w5/FRONTIER.md` section 5), not budgeted | `logs/w5/FRONTIER.md` sections (c) and the ranked table; W7-C.1 (the close-phase force does not separate - measure the carry window); W8-B (the metric delivered; the R1 guard screen negative) |
 
 **Closure rule.** An item closes with a log pointer in `logs/` + a WORKLOG entry;
 a default change needs its own Oracle gate and the byte-unchanged single-arm
@@ -141,9 +169,9 @@ acceptance.
 
 | # | phase | scope | depends on | gate | Oracle budget |
 | --- | --- | --- | --- | --- | --- |
-| **R0** | **PP-P1 + PP-P2 landed; the W8-A review open** | PP-P1 ops tool delivered (`cb39de8`: `scripts/191_ops_selfcheck.sh` + `docs/OPS.md`; `--selftest` PASS + live OK) + PP-P2 this roadmap (offline, gate-fixed as P2.1); W8-A wrap: acceptance 9/10 + fingerprint, WORKLOG entry + commit landed (`c973020`) - the **Gate W8-A review** is the remaining wrap item | - | **PP-P3 validation (folded)**: real-state checks recorded (`logs/ops/`), AGENTS/README wired (P2.1); **the push remains** | 0-1 |
-| **R1** | **W8-B the carry mechanism** | WS-1 (metric -> mechanism -> one lever) | R0's W8-A wrap; one `tasks.py` lane | carry metric separates classes **and** the lever converts on paired counts + no-harm (single arm 9/10 + fingerprint; two-line `190` gate) | 1 + 2 re-reviews |
-| **R2** | **W8-C residuals + integration** | WS-2.1-2.3; docs + tag | R1's metric (for the recollection scoping); owner C/clearance for the notes | **folded** unless a shipped scenario changes (then its own gate) | 0-1 |
+| **R0 (done)** | **PP-P1 + PP-P2 landed; W8-A reviewed and gated** | PP-P1 ops tool delivered (`cb39de8`: `scripts/191_ops_selfcheck.sh` + `docs/OPS.md`; `--selftest` PASS + live OK) + PP-P2 this roadmap (offline, gate-fixed as P2.1); W8-A wrap: acceptance 9/10 + fingerprint, WORKLOG entry + commit landed (`c973020`); the W8-A.1 gate fixes landed (`78e822e`) | - | **PP-P3 validation (folded)**: real-state checks recorded (`logs/ops/`), AGENTS/README wired (P2.1); the W8-A + P-PLAN chain is pushed (`main`/`origin/main` at `78e822e`); the W8-B + W8-B.1 commits are local | 0-1 |
+| **R1 (done 2026-10-13)** | **W8-B the carry mechanism** (WS-1) | metric -> mechanism -> one lever; full evidence `logs/w8/B_RESULTS.md` (+ WORKLOG "W8-B"/"W8-B.1") | R0's W8-A wrap; one `tasks.py` lane (guard default-off; `tasks.py` `a3b82a11`) | **metric separates PASS** (0.02-1.43 vs 17.9-957 mm, no overlap) + mechanism named; lever **not adopted** (p = 0.1094, +5.4 % cycle) -> slot closed with the named residuals; no-harm **PASS** (single arm 9/10 + `fingerprint: matches` + the 385/385 identity; two-line `190` PASS + 442/442 identical to the W7-A dense record) | 1 + 2 re-reviews (used) |
+| **R2** | **W8-C residuals + integration** | WS-2.1-2.3; docs + tag | R1's metric (**delivered**: `clean_slip` + `logs/w8/B_metric.py`); owner C/clearance for the notes | **folded** unless a shipped scenario changes (then its own gate) | 0-1 |
 | **R3** | **the speed levers** | WS-3.1 -> 3.2 -> 3.3 (conditional); 3.4 can interleave as its own Tier A batch | R1/R2 for the frozen tree; one `tasks.py` lane | per lever: mechanism + interval movement + no-harm; publish negatives | 1 + 2 per lever |
 | **R4** | **the policy** | WS-4.2 protocol; 4.1 mirror (if shipping); 4.3 recollection (if the WS-1 metric names a target); 4.4 canary; 4.6 the gate fire path | WS-1's metric; the owner interface decision (4.1/4.5) | per arm: the N=5 P4 rule; canary + acceptance | 1 + 2 |
 | **R5** | **owner decisions + integration** | WS-5.1-5.3; the flip question; docs (`AGENTS.md`, `README.md`, the Chinese docs) + merge + version tag | R1-R4's measured numbers | a panel review (folded if no default changes) | 0-1 |
@@ -158,9 +186,10 @@ already discharged the "is `moe_v13p` better?" question (no), so R4 starts from
 checks are recorded (the idle one-shot `logs/ops/10_live.txt`, the
 `OPS_CHAIN_S=60` real `ACTION [wrap]` `logs/ops/12_stalled_chain.txt`, and the
 live Tier A sim capture `logs/ops/13_live_capture.txt`), and the AGENTS/README
-pointers are wired in this P2.1 docs commit; what remains is the **commit +
-push** (the P2.1 commit is local; the W8-A + P commits are not pushed). PP-P1
-landed `cb39de8` (hardened by P1.1); this document is PP-P2.
+pointers are wired in this P2.1 docs commit; what remains is the **push** of the
+W8-B + W8-B.1 commits on `w8-carry` (the W8-A + P-PLAN chain is already pushed:
+`main`/`origin/main` = `78e822e`). PP-P1 landed `cb39de8` (hardened by P1.1);
+this document is PP-P2 (state-updated by W8-B.1).
 
 ### 3.2 The resource budget (measured units)
 

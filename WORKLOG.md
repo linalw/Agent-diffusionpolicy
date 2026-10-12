@@ -13060,27 +13060,32 @@ Full evidence: `logs/w8/B_RESULTS.md` + the drivers/reports/traces in `logs/w8/`
 1. **The metric - and why the legacy `slip_max` is not it.** The motion
    report's `[motion] carry slip_max` references the close-time `_grip_quat`:
    the tcp orientation is up to 36 deg away by the carry, so it reads
-   **18-111 mm of ghost slip on successful carries** (the shipped acceptance's
-   own lines: attempt 0 `grasp_lift slip_max=111.0 mm`; seven *placed*
-   attempts 25.6-49.7 mm) while the same runs' traces read <= 0.4 mm. The W8-B
+   **25.6-104.7 mm of ghost slip on the acceptance's *placed* carries** (the
+   two placed kiwi attempts read `place0 slip_max=104.7 / 102.5 mm`; attempt 0
+   - the acceptance's one failure - reads 111.0 mm on its lift leg) while the
+   same runs' traces read <= 0.4 mm. The W8-B
    metric is the payload's displacement in the leg's own frame
    (`||R(t)^T(fruit-pads) - R(0)^T(fruit-pads)(0)||`, post-step reads,
    reference = the leg's first tick), live in the new default-off
    `[carry]` diag (`FRUIT_CARRY_DIAG=1`) and offline in
-   `logs/w8/B_metric.py` - the two agree on 29/29 legs (<= 0.05 mm). Over four
-   trace corpora (55 attempts): **33 clean leg-outs 0.02-1.44 mm (median
-   0.04), 31 escape legs 17.9-957 mm (median 278) - no overlap**; 25 legs
-   never held the payload (reach-cliff class, excluded).
+   `logs/w8/B_metric.py` - the two agree on 29/29 legs (<= 0.06 mm, the live
+   line's one-decimal print). Over four trace corpora (55 attempts): **33
+   clean leg-outs 0.02-1.43 mm (median 0.04), 31 escape legs 17.9-957 mm
+   (median 278) - no overlap**; 25 legs never held the payload (reach-cliff
+   class, excluded). The live `[carry]` onset is contact-agnostic and includes
+   the no-contact legs (onset rows 1-3, `force@onset=0.00N`); the offline
+   classes exclude them.
 2. **The mechanism: a loaded slide out of the fingertip pinch.** At the 2 mm
    onset the tactile force is at the grip's carry level (**median 4.90 N**,
    0.45-12.9) and contacts-at-onset is **1** on the median leg; the pads keep
    feeding the relative motion (payload world position stalls while the jaw
    rises), the payload exits mostly **down the tool axis**, and the OpenArm
    fingers are pried from the commanded 29-69 mm toward their **98-99 mm**
-   limit (median sep_max 98.1 mm). Contact loss follows the crossing by
-   **2-132 ticks (median 25, ~208 ms)**. Onsets are 28/31 in `grasp_lift`; the
-   place leg carries 3 genuine loaded onsets (the named residual). 5 of 31
-   escapes stopped short of a loss (18-25 mm slips still delivered).
+   limit in **17 of 31 escapes** (`sep_max >= 97 mm`; median 98.1). Contact
+   loss follows the crossing by **2-132 ticks (median 25, ~208 ms)**. Onsets
+   are 28/31 in `grasp_lift`; the place leg carries 3 genuine loaded onsets
+   (the named residual). 5 of 31 escapes stopped short of a loss (18-25 mm
+   slips; the payload survived that leg - 3 of the 5 are on failed attempts).
 3. **The lever: `FRUIT_CARRY_GUARD` (default off, direct-scoped).** W5
    FRONTIER row 2's derate + bounded re-seat, no squeeze escalation: on the
    direct handover's dynamic `grasp_lift` carry, a live clean_slip > 2 mm
@@ -13093,9 +13098,11 @@ Full evidence: `logs/w8/B_RESULTS.md` + the drivers/reports/traces in `logs/w8/`
    same-fruit carried-class 5 B-only / 1 A-only; sign p = 0.1094; strawberry
    4/6 vs 7/11; median cycle 1856 -> 1957 ticks (+5.4 %); no new failure
    reason.** Per-leg `[carry]`: lift clean/slip/loss 20/55/46 -> 21/54/41;
-   place 22/50/50 -> 27/43/42; the guard fired on 52 of 54 slip legs (137
-   events, 3288 hold ticks, re-seat median at its 20 mm cap), 39 of the fired
-   legs lost anyway and 13 survived the slip (arm A: 9 survived).
+   place 22/50/50 -> 27/43/42; the guard fired on all 52 contact slip legs
+   and on no clean leg (137 events, 3288 hold ticks, re-seat median at its
+   20 mm cap; the live `slip_event` count includes 2 no-contact legs the
+   `min_contacts > 0` condition blocks), 39 of the fired legs lost anyway and
+   13 survived the slip (arm A: 9 survived).
    **Verdict: the pre-registered bar (sign p <= 0.05 or cycle >= 5 % lower)
    is not met -> not adopted; the knob stays default off.** The direction is
    consistent across the rate, the class counts and the leg-level losses, but
@@ -13105,15 +13112,87 @@ Full evidence: `logs/w8/B_RESULTS.md` + the drivers/reports/traces in `logs/w8/`
    pre-flight, `logs/w8/60_accept_w8b.out`); `ACCEPT_LOG=logs/w8/60_accept_w8b.log
    scripts/accept.sh` -> **9/10, motion gate PASS, `fingerprint: matches`**
    with the knob off (the shipped single-arm default is byte-unchanged: the
-   guard requires the direct-handover flag and the diag is default off). Pins:
+   guard requires the direct-handover flag and the diag is default off; the
+   acceptance's **385/385 `[fruit]` lines are byte-identical to the W7-A
+   acceptance** `logs/w7/50_accept_w7a.log`). Two-line: the frozen-tree
+   re-record `logs/w8/70_w8b1_twoline.log` (`SEED=5`, 10 attempts) is
+   **bit-identical to the W7-A dense records** (442/442 `[fruit]` lines vs
+   `logs/w7/10_dense_twoline_1.log` / `11`) and `scripts/190_twoline_gate.sh`
+   reads **PASS** (7/10, 9.1 s/attempt, 4.60 placed/min). Pins:
    `tasks.py` `a3b82a11`, `rl_env.py` `f4f211d7` (the metadata-only
    `TASKS_MD5` follow `e98d9836` -> `a3b82a11`).
 5. **Implications (WS-1/WS-4).** The metric half of the WS-1 criterion is
    met (separates with a gap) and the mechanism is named; the lever half is a
    directional positive that fails adoption strength. Named next levers: the
    place-leg guard scope (3 genuine place onsets; the lift-only guard already
-   moved place losses 50 -> 42), the hold/derate retune (the +5.4 % cycle
+   moved place losses 50 -> 42; `FRUIT_CARRY_GUARD_LEGS` is an exact
+   per-leg-name match - a place scope reads `place0,place1`, `place` alone
+   matches nothing), the hold/derate retune (the +5.4 % cycle
    cost; holds consume the full budget on most fired legs), and the tail-escape
    class (18-25 mm slips that survive). The carry window is now measurable
    per attempt for any future recollection scoping (WS-4.3), without changing
    the interface decision (WS-4.5/4.6). Not pushed.
+
+### W8-B.1 (gate fixes): the corrected carry-metric claims, the R1 outcome + no-harm, the legacy-slip_max caveat, and the guard nits
+
+**Scope (2026-10-13, branch `w8-carry`, base `d682a62`).** The Gate W8-B
+review's ordered fixes - no code or scenario change (`tasks.py` stays
+`a3b82a11`); the evidence store (`logs/w8/B_RESULTS.md`, `B_metric.py`,
+`B_guard_readout.py`) carries the corrected claims, the tracked docs
+(`docs/ROADMAP.md`, `AGENTS.md`, `README.md`) the state/outcome and the
+do-not-quote rule, and this commit the record. The one new run is the R1
+no-harm two-line re-record.
+
+* **Claim fixes** (`logs/w8/B_RESULTS.md` and the W8-B entry above): clean
+  range `0.02-1.44` -> **0.02-1.43 mm**; escape `in-hand |v|max` "up to 4.3"
+  -> **up to 2.9 m/s** (the 4.307 raw value is a no-contact leg; escape max
+  2.906); the ghost-slip citation restated (the acceptance's *placed* carries
+  print 25.6-104.7 mm - the two placed kiwi attempts `place0` 104.7/102.5;
+  attempt 0 is the acceptance's failing attempt, 111.0 mm on its lift leg;
+  the "18" was not in the cited log); tail escapes "still delivered" ->
+  "**survived that leg**" (3 of the 5 are on failed attempts); `~40x` ->
+  **~50x**; "within 0.05 mm" -> **<= 0.06 mm** (the live line's one-decimal
+  print; 29/29 legs); "in most escapes ... 98-99 mm" -> **17/31 with
+  `sep_max >= 97 mm`** (median 98.1).
+* **R1's no-harm half (run, not waiver).** The guard is direct-scoped by
+  construction (`_carry_guard_active = self._carry_guard and direct_capture`,
+  `direct_capture = dynamic_capture and not scripted`), so a scripted call
+  never reaches it. The frozen-tree two-line re-record
+  `logs/w8/70_w8b1_twoline.log` (`FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=1
+  HEADLESS=1 FRUIT_MOTION_REPORT=1 FRUIT_CYCLE_REPORT=1 SEED=5 ATTEMPTS=10`,
+  Tier A claim 02:36:35 -> 02:40:57): **`scripts/190_twoline_gate.sh` PASS**
+  (7/10, 9.1 s/attempt, 4.60 placed/min) and **442/442 `[fruit]` lines
+  byte-identical to the W7-A dense records** (`logs/w7/10_dense_twoline_1.log`
+  / `11`). Single arm: `logs/w8/60_accept_w8b.log` **9/10 + motion gate PASS +
+  `fingerprint: matches`**, its **385/385 `[fruit]` lines byte-identical to
+  the W7-A acceptance** (`logs/w7/50_accept_w7a.log`). The first two-line
+  attempt (02:31:25 -> 02:35:44) lacked `FRUIT_MOTION_REPORT=1`/`SEED=5`, so
+  190 found no motion lines and the log was re-recorded (its aggregate read
+  7/10, 9.1 s/attempt as well) - the gate needs the motion-report env.
+* **The nits.** `FRUIT_CARRY_GUARD_LEGS` is an exact per-leg-name match: a
+  place scope reads `place0,place1`, `place` alone silently matches nothing
+  (documented in B_RESULTS section 4, the AGENTS W8-B block and item 5 above;
+  the default `grasp_lift` is unchanged). The live `[carry]` onset includes
+  the no-contact legs (onset rows 1-3, `force@onset=0.00N`) - the guard's
+  `min_contacts > 0` condition blocks firing, but the `slip_event` counts must
+  be read with the contact state; the caveat is in B_RESULTS sections 1/3 and
+  the readout script. `B_metric_mech.txt` appends a second pass at
+  `--trigger 0.0005` (quote the 2.0 mm pass) and `B_mech_summary.txt` lists
+  the escape legs only - noted in B_RESULTS section 5.
+* **Roadmap state.** WS-1 carries the R1 outcome (metric met; lever negative
+  at adoption strength -> slot closed with the named residuals); R1 is marked
+  done; the acceptance-of-record row moves to `tasks.py` `a3b82a11` +
+  `logs/w8/60_accept_w8b.log`; the branch row reads `w8-carry` /
+  `main`+`origin/main` at `78e822e` (the W8-B + W8-B.1 commits local); the
+  dense two-line row carries the W8-B.1 re-record; WS-4.3's dependency is
+  delivered with W8-A's "not another behaviour-cloning pass" still governing;
+  WS-7.4's "the WS-1 metric first" is marked satisfied; R0/PP-P3's push
+  status corrected. `AGENTS.md` gets the W8-B block; `README.md`'s
+  grip-quality paragraph gets the W8-B correction (the legacy `slip_max` is
+  frame-contaminated on the OpenArm hand - use `clean_slip`; the explicit fix
+  of the doc that said the opposite, no R2 deferral).
+
+**No-harm.** `scripts/selfcheck.sh` PASS 0 failures, 1 skipped (the
+motion-budget leg, no run log; `logs/selfcheck.log` 02:41:49) on the post-fix
+tree; docs only plus the two-line re-record; `tasks.py` `a3b82a11`,
+`rl_env.py` `f4f211d7` and the scenario defaults untouched. Not pushed.

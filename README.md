@@ -688,7 +688,14 @@ fly with the belt never stopping.
 
 **Grip quality is measured.** Each carry leg reports the payload's motion in the
 hand frame as `slip_max=` in the motion report, and the *hand's* own speed as the
-`|v|max` that follows `recoveries=`. A reactive regrasp (`FRUIT_SLIP_RECOVERY`, on
+`|v|max` that follows `recoveries=`. **(W8-B correction, 2026-10-13.)** On the
+OpenArm hand that `slip_max` is **frame-contaminated** - it references the
+close-time `_grip_quat`, and the tcp rotates up to 36 deg through the carry, so a
+held payload's true (0.02-1.43 mm) in-hand displacement prints as 25.6-104.7 mm of
+ghost slip on the shipped acceptance's placed carries (`logs/w8/B_RESULTS.md`
+section 1). Use the frame-free `clean_slip` instead (`FRUIT_CARRY_DIAG=1`, one
+`[carry]` line per dynamic carry leg; offline `logs/w8/B_metric.py`) - do not
+quote the legacy number for this hand. A reactive regrasp (`FRUIT_SLIP_RECOVERY`, on
 by default) re-seats the hand on the payload when the in-hand deviation crosses
 25 mm; the reaction no longer squeezes harder (`FRUIT_SLIP_SQUEEZE_STEP=0`), because
 the payload is not lost to insufficient normal force - it is *ejected* along the pad
