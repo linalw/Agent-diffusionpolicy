@@ -440,9 +440,39 @@ every config pair bit-identical (821/850/843 physics lines), knobs-off
 two-line 830/830 vs the W6-B record and single-arm 643/643 vs the W5-C record,
 `selfcheck.sh` PASS, acceptance **9/10 + `fingerprint: matches`**
 (`logs/w6/60_accept_w6c.log`) - the single-arm default is byte-unchanged. Both
-W6-C knobs default **OFF** and two-line-only, pending the owner (W6-D); the
+W6-C knobs were default **OFF** and two-line-only; the owner decision then
+promoted the park-gate lever (**W7-A below**), while `FRUIT_BIARM_PREFETCH`
+stays a default-off hook; the
 placed-False and takeoff grip failure classes are W6-E's recollection +
 fine-tune territory (`logs/w6/C_RESULTS.md` section 5).
+
+**W7-A (2026-10-12, `logs/w7/`): the park-gate lever is the two-line default
+(the W6-D owner decision).** `FRUIT_BIARM_PARK_EARLY` now resolves through
+`_dynamic_profile("FRUIT_BIARM_PARK_EARLY", "0", "1")` at both gate sites, so a
+two-line session opens the gate at payload-clear with the env unset and an
+explicit `=0` restores the pre-W7 rule; `FRUIT_BIARM_PARK_GATE` stays off and
+`FRUIT_BIARM_PREFETCH` stays the default-off hook. Pins: `tasks.py`
+**bf822c09**, `rl_env.py` `TASKS_MD5` metadata-only follow `fa9594fb ->
+bf822c09`. The W6-B patch battery with the default on replays the W6-C park
+pair **bit-identically** (861/861 physics lines vs `logs/w6/31` and `32`):
+**12/20, 3.64 batch / 3.63 window placed/min, pooled interval 16.53 / 17.30 /
+19.90 s, idle 18 %/24 %** - the W6-C numbers and the timing-only **+10 %** /
+residual **x1.22** reading stand. The dense W3/W4 wave-sheet re-record is a
+**moved branch** (the pair is bit-identical 442/442): **7/10, 9.1 s/attempt,
+4.60 placed/min** (left 2/5, right 5/5, `diverted=0`, first divergence at the
+left station acquisition t=30.4 vs 31.4) against the pre-flip 8/10, 11.2 s,
+4.27/min - a quantized-outcome count, so quote the fingerprint and the per-leg
+motion (all 10 descents inside budget; worst `|v|max` 0.111/0.161, lurch
+0.023/0.291), not the delta. The two-line fingerprint is now
+`configs/motion_reference_twoline.json` (**181c9151**, written from
+`logs/w7/10`, matched by `11`); the single-arm `configs/motion_reference.json`
+is byte-untouched (`b9e72ca7`). No-harm: the single-arm patch run is 643/643
+identical to the W6-C record (681/681 on the full stream), the acceptance
+stream is 385/385 identical to `logs/w6/60_accept_w6c.log`, `accept.sh` reads
+**9/10 + `fingerprint: matches`**, `selfcheck.sh` PASS, `172` 52 checks.
+Tooling note: gating a two-line log with `105_motion_regression.py` trips its
+*single-arm* 0.75 success floor even when the motion budgets pass - use the
+two-line fingerprint and an explicit floor override for the rate line.
 
 ## 3. What changed -> what to run
 

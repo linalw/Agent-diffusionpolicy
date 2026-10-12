@@ -3630,19 +3630,25 @@ class PickAndPlaceTask:
                 owner = session.station.owner if session is not None else None
                 station_busy = owner is not None and owner != threading.get_ident()
                 other_gripping = self._closed_gap.get(other) is not None
-                # W2 lever (default off): on the two-line, a payload that has
-                # left its station box (lift/place/release) cannot be reached
-                # by the return any more, so the gate can open then instead of
-                # at the other arm's release. The shipped F2 rule waits for the
-                # whole grip. `FRUIT_BIARM_PARK_GATE=1` enables the
-                # payload-clear reading (published by `_biarm_after_step`);
-                # `FRUIT_BIARM_PARK_EARLY=1` is the W6-C park-gate lever - the
-                # same physical predicate, re-measured on the W6-B patch
-                # battery under the W6 clearance convention (one clearance
-                # trace per config). Both are default off and two-line-only.
+                # W2 lever: on the two-line, a payload that has left its
+                # station box (lift/place/release) cannot be reached by the
+                # return any more, so the gate can open then instead of at the
+                # other arm's release. The shipped F2 rule waits for the whole
+                # grip. `FRUIT_BIARM_PARK_GATE=1` enables the payload-clear
+                # reading (published by `_biarm_after_step`); it stays default
+                # **off** (W2 did not meet its gate). `FRUIT_BIARM_PARK_EARLY`
+                # is the W6-C park-gate lever - the same physical predicate,
+                # re-measured on the W6-B patch battery under the W6 clearance
+                # convention (one clearance trace per config; `logs/w6/`) -
+                # and **default on for the two-line session since the W7-A
+                # owner-approved flip** (the W6-C win is the metric of record;
+                # an explicit `FRUIT_BIARM_PARK_EARLY=0` restores the pre-W7
+                # gate). Resolved through `_dynamic_profile` like the W1 grip
+                # profile, so the single-arm and shared-station paths never
+                # see it. Both readings are two-line-only.
                 if two_line_ctx and (
                     os.environ.get("FRUIT_BIARM_PARK_GATE", "0") == "1"
-                    or os.environ.get("FRUIT_BIARM_PARK_EARLY", "0") == "1"
+                    or self._dynamic_profile("FRUIT_BIARM_PARK_EARLY", "0", "1") == "1"
                 ):
                     other_blocked = other_gripping and not bool(
                         session.payload_clear.get(other, True)
@@ -3786,18 +3792,20 @@ class PickAndPlaceTask:
             self._biarm_trace_sample(session)
         if getattr(session, "twoline", False) and (
             os.environ.get("FRUIT_BIARM_PARK_GATE", "0") == "1"
-            or os.environ.get("FRUIT_BIARM_PARK_EARLY", "0") == "1"
+            or self._dynamic_profile("FRUIT_BIARM_PARK_EARLY", "0", "1") == "1"
         ):
-            # W2 lever (default off): publish whether this arm's payload is
-            # clear of its station box, so the other arm's park gate
-            # (`_biarm_park`) can open while the payload is over the output
-            # belt - the shipped gate waits for the whole grip/release, which
-            # cost the left 3-4 s per turn once the W2 schedule shifted
-            # (`logs/w2/60_...` park waits 3.2/4.4 s). Off by default: the
-            # per-tick position read is the instrumentation class (AGENTS
-            # section 2) and the lever did not meet the W2 gate.
-            # `FRUIT_BIARM_PARK_EARLY=1` (W6-C) re-enables the same reading for
-            # the W6-B patch battery; it is the park-gate lever's actuator.
+            # Two-line park gate: publish whether this arm's payload is clear
+            # of its station box, so the other arm's park gate (`_biarm_park`)
+            # can open while the payload is over the output belt - the shipped
+            # gate waits for the whole grip/release, which cost the left
+            # 3-4 s per turn once the W2 schedule shifted (`logs/w2/60_...`
+            # park waits 3.2/4.4 s). `FRUIT_BIARM_PARK_GATE=1` is the W2 knob
+            # (default off: the lever did not meet the W2 gate);
+            # `FRUIT_BIARM_PARK_EARLY` is the W6-C park-gate lever and
+            # **defaults on for the two-line since the W7-A flip** (the
+            # per-tick position read is its actuator; the W6-C battery
+            # measured it with the read on, `logs/w6/`). `=0` turns the
+            # reading off again.
             sample_now = self.current_sample
             if sample_now is not None and self._closed_gap.get(self.current_arm) is not None:
                 session.payload_clear[self.current_arm] = bool(

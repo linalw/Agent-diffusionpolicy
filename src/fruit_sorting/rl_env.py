@@ -166,7 +166,13 @@ from .policy.trigger import TriggerSettings, should_fire
 #: fingerprint matches and the two-line baseline stream reproduces;
 #: `logs/w6/`), so the W5-C measurements carry and the pin follows the file as
 #: always.
-TASKS_MD5 = "fa9594fb32e3518ad7968d3cc27604d1"
+#: The W7-A lane (2026-10-11) flipped `FRUIT_BIARM_PARK_EARLY` to **default on
+#: for the two-line session** (`_dynamic_profile("FRUIT_BIARM_PARK_EARLY", "0",
+#: "1")`, the W1-profile scoping convention; explicit `=0` restores the pre-W7
+#: gate). Single-arm, shared-station and policy paths are byte-unchanged (the
+#: single-arm no-harm stream and the acceptance fingerprint match; `logs/w7/`),
+#: so the pin follows the file as always.
+TASKS_MD5 = "bf822c09832883c00b47572c203c3a1f"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(

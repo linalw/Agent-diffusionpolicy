@@ -12394,3 +12394,71 @@ gitignored). The `next_target_t` nit (the reservation timestamp is not cleared
 on a stale drop or an abandoned reservation - harmless today: only read on a
 consume and overwritten by the next reservation) is **deferred** per the gate:
 a code edit would invalidate the W6-C tree pins.
+
+### W7-A: the park-gate lever becomes the two-line default; the W6-B battery replays bit-identically and the single-arm default is byte-unchanged
+
+(2026-10-12, Tier A solo; no commit - the parent commits.) Owner-approved
+promotion of the W6-C park-gate lever (the W6-D decision): `FRUIT_BIARM_PARK_EARLY`
+is now default **on for the two-line session** and nothing else moved.
+**Tree pin:** `tasks.py` **bf822c09** (both gate sites -
+`_biarm_park`'s predicate and `_biarm_after_step`'s payload-clear publication -
+resolve `self._dynamic_profile("FRUIT_BIARM_PARK_EARLY", "0", "1")`; an explicit
+env value always wins, so `=0` restores the pre-W7 gate; both sites are
+two-line-guarded so the single-arm / shared-station / policy paths never
+evaluate it; `FRUIT_BIARM_PARK_GATE` unchanged default off); `rl_env.py`
+`TASKS_MD5` metadata-only follow `fa9594fb -> bf822c09`; driver
+`scripts/189_w7a_chain.sh` `3a675d68`. Results: `logs/w7/A_RESULTS.md`.
+
+**Runs** (`logs/w7/00_driver.log`, all exit=0; `43`/`44` tree pins identical):
+dense two-line wave-sheet re-record x2 (`10`/`11`), W6-B patch battery x2
+(`20`/`21`), single-arm patch no-harm (`30`), then `ACCEPT_LOG=logs/w7/50_accept_w7a.log
+scripts/accept.sh` (claim-wrapped, full output `51`). Offline: `selfcheck.sh`
+PASS 0 failures (`01`), `172_supply_selftest.py` 52 checks PASS (`02`).
+
+**The W6-C pair replays bit-identically.** `20` is IDENTICAL 861/861 physics
+`[fruit]` lines to `logs/w6/31_lever_park_1.log` (the same config with the env
+set explicitly) and to `32` (trace-on); `20` vs `21` is 861/861. So the numbers
+of record are unchanged: **12/20, 3.64 batch / 3.63 window placed/min, pooled
+interval 16.53 / 17.30 / 19.90 s, left/right idle 33.6 s (18 %)/47.4 s (24 %)**,
+and the branch reading (timing-only **+10 %**, residual **x1.22**, not the raw
++34 %) carries. Report `41_w7_report.txt`.
+
+**The dense W3/W4 re-record is a moved branch.** With the lever on, `10`/`11`
+are bit-identical (442/442) and read **7/10, 9.1 s/attempt, 4.60 placed/min**
+(left 2/5, right 5/5, `diverted=0`, `gate_open=0.0 s`, zero `indexed:`) against
+the pre-flip record's 8/10, 11.2 s, 4.27/min; first divergence at the left
+station acquisition t=30.4 vs 31.4 (the park gates open at payload-clear
+instead of release). Failures: left kiwi idx 13 and left peach idx 3 grasp miss
+(`fruit did not follow the gripper`) and left orange idx 10 place escape - the
+same left acquisition/carry classes as the record's two orange failures,
+different draw. Per AGENTS section 2 the count is one sample of a different
+configuration: the fingerprint and the per-leg motion are the comparison. All
+10 descents pass (worst `|v|max` 0.111 vs 0.160-0.161; lurch 0.023 vs 0.291;
+`a_win5` worst 1.62 is the reported carrying warning), 18 carry legs reported,
+0 over the 0.45 hand report.
+
+**The two-line fingerprint.** `python3 scripts/105_motion_regression.py
+logs/w7/10_dense_twoline_1.log --write-fingerprint
+configs/motion_reference_twoline.json` (`181c9151`) and `11` checks against it
+(`fingerprint: matches`, `42_fingerprint.txt`); the single-arm
+`configs/motion_reference.json` is byte-untouched (`b9e72ca7`). Tooling caveat
+recorded: `105` applies its single-arm dynamic 0.75 success floor to a two-line
+log, so both invocations exit 1 on `success 7/10 below 75%` while every motion
+budget passes; a documented floor-override re-check (`--min-success-rate 0.5`)
+exits 0 with the same match. The two-line is a different scenario (its dense
+records are 7-8/10, its patch battery 10-12/20), which is why it has its own
+reference.
+
+**No-harm is exact.** The single-arm patch run `30` is IDENTICAL to the W6-C
+record `logs/w6/20_single_noharm.log` 643/643 physics-only and 681/681 on the
+full stream (13/18, 2.12/2.17 placed/min unchanged). The acceptance stream `50`
+is IDENTICAL 385/385 (365/365 physics-only) to `logs/w6/60_accept_w6c.log` and
+365/365 physics-only to `logs/w4/70_accept_w4_tree.log`; the gate reads **9/10,
+15.2 s/attempt, `diverted=0`, PASS, `fingerprint: matches
+configs/motion_reference.json`**.
+
+**Remains for later:** `FRUIT_BIARM_PREFETCH` stays a default-off hook and L2
+(adaptive lead) is still the named next lever; the W6-E failure classes are
+unchanged; the two-line's own success bar is not formalised (the 105 floor is
+single-arm) - until it is, gate two-line runs on the fingerprint + per-leg
+motion and quote rates with the scenario.
