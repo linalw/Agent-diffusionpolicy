@@ -13682,3 +13682,102 @@ change, no `src/` path**.
 
 No-harm: `bash -n scripts/190_twoline_gate.sh` OK; `scripts/selfcheck.sh` PASS;
 no `src/` change; pins untouched. Commit `R5.1`; not pushed.
+
+### R6-B (the carry/grip class): the WS-4.7 combination is the best edge-band config but does not zero the flail; the direct grip is a drive-saturated pinch; the retuned slip-guard does not convert the carry class
+
+**Scope (2026-10-13, branch `r6-carry` from `main` at `f112370`, tag `v0.9`).**
+Phase B of the R5-decisions plan (`.slim/deepwork/sorting-pipeline-v3.md`
+"R5-DECISIONS"): the WS-4.7 combination screen (the direct-path reach cliff)
+and one bounded attempt at the shared carry/grip class, with the W8-B
+`clean_slip` metric as the yardstick. Two new default-off, direct-path-scoped
+knobs (`FRUIT_DIRECT_HOVER_TOL`/`_STEPS`, `FRUIT_CARRY_RELIEF`); **no shipped
+default changes** (the owner's R5 decisions stand). Tier A solo; full
+evidence `logs/r6/B_RESULTS.md`.
+
+1. **WS-4.7 combination screen (the reach-cliff flail).** The R2 probe
+   decomposed the class into a premove term (the default-off
+   `FRUIT_DIRECT_RESEED` removes it), a hover/reach-edge term (the 8 mm move
+   tolerance is unattainable past x ~ 0.39, so `move_to` runs its 500-step cap
+   while the fruit travels) and a catch-up stall. On the forced edge band
+   (x = 0.36-0.42, N = 1x15 per configuration, checkpoint `moe_v13s`, seed 77,
+   the R2 protocol) the **combination** (reseed + `X_MAX=0.39`) reads **5
+   flail legs / 15 attempts** (33 %; 3 premove-cap, 2 fast-stall) against the
+   R2 controls' 10/15 (no lever) and 13/30 pooled (reseed alone); its 5
+   refusals split 2 rode-past / 3 attempted-anyway, and **all 3
+   attempted-anyway attempts flailed** (the WS-4.6 policy-gate bypass
+   re-confirmed, 3/3). The hover-tolerance candidate (`HOVER_TOL=0.02`) is
+   **inert at the edge** (the hand does not converge inside 20 mm either; the
+   stage still caps on 3/10; 4/15 flails; the recorded hover error rises
+   8 -> 19 mm); the step bound (`HOVER_STEPS=150`) **does** bound the stage
+   (1.25 s vs 4.16 s) but moves the class to the catch-up (6/15 flails, 5
+   fast-stall, residuals to 1.87 m - a worse trade). Shipped band
+   (combination + `TOL=0.02`): 0 refusals, 1/15 flails (a left fast-stall,
+   `clip=+175.4 mrad@j2`), hover error 18-20 mm, the catch-up closes it.
+   **No candidate adopted** (both knobs default off; the scripted line pinned
+   to the constants). The residual is the reach cliff itself (an unreachable
+   premove target at x >~ 0.36) plus the WS-4.6 bypass.
+
+2. **The carry mechanism read: a drive-saturated pinch.** Offline, across the
+   four trace corpora, the direct `grasp_lift` command sits a **median 11.9 mm
+   inside the payload's measured span** at the leg start (n = 46 contact
+   legs; p25/p75 10.5/13.5; 45/46 >= 5 mm; `logs/r6/B_offline_mechanism.txt`)
+   and the contact force reads 4.1-4.5 N - the finger drives' force limit.
+   The new default-off interference cap (`FRUIT_CARRY_RELIEF`) releases the
+   command by 12-23 mm (to 5 mm and 0.5 mm of allowed interference) and the
+   force is **unchanged (Fmin 4.15 / 4.47 N, `logs/r6/B_relief_smoke.txt`)**:
+   the drive force is command-independent, so the whole squeeze-side family
+   (more *or* less interference: the W5-C takeoff-squeeze screens,
+   `FRUIT_SLIP_SQUEEZE_STEP`, the freeze-depth A/B, this cap) is closed by
+   measurement. The earliest measurable escape signal (one-sided contact,
+   `min(ft) < 0.15 max(ft)`) fires on the same or an adjacent tick as the 2 mm
+   crossing on most legs (asymmetry -> loss median 29 ticks vs the crossing's
+   25; n = 25 lift-leg escapes, `logs/r6/B_window.txt`), so no reaction lever
+   gains a window.
+
+3. **The carry lever: the retuned slip-guard - not adopted, and the W8-B
+   directional read does not reproduce.** The W8-B guard's named residuals
+   (the 20 mm re-seat cap reached on the median fired leg; the +5.4 % cycle
+   from the 24-tick holds and the 0.5 derate) were retuned with the trigger
+   (2 mm) and the total hold budget (72 ticks) fixed: `HOLD_TICKS=8`,
+   `RESEAT_MAX=0.060`, `DERATE=0.8`. N = 5 runs/arm x 15 episodes, seeds
+   [77,101,202,303,404], interleaved, the W8-A/B scenario verbatim,
+   `FRUIT_CARRY_DIAG=1` on both arms. Measured: pooled **24/75 = 32 % (A) vs
+   25/75 = 33 % (B)**; carried-not-placed **46 -> 44**; paired same-fruit
+   **3 B-only / 1 A-only**, sign **p = 0.3125**; median cycle **1849 -> 1933
+   ticks (+4.5 %)**; strawberry 4/8 -> 7/12; no new failure reason. The
+   mechanism yardstick: the re-seat reach is live (med 21.9 / max **38.1 mm**
+   against W8-B's 20.0 cap) yet the guard's own outcome counters are
+   **identical to the W8-B arm at this granularity (fired 52/75, 39 lost,
+   13 survived)** and the 100-400 mm band converts **0/37** (W8-B 0/34) -
+   the band carries the class and every bounded in-hand re-seat leaves it.
+   W8-B's directional read (carried 50 -> 42, 5-1, p = 0.1094) did **not**
+   survive its second N=5 sample (46 -> 44, 3-1, p = 0.3125). Per the
+   pre-registered rule: **not adopted**; `FRUIT_CARRY_GUARD` stays default
+   off and the WS-1/R1 lever slot stays closed with the class named
+   structural for the bounded-reaction family (drive-limited margin, no
+   reaction window, slide longer than any bounded re-seat). The named next
+   directions: the WS-4.6 interface item, a scenario-level grip-geometry
+   change (W5 row 10), or another recollect - the last two read negative in
+   W8-A/W7-C.
+
+4. **No-harm.** `scripts/selfcheck.sh` **PASS** (0 failures, 1 skipped;
+   `logs/r6/C_selfcheck.log`); the single-arm acceptance `logs/r6/C_accept.log`
+   reads **9/10, 15.2 s/attempt, motion gate PASS, `fingerprint: matches`**,
+   and its 385/385 `[fruit]` lines are byte-identical to both
+   `logs/r5/40_accept.log` and `logs/w8/R2_accept.log`
+   (`logs/r6/C_stream_cmp_r5/r2.txt`); the two-line dense re-record
+   (`logs/r6/C_twoline.log`) is **IDENTICAL 442/442** to the W7-A record
+   (`logs/w7/10_dense_twoline_1.log`) and **PASSes**
+   `scripts/190_twoline_gate.sh` (7/10, floor 0.60, `fingerprint: matches
+   configs/motion_reference_twoline.json`). The new branches are unreachable
+   with the envs unset: `relief_acts` needs `FRUIT_CARRY_RELIEF > 0` **and**
+   a direct dynamic capture, and the hover constants are forced for the
+   scripted path. Pins: batch tree `tasks.py` `1d6e9662`, `rl_env.py`
+   `c997f0ca`; final tree `tasks.py` `b2c79938` (comment-only difference),
+   `rl_env.py` `5940a7c8`; `trigger.py` `763ad89e` / `runtime.py` `ffb76bfd`
+   unchanged; checkpoint `moe_v13s` `61da390a`. Wall-time note: a host-level
+   15-25x slowdown (18:28-22:45, unattributed; no other lane active) forced
+   the B batch's three cut runs to be resumed, and A_5's first resume wedged
+   (the RTX renderer class) - the re-run's watchdog killed and retried it;
+   every quoted number is from a completed run. Commit `R6-B`; not pushed.
+   The roadmap/AGENTS pointers are left to the R6 integration pass.

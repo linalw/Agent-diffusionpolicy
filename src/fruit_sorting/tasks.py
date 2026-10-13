@@ -496,6 +496,37 @@ class PickAndPlaceTask:
         self._carry_guard_legs = os.environ.get("FRUIT_CARRY_GUARD_LEGS", "grasp_lift")
         #: Set per attempt from `direct_capture` (never a global default).
         self._carry_guard_active = False
+        #: R6-B carry **interference cap** (default off, direct handover only;
+        #: `_carry_relief_active` scopes it like the guard). The W8-B mechanism
+        #: read (`logs/w8/B_RESULTS.md`) and the R6-B offline read
+        #: (`logs/r6/B_offline_mechanism.txt`) measured the direct grip *drive
+        #: saturated* at the carry: the commanded gap sits a median 11.9 mm
+        #: inside the fruit's measured span at the lift start (n=46 contact
+        #: legs; 45/46 >= 5 mm), i.e. the finger drives push their 10 N/joint
+        #: limit into the payload, while `mu=2.0` leaves the friction cone far
+        #: above the load. The escape itself is a round-fruit squeeze-out
+        #: (single-sided contact -> the remaining contact's friction rolls the
+        #: payload out through the fingertips; the jaws pry toward their
+        #: limit). The cap was screened against the hypothesis that the
+        #: ejection scales with the commanded interference, and it is
+        #: **measured inert**: releasing the command by 12-23 mm (down to
+        #: 0.5 mm of allowed interference) leaves the contact force at
+        #: 4.15-4.47 N, i.e. the drive force is command-independent. The knob
+        #: is kept as the default-off instrument that records that negative:
+        #: `gap_cmd >= measured_span - FRUIT_CARRY_RELIEF`, approached at a
+        #: bounded rate (`FRUIT_CARRY_RELIEF_STEP`), on the legs named by
+        #: `FRUIT_CARRY_RELIEF_LEGS` (exact match, default `grasp_lift`).
+        #: 0.0 = off (byte-neutral). It never *adds* squeeze; the force servo's
+        #: own close is simply bounded by the cap.
+        self._carry_relief = float(os.environ.get("FRUIT_CARRY_RELIEF", "0.0"))
+        self._carry_relief_step = float(
+            os.environ.get("FRUIT_CARRY_RELIEF_STEP", "0.0004")
+        )
+        self._carry_relief_legs = os.environ.get(
+            "FRUIT_CARRY_RELIEF_LEGS", "grasp_lift"
+        )
+        #: Set per attempt from `direct_capture`, like the guard's own flag.
+        self._carry_relief_active = False
         #: W8-B carry-window readout (default off): one `[carry]` summary per
         #: dynamic carry leg with the self-consistent in-hand displacement, the
         #: onset (first row past the trigger), the force/contact state at the
@@ -1838,6 +1869,15 @@ class PickAndPlaceTask:
                 and self._dynamic_capture_active
                 and name in [s for s in self._carry_guard_legs.split(",") if s]
             )
+            #: R6-B carry interference cap: same scoping as the guard (direct
+            #: handover only), its own leg list and off unless a relief > 0 is
+            #: set. It runs even with `FRUIT_CARRY_GUARD=0`.
+            relief_acts = bool(
+                self._carry_relief_active
+                and hand_is_jaw
+                and self._dynamic_capture_active
+                and name in [s for s in self._carry_relief_legs.split(",") if s]
+            )
             guard_trigger = self._carry_guard_trigger
             guard_ref = None
             guard_fruit_prev = None
@@ -1862,6 +1902,10 @@ class PickAndPlaceTask:
             guard_hold_budget = self._carry_guard_hold_budget
             guard_reseat = np.zeros(3)
             guard_reseat_used = 0.0
+            #: R6-B relief readout: the command's own value at the leg start and
+            #: the largest opening the cap applied over the leg.
+            relief_gap_start = float(gap_command)
+            relief_open_max = 0.0
             n_ticks = len(commands)
             if guard_acts:
                 # The profile may be frozen for up to the hold budget; the
@@ -1972,6 +2016,26 @@ class PickAndPlaceTask:
                 # estimate reads 6 cm long, `logs/...`), so the assignment has
                 # to sit before the branch or it silently never runs.
                 gap_command = self._force_servo_step(side, gap_command)
+                if relief_acts:
+                    # R6-B interference cap (see the knob block in `__init__`):
+                    # the command may not sit deeper than `FRUIT_CARRY_RELIEF`
+                    # inside the *measured* span, and it approaches the cap at a
+                    # bounded rate so the release is not a step. The cap only
+                    # ever *opens* the command (`max`), so the force servo's
+                    # back-off still works and a payload that leaves the hand
+                    # (span collapses) releases the cap by itself. The servo's
+                    # own cursor has to carry the relieved value, or its next
+                    # tick returns the un-relieved gap and the opening never
+                    # accumulates (`_force_servo_step` returns its own state).
+                    relief_cap = float(arm.jaw_separation()) - self._carry_relief
+                    gap_command = max(
+                        gap_command,
+                        min(relief_cap, gap_command + self._carry_relief_step),
+                    )
+                    relief_open_max = max(
+                        relief_open_max, gap_command - relief_gap_start
+                    )
+                    self._force_gap[side] = gap_command
                 self._closed_gap[side] = gap_command
                 if coherent:
                     # Rigid hand: command the *palm* along the profile and let the
@@ -2170,8 +2234,10 @@ class PickAndPlaceTask:
                     # following the payload within a few millimetres without the
                     # teleporting that used to do the carrying.
                     self._recentre_gripper(side, sample)
-            if guard_armed:
-                # W8-B carry-window readout: one line per dynamic carry leg.
+            if guard_armed or relief_acts:
+                # W8-B carry-window readout: one line per dynamic carry leg
+                # (R6-B adds the interference-cap fields; with only the relief
+                # on the clean-slip fields print their zero state).
                 force_at = (
                     "n/a" if guard_onset_force is None
                     else f"{guard_onset_force:.2f}"
@@ -2190,7 +2256,10 @@ class PickAndPlaceTask:
                     f"min_contacts={guard_contacts_min} force_min={fmin:.2f}N "
                     f"loss_row={guard_loss_i} guard={int(guard_acts)} "
                     f"events={guard_events} holds={guard_holds} "
-                    f"reseat={guard_reseat_used * 1000:.1f}mm"
+                    f"reseat={guard_reseat_used * 1000:.1f}mm "
+                    f"relief={int(relief_acts)} "
+                    f"gap_start={relief_gap_start * 1000:.1f}mm "
+                    f"open_max={relief_open_max * 1000:.1f}mm"
                 )
             if monitor is not None:
                 summary = monitor.summary()
@@ -5122,6 +5191,9 @@ class PickAndPlaceTask:
         # only (see the knob block in `__init__`). A scripted call always clears
         # it, and `_carry` additionally requires the attempt to be dynamic.
         self._carry_guard_active = bool(self._carry_guard and direct_capture)
+        # R6-B carry interference cap scope (see the knob block in `__init__`):
+        # direct handover only, independent of the W8-B guard's own switch.
+        self._carry_relief_active = bool(self._carry_relief > 0.0 and direct_capture)
         direct_hover = float(os.environ.get("FRUIT_DIRECT_HOVER", "0.0"))
         direct_catch_lead = float(os.environ.get("FRUIT_DIRECT_CATCH_LEAD", "0.25"))
         #: Safety net for the direct catch-up: never command the tip more than
@@ -5588,8 +5660,24 @@ class PickAndPlaceTask:
                     # its full 500 steps (4.2 s) and the fruit is 40 cm downstream
                     # before the descent (`logs/p2b/smoke_fix2`). The descent below
                     # starts from the parked pose and absorbs the residual.
+                    # R6-A (WS-4.7): the *direct* handover may coarsen this
+                    # tolerance (`FRUIT_DIRECT_HOVER_TOL`, default 0.008 =
+                    # byte-identical) and/or bound the move (`..._STEPS`, default
+                    # 500). The R2 flail mechanism named this term: at x >~ 0.39
+                    # the 8 mm tolerance is unattainable, `move_to` burns its
+                    # 500-step cap (~4.2 s) while the fruit travels, and the
+                    # catch-up then starts far downstream with the arm at its
+                    # joint limit. A coarser tolerance exits the move as soon as
+                    # the hand stops converging, handing the residual to the
+                    # catch-up earlier; the scripted line keeps the constants.
+                    hover_tol = float(os.environ.get("FRUIT_DIRECT_HOVER_TOL", "0.008"))
+                    hover_steps = int(os.environ.get("FRUIT_DIRECT_HOVER_STEPS", "500"))
+                    if not direct_capture:
+                        hover_tol, hover_steps = 0.008, 500
                     hover_residual = arm.move_to(
-                        arm.tcp_target_for_jaw(hover), max_steps=500, tolerance=0.008
+                        arm.tcp_target_for_jaw(hover),
+                        max_steps=hover_steps,
+                        tolerance=hover_tol,
                     )
                     if acq_diag:
                         acq_info["stages"]["hover"] = self._sim_time()

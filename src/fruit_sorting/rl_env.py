@@ -195,7 +195,7 @@ from .policy.trigger import TriggerSettings, should_fire
 #: record bit-identically (821/821 physics lines) and the single-arm
 #: acceptance stream is 385/385 identical (`logs/w8/R3_RESULTS.md`), so the
 #: W7-B invariance argument holds and the pin follows the file as always.
-TASKS_MD5 = "0c51cfa50cf83dae2f40c4cc18579613"
+TASKS_MD5 = "b2c799386ac4f88c20070d841cb10eb3"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(
