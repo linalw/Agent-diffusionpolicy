@@ -22,7 +22,14 @@ two-line-only, ACQ is **not shipped** (default off, a measurement interface),
 and the hybrid pinned canary remains the interface of record (the direct loop
 is the mechanism-research interface under the N=5 protocol); the ops
 self-check's artifact/chain scan is widened to `logs/*/*.log` (`logs/ops/`
-excluded).
+excluded); **R6-B (2026-10-13/14, branch `r6-carry`, `logs/r6/B_RESULTS.md`):
+the Phase-B pass - the WS-4.7 combination screen (the combination roughly
+halves the edge-band flails but does not zero the class; neither hover
+candidate adopted) and the carry/grip class's retuned slip-guard (negative at
+N=5; the W8-B directional read did not reproduce), with the direct grip named
+as a drive-saturated pinch; no shipped default changes** (new default-off,
+direct-path-only knobs: `FRUIT_DIRECT_HOVER_TOL`/`_STEPS`,
+`FRUIT_CARRY_RELIEF`).
 Numbering: the plan's phases are **R0-R6** (this document), and the P-PLAN
 deliverables carry the **`PP-` prefix** (PP-P1 ops tool / PP-P2 this roadmap /
 PP-P3 validation) so the two schemes cannot collide. Scope: the work after
@@ -59,18 +66,19 @@ menus in `logs/w5/FRONTIER.md` (failure mechanisms) and
 | piece | state | evidence |
 | --- | --- | --- |
 | **Shipped single-arm dynamic line** (OpenArm, never-stop catch, v9/V1 scattered supply, `FRUIT_DYNAMIC_PICK` unset) | **9/10, 15.2 s/attempt, 3.55 placed/min**; the one failure is a left place/carry escape; x5 bit-identical | `logs/v1/31_accept_supply_verified.log`, `logs/v1/20_rate_supply_1..5.log`, AGENTS.md section 2 |
-| Acceptance of record on the current code tree (`tasks.py` `0c51cfa5`, R3; every R3 knob off, L2/L3 two-line only) | **9/10, 15.2 s/attempt, motion gate PASS, `fingerprint: matches`**; its 385/385 `[fruit]` lines are byte-identical to the R2 acceptance (`logs/w8/R2_accept.log`), itself identical to W8-B/W7-A | `logs/w8/R3_accept.log`; single-arm reference `configs/motion_reference.json` (`b9e72ca7`) |
+| Acceptance of record on the current code tree (`tasks.py` `b2c79938`, R6-B; every R6-B knob off, direct-path only) | **9/10, 15.2 s/attempt, motion gate PASS, `fingerprint: matches`**; its 385/385 `[fruit]` lines are byte-identical to the R3/R2/R5 acceptances (`logs/w8/R2_accept.log` and `logs/r5/40_accept.log`, themselves identical to W8-B/W7-A) | `logs/r6/C_accept.log` (+ `C_accept_stdout.log`); single-arm reference `configs/motion_reference.json` (`b9e72ca7`) |
 | **Two-line opt-in** (`FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=1`; left station y=0.00 grade A, right y=-0.10 grade B, C passes; patch sheet) | W6-B baseline **10/20, 2.78 batch / 2.70 window placed/min**; same-scenario single arm **13/18, 2.12/2.17** -> pre-registered window ratio **1.24x** (< the 1.25x flip bar); pooled interval 22.20 / p90 45.50 s; **flip decided: NO (R5, 2026-10-13) - stays opt-in, the bar unchanged** | `logs/w6/BASELINE.md` |
 | **Park-gate lever is the two-line default** (W7-A; `FRUIT_BIARM_PARK_EARLY` resolves to 1 under a two-line session) | replays W6-C bit-for-bit: **12/20, 3.64 batch / 3.63 window**, pooled interval **16.53 / 17.30 / 19.90 s**, left gate-blocked idle **25.2 -> 0.2 s**, idle 18 %/24 %; timing-only +10 %, residual x1.22 branch factor; **R3 (WS-3) adds no speed lever on top**: the L2 adaptive lead is bit-identical (the fixed 1.5 s floor *is* the measured setup; 0/20 floor-bound), the L2 tight override probe is negative (8/20, window 2.59; zero new failure reasons), and the L3 hot-arm residency fires **4/18** and leaves the interval flat-to-worse (window 3.41, pooled 17.62 s; idle 27 %/27 %) - all default off | `logs/w7/A_RESULTS.md` (861/861 physics lines vs `logs/w6/31/32`); `logs/w8/R3_RESULTS.md` + `R3_l2_checks.txt`/`R3_l3_checks.txt` |
 | Dense W3/W4 wave sheet re-record (moved branch) | **7/10, 9.1 s/attempt, 4.60 placed/min**, `diverted=0`; own reference `configs/motion_reference_twoline.json` (`181c9151`); pre-flip control replays W4 bit-for-bit with `PARK_EARLY=0`; re-recorded on the W8-B tree (W8-B.1): `logs/w8/70_w8b1_twoline.log` is 442/442 `[fruit]`-identical to the W7-A pair and `scripts/190_twoline_gate.sh` PASS | `logs/w7/A_RESULTS.md`, `logs/w7/15_dense_control_park_off.log`, `logs/w8/B_RESULTS.md` |
 | Patch-scenario motion reference (R5-open) | `configs/motion_reference_patch.json` (**b08dd3e9**, 20 legs), written from the patch battery's run 1 (`logs/r5/20_patch_battery_1.log`; the double run `21` is bit-identical 821/821 and replays the W7-A record); gated by `TWOLINE_REF=configs/motion_reference_patch.json scripts/190_twoline_gate.sh -m 0.5` | `logs/r5/RESULTS.md` section 2; R3_RESULTS section 6 item 5 |
+| R6-B: the carry/grip class + the WS-4.7 combination screen (2026-10-13/14, branch `r6-carry`; `R6-B` commit + `Phase B.1` gate fixes; new knobs `FRUIT_DIRECT_HOVER_TOL`/`_STEPS`, `FRUIT_CARRY_RELIEF` default off, direct-path only) | **measured, no adoption**: the combination (reseed + `X_MAX=0.39`) roughly halves the edge-band flails (**5/15 vs the no-lever 10/15**; P3/P4 pooled 13/30; C1's 4/15 within the spread) but does not zero the class - the 3 premove caps are the 3 attempted-anyway refusals (targets x 0.4086/0.4201/0.4212, err 34-41 mm, vs fired targets 0.329-0.386 converging in 12-21 mm); the direct grip is a **drive-saturated pinch** (command median 11.9 mm inside the measured span; force 4.1-4.5 N; the relief cap releases the command to 0.5 mm and the force is unchanged); the retuned guard **not adopted** (N=5: **24/75 vs 25/75**, carried 46 -> 44, paired 3-1, p = 0.3125, cycle +4.5 %, the 100-400 mm band converts 0/37) | `logs/r6/B_RESULTS.md`; WORKLOG "R6-B"/"R6-B.1" |
 | **Policy** | shipped default **`moe_v12`** (`accept_policy.sh` line 75); direct causal loop is the measurement, the hybrid canary is the gate | `logs/w4/VERDICT.md`, `logs/w7/C_RESULTS.md` |
 | `moe_v13p` (W7-C patch recollection) | **not adopted**: W8-A N=5 confirmatory batch **21/75 = 28 % vs 22/75 = 29 %, sign p = 1.0000**, carried-class pairing 0 B-only / 2 A-only (the N=3 3-0 was noise); the carry class is 89-91 % of failures on both arms | `logs/w8/A_RESULTS.md` |
 | ACQ knob (`FRUIT_POLICY_TRIGGER_ACQ`) | default **off**; the direct evaluation pins `=1` (it removes the acquisition class: left no-contact 15 -> 0, close-start 120 -> 2.5 mm); no N=5 ACQ-off mirror exists | `logs/w7/C_RESULTS.md` section 1, `logs/w7/B_RESULTS.md` |
 | Pinned canary, `moe_v13p` ckpt (shipped scenario, fixed supply; **not** the shipped default `moe_v12`) | **8/10 PASS** (floor 60 %); matches the `moe_v13s` sample | `logs/w7/C_eval/canary_pinned.log` / `.out` |
 | W3-supply (dense sheet) hybrid canary | **closed by R5-open: FAIL 1/10 = 10 % (floor 60 %)** - 8 grip losses + 1 non-hybrid scoring row (**row 7, ep7 pear: outside the reason parser, rate-only - the FAIL is rate-only, the parsed reasons are all baseline**); the wall time is 17.5 min / 10 episodes (~1.7 min/episode - the old ~15-20 min/episode does not reproduce on the dense sheet; its mechanism is not diagnosed here); the checkpoint's direct dense eval is 7/45 = 15.6 % | `logs/r5/RESULTS.md` section 1, `logs/r5/30_canary_driver.log`, `logs/w3/HANDOFF.md` |
 | **Clearance** | **Decided (R5, 2026-10-13): a per-config report, no gate - the F2 convention is not re-imposed.** Dense W3/W4 moved branch **2.59 mm min, 863/10042 = 8.6 % < 30 mm**; patch battery **1.9 mm, 4.7 % < 30 mm**; the F2 **45 mm / zero-under-30 convention is not met**; no arm-arm contact is possible (`enabledSelfCollisions=0`) and no attempt has ever failed by contact | `logs/w7/A_RESULTS.md` section 4, `logs/w6/C_RESULTS.md` section 3 |
-| Branch/tag state | `w8-carry` = the W8-B commit `d682a62` (the carry metric + the default-off guard, measured-not-adopted) + the W8-B.1 gate-fix docs (`e7d1ed3`), on top of `78e822e` (W8-A.1), which carries the W8-A/plan chain (`c973020`, `38d4699`, `cb39de8`, `459b00f`); `w8-confirm` sits at `78e822e`; **`w8-residuals` = the R2 commit `7f2fc69` + the R2.1 gate fixes `fd273fb` (tag `v0.8c`); `w8-speed` = the R3 commit `c1cd246` + the R3.1 gate fixes `76e454e` (tag `v0.8d`), merged and pushed: `main` and `origin/main` are at `76e454e` (tag `v0.8d`), the current main; the tag ladder runs through `v0.8d`**; `r5-open` (the R5 non-blocked items: the WS-4.4 canary, the patch reference, the docs pass) = `2a8d19d` + the R5-decisions commit (the register closed, the ops glob nit), local, **pending merge**; tags `v0.6-w6` (`9f91c75`), `v0.7-w7a/b/c`, `v0.8` (`78e822e`), `v0.8b` (`e7d1ed3`), `v0.8c` (`fd273fb`), `v0.8d` (`76e454e`) | `git log` / `git rev-parse`, `WORKLOG.md` "W8-A" / "W8-B" / "P-PLAN" / "R2" / "R2.1" / "R3" / "R3.1" / "R5-open" / "R5-decisions", `logs/w8/B_RESULTS.md`, `logs/w8/R2_RESULTS.md`, `logs/w8/R3_RESULTS.md`, `logs/r5/RESULTS.md` |
+| Branch/tag state | **`main`/`origin/main` = `f112370` (R5.1), tag `v0.9`** - the R5 chain (R5-open `2a8d19d` + R5-decisions + R5.1) is merged and pushed; the tag ladder runs through **`v0.9`**; **`r6-carry` = the R6-B commit `9dfbd2f` (the message-amended `5bcc0a9`; the WS-4.7 screen + the carry mechanism/lever, docs `logs/r6/`) + the `Phase B.1` gate-fix commit, local, pending merge**; history: `w8-carry` = the W8-B commit `d682a62` (the carry metric + the default-off guard, measured-not-adopted) + the W8-B.1 gate-fix docs (`e7d1ed3`), on top of `78e822e` (W8-A.1), which carries the W8-A/plan chain (`c973020`, `38d4699`, `cb39de8`, `459b00f`); `w8-residuals` = the R2 commit `7f2fc69` + the R2.1 gate fixes `fd273fb` (tag `v0.8c`); `w8-speed` = the R3 commit `c1cd246` + the R3.1 gate fixes `76e454e` (tag `v0.8d`); tags `v0.6-w6` (`9f91c75`), `v0.7-w7a/b/c`, `v0.8` (`78e822e`), `v0.8b` (`e7d1ed3`), `v0.8c` (`fd273fb`), `v0.8d` (`76e454e`), `v0.9` (`f112370`) | `git log` / `git rev-parse`, `WORKLOG.md` "W8-A" / "W8-B" / "P-PLAN" / "R2" / "R2.1" / "R3" / "R3.1" / "R5-open" / "R5-decisions" / "R6-B" / "R6-B.1", `logs/w8/B_RESULTS.md`, `logs/w8/R2_RESULTS.md`, `logs/w8/R3_RESULTS.md`, `logs/r5/RESULTS.md`, `logs/r6/B_RESULTS.md` |
 
 Open thread carried from the record: the two-line **store -> single-arm direct
 transfer** question (does a two-line recollection transfer to the direct
@@ -123,6 +131,31 @@ re-record (`logs/w8/70_w8b1_twoline.log`, `SEED=5`, 10 attempts) is
 `[motion] carry slip_max` must not be quoted for the OpenArm hand
 (frame-contaminated; use `clean_slip` - `logs/w8/B_RESULTS.md` section 1 and
 README's grip-quality paragraph).
+
+**Outcome continuation (R6-B, 2026-10-13/14, branch `r6-carry`,
+`logs/r6/B_RESULTS.md` + WORKLOG "R6-B"/"R6-B.1"): the WS-1 lever slot stays
+closed.** The W8-B-named residuals were retuned with the trigger (2 mm) and
+the total hold budget (72 ticks) fixed (`HOLD_TICKS=8`, `RESEAT_MAX=0.060`,
+`DERATE=0.8`) at N = 5 paired x 15 episodes: pooled **24/75 = 32 % vs 25/75 =
+33 %**, carried-not-placed 46 -> 44, paired same-fruit **3 B-only / 1
+A-only** (sign **p = 0.3125**), cycle **+4.5 %**, no new reasons. The re-seat
+reach is live (max 38.1 mm) but the guard's own outcome counters are
+identical to the W8-B arm at this granularity (fired 52/75, 39 lost, 13
+survived; different samples - aggregate equality only) and the 100-400 mm
+band converts **0/37** (W8-B 0/34). The mechanism: the direct grip is a
+**drive-saturated pinch** (the `grasp_lift` command sits a median 11.9 mm
+inside the payload's measured span at the leg start, n = 46 contact legs;
+force 4.1-4.5 N), and the new default-off `FRUIT_CARRY_RELIEF` cap releases
+the command to 0.5 mm of interference with the force **unchanged** (Fmin
+4.15-4.47 N) - the squeeze-side family is closed by measurement; the
+one-sided-contact escape signal fires 0-2 ticks before the 2 mm crossing on
+23/25 legs, so no reaction window exists. W8-B's directional read (carried
+50 -> 42, 5-1) did **not** reproduce (46 -> 44, 3-1). The class is
+*structural* for the bounded-reaction family; the named next directions:
+the WS-4.6 interface item, a scenario-level grip-geometry change (W5 row
+10), or another recollection (W8-A/W7-C read negative). No-harm: acceptance
+**9/10 + motion gate PASS + `fingerprint: matches`** and 385/385 identical;
+the two-line dense re-record 442/442 identical + `190` PASS.
 
 ### WS-2 - W8-C: the residuals
 
@@ -290,6 +323,30 @@ decisions (WS-5.1-5.3 plus the ACQ/interface rows) are recorded in the register
   the W3-canary lines now carry the R3/R5-open outcomes; the branch/tag state
   row is refreshed. No `src/` or `scripts/` change.
 
+**Outcome (R6-B, 2026-10-13/14, branch `r6-carry`, `logs/r6/B_RESULTS.md` +
+WORKLOG "R6-B"/"R6-B.1"): 4.7 ran; the combination is not adopted and the
+residual is named.** Forced edge band (x = 0.36-0.42, N = 1x15 per config):
+the combination (reseed + `X_MAX=0.39`) reads **5/15 flails** (3 premove-cap,
+2 fast-stall) against the no-lever 10/15 and the reseed-only P3/P4 13/30
+pooled; **every attempted-anyway refusal flailed** (3/3, 4/4, 3/3 across the
+three edge runs - the WS-4.6 policy-gate bypass re-confirmed). The three
+premove caps are exactly the three attempted-anyway refusals (premove targets
+x = 0.4086 / 0.4201 / 0.4212, err 34-41 mm), while the fired attempts'
+targets (x = 0.329-0.386) converge in 12-21 mm - the cap is the bypass's
+mechanism. `HOVER_TOL=0.02` is **inert at the edge** (4/15; the hand cannot
+hold 20 mm either and the stage still caps on 3/10); `HOVER_STEPS=150`
+**bounds the stage** (max 1.25 s, 0 caps) but trades the term (6/15: 5
+fast-stall + 1 premove-cap; the fast-stall residuals 23-331 mm - the "up to
+1.37 m" close-start residual belongs to the cap case). Shipped band (C3): 0
+refusals, 1/15 flails - a left 200-tick catch-up stall (close-start res
+103 mm, `contact=NONE`, the fruit off the belt at z = 0.82), not a
+joint-limit case (`clip_min` +175.4 mrad; the near-limit margins are the C0
+cap legs' +1.0 / -0.0 / +5.7 mrad @j5/j3/j4). Neither new hover knob is
+adopted (both default off; the scripted line is pinned to the constants).
+No-harm: acceptance **9/10 + motion gate PASS + `fingerprint: matches`**, its
+385/385 `[fruit]` lines identical to the R3/R2/R5 chain; the two-line dense
+re-record is 442/442 `[fruit]`-identical to the W7-A record (`190` PASS).
+
 ### WS-5 - the owner decisions
 
 | item | the question | evidence | what it blocks |
@@ -327,7 +384,7 @@ full decisions are in the register (section 5).
 | **7.1 Sim-to-real directions** | domain randomization + CACTI-style scene augmentation before any real-cell transfer; the cell is deterministic and measured, so transfer starts from the dynamic-line calibration | `logs/w6/FRONTIER_THROUGHPUT.md` section 1.3 [T29-T31]; the cell's scenario pins |
 | **7.2 RL / DAgger lanes** | one lane continues the P4 line on the **fixed action semantics** (v8; `moe_v9` direct 53 % before the v13 recollections): DAgger in the direct env with the ACQ interface pinned, then RWR with AWR clipping or the trigger-margin fix - under the 4.2 N=5 protocol | WORKLOG "P4"; `docs/research_dynamic_grasp_methods.md` section 4; W7-B section 4 item 4 (the knob shrinks the policy-controlled window - pin the interface) |
 | **7.3 Learned catch** | keep closed unless the scripted catch becomes the ceiling; the frontier menu is MPC interception / learned catch / vision+RL conveyor picking | `logs/w5/FRONTIER.md` **row 8** (learned catch / MPC interception; [S2][S5-S7]); **row 9 is the space-separation rework [S8][S13]**, not the learned catch; the scripted catch is ~9/10 and not the blocker |
-| **7.4 Grip-margin methods** | the WS-1 metric first (**satisfied** 2026-10-13: `clean_slip` separates clean vs escape with no overlap, `logs/w8/B_RESULTS.md`), then the W5 survey **rows 2-3** - row 2's form (slip guard with derate + bounded re-seat) is measured **negative at adoption strength in R1** (`FRUIT_CARRY_GUARD`), row 3 (place-entry contact maintenance) is untested - and the tactile fast branch (RDP/TDP/FARM) if the carry class survives a scripted lever; **row 1 is the ACQ-knob line** (shipped default-off, WS-4.1); **rows 5 (TPG-lite) and 10 (soft fingers) stay closed/stretch** (`logs/w5/FRONTIER.md` section 5), not budgeted | `logs/w5/FRONTIER.md` sections (c) and the ranked table; W7-C.1 (the close-phase force does not separate - measure the carry window); W8-B (the metric delivered; the R1 guard screen negative) |
+| **7.4 Grip-margin methods** | the WS-1 metric first (**satisfied** 2026-10-13: `clean_slip` separates clean vs escape with no overlap, `logs/w8/B_RESULTS.md`), then the W5 survey **rows 2-3** - row 2's form (slip guard with derate + bounded re-seat) is measured **negative at adoption strength in R1** (`FRUIT_CARRY_GUARD`) and **re-measured negative by R6-B** (the retuned re-seat at N=5: the band that carries the class converts 0/37; the direct drive is force-saturated), row 3 (place-entry contact maintenance) is untested - and the tactile fast branch (RDP/TDP/FARM) if the carry class survives a scripted lever; **row 1 is the ACQ-knob line** (shipped default-off, WS-4.1); **rows 5 (TPG-lite) and 10 (soft fingers) stay closed/stretch** (`logs/w5/FRONTIER.md` section 5), not budgeted | `logs/w5/FRONTIER.md` sections (c) and the ranked table; W7-C.1 (the close-phase force does not separate - measure the carry window); W8-B (the metric delivered; the R1 guard screen negative); R6-B (`logs/r6/B_RESULTS.md`: the retuned guard negative; the drive-saturated pinch) |
 
 **Closure rule.** An item closes with a log pointer in `logs/` + a WORKLOG entry;
 a default change needs its own Oracle gate and the byte-unchanged single-arm
@@ -346,7 +403,8 @@ acceptance.
 | **R2 (done 2026-10-13; gate-fixed as R2.1)** | **W8-C residuals + integration** (WS-2) | WS-2.1-2.3; docs + tag; R2.1 re-derives the three-term numbers from `R2_flail_analysis.txt` / `R2_probe_report.txt`, downgrades the selector-leg verdict and slots WS-4.7 | R1's metric (**delivered**: `clean_slip` + `logs/w8/B_metric.py`); owner C/clearance for the notes | **folded** (no shipped scenario or default changed; both new knobs default off, direct-path only) - the outcome block under WS-2 carries the three verdicts + the acceptance | 0-1 |
 | **R3 (done 2026-10-13; local)** | **the speed levers** | WS-3.1 -> 3.2 -> 3.3 (conditional); 3.4 interleaved as its own Tier A batch | R1/R2 for the frozen tree; one `tasks.py` lane | **folded** (no shipped default changed; both levers default off, two-line only) - the outcome block under WS-3 carries the four verdicts + the no-harm; every lever: mechanism + interval movement + no-harm, negatives published | 1 + 2 per lever (used) |
 | **R4** | **the policy** | WS-4.2 protocol; 4.1 mirror (if shipping); 4.3 recollection (if the WS-1 metric names a target); 4.4 canary (**closed by R5-open**); 4.6 the gate fire path; 4.7 the R2 combination screen | WS-1's metric; the owner interface decision (4.1/4.5 - **decided R5: the hybrid canary stays the gate; the ACQ mirror is mechanism-only**) | per arm: the N=5 P4 rule; canary + acceptance | 1 + 2 |
-| **R5 (done 2026-10-13)** | **owner decisions + integration** | WS-5.1-5.3; the flip question; docs (`AGENTS.md`, `README.md`, the Chinese docs) + merge + version tag - **the non-blocked items (WS-4.4 canary, the patch reference, the docs pass) are done on `r5-open` (commit `2a8d19d`, `logs/r5/RESULTS.md`); the WS-5.1-5.3 + policy-interface decisions were closed by the owner on 2026-10-13 (the register, section 5; the decisions commit pends)** | R1-R4's measured numbers | a panel review (folded if no default changes) | 0-1 |
+| **R5 (done 2026-10-13)** | **owner decisions + integration** | WS-5.1-5.3; the flip question; docs (`AGENTS.md`, `README.md`, the Chinese docs) + merge + version tag - **the non-blocked items (WS-4.4 canary, the patch reference, the docs pass) are done on `r5-open` (commit `2a8d19d`, `logs/r5/RESULTS.md`); the WS-5.1-5.3 + policy-interface decisions were closed by the owner on 2026-10-13 (the register, section 5; the decisions commit + the R5.1 gate fixes landed and `r5-open` is merged and pushed: `main`/`origin/main` = `f112370`, tag `v0.9`)** | R1-R4's measured numbers | a panel review (folded if no default changes) | 0-1 |
+| **Phase B / R6-B (done 2026-10-14; branch `r6-carry`, `R6-B` + `Phase B.1` gate fixes)** | **the carry/grip class** (the shared scripted/policy mechanism) | the WS-4.7 combination screen + the hover-term candidates, and WS-1's lever slot revisited (the W8-B residuals retuned; the direct-grip mechanism read via `clean_slip`) | R5's decisions; R1's metric; R2's flail decomposition; one `tasks.py` lane | **folded** (no shipped default changed; three new knobs default off, direct-path only) - the outcome blocks under WS-1/WS-4 carry the verdicts; **not adopted** per the pre-registered rules; no-harm: acceptance 9/10 + `fingerprint: matches` + the 385/385 identity, two-line `190` PASS + 442/442 | 0-1 |
 | **R6** | **longer term / frontier** | WS-7 lanes | owner go | per lane | - |
 
 Gate order is strict where the tree is shared (R1 -> R3 -> R4: one `tasks.py`
@@ -359,10 +417,13 @@ checks are recorded (the idle one-shot `logs/ops/10_live.txt`, the
 `OPS_CHAIN_S=60` real `ACTION [wrap]` `logs/ops/12_stalled_chain.txt`, and the
 live Tier A sim capture `logs/ops/13_live_capture.txt`), and the AGENTS/README
 pointers are wired in this P2.1 docs commit; the W8-B/W8-C/R2/R3 chains are
-merged and pushed (`main`/`origin/main` = `76e454e`, tag `v0.8d`). What remains
-is the **merge of `r5-open`** (R5-open `2a8d19d` + the R5-decisions commit; the
-register is closed - section 5). PP-P1 landed `cb39de8` (hardened by P1.1 and
-P1.2); this document is PP-P2 (state-updated by R5-decisions).
+merged and pushed (`main`/`origin/main` = `76e454e`, tag `v0.8d`), and the R5
+chain (R5-open `2a8d19d` + the R5-decisions commit + the R5.1 gate fixes) is
+merged and pushed too (`main`/`origin/main` = `f112370`, tag `v0.9`). What
+remains is the **merge of `r6-carry`** (the R6-B commit + the `Phase B.1`
+gate-fix commit; the R6-B outcome is under WS-1/WS-4 - section 2). PP-P1
+landed `cb39de8` (hardened by P1.1 and P1.2); this document is PP-P2
+(state-updated by R5-decisions and R6-B).
 
 ### 3.2 The resource budget (measured units)
 
@@ -438,7 +499,7 @@ before this pass.
 | 3 | **C-semantics scope: as-is** - the pure per-arm routing (left A, right B, C passes to `despawn_y=-0.70` and is recycled) stays **two-line-only**; the single arm keeps selecting C -> lane 1 (byte-unchanged) | W3 owner decision 2026-10-10; `datasets/demos_v13p` zero C vs the base `demos_v11` C 21; R2's scoped note (a C top-up is a single-arm collection, never a two-line store) | any global routing change; WS-2.1's C-coverage decision |
 | 4 | **ACQ shipping: NO** - `FRUIT_POLICY_TRIGGER_ACQ` stays **default off**, a measurement interface; the ACQ=0 mirror is **mechanism-only** (not funded by this decision) | W7-B/C: the knob removes the direct path's acquisition class (left no-contact 15 -> 0, close-start 120 -> 2.5 mm) but W8-A ran both arms ACQ=1 and ACQ=1 is not a shipping candidate; every direct report states the pin | any direct-interface shipping claim; whether 4.1's mirror is funded |
 | 5 | **Interface of record: the hybrid (the pinned canary)** - `accept_policy.sh`'s hybrid gate stays the shipped gate; the **direct loop stays the mechanism-research interface** and any direct claim is governed by the **N=5 protocol** (WS-4.2) | the hybrid handoff is inert by construction (zero actions 10/10; P4 design review); the direct loop is the causal measurement; direct and hybrid are never compared (`logs/w8/A_RESULTS.md`) | which gate judges the policy; the canary/patch-label scope (WS-2.2) |
-| 6 | **W3-supply canary scope** (closed by R5-open, 2026-10-13) | the canary ran on the current tree: **FAIL 1/10**, all baseline reasons, 17.5 min / 10 episodes (the spaced-supply slowness does not reproduce); the direct dense measurement is 7/45 = 15.6 % | nothing - the record is the answer; the scenario stays non-shipped and the class lever is the carry/grip item |
+| 6 | **W3-supply canary scope** (closed by R5-open, 2026-10-13) | the canary ran on the current tree: **FAIL 1/10**, all baseline reasons, 17.5 min / 10 episodes (the spaced-supply slowness does not reproduce); the direct dense measurement is 7/45 = 15.6 % | nothing - the record is the answer; the scenario stays non-shipped and the class lever is the carry/grip item (**R6-B screened it 2026-10-13/14: the bounded-reaction family is negative at N=5 and the direct drive is force-saturated - the named next directions are the WS-4.6 interface item or a scenario-level grip change**) |
 
 Closed (not open), now including this pass: the five rows above; the park-gate
 lever default (W7-A, owner-approved); the two-line grade semantics (W3 owner

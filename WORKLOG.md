@@ -13781,3 +13781,77 @@ evidence `logs/r6/B_RESULTS.md`.
    (the RTX renderer class) - the re-run's watchdog killed and retried it;
    every quoted number is from a completed run. Commit `R6-B`; not pushed.
    The roadmap/AGENTS pointers are left to the R6 integration pass.
+
+### R6-B.1 (Phase B.1 gate fixes): the C3 flail re-read, the C2 term split, the C0 combination phrasing, the two-freeze provenance, and the R6 integration
+
+**Scope (2026-10-14, branch `r6-carry`, on top of the message-amended `R6-B`
+commit `9dfbd2f` (`5bcc0a9` pre-amend)).** The Phase-B gate's ordered fixes;
+docs only (no `src/`, no simulator; `logs/` is the evidence store and is not
+tracked, so the `logs/r6/B_RESULTS.md` fixes live there). The `R6-B` commit
+message is amended (see 2/3); this entry is committed as `Phase B.1`.
+
+1. **`logs/r6/B_RESULTS.md` section 1 C3 bullet: the flail is a catch-up
+   stall, not a joint-limit case.** `clip_min=+175.4 mrad@j2` is a positive
+   margin; the leg is a 200-tick catch-up stall (close-start res 103 mm,
+   `contact=NONE`) and the fruit was off the belt (378 mm cross-belt drift,
+   z = 0.82) when the close ran. The near-limit margins are the three C0
+   premove-cap legs (`clip_min` +1.0 / -0.0 / +5.7 mrad @j5/j3/j4).
+2. **Section 1 C2 bullet + the top verdict + the commit message: the term
+   split.** C2's flails are **5 fast-stall + 1 premove-cap** (not "6/15, all
+   fast-stall"); the fast-stall legs' close-start residuals are 23-331 mm
+   (close-start y <= 0.33 m) and the "up to 1.37 m" close-start residual
+   belongs to the cap case (flail#7; the R6-B entry's "residuals to 1.87 m"
+   is that cap case too - res 1876.5 mm). The `R6-B` commit message is
+   amended for this (`5bcc0a9` -> `9dfbd2f`).
+3. **Section 1 C0 bullet + the top verdict: "lowest edge-band flail count" /
+   "best edge-band config" removed** (contradicted by C1's 4/15). The
+   combination roughly halves the controls (5/15 vs 10/15; P3/P4 13/30
+   pooled) and C1's 4/15 is within the same spread. The same phrase is
+   dropped from the amended commit subject, and the R6-B entry heading above
+   (append-only) keeps the old wording with this entry as its correction.
+4. **Section 1 C0 caps narrowed.** The 3 premove caps are exactly the 3
+   attempted-anyway refusals (premove targets x = 0.4086 / 0.4201 / 0.4212,
+   err 34-41 mm); the fired attempts' targets (0.329-0.386) converge in
+   12-21 mm - the cap is the WS-4.6 bypass's mechanism, not a general reach
+   cliff. The section-1 verdict paragraph is narrowed the same way.
+5. **Section 6 wall-time + this entry: the two freezes with the named
+   kills.** The earlier `R6-B` wall-time sentence ("A_5's first resume wedged
+   ... the re-run's watchdog killed it") is superseded: the first resume
+   attempt (`B_resume.sh`, 23:07:50) was killed with its claim at
+   **23:56:40** (exit=143, `B_resume_outer.log`, after the ops self-check's
+   ACTION); the second (`B_resume2.sh` try 1, 00:09:00) was killed by
+   `B_watch` at **00:19:51** (the tree kill, GPU 3 %) and by the in-script
+   300 s watchdog at **00:19:59**; try 2 completed **00:27:39** (8/15). The
+   first attempt's log was overwritten by the second (both write `A_5.log`);
+   `logs/r6/B_frozen/` holds the second freeze's try1 log (the `_try1` copy +
+   the `B_watch` snapshot `A_5_frozen_001944.log`) and raw dir, plus the
+   killed driver log (`B_resume_driver_killed.log`).
+6. **Section 6 provenance: the batch-vs-final tree difference annotated as
+   unverifiable-now** (`1d6e9662` -> `b2c79938`; no batch copy was kept - only
+   the md5s are on record, and the runs pin `1d6e9662` in their manifests).
+   Convention noted: copy the measured tree under `logs/` before any post-run
+   polish.
+7. **Section 3 design paragraph: the W8-B residuals restated** (place-leg
+   scope / untuned cost / tail escapes; the re-seat-at-cap was a W8-B reading,
+   not a named residual; the place-leg scope stays untested - the guard is
+   lift-only).
+8. **Section 3 "identical counters" + the branch caveat**: the fired/lost/
+   survived equality (52/75, 39, 13) is an aggregate across different samples
+   (the event/hold counts and the re-seat depth differ).
+9. **(Optional) Section 2 window wording**: the asymmetry and the 2 mm
+   crossing fire 0-2 ticks apart on 23/25 legs; two legs 84-125 ticks apart
+   (not pursued).
+10. **R6 integration.** `docs/ROADMAP.md`: the status header, the state table
+    (the acceptance-of-record row now the R6-B tree `b2c79938` +
+    `logs/r6/C_accept.log`; a new R6-B row), the WS-1 outcome continuation,
+    the WS-4.7 outcome, the WS-7.4 pointer, the phase table (the R5 row's
+    merge state + a new Phase B / R6-B row), the branch/tag row (`main` =
+    `f112370`, tag `v0.9`; `r6-carry` pending merge), the PP-P3 paragraph and
+    the register row 6. `AGENTS.md` and `README.md`: a new R6-B paragraph each.
+    The Chinese docs (`项目总结报告.md`, `决策与交付.md`): an R6-B section
+    each. `docs/OPS.md`: the B_watch tree-kill historical instance (the
+    Tier-A-solo assumption) + the `B_frozen` naming note.
+
+**No-harm.** Docs only; no `src/` path, no scenario change; the R6-B
+measurements are untouched. `scripts/selfcheck.sh` PASS. Commit `Phase B.1`;
+not pushed.

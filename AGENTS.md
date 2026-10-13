@@ -738,6 +738,38 @@ the mechanism-research interface, and the WS-4.2 N=5 protocol governs any
 direct claim. The non-blocked R5 items (the W3-supply canary FAIL 1/10, the
 patch scenario's own reference) are in `logs/r5/RESULTS.md`.
 
+**R6-B (2026-10-13/14, branch `r6-carry`, `logs/r6/B_RESULTS.md` + WORKLOG
+"R6-B"/"R6-B.1"): the WS-4.7 combination screen and the carry-class lever are
+both measured and NOT adopted; the direct grip is a drive-saturated pinch.**
+On the forced edge band (x = 0.36-0.42, N = 1x15 per config) the combination
+(`FRUIT_DIRECT_RESEED=1` + `FRUIT_POLICY_TRIGGER_X_MAX=0.39`) **roughly
+halves** the no-lever control's flails (5/15 vs 10/15; the reseed-only P3/P4
+controls pool 13/30; C1's 4/15 sits inside the same spread) but does not zero
+the class: the three premove caps are exactly the three attempted-anyway
+refusals (premove targets x = 0.4086/0.4201/0.4212, err 34-41 mm, while the
+fired targets 0.329-0.386 converge in 12-21 mm) - the cap is the WS-4.6
+policy-gate bypass's mechanism - and every attempted-anyway refusal flails
+(3/3). The two new hover knobs (`FRUIT_DIRECT_HOVER_TOL`/`_STEPS`, default
+off, direct-path only) are measured and rejected: the tolerance is inert at
+the edge (the hand cannot hold 20 mm either; 4/15) and the step bound trades
+the term (6/15: 5 fast-stall + 1 premove-cap; the fast-stall residuals
+23-331 mm). The direct carry mechanism is a **drive-saturated pinch**: the
+`grasp_lift` command sits a median 11.9 mm inside the payload's measured span
+at the leg start (n = 46 contact legs) while the contact force reads 4.1-4.5 N,
+and the new default-off `FRUIT_CARRY_RELIEF` cap releases the command to
+0.5 mm of allowed interference with the force **unchanged** (Fmin 4.15-4.47 N)
+- the squeeze-side family is closed by measurement. The retuned guard
+(`HOLD_TICKS=8`, `RESEAT_MAX=0.060`, `DERATE=0.8`; trigger and the 72-tick
+budget fixed), N = 5 paired x 15 episodes: pooled **24/75 vs 25/75**, carried
+46 -> 44, paired same-fruit **3 B-only / 1 A-only** (sign p = 0.3125), cycle
++4.5 %, no new reasons - **not adopted**; the W8-B 5-1 directional read
+(carried 50 -> 42) did not reproduce (46 -> 44, 3-1) and the 100-400 mm band
+converts 0/37. No-harm: acceptance **9/10 + motion gate PASS +
+`fingerprint: matches`** and 385/385 `[fruit]` identical; the two-line dense
+re-record 442/442 identical + `190` PASS. Pins: batch tree `tasks.py`
+`1d6e9662` (final `b2c79938`, comment-only - unverifiable now), `rl_env.py`
+`5940a7c8`, checkpoint `moe_v13s` `61da390a`.
+
 ## 3. What changed -> what to run
 
 | you changed | run |

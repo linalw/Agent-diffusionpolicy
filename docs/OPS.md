@@ -153,6 +153,17 @@ resuming: never start a second sim by hand to "replace" a wedged one while its
 session is still alive - `180_claim_slot.sh` refuses the duplicate log
 namespace, and a zombie holding the GPU is the `vkAllocateMemory` failure mode.
 
+Historical instance (R6-B, 2026-10-13/14, `logs/r6/`): the batch's own watcher
+(`logs/r6/B_watch.sh`, started because the in-script watchdog killed only the
+`python.sh` launcher and left the Isaac child as an orphan holding the GPU)
+killed the sim tree on a 312 s frozen log with the GPU at 3 % and preserved
+the frozen log under `logs/r6/B_frozen/<label>_frozen_<HHMMSS>.log` (the
+snapshot is the frozen evidence; the run's own log was then overwritten by
+the retry - `B_frozen/` also keeps a `_try1` copy and the killed driver log).
+Note the tree-kill matches by process name (`pgrep -f 110_rl_rollout.py`), so
+it is only safe under the Tier A solo rule - never run such a watcher while a
+second sim is alive.
+
 ### (c) A dead lane after a detached chain (the wrap never happened)
 
 *Detection*: `STALLED-CHAIN` + a completion marker in the newest chain log tail

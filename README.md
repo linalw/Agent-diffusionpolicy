@@ -1258,6 +1258,28 @@ ACQ=0 mirror is mechanism-only); and the **hybrid pinned canary stays the
 interface of record** - the direct loop stays the mechanism-research interface,
 and the N=5 protocol governs any direct claim.
 
+**R6-B (2026-10-13/14, branch `r6-carry`, `logs/r6/B_RESULTS.md`).** The
+Phase-B pass measured the two shared-mechanism items and adopted neither. The
+WS-4.7 combination (`FRUIT_DIRECT_RESEED=1` + `FRUIT_POLICY_TRIGGER_X_MAX=0.39`)
+on the forced edge band **roughly halves** the flail count against the no-lever
+control (5/15 vs 10/15; the reseed-only P3/P4 controls pool 13/30) but does not
+zero the class: the three premove caps are exactly the three attempted-anyway
+refusals (targets x = 0.4086/0.4201/0.4212, err 34-41 mm; the fired targets
+0.329-0.386 converge in 12-21 mm), so the cap is the WS-4.6 policy-gate
+bypass's mechanism; the hover-tolerance knob is inert at the edge (4/15) and
+the step bound trades the term (6/15: 5 fast-stall + 1 premove-cap). The
+direct grip is a **drive-saturated pinch** (the `grasp_lift` command sits a
+median 11.9 mm inside the payload's measured span; force 4.1-4.5 N), and the
+new default-off `FRUIT_CARRY_RELIEF` cap releases the command to 0.5 mm with
+the force unchanged - the squeeze-side family is closed by measurement. The
+retuned slip-guard (N = 5 paired x 15: pooled 24/75 vs 25/75, carried
+46 -> 44, paired 3-1, sign p = 0.3125, cycle +4.5 %, the 100-400 mm band
+0/37) is **not adopted**; the W8-B 5-1 directional read did not reproduce. No
+shipped default changes: every new knob is default off and direct-path only,
+and the no-harm is exact (acceptance 9/10 + motion gate PASS +
+`fingerprint: matches`, 385/385 `[fruit]` identical; the two-line dense
+re-record 442/442 identical + `190` PASS).
+
 ### Periodic ops self-check (long multi-lane work)
 
 `scripts/191_ops_selfcheck.sh` answers one question in a few seconds - *is the
