@@ -13536,13 +13536,17 @@ R5 items; the owner-decision register (WS-5.1-5.3) stays open.
    FRUIT_SUPPLY_GRADES=A:0.375,B:0.375,C:0.25`, 10 episodes, the shipped
    `accept_policy.sh` gate. Result **1/10 = 10 % (floor 60 %) -> FAIL**; the
    gate's only problem is the rate - 8 hybrid rows are the baseline grip loss
-   (`fruit did not follow the gripper`), and the tenth row (ep7 pear) is the
-   evaluator's non-hybrid scoring row (`handoff=True lifted=False
-   placed=False`, the loop ended before the 400-step handover). The two
+   (`fruit did not follow the gripper`), and **row 7 (ep7 pear) is the
+   evaluator's non-hybrid scoring row** (`handoff=True lifted=False
+   placed=False`, the loop ended before the 400-step handover): it does not
+   match the reason parser's `episode N: hybrid ` filter, so it is absent from
+   the reason table and the typecounts - **rate-only** (the parsed reasons are
+   all baseline). The two
    cross-lane notes (ep6/ep8) are not failure-specific (R2). The **wall time is
    17.5 min for the ten episodes** (~1.7 min/episode; Isaac app 1020.1 s) - the
-   spaced supply's ~15-20 min/episode does not reproduce on the dense sheet, so
-   the register's ~3 h window was not needed. The hybrid interface is inert by
+   old ~15-20 min/episode does not reproduce on the dense sheet, so
+   the register's ~3 h window was not needed (this run does not diagnose the
+   old slowness). The hybrid interface is inert by
    construction (the station handoff teleports the fruit to the policy's jaw),
    so this is scenario coverage; the same checkpoint's direct dense measurement
    is 7/45 = 15.6 % (`logs/w3/70_direct_v13s_dense.log`). The item closes as
@@ -13553,7 +13557,8 @@ R5 items; the owner-decision register (WS-5.1-5.3) stays open.
 2. **The patch scenario's own motion reference (R3_RESULTS section 6 item 5) -
    written.** A frozen-tree double-run of the W6-B/W7-A patch battery
    (`logs/r5/run_patch_battery.sh`): `logs/r5/20_patch_battery_1.log` and `21`
-   are **12/20 both** (left 4/10, right 8/10), 9.9 s/attempt, 3.64 fruits/min,
+   are **12/20 both** (left 4/10, right 8/10), 9.9 s/attempt, **batch 3.64
+   fruits/min** (the placement-window variant is not quoted here),
    `gate_open=0.0 s`, `queue_peak=0`; the physics `[fruit]` streams are
    **bit-identical 821/821**, and run 1 replays the W7-A record
    (`logs/w7/20_patch_battery_1.log`) **821/821 identical**.
@@ -13642,3 +13647,38 @@ the standing evidence).
 385/385 identity is untouched; `scripts/selfcheck.sh` PASS (its 191 leg now
 runs selftest case 4b). Pins untouched (`tasks.py` `0c51cfa5`, `fruits.py`
 `a0ea1f54`, `rl_env.py` `af98428f`). Commit `R5-decisions`; not pushed.
+
+### R5.1 (gate fixes): the W3-canary row-7 parser note, the softened wall-time claim, the batch-rate label, the patch-reference example name, and the Chinese-doc closure text
+
+**Scope (2026-10-13, branch `r5-open`, on top of the `R5-decisions` commit).**
+The R5 gate's add list; docs + one comment-only `scripts/` line; **no behaviour
+change, no `src/` path**.
+
+1. **项目总结报告.md:314 + 决策与交付.md:146 - the W3 canary's stale "open"
+   text replaced by the R5-open closure**: FAIL 1/10 = 10 % (floor 60 %), the
+   parsed reasons all baseline (8 grip losses), 17.5 min / 10 episodes; the
+   report's W3 section gained a `**W3 供料 hybrid canary 关闭（R5-open,
+   2026-10-13）**` paragraph carrying the same numbers + the row-7 qualifier.
+2. **Row 7 is outside the reason parser (rate-only)** - noted in
+   `logs/r5/RESULTS.md` section 1 (the table row + a reading bullet), the
+   AGENTS.md W3-canary paragraph, and `docs/ROADMAP.md` (the state row + the
+   WS-4.4 outcome bullet). The mechanism: `scripts/accept_policy.sh:134`
+   builds the reason table only from `[eval] episode N: hybrid ...` lines, so
+   the non-hybrid ep7 pear row (`handoff=True lifted=False placed=False`, the
+   loop ended before the 400-step handover) is absent from the table and the
+   typecounts while the `policy success 1/10` rate still counts it - the
+   gate's one problem is the rate (`logs/r5/30_canary_driver.log`).
+3. **The wall-time claim softened**: "was the spaced supply, not the handoff" /
+   "not a station wait" -> "the old ~15-20 min/episode does not reproduce on
+   the dense sheet; this run does not diagnose that old slowness" (RESULTS
+   section 1, AGENTS, ROADMAP, the R5-open WORKLOG entry).
+4. **The patch rate labelled "batch 3.64"** in `logs/r5/RESULTS.md` section 2
+   and the R5-open WORKLOG entry (the W6/W7 convention: batch vs placement
+   window; the window variant is not quoted here). The ROADMAP W7-A row
+   already read "3.64 batch / 3.63 window".
+5. **`scripts/190_twoline_gate.sh:7` example name fixed** (comment-only):
+   `configs/motion_reference_twoline_patch.json` -> the shipped filename
+   `configs/motion_reference_patch.json`.
+
+No-harm: `bash -n scripts/190_twoline_gate.sh` OK; `scripts/selfcheck.sh` PASS;
+no `src/` change; pins untouched. Commit `R5.1`; not pushed.

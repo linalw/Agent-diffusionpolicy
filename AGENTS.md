@@ -351,9 +351,12 @@ acceptance is **9/10 + fingerprint matches** with `gate_open=0.0 s`
 closed by R5-open (2026-10-13): FAIL 1/10 = 10 % (floor 60 %)** on the W3
 hand-off command (`moe_v13s`, `FRUIT_SUPPLY_SCATTER=1 FRUIT_SUPPLY_WAVE=1`, the
 balanced A:B:C 0.375/0.375/0.25 mix, current tree `tasks.py` `0c51cfa5`) - 8
-grip losses + 1 non-hybrid no-lift, all baseline reasons, 17.5 min for the ten
-episodes (~1.7 min/episode; the old ~15-20 min/episode was the spaced supply,
-not the handoff). The hybrid interface is inert by construction, so this is
+grip losses + 1 non-hybrid scoring row (**row 7, ep7 pear: it lies outside the
+failure-reason parser and counts in the rate only - the FAIL is rate-only, no
+new reason**; the gate's parsed reasons are all baseline), 17.5 min for the ten
+episodes (~1.7 min/episode; the old ~15-20 min/episode does not reproduce on
+the dense sheet, and this run does not diagnose that old slowness). The hybrid
+interface is inert by construction, so this is
 scenario coverage; the checkpoint's direct dense measurement is 7/45 = 15.6 %
 (`logs/r5/RESULTS.md` section 1).
 

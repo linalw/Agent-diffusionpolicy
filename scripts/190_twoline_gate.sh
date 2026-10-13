@@ -4,7 +4,7 @@
 #
 #   scripts/190_twoline_gate.sh logs/w7/10_dense_twoline_1.log [LOG...]
 #   scripts/190_twoline_gate.sh -m 0.5 logs/w6/31_lever_park_1.log
-#   TWOLINE_REF=configs/motion_reference_twoline_patch.json \
+#   TWOLINE_REF=configs/motion_reference_patch.json \
 #       scripts/190_twoline_gate.sh -m 0.5 logs/w7/20_patch_battery_1.log
 #
 # Why this exists: `scripts/105_motion_regression.py` judges a log against the

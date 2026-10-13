@@ -68,7 +68,7 @@ menus in `logs/w5/FRONTIER.md` (failure mechanisms) and
 | `moe_v13p` (W7-C patch recollection) | **not adopted**: W8-A N=5 confirmatory batch **21/75 = 28 % vs 22/75 = 29 %, sign p = 1.0000**, carried-class pairing 0 B-only / 2 A-only (the N=3 3-0 was noise); the carry class is 89-91 % of failures on both arms | `logs/w8/A_RESULTS.md` |
 | ACQ knob (`FRUIT_POLICY_TRIGGER_ACQ`) | default **off**; the direct evaluation pins `=1` (it removes the acquisition class: left no-contact 15 -> 0, close-start 120 -> 2.5 mm); no N=5 ACQ-off mirror exists | `logs/w7/C_RESULTS.md` section 1, `logs/w7/B_RESULTS.md` |
 | Pinned canary, `moe_v13p` ckpt (shipped scenario, fixed supply; **not** the shipped default `moe_v12`) | **8/10 PASS** (floor 60 %); matches the `moe_v13s` sample | `logs/w7/C_eval/canary_pinned.log` / `.out` |
-| W3-supply (dense sheet) hybrid canary | **closed by R5-open: FAIL 1/10 = 10 % (floor 60 %)** - 8 grip losses + 1 non-hybrid no-lift, every reason in the baseline set; the wall time is 17.5 min / 10 episodes (~1.7 min/episode - the old ~15-20 min/episode was the spaced supply); the checkpoint's direct dense eval is 7/45 = 15.6 % | `logs/r5/RESULTS.md` section 1, `logs/r5/30_canary_driver.log`, `logs/w3/HANDOFF.md` |
+| W3-supply (dense sheet) hybrid canary | **closed by R5-open: FAIL 1/10 = 10 % (floor 60 %)** - 8 grip losses + 1 non-hybrid scoring row (**row 7, ep7 pear: outside the reason parser, rate-only - the FAIL is rate-only, the parsed reasons are all baseline**); the wall time is 17.5 min / 10 episodes (~1.7 min/episode - the old ~15-20 min/episode does not reproduce on the dense sheet; its mechanism is not diagnosed here); the checkpoint's direct dense eval is 7/45 = 15.6 % | `logs/r5/RESULTS.md` section 1, `logs/r5/30_canary_driver.log`, `logs/w3/HANDOFF.md` |
 | **Clearance** | **Decided (R5, 2026-10-13): a per-config report, no gate - the F2 convention is not re-imposed.** Dense W3/W4 moved branch **2.59 mm min, 863/10042 = 8.6 % < 30 mm**; patch battery **1.9 mm, 4.7 % < 30 mm**; the F2 **45 mm / zero-under-30 convention is not met**; no arm-arm contact is possible (`enabledSelfCollisions=0`) and no attempt has ever failed by contact | `logs/w7/A_RESULTS.md` section 4, `logs/w6/C_RESULTS.md` section 3 |
 | Branch/tag state | `w8-carry` = the W8-B commit `d682a62` (the carry metric + the default-off guard, measured-not-adopted) + the W8-B.1 gate-fix docs (`e7d1ed3`), on top of `78e822e` (W8-A.1), which carries the W8-A/plan chain (`c973020`, `38d4699`, `cb39de8`, `459b00f`); `w8-confirm` sits at `78e822e`; **`w8-residuals` = the R2 commit `7f2fc69` + the R2.1 gate fixes `fd273fb` (tag `v0.8c`); `w8-speed` = the R3 commit `c1cd246` + the R3.1 gate fixes `76e454e` (tag `v0.8d`), merged and pushed: `main` and `origin/main` are at `76e454e` (tag `v0.8d`), the current main; the tag ladder runs through `v0.8d`**; `r5-open` (the R5 non-blocked items: the WS-4.4 canary, the patch reference, the docs pass) = `2a8d19d` + the R5-decisions commit (the register closed, the ops glob nit), local, **pending merge**; tags `v0.6-w6` (`9f91c75`), `v0.7-w7a/b/c`, `v0.8` (`78e822e`), `v0.8b` (`e7d1ed3`), `v0.8c` (`fd273fb`), `v0.8d` (`76e454e`) | `git log` / `git rev-parse`, `WORKLOG.md` "W8-A" / "W8-B" / "P-PLAN" / "R2" / "R2.1" / "R3" / "R3.1" / "R5-open" / "R5-decisions", `logs/w8/B_RESULTS.md`, `logs/w8/R2_RESULTS.md`, `logs/w8/R3_RESULTS.md`, `logs/r5/RESULTS.md` |
 
@@ -270,12 +270,15 @@ decisions (WS-5.1-5.3 plus the ACQ/interface rows) are recorded in the register
 * **4.4 W3-supply hybrid canary: closed, FAIL 1/10.** The W3 hand-off's command
   (`moe_v13s`, `FRUIT_SUPPLY_SCATTER=1 FRUIT_SUPPLY_WAVE=1`, balanced mix, 10
   episodes) re-run on the current tree (`tasks.py` `0c51cfa5`) reads **1/10 =
-  10 % (floor 60 %)**, 8 grip losses + 1 non-hybrid no-lift, every reason in
-  the baseline set. The wall time is **17.5 min for the ten episodes** (~1.7
-  min/episode): the spaced supply's ~15-20 min/episode does not reproduce on
-  the dense sheet, so the item closes without the ~3 h window. The hybrid
-  interface is inert by construction - this is scenario coverage, and the
-  checkpoint's direct dense measurement (7/45 = 15.6 %) is the policy number.
+  10 % (floor 60 %)**, 8 grip losses + 1 non-hybrid scoring row (**row 7, ep7
+  pear: it lies outside the failure-reason parser and counts in the rate only -
+  the FAIL is rate-only, the parsed reasons are all baseline**). The wall time
+  is **17.5 min for the ten episodes** (~1.7 min/episode): the old ~15-20
+  min/episode does not reproduce on the dense sheet, so the item closes without
+  the ~3 h window (the old slowness' mechanism is not diagnosed here). The
+  hybrid interface is inert by construction - this is scenario coverage, and
+  the checkpoint's direct dense measurement (7/45 = 15.6 %) is the policy
+  number.
 * **The patch scenario's own reference** (R3 section 6 item 5): written from a
   frozen-tree patch-battery double-run (`logs/r5/20`/`21`, bit-identical
   821/821, replaying the W7-A record) as
