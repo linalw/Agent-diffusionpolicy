@@ -4,7 +4,10 @@ Status: **written 2026-10-12** on branch `w8-confirm` (PP-P2 of the P-PLAN,
 `.slim/deepwork/sorting-pipeline-v3.md`), **gate-fixed as P2.1**; **state
 updated by W8-B.1** (2026-10-13, branch `w8-carry` - R1's outcome and the
 tree/branch pins in section 1); **WS-2 outcomes added by the R2 pass**
-(2026-10-13, branch `w8-residuals`).
+(2026-10-13, branch `w8-residuals`), **gate-fixed as R2.1** (the three-term
+numbers re-derived to `logs/w8/R2_flail_analysis.txt` /
+`R2_probe_report.txt`, the selector-leg verdict downgraded, the 5/10 -> 6/10
+canary-note propagation into `logs/w7/C_RESULTS.md`).
 Numbering: the plan's phases are **R0-R6** (this document), and the P-PLAN
 deliverables carry the **`PP-` prefix** (PP-P1 ops tool / PP-P2 this roadmap /
 PP-P3 validation) so the two schemes cannot collide. Scope: the work after
@@ -41,7 +44,7 @@ menus in `logs/w5/FRONTIER.md` (failure mechanisms) and
 | piece | state | evidence |
 | --- | --- | --- |
 | **Shipped single-arm dynamic line** (OpenArm, never-stop catch, v9/V1 scattered supply, `FRUIT_DYNAMIC_PICK` unset) | **9/10, 15.2 s/attempt, 3.55 placed/min**; the one failure is a left place/carry escape; x5 bit-identical | `logs/v1/31_accept_supply_verified.log`, `logs/v1/20_rate_supply_1..5.log`, AGENTS.md section 2 |
-| Acceptance of record on the current code tree (`tasks.py` `a3b82a11`, W8-B; guard off) | **9/10, motion gate PASS, `fingerprint: matches`**; its 385/385 `[fruit]` lines are byte-identical to the W7-A acceptance | `logs/w8/60_accept_w8b.log` / `.out`; single-arm reference `configs/motion_reference.json` (`b9e72ca7`) |
+| Acceptance of record on the current code tree (`tasks.py` `d83167b1`, R2/R2.1; both direct-path knobs off) | **9/10, motion gate PASS, `fingerprint: matches`**; its 385/385 `[fruit]` lines are byte-identical to the W8-B acceptance (`logs/w8/60_accept_w8b.log`), itself identical to W7-A | `logs/w8/R2_accept.log`; single-arm reference `configs/motion_reference.json` (`b9e72ca7`) |
 | **Two-line opt-in** (`FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=1`; left station y=0.00 grade A, right y=-0.10 grade B, C passes; patch sheet) | W6-B baseline **10/20, 2.78 batch / 2.70 window placed/min**; same-scenario single arm **13/18, 2.12/2.17** -> pre-registered window ratio **1.24x** (< the 1.25x flip bar); pooled interval 22.20 / p90 45.50 s | `logs/w6/BASELINE.md` |
 | **Park-gate lever is the two-line default** (W7-A; `FRUIT_BIARM_PARK_EARLY` resolves to 1 under a two-line session) | replays W6-C bit-for-bit: **12/20, 3.64 batch / 3.63 window**, pooled interval **16.53 / 17.30 / 19.90 s**, left gate-blocked idle **25.2 -> 0.2 s**, idle 18 %/24 %; timing-only +10 %, residual x1.22 branch factor | `logs/w7/A_RESULTS.md` (861/861 physics lines vs `logs/w6/31/32`) |
 | Dense W3/W4 wave sheet re-record (moved branch) | **7/10, 9.1 s/attempt, 4.60 placed/min**, `diverted=0`; own reference `configs/motion_reference_twoline.json` (`181c9151`); pre-flip control replays W4 bit-for-bit with `PARK_EARLY=0`; re-recorded on the W8-B tree (W8-B.1): `logs/w8/70_w8b1_twoline.log` is 442/442 `[fruit]`-identical to the W7-A pair and `scripts/190_twoline_gate.sh` PASS | `logs/w7/A_RESULTS.md`, `logs/w7/15_dense_control_park_off.log`, `logs/w8/B_RESULTS.md` |
@@ -51,7 +54,7 @@ menus in `logs/w5/FRONTIER.md` (failure mechanisms) and
 | Pinned canary, `moe_v13p` ckpt (shipped scenario, fixed supply; **not** the shipped default `moe_v12`) | **8/10 PASS** (floor 60 %); matches the `moe_v13s` sample | `logs/w7/C_eval/canary_pinned.log` / `.out` |
 | W3-supply (dense sheet) hybrid canary | **still open** (spaced supply measured ~15-20 min/episode; diagnose the handoff station wait first) | `logs/w3/HANDOFF.md` |
 | **Clearance** | dense W3/W4 moved branch **2.59 mm min, 863/10042 = 8.6 % < 30 mm**; patch battery **1.9 mm, 4.7 % < 30 mm**; the F2 **45 mm / zero-under-30 convention is not met**; no arm-arm contact is possible (`enabledSelfCollisions=0`) and no attempt has ever failed by contact | `logs/w7/A_RESULTS.md` section 4, `logs/w6/C_RESULTS.md` section 3 |
-| Branch/tag state | `w8-carry` = the W8-B commit `d682a62` (the carry metric + the default-off guard, measured-not-adopted) + the W8-B.1 gate-fix docs (`e7d1ed3`), on top of `78e822e` (W8-A.1), which carries the W8-A/plan chain (`c973020`, `38d4699`, `cb39de8`, `459b00f`); `w8-confirm` sits at `78e822e`; `main` and `origin/main` are at `e7d1ed3` (the W8-A + P-PLAN + W8-B chain is pushed); **`w8-residuals` = the R2 commit on top of `e7d1ed3` (tag `v0.8b`): the WS-2 outcomes + the two default-off direct-path knobs, local**; tags `v0.6-w6` (`9f91c75`), `v0.7-w7a/b/c`, `v0.8` (`78e822e`), `v0.8b` (`e7d1ed3`) | `git log` / `git rev-parse`, `WORKLOG.md` "W8-A" / "W8-B" / "P-PLAN" / "R2", `logs/w8/B_RESULTS.md`, `logs/w8/R2_RESULTS.md` |
+| Branch/tag state | `w8-carry` = the W8-B commit `d682a62` (the carry metric + the default-off guard, measured-not-adopted) + the W8-B.1 gate-fix docs (`e7d1ed3`), on top of `78e822e` (W8-A.1), which carries the W8-A/plan chain (`c973020`, `38d4699`, `cb39de8`, `459b00f`); `w8-confirm` sits at `78e822e`; `main` and `origin/main` are at `e7d1ed3` (the W8-A + P-PLAN + W8-B chain is pushed); **`w8-residuals` = the R2 commit + the R2.1 gate fixes on top of `e7d1ed3` (tag `v0.8b`): the WS-2 outcomes + the two default-off direct-path knobs, local**; tags `v0.6-w6` (`9f91c75`), `v0.7-w7a/b/c`, `v0.8` (`78e822e`), `v0.8b` (`e7d1ed3`) | `git log` / `git rev-parse`, `WORKLOG.md` "W8-A" / "W8-B" / "P-PLAN" / "R2" / "R2.1", `logs/w8/B_RESULTS.md`, `logs/w8/R2_RESULTS.md` |
 
 Open thread carried from the record: the two-line **store -> single-arm direct
 transfer** question (does a two-line recollection transfer to the direct
@@ -110,7 +113,7 @@ README's grip-quality paragraph).
 | item | goal | evidence | dependency | budget | success criterion |
 | --- | --- | --- | --- | --- | --- |
 | **2.1 C coverage of the patch store** | decide the grade-C story for the two-line interface: a C top-up collection **or** an explicit scoped note (grade C is never selected by pure routing - it rides to `despawn_y=-0.70` and is recycled) | `datasets/demos_v13p/index.json` = A 89 / B 84 / **C 0**; the base `datasets/demos_v11` carries **C 21**; `logs/w7/C_RESULTS.md` section 3 | none (decision); interacts with the owner C-semantics scope (WS-5.3) | a C-only shard ~40 min if chosen | the store or the note names which behaviour teaches C, or the record states C is out of scope for the two-line interface |
-| **2.2 Patch canary label + floor** | give the patch canary a correct lane label (the "cross-lane station fruit placed on lane M" note is **not failure-specific**: it appears on 2 failures and 3 successes of 10) and its own floor **if** the patch scenario becomes a shipped gate | `logs/w7/C_RESULTS.md` sections 5.1 / 7 (patch canary 5/10, all failures grip-loss) | policy interface decision (WS-4.5) | 1 canary ~8 min + evaluator label fix (offline) | the label agrees with the primitive's placement on a recorded 10-episode canary, and an explicit floor is on the record (or the patch canary is retired as a gate) |
+| **2.2 Patch canary label + floor** | give the patch canary a correct lane label (the "cross-lane station fruit placed on lane M" note is **not failure-specific**: it appears on 2 failures and 4 successes of 10; R2 correction) and its own floor **if** the patch scenario becomes a shipped gate | `logs/w7/C_RESULTS.md` sections 5.1 / 7 (patch canary 5/10, all failures grip-loss; the note count corrected inline in R2.1); `logs/w8/R2_RESULTS.md` section 2 | policy interface decision (WS-4.5) | 1 canary ~8 min + evaluator label fix (offline) | the label agrees with the primitive's placement on a recorded 10-episode canary, and an explicit floor is on the record (or the patch canary is retired as a gate) |
 | **2.3 Reach-cliff flail (x ~ 0.39-0.42)** | name and fix the lateral reach cliff: the left joint sits at its limit while both `move_to` calls run to their caps (3.33 + 4.17 s); it is a **reach/pose or selection** problem, not a fire-time lever | `scripts/174_station_reach.py`; `logs/w7/B_RESULTS.md` sections 1.4 / 4 (fruit x ~ 0.39-0.42); `logs/w8/A_RESULTS.md` section 3 (left close-start `|y|` outliers 276.8 / 388.3 + 301.7 mm) | none (scripted-side) | 1 reach/selection probe (~1 h) + acceptance | zero catch-up timeouts with joint-limit margin ~0 on the pinned supply, or the selector refuses cliff candidates **without** starving (per-arm starved slots reported) |
 
 **Outcome (R2, 2026-10-13, branch `w8-residuals`, `logs/w8/R2_RESULTS.md` +
@@ -138,18 +141,24 @@ WORKLOG "R2").** All three residuals are closed with measured verdicts.
   gate (WS-4.5).
 * **2.3 reach-cliff flail: the mechanism decomposes into three terms; two
   bounded default-off screens measured, neither adopted.** Offline 18 flail
-  legs / 390 instrumented attempts; the forced edge-band probe (15 episodes
+  legs / 390 instrumented attempts (14 left / 4 right); the forced edge-band
+  probe (15 episodes
   per run) reads: **P0** off 10/15 flails with 9/15 premoves at the 3.33 s cap;
   **P1** `FRUIT_POLICY_TRIGGER_X_MAX=0.39` 7 refusals recorded but 7/12
   attempts still flail (sub-cap fires + the **policy-gate bypass**: 4 of 7
-  refusals attempted anyway, WS-4.6); **P2** shipped band, guard on: 15
+  refusals attempted anyway, all 4 flailed, WS-4.6); **P2** shipped band,
+  guard on: 15
   attempts, **0 refusals / 0 flails** (no starvation); **P3/P4**
   `FRUIT_DIRECT_RESEED=1`: flails 13/30 = 43 % pooled vs 67 %, premove cap
   0-1/run, median error 43 -> 21 mm - the reseed removes the
   premove/configuration term, the hover/reach-edge term (8 mm tolerance
-  unattainable at x >~ 0.39) and the fast catch-up stall remain. The
+  unattainable at x >~ 0.39) and the fast catch-up stall (28-181 mm residuals)
+  remain. The
   roadmap's "zero catch-up timeouts" leg is **not** met by either lever alone;
-  the selector leg is (refusals recorded; no shipped-band starvation). Named
+  the selector leg is **not met at effect level**: the refusal accounting is
+  delivered (7 refusals, 3 rides-past) and there is no shipped-band starvation,
+  but 4 of the 7 refusals were attempted anyway through the policy-gate bypass
+  (all 4 flailed) - the residual is the WS-4.6 item (+ WS-4.7). Named
   next screen: the combination + the hover tolerance / catch-up term, with a
   same-band control before any adoption. No-harm: acceptance **9/10 + motion
   gate PASS + `fingerprint: matches`**, 385/385 `[fruit]` lines byte-identical
@@ -176,6 +185,7 @@ WORKLOG "R2").** All three residuals are closed with measured verdicts.
 | **4.4 W3-supply hybrid canary** | close the open canary on the W3 dense/wave supply (or diagnose the handoff's station wait first - ~15-20 min/episode there) | `logs/w3/HANDOFF.md`; the W6-E scope names it | none | a long window (~3 h) or 1 diagnosis run | a PASS/FAIL canary on the W3 supply is on the record, or the scenario is retired with the reason |
 | **4.5 Interface decision** | decide whether the **shipped policy interface** stays the hybrid station handoff (inert by construction: zero actions scored 10/10) or the **causal direct loop** becomes the gate of record | P4 design review (the handoff teleports the fruit to the policy's jaw); `logs/w8/A_RESULTS.md` (the direct loop is the measurement); never compare direct vs hybrid | owner | offline | one interface is named the gate of record and the other scoped mechanism-only; no mixed rate claim |
 | **4.6 The policy-gate fire path** | name and close the class that bypasses the trigger entirely: the `finger < 0.030` and jaw-fruit `\|xy\| < 0.06` gate fires on **4/18 of the W4 left attempts** (W7-B section 4 item 3b); a future lever could route it through the same acquisition window the ACQ knob fixes | `logs/w7/B_RESULTS.md` section 4 item 3(b); W4 left 4/18 (3 no-contact + 1 carried) | owner interface decision (4.5); interacts with 4.1 | offline + the 4.2 N=5 shape if the gate path changes | the gate class is named and either folded into the interface decision or fixed with zero regressions |
+| **4.7 Reach-cliff combination screen + the hover/catch-up fix** | the R2 named next screen: run the default-off pair **together** (`FRUIT_DIRECT_RESEED=1` + `FRUIT_POLICY_TRIGGER_X_MAX=0.39`) on the forced edge band at N per arm against a same-band control, and fold in a fix for the residual terms - the hover's 8 mm tolerance (the 500-step `move_to` cap) and the fast catch-up stall (28-181 mm residuals) | `logs/w8/R2_RESULTS.md` section 3 (three terms; P0-P4 are N=1x15 mechanism reads; neither knob adopted); the R2.1 re-derivation `R2_flail_analysis.txt` / `R2_probe_report.txt` | WS-4.5 interface decision (the bypass is the WS-4.6 policy-gate item); one `tasks.py` lane; the R2 knobs stay default-off until gated | 2-4 probe batteries (~15 min each) + 1 acceptance | the flail class is zeroed on the stress band or the residual is named with the joint-limit margin; a same-band control confirms it; no-harm: acceptance 9/10 + `fingerprint: matches`, new envs default off |
 
 ### WS-5 - the owner decisions
 
@@ -216,9 +226,9 @@ acceptance.
 | --- | --- | --- | --- | --- | --- |
 | **R0 (done)** | **PP-P1 + PP-P2 landed; W8-A reviewed and gated** | PP-P1 ops tool delivered (`cb39de8`: `scripts/191_ops_selfcheck.sh` + `docs/OPS.md`; `--selftest` PASS + live OK) + PP-P2 this roadmap (offline, gate-fixed as P2.1); W8-A wrap: acceptance 9/10 + fingerprint, WORKLOG entry + commit landed (`c973020`); the W8-A.1 gate fixes landed (`78e822e`) | - | **PP-P3 validation (folded)**: real-state checks recorded (`logs/ops/`), AGENTS/README wired (P2.1); the W8-A + P-PLAN chain is pushed (`main`/`origin/main` at `78e822e`); the W8-B + W8-B.1 commits are local | 0-1 |
 | **R1 (done 2026-10-13)** | **W8-B the carry mechanism** (WS-1) | metric -> mechanism -> one lever; full evidence `logs/w8/B_RESULTS.md` (+ WORKLOG "W8-B"/"W8-B.1") | R0's W8-A wrap; one `tasks.py` lane (guard default-off; `tasks.py` `a3b82a11`) | **metric separates PASS** (0.02-1.43 vs 17.9-957 mm, no overlap) + mechanism named; lever **not adopted** (p = 0.1094, +5.4 % cycle) -> slot closed with the named residuals; no-harm **PASS** (single arm 9/10 + `fingerprint: matches` + the 385/385 identity; two-line `190` PASS + 442/442 identical to the W7-A dense record) | 1 + 2 re-reviews (used) |
-| **R2 (done 2026-10-13)** | **W8-C residuals + integration** (WS-2) | WS-2.1-2.3; docs + tag | R1's metric (**delivered**: `clean_slip` + `logs/w8/B_metric.py`); owner C/clearance for the notes | **folded** (no shipped scenario or default changed; both new knobs default off, direct-path only) - the outcome block under WS-2 carries the three verdicts + the acceptance | 0-1 |
+| **R2 (done 2026-10-13; gate-fixed as R2.1)** | **W8-C residuals + integration** (WS-2) | WS-2.1-2.3; docs + tag; R2.1 re-derives the three-term numbers from `R2_flail_analysis.txt` / `R2_probe_report.txt`, downgrades the selector-leg verdict and slots WS-4.7 | R1's metric (**delivered**: `clean_slip` + `logs/w8/B_metric.py`); owner C/clearance for the notes | **folded** (no shipped scenario or default changed; both new knobs default off, direct-path only) - the outcome block under WS-2 carries the three verdicts + the acceptance | 0-1 |
 | **R3** | **the speed levers** | WS-3.1 -> 3.2 -> 3.3 (conditional); 3.4 can interleave as its own Tier A batch | R1/R2 for the frozen tree; one `tasks.py` lane | per lever: mechanism + interval movement + no-harm; publish negatives | 1 + 2 per lever |
-| **R4** | **the policy** | WS-4.2 protocol; 4.1 mirror (if shipping); 4.3 recollection (if the WS-1 metric names a target); 4.4 canary; 4.6 the gate fire path | WS-1's metric; the owner interface decision (4.1/4.5) | per arm: the N=5 P4 rule; canary + acceptance | 1 + 2 |
+| **R4** | **the policy** | WS-4.2 protocol; 4.1 mirror (if shipping); 4.3 recollection (if the WS-1 metric names a target); 4.4 canary; 4.6 the gate fire path; 4.7 the R2 combination screen | WS-1's metric; the owner interface decision (4.1/4.5) | per arm: the N=5 P4 rule; canary + acceptance | 1 + 2 |
 | **R5** | **owner decisions + integration** | WS-5.1-5.3; the flip question; docs (`AGENTS.md`, `README.md`, the Chinese docs) + merge + version tag | R1-R4's measured numbers | a panel review (folded if no default changes) | 0-1 |
 | **R6** | **longer term / frontier** | WS-7 lanes | owner go | per lane | - |
 

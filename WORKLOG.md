@@ -13252,15 +13252,19 @@ does). Evidence: `logs/w8/R2_RESULTS.md` + the read-only re-derivations
 
 3. **The reach-cliff flail (WS-2.3): three terms, two bounded screens, no
    adoption.** Offline over 390 `[acq]`-instrumented direct attempts
-   (W7-B/W8-A/W8-B/W4): **18 flail legs (4.6 %)**, 13 left, the close starting
-   0.17-0.92 m downstream, the joint at its limit (`clip_min` ~0 @j2/j5); the
+   (W7-B/W8-A/W8-B/W4): **18 flail legs (4.6 %)**, 14 left / 4 right (the
+   shoulder `q2` pinned at its +0.1745 limit, `clip_min` -0.4..+0.5 mrad at
+   j1/j2/j4/j5), the close starting
+   0.17-0.92 m downstream (the +172 mm edge is the knocked-flying case:
+   +228 mm cross-belt / +305 mm up); the
    recorded mechanism instance (W7-B `trace_05`) shows an edge fire
    (x = 0.392-0.400) -> a 4.1 s premove+hover -> the fruit 0.28 m downstream
    when the catch-up starts -> 200 chase ticks moving the tip ~0.02 m. The
    forced edge-band probe (x = 0.36-0.42, the W8-A scenario otherwise verbatim,
    `moe_v13s`, 15 episodes/run) decomposes the class: **P0** (off) 10/15 flails,
    9/15 premoves at the 3.33 s cap, median premove error 43 mm, 8/15 hover
-   moves at the 4.94-4.99 s cap; **P1** (`X_MAX=0.39`) 7 refusals recorded
+   moves at the 500-step cap (P0's cumulative diag stamp reads 7.50 s; the
+   reseed runs' 4.94-4.99 s); **P1** (`X_MAX=0.39`) 7 refusals recorded
    (x 0.392-0.411) - but 7/12 attempts still flail: fires below the cap flail
    (handover x down to 0.364) and **4 of the 7 refusals were attempted anyway
    through the policy-gate path** (`finger < 0.030`, the WS-4.6 bypass);
@@ -13270,8 +13274,9 @@ does). Evidence: `logs/w8/R2_RESULTS.md` + the read-only re-derivations
    premove/configuration term (0-1 capped premoves, median error 20-21 mm,
    0.6-0.8 s premoves) but not the hover/reach-edge term (5 of P3's 7, 4 of
    P4's 6 residual flails have the hover at its cap - the 8 mm tolerance is
-   unattainable at x >~ 0.39) nor the fast catch-up stall (2/run: 0.9-1.0 s
-   setups, 28-212 mm residuals, q2/j5 at the limit - the W7-B A-arm class).
+   unattainable at x >~ 0.39) nor the fast catch-up stall (P3 2 / P4 1 with the
+   hover below its cap: 0.9-1.0 s
+   setups, 28-181 mm residuals - the W7-B A-arm class).
    **Verdict: no single lever zeros the class; neither knob adopted (both
    default off); the named next screen is the combination + the hover
    tolerance/catch-up term, and a same-band control before any adoption.**
@@ -13291,3 +13296,53 @@ does). Evidence: `logs/w8/R2_RESULTS.md` + the read-only re-derivations
    `rl_env.py` fafffc77) and its raw manifests pin it. The P3/P4 + acceptance
    run the final tree. `docs/ROADMAP.md` WS-2 carries the outcomes; `AGENTS.md`
    the knob note. Not pushed.
+
+### R2.1 (gate fixes): the re-derived flail numbers, the selector-leg verdict, and the canary-note propagation
+
+**Scope (2026-10-13, branch `w8-residuals`, docs/scripts only; no simulator,
+no `src/` change).** The R2 review's ordered fixes. Evidence: the extended
+read-only re-derivations now print every aggregate they are quoted from -
+`logs/w8/R2_flail_analysis.py` -> `R2_flail_analysis.txt` (per-arm counts,
+the two premove classes with their leg sets and fire-time/downstream ranges)
+and `logs/w8/R2_probe_report.py` -> `R2_probe_report.txt` (per-arm counts, the
+per-term breakdown, the refusal<->attempt cross-check, the trace x lists).
+
+1. **The flail arm split is 14 left / 4 right** (of 135 / 255 `[acq]`
+   attempts), not 13/5; the left close-start band is **+172..+918 mm**
+   downstream (+175..+918 mm excluding the knocked-flying case, `A_2:479`,
+   +228 mm cross-belt / +305 mm up); the shoulder (`q2`) is pinned at its
+   +0.1745 limit (`clip_min` -0.4..+0.5 mrad at j1/j2/j4/j5). `WORKLOG` R2
+   and `logs/w8/R2_RESULTS.md` (sections 3.1 and the verdict) corrected.
+2. **The selector-leg verdict is downgraded.** The guard's refusal accounting
+   is delivered (7 refusals, 3 rides-past) and there is no shipped-band
+   starvation (P2: 0 refusals / 0 flails), but the leg is **not met at effect
+   level**: 4 of the 7 refusals were attempted anyway through the policy-gate
+   bypass and all 4 flailed - the residual is the WS-4.6 item
+   (`R2_RESULTS.md` section 3.4; ROADMAP WS-2.3 outcome).
+3. **The numbers pass.** From `R2_flail_analysis.txt`: cap family 8 legs (fire
+   dx -0.1/+1.0 x3/+2.1/+5.2 cm, two without a trigger note; dy 10.7-25.1),
+   fast family 10 (dx -4.1..+5.8). From `R2_probe_report.txt`: P0's hover
+   stamps read **7.50** (the shared fact is the 500-step cap ~4.17 s; the
+   reseed runs stamp 4.94-4.99), P0's premove population median/max **43/77 mm**
+   (the capped runs 29-77), the fast-stall term is **P3 2 / P4 1** and the
+   catch-up-stall band reads **28-181 mm**, the P3 trace-x list is the full 7
+   (0.3977/0.4047/0.3952/0.4019/0.3780/0.3989/0.3932). The unexplained
+   `(42, 37)` fragment is deleted; "term 1's hover tolerance" -> term 2;
+   `AGENTS.md` reads 28-181.
+4. **The note-count propagation (6/10).** `logs/w7/C_RESULTS.md` sections 5.1
+   and 7 now carry the inline R2 correction: the patch canary's cross-lane note
+   is on **six** of ten episodes (successes ep2/3/7/8; failures ep5/6), not
+   five/three-successes; the roadmap's WS-2.2 row reads 2 failures / 4
+   successes.
+5. **Evidence hygiene.** `R2_c_grade_split.txt` regenerated (the R2 canary now
+   reads `{'C': 4, 'A': 4, 'B': 2}`, no longer `(missing)`); `R2_RESULTS.md`
+   section 4 points at the P3/P4 raw manifests instead of a non-existent "p3
+   row"; `logs/w8/R2_tree_md5_after.txt` is labeled as the final-tree pin and
+   the `R2_probe.sh` writer now emits the label + the pin-of-record files.
+6. **Roadmap.** Section 1's acceptance row points at the R2 tree (`tasks.py`
+   `d83167b1`) + `logs/w8/R2_accept.log` (385/385 identical to W8-B); WS-4
+   gains **4.7** (the combination screen + the hover/catch-up fix); the
+   header/R2 phase row name R2.1.
+7. **No-harm.** `scripts/selfcheck.sh` **PASS 0 failures, 1 skipped**
+   (`logs/selfcheck.log`). Docs/scripts only; `tasks.py` `d83167b1`,
+   `rl_env.py` `c57db999`, `trigger.py` `763ad89e` untouched. Not pushed.

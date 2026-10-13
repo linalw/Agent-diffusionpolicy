@@ -662,7 +662,8 @@ x >~ 0.39; the default-off `FRUIT_POLICY_TRIGGER_X_MAX=0.39` refuses those
 would-fire ticks - 7 recorded refusals, 0 refusals/0 flails on the shipped band
 - but sub-cap fires still flail and the **policy-gate path bypasses the
 trigger**: 4 of 7 refusals were attempted anyway, WS-4.6), and a **catch-up
-stall term** (fast setup, 28-212 mm residuals). Neither knob is adopted; both
+stall term** (fast setup, 28-181 mm residuals; the R2.1 re-derivation in
+`logs/w8/R2_flail_analysis.txt` / `R2_probe_report.txt`). Neither knob is adopted; both
 are default off and direct-path-only. Do not read a catch-up timeout as a
 fire-time miss: the fire-time dx spans -4.1..+8.3 cm across the class.
 
