@@ -89,8 +89,10 @@ def stub_task(*, pick_y: float = 0.0, prefer_upstream: bool = True):
     task._prefer_upstream = prefer_upstream
     task._belt_speed_estimate = lambda: -0.12
     task._dynamic_pick_lead = lambda: 0.189
-    task._dynamic_select_floor = lambda min_lead_s=None: PickAndPlaceTask._dynamic_select_floor(
-        task, min_lead_s
+    task._dynamic_select_floor = (
+        lambda min_lead_s=None, lead_override_s=None: PickAndPlaceTask._dynamic_select_floor(
+            task, min_lead_s, lead_override_s
+        )
     )
     task._balance_arm = lambda ordered: PickAndPlaceTask._balance_arm(task, ordered)
     task._pure_grade_routing = lambda: PickAndPlaceTask._pure_grade_routing(task)
@@ -216,6 +218,20 @@ def main() -> int:
     check(PickAndPlaceTask._pure_grade_routing(task) is True,
           "an explicit non-fallback value keeps purity")
     os.environ["FRUIT_GRADE_ROUTING"] = "0"
+
+    # 6c. W8-R3 L2: the two-line lead override binds below the shipped 1.5 s
+    # setup; without it the shipped `max(1.5, min_lead_s)` rule is unchanged
+    # (SPEC section 7.3).
+    near = fruit(9, "A", floor - 0.05)  # inside the shipped floor, above 1.0 s
+    check(
+        select(task, [near], station_y=0.0, prefer_lane=0, min_lead_s=1.4) is None,
+        "the shipped min_lead_s (1.4) stays inert under the 1.5 s floor",
+    )
+    chosen = select(task, [near], station_y=0.0, prefer_lane=0, lead_override_s=1.0)
+    check(
+        chosen is not None and chosen["index"] == 9,
+        "an explicit lead override (1.0 s) binds below the shipped floor",
+    )
 
     # 7. Pre-pose lock: only an unsolved off-centre station requires it.
     lock_task = stub_task()

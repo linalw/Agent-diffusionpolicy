@@ -13346,3 +13346,114 @@ per-term breakdown, the refusal<->attempt cross-check, the trace x lists).
 7. **No-harm.** `scripts/selfcheck.sh` **PASS 0 failures, 1 skipped**
    (`logs/selfcheck.log`). Docs/scripts only; `tasks.py` `d83167b1`,
    `rl_env.py` `c57db999`, `trigger.py` `763ad89e` untouched. Not pushed.
+
+
+### R3 (WS-3): the speed levers - the L2 adaptive lead is inert by measurement, the L3 hot-arm residency does not move an arrival-bound interval
+
+**Scope (2026-10-13, branch `w8-speed`, base `fd273fb` = R2.1, local).**
+WS-3.1 -> 3.2 -> 3.3 (conditional) + 3.4 (the belt-speed screen) of
+`docs/ROADMAP.md`, Tier A solo via `scripts/154_claim_run.sh`, scenario = the
+W6-B battery (two-line `FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=1`,
+`FRUIT_SUPPLY_PATCH=1`, `ATTEMPTS=20`, `SEED=5`, balanced mix, `HEADLESS=1`).
+Every knob added is **default off** and two-line-scoped; the shipped single-arm
+default is byte-unchanged. Evidence: `logs/w8/R3_RESULTS.md`, the check files
+`R3_l2_checks.txt` / `R3_l3_checks.txt`, the reports `R3_l2_report.txt` /
+`R3_l3_report.txt` / `R3_belt_report.txt`, the mechanism readouts
+`R3_l2_mech.txt` / `R3_lead_analysis.py` / `R3_clearance.py`, the drivers
+`scripts/192_r3_l2.sh` / `193_r3_l3.sh` / `194_r3_belt.sh`.
+
+1. **L2 (WS-3.1): the plumbing delivered; the adaptive EWMA inert; the tight
+   probe negative.** `_dynamic_select_floor` now takes `lead_override_s`,
+   which **replaces** the shipped `FRUIT_DYNAMIC_SELECT_S=1.5` base instead of
+   `max()`ing with it - the SPEC 7.3 inert `FRUIT_BIARM_SELECT_LEAD_S` is
+   plumbed, and `_biarm_lead_args` resolves the two-line selection as explicit
+   env > adaptive EWMA (`FRUIT_BIARM_SELECT_LEAD_ADAPT=1`, per-arm, clamped
+   `FRUIT_BIARM_SELECT_LEAD_MIN/MAX` = 0.9/1.5 s) > the shipped 1.4 - the same
+   resolution at all three selection sites, and `176_twoline_selftest.py`
+   pins the plumbing offline. **The measurement**: the two-line setup the
+   floor must cover is `t_ready` = selection -> wait-loop entry; control left
+   **1.467 s** mean (1.32-1.60, n=10), right **1.516 s** (1.45-1.62) - the
+   fixed 1.5 s **is** the measured setup - and the chosen candidates sit
+   **38-316 mm outside the 0.399 m floor on every one of the 20 selections
+   (0/20 floor-bound)**, so the floor's setup term is not what sets the hover
+   wait (total - t_ready = 1.15-1.31 s, set by the picked fruit's distance).
+   The adaptive config moved the floors (left 0.387-0.399, right 0.396-0.399;
+   EWMA trajectories in `R3_l2_mech.txt`) and is **bit-identical to the
+   control in the physics stream (821/821 lines)**; its own pair is 861/861
+   (second run trace-on). The tight probe `FRUIT_BIARM_SELECT_LEAD_S=1.0`
+   (floor 0.339 m) **binds** (floor-bound 1/10 per arm, minimum gaps 6/16 mm),
+   the first stream divergence is the left slot-10 selection (peach vs
+   lychee), the left wait drops (`total` 2.941 -> 2.628 s mean, min 2.06 ->
+   1.44), and the **catch taxonomy gains zero new reasons** (the only reason
+   string in both branches is the 1/20 takeoff grip loss; the v9 under-lead
+   miss does not appear) - but the branch is worse where it matters:
+   **8/20, window 2.59 vs 3.63 placed/min, pooled interval 23.16 vs 16.53 s**
+   (p50 18.20 vs 17.30, n=7), with the damage in the shared placed-False
+   class (11 vs 7). Verdict: **not adopted**; the measured lever capacity is
+   one arm's -0.31 s wait on >=1/10 selections, not the fleet interval.
+2. **L3 (WS-3.2): the hot-arm residency measured, not adopted.** Knob
+   `FRUIT_BIARM_HOT_ARM=1`: the park decision moves to **after the
+   attempt-boundary feed** (the W6-C L1 lesson: the attempt-end lane is empty
+   before the update), and a station-side hold replaces the park when a target
+   is imminent (prefetch reservation or a dry-run selection with the next
+   slot's exact args) and the clearance gate holds (the other arm grips no
+   payload); starvation/budget/locked pre-poses park as shipped. The hold is
+   `_lift_clear` + a min-jerk blend to the arm's station pre-pose, and the
+   next attempt **skips its pre-pose blend** (0.08 rad guard; the hover move
+   stays - it is the calibrated descent entry). Two measured implementation
+   facts: the pre-pose feed budget (45+20 ticks) leaves **0.149 rad** on the
+   hold (j5) and 140+80 reaches **0.006-0.011** (the defaults); and **1 of the
+   4 battery holds jammed** (1.55 rad j5, after a takeoff-loss attempt) and
+   was recovered by the later park - a named robustness gap. Battery: the hot
+   pair is bit-identical (**917/917** physics lines), the control trace
+   replays `logs/w7/20_patch_battery_1.log` **821/821**. Accounting: **4
+   holds / 18 non-final turns** (starvation **7**, clearance **7**, budget 2,
+   0 blocked), only **2 survive to the next attempt** (the other two are
+   invalidated by intervening starved-slot parks; the surviving ones show the
+   prepose 0.33 vs 0.71 s). Result: **12/20 (left 5, right 7), window 3.41 vs
+   3.63 placed/min, pooled interval 17.62 / 14.20 / 33.60 s vs 16.53 / 17.30 /
+   19.90** (mean +1.09, p50 -3.10, p90 +13.70), idle **27 %/27 % vs 18 %/24 %**,
+   starved slots **51/37 vs 19/22**, lock-on left 6.37 vs 3.73 s; the pooled
+   attempt span is **identical (15.08 s)**, the grip block rises (2.78/2.67 vs
+   2.05/1.76) and the failure mix shifts to the takeoff class (5 vs 1). The
+   **hold's cost is the park's cost** (lift + 140/80-tick convergence vs the
+   2.4/2.9 s return; control park-trace motion 24.4/28.6 s per batch), so the
+   residency removes no traversal; the interval is arrival-bound (L2's
+   mechanism), so the 0.38 s pre-pose skip is re-absorbed - the W2 lesson
+   (park redesigns cost rate) is re-measured. **Clearance per config**:
+   min **1.9 -> 4.7 mm**, < 30 mm **1350/24109 = 5.6 %** vs 1043/22003 =
+   4.7 %, < 10 mm 1.0 % vs 0.8 % (the idle hand now waits at the station-side
+   pre-pose; no contact possible, `enabledSelfCollisions=0`). Verdict: **not
+   adopted**.
+3. **L4 (WS-3.3): not run, condition not met.** The control's decomposition:
+   return **0.59/0.64 s** per attempt (~4 %), place 3.09/2.79 and release
+   1.90/2.03 inside the physical sort - no dominant return block; W1/W2's
+   place/carry re-timing negatives still stand and the descent/close are
+   untouched by R3.
+4. **The belt-speed screen (WS-3.4): the arrival-limited boundary is 0.15-0.18
+   m/s.** The 20-attempt patch battery at 0.12/0.15/0.18 (`FRUIT_BELT_SPEED`),
+   one branch per point: 12/20, window 3.63 placed/min, pooled 16.53 s ->
+   14/20, **4.69**, pooled 12.80 s (0.15) -> 14/20, 3.82, pooled 15.71 s
+   (0.18). The arrival structure speeds up monotonically (descent 3.19 ->
+   2.40 -> 1.88 s; attempt span 15.08 -> 14.33 -> 13.73 s) and the **catch leg
+   is byte-stable at all three speeds** (20 descent legs/run, `|v|max`
+   0.106-0.116 m/s, `end` 8-12 mm, zero catch-miss notes, `gate_open=0.0 s`,
+   zero `indexed:`) - the catch is not the limit; at 0.18 the **starved-slot
+   idle explodes** (left 115 vs 19, idle 39 %/32 %) and the window rate falls
+   back, so between 0.15 and 0.18 the binding term moves from
+   catch/arrivals to lane/schedule starvation - made structural by the
+   fixed-time floor (`v*1.5` = 0.27 m at 0.18 shrinks the usable upstream band
+   0.45 -> 0.27 m). 0.15 is **not** the old belt-ladder's wash on the patch
+   sheet: the patch sheet converts it (window 3.63 -> 4.69 placed/min, pooled
+   16.53 -> 12.80 s).
+5. **No-harm (final tree, all knobs off).** `scripts/selfcheck.sh` **PASS 0
+   failures, 1 skipped** (`logs/selfcheck.log`, the extended `176` leg
+   included); `ACCEPT_LOG=logs/w8/R3_accept.log scripts/accept.sh` -> **9/10,
+   15.2 s/attempt, motion gate PASS, `fingerprint: matches
+   configs/motion_reference.json`**, its **385/385 `[fruit]` lines
+   byte-identical to `logs/w8/R2_accept.log`**; `scripts/96_motion_check.py`
+   PASS. Pins: `tasks.py` **0c51cfa5**, `rl_env.py` `TASKS_MD5` metadata-only
+   follow `d83167b1` -> `0c51cfa5`, `176_twoline_selftest.py` **2a83650b**,
+   `192_r3_l2.sh` `3384fedf`, `193_r3_l3.sh` `84f13c9e`, `194_r3_belt.sh`
+   `f2ed2c61`; the battery-time pins are `logs/w8/R3_tree_md5_*.txt`. Not
+   pushed.

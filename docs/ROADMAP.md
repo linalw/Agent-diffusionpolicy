@@ -7,7 +7,8 @@ tree/branch pins in section 1); **WS-2 outcomes added by the R2 pass**
 (2026-10-13, branch `w8-residuals`), **gate-fixed as R2.1** (the three-term
 numbers re-derived to `logs/w8/R2_flail_analysis.txt` /
 `R2_probe_report.txt`, the selector-leg verdict downgraded, the 5/10 -> 6/10
-canary-note propagation into `logs/w7/C_RESULTS.md`).
+canary-note propagation into `logs/w7/C_RESULTS.md`); **WS-3 outcomes added by
+the R3 pass** (2026-10-13, branch `w8-speed`, `logs/w8/R3_RESULTS.md`).
 Numbering: the plan's phases are **R0-R6** (this document), and the P-PLAN
 deliverables carry the **`PP-` prefix** (PP-P1 ops tool / PP-P2 this roadmap /
 PP-P3 validation) so the two schemes cannot collide. Scope: the work after
@@ -44,9 +45,9 @@ menus in `logs/w5/FRONTIER.md` (failure mechanisms) and
 | piece | state | evidence |
 | --- | --- | --- |
 | **Shipped single-arm dynamic line** (OpenArm, never-stop catch, v9/V1 scattered supply, `FRUIT_DYNAMIC_PICK` unset) | **9/10, 15.2 s/attempt, 3.55 placed/min**; the one failure is a left place/carry escape; x5 bit-identical | `logs/v1/31_accept_supply_verified.log`, `logs/v1/20_rate_supply_1..5.log`, AGENTS.md section 2 |
-| Acceptance of record on the current code tree (`tasks.py` `d83167b1`, R2/R2.1; both direct-path knobs off) | **9/10, motion gate PASS, `fingerprint: matches`**; its 385/385 `[fruit]` lines are byte-identical to the W8-B acceptance (`logs/w8/60_accept_w8b.log`), itself identical to W7-A | `logs/w8/R2_accept.log`; single-arm reference `configs/motion_reference.json` (`b9e72ca7`) |
+| Acceptance of record on the current code tree (`tasks.py` `0c51cfa5`, R3; every R3 knob off, L2/L3 two-line only) | **9/10, 15.2 s/attempt, motion gate PASS, `fingerprint: matches`**; its 385/385 `[fruit]` lines are byte-identical to the R2 acceptance (`logs/w8/R2_accept.log`), itself identical to W8-B/W7-A | `logs/w8/R3_accept.log`; single-arm reference `configs/motion_reference.json` (`b9e72ca7`) |
 | **Two-line opt-in** (`FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=1`; left station y=0.00 grade A, right y=-0.10 grade B, C passes; patch sheet) | W6-B baseline **10/20, 2.78 batch / 2.70 window placed/min**; same-scenario single arm **13/18, 2.12/2.17** -> pre-registered window ratio **1.24x** (< the 1.25x flip bar); pooled interval 22.20 / p90 45.50 s | `logs/w6/BASELINE.md` |
-| **Park-gate lever is the two-line default** (W7-A; `FRUIT_BIARM_PARK_EARLY` resolves to 1 under a two-line session) | replays W6-C bit-for-bit: **12/20, 3.64 batch / 3.63 window**, pooled interval **16.53 / 17.30 / 19.90 s**, left gate-blocked idle **25.2 -> 0.2 s**, idle 18 %/24 %; timing-only +10 %, residual x1.22 branch factor | `logs/w7/A_RESULTS.md` (861/861 physics lines vs `logs/w6/31/32`) |
+| **Park-gate lever is the two-line default** (W7-A; `FRUIT_BIARM_PARK_EARLY` resolves to 1 under a two-line session) | replays W6-C bit-for-bit: **12/20, 3.64 batch / 3.63 window**, pooled interval **16.53 / 17.30 / 19.90 s**, left gate-blocked idle **25.2 -> 0.2 s**, idle 18 %/24 %; timing-only +10 %, residual x1.22 branch factor; **R3 (WS-3) adds no speed lever on top**: the L2 adaptive lead is bit-identical (the fixed 1.5 s floor *is* the measured setup; 0/20 floor-bound), the L2 tight override probe is negative (8/20, window 2.59; zero new failure reasons), and the L3 hot-arm residency fires **4/18** and leaves the interval flat-to-worse (window 3.41, pooled 17.62 s; idle 27 %/27 %) - all default off | `logs/w7/A_RESULTS.md` (861/861 physics lines vs `logs/w6/31/32`); `logs/w8/R3_RESULTS.md` + `R3_l2_checks.txt`/`R3_l3_checks.txt` |
 | Dense W3/W4 wave sheet re-record (moved branch) | **7/10, 9.1 s/attempt, 4.60 placed/min**, `diverted=0`; own reference `configs/motion_reference_twoline.json` (`181c9151`); pre-flip control replays W4 bit-for-bit with `PARK_EARLY=0`; re-recorded on the W8-B tree (W8-B.1): `logs/w8/70_w8b1_twoline.log` is 442/442 `[fruit]`-identical to the W7-A pair and `scripts/190_twoline_gate.sh` PASS | `logs/w7/A_RESULTS.md`, `logs/w7/15_dense_control_park_off.log`, `logs/w8/B_RESULTS.md` |
 | **Policy** | shipped default **`moe_v12`** (`accept_policy.sh` line 75); direct causal loop is the measurement, the hybrid canary is the gate | `logs/w4/VERDICT.md`, `logs/w7/C_RESULTS.md` |
 | `moe_v13p` (W7-C patch recollection) | **not adopted**: W8-A N=5 confirmatory batch **21/75 = 28 % vs 22/75 = 29 %, sign p = 1.0000**, carried-class pairing 0 B-only / 2 A-only (the N=3 3-0 was noise); the carry class is 89-91 % of failures on both arms | `logs/w8/A_RESULTS.md` |
@@ -54,7 +55,7 @@ menus in `logs/w5/FRONTIER.md` (failure mechanisms) and
 | Pinned canary, `moe_v13p` ckpt (shipped scenario, fixed supply; **not** the shipped default `moe_v12`) | **8/10 PASS** (floor 60 %); matches the `moe_v13s` sample | `logs/w7/C_eval/canary_pinned.log` / `.out` |
 | W3-supply (dense sheet) hybrid canary | **still open** (spaced supply measured ~15-20 min/episode; diagnose the handoff station wait first) | `logs/w3/HANDOFF.md` |
 | **Clearance** | dense W3/W4 moved branch **2.59 mm min, 863/10042 = 8.6 % < 30 mm**; patch battery **1.9 mm, 4.7 % < 30 mm**; the F2 **45 mm / zero-under-30 convention is not met**; no arm-arm contact is possible (`enabledSelfCollisions=0`) and no attempt has ever failed by contact | `logs/w7/A_RESULTS.md` section 4, `logs/w6/C_RESULTS.md` section 3 |
-| Branch/tag state | `w8-carry` = the W8-B commit `d682a62` (the carry metric + the default-off guard, measured-not-adopted) + the W8-B.1 gate-fix docs (`e7d1ed3`), on top of `78e822e` (W8-A.1), which carries the W8-A/plan chain (`c973020`, `38d4699`, `cb39de8`, `459b00f`); `w8-confirm` sits at `78e822e`; `main` and `origin/main` are at `e7d1ed3` (the W8-A + P-PLAN + W8-B chain is pushed); **`w8-residuals` = the R2 commit + the R2.1 gate fixes on top of `e7d1ed3` (tag `v0.8b`): the WS-2 outcomes + the two default-off direct-path knobs, local**; tags `v0.6-w6` (`9f91c75`), `v0.7-w7a/b/c`, `v0.8` (`78e822e`), `v0.8b` (`e7d1ed3`) | `git log` / `git rev-parse`, `WORKLOG.md` "W8-A" / "W8-B" / "P-PLAN" / "R2" / "R2.1", `logs/w8/B_RESULTS.md`, `logs/w8/R2_RESULTS.md` |
+| Branch/tag state | `w8-carry` = the W8-B commit `d682a62` (the carry metric + the default-off guard, measured-not-adopted) + the W8-B.1 gate-fix docs (`e7d1ed3`), on top of `78e822e` (W8-A.1), which carries the W8-A/plan chain (`c973020`, `38d4699`, `cb39de8`, `459b00f`); `w8-confirm` sits at `78e822e`; `main` and `origin/main` are at `e7d1ed3` (the W8-A + P-PLAN + W8-B chain is pushed); **`w8-residuals` = the R2 commit + the R2.1 gate fixes on top of `e7d1ed3` (tag `v0.8b`): the WS-2 outcomes + the two default-off direct-path knobs; `w8-speed` = the R3 commit from `fd273fb` (R2.1): the WS-3 outcomes + the default-off L2/L3 two-line knobs, local**; tags `v0.6-w6` (`9f91c75`), `v0.7-w7a/b/c`, `v0.8` (`78e822e`), `v0.8b` (`e7d1ed3`) | `git log` / `git rev-parse`, `WORKLOG.md` "W8-A" / "W8-B" / "P-PLAN" / "R2" / "R2.1" / "R3", `logs/w8/B_RESULTS.md`, `logs/w8/R2_RESULTS.md`, `logs/w8/R3_RESULTS.md` |
 
 Open thread carried from the record: the two-line **store -> single-arm direct
 transfer** question (does a two-line recollection transfer to the direct
@@ -175,6 +176,61 @@ WORKLOG "R2").** All three residuals are closed with measured verdicts.
 | **3.3 L4 place/return re-timing** | **conditional**: only if L2/L3 leave the interval flat. Overlap the return with the next feed (drop the 30-tick gap when a target is reserved; start the return from the release pose) | place alone 5.3-5.7 s per interval, place+release+return 29-34 % (`logs/w6/BASELINE.md` section 3); W1/W2 measured place/carry re-timing negatives - do not touch the descent or the close | 3.1/3.2's measured intervals | 1-2 batteries (~20 min) | interval moves without touching descent/close; single-arm fingerprint re-checked |
 | **3.4 Belt-speed / patch-density screen** | find **where arrivals stop limiting**: the 20-attempt battery at 0.12/0.15/0.18 m/s and at patch densities, with per-leg catch metrics | `logs/w6/FRONTIER_THROUGHPUT.md` section 3.4 / [T8] (dispatching raised max belt speed +11.9 %); the AGENTS ladder records 0.15 as a wash, 0.18 not run | scenario-level (S*), no code change; each config = one branch | 3-6 batteries (~1-1.5 h) | the arrival-limited vs servo-limited boundary is named (per-leg metrics + branch), not a rate delta; every pre-patch supply stays byte-reproducible |
 
+**Outcome (R3, 2026-10-13, branch `w8-speed`, `logs/w8/R3_RESULTS.md` +
+WORKLOG "R3").** All four rows are closed; **no lever is adopted** (every knob
+default off, two-line only; the shipped single-arm default is byte-unchanged).
+
+* **3.1 L2 adaptive lead: the plumbing delivered, the adaptive form measurably
+  inert, the tight form negative.** `_dynamic_select_floor` now takes a
+  `lead_override_s` that *replaces* the shipped 1.5 s setup (`SPEC` 7.3's
+  inert `FRUIT_BIARM_SELECT_LEAD_S` is plumbed), and
+  `FRUIT_BIARM_SELECT_LEAD_ADAPT=1` feeds it a per-arm EWMA of the measured
+  selection -> wait-loop-entry setup, clamped to 0.9/1.5 s. Measured on the
+  patch battery: the shipped 1.5 s **is** the measured setup (left 1.467 s,
+  right 1.516 s), 0/20 selections are floor-bound (38-316 mm of slack), and
+  the adaptive config is **bit-identical to the control (821/821 physics
+  lines)**. The explicit tight probe (`FRUIT_BIARM_SELECT_LEAD_S=1.0`, floor
+  0.339 m) **binds** (1/10 selections per arm) and moves the branch (first
+  divergence the left slot-10 peach-vs-lychee) with **zero new failure
+  reasons** (the v9 under-lead class does not appear) - but the pooled
+  interval/rate on that branch are worse (8/20, window 2.59 vs 3.63, pooled
+  23.16 vs 16.53 s) with the damage in the shared placed-False class (11 vs
+  7). The measured lever capacity is one arm's wait (-0.31 s) on >=1/10
+  selections, not the fleet interval; the plumbing stays for any future
+  scenario-calibrated lead.
+* **3.2 L3 hot-arm residency: measured, not adopted.** `FRUIT_BIARM_HOT_ARM=1`
+  defers the park to after the attempt-boundary feed and replaces it with a
+  station-side hold (lift + a measured-convergence blend, 140+80 ticks) when a
+  target is imminent and the other arm grips nothing; the next attempt skips
+  its pre-pose blend behind a 0.08 rad guard (the hover move stays - it is the
+  calibrated descent entry). Measured: **4 holds / 18 non-final turns**
+  (starvation 7, clearance 7, budget 2), only 2 survive to the next attempt,
+  1 of 4 jammed (1.55 rad, recovered by the park); the hold costs the same
+  order as the park return it replaces (2.4/2.9 s), the pooled attempt span is
+  **identical** (15.08 s - the interval is arrival-bound), the window rate is
+  0.22 placed/min lower (3.41 vs 3.63), the idle/starvation rise, and the
+  pooled interval mean/p90 worsen (+1.09/+13.70 s; p50 -3.10 s). Clearance
+  per config: min **1.9 -> 4.7 mm**, < 30 mm **4.7 -> 5.6 %** (the W2/W3
+  carry-past class; no contact possible in this build). The W2 lesson (park
+  redesigns cost rate) re-measured.
+* **3.3 L4 place/return re-timing: not run - the condition is not met.** The
+  control's decomposition has return 0.59/0.64 s per attempt (~4 %), not a
+  dominant block; W1/W2's place/carry re-timing negatives still stand, and the
+  descent/close are untouched by R3.
+* **3.4 belt-speed screen: the arrival-limited boundary is 0.15-0.18 m/s.**
+  One branch per point on the patch battery: 0.12 -> 0.15 -> 0.18 m/s reads
+  window **3.63 -> 4.69 -> 3.82** placed/min, pooled interval **16.53 ->
+  12.80 -> 15.71 s**, with the catch leg byte-stable (20 descent legs/run,
+  `|v|max` 0.106-0.116 m/s, `end` 8-12 mm, zero catch-miss notes) and the
+  arrival structure speeding up monotonically (descent 3.19 -> 2.40 -> 1.88 s;
+  attempt span 15.08 -> 14.33 -> 13.73 s). At 0.18 the starved-slot idle
+  explodes (left 115 vs 19; idle 39 %/32 %) and the rate falls back - the
+  binding term has moved from catch/arrivals to lane/schedule starvation,
+  made structural by the speed-dependent fixed-time floor window
+  (`v*1.5` = 0.27 m at 0.18, usable band 0.45 -> 0.27 m). 0.15 is not the old
+  ladder's wash on the patch sheet; the named fix is a scenario-calibrated
+  floor per speed, not the adaptive EWMA (section 1.4).
+
 ### WS-4 - the policy
 
 | item | goal | evidence | dependency | budget | success criterion |
@@ -227,7 +283,7 @@ acceptance.
 | **R0 (done)** | **PP-P1 + PP-P2 landed; W8-A reviewed and gated** | PP-P1 ops tool delivered (`cb39de8`: `scripts/191_ops_selfcheck.sh` + `docs/OPS.md`; `--selftest` PASS + live OK) + PP-P2 this roadmap (offline, gate-fixed as P2.1); W8-A wrap: acceptance 9/10 + fingerprint, WORKLOG entry + commit landed (`c973020`); the W8-A.1 gate fixes landed (`78e822e`) | - | **PP-P3 validation (folded)**: real-state checks recorded (`logs/ops/`), AGENTS/README wired (P2.1); the W8-A + P-PLAN chain is pushed (`main`/`origin/main` at `78e822e`); the W8-B + W8-B.1 commits are local | 0-1 |
 | **R1 (done 2026-10-13)** | **W8-B the carry mechanism** (WS-1) | metric -> mechanism -> one lever; full evidence `logs/w8/B_RESULTS.md` (+ WORKLOG "W8-B"/"W8-B.1") | R0's W8-A wrap; one `tasks.py` lane (guard default-off; `tasks.py` `a3b82a11`) | **metric separates PASS** (0.02-1.43 vs 17.9-957 mm, no overlap) + mechanism named; lever **not adopted** (p = 0.1094, +5.4 % cycle) -> slot closed with the named residuals; no-harm **PASS** (single arm 9/10 + `fingerprint: matches` + the 385/385 identity; two-line `190` PASS + 442/442 identical to the W7-A dense record) | 1 + 2 re-reviews (used) |
 | **R2 (done 2026-10-13; gate-fixed as R2.1)** | **W8-C residuals + integration** (WS-2) | WS-2.1-2.3; docs + tag; R2.1 re-derives the three-term numbers from `R2_flail_analysis.txt` / `R2_probe_report.txt`, downgrades the selector-leg verdict and slots WS-4.7 | R1's metric (**delivered**: `clean_slip` + `logs/w8/B_metric.py`); owner C/clearance for the notes | **folded** (no shipped scenario or default changed; both new knobs default off, direct-path only) - the outcome block under WS-2 carries the three verdicts + the acceptance | 0-1 |
-| **R3** | **the speed levers** | WS-3.1 -> 3.2 -> 3.3 (conditional); 3.4 can interleave as its own Tier A batch | R1/R2 for the frozen tree; one `tasks.py` lane | per lever: mechanism + interval movement + no-harm; publish negatives | 1 + 2 per lever |
+| **R3 (done 2026-10-13; local)** | **the speed levers** | WS-3.1 -> 3.2 -> 3.3 (conditional); 3.4 interleaved as its own Tier A batch | R1/R2 for the frozen tree; one `tasks.py` lane | **folded** (no shipped default changed; both levers default off, two-line only) - the outcome block under WS-3 carries the four verdicts + the no-harm; every lever: mechanism + interval movement + no-harm, negatives published | 1 + 2 per lever (used) |
 | **R4** | **the policy** | WS-4.2 protocol; 4.1 mirror (if shipping); 4.3 recollection (if the WS-1 metric names a target); 4.4 canary; 4.6 the gate fire path; 4.7 the R2 combination screen | WS-1's metric; the owner interface decision (4.1/4.5) | per arm: the N=5 P4 rule; canary + acceptance | 1 + 2 |
 | **R5** | **owner decisions + integration** | WS-5.1-5.3; the flip question; docs (`AGENTS.md`, `README.md`, the Chinese docs) + merge + version tag | R1-R4's measured numbers | a panel review (folded if no default changes) | 0-1 |
 | **R6** | **longer term / frontier** | WS-7 lanes | owner go | per lane | - |

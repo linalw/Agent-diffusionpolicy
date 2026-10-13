@@ -667,6 +667,41 @@ stall term** (fast setup, 28-181 mm residuals; the R2.1 re-derivation in
 are default off and direct-path-only. Do not read a catch-up timeout as a
 fire-time miss: the fire-time dx spans -4.1..+8.3 cm across the class.
 
+**R3 (2026-10-13, branch `w8-speed`, `logs/w8/R3_RESULTS.md`): no WS-3 speed
+lever is adopted, and the reason is measured, not assumed - the two-line patch
+interval is arrival-bound.** The L2 plumbing is delivered
+(`_dynamic_select_floor` takes a `lead_override_s` that *replaces* the shipped
+1.5 s setup, so `FRUIT_BIARM_SELECT_LEAD_S` is no longer inert), the adaptive
+form (`FRUIT_BIARM_SELECT_LEAD_ADAPT=1`, a per-arm EWMA of the measured
+selection -> wait-loop-entry setup, clamped 0.9/1.5 s) is **bit-identical to
+the control (821/821 physics lines)** because the shipped floor *is* the
+measured setup (**left 1.467 s, right 1.516 s**) and **0/20 selections are
+floor-bound** (38-316 mm of slack). The explicit tight probe
+(`FRUIT_BIARM_SELECT_LEAD_S=1.0`, floor 0.339 m) **binds** (1/10 per arm) and
+moves the branch (first divergence: the left slot-10 peach-vs-lychee) with
+**zero new failure reasons** - the v9 under-lead miss does not appear - but the
+pooled interval/rate on that branch are worse (8/20, window 2.59 vs 3.63
+placed/min, pooled 23.16 vs 16.53 s; the shared placed-False class 11 vs 7).
+The L3 hot-arm residency (`FRUIT_BIARM_HOT_ARM=1`: the park decision deferred
+to after the attempt-boundary feed, a station-side hold when a target is
+imminent and the other arm grips nothing, the next attempt's pre-pose blend
+skipped behind a 0.08 rad guard; the hover move stays - it is the calibrated
+descent entry) fires **4/18 non-final turns** (starvation 7, clearance 7, 2
+survive to the next attempt, 1 of 4 jams at 1.55 rad and recovers through the
+park) and does **not** move the interval: the hold's measured-convergence blend
+(140+80 ticks) costs the same order as the park return (2.4/2.9 s), the pooled
+attempt span is identical (15.08 s), the window rate is 3.41 vs 3.63, the
+idle/starvation rise (27 %/27 %, starved slots 51/37 vs 19/22), and the
+clearance convention moves per config (min **1.9 -> 4.7 mm**, < 30 mm
+**4.7 -> 5.6 %**, the W2/W3 carry-past class; no contact possible). L4
+(place/return re-timing) is **not run** - the control's return block is 0.59/
+0.64 s per attempt (~4 %), not dominant, and W1/W2's place/carry negatives
+stand. The belt-speed screen (0.12/0.15/0.18 m/s) is in R3 section 4. All R3
+knobs default off and two-line-scoped; the single-arm acceptance is
+byte-unchanged (385/385 identical to `logs/w8/R2_accept.log`), selfcheck PASS.
+Pins: `tasks.py` `0c51cfa5`, `rl_env.py` `TASKS_MD5` follow, `176` selftest
+extended with the plumbing pins.
+
 ## 3. What changed -> what to run
 
 | you changed | run |

@@ -185,7 +185,17 @@ from .policy.trigger import TriggerSettings, should_fire
 #: `logs/w8/R2_RESULTS.md` section 3). Both knobs are unset on every shipped
 #: path; the W7-B invariance argument holds and the pin follows the file as
 #: always.
-TASKS_MD5 = "d83167b1a333ad173cf016c4cbd8ce91"
+#: The R3 speed-lever lane (2026-10-13) added the default-off, two-line-only
+#: L2 adaptive selection lead (`FRUIT_BIARM_SELECT_LEAD_ADAPT`, the
+#: `FRUIT_BIARM_SELECT_LEAD_S` floor override that now replaces the shipped
+#: 1.5 s setup instead of max()ing with it, `FRUIT_BIARM_SELECT_LEAD_MIN/MAX`,
+#: and the pure-reporting `FRUIT_BIARM_SELECT_DIAG`) and the L3 hot-arm
+#: residency (`FRUIT_BIARM_HOT_ARM` and its hold/settle knobs). Every knob is
+#: unset on the shipped paths: the two-line patch control replays the W7-A
+#: record bit-identically (821/821 physics lines) and the single-arm
+#: acceptance stream is 385/385 identical (`logs/w8/R3_RESULTS.md`), so the
+#: W7-B invariance argument holds and the pin follows the file as always.
+TASKS_MD5 = "0c51cfa50cf83dae2f40c4cc18579613"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(

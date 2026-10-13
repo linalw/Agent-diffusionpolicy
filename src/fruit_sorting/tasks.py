@@ -2731,6 +2731,7 @@ class PickAndPlaceTask:
         self, states: list[dict], lead_time: float = 0.0, lane: int | None = None,
         min_lead_s: float | None = None, station_y: float | None = None,
         prefer_lane: int | None = None, exclude: set[int] | None = None,
+        lead_override_s: float | None = None,
     ) -> dict | None:
         """Choose the next fruit that will reach the pick pose.
 
@@ -2836,9 +2837,15 @@ class PickAndPlaceTask:
                 abs(float(self.cfg.belt_speed))
                 * float(os.environ.get("FRUIT_PREPOSE_LEAD_S", "0.9")),
             )
-            if min_lead_s is not None:
+            # W8-R3 L2: `lead_override_s` is the two-line replacement (the
+            # measured/explicit setup); without it the shipped `min_lead_s`
+            # rule applies byte-for-byte.
+            if lead_override_s is not None or min_lead_s is not None:
+                lead_s = (
+                    lead_override_s if lead_override_s is not None else min_lead_s
+                )
                 prepose_lead = max(
-                    prepose_lead, abs(float(self.cfg.belt_speed)) * float(min_lead_s)
+                    prepose_lead, abs(float(self.cfg.belt_speed)) * float(lead_s)
                 )
             station_floor = pick_y - 0.02 + prepose_lead
             upstream_floor = max(pick_y + 0.18, station_floor)
@@ -2875,7 +2882,7 @@ class PickAndPlaceTask:
             # `lane=None`: eligibility is any grade (no starvation), the nearest
             # fruit of the arm's own lane wins when one is in the window, and a
             # cross-lane fruit is taken only when the arm's own lane has none.
-            floor = pick_y + self._dynamic_select_floor(min_lead_s)
+            floor = pick_y + self._dynamic_select_floor(min_lead_s, lead_override_s)
             usable = [item for item in station + upstream if item[0] >= floor]
             if not usable:
                 return None
@@ -2942,7 +2949,9 @@ class PickAndPlaceTask:
             return two_line
         return shipped
 
-    def _dynamic_select_floor(self, min_lead_s: float | None = None) -> float:
+    def _dynamic_select_floor(
+        self, min_lead_s: float | None = None, lead_override_s: float | None = None
+    ) -> float:
         """Minimum along-position a moving catch can still meet, above the station [m].
 
         The catch breaks out of its wait when the fruit reaches
@@ -2958,10 +2967,19 @@ class PickAndPlaceTask:
         handed the catch the nearest fruit (0.10-0.18 m) instead of the one the
         schedule can meet. The floor is in the *selector*, not the catch: the
         wait loop still absorbs any extra lead by hovering.
+
+        `lead_override_s` (W8-R3 L2, two-line only): an explicit or measured
+        setup that **replaces** the shipped `FRUIT_DYNAMIC_SELECT_S` base
+        instead of taking `max(...)` with it, so an override below 1.5 can bind
+        (the shipped `FRUIT_BIARM_SELECT_LEAD_S=1.4` is inert under the max -
+        `logs/w6/SPEC.md` section 7.3). Used by `_biarm_lead_args`; every other
+        caller leaves it `None` and the shipped formula is byte-unchanged.
         """
         speed = abs(self._belt_speed_estimate())
         setup = float(os.environ.get("FRUIT_DYNAMIC_SELECT_S", "1.5"))
-        if min_lead_s is not None:
+        if lead_override_s is not None:
+            setup = float(lead_override_s)
+        elif min_lead_s is not None:
             setup = max(setup, float(min_lead_s))
         margin = float(os.environ.get("FRUIT_DYNAMIC_SELECT_MARGIN", "0.03"))
         return self._dynamic_pick_lead() + speed * setup + margin
@@ -3479,6 +3497,35 @@ class PickAndPlaceTask:
         )
         session.next_target: dict[str, dict | None] = {"left": None, "right": None}
         session.next_target_t: dict[str, float | None] = {"left": None, "right": None}
+        #: W8-R3 L2 adaptive lead (`FRUIT_BIARM_SELECT_LEAD_ADAPT=1`, two-line
+        #: only, default off): per-arm EWMA of the measured selection ->
+        #: wait-loop-entry setup (`t_ready`), consumed by `_biarm_lead_args`;
+        #: `lead_diag` is the pure-reporting switch (`FRUIT_BIARM_SELECT_DIAG=1`
+        #: or the adaptive knob itself) that prints the per-selection and
+        #: per-attempt lines the R3 analysis reads. No control-path effect when
+        #: both are off.
+        adapt_env = os.environ.get("FRUIT_BIARM_SELECT_LEAD_ADAPT")
+        session.lead_adapt = bool(two_line and adapt_env == "1")
+        session.lead_diag = bool(
+            two_line
+            and (session.lead_adapt or os.environ.get("FRUIT_BIARM_SELECT_DIAG", "0") == "1")
+        )
+        session.lead_ewma: dict[str, float | None] = {"left": None, "right": None}
+        session.lead_select_t: dict[str, float | None] = {"left": None, "right": None}
+        session.lead_setup_used: dict[str, float | None] = {"left": None, "right": None}
+        session.lead_floor_used: dict[str, float | None] = {"left": None, "right": None}
+        #: W8-R3 L3 hot-arm residency (`FRUIT_BIARM_HOT_ARM=1`, two-line only,
+        #: default off): with an imminent target after the attempt-boundary
+        #: feed and the other arm not carrying, the park is replaced by a
+        #: station-side hold and the next attempt's pre-pose blend is skipped;
+        #: starvation / clearance / budget / locked pre-poses park as shipped.
+        #: `hot_stats` is the decision accounting the batch-end line prints.
+        hot_env = os.environ.get("FRUIT_BIARM_HOT_ARM")
+        session.hot_arm = bool(two_line and hot_env == "1")
+        session.hot_armed: dict[str, bool] = {"left": False, "right": False}
+        session.hot_stats: dict[str, int] = {
+            "holds": 0, "starvation": 0, "clearance": 0, "budget": 0, "blocked": 0,
+        }
         self._active_session = session
         try:
             with session:
@@ -3528,6 +3575,15 @@ class PickAndPlaceTask:
                 f"[biarm] grade routing: left {_fmt(per_arm['left'])}; "
                 f"right {_fmt(per_arm['right'])}; C picked={c_picked}; "
                 f"pure={'on' if self._pure_grade_routing() else 'off'}"
+            )
+        if two_line and getattr(session, "hot_arm", False):
+            # W8-R3 L3 accounting: holds taken / parks forced by each condition.
+            stats = session.hot_stats
+            say(
+                "[biarm] hot arm: holds={holds}; park: starvation={starvation} "
+                "clearance={clearance} budget={budget} blocked={blocked}".format(
+                    **stats
+                )
             )
         self.stats["biarm_sessions"] = int(self.stats.get("biarm_sessions", 0)) + 1
         self._biarm_trace_report(session)
@@ -3645,6 +3701,12 @@ class PickAndPlaceTask:
                                     f"(other started {ago:.1f}s ago)"
                                 )
                         state = None
+                        #: W8-R3 L2: resolve this arm's selection lead once per
+                        #: slot (explicit override / adaptive EWMA / shipped).
+                        #: The prefetch re-check and the fresh selection below
+                        #: must share it, or a consumed reservation would be
+                        #: re-floored differently from a cold selection.
+                        lead_min, lead_over = self._biarm_lead_args(arm)
                         if session.prefetch_enabled:
                             # W6-C L1: a target reserved at the previous
                             # attempt's end. Re-check it against the floor
@@ -3671,9 +3733,8 @@ class PickAndPlaceTask:
                                     fresh,
                                     station_y=self.station_y_for(arm),
                                     prefer_lane=bin_index,
-                                    min_lead_s=float(
-                                        os.environ.get("FRUIT_BIARM_SELECT_LEAD_S", "1.4")
-                                    ),
+                                    min_lead_s=lead_min,
+                                    lead_override_s=lead_over,
                                 )
                                 now = self._sim_time()
                                 if state is None:
@@ -3700,9 +3761,17 @@ class PickAndPlaceTask:
                                 station_y=self.station_y_for(arm),
                                 prefer_lane=bin_index,
                                 exclude=set(self.spawner.protected_indices),
-                                min_lead_s=float(
-                                    os.environ.get("FRUIT_BIARM_SELECT_LEAD_S", "1.4")
-                                ),
+                                min_lead_s=lead_min,
+                                lead_override_s=lead_over,
+                            )
+                        if state is not None and session.lead_diag:
+                            #: W8-R3 L2 pure reporting: the chosen candidate's
+                            #: position relative to its station and the floor
+                            #: that admitted it (works for both the consumed
+                            #: prefetch reservation and a fresh selection); the
+                            #: adaptive bookkeeping below consumes the timing.
+                            self._biarm_lead_select_diag(
+                                session, arm, state, lead_min, lead_over
                             )
                         if start_gap > 0.0 and state is not None:
                             # Record only real attempts: a starved slot must not
@@ -3770,7 +3839,15 @@ class PickAndPlaceTask:
                         # after `run()` so the just-finished attempt has already
                         # unprotected its own fruit.
                         self._biarm_prefetch(session, arm, bin_index)
-                    self._biarm_park(arm)
+                    #: W8-R3 L3 (`FRUIT_BIARM_HOT_ARM=1`, two-line only): with
+                    #: the knob on, the park decision is deferred to after the
+                    #: attempt-boundary feed below, so the imminent-target test
+                    #: sees the backlog the feeder releases at this boundary
+                    #: (the W6-C L1 lesson: before the update the attempt-end
+                    #: lane is empty). The parked path is byte-identical when
+                    #: the knob is off.
+                    if not (two_line and ran and session.hot_arm):
+                        self._biarm_park(arm)
                     if not two_line:
                         session.station.release()
                     elif session.capture_enabled:
@@ -3791,6 +3868,12 @@ class PickAndPlaceTask:
                 self.spawner.update(self._sim_time())
                 for _ in range(gap_ticks):
                     self._step_sim(1)
+                if two_line and session.hot_arm:
+                    # W8-R3 L3: the park/hold decision, now on the fresh feed.
+                    if self._biarm_hot_ready(session, arm, bin_index):
+                        self._biarm_hot_hold(session, arm)
+                    else:
+                        self._biarm_park(arm)
         except BaseException as exc:  # noqa: BLE001 - re-raised on the main thread
             session.errors.append(exc)
         finally:
@@ -3825,12 +3908,14 @@ class PickAndPlaceTask:
         report quotes the **reservation age** (selection -> station acquired)
         instead.
         """
+        lead_min, lead_over = self._biarm_lead_args(arm)
         state = self.select_target(
             self.spawner.state(),
             station_y=self.station_y_for(arm),
             prefer_lane=bin_index,
             exclude=set(self.spawner.protected_indices),
-            min_lead_s=float(os.environ.get("FRUIT_BIARM_SELECT_LEAD_S", "1.4")),
+            min_lead_s=lead_min,
+            lead_override_s=lead_over,
         )
         if state is None:
             return
@@ -3843,6 +3928,190 @@ class PickAndPlaceTask:
             f"{state.get('category', '?')} "
             f"along={float(state['position'][1]):+.3f}m "
             f"at t={session.next_target_t[arm]:.1f}s"
+        )
+
+    # ------------------------------------------------------------------ #
+    # W8-R3 L2: the adaptive selection lead (two-line only, default off)
+    # ------------------------------------------------------------------ #
+    def _biarm_lead_args(self, arm: str) -> tuple[float | None, float | None]:
+        """Resolve a two-line selection's lead call args `(min_lead_s, override_s)`.
+
+        The shipped two-line worker passes `FRUIT_BIARM_SELECT_LEAD_S` (default
+        1.4) as `min_lead_s`, where `_dynamic_select_floor` takes
+        `max(1.5, min_lead_s)` - so the shipped value is inert (`logs/w6/SPEC.md`
+        section 7.3: the floor is `pick_lead + v*1.5 + margin`). Two opt-in
+        resolutions replace the shipped setup on the two-line only, in this
+        order (`lead_override_s`, which skips the max):
+
+        * an explicit `FRUIT_BIARM_SELECT_LEAD_S` wins - the plumbing that lets
+          the override bind below 1.5 (W8-R3 L2's prerequisite);
+        * `FRUIT_BIARM_SELECT_LEAD_ADAPT=1` (`session.lead_adapt`) uses this
+          arm's measured EWMA of the **selection -> wait-loop entry** setup
+          (`t_ready`: pre-pose + hover move + hover settle, the time after which
+          the catch can take the handover at all), clamped to
+          `FRUIT_BIARM_SELECT_LEAD_MIN/MAX` (defaults 0.9/1.5 s). Until this
+          arm has one measurement the shipped floor is used, so the first
+          attempt of a seam is byte-identical.
+
+        Called by the worker's slot-start (fresh + prefetch re-check) and by
+        `_biarm_prefetch`, so all three selections of a slot agree on the
+        floor. Every non-two-line path keeps the exact shipped expression.
+        """
+        session = self._active_session
+        if session is None or not getattr(session, "twoline", False):
+            return float(os.environ.get("FRUIT_BIARM_SELECT_LEAD_S", "1.4")), None
+        override = os.environ.get("FRUIT_BIARM_SELECT_LEAD_S")
+        if override is not None:
+            return None, float(override)
+        if getattr(session, "lead_adapt", False):
+            ewma = session.lead_ewma.get(arm)
+            if ewma is not None:
+                lo = float(os.environ.get("FRUIT_BIARM_SELECT_LEAD_MIN", "0.9"))
+                hi = float(os.environ.get("FRUIT_BIARM_SELECT_LEAD_MAX", "1.5"))
+                return None, min(max(float(ewma), lo), hi)
+        return 1.4, None
+
+    def _biarm_lead_select_diag(
+        self, session: CoopSession, arm: str, state: dict,
+        lead_min: float | None, lead_over: float | None,
+    ) -> None:
+        """W8-R3 L2 pure reporting: one line per pre-attempt selection.
+
+        Records the candidate's along-position relative to its station and the
+        floor that admitted it (`_dynamic_select_floor`), so the R3 analysis can
+        quote the floor-bound fraction and the selection-distance distribution
+        (the lever's mechanism). Also records the selection tick the adaptive
+        EWMA measures from. No control input, no physics read.
+        """
+        along = float(state["position"][1]) - self.station_y_for(arm)
+        floor = self._dynamic_select_floor(lead_min, lead_over)
+        session.lead_select_t[arm] = self._sim_time()
+        session.lead_setup_used[arm] = (
+            float(lead_over)
+            if lead_over is not None
+            else max(
+                float(os.environ.get("FRUIT_DYNAMIC_SELECT_S", "1.5")),
+                float(lead_min) if lead_min is not None else 0.0,
+            )
+        )
+        session.lead_floor_used[arm] = floor
+        say(
+            f"[biarm] {arm}: select diag index={int(state['index'])} "
+            f"pos={along:+.3f}m floor=+{floor:.3f}m "
+            f"lead=+{self._dynamic_pick_lead():.3f}m"
+        )
+
+    def _biarm_lead_note(self, session: CoopSession, arm: str, t_ready: float) -> None:
+        """W8-R3 L2: one EWMA update from a measured selection -> hand-ready time."""
+        alpha = float(os.environ.get("FRUIT_BIARM_SELECT_LEAD_ALPHA", "0.4"))
+        alpha = min(max(alpha, 0.05), 1.0)
+        previous = session.lead_ewma.get(arm)
+        session.lead_ewma[arm] = (
+            float(t_ready)
+            if previous is None
+            else (1.0 - alpha) * float(previous) + alpha * float(t_ready)
+        )
+
+    # ------------------------------------------------------------------ #
+    # W8-R3 L3: the hot-arm residency (two-line only, default off)
+    # ------------------------------------------------------------------ #
+    def _biarm_hot_ready(self, session: CoopSession, arm: str, bin_index: int) -> bool:
+        """W8-R3 L3: may this turn's park be replaced by the station-side hold?
+
+        The decision runs after the attempt-boundary feed (see the worker), so
+        the dry-run selection below sees the backlog the feeder releases at this
+        boundary. All conditions must hold; each miss is counted in
+        `session.hot_stats` for the batch-end accounting:
+
+        * the knob is on and the two-line pre-poses are not lock-serialized
+          (`prepose_locked`: holding at the shared grasp configuration while the
+          other arm approaches it is exactly the case the lock exists for);
+        * **budget**: the batch has another slot to take;
+        * **clearance**: the other arm holds no gripped payload
+          (`_closed_gap[other] is None`) - the carry-past class is the one the
+          hold must not overlap; a payload in flight parks as shipped;
+        * **imminent target**: a prefetch reservation, or a dry-run selection
+          with the next slot's exact eligibility/floor args returns non-None;
+        * the arm is not already at ready (then the shipped park is a no-op).
+        """
+        stats = session.hot_stats
+        other = "right" if arm == "left" else "left"
+        if not session.hot_arm or session.prepose_locked:
+            stats["blocked"] += 1
+            return False
+        if session.reserved >= session.budget:
+            stats["budget"] += 1
+            return False
+        if self._closed_gap.get(other) is not None:
+            stats["clearance"] += 1
+            return False
+        ready = self._pose(arm, "ready")
+        if (
+            float(np.max(np.abs(self.arms[arm].joint_positions() - ready)))
+            <= self.TRANSIT_TOL
+        ):
+            stats["blocked"] += 1
+            return False
+        if session.next_target.get(arm) is None:
+            lead_min, lead_over = self._biarm_lead_args(arm)
+            imminent = (
+                self.select_target(
+                    self.spawner.state(),
+                    station_y=self.station_y_for(arm),
+                    prefer_lane=bin_index,
+                    exclude=set(self.spawner.protected_indices),
+                    min_lead_s=lead_min,
+                    lead_override_s=lead_over,
+                )
+                is not None
+            )
+            if not imminent:
+                stats["starvation"] += 1
+                return False
+        stats["holds"] += 1
+        return True
+
+    def _biarm_hot_hold(self, session: CoopSession, arm: str) -> None:
+        """W8-R3 L3: take the arm to its station-side pre-pose instead of ready.
+
+        `_lift_clear` (the measured routing that keeps a post-place blend clear
+        of the main belt) then the same min-jerk blend the next attempt's
+        pre-pose would run; `session.hot_armed[arm]` lets that attempt skip the
+        re-blend. The hover move is *not* skipped: it is the calibrated descent
+        entry (the descent starts at the hover), and changing it would redesign
+        the catch. A failed hold falls back to the shipped park.
+        """
+        try:
+            self._lift_clear(arm)
+            prepose = self._station_prepose_target(arm)
+            target = self._pose(arm, "grasp") if prepose is None else prepose
+            self._blend_to(
+                arm,
+                target,
+                # The post-place seed is farther from the station config than
+                # `ready` is, so the pre-pose's 45-tick feed budget does not
+                # converge it: measured, 45+20 ticks leave 0.149 rad (j5) and
+                # the next attempt's guard then re-blends as shipped; 140+80
+                # reaches 0.006 rad. The measured defaults are the lever's
+                # convergence cost.
+                ticks=int(os.environ.get("FRUIT_BIARM_HOT_TICKS", "140")),
+                # Settle at the target so the arm is measurably there before the
+                # next attempt's pre-pose check reads it (the check is what makes
+                # the skip safe; a lagging hold would just re-blend as shipped).
+                settle=int(os.environ.get("FRUIT_BIARM_HOT_SETTLE", "80")),
+            )
+        except Exception as exc:  # noqa: BLE001 - a failed hold falls back to a park
+            session.hot_armed[arm] = False
+            say(f"[biarm] {arm}: hot hold failed ({exc!r}); parking")
+            self._biarm_park(arm)
+            return
+        session.hot_armed[arm] = True
+        delta = self.arms[arm].joint_positions() - target
+        err = float(np.max(np.abs(delta)))
+        say(
+            f"[biarm] {arm}: hot hold (park skipped; target imminent) "
+            f"at t={self._sim_time():.1f}s (err {err:.3f} rad "
+            f"on j{int(np.argmax(np.abs(delta))) + 1})"
         )
 
     def _biarm_park(self, arm: str) -> None:
@@ -3858,6 +4127,13 @@ class PickAndPlaceTask:
         returns immediately - the starved no-fruit slots depend on that.
         """
         try:
+            # W8-R3 L3: a park invalidates a hot hold's promise (the arm leaves
+            # the station-side pre-pose); the next attempt then re-blends as
+            # shipped. The measured check in `_run_impl` still guards a stale
+            # flag.
+            session_ctx = self._active_session
+            if session_ctx is not None and hasattr(session_ctx, "hot_armed"):
+                session_ctx.hot_armed[arm] = False
             ready = self._pose(arm, "ready")
             if float(np.max(np.abs(self.arms[arm].joint_positions() - ready))) <= self.TRANSIT_TOL:
                 return
@@ -4331,7 +4607,40 @@ class PickAndPlaceTask:
         # pick pose) let it pass the tracking window and cost two of five
         # attempts; 45 ticks (0.4 s) keeps the pre-pose within the window
         # (logs/499).
-        if os.environ.get("FRUIT_SMOOTH_TRANSIT_PREPOSE", "1") == "1":
+        # W8-R3 L3 hot-arm residency: if the previous turn left this arm at its
+        # station-side pre-pose (`session.hot_armed`, set by `_biarm_hot_hold`),
+        # the re-blend is skipped - the arm is already where the blend would put
+        # it. The measured joint check guards a stale flag (e.g. a starved slot
+        # parked the arm between the hold and this attempt): on a miss the
+        # shipped pre-pose runs. The hover move below is *not* skipped (it is
+        # the calibrated descent entry).
+        session_ctx = self._active_session
+        hot_target = None
+        if (
+            session_ctx is not None
+            and getattr(session_ctx, "hot_armed", {}).get(arm_name)
+        ):
+            session_ctx.hot_armed[arm_name] = False
+            prepose = self._station_prepose_target(arm_name)
+            hot_target = self._pose(arm_name, "grasp") if prepose is None else prepose
+            hot_err = float(np.max(np.abs(arm.joint_positions() - hot_target)))
+            if hot_err > float(os.environ.get("FRUIT_BIARM_HOT_TOL", "0.08")):
+                say(
+                    f"[biarm] {arm_name}: hot pre-pose stale "
+                    f"(err {hot_err:.3f} rad); re-blending"
+                )
+                hot_target = None
+        if hot_target is not None:
+            # Hold the configuration the hot hold already reached, for a short
+            # fixed settle, so the branch keeps a deterministic step count (and
+            # the camera tick cadence matches `_blend_to`).
+            for _ in range(max(0, int(os.environ.get("FRUIT_BIARM_HOT_PREP_SETTLE", "20")))):
+                arm.robot.set_dof_position_targets(
+                    [hot_target], dof_indices=arm.arm_dofs
+                )
+                self._step_sim(1)
+                self._tick_frame()
+        elif os.environ.get("FRUIT_SMOOTH_TRANSIT_PREPOSE", "1") == "1":
             self._transit_to(
                 arm_name,
                 "grasp",
@@ -4481,6 +4790,21 @@ class PickAndPlaceTask:
             # constant speed for the whole run).
             belt.start()
             self._gate_open_step = 0
+        # W8-R3 L2 (two-line only, default off): the selection -> wait-loop-entry
+        # setup `t_ready` is the time this arm needed from the slot-start
+        # selection to the moment it can take the handover at all (pre-pose +
+        # hover move + settle). The adaptive lead EWMA is updated here, before
+        # the wait loop, so the next slot's floor can use it; the pure-reporting
+        # line after the loop carries it plus the total (wait-to-handover).
+        lead_ctx = None
+        session_lead = self._active_session
+        if session_lead is not None and getattr(session_lead, "lead_diag", False):
+            t_sel = session_lead.lead_select_t.get(arm_name)
+            if t_sel is not None:
+                t_ready = self._sim_time() - float(t_sel)
+                lead_ctx = (float(t_sel), t_ready)
+                if getattr(session_lead, "lead_adapt", False):
+                    self._biarm_lead_note(session_lead, arm_name, t_ready)
         jaw_y = float(arm.jaw_centre()[1])
         last_y = None
         stalled = 0
@@ -4663,6 +4987,18 @@ class PickAndPlaceTask:
                 self._tick_frame()
         if verbose:
             say(f"[task] fruit at pick point: dy={dy:+.4f} m arrived={arrived} after {step} steps")
+        if lead_ctx is not None:
+            ctx = self._active_session
+            ewma = ctx.lead_ewma.get(arm_name) if ctx is not None else None
+            setup_used = ctx.lead_setup_used.get(arm_name) if ctx is not None else None
+            floor_used = ctx.lead_floor_used.get(arm_name) if ctx is not None else None
+            ewma_s = f"{float(ewma):.2f}" if ewma is not None else "n/a"
+            say(
+                f"[biarm] {arm_name}: lead diag t_sel={lead_ctx[0]:.1f}s "
+                f"t_ready={lead_ctx[1]:.2f}s total={self._sim_time() - lead_ctx[0]:.2f}s "
+                f"ewma={ewma_s}s setup_eff={float(setup_used or 0.0):.2f}s "
+                f"floor=+{float(floor_used or 0.0):.3f}m"
+            )
         if not arrived:
             result.notes.append(f"fruit never settled at the pick point (dy={dy:+.3f} m)")
             return result
