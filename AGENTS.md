@@ -671,8 +671,9 @@ fire-time miss: the fire-time dx spans -4.1..+8.3 cm across the class.
 lever is adopted, and the reason is measured, not assumed - the two-line patch
 interval is arrival-bound.** The L2 plumbing is delivered
 (`_dynamic_select_floor` takes a `lead_override_s` that *replaces* the shipped
-1.5 s setup, so `FRUIT_BIARM_SELECT_LEAD_S` is no longer inert), the adaptive
-form (`FRUIT_BIARM_SELECT_LEAD_ADAPT=1`, a per-arm EWMA of the measured
+1.5 s setup, so `FRUIT_BIARM_SELECT_LEAD_S` is no longer inert on the two-line
+path (the shared-station worker keeps it max'd under the 1.5 s floor), the
+adaptive form (`FRUIT_BIARM_SELECT_LEAD_ADAPT=1`, a per-arm EWMA of the measured
 selection -> wait-loop-entry setup, clamped 0.9/1.5 s) is **bit-identical to
 the control (821/821 physics lines)** because the shipped floor *is* the
 measured setup (**left 1.467 s, right 1.516 s**) and **0/20 selections are

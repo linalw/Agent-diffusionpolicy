@@ -13366,7 +13366,9 @@ default is byte-unchanged. Evidence: `logs/w8/R3_RESULTS.md`, the check files
    probe negative.** `_dynamic_select_floor` now takes `lead_override_s`,
    which **replaces** the shipped `FRUIT_DYNAMIC_SELECT_S=1.5` base instead of
    `max()`ing with it - the SPEC 7.3 inert `FRUIT_BIARM_SELECT_LEAD_S` is
-   plumbed, and `_biarm_lead_args` resolves the two-line selection as explicit
+   plumbed on the two-line path only (the shared-station worker's own
+   re-selection keeps it under the `max(1.5, 1.4)` floor, inert - intentional),
+   and `_biarm_lead_args` resolves the two-line selection as explicit
    env > adaptive EWMA (`FRUIT_BIARM_SELECT_LEAD_ADAPT=1`, per-arm, clamped
    `FRUIT_BIARM_SELECT_LEAD_MIN/MAX` = 0.9/1.5 s) > the shipped 1.4 - the same
    resolution at all three selection sites, and `176_twoline_selftest.py`
@@ -13376,7 +13378,8 @@ default is byte-unchanged. Evidence: `logs/w8/R3_RESULTS.md`, the check files
    fixed 1.5 s **is** the measured setup - and the chosen candidates sit
    **38-316 mm outside the 0.399 m floor on every one of the 20 selections
    (0/20 floor-bound)**, so the floor's setup term is not what sets the hover
-   wait (total - t_ready = 1.15-1.31 s, set by the picked fruit's distance).
+   wait (total - t_ready per selection: left 0.52-2.04 s mean 1.47, right
+   0.90-2.92 s mean 1.95, set by the picked fruit's distance).
    The adaptive config moved the floors (left 0.387-0.399, right 0.396-0.399;
    EWMA trajectories in `R3_l2_mech.txt`) and is **bit-identical to the
    control in the physics stream (821/821 lines)**; its own pair is 861/861
@@ -13402,7 +13405,8 @@ default is byte-unchanged. Evidence: `logs/w8/R3_RESULTS.md`, the check files
    next attempt **skips its pre-pose blend** (0.08 rad guard; the hover move
    stays - it is the calibrated descent entry). Two measured implementation
    facts: the pre-pose feed budget (45+20 ticks) leaves **0.149 rad** on the
-   hold (j5) and 140+80 reaches **0.006-0.011** (the defaults); and **1 of the
+   hold (j5) and 140+80 reaches **0.006-0.011** (the defaults; the hold lines
+   are copied into `logs/w8/R3_l3_smoke_notes.txt`); and **1 of the
    4 battery holds jammed** (1.55 rad j5, after a takeoff-loss attempt) and
    was recovered by the later park - a named robustness gap. Battery: the hot
    pair is bit-identical (**917/917** physics lines), the control trace
@@ -13436,10 +13440,12 @@ default is byte-unchanged. Evidence: `logs/w8/R3_RESULTS.md`, the check files
    14/20, **4.69**, pooled 12.80 s (0.15) -> 14/20, 3.82, pooled 15.71 s
    (0.18). The arrival structure speeds up monotonically (descent 3.19 ->
    2.40 -> 1.88 s; attempt span 15.08 -> 14.33 -> 13.73 s) and the **catch leg
-   is byte-stable at all three speeds** (20 descent legs/run, `|v|max`
-   0.106-0.116 m/s, `end` 8-12 mm, zero catch-miss notes, `gate_open=0.0 s`,
-   zero `indexed:`) - the catch is not the limit; at 0.18 the **starved-slot
-   idle explodes** (left 115 vs 19, idle 39 %/32 %) and the window rate falls
+   is in-band/stable across the three speeds** (20 descent legs/run, `|v|max`
+   0.106-0.116 m/s, `end` 8.2-12.2 mm, zero catch-miss notes, `gate_open=0.0 s`,
+   zero `indexed:`; not byte-identical across speeds - 0/20
+   `approach(cartesian)` lines shared) - the catch is not the limit; at 0.18
+   the **starved-slot idle explodes** (left 115 vs 19, idle 39 %/32 %) and the
+   window rate falls
    back, so between 0.15 and 0.18 the binding term moves from
    catch/arrivals to lane/schedule starvation - made structural by the
    fixed-time floor (`v*1.5` = 0.27 m at 0.18 shrinks the usable upstream band
@@ -13457,3 +13463,61 @@ default is byte-unchanged. Evidence: `logs/w8/R3_RESULTS.md`, the check files
    `192_r3_l2.sh` `3384fedf`, `193_r3_l3.sh` `84f13c9e`, `194_r3_belt.sh`
    `f2ed2c61`; the battery-time pins are `logs/w8/R3_tree_md5_*.txt`. Not
    pushed.
+
+### R3.1 (gate fixes): the in-band catch-leg wording, the measured wait, the per-config class counts, and the L4/tree-provenance reconciliation
+
+**Scope (2026-10-13, branch `w8-speed`, docs only; no simulator, no `src/`
+change).** The R3 review's ordered fixes. Evidence: the re-derived
+per-selection wait (`R3_l2_control.log`'s `lead diag` rows), the hot
+accounting and hold lines (`R3_l3_hot_1.log`), the copied smoke lines
+(`logs/w8/R3_l3_smoke_notes.txt`), the per-config reason counts, the L3 check
+file (`R3_l3_checks.txt`) and the floor formula (`_dynamic_select_floor` =
+`_dynamic_pick_lead()` + v*setup + the 0.03 m margin).
+
+1. **The belt screen's catch-leg wording is corrected: the descent legs are
+   in-band/stable across the three speeds, not "byte-stable".** 0/20
+   `approach(cartesian)` lines are shared across speeds (each carries its own
+   `end=`/`|a|max` fields), while the per-leg metrics stay in one band (peak
+   0.106-0.116 m/s, `end` 8.2-12.2 mm, zero catch-miss notes,
+   `gate_open=0.0 s`, zero `indexed:`). Fixed in `R3_RESULTS.md` section 4,
+   this entry's R3 belt item, and the roadmap outcome.
+2. **The wait statistic is corrected: `total - t_ready` per selection is left
+   0.52-2.04 s (mean 1.47) and right 0.90-2.92 s (mean 1.95)** - the earlier
+   "1.15-1.31 s" matched no statistic. Fixed in `R3_RESULTS.md` section 1.2
+   and the R3 item 1 here.
+3. **The takeoff-grip counts are per config: the L2 configs 1/20, the hot
+   battery 5/20.** The old "1-3/20 takeoff grip strings" contradicted the hot
+   battery's 5/20 (a branch class shift, not a new catch reason; the belt
+   screen's own 1-3/20 stays in section 4).
+4. **The L4 condition is reconciled to the R3 plan's wording** ("only if the
+   battery's decomposition shows the return block matters"; the roadmap row's
+   "only if L2/L3 leave the interval flat" shorthand retired) **and the
+   arrival-bound reason is stated**: the arms already idle 18 %/24 % waiting
+   for fruit, so re-timing a ~4 % return block would only re-absorb into idle.
+5. **The tree-provenance bridge is stated** (R3_RESULTS section 0): the L2
+   battery + the 0.12 m/s reference on `tasks.py` **8121b386**; the L3 battery
+   + the 0.15/0.18 screen on the final **0c51cfa5**; the L3 diff is
+   default-off and the final-tree control replay (821/821 vs the W7-A record)
+   carries the L2/0.12 numbers across.
+6. **The 0.149 rad hold line now has an in-repo artifact**: the hold lines are
+   copied verbatim into `logs/w8/R3_l3_smoke_notes.txt` (the 45+20 smoke from
+   the session /tmp log; the 0.006/0.009/0.011/1.550 battery lines from
+   `R3_l3_hot_1.log`).
+7. **The combined-config floor reads ~0.33 m** (`_dynamic_pick_lead()` 0.189 +
+   v*0.9 = 0.108 + the 0.03 m margin), not 0.29 m.
+8. **One hold-count phrasing**: 4 holds, 18 non-final decisions (starvation 7,
+   clearance 7) + the 2 budget turns.
+9. **The determinism row no longer mixes the no-harm replay**: adapt 861/861,
+   tight 862/862, hot 917/917; the control trace's 821/821 is relabeled as the
+   W7-A no-harm replay (same comparison as the row above).
+10. **`FRUIT_BIARM_SELECT_LEAD_S`'s new binding is scoped to the two-line
+    path** (`R3_RESULTS.md` section 1.1): the shared-station worker keeps it
+    inert under the `max(1.5, 1.4)` floor - intentional.
+11. **The Chinese docs' stale "L2 is next" routing is named as an open docs
+    item** (`R3_RESULTS.md` section 6): `项目总结报告.md` (~363) and
+    `决策与交付.md` (~219/~251) predate R3; the ROADMAP R5 documentation pass
+    owns the update.
+
+No-harm: docs only (`WORKLOG.md`, `AGENTS.md`, `docs/ROADMAP.md` tracked;
+`logs/w8/` is untracked by design); `scripts/selfcheck.sh` PASS 0 failures, 1
+skipped; `tasks.py` `0c51cfa5` and every pinned hash untouched. Not pushed.

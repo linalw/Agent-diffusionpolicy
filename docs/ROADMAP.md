@@ -173,7 +173,7 @@ WORKLOG "R2").** All three residuals are closed with measured verdicts.
 | --- | --- | --- | --- | --- | --- |
 | **3.1 L2 adaptive lead** | replace the fixed setup floor with a **measured per-arm EWMA** lead, so a nearer fruit is selectable; the prerequisite is the **floor override** - `_dynamic_select_floor` takes `max(1.5, min_lead)`, so the shipped `FRUIT_BIARM_SELECT_LEAD_S=1.4` is **inert** (SPEC 7.3) | wait-to-handover inputs measured: left **2.93 s mean / p90 3.7**, right **3.39 / 4.4** (`logs/w6/C_RESULTS.md` section 4); the under-lead catch-miss failure mode is the v9 1/10 selection-floor case | W8-B/C for a frozen tree (one lane owns `tasks.py`); L1 prefetch is a measured null hook (`FRUIT_BIARM_PREFETCH`, re-fire gate: reservations > 0 AND a consumption) | 2 batteries + 1 trace (~1 h sim) | hover wait / pooled interval move **with the catch taxonomy unchanged** (zero new failure reasons); default off until gated; no-harm |
 | **3.2 L3 hot-arm residency** | when a target is reserved, hold the arm at the **station-side pre-pose** instead of a full park + re-pre-pose; park only on starvation or the clearance gate | `logs/w6/FRONTIER_THROUGHPUT.md` section 3.3; pre-pose + hover **move** is 7 % of the interval (`logs/w6/BASELINE.md` section 3); the dense clearance sub-30 mm class is the **carry-past** (the carrying hand passing the other arm's descent/pre-pose; `logs/w7/A_RESULTS.md` section 4), and W2 showed park redesigns cost rate | 3.1 (reservation semantics); the clearance convention owner decision (WS-5.2) | 2 batteries + clearance trace (~1 h) | interval gain with the **per-config clearance traced and reported** (min, % < 30 mm); no contact failure possible in this build, but the convention is the owner's |
-| **3.3 L4 place/return re-timing** | **conditional**: only if L2/L3 leave the interval flat. Overlap the return with the next feed (drop the 30-tick gap when a target is reserved; start the return from the release pose) | place alone 5.3-5.7 s per interval, place+release+return 29-34 % (`logs/w6/BASELINE.md` section 3); W1/W2 measured place/carry re-timing negatives - do not touch the descent or the close | 3.1/3.2's measured intervals | 1-2 batteries (~20 min) | interval moves without touching descent/close; single-arm fingerprint re-checked |
+| **3.3 L4 place/return re-timing** | **conditional**: only if the battery's decomposition shows the return block matters (the R3 plan's condition; the arms already idle 18-24 % waiting for fruit). Overlap the return with the next feed (drop the 30-tick gap when a target is reserved; start the return from the release pose) | place alone 5.3-5.7 s per interval, place+release+return 29-34 % (`logs/w6/BASELINE.md` section 3); W1/W2 measured place/carry re-timing negatives - do not touch the descent or the close | 3.1/3.2's measured intervals | 1-2 batteries (~20 min) | interval moves without touching descent/close; single-arm fingerprint re-checked |
 | **3.4 Belt-speed / patch-density screen** | find **where arrivals stop limiting**: the 20-attempt battery at 0.12/0.15/0.18 m/s and at patch densities, with per-leg catch metrics | `logs/w6/FRONTIER_THROUGHPUT.md` section 3.4 / [T8] (dispatching raised max belt speed +11.9 %); the AGENTS ladder records 0.15 as a wash, 0.18 not run | scenario-level (S*), no code change; each config = one branch | 3-6 batteries (~1-1.5 h) | the arrival-limited vs servo-limited boundary is named (per-leg metrics + branch), not a rate delta; every pre-patch supply stays byte-reproducible |
 
 **Outcome (R3, 2026-10-13, branch `w8-speed`, `logs/w8/R3_RESULTS.md` +
@@ -215,13 +215,17 @@ default off, two-line only; the shipped single-arm default is byte-unchanged).
   redesigns cost rate) re-measured.
 * **3.3 L4 place/return re-timing: not run - the condition is not met.** The
   control's decomposition has return 0.59/0.64 s per attempt (~4 %), not a
-  dominant block; W1/W2's place/carry re-timing negatives still stand, and the
+  dominant block, and the interval is arrival-bound (the arms already idle
+  18 %/24 % waiting for fruit), so re-timing it would only re-absorb into
+  idle; W1/W2's place/carry re-timing negatives still stand, and the
   descent/close are untouched by R3.
 * **3.4 belt-speed screen: the arrival-limited boundary is 0.15-0.18 m/s.**
   One branch per point on the patch battery: 0.12 -> 0.15 -> 0.18 m/s reads
   window **3.63 -> 4.69 -> 3.82** placed/min, pooled interval **16.53 ->
-  12.80 -> 15.71 s**, with the catch leg byte-stable (20 descent legs/run,
-  `|v|max` 0.106-0.116 m/s, `end` 8-12 mm, zero catch-miss notes) and the
+  12.80 -> 15.71 s**, with the catch leg in-band/stable across the three
+  speeds (20 descent legs/run, `|v|max` 0.106-0.116 m/s, `end` 8.2-12.2 mm,
+  zero catch-miss notes; not byte-identical across speeds - 0/20
+  `approach(cartesian)` lines shared) and the
   arrival structure speeding up monotonically (descent 3.19 -> 2.40 -> 1.88 s;
   attempt span 15.08 -> 14.33 -> 13.73 s). At 0.18 the starved-slot idle
   explodes (left 115 vs 19; idle 39 %/32 %) and the rate falls back - the
