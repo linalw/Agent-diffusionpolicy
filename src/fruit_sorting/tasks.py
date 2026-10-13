@@ -4768,6 +4768,20 @@ class PickAndPlaceTask:
         #: FRUIT_DIRECT_HOLD_TICKS=0 FRUIT_DIRECT_CATCH_MAX=1000` restores the
         #: pre-fix direct flow as the control.
         direct_capture = bool(dynamic_capture and not scripted)
+        #: R2.3 pose-side lever (default off; see `logs/w8/R2_RESULTS.md` section
+        #: 3): re-seed the active arm to the calibrated grasp pose before the
+        #: direct handover's dynamic blocks. The policy leaves the arm wherever
+        #: its last chunk sent it; the cartesian premove/hover from there can run
+        #: its caps and park in a j2-limit branch (the measured flail class -
+        #: fast premoves that still stall the catch-up, q2 at its +0.1745 limit),
+        #: while every demonstration approaches from the calibrated grasp pose.
+        #: The non-dynamic (indexed) handover already teleports this seed; this
+        #: knob extends that to the direct dynamic path. Costs 40 ticks (0.33 s)
+        #: of setup, which the W7-B acquisition lead's margin owns. Off =
+        #: byte-neutral.
+        direct_reseed = bool(
+            direct_capture and os.environ.get("FRUIT_DIRECT_RESEED", "0") == "1"
+        )
         # W8-B carry guard scope: the policy handover's own dynamic carry legs
         # only (see the knob block in `__init__`). A scripted call always clears
         # it, and `_carry` additionally requires the attempt to be dynamic.
@@ -5050,7 +5064,13 @@ class PickAndPlaceTask:
                     # hover wait has slack to time the descent (`logs/p2_smoke4`:
                     # the seed+settle overhead put the descent start 17 cm past
                     # the deadline at the shipped 0.12 m/s with the 0.03 profile).
-                    if not dynamic_capture:
+                    # The *direct* handover skips it for the same feed-time
+                    # reason, but the policy leaves the arm in an arbitrary
+                    # configuration and the dynamic blocks can then run long /
+                    # park at a joint limit (the R2.3 flail class); the default-
+                    # off `FRUIT_DIRECT_RESEED=1` buys the known-good start pose
+                    # back for that path only.
+                    if not dynamic_capture or direct_reseed:
                         seed = (
                             self.waypoints.get("arms", {}).get(arm_name, {}).get("grasp")
                         )

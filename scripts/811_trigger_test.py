@@ -113,6 +113,21 @@ def main() -> int:
     check("acquisition lead is capped", abs(info_cap["lead"] - 1.5) < 1e-9,
           f"lead={info_cap['lead']:.2f}")
 
+    # R2.3 reach-cliff guard (default off): a fruit at x = 0.40 fires at the
+    # shipped gates; with `x_max` set just below it the same tick is refused
+    # and the info records the fruit's x (the env turns that into one note).
+    edge_fruit = (0.400, 0.040, 1.184)
+    base_fire = TriggerSettings(mode="arrival", lead=1.0)
+    fired, _ = should_fire(base_fire, edge_fruit, jaw, encoder_speed=-0.06)
+    check("x_max off fires the edge fruit", fired)
+    guarded = TriggerSettings(mode="arrival", lead=1.0, x_max=0.390)
+    fired, info = should_fire(guarded, edge_fruit, jaw, encoder_speed=-0.06)
+    check("x_max refuses a fruit past the reach edge", not fired)
+    check("the refusal reports the fruit's x",
+          info.get("x_refuse") == 0.400, f"x_refuse={info.get('x_refuse')}")
+    fired, info = should_fire(guarded, (0.380, 0.040, 1.184), jaw, encoder_speed=-0.06)
+    check("x_max admits a fruit inside the band", fired and "x_refuse" not in info)
+
     env = dict(os.environ)
     try:
         os.environ["FRUIT_POLICY_TRIGGER"] = "arrival"
@@ -135,6 +150,12 @@ def main() -> int:
         check("from_env parses the acquisition knob",
               parsed.acq and parsed.acq_speed == 0.25 and parsed.acq_margin == 0.4
               and parsed.acq_cap == 3.0 and parsed.acq_reach_margin == 0.07)
+        check("x_max defaults off", parsed.x_max is None)
+        os.environ["FRUIT_POLICY_TRIGGER_X_MAX"] = "0.390"
+        check("from_env parses the reach-cliff guard",
+              TriggerSettings.from_env().x_max == 0.390)
+        del os.environ["FRUIT_POLICY_TRIGGER_X_MAX"]
+        check("x_max unset is None again", TriggerSettings.from_env().x_max is None)
         del os.environ["FRUIT_POLICY_TRIGGER_PRESENT"]
         check("present defaults off", not TriggerSettings.from_env().present)
         os.environ["FRUIT_POLICY_TRIGGER"] = "bogus"

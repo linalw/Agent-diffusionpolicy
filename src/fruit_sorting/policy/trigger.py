@@ -36,6 +36,15 @@ unset the env's trigger code is the shipped ``finger < 0.030 and distance <
                                 differs, the env adopts it (the same fruit the
                                 scripted primitive's station re-select would
                                 grasp) and fires. Default 0.
+    FRUIT_POLICY_TRIGGER_X_MAX  R2.3 reach-cliff guard (default off): absolute
+                                across-belt x [m] a fruit may not exceed at
+                                fire time. The top-down grasp's reachable band
+                                is x = 0.18-0.39 and the handover's premove/
+                                hover cannot park past its edge, so the catch
+                                flails (joint at its limit, catch-up timeout);
+                                a fruit beyond it is refused and rides past
+                                the station (`logs/w8/R2_RESULTS.md` section
+                                3). Unset = off.
 
 The adaptive acquisition lead (**W7-B**, default **off**):
 
@@ -113,6 +122,16 @@ class TriggerSettings:
     acq_margin: float = 0.60
     acq_cap: float = 4.50
     acq_reach_margin: float = 0.05
+    #: R2.3 reach-cliff guard (default off): absolute across-belt x [m] a fruit
+    #: may not exceed at fire time. The top-down grasp's reachable band is
+    #: x = 0.18-0.39 (6 mm residual) with a hard cliff at x >= 0.42
+    #: (`scripts/174_station_reach.py`); a fruit beyond the edge makes the
+    #: handover's premove/hover run to their caps while the fruit travels past,
+    #: and the catch-up then chases it with the arm's joint at its limit
+    #: (`logs/w8/R2_RESULTS.md` section 3). With the knob set, such a fruit is
+    #: refused at the fire tick and rides past the station instead. `None` =
+    #: off, byte-neutral.
+    x_max: float | None = None
 
     @classmethod
     def from_env(cls) -> "TriggerSettings":
@@ -127,6 +146,7 @@ class TriggerSettings:
                 f"FRUIT_POLICY_TRIGGER_FRAME must be one of {TRIGGER_FRAMES}, "
                 f"got {frame!r}"
             )
+        x_max_env = os.environ.get("FRUIT_POLICY_TRIGGER_X_MAX", "").strip()
         return cls(
             mode=mode,
             lead=float(os.environ.get("FRUIT_POLICY_TRIGGER_LEAD", "0.90")),
@@ -143,6 +163,7 @@ class TriggerSettings:
             acq_reach_margin=float(
                 os.environ.get("FRUIT_POLICY_TRIGGER_ACQ_REACH", "0.05")
             ),
+            x_max=float(x_max_env) if x_max_env else None,
         )
 
     @property
@@ -161,6 +182,8 @@ class TriggerSettings:
                 f" acq=on(speed={self.acq_speed:.2f},margin={self.acq_margin:.2f},"
                 f"cap={self.acq_cap:.2f},reach_margin={self.acq_reach_margin:.2f})"
             )
+        if self.x_max is not None:
+            text += f" x_max={self.x_max:.3f}"
         return text
 
 
@@ -243,7 +266,10 @@ def should_fire(
 
     ``jaw_pos``/``station`` are the measured jaw and the captured station
     (W7-B, optional): with `FRUIT_POLICY_TRIGGER_ACQ` on they widen the
-    effective lead/reach through `acquisition_window`.
+    effective lead/reach through `acquisition_window`. With
+    `FRUIT_POLICY_TRIGGER_X_MAX` set, a tick that passes every other gate but
+    finds the fruit beyond the band edge returns `False` with
+    ``info["x_refuse"]`` holding the fruit's x (the R2.3 reach-cliff guard).
     """
     fruit = np.asarray(fruit, dtype=float)
     jaw = np.asarray(jaw, dtype=float)
@@ -281,4 +307,13 @@ def should_fire(
     if settings.mode == "assist":
         if finger is None or float(finger) >= settings.finger:
             return False, info
+    if settings.x_max is not None and float(fruit[0]) > settings.x_max:
+        # R2.3 reach-cliff guard (default off): the fruit would fire now, but it
+        # sits past the reachable across-belt band's edge - the handover's
+        # premove/hover cannot park on it and the catch-up flails at the arm's
+        # joint limit (`logs/w8/R2_RESULTS.md` section 3). Refuse and let it
+        # ride past. The check is last so `x_refuse` only marks a *would-fire*
+        # tick, and the env can record it once per fruit.
+        info["x_refuse"] = float(fruit[0])
+        return False, info
     return True, info

@@ -176,7 +176,16 @@ from .policy.trigger import TriggerSettings, should_fire
 #: `FRUIT_ACQ_DIAG` acquisition report (a handful of state reads on close
 #: boundary ticks; the same single-arm invariance argument holds - the knob is
 #: off on every shipped path), so the pin follows the file.
-TASKS_MD5 = "a3b82a11a83835af55d4c72c92e0e7f9"
+#: The R2 lane (2026-10-13) added the default-off, direct-path-only
+#: `FRUIT_POLICY_TRIGGER_X_MAX` reach-cliff guard in `policy/trigger.py` plus
+#: the env-side once-per-fruit refusal note, and the default-off,
+#: direct-path-only `FRUIT_DIRECT_RESEED` pose-side lever in `tasks.py`
+#: (re-seed to the calibrated grasp pose before the direct handover's dynamic
+#: blocks; the measured flail class is a setup/pose budget problem, see
+#: `logs/w8/R2_RESULTS.md` section 3). Both knobs are unset on every shipped
+#: path; the W7-B invariance argument holds and the pin follows the file as
+#: always.
+TASKS_MD5 = "d83167b1a333ad173cf016c4cbd8ce91"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(
@@ -983,6 +992,9 @@ class SortingRLEnv:
         self._grasped = False
         self._placed = False
         self._notes: list[str] = []
+        #: R2.3 reach-cliff guard bookkeeping: fruit indices already reported as
+        #: x-edge refusals this episode (the note must not repeat per tick).
+        self._x_refused: set[int] = set()
         self._last_action = np.zeros(self.action_dim, dtype=np.float32)
         self._episode_t0 = self._sim_time()
         self._decision_step: int | None = None
@@ -1338,6 +1350,11 @@ class SortingRLEnv:
                     jaw_pos=jaw,
                     station=self._trigger_station,
                 )
+                # R2.3 reach-cliff guard (default off): a would-fire tick the
+                # x-edge gate refused is recorded once per fruit, so a run with
+                # `FRUIT_POLICY_TRIGGER_X_MAX` set reports how many candidates
+                # it refused and the episode's own timeout line says why.
+                self._note_x_refuse(self._sample.index, intercept_info)
                 # P4b2: the scripted primitive re-selects the fruit the feeder
                 # presents (`task.station_sample`) at grasp time, but this trigger
                 # was watching the selected upstream sample. When that sample is
@@ -1371,6 +1388,7 @@ class SortingRLEnv:
                             jaw_pos=jaw,
                             station=self._trigger_station,
                         )
+                        self._note_x_refuse(presented.index, p_info)
                         if p_fire:
                             selected_dy = float(
                                 (intercept_info or {}).get("dy", float("nan"))
@@ -1432,6 +1450,26 @@ class SortingRLEnv:
                 if presented_note is not None:
                     self._notes.append(presented_note)
                 self._run_primitive()
+
+    def _note_x_refuse(self, index: int, info: dict | None) -> None:
+        """R2.3: record one x-edge refusal per fruit (the reach-cliff guard).
+
+        `should_fire` sets ``info["x_refuse"]`` on a tick that would have fired
+        but for `FRUIT_POLICY_TRIGGER_X_MAX`; the note names the fruit's x and
+        the outcome line then says the candidate rode past instead of being
+        chased (the flail class `logs/w8/R2_RESULTS.md` section 3 measures).
+        No-op when the knob is off (the key is absent), so the shipped default
+        is unchanged.
+        """
+        if not info or info.get("x_refuse") is None:
+            return
+        if int(index) in self._x_refused:
+            return
+        self._x_refused.add(int(index))
+        self._notes.append(
+            f"x-edge refuse: fruit x={float(info['x_refuse']):.3f} beyond "
+            "FRUIT_POLICY_TRIGGER_X_MAX (rides past the station)"
+        )
 
     def _event_horizon(self, chunk: np.ndarray | None) -> int:
         """Event-triggered execute horizon from chunk-to-chunk continuity.

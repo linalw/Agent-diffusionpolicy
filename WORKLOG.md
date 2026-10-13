@@ -13196,3 +13196,98 @@ no-harm two-line re-record.
 motion-budget leg, no run log; `logs/selfcheck.log` 02:41:49) on the post-fix
 tree; docs only plus the two-line re-record; `tasks.py` `a3b82a11`,
 `rl_env.py` `f4f211d7` and the scenario defaults untouched. Not pushed.
+
+### R2 (W8-C residuals): the C-coverage note, the cross-lane label is a real event, and the reach-cliff flail decomposes into three terms
+
+**Scope (2026-10-13, branch `w8-residuals`, base `e7d1ed3` = tag `v0.8b`,
+the W8-B.1 tree).** WS-2.1-2.3 of the roadmap, Tier A solo. Two new
+direct-path-only knobs, both **default off**: `FRUIT_POLICY_TRIGGER_X_MAX`
+(a would-fire tick is refused when the fruit's across-belt x is past the band
+edge; one recorded `x-edge refuse` note per fruit) and `FRUIT_DIRECT_RESEED`
+(re-seed the active arm to the calibrated grasp pose before the direct
+handover's dynamic blocks - the same teleport the indexed handover already
+does). Evidence: `logs/w8/R2_RESULTS.md` + the read-only re-derivations
+(`R2_c_grade_split.py`, `R2_crosslane_analysis.py`, `R2_flail_analysis.py`,
+`R2_probe_report.py`) + the probe logs/drivers + the acceptance.
+
+1. **C coverage (WS-2.1): the scoped note, no top-up run.** The two-line store
+   `datasets/demos_v13p` is A 89 / B 84 / **C 0** by construction (W3 pure
+   routing never selects C - it rides to `despawn_y = -0.70` and recycles), so
+   a two-line rollout store *cannot* carry C. The interfaces that do present C
+   measure **no C deficit**: the direct batches read C as their
+   best-performing grade (W8-A 22/51 = 43 %, W8-B 22/48 = 46 %; A 8-10 %,
+   B 34-44 %; the per-grade split is confounded with the arm - A->left,
+   B/C->right - and the known deficit is the left/carry class, not C; the W3
+   dense direct evals read C 25-36 %). The C windows the fine-tunes see come
+   from the single-arm base anchor `demos_v11` (C 21/50), which every recipe
+   includes; the shipped `moe_v12`'s own rollouts are `demos_v11` (C 21). The
+   gate scenarios present C (fixed-pin canary 4/10, patch canary 2/10). The
+   named top-up path (only if the WS-5.3 C-semantics decision or a future
+   C-specific recollection needs it) is the **single-arm collector** with
+   `FRUIT_SUPPLY_GRADES=C:1` (its selector picks C; C->bin 1/right), a bounded
+   ~30-40 min Tier A shard merged as a *named add-on* store, never mixed into
+   a two-line rollout store. What zero rollout-C blocks: a C-specific fine-tune
+   arm beyond the 21 base episodes - nothing measured today.
+
+2. **The cross-lane label (WS-2.2): a real event, not a harness-label bug.**
+   The note `cross-lane station fruit (index N) placed on lane M` is emitted by
+   the primitive itself (`tasks.py` `_grasp_carry_place_impl`, the
+   `FRUIT_STATION_RESELECT` block) immediately after its own `reselecting
+   across lanes` line: the fruit *actually presented at the station* (a patch
+   pair member, or the station queue) belongs to the other lane; the arm cannot
+   change lanes mid-attempt, so the primitive takes the presented fruit **onto
+   its own lane** and records the deliberate sort error (the P1 drop-avoidance
+   fix). Recorded samples: `canary_pinned` 1/10; `canary_patch` **6/10**
+   (ep2/3/7/8 successes + ep5/6 failures - **correcting the W7-C text's
+   5/10 / "three successes"**); the R2.2 reproduction
+   `logs/w8/R2_canary_patch.log` 4/10 (all successes; 8/10 PASS, only baseline
+   reasons). Two patch samples = 10/20 episodes, each preceded by the reselect
+   line and followed by the close's "re-closing on it where it is" (drift
+   67-568 mm). It is not failure-specific and does not cause the grip losses;
+   the only reporting limitation is that the evaluator's per-episode header
+   names the *selected* target while the note records the placed one. No
+   control-path change; if the patch canary becomes a shipped gate (WS-4.5),
+   the named fix is to print the result's own index/grade/lane + give it a
+   floor.
+
+3. **The reach-cliff flail (WS-2.3): three terms, two bounded screens, no
+   adoption.** Offline over 390 `[acq]`-instrumented direct attempts
+   (W7-B/W8-A/W8-B/W4): **18 flail legs (4.6 %)**, 13 left, the close starting
+   0.17-0.92 m downstream, the joint at its limit (`clip_min` ~0 @j2/j5); the
+   recorded mechanism instance (W7-B `trace_05`) shows an edge fire
+   (x = 0.392-0.400) -> a 4.1 s premove+hover -> the fruit 0.28 m downstream
+   when the catch-up starts -> 200 chase ticks moving the tip ~0.02 m. The
+   forced edge-band probe (x = 0.36-0.42, the W8-A scenario otherwise verbatim,
+   `moe_v13s`, 15 episodes/run) decomposes the class: **P0** (off) 10/15 flails,
+   9/15 premoves at the 3.33 s cap, median premove error 43 mm, 8/15 hover
+   moves at the 4.94-4.99 s cap; **P1** (`X_MAX=0.39`) 7 refusals recorded
+   (x 0.392-0.411) - but 7/12 attempts still flail: fires below the cap flail
+   (handover x down to 0.364) and **4 of the 7 refusals were attempted anyway
+   through the policy-gate path** (`finger < 0.030`, the WS-4.6 bypass);
+   **P2** (shipped band, guard on) 15 attempts, **0 refusals / 0 flails** - no
+   starvation; **P3/P4** (`RESEED=1`, seeds 77/101) 7/15 + 6/15 flails
+   (**13/30 = 43 % pooled** vs 67 %): the reseed removes the
+   premove/configuration term (0-1 capped premoves, median error 20-21 mm,
+   0.6-0.8 s premoves) but not the hover/reach-edge term (5 of P3's 7, 4 of
+   P4's 6 residual flails have the hover at its cap - the 8 mm tolerance is
+   unattainable at x >~ 0.39) nor the fast catch-up stall (2/run: 0.9-1.0 s
+   setups, 28-212 mm residuals, q2/j5 at the limit - the W7-B A-arm class).
+   **Verdict: no single lever zeros the class; neither knob adopted (both
+   default off); the named next screen is the combination + the hover
+   tolerance/catch-up term, and a same-band control before any adoption.**
+
+4. **No-harm.** `scripts/selfcheck.sh` PASS 0 failures, 1 skipped (the
+   trigger test now pins the x-cap off-path neutrality). `ACCEPT_LOG=
+   logs/w8/R2_accept.log scripts/accept.sh` (claim 09:48-09:53): **9/10 = 90 %,
+   `diverted=0`, 15.2 s/attempt, `gate_open=0.0 s`, motion gate PASS,
+   `fingerprint: matches`**; the acceptance's **385/385 `[fruit]` lines are
+   byte-identical to `logs/w8/60_accept_w8b.log`** (`logs/w4/compare_streams.py`
+   IDENTICAL). With the envs unset the new branches are unreachable (the
+   trigger sets `x_refuse` only when `x_max is not None`; `direct_reseed`
+   requires `direct_capture`, which the scripted line never is). Pins: final
+   `tasks.py` **d83167b1** (the reseed knob), `rl_env.py` **c57db999** (the
+   `TASKS_MD5` follow d83167b1 + the refusal note), `trigger.py` **763ad89e**;
+   the P0-P2 + canary batch ran the pre-reseed tree (`tasks.py` a3b82a11,
+   `rl_env.py` fafffc77) and its raw manifests pin it. The P3/P4 + acceptance
+   run the final tree. `docs/ROADMAP.md` WS-2 carries the outcomes; `AGENTS.md`
+   the knob note. Not pushed.

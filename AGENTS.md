@@ -640,6 +640,32 @@ legacy `slip_max` for the OpenArm hand**: it is frame-contaminated
 (25.6-104.7 mm of ghost slip on the acceptance's placed carries) - use
 `clean_slip`; `README.md`'s grip-quality paragraph carries the same correction.
 
+**R2 (2026-10-13, branch `w8-residuals`, `logs/w8/R2_RESULTS.md`): the C note,
+the cross-lane label is real, and the flail class has three terms.** The
+two-line patch store's zero-C is by construction (W3 pure routing never
+selects C); the direct interface presents C and measures it as its best grade
+(W8-A 43 %, W8-B 46 %; confounded with the arm - A->left, B/C->right), and the
+C windows train from the single-arm base `demos_v11` (C 21/50). A top-up, if a
+C-specific need ever appears, is a single-arm collection
+(`FRUIT_SUPPLY_GRADES=C:1`), never a two-line store. The patch canary's
+`cross-lane station fruit ... placed on lane M` note is **a real event emitted
+by the primitive** when the station-presented fruit (patch pair / queue)
+belongs to the other lane: the arm takes it onto its own lane and records the
+sort error (`canary_patch` 6/10 - the W7-C text's 5/10 is corrected - and the
+reproduction 4/10; not failure-specific). The direct path's **flail** class
+(18/390 `[acq]` attempts, close starting 0.17-0.92 m downstream, joint at its
+limit) decomposes into a **premove/configuration term** (the policy's incoming
+pose; removed by the default-off `FRUIT_DIRECT_RESEED=1` re-seed: capped
+premoves 9/15 -> 0/15, median error 43 -> 21 mm, flails 10/15 -> 13/30 pooled),
+a **hover/reach-edge term** (the 8 mm hover tolerance is unattainable at
+x >~ 0.39; the default-off `FRUIT_POLICY_TRIGGER_X_MAX=0.39` refuses those
+would-fire ticks - 7 recorded refusals, 0 refusals/0 flails on the shipped band
+- but sub-cap fires still flail and the **policy-gate path bypasses the
+trigger**: 4 of 7 refusals were attempted anyway, WS-4.6), and a **catch-up
+stall term** (fast setup, 28-212 mm residuals). Neither knob is adopted; both
+are default off and direct-path-only. Do not read a catch-up timeout as a
+fire-time miss: the fire-time dx spans -4.1..+8.3 cm across the class.
+
 ## 3. What changed -> what to run
 
 | you changed | run |
