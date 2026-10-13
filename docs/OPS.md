@@ -3,7 +3,9 @@
 `scripts/191_ops_selfcheck.sh` is the periodic ops self-check for this repo
 (P-PLAN P1, 2026-10-12; hardened by P1.1 - true resume semantics, the guarded
 group-kill, the GPU-idle gate, the wrap suppression while a wrapper is alive,
-path-anchored sim matching). It answers one question in a few seconds: *is the
+path-anchored sim matching; P1.2 - the artifact/chain scan covers every
+`logs/<area>/` with `logs/ops/` excluded). It answers one question in a few
+seconds: *is the
 project moving, and if not, what exactly should be resumed?* It is built for the
 observed failure modes of long multi-lane sessions - renderer wedges, lanes
 parked on unanswerable permissions, chains whose wrap never happened, idle
@@ -31,7 +33,7 @@ lanes, and stale claims - and it is safe to run while a simulator is running.
 | growth | the previous check's size/mtime from `logs/ops/state.tsv` | `growth=+120B/35s` distinguishes "quiet for a moment" from "frozen" |
 | `lanes` | `pgrep -af '[1]54_claim_run|[1]80_claim_slot|_driver'` | a live claim wrapper/driver means the lane is between its own steps; the `[wrap]` action is downgraded to a hint while one exists |
 | `claims` | `logs/claims/slot*.lock` + `slot*.owner`; owner liveness via `kill -0`, free locks probed with `flock -n` | a dead owner's slot is already reclaimed by the kernel; the stale file is informational |
-| `artifacts` | the newest logs per area (`logs/w*/*.log`, top `OPS_TOP_N`) | which chain was last active, and when |
+| `artifacts` | the newest logs per area (`logs/*/*.log`, `logs/ops/` excluded; top `OPS_TOP_N`) | which chain was last active, and when |
 | `git` | branch, dirty-path count, last commit age, the newest tags, whether HEAD is tagged | "chain done, wrap never happened" needs the dirty state |
 | `gpu` | `nvidia-smi --query-gpu=utilization.gpu,memory.used --format=csv,noheader` | corroborates a wedge (CPU burning, GPU idle) - but only once the log has been frozen `>= 2x OPS_STALL_S`; an idle GPU alone is not corroboration |
 | `load` | `/proc/loadavg` | machine-level context |
@@ -60,7 +62,7 @@ the tool can name what to do.
 | `OPS_STALL_S` | `300` | sim-log no-growth threshold (seconds) |
 | `OPS_CHAIN_S` | `600` | chain-log staleness threshold (seconds) |
 | `OPS_TOP_N` | `5` | artifact rows printed |
-| `OPS_CHAIN_GLOB` | `w*/*.log` | chain-log glob under `logs/` |
+| `OPS_CHAIN_GLOB` | `*/*.log` | chain-log glob under `logs/` (any area; `logs/ops/` is always excluded) |
 | `OPS_SIM_PATTERN` | `(^|/)[p]ython\.sh( |$)\|(^|/)[k]it/python/bin/python3( |$)` | path-anchored `pgrep -f` pattern for sims |
 | `OPS_LANE_PATTERN` | `[1]54_claim_run\|[1]80_claim_slot\|_driver` | `pgrep -f` pattern for claim wrappers / drivers (`lanes`, `[wrap]` suppression) |
 | `OPS_GPU_QUERY` | the `nvidia-smi` query | set empty to skip the GPU probe |

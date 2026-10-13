@@ -240,7 +240,10 @@ starvation), the +Y lane carries the left arm's stream (mostly A) and the -Y
 lane the right's (mostly B/C), and the fallback produces measured crossovers
 (3/10 on the frozen tree, 5/10 in the V2 sample). Replacing the meaning of
 `FRUIT_BIARM=1` would need the owner's sign-off on that grade-biased output
-semantics (`logs/v2/PREREGISTRATION.md` "Routing semantics"). Measured on the
+semantics (`logs/v2/PREREGISTRATION.md` "Routing semantics"); the
+**2026-10-13 R5 decision kept it opt-in** (flip: **no**; the 1.25x placed/min
+bar unchanged - the park-on 3.63/2.17 = 1.67x is a cross-branch reference
+only). Measured on the
 frozen tree (`logs/v3/10_rate_twoline_1.log` + the bit-identical double-run,
 `15_rate_twoline_1b.log`): **6/10 placed, 9.8 s/attempt, 3.66 placed/min
 (left 3/5, right 3/5, `gate_open=0.0 s`, zero `indexed:`)** against the
@@ -275,7 +278,10 @@ the right's downstream to about -0.13), the best measured clearance state
 (38.9 mm, zero<30) landed 6/10 at 9.8 s/attempt, and time-separating the
 dwells (a start gap) costs the span ~1:1 (4 s gap -> 11.2 s/attempt). All W2
 levers are default-off; the two-line stays opt-in and the shipped W1 branch is
-unchanged (`logs/w2/RESULT.md`). No attempt failed by arm-arm contact. A
+unchanged (`logs/w2/RESULT.md`). No attempt failed by arm-arm contact; the
+**2026-10-13 R5 decision accepted the clearance as a documented per-config
+report** (the F2 45 mm / zero-under-30 convention is unmet and not re-imposed
+as a gate; no arm-arm contact is possible in this build). A
 two-line log is a different scenario: compare its budgets and rate, and give it
 its own fingerprint.
 
@@ -287,7 +293,10 @@ never selected** - it rides past both stations to the main belt's end
 (`despawn_y = -0.70`), is counted `reached_end` and recycled by the feeder;
 `FRUIT_GRADE_ROUTING=0` restores the V2 grade-preference-with-fallback. The
 single-arm selector passes no `prefer_lane`, so the shipped line is
-byte-unchanged (its acceptance still reads 9/10 + fingerprint matches).
+byte-unchanged (its acceptance still reads 9/10 + fingerprint matches);
+**R5-decisions (2026-10-13): this stays two-line-only** - the single arm keeps
+selecting C -> lane 1 (byte-unchanged), and the two-line accounts C as
+`reached_end`/recycled.
 The **dense-sheet supply** (`FRUIT_SUPPLY_WAVE`, default on when
 `FRUIT_BIARM_TWOLINE=1`, off otherwise; owner correction 2026-10-10: the first
 pass's spaced bursts with 0.70-1.00 m empty gaps are superseded) releases
@@ -710,6 +719,21 @@ knobs default off and two-line-scoped; the single-arm acceptance is
 byte-unchanged (385/385 identical to `logs/w8/R2_accept.log`), selfcheck PASS.
 Pins: `tasks.py` `0c51cfa5`, `rl_env.py` `TASKS_MD5` follow, `176` selftest
 extended with the plumbing pins.
+
+**R5-decisions (2026-10-13, branch `r5-open`; `.slim/deepwork/sorting-pipeline-v3.md`
+"R5-DECISIONS"): the owner closed the register per the recommendation - no
+shipped default changes.** (1) The two-line flip stays **no**
+(`FRUIT_BIARM_TWOLINE=1` opt-in; the 1.25x placed/min bar unchanged; the
+park-on 3.63/2.17 = 1.67x is a cross-branch reference only). (2) The clearance
+stays a **per-config report** (the F2 45 mm / zero-under-30 convention is unmet
+and not re-imposed as a gate; no arm-arm contact is possible in this build).
+(3) The pure C routing stays **two-line-only** (the single arm keeps C ->
+lane 1). (4) `FRUIT_POLICY_TRIGGER_ACQ` is **not shipped** - it stays default
+off, a measurement interface (the ACQ=0 mirror is mechanism-only). (5) The
+**hybrid pinned canary stays the interface of record**; the direct loop stays
+the mechanism-research interface, and the WS-4.2 N=5 protocol governs any
+direct claim. The non-blocked R5 items (the W3-supply canary FAIL 1/10, the
+patch scenario's own reference) are in `logs/r5/RESULTS.md`.
 
 ## 3. What changed -> what to run
 

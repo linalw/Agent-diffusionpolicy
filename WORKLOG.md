@@ -13584,3 +13584,61 @@ configs/motion_reference.json`**, its `[fruit]` stream **385/385 identical**
 byte-unchanged. Tree pins: `tasks.py` `0c51cfa5`, `fruits.py` `a0ea1f54`,
 `rl_env.py` `af98428f`, `186` `49242875`; the canary and battery md5 records in
 `logs/r5/`. Not pushed.
+
+### R5-decisions: the register closed per the recommendation, and the ops-tool artifact glob widened to every `logs/<area>/`
+
+**Scope (2026-10-13, branch `r5-open`, base `76e454e` = R3.1/tag `v0.8d`;
+owner: "决策按你的建议执行", `.slim/deepwork/sorting-pipeline-v3.md`
+"R5-DECISIONS").** Docs + one ops-tool nit; **no `src/` change, no shipped
+default change**; the single-arm line is untouched and this pass runs no
+simulator (the R5-open acceptance's 9/10 + fingerprint + 385/385 identity is
+the standing evidence).
+
+1. **The five owner decisions are recorded** (all per the recommendation):
+   (1) the two-line default flip: **NO** - `FRUIT_BIARM_TWOLINE=1` stays
+   opt-in, the **1.25x placed/min bar unchanged**; the park-on 3.63/2.17 =
+   1.67x is a **cross-branch reference, not the bar**; (2) the clearance:
+   **accepted as a documented per-config visual note** - the F2 45 mm /
+   zero-under-30 convention is unmet (measured mins 1.9-2.59 mm, per config),
+   no arm-arm contact is possible (`enabledSelfCollisions=0`) and no attempt
+   has ever failed by contact; keep reporting min + % < 30 mm; (3) the
+   C-semantics: **as-is** - the pure A/B/C routing stays two-line-only, the
+   single arm keeps C -> lane 1 (byte-unchanged), the two-line accounts C as
+   `reached_end`/recycled; (4) the ACQ knob: **not shipped** - default off, a
+   measurement interface, the ACQ=0 mirror mechanism-only; (5) the interface
+   of record: **the hybrid (the pinned canary)** - the direct loop stays the
+   mechanism-research interface and the N=5 protocol governs any direct
+   claim. Recorded in `docs/ROADMAP.md` (status header, the state rows, the
+   WS-4/WS-5 outcome blocks, the R5 phase row, **section 5 closed**, the
+   branch/tag row - `main`/`origin/main` = `76e454e`, tags through `v0.8d`,
+   `r5-open` pending merge), `AGENTS.md` (the new R5-decisions paragraph + the
+   W2/W3 in-place notes), `README.md` (a new R5-decisions paragraph + the
+   flip/clearance notes), `项目总结报告.md` (an "R5 决策" section + in-place
+   notes), `决策与交付.md` (section 9 + the W4 遗留 note). The decision record
+   is `logs/r5/60_decisions.md`.
+
+2. **The ops-tool glob nit (P1.2).** `scripts/191_ops_selfcheck.sh` scanned
+   only `logs/w*/*.log` for the chain/artifact rows, so `logs/r5/` (and any
+   future `logs/<area>/`) was invisible to the stale-chain verdict, the
+   artifacts list and the wrap heuristic. The default is now `*/*.log`
+   (= `logs/*/*.log`) with `logs/ops/` always excluded inside `scan_globs`
+   (the watch log must not mask a real stall), and `docs/OPS.md` documents the
+   new default (contract table + knob table + the P1.2 note). The selftest
+   gained case 4b, which **fails on the old glob**: it leaves only a stale
+   `logs/r5/chain.log` plus a fresh `logs/ops/watch.log` and requires
+   `STALLED-CHAIN` with the r5 path named and `logs/ops/watch.log` absent
+   (old glob -> no chain log -> verdict OK -> FAIL). `--selftest` PASS
+   (`logs/r5/50_ops_glob_selftest.txt`; the old-default replay
+   `OPS_CHAIN_GLOB='w*/*.log'` FAILs the new case, by design). The live runs:
+   `logs/r5/51_ops_glob_live.txt` (mid-pass, dirty tree) lists the `logs/r5/*`
+   artifacts - the r5 area was previously invisible - and its `ACTION [wrap]`
+   is the expected mid-wrap hint (the R5 lane's acceptance log carries the
+   done marker while this pass was uncommitted); the post-commit
+   `logs/r5/52_ops_glob_live_after_commit.txt` reads **OK** on the clean tree
+   with the same r5 artifacts. The tool remains read-only outside `logs/ops/`.
+
+**No-harm.** Docs + `scripts/191_ops_selfcheck.sh` + `docs/OPS.md` only; no
+`src/` path; the R5-open acceptance's 9/10 + `fingerprint: matches` + the
+385/385 identity is untouched; `scripts/selfcheck.sh` PASS (its 191 leg now
+runs selftest case 4b). Pins untouched (`tasks.py` `0c51cfa5`, `fruits.py`
+`a0ea1f54`, `rl_env.py` `af98428f`). Commit `R5-decisions`; not pushed.

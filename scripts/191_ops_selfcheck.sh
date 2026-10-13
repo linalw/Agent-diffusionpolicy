@@ -26,8 +26,8 @@
 #             `[1]54_claim_run|[1]80_claim_slot|_driver`): while one is alive
 #             the `[wrap]` action is downgraded to a hint - the lane may still
 #             be wrapping, and a manual wrap could collide with it.
-#   artifacts the newest logs per area (default logs/w*/*.log), top OPS_TOP_N
-#             by mtime, with age and size.
+#   artifacts the newest logs per area (default logs/*/*.log, logs/ops/
+#             always excluded), top OPS_TOP_N by mtime, with age and size.
 #   git       current branch, dirty-path count, last commit's age, the newest
 #             tags and whether HEAD is tagged.
 #   gpu       `nvidia-smi --query-gpu=utilization.gpu,memory.used ...`; the
@@ -77,7 +77,8 @@
 #   OPS_STALL_S         sim-log frozen threshold   (default: 300 s)
 #   OPS_CHAIN_S         chain-log stale threshold  (default: 600 s)
 #   OPS_TOP_N           artifact rows              (default: 5)
-#   OPS_CHAIN_GLOB      chain-log glob under logs  (default: w*/*.log)
+#   OPS_CHAIN_GLOB      chain-log glob under logs  (default: */*.log; the
+#                       logs/ops/ dir is always excluded from the scan)
 #   OPS_SIM_PATTERN     pgrep -f pattern, path-anchored
 #                       (default: (^|/)[p]ython\.sh( |$)|(^|/)[k]it/python/bin/python3( |$))
 #   OPS_LANE_PATTERN    pgrep -f pattern for claim wrappers / lane drivers
@@ -106,7 +107,7 @@ watch_log=${OPS_WATCH_LOG:-$logs/ops/watch.log}
 stall_s=${OPS_STALL_S:-300}
 chain_s=${OPS_CHAIN_S:-600}
 top_n=${OPS_TOP_N:-5}
-chain_glob=${OPS_CHAIN_GLOB:-'w*/*.log'}
+chain_glob=${OPS_CHAIN_GLOB:-'*/*.log'}
 sim_pattern=${OPS_SIM_PATTERN:-'(^|/)[p]ython\.sh( |$)|(^|/)[k]it/python/bin/python3( |$)'}
 lane_pattern=${OPS_LANE_PATTERN:-'[1]54_claim_run|[1]80_claim_slot|_driver'}
 # NOTE the `-` (not `:-`): an explicitly empty OPS_GPU_QUERY disables the probe.
@@ -202,9 +203,18 @@ newest_global_mtime=0
 newest_global_size=0
 
 scan_globs() {
-    mapfile -t FILES_CHAIN < <(compgen -G "$logs/$chain_glob" 2>/dev/null || true)
-    # newest *.log anywhere under logs/, excluding our own ops dir (the watch
-    # log would otherwise always be the newest file and mask a real stall)
+    # Chain/artifact logs, newest per area. The default glob is */*.log so
+    # every logs/<area>/ dir counts (w*/*.log missed logs/r5/); the ops dir is
+    # always excluded because the watch log would otherwise always be the
+    # newest file and mask a real stall (P1.2).
+    local f
+    FILES_CHAIN=()
+    while IFS= read -r f; do
+        [ -n "$f" ] || continue
+        case "$f" in "$logs/ops/"*) continue ;; esac
+        FILES_CHAIN+=("$f")
+    done < <(compgen -G "$logs/$chain_glob" 2>/dev/null || true)
+    # newest *.log anywhere under logs/, excluding our own ops dir
     local line
     line=$(find "$logs" -type f -name '*.log' -not -path "$logs/ops/*" -printf '%T@ %s %p\n' 2>/dev/null | sort -rn | head -1)
     if [ -n "$line" ]; then
@@ -744,6 +754,30 @@ selftest() {
     touch -d '15 minutes ago' "$tmp/logs/w9/chain.log"
     out=$(run_case); code=$?
     case_ok "STALLED-CHAIN fires (no sim, stale chain log)" '^verdict: STALLED-CHAIN' "$out" "$code" 0
+
+    # 4b. widened glob (P1.2): the chain scan covers a non-w* area (logs/r5/)
+    # and always excludes the ops dir. Only the r5 log is left stale, so the
+    # STALLED-CHAIN verdict itself depends on the widened glob (the old
+    # w*/*.log default would find no chain log and verdict OK), and the fresh
+    # ops/watch.log would mask it if the ops dir were not excluded. The r5
+    # fixture is removed afterwards so the mtime tie in case 6 cannot make an
+    # unrelated chain log the newest one.
+    rm -f "$tmp/logs/w9/chain.log"
+    mkdir -p "$tmp/logs/r5"
+    printf 'chain step: r5 area\n' > "$tmp/logs/r5/chain.log"
+    touch -d '15 minutes ago' "$tmp/logs/r5/chain.log"
+    printf 'watch loop noise (newest .log under logs)\n' > "$tmp/logs/ops/watch.log"
+    out=$(run_case); code=$?
+    case_ok "widened glob: a stale logs/r5/ chain log fires STALLED-CHAIN" \
+        '^verdict: STALLED-CHAIN' "$out" "$code" 0 'logs/ops/watch.log'
+    if printf '%s\n' "$out" | grep -q 'no chain log growth.*logs/r5/chain.log'; then
+        echo "ok: widened glob: the chain hint names the logs/r5/ log"
+    else
+        echo "FAIL: the chain hint does not name logs/r5/chain.log"
+        printf '%s\n' "$out" | sed 's/^/    | /'
+        fail=1
+    fi
+    rm -rf "$tmp/logs/r5"; rm -f "$tmp/logs/ops/watch.log"
 
     # 5. ACTION: a stale claim owner (dead pid)
     printf 'chain step 2: training\n' > "$tmp/logs/w9/chain.log"
