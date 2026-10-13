@@ -8,7 +8,11 @@ tree/branch pins in section 1); **WS-2 outcomes added by the R2 pass**
 numbers re-derived to `logs/w8/R2_flail_analysis.txt` /
 `R2_probe_report.txt`, the selector-leg verdict downgraded, the 5/10 -> 6/10
 canary-note propagation into `logs/w7/C_RESULTS.md`); **WS-3 outcomes added by
-the R3 pass** (2026-10-13, branch `w8-speed`, `logs/w8/R3_RESULTS.md`).
+the R3 pass** (2026-10-13, branch `w8-speed`, `logs/w8/R3_RESULTS.md`); **R5-open
+(2026-10-13, branch `r5-open`, `logs/r5/RESULTS.md`): the non-blocked R5 items -
+the W3-supply hybrid canary closed (FAIL 1/10, all baseline reasons), the patch
+scenario's own reference `configs/motion_reference_patch.json` (`b08dd3e9`),
+and the Chinese/AGENTS/README "L2 is next" lines corrected to the R3 outcome.
 Numbering: the plan's phases are **R0-R6** (this document), and the P-PLAN
 deliverables carry the **`PP-` prefix** (PP-P1 ops tool / PP-P2 this roadmap /
 PP-P3 validation) so the two schemes cannot collide. Scope: the work after
@@ -49,13 +53,14 @@ menus in `logs/w5/FRONTIER.md` (failure mechanisms) and
 | **Two-line opt-in** (`FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=1`; left station y=0.00 grade A, right y=-0.10 grade B, C passes; patch sheet) | W6-B baseline **10/20, 2.78 batch / 2.70 window placed/min**; same-scenario single arm **13/18, 2.12/2.17** -> pre-registered window ratio **1.24x** (< the 1.25x flip bar); pooled interval 22.20 / p90 45.50 s | `logs/w6/BASELINE.md` |
 | **Park-gate lever is the two-line default** (W7-A; `FRUIT_BIARM_PARK_EARLY` resolves to 1 under a two-line session) | replays W6-C bit-for-bit: **12/20, 3.64 batch / 3.63 window**, pooled interval **16.53 / 17.30 / 19.90 s**, left gate-blocked idle **25.2 -> 0.2 s**, idle 18 %/24 %; timing-only +10 %, residual x1.22 branch factor; **R3 (WS-3) adds no speed lever on top**: the L2 adaptive lead is bit-identical (the fixed 1.5 s floor *is* the measured setup; 0/20 floor-bound), the L2 tight override probe is negative (8/20, window 2.59; zero new failure reasons), and the L3 hot-arm residency fires **4/18** and leaves the interval flat-to-worse (window 3.41, pooled 17.62 s; idle 27 %/27 %) - all default off | `logs/w7/A_RESULTS.md` (861/861 physics lines vs `logs/w6/31/32`); `logs/w8/R3_RESULTS.md` + `R3_l2_checks.txt`/`R3_l3_checks.txt` |
 | Dense W3/W4 wave sheet re-record (moved branch) | **7/10, 9.1 s/attempt, 4.60 placed/min**, `diverted=0`; own reference `configs/motion_reference_twoline.json` (`181c9151`); pre-flip control replays W4 bit-for-bit with `PARK_EARLY=0`; re-recorded on the W8-B tree (W8-B.1): `logs/w8/70_w8b1_twoline.log` is 442/442 `[fruit]`-identical to the W7-A pair and `scripts/190_twoline_gate.sh` PASS | `logs/w7/A_RESULTS.md`, `logs/w7/15_dense_control_park_off.log`, `logs/w8/B_RESULTS.md` |
+| Patch-scenario motion reference (R5-open) | `configs/motion_reference_patch.json` (**b08dd3e9**, 20 legs), written from the patch battery's run 1 (`logs/r5/20_patch_battery_1.log`; the double run `21` is bit-identical 821/821 and replays the W7-A record); gated by `TWOLINE_REF=configs/motion_reference_patch.json scripts/190_twoline_gate.sh -m 0.5` | `logs/r5/RESULTS.md` section 2; R3_RESULTS section 6 item 5 |
 | **Policy** | shipped default **`moe_v12`** (`accept_policy.sh` line 75); direct causal loop is the measurement, the hybrid canary is the gate | `logs/w4/VERDICT.md`, `logs/w7/C_RESULTS.md` |
 | `moe_v13p` (W7-C patch recollection) | **not adopted**: W8-A N=5 confirmatory batch **21/75 = 28 % vs 22/75 = 29 %, sign p = 1.0000**, carried-class pairing 0 B-only / 2 A-only (the N=3 3-0 was noise); the carry class is 89-91 % of failures on both arms | `logs/w8/A_RESULTS.md` |
 | ACQ knob (`FRUIT_POLICY_TRIGGER_ACQ`) | default **off**; the direct evaluation pins `=1` (it removes the acquisition class: left no-contact 15 -> 0, close-start 120 -> 2.5 mm); no N=5 ACQ-off mirror exists | `logs/w7/C_RESULTS.md` section 1, `logs/w7/B_RESULTS.md` |
 | Pinned canary, `moe_v13p` ckpt (shipped scenario, fixed supply; **not** the shipped default `moe_v12`) | **8/10 PASS** (floor 60 %); matches the `moe_v13s` sample | `logs/w7/C_eval/canary_pinned.log` / `.out` |
-| W3-supply (dense sheet) hybrid canary | **still open** (spaced supply measured ~15-20 min/episode; diagnose the handoff station wait first) | `logs/w3/HANDOFF.md` |
+| W3-supply (dense sheet) hybrid canary | **closed by R5-open: FAIL 1/10 = 10 % (floor 60 %)** - 8 grip losses + 1 non-hybrid no-lift, every reason in the baseline set; the wall time is 17.5 min / 10 episodes (~1.7 min/episode - the old ~15-20 min/episode was the spaced supply); the checkpoint's direct dense eval is 7/45 = 15.6 % | `logs/r5/RESULTS.md` section 1, `logs/r5/30_canary_driver.log`, `logs/w3/HANDOFF.md` |
 | **Clearance** | dense W3/W4 moved branch **2.59 mm min, 863/10042 = 8.6 % < 30 mm**; patch battery **1.9 mm, 4.7 % < 30 mm**; the F2 **45 mm / zero-under-30 convention is not met**; no arm-arm contact is possible (`enabledSelfCollisions=0`) and no attempt has ever failed by contact | `logs/w7/A_RESULTS.md` section 4, `logs/w6/C_RESULTS.md` section 3 |
-| Branch/tag state | `w8-carry` = the W8-B commit `d682a62` (the carry metric + the default-off guard, measured-not-adopted) + the W8-B.1 gate-fix docs (`e7d1ed3`), on top of `78e822e` (W8-A.1), which carries the W8-A/plan chain (`c973020`, `38d4699`, `cb39de8`, `459b00f`); `w8-confirm` sits at `78e822e`; `main` and `origin/main` are at `e7d1ed3` (the W8-A + P-PLAN + W8-B chain is pushed); **`w8-residuals` = the R2 commit + the R2.1 gate fixes on top of `e7d1ed3` (tag `v0.8b`): the WS-2 outcomes + the two default-off direct-path knobs; `w8-speed` = the R3 commit from `fd273fb` (R2.1): the WS-3 outcomes + the default-off L2/L3 two-line knobs, local**; tags `v0.6-w6` (`9f91c75`), `v0.7-w7a/b/c`, `v0.8` (`78e822e`), `v0.8b` (`e7d1ed3`) | `git log` / `git rev-parse`, `WORKLOG.md` "W8-A" / "W8-B" / "P-PLAN" / "R2" / "R2.1" / "R3", `logs/w8/B_RESULTS.md`, `logs/w8/R2_RESULTS.md`, `logs/w8/R3_RESULTS.md` |
+| Branch/tag state | `w8-carry` = the W8-B commit `d682a62` (the carry metric + the default-off guard, measured-not-adopted) + the W8-B.1 gate-fix docs (`e7d1ed3`), on top of `78e822e` (W8-A.1), which carries the W8-A/plan chain (`c973020`, `38d4699`, `cb39de8`, `459b00f`); `w8-confirm` sits at `78e822e`; **`w8-residuals` = the R2 commit `7f2fc69` + the R2.1 gate fixes `fd273fb` (tag `v0.8c`); `w8-speed` = the R3 commit `c1cd246` + the R3.1 gate fixes `76e454e` (tag `v0.8d`), merged and pushed: `main` and `origin/main` are at `76e454e`**; `r5-open` (the R5 non-blocked items: the WS-4.4 canary, the patch reference, the docs pass) sits on `76e454e`, local; tags `v0.6-w6` (`9f91c75`), `v0.7-w7a/b/c`, `v0.8` (`78e822e`), `v0.8b` (`e7d1ed3`), `v0.8c` (`fd273fb`), `v0.8d` (`76e454e`) | `git log` / `git rev-parse`, `WORKLOG.md` "W8-A" / "W8-B" / "P-PLAN" / "R2" / "R2.1" / "R3" / "R3.1" / "R5-open", `logs/w8/B_RESULTS.md`, `logs/w8/R2_RESULTS.md`, `logs/w8/R3_RESULTS.md`, `logs/r5/RESULTS.md` |
 
 Open thread carried from the record: the two-line **store -> single-arm direct
 transfer** question (does a two-line recollection transfer to the direct
@@ -247,6 +252,29 @@ default off, two-line only; the shipped single-arm default is byte-unchanged).
 | **4.6 The policy-gate fire path** | name and close the class that bypasses the trigger entirely: the `finger < 0.030` and jaw-fruit `\|xy\| < 0.06` gate fires on **4/18 of the W4 left attempts** (W7-B section 4 item 3b); a future lever could route it through the same acquisition window the ACQ knob fixes | `logs/w7/B_RESULTS.md` section 4 item 3(b); W4 left 4/18 (3 no-contact + 1 carried) | owner interface decision (4.5); interacts with 4.1 | offline + the 4.2 N=5 shape if the gate path changes | the gate class is named and either folded into the interface decision or fixed with zero regressions |
 | **4.7 Reach-cliff combination screen + the hover/catch-up fix** | the R2 named next screen: run the default-off pair **together** (`FRUIT_DIRECT_RESEED=1` + `FRUIT_POLICY_TRIGGER_X_MAX=0.39`) on the forced edge band at N per arm against a same-band control, and fold in a fix for the residual terms - the hover's 8 mm tolerance (the 500-step `move_to` cap) and the fast catch-up stall (28-181 mm residuals) | `logs/w8/R2_RESULTS.md` section 3 (three terms; P0-P4 are N=1x15 mechanism reads; neither knob adopted); the R2.1 re-derivation `R2_flail_analysis.txt` / `R2_probe_report.txt` | WS-4.5 interface decision (the bypass is the WS-4.6 policy-gate item); one `tasks.py` lane; the R2 knobs stay default-off until gated | 2-4 probe batteries (~15 min each) + 1 acceptance | the flail class is zeroed on the stress band or the residual is named with the joint-limit margin; a same-band control confirms it; no-harm: acceptance 9/10 + `fingerprint: matches`, new envs default off |
 
+**Outcome (R5-open, 2026-10-13, branch `r5-open`, `logs/r5/RESULTS.md`): the
+non-blocked R5 items are closed; the owner decisions (WS-5.1-5.3) stay open.**
+
+* **4.4 W3-supply hybrid canary: closed, FAIL 1/10.** The W3 hand-off's command
+  (`moe_v13s`, `FRUIT_SUPPLY_SCATTER=1 FRUIT_SUPPLY_WAVE=1`, balanced mix, 10
+  episodes) re-run on the current tree (`tasks.py` `0c51cfa5`) reads **1/10 =
+  10 % (floor 60 %)**, 8 grip losses + 1 non-hybrid no-lift, every reason in
+  the baseline set. The wall time is **17.5 min for the ten episodes** (~1.7
+  min/episode): the spaced supply's ~15-20 min/episode does not reproduce on
+  the dense sheet, so the item closes without the ~3 h window. The hybrid
+  interface is inert by construction - this is scenario coverage, and the
+  checkpoint's direct dense measurement (7/45 = 15.6 %) is the policy number.
+* **The patch scenario's own reference** (R3 section 6 item 5): written from a
+  frozen-tree patch-battery double-run (`logs/r5/20`/`21`, bit-identical
+  821/821, replaying the W7-A record) as
+  `configs/motion_reference_patch.json` (`b08dd3e9`); both runs PASS
+  `TWOLINE_REF=... scripts/190_twoline_gate.sh -m 0.5`. The existing references
+  are byte-untouched.
+* **The docs pass**: the Chinese docs' "L2 is next" lines
+  (`项目总结报告.md` ~363, `决策与交付.md` ~219/~251), the AGENTS.md W6 line and
+  the W3-canary lines now carry the R3/R5-open outcomes; the branch/tag state
+  row is refreshed. No `src/` or `scripts/` change.
+
 ### WS-5 - the owner decisions
 
 | item | the question | evidence | what it blocks |
@@ -288,8 +316,8 @@ acceptance.
 | **R1 (done 2026-10-13)** | **W8-B the carry mechanism** (WS-1) | metric -> mechanism -> one lever; full evidence `logs/w8/B_RESULTS.md` (+ WORKLOG "W8-B"/"W8-B.1") | R0's W8-A wrap; one `tasks.py` lane (guard default-off; `tasks.py` `a3b82a11`) | **metric separates PASS** (0.02-1.43 vs 17.9-957 mm, no overlap) + mechanism named; lever **not adopted** (p = 0.1094, +5.4 % cycle) -> slot closed with the named residuals; no-harm **PASS** (single arm 9/10 + `fingerprint: matches` + the 385/385 identity; two-line `190` PASS + 442/442 identical to the W7-A dense record) | 1 + 2 re-reviews (used) |
 | **R2 (done 2026-10-13; gate-fixed as R2.1)** | **W8-C residuals + integration** (WS-2) | WS-2.1-2.3; docs + tag; R2.1 re-derives the three-term numbers from `R2_flail_analysis.txt` / `R2_probe_report.txt`, downgrades the selector-leg verdict and slots WS-4.7 | R1's metric (**delivered**: `clean_slip` + `logs/w8/B_metric.py`); owner C/clearance for the notes | **folded** (no shipped scenario or default changed; both new knobs default off, direct-path only) - the outcome block under WS-2 carries the three verdicts + the acceptance | 0-1 |
 | **R3 (done 2026-10-13; local)** | **the speed levers** | WS-3.1 -> 3.2 -> 3.3 (conditional); 3.4 interleaved as its own Tier A batch | R1/R2 for the frozen tree; one `tasks.py` lane | **folded** (no shipped default changed; both levers default off, two-line only) - the outcome block under WS-3 carries the four verdicts + the no-harm; every lever: mechanism + interval movement + no-harm, negatives published | 1 + 2 per lever (used) |
-| **R4** | **the policy** | WS-4.2 protocol; 4.1 mirror (if shipping); 4.3 recollection (if the WS-1 metric names a target); 4.4 canary; 4.6 the gate fire path; 4.7 the R2 combination screen | WS-1's metric; the owner interface decision (4.1/4.5) | per arm: the N=5 P4 rule; canary + acceptance | 1 + 2 |
-| **R5** | **owner decisions + integration** | WS-5.1-5.3; the flip question; docs (`AGENTS.md`, `README.md`, the Chinese docs) + merge + version tag | R1-R4's measured numbers | a panel review (folded if no default changes) | 0-1 |
+| **R4** | **the policy** | WS-4.2 protocol; 4.1 mirror (if shipping); 4.3 recollection (if the WS-1 metric names a target); 4.4 canary (**closed by R5-open**); 4.6 the gate fire path; 4.7 the R2 combination screen | WS-1's metric; the owner interface decision (4.1/4.5) | per arm: the N=5 P4 rule; canary + acceptance | 1 + 2 |
+| **R5** | **owner decisions + integration** | WS-5.1-5.3; the flip question; docs (`AGENTS.md`, `README.md`, the Chinese docs) + merge + version tag - **the non-blocked items (WS-4.4 canary, the patch reference, the docs pass) are done on `r5-open` (`logs/r5/RESULTS.md`); the WS-5.1-5.3 decisions stay open** | R1-R4's measured numbers | a panel review (folded if no default changes) | 0-1 |
 | **R6** | **longer term / frontier** | WS-7 lanes | owner go | per lane | - |
 
 Gate order is strict where the tree is shared (R1 -> R3 -> R4: one `tasks.py`
@@ -375,7 +403,7 @@ read a concurrent run as a quoted number.
 | 3 | **C-semantics scope** | pure A/B/C-pass is two-line-only; the single arm picks C (byte-unchanged); `demos_v13p` has zero C, the base `demos_v11` carries C 21 | any global routing change; WS-2.1's C-coverage decision | decide: keep two-line-only or make C-pass global (with the accounting rule) |
 | 4 | **ACQ shipping / direct-interface decision** | knob default **off**; the direct eval pins `=1`; no ACQ=0 mirror exists; the only knob A/B is W7-C N=3 36 % vs 27 %, p = 0.875 | any direct-interface shipping claim; whether 4.1's mirror is funded; **depends on row 5** - if the hybrid stays the gate of record the mirror is mechanism-only, if the direct loop becomes the gate it is mandatory (~70 min) | decide whether the ACQ=1 interface is a shipping candidate; if yes, authorize the N=5 mirror (~70 min) |
 | 5 | **Policy interface of record** | the hybrid handoff is inert by construction (zero actions 10/10); the direct loop is the causal measurement; direct and hybrid are never comparable | which gate judges the policy; the canary/patch-label scope (WS-2.2) | decide: keep the hybrid canary as the gate and the direct loop as mechanism, or move the gate to the direct loop with its own floor |
-| 6 | **W3-supply canary scope** | the dense-supply hybrid canary is open; the spaced supply measured ~15-20 min/episode on the handoff | any policy claim on the W3 dense supply | authorize the long window (~3 h) or a station-wait diagnosis first, or retire the scenario with a note |
+| 6 | **W3-supply canary scope** (closed by R5-open) | the canary ran on the current tree: **FAIL 1/10**, all baseline reasons, 17.5 min / 10 episodes (the spaced-supply slowness does not reproduce); the direct dense measurement is 7/45 = 15.6 % | nothing now - the record is the answer | no decision needed; the scenario stays non-shipped and the class lever is the carry/grip item |
 
 Closed (not open): the park-gate lever default (W7-A, owner-approved); the
 two-line grade semantics (W3 owner decision); branch-per-phase + tags (W7

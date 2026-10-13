@@ -13521,3 +13521,66 @@ file (`R3_l3_checks.txt`) and the floor formula (`_dynamic_select_floor` =
 No-harm: docs only (`WORKLOG.md`, `AGENTS.md`, `docs/ROADMAP.md` tracked;
 `logs/w8/` is untracked by design); `scripts/selfcheck.sh` PASS 0 failures, 1
 skipped; `tasks.py` `0c51cfa5` and every pinned hash untouched. Not pushed.
+
+### R5-open: the W3-supply hybrid canary closed (FAIL 1/10), the patch scenario's own reference, and the "L2 is next" docs pass
+
+**Scope (2026-10-13, branch `r5-open`, from `main` `76e454e` = tag `v0.8d`;
+`logs/r5/RESULTS.md`; Tier A solo for both simulator runs via
+`scripts/154_claim_run.sh`; no `src/` or `scripts/` change).** The non-blocked
+R5 items; the owner-decision register (WS-5.1-5.3) stays open.
+
+1. **The W3-supply hybrid canary (WS-4.4) - closed: FAIL 1/10.** The W3
+   hand-off's step-5 command (`logs/w3/HANDOFF.md`) re-run on the current tree:
+   the W3 checkpoint `moe_v13s` (md5 `61da390a85fa209496b54477a8255d23`),
+   `FRUIT_SUPPLY_SCATTER=1 FRUIT_SUPPLY_WAVE=1
+   FRUIT_SUPPLY_GRADES=A:0.375,B:0.375,C:0.25`, 10 episodes, the shipped
+   `accept_policy.sh` gate. Result **1/10 = 10 % (floor 60 %) -> FAIL**; the
+   gate's only problem is the rate - 8 hybrid rows are the baseline grip loss
+   (`fruit did not follow the gripper`), and the tenth row (ep7 pear) is the
+   evaluator's non-hybrid scoring row (`handoff=True lifted=False
+   placed=False`, the loop ended before the 400-step handover). The two
+   cross-lane notes (ep6/ep8) are not failure-specific (R2). The **wall time is
+   17.5 min for the ten episodes** (~1.7 min/episode; Isaac app 1020.1 s) - the
+   spaced supply's ~15-20 min/episode does not reproduce on the dense sheet, so
+   the register's ~3 h window was not needed. The hybrid interface is inert by
+   construction (the station handoff teleports the fruit to the policy's jaw),
+   so this is scenario coverage; the same checkpoint's direct dense measurement
+   is 7/45 = 15.6 % (`logs/w3/70_direct_v13s_dense.log`). The item closes as
+   measured; the named class lever stays the W7-C/W8 carry/grip direction.
+   Evidence: `logs/r5/30_canary_w3supply.log`,
+   `logs/r5/30_canary_driver.log`, `logs/r5/30_tree_ckpt_md5.txt`.
+
+2. **The patch scenario's own motion reference (R3_RESULTS section 6 item 5) -
+   written.** A frozen-tree double-run of the W6-B/W7-A patch battery
+   (`logs/r5/run_patch_battery.sh`): `logs/r5/20_patch_battery_1.log` and `21`
+   are **12/20 both** (left 4/10, right 8/10), 9.9 s/attempt, 3.64 fruits/min,
+   `gate_open=0.0 s`, `queue_peak=0`; the physics `[fruit]` streams are
+   **bit-identical 821/821**, and run 1 replays the W7-A record
+   (`logs/w7/20_patch_battery_1.log`) **821/821 identical**.
+   `configs/motion_reference_patch.json`
+   (**b08dd3e934c3a74a0f63aac9c211dd9a**, 20 legs) was written from run 1 by
+   `105_motion_regression.py --write-fingerprint` (the motion budgets pass; the
+   rate-only single-arm 0.75 floor failure does not block the write), and both
+   runs **PASS** `TWOLINE_REF=configs/motion_reference_patch.json
+   scripts/190_twoline_gate.sh -m 0.5`. The existing references are
+   byte-untouched (`configs/motion_reference.json` `b9e72ca7`,
+   `configs/motion_reference_twoline.json` `181c9151`).
+
+3. **The docs pass.** The stale "L2 is next" routing now carries the R3
+   outcome: `项目总结报告.md` (the W6 L1 item), `决策与交付.md` (section 7 item
+   3 and section 8 item 4), `AGENTS.md` (the W6 section's sentence replaced by
+   the R3 verdict; the W3 paragraph carries the canary result), `README.md`
+   (the policy row + the scenario-pin paragraph), and `docs/ROADMAP.md` (the
+   state table incl. the new patch-reference row, the WS-4 outcome block,
+   register item 6, the status header, and the branch/tag state row:
+   `main`/`origin/main` = `76e454e`, tags `v0.8c` `fd273fb` / `v0.8d`
+   `76e454e`).
+
+**No-harm.** `scripts/selfcheck.sh` PASS 0 failures 1 skipped (the canary's
+pre-flight); `ACCEPT_LOG=logs/r5/40_accept.log scripts/accept.sh` -> **9/10,
+15.2 s/attempt, motion gate PASS, `fingerprint: matches
+configs/motion_reference.json`**, its `[fruit]` stream **385/385 identical**
+(365/365 physics-only) to `logs/w8/R3_accept.log` - the single-arm default is
+byte-unchanged. Tree pins: `tasks.py` `0c51cfa5`, `fruits.py` `a0ea1f54`,
+`rl_env.py` `af98428f`, `186` `49242875`; the canary and battery md5 records in
+`logs/r5/`. Not pushed.

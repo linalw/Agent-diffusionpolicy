@@ -338,8 +338,15 @@ carried one novel reason, recorded in the WORKLOG), and its direct eval on the
 dense supply is **7/45 = 15.6 %** (single-arm presentation, no-trigger
 fruit-off-line; `logs/w3/70_direct_v13s_dense.log`). The corrected tree's
 acceptance is **9/10 + fingerprint matches** with `gate_open=0.0 s`
-(`logs/w3/62_accept_single_dense_tree.log`). The W3-supply hybrid canary is
-the remaining hand-off item (`logs/w3/HANDOFF.md`).
+(`logs/w3/62_accept_single_dense_tree.log`). **The W3-supply hybrid canary is
+closed by R5-open (2026-10-13): FAIL 1/10 = 10 % (floor 60 %)** on the W3
+hand-off command (`moe_v13s`, `FRUIT_SUPPLY_SCATTER=1 FRUIT_SUPPLY_WAVE=1`, the
+balanced A:B:C 0.375/0.375/0.25 mix, current tree `tasks.py` `0c51cfa5`) - 8
+grip losses + 1 non-hybrid no-lift, all baseline reasons, 17.5 min for the ten
+episodes (~1.7 min/episode; the old ~15-20 min/episode was the spaced supply,
+not the handoff). The hybrid interface is inert by construction, so this is
+scenario coverage; the checkpoint's direct dense measurement is 7/45 = 15.6 %
+(`logs/r5/RESULTS.md` section 1).
 
 **W5 (Gate W5-C, 2026-10-10, `logs/w5/`): the existing-knob mechanism screens
 are all negative - H1 is falsified as the cause, not repaired; the watcher is
@@ -431,9 +438,10 @@ station, below the +0.30 m floor): the feeder's release cadence runs at the
 attempt boundary **after** the park and `state()` reads live positions, so the
 attempt-end lane is empty; the consume path was never exercised. L1 stays a
 default-off **hook** (re-fire gate: reservations > 0 AND a consumption) and
-**L2 (adaptive lead) is next**, with the measured wait-to-handover inputs left
-mean 2.93 s / p90 3.7, right 3.39 / 4.4 and the SPEC 7.3 floor-override
-prerequisite. Clearance is unchanged by both levers: **1.9 mm min, 4.7 %
+**R3 measured L2/L3: neither is adopted** - the adaptive lead is bit-identical
+(the shipped 1.5 s floor *is* the measured setup), the tight override binds but
+its branch is worse, and the interval is arrival-bound (see the R3 paragraph
+below and `logs/w8/R3_RESULTS.md`). Clearance is unchanged by both levers: **1.9 mm min, 4.7 %
 < 30 mm** (`37`/`38`/`39` JSONLs - the two scripted hover poses; no arm-arm
 contact is possible in this build, `enabledSelfCollisions=0`). **No-harm:**
 every config pair bit-identical (821/850/843 physics lines), knobs-off
