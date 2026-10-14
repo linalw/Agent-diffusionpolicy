@@ -14233,3 +14233,102 @@ integration (AGENTS.md + `docs/ROADMAP.md` + the plan file's "R9 PLAN").
 7. **No-harm.** Docs + untracked evidence only; no `src/`, no simulator, no
    scenario change; `scripts/selfcheck.sh` **PASS** (`logs/selfcheck.log`).
    Commit `R8-A.1`; not pushed.
+
+### R9 (the bounded RL/DAgger lane): AWR-clipped RWR iteration 2 on fresh on-policy rollouts - the carried class does not convert, the handover state degrades, and the lane closes negative (published)
+
+**Scope (2026-10-14, branch `r9-rl`, from `main` at `328332d`/tag `v0.12`,
+Tier A solo).** Phase R9 of the plan (`.slim/deepwork/sorting-pipeline-v3.md`
+"R9 PLAN", the R8-A fallback; `logs/r8/A_RESULTS.md` section 7). Report
+`logs/r9/RESULTS.md`; committed drivers `scripts/195_r9_chain.sh`,
+`scripts/196_r9_report.py`, `scripts/197_r9_merge_rollouts.py`. **Env-only: no
+`src/` change, no shipped default change, no adoption.** The whole chain (56
+recorded rollouts -> AWR fine-tune -> fidelity -> N=5 A/B -> no-harm) ran in
+~3.5 h wall.
+
+1. **The lane and the not-the-nulls argument.** AWR-clipped reward-weighted
+   regression - the RWR iteration-2 item, never run - fine-tuning
+   `moe_v13s` (`61da390a`) on fresh on-policy direct rollouts with
+   `w = clip(exp(4*(R-Vbar)), 0.05, 4)` and the `demos_v11` base (`922ca995`)
+   at 1.0. The two published nulls (W7-C `moe_v13p` N=3, W8-A N=5 21/75 vs
+   22/75 p=1.0000) are **off-policy behaviour cloning** (`weight_mode=ones`
+   on 158/173 successful scripted/two-line episodes); this lane weights the
+   policy's own outcome distribution. The P4 trigger-margin fix has no object
+   in the pinned interface (encoder-fed arrival trigger, ACQ=1; W8-A records
+   zero policy-gate fires) and the per-tick correction head has a measured
+   negative prior (path-3 A2C2 -20 pt). `moe_v12` `3a9ccfc0` is pinned as the
+   shipped default but not the fine-tune base (arm A of the pre-registered
+   baseline is `moe_v13s`; a v12 base would confound the paired test).
+
+2. **Environment finding (operational).** Recorded multi-seed runs hit the
+   known RTX `multitick.render` stall after ~3.5 min in this session (driver
+   log frozen, sim 0.03x, GPU idle; two attempts), while single-seed runs of
+   the same shape completed 15 episodes in 6.7-7.0 min (both a non-recorded
+   and a recorded control). The rollouts were collected as **single-seed
+   recorded shards** under a 300-s freeze + GPU-idle watchdog and merged by
+   the new `scripts/197_r9_merge_rollouts.py` (byte copy + renumbering; store
+   schema untouched): seeds 909/505/606/707 -> **56 episodes, 18 successes**
+   (`datasets/rl_rollouts/r9_awr`; the four shard index md5s in its
+   `merge_manifest.json`). Recorded episodes carry only the policy phase
+   (25-92 frames) - the primitive owns everything after the trigger.
+
+3. **Training + fidelity.** `WEIGHT_MODE=awr BETA=4 EPOCHS=4 LR=5e-5`:
+   Vbar=0.3103 -> successes 4.0 / failures 0.289 / base 1.0; 4 epochs at 61 s;
+   candidate `checkpoints/rl_awr1/policy_best.pt` md5
+   `a1766ecdf29031944e4c3b5499e8931e`. Offline fidelity (192 windows,
+   DDIM-16): on its **own rollouts** 0.087 -> **0.174 rad** (24 improved /
+   168 worse; phase 94 -> 86 %), on `demos_v11` 0.079 -> 0.081 - the same
+   demo-anchoring movement RWR-1 measured: even at a 4x success weight the
+   fine-tune overwrites the policy's own approach.
+
+4. **The N=5 endpoint (pre-registered; one claim, 17:55-19:06, 10/10 runs
+   first pass).** Interleaved A=`moe_v13s` / B=`rl_awr1`, seeds
+   [77,101,202,303,404], sampler 11, both arms instrumented
+   (`ACQ_DIAG=1 CARRY_DIAG=1`). **A 25/75 = 33 % vs B 18/75 = 24 %**
+   (run pairs 4-2, 4-3, 5-5, 5-3, 7-5); same-fruit pairing 3 both ok / 15
+   both fail / **5 B-only / 8 A-only**, sign p = 0.8666; **the primary
+   endpoint - the paired carried-class conversion - reads 5 B-only / 4
+   A-only (p = 0.500)**, against the 6-0 edge at N=5; strawberry **1/9 vs
+   6/10** [worse]; new failure reasons **none**; cycle **1868 vs 1841 ticks
+   (+1.5 %)**. Primary FAIL, secondary FAIL -> per the pre-registered kill
+   criterion the lane closes negative and published. (A reads 33 % here vs
+   28 % in W8-A for the same checkpoint - different instrumentation/batch,
+   the known one-sample spread; the paired within-batch read is the
+   endpoint.)
+
+5. **The mechanism (why it failed, and what it settles).** The `[carry]`
+   lines are **arm-invariant**: `grasp_lift` 74/74 legs, clean 21/18,
+   slip-event 53/56, contact-loss 43/48, onset-row median **94/94**,
+   force@onset **4.93/5.38 N**, `contacts@onset==1` 41/53 vs 45/56,
+   onset->loss **29/26** ticks - the loaded-slide signature is unchanged, so
+   the post-training cannot reach the pre-onset facet: the **scripted
+   primitive owns the close/lift geometry**, not the policy. What *did* move
+   is the handover state: B runs **6 reach-cliff flails (catch-up capped at
+   200 ticks, residuals 265-1353 mm, 4 with the 3.33 s `move_to` caps, one
+   `contact=NONE`) against A's 1 (160 mm)** - all six `grasped=False`, which
+   is five of B's extra no-contact outcomes and four of the ok->no-contact
+   paired regressions; the fidelity shift degrades the very
+   approach the encoder trigger is timed against. Three post-training passes
+   now say the same thing: the direct interface's carried class is not
+   addressable by policy post-training; the named residual is the
+   **primitive-side load path** (a `tasks.py` item with its own
+   pre-registration) or D3-proper, not another RL pass on this interface.
+
+6. **No-harm (byte-level).** Acceptance `logs/r9/60_accept_r9.log`: **9/10,
+   15.2 s/attempt, `gate_open=0.0 s`, `diverted=0`, motion gate PASS,
+   `fingerprint: matches`**; its **385/385 `[fruit]` lines identical** to
+   `logs/r7/A_accept.log` (and to `logs/r8/A_accept.log`); two-line dense
+   battery `logs/r9/70_twoline_r9.log` **442/442 identical** to
+   `logs/w7/10_dense_twoline_1.log` + `scripts/190_twoline_gate.sh` PASS;
+   `selfcheck.sh` PASS (pre-flight + final); branch probes before/after both
+   `6.0 cm / 95 samples` (the shipped scripted branch); tree pins identical
+   before/after.
+
+7. **The decision.** **No adoption; no shipped default changes** (R5
+   decisions stand). Register: the RL/DAgger direction (WS-7.2) is now
+   **measured and closed** on this interface; the follow-up integration
+   (ROADMAP WS-7.2 row + an AGENTS section-2 paragraph) is left to the
+   orchestrator's integration pass per the R8-A.1 convention. Evidence:
+   `logs/r9/` (`RESULTS.md`, `42_r9_endpoint.txt`, `41_verdict.txt`,
+   `43`-`46` cross-check readouts, `30_fidelity.txt`, `20_finetune.log`,
+   `10_rollouts_shard.log` + `11_merge.log`, `A_direct_ab/` 10 runs + 10
+   manifests, `60`-`72` no-harm, `r9_chain.status`, `frozen/`).
