@@ -14032,3 +14032,122 @@ above (corrected in place, R5.1 precedent).
    `README.md` are untouched - no default or scenario claim changes.
 7. **No-harm.** Docs only; no simulator, no `src/`, no scenario change;
    `scripts/selfcheck.sh` **PASS**. Commit `R7-C`; not pushed.
+
+### R8-A (the D screen): the lower grip plane, the cradle/scoop and the raised station are all measured negatives; the grip-geometry lever space is closed around the carry class and the no-harm is a bit-identical replay
+
+Lane: phase R8-A of the R8 PLAN (`.slim/deepwork/sorting-pipeline-v3.md`), executing
+the **pre-registered D screen** (`logs/r7/FRONTIER_R7.md` section 4) on branch
+`r8-dscreen` (from `main` at `38304b8`, tag `v0.11`). Tier A solo, one claim lane
+11:39:40 -> 13:48:41 (**2 h 09 m**). Report: `logs/r8/A_RESULTS.md`; drivers
+`logs/r8/run_r8a_screen.sh` / `run_r8a_d3_noharm.sh` / `A_report.sh`; readouts
+`A_bands.txt` / `A_probe.txt` / `A_taxonomy.txt` / `A_battery_report.txt` /
+`A_gate.txt` / `A_compare.txt`. **No shipped default changed** (owner R5 stands);
+both new levers are default-off env knobs, and the shipped path is proven
+byte-unchanged rather than asserted (below).
+
+1. **The candidates and their implementations.** *D2a* - a new default-off
+   `FRUIT_GRIP_PLANE_DROP` [m] in `tasks.py::_pad_standoff` that seats the
+   moving catch's whole hand lower on the payload (candidate 0.008; a labelled
+   0.004 boundary sample). *D2b* - a new asset variant `FRUIT_FINGER_SCOOP=1`
+   in `scene.py::_add_finger_scoops`: one ledge per finger link (4), authored in
+   the `_finger_face_frame` contact frame before `play()`; top edge 2 mm past
+   the fingertip on the true face plane, inward 6 mm over 12 mm, 14 mm wide,
+   4 mm thick - a sloped passive shelf under the pinch, open along the belt
+   axis. *D3* - the bounded proxy: the existing default-off pick platform
+   (`FRUIT_NEST=0.02 FRUIT_NEST_WIDTH=0.05`, 100 mm wide, 20 mm tall), i.e.
+   "a pick station the hand reaches clear of the belt"; the second half of the
+   D3 form (a descent command that respects the boundary) is not implemented
+   (the pre-registration says the properly-scoped variant needs the multi-seed
+   IK / self-centring feeder).
+
+2. **D2a FAILS, with the reach boundary as the named mechanism.** Direct probe
+   (-8 mm): 3/15, classes ok 3 / carried 1 / **no-contact 11**, flails
+   **1 -> 14** (9 fast-stall + 5 hover-cap), close-start y median
+   **-3.8 -> +59.0 mm**, the lift-leg population **moved up** out of the
+   100-400 mm band (11 -> 2) into the **>400 mm** band (2 -> 10, all lost):
+   escape signature present, negative branch move. Battery x2 bit-identical:
+   **5/20 = 25 %** (control 12/20) with gripper-loss notes **1 -> 11** plus a
+   `fruit left the pick station during the close (357 mm)` note, and one
+   descent **out of the speed budget** (`|v|max` 0.172 vs 0.161) - `105
+   --write-fingerprint` refuses the run (a pre-registered fail condition on its
+   own). Mechanism: the control's own catch-up residual floors at 5.6-6.0 mm
+   against the 6 mm tolerance - the shipped dynamic grip target already sits at
+   the arm's vertical boundary (the same boundary as the every-descent 40-90 mm
+   shortfall), so a downward drop puts the tip target out of band; the labelled
+   **-4 mm boundary sample** (direct only) still floors the catch-up (11/15
+   caps, no-contact 8) while the >400 mm population persists, and the in-band
+   pad-plate alternative is already closed (v6 exp 2: 5/10 at 12 mm, 7/10
+   co-planar-only). The pose realization of D2a cannot be tested in-band.
+
+3. **D2b FAILS - the ledges bat the payload (the P3/D additive-face class the
+   pre-registration warned about).** Direct probe: 2/15, classes
+   ok 2 / carried 4 / **no-contact 9**, flails **1 -> 7** (2 premove-cap + 5
+   hover-cap), close-start offsets **0.3-1.1 m** (`fruit drifted 1169 mm off
+   the pick centre`; `[carry]` slides to **3972 mm**), the lift-leg population
+   **reduced 15 -> 14**, the 100-400 mm leg count 11 -> 3 with the population
+   redistributed into **>400 mm** (2 -> 8). Battery x2 bit-identical:
+   **6/20 = 30 %**, gripper-loss notes **1 -> 12**; the descents stay in band
+   (worst `|v|max` 0.119 vs 0.116) and `190` fails only on the rate floor.
+   Mechanism (two classes in the rows): the ordinary failures repeat the known
+   loaded-slide class (onset rows 70-98, `force@onset` 4.95-7.10 N, one-sided
+   contact), while the new flicked class registers in the first 1-2 ticks with
+   the fingers already at/past the fruit's width (`sep@onset` **9.8-22.0 mm**
+   on five legs, force 0 or a 13-36 N spike) - the payload was batted off the
+   station before the close and the hand chases a phantom. The ledges sit in
+   the close's swept volume; the nominal ~3.7 mm proximal clearance is smaller
+   than the lane's close-time misalignment.
+
+4. **D3 FAILS - the platform obstructs the supply.** Direct probe: 2/15,
+   no-contact **12**, flails **11** (9 premove-cap + 2 fast-stall), closes
+   start up to 0.97 m away; the platform's 100 mm x-span is narrower than the
+   supplied band (0.20-0.36 m), so off-centre fruit meet its vertical side
+   faces. Battery x2 bit-identical: **1/20 = 5 %** (19.0 s/attempt),
+   `recirculated` **0 -> 13**, failure notes 11 gripper-loss + 3 **`fruit
+   never settled at the pick point (dy=0.198-0.293 m)`** - a *new* note. The
+   descents that run are in band (worst 0.112); `190` fails only on the rate
+   floor. The bounded proxy closes the naive raise; the full D3 form (station
+   + feeder + boundary-respecting descent) remains the scenario redesign the
+   README names.
+
+5. **The criterion, applied (the pre-registered reading).** (a) zero carry legs
+   with `clean_slip` > 2 mm: control 14/15 lift legs above it; D2a 12/15,
+   D2b 12/14, D3 12/14 - **no candidate comes close**. (b) the 100-400 mm
+   band's lost count at least halved: numerically 11 -> 2/3/3, but in every
+   case the population **moved up** into the >400 mm band (a negative branch
+   move) and for D2b/D3 the band population is also reduced (14 vs 15 legs,
+   which the criterion forbids). **All three forms FAIL; no pass means no R8-B
+   (no N=5 confirmation, no two-line conversion).** Each form is closed with
+   its own measured mechanism (items 2-4); the negatives are published.
+
+6. **No-harm is proven, not asserted.** The scripted control battery (default
+   knobs off) replays `logs/w7/20_patch_battery_1.log` **bit-identically -
+   861/861 physics `[fruit]` lines** - i.e. the new code is byte-inert on the
+   shipped two-line path; its double-run is 861/861 (12/20 x2, 9.9 s/attempt,
+   `190` PASS vs `configs/motion_reference_patch.json`). Every scripted config
+   passed its double-run compare (control 861, D2a 821, D2b 882, D3 1125 - all
+   IDENTICAL). The acceptance (`logs/r8/A_accept.log`): **9/10, 15.2
+   s/attempt, `gate_open=0.0 s`**, motion gate **PASS**, **`fingerprint:
+   matches`**, and **385/385 `[fruit]` lines identical to `logs/r7/A_accept.log`**
+   (the v0.11 record). `scripts/selfcheck.sh` PASS; `git diff --check` clean.
+   The `91` test gripper authors its own pads and was not adapted (the screen
+   measures the shipped hand).
+
+7. **Pins.** `tasks.py` `27d0fabd4dcac2464d4b6fca67728a05` (the D2a knob),
+   `scene.py` `ab85dca250cdd09cc7cbd9893c58fca3` (the D2b scoops), `rl_env.py`
+   `72d5557405cdca925fe878749e478b6c` (metadata-only `TASKS_MD5` follow
+   `b2c79938 -> 27d0fabd`), `policy/trigger.py` `d7ec85fc`,
+   `policy/runtime.py` `ffb76bfd`, checkpoint `moe_v13s` `61da390a`; tree
+   hashes identical before/after the batch (`logs/r8/A_tree_md5_before/after.txt`)
+   and the measured tree snapshotted (`logs/r8/tree_batch/` + `A_tree_batch.patch`).
+   Branch HEAD at the batch `38304b8` (v0.11); commit follows, not pushed.
+
+8. **What this closes.** With R6-B (squeeze side) this closes the bounded
+   grip-geometry lever space around the carry class: the lower grip plane is
+   blocked by the arm's vertical reach boundary, the fingertip cradle bats the
+   payload, and the pad-plate was already closed (v6 exp 2). The standing
+   directions are now the station/scenario redesign (a station the hand reaches
+   clear of the belt + the self-centring feeder / multi-seed IK) and the
+   RL/DAgger lane (frontier Option B, under its existing gates). The
+   instruments (band table, live `[carry]`, determinism compare, per-scenario
+   gates) ran unchanged on every config, and the screen's control is on the
+   W7-A branch, so later re-runs have a byte-reproducible comparator.

@@ -407,6 +407,15 @@ class SortingScene:
             and os.environ.get("FRUIT_FINGER_SOFT_PAD", "0") == "1"
         ):
             self._add_soft_pads()
+        # D2b cradle/scoop (R8-A screen, opt-in, default off): a passive ledge
+        # below each fingertip that the payload lands on once it starts walking
+        # +z out of the pinch. See `_add_finger_scoops`.
+        if (
+            openarm_hand
+            and finger_colliders
+            and os.environ.get("FRUIT_FINGER_SCOOP", "0") == "1"
+        ):
+            self._add_finger_scoops()
         say(f"scene built (parts={list(parts)})")
         return self
 
@@ -1112,6 +1121,114 @@ class SortingScene:
             except Exception:  # noqa: BLE001 - a trace must never change an outcome
                 out.append({"which": pad["which"], "comp_mm": None})
         return out
+
+    def _add_finger_scoops(self) -> None:
+        """Author the D2b cradle/scoop ledges on the finger links (opt-in).
+
+        The W8-B mechanism (`logs/w8/B_RESULTS.md`): the payload walks **+z out
+        of the fingertip pinch** - it slides down the finger plates while the
+        jaws are pried toward their 98-99 mm limit - so a passive support the
+        payload can rest on once it starts walking blocks the escape *without
+        raising the squeeze* (the squeeze-side family is measured closed;
+        `logs/r6/B_RESULTS.md`).
+
+        Geometry per finger, in the `_finger_face_frame` contact frame
+        (`e_face` toward the other finger, `e_mid` across the finger, `e_long`
+        toward the fingertip):
+
+        * a ledge whose **top face runs from the true face plane** at
+          `FRUIT_FINGER_SCOOP_BACK` (2 mm) past the fingertip, inward by
+          `FRUIT_FINGER_SCOOP_DEPTH` (6 mm at its distal end) over
+          `FRUIT_FINGER_SCOOP_LEN` (12 mm) along the tool axis - a shallow
+          sloped shelf, `FRUIT_FINGER_SCOOP_WIDE` (14 mm) across the finger,
+          `FRUIT_FINGER_SCOOP_THICK` (4 mm) thick behind its top face;
+        * the ledge's proximal top edge sits on the finger's face plane, so the
+          shipped close arithmetic is unchanged; the slope grows inward only
+          *below* the fingertip, where the payload's local half-width shrinks
+          (`clearance` for the widest pool fruit, a 7 cm apple, is ~3.7 mm at
+          the proximal edge and grows distally);
+        * once the payload's widest section reaches the ledge band, the gap
+          between the two ledges is narrower than the payload, so the payload
+          comes to rest on the sloped shelves - a V-cradle under the pinch;
+        * it is open along `e_mid` (the belt/approach axis): the fruit arrives
+          from -Y and the hand descends from +Z, so no approach path is blocked.
+
+        Authored before `play()` as children of the finger links, so PhysX
+        parses them into the same rigid bodies as the finger colliders (the
+        mechanism `_add_contact_faces` relies on). Default off: with
+        `FRUIT_FINGER_SCOOP` unset the shipped build authors nothing.
+        """
+        depth = max(0.0005, float(os.environ.get("FRUIT_FINGER_SCOOP_DEPTH", "0.006")))
+        run = max(0.002, float(os.environ.get("FRUIT_FINGER_SCOOP_LEN", "0.012")))
+        back = max(0.0, float(os.environ.get("FRUIT_FINGER_SCOOP_BACK", "0.002")))
+        wide = max(0.004, float(os.environ.get("FRUIT_FINGER_SCOOP_WIDE", "0.014")))
+        thick = max(0.001, float(os.environ.get("FRUIT_FINGER_SCOOP_THICK", "0.004")))
+        mu = float(os.environ.get("FRUIT_FINGER_MU", "2.0"))
+        stiffness = float(os.environ.get("FRUIT_FINGER_COMPLIANCE", "0"))
+        damping = float(os.environ.get("FRUIT_FINGER_CONTACT_DAMPING", "60"))
+        made = 0
+        for side in ("left", "right"):
+            for which in ("left", "right"):
+                path = f"/World/OpenArm/openarm_{side}_{which}_finger"
+                other = "right" if which == "left" else "left"
+                link = self.stage.GetPrimAtPath(path)
+                other_link = self.stage.GetPrimAtPath(
+                    f"/World/OpenArm/openarm_{side}_{other}_finger"
+                )
+                tcp = self.stage.GetPrimAtPath(f"/World/OpenArm/openarm_{side}_ee_tcp")
+                visuals = self.stage.GetPrimAtPath(f"{path}/visuals")
+                if not (
+                    link.IsValid() and other_link.IsValid() and tcp.IsValid()
+                    and visuals.IsValid()
+                ):
+                    continue
+                points = _link_local_mesh_points(visuals, np.linalg.inv(_world_matrix(link)))
+                if len(points) < 32:
+                    say(f"scoop: {path} has {len(points)} visual points; skipped")
+                    continue
+                (
+                    e_face, e_mid, e_long, face_coord, mid_coord, tip_coord,
+                    _extents, _bounds,
+                ) = _finger_face_frame(link, other_link, tcp, points)
+                # Ledge top face from A (face plane, `back` past the tip) to
+                # B (A + depth inward + run along the tool axis).
+                origin = e_face * float(face_coord) + e_mid * float(mid_coord)
+                a = origin + e_long * (float(tip_coord) + back)
+                along = e_face * depth + e_long * run
+                length = float(np.linalg.norm(along))
+                d_axis = along / length
+                n_axis = (e_face * run - e_long * depth) / length
+                v_axis = np.cross(n_axis, d_axis)
+                if float(v_axis @ e_mid) < 0.0:
+                    v_axis = -v_axis
+                    d_axis = -d_axis
+                centre = a + along / 2.0 - n_axis * (thick / 2.0)
+                frame = np.column_stack([n_axis, d_axis, v_axis])
+                prim = UsdGeom.Cube.Define(self.stage, f"{path}/scoop")
+                prim.GetSizeAttr().Set(1.0)
+                xf = UsdGeom.Xformable(prim)
+                xf.ClearXformOpOrder()
+                xf.AddTranslateOp().Set(Gf.Vec3d(*[float(v) for v in centre]))
+                quat = _matrix_to_quat(frame)
+                xf.AddOrientOp().Set(Gf.Quatf(quat[0], Gf.Vec3f(quat[1], quat[2], quat[3])))
+                xf.AddScaleOp().Set(Gf.Vec3f(thick, length, wide))
+                UsdPhysics.CollisionAPI.Apply(prim.GetPrim())
+                _add_physics_material(
+                    prim.GetPrim(), mu, mu, 0.0, stiffness, damping,
+                    colour=(0.05, 0.6, 0.25),
+                )
+                made += 1
+                say(
+                    f"scoop {side}_{which}: face={face_coord * 1000:.1f} mm, tip="
+                    f"{tip_coord * 1000:.1f} mm, top edge {back * 1000:.1f} mm past "
+                    f"the tip at the face plane, inward {depth * 1000:.1f} mm over "
+                    f"{run * 1000:.1f} mm, wide {wide * 1000:.1f} mm, thick "
+                    f"{thick * 1000:.1f} mm"
+                )
+        say(
+            f"scoops: {made} cradle ledges authored on the finger links "
+            f"(D2b; depth={depth * 1000:.1f} mm, mu={mu})"
+        )
 
     def _add_environment(self) -> None:
         """Studio-style lighting and a real floor, instead of an infinite grid."""

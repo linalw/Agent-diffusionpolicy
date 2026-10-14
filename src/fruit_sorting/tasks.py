@@ -389,6 +389,20 @@ class PickAndPlaceTask:
         self._dynamic_pad_lift_frac = float(
             os.environ.get("FRUIT_DYNAMIC_PAD_LIFT_FRAC", "0.0")
         )
+        #: D2a "lower grip plane" (R8-A screen, default off). Subtracts N metres
+        #: from the *moving catch's* jaw standoff, so the whole hand seats lower
+        #: relative to the fruit: the payload's equator sits closer to the finger
+        #: joints, the +z walk-out (the W8-B loaded slide, `logs/w8/B_RESULTS.md`)
+        #: has more pad face to travel before the fingertips, and the contact sits
+        #: nearer the joints (shorter pry moment arm). Pre-registered as the D2a
+        #: candidate in `logs/r7/FRONTIER_R7.md` section 4; the older
+        #: grip-height-below-centre screens (PAD_LIFT < 0, `logs/p3fix`) were on
+        #: the pre-v7 line and this is the re-test on the shipped line. The
+        #: standoff is only lowered for `dynamic=True` calls; the indexed line,
+        #: the place transfer and the shipped default are untouched (0.0).
+        self._grip_plane_drop = float(
+            os.environ.get("FRUIT_GRIP_PLANE_DROP", "0.0")
+        )
         #: Fraction of the live extent used as the dynamic close's minimum
         #: interference; >0 also turns the live clamp from a floor into a cap and
         #: lets the hold relax to it (small-fruit crush). Measured and left
@@ -3211,13 +3225,19 @@ class PickAndPlaceTask:
         the global `PAD_LIFT`, so an unset knob is a no-op. With
         `FRUIT_DYNAMIC_PAD_LIFT_FRAC` the standoff is additionally capped at that
         fraction of the fruit's diameter, which puts the pads on/near the widest
-        section of a small conical fruit instead of above it.
+        section of a small conical fruit instead of above it. With
+        `FRUIT_GRIP_PLANE_DROP` (D2a, default 0.0) the moving catch's standoff
+        is shortened by that many metres, seating the hand lower on the payload;
+        the indexed path and the place transfer keep the shipped value.
         """
         finger_len = float(os.environ.get("FRUIT_FINGER_LEN", "0.060"))
         lift = self._dynamic_pad_lift if dynamic else PAD_LIFT
         if dynamic and sample is not None and self._dynamic_pad_lift_frac > 0.0:
             lift = min(lift, self._dynamic_pad_lift_frac * float(sample.diameter))
-        return finger_len + lift
+        standoff = finger_len + lift
+        if dynamic and self._grip_plane_drop:
+            standoff -= self._grip_plane_drop
+        return standoff
 
     def _dynamic_grip_point(self, sample) -> np.ndarray:
         """Jaw target of the moving catch's *grip* pose [m] (station, at height)."""
