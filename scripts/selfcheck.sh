@@ -12,12 +12,14 @@
 #   4. finger collider guard          scripts/432_finger_collider_guard_test.py
 #   5. rl env smoke                   import + reward math of src/fruit_sorting/rl_env.py
 #   6. rl report parser               scripts/113_rl_report.py --self-test
-#   7. rtc runtime selftest           scripts/128_rtc_selftest.py (no checkpoint)
-#   8. trigger intercept test         scripts/811_trigger_test.py (pure geometry)
-#   9. claim slot harness             scripts/181_claim_slot_selftest.sh (pure locking)
-#  10. ops selfcheck selftest         scripts/191_ops_selfcheck.sh --selftest (fake
+#   7. r9 endpoint report             scripts/196_r9_report.py --self-test
+#   8. r9 rollout merge               scripts/197_r9_merge_rollouts.py --self-test
+#   9. rtc runtime selftest           scripts/128_rtc_selftest.py (no checkpoint)
+#  10. trigger intercept test         scripts/811_trigger_test.py (pure geometry)
+#  11. claim slot harness             scripts/181_claim_slot_selftest.sh (pure locking)
+#  12. ops selfcheck selftest         scripts/191_ops_selfcheck.sh --selftest (fake
 #                                     sim/claim/wrapper in a temp dir; the P1 ops probe)
-#  11. motion budgets                 scripts/105_motion_regression.py  (needs a run log)
+#  13. motion budgets                 scripts/105_motion_regression.py  (needs a run log)
 #
 # Each prints "name, result, elapsed"; everything is also written to
 # `logs/selfcheck.log`. Any *failure* makes the script exit non-zero; the motion
@@ -79,6 +81,12 @@ run_check "finger collider guard" "$python" scripts/432_finger_collider_guard_te
 # touches Isaac Sim.
 run_check "rl env smoke" "$python" -c "import sys; sys.path.insert(0, 'src'); from fruit_sorting.rl_env import RewardConfig, RolloutRecorder, TASKS_MD5; r = RewardConfig(); assert abs(r.compute(True, 0) - 1.0) < 1e-9; assert abs(r.compute(True, 750) - 0.9) < 1e-9; assert abs(r.compute(True, 1500) - 0.8) < 1e-9; assert abs(r.compute(True, 99999) - 0.8) < 1e-9; assert r.compute(False, 100) == 0.0; assert len(TASKS_MD5) == 32; print('rl_env smoke ok')"
 run_check "rl report parser" "$python" scripts/113_rl_report.py --self-test
+# R9: the RL/DAgger lane's two offline tools - the N=5 endpoint readout (parse,
+# same-fruit pairing, carried-class sign test, verdicts, the optional carry
+# mechanism section) and the rollout-shard merge (renumbering, provenance,
+# overwrite refusal, merged-npz readability).
+run_check "r9 endpoint report" "$python" scripts/196_r9_report.py --self-test
+run_check "r9 rollout merge" "$python" scripts/197_r9_merge_rollouts.py --self-test
 # The RTC runtime is pinned offline: prefix weights, interleave split, the
 # bit-exact base sampler, the frozen prefix and the queue bookkeeping.
 run_check "rtc runtime selftest" "$python" scripts/128_rtc_selftest.py

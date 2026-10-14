@@ -26,6 +26,15 @@ the `[carry] ...` diag lines (`FRUIT_CARRY_DIAG=1`, W8-B), and prints:
 Report only: no simulator, no writes. The pre-registered endpoint and the
 adoption separation are stated in the output; adoption itself always needs its
 own owner gate and is never implied by this script.
+
+**Baseline scope.** The primary endpoint's pooled-rate baseline is the
+**batch's own arm A** - the same-instrumentation control inside the same
+interleaved runs - not the pre-registration's wording of a "28-29 % record
+baseline": that figure is the W8-A record of the same checkpoint, quoted for
+context only, and this script never reads an external rate record. A single
+batch is one instrumented scenario (the known spread: `moe_v13s` reads 28 % in
+W8-A and 33 % in this batch), which is why the paired within-batch read is the
+endpoint.
 """
 
 from __future__ import annotations

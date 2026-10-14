@@ -14296,17 +14296,20 @@ recorded rollouts -> AWR fine-tune -> fidelity -> N=5 A/B -> no-harm) ran in
    endpoint.)
 
 5. **The mechanism (why it failed, and what it settles).** The `[carry]`
-   lines are **arm-invariant**: `grasp_lift` 74/74 legs, clean 21/18,
+   lines are **branch-invariant**: `grasp_lift` 74/74 legs, clean 21/18,
    slip-event 53/56, contact-loss 43/48, onset-row median **94/94**,
    force@onset **4.93/5.38 N**, `contacts@onset==1` 41/53 vs 45/56,
    onset->loss **29/26** ticks - the loaded-slide signature is unchanged, so
    the post-training cannot reach the pre-onset facet: the **scripted
    primitive owns the close/lift geometry**, not the policy. What *did* move
    is the handover state: B runs **6 reach-cliff flails (catch-up capped at
-   200 ticks, residuals 265-1353 mm, 4 with the 3.33 s `move_to` caps, one
-   `contact=NONE`) against A's 1 (160 mm)** - all six `grasped=False`, which
-   is five of B's extra no-contact outcomes and four of the ok->no-contact
-   paired regressions; the fidelity shift degrades the very
+   200 ticks, residuals 265-1353 mm; the `[acq]` premove stamp at the 3.33 s
+   `move_to` cap in 5, the full capped pair 3.33/7.50 in 4 of those, one
+   `contact=NONE`) against A's 1 (160 mm)** - all six `grasped=False`
+   (`B_3` ep6, `B_4` ep7/ep10/ep14, `B_5` ep6/ep9), which is **six of B's
+   nine no-contact outcomes** (B 9 vs A 5; the flail class itself is 6 vs 1)
+   and **two of the four ok->no-contact pairs** (three of the five paired
+   no-contact regressions); the fidelity shift degrades the very
    approach the encoder trigger is timed against. Three post-training passes
    now say the same thing: the direct interface's carried class is not
    addressable by policy post-training; the named residual is the
@@ -14332,3 +14335,30 @@ recorded rollouts -> AWR fine-tune -> fidelity -> N=5 A/B -> no-harm) ran in
    `43`-`46` cross-check readouts, `30_fidelity.txt`, `20_finetune.log`,
    `10_rollouts_shard.log` + `11_merge.log`, `A_direct_ab/` 10 runs + 10
    manifests, `60`-`72` no-harm, `r9_chain.status`, `frozen/`).
+
+8. **R9.1 (the gate fixes + this integration; docs + the two script
+   self-tests).** The R9 gate's ordered fixes applied: the mechanism sentence
+   above and `logs/r9/RESULTS.md` section 4 corrected (the six flails account
+   for **six of B's nine** no-contact outcomes - B 9 vs A 5, the flail class
+   itself 6 vs 1 - and **two of the four ok->no-contact pairs**, not four; the
+   six named `B_3` ep6 / `B_4` ep7/ep10/ep14 / `B_5` ep6/ep9; the `move_to`
+   cap criterion defined = **5 rows** at the `[acq]` premove stamp 3.33 s
+   (400-step cap) and **4** the full capped pair 3.33/7.50); the strawberry
+   split (**3 flails + 1 non-flail no-contact + 4 carries**); the B
+   `clean_slip` max caveated as the **pad-frame re-anchor artifact**
+   (202863.6/14233.7 mm, `in-hand_vmax` 63.0/16.5 m/s, no contact at onset;
+   medians/p90 unaffected); the pre-registration's `demos_v12` rollout-store
+   pin reconciled to the executed **fresh-rollout** store
+   `datasets/rl_rollouts/r9_awr` (the RWR-2 design; `demos_v12` is the
+   success-only scripted store, i.e. the behaviour-cloning replay the lane
+   separates from); `scripts/196_r9_report.py`'s docstring notes its primary
+   baseline is the **batch's own arm A** (not the pre-registration's
+   "28-29 % record baseline" text); `scripts/196_r9_report.py --self-test` +
+   `scripts/197_r9_merge_rollouts.py --self-test` wired into
+   `scripts/selfcheck.sh` (the `113 --self-test` precedent; `197`'s self-test
+   also checks merged-npz readability); and the integration: the AGENTS
+   section-2 R9 paragraph, the ROADMAP R9 phase row + WS-7.2 "measured and
+   closed" + register row 8, the state/tag refresh (`main`/`origin/main` =
+   `328332d`, tag `v0.12`; `r9-rl` = `c86059a` + this R9.1 commit, local, not
+   pushed). No-harm: docs + the two self-test legs only (no `src/` change, no
+   scenario/default change); `scripts/selfcheck.sh` PASS.

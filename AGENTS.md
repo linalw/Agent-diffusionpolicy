@@ -811,6 +811,40 @@ non-inferiority margin and the kill criteria; the no-harm + adoption gates;
 D3-proper out of scope - `.slim/deepwork/sorting-pipeline-v3.md` "R9 PLAN",
 `logs/r8/A_RESULTS.md` section 7).
 
+**R9 (2026-10-14, branch `r9-rl`, `logs/r9/RESULTS.md` + WORKLOG "R9"): the
+bounded RL/DAgger lane (direction B) was executed as the pre-registered
+AWR-clipped RWR iteration 2 and closes negative and published - the carry class
+does not convert, and the lane degrades the one channel it can touch.** The
+lane is not the two behaviour-cloning nulls (W7-C/W8-A are off-policy
+`weight_mode=ones` on scripted recollection stores; this one weights the
+policy's **own** fresh direct-interface rollouts by the terminal outcome) and
+it is the RWR-2 fresh-rollout design: `w = clip(exp(4*(R-Vbar)), 0.05, 4)`,
+`Vbar = 0.3103`, fine-tuning `moe_v13s` (`61da390a`) on 56 fresh on-policy
+rollouts (`datasets/rl_rollouts/r9_awr`, 18 successes; the pre-registration's
+`demos_v12` rollout-store pin is the success-only *scripted* store and would
+have been a behaviour-cloning replay). The N=5 interleaved endpoint
+(`logs/r9/A_direct_ab/`): **A `moe_v13s` 25/75 = 33 % vs B `rl_awr1` 18/75 =
+24 %**; the primary **paired carried-class conversion 5 B-only / 4 A-only,
+p = 0.500** (6-0 is the p <= 0.05 edge at N=5); strawberry **1/9 vs 6/10**;
+**no new failure reasons**; cycle **+1.5 %** -> primary FAIL, secondary FAIL,
+no adoption and no shipped default change. The mechanism: the `[carry]` window
+is **branch-invariant** (74/74 `grasp_lift` legs per arm; onset-row median
+94/94; `force@onset` 4.93/5.38 N; onset -> loss 29/26 ticks; single-sided
+contact) - the scripted primitive owns the pre-onset facet - while the
+**handover state degraded** (B **6 reach-cliff flails** vs A's 1, five of them
+with the premove `move_to` at its 3.33 s cap; the fidelity readout
+`0.087 -> 0.174 rad` away from its own rollouts predicts exactly this), so the
+post-training moved the wrong channel. No-harm: acceptance **9/10 + motion gate
+PASS + `fingerprint: matches`** with 385/385 `[fruit]` identical; two-line
+dense 442/442 identical + `190` PASS; selfcheck PASS; env-only (no `src/`
+change, no shipped default). Pins: `tasks.py` `27d0fabd`, `rl_env.py`
+`72d55574`, `trigger.py` `d7ec85fc`, `runtime.py` `ffb76bfd`, candidate
+`checkpoints/rl_awr1/policy_best.pt` `a1766ecd`, base store `demos_v11`
+`922ca995`. The named next items are the **primitive-side pre-onset load
+path** (a `tasks.py` item with its own pre-registration), **D3-proper**
+(owner-gated), and the **WS-7.1 sim-to-real prep**; another post-training pass
+on this interface re-measures the null.
+
 ## 3. What changed -> what to run
 
 | you changed | run |
@@ -910,7 +944,7 @@ trade-offs are in `决策与交付.md`; design-intent vs actual is in
 justifies it.
 
 The long-form plan is `docs/ROADMAP.md` (the current state in one screen, the
-backlog grouped into WS-1..WS-7, the phases R0-R6, the resource budget and the
+backlog grouped into WS-1..WS-7, the phases R0-R9, the resource budget and the
 owner-decision register); the periodic ops self-check and its anti-stall
 playbook are in `docs/OPS.md` - run `scripts/191_ops_selfcheck.sh` (verdicts
 OK / STALLED / ACTION), at the start and end of every work block and every

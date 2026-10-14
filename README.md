@@ -1290,7 +1290,7 @@ verdicts `OK` / `STALLED` / `ACTION` with the recovery command. Run it at the
 start and end of every work block and every 30-60 min during a simulator phase
 (`--watch 300` loops). The full contract and the anti-stall playbook for the
 observed stall classes are in [`docs/OPS.md`](docs/OPS.md); the long-form plan
-(the phases R0-R6, the budgets, the owner-decision register) is
+(the phases R0-R9, the budgets, the owner-decision register) is
 [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ### Bimanual (two-arm) runs

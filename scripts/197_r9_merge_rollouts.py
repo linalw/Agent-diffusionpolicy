@@ -124,6 +124,31 @@ def self_test() -> int:
         with open(os.path.join(out, "rollout_00002.npz"), "rb") as fh:
             if fh.read() != b"npzb":
                 failures.append("file copy wrong")
+        # Real-npz readability: the store consumers `np.load` each row, so a
+        # merge of real npz files must stay loadable (skipped only if numpy is
+        # unavailable - the merge itself never reads npz bytes).
+        try:
+            import numpy as np
+        except ImportError:
+            np = None
+        if np is not None:
+            d = os.path.join(tmp, "c")
+            os.makedirs(d)
+            rows = []
+            for i in range(2):
+                name = f"rollout_{i:05d}.npz"
+                np.savez(os.path.join(d, name), obs=np.arange(4) + i)
+                rows.append({"file": name, "index": i, "success": i == 0})
+            with open(os.path.join(d, "index.json"), "w", encoding="utf-8") as fh:
+                json.dump(rows, fh)
+            out_npz = os.path.join(tmp, "merged_npz")
+            merge([d], out_npz)
+            with open(os.path.join(out_npz, "index.json"), encoding="utf-8") as fh:
+                merged_npz = json.load(fh)
+            for i, row in enumerate(merged_npz):
+                with np.load(os.path.join(out_npz, row["file"])) as data:
+                    if not np.array_equal(data["obs"], np.arange(4) + i):
+                        failures.append(f"merged npz {row['file']} unreadable/wrong")
         # Refuse-to-overwrite check.
         try:
             merge([os.path.join(tmp, "a")], out)
@@ -135,7 +160,8 @@ def self_test() -> int:
         for item in failures:
             print(f"  - {item}")
         return 1
-    print("197 self-test PASS (merge, renumber, provenance, overwrite refusal)")
+    print("197 self-test PASS (merge, renumber, provenance, overwrite refusal, "
+          "merged-npz readability)")
     return 0
 
 
