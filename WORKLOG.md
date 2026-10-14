@@ -13855,3 +13855,74 @@ message is amended (see 2/3); this entry is committed as `Phase B.1`.
 **No-harm.** Docs only; no `src/` path, no scenario change; the R6-B
 measurements are untouched. `scripts/selfcheck.sh` PASS. Commit `Phase B.1`;
 not pushed.
+
+### R7-A (WS-4.6): the policy-gate bypass is closed by one shared x-edge refusal; 0 attempted-anyway on the edge probe and the shipped interface byte-unchanged
+
+**Scope (2026-10-14, branch `r7-bypass` from `main` at `6d71cdb`, tag
+`v0.10`).** Phase R7-A of the R7 PLAN (`.slim/deepwork/sorting-pipeline-v3.md`
+"R7 PLAN"): the WS-4.6 interface item - `should_fire`'s
+`FRUIT_POLICY_TRIGGER_X_MAX` refusal filtered only the trigger arm of the
+env's `policy_close or intercept` union, so the learned close gate
+(`finger < 0.030` + 6 cm) could attempt a refused fruit anyway. The mechanism
+first, then the bounded fix; the edge-band probe + the refusal cross-check as
+the yardsticks; Tier A solo. **No shipped default change** (the guard stays
+default off, owner R5; the fix is inert and every added branch `None`-gated
+while `x_max` is unset). Three files: `policy/trigger.py` (the shared
+`x_edge_refusal` predicate; `should_fire` refactored onto it,
+behaviour-identical), `rl_env.py` (the module-level `direct_fire` union + the
+gate-tick refusal and its once-per-fruit note + the `trigger_x_max` provenance
+key), `scripts/811_trigger_test.py` (the truth table). Full evidence
+`logs/r7/A_RESULTS.md`.
+
+1. **The mechanism, measured on a pre-fix control.** `policy_close = finger <
+   0.030 and distance < 0.06` and `intercept, info = should_fire(...)` are
+   evaluated independently from the same pose; the refusal note (`x_refuse`)
+   is recorded but the union fires on either path. The pre-fix record: R2 P1
+   4/7 refusals attempted anyway (4/4 flailed), R6 C0/C1/C2 3/3, 4/4, 3/3
+   (all flailed) - **14/17 refusals attempted anyway** across the four
+   controls. The paired pre-fix control (`logs/r7/A_control_edge.log`; its
+   tree pin md5-verifies against `HEAD` `6d71cdb`, so the fix runs have a
+   one-tree-one-change companion) repeats R6-C0 verbatim (edge band
+   0.36-0.42, reseed + cap, `moe_v13s`, seed 77, N=1x15): **5 flails (1
+   premove-cap + 4 fast-stall), 6 refusals, 1 attempted-anyway** (ep3: the
+   close at finger=0.0286 / 4.4 cm ran a 3.92 s premove cap, close-start
+   residual 1375.7 mm - the control's premove-cap *is* the attempted-anyway).
+2. **The fix.** `x_edge_refusal(settings, fruit) -> x | None` is the refusal;
+   `direct_fire(intercept, policy_close, gate_refuse) = intercept or
+   (policy_close and gate_refuse is None)` is the union with the refusal
+   folded in; a gate-refused tick records the canonical once-per-fruit note
+   (if absent) plus one `x-edge policy-gate refuse` note (`finger` /
+   `|jaw-fruit|xy` at the tick) and runs no primitive. The offline truth
+   table is pinned in `811_trigger_test.py` (7 new checks).
+3. **The probe: the refusal binds; the bypass reads 0.** F1 (edge, reseed +
+   cap): **1 flail (fast-stall), 9 refusals, 4 gate refusals (x =
+   0.400/0.399/0.395/0.426), 0 attempted-anyway**; F2 (the repeat sample):
+   2 flails (fast-stall), 6 refusals, 3 gate refusals (0.415/0.398/0.414),
+   0 attempted-anyway; F3 (cap only, the R2-P1 shape): 3 flails (2
+   premove-cap + 1 fast-stall), 5 gate refusals, 0 attempted-anyway - its one
+   re-qualification (refused at x=0.394, an in-band intercept fired later,
+   the attempt lost with a 246.2 mm fast-stall leg) shows the fix refuses the
+   out-of-band tick, not the in-band fire; F4 (shipped band + cap): 0
+   refusals / 0 flails, no starvation. All seven of F1/F2's gate-refused
+   episodes ride past (`fruit fell off the line`), no primitive leg runs; the
+   residual fast-stalls (26.5-155.8 mm residuals) are the W7-B catch-up
+   class.
+4. **Scope.** The R7-A endpoint is the mechanism, not a rate: the N=5
+   protocol was not run (no adoption/rate claim; the guard stays default off)
+   and the control is one sample - corroborated by the four historical
+   controls above. The residual is the reach cliff itself (the refusal is a
+   screen; the station/reach geometry is the D screen's first item) plus the
+   fast-stall / in-band-fire nuances.
+5. **No-harm.** `scripts/selfcheck.sh` **PASS** (0 failures, 1 skipped; the
+   trigger test OK with the new truth table); the acceptance
+   (`logs/r7/A_accept.log` + stdout) reads **9/10, 15.2 s/attempt,
+   `gate_open=0.0 s`, motion gate PASS and `fingerprint: matches`**, and its
+   385/385 `[fruit]` lines are byte-identical to `logs/r6/C_accept.log`
+   (`logs/r7/A_stream_cmp_r6.txt`). The changed modules are not on the
+   scripted path (only `rl_env.py` imports `policy.trigger`; the scripted
+   entry imports neither; the hybrid evaluator reaches neither). Pins:
+   control tree `HEAD` `6d71cdb` (`rl_env 5940a7c8`, `trigger 763ad89e`,
+   `tasks b2c79938`, `runtime ffb76bfd`); fix/no-harm tree (`rl_env
+   d33e5365`, `trigger d7ec85fc`, `811_trigger_test.py c808a6e6`); checkpoint
+   `moe_v13s` `61da390a`. Commit `R7-A`; not pushed. The
+   ROADMAP/AGENTS/README integration is left to R7-C (`docs + merge + tag`).

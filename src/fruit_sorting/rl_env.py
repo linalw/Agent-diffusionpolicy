@@ -23,6 +23,10 @@ Two presentations:
     is the same ``finger < 0.030`` test the hybrid evaluator uses for its
     ``GraspPrimitive`` branch, and the 0.06 m test is the same 2-D
     (cross-belt) proximity test the harness uses for the modelled attach.
+    Both fire paths (the learned close gate above and the optional encoder
+    intercept trigger) consult the same ``FRUIT_POLICY_TRIGGER_X_MAX``
+    reach-cliff refusal (R7-A/WS-4.6): a fruit past the reachable band edge is
+    refused at whichever fire tick sees it, and rides past the station.
 
     ``direct`` starts where the demonstrations do: every recorded `demos_v7`
     episode begins in the scripted pick's wait loop, with the arm already at the
@@ -84,7 +88,7 @@ from dataclasses import asdict, dataclass, field
 import numpy as np
 
 from .motion import min_jerk_ramp
-from .policy.trigger import TriggerSettings, should_fire
+from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 
 #: md5 of `src/fruit_sorting/tasks.py` this environment was validated against.
 #: History: `0bc3253a` was the P2/P3 frozen revision; `e553b34e` is that
@@ -228,6 +232,26 @@ def _md5(path: str) -> str:
             return hashlib.md5(handle.read()).hexdigest()
     except OSError:
         return ""
+
+
+def direct_fire(
+    *, intercept: bool, policy_close: bool, gate_refuse: float | None
+) -> bool:
+    """The direct interface's fire decision this tick (R7-A/WS-4.6).
+
+    Either path may fire the scripted primitive - the encoder intercept
+    (`should_fire`) or the shipped learned close gate (`finger < 0.030` and the
+    jaw within 6 cm) - but the shared reach-cliff refusal binds **both**:
+    ``gate_refuse`` is the fruit's x when `FRUIT_POLICY_TRIGGER_X_MAX` refuses
+    the learned-gate tick (`x_edge_refusal`), so a refused candidate rides past
+    instead of being attempted anyway. Before R7-A the refusal lived only
+    inside `should_fire`, and a refused fruit could still be attempted through
+    the learned gate - every such attempt flailed (R2 P1 4/7; R6 C0/C1/C2
+    3/3, 4/4, 3/3). ``gate_refuse`` is ``None`` whenever the guard is off, so
+    the shipped direct interface is byte-unchanged. Pure bookkeeping: kept
+    module-level so `scripts/811_trigger_test.py` pins the truth table offline.
+    """
+    return bool(intercept or (policy_close and gate_refuse is None))
 
 
 @dataclass
@@ -822,6 +846,12 @@ class SortingRLEnv:
             "trigger": (
                 asdict(self.trigger_settings) if self.trigger_settings.enabled else None
             ),
+            "trigger_x_max": (
+                # R7-A (WS-4.6): the reach-cliff guard binds the learned
+                # policy-gate fire path too, so it acts even when the trigger
+                # itself is off - recorded unconditionally for provenance.
+                self.trigger_settings.x_max
+            ),
             "tasks_md5": self.tasks_md5,
             "checkpoint": checkpoint or "",
             "checkpoint_md5": checkpoint_md5,
@@ -1005,6 +1035,9 @@ class SortingRLEnv:
         #: R2.3 reach-cliff guard bookkeeping: fruit indices already reported as
         #: x-edge refusals this episode (the note must not repeat per tick).
         self._x_refused: set[int] = set()
+        #: R7-A (WS-4.6): fruit indices whose *policy-gate* fire the same
+        #: guard refused (one note per fruit; see `_note_gate_refuse`).
+        self._gate_refused: set[int] = set()
         self._last_action = np.zeros(self.action_dim, dtype=np.float32)
         self._episode_t0 = self._sim_time()
         self._decision_step: int | None = None
@@ -1337,6 +1370,22 @@ class SortingRLEnv:
                     f"jaw=({jaw[0]:.3f},{jaw[1]:+.3f},{jaw[2]:.3f})"
                 )
             policy_close = bool(finger < 0.030 and distance < 0.06)
+            # R7-A (WS-4.6): the reach-cliff refusal binds the learned gate too.
+            # `policy_close` is the shipped fire path and is evaluated
+            # independently of the trigger, so before this change the x-band
+            # guard could only refuse the *trigger* arm of the
+            # `policy_close or intercept` union below: a fruit the trigger had
+            # refused (a recorded `x_refuse`) was still attempted by the
+            # learned close on a later tick, and every attempted-anyway
+            # refusal flailed (R2 P1 4/7; R6 C0/C1/C2 3/3, 4/4, 3/3 -
+            # `logs/w8/R2_RESULTS.md` section 3, `logs/r6/B_RESULTS.md`
+            # section 1). The same predicate now refuses this path at its own
+            # fire tick. `x_max` unset -> `None`, byte-neutral.
+            gate_refuse = (
+                x_edge_refusal(self.trigger_settings, fruit)
+                if policy_close
+                else None
+            )
             intercept = False
             intercept_info: dict | None = None
             presented_note: str | None = None
@@ -1426,7 +1475,11 @@ class SortingRLEnv:
                                 f"{presented.index} ({presented.category}) over the "
                                 f"selected sample (selected dy={selected_dy:+.3f} m)"
                             )
-            if policy_close or intercept:
+            if direct_fire(
+                intercept=intercept,
+                policy_close=policy_close,
+                gate_refuse=gate_refuse,
+            ):
                 self._triggered = True
                 closer = (
                     "expert"
@@ -1460,6 +1513,17 @@ class SortingRLEnv:
                 if presented_note is not None:
                     self._notes.append(presented_note)
                 self._run_primitive()
+            elif gate_refuse is not None:
+                # R7-A (WS-4.6): the learned close wanted to fire on a fruit
+                # past the band edge - refuse it exactly as the trigger path
+                # does. The canonical refusal note is once per fruit (the
+                # trigger may already have recorded it this episode); the gate
+                # event is recorded once per fruit too and the candidate rides
+                # past instead of running the primitive.
+                self._note_x_refuse(self._sample.index, {"x_refuse": gate_refuse})
+                self._note_gate_refuse(
+                    self._sample.index, gate_refuse, finger, distance
+                )
 
     def _note_x_refuse(self, index: int, info: dict | None) -> None:
         """R2.3: record one x-edge refusal per fruit (the reach-cliff guard).
@@ -1479,6 +1543,28 @@ class SortingRLEnv:
         self._notes.append(
             f"x-edge refuse: fruit x={float(info['x_refuse']):.3f} beyond "
             "FRUIT_POLICY_TRIGGER_X_MAX (rides past the station)"
+        )
+
+    def _note_gate_refuse(
+        self, index: int, x: float, finger: float, distance: float
+    ) -> None:
+        """R7-A (WS-4.6): record one policy-gate refusal per fruit.
+
+        The learned close wanted to fire (``finger < 0.030`` and the jaw within
+        6 cm) but the fruit sits past `FRUIT_POLICY_TRIGGER_X_MAX`, so the
+        fire is refused at its own tick - the same refuse-and-ride-past the
+        trigger path performs. The event is what the R7-A cross-check counts
+        (the canonical note may already exist from the trigger tick). One note
+        per fruit per episode; no-op when the guard is off, so the shipped
+        direct interface is unchanged.
+        """
+        if int(index) in self._gate_refused:
+            return
+        self._gate_refused.add(int(index))
+        self._notes.append(
+            f"x-edge policy-gate refuse: fruit x={x:.3f} beyond "
+            f"FRUIT_POLICY_TRIGGER_X_MAX (finger={finger:.4f}, "
+            f"|jaw-fruit|xy={distance * 100:.1f}cm; rides past the station)"
         )
 
     def _event_horizon(self, chunk: np.ndarray | None) -> int:

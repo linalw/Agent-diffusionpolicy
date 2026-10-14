@@ -44,7 +44,15 @@ unset the env's trigger code is the shipped ``finger < 0.030 and distance <
                                 flails (joint at its limit, catch-up timeout);
                                 a fruit beyond it is refused and rides past
                                 the station (`logs/w8/R2_RESULTS.md` section
-                                3). Unset = off.
+                                3). Unset = off. **R7-A (WS-4.6): the refusal
+                                binds both fire paths** - `should_fire` here
+                                and the direct env's learned policy gate
+                                (`finger < 0.030` + 6 cm), which consults the
+                                same predicate through `x_edge_refusal`; before
+                                R7-A the guard only filtered the trigger arm of
+                                the env's `policy_close or intercept` union, so
+                                a refused candidate could be attempted anyway
+                                (`logs/r7/A_RESULTS.md`).
 
 The adaptive acquisition lead (**W7-B**, default **off**):
 
@@ -243,6 +251,28 @@ def acquisition_window(
     return lead, reach
 
 
+def x_edge_refusal(
+    settings: TriggerSettings, fruit: np.ndarray
+) -> float | None:
+    """The R2.3 reach-cliff refusal predicate, shared by both fire paths (R7-A).
+
+    Returns the fruit's across-belt x when ``settings.x_max`` is set and the
+    fruit sits past it, else ``None``. ``should_fire`` uses it for the trigger
+    tick; the direct env's learned policy gate (`finger < 0.030` + 6 cm) uses
+    it too, so a candidate the guard refuses cannot be attempted through the
+    other arm of the env's ``policy_close or intercept`` union (WS-4.6;
+    `logs/w8/R2_RESULTS.md` section 3, `logs/r6/B_RESULTS.md` section 1).
+    With ``x_max`` unset this is ``None`` (the shipped direct interface never
+    reaches the branch).
+    """
+    if settings.x_max is None:
+        return None
+    x = float(np.asarray(fruit, dtype=float)[0])
+    if x > float(settings.x_max):
+        return x
+    return None
+
+
 def should_fire(
     settings: TriggerSettings,
     fruit: np.ndarray,
@@ -269,7 +299,9 @@ def should_fire(
     effective lead/reach through `acquisition_window`. With
     `FRUIT_POLICY_TRIGGER_X_MAX` set, a tick that passes every other gate but
     finds the fruit beyond the band edge returns `False` with
-    ``info["x_refuse"]`` holding the fruit's x (the R2.3 reach-cliff guard).
+    ``info["x_refuse"]`` holding the fruit's x (the R2.3 reach-cliff guard,
+    via the shared `x_edge_refusal` predicate the env's policy-gate path
+    consults too - R7-A/WS-4.6).
     """
     fruit = np.asarray(fruit, dtype=float)
     jaw = np.asarray(jaw, dtype=float)
@@ -307,13 +339,16 @@ def should_fire(
     if settings.mode == "assist":
         if finger is None or float(finger) >= settings.finger:
             return False, info
-    if settings.x_max is not None and float(fruit[0]) > settings.x_max:
+    refuse_x = x_edge_refusal(settings, fruit)
+    if refuse_x is not None:
         # R2.3 reach-cliff guard (default off): the fruit would fire now, but it
         # sits past the reachable across-belt band's edge - the handover's
         # premove/hover cannot park on it and the catch-up flails at the arm's
         # joint limit (`logs/w8/R2_RESULTS.md` section 3). Refuse and let it
         # ride past. The check is last so `x_refuse` only marks a *would-fire*
-        # tick, and the env can record it once per fruit.
-        info["x_refuse"] = float(fruit[0])
+        # tick, and the env can record it once per fruit. R7-A: the same
+        # predicate also binds the env's policy-gate fire path, so this
+        # refusal is not bypassable.
+        info["x_refuse"] = refuse_x
         return False, info
     return True, info

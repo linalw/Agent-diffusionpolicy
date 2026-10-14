@@ -13,7 +13,12 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
 
-from fruit_sorting.policy.trigger import TriggerSettings, should_fire  # noqa: E402
+from fruit_sorting.policy.trigger import (  # noqa: E402
+    TriggerSettings,
+    should_fire,
+    x_edge_refusal,
+)
+from fruit_sorting.rl_env import direct_fire  # noqa: E402
 
 
 def main() -> int:
@@ -127,6 +132,28 @@ def main() -> int:
           info.get("x_refuse") == 0.400, f"x_refuse={info.get('x_refuse')}")
     fired, info = should_fire(guarded, (0.380, 0.040, 1.184), jaw, encoder_speed=-0.06)
     check("x_max admits a fruit inside the band", fired and "x_refuse" not in info)
+
+    # R7-A (WS-4.6): the refusal is a shared predicate (`x_edge_refusal`), and
+    # the direct interface's fire decision (`direct_fire`, the env's
+    # `policy_close or intercept` union) binds it on the learned-gate path
+    # too - before R7-A a refused fruit could be attempted anyway through
+    # `finger < 0.030 and |jaw-fruit|xy < 0.06`.
+    check("x_edge_refusal off returns None",
+          x_edge_refusal(base_fire, edge_fruit) is None)
+    check("x_edge_refusal past the edge returns the fruit x",
+          x_edge_refusal(guarded, edge_fruit) == 0.400)
+    check("x_edge_refusal inside the band returns None",
+          x_edge_refusal(guarded, (0.380, 0.040, 1.184)) is None)
+    check("policy gate fires when the guard is off",
+          direct_fire(intercept=False, policy_close=True, gate_refuse=None))
+    check("the x refusal binds the policy-gate path",
+          not direct_fire(intercept=False, policy_close=True,
+                          gate_refuse=0.412))
+    check("the pre-filtered intercept path still fires",
+          direct_fire(intercept=True, policy_close=False, gate_refuse=None))
+    check("neither path fires",
+          not direct_fire(intercept=False, policy_close=False,
+                          gate_refuse=None))
 
     env = dict(os.environ)
     try:
