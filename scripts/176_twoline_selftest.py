@@ -87,6 +87,10 @@ def stub_task(*, pick_y: float = 0.0, prefer_upstream: bool = True):
     task.failures = {}
     task.max_retries = 2
     task._prefer_upstream = prefer_upstream
+    #: R10-A: the reach-anywhere catch is off here, so the selector takes the
+    #: shipped station-fixed branch (the knob's own selftest is `198`).
+    task._reach_anywhere = False
+    task._reach_anywhere_active = lambda: PickAndPlaceTask._reach_anywhere_active(task)
     task._belt_speed_estimate = lambda: -0.12
     task._dynamic_pick_lead = lambda: 0.189
     task._dynamic_select_floor = (

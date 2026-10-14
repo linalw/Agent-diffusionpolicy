@@ -273,6 +273,89 @@ class PickAndPlaceTask:
         self._prefer_upstream = bool(
             kind == "openarm" and self._dynamic_pick_mode(openarm=True, scripted=True)
         )
+        #: R10-A: the reach-anywhere dynamic catch (default **off**). The
+        #: shipped moving catch meets the fruit at the pick station: `_dynamic_aim`
+        #: places the descent at `station_y`, `select_target` refuses anything
+        #: inside `_dynamic_select_floor()` of it, and the intercept the descent
+        #: block computes is clipped to +/-0.03 m of the station and only
+        #: printed. With this knob on, the aim becomes the fruit's *predicted
+        #: position at the descent-end time*, chosen inside the arm's measured
+        #: reachable intercept band (`logs/r10/PREREGISTRATION.md`; the band is
+        #: the `183_reach_intercept.py` map inset by `FRUIT_REACH_Y_INSET`), and
+        #: the selector takes the earliest reachable intercept (the minimum
+        #: fruit travel to a feasible intercept); the shipped station-fixed rule
+        #: is the fallback. Scoped to the scripted OpenArm moving-catch path
+        #: (`_prefer_upstream`) and *not* the two-line session (`station_y`
+        #: separation is that scenario's clearance mechanism, W2). Off = the
+        #: shipped tree byte-for-byte: every hook below is behind
+        #: `_reach_anywhere_active()`.
+        self._reach_anywhere = bool(
+            kind == "openarm" and os.environ.get("FRUIT_REACH_ANYWHERE", "0") == "1"
+        )
+        #: Reachable intercept band per arm, **relative to the arm's station**
+        #: [m]: a tuple of `(x_hi, dn, up)` columns - the first column whose
+        #: `x_hi` is >= the fruit's measured x wins (`x_hi = None` = the last).
+        #: Values are the measured `scripts/183_reach_intercept.py` map
+        #: (2026-10-14, 3 x-columns x 11 dy, calibrated seed, top-down
+        #: attitude, tolerance 6 mm), inset by `FRUIT_REACH_Y_INSET` at load:
+        #:   left  (grip-clean): x=0.20 -0.10..+0.15, x=0.28 -0.05..+0.20,
+        #:                       x=0.36  0.00..+0.10
+        #:   right (grip-clean): x=0.20 -0.10..+0.10, x=0.28 -0.10..+0.05,
+        #:                       x=0.36 -0.10.. 0.00
+        #: The breakpoints sit at the *measured* x so a fruit between columns
+        #: gets a band at least as narrow as its own column's:
+        #: Per-arm env overrides (`FRUIT_REACH_Y_DN_L/R`, `_UP_L/R`) flatten the
+        #: band to a single column for a probe/screen.
+        _reach_defaults = {
+            "left": ((0.20, -0.10, 0.15), (0.28, -0.05, 0.20), (None, 0.00, 0.10)),
+            "right": ((0.20, -0.10, 0.10), (0.28, -0.10, 0.05), (None, -0.10, 0.00)),
+        }
+        self._reach_band: dict[str, tuple] = {}
+        for _side in ("left", "right"):
+            _cols = _reach_defaults[_side]
+            _dn_env = os.environ.get(f"FRUIT_REACH_Y_DN_{_side[0].upper()}")
+            _up_env = os.environ.get(f"FRUIT_REACH_Y_UP_{_side[0].upper()}")
+            _inset = float(os.environ.get("FRUIT_REACH_Y_INSET", "0.02"))
+            if _dn_env is not None or _up_env is not None:
+                _cols = (
+                    (
+                        None,
+                        float(_dn_env) if _dn_env is not None else min(c[1] for c in _cols),
+                        float(_up_env) if _up_env is not None else max(c[2] for c in _cols),
+                    ),
+                )
+            else:
+                _cols = tuple(
+                    (x_hi, dn + _inset, up - _inset) for x_hi, dn, up in _cols
+                )
+            self._reach_band[_side] = _cols
+        #: The catch's setup model at the aim (see `_reach_intercept_point`):
+        #: base seconds from the pre-pose end to the hover hold + the *marginal*
+        #: along-belt hover-move speed for the offset term. Defaults are the
+        #: `183_reach_intercept.py` setup ladder (reachable offsets moved in
+        #: 0.57-0.78 s, ~1.2-1.4 s/m marginal, i.e. ~0.75 m/s lateral).
+        self._reach_setup_s = float(os.environ.get("FRUIT_REACH_SETUP_S", "0.60"))
+        self._reach_hover_speed = max(
+            1e-3, float(os.environ.get("FRUIT_REACH_HOVER_SPEED", "0.80"))
+        )
+        #: Timing margin added to the descent budget in the intercept equation
+        #: (the shipped descent uses `FRUIT_DYNAMIC_DESCEND_MARGIN` the same way).
+        self._reach_margin_s = float(os.environ.get("FRUIT_REACH_MARGIN_S", "0.15"))
+        #: The selector's full-setup estimate (pre-pose + hover + settle) for the
+        #: feasibility floor; the same 1.5 s the shipped floor uses.
+        self._reach_select_s = float(
+            os.environ.get("FRUIT_REACH_SELECT_S", os.environ.get("FRUIT_DYNAMIC_SELECT_S", "1.5"))
+        )
+        #: Data-only reporting for the R10-A battery (pure phase-boundary reads;
+        #: off in every shipped run).
+        self._reach_diag = os.environ.get("FRUIT_REACH_DIAG", "0") == "1"
+        #: The per-attempt intercept (x, y, verdict, numbers) set by `_run_impl`
+        #: and read by `_dynamic_aim`; the key makes a stale entry impossible on
+        #: every non-scripted path (`(arm, sample.index, attempt t0)`).
+        self._reach_aim_key: tuple | None = None
+        self._reach_aim_point: tuple | None = None
+        #: Catch-up ticks used on the last dynamic attempt (diagnostics only).
+        self._reach_catchup_used = 0
         #: Per-arm pick-station Y [m] (v9/V2 two-line scheduler). Both are the
         #: shipped station (0.0) on every single-arm / shared-station path; the
         #: two-line scheduler sets the right arm's station downstream of the
@@ -2956,6 +3039,16 @@ class PickAndPlaceTask:
             if upstream_floor < along <= pick_y + 0.85:
                 upstream.append((along, state))  # smallest y first = first to arrive
         if self._prefer_upstream:
+            # R10-A: the reach-anywhere rule first, when armed; the shipped
+            # station-fixed rule below is its fallback (the pre-registered
+            # "no intercept reachable -> station-fixed catch" path). The knob
+            # is off in every shipped run, so this is byte-unchanged there.
+            if self._reach_anywhere_active():
+                reached = self._reach_anywhere_select(
+                    states, lane=lane, prefer_lane=prefer_lane, exclude=exclude
+                )
+                if reached is not None:
+                    return reached
             # Moving catch: only candidates the schedule can meet (see
             # `_dynamic_select_floor`); the wait loop absorbs any extra lead by
             # hovering at the station. A lane selection (bimanual) takes the
@@ -3197,6 +3290,230 @@ class PickAndPlaceTask:
             return float(os.environ.get("FRUIT_BIARM_CATCH_LEAD_L", "0.0"))
         return float(os.environ.get("FRUIT_BIARM_CATCH_LEAD_R", "0.0"))
 
+    # ------------------------------------------------------------------ #
+    # R10-A: the reach-anywhere moving catch (default off; see __init__)
+    # ------------------------------------------------------------------ #
+    def _reach_anywhere_active(self) -> bool:
+        """Whether the reach-anywhere catch governs this session [R10-A].
+
+        The knob plus the scripted OpenArm moving-catch line (`_prefer_upstream`),
+        excluding the two-line scheduler: its per-arm stations *are* that
+        scenario's clearance mechanism (W2), so the reach-anywhere rule must not
+        silently move them. Every hook below is behind this check, so off = the
+        shipped tree byte-for-byte.
+        """
+        if not self._reach_anywhere:
+            return False
+        session = self._active_session
+        if session is not None and getattr(session, "twoline", False):
+            return False
+        return self._prefer_upstream
+
+    def _reach_band_for(self, arm: str, x: float | None = None) -> tuple[float, float]:
+        """The arm's reachable intercept band `(dn, up)` relative to its station [m].
+
+        `self._reach_band[arm]` is a tuple of `(x_hi, dn, up)` columns (see the
+        knob block); the first column whose `x_hi` is >= the fruit's measured x
+        wins (`x_hi = None` = the last column). Without an x the first column
+        is used; every control caller passes the fruit's measured x, so a fruit
+        between the measured columns gets a band at least as narrow as its own.
+        """
+        cols = self._reach_band.get(arm)
+        if not cols:
+            return (-0.06, 0.13)
+        if x is not None:
+            for x_hi, dn, up in cols:
+                if x_hi is None or float(x) <= float(x_hi):
+                    return (float(dn), float(up))
+        return (float(cols[-1][1]), float(cols[-1][2]))
+
+    def _reach_fruit_arm(self, grade: str | None) -> str:
+        """The arm a grade routes to on the single-arm line (A -> left)."""
+        return "left" if grade == "A" else "right"
+
+    def _reach_predict(self, position, vy: float, arm: str, base_s: float) -> dict:
+        """The reach-anywhere intercept arithmetic for one fruit [R10-A].
+
+        `base_s` is the fixed setup estimate from *now* to the descent start
+        (selection: the full pre-pose + hover; the aim: the remaining hover
+        move), priced by `FRUIT_REACH_HOVER_SPEED` for the along-belt offset.
+        The intercept `y` is the fruit's predicted position when the descent
+        ends; `eq` is the unclipped prediction and `feasible` says whether it
+        is at or above the arm's downstream band edge (`station + dn`) - below
+        it the fruit will be past the workspace when the descent could complete
+        and the caller falls back to the shipped station-fixed rule.
+
+        Pure reads (fruit pose/velocity, the encoder); no state changes.
+        """
+        station = self.station_y_for(arm)
+        dn, up = self._reach_band_for(arm, float(position[0]))
+        vy = float(vy)
+        if not np.isfinite(vy) or abs(vy) < 1e-6:
+            vy = -abs(self._belt_speed_estimate())
+        hover = float(
+            os.environ.get("FRUIT_DYNAMIC_HOVER", os.environ.get("FRUIT_HOVER", "0.06"))
+        )
+        v_max = float(
+            os.environ.get(
+                "FRUIT_DYNAMIC_APPROACH_VMAX", os.environ.get("FRUIT_APPROACH_VMAX", "0.15")
+            )
+        )
+        t_desc = self._approach_duration(hover, v_max)
+        y_fruit = float(position[1])
+        y = y_fruit + vy * (base_s + t_desc + self._reach_margin_s)
+        # The fixed point `y = y_fruit + vy * (base + |y-station|/v_hover + t_desc
+        # + margin)` is the crossing where the fruit reaches the intercept
+        # exactly as the hand is ready to complete the descent - the largest
+        # feasible intercept, i.e. the earliest catch. The contraction factor is
+        # v/v_hover; iterate until the step is sub-millimetre (bounded).
+        y = y_fruit + vy * (base_s + t_desc + self._reach_margin_s)
+        for _ in range(40):
+            travel = abs(y - station) / self._reach_hover_speed
+            step = y_fruit + vy * (base_s + travel + t_desc + self._reach_margin_s)
+            if abs(step - y) < 1e-4:
+                y = step
+                break
+            y = step
+        eq = y
+        y_clip = float(np.clip(y, station + dn, station + up))
+        denom = abs(vy) if abs(vy) > 1e-6 else 1e-6
+        return {
+            "y": y_clip,
+            "eq": float(eq),
+            "feasible": bool(eq >= station + dn - 1e-9),
+            "vy": vy,
+            "t_desc": t_desc,
+            "station": float(station),
+            "dn": float(dn),
+            "up": float(up),
+            "travel_s": max(0.0, (y_fruit - y_clip) / denom),
+        }
+
+    def _reach_anywhere_select(
+        self, states: list[dict], lane: int | None = None,
+        prefer_lane: int | None = None, exclude: set[int] | None = None,
+    ) -> dict | None:
+        """R10-A selector: the candidate with the earliest reachable intercept.
+
+        Same eligibility filters as `select_target` (grade/lane, retries, size,
+        on the main belt), but the along-belt window is *band-relative*: the
+        fruit is a candidate when its predicted position at the earliest
+        feasible descent end is at or above `station + dn`, i.e. when the
+        fixed-point intercept is feasible (`_reach_predict`). The choice
+        minimises the fruit travel to the (clipped) intercept; ties break to
+        the smallest along-position (shortest hover). Returns None when nothing
+        has a feasible intercept - the caller then runs the shipped
+        station-fixed rule as the fallback.
+        """
+        exclude = exclude or ()
+        pure_grade = prefer_lane is not None and self._pure_grade_routing()
+        wanted_grade = "A" if prefer_lane == 0 else "B"
+        best: dict | None = None
+        best_key: tuple | None = None
+        n_feasible = 0
+        n_shipped = 0
+        shipped_floor = self._dynamic_select_floor()
+        for state in states:
+            if exclude and int(state["index"]) in exclude:
+                continue
+            grade = state.get("grade")
+            if pure_grade and grade != wanted_grade:
+                continue
+            if lane is not None:
+                grade_lane = 0 if grade == "A" else 1
+                if grade_lane != lane:
+                    continue
+            if self.failures.get(int(state["index"]), 0) >= self.max_retries:
+                continue
+            pos = state["position"]
+            if pos[2] < self.belt_top - 0.02:
+                continue
+            if state["diameter"] > self.cfg.gripper_max_object:
+                continue
+            if abs(float(pos[0]) - self.cfg.belt_center[0]) > 0.30:
+                continue
+            if float(pos[2]) > self.belt_top + 0.12:
+                continue
+            arm = self._reach_fruit_arm(grade)
+            along = float(pos[1])
+            if along > self.station_y_for(arm) + 0.85:
+                continue
+            velocity = state.get("velocity")
+            vy = float(velocity[1]) if velocity is not None else 0.0
+            pred = self._reach_predict(pos, vy, arm, self._reach_select_s)
+            if (
+                along
+                >= self.station_y_for(arm) + shipped_floor
+                and along
+                >= self.station_y_for(arm) - 0.02 + self._prepose_lead_value()
+            ):
+                n_shipped += 1
+            if not pred["feasible"]:
+                continue
+            n_feasible += 1
+            key = (pred["travel_s"], along)
+            if best_key is None or key < best_key:
+                best_key = key
+                best = state
+        if self._reach_diag:
+            chosen = best
+            chosen_arm = self._reach_fruit_arm(chosen.get("grade")) if chosen else "left"
+            say(
+                f"[reach] select station={self.station_y_for(chosen_arm):+.2f} "
+                f"candidates_feasible={n_feasible} shipped_floor_ok={n_shipped} "
+                f"chosen={None if chosen is None else int(chosen['index'])} "
+                f"along={None if chosen is None else round(float(chosen['position'][1]), 4)} "
+                f"t_c={None if best_key is None else round(best_key[0], 3)}s"
+            )
+        return best
+
+    def _prepose_lead_value(self) -> float:
+        """The shipped station-window pre-pose lead [m] (selection eligibility)."""
+        prepose_lead = (
+            float(os.environ.get("FRUIT_PREPOSE_LEAD", "0.12"))
+            if os.environ.get("FRUIT_SMOOTH_TRANSIT_PREPOSE", "1") == "1"
+            else 0.0
+        )
+        return max(
+            prepose_lead,
+            abs(float(self.cfg.belt_speed))
+            * float(os.environ.get("FRUIT_PREPOSE_LEAD_S", "0.9")),
+        )
+
+    def _reach_prepare_aim(self, sample) -> None:
+        """Compute and cache this attempt's reach-anywhere aim [R10-A].
+
+        Called from `_run_impl` at the point the shipped grip/hover targets are
+        computed (the pre-pose end); `_dynamic_aim` then returns the cached
+        point for this attempt. If the predicted interception point is below
+        the arm's downstream band edge the cache stays empty and the shipped
+        station-fixed aim is used (the pre-registered fallback).
+        """
+        arm = self.current_arm
+        fruit = np.asarray(self.spawner.position(sample), dtype=float)
+        velocity = None
+        try:
+            velocity = np.asarray(self.spawner.velocity(sample), dtype=float)
+        except Exception:  # noqa: BLE001 - the fallback is the encoder
+            velocity = None
+        vy = float(velocity[1]) if velocity is not None else 0.0
+        pred = self._reach_predict(fruit, vy, arm, self._reach_setup_s)
+        key = (arm, int(sample.index), round(float(getattr(self, "_attempt_sim_t0", 0.0)), 6))
+        if pred["feasible"]:
+            self._reach_aim_key = key
+            self._reach_aim_point = (float(fruit[0]), float(pred["y"]), pred)
+        else:
+            self._reach_aim_key = None
+            self._reach_aim_point = None
+        if self._reach_diag:
+            say(
+                f"[reach] catch {arm} idx={int(sample.index)} "
+                f"y_fruit={float(fruit[1]):+.4f} vy={float(pred['vy']):+.4f} "
+                f"y_int={pred['y']:+.4f} eq={pred['eq']:+.4f} "
+                f"feasible={int(pred['feasible'])} band=[{pred['dn']:+.3f},{pred['up']:+.3f}] "
+                f"t_desc={pred['t_desc']:.2f}s"
+            )
+
     def _dynamic_aim(self, sample) -> np.ndarray:
         """Where the moving fruit will be when the static descent ends [m].
 
@@ -3208,8 +3525,28 @@ class PickAndPlaceTask:
         than its nominal diameter) would otherwise have the descent end inside
         its top. The two-line left adds `_two_line_catch_lead` upstream (W2
         clearance redesign, see there).
+
+        R10-A: with `FRUIT_REACH_ANYWHERE` on, the along-belt coordinate is the
+        *interception point* computed by `_reach_prepare_aim` at the pre-pose
+        end (the predicted position at the descent-end time, inside the arm's
+        reachable band); the cache is keyed per attempt so every non-scripted
+        caller and the next attempt get the shipped station aim.
         """
         fruit = np.asarray(self.spawner.position(sample), dtype=float)
+        if self._reach_anywhere_active() and self._reach_aim_point is not None:
+            key = (
+                self.current_arm,
+                int(sample.index),
+                round(float(getattr(self, "_attempt_sim_t0", 0.0)), 6),
+            )
+            if self._reach_aim_key == key:
+                return np.array(
+                    [
+                        float(self._reach_aim_point[0]),
+                        float(self._reach_aim_point[1]),
+                        float(fruit[2]),
+                    ]
+                )
         return np.array(
             [
                 float(fruit[0]),
@@ -4657,6 +4994,11 @@ class PickAndPlaceTask:
         # used as the seed and the IK solves the small lateral offset.
         t0 = self._sim_time()
         self._attempt_sim_t0 = t0
+        # R10-A: the per-attempt reach-anywhere aim is (re)computed at the
+        # pre-pose end below; clear the previous attempt's entry so a direct /
+        # non-scripted `_dynamic_aim` call can never read a stale point.
+        self._reach_aim_key = None
+        self._reach_aim_point = None
         # Arm the collector's per-attempt wall budget (0 = off everywhere but
         # the collector; see `_step_sim`). Per-attempt thread-local, so the
         # bimanual's two concurrent attempts each get their own deadline.
@@ -4825,6 +5167,14 @@ class PickAndPlaceTask:
             if arm_name == "left":
                 hold = mirror_across_xz(hold)
             arm.hold_quaternion = hold
+            # R10-A: compute this attempt's interception point (the predicted
+            # fruit position at the descent-end time, clipped into the arm's
+            # reachable band) *before* the grip/hover targets are built, so the
+            # hover move already goes to the intercept. The pre-registered
+            # fallback leaves the shipped station-relative targets in place
+            # when the prediction is below the band.
+            if self._reach_anywhere_active():
+                self._reach_prepare_aim(sample)
             self._dynamic_grip_target = self._dynamic_grip_point(sample)
             self._dynamic_hover_target = self._dynamic_hover_point(sample)
             previous_hover_step = arm.max_step
@@ -5853,6 +6203,23 @@ class PickAndPlaceTask:
                         arm.max_step = float(os.environ.get("FRUIT_APPROACH_STEP", "0.08"))
                         self._approach(arm, grip, verbose=verbose, v_max=dyn_v_max)
                     arm.max_step = previous_max_step
+                    if (
+                        self._reach_diag
+                        and dynamic_capture
+                        and self._reach_anywhere_active()
+                        and self._reach_aim_point is not None
+                    ):
+                        # R10-A mechanism row: the realized intercept (where the
+                        # fruit actually was as the descent ended) against the
+                        # aim and the station. Fruit-pose reads only.
+                        _fruit = np.asarray(self.spawner.position(sample), dtype=float)
+                        say(
+                            f"[reach] met {arm_name} idx={int(sample.index)} "
+                            f"aim_y={float(grip[1]):+.4f} station={station_y:+.4f} "
+                            f"fruit_y={float(_fruit[1]):+.4f} "
+                            f"err={float(_fruit[1]) - float(grip[1]):+.4f} "
+                            f"waited={waited if dyn_v_max is not None else -1}"
+                        )
                     self._cycle_mark("descent")
                 if not coherent:
                     # Assisted frame: the pads are placed on the fruit's measured
@@ -6134,6 +6501,15 @@ class PickAndPlaceTask:
                         acq_info["catchup_offset"] = (
                             np.asarray(tip, dtype=float) - fruit_now
                         )
+                if self._reach_diag:
+                    # R10-A reporting: how many catch-up ticks the interception
+                    # residual cost (the loop variable survives the for-loop).
+                    self._reach_catchup_used = int(_) + 1
+                    say(
+                        f"[reach] catchup {arm_name} idx={int(sample.index)} "
+                        f"ticks={self._reach_catchup_used} "
+                        f"residual={catch_residual * 1000:.1f}mm"
+                    )
                 if acq_diag:
                     acq_info["stages"]["catchup"] = self._sim_time()
                     acq_info["catchup_residual"] = float(catch_residual)

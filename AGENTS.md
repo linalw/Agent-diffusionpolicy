@@ -845,6 +845,52 @@ path** (a `tasks.py` item with its own pre-registration), **D3-proper**
 (owner-gated), and the **WS-7.1 sim-to-real prep**; another post-training pass
 on this interface re-measures the null.
 
+**R10-A (2026-10-15, branch `r10-reach`, `logs/r10/A_RESULTS.md` +
+`PREREGISTRATION.md` + WORKLOG "R10-A"): the reach-anywhere dynamic catch
+delivers the coverage and the per-attempt interval, but the success and
+no-new-class criteria fail and `FRUIT_REACH_ANYWHERE` stays default off.** The
+owner correction (binding) removed the station-fixed limitation: the moving
+catch must meet fruit at any reachable (x, y). The measured reachable-intercept
+map (`scripts/183_reach_intercept.py`, extends `174` to the y dimension; raw
+rows `logs/r10/reach_intercept_{left,right}.json`): clean grip bands left
+x=0.20 `-0.10..+0.15`, x=0.28 `-0.05..+0.20`, x=0.36 `0.00..+0.10`; right
+x=0.20 `-0.10..+0.10`, x=0.28 `-0.10..+0.05`, x=0.36 `-0.10..0.00` (6 mm
+tolerance; the cliffs are sharp). The hover move costs 0.57-0.78 s (68-94
+ticks) at every reachable offset (the R2 cap class outside). The design
+(`tasks.py` `7e20255c`): `_reach_predict` = the interception point (a bounded
+fixed point, `y_f + vy*(t_setup(y) + t_desc + margin)`, clipped into the arm's
+x-columned band); `_reach_prepare_aim` caches it at the pre-pose end and
+`_dynamic_aim` returns it (the hover move, both wait loops and `_approach`
+are unchanged); `_reach_anywhere_select` replaces the station floor with the
+band-relative floor and takes the minimum fruit travel to the clipped
+intercept (ties to the nearest); the shipped station-fixed rule is the
+fallback (it never fired - a strict subset on the measured bands). Scoped to
+the scripted OpenArm moving-catch line; the two-line and direct/policy paths
+keep their rules; off = byte-unchanged. Measured (W6-A patch sheet, single
+arm, 20 attempts, seed 5; `logs/r10/30_control.log` vs `31_reach.log`):
+coverage **72 vs 45 candidate-fruit across the same 20 selection instants
+(+60 %)**, 20/20 vs 19/20 instants with a catchable candidate, 20 vs 18
+attempts; per-attempt span **15.24 -> 13.98 s (-8 %;** the wait segment 3.06 ->
+1.68 s) but the inter-placement interval 27.62 -> 45.14 s and throughput
+2.17 -> 1.33 placed/min; success **13/18 = 72 % -> 8/20 = 40 %**; the carry
+class **"fruit did not follow the gripper" 0/18 -> 5/20**; one descent over
+budget (0.165 vs 0.162, the chase leg). The mechanism: intercepts p50 +0.011 m
+(early), the descent-end error p50 +3.4 mm, catch-up p50 14 ticks, and **the
+descent wait is 0 ticks in 16/20 treatment attempts vs 59-89 in the control**
+- the just-in-time handover removes the shipped line's hover settling and the
+grip phase grows 1.60 -> 2.52 s. Named residuals: the hover settling (a priced
+`FRUIT_REACH_HOVER_SETTLE` is the candidate fix), the R2 hover cap (one 661 mm
+chase), the setup model's missing x-term, and setup-time variance breaking the
+just-in-time feasibility (one fallback chase). No-harm: the control patch run
+is **643/643 physics lines identical** to the W6-B single-arm record; the
+acceptance **9/10 + motion gate PASS + `fingerprint: matches`** with 365/365
+physics lines identical to the R9 acceptance; the two-line dense re-record
+**442/442 identical** to the W7-A record + `190` PASS; both double-runs
+bit-identical up to a wedge (run 32 through 288 lines, run 33 through 297 -
+each then wedged, a known renderer freeze); selfcheck PASS. Pins: `tasks.py`
+`7e20255cd32e4d438cfa9ffc5f4dc5e7`, `rl_env.py` `TASKS_MD5` metadata-only
+follow; branch `r10-reach` from `7f9eb34`.
+
 ## 3. What changed -> what to run
 
 | you changed | run |

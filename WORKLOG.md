@@ -14362,3 +14362,94 @@ recorded rollouts -> AWR fine-tune -> fidelity -> N=5 A/B -> no-harm) ran in
    `328332d`, tag `v0.12`; `r9-rl` = `c86059a` + this R9.1 commit, local, not
    pushed). No-harm: docs + the two self-test legs only (no `src/` change, no
    scenario/default change); `scripts/selfcheck.sh` PASS.
+
+### R10-A: the reach-anywhere dynamic catch - the coverage/interval goals are delivered, the success and no-new-class criteria fail, and the knob stays default-off
+
+1. **What was asked.** The owner correction (binding): the moving catch must
+   generalize across the arm's reachable workspace - any reachable (x, y), on
+   the fly, never stopped; the station-fixed catch (the fruit must arrive under
+   a fixed y) is the limitation to remove. R10-A: measure the reachable
+   intercept set, design the interception-point catch, implement it behind a
+   default-off knob, and measure coverage / success / interval / per-leg motion
+   against the station-fixed control. Pre-registered in
+   `logs/r10/PREREGISTRATION.md` before the implementation edit; results in
+   `logs/r10/A_RESULTS.md`.
+
+2. **The reachable-intercept map (new measurement).** `scripts/183_reach_intercept.py`
+   extends the `174_station_reach` approach to the y dimension (3 x-columns x
+   11 dy, the top-down grip/hover poses, the calibrated seed, 6 mm tolerance,
+   plus the sweep-end poses and the setup-timing ladder; raw rows
+   `logs/r10/reach_intercept_{left,right}.json`). Clean grip bands: left
+   x=0.20 `-0.10..+0.15`, x=0.28 `-0.05..+0.20`, x=0.36 `0.00..+0.10`; right
+   x=0.20 `-0.10..+0.10`, x=0.28 `-0.10..+0.05`, x=0.36 `-0.10..0.00`; the
+   cliffs are sharp (29.6-186.5 mm one 0.05 step outside). The arms mirror
+   across the belt: each reaches upstream on its own side and cliffs across
+   it. **The setup ladder: the hover move costs 0.57-0.78 s (68-94 ticks) at
+   every reachable offset** (base ~0.60 s + ~1.2-1.4 s/m marginal, ~0.8 m/s
+   lateral); unreachable targets burn the 600-tick cap - the R2 flail class.
+   The sweep-end rows are clean on only 4/33 + 3/33 points, but that is **not**
+   the sweep constraint: the shipped line already holds the payload through
+   ~0.1 m of belt travel with millimetre relative motion (W8-B `clean_slip`),
+   because the close tracks the fruit and the pads are loaded - the band is the
+   *grip/aim* band only.
+
+3. **The design (implemented behind `FRUIT_REACH_ANYWHERE`, default off;
+   `tasks.py` `7e20255c`).** `_reach_predict` computes the interception point
+   (`y_int = y_f + vy*(t_setup(y) + t_desc + margin)`, a bounded fixed point
+   with contraction `v/v_hover`, clipped into the arm's measured x-columned
+   band; feasible iff the unclipped prediction is at or above the downstream
+   edge). `_reach_prepare_aim` caches it at the pre-pose end (the hover move,
+   both wait loops and `_approach` are unchanged - they already time relative
+   to the grip target); `_dynamic_aim` returns it. `_reach_anywhere_select`
+   replaces the station floor (`0.399 m` at 0.12 m/s) with the band-relative
+   floor and picks the minimum fruit travel to the clipped intercept, ties to
+   the nearest; the shipped station-fixed rule is the fallback (it never fired
+   - the reach rule is a strict superset on the measured bands). Scoped to the
+   scripted OpenArm moving-catch line; the two-line and direct/policy paths
+   keep their rules; off = byte-unchanged. Tooling: `198_r10_selftest.py`
+   (offline pins, a selfcheck leg), `199_r10_battery.sh`, `199_r10_report.py`
+   (read-only re-derivation), `FRUIT_REACH_DIAG=1` rows.
+
+4. **The measurement (W6-A patch sheet, single arm, 20 attempts, seed 5;
+   control `logs/r10/30_control.log`, treatment `31_reach.log`).** Coverage
+   (the primary): **72 vs 45 candidate-fruit across the same 20 selection
+   instants (+60 %)**; instants with >= 1 catchable candidate 20/20 vs 19/20;
+   the treatment ran 20 attempts vs the control's 18 (2 starved). Interval:
+   per-attempt span **15.24 -> 13.98 s (-8 %)** (the wait segment 3.06 ->
+   1.68 s), but inter-placement interval 27.62 -> 45.14 s and throughput
+   2.17 -> 1.33 placed/min (window). Success: **13/18 = 72 % -> 8/20 = 40 %**.
+   Classes: placed-False 5/18 -> 7/20; **"fruit did not follow the gripper"
+   0/18 -> 5/20**; diverted 1 -> 3. Per-leg motion: 19/20 descents inside the
+   profile budget; the one over (0.165 vs 0.162) is the chase leg. Mechanism:
+   intercepts min -0.059 / p50 +0.011 / max +0.180 m (early, not late); the
+   descent-end error p50 +3.4 mm; catch-up p50 14 ticks; **the descent wait is
+   0 ticks in 16/20 treatment attempts against 59-89 in the control** - the
+   just-in-time handover removes the shipped line's hover settling, and the
+   grip phase grows 1.60 -> 2.52 s.
+
+5. **The verdict.** The pre-registered fail condition fired: success 8/20 vs
+   13/18; a carry/grip class absent from the control appears 5/20; one motion
+   leg over (the chase). **No adoption; the knob stays default-off; no shipped
+   default changes.** The named residuals: (a) the just-in-time catch loses
+   the hover settling (the candidate fix is a priced `FRUIT_REACH_HOVER_SETTLE`,
+   not implemented here); (b) long/diagonal hover moves hit the R2 flail/cap
+   class (one 661 mm chase); (c) the setup model has no x-term (the hover move
+   also travels to the fruit's measured x); (d) setup-time variance (a 2.0 s
+   pre-pose after a failed carry) breaks the just-in-time feasibility (one
+   fallback chase).
+
+6. **No-harm.** The control run is **byte-identical to the W6-B single-arm
+   patch record** (`logs/w6/20_battery_single.log`, 643/643 physics `[fruit]`
+   lines) - the knob-off path is unchanged. Determinism: both double-runs are
+   bit-identical up to a wedge (the treatment through 288 lines, the control
+   through 297) - run 32 and run 33 each then **wedged** (a known
+   renderer/grind freeze; the collector's nine-wedge history), no run diverged
+   before its wedge. `scripts/selfcheck.sh` PASS; `198`/`199` self-tests PASS.
+   The acceptance (`logs/r10/50_accept.log`): **9/10 + motion gate PASS +
+   `fingerprint: matches`**, its physics stream **365/365 identical to the R9
+   acceptance** (`logs/r9/60_accept_r9.log`). The two-line dense re-record
+   (`logs/r10/70_twoline_dense.log`, 7/10, 9.1 s/attempt) is **442/442
+   identical to the W7-A record** (`logs/w7/10_dense_twoline_1.log`) and
+   `scripts/190_twoline_gate.sh` **PASS**. Pins: `tasks.py`
+   `7e20255cd32e4d438cfa9ffc5f4dc5e7`, `rl_env.py` `TASKS_MD5` metadata-only
+   follow; branch `r10-reach` from `7f9eb34`.

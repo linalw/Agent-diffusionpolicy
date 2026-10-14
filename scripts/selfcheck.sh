@@ -116,6 +116,11 @@ run_check "supply scatter selftest" "$python" scripts/172_supply_selftest.py
 # the any-grade fallback, protected-fruit exclusion) and the pre-pose-lock
 # decision - pure logic over a stubbed task, no simulator.
 run_check "two-line selector test" "$python" scripts/176_twoline_selftest.py
+# R10-A: the reach-anywhere moving catch's selector (the band-relative floor,
+# the earliest-reachable-intercept choice, the station fallback) and the
+# interception-point arithmetic (the bounded fixed point, the band clip, the
+# per-arm bands, the aim cache) - pure logic over a stubbed task.
+run_check "reach-anywhere selftest" "$python" scripts/198_r10_selftest.py
 # X1: the slot claim (mutual exclusion, pool overlap, stale recovery after
 # SIGKILL, wait timeout, duplicate-namespace refusal) is pure locking logic.
 run_check "claim slot harness" bash scripts/181_claim_slot_selftest.sh
