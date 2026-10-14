@@ -13856,7 +13856,7 @@ message is amended (see 2/3); this entry is committed as `Phase B.1`.
 measurements are untouched. `scripts/selfcheck.sh` PASS. Commit `Phase B.1`;
 not pushed.
 
-### R7-A (WS-4.6): the policy-gate bypass is closed by one shared x-edge refusal; 0 attempted-anyway on the edge probe and the shipped interface byte-unchanged
+### R7-A (WS-4.6): the policy-gate bypass is closed by one shared x-edge refusal; the edge probe reads 0 out-of-band fires / 0 bypasses and the shipped interface byte-unchanged
 
 **Scope (2026-10-14, branch `r7-bypass` from `main` at `6d71cdb`, tag
 `v0.10`).** Phase R7-A of the R7 PLAN (`.slim/deepwork/sorting-pipeline-v3.md`
@@ -13896,13 +13896,17 @@ key), `scripts/811_trigger_test.py` (the truth table). Full evidence
    table is pinned in `811_trigger_test.py` (7 new checks).
 3. **The probe: the refusal binds; the bypass reads 0.** F1 (edge, reseed +
    cap): **1 flail (fast-stall), 9 refusals, 4 gate refusals (x =
-   0.400/0.399/0.395/0.426), 0 attempted-anyway**; F2 (the repeat sample):
+   0.400/0.399/0.395/0.426), 0 out-of-band fires**; F2 (the repeat sample):
    2 flails (fast-stall), 6 refusals, 3 gate refusals (0.415/0.398/0.414),
-   0 attempted-anyway; F3 (cap only, the R2-P1 shape): 3 flails (2
-   premove-cap + 1 fast-stall), 5 gate refusals, 0 attempted-anyway - its one
-   re-qualification (refused at x=0.394, an in-band intercept fired later,
-   the attempt lost with a 246.2 mm fast-stall leg) shows the fix refuses the
-   out-of-band tick, not the in-band fire; F4 (shipped band + cap): 0
+   0 out-of-band fires; F3 (cap only, the R2-P1 shape): 3 flails (2
+   premove-cap + 1 fast-stall), 5 gate refusals, **0 out-of-band fires / 0
+   bypasses - the strict legacy signature (canonical refusal + learned close)
+   reads 0 in F1+F2 and 1 in F3** (ep5, below); its one re-qualification
+   (refused at x=0.394, an in-band intercept fired later, the attempt lost
+   with a 246.2 mm fast-stall leg; the close was also armed on that in-band
+   tick, which is why the strict signature counts it) shows the fix refuses
+   the out-of-band tick, not the in-band fire - the strict marker is
+   necessary, not sufficient, on a fix tree; F4 (shipped band + cap): 0
    refusals / 0 flails, no starvation. All seven of F1/F2's gate-refused
    episodes ride past (`fruit fell off the line`), no primitive leg runs; the
    residual fast-stalls (26.5-155.8 mm residuals) are the W7-B catch-up
@@ -13911,7 +13915,8 @@ key), `scripts/811_trigger_test.py` (the truth table). Full evidence
    protocol was not run (no adoption/rate claim; the guard stays default off)
    and the control is one sample - corroborated by the four historical
    controls above. The residual is the reach cliff itself (the refusal is a
-   screen; the station/reach geometry is the D screen's first item) plus the
+   screen; the station/reach geometry is the D screen's second item - the grip
+   plane / cradle is first, per the R7-C order unification) plus the
    fast-stall / in-band-fire nuances.
 5. **No-harm.** `scripts/selfcheck.sh` **PASS** (0 failures, 1 skipped; the
    trigger test OK with the new truth table); the acceptance
@@ -13926,3 +13931,104 @@ key), `scripts/811_trigger_test.py` (the truth table). Full evidence
    d33e5365`, `trigger d7ec85fc`, `811_trigger_test.py c808a6e6`); checkpoint
    `moe_v13s` `61da390a`. Commit `R7-A`; not pushed. The
    ROADMAP/AGENTS/README integration is left to R7-C (`docs + merge + tag`).
+
+### R7-B (the frontier scoping) + R7-C (the integration): the four R6 directions scoped; the D grip/station screen pre-registered (owner-go pending); the R7-A wording reconciled and the v0.10 state carried
+
+**Scope (2026-10-14, branch `r7-bypass`, Tier C - no sim; docs only, no
+`src/` change).** Phase R7-B of the R7 PLAN
+(`.slim/deepwork/sorting-pipeline-v3.md` "R7 PLAN"): the librarian wave on the
+R6 directions (sim-to-real, RL/DAgger post-training, learned catch,
+grip geometry/hardware) -> `logs/r7/FRONTIER_R7.md` - the scoped options with
+costs/risks/expected movement, then one recommendation - plus the integration
+half of R7-C (the ROADMAP refresh + the register row; the PLAN's
+ops-promotion half - the B_watch tree-kill into `scripts/` + the `docs/OPS.md`
+story - is **not** in this pass). The document is **gate-fixed by R7-C** (the
+R7-B gate's ordered fixes below); the R7-A gate fixes are applied to
+`logs/r7/A_RESULTS.md` (the untracked evidence store) and to the R7-A entry
+above (corrected in place, R5.1 precedent).
+
+1. **The recommendation: direction D, probe-scale.**
+   `logs/r7/FRONTIER_R7.md` section 6 takes the grip/station geometry: (1) the
+   grip plane / cradle against the loaded slide (89-91 % of direct failures;
+   the same class on the scripted two-line), (2) the station/reach clearance
+   against the flail and the descent-into-belt - entered as a
+   **pre-registered probe-scale screen**, only a converting screen escalating
+   to a shipped scenario change. The other three directions are scoped:
+   **A** (sim-to-real) has no validation target here - its first step is the
+   domain-dependence audit (~5-6 Tier A runs / ~1 h), M-L only if a real-cell
+   target commits; **B** (RL/DAgger) is the named fallback if the D screen is
+   negative (endpoint the paired carried-class conversion under N=5, the
+   interface pinned); **C** (learned catch) stays closed (the scripted catch
+   is 9/10 x5 and in-band 0.12-0.18 m/s; the residual classes are not catch
+   problems).
+2. **The pre-registered D screen (section 4, the R7-B gate fix).** Candidates
+   (3): the two grip forms first - **D2a lower grip plane**, **D2b
+   cradle/scoop** - then **D3 station/reach clearance**. Primary signal: the
+   frame-free `clean_slip` + the carried-not-placed class. Numeric conversion
+   criterion: (a) the **escape signature absent** (zero carry legs with
+   `clean_slip` > 2 mm) AND (b) the **100-400 mm close-start-residual band's
+   lost count drops by >= half** against the paired control (the R6-B band:
+   44/44 lost), with the band population reported and not reduced by refusal
+   or starvation; the scripted 20-attempt battery is the second endpoint.
+   Determinism: every scripted config runs twice and the `[fruit]` streams are
+   byte-compared; the direct samples are one run per config (rendered frames;
+   N=5 for any rate claim). Pins: the patch sheet, the two-line, SEED=5, 20
+   attempts, Tier A solo, `190` with its own reference for a moved branch;
+   direct = the W8-A/W7-C shape (ACQ `=1`, seed 77, 15 episodes,
+   `FRUIT_CARRY_DIAG=1`), checkpoint `moe_v13s` `61da390a`, per-run tree pins.
+   Fail condition: the escape persists / the band does not halve / the catch
+   taxonomy moves / a new failure reason / the acceptance moves - a failed
+   form closes, a pass is **not** adoption.
+3. **The WS-7.4 reconciliation (section 4).** This D push **re-opens W5 row
+   10's caging/cradle form on new evidence** (the W8-B loaded-slide
+   mechanism; R6-B's named next direction), not the row-10 soft-pad/material/
+   face-shape forms. Declined, one line each: the **tangential-force tactile**
+   (the sim's tactile exposes normal force + contact count only; the
+   one-sided-contact signal buys 0-2 ticks - no reaction window); the
+   **row-3 place-entry contact maintenance** (the class is lost in carry; the
+   place-side knobs screened neutral/negative); the **place-leg guard scope**
+   (R6-B retuned the guard lift-only and re-measured negative).
+4. **R7-A gate fixes (the F3 strict-signature reconciliation + the order).**
+   The A_RESULTS headline now reads **0 out-of-band fires / 0 bypasses across
+   the 45 fix-tree edge episodes**, with the **strict legacy signature 0 in
+   F1+F2 and 1 in F3** (ep5, the in-band re-qualification) per
+   `A_probe_report.txt` L49 - the strict marker is necessary, not sufficient,
+   on a fix tree; the F3 `gate-refused legs` table cell is footnoted (0/0
+   out-of-band vs the report's 1/1 re-qualification leg, L50) and the F3
+   bullet/Verdict-3 wording corrected; the R7-A entry above carries the same
+   correction (heading + item 3, corrected in place). The **D-screen item
+   order is unified at grip plane/cradle first, station/reach second** (the
+   R7-A docs' "station/reach is the first item" cross-references in
+   A_RESULTS section 4 and the R7-A entry item 4 are corrected; the R7-B
+   recommendation order stands). Option A's audit cost corrected to ~5-6
+   Tier A runs / ~1 h, and its step 3 disambiguates the **sim-side DR**
+   (scene randomization; N per config) from the **training-side frame
+   augmentation** (CACTI-style; the W7-C-shaped pass).
+5. **The optional gate item skipped, with the note.** The optional Gate-R7-A
+   item - a comment-only hardening of `direct_fire`'s intercept-precedence
+   invariant in `rl_env.py` - was **not applied**: this pass is docs-only, and
+   a comment edit would move the md5 of a file the R7-A probe/no-harm logs pin
+   (`rl_env.py` `d33e5365`), breaking the measured-tree pins for no
+   behavioural gain. The invariant is safe and is now recorded in
+   `logs/r7/A_RESULTS.md` section 2: every path that sets `intercept=True` ran
+   `should_fire` on that tick (the selected fruit, or an adopted presented
+   fruit via its own call) and `should_fire` applies the same `x_edge_refusal`
+   predicate before returning true, so the `direct_fire` short-circuit cannot
+   re-admit a refused candidate; the four reachable truth-table combinations
+   are pinned in `scripts/811_trigger_test.py`.
+6. **R7-C integration (this commit, docs).** `docs/ROADMAP.md`: the status
+   header + the state rows (**v0.10 = `6d71cdb` merged/pushed**, the R6 chain
+   on `main`/`origin/main`; the acceptance of record moved to
+   `logs/r7/A_accept.log`; a new R7-A/R7-B state row; the branch/tag row), the
+   **WS-4.6 outcome** (the refusal-bypass facet closed - `0 out-of-band fires`
+   on the edge probe; the gate-path class itself and the reach cliff stay
+   named), the **WS-7 rows** (the R7-B folds: 7.1 the audit cost + the DR
+   split; 7.2 the named fallback; 7.3 the re-affirmed closure; 7.4 the row-10
+   caging/cradle re-open + the three declines), a new **R7 phase-table row**
+   (A done `29e7ae4` / B scoping done, gate-fixed as R7-C / C this
+   integration; **folded** - no shipped default changed), and the PP-P3
+   paragraph. **The register (section 5) is re-opened with row 7 pending: the
+   D screen owner-go, citing the pre-registration.** `AGENTS.md` and
+   `README.md` are untouched - no default or scenario claim changes.
+7. **No-harm.** Docs only; no simulator, no `src/`, no scenario change;
+   `scripts/selfcheck.sh` **PASS**. Commit `R7-C`; not pushed.
