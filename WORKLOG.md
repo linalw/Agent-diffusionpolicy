@@ -14060,24 +14060,34 @@ byte-unchanged rather than asserted (below).
    (the pre-registration says the properly-scoped variant needs the multi-seed
    IK / self-centring feeder).
 
-2. **D2a FAILS, with the reach boundary as the named mechanism.** Direct probe
-   (-8 mm): 3/15, classes ok 3 / carried 1 / **no-contact 11**, flails
-   **1 -> 14** (9 fast-stall + 5 hover-cap), close-start y median
+2. **D2a FAILS; the reach boundary is the leading hypothesis, not isolated.**
+   Direct probe (-8 mm): 3/15, classes ok 3 / carried 1 / **no-contact 11**,
+   flails **1 -> 14** (9 fast-stall + 5 hover-cap), close-start y median
    **-3.8 -> +59.0 mm**, the lift-leg population **moved up** out of the
    100-400 mm band (11 -> 2) into the **>400 mm** band (2 -> 10, all lost):
    escape signature present, negative branch move. Battery x2 bit-identical:
    **5/20 = 25 %** (control 12/20) with gripper-loss notes **1 -> 11** plus a
    `fruit left the pick station during the close (357 mm)` note, and one
    descent **out of the speed budget** (`|v|max` 0.172 vs 0.161) - `105
-   --write-fingerprint` refuses the run (a pre-registered fail condition on its
-   own). Mechanism: the control's own catch-up residual floors at 5.6-6.0 mm
-   against the 6 mm tolerance - the shipped dynamic grip target already sits at
-   the arm's vertical boundary (the same boundary as the every-descent 40-90 mm
-   shortfall), so a downward drop puts the tip target out of band; the labelled
-   **-4 mm boundary sample** (direct only) still floors the catch-up (11/15
-   caps, no-contact 8) while the >400 mm population persists, and the in-band
-   pad-plate alternative is already closed (v6 exp 2: 5/10 at 12 mm, 7/10
-   co-planar-only). The pose realization of D2a cannot be tested in-band.
+   --write-fingerprint` refuses the run (a pre-registered fail condition on
+   its own). Mechanism: the catch-up caps (**14/15** at -8 mm) are **expected
+   even with a reachable target** - the drop moves the *commanded* catch
+   target (`catch_target` uses `_pad_standoff`, tasks.py:6112-6114) but NOT
+   the catch-up break test (`desired_tip` uses `_dynamic_pad_lift`,
+   tasks.py:6094), so a -8 mm drop shifts the loop's residual equilibrium by
+   ~the drop; the control's own catch-up floor (**5.3-6.0 mm** against the
+   6 mm tolerance) is the loop's threshold-crossing value, not a measured
+   reach margin. What remains of the reach reading: the shipped dynamic grip
+   target also sits near the arm's vertical boundary (the same boundary as
+   the every-descent 40-90 mm shortfall), so any downward drop shrinks an
+   already narrow window; the labelled **-4 mm boundary sample** (direct only)
+   is the better-isolated realization - its hover converges (0 caps) but the
+   catch-up still mostly caps (11/15, no-contact 8) and it fails with the
+   >400 mm population persisting. The missing control that would isolate the
+   reach reading: the drop **+ a drop-adjusted break test + a -2 mm
+   magnitude**. The in-band pad-plate alternative is already closed (v6 exp 2:
+   5/10 at 12 mm, 7/10 co-planar-only); the -4/-8 mm realizations cannot be
+   measured in-band at any magnitude that matters.
 
 3. **D2b FAILS - the ledges bat the payload (the P3/D additive-face class the
    pre-registration warned about).** Direct probe: 2/15, classes
@@ -14086,13 +14096,16 @@ byte-unchanged rather than asserted (below).
    the pick centre`; `[carry]` slides to **3972 mm**), the lift-leg population
    **reduced 15 -> 14**, the 100-400 mm leg count 11 -> 3 with the population
    redistributed into **>400 mm** (2 -> 8). Battery x2 bit-identical:
-   **6/20 = 30 %**, gripper-loss notes **1 -> 12**; the descents stay in band
+   **6/20 = 30 %**, gripper-loss notes **1 -> 12** (all the control's class -
+   the genuinely new battery notes on this screen are D2a's station-close and
+   D3's never-settled); the descents stay in band
    (worst `|v|max` 0.119 vs 0.116) and `190` fails only on the rate floor.
    Mechanism (two classes in the rows): the ordinary failures repeat the known
    loaded-slide class (onset rows 70-98, `force@onset` 4.95-7.10 N, one-sided
-   contact), while the new flicked class registers in the first 1-2 ticks with
-   the fingers already at/past the fruit's width (`sep@onset` **9.8-22.0 mm**
-   on five legs, force 0 or a 13-36 N spike) - the payload was batted off the
+   contact), while the new flicked class is the `grasp_lift` rows registering
+   in the first 1-2 ticks with `sep@onset` <= 22 mm (the next-smallest onset
+   sep is 59.2 mm) - **7 rows**: 17.7/22.0/10.0/9.8/10.0/15.0/9.9 mm,
+   `force@onset` 0/0/0/13.14/0/35.69/16.80 N - the payload was batted off the
    station before the close and the hand chases a phantom. The ledges sit in
    the close's swept volume; the nominal ~3.7 mm proximal clearance is smaller
    than the lane's close-time misalignment.
@@ -14128,7 +14141,8 @@ byte-unchanged rather than asserted (below).
    IDENTICAL). The acceptance (`logs/r8/A_accept.log`): **9/10, 15.2
    s/attempt, `gate_open=0.0 s`**, motion gate **PASS**, **`fingerprint:
    matches`**, and **385/385 `[fruit]` lines identical to `logs/r7/A_accept.log`**
-   (the v0.11 record). `scripts/selfcheck.sh` PASS; `git diff --check` clean.
+   (the v0.11 record). `scripts/selfcheck.sh` PASS (`logs/selfcheck.log`:
+   `failed=0 skipped=1`); `git diff --check` clean.
    The `91` test gripper authors its own pads and was not adapted (the screen
    measures the shipped hand).
 
@@ -14142,12 +14156,80 @@ byte-unchanged rather than asserted (below).
    Branch HEAD at the batch `38304b8` (v0.11); commit follows, not pushed.
 
 8. **What this closes.** With R6-B (squeeze side) this closes the bounded
-   grip-geometry lever space around the carry class: the lower grip plane is
-   blocked by the arm's vertical reach boundary, the fingertip cradle bats the
-   payload, and the pad-plate was already closed (v6 exp 2). The standing
+   grip-geometry lever space around the carry class: the lower grip plane
+   fails at both screened realizations with the reach reading as the leading
+   hypothesis, not isolated (the catch-up break test was not moved with the
+   drop; the missing control is named in item 2), the fingertip cradle bats
+   the payload, and the pad-plate was already closed (v6 exp 2). The standing
    directions are now the station/scenario redesign (a station the hand reaches
    clear of the belt + the self-centring feeder / multi-seed IK) and the
    RL/DAgger lane (frontier Option B, under its existing gates). The
    instruments (band table, live `[carry]`, determinism compare, per-scenario
    gates) ran unchanged on every config, and the screen's control is on the
    W7-A branch, so later re-runs have a byte-reproducible comparator.
+
+### R8-A.1 (gate fixes + the R8-C integration): the D2a attribution softened to the leading-hypothesis form with the missing control named, the readouts re-derived, and the AGENTS/ROADMAP integration + the next-phase pre-registration landed
+
+**Scope (2026-10-14, branch `r8-dscreen`, docs only - no sim, no `src/`
+change).** The R8-A gate's ordered fixes applied to `logs/r8/A_RESULTS.md`
+(the untracked evidence), the R8-A entry above (corrected in place), the R8-A
+commit's message (amended: `e112a13` -> `9b4f72f`; unpushed), and the R8-C
+integration (AGENTS.md + `docs/ROADMAP.md` + the plan file's "R9 PLAN").
+
+1. **The D2a attribution.** The measured rows cannot isolate reach: the drop
+   moves the *commanded* catch target (`catch_target` uses `_pad_standoff`,
+   `tasks.py:6112-6114`) but NOT the catch-up break test (`desired_tip` uses
+   `_dynamic_pad_lift`, `tasks.py:6094`), so a -8 mm drop shifts the loop's
+   residual equilibrium by ~the drop and the 200-tick caps are **expected
+   even with a reachable target**; the control's 5.3-6.0 mm floor is the
+   loop's threshold-crossing value, not a measured reach margin. Rewritten in
+   A_RESULTS section 2/7 (and in the entry above, and in the amended commit
+   message): the screened realizations at -4/-8 mm fail; the reach reading is
+   the **leading hypothesis, not isolated** (the break test was not moved
+   with the drop); the **missing control named** = the drop + a drop-adjusted
+   break test + a -2 mm magnitude; the mechanism text leans on the **-4 mm**
+   sample (its hover converges - 0 caps - but the catch-up mostly caps,
+   11/15, and it fails). The -8 mm catch-up cap count is **14/15**
+   (re-derived from the `[acq]` rows; the earlier 11/15 was wrong); the
+   control's floor is **5.3-6.0 mm** (re-derived: the 14 non-cap residuals).
+2. **The D2b readout.** The flicked-class filter re-derived and stated
+   (`grasp_lift` rows with onset in the first 1-2 ticks and `sep@onset`
+   <= 22 mm; the next-smallest onset sep is 59.2 mm): **7 rows**
+   (17.7/22.0/10.0/9.8/10.0/15.0/9.9 mm; `force@onset`
+   0/0/0/13.14/0/35.69/16.80 N); the "five legs / 0 or a 13-36 N spike" text
+   dropped; the "new battery failure reason" clause dropped (all 12
+   gripper-loss notes are the control's class - the genuinely new notes on
+   this screen are D2a's station-close and D3's never-settled).
+3. **The D3 readout.** The right-arm close-start y is **0.85-0.97 m** (the
+   1.4-1.5 m figures are the catch-up residuals, not the close starts).
+4. **The (b) reading is the report's own.** "which the pre-registration
+   classifies as a negative branch move" replaced: (b) halves numerically by
+   redistributing into the worse >400 mm band; every candidate fails (a) and
+   the fail conditions.
+5. **Evidence.** The acceptance compare (r8 vs r7, **385/385 IDENTICAL**)
+   appended to `logs/r8/A_compare.txt` with the command cited; the selfcheck
+   PASS cites `logs/selfcheck.log`; the direct probes are noted
+   **sequential, control first** (the pre-registration's "paired/interleaved"
+   wording was not the executed design; no paired-offset claim).
+6. **R8-C integration (this commit, docs).** `AGENTS.md`: a section-2 R8-A
+   paragraph (the three failures; the D2a caveat; the D2b/D3 mechanisms; the
+   byte-unchanged no-harm; the pins; the direction-B fallback).
+   `docs/ROADMAP.md`: the status header; a new state row; the WS-7.2/7.4
+   rows; a new **R8 phase row** (A done negative / B not triggered / C this
+   integration; folded); **register row 7 closed** (GO was given, the screen
+   ran, all three FAIL, no R8-B, fallback B next); the PP-P3 paragraph.
+   **The next phase is pre-registered** per the gate: the **RL/DAgger lane
+   (direction B)** - the lane choice with the **not-the-two-nulls argument**
+   (the W7-C/W8-A nulls are behaviour-cloning; the lane's untested facets are
+   the on-policy forms - AWR clipping, the P4 trigger-margin fix, a per-tick
+   correction head), the **interface pins** (`ACQ=1` + the R7-A fix +
+   `trigger.py` `d7ec85fc` / `runtime.py` `ffb76bfd` + checkpoint `moe_v13s`
+   `61da390a` / `moe_v12` `3a9ccfc0` + base `demos_v11` `922ca995` / rollout
+   `demos_v12` `c2c288e5`), the **endpoint** (N=5 paired carried-class
+   conversion, pooled rate above the 28-29 % baseline, cycle non-inferior
+   under the P4 rule), the **kill criteria**, the **no-harm + adoption
+   gates**, and **D3-proper out of scope**; the full text is the `.slim`
+   "R9 PLAN" section + `logs/r8/A_RESULTS.md` section 7.
+7. **No-harm.** Docs + untracked evidence only; no `src/`, no simulator, no
+   scenario change; `scripts/selfcheck.sh` **PASS** (`logs/selfcheck.log`).
+   Commit `R8-A.1`; not pushed.

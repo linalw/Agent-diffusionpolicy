@@ -770,6 +770,47 @@ re-record 442/442 identical + `190` PASS. Pins: batch tree `tasks.py`
 `1d6e9662` (final `b2c79938`, comment-only - unverifiable now), `rl_env.py`
 `5940a7c8`, checkpoint `moe_v13s` `61da390a`.
 
+**R8-A (2026-10-14, branch `r8-dscreen`, `logs/r8/A_RESULTS.md` + WORKLOG
+"R8-A"/"R8-A.1"): the pre-registered D screen - the lower grip plane, the
+cradle/scoop and the raised station all FAIL; the bounded grip-geometry lever
+space is measured closed around the carry class.** The screen (Tier A solo;
+the candidates and the conversion criterion fixed in `logs/r7/FRONTIER_R7.md`
+section 4 before any asset was touched) ran the patch battery x2 per config
+(four double-run pairs, all IDENTICAL) plus the direct probe (patch sheet,
+ACQ=1, seed 77, 15 episodes, checkpoint `moe_v13s` `61da390a`). **D2a**
+(`FRUIT_GRIP_PLANE_DROP=0.008`, default-off): the escape signature persists
+and the lift-leg population moves up into the >400 mm band (11 -> 2 vs
+2 -> 10), flails 1 -> 14, battery 5/20 x2 with a new station-close note, and
+one descent leaves the speed budget (`|v|max` 0.172 vs 0.161) - and the reach
+reading is the **leading hypothesis, not isolated**: the drop moves the
+*commanded* catch target (`catch_target` uses `_pad_standoff`,
+`tasks.py:6112-6114`) but not the catch-up break test (`desired_tip` uses
+`_dynamic_pad_lift`, `tasks.py:6094`), so the -8 mm caps are expected even
+with a reachable target (the missing control: the drop + a drop-adjusted
+break test + a -2 mm magnitude; the -4 mm sample also fails). **D2b**
+(`FRUIT_FINGER_SCOOP=1`): the ledges **bat the payload** (the P3/D
+additive-face class the pre-registration warned about; 7 `grasp_lift` rows
+with onset in the first 1-2 ticks and `sep@onset` <= 22 mm) - no-contact
+2 -> 9, battery 6/20 x2 (the 12 gripper-loss notes are the control's class).
+**D3** (`FRUIT_NEST=0.02 FRUIT_NEST_WIDTH=0.05`, the bounded proxy): the
+platform's 100 mm x-span is narrower than the supplied band, so its side
+faces obstruct the moving supply - battery 1/20 x2, `recirculated` 0 -> 13,
+a new "fruit never settled at the pick point" note; the full D3 form (station
++ self-centring feeder + boundary-respecting descent) stays the named
+scenario redesign, out of scope for the next phase. **No shipped default
+changed**: acceptance **9/10 + motion gate PASS + `fingerprint: matches`**,
+385/385 `[fruit]` identical to `logs/r7/A_accept.log`, and the screen's own
+control battery replays the W7-A record **861/861 bit-identical**; both new
+levers are default-off env knobs. Pins: `tasks.py` `27d0fabd`, `scene.py`
+`ab85dca2`, `rl_env.py` `72d55574` (metadata-only `TASKS_MD5` follow),
+`trigger.py` `d7ec85fc`, `runtime.py` `ffb76bfd`, checkpoint `moe_v13s`
+`61da390a`. **No R8-B is triggered** (all three forms fail); the **fallback
+is direction B, the RL/DAgger lane, pre-registered as the next phase**
+(ACQ=1 + R7-A pinned; the N=5 paired carried-class endpoint with the cycle
+non-inferiority margin and the kill criteria; the no-harm + adoption gates;
+D3-proper out of scope - `.slim/deepwork/sorting-pipeline-v3.md` "R9 PLAN",
+`logs/r8/A_RESULTS.md` section 7).
+
 ## 3. What changed -> what to run
 
 | you changed | run |
