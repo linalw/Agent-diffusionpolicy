@@ -298,16 +298,23 @@ class PickAndPlaceTask:
         #: Values are the measured `scripts/183_reach_intercept.py` map
         #: (2026-10-14, 3 x-columns x 11 dy, calibrated seed, top-down
         #: attitude, tolerance 6 mm), inset by `FRUIT_REACH_Y_INSET` at load:
-        #:   left  (grip-clean): x=0.20 -0.10..+0.15, x=0.28 -0.05..+0.20,
+        #:   left  (grip-clean): x=0.20 -0.10..+0.15, x=0.28 -0.05..+0.10,
         #:                       x=0.36  0.00..+0.10
         #:   right (grip-clean): x=0.20 -0.10..+0.10, x=0.28 -0.10..+0.05,
         #:                       x=0.36 -0.10.. 0.00
-        #: The breakpoints sit at the *measured* x so a fruit between columns
-        #: gets a band at least as narrow as its own column's:
+        #: (A1 correction 2026-10-15: the left x=0.28 up edge is **+0.10** - the
+        #: `11_reach_left.log` map summary reads `-0.05..+0.10 (4/11)`, and the
+        #: +0.15/+0.20 rows are 8.2/6.5 mm, both outside the 6 mm tolerance; the
+        #: first landed code read +0.20 off the 6.5 mm row. See
+        #: `logs/r10/A1_RESULTS.md`.) The breakpoints sit at the *measured* x and
+        #: the measured bands nest (each column's clean range lies inside the
+        #: one below it), so a fruit between columns takes the next column's
+        #: band - at least as narrow as the column below it, never an
+        #: extrapolation past it.
         #: Per-arm env overrides (`FRUIT_REACH_Y_DN_L/R`, `_UP_L/R`) flatten the
         #: band to a single column for a probe/screen.
         _reach_defaults = {
-            "left": ((0.20, -0.10, 0.15), (0.28, -0.05, 0.20), (None, 0.00, 0.10)),
+            "left": ((0.20, -0.10, 0.15), (0.28, -0.05, 0.10), (None, 0.00, 0.10)),
             "right": ((0.20, -0.10, 0.10), (0.28, -0.10, 0.05), (None, -0.10, 0.00)),
         }
         self._reach_band: dict[str, tuple] = {}
@@ -345,6 +352,36 @@ class PickAndPlaceTask:
         #: feasibility floor; the same 1.5 s the shipped floor uses.
         self._reach_select_s = float(
             os.environ.get("FRUIT_REACH_SELECT_S", os.environ.get("FRUIT_DYNAMIC_SELECT_S", "1.5"))
+        )
+        #: R10-A.1 **hover settle** (default **off**, 0 ticks): park at the
+        #: intercept for this many ticks before the descent, so the catch keeps
+        #: the shipped line's hover settling (`logs/r10/A1_RESULTS.md`). Priced
+        #: into the setup estimate (`_reach_predict` adds `ticks/120` to the
+        #: base), so the aim and the feasibility floor move downstream by
+        #: `vy*S/(1 - vy/v_hover)` (S = ticks/120; ~0.87 * |v| * S at the
+        #: shipped values) and the fruit still arrives as the descent ends.
+        #: The measured control's descent wait is 59-89 ticks (`30_control.log`);
+        #: the R10-A just-in-time catch read 0 in 16/20. Scripted reach path
+        #: only; 0 = byte-identical.
+        self._reach_hover_settle_ticks = max(
+            0, int(os.environ.get("FRUIT_REACH_HOVER_SETTLE", "0"))
+        )
+        #: R10-A.1 **capped-hover fallback** (default **off**): when the hover
+        #: move to the reach intercept burns its step cap (the move returns a
+        #: residual above its tolerance - `move_to` only exits early when it
+        #: converged), drop the cached reach aim and re-aim at the shipped
+        #: station point for the rest of the attempt - the pre-registered
+        #: infeasible-prediction fallback, triggered on the *execution* side.
+        #: `FRUIT_REACH_DELIVER_MARGIN` (metres, default 0.0) is the
+        #: dynamic-deliverability margin: how far above the move's own tolerance
+        #: the residual may sit before the aim is judged undeliverable. The
+        #: measured mechanism is `logs/r10/31_reach.log` attempt 19: the aim sat
+        #: at the old +0.20 cap, the hover move to it ran 2.67 s against a
+        #: ~0.83 s estimate, the fruit passed the aim, and the catch-up chased
+        #: 661 mm. Scripted reach path only; off = byte-identical.
+        self._reach_hover_fallback = os.environ.get("FRUIT_REACH_HOVER_FALLBACK", "0") == "1"
+        self._reach_deliver_margin = max(
+            0.0, float(os.environ.get("FRUIT_REACH_DELIVER_MARGIN", "0.0"))
         )
         #: Data-only reporting for the R10-A battery (pure phase-boundary reads;
         #: off in every shipped run).
@@ -3315,8 +3352,10 @@ class PickAndPlaceTask:
         `self._reach_band[arm]` is a tuple of `(x_hi, dn, up)` columns (see the
         knob block); the first column whose `x_hi` is >= the fruit's measured x
         wins (`x_hi = None` = the last column). Without an x the first column
-        is used; every control caller passes the fruit's measured x, so a fruit
-        between the measured columns gets a band at least as narrow as its own.
+        is used; every control caller passes the fruit's measured x, and the
+        measured bands nest, so a fruit between measured columns takes the
+        next column's (narrower) band - never an extrapolation past the column
+        at or above its x.
         """
         cols = self._reach_band.get(arm)
         if not cols:
@@ -3337,6 +3376,11 @@ class PickAndPlaceTask:
         `base_s` is the fixed setup estimate from *now* to the descent start
         (selection: the full pre-pose + hover; the aim: the remaining hover
         move), priced by `FRUIT_REACH_HOVER_SPEED` for the along-belt offset.
+        The R10-A.1 hover settle (`FRUIT_REACH_HOVER_SETTLE` ticks) is added to
+        `base_s` here - one pricing site for both the aim and the selection
+        floor - so the intercept moves downstream by `vy*S/(1 - vy/v_hover)`
+        (S = ticks/120) and the parked ticks are part of the schedule, not an
+        overshoot.
         The intercept `y` is the fruit's predicted position when the descent
         ends; `eq` is the unclipped prediction and `feasible` says whether it
         is at or above the arm's downstream band edge (`station + dn`) - below
@@ -3345,6 +3389,7 @@ class PickAndPlaceTask:
 
         Pure reads (fruit pose/velocity, the encoder); no state changes.
         """
+        base_s = float(base_s) + self._reach_hover_settle_ticks / 120.0
         station = self.station_y_for(arm)
         dn, up = self._reach_band_for(arm, float(position[0]))
         vy = float(vy)
@@ -3513,6 +3558,47 @@ class PickAndPlaceTask:
                 f"feasible={int(pred['feasible'])} band=[{pred['dn']:+.3f},{pred['up']:+.3f}] "
                 f"t_desc={pred['t_desc']:.2f}s"
             )
+
+    def _reach_capped_fallback(self, sample, residual: float, tolerance: float) -> bool:
+        """Drop the reach aim after a capped hover move [R10-A.1].
+
+        `move_to` exits early only when it converged, so a returned residual
+        above `tolerance` says the hover move to the intercept burned its step
+        cap: the intercept is not dynamically deliverable in time. With
+        `FRUIT_REACH_HOVER_FALLBACK=1` the attempt then abandons the intercept
+        and re-aims at the shipped station point (the pre-registered fallback,
+        triggered on the execution side), rebuilding the grip/hover targets so
+        the rest of the attempt is the control's. The firing threshold carries
+        the dynamic-deliverability margin
+        (`FRUIT_REACH_DELIVER_MARGIN`, metres). Returns whether it fired; a
+        no-op when the knob is off, no reach aim is cached for this attempt, or
+        the move converged.
+        """
+        if not self._reach_hover_fallback:
+            return False
+        if not self._reach_anywhere_active() or self._reach_aim_point is None:
+            return False
+        if float(residual) <= float(tolerance) + self._reach_deliver_margin:
+            return False
+        key = (
+            self.current_arm,
+            int(sample.index),
+            round(float(getattr(self, "_attempt_sim_t0", 0.0)), 6),
+        )
+        if self._reach_aim_key != key:
+            return False
+        self._reach_aim_key = None
+        self._reach_aim_point = None
+        self._dynamic_grip_target = self._dynamic_grip_point(sample)
+        self._dynamic_hover_target = self._dynamic_hover_point(sample)
+        if self._reach_diag:
+            say(
+                f"[reach] fallback {self.current_arm} idx={int(sample.index)} "
+                f"residual={float(residual) * 1000:.1f}mm "
+                f"tol={float(tolerance) * 1000:.1f}mm "
+                f"margin={self._reach_deliver_margin * 1000:.1f}mm -> station aim"
+            )
+        return True
 
     def _dynamic_aim(self, sample) -> np.ndarray:
         """Where the moving fruit will be when the static descent ends [m].
@@ -5179,12 +5265,17 @@ class PickAndPlaceTask:
             self._dynamic_hover_target = self._dynamic_hover_point(sample)
             previous_hover_step = arm.max_step
             arm.max_step = float(os.environ.get("FRUIT_HOVER_STEP", "0.04"))
-            arm.move_to(
+            hover_residual = arm.move_to(
                 arm.tcp_target_for_jaw(self._dynamic_hover_target),
                 max_steps=int(os.environ.get("FRUIT_DYNAMIC_HOVER_MOVE", "300")),
                 tolerance=0.008,
             )
             arm.max_step = previous_hover_step
+            # R10-A.1: a hover move that burned its cap says the intercept is
+            # not dynamically deliverable in time - with the knob on, fall back
+            # to the station aim (the pattern of `logs/r10/31_reach.log`
+            # attempt 19). A no-op when the knob is off or the move converged.
+            self._reach_capped_fallback(sample, hover_residual, 0.008)
             # Hold the hover with the same joint targets the wait loop already
             # re-commands every tick, so the arm is calm and exactly there when the
             # handover happens.
@@ -6121,6 +6212,20 @@ class PickAndPlaceTask:
                             if direct_capture
                             else 0
                         )
+                        # R10-A.1 hover settle (scripted reach path): the descent
+                        # may not start until the hand has parked at the
+                        # intercept for `FRUIT_REACH_HOVER_SETTLE` ticks. The
+                        # intercept arithmetic prices the same ticks
+                        # (`_reach_predict`), so on schedule this is the natural
+                        # fruit wait; off-schedule it bounds how early the
+                        # descent may leave the hover. Off (0) = shipped, and
+                        # the fallback (no cached aim) keeps the control's path.
+                        if (
+                            not direct_capture
+                            and self._reach_aim_point is not None
+                            and self._reach_anywhere_active()
+                        ):
+                            hold_ticks = max(hold_ticks, self._reach_hover_settle_ticks)
                         while waited < max_wait:
                             fruit_now = np.asarray(self.spawner.position(sample), dtype=float)
                             if (

@@ -17,6 +17,8 @@ phases leave behind. Per log it prints:
 * the R10-A `[reach] met` rows: the realized descent-end error
   (`fruit_y - aim_y`) - positive means the fruit arrived downstream of the aim;
 * the `[task] dynamic catch-up: residual=` rows: the acquisition residuals;
+* the A1 `[reach] fallback` rows (capped-hover fallback, default-off knob):
+  the execution-side fallbacks that dropped the intercept for the station aim;
 * the failure-note classes (the taxonomy comparison input).
 
 The interval / lock-on / placement-window numbers come from
@@ -53,6 +55,10 @@ CATCHUP_RE = re.compile(r"\[task\] dynamic catch-up: residual=([0-9.]+) mm")
 CATCHUP_TICKS_RE = re.compile(
     r"\[reach\] catchup (\w+) idx=(\d+) ticks=(\d+) residual=([0-9.]+)mm"
 )
+FALLBACK_RE = re.compile(
+    r"\[reach\] fallback (\w+) idx=(\d+) residual=([0-9.]+)mm tol=([0-9.]+)mm "
+    r"margin=([0-9.]+)mm"
+)
 
 
 def parse(path: str) -> dict:
@@ -63,6 +69,7 @@ def parse(path: str) -> dict:
     mets: list[dict] = []
     catchups: list[float] = []
     catchup_ticks: list[int] = []
+    fallbacks: list[dict] = []
     for line in Path(path).read_text(errors="replace").splitlines():
         m = ATTEMPT_RE.search(line)
         if m:
@@ -119,12 +126,22 @@ def parse(path: str) -> dict:
         if m:
             catchup_ticks.append(int(m.group(3)))
             continue
+        m = FALLBACK_RE.search(line)
+        if m:
+            fallbacks.append(
+                dict(
+                    arm=m.group(1), idx=int(m.group(2)), residual=float(m.group(3)),
+                    tol=float(m.group(4)), margin=float(m.group(5)),
+                )
+            )
+            continue
         m = CATCHUP_RE.search(line)
         if m:
             catchups.append(float(m.group(1)))
     return dict(
         attempts=attempts, stats=stats, selects=selects, catches=catches,
         mets=mets, catchups=catchups, catchup_ticks=catchup_ticks,
+        fallbacks=fallbacks,
     )
 
 
@@ -191,6 +208,15 @@ def summarize(path: str) -> None:
         tks = sorted(data["catchup_ticks"])
         print(f"  catch-up ticks: n={len(tks)} min={tks[0]} "
               f"p50={tks[len(tks)//2]} max={tks[-1]} (cap 200)")
+    if data["fallbacks"]:
+        print(
+            f"  capped-hover fallback (A1): n={len(data['fallbacks'])} "
+            + " ".join(
+                f"{f['arm'][0]}{f['idx']}:{f['residual']:.0f}mm"
+                f"(tol {f['tol']:.0f}+{f['margin']:.0f})"
+                for f in data["fallbacks"]
+            )
+        )
 
 
 def self_test() -> int:
@@ -209,6 +235,8 @@ def self_test() -> int:
             "fruit_y=+0.0980 err=-0.0020 waited=42",
             "[fruit] [task] dynamic catch-up: residual=2.1 mm (tol 6 mm)",
             "[fruit] [reach] catchup left idx=4 ticks=17 residual=5.9mm",
+            "[fruit] [reach] fallback right idx=7 residual=12.3mm tol=8.0mm "
+            "margin=0.0mm -> station aim",
         ]
     )
     import tempfile
@@ -224,6 +252,7 @@ def self_test() -> int:
     assert abs(data["mets"][0]["err"] + 0.002) < 1e-9 and data["mets"][0]["waited"] == 42, "met parse"
     assert data["catchups"] == [2.1], "catch-up parse"
     assert data["catchup_ticks"] == [17], "catch-up ticks parse"
+    assert data["fallbacks"][0]["residual"] == 12.3, "capped-hover fallback parse"
     summarize(path)
     print("199_r10_report self-test PASS")
     return 0

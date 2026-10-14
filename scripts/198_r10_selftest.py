@@ -16,6 +16,13 @@ mirroring `176_twoline_selftest.py`:
   clipped intercept), ties broken by the smallest along-position;
 * the intercept arithmetic: the fixed point, the band clip, the feasibility
   boundary at `station + dn`, and the per-arm band env overrides;
+* the A1 hover settle (`FRUIT_REACH_HOVER_SETTLE`): the `vy*S/(1-vy/v_hover)`
+  downstream shift of the priced fixed point (the selection floor and the aim
+  both read it);
+* the A1 capped-hover fallback (`FRUIT_REACH_HOVER_FALLBACK`,
+  `FRUIT_REACH_DELIVER_MARGIN`): a residual above tolerance + margin drops the
+  cached aim and rebuilds the station grip/hover targets; a converged move and
+  the knob-off path are no-ops;
 * the aim cache: `_reach_prepare_aim` -> `_dynamic_aim` returns the intercept
   for the same attempt key and the station aim for any other key (the
   direct-path fallback);
@@ -75,7 +82,8 @@ from fruit_sorting.tasks import PickAndPlaceTask  # noqa: E402
 BELT_V = -0.12
 
 
-def stub_task(*, reach: bool = True, bands=None, y_dn_left=None, y_dn_right=None):
+def stub_task(*, reach: bool = True, bands=None, y_dn_left=None, y_dn_right=None,
+              settle: int = 0, fallback: bool = False, margin: float = 0.0):
     """A task-shaped object carrying only what the R10-A code reads."""
     task = SimpleNamespace()
     task.cfg = SimpleNamespace(
@@ -90,13 +98,16 @@ def stub_task(*, reach: bool = True, bands=None, y_dn_left=None, y_dn_right=None
     task._prefer_upstream = True
     task._reach_anywhere = reach
     task._reach_band = bands or {
-        "left": ((0.20, -0.08, 0.13), (0.28, -0.03, 0.18), (None, -0.02, 0.08)),
+        "left": ((0.20, -0.08, 0.13), (0.28, -0.03, 0.08), (None, 0.02, 0.08)),
         "right": ((0.20, -0.08, 0.08), (0.28, -0.08, 0.03), (None, -0.08, -0.02)),
     }
     task._reach_setup_s = 0.60
     task._reach_hover_speed = 0.80
     task._reach_margin_s = 0.15
     task._reach_select_s = 1.5
+    task._reach_hover_settle_ticks = int(settle)
+    task._reach_hover_fallback = bool(fallback)
+    task._reach_deliver_margin = float(margin)
     task._reach_diag = False
     task._reach_aim_key = None
     task._reach_aim_point = None
@@ -136,7 +147,19 @@ def stub_task(*, reach: bool = True, bands=None, y_dn_left=None, y_dn_right=None
     task._reach_prepare_aim = (
         lambda sample: PickAndPlaceTask._reach_prepare_aim(task, sample)
     )
+    task._reach_capped_fallback = (
+        lambda sample, residual, tolerance: PickAndPlaceTask._reach_capped_fallback(
+            task, sample, residual, tolerance
+        )
+    )
     task._dynamic_aim = lambda sample: PickAndPlaceTask._dynamic_aim(task, sample)
+    task._dynamic_grip_point = (
+        lambda sample: PickAndPlaceTask._dynamic_grip_point(task, sample)
+    )
+    task._dynamic_hover_point = (
+        lambda sample: PickAndPlaceTask._dynamic_hover_point(task, sample)
+    )
+    task._pad_standoff = lambda dynamic=False, sample=None: 0.12
     task._two_line_catch_lead = lambda: PickAndPlaceTask._two_line_catch_lead(task)
     return task
 
@@ -275,12 +298,12 @@ def main() -> int:
     )
     check(task_env._reach_band_for("right", 0.30) == (-0.20, 0.02),
           "a flattened per-arm band is honoured (the env-override form)")
-    check(task_on._reach_band_for("left", 0.36) == (-0.02, 0.08),
-          "the x column picks the outer band (left x=0.36)")
+    check(task_on._reach_band_for("left", 0.36) == (0.02, 0.08),
+          "the x column picks the outer band (left x=0.36; the inset sign is +)")
     check(task_on._reach_band_for("left", 0.18) == (-0.08, 0.13),
           "x at/below the first measured column gets the inner band")
-    check(task_on._reach_band_for("left", 0.22) == (-0.03, 0.18),
-          "x between measured columns gets the outer (narrower) column's band")
+    check(task_on._reach_band_for("left", 0.22) == (-0.03, 0.08),
+          "x between measured columns takes the next (nested, narrower) column's band")
     # Fixed point: the travel term makes the intercept downstream of the flat
     # estimate by exactly the extra setup it prices. Verify against a direct
     # solution of the same equation.
@@ -298,6 +321,30 @@ def main() -> int:
         np.array([0.28, y0, 1.20]), BELT_V, "right", task_env._reach_select_s
     )
     near(p_fix["eq"], y_sol, 2e-4, "the bounded fixed point converges to the solution")
+
+    # --- 6b. A1: the hover settle is priced into the fixed point ---------- #
+    # `FRUIT_REACH_HOVER_SETTLE=60` (0.5 s) must move the prediction downstream
+    # by exactly `vy*S/(1 - vy/v_hover)` (both fixed points upstream of the
+    # station, so the abs() terms subtract linearly).
+    task_set = stub_task(reach=True, settle=60)
+    task_off = stub_task(reach=True)
+    p_off = task_off._reach_predict(
+        np.array([0.28, y0, 1.20]), BELT_V, "right", task_off._reach_select_s
+    )
+    p_set = task_set._reach_predict(
+        np.array([0.28, y0, 1.20]), BELT_V, "right", task_set._reach_select_s
+    )
+    settle_shift = BELT_V * 0.5 / (1.0 - BELT_V / task_set._reach_hover_speed)
+    near(p_set["eq"] - p_off["eq"], settle_shift, 5e-4,
+         "60 settle ticks shift the intercept by vy*S/(1-vy/v_hover) (downstream)")
+    check(p_set["eq"] < p_off["eq"],
+          "the settle shift is toward the belt flow (a later, downstream catch)")
+    settle_far = fruit(20, "B", 0.80)
+    p_far_set = task_set._reach_predict(
+        settle_far["position"], BELT_V, "right", task_set._reach_select_s
+    )
+    near(p_far_set["y"], task_set.station_y_for("right") + task_set._reach_band_for("right", 0.28)[1],
+         1e-9, "with the settle on, a far fruit still clips to the band edge")
 
     # --- 7. the aim cache: scripted aim vs the station fallback ----------- #
     aim_task = stub_task(reach=True)
@@ -328,11 +375,53 @@ def main() -> int:
     check(aim_task._reach_aim_point is None,
           "an infeasible interception point leaves the shipped aim in place")
 
+    # --- 7b. A1: the capped-hover fallback re-aims at the station ---------- #
+    def fallback_probe(*, fallback: bool, margin: float = 0.0, index: int = 21,
+                       y0: float = 0.30, residual: float, tolerance: float = 0.008):
+        t = stub_task(reach=True, fallback=fallback, margin=margin)
+        s = FakeSample(index, y0)
+        t.spawner = FakeSpawner(s)
+        t.current_arm = "right"
+        t._reach_anywhere_active = lambda: True
+        t._attempt_sim_t0 = 100.0
+        PickAndPlaceTask._reach_prepare_aim(t, s)
+        cached = t._reach_aim_point is not None
+        fired = PickAndPlaceTask._reach_capped_fallback(t, s, residual, tolerance)
+        return t, cached, fired
+
+    fb, cached, fired = fallback_probe(fallback=True, residual=0.02)
+    check(cached, "fallback stub: the reach aim is cached")
+    check(fired and fb._reach_aim_point is None,
+          "a capped hover move drops the reach aim (the fallback fires)")
+    near(float(fb._dynamic_grip_target[1]), fb.station_y_for("right"), 1e-9,
+         "the rebuilt grip target is the station aim")
+    near(float(fb._dynamic_hover_target[1]), fb.station_y_for("right"), 1e-9,
+         "the rebuilt hover target is the station hover")
+    t2, cached2, fired2 = fallback_probe(fallback=True, residual=0.005, index=22)
+    check(cached2 and not fired2 and t2._reach_aim_point is not None,
+          "a converged hover move keeps the reach aim")
+    t3, _, fired3 = fallback_probe(fallback=False, residual=0.02, index=23)
+    check(not fired3 and t3._reach_aim_point is not None,
+          "the fallback knob off is a no-op (the aim is kept)")
+    t4, _, fired4 = fallback_probe(fallback=True, margin=0.02, residual=0.02, index=24)
+    check(not fired4 and t4._reach_aim_point is not None,
+          "the deliverability margin admits a near-cap residual (tol + margin)")
+    t5, _, fired5 = fallback_probe(fallback=True, margin=0.02, residual=0.05, index=25)
+    check(fired5 and t5._reach_aim_point is None,
+          "a residual past tol + margin still fires with the margin on")
+
     # --- 8. the two-line guard -------------------------------------------- #
     bi = stub_task(reach=True)
     bi._active_session = SimpleNamespace(twoline=True)
     check(bi._reach_anywhere_active() is False,
           "the two-line session is excluded (its stations are its clearance)")
+    # The *shared-station* bimanual (`FRUIT_BIARM=1`, twoline False) runs the
+    # same scripted moving catch, so the knob reaches it - a scope note, not a
+    # second guard (the combination is opt-in).
+    shared = stub_task(reach=True)
+    shared._active_session = SimpleNamespace(twoline=False)
+    check(shared._reach_anywhere_active() is True,
+          "a non-two-line session keeps the reach rule (the shared-station scope note)")
 
     print("r10 reach-anywhere selftest PASS")
     return 0

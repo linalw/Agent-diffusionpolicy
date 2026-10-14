@@ -14380,9 +14380,14 @@ recorded rollouts -> AWR fine-tune -> fidelity -> N=5 A/B -> no-harm) ran in
    11 dy, the top-down grip/hover poses, the calibrated seed, 6 mm tolerance,
    plus the sweep-end poses and the setup-timing ladder; raw rows
    `logs/r10/reach_intercept_{left,right}.json`). Clean grip bands: left
-   x=0.20 `-0.10..+0.15`, x=0.28 `-0.05..+0.20`, x=0.36 `0.00..+0.10`; right
+   x=0.20 `-0.10..+0.15`, x=0.28 `-0.05..+0.10`, x=0.36 `0.00..+0.10`; right
    x=0.20 `-0.10..+0.10`, x=0.28 `-0.10..+0.05`, x=0.36 `-0.10..0.00`; the
-   cliffs are sharp (29.6-186.5 mm one 0.05 step outside). The arms mirror
+   cliffs are sharp (29.6-186.5 mm one 0.05 step outside). **The left x=0.28
+   cell was corrected in place by the A1 pass**: the first write read
+   `-0.05..+0.20` off the 6.5 mm dy=+0.20 row; the run summary
+   `11_reach_left.log` reads `-0.05..+0.10 (4/11)` (the +0.15/+0.20 rows are
+   8.2/6.5 mm, outside the 6 mm tolerance) and the measured ranges nest, so a
+   fruit between columns takes the next column's band. The arms mirror
    across the belt: each reaches upstream on its own side and cliffs across
    it. **The setup ladder: the hover move costs 0.57-0.78 s (68-94 ticks) at
    every reachable offset** (base ~0.60 s + ~1.2-1.4 s/m marginal, ~0.8 m/s
@@ -14412,31 +14417,43 @@ recorded rollouts -> AWR fine-tune -> fidelity -> N=5 A/B -> no-harm) ran in
 
 4. **The measurement (W6-A patch sheet, single arm, 20 attempts, seed 5;
    control `logs/r10/30_control.log`, treatment `31_reach.log`).** Coverage
-   (the primary): **72 vs 45 candidate-fruit across the same 20 selection
-   instants (+60 %)**; instants with >= 1 catchable candidate 20/20 vs 19/20;
+   (the primary): **73 vs 45 candidate-fruit across the same 20 selection
+   instants (+62 %)** (re-derived by `199` from the `[reach] select` rows;
+   the first write's 72/+60 % was a miscount, corrected in place by the A1
+   pass); instants with >= 1 catchable candidate 20/20 vs 19/20;
    the treatment ran 20 attempts vs the control's 18 (2 starved). Interval:
    per-attempt span **15.24 -> 13.98 s (-8 %)** (the wait segment 3.06 ->
    1.68 s), but inter-placement interval 27.62 -> 45.14 s and throughput
    2.17 -> 1.33 placed/min (window). Success: **13/18 = 72 % -> 8/20 = 40 %**.
    Classes: placed-False 5/18 -> 7/20; **"fruit did not follow the gripper"
-   0/18 -> 5/20**; diverted 1 -> 3. Per-leg motion: 19/20 descents inside the
-   profile budget; the one over (0.165 vs 0.162) is the chase leg. Mechanism:
+   0/18 -> 5/20** (3 carry escapes after contact, attempts 2/5/14 + 2 timing
+   chases, attempts 15 the fallback and 19 the band cap; the re-seat count is
+   **13 vs 0**); diverted 1 -> 3. Per-leg motion: 19/20 descents inside the
+   profile budget; the one over (0.165 vs 0.162) is the **attempt-15 fallback**
+   leg (36.2 cm, `end=262.8 mm`; the attempt-19 chase leg itself is inside).
+   Mechanism:
    intercepts min -0.059 / p50 +0.011 / max +0.180 m (early, not late); the
    descent-end error p50 +3.4 mm; catch-up p50 14 ticks; **the descent wait is
    0 ticks in 16/20 treatment attempts against 59-89 in the control** - the
-   just-in-time handover removes the shipped line's hover settling, and the
+   just-in-time handover removes the shipped line's hover settling (the
+   leading hypothesis; its named test is the `FRUIT_REACH_HOVER_SETTLE` A/B), and the
    grip phase grows 1.60 -> 2.52 s.
 
 5. **The verdict.** The pre-registered fail condition fired: success 8/20 vs
    13/18; a carry/grip class absent from the control appears 5/20; one motion
-   leg over (the chase). **No adoption; the knob stays default-off; no shipped
+   leg over (the fallback). **No adoption; the knob stays default-off; no shipped
    default changes.** The named residuals: (a) the just-in-time catch loses
-   the hover settling (the candidate fix is a priced `FRUIT_REACH_HOVER_SETTLE`,
-   not implemented here); (b) long/diagonal hover moves hit the R2 flail/cap
-   class (one 661 mm chase); (c) the setup model has no x-term (the hover move
-   also travels to the fruit's measured x); (d) setup-time variance (a 2.0 s
-   pre-pose after a failed carry) breaks the just-in-time feasibility (one
-   fallback chase).
+   the hover settling (leading hypothesis; the measured test is the priced
+   `FRUIT_REACH_HOVER_SETTLE` A/B, `logs/r10/A1_RESULTS.md`); (b) the band cap
+   and the long hover move (attempt 19: the aim at the old +0.20 cap, a 2.67 s
+   hover against a 0.83 s estimate, the 661 mm chase; the corrected band caps
+   at +0.08 inset and the default-off capped-hover fallback is the general
+   protection - the R2 knobs are direct/trigger-scoped, not this lever);
+   (c) the setup model has no x-term (the hover move
+   also travels to the fruit's measured x; a named design item with its own
+   pre-registration); (d) setup-time variance (a 2.02 s
+   pre-pose after a failed carry) breaks the just-in-time feasibility (attempt
+   15, the one fallback chase).
 
 6. **No-harm.** The control run is **byte-identical to the W6-B single-arm
    patch record** (`logs/w6/20_battery_single.log`, 643/643 physics `[fruit]`
@@ -14453,3 +14470,99 @@ recorded rollouts -> AWR fine-tune -> fidelity -> N=5 A/B -> no-harm) ran in
    `scripts/190_twoline_gate.sh` **PASS**. Pins: `tasks.py`
    `7e20255cd32e4d438cfa9ffc5f4dc5e7`, `rl_env.py` `TASKS_MD5` metadata-only
    follow; branch `r10-reach` from `7f9eb34`.
+
+### R10-A.1 (the gate fixes + the re-measure): the band corrects to the pinned JSON, the band-cap chase is removed by the corrected band, and the hover-settle A/B reads its pre-registered primary positive (carry 4 -> 2, re-seats 10 -> 7) with the knob still default-off
+
+**Scope (2026-10-15, branch `r10-reach`, from `ea496fb`; Tier A solo).** The
+R10-A gate's ordered fixes applied to the evidence and the code, then the
+pre-registered A1 measurements (`logs/r10/PREREGISTRATION.md` section 6,
+written before the runs): the corrected-band re-measure (34), the hover-settle
+A/B (35), the capped-hover fallback arm (36). Results:
+`logs/r10/A1_RESULTS.md`; the R10-A entry above is corrected in place per the
+gate's list (the band cell, the 72->73 / +60->+62 % coverage recount, the M4
+attribution, the mechanism wording).
+
+1. **The fixes.** (a) **The band**: the left x<=0.28 `up` edge lands at
+   **+0.10** (inset +0.08) - the pinned JSON's dy=+0.15/+0.20 rows are
+   8.2/6.5 mm (both outside the 6 mm tolerance) and the `11_reach_left.log`
+   summary reads `-0.05..+0.10 (4/11)`; the first code read +0.20 off the
+   6.5 mm row. Fixed in `tasks.py`, `A_RESULTS.md`, `PREREGISTRATION.md`,
+   `AGENTS.md`, this WORKLOG (in place) and the `198` stub/label. Two further
+   inconsistencies found the same way: the "at least as narrow" wording (the
+   landed direction was the opposite; now stated as the measured nesting) and
+   the left `else` inset cell documented as `[-0.02,+0.08]` where the code
+   computes/logs print `[+0.02,+0.08]` (docs + the 198 stub/check fixed; the
+   code was right). (b) **M4**: the over-budget descent is **descent 16 = run
+   attempt 15** (the fallback): 36.2 cm, |v|max 0.165, `end=262.8 mm`,
+   `t_desc=4.63 s`, after a 2.02 s pre-pose recovery left the arm 388 mm off
+   with the fruit 0.95 m downstream; the attempt-19 band-cap chase is a
+   separate residual (its own descent leg inside budget). (c) **Coverage**:
+   the `31_reach.log` `[reach] select` rows sum to **73 vs 45 (+62 %)** - the
+   landed 72/+60 % was a miscount; `scripts/199_r10_report.py` re-derives it
+   and the report is saved as `logs/r10/43_r10_report.txt`; the 31-vs-32
+   physics compare (identical through 288 lines, then the wedge) is
+   `logs/r10/40_compare_treatment.txt`. (d) **The mechanism wording**: the
+   five-failure class decomposes 3 carry escapes after contact (2/5/14) + 2
+   timing chases (15 the fallback, 19 the band cap); the settling is the
+   leading hypothesis with its named test (the settle A/B), not a located
+   cause; the R2 knobs are direct/trigger-scoped and do not apply to the
+   scripted catch; the re-seat (13 vs 0) and cone (3.48x/5-of-35 vs
+   1.22x/3-of-36) contrasts are quoted as the signature; the
+   `FRUIT_BIARM=1` shared-station scope note is added (only the two-line
+   scheduler is excluded) and pinned by `198`.
+
+2. **The corrected-band re-measure (34; the A/B's control arm).** The same
+   battery, only the band changed; **behaviorally identical to R10-A's
+   treatment through attempt 15** (first divergence: attempt 16's handover,
+   R10-A's aim +0.1414 vs the corrected +0.0800; the first textual difference
+   is one band print at line 240 - `logs/r10/49_compare_31_34.txt`).
+   **9/20 placed (45 %), carry 4 (2/5/14/15), re-seats 10, one 200-tick
+   catch-up left (the attempt-15 fallback, 1444 mm), coverage 74 vs 46
+   (+28, +61 %), span 13.55 s, interval 41.90 s, window 1.43/min** - the
+   attempt-19 band-cap chase is **gone** (intercepts now read
+   min -0.059 / p50 +0.011 / max +0.080 against R10-A's +0.180 cap clip). The
+   motion gate FAILs on the attempt-15 fallback leg + the rate; the reported
+   worst cone is 6.02x (a placed attempt's place leg).
+
+3. **The hover-settle A/B (`FRUIT_REACH_HOVER_SETTLE=60`, priced into
+   `t_setup`; 35).** Arm B vs arm A (34), same battery. **Primary: the carry
+   class falls 4 -> 2 (attempts 9/18) and the re-seat count falls 10 -> 7 -
+   both pre-registered endpoints PASS; secondary: success 13/20 >= 9-1, span
+   13.55 s (identical to A; the 0.5 s park priced), window 2.18 >= 1.43-0.10
+   - all PASS.** The mechanism: A waited 0 ticks in 14/20; B parks **60 ticks
+   in 19/20** (60-78), and the one non-parked attempt (18, `waited=0`, the arm
+   late against its priced aim) is one of the two escapes; A's escapes all sat
+   at wait 0, B's a09 escaped *with* the park - the residual is the load path,
+   not the park. The motion reads improve with it (worst cone 1.84x, lurch
+   0.034, |v|max 0.116; no 200-tick catch-ups; the motion gate FAILs on the
+   rate only) and the interval/window return to the control's level (27.47 s /
+   2.18 vs 27.62 / 2.17). **Branch caveat (AGENTS section 2): the settle moves
+   the priced aim -> `t_c` -> the selection order (the runs diverge from
+   attempt 0; the first different chosen fruit is slot 1), so
+   the class/rate deltas are cross-branch reads on the same battery - quote
+   the park's actuation and the within-B non-parked escape, not a rate delta.**
+   The knob is default-off; a pass is not adoption; the residual class (two
+   W8-B loaded-slide escapes, both re-seated 3x) keeps the named escalation
+   R10-C (the primitive pre-onset load path).
+
+4. **The capped-hover fallback and the x-term (per the gate's section 4).**
+   `FRUIT_REACH_HOVER_FALLBACK` (default off) drops a cached reach aim when its
+   hover move burns its step cap and re-aims at the station; the firing
+   threshold carries `FRUIT_REACH_DELIVER_MARGIN` (the dynamic-deliverability
+   margin). Offline-pinned by `198`; **run 36 (knob on, corrected band) fired
+   0 fallbacks and is byte-identical to 34 (651/651 physics lines) - the
+   measured no-op: no reach-aim hover caps exist on the corrected band** (the
+   only capped hover is the attempt-15 *station* fallback, whose reach aim is
+   empty by construction; the measured cap case was the old +0.18 clip). The
+   knob stays default-off as the general protection for unseen x columns. The
+   setup model's missing **x-term** is recorded as a named design item with
+   its own pre-registration (`PREREGISTRATION.md` section 6.4).
+
+5. **No-harm.** The knob-off acceptance (`logs/r10/51_accept_a1.log`) reads
+   **9/10 + motion gate PASS + `fingerprint: matches`** and its physics stream
+   is **byte-identical to the R10-A acceptance** (`logs/r10/50_accept.log`,
+   385/385, `logs/r10/52_accept_a1_vs_r10a.txt`) - which itself is identical
+   to the R9 acceptance; the fallback arm is byte-identical to 34 (651/651);
+   `scripts/selfcheck.sh` PASS with the extended `198` leg. Pins: `tasks.py`
+   `7d6e60fbc1dac83da14a800beccb677b`, branch `r10-reach` from `ea496fb`
+   (R10-A); the full per-run pins are in `logs/r10/A1_RESULTS.md` section 7.
