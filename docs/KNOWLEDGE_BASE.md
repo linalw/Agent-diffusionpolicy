@@ -107,12 +107,22 @@ stop at the first performance drop.
   the state is 5-6x noise, the mask channel is empty). Endpoint: the direct N=5 paired +
   the seam-quality mechanism readout. Kill criteria: the paired class count or the
   new-reason set worsens.
-- **Combo B (the force real-time adjustment)**: the **force-aware conditioning** of the
-  close/carry (ForceVLA's MoE expert / VLA-Touch's dual levels) on our existing two-finger
-  `ft` + the relative-pose key; the command side is measured closed, so the conditioning side
-  is the open lane. Endpoint: the carried class + `clean_slip` under the N=5 protocol; the
-  mechanism readout = the onset force/geometry (the 0-2 tick window says the *reaction* side
-  is dead, so the conditioning must shift the load path, not react to the slip).
+- **Combo B (the force real-time adjustment)**: **CORRECTED 2026-10-15** - the force channel is
+  **already in the policy's observation**: the 25-D proprio is 22 joint positions + the finger
+  opening + **the two tactile forces** (`src/fruit_sorting/rl_env.py`: "proprioception is all 22
+  joint positions + the finger opening + the two tactile forces (25-D)"). So the papers' "feed the
+  force to the policy" premise is satisfied by construction and the residual contribution is
+  narrower: **use the force as an adaptation signal, not as an input channel** - a force-conditioned
+  MoE expert (ForceVLA) that switches grip behaviour when the force reads low, or a dual-rate
+  design (a fast force reflex at the control rate under the slow chunked policy, VLA-Touch's dual
+  levels). **Both of those are bounded by our own measurements**: W5 read **no detection/react
+  window** (the carry losses keep 2-8 N on one finger; where the force collapses the payload is out
+  within 0-3 ticks) and R11-B read the **pre-onset load path is not the discriminator** (the
+  payload is held to 0.5 mm through the window; the escape is a *mid-lift* one-sided loaded slide).
+  So Combo B's live form is: the conditioning must **shift the load path before the window**, not
+  react inside it - which is exactly what the conditioning-side papers claim and what we have not
+  yet tested (our earlier tests were all *reaction* levers). Endpoint: the carried class +
+  `clean_slip` under the N=5 protocol; the mechanism readout = the onset force/geometry.
 - **Combo C (the scattered dense sheet)**: a **singulation-first + multi-arm coordination**
   policy (DexSinGrasp's separation + MA-VLA's coordination) trained on the dense sheet
   collected on the two-line (the W7-C store exists; the density lever is P1's). Endpoint: the
