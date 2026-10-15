@@ -714,6 +714,38 @@ class PickAndPlaceTask:
         #: the freeze depth and the joint-limit margin. Pure reporting (a handful
         #: of state reads on boundary ticks); it never changes a command.
         self._acq_diag = os.environ.get("FRUIT_ACQ_DIAG", "0") == "1"
+        # ---- R11-B primitive-side pre-onset load path (all default inert) ----
+        #: The R11-B bounded attempt (logs/r11/PREREGISTRATION_LOADPATH.md): the
+        #: fresh grip's escape margin is set by *where, when and how* the load
+        #: arrives on the payload, not by its magnitude (the squeeze-side is
+        #: force-saturated, the shape family bats, the reaction family has 0-2
+        #: ticks). Three bounded, default-off dimensions, all scoped to the
+        #: dynamic capture path (`_dynamic_capture_active`) only:
+        #: * `FRUIT_CLOSE_LOAD_RATE` [m/s] (C1): the close's commanded face
+        #:   speed is capped at this rate - the shipped two-phase trajectory
+        #:   where it is slower than the cap, the rate line where it would
+        #:   exceed it, with the horizon grown until `deep` is reached (capped
+        #:   at 240 ticks; the pre-run A.1 amendment - the first contact lands
+        #:   inside the 24-tick fast phase, so a load-phase-only cap would be
+        #:   inert). 0 = the shipped two-phase ramp (byte-identical).
+        #: * `FRUIT_CLOSE_CONTACT_LEAD` [s] (C2): replaces the feed-forward
+        #:   lead in the close's load phase *and* the hold (the contact window
+        #:   only - the fast phase, the catch-up, the probe and the belt-break
+        #:   keep the shipped lead). Unset/empty = the shipped
+        #:   `FRUIT_DYNAMIC_TRACK_LEAD` (byte-identical).
+        #: * `FRUIT_PLUCK_DWELL` [ticks] (C3): a commanded-static, pinch-held
+        #:   dwell between the belt-break's settle and the monitored
+        #:   `grasp_lift` carry (the load-transfer transient gets its own
+        #:   window; the residual spin/creep decays under a static pinch load).
+        #:   0 = off (byte-identical).
+        self._close_load_rate = max(
+            0.0, float(os.environ.get("FRUIT_CLOSE_LOAD_RATE", "0.0"))
+        )
+        _contact_lead_env = os.environ.get("FRUIT_CLOSE_CONTACT_LEAD", "")
+        self._close_contact_lead = (
+            float(_contact_lead_env) if _contact_lead_env else None
+        )
+        self._pluck_dwell = max(0, int(os.environ.get("FRUIT_PLUCK_DWELL", "0")))
         #: GEM-style tracking action for the jaw hand's dynamic `grasp_lift`
         #: carry: proportional gain (0 = off) on the payload's *change* of
         #: position in the hand frame, added to the world-frame carry command so
@@ -6527,12 +6559,43 @@ class PickAndPlaceTask:
                 deep = min_extent * float(os.environ.get("FRUIT_DYNAMIC_CLOSE_DEEP", "0.97"))
                 fast_ticks = int(os.environ.get("FRUIT_DYNAMIC_CLOSE_FAST", "24"))
                 load_ticks = int(os.environ.get("FRUIT_DYNAMIC_CLOSE_LOAD", "60"))
-                close_ramp = np.concatenate(
-                    [
-                        min_jerk_ramp(gap_open, wide, fast_ticks),
-                        min_jerk_ramp(wide, deep, load_ticks),
-                    ]
-                )
+                if self._close_load_rate > 0.0:
+                    # R11-B C1 (see the knob block in `__init__`): cap the
+                    # close's commanded face speed at this rate. The offline
+                    # freeze-row readout of the W8-B corpus (A.1 amendment,
+                    # logs/r11/PREREGISTRATION_LOADPATH.md) shows the first
+                    # contact freezes at rows 16-20 - inside the 24-tick fast
+                    # phase - so the cap covers the whole two-phase trajectory:
+                    # the shipped path where it is slower than the cap, the
+                    # rate line (`gap_open - rate*t`) where it would exceed it,
+                    # and the horizon grows until `deep` is reached (capped so
+                    # a tiny rate cannot run the close away).
+                    two_phase = np.concatenate(
+                        [
+                            min_jerk_ramp(gap_open, wide, fast_ticks),
+                            min_jerk_ramp(wide, deep, load_ticks),
+                        ]
+                    )
+                    span = max(0.0, gap_open - deep)
+                    need = int(
+                        np.ceil(span / max(self._close_load_rate * CONTROL_DT, 1e-9))
+                    )
+                    n_ticks = min(240, max(len(two_phase), need))
+                    rate_line = gap_open - (
+                        np.arange(1, n_ticks + 1, dtype=float)
+                        * self._close_load_rate
+                        * CONTROL_DT
+                    )
+                    padded = np.full(n_ticks, deep, dtype=float)
+                    padded[: len(two_phase)] = two_phase
+                    close_ramp = np.maximum(padded, rate_line)
+                else:
+                    close_ramp = np.concatenate(
+                        [
+                            min_jerk_ramp(gap_open, wide, fast_ticks),
+                            min_jerk_ramp(wide, deep, load_ticks),
+                        ]
+                    )
                 close_substeps = 1
             else:
                 close_ramp = min_jerk_ramp(gap_open, grip_gap, close_steps)
@@ -6748,6 +6811,12 @@ class PickAndPlaceTask:
             )
             for _close_attempt in range(close_attempts):
                 last_cmd = grip_gap
+                #: R11-B C1 delivered-command cursor: with the rate cap on, the
+                #: *delivered* gap may never step down faster than the cap,
+                #: whatever the internal freeze/live-clamp logic asks for (the
+                #: clamp's own target sits ~10-15 mm inside `wide`, so its first
+                #: tick is a step the ramp alone cannot bound).
+                cmd_prev = float(gap_open)
                 freeze_cmd: float | None = None
                 frozen_x: float | None = None
                 #: Set at the first close tick when `FRUIT_DYNAMIC_X_TRACK_LATCH`
@@ -6773,8 +6842,16 @@ class PickAndPlaceTask:
                     if dynamic_capture:
                         if _close_step % 8 == 0:
                             dynamic_v = np.asarray(self.spawner.velocity(sample), dtype=float)
+                        # R11-B C2 (see the knob block in `__init__`): the
+                        # contact window (the load phase onward) may use its own
+                        # feed-forward lead, which places the payload differently
+                        # between the faces when the load arrives and stays; the
+                        # fast phase and the catch-up keep the shipped lead.
+                        lead_here = dynamic_lead_s
+                        if self._close_contact_lead is not None and _close_step >= fast_ticks:
+                            lead_here = self._close_contact_lead
                         centre = centre + np.array(
-                            [0.0, float(dynamic_v[1]) * dynamic_lead_s, 0.0]
+                            [0.0, float(dynamic_v[1]) * lead_here, 0.0]
                         )
                     if (
                         dynamic_capture
@@ -6926,6 +7003,14 @@ class PickAndPlaceTask:
                             cmd = max(cmd, live_extent - interference)
                         else:
                             cmd = min(cmd, live_extent - interference)
+                    if dynamic_capture and self._close_load_rate > 0.0:
+                        # R11-B C1: bound the delivered command's descent step
+                        # (the freeze below records this delivered value, not
+                        # the raw clamp target).
+                        step = self._close_load_rate * CONTROL_DT
+                        if cmd < cmd_prev - step:
+                            cmd = cmd_prev - step
+                    cmd_prev = cmd
                     if freeze_close and dynamic_capture and freeze_cmd is None:
                         # "First sustained contact" has to mean the fruit is
                         # actually loaded: force alone false-fires on the sensor's
@@ -7210,10 +7295,18 @@ class PickAndPlaceTask:
                                     float(frozen_x), float(centre_now[0])
                                 )
                         centre_now[0] = frozen_x
+                    # R11-B C2 (`FRUIT_CLOSE_CONTACT_LEAD`, see `__init__`): the
+                    # hold is part of the contact window, so a set contact lead
+                    # keeps applying here (unset = the shipped lead exactly).
+                    lead_hold = (
+                        self._close_contact_lead
+                        if self._close_contact_lead is not None
+                        else dynamic_lead_s
+                    )
                     arm.ik_step(
                         arm.tcp_target_for_jaw(
                             centre_now
-                            + np.array([0.0, float(dynamic_v[1]) * dynamic_lead_s,
+                            + np.array([0.0, float(dynamic_v[1]) * lead_hold,
                                         self._pad_standoff(True, sample)])
                         )
                     )
@@ -8033,6 +8126,30 @@ class PickAndPlaceTask:
                     or int(ramp_book["sustained"]) >= max(1, pause - 2)
                 )
             self._settle_to_rest(arm, max_ticks=120)
+            if self._pluck_dwell > 0:
+                # R11-B C3 (see the knob block in `__init__`): a commanded-
+                # static, pinch-held dwell between the belt-break and the
+                # monitored carry. The load transfer (belt-supported -> pinch-
+                # held) and the first vertical profile currently share one
+                # window; this separates them and lets the residual creep/spin
+                # decay under a static pinch load before the lift is commanded.
+                # The pads hold the world pose they settled at; only the force
+                # servo keeps running (it must, or the drives relax the grip).
+                dwell_centre = np.asarray(arm.jaw_centre(), dtype=float).copy()
+                for _dwell in range(self._pluck_dwell):
+                    fruit_now = np.asarray(self.spawner.position(sample), dtype=float)
+                    hold_gap = self._force_servo_step(arm_name, hold_gap)
+                    self.grippers[arm_name].follow_centre(
+                        fruit_now,
+                        np.asarray(arm.tcp_pose()[1], dtype=float),
+                        hold_gap,
+                    )
+                    arm.ik_step(arm.tcp_target_for_jaw(dwell_centre))
+                    self._step_sim(1)
+                    self._dynamic_trace_sample(
+                        "pluck_dwell", sample, arm, self.grippers[arm_name], hold_gap
+                    )
+                self._closed_gap[arm_name] = float(hold_gap)
         self._cycle_mark("grip")
         self._carry(arm_name, sample, "grasp_lift")
         self._cycle_mark("lift")

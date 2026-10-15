@@ -214,7 +214,16 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: the stale R10-A revision `7e20255c...` (the R10-A.1 `7d6e60fb...` follow
 #: was missed, leaving this environment refusing to start) through the
 #: measured candidate `c752a90c...` to `b7d6f849...`.
-TASKS_MD5 = "b7d6f849a8a756b7c689d8c0e4eefb40"
+#:
+#: R11-B (2026-10-15): the pin follows the pre-onset load-path tree
+#: (the md5 below; the three default-off candidates -
+#: `FRUIT_CLOSE_LOAD_RATE` / `FRUIT_CLOSE_CONTACT_LEAD` / `FRUIT_PLUCK_DWELL`;
+#: `logs/r11/PREREGISTRATION_LOADPATH.md`). **The previous pin
+#: (`b7d6f849...`) no longer matched main's `tasks.py` (`c2c7a626...`, the
+#: R11-A.1 floored selector) - the R11-A.1 "the pin now follows the final
+#: tree" fix was not in the committed R11-A.1 revision, so the direct
+#: environment refused to start at `fd2e39e`; this follow repairs both.**
+TASKS_MD5 = "3b15f3ff59e8923fea2b245adc7824b4"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(

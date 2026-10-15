@@ -1034,6 +1034,39 @@ evidence files are not rewritten). Pins: `tasks.py`
 `198` `fb4a2f7a...`, `199` `26fb9be6...` (battery-time `00fd74df...`);
 `fruits.py` `a0ea1f54` unchanged.
 
+**R11-B (2026-10-15, branch `r11-loadpath`, local, not pushed; the R11-C
+close-out is `docs/CLOSEOUT.md`): the pre-onset load path is not the
+discriminator - the payload is held to 0.5 mm through the window and the
+escape is a mid-lift one-sided loaded slide; the screen's C1 (the close's
+face speed capped at 0.04 m/s) is the strongest candidate but the stage-P
+scripted battery is a bounded-attempt negative and the stage-N direct A/B
+stopped incomplete, so the phase closes not adopted.** The three default-off,
+dynamic-capture-scoped knobs (`FRUIT_CLOSE_LOAD_RATE`,
+`FRUIT_CLOSE_CONTACT_LEAD`, `FRUIT_PLUCK_DWELL`) are byte-inert at default;
+the M screen (direct, N=1x15) promoted C1 on the strongest readout of the
+three - freeze row 18.0 -> 55.5, freeze-zone face speed 188.7 -> 39.9 mm/s,
+cnp -6/-6 - while C2's lead does not move the contact-window geometry (the
+close is entered with the fruit already arrested; lead 0.26 *punts* it
+downstream up to 582 mm/s: the longitudinal variable is a velocity/shear one)
+and M2 fails (a). The stage-P read is **12/20 = 60 % vs the control's
+13/18 = 72 %**: the cnp item clears only exactly at the bar (3 = 5-2) and the
+never-grasped class 0 -> 5 (late-freeze 40 mm/s closes; the fruit rides the
+faces >1 s and the marginal grip slips at the pluck) fails the same-battery
+item (iii) - the honest stage-P read is not positive - and the stopped
+stage-N battery (A run 1 = 6/15; B run 1 partial; `logs/r11/B_N/STOPPED.md`)
+leaves C1 **unconfirmed** on the direct interface (the N=5 re-run is the
+named next if the owner wants it). No-harm: acceptance **9/10 + motion gate
+PASS + `fingerprint: matches`**, 385/385 `[fruit]` identical to the pre-phase
+control; the scripted control 681/681 == `A1_25_patch_control.log`; the
+two-line dense re-record **442/442 byte-identical to the W7-A record + `190`
+PASS** (the branch probe reads 6.0 cm / 95 samples as before);
+`selfcheck.sh` PASS. Pins: `tasks.py`
+`3b15f3ff59e8923fea2b245adc7824b4`, `rl_env.py`
+`874349039e16ef75e68f75eeffa8b850` (the `TASKS_MD5` follow also repairs the
+stale pin inherited from `fd2e39e`: main's `rl_env.py` pin `b7d6f849...` did
+not match its own `tasks.py` `c2c7a626...`, so the direct env refused to
+start), checkpoint `moe_v13s` `61da390a85fa209496b54477a8255d23`.
+
 ## 3. What changed -> what to run
 
 | you changed | run |

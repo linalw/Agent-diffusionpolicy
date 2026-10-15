@@ -14761,3 +14761,106 @@ attribution, the mechanism wording).
    committed `A1_70_report.txt` keeps the battery-time text - evidence is not
    rewritten). Branch `r11-adopt` (R11-A `6e4d581` + this R11-A.1 commit),
    local, not pushed; the full reading table is `logs/r11/A1_RESULTS.md`.
+
+### R11-B/C: the pre-onset load path screen - the M screen promotes C1, the stage-P battery is a bounded-attempt negative (12/20 vs 13/18; the cnp item only exactly at the bar), the stage-N direct battery stopped incomplete, and the phase closes not adopted with the mechanism conclusion; the R11-C close-out lands `docs/CLOSEOUT.md`
+
+1. **What was asked.** The R11 PLAN's R11-B (R10-C): the pre-registration
+   first (the pad-load path in the first contact ticks; <=3 candidates; the
+   numeric criterion; the N=5 + `clean_slip` protocol; the fail condition),
+   then the bounded attempt on the last loaded-slide escapes
+   (`logs/r11/PREREGISTRATION_LOADPATH.md`, written before any code change;
+   its A.1 pre-run amendment records C1's final form). Tier A solo; branch
+   `r11-loadpath` from `main` `fd2e39e` (tag `v0.15`). Three default-off,
+   dynamic-capture-scoped knobs: C1 `FRUIT_CLOSE_LOAD_RATE` (the close's
+   commanded face speed capped at 0.04 m/s, whole close + a delivered-command
+   rate limit), C2 `FRUIT_CLOSE_CONTACT_LEAD` (0.10/0.26: the feed-forward
+   lead in the contact window only), C3 `FRUIT_PLUCK_DWELL` (30 ticks
+   pinch-held between the belt-break and the carry).
+
+2. **The screen (stage M, direct, N=1x15 per config; five runs, all exit=0,
+   `B_battery_driver.log` 13:31-14:09).** M1 (C1) is the strongest: cnp
+   11 -> 5 (-6) and lift-leg escapes -6, with the pre-registered mechanism
+   readout exactly as predicted - **freeze row 18.0 -> 55.5, freeze-zone face
+   speed 188.7 -> 39.9 mm/s** (the delivered cap). M4 (C3) also clears the
+   rule (-3/-3; the dwell actuates; the carry-start spin no larger); M3 (-8/-7)
+   **fails (b)**: the lead does not move the close-window geometry - every
+   `hand_rel` anchor sits inside the M0 spread, and the trace dive shows why
+   (the close is entered with the fruit already arrested; the longitudinal
+   variable is a velocity/shear one - lead 0.26 punts the fruit downstream at
+   up to 582 mm/s) - and M2 (-1/+-0) fails (a). **C1 promoted**; M4 runner-up;
+   M2/M3 close as screen negatives (the M1/M3/M4 class deltas are single-run
+   samples over different populations; the (b) readouts are what make C1
+   credible).
+
+3. **The stage-P battery (scripted, 20 attempts, SEED=5; `B2_driver.log`
+   14:45-15:53 `status=0`).** Control P0: 18 attempts, **13 ok / 5 cnp**,
+   `diverted=1` (bit-identical double 681/681; the control is byte-identical
+   to `A1_25_patch_control.log`). Treatment PX: 20 attempts, **12 ok / 3 cnp
+   / 5 never-grasped**, `diverted=2` (bit-identical double 738/738). The
+   pre-registered letters: (i) cnp 3 <= 5-2 **exactly at the bar**, (ii)
+   doubles identical, (iii) "no new failure reason" only under the applied
+   baseline-reason reading - the 5 never-grasped failures ("fruit did not
+   follow the gripper", the primitive's own pluck note) are a class the
+   control battery shows 0 of, and the outcome moves the wrong way (ok
+   72 % -> 60 %, `diverted` 1 -> 2). **The honest stage-P read is not
+   positive** (the same-battery reading's fallback is the bounded-attempt
+   negative); the -2 cnp is bought by the +5 never-grasped class. Mechanism:
+   the 40 mm/s close needs ~140 ticks to reach a fruit (the 46 mm from
+   `gap_open`); every never-grasped attempt is a late-freeze one (142-157
+   ticks, `force@onset=0.00 N`, `contacts@onset=0`, `clean_slip` 375-1389 mm
+   from the leg's first tick) - the fruit rides the slowly closing faces for
+   >1 s and the marginal grip slips at the pluck.
+
+4. **The stage-N stop (the one protocol deviation).** The WS-4.2 N=5 direct
+   A/B was launched 15:58 under the applied reading and **stopped at the
+   close-out** (the driver + its run were found still alive - orphaned after
+   the lane's session ended - and were terminated; no simulator process
+   left). State: A run 1 (seed 77) **6/15**, wall 411.2 s; B run 1 in flight
+   with 10/15 episodes logged (7 ok / 3 failed), episode index 10 unfinished
+   (5+ min in-episode at 113 % CPU - the slow-close/grind shape); the other
+   eight runs not executed (`logs/r11/B_N/STOPPED.md`). The endpoint is
+   unattained; **C1 stays unconfirmed on the direct interface** (the N=5
+   re-run is the named next if the owner wants it; the stage-P trade makes it
+   a weak candidate; nothing ships either way without its own gate).
+
+5. **The mechanism conclusion (the phase's deliverable).** The pre-onset load
+   path is **not** the discriminator: the payload is held to trace resolution
+   (0.5 mm) through the belt-break/take-off window; the load arrives at the
+   carry level on a one-sided contact; no pre-onset scalar separates held
+   from escape (the pre-registration's offline read over the 45-trace
+   corpora); and the three bounded levers either actuate without eliminating
+   the class (C1, C3) or do not actuate on the pre-registered variable (C2).
+   The escape remains the **mid-lift one-sided loaded slide**; the appliances
+   that did move (C1's rate cap, C2's punting) confirm the load path is a
+   kinematic/shear object, not a position one.
+
+6. **No-harm (all knobs unset on the final tree; completed at the close-out).**
+   `scripts/selfcheck.sh` PASS; the acceptance **9/10 + motion gate PASS +
+   `fingerprint: matches configs/motion_reference.json`** with the **385/385
+   byte-identical** `[fruit]` stream vs the pre-phase control (365/365
+   physics-only; `B_accept.log` + gates); the scripted control 681/681 ==
+   `A1_25_patch_control.log` (643/643 physics); the two-line dense re-record:
+   the stage-P leg's run 432/432 **modulo exactly the 10 omitted `[cycle]`
+   rows**, and the env-matched re-record with `FRUIT_CYCLE_REPORT=1`
+   (`B_twoline_cycle.log`) **442/442 byte-identical to the W7-A record** +
+   `190` PASS (7/10, 9.1 s/attempt, `gate_open=0.0 s`); the branch probe
+   **`6.0 cm / 95 samples`** with the full metric line identical to the
+   pre-phase first approach. The three new knobs are byte-inert at default on
+   both scripted lines.
+
+7. **The close-out, pins, and what is left.** **The verdict: R11-B closes
+   negative, not adopted** - no shipped default change; the C1 candidate is
+   recorded and unconfirmed; the mechanism conclusion is the deliverable.
+   R11-C lands the one-pager **`docs/CLOSEOUT.md`** (the shipped state, the
+   full lever-family boundary, the closed owner decisions, the named items:
+   the reach owner exception, the C1 confirmation, the sim-to-real contact
+   screen, the primitive/aim redesign; the doc pointers) plus the
+   AGENTS/ROADMAP update. Pins (final tree): `tasks.py`
+   `3b15f3ff59e8923fea2b245adc7824b4`, `rl_env.py`
+   `874349039e16ef75e68f75eeffa8b850` (the `TASKS_MD5` follow - it also
+   repairs the stale pin inherited from `fd2e39e`, whose committed `rl_env.py`
+   pin `b7d6f849...` did not match its own `tasks.py` `c2c7a626...`, so the
+   direct environment refused to start at `main`), checkpoint `moe_v13s`
+   `61da390a85fa209496b54477a8255d23`; `configs/*` untouched; branch
+   `r11-loadpath` (this R11-B/C commit), local, not pushed. The full tables
+   are `logs/r11/B_RESULTS.md` sections 2-3/5-8.

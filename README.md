@@ -309,7 +309,7 @@ implementation: the simulation cell, the data pipeline, and the policy training 
 | Realistic fruit assets | procedural meshes, per-category shape/colour/friction/density |
 | Cleated belt conveyor with friction transport | working |
 
-> **汇报入口**：[项目总结报告.md](项目总结报告.md)（单一文档，含图表与日志编号）；路线取舍见 [决策与交付.md](决策与交付.md)；一键演示 `scripts/demo_2min.sh`。
+> **汇报入口**：[项目总结报告.md](项目总结报告.md)（单一文档，含图表与日志编号）；路线取舍见 [决策与交付.md](决策与交付.md)；**项目收尾一页纸见 [docs/CLOSEOUT.md](docs/CLOSEOUT.md)**（R11-C：交付状态 / 全部杠杆族的实测裁定 / 剩余项）；一键演示 `scripts/demo_2min.sh`。
 
 > **Contributing?** [AGENTS.md](AGENTS.md) lists the three commands to run before
 > finishing, the two measurement constraints this repository depends on, and a
