@@ -360,6 +360,28 @@ class SupplyPlan:
             SUPPLY_PATCH_SEP_MAX,
             0.085,
         )
+        # P1 supply-density lever (the owner's #1: the arms wait too long -
+        # the W6-B/R6 decomposition put 44-45 % of the interval in the
+        # selection+arrival-wait family, and the starved-slot counts are the
+        # starvation). `FRUIT_SUPPLY_PATCH_DENSITY` (D, default 1.0) raises the
+        # sheet density: the along-slice gaps divide by D (the 0.085 m floor is
+        # `_release_clear`'s 0.08 m separation rule plus a margin - a smaller
+        # gap would be refused) and the abreast probability rises toward 1 (at
+        # D >= 2 every slice carries a pair). At D=1.5 the sheet goes from ~8.9
+        # to ~15 fruit per belt metre. Read only on the patch schedule.
+        patch_density = max(1.0, number("FRUIT_SUPPLY_PATCH_DENSITY", 1.0))
+        if patch_density != 1.0:
+            patch_slice_min = max(0.085, patch_slice_min / patch_density)
+            patch_slice_max = max(patch_slice_min, patch_slice_max / patch_density)
+            patch_pair = min(
+                1.0, patch_pair + (1.0 - patch_pair) * min(patch_density - 1.0, 1.0)
+            )
+            if patch:
+                say(
+                    f"[supply] patch density x{patch_density:g}: slice "
+                    f"{patch_slice_min:.3f}-{patch_slice_max:.3f} m, pair "
+                    f"{patch_pair:.2f}"
+                )
         # The balanced A:B:C mix follows the two-line scenario, whether it runs
         # the wave or the patch schedule there (`FRUIT_SUPPLY_GRADES` still wins).
         balanced = (wave or patch) and os.environ.get("FRUIT_BIARM_TWOLINE", "0") == "1"

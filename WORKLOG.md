@@ -14864,3 +14864,48 @@ attribution, the mechanism wording).
    `61da390a85fa209496b54477a8255d23`; `configs/*` untouched; branch
    `r11-loadpath` (this R11-B/C commit), local, not pushed. The full tables
    are `logs/r11/B_RESULTS.md` sections 2-3/5-8.
+
+### P1 (2026-10-15, owner #1 "为什么会要等那么长时间的果？你增加流水线上果蔬数量不行吗"): the supply-density lever is the largest single win since the park gate, and the interval is cadence-bound not arrival-bound
+
+The owner's hypothesis (raise the fruit on the line) was pre-registered before any run
+(`logs/p/PREREGISTRATION.md`) and measured on the two-line patch sheet (ATTEMPTS=20, SEED=5, Tier A
+solo). The lever is `FRUIT_SUPPLY_PATCH_DENSITY` (D, default 1.0, `fruits.py`
+`88b76b572b16224313a0ff3860e2940c`): the along-slice gaps divide by D (floor 0.085 m = the
+`_release_clear` 0.08 m rule + a margin) and the abreast probability rises toward 1; D=1 is
+byte-identical (the 172 selftest, 52 checks).
+
+**Result (the dose-response has an optimum):** control 12/20 = 60 %, 3.64 placed/min, interval
+16.53 s -> **D=1.5 15/20 = 75 %, 4.48 placed/min, 13.34 s** -> **D=1.5 + belt 0.15 m/s 17/20 =
+85 %, 5.31 placed/min, 11.10 s** (+46 % throughput, -33 % interval). **D=2.0 overshoots to 25 %**
+(interval 39.22 s). The D=1.5 and D=2.0 pairs are bit-identical on the double runs, so each is one
+sample of a deterministic branch.
+
+**The mechanism (this corrects the W6-B/R3 "arrival-bound" framing):** the per-attempt arm span
+is **constant ~15 s** in every config and the **lock-on latency does not fall** (left 3.73 -> 4.57
+-> 4.27 s, right 5.27 -> 5.01 -> 6.08 s). The left's mean inter-placement interval falls **50.7 ->
+20.1 s** because the **attempts inside the interval fall 40.4 -> 15.7 s** - the density removes the
+failed/empty attempts between two placements, not the wait. So the interval was never purely
+arrival-bound; it is **cadence x success**, and at D=1.5 + 0.15 the interval (11.10 s) is within
+15 % of the 9.6 s attempt span, i.e. **the per-attempt span is now the binding term**. The faster
+belt trades descent 3.03 -> 2.25 s against place+release 4.99 -> 5.95 s (the placed fruit pile up
+in the lane) and costs the right's lock-on, net zero on the span.
+
+**The classes:** no new class (the pre-registered fail item (b) passes). D=2.0's collapse is
+**crowding breaking the acquisition** (18 "fruit did not follow the gripper" rows plus mostly
+`grasped=False`), not starvation; the best config's 3 residual failures are all
+**carried-not-placed** (the W8-B loaded-slide class, lift 0.136-0.217 m) and its squeeze-class
+count is **0**. Item (a) is read honestly as: the raw starved-slot count rises 41 -> 54 (the
+denominator effect - more successful attempts means more selection instants) while the
+normalized idle fraction is flat (20 -> 22 %), so the prediction "the starvation falls" is
+**half false** and the gain is attributed to the wasted-attempt removal instead.
+
+**The no-harm:** acceptance **9/10 = 90 %**, motion gate **PASS**, **`fingerprint: matches
+configs/motion_reference.json`**, exit 0 (the knob reads only on the patch schedule, so the
+single-arm default is byte-unchanged); `172` 52 checks PASS; `105_motion_regression.py` on both
+winning logs: **every descent inside its profile's speed and lurch bound** (the carry cones are
+reported on the dynamic line, not gated).
+
+**Not flipped:** both configs pass the pre-registered gate, but a two-line supply default is a
+scenario change and the flip is the owner's. The named recommendation is **D=1.5 alone** (one
+knob, +23 % throughput) with the belt left at 0.12 m/s, and a re-recorded
+`configs/motion_reference_patch.json` for the adopted branch. Full detail: `logs/p/RESULTS.md`.
