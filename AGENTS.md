@@ -931,7 +931,12 @@ reported 6.02x), with the **branch caveat** (the settle moves `t_c`, so the
 runs diverge from attempt 0 - quote the park's actuation and the within-B
 non-parked escape (attempt 18), not a rate delta) and the residual the two
 W8-B loaded-slide escapes (both re-seated 3x; one with the park). The knob
-stays default-off (a pass is not adoption); the escalation stays R10-C. The
+stays default-off (a pass is not adoption) - **and by the R11-A adoption
+attempt below it stays default-off for the shipped tree too**: the flip is
+exactly this arm B (bit-for-bit), but the shipped acceptance collapses
+9/10 -> 4/10 under it, so the enable path is the explicit
+`FRUIT_REACH_ANYWHERE=1 FRUIT_REACH_HOVER_SETTLE=60`; the escalation stays
+R10-C. The
 default-off capped-hover fallback (`FRUIT_REACH_HOVER_FALLBACK` +
 `FRUIT_REACH_DELIVER_MARGIN`) is a measured no-op on the corrected band
 (**run 36 byte-identical to 34, 651/651 physics lines, 0 fires** - no reach
@@ -939,6 +944,40 @@ hover caps exist there); the setup model's x-term is a named design item
 with its own pre-registration. No-harm: the knob-off acceptance 9/10 + motion
 gate PASS + `fingerprint: matches`, byte-identical to the R10-A acceptance
 (385/385), and `scripts/selfcheck.sh` PASS with the extended `198` leg.
+
+**R11-A (2026-10-15, branch `r11-adopt`, `logs/r11/A_RESULTS.md` + WORKLOG
+"R11-A"): the adoption attempt - the flipped default is exactly the measured
+R10-A.1 arm B (bit-for-bit on the patch battery), but the shipped scattered
+acceptance collapses 9/10 -> 4/10 (deterministic) and the R11-A gate's
+acceptance-floor item FAILS; the shipped default stays the pre-adoption
+`0`/`0` and the re-baseline + the mechanism are published.** The candidate =
+`FRUIT_REACH_ANYWHERE=1 FRUIT_REACH_HOVER_SETTLE=60`: the patch battery
+replays `logs/r10/35_reach_settle60.log` **685/685 physics lines identical**
+(13/20 = 65 %, 13.5 s/attempt; the `199` section identical; the no-diag rerun
+606/606 identical modulo the diag rows - `FRUIT_REACH_DIAG` itself is
+run-neutral). The acceptance (`accept.sh`'s scenario): **4/10, 14.6 s/attempt,
+1.17 placed/min, 10 re-seats, cone 6.74x** against the pre-adoption **9/10,
+15.2 s/attempt, 2.90 placed/min, 0 re-seats** - the candidate double is
+bit-identical (343/343) and the knob-off control replays the pre-adoption
+record **byte-identically** (385/385; the patch control 643/643), so the
+regression is the default, not the tree. **Mechanism:** the reach rule's
+band-relative floor (~0.20 m) removes the shipped 0.40 m window - exactly the
+v9 pre-fix collapse condition on the *stocked* scattered belt ("a 0.10-0.18 m
+fruit ... 1/10", `logs/v1/pre_fix/`), which the shipped floor was calibrated
+for; the patch sheet's clip-to-`up` slack masked it. Failures: two catch-up
+chases (236.2 mm after the 2.02 s pre-pose recovery; 167.7 mm nominal) + four
+carry/place escapes; the W8-B escape signature (re-seats 0 -> 10). No-harm
+byte-for-byte on every untouched path: two-line dense **442/442** + `190`
+PASS; two-line patch **821/821** + `190 -m 0.5`; the direct/policy selection
+pinned by the new `select_target(reach_anywhere=False)` (`rl_env.py`; closes a
+latent R10-A leak - with the knob on, the direct env's episode-reset
+selection would have taken the reach branch); `configs/*` untouched; selfcheck
+PASS (`198`/`199`). Also fixed here: main's `rl_env.py` `TASKS_MD5` did not
+match the R10-A.1 `tasks.py` (the A1 follow was missed, so the RL env refused
+to start) - the pin now follows the final tree. Named next: a **floored reach
+variant** (`max(band-relative, shipped lead)`) with its own pre-registration,
+or the **owner exception** on the documented numbers; the flip's re-entry is
+one line + the acceptance + the reference re-record.
 
 ## 3. What changed -> what to run
 

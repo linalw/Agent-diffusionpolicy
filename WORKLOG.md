@@ -14566,3 +14566,103 @@ attribution, the mechanism wording).
    `scripts/selfcheck.sh` PASS with the extended `198` leg. Pins: `tasks.py`
    `7d6e60fbc1dac83da14a800beccb677b`, branch `r10-reach` from `ea496fb`
    (R10-A); the full per-run pins are in `logs/r10/A1_RESULTS.md` section 7.
+
+### R11-A: the reach-anywhere adoption attempt - the candidate replays the measured arm B bit-for-bit, but the shipped acceptance collapses 9/10 -> 4/10 and the R11-A gate's acceptance-floor item fails; the default stays off (published)
+
+1. **What was asked (the R11 plan, owner "1 2 3 都行").** Adopt
+   `FRUIT_REACH_ANYWHERE` + `FRUIT_REACH_HOVER_SETTLE=60` as the scripted
+   dynamic-catch defaults; run the full re-baseline (the single-arm acceptance
+   + its reference/fingerprint per the convention, the two-line dense
+   re-record + its reference, the patch battery, the determinism double-runs,
+   the no-harm chain, the docs); **Gate R11-A: the acceptance floor + the new
+   references + the byte-level no-harm of the untouched paths**. Tier A solo
+   (every run through `scripts/154_claim_run.sh`).
+
+2. **The implementation (then reverted by the gate).** The two default
+   strings flipped (`FRUIT_REACH_ANYWHERE` 1, `FRUIT_REACH_HOVER_SETTLE` 60;
+   `=0` restores), plus **the direct/policy scope pin**: `select_target` gains
+   `reach_anywhere: bool = True` and `rl_env.py`'s direct-presentation
+   selection passes `reach_anywhere=False` - a **latent R10-A leak** (with
+   the knob on, the direct env's episode-reset selection would have taken the
+   reach branch; its task has `_prefer_upstream=True`, session `None`; the
+   aim/catch hooks never reached the policy path, only the selection needed
+   the pin) - and the `198` source pins (the shipped `0`/`0` defaults + the
+   opt-out + the opt-out's semantics). **A real defect found and fixed:**
+   main's `rl_env.py` `TASKS_MD5` (`7e20255c...`, the R10-A revision) did not
+   match the R10-A.1 `tasks.py` (`7d6e60fb...`) - the A1 metadata follow was
+   missed, so `SortingRLEnv._verify_tasks()` refused to start the RL env on
+   main; the pin now follows the final tree (`b7d6f849...`).
+
+3. **The candidate *is* the measured design (the patch battery).** On the
+   W6-A patch sheet (single arm, 20 attempts, seed 5) the flipped default
+   replays `logs/r10/35_reach_settle60.log` **685/685 physics lines
+   identical** (`logs/r11/20_patch_reach.log`: 13/20 = 65 %, 13.5 s/attempt,
+   `gate_open=0.0 s`, zero `indexed:`), with the `199` report section
+   **identical** to the A1 report on arm B (`logs/r11/74_report_20_vs_35.txt`)
+   and the literal released-env no-diag rerun (`21`) **606/606 identical**
+   once the `[reach]` diag rows are filtered - i.e. **`FRUIT_REACH_DIAG=1`
+   is run-neutral** (a new instrumentation data point). The A1 numbers carry
+   exactly: carry 2, re-seats 7, descent wait p50 60, catch-up p50 14 ticks.
+
+4. **The acceptance collapse (the gate item that failed).**
+   `logs/r11/10_accept_reach.log` (the accepted flip; `accept.sh`'s scenario:
+   single arm, scattered supply, 10 attempts, seed 5): **4/10 = 40 %**, 14.6
+   s/attempt, window 1.17 placed/min, **10 re-seats**, worst reported cone
+   6.74x; bit-identical double (`11`, 343/343). Against the pre-adoption
+   record (`logs/r10/51_accept_a1.log`): **9/10 = 90 %**, 15.2 s/attempt,
+   2.90 placed/min, **0 re-seats**, cone 1.19x. **The controls pin the
+   causality**: `15` (`=0`/`=0`) is **385/385 byte-identical** to the
+   pre-adoption acceptance, and the patch control (`25`) is **643/643
+   identical** to `logs/r10/30_control.log` (the W6-B record). The failure
+   classes: two catch-up chases (**236.2 mm** after the 2.02 s pre-pose
+   recovery a failed carry leaves behind; **167.7 mm** on a nominal pre-pose)
+   + four carry/place escapes (attempts 0/2/6/9; lifts 0.086-0.225 m; attempt
+   2 made contact - 4.14 N - then lost). **The mechanism**: the reach rule
+   replaces the shipped selection floor (~0.399 m) with the band-relative
+   floor (~0.19-0.20 m on the acceptance's inner band) and takes the
+   minimum-travel intercept - exactly the window the v9 pre-fix collapse
+   measured on the stocked belt ("a 0.10-0.18 m fruit ... rate collapses to
+   1/10", `logs/v1/pre_fix/`), which is what the shipped 0.40 m floor was
+   calibrated for. The patch sheet's clip-to-`up` slack masked it (65 % there;
+   40 % on the acceptance); off-station the zero-slack handover shows up as
+   the W8-B escape signature (re-seats 0 -> 10) + the R10-A setup-variance
+   chases. The no-settle probe branch (`13`; reach on, settle 0; a different
+   branch by construction) reads **6/10, zero re-seats, zero chases** - the
+   reach rule alone is -30 pt on the shipped acceptance; the settle branch
+   adds the chase/re-seat signature (-20 pt more there).
+
+5. **The no-harm chain (byte-level, untouched paths).** Two-line dense
+   (`logs/r11/30_twoline_dense.log`, on the *reverted* tree): **442/442
+   identical** to the W7-A record (7/10, 9.1 s/attempt) + `scripts/190_twoline_gate.sh`
+   **PASS** against `configs/motion_reference_twoline.json`; two-line patch
+   (`40` + the double `41`): **821/821 identical** to the W7-A/r5 records
+   (12/20, the park branch) + `190 -m 0.5` **PASS** against
+   `configs/motion_reference_patch.json`; the controls above; the direct/
+   policy pin offline-pinned by `198`; `configs/*` unchanged
+   (`logs/r11/00_references_before.txt`); `scripts/selfcheck.sh` PASS
+   (incl. `198`), `199 --self-test` PASS, `96` PASS.
+
+6. **The verdict and what ships.** The R11-A gate's acceptance-floor item
+   **FAILS** (4/10 vs the 9/10 line, both deterministic), so **no shipped
+   default change**: the two defaults end this branch at `0`/`0` and the
+   candidate stays the explicit `FRUIT_REACH_ANYWHERE=1 FRUIT_REACH_HOVER_SETTLE=60`
+   pair; the shipped references are untouched (they describe the shipped
+   branch, re-proved by the controls; the candidate's acceptance per-leg
+   table is recorded in `logs/r11/60_motion_accept_new.txt`). The tree edits
+   that stay are the scope pin + the `TASKS_MD5` fix + the `198` pins +
+   the docs. **Named next options** (section 9 of `logs/r11/A_RESULTS.md`):
+   a **floored reach variant** (`max(band-relative, shipped lead)`) with its
+   own pre-registration (keeps the shipped supply's schedule, adds the
+   off-station aims), or the **owner exception** on the documented numbers
+   (patch 13/20 = 65 % vs the control 13/18 = 72 %; acceptance 4/10 vs 9/10);
+   the flip's own re-entry is one line + the acceptance + the reference
+   re-record. R11-B (the pre-onset load path) is unaffected.
+
+7. **Pins.** Final tree: `tasks.py` `b7d6f849a8a756b7c689d8c0e4eefb40`
+   (the battery's candidate runs were made on `c752a90c98a0c99cbfd1d5b2d97a235f`;
+   the diff is the two default strings + comments only, and probe `12` re-runs
+   the candidate on the final tree), `rl_env.py` `48944d9c...` (`TASKS_MD5 = b7d6f849...`),
+   `scripts/198_r10_selftest.py` `fe8cf8e101b03bac0d11642934d5de3e`,
+   `fruits.py` `a0ea1f54` unchanged; branch `r11-adopt` from `01c56a9`
+   (tag `v0.14`), local, not pushed. The full re-baseline table, the probe
+   readings and the evidence pointers are in `logs/r11/A_RESULTS.md`.

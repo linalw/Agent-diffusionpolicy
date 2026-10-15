@@ -273,7 +273,13 @@ class PickAndPlaceTask:
         self._prefer_upstream = bool(
             kind == "openarm" and self._dynamic_pick_mode(openarm=True, scripted=True)
         )
-        #: R10-A: the reach-anywhere dynamic catch (default **off**). The
+        #: R10-A/R11-A: the reach-anywhere dynamic catch (**shipped default
+        #: off** - the R11-A adoption attempt below measured the flip and its
+        #: own gate failed on the shipped acceptance: the candidate `=1` line
+        #: reads **4/10 against the shipped 9/10** with the knob-off control
+        #: byte-identical to the pre-adoption record, `logs/r11/A_RESULTS.md`;
+        #: the flip is prepared, measured and stays opt-in pending the owner
+        #: decision). The pre-adoption
         #: shipped moving catch meets the fruit at the pick station: `_dynamic_aim`
         #: places the descent at `station_y`, `select_target` refuses anything
         #: inside `_dynamic_select_floor()` of it, and the intercept the descent
@@ -286,9 +292,15 @@ class PickAndPlaceTask:
         #: fruit travel to a feasible intercept); the shipped station-fixed rule
         #: is the fallback. Scoped to the scripted OpenArm moving-catch path
         #: (`_prefer_upstream`) and *not* the two-line session (`station_y`
-        #: separation is that scenario's clearance mechanism, W2). Off = the
-        #: shipped tree byte-for-byte: every hook below is behind
-        #: `_reach_anywhere_active()`.
+        #: separation is that scenario's clearance mechanism, W2); the direct/
+        #: policy handover keeps the shipped selection via `select_target(
+        #: reach_anywhere=False)` in `rl_env.py` (its interface history stays
+        #: comparable), and the opt-in shared-station bimanual runs the same
+        #: scripted catch, so the knob reaches it (R10-A.1 scope note). The
+        #: measured candidate is the R10-A.1 arm B (`FRUIT_REACH_ANYWHERE=1
+        #: FRUIT_REACH_HOVER_SETTLE=60`, `logs/r10/35_reach_settle60.log`;
+        #: bit-for-bit on the patch battery). Off = the pre-adoption tree
+        #: byte-for-byte: every hook below is behind `_reach_anywhere_active()`.
         self._reach_anywhere = bool(
             kind == "openarm" and os.environ.get("FRUIT_REACH_ANYWHERE", "0") == "1"
         )
@@ -353,16 +365,23 @@ class PickAndPlaceTask:
         self._reach_select_s = float(
             os.environ.get("FRUIT_REACH_SELECT_S", os.environ.get("FRUIT_DYNAMIC_SELECT_S", "1.5"))
         )
-        #: R10-A.1 **hover settle** (default **off**, 0 ticks): park at the
-        #: intercept for this many ticks before the descent, so the catch keeps
-        #: the shipped line's hover settling (`logs/r10/A1_RESULTS.md`). Priced
-        #: into the setup estimate (`_reach_predict` adds `ticks/120` to the
-        #: base), so the aim and the feasibility floor move downstream by
-        #: `vy*S/(1 - vy/v_hover)` (S = ticks/120; ~0.87 * |v| * S at the
-        #: shipped values) and the fruit still arrives as the descent ends.
-        #: The measured control's descent wait is 59-89 ticks (`30_control.log`);
-        #: the R10-A just-in-time catch read 0 in 16/20. Scripted reach path
-        #: only; 0 = byte-identical.
+        #: R10-A.1 **hover settle** (**shipped default 0 ticks**; the measured
+        #: candidate pairs it with `FRUIT_REACH_ANYWHERE=1` as
+        #: `FRUIT_REACH_HOVER_SETTLE=60`): park
+        #: at the intercept for this many ticks before the descent, so the
+        #: catch keeps the shipped line's hover settling
+        #: (`logs/r10/A1_RESULTS.md`). Priced into the setup estimate
+        #: (`_reach_predict` adds `ticks/120` to the base), so the aim and the
+        #: feasibility floor move downstream by `vy*S/(1 - vy/v_hover)` (S =
+        #: ticks/120; ~0.87 * |v| * S at the shipped values) and the fruit still
+        #: arrives as the descent ends. The measured control's descent wait is
+        #: 59-89 ticks (`logs/r10/30_control.log`); the R10-A just-in-time catch
+        #: read 0 in 16/20 and the priced 60-tick park is the A1 arm B whose
+        #: primary endpoints fell (carry 4 -> 2, re-seats 10 -> 7). The R11-A
+        #: adoption attempt replays arm B bit-for-bit but fails its gate on the
+        #: shipped acceptance (`logs/r11/A_RESULTS.md`), so the default stays 0
+        #: with the reach knob. Scripted reach path only (read
+        #: under `_reach_anywhere_active()` + a cached reach aim).
         self._reach_hover_settle_ticks = max(
             0, int(os.environ.get("FRUIT_REACH_HOVER_SETTLE", "0"))
         )
@@ -2934,7 +2953,7 @@ class PickAndPlaceTask:
         self, states: list[dict], lead_time: float = 0.0, lane: int | None = None,
         min_lead_s: float | None = None, station_y: float | None = None,
         prefer_lane: int | None = None, exclude: set[int] | None = None,
-        lead_override_s: float | None = None,
+        lead_override_s: float | None = None, reach_anywhere: bool = True,
     ) -> dict | None:
         """Choose the next fruit that will reach the pick pose.
 
@@ -2967,6 +2986,16 @@ class PickAndPlaceTask:
         starvation bug). `exclude` skips fruit indices already protected by
         the other arm's in-flight attempt (concurrent selection must not
         double-book one fruit).
+
+        `reach_anywhere` (R11-A scope): when the reach rule is armed
+        (`_reach_anywhere_active()`, the R10-A/R11-A opt-in), `reach_anywhere=False`
+        keeps this call on the shipped station-fixed rule. The direct/policy
+        environment passes it (`rl_env.py`, the `direct` presentation's target
+        selection): the policy interface's measured history - the demos stores
+        and the W4/W7-B/W8-A/W9/R6-B/R9 direct A/Bs - lives on the shipped
+        selector, so the knob must not silently move it
+        (`logs/r11/A_RESULTS.md`). Every scripted caller leaves the default and
+        inherits the rule.
         """
         pick_y = float(self.cfg.pick_y) if station_y is None else float(station_y)
         exclude = exclude or ()
@@ -3076,11 +3105,13 @@ class PickAndPlaceTask:
             if upstream_floor < along <= pick_y + 0.85:
                 upstream.append((along, state))  # smallest y first = first to arrive
         if self._prefer_upstream:
-            # R10-A: the reach-anywhere rule first, when armed; the shipped
-            # station-fixed rule below is its fallback (the pre-registered
-            # "no intercept reachable -> station-fixed catch" path). The knob
-            # is off in every shipped run, so this is byte-unchanged there.
-            if self._reach_anywhere_active():
+            # R10-A/R11-A: the reach-anywhere rule first, when armed (R10-A/R11-A
+            # opt-in) and this call did not opt out (`reach_anywhere=False`,
+            # the direct/policy selection); the shipped station-fixed rule
+            # below is its fallback (the pre-registered "no intercept
+            # reachable -> station-fixed catch" path). With the knob off the
+            # whole block is skipped and this is byte-unchanged.
+            if reach_anywhere and self._reach_anywhere_active():
                 reached = self._reach_anywhere_select(
                     states, lane=lane, prefer_lane=prefer_lane, exclude=exclude
                 )
@@ -3328,16 +3359,21 @@ class PickAndPlaceTask:
         return float(os.environ.get("FRUIT_BIARM_CATCH_LEAD_R", "0.0"))
 
     # ------------------------------------------------------------------ #
-    # R10-A: the reach-anywhere moving catch (default off; see __init__)
+    # R10-A/R11-A: the reach-anywhere moving catch (opt-in; see __init__)
     # ------------------------------------------------------------------ #
     def _reach_anywhere_active(self) -> bool:
-        """Whether the reach-anywhere catch governs this session [R10-A].
+        """Whether the reach-anywhere catch governs this session [R10-A/R11-A].
 
-        The knob plus the scripted OpenArm moving-catch line (`_prefer_upstream`),
-        excluding the two-line scheduler: its per-arm stations *are* that
-        scenario's clearance mechanism (W2), so the reach-anywhere rule must not
-        silently move them. Every hook below is behind this check, so off = the
-        shipped tree byte-for-byte.
+        The knob (opt-in; R11-A measured the flip and rejected it on the
+        shipped acceptance) plus the scripted OpenArm moving-catch
+        line (`_prefer_upstream`), excluding the two-line scheduler: its per-arm
+        stations *are* that scenario's clearance mechanism (W2), so the
+        reach-anywhere rule must not silently move them. The direct/policy
+        handover keeps the shipped selector by opting out at its
+        `select_target` call (`reach_anywhere=False`, `rl_env.py`); its aim
+        hooks structurally never fire (no reach aim is cached outside
+        `_run_impl`). Every hook below is behind this check, so
+        `FRUIT_REACH_ANYWHERE=0` = the pre-adoption tree byte-for-byte.
         """
         if not self._reach_anywhere:
             return False

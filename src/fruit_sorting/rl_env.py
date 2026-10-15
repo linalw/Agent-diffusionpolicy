@@ -199,7 +199,22 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: record bit-identically (821/821 physics lines) and the single-arm
 #: acceptance stream is 385/385 identical (`logs/w8/R3_RESULTS.md`), so the
 #: W7-B invariance argument holds and the pin follows the file as always.
-TASKS_MD5 = "7e20255cd32e4d438cfa9ffc5f4dc5e7"
+#: The R11-A adoption attempt (2026-10-15) measured the flip of the
+#: reach-anywhere moving catch (`FRUIT_REACH_ANYWHERE=1`) + its priced 60-tick
+#: hover settle (`FRUIT_REACH_HOVER_SETTLE=60`) toward the shipped *scripted*
+#: defaults and **rejected it by its own gate**: the candidate replays the
+#: measured R10-A.1 arm B bit-for-bit on the patch battery, but the shipped
+#: scattered acceptance collapses 9/10 -> 4/10 (deterministic; the knob-off
+#: control is byte-identical to the pre-adoption record), so the shipped
+#: defaults stay off (`logs/r11/A_RESULTS.md`). This revision adds the
+#: `select_target(..., reach_anywhere=False)` opt-out at this environment's
+#: direct-presentation selection (closing a latent R10-A leak: with the knob
+#: on, the direct/policy episode selection would otherwise take the reach
+#: branch; the default-off paths are byte-unchanged) and follows the pin from
+#: the stale R10-A revision `7e20255c...` (the R10-A.1 `7d6e60fb...` follow
+#: was missed, leaving this environment refusing to start) through the
+#: measured candidate `c752a90c...` to `b7d6f849...`.
+TASKS_MD5 = "b7d6f849a8a756b7c689d8c0e4eefb40"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(
@@ -935,7 +950,17 @@ class SortingRLEnv:
                 ]
                 target_state = min(states, key=lambda s: float(s["position"][1])) if states else None
             else:
-                target_state = self.task.select_target(self.spawner.state())
+                # R11-A scope: the direct/policy interface keeps the shipped
+                # (station-fixed) selector explicitly - its measured history
+                # (the demos stores and the W4/W7-B/W8-A/W9/R6-B/R9 direct
+                # A/Bs) lives on it, while the reach-anywhere catch (the
+                # R10-A/R11-A candidate; opt-in) is scoped to the scripted
+                # line (`logs/r11/A_RESULTS.md`). The scripted loop, the
+                # collector and the bimanual workers leave `select_target`'s
+                # default and inherit it.
+                target_state = self.task.select_target(
+                    self.spawner.state(), reach_anywhere=False
+                )
             if target_state is not None or rounds >= 40:
                 break
             rounds += 1

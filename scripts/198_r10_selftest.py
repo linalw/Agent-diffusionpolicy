@@ -12,6 +12,14 @@ mirroring `176_twoline_selftest.py`:
 * knob on: a fruit inside the shipped floor but with a feasible intercept is
   selected (the R10-A coverage gain), and a fruit whose predicted interception
   point is below the arm's downstream band edge is refused;
+* R11-A (the adoption attempt): the shipped defaults stay the pre-adoption
+  pair - `FRUIT_REACH_ANYWHERE` default 0 / `FRUIT_REACH_HOVER_SETTLE` default
+  0 (the flipped candidate replays the measured arm B but fails its own gate
+  on the shipped acceptance, `logs/r11/A_RESULTS.md`) - and the direct/policy
+  environment opts out of the reach *selection*
+  (`select_target(..., reach_anywhere=False)` in `rl_env.py`); both are pinned
+  from the source literals like `96_motion_check.py` (the defaults live in
+  `__init__`, which needs Isaac Sim);
 * the choice is the earliest reachable intercept (minimum fruit travel to the
   clipped intercept), ties broken by the smallest along-position;
 * the intercept arithmetic: the fixed point, the band clip, the feasibility
@@ -34,8 +42,10 @@ Run by `scripts/selfcheck.sh` before simulator time.
 from __future__ import annotations
 
 import os
+import re
 import sys
 import types
+from pathlib import Path
 from types import SimpleNamespace
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
@@ -211,10 +221,30 @@ def near(value: float, target: float, tol: float, label: str) -> None:
 
 
 def main() -> int:
-    # --- 0. the measured defaults are the map's bands --------------------- #
+    # --- 0. the shipped defaults and the map's bands ---------------------- #
+    # R11-A: the default flip was measured and rejected by its own gate (the
+    # shipped acceptance 9/10 -> 4/10, `logs/r11/A_RESULTS.md`), so the shipped
+    # pair stays off; the candidate is `FRUIT_REACH_ANYWHERE=1
+    # FRUIT_REACH_HOVER_SETTLE=60` (the R10-A.1 arm B). The direct/policy
+    # environment opts out of the reach selection. The defaults live in
+    # `tasks.py`'s `__init__`, which imports Isaac Sim and cannot be imported
+    # here, so the source literals + the opt-out call are pinned directly -
+    # the `96_motion_check.py` pattern; drift is a hard failure.
+    tasks_src = (Path(ROOT) / "src" / "fruit_sorting" / "tasks.py").read_text(
+        encoding="utf-8"
+    )
+    rl_env_src = (Path(ROOT) / "src" / "fruit_sorting" / "rl_env.py").read_text(
+        encoding="utf-8"
+    )
+    check(re.search(r'FRUIT_REACH_ANYWHERE",\s*"0"', tasks_src) is not None,
+          "the shipped default keeps the reach catch off (FRUIT_REACH_ANYWHERE default 0)")
+    check(re.search(r'FRUIT_REACH_HOVER_SETTLE",\s*"0"', tasks_src) is not None,
+          "the shipped default keeps the hover settle off (FRUIT_REACH_HOVER_SETTLE default 0)")
+    check(re.search(r"reach_anywhere=False", rl_env_src) is not None,
+          "the direct/policy selection opts out of the reach rule (rl_env.py)")
     task = stub_task(reach=False)
     check(task._reach_anywhere_active() is False,
-          "the knob is off by default (and is a no-op there)")
+          "the knob off is a no-op (the pre-adoption line byte-for-byte)")
     task_on = stub_task(reach=True)
     check(task_on._reach_anywhere_active() is True,
           "the knob enables the reach-anywhere path on the moving-catch line")
@@ -246,6 +276,18 @@ def main() -> int:
     chosen = select(task_on, [inside])
     check(chosen is not None and chosen["index"] == 4,
           "knob on: a fruit inside the shipped floor is selected (coverage gain)")
+
+    # --- 2b. the direct/policy opt-out (R11-A scope) ----------------------- #
+    # `reach_anywhere=False` is what `rl_env.py`'s direct presentation passes:
+    # the shipped floor is restored for that call even with the knob on.
+    check(select(task_on, [inside], reach_anywhere=False) is None,
+          "reach_anywhere=False keeps the shipped floor (the direct/policy pin)")
+    picked = select(task_on, [above], reach_anywhere=False)
+    check(picked is not None and picked["index"] == 1,
+          "reach_anywhere=False still selects above the floor (shipped rule)")
+    picked = select(task_on, [above])
+    check(picked is not None and picked["index"] == 1,
+          "the default (scripted) call is unaffected by the opt-out")
 
     # --- 3. the band is the feasibility boundary -------------------------- #
     # Push the same fruit down until the predicted intercept falls below dn.
