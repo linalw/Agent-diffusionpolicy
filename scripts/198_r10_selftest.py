@@ -12,6 +12,12 @@ mirroring `176_twoline_selftest.py`:
 * knob on: a fruit inside the shipped floor but with a feasible intercept is
   selected (the R10-A coverage gain), and a fruit whose predicted interception
   point is below the arm's downstream band edge is refused;
+* R11-A.1 (the floored reach variant): the default
+  `FRUIT_REACH_SHIPPED_FLOOR=1` refuses fruit inside the shipped
+  `_dynamic_select_floor()` window (the v9 pre-fix collapse condition) while
+  the selection still keeps the reach rule above it; `=0` reproduces the
+  R10-A.1 band-relative-only coverage gain; the `[reach] select` diag's
+  `eligible` field is pinned (the `199` contract);
 * R11-A (the adoption attempt): the shipped defaults stay the pre-adoption
   pair - `FRUIT_REACH_ANYWHERE` default 0 / `FRUIT_REACH_HOVER_SETTLE` default
   0 (the flipped candidate replays the measured arm B but fails its own gate
@@ -87,13 +93,15 @@ sys.modules.setdefault("isaacsim.sensors.experimental.physics", sensors_mod)
 
 import numpy as np  # noqa: E402
 
+import fruit_sorting.tasks as tasks_mod  # noqa: E402
 from fruit_sorting.tasks import PickAndPlaceTask  # noqa: E402
 
 BELT_V = -0.12
 
 
 def stub_task(*, reach: bool = True, bands=None, y_dn_left=None, y_dn_right=None,
-              settle: int = 0, fallback: bool = False, margin: float = 0.0):
+              settle: int = 0, fallback: bool = False, margin: float = 0.0,
+              floor: bool = True):
     """A task-shaped object carrying only what the R10-A code reads."""
     task = SimpleNamespace()
     task.cfg = SimpleNamespace(
@@ -116,6 +124,7 @@ def stub_task(*, reach: bool = True, bands=None, y_dn_left=None, y_dn_right=None
     task._reach_margin_s = 0.15
     task._reach_select_s = 1.5
     task._reach_hover_settle_ticks = int(settle)
+    task._reach_shipped_floor = bool(floor)
     task._reach_hover_fallback = bool(fallback)
     task._reach_deliver_margin = float(margin)
     task._reach_diag = False
@@ -240,6 +249,9 @@ def main() -> int:
           "the shipped default keeps the reach catch off (FRUIT_REACH_ANYWHERE default 0)")
     check(re.search(r'FRUIT_REACH_HOVER_SETTLE",\s*"0"', tasks_src) is not None,
           "the shipped default keeps the hover settle off (FRUIT_REACH_HOVER_SETTLE default 0)")
+    check(re.search(r'FRUIT_REACH_SHIPPED_FLOOR",\s*"1"', tasks_src) is not None,
+          "the R11-A.1 floored variant is the reach selector's default "
+          "(FRUIT_REACH_SHIPPED_FLOOR default 1)")
     check(re.search(r"reach_anywhere=False", rl_env_src) is not None,
           "the direct/policy selection opts out of the reach rule (rl_env.py)")
     task = stub_task(reach=False)
@@ -261,7 +273,8 @@ def main() -> int:
     check(select(task, [below]) is None,
           "knob off: a fruit below the shipped floor is refused")
 
-    # --- 2. knob on: the coverage gain inside the shipped floor ----------- #
+    # --- 2. the R10-A.1 rule (=0 restore): the coverage gain inside the ------- #
+    #        shipped floor ---------------------------------------------------- #
     # A fruit the shipped floor refuses but whose intercept is inside the band.
     # With beltable V=-0.12: eq = y + (-0.12)*(1.5 + 0.7 + 0.15 + travel).
     inside = fruit(4, "B", shipped_floor - 0.05)  # ~+0.34
@@ -273,9 +286,52 @@ def main() -> int:
         f"{pred['y']:+.3f} (eq {pred['eq']:+.3f}, feasible {pred['feasible']})"
     )
     check(pred["feasible"], "the inside-floor fruit has a feasible intercept")
-    chosen = select(task_on, [inside])
+    task_a1 = stub_task(reach=True, floor=False)
+    chosen = select(task_a1, [inside])
     check(chosen is not None and chosen["index"] == 4,
-          "knob on: a fruit inside the shipped floor is selected (coverage gain)")
+          "FRUIT_REACH_SHIPPED_FLOOR=0: a fruit inside the shipped floor is "
+          "selected (the R10-A.1 coverage gain, reproduced)")
+
+    # --- 2c. the floored default (R11-A.1): the v9 window is closed -------- #
+    check(select(task_on, [inside]) is None,
+          "the floored default refuses a fruit inside the shipped floor "
+          "(the v9 pre-fix collapse condition)")
+    chosen = select(task_on, [above])
+    check(chosen is not None and chosen["index"] == 1,
+          "the floored default still selects above the shipped floor "
+          "(the reach aim remains)")
+    far_above = fruit(26, "B", shipped_floor + 0.30)
+    chosen = select(task_on, [far_above, above])
+    check(chosen is not None and chosen["index"] == 1,
+          "among floored fruit the earliest reachable intercept wins, not the "
+          "farthest-upstream pick (the selection moved off the shipped rule)")
+
+    # --- 2d. the diag contract (199 parses it): `eligible` counts the ------- #
+    #         active rule's candidates; the floored fruit is the chosen one --- #
+    captured: list[str] = []
+    diag_task = stub_task(reach=True)
+    diag_task._reach_diag = True
+    original_say = tasks_mod.say
+    tasks_mod.say = lambda message: captured.append(str(message))
+    try:
+        select(diag_task, [inside, above])
+    finally:
+        tasks_mod.say = original_say
+    rows = [message for message in captured if "[reach] select" in message]
+    check(len(rows) == 1, "the diag prints one select row per selection")
+    m = re.search(
+        r"candidates_feasible=(\d+) shipped_floor_ok=(\d+) eligible=(\d+) "
+        r"chosen=(\d+) along=([0-9.]+)",
+        rows[0] if rows else "",
+    )
+    check(m is not None, "the select row carries the eligible field (199's contract)")
+    if m:
+        check(
+            int(m.group(1)) == 2 and int(m.group(2)) == 1 and int(m.group(3)) == 1,
+            "diag: feasible=2, shipped_floor_ok=1, eligible=1 (the floored set)",
+        )
+        check(int(m.group(4)) == 1,
+              "diag: the floored (above-floor) fruit is the chosen one")
 
     # --- 2b. the direct/policy opt-out (R11-A scope) ----------------------- #
     # `reach_anywhere=False` is what `rl_env.py`'s direct presentation passes:
@@ -304,19 +360,23 @@ def main() -> int:
     check(edge is not None and 0.10 < edge < 0.40,
           "the right band's feasibility edge is a real boundary (fruit below it refused)")
     below_edge = fruit(5, "B", edge - 0.05 if edge is not None else 0.0)
+    check(select(task_a1, [below_edge]) is None,
+          "the R10-A.1 rule refuses a fruit past the band edge (floor=0)")
     check(select(task_on, [below_edge]) is None,
-          "knob on: a fruit past the band edge is refused by the reach rule")
+          "the floored default refuses it as well (inside the shipped floor)")
 
     # --- 4. earliest reachable intercept, ties to the nearest ------------- #
+    # Exercised on the R10-A.1 rule (floor=0), which sees the full band; the
+    # floored default keeps the same min-travel order above the floor (2c).
     near_f = fruit(6, "B", 0.25)
     far_f = fruit(7, "B", 0.55)
-    chosen = select(task_on, [far_f, near_f])
+    chosen = select(task_a1, [far_f, near_f])
     check(chosen is not None and chosen["index"] == 6,
           "the earliest reachable intercept wins (nearest catchable fruit)")
     # Two immediately catchable fruit: the nearer (shorter hover) wins.
     a = fruit(8, "B", 0.30)
     b = fruit(9, "B", 0.42)
-    chosen = select(task_on, [b, a])
+    chosen = select(task_a1, [b, a])
     check(chosen is not None and chosen["index"] == 8,
           "among immediately catchable fruit the nearest is taken")
 

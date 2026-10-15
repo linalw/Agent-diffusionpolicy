@@ -290,7 +290,12 @@ class PickAndPlaceTask:
         #: the `183_reach_intercept.py` map inset by `FRUIT_REACH_Y_INSET`), and
         #: the selector takes the earliest reachable intercept (the minimum
         #: fruit travel to a feasible intercept); the shipped station-fixed rule
-        #: is the fallback. Scoped to the scripted OpenArm moving-catch path
+        #: is the fallback. The R11-A.1 floored variant (`FRUIT_REACH_SHIPPED_FLOOR`,
+        #: default on) adds the shipped schedule back to the selector's floor -
+        #: `max(band-relative, the shipped lead)` - so the reach branch can never
+        #: select fruit inside the shipped 0.40 m window (the v9 collapse
+        #: condition; `logs/r11/PREREGISTRATION_A1.md`). Scoped to the scripted
+        #: OpenArm moving-catch path
         #: (`_prefer_upstream`) and *not* the two-line session (`station_y`
         #: separation is that scenario's clearance mechanism, W2); the direct/
         #: policy handover keeps the shipped selection via `select_target(
@@ -384,6 +389,22 @@ class PickAndPlaceTask:
         #: under `_reach_anywhere_active()` + a cached reach aim).
         self._reach_hover_settle_ticks = max(
             0, int(os.environ.get("FRUIT_REACH_HOVER_SETTLE", "0"))
+        )
+        #: R11-A.1 **floored reach variant** (**default on for the reach
+        #: branch**; `FRUIT_REACH_SHIPPED_FLOOR=0` restores the R10-A.1
+        #: band-relative-only rule - the measured arm B, kept for
+        #: reproducibility): the reach selector's candidate floor is
+        #: `max(band-relative feasibility, the shipped `_dynamic_select_floor()`
+        #: lead)`. The band-relative-only floor admitted fruit inside the
+        #: shipped 0.40 m schedule window and the shipped acceptance collapsed
+        #: 9/10 -> 4/10 - the v9 pre-fix collapse condition on the stocked
+        #: scattered belt (`logs/v1/pre_fix/`, `logs/r11/A_RESULTS.md`); the
+        #: floored variant keeps that window and still aims every catch at the
+        #: reach interception point (`logs/r11/PREREGISTRATION_A1.md`). Read
+        #: only under `_reach_anywhere_active()`; inert while the reach knob is
+        #: off (the shipped default).
+        self._reach_shipped_floor = bool(
+            os.environ.get("FRUIT_REACH_SHIPPED_FLOOR", "1") == "1"
         )
         #: R10-A.1 **capped-hover fallback** (default **off**): when the hover
         #: move to the reach intercept burns its step cap (the move returns a
@@ -3105,12 +3126,14 @@ class PickAndPlaceTask:
             if upstream_floor < along <= pick_y + 0.85:
                 upstream.append((along, state))  # smallest y first = first to arrive
         if self._prefer_upstream:
-            # R10-A/R11-A: the reach-anywhere rule first, when armed (R10-A/R11-A
-            # opt-in) and this call did not opt out (`reach_anywhere=False`,
-            # the direct/policy selection); the shipped station-fixed rule
-            # below is its fallback (the pre-registered "no intercept
-            # reachable -> station-fixed catch" path). With the knob off the
-            # whole block is skipped and this is byte-unchanged.
+            # R10-A/R11-A.1: the reach-anywhere rule first, when armed (the
+            # opt-in reach knob; its candidate floor is `max(band-relative, the
+            # shipped lead)` under the R11-A.1 floored default) and this call
+            # did not opt out (`reach_anywhere=False`, the direct/policy
+            # selection); the shipped station-fixed rule below is its fallback
+            # (the pre-registered "no intercept reachable -> station-fixed
+            # catch" path). With the knob off the whole block is skipped and
+            # this is byte-unchanged.
             if reach_anywhere and self._reach_anywhere_active():
                 reached = self._reach_anywhere_select(
                     states, lane=lane, prefer_lane=prefer_lane, exclude=exclude
@@ -3474,17 +3497,22 @@ class PickAndPlaceTask:
         self, states: list[dict], lane: int | None = None,
         prefer_lane: int | None = None, exclude: set[int] | None = None,
     ) -> dict | None:
-        """R10-A selector: the candidate with the earliest reachable intercept.
+        """R10-A/R11-A.1 selector: the candidate with the earliest reachable intercept.
 
         Same eligibility filters as `select_target` (grade/lane, retries, size,
         on the main belt), but the along-belt window is *band-relative*: the
         fruit is a candidate when its predicted position at the earliest
         feasible descent end is at or above `station + dn`, i.e. when the
-        fixed-point intercept is feasible (`_reach_predict`). The choice
-        minimises the fruit travel to the (clipped) intercept; ties break to
-        the smallest along-position (shortest hover). Returns None when nothing
-        has a feasible intercept - the caller then runs the shipped
-        station-fixed rule as the fallback.
+        fixed-point intercept is feasible (`_reach_predict`). With
+        `FRUIT_REACH_SHIPPED_FLOOR` (default on, the R11-A.1 floored variant) a
+        fruit must **also** pass the shipped moving-catch schedule
+        (`along >= station + _dynamic_select_floor()`, the same window the
+        shipped rule and the `n_shipped` diag use), so the effective floor is
+        `max(band-relative, the shipped lead)`; `=0` restores the R10-A.1
+        band-relative-only rule. The choice minimises the fruit travel to the
+        (clipped) intercept; ties break to the smallest along-position
+        (shortest hover). Returns None when nothing is eligible - the caller
+        then runs the shipped station-fixed rule as the fallback.
         """
         exclude = exclude or ()
         pure_grade = prefer_lane is not None and self._pure_grade_routing()
@@ -3493,6 +3521,7 @@ class PickAndPlaceTask:
         best_key: tuple | None = None
         n_feasible = 0
         n_shipped = 0
+        n_eligible = 0
         shipped_floor = self._dynamic_select_floor()
         for state in states:
             if exclude and int(state["index"]) in exclude:
@@ -3522,16 +3551,22 @@ class PickAndPlaceTask:
             velocity = state.get("velocity")
             vy = float(velocity[1]) if velocity is not None else 0.0
             pred = self._reach_predict(pos, vy, arm, self._reach_select_s)
-            if (
-                along
-                >= self.station_y_for(arm) + shipped_floor
-                and along
-                >= self.station_y_for(arm) - 0.02 + self._prepose_lead_value()
-            ):
+            shipped_ok = (
+                along >= self.station_y_for(arm) + shipped_floor
+                and along >= self.station_y_for(arm) - 0.02 + self._prepose_lead_value()
+            )
+            if shipped_ok:
                 n_shipped += 1
             if not pred["feasible"]:
                 continue
             n_feasible += 1
+            if self._reach_shipped_floor and not shipped_ok:
+                # R11-A.1 floored variant: refuse fruit inside the shipped
+                # supply's schedule window (the v9 pre-fix collapse
+                # condition; `FRUIT_REACH_SHIPPED_FLOOR=0` restores the
+                # R10-A.1 band-relative-only rule).
+                continue
+            n_eligible += 1
             key = (pred["travel_s"], along)
             if best_key is None or key < best_key:
                 best_key = key
@@ -3542,6 +3577,7 @@ class PickAndPlaceTask:
             say(
                 f"[reach] select station={self.station_y_for(chosen_arm):+.2f} "
                 f"candidates_feasible={n_feasible} shipped_floor_ok={n_shipped} "
+                f"eligible={n_eligible} "
                 f"chosen={None if chosen is None else int(chosen['index'])} "
                 f"along={None if chosen is None else round(float(chosen['position'][1]), 4)} "
                 f"t_c={None if best_key is None else round(best_key[0], 3)}s"

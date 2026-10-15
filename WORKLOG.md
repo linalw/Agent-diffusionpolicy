@@ -14666,3 +14666,98 @@ attribution, the mechanism wording).
    `fruits.py` `a0ea1f54` unchanged; branch `r11-adopt` from `01c56a9`
    (tag `v0.14`), local, not pushed. The full re-baseline table, the probe
    readings and the evidence pointers are in `logs/r11/A_RESULTS.md`.
+
+### R11-A.1: the floored reach variant - the floor closes the candidate-set gap (gain +0 on both scenarios) and the acceptance still collapses 9/10 -> 4/9; the defaults stay 0/0 (published negative)
+
+1. **What was asked.** The R11-A named next option 1 (`logs/r11/A_RESULTS.md`
+   section 9): the **floored reach variant** - `_reach_anywhere_select`'s
+   candidate floor becomes `max(band-relative, the shipped lead)` (the
+   shipped `_dynamic_select_floor()`; new `FRUIT_REACH_SHIPPED_FLOOR`, 0/1,
+   **default 1 in the reach branch**, `=0` restores the R10-A.1 rule) - so the
+   reach branch keeps the shipped supply's schedule and only adds the
+   off-station aims. Pre-registered before the edit
+   (`logs/r11/PREREGISTRATION_A1.md`: the variant, M1-M8, the acceptance
+   floor as the binding gate, the fail condition), Tier A solo
+   (`logs/r11/run_battery_a1.sh`; driver `A1_00_battery_driver.log`,
+   10:59:26 -> 11:48:12 `status=0`).
+
+2. **The floor invariant is delivered (and inert on both scenarios).** The
+   floored field is binding at every measured selection: the acceptance reads
+   `eligible=12` vs `shipped=12` (gain +0; `feasible=16`), the patch battery
+   `eligible=40` vs `shipped=40` (gain +0; `feasible=58`), and **no chosen
+   fruit sits inside the shipped floor** (chosen `along` +0.449..+0.619 /
+   +0.406..+0.656 vs the ~0.399 floor, 0 inside) against arm B's 13/20
+   inside. So the R11-A coverage mechanism (the below-0.40 m window) is fully
+   closed - and with it, on both scenarios, the reach rule's entire candidate
+   gain. What still differs from the shipped rule: *which* floored fruit is
+   taken (min travel to the intercept vs farthest-upstream; the first real
+   floored-vs-arm-B divergence on the patch is the attempt-1 selection: the
+   floored refuses the `along=0.346` peach and takes the `along=0.5334`
+   strawberry, `t_c` 3.658 vs 2.932 s) and *where* the catch aims (the
+   interception point, +0.03..+0.13 on the acceptance, vs the station).
+
+3. **The gate FAILS: the acceptance reads 4/9 = 44 %** (`A1_10`; the
+   pre-adoption record 9/10 = 90 %, the dynamic floor 0.75; the candidate is
+   deterministic - 329/329 physics lines double - and the diag run is
+   identical modulo its rows). Same-battery control (`A1_15`) 9/10 with
+   byte-identical replay of the pre-adoption record (385/385 x2); the patch
+   control 643/643 (the W6-B record). The motion gate is rate-only: all 9
+   descents inside the speed/lurch budgets, worst cone 1.22x reported, 3/18
+   hand-speed legs reported (`A1_60`).
+
+4. **The failures are post-catch hold losses on the left; the interception is
+   clean.** The diag (`A1_12`): `aims=9 feasible=9 fallback=0`, the descent
+   ends with the fruit +10.9..+14.4 mm short of the aim and the catch-up
+   closes it at tolerance (residual 5.8-6.0 mm; 11-53 ticks; zero 200-tick
+   timeouts; **zero re-seats** - the R11-A chase/re-seat signature does not
+   reproduce). The failures: **all five lane-0/left attempts lose the payload
+   (0/5; the right is 4/4)**. The force servo (shipped default) reads
+   `F[0.00,6.35..33.75]N gap==sep closed=15.00mm trips=38` on every left
+   failure - the servo chased the payload down its full range onto air -
+   against the right's `F_min` 3.4-3.8 N / `gap<sep` / 0 trips and the
+   control's successful left carries (`F_min` 1.6-3.8, 0 trips); the left's
+   lift already carries 0.42-1.95 m/s of relative motion (3/5; the right
+   <=0.18) and the place0 legs slip 859-1582 mm, ending the payload 216-218 mm
+   below the output rail. This is the **W8-B loaded-slide / carried-not-placed
+   class** - the control's own attempt-0 kiwi is the same signature
+   (`F[0.00,14.92] gap==sep closed=15 trips=38`). Attempt 0 fails in both
+   runs; the floored run adds attempts 1/4/7/9. The `SETTLE=0` probe (M8)
+   reads the same 4/9 and class - the settle is not the cause.
+
+5. **The patch cross-check keeps the reading honest.** `A1_20` (patch sheet):
+   **10/17 = 59 %** vs the same-battery control 13/18 and arm B 13/20; the
+   failure class is the same (7 failures: the slot-1 strawberry crush/bat
+   close - `F[0.00,84.85]`, `gap=-0.0` - plus 6 place escapes). **Lane 0 is
+   1/6 in the floored run and 1/6 in the control (arm B 1/5)** - the patch's
+   left is at its grip limit in every configuration, so the floored delta
+   there lives on lane 1 (12/12 -> 9/11; arm B 12/15). The acceptance's left
+   (the arm whose aim moved most, +0.08..+0.13) goes 2/3 -> 0/5; the patch's
+   right (aims +0.03..) 12/12 -> 9/11. The loss rate tracks the scenario's
+   fragile lane; the reach machinery adds to it.
+
+6. **The verdict and what ships.** The pre-registered gate item **FAILS**, so
+   **no shipped default change**: `FRUIT_REACH_ANYWHERE` /
+   `FRUIT_REACH_HOVER_SETTLE` stay `0`/`0`; the floored selector is the reach
+   branch's default (`=0` reproduces arm B); the R10-A.1 reproduction is
+   `CAND + FRUIT_REACH_SHIPPED_FLOOR=0`. Offline/no-harm PASS: the controls
+   byte-identical, `configs/*` untouched, `selfcheck.sh` PASS (extended
+   `198`), `199 --self-test` PASS, `96` PASS. The **sub-lever (choice vs
+   aim) is not separated by this battery** - the named discriminators are a
+   choice-pinned pair (the shipped farthest-upstream with the reach aim on,
+   and vice versa) and `FRUIT_CARRY_DIAG=1` (`clean_slip`) on this battery;
+   the owner exception on the documented numbers remains the only shipping
+   path; R11-B (the pre-onset load path) is unaffected.
+
+7. **Pins.** Battery tree (`A1_00_tree_md5.txt`): `tasks.py`
+   `c2c7a626c4443592e7533eb92eea5bfe` (the floor knob + the `eligible` diag
+   field), `rl_env.py` `48944d9c608bb2fdef24d2b311dac1b0`, `198`
+   `fb4a2f7a432b2e4defdb2aa3aa250946`, `199`
+   `00fd74df53fcfbe4b6947b893b673931`; `fruits.py` `a0ea1f54` unchanged.
+   **Post-battery fix (print-only):** the `199` annotation said "(negative =
+   fruit upstream of the aim)", inverted vs the wait loop's own `dy` sign
+   (`tasks.py:5495`: at `dy < track_end` "the fruit ran past the tracking
+   window: it is downstream"); the label + docstring now read **positive =
+   upstream** (`199` -> `26fb9be6...`; `199 --self-test` re-passed; the
+   committed `A1_70_report.txt` keeps the battery-time text - evidence is not
+   rewritten). Branch `r11-adopt` (R11-A `6e4d581` + this R11-A.1 commit),
+   local, not pushed; the full reading table is `logs/r11/A1_RESULTS.md`.

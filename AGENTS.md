@@ -979,6 +979,61 @@ variant** (`max(band-relative, shipped lead)`) with its own pre-registration,
 or the **owner exception** on the documented numbers; the flip's re-entry is
 one line + the acceptance + the reference re-record.
 
+**R11-A.1 (2026-10-15, branch `r11-adopt`, `logs/r11/A1_RESULTS.md` + WORKLOG
+"R11-A.1"): the floored reach variant - the floor closes the candidate-set gap
+(gain +0 on both scenarios, no chosen fruit inside it) and the shipped
+acceptance still collapses 9/10 -> 4/9 = 44 %, so the floor was necessary but
+not sufficient; the defaults stay `0`/`0`.** The variant (one term): the reach
+selector's candidate floor becomes `max(band-relative, the shipped lead)`
+(`_dynamic_select_floor()`; new `FRUIT_REACH_SHIPPED_FLOOR`, default `1` in
+the reach branch, `=0` restores the R10-A.1 rule - so **the R10-A.1/R11-A
+enable-path pair above now resolves to the floored selector; the measured arm
+B replays as that pair plus `FRUIT_REACH_SHIPPED_FLOOR=0`**); read only under
+`_reach_anywhere_active()`, so the knob-off tree is byte-unchanged (proven by
+the controls). The battery (Tier A solo, `logs/r11/A1_00_battery_driver.log`):
+acceptance **4/9 = 44 %** (deterministic 329/329; the pre-adoption record
+9/10 = 90 %; the control replays it **byte-identically**, 385/385, the patch
+control 643/643) against the same-battery control 9/10, with **all five
+lane-0/left attempts lost and the right 4/4**; the motion gate is **rate-only**
+(all 9 descents inside the budgets; worst cone 1.22x reported). Patch battery
+**10/17 = 59 %** vs the control 13/18 and arm B 13/20. **The floor invariant:**
+`eligible == shipped` (12/12 and 40/40; `feasible` 16/58) and **0 chosen
+inside the floor** (arm B 13/20) - the R11-A coverage mechanism (the below-
+0.40 m window) is fully closed, and with it the reach rule's whole candidate
+gain on both scenarios; what remains different from the shipped rule is *which*
+floored fruit is chosen (min-travel vs farthest-upstream) and *where* the
+catch aims (intercepts +0.03..+0.13 on the acceptance vs the station).
+**Mechanism:** the interception is clean (`aims=9 feasible=9 fallback=0`; the
+descent ends with the fruit +10.9..+14.4 mm short of the aim and the catch-up
+closes it at the 6 mm tolerance in 11-53 ticks; **zero re-seats, zero chases -
+the R11-A chase/re-seat signature does not reproduce**; the `SETTLE=0` probe
+reads the same 4/9). The failures are the **post-catch hold**: every left
+failure carries the force-servo signature `F_min = 0.00 N` / `gap == sep` /
+`closed = 15.00 mm` / 38 trips (the servo chased the payload down its full
+range onto air; the right's successes: `F_min` 3.4-3.8 N, 0 trips), the left's
+lift carries 0.42-1.95 m/s of relative motion (the right's <= 0.18) and the
+place0 legs slip 859-1582 mm - the **W8-B loaded-slide / carried-not-placed
+class** the control carries once (its attempt-0 kiwi). The patch cross-check:
+**lane 0 is 1/6 in the floored run and 1/6 in the control (arm B 1/5)** - the
+patch's left is at its grip limit in every configuration - so the floored
+patch delta sits on lane 1 (12/12 -> 9/11; arm B 12/15); the loss tracks the
+scenario's fragile lane. **The sub-lever (choice vs aim) is not separated by
+this battery**; the named discriminators are a choice-pinned pair (the shipped
+farthest-upstream with the reach aim on, and vice versa) and
+`FRUIT_CARRY_DIAG=1` (`clean_slip`) on the same battery. **Verdict:** the
+pre-registered gate item FAILS; **no shipped default change** (`0`/`0`; the
+floored selector is the reach branch's default, `=0` the arm-B reproduction);
+the **owner exception** on the documented numbers remains the only shipping
+path, and R11-B (the pre-onset load path) is unaffected. No-harm: the controls
+byte-identical, `configs/*` untouched, `selfcheck.sh` PASS (extended `198`),
+`199 --self-test` PASS, `96` PASS; a post-battery **print-only** fix corrected
+the `199` met-error annotation (the sign is the wait loop's own: positive =
+the fruit still upstream; `199` md5 `00fd74df` -> `26fb9be6`; committed
+evidence files are not rewritten). Pins: `tasks.py`
+`c2c7a626c4443592e7533eb92eea5bfe`, `rl_env.py` `48944d9c...` (unchanged),
+`198` `fb4a2f7a...`, `199` `26fb9be6...` (battery-time `00fd74df...`);
+`fruits.py` `a0ea1f54` unchanged.
+
 ## 3. What changed -> what to run
 
 | you changed | run |

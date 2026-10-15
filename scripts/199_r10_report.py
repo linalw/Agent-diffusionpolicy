@@ -15,7 +15,10 @@ phases leave behind. Per log it prints:
 * the R10-A `[reach] catch` rows: the intercept distribution and the
   feasibility/fallback counts;
 * the R10-A `[reach] met` rows: the realized descent-end error
-  (`fruit_y - aim_y`) - positive means the fruit arrived downstream of the aim;
+  (`fruit_y - aim_y`) - positive means the fruit is still upstream of the aim,
+  negative that it has already passed it (the wait loop's own `dy` sign,
+  `tasks.py` "The fruit ran past the tracking window: it is downstream" at
+  `dy < track_end`);
 * the `[task] dynamic catch-up: residual=` rows: the acquisition residuals;
 * the A1 `[reach] fallback` rows (capped-hover fallback, default-off knob):
   the execution-side fallbacks that dropped the intercept for the station aim;
@@ -40,7 +43,8 @@ ATTEMPT_RE = re.compile(
 STATS_RE = re.compile(r"\[stats\] (.*)")
 SELECT_RE = re.compile(
     r"\[reach\] select station=([+-][0-9.]+) candidates_feasible=(\d+) "
-    r"shipped_floor_ok=(\d+) chosen=(\w+) along=([0-9.]+|None) t_c=([0-9.]+|None)s"
+    r"shipped_floor_ok=(\d+)(?: eligible=(\d+))? "
+    r"chosen=(\w+) along=([0-9.]+|None) t_c=([0-9.]+|None)s"
 )
 CATCH_RE = re.compile(
     r"\[reach\] catch (\w+) idx=(\d+) y_fruit=([+-][0-9.]+) vy=([+-][0-9.]+) "
@@ -96,8 +100,10 @@ def parse(path: str) -> dict:
             selects.append(
                 dict(
                     station=float(m.group(1)), n=float(m.group(2)),
-                    shipped=float(m.group(3)), chosen=m.group(4) != "None",
-                    yi=None if m.group(6) == "None" else float(m.group(6)),
+                    shipped=float(m.group(3)),
+                    eligible=(float(m.group(4)) if m.group(4) is not None else None),
+                    chosen=m.group(5) != "None",
+                    yi=None if m.group(7) == "None" else float(m.group(7)),
                 )
             )
             continue
@@ -177,8 +183,18 @@ def summarize(path: str) -> None:
         print(f"  reach select: instants={len(selects)} "
               f"reach_anywhere_candidates={with_cand} shipped_floor_candidates={with_shipped} "
               f"gain={with_cand - with_shipped:+d}")
+        if any(s["eligible"] is not None for s in selects):
+            with_elig = sum(1 for s in selects if (s["eligible"] or 0) > 0)
+            print(f"    R11-A.1 floored rule: eligible_instants={with_elig} "
+                  f"eligible_gain={with_elig - with_shipped:+d} "
+                  f"sums [feasible={sum(int(s['n']) for s in selects)} "
+                  f"eligible={sum(int(s['eligible'] or 0) for s in selects)} "
+                  f"shipped={sum(int(s['shipped']) for s in selects)}]")
         print("    " + " ".join(
-            f"[n={int(s['n'])} shipped={int(s['shipped'])}]" for s in selects
+            f"[n={int(s['n'])} shipped={int(s['shipped'])}"
+            + ("" if s["eligible"] is None else f" elig={int(s['eligible'])}")
+            + "]"
+            for s in selects
         ))
     catches = data["catches"]
     if catches:
@@ -194,7 +210,7 @@ def summarize(path: str) -> None:
         errs = sorted(m["err"] for m in mets)
         print(f"  reach met: n={len(mets)} err min={errs[0]:+.4f} "
               f"p50={errs[len(errs)//2]:+.4f} max={errs[-1]:+.4f} "
-              f"(negative = fruit upstream of the aim)")
+              f"(positive = fruit upstream of the aim)")
         def _met_label(m: dict) -> str:
             tail = "" if m["catchup"] is None else f"/c{m['catchup']}"
             return f"{m['arm'][0]}{m['idx']}:{m['err'] * 1000:+.0f}mm(w{m['waited']}{tail})"
@@ -228,7 +244,9 @@ def self_test() -> int:
             "[fruit] [stats] attempts=20 successes=13 reached_end=9 fell_off=0 "
             "recirculated=2 queue_peak=0 gate_open=0.0",
             "[fruit] [reach] select station=+0.00 candidates_feasible=2 "
-            "shipped_floor_ok=1 chosen=4 along=0.321 t_c=1.917s",
+            "shipped_floor_ok=1 eligible=1 chosen=4 along=0.411 t_c=1.917s",
+            "[fruit] [reach] select station=+0.00 candidates_feasible=2 "
+            "shipped_floor_ok=2 chosen=4 along=0.466 t_c=2.335s",
             "[fruit] [reach] catch left idx=4 y_fruit=+0.3200 vy=-0.1200 "
             "y_int=+0.1000 eq=+0.1000 feasible=1 band=[-0.060,+0.130] t_desc=0.70s",
             "[fruit] [reach] met left idx=4 aim_y=+0.1000 station=+0.0000 "
@@ -248,6 +266,8 @@ def self_test() -> int:
     assert len(data["attempts"]) == 1 and data["attempts"][0]["placed"], "attempt parse"
     assert data["stats"]["successes"] == "13", "stats parse"
     assert data["selects"][0]["n"] == 2 and data["selects"][0]["shipped"] == 1, "select parse"
+    assert data["selects"][0]["eligible"] == 1, "the R11-A.1 eligible field parses"
+    assert data["selects"][1]["eligible"] is None, "old-format select rows stay parseable"
     assert data["catches"][0]["feasible"] and abs(data["catches"][0]["y_int"] - 0.1) < 1e-9, "catch parse"
     assert abs(data["mets"][0]["err"] + 0.002) < 1e-9 and data["mets"][0]["waited"] == 42, "met parse"
     assert data["catchups"] == [2.1], "catch-up parse"
