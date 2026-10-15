@@ -135,3 +135,18 @@ Still the owner's decision (a two-line supply default is a scenario change): fli
 And the measured binding term after this change is unchanged by it: **the per-attempt arm span**
 (~15 s; place+release 5.2 s, descent 3.0 s, grip 1.8 s, lift 1.8 s). At D=1.60 the placement
 interval (11.25 s) is within 17 % of the 10.2 s attempt span, so the next lever belongs there.
+## 7. The P2-tree no-harm (final)
+
+Run on the P2 tree (`fruits.py` `7064a5a8bf1fd8f6b6c486e514690004`, including the wave-gap
+extension), `logs/p2d/90_accept_claim.log` + `90_accept.log`:
+
+- `scripts/selfcheck.sh`: **PASS, 0 failures** (1 skipped).
+- **Acceptance: 9/10 = 90 %** (floor 75 %), **`fingerprint: matches configs/motion_reference.json`**,
+  **motion gate PASS** (every descent inside its profile's speed and lurch bound, the carry
+  cone/slip reported) - the single-arm shipped default is byte-unchanged, as designed: the density
+  reads only on the scattered schedules and only at D != 1.
+- `172_supply_selftest.py`: **52 checks PASS** - every pre-density release stream (the patch-off
+  scatter/wave/fixed lines) byte-reproducible.
+- **Motion gate on both peaks**: `105_motion_regression.py` on `52_d160` (patch D=1.60) and
+  `63_wave_d160` (wave D=1.60): **PASS** - all descents inside their profile's speed and lurch
+  bound; the carry cone is reported on the dynamic line, not gated.
