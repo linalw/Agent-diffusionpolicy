@@ -14909,3 +14909,53 @@ reported on the dynamic line, not gated).
 scenario change and the flip is the owner's. The named recommendation is **D=1.5 alone** (one
 knob, +23 % throughput) with the belt left at 0.12 m/s, and a re-recorded
 `configs/motion_reference_patch.json` for the adopted branch. Full detail: `logs/p/RESULTS.md`.
+
+### P2 (2026-10-15, the density's dose ladder and its transfer): the peak is D=1.60, the lever transfers to both other supplies, and the two supplies show two different mechanisms
+
+`logs/p2d/RESULTS.md` (pre-registered `logs/p2d/PREREGISTRATION.md`, evidence `logs/p2d/`). The
+ladder on the two-line patch battery (ATTEMPTS=20, SEED=5, Tier A solo), quoted as the curve of
+one deterministic sample per point with the continuous interval as the comparator:
+
+| D | 1.00 | 1.25 | 1.40 | 1.50 | **1.60** | 1.75 | 2.00 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| success | 60 % | 55 % | 80 % | 75 % | **90 %** | 75 % | 25 % |
+| placed/min | 3.64 | 3.36 | 4.48 | 4.48 | **5.27** | 4.20 | 1.53 |
+| interval mean | 16.53 | 15.82 | 12.81 | 13.34 | **11.25** | 14.27 | 39.22 |
+
+**P1's recommendation (D=1.5) is superseded: the peak is D=1.60** (18/20, 11.25 s, p90 20.30 s,
+the patch D=1.60 double physics-identical). The success column swings 11/16/15/18/15/5 of 20
+between adjacent D - branch quantisation - so the interval and the throughput are the comparators
+and the success is quoted beside them; the one unambiguous shape is the D=2.0 collapse, whose
+mechanism is the **crowding breaking the acquisition** (measured in P1), not starvation.
+
+**Both transfers confirm, and the wave sheet is the strongest configuration measured in this
+project on the two-line: 19/20, 6.07 placed/min, interval 9.59 s against a 9.4 s attempt span**
+(98 % of the theoretical cadence), p90 31.70 -> 15.70 s - against the W6-C patch branch
+(12/20 at 3.63) that is +1.67x placed/min, and against the W7-A dense branch (7/10 at 4.60)
++1.32x. The single arm on the patch sheet goes 70 % -> **90 %** (30.34 -> 24.36 s), so the density
+is a cell-level lever, not a two-line-only one. On the wave schedule D saturates the 0.085 m
+separation floor by D=1.5, so there the knob is "how close to the floor the clusters run" - the
+dense sheet has one step of headroom and D=1.6 uses it.
+
+**Two mechanisms, both favourable:** on the **patch** sheet the density removes the *failed/empty
+attempts between placements* (the lock-on stays flat, left 3.73 -> 4.57 -> 4.27 s; the attempts
+inside the interval fall 40.4 -> 15.7 s); on the **wave** sheet it relieves the *arrival wait*
+itself (the left's lock-on falls 35.02 -> 19.06 s). The single measured "arrival-bound" symptom is
+a property of the wave supply, not of the cell.
+
+**The carry class is absent from the peaks**: the patch D=1.60 residual is 2 x `grasped=False`
+(`N=0.00`, no contact - the acquisition class the R7-A/ACQ work targets) and the wave D=1.60
+residual is 1 x `grasped=False`. First two-line configuration with no carry escape in the tail.
+
+**One design defect found and fixed:** the first wave-transfer config set `FRUIT_SUPPLY_WAVE=1`
+**and** `FRUIT_SUPPLY_PATCH=1`, and patch wins the schedule branch - so "the wave sheet at D=1.5"
+had silently re-run the patch sheet (the tell: its readouts were bit-identical to the patch run,
+which is what the determinism convention is for). The fix extends the knob to the wave schedule's
+two gap bands (`wave_gap_*`, `wave_sep_*`, same 0.085 m floor); `D=1.0` stays byte-identical on
+both (`172` 52 checks PASS).
+
+**Not flipped:** the flip is the owner's (a two-line supply default is a scenario change). The
+recommendation is now `FRUIT_SUPPLY_PATCH_DENSITY=1.60` on both scattered schedules, the belt left
+at 0.12 m/s, plus a re-recorded `configs/motion_reference_patch.json` and a `190_twoline_gate.sh`
+re-run on the adopted branch. The binding term after the change is unchanged: **the per-attempt arm
+span** (~15 s; place+release 5.2 s, descent 3.0 s, grip 1.8 s, lift 1.8 s).

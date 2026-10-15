@@ -367,8 +367,20 @@ class SupplyPlan:
         # sheet density: the along-slice gaps divide by D (the 0.085 m floor is
         # `_release_clear`'s 0.08 m separation rule plus a margin - a smaller
         # gap would be refused) and the abreast probability rises toward 1 (at
-        # D >= 2 every slice carries a pair). At D=1.5 the sheet goes from ~8.9
-        # to ~15 fruit per belt metre. Read only on the patch schedule.
+        # D >= 2 every slice carries a pair). At D=1.5 the patch sheet goes
+        # from ~8.9 to ~15 fruit per belt metre.
+        #
+        # **P2 (2026-10-15): the same D also scales the wave schedule's two gap
+        # bands** (the within-cluster `wave_gap_*` and the cluster-boundary
+        # `wave_sep_*`, both floored at the same 0.085 m). The first transfer
+        # attempt exposed why this is needed: a config with BOTH
+        # `FRUIT_SUPPLY_WAVE=1` and `FRUIT_SUPPLY_PATCH=1` runs the *patch*
+        # schedule (patch wins the branch), so "the wave sheet at D=1.5" had
+        # silently re-run the patch sheet at D=1.5 - bit-identical to the
+        # patch run, which is how the mistake was caught
+        # (`logs/p2d/RESULTS.md` section 3). The knob keeps its `PATCH_` name
+        # for compatibility; it reads on **either** scattered schedule and
+        # D=1.0 is byte-identical on both.
         patch_density = max(1.0, number("FRUIT_SUPPLY_PATCH_DENSITY", 1.0))
         if patch_density != 1.0:
             patch_slice_min = max(0.085, patch_slice_min / patch_density)
@@ -376,6 +388,16 @@ class SupplyPlan:
             patch_pair = min(
                 1.0, patch_pair + (1.0 - patch_pair) * min(patch_density - 1.0, 1.0)
             )
+            if wave:
+                wave_gap_min = max(0.085, wave_gap_min / patch_density)
+                wave_gap_max = max(wave_gap_min, wave_gap_max / patch_density)
+                wave_sep_min = max(0.085, wave_sep_min / patch_density)
+                wave_sep_max = max(wave_sep_min, wave_sep_max / patch_density)
+                say(
+                    f"[supply] wave density x{patch_density:g}: gap "
+                    f"{wave_gap_min:.3f}-{wave_gap_max:.3f} m, boundary "
+                    f"{wave_sep_min:.3f}-{wave_sep_max:.3f} m"
+                )
             if patch:
                 say(
                     f"[supply] patch density x{patch_density:g}: slice "
