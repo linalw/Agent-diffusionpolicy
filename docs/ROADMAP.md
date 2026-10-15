@@ -332,6 +332,40 @@ default off, two-line only; the shipped single-arm default is byte-unchanged).
   ladder's wash on the patch sheet; the named fix is a scenario-calibrated
   floor per speed, not the adaptive EWMA (section 1.4).
 
+### P1/P2 (2026-10-15, owner directive) - the supply-density lever, and the arrival-bound framing revised
+
+The owner asked why the arms wait so long for fruit and whether the line can simply carry more.
+`FRUIT_SUPPLY_PATCH_DENSITY` (D, default 1.0, `fruits.py`) divides the patch sheet's along-slice
+gaps by D (floor 0.085 m) and raises the abreast probability toward 1. Pre-registered
+(`logs/p/PREREGISTRATION.md`), measured on the two-line patch battery (ATTEMPTS=20, SEED=5,
+Tier A solo), the dose-response is clean with an optimum:
+
+| D | success | placed/min | pooled interval |
+| --- | --- | --- | --- |
+| 1.0 (control) | 12/20 = 60 % | 3.64 | 16.53 s |
+| **1.5** | **15/20 = 75 %** | **4.48** | **13.34 s** |
+| 2.0 | 5/20 = 25 % | 1.53 | 39.22 s |
+| 1.5 + belt 0.15 m/s | **17/20 = 85 %** | **5.31** | **11.10 s** |
+
+**This revises how sections 3.3/3.4 read the interval.** The per-attempt arm span is **constant
+(~15 s)** in every config and the **lock-on latency does not fall** (left 3.73 -> 4.57 -> 4.27 s).
+The left's mean inter-placement interval falls **50.7 -> 20.1 s** because the **attempts inside
+the interval fall 40.4 -> 15.7 s**: the density removes the *failed/empty attempts between two
+placements*, it does not shorten the wait. So the interval is **cadence x success**, not arrival
+rate - the R3 items 3.3/3.4 conclusions stand as measurements (the park/return/belt-speed levers
+were correctly negative on their own branches), but the standing framing "the interval is
+arrival-bound, the arms already idle 18 %/24 % waiting for fruit" is **wrong at the level that
+matters**: the arms were not mostly waiting, they were mostly **failing or spinning**, and the
+supply-side lever is what removes that. At the best measured config the placement interval
+(11.10 s) is within 15 % of the 9.6 s attempt span, so **the per-attempt span is now the binding
+term** (the place+release 5.2 s, the descent 3.0 s, the grip 1.8 s, the lift 1.8 s).
+
+The dose peak's exact location and its transfer to the wave sheet and the single arm are P2's open
+item (`logs/p2/PREREGISTRATION.md`). **No default is flipped**: a two-line supply default is a
+scenario change and the flip is the owner's; the recommendation is D=1.5 with the belt left at
+0.12 m/s, plus a re-recorded `configs/motion_reference_patch.json` for the adopted branch. The
+single-arm default is byte-unchanged (the acceptance reads 9/10 + `fingerprint: matches`).
+
 ### WS-4 - the policy
 
 | item | goal | evidence | dependency | budget | success criterion |
