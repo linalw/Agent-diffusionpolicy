@@ -1,0 +1,34 @@
+# Foreign working-tree edit observed during the P7-2 battery (NOT made by this lane)
+# first seen: 18:24 git status; mtime 17:32:33; tree was clean at 17:13:59 (ops dirty=0)
+# scope: scripts/154_claim_run.sh only (watchdog reap: pkill -P $watchdog before kill)
+# effect on the battery: runner plumbing only - no sim path; B0/control proven bit-identical to records
+
+diff --git a/scripts/154_claim_run.sh b/scripts/154_claim_run.sh
+index e660954..69a7baf 100755
+--- a/scripts/154_claim_run.sh
++++ b/scripts/154_claim_run.sh
+@@ -59,6 +59,15 @@ while :; do
+     fi
+     wait "$pid"
+     code=$?
++    # Reap the watchdog CHILD FIRST, then the subshell: a non-interactive bash
++    # subshell does not forward signals to the `sleep` it is blocked on, so
++    # killing only "$watchdog" leaves an orphaned `sleep $limit` that (a) holds
++    # any inherited stdout pipe open - a caller piping through `tee` blocks for
++    # the full limit after the run has finished (observed: a 40-min stall on
++    # RUN_LIMIT=2400) - and (b) can fire its stale `kill -0 $pid` against a
++    # REUSED pid later. `pkill -P` must run while the subshell still exists as
++    # the sleep's parent.
++    pkill -P "$watchdog" 2>/dev/null || true
+     kill "$watchdog" 2>/dev/null || true
+     wait "$watchdog" 2>/dev/null || true
+     echo "[claim_run] exit=$code $(date +%H:%M:%S) log=$log"
+
+# other dirty paths: none
+ M scripts/154_claim_run.sh
+
+# ATTRIBUTION UPDATE (2026-10-16 18:5x, from the orchestrator session): the edit
+# is the orchestrator's watchdog-reap harness fix, applied after this lane's B0
+# run stalled on the orphaned `sleep 2400` holding the tee pipe (the B0 shell
+# returned when the orchestrator killed the stray sleep; the fix landed 17:32:33,
+# before the step-2 launch). It is runner plumbing only and stays.

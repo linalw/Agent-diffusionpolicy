@@ -59,6 +59,15 @@ while :; do
     fi
     wait "$pid"
     code=$?
+    # Reap the watchdog CHILD FIRST, then the subshell: a non-interactive bash
+    # subshell does not forward signals to the `sleep` it is blocked on, so
+    # killing only "$watchdog" leaves an orphaned `sleep $limit` that (a) holds
+    # any inherited stdout pipe open - a caller piping through `tee` blocks for
+    # the full limit after the run has finished (observed: a 40-min stall on
+    # RUN_LIMIT=2400) - and (b) can fire its stale `kill -0 $pid` against a
+    # REUSED pid later. `pkill -P` must run while the subshell still exists as
+    # the sleep's parent.
+    pkill -P "$watchdog" 2>/dev/null || true
     kill "$watchdog" 2>/dev/null || true
     wait "$watchdog" 2>/dev/null || true
     echo "[claim_run] exit=$code $(date +%H:%M:%S) log=$log"

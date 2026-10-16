@@ -15272,3 +15272,62 @@ R11-A.1 decomposition), (3) force Port A (contact-gated re-entry, targeting the 
 chase). Diagnostics exports adopted as the standard: Sentinel's critical-state F1, MAP-VLA
 stage labelling, SkipVLA gripper-event labels, the FRB friction-cone audit, Cocos
 condition-utilization.
+
+### P7-2 / Force Port A (2026-10-16, branch `p-supply`, Tier-A solo): the contact-gated force-mode re-entry removes the chase (5 -> 0) and changes nothing else - carried-not-placed 5 -> 5, the B2 falsification measured; `FRUIT_FORCE_REENTRY` stays default off
+
+Battery of `logs/p7/PREREG_FORCE_A.md` sections 5 (scripted primary; the direct N=5
+endpoint not run) and 8, all through `scripts/154_claim_run.sh`, all artifacts in
+`logs/p7b/` + `A_RESULTS.md`.
+
+**B0 reproduction on the P7-1 tree (knob off).** The R11-A.1 candidate acceptance
+(`HEADLESS=1 FRUIT_MOTION_REPORT=1 ATTEMPTS=10 FRUIT_REACH_ANYWHERE=1
+FRUIT_REACH_HOVER_SETTLE=60`) reproduces **bit-identically**: 5
+`trips=38`/`closed=15.00` signatures (all left, attempts 0/1/4/7/9, the same lines
+417/449/542/609/669), 4/9 = 44 %, and **310/310 physics `[fruit]` lines IDENTICAL**
+to `logs/r11/A1_10_accept_floored.log` - the P7-1 +132-line default-off edit did not
+move the branch. The shipped control carries **1** signature (the attempt-0 kiwi,
+`F[0.00,14.92]N ... closed=15.00 trips=38`); the discriminating pair is 5 vs 1 as
+pinned.
+
+**Knob ON (candidate + `FRUIT_FORCE_REENTRY=1`).** Endpoints: chase trips **5 -> 0**
+(per-leg `closed` 15.00 -> 0.40-2.40 mm, trips 38 -> 1/2/6); **carried-not-placed
+5 -> 5, zero conversions** with no failure moved into a new class (same attempt
+table: kiwi/tomato/kiwi/tomato/peach, all left, `grasped=True placed=False`,
+`notes=[]`); no weak-grip losses (0 `grasped=False`/`N=0`/lift-slip; the successes'
+N within 0.02 N; right 4/4); 0 re-seats; all 9 descents inside budget (the 105 FAIL
+is rate-only in both arms); acceptance 4/9 = 44 % (the candidate's own rate -
+identical OFF). **No kill fired**; the floor item fails equally in both arms; the
+adoption reading fails on the conversion endpoint -> **negative published, the
+default stays `0`**.
+
+**Mechanism.** The diag (`FRUIT_FORCE_REENTRY_DIAG=1`; run-neutral: 310/310 vs the
+non-diag run modulo its 9 rows): the five left failures read **`entries=1 exits=1
+gated=380-411`** - the mode exits exactly when the payload is out and withholds
+~400 would-be closes per lost carry; the four right successes read **`entries=1
+exits=0 gated=0`** (inert on healthy carries). B0-vs-ON: the first differing physics
+line is the attempt-0 **post-loss** `place0` carry (`slip_max` 956.6 -> 956.7 mm);
+the loss itself (`grasp_lift` 44.3 mm, `lift +0.279 m`) is byte-identical - **the
+chase is a symptom; removing it changes nothing about the outcome** (the pre-reg's
+B2 falsification, measured).
+
+**No-harm (knob off, byte-level):** acceptance **9/10 + motion gate PASS +
+`fingerprint: matches`**, 365/365 vs `logs/p2d/90_accept.log`; patch control
+**13/18, 643/643** physics-only (681/681 full) vs `logs/r10/30_control.log`;
+two-line dense **7/10, 9.1 s/attempt, 442/442 full stream** (422/422 physics-only)
+vs `logs/w7/10_dense_twoline_1.log` + `scripts/190_twoline_gate.sh` PASS;
+`selfcheck.sh` PASS (0 failures, 1 skip); `172` **74 checks** PASS (the pre-reg's
+"52" is stale - P4-C1's H1 added the trickle leg). Pins: `tasks.py` `fec67f00`,
+`fruits.py` `f5671a65`, `rl_env.py` `6145bc96` (TASKS_MD5 followed), `configs/*`
+untouched.
+
+**Anomaly (RESOLVED - the orchestrator's harness fix).** `scripts/154_claim_run.sh`
+carries an uncommitted 9-line watchdog-reap fix (`pkill -P "$watchdog"` before the
+kill; mtime 17:32:33). Per the orchestrator: this lane's B0 caller had stalled
+because the wrapper's orphaned `sleep 2400` held the `tee` pipe after the run
+finished; the orchestrator killed the stray sleep (the B0 shell returned) and
+applied the fix before the step-2 launch. Runner plumbing only, no simulator path;
+the battery's byte-identity results are unaffected and every post-fix wrapper
+reaped cleanly. The fix stays; this lane did not edit it and did not commit
+anything (diff preserved in `logs/p7b/05_foreign_edit.txt`).
+
+Deliverables uncommitted: `logs/p7b/` (all logs + `A_RESULTS.md`), this entry.
