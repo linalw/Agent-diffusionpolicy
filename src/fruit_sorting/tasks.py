@@ -88,6 +88,132 @@ def _quat_about_axis(q, axis, angle: float) -> np.ndarray:
 
 _EMPTY_TACTILE = TactileReading(side="none")
 
+# ---- P7-2b C-3 carry monitor: the frozen Phase-0 logistic constants ----------
+# The offline gate (`logs/p7/C3_REPLAY.md`; protocol frozen in
+# `logs/p7/PREREG_CARRY_MONITOR.md` section 3) fitted a six-feature logistic
+# model on ONLINE-ONLY grip state - `sep`, `sep - gap_cmd`, `dsep/dt`,
+# `min(ft)`, `sum(ft)`, `contacts` - under leave-one-trace-out CV (macro-F1
+# 0.969, FP 2/33 at the numeric cap; all 31 escape legs detected). The live
+# monitor needs one fixed model, so the constants below are the same fit code
+# (`scripts/203_c3_monitor_replay.py::fit_logreg`; lr 0.5, 3000 full-batch
+# steps, L2 1e-3, zero init, per-tick standardization) run once on ALL ticks
+# of the frozen four-corpus 89-leg set (55 traces; the pooled training
+# population every CV fold draws from - no-contact legs included) - no
+# training happens at runtime. Extracted by `logs/p7c/extract_carry_monitor.py`
+# (read-only; output recorded in `logs/p7c/05_monitor_extract.txt`); the
+# embedded in-sample leg readout is clean 33 / escape 31 / no-contact 0 fires
+# without the gate and 29/31 escapes with the loaded-contact gate (the gate
+# blocks exactly the two escapes whose first fire lands at their contact-loss
+# row - no lead time to reclaim anyway). Decision rule: z >= 0 with
+# `_CARRY_MONITOR_PERSIST` consecutive ticks, both ticks with a seen-loaded
+# state; the score is `sigmoid(w . (x - mu)/sigma + b)`, so z >= 0 is p >= 0.5.
+_CARRY_MONITOR_W = (
+    +0.1113670393,
+    -0.7144026361,
+    -0.0261262947,
+    -1.0687511003,
+    +1.5999305410,
+    -3.0672318940,
+)
+_CARRY_MONITOR_B = +0.5616503604
+_CARRY_MONITOR_MU = (
+    0.0547490605,
+    0.0068378512,
+    -0.0040719118,
+    0.9117598369,
+    2.4725921396,
+    0.9408639091,
+)
+_CARRY_MONITOR_SD = (
+    0.0179313079,
+    0.0089528579,
+    0.0758417371,
+    1.0739621450,
+    4.6086469118,
+    0.9610778905,
+)
+#: The frozen persistence (ticks) from the pre-registration; not tunable.
+_CARRY_MONITOR_PERSIST = 2
+
+
+def _carry_monitor_logit(sep, pry, vsep, ft_min, force, contacts) -> float:
+    """The frozen monitor's standardized logit for one tick (pure arithmetic).
+
+    Feature order and constants as documented above; z >= 0 = "not seated".
+    Called only from the armed monitor path, so the default-off tree runs no
+    scoring at all.
+    """
+    x = (sep, pry, vsep, ft_min, force, contacts)
+    z = _CARRY_MONITOR_B
+    for w_i, x_i, mu_i, sd_i in zip(
+        _CARRY_MONITOR_W, x, _CARRY_MONITOR_MU, _CARRY_MONITOR_SD
+    ):
+        z += w_i * ((x_i - mu_i) / sd_i)
+    return z
+
+
+class _CarryMonitorLeg:
+    """The C-3 monitor's per-leg decision state machine (pure bookkeeping).
+
+    One instance per dynamic carry leg while `FRUIT_CARRY_MONITOR` is armed.
+    It consumes one tick's six online-only features and reports the frozen
+    decision (`logs/p7/PREREG_CARRY_MONITOR.md` section 3.3): the tick is hot
+    iff the logit is >= 0 (p >= 0.5); a leg fires on
+    `_CARRY_MONITOR_PERSIST` consecutive hot ticks, and every hot tick of the
+    firing run must carry the loaded-contact gate (`min_contacts > 0`, the W8-B
+    guard's running-minimum form) so the monitor cannot act on a never-held
+    payload. The class touches no simulator state: the carry loop feeds it the
+    same reads the guard's read site takes (`arm.jaw_separation()`,
+    `tactile.read()`), and the offline stub test (`logs/p7c/
+    verify_monitor_stub.py`) replays the frozen corpus through it.
+    """
+
+    __slots__ = ("prev_sep", "min_contacts", "run", "fire", "hot", "blocked", "done", "last_z", "fire_z")
+
+    def __init__(self) -> None:
+        self.prev_sep = None
+        self.min_contacts = 10
+        self.run = 0
+        self.fire = None          # first hot tick of the firing run (None = no fire)
+        self.hot = 0              # hot ticks seen (before the gate)
+        self.blocked = 0          # hot ticks withheld by the loaded-contact gate
+        self.done = False         # fired: stop scoring the rest of the leg
+        self.last_z = None
+        self.fire_z = None
+
+    def step(self, tick: int, sep, gap_cmd, ft_min, force, contacts) -> bool:
+        """One tick; returns True on the tick the leg first fires."""
+        if self.done:
+            return False
+        sep = float(sep)
+        vsep = (
+            0.0
+            if self.prev_sep is None
+            else (sep - self.prev_sep) / CONTROL_DT
+        )
+        self.prev_sep = sep
+        contacts = int(contacts)
+        self.min_contacts = min(self.min_contacts, contacts)
+        z = _carry_monitor_logit(
+            sep, sep - float(gap_cmd), vsep, ft_min, force, contacts
+        )
+        self.last_z = z
+        if z < 0.0:
+            self.run = 0
+            return False
+        self.hot += 1
+        if self.min_contacts <= 0:
+            self.blocked += 1
+            self.run = 0
+            return False
+        self.run += 1
+        if self.run >= _CARRY_MONITOR_PERSIST:
+            self.fire = tick - _CARRY_MONITOR_PERSIST + 1
+            self.fire_z = z
+            self.done = True
+            return True
+        return False
+
 
 class AttemptTimeout(RuntimeError):
     """One scripted attempt exceeded its wall-clock budget.
@@ -182,6 +308,16 @@ class PickAndPlaceTask:
         "current_goal", factory=lambda: np.zeros(8, dtype=np.float32)
     )
     _dynamic_capture_active = _AttemptLocal("_dynamic_capture_active", False)
+    #: P7-2b C-3 carry monitor per-attempt state (see the knob block in
+    #: `__init__`): the active flag, the fast-skip request, and the counts-only
+    #: diag counters. Attempt-local because the carry code runs on the attempt
+    #: thread under the bimanual scheduler; on every other path they sit at
+    #: their inert defaults.
+    _carry_monitor_active = _AttemptLocal("_carry_monitor_active", False)
+    _carry_monitor_skip = _AttemptLocal("_carry_monitor_skip", False)
+    _carry_monitor_fires = _AttemptLocal("_carry_monitor_fires", 0)
+    _carry_monitor_legs = _AttemptLocal("_carry_monitor_legs", 0)
+    _carry_monitor_fired = _AttemptLocal("_carry_monitor_fired", factory=list)
     _dynamic_peak_z = _AttemptLocal("_dynamic_peak_z")
     _dynamic_grip_target = _AttemptLocal("_dynamic_grip_target")
     _dynamic_hover_target = _AttemptLocal("_dynamic_hover_target")
@@ -709,6 +845,34 @@ class PickAndPlaceTask:
         #: per-leg reporting built from values the loop already computes; the
         #: per-tick clean-slip read is only taken when this or the guard is on.
         self._carry_diag = os.environ.get("FRUIT_CARRY_DIAG", "0") == "1"
+        #: P7-2b C-3 carry monitor (`FRUIT_CARRY_MONITOR`, **default off**;
+        #: pre-registration `logs/p7/PREREG_CARRY_MONITOR.md`, Phase-0 gate
+        #: `logs/p7/C3_REPLAY.md`). The escape is a persistent state (contact
+        #: loss follows the 2 mm crossing by 2-132 ticks, median 25), and the
+        #: action is a *scheduling decision at the next leg boundary*, never an
+        #: in-window reflex: the frozen six-feature logistic monitor (constants
+        #: and provenance above `_carry_monitor_logit`) scores online-only grip
+        #: state every carry tick, and when a leg fires (z >= 0 for 2
+        #: consecutive gated ticks) the *attempt* ends at that leg's boundary -
+        #: the fast-skip: the place leg / release-retreat tail do not run, the
+        #: payload is not re-seated and no command changes mid-leg (the W8-B
+        #: re-seat is deliberately absent: this is arm B of the pre-registration,
+        #: the B' bounded re-seat form is conditional on B passing and is not
+        #: built here). Scope mirrors the W8-B guard: the per-attempt active flag
+        #: is set from `direct_capture` in `_grasp_carry_place_impl`, so the
+        #: scripted line (single arm and two-line) never reaches the monitor,
+        #: and `_carry` additionally requires the OpenArm jaw hand on a dynamic
+        #: capture. With the knob unset no feature is read, no score is taken,
+        #: no branch is taken - the shipped tree is byte-inert (the no-harm bar
+        #: of the pre-registration section 4 is P7-2's acceptance proof).
+        #: `FRUIT_CARRY_MONITOR_DIAG=1` adds the counts-only traffic: one
+        #: `[monitor] fire ...` line per fired leg (side/leg/fire tick counts +
+        #: the fire tick's z) and one `[monitor] attempt: ...` line per attempt
+        #: (legs/fires/skip flag/fired list). Trace-only either way.
+        self._carry_monitor = os.environ.get("FRUIT_CARRY_MONITOR", "0") == "1"
+        self._carry_monitor_diag = (
+            os.environ.get("FRUIT_CARRY_MONITOR_DIAG", "0") == "1"
+        )
         #: W7-B acquisition readout (default off, policy direct path only): one
         #: `[acq]` line per attempt with the setup stage times, the close-start
         #: tip-fruit offset, the walk-latch state, the first sustained contact,
@@ -2261,6 +2425,19 @@ class PickAndPlaceTask:
             guard_hold_budget = self._carry_guard_hold_budget
             guard_reseat = np.zeros(3)
             guard_reseat_used = 0.0
+            # ---- P7-2b C-3 carry monitor (default off; see `__init__`) ------
+            # Pure per-leg bookkeeping; with the knob unset `mon_leg` is None
+            # and the loop below takes one false branch per tick. The reads are
+            # the guard's gate read site (jaw separation + tactile), taken
+            # post-step exactly like the trace rows.
+            mon_armed = bool(
+                self._carry_monitor_active
+                and hand_is_jaw
+                and self._dynamic_capture_active
+            )
+            mon_leg = _CarryMonitorLeg() if mon_armed else None
+            if mon_leg is not None:
+                self._carry_monitor_legs += 1
             #: R6-B relief readout: the command's own value at the leg start and
             #: the largest opening the cap applied over the leg.
             relief_gap_start = float(gap_command)
@@ -2540,6 +2717,41 @@ class PickAndPlaceTask:
                         guard_fruit_prev = fruit.copy()
                         guard_pads_prev = pads.copy()
                         guard_rot_prev = rot_now
+                if mon_leg is not None and not mon_leg.done:
+                    # P7-2b C-3 monitor tick (see `__init__` and
+                    # `_CarryMonitorLeg`): the six online-only features from the
+                    # guard's own read site - jaw separation, the commanded gap
+                    # this tick, its per-tick derivative, the weaker finger
+                    # force, the summed force and the contact count. Never the
+                    # payload pose (`clean_slip` is label-side only). A fire
+                    # only records the decision and the skip flag; the attempt
+                    # ends at the leg boundary (`_grasp_carry_place_impl`), not
+                    # here - no command changes mid-leg.
+                    reading_mon = self.tactile.read().get(side, _EMPTY_TACTILE)
+                    ft_mon = sorted(
+                        float(v) for v in (reading_mon.fingertip_forces or {}).values()
+                    )
+                    if mon_leg.step(
+                        i,
+                        arm.jaw_separation(),
+                        gap_command,
+                        ft_mon[0] if ft_mon else 0.0,
+                        float(reading_mon.normal_force),
+                        int(reading_mon.contact_count),
+                    ):
+                        self._carry_monitor_fires += 1
+                        self._carry_monitor_skip = True
+                        self._carry_monitor_fired.append(
+                            f"{name}@{mon_leg.fire}/{len(commands)}"
+                        )
+                        if self._carry_monitor_diag:
+                            say(
+                                f"[monitor] fire {side} {name}: "
+                                f"tick={mon_leg.fire}/{len(commands)} "
+                                f"z={mon_leg.fire_z:+.2f} hot={mon_leg.hot} "
+                                f"blocked={mon_leg.blocked} "
+                                f"min_contacts={mon_leg.min_contacts}"
+                            )
                 if slip_enabled:
                     if slip_trigger < slip <= slip_react_max:
                         recoveries += 1
@@ -5821,6 +6033,16 @@ class PickAndPlaceTask:
             )
             outcome = "ok" if getattr(result, "success", False) else "fail"
         finally:
+            if self._carry_monitor_active and self._carry_monitor_diag:
+                # P7-2b counts-only monitor traffic (see `__init__`): one line
+                # per attempt - the legs run, the fires, the skip latch and the
+                # fired (leg, fire tick / leg ticks) pairs. Trace-only.
+                fired = ",".join(self._carry_monitor_fired) or "-"
+                say(
+                    f"[monitor] attempt: legs={self._carry_monitor_legs} "
+                    f"fires={self._carry_monitor_fires} "
+                    f"skip={int(self._carry_monitor_skip)} fired=[{fired}]"
+                )
             self._dynamic_trace_dump(arm_name, scripted, outcome)
         return result
 
@@ -5912,6 +6134,22 @@ class PickAndPlaceTask:
         # R6-B carry interference cap scope (see the knob block in `__init__`):
         # direct handover only, independent of the W8-B guard's own switch.
         self._carry_relief_active = bool(self._carry_relief > 0.0 and direct_capture)
+        # P7-2b C-3 carry monitor scope (see the knob block in `__init__`): the
+        # direct handover's own dynamic carry legs only, the same scope gate as
+        # the W8-B guard - the scripted single arm and the two-line scheduler
+        # never set this, and a scripted call always clears it. The per-attempt
+        # counters/latch are reset here.
+        self._carry_monitor_active = bool(self._carry_monitor and direct_capture)
+        # The skip latch is cleared on EVERY attempt start, not only when the
+        # monitor is active: the two check sites below are unconditional, so a
+        # stale `True` from a previous direct attempt would otherwise leak into
+        # a scripted/mixed call with the knob on (Oracle P7-2 note; the reset is
+        # byte-inert at default - with the knob off the latch is never set).
+        self._carry_monitor_skip = False
+        if self._carry_monitor_active:
+            self._carry_monitor_fires = 0
+            self._carry_monitor_legs = 0
+            self._carry_monitor_fired = []
         direct_hover = float(os.environ.get("FRUIT_DIRECT_HOVER", "0.0"))
         direct_catch_lead = float(os.environ.get("FRUIT_DIRECT_CATCH_LEAD", "0.25"))
         #: Safety net for the direct catch-up: never command the tip more than
@@ -8337,6 +8575,22 @@ class PickAndPlaceTask:
             # Remember the configuration that worked: it is the best seed for the
             # next episode on this arm.
             self._grasp_cache[arm_name] = np.asarray(grasp_config, dtype=float).copy()
+        if self._carry_monitor_skip:
+            # P7-2b fast-skip (see the knob block in `__init__` and
+            # `_CarryMonitorLeg`): the monitor fired on the lift leg, so the
+            # attempt ends at this leg boundary - the place leg and the
+            # release/retreat block do not run, no re-seat is applied, and the
+            # payload is not released here (the harness's normal
+            # `grasped and not placed` handling parks the arm; the next reset
+            # opens the jaws). The outcome is recorded normally (`grasped` from
+            # the peak lift above, `placed=False`); the skip itself is named by
+            # the `[monitor]` diag lines, not by a new failure-reason string
+            # (K4: the reason parser's baseline set must not grow).
+            if belt is not None and openarm:
+                belt.start()
+            if not result.grasped:
+                result.notes.append("fruit did not follow the gripper")
+            return result
         for _ in range(20):
             result.max_tactile_force = max(
                 result.max_tactile_force, self.tactile.read()[arm_name].normal_force
@@ -8372,6 +8626,13 @@ class PickAndPlaceTask:
         # so the lane index decides which arm picks.
         self._carry(arm_name, sample, f"place{bin_index}")
         self._cycle_mark("place")
+        if self._carry_monitor_skip:
+            # P7-2b fast-skip (see the knob block in `__init__`): the fire
+            # belongs to the place leg; the attempt ends here, before the
+            # release/retreat block, so the payload is not released onto the
+            # output line (`placed=False`). Same conventions as the lift-leg
+            # skip above.
+            return result
         if verbose:
             jaw = arm.jaw_centre()
             fr = self.spawner.position(sample)

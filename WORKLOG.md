@@ -15331,3 +15331,121 @@ reaped cleanly. The fix stays; this lane did not edit it and did not commit
 anything (diff preserved in `logs/p7b/05_foreign_edit.txt`).
 
 Deliverables uncommitted: `logs/p7b/` (all logs + `A_RESULTS.md`), this entry.
+
+### P7-2b: the C-3 carry monitor - the fast-skip interval endpoint lands hard (-24 %, paired 33-0) but K2 kills the form on 5 clean-leg aborts (cap 2); the default stays off and B-prime is not run
+
+**Scope (2026-10-16, branch `p-supply` at `b06c948` + this lane's working tree,
+Tier A solo).** Phase P7-2b of the rank-1 monitor item: implement the frozen
+Phase-0 carry monitor (`logs/p7/PREREG_CARRY_MONITOR.md`, md5 `5b31b3c3...`;
+replay gate `logs/p7/C3_REPLAY.md`) as the default-off `FRUIT_CARRY_MONITOR`
+in `src/fruit_sorting/tasks.py`, stub-verify it offline, then run the
+pre-registered N=5 direct battery (arm A unset, arm B `=1`, the W8-A/W8-B
+scenario verbatim + `FRUIT_CARRY_DIAG=1` on both arms). One
+`154_claim_run.sh` claim per step; ops self-check at start/mid/end (all OK).
+Full evidence `logs/p7c/` (`B_RESULTS.md`, `run_p7c.sh`,
+`extract_carry_monitor.py`, `verify_monitor_stub.py`, `C_endpoints.py`).
+
+1. **Implementation (+256 lines, default off, byte-inert).** The frozen
+   six-feature logistic scorer (`sep`, `sep-gap_cmd`, `dsep/dt`, `min(ft)`,
+   `sum(ft)`, `contacts`) with the constants **embedded** - extracted once by
+   re-running the 203 fit code on ALL ticks of the frozen 89-leg corpus (the
+   pooled fold-training population; `logs/p7c/05_monitor_extract.txt`) - plus
+   the decision state machine (`_CarryMonitorLeg`: z >= 0 for 2 consecutive
+   ticks, each hot tick gated by a seen-loaded state, the guard's
+   running-minimum `min_contacts > 0`) and the **fast-skip**: a fire latches a
+   skip flag and the *attempt* ends at the fired leg's boundary (place leg /
+   release-retreat do not run; **no re-seat**; no new failure-reason string -
+   K4). Scope = `direct_capture` only (the W8-B guard's scope gate); the
+   scripted line never reaches it. Counts-only diag behind
+   `FRUIT_CARRY_MONITOR_DIAG=1`. No feature is read, no score taken with the
+   knob unset.
+2. **Stub test (`logs/p7c/verify_monitor_stub.py`, STUB PASS).** The
+   constants/scorer/state machine are lifted from `tasks.py` by AST (no
+   simulator import); the embedded constants match a fresh refit <= 1e-9;
+   all 89 corpus legs replay through the real state machine with 0 mismatches
+   (gated in-sample **TP 29 / FP 0 / FN 2 / TN 33**, 0/25 no-contact fires -
+   the gate costs exactly the 2 escapes whose first fire lands at their
+   contact-loss row); synthetic sequences pin persistence/gate/done.
+3. **No-harm (knob off, byte-level).** Acceptance **9/10, 15.2 s/attempt,
+   motion gate PASS, `fingerprint: matches`, 365/365** vs
+   `logs/p2d/90_accept.log`; two-line dense re-record **7/10, 9.1 s/attempt,
+   442/442** vs `logs/w7/10_dense_twoline_1.log` + `190` PASS; `selfcheck.sh`
+   PASS. Pins unchanged across the battery: `tasks.py` `5ee8d55d`, `rl_env.py`
+   `7f00382e` (`TASKS_MD5` metadata-only follow to `5ee8d55d`, verified),
+   `trigger d7ec85fc`, `runtime ffb76bfd`, `fruits f5671a65`, ckpt `61da390a`.
+4. **The battery (5 runs x 15 episodes/arm, seeds 77/101/202/303/404, ~64
+   min).** Pooled A 26/75 vs B 14/75; classes A ok 26/no-contact 4/carried 45,
+   B ok 14/no-contact 6/carried 55; only 19/75 pairs share a fruit after B's
+   first fire (same-fruit sign p = 0.8555; carried pair 3-3) - the rate delta
+   is **not** a monitor effect. The pre-registered endpoints: **B1 PASS** -
+   on A's 45 failed-carried attempts the span falls mean 1870.5 -> 1421.7
+   ticks (**-24.0 %**; paired both-carried n=33: **33 faster / 0 slower**,
+   p = 0.0000; fired subset -30.8 %; the n=12 non-fired subset is outcome-mixed
+   - 8 B-ok / 3 no-contact / 1 carried, not a same-class control - and the paired
+   33-0 is the fast-skip truncation at the fired leg boundary, i.e. the
+   pre-registered timing endpoint, not a success-rate effect); **B2 PASS**
+   (lock-on 2.930 -> 3.010 s, +2.7 %); **B3 PASS** (median cycle -26.8 %);
+   **B4 PASS** (zero new reasons); re-seats 0/0; fire -> boundary remainder
+   median 68.5 t.
+5. **K2 KILL: 5 clean-leg aborts > 2.** Five B `grasp_lift` legs read clean
+   on the live `[carry]` line (`clean_slip_max` 0.1-1.0 mm) and the skip ended
+   their attempts not-placed - the exact one-sided low-force clean-hold class
+   the replay flagged as failure mode 1 (`min_contacts=1`, `force_min`
+   1.51-3.26 N, fire z +0.74..+1.16; 4/5 fired in the first two ticks at
+   tick 0). One of them (run5 ep0 tomato) is a **confirmed same-fruit
+   conversion to failure** (A same-fruit ok -> B carried); the clean-leg
+   denominators read B 33/90 vs A 44/146. The live FP rate is 5/19 clean B
+   attempts (26 %) against the replay's 1/20 - the corpora under-weighted the
+   class. Additional observed cost: A had 6/55 escape-lift attempts end placed
+   (five recovered holds with lift slips 10.5-25.5 mm, one 204.9 mm slide
+   whose attempt still ended on the output belt), B 0/56 - the fast-skip also
+   writes off the marginal-escapable lifts. Decomposition on each arm's
+   own stream: A 26 = 20/20 clean attempts + 6/55 escapes placed; B 14 = 14/14
+   non-aborted clean attempts + 0/56 escapes + 0/5 aborted-clean.
+6. **Verdict per the pre-registration.** B fails **K2** (5 > 2) -> **not
+   adopted**; `FRUIT_CARRY_MONITOR` stays **default off**; **B-prime is not
+   run** (conditional on B passing; its bounded re-seat form was not built -
+   Part-1 scope). The recorded next step on a K2 falsification is **JCAC's
+   conformal action-space risk** (`C3_REPLAY` section 3), **not a re-tune of
+   this classifier** - one pass, no rescue, and no re-tune happened. Named
+   residuals: the one-sided-but-seated discriminator (the detector, not the
+   scheduling action, is the binding residual - the action is clean: zero
+   re-seats, zero new reasons); the marginal-escape write-off inherent to a
+   fast-skip at this trigger; the branch caveat on the primary set (the n=12
+   non-fired subset is outcome-mixed, not a same-class control; the same-class
+   no-fire population is n=1).
+7. **Pins.** `tasks.py` `5ee8d55d51bff211d6a33e8f217a45dc` (the P7-2b diff,
+   default off), `rl_env.py` `7f00382ea1f1f3ff557084cbffed4286`;
+   `configs/*` untouched; no commit (working tree only). Deliverables:
+   `logs/p7c/` + `B_RESULTS.md` + this entry.
+
+### P7-3 (2026-10-16): the P7-2 batteries integrated - both menu items marked measured, the Oracle fixes carried into the committed record
+
+**P7-2a (force Port A) is a measured null, with the byte-identity claim scoped per the
+Oracle.** The knob's first effect on the stream is after the attempt-0 payload is out (first
+divergence: the attempt-0 post-loss `place0` row, slip 956.6 -> 956.7 mm; the attempt-0 loss
+row `grasp_lift slip_max=44.3 mm` byte-identical). The four later failures are
+class/outcome-identical on a <= 0.1 s sim-clock-shifted branch, where the loss magnitude can
+differ (attempt-1 tomato `grasp_lift` 43.3 -> 282.9 mm). Zero slot conversions (5 -> 5
+carried-not-placed), no new reasons, 0 weak-grip, 0 re-seats - **the chase is a symptom, not
+the cause**; `FRUIT_FORCE_REENTRY` stays 0.
+
+**P7-2b (C-3 monitor) passed its primary endpoint large and was killed by its own FP cap.**
+The paired 33-0 is the fast-skip truncation at the fired leg boundary (32/33 fired), i.e. the
+pre-registered timing endpoint, not a success-rate effect; the n=12 non-fired subset is
+outcome-mixed (8 B-ok / 3 no-contact / 1 carried; B fires on 51 of its 56 escape attempts) -
+the same-class no-fire population is n=1; the pooled B1 set is A-defined (B there: 33
+carried / 8 ok / 4 no-contact). K2 counted correctly (5 clean-leg aborts > cap 2) -> not
+adopted, `FRUIT_CARRY_MONITOR` stays 0, B' not run; the named next step is JCAC's conformal
+signal or a stricter FP gate, not a re-tune.
+
+**Post-battery robustness fix (default-off, byte-inert):** the monitor's skip latch is now
+cleared on EVERY attempt start, not only when the monitor is active (the two check sites are
+unconditional; the Oracle caught that a stale `True` could leak into a scripted/mixed call
+with the knob on). `tasks.py` `5ee8d55d` (battery-time) -> `7489f302` (the fix; `TASKS_MD5`
+followed; 172 selftest 74 checks PASS).
+
+**Docs updated:** `docs/papers/MECHANISMS.md` items 1 and 3 now carry their MEASURED status,
+and section 2d records the scoped byte-identity wording + the outcome-mixed-subset
+corrections (the committed evidence files `logs/p7b/A_RESULTS.md` are not rewritten per the
+repo convention; `logs/p7c/B_RESULTS.md` was fixed before its first commit).
