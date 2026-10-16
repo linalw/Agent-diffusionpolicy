@@ -15529,3 +15529,101 @@ un-run dense-two-line knob-ON read (closed for adoption by the two negatives).
 Deliverables: `logs/p8/A_RESULTS.md`, the battery logs and drivers under
 `logs/p8/`; this entry (ready to append verbatim - the battery wrote only
 under `logs/p8/` per its scope).
+### P8-2 B3 (2026-10-17): the load-floor C-3 carry monitor - the offline fix clears the P7-2b K2 kill (5 -> 0 clean aborts; 43/43 fires on escaping legs) and the B1 interval lands (-21.8 %, paired 32-1), but B2 lock-on fails (+8.8 % > +5 %) so B does not pass and the default stays off; plus a mid-battery tree-drift audit (the P9-A lane wrote `src/` mid-battery; every verdict holds on the frozen cohort)
+
+Branch `p-supply`, HEAD `402ad8a`, Tier-A solo (each simulator step under its
+own `scripts/154_claim_run.sh` claim), battery 01:01:28 -> 02:21:16 +0800,
+writes only under `logs/p8d/`; no commit, no shipped-default change. Object:
+the FROZEN pre-registration `logs/p8/PREREG_CARRY_MONITOR_LF.md` (md5
+`b3604b7fb30e825a1f5c9c9b2a285fb6`) - the P8-1 load-floor implementation
+(`FRUIT_CARRY_MONITOR_LOAD_FLOOR`, default 0.0 = P7-2b exactly). Battery
+driver `logs/p8d/run_p8d.sh`; ops start/mid/end all **OK**.
+
+**0. Flag first - the frozen-tree premise broke mid-battery.** At
+01:58:53/01:59:18 (during the A/B batch) the concurrent **P9-A** lane wrote
+`tasks.py` (12feced3 -> 255f2819) + `rl_env.py` (7bd07b66 -> e4670067); the
+working-tree diff == `logs/p9a/10_diff.patch` (its default-off, single-arm
+`FRUIT_READY_SKIP`/`SETTLE` + pure-reporting `FRUIT_READY_DIAG` ready-transit
+knobs). Per-run manifests (the RL env hashes the live file and refuses a
+mismatched tree) pin: **runs 1-4 = frozen tree 12feced3 (120 attempts); run 5
+= drift tree 255f2819 (30 attempts)**; no run started inside the 25 s mismatch
+window. Cohort re-read (`logs/p8d/B_cohort_split.txt`): frozen cohort B1
+**-23.2 %** (paired 29-1, p=0.0000), **B2 +10.0 % FAIL**, B3 -27.6 %, B4 none,
+**K2 0** (40 fires, all escapes); drain cohort B1 -13.8 %, B2 +3.7 %, K2 0.
+Every pre-registered verdict is unchanged; the whole-battery pin (prereg 7.8,
+`00 == 90`) is invalidated as such - the per-run manifests and the frozen
+cohort are the reads of record. Process note: `154_claim_run.sh` serializes
+simulators, not `src/` writers.
+
+**1. Stub gate (PASS, frozen tree, 01:01:35).** Both frozen pins reproduce:
+`logs/p7c/verify_monitor_stub.py` floor=0 -> **29/0/2/33** (0/25 no-contact
+fires); `logs/p8c/verify_monitor_stub_lf.py` default floor=3.5 -> **28/0/3/33**
+(and `STUB_FLOOR=0` -> 29/0/2/33); the p81 harness both pins, min `asym@fire`
+0.900 (floor 0) / 3.663 (floor 3.5), knob wiring + diag field pinned.
+
+**2. Knob-off acceptance (PASS, frozen tree).** **9/10**, 15.2 s/attempt,
+gate PASS, `fingerprint: matches configs/motion_reference.json`, `--physics-only`
+**365/365 IDENTICAL** to `logs/p2d/90_accept.log`.
+
+**3. The N=5 direct A/B** (patch sheet, ACQ=1 + lead 0.9 + lateral gate 0.16 +
+`FRUIT_CARRY_DIAG=1` both arms; A = `moe_v13s` `61da390a` unset; B = same +
+`FRUIT_CARRY_MONITOR=1 FRUIT_CARRY_MONITOR_LOAD_FLOOR=3.5 FRUIT_CARRY_MONITOR_DIAG=1`;
+seed 11, seeds 77/101/202/303/404, interleaved; 68 min): **A 25/75 vs B
+24/75** (classes A 25/4/46, B 24/4/47), same-fruit pairs 5/9/3/3, sign
+p = 0.6562 (rate NOT quoted as an effect; 55/75 pairs differ in fruit).
+
+**The pre-registered endpoints (`C_endpoints.txt`):** **B1 PASS** - interval
+on A's failed-carried attempts **-413.7 t (-21.8 %)**; paired both-carried
+n=33: **32 faster / 1 slower**, mean -510.3 t, p = **0.0000** (frozen cohort:
+-441.5 t, 29-1); B1c fired n=30 **-554.8 t (-29.4 %)** vs no-fire control
+n=16 -149.2 t. **B2 FAIL** - lock-on median 2.830 -> 3.080 s = **+8.8 %**
+(frozen cohort +10.0 %; per-run +7.1/+31.0/+9.4/-1.8/+3.7). **B3 PASS** -
+cycle 1854 -> 1380 t (**-25.6 %**). **B4 PASS** - no new reasons. Endpoint 6:
+fire -> boundary remainder median **63 t**, re-seats **0/0**.
+
+**K2 (the P7-2b kill) CLEARS: 0 <= 2.** 43 fires on 43 attempts, **43/43 on
+escaping legs** (fired-leg `clean_slip_max` min **17.9 mm**, 9x the clean
+threshold), **0 fires on clean legs** (B clean legs 49/105; clean attempts
+25/75), 0 aborts - vs P7-2b's 5 clean-leg aborts (`clean_slip_max` 0.1-1.0 mm,
+`force_min` 1.51-3.26 N). `asym@fire`: min **3.53** (an escape leg; frozen
+cohort min 3.74), median 5.17, max 12.33; **0 fires below the 3.5 floor**.
+The offline fix's prediction ("0-2 live clean aborts, was 5") is confirmed at
+0. Cost class unchanged: A recovered 3/53 escape-lift attempts, B 0/50 (clean
+lifts: A 22/22 placed, B 24/25 - the one clean-lift non-placed has no
+fire/skip).
+
+**4. No-harm chain (drift tree):** two-line dense re-record **7/10, 9.1
+s/attempt**, **442/442 IDENTICAL** to the W7-A record + `190` **PASS**;
+`selfcheck.sh` **PASS 0 failures, 1 skipped**; `172` **74 checks ok**.
+
+**Verdict per the prereg:** K1/K2/K4/K5 all **PASS** (K2 0 vs the P7-2b KILL
+at 5; K5 byte-identical no-harm) and B1/B3/B4 **PASS**, but **B2 lock-on fails
+the +5 % bar at +8.8 % (+10.0 % on the frozen cohort)** -> **B does not pass;
+publish the negative; the form is not adopted** (`FRUIT_CARRY_MONITOR` stays
+unset, floor default 0.0). B-prime stays not run (conditional; unbuilt). Named
+residuals: the B2 read is the whole-system cost of enabling the monitor
+(per-tick reads + skip; unseparated here) and the noisy endpoint of the set
+(P7-2b read +2.7 %); the marginal-escape write-off is inherent to the
+fast-skip. Deliverables: `logs/p8d/B3_RESULTS.md`, battery logs/reports/tools
+under `logs/p8d/` (+ `92_tree_drift_audit.txt`), this entry (ready to append
+verbatim - the battery wrote only under `logs/p8d/` per its scope).
+
+### P8-B decision (orchestrator, 2026-10-17): the C-3 monitor lane CLOSES not-adopted; the budget goes to the go_ready B1 lever
+
+Two batteries, two different single-endpoint failures: P7-2b (K2: 5 clean-leg aborts > 2, with
+the interval -24.0 %) and P8-B's load-floor retry (K2 CLEARS at 0 - 43/43 fires on escaping
+legs, 0 on clean legs, min `asym@fire` 3.53 - and the interval falls -21.8 % at 33-0, but
+**B2 lock-on FAILS at +8.8 %**, bar <= +5 %; the frozen cohort alone reads +10.0 %). The
+pre-registered conjunction therefore fails again, and the remaining deficiency (a scheduling
+coupling: the truncated attempt shifts the belt phase the next lock-on waits on) is a larger
+change than the monitor itself. **Decision: close the lane, publish the two-battery record,
+no default change.** The budget returns to the `go_ready` B1 lever (`FRUIT_READY_SKIP`,
+implemented and stub-verified; -1.75 s/gap code-exact, on the measured binding term, no
+selection coupling) as the next Tier-A battery, then P8-C (GDP).
+
+**Process failure owned:** the B1 implementation lane wrote `src/` MID-BATTERY (runs 1-4
+frozen at `12feced3`, run 5 on `255f2819`). The battery lane caught it, split the cohort,
+and showed every pre-registered verdict unchanged - but the whole-battery pin is invalid and
+the practice was wrong. **Rule going forward: no `src/` writer may run while a Tier-A
+battery is live; implementation lanes queue behind the battery's completion (add it to the
+OPS/P9 discipline).**

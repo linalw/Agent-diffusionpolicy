@@ -606,6 +606,11 @@ class PickAndPlaceTask:
         self._reach_aim_point: tuple | None = None
         #: Catch-up ticks used on the last dynamic attempt (diagnostics only).
         self._reach_catchup_used = 0
+        #: P9-A ready-transit readout (`FRUIT_READY_DIAG=1`, default off):
+        #: pure phase-boundary reporting of the `go_ready` transit (per-stage
+        #: tick counts + residuals; the B2-calibration readout). No per-tick
+        #: reads, no control effect; see `_ready_move` / `_ready_report`.
+        self._ready_diag = os.environ.get("FRUIT_READY_DIAG", "0") == "1"
         #: Per-arm pick-station Y [m] (v9/V2 two-line scheduler). Both are the
         #: shipped station (0.0) on every single-arm / shared-station path; the
         #: two-line scheduler sets the right arm's station downstream of the
@@ -1340,7 +1345,7 @@ class PickAndPlaceTask:
 
     def _transit_to(
         self, side: str, name: str, ticks: int = 90, settle: int = 120,
-        target: np.ndarray | None = None,
+        target: np.ndarray | None = None, stats: dict | None = None,
     ) -> None:
         """Drive an arm to a named pose along a min-jerk joint blend.
 
@@ -1359,18 +1364,24 @@ class PickAndPlaceTask:
         `target` overrides the named pose's configuration (two-line scheduler:
         the arm's own-station pre-pose configuration, see
         `_prepare_two_line_stations`).
+
+        `stats` (P9-A `FRUIT_READY_DIAG`, default off; None on every shipped
+        call) collects the P9-A per-stage tick counts/residuals of the transit;
+        see `_ready_move`.
         """
-        self._catch_up_drive(side)
+        self._catch_up_drive(side, stats=stats)
         if (
             name == "ready"
             and os.environ.get("FRUIT_READY_TRANSIT", "staged") == "staged"
-            and self._ready_transit(side, ticks=ticks, settle=settle)
+            and self._ready_transit(side, ticks=ticks, settle=settle, stats=stats)
         ):
             return
         goal = self._pose(side, name) if target is None else np.asarray(target, dtype=float)
-        self._blend_to(side, goal, ticks=ticks, settle=settle)
+        self._blend_to(side, goal, ticks=ticks, settle=settle, stats=stats)
 
-    def _catch_up_drive(self, side: str, ticks: int = 20) -> bool:
+    def _catch_up_drive(
+        self, side: str, ticks: int = 20, stats: dict | None = None
+    ) -> bool:
         """Ramp the drive target onto the measured pose before a new leg starts.
 
         During the release the kinematic pads (which sit inside the arm's own
@@ -1382,7 +1393,8 @@ class PickAndPlaceTask:
         leg a consistent starting point. The ramp length scales with the gap: the
         minimum-jerk profile peaks at ~1.9x its average rate, so a 0.9 rad gap in
         20 ticks would still command 0.085 rad/tick and a 2 rad one 0.19
-        (`logs/650` measured 0.1655).
+        (`logs/650` measured 0.1655). `stats` (P9-A `FRUIT_READY_DIAG` only)
+        accumulates the ramp's tick count.
         """
         arm = self.arms[side]
         current = np.asarray(
@@ -1407,20 +1419,37 @@ class PickAndPlaceTask:
             self._step_sim(1)
             self._tick_frame()
         arm.sync_command_to_measured()
+        if stats is not None:
+            # P9-A `FRUIT_READY_DIAG` only (default off): this call's ramp ticks.
+            stats["catch_up"] = stats.get("catch_up", 0) + len(ramp)
         return True
 
     #: Joint error above which a `ready` transit is routed around the main
     #: conveyor instead of through it (see `_ready_transit`).
     READY_STAGE_ERR = 0.35
 
-    def _lift_clear(self, side: str, lift: float = 0.20, cap: int = 420) -> float:
+    #: P9-A B1 `FRUIT_READY_SKIP=1` (default off, single-arm scope; see
+    #: `_ready_move`): skip the ready transit for an arm whose measured pose is
+    #: within `READY_SKIP_TOL` of ready (~2x the measured steady residual
+    #: 0.0131-0.0135 rad on j1, `logs/610_transit_staged.log`) and whose drive
+    #: target already tracks the measured pose within `READY_SKIP_SYNC_TOL`
+    #: (`_catch_up_drive`'s own 0.01 rad no-op threshold). The shipped transit
+    #: for that arm is a measured no-op (210 ticks, `dq_max` 0.0005 rad/tick,
+    #: `logs/610_posture/report.json`).
+    READY_SKIP_TOL = 0.03
+    READY_SKIP_SYNC_TOL = 0.01
+
+    def _lift_clear(
+        self, side: str, lift: float = 0.20, cap: int = 420, stats: dict | None = None
+    ) -> float:
         """IK-lift the hand clear of the main belt before a long joint blend.
 
         The hand is raised to at least `belt_top + 0.30`, straight up from under
         the robot and up-and-inward from a far place pose (see the comment
         below). Position-only on purpose: the ready pose is reached by the joint
         blend that follows, and the wrist has to be free to fold clear of the
-        belt. Returns the achieved jaw height [m].
+        belt. Returns the achieved jaw height [m]; `stats` (P9-A
+        `FRUIT_READY_DIAG` only) accumulates the IK tick count.
         """
         arm = self.arms[side]
         # Start the IK from where the arm actually is. The carry leaves the
@@ -1432,7 +1461,7 @@ class PickAndPlaceTask:
         # rad away (`logs/640`). `_catch_up_drive` ramps the target onto the
         # measured over 20 ticks and re-anchors the integrator, so the first IK
         # step cannot command the whole gap in one tick.
-        self._catch_up_drive(side)
+        self._catch_up_drive(side, stats=stats)
         jaw = arm.jaw_centre().copy()
         # Lift up *and* back toward the body, not straight up. From a far place
         # pose a vertical lift is bought by the position-only IK with the wrist,
@@ -1464,17 +1493,25 @@ class PickAndPlaceTask:
             previous_max_step, float(os.environ.get("FRUIT_READY_LIFT_STEP", "0.04"))
         )
         try:
-            for _ in range(max(1, int(cap))):
+            # Count the IK ticks as the loop index (`stats`, P9-A diag only): the
+            # break before a step means `tick` is exactly the ticks advanced.
+            lift_steps = max(1, int(cap))
+            for tick in range(lift_steps):
                 if float(arm.jaw_centre()[2]) >= target_z - 0.05:
+                    lift_steps = tick
                     break
                 arm.ik_step(arm.tcp_target_for_jaw(goal))
                 self._step_sim(1)
                 self._tick_frame()
         finally:
             arm.max_step = previous_max_step
+        if stats is not None:
+            stats["lift"] = stats.get("lift", 0) + lift_steps
         return float(arm.jaw_centre()[2])
 
-    def _ready_transit(self, side: str, ticks: int = 90, settle: int = 120) -> bool:
+    def _ready_transit(
+        self, side: str, ticks: int = 90, settle: int = 120, stats: dict | None = None
+    ) -> bool:
         """Route a `ready` transit around the main conveyor when the seed is far.
 
         Measured (`logs/600`): from the hanging pose the straight joint blend to
@@ -1496,26 +1533,39 @@ class PickAndPlaceTask:
         err = float(np.max(np.abs(arm.joint_positions() - ready)))
         if err <= float(os.environ.get("FRUIT_READY_STAGE_ERR", str(self.READY_STAGE_ERR))):
             return False
-        self._lift_clear(side)
+        if stats is not None:
+            stats["staged"] = 1
+        self._lift_clear(side, stats=stats)
         # The lift stops when the *measured* jaw is high enough, so its IK
         # integrator (and drive target) can still be ahead of the arm; the blend
         # that follows starts from the measured joints and would command the
         # whole lag in one tick (0.17-0.22 rad/tick on j1/j3, `logs/650`). Ramp
         # the target onto the arm first, exactly as at a leg boundary.
-        self._catch_up_drive(side)
-        self._blend_to(side, ready, ticks=ticks, settle=settle)
+        self._catch_up_drive(side, stats=stats)
+        self._blend_to(side, ready, ticks=ticks, settle=settle, stats=stats)
         return True
 
-    def _blend_to(self, side: str, target, ticks: int = 90, settle: int = 120) -> None:
-        """Min-jerk joint blend to an explicit configuration."""
+    def _blend_to(
+        self, side: str, target, ticks: int = 90, settle: int = 120,
+        stats: dict | None = None,
+    ) -> None:
+        """Min-jerk joint blend to an explicit configuration.
+
+        `stats` (P9-A `FRUIT_READY_DIAG`, default off; None on every shipped
+        call) records the ramp-end and settle-end residuals of this blend - the
+        pair B2's calibration reads - plus its tick counts.
+        """
         arm = self.arms[side]
         start = arm.joint_positions().copy()
         target = np.asarray(target, dtype=float).copy()
-        for alpha in min_jerk_ramp(0.0, 1.0, max(1, ticks)):
+        ramp = min_jerk_ramp(0.0, 1.0, max(1, ticks))
+        for alpha in ramp:
             command = start + float(alpha) * (target - start)
             arm.robot.set_dof_position_targets([command], dof_indices=arm.arm_dofs)
             self._step_sim(1)
             self._tick_frame()
+        if stats is not None:
+            stats["ramp_err"] = float(np.max(np.abs(arm.joint_positions() - target)))
         for _ in range(max(0, settle)):
             arm.robot.set_dof_position_targets([target], dof_indices=arm.arm_dofs)
             self._step_sim(1)
@@ -1525,6 +1575,10 @@ class PickAndPlaceTask:
         # the previous IK left, which is a different pose. The teleport path
         # always synced here (`teleport_joints`), so the blend has to as well.
         arm.sync_command_to_measured()
+        if stats is not None:
+            stats["settle_err"] = float(np.max(np.abs(arm.joint_positions() - target)))
+            stats["blend"] = stats.get("blend", 0) + len(ramp)
+            stats["settle"] = stats.get("settle", 0) + max(0, int(settle))
 
     def _pose(self, side: str, name: str) -> np.ndarray:
         return np.asarray(self.waypoints["arms"][side][name], dtype=float)
@@ -3398,7 +3452,28 @@ class PickAndPlaceTask:
         return arm.gripper_value_for_separation(max(diameter - squeeze, 0.005))
 
     def go_ready(self, arm_name: str | None = None, steps: int = 1) -> None:
-        """Park the jaws just above the pick point."""
+        """Park the jaws just above the pick point.
+
+        P9-A ready-transit knobs (all default off; frozen pre-registration
+        `logs/p9/PREREG_GOREADY_B1.md`):
+
+        * `FRUIT_READY_SKIP=1` (B1): an arm already parked at ready whose drive
+          target already tracks it skips the transit entirely. The shipped
+          transit is a measured no-op for that arm (210 ticks, `dq_max` 0.0005
+          rad/tick, `logs/610`), so the skip removes belt travel without moving
+          the arm. Unset or `=0` keeps the shipped path byte-exact.
+        * `FRUIT_READY_SETTLE=N` (B2): the ready blend tail's settle ticks
+          (shipped 120); the ramp-end residual that calibrates it comes from
+          `FRUIT_READY_DIAG=1`.
+        * `FRUIT_READY_DIAG=1`: one pure-reporting `[ready]` line per arm per
+          call (stage tick counts + boundary residuals; no per-tick reads, no
+          control effect).
+
+        Both control knobs are single-arm-scoped in `_ready_move`: with a coop
+        session active, or with the two-line scheduler armed, the shipped
+        transit is kept byte-exact (the two-line park/station calibration has
+        its own ready logic).
+        """
         names = [arm_name] if arm_name else list(self.arms)
         smooth = os.environ.get("FRUIT_SMOOTH_TRANSIT", "1") == "1"
         for name in names:
@@ -3409,9 +3484,120 @@ class PickAndPlaceTask:
                 # hanging pose stalls the elbow drive.
                 arm.teleport_joints(self._pose(name, "ready"))
                 continue
-            self._transit_to(name, "ready")
-            if os.environ.get("FRUIT_READY_RECOVERY", "1") == "1":
+            stats = self._ready_move(name)
+            recovered = (
                 self._recover_ready(name)
+                if os.environ.get("FRUIT_READY_RECOVERY", "1") == "1"
+                else False
+            )
+            if stats is not None:
+                stats["rec"] = 1 if recovered else 0
+                stats["end_err"] = self._ready_err(name)
+                self._ready_report(name, stats)
+
+    def _ready_residuals(self, side: str) -> tuple[float, float]:
+        """(`err`, `dg`) at a ready-transit boundary - the P9-A B1 predicate.
+
+        `err = max|q_measured - ready|`; `dg = max|q_target - q_measured|` is
+        exactly `_catch_up_drive`'s own no-op gap. Two joint reads at the
+        boundary, taken only when `FRUIT_READY_SKIP` or `FRUIT_READY_DIAG` is
+        on (never on the shipped path).
+        """
+        arm = self.arms[side]
+        measured = arm.joint_positions()
+        err = float(np.max(np.abs(measured - self._pose(side, "ready"))))
+        target = np.asarray(
+            arm.robot.get_dof_position_targets().numpy(), dtype=float
+        )[0][arm.arm_dofs]
+        dg = float(np.max(np.abs(target - measured)))
+        return err, dg
+
+    def _ready_err(self, side: str) -> float:
+        """`max|q_measured - ready|` (`FRUIT_READY_DIAG` reporting only)."""
+        return float(
+            np.max(np.abs(self.arms[side].joint_positions() - self._pose(side, "ready")))
+        )
+
+    def _ready_settle(self, shipped: int = 120) -> int:
+        """P9-A B2: the ready blend tail's settle override (`FRUIT_READY_SETTLE`).
+
+        Unset = the shipped 120. Only ever binds on the single-arm scope; see
+        `_ready_move` (the two-line park/station calibration keeps 120).
+        """
+        return max(0, int(float(os.environ.get("FRUIT_READY_SETTLE", str(shipped)))))
+
+    def _ready_move(self, side: str) -> dict | None:
+        """One arm's ready transit; returns the `FRUIT_READY_DIAG` stats or None.
+
+        P9-A (`logs/p9/PREREG_GOREADY_B1.md`) knobs, both default off:
+        `FRUIT_READY_SKIP=1` (B1) skips the transit for an arm already parked
+        at ready (`err <= READY_SKIP_TOL`) whose drive target already tracks
+        the measured pose (`dg <= READY_SKIP_SYNC_TOL`), and
+        `FRUIT_READY_SETTLE=N` (B2) overrides the blend tail's settle. Scope:
+        a coop session active (two-line scheduler / shared-station pipeline)
+        or the two-line scheduler armed keeps the shipped transit - its park
+        and station calibration have their own ready logic; every other path
+        is the single-arm one the levers were derived for.
+
+        The skip is the exact B1 form: on the shipped line the parked arm's
+        transit is a measured no-op (210 ticks, `dq_max` 0.0005 rad/tick), so
+        removing it saves belt travel only. It leaves the shipped
+        post-condition: drive target at the ready pose, IK integrator
+        re-anchored on the measured arm - what `_blend_to`'s tail does.
+        """
+        scope = self._active_session is None and not self.two_line_enabled()
+        skip = scope and os.environ.get("FRUIT_READY_SKIP", "0") == "1"
+        diag = self._ready_diag
+        err = dg = 0.0
+        if skip or diag:
+            err, dg = self._ready_residuals(side)
+        stats: dict | None = None
+        if diag:
+            stats = {
+                "skip": 0, "staged": 0, "pre_err": err, "dg": dg,
+                "catch_up": 0, "lift": 0, "blend": 0, "settle": 0,
+                "ramp_err": 0.0, "post_err": 0.0,
+            }
+        if skip and err <= self.READY_SKIP_TOL and dg <= self.READY_SKIP_SYNC_TOL:
+            arm = self.arms[side]
+            # Command state first, then leave: the shipped transit would end
+            # with the target at ready and the integrator synced, so a skip
+            # that removes only the 210 no-op ticks leaves the same state. The
+            # target step is <= READY_SKIP_TOL + READY_SKIP_SYNC_TOL = 0.04
+            # rad, under the 0.05 rad leg-boundary bound.
+            arm.robot.set_dof_position_targets(
+                [self._pose(side, "ready")], dof_indices=arm.arm_dofs
+            )
+            arm.sync_command_to_measured()
+            if stats is not None:
+                stats["skip"] = 1
+                stats["post_err"] = err
+            return stats
+        self._transit_to(
+            side, "ready", settle=self._ready_settle() if scope else 120, stats=stats
+        )
+        if stats is not None:
+            stats["post_err"] = self._ready_err(side)
+        return stats
+
+    def _ready_report(self, side: str, stats: dict) -> None:
+        """P9-A pure-reporting `[ready]` line (`FRUIT_READY_DIAG=1`, default off).
+
+        Stage tick counts and boundary residuals only - no per-tick reads, no
+        control effect. `ramp_err`/`settle_err` are the blend ramp's end
+        residual and the post-settle residual (the B2 calibration pair);
+        `catch_up` sums every `_catch_up_drive` ramp of the transit, `lift` is
+        `_lift_clear`'s IK ticks; `post_err` is read before and `end_err` after
+        the optional `_recover_ready`.
+        """
+        say(
+            f"[ready] {side} skip={stats['skip']} staged={stats['staged']} "
+            f"pre_err={stats['pre_err']:.4f} dg={stats['dg']:.4f} "
+            f"catch_up={stats['catch_up']} lift={stats['lift']} "
+            f"blend={stats['blend']} settle={stats['settle']} "
+            f"ramp_err={stats['ramp_err']:.4f} post_err={stats['post_err']:.4f} "
+            f"rec={stats['rec']} end_err={stats['end_err']:.4f}"
+        )
 
     def choose_arm(self, y: float) -> str:
         return "left" if y >= 0.0 else "right"

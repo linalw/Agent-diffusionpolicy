@@ -1,0 +1,69 @@
+P8-2 battery tree-drift audit (freeze violation by a concurrent lane)
+=====================================================================
+Date: 2026-10-17 (battery window 01:01:28 -> 02:21:16 +0800)
+
+WHAT HAPPENED
+- The battery ran under "the tree is frozen for this battery" (lane scope).
+- 00_tree_pins.txt (written 01:01:28, battery start), the committed 402ad8a state:
+    src/fruit_sorting/tasks.py  12feced3b6204f06bb32cb878efb5e15
+    src/fruit_sorting/rl_env.py 7bd07b662595c56fa45ca12e7a87a7ff
+- 90_tree_pins_end.txt (02:21):
+    src/fruit_sorting/tasks.py  255f28195191c53e414582f303d177d0   (changed)
+    src/fruit_sorting/rl_env.py e46700671b589ba0c2a48322e4b5c5c7   (changed)
+    trigger.py / runtime.py / fruits.py / checkpoint moe_v13s: unchanged.
+- git status --short at end (91_git_status_end.txt):
+    M src/fruit_sorting/tasks.py
+    M src/fruit_sorting/rl_env.py
+  HEAD is unchanged (402ad8a); the drift is uncommitted working-tree state.
+- mtimes: tasks.py 01:58:53, rl_env.py 01:59:18 (mid-battery; the A/B batch
+  was running).
+- The writer is the concurrent P9-A implementation lane (offline; no
+  simulator). Its records: logs/p9/PREREG_GOREADY_B1.md (01:34),
+  logs/p9a/IMPLEMENTATION_B1.md (02:06), logs/p9a/10_diff.patch (02:07).
+- `git diff src/fruit_sorting/tasks.py src/fruit_sorting/rl_env.py` was
+  verified byte-equal to logs/p9a/10_diff.patch, i.e. the drift is exactly the
+  recorded P9-A edit: the default-off, single-arm-scoped FRUIT_READY_SKIP
+  (B1) / FRUIT_READY_SETTLE (B2) knobs plus the pure-reporting
+  FRUIT_READY_DIAG readout on the go_ready transit (`_ready_move`; no
+  control effect when unset).
+
+WHICH RUNS SAW WHICH TREE (per-run manifest `tasks_md5`; the RL env refuses a
+mismatched tree - rl_env.py `_verify_tasks()` hashes the live file and raises;
+so each manifest pins the actual code each run imported).
+
+  run | A created / md5                  | B created / md5
+  1   | A_1 01:07:49 12feced3            | B_1 01:15:30 12feced3
+  2   | A_2 01:21:58 12feced3            | B_2 01:29:35 12feced3
+  3   | A_3 01:35:52 12feced3            | B_3 01:43:01 12feced3
+  4   | A_4 01:48:44 12feced3            | B_4 01:55:40 12feced3
+  5   | A_5 02:02:05 255f2819            | B_5 02:09:15 255f2819
+
+=> runs 1-4 (120 attempts) = the FROZEN tree 12feced3;
+   run 5 (30 attempts)      = the DRIFT tree 255f2819.
+No run started inside the 01:58:53-01:59:18 mismatch window: B_4 imported at
+01:55:40 and ran to 02:01:47 (its module was already loaded); A_5 started at
+02:02:05, after rl_env.py's pin follow made the pair consistent again.
+
+IMPACT - every pre-registered verdict is unchanged (logs/p8d/B_cohort_split.txt):
+  FROZEN cohort (runs 1-4): B1 -23.2% (paired 29-1, p=0.0000) PASS |
+    B2 +10.0% FAIL | B3 -27.6% PASS | B4 none PASS |
+    K2 0 aborts (40 fires, 40/40 on escaping legs) PASS.
+  DRIFT cohort (run 5):    B1 -13.8% | B2 +3.7% | B3 -3.8% | B4 none |
+    K2 0 aborts (3 fires).
+  FULL battery (runs 1-5): B1 -21.8% | B2 +8.8% FAIL | B3 -25.6% |
+    B4 none | K2 0 aborts (43 fires).
+=> The binding negative (B2 > +5%) holds a fortiori on the frozen cohort; the
+   K2 clearance holds in both cohorts.
+
+OTHER STEPS' TREES: stub gate + knob-off acceptance = FROZEN tree
+(01:01:28-01:07:07). A/B = mixed as tabulated. Two-line dense re-record +
+selfcheck + 172 + the offline reports = DRIFT tree (02:15:58-02:21:16). The
+two-line dense stream is 442/442 byte-identical to the W7-A record despite the
+drift, i.e. the P9-A edit is inert on that path as its record claims.
+
+CONSEQUENCE FOR THE PREREG 7.8 PIN: the whole-battery pin (00 == 90) is
+invalidated by the write. The per-run manifests remain the provenance unit and
+the frozen-cohort read is the read of record. Process note for the
+orchestrator: the battery-time re-pin must be taken after all writers stop;
+this battery shows a concurrent src/ writer can land mid-battery even with a
+Tier-A sim claim held (the claim serializes simulators, not src writers).

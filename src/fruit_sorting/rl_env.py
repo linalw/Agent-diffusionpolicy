@@ -231,7 +231,15 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: 29/0/2/33 and 28/0/3/33, `logs/p8c/IMPLEMENTATION.md`). The previous pin
 #: `7489f302...` is the P7-2c monitor tree; every shipped default is unchanged
 #: (floor default 0.0 is the P7-2b rule exactly).
-TASKS_MD5 = "12feced3b6204f06bb32cb878efb5e15"
+#:
+#: P9-A (2026-10-17): the pin follows the P9-A ready-transit tree - the
+#: default-off, single-arm-scoped `FRUIT_READY_SKIP` (B1) and
+#: `FRUIT_READY_SETTLE` (B2) knobs plus the pure-reporting `FRUIT_READY_DIAG`
+#: readout on the `go_ready` transit (`logs/p9/PREREG_GOREADY_B1.md`; the
+#: implementation record is `logs/p9a/IMPLEMENTATION_B1.md`). Every shipped
+#: default is unchanged: the two control knobs resolve only inside
+#: `_ready_move`'s single-arm scope and are inert when unset.
+TASKS_MD5 = "255f28195191c53e414582f303d177d0"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(
