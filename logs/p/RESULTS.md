@@ -1,5 +1,24 @@
 # P1 RESULTS: the supply-density lever (the owner's #1)
 
+> **REVISED 2026-10-16 after an Oracle review (`logs/p3/ORACLE_REVIEW.md`).** Three claims in
+> this document were overstated and are corrected in place, marked **[REVISED]**:
+> (1) the "cadence x success" mechanism in section 3 is an **accounting identity**, not an
+> independent measurement - `186`'s two headline endpoints are one number (the window throughput
+> is `60 / pooled_interval_mean`) and the batch throughput is `success / s_per_attempt`, so with a
+> fixed attempt count and a flat cadence **every headline is a monotone transform of the success
+> count**;
+> (2) the **left-arm inter-placement figures (50.7 -> 20.1 s) rest on n=3 control intervals**
+> (the p90 is 93.2 s) - the robust pooled figure is 16.53 -> 13.34 s (n=11 / n=14), i.e. **1.24x**,
+> not 2.5x;
+> (3) the **D=1.5 / D=1.60 gains are confounded with the presented fruit mix** (see
+> `logs/p2d/RESULTS.md` section "the composition confound" and
+> `logs/p2d/82_standardised.txt`: the class-adjusted ladder is flat). The **adoption
+> recommendation is withdrawn** pending the composition-controlled test
+> (`logs/p1c/PREREGISTRATION.md`).
+> What still stands: the cadence and the lock-on are unchanged across the ladder, the knob is
+> inert at D=1 (byte-identical), and **D=2.0's collapse is a real density effect** (crowding
+> breaks the acquisition).
+
 Branch `p-supply` (from main `465941a`, tag `v0.16`). Pre-registration: `logs/p/PREREGISTRATION.md`
 (written before any run). Tier A solo. Evidence: `logs/p/*.log`, the battery report
 `logs/p/50_battery_report.txt`, the no-harm acceptance `logs/p/60_accept_noharm.log` +
@@ -48,15 +67,25 @@ And the placement-interval decomposition (the left arm):
 | D=1.5 | **20.1 s** | 4.4 s (22 %) | **15.7 s** |
 | D=1.5 + 0.15 | 22.4 s | 5.1 s (23 %) | 17.3 s |
 
-**Reading (this corrects the W6-B/R3 "arrival-bound" framing):** the per-attempt arm span is
-**constant (~15 s)** in every config - the density does **not** speed the cycle, and the
-**lock-on latency does not fall** (left mean 3.73 -> 4.57 -> 4.27 s; right 5.27 -> 5.01 ->
-6.08 s). The gain is that the **failed/empty attempts between two placements disappear**: the
-left's inter-placement interval falls 50.7 -> 20.1 s (2.5x) with the idle fraction unchanged
-(~22 %). So the interval was never purely arrival-bound; it was **cadence x success**, and the
-density raises the success at a constant cadence. At D=1.5 + 0.15 the placement interval (11.10 s)
-is within 15 % of the 9.6 s attempt span - **the per-attempt span is now the binding term**, not
-the supply.
+**Reading [REVISED]:** the per-attempt arm span is **constant (~15 s)** in every config - the
+density does **not** speed the cycle, and the **lock-on latency does not fall** (left mean 3.73 ->
+4.57 -> 4.27 s; right 5.27 -> 5.01 -> 6.08 s). Both of those are independent measurements and both
+hold. What does **not** hold is the inference drawn from them in the first version of this section.
+The placement-window throughput and the pooled interval are **one statistic** (`window placed/min
+= 60 / pooled_interval_mean` by `186`'s definition), the batch throughput is `success /
+s_per_attempt`, and with a fixed 20 attempts and a flat cadence the observed rise is entirely a
+rise in the success count. The left-arm inter-placement fall 50.7 -> 20.1 s rests on **n=3 control
+intervals** (p90 93.2 s), so the robust pooled statement is **16.53 -> 13.34 s (1.24x)**; the
+decomposition's real content is that the left's **idle share is flat** (20 -> 22 %) while its
+inter-placement falls - i.e. the wait is not where the time goes. And because the density changes
+the release geometry, it changes **which fruit each arm is handed**, and the placement rate is
+class-dominated (0.44-1.00 per arm/species) - class-standardised, the ladder is flat
+(`logs/p2d/82_standardised.txt`). So the correct statement is: **the cadence and the lock-on are
+unchanged by the density; the success count rises; how much of that rise is density rather than
+the mix is not yet separated** (`logs/p1c/`). The binding-term conclusion survives on its own
+measurement: at D=1.5 + 0.15 the placement interval (11.10 s) is within 15 % of the 9.6 s attempt
+span, so the per-attempt span is what the next lever must target - independently of whether the
+density is adopted.
 
 The faster belt trades **descent 3.03 -> 2.25 s** against **place + release 4.99 -> 5.95 s**
 (the placed fruit accumulate in the lane faster, so the place leg has to clear them), net zero on
@@ -84,11 +113,14 @@ config's residual is the single carried-not-placed class that R8-B named.
   Published as measured, with the mechanism above.
 - **Secondary (the success non-inferior within <= 15 points): PASS by a wide margin** - the
   success *rose* (+15 / +25 points). The owner's 不破不立 allowance was not needed.
-- **Fail conditions:** (a) the starvation does not fall - the *starved-slot* count rises in
-  absolute terms (41 -> 54 "no eligible fruit" lines at D=1.5) but that is the **denominator
-  effect**: more selection instants fire per attempt because more attempts succeed; the
-  rate-normalized read (the idle fraction 20 -> 22 %) is flat, so this item is read as
-  **not-failed on the normalized metric, flagged on the raw count**; (b) no new class - **PASS**;
+- **Fail conditions:** (a) the starvation does not fall - **FAILED on the named metric**
+  [REVISED]: the raw "no eligible fruit" line count rises (41 -> 54 at D=1.5), and the
+  rate-normalized read is worse than the first version of this document claimed - the left arm
+  polls **1.9 -> 4.4 times per attempt** (19 starved slots over 10 attempts at the control, 44
+  over 10 at D=1.60), with the attempt count held fixed on both arms, so the substitution the
+  first version used ("more successful attempts fire more polls") does not apply. The idle
+  *share* is flat (20 -> 22 %), which is the only reason the substitution was tempting. Item (a)
+  is recorded as **failed**, with the mechanism left open; (b) no new class - **PASS**;
   (c) the motion budgets - **PASS** (`105_motion_regression.py` on 10 and 30: "every descent is
   inside its profile's speed and lurch bound"; the carry cones are reported on the dynamic line,
   not gated - the D=1.5 worst cone 4.58x and the 30's 1.86x, matching the pre-existing dynamic

@@ -13,6 +13,7 @@ conveyor beside the robot.
 from __future__ import annotations
 
 import json
+import math
 import os
 import threading
 import time
@@ -1731,6 +1732,26 @@ class PickAndPlaceTask:
             # onto the belt.
             index = 0 if "0" in name else 1
             px, py = cfg.output_belt_drop_points[index]
+            # P3 (2026-10-16) place-leg shortening, default OFF
+            # (`FRUIT_PLACE_INNER_SHIFT=0`). The place block is the largest
+            # single item in the per-attempt arm span (place+release 5.22 s of
+            # ~15 s, 35 %) and its cost is distance-proportional - the measured
+            # `carry placeN` rows are 45.5-48.5 cm at ~6.6 ticks/cm with zero IK
+            # recoveries (`logs/p2d/RESULTS.md`). Almost all of that distance is
+            # the ~0.5 m lateral move to the lane centre (y = +-0.50), while the
+            # release only has to be *over* the belt: its inner edge is at
+            # |y| = 0.50 - 0.125 (`output_belt_size[1]`/2), and the belt carries
+            # the fruit away afterwards. So up to 0.125 m of the carry is
+            # unnecessary. The knob shifts the release point toward y=0, capped
+            # at 90 % of the belt's half width so the fruit still lands on it
+            # (the cap is the invariant: |y| stays >= 0.5 - 0.1125 = 0.3875 >=
+            # the 0.375 inner edge). Shipped behaviour at `=0` is byte-identical
+            # - the value only enters `py`.
+            inner_shift = float(os.environ.get("FRUIT_PLACE_INNER_SHIFT", "0"))
+            if inner_shift > 0.0:
+                half_width = float(cfg.output_belt_size[1]) / 2.0
+                shift = min(inner_shift, half_width * 0.9)
+                py = py - math.copysign(shift, py)
             z = float(cfg.output_place_z)
             if getattr(self.grippers.get(side), "kind", "") == "openarm":
                 # Same fingertip clearance as `grasp_lift`: the transfer is a

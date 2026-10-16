@@ -223,7 +223,7 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: R11-A.1 floored selector) - the R11-A.1 "the pin now follows the final
 #: tree" fix was not in the committed R11-A.1 revision, so the direct
 #: environment refused to start at `fd2e39e`; this follow repairs both.**
-TASKS_MD5 = "3b15f3ff59e8923fea2b245adc7824b4"
+TASKS_MD5 = "bcb1fb72d80511a35f8b89cad0ca0a23"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(

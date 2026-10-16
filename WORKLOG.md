@@ -14959,3 +14959,57 @@ recommendation is now `FRUIT_SUPPLY_PATCH_DENSITY=1.60` on both scattered schedu
 at 0.12 m/s, plus a re-recorded `configs/motion_reference_patch.json` and a `190_twoline_gate.sh`
 re-run on the adopted branch. The binding term after the change is unchanged: **the per-attempt arm
 span** (~15 s; place+release 5.2 s, descent 3.0 s, grip 1.8 s, lift 1.8 s).
+
+### P3 + P1c (2026-10-16): the Oracle review retracts the P1/P2 adoption recommendation, and the place-lengthening lever is closed by geometry
+
+**The retraction first, because it is the important one.** An Oracle review of P1/P2
+(`logs/p3/ORACLE_REVIEW.md`) found three defects, and I re-derived its central claim independently
+before accepting it (`scripts/200_composition_audit.py` -> `logs/p2d/82_standardised.txt`):
+
+1. **The two pre-registered endpoints are one number.** `186`'s placement-window throughput *is*
+   `60 / pooled_interval_mean` by its own definition, and the batch throughput is
+   `success / s_per_attempt`. With a fixed 20 attempts and a flat 9.8-10.7 s cadence, **every
+   P1/P2 headline is a monotone transform of the success count.** My "quote the continuous
+   interval instead of the quantised rate" hedge was an algebraic step, not a robustness argument.
+2. **The success count is class-dominated and the mix moves with D.** The density changes the
+   release geometry, so each arm is handed a different species mix at every D; the pooled
+   per-(arm, fruit) placement rate spans **0.44 (left orange) .. 1.00 (right peach)**.
+   Class-standardised: patch ladder **13.89 / 13.92 / 14.05 / 14.68 / 14.43 / 15.12** against the
+   observed **12 / 15 / 11 / 16 / 18 / 15** - **flat**. The wave branch likewise
+   (12.76 / 13.39 / 13.05), and its 19/20 run is the one where the left arm was given five oranges
+   and no tomato or kiwi.
+3. **My own headline stat was n=3.** "the left's inter-placement falls 50.7 -> 20.1 s (2.5x)"
+   rests on three control intervals (p90 93.2 s); the robust pooled figure is 16.53 -> 13.34 s
+   (1.24x). And the pre-registered fail item (a) ("the starvation does not fall") **fails on the
+   named metric**: the left polls 1.9 -> 4.4 times per attempt at the same attempt count, so the
+   "denominator effect" I wrote to explain it away does not apply.
+
+**What survives:** the cadence (~15 s) and the lock-on are unchanged across the whole ladder (two
+independent measurements); the knob is inert at D=1 (byte-identical, `172` 52 checks); **D=2.0's
+collapse is a real density effect** (-7.3 slots class-adjusted) with the measured crowding
+mechanism; and the **binding term is the per-attempt arm span**, which is a kinematic fact that
+does not depend on the mix. Also newly stated, not previously: the wave peak's carried-grip cone
+rises 2.80x -> 4.07x, and the **single arm starved on half its slots** at D=1.5 (10 empty slots vs
+0; 10 picks in 19 slots vs 20 in 20), so that "transfer" was never like-for-like.
+
+**The test that decides it** is pre-registered (`logs/p1c/PREREGISTRATION.md`): a **single-grade
+supply** (`FRUIT_SUPPLY_GRADES=apple:1`) holds the presented multiset fixed *by construction*, so D
+is the only variable - the single arm, the patch sheet, D=1.0 vs D=1.60 with a determinism double.
+If the density helps there, the claim shrinks to "within a species"; if not, P1/P2's positive
+results were composition and the phase closes with only the D=2.0 negative published.
+
+**P3, the place leg, is closed by geometry.** `FRUIT_PLACE_INNER_SHIFT` (default off) moved the
+release point 10 cm toward the body: the kinematics worked (place 45.1 -> 36.1 cm, 297 -> 237
+ticks, ~1.0 s off the arm span) and the success rate **collapsed 90 % -> 30 %**, because the
+payload releases at |y| 0.21-0.41 while the belt's inner edge is at 0.375 - the log says
+`placed=False (on/next to output belt 0)`. The lever is closed because the control's release
+already sits ~35 mm inside the belt: the maximum safe shift is ~30 mm, i.e. **~0.2 s, 1.3 % of the
+span**, against a 4 % bar. The measured displacement was also 0.14-0.36 m for a commanded 0.10 m,
+so the shortened transfer also scatters the wrist configuration. The next span target is the
+**descent's documented boundary shortfall** (40-90 mm short on every leg), not the place.
+
+**No shipped default changed** in either phase (both knobs are default-off and env-scoped), and the
+adoption of D=1.60 is **withdrawn** - it needs the P1c result first, and a re-record of *both*
+`configs/motion_reference_patch.json` and `configs/motion_reference_twoline.json` (the review
+caught that my handover list named only the first) plus a `collection.patch_density` field in the
+collector's shard manifest.
