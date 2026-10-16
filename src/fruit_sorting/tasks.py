@@ -831,6 +831,62 @@ class PickAndPlaceTask:
         #: State of the last released grip, kept for the per-attempt report
         #: (the release resets the live state before `note_result` prints).
         self._force_last: dict[str, dict] = {}
+        #: Contact-gated force-mode re-entry (FARM Port A, `FRUIT_FORCE_REENTRY`,
+        #: **default off**; pre-registration `logs/p7/PREREG_FORCE_A.md`). The
+        #: shipped servo runs its integral law whenever it is engaged, on
+        #: whatever the tactile carries: once the payload has left the jaws the
+        #: force collapses to 0 N, the servo reads "under" and closes its full
+        #: `RANGE` onto air - the R11-A.1 chase subtype (`F[0.00,..]N gap==sep
+        #: closed=15.00mm trips=38`, `logs/r11/A1_RESULTS.md` section 5.2).
+        #: FARM's discipline is the opposite of that ("never be in force mode
+        #: without a confident contact estimate; otherwise stay
+        #: position/width-controlled"): with the knob on, the servo enters force
+        #: mode only after `FRUIT_FORCE_REENTRY_TICKS` consecutive confident
+        #: ticks - the summed normal force at or above
+        #: `FRUIT_FORCE_REENTRY_ENTER` N *and* the contact count at or above
+        #: `FRUIT_FORCE_REENTRY_CONTACTS` (the two signals the sim tactile
+        #: exposes; both read from the servo's existing `tactile.read()`) - and
+        #: leaves it after `FRUIT_FORCE_REENTRY_EXIT_TICKS` consecutive lost ticks
+        #: (force below `FRUIT_FORCE_REENTRY_EXIT` N or count below the
+        #: minimum). `ENTER > EXIT` is the hysteresis band, below every measured
+        #: healthy hold minimum (1.6-4.9 N) and above the chase's 0.00 N. Out of
+        #: force mode the servo holds the commanded gap (no chase); it re-enters
+        #: when contact confidence returns. `FRUIT_FORCE_REENTRY_DIAG=1` adds one
+        #: counts-only `[task] force reentry:` line per attempt
+        #: (entries/exits/gated ticks). The gate is read only inside
+        #: `_force_servo_step` and only while `_dynamic_capture_active`: with the
+        #: knob off no value is touched and the shipped line is byte-identical.
+        self._force_reentry = os.environ.get("FRUIT_FORCE_REENTRY", "0") == "1"
+        self._force_reentry_enter = float(
+            os.environ.get("FRUIT_FORCE_REENTRY_ENTER", "1.0")
+        )
+        self._force_reentry_exit = float(
+            os.environ.get("FRUIT_FORCE_REENTRY_EXIT", "0.3")
+        )
+        self._force_reentry_contacts = max(
+            0, int(os.environ.get("FRUIT_FORCE_REENTRY_CONTACTS", "1"))
+        )
+        self._force_reentry_ticks = max(
+            1, int(os.environ.get("FRUIT_FORCE_REENTRY_TICKS", "3"))
+        )
+        self._force_reentry_exit_ticks = max(
+            1, int(os.environ.get("FRUIT_FORCE_REENTRY_EXIT_TICKS", "3"))
+        )
+        self._force_reentry_diag = (
+            os.environ.get("FRUIT_FORCE_REENTRY_DIAG", "0") == "1"
+        )
+        #: Per-grip force-mode latch + debounce runs (cleared by
+        #: `_force_servo_reset`), and per-attempt counters (cleared by
+        #: `_force_servo_report`): mode entries/exits and the servo ticks the
+        #: gate withheld while out of mode with the force under the follow-close
+        #: floor (`gated` - the would-be chase ticks).
+        self._force_mode: dict[str, bool] = {"left": False, "right": False}
+        self._force_mode_enter_run = {"left": 0, "right": 0}
+        self._force_mode_exit_run = {"left": 0, "right": 0}
+        self._force_reentry_stats: dict[str, dict] = {
+            "left": {"entries": 0, "exits": 0, "gated": 0},
+            "right": {"entries": 0, "exits": 0, "gated": 0},
+        }
         #: Contact-verification dwell (v6 experiment 1, `FRUIT_DYNAMIC_VERIFY_DWELL`,
         #: default off). The close/hold returns after the close ramp plus the fixed
         #: `FRUIT_DYNAMIC_HOLD` ticks, whether or not the tactile ever read a real
@@ -1389,6 +1445,12 @@ class PickAndPlaceTask:
         self._force_over[side] = 0
         self._force_tick[side] = -1.0
         self._force_samples[side] = []
+        if self._force_reentry:
+            # Mode state is per grip; the per-attempt counters persist (a
+            # mid-attempt re-seat calls this and must not drop the count).
+            self._force_mode[side] = False
+            self._force_mode_enter_run[side] = 0
+            self._force_mode_exit_run[side] = 0
         self._force_moves.pop(side, None)
         self._force_read.pop(side, None)
 
@@ -1448,6 +1510,36 @@ class PickAndPlaceTask:
         if len(samples) < self._force_settle_ticks and ref_force <= 0.0:
             # No reference yet (first grip ticks): use the absolute floor only.
             floor = self._force_min
+        # Contact-gated force-mode re-entry (FARM Port A; see the knob block in
+        # `__init__`). Scoped to the dynamic capture - on every other path
+        # `gate` is False and this block is dead, so the shipped line is
+        # byte-identical with the knob off. `reading` is the same tactile read
+        # the law below already consumes: no new sensor work per tick.
+        gate = self._force_reentry and bool(self._dynamic_capture_active)
+        if gate:
+            contacts = int(reading.contact_count)
+            confident = (
+                force >= self._force_reentry_enter
+                and contacts >= self._force_reentry_contacts
+            )
+            lost = (
+                force < self._force_reentry_exit
+                or contacts < self._force_reentry_contacts
+            )
+            if not self._force_mode[side]:
+                run = self._force_mode_enter_run[side] + 1 if confident else 0
+                self._force_mode_enter_run[side] = run
+                if run >= self._force_reentry_ticks:
+                    self._force_mode[side] = True
+                    self._force_mode_enter_run[side] = 0
+                    self._force_reentry_stats[side]["entries"] += 1
+            else:
+                run = self._force_mode_exit_run[side] + 1 if lost else 0
+                self._force_mode_exit_run[side] = run
+                if run >= self._force_reentry_exit_ticks:
+                    self._force_mode[side] = False
+                    self._force_mode_exit_run[side] = 0
+                    self._force_reentry_stats[side]["exits"] += 1
         under = self._force_under[side]
         over = self._force_over[side]
         if force < floor:
@@ -1457,6 +1549,16 @@ class PickAndPlaceTask:
             over += 1
             under = 0
         else:
+            under = 0
+            over = 0
+        if gate and not self._force_mode[side]:
+            # Out of force mode: hold the commanded gap - neither the
+            # follow-close nor the back-off is the force loop's while the
+            # contact estimate is gone. The exit is checked above, before the
+            # move test, so a pure-air loss fires zero closes after the
+            # debounce. A withheld would-be close is counted for the diag.
+            if force < floor:
+                self._force_reentry_stats[side]["gated"] += 1
             under = 0
             over = 0
         self._force_under[side], self._force_over[side] = under, over
@@ -1521,6 +1623,23 @@ class PickAndPlaceTask:
                 f"opened={book.get('opened_mm', 0.0):.2f}mm "
                 f"trips={int(book.get('trips', 0))}"
             )
+        # Contact-gated force-mode re-entry diag (`FRUIT_FORCE_REENTRY_DIAG`,
+        # default off; see the knob block in `__init__`): counts only, built
+        # before the per-attempt clear below.
+        reentry_rows = []
+        if self._force_reentry and self._force_reentry_diag:
+            for side in ("left", "right"):
+                stat = self._force_reentry_stats.get(side) or {}
+                if (
+                    int(stat.get("entries", 0))
+                    or int(stat.get("exits", 0))
+                    or int(stat.get("gated", 0))
+                ):
+                    reentry_rows.append(
+                        f"{side}: entries={int(stat.get('entries', 0))} "
+                        f"exits={int(stat.get('exits', 0))} "
+                        f"gated={int(stat.get('gated', 0))}"
+                    )
         # The report is per attempt: clear both the saved and any live state so
         # an earlier episode's grip cannot show up in a later one.
         self._force_last.clear()
@@ -1530,10 +1649,23 @@ class PickAndPlaceTask:
             self._force_under[side] = 0
             self._force_over[side] = 0
             self._force_samples[side] = []
+        if self._force_reentry:
+            # Per-attempt clear of the mode latch and counters (the per-grip
+            # reset leaves the counters alone; `_force_servo_report` is the
+            # attempt boundary).
+            for side in ("left", "right"):
+                self._force_mode[side] = False
+                self._force_mode_enter_run[side] = 0
+                self._force_mode_exit_run[side] = 0
+                stat = self._force_reentry_stats.get(side)
+                if stat is not None:
+                    stat["entries"] = stat["exits"] = stat["gated"] = 0
         self._force_moves.clear()
         self._force_read.clear()
         if entries:
             say(f"[task] force servo: {' | '.join(entries)}")
+        if reentry_rows:
+            say(f"[task] force reentry: {' | '.join(reentry_rows)}")
 
     # ------------------------------------------------------------------ #
     # Contact-verification dwell + staged first lift (v6 experiment 1)
