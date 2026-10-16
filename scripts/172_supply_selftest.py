@@ -303,6 +303,40 @@ def main() -> int:
         abs(SupplyPlan.from_env(cfg).patch_slice_min - 0.14) < 1e-9,
         "the patch slice band returns to its default when the density env is removed",
     )
+    # --- P1c species lock: the composition-controlled test needs a one-species
+    # pool, and neither mix knob can express one (`_mix_env` rejects a weight of
+    # 0, so `FRUIT_SUPPLY_CLASSES` must list every species with a positive
+    # weight; `FRUIT_SUPPLY_GRADES` is the grade mix, not the species mix).
+    all_species = len(cfg.fruit_dimensions)
+    check(
+        len(SupplyPlan.from_env(cfg).classes) == all_species,
+        "the species mix defaults to the full pool (the lock is off by default)",
+    )
+    os.environ["FRUIT_SUPPLY_SPECIES"] = "apple"
+    locked = SupplyPlan.from_env(cfg)
+    check(
+        locked.classes == (("apple", 1.0),),
+        "FRUIT_SUPPLY_SPECIES=apple locks the pool to that one species",
+    )
+    os.environ["FRUIT_SUPPLY_SPECIES"] = "durian"
+    unknown = SupplyPlan.from_env(cfg)
+    check(
+        len(unknown.classes) == all_species,
+        "an unknown FRUIT_SUPPLY_SPECIES falls back to the full pool",
+    )
+    os.environ.pop("FRUIT_SUPPLY_SPECIES")
+    os.environ["FRUIT_SUPPLY_GRADES"] = "apple:1"
+    check(
+        SupplyPlan.from_env(cfg).grades
+        == tuple((g, w) for g, w in zip(cfg.grades, (0.5, 0.3, 0.2))),
+        "an invalid FRUIT_SUPPLY_GRADES spec is rejected and the default mix is used",
+    )
+    os.environ["FRUIT_SUPPLY_GRADES"] = "A:1,B:1,C:1"
+    check(
+        SupplyPlan.from_env(cfg).grades == (("A", 1.0), ("B", 1.0), ("C", 1.0)),
+        "a valid FRUIT_SUPPLY_GRADES spec is applied",
+    )
+    os.environ.pop("FRUIT_SUPPLY_GRADES")
     check(
         abs(patch_plan.patch_slice_min - 0.14) < 1e-9
         and abs(patch_plan.patch_slice_max - 0.22) < 1e-9,

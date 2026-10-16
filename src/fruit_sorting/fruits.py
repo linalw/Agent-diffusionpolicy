@@ -388,7 +388,19 @@ class SupplyPlan:
             patch_pair = min(
                 1.0, patch_pair + (1.0 - patch_pair) * min(patch_density - 1.0, 1.0)
             )
-            if wave:
+            if wave and patch:
+                # Both flags set: `patch` wins the schedule branch, so the wave
+                # bands are inert. Say so - the P2 battery hit exactly this
+                # (a "wave at D=1.5" config that silently re-ran the patch sheet;
+                # the tell was bit-identical readouts), and the density banner
+                # used to print the *inert* wave bands on a patch run, which
+                # misled the log reader and broke `compare_streams.py`'s
+                # line-for-line comparison.
+                say(
+                    "[supply] warning: FRUIT_SUPPLY_WAVE=1 with "
+                    "FRUIT_SUPPLY_PATCH=1; the PATCH schedule wins"
+                )
+            if wave and not patch:
                 wave_gap_min = max(0.085, wave_gap_min / patch_density)
                 wave_gap_max = max(wave_gap_min, wave_gap_max / patch_density)
                 wave_sep_min = max(0.085, wave_sep_min / patch_density)
@@ -407,6 +419,18 @@ class SupplyPlan:
         # The balanced A:B:C mix follows the two-line scenario, whether it runs
         # the wave or the patch schedule there (`FRUIT_SUPPLY_GRADES` still wins).
         balanced = (wave or patch) and os.environ.get("FRUIT_BIARM_TWOLINE", "0") == "1"
+        # P1c species lock: `FRUIT_SUPPLY_SPECIES=<name>` restricts the pool to
+        # one species (the composition-controlled comparison); unset = shipped.
+        species_only = os.environ.get("FRUIT_SUPPLY_SPECIES", "").strip()
+        if species_only:
+            if species_only in cfg.fruit_dimensions:
+                say(f"[supply] species lock: {species_only} only")
+            else:
+                say(
+                    f"[supply] warning: FRUIT_SUPPLY_SPECIES={species_only!r} is "
+                    f"not a known species ({sorted(cfg.fruit_dimensions)}); ignored"
+                )
+                species_only = ""
         default_grades = tuple(
             (grade, _default_grade_weight(grade, balanced)) for grade in cfg.grades
         )
@@ -428,7 +452,19 @@ class SupplyPlan:
             classes=_mix_env(
                 "FRUIT_SUPPLY_CLASSES",
                 cfg.fruit_dimensions,
-                tuple((name, 1.0) for name in cfg.fruit_dimensions),
+                # P1c (2026-10-16) species lock. The composition-controlled test
+                # needs a supply whose presented class multiset is fixed BY
+                # CONSTRUCTION, and neither mix knob can express it:
+                # `FRUIT_SUPPLY_CLASSES` requires every species to be listed with
+                # a POSITIVE weight (`_mix_env` rejects <= 0), so a one-species
+                # pool is unreachable; `FRUIT_SUPPLY_GRADES` is the grade mix,
+                # not the species mix. So the lock lives here, as a restriction
+                # of the *default* species mix - an explicit `FRUIT_SUPPLY_CLASSES`
+                # still wins, exactly as before. Default off: unset behaves
+                # identically to the shipped all-species pool.
+                ((species_only, 1.0),) if species_only else tuple(
+                    (name, 1.0) for name in cfg.fruit_dimensions
+                ),
             ),
             wave=bool(wave),
             wave_size=max(1, int(number("FRUIT_SUPPLY_WAVE_SIZE", SUPPLY_WAVE_SIZE))),
