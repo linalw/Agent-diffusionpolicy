@@ -689,7 +689,8 @@ fire-time miss: the fire-time dx spans -4.1..+8.3 cm across the class.
 
 **R3 (2026-10-13, branch `w8-speed`, `logs/w8/R3_RESULTS.md`): no WS-3 speed
 lever is adopted, and the reason is measured, not assumed - the two-line patch
-interval is arrival-bound.** The L2 plumbing is delivered
+interval is arrival-bound (revised by the P1/P2 paragraph below: the cadence is
+flat across the density ladder, so the wait is not where the time goes).** The L2 plumbing is delivered
 (`_dynamic_select_floor` takes a `lead_override_s` that *replaces* the shipped
 1.5 s setup, so `FRUIT_BIARM_SELECT_LEAD_S` is no longer inert on the two-line
 path (the shared-station worker keeps it max'd under the 1.5 s floor), the
@@ -1066,6 +1067,50 @@ PASS** (the branch probe reads 6.0 cm / 95 samples as before);
 stale pin inherited from `fd2e39e`: main's `rl_env.py` pin `b7d6f849...` did
 not match its own `tasks.py` `c2c7a626...`, so the direct env refused to
 start), checkpoint `moe_v13s` `61da390a85fa209496b54477a8255d23`.
+
+**P1/P2/P3 (2026-10-15/16, owner directive "为什么会要等那么长时间的果？你增加流水
+线上果蔬数量不行吗", branch `p-supply`): the supply-density knob exists and is
+sound, its adoption recommendation is WITHDRAWN, and the place leg is closed by
+geometry.** `FRUIT_SUPPLY_PATCH_DENSITY` (D, default 1.0, `fruits.py`) divides
+the patch sheet's along-slice gaps by D (floor 0.085 m) and raises the abreast
+probability toward 1; P2 extended it to the wave schedule's two gap bands. Raw
+ladder on the two-line patch battery (ATTEMPTS=20, SEED=5): success
+60/55/80/75/**90**/75/25 % and placed/min 3.64/3.36/4.48/4.48/**5.27**/4.20/1.53
+for D = 1.00/1.25/1.40/1.50/1.60/1.75/2.00.
+
+**Do not quote the ladder as a throughput result.** Two independent checks say why
+(`logs/p3/ORACLE_REVIEW.md`, re-derived by `scripts/200_composition_audit.py` ->
+`logs/p2d/82_standardised.txt`): (1) `186`'s two headline endpoints are **one
+statistic** - the placement-window throughput *is* `60 / pooled_interval_mean` -
+and the batch throughput is `success / s_per_attempt`, so with a fixed attempt
+count and a flat cadence every headline is a monotone transform of the success
+count; (2) **the density changes which fruit each arm is presented** (it changes
+the release geometry) and the placement rate is class-dominated (0.44-1.00 per
+arm/species), so **class-standardised the ladder is flat** (13.89/13.92/14.05/
+14.68/14.43/15.12 adjusted vs 12/15/11/16/18/15 observed). The decisive test is
+pre-registered at `logs/p1c/PREREGISTRATION.md`: a **single-grade supply** holds
+the mix fixed by construction, so D is the only variable.
+
+**What does hold, and it revises the R3 "arrival-bound" language in this file:**
+the per-attempt **cadence is flat (~15 s)** and the **lock-on does not fall**
+across the whole ladder, so the density does not shorten the wait or the cycle -
+and the **binding term is the per-attempt span**, not the supply. Two other
+measured facts: **D=2.0's collapse is a real density effect** (crowding breaks the
+acquisition; -7.3 slots class-adjusted), and the single arm is **not** a
+like-for-like transfer (at D=1.5 it starved on half its slots: 10 "no eligible
+fruit" vs the control's 0, 10 picks in 19 slots vs 20 in 20 - the two-line's
+worker parks and waits, the single arm's selector polls and gives up).
+
+**P3: the place leg is closed by geometry.** `FRUIT_PLACE_INNER_SHIFT` (default
+off) shortens the place carry as designed (45.1 -> 36.1 cm, 297 -> 237 ticks,
+~1.0 s) and the success rate **collapses 90 % -> 30 %**, because the payload
+releases at |y| 0.21-0.41 while the belt's inner edge is at 0.375. The control's
+release already sits ~35 mm inside the belt, so the maximum safe shift is ~30 mm
+= **~0.2 s, 1.3 % of the span**, against a 4 % bar. The next span target is the
+**descent's documented boundary shortfall** (40-90 mm short on every leg), not
+the place. No default is flipped in either phase; if P1c confirms, adoption needs
+both `motion_reference_patch.json` **and** `motion_reference_twoline.json`
+re-recorded plus a `collection.patch_density` manifest field.
 
 ## 3. What changed -> what to run
 

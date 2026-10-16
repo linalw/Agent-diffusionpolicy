@@ -304,7 +304,9 @@ default off, two-line only; the shipped single-arm default is byte-unchanged).
   (starvation 7, clearance 7, budget 2), only 2 survive to the next attempt,
   1 of 4 jammed (1.55 rad, recovered by the park); the hold costs the same
   order as the park return it replaces (2.4/2.9 s), the pooled attempt span is
-  **identical** (15.08 s - the interval is arrival-bound), the window rate is
+  **identical** (15.08 s - the P1/P2 section above revises this phase's
+  "arrival-bound" reading: the cadence is flat and the wait is not where the time
+  goes), the window rate is
   0.22 placed/min lower (3.41 vs 3.63), the idle/starvation rise, and the
   pooled interval mean/p90 worsen (+1.09/+13.70 s; p50 -3.10 s). Clearance
   per config: min **1.9 -> 4.7 mm**, < 30 mm **4.7 -> 5.6 %** (the W2/W3
@@ -312,8 +314,9 @@ default off, two-line only; the shipped single-arm default is byte-unchanged).
   redesigns cost rate) re-measured.
 * **3.3 L4 place/return re-timing: not run - the condition is not met.** The
   control's decomposition has return 0.59/0.64 s per attempt (~4 %), not a
-  dominant block, and the interval is arrival-bound (the arms already idle
-  18 %/24 % waiting for fruit), so re-timing it would only re-absorb into
+  dominant block; the P1/P2 section above revises the "arrival-bound" framing
+  (the cadence is flat across the density ladder and the idle share does not
+  fall), so re-timing it would only re-absorb into
   idle; W1/W2's place/carry re-timing negatives still stand, and the
   descent/close are untouched by R3.
 * **3.4 belt-speed screen: the arrival-limited boundary is 0.15-0.18 m/s.**
@@ -332,39 +335,18 @@ default off, two-line only; the shipped single-arm default is byte-unchanged).
   ladder's wash on the patch sheet; the named fix is a scenario-calibrated
   floor per speed, not the adaptive EWMA (section 1.4).
 
-### P1/P2 (2026-10-15, owner directive) - the supply-density lever, and the arrival-bound framing revised
+### P1/P2/P3 (2026-10-15/16, owner directive) - the supply-density lever: **the adoption recommendation is withdrawn pending a composition-controlled test**
 
-The owner asked why the arms wait so long for fruit and whether the line can simply carry more.
-`FRUIT_SUPPLY_PATCH_DENSITY` (D, default 1.0, `fruits.py`) divides the patch sheet's along-slice
-gaps by D (floor 0.085 m) and raises the abreast probability toward 1. Pre-registered
-(`logs/p/PREREGISTRATION.md`), measured on the two-line patch battery (ATTEMPTS=20, SEED=5,
-Tier A solo), the dose-response is clean with an optimum:
-
-| D | success | placed/min | pooled interval |
-| --- | --- | --- | --- |
-| 1.0 (control) | 12/20 = 60 % | 3.64 | 16.53 s |
-| **1.5** | **15/20 = 75 %** | **4.48** | **13.34 s** |
-| 2.0 | 5/20 = 25 % | 1.53 | 39.22 s |
-| 1.5 + belt 0.15 m/s | **17/20 = 85 %** | **5.31** | **11.10 s** |
-
-**This revises how sections 3.3/3.4 read the interval.** The per-attempt arm span is **constant
-(~15 s)** in every config and the **lock-on latency does not fall** (left 3.73 -> 4.57 -> 4.27 s).
-The left's mean inter-placement interval falls **50.7 -> 20.1 s** because the **attempts inside
-the interval fall 40.4 -> 15.7 s**: the density removes the *failed/empty attempts between two
-placements*, it does not shorten the wait. So the interval is **cadence x success**, not arrival
-rate - the R3 items 3.3/3.4 conclusions stand as measurements (the park/return/belt-speed levers
-were correctly negative on their own branches), but the standing framing "the interval is
-arrival-bound, the arms already idle 18 %/24 % waiting for fruit" is **wrong at the level that
-matters**: the arms were not mostly waiting, they were mostly **failing or spinning**, and the
-supply-side lever is what removes that. At the best measured config the placement interval
-(11.10 s) is within 15 % of the 9.6 s attempt span, so **the per-attempt span is now the binding
-term** (the place+release 5.2 s, the descent 3.0 s, the grip 1.8 s, the lift 1.8 s).
-
-The dose peak's exact location and its transfer to the wave sheet and the single arm are P2's open
-item (`logs/p2/PREREGISTRATION.md`). **No default is flipped**: a two-line supply default is a
-scenario change and the flip is the owner's; the recommendation is D=1.5 with the belt left at
-0.12 m/s, plus a re-recorded `configs/motion_reference_patch.json` for the adopted branch. The
-single-arm default is byte-unchanged (the acceptance reads 9/10 + `fingerprint: matches`).
+> **Status 2026-10-16: WITHDRAWN pending P1c.** An Oracle review (`logs/p3/ORACLE_REVIEW.md`) and
+> an independent re-derivation (`scripts/200_composition_audit.py`) show the P1/P2 ladder cannot
+> separate a density effect from **which fruit each arm is presented**: the two pre-registered
+> endpoints are one statistic (`window placed/min = 60 / pooled interval`), the batch throughput is
+> `success / cadence`, and the placement rate is class-dominated (0.44-1.00 per arm/species).
+> Class-standardised the ladder is **flat** (`logs/p2d/82_standardised.txt`). The knob itself is
+> sound (inert at D=1, byte-guarded, well instrumented); the **recommendation** was not earned.
+> The decisive test is pre-registered at `logs/p1c/PREREGISTRATION.md` (a single-grade supply
+> holds the mix fixed by construction). P3's place-lengthening lever is closed by geometry
+> (`logs/p3/RESULTS.md`).
 
 ### WS-4 - the policy
 
