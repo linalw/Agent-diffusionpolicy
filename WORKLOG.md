@@ -15013,3 +15013,41 @@ adoption of D=1.60 is **withdrawn** - it needs the P1c result first, and a re-re
 `configs/motion_reference_patch.json` and `configs/motion_reference_twoline.json` (the review
 caught that my handover list named only the first) plus a `collection.patch_density` field in the
 collector's shard manifest.
+
+### P1c (2026-10-16): the composition-controlled test refutes the density lever outright - on a single-species pool the denser sheet starves the single arm (0/20 -> 14/20 empty slots, success 65 % -> 17-30 %, placed/min 2.54 -> 0.63)
+
+`logs/p1c/RESULTS.md`, pre-registered `logs/p1c/PREREGISTRATION.md`, evidence `logs/p1c/`. This is
+the test the Oracle review of P1/P2 named as decisive, run on the single arm with the presented
+class multiset held fixed **by construction** (`FRUIT_SUPPLY_SPECIES=apple` - a knob added for
+this test, because `_mix_env` rejects a zero weight so neither mix knob could express a
+one-species pool; the first attempt with `FRUIT_SUPPLY_GRADES=apple:1` was silently rejected by
+its own warning and ran the mixed pool, so that attempt is void and is not used).
+
+**Result:** D=1.00 -> 13/20 placed (65 %), **0 empty slots**, 15.4 s/attempt, 2.54 placed/min.
+D=1.60 -> 1/6 placed (17 %), **14/20 empty slots**, 15.9 s/attempt, 0.63 placed/min; the double is
+**physics-identical**; a 40-slot repeat gives 3/10 (30 %) with **30/40 empty**. So with the fruit
+held constant the density is **strongly negative on the single-arm line**, and the pre-registered
+primary fails both clauses.
+
+**Mechanism (measured):** the density turns the steady trickle into a single burst - the 16-fruit
+pool is released almost at once, so at attempt 3 the most-upstream live apple sits at y = +0.375,
+just under the selection floor (~+0.40 m), and at attempt 0 the whole pool is already downstream.
+The arm's 15.4-16.0 s cycle is slower than the burst's transit, so it polls a floor it cannot
+satisfy. **The two-line hides this** because its worker parks and waits (the W7-A lever) and two
+arms drain the pool; the single arm's selector polls and gives up. The asymmetry is now measured
+on both sides (the two-line completes 20/20 slots at D=1.60).
+
+**What this closes:** the density as a positive lever - the ladder's gains were the mix, and the
+composition-free effect runs the other way. The knob stays default-off and is now documented as a
+**measurement instrument**, not a candidate default. Two real effects survive, both negative and
+both measured: **D=2.0's crowding collapse** (-7.3 slots class-adjusted) and **the D>=1.5-1.6
+single-arm starvation** (this test, plus the Oracle's D=1.5 reading of 10 empty slots). The
+binding term is unchanged by any of it: **the per-attempt arm span (~15 s, flat across the whole
+ladder)**.
+
+**Tooling fixes the review forced:** `172` now covers the density knob and the species lock
+(**52 -> 63 checks** - the knob previously had no coverage at all, so "byte-identical at D=1" was
+code inspection rather than a test); the `WAVE=1 PATCH=1` combination now warns and the density
+banner names the *resolved* schedule (it used to print the inert wave bands on a patch run, which
+is what made `compare_streams.py` report a false DIFFERENT). The branch's acceptance must be re-run
+before merge (an open item, not a claim).
