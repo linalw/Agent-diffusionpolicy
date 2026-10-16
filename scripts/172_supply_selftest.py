@@ -240,11 +240,68 @@ def main() -> int:
             del os.environ[key]
     os.environ.pop("FRUIT_BIARM_TWOLINE", None)
     check(not SupplyPlan.from_env(cfg).patch, "patch default off (old supplies unchanged)")
+    # --- P1/P2 density knob (added 2026-10-16: the Oracle review found the
+    # selftest never exercised `FRUIT_SUPPLY_PATCH_DENSITY`, so the "byte-identical
+    # at D=1" claim rested on code inspection rather than a check).
+    # (a) D=1.0 must leave the wave schedule's four gap bands at the defaults.
+    os.environ["FRUIT_SUPPLY_WAVE"] = "1"
+    os.environ["FRUIT_SUPPLY_PATCH_DENSITY"] = "1.0"
+    d1_wave = SupplyPlan.from_env(cfg)
+    check(
+        abs(d1_wave.wave_gap_min - 0.10) < 1e-9
+        and abs(d1_wave.wave_gap_max - 0.16) < 1e-9
+        and abs(d1_wave.wave_sep_min - 0.09) < 1e-9
+        and abs(d1_wave.wave_sep_max - 0.12) < 1e-9,
+        "density D=1.0 leaves the wave gap bands at the defaults",
+    )
+    # (b) D=1.5 divides the wave bands by 1.5, floored at the 0.085 m separation
+    # rule: gap 0.10/1.5 -> 0.085 (the floor), 0.16/1.5 -> 0.107, and both boundary
+    # bands onto the same floor.
+    os.environ["FRUIT_SUPPLY_PATCH_DENSITY"] = "1.5"
+    d15_wave = SupplyPlan.from_env(cfg)
+    check(
+        abs(d15_wave.wave_gap_min - 0.085) < 1e-9
+        and abs(d15_wave.wave_gap_max - 0.10666666666666667) < 1e-6
+        and abs(d15_wave.wave_sep_min - 0.085) < 1e-9
+        and abs(d15_wave.wave_sep_max - 0.085) < 1e-9,
+        "density D=1.5 scales the wave bands to 0.085-0.107 / 0.085-0.085",
+    )
+    check(
+        d15_wave.wave_gap_min >= 0.085 - 1e-9
+        and d15_wave.wave_sep_min >= 0.085 - 1e-9,
+        "density never breaches the 0.085 m separation floor (wave)",
+    )
+    os.environ.pop("FRUIT_SUPPLY_PATCH_DENSITY")
+    os.environ.pop("FRUIT_SUPPLY_WAVE")
     os.environ["FRUIT_SUPPLY_PATCH"] = "1"
     patch_plan = SupplyPlan.from_env(cfg)
     check(
         patch_plan.patch and patch_plan.scatter,
         "FRUIT_SUPPLY_PATCH=1 enables the patch sheet",
+    )
+    # (c) D=1.0 leaves the patch slice band and the pair probability at the
+    # defaults; (d) D=2.0 drives the slice band onto the 0.085 m floor and the
+    # abreast probability to 1.0 (every slice carries a pair).
+    os.environ["FRUIT_SUPPLY_PATCH_DENSITY"] = "1.0"
+    d1_patch = SupplyPlan.from_env(cfg)
+    check(
+        abs(d1_patch.patch_slice_min - 0.14) < 1e-9
+        and abs(d1_patch.patch_slice_max - 0.22) < 1e-9
+        and abs(d1_patch.patch_pair - 0.6) < 1e-9,
+        "density D=1.0 leaves the patch slice band and pair probability alone",
+    )
+    os.environ["FRUIT_SUPPLY_PATCH_DENSITY"] = "2.0"
+    d2_patch = SupplyPlan.from_env(cfg)
+    check(
+        abs(d2_patch.patch_slice_min - 0.085) < 1e-9
+        and abs(d2_patch.patch_slice_max - 0.11) < 1e-9
+        and abs(d2_patch.patch_pair - 1.0) < 1e-9,
+        "density D=2.0 floors the slice band at 0.085-0.110 and pairs every slice",
+    )
+    os.environ.pop("FRUIT_SUPPLY_PATCH_DENSITY")
+    check(
+        abs(SupplyPlan.from_env(cfg).patch_slice_min - 0.14) < 1e-9,
+        "the patch slice band returns to its default when the density env is removed",
     )
     check(
         abs(patch_plan.patch_slice_min - 0.14) < 1e-9
