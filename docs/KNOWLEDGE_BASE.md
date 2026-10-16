@@ -122,6 +122,18 @@ under `Paper/论文/`; extraction counterparts follow the `Paper/text/<DIR>__<fi
 
 ## 3. The shortlist for P4-C (the combinations to implement, per the owner's directives)
 
+> **P6 (2026-10-16): superseded by `docs/papers/MECHANISMS.md`.** All 84 papers were re-read in
+> full on a column-aware corpus (`Paper/fulltext_ca/`, `logs/p6/QUALITY.md`), five adversarial
+> lanes challenged every verdict (`logs/p6/B*_reread.md`), and the cross-batch synthesis
+> (`logs/p6/SYNTHESIS.md`) produced the committed 11-item mechanism menu with the P6 ranking:
+> **1 C-3 carry monitor, 2 C-1 FPTE terminal scoring, 3 force Port A (contact-gated re-entry),
+> 4 C-2 two-line primary-then-conditional, 5 GDP OoD sampling, 6 event-structure handover
+> heads, 7 D²PPO dispersive, 8 SECL retry discipline, 9 contact-stability curation,
+> 10 reactive trace re-aim, 11 perception companions.** P6 corrections of record: TT-VLA
+> GO -> NO-GO (diffusion heads excluded from PPO); GenPO demoted (FlowRL benchmark); FARM and
+> NavDP promoted; PPGuide/Reactive/ShapeGrasp/VLA-Cache numbers corrected; SkipVLA (C-5)
+> demoted (transit ~14 % of span). The C-1..C-8 text below is kept for provenance.
+
 The owner's goal: **bimanual dynamic fast sorting under scattered/unordered supply + fast
 action closed loops + force real-time adjustment**; combinations, bold with evidence, do not
 stop at the first performance drop.

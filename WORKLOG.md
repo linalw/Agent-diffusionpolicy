@@ -15234,3 +15234,41 @@ change. Pins: `fruits.py` `f5671a65` (was `1039330b`), `tasks.py` `bcb1fb72`,
 (self-test PASS). Deliverables uncommitted: `logs/p4c/H1_ACTUATOR.md`,
 `H1_battery.sh`, `H1_readout.py`, `H1_readout.json`, `H1_*.log` (+ `*_186.txt`),
 `H1_RESULTS.md`, the `fruits.py`/`172`/`compare_streams.py` diffs, this entry.
+
+### P6 (2026-10-16, owner "再仔细研读一遍那些论文...漏了许多有用信息以及误读"): the misread risk was real, the corpus is fixed, and the re-read produced a mechanism menu
+
+**The audit first.** The P5 full-text corpus was built with `pdftotext -layout`, which
+interleaves two-column papers line-by-line (verified on Sentinel-VLA: left-column "Training
+Setup..." and right-column "Performance..." share lines). A dual-mode scan showed no poppler
+mode is universally correct (default better 14 / same 40 / worse 30). Fix: a column-aware
+builder (`scripts/202_paper_text_extract.py`, PyMuPDF block coordinates) produced
+`Paper/fulltext_ca/` - 84/84 papers, 1,982 pages, page markers, **no content loss** (non-space
+chars 5,873,812 vs layout 5,857,603; the delta is page markers). B4 found control bytes in
+57/84 files; all stripped atomically (visible text unchanged), the extractor strips at build
+time. Audit: `logs/p6/QUALITY.md`.
+
+**The adversarial re-read (five lanes, ~207 KB):** each lane re-read its batch from the fixed
+corpus, challenged every P5 verdict, mined mechanisms, and wrote transfer sketches
+(`logs/p6/B{1,2,3a,3b,4}_reread.md`). Result: **only two verdict-level movements** (TT-VLA
+GO -> NO-GO - its appendix excludes diffusion heads from PPO; GenPO demoted - FlowRL's
+independent benchmark), **two promotions** (FARM's scripted contact-gated force-mode re-entry;
+NavDP's privileged contrastive critic as a selection mechanism), and 21 numeric/emphasis
+corrections (PPGuide's 500-vs-550 cell; Reactive's refuted 30 Hz; ShapeGrasp's false
+"improves every metric"; VLA-Cache's abstract-vs-table; T-Rex's image-bound labels; HiF-VLA's
+figure reading; DynamicVLA's speed band). **No P5 number was corrupted by column interleave
+and no GO was flipped by the corpus** - the fix was preventive; the value is the corrections
+plus the mechanism-level mining.
+
+**The synthesis** (`logs/p6/SYNTHESIS.md`): the post-H1 bottleneck map (span ~15.4 s binding;
+5.3 s gap with ~4.3-4.7 s `go_ready` transit - **no paper mechanism covers it, an in-house
+item**; carry class; handover fire path; two-line mix confound) and an 11-item merged menu
+with conflicts resolved (the force lane ordered Port A -> compact pre-check -> Port B given
+three independent naive-force negatives; RL routes restricted to diffusion-compatible forms;
+SkipVLA demoted; perception gated on the visual-ablation harness). Committed as
+`docs/papers/MECHANISMS.md` with the corrections table; KB v4 points to it. Top-3 for
+immediate pre-registration: (1) the C-3 merged carry monitor (Sentinel F1 replay gate, then
+N=5 paired carried-class), (2) C-1 FPTE terminal scoring (the missing third leg of the
+R11-A.1 decomposition), (3) force Port A (contact-gated re-entry, targeting the R11-A.1 servo
+chase). Diagnostics exports adopted as the standard: Sentinel's critical-state F1, MAP-VLA
+stage labelling, SkipVLA gripper-event labels, the FRB friction-cone audit, Cocos
+condition-utilization.
