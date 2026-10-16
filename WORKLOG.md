@@ -15051,3 +15051,70 @@ code inspection rather than a test); the `WAVE=1 PATCH=1` combination now warns 
 banner names the *resolved* schedule (it used to print the inert wave bands on a patch run, which
 is what made `compare_streams.py` report a false DIFFERENT). The branch's acceptance must be re-run
 before merge (an open item, not a claim).
+
+### P4-A (2026-10-16, branch `p-supply`, Tier-A solo): the wait diagnosis - the pool arrives as one burst per attempt boundary and drains below the 0.399 m floor faster than the arm cycles; the single arm polls once and forfeits, the two-line parks and waits
+
+P4-PLAN's first gate. No `src/` change, no default change, no control-loop instrumentation. One new
+simulator run (the transport probe); everything else offline re-derivation. Evidence:
+`logs/p4/A_DIAGNOSIS.md` + machine-readable `logs/p4/10_singlearm_availability.json`,
+`11_twoline_wait.json` (with thirteen verbatim `*_186.txt` harness outputs),
+`12_schedule_arithmetic.json`, `14_composition_p2d.txt`, `00_transport_probe.log`;
+tool `scripts/201_p4a_wait_audit.py` (`--self-test` PASS, floor computed 0.399 m via
+`fruit_sorting.motion`, t_desc 0.775 s / lead 0.189 m matching the code comments).
+
+**Availability:** the empty-slot `active=` pool is never refused above the floor (0/56 slots
+audited). D=1.6 apple drains as a sawtooth - fresh 6-body bursts (3 abreast pairs) at
+y ~= 0.32-0.38, then -0.06 m/poll (belt travel between polls), below the floor in 1-2 polls;
+`supply_skipped`/released = 1.7-1.9x on *every* log including healthy D=1.0 (even the 0-empty
+runs release 90-110 fruit to collect 18-20). `reached_end` 0 everywhere; the river flows past as
+`fell_off`. At D=1.0 only ~10.3 slices (~16 fruit) come due per cycle ~= the 16-body pool, so
+releases spread ~1.5 s apart and polls find fruit; at D=1.6 ~30 fruit come due per cycle, the
+pool exhausts at the first pump, and the 20.7 s wall cycle polls a belt whose floor transit is
+3.33 s. Starvation is timing, never count.
+
+**Two hidden waits (both flat across D, both supply-independent):** in-descent hover wait
+~2.3-2.9 s (`descent` block minus 0.75 s motion approach, all real attempts paired) and the
+inter-attempt gap **~5.1-5.5 s** (outcome windows are true sim time; `[stats] sim=` sums spans
+only - `tasks.py:962-968` vs `:1021`). The gap is ~0.75 s feed/pump + ~4.3-4.7 s dual-arm
+`go_ready` transit by subtraction (direct split unresolved). A real slot is 15.4 + 5.3 ~= 20.7 s
+wall, ~37 % waiting. **Denominator discipline:** span-sum (D0 2.54), wall (D0 **1.88**), 186
+window (accept 2.90) differ up to 1.9x - the P1c 2.54 -> 0.63 column is span-based, wall-corrected
+1.88 -> 0.44; cross-line reads must use 186 wall/window, never the span rate.
+
+**Reconciliation:** the single-arm driver polls once per slot and `continue`s past `go_ready`
+(`20_pick_place.py:219-226`) - an empty costs 0.5 s and one placement (D1 wall 135 s < D0 415 s
+because giving up is fast). The two-line worker re-polls every ~0.5 s through 3-14 empty reads
+per lock-on (52_d160 retries), converting the same drain into idle seconds (left starvation
+19 -> 44 control-to-D=1.6 while placements rise 6 -> 9). Composition is the second confound
+(pooled cells 0.44-1.00, adjusted ladder flat 13.9-15.1 vs observed 11-18).
+
+**Transport (new probe, current tree):** fruit `|vy|` 0.121 m/s = 1.008x command, roll ~0
+(cleat-driven slide), 0 stalls; encoder NaN is the cleat-less build's instrument gap, not a
+finding. Transport and branch (D1/D2 physics-identical, D3 same sawtooth) are excluded from the
+lever ranking. Ranking: (1) 15.4 s arm span, (2) 5.3 s gap, (3) floor starvation at D >= 1.5,
+(4) two-line lock-on wait, (5) mix as confound, (6) transport/branch sound. Hypotheses: H1
+trickle-feed cap, H2 `FRUIT_SUPPLY_POOL` 16 -> 24 -> 32 sweep first (knob exists, no code),
+H3 single-arm park-and-wait as the causal proof of the reconciliation. Unresolved: gap split,
+worker pool dump, probe encoder, denominator discipline, H3.
+
+### P4-A gate + P5 full-text pass (2026-10-16): Oracle PASS WITH FIXES applied, all eight P4-A fixes verified, KB v3 + INDEX all-FULL integrated
+
+P4-A Oracle (`ses_ebd5417b4ffeYfeS1cZiA9dSev`) verdict PASS WITH FIXES - all applied in
+`logs/p4/A_DIAGNOSIS.md`: F1 (blocking) H1's `skipped/released < 1.0` was backwards by
+conservation (due = released + skipped, consumption ~1/cycle - the ratio must rise under
+consume-and-skip; now a recorded diagnostic with implementation-dependent direction) plus the
+actuator spec (`FRUIT_SUPPLY_BURST_MAX` alone spreads one dump over boundary ticks only),
+quantified rate-only kill, <20% bar motivated, H2->H1->H3 run order; F2 schedule arithmetic
+marked hand-computed with input cites; F3/F4/F5/F6/F7 wording, bounds, and disclosure fixes;
++2 nits (last_t1 prime, single-speed floor assumption). **P4-A gate: PASS.**
+
+P5 (owner: all 84 read in full): `Paper/fulltext/` 84/84, 1,982 pages, 9,457,715 chars
+(`MANIFEST.tsv`); five librarian lanes wrote 83 FULL method cards (`logs/p5/B{1,2,3a,3b,4}_cards.md`,
+ExpReS pair merged). P5-C integrated into KB v3 + INDEX all-FULL: new C-8 PPGuide steering
+(#34), JCAC conformal calibration (#1) and EmbodiedSkills (#47) into C-3, GeoPredict (#63) as
+C-4 backup, reactive controller (#64) as scripted-catch alternative, MA-VLA full text verified
+inside the 698-page proceedings volume with verdict NO-GO (Q6 closed), D2PPO strengthened.
+Oracle P5-C (`ses_ebd4bbb5dffeuCA7ncBKgx6TLp`) verdict PASS WITH FIXES - all mechanical
+grade normalizations applied and verified (83/83 INDEX rows FULL; 14/14 KB ranked rows FULL).
+Next: P4-C pre-registration (H2->H1->H3, corrected actuator semantics), then the C-1/C-3/C-8
+combo builds.
