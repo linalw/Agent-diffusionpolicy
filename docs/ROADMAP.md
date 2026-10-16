@@ -335,9 +335,18 @@ default off, two-line only; the shipped single-arm default is byte-unchanged).
   ladder's wash on the patch sheet; the named fix is a scenario-calibrated
   floor per speed, not the adaptive EWMA (section 1.4).
 
-### P1/P2/P3 (2026-10-15/16, owner directive) - the supply-density lever: **the adoption recommendation is withdrawn pending a composition-controlled test**
+### P1/P2/P1c/P3 (2026-10-15/16, owner directive) - the supply-density lever: **closed as a positive lever; the composition-controlled test refutes it**
 
-> **Status 2026-10-16: WITHDRAWN pending P1c.** An Oracle review (`logs/p3/ORACLE_REVIEW.md`) and
+> **Status 2026-10-16: P1c RAN, and it refutes the lever.** With the class held fixed by a
+> one-species pool (`FRUIT_SUPPLY_SPECIES=apple`), the single arm at D=1.60 reads **17-30 %
+> per attempt, 14/20 (and 30/40) empty slots, 0.63 placed/min** against the D=1.00 control's
+> **65 %, 0/20 empty, 2.54 placed/min** - **strongly negative**. The mechanism is measured: the
+> denser sheet delivers the pool as one burst that drains below the selection floor while the
+> single arm's 15.4 s cycle is slower (at attempt 3 the most-upstream live fruit is at
+> y = +0.375 against a ~+0.40 m floor), and the two-line hides it because its worker parks and
+> waits. `logs/p1c/RESULTS.md`. **The knob stays default-off as a measurement instrument; the
+> two surviving density effects are both negative** (D=2.0's crowding collapse, and the
+> D>=1.5 single-arm starvation). The earlier withdrawal note follows for the record. An Oracle review (`logs/p3/ORACLE_REVIEW.md`) and
 > an independent re-derivation (`scripts/200_composition_audit.py`) show the P1/P2 ladder cannot
 > separate a density effect from **which fruit each arm is presented**: the two pre-registered
 > endpoints are one statistic (`window placed/min = 60 / pooled interval`), the batch throughput is

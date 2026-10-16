@@ -1068,7 +1068,7 @@ stale pin inherited from `fd2e39e`: main's `rl_env.py` pin `b7d6f849...` did
 not match its own `tasks.py` `c2c7a626...`, so the direct env refused to
 start), checkpoint `moe_v13s` `61da390a85fa209496b54477a8255d23`.
 
-**P1/P2/P3 (2026-10-15/16, owner directive "为什么会要等那么长时间的果？你增加流水
+**P1/P2/P1c/P3 (2026-10-15/16, owner directive "为什么会要等那么长时间的果？你增加流水
 线上果蔬数量不行吗", branch `p-supply`): the supply-density knob exists and is
 sound, its adoption recommendation is WITHDRAWN, and the place leg is closed by
 geometry.** `FRUIT_SUPPLY_PATCH_DENSITY` (D, default 1.0, `fruits.py`) divides
@@ -1100,6 +1100,18 @@ acquisition; -7.3 slots class-adjusted), and the single arm is **not** a
 like-for-like transfer (at D=1.5 it starved on half its slots: 10 "no eligible
 fruit" vs the control's 0, 10 picks in 19 slots vs 20 in 20 - the two-line's
 worker parks and waits, the single arm's selector polls and gives up).
+
+**P1c (2026-10-16) CLOSES the density as a positive lever: on a composition-free
+single-species pool it is strongly NEGATIVE on the single-arm line** (65 % -> 17-30 % per
+attempt, **0/20 -> 14/20 (and 30/40) empty slots**, 2.54 -> 0.63 placed/min; the D=1.60 double is
+physics-identical). Mechanism: the denser sheet delivers the pool as **one burst** that drains
+below the selection floor while the single arm's 15.4 s cycle is slower - at attempt 3 the
+most-upstream live fruit is at y = +0.375 against a ~+0.40 m floor. **The two-line hides it**
+(its worker parks and waits, two arms drain the pool), which is why the ladder looked positive
+there. So: the knob stays default-off and is a **measurement instrument**, not a candidate
+default; the surviving density effects are both negative (D=2.0's crowding collapse, and the
+D>=1.5 single-arm starvation). `FRUIT_SUPPLY_SPECIES` (default off) was added for this test -
+`_mix_env` rejects a zero weight, so a one-species pool was otherwise inexpressible.
 
 **P3: the place leg is closed by geometry.** `FRUIT_PLACE_INNER_SHIFT` (default
 off) shortens the place carry as designed (45.1 -> 36.1 cm, 297 -> 237 ticks,
