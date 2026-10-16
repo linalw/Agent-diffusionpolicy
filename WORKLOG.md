@@ -15171,3 +15171,66 @@ gate PASS, `fingerprint: matches`**, stream byte-identical to
 Next: **H1 runs regardless** (burst-vs-rate unseparated; beat 60-70 % empties by
 moving the clump, not the depth). **H3 stays parked** - its entry condition is
 judged against the H1 outcome, and H2 alone does not trigger it.
+
+### P4-C1 H1 (2026-10-16, branch `p-supply`, Tier-A solo): the trickle feed removes the starvation (70 % -> 0 % empties, 1 -> 11 placements) and the queue-interlock residual is now measured, not inferred; H3 stays parked; knob default-off
+
+Actuator (specified before any run, `logs/p4c/H1_ACTUATOR.md`):
+**consume-and-skip with a freshness cap** (`FRUIT_SUPPLY_TRICKLE_LATE_S=1.2`,
+default 0 = off, `fruits.py`). Code verification first: `FRUIT_SUPPLY_BURST_MAX`
+caps only the per-`_pump_supply`-call burst and the driver makes 60 such calls
+inside the 0.5 s boundary window (`20_pick_place.py:173-177`), so it (and any
+per-call cap) cannot spread one dump over the ~20.7 s cycle - not the H1
+actuator; leave-due pacing was scoped and rejected (no during-attempt pump
+exists on the single-arm path; building one is a control-loop change the phase
+bans, and mid-attempt releases drain 2.4 m and miss the next poll).
+Instrumentation (Oracle forward check): `FRUIT_SUPPLY_DIAG=1` (default off)
+prints one `[supply-diag]` line per active pump call
+(`due/rel/past/stale/clear/queue/pool/late`), pure reporting, ~1-3 lines per
+window; run-neutrality verified.
+
+Run (single-arm apple D=1.6 patch sheet, SEED=5, ATTEMPTS=20; control + trickle
++ trickle double + trickle-nodiag; `logs/p4c/H1_battery.sh`,
+`RUN_LIMIT=7200`, all exit 0): **control 14/20 empty (70 %), 1/6 placed;
+trickle 0/20 empty, 11 placed** (8 grasped-not-placed + 1 no-contact = the
+scripted catch/carry class, no new reason); cadence 15.95 -> 15.61 s span,
+wait-in-descent 2.78 -> 2.72 s; span/wall/186-batch/186-window rates
+0.63/0.44/0.47/n-a -> 2.11/1.55/1.58/1.76 placed/min (same scenario,
+counts only). Kills: **none fires** - all 20 descents inside budget (worst
+`|v|max` 0.110 vs 0.160-0.161; 105 FAILs rate-only, pre-registered
+recorded-not-gated) and the placements rose with the availability (not a
+rate-only move). Verdict: **H1 positive on its endpoints; the knob stays
+default off** (measurement, not adoption).
+
+Instrumented burst shape (`logs/p4c/H1_readout.json`): control - 21 windows,
+rel max 6 (6 windows at the cap), **9 queue-interlock hits**, delivered
+lateness 0.0-4.66 s, empty max_y 0.135-0.384 (all below the 0.399 m floor);
+trickle - 31 windows, rel max 4 (most 2), **0 interlock hits**, lateness
+0.00-1.18 s (release positions 0.536-0.68 m), 76 stale slices consumed. This
+closes H2's carried residual ("the queue bind is inference"): the interlock
+fires directly on the control.
+
+Determinism/identity: trickle double **707/707 physics-identical**; diag-off
+twin **707/707** (diagnostics neutral; `compare_streams.py` now treats
+`[supply-diag]` + the enable banner as trace-only); control **234/234** vs
+`H2_16_pool16.log` **and** vs `logs/p1c/D1_apple_d160.log` - the default-off
+tree replays both records byte-for-byte.
+
+**H3 stays parked** (explicit judgment): the entry condition is "H1/H2 implicate
+the poll policy rather than the burst", and H1 closes the starvation as a
+release-shape effect - with fresh deliveries the once-per-slot give-up path is
+never exercised (0 empty), so there is no drain left to park through; no H3
+baseline is pinned because the trigger does not obtain (for the record the
+give-up wall rates on this scenario are 0.44 placed/min control / 1.55 post-H1).
+
+No-harm: `selfcheck.sh` PASS 0 failures (172 -> 74 checks, the trickle leg
+added); `accept.sh` **9/10, motion gate PASS, `fingerprint: matches`**
+(`accept exit=0`; the 9/10 run in `logs/p4c/H1_accept_noharm.log`; the
+motion-gate table + `fingerprint: matches configs/motion_reference.json` + PASS
+in `logs/p4c/H1_accept_driver.log`); `configs/*` untouched; no shipped-default
+change. Pins: `fruits.py` `f5671a65` (was `1039330b`), `tasks.py` `bcb1fb72`,
+`rl_env.py` `0c4f6b65`, `172` `45e18029`, `compare_streams.py` `f912521c`
+(`17e71964` at actuator write time),
+`H1_readout.py`; read-only re-derivation via `logs/p4c/H1_readout.py`
+(self-test PASS). Deliverables uncommitted: `logs/p4c/H1_ACTUATOR.md`,
+`H1_battery.sh`, `H1_readout.py`, `H1_readout.json`, `H1_*.log` (+ `*_186.txt`),
+`H1_RESULTS.md`, the `fruits.py`/`172`/`compare_streams.py` diffs, this entry.

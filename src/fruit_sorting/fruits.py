@@ -273,6 +273,15 @@ class SupplyPlan:
     patch_pair: float = SUPPLY_PATCH_PAIR
     patch_sep_min: float = SUPPLY_PATCH_SEP_MIN
     patch_sep_max: float = SUPPLY_PATCH_SEP_MAX
+    #: P4-C1 H1 trickle feed (2026-10-16, default 0 = off/byte-identical).
+    #: `FRUIT_SUPPLY_TRICKLE_LATE_S = capS`: in `_pump_supply`, a due slice
+    #: whose virtual lateness exceeds the cap is consumed-and-skipped instead
+    #: of delivered 2-4 s late at a position that is already below the moving
+    #: catch's ~0.40 m selection floor by poll time. The schedule still draws
+    #: one gap per due slot, so the mean due rate is unchanged; only the
+    #: stale backlog is dropped (`supply_skipped`, plus the lazily-created
+    #: `supply_trickled` counter). 0.0 keeps the shipped path byte-for-byte.
+    trickle_late_s: float = 0.0
 
     @classmethod
     def from_env(cls, cfg: SceneConfig) -> "SupplyPlan":
@@ -478,6 +487,7 @@ class SupplyPlan:
             patch_pair=patch_pair,
             patch_sep_min=patch_sep_min,
             patch_sep_max=patch_sep_max,
+            trickle_late_s=max(0.0, number("FRUIT_SUPPLY_TRICKLE_LATE_S", 0.0)),
         )
 
     def sample_gap(self, rng: random.Random) -> float:
@@ -542,6 +552,14 @@ class FruitSpawner:
         #: position was already past the station (the feeder was not called
         #: while an attempt ran) or the spot was not clear of a live fruit.
         self.stats["supply_skipped"] = 0
+        #: P4-C1 H1 pure-reporting diagnostic (`FRUIT_SUPPLY_DIAG=1`, default
+        #: off). Read once here - not per `update` call - so the shipped path
+        #: pays one attribute check at most and never touches the env or the
+        #: control loop. When on, `_pump_supply` prints one `[supply-diag]`
+        #: line per pump call that processed due slots: due / released /
+        #: past-floor / trickle-stale / clear-refused / queue-interlock /
+        #: pool-empty and the delivered lateness band.
+        self._supply_diag = os.environ.get("FRUIT_SUPPLY_DIAG", "0") == "1"
         #: Set to a CleatedBelt so the cleats advance with the physics loop.
         self.belt = None
         stage.DefinePrim(root, "Xform")
@@ -594,6 +612,16 @@ class FruitSpawner:
                     else ""
                 )
             )
+            # P4-C1 H1 (default off): print the trickle state only when it is
+            # active, so the shipped banner stream stays byte-identical.
+            if self.supply.trickle_late_s > 0.0:
+                say(
+                    f"[supply] trickle feed: deliver only slices due within "
+                    f"{self.supply.trickle_late_s:.2f}s of the pump; the stale "
+                    "backlog is consumed as supply_skipped (consume-and-skip)"
+                )
+            if self._supply_diag:
+                say("[supply] diag: per-pump released/refused lines on")
         else:
             for i in range(self.cfg.num_fruits):
                 category = categories[i % len(categories)]
@@ -1133,34 +1161,83 @@ class FruitSpawner:
 
         On the patch schedule each due slot is a **slice**: `_release_patch_slot`
         places its 1-2 fruit abreast at `along` (see there for the pair rules).
+
+        P4-C1 H1 (`FRUIT_SUPPLY_TRICKLE_LATE_S`, default 0 = off): when set,
+        a due slot whose lateness exceeds the cap is consumed-and-skipped
+        (`supply_skipped`, plus the lazy `supply_trickled`) instead of being
+        delivered late; the schedule still draws one gap per due slot, so only
+        the stale backlog is removed, not the due rate.
         """
         cfg = self.cfg
         speed = max(abs(float(cfg.belt_speed)), 0.03)
         floor = float(cfg.pick_y) + 0.10
         released: list[FruitSample] = []
+        # P4-C1 H1 diagnostics: locals only, no state and no env reads on the
+        # shipped path (`_supply_diag` is read once in `__init__`).
+        diag = self._supply_diag
+        due = past = stale = clear_refused = 0
+        queue_hit = pool_empty = 0
+        late_lo: float | None = None
+        late_hi: float | None = None
+        # Trickle feed (P4-C1 H1, default 0 = shipped consume-as-is): a due
+        # slice older than the cap is dropped - see `SupplyPlan.trickle_late_s`.
+        trickle = float(self.supply.trickle_late_s)
         while sim_time >= self._next_release and len(released) < self.supply.burst_max:
+            due += 1
             period = self._release_period()
             late = float(sim_time) - float(self._next_release)
             along = float(cfg.spawn_y) - min(late * speed, 1.60)
             self._next_release += period
             if along < floor:
                 self.stats["supply_skipped"] += 1
+                past += 1
+                continue
+            if trickle > 0.0 and late > trickle:
+                # H1 consume-and-skip: the stale backlog is dropped, not
+                # delivered late. `supply_trickled` is created lazily so the
+                # off path's stats dict (and every shipped byte) is unchanged.
+                self.stats["supply_skipped"] += 1
+                self.stats["supply_trickled"] = (
+                    self.stats.get("supply_trickled", 0) + 1
+                )
+                stale += 1
                 continue
             if self._queue_depth() >= queue_max:
                 self._next_release = max(self._next_release, sim_time + period)
+                queue_hit = 1
                 break
             if self.supply.patch:
+                before = len(released)
+                skipped_before = self.stats["supply_skipped"]
                 if not self._release_patch_slot(along, queue_max, released):
+                    pool_empty = 1
+                    clear_refused += self.stats["supply_skipped"] - skipped_before
                     break
+                clear_refused += self.stats["supply_skipped"] - skipped_before
+                if len(released) > before:
+                    late_lo = late if late_lo is None else min(late_lo, late)
+                    late_hi = late if late_hi is None else max(late_hi, late)
                 continue
             if not self._release_clear(along):
                 self.stats["supply_skipped"] += 1
+                clear_refused += 1
                 continue
             sample = self.release_next()
             if sample is None:
+                pool_empty = 1
                 break
             self.respawn(sample, along=along)
             released.append(sample)
+            late_lo = late if late_lo is None else min(late_lo, late)
+            late_hi = late if late_hi is None else max(late_hi, late)
+        if diag and due:
+            say(
+                f"[supply-diag] t={float(sim_time):.3f} due={due} "
+                f"rel={len(released)} past={past} stale={stale} "
+                f"clear={clear_refused} queue={queue_hit} pool={pool_empty} "
+                f"late="
+                + ("none" if late_lo is None else f"{late_lo:.2f}-{late_hi:.2f}")
+            )
         # Top up the catchable approach segment (`FRUIT_SUPPLY_TARGET`,
         # **default 0 = off**). The time schedule alone paces releases ~1.9 s
         # apart, but the shipped loops call `update` in bursts (a 15 s attempt,

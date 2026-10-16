@@ -13,7 +13,10 @@ then exercises the pure supply logic plus a fake-physics pump:
 * `prime` fills the selector window with sampled gaps (the first wave when the
   wave schedule is on) and never stacks;
 * `_pump_supply` releases the backlog without ever placing a fruit within
-  0.06 m of a live one, and the scatter=0 path keeps the old 1.6 s cadence.
+  0.06 m of a live one, and the scatter=0 path keeps the old 1.6 s cadence;
+* the P4-C1 H1 trickle feed (`FRUIT_SUPPLY_TRICKLE_LATE_S`, default off):
+  consume-and-skip with a lateness cap - at most one slice per pump window,
+  only fresh positions, the stale backlog counted (`supply_trickled`).
 
 Run: `python3 scripts/172_supply_selftest.py` (a `selfcheck.sh` leg).
 """
@@ -642,6 +645,138 @@ def main() -> int:
             spawner._rigids[sample.index].pos = pos
     releases = spawner.stats["released"] - 4
     check(18 <= releases <= 19, f"scatter=0 fixed 1.6 s cadence ({releases} in 30 s)")
+
+    # --- P4-C1 H1: trickle feed (`FRUIT_SUPPLY_TRICKLE_LATE_S`, default off) --
+    # The actuator is consume-and-skip with a lateness cap: a due slot older
+    # than the cap is dropped (`supply_skipped` + the lazy `supply_trickled`)
+    # instead of delivered late near/below the moving catch's selection floor.
+    # Resolve default / parse / clamp first, then drive the pump on a
+    # driver-shaped clock (0.5 s of per-tick pumps, then a 15.5 s no-pump gap).
+    os.environ["FRUIT_SUPPLY_SCATTER"] = "1"
+    os.environ["FRUIT_SUPPLY_POOL"] = "16"
+    os.environ.pop("FRUIT_SUPPLY_PATCH", None)
+    os.environ.pop("FRUIT_SUPPLY_PATCH_DENSITY", None)
+    os.environ.pop("FRUIT_SUPPLY_TRICKLE_LATE_S", None)
+    check(SupplyPlan.from_env(cfg).trickle_late_s == 0.0, "trickle default is off (0.0)")
+    os.environ["FRUIT_SUPPLY_TRICKLE_LATE_S"] = "1.2"
+    check(
+        abs(SupplyPlan.from_env(cfg).trickle_late_s - 1.2) < 1e-9,
+        "trickle cap parsed from FRUIT_SUPPLY_TRICKLE_LATE_S",
+    )
+    os.environ["FRUIT_SUPPLY_TRICKLE_LATE_S"] = "-3"
+    check(
+        SupplyPlan.from_env(cfg).trickle_late_s == 0.0,
+        "a negative trickle cap is clamped to off",
+    )
+    os.environ.pop("FRUIT_SUPPLY_TRICKLE_LATE_S", None)
+
+    def driver_clock(trickle: str | None, patch: bool = False):
+        """Pump on the driver's clock: 0.5 s per-tick windows, 15.5 s gaps.
+
+        Returns `(spawner, rows, positions)` with `rows` the bodies released
+        per window and `positions` the along-y of every respawned body (so a
+        freshness invariant applies to the trickle's deliveries).
+        """
+        if trickle is None:
+            os.environ.pop("FRUIT_SUPPLY_TRICKLE_LATE_S", None)
+        else:
+            os.environ["FRUIT_SUPPLY_TRICKLE_LATE_S"] = trickle
+        if patch:
+            os.environ["FRUIT_SUPPLY_PATCH"] = "1"
+            os.environ["FRUIT_SUPPLY_PATCH_DENSITY"] = "1.60"
+        else:
+            os.environ.pop("FRUIT_SUPPLY_PATCH", None)
+        spawner, _plan = make_spawner(scatter=True)
+        positions: list[float] = []
+        spawner.prime(count=4)
+        # Hook installed after the prime so `positions` carries only the
+        # pump's own deliveries (the prime places the ladder anywhere down to
+        # ~0.05 m by design).
+        original = spawner.respawn
+
+        def hook(sample, along=None, x_jitter=0.10, x=None):
+            original(sample, along=along, x_jitter=x_jitter, x=x)
+            positions.append(float(spawner.position(sample)[1]))
+
+        spawner.respawn = hook
+        step = 1.0 / 120.0
+        t = 0.0
+        rows: list[int] = []
+
+        def advance_ticks(n: int) -> None:
+            for _ in range(n):
+                for sample in list(spawner.active):
+                    if sample.parked or sample.held:
+                        continue
+                    pos = spawner.position(sample)
+                    pos[1] += cfg.belt_speed * step
+                    spawner._rigids[sample.index].pos = pos
+                    if float(pos[1]) < cfg.despawn_y:
+                        spawner.park(sample)
+                        spawner.active.remove(sample)
+
+        def window() -> None:
+            nonlocal t
+            rel0 = spawner.stats["released"]
+            for _ in range(60):
+                advance_ticks(1)
+                t += step
+                spawner.update(t)
+            rows.append(spawner.stats["released"] - rel0)
+
+        window()  # the batch-start window
+        for _ in range(2):
+            advance_ticks(int(round(15.5 / step)))
+            t += 15.5
+            window()
+        return spawner, rows, positions
+
+    control_pump, control_rows, control_pos = driver_clock(None)
+    check(
+        max(control_rows) >= 2 and min(control_pos) < 0.45,
+        f"shipped pump delivers a multi-body backlog burst that reaches down "
+        f"toward the station ({control_rows}, min y {min(control_pos):.3f})",
+    )
+    check(
+        "supply_trickled" not in control_pump.stats,
+        "the off path never creates the supply_trickled counter (stats byte-identical)",
+    )
+    trickle_pump, trickle_rows, trickle_pos = driver_clock("1.2")
+    check(
+        max(trickle_rows) <= 2,
+        f"trickle delivers at most one slice (<=2 bodies) per pump window ({trickle_rows})",
+    )
+    check(
+        trickle_pump.stats.get("supply_trickled", 0) > 0,
+        "trickle consumes the stale backlog (supply_trickled > 0)",
+    )
+    check(
+        all(y >= 0.68 - 1.2 * 0.12 - 1e-6 for y in trickle_pos),
+        f"every trickle delivery is fresh (y >= spawn_y - cap*v = 0.536; "
+        f"min {min(trickle_pos):.3f})",
+    )
+    # The uniform schedule's periods run to 2.92 s (> the 1.2 s cap), so a
+    # window may legitimately deliver nothing there; the H1 scenario is the
+    # patch sheet at D=1.6, whose widest slice period is 0.1375 m / 0.12 m/s =
+    # 1.146 s < cap - hence every post-gap window delivers at least one slice
+    # (<=2 slices = <=4 bodies).
+    patch_pump, patch_rows, patch_pos = driver_clock("1.2", patch=True)
+    check(
+        max(patch_rows) <= 4 and min(patch_rows[1:]) >= 1,
+        f"trickle on the patch sheet: <=2 slices per window and >=1 slice at "
+        f"every post-gap window ({patch_rows})",
+    )
+    check(
+        all(y >= 0.68 - 1.2 * 0.12 - 1e-6 for y in patch_pos),
+        f"every patch trickle delivery is fresh (min {min(patch_pos):.3f})",
+    )
+    check(
+        patch_pump.stats.get("supply_trickled", 0) > 0,
+        "trickle on the patch sheet consumes the stale backlog",
+    )
+    os.environ.pop("FRUIT_SUPPLY_PATCH", None)
+    os.environ.pop("FRUIT_SUPPLY_PATCH_DENSITY", None)
+    os.environ.pop("FRUIT_SUPPLY_TRICKLE_LATE_S", None)
 
     for key in list(os.environ):
         if key.startswith("FRUIT_SUPPLY_"):
