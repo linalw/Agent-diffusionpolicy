@@ -15627,3 +15627,21 @@ and showed every pre-registered verdict unchanged - but the whole-battery pin is
 the practice was wrong. **Rule going forward: no `src/` writer may run while a Tier-A
 battery is live; implementation lanes queue behind the battery's completion (add it to the
 OPS/P9 discipline).**
+
+### P9-A threshold under-fire and the calibration retry (orchestrator, 2026-10-17)
+
+The first B1 battery measured the threshold, not the lever: the A/B runs are
+**bit-identical** (accept 365/365, patch IDENTICAL) and `FRUIT_READY_DIAG` reads
+**`skip=0` on every transit** - the no-op candidates sit at `pre_err` 0.0131-0.0135
+(inside the 0.03 gate) but `dg` **0.0131-0.0135, above the 0.01 sync gate** the
+implementation borrowed from `_catch_up_drive`. This is the pre-registered kill with
+its predicted cause; the diagnostic did its job. **Decision: one bounded calibration
+retry** - the sync gate becomes `FRUIT_READY_SKIP_DG` (default = the class constant,
+shipped P9-A form unchanged; the extended predicate stub passes, including a
+default-equivalence check), the retry arm B' = `FRUIT_READY_SKIP=1
+FRUIT_READY_SKIP_DG=0.02` (clears the measured entry state with a ~48 % margin, still
+far below the staged-transit `pre_err` >= 1.28 the 0.03 gate excludes), the endpoints,
+kills and no-harm bar unchanged. The amendment is frozen in
+`logs/p9/PREREG_GOREADY_B1.md` BEFORE the retry; the retry chain (`logs/p9c/`) proves
+the edit is default-inert on the new tree (the knob-off acceptance 365/365 and patch
+bit-identity) before the B' arms run.

@@ -611,6 +611,16 @@ class PickAndPlaceTask:
         #: tick counts + residuals; the B2-calibration readout). No per-tick
         #: reads, no control effect; see `_ready_move` / `_ready_report`.
         self._ready_diag = os.environ.get("FRUIT_READY_DIAG", "0") == "1"
+        #: P9-A calibration retry (2026-10-17, `logs/p9/PREREG_GOREADY_B1.md`
+        #: "Calibration amendment"): the skip's drive-target sync gate
+        #: (`dg <= READY_SKIP_SYNC_TOL`) never fired on the current tree - the
+        #: `FRUIT_READY_DIAG` entry readout measured `dg` 0.0131-0.0135 on the
+        #: no-op segments, above the 0.01 gate the B1 implementation borrowed
+        #: from `_catch_up_drive`. This knob overrides only that gate;
+        #: default = the class constant, so the shipped P9-A form is unchanged.
+        self._ready_skip_dg = float(
+            os.environ.get("FRUIT_READY_SKIP_DG", str(self.READY_SKIP_SYNC_TOL))
+        )
         #: Per-arm pick-station Y [m] (v9/V2 two-line scheduler). Both are the
         #: shipped station (0.0) on every single-arm / shared-station path; the
         #: two-line scheduler sets the right arm's station downstream of the
@@ -3558,7 +3568,7 @@ class PickAndPlaceTask:
                 "catch_up": 0, "lift": 0, "blend": 0, "settle": 0,
                 "ramp_err": 0.0, "post_err": 0.0,
             }
-        if skip and err <= self.READY_SKIP_TOL and dg <= self.READY_SKIP_SYNC_TOL:
+        if skip and err <= self.READY_SKIP_TOL and dg <= self._ready_skip_dg:
             arm = self.arms[side]
             # Command state first, then leave: the shipped transit would end
             # with the target at ready and the integrator synced, so a skip
