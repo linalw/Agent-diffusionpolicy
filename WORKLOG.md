@@ -15449,3 +15449,83 @@ followed; 172 selftest 74 checks PASS).
 and section 2d records the scoped byte-identity wording + the outcome-mixed-subset
 corrections (the committed evidence files `logs/p7b/A_RESULTS.md` are not rewritten per the
 repo convention; `logs/p7c/B_RESULTS.md` was fixed before its first commit).
+### P8 (2026-10-16/17): `FRUIT_SUPPLY_TRICKLE_LATE_S=1.2` measured on the shipped single-arm scattered line and the two-line patch battery - both regress, the H1 win does not transfer, recommendation **neither line**
+
+Branch `p-supply` at `0a48ce9` (tag `p7-gate`), Tier-A solo (one simulator
+lane via `scripts/154_claim_run.sh`), all seven simulator runs `exit=0` with
+`[fruit] DONE`, no wedge; ops self-check start (STALLED-CHAIN on the idle
+pre-battery machine, report-only) / mid OK / end OK. No `src/` or `scripts/`
+edit, no shipped-default change, writes only under `logs/p8/`. Parent
+evidence: `logs/p4c/H1_ACTUATOR.md` + `H1_RESULTS.md` (the knob's positive was
+measured only on the starved single-arm apple D=1.6 branch, empty 70 % -> 0 %)
+and `logs/p4/A_DIAGNOSIS.md` (the burst-drain mechanism; the two-line
+inheritance of `_pump_supply` was disclosed untested).
+
+**1. No-harm acceptance, knob OFF (PASS).** 9/10, 15.2 s/attempt, motion gate
+PASS, `fingerprint: matches configs/motion_reference.json`, `--physics-only`
+365/365 identical to `logs/p2d/90_accept.log` (`logs/p8/10_accept_noharm.log`
++ `12_/13_`). The tree is byte-clean on the shipped line.
+
+**2. Shipped single-arm scattered line + trickle 1.2 (FAIL - not inert).**
+`logs/p8/20_accept_trickle12.log` is a different branch (293 vs 365 physics
+lines; first difference = the trickle banner) and it **regresses the shipped
+record**: **2/10 empty slots** (attempts 2, 3; `active=[]`) where the record
+has 0/10, **4/8 = 50 %** success against the 0.75 dynamic floor; the `105`
+FAIL is rate-only (all 8 descents inside budget, worst `|v|max` 0.1130 vs
+0.160-0.161); the taxonomy is the baseline classes (3 grasped-not-placed,
+`trips=38`; 1 never-grasped `fruit did not follow the gripper`) with **no new
+reason**. The DIAG readout is the mechanism: 13 pump windows, due=89, **rel=10
+(<= 1 body/window; 3 windows 0)**, past=65, stale=14 consumed, delivered band
+**0.00-1.12 s**; the same-tree knob-OFF DIAG control (2c; 365/365 identical to
+the record) reads 14 windows, due=106, **rel=28 (1-3 bodies/window), band
+0.01-4.68 s**. The paired first window (same `t=6.833`, `due=5`, `past=2`) is
+the whole story: control `rel=3 late=0.49-2.47 s` vs trickle `rel=1 late=0.04
+stale=2` - the cap removes exactly the 1.2-4.8 s band the shipped line uses to
+stock the approach segment. The empty slots are the windows where the fresh
+1.2 s window held nothing (`t=51.900 due=9 past=7 stale=2 late=none`).
+Determinism + DIAG neutrality: the no-DIAG double is **293/293 identical**.
+
+**3. Two-line patch battery + trickle 1.2 (FAIL).** Control = same-tree
+re-record `logs/p8/36_patch_control.log`, **861/861 identical** to
+`logs/w6/31_lever_park_1.log` (= `logs/w7/20_patch_battery_1.log`, the
+`configs/motion_reference_patch.json` branch; `105`/`190` PASS verified), so
+the P7 default-off additions are byte-inert on this path and the comparison is
+same-tree. Trickle `logs/p8/30_patch_trickle12.log`: **7/20 = 35 %** vs 12/20
+(floor 0.5 FAIL), per arm left 2/10 right 5/10, **starved polls 41 -> 81**
+(left 19/right 22 -> left 43/right 38), pooled interval 16.53 -> 27.38 s mean
+(n 11 -> 6), window rate 3.63 -> 2.19 placed/min, **per-attempt span flat
+15.08 -> 15.26 s** (availability, not cadence), left lock-on 3.73 -> 6.24 s
+(one interval with 20 retries), idle L/R 18/24 % -> 28/23 %; failure classes
+1 never + 7 grasped-not-placed -> **3 never + 10 grasped-not-placed**. The
+`105`/`190` patch gates FAIL on rate + fingerprint (a different attractor, by
+construction; all 20 descents inside budget). DIAG: 50 windows, due=153,
+rel=75 (hist 0:5, 1:15, 2:30), past=64, stale=43, **late=0.00-1.09 s** - the
+worker's park+re-poll absorbs the thin supply as retries (P4-A), and the
+two-station demand exceeds the <= 2 body/window delivery. `gate_open=0.0`,
+`queue_peak=0`, zero `indexed:` in both runs. Determinism + DIAG neutrality:
+the no-DIAG double is **892/892 identical**.
+
+**4. No-harm chain (PASS).** Two-line dense knob-off re-record
+(`logs/p8/40_twoline_dense.log`): 7/10, 9.1 s/attempt, 4.60 fruits/min,
+`--physics-only` **442/442 identical** to `logs/w7/10_dense_twoline_1.log`,
+`190` **PASS** (twoline reference, floor 0.60); `scripts/selfcheck.sh` **PASS
+0 failures, 1 skipped**; `scripts/172_supply_selftest.py` **74 checks ok**.
+Pins start = end (`fruits.py` `f5671a65`, `tasks.py` `7489f302`, `rl_env.py`
+`75b315d3`, `172` `45e18029`, `105` `16a3d790`, `186` `49242875`, `190`
+`a24cfc5b`, `compare_streams` `f912521c`, `configs/*` untouched). Note: the
+parallel P8 B-lane's offline artifacts (the monitor retry script +
+`B_OFFLINE.md` / `PREREG_CARRY_MONITOR_LF.md` in this log area) are Tier C
+(no simulator) and did not overlap this battery.
+
+**Verdict per the endpoints.** The adoption question ("single arm only, both
+lines, or neither") reads **neither**: the single-arm default would ship on the
+line it regresses (2 empty slots, 50 % < floor; the cap cuts the 1.2-4.8 s
+stocking band the poll consumes), and the two-line patch battery doubles its
+starvation and loses 5 placements. The knob stays default `0` - a measurement
+instrument whose positive survives only in the H1 starved-D=1.6 scope. Named
+residuals: a schedule-adaptive cap (1.2 s was tuned to the widest D=1.6 slice
+period 1.146 s; the supplied scenarios' arrival periods run past it) and the
+un-run dense-two-line knob-ON read (closed for adoption by the two negatives).
+Deliverables: `logs/p8/A_RESULTS.md`, the battery logs and drivers under
+`logs/p8/`; this entry (ready to append verbatim - the battery wrote only
+under `logs/p8/` per its scope).
