@@ -15118,3 +15118,56 @@ Oracle P5-C (`ses_ebd4bbb5dffeuCA7ncBKgx6TLp`) verdict PASS WITH FIXES - all mec
 grade normalizations applied and verified (83/83 INDEX rows FULL; 14/14 KB ranked rows FULL).
 Next: P4-C pre-registration (H2->H1->H3, corrected actuator semantics), then the C-1/C-3/C-8
 combo builds.
+
+### P4-C0 H2: the pool ladder is flat (H2 KILLED by its pre-registered criterion)
+
+Phase P4-C0, Tier-A solo, branch `p-supply` (HEAD `bf24aea`, tag `p4a-gate`).
+Pre-registration `logs/p4c/PREREGISTRATION.md` written before any P4-C0 sim run
+(H2->H1->H3 order with entry conditions; corrected H1 actuator semantics;
+per-hypothesis endpoints/kills; denominator discipline; apple-pool composition
+control; determinism doubles; no-harm). No `src/` change, no shipped-default
+change, no control-loop instrumentation.
+
+Battery (`logs/p4c/H2_battery.sh`, the P1c driver shape, RUN_LIMIT=7200,
+`ATTEMPTS=20 SEED=5`, apple D=1.6 patch sheet): pool16 control 11:35-11:38,
+pool24 11:39-11:43, pool32 11:43-11:47, all exit=0. Pins `tasks.py`
+`bcb1fb72` / `fruits.py` `1039330b` (match P4-A); `[supply]` banners confirm
+pool/seed/species/patch on every log. Readout `logs/p4c/H2_readout.py` reuses
+`201` verbatim (`selection_floor` + `parse_singlearm`, 186 subprocess) ->
+`logs/p4c/H2_readout.json`; floor 0.399 m computed.
+
+Result (`logs/p4c/H2_RESULTS.md`): empty fraction **70 % -> 60 % -> 70 %**
+(14/20, 12/20, 14/20; real 6/8/6; placed 1/4/2) - non-monotone,
+flat-to-reversed, nowhere near the < 20 % bar. **H2 KILLED: the pool is not the
+binding constraint.** Mechanism: the same burst-drain sawtooth at every depth
+(zero of 40 audited empties above the floor); pool24 releases 17 more bodies
+than pool16 and 16 more fall off uncollected (skipped/released 1.7-1.9x on all
+three); pool32 releases no more than pool16 (59 vs 58) - the `queue_max` 6 /
+`_release_clear` 0.08 m interlocks cap the staging, and what stages drains below
+the floor in 1-2 polls against the 20.7 s cycle. All failures grasped-not-placed
+(zero no-contact); all descents inside budget (worst 0.109-0.111 vs 0.160-0.161,
+lurch 0.017 vs 0.291); 105 FAILs rate-only on all three (pre-registered
+recorded-not-gated). Span vs wall placed/min 0.63/1.96/1.26 vs 0.44/1.38/0.90 -
+counts only in the table, no cross-config rate claim.
+
+Determinism: H2_16 replays `logs/p1c/D1_apple_d160.log` physics-identical;
+pool24 double (`H2_24_pool24_b.log`, exit=0) physics-identical
+(`H2_24_double_diff.txt` empty; both 12/8/4/122.5 s). Cadence flat
+15.95/15.31/15.83 s.
+
+Protocol deviation (recovered): the first double launch reused the fixed log
+name and truncated the completed pool24 original; the detached `setsid` session
+survived the parent kill, and `pgrep`-polling with a sim-matching pattern held
+its claim 11:48->12:02 (do not poll that way while a claim wrapper waits). The
+file finished as a clean full run (summary identical to the pre-loss record)
+and the formal double ran to a distinct name - the prereg bar is met by the two
+complete runs; nothing lost is cited un-remeasured. Full account in
+`H2_RESULTS.md` section 2.
+
+No-harm: selfcheck PASS 0 failures; `accept.sh` **9/10, 15.2 s/attempt, motion
+gate PASS, `fingerprint: matches`**, stream byte-identical to
+`logs/p/60_accept_noharm.log`; `configs/*` untouched; ops verdict OK, sims 0.
+
+Next: **H1 runs regardless** (burst-vs-rate unseparated; beat 60-70 % empties by
+moving the clump, not the depth). **H3 stays parked** - its entry condition is
+judged against the H1 outcome, and H2 alone does not trigger it.
