@@ -15480,7 +15480,7 @@ reason**. The DIAG readout is the mechanism: 13 pump windows, due=89, **rel=10
 the record) reads 14 windows, due=106, **rel=28 (1-3 bodies/window), band
 0.01-4.68 s**. The paired first window (same `t=6.833`, `due=5`, `past=2`) is
 the whole story: control `rel=3 late=0.49-2.47 s` vs trickle `rel=1 late=0.04
-stale=2` - the cap removes exactly the 1.2-4.8 s band the shipped line uses to
+stale=2` - the cap removes exactly the 1.2-4.7 s band the shipped line uses to
 stock the approach segment. The empty slots are the windows where the fresh
 1.2 s window held nothing (`t=51.900 due=9 past=7 stale=2 late=none`).
 Determinism + DIAG neutrality: the no-DIAG double is **293/293 identical**.
@@ -15519,7 +15519,7 @@ parallel P8 B-lane's offline artifacts (the monitor retry script +
 
 **Verdict per the endpoints.** The adoption question ("single arm only, both
 lines, or neither") reads **neither**: the single-arm default would ship on the
-line it regresses (2 empty slots, 50 % < floor; the cap cuts the 1.2-4.8 s
+line it regresses (2 empty slots, 50 % < floor; the cap cuts the 1.2-4.7 s
 stocking band the poll consumes), and the two-line patch battery doubles its
 starvation and loses 5 placements. The knob stays default `0` - a measurement
 instrument whose positive survives only in the H1 starved-D=1.6 scope. Named

@@ -223,7 +223,15 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: R11-A.1 floored selector) - the R11-A.1 "the pin now follows the final
 #: tree" fix was not in the committed R11-A.1 revision, so the direct
 #: environment refused to start at `fd2e39e`; this follow repairs both.**
-TASKS_MD5 = "7489f302c14e65aa9771f674e4ee199b"
+#:
+#: P8-1 (2026-10-17): the pin follows the P8-2 load-floor monitor tree - the
+#: default-off `FRUIT_CARRY_MONITOR_LOAD_FLOOR` term on `_CarryMonitorLeg`'s
+#: hot predicate plus the `asym@fire` diag field
+#: (`logs/p8/PREREG_CARRY_MONITOR_LF.md` section 7.2; offline stub pins
+#: 29/0/2/33 and 28/0/3/33, `logs/p8c/IMPLEMENTATION.md`). The previous pin
+#: `7489f302...` is the P7-2c monitor tree; every shipped default is unchanged
+#: (floor default 0.0 is the P7-2b rule exactly).
+TASKS_MD5 = "12feced3b6204f06bb32cb878efb5e15"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(

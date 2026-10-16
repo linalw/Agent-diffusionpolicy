@@ -185,16 +185,20 @@ scattered line the paired first pump window (same `t=6.833 s`, same `due=5`,
 same `past=2`) reads:
 
 * control (knob off): `rel=3  late=0.49-2.47 s` - it delivers the three due
-  slices at their virtual positions, 0.49-2.47 s of belt travel upstream;
+  slices at their virtual positions, 0.49-2.47 s of belt travel **downstream of
+  the spawn point, deeper into the approach segment** (y ~ 0.38-0.62 m; ~3.2-5.2 s
+  of travel upstream of the station);
 * trickle: `rel=1  late=0.04 s  stale=2` - it drops exactly the 0.49-2.47 s
   slices and keeps only the freshest.
 
-Whole-run bands: control `late=0.01-4.68 s`, trickle `0.00-1.12 s`. The two
-empty slots are the pump windows where the fresh window contained nothing
-(`t=51.900`: `due=9 past=7 stale=2 late=none`; `t=95.8` similar) - with the
-backlog consumed-and-skipped, the poll finds `active=[]`. That is the *v9
+Whole-run bands: control `late=0.01-4.68 s`, trickle `0.00-1.12 s`. **Both empty
+slots are the two consecutive give-ups after the single `t=51.900` pump window,
+whose fresh window held nothing (`due=9 past=7 stale=2 late=none`); `t=95.758`
+and `t=158.817` are the other `rel=0` windows but the belt still held stock
+there** - with the backlog consumed-and-skipped at `t=51.900`, the poll finds
+`active=[]`. That is the *v9
 stocked-line* design working in reverse: the shipped line deliberately stocks
-the approach segment with fruit that is 1.2-4.8 s late, and that is precisely
+the approach segment with fruit that is 1.2-4.7 s late, and that is precisely
 the band the cap removes.
 
 **The two-line patch battery shows the same mechanism through the worker.** Its
@@ -202,15 +206,16 @@ worker parks and re-polls every ~0.5 s, so starvation surfaces as retries, not
 forfeited slots (P4-A): starved polls 41 -> 81 (+98 %), left lock-on 3.73 ->
 6.24 s (one interval with 20 retries), placements 12 -> 7 with the per-attempt
 span flat (15.08 -> 15.26 s). The delivered shape (<= 2 bodies/window from a
-0.00-1.09 s band) cannot feed two stations that the shipped pump's 6-body
-clumps fed.
+0.00-1.09 s band) cannot feed two stations that the shipped pump's multi-body
+catch-up windows fed (6 = the `FRUIT_SUPPLY_BURST_MAX` ceiling; measured on H1's
+D=1.6 scenario, not on this patch control).
 
 **Why H1 was positive and this is negative (same actuator, opposite sign):**
 H1's scenario (single-species apple, D=1.6, single arm) had a 70 % empty
-fraction caused by one 6-body clump topping out at 0.375 m - *below* the
+fraction caused by its 6-body catch-up windows topping out at 0.375 m - *below* the
 0.399 m selection floor - so the lateness beyond 1.2 s was the *defect*, and
 the fresh-only delivery landed above the floor. On the shipped scatter and the
-patch sheet the 1.2-4.8 s band is the *stock* the poll/worker consumes. The cap
+patch sheet the 1.2-4.7 s band is the *stock* the poll/worker consumes. The cap
 is scenario-tuned (1.2 s > the widest D=1.6 slice period 1.146 s, H1's design
 invariant); the supplied scenarios' own arrival structure (scatter gap periods
 0.83-2.92 s; patch slice periods 1.17-1.83 s) is not covered by that invariant.

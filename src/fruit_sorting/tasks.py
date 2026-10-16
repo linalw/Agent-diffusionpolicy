@@ -107,6 +107,12 @@ _EMPTY_TACTILE = TactileReading(side="none")
 # row - no lead time to reclaim anyway). Decision rule: z >= 0 with
 # `_CARRY_MONITOR_PERSIST` consecutive ticks, both ticks with a seen-loaded
 # state; the score is `sigmoid(w . (x - mu)/sigma + b)`, so z >= 0 is p >= 0.5.
+# P8-2 (2026-10-17, `logs/p8/PREREG_CARRY_MONITOR_LF.md` section 7.2) adds the
+# load-floor term to the hot predicate: `z >= 0 AND (contacts == 0 OR
+# force - 2*ft_min >= FRUIT_CARRY_MONITOR_LOAD_FLOOR)`, default floor 0.0 =
+# the rule above exactly (offline evidence: FP 0/33, escapes 31/31; the frozen
+# battery's arm B uses 3.5 N). The floor is read and passed to
+# `_CarryMonitorLeg` by the task, not embedded here.
 _CARRY_MONITOR_W = (
     +0.1113670393,
     -0.7144026361,
@@ -158,19 +164,28 @@ class _CarryMonitorLeg:
     One instance per dynamic carry leg while `FRUIT_CARRY_MONITOR` is armed.
     It consumes one tick's six online-only features and reports the frozen
     decision (`logs/p7/PREREG_CARRY_MONITOR.md` section 3.3): the tick is hot
-    iff the logit is >= 0 (p >= 0.5); a leg fires on
-    `_CARRY_MONITOR_PERSIST` consecutive hot ticks, and every hot tick of the
-    firing run must carry the loaded-contact gate (`min_contacts > 0`, the W8-B
-    guard's running-minimum form) so the monitor cannot act on a never-held
-    payload. The class touches no simulator state: the carry loop feeds it the
-    same reads the guard's read site takes (`arm.jaw_separation()`,
-    `tactile.read()`), and the offline stub test (`logs/p7c/
-    verify_monitor_stub.py`) replays the frozen corpus through it.
+    iff the logit is >= 0 (p >= 0.5) **and** the P8-2 load-floor term below
+    holds; a leg fires on `_CARRY_MONITOR_PERSIST` consecutive hot ticks, and
+    every hot tick of the firing run must carry the loaded-contact gate
+    (`min_contacts > 0`, the W8-B guard's running-minimum form) so the monitor
+    cannot act on a never-held payload. **P8-2 (2026-10-17, the frozen
+    load-floor form, `logs/p8/PREREG_CARRY_MONITOR_LF.md` section 7.2)** adds
+    the one-sided pad load to the hot predicate: a tick is hot only if
+    `contacts == 0 or asym >= load_floor`, `asym = max(0, force - 2*ft_min)`
+    (the offline convention). `load_floor=0.0` (the default) makes the term a
+    tautology, so the shipped P7-2b behavior is exactly preserved; the frozen
+    battery's arm B passes 3.5 N. The class touches no simulator state: the
+    carry loop feeds it the same reads the guard's read site takes
+    (`arm.jaw_separation()`, `tactile.read()`), and the offline stub tests
+    (`logs/p7c/verify_monitor_stub.py`, `logs/p8c/verify_monitor_stub_lf.py`)
+    replay the frozen corpus through it.
     """
 
-    __slots__ = ("prev_sep", "min_contacts", "run", "fire", "hot", "blocked", "done", "last_z", "fire_z")
+    __slots__ = ("prev_sep", "min_contacts", "run", "fire", "hot", "blocked",
+                 "done", "last_z", "fire_z", "load_floor", "asym_min",
+                 "fire_asym")
 
-    def __init__(self) -> None:
+    def __init__(self, load_floor: float = 0.0) -> None:
         self.prev_sep = None
         self.min_contacts = 10
         self.run = 0
@@ -180,6 +195,13 @@ class _CarryMonitorLeg:
         self.done = False         # fired: stop scoring the rest of the leg
         self.last_z = None
         self.fire_z = None
+        #: P8-2 load floor [N] (`FRUIT_CARRY_MONITOR_LOAD_FLOOR`, resolved by
+        #: the caller); 0.0 = the P7-2b decision rule exactly.
+        self.load_floor = float(load_floor)
+        #: Running minimum of `asym` over the current hot run; at a fire it is
+        #: exactly the firing window's margin (the `asym@fire` diag readout).
+        self.asym_min = float("inf")
+        self.fire_asym = None
 
     def step(self, tick: int, sep, gap_cmd, ft_min, force, contacts) -> bool:
         """One tick; returns True on the tick the leg first fires."""
@@ -200,16 +222,30 @@ class _CarryMonitorLeg:
         self.last_z = z
         if z < 0.0:
             self.run = 0
+            self.asym_min = float("inf")
+            return False
+        # P8-2 load floor (prereg section 7.2): `asym` is the one-sided pad
+        # load (`|ft0 - ft1|` for the two-sensor hand; offline convention,
+        # clamped at 0). `load_floor=0.0` is a tautology (`asym >= 0`), so the
+        # default is the P7-2b rule; a `contacts == 0` tick is exempt, a state
+        # the loaded-contact gate below closes on the same tick.
+        asym = max(0.0, float(force) - 2.0 * float(ft_min))
+        if contacts != 0 and asym < self.load_floor:
+            self.run = 0
+            self.asym_min = float("inf")
             return False
         self.hot += 1
         if self.min_contacts <= 0:
             self.blocked += 1
             self.run = 0
+            self.asym_min = float("inf")
             return False
         self.run += 1
+        self.asym_min = min(self.asym_min, asym)
         if self.run >= _CARRY_MONITOR_PERSIST:
             self.fire = tick - _CARRY_MONITOR_PERSIST + 1
             self.fire_z = z
+            self.fire_asym = self.asym_min
             self.done = True
             return True
         return False
@@ -867,11 +903,25 @@ class PickAndPlaceTask:
         #: of the pre-registration section 4 is P7-2's acceptance proof).
         #: `FRUIT_CARRY_MONITOR_DIAG=1` adds the counts-only traffic: one
         #: `[monitor] fire ...` line per fired leg (side/leg/fire tick counts +
-        #: the fire tick's z) and one `[monitor] attempt: ...` line per attempt
-        #: (legs/fires/skip flag/fired list). Trace-only either way.
+        #: the fire tick's z + the firing window's load margin `asym@fire`) and
+        #: one `[monitor] attempt: ...` line per attempt (legs/fires/skip
+        #: flag/fired list). Trace-only either way.
+        #: P8-2 (2026-10-17, `logs/p8/PREREG_CARRY_MONITOR_LF.md` section 7.2)
+        #: adds the frozen load floor (`FRUIT_CARRY_MONITOR_LOAD_FLOOR`,
+        #: **default 0.0** = the P7-2b rule exactly; the frozen battery's arm B
+        #: uses 3.5): a hot tick must additionally satisfy
+        #: `contacts == 0 or asym >= floor` with `asym = max(0, force -
+        #: 2*ft_min)`, the one-sided pad load. The `contacts == 0` exemption is
+        #: live-inert (the loaded-contact gate closes on the same tick); at the
+        #: default the term is a tautology (`asym >= 0`), so the P7-2b
+        #: behavior - and its 29/0/2/33 corpus pin - is unchanged. The floor is
+        #: passed to `_CarryMonitorLeg`, which stays pure bookkeeping.
         self._carry_monitor = os.environ.get("FRUIT_CARRY_MONITOR", "0") == "1"
         self._carry_monitor_diag = (
             os.environ.get("FRUIT_CARRY_MONITOR_DIAG", "0") == "1"
+        )
+        self._carry_monitor_load_floor = float(
+            os.environ.get("FRUIT_CARRY_MONITOR_LOAD_FLOOR", "0.0")
         )
         #: W7-B acquisition readout (default off, policy direct path only): one
         #: `[acq]` line per attempt with the setup stage times, the close-start
@@ -2435,7 +2485,11 @@ class PickAndPlaceTask:
                 and hand_is_jaw
                 and self._dynamic_capture_active
             )
-            mon_leg = _CarryMonitorLeg() if mon_armed else None
+            mon_leg = (
+                _CarryMonitorLeg(self._carry_monitor_load_floor)
+                if mon_armed
+                else None
+            )
             if mon_leg is not None:
                 self._carry_monitor_legs += 1
             #: R6-B relief readout: the command's own value at the leg start and
@@ -2723,7 +2777,9 @@ class PickAndPlaceTask:
                     # guard's own read site - jaw separation, the commanded gap
                     # this tick, its per-tick derivative, the weaker finger
                     # force, the summed force and the contact count. Never the
-                    # payload pose (`clean_slip` is label-side only). A fire
+                    # payload pose (`clean_slip` is label-side only). The P8-2
+                    # load floor rides inside `mon_leg.step` (`asym` from the
+                    # same two reads); with the knob off nothing runs. A fire
                     # only records the decision and the skip flag; the attempt
                     # ends at the leg boundary (`_grasp_carry_place_impl`), not
                     # here - no command changes mid-leg.
@@ -2748,7 +2804,9 @@ class PickAndPlaceTask:
                             say(
                                 f"[monitor] fire {side} {name}: "
                                 f"tick={mon_leg.fire}/{len(commands)} "
-                                f"z={mon_leg.fire_z:+.2f} hot={mon_leg.hot} "
+                                f"z={mon_leg.fire_z:+.2f} "
+                                f"asym@fire={mon_leg.fire_asym:.2f} "
+                                f"hot={mon_leg.hot} "
                                 f"blocked={mon_leg.blocked} "
                                 f"min_contacts={mon_leg.min_contacts}"
                             )
