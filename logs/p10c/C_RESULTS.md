@@ -91,3 +91,57 @@ class split, not per-arm rate deltas; (iii) fire-2 was a no-grasp leg - the K2 c
 the frozen slip metric (escapes), and the semantic no-grasp fire is recorded here; (iv) the
 lock-on moved +26 % right (reported, not gated; the B2 pattern); (v) this is the patch
 scenario at SEED=5 - one sample.
+
+---
+
+# P10-C.1 RESULTS (2026-10-17): the multi-seed confirmation - mixed, and the fire accounting localizes the cost
+
+## The seed table (the patch battery, both arms with the diag)
+
+| seed | A ok | B ok | A window | B window | A interval | B interval |
+| --- | --- | --- | --- | --- | --- | --- |
+| 5 | 12 | **13** | 3.63 | **3.98** | 16.53 | **15.07** |
+| 11 | **9** | 7 | **2.64** | 2.51 | **22.74** | 23.92 |
+| 23 | **17** | 16 | **5.50** | 5.35 | **10.91** | 11.22 |
+| pooled | **38/60** | 36/60 | - | - | - | - |
+
+B wins seed 5, loses 11 and 23 (marginally); **mixed**. The branch spread is enormous (A 9-17
+of 20 across seeds) - the outcome is draw-dominated, as the P9-A precedent predicted. The
+B spans are consistently shorter (175.3 vs 196.9; 184.7 vs 191.0; 196.7 vs 197.7) - the
+fast-skip's timing saving is real on every seed.
+
+## The fire accounting (MONITOR_DIAG re-runs; both verified bit-identical to their originals modulo the diag rows)
+
+| seed | fires | frozen K2 (<= 2.0 mm) | ground-truth false positives | fired-leg clean_slip |
+| --- | --- | --- | --- | --- |
+| 5 | 2 | 0 | 0 | 19.0 mm (doomed carry; control: carried-not-placed) + the no-grasp pear (never held) |
+| 11 | **11** | **1** (a place1 leg, 0.4 mm) | **+1: the right pear 6.3 mm - the control (A) PLACED it** (the same leg, bit-identical to 161 ticks) | 1371/1276/1646/1612/1280/319/253/53/13 mm + the two marginal |
+| 23 | 2 | 0 | 0 | 1421.6 mm, 805.4 mm (both doomed escapes) |
+| **battery** | **15** | **1/60** | **2/60** | 13 of 15 fires on clear escapes (>= 53 mm) |
+
+**The paired-leg ground truth** (new method): up to the first fire the A/B branches are
+bit-identical, so the fired leg's control counterpart reads its viability directly. It shows
+the classifier's precision failure in the **mild-slide zone** (0.4-6.3 mm) that exists on this
+scenario and was never in the direct-interface validation (clean 0.02-1.43 mm, escapes
+17.9+ mm). The frozen K2 rule (<= 2.0 mm) counts only one of the two false positives.
+
+## The kills on the seeds
+
+- motion budgets: PASS on all four seeds runs (105; the SEED=11 rate 45 %/35 % is below the
+  0.5 floor for **both** arms - a scenario property, not the lever);
+- K2: **1/60 <= 2** by the frozen rule (2/60 by ground truth - reported);
+- no new failure reasons (the classes are the same two);
+- the primary interval: + at seed 5, - at seeds 11/23.
+
+## Verdict (per the pre-committed framework)
+
+**Mixed -> the lever stays opt-in (`FRUIT_CARRY_MONITOR_TWOLINE` default 0); the seed table,
+the fire accounting and the ground-truth false-positive method are the record.** The
+mechanism is decomposed: the fast-skip's timing saving is real and seed-invariant (the paired
+same-attempt cases -6.0 s at seed 5, -5.0 s at seed 23, both with the same outcome class);
+the outcome effect is draw-dominated; the measured cost is the classifier's marginal-zone
+false positives (2/60, one of them a killed placement at seed 11). **The named next lever
+(P10-C.2 candidate): a slip-magnitude confirmation gate** (after the classifier's trip,
+confirm only if the slip keeps growing past a threshold - the pear plateaus at 6.3 mm and
+would be cancelled; the 253-1646 mm escapes and the late 19 mm slide would confirm) - its own
+pre-registration, the ground-truth false-positive count as the primary endpoint.
