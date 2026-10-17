@@ -15721,3 +15721,26 @@ across seeds the single-branch floor bar was right and the lever carries a real 
 movement is mixed, the lever is timing-only-positive and the adoption case needs a new
 pre-registration with a composition-standardized endpoint and the placebo as its attribution
 control.
+
+### P9-A multi-seed verdict + P10 program start (2026-10-17)
+
+**The multi-seed check saves the lever.** Three seeds of the acceptance (A vs B', all doubles
+bit-identical): the gap falls on **every** seed (5.2->3.25, 5.1->3.3, 5.1->3.3 s) while the
+success movement is **bi-directional** (seed 5: A 9 / B' 6; seed 11: A 7 / B' 9; seed 23:
+A 4 / B' 8) and **net-positive pooled (A 20/30 vs B' 23/30, window rates 2.90/2.14/0.99 vs
+2.26/3.15/2.50)**. With the placebo (the clock-shift attribution) and the phase analysis
+(the catch is phase-robust; outcomes are draw-dominated) the reading is: **the go_ready skip
+is timing-only-positive; the frozen seed-5 acceptance-floor kill measured a branch, not a
+cost.** The adoption path is a **new pre-registration** (a multi-seed pooled endpoint,
+composition-standardized; the placebo as the attribution control; the re-baseline list) -
+not a post-hoc bar change. The P9-A record is complete (`logs/p9c/RESULTS.md` + addenda).
+
+**P10 program (the owner's bimanual goal)**: P10-B delivered `docs/papers/BIMANUAL.md` (529
+lines: the four measured bottleneck families, the 11-row mechanism table, the six-step
+acquisition method with the resource rules, the top-3 levers, the blockers; the strongest
+NO-GO = the "meet the fruit upstream" family on the reach-anywhere collapse lesson; a new
+external lead: the ETH two-robot robust optimum [SPT; FIFO], RL +16 % picking rate, +11.9 %
+belt speed - abstract-level). **P10-A launched** (`logs/p10/`): the current-tree two-line
+re-baseline (the W6-B patch battery + the single-arm control, both double-run) + the
+decomposition + the gates + the ranked bimanual bottleneck map, including the two-line's own
+ready-transit no-op measurement (`FRUIT_READY_DIAG=1`), which the KB flags as unmeasured.

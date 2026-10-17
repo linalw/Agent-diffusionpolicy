@@ -86,3 +86,24 @@ allows (needs the phase readout the diag can supply). Neither is pre-registered 
   stocking-band cut, and this phase shift): the cell's per-attempt scheduling is tightly
   coupled to the belt phase, and any schedule change re-phases the catch. That is the
   standing obstacle for every timing lever, and it is now measured three times.
+
+---
+
+## Addendum 2 (2026-10-17): the multi-seed verdict - the lever is timing-positive; the seed-5 floor kill was a branch
+
+| seed | A ok | B' ok | A window (placed/min) | B' window | gap A -> B' |
+| --- | --- | --- | --- | --- | --- |
+| 5 | 9 | 6 | 2.90 | 2.26 | 5.2 -> 3.25 |
+| 11 | 7 | **9** | 2.14 | **3.15** | 5.1 -> 3.3 |
+| 23 | 4 | **8** | 0.99 | **2.50** | 5.1 -> 3.3 |
+| pooled | **20/30** | **23/30** | - | - | **-1.9 s on every seed** |
+
+The gap falls on all three seeds (B' doubles bit-identical); the success/throughput movement is
+**bi-directional** (A wins seed 5, B' wins seeds 11 and 23) and **net-positive pooled**. With
+the placebo (the clock-shift attribution) and the phase analysis (the catch is phase-robust;
+the left+peach class fails in every branch; outcomes are draw-dominated) the reading is:
+**the lever is timing-only-positive and the frozen seed-5 acceptance-floor kill measured a
+branch, not a cost.** The adoption path is therefore a **new pre-registration** - a multi-seed
+pooled endpoint (>= 3 seeds, composition-standardized), the placebo as the attribution control,
+and the re-baseline list (the acceptance fingerprint moves; the references re-recorded on
+adoption) - not a post-hoc change to the frozen bar.
