@@ -36,12 +36,29 @@ Knobs (all read from the environment, `RTCSettings.from_env`):
                                  new chunk on the state rolled forward under
                                  the previous chunk's pending actions. The
                                  matching fine-tune is scripts/133_vlash_finetune.py.
+
+P10-D1 adds a default-off GDP-style population selector (mechanism-menu item
+#5, `docs/papers/MECHANISMS.md`; source paper: "Two-Step Diffusion Policy for
+Robotic Manipulation via Genetic Denoising", NeurIPS 2025, paper index #32).
+With `FRUIT_POLICY_GDP=1`, `PolicyRunner.act` samples `FRUIT_POLICY_GDP_K`
+candidates (2..4, default 2) with the same DDIM schedule from different noise
+draws, scores each with the paper's Stein OoD form (eq. 4:
+`phi = T * f(|| eps_theta(x_t, t) ||)`, T=1, f=identity, averaged over the
+denoising steps) and executes the minimum-score candidate. Off (or K=1): the
+shipped single-sample path, byte-for-byte. The interleaved RTC sampler
+(`FRUIT_RTC`/`FRUIT_VLASH`) draws its own noise and is not GDP-scored; only the
+synchronous `act` path is. All inference-time - no retraining.
+
+    FRUIT_POLICY_GDP       0|1 master switch (default 0)
+    FRUIT_POLICY_GDP_K     candidate count, clamped to 1..4 (default 2)
+    FRUIT_POLICY_GDP_DIAG  1 = one `[gdp]` line per selection (default 0)
 """
 
 from __future__ import annotations
 
 import math
 import os
+import time
 from dataclasses import dataclass
 
 import numpy as np
@@ -472,8 +489,152 @@ class RealtimeChunker:
         return np.asarray(self.actions[self.pos - 1], dtype=np.float32)
 
 
+# --------------------------------------------------------------------------- #
+# GDP-style OoD-scored population selection (P10-D1; mechanism-menu item #5).
+# --------------------------------------------------------------------------- #
+
+#: GDP candidate-count clamp. The mechanism menu names K in {2,3}; 1 is the
+#: shipped single-sample path (the knob-off behaviour) and 4 the largest
+#: population this knob admits (the paper's own sweep starts at 4).
+GDP_K_MIN = 1
+GDP_K_MAX = 4
+
+
+@dataclass
+class GDPSettings:
+    """Environment-driven GDP population-selection configuration.
+
+    Read once at `PolicyRunner` construction (the `FRUIT_POLICY_SEED`
+    convention). Default off: with `enabled=False` (or `k <= 1`) `act` stays on
+    the shipped `DiffusionSchedule.ddim_sample` path byte-for-byte.
+    """
+
+    enabled: bool = False
+    #: Candidate chunks sampled per `act` call; clamped to [GDP_K_MIN, GDP_K_MAX].
+    k: int = 2
+    #: One `[gdp]` row per selection (scores, chosen index, finger spread,
+    #: wall cost). Default off - instrumentation inside the control loop must
+    #: be opt-in (AGENTS.md section 2).
+    diag: bool = False
+
+    @classmethod
+    def from_env(cls) -> "GDPSettings":
+        enabled = os.environ.get("FRUIT_POLICY_GDP", "0").strip() == "1"
+        k = int(os.environ.get("FRUIT_POLICY_GDP_K", "2") or 2)
+        k = max(GDP_K_MIN, min(GDP_K_MAX, k))
+        diag = os.environ.get("FRUIT_POLICY_GDP_DIAG", "0").strip() == "1"
+        return cls(enabled=enabled, k=k, diag=diag)
+
+    def summary(self) -> str:
+        return (
+            f"gdp={'on' if self.enabled else 'off'} k={self.k} "
+            f"diag={'on' if self.diag else 'off'}"
+        )
+
+
+@torch.no_grad()
+def ddim_sample_scored(
+    schedule: DiffusionSchedule,
+    model,
+    condition,
+    shape: tuple[int, ...],
+    num_steps: int = 16,
+    dtype: torch.dtype = torch.float32,
+    generator: torch.Generator | None = None,
+) -> tuple[torch.Tensor, list[float]]:
+    """One DDIM chain (eta=0) that also returns the per-step Stein OoD scores.
+
+    Mirrors `DiffusionSchedule.ddim_sample` for the deterministic (eta=0) case
+    exactly - same noise draw, same update order - and additionally evaluates
+    the GDP fitness at every denoising step:
+
+        phi_stein,f,T(x_t, t) = T * f(|| eps_theta(x_t, t) ||)     (GDP eq. 4)
+
+    with T = 1 and f = identity. Source: "Two-Step Diffusion Policy for Robotic
+    Manipulation via Genetic Denoising" (NeurIPS 2025; paper index #32),
+    eq. (4), and the paper's appendix: "minimizing the stein score (or the norm
+    of the estimated noise) is the best of simple genetic algorithm
+    heuristics". Returns `(sample, scores)` with `scores[i]` = ||eps||
+    evaluated before the i-th denoising update. Keep the update in sync with
+    `ddim_sample` (eta=0); drift would only reach GDP runs, which are opt-in.
+    """
+    device = schedule.device
+    sample = torch.randn(shape, device=device, dtype=dtype, generator=generator)
+    times = torch.linspace(
+        schedule.num_train_steps - 1, 0, num_steps, dtype=torch.long, device=device
+    )
+    step_scores: list[torch.Tensor] = []
+    for i, t in enumerate(times):
+        t_batch = t.expand(shape[0])
+        predicted_noise = model.denoise(sample, condition, t_batch)
+        # GDP eq. (4), Stein family (T=1, f=identity). Accumulate on-device and
+        # sync once below: a per-step .item() would add 16 GPU syncs per
+        # candidate to the control loop.
+        step_scores.append(predicted_noise.float().norm())
+        alpha = schedule.alphas_cumprod[t]
+        alpha_prev = (
+            schedule.alphas_cumprod[times[i + 1]]
+            if i + 1 < num_steps
+            else torch.tensor(1.0, device=device)
+        )
+        predicted_clean = (
+            sample - torch.sqrt(1 - alpha) * predicted_noise
+        ) / torch.sqrt(alpha)
+        predicted_clean = predicted_clean.clamp(-4.0, 4.0)
+        sample = torch.sqrt(alpha_prev) * predicted_clean + torch.sqrt(
+            1 - alpha_prev
+        ) * predicted_noise
+    return sample, [float(v) for v in torch.stack(step_scores).cpu()]
+
+
+def select_gdp_candidate(scores: list[float]) -> int:
+    """The GDP survivor rule, simplified to the single-chunk choice.
+
+    The paper runs per-step multinomial survivor selection weighted by the
+    fitness; with one chunk per candidate the minimum-OoD rule is the faithful
+    reduction (the appendix's "minimizing the stein score ... is the best").
+    Ties go to the first candidate (Python's `min` returns the first minimum).
+    """
+    return min(range(len(scores)), key=lambda i: scores[i])
+
+
+def _finger_spread(chunk: np.ndarray) -> float:
+    """Range of the finger-opening command over a chunk.
+
+    `rl_env`'s action contract: 7 arm joints then the finger opening at index 7
+    (`action[8]` mirrors it); other layouts fall back to the whole chunk.
+    """
+    column = (
+        chunk[:, 7]
+        if chunk.ndim == 2 and chunk.shape[1] > 7
+        else chunk.reshape(-1)
+    )
+    return float(np.max(column) - np.min(column))
+
+
+def gdp_diag_line(
+    k: int,
+    chosen: int,
+    scores: list[float],
+    fingers: list[float],
+    cost_ms: list[float],
+) -> str:
+    """The `[gdp]` diagnostics row (printed only under `FRUIT_POLICY_GDP_DIAG`)."""
+    return (
+        f"[gdp] k={k} chosen={chosen} "
+        f"scores={','.join(f'{s:.4f}' for s in scores)} "
+        f"fingers={','.join(f'{f:.4f}' for f in fingers)} "
+        f"cost_ms={','.join(f'{c:.1f}' for c in cost_ms)}"
+    )
+
+
 class PolicyRunner:
     """Wraps a trained diffusion policy for use by the simulation."""
+
+    #: Class-level default so checkpoint-free `__new__`-built runners
+    #: (`scripts/128_rtc_selftest.py`) resolve GDP as disabled; `__init__`
+    #: replaces it with `GDPSettings.from_env()`.
+    gdp = GDPSettings()
 
     def __init__(self, checkpoint_path: str, device: str | None = None,
                  default_steps: int = 8, use_half: bool = True):
@@ -511,6 +672,9 @@ class PolicyRunner:
         self.generator = None
         if seed:
             self.generator = torch.Generator(device=device).manual_seed(int(seed))
+        #: GDP population selection (P10-D1), read once here like the seed.
+        #: Default off: `act` stays on the shipped single-sample path.
+        self.gdp = GDPSettings.from_env()
         norm = checkpoint["normalizer"]
         self.normalizer = Normalizer(
             action_mean=np.array(norm["action_mean"], dtype=np.float32),
@@ -589,13 +753,56 @@ class PolicyRunner:
         dtype = torch.float16 if self.use_half else torch.float32
         condition = self._condition(proprio, goal)
 
-        sample = self.schedule.ddim_sample(
-            self.model,
-            condition,
-            (1, self.config["action_dim"], self.action_horizon),
-            num_steps=num_steps,
-            dtype=dtype,
-            generator=self.generator,
-        )
+        if self.gdp.enabled and self.gdp.k > 1:
+            sample = self._gdp_sample(condition, num_steps, dtype)
+        else:
+            # The shipped path: one DDIM chain from one noise draw. Untouched -
+            # with the GDP knob off (or K=1) this branch is byte-for-byte the
+            # pre-P10-D1 behaviour (the same draw from `self.generator`).
+            sample = self.schedule.ddim_sample(
+                self.model,
+                condition,
+                (1, self.config["action_dim"], self.action_horizon),
+                num_steps=num_steps,
+                dtype=dtype,
+                generator=self.generator,
+            )
         action = sample[0].float().transpose(0, 1).cpu().numpy()  # (horizon, action_dim)
         return self.normalizer.denormalize_action(action)
+
+    def _gdp_sample(self, condition, num_steps: int, dtype) -> torch.Tensor:
+        """K candidates from different noise draws; the min OoD score wins.
+
+        The candidates draw sequentially from the runner's noise source (the
+        `FRUIT_POLICY_SEED` generator when set, else fresh noise), so the first
+        candidate of the first call uses exactly the shipped path's noise draw.
+        The selection score is the mean of the per-step Stein norms (eq. 4);
+        the `[gdp]` row additionally carries each candidate's finger-command
+        spread and, when diag is on, the wall cost per candidate.
+        """
+        shape = (1, self.config["action_dim"], self.action_horizon)
+        candidates: list[torch.Tensor] = []
+        scores: list[float] = []
+        costs: list[float] = []
+        for _ in range(self.gdp.k):
+            start = time.perf_counter() if self.gdp.diag else 0.0
+            sample, step_scores = ddim_sample_scored(
+                self.schedule, self.model, condition, shape,
+                num_steps=num_steps, dtype=dtype, generator=self.generator,
+            )
+            if self.gdp.diag:
+                costs.append((time.perf_counter() - start) * 1e3)
+            candidates.append(sample)
+            scores.append(sum(step_scores) / len(step_scores))
+        chosen = select_gdp_candidate(scores)
+        if self.gdp.diag:
+            fingers = [
+                _finger_spread(
+                    self.normalizer.denormalize_action(
+                        s[0].float().transpose(0, 1).cpu().numpy()
+                    )
+                )
+                for s in candidates
+            ]
+            print(gdp_diag_line(self.gdp.k, chosen, scores, fingers, costs), flush=True)
+        return candidates[chosen]
