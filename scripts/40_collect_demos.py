@@ -190,6 +190,14 @@ def write_manifest(out_dir: str, cfg: SceneConfig) -> None:
             # field a post-W7-A two-line shard is identified only by its
             # `tasks.py` md5 pin (`logs/w7/A_RESULTS.md` section 6).
             "park_early": os.environ.get("FRUIT_BIARM_PARK_EARLY", "auto"),
+            # P10-C.3: the two-line carry-monitor default flip resolves through
+            # `_dynamic_profile` (tasks.py `_resolve_carry_monitor_knobs`), so
+            # an unset env means **on for a two-line session** (`auto` records
+            # that; an explicit `0`/`1` records the override). The W7-C.1
+            # `park_early` pattern; a post-flip two-line recollection is a new
+            # branch and this field identifies it next to the `tasks.py` md5
+            # pin (`logs/p10c2/PREREG_ADOPT_FLIP.md`, the collector guardrail).
+            "carry_monitor": os.environ.get("FRUIT_CARRY_MONITOR", "auto"),
             "park_bias": os.environ.get("FRUIT_BIARM_PARK_BIAS", "0.0"),
             "start_gap": os.environ.get("FRUIT_BIARM_START_GAP", "0.0"),
             "chunk": TWO_LINE_CHUNK,

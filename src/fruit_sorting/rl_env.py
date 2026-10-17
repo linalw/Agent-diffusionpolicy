@@ -258,7 +258,17 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: operand live with `FRUIT_CARRY_DIAG` off (`logs/p10c/PREREG_CONFIRM_GATE.md`;
 #: implementation record `logs/p10c2/IMPLEMENTATION.md`). Every shipped default
 #: is unchanged and no other path is touched.
-TASKS_MD5 = "22cc5b31a510ddcb747436d713f5604c"
+#:
+#: P10-C.3 (2026-10-17): the pin follows the two-line carry-monitor default
+#: flip - the W7-A park-gate pattern applied to the P10-C/P10-C.2 monitor
+#: (`logs/p10c2/PREREG_ADOPT_FLIP.md`): in a two-line session with the
+#: relevant env unset the four monitor knobs resolve to the tested config
+#: (monitor 1, scope 1, confirmation gate 8.0 mm, load floor 3.5 N); explicit
+#: env values always win and the single-arm, shared-station and direct/policy
+#: scopes are byte-inert. The collector manifest gains
+#: `collection.carry_monitor` (the W7-C.1 `park_early` pattern; implementation
+#: record `logs/p10c3/IMPLEMENTATION.md`).
+TASKS_MD5 = "6574d92eafe38f1025b880d39a9410f9"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(

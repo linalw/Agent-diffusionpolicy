@@ -978,6 +978,17 @@ class PickAndPlaceTask:
         self._carry_monitor_confirm_mm = float(
             os.environ.get("FRUIT_CARRY_MONITOR_CONFIRM_MM", "0.0")
         )
+        #: P10-C.3 (2026-10-17, `logs/p10c2/PREREG_ADOPT_FLIP.md`): the four
+        #: monitor knob reads above are the **env/shipped base**; the two-line
+        #: default flip is resolved once per attempt by
+        #: `_resolve_carry_monitor_knobs` (the W7-A park-gate pattern). In a
+        #: two-line session (`FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=1`) with the
+        #: relevant env unset the four knobs resolve to the P10-C.2 tested
+        #: config (monitor `1`, scope `1`, gate `8.0`, floor `3.5`); an
+        #: explicit env value always wins, and every other scope resolves to
+        #: exactly these values, so the single-arm scripted line, the
+        #: shared-station bimanual and the direct/policy interface stay
+        #: byte-inert. See the helper's docstring for the full semantics.
         #: W7-B acquisition readout (default off, policy direct path only): one
         #: `[acq]` line per attempt with the setup stage times, the close-start
         #: tip-fruit offset, the walk-latch state, the first sustained contact,
@@ -6383,6 +6394,56 @@ class PickAndPlaceTask:
         self._cycle_mark("end")
         return result
 
+    def _resolve_carry_monitor_knobs(self) -> None:
+        """P10-C.3: resolve the four carry-monitor knobs for this attempt.
+
+        The W7-A park-gate pattern (`_dynamic_profile`) applied to the
+        P10-C/P10-C.2 monitor (`logs/p10c2/PREREG_ADOPT_FLIP.md`). In a
+        **two-line session** (`FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=1`) with the
+        relevant env unset the knobs resolve to the P10-C.2 tested config:
+
+        * `FRUIT_CARRY_MONITOR` -> `1` (the monitor armed);
+        * `FRUIT_CARRY_MONITOR_TWOLINE` -> `1` (the scope knob);
+        * `FRUIT_CARRY_MONITOR_CONFIRM_MM` -> `8.0` (the slip-confirmation
+          gate the P10-C.2 battery tested);
+        * `FRUIT_CARRY_MONITOR_LOAD_FLOOR` -> `3.5` (the P8-2/P10-C battery
+          floor; the `__init__` default `0.0` is the P7-2b rule).
+
+        An explicit env value always wins, so the restores are exact:
+        `FRUIT_CARRY_MONITOR_TWOLINE=0` keeps the two-line unarmed (the
+        pre-flip behavior - the scope predicate in `_grasp_carry_place_impl`
+        then never arms), `FRUIT_CARRY_MONITOR_CONFIRM_MM=0` restores the
+        ungated monitor, and `FRUIT_CARRY_MONITOR=0` turns the monitor off
+        (the master wins). Every other scope - the shipped single-arm
+        scripted line, the shared-station bimanual (`FRUIT_BIARM=1` without
+        TWOLINE) and the direct/policy handover - resolves to exactly the
+        env/shipped values the `__init__` reads produced, so those paths stay
+        byte-inert (`logs/p10c3/check_flip_resolution.py` pins the full truth
+        table). `FRUIT_CARRY_MONITOR_DIAG` is deliberately not resolved here:
+        it is trace-only and never changes a decision.
+
+        Resolved once per attempt from `grasp_carry_place` (the common entry
+        of the scripted `_run_impl` and the policy evaluator), before
+        `_grasp_carry_place_impl`: the scope predicate there and the two
+        monitor sites in `_carry` (the per-leg `_CarryMonitorLeg` floor and
+        the boundary confirmation gate) then read the resolved values. The
+        `__init__` reads stay the env/shipped base (the byte-inert anchors),
+        and re-resolving per attempt keeps a later non-two-line attempt in
+        the same process from inheriting the flip.
+        """
+        self._carry_monitor = (
+            self._dynamic_profile("FRUIT_CARRY_MONITOR", "0", "1") == "1"
+        )
+        self._carry_monitor_twoline = (
+            self._dynamic_profile("FRUIT_CARRY_MONITOR_TWOLINE", "0", "1") == "1"
+        )
+        self._carry_monitor_confirm_mm = float(
+            self._dynamic_profile("FRUIT_CARRY_MONITOR_CONFIRM_MM", "0.0", "8.0")
+        )
+        self._carry_monitor_load_floor = float(
+            self._dynamic_profile("FRUIT_CARRY_MONITOR_LOAD_FLOOR", "0.0", "3.5")
+        )
+
     def grasp_carry_place(self, arm_name: str, sample, bin_index: int,
                           result, verbose: bool = False, scripted: bool = False):
         """Public entry: the contact work, with the mechanism trace kept alive.
@@ -6392,8 +6453,14 @@ class PickAndPlaceTask:
         scripted loop flushes them from `note_result`); with the trace off this
         adds one function call and does nothing else. The handover row it
         records before the primitive starts is what says where the policy left
-        the jaws relative to the station.
+        the jaws relative to the station. P10-C.3: it also resolves the four
+        carry-monitor knobs for this attempt first (the two-line default flip;
+        see `_resolve_carry_monitor_knobs`).
         """
+        # P10-C.3: resolve before the primitive computes the monitor's scope
+        # predicate (`_grasp_carry_place_impl`) and before `_carry` reads the
+        # per-leg floor and the boundary confirmation gate.
+        self._resolve_carry_monitor_knobs()
         if not scripted and self._dynamic_trace is not None:
             self._dynamic_trace_sample(
                 "handover", sample, self.arms[arm_name], self.grippers[arm_name], 0.0
