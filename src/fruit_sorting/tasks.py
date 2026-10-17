@@ -959,6 +959,25 @@ class PickAndPlaceTask:
         self._carry_monitor_twoline = (
             os.environ.get("FRUIT_CARRY_MONITOR_TWOLINE", "0") == "1"
         )
+        #: P10-C.2 slip-magnitude confirmation (`FRUIT_CARRY_MONITOR_CONFIRM_MM`,
+        #: **default 0.0**; pre-registration `logs/p10c/PREREG_CONFIRM_GATE.md`,
+        #: frozen 2026-10-17): when > 0, a classifier trip counts as a fire only
+        #: if the fired leg's running `clean_slip_max` (the same per-leg value
+        #: the `[carry]` diag row reports - see the monitor-path accumulator in
+        #: `_carry`) has reached this threshold [mm] by the leg boundary. The
+        #: decision is taken at the end of the leg, where the slip operand is
+        #: final ("reaches the threshold by the fast-skip site"); the two
+        #: fast-skip sites in `_grasp_carry_place_impl` then read only the
+        #: confirmed latch. A cancelled trip prints one `[monitor] cancel` diag
+        #: row and leaves the attempt running - it targets the marginal-slide
+        #: false positives the P10-C.1 fire table measured at 0.4/6.3 mm while
+        #: the correct fires read 13.1-1646.1 mm, so the battery value is 8.0.
+        #: The default 0.0 short-circuits the gate's first operand (`<= 0.0`):
+        #: every trip confirms and the decision behavior is exactly the P10-C
+        #: form (fires, skip latch, counters); no `cancel` row is ever emitted.
+        self._carry_monitor_confirm_mm = float(
+            os.environ.get("FRUIT_CARRY_MONITOR_CONFIRM_MM", "0.0")
+        )
         #: W7-B acquisition readout (default off, policy direct path only): one
         #: `[acq]` line per attempt with the setup stage times, the close-start
         #: tip-fruit offset, the walk-latch state, the first sustained contact,
@@ -2577,6 +2596,13 @@ class PickAndPlaceTask:
             )
             if mon_leg is not None:
                 self._carry_monitor_legs += 1
+            # P10-C.2: the monitor path's own running `clean_slip_max`
+            # accumulator - the confirmation gate's operand when the guard/diag
+            # tracker (`guard_slip_max`, below) is not live. Kept even with
+            # `FRUIT_CARRY_DIAG` off so the gate never reads a dead tracker
+            # (see the per-tick block below; cost note there).
+            mon_slip_ref = None
+            mon_slip_max = 0.0
             #: R6-B relief readout: the command's own value at the leg start and
             #: the largest opening the cap applied over the leg.
             relief_gap_start = float(gap_command)
@@ -2856,6 +2882,34 @@ class PickAndPlaceTask:
                         guard_fruit_prev = fruit.copy()
                         guard_pads_prev = pads.copy()
                         guard_rot_prev = rot_now
+                elif mon_leg is not None:
+                    # P10-C.2 minimal clean-slip accumulator (see `__init__`):
+                    # the guard/diag tracker above is off, but the confirmation
+                    # gate still needs the leg's running `clean_slip_max` on the
+                    # monitor path. The same two reads as the tracker - the
+                    # post-step wrist quaternion (the loop's `rot` is the
+                    # pre-step wrist, a measured 34-88 mm artifact on a held
+                    # payload) and the payload/pad positions already in hand -
+                    # with the same reference-at-first-tick convention, so the
+                    # value equals the `[carry]` row's `clean_slip_max` to the
+                    # digit. Cost: one `tcp_pose()` read + one 3x3 matmul per
+                    # monitored tick, monitor path only (itself opt-in), and the
+                    # computation is run-neutral: the P10-C arm-A diag run
+                    # replays the P10-A record bit-identically on the `[fruit]`
+                    # stream. Live until the leg's end, *including* after a trip
+                    # (`mon_leg.done`), because the gate confirms on the slip's
+                    # growth after the trip.
+                    rot_now = _quat_matrix(
+                        np.asarray(arm.tcp_pose()[1], dtype=float)
+                    )
+                    rel_frame = rot_now.T @ (fruit - pads)
+                    if mon_slip_ref is None:
+                        mon_slip_ref = rel_frame.copy()
+                    else:
+                        mon_slip_max = max(
+                            mon_slip_max,
+                            float(np.linalg.norm(rel_frame - mon_slip_ref)),
+                        )
                 if mon_leg is not None and not mon_leg.done:
                     # P7-2b C-3 monitor tick (see `__init__` and
                     # `_CarryMonitorLeg`): the six online-only features from the
@@ -2864,37 +2918,24 @@ class PickAndPlaceTask:
                     # force, the summed force and the contact count. Never the
                     # payload pose (`clean_slip` is label-side only). The P8-2
                     # load floor rides inside `mon_leg.step` (`asym` from the
-                    # same two reads); with the knob off nothing runs. A fire
-                    # only records the decision and the skip flag; the attempt
-                    # ends at the leg boundary (`_grasp_carry_place_impl`), not
-                    # here - no command changes mid-leg.
+                    # same two reads); with the knob off nothing runs. P10-C.2:
+                    # the trip is a *candidate* fire - `mon_leg.step` records it
+                    # (`mon_leg.fire`) and nothing is counted, latched or
+                    # printed here; the fire/cancel decision is taken at the leg
+                    # boundary below, where the running `clean_slip_max` is
+                    # final. No command changes mid-leg either way.
                     reading_mon = self.tactile.read().get(side, _EMPTY_TACTILE)
                     ft_mon = sorted(
                         float(v) for v in (reading_mon.fingertip_forces or {}).values()
                     )
-                    if mon_leg.step(
+                    mon_leg.step(
                         i,
                         arm.jaw_separation(),
                         gap_command,
                         ft_mon[0] if ft_mon else 0.0,
                         float(reading_mon.normal_force),
                         int(reading_mon.contact_count),
-                    ):
-                        self._carry_monitor_fires += 1
-                        self._carry_monitor_skip = True
-                        self._carry_monitor_fired.append(
-                            f"{name}@{mon_leg.fire}/{len(commands)}"
-                        )
-                        if self._carry_monitor_diag:
-                            say(
-                                f"[monitor] fire {side} {name}: "
-                                f"tick={mon_leg.fire}/{len(commands)} "
-                                f"z={mon_leg.fire_z:+.2f} "
-                                f"asym@fire={mon_leg.fire_asym:.2f} "
-                                f"hot={mon_leg.hot} "
-                                f"blocked={mon_leg.blocked} "
-                                f"min_contacts={mon_leg.min_contacts}"
-                            )
+                    )
                 if slip_enabled:
                     if slip_trigger < slip <= slip_react_max:
                         recoveries += 1
@@ -2975,6 +3016,53 @@ class PickAndPlaceTask:
                     f"gap_start={relief_gap_start * 1000:.1f}mm "
                     f"open_max={relief_open_max * 1000:.1f}mm"
                 )
+            # ---- P10-C.2 slip-magnitude confirmation (default 0 = inert) ----
+            # The prereg's decision point (`logs/p10c/PREREG_CONFIRM_GATE.md`):
+            # a classifier trip counts as a fire only if the leg's running
+            # `clean_slip_max` has reached `FRUIT_CARRY_MONITOR_CONFIRM_MM` by
+            # this boundary - the two fast-skip sites in
+            # `_grasp_carry_place_impl` read only the confirmed latch, so a
+            # cancelled trip leaves the attempt running to its normal end.
+            # `leg_slip_max` is the same per-leg value the `[carry]` row above
+            # reports (`guard_slip_max` when the guard/diag tracker is live,
+            # else the monitor-path accumulator), so the diag-off form is
+            # measured by the same number. At the default 0.0 the gate's first
+            # operand short-circuits: every trip confirms exactly as P10-C did
+            # (fires, latch, counters) and no `cancel` row is ever emitted.
+            if mon_leg is not None and mon_leg.fire is not None:
+                leg_slip_max = guard_slip_max if guard_armed else mon_slip_max
+                if (
+                    self._carry_monitor_confirm_mm <= 0.0
+                    or leg_slip_max * 1000.0 >= self._carry_monitor_confirm_mm
+                ):
+                    self._carry_monitor_fires += 1
+                    self._carry_monitor_skip = True
+                    self._carry_monitor_fired.append(
+                        f"{name}@{mon_leg.fire}/{len(commands)}"
+                    )
+                    if self._carry_monitor_diag:
+                        say(
+                            f"[monitor] fire {side} {name}: "
+                            f"tick={mon_leg.fire}/{len(commands)} "
+                            f"z={mon_leg.fire_z:+.2f} "
+                            f"asym@fire={mon_leg.fire_asym:.2f} "
+                            f"hot={mon_leg.hot} "
+                            f"blocked={mon_leg.blocked} "
+                            f"min_contacts={mon_leg.min_contacts} "
+                            f"clean_slip_max={leg_slip_max * 1000:.1f}mm"
+                        )
+                elif self._carry_monitor_diag:
+                    # A cancelled trip: the classifier tripped but the gate
+                    # withheld the fire (the marginal-slide false-positive
+                    # class). Named so the battery's fire table can separate a
+                    # cancelled trip from a leg that never tripped; nothing is
+                    # counted or latched, and the attempt runs on.
+                    say(
+                        f"[monitor] cancel {side} {name}: "
+                        f"tick={mon_leg.fire}/{len(commands)} "
+                        f"clean_slip={leg_slip_max * 1000:.1f}mm "
+                        f"< {self._carry_monitor_confirm_mm:.1f}mm"
+                    )
             if monitor is not None:
                 summary = monitor.summary()
                 summary["label"] = (

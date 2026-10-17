@@ -249,7 +249,16 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: `logs/p10c/IMPLEMENTATION.md`). Scope-only and default-inert: with the knob
 #: unset the two-line never arms (its park/gate/arbiter path is byte-unchanged)
 #: and the direct/policy scope is unchanged either way.
-TASKS_MD5 = "09c920c99b7a6a75d16e5a99dcda1872"
+#:
+#: P10-C.2 (2026-10-17): the pin follows the slip-magnitude confirmation tree -
+#: the default-off `FRUIT_CARRY_MONITOR_CONFIRM_MM` gate (default 0.0 =
+#: byte-inert: every classifier trip confirms exactly as the P10-C form; a
+#: cancelled trip prints one `[monitor] cancel` diag row and leaves the attempt
+#: running) plus the monitor-path clean-slip accumulator that keeps the gate's
+#: operand live with `FRUIT_CARRY_DIAG` off (`logs/p10c/PREREG_CONFIRM_GATE.md`;
+#: implementation record `logs/p10c2/IMPLEMENTATION.md`). Every shipped default
+#: is unchanged and no other path is touched.
+TASKS_MD5 = "22cc5b31a510ddcb747436d713f5604c"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(
