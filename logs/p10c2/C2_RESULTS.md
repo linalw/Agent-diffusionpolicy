@@ -10,7 +10,7 @@ battery time: `tasks.py` **22cc5b31a510ddcb747436d713f5604c**, `rl_env.py`
 | --- | --- | --- |
 | `60_armA_noharm` | the patch shape, monitor off | **0 diff lines vs the P10-C record** modulo reporting rows - the P10-C.2 diff is byte-inert on the knob-off path |
 | `61_seed5_B_gate` | the monitor + the gate at 8.0 mm | 13/20, 196.7 s, 3.97 batch / 3.98 window - **identical to the ungated P10-C B** (the gate inert: 0 cancels) |
-| `62_seed11_B_gate` | the same | **10/20, 183.4 s, 3.27 / 3.21** - vs A 9/20 (2.64) and the ungated B 7/20 (2.40) |
+| `62_seed11_B_gate` | the same | **10/20, 183.4 s, 3.27 / 3.21** - vs A 9/20 (2.64 window) and the ungated B 7/20 (2.40 batch / 2.51 window) |
 | `63_seed23_B_gate` | the same | 16/20, 184.7 s, 5.20 / 5.35 - identical to the ungated B (the gate inert: 0 cancels) |
 | `70_accept_noharm` | the shipped acceptance | 9/10 + `fingerprint: matches`; `logs/accept.log` **0 diff / 385/385** vs `logs/p2d/90_accept.log` |
 
@@ -63,8 +63,8 @@ battery time: `tasks.py` **22cc5b31a510ddcb747436d713f5604c**, `rl_env.py`
 ## 6. Verdict and the adoption path
 
 **All pre-registered endpoints and kills clear.** The gate does exactly what it was built to
-do: it cancels the marginal-slide trips (the 6.3 mm pear - the placement-killer - and the
-0.4 mm place1 leg at seed 11 in the ungated branch) while retaining every clear escape
+do: it cancels the marginal-slide trips (the 6.3 mm pear - the placement-killer; the ungated
+branch's 0.4 mm place1 trip does not recur on the re-phased branch: 1 cancel total) while retaining every clear escape
 (10 fires, all >= 19 mm); on the two seeds where no trip fell below the gate it is **inert**
 (the branches are identical to the ungated runs); and where it acted (seed 11) the branch
 re-phased into the best reading of the battery (10/20 vs the control's 9, interval 18.70 vs

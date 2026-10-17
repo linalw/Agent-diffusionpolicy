@@ -34,7 +34,7 @@ The diffs are on the `[fruit]` stream modulo the reporting rows (`[carry]`/`[mon
 ## 3. The kills
 
 None fired: no flip run failed its identity; the acceptance did not move; no untouched-scope
-stub failed; the collector manifest field verified (`107`).
+stub failed; the collector manifest field verified (the flip stub's layer 4, `logs/p10c3/check_flip_resolution.py`; `107` does not read the manifest - `logs/p10c3/IMPLEMENTATION.md` section 3).
 
 ## 4. The re-baseline
 

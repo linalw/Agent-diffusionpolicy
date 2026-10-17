@@ -29,8 +29,9 @@ the same `AB_POLICY_SEED` so the sampler differences are the same across arms.
 FRUIT_POLICY_GDP_K=2" scripts/112_rl_ab.sh` (interleaved A,B,A,B,A,B; ~3 h wall).
 
 1. **Primary: the close-start |dx| distribution** (`[acq]` rows; the W7-B form) - B must not
-   be worse than A on the median and the tail; the pre-registered positive form: the median
-   |dx| falls or holds with the no-fire count non-worse.
+   be worse than A on the median and the p90 (the tail = the 90th percentile of |dx|); the
+   pre-registered positive form: the median falls or holds with the p90 non-worse and the
+   no-fire count non-worse.
 2. The no-fire count (the "timeout: no grasp" / the trigger no-fire classes).
 3. The per-arm outcomes (reported, not gated - the draw discipline).
 4. The wall cost: the per-candidate sampling time measured offline; reported against the
@@ -54,8 +55,12 @@ p <= 0.05), the cycle non-inferiority margin (+5 %), and the no-harm bar.
 ## The no-harm bar
 
 The shipped acceptance on the GDP tree (the GDP default off): 9/10 + `fingerprint: matches` +
-385/385 vs `logs/p2d/90_accept.log`; the two-line dense re-record 442/442 + `190` PASS;
-`selfcheck.sh` PASS; `172` PASS.
+385/385 vs `logs/p2d/90_accept.log`; the two-line dense re-record against its **post-P10-C.3
+branch** - the dense reference re-recorded from the re-run and `190` PASS against the new
+reference (the pre-flip W7-A 442/442 identity no longer applies: the P10-C.3 flip arms the
+carry monitor in every two-line session - `logs/p10c2/PREREG_ADOPT_FLIP.md`; the dense
+re-record is the named follow-up, `logs/p10c3/C3_RESULTS.md` section 4); `selfcheck.sh` PASS;
+`172` PASS.
 
 ## What this does NOT do
 
@@ -74,3 +79,13 @@ FRUIT_POLICY_TRIGGER_LATERAL=0.06 FRUIT_ACQ_DIAG=1"`, the sampler seed 11, both 
 `moe_v13s` checkpoint; arm B adds `FRUIT_POLICY_GDP=1 FRUIT_POLICY_GDP_K=2`. The runner is
 `logs/p10d1/run_stage1.sh` (the W7-B `run_w7b_ab.sh` shape); the mechanism report is
 `logs/w7/B_ab_report.py --dir logs/p10d1/stage1`.
+
+
+---
+
+## Amendment 2 (FROZEN 2026-10-17, the Oracle gate's required fixes; before any result is read)
+
+F3: the dense no-harm leg is restated for the post-P10-C.3 branch (above). M3: stage-1
+endpoint 1's "tail" is the p90 of |dx|. The rest of the prereg is unchanged. (The Oracle's
+M2 - recording `FRUIT_CARRY_MONITOR_TWOLINE` in the collector manifest alongside the master -
+is deferred until after the live stage-1 battery so the battery's tree pin stays frozen.)
