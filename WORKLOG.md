@@ -15805,3 +15805,38 @@ selfcheck chain pending at write time. **Verdict:** the lever passes its pre-reg
 this branch; per the one-sample discipline the adoption path is the **multi-seed confirmation
 (P10-C.1: SEED=11/23, A vs B, launched)** - if B >= A pooled, the next step is a new
 pre-registration for the two-line default flip with the re-baseline list.
+
+### P10-C.1 (2026-10-17): the multi-seed confirmation is mixed; the fire accounting localizes the cost to the classifier's marginal-slide zone
+
+**The seed table** (the patch battery, both arms diag-on): seed 5 A 12 / B 13; seed 11 A 9 /
+B 7; seed 23 A 17 / B 16 - **pooled A 38/60 vs B 36/60, mixed** (B wins seed 5; loses 11 and
+23 marginally). The branch spread is enormous (A 9-17 of 20) - the outcome is draw-dominated
+(P9-A precedent). B's spans are consistently shorter (175.3/184.7/196.7 vs 196.9/191.0/197.7) -
+the timing saving is real on every seed.
+
+**The fire accounting** (MONITOR_DIAG re-runs, both bit-identical to their originals modulo
+the diag rows; `logs/p10c/k2_report.py`): 15 fires across the battery; **13 on clear escapes
+(>= 53 mm)**; the frozen K2 rule (<= 2.0 mm) counts **1/60** (a place1 leg, 0.4 mm). **The
+paired-leg ground-truth method** (up to the first fire the A/B branches are bit-identical, so
+the fired leg's control counterpart reads its viability) exposes **2/60 ground-truth false
+positives**: the place1 0.4 mm fire and **the right pear 6.3 mm at seed 11 - the control
+placed it** (the same leg, bit-identical to 161 ticks; the fire killed a placement). The
+marginal-slide zone (0.4-6.3 mm) exists on this scenario and was never in the direct-interface
+validation (clean 0.02-1.43 mm, escapes 17.9+ mm).
+
+**Verdict per the pre-committed framework: mixed -> the lever stays opt-in**
+(`FRUIT_CARRY_MONITOR_TWOLINE` default 0); the seed table + the fire accounting + the
+ground-truth method are the record. The mechanism is decomposed: the fast-skip's timing saving
+is real and seed-invariant (paired same-attempt cases -6.0 s at seed 5, -5.0 s at seed 23,
+same outcome class); the outcome effect is draw-dominated; the measured cost is the
+classifier's marginal-zone false positives. The P10-D offline lane (`logs/p10d/`) added: the
+shipped two-line selector IS nearest-first/SPT (the ETH SPT component already implemented; no
+within-lane rule dominates; the cross-lane conditional is owner-gated with a 5.4 % ceiling -
+L2 step 0 closes negative), and the right-arm lock-on +26 % is a draw/phase artifact (61 %
+retry/draw + 39 % park re-draw; the direction does not reproduce across seeds).
+
+**P10-C.2 pre-registered** (`logs/p10c/PREREG_CONFIRM_GATE.md`): the slip-magnitude
+confirmation gate (`FRUIT_CARRY_MONITOR_CONFIRM_MM`, default 0; the battery value 8.0 mm
+calibrated on the fire table) - the fire counts only if the leg's clean_slip reaches the
+threshold; primary endpoint = **zero ground-truth false positives**; kills = the fire
+retention < 10/15, the frozen K2 > 2, a new reason, the motion budgets.
