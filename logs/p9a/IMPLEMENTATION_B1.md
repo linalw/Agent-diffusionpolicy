@@ -69,7 +69,7 @@ exact predicate GOREADY_OFFLINE section 4 (B1) fixes: `err <= 0.03` rad (2x the
 measured steady residual 0.0131-0.0135 on j1, `logs/610_transit_staged.log`) and
 `dg <= 0.01` rad (`_catch_up_drive`'s own no-op threshold). The measured entry
 state comes from `logs/610_posture/stream.jsonl`: the passive arm's
-`transit_to_ready` segments run exactly **210 rows (90 blend + 120 settle)**,
+`transit_to_ready` segments run exactly **230 rows (catch_up 20 + blend 90 + settle 120)** [corrected 2026-10-17],
 and the absent 20 catch-up ticks *are* the no-op proof - `_catch_up_drive`
 returns before its ramp when `gap <= 0.01`, so the entry `dg` was inside the
 band on all 5 of those segments (entry `err` 0.0131-0.0139). The stream's

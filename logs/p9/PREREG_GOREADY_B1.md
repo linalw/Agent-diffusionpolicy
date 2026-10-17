@@ -93,7 +93,7 @@ from the B branch and the collector's own store (which inherits a global
    (default off, pure reporting; P4-A section 10 item 1's prescription) printing
    per-arm: pre-transit err, drive gap, staged-route flag, lift ticks,
    catch-up ticks (per call site), ramp-end err, settle-end err, recovery ticks.
-   This does not block B1 (its saving is the code-exact 210 ticks) but it is the
+   This does not block B1 (its saving is the code-exact 230 ticks [corrected 2026-10-17: catch_up 20 + blend 90 + settle 120]) but it is the
    prerequisite for B2's calibration.
 2. **No per-gap marks.** `[cycle]` is inside `task.run`, so the gap is only ever
    observed as a subtraction of outcome windows. That is sufficient for the

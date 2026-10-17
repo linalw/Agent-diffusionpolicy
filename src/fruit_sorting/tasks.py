@@ -3572,13 +3572,22 @@ class PickAndPlaceTask:
             arm = self.arms[side]
             # Command state first, then leave: the shipped transit would end
             # with the target at ready and the integrator synced, so a skip
-            # that removes only the 210 no-op ticks leaves the same state. The
+            # that removes only the 230 no-op ticks (catch_up 20 + blend 90 +
+            # settle 120 on the parked rows) leaves the same state. The
             # target step is <= READY_SKIP_TOL + READY_SKIP_SYNC_TOL = 0.04
             # rad, under the 0.05 rad leg-boundary bound.
             arm.robot.set_dof_position_targets(
                 [self._pose(side, "ready")], dof_indices=arm.arm_dofs
             )
             arm.sync_command_to_measured()
+            # P9-A follow-up (the Oracle's placebo arm): re-insert the deleted
+            # 230 ticks as dead sim time so the belt phase matches the shipped
+            # schedule - the one experiment that separates "the clock shift"
+            # from "the skipped micro-history". Off by default (0); the
+            # placebo arm sets 230.
+            hold = int(os.environ.get("FRUIT_READY_SKIP_HOLD", "0"))
+            for _ in range(max(0, hold)):
+                self._step_sim(1)
             if stats is not None:
                 stats["skip"] = 1
                 stats["post_err"] = err

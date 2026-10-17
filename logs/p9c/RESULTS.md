@@ -15,7 +15,7 @@ predicted cause.
 
 **Battery #2 (the calibration retry, tree `caa732d9`, B' = `FRUIT_READY_SKIP=1
 FRUIT_READY_SKIP_DG=0.02`): the skip fires - 18 `skip=1` events in the patch diag, each
-removing the full transit (`catch_up=0 lift=0 blend=0 settle=0`, the 210 ticks gone).**
+removing the full transit (`catch_up=0 lift=0 blend=0 settle=0`, the 230 ticks gone: `catch_up=20 + blend=90 + settle=120` on the parked rows).**
 
 | scenario | arm | gap clean p50 | wall/real | slot/real/empty | outcome class | gate |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -31,11 +31,17 @@ battery #1 (bit-identical to A).
 
 * **Primary (the gap must fall >= 1.5 s): PASS, large.** 5.2 -> 3.25 s (-1.95 s) on the
   acceptance and 5.2 -> 3.2 s on the patch battery; the wall falls 20.65 -> 18.88 s
-  (-8.6 %), matching the code-exact prediction (-1.75 s) within the schedule-shift noise.
+  (-8.6 %), reproducing the code-exact prediction (-1.92 s = 230 ticks) to within the windows'
+  0.1 s quantization (measured -1.95 s).
 * **The span stays flat** (15.16 -> 15.59 s acceptance; 15.24 -> 15.29 s patch) - the gain
   is the transit, not a stretched task.
-* **The `_recover_ready` count falls 1 -> 0** (acceptance) - the arm no longer needs the
-  corrective re-blend.
+* **`_recover_ready`**: acceptance 1 -> 0; **patch 2 -> 3** (both reported per prereg section 6
+  item 4).
+* **Endpoint 3 (the 186 pooled interval / window throughput), reported here as required**:
+  acceptance 20.73 s mean (n=8; 2.90 placed/min) -> **26.58 s (n=5; 2.26)** - **adverse**;
+  patch 27.62 (n=12; 2.17) -> 23.17 (n=14; 2.59) - favourable. **The -8.6 % wall win does not
+  translate into throughput on the acceptance branch** (the moved branch places fewer) and
+  does on the patch branch; both are single moved branches, quoted per scenario, never pooled.
 * **Kill #2 FIRES: the acceptance floor (0.75 of ten) is missed in the B' arm (6/9 = 67 %).**
   Per the pre-registered rules the lever is **NOT ADOPTED**. The motion gate FAIL on B' is
   rate-only (all descents inside budget, no new failure reason).
@@ -46,12 +52,18 @@ battery #1 (bit-identical to A).
 
 ## 3. The mechanism (measured) and the residual
 
-The skip removes the *passive* arm's measured no-op transit (210 ticks, `dq_max`
-0.0005 rad/tick). Because the driver's slot loop advances the belt by a fixed number of
-ticks per slot, every skip shifts the next attempt's start ~0.21 m of belt travel earlier.
-The catch is phase-calibrated to the shipped schedule, so the phase shift moves the outcome
-**by scenario, in both directions**: the acceptance loses 3 placements (9 -> 6, all
-carry-class, plus one slot that finds no eligible fruit), while the patch battery gains 2
+The skip removes the *passive* arm's measured no-op transit (230 ticks: `catch_up=20 + blend=90 +
+settle=120`; `dq_max` 0.0005 rad/tick). Because the driver's slot loop advances the belt by a fixed number of
+ticks per slot, every skip shifts the next attempt's start ~0.23 m of belt travel earlier.
+The measured channels are (a) **poll-vs-supply-band timing** (the shifted poll meets a
+cluster lull: the empty slot's top candidate 0.386 m vs the ~0.40 m floor) and (b) **the draw**
+(every slot met a different fruit; outcomes are class-dominated, 0.44-1.00 per species per
+P1/P2 - the two new failures are both peach and the patch converted tomatoes/kiwis). The
+catch's own close-phase term is **not isolated by this battery**. The movement is scenario-
+dependent, in both directions: the acceptance loses three placements relative to A (9 -> 6):
+two new carried-not-placed legs (attempts 3 and 8, both peach; A's single g-n-p, the attempt-0
+kiwi place miss, is common to both arms) and one poll that found every live fruit inside the
+selection floor (top candidate a pear at 0.386 m vs the ~0.40 m floor), while the patch battery gains 2
 (13 -> 15). Both are deterministic branches; per AGENTS.md section 2 the cross-configuration
 success movement is a branch attribute, but the **acceptance floor is the pre-registered
 adoption bar and it fails**.

@@ -239,7 +239,7 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: implementation record is `logs/p9a/IMPLEMENTATION_B1.md`). Every shipped
 #: default is unchanged: the two control knobs resolve only inside
 #: `_ready_move`'s single-arm scope and are inert when unset.
-TASKS_MD5 = "caa732d983437aff43fdbd599a34fbd6"
+TASKS_MD5 = "4ea81c60f92b0c115a86d4c2f7cb87b1"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(

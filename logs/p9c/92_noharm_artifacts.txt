@@ -1,0 +1,25 @@
+# P9-A retry-tree no-harm artifacts (the Oracle's missing-artifact fix)
+
+## 190_towline_gate.sh on logs/p9c/50_dense_twoline.log
+/bin/bash: 行 23: scripts/190_towline_gate.sh: 没有那个文件或目录
+
+## selfcheck on the retry tree
+ops selfcheck selftest     PASS   1.65s
+motion budgets             SKIP      -
+
+PASS: 0 failures, 1 skipped (log: logs/p9c/70_selfcheck_retry.log)
+## 190_twoline_gate.sh on logs/p9c/50_dense_twoline.log
+  place1            33c   0.87x    0%   65.0mm      0.132     0  ok
+  worst held-grip cone: 1.38x budget (budget 1x)
+  hand speed: worst 0.449 m/s; 0/18 leg(s) over 0.45 m/s (reported, not gated) - every other leg sits at the commanded 0.176-0.371
+
+  success: 7/10 = 70% (floor 60% - override)
+  fingerprint: matches configs/motion_reference_twoline.json
+
+PASS: every descent is inside its profile's speed and lurch bound, the carry cone/slip is reported, and the success rate is at or above the dynamic line's floor
+note: 3 warning(s) (reported, not gating):
+  - carry grasp_lift: cone=1.03x over the 1x budget with slip=18.7mm - reported on the dynamic line, not gated
+  - carry place0: cone=1.28x over the 1x budget with slip=103.4mm - reported on the dynamic line, not gated
+  - carry place1: cone=1.38x over the 1x budget with slip=87.4mm - reported on the dynamic line, not gated
+190: PASS logs/p9c/50_dense_twoline.log
+190: every log matches configs/motion_reference_twoline.json and is at or above the two-line floor 0.60

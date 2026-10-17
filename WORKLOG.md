@@ -15670,3 +15670,31 @@ B'), (b) a conditional skip gated on the next catch's phase. Details:
 `logs/p9c/RESULTS.md`. **The coupling class now has three members** (the monitor's lock-on
 +8.8 %, the trickle's stocking-band cut, this phase shift) - the standing obstacle for every
 timing lever, now measured three times.
+
+### P9-A Oracle fixes + the placebo arm (2026-10-17)
+
+The P9-A Oracle gate (PASS WITH FIXES) corrected two arithmetic/attribution errors and one
+omission, all applied: the parked no-op is **230 ticks** (`catch_up 20 + blend 90 +
+settle 120`), not 210 - so the measured -1.95 s gap fall *reproduces* the code-exact
+prediction (-1.92 s), and the phase shift is ~0.23 m; the acceptance's three lost placements
+are **two new carried-not-placed (attempts 3/8, both peach) + one empty poll** (top candidate
+a pear at 0.386 m vs the ~0.40 m floor), not "3 carry + 1 empty"; and **endpoint 3 (the 186
+interval/throughput) is now reported**: acceptance 20.73 s (2.90 placed/min) -> **26.58 s
+(2.26)** - adverse; patch 27.62 (2.17) -> 23.17 (2.59) - favourable; `_recover_ready`
+patch 2 -> 3. The mechanism sentence is qualified to the two measured channels (poll-vs-band
+timing; the fruit **re-draw** - outcomes are class-dominated) and states the catch's
+close-phase term is **not isolated** by the battery. The missing phase artifacts are
+attached (`logs/p9c/92_noharm_artifacts.txt`: the 190 PASS on the dense re-record + the
+retry-tree selfcheck PASS). The 230-arithmetic correction is carried into
+`logs/p9b/RESULTS.md`, `logs/p9/PREREG_GOREADY_B1.md`, `logs/p9a/IMPLEMENTATION_B1.md` and
+the `tasks.py` comment (batched with the new knob).
+
+**The placebo arm (the Oracle's key pre-follow-up check)**: `FRUIT_READY_SKIP_HOLD` (default
+0 = the shipped P9-A/B' behavior exactly) re-inserts the deleted ticks as dead sim time after
+a skip; the placebo arm B'' = `FRUIT_READY_SKIP=1 FRUIT_READY_SKIP_DG=0.02
+FRUIT_READY_SKIP_HOLD=230` re-creates the shipped belt phase while keeping the code path. If
+its outcomes return to A's (9 ok / 1 g-n-p, the empty poll gone), the coupling is purely the
+clock shift and the compensation probe has a calibration target; if not, the skipped
+micro-history matters. Launched at `logs/p9e2/` (acceptance x2 + patch x1); any compensation
+ladder will be read **per class** (composition-standardized) before the conditional-skip
+predicate is specified.
