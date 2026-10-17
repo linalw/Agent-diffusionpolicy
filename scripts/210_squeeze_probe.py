@@ -397,6 +397,19 @@ def main() -> int:
             # the fruit's centre).
             place(p_settled, q_settled)
             step(40)
+            # ORACLE R1 FIX: raise the jaw to the descent start (+PLOW_LIFT)
+            # BEFORE closing the pads - so the pads close ON AIR and the descent
+            # loop below is a pure descent onto the fruit (the shipped re-seat
+            # geometry). The earlier version closed at the grip pose and let the
+            # loop's first target (+40) raise the loaded jaws, which carried the
+            # fruit - a probe artifact, not the re-seat.
+            jaw_hi = np.asarray(arm.jaw_centre(), dtype=float) + np.array(
+                [0.0, 0.0, PLOW_LIFT]
+            )
+            for alpha in blend:
+                arm.ik_step(arm.tcp_target_for_jaw(jaw_hi))
+                step(1)
+            step(20)
             p_ref, q_ref, _ = fruit_state()
             jaw_ref = np.asarray(arm.jaw_centre(), dtype=float)
             tool_ref = np.asarray(arm.approach_axis(), dtype=float)

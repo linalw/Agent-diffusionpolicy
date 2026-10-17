@@ -1,4 +1,4 @@
-### P11-B (2026-10-18): the squeeze probe - the ejection is a kinematic wedge of the descending jaws, insensitive to the contact parameters
+### P11-B (2026-10-18): the squeeze probe - the ejection is a kinematic wedge of the jaws' arrival (the plow reading WITHDRAWN per the Oracle R1 - the probe's plow ran a rise-and-return, not the shipped descent; the corrected re-run pending), insensitive to the contact parameters
 
 **The probe** (`scripts/210_squeeze_probe.py`, new; 8 sweep runs): the shipped cell, one fruit
 per class, the left arm at the calibrated grasp seed, a stopped belt, no task loop; groups

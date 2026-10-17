@@ -27,10 +27,11 @@ free-fall baseline the log falls are attributed to.
   commanded depth at all. The threshold that exists is the **blocking span**
   (extent + ~11 mm of link span for this hand + fruit); commanded gaps at or
   above it (`-15` anchors: 66.0 mm) leave the pads 0.14 N / no motion.
-* **The peak velocities.** The strongest squeeze-out is the shipped re-seat
-  geometry (`plow`: jaws already at the sub-width gap, descending onto the
-  fruit): **0.202 m/s peak, 35.8 mm displacement, +31.9 mm up** (3/3, repeat
-  bit-identical). The held-fruit climb (`air`) is **0.082 m/s, 13.1 mm in 1.5 s**.
+* **The peak velocities (plow: WITHDRAWN per R1 - see the amendment).** The plow
+  group's **0.202 m/s peak, 35.8 mm displacement, +31.9 mm up** measured the
+  probe's own rise-and-return, not the shipped re-seat descent; the corrected
+  re-run decides what a true descent does. The `air` climb (**0.082 m/s, 13.1 mm
+  in 1.5 s**; 46.6 mm total from the settle) and the `belt` no-motion stand. The held-fruit climb (`air`) is **0.082 m/s, 13.1 mm in 1.5 s**.
   The supported fruit (`belt`) does not move (0.0 mm; its 0.01-0.08 m/s "peak"
   is a tick-scale rattle). The implied acceleration is **~10-20 m/s^2** - 2.5-10x
   below the audit's lower bound, because the real contact force is ~4.5 N and
@@ -45,6 +46,40 @@ free-fall baseline the log falls are attributed to.
 * **The drop baseline confirms the log falls' attribution**: a 1.17 m free fall
   lands at **4.74-4.82 m/s** (expected 4.791 + the integrator's `g*dt/2`),
   against the P10-E in-hand |v|max band 4.78-5.05 m/s.
+
+
+---
+
+## AMENDMENT (2026-10-18, the Oracle gate's R1-R5; BEFORE the corrected plow re-run)
+
+**R1 (blocking) - the `plow` group did NOT run the shipped geometry.** The probe's plow
+closed the pads to the sweep gap **at the grip pose (on the fruit)** and its descent loop's
+first target sat +40 mm above the jaw's start, so the jaws **rose first and returned**,
+carrying the fruit. The probe's own trace proves the escape precedes any descent
+(`04_trace_tomato.log` plow-d15-r0: tick=0, |v|=0.172, dx=-5.0 mm, F=4.73 N - the fruit is
+already moving at the loop's start). **Therefore the "the descending jaws eject the fruit"
+reading is WITHDRAWN; the plow's 0.202 m/s / 35.8 mm numbers are the probe's rise artifact,
+not the re-seat's mechanism.** The probe is patched (the jaw raises to the +40 start BEFORE
+the pads close on air, so the loop is a pure descent) and the corrected plow re-run is queued
+(logs/p11b/90_plow_fix_*.log); this report will be updated from it. **What stands:** the
+"no commanded gap launches the fruit" negative (the pads stop at the surface; the flat sweep);
+the `belt`/`air` close-from-open groups never ejecting; the parameter insensitivity; the drop
+baselines. **What the corrected run must decide:** whether a true descend-onto-the-fruit at a
+contacting gap ejects (the P10-E log evidence says the shipped re-seat does; the probe must
+now reproduce the geometry to confirm).
+**R2** - the identity claims are scoped to delta 0..+15; the -5 cells differ (air 0.081 vs
+0.082; plow -5-r0 0.218/44.9); no field is bit-identical across cells - "identical in the
+quoted state fields".
+**R3** - the probe pin: the record's `dfa3c935` is the delivered file; the pinned copy
+`51b1c91c` covered runs 10/20 only (the 02:34:51 edit falls inside `20_sweep_apple`); runs
+30-80 ran the delivered version.
+**R4** - the `air` group's reference is taken after its 50 mm lift (every air row
+`lift_dz_mm=+33.5`), while the plow's is pre-close: the air/plow "0/3 vs 3/3" is partly a
+windowing asymmetry; the air's total fruit climb (46.6 mm) exceeds the plow's (35.8 mm).
+**R5** - the "because the real contact force is ~4.5 N" clause is the instrument's under-read
+(at `FRUIT_SUBSTEPS=4` the same escape reads 10.1 N); the variant spread is -6 %..+0.5 %; the
+shipped close is the two-phase 24+60-tick shape; the 50 mm lift is the probe's own; the
+finger-belt jam at pad-lift -10 (F 26.3-89.1 N) is a jam, not a clean no-shove.
 
 ## 1. The probe (what it does, and the geometry it reproduces)
 
@@ -341,9 +376,12 @@ probe**, and the probe sharpens where the lever actually is:
   would command ~51 mm for this 51.0 mm tomato - still **11 mm below the
   blocking span** (62.3 mm) at which the pads meet the fruit - so it would not
   change the arrival contact in this geometry.
-* The lever the probe *does* see is the **arrival geometry**: the shove appears
-  whenever the jaws descend with a gap below the blocking span, and disappears
-  (0.14 N, no motion; the `-15` anchors, 11-15 mm of tip brush) only above it.
+* The lever the probe *does* see is the **arrival geometry** - but with R1's
+  correction the probe's own plow cannot yet demonstrate it: the measured shove
+  was the probe's rise artifact; the `belt`/`air` negatives (close-from-open
+  never ejects) stand, and the corrected plow re-run must show whether a true
+  descend-at-a-contacting-gap ejects. The P10-E log chain remains the task-level
+  evidence for the re-seat's ejection.
   For this hand + fruit the blocking span is `extent + ~11 mm` of link span; a
   keep-gap floor would have to sit there, or the re-seat must approach without
   driving the pads into the fruit at all.
