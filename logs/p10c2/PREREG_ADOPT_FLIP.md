@@ -80,3 +80,19 @@ direct/policy interface; it does not change the threshold (8.0 mm stays the ship
 value; the Oracle's 9.5 mm robustness note remains a named untested option); it does not make
 the two-line the overall default (the R5 decision stands - `FRUIT_BIARM_TWOLINE=1` remains
 opt-in).
+
+---
+
+## Amendment (FROZEN 2026-10-17, before the battery; the implementation lane's flags)
+
+1. **The restore rows are split correctly.** The ungated record (`51_seed11_B.log`) is the
+monitor ON with the gate OFF: it is reproduced by `FRUIT_CARRY_MONITOR_CONFIRM_MM=0`, not by
+`FRUIT_CARRY_MONITOR_TWOLINE=0` (which is the monitor OFF = the A-control branch). The
+battery rows: `restore_gate0_seed11` (`CONFIRM_MM=0`) -> bit-identical to `51_seed11_B.log`;
+`restore_off_seed5` (`FRUIT_CARRY_MONITOR_TWOLINE=0`) -> bit-identical to the A control
+(`logs/p10c/10_armA_diag.log` modulo reporting rows). Both restores are implemented and
+stub-pinned.
+2. **The floor.** The code default is 0.0; the flip resolves `FRUIT_CARRY_MONITOR_LOAD_FLOOR`
+to 3.5 explicitly (the prereg's "already the shipped default" was loose).
+3. `FRUIT_CARRY_MONITOR_DIAG` is deliberately not flipped (trace-only); the flip battery runs
+carry the same diag envs as the gated records so the streams compare.
