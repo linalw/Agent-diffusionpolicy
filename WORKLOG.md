@@ -15779,3 +15779,29 @@ knob; the load-floor + K2 form inherited; primary = the pooled interval; kills =
 K2 > 2, a new reason, an over-budget descent, or an interval fall < 5 %). The Oracle gate on
 P10-A/B/P10-C is running; the implementation lane (offline only) is running in parallel; the
 battery starts only after the gate.
+
+### P10-C (2026-10-17): the carry monitor extended to the two-line - all endpoints and kills clear on this branch
+
+**The first positive lever aimed at the bimanual goal's top bottleneck** (the P10-A map's
+carry/grip failure mass, 38.7 % of attempt time). `FRUIT_CARRY_MONITOR_TWOLINE=1` (default 0)
+extends the C-3 monitor's fast-skip to the two-line scripted catch; the battery (the W6-B/W7-A
+patch shape, SEED=5, diag on both arms) ran A (knob off) + B x2 + B diag, with **the B pair
+bit-identical (0 diff lines) and the diag run-neutral (0 diff lines modulo its rows)**. The
+knob-off run replays the P10-A record **0 diff lines** modulo reporting rows - the P10-C diff
+is byte-inert on the two-line knob-off path.
+
+**Endpoints:** the primary pooled interval **16.53 -> 15.07 s (-8.8 %, bar >= 5 %)**; the
+window rate **3.63 -> 3.98 placed/min (+9.6 %)** in a near-identical batch span (197.7 ->
+196.7 s, +1 placement); the paired same-attempt carried case **14.94 -> 8.94 s (-6.0 s)**; K2
+**0/60 clean-leg aborts** (2 fires, both escapes by the frozen <= 2.0 mm rule; fire-2 on a
+no-grasp leg, recorded); no new failure reasons; 105 motion budgets **PASS** on both treatment
+runs (65 % >= the 0.5 override); `190`'s fingerprint differs = **the attractor statement, not
+a kill** (the amended F2). Cycle -3.3 %; lock-on left +4.3 % / right +26 % (**reported, not
+gated** - the direct-interface B2 pattern). The per-arm split re-drew (left 4/8 -> 8/5) - the
+coupling class; the pooled numbers are the reading.
+
+**No-harm:** the knob-off pair bit-identical (above); `172` PASS (74 checks); the acceptance +
+selfcheck chain pending at write time. **Verdict:** the lever passes its pre-registered gate on
+this branch; per the one-sample discipline the adoption path is the **multi-seed confirmation
+(P10-C.1: SEED=11/23, A vs B, launched)** - if B >= A pooled, the next step is a new
+pre-registration for the two-line default flip with the re-baseline list.
