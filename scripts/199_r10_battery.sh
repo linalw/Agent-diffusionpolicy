@@ -9,7 +9,7 @@
 #
 #   * control   - the shipped tree (FRUIT_REACH_ANYWHERE unset/0), also the
 #                 no-harm fingerprint check against
-#                 `configs/motion_reference_patch.json` (the W6/W7 single-arm
+#                 `configs/motion_reference_patch.json` (the W6/W7 two-line patch
 #                 patch branch this tree should still reproduce);
 #   * treatment - FRUIT_REACH_ANYWHERE=1 FRUIT_REACH_DIAG=1;
 #   * double    - the treatment double-run, bit-identical physics check;

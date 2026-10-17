@@ -403,6 +403,14 @@ or partially-converged transit with a removable share (the P9-A calibration logi
 patch battery (`FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=1 FRUIT_SUPPLY_PATCH=1`,
 `ATTEMPTS=20 SEED=5`, balanced mix, patch reference
 `configs/motion_reference_patch.json`) plus the dense 10-attempt re-record
+**NOTE (2026-10-17, post-P10-A/P10-C.3): this L1 sketch is CLOSED - measured-dead.** The
+P10-A diag run showed every per-gap park transit is load-bearing (the only no-op is the
+batch-boundary re-ready, outside the interval; `logs/p10/A_RESULTS.md` section 4), so the
+skip/settle family has no two-line analogue. Also note the references: the patch reference
+was re-recorded in P10-C.3 (the flip moved the two-line branch; the pre-flip file is
+`configs/motion_reference_patch_pre_p10c3.json`), and the dense reference re-record is the
+named follow-up - any future phase must freeze against the post-flip branch, not the W7-A
+442/442 identity. The same anchor:
 (`configs/motion_reference_twoline.json`); the single-arm acceptance as the
 no-harm leg. *Endpoints*: primary = the per-arm per-gap park transit share (tick
 sums from the `[ready]` rows, per stage: catch-up/lift/blend/settle/recovery)
