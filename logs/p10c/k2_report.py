@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """K2 accounting for the P10-C monitor runs (MONITOR_DIAG runs only).
 
+NOTE (advisory, 2026-10-17): the att/span columns are off by one attempt - the
+`[monitor] attempt` row precedes its own `[cycle]` row, so pair with the FOLLOWING cycle
+row. The clean_slip/fire/K2 columns are correct.
+
 Pairs each `[monitor] attempt:` row with the nearest preceding `[carry]` row of the
 fired leg (the same leg name from the fired=[...] list) and classifies the fire by the
 frozen K2 rule: clean_slip_max <= 2.0 mm -> a clean-leg abort (K2); else an escape fire.

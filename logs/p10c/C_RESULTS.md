@@ -35,7 +35,7 @@ two-line knob-off path is byte-unchanged by the diff.
 | 5 | the fire readout | - | 2 fires: `left grasp_lift tick=138/160 z=+1.80 asym@fire=4.71` (the carried escape, onset row 136) and `right grasp_lift tick=2/161 z=+0.64 asym@fire=3.85` (the no-grasp leg) | both fires early/late as the signal allowed; no re-seat (the frozen form) |
 | 6 | the cycle / starved / gate | cycle mean 15.08 s; lock-on left 3.73 / right 5.27; starved polls left 19 / right 22; gate_open 0.0 s | cycle mean **14.58 s**; lock-on left 3.89 / right 6.65; starved polls (the 186 report); gate_open 0.0 s | cycle -3.3 %; lock-on left +4.3 % / right +26 % - **reported, not gated** (the Oracle's B2/B3 demotion; the direct interface read +8.8 % the same way) |
 
-The per-arm split re-drew: A left 4/10 right 8/10 -> B left 8/10 right 5/10 (the W7-C
+The per-arm split re-drew: A left 4/10 right 8/10 -> B left 8/11 right 5/9 (the W7-C
 "compare per-arm classes, not per-arm rates" caveat - the fire timing re-phases the schedule
 and re-draws the composition; the pooled numbers are the reading).
 
@@ -117,7 +117,7 @@ fast-skip's timing saving is real on every seed.
 | 5 | 2 | 0 | 0 | 19.0 mm (doomed carry; control: carried-not-placed) + the no-grasp pear (never held) |
 | 11 | **11** | **1** (a place1 leg, 0.4 mm) | **+1: the right pear 6.3 mm - the control (A) PLACED it** (the same leg, bit-identical to 161 ticks) | 1371/1276/1646/1612/1280/319/253/53/13 mm + the two marginal |
 | 23 | 2 | 0 | 0 | 1421.6 mm, 805.4 mm (both doomed escapes) |
-| **battery** | **15** | **1/60** | **2/60** | 13 of 15 fires on clear escapes (>= 53 mm) |
+| **battery** | **15** | **1/60** | **1/60 paired-method ground truth (the seed-11 pear) + 1/60 frozen-K2 (the place1 0.4 mm)** | 13 of 15 fires are escapes (>= 13.1 mm; 11 >= 53 mm); the two below are the false positives |
 
 **The paired-leg ground truth** (new method): up to the first fire the A/B branches are
 bit-identical, so the fired leg's control counterpart reads its viability directly. It shows

@@ -8,7 +8,7 @@ Frozen 2026-10-17 before any Tier-A run (the orchestrator). Tree pin recorded at
 The two-line carry monitor's fast-skip has a measured, seed-invariant **timing** mechanism (the
 paired same-attempt cases: -6.0 s at seed 5, -5.0 s at seed 23, both with the same outcome
 class) but the classifier's precision fails in the **marginal-slide zone**: of 15 fires across
-the 3-seed battery, 13 were clear escapes (>= 53 mm) while **2 were ground-truth false
+the 3-seed battery, 13 were escapes (>= 13.1 mm; 11 of the 13 >= 53 mm) while **2 were ground-truth false
 positives** - a place1 leg at 0.4 mm (counted by the frozen K2) and the seed-11 right pear at
 6.3 mm **that the control placed** (the same leg, bit-identical to 161 ticks). The frozen K2
 rule (<= 2.0 mm) misses the pear because the mild-slide zone (0.4-6.3 mm) did not exist in the
@@ -21,8 +21,9 @@ classifier trip counts as a fire **only if the leg's running `clean_slip_max` re
 threshold by the fast-skip site** (the decision point already exists; the tracker is the same
 one `FRUIT_CARRY_DIAG` uses, proven run-neutral: the P10-C diag runs are bit-identical to
 their non-diag pairs). The battery value: **8.0 mm** - calibrated on the fire table (false
-positives 0.4/6.3 mm; correct fires 13.1-1646.1 mm; the 8 mm threshold sits in the measured
-gap with >= 5 mm margin on both sides).
+positives 0.4/6.3 mm; the 12 held-leg correct fires 13.1-1646.1 mm plus the seed-5 no-grasp
+leg 100751.2 mm; the 8 mm threshold sits in the measured gap, 1.7 mm above the largest false
+positive (6.3 mm) and 5.1 mm below the smallest correct fire (13.1 mm)).
 
 ## Arms and scenario (Tier A)
 
@@ -54,7 +55,9 @@ FRUIT_CYCLE_REPORT=1`; `scripts/154_claim_run.sh` per run.
 2. the fire retention < 10/15;
 3. the frozen K2 > 2/60;
 4. a new failure reason appears;
-5. any descent outside its motion budget (`105_motion_regression.py --min-success-rate 0.5`).
+5. any descent outside its motion budget (`105_motion_regression.py --min-success-rate 0.5`;
+the seed-11 rate floor is a scenario property - both arms below 0.5, the P10-C.1 precedent;
+the kill is the descent budgets).
 
 ## The no-harm bar
 
@@ -68,3 +71,13 @@ It does not touch the shipped defaults (all three knobs default off; the gate de
 the P10-C behavior byte-for-byte); it does not re-open the outcome question (the seed table
 stands - the outcome effect is draw-dominated); it does not change the park/routing/selection
 logic.
+
+
+---
+
+## Pre-battery amendment (2026-10-17, the Oracle gate's required corrections; frozen before the battery)
+
+The calibration sentence is corrected in place (the real margins are 1.7 mm above the largest
+false positive and 5.1 mm below the smallest correct fire; the retention count includes the
+seed-5 no-grasp leg). Kill 5 carries the seed-11 rate-floor carve-out. The escape count is
+corrected to "13 escapes >= 13.1 mm; 11 >= 53 mm". Nothing else changes.
