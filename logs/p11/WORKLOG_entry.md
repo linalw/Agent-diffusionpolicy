@@ -23,8 +23,8 @@ a tomato's whole-fruit stiffness (~3.9 N/mm at 1 mm), and 0.33 mm of penetration
 limit - so of a commanded 1.7-17.5 mm interference, ~0.3 mm can be elastic and the rest becomes
 fruit motion; it also sits at 87 Hz, above the repo's own ~40 Hz resolvable band at 1/120 s
 (`common.py:13-19`). (3) **Mass/density**: `density * sphere * 0.82` (`fruits.py:655`) with
-densities 780-900 kg/m³ gives fruit 8 % (apple) to ~40 % (tomato, 68.8 g vs a measured 83.7 g at
-53 mm / 0.96 g/cm³) light. (4) **Restitution 0.02-0.2** (`fruits.py:665`) vs the measured
+densities 780-900 kg/m³ gives fruit ~11 % (apple) to ~44 % (peach; tomato ~41 %, 49.4 g vs the
+measured 83.7 g at 53 mm / 0.96 g/cm³) light. (4) **Restitution 0.02-0.2** (`fruits.py:665`) vs the measured
 apple-apple 0.4 / apple-bin 0.5 (validated simulation calibration). (5) **The solver boundary**: the
 depenetration/velocity caps are unauthored (the code comment says "unlimited"; the schema default is
 3 m/s - flagged), and the pinch force is **not bounded by the 10 N drive** because `finger_joint2`

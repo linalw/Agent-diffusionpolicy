@@ -2,7 +2,8 @@
 
 Status: **offline, read-only audit** (no simulator run; the P10-D.1 policy battery was running on the
 same machine throughout and was not touched). Branch `p-supply`. All writes under `logs/p11/`; no
-`src/`, `scripts/`, `configs/`, `datasets/` or `Paper/` write; no commit. Date 2026-10-18.
+`src/`, `scripts/`, `configs/`, `datasets/` or `Paper/` write; no commit by the lane (the
+orchestrator committed the audit at 45170e5). Date 2026-10-18.
 
 **The question.** The owner asks whether the simulator's physics properties are realistic, prompted
 by a measured behaviour: the two-line regrasp cycle commands the gripper pads to a keep-gap
@@ -62,7 +63,7 @@ that can change it at runtime.
 | F10 | sleep | **`sleepThreshold = 0` (never sleep)** because `FRUIT_KINEMATIC_GRIPPER` defaults to `"1"` in this check | `fruits.py:682-686` | `FRUIT_NO_SLEEP=0/1` |
 | F11 | damping | 0 (not authored) | `fruits.py:42-54` (`tune_contact_body`) | `FRUIT_LINEAR_DAMPING`, `FRUIT_ANGULAR_DAMPING` (default 0) |
 | F12 | max depenetration velocity | **not authored** | `fruits.py:43` | `FRUIT_MAX_DEPEN_VELOCITY` (default 0 = skip). Schema default **3.0 m/s** (`schema.usda:596`); the PhysX SDK doc line says "Default: 5.0 * tolerancesLength". The code comment calls it "unlimited" - **flagged, unverified** (§4) |
-| F13 | max velocity | not authored | - | none. Schema default `inf` (`schema.usda:2980`) |
+| F13 | max velocity | not authored | - | none. Schema default `inf` (`physxRigidBody:maxLinearVelocity`, `schema.usda:549`) |
 | F14 | compliant contact on the fruit material | **none** - the fruit material authors only static/dynamic friction + restitution; a rigid contact | `fruits.py:661-668` | none |
 | F15 | deformable body / plasticity | **none anywhere in the repo** (grep `deformable` in `src/` = 0 hits) | - | none. (The build *can* author them: `OmniUsdPhysicsDeformableSchema` + `physxDeformableBody:*`/`physxVolumeDeformableSim:*` tokens are installed - see §5b) |
 
@@ -83,7 +84,7 @@ defaults to `"openarm"` (`scene.py:331`, `tasks.py:428-441`, `assets.py:70`) and
 | G2 | finger drive (the second joint) | `finger_joint2` has **no drive at all** - it is a **mimic** of joint1 (`PhysxMimicJointAPI:rotY`, gearing -1, `naturalFrequency 0`, `dampingRatio 0`) | asset `:3822-3844` (left), `:4085-4107` (right) | none |
 | G3 | command path | `set_gripper(q)` -> `set_dof_position_targets` on both finger dofs; face separation `= 0.010 + 2*q` clipped to [0, 0.044] => **achievable face gap 10-98 mm** | `control.py:234-239`, `241-245`, `61-67`, `79` | none |
 | G4 | finger contact material | bound on the finger *link* prims: static = dynamic = **mu 2.0** (`FRUIT_FINGER_MU`), restitution **0.0**, **compliant contact k = 30 000 N/m** (`FRUIT_FINGER_COMPLIANCE`), damping **c = 80 Ns/m** | `scene.py:358-394`; the defaults are set process-wide in `assets.py:62-63`; `_add_physics_material` `scene.py:115-176` | `FRUIT_FINGER_MU`, `FRUIT_FINGER_COMPLIANCE`, `FRUIT_FINGER_CONTACT_DAMPING`, `FRUIT_FINGER_FRICTION_COMBINE` (default empty) |
-| G5 | friction combine mode | **not set** (schema default `"average"`, `schema.usda:754`); the code comments claim PhysX defaults to *minimum* (`scene.py:159-163`, `kinematic_gripper.py:150-153`) - **flagged, unverified** (§4) | `scene.py:384` (prints only) | `FRUIT_FINGER_FRICTION_COMBINE` |
+| G5 | friction combine mode | **not set** (schema default `"average"`, `schema.usda:1231`); the code comments claim PhysX defaults to *minimum* (`scene.py:159-163`, `kinematic_gripper.py:150-153`) - **flagged, unverified** (§4) | `scene.py:150-167` (applied), `:384` (print) | `FRUIT_FINGER_FRICTION_COMBINE` |
 | G6 | finger collision geometry | the finger **visual meshes** (`.../visuals`, Mesh prims) get `CollisionAPI` + `PhysxConvexHullCollisionAPI`; the asset's own `collisions/` subtree is an instance proxy and cannot be used | `scene.py:423-467`; asset choice `assets.py:26-48, 66-74`; hard gate `scene.py:337-351` | `FRUIT_FINGER_COLLIDERS` (default 1 in openarm mode) |
 | G7 | finger link mass | 0.036 kg each | asset `:5404-5413`, `:5506-5511` | none |
 | G8 | finger pad option | `FRUIT_FINGER_PADS` default 0 (no extra pads); face shapes `flat` default | `scene.py:325-326, 395-401` | `FRUIT_FINGER_PADS`, `FRUIT_FINGER_FACE` |
@@ -134,7 +135,7 @@ order-of-magnitude estimate computed here from FULL-read material constants (sta
 | strawberry (context) | ~10-25 g for 30-45 mm fruit | standard produce data (not audited here) | est. |
 
 Sim vs real: the sim's fixed 0.82 sphere-volume factor plus the densities of F4 put the shipped
-fruit **~8 % (apple) to ~40 % (tomato at 53 mm) below** the measured masses; see §4.
+fruit **~11 % (apple) to ~44 % (peach); tomato ~41 % at 53 mm below** the measured masses; see §4.
 
 ### 2.2 Flesh stiffness / elastic modulus (small deformation)
 
@@ -157,7 +158,7 @@ independently measured bruise force (§2.3) - a consistency check on the estimat
 
 | fruit | real value | source | conf. |
 |---|---|---|---|
-| apple (Golden Delicious) | bruise detection limit at impact energy **0.05 J with a 25.8 N peak force** (25 mm spherical metal impactor); levels 2/3 = 0.10 J/66.2 N and 0.19 J/101.5 N | Zarifneshat et al. 2010, Am. J. Agric. Biol. Sci. 5(2):114-121 | FULL |
+| apple (Golden Delicious) | bruise detection limit at impact energy **0.05 J with a 25.8 N peak force** (25 mm-radius spherical metal impactor); levels 2/3 = 0.10 J/66.2 N and 0.19 J/101.5 N | Zarifneshat et al. 2010, Am. J. Agric. Biol. Sci. 5(2):114-121 | FULL |
 | apple | critical impact velocity **0.5 m/s** for 170-180 g apples (drop height 13 mm) - the bruise threshold in a drop test | "Determining the coefficient of restitution of apples..." (ResearchGate) | snippet |
 | apple | critical compression energy **~100 N*mm (0.1 J)** during elastic interaction | Liu et al. 2022, Foods 11(13):1851 | abstract |
 | apple | free drop height must be < 3 cm to keep fruit-to-fruit bruising negligible | Fu et al. 2020, Agronomy 10(1):59 | abstract |
@@ -224,7 +225,8 @@ independently measured bruise force (§2.3) - a consistency check on the estimat
   the finger drive's *target* to a face separation below the fruit's width. The drive is a stiff PD
   servo (k = 1e6 N/m) clipped at 10 N, so whenever the finger is more than ~10 um from its target
   it pushes at **the 10 N limit, continuously**. The mimic joint (G2) couples the second finger
-  rigidly, so the pinch is 10 N + an uncapped reaction.
+  rigidly; the constraint is not force-limited (measured peaks 7.5-176 N are transient; the
+  sustained pinch is bounded by the drive in the static reading).
 * **The contact spring is far too stiff to absorb the interference.** The finger material carries
   `compliantContactStiffness = 30 000 N/m`; the fruit material carries none (rigid). At the 10 N
   drive limit the pad-face penetration is **10/30 000 = 0.33 mm** - so of the commanded
@@ -245,8 +247,8 @@ independently measured bruise force (§2.3) - a consistency check on the estimat
   rest of the class leaving at the free-fall speed from the 1.17 m belt top.
 * **Energy bookkeeping.** The work the drive can do while pushing the interference through is
   F * d = 10 N * 0.0164 m = **0.164 J**; a 100 g fruit given that energy leaves at 1.8 m/s. The
-  real bruise thresholds are 0.05 J (apple) and ~0.01 J (tomato elastic to 7 N at 2 mm) - the
-  commanded interference at full force carries **3-15x the energy that damages real fruit**.
+  real bruise thresholds are 0.05 J (apple) and ~6-8 mJ (tomato elastic to 7-9 N at ~2 mm) - the
+  commanded interference at full force carries **3-27x the energy that damages real fruit**.
 * **Mass and restitution.** Lighter fruit accelerate more for the same force (the sim's fruit are
   8-40 % light, §4). Restitution (0.02-0.2) plays no role in the launch itself - it only shapes the
   bounce after the fall; a real fruit at COR 0.4-0.5 would bounce *more*, not less.
@@ -300,7 +302,7 @@ phenomenon; **unverified** = the shipped value cannot be established offline.
 |---|---|---|---|---|
 | fruit body type | rigid (`RigidBodyAPI`; `fruits.py:657`); no deformable, no fruit-side compliance | all fruit are viscoelastic solids (E 0.22-2.1 MPa; tomato relaxes over 0.36/8.7 s) | **artifact-prone (the #1 gap)** | **DRIVES** - the interference cannot be absorbed, so it becomes fruit motion |
 | finger contact stiffness | 30 000 N/m (k), 80 Ns/m (c) (`assets.py:62-63`; `scene.py:363-364`) | tomato ~3 900 N/m at 1 mm; apple ~27 000 N/m at 1 mm; pad estimate 10 000-80 000 N/m | **off (8x a tomato) / artifact-prone** | **DRIVES** - 0.33 mm give at the 10 N limit; above the 120 Hz band |
-| fruit mass model | density x sphere x 0.82 (`fruits.py:655`) | measured: apple 840 kg/m^3 (220 g @ 81 mm); tomato 0.96 g/cm^3 (83.7 g @ 53 mm); peach 137 g @ 60 mm | **off** - sim ~8 % (apple) to ~40 % (tomato) light | PARTIAL - lighter fruit launch farther |
+| fruit mass model | density x sphere x 0.82 (`fruits.py:655`) | measured: apple 840 kg/m^3 (220 g @ 81 mm); tomato 0.96 g/cm^3 (83.7 g @ 53 mm); peach 137 g @ 60 mm | **off** - sim ~11 % (apple) to ~44 % (peach); tomato ~41 % light | PARTIAL - lighter fruit launch farther |
 | fruit density (per class) | 700-900 kg/m^3 (`meshes.py:172-213`) | tomato 0.83-0.97; orange 0.97-1.03; apple 0.84 g/cm^3 | **off** (tomato 780 vs 960; orange 900 vs 970-1030) | PARTIAL (via mass) |
 | fruit friction | 0.45-1.05 per class (`fruits.py:656`) | apple-rubber 0.52-1.03; apple-paper 0.21-0.45; tomato-steel 0.29 | **reasonable** | NONE/minor |
 | finger friction + combine | mu 2.0, combine **not set** (`scene.py:358-394`); comments claim "minimum", schema default "average" | no fruit surface reaches 2.0; effective pair 0.45-1.55 depending on the rule | **unverified** (G5) | minor (does not drive the squirt) |
@@ -328,7 +330,9 @@ re-issued by the re-seat. The candidate changes, all in `tasks.py`, all two-line
 1. **A keep-gap floor at the live measured extent.** At `tasks.py:8688-8692`,
    `keep_gap = max(squeeze_gap, live_extent - margin)` where `live_extent = self.pinch_width(
    sample, quat_now)` (the same geometric read the close already uses, `tasks.py:9783-9800`) and
-   `margin` ~ 0-1 mm (0 = no interference at the re-seat; 1 mm = a light touch). The same floor on
+   `margin` ~ 0-0.3 mm (0 = no overlap at all; the contact's elastic give is only ~0.3 mm at the
+   10 N limit and `pinch_width` is good to a few percent, so a hard no-overlap guarantee needs
+   margin <= 0 - a standoff). The same floor on
    the ratchet at `tasks.py:8792-8801` (`fingers` must not go below
    `gripper_value_for_separation(live_extent - margin)`), and on `grip_gap`/`squeeze_gap` if a
    global floor is wanted. New env knob, default off, two-line-scoped, e.g.
@@ -348,8 +352,10 @@ re-issued by the re-seat. The candidate changes, all in `tasks.py`, all two-line
 4. **Bound the cycle** with `FRUIT_REGRASPS=1` (the P10-E Lever 2): a diagnostic that removes the
    repetition/ratchet; expected to move the B1 mass toward B2/C rather than to fix it.
 
-**Could this remove the squirt without touching physics? Yes, by construction.** With no commanded
-interference there is no geometric overlap for the solver to resolve, no saturated push to
+**Could this remove the squirt without touching physics? Yes, for the re-seat interference, by
+construction** (with margin <= ~0.3 mm; the floor removes the re-seat/ratchet interference, not
+the close's own designed 2.5 mm clamp - `tasks.py:7830-7844`, the grip mechanism itself). With no
+commanded interference there is no geometric overlap for the solver to resolve, no saturated push to
 sustain, and no wedge force - the failure that remains is a *slip* of a marginal grip (the B2/C
 classes), not a launch. The physics (rigid fruit, 30 kN/m contact) then only decides how a marginal
 grip fails, not whether the fruit flies. **Two honest caveats.** (i) The P10-E falsifier must still
@@ -382,8 +388,10 @@ is flipped (`configs/motion_reference_twoline.json` / `motion_reference_patch.js
    deformable bodies**: this Isaac 6.0 build ships the `OmniUsdPhysicsDeformableSchema` plugin
    (`OmniPhysicsDeformableBodyAPI`, `OmniPhysicsVolumeDeformableSimAPI` /
    `OmniPhysicsSurfaceDeformableSimAPI`, `OmniPhysicsDeformableMaterialAPI`, tet/vertex
-   attachments) and the PhysX plugin exposes `physxDeformableBody:*` / `physxVolumeDeformableSim:*`
-   and `physxScene:gpuMaxDeformableVolumeContacts` - i.e. volume/tet deformables are authorable.
+   attachments) and the PhysX plugin exposes `physxDeformableBody:*`
+   and `physxScene:gpuMaxDeformableVolumeContacts`; the volume-sim properties live under
+   `OmniPhysicsVolumeDeformableSimAPI` (`omniphysics:*`, e.g. `omniphysics:restTetVtxIndices`) -
+   i.e. volume/tet deformables are authorable.
    Cost: tet-meshed fruit assets (the current fruit are surface meshes with convex-hull colliders),
    the deformable solver's own stability/timestep constraints, and a re-measure of every contact
    path.
@@ -400,7 +408,9 @@ is flipped (`configs/motion_reference_twoline.json` / `motion_reference_patch.js
    (`configs/motion_reference.json`, `_twoline.json`, `_patch.json` - re-recorded with
    `--write-fingerprint`), the two-line
    gates (`scripts/190_twoline_gate.sh`, `105`), the selfcheck legs, the W6-A patch battery and the
-   dense W3/W4 records, **and the demonstration stores** (`datasets/demos_v11/v12/v12d/v13p` - all
+   dense W3/W4 records, `scripts/170_transport_probe.py` (AGENTS.md: any fruit change must be
+   re-measured there) and the shared-station bimanual batch (`logs/biarm/`, `logs/g/`,
+   `scripts/153_biarm_rates.sh`), **and the demonstration stores** (`datasets/demos_v11/v12/v12d_s02/v13p` - all
    collected on the rigid physics; their collector manifests pin the tree) **and the checkpoints
    trained on them** (`moe_v12/v13s/v13p`), i.e. the policy canary and the direct-interface
    measurements. The conservative reading: one physics change = a fresh collection + fine-tune +
@@ -437,13 +447,13 @@ is flipped (`configs/motion_reference_twoline.json` / `motion_reference_patch.js
 * **Most unrealistic parameters**: (1) the fruit is a **rigid body** - no deformability, no
   plasticity, no fruit-side compliance anywhere; (2) the finger contact stiffness **30 kN/m** (8x a
   tomato, 0.33 mm of give at the drive limit, above the 120 Hz resolvable band); (3) the fruit
-  **mass/density model** (0.82 sphere factor + densities 780-900 => 8-40 % light vs measured);
+  **mass/density model** (0.82 sphere factor + densities 780-900 => ~11-44 % light vs measured);
   (4) **restitution 0.02-0.2** vs the real 0.4-0.5; (5) the **un-authored depenetration/velocity
   caps + the uncapped mimic joint** (the pinch force is not bounded by the 10 N drive).
 * **The artifact's key drivers**: the force-servo **chase** (15 mm) creating a sub-fruit keep-gap,
   the W1 **re-seat** re-issuing it onto the fruit (1.7-17.5 mm inside, up to -18.4 mm), and the **rigid fruit +
   saturated drives + 120 Hz impulse resolution** converting that commanded interference into
-  fruit motion (0.164 J of drive work vs 0.05 J apple / 0.01 J tomato damage energy), with 4/30
+  fruit motion (0.164 J of drive work vs 0.05 J apple / ~6-8 mJ tomato damage energy), with 4/30
   attempts diverging outright.
 * **Can the control-side fix remove the squirt without touching physics?** Yes - the trigger is the
   commanded interference, and flooring the keep-gap at the measured extent (+ stopping the chase +
@@ -480,7 +490,7 @@ is flipped (`configs/motion_reference_twoline.json` / `motion_reference_patch.js
   1430` (dt), `src/fruit_sorting/common.py:13-25` (substeps).
 * schema defaults (Isaac 6.0 install): `extscache/omni.usd.schema.physx-110.1.13+110.1.2.lx64.r
   .cp312.u7f4/plugins/PhysxSchema/resources/schema.usda:596` (maxDepenetrationVelocity 3.0),
-  `754/761` (combine modes "average"), `781/793` (contact/rest offset -inf), `1270-1290`
+  `1231/1239` (combine modes "average"), `781/793` (contact/rest offset -inf), `1270-1290`
   (compliant contact); deformables: `plugins/OmniUsdPhysicsDeformableSchema/resources/
   generatedSchema.usda` (`OmniPhysicsDeformableBodyAPI` etc.).
 
@@ -498,7 +508,7 @@ sed -n '3798,3844p' assets/openarm_flat/openarm_flat_deinst.usda
 # the keep-gap command
 sed -n '8683,8720p' src/fruit_sorting/tasks.py
 # the schema defaults
-sed -n '596p;754p;761p;781p;793p;1270,1290p' \
+sed -n '549p;596p;781p;793p;1231p;1239p;1270,1290p' \
   /home/ubuntu/linalw/App/isaacsim/_build/linux-x86_64/release/extscache/omni.usd.schema.physx-110.1.13+110.1.2.lx64.r.cp312.u7f4/plugins/PhysxSchema/resources/schema.usda
 ```
 
