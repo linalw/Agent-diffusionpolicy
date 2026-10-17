@@ -369,7 +369,10 @@ drive-saturated pinch remain, and a real tomato held at 4.5 N is fine while a re
 P10-C.3/W7-A pattern); the two-line scenario needs its references re-recorded only if the *default*
 is flipped (`configs/motion_reference_twoline.json` / `motion_reference_patch.json` + `scripts/
 190_twoline_gate.sh` + the collector manifest field), plus a pre-registered battery at seed 11
-(the hard seed) with seeds 5/23 as controls - the P10-E §3 protocol.
+(the hard seed) with seeds 5/23 as controls - the P10-E §3 protocol. On adoption the two-line dense W3/W4 records and the
+W6-B patch-battery branch also move (the monitor-flip precedent, `logs/p10c2/PREREG_ADOPT_FLIP.md`);
+and the explicit caveat that the floored regrasp cannot restore the grip - the class shifts, the
+rate may not improve.
 
 ### (b) Physics-side
 
