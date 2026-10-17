@@ -15840,3 +15840,26 @@ confirmation gate (`FRUIT_CARRY_MONITOR_CONFIRM_MM`, default 0; the battery valu
 calibrated on the fire table) - the fire counts only if the leg's clean_slip reaches the
 threshold; primary endpoint = **zero ground-truth false positives**; kills = the fire
 retention < 10/15, the frozen K2 > 2, a new reason, the motion budgets.
+
+### P10-C.2 (2026-10-17): the slip-confirmation gate - all endpoints clear; the pooled outcome now >= the control
+
+**The gate does what it was built to do.** `FRUIT_CARRY_MONITOR_CONFIRM_MM=8.0` (default 0 =
+the P10-C form): a classifier trip counts only if the leg's running `clean_slip_max` reaches
+the threshold by the fast-skip site. The 5-run battery (the A anchor + the 3 seeds + the
+acceptance): **the A anchor and the acceptance are byte-identical to their records** (0 diff /
+385/385) - the diff is inert on every knob-off path; the gate is **inert at seeds 5 and 23**
+(0 cancels, the branches identical to the ungated runs) and **acts at seed 11**: it cancels
+the 6.3 mm pear trip (`[monitor] cancel right grasp_lift: tick=20/161 clean_slip=6.3mm <
+8.0mm`) - the leg the control PLACED - and the pear places again in the gated run (15.07 s vs
+the control's 15.1 s). **Primary (zero false positives): PASS** (0 frozen-K2; 0 ground-truth).
+**Retention >= 10/15: PASS** (10 fires, all >= 19.0 mm; 263-1632 mm the rest). K2 0/60; no new
+failure reasons; 105 PASS on all three gated runs (65 %/50 %/80 %). The outcomes: **39/60
+gated vs 38/60 A vs 36/60 ungated** (per seed 13/10/16 vs 12/9/17); the pooled interval
+**14.99 s vs A's 16.73 s (-10.4 %)** (seed 11: 18.70 vs 22.74).
+
+**The adoption case is met** (the P10-C.1 pre-committed framework: B >= A pooled on the
+interval, no kill firing). Next: **P10-C.3, the two-line default flip** - a new
+pre-registration (the W7-A park-gate pattern: the monitor + the gate resolve on for a
+two-line session with the env unset; `=0` restores), the re-baseline list (the two-line/patch
+references re-recorded) and the collector manifest field (`collection.carry_monitor`). The
+shipped single-arm line is untouched.
