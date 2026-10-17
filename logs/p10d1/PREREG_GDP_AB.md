@@ -28,10 +28,11 @@ the same `AB_POLICY_SEED` so the sampler differences are the same across arms.
 `RUNS=3 EPISODES=15 AB_SEEDS="77 101 202" ARM_A_ENV="" ARM_B_ENV="FRUIT_POLICY_GDP=1
 FRUIT_POLICY_GDP_K=2" scripts/112_rl_ab.sh` (interleaved A,B,A,B,A,B; ~3 h wall).
 
-1. **Primary: the close-start |dx| distribution** (`[acq]` rows; the W7-B form) - B must not
-   be worse than A on the median and the p90 (the tail = the 90th percentile of |dx|); the
-   pre-registered positive form: the median falls or holds with the p90 non-worse and the
-   no-fire count non-worse.
+1. **Primary: the close-start tip-fruit |y| offset distribution** (`[acq]` `close_start`
+   index 1; the W7-B report's `close-start |y| mm` line - **not** the trigger's `dx` column) -
+   B must not be worse than A on the median and the p90 (the tail = the 90th percentile of
+   |y|); the pre-registered positive form: the median falls or holds with the p90 non-worse
+   and the no-fire count non-worse.
 2. The no-fire count (the "timeout: no grasp" / the trigger no-fire classes).
 3. The per-arm outcomes (reported, not gated - the draw discipline).
 4. The wall cost: the per-candidate sampling time measured offline; reported against the
@@ -48,8 +49,9 @@ p <= 0.05), the cycle non-inferiority margin (+5 %), and the no-harm bar.
 1. The knob-off byte-inert proof fails (the GDP-off path must equal the shipped path - the
    same noise draw);
 2. a new failure reason appears;
-3. the cycle rises more than +5 % (the per-attempt span; the sampling cost must not leak into
-   the loop);
+3. the cycle rises more than +5 % (the per-attempt span in simulated time - the wall cost
+   cannot enter the sim clock under fixed stepping, so this gates the action-side cycle
+   drift);
 4. the offline stub suite fails.
 
 ## The no-harm bar
@@ -89,3 +91,20 @@ F3: the dense no-harm leg is restated for the post-P10-C.3 branch (above). M3: s
 endpoint 1's "tail" is the p90 of |dx|. The rest of the prereg is unchanged. (The Oracle's
 M2 - recording `FRUIT_CARRY_MONITOR_TWOLINE` in the collector manifest alongside the master -
 is deferred until after the live stage-1 battery so the battery's tree pin stays frozen.)
+
+
+---
+
+## Amendment 3 (FROZEN 2026-10-17, the P10-D.1 Oracle gate's F1/F3/F6; before any result is read)
+
+- F1: endpoint 1 is the close-start tip-fruit **|y| offset** (the W7-B report's `close-start
+  |y| mm` line), not the trigger's `dx` column. F3: kill 3 gates the action-side cycle drift.
+- F6: **the falsifier follow-up** - the P6 re-read's falsifier has two halves: the
+  score-vs-outcome half is testable by a diag-on mechanism run on arm B
+  (`FRUIT_POLICY_GDP=1 FRUIT_POLICY_GDP_K=2 FRUIT_POLICY_GDP_DIAG=1`, the same boundary pin,
+  seed 77) joining the `[gdp]` scores to the per-episode outcomes (a named follow-up, not
+  part of stage 1); the frame-vs-noise attribution half is **not testable** from the `[gdp]`
+  row as implemented (`fingers` is a within-chunk range of channel 7, not a cross-candidate
+  dispersion; it needs a fixed-noise/fixed-frame probe) and stays recorded as untested.
+- The stage-1 record must state that arm B's treatment provenance is the driver env echo +
+  the frozen runner (F7's manifest field is deferred until after the live battery).

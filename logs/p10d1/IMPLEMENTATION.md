@@ -129,8 +129,9 @@ measurement time; nvidia-smi 5-8 % before, ~39-43 % during - the sampler's own l
   once under `no_grad`); the cost is the second 16-step forward chain (1.96x).
 * The **simulator loop is stepped, not wall-clocked**: the cost does not change the
   simulated-time cycle (the prereg's kill 3 is a sim-clock check); it shows up as wall
-  time - roughly +25 ms per re-plan, ~+12-15 s wall per direct episode at ~450-600
-  re-plans/episode, i.e. ~2x the policy-sampling wall on arm B.
+  time - roughly +25 ms per re-plan, ~+2-3 s wall per direct episode at the measured
+  ~80-110 policy re-plans (decision/4; the W7-B record), up to ~+10 s on a no-fire episode
+  (375 re-plans at the 1500-tick horizon), i.e. ~2x the policy-sampling wall on arm B.
 
 ## 4. Verification (offline only)
 
