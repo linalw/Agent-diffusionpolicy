@@ -1,0 +1,33 @@
+== P10-D.1 GDP wall cost (offline, checkpoint only, no simulator) ==
+checkpoint : checkpoints/moe_v13s/policy_best.pt
+device     : cuda (NVIDIA GeForce RTX 5090)
+torch      : 2.10.0+cu128
+gpu before : 5 %, 706 MiB
+iters      : 30 (warmup 3)
+
+dtype      : fp16  DDIM steps: 16  chunk shape: (1, 9, 16)
+
+gpu after  : 39 %, 1350 MiB
+
+per-candidate sampling (one DDIM-16 chain):
+  shipped ddim_sample        : median   26.55  mean   26.62  p90   27.00  min   26.09  max   27.50
+  GDP ddim_sample_scored     : median   26.06  mean   26.05  p90   26.45  min   25.51  max   26.57
+
+end-to-end act() (condition build + sampling + selection):
+  GDP off (1 candidate)      : median   27.04  mean   27.16  p90   27.50  min   26.67  max   28.66
+  GDP on  K=2 (2 candidates) : median   52.87  mean   52.94  p90   54.06  min   51.16  max   54.32
+
+against the claims:
+  menu claim ~12 ms/candidate : measured 26.55 ms -> 2.21x the claim
+  1/120 s tick 8.33 ms        : measured 26.55 ms -> 3.19x the tick (OVER)
+  re-plan window 33.3 ms      : K=2 act 52.87 ms -> 1.59x the window (OVER)
+  scoring overhead            : -0.49 ms/candidate (-1.8 % of the shipped chain)
+  K=2 vs K=1 act              : +25.83 ms (1.96x)
+
+notes:
+  - the simulator loop is stepped, not wall-clocked: the sampling cost
+    changes the wall time per attempt, not the simulated-time cycle;
+    the battery's kill-3 (+5 % cycle) is therefore a sim-clock check.
+  - this host ran no simulator during the measurement; nvidia-smi
+    before/after is printed above (a busy GPU inflates the numbers -
+    the distill lane's first pass read 41.6 ms/chunk under contention).

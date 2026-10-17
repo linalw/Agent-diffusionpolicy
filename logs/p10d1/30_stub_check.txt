@@ -1,0 +1,53 @@
+== 1. source checks ==
+  [PASS] `FRUIT_POLICY_GDP` read exactly once, default "0"
+  [PASS] `FRUIT_POLICY_GDP_K` read exactly once, default "2"
+  [PASS] `FRUIT_POLICY_GDP_DIAG` read exactly once, default "0"
+  [PASS] `self.gdp = GDPSettings.from_env()` set exactly once (in __init__)
+  [PASS] the shipped `self.schedule.ddim_sample(` call site is unchanged (exactly one)
+  [PASS] the GDP branch is gated on `self.gdp.enabled and self.gdp.k > 1`
+  [PASS] exactly one `[gdp]` print site
+  [PASS] the RTC sampler/chunker never read the GDP knobs
+  [PASS] `_gdp_sample` reads no environment variables (resolution happens once in from_env)
+  [PASS] `rl_env.TASKS_MD5` still matches `tasks.py` (tasks.py untouched)
+== 2. GDPSettings.from_env resolution ==
+  [PASS] default: off, K=2, diag off
+  [PASS] `FRUIT_POLICY_GDP=1` enables; `=0` does not
+  [PASS] `FRUIT_POLICY_GDP_K=1` keeps K=1 (the shipped path)
+  [PASS] K clamps low: 0 -> 1, -3 -> 1
+  [PASS] K passes through: 2 -> 2, 3 -> 3, 4 -> 4
+  [PASS] K clamps high: 5 -> 4, 7 -> 4, 99 -> 4
+  [PASS] the clamp constants are 1..4
+  [PASS] diag resolves: 1 -> True, 0 -> False
+  [PASS] summary() names all three fields
+== 3. select_gdp_candidate on synthetic scores ==
+  [PASS] min wins
+  [PASS] ties -> the first candidate
+  [PASS] K=1 -> index 0
+== 4. ddim_sample_scored chain identity + score form ==
+  [PASS] the scored chain equals the shipped chain bit-for-bit
+  [PASS] one score per denoising step, all finite
+  [PASS] scores are the Stein norms |eps| * sqrt(numel)
+== 5. knob-off byte-inert proof ==
+  [PASS] GDP off == a direct shipped ddim_sample call, bit-for-bit
+  [PASS] GDP off consumes exactly the shipped one noise draw
+  [PASS] GDP on with K=1 == the shipped path, bit-for-bit (same draw)
+  [PASS] the class-level default is disabled (checkpoint-free fixtures)
+  [PASS] a runner without the instance `gdp` resolves disabled and takes the shipped path
+== 6. GDP selection end-to-end (switching fake model) ==
+  [PASS] K=2 consumes two sequential noise draws (2 x 4 denoise calls)
+  [PASS] the lower-score candidate (index 1) is the executed chunk
+  [PASS] a tie selects the first candidate
+  [PASS] K=4 samples four candidates and prints one 4-candidate row
+== 7. the [gdp] diag row ==
+  [PASS] the pure formatter's exact row
+  [PASS] exactly one row per GDP selection
+  [PASS] the row parses (k, chosen, scores, fingers, cost_ms)
+  [PASS] chosen=1, K=2, the winner has the lower score
+  [PASS] one finger spread + one wall cost per candidate
+  [PASS] `_finger_spread` reads the finger channel (index 7)
+== md5s ==
+  runtime.py 379ac7064fd49df8417e94dbf6ed2616
+  tasks.py   6574d92eafe38f1025b880d39a9410f9 (rl_env.TASKS_MD5 6574d92eafe38f1025b880d39a9410f9)
+  rl_env.py  8413fece2203c1bccd84b0d5c3830eb3
+
+STUB PASS: all checks passed.

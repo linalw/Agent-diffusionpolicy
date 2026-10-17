@@ -2,7 +2,11 @@
 
 Lane: implementation only - offline, **no simulator run**, no retraining, no shipped default
 changed. The A/B battery is a separate lane and runs from `logs/p10d1/PREREG_GDP_AB.md`
-(frozen at `93e0bb4`). Branch `p-supply`; this lane's base tree `93e0bb4`. Written 2026-10-17.
+(frozen at `93e0bb4`; amended + runner `logs/p10d1/run_stage1.sh` frozen at `4d6a128`).
+Branch `p-supply`; this lane's base tree `93e0bb4` (the battery lane's `4d6a128` adds only
+the runner + the prereg amendment; no `src/` change). The battery started at 23:08 on the
+working tree that carries this uncommitted `runtime.py` diff (arm A first, knob off -
+byte-inert by construction). Written 2026-10-17.
 
 ## 1. The mechanism and the paper's exact OoD score
 
@@ -172,15 +176,15 @@ the prereg already was, at `93e0bb4`.)
 
 ## 6. The battery (deferred; a separate lane)
 
-Stage 1, exactly per `logs/p10d1/PREREG_GDP_AB.md`:
-
-```
-RUNS=3 EPISODES=15 AB_SEEDS="77 101 202" ARM_A_ENV="" \
-  ARM_B_ENV="FRUIT_POLICY_GDP=1 FRUIT_POLICY_GDP_K=2" scripts/112_rl_ab.sh
-```
-
-Arm B adds nothing else: both arms get `AB_POLICY_SEED=11` (the harness), `moe_v13s`
-`61da390a...`, `FRUIT_ACQ_DIAG=1` where the `[acq]` readouts need it. The endpoint is the
+Stage 1, exactly per `logs/p10d1/PREREG_GDP_AB.md` + its frozen amendment: the runner is
+`logs/p10d1/run_stage1.sh` (the W7-B direct-boundary pin so the `[acq]` readouts compare
+to the W7-B record) - `RUNS=3 EPISODES=15 AB_SEEDS="77 101 202"`, `AB_POLICY_SEED=11`,
+both arms `moe_v13s` `61da390a...`, `AB_EXTRA_ENV="FRUIT_POLICY_TRIGGER=arrival
+FRUIT_POLICY_TRIGGER_LEAD=0.9 FRUIT_DYNAMIC_PICK=1 FRUIT_SUPPLY_SCATTER=0
+FRUIT_POLICY_TRIGGER_LATERAL=0.06 FRUIT_ACQ_DIAG=1"`, arm B adds
+`FRUIT_POLICY_GDP=1 FRUIT_POLICY_GDP_K=2`; the mechanism report is
+`logs/w7/B_ab_report.py --dir logs/p10d1/stage1`. The GDP knobs resolve once in
+`PolicyRunner.__init__` from the harness env (no per-call reads). The endpoint is the
 close-start |dx| distribution + the no-fire count; the wall cost is reported from section
 3; the no-harm bar is the shipped acceptance + the two-line dense re-record + selfcheck +
 `172`. Kill 1 (byte-inertness) is already satisfied by section 4's proofs; kill 4 (the
