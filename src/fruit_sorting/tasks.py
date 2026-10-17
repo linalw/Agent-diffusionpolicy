@@ -910,10 +910,15 @@ class PickAndPlaceTask:
         #: re-seat is deliberately absent: this is arm B of the pre-registration,
         #: the B' bounded re-seat form is conditional on B passing and is not
         #: built here). Scope mirrors the W8-B guard: the per-attempt active flag
-        #: is set from `direct_capture` in `_grasp_carry_place_impl`, so the
-        #: scripted line (single arm and two-line) never reaches the monitor,
-        #: and `_carry` additionally requires the OpenArm jaw hand on a dynamic
-        #: capture. With the knob unset no feature is read, no score is taken,
+        #: is set in `_grasp_carry_place_impl`, so the scripted single arm never
+        #: reaches the monitor, and `_carry` additionally requires the OpenArm
+        #: jaw hand on a dynamic capture. The direct/policy handover is the
+        #: shipped scope (`direct_capture`); P10-C
+        #: (`logs/p10/PREREG_MONITOR_TWOLINE.md`) adds the two-line scheduler's
+        #: own scripted moving catch behind the explicit
+        #: `FRUIT_CARRY_MONITOR_TWOLINE=1` knob (default 0 = the two-line never
+        #: arms; a shared-station `FRUIT_BIARM=1` session never arms either).
+        #: With the knob unset no feature is read, no score is taken,
         #: no branch is taken - the shipped tree is byte-inert (the no-harm bar
         #: of the pre-registration section 4 is P7-2's acceptance proof).
         #: `FRUIT_CARRY_MONITOR_DIAG=1` adds the counts-only traffic: one
@@ -937,6 +942,22 @@ class PickAndPlaceTask:
         )
         self._carry_monitor_load_floor = float(
             os.environ.get("FRUIT_CARRY_MONITOR_LOAD_FLOOR", "0.0")
+        )
+        #: P10-C scope knob (`FRUIT_CARRY_MONITOR_TWOLINE`, **default 0**;
+        #: pre-registration `logs/p10/PREREG_MONITOR_TWOLINE.md`): extend the
+        #: monitor's scope from the direct/policy handover to the **two-line
+        #: scheduler's own scripted moving catch** (`FRUIT_BIARM=1
+        #: FRUIT_BIARM_TWOLINE=1`). Scope-only: with the knob off the two-line
+        #: never arms (byte-inert at default) and the direct scope is unchanged
+        #: either way; with it on (and `FRUIT_CARRY_MONITOR=1`) the same
+        #: per-leg scorer, load floor and diag run on the two-line's carry legs
+        #: and a fire ends the attempt at the same leg-boundary early return
+        #: the direct interface uses. The two-line park/gate/arbiter code is
+        #: never touched - the skip returns inside `_grasp_carry_place_impl`,
+        #: exactly where the shipped `not grasped` failures return, so the
+        #: worker's own end-of-attempt machinery runs unchanged.
+        self._carry_monitor_twoline = (
+            os.environ.get("FRUIT_CARRY_MONITOR_TWOLINE", "0") == "1"
         )
         #: W7-B acquisition readout (default off, policy direct path only): one
         #: `[acq]` line per attempt with the setup stage times, the close-start
@@ -6398,11 +6419,27 @@ class PickAndPlaceTask:
         # direct handover only, independent of the W8-B guard's own switch.
         self._carry_relief_active = bool(self._carry_relief > 0.0 and direct_capture)
         # P7-2b C-3 carry monitor scope (see the knob block in `__init__`): the
-        # direct handover's own dynamic carry legs only, the same scope gate as
-        # the W8-B guard - the scripted single arm and the two-line scheduler
-        # never set this, and a scripted call always clears it. The per-attempt
-        # counters/latch are reset here.
-        self._carry_monitor_active = bool(self._carry_monitor and direct_capture)
+        # direct handover's own dynamic carry legs by default, the same scope
+        # gate as the W8-B guard (a scripted call always clears it). P10-C
+        # (`logs/p10/PREREG_MONITOR_TWOLINE.md`) adds the two-line scheduler's
+        # own scripted moving catch behind the explicit
+        # `FRUIT_CARRY_MONITOR_TWOLINE=1` scope knob: the two-line worker's
+        # attempts are the only scripted calls that see a `session.twoline`
+        # session, so the predicate is exact - the single-arm scripted line and
+        # the shared-station pipeline (`FRUIT_BIARM=1` without TWOLINE) can
+        # never arm it. Scope-only: a fire acts at the same leg-boundary early
+        # returns as the direct interface and never touches the two-line park
+        # gate / capture token / arbiter in `_biarm_worker`.
+        two_line_catch = bool(
+            scripted
+            and dynamic_capture
+            and self._active_session is not None
+            and getattr(self._active_session, "twoline", False)
+        )
+        self._carry_monitor_active = bool(
+            self._carry_monitor
+            and (direct_capture or (two_line_catch and self._carry_monitor_twoline))
+        )
         # The skip latch is cleared on EVERY attempt start, not only when the
         # monitor is active: the two check sites below are unconditional, so a
         # stale `True` from a previous direct attempt would otherwise leak into
@@ -8848,7 +8885,10 @@ class PickAndPlaceTask:
             # opens the jaws). The outcome is recorded normally (`grasped` from
             # the peak lift above, `placed=False`); the skip itself is named by
             # the `[monitor]` diag lines, not by a new failure-reason string
-            # (K4: the reason parser's baseline set must not grow).
+            # (K4: the reason parser's baseline set must not grow). P10-C: when
+            # the scope knob additionally arms the two-line worker's attempts,
+            # this same boundary ends them and the worker's own park/gate/
+            # arbiter path is reached exactly as after any early return.
             if belt is not None and openarm:
                 belt.start()
             if not result.grasped:

@@ -239,7 +239,17 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: implementation record is `logs/p9a/IMPLEMENTATION_B1.md`). Every shipped
 #: default is unchanged: the two control knobs resolve only inside
 #: `_ready_move`'s single-arm scope and are inert when unset.
-TASKS_MD5 = "4ea81c60f92b0c115a86d4c2f7cb87b1"
+#:
+#: P10-C (2026-10-17): the pin follows the two-line carry-monitor scope tree -
+#: the default-off `FRUIT_CARRY_MONITOR_TWOLINE` scope knob that extends the
+#: P7-2b/P8-2 carry monitor (the same scorer, the same
+#: `FRUIT_CARRY_MONITOR_LOAD_FLOOR` term, the same `FRUIT_CARRY_MONITOR_DIAG`
+#: traffic) to the two-line scheduler's own scripted moving catch
+#: (`logs/p10/PREREG_MONITOR_TWOLINE.md`; implementation record
+#: `logs/p10c/IMPLEMENTATION.md`). Scope-only and default-inert: with the knob
+#: unset the two-line never arms (its park/gate/arbiter path is byte-unchanged)
+#: and the direct/policy scope is unchanged either way.
+TASKS_MD5 = "09c920c99b7a6a75d16e5a99dcda1872"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(

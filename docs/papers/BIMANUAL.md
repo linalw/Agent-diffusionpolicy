@@ -527,3 +527,15 @@ semantics: `src/fruit_sorting/tasks.py` `go_ready`/`_ready_move` (the scope
 predicate), `_biarm_park` (gate + early-out + `go_ready(arm)`), and the worker
 cycle (`_biarm_worker` finally-block order). No simulator run; no `src/` change;
 the only writes are this file and the evidence record under `logs/p10/`.
+
+---
+
+**Fold (2026-10-17, the Oracle gate's required update):** P10-A (2026-10-17,
+`logs/p10/A_RESULTS.md`): two-line 12/20, 3.64/3.63 placed/min, interval 16.53/17.30/19.90 vs
+single 13/18, 2.12/2.17 (window 1.67x; branch discipline per section 1); records replay
+bit-for-bit (861/861, 643/643, 365/365). Blockers 1-2 closed: the per-gap park transit is
+load-bearing (only the batch-boundary re-ready is a no-op, 2 x 1.92 s/batch, outside the
+window) - L1's kill fired. P9-A multi-seed: the gap falls on all 3 seeds (5.2/5.1/5.1 ->
+3.25/3.3/3.3), pooled success net-positive (A 20/30 vs B' 23/30); the seed-5 floor kill was a
+branch; the adoption path = a new multi-seed pre-registration. The P10-C prereg (the monitor
+extended to the two-line) is frozen at `logs/p10/PREREG_MONITOR_TWOLINE.md`.
