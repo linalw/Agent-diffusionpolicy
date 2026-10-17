@@ -69,8 +69,8 @@ readings.
 | the knob-off two-line pair bit-identical to the P10-A record | **PASS**: 0 diff lines modulo the reporting rows (the diag-filtered stream) |
 | the B pair bit-identical | **PASS**: 20 vs 21, 0 diff lines |
 | the diag run-neutral | **PASS**: 22 vs 20, 0 diff lines modulo `[carry]`/`[monitor]` |
-| the knob-off acceptance (9/10 + `fingerprint: matches`; 365/365 vs `logs/p2d/90_accept.log`) | **pending** (`logs/p10c/30_accept_noharm.log`, running) |
-| `selfcheck.sh` PASS | **pending** (the same chain) |
+| the knob-off acceptance (9/10 + `fingerprint: matches`; vs `logs/p2d/90_accept.log`) | **PASS**: accept exit=0, **9/10**, motion gate 90 % >= 75 %, `fingerprint: matches configs/motion_reference.json`; the run log `logs/accept.log` is **0 diff lines / 385/385 `[fruit]` lines identical** to `logs/p2d/90_accept.log` |
+| `selfcheck.sh` PASS | **PASS**: 0 failures, 1 skipped |
 | `172` | **PASS**: 74 checks |
 
 ## 6. Verdict and the adoption path
