@@ -15698,3 +15698,26 @@ clock shift and the compensation probe has a calibration target; if not, the ski
 micro-history matters. Launched at `logs/p9e2/` (acceptance x2 + patch x1); any compensation
 ladder will be read **per class** (composition-standardized) before the conditional-skip
 predicate is specified.
+
+### P9-A placebo arm + the multi-seed check (2026-10-17): the clock shift is confirmed and the acceptance's success movement is branch noise
+
+**The placebo** (`logs/p9e2/`, B'' = `FRUIT_READY_SKIP=1 FRUIT_READY_SKIP_DG=0.02
+FRUIT_READY_SKIP_HOLD=230`, doubles bit-identical): the gap returns to **5.15 s** (A: 5.2)
+and the empty poll **disappears** - the poll-vs-band channel is exactly the deleted clock.
+But the outcomes do **not** return to A (8 ok + 2 g-n-p vs A's 9 ok + 1): the placebo is the
+same *schedule* on a different *micro-history* (the skip path's direct state fix vs the
+transit's blend), i.e. a third deterministic branch. **Attribution: the gap gain is purely
+the deleted clock; the success movement is branch/draw noise** - consistent with the
+phase-coupling analysis (`logs/p9d/PHASE_COUPLING.md`: the catch is phase-robust - intercept
+span 17.0-18.0 mm, zero chases, failing vs passing <=0.5 mm apart; the left+peach class
+fails in every branch including the no-lever control; the only quantified phase harm is a
+13-tick per-poll floor margin).
+
+**Decision**: B1 **stays not-adopted under the frozen bar** (a post-hoc bar change would
+violate the discipline), and the honest follow-up is a **multi-seed check** to test whether
+the acceptance success movement is systematic or seed-noise: `logs/p9f/` (A vs B' at SEED=11
+and SEED=23; SEED=5 already measured, where A 9 / B' 6 / B'' 8). If B' loses consistently
+across seeds the single-branch floor bar was right and the lever carries a real cost; if the
+movement is mixed, the lever is timing-only-positive and the adoption case needs a new
+pre-registration with a composition-standardized endpoint and the placebo as its attribution
+control.
