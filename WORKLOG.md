@@ -15645,3 +15645,28 @@ kills and no-harm bar unchanged. The amendment is frozen in
 `logs/p9/PREREG_GOREADY_B1.md` BEFORE the retry; the retry chain (`logs/p9c/`) proves
 the edit is default-inert on the new tree (the knob-off acceptance 365/365 and patch
 bit-identity) before the B' arms run.
+
+### P9-A (2026-10-17): the go_ready skip-when-ready lever - the largest single-term timing win measured (-1.95 s/attempt, -8.6 % wall), NOT adopted on the pre-registered acceptance floor
+
+Battery #1 (`255f2819`) was a threshold under-fire (A/B bit-identical, `skip=0` everywhere;
+the no-op candidates' `dg` 0.0131-0.0135 exceeded the 0.01 sync gate borrowed from
+`_catch_up_drive`). One bounded calibration retry followed (the amendment frozen in
+`logs/p9/PREREG_GOREADY_B1.md` first): the sync gate became `FRUIT_READY_SKIP_DG` (default =
+the class constant, byte-inert - proven by the no-harm chain: the knob-off acceptance is
+365/365, the new-tree patch A is bit-identical, the dense re-record is bit-identical),
+and B' = `FRUIT_READY_SKIP=1 FRUIT_READY_SKIP_DG=0.02` fired the skip 18 times in the patch
+diag, each removing the full 210-tick transit.
+
+**Result**: the gap clean p50 falls 5.2 -> 3.25 s (-1.95 s) on the acceptance and 5.2 ->
+3.2 s on the patch battery; the wall falls 20.65 -> 18.88 s (-8.6 %), matching the
+code-exact prediction; the span stays flat; `_recover_ready` 1 -> 0. **But the acceptance
+success moves 9/10 -> 6/10 (6/9 = 67 % < the 0.75 floor): kill #2 fires and the lever is
+NOT adopted.** The mechanism of the success movement is a **phase coupling**: each skip
+shifts the next attempt's start ~0.21 m of belt travel earlier, and the catch is
+phase-calibrated to the shipped schedule; the movement is scenario-dependent and
+deterministic (acceptance -3, patch +2, all carry-class; one acceptance slot finds no
+eligible fruit). Named next: (a) a phase-compensation probe (a small delay/lead sweep under
+B'), (b) a conditional skip gated on the next catch's phase. Details:
+`logs/p9c/RESULTS.md`. **The coupling class now has three members** (the monitor's lock-on
++8.8 %, the trickle's stocking-band cut, this phase shift) - the standing obstacle for every
+timing lever, now measured three times.
