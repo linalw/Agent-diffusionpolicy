@@ -62,3 +62,15 @@ The shipped acceptance on the GDP tree (the GDP default off): 9/10 + `fingerprin
 It does not retrain (no checkpoint change); it does not touch the shipped single-arm/two-line
 scripted defaults (the policy knobs are default-off); it does not claim a carried-class
 conversion from stage 1 (that is stage 2's endpoint).
+
+---
+
+## Amendment (FROZEN 2026-10-17, before the battery; the boundary pin)
+
+**Stage 1's boundary envs are the W7-B/W4-pinned direct form** (so the mechanism readouts
+compare directly to the W7-B record): `AB_EXTRA_ENV="FRUIT_POLICY_TRIGGER=arrival
+FRUIT_POLICY_TRIGGER_LEAD=0.9 FRUIT_DYNAMIC_PICK=1 FRUIT_SUPPLY_SCATTER=0
+FRUIT_POLICY_TRIGGER_LATERAL=0.06 FRUIT_ACQ_DIAG=1"`, the sampler seed 11, both arms the
+`moe_v13s` checkpoint; arm B adds `FRUIT_POLICY_GDP=1 FRUIT_POLICY_GDP_K=2`. The runner is
+`logs/p10d1/run_stage1.sh` (the W7-B `run_w7b_ab.sh` shape); the mechanism report is
+`logs/w7/B_ab_report.py --dir logs/p10d1/stage1`.
