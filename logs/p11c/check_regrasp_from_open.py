@@ -30,11 +30,19 @@ separate lane). Layers:
    - knob on: `[gap_open] * 40` then the two-phase ramp from `gap_open`
      through `wide` to `keep_gap` (the same re-seat depth), monotone
      non-increasing, first tick still ~`gap_open` - the open-gap descent +
-     horizontal close the P11-B probe measured as ejection-free (vs the
-     shipped `plow` geometry: the descent gap below the fruit's extent);
-   - the geometry invariant: `gap_open` (0.09) is wider than the measured
-     blocking span (the pool's largest nominal extent 0.070 + the probe's
-     measured link-span offset 0.0113);
+     horizontal close of the close-from-open geometry the P11-B probe measured
+     as ejection-free (`belt` 0/3, `air` 0/3 at every delta; the probe's
+     `plow` reading is WITHDRAWN per its R1 amendment - rise-and-return, not a
+     descent - so the descend-at-a-gap question is the corrected re-run's);
+   - the geometry invariants: `gap_open` (0.09) is wider than the measured
+     centred blocking span (the pool's largest nominal extent 0.070 + the
+     probe's measured link-span offset 0.0113 = 0.0813) AND wider than the
+     probe's widest *commanded* anchor (extent + 15 mm = 0.085 for the largest
+     pool fruit). The latter is a necessary-condition check only (the anchor's
+     descent geometry is under the R1 withdrawal), so the battery's traces
+     must confirm the no-contact expectation per attempt (the chosen 0.09 sits
+     15.8-39 mm above the extent, and the real descent is ~6 mm, not the
+     probe's 40);
    - the say row with the knob on gains exactly the ` [from-open]` suffix.
 4. `rl_env.TASKS_MD5 == md5(tasks.py)`.
 
@@ -614,6 +622,14 @@ def main() -> int:
         f"largest pool extent {MAX_POOL_EXTENT:.3f} + the probe's measured "
         f"link-span offset {BLOCKING_OFFSET:.4f}",
         gap_ns["gap_open"] > MAX_POOL_EXTENT + BLOCKING_OFFSET,
+    )
+    check(
+        f"the geometry invariant, second form: gap_open {gap_ns['gap_open']:.3f} "
+        f"> the probe's widest *commanded* anchor (largest pool extent "
+        f"{MAX_POOL_EXTENT:.3f} + 0.015) - a necessary condition only (the "
+        f"anchor's descent geometry is under the P11-B R1 withdrawal); the "
+        f"battery's traces confirm the no-contact expectation per attempt",
+        gap_ns["gap_open"] > MAX_POOL_EXTENT + 0.015,
     )
 
     say_calls = []

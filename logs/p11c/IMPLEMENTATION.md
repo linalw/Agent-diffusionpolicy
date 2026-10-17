@@ -7,13 +7,30 @@ arrival branch), `src/fruit_sorting/rl_env.py` (the `TASKS_MD5` follow), `logs/p
 record, `check_regrasp_from_open.py`, `selfcheck.log`, `WORKLOG_entry.md`). No commit by this
 lane; no branch operation; `Paper/`, `datasets/`, `checkpoints/` untouched.
 
+**Amendment note (2026-10-18, after the orchestrator's commit `30cde55`).** The orchestrator
+committed the implementation (`30cde55`) and launched the Tier-A battery (seeds 11/5/23, A vs
+B). HEAD `8082993` then recorded the P11-B Oracle gate's R1-R5: the probe's `plow` group ran a
+**rise-and-return**, not the shipped descent - the escape precedes any descent in the trace -
+so the "the descending jaws eject the fruit" reading is **withdrawn** and the plow's
+0.202 m/s / 35.8 mm numbers are the probe's own artifact; the probe is patched and the
+corrected plow re-run is queued (`logs/p11b/90_plow_fix_*`). **What stands from P11-B**: the
+"no commanded gap launches the fruit" negative (the pads stop at the surface; the flat sweep),
+the **close-from-open `belt`/`air` groups never ejecting**, the parameter insensitivity and
+the drop baselines. **This implementation is exactly the frozen pre-registration's change and
+is unchanged by the withdrawal** - it reproduces the close-from-open geometry (the standing
+negative) and removes the descend-at-the-gap arrival; what the withdrawal re-opens is the
+*mechanism prediction* (that removing the descend-at-a-gap alone removes the ejection), which
+the battery + the corrected probe re-run now own. The plow citations below are annotated
+accordingly; the P10-E task-level chain (the re-seat at the chased keep-gap as the named,
+medium-confidence actuator) remains the task-level evidence.
+
 ## 1. The diff
 
 | file | md5 (new) | md5 (was) | change |
 | --- | --- | --- | --- |
 | `src/fruit_sorting/tasks.py` | `810658b802d22bbd63013726fc78af81` | `6574d92eafe38f1025b880d39a9410f9` | +69/-1, two hunks (below) |
 | `src/fruit_sorting/rl_env.py` | `9a2c38721b32f0af91371ca3e8809196` | `8413fece2203c1bccd84b0d5c3830eb3` | the metadata-only `TASKS_MD5` pin follow (line 271) |
-| `logs/p11c/check_regrasp_from_open.py` | `c74342bbb45a15495ccfc9e66a8c5d9d` | - | the new stub (section 4) |
+| `logs/p11c/check_regrasp_from_open.py` | `8f280b822075409abf680420bedca779` | - | the new stub (section 4) |
 
 **Hunk 1** (`_grasp_carry_place_impl`, right after the `regrasp_keep` resolution, `tasks.py:6657`):
 the new knob resolution
@@ -68,26 +85,41 @@ are untouched.
 
 ## 3. The geometry choice + the alternatives
 
-The P11-B probe (`logs/p11b/B_EJECTION_PROBE.md` sections 0/3/4/8) measured: the ejection is a
-**kinematic wedge of the descending jaws** - the `plow` geometry (jaws already at a sub-width
-gap, descending onto the fruit) escapes **3/3 at every contacting gap**, bit-identically over
-20 mm of commanded interference - while the **close-from-open** geometry never ejects (`belt`
-0/3, `air` 0/3 at every delta), and the contact parameters (stiffness, fruit compliance,
-restitution, substeps) do not move it. The fix is therefore the arrival geometry only.
+The P11-B probe (`logs/p11b/B_EJECTION_PROBE.md` sections 0/3/4/8 + the R1-R5 amendment)
+measured: the **close-from-open** geometry never ejects (`belt` 0/3, `air` 0/3 at every
+delta), the contact parameters (stiffness, fruit compliance, restitution, substeps) do not
+move the outcome, and no commanded sub-width gap launches the fruit in the close geometry (the
+pads stop at the surface; the sweep is flat). The probe's `plow` group was originally read as
+the shipped descend-at-a-sub-width-gap geometry ejecting 3/3; **that reading is WITHDRAWN**
+(R1: the plow ran a rise-and-return - it closed the pads at the grip pose and the loop's first
+target raised the loaded jaws - and the escape precedes any descent in the trace), with the
+corrected re-run queued (`logs/p11b/90_plow_fix_*`). The fix is the arrival geometry per the
+frozen pre-registration; the battery + the corrected re-run own the descend-at-a-gap question.
 
 **Descent gap - chosen: the pre-close open gap (`gap_open` = `FRUIT_GRIPPER_OPEN`, default
 0.09 m).** This is the gap the initial close's settle holds and the gap the non-keep regrasp
-path descends at, i.e. the closest-to-shipped form. It is wider than the measured blocking span
-for every fruit in the pool: the probe's stop is `extent + ~11 mm` of link span (tomato
-51.0 -> 62.3 mm, apple 64.5 -> 75.6 mm), the pool's largest nominal extent is 0.070 m
+path descends at, i.e. the closest-to-shipped form. It is wider than the measured *centred*
+blocking span for every fruit in the pool: the probe's stop is `extent + ~11 mm` of link span
+(tomato 51.0 -> 62.3 mm, apple 64.5 -> 75.6 mm), the pool's largest nominal extent is 0.070 m
 (apple/orange/peach/pear draws), so 0.070 + 0.0113 = **0.0813 m < 0.090 m** (with the mesh's
-+/-6 % length bias, 0.0742 + 0.0113 = 0.0855 < 0.09). The probe's `-15` anchors show a descent
-at/above the blocking span leaves the pads at 0.14 N / no motion.
++/-6 % length bias, 0.0742 + 0.0113 = 0.0855 < 0.09). Two caveats, recorded rather than
+papered over: (a) the probe's `-15` anchor in the *close* geometry reads 0.14 N / no motion
+(this stands), but the probe never measured a clean descent - its `plow` group ran a
+rise-and-return and is withdrawn (R1) - so the descent-at-a-gap contact behaviour is exactly
+what the corrected re-run (`logs/p11b/90_plow_fix_*`) must decide; the chosen 0.09 m is the
+closest-to-shipped form, not a probe-verified no-contact gap. (b) The chosen 0.09 m sits far
+above the probe's widest *commanded* anchor (extent + 39 mm for the tomato; extent + 15.8-20 mm
+for the largest pool fruits, vs the probe's commanded extent + 15 mm), and the actual re-seat
+descent is only the probe lift (~6 mm) rather than the probe's 40 mm. So "no descent contact"
+is the geometric expectation - 4.5-48.7 mm of *centred* face clearance at the equator height
+(4.5 mm for the largest fruit with the mesh bias, i.e. a 2.25 mm per-side lateral-residual
+budget; 27.7 mm for the probe's tomato) - resting on the centred blocking-span arithmetic, not
+on a probe-measured descent: the battery's traces confirm it per attempt.
 *Alternative (documented, not chosen)*: the live measured extent + the measured blocking offset
 (`pinch_width(sample, quat) + ~0.0113`). It tracks the fruit's own width, but adds a
 hand-specific measured constant and a live geometric read where the open gap already clears the
-blocking span for every pool fruit; the pre-reg explicitly allows "simply the pre-close open
-gap".
+centred blocking span for every pool fruit; the pre-reg explicitly allows "simply the pre-close
+open gap".
 
 **Close shape - chosen: the initial close's two-phase shape** (`min_jerk_ramp(gap_open, wide,
 fast_ticks)` then `min_jerk_ramp(wide, keep_gap, load_ticks)`, reusing the shipped `wide` =
@@ -173,15 +205,23 @@ two-line gate + no new failure reasons, and the cycle (+5 % non-inferiority). Th
 knob-off replay fails, the falls/blowups do not disappear on B, a new failure reason appears,
 or the acceptance no-harm fails. The battery lane should also re-run the A-side replay check
 (the knob-off two-line pair vs the P10-C.3 records modulo reporting rows) and, if its parsers
-anchor on the full say line, account for the new ` [from-open]` token.
+anchor on the full say line, account for the new ` [from-open]` token. **Post-R1 note**: the
+mechanism endpoint reads against the amended P11-B record - the corrected plow re-run
+(`logs/p11b/90_plow_fix_*`) decides the descend-at-a-gap question, while the close-from-open
+negatives stand; the battery's B-side outcome (falls absent or not) is unaffected by that
+re-run's timing.
 
 ## 6. Honest limits
 
 1. **No simulator run** - every claim here is static + executed-statement evidence; the
    per-attempt arrival readout, the falls and the class movement are the battery's to measure.
-2. **"No descent contact" is a geometric argument**: `gap_open` (0.09) clears the measured
-   blocking span (<= 0.0855 with the mesh bias) and the descent travel is only the probe height
-   (~6 mm at the two-line profile), but only the battery's traces can confirm it per attempt.
+2. **"No descent contact" is a geometric expectation, not a direct measurement**: `gap_open`
+   (0.09) clears the measured *centred* blocking span (<= 0.0855 with the mesh bias) and the
+   probe's widest *commanded* anchor (extent + 15 mm), and the descent travel is only the probe
+   height (~6 mm at the two-line profile) - but the probe's descent group was withdrawn (R1:
+   rise-and-return), so the descent-at-a-gap contact behaviour is what the corrected plow
+   re-run (`logs/p11b/90_plow_fix_*`) decides, and the per-attempt no-contact readout (the
+   pre-reg endpoint 1) is the battery's to confirm.
 3. **The marginal grip remains marginal**: the from-open close still commands the chased
    sub-width depth *horizontally*; the probe says that geometry does not eject, but a re-seat
    that does not press in cannot restore a lost grip (`C_DECISION.md`: the class may shift to

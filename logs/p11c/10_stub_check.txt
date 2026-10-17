@@ -1,0 +1,45 @@
+== 1. source checks ==
+  [PASS] the knob env name is written exactly once, in the `_dynamic_profile` triple with the shipped/two-line defaults "0"/"0"
+  [PASS] one `regrasp_from_open = ...` resolution statement in `_grasp_carry_place_impl` (AST)
+  [PASS] the resolution is exactly the pre-registered triple ('FRUIT_DYNAMIC_REGRASP_FROM_OPEN', '0', '0') with the `== "1"` parse
+  [PASS] the pre-existing W1 profile triples are unchanged (one `_dynamic_profile` call each, exact triples)
+  [PASS] the knob name is consumed exactly in the four expected places (resolution target, descent ternary, close guard, say suffix)
+  [PASS] one `if regrasp_keep:` branch in `_grasp_carry_place_impl`
+  [PASS] the keep branch keeps the shipped `keep_gap` expression (squeeze_gap if not None else grip_gap)
+  [PASS] one `descent_gap` assignment: `float(gap_open)` under the knob, `keep_gap` otherwise
+  [PASS] the shared 40-tick descent loop is present exactly once
+  [PASS] the descent loop's statement sequence is the shipped one (fruit_now, fruit_v_now, ik_step, follow_centre, _step_sim)
+  [PASS] the descent loop's ik_step target is the shipped fruit-tracking expression (unchanged)
+  [PASS] the descent loop's `follow_centre` holds the new `descent_gap` (the only shipped-path change; equal to `keep_gap` when the knob is off)
+  [PASS] one `if regrasp_from_open:` close block in the keep branch
+  [PASS] the close block builds `reseat_close` as the initial close's two-phase shape: np.concatenate([min_jerk_ramp(gap_open, wide, fast_ticks), min_jerk_ramp(wide, keep_gap, load_ticks)])
+  [PASS] the close block replays the ramp once (`for gap in reseat_close`)
+  [PASS] the close loop tracks with the same ik_step expression as the descent and closes through `follow_centre(..., float(gap))`
+  [PASS] the `_force_servo_reset(arm_name)` still follows the arrival block
+  [PASS] the non-keep regrasp branch is unchanged (the 45-tick close to grip_gap)
+  [PASS] the ratchet is unchanged (`FRUIT_DYNAMIC_REGRASP_STEP`, one read)
+  [PASS] the close-shape variables (`wide`/`fast_ticks`/`load_ticks`) are defined earlier in the same function, under the same `dynamic_capture` local the re-seat guard reads
+== 2. resolution truth table (real statements, exec'd) ==
+  [PASS] full sweep (18 rows) vs the independent reference
+  [PASS] knob-off rows (env unset) resolve False on every session (the shipped branch is taken; byte-inert)
+  [PASS] named: two-line unset -> False; env "1" -> True on every session; "true" -> False (the parse is `== "1"`)
+== 3. the approach branch (real statements, exec'd) ==
+  [PASS] the real `gap_open` read is extracted (the pre-close open gap)
+  [PASS] the real `gap_open` default (env unset) is 0.090 m
+  [PASS] knob off: `keep_gap` is the chased depth and `descent_gap` == `keep_gap` (the shipped descend-at-the-chased-gap)
+  [PASS] knob off: the gap sequence is `[keep_gap] * 40` - the shipped descent loop and no close block (the no-harm replay)
+  [PASS] knob off: the shipped descent gap is below the fruit's extent (the P11-B `plow` condition reproduced)
+  [PASS] knob on: `descent_gap` == `gap_open` (the open-gap descent)
+  [PASS] knob on: the sequence is `[gap_open] * 40` + the two-phase close ramp (40 descent ticks + 24 + 60 close ticks)
+  [PASS] knob on: the close starts at ~gap_open (still wider than the blocking span at the first close tick)
+  [PASS] knob on: the close ramp is monotone non-increasing
+  [PASS] knob on: the close ramp ends exactly at `keep_gap` (the same re-seat depth the shipped form kept)
+  [PASS] the geometry invariant: gap_open 0.090 > the largest pool extent 0.070 + the probe's measured link-span offset 0.0113
+  [PASS] the geometry invariant, second form: gap_open 0.090 > the probe's widest *commanded* anchor (largest pool extent 0.070 + 0.015) - a necessary condition only (the anchor's descent geometry is under the P11-B R1 withdrawal); the battery's traces confirm the no-contact expectation per attempt
+  [PASS] the keep branch's single say row is present
+  [PASS] knob off: the say row is the byte-identical shipped string
+  [PASS] knob on: the say row gains exactly the ` [from-open]` suffix (the battery's geometry marker)
+== 4. rl_env pin ==
+  [PASS] rl_env TASKS_MD5 == live tasks.py md5 (810658b802d22bbd63013726fc78af81)
+
+RESULT: PASS (the knob resolves through the pre-registered `_dynamic_profile` triple with default 0 = the shipped branch on every session; the real statements exec'd end-to-end give `[keep_gap] * 40` with the knob off - the byte-inert no-harm replay - and `[gap_open] * 40` + the two-phase close to the same keep depth with it on; the open gap is wider than the measured blocking span; the say row is byte-identical off and gains ` [from-open]` on; the pin matches)
