@@ -15744,3 +15744,38 @@ belt speed - abstract-level). **P10-A launched** (`logs/p10/`): the current-tree
 re-baseline (the W6-B patch battery + the single-arm control, both double-run) + the
 decomposition + the gates + the ranked bimanual bottleneck map, including the two-line's own
 ready-transit no-op measurement (`FRUIT_READY_DIAG=1`), which the KB flags as unmeasured.
+
+### P10-A + P10-B (2026-10-17): the bimanual baseline re-measured on the current tree, the bottleneck map inverts the lever priority, and the goal KB lands
+
+**P10-A (the current-tree bimanual baseline, `logs/p10/A_RESULTS.md`)**: the W6-B/W7-A record
+reproduces bit-for-bit (the two-line pair 861/861 vs `logs/p8/36_patch_control.log`, the
+single pair 643/643 vs `logs/w7/30_single_noharm.log`, the acceptance 365/365 - the whole
+default-off knob stack is byte-inert). The baseline: two-line **12/20, 3.64 batch / 3.63
+window placed/min** (interval 16.53/17.30/19.90) vs the single arm **13/18, 2.12/2.17**
+(27.62/20.90/42.50) - the **window ratio 1.67x** (batch 1.72x), quoted as the current-tree
+reference pair with the W6-C timing-only +10 % / residual x1.22 discipline. **The ranked
+bottleneck map: (1) the carry/grip failure mass - 8/20 attempts = 116.6 attempt-s = 38.7 % of
+all attempt time (left A 6/8), the attempts/placement multiplier (left 2.50) being the
+interval's first-order driver; (2) the per-arm gap/idle 81.0 s = 21.2 % (park 48.0 + gate 8.1
++ feed 4.5 + starved spins ~20.5); (3) the park-gate contention 8.1 s = 2.1 % + 41 starved
+polls; (4) the draw/composition modulator.** The **two-line's own no-op transit is
+resolved-NONE**: all 20 per-gap park transits are load-bearing (~2.3-2.9 s); the only no-op is
+the batch boundary (outside the interval) - **the P9-A skip family dies on the two-line; the
+measurement stands** (P10-B's blocker #2 closed).
+
+**P10-B (`docs/papers/BIMANUAL.md`, 529 lines)**: the goal decomposed into the four measured
+bottleneck families, the 11-row mechanism table with falsifiers, the **six-step
+knowledge-acquisition method** (Measure -> Search (local first; external when a gap has no
+mechanism) -> Extract -> Pre-register -> Test (with attribution controls) -> Fold -> the next
+Measure) with the resource rules, the top-3 levers, the blockers, and the strongest NO-GO (the
+"meet the fruit upstream" family, on the reach-anywhere collapse lesson). New external lead:
+the ETH two-robot robust optimum (SPT/FIFO ordering; RL up to +16 % picking rate, +11.9 % belt
+speed - abstract-level only).
+
+**P10-C decided and pre-registered** (`logs/p10/PREREG_MONITOR_TWOLINE.md`, frozen before any
+run): with the skip family dead, the top bottleneck is the carry mass, so the first lever is
+**the C-3 monitor's fast-skip extended to the two-line scripted catch** (default-off scope
+knob; the load-floor + K2 form inherited; primary = the pooled interval; kills = the 190 gate,
+K2 > 2, a new reason, an over-budget descent, or an interval fall < 5 %). The Oracle gate on
+P10-A/B/P10-C is running; the implementation lane (offline only) is running in parallel; the
+battery starts only after the gate.
