@@ -127,9 +127,10 @@ scenario and was never in the direct-interface validation (clean 0.02-1.43 mm, e
 
 ## The kills on the seeds
 
-- motion budgets: PASS on all four seeds runs (105; the SEED=11 rate 45 %/35 % is below the
-  0.5 floor for **both** arms - a scenario property, not the lever);
-- K2: **1/60 <= 2** by the frozen rule (2/60 by ground truth - reported);
+- the descent budgets PASS on all four seeds runs; the SEED=11 105 exits FAIL on the rate
+  floor only (45 %/35 % < 0.5 on both arms - a scenario property, the P10-C.1 precedent);
+- K2: **1/60 <= 2** by the frozen rule (the paired-method ground truth adds the seed-11
+  pear: 1/60 + 1/60, reported);
 - no new failure reasons (the classes are the same two);
 - the primary interval: + at seed 5, - at seeds 11/23.
 
@@ -140,7 +141,7 @@ the fire accounting and the ground-truth false-positive method are the record.**
 mechanism is decomposed: the fast-skip's timing saving is real and seed-invariant (the paired
 same-attempt cases -6.0 s at seed 5, -5.0 s at seed 23, both with the same outcome class);
 the outcome effect is draw-dominated; the measured cost is the classifier's marginal-zone
-false positives (2/60, one of them a killed placement at seed 11). **The named next lever
+false positives (1/60 paired ground truth + 1/60 frozen K2; the paired one a killed placement at seed 11). **The named next lever
 (P10-C.2 candidate): a slip-magnitude confirmation gate** (after the classifier's trip,
 confirm only if the slip keeps growing past a threshold - the pear plateaus at 6.3 mm and
 would be cancelled; the 253-1646 mm escapes and the late 19 mm slide would confirm) - its own
