@@ -6654,6 +6654,21 @@ class PickAndPlaceTask:
         regrasp_keep = (
             self._dynamic_profile("FRUIT_DYNAMIC_REGRASP_KEEP", "0", "1") == "1"
         )
+        #: P11-C arrival geometry (`logs/p11c/PREREG_REGRASP_ARRIVAL.md`): the
+        #: P11-B probe measured the ejection as a kinematic wedge of the
+        #: *descending* jaws arriving at a sub-width gap (the shipped W1 form;
+        #: `plow` 3/3 at every contacting gap, bit-identically over 20 mm of
+        #: commanded interference) and the close-from-open geometry as
+        #: ejection-free (`belt` 0/3, `air` 0/3 at every delta). On, the W1
+        #: re-seat descends at the pre-close open gap and then closes
+        #: horizontally to the same keep depth; default 0 = the shipped
+        #: descend-at-the-keep-gap form, byte-inert. Resolved through
+        #: `_dynamic_profile` like the rest of the W1 profile (an explicit env
+        #: value always wins; a future adoption flip is one literal), and
+        #: consumed only inside the two-line-only keep branch below.
+        regrasp_from_open = (
+            self._dynamic_profile("FRUIT_DYNAMIC_REGRASP_FROM_OPEN", "0", "0") == "1"
+        )
         probe_ticks_default = self._dynamic_profile(
             "FRUIT_DYNAMIC_PROBE_TICKS", "40", "60"
         )
@@ -8690,6 +8705,19 @@ class PickAndPlaceTask:
                         if squeeze_gap is not None
                         else float(grip_gap)
                     )
+                    # P11-C (`logs/p11c/PREREG_REGRASP_ARRIVAL.md`): with
+                    # `FRUIT_DYNAMIC_REGRASP_FROM_OPEN=1` the re-seat arrives
+                    # like the initial close - the jaws descend around the
+                    # fruit at the pre-close open gap (wider than the measured
+                    # blocking span - the probe's stop is extent + ~11 mm of
+                    # link span - for every fruit in the pool), then close
+                    # horizontally to the same keep depth with the initial
+                    # close's two-phase shape. The shipped form descends at the
+                    # chased keep-gap (the P11-B `plow` geometry); the descent
+                    # phase below is shared, only the gap it holds differs.
+                    descent_gap = (
+                        float(gap_open) if regrasp_from_open else keep_gap
+                    )
                     for _ in range(40):
                         fruit_now = np.asarray(
                             self.spawner.position(sample), dtype=float
@@ -8709,14 +8737,54 @@ class PickAndPlaceTask:
                             )
                         )
                         self.grippers[arm_name].follow_centre(
-                            fruit_now, quat_now, keep_gap
+                            fruit_now, quat_now, descent_gap
                         )
                         self._step_sim(1)
+                    if regrasp_from_open:
+                        # The horizontal close: the initial close's own
+                        # two-phase shape (fast traverse to just outside the
+                        # fruit, then the loaded squeeze), ended at the same
+                        # re-seat depth the shipped form kept. The pads close
+                        # onto the fruit's flanks instead of descending into
+                        # it - the probe's ejection-free geometry.
+                        reseat_close = np.concatenate(
+                            [
+                                min_jerk_ramp(gap_open, wide, fast_ticks),
+                                min_jerk_ramp(wide, keep_gap, load_ticks),
+                            ]
+                        )
+                        for gap in reseat_close:
+                            fruit_now = np.asarray(
+                                self.spawner.position(sample), dtype=float
+                            )
+                            fruit_v_now = np.asarray(
+                                self.spawner.velocity(sample), dtype=float
+                            )
+                            arm.ik_step(
+                                arm.tcp_target_for_jaw(
+                                    fruit_now
+                                    + np.array(
+                                        [0.0, 0.0, self._pad_standoff(True, sample)]
+                                    )
+                                    + np.array(
+                                        [
+                                            0.0,
+                                            float(fruit_v_now[1]) * dynamic_lead_s,
+                                            0.0,
+                                        ]
+                                    )
+                                )
+                            )
+                            self.grippers[arm_name].follow_centre(
+                                fruit_now, quat_now, float(gap)
+                            )
+                            self._step_sim(1)
                     self._force_servo_reset(arm_name)
                     if verbose:
                         say(
                             "[task]   dynamic regrasp: re-seated in place "
                             f"(gap {keep_gap * 1000:.1f} mm kept)"
+                            + (" [from-open]" if regrasp_from_open else "")
                         )
                 else:
                     for _ in range(40):
