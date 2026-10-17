@@ -15863,3 +15863,17 @@ pre-registration (the W7-A park-gate pattern: the monitor + the gate resolve on 
 two-line session with the env unset; `=0` restores), the re-baseline list (the two-line/patch
 references re-recorded) and the collector manifest field (`collection.carry_monitor`). The
 shipped single-arm line is untouched.
+
+### P10-C.3 (2026-10-17): the two-line carry monitor + the confirmation gate are the shipped two-line default (the adoption)
+
+**The flip** (the W7-A park-gate pattern): a two-line session with the env unset resolves
+`FRUIT_CARRY_MONITOR=1`, `_TWOLINE=1`, `_CONFIRM_MM=8.0`, `_LOAD_FLOOR=3.5`; the explicit
+restores (`_TWOLINE=0`, `_CONFIRM_MM=0`, `_MONITOR=0`) each verified bit-identically. **The
+verification battery: every identity holds** - the 3 flip runs bit-identical to the gated
+records (61/62/63), the gate0 restore to the ungated 51, the monitor-off restore to the A
+control 10, the acceptance 9/10 + `fingerprint: matches` + 385/385; the 37-check flip stub +
+all historical stubs + selfcheck + 107 + 172 PASS; the patch reference re-recorded
+(`configs/motion_reference_patch.json` from the flip seed-5 run; the pre-flip preserved as
+`_pre_p10c3`; 190 PASS + fingerprint matches). The collector manifests gain
+`collection.carry_monitor` (`"auto"` = the flip). The shipped single-arm line, the
+shared-station bimanual and the direct/policy interface are byte-unchanged.
