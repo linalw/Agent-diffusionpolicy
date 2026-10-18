@@ -40,3 +40,17 @@ records / the P11-C A runs).
 * **P12-B.2 (the scene-side)**: the P11-C's named remaining path (a pick-station / approach
   geometry that never needs the descend-onto-the-fruit re-seat) - the owner's directive
   sanctions scene changes; a Tier-C scoping lane launched.
+
+## P12-B.1 (the compound: the mass base + the from-open) - negative interaction
+
+| seed | the anchor | the mass-only | the from-open alone | **the compound** |
+| --- | --- | --- | --- | --- |
+| 11 | 10 | 11 | 13 | 10 |
+| 5 | 13 | **17** | 10 | 15 |
+| 23 | 16 | **17** | 12 | 10 |
+| pooled | 39 | **45** | 35 | **35** |
+
+**The compound loses the mass's gain** (45 -> 35; the seed-23 branch collapses 17 -> 10 with 7
+falls): the from-open arrival's class disturbance (the P11-C reading) outweighs its falls
+benefit on the heavier-fruit base. **The verdict: the mass-only base stands; the from-open is
+not additive on it.** The named next: the scene-side (P12-B.2, `logs/p12b/SCENE_OPTIONS.md`).
