@@ -15914,25 +15914,25 @@ falls):
 | arm | pooled | falls | verdict |
 | --- | --- | --- | --- |
 | the anchor (shipped two-line) | 39/60 | 14 | - |
-| **the real masses (`FRUIT_PHYSICS_REAL_MASS=1`)** | **45/60** | 10 | **the winner (+6; the double-run bit-identical)** |
+| **the real masses (`FRUIT_PHYSICS_REAL_MASS=1`)** | **45/60** | 6 rows/5 attempts | **the winner (+6; the double-run bit-identical)** |
 | the full batch (mass+rest+compliance) | 35/60 | 7 | the compliance drags the mass's win |
 | the compound (mass + the from-open arrival) | 35/60 | - | a negative interaction |
-| S3 (the approach height +20 mm on the mass) | 32/60 | 12 | negative; the grip-geometry family closes |
-| S4 (the belt containment on the mass) | 32/60 | **1** | the falls nearly vanish; the scene re-draw costs -13 |
+| S3 (the approach height +20 mm on the mass) | 32/60 | 16 | negative; the grip-geometry family closes (the +20 direction loses at every seed) |
+| S4 (the belt containment on the mass) | 32/60 | **0 (+1 blowup)** | the falls eliminated; the scene re-draw costs -13 |
 | the compliance-only | 30/60 | 7 | closed |
 | the restitution-only | 38/60 | 5 | outcome-neutral; the fewest falls of a single component |
 
 **The readings.** (1) The mass realism (the per-class densities to the measured values;
 `meshes.py`/`fruits.py`, the `FRUIT_PHYSICS_REAL*` knobs, default-off, byte-inert) is the
 first deterministic two-line configuration above the anchor since the monitor+gate adoption:
-+6 pooled, the falls 14 -> 10, the double-run bit-identical. (2) **Nothing compounds on it**:
++6 pooled, the falls 14 -> 6 rows, the double-run bit-identical. (2) **Nothing compounds on it**:
 the compound, the S3, the S4 and the compliance all lose - the mass's +6 reads as a
 branch-state effect (the heavier fruit re-phases the line) rather than a per-attempt mechanism
 that stacks. (3) The scene-side scoping's key derivation (`logs/p12b/SCENE_OPTIONS.md`): the
 moving catch is fruit-relative, so a raised station deck is geometry-null (S1 rejected by
 analysis; the D3 lesson), and the S3 screen's negative closes the grip-geometry family
 (hand-side and scene-side). (4) The containment (S4) does exactly what it was built to do
-(the falls 10 -> 1) but its scene change re-draws the branches (-13 outcomes) - recorded as
+(the floor falls 6 -> 0) but its scene change re-draws the branches (-13 outcomes) - recorded as
 the safety option with its own decomposition named.
 
 **The decision (P12-C, `logs/p12b2/C_DECISION.md`)**: the mass base is the two-line's
@@ -15940,3 +15940,13 @@ iteration reference (the batteries pass the env explicitly; the reference record
 mass-base runs); **no shipped-default flip** (the single-arm's mass response is untested; the
 flip needs its own acceptance + the deferred re-baseline); the S4/rest alternatives stay
 default-off and recorded.
+
+
+**Arc deviations recorded** (the P12 Oracle's items): the S3/S4/compound batteries ran on the
+scoping sketch without a frozen prereg (the P12-A records its own deviation; these now do
+too); the iteration reference moved to the mass base without a mass-base fingerprint/motion
+reference (the two-line reference stays the shipped-branch one; a mass-base reference re-record
+is the named item on any adoption); the close-out tables mix bases (the S3/S4 on the mass, the
+compliance/rest/full on the anchor - read the per-arm rows, not the pooled column alone); the
+105 items: the rest-only s11 FAILS (0.808 + lurch), the S4 s23 FAILS (0.192), the mass base is
+motion-clean (0.118/0.112/0.110).

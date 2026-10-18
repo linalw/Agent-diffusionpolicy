@@ -13,7 +13,7 @@
    stays TWO-LINE-SCOPED (the env on the two-line batteries); a global flip is closed by
    this measurement; a two-line-scoped default would need the session-flag resolution at the
    fruit creation + its own acceptance/re-baseline - the deferred step.
-3. **The recorded alternatives**: the S4 containment (the falls 10 -> 1; the outcomes -13) is
+3. **The recorded alternatives**: the S4 containment (the floor falls 6 -> 0; the outcomes -13; +1 blowup) is
    the safety option; the rest-only (38, the falls 5) is the falls-leaning option; the
    compliance is closed (-9). All stay default-off, recorded.
 4. **The arc's remaining named items** (for the next arc, not this one): the mass base + a

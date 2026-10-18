@@ -10,15 +10,19 @@ records / the P11-C A runs).
 | --- | --- | --- | --- | --- | --- |
 | A (the anchor) | 10 | 13 | 16 | 39 | 14 |
 | the full batch (mass+rest+compliance) | 11 | 9 | 15 | 35 | 7 |
-| **mass-only** | 11 | **17** | **17** | **45 (+6)** | 10 |
+| **mass-only** | 11 | **17** | **17** | **45 (+6)** | 6 (rows; 5 attempts) |
 | rest-only | 13 | 13 | 12 | 38 (-1, neutral) | **5** |
-| compliance-only | 7 | 10 | 13 | 30 (-9) | 7 |
+| compliance-only | 7 | 10 | 13 | 30 (-9) | 6 |
 
 **The readings:**
-1. **The mass carries the win**: +6 pooled (the controls +4/+1), the falls 14 -> 10; the
-   mechanism hypothesis (the heavier body resists the wedge; `F = ma` with the real masses)
-   is now the supported one.
-2. **The compliance carries the falls reduction** (14 -> 7) **but destroys the outcomes**
+1. **The mass carries the win**: +6 pooled (the controls +4/+1), the falls 14 -> 6 (rows;
+   10 -> 5 attempts). **The mechanism is NOT identified**: the +6 is right-arm-dominated
+   (+5 right / +1 left) and per class sits on the **apple (5/10 -> 10/10, the class the flip
+   makes ~1 % LIGHTER)** while the **tomato (+23 % heavier) falls 4/9 -> 2/8** - a branch
+   re-draw the named decomposition should separate, not a mass-resists-the-wedge mechanism.
+2. **The falls reduction is GENERIC** (all three components roughly halve them: mass 6,
+   rest 5, compliance 6, full 7 - rows), not compliance-specific; the compliance **destroys the
+   outcomes**
    (-9): the softened fruit contact changes the marginal-grip behavior (the class re-draws
    against it) - the full batch's -4 is the compliance dragging the mass's +6.
 3. **The restitution is neutral on the outcomes** (38 vs 39) **but also reduces the falls
@@ -29,9 +33,11 @@ records / the P11-C A runs).
 4. **The refinement: `FRUIT_PHYSICS_REAL_MASS=1` only** - the mass base for the next
    iterations. The compliance stays available as a falls-suppressing option for a context
    where the outcomes are not the binding metric (recorded, not adopted).
-5. The severe-event/105 accounting per the P12-A Oracle's convention (the falls = the floor
-   rows; the seed-23 over-budget descent side effect of the full batch needs re-checking on
-   the mass-only base - the named next check).
+5. The severe-event/105 accounting: **the mass-only base is motion-clean at all three seeds
+   (worst descents 0.118/0.112/0.110)**; **the rest-only's own 105 FAILS at seed 11** (descent
+   14: 0.808 m/s + a lurch) - a named side effect of the rest component. The falls convention:
+   the `lowest payload point` rows -1..-20 m (blowups excluded); **one fallen payload can emit
+   TWO rows** (the lift + the following place leg), so the anchor's 14 rows = 10 attempts.
 
 ## The next steps
 
@@ -50,7 +56,7 @@ records / the P11-C A runs).
 | 23 | 16 | **17** | 12 | 10 |
 | pooled | 39 | **45** | 35 | **35** |
 
-**The compound loses the mass's gain** (45 -> 35; the seed-23 branch collapses 17 -> 10 with 7
-falls): the from-open arrival's class disturbance (the P11-C reading) outweighs its falls
+**The compound loses the mass's gain** (45 -> 35; the seed-23 branch collapses 17 -> 10 with 6
+falls; the compound's own falls are 11 rows, tabulated here for the record): the from-open arrival's class disturbance (the P11-C reading) outweighs its falls
 benefit on the heavier-fruit base. **The verdict: the mass-only base stands; the from-open is
 not additive on it.** The named next: the scene-side (P12-B.2, `logs/p12b/SCENE_OPTIONS.md`).
