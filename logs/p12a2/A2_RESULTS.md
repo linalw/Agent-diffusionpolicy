@@ -11,7 +11,7 @@ records / the P11-C A runs).
 | A (the anchor) | 10 | 13 | 16 | 39 | 14 |
 | the full batch (mass+rest+compliance) | 11 | 9 | 15 | 35 | 7 |
 | **mass-only** | 11 | **17** | **17** | **45 (+6)** | 10 |
-| rest-only | 13 | 13 | 12 | 38 (-1, neutral) | 11 |
+| rest-only | 13 | 13 | 12 | 38 (-1, neutral) | **5** |
 | compliance-only | 7 | 10 | 13 | 30 (-9) | 7 |
 
 **The readings:**
@@ -21,7 +21,11 @@ records / the P11-C A runs).
 2. **The compliance carries the falls reduction** (14 -> 7) **but destroys the outcomes**
    (-9): the softened fruit contact changes the marginal-grip behavior (the class re-draws
    against it) - the full batch's -4 is the compliance dragging the mass's +6.
-3. **The restitution is neutral** (38 vs 39; the falls 11).
+3. **The restitution is neutral on the outcomes** (38 vs 39) **but also reduces the falls
+   (14 -> 5, the fewest of any single component)** - the falls' per-component values are NOT
+   additive (mass 10, rest 5, compliance 7, full 7): the components interact. A
+   restitution-on base is a named alternative if the falls (safety) ever outweigh the
+   outcome-neutrality (recorded, not adopted).
 4. **The refinement: `FRUIT_PHYSICS_REAL_MASS=1` only** - the mass base for the next
    iterations. The compliance stays available as a falls-suppressing option for a context
    where the outcomes are not the binding metric (recorded, not adopted).
