@@ -1,6 +1,6 @@
 # P13-B RESULTS (2026-10-19): the event-structure heads (ev1) - a positive mechanism read + a +3 outcome, awaiting the confirmatory N=5
 
-The A/B: the W7-B boundary pin, N=3x15, seeds 77/101/202, policy seed 11; A = `moe_v13s`,
+The A/B: **the W7-B battery boundary (the env pins) on the CURRENT tree** (tasks.py 810658b8, rl_env.py 9a2c3872, trigger.py d7ec85fc, runtime.py 379ac706; the per-run manifests), N=3x15, seeds 77/101/202, policy seed 11. **W7-B's own A/B ran on e98d9836/9318fe3e/d35fba2c with its arm B an env knob (ACQ=1); here arm B is a checkpoint swap** - all readouts are within-batch only; A = `moe_v13s`,
 B = `ev1` (the 6-epoch fine-tune with the event heads + the transition-weighted loss;
 `checkpoints/ev1/policy_best.pt` c2656cc2). Both arms `FRUIT_ACQ_DIAG=1`.
 
@@ -15,10 +15,12 @@ B = `ev1` (the 6-epoch fine-tune with the event heads + the transition-weighted 
 | the re-seat markers | 0 | 0 | as expected (the class is scripted-line only; the direct interface never emits it) |
 | the cycle | median 1826 ticks | median 1836 | +0.5 % (non-inferior) |
 | the class cells | - | lychee 3/6 -> 6/6 (+50 %), kiwi +17 %, orange -33 %, the rest flat | the strawberry 4/6 -> 4/6 (the known hard class, unchanged) |
+| **the fire-path classification** | left no-contact 12 = 11 trigger-path + 0 gate + 1 no-stamp; left carried 4 | **left no-contact 1 = 1 + 0 + 0; left carried 13** | the total no-contact 13 -> 2; the carried 5 -> 13 |
+| the tails | A left max 317.7 (the reach-cliff slot = a 1500-tick timeout, no close) | **B's single 853.2 tail** (the same reach-cliff slot; W7-B's residual flail) | quote the tail, not just the median |
 
 ## The reading
 
-**The conditioning hypothesis holds**: the event-structure supervision (the phase + TtT
+**The conditioning-side movement is measured; attribution is not single-factor**: the event-structure supervision (the phase + TtT
 heads, training-only; the transition-weighted loss) moved exactly the channels the W7-B/P10-D
 diagnostics named as the policy's deficit - the **pre-contact acquisition** (the left
 close-start 178 mm -> 3.5 mm) and the **catch-up chases** (11 -> 2) - with the outcomes +3 and
