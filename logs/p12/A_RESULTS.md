@@ -19,12 +19,14 @@ Tree: `meshes.py` 10fa005e / `fruits.py` 7283e4bf (`tasks.py` 810658b8, `rl_env.
 ## The reading
 
 1. **The falls halve (14 -> 7; the primary seed 7 -> 2).** This is the first intervention in
-   the P10/P11/P12 arc that reduces the ejection *without* breaking another branch - the real
-   masses (11-44 % heavier), the compliant fruit contact and the higher restitution change how
-   the marginal grip fails: the heavier body carries more inertia against the wedge and the
-   compliant contact spreads the load (the P11-B's parameter-insensitivity was measured on the
-   *withdrawn* rise-and-return geometry; the corrected descent + this task-level read together
-   say the pair response does matter).
+   the P10/P11/P12 arc that reduces the ejection while the pooled interval (-4.7 %) and window
+   (+2.4 %) improve - the seed-5 carried rise and the seed-23 over-budget descent are the named
+   side effects (section "The motion gate"). The real masses (apple ~1 % lighter; the rest
+   +8..+36 % heavier - tomato +23 %, strawberry +36 %; `logs/p12/IMPLEMENTATION.md` section 3),
+   the compliant fruit contact and the higher restitution change how the marginal grip fails -
+   **a hypothesis for the A.2 batteries to test; the measured fact is the task-level falls
+   reduction** (the P11-B's parameter-insensitivity was measured on the *withdrawn*
+   rise-and-return geometry, so it does not contradict this read).
 2. **The throughput improves on the two-line's own primary metrics**: the pooled interval
    -4.7 % (the primary seed -18 %), the pooled window rate +2.4 % (the convention: the
    unweighted mean of the three per-seed 186 placement-window rates: A 4.18, P12 4.28/min).
