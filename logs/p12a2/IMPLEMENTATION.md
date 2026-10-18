@@ -11,7 +11,7 @@ unchanged, so `rl_env.py`'s `TASKS_MD5` pin needs no follow).
 
 Reference: the committed P12-A implementation (`4f51fff`; `logs/p12/IMPLEMENTATION.md`,
 `logs/p12/A_RESULTS.md` - the two-line-anchor battery: the falls halve 14 -> 7, the pooled
-interval -4.7 %, the window rate +3.9 %, the outcomes in the draw band 35 vs 39) and the
+interval -4.7 %, the window rate +2.4 % (the per-seed window-rate mean), the outcomes in the draw band 35 vs 39) and the
 P12-A.2 next step named there: split the batch into the mass / restitution / compliance
 sub-knobs so the component batteries can find which property carries the falls reduction and
 the interval gain (the restitution is the least likely driver per the audit) - so a refinement
@@ -227,7 +227,7 @@ What the lane must measure (the same endpoints the P12-A battery used, so the re
 comparable): the **falls count** (the primary endpoint; P12-A halved it 14 -> 7) and the
 carry class with its mechanism (the W8-B `clean_slip` loaded-slide signature, the re-seats,
 the P10-E no-grasp split), the **pooled inter-placement interval** and the window rate (the
-P12-A pooled -4.7 % / +3.9 %), the class re-draws (the seed-5 carried-class side effect), the
+P12-A pooled -4.7 % / +2.4 % (the per-seed window-rate mean)), the class re-draws (the seed-5 carried-class side effect), the
 **motion budgets** and the two-line gate (`scripts/190_twoline_gate.sh`) with a **new
 reference if the branch moves** (a physics change is a new scenario per `AGENTS.md` section
 2), and the knob-off control replay. The decision rule per the P12-A next-step note: keep the
