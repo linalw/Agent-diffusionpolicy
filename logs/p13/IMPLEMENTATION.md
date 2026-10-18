@@ -3,7 +3,7 @@
 Mechanism-menu item #6 (`docs/papers/MECHANISMS.md` line 37): "Event-structure
 handover heads (phase + time-to-transition) + transition-weighted loss"
 (ForeTime-VLA #50 + DAM-VLA #42). This lane is the implementation + the training
-only; the the W7-B shape (N=3x15, seeds 77/101/202) as launched; the menu's N=5 paired is the confirmatory follow-on only if the mechanism read moves direct-interface A/B is P13-B (a separate lane, no
+only; the direct-interface A/B is P13-B (a separate lane, no simulator runs here), planned at the W7-B shape (N=3x15, seeds 77/101/202); the menu's N=5 paired is the confirmatory follow-on only if the mechanism read moves (a separate lane, no
 simulator runs here).
 
 Branch `p-supply`. No shipped default changed: both knobs are default off and

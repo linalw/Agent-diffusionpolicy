@@ -11,12 +11,12 @@ B = `ev1` (the 6-epoch fine-tune with the event heads + the transition-weighted 
 | the outcomes | 27/45 (60 %) | **30/45 (67 %)** | +3; paired 25/13/5 B-only/2 A-only; sign **p = 0.2266** (N=3 - not significant) |
 | **the left close-start \|y\|** (the acquisition error) | median **178.5** mm, p90 267.7 | **median 3.5 mm, p90 5.8** | **the known left deficit class nearly eliminated** |
 | the right close-start | median 4.8, p90 5.6 | median 3.4, p90 5.3 | slightly better |
-| **the 200-tick catch-up chases** | **11** (4+3+4) | **2** (1+1+0) | **-82 %** - the R9-style degradation signature, here reversed |
+| **the 200-tick catch-up chases** | **11** (4+3+4: 10 latency + 1 premove-capped flail) | **2** (1+1+0: both premove-capped, one the full 3.33/7.50 pair) | **-82 %** - the same catchup=200t count R9 published as its degradation signature (R9's 6-vs-1), here reversed; **the latency class collapsed (10 -> 0), the flail subclass did not (1 -> 2)** |
 | the re-seat markers | 0 | 0 | as expected (the class is scripted-line only; the direct interface never emits it) |
-| the cycle | median 1826 ticks | median 1836 | +0.5 % (non-inferior) |
+| the cycle | median 1826 ticks | median 1836 | +0.5 % pooled; +0.8 % among successes (1784 -> 1799) - non-inferior |
 | the class cells | - | lychee 3/6 -> 6/6 (+50 %), kiwi +17 %, orange -33 %, the rest flat | the strawberry 4/6 -> 4/6 (the known hard class, unchanged) |
 | **the fire-path classification** | left no-contact 12 = 11 trigger-path + 0 gate + 1 no-stamp; left carried 4 | **left no-contact 1 = 1 + 0 + 0; left carried 13** | the total no-contact 13 -> 2; the carried 5 -> 13 |
-| the tails | A left max 317.7 (the reach-cliff slot = a 1500-tick timeout, no close) | **B's single 853.2 tail** (the same reach-cliff slot; W7-B's residual flail) | quote the tail, not just the median |
+| the tails | A left max 317.7 (**run2 ep12 kiwi, a chase**; the A arm's reach-cliff slot, **run1 ep4 kiwi, is a 1500-tick timeout with no close and lies OUTSIDE the distribution**) | **B's single 853.2 tail** (run1 ep4 kiwi - the same slot as A's timeout; W7-B's residual flail); the right tail also moves (5.9 -> 262.2, run2 ep7 orange, premove-capped) | quote the tail, not just the median |
 
 ## The reading
 
