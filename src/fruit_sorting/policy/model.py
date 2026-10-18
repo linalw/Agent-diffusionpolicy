@@ -96,6 +96,49 @@ class Expert(nn.Module):
         return self.net(h)
 
 
+class EventHeads(nn.Module):
+    """Event-structure heads over a causal proprio history (P13-A, default off).
+
+    The mechanism-menu item #6 (``docs/papers/MECHANISMS.md``): ForeTime-VLA's
+    phase + time-to-transition subset (#50) reinforced by DAM-VLA's transition
+    supervision (#42). The heads read the **shared** conditioning encoder's
+    proprio embeddings over an 8-step causal history and predict
+
+    * ``phase_logits`` - 4 classes (approach / close transition / carry / place)
+      whose labels are free: the recorded finger channel's close transition plus
+      the skill labels' lift/place leg boundaries (`finetune.episode_event_labels`);
+    * ``ttt`` - the normalized time to the next transition, ``min(d / H, 1)``
+      with ``d`` the frame distance to the nearest upcoming transition.
+
+    They are **read-only auxiliary branches**: the denoiser's action output is
+    identical with or without them, so the shipped inference path is unchanged
+    and the trained checkpoint's base ``state_dict`` (the shared encoder carries
+    the supervision) loads strictly into the shipped ``PolicyRunner``; the head
+    parameters are saved separately (`finetune`). The menu's two deployment
+    forms - a near-zero-init gated injection into ``cond`` (ForeTime) or the
+    trigger input (`policy/trigger.py`) - both need a runtime-side proprio
+    history and are recorded as the enable paths, not built here (P13-A
+    IMPLEMENTATION.md).
+    """
+
+    #: Phase classes: approach, close/grasp transition, carry, place.
+    NUM_PHASES = 4
+
+    def __init__(self, cond_dim: int = 128, hidden: int = 64,
+                 num_phases: int = NUM_PHASES):
+        super().__init__()
+        self.num_phases = int(num_phases)
+        self.gru = nn.GRU(cond_dim, hidden, batch_first=True)
+        self.phase = nn.Linear(hidden, self.num_phases)
+        self.ttt = nn.Linear(hidden, 1)
+
+    def forward(self, embeddings: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
+        """``(batch, history, cond_dim)`` embeddings -> phase logits + TtT."""
+        features, _ = self.gru(embeddings)
+        last = features[:, -1]
+        return self.phase(last), torch.sigmoid(self.ttt(last)).squeeze(-1)
+
+
 class ConditionalUNet1D(nn.Module):
     """Skill-routed denoiser.
 
@@ -106,12 +149,20 @@ class ConditionalUNet1D(nn.Module):
 
     Training starts with hard routing (the expert is forced from the skill label)
     and switches to soft routing (router weights) in the later epochs.
+
+    ``event_heads=True`` attaches the default-off ``EventHeads`` (P13-A): the
+    heads run only when a ``proprio_history`` is passed to ``forward``/
+    ``denoise`` (training), never in the shipped inference path, and they do not
+    touch the action output. With the default ``False`` the module is absent -
+    the ``state_dict``, the RNG stream and the forward arithmetic are exactly
+    the shipped ones.
     """
 
     def __init__(self, action_dim: int = 9, image_channels: int = 4, obs_horizon: int = 2,
                  goal_dim: int = 8, proprio_dim: int = 25, cond_dim: int = 128,
                  down_dims: tuple[int, ...] = (128, 256, 256), num_skills: int = 5,
-                 expert_hidden: int = 128, expert_depth: int = 2):
+                 expert_hidden: int = 128, expert_depth: int = 2,
+                 event_heads: bool = False):
         super().__init__()
         self.visual = VisualEncoder(image_channels * obs_horizon, cond_dim)
         self.condition = ConditionEncoder(goal_dim, proprio_dim, cond_dim)
@@ -141,6 +192,15 @@ class ConditionalUNet1D(nn.Module):
         )
         #: Soft-routing weights from the most recent forward pass (for logging).
         self.last_router_weights: torch.Tensor | None = None
+        #: P13-A event-structure heads (default off; auxiliary, read-only).
+        #: Constructed only when asked, so the off path adds no parameters and
+        #: consumes no RNG draws - the shipped construction is bit-identical.
+        self.event: EventHeads | None = (
+            EventHeads(cond_dim) if event_heads else None
+        )
+        #: Phase logits + TtT from the most recent forward pass that carried a
+        #: proprio history (None otherwise; consumed by the fine-tune loss).
+        self.last_event: tuple[torch.Tensor, torch.Tensor] | None = None
 
     # ------------------------------------------------------------------ #
     def route(self, cond: torch.Tensor, hard_labels: torch.Tensor | None = None) -> torch.Tensor:
@@ -171,7 +231,8 @@ class ConditionalUNet1D(nn.Module):
 
     def forward(self, sample: torch.Tensor, image: torch.Tensor, goal: torch.Tensor,
                 proprio: torch.Tensor, timesteps: torch.Tensor,
-                skill_labels: torch.Tensor | None = None) -> torch.Tensor:
+                skill_labels: torch.Tensor | None = None,
+                proprio_history: torch.Tensor | None = None) -> torch.Tensor:
         # image arrives as (batch, obs_horizon, channels, H, W); fold the horizon
         # into the channel dimension for the 2-D visual encoder.
         if image.dim() == 5:
@@ -182,6 +243,17 @@ class ConditionalUNet1D(nn.Module):
         time_input = sinusoidal_embedding(timesteps, 128).to(image.dtype)
         time_embed = self.time(time_input)
         cond = self.condition(goal, proprio) + self.visual(image) + time_embed
+        # P13-A: the auxiliary event heads read the *shared* proprio encoder
+        # over the causal history. Read-only: `cond` and the action output are
+        # untouched, so the shipped inference path (no history passed) and the
+        # action output with a history are both bit-identical to the base model.
+        self.last_event = None
+        if self.event is not None and proprio_history is not None:
+            batch, steps, dim = proprio_history.shape
+            embeddings = self.condition.proprio(
+                proprio_history.reshape(batch * steps, dim)
+            ).reshape(batch, steps, -1)
+            self.last_event = self.event(embeddings)
         h = self.action_in(sample)
         for block in self.blocks:
             h = block(h, cond)
@@ -192,6 +264,8 @@ class ConditionalUNet1D(nn.Module):
         return self.head(h)
 
     # Convenience wrapper matching what the diffusion schedule expects.
-    def denoise(self, sample, condition, timesteps, skill_labels=None):
+    def denoise(self, sample, condition, timesteps, skill_labels=None,
+                proprio_history=None):
         image, goal, proprio = condition
-        return self.forward(sample, image, goal, proprio, timesteps, skill_labels=skill_labels)
+        return self.forward(sample, image, goal, proprio, timesteps,
+                            skill_labels=skill_labels, proprio_history=proprio_history)
