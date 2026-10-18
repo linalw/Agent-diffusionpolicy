@@ -229,3 +229,15 @@ code change beyond its own battery harness.
   per-batch weighted mean (section 4);
 * `H = 120` is our measured choice (the paper's horizon is its own prediction
   horizon).
+
+
+## 9. The Oracle's confound note (2026-10-19)
+
+**ev1 differs from `moe_v13s` in three ways at once**: (a) the auxiliary heads - **training-only**
+(the shipped `PolicyRunner` never runs them; the checkpoint carries them under
+`payload["event_heads"]`, dropped at inference), so any A/B movement is **weight-mediated**;
+(b) the transition-weighted loss + the chunk gamma; (c) the 6 extra epochs. The matching
+controls, if the mechanism read moves: the knob-off 6-epoch re-run plus the two single-factor
+ablations. The end-to-end degradation read is the A/B itself (the action-loss curve's
+monotone fall is not a quality claim - `demo_val` ends above its epoch-1 value, the same shape
+as the v13s run).
