@@ -3,7 +3,7 @@
 ## The decision
 
 1. **The mass realism (`FRUIT_PHYSICS_REAL_MASS=1`) becomes the two-line's iteration
-   reference**: the anchor for the next arcs' batteries is the mass base (45/60, the falls 10,
+   reference**: the anchor for the next arcs' batteries is the mass base (45/60, the falls 6 rows/5 attempts,
    deterministic - the double-run bit-identical). The two-line scenario batteries pass the env
    explicitly; the reference records are the mass-base runs (`logs/p12a2/10..12_mass`).
 2. **No shipped-default flip - now MEASURED, not assumed.** The single-arm mass probe
