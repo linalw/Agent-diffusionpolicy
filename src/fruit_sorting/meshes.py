@@ -158,6 +158,14 @@ class FruitShape:
     friction: tuple[float, float] = (0.5, 0.9)
     #: kg/m^3
     density: float = 800.0
+    #: kg/m^3 under `FRUIT_PHYSICS_REAL=1` (P12-A): the measured real density
+    #: (`logs/p11/A_PHYSICS_AUDIT.md` section 2.1) or a documented estimate.
+    #: 0.0 = no real value, the shipped `density` stands.
+    density_real: float = 0.0
+    #: N/m under `FRUIT_PHYSICS_REAL=1` (P12-A): the Hertzian whole-fruit
+    #: contact stiffness at 1 mm of compression (audit sections 2.2/5b.1) or a
+    #: size-and-firmness estimate. 0.0 = the shipped rigid contact.
+    contact_stiffness_real: float = 0.0
     stem: bool = False
     #: amplitude of the surface noise, relative to the radius
     bumpy: float = 0.02
@@ -169,49 +177,125 @@ class FruitShape:
     lobe_amount: float = 0.02
 
 
+#: P12-A property realism (`FRUIT_PHYSICS_REAL=1`; default 0 = the shipped
+#: values). The reference is the P11-A audit (`logs/p11/A_PHYSICS_AUDIT.md`,
+#: sections 1-2 and 5b); per class the real density [kg/m^3] and the
+#: compliant-contact stiffness [N/m] at 1 mm of compression are:
+#:
+#:   class       density                          contact stiffness
+#:   apple       840    FULL - Jia et al. 2026    27000  model - Hertzian (E 2.091 MPa, nu 0.35, R 33 mm)
+#:   tomato      960    FULL - Geasa & Hassan     4000  model - Hertzian (E 0.30 MPa, nu 0.45, R 26.5 mm)
+#:   orange      1000   abstract - 0.97-1.03      13000  est. - firm rind
+#:   peach       1000   est.                      19000  E 1.53 MPa FULL; nu/R assumed
+#:   pear        950    est.                      15000  est. - firm flesh
+#:   kiwi        1050   est.                       7000  est. - soft flesh
+#:   lychee      1000   est.                      23000  est. - hard pericarp
+#:   strawberry  950    est.                       3000  est. - very soft
+#:
+#: "est." = no audited source: the density in the sensible 950-1050 kg/m^3
+#: band and the stiffness from the same Hertzian form k(1 mm) = 2 E* sqrt(R d)
+#: with an assumed E for the class's firmness. The audit's own peach
+#: mass/diameter reading (137 g at ~60 mm) would imply ~1215 kg/m^3 if a
+#: sphere is trusted, so the peach estimate is deliberately conservative.
+#: The mass formula itself is unchanged (density x 4/3 pi r^3 x the 0.82
+#: sphere-shape discount, `fruits.py`): the optional per-class volume proxy
+#: was not taken, so the real densities narrow but do not close the mass gap
+#: (apple ~12 % light at 81 mm, tomato ~27 % at 53 mm, peach ~32 % at 60 mm -
+#: the 0.82 factor is the residual).
 FRUIT_SHAPES: dict[str, FruitShape] = {
     "apple": FruitShape(
         "apple", apple_profile,
         [(0.46, 0.025, 0.045), (0.40, 0.035, 0.075), (0.52, 0.28, 0.035)],
         roughness=0.30, friction=(0.45, 0.70), density=850.0, stem=True, bumpy=0.010,
-        lobes=5,
+        lobes=5, density_real=840.0, contact_stiffness_real=27000.0,
     ),
     "pear": FruitShape(
         "pear", pear_profile,
         [(0.42, 0.44, 0.10), (0.50, 0.42, 0.075), (0.36, 0.38, 0.09)],
         roughness=0.42, friction=(0.45, 0.70), density=880.0, stem=True, bumpy=0.012,
+        density_real=950.0, contact_stiffness_real=15000.0,
     ),
     "orange": FruitShape(
         "orange", orange_profile,
         [(0.78, 0.26, 0.02), (0.70, 0.22, 0.02)],
         roughness=0.68, friction=(0.70, 1.00), density=900.0, bumpy=0.030,
+        density_real=1000.0, contact_stiffness_real=13000.0,
     ),
     "tomato": FruitShape(
         "tomato", tomato_profile,
         [(0.58, 0.045, 0.03), (0.66, 0.09, 0.035)],
         roughness=0.28, friction=(0.50, 0.75), density=780.0, stem=False, bumpy=0.012,
+        density_real=960.0, contact_stiffness_real=4000.0,
     ),
     "peach": FruitShape(
         "peach", peach_profile,
         [(0.74, 0.30, 0.17), (0.66, 0.26, 0.15)],
         roughness=0.72, friction=(0.55, 0.85), density=820.0, bumpy=0.006,
+        density_real=1000.0, contact_stiffness_real=19000.0,
     ),
     "kiwi": FruitShape(
         "kiwi", kiwi_profile,
         [(0.26, 0.175, 0.075), (0.22, 0.155, 0.065)],
         roughness=0.85, friction=(0.75, 1.05), density=900.0, bumpy=0.030,
+        density_real=1050.0, contact_stiffness_real=7000.0,
     ),
     "lychee": FruitShape(
         "lychee", lychee_profile,
         [(0.50, 0.10, 0.085), (0.44, 0.085, 0.07)],
         roughness=0.80, friction=(0.55, 0.85), density=850.0, bumpy=0.045,
+        density_real=1000.0, contact_stiffness_real=23000.0,
     ),
     "strawberry": FruitShape(
         "strawberry", strawberry_profile,
         [(0.60, 0.035, 0.05), (0.52, 0.03, 0.045)],
         roughness=0.45, friction=(0.55, 0.85), density=700.0, stem=False, bumpy=0.035,
+        density_real=950.0, contact_stiffness_real=3000.0,
     ),
 }
+
+
+# --------------------------------------------------------------------------- #
+# P12-A: the one switch for the real-property table above (owner directive
+# 2026-10-18; the two-line anchor is the measurement reference, no re-baseline
+# in the implementation lane). Read once at import - this gates build-time
+# physics authoring, so it cannot change mid-run - and unset/`0`/any other
+# value keeps the shipped numbers, so the shipped path is byte-inert.
+_PHYSICS_REAL_RAW = os.environ.get("FRUIT_PHYSICS_REAL")
+
+
+def physics_real() -> bool:
+    """Whether the P12-A real-property batch is on (`FRUIT_PHYSICS_REAL=1`).
+
+    The exact `== "1"` parse the other `FRUIT_*` flags use.
+    """
+    return _PHYSICS_REAL_RAW == "1"
+
+
+def fruit_density(shape: FruitShape, real: bool | None = None) -> float:
+    """The class's mass density [kg/m^3] for the fruit mass formula.
+
+    The shipped `shape.density`, or the measured/estimated `shape.density_real`
+    when `FRUIT_PHYSICS_REAL=1` (a class without a real value falls back to the
+    shipped one). `real` overrides the switch for the offline stub.
+    """
+    on = physics_real() if real is None else bool(real)
+    if on and shape.density_real > 0.0:
+        return shape.density_real
+    return shape.density
+
+
+def fruit_contact_stiffness(shape: FruitShape, real: bool | None = None) -> float:
+    """The fruit material's compliant-contact stiffness [N/m]; 0.0 = rigid.
+
+    Authored only under `FRUIT_PHYSICS_REAL=1` (the audit's option 5b.1: the
+    fruit side of the contact becomes a spring-damper, so a squeeze is partly
+    absorbed by compression instead of going entirely into fruit motion).
+    `real` overrides the switch for the offline stub.
+    """
+    on = physics_real() if real is None else bool(real)
+    if on and shape.contact_stiffness_real > 0.0:
+        return shape.contact_stiffness_real
+    return 0.0
 
 
 # --------------------------------------------------------------------------- #

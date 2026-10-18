@@ -19,7 +19,15 @@ from isaacsim.core.experimental.prims import RigidPrim
 
 from .assets import SceneConfig
 from .common import say
-from .meshes import FRUIT_SHAPES, author_fruit, author_stem, make_material
+from .meshes import (
+    FRUIT_SHAPES,
+    author_fruit,
+    author_stem,
+    fruit_contact_stiffness,
+    fruit_density,
+    make_material,
+    physics_real,
+)
 
 
 def tune_contact_body(prim) -> None:
@@ -52,6 +60,68 @@ def tune_contact_body(prim) -> None:
             say(f"warning: PhysX rigid-body attribute {name} is not available here")
             continue
         create().Set(value)
+
+
+# --------------------------------------------------------------------------- #
+# P12-A property realism (`FRUIT_PHYSICS_REAL=1`; the per-class density and
+# contact table lives in `meshes.py`). The two values here are the fruit
+# material's restitution band and the compliant-contact damping.
+#
+# Restitution: shipped uniform(0.02, 0.20) -> real uniform(0.35, 0.50). The
+# audit (`logs/p11/A_PHYSICS_AUDIT.md` section 2.5, FULL) gives apple-apple
+# COR 0.4 and apple-bin COR 0.5 (Jia et al. 2026); no per-class COR was
+# sourced, so one band is used for every class.
+#
+# Damping: the audit's option 5b.1 suggests matching the finger material's
+# 80 Ns/m for the fruit-side spring. The finger material itself is left at its
+# shipped k = 30 kN/m (`assets.py`/`scene.py`): the material-pair combination
+# rule is unverified offline (audit section 6), so the pair response is the
+# battery's to measure rather than guessed here.
+# --------------------------------------------------------------------------- #
+_RESTITUTION_SHIPPED = (0.02, 0.2)
+_RESTITUTION_REAL = (0.35, 0.50)
+REAL_CONTACT_DAMPING = 80.0
+
+
+def restitution_range(real: bool | None = None) -> tuple[float, float]:
+    """The per-fruit restitution draw band - shipped unless `FRUIT_PHYSICS_REAL=1`.
+
+    `real` overrides the switch for the offline stub.
+    """
+    on = physics_real() if real is None else bool(real)
+    return _RESTITUTION_REAL if on else _RESTITUTION_SHIPPED
+
+
+def _author_fruit_physics_material(
+    stage: Usd.Stage,
+    prim,
+    path: str,
+    friction: float,
+    restitution: float,
+    stiffness: float,
+) -> None:
+    """Author one fruit's physics material and bind it to `prim`.
+
+    Always: static = dynamic friction and the restitution draw. Under
+    `FRUIT_PHYSICS_REAL=1` only, a compliant-contact spring-damper is added on
+    the fruit side (stiffness > 0, `REAL_CONTACT_DAMPING`) - the audit's
+    option 5b.1, so a squeeze is partly absorbed by compression instead of
+    going entirely into fruit motion. The shipped call authors exactly the
+    shipped material - no `PhysxMaterialAPI` is applied - so the knob-off path
+    is byte-inert.
+    """
+    phys_material = UsdShade.Material.Define(stage, f"{path}_physmat")
+    phys_api = UsdPhysics.MaterialAPI.Apply(phys_material.GetPrim())
+    phys_api.CreateStaticFrictionAttr().Set(friction)
+    phys_api.CreateDynamicFrictionAttr().Set(friction)
+    phys_api.CreateRestitutionAttr().Set(restitution)
+    if stiffness > 0.0:
+        contact = PhysxSchema.PhysxMaterialAPI.Apply(phys_material.GetPrim())
+        contact.CreateCompliantContactStiffnessAttr().Set(float(stiffness))
+        contact.CreateCompliantContactDampingAttr().Set(float(REAL_CONTACT_DAMPING))
+    UsdShade.MaterialBindingAPI.Apply(prim).Bind(
+        phys_material, UsdShade.Tokens.weakerThanDescendants, "physics"
+    )
 
 
 @dataclass
@@ -626,6 +696,13 @@ class FruitSpawner:
             for i in range(self.cfg.num_fruits):
                 category = categories[i % len(categories)]
                 self._create_fruit(i, category)
+        # P12-A: one banner when the real-property batch is on, so a battery log
+        # names its physics; the knob-off stream is byte-identical (no line).
+        if physics_real():
+            say(
+                "[physics] FRUIT_PHYSICS_REAL=1: real class densities + "
+                "restitution 0.35-0.50 + per-class compliant contact (P12-A)"
+            )
         say(f"created {len(self.samples)} fruit rigid bodies")
 
     def _create_fruit(self, index: int, category: str, grade: str | None = None) -> None:
@@ -652,19 +729,21 @@ class FruitSpawner:
 
         prim = fruit_mesh.GetPrim()
         # Mass follows the volume of the actual shape, not just the diameter.
-        mass = float(shape.density * (4.0 / 3.0) * np.pi * (diameter / 2.0) ** 3 * 0.82)
+        # P12-A: the density is the measured real one under `FRUIT_PHYSICS_REAL=1`
+        # (`fruit_density`; the 0.82 sphere-shape discount is unchanged).
+        mass = float(fruit_density(shape) * (4.0 / 3.0) * np.pi * (diameter / 2.0) ** 3 * 0.82)
         friction = self.rng.uniform(*shape.friction)
         UsdPhysics.RigidBodyAPI.Apply(prim)
         mass_api = UsdPhysics.MassAPI.Apply(prim)
         mass_api.CreateMassAttr().Set(mass)
 
-        phys_material = UsdShade.Material.Define(self.stage, f"{path}_physmat")
-        phys_api = UsdPhysics.MaterialAPI.Apply(phys_material.GetPrim())
-        phys_api.CreateStaticFrictionAttr().Set(friction)
-        phys_api.CreateDynamicFrictionAttr().Set(friction)
-        phys_api.CreateRestitutionAttr().Set(self.rng.uniform(0.02, 0.2))
-        UsdShade.MaterialBindingAPI.Apply(prim).Bind(
-            phys_material, UsdShade.Tokens.weakerThanDescendants, "physics"
+        _author_fruit_physics_material(
+            self.stage,
+            prim,
+            path,
+            friction,
+            self.rng.uniform(*restitution_range()),
+            fruit_contact_stiffness(shape),
         )
 
         rigid_api = PhysxSchema.PhysxRigidBodyAPI.Apply(prim)
@@ -714,7 +793,7 @@ class FruitSpawner:
         sample.diameter = float(np.clip(diameter, lo, hi))
         shape = FRUIT_SHAPES[category]
         sample.mass = float(
-            shape.density * (4.0 / 3.0) * np.pi * (sample.diameter / 2.0) ** 3 * 0.82
+            fruit_density(shape) * (4.0 / 3.0) * np.pi * (sample.diameter / 2.0) ** 3 * 0.82
         )
         sample.friction = self.rng.uniform(*shape.friction)
         sample.grade = self.rng.choice(self.cfg.grades)
@@ -739,13 +818,13 @@ class FruitSpawner:
         prim = mesh.GetPrim()
         UsdPhysics.RigidBodyAPI.Apply(prim)
         UsdPhysics.MassAPI.Apply(prim).CreateMassAttr().Set(sample.mass)
-        phys_material = UsdShade.Material.Define(stage, f"{sample.prim_path}_physmat")
-        phys_api = UsdPhysics.MaterialAPI.Apply(phys_material.GetPrim())
-        phys_api.CreateStaticFrictionAttr().Set(sample.friction)
-        phys_api.CreateDynamicFrictionAttr().Set(sample.friction)
-        phys_api.CreateRestitutionAttr().Set(self.rng.uniform(0.02, 0.2))
-        UsdShade.MaterialBindingAPI.Apply(prim).Bind(
-            phys_material, UsdShade.Tokens.weakerThanDescendants, "physics"
+        _author_fruit_physics_material(
+            stage,
+            prim,
+            sample.prim_path,
+            sample.friction,
+            self.rng.uniform(*restitution_range()),
+            fruit_contact_stiffness(shape),
         )
         tune_contact_body(prim)
 
