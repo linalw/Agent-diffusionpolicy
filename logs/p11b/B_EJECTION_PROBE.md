@@ -67,6 +67,16 @@ the `belt`/`air` close-from-open groups never ejecting; the parameter insensitiv
 baselines. **What the corrected run must decide:** whether a true descend-onto-the-fruit at a
 contacting gap ejects (the P10-E log evidence says the shipped re-seat does; the probe must
 now reproduce the geometry to confirm).
+**R1 follow-up (2026-10-18, post-run): the corrected plow re-run is DONE.** With the patched
+probe (`scripts/210_squeeze_probe.py` `9696acbd0f9e3d9e39f311fe385c9c2b`; `logs/p11b/90/91_plow_fix_*`):
+**tomato** stayed 3/3 at delta -15..+5 and **escaped 2/3 (+1 `out_of_span`, i.e. 3/3 leave the
+grip) at delta +10/+15**; **apple** stayed at delta <= 0 and **escaped 3/3 at delta +2..+15**;
+the `belt`/`air` rows are byte-identical to the pre-fix runs. So a TRUE descend-onto-the-fruit
+ejects at the **deeper** interferences only (the P10-E keep-gaps 1.7-17.5 mm narrower sit in
+that range) - the P10-E mechanism is probe-confirmed for the deep descents, and the withdrawn
+rise-and-return numbers stay withdrawn. **The parameter-insensitivity claim (R4 above, §4)
+applies to the withdrawn geometry; the corrected geometry ran with the shipped parameters only,
+so its sensitivity is unmeasured (the P12-A battery measures the pair response).**
 **R2** - the identity claims are scoped to delta 0..+15; the -5 cells differ (air 0.081 vs
 0.082; plow -5-r0 0.218/44.9); no field is bit-identical across cells - "identical in the
 quoted state fields".

@@ -15877,3 +15877,29 @@ all historical stubs + selfcheck + 107 + 172 PASS; the patch reference re-record
 `_pre_p10c3`; 190 PASS + fingerprint matches). The collector manifests gain
 `collection.carry_monitor` (`"auto"` = the flip). The shipped single-arm line, the
 shared-station bimanual and the direct/policy interface are byte-unchanged.
+
+### P10-E / P11-A / P11-B / P11-C (2026-10-18): the no-grasp diagnosis, the physics audit, the squeeze probe, and the closed control-side fix space
+
+**P10-E** (`logs/p10e/NOGRASP_DIAGNOSIS.md`): the two-line no-grasp class = 52.7 % of the
+failure count / 51.4 % of the mass; seed-dominated; NOT acquisition (29/30 had a real close);
+the dominant B1 chain (60 %) = the marginal close -> the failed probe -> the force-servo chase
+(F_min 0, 15-26 mm) -> the re-seat at the chased sub-width keep-gap -> the ejection (13/18 fall
+to the floor). **P11-A** (`logs/p11/A_PHYSICS_AUDIT.md`): the owner's fidelity question
+answered - the fruit is rigid (no deformable anywhere), the finger contact 30 kN/m (~8x a
+tomato; 0.33 mm give at the 10 N limit; 87 Hz above the resolvable band), the masses 11-44 %
+light, the restitution 0.02-0.2 vs the real 0.4-0.5, the mimic uncapped, the 1/120 s single
+substep turns contacts into impulses; the commanded interference carries 3-27x the real bruise
+energy. **P11-B** (`logs/p11b/B_EJECTION_PROBE.md`): the squeeze probe - the pads stop at the
+fruit's surface (the sub-width command is not realized); the parameter variants (substeps,
+finger k, fruit compliance, restitution) do not move the (withdrawn) escape; **the Oracle R1
+withdrew the plow reading** (the probe ran a rise-and-return, not the shipped descent); the
+corrected re-run: a TRUE descent ejects at the deeper interferences only (tomato delta >= 10,
+apple delta >= 2) - the P10-E mechanism probe-confirmed for the deep descents; the drop
+baseline 4.823 = free fall confirmed. **P11-C** (`logs/p11c/C_RESULTS.md`, `C2_RESULTS.md`,
+`C3_RESULTS.md`): the control-side ejection-fix space is measured closed - four arms/three
+batteries (A 39/60, from-open 35/60, +chase-stop 31/60, +cut-range 30/60; the falls 14/10/15/
+15); the from-open primary-seed win (13 vs 10, the falls 7 -> 3, the interval -21 %) does not
+survive the controls; the pre-registered kill 2 fires in C2/C3 (the seed-23 no-grasp 1 -> 5).
+The named remaining paths: the scene-level design (D3-proper) and the physics-side realism -
+the latter unblocked by the owner's 2026-10-18 directive (the two-line anchor as the only
+re-measured reference; the full re-baseline deferred to adoption), with P12-A in flight.

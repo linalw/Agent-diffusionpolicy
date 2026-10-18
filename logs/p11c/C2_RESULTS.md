@@ -11,7 +11,9 @@ Pre-registration: `logs/p11c/PREREG_C2_CHASE_STOP.md`. Tree: `tasks.py` 810658b8
 | pooled | 39/60 | 35/60 | **31/60** |
 
 **Verdict: negative; the kills fire.** The primary endpoint (the falls fall >= 2/3 at seed 11)
-fails (6 vs the control's 7); the pooled outcomes are the worst of the three arms; the seed-11
+fails (6 vs the control's 7); **kill 2 also fires**: the no-grasp class A->B2 is seed 11 8->9,
+seed 5 4->5, **seed 23 1->5 (+4 > +1)**. The cycle at the primary is +3.4 % (kill 4 does NOT
+fire). the pooled outcomes are the worst of the three arms; the seed-11
 branch degraded sharply vs the from-open-only arm (13 -> 6). The acceptance no-harm PASSes
 (9/10 + fingerprint matches + 385/385).
 

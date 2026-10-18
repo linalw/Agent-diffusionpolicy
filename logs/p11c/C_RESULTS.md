@@ -8,21 +8,26 @@ Pre-registration: `logs/p11c/PREREG_REGRASP_ARRIVAL.md` (frozen). Tree: `tasks.p
 
 | seed | A (the shipped two-line) | B (+ `FRUIT_DYNAMIC_REGRASP_FROM_OPEN=1`) |
 | --- | --- | --- |
-| **11 (primary)** | 10/20, interval 18.70 s, cycle 13.73 s, **7 falls** | **13/20 (+3), interval 14.73 s (-21 %), cycle 15.06 s (+9.7 %), 3 falls + 1 partial + 1 blowup** |
+| **11 (primary)** | 10/20, interval 18.70 s, cycle 13.73 s, **7 falls** | **13/20 (+3), interval 14.73 s (-21 %), cycle 15.06 s (+9.7 %), 3 falls + 2 partial drops (-383 mm, -185 mm) + 1 blowup** |
 | 5 (control) | 13/20, 15.07 s, cycle 14.58 s, 4 falls | 10/20 (-3), 19.84 s (+32 %), cycle 14.44 s (-1 %), 4 falls |
 | 23 (control) | 16/20, 11.22 s, cycle 14.79 s, 3 falls | 12/20 (-4), 16.36 s (+46 %), cycle 14.94 s (+1 %), 3 falls |
 | pooled | **39/60** | 35/60 |
 
 **The no-harm**: the three A runs replay the P10-C.3 flip records **0 diff lines** (modulo the
 reporting rows) - the diff is inert at knob-off on the shipped two-line path. 105 PASS on all
-three B runs (65 %/50 %/60 %); no new failure reasons (the same two classes).
+three B runs (65 %/50 %/60 %); the `190` attestation: seed-5 A matches
+`configs/motion_reference_patch.json`, the other five are moved branches (the prereg's
+attestation, not a kill); no new failure reasons (the same two classes).
 
 ## 2. The mechanism (the P10-E falsifier's task-level read)
 
 * **The regrasp cycles changed**: the seed-11 B run carries 14 ` [from-open]` markers (the
   W1 re-seat ran the new arrival on 14 cycles).
-* **The falls halved at the primary seed**: seed 11 A 7 falls -> B 3 falls (+1 partial drop
-  -185 mm +1 solver blowup). **They did NOT disappear** (the prereg's kill 2: "the
+* **The falls halved at the primary seed**: seed 11 A 7 falls -> B 3 falls (+2 partial drops
+  -383/-185 mm +1 solver blowup). **The convention**: falls = the `lowest payload point`
+  <= -1000 mm rows (the floor); partials = -100..-1000 mm; blowups excluded (the frozen
+  prereg's literal rule was <= -100 mm - under it B's count is 5, not 3; the kill fires
+  either way). **They did NOT disappear** (the prereg's kill 2: "the
   falls/blowups do NOT disappear on B" - **the kill FIRES**).
 * **The class re-drew**: seed 11: no-grasp 8 -> 6, carried 2 -> 1, ok 10 -> 13; seed 5:
   no-grasp 4 -> 6; seed 23: no-grasp 1 -> 5. The fix's opening/closing disturbs the marginal
