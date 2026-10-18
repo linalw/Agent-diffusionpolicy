@@ -39,6 +39,102 @@ def _material(
     return material
 
 
+# --------------------------------------------------------------------------- #
+# P12-B.2 S4 containment bundle (FRUIT_BELT_CONTAINMENT, default off)
+#
+# The measured fall exit path is the belt end within the attempt: the feeder
+# recycles only at attempt boundaries (`FruitSpawner.update`), so an ejected
+# fruit rides to the downstream end and drops to the floor before the next
+# recycle. A lip at that end catches it - it stays on the belt until the next
+# `update()` recycles it as `reached_end` instead of `fell_off` - and two side
+# fences catch the lateral roll-offs. Both are plain **static colliders** (the
+# fruit only needs catching); geometry fixed by the P12-B.2 scoping record
+# (`logs/p12b/SCENE_OPTIONS.md` section S4) and every clearance re-checked
+# offline by `logs/p12b2/check_containment.py`.
+# --------------------------------------------------------------------------- #
+#: Keeper and fence heights [m]. The scoping's band is 40-60 mm; 50 mm stands
+#: 15 mm above the centre of the pool's largest fruit (a 70 mm apple rides at
+#: r = 35 mm), so a roll-off cannot climb it.
+_CONTAINMENT_HEIGHT = 0.050
+#: Keeper thickness along Y [m]. Its downstream face is flush with the belt's
+#: end face, so it takes no belt length: the fruit's contact point stops at
+#: ``end_y + r``, still far downstream of the despawn line (y = -0.70).
+_CONTAINMENT_KEEPER_THICKNESS = 0.020
+#: Fence thickness across X [m].
+_CONTAINMENT_FENCE_THICKNESS = 0.015
+#: Fence inner (fruit-facing) faces, absolute x [m]. The delivered supply band
+#: is x = 0.20-0.36 (`fruits.py`), so the open hand's +/-0.066 m span reaches
+#: 0.134 / 0.426: the fences at 0.13 / 0.43 clear those by 4 mm each (the
+#: scoping's ``x <= 0.13 / >= 0.43`` bound, at its tight values).
+_CONTAINMENT_FENCE_X = (0.13, 0.43)
+#: Gap kept between a fence's upstream end and the belt's upstream end face
+#: [m]: the head pulley's crown pokes to |y| = 0.7894 at the belt top, so a
+#: fence ending at +0.78 clears it by 9.4 mm (and the belt edge by 20 mm).
+_CONTAINMENT_FENCE_END_MARGIN = 0.020
+
+
+def containment_parts(cfg: SceneConfig) -> list[dict]:
+    """The opt-in containment bundle's parts as plain geometry.
+
+    Pure arithmetic over the `SceneConfig` - no stage, no pxr - so the offline
+    stub (`logs/p12b2/check_containment.py`) can pin the placements and every
+    clearance without a simulator. The parts:
+
+    * ``BeltEndKeeper`` - the belt's full width, 20 mm thick, 50 mm tall, its
+      downstream face flush with the belt's end face (y = -0.80 at the shipped
+      geometry, upstream face y = -0.78). The feeder's despawn line is
+      y = -0.70, upstream of it, so a fruit riding into the keeper still
+      crosses the recycle threshold before contact and the next `update()`
+      counts it `reached_end`, not `fell_off`.
+    * ``SideFenceN`` / ``SideFenceP`` - 15 mm thick rails along Y, from the
+      keeper's upstream face to 20 mm short of the belt's upstream end face
+      (clear of both pulleys' crowns).
+    """
+    bx, by, bz = (float(v) for v in cfg.belt_center)
+    sx, sy, sz = (float(v) for v in cfg.belt_size)
+    belt_top = bz + sz / 2.0
+    end_y = by - sy / 2.0  # downstream end face (fruit travel is -Y)
+    top_y = by + sy / 2.0  # upstream end face
+    keeper_y0 = end_y
+    keeper_y1 = end_y + _CONTAINMENT_KEEPER_THICKNESS
+    fence_y0 = keeper_y1
+    fence_y1 = top_y - _CONTAINMENT_FENCE_END_MARGIN
+    parts = [
+        {
+            "path": "/World/Conveyor/BeltEndKeeper",
+            "size": (sx, _CONTAINMENT_KEEPER_THICKNESS, _CONTAINMENT_HEIGHT),
+            "center": (
+                bx,
+                (keeper_y0 + keeper_y1) / 2.0,
+                belt_top + _CONTAINMENT_HEIGHT / 2.0,
+            ),
+            "colour": (0.55, 0.56, 0.58),
+        }
+    ]
+    for tag, inner_x, outward in (
+        ("N", _CONTAINMENT_FENCE_X[0], -1.0),
+        ("P", _CONTAINMENT_FENCE_X[1], +1.0),
+    ):
+        center_x = inner_x + outward * _CONTAINMENT_FENCE_THICKNESS / 2.0
+        parts.append(
+            {
+                "path": f"/World/Conveyor/SideFence{tag}",
+                "size": (
+                    _CONTAINMENT_FENCE_THICKNESS,
+                    fence_y1 - fence_y0,
+                    _CONTAINMENT_HEIGHT,
+                ),
+                "center": (
+                    center_x,
+                    (fence_y0 + fence_y1) / 2.0,
+                    belt_top + _CONTAINMENT_HEIGHT / 2.0,
+                ),
+                "colour": (0.60, 0.61, 0.63),
+            }
+        )
+    return parts
+
+
 class CleatedBelt:
     """Owns the belt surface, the cleats and the pulleys."""
 
@@ -99,6 +195,12 @@ class CleatedBelt:
         if os.environ.get("FRUIT_CLEATS", "0") != "1":
             self.cleat_count = 0
             self.enabled = False
+        #: P12-B.2 S4 containment bundle (opt-in, default off): a belt-end
+        #: keeper plus two side fences that catch fruit leaving the line (see
+        #: `containment_parts` / `_build_containment`). Read **once** here so the
+        #: shipped build stays byte-inert with the env unset - no geometry, no
+        #: stage calls; `build()` only authors the parts when this is true.
+        self.containment = os.environ.get("FRUIT_BELT_CONTAINMENT", "0") == "1"
 
     # ------------------------------------------------------------------ #
     def build(self) -> None:
@@ -190,6 +292,10 @@ class CleatedBelt:
                 )
                 _set_color(guide, (0.60, 0.61, 0.63))
                 UsdPhysics.CollisionAPI.Apply(guide.GetPrim())
+        # P12-B.2 S4 containment bundle: opt-in (default off, no geometry when
+        # off - the shipped build is byte-identical). See `containment_parts`.
+        if self.containment:
+            self._build_containment()
         leg_height = bz - sz / 2.0
         for i, leg_x in enumerate((bx - sx / 2.0 + 0.10, bx + sx / 2.0 - 0.10)):
             for j, leg_y in enumerate((by - sy / 2.0 + 0.03, by + sy / 2.0 - 0.03)):
@@ -259,6 +365,42 @@ class CleatedBelt:
             f"pick platform: top z={top:.3f} m at y={cfg.pick_y:.2f}, "
             f"{cfg.nest_half_width_y * 2000:.0f} mm wide, {length:.2f} m long, "
             f"ramp {ramp_length:.2f} m"
+        )
+
+    # ------------------------------------------------------------------ #
+    def _build_containment(self) -> None:
+        """Author the opt-in containment bundle (S4; see `containment_parts`).
+
+        Static colliders with the output-belt side rails' metal friction
+        (mu 0.40/0.35, restitution 0), resting on the belt top like the main
+        belt's guide rails. The audit line prints the placements and the
+        binding clearances (the despawn lane and the open hand's span).
+        """
+        cfg = self.cfg
+        bx, by, bz = (float(v) for v in cfg.belt_center)
+        sx, sy, sz = (float(v) for v in cfg.belt_size)
+        end_y = by - sy / 2.0
+        top_y = by + sy / 2.0
+        for part in containment_parts(cfg):
+            prim = _define_box(
+                self.stage, part["path"], size=part["size"], center=part["center"]
+            )
+            _set_color(prim, part["colour"])
+            UsdPhysics.CollisionAPI.Apply(prim.GetPrim())
+            _add_physics_material(prim.GetPrim(), 0.40, 0.35, 0.0)
+        keeper_y1 = end_y + _CONTAINMENT_KEEPER_THICKNESS
+        fence_x_n, fence_x_p = _CONTAINMENT_FENCE_X
+        say(
+            f"containment bundle: belt-end keeper {sx:.3f} m wide x "
+            f"{_CONTAINMENT_KEEPER_THICKNESS * 1000:.0f} mm x "
+            f"{_CONTAINMENT_HEIGHT * 1000:.0f} mm at y=[{end_y:+.3f},{keeper_y1:+.3f}] "
+            f"(belt end {end_y:+.3f}); despawn lane y={cfg.despawn_y:+.2f} stays open "
+            f"(a fruit stops with centre y >= {keeper_y1:+.3f} + r); side fences x=["
+            f"{fence_x_n - _CONTAINMENT_FENCE_THICKNESS:.3f},{fence_x_n:.3f}] and ["
+            f"{fence_x_p:.3f},{fence_x_p + _CONTAINMENT_FENCE_THICKNESS:.3f}], "
+            f"y=[{keeper_y1:+.3f},{top_y - _CONTAINMENT_FENCE_END_MARGIN:+.3f}], "
+            f"h={_CONTAINMENT_HEIGHT * 1000:.0f} mm; open hand (+/-0.066 m) at the "
+            f"band edges (0.134/0.426) clears the inner faces by 4 mm"
         )
 
     # ------------------------------------------------------------------ #
