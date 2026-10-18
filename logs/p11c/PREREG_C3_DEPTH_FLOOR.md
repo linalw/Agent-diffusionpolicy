@@ -12,12 +12,12 @@ corrected plow re-run: a true descend ejects at the deeper interferences (tomato
 The natural instrument: a **keep-gap floor** at the live measured extent + a margin (the
 P11-A audit's option 1: `keep_gap = max(squeeze_gap, live_extent + margin)`, margin >= 0).
 
-## The mechanism (needs a small code change: the floor knob)
+## The mechanism (ENV-ONLY - the audit's cheaper variant; no code change)
 
-`FRUIT_DYNAMIC_REGRASP_FLOOR_MM` (default 0 = off, byte-inert): when > 0, the re-seat's
-`keep_gap` and the ratchet are floored at `pinch_width(sample, quat) + margin` (the live
-extent read the close already uses). Two-line-scoped via `_dynamic_profile`. Arm B =
-`FRUIT_DYNAMIC_REGRASP_FROM_OPEN=1 FRUIT_DYNAMIC_REGRASP_FLOOR_MM=2.0`.
+Cut the chase range: `FRUIT_DYNAMIC_FORCE_RANGE` 0.015 -> **0.002** m (the audit: "cut the
+15 mm range to the fruit scale (~1-2 mm) so even a full chase cannot go sub-fruit"). The
+re-seat's `keep_gap` then stays within 2 mm of the recorded depth. Arm B =
+`FRUIT_DYNAMIC_REGRASP_FROM_OPEN=1 FRUIT_DYNAMIC_FORCE_RANGE=0.002`.
 
 ## Endpoints / kills / no-harm
 
