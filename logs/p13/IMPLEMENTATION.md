@@ -3,7 +3,7 @@
 Mechanism-menu item #6 (`docs/papers/MECHANISMS.md` line 37): "Event-structure
 handover heads (phase + time-to-transition) + transition-weighted loss"
 (ForeTime-VLA #50 + DAM-VLA #42). This lane is the implementation + the training
-only; the N=5 paired direct-interface A/B is P13-B (a separate lane, no
+only; the the W7-B shape (N=3x15, seeds 77/101/202) as launched; the menu's N=5 paired is the confirmatory follow-on only if the mechanism read moves direct-interface A/B is P13-B (a separate lane, no
 simulator runs here).
 
 Branch `p-supply`. No shipped default changed: both knobs are default off and
@@ -17,12 +17,12 @@ untouched, so the `rl_env.TASKS_MD5` pin is unchanged (checked).
 | `src/fruit_sorting/policy/model.py` | +82: the `EventHeads` module (GRU 128->64 over the 8-step history + phase/TtT heads); `ConditionalUNet1D(event_heads=False)`; the optional `proprio_history` argument on `forward`/`denoise`; `last_event` | `a4de9cb1f99f271d57734dbb4eeb2e0a` |
 | `src/fruit_sorting/policy/finetune.py` | +430/-16: the knob resolution, the label derivation, `transition_gauss`, `_EventWindows`, the `_OffsetWindows` event-aware offset, the transition-weighted `_window_weights`, `window_loss_terms`, `event_state_split`, and the fine-tune integration (aux loss + metrics, payload split, provenance) | `3bb1a0621a809e758b3961be33d5b71f` |
 | `scripts/111_rl_finetune.py` | +29: `--event-heads`, `--event-transition-weight`, `--event-aux-weight`, `--event-ttt-weight`, `--event-chunk-gamma` (all env-defaulted) | `5e9f8ad8fac563d4d2049bd81be8abd0` |
-| `logs/p13/check_event_heads.py` | new offline stub, 40 checks | `80d4bffe43249fa49b7c5417f4d72eab` |
+| `logs/p13/check_event_heads.py` | new offline stub, 39 checks | `80d4bffe43249fa49b7c5417f4d72eab` |
 | `logs/p13/smoke_finetune_ev1.py` | new end-to-end smoke (tiny synthetic store, CPU) | `e8231a0c2c126d6c4e4c596446f55c89` |
 | `logs/p13/check_ev1_runtime.py` | new post-training runtime-load check | (see `50_runtime_check.txt`) |
 
 Record artifacts under `logs/p13/`: `40_train_ev1.log` (the full training log),
-`21_stub_check.txt` (40/40), `22_smoke_finetune.txt`, `30_selfcheck.txt` +
+`21_stub_check.txt` (39/39), `22_smoke_finetune.txt`, `30_selfcheck.txt` +
 `30_selfcheck.log`, `50_runtime_check.txt`, `60_weight_delta.txt`,
 `IMPLEMENTATION.md` (this file), `WORKLOG_ENTRY.md`. (The sibling P13-C lane's
 `10_*`, `11_*`, `90_*`, `run_c.sh` in the same directory are not this lane's.)
@@ -179,7 +179,7 @@ P13-B's endpoint.
 **Named confound for the A/B:** ev1 is 6 further epochs from `moe_v13s`, so a
 `moe_v13s` vs ev1 delta mixes the event supervision with 6 extra epochs of the
 same recipe. If P13-B shows movement, the matching control is a plain 6-epoch
-re-run with both knobs off (the stub pins that path's byte-identity); the
+re-run with both knobs off (component-pinned (construction + loss/weight arithmetic); the end-to-end control is the knob-off re-run); the
 mission's spec pins the base as `moe_v13s`, which this lane follows.
 
 ## 6. The verification
@@ -188,7 +188,7 @@ mission's spec pins the base as `moe_v13s`, which this lane follows.
 * `scripts/selfcheck.sh`: **PASS, 0 failures** (`logs/p13/30_selfcheck.txt`,
   full log `logs/p13/30_selfcheck.log`) - includes the rtc runtime selftest
   which constructs the shipped model through the changed `model.py`.
-* `logs/p13/check_event_heads.py`: **PASS, 40/40** (`logs/p13/21_stub_check.txt`):
+* `logs/p13/check_event_heads.py`: **PASS, 39/39** (`logs/p13/21_stub_check.txt`):
   the knob resolution (env default off, `None`-resolved `finetune` params); the
   knob-off model byte-identity (state_dict key set == the shipped checkpoint's,
   identical RNG stream, bit-identical outputs with/without a history); the
@@ -213,7 +213,7 @@ Nothing here ran a simulator. P13-B runs the direct interface (the W7-B pin:
 `FRUIT_POLICY_TRIGGER_LATERAL=0.06`-pinned branch per W4, seeds 77/101/202,
 `moe_v13s` base pinned) with `ARM_B = checkpoints/ev1/policy_best.pt`, and the
 pre-registered endpoints: the fire-path classification error, the handover-time
-distribution and the fallback chases, N=5 paired, kill on a re-seat rise
+distribution and the fallback chases, the W7-B shape (N=3x15, seeds 77/101/202) as launched; the menu's N=5 paired is the confirmatory follow-on only if the mechanism read moves, kill on a re-seat rise
 (R11-A 0->10). The checkpoint is directly usable by the shipped runtime
 (`logs/p13/check_ev1_runtime.py` pins the strict load), so the A/B needs no
 code change beyond its own battery harness.
