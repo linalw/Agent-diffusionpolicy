@@ -27,6 +27,9 @@ from .meshes import (
     fruit_density,
     make_material,
     physics_real,
+    physics_real_compliance,
+    physics_real_mass,
+    physics_real_rest,
 )
 
 
@@ -63,14 +66,17 @@ def tune_contact_body(prim) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# P12-A property realism (`FRUIT_PHYSICS_REAL=1`; the per-class density and
-# contact table lives in `meshes.py`). The two values here are the fruit
-# material's restitution band and the compliant-contact damping.
+# P12-A / P12-A.2 property realism (the per-class density and contact table
+# lives in `meshes.py`). The two values here are the fruit material's
+# restitution band and the compliant-contact damping.
 #
 # Restitution: shipped uniform(0.02, 0.20) -> real uniform(0.35, 0.50). The
 # audit (`logs/p11/A_PHYSICS_AUDIT.md` section 2.5, FULL) gives apple-apple
 # COR 0.4 and apple-bin COR 0.5 (Jia et al. 2026); no per-class COR was
-# sourced, so one band is used for every class.
+# sourced, so one band is used for every class. The component switch is
+# `FRUIT_PHYSICS_REAL_REST` (or the master `FRUIT_PHYSICS_REAL=1` with the
+# sub-knob unset); the resolution + read-once rules are documented in
+# `meshes.py`.
 #
 # Damping: the audit's option 5b.1 suggests matching the finger material's
 # 80 Ns/m for the fruit-side spring. The finger material itself is left at its
@@ -84,12 +90,39 @@ REAL_CONTACT_DAMPING = 80.0
 
 
 def restitution_range(real: bool | None = None) -> tuple[float, float]:
-    """The per-fruit restitution draw band - shipped unless `FRUIT_PHYSICS_REAL=1`.
+    """The per-fruit restitution draw band - shipped unless the rest component
+    is on (`FRUIT_PHYSICS_REAL_REST=1`, or the master with the sub-knob unset).
 
-    `real` overrides the switch for the offline stub.
+    `real` overrides the resolution for the offline stub.
     """
-    on = physics_real() if real is None else bool(real)
+    on = physics_real_rest() if real is None else bool(real)
     return _RESTITUTION_REAL if on else _RESTITUTION_SHIPPED
+
+
+def _physics_banner() -> str | None:
+    """The P12-A/P12-A.2 banner naming the resolved physics, or None when off.
+
+    Printed once per pool so a battery log names its physics; the knob-off
+    stream is byte-identical (no line). With the master on and every component
+    resolved on, the exact committed P12-A text is kept, so a
+    `FRUIT_PHYSICS_REAL=1` log replays the committed line; a partial (or
+    sub-knob-only) activation names the resolved component states instead.
+    """
+    mass_on = physics_real_mass()
+    rest_on = physics_real_rest()
+    compliance_on = physics_real_compliance()
+    if not (mass_on or rest_on or compliance_on):
+        return None
+    if physics_real() and mass_on and rest_on and compliance_on:
+        return (
+            "[physics] FRUIT_PHYSICS_REAL=1: real class densities + "
+            "restitution 0.35-0.50 + per-class compliant contact (P12-A)"
+        )
+    return (
+        "[physics] FRUIT_PHYSICS_REAL components: "
+        f"mass={int(mass_on)} rest={int(rest_on)} "
+        f"compliance={int(compliance_on)} (P12-A.2)"
+    )
 
 
 def _author_fruit_physics_material(
@@ -102,9 +135,10 @@ def _author_fruit_physics_material(
 ) -> None:
     """Author one fruit's physics material and bind it to `prim`.
 
-    Always: static = dynamic friction and the restitution draw. Under
-    `FRUIT_PHYSICS_REAL=1` only, a compliant-contact spring-damper is added on
-    the fruit side (stiffness > 0, `REAL_CONTACT_DAMPING`) - the audit's
+    Always: static = dynamic friction and the restitution draw. When the
+    compliance component is on (`FRUIT_PHYSICS_REAL_COMPLIANCE=1`, or the
+    master with the sub-knob unset) a compliant-contact spring-damper is added
+    on the fruit side (stiffness > 0, `REAL_CONTACT_DAMPING`) - the audit's
     option 5b.1, so a squeeze is partly absorbed by compression instead of
     going entirely into fruit motion. The shipped call authors exactly the
     shipped material - no `PhysxMaterialAPI` is applied - so the knob-off path
@@ -696,13 +730,12 @@ class FruitSpawner:
             for i in range(self.cfg.num_fruits):
                 category = categories[i % len(categories)]
                 self._create_fruit(i, category)
-        # P12-A: one banner when the real-property batch is on, so a battery log
-        # names its physics; the knob-off stream is byte-identical (no line).
-        if physics_real():
-            say(
-                "[physics] FRUIT_PHYSICS_REAL=1: real class densities + "
-                "restitution 0.35-0.50 + per-class compliant contact (P12-A)"
-            )
+        # P12-A / P12-A.2: one banner when any real-property component is on,
+        # so a battery log names its physics; the knob-off stream is
+        # byte-identical (no line).
+        banner = _physics_banner()
+        if banner is not None:
+            say(banner)
         say(f"created {len(self.samples)} fruit rigid bodies")
 
     def _create_fruit(self, index: int, category: str, grade: str | None = None) -> None:
@@ -729,8 +762,9 @@ class FruitSpawner:
 
         prim = fruit_mesh.GetPrim()
         # Mass follows the volume of the actual shape, not just the diameter.
-        # P12-A: the density is the measured real one under `FRUIT_PHYSICS_REAL=1`
-        # (`fruit_density`; the 0.82 sphere-shape discount is unchanged).
+        # P12-A/P12-A.2: the density is the measured real one when the mass
+        # component is on (`fruit_density`; the 0.82 sphere-shape discount is
+        # unchanged).
         mass = float(fruit_density(shape) * (4.0 / 3.0) * np.pi * (diameter / 2.0) ** 3 * 0.82)
         friction = self.rng.uniform(*shape.friction)
         UsdPhysics.RigidBodyAPI.Apply(prim)

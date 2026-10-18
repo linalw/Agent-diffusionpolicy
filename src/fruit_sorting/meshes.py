@@ -158,13 +158,16 @@ class FruitShape:
     friction: tuple[float, float] = (0.5, 0.9)
     #: kg/m^3
     density: float = 800.0
-    #: kg/m^3 under `FRUIT_PHYSICS_REAL=1` (P12-A): the measured real density
-    #: (`logs/p11/A_PHYSICS_AUDIT.md` section 2.1) or a documented estimate.
-    #: 0.0 = no real value, the shipped `density` stands.
+    #: kg/m^3 under the mass component (`FRUIT_PHYSICS_REAL_MASS=1`, or the
+    #: master `FRUIT_PHYSICS_REAL=1` with the sub-knob unset; P12-A/P12-A.2):
+    #: the measured real density (`logs/p11/A_PHYSICS_AUDIT.md` section 2.1) or
+    #: a documented estimate. 0.0 = no real value, the shipped `density` stands.
     density_real: float = 0.0
-    #: N/m under `FRUIT_PHYSICS_REAL=1` (P12-A): the Hertzian whole-fruit
-    #: contact stiffness at 1 mm of compression (audit sections 2.2/5b.1) or a
-    #: size-and-firmness estimate. 0.0 = the shipped rigid contact.
+    #: N/m under the compliance component (`FRUIT_PHYSICS_REAL_COMPLIANCE=1`, or
+    #: the master with the sub-knob unset; P12-A/P12-A.2): the Hertzian
+    #: whole-fruit contact stiffness at 1 mm of compression (audit sections
+    #: 2.2/5b.1) or a size-and-firmness estimate. 0.0 = the shipped rigid
+    #: contact.
     contact_stiffness_real: float = 0.0
     stem: bool = False
     #: amplitude of the surface noise, relative to the radius
@@ -178,7 +181,9 @@ class FruitShape:
 
 
 #: P12-A property realism (`FRUIT_PHYSICS_REAL=1`; default 0 = the shipped
-#: values). The reference is the P11-A audit (`logs/p11/A_PHYSICS_AUDIT.md`,
+#: values; P12-A.2 splits the batch into the `FRUIT_PHYSICS_REAL_MASS` /
+#: `_REST` / `_COMPLIANCE` component sub-knobs - see the switch block below).
+#: The reference is the P11-A audit (`logs/p11/A_PHYSICS_AUDIT.md`,
 #: sections 1-2 and 5b); per class the real density [kg/m^3] and the
 #: compliant-contact stiffness [N/m] at 1 mm of compression are:
 #:
@@ -255,30 +260,82 @@ FRUIT_SHAPES: dict[str, FruitShape] = {
 
 
 # --------------------------------------------------------------------------- #
-# P12-A: the one switch for the real-property table above (owner directive
-# 2026-10-18; the two-line anchor is the measurement reference, no re-baseline
-# in the implementation lane). Read once at import - this gates build-time
-# physics authoring, so it cannot change mid-run - and unset/`0`/any other
-# value keeps the shipped numbers, so the shipped path is byte-inert.
+# P12-A / P12-A.2: the property-realism switches for the real table above
+# (owner directive 2026-10-18; the two-line anchor is the measurement reference,
+# no re-baseline in the implementation lane). The batch is one master switch
+# plus three component sub-knobs:
+#
+#   FRUIT_PHYSICS_REAL              master; `1` turns on ALL THREE components
+#   FRUIT_PHYSICS_REAL_MASS         the real per-class densities/masses
+#   FRUIT_PHYSICS_REAL_REST         the restitution 0.35-0.50 band (fruits.py)
+#   FRUIT_PHYSICS_REAL_COMPLIANCE   the per-class fruit compliant contact
+#
+# Resolution (per component): a sub-knob explicitly present in the environment
+# always wins for its component with the exact `== "1"` parse the other
+# `FRUIT_*` flags use (`0`/any other value = off); when unset, the component
+# follows the master - so `FRUIT_PHYSICS_REAL=1` alone is the committed P12-A
+# batch and `FRUIT_PHYSICS_REAL=1 FRUIT_PHYSICS_REAL_REST=0` is mass +
+# compliance only. All four variables are read ONCE at import - this gates
+# build-time physics authoring, so it cannot change mid-run - and unset/`0`/any
+# other value everywhere keeps the shipped numbers, so the shipped path is
+# byte-inert. `fruits.py` never reads the environment; it consumes the
+# resolvers below (`restitution_range` reads `physics_real_rest`, the material
+# helper's stiffness argument `fruit_contact_stiffness` reads
+# `physics_real_compliance`, the mass sites `fruit_density` reads
+# `physics_real_mass`).
 _PHYSICS_REAL_RAW = os.environ.get("FRUIT_PHYSICS_REAL")
+_PHYSICS_REAL_MASS_RAW = os.environ.get("FRUIT_PHYSICS_REAL_MASS")
+_PHYSICS_REAL_REST_RAW = os.environ.get("FRUIT_PHYSICS_REAL_REST")
+_PHYSICS_REAL_COMPLIANCE_RAW = os.environ.get("FRUIT_PHYSICS_REAL_COMPLIANCE")
 
 
 def physics_real() -> bool:
-    """Whether the P12-A real-property batch is on (`FRUIT_PHYSICS_REAL=1`).
+    """Whether the P12-A master switch is on (`FRUIT_PHYSICS_REAL=1`).
 
-    The exact `== "1"` parse the other `FRUIT_*` flags use.
+    The exact `== "1"` parse the other `FRUIT_*` flags use. This is the
+    component default when a sub-knob is unset; the components themselves are
+    read through `physics_real_mass()` / `physics_real_rest()` /
+    `physics_real_compliance()`.
     """
     return _PHYSICS_REAL_RAW == "1"
+
+
+def _component_real(sub_raw: str | None) -> bool:
+    """Resolve one P12-A.2 component: an explicit sub-knob wins, else the master.
+
+    `sub_raw` is the sub-knob's raw env value (`None` = unset). Explicit means
+    present at all: the exact `== "1"` parse applies, so `=0` (or any other
+    value) is an explicit off even under `FRUIT_PHYSICS_REAL=1`.
+    """
+    if sub_raw is not None:
+        return sub_raw == "1"
+    return physics_real()
+
+
+def physics_real_mass() -> bool:
+    """Whether the real per-class densities/masses are on (P12-A.2)."""
+    return _component_real(_PHYSICS_REAL_MASS_RAW)
+
+
+def physics_real_rest() -> bool:
+    """Whether the real restitution band is on (P12-A.2)."""
+    return _component_real(_PHYSICS_REAL_REST_RAW)
+
+
+def physics_real_compliance() -> bool:
+    """Whether the per-class fruit compliant contact is on (P12-A.2)."""
+    return _component_real(_PHYSICS_REAL_COMPLIANCE_RAW)
 
 
 def fruit_density(shape: FruitShape, real: bool | None = None) -> float:
     """The class's mass density [kg/m^3] for the fruit mass formula.
 
     The shipped `shape.density`, or the measured/estimated `shape.density_real`
-    when `FRUIT_PHYSICS_REAL=1` (a class without a real value falls back to the
-    shipped one). `real` overrides the switch for the offline stub.
+    when the mass component is on (`FRUIT_PHYSICS_REAL_MASS=1`, or the master
+    with the sub-knob unset; a class without a real value falls back to the
+    shipped one). `real` overrides the resolution for the offline stub.
     """
-    on = physics_real() if real is None else bool(real)
+    on = physics_real_mass() if real is None else bool(real)
     if on and shape.density_real > 0.0:
         return shape.density_real
     return shape.density
@@ -287,12 +344,14 @@ def fruit_density(shape: FruitShape, real: bool | None = None) -> float:
 def fruit_contact_stiffness(shape: FruitShape, real: bool | None = None) -> float:
     """The fruit material's compliant-contact stiffness [N/m]; 0.0 = rigid.
 
-    Authored only under `FRUIT_PHYSICS_REAL=1` (the audit's option 5b.1: the
-    fruit side of the contact becomes a spring-damper, so a squeeze is partly
-    absorbed by compression instead of going entirely into fruit motion).
-    `real` overrides the switch for the offline stub.
+    Authored only when the compliance component is on
+    (`FRUIT_PHYSICS_REAL_COMPLIANCE=1`, or the master with the sub-knob unset;
+    the audit's option 5b.1: the fruit side of the contact becomes a
+    spring-damper, so a squeeze is partly absorbed by compression instead of
+    going entirely into fruit motion). `real` overrides the resolution for the
+    offline stub.
     """
-    on = physics_real() if real is None else bool(real)
+    on = physics_real_compliance() if real is None else bool(real)
     if on and shape.contact_stiffness_real > 0.0:
         return shape.contact_stiffness_real
     return 0.0
