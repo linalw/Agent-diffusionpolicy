@@ -6,10 +6,13 @@
    reference**: the anchor for the next arcs' batteries is the mass base (45/60, the falls 10,
    deterministic - the double-run bit-identical). The two-line scenario batteries pass the env
    explicitly; the reference records are the mass-base runs (`logs/p12a2/10..12_mass`).
-2. **No shipped-default flip now.** The mass flip would touch the single-arm line too (the
-   masses are global), and the single-arm's response is UNTESTED (the owner's directive scoped
-   the iteration measurements to the two-line anchor). A flip therefore needs its own
-   acceptance + re-baseline - the deferred step, gated on the owner or a dedicated batch.
+2. **No shipped-default flip - now MEASURED, not assumed.** The single-arm mass probe
+   (`logs/p12b2/30_accept_mass.log`, the acceptance with `FRUIT_PHYSICS_REAL_MASS=1`):
+   **6/10 (60 %) vs the baseline 9/10** - the flip would collapse the shipped single-arm
+   line (the fingerprint differs too, as a moved branch would). The mass realism therefore
+   stays TWO-LINE-SCOPED (the env on the two-line batteries); a global flip is closed by
+   this measurement; a two-line-scoped default would need the session-flag resolution at the
+   fruit creation + its own acceptance/re-baseline - the deferred step.
 3. **The recorded alternatives**: the S4 containment (the falls 10 -> 1; the outcomes -13) is
    the safety option; the rest-only (38, the falls 5) is the falls-leaning option; the
    compliance is closed (-9). All stay default-off, recorded.
