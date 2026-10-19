@@ -206,13 +206,17 @@ epochs at lr 5e-5 from a converged checkpoint.
   (above); the three new dirs `checkpoints/ev_a1|ev_a2|ev_a3` exist and nothing
   else was written outside `logs/p14c/`.
 
-**Note on the working tree (not this lane's):** at battery end the tree also
-carries an **uncommitted `src/fruit_sorting/tasks.py` edit by the concurrent
-P17-B lane** (its own "P17-B H1 - the hold/probe-1 slide gate" comment block;
-file mtime 18:26:19; live md5 `a9114225ceb39b252afa3eb9f93ae8c5` vs the
-`rl_env.TASKS_MD5` pin `54f70584...`). It was present only in the last seconds
-of A3 (which does not read `tasks.py`), it is not this lane's change, and it
-was **not touched** by this lane.
+**Note on the working tree (not this lane's):** at battery end (18:26:45) the
+tree also carried an **uncommitted `src/fruit_sorting/tasks.py` edit by the
+concurrent P17-B lane** (its own "P17-B H1 - the hold/probe-1 slide gate"
+comment block; file mtime 18:26:19; live md5
+`a9114225ceb39b252afa3eb9f93ae8c5` vs the then-`rl_env.TASKS_MD5` pin
+`54f70584...`); by 18:30 the same lane had followed with the `rl_env.py` pin
+update (`TASKS_MD5` -> `a9114225...`). The edit appeared only in the last
+seconds of A3 (the offline fine-tune does not read `tasks.py`), neither change
+is this lane's, and neither was **touched** by this lane. **The P14-C.2 screen
+launched on these three checkpoints at 18:29:55** (`logs/p14c/run_screen.sh`,
+its own `B_ab/`; not this lane's record).
 
 ## 6. Deliverables / artifacts under `logs/p14c/`
 

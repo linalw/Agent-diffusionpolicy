@@ -29,7 +29,7 @@ the concurrent P14-C.1 training lane's work, not touched here). The full diff is
 
 The change has four pieces (all default-off, dynamic-capture scoped, byte-inert at default):
 
-1. **The knob block** (`PickAndPlaceTask.__init__`, tasks.py:643-728): eleven env knobs, read
+1. **The knob block** (`PickAndPlaceTask.__init__`, tasks.py:642-728): eleven env knobs, read
    exactly once each with the shipped defaults — seven H1 (`_slide_gate`, `_slide_gate_mmps`,
    `_slide_gate_ticks`, `_slide_gate_step_mm`, `_slide_gate_max`, `_slide_gate_window_mm`,
    `_slide_gate_diag`) and four H2 (`_freeze_twosided`, `_freeze_twosided_force`,
@@ -39,7 +39,7 @@ The change has four pieces (all default-off, dynamic-capture scoped, byte-inert 
    when the gate is armed, `None` otherwise). Defined at the function level because the hold runs
    inside the gripper block and the probe-1 section does not.
 3. **The H1 integration** (tasks.py:8460-8496 the hold; 8918-8987 the probe-1 block; the ten
-   helpers at 10375-10620): the bounded re-centre of the jaw target (the `v * lead` feed-forward
+   helpers at 10375-10624): the bounded re-centre of the jaw target (the `v * lead` feed-forward
    dropped) and the post-step hand-frame monitor, plus the `[slide]` rows.
 4. **The H2 integration** (tasks.py:7877 the scope, 7891-7900 the book/fallback state, 8128-8207
    the freeze block, 8165-8207 the straddle commit, 8209-8236 the horizon fallback; the helpers
@@ -144,8 +144,8 @@ when the shipped criterion never fired before a straddle commit).
 | the horizon fallback | 8209-8236 | commit at the shipped depth when the straddle never obtains |
 | the hold loop | 8460-8496 | the bounded re-centre target (8462-8474), the post-step monitor (8478-8479), the phase end (8494-8495) |
 | the probe-1 block | 8918-8987 | `begin_phase` (8918), the target (8952), the monitor (8974), the phase end (8986) |
-| the H1 helpers | 10375-10546 | `_slide_gate_observe/_target/_report/_summary/_begin_phase/_end_phase/_tick` |
-| the H2 helpers | 10547-10620 | `_freeze2_split/_freeze2_step/_freeze_twosided_report` |
+| the H1 helpers | 10375-10545 | `_slide_gate_observe/_target/_report/_summary/_begin_phase/_end_phase/_tick` |
+| the H2 helpers | 10547-10624 | `_freeze2_split/_freeze2_step/_freeze_twosided_report` |
 | `rl_env.py` | 271 | `TASKS_MD5` pin |
 
 ## 5. The scoping and the byte-inert argument
@@ -183,7 +183,10 @@ python3 logs/p11c/check_regrasp_from_open.py                                    
 Evidence files: `logs/p17i/00_checks.txt` (the py_compile + stub-suite transcript),
 `logs/p17i/check_slide_gate_output.txt` (the new stub's full output),
 `logs/p17i/selfcheck_summary.txt` (the post-change selfcheck legs),
-`logs/p17i/implementation.diff` (the full diff), `logs/p17i/00_tree_pins.txt` (the md5s).
+`logs/p17i/implementation.diff` (the full diff), `logs/p17i/00_tree_pins.txt` (the md5s),
+`logs/p17i/01_shipped_statement_identity.txt` (the AST-level proof that the shipped freeze
+statements and the hold/probe target expressions are the pre-change baseline's verbatim, with the
+new code behind the default-off gates).
 
 **The new stub** (`logs/p17i/check_slide_gate.py`, run-anywhere, no simulator) pins:
 
