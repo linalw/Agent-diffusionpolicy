@@ -33,12 +33,12 @@ base of `logs/p12a2/`, now with per-tick geometry.
   (both with the payload already 22.4/25.8 mm out at the window's near edge), the takeoff→carry
   gap 1, the carry 1 (no-grasp, n=8); the carried class completes in the carry (4), the gap (1),
   or beyond the trace (2, the place).
-* **No re-seat window ever released a held payload.** Across the whole corpus (60 attempts, 22
-  untraced windows) the only re-seat-window "loss" is one **ok** attempt (s11 t04: 0.9→12.5 mm,
-  still gripped, placed); the windows instead show **re-grabs** (a13's window 1→2 re-seated a
-  4.3 mm-out payload at F=19.97 N; s11 t20's and s5 t16's windows re-grabbed 26.9→11.6 and
-  8.4→12.0 mm). **F1 is confirmed: the re-seat-floor lever (`FRUIT_DYNAMIC_REGRASP_FLOOR`) is dead
-  as the initiator.**
+* **No re-seat window ever released a held payload.** Across the whole corpus (60 attempts, 16
+  re-seat windows + the 60 takeoff→carry gaps) the only re-seat-window "loss" is one **ok**
+  attempt (s11 t04: 0.9→12.5 mm, still gripped, placed); the windows instead show **re-grabs**
+  (a13's window 1→2 re-seated a 4.3 mm-out payload at F=19.97 N; s11 t20's and s5 t16's windows
+  re-grabbed 26.9→11.6 and 8.4→12.0 mm). **F1 is confirmed: the re-seat-floor lever
+  (`FRUIT_DYNAMIC_REGRASP_FLOOR`) is dead as the initiator.**
 * **The branch the data selects: the close/hold grip-margin family (the capture transient), with
   the probe's shape as the secondary** — per the pre-registered mapping the **R11-B C1 family
   (`FRUIT_CLOSE_LOAD_RATE`) first**; the belt-break/takeoff branch holds only for the B2 minority
@@ -62,8 +62,8 @@ base of `logs/p12a2/`, now with per-tick geometry.
 
 The split matches the GRIP_DIAGNOSTIC §1.1 census exactly. Trace-based B1/B2 = the probe-block
 count from the trace itself (B1 = 3 probe cycles / 3 regrasp windows; B2 = 1), which agrees with
-the P10-E log rules on every attempt (the 3 B1s in seed 11 are the 3-regrasp attempts; the 3 B2s
-are the no-regrasp attempts with the 1.77–1.95 s grip phase).
+the P10-E log rules on every attempt (the B1s are the 3-regrasp attempts; the B2s are the
+no-regrasp attempts with the 1.77–1.95 s grip phase).
 
 ### 1.2 The trace-on run replays the mass base (the no-harm re-test of §2.3)
 
@@ -203,17 +203,19 @@ untraced window before that row.)
 
 Notes on the table:
 
-* **The `release` column fires on 4 ok attempts too** (s11 t04/t18, s5 t16, s23 t07, s23 t11):
-  those are transient 4-tick contact gaps that **recover** (the attempt still places) — the ok
-  class's marginal grips flicker. The *no-grasp* releases are the ones that never recover (their
-  drift then explodes in the carry).
+* **The `release` column fires on 5 ok attempts too** (s11 t04/t18, s5 t16, s23 t07/t11): those
+  are transient ≥4-tick contact gaps that **recover** (the attempt still places) — the ok class's
+  marginal grips flicker. The *no-grasp* releases are the ones that never recover (their drift
+  then explodes in the carry).
 * **The `probe1 dz` is a grip test, not a 6 mm command** (verified in `tasks.py:8600-8650`): the
   probe's aim = the fruit's live position + a 6 mm z-ramp, so a gripped fruit rides the feedback
   up (ok up to 67.5 mm) while a slipping one stays on the belt (dz ≈ 0). The no-grasp B1s read
   **−1.2…+0.9 mm** — the fruit never rises.
-* The `[carry]` log cross-check: every trace's carry drift matches the log's
-  `[carry] … clean_slip_max` (e.g. a01 1723.2 vs 1683.0 mm, the frame difference = the payload's
-  displacement at the leg's first tick; ok attempts 0.0–0.5 vs 0.0–0.2).
+* The `[carry]` log cross-check: the trace's carry block and the log's `[carry] … clean_slip_max`
+  agree on every attempt where the payload is still held at the carry's start (a06 95 403.7 vs
+  95 724.3 mm; a01 1 723.2 vs 1 683.0; a02 344.8 vs 271.3; the oks ≲ 40 mm on both sides) and
+  diverge only where the payload was already out before the leg (a13: 1 458.1 vs 123.2 mm — the
+  log's `clean_slip` is leg-local, the trace's drift is from the last hold row).
 
 ### 3.2 The ok-vs-fail separation
 
@@ -230,9 +232,9 @@ Per seed: s11 ok 0.0/10.0/27.2 vs fails 31.8/344.8/95 403.7; s5 ok 0.1/0.8/12.0 
 
 **Reading.** The **no-grasp class is disjoint from ok** (≥ 294.8 vs ≤ 27.2 mm — an order of
 magnitude), reproducing the W5-C claim on the mass base. The **carried class overlaps both**: its
-loss is the W8-B carry/place escape (5 of 7 release in the carry, 2 beyond the trace), and its
-in-trace drift can be small (s5 t01, 3.4 mm — the payload never slipped before the place). The
-ok band is wider than W5-C's (27.2 vs 20.5 mm) and 21/45 oks exceed 2 mm — the **hold walk is
+loss is the W8-B carry/place escape (5 of 7 release in the carry or the gap, 2 beyond the trace),
+and its in-trace drift can be small (s5 t01, 3.4 mm — the payload never slipped before the place).
+The ok band is wider than W5-C's (27.2 vs 20.5 mm) and 21/45 oks exceed 2 mm — the **hold walk is
 universal**, not a failure signature by itself; its *magnitude* and its *fate* are the signals.
 
 **The two candidate pre-outcome signals** (per class, §H of the tables file):
@@ -253,7 +255,7 @@ universal**, not a failure signature by itself; its *magnitude* and its *fate* a
 | phase | no-grasp (8) | carried (7) | all fails (15) |
 | --- | --- | --- | --- |
 | hold (walk pre-probe) | 2 (a06, a08) | 0 | 2 |
-| probe block 1 | 4 (a01, a07, a13, strawberry) | 4 (t06, t12, s23 t01, s23 t03) | 8 |
+| probe block 1 | 4 (a01, a07, a13, strawberry) | 3 (t06, t12, s23 t01) | 7 |
 | takeoff | 1 (a02) | 1 (s5 t11) | 2 |
 | gap takeoff→carry | 1 (a04) | 0 | 1 |
 | carry | 0 | 2 (s5 t05, s23 t06) | 2 |
@@ -302,8 +304,8 @@ whether they do is the ok/fail line:
   takeoff, the fruit lifted 29 mm) releases in the untraced takeoff→carry gap; a07 (risen 5.2 mm)
   releases at the probe's end (t=78.20).
 * **The carried class (7)**: clean holds, the probe lifts the fruit (+8.8…+17.8), the payload
-  holds through probe/takeoff, and the loss is the carry/place (5 in the carry — including s23
-  t01, whose 1242.6 mm displacement lands in the takeoff→carry gap — and 2 at the place).
+  holds through probe/takeoff, and the loss is the carry/place — 4 in the carry, 1 in the
+  takeoff→carry gap (s23 t01, the 1 242.6 mm displacement), 2 at the place.
 
 ### 3.5 The re-seat brackets (the F1 test)
 
@@ -386,13 +388,14 @@ force, contacts). Their shapes, per class:
   the close-start offset 10.7–14.8 vs 8.8–15.5 mm) — consistent with the design's §1.2: the
   actuator is dynamic (the load vs the margin), not a static row.
 * **The probe → the probe's shape: the secondary (co-selected for the completion).** 2/5 B1s
-  (a13, strawberry) and 1/3 B2s (a07) complete at the probe's lift/end; the probe's lift is a
-  genuine grip test (the fruit never rises on any B1). But a failed first probe also occurs on 5
-  ok attempts that recovered via a re-seat — the probe's shape acts on an already-marginal grip.
+  (a13, strawberry — their walks start in the probe's lift and complete across the next window)
+  and 1/3 B2s (a07 — at the probe's end); the probe's lift is a genuine grip test (the fruit
+  never rises on any B1). But a failed first probe also occurs on 5 ok attempts that recovered via
+  a re-seat — the probe's shape acts on an already-marginal grip.
 * **The belt-break/takeoff → the takeoff path: the B2 minority only (2/3: a02, a04)** — and note
   a04's release is in the *untraced takeoff→carry gap*, not in the takeoff itself.
-* **The carry → the carry family: the carried class (5/7 in the carry, 2/7 at the place)** — a
-  different failure (the W8-B carry escape), not the no-grasp class.
+* **The carry → the carry family: the carried class (4/7 in the carry, 1/7 in the takeoff→carry
+  gap, 2/7 at the place)** — a different failure (the W8-B carry escape), not the no-grasp class.
 
 **The honest form: the data cannot select a single phase for the no-grasp class — it is
 heterogeneous (3 hold-walk B1s + 2 probe-walk B1s + 3 B2s) — but it selects the pre-lift family
@@ -409,8 +412,9 @@ actuators (that is an A/B, and C1's own scripted battery read 12/20 vs 13/18 —
 * **F2 (the close is not a geometry these rows can see): PARTIAL.** The close-phase distributions
   overlap (as F2 says) and the separation is dynamic; but the "the first-departure phases are the
   same" clause does not obtain (the fails' hold/probe-1 dominance vs the oks' mostly no crossing).
-* **F3 (the probe owns it): PARTIAL.** 3/8 no-grasp complete at the probe's lift/end, but 3/5
-  B1s' losses precede the probe and ok first probes also fail to lift (5 recovered via re-seat).
+* **F3 (the probe owns it): PARTIAL.** 4/8 no-grasp first depart in the probe's lift (2 completing
+  at the probe's end, 2 across the next window), but 3/5 B1s' losses precede the probe and ok
+  first probes also fail to lift (5 recovered via re-seat).
 * **F4 (the belt-break owns the B2): PARTIAL.** 2/3 B2s (a02 takeoff walk, a04 the gap); a07's
   B2 loss is at the probe's end.
 * **F5 (the analysis fails): NOT OBTAINED.** The ok population's drift is small (≤ 27.2 mm vs
@@ -447,7 +451,7 @@ band's upper tail is ~7 mm wider (27.2 vs 20.5 — the mass base's hold walk), a
 tail is ~50× longer (the a06 tomato's 95 403.7 mm blow-up; W5-C's max 1 992). Per the design's
 §2.9/§1.6, quote each corpus's own range, not the other's. (3) **The onsets differ in mix**: the
 W5-C corpus's 15 fails onset hold 1 / takeoff 4 / probe 4 / carry 6 (the dense W3 sheet's carry
-escapes dominate), while the new corpus's 15 onset hold 2 / probe-1 8 / takeoff 2 / gap 1 /
+escapes dominate), while the new corpus's 15 onset hold 2 / probe-1 7 / takeoff 2 / gap 1 /
 carry 2 / none 1 — the mass base's class is the grip loss (early onsets), the W5-C corpus's the
 carry escape. **The scenarios differ**: the W3 dense sheet + the W5-C screen configs + the
 pre-W7-A tree vs the W6-A patch sheet + `FRUIT_PHYSICS_REAL_MASS=1` + the shipped tree (the
@@ -468,7 +472,7 @@ W7-A park gate on). The analysis transfers; the numbers do not.
    unmeasured.
 4. **The reference choice.** `ref` = the last hold row understates the pre-reference walk; the
    hold column (measured from the freeze) catches it. The 2 mm threshold is not a separator by
-   itself (it fires on 12 ok attempts and 5 carried); the separation is the magnitude.
+   itself (it fires on 12 ok attempts and 6 carried); the separation is the magnitude.
 5. **One scenario, one tree.** The patch sheet + real-mass physics at the shipped tree; a moved
    branch would still keep the within-run ok-vs-fail comparison valid (both classes measured by
    the same instrumentation), but no cross-run rate is quoted here. The trace was run-neutral on

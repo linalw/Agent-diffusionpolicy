@@ -23,14 +23,15 @@ rows pair per arm by rank).
 **2. The separation (the design's metric: the payload's hand-frame drift from the last `hold`
 row).** Total per attempt: **ok 0.0–27.2 mm (n=45, median 1.5; 21 exceed 2 mm) vs no-grasp
 294.8–95 403.7 mm (n=8, median 1 506)** — disjoint (the B1s 1 458–95 404, the B2s 294.8–344.8);
-the **carried** class 3.4–1 407.3 mm overlaps both (its loss is the W8-B carry/place escape: 5/7
-release in the carry, 2/7 at the place). The W5-C claim (0–20.5 vs 313.2–1 992.0 mm) reproduces
-with the bands shifted by scenario (the ok band +7 mm — the mass base's hold walk; the fail tail
-50× longer — the a06 tomato's blow-up). The **hold walk** (the drift change across the 0.4 s
-hold, from the freeze): ok ≤ 12.8 mm (median 0.2) vs the three hold-walk B1s 31.9/38.1/54.8 mm —
-the class's first observable divergence, at a >2.5× margin, separating 3/8 no-grasp. The
-**probe-1 lift** (the fruit's z rise over the first probe cycle — a grip test, not a 6 mm command:
-the aim tracks the fruit's live position + a 6 mm ramp, so a gripped fruit rides the feedback up):
+the **carried** class 3.4–1 407.3 mm overlaps both (its loss is the W8-B carry/place escape: 4/7
+release in the carry, 1/7 in the takeoff→carry gap, 2/7 at the place). The W5-C claim (0–20.5 vs
+313.2–1 992.0 mm) reproduces with the bands shifted by scenario (the ok band +7 mm — the mass
+base's hold walk; the fail tail 50× longer — the a06 tomato's blow-up). The **hold walk** (the
+drift change across the 0.4 s hold, from the freeze): ok ≤ 12.8 mm (median 0.2) vs the three
+hold-walk B1s 31.9/38.1/54.8 mm — the class's first observable divergence, at a >2.5× margin,
+separating 3/8 no-grasp. The **probe-1 lift** (the fruit's z rise over the first probe cycle — a
+grip test, not a 6 mm command: the aim tracks the fruit's live position + a 6 mm ramp, so a
+gripped fruit rides the feedback up):
 the no-grasp B1s −1.2…+0.9 mm (the fruit never rises), the B2s +5.2…+7.8 and the carried
 +8.8…+17.8 (held through the probe), the oks −0.4…+67.5 (median 8.4) — but 5 ok first probes also
 read ≤ 2.5 mm and recovered via a re-seat (the 2–3-block oks), so a failed first probe is not
@@ -52,7 +53,7 @@ with the probe's lift, the pads pry to their 98–99 mm limit with force spikes 
 payload walks out, releasing across the next re-seat window; **the B2s** — clean holds, the fruit
 rises (+5.2…+7.8 mm), the loss later (a02 takeoff walk→carry release; a04 the takeoff→carry gap;
 a07 the probe's end). The **carried** class holds through probe/takeoff and loses in the carry
-(5/7) or at the place (2/7).
+(4/7), the takeoff→carry gap (1/7), or at the place (2/7).
 
 **4. The re-seat verdict (F1).** **No re-seat window ever released a payload that was held
 (≤ 2 mm, two-sided, ~4 N) at its near edge.** The three hold-walk B1s' payloads were gone before
@@ -69,9 +70,10 @@ window's own per-tick rows exist, a 4-line `src/` addition). New finding: **the 
 **5. The falsifiers and the branch selection.** F1 confirmed; F2 partial (the close-phase summary
 geometry overlaps — the freeze `sep−gap_cmd` 4.5–13.3 vs ok −0.0–14.7 mm, the close-start offset
 10.7–14.8 vs 8.8–15.5 — but the first-departure phases are not the same; the separation is
-dynamic, not a static close row); F3 partial (3/8 no-grasp complete at the probe's lift/end, but
-3/5 B1s' losses precede the probe and ok first probes also fail to lift); F4 partial (2/3 B2s
-takeoff/gap, a07 probe-end); F5 not obtained (the ok drift is small, the NG population is the
+dynamic, not a static close row); F3 partial (4/8 no-grasp first depart in the probe's lift — 2
+completing at the probe's end, 2 across the next window — but 3/5 B1s' losses precede the probe
+and ok first probes also fail to lift); F4 partial (2/3 B2s takeoff/gap, a07 probe-end); F5 not
+obtained (the ok drift is small, the NG population is the
 mass base's own). **The data selects the pre-lift family over the re-seat branch — the close/hold
 capture transient for the B1 majority's initiation, the probe's shape as the secondary — i.e. per
 the pre-registered mapping the close-side family (`FRUIT_CLOSE_LOAD_RATE` first, the squeeze-side
@@ -82,15 +84,19 @@ localizes; it cannot pick among the close-side actuators (C1's own scripted batt
 
 **6. The W5-C comparison.** Same analysis, same metric: the separator and the no-grasp
 disjointness reproduce (the new 294.8–95 403.7 vs the W5-C 313.2–1 992.0); the onsets differ in
-mix (the new: hold 2 / probe-1 8 / takeoff 2 / gap 1 / carry 2 / none 1 across all 15 fails —
+mix (the new: hold 2 / probe-1 7 / takeoff 2 / gap 1 / carry 2 / none 1 across all 15 fails —
 the mass base's class is the grip loss; the W5-C: hold 1 / takeoff 4 / probe 4 / carry 6 — the
 dense W3 sheet's carry escapes). The scenarios differ (the W6-A patch sheet + real-mass + the
 shipped tree incl. the W7-A park gate vs the W3 dense sheet + the W5-C screens + the pre-W7-A
 tree): the analysis transfers, the numbers do not.
 
-**7. Deliverables (uncommitted, all under `logs/p14b/`).** `TRACE_RESULTS.md` (the report: the
+**7. Deliverables (all under `logs/p14b/`).** `TRACE_RESULTS.md` (the report: the
 pairing verification, the 60-row master table, the separation, the histograms, the re-seat
 brackets, the mechanism, the verdict, the W5-C comparison, the limits); `trace_p14b_analysis.py` →
 `trace_p14b_tables.txt` (the full tables); `master_table.md`; `curves/<seed>_trace_NN_*.csv` (the
-60 per-row drift curves). **No-harm:** no tree change at all (read-only lane; the single-arm
-default untouched; the three runs' own no-harm is the byte-identical `[fruit]` replay above).
+60 per-row drift curves). Note: the parent lane's checkpoint commit `63cc957` captured
+pre-correction versions of the two markdown files (a few count slips: the untraced-window count,
+the probe-1 histogram total, the carried split, the ok-release count); the corrected counts in the
+current working tree are uncommitted. **No-harm:** no tree change at all (read-only lane; the
+single-arm default untouched; the three runs' own no-harm is the byte-identical `[fruit]` replay
+above).
