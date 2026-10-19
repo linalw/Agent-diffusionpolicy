@@ -282,7 +282,7 @@ carries: `phase, t` (sim s), `fruit[x,y,z], jaw[x,y,z], tip[x,y,z]` (tip = jaw +
 | `handover` | 1 row, direct path only (`6465`) | not on the scripted line |
 
 **The re-seat window has no rows** (the gap in §1.6): a failed-probe cycle's trace is
-`takeoff_probe × 60` → (untraced re-seat: 40-tick descent + optional 105-tick from-open close +
+`takeoff_probe × 60` → (untraced re-seat: 40-tick descent + the from-open close adds 24+60 = 84 ticks (tasks.py:8750-8754; defaults 7421-7422); the shipped window measures 0.842 s (~101 ticks) between probe rows +
 60-tick ratchet) → `takeoff_probe × 60` → … So a B1 attempt's file shows 3 probe blocks and 2
 untraced windows; a B2 attempt's 1 block and none.
 
@@ -516,3 +516,15 @@ sed -n '6622p' src/fruit_sorting/tasks.py                          # FRUIT_ACQ_D
 diff <(grep "\[fruit\]" logs/w5/20_dense_mech_trace.log) <(grep "\[fruit\]" logs/w4/20_dense_repeat.log) | grep -c '^>'
 # -> 0: the trace-on dense two-line run is a superset of the trace-off record
 ```
+
+
+## Amendment (2026-10-19, the Oracle gate)
+
+- §1.5's per-config ok ranges corrected to the reproducible values (cfg1 0.0-1.5, cfg2 0.0-1.6,
+  cfg3 0.0-20.3; the metric = the per-attempt max of the four post-hold phase drifts).
+- §2.5's cycle-split rule: the same-phase probe blocks MERGE in the rows list (the untraced
+  window emits no rows) - split cycles at the t-gaps (~0.84 s) or in 60-row blocks before the
+  per-cycle readouts.
+- The pre-registration deviation: the run launched in the 3-seed form (one of §2.3's named
+  forms, not its "1 primary + 1 repeat" recommendation) without a frozen prereg document; the
+  results must record the pick + the deviation + the seed-11 A/B vs logs/p12a2/10_seed11_mass.log.

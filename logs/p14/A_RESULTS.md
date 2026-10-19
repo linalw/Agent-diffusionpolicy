@@ -4,17 +4,24 @@
 
 | block | the P13 tree (a4de9cb1) | the pre/reverted tree (89000266) |
 | --- | --- | --- |
-| the P13 no-harm block (sequential, the P13 first) | 20 %, 20 %, 40 % | 80 %, 60 %, 70 % |
+| the P13 no-harm block (interleaved P13->pre; the P13 tree first in every pair) | 20 %, 20 %, 40 % | 80 %, 60 %, 70 % |
 | the P14-A alternating block (P13, pre, P13, pre) | **50 %, 40 %** | **40 %, 70 %** |
-| **pooled (5 each)** | {20, 20, 40, 40, 50} mean 34 % | {40, 60, 70, 70, 80} mean 64 % |
+| **pooled (5 each)** | {20, 20, 40, 40, 50} mean 34 % | {40, 60, 70, 70, 80} mean 64 % (excluding the raced sample 76: {40,60,70,80} mean 62.5 %, direction unchanged) |
 
-**The verdict: not established.** (a) The alternating pairs disagree in direction (pair 1
-P13 50 vs pre 40; pair 2 P13 40 vs pre 70) - the time-adjacent comparison shows no consistent
-tree effect; (b) the pooled ranges overlap (the P13's 40-50 vs the pre's 40); (c) the code is
-proven forward-bit-identical (the moe_v12 forward md5 equal through both model.py versions;
-the finetune/111 outside the canary's import graph). The earlier 3-vs-3 "20-40 % vs 60-80 %"
-separation was (at least partly) the run-state/time ordering - the P13's runs clustered in
-one period, the pre's in another.
+**The verdict: not a code effect; the sample difference is NOT dissolved.** (a) Within the
+new block the two pairs disagree (50 vs 40; 40 vs 70; n=2 - underpowered), but across all five
+time-adjacent pairs the pre tree is higher **4/5** (sign p = 0.375, n=5); (b) **the pooled
+5-vs-5 still separates**: P13 {20,20,40,40,50} mean 34 % vs pre {40,60,70,70,80} mean 64 %
+(exact Mann-Whitney U = 23/25, **one-sided p = 0.0159**, two-sided p = 0.0317; robust to
+dropping sample 76, one-sided p = 0.0317) - so "not established" holds for the **code
+attribution**, not for the sample difference; (c) the code is proven forward-bit-identical
+(the moe_v12 forward md5 equal through both model.py versions; the finetune/111 outside the
+canary's import graph). **The P13-block runs were themselves interleaved** (P13 at
+03:25/08:34/09:31 vs pre at 05:43/08:54/10:15; the drivers 93-98), so the separation is NOT a
+time-clustering artifact; **the structural confound is that the P13 tree ran first in every
+pair (never counterbalanced)**, and the recorded state candidates are sample 71 running ~5 min
+after the N=5 battery (03:20 -> 03:25) vs 72 after ~2 h idle, and sample 76 overlapping the
+aborted first chain's orphan sim (10:18-10:29; the deepwork INCIDENT) - neither tested.
 
 **The instrument reading**: the hybrid canary spans **20-80 % across 10 runs** at the same
 scenario/env - a high-variance instrument; **a single canary run (or a small block) cannot
