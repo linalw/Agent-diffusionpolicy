@@ -1,0 +1,665 @@
+diff --git a/src/fruit_sorting/rl_env.py b/src/fruit_sorting/rl_env.py
+index 9d66dc7..8ea11f9 100644
+--- a/src/fruit_sorting/rl_env.py
++++ b/src/fruit_sorting/rl_env.py
+@@ -268,7 +268,7 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
+ #: scopes are byte-inert. The collector manifest gains
+ #: `collection.carry_monitor` (the W7-C.1 `park_early` pattern; implementation
+ #: record `logs/p10c3/IMPLEMENTATION.md`).
+-TASKS_MD5 = "54f70584b07fa249418f1efe30f30af0"
++TASKS_MD5 = "3d88408dd5e82614dec7768faa17f77a"
+ 
+ #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
+ _REPO_ROOT = os.path.dirname(
+diff --git a/src/fruit_sorting/tasks.py b/src/fruit_sorting/tasks.py
+index 024295a..8320adb 100644
+--- a/src/fruit_sorting/tasks.py
++++ b/src/fruit_sorting/tasks.py
+@@ -639,6 +639,92 @@ class PickAndPlaceTask:
+         self._dynamic_arrive_diag = (
+             os.environ.get("FRUIT_DYNAMIC_ARRIVE_DIAG", "0") == "1"
+         )
++        #: P17-B H1 - the **hold/probe-1 slide gate + the bounded in-place
++        #: re-centre** (default off, dynamic-capture scoped;
++        #: `logs/p17/CAPTURE_LEVER_DESIGN.md` sections 2.3/4): the measured
++        #: no-grasp transient is the payload sliding relative to the hand at
++        #: ~belt speed through the hold (32-55 mm at 0.08-0.14 m/s with the
++        #: force still 3.4-15 N; `logs/p14b/TRACE_RESULTS.md`). With the gate
++        #: on, the hold and the first probe block monitor the payload's
++        #: hand-frame drift rate (the W8-B carry-diag recipe: the arm's TCP
++        #: quaternion + the pads' measured centre) and, when it exceeds
++        #: `FRUIT_DYNAMIC_SLIDE_GATE_MMPS` for
++        #: `FRUIT_DYNAMIC_SLIDE_GATE_TICKS` consecutive samples (the ok band is
++        #: ~10 mm/s, the B1s 80-140), latch a response: the arm's command drops
++        #: the `v * lead` feed-forward and re-centres on the payload's measured
++        #: centre, moving at most `FRUIT_DYNAMIC_SLIDE_GATE_STEP_MM` per tick,
++        #: for at most `FRUIT_DYNAMIC_SLIDE_GATE_MAX` responses per attempt; a
++        #: payload already beyond `FRUIT_DYNAMIC_SLIDE_GATE_WINDOW_MM` of
++        #: accumulated drift is left to the shipped line. The frozen gap, the
++        #: wrist orientation and the shipped closing-axis (x) handling are
++        #: untouched - the response moves the position target's belt-axis term
++        #: only. Off = the shipped hold/probe byte-for-byte (no reads, no
++        #: branches beyond one boolean).
++        self._slide_gate = os.environ.get("FRUIT_DYNAMIC_SLIDE_GATE", "0") == "1"
++        #: The over-band rate threshold [mm/s] (60 sits between the ok band's
++        #: ~10 and the B1s' 80-140).
++        self._slide_gate_mmps = max(
++            0.0, float(os.environ.get("FRUIT_DYNAMIC_SLIDE_GATE_MMPS", "60.0"))
++        )
++        #: Consecutive over-band samples before a response latches.
++        self._slide_gate_ticks = max(
++            1, int(os.environ.get("FRUIT_DYNAMIC_SLIDE_GATE_TICKS", "3"))
++        )
++        #: Bounded per-tick step of the re-centring move [mm].
++        self._slide_gate_step_mm = max(
++            0.0, float(os.environ.get("FRUIT_DYNAMIC_SLIDE_GATE_STEP_MM", "8.0"))
++        )
++        #: At most this many responses per attempt.
++        self._slide_gate_max = max(
++            0, int(os.environ.get("FRUIT_DYNAMIC_SLIDE_GATE_MAX", "2"))
++        )
++        #: Recovery window [mm]: accumulated hand-frame drift beyond which the
++        #: response does not fire (the payload is already out of the span).
++        self._slide_gate_window_mm = max(
++            0.0, float(os.environ.get("FRUIT_DYNAMIC_SLIDE_GATE_WINDOW_MM", "60.0"))
++        )
++        #: P17-B pure-reporting diag (`FRUIT_DYNAMIC_SLIDE_GATE_DIAG=1`, default
++        #: off): one `[slide]` row per response (the trigger tick/rate, the
++        #: applied step, the post-response rate - the arrest check) plus one
++        #: summary row per monitored phase (ticks, events, rate/drift maxima).
++        #: Off in every shipped run.
++        self._slide_gate_diag = (
++            os.environ.get("FRUIT_DYNAMIC_SLIDE_GATE_DIAG", "0") == "1"
++        )
++        #: P17-B H2 - the **freeze-side two-sided-load gate** (default off,
++        #: dynamic-capture scoped; `logs/p15/CLOSE_HOLD_DESIGN.md` section 2.2,
++        #: the P15's #3 straddle form): with the gate on, the close's freeze
++        #: commits only when *both* finger faces carry at least
++        #: `FRUIT_DYNAMIC_FREEZE_TWOSIDED_FORCE` for
++        #: `FRUIT_DYNAMIC_FREEZE_TWOSIDED_TICKS` consecutive ticks (a
++        #: two-sided, load-sustained contact) instead of the shipped first
++        #: sustained contact + span stall. The shipped criterion is the bounded
++        #: fallback: if it fires but the two-sided condition never obtains
++        #: within the close's horizon, the freeze commits at the shipped depth
++        #: (the withheld window still runs the close, so the fallback is a
++        #: near-shipped commit, not a new failure mode). Off = the shipped
++        #: freeze byte-for-byte.
++        self._freeze_twosided = (
++            os.environ.get("FRUIT_DYNAMIC_FREEZE_TWOSIDED", "0") == "1"
++        )
++        #: Per-face force floor of the two-sided condition [N] (the shipped
++        #: contact floor by default).
++        self._freeze_twosided_force = max(
++            0.0, float(os.environ.get("FRUIT_DYNAMIC_FREEZE_TWOSIDED_FORCE", "0.5"))
++        )
++        #: Consecutive two-sided ticks before the freeze commits.
++        self._freeze_twosided_ticks = max(
++            1, int(os.environ.get("FRUIT_DYNAMIC_FREEZE_TWOSIDED_TICKS", "3"))
++        )
++        #: P17-B pure-reporting diag (`FRUIT_DYNAMIC_FREEZE_TWOSIDED_DIAG=1`,
++        #: default off): one `[freeze2]` row per freeze commit (the commit
++        #: source, the freeze tick/depth/span, the per-face load split and the
++        #: two-sided run, plus the shipped-eligible record). Control-inclusive:
++        #: with the gate off it reports the shipped commit. Off in every
++        #: shipped run.
++        self._freeze_twosided_diag = (
++            os.environ.get("FRUIT_DYNAMIC_FREEZE_TWOSIDED_DIAG", "0") == "1"
++        )
+         #: P9-A ready-transit readout (`FRUIT_READY_DIAG=1`, default off):
+         #: pure phase-boundary reporting of the `go_ready` transit (per-stage
+         #: tick counts + residuals; the B2-calibration readout). No per-tick
+@@ -6807,6 +6893,26 @@ class PickAndPlaceTask:
+         # robot's-own-fingers path (`FRUIT_KINEMATIC_GRIPPER=0`) needs it defined too
+         # (it crashed with UnboundLocalError before this line existed, logs/423).
+         coherent = False
++        # ---- P17-B H1: the hold/probe-1 slide gate (default off) ---------- #
++        # `slide_on` is False unless the knob is set on a dynamic capture, so
++        # every line below is skipped on the shipped path (no reads, no
++        # branches taken beyond this one boolean); the book carries the
++        # per-attempt monitor/response state across both monitored phases
++        # (defined here because the hold runs inside the gripper block and the
++        # probe section below does not). Allocated only when the gate is armed.
++        slide_on = bool(self._slide_gate and dynamic_capture)
++        slide_book: dict | None = (
++            {
++                "ref": None, "prev": None, "rate": 0.0, "drift": 0.0,
++                "run": 0, "used": 0, "latched": False, "releasing": False,
++                "aim": None,
++                "trig_tick": 0, "trig_rate": 0.0, "trig_drift": 0.0,
++                "trig_step": 0.0, "phase": "hold", "ticks": 0, "events": 0,
++                "rate_max": 0.0, "drift_max": 0.0,
++            }
++            if slide_on
++            else None
++        )
+         if self.grippers[arm_name].enabled:
+             # Kinematic gripper: the pads are placed explicitly around the fruit, so
+             # there is nothing to align and nothing to estimate - this is the
+@@ -7766,6 +7872,9 @@ class PickAndPlaceTask:
+             contact_stall = float(
+                 os.environ.get("FRUIT_DYNAMIC_CONTACT_STALL", "0.00015")
+             )
++            #: P17-B H2 (default off; see the knob block in `__init__`): the
++            #: two-sided-load gate is only ever live on a dynamic capture.
++            two_sided_gate = bool(self._freeze_twosided and dynamic_capture)
+             for _close_attempt in range(close_attempts):
+                 last_cmd = grip_gap
+                 #: R11-B C1 delivered-command cursor: with the rate cap on, the
+@@ -7776,6 +7885,18 @@ class PickAndPlaceTask:
+                 cmd_prev = float(gap_open)
+                 freeze_cmd: float | None = None
+                 frozen_x: float | None = None
++                #: P17-B H2 per-close-attempt book: the two-sided run/faces for
++                #: the commit decision and the `[freeze2]` row. With the gate
++                #: off the dict is never read (one tiny allocation per close).
++                freeze2_book = {"run": 0, "run_max": 0, "face_l": 0.0, "face_r": 0.0}
++                #: P17-B H2 fallback state: the first shipped-criterion
++                #: (sustained contact + stall) tick/depth/span, committed at
++                #: the close's horizon when the two-sided condition never
++                #: obtains. With the gate off these stay None/0 and the block
++                #: below is skipped.
++                shipped_depth: float | None = None
++                shipped_tick: int | None = None
++                shipped_span = 0.0
+                 #: Set at the first close tick when `FRUIT_DYNAMIC_X_TRACK_LATCH`
+                 #: is on: True means the fruit was already walking at contact.
+                 walk_latched: bool | None = None
+@@ -8007,16 +8128,66 @@ class PickAndPlaceTask:
+                         else:
+                             contact_run = 0
+                         if contact_run >= contact_ticks:
+-                            freeze_cmd = float(cmd)
+-                            if acq_diag and "freeze_tick" not in acq_info:
+-                                acq_info["freeze_tick"] = int(_close_step)
+-                                acq_info["freeze_depth"] = float(freeze_cmd)
+-                            if verbose:
+-                                say(
+-                                    f"[task] dynamic close: sustained contact after "
+-                                    f"{_close_step + 1} ticks (force={force_now:.2f} N, "
+-                                    f"span={sep_meas * 1000:.1f} mm); freezing the "
+-                                    f"closing command at {freeze_cmd * 1000:.1f} mm"
++                            if two_sided_gate:
++                                # P17-B H2: withhold the commit - the two-sided
++                                # condition below owns it; the first sustained
++                                # contact is remembered as the bounded
++                                # fallback's depth (exactly what the shipped
++                                # criterion would have frozen).
++                                if shipped_depth is None:
++                                    shipped_depth = float(cmd)
++                                    shipped_tick = int(_close_step)
++                                    shipped_span = float(sep_meas)
++                            else:
++                                freeze_cmd = float(cmd)
++                                if acq_diag and "freeze_tick" not in acq_info:
++                                    acq_info["freeze_tick"] = int(_close_step)
++                                    acq_info["freeze_depth"] = float(freeze_cmd)
++                                if verbose:
++                                    say(
++                                        f"[task] dynamic close: sustained contact after "
++                                        f"{_close_step + 1} ticks (force={force_now:.2f} N, "
++                                        f"span={sep_meas * 1000:.1f} mm); freezing the "
++                                        f"closing command at {freeze_cmd * 1000:.1f} mm"
++                                    )
++                                self._freeze_twosided_report(
++                                    arm_name,
++                                    sample.index,
++                                    "shipped",
++                                    _close_step,
++                                    freeze_cmd,
++                                    sep_meas,
++                                    self._freeze2_split(reading),
++                                    0,
++                                    shipped_tick,
++                                    shipped_depth,
++                                )
++                        if two_sided_gate and freeze_cmd is None:
++                            # P17-B H2: the two-sided, load-sustained commit.
++                            if self._freeze2_step(freeze2_book, reading):
++                                freeze_cmd = float(cmd)
++                                if acq_diag and "freeze_tick" not in acq_info:
++                                    acq_info["freeze_tick"] = int(_close_step)
++                                    acq_info["freeze_depth"] = float(freeze_cmd)
++                                if verbose:
++                                    say(
++                                        f"[task] dynamic close: two-sided load "
++                                        f"({freeze2_book['face_l']:.2f}/"
++                                        f"{freeze2_book['face_r']:.2f} N) sustained for "
++                                        f"{freeze2_book['run']} ticks; freezing the "
++                                        f"closing command at {freeze_cmd * 1000:.1f} mm"
++                                    )
++                                self._freeze_twosided_report(
++                                    arm_name,
++                                    sample.index,
++                                    "straddle",
++                                    _close_step,
++                                    freeze_cmd,
++                                    sep_meas,
++                                    (freeze2_book["face_l"], freeze2_book["face_r"]),
++                                    freeze2_book["run"],
++                                    shipped_tick,
++                                    shipped_depth,
+                                 )
+                     last_cmd = cmd
+                     gripper.follow_centre(centre, close_quat, cmd)
+@@ -8035,6 +8206,37 @@ class PickAndPlaceTask:
+                             arm.gripper_value_for_separation(cmd),
+                         )
+                     )
++                if two_sided_gate and freeze_cmd is None and shipped_depth is not None:
++                    # P17-B H2 bounded fallback: the shipped criterion fired but
++                    # the two-sided condition never obtained within the close's
++                    # horizon -> commit at the shipped depth (the record the
++                    # shipped line would have frozen), so the fallback is a
++                    # near-shipped commit rather than a late/deep one. The
++                    # delivered command is pinned there for the bookkeeping the
++                    # hold reads (`grip_gap` below).
++                    freeze_cmd = float(shipped_depth)
++                    last_cmd = float(shipped_depth)
++                    if acq_diag and "freeze_tick" not in acq_info:
++                        acq_info["freeze_tick"] = int(shipped_tick)
++                        acq_info["freeze_depth"] = float(freeze_cmd)
++                    if verbose:
++                        say(
++                            f"[task] dynamic close: two-sided load never obtained "
++                            f"(run_max={freeze2_book['run_max']}); falling back to the "
++                            f"shipped freeze at {freeze_cmd * 1000:.1f} mm"
++                        )
++                    self._freeze_twosided_report(
++                        arm_name,
++                        sample.index,
++                        "fallback",
++                        shipped_tick,
++                        freeze_cmd,
++                        shipped_span,
++                        (freeze2_book["face_l"], freeze2_book["face_r"]),
++                        freeze2_book["run_max"],
++                        shipped_tick,
++                        shipped_depth,
++                    )
+                 if dynamic_capture:
+                     # The hold/carry re-commands the *recorded* gap every tick, so
+                     # it must be the gap actually closed with (the live clamp is
+@@ -8221,6 +8423,8 @@ class PickAndPlaceTask:
+                     f"fruit={np.round(self.spawner.position(sample), 4).tolist()} "
+                     f"pads={gripper.summary()}"
+                 )
++            # ---- P17-B H1: the hold phase of the slide gate (see the scope
++            # definitions above; the probe-1 phase below shares the book) ---- #
+             hold_ticks = int(
+                 os.environ.get("FRUIT_DYNAMIC_HOLD", "48")
+                 if dynamic_capture
+@@ -8260,21 +8464,35 @@ class PickAndPlaceTask:
+                         if self._close_contact_lead is not None
+                         else dynamic_lead_s
+                     )
+-                    arm.ik_step(
+-                        arm.tcp_target_for_jaw(
+-                            centre_now
+-                            + np.array([0.0, float(dynamic_v[1]) * lead_hold,
+-                                        self._pad_standoff(True, sample)])
+-                        )
++                    hold_aim = centre_now + np.array(
++                        [0.0, float(dynamic_v[1]) * lead_hold,
++                         self._pad_standoff(True, sample)]
+                     )
++                    if slide_on:
++                        # P17-B H1: with the gate latched the aim re-centres on
++                        # the payload's measured centre (the lead dropped) at
++                        # the bounded step; unlatched this is the shipped
++                        # target, byte-for-byte.
++                        hold_aim = self._slide_gate_target(
++                            slide_book,
++                            hold_aim,
++                            centre_now + np.array(
++                                [0.0, 0.0, self._pad_standoff(True, sample)]
++                            ),
++                        )
++                    arm.ik_step(arm.tcp_target_for_jaw(hold_aim))
+                 self._hold_with_gripper(arm_name, sample)
+                 self._step_sim(1)
+                 self._tick_frame()  # pure render; no-op unless recording
++                if slide_on:
++                    self._slide_gate_tick(arm_name, sample.index, slide_book, arm, sample)
+                 if _ % 2 == 0:
+                     self._dynamic_trace_sample(
+                         "hold", sample, arm, self.grippers[arm_name],
+                         float(self._closed_gap.get(arm_name) or grip_gap),
+                     )
++            if slide_on:
++                self._slide_gate_end_phase(arm_name, sample.index, slide_book)
+             if verbose:
+                 say(
+                     f"[task] kinematic grip closed to {grip_gap * 100:.2f}cm "
+@@ -8697,6 +8915,11 @@ class PickAndPlaceTask:
+                     z_ramp = min_jerk_ramp(0.0, probe_lift, probe_ticks)
+                     squeeze_ticks = max(1, int(round(squeeze_s / CONTROL_DT)))
+                     squeeze_gap = float(grip_gap)
++                    if slide_on and _regrasp == 0:
++                        # P17-B H1: the first probe block is the monitored span's
++                        # second phase (per-phase counters reset; the attempt's
++                        # drift reference and response budget carry over).
++                        self._slide_gate_begin_phase(slide_book, "probe1")
+                     for _probe in range(probe_ticks):
+                         fruit_now = np.asarray(self.spawner.position(sample), dtype=float)
+                         dynamic_v = np.asarray(self.spawner.velocity(sample), dtype=float)
+@@ -8719,24 +8942,39 @@ class PickAndPlaceTask:
+                                 takeoff_x = float(fruit_now[0])
+                             probe_aim = fruit_now.copy()
+                             probe_aim[0] = takeoff_x
+-                        arm.ik_step(
+-                            arm.tcp_target_for_jaw(
+-                                probe_aim
+-                                + np.array(
++                        probe_target = probe_aim + np.array(
++                            [
++                                0.0,
++                                float(dynamic_v[1]) * lead_s,
++                                self._pad_standoff(True, sample) + float(z_ramp[_probe]),
++                            ]
++                        )
++                        if slide_on and _regrasp == 0:
++                            # P17-B H1: the same bounded re-centring as the hold
++                            # (the lead dropped; the x-pin above is kept).
++                            probe_target = self._slide_gate_target(
++                                slide_book,
++                                probe_target,
++                                probe_aim + np.array(
+                                     [
+                                         0.0,
+-                                        float(dynamic_v[1]) * lead_s,
+-                                        self._pad_standoff(True, sample) + float(z_ramp[_probe]),
++                                        0.0,
++                                        self._pad_standoff(True, sample)
++                                        + float(z_ramp[_probe]),
+                                     ]
+-                                )
++                                ),
+                             )
+-                        )
++                        arm.ik_step(arm.tcp_target_for_jaw(probe_target))
+                         self.grippers[arm_name].follow_centre(
+                             fruit_now,
+                             np.asarray(arm.tcp_pose()[1], dtype=float),
+                             float(squeeze_gap),
+                         )
+                         self._step_sim(1)
++                        if slide_on and _regrasp == 0:
++                            self._slide_gate_tick(
++                                arm_name, sample.index, slide_book, arm, sample
++                            )
+                         if self._dynamic_peak_z is not None:
+                             self._dynamic_peak_z = max(
+                                 self._dynamic_peak_z,
+@@ -8745,6 +8983,8 @@ class PickAndPlaceTask:
+                         self._dynamic_trace_sample(
+                             "takeoff_probe", sample, arm, gripper, float(squeeze_gap)
+                         )
++                    if slide_on and _regrasp == 0:
++                        self._slide_gate_end_phase(arm_name, sample.index, slide_book)
+                     # The carry and the release re-command `_closed_gap`; it has
+                     # to be the depth the pads were actually left at, or they
+                     # open the 1 mm squeeze again at the take-off and the grip
+@@ -10126,6 +10366,263 @@ class PickAndPlaceTask:
+             gap = float(np.linalg.norm(residual))
+         return start_gap, gap, ticks, residual
+ 
++    # ------------------------------------------------------------------ #
++    # P17-B: the capture-side levers (H1 the hold/probe-1 slide gate + the
++    # bounded in-place re-centre; H2 the freeze-side two-sided-load gate).
++    # Both default off and dynamic-capture scoped; see the knob block in
++    # `__init__` and `logs/p17/CAPTURE_LEVER_DESIGN.md` section 4.
++    # ------------------------------------------------------------------ #
++    def _slide_gate_observe(self, book: dict, rel_world, rel_frame) -> str | None:
++        """P17-B H1 monitor: one hand-frame drift sample (post-step).
++
++        `rel_world` is the payload's centre minus the pads' measured centre
++        (world frame) and `rel_frame` the same vector in the hand frame - the
++        W8-B carry-diag recipe (`rot.T @ (fruit - pads)` with the arm's TCP
++        quaternion), reused for the hold/probe-1 window the P14-B trace
++        localized. The first sample sets the references; later samples update
++        the drift *rate* (the per-tick change of `rel_world` over
++        `CONTROL_DT`) and the accumulated hand-frame drift (against the first
++        sample). Returns `"trigger"` when the over-band run reaches
++        `FRUIT_DYNAMIC_SLIDE_GATE_TICKS` while inside the recovery window and
++        the response budget (the caller's response then latches) and
++        `"release"` when a latched response's rate falls back under the band
++        (the arrest); otherwise `None`. Pure bookkeeping - the caller owns the
++        reads and the rows.
++        """
++        rel_world = np.asarray(rel_world, dtype=float)
++        rel_frame = np.asarray(rel_frame, dtype=float)
++        book["ticks"] = int(book["ticks"]) + 1
++        if book["ref"] is None:
++            book["ref"] = rel_frame.copy()
++            book["prev"] = rel_world.copy()
++            book["rate"] = 0.0
++            book["drift"] = 0.0
++            return None
++        book["rate"] = float(np.linalg.norm(rel_world - book["prev"])) / CONTROL_DT
++        book["prev"] = rel_world.copy()
++        book["drift"] = float(np.linalg.norm(rel_frame - book["ref"]))
++        book["rate_max"] = max(float(book["rate_max"]), float(book["rate"]))
++        book["drift_max"] = max(float(book["drift_max"]), float(book["drift"]))
++        band = self._slide_gate_mmps / 1000.0
++        if book["latched"]:
++            if book["rate"] < band:
++                # The arrest: release. The aim walks back to the shipped
++                # target at the same bounded step (the `_slide_gate_target`
++                # `releasing` state), so neither edge of the response is a
++                # single-tick command jump.
++                book["latched"] = False
++                book["releasing"] = True
++                return "release"
++            return None
++        if book["rate"] >= band:
++            book["run"] = int(book["run"]) + 1
++        else:
++            book["run"] = 0
++        if (
++            int(book["run"]) >= self._slide_gate_ticks
++            and int(book["used"]) < self._slide_gate_max
++            and book["drift"] <= self._slide_gate_window_mm / 1000.0
++        ):
++            book["latched"] = True
++            book["releasing"] = False
++            book["used"] = int(book["used"]) + 1
++            book["events"] = int(book["events"]) + 1
++            book["run"] = 0
++            book["trig_tick"] = int(book["ticks"])
++            book["trig_rate"] = float(book["rate"])
++            book["trig_drift"] = float(book["drift"])
++            book["trig_step"] = 0.0
++            return "trigger"
++        return None
++
++    def _slide_gate_target(self, book: dict, target, recentre) -> np.ndarray:
++        """P17-B H1 command: the jaw target under the slide gate.
++
++        Unlatched (or with the gate off - the helper is then never called) the
++        shipped `target` passes through unchanged. Latched, the aim moves from
++        the previously commanded target toward `recentre` - the payload's
++        measured centre with the `v * lead` feed-forward dropped - by at most
++        `FRUIT_DYNAMIC_SLIDE_GATE_STEP_MM` per tick, so the re-centring is a
++        bounded move and never a step. After the release the aim walks back to
++        the shipped target under the same step bound (the `releasing` state),
++        so neither edge of the response is a single-tick command jump. The
++        frozen gap and the wrist orientation are not part of the target and
++        are untouched. The first latched tick's applied step is recorded for
++        the `[slide]` row.
++        """
++        aim = np.asarray(target, dtype=float)
++        step = self._slide_gate_step_mm / 1000.0
++        if book["latched"] and book["aim"] is not None:
++            prev = np.asarray(book["aim"], dtype=float)
++            delta = np.asarray(recentre, dtype=float) - prev
++            norm = float(np.linalg.norm(delta))
++            if norm > step:
++                delta = delta * (step / norm)
++            aim = prev + delta
++            book["releasing"] = False
++            if float(book["trig_step"]) <= 0.0:
++                book["trig_step"] = float(np.linalg.norm(aim - prev))
++        elif book["releasing"] and book["aim"] is not None:
++            prev = np.asarray(book["aim"], dtype=float)
++            delta = np.asarray(target, dtype=float) - prev
++            norm = float(np.linalg.norm(delta))
++            if norm > step:
++                delta = delta * (step / norm)
++            aim = prev + delta
++            if float(np.linalg.norm(aim - np.asarray(target, dtype=float))) <= 1e-12:
++                book["releasing"] = False
++        else:
++            book["releasing"] = False
++        book["aim"] = aim.copy()
++        return aim
++
++    def _slide_gate_report(self, arm_name: str, index: int, book: dict, released: bool) -> None:
++        """P17-B H1 row (diag-gated): one response event.
++
++        Printed at the response's end - the release (the arrest) or the
++        monitored phase's end while still latched - with the trigger tick and
++        rate, the drift at the trigger, the first applied step and the
++        post-response rate (the arrest check).
++        """
++        if not self._slide_gate_diag:
++            return
++        say(
++            f"[slide] {arm_name} idx={index} {book['phase']} "
++            f"response={int(book['used'])}/{self._slide_gate_max} "
++            f"trig@{int(book['trig_tick'])} "
++            f"rate={float(book['trig_rate']) * 1000:.1f}mm/s "
++            f"drift={float(book['trig_drift']) * 1000:.1f}mm "
++            f"step={float(book['trig_step']) * 1000:.1f}mm "
++            f"post={float(book['rate']) * 1000:.1f}mm/s "
++            f"end={'release' if released else 'phase'}"
++        )
++
++    def _slide_gate_summary(self, arm_name: str, index: int, book: dict) -> None:
++        """P17-B H1 row (diag-gated): one monitored phase's summary."""
++        if not self._slide_gate_diag:
++            return
++        say(
++            f"[slide] {arm_name} idx={index} {book['phase']} summary "
++            f"ticks={int(book['ticks'])} events={int(book['events'])} "
++            f"rate_max={float(book['rate_max']) * 1000:.1f}mm/s "
++            f"drift_max={float(book['drift_max']) * 1000:.1f}mm"
++        )
++
++    def _slide_gate_begin_phase(self, book: dict, phase: str) -> None:
++        """P17-B H1: reset the per-phase counters.
++
++        The attempt's drift reference and response budget carry across the
++        hold -> probe-1 span; only the reporting counters reset.
++        """
++        book["phase"] = phase
++        book["ticks"] = 0
++        book["events"] = 0
++        book["rate_max"] = 0.0
++        book["drift_max"] = 0.0
++
++    def _slide_gate_end_phase(self, arm_name: str, index: int, book: dict) -> None:
++        """P17-B H1: close a monitored phase.
++
++        A still-latched response is reported (`end=phase`) and released; the
++        phase summary follows.
++        """
++        if book["latched"]:
++            self._slide_gate_report(arm_name, index, book, False)
++            book["latched"] = False
++        self._slide_gate_summary(arm_name, index, book)
++
++    def _slide_gate_tick(self, arm_name: str, index: int, book: dict, arm, sample) -> None:
++        """P17-B H1 post-step monitor glue: the reads + the observe call.
++
++        The carry diag's recipe, both post-step: the wrist quaternion from the
++        arm's TCP pose and the pads' measured centre (`pad_centre()`).
++        """
++        rot_now = _quat_matrix(np.asarray(arm.tcp_pose()[1], dtype=float))
++        pads_now = np.asarray(self.grippers[arm_name].pad_centre(), dtype=float)
++        fruit_now = np.asarray(self.spawner.position(sample), dtype=float)
++        rel_world = fruit_now - pads_now
++        if self._slide_gate_observe(book, rel_world, rot_now.T @ rel_world) == "release":
++            self._slide_gate_report(arm_name, index, book, True)
++
++    def _freeze2_split(self, reading) -> tuple[float, float]:
++        """P17-B H2: the per-face contact force [N] (left face, right face).
++
++        The tactile dict is keyed `<side>_<i>`; the shipped OpenArm hand
++        carries the two finger links as `_0`/`_1`, and the opt-in D2 soft pads
++        append `_2`/`_3` for the same two faces, so `i % 2` groups the
++        sensors by face (0 = the left finger face, 1 = the right). Empty or
++        malformed keys read zero.
++        """
++        left = 0.0
++        right = 0.0
++        for key, value in (getattr(reading, "fingertip_forces", None) or {}).items():
++            try:
++                face = int(str(key).rsplit("_", 1)[1]) % 2
++            except (IndexError, ValueError):
++                continue
++            force = float(value)
++            if face == 0:
++                left = max(left, force)
++            else:
++                right = max(right, force)
++        return left, right
++
++    def _freeze2_step(self, book: dict, reading) -> bool:
++        """P17-B H2: one close-tick two-sided-load sample.
++
++        Updates the per-close-attempt book (the running two-sided run, its max
++        and the per-face maxima for the row) and returns True when both faces
++        have carried at least `FRUIT_DYNAMIC_FREEZE_TWOSIDED_FORCE` for
++        `FRUIT_DYNAMIC_FREEZE_TWOSIDED_TICKS` consecutive ticks - the
++        load-sustained straddle the freeze commits on.
++        """
++        left, right = self._freeze2_split(reading)
++        book["face_l"] = max(float(book["face_l"]), left)
++        book["face_r"] = max(float(book["face_r"]), right)
++        if left >= self._freeze_twosided_force and right >= self._freeze_twosided_force:
++            book["run"] = int(book["run"]) + 1
++        else:
++            book["run"] = 0
++        book["run_max"] = max(int(book["run_max"]), int(book["run"]))
++        return int(book["run"]) >= self._freeze_twosided_ticks
++
++    def _freeze_twosided_report(
++        self,
++        arm_name: str,
++        index: int,
++        commit: str,
++        tick,
++        depth,
++        span,
++        split: tuple[float, float],
++        run: int,
++        shipped_tick,
++        shipped_depth,
++    ) -> None:
++        """P17-B H2 row (diag-gated): one freeze commit.
++
++        `commit` is `shipped` (the gate off, or the shipped path), `straddle`
++        (the two-sided commit) or `fallback` (the shipped criterion applied at
++        the close's horizon because the two-sided condition never obtained).
++        `ship=` carries the shipped-eligible record; `none` when the shipped
++        criterion never fired before a straddle commit.
++        """
++        if not self._freeze_twosided_diag:
++            return
++        left, right = split
++        ship = (
++            "none"
++            if shipped_tick is None
++            else f"{int(shipped_tick)}t/{float(shipped_depth) * 1000:.1f}mm"
++        )
++        say(
++            f"[freeze2] {arm_name} idx={index} commit={commit} "
++            f"tick={int(tick)} depth={float(depth) * 1000:.1f}mm "
++            f"span={float(span) * 1000:.1f}mm "
++            f"ft=({float(left):.2f},{float(right):.2f})N run={int(run)} "
++            f"ship={ship}"
++        )
++
+     def _approach(self, arm, jaw_target, verbose: bool = False,
+                   v_max: float | None = None, a_max: float | None = None,
+                   arrive_tol: float = 0.0, arrive_max: int = 0,
