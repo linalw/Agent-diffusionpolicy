@@ -26,3 +26,26 @@ opt-in (the knob remains a bare env read; a two-line-scoped default would need i
 pre-registration per `logs/p12b2/C_DECISION.md`); the published record is the mechanism win +
 the carried trade; the next candidate is the **outcome-side residual - the carried class**
 (the three instances' common residue), or the decision is owner-gated.
+
+---
+
+### CORRECTION (2026-10-19; the P17-B Oracle gate + a re-verification)
+
+The control census in the table above (lines 11-12) is **wrong**: the on-disk mass base
+(`logs/p12a2/{10_seed11,11_seed5,12_seed23}_mass.log`) reads no-grasp **7/0/1** (not 7/3/3)
+and carried **2/3/2** (not 2/0/2). Re-verified from the unique `[run] attempt` rows:
+
+| class (11/5/23) | control (verified) | M2 (verified) | delta |
+| --- | --- | --- | --- |
+| no-grasp | **7/0/1 = 8** | 4/4/2 = 10 | **+2** |
+| carried | **2/3/2 = 7** | 4/6/2 = 12 | **+5** |
+| ok | 11/17/17 = 45 | 12/10/16 = 38 | **-7** |
+| total failures | **15** | **22** | **+7** |
+
+So the M2 **lost pooled mass on every class** - it was **not** a "conserved trade": the total
+failure count did not stay ~15 (15 -> 22), and the seed-5 carried moved **3 -> 6** (not 0 -> 6).
+**The "conserved quantity" sentence (lines 21-22) is withdrawn on this evidence.** The surviving
+readings are unchanged where they were measured on their own terms: the mechanism win (the hold
+walk collapse, the falls 10 -> 6) is real, the outcome side degraded, and the carried class grew
+under the lever. The same census error is corrected in `logs/p17/CAPTURE_LEVER_DESIGN.md` section
+1.3 (line 144).

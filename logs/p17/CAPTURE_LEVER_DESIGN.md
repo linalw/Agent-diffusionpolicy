@@ -141,9 +141,15 @@ committed traces/tables; the class rules are the P10-E/P14-B ones (B1 = 3 probe 
 ### 1.3 What the P15 already measured (the family that is no longer "untested")
 
 * **The mass base (the control, the scenario of record):** pooled **45/60** ok (s11 11 / s5 17 /
-  s23 17), the no-grasp **7/3/3**, the carried **2/0/2**, the falls **6 regular rows** (s11 3 +
-  s23 3) **+ 1 partial + 1 blowup** (the F6/P16 recount; the P15's own table reads the falls as
-  10 → 6 rows under its three-seed reporting convention); the pooled interval 14.29 s.
+  s23 17), the no-grasp **7/0/1** [**CORRECTED 2026-10-19**: this document first read 7/3/3], the
+  carried **2/3/2** [**CORRECTED**: first read 2/0/2] — verified from the on-disk logs
+  `logs/p12a2/{10_seed11,11_seed5,12_seed23}_mass.log` (the unique `[run] attempt` rows; see the
+  CORRECTION in `logs/p15/OUTCOME_RESULTS.md`; the same error is corrected there), the falls
+  **6 regular rows** (s11 3 + s23 3) **+ 1 partial + 1 blowup** (the F6/P16 recount; the P15's own
+  table reads the falls as 10 → 6 rows under its three-seed reporting convention); the pooled
+  interval 14.29 s. **Note (the corrected census):** the mass base's failures are **8 no-grasp +
+  7 carried** — the carried class is nearly half the failure mass, and the P15's M2 battery read
+  nc 8 → 10, carried 7 → 12 (a pooled loss on every class, not a conserved trade).
 * **M2 = `FRUIT_CLOSE_CONTACT_LEAD=0.10`** (the hold-window lead; the contact window = the close's
   load phase + the hold): the walk **collapsed** (ok band 0.0–0.2; the control's three hold-walk
   attempts' fruit read 0.0–2.5 mm; the no-grasp walk 0.0–31.6), the actuation read is the
