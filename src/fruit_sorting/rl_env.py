@@ -268,7 +268,7 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: scopes are byte-inert. The collector manifest gains
 #: `collection.carry_monitor` (the W7-C.1 `park_early` pattern; implementation
 #: record `logs/p10c3/IMPLEMENTATION.md`).
-TASKS_MD5 = "810658b802d22bbd63013726fc78af81"
+TASKS_MD5 = "54f70584b07fa249418f1efe30f30af0"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(

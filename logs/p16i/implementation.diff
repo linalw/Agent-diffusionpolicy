@@ -1,0 +1,239 @@
+diff --git a/src/fruit_sorting/rl_env.py b/src/fruit_sorting/rl_env.py
+index 571cbd6..9d66dc7 100644
+--- a/src/fruit_sorting/rl_env.py
++++ b/src/fruit_sorting/rl_env.py
+@@ -268,7 +268,7 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
+ #: scopes are byte-inert. The collector manifest gains
+ #: `collection.carry_monitor` (the W7-C.1 `park_early` pattern; implementation
+ #: record `logs/p10c3/IMPLEMENTATION.md`).
+-TASKS_MD5 = "810658b802d22bbd63013726fc78af81"
++TASKS_MD5 = "54f70584b07fa249418f1efe30f30af0"
+ 
+ #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
+ _REPO_ROOT = os.path.dirname(
+diff --git a/src/fruit_sorting/tasks.py b/src/fruit_sorting/tasks.py
+index 6819dd1..024295a 100644
+--- a/src/fruit_sorting/tasks.py
++++ b/src/fruit_sorting/tasks.py
+@@ -606,6 +606,39 @@ class PickAndPlaceTask:
+         self._reach_aim_point: tuple | None = None
+         #: Catch-up ticks used on the last dynamic attempt (diagnostics only).
+         self._reach_catchup_used = 0
++        #: P16 pick (a) - the **completed descent** (default off, dynamic-capture
++        #: scoped; `logs/p16/BOUNDARY_DESIGN.md` section 2.1): after the
++        #: jerk-limited descent profile, `_approach` re-commands the aim until
++        #: the measured TCP error is at or below this tolerance [m] or
++        #: `FRUIT_DYNAMIC_ARRIVE_MAX` ticks have run (see `_arrive_hold`), so the
++        #: post-descent solver (the catch-up) starts from the arrived pose. The
++        #: pre-registered design values are `FRUIT_DYNAMIC_ARRIVE_TOL=0.006` +
++        #: `FRUIT_DYNAMIC_ARRIVE_MAX=24` (the mass base's descent `end=`
++        #: shortfall is 8.1-15.3 mm, median 9.2). **0.0 = off = the shipped
++        #: profiled descent byte-for-byte** (both this and the max must be > 0
++        #: for the loop to run); only the moving catch's `_approach` call passes
++        #: these values, so every other approach and the whole knob-off tree are
++        #: untouched. The loop is upstream of the capture: a converted no-grasp
++        #: hands the *shipped* carry its payload, so this lever cannot trade by
++        #: construction (the P15 lesson).
++        self._dynamic_arrive_tol = max(
++            0.0, float(os.environ.get("FRUIT_DYNAMIC_ARRIVE_TOL", "0.0"))
++        )
++        #: Tick cap of the completed-descent arrival loop (P16 pick (a); 0 = off,
++        #: the shipped behavior - see `_dynamic_arrive_tol`).
++        self._dynamic_arrive_max = max(
++            0, int(os.environ.get("FRUIT_DYNAMIC_ARRIVE_MAX", "0"))
++        )
++        #: P16 pure-reporting diag (`FRUIT_DYNAMIC_ARRIVE_DIAG=1`, default off):
++        #: one `[arrive]` row per dynamic descent that ran the arrival loop (the
++        #: pre-arrival `end=` gap, the settled gap, the ticks used, the residual
++        #: direction) and one `[boundary]` row per dynamic descent (the `end=`
++        #: shortfall + the aim's reach-band margins at the fruit's measured x +
++        #: the finger-to-belt margin). Pure reads at phase boundaries, no
++        #: per-tick readback, no control effect; off in every shipped run.
++        self._dynamic_arrive_diag = (
++            os.environ.get("FRUIT_DYNAMIC_ARRIVE_DIAG", "0") == "1"
++        )
+         #: P9-A ready-transit readout (`FRUIT_READY_DIAG=1`, default off):
+         #: pure phase-boundary reporting of the `go_ready` transit (per-stage
+         #: tick counts + residuals; the B2-calibration readout). No per-tick
+@@ -7269,10 +7302,73 @@ class PickAndPlaceTask:
+                     skip_approach = direct_capture and (
+                         os.environ.get("FRUIT_DIRECT_SKIP_APPROACH", "1") == "1"
+                     )
++                    end_gap_m = None
++                    arrive_info = None
+                     if not skip_approach:
+                         arm.max_step = float(os.environ.get("FRUIT_APPROACH_STEP", "0.08"))
+-                        self._approach(arm, grip, verbose=verbose, v_max=dyn_v_max)
++                        # P16 pick (a): the completed descent - a bounded arrival
++                        # at the aim after the profile (default off: both knobs
++                        # 0 on every shipped path). Scoped to the dynamic
++                        # capture; the pre-grasp `_approach` call site passes no
++                        # values. `report_end` rides the diag so the `[boundary]`
++                        # row can carry the motion row's `end=` shortfall.
++                        end_gap_m, arrive_info = self._approach(
++                            arm,
++                            grip,
++                            verbose=verbose,
++                            v_max=dyn_v_max,
++                            arrive_tol=(
++                                self._dynamic_arrive_tol if dynamic_capture else 0.0
++                            ),
++                            arrive_max=(
++                                self._dynamic_arrive_max if dynamic_capture else 0
++                            ),
++                            report_end=bool(
++                                self._dynamic_arrive_diag and dynamic_capture
++                            ),
++                        )
+                     arm.max_step = previous_max_step
++                    if (
++                        self._dynamic_arrive_diag
++                        and dynamic_capture
++                        and not skip_approach
++                    ):
++                        # P16 pure reporting (default-off diag): the arrival
++                        # convergence and the per-attempt boundary state. `end=`
++                        # is the completed descent's residual - the same number
++                        # the motion row's `end=` reports; the reach margins are
++                        # the aim's station-relative y against the R10 band at
++                        # the fruit's measured x, and the belt margin is the
++                        # fingertip height (aim jaw z - the finger length) above
++                        # the belt top.
++                        if arrive_info is not None:
++                            _a_start, _a_gap, _a_ticks, _a_res = arrive_info
++                            say(
++                                f"[arrive] {arm_name} idx={int(sample.index)} "
++                                f"start={_a_start * 1000:.1f}mm "
++                                f"settled={_a_gap * 1000:.1f}mm "
++                                f"ticks={int(_a_ticks)} "
++                                f"dx={float(_a_res[0]) * 1000:+.1f}mm "
++                                f"dy={float(_a_res[1]) * 1000:+.1f}mm "
++                                f"dz={float(_a_res[2]) * 1000:+.1f}mm"
++                            )
++                        _fruit_now = np.asarray(
++                            self.spawner.position(sample), dtype=float
++                        )
++                        _band_dn, _band_up = self._reach_band_for(
++                            arm_name, float(_fruit_now[0])
++                        )
++                        _aim_rel = float(grip[1]) - float(station_y)
++                        _belt_margin = (
++                            float(grip[2]) - float(self.belt_top) - float(finger_len)
++                        )
++                        say(
++                            f"[boundary] {arm_name} idx={int(sample.index)} "
++                            f"end={float(end_gap_m) * 1000:.1f}mm "
++                            f"reach_dn={(_aim_rel - _band_dn) * 1000:+.1f}mm "
++                            f"reach_up={(_band_up - _aim_rel) * 1000:+.1f}mm "
++                            f"belt_margin={_belt_margin * 1000:+.1f}mm"
++                        )
+                     if (
+                         self._reach_diag
+                         and dynamic_capture
+@@ -9989,13 +10085,69 @@ class PickAndPlaceTask:
+                 calm = 0
+         return max_ticks, speed
+ 
++    def _arrive_hold(self, arm, target, tol: float, max_ticks: int):
++        """P16 pick (a): bounded closed-loop arrival at the descent aim (default off).
++
++        The moving catch's descent is a jerk-limited *profile*: it ends where
++        the profile stops, not where the aim is - the measured `end=` shortfall
++        on the mass base is 8.1-15.3 mm (median 9.2;
++        `logs/p16/BOUNDARY_DESIGN.md` section 1.1). With
++        `FRUIT_DYNAMIC_ARRIVE_TOL > 0` **and** `FRUIT_DYNAMIC_ARRIVE_MAX > 0`
++        (either 0 = shipped, byte-unchanged) this loop re-commands the aim
++        (`ik_step(target)` + one physics tick per iteration, the same primitives
++        the profile above uses) until the *measured* TCP error against the aim
++        is at or below the tolerance or the tick cap has run, so the
++        post-descent solver (the catch-up) starts from the arrived pose. The
++        loop is deliberately upstream of the capture: unlike the close/carry
++        actuators (whose class re-draws traded the outcome, the P15 conserved
++        mass), a descent-side change hands the *shipped* carry its payload.
++
++        Returns ``(start_gap_m, settled_gap_m, ticks, residual_vec)`` when the
++        loop is active and ``None`` when it is off (the default); `_approach`
++        reports the settled gap through the motion row's `end=` and returns the
++        tuple so the moving catch can print the `[arrive]` row. Pure
++        control-loop work: one `ik_step` + one `_step_sim` per tick, no extra
++        readback on any shipped path.
++        """
++        if tol <= 0.0 or max_ticks <= 0:
++            return None
++        target = np.asarray(target, dtype=float)
++        residual = np.asarray(arm.tcp_position(), dtype=float) - target
++        start_gap = float(np.linalg.norm(residual))
++        gap = start_gap
++        ticks = 0
++        for _ in range(int(max_ticks)):
++            if gap <= tol:
++                break
++            arm.ik_step(target)
++            self._step_sim(1)
++            ticks += 1
++            residual = np.asarray(arm.tcp_position(), dtype=float) - target
++            gap = float(np.linalg.norm(residual))
++        return start_gap, gap, ticks, residual
++
+     def _approach(self, arm, jaw_target, verbose: bool = False,
+-                  v_max: float | None = None, a_max: float | None = None) -> None:
++                  v_max: float | None = None, a_max: float | None = None,
++                  arrive_tol: float = 0.0, arrive_max: int = 0,
++                  report_end: bool = False) -> tuple[float | None, tuple | None]:
+         """Descend to the grasp pose; `FRUIT_APPROACH_MODE` picks how it is referenced.
+ 
+         `v_max`/`a_max` override the profile limits for this leg (the moving
+         catch uses its own `FRUIT_DYNAMIC_APPROACH_VMAX`, still under the motion
+         gate's budget); the default is the shipped `FRUIT_APPROACH_*` value.
++
++        `arrive_tol`/`arrive_max` are the P16 pick (a) completed-descent knobs
++        (see `_arrive_hold`): when both are > 0 the leg continues past the
++        profile with a bounded closed-loop arrival at the aim, and the monitor's
++        `end=` below is the *settled* gap. Only the moving catch passes them;
++        every other caller keeps the defaults and is byte-unchanged.
++        `report_end` (diag only, default off) additionally computes the `end=`
++        gap for callers that want it without the motion report - one pure read.
++
++        Returns ``(end_gap_m, arrive_info)``: the end gap (None unless the
++        arrival ran or `report_end` asked for it) and `_arrive_hold`'s tuple
++        (None when the arrival is off). Both callers that ignore the return are
++        unaffected.
+         """
+         # Start the differential IK from the arm's *measured* configuration. The
+         # integrator keeps its own commanded joints, and anything that repositions
+@@ -10268,6 +10420,30 @@ class PickAndPlaceTask:
+                 if residual <= 0.006:
+                     break
+ 
++        # P16 pick (a) - the completed descent (default off; see `_arrive_hold`).
++        # The moving catch passes its `FRUIT_DYNAMIC_ARRIVE_*` values; every other
++        # `_approach` call leaves the defaults and is byte-unchanged. With the
++        # loop active the monitor's `end=` below is the *settled* gap (the
++        # completed descent's residual against the aim), and the caller's
++        # `[arrive]` row carries the pre-arrival gap it replaced.
++        arrive_info = self._arrive_hold(arm, target, arrive_tol, arrive_max)
++        end_gap_m: float | None = None
++        if report_end:
++            # Diag-only readback (`FRUIT_DYNAMIC_ARRIVE_DIAG=1`): the shipped
++            # `end=` recipe against the same target the profile was sent to, so
++            # the caller's `[boundary]` row carries exactly the motion row's
++            # shortfall. With the arrival active the settled gap is already
++            # measured - reuse it, no extra read.
++            if arrive_info is not None:
++                end_gap_m = float(arrive_info[1])
++            else:
++                end_gap_m = float(
++                    np.linalg.norm(
++                        np.asarray(arm.tcp_position(), dtype=float)
++                        - np.asarray(target, dtype=float)
++                    )
++                )
++
+         if monitor is not None:
+             summary = monitor.summary()
+             # Where the leg actually ended, against the point it was sent to. This
+@@ -10309,3 +10485,4 @@ class PickAndPlaceTask:
+                 f"[task] approach trace {self._approach_index}: {count} IK steps -> "
+                 f"{trace_path} (a_max={peak:.2f})"
+             )
++        return end_gap_m, arrive_info
