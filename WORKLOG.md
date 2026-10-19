@@ -15950,3 +15950,27 @@ is the named item on any adoption); the close-out tables mix bases (the S3/S4 on
 compliance/rest/full on the anchor - read the per-arm rows, not the pooled column alone); the
 105 items: the rest-only s11 FAILS (0.808 + lurch), the S4 s23 FAILS (0.192), the mass base is
 motion-clean (0.118/0.112/0.110).
+
+### P13 (2026-10-19): the event-structure heads - a strong mechanism read, a mechanism-only outcome, and a no-harm anomaly that triggered a precautionary revert
+
+**The arc** (the mechanism menu #6): the phase + TtT heads on the 8-step causal proprio
+history + the transition-weighted loss, fine-tuned from `moe_v13s` into
+`checkpoints/ev1/policy_best.pt` (`c2656cc2`; the phase head 0.812 -> 0.938, the TtT MAE
+0.24 -> 0.18, the weighted loss 0.0261 -> 0.0214, the router 0.993; the heads are
+training-only - the shipped `PolicyRunner` drops them; the movement is weight-mediated, the
+proprio-MLP delta max 0.152 vs ~0.025 elsewhere). **The A/Bs** (the W7-B boundary pins, the
+direct interface, both arms ACQ_DIAG): **N=3** (seeds 77/101/202): the left close-start |y|
+178.5 -> 3.5 mm (the acquisition deficit nearly eliminated; the no-contact 12 -> 1), the
+200-tick catch-ups 11 -> 2, the outcomes 27 -> 30/45 (+3; the sign p = 0.2266). **N=5** (the
+frozen decision rule): **the mechanism PASSES** (the left p90 266.8 -> 5.5; the chases 15 ->
+4) and **the primary FAILS** (49 vs 43/75 = 65 % vs 57 %, +6; the sign p = 0.0898) -> **a
+mechanism-only result, no adoption**; the class displacement (the no-contact -> the
+carried-not-placed, 4 -> 13) explains the small outcome movement; a composite new-reason note
+(two known classes) flagged. **The no-harm**: the acceptance **PASS** (9/10 + fingerprint
+matches + 385/385); **the hybrid canary separated unexplainedly** - the P13 tree 2/10, 2/10,
+4/10 (3/3 FAIL) vs the pre-P13 tree 8/10, 6/10 (2/2 PASS) - **while the code is proven
+inert** (the moe_v12 forward bit-identical through both model.py versions; the finetune/111
+outside the canary's import graph). **The action: the precautionary revert** (`489325c`; the
+ev1 + the record stay; the code preserved at `e078f43`); the named decider for any re-entry:
+a >= 4-sample per-side canary battery. The two-line (the goal) is unaffected (the acceptance
+byte-identical); the mass base (45/60) remains the two-line's best.
