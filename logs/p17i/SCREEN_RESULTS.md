@@ -22,8 +22,9 @@ verbatim via the adapter copies `logs/p17i/trace_m{1,2}_analysis.py` →
 
 ## 2. M1 — the mechanism (K1: PASS)
 
-**The gate fires and the arrest is real.** 12 response rows across 7 fruit-attempts (fruit 0 ×3
-attempts, fruit 6, fruit 12 ×2, fruit 8, fruit 13); every response drops the drift rate:
+**The gate fires and the arrest is real.** 12 response rows across **7 fired attempts** (5 unique
+(arm, fruit-index) pairs — fruit 0 alone accounts for 3 of the attempts: att 1, att 6, att 14);
+every response drops the drift rate:
 
 | attempt (fruit) | trigger rate | post-response rate | end |
 | --- | --- | --- | --- |

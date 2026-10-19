@@ -4,7 +4,7 @@ Status: **closed negative — K2 fires decisively on all three seeds. The slide 
 (`FRUIT_DYNAMIC_SLIDE_GATE`) is NOT adopted; the knob stays default-off.** The mechanism win
 (the s11 arrest / walk read, `SCREEN_RESULTS.md`) stands as measured; the outcome side loses mass
 on every class and every seed. This is the fourth mechanism-win / outcome-negative instance in the
-close/carry family (P11-C, P15-M2, and this).
+close/carry family (P11-C, P11-C.2, P15-M2, and this).
 
 ## 1. The battery
 
@@ -13,16 +13,19 @@ Seeds 11/5/23, ATTEMPTS=20, the mass-base scenario (two-line, patch sheet, balan
 `logs/p12a2/{10,11,12}_*_mass.log`. Read: `logs/p17i/read_stage_p.py` →
 `logs/p17i/60_stage_p_read.txt`.
 
-| seed | arm | ok | no-grasp | carried | total fail | falls (rows) | partials | responses |
+| seed | arm | ok | no-grasp | carried | total fail | falls (rows, F6) | partials | responses |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| 11 | control | 11 | 7 | 2 | 9 | 4 | 1 | - |
-| 11 | slide gate | 10 | 5 | 5 | 10 | 5 | 0 | 12 |
+| 11 | control | 11 | 7 | 2 | 9 | 3 | 1 | - |
+| 11 | slide gate | 10 | 5 | 5 | 10 | 4 | 0 | 12 |
 | 5 | control | 17 | 0 | 3 | 3 | 0 | 0 | - |
 | 5 | slide gate | 15 | 1 | 4 | 5 | 1 | 0 | 1 |
 | 23 | control | 17 | 1 | 2 | 3 | 3 | 0 | - |
 | 23 | slide gate | 12 | 4 | 4 | 8 | 5 | 2 | 5 |
-| **pooled** | **control** | **45/60** | **8** | **7** | **15** | 7 | 1 | - |
-| **pooled** | **slide gate** | **37/60** | **10** | **13** | **23** | 11 | 2 | 18 |
+| **pooled** | **control** | **45/60** | **8** | **7** | **15** | **6** | 1 | - |
+| **pooled** | **slide gate** | **37/60** | **10** | **13** | **23** | **10** | 2 | 18 |
+
+The falls column is **F6-correct** (the blowups excluded — one per side: `−55282 mm` in the
+control's s11, `−52107 mm` in the gate's s11; the raw ≤ −1000 mm row counts are 7 → 11).
 
 **K3: all three doubles bit-identical** ([fruit] streams, `[trace]` path lines excluded):
 1016/1016, 1068/1068, 1067/1067. **K4: PASS — the current-tree knob-off control replay vs
@@ -44,9 +47,10 @@ outcome movement is not a clean dose-response. Both readings point the same way.
 
 ## 3. The mechanism read (what stands)
 
-* The arrest is real when it fires: 18 responses across the battery; the s11 read (12 responses,
-  post-response rates 12.8–70.6 mm/s vs trigger 62.8–275.3) and the walk tail (54.8 → 37.5 mm max,
-  median 38.1 → 31.9) are as recorded in `SCREEN_RESULTS.md`.
+* The arrest is real when it fires: **7 fired attempts at s11** (12 response rows across 5 unique
+  (arm, fruit-index) pairs — fruit 0 alone accounts for 3 of the attempts; s5 and s23 fire 1 and
+  5 response rows respectively); the post-response rates 12.8–70.6 mm/s vs trigger 62.8–275.3 and
+  the walk tail (54.8 → 37.5 mm max, median 38.1 → 31.9) are as recorded in `SCREEN_RESULTS.md`.
 * **But the arrest is not durable (the Oracle's Gap C, confirmed in the survival read):** the
   release fires on the first below-band sample, so several attempts release at 54–58 mm/s and the
   payload then walks out during probe-1 (e.g. `left idx=6 probe1: rate_max=278.6 drift_max=116.4mm`);
@@ -66,6 +70,19 @@ outcome movement is not a clean dose-response. Both readings point the same way.
   durability (a survival-gated release would be the bounded variant if the family re-opens), and
   the branch-cascade effect (a single response re-shapes the remaining attempts — the census
   movement is not dose-additive).
+
+## 4b. The co-reports (the Oracle Gate-2 item 3)
+
+**The interval** (the per-attempt cycle span, the sum of the `[cycle]` phase seconds;
+`logs/p17i/co_report.py` → `72_co_report.txt`): control medians 28.64 / 30.63 / 31.65 s vs gate
+29.89 / 29.18 / 29.30 s — **no systematic interval penalty** (the gate's s11 +1.25 s, s5 −1.45 s,
+s23 −2.35 s; single seeds, reported not gated).
+
+**The per-leg motion** (the descent `approach(cartesian)` legs): the |v|max medians are 0.109–0.110
+m/s on every arm (as shipped); **one gate leg exceeds the 0.161 m/s budget — the gate's s11, max
+0.202 m/s** (the control's max 0.118; 0 legs over on the control side, 1 on the gate side). The
+motion gate (`105_motion_regression.py`) was not run on the battery; the raw per-leg values are the
+report.
 
 ## 5. Provenance
 
