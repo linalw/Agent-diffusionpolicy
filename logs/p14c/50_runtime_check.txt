@@ -1,0 +1,95 @@
+
+=== ev1  checkpoints/ev1/policy_best.pt  md5 c2656cc292c9c65eff0ba19b6632d59a (18575253 bytes) ===
+  [PASS] shipped PolicyRunner loads strictly + act() returns a finite chunk
+  [PASS] model entry: base keys only (no event.*)
+  [PASS] provenance base pin == moe_v13s 61da390a
+  [PASS] provenance: 6 epochs, lr 5e-5, weight_mode ones
+  [PASS] history: 6 epochs
+  [PASS] ev1 event_heads block: 8 prefix-free tensors
+
+=== ev_a1  checkpoints/ev_a1/policy_best.pt  md5 0c18f6bec929745ba7ac3359079fe608 (18574997 bytes) ===
+  [PASS] shipped PolicyRunner loads strictly + act() returns a finite chunk
+  [PASS] model entry: base keys only (no event.*)
+  [PASS] provenance base pin == moe_v13s 61da390a
+  [PASS] provenance: 6 epochs, lr 5e-5, weight_mode ones
+  [PASS] history: 6 epochs
+  [PASS] event_heads block: 8 prefix-free tensors
+  [PASS] provenance: heads on, transition weight 0.0
+  [PASS] head metrics recorded per epoch (phase_acc, ttt_mae)
+
+=== ev_a2  checkpoints/ev_a2/policy_best.pt  md5 74a58e4a1b758908eab0310fd22bec39 (18426699 bytes) ===
+  [PASS] shipped PolicyRunner loads strictly + act() returns a finite chunk
+  [PASS] model entry: base keys only (no event.*)
+  [PASS] provenance base pin == moe_v13s 61da390a
+  [PASS] provenance: 6 epochs, lr 5e-5, weight_mode ones
+  [PASS] history: 6 epochs
+  [PASS] no event_heads payload block
+  [PASS] provenance: heads off, transition weight 1.0
+
+=== ev_a3  checkpoints/ev_a3/policy_best.pt  md5 275e06f9f55a3341dcc1789896dd1151 (18425931 bytes) ===
+  [PASS] shipped PolicyRunner loads strictly + act() returns a finite chunk
+  [PASS] model entry: base keys only (no event.*)
+  [PASS] provenance base pin == moe_v13s 61da390a
+  [PASS] provenance: 6 epochs, lr 5e-5, weight_mode ones
+  [PASS] history: 6 epochs
+  [PASS] no event_heads payload block
+  [PASS] provenance: no event fields (plain 6-epoch run)
+
+=== ev_a1 head re-attach (e078f43 model.py) ===
+  [PASS] heads re-attach; finite (3, 4) / (3,) outputs
+
+=== weight deltas vs moe_v13s (payload['model'], shared keys) ===
+
+ev1 vs base:
+  overall mean |delta| = 0.002196 over 4594926 params
+  module                   max|d|  keys
+  action_in               0.004868     2
+  blocks                  0.025468    62
+  condition.goal          0.025268     4
+  condition.proprio       0.151849     4
+  experts                 0.032360    20
+  head                    0.018115     4
+  router                  0.072094     4
+  time                    0.012910     4
+  visual                  0.029529    18
+
+ev_a1 vs base:
+  overall mean |delta| = 0.002283 over 4594926 params
+  module                   max|d|  keys
+  action_in               0.003880     2
+  blocks                  0.029791    62
+  condition.goal          0.026141     4
+  condition.proprio       0.150916     4
+  experts                 0.026022    20
+  head                    0.024563     4
+  router                  0.070783     4
+  time                    0.013847     4
+  visual                  0.029025    18
+
+ev_a2 vs base:
+  overall mean |delta| = 0.002032 over 4594926 params
+  module                   max|d|  keys
+  action_in               0.004578     2
+  blocks                  0.026391    62
+  condition.goal          0.025403     4
+  condition.proprio       0.029422     4
+  experts                 0.037429    20
+  head                    0.020284     4
+  router                  0.074380     4
+  time                    0.009335     4
+  visual                  0.025675    18
+
+ev_a3 vs base:
+  overall mean |delta| = 0.002077 over 4594926 params
+  module                   max|d|  keys
+  action_in               0.003815     2
+  blocks                  0.028258    62
+  condition.goal          0.025730     4
+  condition.proprio       0.031255     4
+  experts                 0.027352    20
+  head                    0.020342     4
+  router                  0.072360     4
+  time                    0.010659     4
+  visual                  0.027133    18
+
+PASS: all three ablations load in the shipped runtime with the expected payloads.
