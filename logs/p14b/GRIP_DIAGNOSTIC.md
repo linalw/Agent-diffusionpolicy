@@ -495,10 +495,10 @@ Reproduction (all read-only; `-B` avoids writing bytecode anywhere outside this 
 
 ```bash
 cd logs/p14b
-python3 -B mine_mass.py > mass_mining.txt
+python3 -B mine_mass.py            # writes mass_mining.txt itself (and prints it)
 python3 -B keepgap_table.py > keepgap_run.out
 python3 -B trace_corpus_summary.py > trace_corpus_summary.txt
-python3 -B trace_mine.py ../w5/traces_dense
+python3 -B trace_mine.py ../w5/traces_dense > trace_mine_traces_dense.txt
 ```
 
 The raw rows behind §1.4 (the counterexample): `logs/p12a2/11_seed5_mass.log` lines 1123–1150
