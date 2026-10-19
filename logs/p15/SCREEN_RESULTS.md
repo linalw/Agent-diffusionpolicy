@@ -201,7 +201,7 @@ untraced gap 1) — the hold-walk shape is absent.
 The probe-1 dz (the grip test): the no-grasp B1s' never-rise signature (−1.2…+0.9 mm on the
 control) reads 0.0 mm for eight of M1's nine walkers (the ninth, the attempt-12 blow-up, reads a
 garbage dz while the fruit flies off) and 0.0 for M2's B1 #18; the M2 ok class's low tail
-*improves* (min 6.1 mm vs the control's 0.0; the control's 5 ok attempts ≤ 2.5 mm — pooled —
+*improves* (the class min moves 0.0 -> -1.4 mm (att 9, recovered via the re-seat; 6.1 mm is the one-block oks' min); the control's 5 ok attempts ≤ 2.5 mm — pooled —
 recovered via the re-seat). Recorded, not gating at this n.
 
 ---
@@ -222,7 +222,7 @@ secondary **hand settling** term in x/z (hand dx +22…+34 mm, dz −8…−10 m
 slip-along-the-belt with the hand still finishing the approach, and M2's collapse (relative
 velocity ~0.0 mm/s through the whole hold; the fruit braked to ~−30 mm/s and followed exactly)
 shows the arrest is achievable in the hold window. One caveat in the same read: M1's top walkers
-add large hand-motion components (e.g. a19: hand dy +31.9 vs fruit dy −46.0; a05: hand dx −54.0,
+add large hand-motion components (e.g. a18 (trace #19): hand dy +31.9 vs fruit dy −46.0; a04 (trace #5): hand dx −54.0,
 dz −31.2) — under the rate-limited close the hand itself travels upstream/downstream while the
 fruit rides, i.e. the late freeze leaves a transient the hold inherits.
 
@@ -331,3 +331,25 @@ python3 -B logs/p15/trace_p15_analysis.py > logs/p15/trace_p15_tables.txt   # th
 | (inputs) `10_m1_trace.log` + `traces_m1/`, `11_m2_trace.log` + `traces_m2/` | the two screen runs (by the run lane; `run_screen.sh`, `90_driver.log`) |
 | (inputs) `../p14b/10_seed11_trace.log` + `traces_s11/`, `../p14b/TRACE_RESULTS.md`, `../p14b/master_table.md` | the on-disk control |
 | (design) `CLOSE_HOLD_DESIGN.md` | the pre-registration (the gate + the kills) |
+
+
+## Amendments (2026-10-19, the Oracle gate's F4-F7; frozen before the outcome read)
+
+- **F4 (the trace deviation)**: the outcome battery launched WITHOUT the trace env. The applied
+  read: **the seed-11 mechanism comes from the byte-identical Stage-M M2 run** (the run-20
+  `[fruit]` stream is 965/965 identical to `logs/p15/10_m1_trace.log`'s sibling M2 run); the
+  freeze lines come from all runs' logs; the hold walk / probe-1 / shear read is available at
+  **seed 11 only**.
+- **F5 (the doubles)**: K3 is applied **at seed 11 only** (the scripted line's determinism is
+  established across the project; the seed-11 double is the block's witness).
+- **F6 (the falls convention)**: falls = the `lowest payload point` rows -1..-20 m, **blowups
+  excluded**; report rows and attempts (one payload can emit two rows). At seed 11: the control
+  3 falls + 1 partial (+1 blowup row) vs the M2 1 fall + 2 partials - a census, not a rate.
+- **F7 (the adoption path, pre-registered before the read)**: a positive outcome branch means
+  the **two-line-scoped default** (the `_dynamic_profile`/session-flag resolution - the knob is
+  a bare `os.environ` read today and would otherwise move the shipped single-arm dynamic line)
+  + the two-line reference re-record + the acceptance no-harm (the `logs/p12b2/C_DECISION.md`
+  pattern). A mechanism-moved/outcome-flat read does NOT trigger the K1 next
+  (descent-boundary/scene); the flat branch is: the M2 stays opt-in, the record published, and
+  the next candidate is the **outcome-side residual** (the carried class 2 -> 4 the screen
+  recorded) - or the decision is owner-gated.
