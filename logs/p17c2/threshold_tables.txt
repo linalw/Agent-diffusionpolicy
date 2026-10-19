@@ -1,0 +1,524 @@
+-- controls (P14-B): pairing --
+   attempts=60  arm/outcome/window mismatches=0
+-- gate-ON (stage P): pairing --
+   attempts=60  arm/outcome/window mismatches=0
+
+-- gate-ON: the [slide] rows vs the traces --
+   seed s11: summary pairs {'right': 10, 'left': 10} vs attempts {'right': 10, 'left': 10}
+     right: pairs=10 attempts=10 idx mismatches=0
+     left: pairs=10 attempts=10 idx mismatches=0
+   seed s5: summary pairs {'left': 10, 'right': 10} vs attempts {'left': 10, 'right': 10}
+     left: pairs=10 attempts=10 idx mismatches=0
+     right: pairs=10 attempts=10 idx mismatches=0
+   seed s23: summary pairs {'right': 10, 'left': 10} vs attempts {'right': 10, 'left': 10}
+     right: pairs=10 attempts=10 idx mismatches=0
+     left: pairs=10 attempts=10 idx mismatches=0
+
+-- VALIDATION: my trace rate vs the gate's own [slide] rate_max --
+| seed | att | arm | class | phase | gate rate_max | trace max (world) | trace max (hand) | gate drift_max | trace drift_max |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| s11 | 1 | right | ok | hold | 2.9 | 2.8 | 0.0 | 0.0 | 0.0 |
+| s11 | 1 | right | ok | probe1 | 21.3 | 20.9 | 16.9 | 0.3 | 0.3 |
+| s11 | 4 | right | carried | hold | 1.7 | 0.8 | 0.0 | 0.0 | 0.0 |
+| s11 | 4 | right | carried | probe1 | 2.0 | 2.7 | 1.7 | 0.0 | 0.0 |
+| s11 | 5 | right | ok | hold | 7.5 | 7.4 | 0.6 | 0.0 | 0.0 |
+| s11 | 5 | right | ok | probe1 | 13.5 | 8.9 | 0.0 | 0.0 | 0.0 |
+| s11 | 7 | right | carried | hold | 36.5 | 16.0 | 17.1 | 3.2 | 3.1 |
+| s11 | 7 | right | carried | probe1 | 139.7 | 140.5 | 86.5 | 10.5 | 10.5 |
+| s11 | 9 | right | ok | hold | 29.6 | 18.3 | 10.7 | 0.2 | 0.2 |
+| s11 | 9 | right | ok | probe1 | 31.3 | 20.5 | 5.1 | 0.2 | 0.2 |
+| s11 | 11 | right | carried | hold | 3.2 | 3.8 | 0.6 | 0.0 | 0.0 |
+| s11 | 11 | right | carried | probe1 | 4.5 | 4.3 | 1.7 | 0.0 | 0.0 |
+| s11 | 13 | right | ok | hold | 6.4 | 4.4 | 2.0 | 0.3 | 0.3 |
+| s11 | 13 | right | ok | probe1 | 124.7 | 124.7 | 135.2 | 18.4 | 18.4 |
+| s11 | 15 | right | ok | hold | 13.2 | 12.8 | 2.5 | 0.1 | 0.1 |
+| s11 | 15 | right | ok | probe1 | 23.2 | 15.6 | 1.2 | 0.0 | 0.0 |
+| s11 | 17 | right | no-grasp | hold | 10.2 | 6.6 | 4.2 | 0.4 | 0.4 |
+| s11 | 17 | right | no-grasp | probe1 | 56.1 | 55.3 | 85.8 | 11.7 | 11.7 |
+| s11 | 20 | right | carried | hold | 15.8 | 11.5 | 10.3 | 2.8 | 2.7 |
+| s11 | 20 | right | carried | probe1 | 57.2 | 56.2 | 56.2 | 5.7 | 5.7 |
+| s11 | 2 | left | ok | hold | 168.0 | 153.6 | 148.8 | 16.5 | 16.4 |
+| s11 | 2 | left | ok | probe1 | 17.5 | 17.3 | 13.7 | 15.3 | 15.3 |
+| s11 | 3 | left | no-grasp | hold | 10.9 | 10.1 | 10.4 | 1.2 | 1.2 |
+| s11 | 3 | left | no-grasp | probe1 | 114.1 | 115.4 | 112.9 | 1.2 | 1.2 |
+| s11 | 6 | left | no-grasp | hold | 231.2 | 212.7 | 225.1 | 33.5 | 32.0 |
+| s11 | 6 | left | no-grasp | probe1 | 325.1 | 326.1 | 328.9 | 132.1 | 132.1 |
+| s11 | 8 | left | ok | hold | 3.6 | 1.9 | 0.8 | 0.0 | 0.0 |
+| s11 | 8 | left | ok | probe1 | 3.3 | 4.0 | 2.4 | 0.0 | 0.0 |
+| s11 | 10 | left | ok | hold | 21.4 | 18.6 | 19.0 | 1.4 | 1.4 |
+| s11 | 10 | left | ok | probe1 | 1.4 | 2.1 | 1.2 | 1.4 | 1.4 |
+| s11 | 12 | left | carried | hold | 27.4 | 21.5 | 20.7 | 1.2 | 1.2 |
+| s11 | 12 | left | carried | probe1 | 6.8 | 5.9 | 6.6 | 1.2 | 1.2 |
+| s11 | 14 | left | no-grasp | hold | 137.1 | 129.9 | 135.2 | 16.3 | 16.2 |
+| s11 | 14 | left | no-grasp | probe1 | 57.5 | 57.4 | 57.2 | 17.5 | 17.5 |
+| s11 | 16 | left | ok | hold | 86.5 | 80.4 | 85.7 | 12.4 | 12.3 |
+| s11 | 16 | left | ok | probe1 | 22.6 | 19.1 | 20.5 | 12.4 | 12.4 |
+| s11 | 18 | left | ok | hold | 12.4 | 10.1 | 10.4 | 0.4 | 0.4 |
+| s11 | 18 | left | ok | probe1 | 12.5 | 13.6 | 12.1 | 0.8 | 0.8 |
+| s11 | 19 | left | no-grasp | hold | 275.3 | 269.2 | 280.4 | 39.7 | 37.6 |
+| s11 | 19 | left | no-grasp | probe1 | 278.6 | 279.3 | 303.6 | 116.4 | 116.4 |
+| s5 | 1 | left | carried | hold | 42.4 | 33.4 | 35.1 | 3.5 | 3.4 |
+| s5 | 1 | left | carried | probe1 | 8.6 | 9.1 | 6.1 | 3.5 | 3.5 |
+| s5 | 3 | left | ok | hold | 9.0 | 6.6 | 6.7 | 0.6 | 0.6 |
+| s5 | 3 | left | ok | probe1 | 13.3 | 12.5 | 13.5 | 0.7 | 0.7 |
+| s5 | 5 | left | carried | hold | 37.5 | 37.1 | 40.7 | 5.9 | 5.8 |
+| s5 | 5 | left | carried | probe1 | 5.8 | 6.5 | 5.0 | 5.9 | 5.9 |
+| s5 | 8 | left | ok | hold | 28.7 | 15.9 | 16.2 | 1.8 | 1.8 |
+| s5 | 8 | left | ok | probe1 | 28.0 | 28.8 | 27.5 | 1.6 | 1.6 |
+| s5 | 9 | left | ok | hold | 47.4 | 42.8 | 45.1 | 3.3 | 3.3 |
+| s5 | 9 | left | ok | probe1 | 17.6 | 18.0 | 12.4 | 3.4 | 3.4 |
+| s5 | 11 | left | carried | hold | 36.1 | 35.0 | 34.9 | 4.0 | 4.0 |
+| s5 | 11 | left | carried | probe1 | 15.3 | 15.0 | 15.3 | 4.1 | 4.1 |
+| s5 | 13 | left | ok | hold | 31.7 | 28.8 | 27.7 | 0.5 | 0.5 |
+| s5 | 13 | left | ok | probe1 | 6.3 | 6.0 | 6.8 | 0.5 | 0.5 |
+| s5 | 15 | left | ok | hold | 3.0 | 1.2 | 0.0 | 0.0 | 0.0 |
+| s5 | 15 | left | ok | probe1 | 11.5 | 12.7 | 11.1 | 0.3 | 0.3 |
+| s5 | 17 | left | carried | hold | 44.6 | 39.0 | 39.0 | 7.6 | 7.6 |
+| s5 | 17 | left | carried | probe1 | 4.9 | 6.0 | 1.7 | 7.6 | 7.6 |
+| s5 | 19 | left | ok | hold | 6.9 | 5.3 | 4.0 | 0.4 | 0.4 |
+| s5 | 19 | left | ok | probe1 | 7.2 | 7.2 | 4.9 | 0.4 | 0.4 |
+| s5 | 2 | right | ok | hold | 77.1 | 59.2 | 59.5 | 3.3 | 3.3 |
+| s5 | 2 | right | ok | probe1 | 19.6 | 20.0 | 1.2 | 3.3 | 3.3 |
+| s5 | 4 | right | ok | hold | 14.5 | 10.0 | 8.6 | 1.5 | 1.4 |
+| s5 | 4 | right | ok | probe1 | 28.6 | 26.4 | 26.7 | 2.8 | 2.8 |
+| s5 | 6 | right | ok | hold | 17.1 | 14.0 | 14.3 | 0.3 | 0.3 |
+| s5 | 6 | right | ok | probe1 | 9.5 | 9.7 | 9.7 | 0.3 | 0.3 |
+| s5 | 7 | right | ok | hold | 25.1 | 19.1 | 17.5 | 5.2 | 5.1 |
+| s5 | 7 | right | ok | probe1 | 68.6 | 52.3 | 48.0 | 8.5 | 8.5 |
+| s5 | 10 | right | ok | hold | 11.0 | 9.3 | 5.2 | 0.4 | 0.4 |
+| s5 | 10 | right | ok | probe1 | 16.9 | 11.8 | 2.4 | 0.4 | 0.4 |
+| s5 | 12 | right | ok | hold | 14.1 | 11.6 | 3.3 | 0.3 | 0.3 |
+| s5 | 12 | right | ok | probe1 | 29.6 | 28.9 | 27.4 | 1.1 | 1.1 |
+| s5 | 14 | right | ok | hold | 14.0 | 11.1 | 5.5 | 0.7 | 0.7 |
+| s5 | 14 | right | ok | probe1 | 19.8 | 13.7 | 1.2 | 0.7 | 0.7 |
+| s5 | 16 | right | no-grasp | hold | 39.7 | 18.4 | 16.2 | 3.9 | 3.8 |
+| s5 | 16 | right | no-grasp | probe1 | 84.2 | 85.4 | 84.6 | 11.7 | 11.7 |
+| s5 | 18 | right | ok | hold | 1.6 | 2.0 | 0.6 | 0.0 | 0.0 |
+| s5 | 18 | right | ok | probe1 | 10.1 | 11.5 | 8.0 | 0.1 | 0.1 |
+| s5 | 20 | right | ok | hold | 6.9 | 6.7 | 0.0 | 0.0 | 0.0 |
+| s5 | 20 | right | ok | probe1 | 12.1 | 9.1 | 2.7 | 0.0 | 0.0 |
+| s23 | 1 | right | carried | hold | 39.6 | 26.7 | 21.2 | 5.9 | 5.7 |
+| s23 | 1 | right | carried | probe1 | 79.7 | 79.6 | 76.4 | 8.5 | 8.5 |
+| s23 | 3 | right | no-grasp | hold | 17.3 | 12.3 | 8.7 | 0.4 | 0.4 |
+| s23 | 3 | right | no-grasp | probe1 | 119.7 | 118.0 | 157.1 | 26.5 | 26.5 |
+| s23 | 5 | right | ok | hold | 12.5 | 12.4 | 0.0 | 0.0 | 0.0 |
+| s23 | 5 | right | ok | probe1 | 21.0 | 15.7 | 2.4 | 0.0 | 0.0 |
+| s23 | 7 | right | ok | hold | 11.3 | 11.0 | 0.6 | 0.0 | 0.0 |
+| s23 | 7 | right | ok | probe1 | 52.9 | 52.6 | 51.6 | 1.3 | 1.4 |
+| s23 | 9 | right | ok | hold | 21.5 | 21.5 | 2.5 | 0.1 | 0.1 |
+| s23 | 9 | right | ok | probe1 | 40.2 | 27.3 | 1.7 | 0.1 | 0.1 |
+| s23 | 11 | right | carried | hold | 61.6 | 23.5 | 26.5 | 3.2 | 3.2 |
+| s23 | 11 | right | carried | probe1 | 140.0 | 140.8 | 107.6 | 11.9 | 11.9 |
+| s23 | 13 | right | no-grasp | hold | 14.2 | 10.2 | 8.7 | 0.4 | 0.4 |
+| s23 | 13 | right | no-grasp | probe1 | 106.9 | 107.5 | 137.6 | 27.5 | 27.5 |
+| s23 | 14 | right | no-grasp | hold | 8.3 | 7.0 | 6.8 | 1.6 | 1.6 |
+| s23 | 14 | right | no-grasp | probe1 | 38.5 | 33.4 | 30.9 | 3.3 | 3.3 |
+| s23 | 16 | right | ok | hold | 13.5 | 4.8 | 3.3 | 0.2 | 0.2 |
+| s23 | 16 | right | ok | probe1 | 61.7 | 60.5 | 94.2 | 11.9 | 11.9 |
+| s23 | 19 | right | ok | hold | 52.4 | 29.1 | 21.0 | 0.4 | 0.4 |
+| s23 | 19 | right | ok | probe1 | 36.4 | 29.0 | 1.2 | 0.4 | 0.4 |
+| s23 | 2 | left | ok | hold | 34.8 | 34.1 | 32.9 | 5.2 | 5.2 |
+| s23 | 2 | left | ok | probe1 | 11.5 | 8.5 | 9.0 | 5.3 | 5.3 |
+| s23 | 4 | left | ok | hold | 31.2 | 27.2 | 28.7 | 4.4 | 4.4 |
+| s23 | 4 | left | ok | probe1 | 16.2 | 16.2 | 15.8 | 4.4 | 4.4 |
+| s23 | 6 | left | carried | hold | 46.6 | 35.6 | 37.8 | 7.5 | 7.4 |
+| s23 | 6 | left | carried | probe1 | 18.5 | 16.4 | 21.1 | 7.6 | 7.6 |
+| s23 | 8 | left | ok | hold | 99.3 | 73.3 | 76.4 | 6.4 | 6.3 |
+| s23 | 8 | left | ok | probe1 | 26.6 | 14.9 | 14.3 | 6.5 | 6.5 |
+| s23 | 10 | left | ok | hold | 12.9 | 10.8 | 10.8 | 0.9 | 0.9 |
+| s23 | 10 | left | ok | probe1 | 20.4 | 19.3 | 20.3 | 0.9 | 0.9 |
+| s23 | 12 | left | ok | hold | 25.6 | 21.4 | 21.8 | 3.2 | 3.1 |
+| s23 | 12 | left | ok | probe1 | 20.1 | 20.6 | 20.6 | 3.8 | 3.8 |
+| s23 | 15 | left | ok | hold | 27.8 | 25.9 | 26.8 | 2.5 | 2.5 |
+| s23 | 15 | left | ok | probe1 | 1.3 | 2.7 | 0.0 | 2.3 | 2.3 |
+| s23 | 17 | left | ok | hold | 27.7 | 23.8 | 23.5 | 3.0 | 3.0 |
+| s23 | 17 | left | ok | probe1 | 14.0 | 13.4 | 13.3 | 3.0 | 3.0 |
+| s23 | 18 | left | no-grasp | hold | 40.2 | 34.6 | 36.1 | 4.1 | 4.1 |
+| s23 | 18 | left | no-grasp | probe1 | 38.3 | 38.0 | 39.0 | 4.1 | 4.1 |
+| s23 | 20 | left | carried | hold | 23.1 | 21.9 | 21.8 | 2.7 | 2.7 |
+| s23 | 20 | left | carried | probe1 | 2.0 | 2.9 | 2.6 | 2.7 | 2.7 |
+
+   hold: n=60  trace_world/gate ratio median=0.838 (min 0.355 max 1.243)  trace_hand/gate median=0.673  drift ratio median=0.990
+
+   probe1: n=60  trace_world/gate ratio median=0.992 (min 0.562 max 2.065)  trace_hand/gate median=0.916  drift ratio median=1.000
+
+-- gate-ON: the gate's own per-attempt rate_max by class (true per-tick) --
+| seed | att | arm | class | hold rate_max | probe1 rate_max | fired |
+| --- | --- | --- | --- | --- | --- | --- |
+| s11 | 1 | right | ok | 2.9 | 21.3 | no |
+| s11 | 4 | right | carried | 1.7 | 2.0 | no |
+| s11 | 5 | right | ok | 7.5 | 13.5 | no |
+| s11 | 7 | right | carried | 36.5 | 139.7 | YES |
+| s11 | 9 | right | ok | 29.6 | 31.3 | no |
+| s11 | 11 | right | carried | 3.2 | 4.5 | no |
+| s11 | 13 | right | ok | 6.4 | 124.7 | YES |
+| s11 | 15 | right | ok | 13.2 | 23.2 | no |
+| s11 | 17 | right | no-grasp | 10.2 | 56.1 | no |
+| s11 | 20 | right | carried | 15.8 | 57.2 | no |
+| s11 | 2 | left | ok | 168.0 | 17.5 | YES |
+| s11 | 3 | left | no-grasp | 10.9 | 114.1 | no |
+| s11 | 6 | left | no-grasp | 231.2 | 325.1 | YES |
+| s11 | 8 | left | ok | 3.6 | 3.3 | no |
+| s11 | 10 | left | ok | 21.4 | 1.4 | no |
+| s11 | 12 | left | carried | 27.4 | 6.8 | no |
+| s11 | 14 | left | no-grasp | 137.1 | 57.5 | YES |
+| s11 | 16 | left | ok | 86.5 | 22.6 | YES |
+| s11 | 18 | left | ok | 12.4 | 12.5 | no |
+| s11 | 19 | left | no-grasp | 275.3 | 278.6 | YES |
+| s5 | 1 | left | carried | 42.4 | 8.6 | no |
+| s5 | 3 | left | ok | 9.0 | 13.3 | no |
+| s5 | 5 | left | carried | 37.5 | 5.8 | no |
+| s5 | 8 | left | ok | 28.7 | 28.0 | no |
+| s5 | 9 | left | ok | 47.4 | 17.6 | no |
+| s5 | 11 | left | carried | 36.1 | 15.3 | no |
+| s5 | 13 | left | ok | 31.7 | 6.3 | no |
+| s5 | 15 | left | ok | 3.0 | 11.5 | no |
+| s5 | 17 | left | carried | 44.6 | 4.9 | no |
+| s5 | 19 | left | ok | 6.9 | 7.2 | no |
+| s5 | 2 | right | ok | 77.1 | 19.6 | no |
+| s5 | 4 | right | ok | 14.5 | 28.6 | no |
+| s5 | 6 | right | ok | 17.1 | 9.5 | no |
+| s5 | 7 | right | ok | 25.1 | 68.6 | no |
+| s5 | 10 | right | ok | 11.0 | 16.9 | no |
+| s5 | 12 | right | ok | 14.1 | 29.6 | no |
+| s5 | 14 | right | ok | 14.0 | 19.8 | no |
+| s5 | 16 | right | no-grasp | 39.7 | 84.2 | YES |
+| s5 | 18 | right | ok | 1.6 | 10.1 | no |
+| s5 | 20 | right | ok | 6.9 | 12.1 | no |
+| s23 | 1 | right | carried | 39.6 | 79.7 | YES |
+| s23 | 3 | right | no-grasp | 17.3 | 119.7 | YES |
+| s23 | 5 | right | ok | 12.5 | 21.0 | no |
+| s23 | 7 | right | ok | 11.3 | 52.9 | no |
+| s23 | 9 | right | ok | 21.5 | 40.2 | no |
+| s23 | 11 | right | carried | 61.6 | 140.0 | YES |
+| s23 | 13 | right | no-grasp | 14.2 | 106.9 | YES |
+| s23 | 14 | right | no-grasp | 8.3 | 38.5 | no |
+| s23 | 16 | right | ok | 13.5 | 61.7 | no |
+| s23 | 19 | right | ok | 52.4 | 36.4 | no |
+| s23 | 2 | left | ok | 34.8 | 11.5 | no |
+| s23 | 4 | left | ok | 31.2 | 16.2 | no |
+| s23 | 6 | left | carried | 46.6 | 18.5 | no |
+| s23 | 8 | left | ok | 99.3 | 26.6 | no |
+| s23 | 10 | left | ok | 12.9 | 20.4 | no |
+| s23 | 12 | left | ok | 25.6 | 20.1 | no |
+| s23 | 15 | left | ok | 27.8 | 1.3 | no |
+| s23 | 17 | left | ok | 27.7 | 14.0 | no |
+| s23 | 18 | left | no-grasp | 40.2 | 38.3 | no |
+| s23 | 20 | left | carried | 23.1 | 2.0 | no |
+
+== controls (P14-B, unbiased): per-tick drift-rate distributions (hold + probe1) ==
+| class | n | att-max p50 | att-max p90 | att-max max | sample p50 | sample p90 | sample p99 | sample max |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| ok | 45 | 22.5 | 62.4 | 130.7 | 3.7 | 18.4 | 54.5 | 130.7 |
+| carried | 7 | 37.1 | 160.3 | 254.1 | 6.7 | 47.4 | 127.4 | 254.1 |
+| B1 | 5 | 226.0 | 310.2 | 310.2 | 53.3 | 217.9 | 286.0 | 310.2 |
+| B2 | 3 | 60.6 | 83.6 | 83.6 | 1.7 | 29.1 | 59.6 | 83.6 |
+
+== gate-ON (stage P, branch-shifted): per-tick drift-rate distributions (hold + probe1) ==
+| class | n | att-max p50 | att-max p90 | att-max max | sample p50 | sample p90 | sample p99 | sample max |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| ok | 37 | 23.8 | 60.5 | 153.6 | 3.8 | 15.8 | 64.0 | 153.6 |
+| carried | 13 | 35.6 | 140.5 | 140.8 | 2.9 | 31.6 | 71.7 | 140.8 |
+| no-grasp | 10 | 107.5 | 279.3 | 326.1 | 16.3 | 177.7 | 277.9 | 326.1 |
+
+== controls (P14-B): max sustained run (samples) above candidate thresholds ==
+| class | n | >=40 | >=60 | >=80 | >=100 | >=120 | >=150 | >=200 | >=250 | >=300 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| ok | 45 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 |
+| carried | 7 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 |
+| B1 | 5 | 36.0 | 17.0 | 16.0 | 12.0 | 4.0 | 3.0 | 2.0 | 0.0 | 0.0 |
+| B2 | 3 | 2.0 | 1.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 |
+
+   (cells = median max-run length in samples; a *sample* is 1 tick on probe1 and 2 ticks on hold)
+
+== gate-ON (stage P): max sustained run (samples) above candidate thresholds ==
+| class | n | >=40 | >=60 | >=80 | >=100 | >=120 | >=150 | >=200 | >=250 | >=300 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| ok | 37 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 |
+| carried | 13 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 |
+| no-grasp | 10 | 10.5 | 3.0 | 1.5 | 1.5 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 |
+
+   (cells = median max-run length in samples; a *sample* is 1 tick on probe1 and 2 ticks on hold)
+
+== the shipped rule (>=60 mm/s for >=3 samples, window 60 mm) ==
+-- controls --
+| class | n | fired | fraction |
+| --- | --- | --- | --- |
+| ok | 45 | 3 | 0.07 |
+| carried | 7 | 3 | 0.43 |
+| B1 | 5 | 4 | 0.80 |
+| B2 | 3 | 0 | 0.00 |
+-- gate-ON --
+| class | n | fired | fraction |
+| --- | --- | --- | --- |
+| ok | 37 | 2 | 0.05 |
+| carried | 13 | 3 | 0.23 |
+| no-grasp | 10 | 6 | 0.60 |
+
+== the separability search (controls; the unbiased sample) ==
+Target = no-grasp (B1+B2).  FP counted on ok.  Fired-carried reported.
+| thr | ticks | window | caught no-grasp | caught B1 | FP on ok | fired carried |
+| --- | --- | --- | --- | --- | --- | --- |
+| 80 | 2 | 40 | 5/8 | 4/5 | 1/45 | 2/7 |
+| 80 | 2 | 60 | 5/8 | 4/5 | 1/45 | 2/7 |
+| 80 | 2 | 80 | 5/8 | 4/5 | 1/45 | 2/7 |
+| 80 | 2 | 100 | 5/8 | 4/5 | 1/45 | 2/7 |
+| 80 | 2 | off | 5/8 | 4/5 | 1/45 | 2/7 |
+| 60 | 8 | 40 | 4/8 | 4/5 | 0/45 | 2/7 |
+| 60 | 8 | 60 | 4/8 | 4/5 | 0/45 | 2/7 |
+| 60 | 8 | 80 | 4/8 | 4/5 | 0/45 | 2/7 |
+| 60 | 8 | 100 | 4/8 | 4/5 | 0/45 | 2/7 |
+| 60 | 8 | off | 4/8 | 4/5 | 0/45 | 2/7 |
+| 90 | 2 | 40 | 4/8 | 4/5 | 0/45 | 2/7 |
+| 90 | 2 | 60 | 4/8 | 4/5 | 0/45 | 2/7 |
+| 90 | 2 | 80 | 4/8 | 4/5 | 0/45 | 2/7 |
+| 90 | 2 | 100 | 4/8 | 4/5 | 0/45 | 2/7 |
+| 90 | 2 | off | 4/8 | 4/5 | 0/45 | 2/7 |
+| 60 | 4 | 40 | 4/8 | 4/5 | 1/45 | 3/7 |
+| 60 | 4 | 60 | 4/8 | 4/5 | 1/45 | 3/7 |
+| 60 | 4 | 80 | 4/8 | 4/5 | 1/45 | 3/7 |
+| 60 | 4 | 100 | 4/8 | 4/5 | 1/45 | 3/7 |
+| 60 | 4 | off | 4/8 | 4/5 | 1/45 | 3/7 |
+| 60 | 5 | 40 | 4/8 | 4/5 | 1/45 | 2/7 |
+| 60 | 5 | 60 | 4/8 | 4/5 | 1/45 | 2/7 |
+| 60 | 5 | 80 | 4/8 | 4/5 | 1/45 | 2/7 |
+| 60 | 5 | 100 | 4/8 | 4/5 | 1/45 | 2/7 |
+
+   (rows sorted by no-grasp recall; only FP<=1 shown; 320 of 420 triples qualify)
+
+-- the same search with the hand-frame rate (sensitivity) --
+   thr=80 ticks=2 window=60: no-grasp 5/8, FP 1/45
+   thr=80 ticks=2 window=off: no-grasp 5/8, FP 1/45
+   thr=120 ticks=1 window=60: no-grasp 4/8, FP 0/45
+   thr=120 ticks=1 window=off: no-grasp 4/8, FP 0/45
+   thr=120 ticks=2 window=60: no-grasp 4/8, FP 0/45
+   thr=120 ticks=2 window=off: no-grasp 4/8, FP 0/45
+   thr=60 ticks=8 window=60: no-grasp 4/8, FP 1/45
+   thr=60 ticks=8 window=off: no-grasp 4/8, FP 1/45
+   thr=70 ticks=3 window=60: no-grasp 4/8, FP 1/45
+   thr=70 ticks=3 window=off: no-grasp 4/8, FP 1/45
+   thr=70 ticks=4 window=60: no-grasp 4/8, FP 1/45
+   thr=70 ticks=4 window=off: no-grasp 4/8, FP 1/45
+
+== CALIBRATION: the trace detector vs the gate's actual fires (gate-ON) ==
+The gate's own fire decision comes from its [slide] response rows (true per-tick sampling);
+my detector runs on the traces (hold sampled every 2 ticks).  Branch note: the gate's
+response changes the trajectory after a fire, so agreement is a calibration read, not an identity.
+   (60,3,60): gate fires=12 trace fires=11 agree 11 | missed-by-trace 1 [s11/16(ok)] | trace-only 0 [] | both-quiet 48
+   (80,2,60): gate fires=12 trace fires=9 agree 9 | missed-by-trace 3 [s11/16(ok),s5/16(no-grasp),s23/1(carried)] | trace-only 0 [] | both-quiet 48
+   (90,2,60): gate fires=12 trace fires=8 agree 8 | missed-by-trace 4 [s11/16(ok),s5/16(no-grasp),s23/1(carried),s23/11(carried)] | trace-only 0 [] | both-quiet 48
+   (60,4,60): gate fires=12 trace fires=8 agree 8 | missed-by-trace 4 [s11/2(ok),s11/14(no-grasp),s11/16(ok),s5/16(no-grasp)] | trace-only 0 [] | both-quiet 48
+   (60,8,60): gate fires=12 trace fires=5 agree 5 | missed-by-trace 7 [s11/2(ok),s11/7(carried),s11/14(no-grasp),s11/16(ok),s5/16(no-grasp),s23/1(carried),s23/11(carried)] | trace-only 0 [] | both-quiet 48
+
+== where the candidate rules fire (controls; hold vs probe1, run length) ==
+| rule | class | fired | in hold | in probe1 | median run (samples) | max run (samples) | window-bound (drift > window at fire) |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| 60/3 | ok | 3 | 0 | 3 | 3 | 7 | 0 |
+| 60/3 | carried | 3 | 0 | 3 | 8 | 13 | 0 |
+| 60/3 | B1 | 4 | 3 | 1 | 44 | 75 | 0 |
+| 80/2 | ok | 1 | 0 | 1 | 2 | 2 | 0 |
+| 80/2 | carried | 2 | 0 | 2 | 10 | 11 | 0 |
+| 80/2 | B1 | 4 | 3 | 1 | 41 | 74 | 0 |
+| 80/2 | B2 | 1 | 0 | 1 | 2 | 2 | 0 |
+| 90/2 | carried | 2 | 0 | 2 | 6 | 7 | 0 |
+| 90/2 | B1 | 4 | 3 | 1 | 36 | 65 | 0 |
+| 60/8 | carried | 2 | 0 | 2 | 10 | 13 | 0 |
+| 60/8 | B1 | 4 | 3 | 1 | 44 | 75 | 0 |
+
+== does the drift window (60 mm) ever bind? ==
+   (60,3): attempts where the 60 mm window changes the fire count: 0/60
+   (80,2): attempts where the 60 mm window changes the fire count: 0/60
+   (60,8): attempts where the 60 mm window changes the fire count: 0/60
+   controls: max drift reached inside hold+probe1 = 165.7 mm (the window is 60 mm)
+
+== per-attempt detail at (60 mm/s, 3 samples, window 60 mm) - controls (P14-B) ==
+| seed | att | arm | class | species | hold rows | p1 rows | max run >=60 | max rate | drift@fire | phase@fire | fired | outcome |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| s11 | 1 | left | B1 | orange | 24 | 60 | 17 | 310.2 | 7.8 | hold | YES | no-grasp |
+| s11 | 2 | right | ok | pear | 24 | 60 | 0 | 17.7 | - | - | no | placed |
+| s11 | 3 | left | B2 | peach | 24 | 60 | 2 | 83.6 | - | - | no | no-grasp |
+| s11 | 4 | right | ok | peach | 24 | 60 | 0 | 20.1 | - | - | no | placed |
+| s11 | 5 | left | B2 | tomato | 24 | 60 | 0 | 2.9 | - | - | no | no-grasp |
+| s11 | 6 | right | carried | pear | 24 | 60 | 13 | 160.3 | 4.9 | takeoff_probe | YES | carried |
+| s11 | 7 | left | B1 | tomato | 24 | 60 | 70 | 226.0 | 13.9 | hold | YES | no-grasp |
+| s11 | 8 | right | B2 | tomato | 24 | 60 | 1 | 60.6 | - | - | no | no-grasp |
+| s11 | 9 | left | B1 | orange | 24 | 60 | 75 | 290.1 | 9.3 | hold | YES | no-grasp |
+| s11 | 10 | right | ok | lychee | 24 | 60 | 0 | 54.0 | - | - | no | placed |
+| s11 | 11 | left | ok | apple | 24 | 60 | 2 | 65.3 | - | - | no | placed |
+| s11 | 12 | right | carried | pear | 24 | 60 | 8 | 254.1 | 8.6 | takeoff_probe | YES | carried |
+| s11 | 13 | left | ok | apple | 24 | 60 | 0 | 19.1 | - | - | no | placed |
+| s11 | 14 | right | B1 | tomato | 24 | 60 | 0 | 37.3 | - | - | no | no-grasp |
+| s11 | 15 | left | ok | pear | 24 | 60 | 2 | 62.4 | - | - | no | placed |
+| s11 | 16 | right | ok | lychee | 24 | 60 | 0 | 39.4 | - | - | no | placed |
+| s11 | 17 | left | ok | apple | 24 | 60 | 0 | 3.8 | - | - | no | placed |
+| s11 | 18 | right | ok | orange | 24 | 60 | 0 | 14.8 | - | - | no | placed |
+| s11 | 19 | left | ok | pear | 24 | 60 | 0 | 11.9 | - | - | no | placed |
+| s11 | 20 | right | ok | lychee | 24 | 60 | 7 | 74.4 | 23.3 | takeoff_probe | YES | placed |
+| s23 | 1 | right | carried | peach | 24 | 60 | 4 | 79.6 | 7.7 | takeoff_probe | YES | carried |
+| s23 | 2 | left | ok | apple | 24 | 60 | 0 | 34.1 | - | - | no | placed |
+| s23 | 3 | right | B1 | strawberry | 24 | 60 | 11 | 96.1 | 10.1 | takeoff_probe | YES | no-grasp |
+| s23 | 4 | left | ok | lychee | 24 | 60 | 0 | 27.9 | - | - | no | placed |
+| s23 | 5 | right | ok | orange | 24 | 60 | 0 | 13.6 | - | - | no | placed |
+| s23 | 6 | left | carried | pear | 24 | 60 | 0 | 35.4 | - | - | no | carried |
+| s23 | 7 | right | ok | apple | 24 | 60 | 0 | 18.2 | - | - | no | placed |
+| s23 | 8 | left | ok | apple | 24 | 60 | 1 | 60.2 | - | - | no | placed |
+| s23 | 9 | right | ok | strawberry | 24 | 60 | 0 | 26.7 | - | - | no | placed |
+| s23 | 10 | left | ok | lychee | 24 | 60 | 0 | 5.3 | - | - | no | placed |
+| s23 | 11 | right | ok | orange | 24 | 60 | 3 | 130.7 | 10.8 | takeoff_probe | YES | placed |
+| s23 | 12 | left | ok | pear | 24 | 60 | 0 | 2.9 | - | - | no | placed |
+| s23 | 13 | right | ok | apple | 24 | 60 | 0 | 4.5 | - | - | no | placed |
+| s23 | 14 | left | ok | lychee | 24 | 60 | 0 | 19.2 | - | - | no | placed |
+| s23 | 15 | right | ok | orange | 24 | 60 | 0 | 7.5 | - | - | no | placed |
+| s23 | 16 | left | ok | pear | 24 | 60 | 0 | 22.6 | - | - | no | placed |
+| s23 | 17 | right | ok | apple | 24 | 60 | 0 | 18.3 | - | - | no | placed |
+| s23 | 18 | left | ok | lychee | 24 | 60 | 0 | 7.2 | - | - | no | placed |
+| s23 | 19 | right | ok | strawberry | 24 | 60 | 0 | 16.1 | - | - | no | placed |
+| s23 | 20 | left | ok | pear | 24 | 60 | 0 | 25.5 | - | - | no | placed |
+| s5 | 1 | left | carried | tomato | 24 | 60 | 0 | 33.4 | - | - | no | carried |
+| s5 | 2 | right | ok | pear | 24 | 60 | 0 | 59.2 | - | - | no | placed |
+| s5 | 3 | left | ok | lychee | 24 | 60 | 0 | 12.5 | - | - | no | placed |
+| s5 | 4 | right | ok | kiwi | 24 | 60 | 0 | 26.4 | - | - | no | placed |
+| s5 | 5 | left | carried | tomato | 24 | 60 | 0 | 37.1 | - | - | no | carried |
+| s5 | 6 | right | ok | pear | 24 | 60 | 0 | 14.0 | - | - | no | placed |
+| s5 | 7 | right | ok | apple | 24 | 60 | 0 | 52.3 | - | - | no | placed |
+| s5 | 8 | left | ok | lychee | 24 | 60 | 0 | 28.8 | - | - | no | placed |
+| s5 | 9 | left | ok | tomato | 24 | 60 | 0 | 42.8 | - | - | no | placed |
+| s5 | 10 | right | ok | pear | 24 | 60 | 0 | 11.8 | - | - | no | placed |
+| s5 | 11 | left | carried | kiwi | 24 | 60 | 0 | 35.0 | - | - | no | carried |
+| s5 | 12 | right | ok | pear | 24 | 60 | 0 | 28.9 | - | - | no | placed |
+| s5 | 13 | left | ok | kiwi | 24 | 60 | 0 | 28.8 | - | - | no | placed |
+| s5 | 14 | right | ok | kiwi | 24 | 60 | 0 | 13.7 | - | - | no | placed |
+| s5 | 15 | left | ok | tomato | 24 | 60 | 0 | 12.7 | - | - | no | placed |
+| s5 | 16 | right | ok | apple | 24 | 60 | 3 | 85.4 | 4.8 | takeoff_probe | YES | placed |
+| s5 | 17 | left | ok | orange | 24 | 60 | 0 | 36.4 | - | - | no | placed |
+| s5 | 18 | right | ok | kiwi | 24 | 60 | 0 | 44.5 | - | - | no | placed |
+| s5 | 19 | left | ok | kiwi | 24 | 60 | 0 | 22.5 | - | - | no | placed |
+| s5 | 20 | right | ok | peach | 24 | 60 | 0 | 11.4 | - | - | no | placed |
+
+== per-attempt detail at (80 mm/s, 2 samples, window 60 mm) - controls (P14-B) ==
+| seed | att | arm | class | species | hold rows | p1 rows | max run >=80 | max rate | drift@fire | phase@fire | fired | outcome |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| s11 | 1 | left | B1 | orange | 24 | 60 | 16 | 310.2 | 7.8 | hold | YES | no-grasp |
+| s11 | 2 | right | ok | pear | 24 | 60 | 0 | 17.7 | - | - | no | placed |
+| s11 | 3 | left | B2 | peach | 24 | 60 | 2 | 83.6 | 0.9 | takeoff_probe | YES | no-grasp |
+| s11 | 4 | right | ok | peach | 24 | 60 | 0 | 20.1 | - | - | no | placed |
+| s11 | 5 | left | B2 | tomato | 24 | 60 | 0 | 2.9 | - | - | no | no-grasp |
+| s11 | 6 | right | carried | pear | 24 | 60 | 11 | 160.3 | 4.5 | takeoff_probe | YES | carried |
+| s11 | 7 | left | B1 | tomato | 24 | 60 | 66 | 226.0 | 7.0 | hold | YES | no-grasp |
+| s11 | 8 | right | B2 | tomato | 24 | 60 | 0 | 60.6 | - | - | no | no-grasp |
+| s11 | 9 | left | B1 | orange | 24 | 60 | 74 | 290.1 | 9.3 | hold | YES | no-grasp |
+| s11 | 10 | right | ok | lychee | 24 | 60 | 0 | 54.0 | - | - | no | placed |
+| s11 | 11 | left | ok | apple | 24 | 60 | 0 | 65.3 | - | - | no | placed |
+| s11 | 12 | right | carried | pear | 24 | 60 | 8 | 254.1 | 8.3 | takeoff_probe | YES | carried |
+| s11 | 13 | left | ok | apple | 24 | 60 | 0 | 19.1 | - | - | no | placed |
+| s11 | 14 | right | B1 | tomato | 24 | 60 | 0 | 37.3 | - | - | no | no-grasp |
+| s11 | 15 | left | ok | pear | 24 | 60 | 0 | 62.4 | - | - | no | placed |
+| s11 | 16 | right | ok | lychee | 24 | 60 | 0 | 39.4 | - | - | no | placed |
+| s11 | 17 | left | ok | apple | 24 | 60 | 0 | 3.8 | - | - | no | placed |
+| s11 | 18 | right | ok | orange | 24 | 60 | 0 | 14.8 | - | - | no | placed |
+| s11 | 19 | left | ok | pear | 24 | 60 | 0 | 11.9 | - | - | no | placed |
+| s11 | 20 | right | ok | lychee | 24 | 60 | 0 | 74.4 | - | - | no | placed |
+| s23 | 1 | right | carried | peach | 24 | 60 | 0 | 79.6 | - | - | no | carried |
+| s23 | 2 | left | ok | apple | 24 | 60 | 0 | 34.1 | - | - | no | placed |
+| s23 | 3 | right | B1 | strawberry | 24 | 60 | 2 | 96.1 | 9.3 | takeoff_probe | YES | no-grasp |
+| s23 | 4 | left | ok | lychee | 24 | 60 | 0 | 27.9 | - | - | no | placed |
+| s23 | 5 | right | ok | orange | 24 | 60 | 0 | 13.6 | - | - | no | placed |
+| s23 | 6 | left | carried | pear | 24 | 60 | 0 | 35.4 | - | - | no | carried |
+| s23 | 7 | right | ok | apple | 24 | 60 | 0 | 18.2 | - | - | no | placed |
+| s23 | 8 | left | ok | apple | 24 | 60 | 0 | 60.2 | - | - | no | placed |
+| s23 | 9 | right | ok | strawberry | 24 | 60 | 0 | 26.7 | - | - | no | placed |
+| s23 | 10 | left | ok | lychee | 24 | 60 | 0 | 5.3 | - | - | no | placed |
+| s23 | 11 | right | ok | orange | 24 | 60 | 2 | 130.7 | 11.3 | takeoff_probe | YES | placed |
+| s23 | 12 | left | ok | pear | 24 | 60 | 0 | 2.9 | - | - | no | placed |
+| s23 | 13 | right | ok | apple | 24 | 60 | 0 | 4.5 | - | - | no | placed |
+| s23 | 14 | left | ok | lychee | 24 | 60 | 0 | 19.2 | - | - | no | placed |
+| s23 | 15 | right | ok | orange | 24 | 60 | 0 | 7.5 | - | - | no | placed |
+| s23 | 16 | left | ok | pear | 24 | 60 | 0 | 22.6 | - | - | no | placed |
+| s23 | 17 | right | ok | apple | 24 | 60 | 0 | 18.3 | - | - | no | placed |
+| s23 | 18 | left | ok | lychee | 24 | 60 | 0 | 7.2 | - | - | no | placed |
+| s23 | 19 | right | ok | strawberry | 24 | 60 | 0 | 16.1 | - | - | no | placed |
+| s23 | 20 | left | ok | pear | 24 | 60 | 0 | 25.5 | - | - | no | placed |
+| s5 | 1 | left | carried | tomato | 24 | 60 | 0 | 33.4 | - | - | no | carried |
+| s5 | 2 | right | ok | pear | 24 | 60 | 0 | 59.2 | - | - | no | placed |
+| s5 | 3 | left | ok | lychee | 24 | 60 | 0 | 12.5 | - | - | no | placed |
+| s5 | 4 | right | ok | kiwi | 24 | 60 | 0 | 26.4 | - | - | no | placed |
+| s5 | 5 | left | carried | tomato | 24 | 60 | 0 | 37.1 | - | - | no | carried |
+| s5 | 6 | right | ok | pear | 24 | 60 | 0 | 14.0 | - | - | no | placed |
+| s5 | 7 | right | ok | apple | 24 | 60 | 0 | 52.3 | - | - | no | placed |
+| s5 | 8 | left | ok | lychee | 24 | 60 | 0 | 28.8 | - | - | no | placed |
+| s5 | 9 | left | ok | tomato | 24 | 60 | 0 | 42.8 | - | - | no | placed |
+| s5 | 10 | right | ok | pear | 24 | 60 | 0 | 11.8 | - | - | no | placed |
+| s5 | 11 | left | carried | kiwi | 24 | 60 | 0 | 35.0 | - | - | no | carried |
+| s5 | 12 | right | ok | pear | 24 | 60 | 0 | 28.9 | - | - | no | placed |
+| s5 | 13 | left | ok | kiwi | 24 | 60 | 0 | 28.8 | - | - | no | placed |
+| s5 | 14 | right | ok | kiwi | 24 | 60 | 0 | 13.7 | - | - | no | placed |
+| s5 | 15 | left | ok | tomato | 24 | 60 | 0 | 12.7 | - | - | no | placed |
+| s5 | 16 | right | ok | apple | 24 | 60 | 1 | 85.4 | - | - | no | placed |
+| s5 | 17 | left | ok | orange | 24 | 60 | 0 | 36.4 | - | - | no | placed |
+| s5 | 18 | right | ok | kiwi | 24 | 60 | 0 | 44.5 | - | - | no | placed |
+| s5 | 19 | left | ok | kiwi | 24 | 60 | 0 | 22.5 | - | - | no | placed |
+| s5 | 20 | right | ok | peach | 24 | 60 | 0 | 11.4 | - | - | no | placed |
+
+== per-attempt detail at (60 mm/s, 3 samples, window 60 mm) - gate-ON (stage P) ==
+| seed | att | arm | class | species | hold rows | p1 rows | max run >=60 | max rate | drift@fire | phase@fire | fired | outcome |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| s11 | 1 | right | ok | pear | 24 | 60 | 0 | 20.9 | - | - | no | placed |
+| s11 | 2 | left | ok | orange | 24 | 60 | 3 | 153.6 | 7.8 | hold | YES | placed |
+| s11 | 3 | left | no-grasp | peach | 24 | 60 | 2 | 115.4 | - | - | no | no-grasp |
+| s11 | 4 | right | carried | peach | 24 | 60 | 0 | 2.7 | - | - | no | carried |
+| s11 | 5 | right | ok | lychee | 24 | 60 | 0 | 8.9 | - | - | no | placed |
+| s11 | 6 | left | no-grasp | orange | 24 | 60 | 69 | 326.1 | 12.1 | hold | YES | no-grasp |
+| s11 | 7 | right | carried | peach | 24 | 60 | 4 | 140.5 | 9.5 | takeoff_probe | YES | carried |
+| s11 | 8 | left | ok | apple | 24 | 60 | 0 | 4.0 | - | - | no | placed |
+| s11 | 9 | right | ok | lychee | 24 | 60 | 0 | 20.5 | - | - | no | placed |
+| s11 | 10 | left | ok | orange | 24 | 60 | 0 | 18.6 | - | - | no | placed |
+| s11 | 11 | right | carried | tomato | 24 | 60 | 0 | 4.3 | - | - | no | carried |
+| s11 | 12 | left | carried | tomato | 24 | 60 | 0 | 21.5 | - | - | no | carried |
+| s11 | 13 | right | ok | lychee | 24 | 60 | 24 | 124.7 | 3.9 | takeoff_probe | YES | placed |
+| s11 | 14 | left | no-grasp | orange | 24 | 60 | 3 | 129.9 | 15.8 | hold | YES | no-grasp |
+| s11 | 15 | right | ok | tomato | 24 | 60 | 0 | 15.6 | - | - | no | placed |
+| s11 | 16 | left | ok | apple | 24 | 60 | 1 | 80.4 | - | - | no | placed |
+| s11 | 17 | right | no-grasp | lychee | 24 | 60 | 0 | 55.3 | - | - | no | no-grasp |
+| s11 | 18 | left | ok | orange | 24 | 60 | 0 | 13.6 | - | - | no | placed |
+| s11 | 19 | left | no-grasp | tomato | 24 | 60 | 67 | 279.3 | 22.1 | hold | YES | no-grasp |
+| s11 | 20 | right | carried | tomato | 24 | 60 | 0 | 56.2 | - | - | no | carried |
+| s23 | 1 | right | carried | peach | 24 | 60 | 4 | 79.6 | 7.7 | takeoff_probe | YES | carried |
+| s23 | 2 | left | ok | apple | 24 | 60 | 0 | 34.1 | - | - | no | placed |
+| s23 | 3 | right | no-grasp | strawberry | 24 | 60 | 22 | 118.0 | 9.7 | takeoff_probe | YES | no-grasp |
+| s23 | 4 | left | ok | lychee | 24 | 60 | 0 | 27.2 | - | - | no | placed |
+| s23 | 5 | right | ok | orange | 24 | 60 | 0 | 15.7 | - | - | no | placed |
+| s23 | 6 | left | carried | pear | 24 | 60 | 0 | 35.6 | - | - | no | carried |
+| s23 | 7 | right | ok | apple | 24 | 60 | 0 | 52.6 | - | - | no | placed |
+| s23 | 8 | left | ok | apple | 24 | 60 | 1 | 73.3 | - | - | no | placed |
+| s23 | 9 | right | ok | strawberry | 24 | 60 | 0 | 27.3 | - | - | no | placed |
+| s23 | 10 | left | ok | lychee | 24 | 60 | 0 | 19.3 | - | - | no | placed |
+| s23 | 11 | right | carried | orange | 24 | 60 | 4 | 140.8 | 8.6 | takeoff_probe | YES | carried |
+| s23 | 12 | left | ok | pear | 24 | 60 | 0 | 21.4 | - | - | no | placed |
+| s23 | 13 | right | no-grasp | strawberry | 24 | 60 | 28 | 107.5 | 6.8 | takeoff_probe | YES | no-grasp |
+| s23 | 14 | right | no-grasp | orange | 24 | 60 | 0 | 33.4 | - | - | no | no-grasp |
+| s23 | 15 | left | ok | tomato | 24 | 60 | 0 | 25.9 | - | - | no | placed |
+| s23 | 16 | right | ok | lychee | 24 | 60 | 1 | 60.5 | - | - | no | placed |
+| s23 | 17 | left | ok | lychee | 24 | 60 | 0 | 23.8 | - | - | no | placed |
+| s23 | 18 | left | no-grasp | tomato | 24 | 60 | 0 | 38.0 | - | - | no | no-grasp |
+| s23 | 19 | right | ok | strawberry | 24 | 60 | 0 | 29.1 | - | - | no | placed |
+| s23 | 20 | left | carried | lychee | 24 | 60 | 0 | 21.9 | - | - | no | carried |
+| s5 | 1 | left | carried | tomato | 24 | 60 | 0 | 33.4 | - | - | no | carried |
+| s5 | 2 | right | ok | pear | 24 | 60 | 0 | 59.2 | - | - | no | placed |
+| s5 | 3 | left | ok | lychee | 24 | 60 | 0 | 12.5 | - | - | no | placed |
+| s5 | 4 | right | ok | kiwi | 24 | 60 | 0 | 26.4 | - | - | no | placed |
+| s5 | 5 | left | carried | tomato | 24 | 60 | 0 | 37.1 | - | - | no | carried |
+| s5 | 6 | right | ok | pear | 24 | 60 | 0 | 14.0 | - | - | no | placed |
+| s5 | 7 | right | ok | apple | 24 | 60 | 0 | 52.3 | - | - | no | placed |
+| s5 | 8 | left | ok | lychee | 24 | 60 | 0 | 28.8 | - | - | no | placed |
+| s5 | 9 | left | ok | tomato | 24 | 60 | 0 | 42.8 | - | - | no | placed |
+| s5 | 10 | right | ok | pear | 24 | 60 | 0 | 11.8 | - | - | no | placed |
+| s5 | 11 | left | carried | kiwi | 24 | 60 | 0 | 35.0 | - | - | no | carried |
+| s5 | 12 | right | ok | pear | 24 | 60 | 0 | 28.9 | - | - | no | placed |
+| s5 | 13 | left | ok | kiwi | 24 | 60 | 0 | 28.8 | - | - | no | placed |
+| s5 | 14 | right | ok | kiwi | 24 | 60 | 0 | 13.7 | - | - | no | placed |
+| s5 | 15 | left | ok | tomato | 24 | 60 | 0 | 12.7 | - | - | no | placed |
+| s5 | 16 | right | no-grasp | apple | 24 | 60 | 3 | 85.4 | 4.8 | takeoff_probe | YES | no-grasp |
+| s5 | 17 | left | carried | orange | 24 | 60 | 0 | 39.0 | - | - | no | carried |
+| s5 | 18 | right | ok | pear | 24 | 60 | 0 | 11.5 | - | - | no | placed |
+| s5 | 19 | left | ok | peach | 24 | 60 | 0 | 7.2 | - | - | no | placed |
+| s5 | 20 | right | ok | peach | 24 | 60 | 0 | 9.1 | - | - | no | placed |

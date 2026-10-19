@@ -1,0 +1,172 @@
+== controls (P14-B): per-phase per-attempt max rate ==
+| class | n | hold p50 | hold p90 | hold max | probe1 p50 | probe1 p90 | probe1 max |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| ok | 45 | 14.0 | 42.8 | 65.3 | 14.8 | 52.3 | 130.7 |
+| carried | 7 | 33.4 | 35.4 | 37.1 | 15.0 | 160.3 | 254.1 |
+| B1 | 5 | 197.5 | 310.2 | 310.2 | 226.0 | 290.1 | 290.1 |
+| B2 | 3 | 8.1 | 9.7 | 9.7 | 60.6 | 83.6 | 83.6 |
+== gate-ON (stage P): per-phase per-attempt max rate ==
+| class | n | hold p50 | hold p90 | hold max | probe1 p50 | probe1 p90 | probe1 max |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| ok | 37 | 12.8 | 42.8 | 153.6 | 15.7 | 29.0 | 124.7 |
+| carried | 13 | 23.5 | 37.1 | 39.0 | 9.1 | 140.5 | 140.8 |
+| no-grasp | 10 | 12.3 | 212.7 | 269.2 | 85.4 | 279.3 | 326.1 |
+
+== controls (P14-B): max run above threshold, by phase (median; samples) ==
+| class | phase | n | >=40 | >=60 | >=80 | >=100 | >=120 | >=150 | >=200 | >=250 | >=300 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| ok | hold | 45 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 |
+| ok | takeoff_probe | 45 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 |
+| carried | hold | 7 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 |
+| carried | takeoff_probe | 7 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 |
+| B1 | hold | 5 | 17.0 | 10.0 | 6.0 | 5.0 | 3.0 | 3.0 | 0.0 | 0.0 | 0.0 |
+| B1 | takeoff_probe | 5 | 36.0 | 11.0 | 8.0 | 4.0 | 4.0 | 2.0 | 1.0 | 0.0 | 0.0 |
+| B2 | hold | 3 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 |
+| B2 | takeoff_probe | 3 | 2.0 | 1.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 |
+
+== gate-ON (stage P): max run above threshold, by phase (median; samples) ==
+| class | phase | n | >=40 | >=60 | >=80 | >=100 | >=120 | >=150 | >=200 | >=250 | >=300 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| ok | hold | 37 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 |
+| ok | takeoff_probe | 37 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 |
+| carried | hold | 13 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 |
+| carried | takeoff_probe | 13 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 |
+| no-grasp | hold | 10 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 |
+| no-grasp | takeoff_probe | 10 | 6.5 | 2.5 | 1.0 | 0.5 | 0.0 | 0.0 | 0.0 | 0.0 | 0.0 |
+
+== the sustained-rate statistic (controls): the highest rate a run of >= L samples holds ==
+| class | L=2 p50 | L=2 max | L=3 p50 | L=3 max | L=5 p50 | L=5 max | L=10 p50 | L=10 max |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| ok | 16.5 | 81.5 | 13.5 | 71.3 | 10.8 | 69.5 | 7.0 | 59.7 |
+| carried | 32.2 | 210.1 | 30.8 | 157.1 | 28.5 | 106.2 | 25.0 | 83.5 |
+| B1 | 207.8 | 287.6 | 191.0 | 286.0 | 109.7 | 279.5 | 105.7 | 267.3 |
+| B2 | 58.9 | 80.9 | 14.1 | 58.3 | 5.9 | 58.0 | 5.6 | 46.6 |
+
+== candidate rules, phase-aware (controls) ==
+hold_weight=2 (optimistic: a 2-tick hold sample counts 2 ticks) and hold_weight=1 (conservative).
+| thr | ticks | window | hw | ok FP | B1 | B2 | carried | no-grasp |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 60 | 3 | 60 | 2 | 5/45 | 4/5 | 0/3 | 3/7 | 4/8 |
+| 60 | 3 | 60 | 1 | 3/45 | 4/5 | 0/3 | 3/7 | 4/8 |
+| 60 | 6 | 60 | 2 | 1/45 | 4/5 | 0/3 | 2/7 | 4/8 |
+| 60 | 6 | 60 | 1 | 1/45 | 4/5 | 0/3 | 2/7 | 4/8 |
+| 60 | 8 | 60 | 2 | 0/45 | 4/5 | 0/3 | 2/7 | 4/8 |
+| 60 | 8 | 60 | 1 | 0/45 | 4/5 | 0/3 | 2/7 | 4/8 |
+| 60 | 10 | 60 | 2 | 0/45 | 4/5 | 0/3 | 1/7 | 4/8 |
+| 60 | 10 | 60 | 1 | 0/45 | 4/5 | 0/3 | 1/7 | 4/8 |
+| 70 | 4 | 60 | 2 | 0/45 | 3/5 | 0/3 | 2/7 | 3/8 |
+| 70 | 4 | 60 | 1 | 0/45 | 3/5 | 0/3 | 2/7 | 3/8 |
+| 80 | 2 | 60 | 2 | 1/45 | 4/5 | 1/3 | 2/7 | 5/8 |
+| 80 | 2 | 60 | 1 | 1/45 | 4/5 | 1/3 | 2/7 | 5/8 |
+| 80 | 3 | 60 | 2 | 0/45 | 3/5 | 0/3 | 2/7 | 3/8 |
+| 80 | 3 | 60 | 1 | 0/45 | 3/5 | 0/3 | 2/7 | 3/8 |
+| 80 | 4 | 60 | 2 | 0/45 | 3/5 | 0/3 | 2/7 | 3/8 |
+| 80 | 4 | 60 | 1 | 0/45 | 3/5 | 0/3 | 2/7 | 3/8 |
+| 90 | 2 | 60 | 2 | 0/45 | 4/5 | 0/3 | 2/7 | 4/8 |
+| 90 | 2 | 60 | 1 | 0/45 | 4/5 | 0/3 | 2/7 | 4/8 |
+| 90 | 3 | 60 | 2 | 0/45 | 3/5 | 0/3 | 2/7 | 3/8 |
+| 90 | 3 | 60 | 1 | 0/45 | 3/5 | 0/3 | 2/7 | 3/8 |
+| 90 | 4 | 60 | 2 | 0/45 | 3/5 | 0/3 | 2/7 | 3/8 |
+| 90 | 4 | 60 | 1 | 0/45 | 3/5 | 0/3 | 2/7 | 3/8 |
+| 100 | 3 | 60 | 2 | 0/45 | 3/5 | 0/3 | 2/7 | 3/8 |
+| 100 | 3 | 60 | 1 | 0/45 | 3/5 | 0/3 | 2/7 | 3/8 |
+| 100 | 4 | 60 | 2 | 0/45 | 3/5 | 0/3 | 2/7 | 3/8 |
+| 100 | 4 | 60 | 1 | 0/45 | 3/5 | 0/3 | 2/7 | 3/8 |
+| 120 | 3 | 60 | 2 | 0/45 | 3/5 | 0/3 | 2/7 | 3/8 |
+| 120 | 3 | 60 | 1 | 0/45 | 3/5 | 0/3 | 2/7 | 3/8 |
+
+== the fired attempts per candidate (controls) ==
+   (60,3) hw=2 [12]: s11/1l:B1(orange,hold)  s11/6r:carried(pear,take)  s11/7l:B1(tomato,hold)  s11/9l:B1(orange,hold)  s11/11l:ok(apple,hold)  s11/12r:carried(pear,take)  s11/15l:ok(pear,hold)  s11/20r:ok(lychee,take)  s5/16r:ok(apple,take)  s23/1r:carried(peach,take)  s23/3r:B1(strawberry,take)  s23/11r:ok(orange,take)
+   (60,3) hw=1 [10]: s11/1l:B1(orange,hold)  s11/6r:carried(pear,take)  s11/7l:B1(tomato,hold)  s11/9l:B1(orange,hold)  s11/12r:carried(pear,take)  s11/20r:ok(lychee,take)  s5/16r:ok(apple,take)  s23/1r:carried(peach,take)  s23/3r:B1(strawberry,take)  s23/11r:ok(orange,take)
+   (80,2) hw=2 [8]: s11/1l:B1(orange,hold)  s11/3l:B2(peach,take)  s11/6r:carried(pear,take)  s11/7l:B1(tomato,hold)  s11/9l:B1(orange,hold)  s11/12r:carried(pear,take)  s23/3r:B1(strawberry,take)  s23/11r:ok(orange,take)
+   (80,2) hw=1 [8]: s11/1l:B1(orange,hold)  s11/3l:B2(peach,take)  s11/6r:carried(pear,take)  s11/7l:B1(tomato,hold)  s11/9l:B1(orange,hold)  s11/12r:carried(pear,take)  s23/3r:B1(strawberry,take)  s23/11r:ok(orange,take)
+   (90,2) hw=2 [6]: s11/1l:B1(orange,hold)  s11/6r:carried(pear,take)  s11/7l:B1(tomato,hold)  s11/9l:B1(orange,hold)  s11/12r:carried(pear,take)  s23/3r:B1(strawberry,take)
+   (90,2) hw=1 [6]: s11/1l:B1(orange,hold)  s11/6r:carried(pear,take)  s11/7l:B1(tomato,hold)  s11/9l:B1(orange,hold)  s11/12r:carried(pear,take)  s23/3r:B1(strawberry,take)
+   (60,8) hw=2 [6]: s11/1l:B1(orange,hold)  s11/6r:carried(pear,take)  s11/7l:B1(tomato,hold)  s11/9l:B1(orange,hold)  s11/12r:carried(pear,take)  s23/3r:B1(strawberry,take)
+   (60,8) hw=1 [6]: s11/1l:B1(orange,hold)  s11/6r:carried(pear,take)  s11/7l:B1(tomato,hold)  s11/9l:B1(orange,hold)  s11/12r:carried(pear,take)  s23/3r:B1(strawberry,take)
+   (80,4) hw=2 [5]: s11/1l:B1(orange,hold)  s11/6r:carried(pear,take)  s11/7l:B1(tomato,hold)  s11/9l:B1(orange,hold)  s11/12r:carried(pear,take)
+   (80,4) hw=1 [5]: s11/1l:B1(orange,hold)  s11/6r:carried(pear,take)  s11/7l:B1(tomato,hold)  s11/9l:B1(orange,hold)  s11/12r:carried(pear,take)
+   (90,3) hw=2 [5]: s11/1l:B1(orange,hold)  s11/6r:carried(pear,take)  s11/7l:B1(tomato,hold)  s11/9l:B1(orange,hold)  s11/12r:carried(pear,take)
+   (90,3) hw=1 [5]: s11/1l:B1(orange,hold)  s11/6r:carried(pear,take)  s11/7l:B1(tomato,hold)  s11/9l:B1(orange,hold)  s11/12r:carried(pear,take)
+
+== per-seed breakdown of the candidate rules (controls) ==
+-- (60 mm/s, 3 samples) --
+   s11: ok FP 3/11, B1 3/4, B2 0/3, carried 2/2
+   s5: ok FP 1/17, B1 0/0, B2 0/0, carried 0/3
+   s23: ok FP 1/17, B1 1/1, B2 0/0, carried 1/2
+-- (80 mm/s, 2 samples) --
+   s11: ok FP 0/11, B1 3/4, B2 1/3, carried 2/2
+   s5: ok FP 0/17, B1 0/0, B2 0/0, carried 0/3
+   s23: ok FP 1/17, B1 1/1, B2 0/0, carried 0/2
+-- (90 mm/s, 2 samples) --
+   s11: ok FP 0/11, B1 3/4, B2 0/3, carried 2/2
+   s5: ok FP 0/17, B1 0/0, B2 0/0, carried 0/3
+   s23: ok FP 0/17, B1 1/1, B2 0/0, carried 0/2
+-- (60 mm/s, 8 samples) --
+   s11: ok FP 0/11, B1 3/4, B2 0/3, carried 2/2
+   s5: ok FP 0/17, B1 0/0, B2 0/0, carried 0/3
+   s23: ok FP 0/17, B1 1/1, B2 0/0, carried 0/2
+
+== the threshold margin near the ok boundary (2-sample sustained) ==
+| thr | ok FP (2-sample run) | B1 caught | B2 caught |
+| --- | --- | --- | --- |
+| 75 | 1/45 | 4/5 | 1/3 |
+| 80 | 1/45 | 4/5 | 1/3 |
+| 82 | 0/45 | 4/5 | 0/3 |
+| 85 | 0/45 | 4/5 | 0/3 |
+| 88 | 0/45 | 4/5 | 0/3 |
+| 90 | 0/45 | 4/5 | 0/3 |
+| 95 | 0/45 | 3/5 | 0/3 |
+| 100 | 0/45 | 3/5 | 0/3 |
+| 110 | 0/45 | 3/5 | 0/3 |
+| 120 | 0/45 | 3/5 | 0/3 |
+
+== gate-ON: the fired attempts by class (the gate's own rows) ==
+   s11/7 right carried  peach      hold   36.5 probe1  139.7 drift_max   10.5 events 2
+   s11/13 right ok       lychee     hold    6.4 probe1  124.7 drift_max   18.4 events 1
+   s11/2 left ok       orange     hold  168.0 probe1   17.5 drift_max   16.5 events 2
+   s11/6 left no-grasp orange     hold  231.2 probe1  325.1 drift_max  132.1 events 2
+   s11/14 left no-grasp orange     hold  137.1 probe1   57.5 drift_max   17.5 events 2
+   s11/16 left ok       apple      hold   86.5 probe1   22.6 drift_max   12.4 events 1
+   s11/19 left no-grasp tomato     hold  275.3 probe1  278.6 drift_max  116.4 events 2
+   s5/16 right no-grasp apple      hold   39.7 probe1   84.2 drift_max   11.7 events 1
+   s23/1 right carried  peach      hold   39.6 probe1   79.7 drift_max    8.5 events 1
+   s23/3 right no-grasp strawberry hold   17.3 probe1  119.7 drift_max   26.5 events 1
+   s23/11 right carried  orange     hold   61.6 probe1  140.0 drift_max   11.9 events 2
+   s23/13 right no-grasp strawberry hold   14.2 probe1  106.9 drift_max   27.5 events 1
+
+== per-attempt maxes for the walked B1s and the ok headroom ==
+   s11/1 left B1 orange: hold max 310.2, probe1 max 255.7, sustained L2 207.8 L3 191.0 L5 109.7 L10 105.7
+   s11/3 left B2 peach: hold max 8.1, probe1 max 83.6, sustained L2 80.9 L3 14.1 L5 5.9 L10 5.6
+   s11/5 left B2 tomato: hold max 1.8, probe1 max 2.9, sustained L2 1.7 L3 1.7 L5 1.2 L10 1.2
+   s11/7 left B1 tomato: hold max 197.5, probe1 max 226.0, sustained L2 224.5 L3 224.0 L5 220.7 L10 201.9
+   s11/8 right B2 tomato: hold max 9.7, probe1 max 60.6, sustained L2 58.9 L3 58.3 L5 58.0 L10 46.6
+   s11/9 left B1 orange: hold max 288.3, probe1 max 290.1, sustained L2 287.6 L3 286.0 L5 279.5 L10 267.3
+   s11/14 right B1 tomato: hold max 9.0, probe1 max 37.3, sustained L2 27.2 L3 23.6 L5 15.3 L10 9.7
+   s23/3 right B1 strawberry: hold max 7.4, probe1 max 96.1, sustained L2 94.1 L3 67.1 L5 65.6 L10 60.1
+
+== the ok-class hold headroom (the threshold a hold fire must clear) ==
+   ok hold per-attempt max (mm/s), sorted: 1, 1, 2, 3, 4, 4, 4, 5, 6, 7, 7, 8, 9, 10, 10, 10, 11, 11, 12, 12, 12, 13, 14, 16, 16, 18, 18, 19, 19, 19, 19, 20, 22, 23, 28, 29, 32, 34, 36, 38, 43, 59, 60, 62, 65
+   ok hold max = 65.3 mm/s (p90 42.8, p99 65.3)
+   ok attempts with a >=2-sample (>=4-tick) hold run above 60: 2/45; a single over-band hold sample: 3/45
+   ok attempts with a >=2-sample (>=4-tick) hold run above 80: 0/45; a single over-band hold sample: 0/45
+   ok attempts with a >=2-sample (>=4-tick) hold run above 100: 0/45; a single over-band hold sample: 0/45
+   ok attempts with a >=2-sample (>=4-tick) hold run above 120: 0/45; a single over-band hold sample: 0/45
+   ok attempts with a >=2-sample (>=4-tick) hold run above 150: 0/45; a single over-band hold sample: 0/45
+
+== the probe-1 headroom ==
+   probe1 run>=2 above 60: ok 3/45, B1 4/5
+   probe1 run>=3 above 60: ok 3/45, B1 4/5
+   probe1 run>=5 above 60: ok 1/45, B1 4/5
+   probe1 run>=2 above 80: ok 1/45, B1 4/5
+   probe1 run>=3 above 80: ok 0/45, B1 3/5
+   probe1 run>=5 above 80: ok 0/45, B1 3/5
+   probe1 run>=2 above 90: ok 0/45, B1 4/5
+   probe1 run>=3 above 90: ok 0/45, B1 3/5
+   probe1 run>=5 above 90: ok 0/45, B1 3/5
+   probe1 run>=2 above 100: ok 0/45, B1 3/5
+   probe1 run>=3 above 100: ok 0/45, B1 3/5
+   probe1 run>=5 above 100: ok 0/45, B1 2/5
+   probe1 run>=2 above 120: ok 0/45, B1 3/5
+   probe1 run>=3 above 120: ok 0/45, B1 3/5
+   probe1 run>=5 above 120: ok 0/45, B1 2/5
