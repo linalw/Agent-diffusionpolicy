@@ -10,11 +10,6 @@ BASE_WEIGHT; the base demonstrations are mixed in at BASE_WEIGHT. The last epoch
 is saved as `policy_best.pt` (not best-val on the demos - see
 `fruit_sorting.policy.finetune`), with a provenance block naming the base
 checkpoint, the rollout data and every weight knob.
-
-P13-A (default off): `--event-heads 1` trains the phase/TtT event heads
-(`FRUIT_POLICY_EVENT_HEADS`) and `--event-transition-weight A` enables the
-DAM-VLA transition-weighted loss (`FRUIT_POLICY_EVENT_TRANSITION_WEIGHT`); see
-`finetune`'s docstring and `logs/p13/IMPLEMENTATION.md`.
 """
 
 from __future__ import annotations
@@ -59,25 +54,6 @@ def main() -> int:
                         help="frames after the close start included in the boost")
     parser.add_argument("--seed", type=int, default=int(os.environ.get("SEED", "0")))
     parser.add_argument("--device", default=os.environ.get("DEVICE", ""))
-    parser.add_argument("--event-heads", type=int,
-                        default=int(os.environ.get("FRUIT_POLICY_EVENT_HEADS", "0")),
-                        choices=[0, 1],
-                        help="P13-A: attach + train the phase/TtT event heads "
-                             "(default 0 = the shipped fine-tune)")
-    parser.add_argument("--event-transition-weight", type=float,
-                        default=float(os.environ.get(
-                            "FRUIT_POLICY_EVENT_TRANSITION_WEIGHT", "0.0")),
-                        help="P13-A: DAM-VLA transition-weighted loss boost alpha "
-                             "(0 = off)")
-    parser.add_argument("--event-aux-weight", type=float,
-                        default=float(os.environ.get("EVENT_AUX_WEIGHT", "0.20")),
-                        help="P13-A: phase cross-entropy weight (ForeTime 0.20)")
-    parser.add_argument("--event-ttt-weight", type=float,
-                        default=float(os.environ.get("EVENT_TTT_WEIGHT", "0.02")),
-                        help="P13-A: TtT MSE weight (ForeTime 0.02)")
-    parser.add_argument("--event-chunk-gamma", type=float,
-                        default=float(os.environ.get("EVENT_CHUNK_GAMMA", "0.8")),
-                        help="P13-A: DAM-VLA chunk decay gamma (1.0 = off)")
     args = parser.parse_args()
     if not args.rollouts:
         parser.error("--rollouts is required (a directory written by scripts/110_rl_rollout.py --record)")
@@ -100,11 +76,6 @@ def main() -> int:
         close_tail=args.close_tail,
         seed=args.seed,
         device=args.device or None,
-        event_heads=bool(args.event_heads),
-        event_transition_weight=args.event_transition_weight,
-        event_aux_weight=args.event_aux_weight,
-        event_ttt_weight=args.event_ttt_weight,
-        event_chunk_gamma=args.event_chunk_gamma,
     )
     print(f"[finetune] done -> {path}")
     return 0
