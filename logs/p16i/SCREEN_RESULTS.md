@@ -101,7 +101,7 @@ the like-for-like control baseline:
 * The pre-registration's endpoint moved: median 9.4 -> **5.9** (bar <= 6 mm met). The `start=`
   column reproduces the control's distribution (median 9.4), so the arrival is the only change.
 * Arrival ticks: **7-24, median 9.5** (0-tick cases: none). The one cap-bound attempt is
-  attempt 14 (left apple): 24 ticks, settled 7.0 mm - the only settled value above the
+  attempt 13 (left apple): 24 ticks, settled 7.0 mm - the only settled value above the
   tolerance. The loop is bounded and used, not saturated (20/20 ran, 1/20 hit the cap).
 * The settled residual's direction (dx/dy/dz of `[arrive]`): **dx -5.1..+2.2, dy -2.5..+0.4,
   dz +3.1..+6.5 mm** - i.e. the completed descent now holds a small *systematic* offset (the
@@ -230,7 +230,7 @@ lever effect (the arrival is downstream of the selection).
 * The notes are the **same two classes** as the control: `[]` (the carried/ok attempts) and
   `['fruit did not follow the gripper']` (all 9 no-grasp attempts). No new gripper note, no
   timeout/watchdog line, no `[collect]`-style stall, `diverted=3` on both.
-* No finger-belt jam: the `[boundary]` belt margins are all >= +25.0 mm (section 2.3).
+* No finger-belt jam: the `[boundary]` belt margins are all >= +25.0 mm (section 2.2).
 * The left force-servo trips (the known post-catch hold signature, `F_min = 0.00`, gap == sep)
   appear on both runs; the H1's right-arm servo trips once at the end (attempt 16).
 
@@ -264,7 +264,7 @@ way on this branch (ok 11 -> 8, no-grasp +2, falls 4 -> 7 rows), and the capture
 (the walk) is unchanged. What is *measured* about the arrival's own motion:
 
 * **The added ticks are bounded and real**: 7-24 ticks (median 9.5) = 6-24 mm of extra belt
-  travel between the descent's end and the close's start (10-25 % of the ~96 mm close+hold
+  travel between the descent's end and the close's start (6-25 % of the ~96 mm close+hold
   capture window, the design's risk (iii)).
 * **The settled pose is a small systematic offset**: ~3-6 mm above the aim, ~3-5 mm upstream
   (section 2.1) - the completed descent now *holds* that offset instead of leaving it to the
@@ -302,7 +302,7 @@ reducing.**
    was verified 20/20 in order.
 5. **The `[boundary]` reach margins read the grip target** (the station, catch lead 0.0) against
    the inset R10 band, not the fruit's intercept; the -20 mm readings at x >= 0.36 are a
-   scenario constant (section 2.3), not an H1 effect. The belt margin is the risk-relevant
+   scenario constant (section 2.2), not an H1 effect. The belt margin is the risk-relevant
    column and it is clear.
 6. **The close-start velocity read (section 5) is a descriptive follow-up** of this lane, not a
    pre-registered endpoint; it is reported to bound the "the arrival's own motion" hypothesis,
