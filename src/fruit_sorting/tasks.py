@@ -755,6 +755,14 @@ class PickAndPlaceTask:
         #: spawner's schedule last started (`FRUIT_READY_DIAG` reporting only;
         #: the re-anchor's cumulative-debt-zero check, `logs/p20i`).
         self._ready_skip_credit = 0
+        #: P22-A (`FRUIT_RELEASE_RESYNC=1`, default off): credit the release
+        #: tail's saved ticks to the same feeder schedule clock, so the pump
+        #: instant stays attempt-relative invariant when the tail trim
+        #: (`FRUIT_RELEASE_DWELL/_PAD_HOLD/_FINGER_HOLD`) shortens the span.
+        #: The P21 read showed the trim itself is clean (the landings improve)
+        #: and the outcome loss is the supply-clock branch shift; this knob
+        #: applies the B1c's re-anchor to the span saving. Byte-inert at 0.
+        self._release_resync = os.environ.get("FRUIT_RELEASE_RESYNC", "0") == "1"
         #: Per-arm pick-station Y [m] (v9/V2 two-line scheduler). Both are the
         #: shipped station (0.0) on every single-arm / shared-station path; the
         #: two-line scheduler sets the right arm's station downstream of the
@@ -3823,7 +3831,7 @@ class PickAndPlaceTask:
         catch_up = self.READY_CATCH_UP_TICKS if dg > self.READY_CATCH_UP_TOL else 0
         return catch_up + self.READY_TRANSIT_BLEND_TICKS + self._ready_settle()
 
-    def _resync_supply_clock(self, ticks: int) -> int:
+    def _resync_supply_clock(self, ticks: int, armed: bool | None = None) -> int:
         """Push `ticks` of skipped ready transit into the feeder's schedule clock.
 
         P20-C form (b) of `logs/p20/B1C_DESIGN.md` section 4.1. The scattered
@@ -3852,7 +3860,9 @@ class PickAndPlaceTask:
         Returns the ticks credited (0 when the knob is off, `ticks <= 0`, or no
         spawner is attached) - i.e. credited exactly once per skip.
         """
-        if not self._ready_skip_resync or ticks <= 0:
+        if armed is None:
+            armed = self._ready_skip_resync
+        if not armed or ticks <= 0:
             return 0
         spawner = getattr(self, "spawner", None)
         if spawner is None or not hasattr(spawner, "_next_release"):
@@ -9787,6 +9797,16 @@ class PickAndPlaceTask:
                 if os.environ.get("FRUIT_RELEASE_DEBUG", "0") == "1":
                     self._release_probe(arm_name, sample, trace, "arm", _index, float(value))
                 self._place_probe(place_trace, sample, "arm", _index, float(value))
+        #: P22-A: credit the release tail's saved ticks to the feeder schedule
+        #: clock (the B1c re-anchor applied to the span saving), so the pump
+        #: instant stays attempt-relative invariant under the tail trim.
+        if self._release_resync:
+            _dwell = max(0, int(os.environ.get("FRUIT_RELEASE_DWELL", "20")))
+            _pad = max(1, int(os.environ.get("FRUIT_RELEASE_PAD_HOLD", "3")))
+            _fing = max(1, int(os.environ.get("FRUIT_RELEASE_FINGER_HOLD", "3")))
+            _saved = (20 - _dwell) + 40 * (3 - _pad) + 16 * (3 - _fing)
+            if _saved > 0:
+                self._resync_supply_clock(_saved, armed=True)
         self._cycle_mark("release")
         # Retreat. Once the pads are open the fruit is on its own, and holding
         # station for another second is what the release `settle` used to do (60
