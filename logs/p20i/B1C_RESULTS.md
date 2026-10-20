@@ -79,3 +79,13 @@ B 2 / P 2, carried A 15 / **B 11** / P 14.
    design pre-registered 5/11/23) and the consumer set (the single-arm collector + the hybrid
    canary branches, both reaching `go_ready` under the single-arm scope) are the other gaps.
    The Gate-5's 2.6 block (7 runs, running) closes the first two; the adoption is owner-facing.
+
+### CORRECTION 2 (the Gate-5's final report)
+
+* The frozen-control identity is **681/681** `[fruit]` lines (the Oracle's recount including the
+  attempt windows; the 643/643 in CORRECTION 1 was the physics-only subset) - the design's kill
+  item 6 and its patch-A no-harm bar are both satisfied.
+* A flip would also move two unmeasured consumers - the **single-arm collector** and the
+  **hybrid policy canary** (both reach `go_ready` under the single-arm scope; a new dataset
+  lineage) - and would ship **`DG = 0.02`**, a scalar set post hoc to make the predicate fire.
+  Both belong in the owner's bar decision.

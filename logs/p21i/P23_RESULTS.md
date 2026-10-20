@@ -53,3 +53,15 @@ trim** (56.0 % vs 51.7 %). The verdict is unchanged (the pooled BR still sits ~-
 control; the release family stays closed negative), but the residual sentence is too narrow: the
 nominal-credit mismatch is one of **two** live residuals (the other: the credit is unobservable in
 every BR/relB log - the `credit=` print is not on the release path; a one-line fix).
+
+### CORRECTION 2 (the Gate-5's final report)
+
+* **G4's invocation in section 3 is wrong.** `configs/motion_reference_patch.json` (7b028049) is
+  the **two-line** reference re-recorded in P10-C.3 - there is **no single-arm patch reference on
+  disk**, so the mismatch is a wrong-scenario comparison, not a stale reference, and re-recording
+  it would break `scripts/190_twoline_gate.sh`'s consumer. The correct G4 is
+  **`105 -m 0.5` without a fingerprint: 9/9 PASS** on the nine patch logs (the 0.75 floor fails
+  A's own `623` too, so it cannot be the bar here).
+* **Under-claimed:** the resync recovered **60 % of s5's loss** (14 -> 26 against the control's
+  34), and both BR arms at each seed are census-identical doubles (a determinism the record did
+  not note).
