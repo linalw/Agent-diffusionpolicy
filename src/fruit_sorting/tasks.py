@@ -9806,7 +9806,10 @@ class PickAndPlaceTask:
             _fing = max(1, int(os.environ.get("FRUIT_RELEASE_FINGER_HOLD", "3")))
             _saved = (20 - _dwell) + 40 * (3 - _pad) + 16 * (3 - _fing)
             if _saved > 0:
-                self._resync_supply_clock(_saved, armed=True)
+                _credited = self._resync_supply_clock(_saved, armed=True)
+                if _credited:
+                    say(f"[release] resync credit={_credited} "
+                        f"total={self._ready_skip_credit}")
         self._cycle_mark("release")
         # Retreat. Once the pads are open the fruit is on its own, and holding
         # station for another second is what the release `settle` used to do (60

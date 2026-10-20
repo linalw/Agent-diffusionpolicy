@@ -43,3 +43,13 @@ owner-facing decision for the gate, not an automatic consequence of the pass.
 * The BR: `logs/p21i/{40,41}_seed5_BR_*.log`, `{42,43}_seed23_BR_*.log`, `33_seed11_BR.log`
   (chain `run_p23.sh`; driver `93_driver_p23.log`).
 * The B1c: `logs/p20i/B1C_RESULTS.md`; the guards as quoted above.
+
+---
+
+### CORRECTION (2026-10-21; the Oracle Gate-5)
+
+The pooled BR-vs-trim cell above ("~ -2 points") is a miscompute: **BR is +4.3 points over the
+trim** (56.0 % vs 51.7 %). The verdict is unchanged (the pooled BR still sits ~-25 % vs the
+control; the release family stays closed negative), but the residual sentence is too narrow: the
+nominal-credit mismatch is one of **two** live residuals (the other: the credit is unobservable in
+every BR/relB log - the `credit=` print is not on the release path; a one-line fix).

@@ -55,3 +55,27 @@ B 2 / P 2, carried A 15 / **B 11** / P 14.
   `run_b1c_singlearm.sh`; driver `91_driver_sa.log`); read `read_singlearm.py`.
 * Pins: `tasks.py` `455f1a33` (the first run) → `62cdbb7f` (the rest; inert deltas), `rl_env.py`
   followed; the checkpoint N/A (scripted line).
+
+---
+
+### CORRECTION + the missing channel (2026-10-21; the Oracle Gate-5, `logs/p24/ORACLE_GATE5.md`)
+
+1. **The timing channel - the lever's adoptable content - was unreported here.** Derived by the
+   gate with `186` over the same logs: the **window rate 2.13 -> 2.54 placed/min (+19 %)**, the
+   pooled interval **28.20 -> 23.63 s**, p90 42.5-45.4 -> 36.7-40.3 s, per-arm idle **25-27 % ->
+   17-20 %**, batch rate 2.09 -> 2.48; the placebo P reads 2.15 / 28.45 s, i.e. **A**. Per seed:
+   2.21/2.17/2.01 -> 2.59/2.64/2.40. The wall per attempt: A 20.50/20.50/20.85 -> B
+   18.70/18.55/18.55 s (**-8.8 to -11.0 %**).
+2. **The sentence "the +4 of B over both is the re-anchor" is withdrawn.** The placebo isolates
+   the **clock** (it holds 5.10-5.20 s, as designed) - it does not isolate the **census**: P's own
+   per-slot displacement is -4/+2/+1, larger than the lever's +1/+3/0; B vs P is 2-1 on seeds
+   (p = 0.5) and 3 seeds cannot reach p <= 0.05 by construction (3/3 = 0.125). **The census
+   channel is not established**; the timing channel is.
+3. **The tree caveat is measured-inert at the range's end**: `65_sa_A` is **643/643
+   `[fruit]`-physics identical** to the frozen pre-registration control `logs/p9a/96_pat_A_1.log`
+   (minus the `[ready]` diag rows) - A is the frozen branch and the diag is print-only.
+4. **The missing primary endpoint** (the design's own): no `FRUIT_SUPPLY_DIAG` run existed in the
+   battery; the `late_lo` tracking was never measured. The three missing acceptance seeds (the
+   design pre-registered 5/11/23) and the consumer set (the single-arm collector + the hybrid
+   canary branches, both reaching `go_ready` under the single-arm scope) are the other gaps.
+   The Gate-5's 2.6 block (7 runs, running) closes the first two; the adoption is owner-facing.
