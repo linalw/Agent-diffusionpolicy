@@ -20,7 +20,7 @@ ARMS = {
           "logs/p21i/11_seed5_relB_1.log", "logs/p21i/13_seed5_relB_2.log",
           "logs/p21i/11_seed23_relB_1.log", "logs/p21i/13_seed23_relB_2.log"],
 }
-CYCLE = re.compile(r"\[cycle\] attempt \d+: (.+)$")
+CYCLE = re.compile(r"\[cycle\] attempt \d+: (.+)")
 REL = re.compile(r"release=([0-9.]+)s")
 TOT = re.compile(r"total=([0-9.]+)")
 ATT = re.compile(r"\[run\] attempt (\d+) \((\w+)\): grasped=(\w+) placed=(\w+)")
