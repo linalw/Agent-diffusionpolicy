@@ -740,6 +740,21 @@ class PickAndPlaceTask:
         self._ready_skip_dg = float(
             os.environ.get("FRUIT_READY_SKIP_DG", str(self.READY_SKIP_SYNC_TOL))
         )
+        #: P20-C B1c (`FRUIT_READY_SKIP_RESYNC=1`, default off, single-arm scope
+        #: through the skip's own predicate): credit the ticks the skip removes
+        #: from the gap to the feeder's *schedule* clock instead of the arm's
+        #: gap, so the driver's pump instant stays attempt-relative invariant on
+        #: the feeder's absolute due grid and the presented slice stops
+        #: re-rolling (0.23 m per gap, 1.84 m by slot 8; the B1 empty-poll
+        #: class). See `_resync_supply_clock` and `logs/p20/B1C_DESIGN.md`
+        #: section 4.1. Byte-inert at the default: no read, no credit.
+        self._ready_skip_resync = (
+            os.environ.get("FRUIT_READY_SKIP_RESYNC", "0") == "1"
+        )
+        #: Cumulative ticks credited to the feeder's schedule clock since the
+        #: spawner's schedule last started (`FRUIT_READY_DIAG` reporting only;
+        #: the re-anchor's cumulative-debt-zero check, `logs/p20i`).
+        self._ready_skip_credit = 0
         #: Per-arm pick-station Y [m] (v9/V2 two-line scheduler). Both are the
         #: shipped station (0.0) on every single-arm / shared-station path; the
         #: two-line scheduler sets the right arm's station downstream of the
@@ -1618,6 +1633,19 @@ class PickAndPlaceTask:
     #: `logs/610_posture/report.json`).
     READY_SKIP_TOL = 0.03
     READY_SKIP_SYNC_TOL = 0.01
+
+    #: P20-C (`FRUIT_READY_SKIP_RESYNC`, default off; see `_ready_move`): the
+    #: ready transit's stage lengths, in ticks, exactly as the shipped call
+    #: runs them for a parked arm. `_transit_to` defaults to `ticks=90` for the
+    #: ready blend and `_catch_up_drive` to `ticks=20` for the pre-blend ramp;
+    #: the settle tail is `_ready_settle()` (shipped 120). The skip therefore
+    #: removes `catch_up + 90 + settle` ticks - the accounting the re-anchor
+    #: credits. `_catch_up_drive`'s ramp is its own no-op when the measured gap
+    #: is <= `READY_CATCH_UP_TOL` (its literal `gap <= 0.01`), and that gap is
+    #: the skip predicate's `dg`, so the ramp is code-exactly present or absent.
+    READY_TRANSIT_BLEND_TICKS = 90
+    READY_CATCH_UP_TICKS = 20
+    READY_CATCH_UP_TOL = 0.01
 
     def _lift_clear(
         self, side: str, lift: float = 0.20, cap: int = 420, stats: dict | None = None
@@ -3717,6 +3745,11 @@ class PickAndPlaceTask:
         * `FRUIT_READY_DIAG=1`: one pure-reporting `[ready]` line per arm per
           call (stage tick counts + boundary residuals; no per-tick reads, no
           control effect).
+        * `FRUIT_READY_SKIP_RESYNC=1` (P20-C B1c, default off): the ticks the
+          skip removes from the gap are credited to the feeder's schedule clock
+          (`_resync_supply_clock`), so the presented supply stays the shipped
+          branch's instead of re-rolling 0.23 m per gap. Only meaningful with
+          `FRUIT_READY_SKIP=1`; `FRUIT_READY_SKIP_HOLD` cancels it one-for-one.
 
         Both control knobs are single-arm-scoped in `_ready_move`: with a coop
         session active, or with the two-line scheduler armed, the shipped
@@ -3775,6 +3808,68 @@ class PickAndPlaceTask:
         """
         return max(0, int(float(os.environ.get("FRUIT_READY_SETTLE", str(shipped)))))
 
+    def _ready_transit_ticks(self, dg: float) -> int:
+        """Ticks the shipped ready transit runs for a parked arm (`dg` at entry).
+
+        P20-C accounting for the re-anchor: `_catch_up_drive` contributes its
+        20-tick ramp only when its measured gap exceeds 0.01 rad - that gap *is*
+        the skip predicate's `dg` - then `_blend_to` runs 90 ticks plus the
+        settle tail (`_ready_settle()`, shipped 120). `_ready_transit`'s lift
+        is not reached: it returns early below `READY_STAGE_ERR` (0.35), far
+        above the skip's `READY_SKIP_TOL` (0.03), so no `_lift_clear` and no
+        second catch-up run. This is the exact debit the skip takes from the
+        gap; `_resync_supply_clock` credits it back to the feeder.
+        """
+        catch_up = self.READY_CATCH_UP_TICKS if dg > self.READY_CATCH_UP_TOL else 0
+        return catch_up + self.READY_TRANSIT_BLEND_TICKS + self._ready_settle()
+
+    def _resync_supply_clock(self, ticks: int) -> int:
+        """Push `ticks` of skipped ready transit into the feeder's schedule clock.
+
+        P20-C form (b) of `logs/p20/B1C_DESIGN.md` section 4.1. The scattered
+        feeder releases on an **absolute** schedule (`FruitSpawner._next_release`,
+        one drawn gap per due slot) and the driver pumps it only inside each
+        attempt's 60-tick feed window, so the *pump instant* against that grid -
+        `late = sim_time - _next_release`, hence `along = spawn_y - late*v` -
+        sets every presentation. A skip that removes `D` ticks from the gap
+        moves the pump instant `D` ticks earlier on the grid; the debt is
+        cumulative (0.23 m = 82 % of the selector's usable 0.281 m band per
+        gap), which is the B1 empty-poll class.
+
+        Re-anchoring the schedule clock by `D` puts the pump instant back at the
+        virtual time the shipped run had it, so the supply is pre-delivered by
+        the dead time the lever removed while the arm's gap keeps the saving.
+        The design's `FruitSpawner.advance_supply_clock(dt)` (`sim_time +
+        shift` at the pump's four schedule sites) is **algebraically the same
+        operation as this one-time `_next_release -= D*CONTROL_DT`**: all four
+        sites are affine in the cursor - the due test `t >= _next_release`, the
+        lateness `t - _next_release`, and the two interlock relaxations
+        `max(_next_release, t + period)` - so `cursor' = cursor - shift` gives
+        every one of them the same value as `t' = t + shift`. The subtraction
+        lives here because this lane may only write `tasks.py`; nothing else in
+        the feeder changes (see `logs/p20i/IMPLEMENTATION.md`, "deviation").
+
+        Returns the ticks credited (0 when the knob is off, `ticks <= 0`, or no
+        spawner is attached) - i.e. credited exactly once per skip.
+        """
+        if not self._ready_skip_resync or ticks <= 0:
+            return 0
+        spawner = getattr(self, "spawner", None)
+        if spawner is None or not hasattr(spawner, "_next_release"):
+            return 0
+        # Only the scattered **pump** schedule is an absolute due grid with a
+        # pump instant to re-anchor (`FruitSpawner.update` takes exactly this
+        # gate). The pre-v9 fixed line resets its cursor on every release, so it
+        # has no phase to preserve and must not inherit a shift.
+        supply = getattr(spawner, "supply", None)
+        if supply is None or not (
+            getattr(supply, "scatter", False) and getattr(supply, "stream", False)
+        ):
+            return 0
+        spawner._next_release = float(spawner._next_release) - int(ticks) * CONTROL_DT
+        self._ready_skip_credit += int(ticks)
+        return int(ticks)
+
     def _ready_move(self, side: str) -> dict | None:
         """One arm's ready transit; returns the `FRUIT_READY_DIAG` stats or None.
 
@@ -3793,6 +3888,13 @@ class PickAndPlaceTask:
         removing it saves belt travel only. It leaves the shipped
         post-condition: drive target at the ready pose, IK integrator
         re-anchored on the measured arm - what `_blend_to`'s tail does.
+
+        P20-C adds `FRUIT_READY_SKIP_RESYNC=1` (B1c, default off): the skipped
+        ticks are credited to the feeder's *schedule* clock (see
+        `_resync_supply_clock`) instead of to the arm's gap, so the pump
+        instant stays attempt-relative invariant and the presented slice no
+        longer re-rolls cumulatively. With the knob off nothing is read or
+        written.
         """
         scope = self._active_session is None and not self.two_line_enabled()
         skip = scope and os.environ.get("FRUIT_READY_SKIP", "0") == "1"
@@ -3827,6 +3929,19 @@ class PickAndPlaceTask:
             hold = int(os.environ.get("FRUIT_READY_SKIP_HOLD", "0"))
             for _ in range(max(0, hold)):
                 self._step_sim(1)
+            # P20-C B1c (`FRUIT_READY_SKIP_RESYNC=1`, default off): the same
+            # compensation moved from the *gap* (the placebo above, which hands
+            # the wall saving back) to the *supply* (a schedule shift, which
+            # keeps it). `hold` cancels the debt one-for-one, so the P9-A
+            # placebo arm (`HOLD=230`) credits exactly zero and stays
+            # byte-identical; `debt` is the exact skipped tick count of
+            # `_ready_transit_ticks` minus whatever the hold put back. Guarded
+            # on the knob so the off path runs none of it (no env read, no
+            # arithmetic, no spawner touch).
+            if self._ready_skip_resync:
+                debt = self._ready_transit_ticks(dg) - max(0, hold)
+                if debt > 0:
+                    self._resync_supply_clock(debt)
             if stats is not None:
                 stats["skip"] = 1
                 stats["post_err"] = err
@@ -3847,6 +3962,12 @@ class PickAndPlaceTask:
         `catch_up` sums every `_catch_up_drive` ramp of the transit, `lift` is
         `_lift_clear`'s IK ticks; `post_err` is read before and `end_err` after
         the optional `_recover_ready`.
+
+        P20-C: with `FRUIT_READY_SKIP_RESYNC=1` the line gains a trailing
+        `credit=<ticks>` - the cumulative ticks the re-anchor has pushed into
+        the feeder's schedule clock this session (the battery's readout that
+        the shift took, and the cumulative-debt-zero check). The knob-off line
+        is byte-identical to the P9-A format.
         """
         say(
             f"[ready] {side} skip={stats['skip']} staged={stats['staged']} "
@@ -3855,6 +3976,11 @@ class PickAndPlaceTask:
             f"blend={stats['blend']} settle={stats['settle']} "
             f"ramp_err={stats['ramp_err']:.4f} post_err={stats['post_err']:.4f} "
             f"rec={stats['rec']} end_err={stats['end_err']:.4f}"
+            + (
+                f" credit={int(self._ready_skip_credit)}"
+                if self._ready_skip_resync
+                else ""
+            )
         )
 
     def choose_arm(self, y: float) -> str:
@@ -9640,9 +9766,10 @@ class PickAndPlaceTask:
                 if release_debug:
                     self._release_probe(arm_name, sample, trace, "dwell", _index, gap)
                 self._place_probe(place_trace, sample, "dwell", _index, gap)
+            pad_hold = max(1, int(os.environ.get("FRUIT_RELEASE_PAD_HOLD", "3")))
             for _index, value in enumerate(min_jerk_ramp(gap, release_gap, 40)):
                 gripper.follow_centre(centre, quat, float(value))
-                for _ in range(3):
+                for _ in range(pad_hold):
                     self._step_sim(1)
                     if release_debug:
                         self._release_probe(arm_name, sample, trace, "pads", _index, float(value))
@@ -9652,9 +9779,10 @@ class PickAndPlaceTask:
             self._gripper_offset[arm_name] = None
             self._grip_quat[arm_name] = None
             self._grip_centre[arm_name] = None
+        finger_hold = max(1, int(os.environ.get("FRUIT_RELEASE_FINGER_HOLD", "3")))
         for _index, value in enumerate(min_jerk_ramp(fingers, arm.OPEN, 16)):
             arm.set_gripper(float(value))
-            for _ in range(3):
+            for _ in range(finger_hold):
                 self._step_sim(1)
                 if os.environ.get("FRUIT_RELEASE_DEBUG", "0") == "1":
                     self._release_probe(arm_name, sample, trace, "arm", _index, float(value))

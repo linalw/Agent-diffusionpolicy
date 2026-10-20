@@ -1,0 +1,67 @@
+== source checks ==
+  [PASS] FRUIT_READY_SKIP_RESYNC is read exactly once, default "0"
+  [PASS] the P9-A knobs keep one read each (SKIP / SKIP_DG / SKIP_HOLD / SETTLE)
+  [PASS] the two helpers are defined exactly once
+  [PASS] the cumulative-credit accumulator starts at 0
+  [PASS] the debit is `_ready_transit_ticks(dg) - max(0, hold)`, exactly once, inside the knob guard
+  [PASS] the credit sits inside the skip branch, after the placebo hold, once
+  [PASS] the credit is added to the cumulative readout exactly once
+  [PASS] the [ready] credit suffix is gated on the knob; the P9-A fields intact
+  [PASS] READY_TRANSIT_BLEND_TICKS == 90 (got 90)
+  [PASS] READY_CATCH_UP_TICKS == 20 (got 20)
+  [PASS] READY_CATCH_UP_TOL == 0.01 (got 0.01)
+  [PASS] the constants still match the real call-site defaults (`_transit_to` ticks=90, `_catch_up_drive` ticks=20)
+  [PASS] `_catch_up_drive`'s no-op early-out is still the literal `gap <= 0.01`
+  [PASS] fruits.py gains no `_supply_shift` / `advance_supply_clock` (the design form is absent - no double credit)
+  [PASS] the schedule cursor is only written by the shipped sites (['__init__', '_pump_supply', 'reset', 'update'])
+  [PASS] the pump's four schedule sites are still on `sim_time` (so the cursor offset is the whole re-anchor)
+== knob resolution (the REAL __init__ statement) ==
+  [PASS] env None -> _ready_skip_resync=False (expected False)
+  [PASS] env '0' -> _ready_skip_resync=False (expected False)
+  [PASS] env '1' -> _ready_skip_resync=True (expected True)
+  [PASS] env 'true' -> _ready_skip_resync=False (expected False)
+  [PASS] env 'yes' -> _ready_skip_resync=False (expected False)
+  [PASS] CONTROL_DT is 0.008333333333333333 s (120 Hz)
+== the debit arithmetic (the REAL _ready_transit_ticks) ==
+  [PASS] dg=0.0004 settle=120 -> 210 ticks (reference 210, 1.750 s of belt)
+  [PASS] dg=0.01 settle=120 -> 210 ticks (reference 210, 1.750 s of belt)
+  [PASS] dg=0.0101 settle=120 -> 230 ticks (reference 230, 1.917 s of belt)
+  [PASS] dg=0.0131 settle=120 -> 230 ticks (reference 230, 1.917 s of belt)
+  [PASS] dg=0.0135 settle=120 -> 230 ticks (reference 230, 1.917 s of belt)
+  [PASS] dg=0.02 settle=120 -> 230 ticks (reference 230, 1.917 s of belt)
+  [PASS] dg=0.0135 settle=60 -> 170 ticks (reference 170, 1.417 s of belt)
+  [PASS] dg=0.0004 settle=60 -> 150 ticks (reference 150, 1.250 s of belt)
+  [PASS] the design's flat `20 + 90 + settle` = 230 is exact only for dg > 0.01 (it over-credits the dg<=0.01 rows by 20 ticks)
+== the credit (the REAL _resync_supply_clock) ==
+  [PASS] knob off: returns 0 and never touches the spawner
+  [PASS] knob off: the cumulative readout stays 0
+  [PASS] knob on: the call reports the ticks credited
+  [PASS] knob on: the cursor moves by exactly 230 * CONTROL_DT s
+  [PASS] knob on: the cumulative readout is the tick count
+  [PASS] a second skip accumulates exactly (230 + 210 = 440 ticks)
+  [PASS] ticks <= 0 credits nothing
+  [PASS] an absent spawner credits nothing
+  [PASS] the fixed (non-pump) line credits nothing and keeps its cursor
+  [PASS] `stream=False` (no pump) credits nothing
+== the skip site (the REAL debt block, exec'd) ==
+  [PASS] knob on, HOLD=0: one skip credits 230 ticks exactly once
+  [PASS] the placebo (HOLD=230) cancels the debt one-for-one: 0 ticks, cursor intact
+  [PASS] a partial hold credits the remainder (230 - 100 = 130)
+  [PASS] a skip with dg <= 0.01 credits 210 (no catch-up ramp was removed)
+  [PASS] five skips credit 5 * 230 = 1150 ticks, no drift
+  [PASS] knob off at the site: no credit, the cursor untouched, neither helper called (byte-inert; error=None)
+== the re-anchor end-to-end (schedule model, shipped gap band) ==
+  [PASS] 10 skips credit 10 * 230 = 2300 ticks (2300 read back)
+  [PASS] control vs re-anchored: identical due/released/past per pump (True, 29 released slots)
+  [PASS] control vs re-anchored: identical late/along streams (29 slots, 108 gaps drawn)
+  [PASS] the design's shift form is identical to the cursor form (the deviation is algebraic, not behavioural)
+  [PASS] the un-anchored lever is NOT the control stream (the mechanism fires)
+  [PASS] the re-anchored pump instant equals the control's at every slot (virtual clock invariant, max |delta| = 0.00e+00 s)
+  [PASS] the cumulative debt is 0.23 m/gap and reaches 1.84 m at slot 7 (the design's 1.84 m by slot 8): [0.23, 0.46, 0.69, 0.92, 1.15, 1.38, 1.61, 1.84, 2.07, 2.3]
+== pins ==
+  [PASS] rl_env TASKS_MD5 == live tasks.py md5 (455f1a33b9e943d18fffae797053ebd6)
+    tasks.py md5 455f1a33b9e943d18fffae797053ebd6
+    fruits.py md5 d28546d26137d4540421caa7fa34a139
+    rl_env.py md5 88bcde2748b76dcfa5782266987b6ec9
+
+RESULT: PASS (all checks)
