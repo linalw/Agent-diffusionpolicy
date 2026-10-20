@@ -70,3 +70,35 @@ resync or be read as a branch draw. This is the supply-coupling discipline the P
 * The B1c: `logs/p20i/{20,21,22}_acc_*.log` + the mass runs (voided); `run_b1c_battery.sh`;
   the corrected chain `run_b1c_singlearm.sh`.
 * Pins: `tasks.py` `455f1a33`, `rl_env.py` `88bcde27`, checkpoint `61da390a`.
+
+---
+
+### CORRECTION (2026-10-20; the Oracle Gate-4 re-read, `logs/p22/ORACLE_GATE4.md`)
+
+Five corrections, two of them material:
+
+1. **The falls letter was invalid.** The `falls 14 -> 38` in section 2 counted every `lowest
+   payload point <= -1000 mm` row, but **12 of the A's 14 and 32 of the B's 38 such rows are
+   `_payload_clearance` rows referenced to the output belt** (i.e. a normally placed payload in
+   the output lane), not falls. The **main-belt falls read A 2 / B 6** (of 120 attempts) — a rise,
+   but a small one.
+2. **The interval fails hard (P3).** The pooled inter-placement interval reads **13.15 -> 17.45 s**
+   and the window rate **4.56 -> 3.44 placed/min (-25 %)**, failing the design's >= +3 % bar; P4
+   (the absorption/idle report) is absent from section 2 and must be reported with it. The
+   per-seed census (the real branch evidence): **A 22/22/34 vs B 22/14/26** (s11 null, s5 a -20
+   collapse, s23 -8) — the pooled -28 hides a null seed and a collapse seed.
+3. **The settle metric reversed under inclusion.** The 2 B landings that never settled (A 0, B 2)
+   were dropped from the median; included, the trim is not faster there. The rest of the landing
+   guard stands: roll 206 -> 102, bounce 3.3 -> 1.5, skid 70 -> 54, off 267 -> 164.
+4. **The attribution stays open.** The release is exonerated (the landing guards; `return` p50
+   unchanged at 0.67 s), but the actuator of the branch movement is unattributed: the unstated
+   competitor is the **two-line's shared-station arbitration** (the turn order changes at attempt
+   2; starvation 18 -> 56) — the M2 arbiter check would separate it.
+5. **The "systemic finding" is over-stated.** Its own placebo (HOLD=230, the clock held) also
+   re-draws the branch (8/10 vs 9/10 in the acceptance), so "any per-attempt wall change re-rolls
+   the presentation" is not established; the falsifier is the per-poll `late` stream, which no P21
+   battery measured. The statement stands only in the weaker form: *the P21 levers' outcome
+   movements are branch draws, and the supply-clock resync is the mechanism under test.*
+
+The C1's section stands (the Gate-4 confirms the replication and rules "interface-specific" the
+right frame with a sharper rule: the discriminand is the relative motion at the close).
