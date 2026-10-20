@@ -68,3 +68,27 @@ is untouched.
   the diagnostic `80_ready_diag.log`.
 * Pins: `tasks.py` `3d88408d`, `scripts/20_pick_place.py` `88fa42bf`, `configs/motion_reference.json`
   `b9e72ca7` (`70_b1_battery_pins.txt`).
+
+---
+
+### CORRECTION (2026-10-19; the Oracle Gate-3 re-read, `logs/p20/ORACLE_GATE3.md`)
+
+1. **Two endpoints were collected and not reported.** The **wall per attempt**: A 15.40 + 5.20 =
+   **20.60 s** vs B 15.60 + 3.25 = **18.85 s (-8.5 %)** — matching the P9 prediction (~19.0 s). The
+   patch battery: A 15.30 + 5.20 = 20.50 vs B 15.25 + 3.20 = 18.45 (-10 %). The pooled
+   inter-placement interval tracks the wall (the attempts run back-to-back); the `186` window rate
+   is not computed here and is not claimed.
+2. **The kill decomposes, and the record over-attributed it.** Arm B's acceptance loses 3: **one**
+   empty slot (attempt 2) **+ three carried-class losses** (attempts 0/3/8, grasped-not-placed) —
+   and the placebo P loses 2 of the same carried class, so the carried losses are not all the
+   skip's. The empty slot is the supply-coupling instance; the carried class is a second,
+   branch-level effect.
+3. **The coupling is the lever's nature, not a defect.** 1.92 s x 0.12 m/s = 0.23 m ≈ 1-1.6 patch
+   slices: the skip **re-rolls the presented slice** at every slot; a feeder re-anchor would hand
+   the saving back as a wait, and the only coherent form is a **supply-conditional skip** (skip
+   only when the next slot's presentation is comfortable). The design lane is drafting it
+   (`logs/p20/B1C_DESIGN.md`).
+4. **Scope note (binding for the goal):** the B1 is **single-arm by construction**
+   (`tasks.py:3797`: `_active_session is None and not two_line_enabled()`), and the two-line's
+   inter-attempt wall is only ~1.45 s of real motion (return 0.67 + prepose 0.71) — **the B1
+   cannot serve the bimanual throughput goal**; its value is the shipped single-arm line only.
