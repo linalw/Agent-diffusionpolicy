@@ -59,16 +59,39 @@ better arm sees a different (possibly easier) stream; (3) the pairing is empty. 
 discipline (one sample of a frame-conditioned loop; the outcome quantized), a pooled-rate delta
 across divergent streams is not the endpoint.
 
-## 4. The named next (the class-matched re-run)
+## 4. THE CORRECTION (2026-10-19, the Oracle Gate-3 re-analysis): the C1's effect IS real
 
-The clean design is to hold the mix fixed — the P1c tool (`FRUIT_SUPPLY_SPECIES`, default off)
-supplies a single-species pool, so every episode pairs by class by construction. A class-matched
-L3 re-run (e.g. tomato, the class with the largest delta: 36 % vs 92 %; and a second species as a
-control) would decide the C1's effect at N=5 x 15 per arm with a complete pairing. Until then the
-C1 stays default-off (as shipped) and the L3 record is the negative of the pre-registered endpoint
-plus the class-standardized hypothesis.
+The Oracle's Gate-3 review (`logs/p20/ORACLE_GATE3.md`) re-analysed the same logs by **outcome
+class, stratified by fruit class** — the read the episode-pairing protocol aborted. The counts:
 
-## 5. Provenance
+| arm | ok | no-contact | carried |
+| --- | --- | --- | --- |
+| A | 22 | 5 | **48** |
+| B | 39 | 9 | **27** |
+
+**The carried class nearly halves (48 → 27) at a +4 no-contact re-draw.** The class-stratified
+exact randomization test: observed A = 22 against a stratified null mean of 30.30 (SD 2.82),
+**one-sided p = 0.0026**; MH OR (B vs A) 1.79; CMH chi2 = 8.68 (p ≈ 0.003). **Every one of the 5 B
+runs beats every one of the 5 A runs on the carried class.** The mix confound the record's
+section 3 cites is removed by the stratification (the per-class comparison is within-class); the
+failed endpoint was the **episode pairing**, not the lever.
+
+**So the verdict is restated**: the pre-registered episode-pairing endpoint does not resolve (a
+protocol weakness), but the lever's outcome-class effect is **significant and run-consistent** —
+the first direct-interface lever in the record to move the carried class. The C1 stays
+default-off until the confirmation the ranking asks for (the scripted two-line battery, launched:
+`logs/p21c1/run_c1_twoline.sh`; and, if that confirms, the direct no-harm).
+
+## 5. The named next
+
+* **The C1 on the scripted two-line** (the Oracle's rank-3, running): the deterministic mass-base
+  battery (seeds 11/5/23 + doubles) with `FRUIT_CLOSE_LOAD_RATE=0.04`; the endpoint = the total
+  failure mass (nc + carried) + the falls + the census, vs the on-disk controls (45/8/7).
+* The class-matched direct re-run stays an OPEN option (the tomato single-species pool collapsed
+  to carried 13/15 - a scenario artifact; the strawberry/apple probes are on disk:
+  `logs/p18b/20_species_*.log`) — lower priority than the two-line confirmation.
+
+## 6. Provenance
 
 * Runs: `logs/p18b/N5_fix/{A,B}_{1..5}.log` (chain `run_n5_v2.sh`; driver `91_driver_v2.log`);
   the precondition `check_preconditions.py` output above; the void v1 at `logs/p18b/N5_invalid_env/`.

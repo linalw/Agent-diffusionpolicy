@@ -60,3 +60,26 @@ matter.
 * K3/K4: `logs/p17i/66_m1c_read.txt` (K3 identical; the K4 tree identity is the P17-B closure's,
   same tree `tasks.py` `3d88408d`).
 * The screen: `logs/p17i/SCREEN_M1C_RESULTS.md`; the operating point: `logs/p17c2/THRESHOLD_ANALYSIS.md`.
+
+---
+
+### CORRECTION (2026-10-19; the Oracle Gate-3 re-read, `logs/p20/ORACLE_GATE3.md`)
+
+Three corrections, none verdict-changing but each strengthening the closure:
+
+1. **The mechanism sentence above is wrong.** The record's section 2 says "the hold-phase fires
+   work; the probe-1-phase fires do not". The logs say otherwise: cross-referencing the fires to
+   the outcomes, **the gate fired on 9 attempts across the battery and converted 0** (s11: 5 of
+   the 6 failures fired, 0 placed among the fired; s23: 4 of 8 failures fired, 0 placed). It is a
+   **loss detector, not a recoverable-state detector**: by the time the drift is visible the
+   capture is already lost, and the responses cannot recover it. Consequently **the s11 +3 and
+   the s23 +5 are both branch re-draws on the unfired attempts** (all 14 s11 placements came from
+   unfired attempts), not saved captures — which is also why the sign of the movement is
+   seed-dependent and the pooled read is the right verdict.
+2. **The falls are a second K2 letter.** The table's own rows sum to **falls 7 → 12** (s11 4→4,
+   s5 0→0, s23 3→8) — the outcome battery's falls condition (a non-rise) fails as well.
+3. **The family census in section 3 is miscounted.** The five negatives span **three actuator
+   families** — the close-side (P15-M2's lead), the carry-side (W8-B's guard, R6-B's retuned
+   guard), and the trigger-side (M1 60/3, M1c 90/2) — and the R11-B's C1/C2 (the load-side) are
+   omitted from the list. M1c is a *threshold variant* of M1, not a new family. The closure
+   conclusion stands (stronger, for the reason in item 1), with the corrected census.
