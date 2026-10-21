@@ -1,0 +1,49 @@
+=== scripted line: 10 attempts, HEADLESS=1 ===
+[fruit] [stats] attempts=10 successes=7 diverted=1 success_rate=70% sim=151.1s total, 15.1s/attempt, 21.6s/success gate_open=0.0s total, queue_peak=0 recirculated=0 encoder=-0.120 m/s nominal (command -0.120, no cleats to measure travel)
+[fruit] [run] summary: 7/10 successful
+
+=== motion gate ===
+logs/p30a/01_accept_control.log: 10 descent leg(s), line=dynamic
+   #   dist samples  |v|max  budget   |a|max   |dv|  a_med  peak@  a_win5  verdict
+   1   6.0c      95   0.116   0.161     1.96  0.016   0.25   0.02    0.50  ok
+   2   5.6c      87   0.110   0.161     2.07  0.017   0.24   0.01    0.73  ok
+   3   5.8c      91   0.110   0.161     1.37  0.011   0.24   0.02    0.43  ok
+   4   5.8c      91   0.110   0.161     1.48  0.012   0.22   0.02    0.47  ok
+   5   5.7c      90   0.110   0.160     1.51  0.013   0.23   0.02    0.49  ok
+   6   5.6c      89   0.108   0.161     1.91  0.016   0.21   0.02    0.66  ok
+   7   5.8c      91   0.110   0.161     1.33  0.011   0.24   0.02    0.42  ok
+   8   5.6c      88   0.108   0.161     2.04  0.017   0.24   0.01    0.71  ok
+   9   5.6c      88   0.109   0.161     1.96  0.016   0.23   0.01    0.66  ok
+  10   5.6c      89   0.108   0.161     1.90  0.016   0.23   0.01    0.63  ok
+  worst: |v|max=0.1160 m/s (budget 0.160-0.161), lurch=0.017 m/s/tick (budget 0.291477), a_win5=0.730 m/s^2 (carrying budget 2, warning)
+
+logs/p30a/01_accept_control.log: 20 carry leg(s)
+  leg              dist    cone  over    slip in-hand |v| recov  verdict
+  grasp_lift        21c   0.90x    0%  111.0mm      1.169     0  ok
+  place0            63c   0.86x    0% 1021.8mm      0.452     0  ok
+  grasp_lift        21c   0.91x    0%   27.0mm      0.051     0  ok
+  place1            41c   0.86x    0%   61.8mm      0.076     0  ok
+  grasp_lift        22c   0.93x    0%   38.8mm      0.063     0  ok
+  place1            34c   1.15x    8%   77.0mm      0.101     0  ok (cone 1.15x reported)
+  grasp_lift        22c   1.16x   10%   35.6mm      0.117     0  ok (cone 1.16x reported) (hand 0.54 m/s: rescued)
+  place1            36c   1.09x    2%   64.4mm      0.177     0  ok (cone 1.09x reported)
+  grasp_lift        21c   0.88x    0%   37.6mm      0.724     0  ok
+  place0            60c   0.86x    0%  884.3mm      2.008     0  ok
+  grasp_lift        22c   0.95x    0%   44.9mm      0.082     0  ok
+  place1            33c   1.21x    3%   66.5mm      0.177     0  ok (cone 1.21x reported)
+  grasp_lift        21c   0.89x    0%   31.7mm      0.764     0  ok
+  place0            60c   0.87x    0%  875.2mm      2.035     0  ok
+  grasp_lift        21c   0.95x    0%   32.3mm      0.061     0  ok
+  place1            38c   0.86x    0%   62.8mm      0.093     0  ok
+  grasp_lift        21c   0.92x    0%   39.6mm      0.068     0  ok
+  place1            40c   0.86x    0%   59.2mm      0.088     0  ok
+  grasp_lift        23c   0.95x    0%   40.1mm      0.069     0  ok
+  place1            38c   0.87x    0%   62.2mm      0.112     0  ok
+  worst held-grip cone: 1.21x budget (budget 1x)
+  hand speed: worst 0.535 m/s; 1/20 leg(s) over 0.45 m/s (reported, not gated) - every other leg sits at the commanded 0.176-0.371
+
+  success: 7/10 = 70% (floor 75% - dynamic line, measured baseline 9/10)
+  fingerprint: matches configs/motion_reference.json
+
+FAIL: 1 problem(s)
+  - success 7/10 below 75%

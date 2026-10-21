@@ -1,0 +1,65 @@
+==============================================================================
+P30-C reach geometry (offline re-derivation)
+==============================================================================
+SceneConfig: belt_top=1.170 pick=(0.340,0.000) grasp_clearance=0.095
+fruit: diameter 28-70 mm -> r 14-35 mm
+standoff (jaw above fruit centre) = 0.060 + 0.010 = 0.070 m
+measured jaw floor above belt_top: 58.6 mm (P0, current) / 76.8 mm (logs/166)
+no-belt stop z=1.049 -> 180 mm of unused arm travel
+
+1. the station ladder (x = pick_x + dx, y = station, 6 mm tol)
+   left  -0.16:  6.0 -0.12:  5.7 -0.08:  5.9 -0.05:  6.0 -0.03:  5.9 +0.00:  3.9 +0.03:  5.9 +0.05:  5.9 +0.08: 55.3 +0.12: 74.9 +0.16: 96.5
+   right -0.16:  5.9 -0.12:  5.8 -0.08:  5.7 -0.05:  5.8 -0.03:  5.9 +0.00:  6.0 +0.03:  5.9 +0.05:  6.0 +0.08: 55.2 +0.12: 74.9 +0.16: 96.5
+   left : clean x = 0.180 .. 0.390; cliff at x=0.420 (dx=+0.08)
+   right: clean x = 0.180 .. 0.390; cliff at x=0.420 (dx=+0.08)
+
+2. the along-belt band (world dy) and the aim (station + 17.3 mm)
+   arm    x     station  measured dn..up   inset dn..up    aim margin dn / up (measured)   (inset)
+   left  0.24  +0.00  -0.05..+0.10      -0.03..+0.08      +67.3 /  +82.7 mm  inside   +47.3 /  +62.7
+   left  0.34  +0.00  +0.00..+0.10      +0.02..+0.08      +17.3 /  +82.7 mm  inside    -2.7 /  +62.7
+   left  0.39  +0.00  +0.00..+0.10      +0.02..+0.08      +17.3 /  +82.7 mm  inside    -2.7 /  +62.7
+   right 0.24  -0.10  -0.10..+0.05      -0.08..+0.03      +17.3 / +132.7 mm  inside    -2.7 / +112.7
+   right 0.34  -0.10  -0.10..+0.00      -0.08..-0.02      +17.3 /  +82.7 mm  inside    -2.7 /  +62.7
+   right 0.39  -0.10  -0.10..+0.00      -0.08..-0.02      +17.3 /  +82.7 mm  inside    -2.7 /  +62.7
+   caveat: the code's `[boundary]` row compares the aim *station-relative*, so the right two-line
+   station (y=-0.10) reports the same margin shifted by its station offset - read the row with the
+   station in hand; the reach selector that consumes the band is default-off.
+
+3. the vertical deficit: touch the fruit's centre vs the jaw floor
+   r [mm]  fruit centre z   jaw floor z (P0 / 166)   deficit P0 / 166 [mm]
+    14.0   1.1840         1.2286 / 1.2468       +44.6 / +62.8
+    24.5   1.1945         1.2286 / 1.2468       +34.1 / +52.3
+    35.0   1.2050         1.2286 / 1.2468       +23.6 / +41.8
+   -> the shipped dynamic aim (fruit + 0.070) sits ABOVE the floor by 25-46 mm (P0); the indexed primitive's TCP target
+      (the fruit's centre) sits BELOW it by the same deficit.
+   -> the code's `[boundary] belt_margin` = grip_z - belt_top - finger_len = r + 10 mm, i.e. 17 mm optimistic against the 166 floor
+   measured fruit centres (n=180): z 1.185-1.203 -> the shipped aim 1.255-1.273 = +26.4..+44.5 mm over the P0 floor
+
+4. the indexed primitive (FRUIT_DYNAMIC_PICK=0): n=20 descents
+   end= 40.4-89.7 mm, median 49.1
+   distance 5.1-9.8 cm
+   pads-aimed rows n=20: residual median 61.3 mm, |dz| median 34.0 mm, lateral median 14.3 mm
+
+4b. the current indexed line (`logs/fast/16_accept_indexed_v7.log`): n=10, end= 1.9-5.2 mm, median 4.8
+    its TCP target z = belt_top + grasp_clearance = 1.2650 -> 36 mm above the P0 floor
+
+5. baselines
+   dynamic acceptance (`logs/p30a/01_accept_control.log`): n=10, end= 8.3-10.8 mm, median 9.4
+   mass base (`logs/p12a2/1*_mass.log`): n=60, end= 8.1-15.3 mm, median 9.2
+
+ASSERT
+  OK   the pick point x=0.34 is inside the station band on both arms (<=6 mm)
+  OK   the station band is clean to x=0.39 and cliffs at x=0.42 (>50 mm)
+  OK   the aim is 17.3 mm inside the *measured* band at x=0.34..0.39, both arms
+  OK   the aim is 2.7 mm outside the code's 20 mm-inset band (both arms)
+  OK   the vertical deficit at the P0 floor is 23.6-44.6 mm
+  OK   the dynamic aim clears the P0 floor by 25.4-46.4 mm over the r range
+  OK   the measured fruit z is 1.185-1.203, so the aim clears the P0 floor by 26.4-44.5 mm
+  OK   the code's belt_margin is 17 mm optimistic against the 166 floor
+  OK   the indexed end= median is 40-90 mm (the v1 record)
+  OK   the CURRENT indexed line's end= is <= 6 mm (the v1 record does not reproduce)
+  OK   the current indexed TCP target clears the P0 floor by 36 mm
+  OK   the indexed end= is dominated by z (|dz| >= 30 mm)
+  OK   the mass-base end= median is 8-10 mm
+  OK   the dynamic acceptance end= median is 8-12 mm
+ASSERT: all pinned numbers hold

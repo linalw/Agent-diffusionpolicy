@@ -317,6 +317,42 @@ class SceneConfig:
         default_factory=lambda: float(os.environ.get("FRUIT_OUTPUT_SPEED", "0.10"))
     )
     output_belt_friction: float = 0.9
+    #: Which of each output belt's two side rails is authored (P30-A).
+    #:
+    #: ``both`` (shipped) - a 25 mm thick, 50 mm tall keeper along X at *each*
+    #:   edge of each output belt. The inner one's outer face is flush with the
+    #:   slab's inner edge (|y| = 0.425) and stands 35 mm above the belt top, so
+    #:   it is the hard edge the payload crosses on its way to the release.
+    #: ``outer`` - drop the robot-side rail, keep the far-side one. This is the
+    #:   candidate of `logs/p30a/RAILS_DESIGN.md`: the payload's measured
+    #:   transit clearance to the nearest hard edge goes from +31 mm to the slab
+    #:   top (+66 mm) and, with the inner rail gone, the transfer height no longer
+    #:   has to buy the rail's 35 mm (`FRUIT_OPENARM_TRANSFER_LIFT` in tasks.py
+    #:   could drop from 0.08 to ~0.02 - measured, not adopted).
+    #: ``inner`` / ``none`` - the remaining combinations, for completeness.
+    #:
+    #: **Default ``both`` = the shipped geometry, byte-inert**: the builder
+    #: authors exactly the same two boxes and prints nothing extra. Nothing on
+    #: the shipped path is short of clearance: across 7 203 logged place-clearance
+    #: rows the positive population is 5-199 mm (p1 23, median 50) and the shipped
+    #: acceptance's place legs read +35..+55 mm; the last measured contact is the
+    #: pre-fix `logs/445` (-3/-5 mm, the 48 m/s^2 jolt the transfer lift repaired).
+    #: So removal is a *margin* change, not a repair - and it takes away the ledge a
+    #: short release lands on (97 % placed over the 232 logged releases that land on
+    #: its top face, vs 48 % for releases inboard of it) - the measured case for a
+    #: default change is **negative** (`logs/p30a/RESULTS.md`).
+    output_rails: str = field(
+        default_factory=lambda: os.environ.get("FRUIT_OUTPUT_RAILS", "both").strip().lower()
+    )
+    #: Output-belt side-rail height above the rail box's bottom [m]. The box's
+    #: bottom sits 15 mm inside the slab, so the shipped 0.05 stands 35 mm proud
+    #: of the belt top. ``FRUIT_OUTPUT_RAIL_HEIGHT`` lowers the containment
+    #: without removing it; the payload-clearance report in `tasks.py`
+    #: (`_payload_clearance`) assumes the shipped 0.035 m, so a lowered rail is
+    #: reported conservatively (it is a report, not a gate).
+    output_rail_height: float = field(
+        default_factory=lambda: float(os.environ.get("FRUIT_OUTPUT_RAIL_HEIGHT", "0.05"))
+    )
     #: Where the robot releases, relative to the belt: `output_place_x` along the
     #: belt, `output_place_y` across it, `output_place_clearance` above the
     #: surface. This is the **transfer waypoint** the carry leg ends at (the
@@ -423,6 +459,9 @@ class SceneConfig:
             # The output line must keep up with the main belt: a slower raised
             # belt lets placed fruit queue at the release point (P2 plan).
             self.output_belt_speed = max(self.output_belt_speed, abs(self.belt_speed))
+        # P30-A: fail at construction (every entry script builds a SceneConfig)
+        # rather than deep in `OutputBelt.build`.
+        _ = self.output_rail_keep
         if self.size_filter == "small":
             keep = ("strawberry", "lychee", "kiwi", "tomato")
             self.fruit_dimensions = {
@@ -477,6 +516,30 @@ class SceneConfig:
     # ------------------------------------------------------------------ #
     # Output-line discharge (derived)
     # ------------------------------------------------------------------ #
+    @property
+    def output_rail_keep(self) -> tuple[bool, bool]:
+        """(inner, outer): which side rail of each output belt is authored.
+
+        ``inner`` is the robot-facing rail (the one whose outer face is flush
+        with the slab's inner edge, |y| = ``output_belt_y - width/2``), ``outer``
+        the far-side one. Raises on an unknown mode so a typo in
+        ``FRUIT_OUTPUT_RAILS`` fails the build instead of silently authoring the
+        shipped geometry (P30-A).
+        """
+        mode = str(self.output_rails).strip().lower()
+        modes = {
+            "both": (True, True),
+            "outer": (False, True),
+            "inner": (True, False),
+            "none": (False, False),
+        }
+        if mode not in modes:
+            raise ValueError(
+                f"FRUIT_OUTPUT_RAILS={self.output_rails!r}: expected one of "
+                f"{sorted(modes)}"
+            )
+        return modes[mode]
+
     @property
     def output_belt_end_x(self) -> float:
         """x of each belt's +X end face (the discharge lip)."""

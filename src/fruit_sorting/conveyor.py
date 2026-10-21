@@ -569,17 +569,47 @@ class OutputBelt:
         # They are real colliders - the main belt's guide rails are too - bound to
         # a metal friction material; without the CollisionAPI the comment was
         # false (the boxes were colour only).
+        #
+        # P30-A: the *robot-side* (inner) rail is the only rail in the place
+        # path. Its outer face is flush with the slab's inner edge and its top
+        # stands 35 mm above the belt, so the payload crosses it on the way to
+        # the release - measured +31..+54 mm clear with the shipped +8 cm transfer
+        # lift, which exists because the fingers used to sweep it (48 m/s^2,
+        # `logs/445`). `FRUIT_OUTPUT_RAILS` (`SceneConfig.output_rail_keep`)
+        # can drop it ("outer") or both ("none"), or `FRUIT_OUTPUT_RAIL_HEIGHT`
+        # can lower them; the default "both"/0.05 authors exactly the shipped
+        # boxes (logs/p30a/RAILS_DESIGN.md, logs/p30a/rails_geometry.py).
+        keep_inner, keep_outer = cfg.output_rail_keep
+        rail_height = float(cfg.output_rail_height)
+        rail_bottom = cfg.output_belt_top_z - 0.015  # 15 mm of the box sits in the slab
+        authored = 0
         for side_sign in (-1.0, 1.0):
+            keep = keep_inner if side_sign * self.sign < 0 else keep_outer
+            if not keep:
+                continue
             rail_y = by + side_sign * (sy / 2.0 + 0.0125)
             rail = _define_box(
                 self.stage,
                 f"{self.root}/Frame{'P' if side_sign > 0 else 'N'}",
-                size=(sx, 0.025, 0.05),
-                center=(bx, rail_y, cfg.output_belt_top_z + 0.01),
+                size=(sx, 0.025, rail_height),
+                center=(bx, rail_y, rail_bottom + rail_height / 2.0),
             )
             _set_color(rail, (0.55, 0.56, 0.58))
             UsdPhysics.CollisionAPI.Apply(rail.GetPrim())
             _add_physics_material(rail.GetPrim(), 0.40, 0.35, 0.0)
+            authored += 1
+        if authored != 2 or abs(rail_height - 0.05) > 1e-12:
+            # Only a non-default configuration says anything: the shipped build
+            # must stay byte-identical, so this line is silent at "both"/0.05.
+            inner_y = by - self.sign * (sy / 2.0 + 0.0125)
+            say(
+                f"output belt rails {'P' if self.sign > 0 else 'N'}: "
+                f"FRUIT_OUTPUT_RAILS={cfg.output_rails} authors {authored}/2 "
+                f"(inner y={inner_y:+.4f} "
+                f"{'present' if keep_inner else 'REMOVED'}), height {rail_height:.3f} m "
+                f"(top {rail_bottom + rail_height:+.4f}, {'shipped' if abs(rail_height - 0.05) < 1e-12 else 'lowered'}); "
+                f"payload transit needs the top below the payload's lowest point"
+            )
 
         # Legs down to the floor. The -X pair is placed by `SceneConfig` just
         # outside the main belt's frame rail (whose outer face is at x=0.0855) so

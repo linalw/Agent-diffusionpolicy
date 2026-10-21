@@ -277,7 +277,7 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: scopes are byte-inert. The collector manifest gains
 #: `collection.carry_monitor` (the W7-C.1 `park_early` pattern; implementation
 #: record `logs/p10c3/IMPLEMENTATION.md`).
-TASKS_MD5 = "b54b54064607c50f7ed0adc906c97a45"
+TASKS_MD5 = "e27b18a455b2094aa611b36fd6cec168"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(
@@ -601,6 +601,14 @@ class SortingRLEnv:
         self._active_seed = int(seed)
         self.execute_steps = int(execute_steps)
         self.ddim_steps = int(ddim_steps)
+        #: P30-B: model inference calls (action-chunk samples) this episode.
+        #: One call = one `PolicyRunner.act` = one DDIM chain of `ddim_steps`
+        #: denoising steps (16 by default); with `execute_steps=4` it is one
+        #: call per 4 control ticks. Counted at the single inference site
+        #: (`sample_chunk`) plus the RTC chunker's completions, and published to
+        #: the task before the scripted primitive runs so the `[hub]` row can
+        #: report it. Pure reporting: nothing reads it as a control input.
+        self._infer_calls = 0
         self.approach_steps = int(approach_steps)
         self.reward = reward or RewardConfig()
         self.verbose = bool(verbose)
@@ -1164,6 +1172,10 @@ class SortingRLEnv:
         self._episode_t0 = self._sim_time()
         self._decision_step: int | None = None
         self.spawner.protected = int(target["index"])
+        # P30-B: no model has run for this episode yet (a scripted-ablation
+        # episode, or one that ends before the primitive, must not inherit the
+        # previous episode's count).
+        self.task.policy_inference_calls = None
         # RTC report buffers for this episode (empty and unused when off).
         self._report_boundary: list[float] = []
         self._report_within: list[float] = []
@@ -1172,6 +1184,7 @@ class SortingRLEnv:
         self._report_control_ms: list[float] = []
         self._report_policy_ms: list[float] = []
         self._report_decisions = 0
+        self._infer_calls = 0
         self._last7: np.ndarray | None = None
         self._prev7: np.ndarray | None = None
         self._switch_flag = False
@@ -1365,11 +1378,29 @@ class SortingRLEnv:
             self.proprio(), self._goal, num_steps=self.ddim_steps if num_steps is None
             else int(num_steps)
         )
+        # P30-B: one model inference = one action chunk (a `ddim_steps`-step
+        # denoising chain). Counted here, the only synchronous sampling site.
+        self._infer_calls += 1
         if self._rtc_report:
             self._report_policy_ms.append((time.perf_counter() - start) * 1e3)
             self._report_decisions += 1
             self._pending_switch = True
         return chunk
+
+    def inference_calls(self) -> int:
+        """P30-B: model inference calls this episode (chunks sampled, pure count).
+
+        The synchronous path counts one call per `sample_chunk`; with the RTC
+        chunker the sampler completes chunks inside `next_action`, so its
+        `chunks_sampled` is added. GDP's K-candidate sampling rides inside one
+        `PolicyRunner.act` and is therefore one call (its K chains are the
+        per-call cost, reported by the `[gdp]` row). A zero ablation samples no
+        model and reads 0.
+        """
+        calls = int(self._infer_calls)
+        if self.rtc is not None:
+            calls += int(getattr(self.rtc, "chunks_sampled", 0))
+        return calls
 
     def act(self, chunk: np.ndarray | None, execute_steps: int | None = None) -> StepResult:
         """Execute up to ``execute_steps`` actions; returns the step result.
@@ -2055,6 +2086,9 @@ class SortingRLEnv:
             grade=self._sample.grade,
             arm=self._active,
         )
+        # P30-B: publish this episode's model cost for the `[hub]` row. The
+        # scripted primitive reads it only for reporting (None = no model).
+        self.task.policy_inference_calls = self.inference_calls()
         result = self.task.grasp_carry_place(
             self._active, self._sample, self._bin_index, result, verbose=self.verbose
         )
@@ -2127,6 +2161,10 @@ class SortingRLEnv:
             "dagger": self.dagger is not None,
             "interventions": int(self._ep_interventions),
             "expert_ticks": int(self._ep_expert_ticks),
+            #: P30-B: model inference calls (action chunks) this episode. The
+            #: `[hub]` row reads the same count on the primitive side; this is
+            #: the machine-readable copy for the report tools.
+            "policy_inferences": int(self.inference_calls()),
         }
         if self._event:
             horizons = np.asarray(self._event_horizons, dtype=float)

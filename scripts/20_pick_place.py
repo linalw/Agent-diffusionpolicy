@@ -253,7 +253,13 @@ def main() -> int:
             f"lift={result.peak_lift:+.3f} m force={result.max_tactile_force:.2f} N "
             f"notes={result.notes} sim={result.sim_start:.1f}-{result.sim_end:.1f}s"
         )
-        task.go_ready()
+        # P30-B: with `FRUIT_HOME_HUB=1` the attempt ends at the waiting hub, so
+        # this transit is already done (and `FRUIT_READY_SKIP=1`, the default,
+        # would make it a 2-joint-read no-op). Skip it explicitly so the hub does
+        # not depend on that predicate: with `FRUIT_READY_SKIP=0` the call would
+        # hold the ready pose for 210 more ticks (1.75 s) for nothing.
+        if not getattr(result, "at_hub", False):
+            task.go_ready()
         advance(30)
 
     if capture:

@@ -1,0 +1,51 @@
+1. knob resolution (the real `home_hub_enabled`)
+  [PASS] truth table matches the single-arm scripted scope
+  [PASS] exactly one enabled row (env=1, scripted, no session, single arm) - [('1', True, False, False, True)]
+  [PASS] unset is off on every row
+  [PASS] explicit 0 is off on every row
+  [PASS] the two-line and coop scopes stay out
+2. default-off statement identity (vs e1b9936)
+  [PASS] every base statement survives, or is a container extended by hub code - 1 changed, 1 extended container(s), 0 rewritten
+         extended container: "if not result.grasped:\n    result.notes.append('fruit did not follow t"
+         statements added by P30-B: 21 node(s)
+  [PASS] one `hub = self.home_hub_enabled(scripted)` assignment
+  [PASS] at_hub/hub_return_s writes exist and are hub-guarded
+  [PASS] every `hub_marks[...]` write is hub-guarded - 5 writes
+  [PASS] the marks are only written and handed to `_hub_report` (never read as control) - 0 stray references
+  [PASS] every `[hub]` row is hub-guarded - 2 calls
+  [PASS] one success-path `if hub:` wraps the shipped retreat/settle tail
+  [PASS] its orelse is the shipped `if retreat > 0.0:` block
+  [PASS] the shipped retreat/settle branch is byte-identical (AST)
+3. hub leg ordering
+  [PASS] the carrying hub sits between the grasp_lift and the place leg - lift=9679 hub=9682 place=9777 hub_place=9781
+  [PASS] the waiting hub return runs after the release and before the return mark - release=9968 hub_return=9992 hub_wait=9993 return_mark=10014
+  [PASS] the success row is emitted after `result.placed` is computed
+4. failure path
+  [PASS] exactly one failure row
+  [PASS] the failure row lives in the `if not result.grasped:` block
+  [PASS] the failure block returns to the hub before ending the attempt
+  [PASS] the failure block marks the attempt at_hub
+5. diagnostic row and accounting
+  [PASS] the row prints carry_in
+  [PASS] the row prints hub_to_place
+  [PASS] the row prints place_to_hub
+  [PASS] the row prints infer
+  [PASS] the row prints at_hub
+  [PASS] the row reads `policy_inference_calls`
+  [PASS] `note_result` subtracts the hub return from the attempt span
+  [PASS] the success row carries the three legs and the call count - [hub] attempt 4 flow=ok arm=left carry_in=1.00s hub_to_place=2.00s place_to_hub=2.50s infer=7 placed=1 at_hub=1
+  [PASS] the failure row reports absent legs as `-` and `infer=n/a` - [hub] attempt 4 flow=fail arm=left carry_in=1.00s hub_to_place=- place_to_hub=- infer=n/a placed=0 at_hub=1
+  [PASS] the single-arm driver guards its `go_ready` on `at_hub`
+6. policy inference counter
+  [PASS] one increment at the `policy.act` site
+  [PASS] zeroed in reset and in __init__
+  [PASS] RTC chunk completions are added
+  [PASS] published before `grasp_carry_place`
+  [PASS] `policy_inferences` is in the outcome
+  [PASS] TASKS_MD5 matches the working-tree tasks.py - e27b18a455b2094aa611b36fd6cec168 vs e27b18a455b2094aa611b36fd6cec168
+7. hub geometry
+  [PASS] the carrying hub clears the output belt top with the hand's drop - grasp_lift jaw z=1.53 - 0.08 = 1.45 vs output top 1.35
+  [PASS] the waiting hub does not (a carried payload would sit in the output belt) - ready jaw z=1.37 - 0.08 = 1.29 vs output top 1.35
+  [PASS] both hub poses are calibrated waypoints
+
+PASS: all checks

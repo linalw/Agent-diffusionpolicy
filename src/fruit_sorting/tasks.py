@@ -309,6 +309,16 @@ class EpisodeResult:
     #: the two arms' windows overlap, so these are per-attempt, not cumulative.
     sim_start: float = 0.0
     sim_end: float = 0.0
+    #: P30-B (`FRUIT_HOME_HUB=1`): the attempt ended at the *waiting* hub
+    #: (`ready`), so the between-attempt `go_ready` is a measured no-op and a
+    #: driver may skip it. False on every shipped path.
+    at_hub: bool = False
+    #: P30-B: simulated seconds spent on the release -> waiting-hub transit.
+    #: It is the *between-attempt* transit moved inside the attempt, so
+    #: `note_result` subtracts it from `sim_end` before the per-attempt span is
+    #: booked - otherwise `[stats] s/attempt` would read ~2.5 s slower while
+    #: the cell is faster. The `[hub]` row still reports the leg in full.
+    hub_return_s: float = 0.0
 
     @property
     def success(self) -> bool:
@@ -848,6 +858,11 @@ class PickAndPlaceTask:
         #: The live bimanual session, if any (`CoopSession`); `_step_sim` and
         #: `run` consult it. None on every single-arm path.
         self._active_session: CoopSession | None = None
+        #: P30-B: the model's inference calls for the attempt in flight. Published
+        #: by `SortingRLEnv` immediately before it calls `grasp_carry_place`
+        #: (`rl_env._run_primitive`); None means no model ran (the scripted
+        #: line). Read only by the `[hub]` row - never a control input.
+        self.policy_inference_calls: int | None = None
         #: Opt-in dynamic-pick mechanism trace (`FRUIT_DYNAMIC_TRACE=1`). Off by
         #: default and never part of a shipped run: the per-tick arm-link/tactile
         #: readback measurably moves the run (AGENTS.md section 2), which is
@@ -1439,6 +1454,18 @@ class PickAndPlaceTask:
         if started is not None:
             result.sim_start = float(started)
             result.sim_end = float(self._sim_time())
+            if result.hub_return_s > 0.0:
+                # P30-B: the release -> waiting-hub transit is the
+                # *between-attempt* `ready` transit moved inside the attempt.
+                # Booking it in the per-attempt span would read `[stats]
+                # s/attempt` ~2.5 s slower than the shipped flow while the cell
+                # is faster (the driver's own `go_ready` now skips). Keep the
+                # metric's shipped meaning: the attempt ends at the release, and
+                # the hub leg's cost is reported by the `[hub]` row and the
+                # `[cycle] return` segment.
+                result.sim_end = max(
+                    result.sim_start, result.sim_end - float(result.hub_return_s)
+                )
             if self._active_session is None:
                 # Cumulative accounting is meaningful only for sequential
                 # attempts; under the bimanual session the coordinator records
@@ -3995,6 +4022,107 @@ class PickAndPlaceTask:
 
     def choose_arm(self, y: float) -> str:
         return "left" if y >= 0.0 else "right"
+
+    # ------------------------------------------------------------------ #
+    # P30-B: the HOME-HUB control flow (`FRUIT_HOME_HUB=1`, default off)
+    # ------------------------------------------------------------------ #
+    def home_hub_enabled(self, scripted: bool = True) -> bool:
+        """Whether this attempt runs the HOME-HUB flow (`FRUIT_HOME_HUB=1`).
+
+        The owner's P30-B directive: an attempt is a sequence of programmatic
+        legs around a *default pose* - acquire -> hub -> place -> hub - and a
+        failure returns to the hub and re-plans. The flow has two hubs because
+        one pose cannot serve both (measured geometry, `configs/waypoints.json`
+        + `assets.SceneConfig`):
+
+        * **carrying hub** = `grasp_lift` (jaw z = `belt_top + 0.28`, +0.08
+          for the OpenArm hand = 1.45/1.53 m). It is the pose the shipped line
+          already returns the payload to after the grasp, and it clears the
+          output belt top (1.35 m) and its side rail. The place leg already
+          departs from it.
+        * **waiting hub** = `ready` (jaw z = `belt_top + 0.20` = 1.37 m). It is
+          0.02 m above the output belt top and the OpenArm fingers hang ~0.08 m
+          below the jaw centre, so a carried payload would sit *inside* the
+          output belt; it is the pose the arm waits at empty-handed between
+          attempts (the `go_ready` target), not a carrying pose.
+
+        Scope: the single-arm **scripted** line only (the shipped default and
+        the collector). The two-line scheduler owns per-arm stations, a park
+        gate and a shared-physics arbiter - its between-attempt pose is not a
+        free choice (W2/W6/R3), so it keeps its own park; a shared-station
+        `CoopSession` (`FRUIT_BIARM=1`) is excluded the same way. The
+        direct/policy interface is excluded deliberately: its `reset()`
+        teleports the arm to its start pose, so a transit here would cost
+        ~2.5 s per episode for nothing (the `policy_inference_calls` hook and the
+        outcome's `policy_inferences` stay available for a future gate A/B).
+
+        Unset or `=0` is the shipped path: no `[hub]` row, no extra
+        `_sim_time()` read, no branch - byte-inert.
+        """
+        if os.environ.get("FRUIT_HOME_HUB", "0") != "1":
+            return False
+        if not scripted:
+            return False
+        if self._active_session is not None or self.two_line_enabled():
+            return False
+        return True
+
+    def _hub_return(self, side: str) -> float:
+        """P30-B: return the arm to the *waiting* hub (`ready`); seconds spent.
+
+        This is the measured between-attempt return, reused verbatim:
+        `go_ready` opens the gripper, then `_ready_move` runs the staged
+        `ready` transit (`_lift_clear` around the main belt, a 90-tick
+        min-jerk blend, the `FRUIT_READY_SETTLE` tail - 295-299 ticks measured
+        on the P9-A logs) and the `FRUIT_READY_SKIP` predicate. Calling it from
+        inside the attempt moves the return *before* `note_result`, so the
+        collector gets it too, and the place leg's 60-tick retreat is subsumed
+        by `_lift_clear`'s 0.20 m lift.
+
+        Reusing `go_ready` (rather than a new Cartesian profile) keeps the hub
+        on the corridor the arm already traverses between attempts, and it
+        leaves the post-condition the driver's own `go_ready` expects: drive
+        target at ready, IK integrator re-anchored. The next `go_ready` then
+        takes the `FRUIT_READY_SKIP=1` branch (2 joint reads), so the hub adds
+        no second transit. A Cartesian reverse of the place corridor is the
+        named follow-up (pre-registration in `logs/p30b/HOME_HUB_DESIGN.md`
+        section 6); it is not run here.
+        """
+        started = self._sim_time()
+        self.go_ready(side)
+        return max(0.0, self._sim_time() - started)
+
+    def _hub_report(self, result: "EpisodeResult", flow: str,
+                    marks: dict) -> None:
+        """P30-B: one `[hub]` row per hub attempt (pure reporting).
+
+        The row is the measurement the P30-B design asks for: the *programmatic*
+        leg times (grasp -> carrying hub -> place -> waiting hub) plus the
+        model's inference calls for the same attempt (`infer`), so the timing
+        and inference claims are read off a run, not assumed. `infer=n/a` on
+        the scripted line, where no model runs; a policy run publishes the count
+        through `policy_inference_calls` (`rl_env._run_primitive`), the hook for
+        a hub-on-policy A/B.
+
+        Two simulated-time reads per boundary - the non-invasive reporting
+        class (AGENTS section 2) - and only under the knob.
+        """
+        def leg(first: str, second: str) -> str:
+            if first not in marks or second not in marks:
+                return "-"
+            return f"{max(0.0, marks[second] - marks[first]):.2f}s"
+
+        calls = self.policy_inference_calls
+        infer = "n/a" if calls is None else str(int(calls))
+        say(
+            f"[hub] attempt {int(self.stats['attempts']) + 1} flow={flow} "
+            f"arm={result.arm or '-'} "
+            f"carry_in={leg('grasp', 'hub_carry')} "
+            f"hub_to_place={leg('hub_carry', 'hub_place')} "
+            f"place_to_hub={leg('hub_place', 'hub_wait')} "
+            f"infer={infer} placed={int(bool(result.placed))} "
+            f"at_hub={int(bool(result.at_hub))}"
+        )
 
     def station_y_for(self, arm: str) -> float:
         """The pick-station Y this arm catches at [m].
@@ -6775,6 +6903,11 @@ class PickAndPlaceTask:
         #: schedule. With the env unset the handover keeps the P1 indexed
         #: primitive (the pad hand's dynamic close tracks by construction).
         dynamic_capture = bool(dynamic_pick and openarm)
+        #: P30-B: the HOME-HUB flow for this attempt (default off; see
+        #: `home_hub_enabled`). `hub_marks` is filled only under the knob, so
+        #: the shipped path reads no extra simulation time and prints nothing.
+        hub = self.home_hub_enabled(scripted)
+        hub_marks: dict[str, float] = {}
         #: P2b left-arm fix. The direct (policy) handover used the scripted 6 cm
         #: hover and paid for it: its pre-descent overhead (~0.7 s) plus the
         #: descent itself (~0.7 s) put the fruit 5-8 cm *downstream* when the
@@ -9537,8 +9670,16 @@ class PickAndPlaceTask:
                     )
                 self._closed_gap[arm_name] = float(hold_gap)
         self._cycle_mark("grip")
+        if hub:
+            # P30-B: the carrying hub is the *end* of the `grasp_lift` leg
+            # below (jaw z = belt_top + 0.28, +0.08 for the OpenArm hand), the
+            # pose the shipped line already carries the payload back to after
+            # the grasp. This timestamp is the acquire -> hub boundary.
+            hub_marks["grasp"] = self._sim_time()
         self._carry(arm_name, sample, "grasp_lift")
         self._cycle_mark("lift")
+        if hub:
+            hub_marks["hub_carry"] = self._sim_time()
         if os.environ.get("FRUIT_GRIPPER_DEBUG") == "1":
             say(
                 f"[task]   lift debug: tcp_z={arm.tcp_position()[2]:.4f} "
@@ -9617,6 +9758,17 @@ class PickAndPlaceTask:
             say(f"[task] lift {result.peak_lift:+.4f} m, grasped={result.grasped}")
         if not result.grasped:
             result.notes.append("fruit did not follow the gripper")
+            if hub:
+                # P30-B failure path: the arm is already at the *carrying* hub
+                # (the `grasp_lift` leg just ran), empty-handed. Return it to
+                # the *waiting* hub and let the next attempt re-plan from
+                # there. The shipped path leaves the arm at the lift pose and
+                # relies on the driver's `go_ready`; doing it here means the
+                # collector gets the same post-condition without its own call.
+                result.hub_return_s = self._hub_return(arm_name)
+                hub_marks["hub_wait"] = self._sim_time()
+                result.at_hub = True
+                self._hub_report(result, "fail", hub_marks)
             return result
 
         # 4. Carry to the output line and release. Each arm only serves the
@@ -9624,6 +9776,9 @@ class PickAndPlaceTask:
         # so the lane index decides which arm picks.
         self._carry(arm_name, sample, f"place{bin_index}")
         self._cycle_mark("place")
+        if hub:
+            # P30-B: the hub -> place leg ended (`hub_to_place` in the row).
+            hub_marks["hub_place"] = self._sim_time()
         if self._carry_monitor_skip:
             # P7-2b fast-skip (see the knob block in `__init__`): the fire
             # belongs to the place leg; the attempt ends here, before the
@@ -9826,7 +9981,18 @@ class PickAndPlaceTask:
         retreat = float(os.environ.get("FRUIT_RELEASE_RETREAT", "0.0"))
         if place_low:
             retreat = float(os.environ.get("FRUIT_PLACE_LOW_RETREAT", "0.08"))
-        if retreat > 0.0:
+        if hub:
+            # P30-B success path: release -> *waiting* hub. `_hub_return` is the
+            # measured between-attempt `ready` transit (see its docstring); it
+            # subsumes the 60-tick retreat/settle below because its
+            # `_lift_clear` raises the hand 0.20 m and to at least
+            # `belt_top + 0.30` before the blend, so the shipped block is not
+            # run under the hub. `_cycle_mark("return")` below then measures the
+            # hub transit, which is the leg the `[hub]` row reports.
+            result.hub_return_s = self._hub_return(arm_name)
+            hub_marks["hub_wait"] = self._sim_time()
+            result.at_hub = True
+        elif retreat > 0.0:
             # Re-anchor the drive target on the measured arm first: the pads push
             # the arm during the release (`logs/630`), and the first retreat step
             # would otherwise command the stale target-to-measured difference in
@@ -9857,6 +10023,10 @@ class PickAndPlaceTask:
                 f"[task] released at {np.round(pos, 3).tolist()}, placed={result.placed} "
                 f"(on/next to output belt {bin_index})"
             )
+        if hub:
+            # P30-B: one row per hub attempt - the three programmatic legs plus
+            # the model's inference calls (`infer=n/a` on the scripted line).
+            self._hub_report(result, "ok", hub_marks)
         if self.recorder is not None:
             self.recorder.save(result.success, result.notes)
         self.current_sample = None
