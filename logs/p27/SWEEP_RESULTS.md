@@ -49,7 +49,13 @@ speed trend; the 0.15's 2.9 is a draw).
 
 The belt alone costs -4 at 0.15 (the flip -2; together -6). The two-line patch at 0.15 on the
 current tree: **34/60** (s11 10, s5 12, s23 12) vs the 0.12 mass base **45/60** (11/17/17). The
-two-line at 0.08/0.10 (the slow side) is running (`logs/p27/30..31_twoline_*.log`).
+two-line scripted curve (seed 11, 20 attempts each): **0.08 13/20** (nc 4, carried 3),
+0.10 11/20, 0.12 11/20 (the mass base), 0.15 10/20 - **the slow side is >= the training
+speed (weakly, +2 at 0.08) and the fast side < (-1)**. The scripted catch benefits where the
+policy cannot: the capture physics (a slower fruit, a wider catch window, less momentum in
+the loaded slide); the schedule's fixed-seconds form cancels the speed out of the handover
+timing, so the gain is physical. Single runs per point; the +2 is at branch scale, reported,
+not gated.
 
 ## 4. The verdict and the named fixes
 
