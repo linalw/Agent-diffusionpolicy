@@ -11,6 +11,24 @@ Windows come from any directory with the training schema (`datasets/demos_v8`,
 or a `--record` rollout directory); rollouts are read with successes *and*
 failures so the table can show where the fine-tune changed what.
 
+P28-B (the belt-speed channel): the two checkpoints of a B0 pair can have
+**different observation widths** - the anchor is 25-D, the widened artifact is
+26-D. One store, two widths: `--data-speed M/S` arms the store's 26-D channel
+(the column is synthesised from the store's pin, P28 Gate A B2), and each
+checkpoint is fed the prefix its own `config["proprio_dim"]` declares (25 =
+exactly the shipped vector, which the store's first 25 dims are bitwise). The
+B0 protocol is therefore:
+
+    scripts/119_rl_fidelity.py --base checkpoints/moe_v13s/policy_best.pt \\
+        --candidate <widened 26-D artifact> --data datasets/v11_s0 \\
+        --data-speed 0.12 --device cpu --windows 32 --ddim 8 \\
+        --out logs/p28i/.../b0.txt
+
+and its criterion is **<= 1e-6 rad on the paired action/finger delta**, not
+equality: a 128x26 GEMM does not reassociate like a 128x25 one (P28 Gate A
+section 5), so an equality assertion would declare a correct splice broken.
+Run it on CPU/fp32 - the fp16 path on CUDA quantises the difference.
+
     <lingbot-python> scripts/119_rl_fidelity.py \
         --base checkpoints/moe_v9/policy_best.pt \
         --candidate checkpoints/rl_rwr1/policy_best.pt \
@@ -31,11 +49,34 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 
 import torch
 
-from fruit_sorting.policy.data import EpisodeStore
+from fruit_sorting.policy.data import PROPRIO_DIM, EpisodeStore, speed_channel_enabled
 from fruit_sorting.policy.runtime import PolicyRunner
 from fruit_sorting.policy.skills import SKILLS
 
 CLOSE = 0.030
+
+
+def proprio_for(policy: PolicyRunner, proprio: np.ndarray) -> tuple[np.ndarray, int]:
+    """The observation this checkpoint's own config declares.
+
+    P28-B: the store returns the *widest* vector it was built for (25 or 26),
+    and each policy is fed the prefix its ``config["proprio_dim"]`` names. For a
+    25-D checkpoint that prefix is exactly the shipped 25-D vector (the store
+    appends the channel last), so an old checkpoint is measured unchanged; a
+    26-D checkpoint gets the channel. Anything else is a loud error - the one
+    place a 25/26 pair could otherwise surface as a numpy broadcast.
+    """
+    width = int(policy.config.get("proprio_dim", PROPRIO_DIM))
+    vector = np.asarray(proprio, dtype=np.float32)
+    if width not in (PROPRIO_DIM, PROPRIO_DIM + 1):
+        raise ValueError(f"unsupported checkpoint proprio_dim={width}")
+    if vector.shape[0] < width:
+        raise ValueError(
+            f"checkpoint expects proprio_dim={width} but the store returns "
+            f"{vector.shape[0]}: pass --data-speed to arm the 26-D channel "
+            f"for a 26-D checkpoint"
+        )
+    return vector[:width], width
 
 
 def sample_action(policy: PolicyRunner, obs: dict, seed: int, steps: int) -> np.ndarray:
@@ -45,7 +86,8 @@ def sample_action(policy: PolicyRunner, obs: dict, seed: int, steps: int) -> np.
     policy._frames = [
         np.transpose(obs["image"][k], (1, 2, 0)) for k in range(obs["image"].shape[0])
     ]
-    return policy.act(obs["proprio"], obs["goal"], num_steps=int(steps))
+    proprio, _width = proprio_for(policy, obs["proprio"])
+    return policy.act(proprio, obs["goal"], num_steps=int(steps))
 
 
 def sign_p(better: int, worse: int) -> float:
@@ -58,7 +100,9 @@ def sign_p(better: int, worse: int) -> float:
 
 def collect(data: str, args, policies: dict) -> list[dict]:
     store = EpisodeStore(data, obs_horizon=2, action_horizon=16, image_size=128,
-                         only_successful=False)
+                         only_successful=False,
+                         belt_speed=args.data_speed,
+                         speed_channel=args.speed_channel)
     rng = np.random.RandomState(int(args.seed))
     count = min(int(args.windows), len(store))
     indices = np.sort(rng.choice(len(store), count, replace=False))
@@ -107,6 +151,20 @@ def report_dataset(out, data: str, args, policies: dict) -> None:
     out.append(f"=== fidelity on {data}")
     out.append(f"    windows: {len(rows)} sampled of {len(store)} "
                f"(ddim={args.ddim}, seed={args.seed})")
+    widths = {
+        name: int(policy.config.get("proprio_dim", PROPRIO_DIM))
+        for name, policy in policies.items()
+    }
+    out.append(f"    store proprio_dim={store.proprio_dim} "
+               f"data_speed={args.data_speed} "
+               f"pins={sorted({round(float(v), 6) for v in store.belt_speeds})}")
+    out.append(f"    feeds: " + ", ".join(f"{n} <- {w}-D" for n, w in widths.items()))
+    device = next(iter(policies.values())).device
+    half = any(policy.use_half for policy in policies.values())
+    if half:
+        out.append("    NOTE: half precision on CUDA - a B0 delta is quantised; "
+                   "run B0 with --device cpu")
+    out.append(f"    device={device} fp16={half}")
     for name, path in zip(names, [args.base, args.candidate][: len(names)]):
         out.append(f"    {name:8s} {path or '(none)'}")
     out.append(_subset_line("overall", rows, names))
@@ -136,6 +194,18 @@ def report_dataset(out, data: str, args, policies: dict) -> None:
             f"  paired finger median |d|: {base} {_med(fb):.4f} -> {cand} "
             f"{_med(fc):.4f}"
         )
+        # P28-B B0: the two arms' *own* distance, per window, with identical
+        # noise. This is the identity number (P28 Gate A section 5: <= 1e-6,
+        # not equality - the GEMM reassociates when K grows 25 -> 26).
+        act_delta = np.array(
+            [np.linalg.norm(r[cand][:7] - r[base][:7]) for r in rows]
+        )
+        finger_delta = np.array([abs(r[cand][7] - r[base][7]) for r in rows])
+        out.append(
+            f"  action delta ({cand} - {base}): max {float(act_delta.max()):.3e} rad, "
+            f"finger max {float(finger_delta.max()):.3e} "
+            f"[B0 criterion <= 1e-6]"
+        )
     out.append("")
 
 
@@ -149,15 +219,40 @@ def main() -> int:
     parser.add_argument("--ddim", type=int, default=16)
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--device", default="")
+    parser.add_argument("--data-speed", type=float, default=None, metavar="M/S",
+                        help="P28-B: pin a legacy store's belt speed [m/s] and arm "
+                             "its 26-D channel (the B0 pair's two widths). For a "
+                             "store that pins itself (a manifest, a merged store) "
+                             "set FRUIT_OBS_SPEED=1 instead. Omit both for the "
+                             "shipped 25-D observation.")
     parser.add_argument("--out", default="logs/rl_fidelity.txt")
     args = parser.parse_args()
     if not args.data:
         args.data = ["datasets/demos_v8"]
+    # The store builds the channel when a pin is declared or the gate is on; a
+    # 26-D checkpoint cannot be fed a 25-D store, so refuse early with the fix.
+    args.speed_channel = (
+        True
+        if (args.data_speed is not None or speed_channel_enabled())
+        else None
+    )
 
     device = args.device or None
     policies: dict[str, PolicyRunner] = {"base": PolicyRunner(args.base, device=device)}
     if args.candidate:
         policies["cand"] = PolicyRunner(args.candidate, device=device)
+    widths = {
+        name: int(policy.config.get("proprio_dim", PROPRIO_DIM))
+        for name, policy in policies.items()
+    }
+    if args.speed_channel is None and any(
+        width > PROPRIO_DIM for width in widths.values()
+    ):
+        raise SystemExit(
+            f"{' '.join(f'{n}={w}' for n, w in widths.items())}: a 26-D "
+            f"checkpoint needs the store's channel - pass --data-speed M/S "
+            f"(legacy store) or set FRUIT_OBS_SPEED=1"
+        )
 
     out: list[str] = []
     for data in args.data:

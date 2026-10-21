@@ -33,6 +33,7 @@ from fruit_sorting.assets import SceneConfig
 from fruit_sorting.common import install_failure_handler, say
 from fruit_sorting.fruits import FruitSpawner
 from fruit_sorting.grasp import GraspPrimitive
+from fruit_sorting.policy.data import belt_speed_scalar, speed_channel_enabled
 from fruit_sorting.policy.runtime import PolicyRunner
 from fruit_sorting.scene import SortingScene
 from fruit_sorting.tactile import GripperTactile
@@ -58,6 +59,12 @@ APPROACH_STEPS = int(os.environ.get("FRUIT_APPROACH_STEPS", "400"))
 #: cannot answer (see WORKLOG "the small fruit is the policy loop's reproducible
 #: failure").
 EVAL_VERBOSE = os.environ.get("FRUIT_EVAL_VERBOSE", "0") == "1"
+#: P28-B: the belt-speed channel (a 26th proprio scalar). Off by default, so the
+#: harness's observation is the shipped 25-D one; with `FRUIT_OBS_SPEED=1` the
+#: extra scalar is appended through the *same* helper `rl_env.proprio()` uses
+#: (`fruit_sorting.policy.data.belt_speed_scalar`), which is what keeps the two
+#: observation-assembly sites in lockstep (`scripts/114_rl_obs_diff.py`).
+SPEED_CHANNEL = speed_channel_enabled()
 
 
 def place_jaw_target(cfg, bin_index: int) -> np.ndarray:
@@ -142,6 +149,17 @@ def main() -> int:
 
     policy = PolicyRunner(CHECKPOINT)
     say(f"loaded {CHECKPOINT} (obs_horizon={policy.obs_horizon}, action_horizon={policy.action_horizon})")
+    # P28-B: the observation width is a property of the artifact. The gate
+    # decides which width this harness builds, so a mismatch is refused here
+    # rather than surfacing as a broadcast error on the first `act`.
+    want_proprio = 25 + (1 if SPEED_CHANNEL else 0)
+    got_proprio = int(policy.config.get("proprio_dim", 25))
+    if got_proprio != want_proprio:
+        raise RuntimeError(
+            f"checkpoint {CHECKPOINT} has proprio_dim={got_proprio} but this "
+            f"harness builds {want_proprio}-D proprio "
+            f"(FRUIT_OBS_SPEED={'1' if SPEED_CHANNEL else 'unset'})."
+        )
 
     # The demonstrations all start with the arms parked at the calibrated ready
     # pose, so the policy is evaluated from the same initial condition.
@@ -325,19 +343,32 @@ def main() -> int:
 
             if chunk is None or chunk_index >= EXECUTE_STEPS:
                 if policy.ready:
-                    proprio = np.concatenate(
-                        [
-                            np.asarray(scene.robot.get_dof_positions().numpy())[0].astype(np.float32),
-                            [float(np.mean(np.asarray(scene.robot.get_dof_positions().numpy())[0][[14, 15]]))],
+                    proprio_parts = [
+                        np.asarray(scene.robot.get_dof_positions().numpy())[0].astype(np.float32),
+                        [float(np.mean(np.asarray(scene.robot.get_dof_positions().numpy())[0][[14, 15]]))],
+                        np.array(
+                            [
+                                tactile.read().get("left", _ZERO).normal_force,
+                                tactile.read().get("right", _ZERO).normal_force,
+                            ],
+                            dtype=np.float32,
+                        ),
+                    ]
+                    if SPEED_CHANNEL:
+                        # P28-B: the belt speed the primitive acts on, from the
+                        # shared estimator (encoder first, measured fallback).
+                        # A missing belt reports the configured speed, not 0.0.
+                        proprio_parts.append(
                             np.array(
                                 [
-                                    tactile.read().get("left", _ZERO).normal_force,
-                                    tactile.read().get("right", _ZERO).normal_force,
+                                    belt_speed_scalar(
+                                        spawner, sample, fallback=cfg.belt_speed
+                                    )
                                 ],
                                 dtype=np.float32,
-                            ),
-                        ]
-                    )
+                            )
+                        )
+                    proprio = np.concatenate(proprio_parts)
                     chunk = policy.act(proprio, goal, num_steps=DDIM_STEPS)
                     chunk_index = 0
 

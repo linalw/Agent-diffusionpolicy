@@ -1,4 +1,4 @@
-### offline motion checks: PASS (0.08s)
+### offline motion checks: PASS (0.09s)
 $ python3 scripts/96_motion_check.py
     == jerk-limited profiles ==
       d=+0.012 m ->   39 steps (0.33 s), |v|=0.071 (limit 0.300), |a|=0.691 (limit 2.000), |j|=20.9 (limit 25.0)
@@ -75,7 +75,7 @@ $ python3 scripts/96_motion_check.py
     
     all motion checks passed
 
-### dataset index audit: PASS (0.90s)
+### dataset index audit: PASS (0.79s)
 $ python3 scripts/106_index_audit.py --root datasets
     datasets/*: 46 dataset(s) with data or index
       demos_v10            entries=154 files=154 index_frames= 72837 file_frames= 72837 windows= 70219 unique_content=154 OK
@@ -89,7 +89,7 @@ $ python3 scripts/106_index_audit.py --root datasets
       demos_v8             entries= 42 files= 42 index_frames= 20966 file_frames= 20966 windows= 20252 unique_content= 42 OK
       demos_v9             entries= 63 files= 63 index_frames= 29121 file_frames= 29121 windows= 28050 unique_content= 63 OK
       ss008                entries= 25 files= 25 index_frames=  6490 file_frames=  6490 windows=  6065 unique_content= 25 OK
-      ss015                entries=  4 files=  4 index_frames=   645 file_frames=   645 windows=   577 unique_content=  4 OK
+      ss015                entries= 13 files= 13 index_frames=  2143 file_frames=  2143 windows=  1922 unique_content= 13 OK
       v10_s0               entries= 50 files= 50 index_frames= 24110 file_frames= 24110 windows= 23260 unique_content= 50 OK
       v10_s1               entries= 50 files= 50 index_frames= 23271 file_frames= 23271 windows= 22421 unique_content= 50 OK
       v10_s2               entries= 35 files= 35 index_frames= 16153 file_frames= 16153 windows= 15558 unique_content= 35 OK
@@ -126,19 +126,19 @@ $ python3 scripts/106_index_audit.py --root datasets
       v9_s2                entries= 21 files= 21 index_frames=  9903 file_frames=  9903 windows=  9546 unique_content= 21 OK
     OK: every index matches the files it describes
 
-### collect/merge regression: PASS (0.37s)
+### collect/merge regression: PASS (0.38s)
 $ python3 scripts/107_collect_merge_test.py
     == 1. collector restarted onto the same directory ==
-    [fruit] saved /tmp/collect_merge_test_gtsowqp4/shard_a/episode_00000.npz (7 frames, success=True)
-    [fruit] saved /tmp/collect_merge_test_gtsowqp4/shard_a/episode_00000.npz (5 frames, success=True)
+    [fruit] saved /tmp/collect_merge_test_nyvtut6f/shard_a/episode_00000.npz (7 frames, success=True)
+    [fruit] saved /tmp/collect_merge_test_nyvtut6f/shard_a/episode_00000.npz (5 frames, success=True)
       [ok  ] one index row for the rewritten episode
       [ok  ] its frames match the file on disk
     == 2. merge a shard that repeats an episode byte-for-byte ==
-    [fruit] saved /tmp/collect_merge_test_gtsowqp4/shard_b/episode_00000.npz (6 frames, success=True)
-    [fruit] saved /tmp/collect_merge_test_gtsowqp4/shard_b/episode_00001.npz (5 frames, success=True)
+    [fruit] saved /tmp/collect_merge_test_nyvtut6f/shard_b/episode_00000.npz (6 frames, success=True)
+    [fruit] saved /tmp/collect_merge_test_nyvtut6f/shard_b/episode_00001.npz (5 frames, success=True)
       [ok  ] merge ran
-          merge: skip /tmp/collect_merge_test_gtsowqp4/shard_b:episode_00001.npz (byte-identical to episode_00000.npz from /tmp/collect_merge_test_gtsowqp4/shard_a)
-          merge: merged 2 successful episodes into /tmp/collect_merge_test_gtsowqp4/out/merged
+          merge: skip /tmp/collect_merge_test_nyvtut6f/shard_b:episode_00001.npz (byte-identical to episode_00000.npz from /tmp/collect_merge_test_nyvtut6f/shard_a)
+          merge: merged 2 successful episodes into /tmp/collect_merge_test_nyvtut6f/out/merged
       [ok  ] no byte-identical episodes survive the merge
       [ok  ] one index row per file
       [ok  ] every frames value matches its file (stale 999 must not survive)
@@ -147,12 +147,12 @@ $ python3 scripts/107_collect_merge_test.py
       [ok  ] audit exits 0 on the merged output
       [ok  ] audit reports OK
     == 4. two-line recording: concurrent threads, auto index, station label ==
-    [fruit] saved /tmp/collect_merge_test_gtsowqp4/two_line/episode_00001.npz (4 frames, success=True)
-    [fruit] saved /tmp/collect_merge_test_gtsowqp4/two_line/episode_00000.npz (4 frames, success=True)
-    [fruit] saved /tmp/collect_merge_test_gtsowqp4/two_line/episode_00002.npz (4 frames, success=True)
-    [fruit] saved /tmp/collect_merge_test_gtsowqp4/two_line/episode_00003.npz (4 frames, success=True)
-    [fruit] saved /tmp/collect_merge_test_gtsowqp4/two_line/episode_00004.npz (4 frames, success=True)
-    [fruit] saved /tmp/collect_merge_test_gtsowqp4/two_line/episode_00005.npz (4 frames, success=True)
+    [fruit] saved /tmp/collect_merge_test_nyvtut6f/two_line/episode_00000.npz (4 frames, success=True)
+    [fruit] saved /tmp/collect_merge_test_nyvtut6f/two_line/episode_00001.npz (4 frames, success=True)
+    [fruit] saved /tmp/collect_merge_test_nyvtut6f/two_line/episode_00002.npz (4 frames, success=True)
+    [fruit] saved /tmp/collect_merge_test_nyvtut6f/two_line/episode_00003.npz (4 frames, success=True)
+    [fruit] saved /tmp/collect_merge_test_nyvtut6f/two_line/episode_00004.npz (4 frames, success=True)
+    [fruit] saved /tmp/collect_merge_test_nyvtut6f/two_line/episode_00005.npz (4 frames, success=True)
       [ok  ] concurrent saves raised no error
       [ok  ] all six concurrent episodes landed
       [ok  ] file names are unique
@@ -175,15 +175,15 @@ $ python3 scripts/432_finger_collider_guard_test.py
       * point FRUIT_ROBOT_USD at a de-instanced copy, or
       * run the pad hand deliberately: FRUIT_GRIPPER_KIND=kinematic.
 
-### rl env smoke: PASS (0.09s)
+### rl env smoke: PASS (0.08s)
 $ python3 -c import sys; sys.path.insert(0, 'src'); from fruit_sorting.rl_env import RewardConfig, RolloutRecorder, TASKS_MD5; r = RewardConfig(); assert abs(r.compute(True, 0) - 1.0) < 1e-9; assert abs(r.compute(True, 750) - 0.9) < 1e-9; assert abs(r.compute(True, 1500) - 0.8) < 1e-9; assert abs(r.compute(True, 99999) - 0.8) < 1e-9; assert r.compute(False, 100) == 0.0; assert len(TASKS_MD5) == 32; print('rl_env smoke ok')
     rl_env smoke ok
 
-### rl report parser: PASS (0.04s)
+### rl report parser: PASS (0.03s)
 $ python3 scripts/113_rl_report.py --self-test
     rl report self-test PASS (parser, pairing, sign test, verdict branches)
 
-### r9 endpoint report: PASS (0.04s)
+### r9 endpoint report: PASS (0.03s)
 $ python3 scripts/196_r9_report.py --self-test
     === arm A
       run 1: 1/8  0:peac/6.0/ok  1:kiwi/6.0/carried  2:appl/6.0/carried  3:peac/6.0/carried  4:grap/6.0/carried  5:pear/6.0/carried  6:oran/6.0/carried  7:toma/6.0/carried
@@ -266,7 +266,7 @@ $ python3 scripts/196_r9_report.py --self-test
 $ python3 scripts/197_r9_merge_rollouts.py --self-test
     197 self-test PASS (merge, renumber, provenance, overwrite refusal, merged-npz readability)
 
-### rtc runtime selftest: PASS (5.12s)
+### rtc runtime selftest: PASS (5.17s)
 $ python3 scripts/128_rtc_selftest.py
     rtc selftest: PASS (weights, split, bit-exact base, frozen prefix, queue, nan-guard)
 
@@ -312,26 +312,26 @@ $ python3 scripts/811_trigger_test.py
       [PASS] from_env rejects a bogus frame
     [trigger test] OK
 
-### distill selftest: PASS (10.41s)
+### distill selftest: PASS (8.69s)
 $ python3 scripts/131_distill_selftest.py
     /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/scripts/../src/fruit_sorting/policy/model.py:161: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
     Consider using tensor.detach() first. (Triggered internally at /pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:836.)
       if float(wk.abs().max()) < 1e-6:
     distill selftest: PASS (implied x0, DDIM-1 identity, EMA, CD step, deploy step, probe)
 
-### loop metrics selftest: PASS (0.91s)
+### loop metrics selftest: PASS (0.85s)
 $ python3 scripts/125_loop_metrics.py --self-test
     loop metrics self-test PASS (step, jerk, boundary split, decision rate)
 
-### path3 event selftest: PASS (0.07s)
+### path3 event selftest: PASS (0.12s)
 $ python3 scripts/149_path3_selftest.py
     path3 event selftest PASS (median rule, bounds, alignment bookkeeping)
 
-### a2c2 correction selftest: PASS (1.46s)
+### a2c2 correction selftest: PASS (1.44s)
 $ python3 scripts/146_train_correction.py --self-test
     correction selftest PASS (train, save/load, correct, clamp, finger untouched)
 
-### path3 report selftest: PASS (0.04s)
+### path3 report selftest: PASS (0.03s)
 $ python3 scripts/148_path3_report.py --self-test
     path3 report self-test PASS (pairing, criteria, verdicts)
 
@@ -343,7 +343,7 @@ $ python3 scripts/152_biarm_selftest.py
     solo attempt: 5 requests -> 5 ticks
     biarm selftest PASS
 
-### supply scatter selftest: PASS (4.02s)
+### supply scatter selftest: PASS (4.03s)
 $ python3 scripts/172_supply_selftest.py
     [fruit] [supply] wave density x1.5: gap 0.085-0.107 m, boundary 0.085-0.085 m
     [fruit] [supply] patch density x2: slice 0.085-0.110 m, pair 1.00
@@ -356,7 +356,7 @@ $ python3 scripts/172_supply_selftest.py
     patch sheet (offline run): 32 pair slices, separations 0.085-0.120 m, x 0.200-0.359 m, min live planar separation 0.085 m, approach gaps >0.40 m 79/10800 frames
     supply selftest ok (74 checks)
 
-### two-line selector test: PASS (0.11s)
+### two-line selector test: PASS (0.12s)
 $ python3 scripts/176_twoline_selftest.py
     selector floor above the station: 0.399 m
     ok: fruit under the downstream station's floor is refused
@@ -389,7 +389,7 @@ $ python3 scripts/176_twoline_selftest.py
     ok: shared station (single arm) -> lock not needed
     two-line selftest PASS
 
-### reach-anywhere selftest: PASS (0.10s)
+### reach-anywhere selftest: PASS (0.09s)
 $ python3 scripts/198_r10_selftest.py
     ok: the shipped default keeps the reach catch off (FRUIT_REACH_ANYWHERE default 0)
     ok: the shipped default keeps the hover settle off (FRUIT_REACH_HOVER_SETTLE default 0)
@@ -449,32 +449,32 @@ $ python3 scripts/198_r10_selftest.py
 
 ### claim slot harness: PASS (13.13s)
 $ bash scripts/181_claim_slot_selftest.sh
-    [claim_slot] slot 0/0 claimed (b.log) at 11:04:23
-    [claim_slot] exit=0 11:04:25 log=/tmp/tmp.nSiukbyGgt/b.log
-    [claim_slot] slot 0/0 claimed (a.log) at 11:04:26
-    [claim_slot] exit=0 11:04:28 log=/tmp/tmp.nSiukbyGgt/a.log
+    [claim_slot] slot 0/0 claimed (b.log) at 11:13:35
+    [claim_slot] exit=0 11:13:37 log=/tmp/tmp.aLAbotB5SX/b.log
+    [claim_slot] slot 0/0 claimed (a.log) at 11:13:38
+    [claim_slot] exit=0 11:13:40 log=/tmp/tmp.aLAbotB5SX/a.log
     ok: SLOTS=1 serializes two holders (5.0s >= 3.5s, no interleave)
-    [claim_slot] slot 0/1 claimed (c.log) at 11:04:28
-    [claim_slot] slot 1/1 claimed (d.log) at 11:04:28
-    [claim_slot] exit=0 11:04:30 log=/tmp/tmp.nSiukbyGgt/c.log
-    [claim_slot] exit=0 11:04:30 log=/tmp/tmp.nSiukbyGgt/d.log
+    [claim_slot] slot 0/1 claimed (c.log) at 11:13:40
+    [claim_slot] slot 1/1 claimed (d.log) at 11:13:40
+    [claim_slot] exit=0 11:13:42 log=/tmp/tmp.aLAbotB5SX/c.log
+    [claim_slot] exit=0 11:13:42 log=/tmp/tmp.aLAbotB5SX/d.log
     ok: SLOTS=2 overlaps two holders (2.0s < 3.5s)
-    [claim_slot] slot 0/0 claimed (s.log) at 11:04:31
-    [claim_slot] exit=0 11:04:31 log=/tmp/tmp.nSiukbyGgt/s.log
+    [claim_slot] slot 0/0 claimed (s.log) at 11:13:43
+    [claim_slot] exit=0 11:13:43 log=/tmp/tmp.aLAbotB5SX/s.log
     ok: a SIGKILLed holder's slot is reclaimed (0.0s)
     [claim_slot] TIMEOUT: no free slot in 2s (slots=1)
     slot 0: locked (holder has no owner file)
     ok: wait times out with exit 2 (2.0s)
-    [claim_slot] slot 0/1 claimed (dup) at 11:04:33
-    [claim_slot] refusing: log '/tmp/tmp.nSiukbyGgt/dup.log' is already owned by live pid 1381056
-    [claim_slot] exit=0 11:04:36 log=/tmp/tmp.nSiukbyGgt/dup.log
+    [claim_slot] slot 0/1 claimed (dup) at 11:13:45
+    [claim_slot] refusing: log '/tmp/tmp.aLAbotB5SX/dup.log' is already owned by live pid 1638513
+    [claim_slot] exit=0 11:13:48 log=/tmp/tmp.aLAbotB5SX/dup.log
     ok: duplicate log path refused (exit 2) while the owner completes
     ok: owner files removed on exit
     PASS: claim slot selftest
 
-### ops selfcheck selftest: PASS (1.65s)
+### ops selfcheck selftest: PASS (1.62s)
 $ bash scripts/191_ops_selfcheck.sh --selftest
-    ops selfcheck selftest (temp dir /tmp/tmp.3QZulmSP3q, no simulator, no GPU, no DB)
+    ops selfcheck selftest (temp dir /tmp/tmp.2jeaaOu1y3, no simulator, no GPU, no DB)
     ok: OK case (fresh sim log)
     ok: STALLED-SIM fires (frozen sim log, no corroboration)
     ok: ACTION fires on a wedge marker
@@ -495,4 +495,4 @@ $ bash scripts/191_ops_selfcheck.sh --selftest
     this is not a failure: the run it judges is a separate ten-attempt command
 
 ### summary
-    failed=0 skipped=1 total=39.24s
+    failed=0 skipped=1 total=37.38s

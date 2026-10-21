@@ -10,6 +10,14 @@ BASE_WEIGHT; the base demonstrations are mixed in at BASE_WEIGHT. The last epoch
 is saved as `policy_best.pt` (not best-val on the demos - see
 `fruit_sorting.policy.finetune`), with a provenance block naming the base
 checkpoint, the rollout data and every weight knob.
+
+P28-B (the belt-speed channel, `logs/p28/SPEED_CHANNEL_DESIGN.md` 2.2): with
+`FRUIT_OBS_SPEED=1` the observation is 26-D and a 25-D `--ckpt` is widened
+(one zero column + the fixed `(0.12, 0.05)` normaliser entry). Stores whose
+manifest records `supply.belt_speed` (every shard collected since `9cbcfa2`)
+pin themselves; the older ones are declared with `--store-speed PATH=SPEED`
+(repeatable) or `--base-speed SPEED`, and the declaration is recorded in the
+provenance block. The pin table is in the design's section 4.3.
 """
 
 from __future__ import annotations
@@ -21,6 +29,20 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
 
 from fruit_sorting.policy.finetune import finetune
+
+
+def _parse_store_speeds(items: list[str]) -> dict[str, float]:
+    """`PATH=SPEED` -> {normalised path: speed}; a malformed item is an error."""
+    pins: dict[str, float] = {}
+    for item in items:
+        path, sep, value = item.rpartition("=")
+        if not sep or not path:
+            raise SystemExit(f"--store-speed expects PATH=SPEED, got {item!r}")
+        try:
+            pins[os.path.normpath(path)] = float(value)
+        except ValueError as exc:
+            raise SystemExit(f"--store-speed {item!r}: {exc}") from exc
+    return pins
 
 
 def main() -> int:
@@ -54,9 +76,27 @@ def main() -> int:
                         help="frames after the close start included in the boost")
     parser.add_argument("--seed", type=int, default=int(os.environ.get("SEED", "0")))
     parser.add_argument("--device", default=os.environ.get("DEVICE", ""))
+    parser.add_argument("--store-speed", action="append", default=[],
+                        metavar="PATH=SPEED",
+                        help="P28-B belt-speed pin [m/s] for a store whose "
+                             "manifest does not record supply.belt_speed "
+                             "(repeatable; the design's 4.3 table)")
+    parser.add_argument("--base-speed", type=float, default=None,
+                        help="P28-B belt-speed pin [m/s] for the --base store "
+                             "(overrides --store-speed for it)")
     args = parser.parse_args()
     if not args.rollouts:
         parser.error("--rollouts is required (a directory written by scripts/110_rl_rollout.py --record)")
+
+    pins = _parse_store_speeds(args.store_speed)
+    rollout_speed = pins.get(os.path.normpath(args.rollouts))
+    base_speed = (
+        args.base_speed
+        if args.base_speed is not None
+        else pins.get(os.path.normpath(args.base)) if args.base else None
+    )
+    if args.store_speed:
+        print(f"[finetune] pinned stores: {pins}")
 
     path = finetune(
         checkpoint=args.ckpt,
@@ -74,6 +114,8 @@ def main() -> int:
         close_weight=args.close_weight,
         close_lead=args.close_lead,
         close_tail=args.close_tail,
+        rollout_speed=rollout_speed,
+        base_speed=base_speed,
         seed=args.seed,
         device=args.device or None,
     )
