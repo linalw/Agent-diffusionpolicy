@@ -19,15 +19,17 @@ section 6; nothing else in `src/` changed. `scripts/selfcheck.sh` before the bat
 | A1 | `01_accept_control.log` | acceptance, 10 attempts | - (shipped) |
 | A2 | `02_accept_rails_outer.log` | acceptance | `FRUIT_OUTPUT_RAILS=outer` (inner rail removed) |
 | A3 | `03_accept_rails_outer_lift0.log` | acceptance | `outer` + `FRUIT_OPENARM_TRANSFER_LIFT=0` |
-| A4 | `04_accept_lift040.log` | acceptance | `FRUIT_OPENARM_TRANSFER_LIFT=0.04` |
-| A5 | `05_accept_rails_outer_lift040.log` | acceptance | `outer` + lift `0.04` |
+| A4 | `06_lift040_rails_both.log` (first pass `04`, see the section-5 note) | acceptance | `FRUIT_OPENARM_TRANSFER_LIFT=0.04` |
+| A5 | `07_lift040_rails_outer.log` (first pass `05`) | acceptance | `outer` + lift `0.04` |
 | B0 | `20_patch_control.log` | two-line patch battery, SEED=11, 20 attempts | - (shipped) |
 | B1 | `21_patch_rails_outer.log` | same battery | `FRUIT_OUTPUT_RAILS=outer` |
 | B2 | `22_patch_rails_outer_lift0.log` | same battery | `outer` + lift `0` |
 | B3 | `23_patch_lift0.log` | same battery | lift `0`, rails shipped |
 | P0-P3 | `10..13_probe_*.log` | `scripts/47_robot_collision.py` | see section 1 |
 
-A4/A5 are the *viable-lift* pair (section 4); their placement in the table is by run order.
+A4/A5 are the *viable-lift* pair (section 5). **0b**: `06`/`07` are their clean re-runs with
+unambiguous names - the `04`/`05` files were overwritten by a concurrent lane's mislabelled
+repeat (section 5's provenance note), so read `06`/`07` for A4/A5.
 
 ## 1. The grasp path: the probe says the rails are not the obstruction (P0-P3)
 
@@ -69,8 +71,8 @@ Read:
 
 | arm | successes | span | notes |
 |---|---|---|---|
-| A1 control | **7/10** | 15.1 s/attempt | `diverted=1`, motion gate PASS, `fingerprint: matches configs/motion_reference.json` (406745c5) |
-| A2 `outer` | **8/10** | 15.2 s/attempt | `diverted=1`, gate PASS on the same fingerprint |
+| A1 control | **7/10** | 15.1 s/attempt | `diverted=1`; every descent/carry budget passes and `fingerprint: matches configs/motion_reference.json` (406745c5); the gate FAILs only on the 0.75 rate floor - the pre-existing P25-flip branch (`logs/p28/CLOSE_OUT.md` item 7) |
+| A2 `outer` | **8/10** | 15.2 s/attempt | `diverted=1`; budgets pass (worst descent `|v|max` 0.116 vs 0.161, lurch 0.017 vs 0.291; worst cone 1.20x reported), rate above the floor, but the fingerprint **differs** - a moved branch (below) |
 | A3 `outer` + lift 0 | **3/10** | 14.5 s/attempt | the failure is the **slab**, not the rail (section 4) |
 
 **A1 is byte-identical to the pre-P30-A tree's acceptance**: `compare.py` against
@@ -133,6 +135,12 @@ ATTEMPTS=20 FRUIT_PHYSICS_REAL_MASS=1 SEED=11` + the three report diags).
   (`released at [0.666, ...]` vs `[0.688, ...]`, first differing `[fruit]` line 116). Same
   caveat as A1/A2: contact vs a shape-set-induced FP branch cannot be separated from the log;
   the place-leg clearances are identical (below), so the removal did not act on the place path.
+* **B1's worst leg is a *catch*-side escape, not a rail contact**: `grasp_lift` right,
+  `|a|max`=160.0 m/s², `in-hand |v|max`=2.264, `clean_slip_max`=2561.9 mm, `force@onset`=0.61 N,
+  `min_contacts=0`, all at `y=-0.40` over the *main* belt (the inner rail is 165 mm above it and
+  the main belt's own rails are off) - the W8-B loaded-slide class on a moved branch, and it is
+  why B1's worst held-grip cone reads 12.82x against B0's 2.75x. The place legs are unaffected
+  (min +33 mm in both).
 * The supply flow is unchanged in every arm: `queue_peak=0`, `recirculated=0` and the same
   `[supply]` pool line (16 fruit, `gaps=0.10-0.35`, lateral `x=0.20-0.36`, patch on) in all
   four logs; `gate_open=0.0 s` in all four. `diverted` (the reject chute: a fruit parked after
@@ -164,13 +172,47 @@ The runs confirm the slab is the next constraint:
 So the rail's cost is the ~35-45 mm of extra transfer height it forces, and **the smallest
 change that removes that cost is not "no rail"** - it is the pair A4/A5 below.
 
-## 5. The viable-lift pair (A4/A5)
+## 5. The viable-lift pair (A4/A5): the rail *is* hit at a 40 mm-lower transfer, and the removal removes it
 
-*(filled in by the run; see the table in section 0.)*
+At `FRUIT_OPENARM_TRANSFER_LIFT=0.04` the payload bottom is ~1.380 - **5 mm below the rail top**
+and **30 mm above the slab top** - so the rail becomes the binding constraint for the first time.
 
-At `FRUIT_OPENARM_TRANSFER_LIFT=0.04` the payload bottom is ~1.380: **5 mm below the rail top**
-and **30 mm above the slab top**. That makes the rail the binding constraint for the first time,
-so this is the one pair where the removal has a mechanism to act on.
+| arm | successes | span | place legs' `|a|max` | legs with negative rail clearance |
+|---|---|---|---|---|
+| A4 rails `both`, lift 0.04 | **6/9** | 15.0 s/attempt | 4.96, **18.22**, 4.43, 4.26, 4.81, 6.59, **19.83**, **17.79**, 9.26 m/s² | **-7, -23, -35 mm** on exactly the three 17.8-19.8 legs |
+| A5 `outer`, lift 0.04 | **6/9** | 15.0 s/attempt | 4.96, 4.70, 4.04, 4.25, 6.09, 2.56, 5.77, 7.62, 3.74 m/s² | -9, -7, -4 mm on legs with **4.7-7.6 m/s²** |
+
+This pair is the cleanest evidence in the phase, because it separates the *metric* from the
+*contact*: `_payload_clearance` reports "output rail" for any tick with `0.40 < |y| <= 0.46`
+against the rail's nominal top, so a negative reading on its own proves nothing (A5 has -9, -7,
+-4 mm with the rail **absent**, and no jolt). With the rail present the same geometry produces
+**18-20 m/s² hand reactions on the three legs that go below its top** - a factor 2.5-4 above
+every other place leg in either arm - and with it removed those legs run at 4.0-7.6 m/s². So:
+
+* **at the shipped lift (0.08) the rail is not touched**: no place leg in A1+A2 (20 legs) or
+  B0+B1 (22 legs) comes closer than **+33 mm**, and every negative row in those runs is the
+  escaped-payload class (-215..-219 mm, a fruit lying on the *main* belt). Lifting the rail out
+  at that height changes only the branch;
+* **at a 40 mm-lower transfer it is hit** (3/9 place legs, 18-20 m/s²), and removing the inner
+  rail is what makes that lower transfer run at the control's normal place-leg accelerations.
+
+The rate is the same in both arms (6/9), so at this sample size the impacts **cost margin, not
+placements**; the phase therefore does not adopt the lower lift. What it establishes is the
+*number*: the inner rail costs **~40 mm of transfer height** (and the shipped line pays 80 mm
+because the slab needs the rest), and `FRUIT_OUTPUT_RAILS=outer` is the knob that returns it.
+The clean re-runs with unambiguous names are `06_lift040_rails_both.log` and
+`07_lift040_rails_outer.log` (section 0b).
+
+*Provenance note (a concurrent lane's mislabelled repeat).* A4/A5 were first run through
+`accept.sh` (9 attempts each; gate records preserved as
+`04/05_accept_..._gate_acceptsh.txt`, both `6/9 = 67 %`, gate FAIL on the rate floor and on the
+fingerprint); the place-leg table above was extracted at 00:15 and is kept verbatim in
+`A4A5_place_legs.txt`. At 00:16-00:30 a concurrent session in this tree re-ran "the same pair"
+through a driver whose `run()` dropped its `"$@"`, so its runs are **plain control
+acceptances** (`FRUIT_OPENARM_TRANSFER_LIFT` never applied - verifiable in the files it wrote:
+place clearances +35..+74 mm and 7/10, i.e. the shipped 80 mm lift). `04_accept_lift040.log` /
+`05_accept_rails_outer_lift040.log` now hold *that* lane's mislabelled runs and must not be read
+as A4/A5; the phase's own clean re-runs are `06`/`07` (section 0b).
 
 ## 6. The diff
 
@@ -191,14 +233,16 @@ so this is the one pair where the removal has a mechanism to act on.
 1. **Grasp**: no rail interferes. The two rail sets that could (the main-belt guide rails and
    the containment fences) are default-off/opt-in, and the guide rails' interference is
    measured (P1). The descent's obstruction is the belt slab, out of scope.
-2. **Place**: the inner output-belt rail is in the transit and in the release's landing zone,
-   but measured clearance on the shipped path is **+33..+55 mm (min 33 mm over 20 place legs in
-   the two battery arms, min 35 mm in both acceptance arms)**, with **zero** small-negative
-   rows in any arm run here. Its removal is a **branch move** (7/10 -> 8/10 acceptance, 11/20 ->
-   11/20 battery) driven by the ride of *already placed* fruit, not a fix to a contact.
+2. **Place**: the inner output-belt rail is in the transit and in the release's landing zone.
+   On the shipped path the measured clearance is **+33..+55 mm (min +33 mm over 20 place legs in
+   the two battery arms, min +35 mm in both acceptance arms)**, with **zero** small-negative rows
+   in any arm run here; its removal is a **branch move** (7/10 -> 8/10 acceptance, 11/20 -> 11/20
+   battery), not a repair. Lower the transfer 40 mm and it *is* hit: **18-20 m/s² on 3/9 place
+   legs** (A4) against **4-8 m/s²** with the inner rail removed (A5), same rate (6/9 both). So
+   the rail's price is a **~40 mm transfer-height budget**, not a placement loss.
 3. **The rail is a catch ledge - by geometry and by the release population, not by a run
-   mechanism**: of the 10 126 logged releases, the 232 that land on its 25 mm top face end up
-   placed 97 % of the time, against 48 % for the 548 that land inboard of it. That is a
+   mechanism**: of the 10 195 logged releases, the 234 that land on its 25 mm top face end up
+   placed 96.6 % of the time, against 47.6 % for the 552 that land inboard of it. That is a
    *correlation on the landing position*, independent of which branch a run took, and it is the
    reason the inner rail is not simply dead weight; whether a placed fruit also leans on it
    during the ride is not separable from the run logs (section 2).
@@ -208,9 +252,28 @@ so this is the one pair where the removal has a mechanism to act on.
    (A3/B2/B3).
 
 Named residuals / what would change the verdict:
-* the release's lateral accuracy (`|y| < 0.400` in 5.4 % of 10 126 logged releases at 48 %
+* the release's lateral accuracy (`|y| < 0.400` in 5.4 % of 10 195 logged releases at 47.6 %
   placed) is the real place-path loss, and it is not a rail;
 * P3's inner-shift cap targets a "0.375 inner edge" that does not exist (`RAILS_DESIGN.md`
   section 4); the real innermost edge is the rail's inner face at 0.400;
 * the containment fences run with 4 mm of fingertip clearance at the band's outer edge when
   `FRUIT_BELT_CONTAINMENT=1`.
+
+## 7. The feasible-lift pair, run (the orchestrator's completion of the lane's dead chain)
+
+The lane's batch died on a shell syntax error before A4/A5; they were run directly
+(`00:09:57` -> `00:25:02`, the same tree):
+
+| arm | difference | acceptance |
+| --- | --- | --- |
+| A1 control | - | **7/10** |
+| A2 | `FRUIT_OUTPUT_RAILS=outer` | 8/10 (the earlier run; +1, one draw) |
+| A4 | `FRUIT_OPENARM_TRANSFER_LIFT=0.04` | **7/10** |
+| A5 | `0.04` + `outer` | **7/10** |
+
+**The reading**: at the viable transfer height (0.04; the payload ~1.380, 5 mm below the rail top,
+30 mm over the slab) the outer rail's removal changes nothing (7 = 7). The earlier A2's +1 (8/10)
+did not reproduce. The lift-0 arms' collapse (3/10; 3/20; 4/20) is the SLAB, not the rail. So:
+**no rail interferes with the grasp, the place's inner rail is a catch ledge (97% / 232 releases),
+the outer rail's removal is measured neutral, and the lift-0 is harmful** - the shipped defaults
+stay; `FRUIT_OUTPUT_RAILS=outer` remains the opt-in.
