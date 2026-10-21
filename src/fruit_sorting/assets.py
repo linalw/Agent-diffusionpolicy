@@ -333,13 +333,13 @@ class SceneConfig:
     #:
     #: **Default ``both`` = the shipped geometry, byte-inert**: the builder
     #: authors exactly the same two boxes and prints nothing extra. Nothing on
-    #: the shipped path is short of clearance: across 7 203 logged place-clearance
+    #: the shipped path is short of clearance: across 7 267 logged place-clearance
     #: rows the positive population is 5-199 mm (p1 23, median 50) and the shipped
     #: acceptance's place legs read +35..+55 mm; the last measured contact is the
     #: pre-fix `logs/445` (-3/-5 mm, the 48 m/s^2 jolt the transfer lift repaired).
     #: So removal is a *margin* change, not a repair - and it takes away the ledge a
-    #: short release lands on (97 % placed over the 232 logged releases that land on
-    #: its top face, vs 48 % for releases inboard of it) - the measured case for a
+    #: short release lands on (96.6 % placed over the 234 logged releases that
+    #: land on its top face, vs 47.6 % for releases inboard of it) - the measured case for a
     #: default change is **negative** (`logs/p30a/RESULTS.md`).
     output_rails: str = field(
         default_factory=lambda: os.environ.get("FRUIT_OUTPUT_RAILS", "both").strip().lower()
