@@ -20,9 +20,16 @@ path**. Recorded `logs/p28/E_TRIGGER_OFF.md`.
 | pooled | A | 16/45 | 3 | 26 | - |
 | pooled | B | **18/45** | 2 | 25 | - |
 
-**The mechanism moves and it moves in the channel's direction: the speed-aware arm closes
-0.3-0.5 mm tighter at EVERY speed** (3.7/3.6/2.4 vs 4.0/4.1/2.8) - the fine-tune learned to use the
-speed scalar. **The outcome**: the fast end (0.15, outside the training speeds) reads **+3** (8 vs
+**CORRECTION (the Gate D, `logs/p28/ORACLE_GATE_D.md`): the fire census decides what this A/B
+measured.** In these six runs **90/90 fires were the scripted intercept trigger and 0/90 were the
+learned gate** - the A/B could only move the pre-fire pose, the Gate A's predicted ≈0 channel. The
+"0.3-0.5 mm tighter" is the primitive's post-catch-up residual, **sub-noise** (permutation
+p = 0.62/0.74/0.70; the blind arm's own two passes move the same median +0.8 mm at 0.08; the 0.15
+means are identical at 2 dp, 3.03 vs 3.03). **"0.15 outside the training speeds" is false** - 0.15
+is in the rollouts (17 episodes; the fine-tune pins [0.08, 0.12, 0.15]); all three cells are
+in-distribution and the only extrapolation cell (0.10) was never run, so **the premise is untested,
+not supported**. The +3 at 0.15 is one draw (Fisher p = 0.231; the paired read 1 B-only / 0 A-only
+with 9/15 class-excluded; the same logs' unread per-leg grip is adverse, lift-clean 2/8 vs 5/10). **The outcome**: the fast end (0.15, outside the training speeds) reads **+3** (8 vs
 5), the in-distribution anchor -1 (within the ~15 pt MDE at N=1x15), the slow end 0. Pooled +2
 (18 vs 16 of 45). **The carried-not-placed class still dominates every cell** (6-12/15) - the P27
 audit's hand-frame-escape mechanism, untouched by the speed.
