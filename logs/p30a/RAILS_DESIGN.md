@@ -12,11 +12,13 @@ values the verdict depends on).
 **Verdict in one line.** On the shipped line **no rail interferes with grasping** (the
 descent's obstruction is the belt *slab*, and the two rail sets that would touch the hand are
 already off / opt-in), and the one rail in the **placing** path - the output belts' *inner*
-rail - is crossed by the payload with a retained clearance of **21-54 mm** and, where a
-release lands short, acts as a **catch ledge** (97 % placed over 232 measured releases) rather
-than a blocker. Removing it is delivered as `FRUIT_OUTPUT_RAILS=outer` (default `both`,
-byte-inert) and measured (`RESULTS.md`); the measured case for a default change is **negative**,
-so the default is unchanged.
+rail - is crossed by the payload with a retained clearance of **+33..+55 mm** (min +33 over 42
+place legs in four arms) and, where a release lands short, acts as a **catch ledge** (96.6 % placed
+over 234 measured releases) rather than a blocker. It costs exactly one thing, measured: **~40 mm
+of transfer height** - lower the transfer by 40 mm and 3/9 place legs hit it at 18-20 m/s^2, while
+the same configuration with the inner rail removed reads 4-8 m/s^2 and the same rate (6/9,
+`RESULTS.md` section 5). Removing it is delivered as `FRUIT_OUTPUT_RAILS=outer` (default `both`,
+byte-inert); the shipped lift has no need of the 40 mm, so the default is unchanged.
 
 ---
 
@@ -43,7 +45,7 @@ Three facts about this table drive everything else:
 
 * **The main belt's "side rails/edges" are already not in the way.** The *frame* rails (#1/#2,
   `main_frame_rail_width`/`_offset`, `assets.py:414-415`) are **outside the slab** and carry
-  **no `CollisionAPI`** - they are render only (`conveyor.py:269-277` applies
+  **no `CollisionAPI`** - they are render only (`conveyor.py:266-277` applies
   `_define_box`/`_set_color` and nothing else). The *guide* rails (#3/#4, `assets.py:230`,
   `FRUIT_RAIL_HEIGHT` default 0.075) are **off by default**: `FRUIT_RAILS` defaults to `0`
   (`assets.py:230`), so `conveyor.py:280` never authors them. The guide rails were the
@@ -127,27 +129,38 @@ and 4 cm of payload slip (`logs/445`). The openarm lift/place targets ride 8 cm 
 (WORKLOG line 7043). `logs/445_placefix.log` still carries the pre-fix signature: place
 clearances of **-3 mm and -5 mm to the output rail** with the payload landing at y=0.448/0.502.
 
+Measured on this tree (`RESULTS.md` section 5: `06b`/`07`), the rail is **not touched at the shipped lift** -
+no place leg in four arms (42 legs) comes closer than **+33 mm**, and every negative row in those
+runs is the escaped-payload class (-215..-219 mm, a fruit already lying on the *main* belt) - and
+it **is** touched once the transfer is lowered by 40 mm: at `lift=0.04` three of nine place legs go
+5-35 mm below the rail's top and read **18-20 m/s²** hand reactions, while the same
+configuration with the inner rail removed reads 4.0-7.6 m/s². So the rail's price is **~40 mm of
+transfer height** (the shipped line pays 80 mm, because with the rail gone the *slab* becomes the
+limit at -10 mm). The transit is not the only thing the rail does (below).
+
 So the *active* cost of the inner rail on the shipped line is **+35 mm of transfer height and
 the +80 mm lift that buys it** - not a contact. The rail is also the surface the P2-3 report
 measures against (`tasks.py:2417-2438`: `y <= 0.46` -> `output_belt_top_z + 0.035`,
 "the rail is what the payload crosses when it moves from the pick station to the output line").
 
 **The rail is also, measured, a catch ledge - which is why removal is not free.** Across every
-log in the repo there are **10 126 `[task] released at` rows**; binning them by the released
+log in the repo there are **10 195 `[task] released at` rows** (the corpus at 2026-10-22
+00:22, `population.txt`; it grows as phases add logs - the shares move by <0.1 pt); binning
+them by the released
 `|y|` against the rail's footprint:
 
 | released `|y|` | n | share | placed=True |
 |---|---|---|---|
-| `< 0.400` (inboard of the rail, over the gap) | 548 | 5.4 % | **48.0 %** |
-| `0.400 .. 0.425` (**on the rail's 25 mm top face**) | 232 | 2.3 % | **97.0 %** |
-| `0.425 .. 0.460` (on the slab, near its edge) | 518 | 5.1 % | 95.4 % |
+| `< 0.400` (inboard of the rail, over the gap) | 552 | 5.4 % | **47.6 %** |
+| `0.400 .. 0.425` (**on the rail's 25 mm top face**) | 234 | 2.3 % | **96.6 %** |
+| `0.425 .. 0.460` (on the slab, near its edge) | 519 | 5.1 % | 95.4 % |
 | `> 0.460` (on the slab) | 8 828 | 87.2 % | 86.2 % |
 
-A release that lands on the rail's top face succeeds **97 %** of the time (it topples the 35 mm
-onto the belt, which is 25 mm away); a release that lands *inboard of the rail* succeeds 48 %.
+A release that lands on the rail's top face succeeds **96.6 %** of the time (it topples the 35 mm
+onto the belt, which is 25 mm away); a release that lands *inboard of the rail* succeeds 47.6 %.
 **Removing the inner rail would convert the 2.3 % rail-band releases into gap releases** - the
 same geometry with nothing under them - so the measured case for removal is not merely "no
-gain", it is **negative** for the placement path. The `48 %` inboard class is *not* a rail
+gain", it is **negative** for the placement path. The `47.6 %` inboard class is *not* a rail
 problem: it is a short lateral release (P3's territory), and it happens with or without the
 rail.
 
@@ -222,9 +235,12 @@ line **only when a knob is off its default**, so the shipped stream is byte-iden
 `FRUIT_RAILS=0` + `FRUIT_RAIL_HEIGHT` already cover the main belt's guide rails (#3/#4) and are
 untouched; the containment fences (#5/#6) are untouched.
 
-Why nothing is flipped: the measurement says the rails interfere with **neither** envelope on
-the shipped path (the grasp never sees them; the place crosses the inner rail at +21..+54 mm and
-lands on it, when it lands short, 97 % of the time), and the one place where they *do* cost
-something - the +80 mm transfer lift - is a knob in `tasks.py`, outside this phase's write
-scope, and its own A/B (section 3 of `RESULTS.md`) is a wash. Flipping the default would trade
-a measured catch ledge for a measured margin nobody is currently short of.
+Why nothing is flipped: on the shipped path the rails interfere with **neither** envelope (the
+grasp never sees them; the place crosses the inner rail at +21..+54 mm and, when a release lands
+short, the rail is a 96.6 %-effective ledge), and the one thing they *do* cost - **~40 mm of
+transfer height**, measured as an 18-20 m/s² rail contact at `lift=0.04` vs 4-8 m/s² with the
+inner rail gone (`RESULTS.md` section 5) - is not something the shipped line is short of: it
+runs at `lift=0.08`. Spending that budget is a `tasks.py` default (out of this phase's write
+scope), it buys at most a few tenths of a second per attempt, and the A4/A5 pair measures **the
+same rate** (6/9) with or without the rail at `lift=0.04`. So the removal is delivered as a
+measured operator option, and the default stays the shipped geometry.

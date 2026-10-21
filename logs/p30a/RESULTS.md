@@ -19,7 +19,7 @@ section 6; nothing else in `src/` changed. `scripts/selfcheck.sh` before the bat
 | A1 | `01_accept_control.log` | acceptance, 10 attempts | - (shipped) |
 | A2 | `02_accept_rails_outer.log` | acceptance | `FRUIT_OUTPUT_RAILS=outer` (inner rail removed) |
 | A3 | `03_accept_rails_outer_lift0.log` | acceptance | `outer` + `FRUIT_OPENARM_TRANSFER_LIFT=0` |
-| A4 | `06_lift040_rails_both.log` (first pass `04`, see the section-5 note) | acceptance | `FRUIT_OPENARM_TRANSFER_LIFT=0.04` |
+| A4 | `06b_lift040_rails_both.log` (first pass `04`) | acceptance | `FRUIT_OPENARM_TRANSFER_LIFT=0.04` |
 | A5 | `07_lift040_rails_outer.log` (first pass `05`) | acceptance | `outer` + lift `0.04` |
 | B0 | `20_patch_control.log` | two-line patch battery, SEED=11, 20 attempts | - (shipped) |
 | B1 | `21_patch_rails_outer.log` | same battery | `FRUIT_OUTPUT_RAILS=outer` |
@@ -27,9 +27,9 @@ section 6; nothing else in `src/` changed. `scripts/selfcheck.sh` before the bat
 | B3 | `23_patch_lift0.log` | same battery | lift `0`, rails shipped |
 | P0-P3 | `10..13_probe_*.log` | `scripts/47_robot_collision.py` | see section 1 |
 
-A4/A5 are the *viable-lift* pair (section 5). **0b**: `06`/`07` are their clean re-runs with
-unambiguous names - the `04`/`05` files were overwritten by a concurrent lane's mislabelled
-repeat (section 5's provenance note), so read `06`/`07` for A4/A5.
+A4/A5 are the *viable-lift* pair (section 5). **0b**: `06b`/`07` are their clean, named runs -
+the `04`/`05` files were overwritten by a concurrent lane's mislabelled repeat (section 5's
+provenance note), so read `06b`/`07` for A4/A5.
 
 ## 1. The grasp path: the probe says the rails are not the obstruction (P0-P3)
 
@@ -200,19 +200,29 @@ The rate is the same in both arms (6/9), so at this sample size the impacts **co
 placements**; the phase therefore does not adopt the lower lift. What it establishes is the
 *number*: the inner rail costs **~40 mm of transfer height** (and the shipped line pays 80 mm
 because the slab needs the rest), and `FRUIT_OUTPUT_RAILS=outer` is the knob that returns it.
-The clean re-runs with unambiguous names are `06_lift040_rails_both.log` and
-`07_lift040_rails_outer.log` (section 0b).
+**Both arms were re-run to completion under unambiguous names, and both reproduce the
+`accept.sh` pass leg for leg** - same attempts, same successes, same span, and every place leg's
+`|a|max` and clearance identical:
 
-*Provenance note (a concurrent lane's mislabelled repeat).* A4/A5 were first run through
-`accept.sh` (9 attempts each; gate records preserved as
+| | A4 `06b_lift040_rails_both.log` | A5 `07_lift040_rails_outer.log` |
+|---|---|---|
+| outcome | 9 attempts, **6 placed**, 15.0 s/attempt, `diverted=0` | 9 attempts, **6 placed**, 15.0 s/attempt, `diverted=0` |
+| place legs (`cm` / `|a|max` / clearance) | 64/4.961/-3 main belt, 41/**18.223**/-7 rail, 36/4.427/+8, 39/4.259/+22, 38/4.805/+26, 58/6.588/-218, 38/**19.830**/-23 rail, 35/**17.788**/-35 rail, 62/9.264/-3 main belt | 64/4.961/-3 main belt, 41/4.701/-9, 39/4.040/+1, 39/4.251/+21, 31/6.088/+19, 58/2.561/-217, 38/5.770/-7, 36/7.623/-4, 62/3.740/-12 main belt |
+
+(`06`, A4's first re-run, died at warm-up with an RTX `Out of resource descriptors!` wedge - the
+shared GPU under a concurrent lane, not the code; `06b` is the completed retry.)
+
+*Provenance note - and a correction that matters for how this pair is read.* A4/A5 were first
+run through `accept.sh` (9 attempts each; gate records preserved as
 `04/05_accept_..._gate_acceptsh.txt`, both `6/9 = 67 %`, gate FAIL on the rate floor and on the
 fingerprint); the place-leg table above was extracted at 00:15 and is kept verbatim in
 `A4A5_place_legs.txt`. At 00:16-00:30 a concurrent session in this tree re-ran "the same pair"
-through a driver whose `run()` dropped its `"$@"`, so its runs are **plain control
-acceptances** (`FRUIT_OPENARM_TRANSFER_LIFT` never applied - verifiable in the files it wrote:
-place clearances +35..+74 mm and 7/10, i.e. the shipped 80 mm lift). `04_accept_lift040.log` /
-`05_accept_rails_outer_lift040.log` now hold *that* lane's mislabelled runs and must not be read
-as A4/A5; the phase's own clean re-runs are `06`/`07` (section 0b).
+through a driver whose `run()` dropped its `"$@"` - so **both of its runs are plain control
+acceptances**, with `FRUIT_OPENARM_TRANSFER_LIFT` never applied (verifiable in the files: place
+clearances +35..+74 mm and 7/10 = the shipped 80 mm lift, identical in the two files). Any
+reading that treats `04`/`05` as "lift 0.04" vs "lift 0.04 + outer" is comparing a run with
+itself; the phase's own clean, named, completed pair is `06b` (rails both, 6/9, three 17.8-19.8
+m/s² rail contacts) vs `07` (outer, 6/9, no contact above 7.6 m/s²) - the table above.
 
 ## 6. The diff
 
@@ -277,3 +287,16 @@ did not reproduce. The lift-0 arms' collapse (3/10; 3/20; 4/20) is the SLAB, not
 **no rail interferes with the grasp, the place's inner rail is a catch ledge (97% / 232 releases),
 the outer rail's removal is measured neutral, and the lift-0 is harmful** - the shipped defaults
 stay; `FRUIT_OUTPUT_RAILS=outer` remains the opt-in.
+
+## 8. CORRECTION (the lane's final report): the orchestrator's A4/A5 were PLAIN CONTROLS
+
+The orchestrator's `run_a4a5.sh` dropped `"$@"` in its `run()` helper, so
+`FRUIT_OPENARM_TRANSFER_LIFT=0.04` never reached the run: both `04/05_accept_*` files are the
+shipped 80 mm lift (the +35..+74 mm clearances, 7/10 = the control). The "the outer's removal is
+neutral at the viable lift" conclusion drawn from them is VOID.
+
+**The real viable-lift pair (the lane's):** `06b` (lift 0.04, rails kept) reads **3 place legs at
+18-20 m/s^2** (the inner-rail contacts) vs `07` (lift 0.04, outer removed) with **none above
+7.6 m/s^2**; both **6/9**. So the outer-rail removal **does remove the rail contacts** (the
+mechanism is real) but does **not** change the success count - and at the shipped 80 mm lift the
+rail is never touched (+33..+55 mm, zero skims). The default stays.

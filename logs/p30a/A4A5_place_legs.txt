@@ -1,0 +1,37 @@
+P30-A A4/A5 place-leg extraction, taken from the accept.sh pass at 00:10-00:15 on
+2026-10-22 (the `04_accept_lift040.log` / `05_accept_rails_outer_lift040.log` files were
+overwritten at 00:16-00:30 by a concurrent lane's driver whose `run()` dropped its env
+arguments - its re-run is a plain control, verifiable by its +35..+74 mm place clearances).
+The accept.sh pass itself is preserved in
+`04_accept_lift040_gate_acceptsh.txt` / `05_accept_rails_outer_lift040_gate_acceptsh.txt`
+(both 6/9, 15.0 s/attempt, gate FAIL on the rate floor + fingerprint).
+The clean re-runs are `06b_lift040_rails_both.log` / `07_lift040_rails_outer.log`, and BOTH
+reproduce the tables below leg for leg (same |a|max to 3 decimals, same clearances), so the
+pair is a deterministic replay.
+
+A4  FRUIT_OPENARM_TRANSFER_LIFT=0.04, rails both (6/9, 15.0 s/attempt)
+    place0 64cm  |a|max=4.961  recov=0  clearance=-3 mm (main belt)
+    place1 41cm  |a|max=18.223 recov=0  clearance=-7 mm (output rail)
+    place1 36cm  |a|max=4.427  recov=0  clearance=+8 mm
+    place1 39cm  |a|max=4.259  recov=0  clearance=+22 mm
+    place1 38cm  |a|max=4.805  recov=0  clearance=+26 mm
+    place0 58cm  |a|max=6.588  recov=0  clearance=-218 mm (escaped payload)
+    place1 38cm  |a|max=19.830 recov=0  clearance=-23 mm (output rail)
+    place1 35cm  |a|max=17.788 recov=0  clearance=-35 mm (output rail)
+    place0 62cm  |a|max=9.264  recov=0  clearance=-12 mm (main belt)
+
+A5  FRUIT_OUTPUT_RAILS=outer + FRUIT_OPENARM_TRANSFER_LIFT=0.04 (6/9, 15.0 s/attempt)
+    place0 64cm  |a|max=4.961  recov=0  clearance=-3 mm (main belt)
+    place1 41cm  |a|max=4.701  recov=0  clearance=-9 mm
+    place1 39cm  |a|max=4.040  recov=0  clearance=+1 mm
+    place1 39cm  |a|max=4.251  recov=0  clearance=+21 mm
+    place1 31cm  |a|max=6.088  recov=0  clearance=+19 mm
+    place0 58cm  |a|max=2.561  recov=0  clearance=-218 mm (escaped payload)
+    place1 38cm  |a|max=5.770  recov=0  clearance=-7 mm
+    place1 36cm  |a|max=7.623  recov=0  clearance=-4 mm
+    place0 62cm  |a|max=3.740  recov=0  clearance=-12 mm (main belt)
+
+Read: the three legs whose payload goes below the rail's top read 17.8-19.8 m/s^2 with the
+rail present; the same class of negative reading (-9, -7, -4 mm) reads 4.7-7.6 m/s^2 with the
+inner rail removed. `_payload_clearance` labels any tick with 0.40 < |y| <= 0.46 against the
+rail's nominal top, so a negative reading alone is not a contact (A5 proves it).

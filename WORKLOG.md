@@ -15982,7 +15982,7 @@ grasping and placing, remove the belt's side rails/edges"* - rails/fences only, 
 and the scattered dynamic supply stays. The phase answers it with a geometry census, a
 default-off removal/lowering knob, and the simulator arms.
 
-**The census** (`logs/p30a/rails_geometry.py`, offline, `--assert` pins 15 clearances;
+**The census** (`logs/p30a/rails_geometry.py`, offline, `--assert` pins 16 clearances;
 `logs/p30a/RAILS_DESIGN.md`). Eight rail-like boxes exist in the cell; three facts settle the
 question. (1) The main belt's **frame rails** (`conveyor.py:266-277`, `main_frame_rail_width/
 _offset`) are **outside the slab and carry no `CollisionAPI`** - render only. (2) The main belt's
@@ -16045,7 +16045,8 @@ reach the tray in both. The **viable-lift pair** isolates the contact: at `lift=
 is 5 mm under the rail's top and 30 mm over the slab, and rails-on reads **18-20 m/s² on the
 3/9 place legs that go below the rail** against **4.0-7.6 m/s²** with the inner rail removed -
 **same rate, 6/9 both** (the `-9/-7/-4 mm` rows in the rail-free arm have *no* jolt, which is
-what proves the metric alone cannot claim a contact). The lift-0 arms fail on the **slab**, not
+what proves the metric alone cannot claim a contact; the clean named runs `06b`/`07` reproduce
+both arms' leg tables exactly - `logs/p30a/A4A5_place_legs.txt`). The lift-0 arms fail on the **slab**, not
 the rail: acceptance `outer`+lift0 **3/10** (|a|max 37.2 m/s², payload released at z=0.58/0.81),
 battery `outer`+lift0 **4/20** vs rails+lift0 **3/20**, both 8.6-8.8 s/attempt.
 

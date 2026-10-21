@@ -1,0 +1,34 @@
+P30-A verification suite, 2026年 10月 21日 星期三 16:50:20 UTC
+
+== 1. offline geometry asserts
+  OK   the P3 cap places the release inboard of the rail's inner face
+  OK   the P3 cap is larger than the largest safe shift
+ASSERT: all pinned clearances hold
+
+== 2. acceptance control vs logs/p28/noharm_accept.log
+B logs/p30a/01_accept_control.log: 381 [fruit] lines
+IDENTICAL: 381/381 [fruit] lines
+
+== 3. two-line battery control vs logs/p12a2/10_seed11_mass.log
+B logs/p30a/20_patch_control.log: 950 [fruit] lines
+IDENTICAL: 950/950 [fruit] lines
+
+== 4. the rails-outer acceptance vs the control (moved branch)
+B logs/p30a/02_accept_rails_outer.log: 381 [fruit] lines
+first difference at line 132:
+  A: [fruit] [task] right ready blend stopped 1.46 rad short on j5; lifting the hand clear of the belt and re-blending
+  B: [fruit] [belt] orange (index 14) discharged to the tray at x=1.90 (settled 17.4s)
+
+== 5. A4 (06b) vs A5 (07): the mechanism
+== logs/p30a/06b_lift040_rails_both.log
+   outcome        attempts=9 successes=6 (67%) span=134.6s 15.0s/attempt
+   worst place    |a|max=19.83 m/s^2, slip=881 mm
+   releases       9: <0.400 n=0 | 0.400-0.425 n=1 placed=0% | >0.425 n=8 placed=75%
+== logs/p30a/07_lift040_rails_outer.log
+   outcome        attempts=9 successes=6 (67%) span=134.8s 15.0s/attempt
+   worst place    |a|max=7.62 m/s^2, slip=941 mm
+   releases       9: <0.400 n=0 | 0.400-0.425 n=1 placed=0% | >0.425 n=8 placed=75%
+
+== 6. selfcheck
+### summary
+    failed=0 skipped=1 total=37.54s
