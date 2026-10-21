@@ -207,6 +207,11 @@ def write_manifest(out_dir: str, cfg: SceneConfig) -> None:
             "hard_episode_s": HARD_EPISODE_S,
         },
         "supply": {
+            #: P27/P28 provenance fix: the belt speed the shard ran at. The P27 audit found no
+            #: manifest recorded it (the goal's `vy` was the only witness); the value is the
+            #: configured one (`FRUIT_BELT_SPEED`, the assets.py default when unset - the same
+            #: expression the SceneConfig's default_factory uses).
+            "belt_speed": float(os.environ.get("FRUIT_BELT_SPEED", "0.12")),
             "scatter": supply.scatter,
             "pool": supply.pool,
             "gap_min": supply.gap_min,
