@@ -1,0 +1,32 @@
+direct RL A/B: 15 episodes x 1 runs per arm, policy seed=11
+  seeds: 77
+  arm A (baseline): --ckpt checkpoints/moe_v13s/policy_best.pt
+  arm B (candidate): --ckpt checkpoints/spd_v1/policy_best.pt
+  extra env: both='FRUIT_POLICY_TRIGGER=arrival FRUIT_POLICY_TRIGGER_LEAD=0.9 FRUIT_DYNAMIC_PICK=1 FRUIT_SUPPLY_SCATTER=1 FRUIT_SUPPLY_PATCH=1 FRUIT_SUPPLY_GRADES=A:0.375,B:0.375,C:0.25 FRUIT_POLICY_TRIGGER_ACQ=1 FRUIT_ACQ_DIAG=1 FRUIT_CARRY_DIAG=1 FRUIT_BELT_SPEED=0.15' A='FRUIT_OBS_SPEED=0' B='FRUIT_OBS_SPEED=1'
+  A run 1 (seed 77): [rl] rollout success 5/15
+  B run 1 (seed 77): [rl] rollout success 8/15
+=== arm A
+  run 1: 5/15  0:kiwi/5.8/FAIL  1:appl/6.9/ok  2:pear/6.1/FAIL  3:lych/3.1/FAIL  4:appl/6.2/FAIL  5:stra/4.4/ok  6:toma/6.6/FAIL  7:appl/6.9/FAIL  8:pear/6.1/FAIL  9:peac/6.1/FAIL  10:stra/3.1/ok  11:peac/6.9/FAIL  12:oran/6.6/FAIL  13:stra/4.4/ok  14:lych/3.0/ok
+=== arm B
+  run 1: 8/15  0:kiwi/5.8/FAIL  1:appl/6.9/ok  2:pear/6.1/FAIL  3:lych/3.1/FAIL  4:appl/6.2/ok  5:stra/4.4/ok  6:lych/3.1/FAIL  7:stra/3.1/ok  8:peac/6.9/ok  9:oran/6.6/FAIL  10:kiwi/5.9/FAIL  11:toma/6.6/ok  12:appl/6.2/ok  13:oran/6.7/ok  14:kiwi/5.8/FAIL
+
+  pooled A: 5/15 (33%)  median ticks 1726
+  pooled B: 8/15 (53%)  median ticks 1701
+
+  paired: 2 both ok, 3 both fail, 1 B-only ok, 0 A-only ok, 9 excluded (fruit class differs)
+  sign test (B better): p = 0.5000 (discordant 1)
+  class                 A          B  delta
+  apple           1/3        3/3      +67%
+  kiwi            0/1        0/3      +0%
+  lychee          1/2        0/2      -50%
+  orange          0/1        1/2      +50%
+  peach           0/2        1/1      +100%
+  pear            0/2        0/1      +0%
+  strawberry      3/3        2/2      +0%
+  tomato          0/1        1/1      +100%
+  median cycle: A 1726 ticks, B 1701 ticks (-1.4%)
+  failure reasons A: ["'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)'", "'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)', 'fruit did not follow the gripper'"]
+  failure reasons B: ["'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)'"]
+
+  criteria: rate B 53% vs A 33% [ok]; sign p=0.5000 [no]; strawberry 100% vs 100% [ok]; new reasons none; cycle 1701 vs 1726 (not faster)
+  VERDICT: no measured improvement of B over A (publish the negative and re-plan)

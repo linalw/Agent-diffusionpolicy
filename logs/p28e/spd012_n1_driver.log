@@ -1,0 +1,31 @@
+direct RL A/B: 15 episodes x 1 runs per arm, policy seed=11
+  seeds: 77
+  arm A (baseline): --ckpt checkpoints/moe_v13s/policy_best.pt
+  arm B (candidate): --ckpt checkpoints/spd_v1/policy_best.pt
+  extra env: both='FRUIT_DYNAMIC_PICK=1 FRUIT_SUPPLY_SCATTER=1 FRUIT_SUPPLY_PATCH=1 FRUIT_SUPPLY_GRADES=A:0.375,B:0.375,C:0.25 FRUIT_CARRY_DIAG=1 FRUIT_BELT_SPEED=0.12' A='FRUIT_OBS_SPEED=0' B='FRUIT_OBS_SPEED=1'
+  A run 1 (seed 77): [rl] rollout success 0/15
+  B run 1 (seed 77): [rl] rollout success 0/15
+=== arm A
+  run 1: 0/15  0:kiwi/5.8/FAIL  1:toma/5.7/FAIL  2:stra/4.4/FAIL  3:kiwi/5.8/FAIL  4:appl/6.9/FAIL  5:oran/6.7/FAIL  6:toma/6.6/FAIL  7:toma/5.7/FAIL  8:stra/4.4/FAIL  9:oran/6.6/FAIL  10:toma/5.7/FAIL  11:kiwi/5.9/FAIL  12:kiwi/5.8/FAIL  13:appl/6.2/FAIL  14:stra/4.4/FAIL
+=== arm B
+  run 1: 0/15  0:kiwi/5.8/FAIL  1:appl/6.9/FAIL  2:kiwi/5.9/FAIL  3:peac/6.9/FAIL  4:appl/6.2/FAIL  5:stra/3.1/FAIL  6:peac/6.9/FAIL  7:peac/6.1/FAIL  8:stra/3.1/FAIL  9:pear/6.1/FAIL  10:toma/6.6/FAIL  11:appl/6.9/FAIL  12:stra/4.4/FAIL  13:toma/6.6/FAIL  14:pear/6.6/FAIL
+
+  pooled A: 0/15 (0%)  median ticks 1323
+  pooled B: 0/15 (0%)  median ticks 1364
+
+  paired: 0 both ok, 4 both fail, 0 B-only ok, 0 A-only ok, 11 excluded (fruit class differs)
+  sign test (B better): p = 1.0000 (discordant 0)
+  class                 A          B  delta
+  apple           0/2        0/3      +0%
+  kiwi            0/4        0/2      +0%
+  orange          0/2        0/0      +0%
+  peach           0/0        0/3      +0%
+  pear            0/0        0/2      +0%
+  strawberry      0/3        0/3      +0%
+  tomato          0/4        0/2      +0%
+  median cycle: A 1323 ticks, B 1364 ticks (+3.1%)
+  failure reasons A: ["'fruit fell off the line'", "'policy closed on the fruit (finger=#, |jaw#fruit|xy=#cm)', 'fruit did not follow the gripper'"]
+  failure reasons B: ["'fruit fell off the line'", "'policy closed on the fruit (finger=#, |jaw#fruit|xy=#cm)', 'fruit did not follow the gripper'"]
+
+  criteria: rate B 0% vs A 0% [ok]; sign p=1.0000 [no]; strawberry 0% vs 0% [ok]; new reasons none; cycle 1364 vs 1323 (not faster)
+  VERDICT: no measured improvement of B over A (publish the negative and re-plan)
