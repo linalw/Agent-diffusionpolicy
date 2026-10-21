@@ -212,7 +212,7 @@ class SceneConfig:
     # `FRUIT_BELT_SPEED` overrides the magnitude in m/s (the sign is the belt
     # direction); 0.06 restores the old P1 feed.
     belt_speed: float = field(
-        default_factory=lambda: -abs(float(os.environ.get("FRUIT_BELT_SPEED", "0.12")))
+        default_factory=lambda: -abs(float(os.environ.get("FRUIT_BELT_SPEED", "0.15")))
     )
     belt_friction: float = 0.9
     #: Cleats turn the belt into a track. They travel with the belt and push

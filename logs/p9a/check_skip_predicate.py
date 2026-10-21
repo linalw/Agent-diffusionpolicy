@@ -94,10 +94,9 @@ def main() -> int:
         in source,
     )
     check(
-        "the skip-dg knob defaults to the class constant (`FRUIT_READY_SKIP_DG` "
-        "unset -> `_ready_skip_dg = READY_SKIP_SYNC_TOL`, the P9-A form)",
-        'os.environ.get("FRUIT_READY_SKIP_DG", str(self.READY_SKIP_SYNC_TOL))'
-        in source,
+        "the skip-dg knob defaults to the flipped 0.02 (the P20-C adoption; "
+        "`FRUIT_READY_SKIP_DG` unset -> 0.02; the P9-A class-constant form is retired)",
+        'os.environ.get("FRUIT_READY_SKIP_DG", "0.02")' in source,
     )
     check(
         "the scope gate is single-arm + not two-line-armed",
@@ -105,8 +104,8 @@ def main() -> int:
         in source,
     )
     check(
-        "FRUIT_READY_SKIP is resolved only under that scope",
-        'skip = scope and os.environ.get("FRUIT_READY_SKIP", "0") == "1"' in source,
+        "FRUIT_READY_SKIP resolves with the flipped default on, only under that scope",
+        'skip = scope and os.environ.get("FRUIT_READY_SKIP", "1") == "1"' in source,
     )
     check(
         "B2 default is the shipped 120 (`FRUIT_READY_SETTLE`)",

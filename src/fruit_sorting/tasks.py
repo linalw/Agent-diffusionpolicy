@@ -738,7 +738,7 @@ class PickAndPlaceTask:
         #: from `_catch_up_drive`. This knob overrides only that gate;
         #: default = the class constant, so the shipped P9-A form is unchanged.
         self._ready_skip_dg = float(
-            os.environ.get("FRUIT_READY_SKIP_DG", str(self.READY_SKIP_SYNC_TOL))
+            os.environ.get("FRUIT_READY_SKIP_DG", "0.02")
         )
         #: P20-C B1c (`FRUIT_READY_SKIP_RESYNC=1`, default off, single-arm scope
         #: through the skip's own predicate): credit the ticks the skip removes
@@ -749,7 +749,7 @@ class PickAndPlaceTask:
         #: class). See `_resync_supply_clock` and `logs/p20/B1C_DESIGN.md`
         #: section 4.1. Byte-inert at the default: no read, no credit.
         self._ready_skip_resync = (
-            os.environ.get("FRUIT_READY_SKIP_RESYNC", "0") == "1"
+            os.environ.get("FRUIT_READY_SKIP_RESYNC", "1") == "1"
         )
         #: Cumulative ticks credited to the feeder's schedule clock since the
         #: spawner's schedule last started (`FRUIT_READY_DIAG` reporting only;
@@ -3907,7 +3907,7 @@ class PickAndPlaceTask:
         written.
         """
         scope = self._active_session is None and not self.two_line_enabled()
-        skip = scope and os.environ.get("FRUIT_READY_SKIP", "0") == "1"
+        skip = scope and os.environ.get("FRUIT_READY_SKIP", "1") == "1"
         diag = self._ready_diag
         err = dg = 0.0
         if skip or diag:

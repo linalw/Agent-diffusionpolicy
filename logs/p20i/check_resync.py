@@ -198,9 +198,9 @@ def main() -> int:
 
     print("== source checks ==")
     check(
-        'FRUIT_READY_SKIP_RESYNC is read exactly once, default "0"',
+        'FRUIT_READY_SKIP_RESYNC is read exactly once, default "1" (the P20-C adoption)',
         source.count('os.environ.get("FRUIT_READY_SKIP_RESYNC"') == 1
-        and 'os.environ.get("FRUIT_READY_SKIP_RESYNC", "0") == "1"' in source,
+        and 'os.environ.get("FRUIT_READY_SKIP_RESYNC", "1") == "1"' in source,
     )
     check(
         "the P9-A knobs keep one read each (SKIP / SKIP_DG / SKIP_HOLD / SETTLE)",
@@ -314,7 +314,7 @@ def main() -> int:
     )
     assign_mod = compile(ast.Module(body=[assign], type_ignores=[]), str(TASKS), "exec")
     for value, expected in [
-        (None, False),
+        (None, True),
         ("0", False),
         ("1", True),
         ("true", False),  # only the literal "1" arms it (the P9-A convention)

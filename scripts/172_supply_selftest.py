@@ -106,6 +106,11 @@ def make_spawner(scatter: bool, seed: int = 5, pool: int = 16):
 
 
 def main() -> int:
+    #: The goldens below were recorded on the pre-P26 0.12 m/s belt; the selftest
+    #: checks the supply LOGIC, so it pins its own scenario explicitly (the
+    #: shipped default moved to 0.15 in P26 - the scenario change is measured by
+    #: the simulator batteries, not here).
+    os.environ["FRUIT_BELT_SPEED"] = "0.12"
     checks = 0
 
     def check(condition: bool, text: str) -> None:
