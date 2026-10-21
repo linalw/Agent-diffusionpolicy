@@ -112,6 +112,10 @@ run_check "bimanual scheduler test" "$python" scripts/152_biarm_selftest.py
 # defaults, the prime window and the backlog pump's separation rule (stubbed
 # pxr; no simulator).
 run_check "supply scatter selftest" "$python" scripts/172_supply_selftest.py
+# P28-B: the belt-speed channel (the B0 identity on real windows, the per-episode
+# pin chain with the raise-on-missing/conflict, the 25-D byte-inertness) - pure
+# logic over synthetic stores; no simulator.
+run_check "speed channel test" "$python" logs/p28i/check_speed_channel.py
 # v9/V2: the two-line selector (per-arm station floor, grade preference with
 # the any-grade fallback, protected-fruit exclusion) and the pre-pose-lock
 # decision - pure logic over a stubbed task, no simulator.
