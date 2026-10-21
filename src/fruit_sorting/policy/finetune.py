@@ -30,6 +30,21 @@ The saved ``policy_best.pt`` has the same structure the runtime loads (model /
 normalizer / config), plus a ``provenance`` block naming the base checkpoint,
 its md5, the rollout data, every weight knob and the frozen `tasks.py` md5.
 
+P28-B (the belt-speed channel, `logs/p28/SPEED_CHANNEL_DESIGN.md` 2.2): with the
+``FRUIT_OBS_SPEED=1`` gate on, the input is 26-D and a 25-D checkpoint is
+**widened here**, before anything is trained - one zero column appended to
+``condition.proprio.0.weight`` and the fixed ``(0.12, 0.05)`` normaliser entry
+appended to the checkpoint's ``obs_mean``/``obs_std``. A zero column times any
+input is exactly 0, so the widened model *is* the anchor at step 0: the channel
+has exactly zero influence, and the batch-1 (deployed) forward pass and the
+sampled action chunk are byte-identical to the base artifact - the B0 identity
+control, measured in `logs/p28i/check_speed_channel.py`. The surgery is
+idempotent: a checkpoint that is already 26-D passes through unchanged, which is
+what makes ``spd_init -> spd_v1`` a plain fine-tune.
+``rollout_speed``/``base_speed`` are the per-store pins for stores that predate
+the collector's ``supply.belt_speed`` field; both are recorded in the provenance
+block.
+
 ``vlash_offset_max > 0`` switches the sample construction to the VLASH
 temporal-offset augmentation (`_OffsetWindows`, arXiv 2512.01031): the image
 stays at ``t`` and both the robot state and the action chunk move to
@@ -49,7 +64,14 @@ import torch
 from torch.utils.data import ConcatDataset, DataLoader, Dataset
 
 from ..rl_env import TASKS_MD5
-from .data import EpisodeStore, Normalizer
+from .data import (
+    PROPRIO_DIM,
+    SPEED_CHANNEL_MEAN,
+    SPEED_CHANNEL_STD,
+    EpisodeStore,
+    Normalizer,
+    speed_channel_enabled,
+)
 from .diffusion import DiffusionSchedule
 from .model import ConditionalUNet1D
 
@@ -60,6 +82,69 @@ def _md5(path: str) -> str:
             return hashlib.md5(handle.read()).hexdigest()
     except OSError:
         return ""
+
+
+#: The belt-speed-channel width (P28-B): 25 shipped + one dedicated scalar.
+SPEED_PROPRIO_DIM = PROPRIO_DIM + 1
+
+
+def widen_proprio(
+    model_state: dict,
+    normalizer: dict,
+    config: dict,
+    *,
+    new_dim: int = SPEED_PROPRIO_DIM,
+) -> bool:
+    """Splice the belt-speed column into a 25-D checkpoint payload, in place.
+
+    Appends **one zero column** to the condition encoder's proprio input layer
+    (``condition.proprio.0.weight``, shape ``(128, proprio_dim)``) and the fixed
+    ``(SPEED_CHANNEL_MEAN, SPEED_CHANNEL_STD)`` entries to the checkpoint's
+    ``obs_mean``/``obs_std``, then sets ``config["proprio_dim"]``. The bias is
+    untouched: the new input contributes ``0 * x`` to every unit, so the model's
+    **function** is unchanged - the channel has exactly zero influence at step 0
+    (proven bit-identical for any input in `logs/p28i/check_speed_channel.py`).
+    The deployed batch-1 forward pass and `PolicyRunner.act`'s chunk are
+    byte-identical to the base artifact; a *batched* forward differs only by
+    float32 summation order (measured <= 3e-6 on the denoiser output, 0.0 in a
+    float64 reference of the same layer) because K grows 25 -> 26. That is the
+    B0 identity control, and it is why the A/B can attribute a difference to
+    what the fine-tune learned rather than to the interface.
+
+    Returns True when it widened, False when the payload was already at (or past)
+    ``new_dim``. Idempotent, so a widened checkpoint fine-tunes normally.
+    """
+    old_dim = int(config.get("proprio_dim", PROPRIO_DIM))
+    if old_dim >= int(new_dim):
+        return False
+    key = "condition.proprio.0.weight"
+    if key not in model_state:  # pragma: no cover - malformed checkpoint
+        raise KeyError(f"{key} not in the checkpoint's model state")
+    weight = model_state[key]
+    if int(weight.shape[-1]) != old_dim:
+        raise ValueError(
+            f"{key} is {tuple(weight.shape)} but config proprio_dim={old_dim}"
+        )
+    grown = torch.zeros(
+        (int(weight.shape[0]), int(new_dim)), dtype=weight.dtype, device=weight.device
+    )
+    grown[:, :old_dim] = weight
+    model_state[key] = grown
+    pad = int(new_dim) - old_dim
+    normalizer["obs_mean"] = np.concatenate(
+        [
+            np.asarray(normalizer["obs_mean"], dtype=np.float32),
+            np.full(pad, SPEED_CHANNEL_MEAN, dtype=np.float32),
+        ]
+    ).tolist()
+    normalizer["obs_std"] = np.concatenate(
+        [
+            np.asarray(normalizer["obs_std"], dtype=np.float32),
+            np.full(pad, SPEED_CHANNEL_STD, dtype=np.float32),
+        ]
+    ).tolist()
+    config["proprio_dim"] = int(new_dim)
+    return True
 
 
 def _weight_for_meta(meta: dict, *, mode: str, beta: float, vbar: float,
@@ -171,13 +256,10 @@ class _OffsetWindows(Dataset):
         if delta == 0:
             return sample
         s = t + delta
-        proprio = np.concatenate(
-            [
-                episode["joint"][s].astype(np.float32),
-                episode["finger"][s].astype(np.float32),
-                episode["tactile"][s].astype(np.float32),
-            ]
-        )
+        # The store owns the assembly (P28-B: it appends the belt-speed scalar
+        # when the channel is armed); duplicating the concatenation here would
+        # silently drop the new dimension.
+        proprio = self.store.proprio(ep_index, s)
         action = episode["action"][s : s + horizon].astype(np.float32)
         skills = episode["skills"]
         skill = int(skills[s]) if skills is not None else int(sample["skill"])
@@ -266,6 +348,8 @@ def finetune(
     close_lead: int = 10,
     close_tail: int = 10,
     vlash_offset_max: int = 0,
+    rollout_speed: float | None = None,
+    base_speed: float | None = None,
     verbose: bool = True,
 ) -> str:
     """Continue-train `checkpoint` on `rollouts` (+ `base` demos). Returns the path.
@@ -274,6 +358,11 @@ def finetune(
     (`_OffsetWindows`): observation at t, state and action chunk at t+delta,
     ``delta ~ U{0..vlash_offset_max}``. With an empty ``rollouts`` the fine-tune
     runs on the base demonstrations alone, which is the VLASH configuration.
+
+    P28-B: the belt-speed channel is armed by ``FRUIT_OBS_SPEED=1`` (or by a
+    checkpoint that is already 26-D). ``rollout_speed``/``base_speed`` declare
+    the per-store pin for stores without a ``supply.belt_speed`` manifest; a
+    declaration that contradicts a manifest raises in `EpisodeStore`.
     """
     if weight_mode not in ("ones", "success", "awr"):
         raise ValueError(f"weight_mode must be ones|success|awr, got {weight_mode!r}")
@@ -286,6 +375,30 @@ def finetune(
 
     ckpt = torch.load(checkpoint, map_location="cpu", weights_only=False)
     config = dict(ckpt["config"])
+    # P28-B: the channel is on when the gate is, or when the checkpoint already
+    # carries it (a 26-D artifact must be trained on 26-D windows - a mismatch
+    # is a loud shape error, not a silent one).
+    speed_channel = bool(
+        int(config.get("proprio_dim", PROPRIO_DIM)) > PROPRIO_DIM
+        or speed_channel_enabled()
+    )
+    if not speed_channel and (rollout_speed is not None or base_speed is not None):
+        # A declared pin with the channel off would be silently dropped - the
+        # exact class of failure the pin chain exists to remove (Gate A B2).
+        raise ValueError(
+            "a belt-speed pin was declared (--store-speed/--base-speed) but the "
+            "speed channel is off: set FRUIT_OBS_SPEED=1, or drop the pin"
+        )
+    if speed_channel:
+        widened = widen_proprio(ckpt["model"], ckpt["normalizer"], config)
+        if verbose and widened:
+            print(
+                f"[finetune] P28-B speed channel: widened the checkpoint's "
+                f"proprio {PROPRIO_DIM} -> {int(config['proprio_dim'])} "
+                f"(zero column, normaliser entry "
+                f"({SPEED_CHANNEL_MEAN}, {SPEED_CHANNEL_STD}))",
+                flush=True,
+            )
     normalizer = Normalizer(
         action_mean=np.asarray(ckpt["normalizer"]["action_mean"], dtype=np.float32),
         action_std=np.asarray(ckpt["normalizer"]["action_std"], dtype=np.float32),
@@ -304,13 +417,25 @@ def finetune(
         rollout_store = EpisodeStore(
             rollouts, obs_horizon=obs_horizon, action_horizon=action_horizon,
             image_size=image_size, only_successful=False,
+            belt_speed=rollout_speed, speed_channel=speed_channel,
         )
     base_store = None
     if base and os.path.exists(os.path.join(base, "index.json")):
         base_store = EpisodeStore(
             base, obs_horizon=obs_horizon, action_horizon=action_horizon,
             image_size=image_size, only_successful=True,
+            belt_speed=base_speed, speed_channel=speed_channel,
         )
+    # The training input and the deployed input must be the same width; this is
+    # the only place both sides are known.
+    want_dim = int(config["proprio_dim"])
+    for store, label in ((rollout_store, "rollouts"), (base_store, "base")):
+        if store is not None and int(store.proprio_dim) != want_dim:
+            raise ValueError(
+                f"{label} store proprio_dim={store.proprio_dim} but the "
+                f"checkpoint expects {want_dim}: arm the channel on both sides "
+                f"(--store-speed/FRUIT_OBS_SPEED) or on neither"
+            )
 
     rewards = (
         [float(ep["meta"].get("reward", 0.0)) for ep in rollout_store.episodes]
@@ -372,6 +497,12 @@ def finetune(
         print(f"[finetune] windows={len(dataset)} weight_mode={weight_mode} "
               f"vbar={vbar:.4f} beta={beta} failure_weight={failure_weight} "
               f"base_weight={base_weight} vlash_offset_max={vlash_offset_max}")
+        if speed_channel:
+            print(f"[finetune] speed channel: proprio_dim={want_dim} "
+                  f"normaliser=({SPEED_CHANNEL_MEAN}, {SPEED_CHANNEL_STD})")
+            for store, label in ((rollout_store, "rollouts"), (base_store, "base")):
+                if store is not None:
+                    print(f"[finetune]   {label} pins: {store.speed_pin_summary()}")
         for label, stats in weight_stats.items():
             print(f"[finetune]   {label}: {stats}")
 
@@ -479,6 +610,25 @@ def finetune(
         "close_lead": int(close_lead),
         "close_tail": int(close_tail),
         "vlash_offset_max": int(vlash_offset_max),
+        # P28-B: the belt-speed channel's provenance. `declared` is what the
+        # caller pinned (design 4.3's table, for stores that predate the
+        # collector's `supply.belt_speed` field); `pins` is what the loader
+        # actually resolved, per store, including which manifests it trusted.
+        "speed_channel": {
+            "enabled": bool(speed_channel),
+            "proprio_dim": int(config.get("proprio_dim", PROPRIO_DIM)),
+            "gate": os.environ.get("FRUIT_OBS_SPEED", ""),
+            "normaliser": (
+                [SPEED_CHANNEL_MEAN, SPEED_CHANNEL_STD] if speed_channel else None
+            ),
+            "rollout_declared": rollout_speed,
+            "base_declared": base_speed,
+            "pins": {
+                label: store.speed_pin_summary()
+                for store, label in ((rollout_store, "rollouts"), (base_store, "base"))
+                if store is not None
+            },
+        },
         "weight_stats": weight_stats,
         "epochs": int(epochs),
         "lr": lr,

@@ -1,0 +1,970 @@
+diff --git a/scripts/111_rl_finetune.py b/scripts/111_rl_finetune.py
+index e50204b..79a302d 100755
+--- a/scripts/111_rl_finetune.py
++++ b/scripts/111_rl_finetune.py
+@@ -10,6 +10,14 @@ BASE_WEIGHT; the base demonstrations are mixed in at BASE_WEIGHT. The last epoch
+ is saved as `policy_best.pt` (not best-val on the demos - see
+ `fruit_sorting.policy.finetune`), with a provenance block naming the base
+ checkpoint, the rollout data and every weight knob.
++
++P28-B (the belt-speed channel, `logs/p28/SPEED_CHANNEL_DESIGN.md` 2.2): with
++`FRUIT_OBS_SPEED=1` the observation is 26-D and a 25-D `--ckpt` is widened
++(one zero column + the fixed `(0.12, 0.05)` normaliser entry). Stores whose
++manifest records `supply.belt_speed` (every shard collected since `9cbcfa2`)
++pin themselves; the older ones are declared with `--store-speed PATH=SPEED`
++(repeatable) or `--base-speed SPEED`, and the declaration is recorded in the
++provenance block. The pin table is in the design's section 4.3.
+ """
+ 
+ from __future__ import annotations
+@@ -23,6 +31,20 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
+ from fruit_sorting.policy.finetune import finetune
+ 
+ 
++def _parse_store_speeds(items: list[str]) -> dict[str, float]:
++    """`PATH=SPEED` -> {normalised path: speed}; a malformed item is an error."""
++    pins: dict[str, float] = {}
++    for item in items:
++        path, sep, value = item.rpartition("=")
++        if not sep or not path:
++            raise SystemExit(f"--store-speed expects PATH=SPEED, got {item!r}")
++        try:
++            pins[os.path.normpath(path)] = float(value)
++        except ValueError as exc:
++            raise SystemExit(f"--store-speed {item!r}: {exc}") from exc
++    return pins
++
++
+ def main() -> int:
+     parser = argparse.ArgumentParser(description=__doc__)
+     parser.add_argument("--ckpt", default=os.environ.get("FRUIT_CKPT",
+@@ -54,10 +76,28 @@ def main() -> int:
+                         help="frames after the close start included in the boost")
+     parser.add_argument("--seed", type=int, default=int(os.environ.get("SEED", "0")))
+     parser.add_argument("--device", default=os.environ.get("DEVICE", ""))
++    parser.add_argument("--store-speed", action="append", default=[],
++                        metavar="PATH=SPEED",
++                        help="P28-B belt-speed pin [m/s] for a store whose "
++                             "manifest does not record supply.belt_speed "
++                             "(repeatable; the design's 4.3 table)")
++    parser.add_argument("--base-speed", type=float, default=None,
++                        help="P28-B belt-speed pin [m/s] for the --base store "
++                             "(overrides --store-speed for it)")
+     args = parser.parse_args()
+     if not args.rollouts:
+         parser.error("--rollouts is required (a directory written by scripts/110_rl_rollout.py --record)")
+ 
++    pins = _parse_store_speeds(args.store_speed)
++    rollout_speed = pins.get(os.path.normpath(args.rollouts))
++    base_speed = (
++        args.base_speed
++        if args.base_speed is not None
++        else pins.get(os.path.normpath(args.base)) if args.base else None
++    )
++    if args.store_speed:
++        print(f"[finetune] pinned stores: {pins}")
++
+     path = finetune(
+         checkpoint=args.ckpt,
+         rollouts=args.rollouts,
+@@ -74,6 +114,8 @@ def main() -> int:
+         close_weight=args.close_weight,
+         close_lead=args.close_lead,
+         close_tail=args.close_tail,
++        rollout_speed=rollout_speed,
++        base_speed=base_speed,
+         seed=args.seed,
+         device=args.device or None,
+     )
+diff --git a/scripts/60_eval_policy.py b/scripts/60_eval_policy.py
+index 0755aed..76e6d3c 100644
+--- a/scripts/60_eval_policy.py
++++ b/scripts/60_eval_policy.py
+@@ -33,6 +33,7 @@ from fruit_sorting.assets import SceneConfig
+ from fruit_sorting.common import install_failure_handler, say
+ from fruit_sorting.fruits import FruitSpawner
+ from fruit_sorting.grasp import GraspPrimitive
++from fruit_sorting.policy.data import belt_speed_scalar, speed_channel_enabled
+ from fruit_sorting.policy.runtime import PolicyRunner
+ from fruit_sorting.scene import SortingScene
+ from fruit_sorting.tactile import GripperTactile
+@@ -58,6 +59,12 @@ APPROACH_STEPS = int(os.environ.get("FRUIT_APPROACH_STEPS", "400"))
+ #: cannot answer (see WORKLOG "the small fruit is the policy loop's reproducible
+ #: failure").
+ EVAL_VERBOSE = os.environ.get("FRUIT_EVAL_VERBOSE", "0") == "1"
++#: P28-B: the belt-speed channel (a 26th proprio scalar). Off by default, so the
++#: harness's observation is the shipped 25-D one; with `FRUIT_OBS_SPEED=1` the
++#: extra scalar is appended through the *same* helper `rl_env.proprio()` uses
++#: (`fruit_sorting.policy.data.belt_speed_scalar`), which is what keeps the two
++#: observation-assembly sites in lockstep (`scripts/114_rl_obs_diff.py`).
++SPEED_CHANNEL = speed_channel_enabled()
+ 
+ 
+ def place_jaw_target(cfg, bin_index: int) -> np.ndarray:
+@@ -142,6 +149,17 @@ def main() -> int:
+ 
+     policy = PolicyRunner(CHECKPOINT)
+     say(f"loaded {CHECKPOINT} (obs_horizon={policy.obs_horizon}, action_horizon={policy.action_horizon})")
++    # P28-B: the observation width is a property of the artifact. The gate
++    # decides which width this harness builds, so a mismatch is refused here
++    # rather than surfacing as a broadcast error on the first `act`.
++    want_proprio = 25 + (1 if SPEED_CHANNEL else 0)
++    got_proprio = int(policy.config.get("proprio_dim", 25))
++    if got_proprio != want_proprio:
++        raise RuntimeError(
++            f"checkpoint {CHECKPOINT} has proprio_dim={got_proprio} but this "
++            f"harness builds {want_proprio}-D proprio "
++            f"(FRUIT_OBS_SPEED={'1' if SPEED_CHANNEL else 'unset'})."
++        )
+ 
+     # The demonstrations all start with the arms parked at the calibrated ready
+     # pose, so the policy is evaluated from the same initial condition.
+@@ -325,19 +343,24 @@ def main() -> int:
+ 
+             if chunk is None or chunk_index >= EXECUTE_STEPS:
+                 if policy.ready:
+-                    proprio = np.concatenate(
+-                        [
+-                            np.asarray(scene.robot.get_dof_positions().numpy())[0].astype(np.float32),
+-                            [float(np.mean(np.asarray(scene.robot.get_dof_positions().numpy())[0][[14, 15]]))],
+-                            np.array(
+-                                [
+-                                    tactile.read().get("left", _ZERO).normal_force,
+-                                    tactile.read().get("right", _ZERO).normal_force,
+-                                ],
+-                                dtype=np.float32,
+-                            ),
+-                        ]
+-                    )
++                    proprio_parts = [
++                        np.asarray(scene.robot.get_dof_positions().numpy())[0].astype(np.float32),
++                        [float(np.mean(np.asarray(scene.robot.get_dof_positions().numpy())[0][[14, 15]]))],
++                        np.array(
++                            [
++                                tactile.read().get("left", _ZERO).normal_force,
++                                tactile.read().get("right", _ZERO).normal_force,
++                            ],
++                            dtype=np.float32,
++                        ),
++                    ]
++                    if SPEED_CHANNEL:
++                        # P28-B: the belt speed the primitive acts on, from the
++                        # shared estimator (encoder first, measured fallback).
++                        proprio_parts.append(
++                            np.array([belt_speed_scalar(spawner, sample)], dtype=np.float32)
++                        )
++                    proprio = np.concatenate(proprio_parts)
+                     chunk = policy.act(proprio, goal, num_steps=DDIM_STEPS)
+                     chunk_index = 0
+ 
+diff --git a/src/fruit_sorting/policy/correction.py b/src/fruit_sorting/policy/correction.py
+index df0b846..b322fe2 100644
+--- a/src/fruit_sorting/policy/correction.py
++++ b/src/fruit_sorting/policy/correction.py
+@@ -35,7 +35,9 @@ import torch.nn as nn
+ 
+ from .data import Normalizer
+ 
+-#: Model input layout, fixed here so the trainer and the env agree.
++#: Model input layout *defaults* (the head's own `config` is authoritative when
++#: it is loaded - see `CorrectionController.correct`; P28-B: a 26-D proprio head
++#: must slice with its config, not with this constant).
+ OBS_DIM = 25
+ GOAL_DIM = 8
+ ACTION_DIM = 9
+@@ -148,8 +150,17 @@ class CorrectionController:
+         x = torch.from_numpy(
+             np.concatenate([obs_n, goal_n, act_n, index_n])[None]
+         ).to(self.device)
+-        delta = self.head(x[:, :OBS_DIM], x[:, OBS_DIM:OBS_DIM + GOAL_DIM],
+-                          x[:, OBS_DIM + GOAL_DIM:OBS_DIM + GOAL_DIM + ACTION_DIM],
++        # Slice with the *checkpoint's* layout, not the module constants: a head
++        # trained on a different obs/goal width (e.g. the P28-B 26-D proprio)
++        # would otherwise be fed a silently shifted vector - same concatenation,
++        # wrong split, no error. `CorrectionHead` writes these dims into its own
++        # `config` at construction, so the head and the slice cannot disagree.
++        obs_dim = int(self.head.config["obs_dim"])
++        goal_dim = int(self.head.config["goal_dim"])
++        action_dim = int(self.head.config["action_dim"])
++        delta = self.head(x[:, :obs_dim],
++                          x[:, obs_dim:obs_dim + goal_dim],
++                          x[:, obs_dim + goal_dim:obs_dim + goal_dim + action_dim],
+                           x[:, -1:]).cpu().numpy()[0]
+         delta = np.clip(np.asarray(delta, dtype=np.float32), -self.clamp, self.clamp)
+         out = a.copy()
+diff --git a/src/fruit_sorting/policy/data.py b/src/fruit_sorting/policy/data.py
+index a27fd20..6abd069 100644
+--- a/src/fruit_sorting/policy/data.py
++++ b/src/fruit_sorting/policy/data.py
+@@ -1,4 +1,24 @@
+-"""Dataset for the recorded pick-and-place episodes."""
++"""Dataset for the recorded pick-and-place episodes.
++
++P28-B: this module also owns the **belt-speed channel**, the 26th proprio
++scalar (design `logs/p28/SPEED_CHANNEL_DESIGN.md` section 2.2). The channel is
++gated by ``FRUIT_OBS_SPEED`` (default unset = the shipped 25-D observation, so
++every pre-existing path is byte-inert) and its value is **synthesised at load
++time** from a per-store pin - no recorded array changes meaning:
++
++* the pin's resolution chain is
++  ``index.json`` entry -> ``"shard"`` -> ``<shard>/manifest.json`` ->
++  ``supply.belt_speed`` (written by `scripts/40_collect_demos.py` since the
++  P28-A commit, and by `rl_env._build_manifest` for a rollout run dir), then the
++  caller's ``belt_speed=`` argument, then :data:`SPEED_PIN_DEFAULT`;
++* the normaliser entry is the **fixed** pair (:data:`SPEED_CHANNEL_MEAN`,
++  :data:`SPEED_CHANNEL_STD`), never a store statistic - the fine-tune inherits
++  the checkpoint's normaliser verbatim, so a derived value would silently
++  redefine the channel's units on a later retrain (design C2);
++* the live value at inference comes from :func:`belt_speed_scalar`, i.e.
++  ``trigger.transport_speed()`` - the *same* estimator the scripted primitive
++  acts on (design C1), so the model and the schedule cannot disagree.
++"""
+ 
+ from __future__ import annotations
+ 
+@@ -9,6 +29,92 @@ from dataclasses import dataclass
+ import numpy as np
+ 
+ from .skills import label_episode
++from .trigger import transport_speed
++
++#: The shipped observation width: 22 joint positions + finger + 2 tactile.
++PROPRIO_DIM = 25
++
++#: The P28-B gate. ``1`` arms the 26th scalar; unset/anything else keeps the
++#: shipped 25-D observation (and every store's 25-D assembly) byte-identical.
++SPEED_CHANNEL_ENV = "FRUIT_OBS_SPEED"
++
++#: The fixed normaliser pair for the channel (design C2): mean 0.12 m/s (the
++#: shipped belt), std 0.05 m/s. Under it 0.06 -> z = -1.20, 0.08 -> -0.80,
++#: 0.10 -> -0.40, 0.12 -> 0.00, 0.15 -> +0.60: every speed the line can
++#: plausibly run sits inside |z| <= 1.3.
++SPEED_CHANNEL_MEAN = 0.12
++SPEED_CHANNEL_STD = 0.05
++
++#: Fallback pin when neither the store's manifest nor the caller declares one.
++#: The shipped belt is 0.12 (`assets.py`), and the four legacy 0.12 stores
++#: (`demos_v11`/`v12`/`v13p`) predate the manifest field; the 0.06 and 0.15
++#: stores must be declared (`--store-speed`), the pin table is in
++#: `logs/p28/SPEED_CHANNEL_DESIGN.md` section 4.3.
++SPEED_PIN_DEFAULT = 0.12
++
++#: A declared pin and a manifest value within this tolerance are the same pin.
++#: Further apart is a provenance error, not a rounding difference (design
++#: section 2.2 risk 2) - the loader refuses rather than training on a wrong
++#: constant.
++SPEED_PIN_TOL = 1e-3
++
++
++def speed_channel_enabled() -> bool:
++    """Whether the 26-D observation (the belt-speed channel) is armed."""
++    return os.environ.get(SPEED_CHANNEL_ENV, "0").strip() == "1"
++
++
++def belt_speed_scalar(spawner, sample=None, *, use_encoder: bool = True) -> float:
++    """The channel's live value: ``trigger.transport_speed()``'s answer [m/s].
++
++    The estimator returns the belt encoder when it is finite and non-zero and
++    falls back to the fruit's measured velocity otherwise (tagged in
++    ``trigger.transport_speed``'s second return value). This wrapper is shared
++    by **both** observation-assembly sites - `rl_env.proprio()` and
++    `scripts/60_eval_policy.py` - so the two paths cannot drift (the
++    `scripts/114_rl_obs_diff.py` guard is what pins that they agree).
++
++    The measured velocity is read **lazily**, only when the estimator says the
++    encoder is unusable: on the shipped build the encoder is a setpoint echo
++    (`conveyor.py`, P27), so the control loop pays one attribute read and no
++    rigid-body read. `spawner.belt is None` (unit paths) emits 0.0 - the
++    estimator's own "measured" fallback with nothing measured.
++    """
++    belt = getattr(spawner, "belt", None)
++    encoder = getattr(belt, "encoder_speed", None) if belt is not None else None
++    # `transport_speed`'s fruit/jaw arguments are unused by its body (the value
++    # is the encoder-or-measured scalar); pass None rather than add a pose read
++    # to the control loop.
++    speed, source = transport_speed(
++        None, None, encoder_speed=encoder, use_encoder=use_encoder
++    )
++    if source == "measured" and sample is not None:
++        speed, source = transport_speed(
++            None,
++            None,
++            encoder_speed=encoder,
++            measured_velocity=spawner.velocity(sample),
++            use_encoder=use_encoder,
++        )
++    return float(speed)
++
++
++def _manifest_belt_speed(path: str) -> float | None:
++    """``supply.belt_speed`` (or a top-level ``belt_speed``) from a manifest."""
++    try:
++        with open(path, encoding="utf-8") as fh:
++            data = json.load(fh)
++    except (OSError, ValueError):
++        return None
++    if not isinstance(data, dict):
++        return None
++    for holder in (data.get("supply"), data):
++        if isinstance(holder, dict) and "belt_speed" in holder:
++            try:
++                return float(holder["belt_speed"])
++            except (TypeError, ValueError):
++                return None
++    return None
+ 
+ 
+ def _area_resize_axis(v: np.ndarray, out_n: int, axis: int) -> np.ndarray:
+@@ -89,7 +195,16 @@ class Normalizer:
+ 
+ 
+ class EpisodeStore:
+-    """Loads recorded ``.npz`` episodes and slices observation/action windows."""
++    """Loads recorded ``.npz`` episodes and slices observation/action windows.
++
++    P28-B: pass ``speed_channel=True`` (or ``belt_speed=<m/s>``, or set
++    ``FRUIT_OBS_SPEED=1``) to append the belt-speed scalar to the proprio
++    vector - the store then returns ``proprio_dim = 26`` and its windows must
++    be trained against a 26-D checkpoint. The pin is resolved per episode from
++    the manifest chain (see the module docstring); ``belt_speed`` *declares* it
++    for stores that predate the manifest field, and a declaration contradicting
++    a manifest is an error.
++    """
+ 
+     #: Channels fed to the visual encoder: RGB (3) + depth (1) [+ target mask (1)].
+     IMAGE_CHANNELS = 5
+@@ -101,11 +216,27 @@ class EpisodeStore:
+         action_horizon: int = 16,
+         image_size: int = 128,
+         only_successful: bool = True,
++        belt_speed: float | None = None,
++        speed_channel: bool | None = None,
+     ):
+         self.root = root
+         self.obs_horizon = obs_horizon
+         self.action_horizon = action_horizon
+         self.image_size = image_size
++        #: P28-B: append the synthesised belt-speed scalar (25 -> 26). ``None``
++        #: defers to the `FRUIT_OBS_SPEED` gate, and an explicit ``belt_speed``
++        #: arms the channel on its own (so a caller can never hand a store a pin
++        #: that is silently dropped). With the channel off the assembly below is
++        #: the shipped 25-D one, byte for byte.
++        if speed_channel is None:
++            speed_channel = bool(belt_speed is not None or speed_channel_enabled())
++        self.speed_channel = bool(speed_channel)
++        #: The caller's declared pin (the `--store-speed` value), or None.
++        self.belt_speed = None if belt_speed is None else float(belt_speed)
++        #: The width `__getitem__` returns - `finetune` cross-checks it against
++        #: the checkpoint's `config["proprio_dim"]`.
++        self.proprio_dim = PROPRIO_DIM + (1 if self.speed_channel else 0)
++        self._speed_cache: dict[str, float | None] = {}
+ 
+         index_path = os.path.join(root, "index.json")
+         if not os.path.exists(index_path):
+@@ -117,6 +248,11 @@ class EpisodeStore:
+         if not entries:
+             raise ValueError(f"no usable episodes in {root}")
+ 
++        #: Per-episode pin, in `self.episodes` order (only when the channel is
++        #: on). A merged store can carry two speeds (the design's `demos_ss`),
++        #: so the value is per episode, not per store.
++        self.belt_speeds: list[float] = []
++        self.speed_sources: list[str] = []
+         self.episodes: list[dict] = []
+         for entry in entries:
+             data = np.load(os.path.join(root, entry["file"]))
+@@ -143,6 +279,10 @@ class EpisodeStore:
+                     "meta": entry,
+                 }
+             )
++            if self.speed_channel:
++                pin, source = self._resolve_speed(entry)
++                self.belt_speeds.append(pin)
++                self.speed_sources.append(source)
+ 
+         # Windows must fit inside each episode.
+         self.windows: list[tuple[int, int]] = []
+@@ -156,6 +296,100 @@ class EpisodeStore:
+                 f"episodes are shorter than obs_horizon + action_horizon "
+                 f"({self.obs_horizon} + {self.action_horizon})"
+             )
++        if self.speed_channel:
++            pins = sorted({float(v) for v in self.belt_speeds})
++            sources = {}
++            for source in self.speed_sources:
++                key = source.split(":", 1)[0]
++                sources[key] = sources.get(key, 0) + 1
++            print(
++                f"[data] speed channel: {len(self.episodes)} episodes, "
++                f"proprio_dim={self.proprio_dim}, pins={pins}, "
++                f"declared={self.belt_speed}, sources={sources} "
++                f"(default {SPEED_PIN_DEFAULT} when no manifest declares it)",
++                flush=True,
++            )
++
++    # ------------------------------------------------------------------ #
++    def _shard_manifest(self, entry: dict) -> str | None:
++        """The manifest that can pin this episode's speed, or None.
++
++        A merged store stamps the source directory into ``entry["shard"]``
++        (`scripts/41_merge_demos.py`); a raw shard store (and a rollout run
++        dir, whose `rl_env` manifest carries ``belt_speed``) is its own
++        manifest. The shard path is repo-relative, so it is tried as given and
++        relative to the store's parent - the caller's cwd may be anywhere.
++        """
++        shard = entry.get("shard")
++        if shard:
++            candidates = [
++                os.path.join(str(shard), "manifest.json"),
++                os.path.join(
++                    os.path.dirname(os.path.dirname(os.path.abspath(self.root))),
++                    str(shard),
++                    "manifest.json",
++                ),
++            ]
++            for candidate in candidates:
++                if os.path.exists(candidate):
++                    return candidate
++            return None
++        own = os.path.join(self.root, "manifest.json")
++        return own if os.path.exists(own) else None
++
++    def _resolve_speed(self, entry: dict) -> tuple[float, str]:
++        """One episode's belt-speed pin and the source that produced it.
++
++        Order: the shard/own manifest's ``supply.belt_speed``, then the
++        caller's declared pin, then :data:`SPEED_PIN_DEFAULT`. A declared pin
++        that *contradicts* a manifest value is an error (design section 2.2
++        risk 2: the silent mismatch is the one failure this design has to
++        exclude).
++        """
++        path = self._shard_manifest(entry)
++        manifest_speed = None
++        if path is not None:
++            if path not in self._speed_cache:
++                self._speed_cache[path] = _manifest_belt_speed(path)
++            manifest_speed = self._speed_cache[path]
++        declared = self.belt_speed
++        if (
++            declared is not None
++            and manifest_speed is not None
++            and abs(declared - manifest_speed) > SPEED_PIN_TOL
++        ):
++            raise ValueError(
++                f"belt-speed pin conflict for {self.root}: the caller declares "
++                f"{declared:.4f} m/s but {path} records "
++                f"{manifest_speed:.4f} m/s. The speed channel trains on a "
++                f"constant, so a wrong pin is a silent scenario change; fix the "
++                f"pin (see the table in logs/p28/SPEED_CHANNEL_DESIGN.md 4.3) "
++                f"or drop it to trust the manifest."
++            )
++        if manifest_speed is not None:
++            return float(manifest_speed), f"manifest:{path}"
++        if declared is not None:
++            return float(declared), "declared"
++        return float(SPEED_PIN_DEFAULT), "default"
++
++    def speed_pin_summary(self) -> dict:
++        """Provenance for the training record (and for `--store-speed` checks)."""
++        if not self.speed_channel:
++            return {"channel": False, "proprio_dim": self.proprio_dim}
++        per_source: dict[str, int] = {}
++        for source in self.speed_sources:
++            key = source.split(":", 1)[0]
++            per_source[key] = per_source.get(key, 0) + 1
++        return {
++            "channel": True,
++            "proprio_dim": self.proprio_dim,
++            "declared": self.belt_speed,
++            "values": sorted({round(float(v), 6) for v in self.belt_speeds}),
++            "sources": per_source,
++            "manifests": sorted(
++                path for path, value in self._speed_cache.items() if value is not None
++            ),
++        }
+ 
+     # ------------------------------------------------------------------ #
+     def __len__(self) -> int:
+@@ -164,6 +398,45 @@ class EpisodeStore:
+     def _downsample(self, image: np.ndarray) -> np.ndarray:
+         return downsample_frame(image, self.image_size)
+ 
++    def proprio(self, ep_index: int, t: int | None = None) -> np.ndarray:
++        """The proprio vector for one episode - the single assembly site.
++
++        ``t`` given: one frame, (proprio_dim,), exactly as `__getitem__` uses
++        it. ``t=None``: every frame of the episode, (frames, proprio_dim), as
++        `compute_normalizer` uses it. The belt-speed column (P28-B) is appended
++        last and is constant per episode, so both forms agree by construction -
++        and `_OffsetWindows` (the VLASH state offset) reuses this instead of
++        duplicating the concatenation.
++        """
++        episode = self.episodes[ep_index]
++        if t is None:
++            parts = [
++                np.concatenate(
++                    [episode["joint"], episode["finger"], episode["tactile"]], axis=-1
++                )
++            ]
++        else:
++            parts = [
++                episode["joint"][t].astype(np.float32),
++                episode["finger"][t].astype(np.float32),
++                episode["tactile"][t].astype(np.float32),
++            ]
++        if self.speed_channel:
++            if t is None:
++                # One constant column for the whole episode (the channel is a
++                # per-episode constant in this build).
++                frames = int(episode["joint"].shape[0])
++                parts.append(
++                    np.full(
++                        (frames, 1), self.belt_speeds[ep_index], dtype=np.float32
++                    )
++                )
++            else:
++                parts.append(np.array([self.belt_speeds[ep_index]], dtype=np.float32))
++        # axis=-1: one frame -> the shipped 1-D concatenation (a no-op change);
++        # all frames -> the pin joins as a column.
++        return np.concatenate(parts, axis=-1)
++
+     def __getitem__(self, index: int) -> dict:
+         ep_index, t = self.windows[index]
+         episode = self.episodes[ep_index]
+@@ -184,13 +457,7 @@ class EpisodeStore:
+         image = np.stack(frames, axis=0)  # (obs_horizon, H, W, C)
+         image = np.transpose(image, (0, 3, 1, 2))  # (obs_horizon, C, H, W)
+ 
+-        proprio = np.concatenate(
+-            [
+-                episode["joint"][t].astype(np.float32),
+-                episode["finger"][t].astype(np.float32),
+-                episode["tactile"][t].astype(np.float32),
+-            ]
+-        )
++        proprio = self.proprio(ep_index, t)
+         goal = episode["goal"][t].astype(np.float32)
+         action = episode["action"][t : t + self.action_horizon].astype(np.float32)
+         skills = episode["skills"]
+@@ -206,22 +473,27 @@ class EpisodeStore:
+     # ------------------------------------------------------------------ #
+     def compute_normalizer(self) -> Normalizer:
+         actions, obs, goals = [], [], []
+-        for episode in self.episodes:
++        for ep_index, episode in enumerate(self.episodes):
+             actions.append(episode["action"])
+-            obs.append(
+-                np.concatenate(
+-                    [episode["joint"], episode["finger"], episode["tactile"]], axis=-1
+-                )
+-            )
++            obs.append(self.proprio(ep_index))
+             goals.append(episode["goal"])
+         actions = np.concatenate(actions, axis=0)
+         obs = np.concatenate(obs, axis=0)
+         goals = np.concatenate(goals, axis=0)
++        obs_mean = obs.mean(0).astype(np.float32)
++        obs_std = (obs.std(0) + 1e-6).astype(np.float32)
++        if self.speed_channel:
++            # P28-B, design C2: the channel's units are FIXED, not a store
++            # statistic. A fine-tune inherits the checkpoint's normaliser
++            # verbatim (it is never recomputed), so a value derived here would
++            # silently redefine the channel for every later checkpoint.
++            obs_mean[-1] = SPEED_CHANNEL_MEAN
++            obs_std[-1] = SPEED_CHANNEL_STD
+         return Normalizer(
+             action_mean=actions.mean(0).astype(np.float32),
+             action_std=(actions.std(0) + 1e-6).astype(np.float32),
+-            obs_mean=obs.mean(0).astype(np.float32),
+-            obs_std=(obs.std(0) + 1e-6).astype(np.float32),
++            obs_mean=obs_mean,
++            obs_std=obs_std,
+             goal_mean=goals.mean(0).astype(np.float32),
+             goal_std=(goals.std(0) + 1e-6).astype(np.float32),
+         )
+diff --git a/src/fruit_sorting/policy/finetune.py b/src/fruit_sorting/policy/finetune.py
+index 332fe4c..aaeb625 100644
+--- a/src/fruit_sorting/policy/finetune.py
++++ b/src/fruit_sorting/policy/finetune.py
+@@ -30,6 +30,21 @@ The saved ``policy_best.pt`` has the same structure the runtime loads (model /
+ normalizer / config), plus a ``provenance`` block naming the base checkpoint,
+ its md5, the rollout data, every weight knob and the frozen `tasks.py` md5.
+ 
++P28-B (the belt-speed channel, `logs/p28/SPEED_CHANNEL_DESIGN.md` 2.2): with the
++``FRUIT_OBS_SPEED=1`` gate on, the input is 26-D and a 25-D checkpoint is
++**widened here**, before anything is trained - one zero column appended to
++``condition.proprio.0.weight`` and the fixed ``(0.12, 0.05)`` normaliser entry
++appended to the checkpoint's ``obs_mean``/``obs_std``. A zero column times any
++input is exactly 0, so the widened model *is* the anchor at step 0: the channel
++has exactly zero influence, and the batch-1 (deployed) forward pass and the
++sampled action chunk are byte-identical to the base artifact - the B0 identity
++control, measured in `logs/p28i/check_speed_channel.py`. The surgery is
++idempotent: a checkpoint that is already 26-D passes through unchanged, which is
++what makes ``spd_init -> spd_v1`` a plain fine-tune.
++``rollout_speed``/``base_speed`` are the per-store pins for stores that predate
++the collector's ``supply.belt_speed`` field; both are recorded in the provenance
++block.
++
+ ``vlash_offset_max > 0`` switches the sample construction to the VLASH
+ temporal-offset augmentation (`_OffsetWindows`, arXiv 2512.01031): the image
+ stays at ``t`` and both the robot state and the action chunk move to
+@@ -49,7 +64,14 @@ import torch
+ from torch.utils.data import ConcatDataset, DataLoader, Dataset
+ 
+ from ..rl_env import TASKS_MD5
+-from .data import EpisodeStore, Normalizer
++from .data import (
++    PROPRIO_DIM,
++    SPEED_CHANNEL_MEAN,
++    SPEED_CHANNEL_STD,
++    EpisodeStore,
++    Normalizer,
++    speed_channel_enabled,
++)
+ from .diffusion import DiffusionSchedule
+ from .model import ConditionalUNet1D
+ 
+@@ -62,6 +84,69 @@ def _md5(path: str) -> str:
+         return ""
+ 
+ 
++#: The belt-speed-channel width (P28-B): 25 shipped + one dedicated scalar.
++SPEED_PROPRIO_DIM = PROPRIO_DIM + 1
++
++
++def widen_proprio(
++    model_state: dict,
++    normalizer: dict,
++    config: dict,
++    *,
++    new_dim: int = SPEED_PROPRIO_DIM,
++) -> bool:
++    """Splice the belt-speed column into a 25-D checkpoint payload, in place.
++
++    Appends **one zero column** to the condition encoder's proprio input layer
++    (``condition.proprio.0.weight``, shape ``(128, proprio_dim)``) and the fixed
++    ``(SPEED_CHANNEL_MEAN, SPEED_CHANNEL_STD)`` entries to the checkpoint's
++    ``obs_mean``/``obs_std``, then sets ``config["proprio_dim"]``. The bias is
++    untouched: the new input contributes ``0 * x`` to every unit, so the model's
++    **function** is unchanged - the channel has exactly zero influence at step 0
++    (proven bit-identical for any input in `logs/p28i/check_speed_channel.py`).
++    The deployed batch-1 forward pass and `PolicyRunner.act`'s chunk are
++    byte-identical to the base artifact; a *batched* forward differs only by
++    float32 summation order (measured <= 3e-6 on the denoiser output, 0.0 in a
++    float64 reference of the same layer) because K grows 25 -> 26. That is the
++    B0 identity control, and it is why the A/B can attribute a difference to
++    what the fine-tune learned rather than to the interface.
++
++    Returns True when it widened, False when the payload was already at (or past)
++    ``new_dim``. Idempotent, so a widened checkpoint fine-tunes normally.
++    """
++    old_dim = int(config.get("proprio_dim", PROPRIO_DIM))
++    if old_dim >= int(new_dim):
++        return False
++    key = "condition.proprio.0.weight"
++    if key not in model_state:  # pragma: no cover - malformed checkpoint
++        raise KeyError(f"{key} not in the checkpoint's model state")
++    weight = model_state[key]
++    if int(weight.shape[-1]) != old_dim:
++        raise ValueError(
++            f"{key} is {tuple(weight.shape)} but config proprio_dim={old_dim}"
++        )
++    grown = torch.zeros(
++        (int(weight.shape[0]), int(new_dim)), dtype=weight.dtype, device=weight.device
++    )
++    grown[:, :old_dim] = weight
++    model_state[key] = grown
++    pad = int(new_dim) - old_dim
++    normalizer["obs_mean"] = np.concatenate(
++        [
++            np.asarray(normalizer["obs_mean"], dtype=np.float32),
++            np.full(pad, SPEED_CHANNEL_MEAN, dtype=np.float32),
++        ]
++    ).tolist()
++    normalizer["obs_std"] = np.concatenate(
++        [
++            np.asarray(normalizer["obs_std"], dtype=np.float32),
++            np.full(pad, SPEED_CHANNEL_STD, dtype=np.float32),
++        ]
++    ).tolist()
++    config["proprio_dim"] = int(new_dim)
++    return True
++
++
+ def _weight_for_meta(meta: dict, *, mode: str, beta: float, vbar: float,
+                      failure_weight: float, base_weight: float) -> float:
+     """One episode's window weight. Entries without a reward are base demos."""
+@@ -171,13 +256,10 @@ class _OffsetWindows(Dataset):
+         if delta == 0:
+             return sample
+         s = t + delta
+-        proprio = np.concatenate(
+-            [
+-                episode["joint"][s].astype(np.float32),
+-                episode["finger"][s].astype(np.float32),
+-                episode["tactile"][s].astype(np.float32),
+-            ]
+-        )
++        # The store owns the assembly (P28-B: it appends the belt-speed scalar
++        # when the channel is armed); duplicating the concatenation here would
++        # silently drop the new dimension.
++        proprio = self.store.proprio(ep_index, s)
+         action = episode["action"][s : s + horizon].astype(np.float32)
+         skills = episode["skills"]
+         skill = int(skills[s]) if skills is not None else int(sample["skill"])
+@@ -266,6 +348,8 @@ def finetune(
+     close_lead: int = 10,
+     close_tail: int = 10,
+     vlash_offset_max: int = 0,
++    rollout_speed: float | None = None,
++    base_speed: float | None = None,
+     verbose: bool = True,
+ ) -> str:
+     """Continue-train `checkpoint` on `rollouts` (+ `base` demos). Returns the path.
+@@ -274,6 +358,11 @@ def finetune(
+     (`_OffsetWindows`): observation at t, state and action chunk at t+delta,
+     ``delta ~ U{0..vlash_offset_max}``. With an empty ``rollouts`` the fine-tune
+     runs on the base demonstrations alone, which is the VLASH configuration.
++
++    P28-B: the belt-speed channel is armed by ``FRUIT_OBS_SPEED=1`` (or by a
++    checkpoint that is already 26-D). ``rollout_speed``/``base_speed`` declare
++    the per-store pin for stores without a ``supply.belt_speed`` manifest; a
++    declaration that contradicts a manifest raises in `EpisodeStore`.
+     """
+     if weight_mode not in ("ones", "success", "awr"):
+         raise ValueError(f"weight_mode must be ones|success|awr, got {weight_mode!r}")
+@@ -286,6 +375,23 @@ def finetune(
+ 
+     ckpt = torch.load(checkpoint, map_location="cpu", weights_only=False)
+     config = dict(ckpt["config"])
++    # P28-B: the channel is on when the gate is, or when the checkpoint already
++    # carries it (a 26-D artifact must be trained on 26-D windows - a mismatch
++    # is a loud shape error, not a silent one).
++    speed_channel = bool(
++        int(config.get("proprio_dim", PROPRIO_DIM)) > PROPRIO_DIM
++        or speed_channel_enabled()
++    )
++    if speed_channel:
++        widened = widen_proprio(ckpt["model"], ckpt["normalizer"], config)
++        if verbose and widened:
++            print(
++                f"[finetune] P28-B speed channel: widened the checkpoint's "
++                f"proprio {PROPRIO_DIM} -> {int(config['proprio_dim'])} "
++                f"(zero column, normaliser entry "
++                f"({SPEED_CHANNEL_MEAN}, {SPEED_CHANNEL_STD}))",
++                flush=True,
++            )
+     normalizer = Normalizer(
+         action_mean=np.asarray(ckpt["normalizer"]["action_mean"], dtype=np.float32),
+         action_std=np.asarray(ckpt["normalizer"]["action_std"], dtype=np.float32),
+@@ -304,13 +410,25 @@ def finetune(
+         rollout_store = EpisodeStore(
+             rollouts, obs_horizon=obs_horizon, action_horizon=action_horizon,
+             image_size=image_size, only_successful=False,
++            belt_speed=rollout_speed, speed_channel=speed_channel,
+         )
+     base_store = None
+     if base and os.path.exists(os.path.join(base, "index.json")):
+         base_store = EpisodeStore(
+             base, obs_horizon=obs_horizon, action_horizon=action_horizon,
+             image_size=image_size, only_successful=True,
++            belt_speed=base_speed, speed_channel=speed_channel,
+         )
++    # The training input and the deployed input must be the same width; this is
++    # the only place both sides are known.
++    want_dim = int(config["proprio_dim"])
++    for store, label in ((rollout_store, "rollouts"), (base_store, "base")):
++        if store is not None and int(store.proprio_dim) != want_dim:
++            raise ValueError(
++                f"{label} store proprio_dim={store.proprio_dim} but the "
++                f"checkpoint expects {want_dim}: arm the channel on both sides "
++                f"(--store-speed/FRUIT_OBS_SPEED) or on neither"
++            )
+ 
+     rewards = (
+         [float(ep["meta"].get("reward", 0.0)) for ep in rollout_store.episodes]
+@@ -372,6 +490,12 @@ def finetune(
+         print(f"[finetune] windows={len(dataset)} weight_mode={weight_mode} "
+               f"vbar={vbar:.4f} beta={beta} failure_weight={failure_weight} "
+               f"base_weight={base_weight} vlash_offset_max={vlash_offset_max}")
++        if speed_channel:
++            print(f"[finetune] speed channel: proprio_dim={want_dim} "
++                  f"normaliser=({SPEED_CHANNEL_MEAN}, {SPEED_CHANNEL_STD})")
++            for store, label in ((rollout_store, "rollouts"), (base_store, "base")):
++                if store is not None:
++                    print(f"[finetune]   {label} pins: {store.speed_pin_summary()}")
+         for label, stats in weight_stats.items():
+             print(f"[finetune]   {label}: {stats}")
+ 
+@@ -479,6 +603,25 @@ def finetune(
+         "close_lead": int(close_lead),
+         "close_tail": int(close_tail),
+         "vlash_offset_max": int(vlash_offset_max),
++        # P28-B: the belt-speed channel's provenance. `declared` is what the
++        # caller pinned (design 4.3's table, for stores that predate the
++        # collector's `supply.belt_speed` field); `pins` is what the loader
++        # actually resolved, per store, including which manifests it trusted.
++        "speed_channel": {
++            "enabled": bool(speed_channel),
++            "proprio_dim": int(config.get("proprio_dim", PROPRIO_DIM)),
++            "gate": os.environ.get("FRUIT_OBS_SPEED", ""),
++            "normaliser": (
++                [SPEED_CHANNEL_MEAN, SPEED_CHANNEL_STD] if speed_channel else None
++            ),
++            "rollout_declared": rollout_speed,
++            "base_declared": base_speed,
++            "pins": {
++                label: store.speed_pin_summary()
++                for store, label in ((rollout_store, "rollouts"), (base_store, "base"))
++                if store is not None
++            },
++        },
+         "weight_stats": weight_stats,
+         "epochs": int(epochs),
+         "lr": lr,
+diff --git a/src/fruit_sorting/rl_env.py b/src/fruit_sorting/rl_env.py
+index bec148d..164ede5 100644
+--- a/src/fruit_sorting/rl_env.py
++++ b/src/fruit_sorting/rl_env.py
+@@ -63,6 +63,14 @@ recorded. Action interface: ``action[:7]`` are the active arm's joint targets,
+ ``action[7]`` is the finger opening clipped to ``[0, 0.044]``, and ``action[8]``
+ is only recorded (mirrored from ``action[7]``) exactly like the harness.
+ 
++P28-B (the belt-speed channel, ``FRUIT_OBS_SPEED=1``, default off): a 26th
++proprio scalar carrying the belt speed the scripted primitive acts on
++(``policy.trigger.transport_speed()``). With the gate unset the 25-D vector above
++is assembled exactly as before; with it on, a 26-D checkpoint is required (the
++constructor refuses a mismatch) and the second assembly site
++(``scripts/60_eval_policy.py``) appends the same scalar through the same helper.
++See ``logs/p28/SPEED_CHANNEL_DESIGN.md`` and ``logs/p28i/IMPLEMENTATION.md``.
++
+ Mechanics that must not be broken (see AGENTS.md section 3b):
+ * every advance is ``SimulationManager.step`` + ``update_app(steps=0)``; this
+   file never calls ``update_app(steps=N)``;
+@@ -88,6 +96,7 @@ from dataclasses import asdict, dataclass, field
+ import numpy as np
+ 
+ from .motion import min_jerk_ramp
++from .policy.data import belt_speed_scalar, speed_channel_enabled
+ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
+ 
+ #: md5 of `src/fruit_sorting/tasks.py` this environment was validated against.
+@@ -290,6 +299,12 @@ _MANIFEST_SOURCES = (
+     "src/fruit_sorting/policy/runtime.py",
+     "src/fruit_sorting/policy/diffusion.py",
+     "src/fruit_sorting/policy/trigger.py",
++    # P28-B: the belt-speed channel's whole content is *how the input is
++    # assembled*, so the loader and the fine-tune that may widen a checkpoint
++    # are part of the measurement (design 2.5 item 2). Before this they were
++    # unpinned, and two runs with different loaders were indistinguishable.
++    "src/fruit_sorting/policy/data.py",
++    "src/fruit_sorting/policy/finetune.py",
+     "configs/waypoints.json",
+     "configs/motion_reference.json",
+ )
+@@ -607,6 +622,12 @@ class SortingRLEnv:
+         #: enabled it fires the scripted primitive on the fruit's predicted
+         #: arrival at the jaw, from the belt encoder / measured velocity.
+         self.trigger_settings = TriggerSettings.from_env()
++        #: P28-B belt-speed channel, default off: with `FRUIT_OBS_SPEED` unset
++        #: `proprio()` is the shipped 25-D vector and the extra value is never
++        #: computed. Armed, the observation is 26-D and the checkpoint must be a
++        #: 26-D artifact (the guard below refuses a mismatch instead of feeding
++        #: the model a vector it was not trained on).
++        self._speed_channel = speed_channel_enabled()
+ 
+         # --- event-triggered replanning (path-3 arm), default off ----------- #
+         #: DVAC/ChunkTrust-spirited test-time horizon adaptation: the execute
+@@ -728,6 +749,20 @@ class SortingRLEnv:
+             self.action_dim = int(self.policy.config["action_dim"])
+             self.action_horizon = int(self.policy.config["action_horizon"])
+             self._image_channels = int(self.policy.config["image_channels"])
++            # P28-B: the observation width is a property of the artifact, and
++            # the gate decides it here - so a 26-D checkpoint without the gate
++            # (or the other way round) fails at construction, loudly, instead of
++            # conditioning the policy on a vector it never saw.
++            want_proprio = 25 + (1 if self._speed_channel else 0)
++            got_proprio = int(self.policy.config.get("proprio_dim", 25))
++            if got_proprio != want_proprio:
++                raise RuntimeError(
++                    f"checkpoint {checkpoint} has proprio_dim={got_proprio} but "
++                    f"this environment builds {want_proprio}-D proprio "
++                    f"(FRUIT_OBS_SPEED={'1' if self._speed_channel else 'unset'}). "
++                    "Set FRUIT_OBS_SPEED=1 to run a 26-D (belt-speed channel) "
++                    "checkpoint, or unset it for a 25-D one."
++                )
+             if self.rtc_settings.enabled:
+                 self.rtc = RealtimeChunker(
+                     self.policy,
+@@ -929,6 +964,14 @@ class SortingRLEnv:
+             "no_attach": os.environ.get("FRUIT_NO_ATTACH", ""),
+             "no_sleep": os.environ.get("FRUIT_NO_SLEEP", ""),
+             "policy_seed": os.environ.get("FRUIT_POLICY_SEED", ""),
++            # P28-A's collector field (`supply.belt_speed`, 9cbcfa2) had no
++            # rollout-side twin: a direct A/B arm at 0.08 was identifiable only
++            # from a sidecar (the P27 driver wrote one). The magnitude is
++            # recorded because `SceneConfig.belt_speed` is signed along -Y.
++            "belt_speed": abs(float(self.cfg.belt_speed)),
++            # P28-B: whether the 26th proprio scalar (the belt-speed channel)
++            # was part of the model's input for this run.
++            "speed_channel": bool(self._speed_channel),
+             "python": sys.version.split()[0],
+             "numpy": np.__version__,
+             "sources": sources,
+@@ -1211,7 +1254,7 @@ class SortingRLEnv:
+             self.policy.push_frame(rgb, depth, mask)
+ 
+     def proprio(self) -> np.ndarray:
+-        """The 25-D proprioception vector the training data recorded.
++        """The proprioception vector the training data recorded (25-D, or 26-D).
+ 
+         All 22 joint positions, the active arm's finger opening, the two tactile
+         normal forces. In `handoff` mode the finger channel is the harness's
+@@ -1219,6 +1262,14 @@ class SortingRLEnv:
+         because that presentation's job is to reproduce the harness exactly;
+         `direct` uses the active arm's finger, which is what the demonstrations
+         recorded.
++
++        P28-B: with ``FRUIT_OBS_SPEED=1`` one more scalar is appended - the belt
++        speed from ``trigger.transport_speed()``, the same estimator the
++        scripted primitive's schedule acts on (design C1). It is a per-episode
++        constant in this build, which is why the stores synthesise it from a pin
++        instead of recording it. The gate is read once in `__init__`, and with
++        it off this method is the shipped 25-D assembly byte for byte - the
++        extra value is not even computed.
+         """
+         dof = np.asarray(self.scene.robot.get_dof_positions().numpy())[0].astype(
+             np.float32
+@@ -1234,10 +1285,28 @@ class SortingRLEnv:
+             float(reading.get("left").normal_force) if reading.get("left") else zero,
+             float(reading.get("right").normal_force) if reading.get("right") else zero,
+         ]
+-        return np.concatenate(
+-            [dof, np.array([finger], dtype=np.float32),
+-             np.asarray(forces, dtype=np.float32)]
+-        ).astype(np.float32)
++        parts = [
++            dof,
++            np.array([finger], dtype=np.float32),
++            np.asarray(forces, dtype=np.float32),
++        ]
++        if self._speed_channel:
++            # The value the scripted primitive acts on: the encoder when it is
++            # usable, else the fruit's measured velocity (read lazily inside the
++            # helper). `spawner.belt is None` (unit paths) emits 0.0.
++            parts.append(
++                np.array(
++                    [
++                        belt_speed_scalar(
++                            self.spawner,
++                            self._sample,
++                            use_encoder=self.trigger_settings.use_encoder,
++                        )
++                    ],
++                    dtype=np.float32,
++                )
++            )
++        return np.concatenate(parts).astype(np.float32)
+ 
+     def _obs_snapshot(self) -> dict:
+         """Light observation for the caller (the policy input is built above).

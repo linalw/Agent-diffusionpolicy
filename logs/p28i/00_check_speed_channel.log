@@ -1,0 +1,99 @@
+section 0: the gate
+  [PASS] gate unset -> the channel is off
+  [PASS] the fixed normaliser pair is (0.12, 0.05)
+  [PASS] the shipped gate default is 0 (opt-in only)
+  [PASS] no silent pin default exists (P28 Gate A B2)
+  [PASS] the legacy provenance table covers the anchor and refuses the 0.15 lineage
+
+section 1: source checks (the 13 design sites this lane owns)
+  [PASS] rl_env.proprio: the speed append sits under `if self._speed_channel:`
+  [PASS] rl_env.__init__ reads the gate once into `_speed_channel`
+  [PASS] rl_env refuses a checkpoint whose proprio_dim disagrees with the gate
+  [PASS] _MANIFEST_SOURCES pins policy/data.py and policy/finetune.py (design 2.5.2)
+  [PASS] the run manifest records belt_speed and the channel gate (design 6.1)
+  [PASS] 60_eval_policy is in lockstep: same helper, gated, one append site
+  [PASS] 60_eval_policy reads the same gate
+  [PASS] neither builder inherits the trigger's encoder knob (Gate A sec. 1)
+  [PASS] both builders pass the configured belt speed as the no-belt fallback
+  [PASS] policy/data.py: the column is appended only under `if self.speed_channel:`
+  [PASS] policy/data.py: compute_normalizer WRITES the fixed pair (design C2)
+  [PASS] policy/data.py: the pin chain reads supply.belt_speed from a manifest
+  [PASS] correction.py slices with the head's config, not the module constants
+  [PASS] CorrectionController takes its widths from the payload (Gate A)
+  [PASS] 119_rl_fidelity has a two-width feed + --data-speed (Gate A B3) - no equality assertion for B0
+
+section 2: B0 - the widened 26-D artifact is the 25-D anchor at step 0
+  [PASS] the anchor checkpoint exists - /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/checkpoints/moe_v13s/policy_best.pt
+         anchor md5 61da390a85fa209496b54477a8255d23
+  [PASS] the anchor is 25-D
+  [PASS] widen_proprio reports a widening
+  [PASS] config proprio_dim 25 -> 26
+  [PASS] the first Linear is (128, 25) -> (128, 26) - (128, 25) -> (128, 26)
+  [PASS] the new column is EXACTLY 0
+  [PASS] the 25 old columns are bitwise the artifact's
+  [PASS] the bias and every other tensor are bitwise unchanged
+  [PASS] the normaliser grows by exactly the fixed (0.12, 0.05) entry
+  [PASS] widen_proprio is idempotent (a second call is a no-op)
+  [PASS]  ... and it does not re-append a second entry
+  [PASS] the channel value has zero influence (0.0/0.08/0.12/0.15 bit-identical) - max|delta| = 0.000e+00
+         batch  1: conditioning max|delta| 0.000e+00, denoiser output max|delta| 0.000e+00
+         batch  3: conditioning max|delta| 2.384e-07, denoiser output max|delta| 2.861e-06
+         batch 32: conditioning max|delta| 1.192e-07, denoiser output max|delta| 2.384e-06
+  [PASS] batch 1 (the deployed inference shape) is BIT-IDENTICAL - cond 0.0e+00 / out 0.0e+00
+  [PASS] batched forwards differ only by float32 reduction order (<= 5e-6) - b1: 0.0e+00, b3: 2.9e-06, b32: 2.4e-06
+  [PASS] float64 reference: no algorithmic difference (<= 1e-14, the fp64 floor) - max|delta| = 2.220e-16
+
+section 2b: B0 through the shipped runtime (`PolicyRunner.act`)
+  [PASS] the runtime reads 25-D from the anchor and 26-D from the widened artifact
+  [PASS] the deployed action chunk is BYTE-IDENTICAL (25-D vs 26-D artifact) - max|delta| = 0.000e+00
+  [PASS] the channel's value has zero influence on the deployed chunk - max|delta| = 0.000e+00
+
+section 3: the pin chain (`shard` -> manifest -> supply.belt_speed)
+[data] speed channel: 1 episodes, proprio_dim=26, pins=[0.15], declared=None, sources={'manifest': 1} (unpinned stores raise; see SPEED_PIN_KNOWN)
+  [PASS] a manifest's supply.belt_speed pins the episode (0.15) - [0.15] ['manifest:/home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p28i/_tmp/stores/s_manifest/manifest.json']
+  [PASS] an unpinned store with no manifest value RAISES (no silent 0.12) - B2 - no belt-speed pin for /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p28i/_tmp/stores/unknown_store (episode episode_00000.npz): its manifest records no supply.belt_speed and no pin was declared. The speed channel trains on a constant, so pin the store explicitly - --store-speed /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p28i/_tmp/stores/unknown_store=<m/s> (or --base-speed) - using the table in logs/p28/SPEED_CHANNEL_DESIGN.md 4.3; a store collected since P28-A carries its speed in its own manifest.
+[data] speed channel: 1 episodes, proprio_dim=26, pins=[0.12], declared=None, sources={'known': 1} (unpinned stores raise; see SPEED_PIN_KNOWN)
+  [PASS] the documented legacy lineage resolves without a manifest (v11_s0 -> 0.12) - [0.12] ['known:v11_s0']
+  [PASS] the 0.15 legacy shard is NOT in the table, so it must be pinned - B2 - no belt-speed pin for /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p28i/_tmp/stores/v12_s0_015 (episode episode_00000.npz): its manifest records no supply.belt_speed and no pin was declared. The speed channel trains on a constant, so pin the store explicitly - --store-speed /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p28i/_tmp/stores/v12_s0_015=<m/s> (or --base-speed) - using the table in logs/p28/SPEED_CHANNEL_DESIGN.md 4.3; a store collected since P28-A carries its speed in its own manifest.
+[data] speed channel: 1 episodes, proprio_dim=26, pins=[0.15], declared=0.15, sources={'declared': 1} (unpinned stores raise; see SPEED_PIN_KNOWN)
+  [PASS] the legacy pin resolves an unpinned/unknown store (declared 0.15) - [0.15] ['declared']
+[data] speed channel: 2 episodes, proprio_dim=26, pins=[0.08, 0.15], declared=None, sources={'manifest': 2} (unpinned stores raise; see SPEED_PIN_KNOWN)
+  [PASS] a merged store resolves PER EPISODE through its shard stamp ([0.08, 0.15]) - [0.08, 0.15] ['manifest:/home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p28i/_tmp/stores/shards/a/manifest.json', 'manifest:/home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p28i/_tmp/stores/shards/b/manifest.json']
+[data] speed channel: 1 episodes, proprio_dim=26, pins=[0.15], declared=0.15, sources={'manifest': 1} (unpinned stores raise; see SPEED_PIN_KNOWN)
+  [PASS] a declaration that AGREES with the manifest is accepted (manifest wins) - [0.15] ['manifest:/home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p28i/_tmp/stores/s_manifest/manifest.json']
+  [PASS] a declared pin that contradicts the manifest RAISES (design 2.2 risk 2) - belt-speed pin conflict for /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p28i/_tmp/stores/s_manifest: declared pins 0.1200 m/s but /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p28i/_tmp/stores/s_manifest/manifest.json records 0.1500 m/s. The speed channel trains on a constant, so a wrong pin is a silent scenario change; fix the pin (see the table in logs/p28/SPEED_CHANNEL_DESIGN.md 4.3) or the manifest.
+  [PASS] no belt and no fallback raises (0.0 is not a valid channel value)
+  [PASS] no belt with the configured speed reports it (abs, not 0.0) - 0.12
+  [PASS] the synthesised column is the episode's pin, last dim
+  [PASS] the second episode carries its own pin (0.15)
+  [PASS] the live P28-C shard (datasets/ss008, the P28-A field) reads 0.08 - 0.08
+
+section 4: the gate-off (25-D) path is byte-inert
+  [PASS] gate off: the store is 25-D
+  [PASS] gate off: one frame is bitwise the shipped expression
+  [PASS] gate off: `proprio(t=None)` is bitwise the shipped all-frames expression
+  [PASS] gate off: compute_normalizer is bitwise the shipped computation
+[data] speed channel: 1 episodes, proprio_dim=26, pins=[0.15], declared=None, sources={'manifest': 1} (unpinned stores raise; see SPEED_PIN_KNOWN)
+  [PASS] the gate is read per store, not cached module-side
+  [PASS] gate off: the model sees 25 dims and the shipped 5-channel image stack
+
+section 5: the 26-D training path
+[data] speed channel: 2 episodes, proprio_dim=26, pins=[0.08, 0.15], declared=None, sources={'manifest': 2} (unpinned stores raise; see SPEED_PIN_KNOWN)
+  [PASS] compute_normalizer yields 26 entries with the FIXED pair at the last dim
+  [PASS] the 26-D normalised channel is on the documented z grid (0.08 -> -0.80)
+  [PASS] the store's sample width matches its declared proprio_dim
+  [PASS] train.py needs no change: dims come from the sample (26)
+  [PASS] a 26-D Normalizer normalises a 26-D sample (loud on a width mismatch)
+  [PASS] a 26-D sample through the 25-D normaliser raises
+  [PASS] the VLASH state offset keeps the 26th dim on every draw - shapes seen = [26]
+  [PASS] 119 two-width feed: the 25-D arm gets the store prefix, bitwise
+  [PASS] 119 two-width feed: the 26-D arm gets the whole vector
+  [PASS] 119 two-width feed: an unsupported width refuses
+
+==============================================================================
+note: anchor md5 61da390a85fa209496b54477a8255d23
+note: batch  1: conditioning max|delta| 0.000e+00, denoiser output max|delta| 0.000e+00
+note: batch  3: conditioning max|delta| 2.384e-07, denoiser output max|delta| 2.861e-06
+note: batch 32: conditioning max|delta| 1.192e-07, denoiser output max|delta| 2.384e-06
+==============================================================================
+PASS: all checks (4 notes)

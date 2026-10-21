@@ -35,7 +35,9 @@ import torch.nn as nn
 
 from .data import Normalizer
 
-#: Model input layout, fixed here so the trainer and the env agree.
+#: Model input layout *defaults* (the head's own `config` is authoritative when
+#: it is loaded - see `CorrectionController.correct`; P28-B: a 26-D proprio head
+#: must slice with its config, not with this constant).
 OBS_DIM = 25
 GOAL_DIM = 8
 ACTION_DIM = 9
@@ -96,16 +98,31 @@ class CorrectionController:
     ) -> None:
         payload = torch.load(path, map_location=device, weights_only=False)
         cfg = payload.get("config", {})
+        norm = payload["normalizer"]
+        # P28-B (P28 Gate A): the widths come from the **payload**, not from the
+        # module constants. The normaliser is the payload's own statement of the
+        # observation width (`obs_mean`, `goal_mean`), so a config that predates
+        # the field still loads at the right width, and the two must agree - a
+        # 26-D head fed 25 dims is a silent shift, not an error.
+        obs_dim = int(cfg.get("obs_dim", len(norm["obs_mean"])))
+        goal_dim = int(cfg.get("goal_dim", len(norm["goal_mean"])))
+        if int(len(norm["obs_mean"])) != obs_dim or int(len(norm["goal_mean"])) != goal_dim:
+            raise ValueError(
+                f"{path}: head config obs_dim={obs_dim}/goal_dim={goal_dim} "
+                f"disagrees with its normaliser "
+                f"({len(norm['obs_mean'])}/{len(norm['goal_mean'])})"
+            )
+        self.obs_dim = obs_dim
+        self.goal_dim = goal_dim
         self.head = CorrectionHead(
-            obs_dim=int(cfg.get("obs_dim", OBS_DIM)),
-            goal_dim=int(cfg.get("goal_dim", GOAL_DIM)),
+            obs_dim=obs_dim,
+            goal_dim=goal_dim,
             action_dim=int(cfg.get("action_dim", ACTION_DIM)),
             out_dim=int(cfg.get("out_dim", OUT_DIM)),
             hidden=int(cfg.get("hidden", HIDDEN)),
         ).to(device)
         self.head.load_state_dict(payload["model"])
         self.head.eval()
-        norm = payload["normalizer"]
         self.normalizer = Normalizer(
             action_mean=np.asarray(norm["action_mean"], dtype=np.float32),
             action_std=np.asarray(norm["action_std"], dtype=np.float32),
@@ -133,12 +150,19 @@ class CorrectionController:
     ) -> np.ndarray:
         """Return the corrected action (copy); the input is not modified."""
         a = np.asarray(action, dtype=np.float32)
-        obs_n = self.normalizer.normalize_obs(
-            np.asarray(proprio, dtype=np.float32)
-        ).astype(np.float32)
-        goal_n = self.normalizer.normalize_goal(
-            np.asarray(goal, dtype=np.float32)
-        ).astype(np.float32)
+        obs = np.asarray(proprio, dtype=np.float32)
+        goal_v = np.asarray(goal, dtype=np.float32)
+        # The head's width is fixed by its payload; a mismatched observation is
+        # refused instead of being concatenated into a shifted vector.
+        if obs.shape[0] != self.obs_dim or goal_v.shape[0] != self.goal_dim:
+            raise ValueError(
+                f"correction head expects obs/goal width "
+                f"{self.obs_dim}/{self.goal_dim}, got "
+                f"{obs.shape[0]}/{goal_v.shape[0]} "
+                f"(P28-B: a 26-D proprio needs a head trained at 26)"
+            )
+        obs_n = self.normalizer.normalize_obs(obs).astype(np.float32)
+        goal_n = self.normalizer.normalize_goal(goal_v).astype(np.float32)
         act_n = self.normalizer.normalize_action(
             np.asarray(a[:ACTION_DIM], dtype=np.float32)
         ).astype(np.float32)
@@ -148,8 +172,16 @@ class CorrectionController:
         x = torch.from_numpy(
             np.concatenate([obs_n, goal_n, act_n, index_n])[None]
         ).to(self.device)
-        delta = self.head(x[:, :OBS_DIM], x[:, OBS_DIM:OBS_DIM + GOAL_DIM],
-                          x[:, OBS_DIM + GOAL_DIM:OBS_DIM + GOAL_DIM + ACTION_DIM],
+        # Slice with the width the payload declared (the head's own `config` we
+        # built it from), not with the module constants: a head trained on a
+        # different obs/goal width (e.g. the P28-B 26-D proprio) would otherwise
+        # be fed a silently shifted vector - same concatenation, wrong split.
+        obs_dim = int(self.head.config["obs_dim"])
+        goal_dim = int(self.head.config["goal_dim"])
+        action_dim = int(self.head.config["action_dim"])
+        delta = self.head(x[:, :obs_dim],
+                          x[:, obs_dim:obs_dim + goal_dim],
+                          x[:, obs_dim + goal_dim:obs_dim + goal_dim + action_dim],
                           x[:, -1:]).cpu().numpy()[0]
         delta = np.clip(np.asarray(delta, dtype=np.float32), -self.clamp, self.clamp)
         out = a.copy()

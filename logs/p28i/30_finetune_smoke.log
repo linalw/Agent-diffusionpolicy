@@ -1,0 +1,32 @@
+# P28-B finetune smoke (CPU, synthetic 2-episode store, 1 epoch) - gate ON
+# FRUIT_OBS_SPEED=1 DEVICE=cpu scripts/111_rl_finetune.py --ckpt checkpoints/moe_v13s/policy_best.pt --rollouts logs/p28i/_tmp/stores/s_merged --base '' --out logs/p28i/_tmp/ft --epochs 1 --batch-size 2 --weight-mode ones
+[finetune] P28-B speed channel: widened the checkpoint's proprio 25 -> 26 (zero column, normaliser entry (0.12, 0.05))
+[data] speed channel: 2 episodes, proprio_dim=26, pins=[0.08, 0.15], declared=None, sources={'manifest': 2} (unpinned stores raise; see SPEED_PIN_KNOWN)
+  if float(wk.abs().max()) < 1e-6:
+[finetune] rollouts=logs/p28i/_tmp/stores/s_merged (2 episodes, success 2)
+[finetune] windows=6 weight_mode=ones vbar=0.0000 beta=4.0 failure_weight=0.05 base_weight=1.0 vlash_offset_max=0
+[finetune] speed channel: proprio_dim=26 normaliser=(0.12, 0.05)
+[finetune]   rollouts pins: {'channel': True, 'proprio_dim': 26, 'declared': None, 'values': [0.08, 0.15], 'sources': {'manifest': 2}, 'manifests': ['/home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p28i/_tmp/stores/shards/a/manifest.json', '/home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p28i/_tmp/stores/shards/b/manifest.json']}
+[finetune]   rollout: {'episodes': 2, 'windows': 6, 'weight_values': [1.0], 'mean_weight': 1.0}
+[finetune] epoch 1/1 SOFT mse=86.8434 weighted=86.8434 router_ce=131320.422 router_acc=0.000 demo_val=nan (0.1s)
+[finetune] saved logs/p28i/_tmp/ft/policy_best.pt (last epoch, weighted loss 86.8434)
+[finetune] done -> logs/p28i/_tmp/ft/policy_best.pt
+
+# the same command with the gate UNSET (the shipped 25-D path)
+  if float(wk.abs().max()) < 1e-6:
+[finetune] rollouts=logs/p28i/_tmp/stores/s_merged (2 episodes, success 2)
+[finetune] windows=6 weight_mode=ones vbar=0.0000 beta=4.0 failure_weight=0.05 base_weight=1.0 vlash_offset_max=0
+[finetune]   rollout: {'episodes': 2, 'windows': 6, 'weight_values': [1.0], 'mean_weight': 1.0}
+[finetune] epoch 1/1 SOFT mse=73.9918 weighted=73.9918 router_ce=132877.164 router_acc=0.000 demo_val=nan (0.3s)
+[finetune] saved logs/p28i/_tmp/ft_off/policy_best.pt (last epoch, weighted loss 73.9918)
+[finetune] done -> logs/p28i/_tmp/ft_off/policy_best.pt
+
+# a WRONG pin on the same store (B2: must raise - shard a is 0.08)
+    ...<5 lines>...
+    )
+ValueError: belt-speed pin conflict for logs/p28i/_tmp/stores/s_merged: declared pins 0.1200 m/s but /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p28i/_tmp/stores/shards/a/manifest.json records 0.0800 m/s. The speed channel trains on a constant, so a wrong pin is a silent scenario change; fix the pin (see the table in logs/p28/SPEED_CHANNEL_DESIGN.md 4.3) or the manifest.
+
+# a pin with the gate UNSET (must not be silently dropped)
+    ...<2 lines>...
+    )
+ValueError: a belt-speed pin was declared (--store-speed/--base-speed) but the speed channel is off: set FRUIT_OBS_SPEED=1, or drop the pin

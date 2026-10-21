@@ -1,0 +1,12 @@
+# P28-B / Gate A B2: the resolver against the real stores (index + manifest only)
+# store                            declared  -> (pin, source) / RAISE
+datasets/demos_v7                  None      (0.06, known:v7_s0)
+datasets/demos_v10                 None      (0.06, known:v10_s0)
+datasets/v10_s0                    None      (0.06, known:v10_s0)
+datasets/v11_s0                    None      (0.12, known:v11_s0)
+datasets/v12d_s02                  None      (0.12, known:v12d_s02)
+datasets/v13p_probe                None      (0.12, known:v13p_probe)
+datasets/demos_v12_015             None      RAISE: no belt-speed pin for datasets/demos_v12_015 (episode episode_00000.npz): its manifest records no supply.belt_speed and no pin was declared. The speed channel trains on a constant, so pin the store explicitly - --store-speed datasets/demos_v12_015=<m/s> (or --base-speed) - using the table in logs/p28/SPEED_CHANNEL_DESIGN.md 4.3; a store collected since P28-A carries its speed in its own manifest.
+datasets/demos_v12_015             0.15      (0.15, declared)
+datasets/ss008                     None      (0.08, manifest:datasets/ss008/manifest.json)
+datasets/ss008                     0.12      RAISE: belt-speed pin conflict for datasets/ss008: declared pins 0.1200 m/s but datasets/ss008/manifest.json records 0.0800 m/s. The speed channel trains on a constant, so a wrong pin is a silent scenario change; fix the pin (see the table in logs/p28/SPEED_CHANNEL_DESIGN.md 4.3) or the manifest.

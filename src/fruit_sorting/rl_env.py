@@ -63,6 +63,14 @@ recorded. Action interface: ``action[:7]`` are the active arm's joint targets,
 ``action[7]`` is the finger opening clipped to ``[0, 0.044]``, and ``action[8]``
 is only recorded (mirrored from ``action[7]``) exactly like the harness.
 
+P28-B (the belt-speed channel, ``FRUIT_OBS_SPEED=1``, default off): a 26th
+proprio scalar carrying the belt speed the scripted primitive acts on
+(``policy.trigger.transport_speed()``). With the gate unset the 25-D vector above
+is assembled exactly as before; with it on, a 26-D checkpoint is required (the
+constructor refuses a mismatch) and the second assembly site
+(``scripts/60_eval_policy.py``) appends the same scalar through the same helper.
+See ``logs/p28/SPEED_CHANNEL_DESIGN.md`` and ``logs/p28i/IMPLEMENTATION.md``.
+
 Mechanics that must not be broken (see AGENTS.md section 3b):
 * every advance is ``SimulationManager.step`` + ``update_app(steps=0)``; this
   file never calls ``update_app(steps=N)``;
@@ -88,6 +96,7 @@ from dataclasses import asdict, dataclass, field
 import numpy as np
 
 from .motion import min_jerk_ramp
+from .policy.data import belt_speed_scalar, speed_channel_enabled
 from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 
 #: md5 of `src/fruit_sorting/tasks.py` this environment was validated against.
@@ -290,6 +299,12 @@ _MANIFEST_SOURCES = (
     "src/fruit_sorting/policy/runtime.py",
     "src/fruit_sorting/policy/diffusion.py",
     "src/fruit_sorting/policy/trigger.py",
+    # P28-B: the belt-speed channel's whole content is *how the input is
+    # assembled*, so the loader and the fine-tune that may widen a checkpoint
+    # are part of the measurement (design 2.5 item 2). Before this they were
+    # unpinned, and two runs with different loaders were indistinguishable.
+    "src/fruit_sorting/policy/data.py",
+    "src/fruit_sorting/policy/finetune.py",
     "configs/waypoints.json",
     "configs/motion_reference.json",
 )
@@ -607,6 +622,12 @@ class SortingRLEnv:
         #: enabled it fires the scripted primitive on the fruit's predicted
         #: arrival at the jaw, from the belt encoder / measured velocity.
         self.trigger_settings = TriggerSettings.from_env()
+        #: P28-B belt-speed channel, default off: with `FRUIT_OBS_SPEED` unset
+        #: `proprio()` is the shipped 25-D vector and the extra value is never
+        #: computed. Armed, the observation is 26-D and the checkpoint must be a
+        #: 26-D artifact (the guard below refuses a mismatch instead of feeding
+        #: the model a vector it was not trained on).
+        self._speed_channel = speed_channel_enabled()
 
         # --- event-triggered replanning (path-3 arm), default off ----------- #
         #: DVAC/ChunkTrust-spirited test-time horizon adaptation: the execute
@@ -728,6 +749,20 @@ class SortingRLEnv:
             self.action_dim = int(self.policy.config["action_dim"])
             self.action_horizon = int(self.policy.config["action_horizon"])
             self._image_channels = int(self.policy.config["image_channels"])
+            # P28-B: the observation width is a property of the artifact, and
+            # the gate decides it here - so a 26-D checkpoint without the gate
+            # (or the other way round) fails at construction, loudly, instead of
+            # conditioning the policy on a vector it never saw.
+            want_proprio = 25 + (1 if self._speed_channel else 0)
+            got_proprio = int(self.policy.config.get("proprio_dim", 25))
+            if got_proprio != want_proprio:
+                raise RuntimeError(
+                    f"checkpoint {checkpoint} has proprio_dim={got_proprio} but "
+                    f"this environment builds {want_proprio}-D proprio "
+                    f"(FRUIT_OBS_SPEED={'1' if self._speed_channel else 'unset'}). "
+                    "Set FRUIT_OBS_SPEED=1 to run a 26-D (belt-speed channel) "
+                    "checkpoint, or unset it for a 25-D one."
+                )
             if self.rtc_settings.enabled:
                 self.rtc = RealtimeChunker(
                     self.policy,
@@ -929,6 +964,14 @@ class SortingRLEnv:
             "no_attach": os.environ.get("FRUIT_NO_ATTACH", ""),
             "no_sleep": os.environ.get("FRUIT_NO_SLEEP", ""),
             "policy_seed": os.environ.get("FRUIT_POLICY_SEED", ""),
+            # P28-A's collector field (`supply.belt_speed`, 9cbcfa2) had no
+            # rollout-side twin: a direct A/B arm at 0.08 was identifiable only
+            # from a sidecar (the P27 driver wrote one). The magnitude is
+            # recorded because `SceneConfig.belt_speed` is signed along -Y.
+            "belt_speed": abs(float(self.cfg.belt_speed)),
+            # P28-B: whether the 26th proprio scalar (the belt-speed channel)
+            # was part of the model's input for this run.
+            "speed_channel": bool(self._speed_channel),
             "python": sys.version.split()[0],
             "numpy": np.__version__,
             "sources": sources,
@@ -1211,7 +1254,7 @@ class SortingRLEnv:
             self.policy.push_frame(rgb, depth, mask)
 
     def proprio(self) -> np.ndarray:
-        """The 25-D proprioception vector the training data recorded.
+        """The proprioception vector the training data recorded (25-D, or 26-D).
 
         All 22 joint positions, the active arm's finger opening, the two tactile
         normal forces. In `handoff` mode the finger channel is the harness's
@@ -1219,6 +1262,20 @@ class SortingRLEnv:
         because that presentation's job is to reproduce the harness exactly;
         `direct` uses the active arm's finger, which is what the demonstrations
         recorded.
+
+        P28-B: with ``FRUIT_OBS_SPEED=1`` one more scalar is appended - the belt
+        speed from ``trigger.transport_speed()``, the same estimator the
+        scripted primitive's schedule acts on (design C1). It is a per-episode
+        constant in this build, which is why the stores synthesise it from a pin
+        instead of recording it. The gate is read once in `__init__`, and with
+        it off this method is the shipped 25-D assembly byte for byte - the
+        extra value is not even computed.
+
+        The channel deliberately does **not** inherit
+        ``FRUIT_POLICY_TRIGGER_ENCODER``: a trigger knob must not change the
+        model's observation, or an A/B arm would move two things at once (P28
+        Gate A section 1). With no belt on the spawner the configured belt speed
+        is reported, never 0.0 - 0.0 would read as "the belt is stopped".
         """
         dof = np.asarray(self.scene.robot.get_dof_positions().numpy())[0].astype(
             np.float32
@@ -1234,10 +1291,30 @@ class SortingRLEnv:
             float(reading.get("left").normal_force) if reading.get("left") else zero,
             float(reading.get("right").normal_force) if reading.get("right") else zero,
         ]
-        return np.concatenate(
-            [dof, np.array([finger], dtype=np.float32),
-             np.asarray(forces, dtype=np.float32)]
-        ).astype(np.float32)
+        parts = [
+            dof,
+            np.array([finger], dtype=np.float32),
+            np.asarray(forces, dtype=np.float32),
+        ]
+        if self._speed_channel:
+            # The value the scripted primitive acts on: the encoder when it is
+            # usable, else the fruit's measured velocity (read lazily inside the
+            # helper). `use_encoder` stays the estimator's default - the trigger
+            # knob must not change the model's observation (P28 Gate A sec. 1).
+            # A missing belt reports the configured speed, never 0.0.
+            parts.append(
+                np.array(
+                    [
+                        belt_speed_scalar(
+                            self.spawner,
+                            self._sample,
+                            fallback=self.cfg.belt_speed,
+                        )
+                    ],
+                    dtype=np.float32,
+                )
+            )
+        return np.concatenate(parts).astype(np.float32)
 
     def _obs_snapshot(self) -> dict:
         """Light observation for the caller (the policy input is built above).

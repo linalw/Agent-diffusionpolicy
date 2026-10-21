@@ -1,0 +1,881 @@
+@@@ logs/p10c2/check_confirm_gate.py
+== 1. source checks ==
+  [PASS] `self._carry_monitor_confirm_mm` is assigned exactly once in __init__ (AST)
+  [PASS] `FRUIT_CARRY_MONITOR_CONFIRM_MM` is read exactly once in the file, default "0.0"
+  [PASS] the P10-C knobs are unchanged (one read each)
+  [PASS] `_carry` has exactly one fire bookkeeping site (`fires += 1`, `skip = True`) and one fire print
+  [PASS] the two fast-skip sites are unchanged (read only the latch) and the impl never reads the confirm knob
+  [PASS] the cancel row exists exactly once, with the slip and the threshold
+  [PASS] the fire row still carries `asym@fire` and gains `clean_slip_max`
+  [PASS] the accumulator state is initialized once per leg
+  [PASS] the operand is the guard tracker when it is live, else the monitor-path accumulator
+  [PASS] exactly one confirm-gate `if` in `_carry` (AST)
+  [PASS] the gate sits inside the boundary block (`mon_leg is not None and mon_leg.fire is not None`)
+  [PASS] the fire bookkeeping sits inside the decision block, not the trip tick
+  [PASS] the trip tick is a bare `mon_leg.step(...)` (the trip is a candidate only)
+  [PASS] the decision block is a top-level statement of the gripper-led carry path
+  [PASS] the decision block runs after the per-tick loop (the leg boundary)
+  [PASS] knob default (unset) -> 0.0
+  [PASS] knob `=8.0` -> 8.0 (the battery value)
+  [PASS] knob `=0` -> 0.0 (the shipped form)
+== 2. gate truth table (real expression, exec'd) ==
+  [PASS] full truth table (72 rows: 6 confirm values x 12 slip values) vs the independent reference
+  [PASS] knob 0.0 short-circuits: a slip operand that raises if touched is never evaluated and the trip confirms (byte-inert)
+  [PASS] knob 8.0 does evaluate the slip operand (the first operand does not swallow it)
+  [PASS] the battery's ground-truth false positive (0.4 mm) at 8.0: confirm=False (expected False)
+  [PASS] the battery's control-placed pear (6.3 mm) at 8.0: confirm=False (expected False)
+  [PASS] the battery's lowest correct fire (13.1 mm) at 8.0: confirm=True (expected True)
+  [PASS] the late 19.0 mm slide at 8.0: confirm=True (expected True)
+  [PASS] the 1646.1 mm escape at 8.0: confirm=True (expected True)
+  [PASS] the inclusive edge (8.000 mm) at 8.0: confirm=True (expected True)
+  [PASS] one tick below the edge (7.999 mm) at 8.0: confirm=False (expected False)
+  [PASS] knob off (0.0): every trip confirms, even a 0.4 mm slip: confirm=True (expected True)
+  [PASS] knob off (0.0) with a zero slip: confirm=True (expected True)
+  [PASS] knob negative: the shipped form: confirm=True (expected True)
+== 3. decision block end-to-end (real statement, exec'd) ==
+  [PASS] confirmed trip (19.0 mm >= 8.0): fire counted, latch set, fired list appended
+  [PASS] confirmed trip prints the fire row with the slip
+  [PASS] cancelled trip (6.3 mm < 8.0): nothing counted, latch clear, fired list empty
+  [PASS] cancelled trip prints exactly the cancel row
+  [PASS] the frozen K2 false positive (0.4 mm) cancels
+  [PASS] the inclusive edge (8.000 mm) confirms
+  [PASS] knob off (0.0): every trip confirms (a 0.4 mm slip still fires - the P10-C form)
+  [PASS] knob off + diag off: latch set and counters updated, no diag traffic
+  [PASS] cancelled trip with the diag off: latch stays clear, no output
+  [PASS] operand selection: diag/guard off -> the accumulator's 6.3 mm cancels (the guard value is a decoy)
+  [PASS] operand selection: guard tracker live -> its 6.3 mm cancels (the accumulator value is a decoy)
+  [PASS] operand selection: diag off -> the accumulator's 19.0 mm confirms
+  [PASS] operand selection: guard tracker live -> its 19.0 mm confirms
+  [PASS] a leg that never tripped: nothing happens (no-trip != cancelled trip)
+  [PASS] an unmonitored leg (`mon_leg is None`): nothing happens
+== 4. monitor-path accumulator (real block, exec'd) ==
+  [PASS] one accumulator `elif mon_leg is not None:` attached to `if guard_armed:` (AST)
+  [PASS] the accumulator is not gated on the diag or the confirm knob (live on the monitor path with `FRUIT_CARRY_DIAG` off)
+  [PASS] the accumulator stays live after a trip (no `done` in its guard)
+  [PASS] the accumulator takes the same reads as the guard tracker
+  [PASS] the reference is set on the leg's first tick and the max accumulates from later ticks
+  [PASS] accumulator replay (identity quat): 5.0990 mm == reference 5.0990 mm
+  [PASS] accumulator replay (fixed 90-deg quat): 5.0990 mm == reference 5.0990 mm (rotation-invariant)
+  [PASS] the leg's first tick contributes zero slip
+== 5. rl_env pin ==
+  [PASS] rl_env TASKS_MD5 == live tasks.py md5 (b54b54064607c50f7ed0adc906c97a45)
+
+RESULT: PASS (the knob read is default 0.0/byte-inert; the real gate expression's truth table matches the independent reference and the knob-off short-circuit is proven with a raising operand; the real decision block confirms at/above the threshold and cancels below it with the exact cancel row, on the correct operand; the monitor-path accumulator is live exactly where the gate needs it and reproduces the clean-slip reference; the fire/cancel rows carry the slip; the pin matches)
+@@@ RESULT PASS
+@@@ logs/p10c3/check_flip_resolution.py
+== 1. source checks ==
+  [PASS] the four `__init__` reads are unchanged (one env read each, shipped defaults pinned)
+  [PASS] `_resolve_carry_monitor_knobs` is defined exactly once and called exactly once in the file
+  [PASS] each of the four knob attributes is assigned exactly twice in the file (the `__init__` base read + the resolution helper - no other writer)
+  [PASS] the resolution is called from `grasp_carry_place` before the `_grasp_carry_place_impl` call
+  [PASS] the helper holds exactly the four resolution statements (AST)
+  [PASS] each statement is `self._dynamic_profile(<name>, <shipped>, <two-line>)` with the pre-registered triple (float() on the numeric knobs, `== "1"` on the booleans)
+  [PASS] the helper resolves exactly four `_dynamic_profile` calls (the diag knob is not part of the flip)
+  [PASS] the pre-existing monitor checks are unchanged: the diag read is env-only (one read, default "0") and the impl never reads the confirm knob
+== 2. resolution truth table (real statements, exec'd) ==
+  [PASS] the four `__init__` base reads are extracted for the byte-inert comparison
+  [PASS] full sweep (64 rows: 4 sessions x 4 knobs x the unset/0/1/8.0 states) vs the independent reference
+  [PASS] every flip row (52) reads the pre-registered two-line value and differs from the shipped one
+  [PASS] every non-flip row is byte-inert vs the real `__init__` reads
+  [PASS] extended env grid (bool: 3.5 / -1 / true / 0.5 / auto; float: 3.5 / -1 / 0.5 / 1) vs the reference
+== 3. restores, end-to-end (resolution -> the real scope predicate) ==
+  [PASS] the real scope statements are still the single `two_line_catch` + `_carry_monitor_active` pair
+  [PASS] THE FLIP: two-line, no relevant env, scripted dynamic catch: active=True (expected True)
+  [PASS] restore: FRUIT_CARRY_MONITOR_TWOLINE=0 (pre-flip: no monitor): active=False (expected False)
+  [PASS] restore: FRUIT_CARRY_MONITOR=0 (the master wins): active=False (expected False)
+  [PASS] restore: FRUIT_CARRY_MONITOR_CONFIRM_MM=0 (the ungated monitor): active=True (expected True)
+  [PASS] two-line, no env, indexed catch (dynamic_capture off) never arms: active=False (expected False)
+  [PASS] shared-station bimanual, no env: untouched (shipped values): active=False (expected False)
+  [PASS] single-arm scripted line, no env: untouched (shipped values): active=False (expected False)
+  [PASS] direct/policy handover, no env: untouched (shipped values): active=False (expected False)
+  [PASS] direct/policy handover, FRUIT_CARRY_MONITOR=1: unchanged: active=True (expected True)
+  [PASS] direct/policy handover, monitor + gate: unchanged: active=True (expected True)
+  [PASS] single-arm scripted line, FRUIT_CARRY_MONITOR=1: never arms: active=False (expected False)
+  [PASS] two-line, explicit scope knob =1: same as the flip (env wins): active=True (expected True)
+  [PASS] two-line, explicit floor =0: explicit wins, monitor still armed: active=True (expected True)
+  [PASS] two-line, no env, direct_capture=True: the direct scope is unchanged: active=True (expected True)
+== 4. collector manifest field (`collection.carry_monitor`) ==
+  [PASS] exactly one `write_manifest` (the shared collector writer)
+  [PASS] one `collection` block carries both `park_early` and `carry_monitor` (the W7-C.1 pattern; shared by both collector modes)
+  [PASS] `collection.mode` sits in the same shared block
+  [PASS] `collection.carry_monitor` is structurally `os.environ.get("FRUIT_CARRY_MONITOR", "auto")`
+  [PASS] manifest field, env unset -> "auto" (the flip)
+  [PASS] manifest field, env =0 -> "0" (explicit override)
+  [PASS] manifest field, env =1 -> "1" (explicit override)
+  [PASS] the sibling `park_early` keeps the same convention
+== 5. rl_env pin ==
+  [PASS] rl_env TASKS_MD5 == live tasks.py md5 (b54b54064607c50f7ed0adc906c97a45)
+
+RESULT: PASS (the four knob reads are unchanged; the real resolution statements read the pre-registered two-line values in a two-line session with the env unset and the env/shipped values everywhere else; the explicit restores resolve exactly; the real scope predicate arms the two-line flip and nothing else; the collector manifest carries `collection.carry_monitor` = auto/0/1; the pin matches)
+@@@ RESULT PASS
+@@@ logs/p10c/check_twoline_scope.py
+== 1. source checks ==
+  [PASS] `self._carry_monitor_twoline` is assigned exactly once in __init__ (AST)
+  [PASS] `FRUIT_CARRY_MONITOR_TWOLINE` is read exactly once in the file, default "0"
+  [PASS] the pre-existing monitor knobs are unchanged (one read each)
+  [PASS] the scope is a `two_line_catch` binding + one active assignment (no other `_carry_monitor_active` writes outside __init__ class-local defaults)
+  [PASS] the two-line arm is gated on the session's twoline flag (`getattr(self._active_session, "twoline", False)`)
+  [PASS] the per-leg arming site is exactly `active and hand_is_jaw and _dynamic_capture_active`
+  [PASS] the single `_CarryMonitorLeg(...)` call site passes `self._carry_monitor_load_floor` (same floor on every scope)
+  [PASS] the `[monitor] fire` diag still carries `asym@fire` and there is one fire block + one attempt diag line, shared by every scope
+  [PASS] rl_env TASKS_MD5 == live tasks.py md5 (b54b54064607c50f7ed0adc906c97a45)
+== 2. scope predicate (real statements, exec'd) ==
+  [PASS] knob default (unset) -> False
+  [PASS] knob `=1` -> True
+  [PASS] knob truthiness is `== "1"` (e.g. `true` -> False)
+  [PASS] one `two_line_catch = bool(...)` + one `_carry_monitor_active = ...` in `_grasp_carry_place_impl`
+  [PASS] full sweep (96 rows) vs the independent reference
+  [PASS] knob-off rows are byte-inert (active == monitor and direct_capture)
+  [PASS] all 25 armed rows satisfy the exact scope condition
+  [PASS] every armed row outside the direct scope (1) is exactly the structural two-line case (knob on + scripted + dynamic + twoline session)
+  [PASS] the two-line never arms without the scope knob, and a shared-station session never arms outside the direct scope
+  [PASS] shipped defaults on the two-line (monitor off, knob off): active=False (expected False)
+  [PASS] two-line, monitor ON, scope knob OFF (pre-P10-C behavior): active=False (expected False)
+  [PASS] two-line, monitor ON + scope knob ON (the P10-C arming case): active=True (expected True)
+  [PASS] two-line, scope knob ON, monitor OFF (no arming): active=False (expected False)
+  [PASS] two-line, both knobs, indexed path (dynamic_capture off): active=False (expected False)
+  [PASS] shared-station session, both knobs (never arms): active=False (expected False)
+  [PASS] single-arm scripted, both knobs (never arms): active=False (expected False)
+  [PASS] direct capture, monitor ON, knob OFF (direct scope unchanged): active=True (expected True)
+  [PASS] direct capture, monitor ON, knob ON (direct scope unchanged): active=True (expected True)
+  [PASS] direct capture, monitor OFF, knob ON (no arming): active=False (expected False)
+  [PASS] non-scripted non-direct (policy indexed handover), both knobs: active=False (expected False)
+== 3. per-leg arming site (`_carry`) ==
+  [PASS] one `mon_armed = bool(...)` assignment in `_carry`
+  [PASS] mon_armed == active and hand_is_jaw and dynamic_capture_active (no two-line exclusion)
+
+RESULT: PASS (source checks + the real predicate's full truth table match the exact scope condition; knob-off is byte-inert; the two-line arms only under FRUIT_CARRY_MONITOR_TWOLINE=1 on the two-line worker's scripted dynamic catch; the load floor and diag are the same shared code)
+@@@ RESULT PASS
+@@@ logs/p10d1/check_gdp_real_inert.py
+checkpoint checkpoints/moe_v13s/policy_best.pt  device cuda  FRUIT_POLICY_SEED=11
+  [PASS] runner resolved GDP off
+  [PASS] GDP off == manual ddim_sample with the same draw, bit-for-bit
+  [PASS] GDP on K=2 is reproducible across runners (same seed; chunks bitwise, diag rows equal modulo the wall-cost field)
+  real [gdp] row: [gdp] k=2 chosen=1 scores=30.6922,27.3367 fingers=0.0312,0.0311 cost_ms=75.3,58.2
+  [PASS] the K=2 chunk is the candidate chain the diag row names (chosen=1)
+
+PASS: real-checkpoint inertness + reproducibility checks passed.
+@@@ RESULT PASS
+@@@ logs/p10d1/check_gdp_stub.py
+== 1. source checks ==
+  [PASS] `FRUIT_POLICY_GDP` read exactly once, default "0"
+  [PASS] `FRUIT_POLICY_GDP_K` read exactly once, default "2"
+  [PASS] `FRUIT_POLICY_GDP_DIAG` read exactly once, default "0"
+  [PASS] `self.gdp = GDPSettings.from_env()` set exactly once (in __init__)
+  [PASS] the shipped `self.schedule.ddim_sample(` call site is unchanged (exactly one)
+  [PASS] the GDP branch is gated on `self.gdp.enabled and self.gdp.k > 1`
+  [PASS] exactly one `[gdp]` print site
+  [PASS] the RTC sampler/chunker never read the GDP knobs
+  [PASS] `_gdp_sample` reads no environment variables (resolution happens once in from_env)
+  [PASS] `rl_env.TASKS_MD5` still matches `tasks.py` (tasks.py untouched)
+== 2. GDPSettings.from_env resolution ==
+  [PASS] default: off, K=2, diag off
+  [PASS] `FRUIT_POLICY_GDP=1` enables; `=0` does not
+  [PASS] `FRUIT_POLICY_GDP_K=1` keeps K=1 (the shipped path)
+  [PASS] K clamps low: 0 -> 1, -3 -> 1
+  [PASS] K passes through: 2 -> 2, 3 -> 3, 4 -> 4
+  [PASS] K clamps high: 5 -> 4, 7 -> 4, 99 -> 4
+  [PASS] the clamp constants are 1..4
+  [PASS] diag resolves: 1 -> True, 0 -> False
+  [PASS] summary() names all three fields
+== 3. select_gdp_candidate on synthetic scores ==
+  [PASS] min wins
+  [PASS] ties -> the first candidate
+  [PASS] K=1 -> index 0
+== 4. ddim_sample_scored chain identity + score form ==
+  [PASS] the scored chain equals the shipped chain bit-for-bit
+  [PASS] one score per denoising step, all finite
+  [PASS] scores are the Stein norms |eps| * sqrt(numel)
+== 5. knob-off byte-inert proof ==
+  [PASS] GDP off == a direct shipped ddim_sample call, bit-for-bit
+  [PASS] GDP off consumes exactly the shipped one noise draw
+  [PASS] GDP on with K=1 == the shipped path, bit-for-bit (same draw)
+  [PASS] the class-level default is disabled (checkpoint-free fixtures)
+  [PASS] a runner without the instance `gdp` resolves disabled and takes the shipped path
+== 6. GDP selection end-to-end (switching fake model) ==
+  [PASS] K=2 consumes two sequential noise draws (2 x 4 denoise calls)
+  [PASS] the lower-score candidate (index 1) is the executed chunk
+  [PASS] a tie selects the first candidate
+  [PASS] K=4 samples four candidates and prints one 4-candidate row
+== 7. the [gdp] diag row ==
+  [PASS] the pure formatter's exact row
+  [PASS] exactly one row per GDP selection
+  [PASS] the row parses (k, chosen, scores, fingers, cost_ms)
+  [PASS] chosen=1, K=2, the winner has the lower score
+  [PASS] one finger spread + one wall cost per candidate
+  [PASS] `_finger_spread` reads the finger channel (index 7)
+== md5s ==
+  runtime.py 379ac7064fd49df8417e94dbf6ed2616
+  tasks.py   b54b54064607c50f7ed0adc906c97a45 (rl_env.TASKS_MD5 b54b54064607c50f7ed0adc906c97a45)
+  rl_env.py  661e467bc545059246daa34d1fcaf430
+
+STUB PASS: all checks passed.
+@@@ RESULT PASS
+@@@ logs/p11c/check_regrasp_from_open.py
+== 1. source checks ==
+  [PASS] the knob env name is written exactly once, in the `_dynamic_profile` triple with the shipped/two-line defaults "0"/"0"
+  [PASS] one `regrasp_from_open = ...` resolution statement in `_grasp_carry_place_impl` (AST)
+  [PASS] the resolution is exactly the pre-registered triple ('FRUIT_DYNAMIC_REGRASP_FROM_OPEN', '0', '0') with the `== "1"` parse
+  [PASS] the pre-existing W1 profile triples are unchanged (one `_dynamic_profile` call each, exact triples)
+  [PASS] the knob name is consumed exactly in the four expected places (resolution target, descent ternary, close guard, say suffix)
+  [PASS] one `if regrasp_keep:` branch in `_grasp_carry_place_impl`
+  [PASS] the keep branch keeps the shipped `keep_gap` expression (squeeze_gap if not None else grip_gap)
+  [PASS] one `descent_gap` assignment: `float(gap_open)` under the knob, `keep_gap` otherwise
+  [PASS] the shared 40-tick descent loop is present exactly once
+  [PASS] the descent loop's statement sequence is the shipped one (fruit_now, fruit_v_now, ik_step, follow_centre, _step_sim)
+  [PASS] the descent loop's ik_step target is the shipped fruit-tracking expression (unchanged)
+  [PASS] the descent loop's `follow_centre` holds the new `descent_gap` (the only shipped-path change; equal to `keep_gap` when the knob is off)
+  [PASS] one `if regrasp_from_open:` close block in the keep branch
+  [PASS] the close block builds `reseat_close` as the initial close's two-phase shape: np.concatenate([min_jerk_ramp(gap_open, wide, fast_ticks), min_jerk_ramp(wide, keep_gap, load_ticks)])
+  [PASS] the close block replays the ramp once (`for gap in reseat_close`)
+  [PASS] the close loop tracks with the same ik_step expression as the descent and closes through `follow_centre(..., float(gap))`
+  [PASS] the `_force_servo_reset(arm_name)` still follows the arrival block
+  [PASS] the non-keep regrasp branch is unchanged (the 45-tick close to grip_gap)
+  [PASS] the ratchet is unchanged (`FRUIT_DYNAMIC_REGRASP_STEP`, one read)
+  [PASS] the close-shape variables (`wide`/`fast_ticks`/`load_ticks`) are defined earlier in the same function, under the same `dynamic_capture` local the re-seat guard reads
+== 2. resolution truth table (real statements, exec'd) ==
+  [PASS] full sweep (18 rows) vs the independent reference
+  [PASS] knob-off rows (env unset) resolve False on every session (the shipped branch is taken; byte-inert)
+  [PASS] named: two-line unset -> False; env "1" -> True on every session; "true" -> False (the parse is `== "1"`)
+== 3. the approach branch (real statements, exec'd) ==
+  [PASS] the real `gap_open` read is extracted (the pre-close open gap)
+  [PASS] the real `gap_open` default (env unset) is 0.090 m
+  [PASS] knob off: `keep_gap` is the chased depth and `descent_gap` == `keep_gap` (the shipped descend-at-the-chased-gap)
+  [PASS] knob off: the gap sequence is `[keep_gap] * 40` - the shipped descent loop and no close block (the no-harm replay)
+  [PASS] knob off: the shipped descent gap is below the fruit's extent (the P11-B `plow` condition reproduced)
+  [PASS] knob on: `descent_gap` == `gap_open` (the open-gap descent)
+  [PASS] knob on: the sequence is `[gap_open] * 40` + the two-phase close ramp (40 descent ticks + 24 + 60 close ticks)
+  [PASS] knob on: the close starts at ~gap_open (still wider than the blocking span at the first close tick)
+  [PASS] knob on: the close ramp is monotone non-increasing
+  [PASS] knob on: the close ramp ends exactly at `keep_gap` (the same re-seat depth the shipped form kept)
+  [PASS] the geometry invariant: gap_open 0.090 > the largest pool extent 0.070 + the probe's measured link-span offset 0.0113
+  [PASS] the geometry invariant, second form: gap_open 0.090 > the probe's widest *commanded* anchor (largest pool extent 0.070 + 0.015) - a necessary condition only (the anchor's descent geometry is under the P11-B R1 withdrawal); the battery's traces confirm the no-contact expectation per attempt
+  [PASS] the keep branch's single say row is present
+  [PASS] knob off: the say row is the byte-identical shipped string
+  [PASS] knob on: the say row gains exactly the ` [from-open]` suffix (the battery's geometry marker)
+== 4. rl_env pin ==
+  [PASS] rl_env TASKS_MD5 == live tasks.py md5 (b54b54064607c50f7ed0adc906c97a45)
+
+RESULT: PASS (the knob resolves through the pre-registered `_dynamic_profile` triple with default 0 = the shipped branch on every session; the real statements exec'd end-to-end give `[keep_gap] * 40` with the knob off - the byte-inert no-harm replay - and `[gap_open] * 40` + the two-phase close to the same keep depth with it on; the open gap is wider than the measured blocking span; the say row is byte-identical off and gains ` [from-open]` on; the pin matches)
+@@@ RESULT PASS
+@@@ logs/p12a2/check_subknobs.py
+== 1. source checks ==
+  [PASS] meshes.py reads each of the four knobs exactly once into its cached constant (the read-once convention)
+  [PASS] the master parse is the exact `== "1"` (unset/0/other = shipped)
+  [PASS] the three component resolvers exist and route through `_component_real`
+  [PASS] `_component_real`: an explicit sub-knob wins with the exact parse, else the component follows the master
+  [PASS] `fruit_density` reads the mass resolver, not the master (and no stale `on = physics_real()` consumption remains)
+  [PASS] `fruit_contact_stiffness` reads the compliance resolver, not the master
+  [PASS] fruits.py never reads the environment (all four knobs through the resolvers)
+  [PASS] `restitution_range` reads the rest resolver, not the master
+  [PASS] the banner helper exists; the committed P12-A text is kept for the master all-on case and the component line names the resolved states
+  [PASS] create_pool prints the banner only when the helper returns one (the knob-off stream has no line)
+  [PASS] the two mass formulas are the shipped ones modulo `fruit_density` (the 0.82 discount untouched at both sites)
+  [PASS] both authoring sites still pass the component resolvers (`restitution_range()` + `fruit_contact_stiffness(shape)`)
+  [PASS] one material-authoring helper definition + exactly two call sites; the compliant authoring in exactly one place
+== 2. the knob-off byte-identity (in-process, everything unset) ==
+  [PASS] all four knobs resolve off and every raw constant is None
+  [PASS] all 8 classes present (['apple', 'kiwi', 'lychee', 'orange', 'peach', 'pear', 'strawberry', 'tomato'])
+  [PASS] the shipped `density` values are the audit's F4 table (unchanged)
+  [PASS] the real density table is the P12-A table (unchanged by the split)
+  [PASS] the real contact-stiffness table is the P12-A table (unchanged)
+  [PASS] `fruit_density` (default, all knobs unset) = the shipped table; the `real=` seam still resolves the P12-A table, all 8 classes
+  [PASS] `fruit_contact_stiffness`: default/off = 0.0 (rigid), the seam on = the class value, all 8 classes
+  [PASS] `restitution_range`: default/off = (0.02, 0.2), the seam on = (0.35, 0.50)
+  [PASS] the shipped restitution draw is byte-identical to the literal `uniform(0.02, 0.2)`
+  [PASS] the real restitution draw is the literal `uniform(0.35, 0.50)`
+  [PASS] the compliant damping is the audit's 80 Ns/m
+  [PASS] the mass arithmetic at a pinned diameter: default/off == the literal 780 kg/m^3 mass (68.8 g at 59 mm)
+  [PASS] the seam on: the mass is the literal 960 kg/m^3 mass and is heavier (84.7 g at 59 mm)
+  [PASS] the banner is None with everything unset (the knob-off log stream has no line)
+  [PASS] the knob-off authored material: exactly the shipped three attributes and zero `PhysxMaterialAPI` applies
+== 3. the 8 component combinations (subprocesses, master + overrides) ==
+  [PASS] all off: resolution (0, 0, 0), density 780, stiffness 0, band (0.02, 0.2)
+  [PASS] all off: executed create - mass 76.8 g, 3 attrs, 0 applies, restitution 0.09595102167434297
+  [PASS] all off: banner none
+  [PASS] mass only (master=1 + rest=0 compliance=0): resolution (1, 0, 0), density 960, stiffness 0, band (0.02, 0.2)
+  [PASS] mass only (master=1 + rest=0 compliance=0): executed create - mass 94.5 g, 3 attrs, 0 applies, restitution 0.09595102167434297
+  [PASS] mass only (master=1 + rest=0 compliance=0): banner '[physics] FRUIT_PHYSICS_REAL components: mass=1 rest=0 compliance=0 (P12-A.2)'
+  [PASS] rest only (master=1 + mass=0 compliance=0): resolution (0, 1, 0), density 780, stiffness 0, band (0.35, 0.5)
+  [PASS] rest only (master=1 + mass=0 compliance=0): executed create - mass 76.8 g, 3 attrs, 0 applies, restitution 0.41329251806195244
+  [PASS] rest only (master=1 + mass=0 compliance=0): banner '[physics] FRUIT_PHYSICS_REAL components: mass=0 rest=1 compliance=0 (P12-A.2)'
+  [PASS] compliance only (master=1 + mass=0 rest=0): resolution (0, 0, 1), density 780, stiffness 27000, band (0.02, 0.2)
+  [PASS] compliance only (master=1 + mass=0 rest=0): executed create - mass 76.8 g, 5 attrs, 1 applies, restitution 0.09595102167434297
+  [PASS] compliance only (master=1 + mass=0 rest=0): banner '[physics] FRUIT_PHYSICS_REAL components: mass=0 rest=0 compliance=1 (P12-A.2)'
+  [PASS] mass + rest (master=1 + compliance=0): resolution (1, 1, 0), density 960, stiffness 0, band (0.35, 0.5)
+  [PASS] mass + rest (master=1 + compliance=0): executed create - mass 94.5 g, 3 attrs, 0 applies, restitution 0.41329251806195244
+  [PASS] mass + rest (master=1 + compliance=0): banner '[physics] FRUIT_PHYSICS_REAL components: mass=1 rest=1 compliance=0 (P12-A.2)'
+  [PASS] mass + compliance (master=1 + rest=0): resolution (1, 0, 1), density 960, stiffness 27000, band (0.02, 0.2)
+  [PASS] mass + compliance (master=1 + rest=0): executed create - mass 94.5 g, 5 attrs, 1 applies, restitution 0.09595102167434297
+  [PASS] mass + compliance (master=1 + rest=0): banner '[physics] FRUIT_PHYSICS_REAL components: mass=1 rest=0 compliance=1 (P12-A.2)'
+  [PASS] rest + compliance (master=1 + mass=0): resolution (0, 1, 1), density 780, stiffness 27000, band (0.35, 0.5)
+  [PASS] rest + compliance (master=1 + mass=0): executed create - mass 76.8 g, 5 attrs, 1 applies, restitution 0.41329251806195244
+  [PASS] rest + compliance (master=1 + mass=0): banner '[physics] FRUIT_PHYSICS_REAL components: mass=0 rest=1 compliance=1 (P12-A.2)'
+  [PASS] all three (master=1 alone): resolution (1, 1, 1), density 960, stiffness 27000, band (0.35, 0.5)
+  [PASS] all three (master=1 alone): executed create - mass 94.5 g, 5 attrs, 1 applies, restitution 0.41329251806195244
+  [PASS] all three (master=1 alone): banner '[physics] FRUIT_PHYSICS_REAL=1: real class densities + restitution 0.35-0.50 + per-class compliant contact (P12-A)'
+  [PASS] the drawn tomato diameter is identical in every combination (the knobs do not touch the rng stream)
+== 4. the master + override semantics ==
+  [PASS] mass alone (sub-knob only): resolution (1, 0, 0), density 960, stiffness 0, band (0.02, 0.2)
+  [PASS] mass alone (sub-knob only): executed create - mass 94.5 g, 3 attrs, 0 applies, restitution 0.09595102167434297
+  [PASS] mass alone (sub-knob only): banner '[physics] FRUIT_PHYSICS_REAL components: mass=1 rest=0 compliance=0 (P12-A.2)'
+  [PASS] rest alone (sub-knob only): resolution (0, 1, 0), density 780, stiffness 0, band (0.35, 0.5)
+  [PASS] rest alone (sub-knob only): executed create - mass 76.8 g, 3 attrs, 0 applies, restitution 0.41329251806195244
+  [PASS] rest alone (sub-knob only): banner '[physics] FRUIT_PHYSICS_REAL components: mass=0 rest=1 compliance=0 (P12-A.2)'
+  [PASS] compliance alone (sub-knob only): resolution (0, 0, 1), density 780, stiffness 27000, band (0.02, 0.2)
+  [PASS] compliance alone (sub-knob only): executed create - mass 76.8 g, 5 attrs, 1 applies, restitution 0.09595102167434297
+  [PASS] compliance alone (sub-knob only): banner '[physics] FRUIT_PHYSICS_REAL components: mass=0 rest=0 compliance=1 (P12-A.2)'
+  [PASS] sub-knobs all on (no master): resolution (1, 1, 1), density 960, stiffness 27000, band (0.35, 0.5)
+  [PASS] sub-knobs all on (no master): executed create - mass 94.5 g, 5 attrs, 1 applies, restitution 0.41329251806195244
+  [PASS] sub-knobs all on (no master): banner '[physics] FRUIT_PHYSICS_REAL components: mass=1 rest=1 compliance=1 (P12-A.2)'
+  [PASS] explicit sub-knob 0 under the master (the mission's example): resolution (1, 0, 1), density 960, stiffness 27000, band (0.02, 0.2)
+  [PASS] explicit sub-knob 0 under the master (the mission's example): executed create - mass 94.5 g, 5 attrs, 1 applies, restitution 0.09595102167434297
+  [PASS] explicit sub-knob 0 under the master (the mission's example): banner '[physics] FRUIT_PHYSICS_REAL components: mass=1 rest=0 compliance=1 (P12-A.2)'
+  [PASS] explicit `true` under the master = off (the exact parse): resolution (1, 0, 1), density 960, stiffness 27000, band (0.02, 0.2)
+  [PASS] explicit `true` under the master = off (the exact parse): executed create - mass 94.5 g, 5 attrs, 1 applies, restitution 0.09595102167434297
+  [PASS] explicit `true` under the master = off (the exact parse): banner '[physics] FRUIT_PHYSICS_REAL components: mass=1 rest=0 compliance=1 (P12-A.2)'
+  [PASS] sub-knob `true` alone = off (the exact parse): resolution (0, 0, 0), density 780, stiffness 0, band (0.02, 0.2)
+  [PASS] sub-knob `true` alone = off (the exact parse): executed create - mass 76.8 g, 3 attrs, 0 applies, restitution 0.09595102167434297
+  [PASS] sub-knob `true` alone = off (the exact parse): banner none
+  [PASS] the drawn tomato diameter is identical across every semantics row too
+  [PASS] read once: the env set after import does not move any knob (the cached constants; all four stay off)
+== 5. rl_env pin / tasks.py untouched ==
+  [PASS] rl_env TASKS_MD5 == live tasks.py md5 (b54b54064607c50f7ed0adc906c97a45)
+  [FAIL] tasks.py is untouched by this lane (the P11-C.3 baseline 810658b802d22bbd63013726fc78af81)
+
+RESULT: FAIL (1 check(s) failed)
+  - tasks.py is untouched by this lane (the P11-C.3 baseline 810658b802d22bbd63013726fc78af81)
+@@@ RESULT FAIL exit=1
+@@@ logs/p12b2/check_containment.py
+[fruit] cleated belt built: 0 cleats, spacing 0.18 m, surface velocity -0.12 m/s, mu=0.9
+[fruit] cleated belt built: 0 cleats, spacing 0.18 m, surface velocity -0.12 m/s, mu=0.9
+[fruit] containment bundle: belt-end keeper 0.460 m wide x 20 mm x 50 mm at y=[-0.800,-0.780] (belt end -0.800); despawn lane y=-0.70 stays open (a fruit stops with centre y >= -0.780 + r); side fences x=[0.115,0.130] and [0.430,0.445], y=[-0.780,+0.780], h=50 mm; open hand (+/-0.066 m) at the band edges (0.134/0.426) clears the inner faces by 4 mm
+[fruit] cleated belt built: 0 cleats, spacing 0.18 m, surface velocity -0.12 m/s, mu=0.9
+containment check: keeper y=[-0.800,-0.780] z-top 1.220 (h 50 mm); fences x-inner 0.130/0.430, x-span [0.115,0.130]/[0.430,0.445], y=[-0.780,+0.780]; clearances: hand-span at the band edges 4/4 mm, despawn lane 45-66 mm, carried payload 185 mm, place fingertips 135 mm, pulley crowns 9.4 mm, frame rail 4.5 mm
+containment selftest ok (95 checks)
+@@@ RESULT PASS
+@@@ logs/p12/check_physics_real.py
+== 1. source checks ==
+  [PASS] the env is read exactly once, into the cached module constant (`_PHYSICS_REAL_RAW = os.environ.get("FRUIT_PHYSICS_REAL")`)
+  [PASS] the exact `== "1"` parse (unset/0/other = shipped)
+  [PASS] fruits.py never reads the env directly (everything through `physics_real()`)
+  [PASS] the `_create_fruit` mass formula is the shipped one modulo the density lookup (the preliminary 700 kg/m^3 line is untouched)
+  [PASS] the `rescale` mass formula likewise
+  [PASS] the 0.82 sphere-shape discount is unchanged at both sites (the per-class volume proxy was not taken)
+  [PASS] the inline shipped restitution draws are gone: both authoring sites go through `restitution_range()`
+  [PASS] one material-authoring helper definition + exactly two call sites (create + rescale)
+  [PASS] the compliant contact is authored in exactly one place (the helper)
+  [PASS] both call sites pass the P12-A resolvers (`restitution_range()` + `fruit_contact_stiffness(shape)`)
+  [PASS] the helper consumes no rng (the restitution draw stays at the call site, so the shipped rng stream is unchanged)
+  [FAIL] the knob-on banner is gated on `physics_real()` (the knob-off log stream is byte-identical)
+  [PASS] fruits.py imports the P12-A resolvers from meshes
+== 2. the value table under both settings ==
+  [PASS] all 8 classes present (['apple', 'kiwi', 'lychee', 'orange', 'peach', 'pear', 'strawberry', 'tomato'])
+  [PASS] the shipped `density` values are the audit's F4 table (unchanged)
+  [PASS] the real density table is the P12-A table (tomato 780 -> 960; apple 850 -> 840; orange 900 -> 1000; peach 820 -> 1000; pear 880 -> 950; kiwi 900 -> 1050; lychee 850 -> 1000; strawberry 700 -> 950)
+  [PASS] the real contact-stiffness table is the P12-A table (tomato 4000; apple 27000; the rest by size/firmness)
+  [PASS] `fruit_density`: knob off = the shipped table, knob on = the real table, all 8 classes
+  [PASS] `fruit_contact_stiffness`: 0.0 (rigid) off, the class value on, all 8 classes
+  [PASS] the default switch (env unset in this process) resolves to the shipped numbers: tomato density 780, apple stiffness 0.0
+  [PASS] `restitution_range`: shipped (0.02, 0.2) / real (0.35, 0.50); the default (switch off) is shipped
+  [PASS] the shipped restitution draw is byte-identical to the literal `uniform(0.02, 0.2)`
+  [PASS] the real restitution draw is the literal `uniform(0.35, 0.50)`
+  [PASS] the compliant damping is the audit's 80 Ns/m
+  [PASS] the mass arithmetic at a pinned diameter: off == the literal shipped 780 kg/m^3 mass (68.8 g at 59 mm)
+  [PASS] knob on: the mass is the literal 960 kg/m^3 mass and is heavier (84.7 g at 59 mm)
+== 3. the import-time resolution (subprocess) ==
+  [PASS] all four subprocesses ran
+  [PASS] env unset: off, tomato 780, apple stiffness 0.0, restitution (0.02, 0.2)
+  [PASS] env 0: the shipped numbers (the explicit off)
+  [PASS] env 1: on, tomato 960, apple stiffness 27000, restitution (0.35, 0.5)
+  [PASS] env `true`: off (the exact `== "1"` parse, like the other `FRUIT_*` flags)
+  [PASS] read once: the env set after import does not move the switch (the cached constant)
+== 4. the authored material (the REAL helper, recording fakes) ==
+  [PASS] knob off: exactly the shipped three attributes - static friction, dynamic friction, restitution - and nothing else
+  [PASS] knob off: `PhysxMaterialAPI` is never applied (no compliant attributes can exist)
+  [PASS] knob off: the material is bound to the fruit prim with weakerThanDescendants/physics (the shipped binding)
+  [PASS] knob on: the compliant stiffness/damping are added with the class values (apple 27000 N/m, 80 Ns/m)
+  [PASS] knob on: `PhysxMaterialAPI` applied exactly once, same binding
+  [PASS] knob on: the tomato 4000 N/m value is authored as passed
+== 5. rl_env pin / tasks.py untouched ==
+  [PASS] rl_env TASKS_MD5 == live tasks.py md5 (b54b54064607c50f7ed0adc906c97a45)
+  [FAIL] tasks.py is untouched by this lane (the P11-C.3 baseline 810658b802d22bbd63013726fc78af81)
+
+RESULT: FAIL (2 check(s) failed)
+  - the knob-on banner is gated on `physics_real()` (the knob-off log stream is byte-identical)
+  - tasks.py is untouched by this lane (the P11-C.3 baseline 810658b802d22bbd63013726fc78af81)
+@@@ RESULT FAIL exit=1
+@@@ logs/p13/check_ev1_runtime.py
+checkpoint checkpoints/ev1/policy_best.pt  md5 c2656cc292c9c65eff0ba19b6632d59a
+  [PASS] shipped PolicyRunner loads ev1 strictly + act() returns a finite chunk
+  [PASS] event_heads block: 8 prefix-free tensors
+  [PASS] provenance: P13-A knobs + the moe_v13s base pin
+  [PASS] model entry: base keys only (no event.*)
+Traceback (most recent call last):
+  File "/home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p13/check_ev1_runtime.py", line 106, in <module>
+    raise SystemExit(main())
+                     ~~~~^^
+  File "/home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p13/check_ev1_runtime.py", line 77, in main
+    model = ConditionalUNet1D(
+        action_dim=int(config["action_dim"]),
+    ...<5 lines>...
+        event_heads=True,
+    )
+TypeError: ConditionalUNet1D.__init__() got an unexpected keyword argument 'event_heads'
+@@@ RESULT FAIL exit=1
+@@@ logs/p13/check_event_heads.py
+Traceback (most recent call last):
+  File "/home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p13/check_event_heads.py", line 44, in <module>
+    from fruit_sorting.policy.model import ConditionalUNet1D, EventHeads  # noqa: E402
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ImportError: cannot import name 'EventHeads' from 'fruit_sorting.policy.model' (/home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/src/fruit_sorting/policy/model.py)
+@@@ RESULT FAIL exit=1
+@@@ logs/p14c/check_ablations.py
+
+=== ev1  checkpoints/ev1/policy_best.pt  md5 c2656cc292c9c65eff0ba19b6632d59a (18575253 bytes) ===
+  [PASS] shipped PolicyRunner loads strictly + act() returns a finite chunk
+  [PASS] model entry: base keys only (no event.*)
+  [PASS] provenance base pin == moe_v13s 61da390a
+  [PASS] provenance: 6 epochs, lr 5e-5, weight_mode ones
+  [PASS] history: 6 epochs
+  [PASS] ev1 event_heads block: 8 prefix-free tensors
+
+=== ev_a1  checkpoints/ev_a1/policy_best.pt  md5 0c18f6bec929745ba7ac3359079fe608 (18574997 bytes) ===
+  [PASS] shipped PolicyRunner loads strictly + act() returns a finite chunk
+  [PASS] model entry: base keys only (no event.*)
+  [PASS] provenance base pin == moe_v13s 61da390a
+  [PASS] provenance: 6 epochs, lr 5e-5, weight_mode ones
+  [PASS] history: 6 epochs
+  [PASS] event_heads block: 8 prefix-free tensors
+  [PASS] provenance: heads on, transition weight 0.0
+  [PASS] head metrics recorded per epoch (phase_acc, ttt_mae)
+
+=== ev_a2  checkpoints/ev_a2/policy_best.pt  md5 74a58e4a1b758908eab0310fd22bec39 (18426699 bytes) ===
+  [PASS] shipped PolicyRunner loads strictly + act() returns a finite chunk
+  [PASS] model entry: base keys only (no event.*)
+  [PASS] provenance base pin == moe_v13s 61da390a
+  [PASS] provenance: 6 epochs, lr 5e-5, weight_mode ones
+  [PASS] history: 6 epochs
+  [PASS] no event_heads payload block
+  [PASS] provenance: heads off, transition weight 1.0
+
+=== ev_a3  checkpoints/ev_a3/policy_best.pt  md5 275e06f9f55a3341dcc1789896dd1151 (18425931 bytes) ===
+  [PASS] shipped PolicyRunner loads strictly + act() returns a finite chunk
+  [PASS] model entry: base keys only (no event.*)
+  [PASS] provenance base pin == moe_v13s 61da390a
+  [PASS] provenance: 6 epochs, lr 5e-5, weight_mode ones
+  [PASS] history: 6 epochs
+  [PASS] no event_heads payload block
+  [PASS] provenance: no event fields (plain 6-epoch run)
+
+=== ev_a1 head re-attach (e078f43 model.py) ===
+  [PASS] heads re-attach; finite (3, 4) / (3,) outputs
+
+=== weight deltas vs moe_v13s (payload['model'], shared keys) ===
+
+ev1 vs base:
+  overall mean |delta| = 0.002196 over 4594926 params
+  module                   max|d|  keys
+  action_in               0.004868     2
+  blocks                  0.025468    62
+  condition.goal          0.025268     4
+  condition.proprio       0.151849     4
+  experts                 0.032360    20
+  head                    0.018115     4
+  router                  0.072094     4
+  time                    0.012910     4
+  visual                  0.029529    18
+
+ev_a1 vs base:
+  overall mean |delta| = 0.002283 over 4594926 params
+  module                   max|d|  keys
+  action_in               0.003880     2
+  blocks                  0.029791    62
+  condition.goal          0.026141     4
+  condition.proprio       0.150916     4
+  experts                 0.026022    20
+  head                    0.024563     4
+  router                  0.070783     4
+  time                    0.013847     4
+  visual                  0.029025    18
+
+ev_a2 vs base:
+  overall mean |delta| = 0.002032 over 4594926 params
+  module                   max|d|  keys
+  action_in               0.004578     2
+  blocks                  0.026391    62
+  condition.goal          0.025403     4
+  condition.proprio       0.029422     4
+  experts                 0.037429    20
+  head                    0.020284     4
+  router                  0.074380     4
+  time                    0.009335     4
+  visual                  0.025675    18
+
+ev_a3 vs base:
+  overall mean |delta| = 0.002077 over 4594926 params
+  module                   max|d|  keys
+  action_in               0.003815     2
+  blocks                  0.028258    62
+  condition.goal          0.025730     4
+  condition.proprio       0.031255     4
+  experts                 0.027352    20
+  head                    0.020342     4
+  router                  0.072360     4
+  time                    0.010659     4
+  visual                  0.027133    18
+
+PASS: all three ablations load in the shipped runtime with the expected payloads.
+@@@ RESULT PASS
+@@@ logs/p16i/check_arrive.py
+== 1. source checks ==
+  [PASS] `FRUIT_DYNAMIC_ARRIVE_TOL` is read exactly once, default "0.0"
+  [PASS] `FRUIT_DYNAMIC_ARRIVE_MAX` is read exactly once, default "0"
+  [PASS] `FRUIT_DYNAMIC_ARRIVE_DIAG` is read exactly once, default "0"
+  [PASS] the three attributes are assigned exactly once each in __init__ (AST)
+  [PASS] `_approach` gains arrive_tol=0.0, arrive_max=0, report_end=False (AST defaults; every caller that passes nothing is byte-unchanged)
+  [PASS] `_approach` calls `_arrive_hold(arm, target, arrive_tol, arrive_max)` exactly once, no keywords (the gate lives in the helper)
+  [PASS] the `_arrive_hold` call precedes the monitor's `end=` block in `_approach` (the motion row's `end=` is the settled gap when the loop ran)
+  [PASS] `_approach` returns `(end_gap_m, arrive_info)`
+  [PASS] the monitor's `end=` recipe is unchanged (one site)
+  [PASS] exactly two `_approach` call sites in `_grasp_carry_place_impl`
+  [PASS] the moving catch is the `grip` call and the pre-grasp is `free`
+  [PASS] the moving-catch call passes the knobs under `dynamic_capture` (0.0 / 0 on every other dynamic state) and `report_end` on the diag
+  [PASS] the pre-grasp call passes no arrival keywords (byte-unchanged)
+  [PASS] exactly one `[arrive]`/`[boundary]` row block in the impl (AST)
+  [PASS] the row block is gated exactly on `self._dynamic_arrive_diag and dynamic_capture and (not skip_approach)`
+  [PASS] the row block is pure reporting (no control-side writes, no stepping/IK calls, no `self.<attr> =` assignments)
+  [PASS] one `[arrive]` say and one `[boundary]` say
+  [PASS] the `[arrive]` say sits inside `if arrive_info is not None:` (only printed when the loop ran)
+  [PASS] `_arrive_hold` commands `arm.ik_step(target)` and steps once per iteration (the design's primitive pair)
+  [PASS] the off gate is `if tol <= 0.0 or max_ticks <= 0: return None`
+== 2. knob resolution (real statements, exec'd) ==
+  [PASS] tol: unset -> 0.0; 0.006 -> 0.006; 0 -> 0.0; -1 -> 0.0 (clamped)
+  [PASS] max: unset -> 0; 24 -> 24; 0 -> 0; -3 -> 0 (clamped)
+  [PASS] diag: unset -> False; 1 -> True; true -> False; 0 -> False
+== 3. default-off byte-identity ==
+  [PASS] `_arrive_hold` returns None for every off combination without touching the arm or the stepping hook (a raising operand proves no call is made)
+== 4. the arrival loop (real method, exec'd) ==
+  [PASS] converges inside the cap (10 mm, 2 mm/tick, tol 6): stops at the tol: ticks=2 (ref 2), settled=6.00mm (ref 6.00mm)
+  [PASS]   the same case commands exactly 2 ik_step(s) + 2 physics tick(s), all at the aim
+  [PASS] already arrived (3 mm <= tol 6): zero ticks commanded: ticks=0 (ref 0), settled=3.00mm (ref 3.00mm)
+  [PASS]   the same case commands exactly 0 ik_step(s) + 0 physics tick(s), all at the aim
+  [PASS] edge equality (6 mm == tol 6): zero ticks: ticks=0 (ref 0), settled=6.00mm (ref 6.00mm)
+  [PASS]   the same case commands exactly 0 ik_step(s) + 0 physics tick(s), all at the aim
+  [PASS] never converges inside the cap (100 mm, 1 mm/tick, tol 6, max 24): ticks=24 (ref 24), settled=76.00mm (ref 76.00mm)
+  [PASS]   the same case commands exactly 24 ik_step(s) + 24 physics tick(s), all at the aim
+  [PASS] single-tick overshoot (10 mm, 50 mm/tick): lands on the aim: ticks=1 (ref 1), settled=0.00mm (ref 0.00mm)
+  [PASS]   the same case commands exactly 1 ik_step(s) + 1 physics tick(s), all at the aim
+  [PASS] off-diagonal residual keeps its direction: ticks=3 (ref 3), settled=2.14mm (ref 2.14mm)
+  [PASS]   the same case commands exactly 3 ik_step(s) + 3 physics tick(s), all at the aim
+  [PASS] the tuple is (start_gap, settled_gap, ticks, residual): 10.0 -> 6.0 mm in 2 ticks, residual = +6.0 mm on x
+  [PASS] an already-arrived descent returns the initial residual as the settled one (ticks=0)
+== 5. the rows' format (real statements, exec'd) ==
+  [PASS] the treatment pair matches the independent reference exactly: ['[arrive] left idx=3 start=9.4mm settled=3.1mm ticks=7 dx=+1.2mm dy=-2.5mm dz=+1.5mm', '[boundary] left idx=3 end=3.1mm reach_dn=+67.5mm reach_up=+82.5mm belt_margin=+35.0mm']
+  [PASS] the `[arrive]` row carries start/settled/ticks and the signed direction in mm
+  [PASS] the `[boundary]` row carries the end= shortfall and the three margins in mm
+  [PASS] outside the band / below the belt: the margins go negative ([boundary] left idx=3 end=3.1mm reach_dn=+180.0mm reach_up=-30.0mm belt_margin=-30.0mm)
+  [PASS] arrival off: only the `[boundary]` row, end= = the shipped shortfall
+  [PASS] diag off: no rows
+  [PASS] non-dynamic capture: no rows
+  [PASS] skipped descent (the direct hold): no rows
+== 6. rl_env pin ==
+  [PASS] rl_env TASKS_MD5 == live tasks.py md5 (b54b54064607c50f7ed0adc906c97a45)
+
+RESULT: PASS (the knobs resolve default-off and clamp negatives; the off gate returns None without touching the arm - the shipped path is byte-unchanged; the real arrival loop matches the independent reference on synthetic residuals, stops at the tol and caps at the max with one command + one tick per used tick; the real [arrive]/[boundary] rows match the reference format and arithmetic and print only under the diag on a dynamic descent; the pin matches)
+@@@ RESULT PASS
+@@@ logs/p17i/check_slide_gate.py
+== 1. source checks ==
+  [PASS] all eleven knobs are read exactly once each with the shipped defaults (bool `== "1"`; float/int inside the `max(floor, ...)` clamp)
+  [PASS] each knob attribute is assigned exactly once in `__init__` (AST)
+  [PASS] each of the ten helpers is defined exactly once (AST)
+  [PASS] the H1 scope is `slide_on = bool(self._slide_gate and dynamic_capture)`
+  [PASS] the H2 scope is `two_sided_gate = bool(self._freeze_twosided and dynamic_capture)`
+  [PASS] `_slide_gate_target` is called exactly twice (hold + probe-1), `_slide_gate_tick` twice, `_slide_gate_begin_phase` once, `_slide_gate_end_phase` twice, `_slide_gate_observe` once (inside `_slide_gate_tick`): {'_slide_gate_observe': 1, '_slide_gate_target': 2, '_slide_gate_report': 0, '_slide_gate_summary': 0, '_slide_gate_begin_phase': 1, '_slide_gate_end_phase': 2, '_slide_gate_tick': 2, '_freeze2_split': 1, '_freeze2_step': 1, '_freeze_twosided_report': 3}
+  [PASS] every H1 call site is gated on `slide_on`: three plain hold blocks + the four `_regrasp == 0` probe-1 blocks
+  [PASS] `_freeze2_step` is called exactly once (inside `two_sided_gate`), the H2 row three times (shipped/straddle/fallback)
+  [PASS] the H2 straddle commit is gated `if two_sided_gate and freeze_cmd is None`; the fallback on `two_sided_gate and freeze_cmd is None and shipped_depth is not None`
+  [PASS] the H2 withholding branch remembers the shipped record (`shipped_depth`/`shipped_tick`/`shipped_span` at the first sustained contact) and the fallback pins `last_cmd = float(shipped_depth)`
+  [PASS] the row helpers are pure reporting (no `self.<attr> =`, no `ik_step`/`_step_sim`/`set_dof`)
+  [PASS] the row helpers are diag-gated (`if not self._slide_gate_diag: return` / `if not self._freeze_twosided_diag: return`)
+  [PASS] the H2 row's commit sources are `shipped`/`straddle`/`fallback`
+  [PASS] `_slide_gate_tick` reads the TCP quaternion + `pad_centre()` + the payload position (the W8-B carry-diag recipe) and maps them to the hand frame
+== 2. knob resolution (real statements, exec'd) ==
+  [PASS] unset: the shipped defaults (0/60.0/3/8.0/2/60.0/0 and 0/0.5/3/0)
+  [PASS] screen values resolve exactly (1/80/4/6/1/40/1 and 1/1.5/5/1)
+  [PASS] explicit zeros resolve to the off forms (0.0/0/False)
+  [PASS] negative values clamp: floats -> 0.0, tick floors -> 1, the response cap -> 0, bools -> False
+  [PASS] bool knobs read only the literal "1" ("2" = off)
+== 3. default-off byte-identity ==
+  [PASS] CONTROL_DT extracted from the module source (0.008333333333333333)
+  [PASS] the impl carries one `slide_book` literal (AnnAssign, AST)
+  [PASS] the book is allocated only when the gate is armed (`slide_on` False -> `slide_book` is None; nothing runs on the shipped path)
+  [PASS] unlatched `_slide_gate_target` returns the shipped target unchanged (0.0, -0.0216, 1.0) (and records no step)
+  [PASS] unlatched `_slide_gate_target` returns the shipped target unchanged (0.3, -0.03, 1.19) (and records no step)
+  [PASS] unlatched `_slide_gate_target` returns the shipped target unchanged (0.0, 0.0, 0.0) (and records no step)
+  [PASS] the gate-off claim is by call gating, not by value: a latched book with the knob on does move the aim (the helper itself is value-transparent when unlatched)
+  [PASS] `_freeze2_step` returns False until the sustained run reaches the tick floor (2 ready ticks < 3)
+  [PASS] all three row helpers print nothing with the diags off (default)
+== 4. the slide-gate logic (real helpers, exec'd) ==
+  [PASS] a stationary payload never triggers (10 samples, rate/drift 0)
+  [PASS] an over-band slide triggers after exactly `_TICKS` samples (events=[None, None, None, 'trigger', None])
+  [PASS] the trigger record is the reference arithmetic: rate = 1.2 mm / (1/120 s) = 144.0 mm/s, drift = 3 * 1.2 mm, tick = 4
+  [PASS] the latch holds while the rate stays over-band (no further triggers, one response used)
+  [PASS] the step case triggered at sample 4
+  [PASS] the first latched tick moves exactly `_STEP_MM`=6 mm toward the re-centre point (6.000 mm) and records it
+  [PASS] the move direction is toward the payload's measured centre (the aim sits between the previous command and the recentre point)
+  [PASS] 12 latched ticks converge onto the re-centre point with every step <= `_STEP_MM`
+  [PASS] step=0 keeps the aim exactly where it was (bounded to zero)
+  [PASS] the response budget caps the count at `_MAX`=2 (triggers=2, releases=2)
+  [PASS] a third over-band run after the budget is spent does not latch (the last samples stay None)
+  [PASS] the release fires on the first below-band sample and the post-rate is that sample's rate (~0 mm/s here; events=['trigger', 'release'])
+  [PASS] the release walk-back returns the aim to the shipped target with every step <= `_STEP_MM` ([6.0, 6.0, 3.6, 0.0, 0.0, 0.0, 0.0, 0.0])
+  [PASS] drift beyond the recovery window suppresses the trigger (window 3.0 mm < the 3.6 mm drift at the would-be trigger)
+  [PASS] the same sequence inside the window triggers (boundary check)
+  [PASS] `_TICKS`=6 moves the trigger to the 7th sample
+  [PASS] `_slide_gate_begin_phase` sets the phase and resets the counters (the drift reference and the response budget survive)
+  [PASS] `_slide_gate_end_phase` reports a still-latched response as `end=phase` and releases it, then the summary
+== 5. the two-sided gate's truth table (real helpers, exec'd) ==
+  [PASS] `_freeze2_split` groups by face on the shipped and D2 key forms and ignores malformed keys
+  [PASS] a reading without the attribute reads (0.0, 0.0)
+  [PASS] `_freeze2_step` commits exactly at the `_TICKS`-th consecutive two-sided sample and resets on a one-sided one ([False, False, False, False, False, True])
+  [PASS] the floor is inclusive (0.5 N reads ready at the shipped floor, 0.4999 does not)
+  [PASS] `_TWOSIDED_TICKS` binds the sustained count (5 ticks -> the 5th sample commits)
+== 6. the rows' formats (real statements, exec'd) ==
+  [PASS] the `[slide]` response row matches the reference exactly: [slide] left idx=3 hold response=1/2 trig@4 rate=144.0mm/s drift=3.6mm step=6.0mm post=20.0mm/s end=release
+  [PASS] the `[slide]` summary row matches the reference exactly: [slide] right idx=7 probe1 summary ticks=60 events=1 rate_max=144.0mm/s drift_max=5.1mm
+  [PASS] the `[freeze2]` straddle row matches the reference exactly: [freeze2] left idx=3 commit=straddle tick=27 depth=68.3mm span=70.1mm ft=(1.23,0.98)N run=3 ship=21t/70.5mm
+  [PASS] the `[freeze2]` fallback row matches the reference exactly: [freeze2] right idx=9 commit=fallback tick=21 depth=70.5mm span=71.2mm ft=(3.10,0.00)N run=2 ship=21t/70.5mm
+  [PASS] a straddle commit with no shipped-eligible record prints `ship=none`
+  [PASS] the shipped commit (the control read with the diag on) prints its own record as the shipped one
+== 7. rl_env pin ==
+  [PASS] rl_env TASKS_MD5 == live tasks.py md5 (b54b54064607c50f7ed0adc906c97a45)
+
+RESULT: PASS (the eleven knobs resolve default-off with the exact clamps; the unlatched target passes the shipped aim through and the two-sided helper never commits below its tick floor, so the knob-off path is byte-inert; the real slide logic triggers on the synthetic over-band sequences with the reference rate/drift, clips every re-centring step at `_STEP_MM`, caps the responses at `_MAX`, releases on the arrest and honours the recovery window; the two-sided split/commit truth table matches on the shipped and D2 key forms; the `[slide]`/`[freeze2]` rows match the reference format and stay silent with the diags off; the pin matches)
+@@@ RESULT PASS
+@@@ logs/p18b/check_preconditions.py
+manifest: logs/p18b/N5_fix/raw/A_1/direct_none_seed77/manifest.json
+  trigger = {'acq': True, 'acq_cap': 4.5, 'acq_margin': 0.6, 'acq_reach_margin': 0.05, 'acq_speed': 0.2, 'finger': 0.04, 'frame': 's
+  tasks_md5 = 3d88408dd5e82614dec7768faa17f77a
+  rate = 4/15; [carry] rows = 27; intercept-trigger notes = 15
+PRECONDITIONS OK
+@@@ RESULT PASS
+@@@ logs/p20i/check_resync.py
+== source checks ==
+  [PASS] FRUIT_READY_SKIP_RESYNC is read exactly once, default "1" (the P20-C adoption)
+  [PASS] the P9-A knobs keep one read each (SKIP / SKIP_DG / SKIP_HOLD / SETTLE)
+  [PASS] the two helpers are defined exactly once
+  [PASS] the cumulative-credit accumulator starts at 0
+  [PASS] the debit is `_ready_transit_ticks(dg) - max(0, hold)`, exactly once, inside the knob guard
+  [PASS] the credit sits inside the skip branch, after the placebo hold, once
+  [PASS] the credit is added to the cumulative readout exactly once
+  [PASS] the [ready] credit suffix is gated on the knob; the P9-A fields intact
+  [PASS] READY_TRANSIT_BLEND_TICKS == 90 (got 90)
+  [PASS] READY_CATCH_UP_TICKS == 20 (got 20)
+  [PASS] READY_CATCH_UP_TOL == 0.01 (got 0.01)
+  [PASS] the constants still match the real call-site defaults (`_transit_to` ticks=90, `_catch_up_drive` ticks=20)
+  [PASS] `_catch_up_drive`'s no-op early-out is still the literal `gap <= 0.01`
+  [PASS] fruits.py gains no `_supply_shift` / `advance_supply_clock` (the design form is absent - no double credit)
+  [PASS] the schedule cursor is only written by the shipped sites (['__init__', '_pump_supply', 'reset', 'update'])
+  [PASS] the pump's four schedule sites are still on `sim_time` (so the cursor offset is the whole re-anchor)
+== knob resolution (the REAL __init__ statement) ==
+  [PASS] env None -> _ready_skip_resync=True (expected True)
+  [PASS] env '0' -> _ready_skip_resync=False (expected False)
+  [PASS] env '1' -> _ready_skip_resync=True (expected True)
+  [PASS] env 'true' -> _ready_skip_resync=False (expected False)
+  [PASS] env 'yes' -> _ready_skip_resync=False (expected False)
+  [PASS] CONTROL_DT is 0.008333333333333333 s (120 Hz)
+== the debit arithmetic (the REAL _ready_transit_ticks) ==
+  [PASS] dg=0.0004 settle=120 -> 210 ticks (reference 210, 1.750 s of belt)
+  [PASS] dg=0.01 settle=120 -> 210 ticks (reference 210, 1.750 s of belt)
+  [PASS] dg=0.0101 settle=120 -> 230 ticks (reference 230, 1.917 s of belt)
+  [PASS] dg=0.0131 settle=120 -> 230 ticks (reference 230, 1.917 s of belt)
+  [PASS] dg=0.0135 settle=120 -> 230 ticks (reference 230, 1.917 s of belt)
+  [PASS] dg=0.02 settle=120 -> 230 ticks (reference 230, 1.917 s of belt)
+  [PASS] dg=0.0135 settle=60 -> 170 ticks (reference 170, 1.417 s of belt)
+  [PASS] dg=0.0004 settle=60 -> 150 ticks (reference 150, 1.250 s of belt)
+  [PASS] the design's flat `20 + 90 + settle` = 230 is exact only for dg > 0.01 (it over-credits the dg<=0.01 rows by 20 ticks)
+== the credit (the REAL _resync_supply_clock) ==
+  [PASS] knob off: returns 0 and never touches the spawner
+  [PASS] knob off: the cumulative readout stays 0
+  [PASS] knob on: the call reports the ticks credited
+  [PASS] knob on: the cursor moves by exactly 230 * CONTROL_DT s
+  [PASS] knob on: the cumulative readout is the tick count
+  [PASS] a second skip accumulates exactly (230 + 210 = 440 ticks)
+  [PASS] ticks <= 0 credits nothing
+  [PASS] an absent spawner credits nothing
+  [PASS] the fixed (non-pump) line credits nothing and keeps its cursor
+  [PASS] `stream=False` (no pump) credits nothing
+== the skip site (the REAL debt block, exec'd) ==
+  [PASS] knob on, HOLD=0: one skip credits 230 ticks exactly once
+  [PASS] the placebo (HOLD=230) cancels the debt one-for-one: 0 ticks, cursor intact
+  [PASS] a partial hold credits the remainder (230 - 100 = 130)
+  [PASS] a skip with dg <= 0.01 credits 210 (no catch-up ramp was removed)
+  [PASS] five skips credit 5 * 230 = 1150 ticks, no drift
+  [PASS] knob off at the site: no credit, the cursor untouched, neither helper called (byte-inert; error=None)
+== the re-anchor end-to-end (schedule model, shipped gap band) ==
+  [PASS] 10 skips credit 10 * 230 = 2300 ticks (2300 read back)
+  [PASS] control vs re-anchored: identical due/released/past per pump (True, 29 released slots)
+  [PASS] control vs re-anchored: identical late/along streams (29 slots, 108 gaps drawn)
+  [PASS] the design's shift form is identical to the cursor form (the deviation is algebraic, not behavioural)
+  [PASS] the un-anchored lever is NOT the control stream (the mechanism fires)
+  [PASS] the re-anchored pump instant equals the control's at every slot (virtual clock invariant, max |delta| = 0.00e+00 s)
+  [PASS] the cumulative debt is 0.23 m/gap and reaches 1.84 m at slot 7 (the design's 1.84 m by slot 8): [0.23, 0.46, 0.69, 0.92, 1.15, 1.38, 1.61, 1.84, 2.07, 2.3]
+== pins ==
+  [PASS] rl_env TASKS_MD5 == live tasks.py md5 (b54b54064607c50f7ed0adc906c97a45)
+    tasks.py md5 b54b54064607c50f7ed0adc906c97a45
+    fruits.py md5 d28546d26137d4540421caa7fa34a139
+    rl_env.py md5 661e467bc545059246daa34d1fcaf430
+
+RESULT: PASS (all checks)
+@@@ RESULT PASS
+@@@ logs/p21i/check_release_holds.py
+PASS: the release hold-count knobs (default 3, max(1, ...)), the unset tail = 196 ticks,
+      the lever tail = 76 ticks (-120), the pin matches.
+@@@ RESULT PASS
+@@@ logs/p28i/check_speed_channel.py
+section 0: the gate
+  [PASS] gate unset -> the channel is off
+  [PASS] the fixed normaliser pair is (0.12, 0.05)
+  [PASS] the default pin is 0.12
+
+section 1: source checks (the 13 design sites this lane owns)
+  [PASS] rl_env.proprio: the speed append sits under `if self._speed_channel:`
+  [PASS] rl_env.__init__ reads the gate once into `_speed_channel`
+  [PASS] rl_env refuses a checkpoint whose proprio_dim disagrees with the gate
+  [PASS] _MANIFEST_SOURCES pins policy/data.py and policy/finetune.py (design 2.5.2)
+  [PASS] the run manifest records belt_speed and the channel gate (design 6.1)
+  [PASS] 60_eval_policy is in lockstep: same helper, gated, one append site
+  [PASS] 60_eval_policy reads the same gate
+  [PASS] policy/data.py: the column is appended only under `if self.speed_channel:`
+  [PASS] policy/data.py: compute_normalizer WRITES the fixed pair (design C2)
+  [PASS] policy/data.py: the pin chain reads supply.belt_speed from a manifest
+  [PASS] correction.py slices with the head's config, not the module constants
+
+section 2: B0 - the widened 26-D artifact is the 25-D anchor at step 0
+  [PASS] the anchor checkpoint exists - /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/checkpoints/moe_v13s/policy_best.pt
+         anchor md5 61da390a85fa209496b54477a8255d23
+  [PASS] the anchor is 25-D
+  [PASS] widen_proprio reports a widening
+  [PASS] config proprio_dim 25 -> 26
+  [PASS] the first Linear is (128, 25) -> (128, 26) - (128, 25) -> (128, 26)
+  [PASS] the new column is EXACTLY 0
+  [PASS] the 25 old columns are bitwise the artifact's
+  [PASS] the bias and every other tensor are bitwise unchanged
+  [PASS] the normaliser grows by exactly the fixed (0.12, 0.05) entry
+  [PASS] widen_proprio is idempotent (a second call is a no-op)
+  [PASS]  ... and it does not re-append a second entry
+  [PASS] the channel value has zero influence (0.0/0.08/0.12/0.15 bit-identical) - max|delta| = 0.000e+00
+         batch  1: conditioning max|delta| 0.000e+00, denoiser output max|delta| 0.000e+00
+         batch  3: conditioning max|delta| 2.384e-07, denoiser output max|delta| 2.861e-06
+         batch 32: conditioning max|delta| 1.192e-07, denoiser output max|delta| 2.384e-06
+  [PASS] batch 1 (the deployed inference shape) is BIT-IDENTICAL - cond 0.0e+00 / out 0.0e+00
+  [PASS] batched forwards differ only by float32 reduction order (<= 5e-6) - b1: 0.0e+00, b3: 2.9e-06, b32: 2.4e-06
+  [PASS] float64 reference: no algorithmic difference (<= 1e-14, the fp64 floor) - max|delta| = 2.220e-16
+
+section 2b: B0 through the shipped runtime (`PolicyRunner.act`)
+  [PASS] the runtime reads 25-D from the anchor and 26-D from the widened artifact
+  [PASS] the deployed action chunk is BYTE-IDENTICAL (25-D vs 26-D artifact) - max|delta| = 0.000e+00
+  [PASS] the channel's value has zero influence on the deployed chunk - max|delta| = 0.000e+00
+
+section 3: the pin chain (`shard` -> manifest -> supply.belt_speed)
+[data] speed channel: 1 episodes, proprio_dim=26, pins=[0.15], declared=None, sources={'manifest': 1} (default 0.12 when no manifest declares it)
+  [PASS] a manifest's supply.belt_speed pins the store (0.15) - [0.15] ['manifest:/home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p28i/_tmp/stores/s_manifest/manifest.json']
+[data] speed channel: 1 episodes, proprio_dim=26, pins=[0.12], declared=None, sources={'default': 1} (default 0.12 when no manifest declares it)
+  [PASS] a store with no belt_speed falls back to 0.12 (the shipped default) - [0.12] ['default']
+[data] speed channel: 1 episodes, proprio_dim=26, pins=[0.06], declared=0.06, sources={'declared': 1} (default 0.12 when no manifest declares it)
+  [PASS] a declared pin wins where no manifest declares one (0.06) - [0.06] ['declared']
+[data] speed channel: 2 episodes, proprio_dim=26, pins=[0.08, 0.15], declared=None, sources={'manifest': 2} (default 0.12 when no manifest declares it)
+  [PASS] a merged store resolves PER EPISODE through its shard stamp ([0.08, 0.15]) - [0.08, 0.15] ['manifest:/home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p28i/_tmp/stores/shards/a/manifest.json', 'manifest:/home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p28i/_tmp/stores/shards/b/manifest.json']
+  [PASS] a declared pin that contradicts the manifest RAISES (design 2.2 risk 2) - belt-speed pin conflict for /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p28i/_tmp/stores/s_manifest: the caller declares 0.1200 m/s but /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p28i/_tmp/stores/s_manifest/manifest.json records 0.1500 m/s. The speed channel trains on a constant, so a wrong pin is a silent scenario change; fix the pin (see the table in logs/p28/SPEED_CHANNEL_DESIGN.md 4.3) or drop it to trust the manifest.
+  [PASS] the synthesised column is the episode's pin, last dim
+  [PASS] the second episode carries its own pin (0.15)
+  [PASS] the live P28-C shard (datasets/ss008, the P28-A field) reads 0.08 - 0.08
+
+section 4: the gate-off (25-D) path is byte-inert
+  [PASS] gate off: the store is 25-D
+  [PASS] gate off: one frame is bitwise the shipped expression
+  [PASS] gate off: `proprio(t=None)` is bitwise the shipped all-frames expression
+  [PASS] gate off: compute_normalizer is bitwise the shipped computation
+[data] speed channel: 1 episodes, proprio_dim=26, pins=[0.15], declared=None, sources={'manifest': 1} (default 0.12 when no manifest declares it)
+  [PASS] the gate is read per store, not cached module-side
+  [PASS] gate off: the model sees 25 dims and the shipped 5-channel image stack
+
+section 5: the 26-D training path
+[data] speed channel: 2 episodes, proprio_dim=26, pins=[0.08, 0.15], declared=None, sources={'manifest': 2} (default 0.12 when no manifest declares it)
+  [PASS] compute_normalizer yields 26 entries with the FIXED pair at the last dim
+  [PASS] the 26-D normalised channel is on the documented z grid (0.08 -> -0.80)
+  [PASS] the store's sample width matches its declared proprio_dim
+  [PASS] train.py needs no change: dims come from the sample (26)
+  [PASS] a 26-D Normalizer normalises a 26-D sample (loud on a width mismatch)
+  [PASS] a 26-D sample through the 25-D normaliser raises
+  [PASS] the VLASH state offset keeps the 26th dim on every draw - shapes seen = [26]
+
+==============================================================================
+note: anchor md5 61da390a85fa209496b54477a8255d23
+note: batch  1: conditioning max|delta| 0.000e+00, denoiser output max|delta| 0.000e+00
+note: batch  3: conditioning max|delta| 2.384e-07, denoiser output max|delta| 2.861e-06
+note: batch 32: conditioning max|delta| 1.192e-07, denoiser output max|delta| 2.384e-06
+==============================================================================
+PASS: all checks (4 notes)
+@@@ RESULT PASS
+@@@ logs/p9a/check_skip_predicate.py
+== source checks ==
+  [PASS] READY_SKIP_TOL == 0.03 (got 0.03)
+  [PASS] READY_SKIP_SYNC_TOL == 0.01 (got 0.01)
+  [PASS] the predicate is exactly `err <= READY_SKIP_TOL and dg <= self._ready_skip_dg`
+  [PASS] the skip-dg knob defaults to the flipped 0.02 (the P20-C adoption; `FRUIT_READY_SKIP_DG` unset -> 0.02; the P9-A class-constant form is retired)
+  [PASS] the scope gate is single-arm + not two-line-armed
+  [PASS] FRUIT_READY_SKIP resolves with the flipped default on, only under that scope
+  [PASS] B2 default is the shipped 120 (`FRUIT_READY_SETTLE`)
+  [PASS] the diag flag defaults off (`FRUIT_READY_DIAG`)
+  [PASS] the skip path keeps the shipped post-condition (target at ready + sync)
+  [PASS] each new env knob is read at exactly one site
+== predicate cases (synthetic + measured residuals) ==
+  [PASS] exactly at ready (err=0, dg=0): fires=True (expected True)
+  [PASS] passive no-op shape (err 0.0139; dg inside the catch-up band): fires=True (expected True)
+  [PASS] right-arm steady residual at ready (610 stream, 0.0131): fires=True (expected True)
+  [PASS] exact tolerances (inclusive edge): fires=True (expected True)
+  [PASS] err one tick outside: fires=False (expected False)
+  [PASS] dg one tick outside (target not synced): fires=False (expected False)
+  [PASS] DISCRIMINATOR: target held at ready, dg == err (0.0135) - no skip: fires=False (expected False)
+  [PASS] active-arm post-place entry (610 stream): fires=False (expected False)
+  [PASS] startup hanging entry (610 stream): fires=False (expected False)
+  [PASS] arm at ready but drive target 1.0 rad away (mid-motion): fires=False (expected False)
+== measured stream cross-check (logs/610_posture/stream.jsonl) ==
+  [PASS] found the measured no-op segments (210 rows): 5 of 12
+  [PASS] every no-op segment's entry err is inside READY_SKIP_TOL
+  [PASS] every no-op segment would fire the predicate (err<=tol and dg<=0.01)
+  [PASS] every non-no-op segment stays outside the predicate via err
+    attempt -1 left : rows= 315 entry_err=1.5586 -> skip=False
+    attempt -1 right: rows= 318 entry_err=1.5692 -> skip=False
+    attempt  0 left : rows= 210 entry_err=0.0139 -> skip=True
+    attempt  0 right: rows= 256 entry_err=0.7890 -> skip=False
+    attempt  1 left : rows= 210 entry_err=0.0139 -> skip=True
+    attempt  1 right: rows= 255 entry_err=0.8135 -> skip=False
+    attempt  2 left : rows= 267 entry_err=1.6723 -> skip=False
+    attempt  2 right: rows= 210 entry_err=0.0135 -> skip=True
+    attempt  3 left : rows= 210 entry_err=0.0139 -> skip=True
+    attempt  3 right: rows= 255 entry_err=0.7655 -> skip=False
+    attempt  4 left : rows= 258 entry_err=2.1196 -> skip=False
+    attempt  4 right: rows= 210 entry_err=0.0135 -> skip=True
+
+RESULT: PASS (all checks)
+@@@ RESULT PASS
+@@@ logs/path1/check_bar.py
+Apply the path-1 pre-registered offline bar to a 112 fidelity table.
+
+    python3 logs/path1/check_bar.py logs/path1/04_fidelity_v11.txt
+
+Bar (pre-registered in logs/path1/PREREGISTRATION.md): for each student step
+count k in {1,2,4}, ALL of
+
+  1. student overall first-action median <= 1.5 x teacher overall first-action
+     median (same windows, teacher DDIM-16),
+  2. student overall phase agreement >= 95 %,
+  3. student strawberry first-action median <= 1.5 x teacher strawberry median
+     (skipped with a WARN if the held-out window sample contains no strawberry).
+
+Prints a per-k table and a machine-readable JSON next to the input.
+
+@@@ RESULT FAIL exit=1
