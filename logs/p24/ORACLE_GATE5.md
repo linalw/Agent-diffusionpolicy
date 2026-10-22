@@ -393,11 +393,11 @@ outranks a faster descent profile even though "the descent is the biggest motion
    and design §5 item 5 expects B to *match* A's fingerprint.
 2. §3 "G4 (motion budgets): PASS" — the budgets pass, but the quoted invocation
    (`105` with the default 0.75 floor and that reference) is the one the project already documented
-   as wrong for this scenario (`logs/r5/run_patch_battery.sh` header, check 15), and it *fails* two
-   of the battery's own runs (`623`, `723`: 13/20 = 65 %) — including an **A** run. A and B both
-   have a 13/20 run, so the failure is the bar, not the lever. The correct G4 is `105 -m 0.5`
-   **without** a fingerprint (9/9 PASS, check 8), or a new single-arm reference written from an A
-   run.
+   as wrong for this scenario (`logs/r5/run_patch_battery.sh` header, check 15), and it *fails* the
+   battery's own runs on the floor (`723` outright; `623` — an **A** run — by the same 13/20 = 65 %
+   arithmetic). A and B both have a 13/20 run, so the failure is the bar, not the lever. The correct
+   G4 is `105 -m 0.5` **without** a fingerprint (9/9 PASS, check 8), or a new single-arm reference
+   written from an A run.
 3. §3 "the B1c therefore stands as the first lever in the P-series to pass **its battery** and the
    guard set" — it passes its *mechanism* and its *budget/no-harm* guards; endpoints 1 (unrun),
    4-proper (no per-class report), 6 (no B/P doubles) and the 3-seed acceptance are unmet (§2.4).
@@ -442,6 +442,6 @@ outranks a faster descent profile even though "the descent is the biggest motion
 * **Ranking: B1c finish (50 min) → single-arm trim+resync (75 min) → belt 0.15 (owner, 25 min) →
   the descent boundary / D3-proper (owner, multi-day) → the L3 class-matched (last).** Ask the two
   owner decisions together; they are both bars, and neither is a data gap any more.
-* **The one number to fix before this document is quoted again:** `configs/motion_reference_patch.json`
+* **The one error to fix before the record is quoted again:** `configs/motion_reference_patch.json`
   is the *two-line* reference. A single-arm run cannot match it, no re-record can fix that, and
   re-recording it would break `190`.

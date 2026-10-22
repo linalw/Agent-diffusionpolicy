@@ -1,4 +1,4 @@
-### P27-A (2026-10-21, branch `p-supply`, offline): the owner's belt-speed premise audited - the encoder is a setpoint echo in the shipped build, the policy has no speed input, and the slow side is unmeasured because the carry escape is not belt-fed
+### P27-A (2026-10-21, branch `p-supply`, offline): the owner's belt-speed premise audited - the encoder is a setpoint echo in the shipped build, the policy has no speed input, and the first 0.08-0.15 ladder is speed-flat because the carry escape is not belt-fed
 
 **Scope: offline, read-only.** No simulator run; no `src/`/`scripts/`/`configs/`
 write; no commit; writes only under `logs/p27/`. Tree pins as read:
@@ -48,8 +48,8 @@ per-episode mean `vy` tracks the store (0.06: -0.054..-0.061; 0.12:
 -0.115..-0.120; 0.15: -0.154). The checkpoints' normalizer is **0.06-centred**
 (`goal_mean[vy] -0.0570`, sd 0.0366) so 0.08 sits at z -0.63 and the *deployment*
 0.12 at z -1.72 - the channel cannot be the mechanism either way. The learned
-close is a *distance* criterion (`finger < 0.030` + 6 cm; `[acq]` close-start
-offsets 3-6 mm), while the trigger is a *time* criterion: the two paths adapt in
+close is a *distance* criterion (`finger < 0.030` + 6 cm; the `[acq]` close-start offset is a few
+millimetres (5-11 mm in the R9 `A_1` sample)), while the trigger is a *time* criterion: the two paths adapt in
 different variables. **The observed "adaptation" is the trigger's timing plus the
 scripted primitive's schedule underneath** - and in the *shipped* policy handover
 (`FRUIT_DYNAMIC_PICK` unset) the primitive is the **indexed** pick (belt stopped
@@ -59,18 +59,42 @@ at the station), so there the belt speed only changes *when* the fruit arrives.
 with the base - two-line patch pre-mass 12/20 -> 14/20 (`logs/w8/R3_RESULTS.md`
 s4, the descent block 3.19 -> 2.40 s, the catch leg flat), real mass same seed
 11/20 -> 10/20 (`logs/p12/A_RESULTS.md` vs `logs/p26/211_patch015_seed11.log`),
-direct/hybrid 32/45 -> 31/45 and 30/45 after a 0.15 fine-tune
+direct 32/45 -> 31/45 and 30/45 after a 0.15 fine-tune
 (`logs/p2b/ladder015_*`), scripted collection 72 % -> 55.6 % - so the rate cannot
 carry the speed question. The only *mechanism* readings are the arrival
 structure (monotone) and the 0.18 floor/starvation explosion (115 starved left
 slots; the fixed 1.5 s floor is 0.27 m of belt there) which **does not apply at
 the slow end** (the floor falls to 0.286 m and the band grows 25 %). The P26
-acceptance 3/9 is a *contact* set (4 carried-not-placed, 2 plucks at 56.2/89.2 N,
-one drift blowup, two 49.8/12.2 N closes vs 0.12's ten closes at 3.68-4.77 N),
-not isolated from the B1c flip (P27-B in flight, `logs/p27/10_acc_012_flip.log`).
-**Nothing exists at 0.08/0.10 on any interface.** Prediction: **flat on success,
-a real cost on throughput** - the hover wait per attempt grows ~1.3 s (the R3
-descent-block slope), the arrival cadence and the recycle loop stretch 1.5x.
+acceptance 3/9 is a *contact* set with a supply-side component (3 placed; 3
+carried-not-placed; 3 no-grasp "fruit did not follow the gripper" at 80.3/4.1/0.0
+N; one skipped slot with `fell_off=18`/`released=22`; two 49.8/12.2 N closes vs
+0.12's ten closes at 3.68-4.77 N). **The P27-B isolation landed while this was
+written** (`logs/p27/10_acc_012_flip.log` 0.12+flip **7/10**, `11_acc_015_noflip.log`
+0.15 no-flip **5/9**, vs the P26 0.15+flip 3/9): the 3/9 needs **both** changes -
+the flip alone is ~-2 attempts at either speed and the belt alone ~-1.3 - so "the
+3/9 is the belt" is not supported (one sample per cell).
+**The full direct ladder also landed** (P27-C1, `moe_v13s` `61da390a`, seed 77,
+patch sheet ACQ=1, 15 eps each, one tree, only `FRUIT_BELT_SPEED` differing):
+**0.08 6/15, 0.10 6/15, 0.12 2/15, 0.15 5/15**. The 0.12 control did *not*
+reproduce the record's 4/15 (W8-A `A_1`); the two manifests differ in exactly one
+field, `tasks_md5` `e98d9836` -> `b54b5406` (checkpoint/env/seed identical), and
+2 vs 4 is one draw (Fisher p 0.65), so the tree moved the branch, not a
+resolvable level. **The ladder has no resolved speed effect**: v=0.08/0.10/0.15
+vs 0.12 give p 0.215/0.215/0.390, and vs the record's 4/15 p 0.70/0.70/1.00 - the
+0.12 point is the *low draw*, both its neighbours are higher. Honest read:
+**"speed-flat within the draw; no slow-side collapse and no established gain"**.
+The mechanism is the decisive part: the `grasp_lift` escape *magnitudes* are
+**flat across the 2x speed range** (median 270 / 298 / 279 / 251 mm at 0.08 /
+0.10 / 0.12 / 0.15) with the **belt-fed upper bound a median 6-11 %** of them at
+every speed, while the *incidence* moves with the draw (5 / 2 / 10 / 9 of 15;
+carried totals 8 / 9 / 12 / 10). So **the belt cannot set the escape magnitude -
+a hand-frame event 1-2 orders above the belt's contribution** - and any rate
+movement is the contact/impulse incidence, not the encoder's schedule and not
+the model. The trigger's time geometry holds (F3): `dy` 13.7-23.1 / 16.6-27.4 /
+18.7-25.0 cm at 0.08 / 0.10 / 0.12 with `t_arrive` 1.7-2.9 s throughout (and the
+same at 0.15). Remaining cost prediction: **flat on the slip magnitude, a real
+cost on throughput** (the hover wait ~+1.1 s on the R3 slope, the arrival cadence
+and the recycle loop 1.5x). The extra seeds are what the flat rate still needs.
 
 **The strongest reason the expectation could fail: the escape is not belt-fed.**
 The dominant direct failure is carried-not-placed (32/33 failures W7-C; 49/54
@@ -83,17 +107,26 @@ motion and the drive-saturated pinch (R6-B: the command 11.9 mm inside the
 payload's span) - invariant to `v`, which is why the grip-side levers were all
 nulls (W8-B guard, R6-B relief/retune, R8-A geometry). So "holds" is plausible;
 "improves" is not, and the one slow-side mechanism that can *lose* success is
-unmeasured (the open jaws parked in the approach line ~1.5x longer).
+**measured by proxy**: the W7-C ACQ A/B lengthened the pre-arrival park (fire
+lead 0.9 -> 2.1 s, `logs/w7/C_ab/`, N=3x15, same tree/scenario) and the carried
+class went **14 -> 32** (no-contact 15 -> 1, rate 16/45 -> 12/45,
+`logs/w7/C_RESULTS.md` s1). A slower belt lengthens that park by 1.5x in the
+distance-coded *learned-gate* path (6 cm: 0.50 -> 0.75 s); with the trigger the
+fire is a time, so the park is speed-invariant. Hence the slow side's expected
+class trade is "acquisition -> carry" only where the trigger is off, which is
+exactly what the S2b arm measures.
 
 **The sweep (design in the audit, s5; `logs/p27/run_p27.sh` is the running
 subset).** S1 scripted single arm 0.08/0.10/0.12/0.15 x 20; S2 direct `moe_v13s`
-patch sheet ACQ=1 4 speeds x 3x15 (the 0.12 control must reproduce W8-A `A_1` =
-4/15, seed 77); S2b the same with `TRIGGER=off` (the **model**-adaptation test:
+patch sheet ACQ=1, 4 speeds x 15/episode seed (the running driver; the design adds
+two more seeds) - the 0.12 control must reproduce W8-A `A_1` = 4/15, seed 77; S2b the same with `TRIGGER=off` (the **model**-adaptation test:
 does the learned close's `dy/v` stay constant?); S2c `TRIGGER_ENCODER=0`; S3
 two-line real mass 0.08/0.10 x 2 seeds (0.12/0.15 in the record); S4
 `scripts/170_transport_probe.py` at each speed (the encoder's validity
 precondition - it assumes `v_fruit ~ v_belt`); S5 the supply time-normalised
-(gaps/slices scaled by `v`) to separate the feeder's `1/v` cadence from the belt.
+(the scattered line's `FRUIT_SUPPLY_GAP_MIN/MAX`; the patch sheet only via
+`FRUIT_SUPPLY_PATCH_DENSITY`, which also raises the abreast probability - an
+imperfect control) to separate the feeder's `1/v` cadence from the belt.
 Primaries are per-leg (E1 the `intercept trigger` note: `dy` scales, `t_arrive`
 constant; E2 the `[acq]` close-start/setup; E3 the `[carry]` `clean_slip` vs the
 belt-fed bound; E4 the descent/catch), the rate is E7 with the class split. A
@@ -113,6 +146,6 @@ a new `scenario.belt_speed` field. (3) Three sources of the same quantity
 (encoder / `cfg.belt_speed` for the feeder + prepose / measured `vy` for the
 reach aim + takeoff) agree only because all are the same number today. (4)
 `assets.py` comment (0.12) vs default (0.15). (5) `enforce_transport` still
-rescues a stalled fruit to `0.40*belt.speed` (`fruits.py:1443`), the superseded
+rescues a stalled fruit to `0.40*belt.speed` (`fruits.py:1437`), the superseded
 transport efficiency; at 0.08 that is 0.032 m/s - a low-speed artefact for the
 transport probe to watch.

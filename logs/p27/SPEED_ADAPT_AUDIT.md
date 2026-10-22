@@ -3,10 +3,10 @@
 **Scope.** Branch `p-supply`, tree as of 2026-10-21 09:0x. Read-only on
 `src/`, `scripts/`, `configs/`; no simulator run was made for this
 document. Every number below is either (a) re-derived offline with the
-shipped code (marked *derived*), or (b) quoted from a named log. The
-in-flight P27-B isolation (`logs/p27/10_acc_012_flip.log`, started
-09:02:49) had not produced a `[stats]` line when this was written; its
-state is recorded in section 4.3.
+shipped code (marked *derived*), or (b) quoted from a named log. The P27
+driver (`logs/p27/run_p27.sh`) was running throughout; the results that
+landed while this was written are in section 4.3, labelled with their read
+time.
 
 **The premise under test** (owner, verbatim in substance): *"I introduced
 the conveyor belt speed encoder precisely so the model adapts to different
@@ -35,20 +35,30 @@ different constant-velocity belts."*
    "the model adapts" is, on this interface, the **trigger's timing**.
 3. **The record says the measured 0.12 -> 0.15 step is flat on every
    interface that has a mechanism readout** (two-line patch 11/20 ->
-   10/20 same seed+mass; direct/hybrid 32/45 -> 31/45; two-line patch
+   10/20 same seed+mass; direct 32/45 -> 31/45; two-line patch
    pre-mass 12/20 -> 14/20) and **loud and negative only on the single-arm
-   acceptance/collector** (9/10 -> 3/9; 72 % -> 55.6 % per-attempt), which
-   is one sample per point and not yet isolated from the B1c flip. **No
-   existing point measures the slower side on any interface.**
-4. **The expected slow-side response is "flat", not "improved", and the
-   reason is measured**: the dominant direct-interface failure is the
+   acceptance** (9/10 -> 3/9), where the P27-B isolation has now separated
+   it: 0.12+flip 7/10, 0.15+flip 3/9, 0.15 no-flip 5/9 - the 3/9 needs
+   *both* changes, so it is not the belt alone (one sample per cell). The
+   full direct ladder landed while this was written: **6, 6, 2, 5 of 15**
+   at 0.08 / 0.10 / 0.12 / 0.15 (one seed each, one tree; every pairwise
+   Fisher p >= 0.215) - **no resolved speed effect, and the 0.12 point is
+   the low draw, not a trend**. The escape *magnitudes* did **not** shrink
+   at any speed (section 4.3).
+4. **The direct interface is speed-flat over 0.08-0.15, and the mechanism
+   it would have to improve is not the belt.** The dominant failure is the
    carried-not-placed class, a *hand-frame* escape of 17.9-957 mm (median
    278 mm) over ~25 ticks, while the belt can feed at most `v * 0.21 s` of
    it — **24 mm at 0.12, 17 mm at 0.08, i.e. <= 10 % of the median
-   escape**. Halving the belt removes a few millimetres of a 278 mm
-   escape. The unambiguous slow-side effects are the *costs* (a longer
-   hover wait per attempt, a 1.5x longer arrival cadence, a 1.5x longer
-   recycle loop), not the grip.
+   escape**. The ladder measures exactly that: **median escape 270 / 298 /
+   279 / 251 mm at 0.08 / 0.10 / 0.12 / 0.15** with a belt-fed share of
+   **6-11 % (median) at every speed**, and a rate of 6/6/2/5 of 15 with no
+   pairwise p below 0.215. So: no resolved speed effect on either side of
+   0.12, the escape magnitude is independent of the belt, and any rate
+   movement is the *incidence* (the contact/impulse channel), not the
+   belt-fed transport and not the model. The *costs* are unambiguous (a
+   longer hover wait per attempt, a 1.5x longer arrival cadence, a 1.5x
+   longer recycle loop).
 
 ---
 
@@ -159,15 +169,15 @@ acceptance's own `[stats]` line is the only place a log records it.
 | trigger's arrival | `policy/trigger.py:335-338` | `t_arrive = max(dy,0)/v`; fire iff `t_arrive <= lead` | no (`t_arrive`) | **yes: fire at `dy <= v*lead`** |
 | trigger's reach gate | `policy/trigger.py:329` | `dy > reach` (0.20 m) | no | no (time window `0.20/v`) |
 | trigger's lateral gate | `policy/trigger.py:327` | `abs(dx) > lateral` (0.16 m) | no | no |
-| ACQ lead (W7-B) | `policy/trigger.py:246-250` | `lead + margin + |jaw-station|/0.20`, `reach = max(reach, v*lead_eff + 0.05)` | only the *reach* term | **yes: the lead is a time** |
+| ACQ lead (W7-B) | `policy/trigger.py:246-250` | `lead + margin + \|jaw-station\|/0.20`, `reach = max(reach, v*lead_eff + 0.05)` | only the *reach* term | **yes: the lead is a time** |
 | catch lead (scripted) | `tasks.py:4348-4369` | `min(v*(0.4 + t_desc + 0.15) + 0.03, 0.80)` | yes | **yes** (`_dynamic_pick_lead` is a time converted to metres) |
 | selector floor | `tasks.py:4254-4287` | `_dynamic_pick_lead() + v*1.5 + 0.03` | yes | **yes** |
 | descent hover deadline | `tasks.py:7430-7437` | `deadline = v*(t_desc + 0.15)` | yes | **yes** |
-| prepose lead (scripted select) | `tasks.py:4126-4136` | `max(0.12, |cfg.belt_speed|*0.9)` | yes, from **cfg** not the encoder | **yes** |
+| prepose lead (scripted select) | `tasks.py:4126-4136` | `max(0.12, \|cfg.belt_speed\|*0.9)` | yes, from **cfg** not the encoder | **yes** |
 | reach-anywhere intercept | `tasks.py:4481-4495` | `y = y_f + vy*(setup + hover + t_desc + margin)`; `vy` = **measured** fruit velocity, encoder as fallback | measured | yes |
 | takeoff belt match | `tasks.py:9426-9452` | `v_ref = fruit measured vy` (encoder fallback), ramp to 0 over `trans_s=0.25` | measured | yes |
-| feeder cadence | `fruits.py:1171-1177` | `period = _release_gap()/|cfg.belt_speed|` | yes, from **cfg** | no: the *time* cadence is 1/v |
-| feeder backlog placement | `fruits.py:1285-1302` | `along = spawn_y - late*|cfg.belt_speed|` | yes, from **cfg** | - |
+| feeder cadence | `fruits.py:1171-1177` | `period = _release_gap()/\|cfg.belt_speed\|` | yes, from **cfg** | no: the *time* cadence is 1/v |
+| feeder backlog placement | `fruits.py:1285-1302` | `along = spawn_y - late*\|cfg.belt_speed\|` | yes, from **cfg** | - |
 
 Derived at the four sweep speeds (`_approach_duration(0.06, 0.15, 0.8) =
 0.775 s`, so the primitive's lead time is `0.4 + 0.775 + 0.15 = 1.325 s`):
@@ -311,36 +321,37 @@ Easier (all *derived* from the code, none yet measured at 0.08):
    ~25 % (0.45 -> 0.56 m). The belt's *spatial* layout is invariant (gaps
    are drawn in metres), so the number of candidates in the band is
    unchanged; only the time between them grows.
-4. **The crash contacts** (the 0.15 acceptance's 49.8 N / 80.3 N closes)
-   are the one place where speed enters quadratically (an impulse); they
-   should soften at 0.08.
+4. **The crash contacts** (the 0.15 acceptance's 49.8 N *close* and 80.3 N
+   *lift*) are the one place where speed enters quadratically (an impulse);
+   they should soften at 0.08.
 
 Harder:
 
-1. **The arrival cadence is `1/v`**: every release period, and the
-   belt-prime (8.5 s vs 5.7 s to the station) and the recycle loop
+1. **The arrival cadence is `1/v`**: every release period, the
+   spawn->station travel (8.5 s vs 5.7 s) and the recycle loop
    (17.3 s vs 11.5 s) stretch. For the *single* arm this is not
    starvation — the patch sheet delivers ~1.6 fruit per 0.18 m = 8.9
    fruit/m, i.e. ~0.7-1.3 fruit/s against a 0.067/s demand, and the band
    *count* is invariant — but it does change the *timing* of the
    selection, the queue interlock and the collector's wall clock.
-2. **The hover wait per attempt grows**: the catch hands over 1.325 s
-   before arrival at every speed, but at a slower belt the *pre-pose /
-   selection* consumes less belt travel, so the same attempt spends
-   proportionally more time waiting at the hover (`dy_handover/v` is
-   constant, but the *descent block* includes the wait for the
-   just-in-time condition). R3 measured that block as 3.19 s at 0.12 and
-   2.40 s at 0.15 (a 0.79 s saving for +0.03 m/s); extrapolating the other
-   way gives **~+1.3 s per attempt at 0.08**, i.e. ~+8 % span with the
-   same success count.
-3. **The hand is parked in the fruit's path longer.** In the direct path
-   the arm parks at the *grip* pose (`FRUIT_DIRECT_HOVER=0`) and holds
-   `FRUIT_DIRECT_HOLD_TICKS=20`; with the trigger the fire is at 0.9 s
-   before arrival, so the open jaws sit in the approach line ~1.5x longer
-   at 0.08. No record has measured a consequence of that exposure
-   (the pre-contact class in W5/W7-B is a *setup* deficit, not a
-   jaw-obstruction), but it is the only mechanism by which slower can
-   *lose* on the acquisition channel.
+2. **The hover wait per attempt may grow** (a *prediction* to measure, not a
+   derivation): the time-schedule terms are constant, yet R3 *measured* the
+   cycle report's descent block at 3.19 / 2.40 / 1.88 s for 0.12 / 0.15 /
+   0.18 (a slope of ~26 s per m/s, `logs/w8/R3_RESULTS.md` s4) - whatever
+   the block's exact decomposition, that slope extrapolates to **~+1.1 s
+   per attempt at 0.08**, i.e. ~+7 % span at the same success count. Endpoint
+   E4/E6 measures it directly.
+3. **In the *learned-gate* path (trigger off) the hand is parked in the
+   fruit's path longer.** The direct arm parks at the *grip* pose
+   (`FRUIT_DIRECT_HOVER=0`) and holds `FRUIT_DIRECT_HOLD_TICKS=20`; the
+   learned gate is the 6 cm *distance* test, so its fire is 0.50 s before
+   arrival at 0.12 and 0.75 s at 0.08 - the open jaws sit in the approach
+   line ~1.5x longer. (With the trigger on, the fire is a *time* lead, so
+   that exposure is speed-invariant; with ACQ=1 it is a longer, constant
+   ~1.5-2 s.) No record has measured a consequence of the exposure (the
+   pre-contact class in W5/W7-B is a *setup* deficit, not a jaw
+   obstruction), but it is the only mechanism by which slower can *lose*
+   on the acquisition channel.
 4. **The transport model's own assumption** (`fruits.py:1424-1455`):
    `enforce_transport` re-sets a stalled fruit to `0.4 * belt.speed`
    (`transport_efficiency = 0.40`) whenever `|v_y| < 0.02 m/s`. At 0.08
@@ -368,8 +379,8 @@ acceptance.
 | scripted single arm, acceptance | 0.15 | 9 | **3/9, 15.4 s/attempt** | `logs/p26/10_accept_015.log` (P26 default, + B1c flip) |
 | scripted single-arm *collection* | 0.12 | - | "72 % per attempt" | `logs/p2b/WORKLOG_ENTRY.md` |
 | scripted single-arm *collection* | 0.15 | 45 | **25/45 = 55.6 %** | `logs/p2b/40_collect_v12_s0_015.log` |
-| direct/hybrid handover (P2b A/B) | 0.12 | 45 | **32/45 = 71.1 %** | `logs/p2b/ab012/` |
-| direct/hybrid handover (P2b ladder a) | 0.15 | 45 | **31/45 = 68.9 %** | `logs/p2b/ladder015_control/` |
+| direct interface (P2b A/B) | 0.12 | 45 | **32/45 = 71.1 %** | `logs/p2b/ab012/` |
+| direct interface (P2b ladder a) | 0.15 | 45 | **31/45 = 68.9 %** | `logs/p2b/ladder015_control/` |
 | + fine-tune on 0.15 data (`moe_v13`) | 0.15 | 45 | **30/45 = 66.7 %** | `logs/p2b/ladder015_v13/` |
 | two-line patch (pre-mass base) | 0.12 | 20 | 12/20, 3.63 placed/min, interval 16.53 s, starved 19/22 | `logs/w8/R3_RESULTS.md` s4 |
 | two-line patch (pre-mass base) | 0.15 | 20 | 14/20, **4.69** placed/min, 12.80 s, starved 17/25 | same |
@@ -378,13 +389,19 @@ acceptance.
 | two-line patch (real mass, P26 seed 11) | 0.15 | 20 | **10/20** (left 5/10, right 5/10) | `logs/p26/211_patch015_seed11.log` |
 | two-line patch (real mass, pooled) | 0.12 | 60 | 45/60 | `logs/p12/A_RESULTS.md` |
 | direct patch, ACQ=1 (N=5) | 0.12 | 75 | 21/75 (per-seed 4,4,4,4,5) | `logs/w8/A_direct_ab/` |
+| **direct (P27-C1)** | **0.08** | 15 | **6/15** | `logs/p27/20_direct_008.log` |
+| **direct (P27-C1)** | **0.10** | 15 | **6/15** | `logs/p27/21_direct_010.log` |
+| **direct (P27-C1)** | **0.12** | 15 | **2/15** | `logs/p27/22_direct_012.log` |
+| **direct (P27-C1)** | **0.15** | 15 | **5/15** | `logs/p27/23_direct_015.log` |
+| **scripted acceptance, + B1c flip** | **0.12** | 10 | **7/10** | `logs/p27/10_acc_012_flip.log` |
+| **scripted acceptance, flip off** | **0.15** | 9 | **5/9** | `logs/p27/11_acc_015_noflip.log` |
 | scripted dynamic ladder (older tree) | 0.06 / 0.09 | 10 each | 6/10, 4/10 (failure sets; the 0.12 row mixed three code versions) | 项目总结报告 P2 |
 
 ### 4.2 Reading it
 
 1. **The same 0.12 -> 0.15 step changes sign with the base**: +2/20 on
    the pre-mass two-line patch, **-1/20** on the real-mass base at the same
-   seed, -1/45 on the direct/hybrid A/B, -16 pt on the single-arm
+   seed, -1/45 on the direct A/B, -16 pt on the single-arm
    collector. Per the AGENTS section 2 rule each of these is a different
    scenario; the transportable reading is the *mechanism*, and the one
    mechanism number that moves monotonically is the **arrival structure**
@@ -417,17 +434,93 @@ acceptance.
    (49.8 N / 27.3 mm span, 12.2 N / 44.5 mm) against the 0.12 acceptance's
    ten closes at 3.68-4.77 N. The P27-B isolation
    (`logs/p27/10_acc_012_flip.log` = 0.12 + the B1c flip, and
-   `11_acc_015_noflip.log` = 0.15 without it) is the test that separates
-   the belt from the flip; it was still running when this was written.
+   `11_acc_015_noflip.log` = 0.15 without it) has now run: **7/10 and
+   5/9**, so the 3/9 needs both changes (section 4.3).
+5. **The one existing manipulation of the *pre-arrival park time* moved the
+   failure mass into the class the owner wants to fix.** The W7-C ACQ A/B
+   (`logs/w7/C_ab/`, patch sheet, `moe_v13s`, N=3x15, interleaved, same
+   tree, differing only in the fire lead: 0.90 s vs a median 2.11 s left /
+   1.89 s right) moved the left no-contact class **15 -> 0** and the
+   close-start offset **120.1 -> 2.5 mm**, but the carried-not-placed class
+   **14 -> 32** (left 6 -> 10, right 8 -> 22) and the rate **16/45 -> 12/45**.
+   The record's mechanism: the earlier fire makes the primitive *park and
+   hold* 0.37-1.40 s before the push, and the right arm's probe re-seats on
+   a fruit that has not reached the seat line. **So lengthening the
+   pre-arrival park converts acquisition failures into carry escapes.** A
+   slower belt lengthens that park only where the fire is *distance*-coded
+   (the learned 6 cm gate: 0.50 -> 0.75 s); with the trigger it is a *time*
+   and the park is speed-invariant. This is the measured precedent behind
+   the S2b arm (section 5.1) and behind section 6.
 
-### 4.3 What the record cannot answer
+### 4.3 The isolation and the first speed ladder (P27-B complete; P27-C1 0.08/0.10/0.12/0.15 complete, 1 seed each; read 10:10)
 
-**Nothing at 0.08 or 0.10 exists on any interface.** The slow side is
-entirely unmeasured; the fast side is measured but confounded by the
-quantised outcome and (at 0.15) by the B1c flip. The owner's premise is
-therefore currently *untested*, not refuted — with one exception: the
-carry-class mechanism (section 6) is measured well enough to predict that
-the *improvement* half will not materialise.
+**The acceptance isolation (P27-B), one sample per cell:**
+
+| config | result | per-attempt |
+| --- | --- | --- |
+| 0.12, no flip (pre-P26 reference) | 9/10 | 15.2 s |
+| **0.12 + B1c flip** | **7/10** (`diverted=1`) | 15.1 s |
+| **0.15 + B1c flip** (the P26 default) | **3/9** (`diverted=1`) | 15.4 s |
+| **0.15, flip off** | **5/9** (`diverted=1`) | 14.7 s |
+
+The 3/9 is **not** the belt alone: the flip alone costs ~2 attempts at 0.12
+(9 -> 7) and ~2 at 0.15 (5 -> 3), and the belt alone costs ~1.3 (7/10 ->
+5/9). So the P26 3/9 needs *both* changes in this branch - or it is one
+draw. One sample per cell cannot separate them further, and the two
+"0.15" cells differ by 2/9 with identical speed, so the flip is at least
+as loud as the belt on this scenario.
+
+**The direct speed ladder (P27-C1, patch sheet, `moe_v13s`, ACQ=1, seed 77,
+15 episodes each; one driver, one tree, one env - only `FRUIT_BELT_SPEED`
+differs):**
+
+| belt | result | ok / carried / no-grasp | `grasp_lift` escapes `clean_slip_max` (mm) | belt-fed share of the escape |
+| --- | --- | --- | --- | --- |
+| **0.08** | **6/15** | 6 / 8 / 1 | n=9, 53-369, **median 270** | 2-26 %, median 6 % |
+| **0.10** | **6/15** | 6 / 9 / 0 | n=7, 273-329, **median 298** | 0.3-16 %, median 9 % |
+| **0.12** | **2/15** | 2 / 12 / 1 | n=10, 120-426, **median 279** | 6-13 %, median 9 % |
+| **0.15** | **5/15** | 5 / 10 / 0 | n=9, 153-385, **median 251** | 4-18 %, median 11 % |
+| 0.12 record anchor (W8-A `A_1`, 2026-10-13 tree) | 4/15 | 4 / 10 / 1 | (carry diag off) | - |
+| 0.12 record, carry diag (R9 `A_1`, 2026-10-14 tree) | 4/15 | 4 / 8 / 3 | n=5, 194-303, median 260 | 7-18 % |
+
+Readings, in order of confidence:
+
+1. **The 0.12 control is a different branch from the record's anchor, but
+   not a resolvably different level.** The p27 manifest and the W8-A `A_1`
+   manifest differ in exactly one field: `tasks_md5` (`e98d9836` ->
+   `b54b5406`; checkpoint `61da390a`, seed 77, policy seed 11, trigger
+   block, camera, `execute_steps=4`, `ddim=16` all identical). 2/15 vs 4/15
+   is one draw (Fisher p = 0.65), so the tree moved the branch, not the
+   level. Quote the batch's own 0.12, not the record's.
+2. **There is no resolved rate effect anywhere in 0.08-0.15.** The ladder
+   is 6, 6, 2, 5 of 15: against the batch's 0.12 the pairs are p = 0.215,
+   0.215, 0.390; against the record's 4/15 they are p = 0.70, 0.70, 1.00.
+   The 0.12 point is the *low draw*, not a trend - both its neighbours are
+   higher. A 15-episode point cannot resolve this (its sampling error is
+   ±13 pt). **What the data support is the absence of a collapse**: no
+   speed in 0.08-0.15 is worse than any other beyond the draw, and the
+   failures stay in the same class. A slow-side "gain" must not be quoted.
+3. **The mechanism is not the belt-fed slip, and this is now a four-point
+   result.** The `grasp_lift` escape magnitudes are **flat across a 2x
+   speed range** (median 270 / 298 / 279 / 251 mm at 0.08 / 0.10 / 0.12 /
+   0.15), and the belt-fed upper bound is a **median 6-11 %** of the escape
+   at every speed. The escape is a hand-frame event 1-2 orders above the
+   belt's contribution. The *incidence* (grasp-lift escapes 5 / 2 / 10 /
+   9 of 15; carried totals 8 / 9 / 12 / 10) rises toward 0.12 from both
+   sides, which is the same draw effect as the rate - not a speed curve.
+4. **The trigger's time geometry holds** (F3): at 0.08 the fire notes read
+   `dy` 13.7-23.1 cm / `t_arrive` 1.71-2.89 s / `speed=0.080/encoder`; at
+   0.10 `dy` 16.6-27.4 cm / `t_arrive` 1.66-2.74 s; at 0.12 `dy` 18.7-25.0
+   cm / `t_arrive` 1.56-2.08 s; at 0.15 the same pattern. `dy` scales with
+   `v`, `t_arrive` does not (the residual spread is the ACQ lead's
+   jaw->station term).
+
+**The one-sentence read of the batch:** *the direct interface is
+speed-flat across 0.08-0.15 within the draw, and the failure it would have
+to improve (the hand-frame escape) is unchanged in magnitude at every
+speed - so the premise's slow-side expectation is supported only in its
+"does not degrade" half, and the "improves" half has neither a rate nor a
+mechanism.*
 
 ---
 
@@ -442,13 +535,13 @@ arms it is missing.
 
 | arm | interface / env | speeds | N | question it answers | budget |
 | --- | --- | --- | --- | --- | --- |
-| **S1** | scripted single arm, acceptance env, 20 attempts | 0.08/0.10/0.12/0.15 | 20 each | the shipped *scripted* line's slow-side response; the 0.12 point must reproduce 9/10 + `fingerprint: matches` as the control | ~40 min |
-| **S2** | direct, `moe_v13s`, patch sheet + grades, `TRIGGER=arrival` + `ACQ=1` + `CARRY_DIAG` | 0.08/0.10/0.12/0.15 | 3 seeds x 15 | the owner's interface; **the 0.12 point must reproduce 4/15 (W8-A `A_1`, seed 77)** | ~80 min |
+| **S1** | scripted single arm, acceptance env, 20 attempts | 0.08/0.10/0.12/0.15 | 20 each | the shipped *scripted* line's slow-side response; the 0.12 control on the current tree is **7/10** (`logs/p27/10_acc_012_flip.log`, B1c flip on; the pre-P26 9/10 needs `FRUIT_READY_SKIP=0 FRUIT_READY_SKIP_RESYNC=0`) | ~40 min |
+| **S2** | direct, `moe_v13s`, patch sheet + grades, `TRIGGER=arrival` + `ACQ=1` + `CARRY_DIAG` | 0.08/0.10/0.12/0.15 | 1 seed x 15 per speed (the running C1, **done**: 6/6/2/5) + 2 more seeds | the owner's interface; **the 0.12 point is the batch's own control** - it read 2/15 against the record's 4/15 (W8-A `A_1`, older tree), so anchor on the batch's 0.12, not the record's; the extra seeds are what the flat ladder still needs | ~80 min |
 | **S2b** | S2 with `FRUIT_POLICY_TRIGGER=off` | 0.08/0.12 | 3x15 | the **model**'s own adaptation (the learned close) — a *mechanism* arm: with no trigger the learned gate may never fire (`logs/798`'s no-fire class), and then the answer is the fire/tick statistics, not the rate | ~40 min |
 | **S2c** | S2 with `FRUIT_POLICY_TRIGGER_ENCODER=0` | 0.08/0.12 | 1x15 | what the encoder buys over the measured velocity | ~15 min |
 | **S3** | two-line patch, real mass, seed 11/5 | 0.08/0.10 (+ 0.12/0.15 from the record) | 2 seeds x 20 | the interval, the starvation, the dwell/park coupling | ~60 min |
 | **S4** | `scripts/170_transport_probe.py` | 0.08/0.10/0.12/0.15 | - | the encoder's **validity precondition**: the fruit/belt ratio, spin, stalled ticks | ~10 min |
-| **S5** | S2/S3 with the supply cadence *time-normalised* (`FRUIT_SUPPLY_GAP_MIN/MAX` and the patch slice scaled by `v`) | 0.08 and 0.15 | 1 seed | separates the belt from the supply's `1/v` cadence | ~25 min |
+| **S5** | S2/S3 with the supply cadence *time-normalised* (the scattered line's `FRUIT_SUPPLY_GAP_MIN/MAX` scaled by `v`; the patch sheet only via `FRUIT_SUPPLY_PATCH_DENSITY`, which also raises the abreast probability) | 0.08 and 0.15 | 1 seed | separates the belt from the supply's `1/v` cadence | ~25 min |
 
 Total ~4 h. **Every run needs `FRUIT_BELT_SPEED` in a sidecar** (`env.txt`
 next to the log): the rl_env manifest does not record it (section 7).
@@ -488,10 +581,10 @@ Secondary (per batch, quantised — quote the table, not the delta):
 
 | confound | why it matters here | control |
 | --- | --- | --- |
-| **the supply's time cadence is `1/v`** | at 0.08 the same *metre* gaps arrive 1.5x less often; a rate or interval change may be the feeder, not the belt | **S5** (scale the gaps/slices by `v` to hold the time cadence) |
-| the belt-prime and the recycle loop | 8.5 s / 17.3 s at 0.08 vs 5.7 / 11.5 at 0.12; the first attempt and the pool inventory shift | fixed seed; report `supply_skipped`/`recirculated`; ignore the first attempt in the per-leg stats |
+| **the supply's time cadence is `1/v`** | at 0.08 the same *metre* gaps arrive 1.5x less often; a rate or interval change may be the feeder, not the belt | **S5** (scale the gaps by `v` to hold the time cadence; on the patch sheet the density knob also changes the pair rate, so S5's clean form runs on the scattered line) |
+| the spawn->station travel and the recycle loop | 8.5 s / 17.3 s at 0.08 vs 5.7 / 11.5 at 0.12; the first attempt and the pool inventory shift | fixed seed; report `supply_skipped`/`recirculated`; ignore the first attempt in the per-leg stats |
 | **transport validity** | the encoder's whole arithmetic assumes `v_fruit ~ v_belt` (measured 1.01-1.14x at 0.12, `logs/173`) | **S4** at every speed, before the rate runs |
-| the intervention itself | the p27 direct arm enables `FRUIT_POLICY_TRIGGER_ACQ=1`, a **default-off** knob (R5 decision 4) — the result is the ACQ interface, not the shipped direct default | name it in every manifest; add an `ACQ=0` 0.12 control (the W7-C `C_ab` A arm is 16/45, a different anchor — do not mix) |
+| the intervention itself | the p27 direct arm enables `FRUIT_POLICY_TRIGGER_ACQ=1`, a **default-off** knob (R5 decision 4) — the result is the ACQ interface, not the shipped direct default; on this very patch sheet the W7-C `C_ab` measured ACQ on = 12/45 vs off = 16/45 with the class trade (no-contact 15 -> 1, carried 14 -> 32), so the C1 arm's baseline is the **carry-heavy** branch | name it in every manifest; add an `ACQ=0` 0.12 control (the `C_ab` A arm = 16/45) and never compare a rate across the two branches |
 | the physics base | the P12 mass base is the two-line's reference; the single-arm/direct interfaces were never re-measured on it | hold the base per interface (S1/S2 default, S3 real mass) and never pool across them |
 | the tree / checkpoint / seed | the manifests pin `tasks.py`, `rl_env.py`, `trigger.py`, the checkpoint md5 — but not the belt | sidecar + the `[stats]` `encoder=` line as the second witness |
 | **the outcome is quantised** | each speed is its own attractor (AGENTS section 2) | E1-E4 are the primaries; E7 is reported as a per-episode table with the class split |
@@ -539,13 +632,14 @@ Beyond the trigger's timing, a claim that *the policy* adapts to belt
 speed needs all six of these:
 
 1. **An input.** The encoder (or any speed scalar) in the observation —
-   today the 34 policy inputs contain none (section 2). Alternatively a
-   visual cue with *variance across speeds in training*; at one speed the
-   cue is confounded with position.
+   today the 25-D proprio and the 8-D goal contain none (section 2).
+   Alternatively a visual cue with *variance across speeds in training*; at
+   one speed the cue is confounded with position.
 2. **The right target variable.** The learned close must be a function of
    *time-to-arrival*, not of distance. The current learned gate is a
    distance test (`finger < 0.030` and `|jaw-fruit|xy < 0.06`), and the
-   `[acq]` close-start offsets are 3-6 mm — i.e. position-coded. A
+   `[acq]` close-start tip-fruit offset is a few millimetres (the R9 `A_1`
+   sample: |offset| 5-11 mm) — i.e. position-coded. A
    distance-coded close fires *earlier in time* at a slower belt, which is
    the opposite of the trigger's constant-time behaviour: the two paths
    adapt in different variables (this is testable with F1/F4).
@@ -572,6 +666,11 @@ speed needs all six of these:
 
 ## 6. The strongest reason the owner's expectation could fail
 
+**In one sentence: the belt is not the channel the failure runs through, so a
+slow-side gain cannot be the encoder's adaptation — and where the fire is
+distance-coded, slowing the belt actively lengthens the park that the record
+shows converts acquisition failures into carry escapes.**
+
 **The escape is not belt-fed.** Take the two measured facts together:
 
 * the direct interface's dominant failure is carried-not-placed (W7-C:
@@ -585,25 +684,50 @@ speed needs all six of these:
   belt-fed share is an *upper bound* (the payload is belt-matched during
   the close and the takeoff's `match_s`, so the belt's relative
   contribution is only the part where the grip has already failed).
+* **the slow points now measure it** (section 4.3): the `grasp_lift`
+  escapes read **262-369 mm (median 270) at 0.08** against **194-303 mm
+  (median 260) at 0.12**, with the belt-fed bound at 4-18 % in both - the
+  escape did not shrink when the belt was slowed by a third.
 
 Halving the belt speed therefore removes at most a few millimetres from a
-278 mm escape. The escape's driver is the *arm/pad* relative motion and
-the geometry — a drive-saturated pinch whose command sits 11.9 mm inside
-the payload's measured span (R6-B) — and that is invariant to `v`. This
-is why every grip-side lever aimed at this class has been a measured null
-(the W8-B guard, the R6-B relief/retune, the R8-A geometry), and it is the
-strongest reason to expect **"holds", not "improves"**.
+278 mm escape, and the 0.08/0.10 points measure exactly that (the escapes
+are 270 mm median at 0.08 and 295 mm at 0.10, not smaller; n = 5 and 3). The escape's driver is the *arm/pad*
+relative motion and the geometry — a drive-saturated pinch whose command
+sits 11.9 mm inside the payload's measured span (R6-B) — and that is
+invariant to `v`. This is why every grip-side lever aimed at this class has
+been a measured null (the W8-B guard, the R6-B relief/retune, the R8-A
+geometry).
+
+**What the ladder changes about the verdict, precisely:** the rate is
+6/6/2/5 of 15 across 0.08-0.15 with no pairwise p below 0.215, so **the
+interface neither degrades nor improves in a resolved way**, and the *escape
+mechanism* (the magnitude) is flat across the same 2x speed range with a
+6-11 % belt-fed share. So the honest statement is **"the direct line is
+speed-flat within the draw, and any movement is the contact/impulse
+incidence, not the encoder's belt-fed slip"**; the sweep's E2/E3/E7 plus the
+extra seeds are what would separate those. The premise's *mechanism* claim
+("the model adapts") remains unsupported in every reading: no speed input,
+no time-coded close, and the trigger/primitive own the timing.
 
 Two corollaries:
 
-* **The half of the expectation most at risk is "improves".** "Holds" is
-  the plausible outcome on the success channel *if* the acquisition
-  channel does not degrade; and the one mechanism by which the slow side
-  can degrade success is the longer open-jaw exposure (section 3.2,
-  harder #3), which is unmeasured and is what the S2b arm is for.
+* **The "improves" half is not attributable to the model or the encoder.**
+  There is no resolved rate gain to keep (6/6/2/5, all p >= 0.215); if one
+  exists it can only sit on the *contact* channel (the escape magnitudes are
+  unchanged at every speed), i.e. the primitive's close/pluck softening -
+  not the model adapting and not the trigger's arithmetic. A claim that the
+  *system adapts* is not what this measures.
+* **Where the fire is distance-coded, slower can *lose*.** The one
+  *measured* manipulation of the pre-arrival park (section 4.2 item 5: the
+  ACQ A/B, 0.9 -> 2.1 s) moved the carried class **14 -> 32** and the
+  no-contact class **15 -> 0**. Slower lengthens that park by 1.5x in the
+  learned-gate path (6 cm: 0.50 -> 0.75 s), i.e. the same direction, so the
+  S2b arm is the test of whether the slow side trades acquisition for
+  carry there.
 * **The slow side's unambiguous cost is throughput, not success**: the
-  hover wait per attempt grows by ~1.3 s (the R3 descent-block slope,
-  extrapolated), the arrival cadence and the recycle loop stretch by 1.5x,
+  hover wait per attempt is predicted to grow by ~1.1 s (the R3
+  descent-block slope, extrapolated), the arrival cadence and the recycle
+  loop stretch by 1.5x,
   and the collector's per-episode wall clock grows. A report that quotes
   "slower holds" must quote the placed/min and the interval with it, or it
   is quoting half of the result.
@@ -643,7 +767,7 @@ a weaker and much more defensible claim than "the model adapts".
    acceptance's `[stats]` line is currently the only record of which speed
    a given log used.
 5. **`enforce_transport` still assumes `transport_efficiency = 0.40`**
-   (`fruits.py:1443`) — the value the belt-body fix superseded (the
+   (`fruits.py:1437`) — the value the belt-body fix superseded (the
    measured ratio is 1.01-1.14x). It only fires on a near-stalled fruit,
    so it is a rescue, but at 0.08 it sets a rescued fruit to 0.032 m/s
    while the belt runs at 0.08.
