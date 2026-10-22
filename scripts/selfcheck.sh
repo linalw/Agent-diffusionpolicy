@@ -19,7 +19,9 @@
 #  11. claim slot harness             scripts/181_claim_slot_selftest.sh (pure locking)
 #  12. ops selfcheck selftest         scripts/191_ops_selfcheck.sh --selftest (fake
 #                                     sim/claim/wrapper in a temp dir; the P1 ops probe)
-#  13. motion budgets                 scripts/105_motion_regression.py  (needs a run log)
+#  13. bed supply audit               scripts/211_bed_audit.py --fast (the dense bed's
+#                                     rows/corridor/pool; stubbed pxr, no simulator)
+#  14. motion budgets                 scripts/105_motion_regression.py  (needs a run log)
 #
 # Each prints "name, result, elapsed"; everything is also written to
 # `logs/selfcheck.log`. Any *failure* makes the script exit non-zero; the motion
@@ -133,6 +135,18 @@ run_check "claim slot harness" bash scripts/181_claim_slot_selftest.sh
 # STALLED-SIM/STALLED-CHAIN/ACTION do, incl. the own-process-group guard and
 # the wrap suppression while a wrapper is alive).
 run_check "ops selfcheck selftest" bash scripts/191_ops_selfcheck.sh --selftest
+# P32: the dense 2D bed supply (default off). The fast battery pins the row
+# lattice, the pair corridor, the 40-fruit pool's **zero live-recycle** fraction
+# and a completed belt transit at the shipped queue depth and at 18 - the two
+# Gate-1 blocker assertions - plus the legacy bedrock hashes. The full run (the
+# record, `logs/p32/bed_audit.txt`) carries all six queue/cadence cells.
+run_check "bed supply audit" "$python" scripts/211_bed_audit.py --fast
+# P32 phase 2: the prepared-next pipeline's ranking/refresh/consume (the real
+# selector on a stubbed task), the default-off pins, the feeder stride
+# arithmetic and `fruits.update`'s furniture split (default still steps the
+# belt). No simulator; `--cost` is the manual wall-time probe and is not run
+# here.
+run_check "prepared-next selftest" "$python" scripts/213_prepared_next_selftest.py
 
 if [ -n "$run_log" ] && [ -f "$run_log" ]; then
     run_check "motion budgets" "$python" scripts/105_motion_regression.py "$run_log" \

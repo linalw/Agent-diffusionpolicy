@@ -18,6 +18,7 @@ import isaacsim.core.experimental.utils.app as app_utils
 from isaacsim.core.experimental.prims import RigidPrim
 
 from .assets import SceneConfig
+from .bed import BedPlan, BedSchedule
 from .common import say
 from .meshes import (
     FRUIT_SHAPES,
@@ -284,6 +285,23 @@ SUPPLY_PATCH_PAIR = 0.6
 SUPPLY_PATCH_SEP_MIN = 0.085
 SUPPLY_PATCH_SEP_MAX = 0.12
 
+#: Dense 2D "bed" supply (P32 phase 1, `FRUIT_SUPPLY_BED`, default off). The
+#: owner's directive (2026-10-22) is that the belt read like a real grading line
+#: packed with fruit - many abreast, a 2D bed, "enough fruit to serve as
+#: candidates". The patch sheet is 1-2 abreast every 0.14-0.22 m (~8.9 fruit/m);
+#: the bed is 3 measured reach columns (x = 0.20/0.28/0.36, `174`/`183`) released
+#: as **rows**: the two edge columns abreast at the same along (a 0.16 m pair,
+#: always corridor-safe) plus the middle column staggered by half a row pitch
+#: (0.13-0.15 m since the 2026-10-22 owner decision) and only when its diagonal
+#: clears the pair rule. The photo's
+#: *touching* pack is not graspable by the open parallel jaw, so a row is
+#: released only when the whole live bed satisfies the +/-0.066 m corridor rule
+#: and the legacy 0.08 m floor; a row that cannot clear is shifted upstream
+#: within a bound, and finally skipped (`supply_skipped` plus the lazy
+#: `bed_refused`). The geometry and the schedule live in the pxr-free `bed.py`
+#: so `scripts/211_bed_audit.py` reproduces them with plain `python3`.
+#: Precedence when several schedules are set: bed > patch > wave > scatter.
+
 
 def _default_grade_weight(grade: str, balanced: bool) -> float:
     """Default grade weight: balanced on the pure-routing two-line scenario.
@@ -377,6 +395,13 @@ class SupplyPlan:
     patch_pair: float = SUPPLY_PATCH_PAIR
     patch_sep_min: float = SUPPLY_PATCH_SEP_MIN
     patch_sep_max: float = SUPPLY_PATCH_SEP_MAX
+    #: Dense 2D bed schedule (P32 phase 1). `bed=True` replaces the single-file
+    #: gap schedule with the row lattice planned by `bed.BedSchedule` (an
+    #: abreast edge pair per row + a conditional staggered middle); `bed_plan`
+    #: carries the resolved geometry. Default off: no bed draw happens and
+    #: `_release_gap`/`respawn` behave exactly as before.
+    bed: bool = False
+    bed_plan: BedPlan | None = None
     #: P4-C1 H1 trickle feed (2026-10-16, default 0 = off/byte-identical).
     #: `FRUIT_SUPPLY_TRICKLE_LATE_S = capS`: in `_pump_supply`, a due slice
     #: whose virtual lateness exceeds the cap is consumed-and-skipped instead
@@ -531,7 +556,60 @@ class SupplyPlan:
                 )
         # The balanced A:B:C mix follows the two-line scenario, whether it runs
         # the wave or the patch schedule there (`FRUIT_SUPPLY_GRADES` still wins).
-        balanced = (wave or patch) and os.environ.get("FRUIT_BIARM_TWOLINE", "0") == "1"
+        # Dense 2D bed (P32 phase 1). It shares the scattered feeder's stream
+        # pump/backlog machinery, so like the patch it needs
+        # `FRUIT_SUPPLY_SCATTER=1`; the schedule branch order below is
+        # bed > patch > wave > scatter, and the create_pool banner names the one
+        # that actually runs.
+        bed_env = os.environ.get("FRUIT_SUPPLY_BED", "0") == "1"
+        bed = bool(scatter and bed_env)
+        if bed_env and not scatter:
+            say(
+                "[supply] warning: FRUIT_SUPPLY_BED=1 requires "
+                "FRUIT_SUPPLY_SCATTER=1; ignored"
+            )
+        if bed and patch_env:
+            # Precedence: bed > patch > wave > scatter. `patch` resolves off so
+            # exactly one schedule flag is set (the pump's branch order would
+            # also pick the bed first, but then the banner would print an inert
+            # patch=on line - the same confusion the P2 density battery hit).
+            patch = False
+            say(
+                "[supply] warning: FRUIT_SUPPLY_BED=1 with "
+                "FRUIT_SUPPLY_PATCH=1; the BED schedule wins"
+            )
+        elif bed and os.environ.get("FRUIT_SUPPLY_WAVE", "") == "1":
+            say(
+                "[supply] warning: FRUIT_SUPPLY_BED=1 with "
+                "FRUIT_SUPPLY_WAVE=1; the BED schedule wins"
+            )
+        # The bed's bigger pool is its own knob (`FRUIT_SUPPLY_BED_POOL`, 40):
+        # rows deliver 2-3 fruit every 0.13-0.15 m, so a packed belt holds 19-24
+        # live bodies and the pool must leave a burst's worth of rows parked
+        # (a 28-fruit pool - the belt's own capacity - made 57 % of the real
+        # loop's draws recycle a *live* body; see `bed.BED_POOL`). An explicit
+        # `FRUIT_SUPPLY_POOL` still wins, and no legacy schedule reads the bed
+        # pool, so every existing pool stays byte-identical.
+        bed_plan = BedPlan.from_env(cfg) if bed else None
+        if bed and "FRUIT_SUPPLY_POOL" not in os.environ and bed_plan is not None:
+            pool_default = float(bed_plan.pool)
+        else:
+            pool_default = float(cfg.num_fruits)
+        # The approach-segment top-up places a fruit at `spawn_y` with a drawn
+        # lateral offset, which would break the bed's lattice and its corridor
+        # rule. The bed packs itself, so the top-up is refused (with a warning)
+        # rather than silently producing an off-lattice slot.
+        target = max(0, int(number("FRUIT_SUPPLY_TARGET", 0)))
+        if bed and target > 0:
+            say(
+                "[supply] warning: FRUIT_SUPPLY_TARGET is not used by the bed "
+                "schedule (it packs its own slots); ignored"
+            )
+            target = 0
+        balanced = (
+            wave or patch or bed
+        ) and os.environ.get("FRUIT_BIARM_TWOLINE", "0") == "1"
+
         # P1c species lock: `FRUIT_SUPPLY_SPECIES=<name>` restricts the pool to
         # one species (the composition-controlled comparison); unset = shipped.
         species_only = os.environ.get("FRUIT_SUPPLY_SPECIES", "").strip()
@@ -551,7 +629,7 @@ class SupplyPlan:
         x_max = max(x_min, number("FRUIT_SUPPLY_X_MAX", SUPPLY_X_MAX))
         return cls(
             scatter=scatter,
-            pool=max(1, int(number("FRUIT_SUPPLY_POOL", cfg.num_fruits))),
+            pool=max(1, int(number("FRUIT_SUPPLY_POOL", pool_default))),
             gap_min=gap_min,
             gap_max=gap_max,
             x_min=x_min,
@@ -559,7 +637,7 @@ class SupplyPlan:
             along_jitter=max(0.0, number("FRUIT_SUPPLY_ALONG_JITTER", 0.0)),
             stream=os.environ.get("FRUIT_SUPPLY_STREAM", "1") == "1",
             burst_max=max(1, int(number("FRUIT_SUPPLY_BURST_MAX", 6))),
-            target=max(0, int(number("FRUIT_SUPPLY_TARGET", 0))),
+            target=target,
             target_from=max(0.0, number("FRUIT_SUPPLY_TARGET_FROM", 0.35)),
             grades=_mix_env("FRUIT_SUPPLY_GRADES", cfg.grades, default_grades),
             classes=_mix_env(
@@ -591,12 +669,31 @@ class SupplyPlan:
             patch_pair=patch_pair,
             patch_sep_min=patch_sep_min,
             patch_sep_max=patch_sep_max,
+            bed=bed,
+            bed_plan=bed_plan,
             trickle_late_s=max(0.0, number("FRUIT_SUPPLY_TRICKLE_LATE_S", 0.0)),
         )
 
     def sample_gap(self, rng: random.Random) -> float:
         """One along-the-line gap [m] between consecutive released fruit."""
         return rng.uniform(self.gap_min, self.gap_max)
+
+    @property
+    def schedule(self) -> str:
+        """Name of the schedule that owns the branch: bed/patch/wave/scatter.
+
+        The branch order in `_release_gap`/`_pump_supply` is the same, so this
+        is what a log's banner or the offline audit should print (the bed is the
+        only schedule that resolves a lower-precedence flag off, so at most one
+        of `bed`/`patch`/`wave` is true).
+        """
+        if self.bed:
+            return "bed"
+        if self.patch:
+            return "patch"
+        if self.wave:
+            return "wave"
+        return "scatter"
 
 
 class FruitSpawner:
@@ -623,6 +720,14 @@ class FruitSpawner:
         #: Resolved scattered-supply parameters (v9/V1). `scatter=False`
         #: reproduces the pre-v9 fixed line bit-for-bit.
         self.supply = SupplyPlan.from_env(cfg)
+        #: Dense 2D bed schedule (P32 phase 1, default off). Its own RNG stream
+        #: (`BedSchedule`), so nothing here touches `self.rng`: the legacy
+        #: arrival streams draw exactly the same numbers with the knob unset.
+        self.bed_schedule = (
+            BedSchedule(self.supply.bed_plan, seed=self.seed)
+            if self.supply.bed and self.supply.bed_plan is not None
+            else None
+        )
         self.samples: list[FruitSample] = []
         self.active: list[FruitSample] = []
         self._rigids: dict[int, RigidPrim] = {}
@@ -664,6 +769,69 @@ class FruitSpawner:
         #: past-floor / trickle-stale / clear-refused / queue-interlock /
         #: pool-empty and the delivered lateness band.
         self._supply_diag = os.environ.get("FRUIT_SUPPLY_DIAG", "0") == "1"
+        #: P32 phase A pure-reporting diagnostic (`FRUIT_BED_DIAG=1`, default
+        #: off), bed only: one `[bed-pump]` line per pump call that processed
+        #: due slots (the absolute clock, the schedule's due time and the lateness
+        #: band) and one `[bed-row]` line per placed/refused row. Read once here,
+        #: so the shipped path pays one attribute check per due slot and never
+        #: touches the env or the control loop. `tasks.select_target` reads the
+        #: same variable for its per-attempt `[bed-sel]` census, and the feeder
+        #: probe (`scripts/214_bed_feeder_probe.py`) runs on both.
+        self._bed_diag = os.environ.get("FRUIT_BED_DIAG", "0") == "1"
+        #: P32 phase A bed-stock cap [m]: a bed row is never released further
+        #: downstream than `spawn_y - this`, because a row released below the
+        #: selection floor is not a candidate (it rides past the station). The
+        #: pump's backlog deeper than this is dropped - see `_pump_supply`.
+        self.supply_bed_stock_m = float(
+            os.environ.get("FRUIT_SUPPLY_BED_STOCK_M", "0.16")
+        )
+        #: P32 phase A bed-stock depth: how many live bodies the approach band
+        #: (`_bed_stock_depth`, 0.58 m from the release floor to the spawn) may
+        #: hold before the pump holds its next row. **10 = the band's delivered
+        #: design capacity**: 0.58 m / 0.14 m mean pitch = 4.1 rows x the
+        #: measured 2.4 fruit per row (64 % middles) = 9.9. The shipped
+        #: `FRUIT_QUEUE_MAX=6` is a *station-window* number (0.5 m in front of
+        #: the gate, calibrated for the single-file lines) and applied to the
+        #: bed's band it throttles the feeder to ~0.55 rows/s against a design
+        #: 0.88 - measured as the 1/10 hole at band 6 with a 4 mm miss
+        #: (`logs/p32/62_probe_hold.log` attempt 6). At 10 the band delivers the
+        #: design rate and the station window still holds the shipped ~6 bodies.
+        #: **Coupling (m6):** the capacity moves with the plan - the
+        #: `_bed_stock_depth` band is `spawn_y + 0.05 - (pick_y + 0.10)` long,
+        #: so a wider `FRUIT_SUPPLY_BED_ALONG_*` band or more columns needs a
+        #: *larger* cap, and a narrower one a smaller. The env value is clamped
+        #: to the band's geometric maximum (`bed_stock_capacity`, 13 at the
+        #: shipped geometry), so a typo cannot pack more fruit into the band
+        #: than it can hold; the default stays the measured 10.
+        requested = int(os.environ.get("FRUIT_SUPPLY_BED_STOCK_MAX", "10"))
+        capacity = self.bed_stock_capacity()
+        # Bed off (`capacity == 0`): keep the requested value; the attribute is
+        # only read on the bed path, so the legacy spawner's state is unchanged.
+        self.supply_bed_stock_max = max(
+            1, min(requested, capacity) if capacity > 0 else requested
+        )
+        #: P32 Gate-A residual R2, bed only: the stride of the scan-only
+        #: end-of-line sweep (`scan_despawn`, called from the driver's
+        #: `_step_sim`). The end-of-line recycle lived **only** inside `update`,
+        #: which the driver calls at the attempt boundary, so between two pumps
+        #: the belt kept carrying fruit past `despawn_y` and off the belt's
+        #: physical end: measured as `fell_off` (5 on the cadence arm, 102 - 96
+        #: of them past the end - on the 20-attempt boundary control) with
+        #: `reached_end=0`. The bound is geometric, not tuned: the belt end
+        #: (`belt_center[1] - belt_size[1]/2` = -0.80 m) is 0.10 m past
+        #: `despawn_y` (-0.70 m), i.e. **0.83 s** of travel at the shipped
+        #: 0.12 m/s, so any stride below that recycles a body while it is still
+        #: on the belt. 0.25 s is a 3.3x margin and costs one fruit-pose read
+        #: per live body every 30 ticks (pose reads are run-neutral; see
+        #: AGENTS section 2).
+        self.supply_bed_sweep_s = float(
+            os.environ.get("FRUIT_SUPPLY_BED_SWEEP_S", "0.25")
+        )
+        self._despawn_stride = max(
+            1, int(round(self.supply_bed_sweep_s * 120.0))
+        )
+        #: Control ticks accrued since the last sweep (`scan_despawn`).
+        self._despawn_ticks = 0
         #: Set to a CleatedBelt so the cleats advance with the physics loop.
         self.belt = None
         stage.DefinePrim(root, "Xform")
@@ -688,9 +856,29 @@ class FruitSpawner:
             counts: dict[str, int] = {}
             for name in classes:
                 counts[name] = counts.get(name, 0) + 1
+            # The schedule's own geometry in the one-line banner. The bed is a
+            # **row** lattice, so the scatter line's `gaps=0.10-0.35 m` would be
+            # a false claim there (P32 Gate-1 finding: the Oracle read the
+            # banner and saw the wrong schedule); it prints the rows instead.
+            if self.supply.bed and self.supply.bed_plan is not None:
+                bed = self.supply.bed_plan
+                mids = ",".join(
+                    f"{bed.columns[i]:.2f}" for i in bed.middle_columns
+                )
+                geometry = (
+                    "rows="
+                    f"{len(bed.edge_columns)} abreast "
+                    f"({bed.columns[bed.edge_columns[-1]] - bed.columns[bed.edge_columns[0]]:.2f} m)"
+                    f" + conditional mid at x={mids} "
+                    f"pitch={bed.along_min:.3f}-{bed.along_max:.3f} m"
+                )
+            else:
+                geometry = (
+                    f"gaps={self.supply.gap_min:.2f}-{self.supply.gap_max:.2f} m"
+                )
             say(
                 f"[supply] scatter pool={pool} seed={self.seed} "
-                f"gaps={self.supply.gap_min:.2f}-{self.supply.gap_max:.2f} m "
+                f"{geometry} "
                 f"lateral x={self.supply.x_min:.2f}-{self.supply.x_max:.2f} m "
                 f"stream={'on' if self.supply.stream else 'off'} "
                 f"target={self.supply.target} "
@@ -699,7 +887,7 @@ class FruitSpawner:
                     f"on size={self.supply.wave_size} "
                     f"gap={self.supply.wave_gap_min:.2f}-{self.supply.wave_gap_max:.2f} "
                     f"sep={self.supply.wave_sep_min:.2f}-{self.supply.wave_sep_max:.2f}"
-                    if self.supply.wave
+                    if self.supply.wave and not self.supply.bed
                     else "off"
                 )
                 + " grades="
@@ -716,6 +904,27 @@ class FruitSpawner:
                     else ""
                 )
             )
+            # The bed names itself (the schedule actually running: bed > patch >
+            # wave) and its geometry, so a battery log can be read without the
+            # shell command. The knob-off stream carries no extra line.
+            if self.supply.bed and self.supply.bed_plan is not None:
+                plan = self.supply.bed_plan
+                mid_lo = plan.admitted_radius(plan.diagonal(plan.along_min))
+                mid_hi = plan.admitted_radius(plan.diagonal(plan.along_max))
+                say(
+                    "[supply] schedule: bed "
+                    f"rows={len(plan.edge_columns)} abreast "
+                    f"(edge pair {plan.columns[plan.edge_columns[-1]] - plan.columns[plan.edge_columns[0]]:.2f} m)"
+                    f" + conditional mid "
+                    f"columns={','.join(f'{x:.2f}' for x in plan.columns)} "
+                    f"pitch={plan.along_min:.3f}-{plan.along_max:.3f} m "
+                    f"(mid half a pitch downstream, joins only when its "
+                    f"diagonal clears the pair rule: <= "
+                    f"{2*mid_lo*100:.1f}-{2*mid_hi*100:.1f} cm dia) "
+                    f"margin={plan.margin:.3f} m "
+                    f"shift={plan.shift_max:.2f} m pool={self.supply.pool} "
+                    "corridor=+/-0.066 m"
+                )
             # P4-C1 H1 (default off): print the trickle state only when it is
             # active, so the shipped banner stream stays byte-identical.
             if self.supply.trickle_late_s > 0.0:
@@ -940,10 +1149,14 @@ class FruitSpawner:
         self._cursor = 0
         self._next_release = 0.0
         self._wave_count = 0
+        if self.supply.bed and self.supply.bed_plan is not None:
+            # Same seed, same schedule: a reset replays the bed's lattice
+            # instead of continuing from wherever the previous run stopped.
+            self.bed_schedule = BedSchedule(self.supply.bed_plan, seed=self.seed)
         self._tray_dwell.clear()
         app_utils.update_app(steps=1)
 
-    def release_next(self) -> FruitSample:
+    def release_next(self, place: bool = True) -> FruitSample:
         """Randomize and drop the next queued fruit at the belt entrance.
 
         The cursor skips a fruit that is currently held or protected by an
@@ -953,6 +1166,12 @@ class FruitSpawner:
         video recorder measured, `logs/902_video_before.log`). Single-arm runs
         call `update` only between attempts, where no sample is held or
         protected, so their cursor sequence is unchanged.
+
+        `place=False` draws and accounts the sample but leaves it where it is;
+        the bed schedule needs the fruit's radius *before* it can choose the
+        slot (the pair-clearance predicate is per-fruit) and then respawns it at
+        the planned column. Every legacy caller uses the default, so their
+        sequence is unchanged.
         """
         count = len(self.samples)
         if self.supply.scatter:
@@ -981,7 +1200,8 @@ class FruitSpawner:
                     f"[belt] {sample.category} (index {sample.index}) discharged to the tray "
                     f"at x={float(pos[0]):.2f} (recycled by the feeder schedule)"
                 )
-        self.respawn(sample)
+        if place:
+            self.respawn(sample)
         if sample not in self.active:
             self.active.append(sample)
         self.stats["released"] += 1
@@ -998,7 +1218,37 @@ class FruitSpawner:
         downstream of the station (already past selection, about to despawn) >
         main belt upstream; held, protected, or output-line fruit are never
         taken.
+
+        On the bed (`self.supply.bed`) every draw is counted (`bed_draws`) and
+        a draw that falls through to a live body is counted
+        (`bed_live_recycled`, see `_bed_note_live_draw`), so the audit can
+        assert the fraction is zero. Both counters are lazily created and
+        bed-gated: the legacy stats dict is unchanged.
+
+        **Known sim path, now refused (P32 Gate-A residual R1, fixed):** the
+        x-window test below (`|x - belt_center[0]| <= 0.30`) also reaches the
+        raised output lanes, so a fruit placed there was treated as a main-belt
+        body downstream of the station and recycled (measured `x=0.628,
+        y=-0.583, z=1.377` for a pear, the run's `live_recycled=1/489`). The
+        offline fake belt never puts a body there. The bed now refuses any body
+        above `belt_top + 0.10 m` (the `bed_top` cut below, 1.27 m at the
+        shipped scene): a placed fruit on the raised lane sits at z 1.35-1.38,
+        while the tallest class on the belt reaches 1.235 m, so the band cannot
+        exclude a main-belt body. Bed-gated (`self.supply.bed`): every legacy
+        schedule keeps the shipped predicate byte-for-byte.
         """
+        if self.supply.bed:
+            self.stats["bed_draws"] = self.stats.get("bed_draws", 0) + 1
+        # A body higher than this is not on the main belt (bed only). The main
+        # belt's top is 1.17 m; a placed fruit on a raised output lane is at
+        # 1.34 m (the belt top) + its radius, i.e. >= 1.37 m.
+        bed_top = (
+            float(self.cfg.belt_center[2])
+            + float(self.cfg.belt_size[2]) / 2.0
+            + 0.10
+            if self.supply.bed
+            else None
+        )
         fallback: FruitSample | None = None
         for _scan in range(count):
             sample = self.samples[self._cursor % count]
@@ -1010,16 +1260,69 @@ class FruitSpawner:
             pos = self.position(sample)
             if abs(float(pos[0]) - self.cfg.belt_center[0]) > 0.30:
                 continue  # on an output conveyor or off the main belt
+            if bed_top is not None and float(pos[2]) > bed_top:
+                continue  # placed on a raised output lane (bed only, R1)
             if float(pos[2]) < self.cfg.belt_center[2] - 0.25:
                 continue  # fell off
             if float(pos[1]) <= self.recycle_y:
+                self._bed_note_live_draw(sample)
                 return sample  # downstream of the station: recycling is invisible
             if fallback is None:
                 fallback = sample
+        if fallback is not None:
+            self._bed_note_live_draw(fallback)
         return fallback
 
-    def update(self, sim_time: float) -> list[FruitSample]:
-        """Release on schedule and recycle fruit that reached the downstream end."""
+    def _bed_note_live_draw(self, sample: FruitSample) -> None:
+        """Count a draw that fell through to a **live** body (P32 B1, bed only).
+
+        `_pick_recyclable` prefers a parked body; a live one means the pool was
+        exhausted, and `respawn` will teleport it from wherever it was (mid-belt,
+        or already past the station) to the spawn point - a visible jump and a
+        destroyed candidate. The bed's pool is sized so this never happens
+        (`bed.BED_POOL`) and `scripts/211_bed_audit.py` asserts the fraction is
+        zero. Gated on `self.supply.bed` so a legacy stats dict (and every
+        shipped log line that prints one) stays byte-identical.
+        """
+        if not self.supply.bed:
+            return
+        self.stats["bed_live_recycled"] = self.stats.get("bed_live_recycled", 0) + 1
+        pos = self.position(sample)
+        upstream = float(pos[1]) - float(self.recycle_y)
+        previous = float(self.stats.get("bed_live_recycled_max_upstream_m", 0.0))
+        # Keep the event with the largest displacement (signed: negative = a
+        # placed body downstream of the recycle line, the measured output-lane
+        # path); the old `max(0, ...)` clamp printed 0.00 m for exactly that
+        # event and hid where it came from.
+        if abs(upstream) >= abs(previous):
+            self.stats["bed_live_recycled_max_upstream_m"] = upstream
+        if self._bed_diag:
+            # m3 attribution: the pool drew a live body (the pre-B1 teleport
+            # path). Print where it was so a non-zero run is attributable.
+            say(
+                f"[bed-recycle] {sample.category} idx={sample.index} "
+                f"x={float(pos[0]):.3f} y={float(pos[1]):.3f} "
+                f"z={float(pos[2]):.3f}"
+            )
+
+    def update(
+        self, sim_time: float, advance_furniture: bool = True
+    ) -> list[FruitSample]:
+        """Release on schedule and recycle fruit that reached the downstream end.
+
+        `advance_furniture=False` (P32 phase 2, `FRUIT_FEED_CADENCE=1`, default
+        off) runs the same pump - the absolute release schedule, the
+        recirculation clock, the transport wake loop and the despawn scan - but
+        leaves the conveyor's kinematic furniture where it is. The main belt's
+        cleat phase advances **once per `update` call** (`enforce_transport` ->
+        `belt.step`), i.e. the shipped line moves the cleats for its 60-90
+        between-attempt ticks and not at all during an attempt. A mid-attempt
+        feed must not silently change that second thing as well: the cadence
+        lever is the feeder's release schedule, and the A/B has to compare it
+        against the shipped furniture cadence. The default `True` is every
+        existing call site (the driver loops, the collector, the rl env and the
+        offline audits) - byte-identical.
+        """
         released = []
         # Recirculation. A fruit that waits in the queue window without being
         # picked for FRUIT_MAX_WAIT_S seconds of simulated time goes back to the
@@ -1070,7 +1373,7 @@ class FruitSpawner:
             if sample is not None:
                 released.append(sample)
                 self._next_release = sim_time + self.cfg.spawn_period_s
-        self.enforce_transport()
+        self.enforce_transport(advance_furniture=advance_furniture)
         tray_dwell_s = float(self.cfg.output_tray_dwell_s)
         for sample in list(self.active):
             if sample.parked:
@@ -1100,18 +1403,172 @@ class FruitSpawner:
                     self._tray_dwell[sample.index] = 0.0
                 continue
             # A fruit still on the chute is between the belt top and the tray:
-            # not on the main belt, not on the floor. Suppress `fell_off` while it
-            # is inside the discharge envelope, or it would be recycled mid-slide.
-            fell_off = float(pos[2]) < self.cfg.belt_center[2] - 0.25
-            if fell_off and not sample.held and self.cfg.on_output_discharge(pos):
-                fell_off = False
-            # Recycle fruit that reached the end of the line, or that fell off
-            # the belt for any reason (small round fruit can escape).
-            if along < self.cfg.despawn_y or fell_off:
-                self.stats["fell_off" if fell_off else "reached_end"] += 1
-                self.park(sample)
-                self.active.remove(sample)
+            # not on the main belt, not on the floor. `_end_of_line` suppresses
+            # `fell_off` while it is inside the discharge envelope, or it would
+            # be recycled mid-slide. The classification is shared with the bed's
+            # scan-only sweep (`scan_despawn`), so the two scans cannot disagree
+            # about a body.
+            kind = self._end_of_line(sample, pos, along)
+            if kind is not None:
+                self._recycle_end(sample, kind, pos, along)
         return released
+
+    def _end_of_line(self, sample: FruitSample, pos, along: float) -> str | None:
+        """Classify a live body at the end of the line (`update`'s despawn test).
+
+        `"fell_off"` wins over `"reached_end"` - the shipped precedence: a body
+        that is both past `despawn_y` and below the belt by 0.25 m was lost, not
+        delivered. A body sliding down the output chute keeps `fell_off` False
+        while it is inside `on_output_discharge`, so it is not recycled
+        mid-slide. `None` means the body is still on the line.
+
+        Split out (P32 R2) so `scan_despawn` - the bed's between-pump sweep -
+        reuses this exactly instead of re-deriving the geometry: the two call
+        sites must never classify the same body differently.
+        """
+        fell_off = float(pos[2]) < self.cfg.belt_center[2] - 0.25
+        if fell_off and not sample.held and self.cfg.on_output_discharge(pos):
+            fell_off = False
+        if fell_off:
+            return "fell_off"
+        if float(along) < self.cfg.despawn_y:
+            return "reached_end"
+        return None
+
+    def _recycle_end(self, sample: FruitSample, kind: str, pos, along: float) -> None:
+        """Count and recycle one end-of-line body the way `update` always has.
+
+        `park` is the recycle (the body re-enters the pool as `parked` and the
+        feeder draws it later); it is **not** a mid-belt teleport, because the
+        caller has already established that the body is past `despawn_y` or on
+        the floor.
+        """
+        self.stats[kind] += 1
+        if kind == "fell_off" and self._bed_diag:
+            # m3 attribution (bed only, pure reporting): a `fell_off` is
+            # either an unattended belt loss or a failed attempt's payload
+            # leaving the line. The row names the sample and where it was,
+            # so the run's `[bed] stats fell_off=` can be attributed
+            # instead of assumed.
+            say(
+                f"[bed-fall] {sample.category} idx={sample.index} "
+                f"x={float(pos[0]):.3f} y={along:.3f} z={float(pos[2]):.3f} "
+                f"held={sample.held}"
+            )
+        self.park(sample)
+        self.active.remove(sample)
+
+    def scan_despawn(self, ticks: int = 1) -> None:
+        """Scan-only end-of-line sweep (P32 Gate-A residual R2; bed only).
+
+        `update` is the only place the end-of-line scan runs, and the driver
+        calls it at the attempt boundary (the 60-tick feed loop in
+        `scripts/20_pick_place.py`, the bimanual loop's `gap_ticks`). Between
+        those calls the belt keeps carrying fruit (`_step_sim`, inside an
+        attempt), so a body that crossed `despawn_y` then kept going over the
+        belt's physical end (-0.80 m) was charged `fell_off` by the *next*
+        pump: measured **5** (4 past the end) on the cadence arm and **102**
+        (96 past the end) on the 20-attempt boundary control, with
+        `reached_end=0` - the accounting signature of the gap, not of a push.
+
+        This is that scan, on the driver's own tick, and **nothing else**: no
+        release schedule (`_next_release` untouched), no interlock, no
+        `enforce_transport`/`belt.step` (the conveyor's kinematic furniture keeps
+        the shipped per-pump cadence), no tray-dwell accrual and no
+        recirculation clock. A body still on the belt is never touched - only
+        one past `despawn_y` or on the floor is classified (`_end_of_line`) and
+        recycled (`_recycle_end`), which is exactly what `update` would do.
+
+        Bed-gated: a legacy spawner returns immediately (one attribute read per
+        control tick, the same budget as `_feed_on`), and the shipped driver
+        never calls it. Thread safety: every `_step_sim` runs under the bimanual
+        relay's single run permit, so `active` cannot be mutated concurrently.
+        """
+        if not self.supply.bed:
+            return
+        self._despawn_ticks += max(1, int(ticks))
+        if self._despawn_ticks < self._despawn_stride:
+            return
+        self._despawn_ticks = 0
+        # Lazy counters (bed gate above), so a legacy `stats` dict is unchanged:
+        # `sweeps` proves the sweep ran and `swept` is how many of the run's
+        # `reached_end` came from it rather than from the pump's own scan.
+        self.stats["bed_sweeps"] = self.stats.get("bed_sweeps", 0) + 1
+        for sample in list(self.active):
+            if sample.parked or sample.held:
+                continue
+            pos = self.position(sample)
+            if self.cfg.on_output_tray(pos):
+                # A discharged body's recycle is the tray dwell in `update`
+                # (it needs that method's `dt`); the sweep must not race it.
+                continue
+            along = float(pos[1])
+            kind = self._end_of_line(sample, pos, along)
+            if kind is not None:
+                self._recycle_end(sample, kind, pos, along)
+                self.stats["bed_swept"] = self.stats.get("bed_swept", 0) + 1
+
+    def bed_stock_capacity(self) -> int:
+        """Geometric maximum of the bed's approach band [fruit] (m6).
+
+        The pump's interlock (`FRUIT_SUPPLY_BED_STOCK_MAX`) is a *depth* on the
+        band `_bed_stock_depth` counts: `spawn_y + 0.05` down to
+        `pick_y + 0.10`, i.e. 0.63 m at the shipped scene. With the mean row
+        pitch and every column occupied the band holds
+        `floor(0.63 / 0.14) + 1 = 5` rows x 3 columns = 15 slots; the strict
+        capacity used for the clamp counts full rows only (4 x 3 = 12) plus
+        one partial row at the spawn end (3) = 15, and the shipped delivered
+        design is 10 (2.4 fruit per row). The clamp is deliberately the
+        *geometric* ceiling, not the delivered density: it only stops a typo
+        from demanding more bodies than the band can physically hold.
+
+        Plan-dependent by construction: `FRUIT_SUPPLY_BED_ALONG_*` and the
+        column list move it, and `fruits.py` re-evaluates it at construction.
+        """
+        plan = self.supply.bed_plan
+        if plan is None:
+            return 0
+        lo = float(self.cfg.pick_y) + 0.10
+        hi = float(self.cfg.spawn_y) + 0.05
+        mean_pitch = 0.5 * (plan.along_min + plan.along_max)
+        if mean_pitch <= 1e-9:
+            return len(plan.columns)
+        rows = max(1, int(max(0.0, hi - lo) // mean_pitch) + 1)
+        return max(1, rows * len(plan.columns))
+
+    def _bed_stock_depth(self) -> int:
+        """Bed feeder interlock input: live fruit in the **approach band**.
+
+        `FRUIT_QUEUE_MAX` (6) was calibrated for the single-file lines, where the
+        station window `[pick_y - 0.05, pick_y + 0.45]` is the buffer in front of
+        the gate: six bodies there is ~4 s of travel and the approach segment is
+        stocked *by the backlog* of a slow feeder. The bed's rows are due every
+        ~1.1 s of travel, so the same six bodies sit mostly *downstream of the
+        station window* and the pack's throughput is what fills it - measured
+        (`logs/p32/60_probe_nocap.log`): at the shipped q6 the station check
+        blocked 1 due row in 3, the stock band above the catch floor went empty
+        for 2-3 s at a time, and 8 of 10 selections found nothing (live 9-12
+        fruit, all of it below 0.24 m).
+
+        So the bed paces on the band the *selector* draws from - the segment
+        between the release floor and the spawn point, 0.58 m, the same length as
+        the station window - and the depth keeps the shipped linear density
+        (6 fruit / 0.58 m = 10.3/m against 6 / 0.50 m = 12/m). Counting stops at
+        `spawn_y + 0.05` because a body released this call is already there.
+        Bed-gated: every legacy schedule keeps `_queue_depth` byte-for-byte.
+        """
+        lo = float(self.cfg.pick_y) + 0.10
+        hi = float(self.cfg.spawn_y) + 0.05
+        depth = 0
+        for sample in self.active:
+            if sample.parked or sample.held:
+                continue
+            pos = self.position(sample)
+            if abs(float(pos[0]) - self.cfg.belt_center[0]) > 0.30:
+                continue
+            if lo <= float(pos[1]) <= hi:
+                depth += 1
+        return depth
 
     def _queue_depth(self) -> int:
         """Fruit waiting just upstream of the gate (the line-full interlock input).
@@ -1134,8 +1591,52 @@ class FruitSpawner:
                 queued += 1
         return queued
 
+    def bed_stats_line(self) -> str | None:
+        """Final `[bed] stats` row (P32 phase A, m3); None when the bed is off.
+
+        The per-attempt diagnostics name the pump's state, but the *run's*
+        zero-recycle and zero-fell-off assertions were only visible in the
+        offline audit. This row puts them in the simulator log itself, so a
+        claim of "the pool never recycled a live body" and "no body fell off
+        the belt" is evidenced by the run that made it. Gated on `supply.bed`,
+        so every legacy log keeps its byte-identical stream.
+        """
+        if not self.supply.bed:
+            return None
+        stats = self.stats
+        draws = int(stats.get("bed_draws", 0))
+        recycled = int(stats.get("bed_live_recycled", 0))
+        live = sum(1 for sample in self.active if not sample.parked and not sample.held)
+        return (
+            f"[bed] stats draws={draws} placed={int(stats.get('bed_placed', 0))} "
+            f"live_recycled={recycled}/{draws} "
+            f"({recycled * 100.0 / draws if draws else 0.0:.1f} %) "
+            + (
+                f"recycled_dy={float(stats.get('bed_live_recycled_max_upstream_m', 0.0)):+.2f}m "
+                if recycled
+                else ""
+            )
+            + f"holds={int(stats.get('bed_holds', 0))} "
+            f"refused={int(stats.get('bed_refused', 0))} "
+            f"rebased={int(stats.get('bed_rebased', 0))} "
+            f"late_dropped={float(stats.get('bed_late_dropped_s', 0.0)):.1f}s "
+            f"fell_off={int(stats.get('fell_off', 0))} "
+            f"reached_end={int(stats.get('reached_end', 0))} "
+            f"sweeps={int(stats.get('bed_sweeps', 0))} "
+            f"swept={int(stats.get('bed_swept', 0))} "
+            f"supply_skipped={int(stats.get('supply_skipped', 0))} "
+            f"live={live}"
+        )
+
     def _release_gap(self) -> float:
-        """One release gap [m] on the scattered line: patch, dense-sheet or uniform.
+        """One release gap [m] on the scattered line: bed, patch, dense-sheet or uniform.
+
+        With `bed=True` (P32 phase 1) the gap is one **row pitch** from
+        `BedSchedule`; a pump call releases the row's abreast edge pair at that
+        along plus the middle column half a pitch downstream, so the fruit order
+        on the belt is pair, middle, pair, middle. The bed draws from its own RNG
+        stream, so this branch is the only place a bed number is drawn and the
+        legacy branches below are untouched.
 
         With `patch=True` (W6-A 2D sheet) the gap is one **slice spacing**
         drawn from `patch_slice_min..patch_slice_max`; the slice's fruit are
@@ -1154,6 +1655,8 @@ class FruitSpawner:
         """
         if not self.supply.scatter:
             return float(self.cfg.spawn_period_s)
+        if self.bed_schedule is not None:
+            return self.bed_schedule.next_gap()
         if self.supply.patch:
             return self.rng.uniform(
                 self.supply.patch_slice_min, self.supply.patch_slice_max
@@ -1197,6 +1700,169 @@ class FruitSpawner:
                     return False
                 if abs(float(pos[0]) - float(x)) < self.supply.patch_sep_min:
                     return False
+        return True
+
+    def _bed_neighbours(self, exclude=None):
+        """Live fruit in the belt plane as `(along, x, radius)` for the bed rule.
+
+        Same population `_release_clear` looks at (parked and held fruit are not
+        in the way; a *protected* fruit still is), plus the radius the corridor
+        rule needs. Fruit on a raised output conveyor are off the centre line
+        (`|x - centre| > 0.30`) and are skipped exactly as there. Fruit-pose
+        reads are the safe readback class (they do not move the run - see the
+        WORKLOG entry "it is the arm-link readback, not reads in general").
+
+        `exclude` is one sample index or a collection: a row's drawn samples are
+        about to be placed (and a fallback recycle can name a live body), so they
+        must not block their own row.
+        """
+        skip: set[int] = set()
+        if exclude is not None:
+            if isinstance(exclude, (set, frozenset, list, tuple)):
+                skip = {int(index) for index in exclude}
+            else:
+                skip = {int(exclude)}
+        out = []
+        for sample in self.active:
+            if sample.parked or sample.held:
+                continue
+            if sample.index in skip:
+                continue
+            pos = self.position(sample)
+            if abs(float(pos[0]) - self.cfg.belt_center[0]) > 0.30:
+                continue
+            out.append((float(pos[1]), float(pos[0]), 0.5 * float(sample.diameter)))
+        return out
+
+    def _bed_draw_row(self) -> list[FruitSample]:
+        """Draw up to one row's worth of samples without placing them.
+
+        A row is at most one fruit per column (2-3 at the shipped geometry). A
+        short draw (pool exhausted) degrades the row instead of dropping it: the
+        schedule places the fruit it was given. The samples stay parked until
+        `_bed_commit_row` (or `_bed_refuse`) decides their fate.
+        """
+        width = len(self.supply.bed_plan.columns) if self.supply.bed_plan else 2
+        samples: list[FruitSample] = []
+        seen: set[int] = set()
+        for _ in range(width):
+            sample = self.release_next(place=False)
+            if sample is None:
+                break
+            if sample.index in seen:
+                # Degenerate pool (fewer bodies than one row): the recycled
+                # cursor wrapped onto a fruit already drawn for this row. It
+                # cannot fill a second slot - park it and degrade the row.
+                self.park(sample)
+                if sample in self.active:
+                    self.active.remove(sample)
+                break
+            seen.add(sample.index)
+            samples.append(sample)
+        return samples
+
+    def _bed_place_row(self, along: float):
+        """Draw and place one row: `(row, samples)`; `row` is None when refused.
+
+        The schedule needs the fruit's radius before it can choose the row (the
+        pair rule is per-pair), so the samples are drawn unplaced, then respawned
+        at the planned columns. `along_max` is the spawn point: an on-time row
+        has no upstream room, a late one (the pump's backlog) does.
+        """
+        samples = self._bed_draw_row()
+        if not samples:
+            return None, []
+        row = self.bed_schedule.place_row(
+            along,
+            [0.5 * float(sample.diameter) for sample in samples],
+            self._bed_neighbours(exclude=[sample.index for sample in samples]),
+            along_max=float(self.cfg.spawn_y),
+        )
+        return row, samples
+
+    def _bed_commit_row(self, row, samples, released: list[FruitSample]) -> None:
+        """Respawn a row's placed slots, park any unused sample, count the row.
+
+        `bed_placed` counts **placed fruit slots**, not draws: the row draws one
+        sample per column (3) but the mixed pool's middle is usually refused, so
+        `stats["released"]` (one per `release_next`) runs ~1.5x the fruit that
+        actually lands on the belt. The audit's density numbers use
+        `bed_placed`.
+        """
+        for slot, sample in zip(row.slots, samples):
+            self.respawn(sample, along=slot.along, x=slot.x)
+            released.append(sample)
+        for sample in samples[len(row.slots):]:
+            self.park(sample)
+            if sample in self.active:
+                self.active.remove(sample)
+        self.stats["bed_rows"] = self.stats.get("bed_rows", 0) + 1
+        self.stats["bed_placed"] = self.stats.get("bed_placed", 0) + len(row.slots)
+        if row.has_middle:
+            self.stats["bed_full_rows"] = self.stats.get("bed_full_rows", 0) + 1
+
+    def _bed_refuse(self, samples) -> None:
+        """Skip a row: count it and park its samples (the cost is the row)."""
+        self.stats["supply_skipped"] += 1
+        self.stats["bed_refused"] = self.stats.get("bed_refused", 0) + 1
+        for sample in samples:
+            self.park(sample)
+            if sample in self.active:
+                self.active.remove(sample)
+
+    def _release_bed_row(
+        self, along: float, released: list[FruitSample]
+    ) -> bool:
+        """Release one bed **row**: the abreast edge pair, plus the middle if it clears.
+
+        Returns False only when the feeder had no recyclable sample (the pump
+        then stops, like the uniform path). A row the pair rule refuses after its
+        bounded shift is counted (`supply_skipped` + the lazy `bed_refused`) and
+        its samples are parked again, so a violating pair is never released onto
+        the belt. The parked samples are not wasted: the feeder's
+        `_pick_recyclable` prefers parked bodies, so they re-enter on a later
+        row - a refusal costs the *row* (one pitch of density), not the fruit.
+
+        A row shifted upstream is released that much *later*: the spawner's
+        absolute clock is pushed by the same time, so the following pitch stays
+        the one the schedule drew. The shift is per row, not per fruit.
+
+        The legacy `_release_clear` pair rule is the 0.08 m plane floor, and the
+        bed enforces it (plus the jaw corridor) through `BedPlan.pair_clear`
+        against every live fruit and inside the row itself. `_release_clear`'s
+        lateral branch is not applied here because a row's middle sits 0.055-0.065
+        m from its edges - closer than that branch's 0.085 m lateral test would
+        allow - while the diagonal corridor rule is the constraint that actually
+        protects the jaw.
+        """
+        row, samples = self._bed_place_row(along)
+        if not samples:
+            return False
+        if row is None:
+            self._bed_refuse(samples)
+            if self._bed_diag:
+                say(
+                    f"[bed-row] along={along:.3f} refused after the "
+                    f"{self.supply.bed_plan.shift_max:.2f} m shift cap "
+                    f"(pair rule / 0.08 m floor)"
+                )
+            return True
+        self._bed_commit_row(row, samples, released)
+        if self._bed_diag:
+            # P32 phase A: where the row actually landed. A row placed near the
+            # station floor (0.10 m) is not a candidate - it rides past the
+            # selection floor (~0.40 m) before the arm can be dispatched, which
+            # is the starvation the pump's stock cap fixes.
+            say(
+                f"[bed-row] along={along:.3f} shift={row.shift:.2f} "
+                f"slots={len(row.slots)} "
+                f"x=" + ",".join(f"{slot.x:.2f}" for slot in row.slots)
+                + f" r=" + ",".join(f"{slot.radius:.3f}" for slot in row.slots)
+            )
+        if row.shift > 0.0:
+            speed = max(abs(float(self.cfg.belt_speed)), 0.03)
+            self._next_release += row.shift / speed
+            self.stats["bed_shifted"] = self.stats.get("bed_shifted", 0) + 1
         return True
 
     def _patch_plan(self) -> tuple[float, float | None]:
@@ -1274,6 +1940,23 @@ class FruitSpawner:
 
         On the patch schedule each due slot is a **slice**: `_release_patch_slot`
         places its 1-2 fruit abreast at `along` (see there for the pair rules).
+        On the bed schedule each due slot is a **row** (`_release_bed_row`): the
+        abreast edge pair at `along` plus the middle column half a pitch
+        downstream, so one pump call delivers a whole row.
+
+        **The bed is paced differently on purpose (P32 phase A).** The backlog
+        above is the single-file lines' stocking mechanism; the bed's lattice is
+        already dense and its discharge is the schedule's own `period`, so the
+        same backlog only pushes every row past the selection floor - measured
+        at `lag = +17.5 s` with 9-12 live fruit and *nothing* above the 0.40 m
+        catch floor (`logs/p32/60_probe_nocap.log`). Three bed-only rules follow:
+        a due row's lateness is capped at `FRUIT_SUPPLY_BED_STOCK_M` (a row
+        released further downstream than `spawn_y - stock` is not a candidate, so
+        the stale *time* is dropped and the row lands in the stock band); the
+        line-full interlock counts `_bed_stock_depth()` (the approach band)
+        rather than the station window; and a due row blocked by that interlock
+        is *held* (`bed_holds`), never dropped. Every legacy schedule keeps the
+        shipped behaviour byte-for-byte (`FRUIT_SUPPLY_BED` unset).
 
         P4-C1 H1 (`FRUIT_SUPPLY_TRICKLE_LATE_S`, default 0 = off): when set,
         a due slot whose lateness exceeds the cap is consumed-and-skipped
@@ -1288,17 +1971,58 @@ class FruitSpawner:
         # P4-C1 H1 diagnostics: locals only, no state and no env reads on the
         # shipped path (`_supply_diag` is read once in `__init__`).
         diag = self._supply_diag
+        bed_diag = self._bed_diag
         due = past = stale = clear_refused = 0
         queue_hit = pool_empty = 0
         late_lo: float | None = None
         late_hi: float | None = None
+        next_first = float(self._next_release)
+        bed_rows = 0
+        bed_band = 0
+        # Initialised beside `bed_band`: the `[bed-pump]` row below reads both,
+        # and a pump call that finds nothing due must not hit a stale local from
+        # the previous call (the pre-P32-A `UnboundLocalError` class in the row).
+        bed_band_max = queue_max
+        bed_along_lo: float | None = None
+        bed_along_hi: float | None = None
         # Trickle feed (P4-C1 H1, default 0 = shipped consume-as-is): a due
         # slice older than the cap is dropped - see `SupplyPlan.trickle_late_s`.
         trickle = float(self.supply.trickle_late_s)
+        # P32 phase A, bed only: cap the *delivery* lateness at the stock band.
+        # The scattered/patch/wave feeds use the backlog on purpose (a 15 s
+        # attempt skips ~8 slots and the approach segment is stocked *by* a late
+        # release); the bed has a dense lattice whose discharge rate is the
+        # feeder's own `period`, so a backlog there does not stock the segment -
+        # it pushes every row past the selection floor. The cap is a distance
+        # from the spawn point, so it does not move with the belt speed; it is
+        # also clamped to the geometric room (`spawn_y - floor`), so a knob
+        # larger than the belt cannot release below the station floor.
+        bed_stock_late = 0.0
+        if self.bed_schedule is not None:
+            room = max(0.0, float(cfg.spawn_y) - floor)
+            bed_stock_late = min(max(0.0, float(self.supply_bed_stock_m)), room) / speed
         while sim_time >= self._next_release and len(released) < self.supply.burst_max:
             due += 1
             period = self._release_period()
             late = float(sim_time) - float(self._next_release)
+            if self.bed_schedule is not None and late > bed_stock_late:
+                # The backlog is deeper than the stock band: drop the stale
+                # *time*, not a fruit. The feeder is a rate limiter, not an
+                # unbounded buffer - a real one that missed a slot does not dump
+                # the whole backlog onto the line at once. Re-basing here is what
+                # keeps every delivered row inside `[spawn_y - stock, spawn_y]`
+                # instead of at the station floor (the measured defect: all rows
+                # at along 0.10-0.20, nothing above the 0.40 m selection floor,
+                # `logs/p32/51_bed_pipeline.log` / `52_bed_pipeline2.log`).
+                # Counted in seconds so the log states how much demand the feeder
+                # could not deliver (a density number, not a rate claim).
+                self.stats["bed_rebased"] = self.stats.get("bed_rebased", 0) + 1
+                self.stats["bed_late_dropped_s"] = (
+                    float(self.stats.get("bed_late_dropped_s", 0.0))
+                    + (late - bed_stock_late)
+                )
+                late = bed_stock_late
+                self._next_release = float(sim_time) - bed_stock_late
             along = float(cfg.spawn_y) - min(late * speed, 1.60)
             self._next_release += period
             if along < floor:
@@ -1315,10 +2039,62 @@ class FruitSpawner:
                 )
                 stale += 1
                 continue
-            if self._queue_depth() >= queue_max:
+            # The line-full interlock. The bed paces on its *approach band*
+            # (`_bed_stock_depth`, the segment the selector draws from) because
+            # the station-window count blocked 1 due row in 3 and left the band
+            # empty for 2-3 s at a time (`logs/p32/60_probe_nocap.log`: 8/10
+            # selections with nothing above the catch floor). Every legacy
+            # schedule keeps the station-window rule byte-for-byte.
+            depth = (
+                self._bed_stock_depth()
+                if self.bed_schedule is not None
+                else self._queue_depth()
+            )
+            bed_band = depth
+            bed_band_max = (
+                self.supply_bed_stock_max
+                if self.bed_schedule is not None
+                else queue_max
+            )
+            if depth >= bed_band_max:
+                if self.bed_schedule is not None:
+                    # The bed **holds** its due row instead of dropping it: a
+                    # feeder that finds the band full waits, and the row is
+                    # released (at the stock cap) as soon as there is room. The
+                    # station-window rule below advances the clock past the due
+                    # row, which is right for the single-file lines (their
+                    # backlog is the stocking mechanism) but cost the bed ~20 %
+                    # of its design rows - measured as the one 0/10 probe slot
+                    # at band=6 (`logs/p32/61_probe_fixed.log` attempt 7: the
+                    # newest release was 4 mm below the catch floor).
+                    self.stats["bed_holds"] = self.stats.get("bed_holds", 0) + 1
+                    queue_hit = 1
+                    break
                 self._next_release = max(self._next_release, sim_time + period)
                 queue_hit = 1
                 break
+            if self.bed_schedule is not None:
+                # A row is atomic: `_release_bed_row` places its whole group
+                # (the abreast pair plus the conditional middle) or none of it,
+                # so the pump's `burst_max` cap is checked *before* a row and a
+                # row may overshoot it by at most its width - the same way the
+                # patch slice's partner may overshoot by one.
+                before = len(released)
+                skipped_before = self.stats["supply_skipped"]
+                placed_before = int(self.stats.get("bed_placed", 0))
+                if not self._release_bed_row(along, released):
+                    pool_empty = 1
+                    clear_refused += self.stats["supply_skipped"] - skipped_before
+                    break
+                clear_refused += self.stats["supply_skipped"] - skipped_before
+                if len(released) > before:
+                    late_lo = late if late_lo is None else min(late_lo, late)
+                    late_hi = late if late_hi is None else max(late_hi, late)
+                if int(self.stats.get("bed_placed", 0)) > placed_before:
+                    bed_rows += 1
+                    bed_along_lo = along if bed_along_lo is None else min(bed_along_lo, along)
+                    bed_along_hi = along if bed_along_hi is None else max(bed_along_hi, along)
+                continue
             if self.supply.patch:
                 before = len(released)
                 skipped_before = self.stats["supply_skipped"]
@@ -1350,6 +2126,30 @@ class FruitSpawner:
                 f"clear={clear_refused} queue={queue_hit} pool={pool_empty} "
                 f"late="
                 + ("none" if late_lo is None else f"{late_lo:.2f}-{late_hi:.2f}")
+            )
+        if bed_diag and self.bed_schedule is not None and (due or queue_hit or pool_empty):
+            # P32 phase A: the pump's clock and what it delivered. `next` is the
+            # schedule's due time *before* this call and `lag` the offset to the
+            # absolute clock - the number that has to stay small for the rows to
+            # land at the spawn instead of at the station floor.
+            say(
+                f"[bed-pump] t={float(sim_time):.3f} next={next_first:.3f} "
+                f"lag={float(sim_time) - next_first:+.3f} due={due} "
+                f"rows={bed_rows} band={bed_band}/{bed_band_max} past={past} queue={queue_hit} "
+                f"pool={pool_empty} "
+                f"late="
+                + ("none" if late_lo is None else f"{late_lo:.2f}-{late_hi:.2f}")
+                + (
+                    ""
+                    if bed_along_lo is None
+                    else f" along={bed_along_lo:.3f}..{bed_along_hi:.3f}"
+                )
+                + (
+                    f" rebased={int(self.stats.get('bed_rebased', 0))}"
+                    f" dropped={float(self.stats.get('bed_late_dropped_s', 0.0)):.1f}s"
+                    if int(self.stats.get("bed_rebased", 0))
+                    else ""
+                )
             )
         # Top up the catchable approach segment (`FRUIT_SUPPLY_TARGET`,
         # **default 0 = off**). The time schedule alone paces releases ~1.9 s
@@ -1421,15 +2221,23 @@ class FruitSpawner:
                 return False
         return True
 
-    def enforce_transport(self, dt: float = 1.0 / 120.0) -> None:
+    def enforce_transport(
+        self, dt: float = 1.0 / 120.0, advance_furniture: bool = True
+    ) -> None:
         """Keep fruit moving on the belt.
 
         Transport itself is physical: the belt's surface velocity plus the rubber
         friction material carry the fruit, and the cleats push them along. This
         method only wakes a fruit that PhysX has put to sleep (a sleeping body
         ignores conveyor contact forces), so nothing freezes mid-belt.
+
+        `advance_furniture=False` skips the conveyor's own `belt.step(dt)` (the
+        cleat phase / encoder / speed ramp) and keeps only the wake loop - the
+        split `update(advance_furniture=False)` needs for the mid-attempt feed
+        (see `update`). Every existing caller keeps the default and is
+        byte-identical.
         """
-        if self.belt is not None:
+        if self.belt is not None and advance_furniture:
             self.belt.step(dt)
         # Follow the belt's *current* speed: at the pick station the line is
         # stopped, and nudging fruit then would push it out of the jaws.
@@ -1467,7 +2275,16 @@ class FruitSpawner:
         stops filling once the next position would sit inside the station
         window (`pick_y + 0.12`), so the pre-load covers the selector's
         upstream window. `scatter=0` keeps the 0.30 m ladder bit-for-bit.
+
+        With `FRUIT_SUPPLY_BED=1` the pre-load is the bed's own first **rows**
+        (`_prime_bed`): the same row schedule, the same pair rule, and the
+        pump's clock is advanced past the pre-loaded span so its first row lands
+        upstream of the last pre-loaded fruit instead of on top of it.
         """
+        if self.bed_schedule is not None:
+            self._prime_bed(count)
+            app_utils.update_app(steps=1)
+            return
         alongs: list[float] = []
         along = float(self.cfg.spawn_y)
         floor = float(self.cfg.pick_y) + 0.12
@@ -1487,6 +2304,77 @@ class FruitSpawner:
             # Space the pre-loaded fruit downstream (-Y), not past the upstream end.
             self.respawn(sample, along=place)
         app_utils.update_app(steps=1)
+
+    def _prime_bed(self, count: int) -> None:
+        """Pre-load the bed's first **rows** (P32 phase 1); see `prime`.
+
+        `count` counts rows, not fruit: a row is the schedule's unit and carries
+        up to one fruit per column (2-3 at the shipped geometry), so `prime(4)`
+        loads 8-12 fruit on both edges and the middles. The loop mirrors the
+        pump's per-row order exactly: `next_gap()` first (it sets the row index
+        and draws the pitch to the *next* row), then the placement at the along
+        the previous pitch put us on. That keeps the row lattice and the RNG
+        stream continuous with the pump's first call, and the station floor ends
+        the pre-load exactly as it does for the legacy schedules.
+        """
+        schedule = self.bed_schedule
+        speed = max(abs(float(self.cfg.belt_speed)), 0.03)
+        along = float(self.cfg.spawn_y)
+        floor = float(self.cfg.pick_y) + 0.12
+        span = 0.0
+        previous_gap = 0.0
+        last_shift = 0.0
+        for i in range(max(0, int(count))):
+            gap = schedule.next_gap()
+            if i > 0:
+                along -= previous_gap
+                span += previous_gap
+                if along < floor:
+                    break
+            previous_gap = gap
+            row, samples = self._bed_place_row(along)
+            if not samples:
+                break
+            if row is None:
+                self._bed_refuse(samples)
+                continue
+            self._bed_commit_row(row, samples, [])
+            last_shift = float(row.shift)
+        # Those rows are already on the belt: the pump's next release is due
+        # once the pre-loaded span (plus the last row's upstream shift, if the
+        # pair rule moved it) has travelled clear of the spawn point.
+        #
+        # **On the absolute clock (P32 phase A).** `update` compares the
+        # schedule's due time against `SimulationManager.get_simulation_time()`,
+        # which at this call is *not* zero (the scene's warm-up and the
+        # `advance(30)` before `prime` have already run, and the arm's
+        # `go_ready` transit - 3-5 s - runs after it). Writing a bare
+        # `span/speed` here left the schedule that many seconds behind the
+        # clock, so the first pump call released its backlog at the *station
+        # floor* instead of the spawn (`logs/p32/52_bed_pipeline2.log` attempt
+        # 0: the pre-load already at along 0.29, `bed_placed` 12 with nothing
+        # above 0.29). `_sim_clock` is 0.0 without Isaac (the offline audit),
+        # which is the previous behaviour byte-for-byte.
+        self._next_release = max(
+            self._next_release, self._sim_clock() + (span + last_shift) / speed
+        )
+
+    @staticmethod
+    def _sim_clock() -> float:
+        """The absolute simulation clock [s], or 0.0 where there is no Isaac app.
+
+        `FruitSpawner.update`/`_pump_supply` are driven by the caller's
+        `sim_time` (`SimulationManager.get_simulation_time()` in every entry
+        script). The bed's pre-load has to place its schedule on that same base;
+        the offline audit (`scripts/211_bed_audit.py`, `172_supply_selftest.py`)
+        has no app, and 0.0 there is exactly the relative clock it drove before.
+        """
+        try:
+            from isaacsim.core.simulation_manager import SimulationManager
+
+            return float(SimulationManager.get_simulation_time())
+        except Exception:  # noqa: BLE001 - no app / stub module: keep the 0 base
+            return 0.0
 
     def position(self, sample: FruitSample) -> np.ndarray:
         pos = self._rigids[sample.index].get_world_poses()[0]

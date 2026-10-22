@@ -216,7 +216,23 @@ def main() -> int:
             else:
                 target = None
         else:
-            target = task.select_target(states)
+            # P32 phase 2 (`FRUIT_PREPARED_NEXT=1`): the previous attempt left a
+            # prepared set (ranked during its carry and refreshed at its
+            # release). `take_prepared_target` re-checks the live state through
+            # the same selector and drops anything that has moved inside the
+            # catch's floor since; `None` means "select fresh", i.e. the shipped
+            # path exactly. Off the knob the call is one env-cached bool and
+            # returns None.
+            #
+            # `FRUIT_BED_DIAG=1` (P32 phase A, default off): the fresh selection
+            # records the predicate that refused each live fruit, so a
+            # "no eligible fruit" attempt names its cause (`bed_diag_report`).
+            diag = [] if os.environ.get("FRUIT_BED_DIAG", "0") == "1" else None
+            target = task.take_prepared_target(states)
+            if target is None:
+                target = task.select_target(states, diag=diag)
+                if diag is not None:
+                    task.bed_diag_report(attempt, diag)
         if target is None:
             summary = [
                 (s["category"], round(float(s["position"][1]), 3), round(s["diameter"], 3))
@@ -252,15 +268,34 @@ def main() -> int:
             f"[run] attempt {attempt}: grasped={result.grasped} placed={result.placed} "
             f"lift={result.peak_lift:+.3f} m force={result.max_tactile_force:.2f} N "
             f"notes={result.notes} sim={result.sim_start:.1f}-{result.sim_end:.1f}s"
+            # P32 phase 2 (M3): the prepared return's cost, readback-free (a
+            # timestamp difference). Only printed when it ran, so the shipped
+            # line's `[run] attempt` row stays byte-identical; the span above
+            # excludes it by design (`note_result`'s booking), which is why the
+            # start-to-start period is quoted beside it.
+            + (
+                f" prepose_return={result.prepose_return_s:.2f}s"
+                if getattr(result, "prepose_return_s", 0.0) > 0.0
+                else ""
+            )
         )
         # P30-B: with `FRUIT_HOME_HUB=1` the attempt ends at the waiting hub, so
         # this transit is already done (and `FRUIT_READY_SKIP=1`, the default,
         # would make it a 2-joint-read no-op). Skip it explicitly so the hub does
         # not depend on that predicate: with `FRUIT_READY_SKIP=0` the call would
         # hold the ready pose for 210 more ticks (1.75 s) for nothing.
-        if not getattr(result, "at_hub", False):
+        # P32 phase 2: `at_prepose` is the same contract for the prepared-next
+        # return - the arm already sits at its *next* pre-pose, and `go_ready`
+        # would undo it (it also skips internally, this makes the intent
+        # explicit). The 30-tick settle is skipped with it: the target is
+        # already chosen, so there is nothing to wait for, and every tick here
+        # is a tick the pre-positioned hand spends at the grasp height while the
+        # belt runs. Both flags are False on every shipped path.
+        at_prepose = bool(getattr(result, "at_prepose", False))
+        if not getattr(result, "at_hub", False) and not at_prepose:
             task.go_ready()
-        advance(30)
+        if not at_prepose:
+            advance(30)
 
     if capture:
         for tag, sensor in (("observer", observer_sensor), ("head", scene.camera_sensor)):
@@ -275,6 +310,16 @@ def main() -> int:
             say(f"saved {path}")
 
     say(task.stats_line())
+    bed_stats = (
+        task.spawner.bed_stats_line()
+        if hasattr(task.spawner, "bed_stats_line")
+        else None
+    )
+    if bed_stats is not None:
+        # P32 phase A (m3): the run's bed counters, so the live-recycle and
+        # fell-off claims are evidenced (and attributable) by this log, not only
+        # by the offline audit.
+        say(bed_stats)
     if agent is not None:
         say(f"[agent] {agent.summary()}")
     pairs = int(task.stats.get("biarm_sessions", 0))

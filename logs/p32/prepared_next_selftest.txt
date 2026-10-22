@@ -1,0 +1,97 @@
+[1] the prepared ranking (the shipped selector, applied repeatedly)
+ok: single-arm nearest-usable rule: farthest upstream first, then downstream
+ok: no candidate appears twice in the prepared set
+ok: every prepared row is above the catch floor (0.399 m)
+ok: a fruit inside the catch floor is not prepared
+ok: starved line -> empty set
+ok: the set size is the requested limit, in rule order
+ok: the protected/current fruit is excluded from the ranking
+ok: two-line right lane: grade B only, nearest of its lane first (C never)
+ok: two-line left lane: grade A only
+ok: the prepared target's lane is the driver's grade rule (A -> left)
+[2] the refresh policy (release supersedes carry, no downgrade, empty keeps)
+ok: carry-stage store accepted
+ok: carry stage recorded
+ok: release-stage store accepted
+ok: the release read supersedes the carry read
+ok: a later carry-stage store cannot downgrade the release set
+ok: the release set is kept
+ok: an empty read is counted
+ok: an empty read keeps the previous set (a transient empty state is not a loss)
+ok: clear drops set and stage
+[3] the consume (one-item re-check on the live state)
+ok: the first row that still passes wins
+ok: the consume age is quoted (selection -> dispatch) (10.0000 ~ 10.0000)
+ok: the row inside the floor is counted as dropped
+ok: the set is consumed once
+ok: a row the feeder recycled away is refused
+ok: the missing row is counted as dropped
+ok: a whole set that dropped inside the floor returns None (select fresh)
+ok: the failed set is emptied
+ok: nothing pending -> None
+ok: knob off -> None
+[4] the scope and the default-off pins
+ok: single-arm scripted attempt: the pipeline is in scope
+ok: direct/policy handover: out of scope
+ok: a CoopSession (two-line / shared station): out of scope
+ok: teleport pre-pose (smooth transit off): out of scope
+ok: FRUIT_PREPARED_NEXT defaults to 0 (off)
+ok: FRUIT_FEED_CADENCE defaults to 0 (off)
+ok: FRUIT_FEED_STRIDE defaults to 4 ticks
+ok: FRUIT_PREPARED_SET defaults to 4 rows
+ok: the return uses the measured convergence pair 140+80 (W8-R3 hot hold)
+ok: an empty set does not run the return by default (the A/B control knob)
+ok: fruits.update keeps advance_furniture=True as its default (byte-identical callers)
+ok: the driver consumes the prepared set and honours at_prepose
+ok: the carry hook is a single gated call (`if self._feed_on:`)
+[4b] the two-line prepared set (built at the other arm's carry start)
+[fruit] [biarm] right: prepared n=2 (for left's clear) top=index 1 ? along=+0.350m at t=100.0s
+ok: the idle arm's set is built once
+ok: the set is the worker's own rule: grade B, nearest of its station lane
+ok: only the top entry is reserved (the alternates cannot starve the lane)
+ok: the preparing arm's own set is not touched by the other arm's build
+[fruit] [biarm] right: prepared consumed index=1 ? along=+0.350m age=0.0s at t=100.0s
+ok: the slot start consumes the prepared top entry
+ok: the reservation is released at the consume
+ok: the consumed set is empty and counted
+[fruit] [biarm] right: prepared n=2 (for left's clear) top=index 1 ? along=+0.350m at t=100.0s
+ok: a fresh build reserves again
+[fruit] [biarm] right: prepared set dropped (n=2, age=0.0s)
+ok: a set that dropped inside the floor is refused (the slot selects fresh)
+ok: the reservation is released even when the whole set is refused
+ok: the refused set is counted in the batch-end report
+[fruit] [biarm] right: prepared n=2 (for left's clear) top=index 1 ? along=+0.350m at t=100.0s
+[fruit] [biarm] right: prepared consumed index=2 ? along=+0.450m age=0.0s at t=100.0s
+ok: a recycled-away top row falls through to the next-ranked alternate
+ok: the missing row is counted as stale
+[fruit] [biarm] right: prepared n=2 (for left's clear) top=index 1 ? along=+0.350m at t=100.0s
+[fruit] [biarm] right: prepared set dropped (n=2, age=0.0s)
+ok: a set whose rows are all gone is refused
+ok: every missing row is counted as stale
+ok: the reservation is released by the take
+[fruit] [biarm] right: prepared n=2 (for left's clear) top=index 1 ? along=+0.350m at t=100.0s
+ok: abandoning the set (the worker's finally) releases the reservation
+ok: the prepare latch is reset at every slot start
+ok: the build is triggered from the payload-clear tick (the park-gate instant)
+[5] the feeder cadence (stride arithmetic, furniture flag)
+ok: stride 1 over 10 ticks -> 10 pump calls
+ok: stride 1: every tick is counted
+ok: stride 1: every pump keeps the conveyor furniture on the shipped cadence
+ok: stride 4 over 10 ticks -> 2 pump calls
+ok: stride 4: every tick is counted
+ok: stride 4: every pump keeps the conveyor furniture on the shipped cadence
+ok: stride 4 over 12 ticks -> 3 pump calls
+ok: stride 4: every tick is counted
+ok: stride 4: every pump keeps the conveyor furniture on the shipped cadence
+ok: stride 2 over 7 ticks -> 3 pump calls
+ok: stride 2: every tick is counted
+ok: stride 2: every pump keeps the conveyor furniture on the shipped cadence
+ok: stride 4 over 1 ticks -> 0 pump calls
+ok: stride 4: every tick is counted
+ok: stride 4: every pump keeps the conveyor furniture on the shipped cadence
+ok: the arming site resets the cadence counters per attempt
+[6] fruits.update's furniture split (the real spawner)
+ok: update() with the default steps the conveyor (unchanged)
+ok: advance_furniture=False keeps the cleat phase where it is (the cadence lever only)
+ok: the transport wake loop still runs without the furniture step
+PASS: prepared-next pipeline selftest

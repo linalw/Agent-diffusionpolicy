@@ -277,7 +277,14 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: scopes are byte-inert. The collector manifest gains
 #: `collection.carry_monitor` (the W7-C.1 `park_early` pattern; implementation
 #: record `logs/p10c3/IMPLEMENTATION.md`).
-TASKS_MD5 = "e27b18a455b2094aa611b36fd6cec168"
+#:
+#: P32 phase A (2026-10-22): metadata-only follow - the bed's selection
+#: diagnostic (`select_target(..., diag=...)`, one `is not None` per state when
+#: off) and the `FRUIT_BED_DIAG` report hook are comment/list plumbing on the
+#: default-off path; no shipped default or control-loop statement moved
+#: (proven by the pear-off control's byte-identical acceptance raw run,
+#: `logs/p32/81_accept_raw_pear_off.log`).
+TASKS_MD5 = "ea271ccc51c38527503f4e181dbc2f46"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(
@@ -294,6 +301,10 @@ _MANIFEST_SOURCES = (
     "src/fruit_sorting/conveyor.py",
     "src/fruit_sorting/scene.py",
     "src/fruit_sorting/fruits.py",
+    # P32 phase B: the pear profile sets the per-instance draw count and
+    # therefore the supply stream; a direct-path rollout manifest without
+    # this key is pre-pear (the same rule as the collector's sources).
+    "src/fruit_sorting/meshes.py",
     "src/fruit_sorting/control.py",
     "src/fruit_sorting/rl_env.py",
     "src/fruit_sorting/policy/runtime.py",

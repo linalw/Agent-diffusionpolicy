@@ -251,10 +251,99 @@ class _CarryMonitorLeg:
         return False
 
 
+class _PreparedNext:
+    """One arm's prepared-next candidate set (P32 phase 2, `FRUIT_PREPARED_NEXT`).
+
+    The owner's directive (`.slim/deepwork/fruit-bed-pipeline-pear.md` section
+    1.2): while the arm sorts fruit k it must have the next candidates ready, so
+    that when sort k ends it can dispatch to the best one immediately. The set
+    is built by `PickAndPlaceTask._prepared_rank`, which calls the *existing*
+    selector repeatedly (`select_target(..., exclude=already_ranked)`), so the
+    order is exactly the order the line's own rules would consume the
+    candidates in - no second selection rule lives here.
+
+    Two storage stages, because the pipeline reads the supply twice:
+
+    * `"carry"` - at the grasp's carry start (`grasp_lift`'s end). This is the
+      earliest point where the *next* attempt's candidates exist, and on a
+      sparse line it legitimately returns nothing (the selector's upstream
+      window is 0.85 m, i.e. ~7 s of belt travel, less than a whole cycle).
+    * `"release"` - at the payload release, the last read before the return and
+      the operative one. It supersedes the carry read (the supply has advanced
+      one carry/place span); a stray later `"carry"` store can never downgrade
+      it, and an empty ranking keeps the previous rows instead of throwing a
+      usable set away.
+
+    `take` is the single consumer entry: it walks the ranking in order and
+    returns the first row the caller's `validate(row)` still accepts (the
+    one-item `select_target` call on the live state - the same guard the
+    shipped two-line prefetch uses, `logs/w6/SPEC.md` section 7). Rows that
+    fail are counted (`dropped`): a candidate that moved inside
+    `_dynamic_select_floor()` during the return, or that the feeder recirculated
+    away, must not be handed to an attempt. `age_s` is the measured
+    selection -> consume latency the report quotes (the two-line lock-on
+    substitute; `scripts/186_w6_report.py` reads the same quantity for the
+    W6-C reservation).
+    """
+
+    __slots__ = ("rows", "stage", "t", "kept", "dropped", "empty", "age_s")
+
+    def __init__(self) -> None:
+        self.rows: list[dict] = []
+        self.stage: str = ""
+        #: Sim time of the store that produced `rows` (None = no unfilled set).
+        self.t: float | None = None
+        #: Counters for the `[prepared]` / `[biarm] prepared` report.
+        self.kept = 0
+        self.dropped = 0
+        self.empty = 0
+        self.age_s = 0.0
+
+    def store(self, stage: str, rows, sim_time: float) -> str:
+        """Store a fresh ranking; returns a short status for the caller's row."""
+        rows = list(rows or ())
+        if not rows:
+            # A transiently empty live state must not discard a usable set: the
+            # next attempt would then pay the full selection + pre-pose again.
+            self.empty += 1
+            return "empty"
+        if stage == "carry" and self.stage == "release" and self.rows:
+            return "kept-release"
+        self.rows = rows
+        self.stage = stage
+        self.t = float(sim_time)
+        return "stored"
+
+    def take(self, validate, sim_time: float) -> dict | None:
+        """Pop the highest-ranked row that `validate(row)` still accepts."""
+        rows, self.rows = self.rows, []
+        stored = self.t
+        self.stage = ""
+        self.t = None
+        for row in rows:
+            state = validate(row)
+            if state is None:
+                self.dropped += 1
+                continue
+            self.kept += 1
+            self.age_s = (
+                max(0.0, float(sim_time) - float(stored)) if stored is not None else 0.0
+            )
+            return state
+        return None
+
+    def clear(self) -> None:
+        """Forget the set (an attempt that will not hand it to a consumer)."""
+        self.rows = []
+        self.stage = ""
+        self.t = None
+
+    def __bool__(self) -> bool:
+        return bool(self.rows)
+
+
 class AttemptTimeout(RuntimeError):
     """One scripted attempt exceeded its wall-clock budget.
-
-    Raised by `_step_sim` when `episode_timeout_s > 0` and the attempt's
     deadline has passed; the collector catches it and **skips** the attempt
     (the recorder discards its partial frames) so the next fruit is retried.
     It is a collector-side watchdog only: the belt never stops, the dynamic
@@ -319,6 +408,16 @@ class EpisodeResult:
     #: booked - otherwise `[stats] s/attempt` would read ~2.5 s slower while
     #: the cell is faster. The `[hub]` row still reports the leg in full.
     hub_return_s: float = 0.0
+    #: P32 phase 2 (`FRUIT_PREPARED_NEXT=1`): the attempt ended with its arm
+    #: already at the *next* attempt's pre-pose, so the between-attempt
+    #: `go_ready` is a no-op for that arm and a driver may skip it (the same
+    #: contract as `at_hub`). False on every shipped path.
+    at_prepose: bool = False
+    #: P32 phase 2: simulated seconds of the release -> pre-pose return. Like
+    #: `hub_return_s`, it is a between-attempt transit moved inside the attempt
+    #: and is subtracted from the booked span; the `[cycle] return` segment and
+    #: the `[prepared]` row still report it in full.
+    prepose_return_s: float = 0.0
 
     @property
     def success(self) -> bool:
@@ -773,6 +872,150 @@ class PickAndPlaceTask:
         #: and the outcome loss is the supply-clock branch shift; this knob
         #: applies the B1c's re-anchor to the span saving. Byte-inert at 0.
         self._release_resync = os.environ.get("FRUIT_RELEASE_RESYNC", "0") == "1"
+        #: ------------------------------------------------------------------ #
+        #: P32 phase 2: the prepared-next pipeline and the mid-attempt feeder
+        #: cadence. Both default **off**; the shipped tree runs none of the
+        #: code below (one dict/flag read per attempt).
+        #:
+        #: **`FRUIT_PREPARED_NEXT=1`** (single-arm scripted line; the two-line
+        #: worker has its own hook, `session.prepared_enabled`). At the current
+        #: attempt's carry start the task ranks the next candidates and stores
+        #: them; at the release it refreshes the ranking, and if the top
+        #: candidate routes to *this* arm it returns the arm straight to the
+        #: pre-pose the next attempt would blend to, instead of the ready pose.
+        #: The next attempt then skips both its selection (`take_prepared_target`
+        #: in `scripts/20_pick_place.py`) and its pre-pose blend.
+        #:
+        #: Measured rationale (`logs/p32/bed_audit.txt`; the P32 note section
+        #: 4c): the between-attempt return + pre-pose is the only arm motion in
+        #: the cycle that exists purely to re-position an empty hand. P30-B
+        #: measured the same class of lever at 0.5-0.7 s/attempt (the home-hub
+        #: removal, `logs/p30b/`), and the W8-R3 hot-hold measured the blend
+        #: convergence this return must reach: 45+20 ticks from the post-place
+        #: seed leave 0.149 rad on j5, 140+80 reach 0.006 rad
+        #: (`logs/w8/R3_RESULTS.md`), which is why the return's defaults are
+        #: 140/80 and not the pre-pose's 45. The declared expectation is
+        #: therefore a within-attempt span saving of ~0.5-1.0 s, **not** a rate
+        #: win; the pipeline's other half is the candidate availability below.
+        #:
+        #: **`FRUIT_FEED_CADENCE=1`** calls the existing pump during the
+        #: carry/place on a small stride (`FRUIT_FEED_STRIDE`, default 4 ticks =
+        #: 33 ms = 4 mm of belt travel at 0.12 m/s). This is the lever that makes
+        #: the dense bed's design density reachable at the shipped attempt
+        #: cadence: the 1.1 m spawn window holds **2.4** candidates when the
+        #: pump runs once per 16 s attempt against **9.1** at the per-tick
+        #: cadence (q6, bed), and 17.2 at q18 (`logs/p32/bed_audit.txt` section
+        #: B2; the 16 s cells are identical at both queue depths because the
+        #: interlock never binds - the backlog is dropped by the pump's
+        #: virtual-position floor, not by the queue). The call passes
+        #: `advance_furniture=False` so the conveyor's cleat phase keeps the
+        #: shipped cadence: one variable, not two (`fruits.update`).
+        #:
+        #: Scope of both: the single-arm scripted line, with the smooth pre-pose
+        #: on (`FRUIT_SMOOTH_TRANSIT_PREPOSE=1`, the default). The collector and
+        #: `20_pick_place.py` both call `go_ready`, so both get the return and
+        #: the pre-pose skip; only the driver consumes the prepared target. The
+        #: policy/direct path and every bimanual configuration are excluded -
+        #: their between-attempt pose is not a free choice (AGENTS section 2,
+        #: W8-R3 L3).
+        #:
+        #: Failure modes (all counted, none silent):
+        #: * a prepared candidate that moves inside `_dynamic_select_floor()`
+        #:   during the return is dropped at the consume and the next-ranked
+        #:   (upstream) row is dispatched; a whole set that drops means the
+        #:   attempt selects fresh (the shipped path);
+        #: * a candidate the feeder recycled/despatched away in between is
+        #:   dropped the same way;
+        #: * a return that does not converge inside `FRUIT_PREPARED_PREPOSE_TOL`
+        #:   is re-blended by the next attempt as shipped (a slower attempt, not
+        #:   a different one);
+        #: * the pre-positioned arm is parked before an attempt it will not run
+        #:   (`take_prepared_target` / `_run_impl`), so a low hand never waits
+        #:   through the other arm's attempt;
+        #: * the cadence changes the *supply branch* on purpose: the cadence-on
+        #:   arm is a different scenario (per the ledger, compare per-leg motion
+        #:   and the same-scenario control, not a cross-arm rate).
+        #: ------------------------------------------------------------------ #
+        self._prepared_next = os.environ.get("FRUIT_PREPARED_NEXT", "0") == "1"
+        #: Candidates ranked per read (the ranked prepared *set*, not one pick:
+        #: the top entry can drop inside the catch's selection floor during the
+        #: return, and the next entry upstream is then the dispatch target).
+        self._prepared_count = max(
+            1, int(os.environ.get("FRUIT_PREPARED_SET", "4"))
+        )
+        #: The return's blend ticks/settle - the W8-R3 hot-hold convergence
+        #: pair (see above), not the pre-pose's 45-tick feed budget.
+        self._prepared_return_ticks = max(
+            1, int(os.environ.get("FRUIT_PREPARED_RETURN_TICKS", "140"))
+        )
+        self._prepared_return_settle = max(
+            0, int(os.environ.get("FRUIT_PREPARED_RETURN_SETTLE", "80"))
+        )
+        #: Joint tolerance of the "already at the pre-pose" guard (the hot
+        #: hold's `FRUIT_BIARM_HOT_TOL` value): a larger residual re-blends as
+        #: shipped, so a drifted arm costs a slower attempt, never a bad one.
+        self._prepared_tol = float(os.environ.get("FRUIT_PREPARED_PREPOSE_TOL", "0.08"))
+        #: The pre-pose skip's hold ticks (deterministic step count and the
+        #: camera cadence of the blend it replaces; the hot hold's value).
+        self._prepared_settle_ticks = max(
+            0, int(os.environ.get("FRUIT_PREPARED_SETTLE_TICKS", "20"))
+        )
+        #: Return even when the ranking came back empty (an A/B control that
+        #: separates "the transit" from "the handoff"). Default 0: no candidate
+        #: -> the shipped settle/retreat and the driver's `go_ready`.
+        self._prepared_return_empty = (
+            os.environ.get("FRUIT_PREPARED_RETURN_EMPTY", "0") == "1"
+        )
+        #: Pure-reporting `[prepared]` rows (`FRUIT_PREPARED_DIAG=1`): the stage,
+        #: the set size, the top candidate, the consume age and each drop.
+        self._prepared_diag = os.environ.get("FRUIT_PREPARED_DIAG", "0") == "1"
+        #: Per-arm prepared set + the one-shot "this arm is already at its next
+        #: pre-pose" flag read by `_run_impl` and `go_ready`. Task-level (not
+        #: attempt-local) because they cross attempts; only the single-arm scope
+        #: writes them, so two threads never race (`_prepared_scope`).
+        self._prepared: dict[str, _PreparedNext] = {
+            "left": _PreparedNext(),
+            "right": _PreparedNext(),
+        }
+        self._prepose_armed: dict[str, bool] = {"left": False, "right": False}
+        #: Which arm's returning attempt left the prepared set for the driver
+        #: (`None` = nothing pending). `take_prepared_target` consumes it.
+        self._prepared_pending: str | None = None
+        #: The feeder cadence (`FRUIT_FEED_CADENCE=1`) and its stride. The
+        #: counters are attempt-local in practice (only the single-arm scope
+        #: arms the flag); they live as plain attributes so `_carry`'s per-tick
+        #: check stays one attribute read.
+        self._feed_cadence = os.environ.get("FRUIT_FEED_CADENCE", "0") == "1"
+        self._feed_stride = max(1, int(os.environ.get("FRUIT_FEED_STRIDE", "4")))
+        #: `_feed_on` is armed per **attempt** by `_run_impl` (it also requires the
+        #: scripted single-arm scope) and is deliberately **not** reset when the
+        #: attempt returns: the loop that runs the arm keeps its feeder cadence
+        #: between attempts (the driver's own 60-tick `spawner.update` window is
+        #: additive, not a replacement), and the next `_run_impl` re-arms it. The
+        #: `[feed]` deltas are the *attempt-start -> release* slice: `_feed_marks`
+        #: is snapshotted at the attempt start, so the post-release pumps (the
+        #: return/retreat tail) fall between two snapshots and are reported by
+        #: neither row - they are the return's cost, not the carry's.
+        self._feed_on = False
+        self._feed_ticks = 0
+        self._feed_calls = 0
+        self._feed_marks: tuple[int, int, int] = (0, 0, 0)
+        #: P32 Gate-A residual R2: the bed's scan-only end-of-line sweep on the
+        #: driver's own tick (`spawner.scan_despawn`, `_despawn_tick`). The
+        #: end-of-line recycle otherwise runs only inside `spawner.update`, which
+        #: the driver calls at the attempt boundary, so belt travel *inside* an
+        #: attempt carried fruit past `despawn_y` and over the belt's physical
+        #: end (-0.80 m) before the next pump could count it: measured as
+        #: `fell_off` 5 (4 past the end) on the cadence arm and 102 (96 past the
+        #: end) on the 20-attempt boundary control, with `reached_end=0`.
+        #: Bed-scoped and on with the bed (the whole bed is opt-in, so the
+        #: shipped line reads one `False` per tick and nothing else);
+        #: `FRUIT_SUPPLY_BED_SWEEP=0` restores the pre-fix behaviour as the
+        #: control. It is a **fix, not a lever**: it neither pumps the release
+        #: schedule nor steps the conveyor's kinematic furniture
+        #: (`fruits.FruitSpawner.scan_despawn`).
+        self._despawn_sweep = os.environ.get("FRUIT_SUPPLY_BED_SWEEP", "1") == "1"
+        self._despawn_on = bool(self._despawn_sweep and spawner.supply.bed)
         #: Per-arm pick-station Y [m] (v9/V2 two-line scheduler). Both are the
         #: shipped station (0.0) on every single-arm / shared-station path; the
         #: two-line scheduler sets the right arm's station downstream of the
@@ -1466,6 +1709,14 @@ class PickAndPlaceTask:
                 result.sim_end = max(
                     result.sim_start, result.sim_end - float(result.hub_return_s)
                 )
+            if result.prepose_return_s > 0.0:
+                # P32 phase 2: the same correction for the prepared-next return
+                # (release -> next pre-pose). It replaces the between-attempt
+                # `go_ready` transit, not the attempt's own work.
+                result.sim_end = max(
+                    result.sim_start,
+                    result.sim_end - float(result.prepose_return_s),
+                )
             if self._active_session is None:
                 # Cumulative accounting is meaningful only for sequential
                 # attempts; under the bimanual session the coordinator records
@@ -1893,7 +2144,8 @@ class PickAndPlaceTask:
             )
         from isaacsim.core.simulation_manager import SimulationManager
 
-        steps = max(1, int(steps)) * substeps()
+        ticks = max(1, int(steps))
+        steps = ticks * substeps()
         if self.gui_smooth:
             # `update_app(steps=1)` advances one 1/60 s tick and pumps the UI, so
             # use it every other control tick: the average stays 1/120 s (the
@@ -1906,6 +2158,24 @@ class PickAndPlaceTask:
                 SimulationManager.step(steps=steps)
         else:
             SimulationManager.step(steps=steps)
+        if self._feed_on:
+            # P32 phase 2 (`FRUIT_FEED_CADENCE=1`): pump the feeder on every
+            # control tick of every attempt phase (wait, approach, catch,
+            # carry, place), not only the carry/place. The bed's rows are due
+            # every ~1 s of belt travel, so a carry/place-only pump leaves the
+            # wait/approach gaps stale and the pump's late backlog lands
+            # downstream of the selection floor (`logs/p32/51_bed_pipeline.log`
+            # attempts 4/5/7/8: no eligible fruit). The stride keeps the release
+            # granularity at 4 ticks = 4 mm of belt travel; one attribute read
+            # per tick when the knob is off.
+            self._feed_tick()
+        if self._despawn_on:
+            # P32 Gate-A residual R2: the bed's end-of-line sweep on the driver's
+            # own tick. Scan only - no release, no interlock, no conveyor
+            # furniture (`fruits.FruitSpawner.scan_despawn`); the pump's stride
+            # and the sweep's own tick clock live there. One attribute read per
+            # tick when the bed is off (the shipped line).
+            self.spawner.scan_despawn(ticks)
         session = self._active_session
         if session is not None and session.after_step is not None:
             # Bimanual bookkeeping runs on the thread that just advanced the
@@ -3796,6 +4066,24 @@ class PickAndPlaceTask:
         for name in names:
             arm = self.arms[name]
             arm.set_gripper(arm.OPEN)
+            if self._prepose_armed.get(name):
+                # P32 phase 2 (`FRUIT_PREPARED_NEXT=1`): the attempt's release
+                # already returned this arm to its *next* pre-pose, so the ready
+                # transit would undo exactly the motion the pipeline bought. The
+                # joint check is the safety net (a drifted arm takes the shipped
+                # transit); off the knob the flag is never set and this is one
+                # dict read per call.
+                prepose = self._station_prepose_target(name)
+                target = self._pose(name, "grasp") if prepose is None else prepose
+                err = float(np.max(np.abs(arm.joint_positions() - target)))
+                if err <= self._prepared_tol:
+                    if self._prepared_diag:
+                        say(
+                            f"[prepared] {name}: go_ready skipped "
+                            f"(at next pre-pose, err={err:.4f} rad)"
+                        )
+                    continue
+                self._prepose_armed[name] = False
             if not smooth:
                 # Teleport to the calibrated ready pose: commanding it from the
                 # hanging pose stalls the elbow drive.
@@ -4133,11 +4421,342 @@ class PickAndPlaceTask:
         """
         return float(self.station_y.get(arm, self.cfg.pick_y))
 
+    # ------------------------------------------------------------------ #
+    # P32 phase 2: the prepared-next pipeline (single arm + two-line hook)
+    # ------------------------------------------------------------------ #
+    def _prepared_scope(self, scripted: bool) -> bool:
+        """Whether this attempt runs the P32 phase-2 levers.
+
+        Single-arm **scripted** line only: a `CoopSession` (the two-line
+        scheduler or the F2 shared station) owns its own between-attempt
+        posture and park gate (W2/W6/R3), so the return and the pre-pose skip
+        must not reach it; the policy/direct path `reset()`s the arm to its
+        start pose, so a pre-positioned hand would be thrown away. The smooth
+        pre-pose is required too: with `FRUIT_SMOOTH_TRANSIT_PREPOSE=0` the
+        attempt teleports to the grasp configuration, so being there already
+        saves nothing and the return would be pure motion.
+
+        One dict/flag read per attempt when both knobs are off; the shipped
+        tree never reaches any of the code behind it.
+        """
+        if self._active_session is not None:
+            return False
+        if not scripted:
+            return False
+        return os.environ.get("FRUIT_SMOOTH_TRANSIT_PREPOSE", "1") == "1"
+
+    @staticmethod
+    def _prepared_lane(state: dict) -> str:
+        """The arm a prepared target routes to (the driver's own grade rule).
+
+        `scripts/20_pick_place.py` maps grade A -> lane 0 -> left arm and every
+        other grade -> lane 1 -> right arm; the same rule is what
+        `_run_impl`'s `arm_name` derivation uses, so the prepared *return* can
+        tell whether the next attempt will be run by the arm that is about to
+        go idle.
+        """
+        return "left" if str(state.get("grade")) == "A" else "right"
+
+    def _prepared_rank(self, states: list[dict], limit: int, **select_kwargs) -> list[dict]:
+        """Rank the next `limit` candidates with the caller's own selector rules.
+
+        The prepared set is not a second selector: each row is the *next* fruit
+        the existing `select_target` would take if the ones already ranked were
+        gone (`exclude=already_ranked`). With the caller's kwargs (the two-line
+        worker passes its station/lane/lead args) the order is therefore exactly
+        the order that rule consumes candidates in - the farthest-upstream
+        usable fruit first on the single-arm moving catch, the nearest of the
+        arm's lane on the two-line. The loop stops at the first `None`, so a
+        starved line yields an empty (or short) set, never a filler.
+        """
+        rows: list[dict] = []
+        excluded = set(select_kwargs.pop("exclude", None) or ())
+        for _ in range(max(0, int(limit))):
+            state = self.select_target(states, exclude=excluded, **select_kwargs)
+            if state is None:
+                break
+            index = int(state["index"])
+            if index in excluded:  # defensive: a selector that ignores exclude
+                break
+            excluded.add(index)
+            rows.append(state)
+        return rows
+
+    def _prepare_next(self, side: str, stage: str) -> bool:
+        """(Re)build one arm's prepared set from the live supply; True if filled.
+
+        Called at the carry start (`stage="carry"`, after `grasp_lift`) and at
+        the release (`stage="release"`). Two `spawner.state()` reads per
+        attempt (fruit-pose reads - the non-invasive class, AGENTS section 2),
+        and only under the knob. The current attempt's own fruit is excluded
+        through `spawner.protected_indices` (`run()` protects it) and, on the
+        output belt, by `select_target`'s own off-line filter.
+        """
+        store = self._prepared[side]
+        states = self.spawner.state()
+        rows = self._prepared_rank(
+            states,
+            self._prepared_count,
+            exclude=set(self.spawner.protected_indices),
+        )
+        status = store.store(stage, rows, self._sim_time())
+        if self._prepared_diag:
+            top = rows[0] if rows else None
+            where = (
+                f"index={int(top['index'])} {top.get('category', '?')} "
+                f"along={float(top['position'][1]):+.3f}m "
+                f"grade={top.get('grade', '?')}"
+                if top is not None
+                else "none"
+            )
+            say(
+                f"[prepared] {side} {stage}: {status} n={len(rows)} top={where} "
+                f"t={self._sim_time():.1f}s"
+            )
+        return bool(rows)
+
+    def _prepared_return(self, side: str, result: "EpisodeResult") -> bool:
+        """Drive the arm to the next attempt's pre-pose instead of the ready pose.
+
+        Only reached from the scripted single-arm release, under
+        `FRUIT_PREPARED_NEXT`, when the top prepared candidate routes to *this*
+        arm (`_prepared_lane`). The next attempt of this arm then starts at the
+        configuration its own pre-pose blend would have reached - the same pose,
+        because the pre-pose is station-based and target-independent - so
+        `_run_impl` skips the blend (guarded by `_prepared_tol`) and the driver
+        skips `go_ready` (`at_prepose`).
+
+        The transit is the hot-hold recipe (`logs/w8/R3_RESULTS.md` section 4):
+        `_lift_clear` first, because from the post-place pose a straight joint
+        blend drags the hand through the main belt (and the pads push the arm
+        during the release, `logs/630`), then the min-jerk blend at the measured
+        convergence pair (140+80 ticks; 45+20 leaves 0.149 rad on j5).
+
+        Failure modes ride the guard: a return that does not converge is
+        re-blended by the next attempt as shipped; a candidate that drops inside
+        the catch floor during the return is rejected by the consumer and the
+        next entry upstream is dispatched instead; and a dispatch that goes to
+        the *other* arm parks this one first (`take_prepared_target`) so a low
+        hand never waits through another arm's attempt.
+
+        Named risk (the battery's): the pre-pose is the **grasp** configuration
+        - `grasp_clearance` = 9.5 cm at the jaw centre, with the pads hanging
+        into the passing fruit's height band, which is why the shipped line
+        holds it only for the 45-tick blend. A prepared return holds it for the
+        between-attempt feed instead (~0.5 s: the driver skips its settle and
+        `advance(30)` on `at_prepose`). A fruit riding through the station in
+        that window can be touched, so the battery must read `recirculated`,
+        `supply_skipped` and the per-attempt notes, not only the rate.
+        """
+        prepared = self._prepared[side]
+        top = prepared.rows[0] if prepared.rows else None
+        if top is None:
+            if not self._prepared_return_empty:
+                return False
+        elif self._prepared_lane(top) != side:
+            # The next attempt will be run by the other arm: keep the shipped
+            # return (this arm has no next attempt to be prepositioned for) and
+            # leave the set for the driver's selection skip.
+            return False
+        target = self._station_prepose_target(side)
+        if target is None:
+            target = self._pose(side, "grasp")
+        started = self._sim_time()
+        self._lift_clear(side)
+        self._blend_to(
+            side,
+            target,
+            ticks=self._prepared_return_ticks,
+            settle=self._prepared_return_settle,
+        )
+        result.prepose_return_s = max(0.0, self._sim_time() - started)
+        result.at_prepose = True
+        self._prepose_armed[side] = True
+        self._prepared_pending = side
+        if self._prepared_diag:
+            err = float(np.max(np.abs(self.arms[side].joint_positions() - target)))
+            say(
+                f"[prepared] {side}: return {result.prepose_return_s:.2f}s "
+                f"({self._prepared_return_ticks}+{self._prepared_return_settle} "
+                f"ticks), pre-pose err={err:.4f} rad, "
+                f"pending={'yes' if top is not None else 'empty'}"
+            )
+        return True
+
+    def take_prepared_target(self, states: list[dict] | None = None) -> dict | None:
+        """Pop the prepared next target for the single arm (P32 phase 2).
+
+        The driver calls this *instead of* `select_target(states)` when the
+        previous attempt left a prepared set (`result.at_prepose` and a pending
+        side). The highest-ranked candidate that still passes the shipped
+        selector on the *live* state is returned; the rest are dropped. This is
+        the two-line prefetch's own consumption guard (W6-C L1: re-check at the
+        slot start, never at the reservation's floor, `logs/w6/SPEC.md` section
+        7) applied to the single arm, so a fruit
+        that arrived inside `_dynamic_select_floor()` during the return can
+        never be handed to an attempt.
+
+        Returns `None` off the knob / off the scope / with nothing pending, in
+        which case the caller selects fresh - the shipped path exactly.
+        """
+        if not self._prepared_next:
+            return None
+        if self._active_session is not None:
+            return None
+        side = self._prepared_pending
+        if side is None:
+            return None
+        self._prepared_pending = None
+        if states is None:
+            states = self.spawner.state()
+        store = self._prepared[side]
+        if not store.rows:
+            return None
+        by_index = {int(row["index"]): row for row in states}
+        now = self._sim_time()
+
+        def validate(row: dict) -> dict | None:
+            """One-item re-check through the shipped selector (see docstring)."""
+            fresh = by_index.get(int(row["index"]))
+            if fresh is None:
+                return None
+            return self.select_target([fresh])
+
+        state = store.take(validate, now)
+        if state is not None:
+            if self._prepose_armed.get(side) and self._prepared_lane(state) != side:
+                # The dispatch went to the other arm (a recycled-away top row,
+                # or a fresh selection after a dropped set). The prepositioned
+                # hand is at the pre-pose - the grasp height, with the pads in
+                # the passing fruit's band - and must not hang there through
+                # that attempt, so it takes the shipped ready transit now,
+                # before the attempt starts. This is the only case where the
+                # return's saving is given back.
+                self._prepose_armed[side] = False
+                self.go_ready(side)
+            if self._prepared_diag:
+                say(
+                    f"[prepared] {side}: dispatch index={int(state['index'])} "
+                    f"{state.get('category', '?')} age={store.age_s:.2f}s "
+                    f"(kept={store.kept} dropped={store.dropped} "
+                    f"empty={store.empty})"
+                )
+            return state
+        if self._prepared_diag:
+            say(
+                f"[prepared] {side}: set dropped (dropped={store.dropped}); "
+                "selecting fresh"
+            )
+        return None
+
+    # ------------------------------------------------------------------ #
+    # P32 phase 2: the mid-attempt feeder cadence
+    # ------------------------------------------------------------------ #
+    def _feed_tick(self) -> None:
+        """One control tick of the `FRUIT_FEED_CADENCE` pump.
+
+        Called from `_step_sim` on **every** control tick of every attempt phase
+        (wait, approach, catch, carry, place, release), not from the carry loop
+        (the pre-P32-A carry-only hook was removed: the wait/approach gaps went
+        stale and the pump's late backlog landed downstream of the selection
+        floor, `logs/p32/51_bed_pipeline.log`). `advance_furniture=False`: the
+        conveyor's kinematic furniture keeps the shipped per-pump cadence, so
+        this lever is the feeder's release schedule alone (`fruits.update`). The
+        stride only bounds the release granularity: 4 ticks = 33 ms = 4 mm of
+        belt travel at 0.12 m/s, against a 0.13-0.15 m row pitch. The cost is
+        measured by `scripts/213_prepared_next_selftest.py --cost` (the
+        Python-side pump); the battery's wall-clock delta is the number of
+        record.
+        """
+        self._feed_ticks += 1
+        if self._feed_ticks % self._feed_stride:
+            return
+        self._feed_calls += 1
+        self.spawner.update(self._sim_time(), advance_furniture=False)
+
+    def _feed_report(self, side: str) -> None:
+        """One `[feed]` row per attempt with the cadence on (pure reporting).
+
+        The deltas are read off `spawner.stats`, so the row proves the pump ran
+        *inside* the attempt and names what it delivered: `updates` (pump calls
+        made since the attempt start), `ticks` (control ticks they were sampled
+        from), `released` (draws), `placed` (bed placements) and `skipped` (the
+        pump's own refused slots). The window is **attempt start -> release**;
+        the return/retreat pumps that follow the release are not in this row
+        (the next attempt re-snapshots `_feed_marks`). `updates` is therefore not
+        the run's pump total - it is the carry/place cadence's call count, which
+        is what the A/B compares.
+        """
+        stats = getattr(self.spawner, "stats", {})
+        released = int(stats.get("released", 0))
+        placed = int(stats.get("bed_placed", 0))
+        skipped = int(stats.get("supply_skipped", 0))
+        r0, p0, s0 = self._feed_marks
+        say(
+            f"[feed] {side}: updates={self._feed_calls} ticks={self._feed_ticks} "
+            f"stride={self._feed_stride} released=+{released - r0} "
+            f"placed=+{placed - p0} skipped=+{skipped - s0} "
+            "(attempt start -> release)"
+        )
+        self._feed_marks = (released, placed, skipped)
+
+    def bed_diag_report(self, attempt: int, diag: list) -> None:
+        """One `[bed-sel]` block per attempt (`FRUIT_BED_DIAG=1`, pure reporting).
+
+        Printed by the driver (and the feeder probe) right after the selection,
+        so a "no eligible fruit" attempt names the predicate that refused every
+        live fruit instead of only listing their positions. The pump half is the
+        schedule's absolute clock (`_next_release` vs now - the lag that decides
+        whether a due row lands at the spawn or at the station floor) plus the
+        counters that say how much demand the feeder could not deliver. `live`
+        counts every state the selector received - including fruit on the raised
+        output conveyors, which `on_belt` excludes; on the bed's own belt the
+        two are equal, and `on_belt` is the number the census means.
+        """
+        spawner = self.spawner
+        now = self._sim_time()
+        next_release = float(getattr(spawner, "_next_release", 0.0))
+        stats = getattr(spawner, "stats", {})
+        rows = [row for row in diag if "index" in row]
+        on_belt = [row for row in rows if not row["reason"].startswith("off belt")]
+        admitted = [
+            row
+            for row in rows
+            if row["reason"] == "usable"
+            or row["reason"] == "chosen"
+            or row["reason"].startswith("below catch floor")
+        ]
+        window = [row for row in rows if row["reason"] in ("usable", "chosen")]
+        chosen = next((row for row in rows if row["reason"] == "chosen"), None)
+        say(
+            f"[bed-sel] attempt {attempt} t={now:.2f} live={len(rows)} "
+            f"on_belt={len(on_belt)} admitted={len(admitted)} window={len(window)} "
+            f"pick="
+            + (
+                "none"
+                if chosen is None
+                else f"{chosen['category']}@{chosen['along']:.3f}"
+            )
+            + f" pump_next={next_release:.2f} lag={now - next_release:+.2f} "
+            f"rebased={int(stats.get('bed_rebased', 0))} "
+            f"dropped={float(stats.get('bed_late_dropped_s', 0.0)):.1f}s "
+            f"skipped={int(stats.get('supply_skipped', 0))} "
+            f"refused={int(stats.get('bed_refused', 0))} "
+            f"placed={int(stats.get('bed_placed', 0))}"
+        )
+        for row in rows:
+            say(
+                f"[bed-sel]   {row['category']:<10s} along={row['along']:+.3f} "
+                f"x={row['x']:.3f} z={row['z']:.3f} r={0.5 * row['dia']:.3f} "
+                f"grade={row['grade']} -> {row['reason']}"
+            )
+
     def select_target(
         self, states: list[dict], lead_time: float = 0.0, lane: int | None = None,
         min_lead_s: float | None = None, station_y: float | None = None,
         prefer_lane: int | None = None, exclude: set[int] | None = None,
         lead_override_s: float | None = None, reach_anywhere: bool = True,
+        diag: list | None = None,
     ) -> dict | None:
         """Choose the next fruit that will reach the pick pose.
 
@@ -4180,9 +4799,49 @@ class PickAndPlaceTask:
         selector, so the knob must not silently move it
         (`logs/r11/A_RESULTS.md`). Every scripted caller leaves the default and
         inherits the rule.
+
+        `diag` (P32 phase A, `FRUIT_BED_DIAG=1`, default off): the caller's list
+        collects one row per input state with the **first predicate that refused
+        it**, plus a `chosen` row for the returned target and a `none:` row when
+        nothing was usable. The bed's last starvation read ("no eligible fruit"
+        while a live fruit sits at along 0.545) could not be attributed from the
+        driver's summary - it printed the fruit but not the predicate - so this
+        is pure reporting on the decision the selector already made. `None` on
+        every shipped call.
         """
         pick_y = float(self.cfg.pick_y) if station_y is None else float(station_y)
         exclude = exclude or ()
+
+        def _note(state: dict, reason: str) -> None:
+            """One diagnostic row (no-op unless the caller asked for a list)."""
+            if diag is None:
+                return
+            pos = state["position"]
+            diag.append(
+                {
+                    "index": int(state["index"]),
+                    "category": state.get("category"),
+                    "grade": state.get("grade"),
+                    "along": float(pos[1]),
+                    "x": float(pos[0]),
+                    "z": float(pos[2]),
+                    "dia": float(state.get("diameter", 0.0)),
+                    "reason": reason,
+                }
+            )
+
+        def _chosen(state: dict) -> dict:
+            """The return path, noting the target when the diagnostic is on."""
+            if diag is not None:
+                index = int(state["index"])
+                for row in reversed(diag):
+                    if row.get("index") == index:
+                        row["reason"] = "chosen"
+                        break
+                else:
+                    _note(state, "chosen")
+            return state
+
         #: W3 pure routing: only meaningful together with `prefer_lane` (the
         #: two-line worker); the single-arm selectors keep every grade.
         pure_grade = prefer_lane is not None and self._pure_grade_routing()
@@ -4192,6 +4851,7 @@ class PickAndPlaceTask:
         station: list[tuple[float, dict]] = []
         for state in states:
             if exclude and int(state["index"]) in exclude:
+                _note(state, "excluded")
                 continue
             if pure_grade and state.get("grade") != wanted_grade:
                 # W3 owner decision: each arm sorts exactly one grade, and
@@ -4199,6 +4859,7 @@ class PickAndPlaceTask:
                 # both stations to the end of the main belt, where `update`
                 # counts it `reached_end` and the feeder recycles it (the
                 # end-of-line path; see `FruitSpawner.update`).
+                _note(state, f"grade {state.get('grade')} != {wanted_grade}")
                 continue
             if lane is not None:
                 # The lane is the arm (the left arm cannot cross the body to the
@@ -4206,13 +4867,17 @@ class PickAndPlaceTask:
                 # `20_pick_place.py` / `_run_impl`.
                 grade_lane = 0 if state.get("grade") == "A" else 1
                 if grade_lane != lane:
+                    _note(state, f"other lane {grade_lane}")
                     continue
             if self.failures.get(int(state["index"]), 0) >= self.max_retries:
+                _note(state, "diverted (max_retries)")
                 continue  # diverted after repeated failures
             pos = state["position"]
             if pos[2] < self.belt_top - 0.02:
+                _note(state, f"below belt z={float(pos[2]):.3f}")
                 continue  # already fell off
             if state["diameter"] > self.cfg.gripper_max_object:
+                _note(state, f"too big {float(state['diameter']):.3f} m")
                 continue  # jaws cannot straddle this fruit
             # Only fruit *on the main belt* are candidates. A fruit already placed
             # on a raised output conveyor sits at the same along-belt position
@@ -4221,8 +4886,17 @@ class PickAndPlaceTask:
             # had put on the +Y belt at x=1.13. The main belt is the only surface
             # at the pick height near its centre line.
             if abs(float(pos[0]) - self.cfg.belt_center[0]) > 0.30:
+                _note(
+                    state,
+                    f"off belt x={float(pos[0]):.3f} z={float(pos[2]):.3f}"
+                    " (output conveyor or off the line)",
+                )
                 continue  # on an output conveyor (or off the line)
             if float(pos[2]) > self.belt_top + 0.12:
+                _note(
+                    state,
+                    f"above belt z={float(pos[2]):.3f} (output belt/stacked)",
+                )
                 continue  # above the main belt surface: already on an output belt
             along = float(pos[1])
             # A fruit selected *inside* the old station window is lost with the
@@ -4288,6 +4962,11 @@ class PickAndPlaceTask:
             # the belt carried it off the end, and the task teleported it back).
             if upstream_floor < along <= pick_y + 0.85:
                 upstream.append((along, state))  # smallest y first = first to arrive
+            else:
+                _note(
+                    state,
+                    f"below window along={along:.3f} floor={upstream_floor:.3f}",
+                )
         if self._prefer_upstream:
             # R10-A/R11-A.1: the reach-anywhere rule first, when armed (the
             # opt-in reach knob; its candidate floor is `max(band-relative, the
@@ -4302,7 +4981,7 @@ class PickAndPlaceTask:
                     states, lane=lane, prefer_lane=prefer_lane, exclude=exclude
                 )
                 if reached is not None:
-                    return reached
+                    return _chosen(reached)
             # Moving catch: only candidates the schedule can meet (see
             # `_dynamic_select_floor`); the wait loop absorbs any extra lead by
             # hovering at the station. A lane selection (bimanual) takes the
@@ -4314,34 +4993,59 @@ class PickAndPlaceTask:
             # cross-lane fruit is taken only when the arm's own lane has none.
             floor = pick_y + self._dynamic_select_floor(min_lead_s, lead_override_s)
             usable = [item for item in station + upstream if item[0] >= floor]
+            if diag is not None:
+                # The moving-catch floor is a *second* pass over the candidates
+                # the windows admitted; note every admitted one, with the floor
+                # it missed where it missed it (the bed's starvation read is
+                # exactly this number). The chosen one's row is rewritten by
+                # `_chosen`, so the census carries one row per state.
+                for _along, state in station + upstream:
+                    _note(
+                        state,
+                        "usable"
+                        if _along >= floor
+                        else f"below catch floor {_along:.3f} < {floor:.3f}",
+                    )
             if not usable:
+                if diag is not None:
+                    diag.append({"reason": "none: no candidate at/above the catch floor"})
                 return None
             usable.sort(key=lambda item: item[0])
             if lane is not None:
-                return usable[0][1]
+                return _chosen(usable[0][1])
             if prefer_lane is not None:
                 if pure_grade:
                     # W3 pure routing: every `usable` candidate already carries
                     # the arm's own grade, so the nearest (shortest hover) is
                     # returned directly - no cross-grade fallback.
-                    return usable[0][1]
+                    return _chosen(usable[0][1])
                 for _along, state in usable:
                     grade_lane = 0 if state.get("grade") == "A" else 1
                     if grade_lane == prefer_lane:
-                        return state
-                return usable[0][1]
-            return self._balance_arm(usable)
+                        return _chosen(state)
+                return _chosen(usable[0][1])
+            return _chosen(self._balance_arm(usable))
         if station:
             ordered = sorted(station, key=lambda item: item[0])
-            return ordered[0][1] if lane is not None else self._balance_arm(ordered)
+            return (
+                _chosen(ordered[0][1])
+                if lane is not None
+                else _chosen(self._balance_arm(ordered))
+            )
         if upstream:
             ordered = sorted(upstream, key=lambda item: item[0])
             # A lane-filtered (bimanual) selection takes the fruit that arrives
             # first in that lane: the two arms run concurrently, so the schedule
             # cannot use the single-arm "farthest upstream" preference.
-            return ordered[0][1] if lane is not None else self._balance_arm(ordered)
+            return (
+                _chosen(ordered[0][1])
+                if lane is not None
+                else _chosen(self._balance_arm(ordered))
+            )
         if middle:
-            return min(middle, key=lambda item: item[0])[1]
+            return _chosen(min(middle, key=lambda item: item[0])[1])
+        if diag is not None:
+            diag.append({"reason": "none: no candidate at all"})
         return None
 
     def _pure_grade_routing(self) -> bool:
@@ -5244,6 +5948,32 @@ class PickAndPlaceTask:
         )
         session.next_target: dict[str, dict | None] = {"left": None, "right": None}
         session.next_target_t: dict[str, float | None] = {"left": None, "right": None}
+        #: P32 phase 2 (`FRUIT_PREPARED_NEXT=1`, two-line only, default off):
+        #: each idle arm's prepared *set* is ranked when the **other** arm's
+        #: payload clears its station box - the instant the W7-A park gate opens
+        #: (`_biarm_park`) and therefore the instant the idle arm's turn becomes
+        #: possible. Computing it at the attempt end was measured empty: W6-C L1
+        #: reserved 0/40 because the feeder releases at the attempt boundary
+        #: *after* the park (`logs/w6/C_RESULTS.md` section 4). The set is the
+        #: worker's own ranking (`_prepared_rank` with its station/lane/lead
+        #: args), its top entry is reserved with `spawner.protect`, and the slot
+        #: start consumes it through the same one-item re-check the W6-C
+        #: prefetch uses (`_biarm_take_prepared`). `prepared_stats` is the
+        #: batch-end report row.
+        session.prepared_enabled = bool(
+            two_line and os.environ.get("FRUIT_PREPARED_NEXT", "0") == "1"
+        )
+        session.prepared: dict[str, _PreparedNext] = {
+            "left": _PreparedNext(),
+            "right": _PreparedNext(),
+        }
+        #: Per-attempt latch: an arm prepares the other's set once, on the tick
+        #: its payload becomes clear (reset at every slot start by
+        #: `_biarm_clear_slot`).
+        session.prepared_latch: dict[str, bool] = {"left": False, "right": False}
+        session.prepared_stats: dict[str, int] = {
+            "built": 0, "empty": 0, "kept": 0, "dropped": 0, "stale": 0,
+        }
         #: W8-R3 L2 adaptive lead (`FRUIT_BIARM_SELECT_LEAD_ADAPT=1`, two-line
         #: only, default off): per-arm EWMA of the measured selection ->
         #: wait-loop-entry setup (`t_ready`), consumed by `_biarm_lead_args`;
@@ -5332,6 +6062,16 @@ class PickAndPlaceTask:
                     **stats
                 )
             )
+        if two_line and getattr(session, "prepared_enabled", False):
+            # P32 phase 2 accounting: builds (one per payload-clear), empties
+            # (no candidate for the idle arm at that instant), consumed sets and
+            # the two drop classes (stale = the fruit left the live state,
+            # dropped = a whole set failed the slot-start re-check).
+            stats = session.prepared_stats
+            say(
+                "[biarm] prepared: built={built} empty={empty} kept={kept} "
+                "dropped={dropped} stale={stale}".format(**stats)
+            )
         self.stats["biarm_sessions"] = int(self.stats.get("biarm_sessions", 0)) + 1
         self._biarm_trace_report(session)
         return results
@@ -5361,6 +6101,11 @@ class PickAndPlaceTask:
         if sample is not None:
             sample.held = False
         self.current_sample = None
+        session = self._active_session
+        if session is not None and getattr(session, "prepared_enabled", False):
+            # P32 phase 2: arm a fresh "prepare the other arm" window for this
+            # slot (the latch is consumed on the payload-clear tick).
+            session.prepared_latch[arm] = False
 
     def _biarm_worker(self, session: CoopSession, arm: str, bin_index: int) -> None:
         """One attempt thread: take station slots until the batch budget is spent.
@@ -5454,7 +6199,15 @@ class PickAndPlaceTask:
                         #: must share it, or a consumed reservation would be
                         #: re-floored differently from a cold selection.
                         lead_min, lead_over = self._biarm_lead_args(arm)
-                        if session.prefetch_enabled:
+                        if session.prepared_enabled:
+                            # P32 phase 2: the idle arm's prepared set, ranked
+                            # when the other arm's payload cleared its station
+                            # box (the park-gate instant), consumed here through
+                            # the same one-item re-check the W6-C reservation
+                            # uses. `None` falls through to the prefetch/fresh
+                            # selection below, i.e. the shipped path exactly.
+                            state = self._biarm_take_prepared(session, arm, bin_index)
+                        if state is None and session.prefetch_enabled:
                             # W6-C L1: a target reserved at the previous
                             # attempt's end. Re-check it against the floor
                             # *now* (the slot start, when the catch's setup
@@ -5634,6 +6387,10 @@ class PickAndPlaceTask:
                 if leftover is not None:
                     self.spawner.unprotect(int(leftover["index"]))
                     session.next_target[arm] = None
+                if getattr(session, "prepared_enabled", False):
+                    # Same rule for the prepared set: its reserved top entry
+                    # must not outlive the slot that built it.
+                    self._biarm_clear_prepared(session, arm)
             relay.release()
 
     def _biarm_prefetch(self, session: CoopSession, arm: str, bin_index: int) -> None:
@@ -5676,6 +6433,129 @@ class PickAndPlaceTask:
             f"along={float(state['position'][1]):+.3f}m "
             f"at t={session.next_target_t[arm]:.1f}s"
         )
+
+    # ------------------------------------------------------------------ #
+    # P32 phase 2: the two-line prepared set (default off)
+    # ------------------------------------------------------------------ #
+    def _biarm_prepare_other(self, session: CoopSession, arm: str) -> None:
+        """Rank the *other* arm's next candidates at this arm's carry start.
+
+        `FRUIT_PREPARED_NEXT=1` on the two-line scheduler (default off). The
+        trigger is the tick `arm`'s payload first clears its station box
+        (`_biarm_after_step`) - the same predicate the W7-A park gate opens on,
+        so the set exists exactly when the idle arm's turn becomes possible.
+        The ranking is the worker's own (`select_target` with its station, lane
+        and lead args, repeated with `exclude`), so the top entry is the fruit
+        the idle arm would pick, with the *arrival* it can still catch measured
+        from this instant rather than from the attempt end (W6-C L1's measured
+        0/40 empty reservations, `logs/w6/C_RESULTS.md` section 4).
+
+        Only the top entry is reserved (`spawner.protect`, the W6-C interface):
+        the alternates stay unprotected so this lever cannot starve the other
+        arm's lane, and they are re-checked at the slot start anyway. The whole
+        set is recomputed on every clear tick (one per attempt), and the
+        previous set's reservation is released first.
+        """
+        other = "right" if arm == "left" else "left"
+        self._biarm_clear_prepared(session, other)
+        bin_index = 0 if other == "left" else 1
+        lead_min, lead_over = self._biarm_lead_args(other)
+        rows = self._prepared_rank(
+            self.spawner.state(),
+            self._prepared_count,
+            station_y=self.station_y_for(other),
+            prefer_lane=bin_index,
+            exclude=set(self.spawner.protected_indices),
+            min_lead_s=lead_min,
+            lead_override_s=lead_over,
+        )
+        store = session.prepared[other]
+        status = store.store("carry", rows, self._sim_time())
+        if rows:
+            self.spawner.protect(int(rows[0]["index"]))
+            session.prepared_stats["built"] += 1
+            top = rows[0]
+            say(
+                f"[biarm] {other}: prepared n={len(rows)} (for {arm}'s clear) "
+                f"top=index {int(top['index'])} {top.get('category', '?')} "
+                f"along={float(top['position'][1]):+.3f}m "
+                f"at t={self._sim_time():.1f}s"
+            )
+        else:
+            session.prepared_stats["empty"] += 1
+            say(
+                f"[biarm] {other}: prepared empty ({status}) for {arm}'s clear "
+                f"at t={self._sim_time():.1f}s"
+            )
+
+    def _biarm_take_prepared(
+        self, session: CoopSession, arm: str, bin_index: int
+    ) -> dict | None:
+        """Consume this arm's prepared set at the slot start (two-line).
+
+        Walks the ranking and returns the first row that still passes the
+        worker's own eligibility/floor rules on the live state (one-item
+        `select_target`, exactly the W6-C consumption guard). Every row is
+        resolved against `spawner.state()`: a fruit the feeder recirculated away
+        (`stale`) or one that arrived inside `_dynamic_select_floor()` during
+        the park (`dropped`) is refused, and the caller falls back to the
+        shipped prefetch/fresh selection. The set is consumed as a whole - the
+        slot is filled by one target, so the alternates are stale by
+        construction.
+        """
+        store = session.prepared[arm]
+        rows = list(store.rows)
+        if not rows:
+            return None
+        # The reservation was the top entry; it must be dropped *before* the
+        # one-item re-check, or `select_target` would exclude the very fruit
+        # being consumed (the W6-C path unprotects on the same tick). Only the
+        # reservation is released here - `store.take` below owns the rows.
+        self.spawner.unprotect(int(rows[0]["index"]))
+        by_index = {int(row["index"]): row for row in self.spawner.state()}
+        lead_min, lead_over = self._biarm_lead_args(arm)
+        now = self._sim_time()
+        stored_t = store.t
+
+        def validate(row: dict) -> dict | None:
+            fresh = by_index.get(int(row["index"]))
+            if fresh is None:
+                session.prepared_stats["stale"] += 1
+                return None
+            return self.select_target(
+                [fresh],
+                station_y=self.station_y_for(arm),
+                prefer_lane=bin_index,
+                min_lead_s=lead_min,
+                lead_override_s=lead_over,
+            )
+
+        state = store.take(validate, now)
+        if state is None:
+            session.prepared_stats["dropped"] += 1
+            age = now - float(stored_t) if stored_t is not None else float("nan")
+            say(
+                f"[biarm] {arm}: prepared set dropped (n={len(rows)}, "
+                f"age={age:.1f}s)"
+            )
+            return None
+        session.prepared_stats["kept"] += 1
+        say(
+            f"[biarm] {arm}: prepared consumed index={int(state['index'])} "
+            f"{state.get('category', '?')} "
+            f"along={float(state['position'][1]):+.3f}m age={store.age_s:.1f}s "
+            f"at t={now:.1f}s"
+        )
+        return state
+
+    def _biarm_clear_prepared(self, session: CoopSession, arm: str) -> None:
+        """Drop one arm's prepared set and release its top reservation."""
+        store = session.prepared.get(arm)
+        if store is None:
+            return
+        if store.rows:
+            self.spawner.unprotect(int(store.rows[0]["index"]))
+        store.clear()
 
     # ------------------------------------------------------------------ #
     # W8-R3 L2: the adaptive selection lead (two-line only, default off)
@@ -6056,6 +6936,10 @@ class PickAndPlaceTask:
         Capture token (W3, two-line wave scenario): when enabled, the token is
         released the first tick the holder's payload has cleared its station
         box, so the other arm's capture starts while the holder carries/places.
+        Prepared set (P32 phase 2, `FRUIT_PREPARED_NEXT=1`, default off): the
+        same payload-clear transition (the park-gate instant) builds the *other*
+        arm's ranked prepared set, once per attempt (`prepared_latch`); see
+        `_biarm_prepare_other`.
         Clearance trace: with `FRUIT_BIARM_TRACE=1`, the minimum inter-arm
         link-origin distance is sampled - link reads are the invasive class, so
         the trace is default off.
@@ -6065,6 +6949,7 @@ class PickAndPlaceTask:
             return
         if session.trace:
             self._biarm_trace_sample(session)
+        gate_publishes = False
         if getattr(session, "twoline", False) and (
             os.environ.get("FRUIT_BIARM_PARK_GATE", "0") == "1"
             or self._dynamic_profile("FRUIT_BIARM_PARK_EARLY", "0", "1") == "1"
@@ -6088,6 +6973,32 @@ class PickAndPlaceTask:
                 )
             else:
                 session.payload_clear[self.current_arm] = True
+            gate_publishes = True
+        if getattr(session, "prepared_enabled", False):
+            # P32 phase 2: the idle arm's prepared set is built on the tick this
+            # arm's payload first clears its station box - the park-gate instant
+            # (the same predicate the block above publishes when that knob is
+            # on; when it is off this computes the one read itself). One build
+            # per attempt (`prepared_latch`), so the per-tick cost is a bool
+            # with the knob off and, with it on, the payload's position read the
+            # park gate already pays.
+            sample_now = self.current_sample
+            holding = sample_now is not None and (
+                self._closed_gap.get(self.current_arm) is not None
+            )
+            if gate_publishes:
+                clear_now = bool(session.payload_clear[self.current_arm])
+            else:
+                clear_now = bool(
+                    holding and self._biarm_payload_clear(sample_now)
+                )
+            if (
+                holding
+                and clear_now
+                and not session.prepared_latch[self.current_arm]
+            ):
+                session.prepared_latch[self.current_arm] = True
+                self._biarm_prepare_other(session, self.current_arm)
         if getattr(session, "capture_enabled", False):
             # W3 capture token: release once this attempt's payload has cleared
             # its station box (during the lift), so the other arm may start its
@@ -6239,6 +7150,28 @@ class PickAndPlaceTask:
         arm_name = "left" if bin_index == 0 else "right"
         arm = self.arms[arm_name]
         result.arm = arm_name
+        if self._prepared_next and self._active_session is None:
+            # P32 phase 2: a prepared set that is still pending when this arm's
+            # attempt begins was not consumed (a caller that does not dispatch
+            # prepared targets, e.g. the collector). Its positions are one carry
+            # span old by construction, so drop it rather than let a later
+            # dispatch use it. The driver consumes *before* `run()`, so this is
+            # a no-op on the prepared path and unreachable with the knob off.
+            if self._prepared_pending == arm_name:
+                self._prepared_pending = None
+            self._prepared[arm_name].clear()
+            other = "right" if arm_name == "left" else "left"
+            if self._prepose_armed.get(other):
+                # The other arm is still standing at its next pre-pose (its own
+                # attempt has not come). The pre-pose is the *grasp* height
+                # (`grasp_clearance` = 9.5 cm above the belt at the jaw centre,
+                # with the pads hanging into the passing fruit's height band),
+                # which the shipped line holds only for its 45-tick blend. It
+                # must not stay there through this attempt: take the shipped
+                # ready transit now (before this attempt's clock starts, so the
+                # span is not charged for it).
+                self._prepose_armed[other] = False
+                self.go_ready(other)
         #: The arm's own pick station (two-line scheduler) or the shipped shared
         #: station (0.0) on every other path. All station-relative quantities of
         #: this attempt are measured from here, not from `cfg.pick_y`.
@@ -6368,6 +7301,7 @@ class PickAndPlaceTask:
         # the calibrated descent entry).
         session_ctx = self._active_session
         hot_target = None
+        prepared_hold = None
         if (
             session_ctx is not None
             and getattr(session_ctx, "hot_armed", {}).get(arm_name)
@@ -6382,6 +7316,33 @@ class PickAndPlaceTask:
                     f"(err {hot_err:.3f} rad); re-blending"
                 )
                 hot_target = None
+        elif self._prepose_armed.get(arm_name):
+            # P32 phase 2: the previous attempt of this arm returned straight to
+            # the pre-pose (`_prepared_return`), so the blend would re-reach a
+            # configuration the arm already holds. The measured joint check is
+            # the safety net: a drifted flag re-blends as shipped, costing a
+            # slower attempt and never a different one (the pose is
+            # target-independent - the pre-pose is the station's grasp config).
+            self._prepose_armed[arm_name] = False
+            prepose = self._station_prepose_target(arm_name)
+            prepared_hold = (
+                self._pose(arm_name, "grasp") if prepose is None else prepose
+            )
+            prepared_err = float(
+                np.max(np.abs(arm.joint_positions() - prepared_hold))
+            )
+            if prepared_err > self._prepared_tol:
+                if self._prepared_diag:
+                    say(
+                        f"[prepared] {arm_name}: pre-pose stale "
+                        f"(err {prepared_err:.3f} rad); re-blending"
+                    )
+                prepared_hold = None
+            elif self._prepared_diag:
+                say(
+                    f"[prepared] {arm_name}: pre-pose skipped "
+                    f"(err {prepared_err:.4f} rad)"
+                )
         if hot_target is not None:
             # Hold the configuration the hot hold already reached, for a short
             # fixed settle, so the branch keeps a deterministic step count (and
@@ -6389,6 +7350,16 @@ class PickAndPlaceTask:
             for _ in range(max(0, int(os.environ.get("FRUIT_BIARM_HOT_PREP_SETTLE", "20")))):
                 arm.robot.set_dof_position_targets(
                     [hot_target], dof_indices=arm.arm_dofs
+                )
+                self._step_sim(1)
+                self._tick_frame()
+        elif prepared_hold is not None:
+            # The same deterministic hold for the prepared skip: the arm is
+            # already at the target, so the ticks only keep the command explicit
+            # and the camera cadence identical to the blend it replaces.
+            for _ in range(max(0, self._prepared_settle_ticks)):
+                arm.robot.set_dof_position_targets(
+                    [prepared_hold], dof_indices=arm.arm_dofs
                 )
                 self._step_sim(1)
                 self._tick_frame()
@@ -6908,6 +7879,26 @@ class PickAndPlaceTask:
         #: the shipped path reads no extra simulation time and prints nothing.
         hub = self.home_hub_enabled(scripted)
         hub_marks: dict[str, float] = {}
+        #: P32 phase 2 (default off): the prepared-next pipeline for this
+        #: attempt, and the mid-attempt feeder cadence. Both are single-arm
+        #: scripted-scoped (`_prepared_scope`); the direct/policy handover and
+        #: every bimanual configuration resolve to False and read no further.
+        #: The hub flow wins over the prepared return (both move the arm at the
+        #: release); with both knobs on the hub runs and the prepared set is
+        #: left for the driver's selection skip, so the pair is not a supported
+        #: combination to compare - run them separately.
+        self._prepared_on = bool(self._prepared_next and self._prepared_scope(scripted))
+        self._feed_on = bool(self._feed_cadence and self._prepared_scope(scripted))
+        if self._feed_on:
+            # The per-attempt `[feed]` deltas are relative to the arm instant.
+            stats = getattr(self.spawner, "stats", {})
+            self._feed_marks = (
+                int(stats.get("released", 0)),
+                int(stats.get("bed_placed", 0)),
+                int(stats.get("supply_skipped", 0)),
+            )
+            self._feed_ticks = 0
+            self._feed_calls = 0
         #: P2b left-arm fix. The direct (policy) handover used the scripted 6 cm
         #: hover and paid for it: its pre-descent overhead (~0.7 s) plus the
         #: descent itself (~0.7 s) put the fruit 5-8 cm *downstream* when the
@@ -9678,6 +10669,15 @@ class PickAndPlaceTask:
             hub_marks["grasp"] = self._sim_time()
         self._carry(arm_name, sample, "grasp_lift")
         self._cycle_mark("lift")
+        if self._prepared_on and not self._carry_monitor_skip:
+            # P32 phase 2, stage 1 (the carry start): rank the next candidates
+            # while the arm carries. The supply has advanced one setup span, and
+            # on a sparse line the selector's 0.85 m window may hold nothing
+            # yet - that is a legitimate empty read, and the release refresh
+            # below is the operative one (`_PreparedNext.store`). Skipped when
+            # the carry monitor ended the attempt at this boundary: no next
+            # attempt will follow from this one.
+            self._prepare_next(arm_name, "carry")
         if hub:
             hub_marks["hub_carry"] = self._sim_time()
         if os.environ.get("FRUIT_GRIPPER_DEBUG") == "1":
@@ -9966,6 +10966,19 @@ class PickAndPlaceTask:
                     say(f"[release] resync credit={_credited} "
                         f"total={self._ready_skip_credit}")
         self._cycle_mark("release")
+        if self._prepared_on:
+            # P32 phase 2, stage 2 (the release): the operative read. The supply
+            # has advanced one carry/place span, so this ranking supersedes the
+            # carry-start one (`_PreparedNext.store` refuses a downgrade). The
+            # released fruit is `detached` and off the line, and it is still
+            # `spawner.protected` until `run()` returns, so `_prepare_next`'s
+            # excluded set cannot hand it back as a candidate.
+            self._prepare_next(arm_name, "release")
+        if self._feed_on:
+            # P32 phase 2, the cadence arm's own measurement row: how many pump
+            # calls the carry/place made and what the feeder delivered inside the
+            # attempt (the battery pairs it with the wall-clock delta).
+            self._feed_report(arm_name)
         # Retreat. Once the pads are open the fruit is on its own, and holding
         # station for another second is what the release `settle` used to do (60
         # ticks after a 48-tick finger ramp). Lifting the hand away instead reads
@@ -9992,6 +11005,11 @@ class PickAndPlaceTask:
             result.hub_return_s = self._hub_return(arm_name)
             hub_marks["hub_wait"] = self._sim_time()
             result.at_hub = True
+        elif self._prepared_on and self._prepared_return(arm_name, result):
+            # P32 phase 2: the release -> next pre-pose return replaces the
+            # retreat/settle *and* the between-attempt `go_ready` transit (the
+            # driver skips it on `at_prepose`). No further arm motion here.
+            pass
         elif retreat > 0.0:
             # Re-anchor the drive target on the measured arm first: the pads push
             # the arm during the release (`logs/630`), and the first retreat step

@@ -1,0 +1,175 @@
+P32 phase C - the two-line bed battery and the prepared-prefetch arm
+====================================================================
+Generated 2026-10-22 from logs/p32/A0..A3 (every number below is read from
+those logs or from the offline reports on them; the wall rows are the
+claim_run timestamps).
+
+Scenario (all four runs): FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=1
+FRUIT_SUPPLY_BED=1 ATTEMPTS=20 SEED=5 FRUIT_BED_DIAG=1 FRUIT_MOTION_REPORT=1
+FRUIT_CYCLE_REPORT=1, HEADLESS=1, Tier A solo via scripts/154_claim_run.sh.
+The balanced pool (A:B:C 0.375/0.375/0.25) is automatic for the two-line +
+bed; FRUIT_SUPPLY_WAVE is NOT set. FRUIT_SUPPLY_BED stays default off.
+
+  run                                        extra env            wall
+  A0_bed_twoline_1.log                       -                    484 s (21:25:01-21:33:05)
+  A1_bed_twoline_prepared.log                FRUIT_PREPARED_NEXT=1  480 s (21:37:10-21:45:10)
+  A2_bed_twoline_prepared_cadence.log        +FRUIT_FEED_CADENCE=1  481 s (21:48:07-21:56:08)
+  A3_bed_twoline_trace.log                   FRUIT_BIARM_TRACE=1    483 s (22:01:34-22:09:37)
+  Wall = the claim_run window (wall clock, one simulator at a time; it is not
+  simulated time and not a throughput measure); every run exited 0.
+
+1. The baseline (A0)
+--------------------------------------------------------------------
+  placed 12/20 = 60 % (left 6/10, right 6/10); run summary 8.6 s/attempt,
+  14.3 s/success, 4.19 placed/min; batch 4.19, placement window 4.22
+  placed/min (window 156.5 s); diverted=0, gate_open=0.0 s, queue_peak=0,
+  recirculated=0.
+  inter-placement interval (t1 of consecutive placements):
+    left  n=5 mean 31.30 p50 18.40 p90 83.20 min 17.60 max 83.20 s
+    right n=5 mean 20.70 p50 18.30 p90 34.10 min 15.50 max 34.10 s
+    pooled n=11 mean 14.23 p50 15.50 p90 19.00 min 1.80 max 34.10 s
+      (attributed to the later arm: left 5, right 6)
+  lock-on (previous attempt end -> station acquired):
+    left  n=9 mean 2.77 s (2.70-2.80); right n=9 mean 2.92 s (2.70-4.10);
+    0 retries on every interval.
+  starved slots: left 1 (the batch-start prime, t=13.4 s), right 0;
+  steady state 0/10 for both arms (scripts/175).
+  idle: left 24.9 s / 171.3 s = 15 %; right 26.3 s / 170.0 s = 15 %.
+  interval decomposition (pooled, [cycle] marks): prepose 0.71, hover 0.79,
+  descent 3.04, close 1.29, grip 3.13, lift 1.96, place 1.76, release 1.42,
+  return 0.39, end 0.02 s -> span 14.51 s.
+  routing: left A=10, right B=10, C picked=0 (pure on); crossovers 0/20.
+  failures: 8 = 1 carried-not-placed (slot 0 pear, lift +0.089) + 7
+  "fruit did not follow the gripper" (slots 2,4,11,12,13,14,16).
+
+  density ([bed] stats + [bed-pump]):
+    draws=126 bed_placed=107 live_recycled=0/126 (0.0 %) holds=0 refused=0
+    rebased=16 late_dropped=139.6s fell_off=13 reached_end=74 sweeps=1355
+    swept=87 supply_skipped=0 live=10 (batch end)
+    `bed_placed` counts the feeder's supply-slot placements, not arm
+    placements (the arm total is the 12/20 above; draws run 1.18x placements).
+    approach-band stock at the 20 pump instants: 2x2, 6x3, 5x4, 3x5, 2x6,
+    1x7, 1x8 (of 10); pump lag 0.2-15.7 s (the once-per-boundary pump).
+    NOTE: FRUIT_BED_DIAG=1 prints [bed-sel] only on the single-arm selection
+    path; the two-line worker does not call bed_diag_report, so there is no
+    per-selection window/live census on this path. The band= field is the
+    measured stock proxy.
+    fell_off 13 decomposition (line order + [bed-fall] z/y):
+      the 5 before the first station acquisition (t=13.4 s) are RECYCLED, not
+      lost (`_recycle_end`/`park` returns each body to the pool; the peach
+      idx=6 and the tomato idx=33 were picked and placed later, at attempts
+      6 and 7), and they split as
+        * 4 belt-end transits in the batch-start prime window (z~0.015-0.026;
+          no driver tick runs the sweep before the first acquisition);
+        * 1 PRE-EXISTING between-belts body (z=0.818; it prints at scene
+          setup, before "arms ready") - not part of the prime window;
+      8 = one per failed attempt, its payload: 1 between the belts (z=0.819)
+        + 7 off the belt (side/end, z~0.014-0.032).
+    The belt-end carry class the R2 sweep owns reads 0 during attempts
+    (reached_end 74, swept 87).
+
+2. The prepared arm (A1) - a zero-actuation null
+--------------------------------------------------------------------
+  A1 is BYTE-IDENTICAL to A0 on the whole [fruit] stream except the 20
+  prepared reporting rows (logs/p32/A_identity_A0_A1.txt): 788/788 physics
+  lines identical; every metric above is the same number.
+  [biarm] prepared: built=0 empty=19 kept=0 dropped=0 stale=0 - every build
+  found no candidate. 19 = one build per payload-clear event minus one: the
+  missing build is the right's slot 4 (attempt 4's no-follow orange fell
+  between the belts and was recycled after the attempt, so no clear tick
+  coincided with a held hand - the trigger needs `holding`, and the fallen
+  body's |y-station| / x never crossed the clear box while the gap was
+  closed). No [prepared ... consumed] line exists.
+  Mechanism (logs/p32/A_prepared_empty_mechanism.txt): the build fires on the
+  other arm's payload-clear tick (mid-attempt) and is 4.15-12.05 s after the
+  last boundary pump, so the newest released row (released at along
+  0.52-0.67 m) has drifted to <= +0.163 m - below the selector's floor
+  (_dynamic_select_floor = _dynamic_pick_lead 0.179 + 0.12*1.5 + 0.03 =
+  0.389 m). The build->consume gaps measured on A1 are left 7.5-15.1 s /
+  right 2.7-11.1 s; a row released at the maximum along 0.668 m can drift
+  only (0.668 - 0.389) / 0.12 = 2.3 s before it is inside the floor, so even
+  a STOCKED belt would build rows that the consumption re-check drops
+  (built>0, kept=0, dropped>0). The worker's slot-start selection succeeds
+  because it follows a fresh pump by 0.22-0.89 s (the 19 non-initial
+  acquisitions; the initial t=13.4 s acquisition precedes the first pump).
+  Forward statement: the two-line's dispatch cost is the PRE-POSE TRANSIT
+  (lock-on 2.77/2.92 s = the 15 % idle), not the selection; the prepared set
+  has no room on this line at the shipped cadence. The lever is structurally
+  empty at the shipped boundary cadence, not mis-selecting.
+
+3. The interaction arm (A2): the cadence knob is single-arm-scoped
+--------------------------------------------------------------------
+  A2 (+FRUIT_FEED_CADENCE=1) is also byte-identical to A0 (prepared rows
+  only) with the same built=0 empty=19. No [feed] line exists: tasks.py
+  _prepared_scope() returns False when _active_session is not None, so
+  _feed_on is False on every bimanual attempt; the mid-attempt pump is a
+  single-arm lever (the single-arm cadence arm 77/78 printed updates=313/
+  attempt). The two-line's own hook is session.prepared_enabled, measured
+  above.
+
+4. Clearance (A3, the opt-in trace)
+--------------------------------------------------------------------
+  A3 (FRUIT_BIARM_TRACE=1, jsonl logs/p32/A3_clearance_trace.jsonl) is also
+  byte-identical to A0 (2 trace report rows only), so the clearance belongs
+  to the same branch as A0-A2:
+    min link separation 20.58 mm (log rounds to 21 mm) at t=142.94 s
+    (openarm_left_hand vs openarm_right_right_finger), 19596 samples,
+    97 < 30 mm = 0.5 %.
+  Per the R5 decision the clearance is a per-config report, not a gate; no
+  arm-arm contact is possible in this build (enabledSelfCollisions=0).
+
+5. The motion reference and the gate
+--------------------------------------------------------------------
+  python3 scripts/105_motion_regression.py logs/p32/A0_bed_twoline_1.log
+    --write-fingerprint configs/motion_reference_twoline_bed.json
+  -> every descent inside its profile budget, the carry cone reported (worst
+  held-grip cone 5.81x, hand speed 9/32 legs over 0.45 m/s reported); the
+  only FAIL is "success 12/20 below 75 %" - 105's single-arm floor. The
+  write is not blocked by a rate-only failure (A0_gate_write.txt).
+  configs/motion_reference_twoline_bed.json md5 dcd1975822120a12d40f5d3f647d09
+  (20 legs).
+  TWOLINE_REF=configs/motion_reference_twoline_bed.json
+    scripts/190_twoline_gate.sh -m 0.5 A0 A1 A2 A3
+  -> PASS x4 ("every log matches ... and is at or above the two-line floor
+  0.5"). Floor choice: -m 0.5 is the 20-attempt battery floor (the W6-B
+  patch battery's; 190's own 0.60 default is the 10-attempt dense branch).
+  105's own 0.75 floor stays the single-arm one and is not used here.
+  The baseline also passes 190's default floor 0.60 (12/20 = 60 %; A0_gate.txt).
+
+6. The comparison (different scenarios - compare metrics, not the rate)
+--------------------------------------------------------------------
+  W6-B patch baseline (pre-park-flip, logs/w6/BASELINE.md):
+    10/20, 2.78 batch / 2.70 window placed/min, pooled interval
+    22.20 / 20.20 / 45.50 s (mean/p50/p90), idle left 26 % / right 29 %.
+  A0 bed (this run, park gate on by default):
+    12/20, 4.19 / 4.22, pooled 14.23 / 15.50 / 19.00, idle 15 % / 15 %.
+  The bed vs the patch is a DIFFERENT SCENARIO (different supply schedule,
+  different branch) and the window rate is 60/interval_mean - one statistic,
+  not two. The same-lever patch reference (W6-C park pair, 12/20, 3.64/3.63,
+  16.53 / 17.30 / 19.90, idle 18 %/24 %) reads interval mean 16.53 -> 14.23
+  and p90 19.90 -> 19.00 s on the bed; the rate delta is that interval's
+  transform. Quote the interval and the per-leg motion, not a rate win.
+
+7. Risks / open
+--------------------------------------------------------------------
+  * the prepared set has no room on this line at the shipped cadence: the
+    build->consume gaps (left 7.5-15.1 s / right 2.7-11.1 s) exceed the
+    floor's 2.3 s drift budget, so a stocked belt would still drop every
+    built row; the two-line's dispatch cost is the pre-pose transit
+    (lock-on 2.77/2.92 s = the 15 % idle). A two-line mid-attempt pump (or a
+    build instant at the boundary release) is the named follow-up if the
+    owner wants the lever;
+  * the 5 pre-attempt fell_off bodies are recycled, not lost (4 belt-end
+    transits in the batch-start prime window + 1 pre-existing between-belts
+    body; the peach idx=6 and the tomato idx=33 were picked/placed later);
+    the sweep is driver-tick-scoped, and the R2 sweep's belt-end class is 0
+    inside attempts;
+  * one branch, one seed, N=1 per arm - but A1/A2/A3 are bit-identical to A0,
+    so the null is exact, not noisy; the walls (480-484 s) are claim_run
+    wall-clock windows, not simulated time;
+  * the two-line bed has its own reference
+    (configs/motion_reference_twoline_bed.json); the dense (W7-A) and patch
+    references are different branches - do not gate one against the other,
+    and any different bed battery (attempts, seed, scenario) needs its own
+    re-record;
+  * the bed stays default off; no shipped default changed.
