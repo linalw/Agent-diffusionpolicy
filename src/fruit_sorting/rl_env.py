@@ -284,7 +284,11 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: default-off path; no shipped default or control-loop statement moved
 #: (proven by the pear-off control's byte-identical acceptance raw run,
 #: `logs/p32/81_accept_raw_pear_off.log`).
-TASKS_MD5 = "ea271ccc51c38527503f4e181dbc2f46"
+#:
+#: P32 phase D: the follow had gone stale again by the Phase-B/C tree
+#: (`ea271ccc` here vs the file's `9277fa64`), so the direct env refused to
+#: start; the pin now follows the shipped `tasks.py`. Metadata-only.
+TASKS_MD5 = "9277fa649f8023c19782ebf6cefb91de"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(

@@ -83,9 +83,12 @@ identifiable), and the **owner-accepted OOD note is the closure** (P32 phase D,
 
 **Commits (this phase, on `p-supply`).** (a) the bed supply + prepared
 pipeline + tooling; (b) the pear + the acceptance/reference re-record; (c) the
-docs + the phase evidence; (d) the pre-P32 tracked-log residue. Evidence
-force-added under `logs/p32/` only for the curated metrics/gates/raw record;
-the gitignored bulk stays out.
+docs + the phase evidence; (d) the pre-P32 tracked-log residue; (e) the stale
+`rl_env.TASKS_MD5` pin (`ea271ccc` -> `9277fa64`, the final `tasks.py` md5 -
+the pin had not followed the Phase-B/C tree, so the direct env refused to
+start; metadata-only, the R11-B precedent). Evidence force-added under
+`logs/p32/` only for the curated metrics/gates/raw record; the gitignored bulk
+stays out.
 
 ### P32 phase C: the two-line bed battery and the prepared arm is a zero-actuation null (2026-10-22)
 
