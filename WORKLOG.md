@@ -2,6 +2,422 @@
 
 Running notes for the implementation. Newest entry first.
 
+### P32 phase D: the integration close-out, the Gate-C corrections, and the pear OOD closure (2026-10-22)
+
+Phase D is the integration of the P32 bed/prepared/pear lane: the Gate-C
+documentation corrections, the Gate-B R5/R6 code fixes, the no-harm run set,
+and the commits. **No shipped default changed** (the pear is the only shipped
+change on this tree - the owner's directive; every bed/pipeline knob is default
+off).
+
+**The Gate-C corrections (docs, measured on `logs/p32/A0..A3`).**
+- **The prepared lever has no room on this line, not just an empty belt.** The
+  build->consume gaps on `A1` are **left 7.5-15.1 s / right 2.7-11.1 s**, and a
+  row released at the maximum along 0.668 m can drift only
+  `(0.668 - 0.389)/0.12 = 2.3 s` before the selector floor
+  (`_dynamic_pick_lead` 0.179 + 0.12*1.5 + 0.03 = 0.389 m) drops it - so even a
+  stocked belt would read built>0, kept=0, dropped>0. The honest forward
+  statement: **the two-line's dispatch cost is the pre-pose transit (lock-on
+  2.77/2.92 s = the 15 % idle), not the selection**.
+- **The 5 pre-attempt `fell_off` bodies are recycled, not lost**
+  (`_recycle_end`/`park` returns them to the pool; the peach idx=6 and the
+  tomato idx=33 were picked/placed later, attempts 6/7): 4 belt-end transits in
+  the batch-start prime window + 1 **pre-existing between-belts body** (printed
+  at scene setup, before "arms ready") - labelled separately.
+- **19 builds = 20 payload-clear events - the right's slot 4**: its no-follow
+  fruit fell between the belts and was recycled after the attempt, so no clear
+  tick coincided with a held hand. The worker's selection follows a fresh pump
+  on the **19 non-initial acquisitions** (the initial t=13.4 s one precedes the
+  first pump).
+- `bed_placed=107` is **labelled** as the feeder's supply-slot placements, not
+  arm placements; the "no per-selection census on the two-line" declaration
+  stands (the worker does not call `bed_diag_report`); the walls (480-484 s)
+  are claim_run wall-clock windows; a different bed battery needs its own
+  re-record. `A_phase_c_metrics.txt` §1/§2/§7 + this entry carry the corrected
+  text.
+
+**The Gate-B R5/R6 code fixes.** The raised output belt's clearance audit
+(`conveyor.OutputBelt.build`, `scripts/422_v3_layout_probe.py`) now reads the
+profile height and prints the **nominal** body clearance **46 mm** beside the
+**41 mm** worst case at the meshes' 1.06 per-instance scale (`INSTANCE_SCALE_MAX`;
+`fruit_height(..., scale=...)`), plus the 14 mm stem bound - the 46 mm alone
+was nominal and understated the tallest instance. `FRUIT_SHAPES[name]`
+dictionary reads in both audits go through `meshes.shape_for(name)`: a class in
+`SceneConfig.fruit_dimensions` without a mesh entry now fails with the
+"add it to FRUIT_SHAPES" assert, not a bare `KeyError`. Comment/docs only on
+the shipped line (no physics/RNG change).
+
+**The no-harm / final validation.** `scripts/selfcheck.sh` **PASS (0 failures,
+1 skipped)**; `scripts/accept.sh` on this tree reads **6/10 with the pear** and
+`fingerprint: matches` the shipped reference (`configs/motion_reference.json`
+md5 `25ade92b`) - the **rate-only FAIL** against the 75 % floor is the
+documented state, not a green acceptance. The final run
+(`logs/p32/D1_accept_pear.log`) is the Phase-B record's own stream: 376/376
+`[fruit]` lines, the only 2 diffs against `93_accept_raw_pear_on.log` are the
+two output-belt **clearance message** lines (the R5/R6 nominal/worst-case
+read) - every physics line is identical, so the Gate-B fixes are print-only on
+the shipped path. The two-line bed gate
+`TWOLINE_REF=configs/motion_reference_twoline_bed.json
+scripts/190_twoline_gate.sh -m 0.5 logs/p32/A0_bed_twoline_1.log` **PASS**;
+`python3 scripts/106_index_audit.py` OK and `scripts/107_collect_merge_test.py`
+**PASS (15 checks)**; `scripts/212_pear_profile.py` **PASS**. The
+`docs/ROADMAP.md` / `docs/CLOSEOUT.md` reference sweep is verified (the
+R6-B-era `b9e72ca7` reference is now labelled with the P32 `25ade92b` branch
+and the pre-P32 archive; the two-line row names the bed branch).
+
+**The pear OOD closure (Gate-B R3/M4).** One hybrid canary on this **pear**
+tree, `scripts/accept_policy.sh` through `154_claim_run.sh` (its default is the
+pre-v9 fixed supply, so it isolates the pear from the v9 supply change):
+**5/10 = 50 %** (`logs/p32/D0_accept_policy_pear.log`), episodes
+ok/ok/fail/ok/ok/fail/fail/fail/fail/ok - **5 grip losses, 0
+grasped-not-placed, 0 new reasons**; the pear is episode 2's grip loss (the
+same baseline class). The gate FAILs on the **rate only** (0.50 < 0.60). That
+sits inside the **recorded pre-pear spread 5-8/10** (`moe_v11` 8/10, `moe_v12`
+6/10, then 5/10 and 6/10 - `scripts/accept_policy.sh` header). **One canary is
+one sample of a non-bit-identical loop, so this is a smoke, not a rate.** Every
+checkpoint and rollout store on this tree is **pre-pear** (the pear changes the
+per-instance RNG draw count; the `meshes.py` md5 pins are in the collector
+manifest and `rl_env._MANIFEST_SOURCES`, so a post-pear store is
+identifiable), and the **owner-accepted OOD note is the closure** (P32 phase D,
+2026-10-22): a policy rate measured before P32 is not this tree's rate.
+
+**Commits (this phase, on `p-supply`).** (a) the bed supply + prepared
+pipeline + tooling; (b) the pear + the acceptance/reference re-record; (c) the
+docs + the phase evidence; (d) the pre-P32 tracked-log residue. Evidence
+force-added under `logs/p32/` only for the curated metrics/gates/raw record;
+the gitignored bulk stays out.
+
+### P32 phase C: the two-line bed battery and the prepared arm is a zero-actuation null (2026-10-22)
+
+Phase C (the two-line bed variant) is measured: the 20-attempt battery on the
+bed, its own per-scenario motion reference and the `190` gate, the
+prepared-prefetch arm, and the clearance. **No shipped default changed** (the
+bed stays default off); evidence `logs/p32/A0..A3` +
+`logs/p32/A_phase_c_metrics.txt`.
+
+**Baseline (A0)**: `FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=1 FRUIT_SUPPLY_BED=1
+ATTEMPTS=20 SEED=5` (+diag/motion/cycle reports), one simulator via
+`154_claim_run.sh`, 484 s wall: **12/20 = 60 % (left 6/10, right 6/10)**,
+4.19 batch / 4.22 window placed/min, pooled inter-placement interval
+**14.23/15.50/19.00 s** (mean/p50/p90), idle **15 %/15 %**, lock-on
+2.77/2.92 s, starved slots 1/0 (the left's batch-start prime at t=13.4 s),
+steady-state 0/10; routing pure (left A=10, right B=10, C picked=0); 8
+failures = 1 carried-not-placed + 7 "fruit did not follow the gripper".
+Density: `draws=126 bed_placed=107 live_recycled=0/126 rebased=16
+late_dropped=139.6s reached_end=74 sweeps=1355 swept=87 live=10`, approach
+band 2-8/10 at the 20 boundary pumps (`bed_placed` counts the feeder's
+supply-slot placements, not arm placements; draws run 1.18x placements).
+`fell_off 13` decomposes as 5 before the first station acquisition (t=13.4 s),
+**recycled, not lost** (`_recycle_end`/`park` returns each body to the pool;
+the peach idx=6 and the tomato idx=33 were picked/placed later, attempts 6/7):
+4 belt-end transits in the batch-start prime window (the sweep is
+driver-tick-scoped) + 1 **pre-existing between-belts body** (printed at scene
+setup, before "arms ready") - plus 8 failed-attempt payloads (1 between the
+belts, 7 side/end). The R2 belt-end class reads 0 inside attempts. The
+two-line worker does not call `bed_diag_report`, so no per-selection
+`[bed-sel]` exists on this path; the band stock is the proxy.
+
+**The prepared arm (A1) is byte-identical to A0** - 788/788 physics `[fruit]`
+lines, the 20 prepared report rows are the entire delta - with `[biarm]
+prepared: built=0 empty=19 kept=0 dropped=0 stale=0`: **zero actuation**. The
+mechanism is measured, not assumed (`A_prepared_empty_mechanism.txt`): the
+build fires on the other arm's payload-clear tick, 4.15-12.05 s after the last
+boundary pump, when the newest released row (0.52-0.67 m at release) has
+drifted to <= +0.163 m - below the selector floor (`_dynamic_select_floor` =
+`_dynamic_pick_lead` 0.179 + 0.12*1.5 + 0.03 = 0.389 m) - while the worker's
+slot-start selections follow a fresh pump by 0.22-0.89 s (the 19 non-initial
+acquisitions; the initial t=13.4 s one precedes the first pump). 19 = one
+build per payload-clear event minus one: **the missing build is the right's
+slot 4**, whose no-follow fruit fell between the belts and was recycled after
+the attempt, so no clear tick coincided with a held hand. **The lever has no
+room on this line at the shipped cadence**: the build->consume gaps are
+**left 7.5-15.1 s / right 2.7-11.1 s**, while a row released at the maximum
+along 0.668 m can drift only (0.668-0.389)/0.12 = **2.3 s** before the
+consumption re-check drops it - so even a stocked belt would read built>0,
+kept=0, dropped>0. The forward statement: **the two-line's dispatch cost is
+the pre-pose transit (lock-on 2.77/2.92 s = the 15 % idle), not the
+selection**; the named follow-up if the owner wants the lever is a two-line
+mid-attempt pump or a build at the boundary release.
+
+**A2 (+`FRUIT_FEED_CADENCE=1`) is also byte-identical**: `_prepared_scope()`
+returns False when `_active_session is not None`, so the mid-attempt pump
+never arms on a bimanual attempt (no `[feed]` line; it is a single-arm lever).
+
+**Clearance (A3)** - `FRUIT_BIARM_TRACE=1` + persisted jsonl, byte-identical
+to A0, so the number is per-config for the whole set: **min 20.58 mm at
+t=142.94 s (left hand vs right finger), 19596 samples, 97 < 30 mm = 0.5 %**
+(a report per the R5 decision; no contact possible in this build).
+
+**Reference + gate.** `configs/motion_reference_twoline_bed.json` written from
+A0 (`105 --write-fingerprint`; every motion budget passes, the only FAIL is
+105's single-arm 0.75 rate floor), md5 **dcd1975822120a12d40fdf5d3f647d09**;
+`TWOLINE_REF=configs/motion_reference_twoline_bed.json scripts/
+190_twoline_gate.sh -m 0.5` **PASS on all four logs** (`-m 0.5` is the
+20-attempt battery floor; `190`'s 0.60 default is the 10-attempt dense
+branch).
+
+**Comparison (different scenario - compare metrics, not the rate).** W6-B
+patch baseline 10/20, 2.78/2.70 placed/min, 22.20/20.20/45.50 s, idle
+26 %/29 %; the bed reads 12/20, 4.19/4.22, 14.23/15.50/19.00, 15 %/15 %; the
+same-lever patch reference (W6-C park pair) reads 16.53/17.30/19.90 s. The
+window rate is `60/interval_mean` (one statistic), so the interval is the
+measurement. Risks: the 5 pre-attempt bodies are **recycled**, not lost
+(4 belt-end transits + 1 pre-existing between-belts body); one seed/N=1 per
+arm, but A1/A2/A3 are bit-identical to A0 so the null is exact, not noisy;
+the walls (480-484 s) are claim_run wall-clock windows, not simulated time;
+the two-line bed has its own reference, and **any different bed battery needs
+its own re-record**. `scripts/selfcheck.sh` **PASS (0 failures, 1 skipped)**;
+no commit.
+
+### P32 phase B: the pear's battery, the acceptance attribution, and the re-record (2026-10-22)
+
+Phase B (the pear) is measured: the shape battery, the old-profile paired
+control, the acceptance with its pear-off attribution and the per-scenario
+fingerprint re-record. No shipped default changed, no commit; the pear is the
+shipped `meshes.py` on this tree, so its cost belongs to the shipped acceptance
+rather than to a knob.
+
+**The shape.** `PEAR_CONTROL` (26 photo-traced points) + `pear_profile(75)`
+replace the squeezed sphere (41 rows). Photo (body only, stem excluded):
+H/W **1.150**, widest **0.308 H**, neck 0.483 r_max at 0.80 H, base 0.419 at the
+contact, lip 0.114. Delivered: H/W **1.200** (the owner's 1.2-1.3 floor, +4.3 %
+on the photo, inside the 5 % match), widest **0.307 H**, neck 0.483, base 0.725
+at 0.05 H, a 4 %-H stem cavity in a 0.115 lip; every 0.05 H row within 0.005
+r_max (`logs/p32/pear_profile.txt`). 76 rings x 28 = 2074 verts / **4144 tris**
+(was 1094 / **2184**; the count is `build_mesh_points`' own - a row pair costs
+`2 x segments` except the two pole fans, which cost `segments` - the earlier
+4200/2240 ignored the fans). The render (`scripts/29_fruit_showcase.py` hero,
+**64 azimuth segments** against the simulator's 28) reads body **H/W 1.178**,
+widest **0.328 H**, visible stem **+0.326 W**, vs the old render's **0.898 /
+0.395 / +0.011** (`logs/p32/showcase/fruit_pear.png` vs
+`logs/p32/pear_before.png`; the body-mask measurement is
+`logs/p32/pear_render_metrics.txt`). Read the render metric as a *projection*,
+not the profile metric: it is the rendered PNG's body bbox (a foreground mask on
+the 1024 px close-up, perspective included) at 64 segments, while the analytic
+H/W 1.200 is the profile - so 1.178 is not expected to equal 1.200. The mass
+formula is unchanged (`0.82 x sphere`), so the 99.0 g at 6.40 cm stands, but the
+shape's solid is now **4.390 r_max^3 = 1.048x** the sphere against the old
+**2.983 = 0.712x** - **1.47x** the old solid at the same diameter - so the
+solid's effective density reads **688 kg/m^3** where the old one read **1013**
+(the real pear is 950; the mass proxy is x1.278 this solid). The profile table
+is the metric and the render the visual check.
+
+**The pear battery** (`FRUIT_SUPPLY_SPECIES=pear`, ATTEMPTS=10, SEED=5, shipped
+scatter, `FRUIT_MOTION_REPORT=1`; `logs/p32/90_pear_battery_new.log`). The pool
+is pears only, so **9 attempts** (not 10): attempt 7 is `no eligible fruit` and
+the run-neutral diag repeat (`94`, 0-diff on every non-diag `[fruit]` line)
+names why - the 0.543 fruit is a **placed pear on the output lane** (x=1.158,
+z=1.381, refused off-belt) and the three main-belt pears sit at along 0.058 /
+0.190 / 0.357, all below the 0.399 catch floor (0.058 is also below the 0.180
+window). It is the known between-attempt sparsity, not a shape defect; by then
+the pear-only pool had `released=27 fell_off=20 discharged=3 skipped=69` (the
+diag's `[bed-fall]` rows put the fallen bodies on the floor at z~0.02, all
+downstream of the station - 22 at y <= -0.81, past the main belt's -0.80 end,
+and one between the belts at x=0.511, y=-0.614 - so not a mid-belt tip, and the
+new base is a 0.419 r_max contact ring rather than the old pole; `reached_end=0`
+is the known despawn-scan gap). **6/9 placed**, 15.2 s/attempt; the 3 failures are `grasped=True
+placed=False` with empty notes and lifts **+0.214 / +0.074 / +0.156 m**, all
+below every success (+0.287..+0.405) - the carried-not-placed class at a
+partial lift. Per-leg motion: **9 descents all inside budget** (`|v|max`
+0.108-0.110 vs 0.160-0.161, lurch 0.017 vs 0.291, a_win5 0.74 reported),
+18 carries, worst held-grip cone **1.19x reported**, 2/18 hand-speed rescues.
+The two arms do not hold the same fruit: the old-profile run's picked pears are
+**systematically larger** (5.9-6.9 cm vs this arm's 5.8-6.6 cm) - sizes and mass
+below.
+
+**The old-profile paired control** (only `git show HEAD:src/fruit_sorting/
+meshes.py`'s `pear_profile` restored; sha256 `a4ea85d5` -> `b288f9f5` while
+patched -> restored `a4ea85d5`, verified; `91`): **6/9 placed**, 15.1 s/attempt;
+attempt 0 is `no eligible fruit` (six pears at along <= 0.396 - the batch-start
+belt prime); the 3 failures are `grasped=True placed=False` with lifts **+0.292
+/ +0.219 / +0.149** (the largest sits inside the success range, so a place-side
+loss); 9 descents 0.108-0.111, worst held cone **1.21x**. **One run per arm**
+(`90`, `91`; the diag repeat `94` is run-neutral) - two samples of one
+configuration each, so quote the classes and the per-leg motion. Both arms are
+6/9 - per the quantized-outcome rule this is **not a shape rate delta**: the
+per-leg motion is indistinguishable and the classes are the same
+(carried-not-placed + one belt-prime no-eligible slot). The new arm's pears are
+also **systematically smaller**: the nine picked targets read **5.8-6.6 cm**
+(mean 6.10) against **5.9-6.9 cm** (mean 6.36) - the logs print sizes to
+0.1 cm - and the mass proxy scales with d^3, so the new arm's payloads are
+**~12 % lighter** at the printed means and range tops (6.6 vs 6.9 cm; the
+0.1 cm rounding puts it in the 11-14 % band). Caveat:
+76 vs 41 rings consumes a different number of per-instance RNG draws (**56 per
+non-pole row** - 28 segments x the noise + z-jitter pair - so 74 vs 39 non-pole
+rows is ~1960 draws per pear instance), so the two batteries' supply streams
+differ (sizes, order, which slot is skipped) - the control isolates the profile
+as a *configuration*, not as a per-instance-shaped pair.
+
+**The acceptance + attribution** (Tier A solo, `scripts/accept.sh`, both runs
+through `scripts/154_claim_run.sh`; the pre-pear reference before any write):
+- **pear-on** (`logs/p32/93_accept_pear_on.log`): **6/10**, 15.0 s/attempt,
+  fingerprint **DIFFERS**; all 10 descents inside budget (0.108-0.110 vs
+  0.160-0.161, lurch 0.017 vs 0.291, a_win5 0.75 warning), 19 carries, worst
+  held cone 1.27x reported; FAIL = rate + fingerprint. The **1.27x is not the
+  pear**: it is attempt 3's **orange no-follow lift** (`93_accept_raw_pear_on.
+  log:508` - 28 cm leg, `slip_max=1309.7 mm`, `grasped=False`, note "fruit did
+  not follow the gripper"). The run's own pear attempt (6) reads **1.00x** on
+  the lift and **1.19x** on the place, and the pear-only battery's held cones
+  span 0.86-1.19x. It is a **0-diff replay
+  of Phase A's pear-on acceptance `80`** on all 376 `[fruit]` lines, so the
+  Gate-A follow-ups are inert here.
+- **pear-off** (`92`, only the pear profile reverted, restored & sha-verified):
+  **7/10**, 15.1 s/attempt, fingerprint **matches**; its `[fruit]` stream is
+  **381/381 identical to `81`** and **0 diff** vs the pre-session
+  `logs/p30a/05_accept_rails_outer_lift040.log`. The branch move is the pear
+  (the RNG-draw shift), and the bed/feeder work is inert on the shipped line.
+- Both rates are **below the 75 % dynamic floor**, so neither is a pass. The
+  two counts differ by **one attempt in one sample** and the runs are
+  **different attractors with different fruit sequences**, so **no per-class
+  pear cost is measured** - the pear's own grasp/place is 3/3 across the two
+  acceptances, and the **7/10 predates P32** (it is the pre-session
+  acceptance's own count on the pre-pear tree, which `92` reproduces
+  byte-identically). The
+  failure classes are **not pear failures**: the pear-on failures are peach
+  (x2), kiwi and one orange no-follow (attempts 0-3; attempts 4-9 all placed),
+  and the run's one pear attempt (6) placed (+0.312 m, 4.43 N). The pear-off
+  run picked 2 pears, both placed. So the 6/10 is the branch's peach/kiwi/
+  orange carry class; do not read 7 -> 6 as a pear regression.
+
+**The reference re-record.** `configs/motion_reference.json` was written from
+the pear-on acceptance (`93`) after `105_motion_regression.py
+--write-fingerprint` confirmed every motion budget passes (the failure is
+rate-only, which does not block a write; `logs/p32/93_fingerprint_write.txt`):
+md5 **406745c5 -> 25ade92b**, sha256 **4fed8467 -> f9883950**. The pre-pear file
+is archived at `logs/p32/motion_reference_pre_pear.json` (same md5). After the
+write `93` matches and the pear-off control differs by construction (leg 1
+[95, 0.116] vs [88, 0.109]) - references are **per-scenario**; a pear-reverted
+tree would need the archived file. This documents the pear's branch; it is not
+a rate fix.
+
+**The gate reads (offline, `105`).** `logs/p32/95_motion_gate_battery_new.txt`
+and `..._old.txt` (`python3 scripts/105_motion_regression.py
+logs/p32/90_pear_battery_new.log` / `...91...`): both batteries pass **every**
+descent and carry budget (worst `|v|max` 0.110 / 0.111 vs 0.160-0.161; lurch
+0.017 vs 0.291; worst held cone 1.19x / 1.21x, reported, not gated) and fail on
+the **success floor only** (6/9 = 67 % against the shipped 0.75). That is
+expected, not a regression: the scenario is a **species-locked pear pool** and
+the shipped reference is the mixed supply, so a rate verdict here is a
+different-scenario comparison - quote the classes and the per-leg motion.
+
+**Gate-B remediation (docs + code, no simulator run, no commit).** After Gate
+B's conditional pass this entry and its neighbours were corrected in place:
+the stale reference provenance (M1 - the shipped file is the pear-on branch, the
+v9/V1 and pre-P32 files are the archives), the retracted "pear's cost is 1/10"
+(M2 - cross-configuration), the volume comparison (M3 - **both** profiles, 1.47x
+the old solid, effective density 688 vs 1013), the triangle count (m1 - the pole
+fans: **4144 / 2184**), the 1.27x cone attribution (m6), the raised belt's
+fruit-height clearance (m8 - **0.046 m** body, 0.0145 m against the stem bound),
+and the m2-m12 evidence/labels above. Code: `212_pear_profile.py` (r_max^3
+volume, pole-fan triangle count, the `author_stem` `profile[-1]` convention
+check), `meshes.py` (`fruit_height` / `stem_over_top`), `conveyor.py` + `422`
+(the clearance print), `40_collect_demos.py` (the manifest now pins
+`meshes.py`, so a post-pear shard is identifiable). Re-emitted:
+`logs/p32/pear_profile.txt`, `logs/p32/pear_profile.png`. No shipped default
+changed.
+
+**No-harm / docs.** `scripts/selfcheck.sh` **PASS (0 failures, 1 skipped)**; no
+shipped default changed and no env default flipped. This entry + deepwork §2/§7
++ the README current-status note + the AGENTS accept note carry the numbers.
+
+### P32 phase A: the bed feeder, the A/B, and the Gate-A corrections (2026-10-22)
+
+P32 phase A (the dense bed's simulator integration + the prepared-next pipeline)
+is complete as a **default-off** deliverable; Gate A passed it conditionally and
+the findings are remediated in-tree (no shipped default changed, no commit, the
+legacy `FRUIT_SUPPLY_BED=0` paths byte-identical). Evidence `logs/p32/`.
+
+**Root cause of the sim starvation (two coupled defects).** (1) `_prime_bed`
+wrote a *relative* `span/speed` into `_next_release` while `update` compares the
+absolute `SimulationManager` clock, and the arm's `go_ready` (3-5 s) runs
+between them; (2) the feeder was pumped once per attempt, so the bed's ~1.1 s
+rows fell 13-19 s behind (`[bed-pump] lag=+17.5/+19.5 s`) and every due row was
+dropped or delivered below the 0.40 m catch floor. The "tomato at 0.545" in
+`52` was a placed fruit on the +Y output belt (x~0.88-1.14), not a candidate.
+
+**Fix (bed-only).** Prime on the absolute clock; a row is never released below
+`spawn_y - FRUIT_SUPPLY_BED_STOCK_M` (0.16 m, re-based: `bed_rebased` /
+`bed_late_dropped_s`); the interlock is the bed's approach band
+(`FRUIT_SUPPLY_BED_STOCK_MAX`, derived/clamped from the band geometry) instead
+of the station window; a blocked row is *held* (`bed_holds`). `FRUIT_QUEUE_MAX`
+no longer changes the bed. Spacing 0.11-0.13 -> **0.13-0.15 m** (owner decision):
+80/80 rows, **51/80 middles (64 %**, was 0-4 %), 7.2 rows/m, 19.1 fruit/m, min
+pair 0.1032 m, corridor slack +0.0001 m, 0 violations. Audit
+`scripts/211_bed_audit.py` **92 checks** (the per-column size histogram, the
+final `[bed] stats` row and the output-lane draw probe are new).
+
+**Feeder-only proof** (`scripts/214_bed_feeder_probe.py`): no-cap 2/10 picks,
+window 0.60 -> **10/10, window 4.40 (min 3)**. This is the feeder, not the arm.
+
+**A/B (10 attempts, SEED=5, single arm; 2 runs/arm, physics-identical).**
+Control (bed) vs arm (bed + `FRUIT_PREPARED_NEXT` + `FRUIT_FEED_CADENCE`):
+6/10 vs 6/10 placed, per-attempt span 14.98 -> 14.67 s, start-to-start
+18.17 -> 18.31 s (+0.8 %), interval mean 25.78 -> 33.06 s
+(min/median/max 17.2/18.5/37.8 -> 18.6/35.5/55.7), live bodies 6.6 -> 21.2,
+feeder demand 161.1 -> 5.6 s, wall +24 % (physics: 21 vs 6.6 live bodies; the
+pump is 2.71 ms/sim-s). **No throughput win**, and the interval move is the
+success/failure pattern, not a pipeline gain. **The isolated attribution arm**
+(`BED=1 FEED_CADENCE=1` alone, `77`/`78`): 5/10, span 14.99 s, start-to-start
+18.56 s, interval 18.6/27.7/55.7 s, live 21.1, window 4.4. The prepared
+handoff is therefore -0.25 s start-to-start against the bundle but the outcome
+count moved (6 vs 5), so it is **not separable**; the bundle's +0.8 % is the
+cadence + branch, not a prepared-pipeline gain.
+
+**Gate-A corrections (the numbers above are the corrected readings).**
+**M1** - the "bed-only is a regression" claim is **retracted**: the *fixed*
+bed-only arm at the shipped boundary cadence is **10/10 selections, 0 "no
+eligible fruit", window 4.60 at pick** (`70`/`71`); the density needs the
+cadence (live 6.6 -> 21.2), the bed's function does not. The 20-attempt
+settling control (`79`) reads 20/20 selections, live 14 -> 5 -> 6, window 4-6,
+so the belt drains *between* attempts but never starves the selection instant.
+**M2** - the arm
+bundles two levers; the isolated `BED+FEED_CADENCE` arm (`77`/`78`) is the
+comparison, and its delta against the bundle (-0.25 s start-to-start) is **not
+separable** because the outcome count moved (5 vs 6 placed); do not claim the
+prepared pipeline neutral or positive from either arm. **M3** - the -2.1 % span is a
+**booking artifact** (`note_result` ends at the release and subtracts the return;
+the control's span carries its 60-tick release settle), end-to-end
+start-to-start is +0.8 %, and the driver's `[run] attempt` row now prints
+`prepose_return=` (readback-free). **M4** - the interval p90 used
+`sorted[int(0.9n)-1]` (second-largest at n=5) and hid the 55.7 s outlier; the
+report quotes min/median/max, states `window rate = 60 / interval mean`, and
+`scripts/215_p32_phase_a_report.py` regenerates it. **M5** - the 13:38/12:51
+renders were the pre-spacing lattice (0.11-0.13, pool 28/24); the shipped
+geometry re-render (0.13-0.15, pool 40, `PRIME=6` rows) is
+`logs/p32/bed_{top,line}.png` and prints the visible abreast clusters (the
+pre-spacing top/line/oblique are archived as `*_prespacing.png`; the oblique was
+not re-rendered - three cameras at once exceeded the GPU's descriptor memory).
+
+**Minors.** `bed_band_max` initialised beside `bed_band`; `_feed_tick`'s
+docstring names `_step_sim` and `_feed_on`'s lifetime/`[feed]` delta window is
+documented; a final `[bed] stats` row (draws/placed/live_recycled/holds/refused/
+rebased/late_dropped/fell_off) makes the bed's counters visible in the sim - and
+it **corrects** the earlier "zero live-recycle / zero fell-off" claim: the
+cadence arm measures **1/489 (0.2 %)** live recycles and **5 fell_off** (4 are
+past the main belt's end - the between-attempt `update` gap, `reached_end=0`;
+1 is a released failure payload; the boundary control reads **102 fell_off, 96
+past the end**, so the gap dominates it). The live recycle is a placed fruit on
+the raised output lane that `_pick_recyclable`'s x-window admits - `x=0.628,
+z=1.377`. The bed-scoped z-skip and a non-feed-tick despawn scan are the named
+next fixes and are not applied in this battery; `213`'s env
+save/restore typo fixed (`FRUIT_SMOOTH_TRANSIT_PREPOSE`); `[bed-sel] live=` now
+prints `on_belt=`;
+`FRUIT_SUPPLY_BED_STOCK_MAX` is clamped to the band's geometric capacity (15 at
+the shipped plan; default stays the measured 10) and the coupling documented;
+the lag note is corrected (+2.6 s is **attempt 0 only**, on the cadence arm; the
+boundary control's 17-19 s is its one-pump backlog, re-based not delivered); §4c's
+density table is marked superseded by §4d.
+
+**No-harm.** `scripts/accept.sh` with the bed off reads 6/10 and the fingerprint
+**differs**, but the pear-off control (only `meshes.py` reverted, restored after,
+sha256 verified) reads 7/10 + **fingerprint matches** and its raw run is
+**byte-identical** (66564 bytes, 0 diff on every `[fruit]` line) to the
+pre-session `logs/p30a/05_accept_rails_outer_lift040.log` - so the branch move is
+the **pear** (28-30 RNG draws per profile row, 41 -> 76 rows), and the bed/feeder
+work is inert on the shipped line. `scripts/selfcheck.sh` PASS. Pins of record:
+`src/fruit_sorting/bed.py` (new), `fruits.py` bed branch, `scripts/211..215`;
+Phase B/C/D remain queued behind this gate.
+
 ### W1: the two-line grip profile ships (7/10), the failure taxonomy, and the left negative-q2 branch falsified
 
 W1 lane (2026-10-09, session `ses_ee1e77405ffeK2TeLXtSnkxXLC`). Directive: the
@@ -16058,3 +16474,17 @@ not need the 40 mm and the A4/A5 pair is rate-neutral), the knobs are the operat
 named residuals are the short lateral release (P3 territory) and P3's "0.375 inner edge" that does
 not exist (the real edges are the slab at 0.425 and the rail's inner face at 0.400 -
 `RAILS_DESIGN.md` section 4).
+
+### P31-B: the wait gate does not pay - the A/B is negative (2026-10-22)
+
+The N=5 paired direct A/B (`moe_v13s` `61da390a`, the arrival trigger + ACQ,
+the W6 patch supply, 15 episodes x 5 runs/arm, seeds 77/101/202/303/404): the
+gate-off baseline **28/75 = 37.3 %** vs the gate-on **26/75 = 34.7 %**, sign
+p = 0.5000 (discordant 9; 5 B-only / 4 A-only), the median cycle 1837 vs 1837
+ticks, no new failure reasons, and the strawberry **6/11 -> 3/8 (-17 pt)**.
+Protocol deviation: the design required `FRUIT_WAIT_GATE_DIAG=1` on the
+treatment arm; the driver did not set it, so the gate's own counters and the
+model-call count are absent and the mechanism endpoint is unread (the
+`decision=` field is not the model-call counter and is class-mix confounded).
+Verdict: **no adoption** - `FRUIT_WAIT_GATE` stays default off; the knob stays
+a measurement interface. Full record: `logs/p31/B_CLOSE_OUT.md`.

@@ -27,6 +27,45 @@ also call `fruit_sorting.fdlimit.raise_fd_limit()` before creating `SimulationAp
 so invoking `$ISAAC_SIM_DIR/python.sh` directly no longer dies that way; the wrapper
 is still the supported path.
 
+**On this tree (P32, 2026-10-22) the acceptance reads 6/10 with the pear and
+7/10 with only the pear profile reverted - both below the 75 % dynamic floor -
+and the fingerprint reference was re-recorded from the pear-on run**
+(`configs/motion_reference.json` md5 406745c5 -> 25ade92b; the pre-pear file is
+`logs/p32/motion_reference_pre_pear.json`). **The 7/10 is not this tree's
+rating of the pear**: it predates P32 - it is the pre-session acceptance's own
+count on the pre-pear tree (`logs/p30a/05_accept_rails_outer_lift040.log`, which
+the pear-off run `logs/p32/92` reproduces on its 381/381 `[fruit]` lines byte-identically) - and the pear-on
+run is a *different attractor with a different fruit sequence*, so the two
+counts differ by one attempt in one sample and no per-class pear cost is
+measured; the pear's own grasp/place is 1/1 with the new pear in the pear-on run (0.312 m, 4.43 N) plus 2/2 old-profile pears in the pear-off control, and the
+pear-on losses are the peach/kiwi/orange carry class. Do not read 7 -> 6 as a
+pear regression. Because the pear changes the per-instance RNG draw count, a
+pear-reverted tree is a *different scenario* and reads `fingerprint: DIFFERS`
+against the shipped reference - gate it against the archive with
+`python3 scripts/105_motion_regression.py <log> --fingerprint
+logs/p32/motion_reference_pre_pear.json`. Evidence WORKLOG "P32 phase B",
+`logs/p32/92..94`. The final-tree re-run `logs/p32/D1_accept_pear.log` (P32
+phase D) reproduces the pear-on record: **6/10 + `fingerprint: matches`**, its
+376 `[fruit]` lines identical to `93_accept_raw_pear_on.log` except the two
+print-only output-belt clearance message lines (the Gate-B R5/R6 read).
+
+**P32 phase C (2026-10-22) measured the bed on the two-line (still opt-in) and
+found the prepared-next lever a zero-actuation null.** The 20-attempt bed
+battery (SEED=5) reads **12/20 = 60 %**, 4.19 batch / 4.22 window placed/min,
+pooled interval **14.23/15.50/19.00 s**, idle 15 %/15 %, lock-on 2.77/2.92 s,
+with its **own** per-scenario reference
+`configs/motion_reference_twoline_bed.json` (md5 dcd19758;
+`scripts/190_twoline_gate.sh -m 0.5` PASS; any different bed battery needs its
+own re-record). The prepared arm (`FRUIT_PREPARED_NEXT=1`, default off) is
+**byte-identical to the control** (`built=0 empty=19`): the build->consume gaps
+are **left 7.5-15.1 s / right 2.7-11.1 s**, while a row released at the maximum
+along 0.668 m can drift only `(0.668-0.389)/0.12 = 2.3 s` before the
+consumption re-check drops it - so even a stocked belt would build rows it
+drops. **The two-line's dispatch cost is the pre-pose transit (lock-on
+2.77/2.92 s = the 15 % idle), not the selection; the prepared set has no room
+on this line at the shipped cadence.** The bed stays default off. Evidence
+WORKLOG "P32 phase C", `logs/p32/A0..A3` + `A_phase_c_metrics.txt`.
+
 ## 2. Two constraints that decide how to measure
 
 **The outcome is quantized; do not compare success rates across configurations.**
@@ -98,17 +137,36 @@ that floor the stocked belt hands the catch a 0.10-0.18 m fruit and the rate
 collapses to 1/10 (`logs/v1/pre_fix/`). Delivered on the shipped scenario:
 single-arm **9/10 x5 bit-identical, 15.2 s/attempt**; the bimanual (opt-in)
 stays structurally starved (74 % of its station slots report no eligible fruit)
-- the two-line rework (V2) owns that. The reference is
-`configs/motion_reference.json`, re-recorded from the identical
-`logs/v1/30_accept_supply.log` (old at
-`logs/v1/motion_reference_pre_supply.json`); the green *acceptance* run is the
-re-verified `logs/v1/31_accept_supply_verified.log` (30's own gate read FAIL
-only because the reference it was re-recorded from did not exist yet). The policy path is **OOD** on this
+- the two-line rework (V2) owns that. The reference is per-scenario and has been
+re-recorded since: **the v9/V1 file was re-recorded from the identical
+`logs/v1/30_accept_supply.log`** (the re-verified
+`logs/v1/31_accept_supply_verified.log` read PASS against it at the time; 30's
+own gate read FAIL only because that reference did not exist yet), **and since
+P32 phase B the shipped `configs/motion_reference.json` is the pear-on 6/10
+branch's re-record from `logs/p32/93_accept_pear_on.log`** (md5 25ade92b; the
+pre-P32 file is archived at `logs/p32/motion_reference_pre_pear.json`, md5
+406745c5, and the pre-v9 one at `logs/v1/motion_reference_pre_supply.json`).
+So the v9/V1 run matches **no** current file - a re-run of that scenario needs
+its own re-record. The policy path is **OOD** on this
 supply (the demos carry one candidate per attempt, and the trigger's
 `|dx| <= 0.06` gate (pre-W4; now 0.16) refuses the outer half of the new band); do not quote the
 71.1 % direct number as the current-scenario rate - one hybrid canary on the
 new supply scored **1/10** (8 grip losses + 1 handoff miss,
 `logs/v1/80_accept_policy.log`), an OOD warning the V3 phase owns.
+
+**P32 phase D (2026-10-22): the pear OOD closure.** The hybrid canary's
+shipped scenario is the pre-v9 *fixed* supply (`scripts/accept_policy.sh`
+defaults `FRUIT_SUPPLY_SCATTER=0`), so it isolates the pear from the v9 supply
+change: one sample on this tree reads **5/10 = 50 %**
+(`logs/p32/D0_accept_policy_pear.log`; 5 grip losses, 0 grasped-not-placed, the
+gate FAILs on the rate only) against the **recorded pre-pear spread 5-8/10**
+(floor 0.60). One canary is one sample of a non-bit-identical loop, so it is
+recorded as a **smoke**, not a rate. Every checkpoint and rollout store on this
+tree is **pre-pear** (the pear changes the per-instance RNG draw count and every
+authored mesh); the `meshes.py` md5 pins are in the collector manifest and
+`rl_env._MANIFEST_SOURCES`, so a post-pear store is identifiable. The
+**owner-accepted OOD note is the closure**: a policy rate measured before P32
+is not this tree's rate.
 
 **W4 (Gate 30, 2026-10-10, `logs/w4/`): the dense direct collapse is the
 trigger's lateral gate, and the two-line recollection is the wrong anchor for
@@ -504,10 +562,12 @@ use `scripts/190_twoline_gate.sh`: it pins the two-line scenario (the
 `[biarm] two-line scheduler:` banner), the per-scenario reference (default the
 dense 10-attempt `configs/motion_reference_twoline.json`) and an explicit
 two-line floor (default 0.60 - the 7/10 branch of record; the 20-attempt W6-B
-patch battery takes `-m 0.5` and its own reference). 105's own floor stays the
-single-arm 0.75, and `--write-fingerprint` now refuses a motion-budget-failing
-run (a rate-only failure still writes). The chain's compares are assertions
-now (`scripts/189_w7a_chain.sh`, `W7A_OFFLINE=1` re-asserts them offline).
+patch battery takes `-m 0.5` and its own reference, and so does the P32 bed
+two-line battery with `configs/motion_reference_twoline_bed.json`). 105's own
+floor stays the single-arm 0.75, and `--write-fingerprint` now refuses a
+motion-budget-failing run (a rate-only failure still writes). The chain's
+compares are assertions now (`scripts/189_w7a_chain.sh`, `W7A_OFFLINE=1`
+re-asserts them offline).
 
 **W7-B guardrail (the flip's other consumers).** The two-line *collector*
 (`40_collect_demos.py` with `FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=1`) drives the
@@ -1132,6 +1192,7 @@ re-recorded plus a `collection.patch_density` manifest field.
 | motion, control, `trajectory` limits, IK | `python3 scripts/96_motion_check.py`, then `scripts/accept.sh` |
 | collection (`40_collect_demos.py`) or merging (`41_merge_demos.py`) | `scripts/107_collect_merge_test.py`, then `python3 scripts/106_index_audit.py` |
 | simulator behaviour, scene, gripper, conveyor | `scripts/accept.sh`, then `scripts/demo_2min.sh` |
+| the supply schedule (`fruits.py`, `bed.py`) | `python3 scripts/211_bed_audit.py`, then `scripts/selfcheck.sh` |
 | the bimanual scheduler (`bimanual.py`, or the task loop under `FRUIT_BIARM=1`) | `scripts/selfcheck.sh` (the 152 leg), the `logs/biarm/` rate batch (`scripts/153_biarm_rates.sh biarm 5`), then `FRUIT_BIARM=1 scripts/accept.sh` |
 | the policy, training or the dataset schema | `scripts/selfcheck.sh`, `scripts/accept.sh` (scripted baseline), `scripts/accept_policy.sh` (policy loop) |
 
