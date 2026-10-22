@@ -21,6 +21,7 @@ from isaacsim.core.experimental.prims import RigidPrim
 
 from .assets import SceneConfig
 from .common import say
+from .meshes import INSTANCE_SCALE_MAX, fruit_height, shape_for, stem_over_top
 from .scene import _define_box, _set_color
 
 
@@ -636,7 +637,30 @@ class OutputBelt:
         self._build_discharge()
 
         main_top = cfg.belt_center[2] + cfg.belt_size[2] / 2.0
-        tallest = max(hi for _, hi in cfg.fruit_dimensions.values())
+        # Height, not diameter: the class diameter is the fruit's *width*, and the
+        # pear is 1.20 W tall (P32 phase 3), so reading the diameter overstated
+        # this gap by 1.4 cm. `fruit_height`/`stem_over_top` are the same numbers
+        # `scripts/422_v3_layout_probe.py` reports. `shape_for` is the `.get`
+        # fallback: a class named in `fruit_dimensions` without a mesh entry
+        # fails with the sentence that says where to add it, not a bare
+        # `KeyError` (Gate-B R6).
+        tallest_name, tallest = max(
+            (
+                (name, fruit_height(shape_for(name), hi))
+                for name, (_, hi) in cfg.fruit_dimensions.items()
+            ),
+            key=lambda pair: pair[1],
+        )
+        tallest_shape = shape_for(tallest_name)
+        tallest_diameter = cfg.fruit_dimensions[tallest_name][1]
+        tallest_stem = stem_over_top(tallest_shape, tallest_diameter)
+        # The mesh's per-instance scale is up to `INSTANCE_SCALE_MAX` (1.06), so
+        # the body clearance is *nominal* at the profile height and ~4 mm tighter
+        # at the tallest instance (Gate-B R5). Quote both, never the nominal
+        # alone.
+        tallest_instance = fruit_height(
+            tallest_shape, tallest_diameter, scale=INSTANCE_SCALE_MAX
+        )
         pedal_y = abs(cfg.pedestal_center_xy[1]) + cfg.pedestal_size[1] / 2.0
         # Face clearance, not centre distance. The old audit printed
         # `belt_edge - leg_centre = 0.035 m` while the leg's x-span ran through the
@@ -651,8 +675,14 @@ class OutputBelt:
             f"{sx:.2f}x{sy:.2f}x{sz:.2f} m at ({bx:.2f},{by:+.2f}), top "
             f"{cfg.output_belt_top_z:.2f}, surface {cfg.output_belt_speed:+.2f} m/s along +X | "
             f"underside clears main belt top by "
-            f"{(cfg.output_belt_top_z - sz) - main_top:.3f} m, tallest fruit by "
-            f"{(cfg.output_belt_top_z - sz) - (main_top + tallest):.3f} m; "
+            f"{(cfg.output_belt_top_z - sz) - main_top:.3f} m, the tallest fruit "
+            f"({tallest_name} body, {tallest * 1000:.0f} mm) by "
+            f"{(cfg.output_belt_top_z - sz) - (main_top + tallest):.3f} m "
+            f"(nominal; {(cfg.output_belt_top_z - sz) - (main_top + tallest_instance):.3f} m "
+            f"at the {INSTANCE_SCALE_MAX:.2f} instance scale, "
+            f"{tallest_instance * 1000:.0f} mm) and its "
+            f"{tallest_stem * 1000:.0f} mm stem bound by "
+            f"{(cfg.output_belt_top_z - sz) - (main_top + tallest + tallest_stem):.3f} m; "
             f"inner edge clears the pedestal by "
             f"{(cfg.output_belt_y - sy / 2.0) - pedal_y:.3f} m; "
             f"legs: -X pair x=[{inner_x - leg_half:.4f},{inner_x + leg_half:.4f}] clear the main "

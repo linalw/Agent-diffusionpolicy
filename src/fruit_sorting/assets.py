@@ -292,7 +292,10 @@ class SceneConfig:
     # Clearances (measured/derived against the shipped geometry, reported by
     # scripts/422_v3_layout_probe.py and by the builder messages):
     #   * underside (1.30) over the main belt top (1.17): 13 cm;
-    #   * underside over the tallest fruit on the main belt (7 cm -> 1.24): 6 cm;
+    #   * underside over the tallest fruit on the main belt (P32 phase 3: the
+    #     pear body, 8.4 cm = 1.20 W, -> 1.254): 4.6 cm *nominal* (4.1 cm at
+    #     the meshes' 1.06 per-instance scale); 1.4 cm against the 3.2 cm stem
+    #     bound (`meshes.fruit_height`/`stem_over_top`/`INSTANCE_SCALE_MAX`);
     #   * inner edge (y=0.425) clear of the robot pedestal (y=+-0.35): 7.5 cm;
     #   * the -X support legs stand 10 mm clear of the main belt's side frame
     #     rail (face-to-face) and 34.5 mm clear of the slab; the +X pair is inset

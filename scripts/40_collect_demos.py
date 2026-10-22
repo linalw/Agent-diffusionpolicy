@@ -146,6 +146,11 @@ def write_manifest(out_dir: str, cfg: SceneConfig) -> None:
     parameters (v9/V1) next to the seed they were drawn with: a shard's class
     mix and gap distribution are part of its provenance. The `collection`
     block pins the W3 two-line/wave/routing/stall-guard knobs.
+    `src/fruit_sorting/meshes.py` is a source since P32 phase B: the fruit
+    profile decides the number of per-instance RNG draws, so it moves the
+    supply stream and every authored mesh - a shard's md5 pin is what tells a
+    post-pear collection from a pre-pear one (a manifest without the key is
+    pre-pear).
     """
     import json
     import time
@@ -159,6 +164,7 @@ def write_manifest(out_dir: str, cfg: SceneConfig) -> None:
         "src/fruit_sorting/conveyor.py",
         "src/fruit_sorting/scene.py",
         "src/fruit_sorting/fruits.py",
+        "src/fruit_sorting/meshes.py",
         "src/fruit_sorting/dataset.py",
         "src/fruit_sorting/bimanual.py",
         "scripts/40_collect_demos.py",

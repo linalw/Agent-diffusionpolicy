@@ -49,6 +49,7 @@ from fruit_sorting.assets import SceneConfig
 from fruit_sorting.common import say
 from fruit_sorting.control import ArmController
 from fruit_sorting.fruits import FruitSpawner
+from fruit_sorting.meshes import INSTANCE_SCALE_MAX, fruit_height, shape_for, stem_over_top
 from fruit_sorting.scene import SortingScene
 import isaacsim.core.experimental.utils.app as app_utils
 from isaacsim.core.simulation_manager import SimulationManager
@@ -60,7 +61,25 @@ def report_clearances(cfg: SceneConfig) -> None:
     """Static clearances of the raised output line (metres)."""
     main_top = cfg.belt_center[2] + cfg.belt_size[2] / 2.0
     underside = cfg.output_belt_top_z - cfg.output_belt_size[2]
-    tallest = max(hi for _, hi in cfg.fruit_dimensions.values())
+    # Height, not diameter (P32 phase 3): the pear is 1.20 W tall, so the old
+    # `max(diameter)` read overstated this gap by 1.4 cm. Same helpers as the
+    # builder message in `conveyor.OutputBelt.build`; `shape_for` is the `.get`
+    # fallback with the "add it to FRUIT_SHAPES" assert (Gate-B R6).
+    tallest_name, tallest = max(
+        (
+            (name, fruit_height(shape_for(name), hi))
+            for name, (_, hi) in cfg.fruit_dimensions.items()
+        ),
+        key=lambda pair: pair[1],
+    )
+    tallest_shape = shape_for(tallest_name)
+    tallest_diameter = cfg.fruit_dimensions[tallest_name][1]
+    tallest_stem = stem_over_top(tallest_shape, tallest_diameter)
+    # The body clearance is nominal at the profile height; the mesh's instance
+    # scale reaches 1.06, so the worst-case read is ~4 mm tighter (Gate-B R5).
+    tallest_instance = fruit_height(
+        tallest_shape, tallest_diameter, scale=INSTANCE_SCALE_MAX
+    )
     pedal_x0 = cfg.pedestal_center_xy[0] - cfg.pedestal_size[0] / 2.0
     pedal_x1 = cfg.pedestal_center_xy[0] + cfg.pedestal_size[0] / 2.0
     pedal_y1 = abs(cfg.pedestal_center_xy[1]) + cfg.pedestal_size[1] / 2.0
@@ -90,8 +109,13 @@ def report_clearances(cfg: SceneConfig) -> None:
     )
     say(
         f"[audit] underside vs tallest fruit on the main belt "
-        f"({tallest * 100:.0f} cm -> z={main_top + tallest:.3f}): "
-        f"clear {underside - (main_top + tallest):+.3f} m"
+        f"({tallest_name} body {tallest * 1000:.0f} mm -> z={main_top + tallest:.3f}): "
+        f"clear {underside - (main_top + tallest):+.3f} m (nominal; "
+        f"{underside - (main_top + tallest_instance):+.3f} m at the "
+        f"{INSTANCE_SCALE_MAX:.2f} instance scale = {tallest_instance * 1000:.0f} mm); "
+        f"against the {tallest_stem * 1000:.0f} mm stem bound "
+        f"({main_top + tallest + tallest_stem:.3f}): "
+        f"clear {underside - (main_top + tallest + tallest_stem):+.3f} m"
     )
     say(
         f"[audit] belt body x=[{cx - half_l:.3f},{cx + half_l:.3f}] vs camera mast "

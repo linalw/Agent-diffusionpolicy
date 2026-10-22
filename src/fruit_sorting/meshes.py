@@ -74,24 +74,75 @@ def apple_profile(samples: int = 44) -> list[tuple[float, float]]:
     return _interp_control(APPLE_CONTROL, samples)
 
 
-def pear_profile(samples: int = 40) -> list[tuple[float, float]]:
-    """Narrow neck on top, bulbous base, dimpled where the stem enters."""
-    pts: list[tuple[float, float]] = []
-    for i in range(samples + 1):
-        t = i / samples
-        theta = math.pi * t
-        r = math.sin(theta)
-        z = math.cos(theta)
-        # squeeze the upper half into a neck
-        neck = 0.55 + 0.45 * math.cos(theta) ** 2 if math.cos(theta) > 0 else 1.0
-        r *= neck if math.cos(theta) > 0 else 1.0
-        r *= 1.0 + 0.12 * max(0.0, -math.cos(theta))
-        if theta < 0.6:
-            k = 1.0 - theta / 0.6
-            z -= 0.12 * k**1.5
-            r *= 1.0 - 0.35 * k**2
-        pts.append((r, z))
-    return pts
+#: Hand-traced pear silhouette (P32 phase 3), as (r / r_max, z / H): r is in
+#: units of the widest half-width and z runs 0 at the base rim to 1 at the top
+#: lip. The body rows are the reference photo's outer contour at the 0.05 H step
+#: (`~/图片/截图/4315455_113747057037_2.jpg`, a yellow-green pear; the extraction
+#: and the figure are `scripts/212_pear_profile.py`, `logs/p32/pear_profile.png`):
+#: H/W 1.150, widest at 0.307 H, neck 0.483 r_max at 0.80 H, a rounded base
+#: (0.419 r_max at the contact) and a 4 %-of-H stem cavity inside a 0.115 r_max
+#: lip. The body is a single-valued r(z); the basin floor before the rim and the
+#: cavity floor after the lip are the two z reversals (3 sampled rows each, the
+#: same construction as APPLE_CONTROL's calyx basin). The photo's base is a broad
+#: contact ring around a shadowed dimple, not a pole.
+PEAR_CONTROL: list[tuple[float, float]] = [
+    (0.000, 0.020),   # calyx basin floor
+    (0.419, 0.000),   # base rim / contact ring, the lowest point
+    (0.530, 0.009),   # base round-off: 0.42 -> 0.73 r_max in the first 0.05 H
+    (0.630, 0.022),
+    (0.690, 0.036),
+    (0.725, 0.050),
+    (0.841, 0.100),
+    (0.916, 0.150),
+    (0.970, 0.200),
+    (0.993, 0.250),   # the maximum is flat: 0.25-0.35 H are within 1 %
+    (1.000, 0.307),   # widest point, a third of the way up the body
+    (0.986, 0.350),
+    (0.968, 0.400),
+    (0.926, 0.450),
+    (0.874, 0.500),
+    (0.812, 0.550),
+    (0.739, 0.600),
+    (0.669, 0.650),
+    (0.599, 0.700),
+    (0.537, 0.750),
+    (0.483, 0.800),   # neck
+    (0.438, 0.850),
+    (0.390, 0.900),
+    (0.319, 0.950),
+    (0.115, 1.000),   # the lip the stem sits in
+    (0.000, 0.960),   # cavity floor, where the stem is authored
+]
+
+#: The pear's height over its width. The photo (body only, stem excluded) reads
+#: 1.150 +-0.005 across the mask thresholds 25-90/255; 1.20 is the owner's
+#: 1.2-1.3 band floor, +4.3 % on the measurement and inside the 5 % match.
+PEAR_HEIGHT_RATIO = 1.20
+
+
+def pear_profile(samples: int = 75) -> list[tuple[float, float]]:
+    """The reference pear: smooth teardrop, long neck, stem cavity on top.
+
+    `PEAR_CONTROL` is height-normalised; the mesh frame needs r in units of the
+    widest half-width (= the class radius, so the class diameter stays the
+    pear's width) and z in the same units. The base rim sits at z = -1, which is
+    what the spawner assumes (`belt + diameter / 2` puts the lowest row on the
+    belt, `fruits.py`); H/W = 1.20 puts the lip at z = +1.40.
+
+    `samples` is three rows per control segment (75 for 25 segments) so the
+    measured rows - the widest at 0.307 H and the cavity lip - land on rings and
+    the delivered mesh carries the measured silhouette; the old 41-ring shape
+    read as a faceted bucket (`logs/p29/fruit_pear.png`, P32 phase 3). The
+    pre-change profile is kept for the comparison in
+    `scripts/212_pear_profile.py`.
+    """
+    span = 2.0 * PEAR_HEIGHT_RATIO
+    control = [(r, -1.0 + span * z) for (r, z) in PEAR_CONTROL]
+    profile = _interp_control(control, samples)
+    # Normalise to the realised maximum: the class diameter is defined as the
+    # fruit's width, so the widest row must be exactly one class radius.
+    r_max = max(r for (r, _) in profile)
+    return [(r / r_max, z) for (r, z) in profile]
 
 
 def _sphere_with_dimple(samples: int, top_dimple: float, flat: float) -> list[tuple[float, float]]:
@@ -259,6 +310,24 @@ FRUIT_SHAPES: dict[str, FruitShape] = {
 }
 
 
+def shape_for(name: str) -> FruitShape:
+    """`FRUIT_SHAPES[name]` with a clear failure when a class has no mesh.
+
+    `SceneConfig.fruit_dimensions` and this table must name the same classes;
+    the `.get` here turns a bare `KeyError` (the Gate-B R6 item) into the
+    sentence that says which file to fix. Callers: the raised output belt's
+    clearance audit (`conveyor.OutputBelt.build`) and its offline twin
+    (`scripts/422_v3_layout_probe.py`).
+    """
+    shape = FRUIT_SHAPES.get(name)
+    assert shape is not None, (
+        f"fruit class {name!r} has no FRUIT_SHAPES entry; add it to "
+        f"src/fruit_sorting/meshes.py (the scene config's fruit_dimensions "
+        f"and this table must name the same classes)"
+    )
+    return shape
+
+
 # --------------------------------------------------------------------------- #
 # P12-A / P12-A.2: the property-realism switches for the real table above
 # (owner directive 2026-10-18; the two-line anchor is the measurement reference,
@@ -390,6 +459,47 @@ def axis_extent(shape: FruitShape, diameter: float, local_axis) -> float:
         r_norm * scale * radial - z_norm * scale * axial for (r_norm, z_norm) in profile
     )
     return float(support_plus + support_minus)
+
+
+#: The upper bound of the per-instance mesh scale: `build_mesh_points` draws
+#: `uniform(0.94, 1.06)` for both lateral biases and the z length
+#: (`rng.uniform(0.94, 1.06)`), so a static clearance audit must read
+#: `fruit_height(..., scale=INSTANCE_SCALE_MAX)` to bound the tallest instance
+#: it will ever see rather than the nominal profile (Gate-B R5).
+INSTANCE_SCALE_MAX = 1.06
+
+
+def fruit_height(shape: FruitShape, diameter: float, scale: float = 1.0) -> float:
+    """The fruit's own height along its axis [m], from the profile (undeformed).
+
+    `diameter` is the *width* (the profile's r_max is the class radius), so a
+    shape whose profile spans more than +-1 r_max in z - the pear's lip is at
+    1.4, H/W 1.20 - is taller than it is wide. The answer feeds the raised
+    output belt's under-belt clearance audit (`conveyor.OutputBelt.build`,
+    `scripts/422_v3_layout_probe.py`), which used to read the *diameter* and
+    therefore overstated the gap by 1.4 cm once the pear became 1.2 d tall.
+
+    `scale` folds the per-instance deformation in: `build_mesh_points` draws
+    `uniform(0.94, 1.06)` for the z length, so the nominal read (`scale=1.0`)
+    is the undeformed profile and `scale=INSTANCE_SCALE_MAX` is the tallest
+    instance the mesh can deliver (the Gate-B R5 item: the 46 mm body
+    clearance is nominal, the instance-scale bound is ~41 mm).
+    """
+    z = [p[1] for p in shape.profile()]
+    return (max(z) - min(z)) * diameter / 2.0 * shape.length_scale * scale
+
+
+def stem_over_top(shape: FruitShape, diameter: float) -> float:
+    """The tallest the authored stalk can stand above the fruit's top [m].
+
+    `author_stem` draws `length = uniform(0.30, 0.45) * diameter`, sets the
+    cylinder's centre to `(cavity_floor + top_z) / 2 + 0.30 * length` and tilts
+    it by up to 12 deg. A clearance audit must not *understate* the fruit, so
+    this returns the bound `0.45 * diameter` - the longest stalk standing on the
+    body top - rather than the authored stalk's real reach, which is smaller by
+    the cavity depth (the stalk is seated in it). A stem-less shape returns 0.
+    """
+    return 0.45 * diameter if shape.stem else 0.0
 
 
 def build_mesh_points(
