@@ -56,7 +56,14 @@ pooled interval **14.23/15.50/19.00 s**, idle 15 %/15 %, lock-on 2.77/2.92 s,
 with its **own** per-scenario reference
 `configs/motion_reference_twoline_bed.json` (md5 dcd19758;
 `scripts/190_twoline_gate.sh -m 0.5` PASS; any different bed battery needs its
-own re-record). The prepared arm (`FRUIT_PREPARED_NEXT=1`, default off) is
+own re-record). **The bed's cost and delivered density are measured, not
+implied:** the phase-A same-sim-seconds pair reads **+24 % wall (285 ->
+352-356 s)**, the physics of 21 vs 6.6 live bodies plus the pump's
+2.71 ms/sim-s; and on the two-line battery the delivered approach band is
+**2-8/10 at the 20 pump instants** with `late_dropped=139.6 s` (the
+once-per-boundary pump re-bases the backlog instead of delivering below the
+catch floor) - quote those, not the lattice's 19.1 fruit/m. The prepared arm
+(`FRUIT_PREPARED_NEXT=1`, default off) is
 **byte-identical to the control** (`built=0 empty=19`): the build->consume gaps
 are **left 7.5-15.1 s / right 2.7-11.1 s**, while a row released at the maximum
 along 0.668 m can drift only `(0.668-0.389)/0.12 = 2.3 s` before the

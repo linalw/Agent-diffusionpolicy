@@ -13,7 +13,7 @@ lands it (`R11 PLAN`, `.slim/deepwork/sorting-pipeline-v3.md`).
 | --- | --- | --- |
 | **Single-arm scripted line** (OpenArm, never-stop dynamic catch, v9/V1 scattered supply) | `FRUIT_DYNAMIC_PICK` unset (catch on the fly) | **9/10 x5 bit-identical, 15.2 s/attempt, 3.55 placed/min**; acceptance 9/10 + motion gate PASS + `fingerprint: matches` (R6-B-era record; **P32 pear-on: 6/10, the reference re-recorded to 25ade92b** - see AGENTS §1); `FRUIT_SUPPLY_SCATTER=0` reproduces the pre-v9 fixed line line-identically (`logs/v1/`) |
 | **Bimanual** (`FRUIT_BIARM=1`, shared-station pipeline) | opt-in | 9/10, 15.0 s/attempt, 3.59 placed/min vs single 3.42 = **1.05x** - below the bar, not flipped (`logs/g/`) |
-| **Two-line** (`FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=1`) | opt-in; **park-gate lever on** (W7-A, `FRUIT_BIARM_PARK_EARLY` default 1 in two-line sessions) | patch: **12/20, 3.63 placed/min** window (timing-only +10 % vs W6-B; residual x1.22 cross-branch); dense W3/W4: 7/10, 9.1 s/attempt, 4.60 placed/min (own reference `configs/motion_reference_twoline.json`); **P32 bed (opt-in `FRUIT_SUPPLY_BED=1`): 12/20, 4.19/4.22 placed/min, interval 14.23/15.50/19.00 s, idle 15/15 %; own reference `configs/motion_reference_twoline_bed.json` (`190 -m 0.5` PASS); the prepared-next lever is a zero-actuation null - the dispatch cost is the pre-pose transit, not the selection**; clearance is a **per-config report** (R5) |
+| **Two-line** (`FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=1`) | opt-in; **park-gate lever on** (W7-A, `FRUIT_BIARM_PARK_EARLY` default 1 in two-line sessions) | patch: **12/20, 3.63 placed/min** window (timing-only +10 % vs W6-B; residual x1.22 cross-branch); dense W3/W4: 7/10, 9.1 s/attempt, 4.60 placed/min (own reference `configs/motion_reference_twoline.json`); **P32 bed (opt-in `FRUIT_SUPPLY_BED=1`; a different scenario - not a comparison): 12/20, 4.19/4.22 placed/min, interval 14.23/15.50/19.00 s, idle 15/15 %, +24 % wall (285 -> 352-356 s) and a delivered band of 2-8/10 with `late_dropped=139.6 s`; own reference `configs/motion_reference_twoline_bed.json` (`190 -m 0.5` PASS); the prepared-next lever is a zero-actuation null - the dispatch cost is the pre-pose transit, not the selection**; clearance is a **per-config report** (R5) |
 | **Policy** | `moe_v12` (hybrid pinned canary = the gate of record; `FRUIT_POLICY_TRIGGER_LATERAL=0.16`) | the direct causal loop is the mechanism interface under the **N=5 protocol**; the hybrid handoff is inert by construction (R5 decision) |
 | Measurement rules | - | outcome is quantized (compare per-leg metrics + attractor, never cross-config rates); diagnostics default off; Tier A solo; `scripts/selfcheck.sh` / `accept.sh` / `accept_policy.sh` / `demo_2min.sh` |
 
@@ -66,6 +66,37 @@ conclusion and the unconfirmed C1 candidate are recorded.
    aim-vs-choice sub-lever discriminators (`logs/r11/A1_RESULTS.md`); the
    station/feeder/descent rework **D3-proper** stays owner-gated
    (`logs/r8/A_RESULTS.md`).
+5. **The shipped acceptance is red on the P32 tree** (rate-only): **6/10 = 60 %**
+   against the 75 % dynamic floor, motion gate PASS (all ten descents inside),
+   **`fingerprint: matches` the pear-on reference `configs/motion_reference.json`
+   md5 `25ade92b`** (`logs/p32/D1_accept_pear.log`, the post-record read; the
+   pre-pear reference is archived at `logs/p32/motion_reference_pre_pear.json`,
+   `406745c5`). A green acceptance cannot be quoted on this tree; the pear-off
+   control is a different scenario (its fingerprint differs from the shipped
+   reference) and is not this tree's pear cost (AGENTS §1).
+6. **The dense 2D bed stays opt-in** (`FRUIT_SUPPLY_BED=1`, default off; own
+   reference `configs/motion_reference_twoline_bed.json`, `dcd19758`,
+   `190 -m 0.5` PASS): two-line battery **12/20, 4.19/4.22 placed/min, interval
+   14.23/15.50/19.00 s, idle 15/15 %**, at a measured **+24 % wall (285 ->
+   352-356 s)** for the same sim seconds and a **delivered band of 2-8/10 at
+   the 20 pump instants (`late_dropped=139.6 s`)**; the single arm starves on
+   the denser sheet (P1c). Localising this further is the owner's call; the
+   provenance is pinned (`bed.py` in both manifest source lists; the collector's
+   `supply` block records the resolved bed geometry when the bed is on).
+7. **The prepared-next lever is a measured null** (`FRUIT_PREPARED_NEXT=1`,
+   two-line only, gated by `session.prepared_enabled`; default off): the arm is
+   byte-identical to the control (`built=0 empty=19`); the build->consume gaps
+   (left 7.5-15.1 s / right 2.7-11.1 s) exceed the 2.3 s drift budget and the
+   two-line's dispatch cost is the pre-pose transit, not the selection. A
+   two-line mid-attempt pump or a boundary-release build is the named
+   follow-up if the owner wants the lever.
+8. **Every policy checkpoint and rollout store on this tree is pre-pear**; the
+   **owner-accepted OOD note is the closure** (the pear changes the per-instance
+   RNG draw count and every authored mesh; the `meshes.py` pin makes a
+   post-pear store identifiable). The pear-tree hybrid canary reads 5/10 = 50 %
+   (5 grip losses, rate-only FAIL) inside the recorded pre-pear 5-8/10 spread -
+   a smoke, not a rate. Any post-pear policy claim needs a post-pear store and
+   its own pinned canary.
 
 ## 5. Pointers
 

@@ -2,6 +2,86 @@
 
 Running notes for the implementation. Newest entry first.
 
+### P32 phase E: the Gate-D remediation - the bed's provenance is pinned, the two scene no-harm legs are measured, and the P32 state is in the owner artifacts (2026-10-23)
+
+Gate D passed conditionally on C1-C4 plus a set of cheap mediums. **No shipped
+default changed** (the pear stays on; every bed/pipeline knob stays off).
+
+**C1 - the real defect: the bed's provenance.** `src/fruit_sorting/bed.py` is
+now a source in both manifest writers - the collector's shard `md5` block
+(`scripts/40_collect_demos.py`) and `rl_env._MANIFEST_SOURCES` - so a
+`FRUIT_SUPPLY_BED=1` shard is no longer indistinguishable from a scatter shard
+and a `bed.py` edit moves both md5s. The collector's `supply` block records
+`bed: true` plus the resolved geometry (`bed_columns`, `bed_along_min/max`,
+`bed_margin`, `bed_pool`, `bed_shift_step/max`) through the new pure
+`BedPlan.manifest_block()`, **only when the bed is on** - a pre-bed manifest is
+not rewritten and a missing key means a non-bed shard.
+`scripts/107_collect_merge_test.py` gained the regression: both source lists
+must name `bed.py` and `meshes.py` (AST-read, no Isaac import) and the block
+must round-trip an `FRUIT_SUPPLY_BED_ALONG_MIN` override -> **PASS, 21 checks**
+(was 15).
+
+**C2 - `scripts/demo_2min.sh` (the scene/conveyor leg).** Run via
+`scripts/154_claim_run.sh`; exit 1. Its own selfcheck **PASS**; the three
+scripted picks read **0/3** (`grasped=True placed=False` on all three - the
+carry/place class) and the motion gate reads **every descent inside the
+budgets** (worst `|v|max` 0.110 vs 0.161, lurch 0.017 vs 0.293, worst held
+cone 1.03x reported) with its only problem `success 0/3 below 66%`. This is a
+**rate-only** failure, not a motion-budget one: the three attempts are the
+acceptance branch's own first three (the per-leg numbers match
+`93_accept_raw_pear_on.log`'s attempts 0-2, all three failures), and the
+10-attempt acceptance recovers to 6/10. The video step placed 1/1 (`cycle 0
+result grasped=True placed=True`) and wrote four clips. Evidence
+`logs/p32/E0_demo_2min.log`.
+
+**C3 - the shared-station bimanual no-harm leg.** `FRUIT_BIARM=1
+scripts/accept.sh` via claim_run (exit 1): **8/10 = 80 %** (floor 75 % PASS),
+**14.6 s/attempt, 18.2 s/success, 3.30 fruits/min**, per arm **left 3/5 right
+5/5**, `1 pipelined slot`, `gate_open=0.0 s`; every descent inside the budgets
+(worst `|v|max` 0.110 vs 0.161, lurch 0.018 vs 0.291), worst held cone 1.71x
+reported (dynamic line - reported, not gated); the only gate FAIL is
+`fingerprint: DIFFERS` from the single-arm `configs/motion_reference.json`,
+which is the expected per-scenario rule (a bimanual log needs its own
+fingerprint; it is not a break). The two failures are left-arm
+carried-not-placed (peach lift +0.097 m; lychee +0.317 m with a 50 N rescue).
+`session.prepared_enabled` is `two_line and FRUIT_PREPARED_NEXT=1`, so the P32
+prepared code is inert here by construction and the run measures it: **zero
+`[biarm] prepared` lines**. The shared-station starvation is unchanged (37
+`no eligible fruit` releases of 47 station acquisitions = 79 %, the documented
+74 % class). Evidence `logs/p32/E1_accept_biarm.log` +
+`E1_accept_biarm_driver.log`.
+
+**C4 - the owner artifacts.** `docs/ROADMAP.md` §5 gains rows 10-13 (the red
+pear-on acceptance; the bed's opt-in status + the +24 % wall + the delivered
+density; the prepared null; the pre-pear stores / OOD closure) and the
+register's closed list now names them. `docs/CLOSEOUT.md` §4 gains items 5-8
+for the same four; its two-line row and `logs/p32/A_phase_c_metrics.txt` §6
+carry the **different scenario - not a comparison** tag. AGENTS §1's phase-C
+paragraph now carries the **+24 % wall (285 -> 352-356 s)** and the two-line
+**delivered density (band 2-8/10, `late_dropped=139.6 s`)**.
+
+**Cheap mediums.** `scripts/selfcheck.sh` now asserts
+`rl_env.TASKS_MD5 == md5(src/fruit_sorting/tasks.py)` on every run (the pin
+has gone stale in R11-A, R11-B and P32 phase D); `INSTANCE_SCALE_MAX` is
+`1.06 * 1.01 = 1.0706` (the per-row z jitter folded in: the output-belt read
+moves 41 -> 40 mm, and the builder line now prints `1.07`); the gitignored
+phase records are force-added (`logs/p32/70`, `71`, `77` + its wedge log,
+`78`, `79`, `94`); and `93_accept_pear_on.log` carries a header note that its
+embedded FAIL predates the re-record (D1 is the post-record read).
+
+**Commit attribution (for the record).** The `meshes.py` provenance line is
+split across two commits: the collector's source entry is in `add0044` (phase
+B) while the `rl_env._MANIFEST_SOURCES` entry is in `c24aa03` (phase A+C) -
+both carry the "P32 phase B" comment, so a bisect finds the pin appearing in
+two commits. `ee12245` is pre-P32 lane residue (tracked P21/P24/P27/P28/P9a
+driver-log appends plus the P24/P27/P28 documentation corrections), not part
+of the P32 lane.
+
+**Validation.** `scripts/selfcheck.sh` **PASS (0 failures, 1 skipped)** on the
+final tree; `107` 21 checks; `211 --fast` 99 checks; the tree's defaults are
+unchanged (the pear on; `FRUIT_SUPPLY_BED` / `FRUIT_PREPARED_NEXT` /
+`FRUIT_FEED_CADENCE` unset).
+
 ### P32 phase D: the integration close-out, the Gate-C corrections, and the pear OOD closure (2026-10-22)
 
 Phase D is the integration of the P32 bed/prepared/pear lane: the Gate-C

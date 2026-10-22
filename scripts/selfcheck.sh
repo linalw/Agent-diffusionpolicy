@@ -11,17 +11,18 @@
 #   3. collect/merge regression       scripts/107_collect_merge_test.py
 #   4. finger collider guard          scripts/432_finger_collider_guard_test.py
 #   5. rl env smoke                   import + reward math of src/fruit_sorting/rl_env.py
-#   6. rl report parser               scripts/113_rl_report.py --self-test
-#   7. r9 endpoint report             scripts/196_r9_report.py --self-test
-#   8. r9 rollout merge               scripts/197_r9_merge_rollouts.py --self-test
-#   9. rtc runtime selftest           scripts/128_rtc_selftest.py (no checkpoint)
-#  10. trigger intercept test         scripts/811_trigger_test.py (pure geometry)
-#  11. claim slot harness             scripts/181_claim_slot_selftest.sh (pure locking)
-#  12. ops selfcheck selftest         scripts/191_ops_selfcheck.sh --selftest (fake
+#   6. tasks.py pin                   rl_env.TASKS_MD5 == md5(src/fruit_sorting/tasks.py)
+#   7. rl report parser               scripts/113_rl_report.py --self-test
+#   8. r9 endpoint report             scripts/196_r9_report.py --self-test
+#   9. r9 rollout merge               scripts/197_r9_merge_rollouts.py --self-test
+#  10. rtc runtime selftest           scripts/128_rtc_selftest.py (no checkpoint)
+#  11. trigger intercept test         scripts/811_trigger_test.py (pure geometry)
+#  12. claim slot harness             scripts/181_claim_slot_selftest.sh (pure locking)
+#  13. ops selfcheck selftest         scripts/191_ops_selfcheck.sh --selftest (fake
 #                                     sim/claim/wrapper in a temp dir; the P1 ops probe)
-#  13. bed supply audit               scripts/211_bed_audit.py --fast (the dense bed's
+#  14. bed supply audit               scripts/211_bed_audit.py --fast (the dense bed's
 #                                     rows/corridor/pool; stubbed pxr, no simulator)
-#  14. motion budgets                 scripts/105_motion_regression.py  (needs a run log)
+#  15. motion budgets                 scripts/105_motion_regression.py  (needs a run log)
 #
 # Each prints "name, result, elapsed"; everything is also written to
 # `logs/selfcheck.log`. Any *failure* makes the script exit non-zero; the motion
@@ -82,6 +83,12 @@ run_check "finger collider guard" "$python" scripts/432_finger_collider_guard_te
 # report's parser/sign test must be exercised without a simulator. Neither check
 # touches Isaac Sim.
 run_check "rl env smoke" "$python" -c "import sys; sys.path.insert(0, 'src'); from fruit_sorting.rl_env import RewardConfig, RolloutRecorder, TASKS_MD5; r = RewardConfig(); assert abs(r.compute(True, 0) - 1.0) < 1e-9; assert abs(r.compute(True, 750) - 0.9) < 1e-9; assert abs(r.compute(True, 1500) - 0.8) < 1e-9; assert abs(r.compute(True, 99999) - 0.8) < 1e-9; assert r.compute(False, 100) == 0.0; assert len(TASKS_MD5) == 32; print('rl_env smoke ok')"
+# P32 phase-D remediation (Gate D): the stale pin has recurred (R11-A's
+# `b7d6f849` vs its `c2c7a626`, the R11-B repair, P32 phase D's `ea271ccc` vs
+# `9277fa64`). The direct RL env refuses to start unless `TASKS_MD5` equals the
+# shipped `tasks.py`; this asserts the equality on every selfcheck so a
+# metadata-only follow cannot be forgotten again.
+run_check "tasks.py pin" "$python" -c "import hashlib, sys; sys.path.insert(0, 'src'); from fruit_sorting.rl_env import TASKS_MD5; actual = hashlib.md5(open('src/fruit_sorting/tasks.py', 'rb').read()).hexdigest(); assert TASKS_MD5 == actual, f'TASKS_MD5={TASKS_MD5} tasks.py={actual}'; print('TASKS_MD5 pin ok')"
 run_check "rl report parser" "$python" scripts/113_rl_report.py --self-test
 # R9: the RL/DAgger lane's two offline tools - the N=5 endpoint readout (parse,
 # same-fruit pairing, carried-class sign test, verdicts, the optional carry

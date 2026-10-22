@@ -305,6 +305,11 @@ _MANIFEST_SOURCES = (
     "src/fruit_sorting/conveyor.py",
     "src/fruit_sorting/scene.py",
     "src/fruit_sorting/fruits.py",
+    # P32 phase-D remediation (Gate D C1): the bed schedule owns the dense
+    # supply's row/pitch draws, so it is provenance next to fruits.py; without
+    # it a bed rollout and a scatter rollout were indistinguishable and a
+    # bed.py edit moved no md5.
+    "src/fruit_sorting/bed.py",
     # P32 phase B: the pear profile sets the per-instance draw count and
     # therefore the supply stream; a direct-path rollout manifest without
     # this key is pre-pear (the same rule as the collector's sources).

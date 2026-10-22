@@ -76,7 +76,8 @@ def report_clearances(cfg: SceneConfig) -> None:
     tallest_diameter = cfg.fruit_dimensions[tallest_name][1]
     tallest_stem = stem_over_top(tallest_shape, tallest_diameter)
     # The body clearance is nominal at the profile height; the mesh's instance
-    # scale reaches 1.06, so the worst-case read is ~4 mm tighter (Gate-B R5).
+    # scale reaches 1.06 * 1.01 (the per-row z jitter) = 1.0706, so the
+    # worst-case read is ~6 mm tighter (Gate-B R5).
     tallest_instance = fruit_height(
         tallest_shape, tallest_diameter, scale=INSTANCE_SCALE_MAX
     )

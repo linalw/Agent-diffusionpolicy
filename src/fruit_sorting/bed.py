@@ -222,6 +222,26 @@ class BedPlan:
             shift_max=max(0.0, _number("FRUIT_SUPPLY_BED_SHIFT_MAX", BED_SHIFT_MAX)),
         )
 
+    def manifest_block(self) -> dict:
+        """The resolved geometry as manifest fields (P32 Gate-D condition C1).
+
+        `BedSchedule` draws the row pitch, the middle-column decision and the
+        upstream shift from its own stream, so `bed=True` alone does not
+        reproduce a shard's delivered density. The collector writes these
+        fields into its shard manifest's `supply` block **only when the bed is
+        on**, so a pre-bed manifest is not rewritten and a missing key means a
+        non-bed shard. Pure: no env reads, no draws.
+        """
+        return {
+            "bed_columns": [float(value) for value in self.columns],
+            "bed_along_min": float(self.along_min),
+            "bed_along_max": float(self.along_max),
+            "bed_margin": float(self.margin),
+            "bed_pool": int(self.pool),
+            "bed_shift_step": float(self.shift_step),
+            "bed_shift_max": float(self.shift_max),
+        }
+
     # ------------------------------------------------------------------ #
     @property
     def edge_columns(self) -> tuple[int, int]:

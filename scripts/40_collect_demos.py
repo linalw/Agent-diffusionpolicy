@@ -151,6 +151,12 @@ def write_manifest(out_dir: str, cfg: SceneConfig) -> None:
     supply stream and every authored mesh - a shard's md5 pin is what tells a
     post-pear collection from a pre-pear one (a manifest without the key is
     pre-pear).
+    `src/fruit_sorting/bed.py` is a source since the P32 phase-D remediation:
+    its `BedSchedule` owns the bed's row/pitch draws, so a `FRUIT_SUPPLY_BED=1`
+    shard without the pin was indistinguishable from a scatter shard and a
+    `bed.py` edit moved no md5 (Gate D condition C1). The `supply` block gains
+    a `bed` geometry record only when the bed is on, so every pre-bed manifest
+    keeps its meaning.
     """
     import json
     import time
@@ -164,6 +170,7 @@ def write_manifest(out_dir: str, cfg: SceneConfig) -> None:
         "src/fruit_sorting/conveyor.py",
         "src/fruit_sorting/scene.py",
         "src/fruit_sorting/fruits.py",
+        "src/fruit_sorting/bed.py",
         "src/fruit_sorting/meshes.py",
         "src/fruit_sorting/dataset.py",
         "src/fruit_sorting/bimanual.py",
@@ -251,6 +258,16 @@ def write_manifest(out_dir: str, cfg: SceneConfig) -> None:
         },
         "md5": {name: _md5(os.path.join(root, name)) for name in sources},
     }
+    # P32 phase-D remediation (Gate D C1): the bed's resolved geometry is
+    # provenance too. `BedSchedule` draws the row pitch, the middle-column
+    # decision and the upstream shift from its own stream, so a bed shard's
+    # delivered density is not reproducible from `bed=True` alone. Recorded
+    # only when the bed is on (`FRUIT_SUPPLY_BED=1`), which keeps every
+    # pre-bed manifest byte-identical in meaning; a manifest without the key
+    # is a non-bed shard.
+    bed_plan = supply.bed_plan
+    if supply.bed and bed_plan is not None:
+        manifest["supply"].update({"bed": True, **bed_plan.manifest_block()})
     os.makedirs(out_dir, exist_ok=True)
     with open(os.path.join(out_dir, "manifest.json"), "w", encoding="utf-8") as handle:
         json.dump(manifest, handle, indent=2, sort_keys=True)

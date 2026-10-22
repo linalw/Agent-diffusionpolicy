@@ -1132,7 +1132,7 @@ Clearances (builder messages and `scripts/422_v3_layout_probe.py`, all positive)
 | Gap | Value |
 | --- | --- |
 | belt underside (1.30) vs main belt top (1.17) | 130 mm |
-| belt underside vs tallest fruit on the main belt (pear body 8.4 cm nominal -> 1.254; the pear is 1.20 W tall) | 46 mm **nominal** (41 mm at the meshes' 1.06 per-instance scale; 14 mm against the 3.2 cm stem bound) |
+| belt underside vs tallest fruit on the main belt (pear body 8.4 cm nominal -> 1.254; the pear is 1.20 W tall) | 46 mm **nominal** (40 mm at the meshes' 1.06 x 1.01 per-instance bound; 14 mm against the 3.2 cm stem bound) |
 | belt inner edge (y=0.425) vs robot pedestal (y=0.35) | 75 mm |
 | inner support leg face vs main belt frame-rail outer face | **10 mm** (the leg's x-span no longer passes through the rail) |
 | inner support leg face vs main belt slab edge | 34.5 mm |

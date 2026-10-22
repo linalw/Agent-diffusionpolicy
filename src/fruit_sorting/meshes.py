@@ -462,11 +462,13 @@ def axis_extent(shape: FruitShape, diameter: float, local_axis) -> float:
 
 
 #: The upper bound of the per-instance mesh scale: `build_mesh_points` draws
-#: `uniform(0.94, 1.06)` for both lateral biases and the z length
-#: (`rng.uniform(0.94, 1.06)`), so a static clearance audit must read
-#: `fruit_height(..., scale=INSTANCE_SCALE_MAX)` to bound the tallest instance
-#: it will ever see rather than the nominal profile (Gate-B R5).
-INSTANCE_SCALE_MAX = 1.06
+#: `uniform(0.94, 1.06)` for the z length and then applies a per-row
+#: `1 + 0.01 * uniform(-1, 1)` z jitter, so the tallest instance is
+#: `1.06 * 1.01 = 1.0706` times the nominal profile. A static clearance audit
+#: must read `fruit_height(..., scale=INSTANCE_SCALE_MAX)` to bound the tallest
+#: instance it will ever see rather than the nominal profile (Gate-B R5; the
+#: z-row jitter was folded in by the P32 Gate-D remediation).
+INSTANCE_SCALE_MAX = 1.06 * 1.01
 
 
 def fruit_height(shape: FruitShape, diameter: float, scale: float = 1.0) -> float:
@@ -480,10 +482,11 @@ def fruit_height(shape: FruitShape, diameter: float, scale: float = 1.0) -> floa
     therefore overstated the gap by 1.4 cm once the pear became 1.2 d tall.
 
     `scale` folds the per-instance deformation in: `build_mesh_points` draws
-    `uniform(0.94, 1.06)` for the z length, so the nominal read (`scale=1.0`)
-    is the undeformed profile and `scale=INSTANCE_SCALE_MAX` is the tallest
-    instance the mesh can deliver (the Gate-B R5 item: the 46 mm body
-    clearance is nominal, the instance-scale bound is ~41 mm).
+    `uniform(0.94, 1.06)` for the z length plus `1 + 0.01 * uniform(-1, 1)` per
+    z row, so the nominal read (`scale=1.0`) is the undeformed profile and
+    `scale=INSTANCE_SCALE_MAX` is the tallest instance the mesh can deliver
+    (the Gate-B R5 item: the 46 mm body clearance is nominal, the
+    instance-scale bound is ~40 mm).
     """
     z = [p[1] for p in shape.profile()]
     return (max(z) - min(z)) * diameter / 2.0 * shape.length_scale * scale

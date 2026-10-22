@@ -17,7 +17,11 @@ not match the dataset":
    the merged set to have no duplicate content and no stale frame counts.
 
 Finally it runs `scripts/106_index_audit.py` over the merged output and requires
-exit 0, so the audit doubles as the test's assertion.
+exit 0, so the audit doubles as the test's assertion. A fifth section pins the
+provenance source lists: both manifest writers must name the supply modules
+whose draws decide a shard's stream, `fruits.py`, `bed.py` and `meshes.py`
+(P32 Gate D C1 - the bed was unpinned, so a bed shard was indistinguishable
+from a scatter shard and a `bed.py` edit moved no md5).
 
 Self-test, both verified by hand:
 
@@ -31,6 +35,7 @@ Self-test, both verified by hand:
 
 from __future__ import annotations
 
+import ast
 import hashlib
 import json
 import os
@@ -44,6 +49,7 @@ import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
 
+from fruit_sorting.bed import BedPlan  # noqa: E402
 from fruit_sorting.dataset import EpisodeMeta, EpisodeRecorder  # noqa: E402
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -96,6 +102,30 @@ def digest(path: str) -> str:
 def load_index(directory: str) -> list[dict]:
     with open(os.path.join(directory, "index.json"), encoding="utf-8") as handle:
         return json.load(handle)
+
+
+def manifest_source_list(path: str, name: str) -> list[str]:
+    """The literal string list assigned to `name` in `path`, without importing it.
+
+    Both lists live in modules that import Isaac Sim at module level
+    (`40_collect_demos.py`, `rl_env.py`), so the check parses the AST instead.
+    It pins the *provenance* rule: the supply modules whose draws decide a
+    shard's stream - `fruits.py`, `bed.py`, `meshes.py` - must be in both the
+    collector's shard manifest and the direct-path run manifest (Gate D C1).
+    """
+    with open(path, encoding="utf-8") as handle:
+        tree = ast.parse(handle.read(), filename=path)
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Assign):
+            continue
+        if not any(
+            isinstance(target, ast.Name) and target.id == name
+            for target in node.targets
+        ):
+            continue
+        if isinstance(node.value, (ast.List, ast.Tuple)):
+            return [str(ast.literal_eval(element)) for element in node.value.elts]
+    return []
 
 
 def main() -> int:
@@ -276,6 +306,54 @@ def main() -> int:
             "both arms labelled",
             {e["arm"] for e in entries} == {"left", "right"},
             f"{sorted({e['arm'] for e in entries})}",
+        )
+
+        print("== 5. the provenance lists pin the supply modules (P32 Gate D C1) ==")
+        for label, relative, name in (
+            ("collector", os.path.join("scripts", "40_collect_demos.py"), "sources"),
+            (
+                "rl env",
+                os.path.join("src", "fruit_sorting", "rl_env.py"),
+                "_MANIFEST_SOURCES",
+            ),
+        ):
+            sources = manifest_source_list(os.path.join(REPO, relative), name)
+            for module in ("src/fruit_sorting/bed.py", "src/fruit_sorting/meshes.py"):
+                check(
+                    f"{label} manifest lists {os.path.basename(module)}",
+                    module in sources,
+                    f"{len(sources)} source(s); {module} missing",
+                )
+        # The other half of C1: the collector must *record* the bed geometry,
+        # not just the source. `BedPlan.manifest_block()` is pure, so the test
+        # drives an override through the real env parser.
+        saved = os.environ.get("FRUIT_SUPPLY_BED_ALONG_MIN")
+        try:
+            os.environ["FRUIT_SUPPLY_BED_ALONG_MIN"] = "0.137"
+            block = BedPlan.from_env().manifest_block()
+        finally:
+            if saved is None:
+                os.environ.pop("FRUIT_SUPPLY_BED_ALONG_MIN", None)
+            else:
+                os.environ["FRUIT_SUPPLY_BED_ALONG_MIN"] = saved
+        expected = {
+            "bed_columns",
+            "bed_along_min",
+            "bed_along_max",
+            "bed_margin",
+            "bed_pool",
+            "bed_shift_step",
+            "bed_shift_max",
+        }
+        check(
+            "bed manifest block has the resolved geometry keys",
+            set(block) == expected,
+            f"keys={sorted(block)}",
+        )
+        check(
+            "bed manifest block follows the along override",
+            block["bed_along_min"] == 0.137,
+            f"bed_along_min={block['bed_along_min']}",
         )
 
         print()

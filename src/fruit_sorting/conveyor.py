@@ -654,10 +654,10 @@ class OutputBelt:
         tallest_shape = shape_for(tallest_name)
         tallest_diameter = cfg.fruit_dimensions[tallest_name][1]
         tallest_stem = stem_over_top(tallest_shape, tallest_diameter)
-        # The mesh's per-instance scale is up to `INSTANCE_SCALE_MAX` (1.06), so
-        # the body clearance is *nominal* at the profile height and ~4 mm tighter
-        # at the tallest instance (Gate-B R5). Quote both, never the nominal
-        # alone.
+        # The mesh's per-instance scale is up to `INSTANCE_SCALE_MAX`
+        # (1.06 * 1.01 z-row jitter = 1.0706), so the body clearance is
+        # *nominal* at the profile height and ~6 mm tighter at the tallest
+        # instance (Gate-B R5). Quote both, never the nominal alone.
         tallest_instance = fruit_height(
             tallest_shape, tallest_diameter, scale=INSTANCE_SCALE_MAX
         )
