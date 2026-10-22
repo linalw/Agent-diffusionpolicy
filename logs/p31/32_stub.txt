@@ -1,0 +1,113 @@
+1. knob resolution (the real `WaitGateSettings.from_env`)
+  [PASS] unset -> wait_gate=off - expected enabled=False dist=0.35 past=0.0 warm=1 diag=False
+  [PASS] {'FRUIT_WAIT_GATE': '0'} -> wait_gate=off - expected enabled=False dist=0.35 past=0.0 warm=1 diag=False
+  [PASS] {'FRUIT_WAIT_GATE': 'off'} -> wait_gate=off - expected enabled=False dist=0.35 past=0.0 warm=1 diag=False
+  [PASS] {'FRUIT_WAIT_GATE': 'true'} -> wait_gate=off - expected enabled=False dist=0.35 past=0.0 warm=1 diag=False
+  [PASS] {'FRUIT_WAIT_GATE': '1'} -> wait_gate=on dist=0.350 past=0.000 warm=1 diag=off - expected enabled=True dist=0.35 past=0.0 warm=1 diag=False
+  [PASS] {'FRUIT_WAIT_GATE': '1', 'FRUIT_WAIT_GATE_DIST': '0.25', 'FRUIT_WAIT_GATE_PAST': '0.10', 'FRUIT_WAIT_GATE_DIAG': '1'} -> wait_gate=on dist=0.250 past=0.100 warm=1 diag=on - expected enabled=True dist=0.25 past=0.1 warm=1 diag=True
+  [PASS] {'FRUIT_WAIT_GATE': '1', 'FRUIT_WAIT_GATE_WARM': '0'} -> wait_gate=on dist=0.350 past=0.000 warm=1 diag=off - expected enabled=True dist=0.35 past=0.0 warm=1 diag=False
+  [PASS] {'FRUIT_WAIT_GATE': '1', 'FRUIT_WAIT_GATE_PAST': '-0.2'} -> wait_gate=on dist=0.350 past=0.000 warm=1 diag=off - expected enabled=True dist=0.35 past=0.0 warm=1 diag=False
+  [PASS] a malformed DIST is never parsed while the gate is off
+  [PASS] the same malformed DIST raises once the gate is on
+  [PASS] the dataclass is frozen (an arm cannot be mutated at runtime)
+  [PASS] summary() names every knob
+  [PASS] an off gate summarises as off
+  [PASS] the shipped default is the measured threshold
+
+2. default-off byte inertness (statement identity vs b1acbfe)
+  [PASS] `sample_chunk`: every base statement survives verbatim - 13 base statements
+  [PASS] `sample_chunk`: every base branch condition survives verbatim
+  [PASS] `sample_chunk`: every new statement is gate-dominated - 2 new, all dominated
+  [PASS] `act`: every base statement survives verbatim - 40 base statements
+  [PASS] `act`: every base branch condition survives verbatim
+  [PASS] `act`: every new statement is gate-dominated - 2 new, all dominated
+  [PASS] `_finalize`: every base statement survives verbatim - 26 base statements
+  [PASS] `_finalize`: every base branch condition survives verbatim
+  [PASS] `_finalize`: every new statement is gate-dominated - 4 new, all dominated
+  [PASS] `_wait_gate_active`: called once, only reachable through the gate - 1 site(s), gated=True
+  [PASS] `_wait_gate_along`: called once, only reachable through the gate - 1 site(s), gated=True
+  [PASS] `_wait_gate_hold`: called once, only reachable through the gate - 1 site(s), gated=True
+  [PASS] `_wait_gate_report`: called once, only reachable through the gate - 1 site(s), gated=True
+  [PASS] `_wait_gate_on` is cached once from the resolved settings
+  [PASS] the resolver is read once, in __init__
+
+3. the predicate (the real `skips`)
+  [PASS] just above dist -> skip
+  [PASS] exactly at dist -> run (strict `>`, the boundary is inside the zone)
+  [PASS] below dist -> run
+  [PASS] NaN position -> run (the safe fallback)
+  [PASS] no warm chunk yet -> run
+  [PASS] an off gate never skips
+  [PASS] past=0 does not gate downstream
+  [PASS] past>0 gates strictly past the bound
+  [PASS] past>0 at the bound -> run
+  [PASS] past>0 just inside -> run
+  [PASS] dist=0 disables the upstream term
+  [PASS] one-sided gate: exactly one transition over the transit - 1 (skip=250 of 800 samples)
+  [PASS] with the past term: exactly two transitions (far -> zone -> past) - 2
+  [PASS] the zone is contiguous (no chatter)
+
+4. hold semantics (the real `_wait_gate_hold`, executed)
+  [PASS] a far fruit returns a held chunk
+  [PASS] the held chunk is (action_horizon, action_dim) - (16, 9)
+  [PASS] every held row is the last applied action (a hold, not a motion)
+  [PASS] the held chunk is not a zero action
+  [PASS] the skip is counted
+  [PASS] the chunk is marked as a hold (act books its ticks)
+  [PASS] the gate records the along at the first held call - along0=0.602 (fruit 0.600 - station -0.002)
+  [PASS] a second far call holds again and keeps along0
+  [PASS] the fruit entering the zone resumes the model
+  [PASS] the resume is latched
+  [PASS] a recycle back upstream re-arms the gate (a new wait is a new hold)
+  [PASS] before the first chunk executes the gate does not hold (warm guard) - the held action would be the zeros from reset
+  [PASS] the gate refuses handoff presentation
+  [PASS] the gate refuses RTC
+  [PASS] the gate refuses the zero ablation
+  [PASS] the gate refuses the scripted ablation
+  [PASS] the gate refuses the DAgger expert
+  [PASS] the gate refuses event-triggered replanning
+  [PASS] the gate refuses an active recorder
+
+4b. the accounting invariant (loop replays of the measured transits)
+  [PASS] fired attempt: every skipped call is 4 held ticks - held=200 skipped=50
+  [PASS] fired attempt: skipped + model calls = the loop's chunk count - 50 + 29 = 79
+  [PASS] fired attempt: the gate resumes exactly once
+  [PASS] fired attempt: ~48 of ~78 chunks skipped at 0.35 m - skipped=50 of 79 (63%)
+  [PASS] no-fire attempt: every skipped call is 4 held ticks - held=136 skipped=34
+  [PASS] no-fire attempt: skipped + model calls = the loop's chunk count - 34 + 307 = 341
+  [PASS] no-fire attempt: ~34 of ~341 chunks skipped (the far wait only) - skipped=34 of 341 (10%)
+  [PASS] the post-miss tail is the no-fire attempt's dominant cost (the named `past` term), not the far wait - unskipped=307 vs skipped=34
+
+5. the skip site (source order inside `sample_chunk`)
+  [PASS] the gate sits after the ready check
+  [PASS] the gate sits after the RTC guard
+  [PASS] the gate sits after the zero-ablation branch
+  [PASS] the gate sits before the model call
+  [PASS] the model call site is still the only `policy.act`
+  [PASS] the skip does not increment the inference counter
+
+6. the `[gate]` row
+         [gate] episode 7 skipped=40 held=160 calls=83 along0=+0.545 dist=0.350 past=0.000 resumed=1
+  [PASS] the row carries `skipped=40`
+  [PASS] the row carries `held=160`
+  [PASS] the row carries `calls=83`
+  [PASS] the row carries `along0=+0.545`
+  [PASS] the row carries `dist=0.350`
+  [PASS] the row carries `past=0.000`
+  [PASS] the row carries `resumed=1`
+  [PASS] the row carries `episode 7`
+  [PASS] a never-held episode prints `along0=-` - [gate] episode 7 skipped=0 held=0 calls=120 along0=- dist=0.350 past=0.000 resumed=0
+
+7. provenance and plumbing
+  [PASS] the manifest records the gate block
+  [PASS] the outcome carries `wait_gate_skipped`
+  [PASS] the outcome carries `wait_gate_held_ticks`
+  [PASS] the outcome carries `wait_gate_resumed`
+  [PASS] the `[gate]` row is printed only under `_DIAG`
+  [PASS] every counter is zeroed per episode
+  [PASS] `inference_calls` is unchanged (the counter is P30-B's)
+  [PASS] `act` books the held ticks after the loop
+  [PASS] `act` books them once and clears the flag
+  [PASS] TASKS_MD5 still matches tasks.py (unchanged this phase) - e27b18a455b2094aa611b36fd6cec168 vs e27b18a455b2094aa611b36fd6cec168
+
+PASS: all checks 

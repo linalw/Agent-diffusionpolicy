@@ -1,0 +1,351 @@
+diff --git a/src/fruit_sorting/rl_env.py b/src/fruit_sorting/rl_env.py
+index 002f047..9d9e082 100644
+--- a/src/fruit_sorting/rl_env.py
++++ b/src/fruit_sorting/rl_env.py
+@@ -387,6 +387,128 @@ class ExpertConfig:
+     window_steps: int = 15
+ 
+ 
++@dataclass(frozen=True)
++class WaitGateSettings:
++    """P31-A: the direct loop's deterministic WAIT GATE (default off).
++
++    The direct loop samples one action chunk per ``execute_steps`` control ticks
++    from the first tick the observation horizon is full until the attempt's end,
++    including the 1.1-1.3 s during which the target fruit is still far upstream
++    and the sampled chunk is a no-op hold. Measured on the existing logs
++    (``logs/p31/WAIT_GATE_DESIGN.md``, 148 direct episodes + 3 per-step traces at
++    the shipped 0.12 m/s belt):
++
++    * the first chunk is sampled with the fruit **0.46-0.55 m** upstream of the
++      pick station (`[rl] episode` ``y=`` minus the measured 0.10 m of
++      post-selection travel);
++    * the two fire channels only act on a fruit inside **0.301 m**: the encoder
++      intercept trigger fires at ``lead * speed`` (90 logged fires: 0.107-0.301 m,
++      the low end the fixed 0.9 s lead, the high end the adaptive-acquisition
++      lead), and the learned close gate at ``|jaw-fruit|xy < 0.06`` m;
++    * so 25-48 chunks (median ~40) of a fired attempt are sampled where no
++      decision is possible - 47-59 % of its 70-85 chunks on the R11-A.1/R7
++      episodes, 40 of 123 on the P30-B success row.
++
++    With the gate armed, a model call in that region is replaced by a *held*
++    chunk: the last applied action repeated for the whole action horizon. That is
++    the shipped "no new action" state (`act(None)` before ``policy.ready``,
++    which the drive holds by leaving its position targets alone) expressed as an
++    action, so
++
++    * the arm receives the same command it already holds (no motion is
++      commanded - a zero action would command all seven joints to their zero
++      configuration, and a "return to the grasp pose" action would command a
++      motion; both are rejected);
++    * ``_apply`` still runs every tick, so the fire machinery (the learned close
++      gate, the intercept trigger, the presented-fruit adoption) and the
++      recorder see exactly the ticks they saw before - only ``policy.act``
++      disappears;
++    * the 4-tick chunk cadence, the physics, the reward's ``decision`` and the
++      episode's simulated length are unchanged, so the gate moves the inference
++      cost and nothing else.
++
++    The predicate is one-sided in the fruit's along-distance by default. The
++    optional ``past`` term covers the *post-miss* tail: once the fruit is that
++    far downstream it can no longer be caught (the trigger's own firable bound is
++    ``dy >= -0.05``), so the same argument applies - and there it is the bigger
++    share: 0.78 m of the 1.36 m a no-fire episode's fruit travels lies past
++    -0.10 m, i.e. 195 of its 326 chunks (60 %). It stays 0 here because it
++    interacts with ``FRUIT_POLICY_TRIGGER_PRESENT``' fruit adoption (an adopted
++    fruit at the station is firable while the selected sample is past) and needs
++    its own pre-registration.
++
++    No hysteresis: the along-distance is monotone in simulated time for a fruit
++    on a running belt (the station reference is fixed at reset), so the predicate
++    crosses the boundary once per attempt in each direction. A feeder recycle
++    that teleports the fruit back upstream re-arms the gate, which is correct -
++    that *is* a new wait. A pile-up nudging a fruit a few millimetres across the
++    threshold costs one extra chunk per crossing.
++
++    Byte-inertness: ``from_env`` returns the defaults immediately unless
++    ``FRUIT_WAIT_GATE=1``, so an unset (or ``=0``) gate never parses the
++    sub-knobs and cannot raise on a malformed value; the env caches
++    ``_wait_gate_on`` and every new statement on the hot path is dominated by it
++    (``logs/p31/check_wait_gate.py`` proves this by AST domination).
++    """
++
++    #: ``FRUIT_WAIT_GATE`` - the master knob (default 0).
++    enabled: bool = False
++    #: ``FRUIT_WAIT_GATE_DIST`` - the upstream along-distance above which no
++    #: model call is made [m]. Default 0.35 = the measured maximum fire distance
++    #: (0.301 m) + one 4-tick chunk of belt travel (0.0048 m) + 4.6 cm of margin,
++    #: so the model is live 10-60 chunks before either fire channel can act.
++    dist: float = 0.35
++    #: ``FRUIT_WAIT_GATE_PAST`` - the downstream distance beyond which no model
++    #: call is made [m]; 0 = off (the shipped one-sided gate).
++    past: float = 0.0
++    #: ``FRUIT_WAIT_GATE_WARM`` - chunks that must have been sampled before the
++    #: gate may hold, so the held action is a real one (``_last_action`` is zeros
++    #: until the first chunk executes). Floor 1.
++    warm: int = 1
++    #: ``FRUIT_WAIT_GATE_DIAG`` - one ``[gate]`` row per episode (pure reporting).
++    diag: bool = False
++
++    @classmethod
++    def from_env(cls) -> "WaitGateSettings":
++        """Resolve the knobs once, at construction (the default path returns early)."""
++        if os.environ.get("FRUIT_WAIT_GATE", "0") != "1":
++            return cls()
++        return cls(
++            enabled=True,
++            dist=float(os.environ.get("FRUIT_WAIT_GATE_DIST", "0.35")),
++            past=max(0.0, float(os.environ.get("FRUIT_WAIT_GATE_PAST", "0.0"))),
++            warm=max(1, int(os.environ.get("FRUIT_WAIT_GATE_WARM", "1"))),
++            diag=os.environ.get("FRUIT_WAIT_GATE_DIAG", "0") == "1",
++        )
++
++    def skips(self, along: float, warm: bool = True) -> bool:
++        """The gate's predicate for one model call (pure; the stub pins it).
++
++        ``along`` is the target fruit's along-distance to the pick station
++        [m], ``+`` = upstream. ``warm`` is False until ``warm`` chunks have been
++        sampled, which keeps the held action a real one. A NaN position (no
++        fruit yet) never gates: the shipped path is the safe fallback.
++        """
++        if not self.enabled or not warm:
++            return False
++        if along != along:  # NaN
++            return False
++        if self.dist > 0.0 and along > self.dist:
++            return True
++        if self.past > 0.0 and along < -self.past:
++            return True
++        return False
++
++    def summary(self) -> str:
++        """One line for the run banner / manifest."""
++        if not self.enabled:
++            return "wait_gate=off"
++        return (
++            f"wait_gate=on dist={self.dist:.3f} past={self.past:.3f} "
++            f"warm={self.warm} diag={'on' if self.diag else 'off'}"
++        )
++
++
+ @dataclass
+ class StepResult:
+     """Result of one ``act`` call: terminal reward, done flag, outcome info."""
+@@ -637,6 +759,23 @@ class SortingRLEnv:
+         #: the model a vector it was not trained on).
+         self._speed_channel = speed_channel_enabled()
+ 
++        # --- P31-A wait gate, default off ----------------------------------- #
++        #: Deterministic WAIT GATE (`WaitGateSettings`): while the target fruit
++        #: is farther than `dist` upstream of the pick station (or, with
++        #: `past > 0`, that far downstream), no decision is possible, so the
++        #: model call is replaced by the last applied action repeated. Resolved
++        #: once here (a malformed sub-knob is only parsed when the gate is on);
++        #: `_wait_gate_on` is the single flag every new hot-path statement is
++        #: dominated by, so the shipped loop is byte-inert with the gate unset.
++        self.wait_gate = WaitGateSettings.from_env()
++        self._wait_gate_on = bool(self.wait_gate.enabled)
++        self._wait_gate_skipped = 0      # model calls replaced this episode
++        self._wait_gate_held = 0         # control ticks executed on a held chunk
++        self._wait_gate_hold_chunk = False   # the chunk now executing is a hold
++        self._wait_gate_open = False     # the gate is holding right now
++        self._wait_gate_resumed = False  # the gate held and then reopened
++        self._wait_gate_along0 = float("nan")  # along at the first held call
++
+         # --- event-triggered replanning (path-3 arm), default off ----------- #
+         #: DVAC/ChunkTrust-spirited test-time horizon adaptation: the execute
+         #: horizon for each newly sampled chunk is chosen from the continuity
+@@ -895,6 +1034,9 @@ class SortingRLEnv:
+             "rtc": asdict(self.rtc_settings) if self.rtc_settings.enabled else None,
+             "rtc_report": bool(self._rtc_report),
+             "policy_track": bool(self._policy_track),
++            #: P31-A: the wait gate's provenance (absent = off). An A/B arm must
++            #: be identified by this block, not by the printed count alone.
++            "wait_gate": asdict(self.wait_gate) if self.wait_gate.enabled else None,
+             "event_replan": {
+                 "enabled": bool(self._event),
+                 "min": int(self._event_min),
+@@ -1185,6 +1327,14 @@ class SortingRLEnv:
+         self._report_policy_ms: list[float] = []
+         self._report_decisions = 0
+         self._infer_calls = 0
++        # P31-A: the wait gate's per-episode counters (the outcome keys and the
++        # `[gate]` row read them; they are written above only when the gate is on).
++        self._wait_gate_skipped = 0
++        self._wait_gate_held = 0
++        self._wait_gate_hold_chunk = False
++        self._wait_gate_open = False
++        self._wait_gate_resumed = False
++        self._wait_gate_along0 = float("nan")
+         self._last7: np.ndarray | None = None
+         self._prev7: np.ndarray | None = None
+         self._switch_flag = False
+@@ -1372,6 +1522,13 @@ class SortingRLEnv:
+             return None
+         if self.rtc is not None:
+             return None
++        if self._wait_gate_on:
++            # P31-A: far fruit -> no decision -> no inference. The held chunk is
++            # the last applied action repeated, so `act` still runs `_apply`
++            # (fire machinery, recorder) on every tick; only the model call goes.
++            held = self._wait_gate_hold()
++            if held is not None:
++                return held
+         if self._rtc_report:
+             start = time.perf_counter()
+         chunk = self.policy.act(
+@@ -1387,6 +1544,116 @@ class SortingRLEnv:
+             self._pending_switch = True
+         return chunk
+ 
++    # ------------------------------------------------------------------ #
++    # P31-A: the wait gate
++    # ------------------------------------------------------------------ #
++    def _wait_gate_active(self) -> bool:
++        """Whether this episode may hold at all (scope, not the predicate).
++
++        The narrowest scope that the measurement supports, checked in the order
++        that fails fastest:
++
++        * ``direct`` only - the interface P30-B measured and the one whose loop
++          is `sample_chunk`-per-4-ticks. The `handoff` presentation teleports the
++          fruit to the station, so it has no far-fruit wait to gate;
++        * synchronous sampling only (`rtc is None`) - with RTC the sampler lives
++          inside `next_action` and there is no per-chunk call to skip;
++        * a real model only (`ablate == "none"`): the zero ablation already
++          samples nothing, and a scripted ablation never reaches this path;
++        * no event-triggered replanning - that lever chooses each chunk's
++          execute horizon from the new chunk's continuity with the previous one,
++          and a held chunk (continuity 0 against itself) would pollute its
++          online median; the two are separate inference-scheduling arms;
++        * no DAgger expert - the expert label, the takeover statistics and the
++          recorded `policy_action` are per-decision data, and holding would
++          silently change the store;
++        * no active recorder - for the same reason (the dataset would lose the
++          held frames and stay labelled by the held action).
++        """
++        if not self._wait_gate_on:
++            return False
++        if self.presentation != "direct":
++            return False
++        if self.rtc is not None or self.ablate != "none" or self.dagger is not None:
++            return False
++        if self._event:
++            return False
++        if self._recorder is not None and self._recorder.recording:
++            return False
++        return True
++
++    def _wait_gate_along(self) -> float:
++        """The target fruit's along-distance to the pick station [m], + upstream.
++
++        The station reference is `_expert_jaw_y`, captured at reset at the
++        calibrated grasp pose (the same point `_trigger_station` holds and the
++        same one the DAgger expert's tracking window is measured from). A fixed
++        reference is what makes the predicate monotone: the *measured* jaw walks
++        up to 0.39 m upstream over a long wait (the policy's own tracking), so a
++        jaw-relative distance would open early and drift.
++
++        One rigid-body pose read per 4-tick chunk. `_episode_events` already
++        reads the same pose every tick, so this is in the measured-safe class
++        (AGENTS section 2: fruit-pose reads do not shift the run).
++        """
++        if self._sample is None:
++            return float("nan")
++        fruit = np.asarray(self.spawner.position(self._sample), dtype=float)
++        return float(fruit[1]) - float(self._expert_jaw_y)
++
++    def _wait_gate_hold(self) -> np.ndarray | None:
++        """The held chunk for this call, or None when the model must run.
++
++        Called from `sample_chunk` behind `self._wait_gate_on`. Counts the skip,
++        marks the chunk as a hold (`act` adds its executed ticks and clears the
++        flag), and returns the last applied action repeated over the action
++        horizon. `warm` (>= 1) guarantees `_last_action` is a real command: the
++        first chunk has to have executed before the gate may hold, because
++        `_last_action` is zeros at reset and a zero action commands all seven
++        joints to their zero configuration.
++        """
++        if not self._wait_gate_active():
++            return None
++        warm = int(self._infer_calls) >= int(self.wait_gate.warm)
++        along = self._wait_gate_along()
++        if not self.wait_gate.skips(along, warm):
++            if self._wait_gate_open:
++                # The decision zone opened: model calls resume for the rest of
++                # the attempt unless the fruit is recycled back upstream.
++                self._wait_gate_open = False
++                self._wait_gate_resumed = True
++            return None
++        if not self._wait_gate_open:
++            self._wait_gate_open = True
++            self._wait_gate_along0 = float(along)
++        self._wait_gate_skipped += 1
++        self._wait_gate_hold_chunk = True
++        return np.repeat(
++            np.asarray(self._last_action, dtype=np.float32)[None, :],
++            int(self.action_horizon),
++            axis=0,
++        )
++
++    def _wait_gate_report(self) -> str:
++        """The `[gate]` row: skipped calls, held ticks, calls made, resume.
++
++        One row per episode, printed from `_finalize` only with
++        ``FRUIT_WAIT_GATE_DIAG=1``. `calls` is the same count P30-B publishes
++        (`inference_calls`), so the saving is `skipped / (skipped + calls)`.
++        """
++        along0 = (
++            f"{self._wait_gate_along0:+.3f}"
++            if self._wait_gate_along0 == self._wait_gate_along0
++            else "-"
++        )
++        return (
++            f"[gate] episode {self._episode} skipped={int(self._wait_gate_skipped)} "
++            f"held={int(self._wait_gate_held)} calls={int(self.inference_calls())} "
++            f"along0={along0} dist={float(self.wait_gate.dist):.3f} "
++            f"past={float(self.wait_gate.past):.3f} "
++            f"resumed={int(self._wait_gate_resumed)}"
++        )
++
+     def inference_calls(self) -> int:
+         """P30-B: model inference calls this episode (chunks sampled, pure count).
+ 
+@@ -1490,6 +1757,12 @@ class SortingRLEnv:
+                 None if chunk is None else np.asarray(chunk, dtype=np.float64).copy()
+             )
+             self._prev_exec = int(executed)
++        if self._wait_gate_hold_chunk:
++            # P31-A: the chunk just executed was the gate's held chunk (no model
++            # call); book the ticks it actually covered. False on the default
++            # path (`_wait_gate_hold` sets it only when the gate holds).
++            self._wait_gate_held += int(executed)
++            self._wait_gate_hold_chunk = False
+         return self._step_result()
+ 
+     def _apply(self, action, index: int = 0) -> None:
+@@ -2166,6 +2439,13 @@ class SortingRLEnv:
+             #: the machine-readable copy for the report tools.
+             "policy_inferences": int(self.inference_calls()),
+         }
++        if self._wait_gate_on:
++            # P31-A: the gate's own counters (a gated episode's `policy_inferences`
++            # above is already the reduced count). Absent with the gate off, so
++            # the shipped outcome dict is unchanged.
++            self._outcome["wait_gate_skipped"] = int(self._wait_gate_skipped)
++            self._outcome["wait_gate_held_ticks"] = int(self._wait_gate_held)
++            self._outcome["wait_gate_resumed"] = bool(self._wait_gate_resumed)
+         if self._event:
+             horizons = np.asarray(self._event_horizons, dtype=float)
+             continuity = np.asarray(self._event_continuities, dtype=float)
+@@ -2224,6 +2504,10 @@ class SortingRLEnv:
+                 f"mean={self._outcome['event_mean_horizon']:.2f} "
+                 f"continuity_med={self._outcome['event_continuity_median']:.5f}"
+             )
++        if self._wait_gate_on and self.wait_gate.diag:
++            # P31-A: the gate's per-episode row (pure reporting; one formatting
++            # pass over already-materialised ints).
++            self._say(self._wait_gate_report())
+         if self.dagger is not None:
+             decisions = max(1, int(self._step) // 4)
+             self._say(
