@@ -1,0 +1,33 @@
+# 150 episodes from 10 logs
+# reset along y: min +0.420 p10 +0.516 p50 +0.583 p90 +0.662 max +0.679
+# band (analytic): fully hidden 0.52..0.87, vis>=0.99 below 0.45
+# arm=left: n=50 reset y p50 +0.599 (+0.511..+0.662), success 18%
+# arm=right: n=100 reset y p50 +0.573 (+0.516..+0.663), success 45%
+# arm=all: n=150 reset y p50 +0.583 (+0.516..+0.662), success 36%
+
+## The reset position vs the outcome
+| start | y0 rule | n | success | placed | grasped-not-placed |
+| --- | --- | --- | --- | --- | --- |
+| visible | y0<0.45 | 1 | 0% | 0% | 100% |
+| edge | 0.45<=y0<0.515 | 14 | 36% | 36% | 57% |
+| hidden | y0>=0.515 | 135 | 36% | 36% | 59% |
+
+## Sensitivity: cut at 0.52 (fully hidden) and 0.47
+y0<0.47: n=1 success 0% | y0>=0.47: n=149 success 36%
+y0<0.52: n=17 success 29% | y0>=0.52: n=133 success 37%
+y0<0.55: n=39 success 26% | y0>=0.55: n=111 success 40%
+
+## The hidden run from the reset to the visibility onset
+travel hidden: p50 0.133 m = 1.11 s = 33 model calls; p90 0.212 m / 53 calls
+episodes whose reset is inside the fully-hidden band (y0>=0.515): 135/150 = 90%
+
+## Arm-stratified: the reset position vs success
+arm=left: y0<0.599 n=25 success 32% | y0>=0.599 n=25 success 4%
+arm=right: y0<0.573 n=50 success 42% | y0>=0.573 n=50 success 48%
+
+## The analytic visibility at the reset position
+visible fraction at the reset: p50 0.00 p10 0.00 p90 0.00; fully hidden (<0.01) 135/150 = 90%, fully visible (>0.99) 1/150
+
+trigger fire dy: n=150 min +0.184 p50 +0.226 max +0.305 m; in the band (0.45..0.95): 0/150
+
+wrote logs/p34/50_policy.json

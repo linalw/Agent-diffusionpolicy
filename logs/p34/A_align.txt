@@ -1,0 +1,57 @@
+
+== arm A
+   episodes=75 classes ok=20 no-grasp=7 carried=48 other=0
+   left : n=29 ok=1 no-grasp=4 carried=24 other=0
+   right: n=46 ok=19 no-grasp=3 carried=24 other=0
+   cycle ticks: p50 1859 (999-2966)
+
+   -- the manipulation check (first model call) --
+   first along: p10 +0.405 p50 +0.484 p90 +0.557 (min +0.372 max +0.589)
+   vis(212)   : p10 0.00 p50 0.41 p90 1.00 (min 0.00 max 1.00)
+   mask/area  : p10 0.00 p50 0.00 p90 0.00 (the rendered cross-check)
+   PASS (|along-0.399|<=0.02 AND vis>=0.90): 9/75 = 12%
+   per run  : r1 2/15  r2 0/15  r3 3/15  r4 0/15  r5 4/15
+   reset->first travel: p50 4.0 mm (4.0-4.0 mm; 0.03 s at 0.12 m/s)
+   reset along: p50 +0.488 (p10 +0.409 p90 +0.561)
+   alignment steps: p50 0 (max 0)
+   fully-hidden model calls to the first visible frame: p50 1 p90 13 (max 37); first-visible call index p50 1
+   analytic from the first call: fully hidden calls p50 0 p90 11; to vis>0.99 p50 8 p90 25; fully hidden at the first call 26/75
+   model calls per attempt: p50 60 (p10 43 p90 85)
+   fire-zone (0.15-0.30) target mask: n=1305 calls, zero-mask 358/1305 = 27%, rendered visible fraction p50 0.67 (p10 0.09)
+     left : 29 eps, zone 126/427 zero = 30%
+     right: 46 eps, zone 232/878 zero = 26%
+
+== arm B
+   episodes=75 classes ok=23 no-grasp=2 carried=50 other=0
+   left : n=27 ok=2 no-grasp=1 carried=24 other=0
+   right: n=48 ok=21 no-grasp=1 carried=26 other=0
+   cycle ticks: p50 1800 (1249-2397)
+
+   -- the manipulation check (first model call) --
+   first along: p10 +0.398 p50 +0.398 p90 +0.399 (min +0.360 max +0.399)
+   vis(212)   : p10 1.00 p50 1.00 p90 1.00 (min 1.00 max 1.00)
+   mask/area  : p10 0.00 p50 0.00 p90 0.00 (the rendered cross-check)
+   PASS (|along-0.399|<=0.02 AND vis>=0.90): 72/75 = 96%
+   per run  : r1 15/15  r2 14/15  r3 15/15  r4 14/15  r5 14/15
+   reset->first travel: p50 4.0 mm (4.0-4.0 mm; 0.03 s at 0.12 m/s)
+   reset along: p50 +0.402 (p10 +0.402 p90 +0.403)
+   alignment steps: p50 88 (max 193)
+   fully-hidden model calls to the first visible frame: p50 1 p90 20 (max 37); first-visible call index p50 1
+   analytic from the first call: fully hidden calls p50 0 p90 0; to vis>0.99 p50 0 p90 0; fully hidden at the first call 0/75
+   model calls per attempt: p50 44 (p10 37 p90 51)
+   fire-zone (0.15-0.30) target mask: n=1424 calls, zero-mask 252/1424 = 18%, rendered visible fraction p50 0.82 (p10 0.08)
+     left : 27 eps, zone 94/525 zero = 18%
+     right: 48 eps, zone 158/899 zero = 18%
+
+== the same-fruit pairing (the P33 protocol; A = control, B = aligned)
+   pairing (all): 27 same-fruit pairs, 48 excluded; outcome B-only 2 / A-only 3 (p=0.8125); carried->ok B-only 2 / A-only 3
+     transitions: carried->carried 12, carried->no-grasp 1, carried->ok 2, no-grasp->carried 2, no-grasp->no-grasp 1, ok->carried 3, ok->ok 6
+   pairing (left): 9 same-fruit pairs, 20 excluded; outcome B-only 0 / A-only 1 (p=1.0000); carried->ok B-only 0 / A-only 1
+     transitions: carried->carried 6, no-grasp->carried 1, no-grasp->no-grasp 1, ok->carried 1
+
+== the pre-registered criteria (PREREG.md sections 2/4/5)
+   manipulation check: A 12% (9/75) | B 96% (72/75) -> PASS (bar: B >= 90 %)
+   left A: n=29 ok=1 no-grasp=4 carried=24
+   left B: n=27 ok=2 no-grasp=1 carried=24
+   left placed A 1 -> B 2 [up]; failure mass 28 -> 25 [down]; paired carried-class B-only 0 / A-only 1 [does not favor B]
+   VERDICT: NO MEASURED IMPROVEMENT of the primary endpoint - the unpaired left counts move within noise (see the numbers above) and the paired carried class does not favor B; the falsifier fires for the outcome claim

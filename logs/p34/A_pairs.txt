@@ -1,0 +1,35 @@
+runs paired: [1, 2, 3, 4, 5] | episodes per arm: 75 / 75
+== arm A: pooled 20/75 | classes ok=20 no-contact=7 carried-not-placed=48 other=0
+   left : n=29 ok=1 no-contact=4 carried=24 other=0
+   right: n=46 ok=19 no-contact=3 carried=24 other=0
+== arm B: pooled 23/75 | classes ok=23 no-contact=2 carried-not-placed=50 other=0
+   left : n=27 ok=2 no-contact=1 carried=24 other=0
+   right: n=48 ok=21 no-contact=1 carried=26 other=0
+
+paired, all pairs:        both ok 6, both fail 19, B-only ok 3, A-only ok 4, excluded (fruit class differs) 43, missing 0
+paired, same-fruit only:  both ok 6, both fail 19, B-only ok 3, A-only ok 4
+sign test (B better): p = 0.7734 (discordant 7)
+
+===== A-better discordant pairs (same fruit) =====
+  run1 ep 3 lychee     A=ok -> B=carried
+  run1 ep10 tomato     A=ok -> B=carried
+  run2 ep 6 tomato     A=ok -> B=carried
+  run5 ep 2 pear       A=ok -> B=carried
+===== B-better discordant pairs (same fruit) =====
+  run3 ep 3 peach      A=carried -> B=ok
+  run4 ep 7 kiwi       A=carried -> B=ok
+  run5 ep 3 strawberry A=carried -> B=ok
+
+===== class transitions (same-fruit pairs) =====
+  carried     -> carried      15
+  carried     -> no-contact    1
+  carried     -> ok            3  <== flip
+  no-contact  -> carried       2
+  no-contact  -> no-contact    1
+  ok          -> carried       4  <== flip
+  ok          -> ok            6
+  carried-class: B-only conversions 3, A-only conversions 4
+  no-contact-class: B-only conversions 0, A-only conversions 0
+
+strawberry A: 3/7
+strawberry B: 3/5

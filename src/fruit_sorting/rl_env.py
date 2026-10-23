@@ -796,6 +796,58 @@ class SortingRLEnv:
         self._wait_gate_resumed = False  # the gate held and then reopened
         self._wait_gate_along0 = float("nan")  # along at the first held call
 
+        # --- P34 phase 2 reset alignment, default off ------------------------ #
+        #: `FRUIT_RESET_ALIGN=1` (direct presentation only): after the reset's
+        #: setup, advance the line until the target sits at the *demos' first
+        #: view* (first-detectable along p50 +0.399) at the **first model
+        #: call**, instead of the shipped p50 +0.583 (inside the +Y output
+        #: belt's fully-hidden band, +0.515..+0.870 - `logs/p34/REPORT.md`).
+        #: The resolver returns on its first line unless the knob is on, so a
+        #: malformed sub-knob cannot raise while off and the shipped path is
+        #: byte-inert: one False branch, no reads and no advance.
+        self._reset_align = os.environ.get("FRUIT_RESET_ALIGN", "0") == "1"
+        self._reset_align_along = 0.399
+        self._reset_align_max_ticks = 600
+        #: P34-B: the reset's own settle (physics ticks after the teleport to
+        #: the calibrated start pose; the shipped value is 20). A measurement
+        #: knob for the reset-pose diagnostic only - at 20 it is byte-identical
+        #: to the shipped path. It cannot be swept independently of the fruit's
+        #: advance (the belt runs during it), so a sweep is read through the
+        #: `[align]` row's `q_r`/`q_f` (the pose) and the first call's along.
+        self._reset_settle = max(1, int(os.environ.get("FRUIT_RESET_SETTLE", "20")))
+        #: `FRUIT_RESET_ALIGN_DIAG=1`: one `[align]` row per episode (pure
+        #: reporting) with the first model call's along/visible-fraction inputs
+        #: and the target-mask counters at the fire zone. Runs on both A/B arms
+        #: (the control needs the manipulation check too).
+        self._align_diag = os.environ.get("FRUIT_RESET_ALIGN_DIAG", "0") == "1"
+        if self._reset_align:
+            if presentation != "direct":
+                raise ValueError(
+                    "FRUIT_RESET_ALIGN is only defined for presentation='direct' "
+                    "(the handoff presentation teleports the fruit to the station)"
+                )
+            self._reset_align_along = float(
+                os.environ.get("FRUIT_RESET_ALIGN_ALONG", str(self._reset_align_along))
+            )
+            self._reset_align_max_ticks = max(
+                1, int(os.environ.get("FRUIT_RESET_ALIGN_MAX_TICKS", "600"))
+            )
+        #: Per-episode diagnostic state (`_align_diag` only; pure reporting).
+        self._align_y0 = float("nan")        # the selection (header) along
+        self._align_along_reset = float("nan")   # along at the reset return
+        self._align_steps = 0                # alignment physics ticks
+        self._align_first_along = float("nan")
+        self._align_first_x = float("nan")
+        self._align_first_d = float("nan")
+        self._align_first_px = -1            # target mask pixels at the 1st call
+        self._align_first_visible = -1       # call index of the first visible frame
+        self._align_hidden_calls = 0         # calls with a zero target mask first
+        self._align_q_reset: list[float] = []  # active arm's joints at the reset return
+        self._align_q_first: list[float] = []  # ... at the first model call (P34-B)
+        self._align_zone_n = 0               # fire-zone (0.15-0.30) calls
+        self._align_zone_zero = 0            # ... with a zero target mask
+        self._align_zone_px: list[int] = []  # ... target-mask pixels
+
         # --- event-triggered replanning (path-3 arm), default off ----------- #
         #: DVAC/ChunkTrust-spirited test-time horizon adaptation: the execute
         #: horizon for each newly sampled chunk is chosen from the continuity
@@ -1057,6 +1109,19 @@ class SortingRLEnv:
             #: P31-A: the wait gate's provenance (absent = off). An A/B arm must
             #: be identified by this block, not by the printed count alone.
             "wait_gate": asdict(self.wait_gate) if self.wait_gate.enabled else None,
+            #: P34 phase 2: the reset alignment (absent = off; the diagnostic
+            #: alone is recorded, because it changes the printed rows only).
+            "reset_align": (
+                {
+                    "on": bool(self._reset_align),
+                    "along": float(self._reset_align_along),
+                    "max_ticks": int(self._reset_align_max_ticks),
+                    "settle": int(self._reset_settle),
+                    "diag": bool(self._align_diag),
+                }
+                if (self._reset_align or self._align_diag)
+                else None
+            ),
             "event_replan": {
                 "enabled": bool(self._event),
                 "min": int(self._event_min),
@@ -1293,7 +1358,7 @@ class SortingRLEnv:
         self.scene.robot.set_dof_positions(dof)
         for other in self.task.arms.values():
             other.set_gripper(gripper_open)
-        self.advance(20)
+        self.advance(self._reset_settle)
         #: Pick-station jaw line the scripted tracking window is measured against
         #: (`_run_impl` reads it after its pre-pose, at the same pose).
         self._expert_jaw_y = float(arm.jaw_centre()[1])
@@ -1304,6 +1369,15 @@ class SortingRLEnv:
         self._trigger_station = np.asarray(arm.jaw_centre()[:2], dtype=float).copy()
         if self.spawner.belt is not None:
             self.spawner.belt.start()
+        # P34-B: the active arm's pose at the reset return (diag only; one
+        # articulation read, never on the shipped path).
+        q_reset = [float(v) for v in arm.joint_positions()] if self._align_diag else []
+        # P34 phase 2: put the first *model call* at the demos' first view
+        # (default off; one False branch and no read on the shipped path).
+        # The advance is physics-only and happens before `_episode_t0`, so the
+        # attempt's own span excludes it.
+        if self._reset_align:
+            self._align_presentation()
 
         if self.policy is not None:
             self.policy.reset()
@@ -1376,6 +1450,27 @@ class SortingRLEnv:
         self._policy_proposal = None
         self._ep_interventions = 0
         self._ep_expert_ticks = 0
+        # P34 phase 2: per-episode diagnostic state (one False branch on the
+        # shipped path; the `[align]` row is printed only when `_align_diag`).
+        if self._align_diag:
+            self._align_y0 = float(target["position"][1])
+            if not self._reset_align:
+                # The control arm: report the along at the same point the
+                # aligned arm leaves the presentation (one fruit-pose read;
+                # diagnostic only, never on a rate run with the diag off).
+                self._align_along_reset = self._wait_gate_along()
+                self._align_steps = 0
+            self._align_first_along = float("nan")
+            self._align_first_x = float("nan")
+            self._align_first_d = float(sample.diameter)
+            self._align_first_px = -1
+            self._align_first_visible = -1
+            self._align_hidden_calls = 0
+            self._align_q_reset = list(q_reset)
+            self._align_q_first = []
+            self._align_zone_n = 0
+            self._align_zone_zero = 0
+            self._align_zone_px = []
 
         self._say(
             f"[rl] episode {self._episode}: {target['category']} grade={grade} "
@@ -1551,6 +1646,11 @@ class SortingRLEnv:
                 return held
         if self._rtc_report:
             start = time.perf_counter()
+        if self._align_diag:
+            # P34 phase 2: one fruit-pose read + the already-read target mask,
+            # pure reporting for the manipulation check. Reached only when a
+            # model call is about to happen; the diag is off by default.
+            self._align_note_call()
         chunk = self.policy.act(
             self.proprio(), self._goal, num_steps=self.ddim_steps if num_steps is None
             else int(num_steps)
@@ -1672,6 +1772,117 @@ class SortingRLEnv:
             f"along0={along0} dist={float(self.wait_gate.dist):.3f} "
             f"past={float(self.wait_gate.past):.3f} "
             f"resumed={int(self._wait_gate_resumed)}"
+        )
+
+    # ------------------------------------------------------------------ #
+    # P34 phase 2: the reset alignment (default off)
+    # ------------------------------------------------------------------ #
+    def _align_presentation(self) -> None:
+        """Put the target at the demos' first-view along at the first call.
+
+        P34 phase 1 (`logs/p34/REPORT.md`): the recorded demonstrations begin
+        at the wait loop with the target visible (frame 0 p50 +0.374,
+        first-detectable p50 +0.399, no frame inside the +Y belt's band); the
+        shipped direct reset presents it at p50 +0.583, i.e. inside the
+        analytic fully-hidden band (+0.515..+0.870), and the model's first
+        call then meets the fruit at +0.455..+0.551 (the P31 wait anatomy).
+
+        This method advances the line **after** the reset's own setup (the
+        arm teleport, `advance(20)`, `belt.start`) until the target sits at
+        `_reset_align_along` upstream of the pick station at the first
+        **model call**. The first call comes `execute_steps` control ticks
+        after this returns (`sample_chunk` pushes the second frame at
+        `_step % 4 == 0`; `obs_horizon=2`), so the aim prices that travel in
+        with the belt's commanded speed (measured 1.000 mm/tick at 0.12 m/s,
+        P31). The advance is the control loop's own pair - `advance(1)` plus
+        `spawner.enforce_transport()` every tick - and no feeder `update`, so
+        the release schedule stays where the reset left it. The arm holds the
+        calibrated grasp pose throughout, exactly like the demos' wait loop.
+        """
+        aim = float(self._reset_align_along)
+        speed = abs(float(self.cfg.belt_speed))
+        travel = speed * float(max(1, int(self.execute_steps))) / 120.0
+        aim0 = aim + travel
+        steps = 0
+        along = self._wait_gate_along()
+        while along == along and along > aim0 and steps < self._reset_align_max_ticks:
+            self.advance(1)
+            self.spawner.enforce_transport()
+            steps += 1
+            along = self._wait_gate_along()
+        self._align_steps = int(steps)
+        self._align_along_reset = float(along)
+
+    def _align_note_call(self) -> None:
+        """Record one model call's along + target-mask pixels (diag only).
+
+        Called immediately before `policy.act`; `_last_mask` is the frame that
+        call conditions on (`_observe` ran at the same control step). Pure
+        reporting: one fruit-pose read and one sum over the already-read mask.
+        """
+        if self._sample is None:
+            return
+        fruit = np.asarray(self.spawner.position(self._sample), dtype=float)
+        along = float(fruit[1]) - float(self._expert_jaw_y)
+        zone = 0.15 <= along <= 0.30
+        if (
+            self._align_first_along == self._align_first_along  # set already
+            and self._align_first_visible >= 0
+            and not zone
+        ):
+            return
+        mask = self._last_mask
+        px = -1 if mask is None else int(np.asarray(mask).sum())
+        if self._align_first_along != self._align_first_along:  # NaN
+            self._align_first_along = along
+            self._align_first_x = float(fruit[0])
+            self._align_first_d = float(self._sample.diameter)
+            self._align_first_px = int(px)
+            # P34-B: the arm's pose at the first call (diag only, one
+            # articulation read per episode). The reset pose and this one
+            # answer "does the arm move during the reset/alignment?".
+            arm = self.task.arms.get(self._active)
+            if arm is not None:
+                self._align_q_first = [float(v) for v in arm.joint_positions()]
+        if self._align_first_visible < 0 and px >= 0:
+            # The first *visible* model call: a zero target mask means the
+            # fruit is fully hidden (belt and/or arm) in that frame.
+            if px > 0:
+                self._align_first_visible = int(self._infer_calls)
+            else:
+                self._align_hidden_calls += 1
+        if zone:
+            # P34 phase 1's arm-occlusion window (world y 0.15-0.30, the
+            # decision zone's upstream half): the target mask there measures
+            # the *arm* over the belt, which the reset alignment cannot move.
+            self._align_zone_n += 1
+            if px == 0:
+                self._align_zone_zero += 1
+            elif px > 0:
+                self._align_zone_px.append(int(px))
+
+    def _align_report(self) -> str:
+        """The `[align]` row: the manipulation check + the fire-zone mask."""
+        def num(value: float, fmt: str = "+.3f") -> str:
+            return format(float(value), fmt) if value == value else "-"
+
+        px50 = int(np.median(self._align_zone_px)) if self._align_zone_px else -1
+
+        def joints(values: list[float]) -> str:
+            return ",".join(format(float(v), ".3f") for v in values) if values else "-"
+
+        return (
+            f"[align] episode {self._episode} knob={int(self._reset_align)} "
+            f"y0={num(self._align_y0)} reset={num(self._align_along_reset)} "
+            f"steps={int(self._align_steps)} jaw={num(self._expert_jaw_y)} "
+            f"settle={int(self._reset_settle)} "
+            f"first={num(self._align_first_along)} x={num(self._align_first_x)} "
+            f"first_d={num(self._align_first_d)} first_px={int(self._align_first_px)} "
+            f"first_vis_call={int(self._align_first_visible)} "
+            f"hidden={int(self._align_hidden_calls)} "
+            f"zone_n={int(self._align_zone_n)} zone_zero={int(self._align_zone_zero)} "
+            f"zone_px={px50} calls={int(self.inference_calls())} "
+            f"q_r={joints(self._align_q_reset)} q_f={joints(self._align_q_first)}"
         )
 
     def inference_calls(self) -> int:
@@ -2528,6 +2739,10 @@ class SortingRLEnv:
             # P31-A: the gate's per-episode row (pure reporting; one formatting
             # pass over already-materialised ints).
             self._say(self._wait_gate_report())
+        if self._align_diag:
+            # P34 phase 2: the first-call manipulation check + the fire-zone
+            # target-mask counters (pure reporting over already-read values).
+            self._say(self._align_report())
         if self.dagger is not None:
             decisions = max(1, int(self._step) // 4)
             self._say(
