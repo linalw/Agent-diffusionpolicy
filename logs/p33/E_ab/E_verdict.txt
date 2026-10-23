@@ -1,0 +1,29 @@
+=== arm A
+  run 1: 7/15  0:appl/6.8/FAIL  1:stra/3.6/ok  2:pear/6.1/ok  3:appl/6.8/FAIL  4:toma/5.3/FAIL  5:stra/4.3/FAIL  6:pear/6.1/FAIL  7:appl/6.3/FAIL  8:peac/6.0/FAIL  9:pear/6.1/FAIL  10:appl/6.3/ok  11:stra/4.3/ok  12:lych/3.4/ok  13:stra/3.6/ok  14:toma/5.4/ok
+  run 2: 6/15  0:appl/7.0/FAIL  1:oran/6.3/FAIL  2:pear/6.6/FAIL  3:toma/6.1/ok  4:appl/6.3/ok  5:lych/3.7/FAIL  6:peac/6.6/FAIL  7:stra/3.9/FAIL  8:lych/3.7/FAIL  9:toma/5.0/FAIL  10:appl/6.3/ok  11:lych/3.7/ok  12:peac/5.9/ok  13:kiwi/6.7/ok  14:stra/4.2/FAIL
+  run 3: 3/15  0:oran/6.4/FAIL  1:stra/3.8/ok  2:oran/6.3/FAIL  3:peac/6.2/FAIL  4:lych/3.3/FAIL  5:toma/5.7/ok  6:appl/6.7/FAIL  7:pear/6.5/FAIL  8:stra/3.8/FAIL  9:appl/6.7/FAIL  10:peac/6.2/FAIL  11:pear/5.9/FAIL  12:appl/6.4/ok  13:pear/6.5/FAIL  14:pear/5.9/FAIL
+=== arm B
+  run 1: 1/15  0:appl/6.8/FAIL  1:peac/5.8/FAIL  2:oran/6.0/FAIL  3:lych/3.4/FAIL  4:peac/5.8/FAIL  5:stra/4.3/ok  6:lych/3.4/FAIL  7:peac/6.0/FAIL  8:pear/6.1/FAIL  9:oran/6.8/FAIL  10:peac/6.0/FAIL  11:pear/6.1/FAIL  12:oran/6.8/FAIL  13:stra/4.3/FAIL  14:kiwi/6.3/FAIL
+  run 2: 2/15  0:appl/7.0/FAIL  1:oran/6.3/FAIL  2:pear/6.2/ok  3:stra/3.9/ok  4:kiwi/6.7/FAIL  5:pear/6.2/FAIL  6:toma/6.1/FAIL  7:kiwi/6.7/FAIL  8:peac/6.6/FAIL  9:stra/3.9/FAIL  10:oran/6.3/FAIL  11:peac/6.6/FAIL  12:oran/6.0/FAIL  13:oran/6.3/FAIL  14:pear/6.6/FAIL
+  run 3: 5/15  0:oran/6.4/FAIL  1:stra/3.8/ok  2:oran/6.3/FAIL  3:peac/6.2/FAIL  4:lych/3.3/FAIL  5:toma/5.7/ok  6:appl/6.7/FAIL  7:pear/6.5/ok  8:pear/5.9/FAIL  9:appl/6.4/FAIL  10:peac/6.2/FAIL  11:lych/3.3/ok  12:lych/3.5/FAIL  13:stra/4.0/FAIL  14:peac/5.9/ok
+
+  pooled A: 16/45 (36%)  median ticks 1865
+  pooled B: 8/45 (18%)  median ticks 1872
+
+  paired: 2 both ok, 10 both fail, 3 B-only ok, 1 A-only ok, 29 excluded (fruit class differs)
+  sign test (B better): p = 0.3125 (discordant 4)
+  class                 A          B  delta
+  apple           4/10       0/4      -40%
+  kiwi            1/1        0/3      -100%
+  lychee          2/5        1/5      -20%
+  orange          0/3        0/9      +0%
+  peach           1/5        1/9      -9%
+  pear            1/8        2/7      +16%
+  strawberry      4/8        3/6      +0%
+  tomato          3/5        1/2      -10%
+  median cycle: A 1865 ticks, B 1872 ticks (+0.4%)
+  failure reasons A: ["'fruit fell off the line'", "'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)'", "'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)', 'fruit did not follow the gripper'"]
+  failure reasons B: ["'fruit fell off the line'", "'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)'", "'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)', 'fruit did not follow the gripper'"]
+
+  criteria: rate B 18% vs A 36% [worse]; sign p=0.3125 [no]; strawberry 50% vs 50% [ok]; new reasons none; cycle 1872 vs 1865 (not faster)
+  VERDICT: no measured improvement of B over A (publish the negative and re-plan)

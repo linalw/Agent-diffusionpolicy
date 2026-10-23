@@ -1,0 +1,19 @@
+[p33c-ft] fine-tune checkpoints/moe_v13s/policy_best.pt -> checkpoints/p33_pear (14:21:36)
+[p33c-ft] exit=0 14:45:00
+31751eaa9bbe740a2c425833ab85ccfb  checkpoints/p33_pear/policy_best.pt
+/home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/scripts/../src/fruit_sorting/policy/model.py:161: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at /pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:835.)
+  if float(wk.abs().max()) < 1e-6:
+[finetune] rollouts=datasets/p33_pear (180 episodes, success 180)
+[finetune] base=datasets/demos_v11 (50 episodes)
+[finetune] windows=42048 weight_mode=ones vbar=0.0000 beta=4.0 failure_weight=0.05 base_weight=1.0 vlash_offset_max=0
+[finetune]   rollout: {'episodes': 180, 'windows': 32670, 'weight_values': [1.0], 'mean_weight': 1.0}
+[finetune]   base: {'episodes': 50, 'windows': 9378, 'weight_values': [1.0], 'mean_weight': 1.0}
+[finetune] epoch 1/6 SOFT mse=0.0337 weighted=0.0337 router_ce=0.190 router_acc=0.937 demo_val=0.0277 (219.4s)
+[finetune] epoch 2/6 SOFT mse=0.0295 weighted=0.0295 router_ce=0.087 router_acc=0.970 demo_val=0.0183 (217.5s)
+[finetune] epoch 3/6 SOFT mse=0.0279 weighted=0.0279 router_ce=0.058 router_acc=0.981 demo_val=0.0164 (217.3s)
+[finetune] epoch 4/6 SOFT mse=0.0262 weighted=0.0262 router_ce=0.044 router_acc=0.985 demo_val=0.0218 (218.0s)
+[finetune] epoch 5/6 SOFT mse=0.0255 weighted=0.0255 router_ce=0.034 router_acc=0.988 demo_val=0.0109 (216.7s)
+[finetune] epoch 6/6 SOFT mse=0.0245 weighted=0.0245 router_ce=0.028 router_acc=0.991 demo_val=0.0118 (216.9s)
+[finetune] saved checkpoints/p33_pear/policy_best.pt (last epoch, weighted loss 0.0245)
+[finetune] done -> checkpoints/p33_pear/policy_best.pt

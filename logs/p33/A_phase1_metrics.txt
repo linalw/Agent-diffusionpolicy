@@ -1,0 +1,225 @@
+P33 phase 1 - the bed's delivered density at the shipped cadence
+==================================================================
+Generated 2026-10-23 from logs/p33/*.log; every number below is read from
+those logs (logs/p33/phase1_report.py, scripts/186_w6_report.py,
+scripts/175_twoline_report.py, scripts/190_twoline_gate.sh) or from the
+claim_run timestamps in the `.driver.log` siblings. Runs were one at a time
+via scripts/154_claim_run.sh, Tier A solo, HEADLESS=1.
+
+Corrected 2026-10-23 after Gate 1 (no run was re-made; every corrected number
+is read from the same logs): the starvation reading (`31_per_arm_idle.txt`), the
+aperture arithmetic, the same-instant census pairing, the wall decomposition,
+the supply burn, the `live_recycled` attribution and the named-lever register.
+
+The one code change: `FRUIT_FEED_CADENCE=1` now arms on the **two-line
+scheduler** (default off). The single-arm line calls `_feed_tick` from
+`_step_sim`; the two-line's physics clock is the relay's shared tick, so the
+same `_feed_tick` is installed as `CoopSession.feed_pump` and
+`TickRelay.schedule` calls it on the main thread **once per shared physics
+tick** (stride `FRUIT_FEED_STRIDE`=4 = 33 ms = 4 mm of belt travel,
+`advance_furniture=False`). Before P33 the knob resolved to False inside a
+bimanual session (`_prepared_scope`), so A2 had no `[feed]` row (P32 Gate C).
+
+Scenarios. Two-line: FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=1 FRUIT_SUPPLY_BED=1
+ATTEMPTS=20 SEED=5 FRUIT_BED_DIAG=1 FRUIT_MOTION_REPORT=1
+FRUIT_CYCLE_REPORT=1; the pump arm adds FRUIT_FEED_CADENCE=1 (A0's env and
+the isolated lever). Single arm: FRUIT_SUPPLY_BED=1 ATTEMPTS=10 SEED=5
+FRUIT_BED_DIAG=1; the cadence arm adds FRUIT_FEED_CADENCE=1 (the phase-A M2
+pair, re-measured). The pump arm is a different branch by construction.
+
+  run                                  extra env            wall
+  10_twoline_control.log               -                    484 s (08:50:53-08:58:57)
+  11_twoline_pump.log                  FRUIT_FEED_CADENCE=1  585 s (08:59:17-09:09:02)
+  20_single_control.log                -                    282 s (09:09:22-09:14:04)
+  21_single_cadence.log                FRUIT_FEED_CADENCE=1  367 s (09:14:24-09:20:31)
+  40_accept_final.log                  -                    270 s (09:37:03-09:41:33)
+    (the shipped acceptance; `00_accept_shipped.log` is the same run made
+     before the final freeze - the two are interchangeable, the final one is
+     the provenance of record)
+
+1. The two-line A/B (20 attempts, the A0 scenario)
+--------------------------------------------------------------------
+  metric                                control              pump
+  placed                                12/20 (L6/R6)        13/20 (L9/R4)
+  delivered band at the pump instants   2-8, mean 4.2, n=20   2-11, mean 8.3, n=157,
+                                                             14 rows at the 10 cap
+  band at the selection instant (census) L 5.5 (0-7) n=11     L 8.4 (0-10) n=16
+    (the same-instant pair - quote it    R 6.9 (5-10) n=10    R 8.8 (5-11) n=12
+     next to the delivered band: the     means read L 5.5 -> 8.4 / R 6.9 -> 8.8;
+     two rows have different sample      the delivered-band row is 20 boundary
+     types: 20 boundary pump instants    pump instants vs 157 continuous ones)
+  catchable window at selection          L 1.5 (0-2) n=11     L 0.9 (0-3) n=16
+  (the moving catch's floor admits)      R 2.4 (1-4) n=10     R 2.2 (0-4) n=12
+  starved slots (all retries)            L 1 / R 0            L 6 / R 2
+    (steady-state, after the prime)      L 0/10 R 0/10        L 5/15 R 2/12
+      left 0.0 -> 33.3 % / right 0.0 -> 16.7 % steady state; all slots
+      9.1 -> 37.5 % (L) and 0.0 -> 16.7 % (R); Fisher two-sided ~0.057 (L).
+      The pump arm's 8 episodes = 6 grade drought, 1 floor, 1 empty-belt prime.
+  pooled inter-placement interval        14.23 / 15.50 / 19.00  13.68 / 14.20 / 18.90 s
+    (mean / p50 / p90, n)                n=11                 n=12
+    per arm                              L 31.30 / p90 83.20  L 20.51 / p90 37.20
+                                         R 20.70 / p90 34.10  R 42.97 / p90 85.50
+  lock-on (prev end -> acquired)          L 2.77 / R 2.92 s    L 3.06 / R 4.14 s
+  idle fraction                           L 15 % / R 15 %      L 15 % / R 22 %
+  placement-window throughput             4.22 placed/min      4.39 placed/min
+    (= 60 / pooled interval mean, one statistic; batch 4.19 -> 4.35)
+  wall (claim_run window)                 484 s                585 s (+20.9 %)
+  late_dropped                            139.6 s              7.9 s
+  rebased / holds / refused               16 / 0 / 0           1 / 14 / 0
+  draws / bed_placed                      126 / 107            444 / 358
+  fell_off / reached_end / live at end    13 / 74 / 10         10 / 320 / 16
+  failures                                8 = 1 carried-not-   7 = 4 carried-not-
+                                          placed (R pear, +0.089) placed (R pear, R kiwi,
+                                          + 7 no-grip             R apple, R tomato)
+                                                                  + 3 no-grip (L peach,
+                                                                  R lychee x2)
+  motion report (105, budgets)            PASS, 20 descents    PASS, 20 descents
+                                          9/32 legs >0.45 m/s  6/34 legs >0.45 m/s
+                                          worst cone 5.81x     worst cone 3.52x
+  [feed] two-line (pump only)             -                    updates=5465 ticks=21860
+                                                                 stride=4 released=+432
+                                                                 placed=+348 skipped=+0
+
+  Read it as: **the delivered band is raised and the catchable window is not.**
+  The pump releases every ~1.2 s of belt travel (the bed's period), so the
+  approach band runs at its 10-row design depth instead of the once-per-attempt
+  bursts (mean 4.2); late_dropped falls to its batch-start prime residual
+  (7.9 s = the first pump's own rebase, identical on both arms). Quote the band
+  with its sample type: the **same-instant census reads 5.5/6.9 -> 8.4/8.8**
+  (left/right means at the selection instant), while 4.2 -> 8.3 puts 20
+  boundary-pump samples against 157 continuous ones. The interval movement is
+  one sample of a different branch (13/20 left 9/right 4 vs 12/20 6/6; the
+  right's 22 % idle and 4.14 s lock-on are the right-arm carry class, 4 of its
+  6 failures carried-not-placed) - quote the per-leg motion and the mechanism,
+  not the rate delta.
+
+  Why the catchable window does not follow - the two measured terms. The bed's
+  stock is capped at **10 bodies over a 0.58 m stocked depth** (4.1 rows x 2.4
+  bodies), and the slice above the moving catch's `_dynamic_select_floor()`
+  (~0.40 m, against the 0.68 m release line) is **0.28 m ~= 2 rows ~= 4.8
+  bodies ~= 1.8 per grade-pure lane** at the balanced A:B:C mix. So the pump
+  already delivers **8.3/10 = 83 % of the band's capacity**, the right's 2.2 is
+  about the aperture's ceiling, and the left's 0.9 is the grade-mix shortfall
+  below it (a row is one species and the left lane takes A only). The aperture
+  is a stock-depth ceiling, not a stock shortage.
+
+  Starvation, attributed: the control's 1 is the batch-start prime (t=13.4 s,
+  the belt is empty before the first boundary pump). The pump arm is starved
+  **more often per slot, not less**: left **5/15 = 33.3 % steady-state**
+  (**37.5 %** of all slots, 6/16) against the control's **0/10** (9.1 % of all
+  slots, 1/11; Fisher two-sided ~0.057 on 5/15 vs 0/10), right 2/12 = 16.7 %
+  steady-state against 0/10. The
+  mechanism is a **grade drought, not a stock shortage** - at every starved
+  selection instant the band is FULL and the grade-pure lane has nothing
+  admitted: `band=7/10 admitted=0 window=0` t=31.50; `band=10/10 admitted=2
+  window=0` t=68.46 (admitted, but all below the floor); `band=9/10 admitted=0`
+  t=68.96/69.46/69.96; `band=9/10 admitted=0` t=153.94 and `band=8/10
+  admitted=0` t=154.44 (right). Of the 8 starve episodes, **6 are `admitted=0`
+  (the grade)**, 1 is `admitted=2 window=0` (the floor), and 1 is the
+  empty-belt prime - so density does not remove the burst wait: more stock of
+  the wrong grade is still the wrong grade.
+
+  The cost, decomposed: **+20.9 % wall (484 -> 585 s) = +4.4 % sim span
+  (171.8 -> 179.4 s) x +15.7 % per sim-second (2.82 -> 3.26 s wall per
+  sim-second)**; the pump's own Python cost is 2.71 ms/sim-s. The single-arm
+  pair is the clean form of the same fact (+30.1 % at essentially equal sim
+  span, 149.7 vs 148.7 s = -0.7 %: 1.88 -> 2.47 s wall per sim-second).
+
+  The supply burn: the pump arm's `[feed]` records **432 releases / 348 bed
+  placements for 13 arm placements** (444 draws / 358 bed-placed on the
+  `[bed]` line, `reached_end=320`) against the control's **126/107 for 12** -
+  ~27 bed bodies per placed fruit against ~9. The pump buys the band by
+  burning the pool **3.5x faster** (444 vs 126 draws), not by sorting more.
+
+2. The single-arm record (10 attempts; `_feed_tick` already ran per tick)
+--------------------------------------------------------------------
+  metric                                control              cadence
+  placed                                6/10                 8/10
+  selector window at selection          4.6 (4-6), n=10      3.9 (2-7), n=10
+    windows in order                    [5,5,5,5,4,6,4,4,4,4] [5,7,4,4,2,3,4,3,4,3]
+  live fruit mean / max                 6.6 / 14             20.4 / 24
+  delivered band at the pump instants    2-3, mean 2.6       2-10, mean 7.9, 9 at cap
+  late_dropped / rebased / holds        160.9 s / 10 / 0     5.5 s / 9 / 9
+  refused / supply_skipped              0 / 0                17 / 17
+  live_recycled                         0/72                 1/510
+  draws / bed_placed                    72 / 61              510 / 357
+  wall                                  282 s                367 s (+30.1 %)
+  failures                              4 (3 carried, 1 grip) 2 (1 grip, 1 carried)
+
+  This reproduces the phase-A read: the cadence delivers the band (2.6 -> 7.9)
+  and leaves the **selector window flat/slightly lower** (4.6 -> 3.9; the
+  recorded phase-A pair read 4.6 control vs 4.4-4.7 cadence), at a wall cost
+  of **+30.1 %** on this pair (367/282) at **essentially equal sim span
+  (149.7 -> 148.7 s, -0.7 %)**, so the delta is per sim-second (1.88 -> 2.47 s
+  wall per sim-second; phase A recorded +24 %, 285 -> 352-356 s; the physics
+  is the 20 vs 6.6 live bodies, the pump's Python cost 2.71 ms/sim-s).
+  The `live_recycled=1/510` is **not a failed payload**: `orange idx=13` is
+  **attempt 3's successfully placed fruit** (`[belt] ... discharged to the tray
+  at x=1.56`, placed=True in attempt 3's own summary line), re-released by the
+  feeder afterwards. The cause is the **pool/capacity invariant**:
+  `_bed_note_live_draw` fires when a draw finds no parked body, and the pump
+  makes **~51 draws per attempt on a 40-fruit pool**. The harm is bounded:
+  `recycled_dy=-0.17 m` says the body was already **past the recycle line** -
+  the normal end-of-line recycle of an already-placed body, not a mid-belt
+  candidate lost. Record: **the zero invariant holds at the boundary cadence
+  (control 0/72) and does not at the pump's rate (1/510)**; accept-vs-fix is a
+  Phase 4 decision, not a Phase 1 result.
+
+3. The shipped line: byte identity (the knob off, the bed off)
+--------------------------------------------------------------------
+  33_identity_twoline_control_A0.txt: the two-line control vs the P32 phase-C
+    record A0: **826/826 `[fruit]` lines identical** after dropping the 20
+    new `[bed-sel] arm=` census rows (pure reporting) and the two static
+    output-belt clearance prints (A0 predates the Gate-D instance-bound
+    text). `190 -m 0.5` (the bed reference dcd19758) **PASS** on the control.
+  34_identity_single_control_87.txt: the single-arm control vs the P32
+    phase-A R1/R2 record 87: **436/436 identical** after the same two static
+    prints (window 4.60, selections 10/10, placed 6: the record reproduced).
+  35_identity_accept_D1.txt: the shipped acceptance (10 attempts, no knobs)
+    vs the P32 close-out D1: **374/374 identical** after the two static
+    prints; 6/10, `fingerprint: matches configs/motion_reference.json`
+    (25ade92b). The rate FAIL is the documented pear-on branch, not this pass.
+  36_gate_twoline_control.txt: `190 -m 0.5` with the bed reference
+    `configs/motion_reference_twoline_bed.json` (dcd19758) - PASS.
+  37_gate_twoline_pump_budgets.txt: `105 --min-success-rate 0.5` (no
+    fingerprint: a different branch, no reference written) - PASS, every
+    descent inside its budget; the 12 carry warnings are the reported class
+    (the legacy `slip_max` is frame-contaminated on the OpenArm hand, W8-B).
+  38_gate_accept_final.txt: `105 --fingerprint
+    configs/motion_reference.json` on the final tree - matches, 6/10,
+    rate-only FAIL (the documented branch).
+
+4. The verdict
+--------------------------------------------------------------------
+  **The mid-attempt pump does raise the delivered density, and the density is
+  not what limits the line.** Measured: the delivered band **4.2 -> 8.3 / 10**
+  (two-line, the 20 boundary-pump samples) with the **same-instant census
+  5.5/6.9 -> 8.4/8.8** (left/right at the selection instant) and 2.6 -> 7.9
+  (single arm), `late_dropped` 139.6 -> 7.9 s (the prime residual), `holds`
+  0 -> 14. **Not delivered:** a higher catchable candidate count at the pick
+  (two-line per arm 1.5/2.4 -> 0.9/2.2; single arm 4.6 -> 3.9), a better
+  interval on a same branch, or a cheaper run (**+20.9 % two-line = +4.4 % sim
+  span x +15.7 % per sim-second; +30.1 % single arm at equal span**), and the
+  per-slot starvation is **worse**, not flat (left 0/10 -> 5/15 = 33.3 %
+  steady-state), because the pump serves the band's depth and not the lane's
+  grade. The aperture is a **stock-depth ceiling**: 10 bodies over 0.58 m, of
+  which 0.28 m ~= 2 rows ~= 4.8 bodies ~= 1.8 per grade-pure lane sits above
+  the ~0.40 m catch floor - the pump already delivers 8.3/10 (83 % of capacity),
+  so the row pitch and the floor, not the stock depth, set the catchable slice.
+  The knob therefore stays **default off** and is a measurement interface.
+
+  The named next levers, with their measured bounds:
+    - **a lower floor: CLOSED.** R3 measured the 1.5 s selection setup at
+      1.467/1.516 s with 0/20 selections floor-bound (the shipped floor *is*
+      the setup), and R11-A/R11-A.1 cost the shipped acceptance 9/10 -> 4/10
+      (and 4/9 floored) when the band-relative floor replaced it.
+    - **a higher station: bounded at <= 0.10 m.** The R10-A intercept map
+      (`183_reach_intercept.py`) is the reachable band; the station pair
+      separation is fixed at 0.10 m (left y=+0.000, right y=-0.100) and a
+      deeper right station leaves the reach at <= 6 mm tolerance.
+    - **the row composition: a drought/variance lever, not a mean lever.** The
+      mean is ~1.8 eligible bodies per grade-pure lane and does not move with
+      composition; what composition can remove is the *drought* (a run of rows
+      of the other grade). It needs its own pre-registration, its own motion
+      reference and a clearance report (the both-hands 1.9-2.6 mm class).
+  More stock is not among them.

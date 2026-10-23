@@ -73,6 +73,49 @@ drops. **The two-line's dispatch cost is the pre-pose transit (lock-on
 on this line at the shipped cadence.** The bed stays default off. Evidence
 WORKLOG "P32 phase C", `logs/p32/A0..A3` + `A_phase_c_metrics.txt`.
 
+**P33 phase 1 (2026-10-23) measured the two-line mid-attempt pump: the band
+fills, the catchable window does not, and the wall cost stands.**
+`FRUIT_FEED_CADENCE=1` now arms on the two-line scheduler: the same
+`_feed_tick` is installed as `CoopSession.feed_pump` and `TickRelay.schedule`
+calls it on the main thread once per **shared physics tick** (stride 4 = 4 mm
+of belt travel, `advance_furniture=False`); default off, and the shipped /
+F2 / single-arm paths are byte-unchanged (the two-line control replays A0
+**826/826** `[fruit]` lines after its 20 new census rows and the two static
+scene prints; the single-arm control replays `87` **436/436**). The A/B (A0's
+scenario, 20 attempts, pump vs control): the delivered band at the pump
+instants **4.2 -> 8.3 / 10** (2-8 -> 2-11, 14/157 at the cap) and
+`late_dropped` **139.6 -> 7.9 s** (the batch-start prime residual; rebased
+16 -> 1, holds 0 -> 14) - but quote the **same-instant census, 5.5/6.9 ->
+8.4/8.8** (left/right means at the selection instant; 4.2 -> 8.3 puts 20
+boundary samples against 157 continuous ones). The catchable per-arm window at
+the selection instant **does not rise** (left 1.5 -> 0.9, right 2.4 -> 2.2)
+because the aperture is a **stock-depth ceiling**: the bed caps at 10 bodies
+over a 0.58 m stocked depth (4.1 rows x 2.4) and only **0.28 m ~= 2 rows ~= 4.8
+bodies ~= 1.8 per grade-pure lane** sits above the ~0.40 m catch floor - so
+8.3/10 = 83 % of the band's capacity is already delivered, the right's 2.2 is
+about the ceiling and the left's 0.9 is the grade-mix shortfall.
+**Starvation is worse per slot, not flat**: left **0/10 -> 5/15 = 33.3 %**
+steady-state (37.5 % of all slots vs 9.1 %; Fisher two-sided ~0.057 on the
+steady-state pair, 5/15 vs 0/10), right 0/10 -> 2/12, and the census names a
+**grade drought, not a stock shortage** - at every
+starved instant the band is full (7-10/10) with nothing admitted (`admitted=0`;
+6 of the 8 starve episodes are `admitted=0`, 1 is `admitted=2 window=0` at the
+floor, 1 the empty-belt prime). The interval reads 14.23 -> 13.68 s pooled mean
+on a **different branch** (13/20 left 9/right 4 vs 12/20 6/6; right idle
+15 -> 22 %, lock-on 2.92 -> 4.14 s, three retry episodes), and the wall is
+**+20.9 % (484 -> 585 s) = +4.4 % sim span (171.8 -> 179.4 s) x +15.7 % per
+sim-second (2.82 -> 3.26 s)** with a supply burn of **432 releases / 348 bed
+placements for 13 arm placements** (444 draws, `reached_end=320`) against the
+control's 126/107 for 12. The single-arm pair reproduces the phase-A read -
+selector window **4.6 -> 3.9**, live 6.6 -> 20.4, band 2.6 -> 7.9, **+30.1 %
+wall at equal sim span (149.7 vs 148.7 s)**; the recorded phase-A pair +24 % -
+so the knob stays default off: **the density is a physics lever, not a free
+win**, and more stock is not the lever (a lower floor is closed by R3/R11-A; a
+higher station is bounded at <= 0.10 m by the R10-A intercept map; the row
+composition is a drought/variance lever with the mean ~1.8 eligible/lane
+unchanged, needing its own pre-registration, reference and clearance report).
+Evidence WORKLOG "P33 phase 1", `logs/p33/`.
+
 ## 2. Two constraints that decide how to measure
 
 **The outcome is quantized; do not compare success rates across configurations.**
@@ -174,6 +217,28 @@ authored mesh); the `meshes.py` md5 pins are in the collector manifest and
 `rl_env._MANIFEST_SOURCES`, so a post-pear store is identifiable. The
 **owner-accepted OOD note is the closure**: a policy rate measured before P32
 is not this tree's rate.
+
+**P33 phase 3 (2026-10-23) added the first post-pear store and checkpoint, and
+the direct A/B reads no measured improvement (not adopted).** `datasets/p33_pear`
+(180 episodes, left 92 / right 88, 32,670 windows, `index_md5 01626590`, every
+shard pinning `meshes.py` `41efc522`) and `checkpoints/p33_pear` (md5
+`31751eaa`, fine-tuned from `moe_v13s`) exist, so the sentence above now means
+*every other* store/checkpoint. On the direct interface (**W8-A protocol,
+`FRUIT_POLICY_TRIGGER_ACQ=1`, a sample**) the new checkpoint reads **8/45 vs
+`moe_v13s`'s 16/45 overall; the deficit is the same class (cnp 33 vs 26 of
+45)** - pooled p = 0.094, A better in 2/3 seeds at run level (exact permutation
+~0.20), the class-matched paired carry 3-1 B (the 2 exact-instance pairs 2-0),
+29/45 unpairable; no new failure reason, cycle flat. **Store-transfer vs
+overwrite is unseparated**, and the attribution gaps keep this to *this
+checkpoint on this interface*: the store's right station is `y = -0.10` (the
+direct env's is `0.00`) with its own station-specific pre-pose - the right is
+the arm where B lost, 14/29 -> 7/24; the store is **successes-only** (52
+carried-not-placed + 56 no-grasp attempts discarded - no example of the class
+the deficit is in); and the 6-epoch/lr 5e-5 schedule cannot be separated from an
+overwrite. The hybrid canary smoke (fixed supply) reads **5/10**, matching the
+shipped checkpoint's post-pear P32 D0 count - not broken, not discriminating (a
+sample, not a rate). Nothing was adopted (`accept_policy.sh` still defaults to
+`moe_v12`).
 
 **W4 (Gate 30, 2026-10-10, `logs/w4/`): the dense direct collapse is the
 trigger's lateral gate, and the two-line recollection is the wrong anchor for
@@ -1106,9 +1171,12 @@ evidence files are not rewritten). Pins: `tasks.py`
 close-out is `docs/CLOSEOUT.md`): the pre-onset load path is not the
 discriminator - the payload is held to 0.5 mm through the window and the
 escape is a mid-lift one-sided loaded slide; the screen's C1 (the close's
-face speed capped at 0.04 m/s) is the strongest candidate but the stage-P
-scripted battery is a bounded-attempt negative and the stage-N direct A/B
-stopped incomplete, so the phase closes not adopted.** The three default-off,
+face speed capped at 0.04 m/s) converts on the direct interface (carried
+48 -> 27, class-stratified exact p = 0.0026, `logs/p18b/B_RESULTS.md` section 4)
+while the stage-P scripted battery is a bounded-attempt negative and the
+scripted two-line does not transfer, so the phase closes not adopted:
+scripted negative, direct positive, the class-matched direct re-run open
+(`logs/p18b/B_RESULTS.md` section 5).** The three default-off,
 dynamic-capture-scoped knobs (`FRUIT_CLOSE_LOAD_RATE`,
 `FRUIT_CLOSE_CONTACT_LEAD`, `FRUIT_PLUCK_DWELL`) are byte-inert at default;
 the M screen (direct, N=1x15) promoted C1 on the strongest readout of the
@@ -1120,10 +1188,21 @@ and M2 fails (a). The stage-P read is **12/20 = 60 % vs the control's
 13/18 = 72 %**: the cnp item clears only exactly at the bar (3 = 5-2) and the
 never-grasped class 0 -> 5 (late-freeze 40 mm/s closes; the fruit rides the
 faces >1 s and the marginal grip slips at the pluck) fails the same-battery
-item (iii) - the honest stage-P read is not positive - and the stopped
-stage-N battery (A run 1 = 6/15; B run 1 partial; `logs/r11/B_N/STOPPED.md`)
-leaves C1 **unconfirmed** on the direct interface (the N=5 re-run is the
-named next if the owner wants it). No-harm: acceptance **9/10 + motion gate
+item (iii) - the honest stage-P read is not positive. The stage-N direct
+battery stopped incomplete on the day (A run 1 = 6/15; B run 1 partial;
+`logs/r11/B_N/STOPPED.md`) and was **completed as the P18b N=5 batch; its
+Oracle Gate-3 re-analysis is the verdict above** - A ok 22 / nc 5 / carried
+**48** against B ok 39 / nc 9 / carried **27**, class-stratified exact
+**p = 0.0026** (MH OR 1.79, CMH chi2 8.68) with **all 5 B runs beating all 5 A
+runs**, and the pooled 22/75-vs-39/74 sign test **p = 0.500** reduced to the
+*episode-pairing* endpoint (58/74 unpairable - a protocol weakness, not the
+lever's read; `logs/p20/ORACLE_GATE3.md`). So C1 is **not "unconfirmed" on the
+direct interface**: it moves the carried class there, and it is **negative on
+all three scripted measurements** (this stage-P and the two-line **28/60 vs
+45/60**, nc 8 -> 25 in `logs/p21/RESULTS.md` - the slow close is incompatible
+with the never-stop dynamic catch). The knob stays **default off and not
+shipped**; the one open item is the class-matched direct re-run.
+No-harm: acceptance **9/10 + motion gate
 PASS + `fingerprint: matches`**, 385/385 `[fruit]` identical to the pre-phase
 control; the scripted control 681/681 == `A1_25_patch_control.log`; the
 two-line dense re-record **442/442 byte-identical to the W7-A record + `190`

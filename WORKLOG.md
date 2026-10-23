@@ -15318,9 +15318,18 @@ attribution, the mechanism wording).
    with 10/15 episodes logged (7 ok / 3 failed), episode index 10 unfinished
    (5+ min in-episode at 113 % CPU - the slow-close/grind shape); the other
    eight runs not executed (`logs/r11/B_N/STOPPED.md`). The endpoint is
-   unattained; **C1 stays unconfirmed on the direct interface** (the N=5
-   re-run is the named next if the owner wants it; the stage-P trade makes it
-   a weak candidate; nothing ships either way without its own gate).
+   unattained **at this point**; **C1 stays unconfirmed on the direct interface**
+   (the N=5 re-run is the named next if the owner wants it; the stage-P trade
+   makes it a weak candidate; nothing ships either way without its own gate).
+   *(Correction 2026-10-23, per the P33 phase-2 Gate 2: the N=5 batch **was**
+   run as the P18b `N5_fix` battery and its Oracle Gate-3 re-analysis makes the
+   C1 **positive on the direct interface** - carried **48 -> 27**, ok 22 -> 39,
+   class-stratified exact **p = 0.0026** (MH OR 1.79, CMH chi2 8.68) with all 5
+   B runs beating all 5 A runs, the pooled 22/75-vs-39/74 p = 0.500 being the
+   *episode-pairing* protocol weakness - `logs/p18b/B_RESULTS.md` §4,
+   `logs/p20/ORACLE_GATE3.md`. The scripted negatives and the "nothing ships"
+   clause stand; the class-matched direct re-run is the open item. See the
+   P33 phase-2 entry.)*
 
 5. **The mechanism conclusion (the phase's deliverable).** The pre-onset load
    path is **not** the discriminator: the payload is held to trace resolution
@@ -16571,3 +16580,492 @@ model-call count are absent and the mechanism endpoint is unread (the
 `decision=` field is not the model-call counter and is class-mix confounded).
 Verdict: **no adoption** - `FRUIT_WAIT_GATE` stays default off; the knob stays
 a measurement interface. Full record: `logs/p31/B_CLOSE_OUT.md`.
+
+### P33 phase 1: the mid-attempt pump fills the band, not the catchable window (2026-10-23)
+
+The P32 phase-C follow-up (`FRUIT_FEED_CADENCE=1` never armed on a bimanual
+attempt) is closed with the lever built and measured. `TickRelay` gained one
+optional hook: `CoopSession.feed_pump` (installed by `run_bimanual` only for
+`two_line and self._feed_cadence`) is forwarded to the relay and called on the
+main thread **once per shared physics tick**, right after `step_fn` and before
+the run permit is granted; it is the same `_feed_tick` the single-arm line calls
+from `_step_sim`, so the stride (`FRUIT_FEED_STRIDE`=4 = 33 ms = 4 mm of belt
+travel) and `advance_furniture=False` are identical by construction. The relay
+calls it per *physics* tick, not per schedule round (`schedule` can execute
+several); the workers are parked on their requests while it runs, so the
+spawner's live set cannot be mutated concurrently. Default off; the F2
+shared-station pipeline, the single-arm driver and the policy path are
+unreached. `scripts/152_biarm_selftest.py` pins the invariant (50 shared ticks
+-> 50 pump calls, main thread only). The two-line `bed_diag_report` gap is
+closed too: with `FRUIT_BED_DIAG=1` the worker prints one `[bed-sel] arm=...`
+census row per slot selection (`live/on_belt/admitted/window/band`,
+`_biarm_bed_census`), pure reporting.
+
+The A/B is A0's exact scenario (`FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=1
+FRUIT_SUPPLY_BED=1 ATTEMPTS=20 SEED=5 FRUIT_BED_DIAG=1 FRUIT_MOTION_REPORT=1
+FRUIT_CYCLE_REPORT=1`) plus `FRUIT_FEED_CADENCE=1` on the pump arm, one
+simulator at a time via `154_claim_run.sh` (`logs/p33/10` vs `11`). **The band
+is delivered:** at the pump instants it runs 2-8 (mean 4.2, n=20) -> 2-11
+(mean 8.3, n=157, 14 at the 10 cap), `late_dropped` 139.6 -> **7.9 s** (the
+batch-start prime residual, the first pump's own rebase on both arms),
+rebased 16 -> 1, holds 0 -> 14, bed_placed 107 -> 358. Quote the band with its
+sample type: **the same-instant census reads 5.5/6.9 -> 8.4/8.8** (left/right
+means at the selection instant, `[bed-sel] band at pick`); the 4.2 -> 8.3 pair
+puts 20 boundary-pump samples against 157 continuous ones. **The catchable
+window is not:** the selector's per-arm count at the selection instant (the
+census's `window`, candidates above the moving catch's ~0.40 m floor) reads
+left 1.5 -> **0.9**, right 2.4 -> **2.2**. The aperture is a **stock-depth
+ceiling, not a stock shortage**: the bed caps its stock at **10 bodies over a
+0.58 m stocked depth** (4.1 rows x 2.4 bodies), and the slice above the ~0.40 m
+floor (release line at 0.68 m) is **0.28 m ~= 2 rows ~= 4.8 bodies ~= 1.8 per
+grade-pure lane** at the balanced mix - so the pump already delivers **8.3/10 =
+83 % of the band's capacity**, the right's 2.2 is about the ceiling, and the
+left's 0.9 is the grade-mix shortfall below it. **The pump arm is starved more
+often per slot, not less**: left **5/15 = 33.3 % steady-state** (**37.5 %** of
+all slots, 6/16) against the control's **0/10** (1/11 = 9.1 % of all slots;
+Fisher two-sided ~0.057 on the steady-state pair 5/15 vs 0/10), right 2/12 =
+16.7 % against 0/10. The census names the mechanism - a
+**grade drought**: at the starved selections the band is FULL and the
+grade-pure lane has nothing admitted (`band=7/10 admitted=0` t=31.50;
+`band=10/10 admitted=2 window=0` t=68.46, admitted but all below the floor;
+`band=9/10 admitted=0` t=68.96/69.46/69.96; right `band=9/10` and `band=8/10`
+with `admitted=0` t=153.94/154.44), and of the 8 starve episodes **6 are
+`admitted=0` (the grade)**, 1 is `admitted=2 window=0` (the floor), 1 is the
+empty-belt prime. The interval (pooled 14.23 -> 13.68 s mean, p50 15.50 ->
+14.20) is **a different branch**: 13/20 (left 9/right 4) vs 12/20 (left 6/right
+6), right idle 15 -> 22 %, right lock-on 2.92 -> 4.14 s, three retry episodes
+(left 1 retry at t=31.5 s + 4 at 68.5-70.0, right 2 at 153.9-154.4) against the
+control's one batch-start starve. The wall is **+20.9 %** (484 -> 585 s) **=
++4.4 % sim span (171.8 -> 179.4 s) x +15.7 % per sim-second (2.82 -> 3.26 s
+wall per sim-second)**; `105` passes every descent budget (6/34 legs >0.45 m/s
+vs 9/32; worst cone 3.52x vs 5.81x, reported). **The supply burn:** the pump
+arm's `[feed]` records **432 releases / 348 bed placements for 13 arm
+placements** (444 draws / 358 bed-placed on the `[bed]` line, `reached_end=320`)
+against the control's **126/107 for 12** - ~27 bed bodies per placed fruit
+against ~9, i.e. the pump buys the band by burning the pool 3.5x faster, not by
+sorting more.
+
+The single-arm pair (the phase-A M2 re-run, `logs/p33/20` vs `21`) reproduces
+the phase-A read and is the knob's own control: **selector window 4.6 (4-6)
+-> 3.9 (2-7)**, live 6.6 -> 20.4, band 2.6 -> 7.9, `late_dropped` 160.9 ->
+5.5 s, wall **282 -> 367 s (+30.1 %)** at **essentially equal sim span
+(149.7 -> 148.7 s, -0.7 %)** - the clean form of the same fact: the cost is per
+sim-second (1.88 -> 2.47 s wall per sim-second; phase A recorded +24 %, 285 ->
+352-356 s; the same physics, 20 vs 6.6 live bodies). 6/10 -> 8/10 is a branch.
+
+Verdict: **the density is a physics lever, not a free win.** The pump does
+what it says - the bed's approach band runs at its design depth and the stale
+backlog disappears - but the aperture is a stock-depth ceiling (10 bodies over
+0.58 m, ~1.8 eligible per grade-pure lane above the floor) and the row pitch,
+not the stock depth, sets the catchable slice; the line's cost is **+20.9 %**
+(two-line) / **+30.1 %** (single arm) wall. `FRUIT_FEED_CADENCE` stays default
+off (a measurement interface), no shipped default changed. Named next, with
+their measured bounds: **a lower floor is CLOSED** (R3: the 1.5 s setup is
+measured 1.467/1.516 s and 0/20 selections are floor-bound; R11-A/R11-A.1 cost
+the shipped acceptance 9/10 -> 4/10 and 4/9 floored); **a higher station is
+bounded at <= 0.10 m** (the R10-A intercept map; the station pair separation is
+fixed at 0.10 m); **the row composition is a drought/variance lever only** (the
+mean ~1.8 eligible/lane is unchanged; it needs its own pre-registration, motion
+reference and clearance report - the both-hands 1.9-2.6 mm class). More stock
+is not among them.
+
+No-harm / byte identity: the shipped acceptance (10 attempts, no knobs) is
+**374/374 `[fruit]` lines identical** to the P32 close-out `D1` after the two
+static output-belt clearance prints (they carry the Gate-D 1.06 -> 1.07
+instance-bound text), 6/10 + `fingerprint: matches` 25ade92b; the two-line
+control is **826/826 identical** to A0 after its 20 new census rows and the
+same two static prints (`190 -m 0.5`, bed reference `dcd19758`, PASS); the
+single-arm control is **436/436 identical** to the P32 phase-A R1/R2 record
+`87` (window 4.60, 6/10). Selfcheck PASS (0 failures, 1 skipped; the 152 leg
+extended). Residuals: the single-arm cadence's `live_recycled=1/510` is **not a
+failed payload** - `orange idx=13` is attempt 3's **successfully placed** fruit
+(`[belt] ... discharged to the tray at x=1.56`; attempt 3 placed=True), later
+re-released by the feeder; the cause is the **pool/capacity invariant**
+(`_bed_note_live_draw` fires when a draw finds no parked body, ~51 draws per
+attempt on a 40-fruit pool) and the harm is bounded (`recycled_dy=-0.17 m`: the
+body was already past the recycle line - the normal end-of-line recycle, not a
+mid-belt candidate). Record: the zero invariant holds at the boundary cadence
+(0/72) and does not at the pump's rate (1/510); accept-vs-fix is Phase 4's.
+The pump's carry warnings include the known frame-contaminated `slip_max` (do
+not quote it - W8-B). Pins: `tasks.py`
+`cdde6bd20670331ffbe8deb5d4f60b13`, `bimanual.py` (the hook), `rl_env.py`
+`TASKS_MD5` metadata-only follow. Evidence `logs/p33/` (`A_phase1_metrics.txt`,
+`30_interval_lockon.txt`, `31_per_arm_idle.txt`, `32_phase1_report.txt`,
+`33`/`34`/`35` identity, `36`/`37` gates, the run logs + driver walls).
+
+Corrected 2026-10-23 after Gate 1 (no re-run; the same logs): the per-slot
+starvation (left 0/10 -> 5/15, a grade drought - the earlier "not starved more
+often per slot" read was wrong), the aperture arithmetic (10 bodies / 0.58 m;
+~1.8 eligible per grade-pure lane above the floor), the same-instant census
+(5.5/6.9 -> 8.4/8.8) beside the 4.2 -> 8.3 headline, the wall decomposition and
+supply burn, and the `live_recycled` attribution.
+
+### P33 phase 2: the acceptance's red rate is the lane-0 (left) configuration's carried-not-placed class - 33/33 on the single-arm corpus, nine lever families closed and the C1 direct-positive, and the owner's decision (2026-10-23)
+
+Offline census on the P32/P33 tree, **no simulator run, no shipped default
+changed, no commit**. Re-derivation `logs/p33/carry_census.py` ->
+`logs/p33/50_carry_census.txt`; the read + register `logs/p33/51_phase2_read.md`.
+The P33 pump arms (`logs/p33/11`, `21`) are excluded (a different branch and
+cadence); the P33 controls are replays of their P32 records and add no episodes.
+**Corrected in place 2026-10-23 by the Gate-2 remediation** (documentation only,
+the same logs): the C1 verdict, the (B)/(C) order and (C)'s endpoint, the
+acceptance exception, the gated-vs-reported budget wording, the incidence-vs-rate
+wording, the attempt-order anchor, the within-left transfer table, the two-line
+left counts, the register's scope, and the release/clearance wording - the list
+is `logs/p33/51_phase2_read.md` §1-§5.
+
+**The census (36 distinct carried-not-placed episodes).** acceptance pear-on
+(`80`=`89`=`93`=`D1`=`00`=`40`) 3 + 1 no-grasp of 10; pear-off (`92`=`81`) 3 of
+10; pear battery (`90`+`91`) 6 of 18; single-arm bed battery (`72`,`77`,`79`,
+`87`=`20`,`88`) 21 cnp + 12 no-grasp of 70; two-line bed (`A0`=`A1`=`A3`=`10`)
+1 of 20; shared-station bimanual acceptance (`E1`) 2 of 10. **The class is the
+lane-0/left configuration: 33 of 33 carried-not-placed episodes on the left, 0
+of 48 on the right** - per family (left / right, `att/placed/cnp/no-grasp`):
+acceptance pear-on 5/1/3/1 vs 5/5/0/0, pear-off 3/0/3/0 vs 7/7/0/0, pear battery
+8/2/6/0 vs 10/10/0/0, single-arm bed 44/11/21/12 vs 26/26/0/0. **Do not quote
+those as rates**: the 60/48 columns pool five branches over two supply schedules
+(the bed battery alone is 44 of the 60 left attempts) and the bed branches are
+near-replays, so "14/60 = 23 % / 48/48 = 100 %" is not a rate - the census
+statement is the incidence. And the grade is a *label*, not a fruit property
+(`fruits.py:3`, the grade vector is allocated then shuffled, `fruits.py:844-852`),
+while `20_pick_place.py`/`tasks.py:4453` send grade A -> lane 0 -> the left arm,
+and **arm, mount and output lane move together** (the left places onto output
+belt 0 at `y ~ +0.50` from its own mount, the right onto belt 1 at `y ~ -0.50`)
+- so the census measures the *bundled* left
+configuration and cannot say which of the three is the term; what it does say is
+that the *fruit* is not (the **pear battery**, one species at 5.8-6.9 cm on both
+arms: left 2/8, right 10/10). The mixed-corpus diameter split is **not** a
+separation (left `<=4.0` 7/8 but `4.1-5.9` 0/10 against `5.9-6.4` 7/25) - not
+"big fruit", not a species. The two-line's left (**same arm, same hand**, its own
+station + pre-pose) reads **0/10 cnp but 4/10 no-follow, 6/10 placed** against
+the single-arm bed's left **11/44 placed with 21 cnp** on the same bed supply:
+the class *moved*, the rate did not improve, and a cnp-only endpoint would have
+scored it a win.
+
+**The acceptance's red rate is that class.** pear-on per arm left **1/5** (3 cnp
++ 1 no-grasp) / right **5/5**; pear-off left **0/3** / right **7/7**. The pear-on
+branch's four failures are attempts 0-3, all left, before its first right
+attempt - an **arrival/seed artifact of that branch, not an ordering effect**;
+anchor on the interleaved branches instead (pear-off **ep0/4/6**, the pear
+battery **ep4/5/6/8**), where the same class recurs between right placements. The
+gate is **rate-only red** (`D1`: `FAIL: 1 problem - success 6/10 below 75%`,
+fingerprint
+matches). The class predates P32 by months: every 9/10 record's *single* failure
+is the same left-lane attempt-0 kiwi (`logs/v1/20_rate_supply_1.log`,
+`w3/62`, `w6/60`, `r8/A_accept`: kiwi A 5.4 cm, lift +0.221, force 4.26 N - the same
+attempt lines) - what moves is *how many* of the left's attempts escape
+on that branch (1 / 3 / 4), and per AGENTS §2 those are different attractors.
+
+**The mechanism (per episode).** The payload leaves the pinch and the arm
+completes the profile: at the place leg's end the log reads
+`fruit=[0.22,-0.60,1.197]` against `jaw=[0.427,0.495,1.513]`, the per-leg
+clearance row reads **`lowest payload point -215..-219 mm to the output rail`**
+on 11 of the 12 instrumented left failures and `-11 mm to the main belt` on the
+twelfth (`91` ep3) - **12/12 the payload is on the main belt at the place leg's
+end**, the row's reference object being the output rail in 11 and the main belt
+in 1 - and on **none of the 25 placements** (`+24..+89 mm`), `recoveries=0`, and
+the force servo chases the empty jaw (`F[0.00,x]`, `gap==sep`,
+`closed=15.00-17.80 mm`, `trips=38-52` vs `closed=0.00/trips=0` on every
+placement - the R11-A.1 signature, a *consequence* printed after the release).
+The printed `released at [x,y,z]` is the **fruit's world position** at the
+release tick, not the hand's release pose: `z=0.030-0.051` is the floor beside
+the belt and `1.196` a fruit resting on the main belt, i.e. the jaws open on a
+payload that
+is already down. The frame-free `in-hand |v|max` separates: placed lift
+0.041-0.300 / place 0.069-0.182 m/s against carried-not-placed lift
+**0.343-2.022** / place **0.447-2.035** (the no-grasp class reads 4.76 and is
+separate); 12/12 instrumented failures are already outside the placed band on
+the **lift**, and the ones that survive convert on the place. The close is not
+the discriminator (median closed-span-minus-diameter **+0.12 mm** on the
+failures vs **+0.20** left / **+0.14** right placed; close force 4.02-4.53 N on
+every failure; do not quote `slip_max` - frame-contaminated, W8-B). The only
+remaining measured asymmetry is the transfer, **split within the left**: its
+`place` legs run **50-63 cm / 329-413 ticks on the carried-not-placed** against
+**53-58 cm / 349-384 t on its own placements** (ranges overlap, so length alone
+does not separate) while the right's placements run **32-41 cm / 209-272** on
+the same symmetric target pair; the left is the documented **93.6 deg**
+over-the-output-line solve (`tasks.py:2765`, `logs/428`) with the place point at
+the reach boundary (0.4065 m vs ~0.41, `assets.py:365-375`) - a **correlate, not
+an isolated cause**. The `[carry]` onset rows are absent (the diag is off;
+`[acq]` is direct-only), so the onset facet is
+quoted from W8-B's corpus on this hand (force@onset median 4.90 N, single-sided,
+jaws pried to 98-99 mm in 17/31, contact loss 2-132 ticks after the 2 mm
+crossing, median 25). One diag re-run would put the onset tick on the shipped
+branch; it cannot change the verdict, so it was not run.
+
+**The register (the carry-class levers on the scripted single-arm line; nine do
+not remove the class and the C1 is direct-positive).** Scope: the carry class on
+this line - the close-side P15-M2, the trigger-side M1/M1c and the R3 §4
+belt-speed screen were measured in their own scopes and are named, not tabulated.
+W8-B `FRUIT_CARRY_GUARD` (direct-only): carried 50 -> 42, paired 5-1, p = 0.109,
+**cycle +5.4 %** (1856 -> 1957 t) -> not adopted; R6-B's retune 46 -> 44, 3-1,
+p = 0.3125, **+4.5 %** -> not adopted, the 100-400 mm band converts **0/37**.
+R6-B `FRUIT_CARRY_RELIEF`: force unchanged (Fmin 4.15-4.47 N) - the squeeze side
+closed. R8-A D2a lower plane (-8/-4 mm) 12/20 -> **5/20**; D2b scoop -> **6/20**
+(the ledges bat the payload); D3 nest -> **1/20** - all FAIL, no R8-B. R9 AWR
+25/75 vs 18/75, carried paired 5-4 p = 0.500 - negative. P3 place shift: rate
+18/20 -> 6/20, max safe shift ~30 mm = 1.3 % of the span - geometry-closed.
+R11-B C1 `FRUIT_CLOSE_LOAD_RATE` (dynamic-capture scoped, so the acceptance
+*does* reach it): **negative on all three scripted measurements** - patch
+**12/20 vs 13/18**, two-line **28/60 vs 45/60** (nc 8 -> 25) - and **positive on
+the direct interface**: carried **48 -> 27**, ok 22 -> 39, class-stratified exact
+**p = 0.0026** (MH OR 1.79, CMH chi2 8.68), all 5 B runs beating all 5 A runs;
+the pooled 22/75-vs-39/74 **p = 0.500** (58/74 unpairable) is the
+*episode-pairing* endpoint, a **protocol weakness**, not the lever's verdict
+(`logs/p18b/B_RESULTS.md` §4, `logs/p20/ORACLE_GATE3.md`). The **class-matched
+direct re-run is open** (`B_RESULTS` §5). The C-3 carry monitor: direct
+**lock-on +8.8 % > +5 %** (interval -21.8 %), adopted only on the *two-line*
+(P10-C.3 + the 8 mm confirm gate), and **the single-arm scripted catch never
+arms it** (`tasks.py:8093`) - and its action is a fast-skip (throughput), not a
+conversion. P17-B slide gate: pooled **45/60 -> 37/60**, carried 7 -> 13, 3/3
+seeds worse -> not adopted. Hardware (a short-tip / lipped pad form) and
+D3-proper remain **owner-gated and unbuilt**; `FRUIT_CARRY_HOLD_QUAT` (the wrist
+held at the grip attitude) is built, default off and **never measured**.
+
+**Verdict and recommendation.** The class is **closed negative on the scripted
+single-arm interface**, and the acceptance's 6/10 is that class on that branch
+(the right lane is 12/12 across the two acceptance branches) - but the register
+is **not** uniformly negative: the C1 converts on the **direct** interface and
+fails on the scripted one. Recommended: **(A) accept the 6/10 as a documented
+owner exception** - rate-only red, every *gated* budget passes (the reported,
+not gated, cone is **1.27x**), the reference is the branch's own `25ade92b`, the
+pear is not the cause; `105_motion_regression.py:205-208` keeps the floor at
+**7.5/10** and the exception covers both 6/10 here and the **pre-existing 7/10
+pear-off branch** (`logs/p32/92`). **(C) first** - one bounded, lane-0-only
+candidate: a **lane-0-specific pre-pose/grasp configuration** taken from the
+two-line's own solved station-specific pre-poses (plus, if the offline audit says
+it is the same term, `FRUIT_CARRY_HOLD_QUAT`), needing its own pre-registration,
+its own acceptance re-record and a right-lane/two-line no-harm proof; its
+**primary endpoint is the left's *placed* count** (or the composite cnp +
+no-grasp), because the two-line lead reads 0/10 cnp and still places 6/10 - a
+cnp-only endpoint would pass a class relocation - with cnp and the in-hand band
+secondary, and the **offline kill** (the pre-pose must change the
+pad-centre-to-fruit offset and/or the tool attitude at the close, or it is a null
+before any sim time). **(B) second** - the hardware form change is a **global**
+lever: the hand form sets the margin (the same hand places 48/48 on the right)
+while the left's arm-specific grasp/transfer configuration sets the incidence
+(the two-line's left, same hand with a different pre-pose, reads 0/10 cnp), so
+its no-harm burden is the right's 48/48 and the two-line's 12/20 on top of the
+asset change, the battery, the re-record and the owner's sign-off. Do not re-run
+the closed levers; the one open item is the C1's class-matched direct re-run; do
+not read another branch's rate as an improvement.
+
+**The one doc fix owed.** Only the `AGENTS.md` R11-B paragraph was stale (the
+"stage-N stopped incomplete / C1 unconfirmed" text); it is rewritten in this
+remediation to the `B_RESULTS` §4 verdict. The +5.4 % W8-B / +4.5 % R6-B
+attribution the first pass flagged was **already correct** in `AGENTS.md` (lines
+761 and 876), so nothing is owed there.
+
+**No-harm.** No `src/` change and no shipped default changed; `scripts/
+selfcheck.sh` **PASS (0 failures, 1 skipped)**; `106` OK; `107` PASS (21 checks).
+The Gate-2 remediation is **documentation-only** (no re-run, the same logs;
+`50_carry_census.txt` is the generator's output and is unchanged): `106` OK and
+`107` PASS (21 checks) re-run after the edits. Evidence:
+`logs/p33/carry_census.py`, `logs/p33/50_carry_census.txt`,
+`logs/p33/51_phase2_read.md`.
+
+### P33 phase 3: the post-pear recollection is built and pinned; no measured improvement on the direct interface - 8/45 vs 16/45 overall (p = 0.094), the deficit is the same carried-not-placed class (33 vs 26 of 45), not adopted; the canary smoke 5/10 matches the shipped checkpoint's post-pear count (2026-10-23)
+
+**Why this phase exists.** Every checkpoint and rollout store on this tree
+**predated** P32's pear (this phase adds the first post-pear pair), and the pear
+changes the per-instance RNG draw count and
+every authored mesh (`meshes.py 41efc522`), so a policy number measured on an old
+store is not this tree's. The P32 phase-D note named two ways to close that: a
+post-pear store + the direct A/B, or the owner-accepted OOD risk. This phase ran
+the first. The store is `datasets/p33_pear`, the checkpoint
+`checkpoints/p33_pear`, and both carry the pins that identify them.
+
+**1. The collection** (the W7-C `demos_v13p` recipe, on the current tree). The
+two-line patch scenario - `FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=1`, the 2D patch
+sheet (`FRUIT_SUPPLY_SCATTER=1 FRUIT_SUPPLY_PATCH=1`), the balanced mix
+`A:0.375,B:0.375,C:0.25`, camera 240,424, the shipped 0.12 m/s belt, the pear on
+- collected **180 successful episodes in 288 attempts (62.5 %)** over **six
+sequential runs in 2 h 58 m** (11:15:42-14:13:38; `logs/p33/C_collect_s*_*.log`,
+driver `run_p33c_collect.sh`). The shape is the W7-C *resume* shape, not its first
+pass: the 2026-10-12 batch wedged all three parallel shards in the known blocking
+`RenderingManager.render()`; here each run is bounded at 24 successes and the
+loop starts a fresh directory+seed after a wedge. **No wedge occurred**: all six
+runs exit 0, zero `STALL` lines, the soft per-episode watchdog skipped nothing,
+and `gate_open=0.00 s` prints in every run. Two driver restarts are recorded
+because the default seed arithmetic collided (`run_p33c_collect.sh` had
+`SEEDS=(41 42 43)` with `seed + attempt - 1`, so s1's first run got 42 = s0's
+second run's seed and s2's first got 62 = s1's second run's seed), each of which
+would have replayed a byte-identical episode stream. **The restarts, honestly:**
+the s1 seed-42 partial reached **9 recorded episodes** (counted before deletion;
+its log file was overwritten by the restart); the s2 seed-62 partial ran ~5.5 min
+and was killed at 13:19:54 - **its episode count was not recorded**, its partial
+directory was deleted, and its log filename was reused by the s2 seed-63 run, so
+neither partial's log survives. Neither partial is in the store. The six merged
+dirs are seeds 41/42, 61/62, 63/64; those seeds require `P33_SEEDS` bases 61
+(s1) and 63 (s2) on the restart launches - the observed 61-62/63-64 cannot come
+from the default 42/43 bases - but the exact command lines were not captured
+(the driver logs are the script's own output). The driver's defaults
+were fixed **after** the run (distinct 30-seed blocks plus a used-seed guard, so
+a future launch cannot collide); the P33 store is the old arithmetic's record.
+Store
+**35,730 frames / 32,670 training windows**, `index_md5
+01626590fd25ca228701d53234a4f66c`; arms **left 92 / right 88** (51/49 - the
+two-line is the balanced choice Gate 2 named against the single-arm store's
+14/60); grades **A 92 / B 88** (pure routing; C rides to `despawn_y` by
+construction); classes apple 21 / kiwi 29 / lychee 32 / orange 12 / peach 12 /
+pear **24** / strawberry 24 / tomato 26; diameters 2.9-6.9 cm (median 5.7); zero
+episodes carry notes. Every shard manifest pins `tasks.py cdde6bd2`,
+**`meshes.py 41efc522`** (post-pear), `bed.py 089acea`, `fruits.py 6f65e423`,
+`supply.patch true` with slice/pair/sep, `collection.park_early: "auto"` and
+`carry_monitor: "auto"`; `107` pins both manifest source lists. **Two manifest
+reading notes (Gate 3, L3).** (a) The manifests carry **no `feed_cadence` key**:
+this driver does not set `FRUIT_FEED_CADENCE`, and the field only starts being
+recorded for stores collected from now on (a missing key means the default `0`,
+i.e. the two-line pump off; the P33 phase-1 pump was default off throughout this
+collection). (b) The manifests carry **both `wave: true` and `patch: true`**
+(the two-line scenario defaults `FRUIT_SUPPLY_WAVE` on) and the `[supply]`
+banner prints both blocks, but the **resolved schedule is the PATCH** - the
+branch order is bed > patch > wave > scatter (`fruits.py`; the banner names the
+run) - so read the patch block's slice/pair/sep for this store, not the wave
+block. The 500 `no
+eligible fruit` station-release polls (362 left / 138 right) are the known
+two-line supply structure (W1's per-tick availability), not a stall - the line
+kept running. A 6-attempt/1-episode smoke (`datasets/p33_pear_smoke`) verified
+the recorder and the pins before the batch and is **excluded** from the merge.
+Per-shard: s0 57/96, s1 67/96, s2 56/96 placed.
+
+**2. The merge and the audit.** `41_merge_demos.py` merged the six dirs with
+**180 episodes and 0 dedup drops**; `106_index_audit.py` reads **OK** on every
+store (180/180 files, 35,730/35,730 frames, 32,670 windows, 180 unique contents);
+`107_collect_merge_test.py` PASS (21 checks). `logs/p33/C_store_report.py`
+regenerates the balance/class/size report (`C_store_report.txt`).
+
+**3. The fine-tune.** `scripts/111_rl_finetune.py` from **`moe_v13s`
+(`61da390a`)** - the direct anchor - with `datasets/p33_pear` as the rollout
+store and the single-arm base `datasets/demos_v11` (the W7-C anchor policy: a
+two-line store must not also be the direct anchor), `--weight-mode ones`, 6
+epochs, lr 5e-5, batch 32, seed 0, the checkpoint's normalizer kept, cuda.
+**`checkpoints/p33_pear/policy_best.pt` md5
+`31751eaa9bbe740a2c425833ab85ccfb`**, 217-219 s/epoch (23 min): weighted loss
+**0.0337 -> 0.0245**, router CE 0.190 -> 0.028, router acc **0.937 -> 0.991**,
+demo_val 0.0277 -> **0.0118**, minimum **0.0109** at the fifth of the six epochs
+(`finetune_history.json`). **Do not quote the checkpoint blob's embedded
+`val_loss` (0.00608)**: it is the **base's** value carried through the fine-tune,
+not this run's; the real validation history is the six-row `demo_val` list.
+Provenance
+`tasks_md5 cdde6bd2`, 180 episodes / 32,670 rollout windows + 50 episodes /
+9,378 base windows (`finetune_history.json`); that file now also records the
+store's `index_md5 01626590` and its `meshes.py 41efc522` pin (a JSON record
+only - editing it does not move the checkpoint's md5).
+
+**4. The direct A/B** (`logs/p33/E_ab`; a **sample** under the **W8-A protocol** -
+the W8-A scenario env verbatim: patch
+sheet, balanced mix, arrival trigger lead 0.9 s, the 0.16 m lateral default,
+dynamic never-stop, `FRUIT_ACQ_DIAG=1` + `FRUIT_POLICY_TRIGGER_ACQ=1` on both
+arms; N=3x15, seeds 77/101/202, sampler seed 11, interleaved; one claim
+14:49:56-15:33).
+
+| endpoint | A `moe_v13s` | B `p33_pear` |
+| --- | --- | --- |
+| pooled | **16/45 = 36 %** (runs 7, 6, 3) | **8/45 = 18 %** (runs 1, 2, 5) |
+| per arm | left 2/16, right 14/29 | left 1/21, right 7/24 |
+| ok / no-contact / carried-not-placed | 16 / 3 / **26** | 8 / 4 / **33** |
+| paired, **exact instance** (same run+episode, fruit species, diameter and arm) | 13 pairs: 2 both-ok, 9 both-fail, **2 B-only / 0 A-only** (two-sided sign p = 0.50; one-sided 0.25) | - |
+| paired, **class-matched** (`logs/w8/A_pairs.py`: same run+episode and fruit *species* only) | 16 pairs: 2 both-ok, 10 both-fail, **3 B-only / 1 A-only** (one-sided sign p = 0.3125); **29/45 pairs unpairable** | - |
+| strawberry | 4/8 | 3/6 |
+| median cycle (ticks) | 1865 | 1872 (+0.4 %) |
+| new failure reasons | - | **none** (the same three baseline reason strings on both arms) |
+| run level | 7/15, 6/15, 3/15 | 1/15, 2/15, 5/15; A better in **2/3 seeds**, run-level exact permutation **4/20 = 0.20** (the three run labels permuted across the six runs) |
+
+**The paired endpoint is class-matched, not instance-matched.** `A_pairs.py`
+compares `ea["fruit"] != eb["fruit"]` - the parser's fruit *species* string - so
+after the branch diverges it pairs a 3.6 cm strawberry with a 4.3 cm one and
+still calls it "same-fruit". Its 3-1 B / p = 0.3125 is therefore the
+**class-matched** read. The stricter **exact-instance** read (same run, episode,
+species, diameter and arm - the same spawned instance) has 13 pairs and **2 B-only /
+0 A-only** (two-sided sign p = 0.50; one-sided 0.25); the re-derivation is
+`logs/p33/E_ab/E_pairs_exact.py` -> `E_pairs_exact.txt`. Both reads are quoted; the
+exact one is the stronger instance claim and it is **2-0**, not 3-1; the
+class-matched 3-1 includes two pairs whose diameter differs
+(`r1 ep13` A ok -> B no-contact is the one A-only; `r2 ep2` is a B-only).
+
+The pooled difference is 16/45 vs 8/45 (two-sided Fisher **p = 0.094**); no
+per-arm or per-class comparison separates on its own (left p = 0.57, right
+p = 0.17, carried 26 vs 33 p = 0.18), so the honest read is "the candidate's rate
+halves in this batch, below significance at N=3x15". **The deficit is the
+carried-not-placed class** - 33 of B's 37 failures and 26 of A's 29 - all on the
+trigger path (zero policy-gate fires on either arm), and **acquisition is
+unchanged** (close-start |y| medians A 3.4/3.0 mm, B 3.3/3.2 mm). Nothing new
+fails and the cycle is flat, so the recollection bought no time either.
+
+**5. The hybrid canary (a smoke).** `scripts/accept_policy.sh` on the new
+checkpoint, its shipped **fixed-supply** pin (`FRUIT_SUPPLY_SCATTER=0`, the
+pre-v9 supply): **5/10 = 50 %**, **5 grip losses + 0 grasped-not-placed**,
+rate-only FAIL (floor 0.60). **The comparator is the P32 D0 canary of the
+shipped checkpoint** (`moe_v12`, post-pear, same fixed supply:
+`logs/p32/D0_accept_policy_pear.log` = **5/10, 5 grip losses, 0 cnp**) - this is
+a count match, so the candidate is **not broken and not discriminated** in the
+hybrid interface; the pre-pear **5-8/10** spread is the wrong comparator here
+(it pools pre-pear runs on pre-pear trees). One sample is
+**not** a rate and is not compared to the 6/10 or 7/10 acceptance branches; the
+harness is different from the direct A/B's, so the two are never pooled.
+
+**6. No-harm and validation.** Phase 3 itself changed no `src/` file and no
+shipped default (`git status` at the time carried only the phase-1/2 files; the
+new artifacts are `datasets/p33_pear*`, `checkpoints/p33_pear`, `logs/p33/`).
+The later Gate-3 provenance edits are behaviour-free: `scripts/40_collect_demos.py`
+gains a manifest key (`feed_cadence`) and comments only (existing shard manifests
+are **not** rewritten), and `logs/p33/run_p33c_collect.sh` is an evidence driver
+whose seed defaults/guard are fixed for future runs. **The source tree's
+md5s** are identical before and after the collection
+(`logs/p33/C_collect_md5_before.txt` == `..._after.txt`: `tasks.py cdde6bd2`,
+`meshes.py 41efc522`, `fruits.py 6f65e423`, `bed.py 089acea`,
+`bimanual.py 980923a6`, `scene.py ab85dca2`) - the *shard directories* are new
+artifacts, not the tree. `scripts/selfcheck.sh` **PASS (0 failures, 1 skipped)**;
+`106` OK; `107` PASS (21 checks).
+
+**Verdict and what it means.** The post-pear store and checkpoint exist and are
+pinned; on this interface the candidate shows **no measured improvement and is
+not adopted**: pooled **8/45 vs 16/45** (Fisher p = 0.094; A better in 2/3 seeds
+at run level, run-level exact permutation 4/20 = 0.20), the **class-matched
+paired carry 3-1 B** and the **2 exact pairs 2-0 B**, with **29/45 unpairable**.
+The rate deficit is real in this batch but below significance, so do not call it
+a significant regression either; the pre-registered "improvement" reading fails
+and the negative is what publishes. **The store-transfer vs overwrite question
+is not separated** - this phase cannot say whether the two-line store does not
+transfer to the direct presentation or this fine-tune overwrote the direct
+carry/place, the same ambiguity W8-A named. **Three attribution gaps** keep the
+candidate's scope to "this checkpoint on this interface":
+(a) the store is collected on the **two-line** branch, whose right-arm station is
+`y = -0.10` with its own solved pre-pose, while the direct env presents at
+`y = 0.00` - and the right arm is where B lost (14/29 -> 7/24), so a station
+geometry difference is confounded with the policy change;
+(b) the store is **successes-only** (288 attempts -> 180 episodes; the **52
+carried-not-placed and 56 no-grasp** attempts were discarded), so it contains
+**no example of the class the deficit is in** - a recollection anchored on
+successes cannot teach the failure mode;
+(c) the 6-epoch / lr 5e-5 schedule cannot be separated from an **overwrite** of
+the direct behaviour (no frozen-trunk or replay control was run).
+Two things it does settle: the acquisition/trigger interface is unchanged (so
+the W7-B acquisition readout is not what moved), and the store's own interface is
+the two-line while the A/B is the direct one. **The closure is therefore the
+pinned artifacts + this measured negative, not a policy win**: no checkpoint is
+adopted (`accept_policy.sh` keeps `moe_v12`), and the clause "every checkpoint
+and rollout store on this tree is pre-pear" is now false by exactly these two
+artifacts - every **other** store/checkpoint is pre-pear.
+
+Corrected in place 2026-10-23 by the **P33 phase-3 Gate 3** remediation
+(documentation/provenance only, no re-run, the same logs): the title and verdict
+now read **no measured improvement; not adopted** (not "the transfer measured
+negative") with the pooled/run-level/class-matched/exact-pair figures and
+**store-transfer vs overwrite unseparated**; the paired endpoint is split into
+the **exact-instance 2-0** and the **class-matched 3-1** reads (M1); the
+attribution gaps - station `y = -0.10` vs `0.00` (the right arm, 14/29 -> 7/24),
+the station-specific pre-poses, the **successes-only store** (52 cnp + 56
+no-grasp discarded), the 6-epoch/lr-vs-overwrite ambiguity - are stated (M3);
+the canary comparator is the **P32 D0** post-pear count on the fixed supply, not
+the pre-pear 5-8/10 spread (L5); "the shard trees' md5s" -> **the source tree's
+md5s** (L2); the collection's restarts are recorded honestly, including the s2
+partial whose episode count was not recorded (L1); the manifest reading notes
+(`feed_cadence` absent = default off; wave+patch recorded, **patch resolves**)
+are added (L3); the checkpoint's embedded `val_loss` is the base's and the real
+`demo_val` history is `finetune_history.json` (L4). The driver's seed collision
+is fixed in `run_p33c_collect.sh` (distinct blocks + a used-seed guard) and the
+collector now records `feed_cadence` for future stores (L1/L3). Pins unchanged:
+`tasks.py cdde6bd2`, checkpoint md5 `31751eaa`, store `index_md5 01626590`;
+no shipped default changed.

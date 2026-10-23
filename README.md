@@ -356,10 +356,19 @@ implementation: the simulation cell, the data pipeline, and the policy training 
 > canary on this **pear** tree (the pre-v9 fixed supply) reads **5/10 = 50 %**
 > against the recorded pre-pear spread **5-8/10** (floor 0.60) - 5 grip losses,
 > 0 grasped-not-placed, the gate FAILs on the rate only; one sample is a
-> **smoke**, not a rate. Every checkpoint/store is **pre-pear** (the
-> `meshes.py` pins are in the collector and `rl_env._MANIFEST_SOURCES`), and
-> the **owner-accepted OOD note is the closure**: do not quote a pre-P32
-> policy rate as this tree's rate.
+> **smoke**, not a rate. (This is the **P32 D0** run on the shipped `moe_v12`;
+> P33's canary comparator is this post-pear count itself, not the pre-pear
+> spread - see the P33 note below.) Every checkpoint/store was **pre-pear** at the P32
+> close-out (the `meshes.py` pins are in the collector and
+> `rl_env._MANIFEST_SOURCES`); the **owner-accepted OOD note is the closure** for
+> those - do not quote a pre-P32 policy rate as this tree's rate. **P33 phase 3
+> (2026-10-23) added the first post-pear store + checkpoint**
+> (`datasets/p33_pear` `index_md5 01626590`, `checkpoints/p33_pear`
+> `31751eaa`) and measured them on the direct interface: **no measured
+> improvement, not adopted** (8/45 vs 16/45 overall, p = 0.094; the deficit is
+> the same carried-not-placed class, 33 vs 26 of 45; the canary smoke 5/10
+> matches the shipped checkpoint's post-pear count - not discriminating). The
+> OOD note therefore now applies to **every other** pre-P32 store/checkpoint.
 
 > **汇报入口**：[项目总结报告.md](项目总结报告.md)（单一文档，含图表与日志编号）；路线取舍见 [决策与交付.md](决策与交付.md)；**项目收尾一页纸见 [docs/CLOSEOUT.md](docs/CLOSEOUT.md)**（R11-C：交付状态 / 全部杠杆族的实测裁定 / 剩余项）；一键演示 `scripts/demo_2min.sh`。
 

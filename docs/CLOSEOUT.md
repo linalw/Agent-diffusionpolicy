@@ -13,8 +13,8 @@ lands it (`R11 PLAN`, `.slim/deepwork/sorting-pipeline-v3.md`).
 | --- | --- | --- |
 | **Single-arm scripted line** (OpenArm, never-stop dynamic catch, v9/V1 scattered supply) | `FRUIT_DYNAMIC_PICK` unset (catch on the fly) | **9/10 x5 bit-identical, 15.2 s/attempt, 3.55 placed/min**; acceptance 9/10 + motion gate PASS + `fingerprint: matches` (R6-B-era record; **P32 pear-on: 6/10, the reference re-recorded to 25ade92b** - see AGENTS §1); `FRUIT_SUPPLY_SCATTER=0` reproduces the pre-v9 fixed line line-identically (`logs/v1/`) |
 | **Bimanual** (`FRUIT_BIARM=1`, shared-station pipeline) | opt-in | 9/10, 15.0 s/attempt, 3.59 placed/min vs single 3.42 = **1.05x** - below the bar, not flipped (`logs/g/`) |
-| **Two-line** (`FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=1`) | opt-in; **park-gate lever on** (W7-A, `FRUIT_BIARM_PARK_EARLY` default 1 in two-line sessions) | patch: **12/20, 3.63 placed/min** window (timing-only +10 % vs W6-B; residual x1.22 cross-branch); dense W3/W4: 7/10, 9.1 s/attempt, 4.60 placed/min (own reference `configs/motion_reference_twoline.json`); **P32 bed (opt-in `FRUIT_SUPPLY_BED=1`; a different scenario - not a comparison): 12/20, 4.19/4.22 placed/min, interval 14.23/15.50/19.00 s, idle 15/15 %, +24 % wall (285 -> 352-356 s) and a delivered band of 2-8/10 with `late_dropped=139.6 s`; own reference `configs/motion_reference_twoline_bed.json` (`190 -m 0.5` PASS); the prepared-next lever is a zero-actuation null - the dispatch cost is the pre-pose transit, not the selection**; clearance is a **per-config report** (R5) |
-| **Policy** | `moe_v12` (hybrid pinned canary = the gate of record; `FRUIT_POLICY_TRIGGER_LATERAL=0.16`) | the direct causal loop is the mechanism interface under the **N=5 protocol**; the hybrid handoff is inert by construction (R5 decision) |
+| **Two-line** (`FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=1`) | opt-in; **park-gate lever on** (W7-A, `FRUIT_BIARM_PARK_EARLY` default 1 in two-line sessions) | patch: **12/20, 3.63 placed/min** window (timing-only +10 % vs W6-B; residual x1.22 cross-branch); dense W3/W4: 7/10, 9.1 s/attempt, 4.60 placed/min (own reference `configs/motion_reference_twoline.json`); **P32 bed (opt-in `FRUIT_SUPPLY_BED=1`; a different scenario - not a comparison): 12/20, 4.19/4.22 placed/min, interval 14.23/15.50/19.00 s, idle 15/15 %, +24 % wall (285 -> 352-356 s) and a delivered band of 2-8/10 (same-instant census 5.5/6.9) with `late_dropped=139.6 s`; own reference `configs/motion_reference_twoline_bed.json` (`190 -m 0.5` PASS); the prepared-next lever is a zero-actuation null - the dispatch cost is the pre-pose transit, not the selection**; the **P33 mid-attempt pump** (default off) raises that band to 8.3/10 (census 8.4/8.8) but the catchable window is flat (1.5/2.4 -> 0.9/2.2) and left starvation rises to 5/15 (a grade drought) at **+20.9 % wall**; clearance is a **per-config report** (R5) |
+| **Policy** | `moe_v12` (hybrid pinned canary = the gate of record; `FRUIT_POLICY_TRIGGER_LATERAL=0.16`) | the direct causal loop is the mechanism interface under the **N=5 protocol**; the hybrid handoff is inert by construction (R5 decision). The **P33 post-pear checkpoint `p33_pear`** (`31751eaa`) exists and is **not adopted** (direct 8/45 vs 16/45 overall, p = 0.094 - no measured improvement; canary smoke 5/10 matches the shipped post-pear count) - see item 8 |
 | Measurement rules | - | outcome is quantized (compare per-leg metrics + attractor, never cross-config rates); diagnostics default off; Tier A solo; `scripts/selfcheck.sh` / `accept.sh` / `accept_policy.sh` / `demo_2min.sh` |
 
 ## 2. The measured boundary (every lever family + verdict)
@@ -83,6 +83,25 @@ conclusion and the unconfirmed C1 candidate are recorded.
    the denser sheet (P1c). Localising this further is the owner's call; the
    provenance is pinned (`bed.py` in both manifest source lists; the collector's
    `supply` block records the resolved bed geometry when the bed is on).
+   **P33 phase 1 (2026-10-23) measured the mid-attempt pump** (the two-line
+   shared tick, `FRUIT_FEED_CADENCE=1`, default off): band **4.2 -> 8.3/10**
+   (the same-instant census **5.5/6.9 -> 8.4/8.8** - quote it with the band;
+   the 4.2 -> 8.3 pair is 20 boundary samples against 157 continuous),
+   `late_dropped` **139.6 -> 7.9 s**, but the catchable per-arm window
+   **1.5/2.4 -> 0.9/2.2** - the aperture is a **stock-depth ceiling** (10 bodies
+   over 0.58 m; 0.28 m ~= 2 rows ~= 1.8 per grade-pure lane above the ~0.40 m
+   floor, so 8.3/10 is 83 % of capacity) - and per-slot starvation is
+   **worse** (left 0/10 -> **5/15 = 33.3 %**, a **grade drought**: 6 of the 8
+   starve episodes are `admitted=0` with the band full at 7-10/10); a different
+   branch (13/20 left 9/right 4 vs 12/20 6/6). The wall is **+20.9 % (484 ->
+   585 s) = +4.4 % sim span (171.8 -> 179.4 s) x +15.7 % per sim-second**, with
+   a supply burn of **432 releases / 348 bed placements for 13 arm placements**
+   (control 126/107 for 12); the single-arm pair reads window 4.6 -> 3.9 at
+   +30.1 % wall at equal sim span (149.7 vs 148.7 s). The density is a physics
+   lever, not a free win; a lower floor is closed (R3/R11-A), a higher station
+   is bounded at <= 0.10 m (R10-A intercept map), and the row composition is a
+   drought lever needing its own pre-registration (`logs/p33/`, WORKLOG "P33
+   phase 1").
 7. **The prepared-next lever is a measured null** (`FRUIT_PREPARED_NEXT=1`,
    two-line only, gated by `session.prepared_enabled`; default off): the arm is
    byte-identical to the control (`built=0 empty=19`); the build->consume gaps
@@ -90,13 +109,26 @@ conclusion and the unconfirmed C1 candidate are recorded.
    two-line's dispatch cost is the pre-pose transit, not the selection. A
    two-line mid-attempt pump or a boundary-release build is the named
    follow-up if the owner wants the lever.
-8. **Every policy checkpoint and rollout store on this tree is pre-pear**; the
-   **owner-accepted OOD note is the closure** (the pear changes the per-instance
-   RNG draw count and every authored mesh; the `meshes.py` pin makes a
-   post-pear store identifiable). The pear-tree hybrid canary reads 5/10 = 50 %
-   (5 grip losses, rate-only FAIL) inside the recorded pre-pear 5-8/10 spread -
-   a smoke, not a rate. Any post-pear policy claim needs a post-pear store and
-   its own pinned canary.
+8. **Every policy checkpoint and rollout store on this tree was pre-pear at the
+   P32 close-out**; the **owner-accepted OOD note is the closure** for those
+   (the pear changes the per-instance RNG draw count and every authored mesh;
+   the `meshes.py` pin makes a post-pear store identifiable). The pear-tree
+   hybrid canary reads 5/10 = 50 % (5 grip losses, rate-only FAIL); its
+   comparator is the **P32 D0** post-pear `moe_v12` count on the same fixed
+   supply (also 5/10, 5 grip losses) - a match, so not broken and not
+   discriminating; one sample, a smoke, not a rate. **P33 phase 3 (2026-10-23)
+   added the first post-pear store and checkpoint** (`datasets/p33_pear`,
+   `index_md5 01626590`; `checkpoints/p33_pear`, md5 `31751eaa`): on the direct
+   interface (W8-A protocol, `FRUIT_POLICY_TRIGGER_ACQ=1`, a sample) it shows
+   **no measured improvement and is not adopted** - 8/45 vs `moe_v13s`'s 16/45
+   overall (p = 0.094; A better in 2/3 seeds at run level, exact permutation
+   4/20 = 0.20), the deficit is the same carried-not-placed class (33 vs 26 of
+   45), the class-matched paired carry 3-1 B (the 2 exact-instance pairs 2-0),
+   29/45 unpairable; **store-transfer vs overwrite is unseparated**, and the
+   attribution gaps (station y = -0.10 vs 0.00, station pre-poses, a
+   successes-only store - 52 cnp + 56 no-grasp discarded, the 6-epoch/lr-vs-
+   overwrite confound) scope it to *this checkpoint on this interface*. Any
+   further post-pear claim needs its own store, checkpoint and pinned canary.
 
 ## 5. Pointers
 
