@@ -227,7 +227,8 @@ shard pinning `meshes.py` `41efc522`) and `checkpoints/p33_pear` (md5
 `FRUIT_POLICY_TRIGGER_ACQ=1`, a sample**) the new checkpoint reads **8/45 vs
 `moe_v13s`'s 16/45 overall; the deficit is the same class (cnp 33 vs 26 of
 45)** - pooled p = 0.094, A better in 2/3 seeds at run level (exact permutation
-~0.20), the class-matched paired carry 3-1 B (the 2 exact-instance pairs 2-0),
+~0.20), the class-matched paired carry 3-1 B (the 2 exact-instance pairs 2-0 -
+*inferred*: run + episode + species + diameter + arm, no stored instance id),
 29/45 unpairable; no new failure reason, cycle flat. **Store-transfer vs
 overwrite is unseparated**, and the attribution gaps keep this to *this
 checkpoint on this interface*: the store's right station is `y = -0.10` (the
@@ -238,7 +239,9 @@ the deficit is in); and the 6-epoch/lr 5e-5 schedule cannot be separated from an
 overwrite. The hybrid canary smoke (fixed supply) reads **5/10**, matching the
 shipped checkpoint's post-pear P32 D0 count - not broken, not discriminating (a
 sample, not a rate). Nothing was adopted (`accept_policy.sh` still defaults to
-`moe_v12`).
+`moe_v12`). **The two-line has no policy eval harness** (`60_eval_policy.py` /
+`accept_policy.sh` drive the single-arm presentation), so `p33_pear` is not
+evaluated on the two-line interface - out of scope for the direct OOD closure.
 
 **W4 (Gate 30, 2026-10-10, `logs/w4/`): the dense direct collapse is the
 trigger's lateral gate, and the two-line recollection is the wrong anchor for

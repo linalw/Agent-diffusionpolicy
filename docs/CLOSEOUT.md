@@ -11,7 +11,7 @@ lands it (`R11 PLAN`, `.slim/deepwork/sorting-pipeline-v3.md`).
 
 | piece | default | state |
 | --- | --- | --- |
-| **Single-arm scripted line** (OpenArm, never-stop dynamic catch, v9/V1 scattered supply) | `FRUIT_DYNAMIC_PICK` unset (catch on the fly) | **9/10 x5 bit-identical, 15.2 s/attempt, 3.55 placed/min**; acceptance 9/10 + motion gate PASS + `fingerprint: matches` (R6-B-era record; **P32 pear-on: 6/10, the reference re-recorded to 25ade92b** - see AGENTS §1); `FRUIT_SUPPLY_SCATTER=0` reproduces the pre-v9 fixed line line-identically (`logs/v1/`) |
+| **Single-arm scripted line** (OpenArm, never-stop dynamic catch, v9/V1 scattered supply) | `FRUIT_DYNAMIC_PICK` unset (catch on the fly) | **9/10 x5 bit-identical, 15.2 s/attempt, 3.55 placed/min**; acceptance 9/10 + motion gate PASS + `fingerprint: matches` (R6-B-era record; **P32 pear-on: 6/10, the reference re-recorded to 25ade92b, accepted under the owner exception - §3** - see AGENTS §1); `FRUIT_SUPPLY_SCATTER=0` reproduces the pre-v9 fixed line line-identically (`logs/v1/`) |
 | **Bimanual** (`FRUIT_BIARM=1`, shared-station pipeline) | opt-in | 9/10, 15.0 s/attempt, 3.59 placed/min vs single 3.42 = **1.05x** - below the bar, not flipped (`logs/g/`) |
 | **Two-line** (`FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=1`) | opt-in; **park-gate lever on** (W7-A, `FRUIT_BIARM_PARK_EARLY` default 1 in two-line sessions) | patch: **12/20, 3.63 placed/min** window (timing-only +10 % vs W6-B; residual x1.22 cross-branch); dense W3/W4: 7/10, 9.1 s/attempt, 4.60 placed/min (own reference `configs/motion_reference_twoline.json`); **P32 bed (opt-in `FRUIT_SUPPLY_BED=1`; a different scenario - not a comparison): 12/20, 4.19/4.22 placed/min, interval 14.23/15.50/19.00 s, idle 15/15 %, +24 % wall (285 -> 352-356 s) and a delivered band of 2-8/10 (same-instant census 5.5/6.9) with `late_dropped=139.6 s`; own reference `configs/motion_reference_twoline_bed.json` (`190 -m 0.5` PASS); the prepared-next lever is a zero-actuation null - the dispatch cost is the pre-pose transit, not the selection**; the **P33 mid-attempt pump** (default off) raises that band to 8.3/10 (census 8.4/8.8) but the catchable window is flat (1.5/2.4 -> 0.9/2.2) and left starvation rises to 5/15 (a grade drought) at **+20.9 % wall**; clearance is a **per-config report** (R5) |
 | **Policy** | `moe_v12` (hybrid pinned canary = the gate of record; `FRUIT_POLICY_TRIGGER_LATERAL=0.16`) | the direct causal loop is the mechanism interface under the **N=5 protocol**; the hybrid handoff is inert by construction (R5 decision). The **P33 post-pear checkpoint `p33_pear`** (`31751eaa`) exists and is **not adopted** (direct 8/45 vs 16/45 overall, p = 0.094 - no measured improvement; canary smoke 5/10 matches the shipped post-pear count) - see item 8 |
@@ -31,6 +31,7 @@ lands it (`R11 PLAN`, `.slim/deepwork/sorting-pipeline-v3.md`).
 | Pre-onset load path (`FRUIT_CLOSE_LOAD_RATE` / `_CONTACT_LEAD` / `_PLUCK_DWELL`) | **not adopted** (R11-B, this close-out) | the M screen's strongest candidate (freeze row 18.0 -> 55.5, face speed 188.7 -> 39.9 mm/s) reads **12/20 = 60 % vs the control 13/18 = 72 %** on stage P (cnp 3 = 5-2 exactly at the bar; never-grasped 0 -> 5); stage N stopped incomplete (A run 1 = 6/15); the payload is held to 0.5 mm through the pre-onset window - **the pre-onset load path is not the discriminator; the escape is a mid-lift one-sided loaded slide** (`logs/r11/B_RESULTS.md`) |
 | Interface (policy-gate bypass / ACQ / trigger) | **R7-A closed, not shipped; ACQ not shipped** | the x-edge refusal binds both fire paths (0 out-of-band fires / 0 bypasses on the forced band); `FRUIT_POLICY_TRIGGER_ACQ` stays default off (a measurement interface); trigger lateral 0.16 shipped (W4) |
 | Instrumentation (carry metric) | **delivered** | `clean_slip` separates clean (0.02-1.43 mm) from escapes (17.9-957 mm), no overlap; the legacy `[motion] carry slip_max` must not be quoted for the OpenArm hand (frame-contaminated) |
+| Feeder pool/capacity invariant (`live_recycled`) | **accepted as documented** (default-off lever) | at the shipped/boundary cadence the invariant holds **0/72**; at the P33 pump's draw rate it reads **1/510**, and the victim is a *placed* fruit already past the recycle line (`recycled_dy=-0.17 m`) - a pool/capacity bookkeeping event, not a failed payload; the pump's draw rate is the named residual (`logs/p33/`, WORKLOG "P33 phase 1") |
 
 ## 3. Owner decisions closed
 
@@ -48,6 +49,15 @@ acceptance-floor item failed twice (4/10, 4/9); default unchanged; the
 * **R11-B/C (this close-out)**: the load-path lane executed; stage-P not
 positive; stage-N stopped incomplete; **not adopted**; the phase's mechanism
 conclusion and the unconfirmed C1 candidate are recorded.
+* **P33 acceptance exception (2026-10-23, granted)**: the shipped acceptance's
+  floor stays **7.5/10** (`scripts/105_motion_regression.py:205-208`) and the
+  **6/10 pear-on + the pre-existing 7/10 pear-off** branches are accepted as the
+  documented **owner exception** (the owner's "继续"; the reference is the
+  branch's own `configs/motion_reference.json` md5 `25ade92b`). This is an
+  exception, not a floor change, and **a green acceptance is not claimed**; the
+  red rate is the left-lane carried-not-placed class, closed negative on the
+  scripted single-arm interface (`logs/p33/51_phase2_read.md`, WORKLOG "P33
+  phase 2").
 
 ## 4. Named remaining items (no blocked rows)
 
@@ -73,7 +83,9 @@ conclusion and the unconfirmed C1 candidate are recorded.
    pre-pear reference is archived at `logs/p32/motion_reference_pre_pear.json`,
    `406745c5`). A green acceptance cannot be quoted on this tree; the pear-off
    control is a different scenario (its fingerprint differs from the shipped
-   reference) and is not this tree's pear cost (AGENTS §1).
+   reference) and is not this tree's pear cost (AGENTS §1). **The exception is
+   granted (§3)**: the floor stays 7.5/10 and the 6/10 pear-on plus the
+   pre-existing 7/10 pear-off are the documented owner exception.
 6. **The dense 2D bed stays opt-in** (`FRUIT_SUPPLY_BED=1`, default off; own
    reference `configs/motion_reference_twoline_bed.json`, `dcd19758`,
    `190 -m 0.5` PASS): two-line battery **12/20, 4.19/4.22 placed/min, interval
@@ -101,7 +113,10 @@ conclusion and the unconfirmed C1 candidate are recorded.
    lever, not a free win; a lower floor is closed (R3/R11-A), a higher station
    is bounded at <= 0.10 m (R10-A intercept map), and the row composition is a
    drought lever needing its own pre-registration (`logs/p33/`, WORKLOG "P33
-   phase 1").
+   phase 1"). **The `live_recycled=1/510` is accepted as documented** (a
+   default-off lever; 0/72 at the shipped/boundary cadence; the victim already
+   past the recycle line, `recycled_dy=-0.17 m`); the pump's draw rate is the
+   named residual.
 7. **The prepared-next lever is a measured null** (`FRUIT_PREPARED_NEXT=1`,
    two-line only, gated by `session.prepared_enabled`; default off): the arm is
    byte-identical to the control (`built=0 empty=19`); the build->consume gaps
@@ -123,11 +138,15 @@ conclusion and the unconfirmed C1 candidate are recorded.
    **no measured improvement and is not adopted** - 8/45 vs `moe_v13s`'s 16/45
    overall (p = 0.094; A better in 2/3 seeds at run level, exact permutation
    4/20 = 0.20), the deficit is the same carried-not-placed class (33 vs 26 of
-   45), the class-matched paired carry 3-1 B (the 2 exact-instance pairs 2-0),
+   45), the class-matched paired carry 3-1 B (the 2 exact-instance pairs 2-0 -
+   *inferred*: run + episode + species + diameter + arm, no stored instance id),
    29/45 unpairable; **store-transfer vs overwrite is unseparated**, and the
    attribution gaps (station y = -0.10 vs 0.00, station pre-poses, a
    successes-only store - 52 cnp + 56 no-grasp discarded, the 6-epoch/lr-vs-
-   overwrite confound) scope it to *this checkpoint on this interface*. Any
+   overwrite confound) scope it to *this checkpoint on this interface*. **The
+   two-line has no policy eval harness** (`60_eval_policy.py` /
+   `accept_policy.sh` are single-arm), so `p33_pear` is not evaluated there -
+   out of scope for the direct OOD closure. Any
    further post-pear claim needs its own store, checkpoint and pinned canary.
 
 ## 5. Pointers
@@ -139,7 +158,9 @@ register) - `docs/OPS.md` + `scripts/191_ops_selfcheck.sh` (ops) -
 `logs/r11/B_RESULTS.md` (**the R11-B verdict**) - `logs/r11/A_RESULTS.md` /
 `A1_RESULTS.md` (the reach adoption) - `logs/w8/B_RESULTS.md`,
 `logs/w6/BASELINE.md`, `logs/r5/RESULTS.md`, `logs/r9/RESULTS.md`,
-`logs/r6/B_RESULTS.md`, `logs/r8/A_RESULTS.md` (the lever-family evidence).
+`logs/r6/B_RESULTS.md`, `logs/r8/A_RESULTS.md` (the lever-family evidence) -
+`logs/p33/` + WORKLOG "P33 phase 1..4" (**the P33 lane**: the pump, the carry
+census/read, the post-pear store/checkpoint, the close-out record).
 
 *One page, dense by design; every number carries its log pointer in the
 documents above.*

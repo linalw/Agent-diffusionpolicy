@@ -16684,8 +16684,11 @@ re-released by the feeder; the cause is the **pool/capacity invariant**
 (`_bed_note_live_draw` fires when a draw finds no parked body, ~51 draws per
 attempt on a 40-fruit pool) and the harm is bounded (`recycled_dy=-0.17 m`: the
 body was already past the recycle line - the normal end-of-line recycle, not a
-mid-belt candidate). Record: the zero invariant holds at the boundary cadence
-(0/72) and does not at the pump's rate (1/510); accept-vs-fix is Phase 4's.
+mid-belt candidate). **Decision (Gate 4): accepted as documented** - the lever
+is default off, the pool/capacity invariant holds at the shipped/boundary
+cadence (**0/72**) and reads **1/510** only at the pump's draw rate, and the
+victim was already past the recycle line (`recycled_dy=-0.17 m`); the pump's
+draw rate is the named residual, not a defect to fix.
 The pump's carry warnings include the known frame-contaminated `slip_max` (do
 not quote it - W8-B). Pins: `tasks.py`
 `cdde6bd20670331ffbe8deb5d4f60b13`, `bimanual.py` (the hook), `rl_env.py`
@@ -16700,7 +16703,7 @@ often per slot" read was wrong), the aperture arithmetic (10 bodies / 0.58 m;
 (5.5/6.9 -> 8.4/8.8) beside the 4.2 -> 8.3 headline, the wall decomposition and
 supply burn, and the `live_recycled` attribution.
 
-### P33 phase 2: the acceptance's red rate is the lane-0 (left) configuration's carried-not-placed class - 33/33 on the single-arm corpus, nine lever families closed and the C1 direct-positive, and the owner's decision (2026-10-23)
+### P33 phase 2: the acceptance's red rate is the lane-0 (left) configuration's carried-not-placed class - 33/33 on the four single-arm families (35 of 36 cnp corpus-wide on the left), nine lever families closed and the C1 direct-positive, and the owner's decision (2026-10-23)
 
 Offline census on the P32/P33 tree, **no simulator run, no shipped default
 changed, no commit**. Re-derivation `logs/p33/carry_census.py` ->
@@ -16719,8 +16722,11 @@ is `logs/p33/51_phase2_read.md` §1-§5.
 10; pear battery (`90`+`91`) 6 of 18; single-arm bed battery (`72`,`77`,`79`,
 `87`=`20`,`88`) 21 cnp + 12 no-grasp of 70; two-line bed (`A0`=`A1`=`A3`=`10`)
 1 of 20; shared-station bimanual acceptance (`E1`) 2 of 10. **The class is the
-lane-0/left configuration: 33 of 33 carried-not-placed episodes on the left, 0
-of 48 on the right** - per family (left / right, `att/placed/cnp/no-grasp`):
+lane-0/left configuration: 33 of 33 carried-not-placed episodes on the left and
+0 of 48 on the right within the four single-arm families** (the two-line bed
+contributes **1 right cnp** and the shared-station bimanual **2 left cnp**, so
+corpus-wide the class statement is **35 of 36 cnp on the left**; the read's
+per-family table carries them) - per family (left / right, `att/placed/cnp/no-grasp`):
 acceptance pear-on 5/1/3/1 vs 5/5/0/0, pear-off 3/0/3/0 vs 7/7/0/0, pear battery
 8/2/6/0 vs 10/10/0/0, single-arm bed 44/11/21/12 vs 26/26/0/0. **Do not quote
 those as rates**: the 60/48 columns pool five branches over two supply schedules
@@ -16822,16 +16828,17 @@ seeds worse -> not adopted. Hardware (a short-tip / lipped pad form) and
 D3-proper remain **owner-gated and unbuilt**; `FRUIT_CARRY_HOLD_QUAT` (the wrist
 held at the grip attitude) is built, default off and **never measured**.
 
-**Verdict and recommendation.** The class is **closed negative on the scripted
+**Verdict and the owner's decision.** The class is **closed negative on the scripted
 single-arm interface**, and the acceptance's 6/10 is that class on that branch
 (the right lane is 12/12 across the two acceptance branches) - but the register
 is **not** uniformly negative: the C1 converts on the **direct** interface and
-fails on the scripted one. Recommended: **(A) accept the 6/10 as a documented
-owner exception** - rate-only red, every *gated* budget passes (the reported,
-not gated, cone is **1.27x**), the reference is the branch's own `25ade92b`, the
-pear is not the cause; `105_motion_regression.py:205-208` keeps the floor at
-**7.5/10** and the exception covers both 6/10 here and the **pre-existing 7/10
-pear-off branch** (`logs/p32/92`). **(C) first** - one bounded, lane-0-only
+fails on the scripted one. **(A) is granted** (the owner's "继续", 2026-10-23):
+**accept the 6/10 as a documented owner exception** - rate-only red, every
+*gated* budget passes (the reported, not gated, cone is **1.27x**), the
+reference is the branch's own `25ade92b`, the pear is not the cause;
+`105_motion_regression.py:205-208` keeps the floor at **7.5/10** and the
+exception covers both 6/10 here and the **pre-existing 7/10 pear-off branch**
+(`logs/p32/92`) - see `docs/CLOSEOUT.md` §3. **(C) first** - one bounded, lane-0-only
 candidate: a **lane-0-specific pre-pose/grasp configuration** taken from the
 two-line's own solved station-specific pre-poses (plus, if the offline audit says
 it is the same term, `FRUIT_CARRY_HOLD_QUAT`), needing its own pre-registration,
@@ -16863,6 +16870,15 @@ The Gate-2 remediation is **documentation-only** (no re-run, the same logs;
 `107` PASS (21 checks) re-run after the edits. Evidence:
 `logs/p33/carry_census.py`, `logs/p33/50_carry_census.txt`,
 `logs/p33/51_phase2_read.md`.
+
+Corrected in place 2026-10-23 by the **Gate-4 close-out** (documentation only,
+no re-run): (A) is **granted** as the owner's decision (the owner's "继续";
+`docs/CLOSEOUT.md` §3 and `docs/ROADMAP.md` row 10 now carry it), not a
+recommendation; and the census scope is the **four single-arm families**
+(33/33 left, 0/48 right) - the two-line bed contributes 1 right cnp and the
+shared-station bimanual 2 left cnp, so the class statement is **35 of 36 cnp on
+the left** corpus-wide (the commit message's "across the corpus" is history and
+is not rewritten).
 
 ### P33 phase 3: the post-pear recollection is built and pinned; no measured improvement on the direct interface - 8/45 vs 16/45 overall (p = 0.094), the deficit is the same carried-not-placed class (33 vs 26 of 45), not adopted; the canary smoke 5/10 matches the shipped checkpoint's post-pear count (2026-10-23)
 
@@ -16965,7 +16981,7 @@ arms; N=3x15, seeds 77/101/202, sampler seed 11, interleaved; one claim
 | pooled | **16/45 = 36 %** (runs 7, 6, 3) | **8/45 = 18 %** (runs 1, 2, 5) |
 | per arm | left 2/16, right 14/29 | left 1/21, right 7/24 |
 | ok / no-contact / carried-not-placed | 16 / 3 / **26** | 8 / 4 / **33** |
-| paired, **exact instance** (same run+episode, fruit species, diameter and arm) | 13 pairs: 2 both-ok, 9 both-fail, **2 B-only / 0 A-only** (two-sided sign p = 0.50; one-sided 0.25) | - |
+| paired, **exact instance** - *inferred* (same run+episode, fruit species, diameter and arm; **no stored instance id**) | 13 pairs: 2 both-ok, 9 both-fail, **2 B-only / 0 A-only** (two-sided sign p = 0.50; one-sided 0.25) | - |
 | paired, **class-matched** (`logs/w8/A_pairs.py`: same run+episode and fruit *species* only) | 16 pairs: 2 both-ok, 10 both-fail, **3 B-only / 1 A-only** (one-sided sign p = 0.3125); **29/45 pairs unpairable** | - |
 | strawberry | 4/8 | 3/6 |
 | median cycle (ticks) | 1865 | 1872 (+0.4 %) |
@@ -16977,7 +16993,9 @@ compares `ea["fruit"] != eb["fruit"]` - the parser's fruit *species* string - so
 after the branch diverges it pairs a 3.6 cm strawberry with a 4.3 cm one and
 still calls it "same-fruit". Its 3-1 B / p = 0.3125 is therefore the
 **class-matched** read. The stricter **exact-instance** read (same run, episode,
-species, diameter and arm - the same spawned instance) has 13 pairs and **2 B-only /
+species, diameter and arm - the same spawned instance, **inferred**: there is no
+stored instance id in the rollout record, so the match is a fingerprint, not a
+read-back) has 13 pairs and **2 B-only /
 0 A-only** (two-sided sign p = 0.50; one-sided 0.25); the re-derivation is
 `logs/p33/E_ab/E_pairs_exact.py` -> `E_pairs_exact.txt`. Both reads are quoted; the
 exact one is the stronger instance claim and it is **2-0**, not 3-1; the
@@ -17005,6 +17023,13 @@ hybrid interface; the pre-pear **5-8/10** spread is the wrong comparator here
 **not** a rate and is not compared to the 6/10 or 7/10 acceptance branches; the
 harness is different from the direct A/B's, so the two are never pooled.
 
+**The driver's `exit=1` is a verdict, not a crash.** `logs/p33/E_outer.log`
+carries `exit=1` on the batch (`claim_run`, `p33c-ab batch`, `verdict`) and on
+the canary: `112_rl_ab.sh` ends on `113_rl_report.py`, whose `return 1` is the
+"no measured improvement" verdict, and `accept_policy.sh` returns 1 on a
+rate-only FAIL - **all six A/B runs completed** (3 A + 3 B, `E_driver.log`), the
+read-only reports ran `exit=0`, and the canary's ten episodes finished.
+
 **6. No-harm and validation.** Phase 3 itself changed no `src/` file and no
 shipped default (`git status` at the time carried only the phase-1/2 files; the
 new artifacts are `datasets/p33_pear*`, `checkpoints/p33_pear`, `logs/p33/`).
@@ -17023,7 +17048,9 @@ artifacts, not the tree. `scripts/selfcheck.sh` **PASS (0 failures, 1 skipped)**
 pinned; on this interface the candidate shows **no measured improvement and is
 not adopted**: pooled **8/45 vs 16/45** (Fisher p = 0.094; A better in 2/3 seeds
 at run level, run-level exact permutation 4/20 = 0.20), the **class-matched
-paired carry 3-1 B** and the **2 exact pairs 2-0 B**, with **29/45 unpairable**.
+paired carry 3-1 B** and the **2 exact pairs 2-0 B** (the exact pairing is
+**inferred** - run + episode + species + diameter + arm, no stored instance id),
+with **29/45 unpairable**.
 The rate deficit is real in this batch but below significance, so do not call it
 a significant regression either; the pre-registered "improvement" reading fails
 and the negative is what publishes. **The store-transfer vs overwrite question
@@ -17043,7 +17070,10 @@ successes cannot teach the failure mode;
 the direct behaviour (no frozen-trunk or replay control was run).
 Two things it does settle: the acquisition/trigger interface is unchanged (so
 the W7-B acquisition readout is not what moved), and the store's own interface is
-the two-line while the A/B is the direct one. **The closure is therefore the
+the two-line while the A/B is the direct one. **The two-line has no policy eval
+harness** (`60_eval_policy.py` / `accept_policy.sh` drive the single-arm
+presentation), so `p33_pear` is **not** evaluated on the two-line interface -
+out of scope for the direct OOD closure. **The closure is therefore the
 pinned artifacts + this measured negative, not a policy win**: no checkpoint is
 adopted (`accept_policy.sh` keeps `moe_v12`), and the clause "every checkpoint
 and rollout store on this tree is pre-pear" is now false by exactly these two
@@ -17069,3 +17099,79 @@ is fixed in `run_p33c_collect.sh` (distinct blocks + a used-seed guard) and the
 collector now records `feed_cadence` for future stores (L1/L3). Pins unchanged:
 `tasks.py cdde6bd2`, checkpoint md5 `31751eaa`, store `index_md5 01626590`;
 no shipped default changed.
+
+Corrected in place 2026-10-23 by the **Gate-4 close-out** (documentation only,
+no re-run): the exact-instance pairing is labelled **inferred** (run + episode +
+species + diameter + arm - **no stored instance id**; `E_pairs_exact.py` is a
+fingerprint match, not a read-back), the `E_outer.log` `exit=1` codes are stated
+as the harness's verdicts (all six runs completed), and the **two-line-interface
+gap** is named (no policy eval harness there; `p33_pear` is not evaluated on it -
+out of scope for the direct OOD closure).
+
+### P33 phase 4: the integration close-out - the Gate-3 provenance fixes, the checks, the two commits, and the Gate-4 record (2026-10-23)
+
+Phase 4 is the integration: the code commit, the phases' evidence/docs commit,
+the no-harm checks, and the Gate-4 record. **No `src/` change is part of the
+close-out**; the two code-carrying commits are the phase-1 pump and the Gate-3
+provenance additions.
+
+**The commits.** `f12f72a` - *P33: the two-line mid-attempt feeder pump (default
+off) + manifest provenance*: `CoopSession.feed_pump` + the `TickRelay` hook
+(`bimanual.py`), the two-line `bed_diag_report` census (`tasks.py`), the
+collector's `feed_cadence` manifest key (`40_collect_demos.py`), the `152`
+selftest extension, and the `rl_env.TASKS_MD5` metadata-only follow
+(`tasks.py cdde6bd2`). `7209869` - *P33 phases 1-3: the feeder pump, the
+acceptance's carry class, and the post-pear recollection (measured, not
+adopted)*: the docs (`AGENTS.md`, `README.md`, `WORKLOG.md`, `docs/CLOSEOUT.md`,
+`docs/ROADMAP.md`), the phase-1/2 drivers and reports, the phase-3 collection
+drivers, the direct A/B logs + `E_pairs_exact.py`, and the canary. The store and
+checkpoint are gitignored and referenced by their md5s (`index_md5 01626590`,
+`31751eaa`). This close-out commit carries the Gate-4 record only.
+
+**The Gate-3 provenance fixes** (in `7209869`; no re-run, the same logs): the
+paired endpoint split into the **exact-instance 2-0** (inferred: run + episode +
+species + diameter + arm; **no stored instance id**) and the **class-matched
+3-1** (`A_pairs.py` pairs the species string only); the collection's restarts
+recorded honestly (s1's 9-episode partial; s2's partial whose count was not
+recorded); the driver's colliding seed defaults fixed (distinct blocks + a
+used-seed guard); "the shard trees' md5s" -> **the source tree's md5s**;
+`feed_cadence` added to the collector manifest (missing = default off) plus the
+wave+patch/patch-wins note; the checkpoint's embedded `val_loss` attributed to
+the base (the real `demo_val` history is `finetune_history.json`); the canary
+comparator fixed to the **P32 D0** post-pear count, not the pre-pear spread.
+
+**The checks** (final tree): `scripts/selfcheck.sh` **PASS (0 failures, 1
+skipped** - the motion-budget leg); `python3 scripts/106_index_audit.py` **OK**
+(every index matches its files, including `p33_pear` 180/180); `python3
+scripts/107_collect_merge_test.py` **PASS (21 checks)**. The phases' no-harm
+proofs stand on the byte-identity controls: the acceptance **374/374** `[fruit]`
+lines to `D1`, the two-line control **826/826** to `A0`, the single-arm control
+**436/436** to `87`, and the phase-2/3 Gate remediations are documentation-only
+with no `src/` change (`106`/`107` re-run after them).
+
+**The Gate-4 record fixes** (this commit, docs only; **Gate 4: conditional
+pass**): the acceptance's owner
+exception is **granted** consistently (the floor stays **7.5/10**; **6/10
+pear-on + the pre-existing 7/10 pear-off** accepted; the reference `25ade92b`; a
+green acceptance is not claimed) - `docs/CLOSEOUT.md` §3 and `docs/ROADMAP.md`
+row 10; the `live_recycled=1/510` **accepted as documented** (the default-off
+lever; 0/72 at the shipped/boundary cadence; the victim already past the recycle
+line, `recycled_dy=-0.17 m`; the pump's draw rate is the named residual); the
+census scope (the 33/33 and 0/48 are the four **single-arm** families; the
+two-line bed 1 right cnp, the shared-station bimanual 2 left cnp; 35 of 36 cnp
+corpus-wide on the left - the commit message's "across the corpus" is history);
+the exact-instance pairing labelled **inferred**; the **two-line-interface gap**
+named; `README.md`'s P33 pointer; and this phase-4 record.
+
+**Remaining risks (named, not hidden).** (1) The shipped acceptance is **red on
+this tree** (6/10, rate-only) and the exception is the record - do not quote a
+green acceptance, and do not read the pear-off 7/10 control as this tree's pear
+cost. (2) The pump is default off and its cost is real (**+20.9 %** two-line /
+**+30.1 %** single arm wall) with the pool/capacity draw-rate residual; the
+catchable window does not rise (a stock-depth ceiling). (3) `p33_pear` is
+measured and **not adopted**; store-transfer vs overwrite is unseparated, the
+store is successes-only, and the two-line has no policy eval harness. (4) The
+carry class is closed negative on the scripted single-arm interface; the C1
+class-matched direct re-run remains the one open item. (5) No shipped default
+changed in the whole lane: `FRUIT_FEED_CADENCE` off, `accept_policy.sh` on
+`moe_v12`, the bed opt-in.

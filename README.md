@@ -370,6 +370,16 @@ implementation: the simulation cell, the data pipeline, and the policy training 
 > matches the shipped checkpoint's post-pear count - not discriminating). The
 > OOD note therefore now applies to **every other** pre-P32 store/checkpoint.
 
+> **P33 (2026-10-23): the continuation's record.** The two-line mid-attempt
+> feeder pump (`FRUIT_FEED_CADENCE=1`, **default off**) fills the bed's band
+> (4.2 -> 8.3/10; the same-instant census 5.5/6.9 -> 8.4/8.8) and clears
+> `late_dropped` (139.6 -> 7.9 s) but not the catchable window (1.5/2.4 ->
+> 0.9/2.2) at **+20.9 % wall** (single arm +30.1 %); the acceptance's red rate
+> is the left-lane carried-not-placed class, accepted under the **owner
+> exception** (the floor stays 7.5/10); the first post-pear store/checkpoint is
+> measured and **not adopted**. Evidence: `AGENTS.md` §2 (the P33 paragraphs),
+> `docs/CLOSEOUT.md` §3/§4 items 5/6/8, WORKLOG "P33 phase 1..4", `logs/p33/`.
+
 > **汇报入口**：[项目总结报告.md](项目总结报告.md)（单一文档，含图表与日志编号）；路线取舍见 [决策与交付.md](决策与交付.md)；**项目收尾一页纸见 [docs/CLOSEOUT.md](docs/CLOSEOUT.md)**（R11-C：交付状态 / 全部杠杆族的实测裁定 / 剩余项）；一键演示 `scripts/demo_2min.sh`。
 
 > **Contributing?** [AGENTS.md](AGENTS.md) lists the three commands to run before

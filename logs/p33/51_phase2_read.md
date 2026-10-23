@@ -47,7 +47,7 @@ claims are the separate `[fruit]`-line proofs: P33 phase 1's acceptance
 **436/436** to `87`, plus P32's **376/376** `93`-vs-`D1` and **381/381**
 `81`-vs-`92`. The remaining replays above are episode-identical only.
 
-### 1.2 The class is the lane-0 (left) configuration - 33/33 of the carried-not-placed episodes
+### 1.2 The class is the lane-0 (left) configuration - 33/33 of the single-arm carried-not-placed episodes (35 of 36 corpus-wide)
 
 `scripts/20_pick_place.py` maps grade A -> lane 0 -> the **left** arm and every
 other grade -> lane 1 -> the **right** arm (`tasks.py:4453`,
@@ -78,8 +78,10 @@ single-arm branches over **two supply schedules** (the bed battery alone supplie
 44 of the 60 left attempts) and the bed branches are **near-replays** of one
 another (their shared attempts repeat episode-for-episode), so "14/60 = 23 %" and
 "48/48 = 100 %" are not rates. The census statement is **33 of 33
-carried-not-placed episodes on the left, 0 of 48 on the right**, with the
-per-family counts above.
+carried-not-placed episodes on the left and 0 of 48 on the right across the four
+single-arm families** (the two-line bed contributes 1 right cnp, the
+shared-station bimanual 2 left cnp - corpus-wide, **35 of 36 cnp are on the
+left**), with the per-family counts above.
 
 The pear battery is the species- and size-controlled cross-check (one species,
 the two arms' picks interleaved at 5.8-6.9 cm): **left 2/8, right 10/10**
@@ -318,9 +320,10 @@ asymmetry left in the frame. The acceptance's 6/10 is that class on that branch;
 the right lane places 12/12 across the two acceptance branches and 48/48 across
 the single-arm corpus, **zero carried-not-placed in either**.
 
-### 4.1 The recommendation (the owner's decision)
+### 4.1 The decision (the owner's; the exception is granted, 2026-10-23)
 
-**(A) Accept the 6/10 as a documented owner exception - recommended.** The
+**(A) Accept the 6/10 as a documented owner exception - GRANTED** (the owner's
+"继续"; `docs/CLOSEOUT.md` §3, `docs/ROADMAP.md` row 10). The
 acceptance is **rate-only red**: every **gated** budget passes (`D1`'s driver
 reads `worst |v|max` 0.1100 against a 0.160-0.161 budget, lurch 0.017 against
 0.291), the **reported** - not gated - held-grip cone is **1.27x**, the
