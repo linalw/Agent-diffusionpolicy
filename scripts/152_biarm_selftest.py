@@ -18,6 +18,10 @@ attempts themselves need Isaac Sim:
   parks while it blocks, wakes on release and resumes without deadlock;
 * **a solo attempt steps once per request**.
 
+P33 phase 1 adds one pin: the optional `TickRelay.feed_pump` hook (the
+two-line mid-attempt feeder cadence) fires once per **shared physics tick**,
+on the main thread, and never once per request.
+
 This mirrors `scripts/128_rtc_selftest.py`'s role: a pure-Python pin of the
 mechanism, run by `scripts/selfcheck.sh` before any simulator time is spent.
 """
@@ -55,13 +59,14 @@ class FakeStep:
             self.concurrent -= 1
 
 
-def run_pair(*, contested: bool = False):
+def run_pair(*, contested: bool = False, feed_pump=None):
     bridge = MainBridge()
     relay = TickRelay(bridge)
     relay.expect(["left", "right"])
     station = StationLock()
     step = FakeStep()
     relay.step_fn = step
+    relay.feed_pump = feed_pump
     errors: list[BaseException] = []
     order: list[str] = []
 
@@ -167,6 +172,23 @@ def main() -> int:
     assert not solo.is_alive()
     assert len(single.calls) == 5, len(single.calls)
     print("solo attempt: 5 requests -> 5 ticks")
+
+    # 5. P33 phase 1: the feeder-pump hook fires once per *shared physics tick*
+    # (never once per request, never off the main thread), and the default
+    # `None` path calls nothing. `run_pair`'s 2x50 requests share 50 ticks.
+    pumps: list[bool] = []
+
+    def feed_pump() -> None:
+        pumps.append(threading.current_thread() is threading.main_thread())
+
+    pumped, _ = run_pair(feed_pump=feed_pump)
+    assert len(pumps) == len(pumped.calls), (len(pumps), len(pumped.calls))
+    assert all(pumps), "the feed pump ran off the main thread"
+    assert not pumps or len(pumped.calls) == 50, len(pumped.calls)
+    print(
+        f"feed pump: {len(pumped.calls)} shared ticks -> {len(pumps)} pump calls, "
+        "main thread only"
+    )
 
     print("biarm selftest PASS")
     return 0

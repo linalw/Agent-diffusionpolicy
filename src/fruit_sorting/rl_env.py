@@ -288,7 +288,7 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: P32 phase D: the follow had gone stale again by the Phase-B/C tree
 #: (`ea271ccc` here vs the file's `9277fa64`), so the direct env refused to
 #: start; the pin now follows the shipped `tasks.py`. Metadata-only.
-TASKS_MD5 = "9277fa649f8023c19782ebf6cefb91de"
+TASKS_MD5 = "cdde6bd20670331ffbe8deb5d4f60b13"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(

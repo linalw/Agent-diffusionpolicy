@@ -982,9 +982,10 @@ class PickAndPlaceTask:
         #: (`None` = nothing pending). `take_prepared_target` consumes it.
         self._prepared_pending: str | None = None
         #: The feeder cadence (`FRUIT_FEED_CADENCE=1`) and its stride. The
-        #: counters are attempt-local in practice (only the single-arm scope
-        #: arms the flag); they live as plain attributes so `_carry`'s per-tick
-        #: check stays one attribute read.
+        #: counters are attempt-local on the single-arm path and batch-local
+        #: when the two-line scheduler arms the same pump through
+        #: `CoopSession.feed_pump` (P33 phase 1); they live as plain attributes
+        #: so `_carry`'s per-tick check stays one attribute read.
         self._feed_cadence = os.environ.get("FRUIT_FEED_CADENCE", "0") == "1"
         self._feed_stride = max(1, int(os.environ.get("FRUIT_FEED_STRIDE", "4")))
         #: `_feed_on` is armed per **attempt** by `_run_impl` (it also requires the
@@ -4655,12 +4656,15 @@ class PickAndPlaceTask:
     def _feed_tick(self) -> None:
         """One control tick of the `FRUIT_FEED_CADENCE` pump.
 
-        Called from `_step_sim` on **every** control tick of every attempt phase
-        (wait, approach, catch, carry, place, release), not from the carry loop
-        (the pre-P32-A carry-only hook was removed: the wait/approach gaps went
-        stale and the pump's late backlog landed downstream of the selection
-        floor, `logs/p32/51_bed_pipeline.log`). `advance_furniture=False`: the
-        conveyor's kinematic furniture keeps the shipped per-pump cadence, so
+        Two call sites, one clock: the single-arm line calls it from `_step_sim`
+        on **every** control tick of every attempt phase (wait, approach, catch,
+        carry, place, release), not from the carry loop (the pre-P32-A
+        carry-only hook was removed: the wait/approach gaps went stale and the
+        pump's late backlog landed downstream of the selection floor,
+        `logs/p32/51_bed_pipeline.log`); the two-line scheduler installs it as
+        `CoopSession.feed_pump`, which `TickRelay.schedule` calls on the main
+        thread once per **shared physics tick** (P33 phase 1). `advance_furniture=False`:
+        the conveyor's kinematic furniture keeps the shipped per-pump cadence, so
         this lever is the feeder's release schedule alone (`fruits.update`). The
         stride only bounds the release granularity: 4 ticks = 33 ms = 4 mm of
         belt travel at 0.12 m/s, against a 0.13-0.15 m row pitch. The cost is
@@ -4750,6 +4754,57 @@ class PickAndPlaceTask:
                 f"x={row['x']:.3f} z={row['z']:.3f} r={0.5 * row['dia']:.3f} "
                 f"grade={row['grade']} -> {row['reason']}"
             )
+
+    def _biarm_bed_census(self, arm: str, session, diag: list) -> None:
+        """One `[bed-sel]` census row per two-line slot selection.
+
+        P33 phase 1, `FRUIT_BED_DIAG=1` only (pure reporting). The single-arm
+        driver calls `bed_diag_report` after its selection; the two-line worker
+        selects inside its slot loop, so without this row a two-line bed run has
+        no per-selection window count and the `[bed-pump] band=` stock is only a
+        proxy (the P32 phase C limitation). The predicate counts are exactly
+        `bed_diag_report`'s: `window` is the number of candidates the moving
+        catch's floor admits (usable + chosen), `admitted` also counts the ones
+        below it, `on_belt` excludes the raised output lanes. The row is printed
+        before the attempt runs, so a starved slot names its cause too. `band`
+        is `_bed_stock_depth()` at the selection instant - the same 0.58 m
+        approach-band count the pump's interlock paces on - so the A/B reads the
+        delivered density both at the pump instants (`[bed-pump] band=`) and at
+        the picks.
+        """
+        spawner = self.spawner
+        now = self._sim_time()
+        next_release = float(getattr(spawner, "_next_release", 0.0))
+        stats = getattr(spawner, "stats", {})
+        rows = [row for row in diag if "index" in row]
+        on_belt = [row for row in rows if not row["reason"].startswith("off belt")]
+        admitted = [
+            row
+            for row in rows
+            if row["reason"] in ("usable", "chosen")
+            or row["reason"].startswith("below catch floor")
+        ]
+        window = [row for row in rows if row["reason"] in ("usable", "chosen")]
+        chosen = next((row for row in rows if row["reason"] == "chosen"), None)
+        band = int(spawner._bed_stock_depth())
+        band_cap = int(getattr(spawner, "supply_bed_stock_max", 0))
+        say(
+            f"[bed-sel] arm={arm} slot={int(getattr(session, 'reserved', 0))} "
+            f"t={now:.2f} live={len(rows)} on_belt={len(on_belt)} "
+            f"admitted={len(admitted)} window={len(window)} "
+            f"band={band}/{band_cap} pick="
+            + (
+                "none"
+                if chosen is None
+                else f"{chosen['category']}@{chosen['along']:.3f}"
+            )
+            + f" pump_next={next_release:.2f} lag={now - next_release:+.2f} "
+            f"rebased={int(stats.get('bed_rebased', 0))} "
+            f"dropped={float(stats.get('bed_late_dropped_s', 0.0)):.1f}s "
+            f"skipped={int(stats.get('supply_skipped', 0))} "
+            f"refused={int(stats.get('bed_refused', 0))} "
+            f"placed={int(stats.get('bed_placed', 0))}"
+        )
 
     def select_target(
         self, states: list[dict], lead_time: float = 0.0, lane: int | None = None,
@@ -5926,6 +5981,41 @@ class PickAndPlaceTask:
                    else "not needed (station-specific pre-poses)")
             )
         session.after_step = self._biarm_after_step
+        #: P33 phase 1: the two-line mid-attempt feeder cadence
+        #: (`FRUIT_FEED_CADENCE=1`, default off). The single-arm line pumps the
+        #: bed on every control tick of every attempt (`_feed_tick`, called from
+        #: `_step_sim`); a bimanual attempt has `_active_session` set, so
+        #: `_prepared_scope` is False and the knob never armed there (P32 Gate C:
+        #: A2 was byte-identical to A0 with no `[feed]` row). The two-line's
+        #: physics clock is the relay's **shared tick** on the main thread, so
+        #: the same `_feed_tick` is installed as `session.feed_pump`: one pump
+        #: call per shared physics tick, stride `FRUIT_FEED_STRIDE` (4 ticks =
+        #: 33 ms = 4 mm of belt travel at 0.12 m/s), `advance_furniture=False`
+        #: (`fruits.update`) so the conveyor's cleat phase keeps the shipped
+        #: per-boundary cadence - one variable, not two. Measured rationale: at
+        #: the shipped boundary cadence (one `update` per attempt) the bed's
+        #: delivered approach band is **2-8/10** at the 20 pump instants with
+        #: `late_dropped=139.6 s` (`logs/p32/A0_bed_twoline_1.log`): a due row's
+        #: lateness is capped at the 0.16 m stock band and the stale time is
+        #: re-based instead of delivered. The single-arm cadence arm reads live
+        #: 21.1 vs 6.6 and window@pick 4.4-4.7 vs 4.6 at **+24 % wall** (21 vs
+        #: 6.6 live bodies; the pump's Python cost is 2.71 ms/sim-s), so the
+        #: density is a physics lever, not a free win - quote the A/B's wall
+        #: with the band. Scope: two-line only (`FRUIT_BIARM_TWOLINE=1`); the F2
+        #: shared-station pipeline, the single-arm driver and the policy path are
+        #: unchanged. Off the knob this is one `None` assignment and the relay
+        #: pays one attribute check per tick.
+        session.feed_pump = None
+        if two_line and self._feed_cadence:
+            stats = getattr(self.spawner, "stats", {})
+            self._feed_marks = (
+                int(stats.get("released", 0)),
+                int(stats.get("bed_placed", 0)),
+                int(stats.get("supply_skipped", 0)),
+            )
+            self._feed_ticks = 0
+            self._feed_calls = 0
+            session.feed_pump = self._feed_tick
         session.budget = max(1, int(attempts))
         session.reserved = 0
         #: W2 clearance: sim time each arm last started an attempt. The start
@@ -6071,6 +6161,22 @@ class PickAndPlaceTask:
             say(
                 "[biarm] prepared: built={built} empty={empty} kept={kept} "
                 "dropped={dropped} stale={stale}".format(**stats)
+            )
+        if getattr(session, "feed_pump", None) is not None:
+            # P33 phase 1 accounting: the two-line mid-attempt pump ran (the
+            # P32 Gate C proof was the *absence* of this row). Deltas are the
+            # whole batch (the marks were snapshotted at install); `updates` is
+            # the number of `spawner.update` calls the stride admitted, `ticks`
+            # the shared physics ticks they were sampled from. `placed` is the
+            # feeder's supply-slot count, not the arm placements.
+            stats = getattr(self.spawner, "stats", {})
+            r0, p0, s0 = self._feed_marks
+            say(
+                f"[feed] two-line: updates={self._feed_calls} "
+                f"ticks={self._feed_ticks} stride={self._feed_stride} "
+                f"released=+{int(stats.get('released', 0)) - r0} "
+                f"placed=+{int(stats.get('bed_placed', 0)) - p0} "
+                f"skipped=+{int(stats.get('supply_skipped', 0)) - s0} (batch)"
             )
         self.stats["biarm_sessions"] = int(self.stats.get("biarm_sessions", 0)) + 1
         self._biarm_trace_report(session)
@@ -6256,6 +6362,17 @@ class PickAndPlaceTask:
                                         f"at t={now:.1f}s (age {age:.1f}s)"
                                     )
                         if state is None:
+                            # P33 phase 1 pure reporting (`FRUIT_BED_DIAG=1`,
+                            # default off): the fresh selection records the
+                            # predicate that refused each live fruit, and
+                            # `_biarm_bed_census` prints the one-line count the
+                            # P32 phase C had no two-line source for. The list
+                            # is only allocated when the env is on.
+                            diag = (
+                                []
+                                if os.environ.get("FRUIT_BED_DIAG", "0") == "1"
+                                else None
+                            )
                             state = self.select_target(
                                 self.spawner.state(),
                                 station_y=self.station_y_for(arm),
@@ -6263,7 +6380,10 @@ class PickAndPlaceTask:
                                 exclude=set(self.spawner.protected_indices),
                                 min_lead_s=lead_min,
                                 lead_override_s=lead_over,
+                                diag=diag,
                             )
+                            if diag is not None:
+                                self._biarm_bed_census(arm, session, diag)
                         if state is not None and session.lead_diag:
                             #: W8-R3 L2 pure reporting: the chosen candidate's
                             #: position relative to its station and the floor

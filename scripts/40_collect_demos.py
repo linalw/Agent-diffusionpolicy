@@ -211,6 +211,13 @@ def write_manifest(out_dir: str, cfg: SceneConfig) -> None:
             # branch and this field identifies it next to the `tasks.py` md5
             # pin (`logs/p10c2/PREREG_ADOPT_FLIP.md`, the collector guardrail).
             "carry_monitor": os.environ.get("FRUIT_CARRY_MONITOR", "auto"),
+            # P33 phase 3 (Gate 3, L3): the two-line mid-attempt feeder cadence
+            # (`FRUIT_FEED_CADENCE=1` arms the same `_feed_tick` as a shared-tick
+            # pump; default off). Recorded like `park_early`: the raw env value,
+            # so an unset env reads `0` - the default. A manifest without this
+            # key (every store up to `datasets/p33_pear`) predates the field and
+            # means the same default (`0`); it is not evidence that the pump ran.
+            "feed_cadence": os.environ.get("FRUIT_FEED_CADENCE", "0"),
             "park_bias": os.environ.get("FRUIT_BIARM_PARK_BIAS", "0.0"),
             "start_gap": os.environ.get("FRUIT_BIARM_START_GAP", "0.0"),
             "chunk": TWO_LINE_CHUNK,
@@ -234,6 +241,13 @@ def write_manifest(out_dir: str, cfg: SceneConfig) -> None:
             "stream": supply.stream,
             "target": supply.target,
             "target_from": supply.target_from,
+            # P33 phase 3 (Gate 3, L3): these are the **env flags**, not the
+            # branch the spawner ran. With both `wave` and `patch` true (the
+            # two-line scenario defaults wave on, and its patch arm sets
+            # patch=1) the resolved schedule is the **PATCH** - the branch
+            # order is bed > patch > wave > scatter - and the `[supply]` banner
+            # prints both blocks. Read the patch block for such a store; the
+            # wave block is inert.
             "wave": supply.wave,
             "wave_size": supply.wave_size,
             "wave_gap_min": supply.wave_gap_min,

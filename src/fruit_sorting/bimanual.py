@@ -184,6 +184,14 @@ class TickRelay:
         self._pending: dict[int, list] = {}
         self._running: int | None = None
         self._last_run: int | None = None
+        #: P33 phase 1: optional feeder-pump hook, called on the main thread
+        #: **once per shared physics tick**, right after the step, before the
+        #: run permit is granted. `CoopSession.run` installs the task's
+        #: `_feed_tick` here when `FRUIT_FEED_CADENCE=1` arms it on the two-line
+        #: scheduler; `None` on every other path (one attribute check per tick).
+        #: The hook runs while both workers are parked on their tick requests,
+        #: so the spawner's live set cannot be mutated concurrently.
+        self.feed_pump = None
         self._debug = None
         self._t0 = time.monotonic()
 
@@ -296,6 +304,12 @@ class TickRelay:
                     self.step_fn(
                         steps=1, callback=callback, update_fabric=update_fabric
                     )
+                    if self.feed_pump is not None:
+                        # P33 phase 1: one pump call per *physics* tick, not per
+                        # schedule round (`ticks` can exceed 1 when a worker
+                        # requests a multi-tick advance). The hook's own stride
+                        # is the single-arm `FRUIT_FEED_STRIDE` (4 ticks).
+                        self.feed_pump()
                 for t in live:
                     self._pending[t][0] -= ticks
                 self._log(f"granted x{ticks}")
@@ -374,6 +388,11 @@ class CoopSession:
         self.trace_rows: list[tuple] = []
         #: Per-tick hook installed by the task (`PickAndPlaceTask._biarm_after_step`).
         self.after_step = None
+        #: P33 phase 1: the two-line mid-attempt feeder pump. Installed by
+        #: `run_bimanual` only when `FRUIT_FEED_CADENCE=1` arms it on the
+        #: two-line scheduler (default off); `run` forwards it to the relay,
+        #: which calls it on the main thread after every shared physics tick.
+        self.feed_pump = None
         self._patched = False
         self._sm = None
         self._app = None
@@ -476,6 +495,10 @@ class CoopSession:
             for thread in threads:
                 thread.start()
             self.relay.arm()
+            # P33 phase 1: `None` unless `run_bimanual` armed the two-line
+            # feeder cadence; forwarding here (not at construction) keeps the
+            # default path one attribute assignment and no pump.
+            self.relay.feed_pump = self.feed_pump
             self.bridge.serve_while(alive)
         finally:
             self.bridge._serving = False
