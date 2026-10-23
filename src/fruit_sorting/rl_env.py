@@ -844,6 +844,13 @@ class SortingRLEnv:
         self._align_hidden_calls = 0         # calls with a zero target mask first
         self._align_q_reset: list[float] = []  # active arm's joints at the reset return
         self._align_q_first: list[float] = []  # ... at the first model call (P34-B)
+        self._align_px_max = -1              # the episode's largest target mask (P34-B)
+        #: P34-B: the depth-corrected mask (px * camera distance^2), the same
+        #: measure as `213`'s per-episode normalisation - the raw pixel count
+        #: grows as the fruit approaches the head camera, so `px / px_max`
+        #: alone would read a depth change as an occlusion change.
+        self._align_pxc_first = -1.0
+        self._align_pxc_max = -1.0
         self._align_zone_n = 0               # fire-zone (0.15-0.30) calls
         self._align_zone_zero = 0            # ... with a zero target mask
         self._align_zone_px: list[int] = []  # ... target-mask pixels
@@ -1468,6 +1475,9 @@ class SortingRLEnv:
             self._align_hidden_calls = 0
             self._align_q_reset = list(q_reset)
             self._align_q_first = []
+            self._align_px_max = -1
+            self._align_pxc_first = -1.0
+            self._align_pxc_max = -1.0
             self._align_zone_n = 0
             self._align_zone_zero = 0
             self._align_zone_px = []
@@ -1825,19 +1835,31 @@ class SortingRLEnv:
         fruit = np.asarray(self.spawner.position(self._sample), dtype=float)
         along = float(fruit[1]) - float(self._expert_jaw_y)
         zone = 0.15 <= along <= 0.30
+        mask = self._last_mask
+        px = -1 if mask is None else int(np.asarray(mask).sum())
+        eye = np.array([float(self.cfg.head_camera_forward), 0.0,
+                        float(self.cfg.head_camera_z)])
+        pxc = float(px) * float(np.sum((fruit - eye) ** 2)) if px >= 0 else -1.0
+        if pxc > self._align_pxc_max:
+            self._align_pxc_max = pxc
+        if px > self._align_px_max:
+            # P34-B: the episode's raw maximum target mask (reported for
+            # provenance only - it is depth-biased, because the fruit is closer
+            # to the head camera downstream; `pfc`/`pcm` above are the
+            # depth-corrected pair the treatment check reads).
+            self._align_px_max = int(px)
         if (
             self._align_first_along == self._align_first_along  # set already
             and self._align_first_visible >= 0
             and not zone
         ):
             return
-        mask = self._last_mask
-        px = -1 if mask is None else int(np.asarray(mask).sum())
         if self._align_first_along != self._align_first_along:  # NaN
             self._align_first_along = along
             self._align_first_x = float(fruit[0])
             self._align_first_d = float(self._sample.diameter)
             self._align_first_px = int(px)
+            self._align_pxc_first = float(pxc)
             # P34-B: the arm's pose at the first call (diag only, one
             # articulation read per episode). The reset pose and this one
             # answer "does the arm move during the reset/alignment?".
@@ -1881,7 +1903,9 @@ class SortingRLEnv:
             f"first_vis_call={int(self._align_first_visible)} "
             f"hidden={int(self._align_hidden_calls)} "
             f"zone_n={int(self._align_zone_n)} zone_zero={int(self._align_zone_zero)} "
-            f"zone_px={px50} calls={int(self.inference_calls())} "
+            f"zone_px={px50} px_max={int(self._align_px_max)} "
+            f"pfc={self._align_pxc_first:.0f} pcm={self._align_pxc_max:.0f} "
+            f"calls={int(self.inference_calls())} "
             f"q_r={joints(self._align_q_reset)} q_f={joints(self._align_q_first)}"
         )
 

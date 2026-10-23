@@ -382,6 +382,28 @@ The pre-registered endpoints also come from the pinned `A_pairs.py` /
 `A_verdict.txt`, 19:41). Quote `A_align.txt` as a **post-batch read**, not as a
 pre-registered artifact.
 
+## 6c. The P34-B corrections (the follow-on that re-probes the first view)
+
+`logs/p34/B_READ.md` + `B_PREREG.md` re-measure the first call with one episode
+per process (the only valid frame; `scripts/216_store_arm_baseline.py` is the
+per-arm store baseline and `B_mask_probe.py` the reset-pose/render probe). Three
+statements above are superseded:
+
+| the correction | what changed |
+| --- | --- |
+| **B5 the rendered first-call mask** (the basis of B1, M2, M3) | **Invalid for every episode >= 1 of a process.** In the 150 A/B episodes `first_px > 0` occurs in exactly the **10 episode-0s** (one per run, both arms); the label dump shows the instance resolution is correct (`want=/World/Fruits/Fruit_15`, id 70 = the fruit) and the mask at the *reset* is 0 while the fruit is visible (`vis212` 1.00) - the frame is one or more renders behind, and after a mid-process reset it predates the reset. So "the rendered target mask is empty in 71/75 (B) / 72/75 (A), even in the belt-clear cases" is the **stale first frame**, not the arm. The phase-2 A/B's first call at 0.399 **did present a visible view for the left** on the valid sample (`first_rel` 0.972, the fruit the top instance in its own bbox), so the visible-first-view hypothesis **was** tested on the left; its null stands. |
+| **B6 the probe's arm attribution** | `261_probe_align.log` is an **`arm=right`** episode (`[rl] episode 0: apple grade=C ... arm=right`), so `openarm_left_link3` at 0.399 is the **inactive** left arm parked at `ready`, not the left arm's own first view. Measured scope: the *inactive* left arm occludes the **outer x band** (x ~0.22) at along 0.38-0.44 for **both arms'** episodes (`link3` 127-199 px inside the target's bbox; `first_rel` 0.115 / 0.131 / 0.077 at 0.399 / 0.441 / 0.445), while the active left arm at the grasp pose does **not** occlude a first view at x 0.24 (0.972). |
+| **B7 the reset pose/settle hypothesis** | Measured: the reset's joints **are** the calibrated grasp waypoint (|dq|max **0.019** rad left / **0.026** right) and the settle **20/60/120 gives the same joints to 0.001 rad** (a pose null; only the fruit's along moves). The store's frame 0 is a *different*, stable pose (**|q0-grasp| 0.16-0.33 rad** - the dynamic catch's hover), so the distribution difference is real but it is not what hid the first view. |
+
+Consequently the "new direct-env/reset mismatch (hypothesis: the reset's arm
+pose/settle)" of B2 is closed: the mismatch is a **measurement artifact** for
+episodes >= 1, the **reset pose matches the grasp** and the settle is a null,
+and the only surviving first-view occlusion is the **inactive arm over the
+outer x band**, which the along aim cannot touch and the single-arm store never
+recorded (fixed supply x 0.32-0.35). The named next lever is the arm park /
+camera sightline (`B_READ.md` section 4); the along-only A/B is pre-registered
+as **conditional and currently not to be run** (`B_PREREG.md`).
+
 ## 7. Files, provenance, no-harm
 
 * `logs/p34/PREREG.md` — the pre-registration (before the batch).

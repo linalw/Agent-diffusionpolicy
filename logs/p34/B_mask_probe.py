@@ -49,6 +49,7 @@ from fruit_sorting.rl_env import SortingRLEnv  # noqa: E402
 
 CALLS = int(os.environ.get("PROBE_CALLS", "4"))
 SEED = int(os.environ.get("PROBE_SEED", "77"))
+LABELS = os.environ.get("PROBE_LABELS", "0") == "1"
 EPISODES = int(os.environ.get("PROBE_EPISODES", "1"))
 
 
@@ -104,7 +105,17 @@ def main() -> int:
               f"along_reset={float(fruit[1]) - float(env._expert_jaw_y):+.3f} "
               f"x={float(fruit[0]):.3f} d={float(sample.diameter)*1000:.0f}mm "
               f"q={joints(arm)}")
+        if LABELS:
+            want = getattr(sample, "prim_path", None)
+            seg, lab = seg_read(env.scene)
+            hits = [(k, str(v)[:40]) for k, v in (lab or {}).items()
+                    if want and want in str(v)]
+            print(f"[probe] labels ep={env._episode} want={want} n_labels="
+                  f"{len(lab or {})} hits={hits[:4]} "
+                  f"mask_sum={-1 if env._last_mask is None else int(np.asarray(env._last_mask).sum())}")
         first = None
+        px_max = -1
+        frac_max = 0.0
         for it in range(CALLS + 1):
             if env._done:
                 break
@@ -135,6 +146,9 @@ def main() -> int:
                   f"d={float(sample.diameter)*1000:.0f}mm "
                   f"vis212={float(vis.get('vis', float('nan'))):.2f} aw={aw:.0f} "
                   f"target_px={mask_px:4d} q={joints(arm)} bbox_ids={top}")
+            px_max = max(px_max, mask_px)
+            if aw > 0 and mask_px > 0:
+                frac_max = max(frac_max, mask_px / aw)
             if it == 1:
                 first = dict(along=along, x=float(fruit[0]), px=mask_px, aw=aw,
                              vis212=float(vis.get("vis", float("nan"))), bbox=top,
@@ -142,9 +156,14 @@ def main() -> int:
             env.act(chunk, execute_steps=4)
         if first is not None:
             vis = (first["px"] / first["aw"]) if first["aw"] > 0 and first["px"] > 0 else 0.0
+            frac = (first["px"] / px_max) if px_max > 0 and first["px"] > 0 else 0.0
+            f_abs = first["px"] / first["aw"] if first["aw"] > 0 and first["px"] > 0 else 0.0
+            f_rel = f_abs / frac_max if frac_max > 0 else 0.0
             print(f"[probe] first ep={env._episode} arm={env._active} "
                   f"along={first['along']:+.3f} x={first['x']:.3f} "
-                  f"px={first['px']} aw={first['aw']:.0f} rendered_vis={vis:.3f} "
+                  f"px={first['px']} px_max={px_max} first_frac={frac:.3f} "
+                  f"first_aw_frac={f_abs:.3f} first_rel={f_rel:.3f} "
+                  f"aw={first['aw']:.0f} rendered_vis={vis:.3f} "
                   f"vis212={first['vis212']:.2f} "
                   f"q={','.join(f'{v:+.3f}' for v in first['q'])} bbox={first['bbox']}")
     print("[probe] done")

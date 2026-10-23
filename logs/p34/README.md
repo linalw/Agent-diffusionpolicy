@@ -19,6 +19,10 @@ default, no commit.
 | `50_policy.txt`, `50_policy.json` | `scripts/215_occlusion_policy.py`: the direct-policy logs' reset position vs the band, the outcome cuts, the trigger fire positions |
 | `frames/` | annotated head-camera frames: `edge_y0.479.png` (the tomato at the band's edge, half hidden), `annot_vis25.png` / `annot_zero25.png` (the fruit at y=0.23 / 0.30 with the arm over it), `y+0.45*` |
 | `probe_attempt/` | the attempted with/without-belt render probe: its script (archived out of `scripts/` because it did not produce a usable frame), the logs and the identical with/without images (see "The render pair" below) |
+| `B_READ.md`, `B_PREREG.md` | **P34-B**: the per-arm store baseline (v11/v12/v13p/p33_pear, the rendered vs the `213`-normalised first view, the per-arm frame-0 pose), the reset's first-call pose + the settle sweep, the 0.441 treatment check, and the **frame-staleness blocker** (the first-call mask is the pre-reset frame for every episode >= 1 of a process: `first_px > 0` in exactly the 10 episode-0s of the 150 A/B episodes); the conditional pre-registration |
+| `B_store*.txt/.json`, `B_ab_store.json` | `scripts/216_store_arm_baseline.py`: the store baseline (frames, first view vs decision zone, x split, `q0` vs grasp/ready) and the A/B's per-arm first calls |
+| `B_mask_probe.py`, `B_probe_*.log`, `run_p34b_probe*.sh` | the reset-pose/render probe (episode 0 per process, 30 calls, the `q` and the bbox instance attribution): the shipped / 0.399 / 0.441 / 0.445 aims, the settle sweep 20/60/120, the label-resolution dump |
+| `B_selfcheck.log` | `scripts/selfcheck.sh` with the P34-B code: PASS, 0 failures, 1 skipped |
 | `explore_projection.py` | the first-pass camera-model fit (the nominal 16 mm/36 mm intrinsics are within 1.8 px; kept for provenance) |
 
 ## The measured geometry (analytic, `10_map`)
@@ -198,3 +202,24 @@ back bit-identical, with and without a physics step in between), and the probe's
 fruit never appeared in the instance map. The rendered evidence in this phase is
 therefore the recorded demo frames + the camera-model check above, not a
 with/without render.
+
+## Phase B (2026-10-23) — the per-arm store baseline, the reset pose, and the first view
+
+`B_READ.md` + `B_PREREG.md`; the tool `scripts/216_store_arm_baseline.py`; the
+probe `B_mask_probe.py` + `B_probe_*` (15 one-episode renders). One line: the
+Gate-2 B2 mismatch (the direct env's left first call "0-4 % visible") is the
+**stale first frame**, not the arm pose. In the 150 A/B episodes `first_px > 0`
+in exactly the **10 episode-0s** (one per run); the valid (episode-0) renders
+show the **left's first call visible** at both aims (`px/px_max` 0.98 at 0.399,
+0.88 at the reset's own 0.439), and the reset's joints *are* the grasp waypoint
+(|dq|max 0.019-0.026 rad) with the settle a **pose null** (20/60/120 identical
+to 0.001 rad). The store's frame 0 is a different stable pose (0.16-0.33 rad
+from grasp - the dynamic catch's hover): real, but not the cause. The surviving
+first-view occlusion is the **inactive left arm parked at `ready` over the outer
+x band** (x < 0.26; 44-48 % of the first calls): `first_rel` **0.11-0.13** at
+both 0.399 and 0.441, with `q` unchanged. The per-arm store baseline confirms the
+left's first view is visible (v11 0.86 rendered / 0.92 `213`-normalised, two-line
+0.64-0.78) - and that the single-arm store never saw the patch sheet's outer
+band (its x p10-p90 is 0.323-0.348). The along-only A/B is pre-registered as
+**conditional and currently not to be run** (`B_PREREG.md`); the named next lever
+is the arm park / camera sightline.

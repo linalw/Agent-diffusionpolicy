@@ -189,3 +189,37 @@ env but **not** shown to be in the single-arm store's distribution:
 **Phase plan (the continuation)**: A - **done** (the P34 Gate 2 + the record +
 the commit); B - the arm-occlusion pre-registration + the camera/pose
 measurement; C - the integration/docs/commits. Oracle: 3 gates.
+
+- 2026-10-23 **Phase B measured — the per-arm store baseline, the reset pose,
+  and the first view** (`logs/p34/B_READ.md`, `B_PREREG.md`,
+  `scripts/216_store_arm_baseline.py`, `B_mask_probe.py` + `B_probe_*`, 15
+  one-episode renders). The Gate-2 B2 premise (the direct env's left first call
+  0-4 % visible at the aligned along/x vs the store's 89-91 %) is **the stale
+  first frame, not the arm pose**: in the 150 A/B episodes `first_px > 0` in
+  exactly the **10 episode-0s** (one per run, both arms; the label dump shows
+  the instance resolution is correct and the mask at the reset is 0 while the
+  fruit is visible - the frame predates the reset). The valid episodes: the
+  **left's first call is visible** (`px/px_max` 0.98 at 0.399, 0.88 at 0.439),
+  the reset's joints **are** the grasp waypoint (|dq|max 0.019 left / 0.026
+  right) and the **settle is a pose null** (20/60/120 identical to 0.001 rad);
+  the store's frame 0 is a different stable pose (|q0-grasp| 0.16-0.33 rad, the
+  dynamic catch's hover) - a real distribution difference, not the cause. The
+  **store baseline per arm** (rendered/analytic and `213`-normalised): v11 left
+  0.86/0.92 (right 0.21/1.00), v12 left 0.78/0.76, v13p left 0.76/0.92, p33
+  left 0.64/0.94; the per-arm decision zone is 0.80 (v11 left) vs 0.54 (right)
+  zero-mask - the pooled 0.88-0.90 was the right's; and **v11's own x band is
+  0.323-0.348**, so the single-arm store never saw the patch sheet's outer band
+  (x < 0.26 in **44-48 %** of the first calls). The surviving first-view
+  occlusion is the **inactive left arm parked at `ready` over that outer band**
+  (`link3` 127-199 px inside the target's bbox; `first_rel` **0.11 -> 0.13** at
+  0.399 -> 0.441 with `q` unchanged) - no along aim touches it, and the 260/261
+  probe's `openarm_left_link3` was that *inactive* arm (its episode is
+  `arm=right`), not the left arm's own view. The 0.441 aim also sits on the
+  belt's near edge for >= 58 mm fruit and the reset can return below it
+  (`along_reset` 0.443 in one left process). **The along-only A/B is
+  pre-registered as conditional and not to be run**; the named next lever is the
+  arm park / camera sightline (outer band), with the reset-pose (hover)
+  alignment as the low-expectation secondary. No default changed; the code
+  change is the `[align]` diag's `settle`/`q_r`/`q_f`/`px_max`/`pfc`/`pcm` +
+  `FRUIT_RESET_SETTLE` (default 20 = shipped). `selfcheck.sh` PASS (0 failures,
+  1 skipped).
