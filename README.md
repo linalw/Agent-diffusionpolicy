@@ -437,6 +437,34 @@ implementation: the simulation cell, the data pipeline, and the policy training 
 > the P35 record. Evidence: `AGENTS.md` §2 (the P36 paragraph), WORKLOG "P36
 > phase 1/2", `logs/p36/` (`A_RESULTS.md`, `PREREG.md`, `A_ab/`).
 
+> **P37 (2026-10-25): the park-collected recollection preserves the park's win;
+> the pre-registered S3 gate fails on a scenario tail and the checkpoint adds no
+> gain - default off, not adopted.** The shipping path P36 named: a fine-tune on
+> rollouts **collected under the park** (both channels fixed). Store
+> `datasets/rl_rollouts/p37_park` (90 episodes / 3,698 windows, recorded through
+> the direct env under `FRUIT_ARM_PARK=back`), fine-tune `moe_v13s` ->
+> `checkpoints/p37_park` (`ones`, 6 epochs, 28.3 % rollout share). The N = 5x15
+> A/B, **both arms parked**: manipulation gate PASS 100 % per arm; right-arm
+> placed **A 43/44 = 0.977 vs B 47/49 = 0.959** (delta **-0.018** against the
+> -0.10 margin), **carried 0 vs 0**, S2 consistent, cycle -0.8 %, and **S3 FAIL**
+> on one novel `timeout: no grasp within 1500 ticks` (1/92 right). **That event is
+> a systematic scenario tail, not a candidate behaviour**: the trigger's lateral
+> gate is a pure function of the fruit's x (gate 0.16 vs the 0.333 station ->
+> only x >= 0.173 m is admitted) while the delivered supply is **0.148-0.364 m**,
+> so ~2.5 cm is systematically unfirable at ~1 %/episode - and the fruit was at
+> x = +0.159, **below the band's 0.20 m floor**. So **the preservation read
+> stands** (the erasure falsifier did not fire) and the **adoption recommendation
+> is the no-gain**: the base is at ~0.98 of its ceiling and `moe_v13s` already
+> delivers the park's P35 **94 %**, so a park-trained checkpoint adds nothing and
+> is not needed to ship the park. Not the fix: a wider gate (an 8.3 mm reach
+> residual at x = 0.16 - marginal, not a flail); the named next spend is the
+> **delivered drift tail** or the **harness's no-re-selection on a lateral
+> refusal**, each with its own pre-registration. No-harm: selfcheck PASS,
+> acceptance **6/10 + `fingerprint: matches`**, **376/376 `[fruit]` lines
+> identical** to the P36 record. Evidence: `AGENTS.md` §2 (the P37 paragraph),
+> WORKLOG "P37 phase 2", `logs/p37/` (`PREREG.md`, `P1_RESULTS.md`,
+> `P2_RESULTS.md`, `B_ab/`); the checkpoint and store are gitignored.
+
 > **汇报入口**：[项目总结报告.md](项目总结报告.md)（单一文档，含图表与日志编号）；路线取舍见 [决策与交付.md](决策与交付.md)；**项目收尾一页纸见 [docs/CLOSEOUT.md](docs/CLOSEOUT.md)**（R11-C：交付状态 / 全部杠杆族的实测裁定 / 剩余项）；一键演示 `scripts/demo_2min.sh`。
 
 > **Contributing?** [AGENTS.md](AGENTS.md) lists the three commands to run before

@@ -1,0 +1,35 @@
+=== fidelity on datasets/rl_rollouts/p37_park
+    windows: 192 sampled of 3698 (ddim=16, seed=7)
+    store proprio_dim=25 data_speed=None pins=[]
+    feeds: base <- 25-D, cand <- 25-D
+    NOTE: half precision on CUDA - a B0 delta is quantised; run B0 with --device cpu
+    device=cuda fp16=True
+    base     checkpoints/moe_v13s/policy_best.pt
+    cand     checkpoints/p37_park/policy_best.pt
+  overall                n=192  base: 0.210 rad / fing 0.0012 / phase 96% | cand: 0.233 rad / fing 0.0015 / phase 93%
+  skill approach         n= 47  base: 0.125 rad / fing 0.0006 / phase 91% | cand: 0.191 rad / fing 0.0017 / phase 89%
+  skill grasp            n=145  base: 0.224 rad / fing 0.0015 / phase 98% | cand: 0.251 rad / fing 0.0015 / phase 94%
+  success=False          n= 68  base: 0.122 rad / fing 0.0013 / phase 97% | cand: 0.161 rad / fing 0.0017 / phase 93%
+  success=True           n=124  base: 0.246 rad / fing 0.0012 / phase 96% | cand: 0.264 rad / fing 0.0014 / phase 94%
+  paired delta (cand - base): median +0.0281 rad, 71 improved / 121 worse / 0 ties, sign p=0.9999
+  paired finger median |d|: base 0.0012 -> cand 0.0015
+  action delta (cand - base): max 1.268e+00 rad, finger max 2.043e-02 [B0 criterion <= 1e-6]
+
+=== fidelity on datasets/demos_v11
+    windows: 192 sampled of 9378 (ddim=16, seed=7)
+    store proprio_dim=25 data_speed=None pins=[]
+    feeds: base <- 25-D, cand <- 25-D
+    NOTE: half precision on CUDA - a B0 delta is quantised; run B0 with --device cpu
+    device=cuda fp16=True
+    base     checkpoints/moe_v13s/policy_best.pt
+    cand     checkpoints/p37_park/policy_best.pt
+  overall                n=192  base: 0.079 rad / fing 0.0004 / phase 97% | cand: 0.072 rad / fing 0.0006 / phase 98%
+  skill approach         n= 81  base: 0.049 rad / fing 0.0002 / phase 95% | cand: 0.034 rad / fing 0.0003 / phase 95%
+  skill grasp            n= 16  base: 0.132 rad / fing 0.0010 / phase 94% | cand: 0.098 rad / fing 0.0011 / phase 100%
+  skill lift             n= 65  base: 0.108 rad / fing 0.0005 / phase 100% | cand: 0.113 rad / fing 0.0009 / phase 100%
+  skill place            n= 30  base: 0.090 rad / fing 0.0005 / phase 100% | cand: 0.083 rad / fing 0.0010 / phase 100%
+  success=True           n=192  base: 0.079 rad / fing 0.0004 / phase 97% | cand: 0.072 rad / fing 0.0006 / phase 98%
+  paired delta (cand - base): median -0.0104 rad, 120 improved / 72 worse / 0 ties, sign p=0.0003
+  paired finger median |d|: base 0.0004 -> cand 0.0006
+  action delta (cand - base): max 4.152e-01 rad, finger max 6.327e-03 [B0 criterion <= 1e-6]
+

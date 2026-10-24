@@ -1,0 +1,167 @@
+P37 phase 1 - the park-collected rollout store: provenance
+==========================================================
+Created 2026-10-24 after the collection (90 episodes) and the merge.
+Store: datasets/rl_rollouts/p37_park   (raw shards: datasets/rl_rollouts/p37_parts)
+Pre-registration: logs/p37/PREREG.md section 3.  Collector: scripts/221_p37_collect.sh.
+
+1. Tree pins at collection (logs/p37/tree_md5_before.txt, written before the first run)
+-------------------------------------------------------------------------------------
+   cdde6bd20670331ffbe8deb5d4f60b13  src/fruit_sorting/tasks.py
+   aa54b0226b04e2f720c5dcdb9d9fc107  src/fruit_sorting/rl_env.py
+   d7ec85fca5661a54473f7c6a69445fbc  src/fruit_sorting/policy/trigger.py
+   379ac7064fd49df8417e94dbf6ed2616  src/fruit_sorting/policy/runtime.py
+   41efc522d9b65e4d84dcc30b7175623a  src/fruit_sorting/meshes.py
+   6f65e4230b3424fe772bdeae0d2f356a  src/fruit_sorting/fruits.py
+   42ab4fb78a91ea9d85554e6d90e1da80  configs/arm_parks.json
+   25ade92bc0bd79b614131b4815934a4c  configs/motion_reference.json
+   61da390a85fa209496b54477a8255d23  checkpoints/moe_v13s/policy_best.pt
+   922ca995cbc849230d7adabcb959ed58  datasets/demos_v11/index.json
+   8d6bca58291b6301baa5790e723a4ef6fadb2b3e
+
+2. The exact environment of every shard (scripts/221_p37_collect.sh PIN_ENV)
+---------------------------------------------------------------------------
+   FRUIT_ARM_PARK=back
+   FRUIT_SUPPLY_SCATTER=1 FRUIT_SUPPLY_PATCH=1
+   FRUIT_SUPPLY_GRADES=A:0.375,B:0.375,C:0.25
+   FRUIT_POLICY_TRIGGER=arrival FRUIT_POLICY_TRIGGER_LEAD=0.9 FRUIT_POLICY_TRIGGER_ACQ=1
+   FRUIT_DYNAMIC_PICK=1
+   FRUIT_POLICY_SEED=11
+   FRUIT_CAMERA_RES=240,424
+   FRUIT_NO_ATTACH=1 FRUIT_NO_SLEEP=1
+   HEADLESS=1 FRUIT_EPISODES=15
+   scripts/run.sh scripts/110_rl_rollout.py --ckpt checkpoints/moe_v13s/policy_best.pt \
+       --presentation direct --seeds <SEED> --execute-steps 4 --ddim 16 --record \
+       --out datasets/rl_rollouts/p37_parts
+   (one spawned shard per seed through scripts/154_claim_run.sh, RUN_LIMIT=1500;
+    no diagnostics: FRUIT_ACQ_DIAG / FRUIT_CARRY_DIAG / FRUIT_PARK_DIAG all unset)
+
+3. The shards (logs/p37/collect_seed<SEED>.log; merge: logs/p37/merge.log)
+----------------
+   direct_none_seed1010   episodes=15 ok=10 carried= 5 no-grasp= 0 left= 5 right=10 index_md5=49653ed66f0587feacade2a2412d221c
+   direct_none_seed505    episodes=15 ok= 9 carried= 4 no-grasp= 2 left= 5 right=10 index_md5=e7e38b6f8fa4a8143524631626615bb2
+   direct_none_seed606    episodes=15 ok=11 carried= 4 no-grasp= 0 left= 5 right=10 index_md5=735852d15a113fcbcfbe6a7b195722aa
+   direct_none_seed707    episodes=15 ok= 9 carried= 5 no-grasp= 1 left= 6 right= 9 index_md5=7a7704dfe6ec730dc1ca6504d9e9cc82
+   direct_none_seed808    episodes=15 ok= 9 carried= 5 no-grasp= 1 left= 5 right=10 index_md5=d57d887b70cabf55c4437378d90449b6
+   direct_none_seed909    episodes=15 ok= 9 carried= 3 no-grasp= 3 left= 6 right= 9 index_md5=03916e644ae3e5b756d5f277f6a54ee5
+   TOTAL                  episodes=90 ok=57 carried=26 no-grasp= 7
+
+4. The store
+------------
+   path        datasets/rl_rollouts/p37_park   (1.3 GB, 90 npz + index.json + merge_manifest.json)
+   index md5   1ece5f9f22628316e29e8b9406c50c4e
+   merge md5   5d46218394a1c188bed2b8c69ae42e7e
+   merge_manifest: kind=rollout_merge episodes=90 successes=57 inputs=6
+   format (one npz per episode, the training schema EpisodeStore reads):
+     image_rgb (T,240,424,3) uint8, image_distance_to_image_plane (T,240,424,1) f32,
+     target_mask (T,240,424) u8, joint_positions (T,22) f32, finger_opening (T,1),
+     tactile (T,2), goal (T,8), fruit_position (T,3), action (T,9) f32
+   frames 5,228 total (min/median/max 23/57/103); training windows 3,698
+   (EpisodeStore: length - 16 - 1 per episode); index fields: success/grasped/
+   placed/notes/ticks/reward/category/grade/arm/bin_index/diameter/frames/
+   presentation/ablate/seed/shard.
+   classes: pooled ok 57 / carried-not-placed 26 / no-grasp 7 (success 63.3 %);
+     right (the park's population) n=58 ok 54 carried 0 no-grasp 4 = 93.1 % ok;
+     left (the park's no-op side)      n=32 ok  3 carried 26 no-grasp 3 = 9.4 % ok.
+   grades A 32 / B 32 / C 26; 8 species (tomato 18 ... strawberry 9); diameter
+   2.91-6.96 cm (median 6.22); reward mean 0.613 (33 zero-reward episodes).
+
+5. The manifest chain (what identifies the store from its own artifacts)
+-----------------------------------------------------------------------
+   direct_none_seed1010/manifest.json:
+      arm_park: {"file": "configs/arm_parks.json", "name": "back", "sides": ["left"], "source": "logs/p35/park_sweep.json"}
+      checkpoint_md5: "61da390a85fa209496b54477a8255d23"
+      tasks_md5: "cdde6bd20670331ffbe8deb5d4f60b13"
+      belt_speed: 0.12
+      camera_res: "240,424"
+      policy_seed: "11"
+      trigger: {"acq": true, "acq_cap": 4.5, "acq_margin": 0.6, "acq_reach_margin": 0.05, "acq_speed": 0.2, "finger": 0.04, "frame": "station", "lateral": 0.16, "lead": 0.9, "mode": "arrival", "present": false, "reach": 0.2, "use_encoder": true, "x_max": null}
+      proprio_spoof: null
+      speed_channel: false
+      presentation: "direct"
+      execute_steps: 4
+      ddim_steps: 16
+   direct_none_seed505/manifest.json:
+      arm_park: {"file": "configs/arm_parks.json", "name": "back", "sides": ["left"], "source": "logs/p35/park_sweep.json"}
+      checkpoint_md5: "61da390a85fa209496b54477a8255d23"
+      tasks_md5: "cdde6bd20670331ffbe8deb5d4f60b13"
+      belt_speed: 0.12
+      camera_res: "240,424"
+      policy_seed: "11"
+      trigger: {"acq": true, "acq_cap": 4.5, "acq_margin": 0.6, "acq_reach_margin": 0.05, "acq_speed": 0.2, "finger": 0.04, "frame": "station", "lateral": 0.16, "lead": 0.9, "mode": "arrival", "present": false, "reach": 0.2, "use_encoder": true, "x_max": null}
+      proprio_spoof: null
+      speed_channel: false
+      presentation: "direct"
+      execute_steps: 4
+      ddim_steps: 16
+   direct_none_seed606/manifest.json:
+      arm_park: {"file": "configs/arm_parks.json", "name": "back", "sides": ["left"], "source": "logs/p35/park_sweep.json"}
+      checkpoint_md5: "61da390a85fa209496b54477a8255d23"
+      tasks_md5: "cdde6bd20670331ffbe8deb5d4f60b13"
+      belt_speed: 0.12
+      camera_res: "240,424"
+      policy_seed: "11"
+      trigger: {"acq": true, "acq_cap": 4.5, "acq_margin": 0.6, "acq_reach_margin": 0.05, "acq_speed": 0.2, "finger": 0.04, "frame": "station", "lateral": 0.16, "lead": 0.9, "mode": "arrival", "present": false, "reach": 0.2, "use_encoder": true, "x_max": null}
+      proprio_spoof: null
+      speed_channel: false
+      presentation: "direct"
+      execute_steps: 4
+      ddim_steps: 16
+   direct_none_seed707/manifest.json:
+      arm_park: {"file": "configs/arm_parks.json", "name": "back", "sides": ["left"], "source": "logs/p35/park_sweep.json"}
+      checkpoint_md5: "61da390a85fa209496b54477a8255d23"
+      tasks_md5: "cdde6bd20670331ffbe8deb5d4f60b13"
+      belt_speed: 0.12
+      camera_res: "240,424"
+      policy_seed: "11"
+      trigger: {"acq": true, "acq_cap": 4.5, "acq_margin": 0.6, "acq_reach_margin": 0.05, "acq_speed": 0.2, "finger": 0.04, "frame": "station", "lateral": 0.16, "lead": 0.9, "mode": "arrival", "present": false, "reach": 0.2, "use_encoder": true, "x_max": null}
+      proprio_spoof: null
+      speed_channel: false
+      presentation: "direct"
+      execute_steps: 4
+      ddim_steps: 16
+   direct_none_seed808/manifest.json:
+      arm_park: {"file": "configs/arm_parks.json", "name": "back", "sides": ["left"], "source": "logs/p35/park_sweep.json"}
+      checkpoint_md5: "61da390a85fa209496b54477a8255d23"
+      tasks_md5: "cdde6bd20670331ffbe8deb5d4f60b13"
+      belt_speed: 0.12
+      camera_res: "240,424"
+      policy_seed: "11"
+      trigger: {"acq": true, "acq_cap": 4.5, "acq_margin": 0.6, "acq_reach_margin": 0.05, "acq_speed": 0.2, "finger": 0.04, "frame": "station", "lateral": 0.16, "lead": 0.9, "mode": "arrival", "present": false, "reach": 0.2, "use_encoder": true, "x_max": null}
+      proprio_spoof: null
+      speed_channel: false
+      presentation: "direct"
+      execute_steps: 4
+      ddim_steps: 16
+   direct_none_seed909/manifest.json:
+      arm_park: {"file": "configs/arm_parks.json", "name": "back", "sides": ["left"], "source": "logs/p35/park_sweep.json"}
+      checkpoint_md5: "61da390a85fa209496b54477a8255d23"
+      tasks_md5: "cdde6bd20670331ffbe8deb5d4f60b13"
+      belt_speed: 0.12
+      camera_res: "240,424"
+      policy_seed: "11"
+      trigger: {"acq": true, "acq_cap": 4.5, "acq_margin": 0.6, "acq_reach_margin": 0.05, "acq_speed": 0.2, "finger": 0.04, "frame": "station", "lateral": 0.16, "lead": 0.9, "mode": "arrival", "present": false, "reach": 0.2, "use_encoder": true, "x_max": null}
+      proprio_spoof: null
+      speed_channel: false
+      presentation: "direct"
+      execute_steps: 4
+      ddim_steps: 16
+
+   All six shard manifests agree on every field above; `arm_park` is
+   {"name":"back","file":"configs/arm_parks.json","sides":["left"],
+    "source":"logs/p35/park_sweep.json"} (the P35 measured pose, left arm only).
+   `proprio_spoof` is null in every shard: the P36 spoof is refused with
+   `--record` by `rl_env.store_guard_reason`, and it was not used.
+
+6. Recorded limitations
+-----------------------
+   * The rollout manifest has NO supply block (the collector's `supply.patch`
+     field has no rollout twin), so the patch sheet is pinned by the command
+     block above + logs/p37/collect_seed*.log, not by the manifest. Named
+     follow-up: add a supply block to `rl_env._build_manifest` (it moves the
+     `rl_env.py` md5 pin, so it is its own change).
+   * `logs/` and `datasets/` are gitignored: committing this evidence needs
+     `git add -f` (the P35/P36 convention).
+   * A 2-episode instrumented smoke (`logs/p37/smoke.log`,
+     datasets/rl_rollouts/p37_smoke, park diag ON, --record) ran before the
+     collection to validate the path; it is NOT part of the store and was not
+     merged.

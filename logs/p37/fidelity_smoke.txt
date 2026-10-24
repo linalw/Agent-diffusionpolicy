@@ -1,0 +1,32 @@
+=== fidelity on datasets/rl_rollouts/p37_park
+    windows: 8 sampled of 3698 (ddim=4, seed=7)
+    store proprio_dim=25 data_speed=None pins=[]
+    feeds: base <- 25-D, cand <- 25-D
+    NOTE: half precision on CUDA - a B0 delta is quantised; run B0 with --device cpu
+    device=cuda fp16=True
+    base     checkpoints/moe_v13s/policy_best.pt
+    cand     checkpoints/moe_v13s/policy_best.pt
+  overall                n=  8  base: 0.533 rad / fing 0.0046 / phase 75% | cand: 0.533 rad / fing 0.0046 / phase 75%
+  skill grasp            n=  8  base: 0.533 rad / fing 0.0046 / phase 75% | cand: 0.533 rad / fing 0.0046 / phase 75%
+  success=False          n=  4  base: 0.371 rad / fing 0.0053 / phase 50% | cand: 0.371 rad / fing 0.0053 / phase 50%
+  success=True           n=  4  base: 1.250 rad / fing 0.0046 / phase 100% | cand: 1.250 rad / fing 0.0046 / phase 100%
+  paired delta (cand - base): median +0.0000 rad, 0 improved / 0 worse / 8 ties, sign p=1.0000
+  paired finger median |d|: base 0.0046 -> cand 0.0046
+  action delta (cand - base): max 0.000e+00 rad, finger max 0.000e+00 [B0 criterion <= 1e-6]
+
+=== fidelity on datasets/demos_v11
+    windows: 8 sampled of 9378 (ddim=4, seed=7)
+    store proprio_dim=25 data_speed=None pins=[]
+    feeds: base <- 25-D, cand <- 25-D
+    NOTE: half precision on CUDA - a B0 delta is quantised; run B0 with --device cpu
+    device=cuda fp16=True
+    base     checkpoints/moe_v13s/policy_best.pt
+    cand     checkpoints/moe_v13s/policy_best.pt
+  overall                n=  8  base: 0.432 rad / fing 0.0039 / phase 75% | cand: 0.432 rad / fing 0.0039 / phase 75%
+  skill approach         n=  2  base: 0.517 rad / fing 0.0045 / phase 100% | cand: 0.517 rad / fing 0.0045 / phase 100%
+  skill lift             n=  6  base: 0.432 rad / fing 0.0036 / phase 67% | cand: 0.432 rad / fing 0.0036 / phase 67%
+  success=True           n=  8  base: 0.432 rad / fing 0.0039 / phase 75% | cand: 0.432 rad / fing 0.0039 / phase 75%
+  paired delta (cand - base): median +0.0000 rad, 0 improved / 0 worse / 8 ties, sign p=1.0000
+  paired finger median |d|: base 0.0039 -> cand 0.0039
+  action delta (cand - base): max 0.000e+00 rad, finger max 0.000e+00 [B0 criterion <= 1e-6]
+

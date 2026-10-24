@@ -1,0 +1,32 @@
+P37 power check - the non-inferiority primary (design only, no data)
+draws=20000  margin=0.10  base right ok p=0.94  seed=20261024
+
+p_cand is the candidate's TRUE right-arm placed rate; n = right-arm episodes/arm
+
+--- n = 40 per arm ---
+ p_cand   P(pass)  P(B>=A in 5/5 runs)  median delta (B-A)
+   0.94     0.982                0.220              +0.000
+   0.90     0.874                0.071              -0.050
+   0.85     0.604                0.016              -0.100
+   0.80     0.325                0.004              -0.150
+   0.75     0.136                0.001              -0.200
+   0.60     0.004                0.000              -0.350
+   0.45     0.000                0.000              -0.500
+
+--- n = 50 per arm ---
+ p_cand   P(pass)  P(B>=A in 5/5 runs)  median delta (B-A)
+   0.94     0.991                0.177              +0.000
+   0.90     0.898                0.052              -0.040
+   0.85     0.608                0.010              -0.080
+   0.80     0.302                0.001              -0.140
+   0.75     0.111                0.000              -0.180
+   0.60     0.001                0.000              -0.340
+   0.45     0.000                0.000              -0.500
+
+Reading (pre-registered):
+  * false-erasure rate: at p_cand = p_base the test FAILS in 0.9% of batches (n = 50) - the
+    one-sided 0.10 margin spends that much on a preserved win;
+  * the erasure state (the parked win gone: p ~ 0.45, the P35 control's
+    0.45 right rate) passes in 0.0% of batches;
+  * a candidate at the margin (0.84) is the ambiguous cell and is
+    reported as such, not rounded to a pass or a fail.

@@ -1369,6 +1369,51 @@ record. Pins: `rl_env.py` `aa54b022`, `configs/proprio_spoof.json` `374b88a7`,
 `2fe202d7` (batch `e19fa36d`), `scripts/220_p36_report.py` `42dd8339` (batch
 `72f22dd5`).
 
+**P37 (2026-10-25, `logs/p37/`, default off, not adopted): the park-collected
+recollection preserves the park's win and the pre-registered S3 gate fails on a
+scenario tail; the checkpoint adds no gain over the shipped `moe_v13s` + park.**
+The question P36 left: a fine-tune on rollouts **collected under the park** (both
+channels fixed) - the shipping path, since the spoof probes do not ship. The
+store is the **direct-rollout** store (`110_rl_rollout --record` under
+`FRUIT_ARM_PARK=back`; the collector parks through `tasks.go_ready` and has no
+park): **90 episodes / 3,698 windows**, right 54/58 ok / **0 carried**, left 3/32
+ok (`datasets/rl_rollouts/p37_park`, gitignored); fine-tune `moe_v13s`
+`61da390a` -> `checkpoints/p37_park` `3fa45c96` (`ones`, 6 epochs, lr 5e-5, base
+`demos_v11`, **28.3 % rollout window share** - the declared confound). The
+adoption A/B (**N = 5 x 15 per arm**, seeds 77/101/202/303/404, one claim, **both
+arms parked**, the W6-A patch sheet + the ACQ interface, A then B): the H2
+manipulation gate PASSES 100 % per arm (44/44, 49/49); right-arm placed **A 43/44
+= 0.977 vs B 47/49 = 0.959** (delta **-0.018** against the -0.10 margin),
+**carried 0 vs 0**, S2 consistent, S4 -0.8 % (PASS), and **S3 FAIL** on one novel
+`timeout: no grasp within 1500 ticks` (1/92 right). **The S3 fail is a scenario
+tail, not a candidate result**: the trigger's lateral gate is a pure function of
+the fruit's x (`dx = x - 0.333`, gate 0.16 -> only `x >= 0.173 m` is admitted)
+and the delivered supply's x is **0.148-0.364 m**
+(`logs/v1/12b_supply_after_free.log` line 409), so ~2.5 cm of the stream is
+systematically unfirable; the event (x = **+0.159**, **below the band's 0.20 m
+floor**) runs at ~1 %/episode, so at n ~ 45 per arm which arm sees it is ~a coin
+flip. The formal rule fires (not an adoption candidate) but **the preservation
+read stands and the event carries essentially no evidence about the checkpoint**;
+**do not widen the gate** (the reach residual at x = 0.16 is **8.3 mm** -
+marginal, not a flail - and a wider gate trades a no-fire for a grip-quality
+failure). The **adoption recommendation is the no-gain**: the base sits at ~0.98
+of its ceiling and the shipped `moe_v13s` already delivers the park's P35 **94 %**,
+so a park-trained checkpoint adds nothing and is **not needed to ship the park**.
+The pooled rate is an **arm-mix artifact** (right -1.8 / left +0.6 points;
+standardised ~ -1; the right share moves 58.7 -> 65.3 %) - the right-arm primary
+is the read - and the interval has **~no power** (-0.0885 at 47/50 equality,
+-0.1045 one margin-step in), so the pre-registered **point rule** is the only
+gate that passes (realized n 44/49 = the power table's n = 40 row, 98.2 %). The
+fidelity direction is a **diagnostic, not a measurement**. No-harm: selfcheck
+PASS; acceptance **6/10 + `fingerprint: matches`** with **376/376 `[fruit]` lines
+identical** to the P36 record; no `src/`/`configs/` change, no shipped default.
+The checkpoint and the store are **gitignored** (provenance in `logs/p37/`); the
+next spend is the **supply/transport drift tail** and the **harness's
+no-re-selection on a lateral refusal** (the 1500-tick timeout class), each with
+its own pre-registration. Pins: `logs/p37/p37_report.py` `50dae91d` (batch
+`e17aef37`), `scripts/221_p37_collect.sh` `115f2e25`,
+`scripts/222_p37_finetune.sh` `c0509407`, `scripts/223_p37_ab.sh` `49febf5a`.
+
 ## 3. What changed -> what to run
 
 | you changed | run |

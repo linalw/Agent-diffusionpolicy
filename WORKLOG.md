@@ -17798,3 +17798,169 @@ recollection's own A/B at **N = 5, park-collected**; the open image statistic
 read. The report was re-rendered (`logs/p36/A_ab/A_report.txt`: the M2 line, the
 reading and the OOD paragraph, all other lines identical); the script pins are
 below in the commit.
+
+### P37 phase 2: the park-collected recollection preserves the park's win (right placed 0.977 -> 0.959, delta -0.018 against the -0.10 margin, carried 0 vs 0) and the pre-registered S3 gate fails on a scenario tail (one novel no-fire: a kiwi at x=+0.159, below the band's floor, refused by the shipped 0.16 lateral gate) - so it is not an adoption candidate, and the checkpoint adds no gain over moe_v13s + park (P35 94 %); the default stays off (2026-10-25)
+
+**The question.** P35 measured the arm park as a *checkpoint-specific input-shift*
+lever (right 45 % -> 94 %, carried 25 -> 0) and P36 showed the win is
+**image-borne**; the spoof probes do not ship. The shipping path is a
+**recollection collected under the park** (both channels fixed) with its own
+N = 5 A/B: does a fine-tune on the parked distribution **preserve** the win on
+the deployment configuration? (`logs/p37/PREREG.md`, written before any run;
+`.slim/deepwork/p37-park-recollection.md`.)
+
+**The store** (phase 1, `logs/p37/P1_RESULTS.md`): `datasets/rl_rollouts/p37_park`,
+90 episodes from six seeds (`--record` under `FRUIT_ARM_PARK=back`, the faithful
+path - the collector parks through `tasks.go_ready` and has no park), 57 ok / 26
+carried / 7 no-grasp, 3,698 windows, index md5 `1ece5f9f`; the parked branch is
+legible in the store itself (**right 54/58 ok, 0 carried**; left 3/32 ok, 26
+carried).
+
+**The fine-tune** (`scripts/222_p37_finetune.sh`, the PREREG recipe verbatim):
+`moe_v13s` `61da390a` -> **`checkpoints/p37_park` `3fa45c96`**, `ones`, 6
+epochs, lr 5e-5, base `demos_v11` at 1.0, seed 0, 7.4 min; final weighted loss
+0.041195, router acc 0.9921, demo_val 0.013663. **Rollout window share 28.3 %**
+(3,698 vs 9,378) - the declared confound, against the recollection precedent's
+77 %.
+
+**The Gate-1 H1/H2 implementation, before the batch**
+(`logs/p37/p37_report.py`, md5 `e17aef37` at batch time, self-test PASS). **H2**
+is the dispatch's manipulation gate, per arm, on right-active episodes with a
+band call, >= 95 % each: **M1-held** (`m1_hold_ok` and `m1_hold <= 0.02` vs
+`q_settled`), **M1-applied** from the row's **own `q`** (`|q-back| <= 0.15`,
+`|q-ready| >= 0.30`, `drift <= 0.02`; this is P35's `m1_prime` reading `q`, not
+`q_settled`, and it rejects a `ready` arm - the P35 A arm reads 0/51 on it, so
+the gate is not vacuous), and **M2a** (`max_frac < 0.10`), plus one `[park]` row
+per episode; `arm_px = 0` is the **census report only**, not a bar. **H1** prints
+the primary with the **exact unconditional non-inferiority p** (sup over the
+nuisance rate at the null boundary, full binomial enumeration, integer-exact
+comparisons) and the **Newcombe hybrid-score one-sided 95 % lower bound**; S1
+the left noise floor; S2 species- and diameter-tertile standardisation with the
+**crude-vs-standardised straddle = ambiguous** rule; S3 the new-reason set diff
+with count/arm; S4 the cycle; S5 the manipulation gate; the realized n; the
+`119` fidelity readout; and the **conservative label** (a pass at
+`p_hat < 0.94` and/or a near-zero change <= 0.01 rad prints "PASS inside the
+ambiguous band / no-op", never "preserved").
+
+**The batch** (`scripts/223_p37_ab.sh`): N = 5 x 15 per arm, seeds
+77/101/202/303/404, sampler 11, **both arms parked**, the PREREG section-2 block
+verbatim, the same three diagnostics on both arms, one claim 00:07:05 ->
+01:19:41 (72.6 min, 10 sessions). Realized **A right 44 / B right 49** (75
+episodes per arm). The manipulation check **PASSES** on both arms, **100 % on
+every term** (44/44 and 49/49; `|q-back|` 0.093, `|q-ready|` 0.602, drift max
+0.010; census: fully hidden 0/1,078 and 0/1,196, inactive-arm pixels 0/1,078 and
+8/1,196 = 0.7 % - the single ep-6 band-edge call).
+
+**The primary: PASS.** Right-arm placed **A 43/44 = 0.977 vs B 47/49 = 0.959**,
+**delta -0.018** against the pre-registered -0.10; exact p **0.2195** (discrete,
+conservative), Newcombe lower **-0.095** (inside the margin, but see the power
+note below), Wald p 0.0116.
+Nothing is erased: carried 0 vs 0; the shared non-timeout failure class is the
+**3.4 cm strawberry** (A run4 ep14, B run4 ep7); the P33 carried-class pairing is
+**degenerate as pre-registered** (25 usable right pairs, 0 discordant). Per run
+(right ok) A 10/10, 9/9, 6/6, 5/6, 13/13 vs B 9/10, 9/9, 6/6, 11/12, 12/12 (B >= A
+in 4/5). S1 left 1/31 vs 1/26 (delta +0.006 - the one-sided ceiling floor); S2
+crude -0.018 / species -0.017 / diameter -0.021, coverage 1.00 -> **not
+ambiguous**; S4 pooled 1,840 -> 1,826 ticks (-0.8 %), right 1,784 -> 1,783
+(-0.0 %) -> PASS.
+
+**S3: FAIL, and it fails the gate - on a scenario tail, not on the candidate.**
+The candidate produced **one** reason the base never did: `timeout: no grasp
+within 1500 ticks`, **1 of 92 right-arm episodes** (run 1 ep 6, kiwi 6.3 cm,
+`decision=1500`, **no `[acq]` row - the trigger never fired**). Its x was
+**+0.159**; the trigger's lateral gate is a **pure function of the fruit's x**
+(`dx = x - 0.333`, gate 0.16 -> it **admits only x >= 0.173 m**), while the
+delivered supply's lateral x is **0.148-0.364 m** (min +0.148, p10 +0.205, p50
++0.279, p90 +0.348, max +0.364; `logs/v1/12b_supply_after_free.log` line 409) -
+so a **~2.5 cm tail is systematically unfirable** and x = +0.159 is *below the
+patch band's 0.20 m floor*, not an outer-band fruit. At ~1 %/episode a
+45-episode arm meets the class in ~40 % of batches, so **which arm it lands in
+is close to a coin flip** (the base's 44 right-arm episodes did not present one;
+W7-C saw the same class once). The pre-registered rule is mechanical and has no
+severity threshold, so the **adoption candidate is NO** (primary pass, S3 fail,
+S4 pass, manipulation pass) - **the preservation read stands, and the S3 fail is
+the pre-registered formal gate on a scenario tail (~1 %/episode, not a candidate
+behaviour); it carries essentially no evidence about the checkpoint** (the
+erasure branch's "negative and published" wording does not apply: the falsifier
+did not fire). The H1 label stays "PASS (preservation candidate)" (p_hat 0.959
+>= 0.94, action delta 1.27 rad -> not a no-op); the two lines are printed
+together so the preservation read and the failed adoption gate cannot be
+confused. **Not the fix**: widening the gate - the reach-edge ladder reads
+**8.3 mm** at x = 0.16 (6.0 mm at 0.18; `logs/v3/60_station_reach_edge.log`),
+marginal but not a flail, and a wider gate trades a no-fire for a grip-quality
+failure; the defect is the **delivered drift tail** or the **harness's
+no-re-selection on a lateral refusal** (the 1500-tick timeout class), each a
+scenario change needing its own pre-registration.
+
+**The adoption recommendation is the no-gain.** B **0.959** vs A **0.977**
+(delta **-0.018**), carried **0 vs 0**: the base sits at ~0.98 of its ceiling
+and the shipped `moe_v13s` **already delivers the park's P35 win (94 %)** with
+the park on, so a park-trained checkpoint adds nothing measurable and is **not
+needed to ship the park**. The pooled rate (A 58.7 %, B 64.0 %) is an
+**arm-mix artifact** - right -1.8 points / left +0.6, standardised ~ -1 point
+(the right share moves 58.7 % -> 65.3 %) - so the **right-arm primary is the
+read**, never the pool. The interval is supporting only: -0.095 sits 0.005
+inside the margin and at equality the same bound is **-0.0885** (47/50 vs 47/50;
+**-0.1045** one margin-step in), i.e. it has ~no power at MARGIN = 0.10 - the
+pre-registered **point rule is the only gate that passes**, and the realized n
+(44/49) is the power table's **n = 40** row (98.2 %).
+
+**The fidelity diagnostic** (`119`, 192 windows, DDIM-16, `logs/p37/fidelity.txt`,
+a **diagnostic, not a measurement**): on the park store the paired delta is
+**+0.0281 rad** (121 worse / 71 improved, p = 0.9999) and the **action delta max
+1.268 rad**; on `demos_v11` **-0.0104 rad** (120/72, p = 0.0003), action max
+0.415 rad. So the fine-tune **moved the policy materially** (not a no-op); the
+**direction** - away from the park store's recorded actions, toward the `ready`
+anchor - is the **diagnostic reading** of the declared confound at a 28.3 %
+share, not a measurement of the deployment loop, and the loop's read is the A/B
+(which it did not cost). A `base_weight`-matched variant (the precedent's 77 %
+share) would need its **own** pre-registration.
+
+**No-harm.** `scripts/selfcheck.sh` PASS (0 failures, 1 skipped); the scripted
+acceptance with both knobs **unset** reads **6/10 + `fingerprint: matches`** (the
+pre-existing P32 pear-on branch, rate-only `exit=1`) with its **376 `[fruit]`
+lines IDENTICAL** to the P36 record; every `src/`/`configs/` pin is unchanged
+(`tasks.py` `cdde6bd2`, `rl_env.py` `aa54b022`, `trigger.py` `d7ec85fc`,
+`runtime.py` `379ac706`, `meshes.py` `41efc522`, `fruits.py` `6f65e423`,
+`arm_parks.json` `42ab4fb7`, `motion_reference.json` `25ade92b`). **No shipped
+default changed.** The close-out commits the docs + `logs/p37/` (force-added) +
+`scripts/221/222/223`; `checkpoints/p37_park` and the rollout store are
+**gitignored** (their provenance is `logs/p37/`).
+
+**Pins**: report `logs/p37/p37_report.py` `e17aef37` batch-time -> `e606bf3f`
+after the post-batch print-only M1 wording fix -> **`50dae91d`** after the
+Gate-2 cache-key hardening (both disclosed; the re-render is byte-identical
+apart from its md5 header and no number changed); candidate
+`checkpoints/p37_park/policy_best.pt` `3fa45c96`; fidelity
+`logs/p37/fidelity.txt`; batch header `logs/p37/B_ab/B_header.txt`. The record is
+`logs/p37/P2_RESULTS.md`; the phase-3 integration/adoption decision is the
+orchestrator's (this phase changes no default).
+
+**Gate 2 (Oracle 2) - the record fixes, no number/decision change.** The
+conditions are enumerated in `logs/p37/P2_RESULTS.md` §9 and `logs/p37/PREREG.md`
+§10 #7. In one line each: **F1** the S3 fail is a **systematic scenario tail**
+(the lateral gate is a pure function of the fruit's x: `dx = x - 0.333`, gate
+0.16 -> only `x >= 0.173` is admitted, while the delivered supply is
+**0.148-0.364 m** -> ~2.5 cm systematically unfirable; the event is ~1 %/episode
+and 1/92 right is ~a coin flip at n ~ 45) - **the preservation read stands, and
+the S3 fail carries essentially no evidence about the checkpoint**; **F2** do
+**not** widen the gate (the 8.3 mm reach residual at x = 0.160 is marginal, not
+a flail; a wider gate trades a no-fire for a grip-quality failure) - the defect
+is the **delivered drift tail** or the **harness's no-re-selection on a lateral
+refusal**, each a scenario change with its own pre-registration, and that pair
+is **the next spend**; **F3** the adoption recommendation is the **no-gain** (the
+base at ~0.98 of its ceiling, `moe_v13s` already delivering the park's P35
+94 %), not the S3 event; **F4** the "park stays a documented default-off lever /
+shipping path closed" sentence is the **erasure** branch's wording and the
+falsifier did not fire - the **preservation** branch applies and the adoption
+decision is the owner's; **F5** the interval has ~no power (-0.0885 at 47/50
+equality, -0.1045 one margin-step in) so the **point rule** is the only gate and
+the realized n is the **n = 40** row; **F6** the pooled rate is an **arm-mix
+artifact** (right -1.8 / left +0.6, standardised ~ -1 point; right share 58.7 %
+-> 65.3 %) - **the right-arm primary is the read**; **F7** the fidelity
+direction is a **diagnostic, not a measurement**; **F8** the report's
+`_P_EXACT_CACHE` key carries `(margin, steps)` (md5 `e606bf3f` -> `50dae91d`,
+re-render byte-identical apart from the header); **F9** the S3 arm cut is
+specified (pooled gate + right-arm specifier), x = 0.159 is corrected to **below
+the band's 0.20 m floor** (not "outer band"), and the fixed **A-then-B** order is
+noted with its confound.

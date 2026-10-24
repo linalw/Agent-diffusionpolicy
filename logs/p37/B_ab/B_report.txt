@@ -1,0 +1,109 @@
+P37 - the park-collected recollection vs the base (both arms parked)
+============================================================================================
+  dir runs: [1, 2, 3, 4, 5]
+  report md5 e606bf3f8282ea59be1fd0b4288199af | 113_rl_report.py c27c49b89cca5753c0f551be138c6379 | logs/p35/park_ab_report.py a796db0b7042b89b9704452b09427145
+  arm A = baseline (A); arm B = candidate (B)
+
+[0] COMPLETENESS / the realized n
+
+  A: 75 episodes over 5 runs (right n=44, left n=31)
+  B: 75 episodes over 5 runs (right n=49, left n=26)
+  realized n (primary): A 44 / B 49 right-arm episodes
+
+[1] S5 / GATE H2 - the manipulation check (gates the outcome read)
+
+  [park] rows: 150 for 150 episodes | rows whose inactive side is right 0 | missing 0
+  arm A: right-active 44 (with a band call 44, without 0)
+    PASS  M1-held  (<=0.02 rad vs q_settled)                          44/44  (100.0 %)
+    PASS  M1-applied (|q-back|<=0.15, |q-ready|>=0.30, drift<=0.02)   44/44  (100.0 %)
+    PASS  M2a  (max band arm_frac < 0.10)                             44/44  (100.0 %)
+    PASS  the conjunction (all three)                                 44/44  (100.0 %)
+           |q-back| median 0.093 (max 0.093) | |q-ready| median 0.602 (min 0.602) | drift max 0.010 rad
+           band calls per episode median 25 (16-25) | max_frac median 0.000 (max 0.000)
+           census (REPORT ONLY, arm_px = 0 is not a bar): 1078 band calls | fully hidden 0/1078 = 0.0% | any inactive-arm pixel 0/1078 = 0.0%
+  arm B: right-active 49 (with a band call 49, without 0)
+    PASS  M1-held  (<=0.02 rad vs q_settled)                          49/49  (100.0 %)
+    PASS  M1-applied (|q-back|<=0.15, |q-ready|>=0.30, drift<=0.02)   49/49  (100.0 %)
+    PASS  M2a  (max band arm_frac < 0.10)                             49/49  (100.0 %)
+    PASS  the conjunction (all three)                                 49/49  (100.0 %)
+           |q-back| median 0.093 (max 0.093) | |q-ready| median 0.602 (min 0.602) | drift max 0.010 rad
+           band calls per episode median 25 (15-25) | max_frac median 0.000 (max 0.080)
+           census (REPORT ONLY, arm_px = 0 is not a bar): 1196 band calls | fully hidden 0/1196 = 0.0% | any inactive-arm pixel 8/1196 = 0.7%
+  => manipulation PASS (bar 95% on each term, per arm, one [park] row per episode)
+
+[2] M1 - THE PRIMARY (pooled right-arm placed; the park's population)
+
+  A: 43/44 = 0.977 | B: 47/49 = 0.959 | delta (B-A) -0.018 vs the non-inferiority margin -0.10
+  exact unconditional non-inferiority p = 0.2195 (sup over the nuisance rate at p_B = p_A - 0.10; discrete and conservative at this n)
+  one-sided 95% lower bound on delta: Newcombe -0.095 | Wald -0.077 (z = 2.27, p = 0.0116)
+         at ~50 right-arm episodes/arm the interval is about the margin
+         wide even under exact equality (Newcombe -0.105 and Wald p 0.048
+         at 45/50 vs 45/50) - supporting, not the gate; the
+         pre-registered point rule's power is the power table's 99.1 %.
+  => primary PASS (pre-registered rule: delta >= -0.10; the p/interval are supporting, not the gate)
+
+[3] the right-arm class table and the P33 exact-instance pairing
+
+  A: n=44 ok=43 carried-not-placed=0 no-grasp=1 other=0 | composite=1
+  B: n=49 ok=47 carried-not-placed=0 no-grasp=2 other=0 | composite=2
+  paired (right, exact fruit): usable 25 (excluded 50) | both_ok 25 both_fail 0 B-only 0 A-only 0 | one-sided sign p=1.0000
+  carried-class conversions: B-only 0, A-only 0 - PRE-REGISTERED DEGENERATE: the park's own arm read 0/50 carried (P35) and the store 0/58, so this endpoint has almost no events under the park; reported, not gated
+
+[4] S1 - the left noise floor (a no-op for the park: no right-arm park vector)
+
+  A: n=31 ok=1 carried=29 no-grasp=1
+  B: n=26 ok=1 carried=24 no-grasp=1
+  left ok A 1/31 vs B 1/26 | delta +0.006 - a ONE-SIDED floor at the ceiling (1-3 ok per arm); reported, not gated
+  paired (left, exact fruit): usable 13 | B-only 0 A-only 0 | sign p=1.0000
+
+[5] S2 - the standardised right-arm placed rate (crude vs standardised)
+
+  crude: A 0.977 / B 0.959 -> delta -0.018 (pass)
+  species: A 0.977 / B 0.961 -> delta -0.017 (pass) | coverage 1.00
+      apple                A  6/6   B  5/5   B rate 1.00
+      strawberry           A  8/9   B  9/10  B rate 0.90
+      lychee               A  8/8   B  8/8   B rate 1.00
+      kiwi                 A  5/5   B  5/6   B rate 0.83
+      orange               A  3/3   B  3/3   B rate 1.00
+      tomato               A  6/6   B  9/9   B rate 1.00
+      pear                 A  3/3   B  2/2   B rate 1.00
+      peach                A  4/4   B  6/6   B rate 1.00
+  diameter tertiles: A 0.977 / B 0.956 -> delta -0.021 (pass) | coverage 1.00
+      2                    A 13/13  B 12/13  B rate 0.92
+      0                    A 15/16  B 16/17  B rate 0.94
+      1                    A 15/15  B 19/19  B rate 1.00
+      (tertile cuts 4.00 / 6.20 cm, pooled right-arm diameters)
+  => the crude and standardised deltas agree on the margin
+
+[6] S3 - new failure reasons (113's number normalisation)
+
+  A: ["'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)'", "'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)', 'fruit did not follow the gripper'"]
+  B: ["'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)'", "'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)', 'fruit did not follow the gripper'", "'timeout: no grasp within # ticks'"]
+  NEW in B: "'timeout: no grasp within # ticks'" | count 1 (left 0, right 1) | ep [(1, 6, 'right')]
+  => S3 FAIL (right-arm-only set: ["'timeout: no grasp within # ticks'"])
+
+[7] S4 - cycle (pooled median simulated ticks; B <= A x 1.05)
+
+  pooled: A 1840 / B 1826 ticks -> -0.8%
+  right arm (the inference population): A 1784 / B 1783 ticks -> -0.0%
+  => S4 PASS (bar <= +5.0%)
+
+[8] the fidelity readout (119_rl_fidelity.py; diagnostic, not a gate)
+
+  datasets/rl_rollouts/p37_park: paired delta median +0.0281 rad (71 improved / 121 worse / 0 ties, sign p=0.9999) | max |delta action| 1.268e+00 rad
+  datasets/demos_v11: paired delta median -0.0104 rad (120 improved / 72 worse / 0 ties, sign p=0.0003) | max |delta action| 4.152e-01 rad
+  => behaviour change: max |delta action| = 1.268 rad > 0.01
+
+[9] M1-M4 SUMMARY AND THE PRE-REGISTERED DECISION
+
+  M1  observed delta -0.018 | one-sided 95% lower bound (Newcombe) -0.095 | exact p 0.2195 | realized n A 44 / B 49 | PASS
+  M2  standardised right rate: crude -0.018, species -0.017, diameter -0.021 -> consistent
+  M3  new reasons in B: 1 -> [("'timeout: no grasp within # ticks'", 1, {'right': 1})] | S3 FAIL
+  M4  S4 cycle PASS | S5 manipulation PASS
+
+  LABEL: PASS (preservation candidate)
+  adoption candidate: NO (primary pass, S3 fail, S4 pass, manipulation pass)
+  NOT ADOPTED here in any case: the shipped default `FRUIT_ARM_PARK` off is
+  the owner's phase-3 decision; a pass licenses that decision, it does not
+  flip it. A pass is a preservation result at this n, not evidence that
+  training under the park improves anything over the base (PREREG section 7).

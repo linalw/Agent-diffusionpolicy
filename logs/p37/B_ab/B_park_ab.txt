@@ -1,0 +1,70 @@
+runs paired: [1, 2, 3, 4, 5] | episodes per arm: 75 / 75
+
+== arm A: the manipulation check (75 episodes)
+  inactive=left : n=44 with_band=44 park=['back']
+      M1 held vs the pose the reset ACHIEVED (<=0.02 rad): 44/44 | median 0.004 rad | achieved-vs-commanded residual median 0.088 rad
+      M1 applied+stable (nearest reference + drift): 44/44 | |q-back| median=0.089 |q-ready| median=0.602 drift max=0.010 rad
+      M2a the arm term at the band's WORST call (<0.10): 44/44 | worst-call median 0.000 (max 0.000)
+      M2b visibility at the WORST call (rel >= 0.85): 34/44 | median 0.889 (min 0.766) | disc-relative `vis` median 1.030 (report only)
+      M2 both: 34/44 | band +0.364..0.400 | band_calls median 25 | stale skipped 44
+  inactive=right: n=31 with_band=30 park=['back']
+      M1 held vs the pose the reset ACHIEVED (<=0.02 rad): 30/30 | median 0.002 rad | achieved-vs-commanded residual median 0.026 rad
+      M2a the arm term at the band's WORST call (<0.10): 30/30 | worst-call median 0.000 (max 0.000)
+      M2b visibility at the WORST call (rel >= 0.85): 2/30 | median 0.038 (min 0.005) | disc-relative `vis` median 0.000 (report only)
+      M2 both: 2/30 | band +0.346..0.400 | band_calls median 25 | stale skipped 30
+  band calls per episode: median=25 (12-25)
+
+== arm B: the manipulation check (75 episodes)
+  inactive=left : n=49 with_band=49 park=['back']
+      M1 held vs the pose the reset ACHIEVED (<=0.02 rad): 49/49 | median 0.004 rad | achieved-vs-commanded residual median 0.088 rad
+      M1 applied+stable (nearest reference + drift): 49/49 | |q-back| median=0.089 |q-ready| median=0.602 drift max=0.010 rad
+      M2a the arm term at the band's WORST call (<0.10): 49/49 | worst-call median 0.000 (max 0.080)
+      M2b visibility at the WORST call (rel >= 0.85): 36/49 | median 0.897 (min 0.762) | disc-relative `vis` median 1.013 (report only)
+      M2 both: 36/49 | band +0.357..0.400 | band_calls median 25 | stale skipped 49
+  inactive=right: n=26 with_band=26 park=['back']
+      M1 held vs the pose the reset ACHIEVED (<=0.02 rad): 26/26 | median 0.002 rad | achieved-vs-commanded residual median 0.026 rad
+      M2a the arm term at the band's WORST call (<0.10): 26/26 | worst-call median 0.000 (max 0.000)
+      M2b visibility at the WORST call (rel >= 0.85): 1/26 | median 0.050 (min 0.007) | disc-relative `vis` median 0.000 (report only)
+      M2 both: 1/26 | band +0.378..0.400 | band_calls median 23 | stale skipped 26
+  band calls per episode: median=25 (11-25)
+
+== arm A: the band census (per-call, exact counts)
+  inactive=left :  1078 calls | fully hidden 0/1078 =   0.0% | any inactive-arm pixel 0/1078 =   0.0% | worst arm/target pixel ratio 0.00
+  inactive=right:   720 calls | fully hidden 71/720 =   9.9% | any inactive-arm pixel 0/720 =   0.0% | worst arm/target pixel ratio 0.00
+
+== arm B: the band census (per-call, exact counts)
+  inactive=left :  1196 calls | fully hidden 0/1196 =   0.0% | any inactive-arm pixel 8/1196 =   0.7% | worst arm/target pixel ratio 0.08
+  inactive=right:   562 calls | fully hidden 87/562 =  15.5% | any inactive-arm pixel 0/562 =   0.0% | worst arm/target pixel ratio 0.00
+
+== arm A: no [align] rows
+
+== arm B: no [align] rows
+
+== arm A: pooled 44/75 | left 1/31 | right 43/44 | median cycle 1840 ticks
+  left : n=31 ok=1 no-grasp=1 carried-not-placed=29 other=0 | composite(carried+no-grasp)=30
+  right: n=44 ok=43 no-grasp=1 carried-not-placed=0 other=0 | composite(carried+no-grasp)=1
+
+== arm B: pooled 48/75 | left 1/26 | right 47/49 | median cycle 1826 ticks
+  left : n=26 ok=1 no-grasp=1 carried-not-placed=24 other=0 | composite(carried+no-grasp)=25
+  right: n=49 ok=47 no-grasp=2 carried-not-placed=0 other=0 | composite(carried+no-grasp)=2
+
+== the right arm (the lever's population: grade B/C)
+  A: right ok 43/44 | x<0.26: n=15 ok=15 carried=0 no-grasp=0
+  B: right ok 47/49 | x<0.26: n=23 ok=22 carried=0 no-grasp=1
+
+== exact-instance pairs: 38 usable (excluded 37 fruit-class, missing 0)
+  both_ok=25 both_fail=13 B-only=0 A-only=0 | one-sided sign p=1.0000
+  carried     -> carried      13
+  ok          -> ok           25
+  carried-class conversions: B-only 0, A-only 0 | no-grasp-class: B-only 0, A-only 0
+
+== exact-instance pairs (x < 0.26): 17 usable (excluded 37 fruit-class, missing 0)
+  both_ok=10 both_fail=7 B-only=0 A-only=0 | one-sided sign p=1.0000
+  carried     -> carried       7
+  ok          -> ok           10
+  carried-class conversions: B-only 0, A-only 0 | no-grasp-class: B-only 0, A-only 0
+
+== failure reasons
+  A: ["'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)'", "'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)', 'fruit did not follow the gripper'"]
+  B: ["'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)'", "'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)', 'fruit did not follow the gripper'", "'timeout: no grasp within # ticks'"]
+  NEW in B: ["'timeout: no grasp within # ticks'"]

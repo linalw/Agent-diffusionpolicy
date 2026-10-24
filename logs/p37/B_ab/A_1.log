@@ -1,0 +1,988 @@
+[run.sh] soft nofile=1048576 -> /home/ubuntu/linalw/App/isaacsim/_build/linux-x86_64/release/python.sh scripts/110_rl_rollout.py --ckpt checkpoints/moe_v13s/policy_best.pt --presentation direct --episodes 15 --seeds 77 --out logs/p37/B_ab/raw/A_1
+Warning: running in conda env, please deactivate before executing this script
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+E0000 00:00:1792858046.049421 3887520 descriptor_database.cc:633] File already exists in database: grpc/health/v1/health.proto
+W0000 00:00:1792858046.049444 3887520 message.cc:301] Protobuf GeneratedMessageFactory: File is already registered: grpc/health/v1/health.proto
+2026-10-24T16:07:25Z [Info] [carb] Logging to file: /home/ubuntu/.cache/packman/chk/kit-kernel/110.1.2+production.manylinux_2_35_x86_64.release/logs/Kit/Isaac-Sim Python/6.0/kit_20261025_000725.log
+[0.062s] [ext: omni.assets.plugins-0.0.0] startup
+[0.063s] [ext: omni.blobkey-1.1.2] startup
+[0.063s] [ext: omni.kit.async_engine-0.0.3] startup
+[0.400s] [ext: omni.client.lib-1.1.1] startup
+[0.409s] [ext: omni.client-1.3.0] startup
+[0.412s] [ext: omni.protobuf.lib-1.0.0] startup
+[0.413s] [ext: omni.grpc.lib-1.0.0] startup
+[0.416s] [ext: omni.metrics.core-0.0.3] startup
+[0.416s] [ext: omni.datastore-0.0.0] startup
+[0.416s] [ext: omni.gpu_foundation.shadercache.vulkan-1.0.0] startup
+[0.420s] [ext: omni.hsscclient-1.1.4] startup
+[0.420s] [ext: omni.stats-1.0.1] startup
+[0.421s] [ext: omni.ujitso.default-1.0.0] startup
+[0.431s] [ext: omni.gpu_foundation-0.0.0] startup
+[0.608s] [ext: carb.windowing.plugins-1.0.1] startup
+[0.609s] [ext: omni.kit.renderer.init-1.0.1] startup
+
+|---------------------------------------------------------------------------------------------|
+| Driver Version: 580.105.08    | Graphics API: Vulkan
+|=============================================================================================|
+| GPU | Name                             | Active | LDA | GPU Memory | Vendor-ID | LUID       |
+|     |                                  |        |     |            | Device-ID | UUID       |
+|     |                                  |        |     |            | Bus-ID    |            |
+|---------------------------------------------------------------------------------------------|
+| 0   | NVIDIA GeForce RTX 5090          | Yes: 0 |     | 32853   MB | 10de      | 0          |
+|     |                                  |        |     |            | 2b85      | 493bfb57.. |
+|     |                                  |        |     |            | 1         |            |
+|=============================================================================================|
+| OS: 22.04.5 LTS (Jammy Jellyfish) ubuntu, Version: 22.04.5, Kernel: 6.8.0-138-generic
+| XServer Vendor: The X.Org Foundation, XServer Version: 12101004 (1.21.1.4)
+| Processor: Intel(R) Core(TM) i9-14900KF
+| Cores: 24 | Logical Cores: 32
+|---------------------------------------------------------------------------------------------|
+| Total Memory (MB): 128641 | Free Memory: 116955
+| Total Page/Swap (MB): 2047 | Free Page/Swap: 2047
+|---------------------------------------------------------------------------------------------|
+2026-10-24T16:07:26Z [1,124ms] [Warning] [omni.rtx] CPU performance profile is set to powersave. This profile sets the CPU to the lowest frequency reducing performance.
+2026-10-24T16:07:26Z [1,135ms] [Warning] [omni.rtx] IOMMU is enabled.
+[1.282s] [ext: omni.kit.pipapi-0.0.0] startup
+[1.283s] [ext: omni.kit.pip_archive-0.0.0] startup
+[1.283s] [ext: isaacsim.pip.newton-0.6.1] startup
+[1.283s] [ext: omni.pip.compute-1.9.2] startup
+[1.284s] [ext: omni.isaac.core_archive-5.3.1] startup
+[1.284s] [ext: omni.kit.telemetry-0.5.2] startup
+[1.306s] [ext: omni.kit.loop-isaac-1.6.0] startup
+[1.307s] [ext: omni.kit.test-2.0.7] startup
+[1.363s] [ext: omni.materialx.libs-1.0.9] startup
+[1.370s] [ext: omni.gpucompute.plugins-0.0.0] startup
+[1.370s] [ext: omni.usd.config-1.0.7] startup
+[1.373s] [ext: omni.usd.libs-1.0.3] startup
+[1.439s] [ext: omni.iray.libs-0.0.1] startup
+[1.442s] [ext: omni.mdl-57.0.3] startup
+[1.494s] [ext: omni.mdl.neuraylib-0.2.20] startup
+[1.495s] [ext: omni.kit.usd.mdl-1.1.9] startup
+[1.579s] [ext: omni.appwindow-1.2.2] startup
+[1.580s] [ext: omni.kit.renderer.core-1.2.2] startup
+[1.607s] [ext: omni.kit.renderer.capture-2.0.1] startup
+[1.608s] [ext: omni.kit.renderer.imgui-2.0.6] startup
+[1.646s] [ext: omni.ui-3.2.0] startup
+[1.654s] [ext: omni.kit.mainwindow-1.0.3] startup
+[1.655s] [ext: carb.audio-0.1.0] startup
+[1.657s] [ext: omni.uiaudio-1.0.0] startup
+[1.658s] [ext: omni.kit.uiapp-0.0.0] startup
+[1.658s] [ext: omni.usd.schema.metrics.assembler-110.1.0] startup
+[1.660s] [ext: omni.usd.schema.audio-0.0.1] startup
+[1.662s] [ext: omni.usd_resolver-1.0.0] startup
+[1.665s] [ext: omni.usd.core-1.8.3] startup
+[1.667s] [ext: omni.metropolis.schema-0.0.3] startup
+[1.668s] [ext: isaacsim.anim.robot.schema-0.1.1] startup
+[1.668s] [ext: omni.usd.schema.anim-0.0.1] startup
+[1.683s] [ext: omni.usd.schema.geospatial-0.0.1] startup
+[1.685s] [ext: omni.usd.schema.omnigraph-1.0.1] startup
+[1.689s] [ext: omni.usd.schema.semantics-0.0.0] startup
+[1.691s] [ext: omni.activity.core-1.0.3] startup
+[1.692s] [ext: omni.cubric-0.1.0] startup
+[1.692s] [ext: omni.graph.exec-0.9.6] startup
+[1.692s] [ext: omni.hydra.scene_delegate-0.3.5] startup
+[1.695s] [ext: usdrt.scenegraph-7.6.3] startup
+[1.717s] [ext: omni.hydra.usdrt_delegate-7.5.2] startup
+[1.722s] [ext: omni.inspect-1.0.2] startup
+[1.723s] [ext: omni.kit.actions.core-1.0.0] startup
+[1.724s] [ext: omni.kit.audiodeviceenum-1.0.2] startup
+[1.725s] [ext: omni.kit.commands-1.5.0] startup
+[1.728s] [ext: omni.kit.exec.core-0.13.5] startup
+[1.729s] [ext: omni.kit.usd_undo-0.1.8] startup
+[1.729s] [ext: omni.kit.window.popup_dialog-2.0.25] startup
+[1.732s] [ext: omni.kit.widget.nucleus_connector-2.3.1] startup
+[1.735s] [ext: omni.timeline-1.1.0] startup
+[1.736s] [ext: omni.usd-1.16.0] startup
+[1.767s] [ext: omni.graph.core-3.1.2] startup
+[1.769s] [ext: omni.kit.notification_manager-1.0.11] startup
+[1.771s] [ext: isaacsim.core.deprecation_manager-0.4.2] startup
+[1.772s] [ext: isaacsim.replicator.agent.schema-0.1.1] startup
+[1.773s] [ext: isaacsim.robot.schema-6.3.7] startup
+[1.776s] [ext: isaacsim.robot_motion.schema-0.2.1] startup
+[1.777s] [ext: omni.anim.behavior.schema-110.1.0] startup
+[1.779s] [ext: omni.anim.graph.schema-110.1.1] startup
+[1.784s] [ext: omni.anim.navigation.schema-110.1.0] startup
+[1.786s] [ext: omni.behavior.tree.schema-110.1.0] startup
+[1.787s] [ext: omni.isaac.ml_archive-3.3.0] startup
+[1.787s] [ext: omni.kit.asset_converter-6.0.1] startup
+[1.796s] [ext: omni.pip.cloud-1.5.4] startup
+[1.798s] [ext: omni.usd.schema.flow-110.0.0] startup
+[1.798s] [ext: omni.usd.schema.mujoco-1.1.1] startup
+[1.799s] [ext: omni.usd.schema.newton-1.2.1] startup
+[1.799s] [ext: omni.usd.schema.omni_lens_distortion-1.0.0] startup
+[1.800s] [ext: omni.usd.schema.omni_projectors-1.0.0] startup
+[1.800s] [ext: omni.usd.schema.omni_sensors-0.0.0] startup
+[1.806s] [ext: omni.usd.schema.omniscripting-1.0.1] startup
+[1.810s] [ext: omni.usd.schema.physical_lighting-0.1.0] startup
+[1.812s] [ext: omni.usd.schema.physx-110.1.13] startup
+[1.837s] [ext: omni.usd.schema.render_settings.rtx-1.0.2] startup
+[1.840s] [ext: omni.usd.schema.usd_particle_field-1.0.0] startup
+[1.841s] [ext: isaacsim.core.version-2.1.1] startup
+[1.841s] [ext: omni.kit.menu.core-1.2.0] startup
+[1.842s] [ext: omni.kit.menu.utils-2.2.4] startup
+[1.848s] [ext: isaacsim.app.about-2.3.1] startup
+[1.852s] [ext: isaacsim.asset.transformer-1.2.5] startup
+[1.855s] [ext: omni.scene.optimizer.core-110.1.0] startup
+[1.899s] [ext: isaacsim.asset.importer.utils-1.8.1] startup
+[1.901s] [ext: omni.convexdecomposition-110.1.13] startup
+[1.903s] [ext: omni.physics-110.1.13] startup
+[1.905s] [ext: omni.physx.gpu-110.1.13] startup
+[1.905s] [ext: omni.physx.foundation-110.1.13] startup
+[1.907s] [ext: omni.usdphysics-110.1.13] startup
+[1.908s] [ext: omni.physx.cooking-110.1.13] startup
+[1.910s] [ext: omni.physx-110.1.13] startup
+[1.918s] [ext: omni.physics.physx-110.1.13] startup
+[1.919s] [ext: isaacsim.asset.exporter.urdf-2.0.5] startup
+[1.927s] [ext: omni.kit.clipboard-1.1.1] startup
+[1.928s] [ext: omni.kit.usd.layers-2.6.1] startup
+[1.934s] [ext: omni.kit.widget.context_menu-1.4.0] startup
+[1.935s] [ext: omni.kit.context_menu-1.9.0] startup
+[1.936s] [ext: omni.kit.helper.file_utils-0.1.10] startup
+[1.938s] [ext: omni.kit.widget.nucleus_info-2.0.2] startup
+[1.938s] [ext: omni.kit.search_core-1.0.8] startup
+[1.939s] [ext: omni.kit.widget.path_field-2.0.13] startup
+[1.939s] [ext: omni.kit.widget.browser_bar-2.0.10] startup
+[1.940s] [ext: omni.kit.widget.filebrowser-2.13.4] startup
+[1.944s] [ext: omni.kit.widget.options_menu-1.1.6] startup
+[1.946s] [ext: omni.kit.widget.options_button-1.0.3] startup
+[1.947s] [ext: omni.kit.widget.search_delegate-1.0.9] startup
+[1.948s] [ext: omni.ui.scene-2.0.3] startup
+[1.951s] [ext: omni.kit.window.filepicker-2.15.5] startup
+[1.963s] [ext: omni.kit.window.file_importer-1.1.21] startup
+[1.964s] [ext: omni.kit.material.library-3.1.2] startup
+[1.968s] [ext: isaacsim.asset.transformer.rules-1.7.10] startup
+[1.978s] [ext: omni.usdex.libs-2.2.2] startup
+[1.985s] [ext: isaacsim.asset.importer.mjcf-3.10.1] startup
+[1.987s] [ext: isaacsim.asset.importer.urdf-3.11.2] startup
+[1.990s] [ext: omni.kit.primitive.mesh-1.1.0] startup
+[1.992s] [ext: omni.kit.stage_template.core-1.1.22] startup
+[1.993s] [ext: omni.kit.stage_templates-2.0.2] startup
+[1.994s] [ext: omni.usd.metrics.assembler-110.1.2] startup
+[1.997s] [ext: omni.warp.core-1.13.0] startup
+[2.215s] [ext: isaacsim.core.experimental.utils-0.17.2] startup
+[2.216s] [ext: omni.physics.stageupdate-110.1.13] startup
+[2.218s] [ext: omni.physics.tensors-110.1.13] startup
+[2.221s] [ext: omni.physx.tensors-110.1.13] startup
+[2.224s] [ext: isaacsim.core.simulation_manager-1.15.6] startup
+[2.236s] [ext: isaacsim.storage.native-1.9.3] startup
+[2.237s] [ext: omni.usd.metrics.assembler.physics-110.1.13] startup
+[2.238s] [ext: isaacsim.core.utils-4.1.7] startup
+[2.240s] [ext: isaacsim.core.prims-0.11.7] startup
+[3.313s] [ext: isaacsim.core.api-5.2.13] startup
+[3.320s] [ext: isaacsim.core.cloner-1.7.3] startup
+[3.321s] [ext: isaacsim.test.docstring-1.3.2] startup
+[3.325s] [ext: isaacsim.core.experimental.prims-1.8.9] startup
+[3.346s] [ext: isaacsim.core.experimental.primdata-0.3.2] startup
+[3.348s] [ext: omni.graph.tools-1.81.0] startup
+[3.370s] [ext: omni.graph-1.142.5] startup
+[3.407s] [ext: isaacsim.core.experimental.actuators-0.1.2] startup
+[3.423s] [ext: isaacsim.core.experimental.materials-0.7.1] startup
+[3.426s] [ext: isaacsim.core.experimental.objects-0.8.1] startup
+[3.489s] [ext: omni.hydra.engine.stats-1.0.5] startup
+[3.492s] [ext: omni.hydra.rtx.shadercache.vulkan-1.0.0] startup
+[3.493s] [ext: omni.index.libs-387500.4413.0] startup
+[3.493s] [ext: omni.index-1.0.1] startup
+[3.493s] [ext: omni.ujitso.client-0.0.0] startup
+[3.494s] [ext: omni.usd.schema.playback-1.0.0] startup
+[3.497s] [ext: omni.volume-0.5.2] startup
+[3.501s] [ext: omni.hydra.rtx-1.0.4] startup
+2026-10-24T16:07:29Z [3,483ms] [Warning] [omni.log] Source: omni.hydra was already registered.
+[3.526s] [ext: omni.kit.hydra_texture-1.6.0] startup
+[3.529s] [ext: omni.kit.raycast.query-1.2.0] startup
+[3.534s] [ext: omni.kit.viewport.legacy_gizmos-1.0.24] startup
+[3.536s] [ext: omni.kit.viewport.registry-104.0.6] startup
+[3.537s] [ext: omni.kit.viewport.scene_camera_model-1.0.7] startup
+[3.540s] [ext: omni.kit.widget.viewport-109.2.0] startup
+[3.544s] [ext: omni.kit.window.drop_support-1.0.8] startup
+[3.544s] [ext: omni.kit.viewport.window-109.0.2] startup
+[3.560s] [ext: omni.kit.viewport.utility-2.0.1] startup
+[3.561s] [ext: isaacsim.core.rendering_manager-0.4.3] startup
+[3.584s] [ext: omni.graph.action_core-1.1.9] startup
+[3.586s] [ext: omni.graph.action_nodes_core-2.11.0] startup
+[3.588s] [ext: omni.graph.action_nodes-2.11.0] startup
+[3.613s] [ext: omni.graph.action-2.10.2] startup
+[3.614s] [ext: omni.graph.image.core-0.6.1] startup
+[3.615s] [ext: omni.graph.image.nodes-1.3.1] startup
+[3.615s] [ext: omni.graph.nodes_core-2.11.0] startup
+[3.620s] [ext: omni.graph.nodes-2.12.0] startup
+[3.625s] [ext: omni.kit.hotkeys.core-1.3.12] startup
+[3.626s] [ext: omni.kit.property.adapter.core-1.1.1] startup
+[3.628s] [ext: omni.kit.property.adapter.usd-1.0.5] startup
+[3.629s] [ext: omni.kit.widget.filter-1.1.5] startup
+[3.630s] [ext: omni.kit.widget.highlight_label-1.0.3] startup
+[3.631s] [ext: omni.kit.widget.searchfield-1.1.8] startup
+[3.632s] [ext: omni.kit.window.file_exporter-1.0.36] startup
+[3.633s] [ext: omni.kit.widget.stage-4.4.0] startup
+[3.641s] [ext: omni.kit.window.content_browser_registry-0.0.6] startup
+[3.642s] [ext: omni.kit.window.file-2.0.10] startup
+[3.645s] [ext: omni.kit.window.content_browser-3.1.8] startup
+[3.655s] [ext: omni.kit.window.property-1.15.1] startup
+[3.666s] [ext: omni.kit.property.usd-4.9.4] startup
+[3.675s] [ext: omni.graph.scriptnode-2.10.2] startup
+[3.684s] [ext: omni.kit.widget.searchable_combobox-1.0.7] startup
+[3.685s] [ext: omni.kit.widget.settings-2.0.0] startup
+[3.687s] [ext: omni.kit.window.preferences-1.8.3] startup
+[3.692s] [ext: omni.kit.viewport.menubar.core-107.2.2] startup
+[3.703s] [ext: omni.syntheticdata-0.6.15] startup
+[3.732s] [ext: omni.replicator.nv-1.1.1] startup
+[3.738s] [ext: omni.videoencoding-0.2.1] startup
+[3.739s] [ext: omni.replicator.core-1.13.27] startup
+2026-10-24T16:07:29Z [3,718ms] [Warning] [pxr.Semantics] pxr.Semantics is deprecated - please use Semantics instead
+2026-10-24T16:07:29Z [3,796ms] [Warning] [omni.replicator.core.scripts.extension] No material configuration file, adding configuration to material settings directly.
+[3.984s] [ext: isaacsim.core.nodes-5.10.5] startup
+[4.017s] [ext: isaacsim.core.throttling-2.3.5] startup
+[4.019s] [ext: omni.kit.manipulator.viewport-107.0.1] startup
+[4.020s] [ext: omni.graph.visualization.nodes-2.1.4] startup
+[4.034s] [ext: omni.kit.window.extensions-1.5.10] startup
+[4.039s] [ext: isaacsim.gui.components-1.8.5] startup
+[4.044s] [ext: isaacsim.robot.surface_gripper-3.6.2] startup
+[4.055s] [ext: isaacsim.robot.manipulators-3.4.4] startup
+[4.066s] [ext: isaacsim.robot_motion.lula-4.1.3] startup
+[4.072s] [ext: isaacsim.robot_motion.motion_generation-8.2.9] startup
+[4.078s] [ext: isaacsim.cortex.framework-1.0.18] startup
+[4.079s] [ext: isaacsim.cortex.behaviors-2.0.17] startup
+[4.081s] [ext: isaacsim.examples.base-1.3.2] startup
+[4.082s] [ext: omni.kit.widget.zoombar-1.0.7] startup
+[4.083s] [ext: omni.kit.browser.core-2.3.18] startup
+[4.087s] [ext: omni.kit.browser.folder.core-2.0.2] startup
+[4.091s] [ext: omni.kit.widget.stage_icons-1.0.8] startup
+[4.092s] [ext: omni.kit.window.stage-2.6.1] startup
+[4.095s] [ext: omni.kit.menu.stage-1.2.7] startup
+[4.096s] [ext: omni.kit.usd.collect-3.0.6] startup
+[4.098s] [ext: omni.kit.widget.prompt-1.0.7] startup
+[4.099s] [ext: omni.kit.tool.collect-2.2.19] startup
+[4.101s] [ext: isaacsim.examples.browser-0.3.2] startup
+[4.103s] [ext: omni.kit.search.files-1.0.4] startup
+[4.104s] [ext: omni.kit.widget.calendar-1.0.9] startup
+[4.105s] [ext: omni.kit.widget.extended_searchfield-1.0.31] startup
+[4.113s] [ext: omni.simready.content.browser-0.3.7] startup
+[4.211s] [ext: isaacsim.gui.content_browser-0.4.3] startup
+[4.214s] [ext: omni.kit.selection-0.1.6] startup
+[4.215s] [ext: isaacsim.gui.menu-2.10.5] startup
+[4.223s] [ext: isaacsim.gui.property-1.6.4] startup
+[4.230s] [ext: omni.kit.viewport.actions-110.0.0] startup
+[4.235s] [ext: omni.kit.viewport.menubar.display-107.1.3] startup
+[4.236s] [ext: isaacsim.gui.sensors.icon-2.2.1] startup
+[4.239s] [ext: omni.behavior.scripting.core-110.1.0] startup
+[4.242s] [ext: isaacsim.replicator.behavior-1.5.4] startup
+[4.243s] [ext: isaacsim.replicator.experimental.domain_randomization-1.2.5] startup
+[4.260s] [ext: isaacsim.replicator.domain_randomization-1.2.2] startup
+[4.339s] [ext: isaacsim.replicator.writers-1.5.4] startup
+[4.364s] [ext: isaacsim.robot.experimental.wheeled_robots-0.2.11] startup
+[4.393s] [ext: isaacsim.robot.policy.examples-5.2.12] startup
+[4.422s] [ext: isaacsim.robot.wheeled_robots-5.2.4] startup
+[4.425s] [ext: isaacsim.robot.wheeled_robots.nodes-0.1.5] startup
+[4.446s] [ext: isaacsim.robot_motion.experimental.motion_generation-6.1.3] startup
+[4.458s] [ext: isaacsim.robot_motion.cumotion-1.3.1] startup
+[4.471s] [ext: omni.kit.numpy.common-0.1.3] startup
+[4.473s] [ext: isaacsim.sensors.camera-1.7.9] startup
+[4.506s] [ext: isaacsim.sensors.experimental.physics-3.0.2] startup
+[4.513s] [ext: omni.sensors.net-1.0.1] startup
+[4.515s] [ext: omni.sensors.nv.common-3.0.0] startup
+[4.525s] [ext: omni.sensors.nv.materials-2.0.0] startup
+[4.528s] [ext: omni.sensors.nv.acoustic-3.0.0] startup
+[4.531s] [ext: omni.sensors.nv.ids-2.0.1] startup
+[4.532s] [ext: omni.sensors.nv.lidar-3.0.0] startup
+[4.536s] [ext: omni.sensors.nv.radar-3.0.0] startup
+[4.538s] [ext: isaacsim.sensors.experimental.rtx-1.4.6] startup
+[4.812s] [ext: isaacsim.sensors.physics.nodes-1.5.3] startup
+[4.819s] [ext: isaacsim.util.debug_draw-3.2.3] startup
+[4.824s] [ext: isaacsim.sensors.physx-2.5.5] startup
+[4.832s] [ext: isaacsim.sensors.rtx-15.17.1] startup
+[4.843s] [ext: isaacsim.simulation_app-2.18.4] startup
+[4.843s] [ext: omni.anim.curve.core-1.6.0] startup
+[4.853s] [ext: omni.graph.ui_nodes-2.11.1] startup
+[4.885s] [ext: omni.hydra.scene_api-0.1.3] startup
+[4.889s] [ext: omni.kit.manipulator.camera-110.0.0] startup
+[4.893s] [ext: omni.kit.manipulator.selector-1.1.4] startup
+[4.894s] [ext: omni.kit.manipulator.transform-107.0.0] startup
+[4.898s] [ext: omni.kit.widget.toolbar-2.1.0] startup
+[4.904s] [ext: omni.kit.manipulator.tool.snap-1.5.14] startup
+[4.908s] [ext: omni.kit.viewport.manipulator.transform-107.0.4] startup
+[4.910s] [ext: omni.kit.manipulator.prim.core-108.0.2] startup
+[4.915s] [ext: omni.kit.manipulator.prim.usd-107.0.3] startup
+[4.917s] [ext: omni.kit.manipulator.prim-108.0.0] startup
+[4.917s] [ext: omni.kit.manipulator.selection-109.0.1] startup
+[4.918s] [ext: omni.kit.menu.create-2.0.2] startup
+[4.920s] [ext: omni.kit.property.audio-1.0.16] startup
+[4.923s] [ext: omni.kit.property.camera-1.0.14] startup
+[4.924s] [ext: omni.kit.property.geometry-2.1.2] startup
+[4.927s] [ext: omni.kit.property.light-1.0.14] startup
+2026-10-24T16:07:30Z [4,921ms] [Warning] [omni.usd] Encountered USD Warnings but USD Diagnostics are currently muted. To view USD Warnings, please set the '/persistent/app/usd/muteUsdDiagnostics' setting to false in Preferences page.
+[4.959s] [ext: omni.kit.property.material-1.14.6] startup
+[4.964s] [ext: omni.kit.property.render-1.2.2] startup
+[4.965s] [ext: omni.kit.property.transform-1.6.9] startup
+[4.969s] [ext: omni.kit.property.bundle-1.5.1] startup
+[4.970s] [ext: omni.kit.usdz_export-1.1.0] startup
+[4.972s] [ext: omni.kit.tool.asset_importer-6.0.1] startup
+[4.977s] [ext: omni.kit.ui.actions-1.0.5] startup
+[4.979s] [ext: omni.kit.viewport.menubar.camera-107.0.10] startup
+[4.984s] [ext: omni.kit.viewport.menubar.lighting-107.3.2] startup
+[4.986s] [ext: omni.kit.viewport.menubar.render-110.0.0] startup
+[4.988s] [ext: omni.kit.viewport.menubar.settings-110.0.1] startup
+[4.992s] [ext: omni.kit.window.console-1.1.9] startup
+[4.995s] [ext: omni.kit.window.status_bar-0.1.11] startup
+[4.997s] [ext: omni.kit.window.toolbar-3.0.3] startup
+[4.999s] [ext: omni.ocio-0.1.1] startup
+[5.001s] [ext: omni.physx.commands-110.1.13] startup
+[5.004s] [ext: omni.replicator.replicator_yaml-2.0.12] startup
+[5.014s] [ext: omni.rtx.window.settings-0.8.0] startup
+[5.019s] [ext: omni.rtx.settings.core-0.7.1] startup
+[5.022s] [ext: omni.usd.metrics.assembler.ui-110.1.1] startup
+[5.028s] [ext: semantics.schema.editor-2.0.2] startup
+[5.030s] [ext: semantics.schema.property-2.0.2] startup
+[5.032s] [ext: omni.kit.menu.common-2.0.2] startup
+[5.033s] [ext: isaacsim.exp.base-6.0.1] startup
+[5.033s] [ext: isaacsim.exp.base.python-6.0.1] startup
+[5.035s] Simulation App Starting
+2026-10-24T16:07:31Z [6,082ms] [Warning] [omni.rtx] DLSS increasing input dimensions: Render resolution of (320, 240) is below minimal input resolution of 300.
+[6.197s] Simulation App Startup Complete
+[6.203s] app ready
+Starting kit application with the following args:  ['/home/ubuntu/linalw/App/isaacsim/_build/linux-x86_64/release/exts/isaacsim.simulation_app/isaacsim/simulation_app/simulation_app.py', '/home/ubuntu/linalw/App/isaacsim/_build/linux-x86_64/release/apps/isaacsim.exp.base.python.kit', '--/app/tokens/exe-path=/home/ubuntu/linalw/App/isaacsim/_build/linux-x86_64/release/kit', '--/persistent/app/viewport/displayOptions=3094', '--/rtx/materialDb/syncLoads=True', '--/rtx/hydra/materialSyncLoads=True', '--/omni/kit/plugin/syncUsdLoads=True', '--/app/renderer/resolution/width=640', '--/app/renderer/resolution/height=480', '--/app/window/width=1440', '--/app/window/height=900', '--/renderer/multiGpu/enabled=True', '--/app/fastShutdown=True', '--/app/installSignalHandlers=0', '--ext-folder', '/home/ubuntu/linalw/App/isaacsim/_build/linux-x86_64/release/exts', '--ext-folder', '/home/ubuntu/linalw/App/isaacsim/_build/linux-x86_64/release/apps', '--/physics/cudaDevice=0', '--/plugins/carb.tasking.plugin/threadCount=32', '--/plugins/omni.tbb.globalcontrol/maxThreadCount=32', '--portable', '--no-window', '--/app/window/hideUi=1']
+Passing the following args to the base kit application:  ['--ckpt', 'checkpoints/moe_v13s/policy_best.pt', '--presentation', 'direct', '--episodes', '15', '--seeds', '77', '--out', 'logs/p37/B_ab/raw/A_1']
+Warp 1.13.0 initialized:
+   CUDA Toolkit 12.9, Driver 13.0
+   Devices:
+     "cpu"      : "x86_64"
+     "cuda:0"   : "NVIDIA GeForce RTX 5090" (31 GiB, sm_120, mempool enabled)
+   Kernel cache:
+     /home/ubuntu/.cache/warp/1.13.0
+[fruit] [rl] rollout: presentation=direct ablate=none episodes=15 seeds=[77] ckpt=checkpoints/moe_v13s/policy_best.pt execute_steps=4 ddim=16 dagger=None reward=RewardConfig(success_value=1.0, time_penalty=0.2, horizon=1500) rtc=off schedule=EXP delay=0 horizon=10 guidance=1 vlash=off track=off event=off a2c2=off trigger=arrival trigger_present=off
+[fruit] stage created (meters, Z-up)
+[fruit] building part: environment
+[fruit] studio lighting + floor + backdrop added
+[fruit] building part: pedestal
+[fruit] pedestal top at z=0.79 m
+[fruit] building part: robot
+[fruit] robot referenced -> local flattened asset (/home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/assets/openarm_flat/openarm_flat_deinst.usda)
+[fruit] building part: conveyor
+[fruit] cleated belt built: 0 cleats, spacing 0.18 m, surface velocity -0.12 m/s, mu=0.9
+[fruit] belt surface z=1.170
+[fruit] building part: output_belts
+[fruit] discharge P: chute 55 deg from (1.200,1.344) to (1.361,1.120) m (sheet 0.28 m long, 0.24 m wide); tray 0.60x0.34 m centre x=1.65 on the 0.90 m stand, floor z=0.92, rim z=1.06, 3.0 s settle dwell
+[fruit] output belt P (0): 1.10x0.25x0.05 m at (0.65,+0.55), top 1.35, surface +0.12 m/s along +X | underside clears main belt top by 0.130 m, the tallest fruit (pear body, 84 mm) by 0.046 m (nominal; 0.040 m at the 1.07 instance scale, 90 mm) and its 32 mm stem bound by 0.014 m; inner edge clears the pedestal by 0.075 m; legs: -X pair x=[0.0255,0.0755] clear the main belt frame rail's outer face (x=0.0855) by +0.0100 m and the slab edge (x=0.110) by +0.0345 m; +X pair x=[1.1000,1.1500] leaves the discharge chute (x>=1.200) +0.0500 m clear
+[fruit] discharge N: chute 55 deg from (1.200,1.344) to (1.361,1.120) m (sheet 0.28 m long, 0.24 m wide); tray 0.60x0.34 m centre x=1.65 on the 0.90 m stand, floor z=0.92, rim z=1.06, 3.0 s settle dwell
+[fruit] output belt N (1): 1.10x0.25x0.05 m at (0.65,-0.55), top 1.35, surface +0.12 m/s along +X | underside clears main belt top by 0.130 m, the tallest fruit (pear body, 84 mm) by 0.046 m (nominal; 0.040 m at the 1.07 instance scale, 90 mm) and its 32 mm stem bound by 0.014 m; inner edge clears the pedestal by 0.075 m; legs: -X pair x=[0.0255,0.0755] clear the main belt frame rail's outer face (x=0.0855) by +0.0100 m and the slab edge (x=0.110) by +0.0345 m; +X pair x=[1.1000,1.1500] leaves the discharge chute (x>=1.200) +0.0500 m clear
+[fruit] output conveyors added (2 x raised belts along +X)
+[fruit] building part: camera
+[fruit] head camera at (0.05, 0.0, 2.0) looking at (0.34, 0.22, 1.1), res=(240, 424), annotators=['rgb', 'distance_to_image_plane', 'instance_id_segmentation']
+[fruit] finger colliders: 4 mesh prims enabled
+[fruit] finger links bound with mu=2.0, compliant k=30000 N/m c=80 Ns/m (friction combine override)
+[fruit] scene built (parts=['environment', 'pedestal', 'robot', 'conveyor', 'output_belts', 'camera'])
+[fruit] attached 4 tactile contact sensors and 4 per-finger force readers
+[fruit] physics substeps = 1 (dt = 0.00833s)
+[fruit] setting tensor backend = torch
+[fruit] switching physics engine = physx
+[fruit] setting physics dt = 0.00833s
+[fruit] play(commit=True)
+2026-10-24T16:07:41Z [15,347ms] [Error] [omni.physx.plugin] PhysicsUSD: Parse collision - triangle mesh collision (approximation None/MeshSimplification) cannot be a part of a dynamic body, falling back to convexHull approximation: /World/OpenArm/openarm_left_right_finger/visuals/openarm_left_right_finger_visual/mesh.For dynamic collision please use approximations : convex hull, convex decomposition, box, sphere or SDF approximation.
+2026-10-24T16:07:41Z [15,364ms] [Error] [omni.physx.plugin] PhysicsUSD: Parse collision - triangle mesh collision (approximation None/MeshSimplification) cannot be a part of a dynamic body, falling back to convexHull approximation: /World/OpenArm/openarm_left_left_finger/visuals/openarm_left_left_finger_visual/mesh.For dynamic collision please use approximations : convex hull, convex decomposition, box, sphere or SDF approximation.
+2026-10-24T16:07:41Z [15,384ms] [Error] [omni.physx.plugin] PhysicsUSD: Parse collision - triangle mesh collision (approximation None/MeshSimplification) cannot be a part of a dynamic body, falling back to convexHull approximation: /World/OpenArm/openarm_right_right_finger/visuals/openarm_right_right_finger_visual/mesh.For dynamic collision please use approximations : convex hull, convex decomposition, box, sphere or SDF approximation.
+2026-10-24T16:07:41Z [15,400ms] [Error] [omni.physx.plugin] PhysicsUSD: Parse collision - triangle mesh collision (approximation None/MeshSimplification) cannot be a part of a dynamic body, falling back to convexHull approximation: /World/OpenArm/openarm_right_left_finger/visuals/openarm_right_left_finger_visual/mesh.For dynamic collision please use approximations : convex hull, convex decomposition, box, sphere or SDF approximation.
+[fruit] warm-up 60 steps
+[fruit] simulation running, dt=0.00833s, joints=22
+[fruit] refreshed 4 contact-force readers
+[fruit] [supply] scatter pool=16 seed=77 gaps=0.10-0.35 m lateral x=0.20-0.36 m stream=on target=0 wave=off grades=A:0.375,B:0.375,C:0.25 classes=strawberry:2,lychee:2,kiwi:2,tomato:2,apple:2,orange:2,peach:2,pear:2 patch=on slice=0.14-0.22 pair=0.60 sep=0.085-0.12
+[fruit] created 16 fruit rigid bodies
+[fruit] [rl] loaded checkpoints/moe_v13s/policy_best.pt (obs_horizon=2, action_horizon=16)
+[fruit] [rl] manifest -> logs/p37/B_ab/raw/A_1/direct_none_seed77/manifest.json (reward={"success_value": 1.0, "time_penalty": 0.2, "horizon": 1500})
+[fruit] [rl] env ready: presentation=direct ablate=none dagger=off camera=240,424 tasks_md5=cdde6bd2
+[fruit] [rl] trigger=arrival lead=0.90s lateral=0.160 reach=0.20 finger=0.040 frame=station encoder=on present=off acq=on(speed=0.20,margin=0.60,cap=4.50,reach_margin=0.05)
+[fruit] [rl] manifest: logs/p37/B_ab/raw/A_1/direct_none_seed77/manifest.json
+[fruit] [rl] run wall start 1792858063.465
+[fruit] [rl] episode 0: apple grade=C d=6.8cm bin=1 arm=right y=+0.642 presentation=direct
+[fruit] [park] call ep=0 n=1 along=+0.397 x=0.219 px=184 disc=158 vis=1.161 rel=0.959 arm_px=0 tgt_px=184 frac=0.000 ok=1 top=69:184px:/World/Fruits/Fruit_15 | 15:158px:/World/Conveyor/Belt
+[fruit] [park] call ep=0 n=2 along=+0.393 x=0.219 px=183 disc=159 vis=1.150 rel=0.950 arm_px=0 tgt_px=183 frac=0.000 ok=1 top=69:183px:/World/Fruits/Fruit_15 | 15:141px:/World/Conveyor/Belt
+[fruit] [park] call ep=0 n=3 along=+0.389 x=0.219 px=181 disc=160 vis=1.133 rel=0.936 arm_px=0 tgt_px=181 frac=0.000 ok=1 top=69:181px:/World/Fruits/Fruit_15 | 15:143px:/World/Conveyor/Belt
+[fruit] [park] call ep=0 n=4 along=+0.385 x=0.219 px=188 disc=160 vis=1.173 rel=0.969 arm_px=0 tgt_px=188 frac=0.000 ok=1 top=69:188px:/World/Fruits/Fruit_15 | 15:154px:/World/Conveyor/Belt
+[fruit] [park] call ep=0 n=5 along=+0.381 x=0.219 px=186 disc=161 vis=1.156 rel=0.955 arm_px=0 tgt_px=186 frac=0.000 ok=1 top=69:186px:/World/Fruits/Fruit_15 | 15:138px:/World/Conveyor/Belt
+[fruit] [park] call ep=0 n=6 along=+0.377 x=0.219 px=184 disc=161 vis=1.139 rel=0.941 arm_px=0 tgt_px=184 frac=0.000 ok=1 top=69:184px:/World/Fruits/Fruit_15 | 15:140px:/World/Conveyor/Belt
+[fruit] [park] call ep=0 n=7 along=+0.373 x=0.219 px=185 disc=162 vis=1.141 rel=0.943 arm_px=0 tgt_px=185 frac=0.000 ok=1 top=69:185px:/World/Fruits/Fruit_15 | 15:176px:/World/Conveyor/Belt
+[fruit] [park] call ep=0 n=8 along=+0.369 x=0.219 px=184 disc=163 vis=1.131 rel=0.934 arm_px=0 tgt_px=184 frac=0.000 ok=1 top=69:184px:/World/Fruits/Fruit_15 | 15:140px:/World/Conveyor/Belt
+[fruit] [park] call ep=0 n=9 along=+0.365 x=0.219 px=186 disc=163 vis=1.139 rel=0.941 arm_px=0 tgt_px=186 frac=0.000 ok=1 top=69:186px:/World/Fruits/Fruit_15 | 15:175px:/World/Conveyor/Belt
+[fruit] [park] call ep=0 n=10 along=+0.361 x=0.219 px=188 disc=164 vis=1.148 rel=0.948 arm_px=0 tgt_px=188 frac=0.000 ok=1 top=69:188px:/World/Fruits/Fruit_15 | 15:154px:/World/Conveyor/Belt
+[fruit] [park] call ep=0 n=11 along=+0.357 x=0.219 px=187 disc=164 vis=1.137 rel=0.940 arm_px=0 tgt_px=187 frac=0.000 ok=1 top=69:187px:/World/Fruits/Fruit_15 | 15:155px:/World/Conveyor/Belt
+[fruit] [park] call ep=0 n=12 along=+0.353 x=0.219 px=186 disc=165 vis=1.127 rel=0.931 arm_px=0 tgt_px=186 frac=0.000 ok=1 top=69:186px:/World/Fruits/Fruit_15 | 15:156px:/World/Conveyor/Belt
+[fruit] [park] call ep=0 n=13 along=+0.349 x=0.219 px=188 disc=166 vis=1.135 rel=0.938 arm_px=0 tgt_px=188 frac=0.000 ok=1 top=69:188px:/World/Fruits/Fruit_15 | 15:154px:/World/Conveyor/Belt
+[fruit] [park] call ep=0 n=14 along=+0.345 x=0.219 px=185 disc=166 vis=1.113 rel=0.920 arm_px=0 tgt_px=185 frac=0.000 ok=1 top=69:185px:/World/Fruits/Fruit_15 | 15:139px:/World/Conveyor/Belt
+[fruit] [park] call ep=0 n=15 along=+0.341 x=0.219 px=188 disc=167 vis=1.128 rel=0.931 arm_px=0 tgt_px=188 frac=0.000 ok=1 top=69:188px:/World/Fruits/Fruit_15 | 15:173px:/World/Conveyor/Belt
+[fruit] [park] call ep=0 n=16 along=+0.337 x=0.219 px=186 disc=167 vis=1.112 rel=0.918 arm_px=0 tgt_px=186 frac=0.000 ok=1 top=69:186px:/World/Fruits/Fruit_15 | 15:138px:/World/Conveyor/Belt
+[fruit] [park] call ep=0 n=17 along=+0.333 x=0.219 px=188 disc=168 vis=1.120 rel=0.925 arm_px=0 tgt_px=188 frac=0.000 ok=1 top=69:188px:/World/Fruits/Fruit_15 | 15:154px:/World/Conveyor/Belt
+[fruit] [park] call ep=0 n=18 along=+0.329 x=0.219 px=187 disc=168 vis=1.110 rel=0.917 arm_px=0 tgt_px=187 frac=0.000 ok=1 top=69:187px:/World/Fruits/Fruit_15 | 15:155px:/World/Conveyor/Belt
+[fruit] [park] call ep=0 n=19 along=+0.325 x=0.219 px=187 disc=169 vis=1.107 rel=0.914 arm_px=0 tgt_px=187 frac=0.000 ok=1 top=69:187px:/World/Fruits/Fruit_15 | 15:174px:/World/Conveyor/Belt
+[fruit] [park] call ep=0 n=20 along=+0.321 x=0.219 px=184 disc=170 vis=1.085 rel=0.897 arm_px=0 tgt_px=184 frac=0.000 ok=1 top=69:184px:/World/Fruits/Fruit_15 | 15:158px:/World/Conveyor/Belt
+[fruit] [park] call ep=0 n=21 along=+0.317 x=0.219 px=189 disc=170 vis=1.111 rel=0.918 arm_px=0 tgt_px=189 frac=0.000 ok=1 top=69:189px:/World/Fruits/Fruit_15 | 15:172px:/World/Conveyor/Belt
+[fruit] [park] call ep=0 n=22 along=+0.313 x=0.219 px=190 disc=171 vis=1.114 rel=0.920 arm_px=0 tgt_px=190 frac=0.000 ok=1 top=69:190px:/World/Fruits/Fruit_15 | 15:152px:/World/Conveyor/Belt
+[fruit] [park] call ep=0 n=23 along=+0.309 x=0.219 px=189 disc=171 vis=1.104 rel=0.912 arm_px=0 tgt_px=189 frac=0.000 ok=1 top=69:189px:/World/Fruits/Fruit_15 | 15:172px:/World/Conveyor/Belt
+[fruit] [park] call ep=0 n=24 along=+0.305 x=0.219 px=189 disc=172 vis=1.101 rel=0.909 arm_px=0 tgt_px=189 frac=0.000 ok=1 top=69:189px:/World/Fruits/Fruit_15 | 15:172px:/World/Conveyor/Belt
+[fruit] [park] call ep=0 n=25 along=+0.301 x=0.219 px=190 disc=172 vis=1.103 rel=0.911 arm_px=0 tgt_px=190 frac=0.000 ok=1 top=69:190px:/World/Fruits/Fruit_15 | 15:171px:/World/Conveyor/Belt
+[fruit] [task]   openarm fingertips 93 mm from the fruit; closing anyway
+[fruit] [acq] right idx=15: setup[premove=0.42 axis=0.44 hover=0.87 wait=1.58 catchup=1.80]s catchup=26t res=5.9mm last=(-2.0,-6.6,+8.7)mm | close_start=(-2.0,-5.4,+8.6)mm vx0=-0.000 latch=centring | contact=@0t(-2.0,-5.4,+8.6)mm F=0.14N freeze=74.3mm@15t span=90.0->80.5mm Fmax=6.94 | q2=+0.1394/3.3161 clip_min=+0.0mrad@j2
+[fruit] [task]   carry grasp_lift: stored pad centre 149 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist right grasp_lift tick 0: cmd_centre=[0.2104, 0.1003, 1.323] offset=[-0.0131, 0.006, -0.0096] |offset|=17 mm jaw_target=[0.2044, 0.1134, 1.3135] jaw=[0.21040000021457672, 0.10029999911785126, 1.3229999542236328] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right grasp_lift tick 1: cmd_centre=[0.2104, 0.1003, 1.323] offset=[-0.0131, 0.006, -0.0096] |offset|=17 mm jaw_target=[0.2044, 0.1134, 1.3135] jaw=[0.21060000360012054, 0.10040000081062317, 1.3228000402450562] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right grasp_lift tick 2: cmd_centre=[0.2104, 0.1003, 1.323] offset=[-0.0131, 0.006, -0.0096] |offset|=17 mm jaw_target=[0.2044, 0.1134, 1.3135] jaw=[0.21080000698566437, 0.10050000250339508, 1.3223999738693237] coherent=False hand_is_jaw=True
+[fruit] [carry] right grasp_lift: ticks=160/160 clean_slip_max=0.0mm in-hand_vmax=0.049 onset_row=None force@onset=n/aN sep@onset=n/amm contacts@onset=None min_contacts=2 force_min=3.55N loss_row=None guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=67.4mm open_max=0.0mm
+[fruit] [task]   carry place1: stored pad centre 102 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist right place1 tick 0: cmd_centre=[0.3069, 0.1041, 1.5636] offset=[-0.0131, 0.006, -0.0096] |offset|=17 mm jaw_target=[0.3008, 0.1172, 1.5541] jaw=[0.3068999946117401, 0.10409999638795853, 1.563599944114685] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right place1 tick 1: cmd_centre=[0.3069, 0.1041, 1.5636] offset=[-0.0131, 0.006, -0.0096] |offset|=17 mm jaw_target=[0.3008, 0.1172, 1.5541] jaw=[0.3070000112056732, 0.10419999808073044, 1.5633000135421753] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right place1 tick 2: cmd_centre=[0.3069, 0.1041, 1.5636] offset=[-0.0131, 0.006, -0.0096] |offset|=17 mm jaw_target=[0.3008, 0.1172, 1.5541] jaw=[0.30709999799728394, 0.10440000146627426, 1.5628999471664429] coherent=False hand_is_jaw=True
+[fruit] [carry] right place1: ticks=406/406 clean_slip_max=0.0mm in-hand_vmax=0.052 onset_row=None force@onset=n/aN sep@onset=n/amm contacts@onset=None min_contacts=2 force_min=3.56N loss_row=None guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=67.4mm open_max=0.0mm
+[fruit] [task] place low: bottom 1460 -> 43 mm (target 25), drop 71/85 mm, FINGER FLOOR budget 71 mm, residual 0.0 mm, 75 ticks
+[fruit] [rl] episode 0: apple d=6.8cm bin=1 arm=right success=True grasped=True placed=True ticks=1888 decision=290 reward=0.9613 notes=['intercept trigger (dy=25.5cm, dx=-11.4cm, t_arrive=2.12s, speed=0.120m/s/encoder, frame=station, finger=0.0353, lead=2.14s/reach=0.31)'] presentation=direct ablate=none
+[fruit] [park] episode 0 arm=right inactive=left park=back m1_hold=+0.004 m1_hold_ok=1 m1_cmd=+0.088 m2_arm=0.000 m2_arm_ok=1 m2_rel=0.897 m2_rel_ok=1 m2_ok=1 m2_vis=1.085 band=+0.397 band_x=+0.219 band_px=184 band_disc=158 band_vis=1.161 arm_px=0 band_frac=0.000 band_calls=25 stale_skipped=1 worst_arm_at=+0.397 worst_vis_at=+0.321 min_frac=0.000 max_frac=0.000 drift=+0.010 calls=72 q=-1.908,-0.978,1.504,0.819,-1.498,-0.586,1.559 q_settled=-1.912,-0.978,1.503,0.818,-1.498,-0.586,1.559 top=69:184px:/World/Fruits/Fruit_15 | 15:158px:/World/Conveyor/Belt
+[fruit] [rl] episode 1: strawberry grade=B d=3.6cm bin=1 arm=right y=+0.547 presentation=direct
+[fruit] [park] call ep=1 n=1 along=+0.400 x=0.363 px=24 disc=39 vis=0.621 rel=0.881 arm_px=0 tgt_px=24 frac=0.000 ok=1 top=15:97px:/World/Conveyor/Belt | 83:24px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=1 n=2 along=+0.396 x=0.363 px=27 disc=39 vis=0.697 rel=0.988 arm_px=0 tgt_px=27 frac=0.000 ok=1 top=15:94px:/World/Conveyor/Belt | 83:27px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=1 n=3 along=+0.392 x=0.363 px=27 disc=39 vis=0.694 rel=0.985 arm_px=0 tgt_px=27 frac=0.000 ok=1 top=15:94px:/World/Conveyor/Belt | 83:27px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=1 n=4 along=+0.388 x=0.363 px=24 disc=39 vis=0.615 rel=0.872 arm_px=0 tgt_px=24 frac=0.000 ok=1 top=15:97px:/World/Conveyor/Belt | 83:24px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=1 n=5 along=+0.384 x=0.363 px=29 disc=39 vis=0.741 rel=1.000 arm_px=0 tgt_px=29 frac=0.000 ok=1 top=15:92px:/World/Conveyor/Belt | 83:29px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=1 n=6 along=+0.380 x=0.363 px=24 disc=39 vis=0.611 rel=0.825 arm_px=0 tgt_px=24 frac=0.000 ok=0 top=15:97px:/World/Conveyor/Belt | 83:24px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=1 n=7 along=+0.376 x=0.363 px=28 disc=39 vis=0.710 rel=0.959 arm_px=0 tgt_px=28 frac=0.000 ok=1 top=15:104px:/World/Conveyor/Belt | 83:28px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=1 n=8 along=+0.372 x=0.363 px=27 disc=40 vis=0.683 rel=0.922 arm_px=0 tgt_px=27 frac=0.000 ok=1 top=15:94px:/World/Conveyor/Belt | 83:27px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=1 n=9 along=+0.368 x=0.363 px=25 disc=40 vis=0.630 rel=0.851 arm_px=0 tgt_px=25 frac=0.000 ok=1 top=15:96px:/World/Conveyor/Belt | 83:25px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=1 n=10 along=+0.364 x=0.363 px=28 disc=40 vis=0.704 rel=0.950 arm_px=0 tgt_px=28 frac=0.000 ok=1 top=15:93px:/World/Conveyor/Belt | 83:28px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=1 n=11 along=+0.360 x=0.363 px=24 disc=40 vis=0.601 rel=0.812 arm_px=0 tgt_px=24 frac=0.000 ok=0 top=15:97px:/World/Conveyor/Belt | 83:24px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=1 n=12 along=+0.356 x=0.363 px=27 disc=40 vis=0.674 rel=0.910 arm_px=0 tgt_px=27 frac=0.000 ok=1 top=15:94px:/World/Conveyor/Belt | 83:27px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=1 n=13 along=+0.352 x=0.363 px=26 disc=40 vis=0.647 rel=0.874 arm_px=0 tgt_px=26 frac=0.000 ok=1 top=15:106px:/World/Conveyor/Belt | 83:26px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=1 n=14 along=+0.348 x=0.363 px=26 disc=40 vis=0.645 rel=0.871 arm_px=0 tgt_px=26 frac=0.000 ok=1 top=15:95px:/World/Conveyor/Belt | 83:26px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=1 n=15 along=+0.344 x=0.363 px=27 disc=40 vis=0.668 rel=0.902 arm_px=0 tgt_px=27 frac=0.000 ok=1 top=15:105px:/World/Conveyor/Belt | 83:27px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=1 n=16 along=+0.340 x=0.363 px=25 disc=41 vis=0.617 rel=0.832 arm_px=0 tgt_px=25 frac=0.000 ok=0 top=15:96px:/World/Conveyor/Belt | 83:25px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=1 n=17 along=+0.336 x=0.363 px=25 disc=41 vis=0.615 rel=0.830 arm_px=0 tgt_px=25 frac=0.000 ok=0 top=15:96px:/World/Conveyor/Belt | 83:25px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=1 n=18 along=+0.332 x=0.363 px=26 disc=41 vis=0.637 rel=0.860 arm_px=0 tgt_px=26 frac=0.000 ok=1 top=15:106px:/World/Conveyor/Belt | 83:26px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=1 n=19 along=+0.328 x=0.363 px=27 disc=41 vis=0.660 rel=0.891 arm_px=0 tgt_px=27 frac=0.000 ok=1 top=15:94px:/World/Conveyor/Belt | 83:27px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=1 n=20 along=+0.324 x=0.363 px=24 disc=41 vis=0.585 rel=0.790 arm_px=0 tgt_px=24 frac=0.000 ok=0 top=15:108px:/World/Conveyor/Belt | 83:24px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=1 n=21 along=+0.320 x=0.363 px=27 disc=41 vis=0.656 rel=0.886 arm_px=0 tgt_px=27 frac=0.000 ok=1 top=15:94px:/World/Conveyor/Belt | 83:27px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=1 n=22 along=+0.316 x=0.363 px=28 disc=41 vis=0.678 rel=0.916 arm_px=0 tgt_px=28 frac=0.000 ok=1 top=15:93px:/World/Conveyor/Belt | 83:28px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=1 n=23 along=+0.312 x=0.363 px=29 disc=41 vis=0.701 rel=0.946 arm_px=0 tgt_px=29 frac=0.000 ok=1 top=15:103px:/World/Conveyor/Belt | 83:29px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=1 n=24 along=+0.308 x=0.363 px=30 disc=42 vis=0.723 rel=0.976 arm_px=0 tgt_px=30 frac=0.000 ok=1 top=15:91px:/World/Conveyor/Belt | 83:30px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=1 n=25 along=+0.304 x=0.363 px=26 disc=42 vis=0.625 rel=0.843 arm_px=0 tgt_px=26 frac=0.000 ok=0 top=15:95px:/World/Conveyor/Belt | 83:26px:/World/Fruits/Fruit_10
+[fruit] [task]   openarm fingertips 47 mm from the fruit; closing anyway
+[fruit] [acq] right idx=10: setup[premove=3.33 axis=3.33 hover=3.69 wait=3.86 catchup=4.15]s catchup=35t res=5.8mm last=(+2.2,+4.8,+7.0)mm | close_start=(+1.9,+4.5,+7.0)mm vx0=+0.000 latch=centring | contact=@0t(+1.9,+4.5,+7.0)mm F=3.94N freeze=25.2mm@43t span=90.0->38.7mm Fmax=5.87 | q2=+0.2140/3.3161 clip_min=+3.7mrad@j2
+[fruit] [task]   carry grasp_lift: stored pad centre 121 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist right grasp_lift tick 0: cmd_centre=[0.3249, -0.1305, 1.3037] offset=[0.0036, 0.0002, -0.0109] |offset|=11 mm jaw_target=[0.3245, -0.134, 1.2928] jaw=[0.3249000012874603, -0.13050000369548798, 1.3036999702453613] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right grasp_lift tick 1: cmd_centre=[0.3249, -0.1305, 1.3037] offset=[0.0036, 0.0002, -0.0109] |offset|=11 mm jaw_target=[0.3245, -0.134, 1.2928] jaw=[0.3246999979019165, -0.13050000369548798, 1.3034000396728516] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right grasp_lift tick 2: cmd_centre=[0.3249, -0.1305, 1.3038] offset=[0.0036, 0.0002, -0.0109] |offset|=11 mm jaw_target=[0.3245, -0.134, 1.2928] jaw=[0.3244999945163727, -0.1307000070810318, 1.3028000593185425] coherent=False hand_is_jaw=True
+[fruit] [carry] right grasp_lift: ticks=175/175 clean_slip_max=0.0mm in-hand_vmax=0.053 onset_row=None force@onset=n/aN sep@onset=n/amm contacts@onset=None min_contacts=2 force_min=4.35N loss_row=None guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=25.2mm open_max=0.0mm
+[fruit] [task]   carry place1: stored pad centre 77 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist right place1 tick 0: cmd_centre=[0.3994, -0.1378, 1.5482] offset=[0.0036, 0.0002, -0.0109] |offset|=11 mm jaw_target=[0.3991, -0.1413, 1.5373] jaw=[0.399399995803833, -0.13779999315738678, 1.548200011253357] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right place1 tick 1: cmd_centre=[0.3994, -0.1378, 1.5482] offset=[0.0036, 0.0002, -0.0109] |offset|=11 mm jaw_target=[0.3991, -0.1413, 1.5373] jaw=[0.3995000123977661, -0.13779999315738678, 1.5477999448776245] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right place1 tick 2: cmd_centre=[0.3994, -0.1378, 1.5482] offset=[0.0036, 0.0002, -0.0109] |offset|=11 mm jaw_target=[0.3991, -0.1413, 1.5373] jaw=[0.3995000123977661, -0.1378999948501587, 1.5471999645233154] coherent=False hand_is_jaw=True
+[fruit] [carry] right place1: ticks=240/240 clean_slip_max=0.0mm in-hand_vmax=0.067 onset_row=None force@onset=n/aN sep@onset=n/amm contacts@onset=None min_contacts=2 force_min=4.35N loss_row=None guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=25.2mm open_max=0.0mm
+[fruit] [task] place low: bottom 1479 -> 55 mm (target 25), drop 86/104 mm, FINGER FLOOR budget 86 mm, residual 0.0 mm, 80 ticks
+[fruit] [rl] episode 1: strawberry d=3.6cm bin=1 arm=right success=True grasped=True placed=True ticks=1940 decision=210 reward=0.9720 notes=['intercept trigger (dy=26.2cm, dx=3.0cm, t_arrive=2.18s, speed=0.120m/s/encoder, frame=station, finger=0.0100, lead=2.18s/reach=0.31)'] presentation=direct ablate=none
+[fruit] [park] episode 1 arm=right inactive=left park=back m1_hold=+0.004 m1_hold_ok=1 m1_cmd=+0.088 m2_arm=0.000 m2_arm_ok=1 m2_rel=0.790 m2_rel_ok=0 m2_ok=0 m2_vis=0.585 band=+0.400 band_x=+0.363 band_px=24 band_disc=39 band_vis=0.621 arm_px=0 band_frac=0.000 band_calls=25 stale_skipped=1 worst_arm_at=+0.400 worst_vis_at=+0.324 min_frac=0.000 max_frac=0.000 drift=+0.009 calls=52 q=-1.908,-0.978,1.504,0.819,-1.498,-0.586,1.559 q_settled=-1.912,-0.978,1.503,0.818,-1.498,-0.586,1.559 top=15:97px:/World/Conveyor/Belt | 83:24px:/World/Fruits/Fruit_10
+[fruit] [belt] apple (index 15) discharged to the tray at x=1.57 (settled 17.1s)
+[fruit] [rl] episode 2: pear grade=A d=6.1cm bin=0 arm=left y=+0.421 presentation=direct
+[fruit] [task]   openarm fingertips 40 mm from the fruit; closing anyway
+[fruit] [acq] left idx=1: setup[premove=0.57 axis=0.57 hover=0.81 wait=1.42 catchup=1.64]s catchup=26t res=5.8mm last=(-3.7,-2.8,+5.9)mm | close_start=(-3.7,-1.7,+5.9)mm vx0=+0.000 latch=centring | contact=@12t(-1.2,+1.3,+5.8)mm F=1.41N freeze=64.3mm@18t span=90.0->70.5mm Fmax=5.58 | q2=-0.1030/0.1745 clip_min=+0.0mrad@j2
+[fruit] [task]   carry grasp_lift: stored pad centre 123 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist left grasp_lift tick 0: cmd_centre=[0.3195, -0.0573, 1.3204] offset=[-0.0041, 0.0002, -0.0126] |offset|=13 mm jaw_target=[0.3197, -0.0615, 1.3077] jaw=[0.31949999928474426, -0.05730000138282776, 1.3203999996185303] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist left grasp_lift tick 1: cmd_centre=[0.3195, -0.0573, 1.3204] offset=[-0.0041, 0.0002, -0.0126] |offset|=13 mm jaw_target=[0.3197, -0.0615, 1.3077] jaw=[0.31949999928474426, -0.05739999935030937, 1.3198000192642212] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist left grasp_lift tick 2: cmd_centre=[0.3195, -0.0573, 1.3204] offset=[-0.0041, 0.0002, -0.0126] |offset|=13 mm jaw_target=[0.3197, -0.0615, 1.3077] jaw=[0.31940001249313354, -0.057500001043081284, 1.319200038909912] coherent=False hand_is_jaw=True
+[fruit] [carry] left grasp_lift: ticks=162/162 clean_slip_max=275.5mm in-hand_vmax=1.850 onset_row=96 force@onset=5.43N sep@onset=71.1mm contacts@onset=2 min_contacts=0 force_min=0.00N loss_row=114 guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=60.1mm open_max=0.0mm
+[fruit] [task]   carry place0: stored pad centre 90 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist left place0 tick 0: cmd_centre=[0.4022, -0.0267, 1.5496] offset=[-0.0041, 0.0002, -0.0126] |offset|=13 mm jaw_target=[0.4023, -0.0308, 1.537] jaw=[0.40220001339912415, -0.02669999934732914, 1.5496000051498413] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist left place0 tick 1: cmd_centre=[0.4022, -0.0267, 1.5496] offset=[-0.0041, 0.0002, -0.0126] |offset|=13 mm jaw_target=[0.4023, -0.0308, 1.537] jaw=[0.40230000019073486, -0.02669999934732914, 1.5491000413894653] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist left place0 tick 2: cmd_centre=[0.4022, -0.0267, 1.5496] offset=[-0.0041, 0.0002, -0.0126] |offset|=13 mm jaw_target=[0.4023, -0.0308, 1.537] jaw=[0.4023999869823456, -0.02669999934732914, 1.5484999418258667] coherent=False hand_is_jaw=True
+[fruit] [carry] left place0: ticks=348/348 clean_slip_max=1189.2mm in-hand_vmax=0.448 onset_row=2 force@onset=0.00N sep@onset=45.1mm contacts@onset=0 min_contacts=0 force_min=0.00N loss_row=2 guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=45.1mm open_max=0.0mm
+[fruit] [rl]   grasp did not land on the belt; re-running carry_and_release
+[fruit] [rl] episode 2: pear d=6.1cm bin=0 arm=left success=False grasped=True placed=False ticks=1688 decision=85 reward=0.0000 notes=['intercept trigger (dy=22.2cm, dx=2.1cm, t_arrive=1.85s, speed=0.120m/s/encoder, frame=station, finger=0.0248, lead=1.85s/reach=0.27)'] presentation=direct ablate=none
+[fruit] [park] episode 2 arm=left inactive=right park=back m1_hold=+0.002 m1_hold_ok=1 m1_cmd=+0.026 m2_arm=-1.000 m2_arm_ok=-1 m2_rel=-1.000 m2_rel_ok=-1 m2_ok=-1 m2_vis=-1.000 band=- band_x=- band_px=-1 band_disc=-1 band_vis=-1.000 arm_px=-1 band_frac=-1.000 band_calls=0 stale_skipped=1 worst_arm_at=- worst_vis_at=- min_frac=-1.000 max_frac=-1.000 drift=- calls=21 q=1.518,0.330,-1.570,1.269,1.560,0.620,-1.566 q_settled=1.520,0.330,-1.570,1.269,1.560,0.620,-1.566 top=-
+[fruit] [belt] strawberry (index 10) discharged to the tray at x=1.53 (settled 15.0s)
+[fruit] [rl] episode 3: lychee grade=C d=3.4cm bin=1 arm=right y=+0.531 presentation=direct
+[fruit] [park] call ep=3 n=1 along=+0.398 x=0.211 px=45 disc=39 vis=1.156 rel=1.000 arm_px=0 tgt_px=45 frac=0.000 ok=1 top=15:76px:/World/Conveyor/Belt | 81:45px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=3 n=2 along=+0.394 x=0.211 px=43 disc=39 vis=1.101 rel=0.952 arm_px=0 tgt_px=43 frac=0.000 ok=1 top=15:78px:/World/Conveyor/Belt | 81:43px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=3 n=3 along=+0.390 x=0.211 px=42 disc=39 vis=1.071 rel=0.926 arm_px=0 tgt_px=42 frac=0.000 ok=1 top=15:79px:/World/Conveyor/Belt | 81:42px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=3 n=4 along=+0.386 x=0.211 px=45 disc=39 vis=1.143 rel=0.989 arm_px=0 tgt_px=45 frac=0.000 ok=1 top=15:76px:/World/Conveyor/Belt | 81:45px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=3 n=5 along=+0.382 x=0.211 px=43 disc=40 vis=1.089 rel=0.942 arm_px=0 tgt_px=43 frac=0.000 ok=1 top=15:78px:/World/Conveyor/Belt | 81:43px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=3 n=6 along=+0.378 x=0.211 px=44 disc=40 vis=1.110 rel=0.960 arm_px=0 tgt_px=44 frac=0.000 ok=1 top=15:88px:/World/Conveyor/Belt | 81:44px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=3 n=7 along=+0.374 x=0.211 px=44 disc=40 vis=1.106 rel=0.957 arm_px=0 tgt_px=44 frac=0.000 ok=1 top=15:88px:/World/Conveyor/Belt | 81:44px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=3 n=8 along=+0.370 x=0.211 px=42 disc=40 vis=1.052 rel=0.910 arm_px=0 tgt_px=42 frac=0.000 ok=1 top=15:79px:/World/Conveyor/Belt | 81:42px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=3 n=9 along=+0.366 x=0.211 px=45 disc=40 vis=1.123 rel=0.972 arm_px=0 tgt_px=45 frac=0.000 ok=1 top=15:87px:/World/Conveyor/Belt | 81:45px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=3 n=10 along=+0.362 x=0.211 px=44 disc=40 vis=1.094 rel=0.947 arm_px=0 tgt_px=44 frac=0.000 ok=1 top=15:77px:/World/Conveyor/Belt | 81:44px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=3 n=11 along=+0.358 x=0.211 px=45 disc=40 vis=1.115 rel=0.965 arm_px=0 tgt_px=45 frac=0.000 ok=1 top=15:76px:/World/Conveyor/Belt | 81:45px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=3 n=12 along=+0.354 x=0.211 px=46 disc=40 vis=1.136 rel=0.983 arm_px=0 tgt_px=46 frac=0.000 ok=1 top=15:75px:/World/Conveyor/Belt | 81:46px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=3 n=13 along=+0.350 x=0.211 px=45 disc=41 vis=1.108 rel=0.958 arm_px=0 tgt_px=45 frac=0.000 ok=1 top=15:76px:/World/Conveyor/Belt | 81:45px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=3 n=14 along=+0.346 x=0.211 px=44 disc=41 vis=1.079 rel=0.934 arm_px=0 tgt_px=44 frac=0.000 ok=1 top=15:88px:/World/Conveyor/Belt | 81:44px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=3 n=15 along=+0.342 x=0.211 px=45 disc=41 vis=1.100 rel=0.952 arm_px=0 tgt_px=45 frac=0.000 ok=1 top=15:76px:/World/Conveyor/Belt | 81:45px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=3 n=16 along=+0.338 x=0.211 px=43 disc=41 vis=1.048 rel=0.906 arm_px=0 tgt_px=43 frac=0.000 ok=1 top=15:78px:/World/Conveyor/Belt | 81:43px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=3 n=17 along=+0.334 x=0.211 px=44 disc=41 vis=1.069 rel=0.924 arm_px=0 tgt_px=44 frac=0.000 ok=1 top=15:88px:/World/Conveyor/Belt | 81:44px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=3 n=18 along=+0.330 x=0.211 px=47 disc=41 vis=1.138 rel=0.984 arm_px=0 tgt_px=47 frac=0.000 ok=1 top=15:74px:/World/Conveyor/Belt | 81:47px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=3 n=19 along=+0.326 x=0.211 px=44 disc=41 vis=1.062 rel=0.919 arm_px=0 tgt_px=44 frac=0.000 ok=1 top=15:77px:/World/Conveyor/Belt | 81:44px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=3 n=20 along=+0.322 x=0.211 px=46 disc=42 vis=1.106 rel=0.957 arm_px=0 tgt_px=46 frac=0.000 ok=1 top=15:86px:/World/Conveyor/Belt | 81:46px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=3 n=21 along=+0.318 x=0.211 px=45 disc=42 vis=1.079 rel=0.933 arm_px=0 tgt_px=45 frac=0.000 ok=1 top=15:76px:/World/Conveyor/Belt | 81:45px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=3 n=22 along=+0.314 x=0.211 px=43 disc=42 vis=1.028 rel=0.889 arm_px=0 tgt_px=43 frac=0.000 ok=1 top=15:78px:/World/Conveyor/Belt | 81:43px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=3 n=23 along=+0.310 x=0.211 px=46 disc=42 vis=1.096 rel=0.948 arm_px=0 tgt_px=46 frac=0.000 ok=1 top=15:86px:/World/Conveyor/Belt | 81:46px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=3 n=24 along=+0.306 x=0.211 px=47 disc=42 vis=1.116 rel=0.966 arm_px=0 tgt_px=47 frac=0.000 ok=1 top=15:74px:/World/Conveyor/Belt | 81:47px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=3 n=25 along=+0.302 x=0.211 px=44 disc=42 vis=1.042 rel=0.901 arm_px=0 tgt_px=44 frac=0.000 ok=1 top=15:77px:/World/Conveyor/Belt | 81:44px:/World/Fruits/Fruit_13
+[fruit] [task]   openarm fingertips 79 mm from the fruit; closing anyway
+[fruit] [acq] right idx=13: setup[premove=0.52 axis=0.52 hover=0.93 wait=1.53 catchup=1.75]s catchup=26t res=5.4mm last=(-2.8,-5.5,+8.2)mm | close_start=(-2.8,-4.3,+8.2)mm vx0=-0.000 latch=centring | contact=@17t(-1.0,-0.8,+8.2)mm F=3.54N freeze=35.8mm@20t span=90.0->45.6mm Fmax=4.98 | q2=+0.1484/3.3161 clip_min=+0.0mrad@j2
+[fruit] [task]   carry grasp_lift: stored pad centre 126 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist right grasp_lift tick 0: cmd_centre=[0.1893, -0.0054, 1.3107] offset=[0.0047, 0.0043, -0.0098] |offset|=12 mm jaw_target=[0.1849, -0.0101, 1.3009] jaw=[0.18930000066757202, -0.005400000140070915, 1.3107000589370728] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right grasp_lift tick 1: cmd_centre=[0.1893, -0.0054, 1.3107] offset=[0.0047, 0.0043, -0.0098] |offset|=12 mm jaw_target=[0.1849, -0.0101, 1.3009] jaw=[0.1891999989748001, -0.005400000140070915, 1.3105000257492065] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right grasp_lift tick 2: cmd_centre=[0.1893, -0.0054, 1.3107] offset=[0.0047, 0.0043, -0.0098] |offset|=12 mm jaw_target=[0.1849, -0.0101, 1.3009] jaw=[0.1889999955892563, -0.005499999970197678, 1.3101999759674072] coherent=False hand_is_jaw=True
+[fruit] [carry] right grasp_lift: ticks=169/169 clean_slip_max=0.0mm in-hand_vmax=0.061 onset_row=None force@onset=n/aN sep@onset=n/amm contacts@onset=None min_contacts=2 force_min=4.43N loss_row=None guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=33.6mm open_max=0.0mm
+[fruit] [task]   carry place1: stored pad centre 102 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist right place1 tick 0: cmd_centre=[0.2628, 0.0539, 1.5687] offset=[0.0047, 0.0043, -0.0098] |offset|=12 mm jaw_target=[0.2584, 0.0492, 1.559] jaw=[0.262800008058548, 0.05389999970793724, 1.5686999559402466] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right place1 tick 1: cmd_centre=[0.2628, 0.0539, 1.5687] offset=[0.0047, 0.0043, -0.0098] |offset|=12 mm jaw_target=[0.2584, 0.0492, 1.559] jaw=[0.262800008058548, 0.05389999970793724, 1.5684000253677368] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right place1 tick 2: cmd_centre=[0.2628, 0.0539, 1.5687] offset=[0.0047, 0.0043, -0.0098] |offset|=12 mm jaw_target=[0.2584, 0.0492, 1.559] jaw=[0.26269999146461487, 0.05389999970793724, 1.5679999589920044] coherent=False hand_is_jaw=True
+[fruit] [carry] right place1: ticks=382/382 clean_slip_max=0.0mm in-hand_vmax=0.057 onset_row=None force@onset=n/aN sep@onset=n/amm contacts@onset=None min_contacts=2 force_min=4.42N loss_row=None guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=33.6mm open_max=0.0mm
+[fruit] [task] place low: bottom 1495 -> 58 mm (target 25), drop 95/120 mm, FINGER FLOOR budget 95 mm, residual 0.0 mm, 83 ticks
+[fruit] [rl] episode 3: lychee d=3.4cm bin=1 arm=right success=True grasped=True placed=True ticks=1765 decision=180 reward=0.9760 notes=['intercept trigger (dy=25.0cm, dx=-12.2cm, t_arrive=2.09s, speed=0.120m/s/encoder, frame=station, finger=0.0047, lead=2.09s/reach=0.30)'] presentation=direct ablate=none
+[fruit] [park] episode 3 arm=right inactive=left park=back m1_hold=+0.004 m1_hold_ok=1 m1_cmd=+0.088 m2_arm=0.000 m2_arm_ok=1 m2_rel=0.889 m2_rel_ok=1 m2_ok=1 m2_vis=1.028 band=+0.398 band_x=+0.211 band_px=45 band_disc=39 band_vis=1.156 arm_px=0 band_frac=0.000 band_calls=25 stale_skipped=1 worst_arm_at=+0.398 worst_vis_at=+0.314 min_frac=0.000 max_frac=0.000 drift=+0.007 calls=45 q=-1.908,-0.978,1.504,0.819,-1.498,-0.586,1.559 q_settled=-1.912,-0.978,1.503,0.818,-1.498,-0.586,1.559 top=15:76px:/World/Conveyor/Belt | 81:45px:/World/Fruits/Fruit_13
+[fruit] [rl] episode 4: strawberry grade=B d=3.6cm bin=1 arm=right y=+0.667 presentation=direct
+[fruit] [park] call ep=4 n=1 along=+0.399 x=0.271 px=28 disc=41 vis=0.682 rel=0.895 arm_px=0 tgt_px=28 frac=0.000 ok=1 top=15:104px:/World/Conveyor/Belt | 83:28px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=4 n=2 along=+0.395 x=0.271 px=25 disc=41 vis=0.607 rel=0.796 arm_px=0 tgt_px=25 frac=0.000 ok=0 top=15:107px:/World/Conveyor/Belt | 83:25px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=4 n=3 along=+0.391 x=0.271 px=28 disc=41 vis=0.678 rel=0.888 arm_px=0 tgt_px=28 frac=0.000 ok=1 top=15:93px:/World/Conveyor/Belt | 83:28px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=4 n=4 along=+0.387 x=0.271 px=29 disc=41 vis=0.699 rel=0.917 arm_px=0 tgt_px=29 frac=0.000 ok=1 top=15:115px:/World/Conveyor/Belt | 83:29px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=4 n=5 along=+0.383 x=0.271 px=26 disc=42 vis=0.625 rel=0.819 arm_px=0 tgt_px=26 frac=0.000 ok=0 top=15:95px:/World/Conveyor/Belt | 83:26px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=4 n=6 along=+0.379 x=0.271 px=27 disc=42 vis=0.647 rel=0.848 arm_px=0 tgt_px=27 frac=0.000 ok=0 top=15:117px:/World/Conveyor/Belt | 83:27px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=4 n=7 along=+0.375 x=0.271 px=27 disc=42 vis=0.644 rel=0.845 arm_px=0 tgt_px=27 frac=0.000 ok=0 top=15:94px:/World/Conveyor/Belt | 83:27px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=4 n=8 along=+0.371 x=0.271 px=28 disc=42 vis=0.666 rel=0.873 arm_px=0 tgt_px=28 frac=0.000 ok=1 top=15:93px:/World/Conveyor/Belt | 83:28px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=4 n=9 along=+0.367 x=0.271 px=26 disc=42 vis=0.616 rel=0.808 arm_px=0 tgt_px=26 frac=0.000 ok=0 top=15:106px:/World/Conveyor/Belt | 83:26px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=4 n=10 along=+0.363 x=0.271 px=27 disc=42 vis=0.638 rel=0.836 arm_px=0 tgt_px=27 frac=0.000 ok=0 top=15:94px:/World/Conveyor/Belt | 83:27px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=4 n=11 along=+0.359 x=0.271 px=26 disc=42 vis=0.612 rel=0.803 arm_px=0 tgt_px=26 frac=0.000 ok=0 top=15:95px:/World/Conveyor/Belt | 83:26px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=4 n=12 along=+0.355 x=0.271 px=29 disc=43 vis=0.680 rel=0.892 arm_px=0 tgt_px=29 frac=0.000 ok=1 top=15:103px:/World/Conveyor/Belt | 83:29px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=4 n=13 along=+0.351 x=0.271 px=26 disc=43 vis=0.608 rel=0.797 arm_px=0 tgt_px=26 frac=0.000 ok=0 top=15:106px:/World/Conveyor/Belt | 83:26px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=4 n=14 along=+0.347 x=0.271 px=29 disc=43 vis=0.676 rel=0.887 arm_px=0 tgt_px=29 frac=0.000 ok=1 top=15:92px:/World/Conveyor/Belt | 83:29px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=4 n=15 along=+0.343 x=0.271 px=29 disc=43 vis=0.674 rel=0.884 arm_px=0 tgt_px=29 frac=0.000 ok=1 top=15:115px:/World/Conveyor/Belt | 83:29px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=4 n=16 along=+0.339 x=0.271 px=27 disc=43 vis=0.625 rel=0.820 arm_px=0 tgt_px=27 frac=0.000 ok=0 top=15:94px:/World/Conveyor/Belt | 83:27px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=4 n=17 along=+0.335 x=0.271 px=28 disc=43 vis=0.647 rel=0.848 arm_px=0 tgt_px=28 frac=0.000 ok=0 top=15:116px:/World/Conveyor/Belt | 83:28px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=4 n=18 along=+0.331 x=0.271 px=28 disc=43 vis=0.644 rel=0.845 arm_px=0 tgt_px=28 frac=0.000 ok=0 top=15:104px:/World/Conveyor/Belt | 83:28px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=4 n=19 along=+0.327 x=0.271 px=28 disc=44 vis=0.642 rel=0.843 arm_px=0 tgt_px=28 frac=0.000 ok=0 top=15:104px:/World/Conveyor/Belt | 83:28px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=4 n=20 along=+0.323 x=0.271 px=29 disc=44 vis=0.663 rel=0.870 arm_px=0 tgt_px=29 frac=0.000 ok=1 top=15:103px:/World/Conveyor/Belt | 83:29px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=4 n=21 along=+0.319 x=0.271 px=29 disc=44 vis=0.661 rel=0.867 arm_px=0 tgt_px=29 frac=0.000 ok=1 top=15:103px:/World/Conveyor/Belt | 83:29px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=4 n=22 along=+0.315 x=0.271 px=27 disc=44 vis=0.614 rel=0.805 arm_px=0 tgt_px=27 frac=0.000 ok=0 top=15:94px:/World/Conveyor/Belt | 83:27px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=4 n=23 along=+0.311 x=0.271 px=31 disc=44 vis=0.703 rel=0.922 arm_px=0 tgt_px=31 frac=0.000 ok=1 top=15:101px:/World/Conveyor/Belt | 83:31px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=4 n=24 along=+0.307 x=0.271 px=28 disc=44 vis=0.633 rel=0.830 arm_px=0 tgt_px=28 frac=0.000 ok=0 top=15:104px:/World/Conveyor/Belt | 83:28px:/World/Fruits/Fruit_10
+[fruit] [park] call ep=4 n=25 along=+0.303 x=0.271 px=29 disc=44 vis=0.654 rel=0.857 arm_px=0 tgt_px=29 frac=0.000 ok=1 top=15:92px:/World/Conveyor/Belt | 83:29px:/World/Fruits/Fruit_10
+[fruit] [task]   openarm fingertips 74 mm from the fruit; closing anyway
+[fruit] [acq] right idx=10: setup[premove=0.49 axis=0.49 hover=0.88 wait=1.61 catchup=1.83]s catchup=26t res=5.9mm last=(-3.5,-5.1,+7.2)mm | close_start=(-3.5,-3.9,+7.2)mm vx0=+0.001 latch=centring | contact=@20t(-0.5,+0.2,+7.2)mm F=6.19N freeze=25.7mm@24t span=90.0->38.7mm Fmax=7.16 | q2=+0.0960/3.3161 clip_min=+0.2mrad@j2
+[fruit] [task]   carry grasp_lift: stored pad centre 127 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist right grasp_lift tick 0: cmd_centre=[0.2328, -0.0585, 1.3063] offset=[0.0234, 0.0068, -0.0108] |offset|=27 mm jaw_target=[0.2258, -0.0818, 1.2956] jaw=[0.23280000686645508, -0.05849999934434891, 1.3063000440597534] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right grasp_lift tick 1: cmd_centre=[0.2328, -0.0585, 1.3063] offset=[0.0234, 0.0068, -0.0108] |offset|=27 mm jaw_target=[0.2258, -0.0818, 1.2956] jaw=[0.23250000178813934, -0.05869999900460243, 1.305999994277954] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right grasp_lift tick 2: cmd_centre=[0.2328, -0.0585, 1.3063] offset=[0.0234, 0.0068, -0.0108] |offset|=27 mm jaw_target=[0.2258, -0.0818, 1.2956] jaw=[0.2320999950170517, -0.05900000035762787, 1.3055000305175781] coherent=False hand_is_jaw=True
+[fruit] [carry] right grasp_lift: ticks=173/173 clean_slip_max=0.0mm in-hand_vmax=0.063 onset_row=None force@onset=n/aN sep@onset=n/amm contacts@onset=None min_contacts=2 force_min=4.01N loss_row=None guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=25.7mm open_max=0.0mm
+[fruit] [task]   carry place1: stored pad centre 106 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist right place1 tick 0: cmd_centre=[0.3277, -0.0634, 1.576] offset=[0.0234, 0.0068, -0.0108] |offset|=27 mm jaw_target=[0.3207, -0.0867, 1.5652] jaw=[0.3276999890804291, -0.06340000033378601, 1.5759999752044678] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right place1 tick 1: cmd_centre=[0.3277, -0.0634, 1.576] offset=[0.0234, 0.0068, -0.0108] |offset|=27 mm jaw_target=[0.3207, -0.0867, 1.5652] jaw=[0.32760000228881836, -0.06360000371932983, 1.5757999420166016] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right place1 tick 2: cmd_centre=[0.3277, -0.0634, 1.576] offset=[0.0234, 0.0068, -0.0108] |offset|=27 mm jaw_target=[0.3207, -0.0867, 1.5652] jaw=[0.32739999890327454, -0.06400000303983688, 1.5755000114440918] coherent=False hand_is_jaw=True
+[fruit] [carry] right place1: ticks=297/297 clean_slip_max=0.0mm in-hand_vmax=0.088 onset_row=None force@onset=n/aN sep@onset=n/amm contacts@onset=None min_contacts=2 force_min=4.02N loss_row=None guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=25.7mm open_max=0.0mm
+[fruit] [task] place low: bottom 1501 -> 62 mm (target 25), drop 99/126 mm, FINGER FLOOR budget 99 mm, residual 0.0 mm, 84 ticks
+[fruit] [rl] episode 4: strawberry d=3.6cm bin=1 arm=right success=True grasped=True placed=True ticks=1847 decision=336 reward=0.9552 notes=['intercept trigger (dy=26.3cm, dx=-7.1cm, t_arrive=2.20s, speed=0.120m/s/encoder, frame=station, finger=0.0125, lead=2.21s/reach=0.31)'] presentation=direct ablate=none
+[fruit] [park] episode 4 arm=right inactive=left park=back m1_hold=+0.004 m1_hold_ok=1 m1_cmd=+0.088 m2_arm=0.000 m2_arm_ok=1 m2_rel=0.796 m2_rel_ok=0 m2_ok=0 m2_vis=0.607 band=+0.399 band_x=+0.271 band_px=28 band_disc=41 band_vis=0.682 arm_px=0 band_frac=0.000 band_calls=25 stale_skipped=1 worst_arm_at=+0.399 worst_vis_at=+0.395 min_frac=0.000 max_frac=0.000 drift=+0.010 calls=84 q=-1.908,-0.978,1.504,0.819,-1.498,-0.586,1.559 q_settled=-1.912,-0.978,1.503,0.818,-1.498,-0.586,1.559 top=15:104px:/World/Conveyor/Belt | 83:28px:/World/Fruits/Fruit_10
+[fruit] [belt] lychee (index 13) discharged to the tray at x=1.75 (settled 16.3s)
+[fruit] [rl] episode 5: kiwi grade=C d=6.3cm bin=1 arm=right y=+0.675 presentation=direct
+[fruit] [park] call ep=5 n=1 along=+0.396 x=0.301 px=160 disc=131 vis=1.220 rel=0.980 arm_px=0 tgt_px=160 frac=0.000 ok=1 top=77:160px:/World/Fruits/Fruit_09 | 15:108px:/World/Conveyor/Belt | 86:21px:/World/Fruits/Fruit_01
+[fruit] [park] call ep=5 n=2 along=+0.392 x=0.301 px=155 disc=132 vis=1.178 rel=0.946 arm_px=0 tgt_px=155 frac=0.000 ok=1 top=77:155px:/World/Fruits/Fruit_09 | 15:107px:/World/Conveyor/Belt | 86:27px:/World/Fruits/Fruit_01
+[fruit] [park] call ep=5 n=3 along=+0.388 x=0.301 px=158 disc=132 vis=1.197 rel=0.961 arm_px=0 tgt_px=158 frac=0.000 ok=1 top=77:158px:/World/Fruits/Fruit_09 | 15:107px:/World/Conveyor/Belt | 86:24px:/World/Fruits/Fruit_01
+[fruit] [park] call ep=5 n=4 along=+0.384 x=0.301 px=158 disc=133 vis=1.192 rel=0.958 arm_px=0 tgt_px=158 frac=0.000 ok=1 top=77:158px:/World/Fruits/Fruit_09 | 15:113px:/World/Conveyor/Belt | 86:18px:/World/Fruits/Fruit_01
+[fruit] [park] call ep=5 n=5 along=+0.380 x=0.301 px=158 disc=133 vis=1.188 rel=0.954 arm_px=0 tgt_px=158 frac=0.000 ok=1 top=77:158px:/World/Fruits/Fruit_09 | 15:106px:/World/Conveyor/Belt | 86:25px:/World/Fruits/Fruit_01
+[fruit] [park] call ep=5 n=6 along=+0.376 x=0.301 px=159 disc=133 vis=1.191 rel=0.957 arm_px=0 tgt_px=159 frac=0.000 ok=1 top=77:159px:/World/Fruits/Fruit_09 | 15:110px:/World/Conveyor/Belt | 86:20px:/World/Fruits/Fruit_01
+[fruit] [park] call ep=5 n=7 along=+0.372 x=0.301 px=158 disc=134 vis=1.180 rel=0.948 arm_px=0 tgt_px=158 frac=0.000 ok=1 top=77:158px:/World/Fruits/Fruit_09 | 15:105px:/World/Conveyor/Belt | 86:26px:/World/Fruits/Fruit_01
+[fruit] [park] call ep=5 n=8 along=+0.368 x=0.301 px=159 disc=134 vis=1.183 rel=0.950 arm_px=0 tgt_px=159 frac=0.000 ok=1 top=77:159px:/World/Fruits/Fruit_09 | 15:108px:/World/Conveyor/Belt | 86:22px:/World/Fruits/Fruit_01
+[fruit] [park] call ep=5 n=9 along=+0.364 x=0.301 px=160 disc=135 vis=1.186 rel=0.953 arm_px=0 tgt_px=160 frac=0.000 ok=1 top=77:160px:/World/Fruits/Fruit_09 | 15:105px:/World/Conveyor/Belt | 86:24px:/World/Fruits/Fruit_01
+[fruit] [park] call ep=5 n=10 along=+0.360 x=0.301 px=159 disc=135 vis=1.175 rel=0.944 arm_px=0 tgt_px=159 frac=0.000 ok=1 top=77:159px:/World/Fruits/Fruit_09 | 15:106px:/World/Conveyor/Belt | 86:24px:/World/Fruits/Fruit_01
+[fruit] [park] call ep=5 n=11 along=+0.356 x=0.301 px=160 disc=136 vis=1.178 rel=0.946 arm_px=0 tgt_px=160 frac=0.000 ok=1 top=77:160px:/World/Fruits/Fruit_09 | 15:104px:/World/Conveyor/Belt | 86:25px:/World/Fruits/Fruit_01
+[fruit] [park] call ep=5 n=12 along=+0.352 x=0.301 px=163 disc=136 vis=1.196 rel=0.961 arm_px=0 tgt_px=163 frac=0.000 ok=1 top=77:163px:/World/Fruits/Fruit_09 | 15:105px:/World/Conveyor/Belt | 86:21px:/World/Fruits/Fruit_01
+[fruit] [park] call ep=5 n=13 along=+0.348 x=0.301 px=157 disc=137 vis=1.149 rel=0.922 arm_px=0 tgt_px=157 frac=0.000 ok=1 top=77:157px:/World/Fruits/Fruit_09 | 15:123px:/World/Conveyor/Belt | 86:26px:/World/Fruits/Fruit_01
+[fruit] [park] call ep=5 n=14 along=+0.344 x=0.301 px=160 disc=137 vis=1.167 rel=0.937 arm_px=0 tgt_px=160 frac=0.000 ok=1 top=77:160px:/World/Fruits/Fruit_09 | 15:106px:/World/Conveyor/Belt | 86:23px:/World/Fruits/Fruit_01
+[fruit] [park] call ep=5 n=15 along=+0.340 x=0.301 px=161 disc=138 vis=1.170 rel=0.940 arm_px=0 tgt_px=161 frac=0.000 ok=1 top=77:161px:/World/Fruits/Fruit_09 | 15:135px:/World/Conveyor/Belt | 86:28px:/World/Fruits/Fruit_01
+[fruit] [park] call ep=5 n=16 along=+0.336 x=0.301 px=159 disc=138 vis=1.152 rel=0.925 arm_px=0 tgt_px=159 frac=0.000 ok=1 top=77:159px:/World/Fruits/Fruit_09 | 15:105px:/World/Conveyor/Belt | 86:25px:/World/Fruits/Fruit_01
+[fruit] [park] call ep=5 n=17 along=+0.332 x=0.301 px=161 disc=138 vis=1.162 rel=0.934 arm_px=0 tgt_px=161 frac=0.000 ok=1 top=77:161px:/World/Fruits/Fruit_09 | 15:119px:/World/Conveyor/Belt | 86:26px:/World/Fruits/Fruit_01
+[fruit] [park] call ep=5 n=18 along=+0.328 x=0.301 px=162 disc=139 vis=1.166 rel=0.937 arm_px=0 tgt_px=162 frac=0.000 ok=1 top=77:162px:/World/Fruits/Fruit_09 | 15:119px:/World/Conveyor/Belt | 86:25px:/World/Fruits/Fruit_01
+[fruit] [park] call ep=5 n=19 along=+0.324 x=0.301 px=162 disc=139 vis=1.162 rel=0.934 arm_px=0 tgt_px=162 frac=0.000 ok=1 top=77:162px:/World/Fruits/Fruit_09 | 15:108px:/World/Conveyor/Belt | 86:19px:/World/Fruits/Fruit_01
+[fruit] [park] call ep=5 n=20 along=+0.320 x=0.301 px=165 disc=140 vis=1.180 rel=0.948 arm_px=0 tgt_px=165 frac=0.000 ok=1 top=77:165px:/World/Fruits/Fruit_09 | 15:100px:/World/Conveyor/Belt | 86:24px:/World/Fruits/Fruit_01
+[fruit] [park] call ep=5 n=21 along=+0.316 x=0.301 px=164 disc=140 vis=1.169 rel=0.939 arm_px=0 tgt_px=164 frac=0.000 ok=1 top=77:164px:/World/Fruits/Fruit_09 | 15:121px:/World/Conveyor/Belt | 86:21px:/World/Fruits/Fruit_01
+[fruit] [park] call ep=5 n=22 along=+0.312 x=0.301 px=159 disc=141 vis=1.130 rel=0.908 arm_px=0 tgt_px=159 frac=0.000 ok=1 top=77:159px:/World/Fruits/Fruit_09 | 15:122px:/World/Conveyor/Belt | 86:25px:/World/Fruits/Fruit_01
+[fruit] [park] call ep=5 n=23 along=+0.308 x=0.301 px=166 disc=141 vis=1.176 rel=0.945 arm_px=0 tgt_px=166 frac=0.000 ok=1 top=77:166px:/World/Fruits/Fruit_09 | 15:104px:/World/Conveyor/Belt | 86:19px:/World/Fruits/Fruit_01
+[fruit] [park] call ep=5 n=24 along=+0.304 x=0.301 px=163 disc=142 vis=1.152 rel=0.925 arm_px=0 tgt_px=163 frac=0.000 ok=1 top=77:163px:/World/Fruits/Fruit_09 | 15:135px:/World/Conveyor/Belt | 86:26px:/World/Fruits/Fruit_01
+[fruit] [park] call ep=5 n=25 along=+0.300 x=0.301 px=162 disc=142 vis=1.141 rel=0.917 arm_px=0 tgt_px=162 frac=0.000 ok=1 top=77:162px:/World/Fruits/Fruit_09 | 15:106px:/World/Conveyor/Belt | 86:21px:/World/Fruits/Fruit_01
+[fruit] [task]   openarm fingertips 89 mm from the fruit; closing anyway
+[fruit] [acq] right idx=9: setup[premove=0.13 axis=0.56 hover=0.73 wait=1.12 catchup=1.33]s catchup=26t res=5.6mm last=(-3.1,-4.7,+7.0)mm | close_start=(-3.1,-3.5,+7.0)mm vx0=+0.000 latch=centring | contact=@0t(-3.1,-3.5,+7.0)mm F=5.41N freeze=73.5mm@19t span=90.0->76.9mm Fmax=6.21 | q2=+0.0452/3.3161 clip_min=+0.1mrad@j2
+[fruit] [task]   carry grasp_lift: stored pad centre 128 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist right grasp_lift tick 0: cmd_centre=[0.2719, 0.0438, 1.3229] offset=[-0.0084, 0.0061, -0.011] |offset|=15 mm jaw_target=[0.2658, 0.0523, 1.312] jaw=[0.2718999981880188, 0.043800000101327896, 1.3229000568389893] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right grasp_lift tick 1: cmd_centre=[0.2719, 0.0438, 1.3229] offset=[-0.0084, 0.0061, -0.011] |offset|=15 mm jaw_target=[0.2658, 0.0523, 1.312] jaw=[0.27160000801086426, 0.04410000145435333, 1.3224999904632568] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right grasp_lift tick 2: cmd_centre=[0.2719, 0.0438, 1.3229] offset=[-0.0084, 0.0061, -0.011] |offset|=15 mm jaw_target=[0.2658, 0.0523, 1.312] jaw=[0.27129998803138733, 0.04439999908208847, 1.3219000101089478] coherent=False hand_is_jaw=True
+[fruit] [carry] right grasp_lift: ticks=160/160 clean_slip_max=0.0mm in-hand_vmax=0.043 onset_row=None force@onset=n/aN sep@onset=n/amm contacts@onset=None min_contacts=2 force_min=4.38N loss_row=None guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=70.0mm open_max=0.0mm
+[fruit] [task]   carry place1: stored pad centre 75 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist right place1 tick 0: cmd_centre=[0.3258, 0.0945, 1.5416] offset=[-0.0084, 0.0061, -0.011] |offset|=15 mm jaw_target=[0.3196, 0.1029, 1.5307] jaw=[0.32580000162124634, 0.09449999779462814, 1.541599988937378] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right place1 tick 1: cmd_centre=[0.3258, 0.0945, 1.5416] offset=[-0.0084, 0.0061, -0.011] |offset|=15 mm jaw_target=[0.3196, 0.1029, 1.5307] jaw=[0.32580000162124634, 0.09459999948740005, 1.541100025177002] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right place1 tick 2: cmd_centre=[0.3258, 0.0945, 1.5416] offset=[-0.0084, 0.0061, -0.011] |offset|=15 mm jaw_target=[0.3196, 0.1029, 1.5307] jaw=[0.32580000162124634, 0.09480000287294388, 1.5405999422073364] coherent=False hand_is_jaw=True
+[fruit] [carry] right place1: ticks=397/397 clean_slip_max=0.0mm in-hand_vmax=0.047 onset_row=None force@onset=n/aN sep@onset=n/amm contacts@onset=None min_contacts=2 force_min=4.33N loss_row=None guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=70.0mm open_max=0.0mm
+[fruit] [task] place low: bottom 1462 -> 48 mm (target 25), drop 69/87 mm, FINGER FLOOR budget 69 mm, residual 0.0 mm, 74 ticks
+[fruit] [rl] episode 5: kiwi d=6.3cm bin=1 arm=right success=True grasped=True placed=True ticks=1917 decision=389 reward=0.9481 notes=['intercept trigger (dy=19.9cm, dx=-3.2cm, t_arrive=1.66s, speed=0.120m/s/encoder, frame=station, finger=0.0316, lead=1.67s/reach=0.25)'] presentation=direct ablate=none
+[fruit] [park] episode 5 arm=right inactive=left park=back m1_hold=+0.004 m1_hold_ok=1 m1_cmd=+0.088 m2_arm=0.000 m2_arm_ok=1 m2_rel=0.908 m2_rel_ok=1 m2_ok=1 m2_vis=1.130 band=+0.396 band_x=+0.301 band_px=160 band_disc=131 band_vis=1.220 arm_px=0 band_frac=0.000 band_calls=25 stale_skipped=1 worst_arm_at=+0.396 worst_vis_at=+0.312 min_frac=0.000 max_frac=0.000 drift=+0.010 calls=97 q=-1.908,-0.978,1.504,0.819,-1.498,-0.586,1.559 q_settled=-1.912,-0.978,1.503,0.818,-1.498,-0.586,1.559 top=77:160px:/World/Fruits/Fruit_09 | 15:108px:/World/Conveyor/Belt | 86:21px:/World/Fruits/Fruit_01
+[fruit] [belt] strawberry (index 10) discharged to the tray at x=1.61 (settled 16.9s)
+[fruit] [rl] episode 6: orange grade=A d=6.8cm bin=0 arm=left y=+0.537 presentation=direct
+[fruit] [park] call ep=6 n=1 along=+0.400 x=0.226 px=185 disc=156 vis=1.189 rel=0.986 arm_px=0 tgt_px=185 frac=0.000 ok=1 top=74:185px:/World/Fruits/Fruit_06 | 15:139px:/World/Conveyor/Belt
+[fruit] [park] call ep=6 n=2 along=+0.396 x=0.226 px=186 disc=156 vis=1.190 rel=0.987 arm_px=0 tgt_px=186 frac=0.000 ok=1 top=74:186px:/World/Fruits/Fruit_06 | 15:138px:/World/Conveyor/Belt
+[fruit] [park] call ep=6 n=3 along=+0.392 x=0.226 px=184 disc=157 vis=1.173 rel=0.973 arm_px=0 tgt_px=184 frac=0.000 ok=1 top=74:184px:/World/Fruits/Fruit_06 | 15:140px:/World/Conveyor/Belt
+[fruit] [park] call ep=6 n=4 along=+0.388 x=0.226 px=186 disc=157 vis=1.181 rel=0.980 arm_px=0 tgt_px=186 frac=0.000 ok=1 top=74:186px:/World/Fruits/Fruit_06 | 15:138px:/World/Conveyor/Belt
+[fruit] [park] call ep=6 n=5 along=+0.384 x=0.226 px=186 disc=158 vis=1.177 rel=0.976 arm_px=0 tgt_px=186 frac=0.000 ok=1 top=74:186px:/World/Fruits/Fruit_06 | 15:138px:/World/Conveyor/Belt
+[fruit] [park] call ep=6 n=6 along=+0.380 x=0.226 px=183 disc=159 vis=1.153 rel=0.957 arm_px=0 tgt_px=183 frac=0.000 ok=1 top=74:183px:/World/Fruits/Fruit_06 | 15:141px:/World/Conveyor/Belt
+[fruit] [park] call ep=6 n=7 along=+0.376 x=0.226 px=188 disc=159 vis=1.180 rel=0.979 arm_px=0 tgt_px=188 frac=0.000 ok=1 top=74:188px:/World/Fruits/Fruit_06 | 15:136px:/World/Conveyor/Belt
+[fruit] [park] call ep=6 n=8 along=+0.372 x=0.226 px=184 disc=160 vis=1.151 rel=0.955 arm_px=0 tgt_px=184 frac=0.000 ok=1 top=74:184px:/World/Fruits/Fruit_06 | 15:158px:/World/Conveyor/Belt
+[fruit] [park] call ep=6 n=9 along=+0.368 x=0.226 px=185 disc=160 vis=1.153 rel=0.956 arm_px=0 tgt_px=185 frac=0.000 ok=1 top=74:185px:/World/Fruits/Fruit_06 | 15:139px:/World/Conveyor/Belt
+[fruit] [park] call ep=6 n=10 along=+0.364 x=0.226 px=189 disc=161 vis=1.174 rel=0.973 arm_px=0 tgt_px=189 frac=0.000 ok=1 top=74:189px:/World/Fruits/Fruit_06 | 15:135px:/World/Conveyor/Belt
+[fruit] [park] call ep=6 n=11 along=+0.360 x=0.226 px=188 disc=162 vis=1.163 rel=0.965 arm_px=0 tgt_px=188 frac=0.000 ok=1 top=74:188px:/World/Fruits/Fruit_06 | 15:173px:/World/Conveyor/Belt
+[fruit] [park] call ep=6 n=12 along=+0.356 x=0.226 px=190 disc=162 vis=1.171 rel=0.972 arm_px=0 tgt_px=190 frac=0.000 ok=1 top=74:190px:/World/Fruits/Fruit_06 | 15:133px:/World/Conveyor/Belt | 31:1px:3/visuals/openarm_left_link3_visual/mesh
+[fruit] [park] call ep=6 n=13 along=+0.352 x=0.226 px=189 disc=163 vis=1.161 rel=0.963 arm_px=0 tgt_px=189 frac=0.000 ok=1 top=74:189px:/World/Fruits/Fruit_06 | 15:143px:/World/Conveyor/Belt | 31:10px:3/visuals/openarm_left_link3_visual/mesh
+[fruit] [park] call ep=6 n=14 along=+0.348 x=0.226 px=186 disc=163 vis=1.138 rel=0.944 arm_px=0 tgt_px=186 frac=0.000 ok=1 top=74:186px:/World/Fruits/Fruit_06 | 15:129px:/World/Conveyor/Belt | 31:27px:3/visuals/openarm_left_link3_visual/mesh
+[fruit] [park] call ep=6 n=15 along=+0.344 x=0.226 px=186 disc=164 vis=1.134 rel=0.941 arm_px=0 tgt_px=186 frac=0.000 ok=1 top=74:186px:/World/Fruits/Fruit_06 | 15:113px:/World/Conveyor/Belt | 31:43px:3/visuals/openarm_left_link3_visual/mesh
+[fruit] [park] call ep=6 n=16 along=+0.340 x=0.226 px=173 disc=165 vis=1.051 rel=0.872 arm_px=0 tgt_px=173 frac=0.000 ok=1 top=74:173px:/World/Fruits/Fruit_06 | 15:83px:/World/Conveyor/Belt | 31:68px:3/visuals/openarm_left_link3_visual/mesh
+[fruit] [park] call ep=6 n=17 along=+0.336 x=0.226 px=142 disc=165 vis=0.860 rel=0.713 arm_px=0 tgt_px=142 frac=0.000 ok=0 top=74:142px:/World/Fruits/Fruit_06 | 31:127px:3/visuals/openarm_left_link3_visual/mesh | 15:92px:/World/Conveyor/Belt
+[fruit] [park] call ep=6 n=18 along=+0.332 x=0.226 px=120 disc=166 vis=0.724 rel=0.601 arm_px=0 tgt_px=120 frac=0.000 ok=0 top=31:146px:3/visuals/openarm_left_link3_visual/mesh | 74:120px:/World/Fruits/Fruit_06 | 15:58px:/World/Conveyor/Belt
+[fruit] [park] call ep=6 n=19 along=+0.328 x=0.226 px=81 disc=166 vis=0.487 rel=0.404 arm_px=0 tgt_px=81 frac=0.000 ok=0 top=31:218px:3/visuals/openarm_left_link3_visual/mesh | 74:81px:/World/Fruits/Fruit_06 | 15:62px:/World/Conveyor/Belt
+[fruit] [park] call ep=6 n=20 along=+0.324 x=0.226 px=46 disc=167 vis=0.276 rel=0.229 arm_px=0 tgt_px=46 frac=0.000 ok=0 top=31:258px:3/visuals/openarm_left_link3_visual/mesh | 74:46px:/World/Fruits/Fruit_06 | 15:38px:/World/Conveyor/Belt
+[fruit] [park] call ep=6 n=21 along=+0.320 x=0.226 px=10 disc=167 vis=0.060 rel=0.050 arm_px=0 tgt_px=10 frac=0.000 ok=0 top=31:311px:3/visuals/openarm_left_link3_visual/mesh | 15:21px:/World/Conveyor/Belt | 74:10px:/World/Fruits/Fruit_06
+[fruit] [park] call ep=6 n=22 along=+0.316 x=0.226 px=0 disc=168 vis=0.000 rel=-1.000 arm_px=0 tgt_px=0 frac=-1.000 ok=0 top=31:334px:3/visuals/openarm_left_link3_visual/mesh | 15:8px:/World/Conveyor/Belt
+[fruit] [park] call ep=6 n=23 along=+0.312 x=0.226 px=1 disc=169 vis=0.006 rel=0.005 arm_px=0 tgt_px=1 frac=0.000 ok=0 top=31:318px:3/visuals/openarm_left_link3_visual/mesh | 15:42px:/World/Conveyor/Belt | 74:1px:/World/Fruits/Fruit_06
+[fruit] [park] call ep=6 n=24 along=+0.308 x=0.226 px=15 disc=169 vis=0.089 rel=0.074 arm_px=0 tgt_px=15 frac=0.000 ok=0 top=31:264px:3/visuals/openarm_left_link3_visual/mesh | 15:45px:/World/Conveyor/Belt | 74:15px:/World/Fruits/Fruit_06
+[fruit] [park] call ep=6 n=25 along=+0.304 x=0.226 px=44 disc=170 vis=0.259 rel=0.215 arm_px=0 tgt_px=44 frac=0.000 ok=0 top=31:249px:3/visuals/openarm_left_link3_visual/mesh | 15:66px:/World/Conveyor/Belt | 74:44px:/World/Fruits/Fruit_06
+[fruit] [task]   openarm fingertips 54 mm from the fruit; closing anyway
+[fruit] [acq] left idx=6: setup[premove=0.57 axis=0.57 hover=0.89 wait=1.75 catchup=1.95]s catchup=24t res=5.5mm last=(-3.1,-5.2,+7.9)mm | close_start=(-3.1,-4.0,+7.9)mm vx0=-0.000 latch=centring | contact=@9t(-2.8,-1.6,+7.9)mm F=6.17N freeze=72.5mm@16t span=90.0->79.0mm Fmax=6.92 | q2=-0.3886/0.1745 clip_min=+0.0mrad@j2
+[fruit] [task]   carry grasp_lift: stored pad centre 133 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist left grasp_lift tick 0: cmd_centre=[0.1955, 0.0428, 1.3326] offset=[0.0066, -0.005, -0.0094] |offset|=13 mm jaw_target=[0.1903, 0.0494, 1.3232] jaw=[0.19550000131130219, 0.04280000180006027, 1.3325999975204468] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist left grasp_lift tick 1: cmd_centre=[0.1955, 0.0428, 1.3326] offset=[0.0066, -0.005, -0.0094] |offset|=13 mm jaw_target=[0.1903, 0.0494, 1.3232] jaw=[0.19529999792575836, 0.0430000014603138, 1.3323999643325806] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist left grasp_lift tick 2: cmd_centre=[0.1955, 0.0428, 1.3326] offset=[0.0066, -0.005, -0.0094] |offset|=13 mm jaw_target=[0.1903, 0.0494, 1.3232] jaw=[0.19509999454021454, 0.04320000112056732, 1.3320000171661377] coherent=False hand_is_jaw=True
+[fruit] [carry] left grasp_lift: ticks=153/153 clean_slip_max=20.3mm in-hand_vmax=0.239 onset_row=137 force@onset=4.04N sep@onset=84.3mm contacts@onset=1 min_contacts=1 force_min=3.81N loss_row=None guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=66.6mm open_max=0.0mm
+[fruit] [task]   carry place0: stored pad centre 96 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist left place0 tick 0: cmd_centre=[0.2669, -0.0062, 1.5704] offset=[0.0066, -0.005, -0.0094] |offset|=13 mm jaw_target=[0.2618, 0.0004, 1.561] jaw=[0.2669000029563904, -0.006200000178068876, 1.5703999996185303] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist left place0 tick 1: cmd_centre=[0.2669, -0.0062, 1.5704] offset=[0.0066, -0.005, -0.0094] |offset|=13 mm jaw_target=[0.2618, 0.0004, 1.561] jaw=[0.26669999957084656, -0.006200000178068876, 1.5702999830245972] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist left place0 tick 2: cmd_centre=[0.2669, -0.0062, 1.5704] offset=[0.0066, -0.005, -0.0094] |offset|=13 mm jaw_target=[0.2618, 0.0004, 1.561] jaw=[0.266400009393692, -0.006099999882280827, 1.5700000524520874] coherent=False hand_is_jaw=True
+[fruit] [carry] left place0: ticks=351/351 clean_slip_max=655.2mm in-hand_vmax=1.849 onset_row=8 force@onset=41.68N sep@onset=98.1mm contacts@onset=1 min_contacts=0 force_min=0.00N loss_row=32 guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=69.4mm open_max=0.0mm
+[fruit] [rl]   grasp did not land on the belt; re-running carry_and_release
+[fruit] [rl] episode 6: orange d=6.8cm bin=0 arm=left success=False grasped=True placed=False ticks=1811 decision=172 reward=0.0000 notes=['intercept trigger (dy=26.0cm, dx=-11.4cm, t_arrive=2.17s, speed=0.120m/s/encoder, frame=station, finger=0.0268, lead=2.18s/reach=0.31)'] presentation=direct ablate=none
+[fruit] [park] episode 6 arm=left inactive=right park=back m1_hold=+0.002 m1_hold_ok=1 m1_cmd=+0.026 m2_arm=0.000 m2_arm_ok=1 m2_rel=0.005 m2_rel_ok=0 m2_ok=0 m2_vis=0.000 band=+0.400 band_x=+0.226 band_px=185 band_disc=156 band_vis=1.189 arm_px=0 band_frac=0.000 band_calls=25 stale_skipped=1 worst_arm_at=+0.400 worst_vis_at=+0.316 min_frac=0.000 max_frac=0.000 drift=+0.003 calls=43 q=1.518,0.330,-1.570,1.269,1.560,0.620,-1.566 q_settled=1.520,0.330,-1.570,1.269,1.560,0.620,-1.566 top=74:185px:/World/Fruits/Fruit_06 | 15:139px:/World/Conveyor/Belt
+[fruit] [belt] kiwi (index 9) discharged to the tray at x=1.54 (settled 16.0s)
+[fruit] [rl] episode 7: strawberry grade=B d=4.3cm bin=1 arm=right y=+0.608 presentation=direct
+[fruit] [park] call ep=7 n=1 along=+0.398 x=0.276 px=41 disc=59 vis=0.690 rel=0.867 arm_px=0 tgt_px=41 frac=0.000 ok=1 top=15:115px:/World/Conveyor/Belt | 85:41px:/World/Fruits/Fruit_03
+[fruit] [park] call ep=7 n=2 along=+0.394 x=0.276 px=43 disc=60 vis=0.721 rel=0.906 arm_px=0 tgt_px=43 frac=0.000 ok=1 top=15:126px:/World/Conveyor/Belt | 85:43px:/World/Fruits/Fruit_03
+[fruit] [park] call ep=7 n=3 along=+0.390 x=0.276 px=44 disc=60 vis=0.735 rel=0.923 arm_px=0 tgt_px=44 frac=0.000 ok=1 top=15:112px:/World/Conveyor/Belt | 85:44px:/World/Fruits/Fruit_03
+[fruit] [park] call ep=7 n=4 along=+0.386 x=0.276 px=43 disc=60 vis=0.716 rel=0.899 arm_px=0 tgt_px=43 frac=0.000 ok=1 top=15:126px:/World/Conveyor/Belt | 85:43px:/World/Fruits/Fruit_03
+[fruit] [park] call ep=7 n=5 along=+0.382 x=0.276 px=42 disc=60 vis=0.696 rel=0.875 arm_px=0 tgt_px=42 frac=0.000 ok=1 top=15:114px:/World/Conveyor/Belt | 85:42px:/World/Fruits/Fruit_03
+[fruit] [park] call ep=7 n=6 along=+0.378 x=0.276 px=41 disc=61 vis=0.677 rel=0.851 arm_px=0 tgt_px=41 frac=0.000 ok=1 top=15:115px:/World/Conveyor/Belt | 85:41px:/World/Fruits/Fruit_03
+[fruit] [park] call ep=7 n=7 along=+0.374 x=0.276 px=42 disc=61 vis=0.692 rel=0.869 arm_px=0 tgt_px=42 frac=0.000 ok=1 top=15:114px:/World/Conveyor/Belt | 85:42px:/World/Fruits/Fruit_03
+[fruit] [park] call ep=7 n=8 along=+0.370 x=0.276 px=40 disc=61 vis=0.656 rel=0.825 arm_px=0 tgt_px=40 frac=0.000 ok=0 top=15:129px:/World/Conveyor/Belt | 85:40px:/World/Fruits/Fruit_03
+[fruit] [park] call ep=7 n=9 along=+0.366 x=0.276 px=43 disc=61 vis=0.703 rel=0.884 arm_px=0 tgt_px=43 frac=0.000 ok=1 top=15:126px:/World/Conveyor/Belt | 85:43px:/World/Fruits/Fruit_03
+[fruit] [park] call ep=7 n=10 along=+0.362 x=0.276 px=43 disc=61 vis=0.701 rel=0.881 arm_px=0 tgt_px=43 frac=0.000 ok=1 top=15:126px:/World/Conveyor/Belt | 85:43px:/World/Fruits/Fruit_03
+[fruit] [park] call ep=7 n=11 along=+0.358 x=0.276 px=42 disc=62 vis=0.682 rel=0.857 arm_px=0 tgt_px=42 frac=0.000 ok=1 top=15:127px:/World/Conveyor/Belt | 85:42px:/World/Fruits/Fruit_03
+[fruit] [park] call ep=7 n=12 along=+0.354 x=0.276 px=42 disc=62 vis=0.680 rel=0.855 arm_px=0 tgt_px=42 frac=0.000 ok=1 top=15:127px:/World/Conveyor/Belt | 85:42px:/World/Fruits/Fruit_03
+[fruit] [park] call ep=7 n=13 along=+0.350 x=0.276 px=44 disc=62 vis=0.710 rel=0.892 arm_px=0 tgt_px=44 frac=0.000 ok=1 top=15:125px:/World/Conveyor/Belt | 85:44px:/World/Fruits/Fruit_03
+[fruit] [park] call ep=7 n=14 along=+0.346 x=0.276 px=44 disc=62 vis=0.708 rel=0.889 arm_px=0 tgt_px=44 frac=0.000 ok=1 top=15:125px:/World/Conveyor/Belt | 85:44px:/World/Fruits/Fruit_03
+[fruit] [park] call ep=7 n=15 along=+0.342 x=0.276 px=43 disc=62 vis=0.689 rel=0.866 arm_px=0 tgt_px=43 frac=0.000 ok=1 top=15:126px:/World/Conveyor/Belt | 85:43px:/World/Fruits/Fruit_03
+[fruit] [park] call ep=7 n=16 along=+0.338 x=0.276 px=44 disc=63 vis=0.703 rel=0.884 arm_px=0 tgt_px=44 frac=0.000 ok=1 top=15:125px:/World/Conveyor/Belt | 85:44px:/World/Fruits/Fruit_03
+[fruit] [park] call ep=7 n=17 along=+0.334 x=0.276 px=42 disc=63 vis=0.669 rel=0.841 arm_px=0 tgt_px=42 frac=0.000 ok=0 top=15:114px:/World/Conveyor/Belt | 85:42px:/World/Fruits/Fruit_03
+[fruit] [park] call ep=7 n=18 along=+0.330 x=0.276 px=42 disc=63 vis=0.667 rel=0.838 arm_px=0 tgt_px=42 frac=0.000 ok=0 top=15:114px:/World/Conveyor/Belt | 85:42px:/World/Fruits/Fruit_03
+[fruit] [park] call ep=7 n=19 along=+0.326 x=0.276 px=40 disc=63 vis=0.633 rel=0.796 arm_px=0 tgt_px=40 frac=0.000 ok=0 top=15:129px:/World/Conveyor/Belt | 85:40px:/World/Fruits/Fruit_03
+[fruit] [park] call ep=7 n=20 along=+0.322 x=0.276 px=44 disc=63 vis=0.694 rel=0.872 arm_px=0 tgt_px=44 frac=0.000 ok=1 top=15:125px:/World/Conveyor/Belt | 85:44px:/World/Fruits/Fruit_03
+[fruit] [park] call ep=7 n=21 along=+0.318 x=0.276 px=43 disc=64 vis=0.676 rel=0.850 arm_px=0 tgt_px=43 frac=0.000 ok=1 top=15:126px:/World/Conveyor/Belt | 85:43px:/World/Fruits/Fruit_03
+[fruit] [park] call ep=7 n=22 along=+0.314 x=0.276 px=44 disc=64 vis=0.690 rel=0.867 arm_px=0 tgt_px=44 frac=0.000 ok=1 top=15:125px:/World/Conveyor/Belt | 85:44px:/World/Fruits/Fruit_03
+[fruit] [park] call ep=7 n=23 along=+0.310 x=0.276 px=42 disc=64 vis=0.657 rel=0.825 arm_px=0 tgt_px=42 frac=0.000 ok=0 top=15:127px:/World/Conveyor/Belt | 85:42px:/World/Fruits/Fruit_03
+[fruit] [park] call ep=7 n=24 along=+0.306 x=0.276 px=45 disc=64 vis=0.701 rel=0.882 arm_px=0 tgt_px=45 frac=0.000 ok=1 top=15:124px:/World/Conveyor/Belt | 85:45px:/World/Fruits/Fruit_03
+[fruit] [park] call ep=7 n=25 along=+0.302 x=0.276 px=44 disc=64 vis=0.684 rel=0.859 arm_px=0 tgt_px=44 frac=0.000 ok=1 top=15:125px:/World/Conveyor/Belt | 85:44px:/World/Fruits/Fruit_03
+[fruit] [task]   openarm fingertips 62 mm from the fruit; closing anyway
+[fruit] [acq] right idx=3: setup[premove=0.47 axis=0.47 hover=0.93 wait=1.67 catchup=1.88]s catchup=25t res=5.9mm last=(-3.5,-5.1,+7.2)mm | close_start=(-3.5,-3.9,+7.2)mm vx0=+0.000 latch=centring | contact=@20t(+1.3,+0.1,+7.1)mm F=4.38N freeze=33.5mm@24t span=90.0->45.8mm Fmax=4.38 | q2=+0.0993/3.3161 clip_min=+0.2mrad@j2
+[fruit] [task]   carry grasp_lift: stored pad centre 127 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist right grasp_lift tick 0: cmd_centre=[0.2235, -0.0306, 1.309] offset=[0.0077, 0.0079, -0.0106] |offset|=15 mm jaw_target=[0.2156, -0.0383, 1.2984] jaw=[0.22349999845027924, -0.03060000017285347, 1.309000015258789] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right grasp_lift tick 1: cmd_centre=[0.2235, -0.0306, 1.309] offset=[0.0077, 0.0079, -0.0106] |offset|=15 mm jaw_target=[0.2156, -0.0383, 1.2984] jaw=[0.2232999950647354, -0.030799999833106995, 1.3085999488830566] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right grasp_lift tick 2: cmd_centre=[0.2235, -0.0306, 1.309] offset=[0.0077, 0.0079, -0.0106] |offset|=15 mm jaw_target=[0.2156, -0.0383, 1.2984] jaw=[0.22290000319480896, -0.031099999323487282, 1.3080999851226807] coherent=False hand_is_jaw=True
+[fruit] [carry] right grasp_lift: ticks=171/171 clean_slip_max=0.0mm in-hand_vmax=0.058 onset_row=None force@onset=n/aN sep@onset=n/amm contacts@onset=None min_contacts=2 force_min=2.20N loss_row=None guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=33.5mm open_max=0.0mm
+[fruit] [task]   carry place1: stored pad centre 95 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist right place1 tick 0: cmd_centre=[0.3083, 0.0009, 1.5605] offset=[0.0077, 0.0079, -0.0106] |offset|=15 mm jaw_target=[0.3003, -0.0068, 1.55] jaw=[0.3082999885082245, 0.0008999999845400453, 1.5605000257492065] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right place1 tick 1: cmd_centre=[0.3083, 0.0009, 1.5605] offset=[0.0077, 0.0079, -0.0106] |offset|=15 mm jaw_target=[0.3003, -0.0068, 1.55] jaw=[0.30820000171661377, 0.0007999999797903001, 1.5601999759674072] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right place1 tick 2: cmd_centre=[0.3083, 0.0009, 1.5605] offset=[0.0077, 0.0079, -0.0106] |offset|=15 mm jaw_target=[0.3003, -0.0068, 1.55] jaw=[0.30809998512268066, 0.000699999975040555, 1.5597000122070312] coherent=False hand_is_jaw=True
+[fruit] [carry] right place1: ticks=340/340 clean_slip_max=0.0mm in-hand_vmax=0.056 onset_row=None force@onset=n/aN sep@onset=n/amm contacts@onset=None min_contacts=2 force_min=2.13N loss_row=None guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=33.5mm open_max=0.0mm
+[fruit] [task] place low: bottom 1484 -> 54 mm (target 25), drop 88/109 mm, FINGER FLOOR budget 88 mm, residual 0.0 mm, 81 ticks
+[fruit] [rl] episode 7: strawberry d=4.3cm bin=1 arm=right success=True grasped=True placed=True ticks=1784 decision=228 reward=0.9696 notes=['intercept trigger (dy=26.2cm, dx=-5.6cm, t_arrive=2.18s, speed=0.120m/s/encoder, frame=station, finger=0.0158, lead=2.19s/reach=0.31)'] presentation=direct ablate=none
+[fruit] [park] episode 7 arm=right inactive=left park=back m1_hold=+0.004 m1_hold_ok=1 m1_cmd=+0.088 m2_arm=0.000 m2_arm_ok=1 m2_rel=0.796 m2_rel_ok=0 m2_ok=0 m2_vis=0.633 band=+0.398 band_x=+0.276 band_px=41 band_disc=59 band_vis=0.690 arm_px=0 band_frac=0.000 band_calls=25 stale_skipped=1 worst_arm_at=+0.398 worst_vis_at=+0.326 min_frac=0.000 max_frac=0.000 drift=+0.010 calls=57 q=-1.908,-0.978,1.504,0.819,-1.498,-0.586,1.559 q_settled=-1.912,-0.978,1.503,0.818,-1.498,-0.586,1.559 top=15:115px:/World/Conveyor/Belt | 85:41px:/World/Fruits/Fruit_03
+[fruit] [rl] episode 8: lychee grade=C d=3.4cm bin=1 arm=right y=+0.642 presentation=direct
+[fruit] [park] call ep=8 n=1 along=+0.398 x=0.270 px=40 disc=38 vis=1.054 rel=0.865 arm_px=0 tgt_px=40 frac=0.000 ok=1 top=15:81px:/World/Conveyor/Belt | 81:40px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=8 n=2 along=+0.394 x=0.270 px=43 disc=38 vis=1.129 rel=0.927 arm_px=0 tgt_px=43 frac=0.000 ok=1 top=15:78px:/World/Conveyor/Belt | 81:43px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=8 n=3 along=+0.390 x=0.270 px=42 disc=38 vis=1.099 rel=0.902 arm_px=0 tgt_px=42 frac=0.000 ok=1 top=15:79px:/World/Conveyor/Belt | 81:42px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=8 n=4 along=+0.386 x=0.270 px=40 disc=38 vis=1.043 rel=0.856 arm_px=0 tgt_px=40 frac=0.000 ok=1 top=15:81px:/World/Conveyor/Belt | 81:40px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=8 n=5 along=+0.382 x=0.270 px=44 disc=38 vis=1.143 rel=0.938 arm_px=0 tgt_px=44 frac=0.000 ok=1 top=15:77px:/World/Conveyor/Belt | 81:44px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=8 n=6 along=+0.378 x=0.270 px=42 disc=39 vis=1.087 rel=0.892 arm_px=0 tgt_px=42 frac=0.000 ok=1 top=15:79px:/World/Conveyor/Belt | 81:42px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=8 n=7 along=+0.374 x=0.270 px=42 disc=39 vis=1.084 rel=0.889 arm_px=0 tgt_px=42 frac=0.000 ok=1 top=15:79px:/World/Conveyor/Belt | 81:42px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=8 n=8 along=+0.370 x=0.270 px=41 disc=39 vis=1.054 rel=0.865 arm_px=0 tgt_px=41 frac=0.000 ok=1 top=15:80px:/World/Conveyor/Belt | 81:41px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=8 n=9 along=+0.366 x=0.270 px=42 disc=39 vis=1.076 rel=0.883 arm_px=0 tgt_px=42 frac=0.000 ok=1 top=15:90px:/World/Conveyor/Belt | 81:42px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=8 n=10 along=+0.362 x=0.270 px=45 disc=39 vis=1.149 rel=0.943 arm_px=0 tgt_px=45 frac=0.000 ok=1 top=15:76px:/World/Conveyor/Belt | 81:45px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=8 n=11 along=+0.358 x=0.270 px=42 disc=39 vis=1.069 rel=0.877 arm_px=0 tgt_px=42 frac=0.000 ok=1 top=15:79px:/World/Conveyor/Belt | 81:42px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=8 n=12 along=+0.354 x=0.270 px=41 disc=39 vis=1.040 rel=0.854 arm_px=0 tgt_px=41 frac=0.000 ok=1 top=15:80px:/World/Conveyor/Belt | 81:41px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=8 n=13 along=+0.350 x=0.270 px=44 disc=40 vis=1.113 rel=0.913 arm_px=0 tgt_px=44 frac=0.000 ok=1 top=15:77px:/World/Conveyor/Belt | 81:44px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=8 n=14 along=+0.346 x=0.270 px=42 disc=40 vis=1.058 rel=0.869 arm_px=0 tgt_px=42 frac=0.000 ok=1 top=15:79px:/World/Conveyor/Belt | 81:42px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=8 n=15 along=+0.342 x=0.270 px=40 disc=40 vis=1.005 rel=0.825 arm_px=0 tgt_px=40 frac=0.000 ok=0 top=15:81px:/World/Conveyor/Belt | 81:40px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=8 n=16 along=+0.338 x=0.270 px=44 disc=40 vis=1.102 rel=0.904 arm_px=0 tgt_px=44 frac=0.000 ok=1 top=15:77px:/World/Conveyor/Belt | 81:44px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=8 n=17 along=+0.334 x=0.270 px=43 disc=40 vis=1.073 rel=0.881 arm_px=0 tgt_px=43 frac=0.000 ok=1 top=15:78px:/World/Conveyor/Belt | 81:43px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=8 n=18 along=+0.330 x=0.270 px=42 disc=40 vis=1.045 rel=0.858 arm_px=0 tgt_px=42 frac=0.000 ok=1 top=15:90px:/World/Conveyor/Belt | 81:42px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=8 n=19 along=+0.326 x=0.270 px=43 disc=40 vis=1.066 rel=0.875 arm_px=0 tgt_px=43 frac=0.000 ok=1 top=15:78px:/World/Conveyor/Belt | 81:43px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=8 n=20 along=+0.322 x=0.270 px=43 disc=40 vis=1.063 rel=0.873 arm_px=0 tgt_px=43 frac=0.000 ok=1 top=15:89px:/World/Conveyor/Belt | 81:43px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=8 n=21 along=+0.318 x=0.270 px=42 disc=41 vis=1.035 rel=0.850 arm_px=0 tgt_px=42 frac=0.000 ok=0 top=15:90px:/World/Conveyor/Belt | 81:42px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=8 n=22 along=+0.314 x=0.270 px=43 disc=41 vis=1.057 rel=0.867 arm_px=0 tgt_px=43 frac=0.000 ok=1 top=15:89px:/World/Conveyor/Belt | 81:43px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=8 n=23 along=+0.310 x=0.270 px=42 disc=41 vis=1.029 rel=0.844 arm_px=0 tgt_px=42 frac=0.000 ok=0 top=15:79px:/World/Conveyor/Belt | 81:42px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=8 n=24 along=+0.306 x=0.270 px=44 disc=41 vis=1.075 rel=0.882 arm_px=0 tgt_px=44 frac=0.000 ok=1 top=15:100px:/World/Conveyor/Belt | 81:44px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=8 n=25 along=+0.302 x=0.270 px=45 disc=41 vis=1.096 rel=0.899 arm_px=0 tgt_px=45 frac=0.000 ok=1 top=15:76px:/World/Conveyor/Belt | 81:45px:/World/Fruits/Fruit_13
+[fruit] [task]   openarm fingertips 69 mm from the fruit; closing anyway
+[fruit] [acq] right idx=13: setup[premove=0.39 axis=0.39 hover=0.77 wait=1.46 catchup=1.68]s catchup=27t res=5.5mm last=(-3.5,-4.4,+7.2)mm | close_start=(-3.5,-3.2,+7.2)mm vx0=-0.001 latch=centring | contact=@17t(-1.0,-0.2,+7.2)mm F=4.00N freeze=35.8mm@20t span=90.0->45.6mm Fmax=4.68 | q2=+0.0922/3.3161 clip_min=+0.2mrad@j2
+[fruit] [task]   carry grasp_lift: stored pad centre 124 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist right grasp_lift tick 0: cmd_centre=[0.2389, -0.0303, 1.3072] offset=[0.0092, 0.006, -0.0108] |offset|=15 mm jaw_target=[0.2327, -0.0395, 1.2965] jaw=[0.23890000581741333, -0.030300000682473183, 1.3071999549865723] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right grasp_lift tick 1: cmd_centre=[0.2389, -0.0303, 1.3072] offset=[0.0092, 0.006, -0.0108] |offset|=15 mm jaw_target=[0.2327, -0.0395, 1.2965] jaw=[0.2386000007390976, -0.030500000342726707, 1.3068000078201294] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right grasp_lift tick 2: cmd_centre=[0.2389, -0.0303, 1.3072] offset=[0.0092, 0.006, -0.0108] |offset|=15 mm jaw_target=[0.2327, -0.0395, 1.2965] jaw=[0.23829999566078186, -0.030799999833106995, 1.3063000440597534] coherent=False hand_is_jaw=True
+[fruit] [carry] right grasp_lift: ticks=172/172 clean_slip_max=0.0mm in-hand_vmax=0.060 onset_row=None force@onset=n/aN sep@onset=n/amm contacts@onset=None min_contacts=2 force_min=4.25N loss_row=None guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=33.6mm open_max=0.0mm
+[fruit] [task]   carry place1: stored pad centre 92 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist right place1 tick 0: cmd_centre=[0.3241, -0.0083, 1.5556] offset=[0.0092, 0.006, -0.0108] |offset|=15 mm jaw_target=[0.3179, -0.0175, 1.5449] jaw=[0.32409998774528503, -0.008299999870359898, 1.5556000471115112] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right place1 tick 1: cmd_centre=[0.3241, -0.0083, 1.5556] offset=[0.0092, 0.006, -0.0108] |offset|=15 mm jaw_target=[0.3179, -0.0175, 1.5449] jaw=[0.32409998774528503, -0.00839999970048666, 1.555299997329712] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right place1 tick 2: cmd_centre=[0.3241, -0.0083, 1.5556] offset=[0.0092, 0.006, -0.0108] |offset|=15 mm jaw_target=[0.3179, -0.0175, 1.5449] jaw=[0.3239000141620636, -0.00860000029206276, 1.554800033569336] coherent=False hand_is_jaw=True
+[fruit] [carry] right place1: ticks=332/332 clean_slip_max=0.0mm in-hand_vmax=0.064 onset_row=None force@onset=n/aN sep@onset=n/amm contacts@onset=None min_contacts=2 force_min=4.25N loss_row=None guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=33.6mm open_max=0.0mm
+[fruit] [task] place low: bottom 1486 -> 56 mm (target 25), drop 89/111 mm, FINGER FLOOR budget 89 mm, residual 0.0 mm, 81 ticks
+[fruit] [rl] episode 8: lychee d=3.4cm bin=1 arm=right success=True grasped=True placed=True ticks=1824 decision=300 reward=0.9600 notes=['intercept trigger (dy=24.2cm, dx=-6.3cm, t_arrive=2.01s, speed=0.120m/s/encoder, frame=station, finger=0.0083, lead=2.02s/reach=0.29)'] presentation=direct ablate=none
+[fruit] [park] episode 8 arm=right inactive=left park=back m1_hold=+0.004 m1_hold_ok=1 m1_cmd=+0.088 m2_arm=0.000 m2_arm_ok=1 m2_rel=0.825 m2_rel_ok=0 m2_ok=0 m2_vis=1.005 band=+0.398 band_x=+0.270 band_px=40 band_disc=38 band_vis=1.054 arm_px=0 band_frac=0.000 band_calls=25 stale_skipped=1 worst_arm_at=+0.398 worst_vis_at=+0.342 min_frac=0.000 max_frac=0.000 drift=+0.010 calls=75 q=-1.908,-0.978,1.504,0.819,-1.498,-0.586,1.559 q_settled=-1.912,-0.978,1.503,0.818,-1.498,-0.586,1.559 top=15:81px:/World/Conveyor/Belt | 81:40px:/World/Fruits/Fruit_13
+[fruit] [belt] strawberry (index 3) discharged to the tray at x=1.61 (settled 16.1s)
+[fruit] [rl] episode 9: peach grade=A d=5.8cm bin=0 arm=left y=+0.557 presentation=direct
+[fruit] [park] call ep=9 n=1 along=+0.398 x=0.303 px=112 disc=109 vis=1.030 rel=0.951 arm_px=0 tgt_px=112 frac=0.000 ok=1 top=15:128px:/World/Conveyor/Belt | 79:112px:/World/Fruits/Fruit_12
+[fruit] [park] call ep=9 n=2 along=+0.394 x=0.303 px=111 disc=109 vis=1.018 rel=0.939 arm_px=0 tgt_px=111 frac=0.000 ok=1 top=15:144px:/World/Conveyor/Belt | 79:111px:/World/Fruits/Fruit_12 | 71:1px:/World/Fruits/Fruit_05
+[fruit] [park] call ep=9 n=3 along=+0.390 x=0.303 px=113 disc=109 vis=1.032 rel=0.952 arm_px=0 tgt_px=113 frac=0.000 ok=1 top=15:143px:/World/Conveyor/Belt | 79:113px:/World/Fruits/Fruit_12
+[fruit] [park] call ep=9 n=4 along=+0.386 x=0.303 px=112 disc=110 vis=1.019 rel=0.940 arm_px=0 tgt_px=112 frac=0.000 ok=1 top=15:113px:/World/Conveyor/Belt | 79:112px:/World/Fruits/Fruit_12
+[fruit] [park] call ep=9 n=5 along=+0.382 x=0.303 px=110 disc=110 vis=0.997 rel=0.920 arm_px=0 tgt_px=110 frac=0.000 ok=1 top=15:146px:/World/Conveyor/Belt | 79:110px:/World/Fruits/Fruit_12
+[fruit] [park] call ep=9 n=6 along=+0.378 x=0.303 px=116 disc=111 vis=1.048 rel=0.967 arm_px=0 tgt_px=116 frac=0.000 ok=1 top=15:124px:/World/Conveyor/Belt | 79:116px:/World/Fruits/Fruit_12
+[fruit] [park] call ep=9 n=7 along=+0.374 x=0.303 px=111 disc=111 vis=0.999 rel=0.922 arm_px=0 tgt_px=111 frac=0.000 ok=1 top=15:145px:/World/Conveyor/Belt | 79:111px:/World/Fruits/Fruit_12
+[fruit] [park] call ep=9 n=8 along=+0.370 x=0.303 px=113 disc=111 vis=1.014 rel=0.935 arm_px=0 tgt_px=113 frac=0.000 ok=1 top=15:143px:/World/Conveyor/Belt | 79:113px:/World/Fruits/Fruit_12
+[fruit] [park] call ep=9 n=9 along=+0.366 x=0.303 px=110 disc=112 vis=0.983 rel=0.907 arm_px=0 tgt_px=110 frac=0.000 ok=1 top=15:145px:/World/Conveyor/Belt | 79:110px:/World/Fruits/Fruit_12 | 30:1px:4/visuals/openarm_left_link4_visual/mesh
+[fruit] [park] call ep=9 n=10 along=+0.362 x=0.303 px=114 disc=112 vis=1.016 rel=0.937 arm_px=0 tgt_px=114 frac=0.000 ok=1 top=15:140px:/World/Conveyor/Belt | 79:114px:/World/Fruits/Fruit_12 | 30:2px:4/visuals/openarm_left_link4_visual/mesh
+[fruit] [park] call ep=9 n=11 along=+0.358 x=0.303 px=114 disc=113 vis=1.012 rel=0.934 arm_px=0 tgt_px=114 frac=0.000 ok=1 top=15:133px:/World/Conveyor/Belt | 79:114px:/World/Fruits/Fruit_12 | 30:8px:4/visuals/openarm_left_link4_visual/mesh
+[fruit] [park] call ep=9 n=12 along=+0.354 x=0.303 px=114 disc=113 vis=1.009 rel=0.930 arm_px=0 tgt_px=114 frac=0.000 ok=1 top=15:121px:/World/Conveyor/Belt | 79:114px:/World/Fruits/Fruit_12 | 30:20px:4/visuals/openarm_left_link4_visual/mesh
+[fruit] [park] call ep=9 n=13 along=+0.350 x=0.303 px=115 disc=113 vis=1.014 rel=0.935 arm_px=0 tgt_px=115 frac=0.000 ok=1 top=79:115px:/World/Fruits/Fruit_12 | 15:112px:/World/Conveyor/Belt | 30:25px:4/visuals/openarm_left_link4_visual/mesh
+[fruit] [park] call ep=9 n=14 along=+0.346 x=0.303 px=111 disc=114 vis=0.976 rel=0.900 arm_px=0 tgt_px=111 frac=0.000 ok=1 top=15:118px:/World/Conveyor/Belt | 79:111px:/World/Fruits/Fruit_12 | 30:24px:4/visuals/openarm_left_link4_visual/mesh
+[fruit] [park] call ep=9 n=15 along=+0.342 x=0.303 px=115 disc=114 vis=1.007 rel=0.929 arm_px=0 tgt_px=115 frac=0.000 ok=1 top=15:130px:/World/Conveyor/Belt | 79:115px:/World/Fruits/Fruit_12 | 30:18px:4/visuals/openarm_left_link4_visual/mesh
+[fruit] [park] call ep=9 n=16 along=+0.338 x=0.303 px=113 disc=115 vis=0.987 rel=0.910 arm_px=0 tgt_px=113 frac=0.000 ok=1 top=15:118px:/World/Conveyor/Belt | 79:113px:/World/Fruits/Fruit_12 | 30:21px:4/visuals/openarm_left_link4_visual/mesh
+[fruit] [park] call ep=9 n=17 along=+0.334 x=0.303 px=116 disc=115 vis=1.009 rel=0.931 arm_px=0 tgt_px=116 frac=0.000 ok=1 top=79:116px:/World/Fruits/Fruit_12 | 15:112px:/World/Conveyor/Belt | 30:23px:4/visuals/openarm_left_link4_visual/mesh
+[fruit] [park] call ep=9 n=18 along=+0.330 x=0.303 px=112 disc=115 vis=0.971 rel=0.896 arm_px=0 tgt_px=112 frac=0.000 ok=1 top=79:112px:/World/Fruits/Fruit_12 | 15:105px:/World/Conveyor/Belt | 30:27px:4/visuals/openarm_left_link4_visual/mesh
+[fruit] [park] call ep=9 n=19 along=+0.326 x=0.303 px=113 disc=116 vis=0.977 rel=0.901 arm_px=0 tgt_px=113 frac=0.000 ok=1 top=79:113px:/World/Fruits/Fruit_12 | 15:98px:/World/Conveyor/Belt | 30:30px:4/visuals/openarm_left_link4_visual/mesh
+[fruit] [park] call ep=9 n=20 along=+0.322 x=0.303 px=109 disc=116 vis=0.939 rel=0.867 arm_px=0 tgt_px=109 frac=0.000 ok=1 top=79:109px:/World/Fruits/Fruit_12 | 15:84px:/World/Conveyor/Belt | 30:42px:4/visuals/openarm_left_link4_visual/mesh
+[fruit] [park] call ep=9 n=21 along=+0.318 x=0.303 px=91 disc=116 vis=0.782 rel=0.721 arm_px=0 tgt_px=91 frac=0.000 ok=0 top=79:91px:/World/Fruits/Fruit_12 | 15:83px:/World/Conveyor/Belt | 30:52px:4/visuals/openarm_left_link4_visual/mesh
+[fruit] [park] call ep=9 n=22 along=+0.314 x=0.303 px=79 disc=117 vis=0.677 rel=0.624 arm_px=0 tgt_px=79 frac=0.000 ok=0 top=79:79px:/World/Fruits/Fruit_12 | 30:66px:4/visuals/openarm_left_link4_visual/mesh | 15:60px:/World/Conveyor/Belt
+[fruit] [park] call ep=9 n=23 along=+0.310 x=0.303 px=69 disc=117 vis=0.589 rel=0.543 arm_px=0 tgt_px=69 frac=0.000 ok=0 top=30:74px:4/visuals/openarm_left_link4_visual/mesh | 79:69px:/World/Fruits/Fruit_12 | 15:58px:/World/Conveyor/Belt
+[fruit] [park] call ep=9 n=24 along=+0.306 x=0.303 px=57 disc=118 vis=0.485 rel=0.448 arm_px=0 tgt_px=57 frac=0.000 ok=0 top=30:79px:4/visuals/openarm_left_link4_visual/mesh | 31:72px:3/visuals/openarm_left_link3_visual/mesh | 79:57px:/World/Fruits/Fruit_12
+[fruit] [park] call ep=9 n=25 along=+0.302 x=0.303 px=49 disc=118 vis=0.416 rel=0.384 arm_px=0 tgt_px=49 frac=0.000 ok=0 top=30:90px:4/visuals/openarm_left_link4_visual/mesh | 31:73px:3/visuals/openarm_left_link3_visual/mesh | 79:49px:/World/Fruits/Fruit_12
+[fruit] [task]   openarm fingertips 43 mm from the fruit; closing anyway
+[fruit] [acq] left idx=12: setup[premove=0.48 axis=0.48 hover=0.73 wait=1.40 catchup=1.61]s catchup=25t res=5.5mm last=(-3.7,-3.4,+6.7)mm | close_start=(-3.7,-2.3,+6.7)mm vx0=-0.000 latch=centring | contact=@0t(-3.7,-2.3,+6.7)mm F=0.41N freeze=59.9mm@20t span=90.0->66.3mm Fmax=4.76 | q2=-0.2667/0.1745 clip_min=+0.0mrad@j2
+[fruit] [task]   carry grasp_lift: stored pad centre 128 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist left grasp_lift tick 0: cmd_centre=[0.2547, -0.0541, 1.3198] offset=[-0.0171, -0.0073, -0.0106] |offset|=21 mm jaw_target=[0.2473, -0.0712, 1.3093] jaw=[0.2547000050544739, -0.054099999368190765, 1.3198000192642212] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist left grasp_lift tick 1: cmd_centre=[0.2547, -0.0541, 1.3198] offset=[-0.0171, -0.0073, -0.0106] |offset|=21 mm jaw_target=[0.2473, -0.0712, 1.3093] jaw=[0.25459998846054077, -0.05429999902844429, 1.3193000555038452] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist left grasp_lift tick 2: cmd_centre=[0.2547, -0.0541, 1.3198] offset=[-0.0171, -0.0073, -0.0106] |offset|=21 mm jaw_target=[0.2473, -0.0712, 1.3093] jaw=[0.25429999828338623, -0.05480000004172325, 1.3187999725341797] coherent=False hand_is_jaw=True
+[fruit] [carry] left grasp_lift: ticks=162/162 clean_slip_max=268.0mm in-hand_vmax=1.785 onset_row=79 force@onset=5.85N sep@onset=69.7mm contacts@onset=1 min_contacts=0 force_min=0.00N loss_row=111 guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=57.1mm open_max=0.0mm
+[fruit] [task]   carry place0: stored pad centre 78 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist left place0 tick 0: cmd_centre=[0.314, -0.102, 1.5466] offset=[-0.0171, -0.0073, -0.0106] |offset|=21 mm jaw_target=[0.3066, -0.119, 1.5361] jaw=[0.3140000104904175, -0.10199999809265137, 1.5465999841690063] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist left place0 tick 1: cmd_centre=[0.314, -0.102, 1.5466] offset=[-0.0171, -0.0073, -0.0106] |offset|=21 mm jaw_target=[0.3066, -0.119, 1.5361] jaw=[0.3140999972820282, -0.10209999978542328, 1.5462000370025635] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist left place0 tick 2: cmd_centre=[0.314, -0.102, 1.5466] offset=[-0.0171, -0.0073, -0.0106] |offset|=21 mm jaw_target=[0.3066, -0.119, 1.5361] jaw=[0.3142000138759613, -0.1023000031709671, 1.545799970626831] coherent=False hand_is_jaw=True
+[fruit] [carry] left place0: ticks=404/404 clean_slip_max=1288.1mm in-hand_vmax=0.449 onset_row=3 force@onset=0.00N sep@onset=42.1mm contacts@onset=0 min_contacts=0 force_min=0.00N loss_row=3 guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=42.1mm open_max=0.0mm
+[fruit] [rl]   grasp did not land on the belt; re-running carry_and_release
+[fruit] [rl] episode 9: peach d=5.8cm bin=0 arm=left success=False grasped=True placed=False ticks=1882 decision=237 reward=0.0000 notes=['intercept trigger (dy=21.7cm, dx=-3.7cm, t_arrive=1.81s, speed=0.120m/s/encoder, frame=station, finger=0.0230, lead=1.81s/reach=0.27)'] presentation=direct ablate=none
+[fruit] [park] episode 9 arm=left inactive=right park=back m1_hold=+0.002 m1_hold_ok=1 m1_cmd=+0.026 m2_arm=0.000 m2_arm_ok=1 m2_rel=0.384 m2_rel_ok=0 m2_ok=0 m2_vis=0.416 band=+0.398 band_x=+0.303 band_px=112 band_disc=109 band_vis=1.030 arm_px=0 band_frac=0.000 band_calls=25 stale_skipped=1 worst_arm_at=+0.398 worst_vis_at=+0.302 min_frac=0.000 max_frac=0.000 drift=+0.003 calls=59 q=1.518,0.330,-1.570,1.269,1.560,0.620,-1.566 q_settled=1.520,0.330,-1.570,1.269,1.560,0.620,-1.566 top=15:128px:/World/Conveyor/Belt | 79:112px:/World/Fruits/Fruit_12
+[fruit] [belt] lychee (index 13) discharged to the tray at x=1.80 (settled 16.6s)
+[fruit] [rl] episode 10: orange grade=B d=6.0cm bin=1 arm=right y=+0.652 presentation=direct
+[fruit] [park] call ep=10 n=1 along=+0.398 x=0.317 px=137 disc=118 vis=1.163 rel=0.967 arm_px=0 tgt_px=137 frac=0.000 ok=1 top=73:137px:/World/Fruits/Fruit_07 | 15:119px:/World/Conveyor/Belt
+[fruit] [park] call ep=10 n=2 along=+0.394 x=0.317 px=135 disc=118 vis=1.142 rel=0.949 arm_px=0 tgt_px=135 frac=0.000 ok=1 top=15:137px:/World/Conveyor/Belt | 73:135px:/World/Fruits/Fruit_07
+[fruit] [park] call ep=10 n=3 along=+0.390 x=0.317 px=136 disc=119 vis=1.147 rel=0.953 arm_px=0 tgt_px=136 frac=0.000 ok=1 top=15:136px:/World/Conveyor/Belt | 73:136px:/World/Fruits/Fruit_07
+[fruit] [park] call ep=10 n=4 along=+0.386 x=0.317 px=138 disc=119 vis=1.159 rel=0.963 arm_px=0 tgt_px=138 frac=0.000 ok=1 top=73:138px:/World/Fruits/Fruit_07 | 15:118px:/World/Conveyor/Belt
+[fruit] [park] call ep=10 n=5 along=+0.382 x=0.317 px=135 disc=119 vis=1.130 rel=0.939 arm_px=0 tgt_px=135 frac=0.000 ok=1 top=15:137px:/World/Conveyor/Belt | 73:135px:/World/Fruits/Fruit_07
+[fruit] [park] call ep=10 n=6 along=+0.378 x=0.317 px=137 disc=120 vis=1.143 rel=0.950 arm_px=0 tgt_px=137 frac=0.000 ok=1 top=73:137px:/World/Fruits/Fruit_07 | 15:119px:/World/Conveyor/Belt
+[fruit] [park] call ep=10 n=7 along=+0.374 x=0.317 px=135 disc=120 vis=1.122 rel=0.933 arm_px=0 tgt_px=135 frac=0.000 ok=1 top=15:137px:/World/Conveyor/Belt | 73:135px:/World/Fruits/Fruit_07
+[fruit] [park] call ep=10 n=8 along=+0.370 x=0.317 px=137 disc=121 vis=1.135 rel=0.943 arm_px=0 tgt_px=137 frac=0.000 ok=1 top=73:137px:/World/Fruits/Fruit_07 | 15:135px:/World/Conveyor/Belt
+[fruit] [park] call ep=10 n=9 along=+0.366 x=0.317 px=138 disc=121 vis=1.139 rel=0.947 arm_px=0 tgt_px=138 frac=0.000 ok=1 top=73:138px:/World/Fruits/Fruit_07 | 15:134px:/World/Conveyor/Belt
+[fruit] [park] call ep=10 n=10 along=+0.362 x=0.317 px=138 disc=122 vis=1.136 rel=0.944 arm_px=0 tgt_px=138 frac=0.000 ok=1 top=73:138px:/World/Fruits/Fruit_07 | 15:118px:/World/Conveyor/Belt
+[fruit] [park] call ep=10 n=11 along=+0.358 x=0.317 px=137 disc=122 vis=1.124 rel=0.934 arm_px=0 tgt_px=137 frac=0.000 ok=1 top=15:152px:/World/Conveyor/Belt | 73:137px:/World/Fruits/Fruit_07
+[fruit] [park] call ep=10 n=12 along=+0.354 x=0.317 px=139 disc=122 vis=1.136 rel=0.944 arm_px=0 tgt_px=139 frac=0.000 ok=1 top=73:139px:/World/Fruits/Fruit_07 | 15:117px:/World/Conveyor/Belt
+[fruit] [park] call ep=10 n=13 along=+0.350 x=0.317 px=137 disc=123 vis=1.116 rel=0.927 arm_px=0 tgt_px=137 frac=0.000 ok=1 top=15:152px:/World/Conveyor/Belt | 73:137px:/World/Fruits/Fruit_07
+[fruit] [park] call ep=10 n=14 along=+0.346 x=0.317 px=135 disc=123 vis=1.096 rel=0.911 arm_px=0 tgt_px=135 frac=0.000 ok=1 top=15:154px:/World/Conveyor/Belt | 73:135px:/World/Fruits/Fruit_07
+[fruit] [park] call ep=10 n=15 along=+0.342 x=0.317 px=141 disc=124 vis=1.141 rel=0.948 arm_px=0 tgt_px=141 frac=0.000 ok=1 top=73:141px:/World/Fruits/Fruit_07 | 15:115px:/World/Conveyor/Belt
+[fruit] [park] call ep=10 n=16 along=+0.338 x=0.317 px=136 disc=124 vis=1.097 rel=0.912 arm_px=0 tgt_px=136 frac=0.000 ok=1 top=15:153px:/World/Conveyor/Belt | 73:136px:/World/Fruits/Fruit_07
+[fruit] [park] call ep=10 n=17 along=+0.334 x=0.317 px=139 disc=124 vis=1.118 rel=0.929 arm_px=0 tgt_px=139 frac=0.000 ok=1 top=73:139px:/World/Fruits/Fruit_07 | 15:133px:/World/Conveyor/Belt
+[fruit] [park] call ep=10 n=18 along=+0.330 x=0.317 px=141 disc=125 vis=1.130 rel=0.939 arm_px=0 tgt_px=141 frac=0.000 ok=1 top=73:141px:/World/Fruits/Fruit_07 | 15:131px:/World/Conveyor/Belt
+[fruit] [park] call ep=10 n=19 along=+0.326 x=0.317 px=138 disc=125 vis=1.103 rel=0.916 arm_px=0 tgt_px=138 frac=0.000 ok=1 top=73:138px:/World/Fruits/Fruit_07 | 15:134px:/World/Conveyor/Belt
+[fruit] [park] call ep=10 n=20 along=+0.322 x=0.317 px=140 disc=126 vis=1.115 rel=0.927 arm_px=0 tgt_px=140 frac=0.000 ok=1 top=15:149px:/World/Conveyor/Belt | 73:140px:/World/Fruits/Fruit_07
+[fruit] [park] call ep=10 n=21 along=+0.318 x=0.317 px=140 disc=126 vis=1.112 rel=0.924 arm_px=0 tgt_px=140 frac=0.000 ok=1 top=73:140px:/World/Fruits/Fruit_07 | 15:116px:/World/Conveyor/Belt
+[fruit] [park] call ep=10 n=22 along=+0.314 x=0.317 px=140 disc=126 vis=1.108 rel=0.921 arm_px=0 tgt_px=140 frac=0.000 ok=1 top=15:149px:/World/Conveyor/Belt | 73:140px:/World/Fruits/Fruit_07
+[fruit] [park] call ep=10 n=23 along=+0.310 x=0.317 px=140 disc=127 vis=1.105 rel=0.918 arm_px=0 tgt_px=140 frac=0.000 ok=1 top=73:140px:/World/Fruits/Fruit_07 | 15:132px:/World/Conveyor/Belt
+[fruit] [park] call ep=10 n=24 along=+0.306 x=0.317 px=144 disc=127 vis=1.133 rel=0.942 arm_px=0 tgt_px=144 frac=0.000 ok=1 top=73:144px:/World/Fruits/Fruit_07 | 15:128px:/World/Conveyor/Belt
+[fruit] [park] call ep=10 n=25 along=+0.302 x=0.317 px=139 disc=127 vis=1.091 rel=0.906 arm_px=0 tgt_px=139 frac=0.000 ok=1 top=15:150px:/World/Conveyor/Belt | 73:139px:/World/Fruits/Fruit_07
+[fruit] [task]   openarm fingertips 49 mm from the fruit; closing anyway
+[fruit] [acq] right idx=7: setup[premove=0.42 axis=0.42 hover=0.73 wait=1.59 catchup=1.81]s catchup=26t res=5.8mm last=(-3.7,-4.0,+6.5)mm | close_start=(-3.7,-2.8,+6.5)mm vx0=-0.000 latch=centring | contact=@11t(-3.3,-0.8,+6.5)mm F=1.20N freeze=64.5mm@17t span=90.0->72.1mm Fmax=4.85 | q2=+0.0227/3.3161 clip_min=+24.1mrad@j2
+[fruit] [task]   carry grasp_lift: stored pad centre 133 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist right grasp_lift tick 0: cmd_centre=[0.28, 0.0407, 1.3283] offset=[-0.0065, 0.0069, -0.0108] |offset|=14 mm jaw_target=[0.273, 0.0472, 1.3176] jaw=[0.2800000011920929, 0.040699999779462814, 1.3282999992370605] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right grasp_lift tick 1: cmd_centre=[0.28, 0.0407, 1.3283] offset=[-0.0065, 0.0069, -0.0108] |offset|=14 mm jaw_target=[0.273, 0.0472, 1.3176] jaw=[0.27970001101493835, 0.04089999943971634, 1.3278000354766846] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right grasp_lift tick 2: cmd_centre=[0.28, 0.0407, 1.3283] offset=[-0.0065, 0.0069, -0.0108] |offset|=14 mm jaw_target=[0.273, 0.0472, 1.3176] jaw=[0.2793000042438507, 0.041099999099969864, 1.327299952507019] coherent=False hand_is_jaw=True
+[fruit] [carry] right grasp_lift: ticks=156/156 clean_slip_max=0.0mm in-hand_vmax=0.044 onset_row=None force@onset=n/aN sep@onset=n/amm contacts@onset=None min_contacts=2 force_min=4.29N loss_row=None guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=59.1mm open_max=0.0mm
+[fruit] [task]   carry place1: stored pad centre 73 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist right place1 tick 0: cmd_centre=[0.3343, 0.0886, 1.5404] offset=[-0.0065, 0.0069, -0.0108] |offset|=14 mm jaw_target=[0.3273, 0.0951, 1.5297] jaw=[0.3343000113964081, 0.08860000222921371, 1.5404000282287598] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right place1 tick 1: cmd_centre=[0.3343, 0.0886, 1.5404] offset=[-0.0065, 0.0069, -0.0108] |offset|=14 mm jaw_target=[0.3273, 0.0951, 1.5297] jaw=[0.3343000113964081, 0.08879999816417694, 1.5399999618530273] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right place1 tick 2: cmd_centre=[0.3343, 0.0886, 1.5404] offset=[-0.0065, 0.0069, -0.0108] |offset|=14 mm jaw_target=[0.3273, 0.0951, 1.5297] jaw=[0.33410000801086426, 0.08900000154972076, 1.5393999814987183] coherent=False hand_is_jaw=True
+[fruit] [carry] right place1: ticks=393/393 clean_slip_max=0.0mm in-hand_vmax=0.047 onset_row=None force@onset=n/aN sep@onset=n/amm contacts@onset=None min_contacts=2 force_min=4.27N loss_row=None guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=59.1mm open_max=0.0mm
+[fruit] [task] place low: bottom 1465 -> 50 mm (target 25), drop 70/90 mm, FINGER FLOOR budget 70 mm, residual 0.0 mm, 75 ticks
+[fruit] [rl] episode 10: orange d=6.0cm bin=1 arm=right success=True grasped=True placed=True ticks=1876 decision=297 reward=0.9604 notes=['intercept trigger (dy=25.3cm, dx=-1.6cm, t_arrive=2.11s, speed=0.120m/s/encoder, frame=station, finger=0.0255, lead=2.11s/reach=0.30)'] presentation=direct ablate=none
+[fruit] [park] episode 10 arm=right inactive=left park=back m1_hold=+0.004 m1_hold_ok=1 m1_cmd=+0.088 m2_arm=0.000 m2_arm_ok=1 m2_rel=0.906 m2_rel_ok=1 m2_ok=1 m2_vis=1.091 band=+0.398 band_x=+0.317 band_px=137 band_disc=118 band_vis=1.163 arm_px=0 band_frac=0.000 band_calls=25 stale_skipped=1 worst_arm_at=+0.398 worst_vis_at=+0.302 min_frac=0.000 max_frac=0.000 drift=+0.010 calls=74 q=-1.908,-0.978,1.504,0.819,-1.498,-0.586,1.559 q_settled=-1.912,-0.978,1.503,0.818,-1.498,-0.586,1.559 top=73:137px:/World/Fruits/Fruit_07 | 15:119px:/World/Conveyor/Belt
+[fruit] [rl] episode 11: lychee grade=C d=3.4cm bin=1 arm=right y=+0.618 presentation=direct
+[fruit] [park] call ep=11 n=1 along=+0.397 x=0.351 px=39 disc=36 vis=1.077 rel=0.905 arm_px=0 tgt_px=39 frac=0.000 ok=1 top=15:82px:/World/Conveyor/Belt | 81:39px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=11 n=2 along=+0.393 x=0.351 px=40 disc=36 vis=1.101 rel=0.925 arm_px=0 tgt_px=40 frac=0.000 ok=1 top=15:81px:/World/Conveyor/Belt | 81:40px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=11 n=3 along=+0.389 x=0.351 px=38 disc=36 vis=1.043 rel=0.875 arm_px=0 tgt_px=38 frac=0.000 ok=1 top=15:83px:/World/Conveyor/Belt | 81:38px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=11 n=4 along=+0.385 x=0.351 px=41 disc=37 vis=1.121 rel=0.941 arm_px=0 tgt_px=41 frac=0.000 ok=1 top=15:59px:/World/Conveyor/Belt | 81:41px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=11 n=5 along=+0.381 x=0.351 px=39 disc=37 vis=1.063 rel=0.892 arm_px=0 tgt_px=39 frac=0.000 ok=1 top=15:82px:/World/Conveyor/Belt | 81:39px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=11 n=6 along=+0.377 x=0.351 px=40 disc=37 vis=1.086 rel=0.912 arm_px=0 tgt_px=40 frac=0.000 ok=1 top=15:70px:/World/Conveyor/Belt | 81:40px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=11 n=7 along=+0.373 x=0.351 px=40 disc=37 vis=1.083 rel=0.909 arm_px=0 tgt_px=40 frac=0.000 ok=1 top=15:81px:/World/Conveyor/Belt | 81:40px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=11 n=8 along=+0.369 x=0.351 px=41 disc=37 vis=1.106 rel=0.929 arm_px=0 tgt_px=41 frac=0.000 ok=1 top=15:80px:/World/Conveyor/Belt | 81:41px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=11 n=9 along=+0.365 x=0.351 px=41 disc=37 vis=1.103 rel=0.926 arm_px=0 tgt_px=41 frac=0.000 ok=1 top=15:80px:/World/Conveyor/Belt | 81:41px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=11 n=10 along=+0.361 x=0.351 px=41 disc=37 vis=1.099 rel=0.923 arm_px=0 tgt_px=41 frac=0.000 ok=1 top=15:80px:/World/Conveyor/Belt | 81:41px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=11 n=11 along=+0.357 x=0.351 px=40 disc=37 vis=1.069 rel=0.898 arm_px=0 tgt_px=40 frac=0.000 ok=1 top=15:81px:/World/Conveyor/Belt | 81:40px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=11 n=12 along=+0.353 x=0.351 px=40 disc=38 vis=1.066 rel=0.895 arm_px=0 tgt_px=40 frac=0.000 ok=1 top=15:81px:/World/Conveyor/Belt | 81:40px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=11 n=13 along=+0.349 x=0.351 px=43 disc=38 vis=1.142 rel=0.959 arm_px=0 tgt_px=43 frac=0.000 ok=1 top=15:67px:/World/Conveyor/Belt | 81:43px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=11 n=14 along=+0.345 x=0.351 px=41 disc=38 vis=1.085 rel=0.911 arm_px=0 tgt_px=41 frac=0.000 ok=1 top=15:80px:/World/Conveyor/Belt | 81:41px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=11 n=15 along=+0.341 x=0.351 px=41 disc=38 vis=1.082 rel=0.909 arm_px=0 tgt_px=41 frac=0.000 ok=1 top=15:80px:/World/Conveyor/Belt | 81:41px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=11 n=16 along=+0.337 x=0.351 px=41 disc=38 vis=1.079 rel=0.906 arm_px=0 tgt_px=41 frac=0.000 ok=1 top=15:80px:/World/Conveyor/Belt | 81:41px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=11 n=17 along=+0.333 x=0.351 px=40 disc=38 vis=1.049 rel=0.881 arm_px=0 tgt_px=40 frac=0.000 ok=1 top=15:81px:/World/Conveyor/Belt | 81:40px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=11 n=18 along=+0.329 x=0.351 px=41 disc=38 vis=1.072 rel=0.900 arm_px=0 tgt_px=41 frac=0.000 ok=1 top=15:80px:/World/Conveyor/Belt | 81:41px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=11 n=19 along=+0.325 x=0.351 px=40 disc=38 vis=1.043 rel=0.876 arm_px=0 tgt_px=40 frac=0.000 ok=1 top=15:81px:/World/Conveyor/Belt | 81:40px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=11 n=20 along=+0.321 x=0.351 px=43 disc=38 vis=1.118 rel=0.939 arm_px=0 tgt_px=43 frac=0.000 ok=1 top=15:78px:/World/Conveyor/Belt | 81:43px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=11 n=21 along=+0.317 x=0.351 px=40 disc=39 vis=1.037 rel=0.871 arm_px=0 tgt_px=40 frac=0.000 ok=1 top=15:81px:/World/Conveyor/Belt | 81:40px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=11 n=22 along=+0.313 x=0.351 px=40 disc=39 vis=1.034 rel=0.868 arm_px=0 tgt_px=40 frac=0.000 ok=1 top=15:81px:/World/Conveyor/Belt | 81:40px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=11 n=23 along=+0.309 x=0.351 px=40 disc=39 vis=1.031 rel=0.866 arm_px=0 tgt_px=40 frac=0.000 ok=1 top=15:81px:/World/Conveyor/Belt | 81:40px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=11 n=24 along=+0.305 x=0.351 px=41 disc=39 vis=1.054 rel=0.885 arm_px=0 tgt_px=41 frac=0.000 ok=1 top=15:80px:/World/Conveyor/Belt | 81:41px:/World/Fruits/Fruit_13
+[fruit] [park] call ep=11 n=25 along=+0.301 x=0.351 px=41 disc=39 vis=1.051 rel=0.882 arm_px=0 tgt_px=41 frac=0.000 ok=1 top=15:80px:/World/Conveyor/Belt | 81:41px:/World/Fruits/Fruit_13
+[fruit] [task]   openarm fingertips 45 mm from the fruit; closing anyway
+[fruit] [acq] right idx=13: setup[premove=0.49 axis=0.49 hover=0.78 wait=1.62 catchup=1.90]s catchup=33t res=5.6mm last=(-0.6,-5.0,+6.1)mm | close_start=(-0.6,-3.9,+6.1)mm vx0=-0.001 latch=centring | contact=@0t(-0.6,-3.9,+6.1)mm F=3.55N freeze=35.2mm@21t span=90.0->45.3mm Fmax=5.75 | q2=-0.0999/3.3161 clip_min=-0.0mrad@j2
+[fruit] [task]   carry grasp_lift: stored pad centre 121 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist right grasp_lift tick 0: cmd_centre=[0.3242, -0.0362, 1.3041] offset=[0.0091, 0.0048, -0.0121] |offset|=16 mm jaw_target=[0.3193, -0.0455, 1.2922] jaw=[0.32420000433921814, -0.03620000183582306, 1.3041000366210938] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right grasp_lift tick 1: cmd_centre=[0.3242, -0.0362, 1.3041] offset=[0.0091, 0.0048, -0.0121] |offset|=16 mm jaw_target=[0.3193, -0.0455, 1.2922] jaw=[0.3240000009536743, -0.0364999994635582, 1.3036999702453613] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right grasp_lift tick 2: cmd_centre=[0.3242, -0.0362, 1.3041] offset=[0.0091, 0.0048, -0.0121] |offset|=16 mm jaw_target=[0.3193, -0.0455, 1.2922] jaw=[0.3237000107765198, -0.03680000081658363, 1.3030999898910522] coherent=False hand_is_jaw=True
+[fruit] [carry] right grasp_lift: ticks=174/174 clean_slip_max=0.0mm in-hand_vmax=0.045 onset_row=None force@onset=n/aN sep@onset=n/amm contacts@onset=None min_contacts=2 force_min=4.38N loss_row=None guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=34.4mm open_max=0.0mm
+[fruit] [task]   carry place1: stored pad centre 72 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist right place1 tick 0: cmd_centre=[0.3959, -0.0339, 1.5356] offset=[0.0091, 0.0048, -0.0121] |offset|=16 mm jaw_target=[0.391, -0.0432, 1.5237] jaw=[0.39590001106262207, -0.033900000154972076, 1.535599946975708] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right place1 tick 1: cmd_centre=[0.3959, -0.0339, 1.5356] offset=[0.0091, 0.0048, -0.0121] |offset|=16 mm jaw_target=[0.391, -0.0432, 1.5237] jaw=[0.39579999446868896, -0.03400000184774399, 1.5351999998092651] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right place1 tick 2: cmd_centre=[0.3959, -0.0339, 1.5356] offset=[0.0091, 0.0048, -0.0121] |offset|=16 mm jaw_target=[0.391, -0.0432, 1.5237] jaw=[0.39579999446868896, -0.0340999998152256, 1.534600019454956] coherent=False hand_is_jaw=True
+[fruit] [carry] right place1: ticks=308/308 clean_slip_max=0.0mm in-hand_vmax=0.064 onset_row=None force@onset=n/aN sep@onset=n/amm contacts@onset=None min_contacts=2 force_min=4.38N loss_row=None guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=34.4mm open_max=0.0mm
+[fruit] [task] place low: bottom 1485 -> 59 mm (target 25), drop 87/110 mm, FINGER FLOOR budget 87 mm, residual 0.0 mm, 80 ticks
+[fruit] [rl] episode 11: lychee d=3.4cm bin=1 arm=right success=True grasped=True placed=True ticks=1786 decision=259 reward=0.9655 notes=['intercept trigger (dy=25.8cm, dx=1.8cm, t_arrive=2.15s, speed=0.120m/s/encoder, frame=station, finger=0.0088, lead=2.15s/reach=0.31)'] presentation=direct ablate=none
+[fruit] [park] episode 11 arm=right inactive=left park=back m1_hold=+0.004 m1_hold_ok=1 m1_cmd=+0.088 m2_arm=0.000 m2_arm_ok=1 m2_rel=0.866 m2_rel_ok=1 m2_ok=1 m2_vis=1.031 band=+0.397 band_x=+0.351 band_px=39 band_disc=36 band_vis=1.077 arm_px=0 band_frac=0.000 band_calls=25 stale_skipped=1 worst_arm_at=+0.397 worst_vis_at=+0.309 min_frac=0.000 max_frac=0.000 drift=+0.010 calls=64 q=-1.908,-0.978,1.504,0.819,-1.498,-0.586,1.559 q_settled=-1.912,-0.978,1.503,0.818,-1.498,-0.586,1.559 top=15:82px:/World/Conveyor/Belt | 81:39px:/World/Fruits/Fruit_13
+[fruit] [belt] orange (index 7) discharged to the tray at x=1.58 (settled 15.8s)
+[fruit] [rl] episode 12: apple grade=B d=6.3cm bin=1 arm=right y=+0.481 presentation=direct
+[fruit] [park] call ep=12 n=1 along=+0.369 x=0.268 px=145 disc=133 vis=1.089 rel=1.000 arm_px=0 tgt_px=145 frac=0.000 ok=1 top=71:145px:/World/Fruits/Fruit_05 | 15:144px:/World/Conveyor/Belt
+[fruit] [park] call ep=12 n=2 along=+0.365 x=0.268 px=144 disc=134 vis=1.077 rel=0.990 arm_px=0 tgt_px=144 frac=0.000 ok=1 top=15:145px:/World/Conveyor/Belt | 71:144px:/World/Fruits/Fruit_05
+[fruit] [park] call ep=12 n=3 along=+0.361 x=0.268 px=143 disc=134 vis=1.066 rel=0.979 arm_px=0 tgt_px=143 frac=0.000 ok=1 top=15:146px:/World/Conveyor/Belt | 71:143px:/World/Fruits/Fruit_05
+[fruit] [park] call ep=12 n=4 along=+0.357 x=0.268 px=146 disc=135 vis=1.085 rel=0.996 arm_px=0 tgt_px=146 frac=0.000 ok=1 top=15:160px:/World/Conveyor/Belt | 71:146px:/World/Fruits/Fruit_05
+[fruit] [park] call ep=12 n=5 along=+0.353 x=0.268 px=147 disc=135 vis=1.088 rel=1.000 arm_px=0 tgt_px=147 frac=0.000 ok=1 top=71:147px:/World/Fruits/Fruit_05 | 15:142px:/World/Conveyor/Belt
+[fruit] [park] call ep=12 n=6 along=+0.349 x=0.268 px=146 disc=136 vis=1.077 rel=0.990 arm_px=0 tgt_px=146 frac=0.000 ok=1 top=15:178px:/World/Conveyor/Belt | 71:146px:/World/Fruits/Fruit_05
+[fruit] [park] call ep=12 n=7 along=+0.345 x=0.268 px=148 disc=136 vis=1.088 rel=1.000 arm_px=0 tgt_px=148 frac=0.000 ok=1 top=71:148px:/World/Fruits/Fruit_05 | 15:141px:/World/Conveyor/Belt
+[fruit] [park] call ep=12 n=8 along=+0.341 x=0.268 px=148 disc=136 vis=1.085 rel=0.996 arm_px=0 tgt_px=148 frac=0.000 ok=1 top=71:148px:/World/Fruits/Fruit_05 | 15:141px:/World/Conveyor/Belt
+[fruit] [park] call ep=12 n=9 along=+0.337 x=0.268 px=144 disc=137 vis=1.052 rel=0.966 arm_px=0 tgt_px=144 frac=0.000 ok=1 top=15:162px:/World/Conveyor/Belt | 71:144px:/World/Fruits/Fruit_05
+[fruit] [park] call ep=12 n=10 along=+0.333 x=0.268 px=148 disc=137 vis=1.078 rel=0.990 arm_px=0 tgt_px=148 frac=0.000 ok=1 top=71:148px:/World/Fruits/Fruit_05 | 15:141px:/World/Conveyor/Belt
+[fruit] [park] call ep=12 n=11 along=+0.329 x=0.268 px=146 disc=138 vis=1.060 rel=0.973 arm_px=0 tgt_px=146 frac=0.000 ok=1 top=71:146px:/World/Fruits/Fruit_05 | 15:143px:/World/Conveyor/Belt
+[fruit] [park] call ep=12 n=12 along=+0.325 x=0.268 px=147 disc=138 vis=1.063 rel=0.977 arm_px=0 tgt_px=147 frac=0.000 ok=1 top=15:159px:/World/Conveyor/Belt | 71:147px:/World/Fruits/Fruit_05
+[fruit] [park] call ep=12 n=13 along=+0.321 x=0.268 px=144 disc=139 vis=1.038 rel=0.954 arm_px=0 tgt_px=144 frac=0.000 ok=1 top=15:145px:/World/Conveyor/Belt | 71:144px:/World/Fruits/Fruit_05
+[fruit] [park] call ep=12 n=14 along=+0.317 x=0.268 px=150 disc=139 vis=1.078 rel=0.990 arm_px=0 tgt_px=150 frac=0.000 ok=1 top=71:150px:/World/Fruits/Fruit_05 | 15:139px:/World/Conveyor/Belt
+[fruit] [park] call ep=12 n=15 along=+0.313 x=0.268 px=145 disc=140 vis=1.039 rel=0.954 arm_px=0 tgt_px=145 frac=0.000 ok=1 top=15:161px:/World/Conveyor/Belt | 71:145px:/World/Fruits/Fruit_05
+[fruit] [park] call ep=12 n=16 along=+0.309 x=0.268 px=149 disc=140 vis=1.064 rel=0.978 arm_px=0 tgt_px=149 frac=0.000 ok=1 top=71:149px:/World/Fruits/Fruit_05 | 15:140px:/World/Conveyor/Belt
+[fruit] [park] call ep=12 n=17 along=+0.305 x=0.268 px=150 disc=140 vis=1.068 rel=0.981 arm_px=0 tgt_px=150 frac=0.000 ok=1 top=15:174px:/World/Conveyor/Belt | 71:150px:/World/Fruits/Fruit_05
+[fruit] [park] call ep=12 n=18 along=+0.301 x=0.268 px=146 disc=141 vis=1.037 rel=0.952 arm_px=0 tgt_px=146 frac=0.000 ok=1 top=15:160px:/World/Conveyor/Belt | 71:146px:/World/Fruits/Fruit_05
+[fruit] [task]   openarm fingertips 53 mm from the fruit; closing anyway
+[fruit] [acq] right idx=5: setup[premove=0.56 axis=0.56 hover=0.90 wait=1.71 catchup=1.92]s catchup=25t res=5.4mm last=(-3.3,-4.6,+7.3)mm | close_start=(-3.3,-3.4,+7.3)mm vx0=+0.000 latch=centring | contact=@10t(-2.9,-1.2,+7.3)mm F=1.17N freeze=67.0mm@17t span=90.0->74.4mm Fmax=5.22 | q2=+0.1221/3.3161 clip_min=+0.2mrad@j2
+[fruit] [task]   carry grasp_lift: stored pad centre 125 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist right grasp_lift tick 0: cmd_centre=[0.2285, -0.0313, 1.3196] offset=[0.0093, 0.0065, -0.0107] |offset|=16 mm jaw_target=[0.2219, -0.0406, 1.3089] jaw=[0.22849999368190765, -0.031300000846385956, 1.319599986076355] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right grasp_lift tick 1: cmd_centre=[0.2285, -0.0313, 1.3196] offset=[0.0093, 0.0065, -0.0107] |offset|=16 mm jaw_target=[0.2219, -0.0406, 1.3089] jaw=[0.22830000519752502, -0.03150000050663948, 1.319100022315979] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right grasp_lift tick 2: cmd_centre=[0.2285, -0.0313, 1.3196] offset=[0.0093, 0.0065, -0.0107] |offset|=16 mm jaw_target=[0.2219, -0.0406, 1.3089] jaw=[0.22789999842643738, -0.03189999982714653, 1.318600058555603] coherent=False hand_is_jaw=True
+[fruit] [carry] right grasp_lift: ticks=162/162 clean_slip_max=0.0mm in-hand_vmax=0.062 onset_row=None force@onset=n/aN sep@onset=n/amm contacts@onset=None min_contacts=2 force_min=4.02N loss_row=None guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=61.9mm open_max=0.0mm
+[fruit] [task]   carry place1: stored pad centre 94 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist right place1 tick 0: cmd_centre=[0.3141, -0.0046, 1.558] offset=[0.0093, 0.0065, -0.0107] |offset|=16 mm jaw_target=[0.3074, -0.014, 1.5474] jaw=[0.3140999972820282, -0.004600000102072954, 1.5579999685287476] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right place1 tick 1: cmd_centre=[0.3141, -0.0046, 1.558] offset=[0.0093, 0.0065, -0.0107] |offset|=16 mm jaw_target=[0.3074, -0.014, 1.5474] jaw=[0.3140000104904175, -0.004699999932199717, 1.5577000379562378] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right place1 tick 2: cmd_centre=[0.3141, -0.0046, 1.558] offset=[0.0093, 0.0065, -0.0107] |offset|=16 mm jaw_target=[0.3074, -0.014, 1.5474] jaw=[0.3138999938964844, -0.004900000058114529, 1.5571999549865723] coherent=False hand_is_jaw=True
+[fruit] [carry] right place1: ticks=336/336 clean_slip_max=0.0mm in-hand_vmax=0.063 onset_row=None force@onset=n/aN sep@onset=n/amm contacts@onset=None min_contacts=2 force_min=3.83N loss_row=None guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=61.9mm open_max=0.0mm
+[fruit] [task] place low: bottom 1472 -> 50 mm (target 25), drop 79/97 mm, FINGER FLOOR budget 79 mm, residual 0.0 mm, 78 ticks
+[fruit] [rl] episode 12: apple d=6.3cm bin=1 arm=right success=True grasped=True placed=True ticks=1657 decision=113 reward=0.9849 notes=['intercept trigger (dy=26.4cm, dx=-6.4cm, t_arrive=2.20s, speed=0.120m/s/encoder, frame=station, finger=0.0253, lead=2.20s/reach=0.31)'] presentation=direct ablate=none
+[fruit] [park] episode 12 arm=right inactive=left park=back m1_hold=+0.004 m1_hold_ok=1 m1_cmd=+0.088 m2_arm=0.000 m2_arm_ok=1 m2_rel=0.952 m2_rel_ok=1 m2_ok=1 m2_vis=1.037 band=+0.369 band_x=+0.268 band_px=145 band_disc=133 band_vis=1.089 arm_px=0 band_frac=0.000 band_calls=18 stale_skipped=1 worst_arm_at=+0.369 worst_vis_at=+0.301 min_frac=0.000 max_frac=0.000 drift=+0.000 calls=28 q=-1.908,-0.978,1.504,0.819,-1.498,-0.586,1.559 q_settled=-1.912,-0.978,1.503,0.818,-1.498,-0.586,1.559 top=71:145px:/World/Fruits/Fruit_05 | 15:144px:/World/Conveyor/Belt
+[fruit] [belt] lychee (index 13) discharged to the tray at x=1.62 (settled 14.7s)
+[fruit] [rl] episode 13: pear grade=A d=6.8cm bin=0 arm=left y=+0.679 presentation=direct
+[fruit] [park] call ep=13 n=1 along=+0.400 x=0.361 px=155 disc=146 vis=1.063 rel=0.956 arm_px=0 tgt_px=155 frac=0.000 ok=1 top=15:169px:/World/Conveyor/Belt | 70:155px:/World/Fruits/Fruit_04
+[fruit] [park] call ep=13 n=2 along=+0.396 x=0.361 px=160 disc=146 vis=1.093 rel=0.983 arm_px=0 tgt_px=160 frac=0.000 ok=1 top=70:160px:/World/Fruits/Fruit_04 | 15:129px:/World/Conveyor/Belt
+[fruit] [park] call ep=13 n=3 along=+0.392 x=0.361 px=158 disc=147 vis=1.076 rel=0.968 arm_px=0 tgt_px=158 frac=0.000 ok=1 top=15:166px:/World/Conveyor/Belt | 70:158px:/World/Fruits/Fruit_04
+[fruit] [park] call ep=13 n=4 along=+0.388 x=0.361 px=158 disc=147 vis=1.072 rel=0.964 arm_px=0 tgt_px=158 frac=0.000 ok=1 top=15:166px:/World/Conveyor/Belt | 70:158px:/World/Fruits/Fruit_04
+[fruit] [park] call ep=13 n=5 along=+0.384 x=0.361 px=161 disc=148 vis=1.088 rel=0.979 arm_px=0 tgt_px=161 frac=0.000 ok=1 top=70:161px:/World/Fruits/Fruit_04 | 15:145px:/World/Conveyor/Belt
+[fruit] [park] call ep=13 n=6 along=+0.380 x=0.361 px=153 disc=148 vis=1.031 rel=0.927 arm_px=0 tgt_px=153 frac=0.000 ok=1 top=15:168px:/World/Conveyor/Belt | 70:153px:/World/Fruits/Fruit_04 | 30:3px:4/visuals/openarm_left_link4_visual/mesh
+[fruit] [park] call ep=13 n=7 along=+0.376 x=0.361 px=158 disc=149 vis=1.061 rel=0.954 arm_px=0 tgt_px=158 frac=0.000 ok=1 top=70:158px:/World/Fruits/Fruit_04 | 15:139px:/World/Conveyor/Belt | 30:9px:4/visuals/openarm_left_link4_visual/mesh
+[fruit] [park] call ep=13 n=8 along=+0.372 x=0.361 px=160 disc=149 vis=1.070 rel=0.963 arm_px=0 tgt_px=160 frac=0.000 ok=1 top=70:160px:/World/Fruits/Fruit_04 | 15:142px:/World/Conveyor/Belt | 30:22px:4/visuals/openarm_left_link4_visual/mesh
+[fruit] [park] call ep=13 n=9 along=+0.368 x=0.361 px=152 disc=150 vis=1.013 rel=0.912 arm_px=0 tgt_px=152 frac=0.000 ok=1 top=70:152px:/World/Fruits/Fruit_04 | 15:132px:/World/Conveyor/Belt | 30:39px:4/visuals/openarm_left_link4_visual/mesh
+[fruit] [park] call ep=13 n=10 along=+0.364 x=0.361 px=142 disc=151 vis=0.943 rel=0.849 arm_px=0 tgt_px=142 frac=0.000 ok=0 top=70:142px:/World/Fruits/Fruit_04 | 15:105px:/World/Conveyor/Belt | 30:54px:4/visuals/openarm_left_link4_visual/mesh
+[fruit] [park] call ep=13 n=11 along=+0.360 x=0.361 px=114 disc=151 vis=0.755 rel=0.679 arm_px=0 tgt_px=114 frac=0.000 ok=0 top=15:119px:/World/Conveyor/Belt | 70:114px:/World/Fruits/Fruit_04 | 30:74px:4/visuals/openarm_left_link4_visual/mesh
+[fruit] [park] call ep=13 n=12 along=+0.356 x=0.361 px=96 disc=152 vis=0.633 rel=0.570 arm_px=0 tgt_px=96 frac=0.000 ok=0 top=30:98px:4/visuals/openarm_left_link4_visual/mesh | 70:96px:/World/Fruits/Fruit_04 | 15:92px:/World/Conveyor/Belt
+[fruit] [park] call ep=13 n=13 along=+0.352 x=0.361 px=76 disc=152 vis=0.500 rel=0.450 arm_px=0 tgt_px=76 frac=0.000 ok=0 top=30:104px:4/visuals/openarm_left_link4_visual/mesh | 15:82px:/World/Conveyor/Belt | 70:76px:/World/Fruits/Fruit_04
+[fruit] [park] call ep=13 n=14 along=+0.348 x=0.361 px=57 disc=153 vis=0.374 rel=0.336 arm_px=0 tgt_px=57 frac=0.000 ok=0 top=30:137px:4/visuals/openarm_left_link4_visual/mesh | 15:70px:/World/Conveyor/Belt | 31:60px:3/visuals/openarm_left_link3_visual/mesh
+[fruit] [park] call ep=13 n=15 along=+0.344 x=0.361 px=34 disc=153 vis=0.222 rel=0.200 arm_px=0 tgt_px=34 frac=0.000 ok=0 top=30:178px:4/visuals/openarm_left_link4_visual/mesh | 31:61px:3/visuals/openarm_left_link3_visual/mesh | 15:51px:/World/Conveyor/Belt
+[fruit] [park] call ep=13 n=16 along=+0.340 x=0.361 px=9 disc=154 vis=0.059 rel=0.053 arm_px=0 tgt_px=9 frac=0.000 ok=0 top=30:200px:4/visuals/openarm_left_link4_visual/mesh | 31:68px:3/visuals/openarm_left_link3_visual/mesh | 15:47px:/World/Conveyor/Belt
+[fruit] [park] call ep=13 n=17 along=+0.336 x=0.361 px=0 disc=154 vis=0.000 rel=-1.000 arm_px=0 tgt_px=0 frac=-1.000 ok=0 top=30:226px:4/visuals/openarm_left_link4_visual/mesh | 31:75px:3/visuals/openarm_left_link3_visual/mesh | 15:23px:/World/Conveyor/Belt
+[fruit] [park] call ep=13 n=18 along=+0.332 x=0.361 px=0 disc=155 vis=0.000 rel=-1.000 arm_px=0 tgt_px=0 frac=-1.000 ok=0 top=30:224px:4/visuals/openarm_left_link4_visual/mesh | 31:81px:3/visuals/openarm_left_link3_visual/mesh | 15:19px:/World/Conveyor/Belt
+[fruit] [park] call ep=13 n=19 along=+0.328 x=0.361 px=0 disc=155 vis=0.000 rel=-1.000 arm_px=0 tgt_px=0 frac=-1.000 ok=0 top=30:231px:4/visuals/openarm_left_link4_visual/mesh | 31:83px:3/visuals/openarm_left_link3_visual/mesh | 15:10px:/World/Conveyor/Belt
+[fruit] [park] call ep=13 n=20 along=+0.324 x=0.361 px=0 disc=156 vis=0.000 rel=-1.000 arm_px=0 tgt_px=0 frac=-1.000 ok=0 top=30:226px:4/visuals/openarm_left_link4_visual/mesh | 31:89px:3/visuals/openarm_left_link3_visual/mesh | 15:9px:/World/Conveyor/Belt
+[fruit] [park] call ep=13 n=21 along=+0.320 x=0.361 px=0 disc=156 vis=0.000 rel=-1.000 arm_px=0 tgt_px=0 frac=-1.000 ok=0 top=30:230px:4/visuals/openarm_left_link4_visual/mesh | 31:93px:3/visuals/openarm_left_link3_visual/mesh | 15:1px:/World/Conveyor/Belt
+[fruit] [park] call ep=13 n=22 along=+0.316 x=0.361 px=0 disc=156 vis=0.000 rel=-1.000 arm_px=0 tgt_px=0 frac=-1.000 ok=0 top=30:231px:4/visuals/openarm_left_link4_visual/mesh | 31:93px:3/visuals/openarm_left_link3_visual/mesh
+[fruit] [park] call ep=13 n=23 along=+0.312 x=0.361 px=0 disc=157 vis=0.000 rel=-1.000 arm_px=0 tgt_px=0 frac=-1.000 ok=0 top=30:247px:4/visuals/openarm_left_link4_visual/mesh | 31:94px:3/visuals/openarm_left_link3_visual/mesh | 15:1px:/World/Conveyor/Belt
+[fruit] [park] call ep=13 n=24 along=+0.308 x=0.361 px=0 disc=157 vis=0.000 rel=-1.000 arm_px=0 tgt_px=0 frac=-1.000 ok=0 top=30:239px:4/visuals/openarm_left_link4_visual/mesh | 31:81px:3/visuals/openarm_left_link3_visual/mesh | 15:4px:/World/Conveyor/Belt
+[fruit] [park] call ep=13 n=25 along=+0.304 x=0.361 px=0 disc=158 vis=0.000 rel=-1.000 arm_px=0 tgt_px=0 frac=-1.000 ok=0 top=30:241px:4/visuals/openarm_left_link4_visual/mesh | 31:77px:3/visuals/openarm_left_link3_visual/mesh | 15:6px:/World/Conveyor/Belt
+[fruit] [task]   openarm fingertips 41 mm from the fruit; closing anyway
+[fruit] [acq] left idx=4: setup[premove=0.44 axis=0.44 hover=0.70 wait=1.66 catchup=1.88]s catchup=26t res=5.9mm last=(-3.9,-2.7,+5.8)mm | close_start=(-3.9,-1.5,+5.8)mm vx0=+0.000 latch=centring | contact=@1t(-3.9,-1.0,+5.8)mm F=0.11N freeze=72.8mm@16t span=90.0->77.2mm Fmax=7.64 | q2=-0.1038/0.1745 clip_min=+0.0mrad@j2
+[fruit] [task]   carry grasp_lift: stored pad centre 123 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist left grasp_lift tick 0: cmd_centre=[0.321, -0.0571, 1.327] offset=[-0.007, 0.0014, -0.0136] |offset|=15 mm jaw_target=[0.3223, -0.0641, 1.3134] jaw=[0.32100000977516174, -0.057100001722574234, 1.3270000219345093] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist left grasp_lift tick 1: cmd_centre=[0.321, -0.0571, 1.327] offset=[-0.007, 0.0014, -0.0136] |offset|=15 mm jaw_target=[0.3223, -0.0641, 1.3134] jaw=[0.32100000977516174, -0.05730000138282776, 1.3264000415802002] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist left grasp_lift tick 2: cmd_centre=[0.321, -0.0571, 1.327] offset=[-0.007, 0.0014, -0.0136] |offset|=15 mm jaw_target=[0.3223, -0.0641, 1.3134] jaw=[0.32089999318122864, -0.057500001043081284, 1.325700044631958] coherent=False hand_is_jaw=True
+[fruit] [carry] left grasp_lift: ticks=157/157 clean_slip_max=262.4mm in-hand_vmax=1.716 onset_row=89 force@onset=4.11N sep@onset=76.4mm contacts@onset=2 min_contacts=0 force_min=0.00N loss_row=120 guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=66.9mm open_max=0.0mm
+[fruit] [task]   carry place0: stored pad centre 91 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist left place0 tick 0: cmd_centre=[0.4037, -0.0245, 1.5494] offset=[-0.007, 0.0014, -0.0136] |offset|=15 mm jaw_target=[0.405, -0.0315, 1.5358] jaw=[0.40369999408721924, -0.02449999935925007, 1.549399971961975] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist left place0 tick 1: cmd_centre=[0.4037, -0.0245, 1.5494] offset=[-0.007, 0.0014, -0.0136] |offset|=15 mm jaw_target=[0.405, -0.0315, 1.5358] jaw=[0.40389999747276306, -0.02459999918937683, 1.5489000082015991] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist left place0 tick 2: cmd_centre=[0.4037, -0.0245, 1.5494] offset=[-0.007, 0.0014, -0.0136] |offset|=15 mm jaw_target=[0.405, -0.0315, 1.5358] jaw=[0.4041000008583069, -0.02459999918937683, 1.548200011253357] coherent=False hand_is_jaw=True
+[fruit] [carry] left place0: ticks=346/346 clean_slip_max=1165.5mm in-hand_vmax=0.448 onset_row=3 force@onset=0.00N sep@onset=51.9mm contacts@onset=0 min_contacts=0 force_min=0.00N loss_row=3 guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=53.3mm open_max=0.0mm
+[fruit] [rl]   grasp did not land on the belt; re-running carry_and_release
+[fruit] [rl] episode 13: pear d=6.8cm bin=0 arm=left success=False grasped=True placed=False ticks=1937 decision=314 reward=0.0000 notes=['intercept trigger (dy=25.0cm, dx=2.1cm, t_arrive=2.08s, speed=0.120m/s/encoder, frame=station, finger=0.0311, lead=2.08s/reach=0.30)'] presentation=direct ablate=none
+[fruit] [park] episode 13 arm=left inactive=right park=back m1_hold=+0.002 m1_hold_ok=1 m1_cmd=+0.026 m2_arm=0.000 m2_arm_ok=1 m2_rel=0.053 m2_rel_ok=0 m2_ok=0 m2_vis=0.000 band=+0.400 band_x=+0.361 band_px=155 band_disc=146 band_vis=1.063 arm_px=0 band_frac=0.000 band_calls=25 stale_skipped=1 worst_arm_at=+0.400 worst_vis_at=+0.336 min_frac=0.000 max_frac=0.000 drift=+0.004 calls=78 q=1.518,0.330,-1.570,1.269,1.560,0.620,-1.566 q_settled=1.520,0.330,-1.570,1.269,1.560,0.620,-1.566 top=15:169px:/World/Conveyor/Belt | 70:155px:/World/Fruits/Fruit_04
+[fruit] [belt] apple (index 5) discharged to the tray at x=1.64 (settled 17.1s)
+[fruit] [rl] episode 14: pear grade=A d=6.1cm bin=0 arm=left y=+0.510 presentation=direct
+[fruit] [park] call ep=14 n=1 along=+0.389 x=0.211 px=141 disc=128 vis=1.100 rel=1.000 arm_px=0 tgt_px=141 frac=0.000 ok=1 top=86:141px:/World/Fruits/Fruit_01 | 15:122px:/World/Conveyor/Belt | 77:26px:/World/Fruits/Fruit_09
+[fruit] [park] call ep=14 n=2 along=+0.385 x=0.211 px=140 disc=129 vis=1.088 rel=0.989 arm_px=0 tgt_px=140 frac=0.000 ok=1 top=86:140px:/World/Fruits/Fruit_01 | 15:124px:/World/Conveyor/Belt | 77:25px:/World/Fruits/Fruit_09
+[fruit] [park] call ep=14 n=3 along=+0.381 x=0.211 px=138 disc=129 vis=1.069 rel=0.971 arm_px=0 tgt_px=138 frac=0.000 ok=1 top=86:138px:/World/Fruits/Fruit_01 | 15:122px:/World/Conveyor/Belt | 77:29px:/World/Fruits/Fruit_09
+[fruit] [park] call ep=14 n=4 along=+0.377 x=0.211 px=142 disc=130 vis=1.096 rel=0.996 arm_px=0 tgt_px=142 frac=0.000 ok=1 top=86:142px:/World/Fruits/Fruit_01 | 15:126px:/World/Conveyor/Belt | 77:21px:/World/Fruits/Fruit_09
+[fruit] [park] call ep=14 n=5 along=+0.373 x=0.211 px=137 disc=130 vis=1.053 rel=0.957 arm_px=0 tgt_px=137 frac=0.000 ok=1 top=86:137px:/World/Fruits/Fruit_01 | 15:124px:/World/Conveyor/Belt | 77:28px:/World/Fruits/Fruit_09
+[fruit] [park] call ep=14 n=6 along=+0.369 x=0.211 px=139 disc=131 vis=1.064 rel=0.967 arm_px=0 tgt_px=139 frac=0.000 ok=1 top=86:139px:/World/Fruits/Fruit_01 | 15:124px:/World/Conveyor/Belt | 77:23px:/World/Fruits/Fruit_09
+[fruit] [park] call ep=14 n=7 along=+0.365 x=0.211 px=139 disc=131 vis=1.061 rel=0.964 arm_px=0 tgt_px=139 frac=0.000 ok=1 top=86:139px:/World/Fruits/Fruit_01 | 15:118px:/World/Conveyor/Belt | 77:27px:/World/Fruits/Fruit_09
+[fruit] [park] call ep=14 n=8 along=+0.361 x=0.211 px=140 disc=132 vis=1.064 rel=0.967 arm_px=0 tgt_px=140 frac=0.000 ok=1 top=86:140px:/World/Fruits/Fruit_01 | 15:110px:/World/Conveyor/Belt | 77:22px:/World/Fruits/Fruit_09
+[fruit] [park] call ep=14 n=9 along=+0.357 x=0.211 px=138 disc=132 vis=1.045 rel=0.950 arm_px=0 tgt_px=138 frac=0.000 ok=1 top=86:138px:/World/Fruits/Fruit_01 | 15:93px:/World/Conveyor/Belt | 77:25px:/World/Fruits/Fruit_09
+[fruit] [park] call ep=14 n=10 along=+0.353 x=0.211 px=140 disc=133 vis=1.057 rel=0.960 arm_px=0 tgt_px=140 frac=0.000 ok=1 top=86:140px:/World/Fruits/Fruit_01 | 15:107px:/World/Conveyor/Belt | 31:22px:3/visuals/openarm_left_link3_visual/mesh
+[fruit] [park] call ep=14 n=11 along=+0.349 x=0.211 px=137 disc=133 vis=1.030 rel=0.936 arm_px=0 tgt_px=137 frac=0.000 ok=1 top=86:137px:/World/Fruits/Fruit_01 | 15:92px:/World/Conveyor/Belt | 31:32px:3/visuals/openarm_left_link3_visual/mesh
+[fruit] [park] call ep=14 n=12 along=+0.345 x=0.211 px=136 disc=133 vis=1.019 rel=0.926 arm_px=0 tgt_px=136 frac=0.000 ok=1 top=86:136px:/World/Fruits/Fruit_01 | 15:98px:/World/Conveyor/Belt | 31:43px:3/visuals/openarm_left_link3_visual/mesh
+[fruit] [park] call ep=14 n=13 along=+0.341 x=0.211 px=128 disc=134 vis=0.956 rel=0.869 arm_px=0 tgt_px=128 frac=0.000 ok=1 top=86:128px:/World/Fruits/Fruit_01 | 15:76px:/World/Conveyor/Belt | 31:58px:3/visuals/openarm_left_link3_visual/mesh
+[fruit] [park] call ep=14 n=14 along=+0.337 x=0.211 px=119 disc=134 vis=0.885 rel=0.805 arm_px=0 tgt_px=119 frac=0.000 ok=0 top=86:119px:/World/Fruits/Fruit_01 | 31:89px:3/visuals/openarm_left_link3_visual/mesh | 15:69px:/World/Conveyor/Belt
+[fruit] [park] call ep=14 n=15 along=+0.333 x=0.211 px=86 disc=135 vis=0.638 rel=0.580 arm_px=0 tgt_px=86 frac=0.000 ok=0 top=31:121px:3/visuals/openarm_left_link3_visual/mesh | 86:86px:/World/Fruits/Fruit_01 | 15:69px:/World/Conveyor/Belt
+[fruit] [park] call ep=14 n=16 along=+0.329 x=0.211 px=58 disc=135 vis=0.429 rel=0.390 arm_px=0 tgt_px=58 frac=0.000 ok=0 top=31:179px:3/visuals/openarm_left_link3_visual/mesh | 15:60px:/World/Conveyor/Belt | 86:58px:/World/Fruits/Fruit_01
+[fruit] [park] call ep=14 n=17 along=+0.325 x=0.211 px=42 disc=136 vis=0.309 rel=0.281 arm_px=0 tgt_px=42 frac=0.000 ok=0 top=31:199px:3/visuals/openarm_left_link3_visual/mesh | 15:45px:/World/Conveyor/Belt | 86:42px:/World/Fruits/Fruit_01
+[fruit] [park] call ep=14 n=18 along=+0.321 x=0.211 px=33 disc=136 vis=0.242 rel=0.220 arm_px=0 tgt_px=33 frac=0.000 ok=0 top=31:220px:3/visuals/openarm_left_link3_visual/mesh | 15:51px:/World/Conveyor/Belt | 86:33px:/World/Fruits/Fruit_01
+[fruit] [park] call ep=14 n=19 along=+0.317 x=0.211 px=22 disc=137 vis=0.161 rel=0.146 arm_px=0 tgt_px=22 frac=0.000 ok=0 top=31:228px:3/visuals/openarm_left_link3_visual/mesh | 15:39px:/World/Conveyor/Belt | 86:22px:/World/Fruits/Fruit_01
+[fruit] [park] call ep=14 n=20 along=+0.313 x=0.211 px=8 disc=137 vis=0.058 rel=0.053 arm_px=0 tgt_px=8 frac=0.000 ok=0 top=31:269px:3/visuals/openarm_left_link3_visual/mesh | 15:29px:/World/Conveyor/Belt | 86:8px:/World/Fruits/Fruit_01
+[fruit] [park] call ep=14 n=21 along=+0.309 x=0.211 px=0 disc=138 vis=0.000 rel=-1.000 arm_px=0 tgt_px=0 frac=-1.000 ok=0 top=31:275px:3/visuals/openarm_left_link3_visual/mesh | 15:14px:/World/Conveyor/Belt
+[fruit] [park] call ep=14 n=22 along=+0.305 x=0.211 px=0 disc=138 vis=0.000 rel=-1.000 arm_px=0 tgt_px=0 frac=-1.000 ok=0 top=31:296px:3/visuals/openarm_left_link3_visual/mesh | 15:10px:/World/Conveyor/Belt
+[fruit] [park] call ep=14 n=23 along=+0.301 x=0.211 px=0 disc=139 vis=0.000 rel=-1.000 arm_px=0 tgt_px=0 frac=-1.000 ok=0 top=31:263px:3/visuals/openarm_left_link3_visual/mesh | 15:26px:/World/Conveyor/Belt
+[fruit] [task]   openarm fingertips 55 mm from the fruit; closing anyway
+[fruit] [acq] left idx=1: setup[premove=0.57 axis=0.57 hover=0.92 wait=1.66 catchup=1.86]s catchup=24t res=5.7mm last=(-3.0,-5.8,+8.3)mm | close_start=(-3.0,-4.6,+8.3)mm vx0=+0.000 latch=centring | contact=@0t(-3.0,-4.6,+8.3)mm F=8.00N freeze=64.3mm@18t span=90.0->70.9mm Fmax=8.00 | q2=-0.4005/0.1745 clip_min=+0.0mrad@j2
+[fruit] [task]   carry grasp_lift: stored pad centre 150 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist left grasp_lift tick 0: cmd_centre=[0.2036, -0.1011, 1.3275] offset=[-0.0103, -0.0048, -0.0089] |offset|=14 mm jaw_target=[0.1987, -0.1114, 1.3186] jaw=[0.20360000431537628, -0.10109999775886536, 1.3274999856948853] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist left grasp_lift tick 1: cmd_centre=[0.2036, -0.1011, 1.3275] offset=[-0.0103, -0.0048, -0.0089] |offset|=14 mm jaw_target=[0.1987, -0.1114, 1.3186] jaw=[0.2037999927997589, -0.10119999945163727, 1.327299952507019] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist left grasp_lift tick 2: cmd_centre=[0.2036, -0.1011, 1.3275] offset=[-0.0103, -0.0048, -0.0089] |offset|=14 mm jaw_target=[0.1987, -0.1114, 1.3186] jaw=[0.20399999618530273, -0.10119999945163727, 1.3270000219345093] coherent=False hand_is_jaw=True
+[fruit] [carry] left grasp_lift: ticks=156/156 clean_slip_max=203.8mm in-hand_vmax=1.807 onset_row=120 force@onset=5.10N sep@onset=71.0mm contacts@onset=2 min_contacts=0 force_min=0.00N loss_row=136 guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=60.1mm open_max=0.0mm
+[fruit] [task]   carry place0: stored pad centre 103 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist left place0 tick 0: cmd_centre=[0.3003, -0.107, 1.565] offset=[-0.0103, -0.0048, -0.0089] |offset|=14 mm jaw_target=[0.2954, -0.1174, 1.5561] jaw=[0.3003000020980835, -0.10700000077486038, 1.565000057220459] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist left place0 tick 1: cmd_centre=[0.3003, -0.107, 1.565] offset=[-0.0103, -0.0048, -0.0089] |offset|=14 mm jaw_target=[0.2954, -0.1174, 1.5561] jaw=[0.3003999888896942, -0.1071000024676323, 1.5647000074386597] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist left place0 tick 2: cmd_centre=[0.3003, -0.107, 1.565] offset=[-0.0103, -0.0048, -0.0089] |offset|=14 mm jaw_target=[0.2954, -0.1174, 1.5561] jaw=[0.3005000054836273, -0.10719999670982361, 1.5642999410629272] coherent=False hand_is_jaw=True
+[fruit] [carry] left place0: ticks=409/409 clean_slip_max=1365.8mm in-hand_vmax=0.452 onset_row=3 force@onset=0.00N sep@onset=51.7mm contacts@onset=0 min_contacts=0 force_min=0.00N loss_row=3 guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=53.3mm open_max=0.0mm
+[fruit] [rl]   grasp did not land on the belt; re-running carry_and_release
+[fruit] [rl] episode 14: pear d=6.1cm bin=0 arm=left success=False grasped=True placed=False ticks=1827 decision=147 reward=0.0000 notes=['intercept trigger (dy=25.0cm, dx=-12.9cm, t_arrive=2.08s, speed=0.120m/s/encoder, frame=station, finger=0.0187, lead=2.10s/reach=0.30)'] presentation=direct ablate=none
+[fruit] [park] episode 14 arm=left inactive=right park=back m1_hold=+0.002 m1_hold_ok=1 m1_cmd=+0.026 m2_arm=0.000 m2_arm_ok=1 m2_rel=0.053 m2_rel_ok=0 m2_ok=0 m2_vis=0.000 band=+0.389 band_x=+0.211 band_px=141 band_disc=128 band_vis=1.100 arm_px=0 band_frac=0.000 band_calls=23 stale_skipped=1 worst_arm_at=+0.389 worst_vis_at=+0.309 min_frac=0.000 max_frac=0.000 drift=+0.000 calls=36 q=1.518,0.330,-1.570,1.269,1.560,0.620,-1.566 q_settled=1.520,0.330,-1.570,1.269,1.560,0.620,-1.566 top=86:141px:/World/Fruits/Fruit_01 | 15:122px:/World/Conveyor/Belt | 77:26px:/World/Fruits/Fruit_09
+[fruit] [rl] seed 77: 10/15 success
+[fruit] [rl] rollout success 10/15 (presentation=direct, ablate=none, seeds=[77])
+[fruit] [rl] run wall end 1792858485.120 duration 421.7s
+2026-10-24T16:07:42Z [16,378ms] [Warning] [omni.syntheticdata.plugin] SdRenderVarPtr missing valid input renderVar LdrColorSDbuff
+[439.684s] Simulation App Shutting Down
