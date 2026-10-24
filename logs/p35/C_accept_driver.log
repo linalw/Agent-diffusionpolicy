@@ -1,0 +1,80 @@
+=== pre-flight self-check (SKIP_SELFCHECK=1 to skip) ===
+selfcheck: 2026-10-24T14:17:43+08:00
+
+offline motion checks      PASS   0.08s
+dataset index audit        PASS   0.88s
+collect/merge regression   PASS   0.33s
+finger collider guard      PASS   0.03s
+rl env smoke               PASS   0.07s
+tasks.py pin               PASS   0.07s
+rl report parser           PASS   0.04s
+r9 endpoint report         PASS   0.04s
+r9 rollout merge           PASS   0.07s
+rtc runtime selftest       PASS   1.98s
+trigger intercept test     PASS   0.06s
+distill selftest           PASS   4.28s
+loop metrics selftest      PASS   0.83s
+path3 event selftest       PASS   0.08s
+a2c2 correction selftest   PASS   1.49s
+path3 report selftest      PASS   0.03s
+bimanual scheduler test    PASS   0.55s
+supply scatter selftest    PASS   3.80s
+speed channel test         PASS   1.36s
+two-line selector test     PASS   0.06s
+reach-anywhere selftest    PASS   0.07s
+claim slot harness         PASS  13.15s
+ops selfcheck selftest     PASS   1.68s
+bed supply audit           PASS   4.37s
+prepared-next selftest     PASS   0.09s
+motion budgets             SKIP      -
+
+PASS: 0 failures, 1 skipped (log: logs/selfcheck.log)
+
+=== scripted line: 10 attempts, HEADLESS=1 ===
+[fruit] [stats] attempts=10 successes=6 diverted=0 success_rate=60% sim=150.2s total, 15.0s/attempt, 25.0s/success gate_open=0.0s total, queue_peak=0 recirculated=0 encoder=-0.120 m/s nominal (command -0.120, no cleats to measure travel)
+[fruit] [run] summary: 6/10 successful
+
+=== motion gate ===
+logs/p35/C_accept_no_harm.log: 10 descent leg(s), line=dynamic
+   #   dist samples  |v|max  budget   |a|max   |dv|  a_med  peak@  a_win5  verdict
+   1   5.6c      88   0.109   0.161     2.06  0.017   0.24   0.02    0.75  ok
+   2   5.8c      91   0.110   0.161     1.45  0.012   0.23   0.02    0.46  ok
+   3   5.6c      89   0.108   0.161     1.89  0.016   0.23   0.02    0.65  ok
+   4   5.8c      91   0.110   0.161     1.32  0.011   0.24   0.02    0.42  ok
+   5   5.7c      89   0.108   0.160     1.86  0.015   0.23   0.02    0.64  ok
+   6   5.7c      90   0.108   0.160     1.68  0.014   0.22   0.02    0.56  ok
+   7   5.8c      91   0.110   0.161     1.44  0.012   0.23   0.02    0.45  ok
+   8   5.7c      90   0.109   0.160     1.67  0.014   0.24   0.02    0.54  ok
+   9   5.6c      88   0.109   0.161     2.00  0.017   0.23   0.01    0.68  ok
+  10   5.7c      90   0.108   0.160     1.70  0.014   0.24   0.02    0.57  ok
+  worst: |v|max=0.1100 m/s (budget 0.160-0.161), lurch=0.017 m/s/tick (budget 0.291477), a_win5=0.750 m/s^2 (carrying budget 2, warning)
+
+logs/p35/C_accept_no_harm.log: 19 carry leg(s)
+  leg              dist    cone  over    slip in-hand |v| recov  verdict
+  grasp_lift        21c   0.88x    0%  294.1mm      1.667     0  ok
+  place0            50c   0.86x    0%  818.3mm      0.449     0  ok
+  grasp_lift        20c   0.88x    0%   35.3mm      0.343     0  ok
+  place0            59c   1.03x    3%  989.2mm      1.954     0  ok (cone 1.03x reported)
+  grasp_lift        21c   0.93x    0%  274.0mm      2.022     0  ok
+  place0            56c   0.86x    0%  908.4mm      0.450     0  ok
+  grasp_lift        28c   1.27x    1% 1309.7mm      4.760     0  ok (cone 1.27x reported)
+  grasp_lift        23c   0.89x    0%   47.1mm      0.084     0  ok
+  place1            32c   0.87x    0%   54.5mm      0.097     0  ok
+  grasp_lift        23c   0.92x    0%   50.2mm      0.086     0  ok
+  place1            41c   0.86x    0%   57.8mm      0.105     0  ok
+  grasp_lift        22c   1.00x    0%   36.5mm      0.109     0  ok (hand 0.48 m/s: rescued)
+  place1            32c   1.19x   10%   68.4mm      0.113     0  ok (cone 1.19x reported)
+  grasp_lift        22c   0.94x    0%   45.6mm      0.093     0  ok (hand 0.48 m/s: rescued)
+  place1            34c   1.22x    6%   63.6mm      0.182     0  ok (cone 1.22x reported)
+  grasp_lift        21c   0.93x    0%   35.3mm      0.063     0  ok
+  place1            40c   0.86x    0%   58.4mm      0.077     0  ok
+  grasp_lift        22c   0.88x    0%   25.8mm      0.041     0  ok
+  place0            58c   0.86x    0%   91.5mm      0.086     0  ok
+  worst held-grip cone: 1.27x budget (budget 1x)
+  hand speed: worst 0.482 m/s; 2/19 leg(s) over 0.45 m/s (reported, not gated) - every other leg sits at the commanded 0.176-0.371
+
+  success: 6/10 = 60% (floor 75% - dynamic line, measured baseline 9/10)
+  fingerprint: matches configs/motion_reference.json
+
+FAIL: 1 problem(s)
+  - success 6/10 below 75%

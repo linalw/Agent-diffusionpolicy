@@ -1,0 +1,47 @@
+# P35 C_ab pairing, SAME-SPECIES set (`scripts/113_rl_report.py` -> C_verdict.txt).
+# This is the looser pairing: same run + episode + species + arm, NO diameter
+# match, so "both ok" counts a pair whose presented fruit differs. It reads
+# 24 pairs: 8 B-only / 1 A-only (one-sided p = 0.0195). The one A-only pair is
+# run4 ep10 orange 6.5 cm (A, ok) vs 6.1 cm (B, carried) - a DIFFERENT fruit,
+# which the exact (diameter-matched) pairing excludes; that exact set is
+# `C_report.txt`'s "exact-instance pairs: 22 usable" = 8 B-only / 0 A-only
+# (p = 0.0039), carried-class 7-0. The design-valid leg is the run level
+# (B > A in 5/5 runs, one-sided p = 0.031); the pairing is conditioned on a
+# post-treatment variable (the streams diverge with the outcomes). `112_rl_ab.sh`
+# runs arm A before arm B in a fixed order (no randomisation).
+runs paired: [1, 2, 3, 4, 5] | episodes per arm: 75 / 75
+== arm A: pooled 24/75 | classes ok=24 no-contact=3 carried-not-placed=48 other=0
+   left : n=24 ok=1 no-contact=0 carried=23 other=0
+   right: n=51 ok=23 no-contact=3 carried=25 other=0
+== arm B: pooled 49/75 | classes ok=49 no-contact=3 carried-not-placed=23 other=0
+   left : n=25 ok=2 no-contact=0 carried=23 other=0
+   right: n=50 ok=47 no-contact=3 carried=0 other=0
+
+paired, all pairs:        both ok 6, both fail 9, B-only ok 8, A-only ok 1, excluded (fruit class differs) 51, missing 0
+paired, same-fruit only:  both ok 6, both fail 9, B-only ok 8, A-only ok 1
+sign test (B better): p = 0.0195 (discordant 9)
+
+===== A-better discordant pairs (same fruit) =====
+  run4 ep10 orange     A=ok -> B=carried
+===== B-better discordant pairs (same fruit) =====
+  run1 ep 0 apple      A=no-contact -> B=ok
+  run2 ep 4 apple      A=carried -> B=ok
+  run2 ep 5 lychee     A=carried -> B=ok
+  run2 ep 8 lychee     A=carried -> B=ok
+  run2 ep14 lychee     A=carried -> B=ok
+  run3 ep 0 orange     A=carried -> B=ok
+  run3 ep10 lychee     A=carried -> B=ok
+  run3 ep13 peach      A=carried -> B=ok
+
+===== class transitions (same-fruit pairs) =====
+  carried     -> carried       8
+  carried     -> ok            7  <== flip
+  no-contact  -> no-contact    1
+  no-contact  -> ok            1  <== flip
+  ok          -> carried       1  <== flip
+  ok          -> ok            6
+  carried-class: B-only conversions 7, A-only conversions 1
+  no-contact-class: B-only conversions 1, A-only conversions 0
+
+strawberry A: 3/7
+strawberry B: 11/13

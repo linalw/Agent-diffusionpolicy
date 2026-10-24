@@ -1273,6 +1273,62 @@ the place. No default is flipped in either phase; if P1c confirms, adoption need
 both `motion_reference_patch.json` **and** `motion_reference_twoline.json`
 re-recorded plus a `collection.patch_density` manifest field.
 
+**P35 (2026-10-24, `logs/p35/`, default off, not adopted): the park is a measured
+interface lever, its mediator is not identified, and the check is a separate object
+from the outcome.** `FRUIT_ARM_PARK=<name>` (`rl_env.py`, direct presentation only;
+`configs/arm_parks.json`, only the left arm has a park) teleports the **inactive**
+arm to a named pose at reset instead of the shipped `ready`; unset it is one dict
+lookup per arm and byte-inert. Phase 1 measured the geometric lever offline: the
+inactive left arm at `ready` covers **98 %** of a 58 mm fruit's disc at along
++0.35 / 57 % at +0.40 (mean 0.382 of the stream), and `back` takes the marginal
+cover to **0.002** with the hand 0.287 m above the belt (the right arm covers 0.00
+and its park does not hold, so the lever is left-only and its population is the
+**right-arm** episodes - the direct env sets the arm from the grade). The record
+A/B (`logs/p35/C_ab/`, the Gate-1 P0-revised check, N = 5 runs x 15 episodes per
+arm, seeds 77/101/202/303/404, interleaved, `moe_v13s` `61da390a` on both arms,
+P33/W8-A scenario verbatim): **right 23/51 (45 %) -> 47/50 (94 %)** with the
+**carried-not-placed class 25 -> 0** (composite 28 -> 3, no-grasp 3 -> 3), the
+**left** no-op guard flat 1/24 -> 2/25, pooled **24/75 -> 49/75**, **B > A in 5/5
+runs, all strict (one-sided p = 0.031)**. **The design-valid leg is the run level
+plus the standardised counts** (right 94.9 % class- / 94.1 % size-standardised
+against 52.3 %/45.2 %; the per-class deltas carry different denominators); the
+**exact-instance pairing is conditioned on a post-treatment variable** - the streams
+diverge with the outcomes, so only 22 of 75 slots stay pairable - and it reads
+8 B-only / 0 A-only (p = 0.0039), carried 7-0; `C_pairs.txt` is the looser
+same-species set (24 pairs, 8/1, the extra A-only being a different fruit). **The
+check** (Gate-1 P0): M1 the pose held vs the pose the reset **achieved** (50/50;
+the achieved-vs-commanded residual is reported, 0.088 rad - the shipped `ready` sits
+0.037 from its own command, so a command bar cannot be the gate), M2a the arm term
+at the +0.30..+0.40 band's **worst** call (50/50; control 0/51), and the census:
+the band's **fully-hidden target calls 856/1257 = 68.1 % -> 0/1236 = 0 %**, calls
+with any inactive-arm pixel inside the fruit's **projected-disc bbox** **100 % ->
+0 %**. **The gate of record is M1 + M2a**; M2b (the episode-relative `rel >= 0.85`)
+is a **recorded report at 36/50 = 72 %**, not the gate, and its misses are
+`arm_px = 0` on 22-47 px masks (the running `px*d^2` normalisation + raster drift,
+the belt as the largest instance). **What it does not show:** the park is a static
+scene change on the image (3497 -> 4155 px of silhouette) *and* the **7
+inactive-arm joints of the 25-D proprio**, and this A/B does not separate them;
+the control **succeeds with the fruit invisible** (9 of its 23 right successes read
+`px=0` at every band call; successes' median fully-hidden share 0.84 vs the
+failures' 0.60), which argues against a simple perception bottleneck. So: **the
+park is a measured interface lever; the check shows it removes the fruit's band
+occlusion; the mediator (image vs the 7 proprio channels) is not identified.** It
+ships **default off** (no shipped default changed) - the adoption gate is a
+**recollection's own A/B**, which fixes both channels at once and can erase a
+checkpoint-specific input-shift win, so it should not be the first spend on the
+mechanism; the named discriminator is a small-N 2x2 **proprio-spoof x
+image-spoof** (the park's joints in the obs with the arm unmoved, and the arm moved
+with the `ready` proprio). `PREREG.md` section 5's literal arm-pose block
+(> 0.02 rad) is **failed** by the 0.088 command residual (a `teleport_joints`
+settle property); not adopted either way. No-harm: selfcheck PASS; acceptance with
+both knobs unset **6/10 + `fingerprint: matches`** (the exit=1 is the expected
+rate-only result) with **376/376 `[fruit]` lines identical** to
+`logs/p34/73_accept_no_harm.log`; tree md5s identical before/after. Pins:
+`rl_env.py` `fd18bb1b` (+424/-1), `arm_parks.json` `42ab4fb7`,
+`scripts/217_arm_park_map.py` `d73618f9`, `logs/p35/park_ab_report.py`
+`a796db0b`, `logs/p35/C_attribution.py` `b3311523` (batch-time
+`cce04b95`/`c15c03ca`, Gate-2 docs/`frac` fixed).
+
 ## 3. What changed -> what to run
 
 | you changed | run |

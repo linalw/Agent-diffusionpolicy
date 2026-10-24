@@ -832,6 +832,93 @@ class SortingRLEnv:
             self._reset_align_max_ticks = max(
                 1, int(os.environ.get("FRUIT_RESET_ALIGN_MAX_TICKS", "600"))
             )
+        # --- P35 phase 1: the inactive arm's park, default off --------------- #
+        #: `FRUIT_ARM_PARK=<name>` (direct presentation only): park the
+        #: **inactive** arm at a named pose from `configs/arm_parks.json` instead
+        #: of the shipped `ready` waypoint, for the whole episode. Measured
+        #: (P35 phase 1, `logs/p35/A_READ.md`): the inactive left arm at `ready`
+        #: hides 98 % of a 58 mm fruit at along +0.35 and 57 % at +0.40, and the
+        #: park named `back` takes the marginal cover to 0.002. Unset, or
+        #: `=ready`, is byte-inert: no file read, one dict lookup per arm.
+        self._arm_park = os.environ.get("FRUIT_ARM_PARK", "").strip()
+        self._arm_park_poses: dict[str, np.ndarray] = {}
+        self._arm_park_source: dict | None = None
+        if self._arm_park and self._arm_park != "ready":
+            if presentation != "direct":
+                raise ValueError(
+                    "FRUIT_ARM_PARK is only defined for presentation='direct' "
+                    "(the scripted line parks through tasks.go_ready)"
+                )
+            park_path = os.environ.get(
+                "FRUIT_ARM_PARK_FILE", os.path.join(_REPO_ROOT, "configs/arm_parks.json")
+            )
+            with open(park_path, encoding="utf-8") as fh:
+                parks = json.load(fh)
+            entry = parks.get("parks", {}).get(self._arm_park)
+            if entry is None:
+                raise ValueError(
+                    f"FRUIT_ARM_PARK={self._arm_park!r} is not in {park_path} "
+                    f"(have: {sorted(parks.get('parks', {}))})"
+                )
+            for name in ("left", "right"):
+                vec = entry.get(name)
+                if vec:
+                    self._arm_park_poses[name] = np.asarray(vec, dtype=float).reshape(7)
+            self._arm_park_source = {
+                "name": self._arm_park,
+                "file": os.path.relpath(park_path, _REPO_ROOT),
+                "source": parks.get("source", ""),
+                "sides": sorted(self._arm_park_poses),
+            }
+        #: `FRUIT_PARK_DIAG=1` (P35 phase 2, Gate-1 P0 revision): the **per-call
+        #: park manipulation check** of `logs/p35/PREREG.md` section 2. M1 is
+        #: "the pose held": the inactive arm's joints at the first **non-stale**
+        #: model call against the pose the reset actually **achieved** (read
+        #: after the reset's own settle), plus the achieved-vs-commanded
+        #: residual as a report (the teleport re-bases onto the measured state,
+        #: so the command is not reachable within 0.02 rad). M2 is "the
+        #: sightline": censused over the **+0.30..+0.40** band (phase 1's cover
+        #: is 0.81 / 0.98 / 0.57 there and 0.01 at +0.45, so +0.45 samples the
+        #: one pose the mechanism is not about) and read at the band's **worst**
+        #: call, with the arm's pixels counted inside the target's **projected
+        #: disc** bbox - the analytic sphere projection, not the visible-mask
+        #: extent, which shrinks with the occluder it is supposed to measure.
+        #: The first model call is skipped: it conditions on the pre-reset frame
+        #: (P34-B), so it cannot carry a pose or sightline claim. Pure reporting
+        #: and off by default: with `image_channels == 5` the segmentation frame
+        #: is already read, so this only keeps it plus one projection per band
+        #: call; off, none of these fields is read or written.
+        self._park_diag = os.environ.get("FRUIT_PARK_DIAG", "0") == "1"
+        self._park_band = (0.30, 0.40)
+        self._last_seg = None
+        self._last_seg_labels: dict = {}
+        self._park_settled: dict[str, np.ndarray] = {}
+        self._park_q_settled: list[float] = []
+        self._park_m1_hold = float("nan")
+        self._park_m1_cmd = float("nan")
+        self._park_q_first: list[float] = []
+        self._park_q_band: list[float] = []
+        self._park_band_along = float("nan")
+        self._park_band_x = float("nan")
+        self._park_band_px = -1
+        self._park_band_disc = -1.0
+        self._park_band_vis = -1.0
+        self._park_band_arm = -1
+        self._park_band_top = ""
+        self._park_pxc_max = -1.0
+        self._park_band_calls = 0
+        self._park_stale_skipped = 0
+        self._park_worst_arm = -1.0
+        self._park_worst_arm_along = float("nan")
+        self._park_worst_vis = -1.0
+        self._park_worst_vis_along = float("nan")
+        self._park_worst_top = ""
+        self._park_min_frac = -1.0
+        self._park_max_frac = -1.0
+        self._park_min_frac_along = float("nan")
+        self._park_max_frac_along = float("nan")
+        self._park_min_rel = -1.0
+        self._park_min_rel_along = float("nan")
         #: Per-episode diagnostic state (`_align_diag` only; pure reporting).
         self._align_y0 = float("nan")        # the selection (header) along
         self._align_along_reset = float("nan")   # along at the reset return
@@ -1129,6 +1216,9 @@ class SortingRLEnv:
                 if (self._reset_align or self._align_diag)
                 else None
             ),
+            #: P35 phase 1: the inactive arm's park (absent = the shipped
+            #: `ready` waypoint). A run's arm pose is part of its scenario.
+            "arm_park": self._arm_park_source,
             "event_replan": {
                 "enabled": bool(self._event),
                 "min": int(self._event_min),
@@ -1342,8 +1432,16 @@ class SortingRLEnv:
         if self.presentation == "direct":
             for name, other in self.task.arms.items():
                 other.set_gripper(other.OPEN)
+                # P35: the *inactive* arm only - the active one is teleported to
+                # its `grasp` right below, and a second park teleport would add a
+                # settle's worth of belt travel to the reset. An unset
+                # `FRUIT_ARM_PARK` leaves the shipped `ready` call unchanged
+                # (`_arm_park_poses` is empty).
+                park = None if name == active else self._arm_park_poses.get(name)
                 other.teleport_joints(
                     np.asarray(self.waypoints["arms"][name]["ready"], dtype=float)
+                    if park is None
+                    else park
                 )
             start = np.asarray(self.waypoints["arms"][active]["grasp"], dtype=float)
         else:
@@ -1379,6 +1477,20 @@ class SortingRLEnv:
         # P34-B: the active arm's pose at the reset return (diag only; one
         # articulation read, never on the shipped path).
         q_reset = [float(v) for v in arm.joint_positions()] if self._align_diag else []
+        # P35 phase 2 (Gate-1 P0): the pose the reset **achieved** for every arm,
+        # read after the reset's own settle. The park's M1 is measured against
+        # this, not against the commanded vector: `teleport_joints` writes the
+        # pose, steps 30 substeps and then re-bases the drive onto the measured
+        # state, so a 0.5 rad j1 move is *held* 0.09-0.10 rad short of its
+        # command - and the shipped `ready` pose is 0.027-0.038 short of its own.
+        # Diag only: two articulation reads per episode.
+        if self._park_diag:
+            self._park_settled = {
+                name: np.asarray(other.joint_positions(), dtype=float)
+                for name, other in self.task.arms.items()
+            }
+        else:
+            self._park_settled = {}
         # P34 phase 2: put the first *model call* at the demos' first view
         # (default off; one False branch and no read on the shipped path).
         # The advance is physics-only and happens before `_episode_t0`, so the
@@ -1457,6 +1569,38 @@ class SortingRLEnv:
         self._policy_proposal = None
         self._ep_interventions = 0
         self._ep_expert_ticks = 0
+        # P35 phase 2: the per-call park check's episode state (the `[park]` row
+        # is printed only when `FRUIT_PARK_DIAG=1`; off, this is one False
+        # branch and no writes).
+        if self._park_diag:
+            self._park_q_settled = []
+            self._park_m1_hold = float("nan")
+            self._park_m1_cmd = float("nan")
+            self._park_q_first = []
+            self._park_q_band = []
+            self._park_band_along = float("nan")
+            self._park_band_x = float("nan")
+            self._park_band_px = -1
+            self._park_band_disc = -1.0
+            self._park_band_vis = -1.0
+            self._park_band_arm = -1
+            self._park_band_top = ""
+            self._park_pxc_max = -1.0
+            self._park_band_calls = 0
+            self._park_stale_skipped = 0
+            self._park_worst_arm = -1.0
+            self._park_worst_arm_along = float("nan")
+            self._park_worst_vis = -1.0
+            self._park_worst_vis_along = float("nan")
+            self._park_worst_top = ""
+            self._park_min_frac = -1.0
+            self._park_max_frac = -1.0
+            self._park_min_frac_along = float("nan")
+            self._park_max_frac_along = float("nan")
+            self._park_min_rel = -1.0
+            self._park_min_rel_along = float("nan")
+            self._last_seg = None
+            self._last_seg_labels = {}
         # P34 phase 2: per-episode diagnostic state (one False branch on the
         # shipped path; the `[align]` row is printed only when `_align_diag`).
         if self._align_diag:
@@ -1522,14 +1666,26 @@ class SortingRLEnv:
         depth = np.asarray(raw_depth[0].numpy()) if raw_depth is not None else None
         mask = None
         if rgb is not None and depth is not None:
-            if self._image_channels == 5 or self._recorder is not None:
+            # P35 phase 2: `_park_diag` retains the segmentation frame it reads
+            # for the per-call park check. With `image_channels == 5` (the
+            # shipped policy) that read already happens, so the diag adds no
+            # sensor read on the A/B path; when the mask is not part of the
+            # observation the diag *does* read the segmentation (reporting
+            # only - `push_frame` still gets the same `None`).
+            if (self._image_channels == 5 or self._recorder is not None
+                    or self._park_diag):
                 raw = self.scene.camera_sensor.get_data("instance_id_segmentation")
                 seg = np.asarray(raw[0].numpy()) if raw is not None else None
+                labels: dict = {}
                 if seg is not None:
                     if seg.ndim == 3:
                         seg = seg[..., 0]
                     info = raw[1] if isinstance(raw, tuple) and len(raw) > 1 else {}
                     labels = info.get("idToLabels", {}) if isinstance(info, dict) else {}
+                if self._park_diag:
+                    self._last_seg, self._last_seg_labels = seg, labels
+                if seg is not None and (self._image_channels == 5
+                                        or self._recorder is not None):
                     target_id = 0
                     want = self._sample.prim_path if self._sample is not None else None
                     for key, value in labels.items():
@@ -1661,6 +1817,10 @@ class SortingRLEnv:
             # pure reporting for the manipulation check. Reached only when a
             # model call is about to happen; the diag is off by default.
             self._align_note_call()
+        if self._park_diag:
+            # P35 phase 2: the per-call park counters (same site: one fruit-pose
+            # read plus a bbox census on the band call only).
+            self._park_note_call()
         chunk = self.policy.act(
             self.proprio(), self._goal, num_steps=self.ddim_steps if num_steps is None
             else int(num_steps)
@@ -1882,6 +2042,265 @@ class SortingRLEnv:
                 self._align_zone_zero += 1
             elif px > 0:
                 self._align_zone_px.append(int(px))
+
+    def _park_note_call(self) -> None:
+        """P35 phase 2 (Gate-1 P0): one model call's park counters (diag only).
+
+        **M1 - the pose held.** Read at the first **non-stale** model call
+        (`_infer_calls >= 1`; the first call conditions on the pre-reset frame,
+        P34-B) and measured against the pose the reset **achieved** for the
+        inactive arm (captured after the reset's own settle), with the
+        achieved-vs-commanded residual reported separately. The command is not
+        the right reference: `teleport_joints` re-bases the drive onto the
+        measured state, so the shipped `ready` sits 0.027-0.038 rad from its own
+        command and the park 0.090-0.102 from its.
+
+        **M2 - the sightline.** Censused over **+0.30..+0.40** (phase 1's cover
+        is 0.81 / 0.98 / 0.57 there and 0.01 at +0.45, so counting +0.45 samples
+        the one pose the arm does not occlude) and read at the band's **worst**
+        call. The arm's pixels are counted inside the target's **projected disc**
+        bbox (`_park_disc_bbox`: the analytic sphere projection, the same camera
+        model as `212`/`217`) - not the visible-mask extent, which shrinks by
+        exactly the occlusion being measured and so under-counts the occluder.
+        The target's visibility is reported two ways and gated on the first:
+        `rel` (against the episode's depth-corrected maximum, the phase-1/PREREG
+        normalisation) and `vis` (against the projected disc's own pixel area -
+        absolute, no assumption that some call of the episode is unoccluded, but
+        the analytic disc over-reads the rendered silhouette by 10-15 %, so it
+        is a report and not a bar: phase 1's fully-visible proxies read
+        0.878-0.953 of it).
+        Reporting only: one fruit-pose read plus one projection + bbox histogram
+        per band call.
+        """
+        if self._sample is None:
+            return
+        if self._infer_calls < 1:
+            # The pre-reset frame (P34-B): the first model call conditions on a
+            # frame one or more renders behind, so it can carry neither a pose
+            # nor a sightline claim.
+            if self._park_diag:
+                self._park_stale_skipped += 1
+            return
+        fruit = np.asarray(self.spawner.position(self._sample), dtype=float)
+        along = float(fruit[1]) - float(self._expert_jaw_y)
+        mask = self._last_mask
+        px = -1 if mask is None else int(np.asarray(mask).sum())
+        eye = np.array([float(self.cfg.head_camera_forward), 0.0,
+                        float(self.cfg.head_camera_z)])
+        pxc = float(px) * float(np.sum((fruit - eye) ** 2)) if px >= 0 else -1.0
+        if pxc > self._park_pxc_max:
+            self._park_pxc_max = pxc
+        inactive = "right" if self._active == "left" else "left"
+        arm = self.task.arms.get(inactive)
+        want = self._arm_park_poses.get(inactive)
+        if want is None:
+            want = np.asarray(self.waypoints["arms"][inactive]["ready"], dtype=float)
+        want = np.asarray(want, dtype=float)
+        settled = self._park_settled.get(inactive)
+        if self._park_m1_hold != self._park_m1_hold and arm is not None:
+            q = np.asarray(arm.joint_positions(), dtype=float)
+            if settled is not None:
+                self._park_m1_hold = float(np.max(np.abs(q - settled)))
+                self._park_m1_cmd = float(np.max(np.abs(np.asarray(settled) - want)))
+                self._park_q_settled = [float(v) for v in settled]
+            else:
+                self._park_m1_cmd = float(np.max(np.abs(q - want)))
+            self._park_q_first = [float(v) for v in q]
+        lo, hi = self._park_band
+        if lo <= along <= hi and px >= 0:
+            bbox, disc_area = self._park_disc_bbox(fruit, float(self._sample.diameter))
+            if bbox is None:
+                return
+            arm_px, target_px, top = self._park_bbox_census(bbox, inactive)
+            rel = pxc / self._park_pxc_max if self._park_pxc_max > 0 and pxc > 0 else -1.0
+            frac = arm_px / target_px if arm_px >= 0 and target_px > 0 else -1.0
+            vis = target_px / disc_area if disc_area > 0 else -1.0
+            ok = int(frac >= 0 and frac < 0.10 and rel >= 0.85)
+            self._park_band_calls += 1
+            if self._park_q_band == [] and arm is not None:
+                # The pose at the band's first call, so `drift` (first non-stale
+                # call -> band call) reports whether the pose holds through the
+                # window the sightline is scored in. One articulation read.
+                self._park_q_band = [float(v) for v in arm.joint_positions()]
+            if self._park_band_along != self._park_band_along:  # first band call
+                self._park_band_along = along
+                self._park_band_x = float(fruit[0])
+                self._park_band_px = int(px)
+                self._park_band_disc = float(disc_area)
+                self._park_band_vis = float(vis)
+                self._park_band_arm = int(arm_px)
+                self._park_band_top = top
+            # The gate reads the band's WORST call, not its best or its first.
+            if frac >= 0 and frac > self._park_worst_arm:
+                self._park_worst_arm = float(frac)
+                self._park_worst_arm_along = float(along)
+                self._park_worst_top = top
+            if vis >= 0 and (self._park_worst_vis < 0 or vis < self._park_worst_vis):
+                self._park_worst_vis = float(vis)
+                self._park_worst_vis_along = float(along)
+            if frac >= 0 and (self._park_min_frac < 0 or frac < self._park_min_frac):
+                self._park_min_frac = float(frac)
+                self._park_min_frac_along = float(along)
+            if frac > self._park_max_frac:
+                self._park_max_frac = float(frac)
+                self._park_max_frac_along = float(along)
+            if rel >= 0 and (self._park_min_rel < 0 or rel < self._park_min_rel):
+                self._park_min_rel = float(rel)
+                self._park_min_rel_along = float(along)
+            self._say(
+                f"[park] call ep={self._episode} n={self._park_band_calls} "
+                f"along={along:+.3f} x={float(fruit[0]):.3f} px={int(px)} "
+                f"disc={disc_area:.0f} vis={vis:.3f} rel={rel:.3f} "
+                f"arm_px={int(arm_px)} tgt_px={int(target_px)} frac={frac:.3f} "
+                f"ok={ok} top={top or '-'}"
+            )
+
+    def _park_disc_bbox(self, fruit: np.ndarray, diameter: float):
+        """The target's **projected disc** bbox + its exact pixel area.
+
+        The analytic sphere projection of the shipped head camera - the same
+        camera model as `scripts/212_occlusion_map.py` / `217_arm_park_map.py`
+        (`assets.SceneConfig`'s eye/target/focal/aperture, the frame's own
+        resolution). A sphere of radius `r` at distance `d` subtends
+        `asin(r/d)`, so its silhouette is a circle of pixel radius
+        `f * r / sqrt(d^2 - r^2)` and area `pi * radius^2` - exact, no sampling.
+        Deliberately *not* the visible mask's extent: that extent is the disc
+        minus its occluder, so a bbox fitted to it shrinks exactly when the
+        occlusion the check is measuring is present, and the arm's share of it
+        is under-counted. Returns `(bbox, area_px)` with
+        `bbox = (c0, c1, r0, r1)` clipped to the frame, or `(None, -1)` if the
+        sphere is behind the camera or off-frame.
+        """
+        seg = self._last_seg
+        if seg is None:
+            return None, -1.0
+        h, w = seg.shape[:2]
+        eye = np.array([float(self.cfg.head_camera_forward), 0.0,
+                        float(self.cfg.head_camera_z)])
+        target = np.asarray(self.cfg.head_camera_target, dtype=float)
+        z = eye - target
+        z = z / np.linalg.norm(z)
+        up = np.array([0.0, 0.0, 1.0])
+        x = np.cross(up, z)
+        x = x / np.linalg.norm(x)
+        y = np.cross(z, x)
+        rot = np.stack([x, y, z], axis=1)
+        fx = (w / 2.0) * float(self.cfg.camera_focal_length) / (
+            float(self.cfg.camera_aperture[0]) / 2.0)
+        fy = fx
+        cx, cy = (w - 1) / 2.0, (h - 1) / 2.0
+        radius = float(diameter) / 2.0
+        rel = np.asarray(fruit, float) - eye
+        dist = float(np.linalg.norm(rel))
+        if dist <= radius * 1.01:
+            return None, -1.0
+        pc = rot.T @ rel
+        if pc[2] >= -1e-9:
+            return None, -1.0
+        r_px = fx * radius / float(np.sqrt(max(dist * dist - radius * radius, 1e-9)))
+        col = cx + fx * (pc[0] / -pc[2])
+        row = cy - fy * (pc[1] / -pc[2])
+        # The census bbox: the silhouette's own extent, rounded outward by one
+        # pixel (the rasterised edge) - and no wider.
+        c0 = int(np.floor(col - r_px)) - 1
+        c1 = int(np.ceil(col + r_px)) + 1
+        r0 = int(np.floor(row - r_px)) - 1
+        r1 = int(np.ceil(row + r_px)) + 1
+        if c1 < 0 or c0 > w - 1 or r1 < 0 or r0 > h - 1:
+            return None, -1.0
+        c0, c1 = max(0, c0), min(w - 1, c1)
+        r0, r1 = max(0, r0), min(h - 1, r1)
+        if c1 <= c0 or r1 <= r0:
+            return None, -1.0
+        return (c0, c1, r0, r1), float(np.pi * r_px * r_px)
+
+    def _park_bbox_census(self, bbox, inactive: str) -> tuple[int, int, str]:
+        """The parked arm's pixels in the target's disc bbox, the target's, top 3.
+
+        Both counts come from the same segmentation frame the model call
+        conditioned on: the arm's primitives all start `openarm_<side>_` (so
+        `<side>_right_finger` cannot confuse the sides), the target's from its
+        own mask. Returns `(-1, -1, "")` when the frame or the mask is missing.
+        """
+        seg = self._last_seg
+        mask = self._last_mask
+        if seg is None or mask is None or bbox is None:
+            return -1, -1, ""
+        c0, c1, r0, r1 = bbox
+        sub = np.asarray(seg)[r0:r1 + 1, c0:c1 + 1]
+        sub_mask = np.asarray(mask)[r0:r1 + 1, c0:c1 + 1] > 0
+        if sub.size == 0:
+            return -1, -1, ""
+        ids, counts = np.unique(sub, return_counts=True)
+        labels = self._last_seg_labels or {}
+        prefix = f"openarm_{inactive}_"
+        arm_px = 0
+        for ident, count in zip(ids, counts):
+            text = str(labels.get(str(int(ident)), labels.get(int(ident), "")))
+            if prefix in text:
+                arm_px += int(count)
+        target_px = int(sub_mask.sum())
+        order = np.argsort(-counts)[:3]
+        top = " | ".join(
+            f"{int(ids[i])}:{int(counts[i])}px:"
+            f"{str(labels.get(str(int(ids[i])), labels.get(int(ids[i]), '?')))[-40:]}"
+            for i in order
+        )
+        return arm_px, target_px, top
+
+    def _park_report(self) -> str:
+        """The `[park]` row: M1/M2 of `logs/p35/PREREG.md` section 2 (P0 gate)."""
+        def num(value: float, fmt: str = "+.3f") -> str:
+            return format(float(value), fmt) if value == value else "-"
+
+        inactive = "right" if self._active == "left" else "left"
+        band = int(self._park_band_along == self._park_band_along)
+        m1_hold_ok = int(self._park_m1_hold == self._park_m1_hold
+                         and self._park_m1_hold <= 0.02)
+        # M2 is the pre-registered conjunction at the band's worst call: the
+        # arm's share of the target's *disc* bbox (< 0.10) and the target's
+        # visibility against the episode's depth-corrected maximum (`rel`,
+        # `[align]`'s `pfc`/`pcm` normalisation, >= 0.85). `vis` (against the
+        # projected disc's pixel area, `disc`) is reported, not gated: the
+        # analytic disc over-reads the rendered silhouette by 10-15 % (phase 1's
+        # fully-visible proxies read 0.878-0.953 of it), so its 0.85 bar would
+        # fail a fully visible fruit.
+        # The first band call can be fully occluded (`band_px == 0`, the
+        # control's normal case), so this ratio needs its own guard: the row
+        # must never raise (a `ZeroDivisionError` here aborts the episode, and
+        # it did - the first record batch's arm-A runs died at episode 3).
+        band_frac = (float(self._park_band_arm) / float(self._park_band_px)
+                     if self._park_band_arm >= 0 and self._park_band_px > 0
+                     else -1.0)
+        m2_arm = int(0.0 <= self._park_worst_arm < 0.10)
+        m2_rel = int(self._park_min_rel >= 0.85)
+        drift = float("nan")
+        if self._park_q_band and self._park_q_first:
+            drift = float(np.max(np.abs(np.asarray(self._park_q_band, float)
+                                        - np.asarray(self._park_q_first, float))))
+        return (
+            f"[park] episode {self._episode} arm={self._active} inactive={inactive} "
+            f"park={self._arm_park or 'ready'} "
+            f"m1_hold={num(self._park_m1_hold)} m1_hold_ok={m1_hold_ok} "
+            f"m1_cmd={num(self._park_m1_cmd)} "
+            f"m2_arm={self._park_worst_arm:.3f} m2_arm_ok={m2_arm if band else -1} "
+            f"m2_rel={self._park_min_rel:.3f} m2_rel_ok={m2_rel if band else -1} "
+            f"m2_ok={int(m2_arm and m2_rel) if band else -1} "
+            f"m2_vis={self._park_worst_vis:.3f} "
+            f"band={num(self._park_band_along)} band_x={num(self._park_band_x)} "
+            f"band_px={int(self._park_band_px)} band_disc={self._park_band_disc:.0f} "
+            f"band_vis={self._park_band_vis:.3f} "
+            f"arm_px={int(self._park_band_arm)} band_frac={band_frac:.3f} "
+            f"band_calls={int(self._park_band_calls)} "
+            f"stale_skipped={int(self._park_stale_skipped)} "
+            f"worst_arm_at={num(self._park_worst_arm_along)} "
+            f"worst_vis_at={num(self._park_worst_vis_along)} "
+            f"min_frac={self._park_min_frac:.3f} max_frac={self._park_max_frac:.3f} "
+            f"drift={num(drift)} calls={int(self._infer_calls)} "
+            f"q={','.join(format(v, '.3f') for v in self._park_q_first) or '-'} "
+            f"q_settled={','.join(format(v, '.3f') for v in self._park_q_settled) or '-'} "
+            f"top={self._park_worst_top or self._park_band_top or '-'}"
+        )
 
     def _align_report(self) -> str:
         """The `[align]` row: the manipulation check + the fire-zone mask."""
@@ -2767,6 +3186,10 @@ class SortingRLEnv:
             # P34 phase 2: the first-call manipulation check + the fire-zone
             # target-mask counters (pure reporting over already-read values).
             self._say(self._align_report())
+        if self._park_diag:
+            # P35 phase 2: M1/M2 of the park A/B's manipulation check (pure
+            # reporting over the frame the calls already conditioned on).
+            self._say(self._park_report())
         if self.dagger is not None:
             decisions = max(1, int(self._step) // 4)
             self._say(

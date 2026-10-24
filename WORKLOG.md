@@ -17175,3 +17175,357 @@ carry class is closed negative on the scripted single-arm interface; the C1
 class-matched direct re-run remains the one open item. (5) No shipped default
 changed in the whole lane: `FRUIT_FEED_CADENCE` off, `accept_policy.sh` on
 `moe_v12`, the bed opt-in.
+
+### P35 phase 1: the inactive arm's park is the sightline lever (the marginal cover 0.382 -> 0.002), the camera is second, and the P34-B right-arm `first_rel` is the stale frame (2026-10-24)
+
+**The lever is measured, the outcome is not.** The inactive **left** arm at the
+shipped `ready` pose sits between the head camera and the belt's approach band:
+its silhouette covers **98 %** of a 58 mm fruit's disc at along +0.35, **57 %** at
++0.40 and **0.382** of the scored stream on average (depth-gated: an arm pixel
+counts only in front of the fruit's surface), while `212` reads the belt at 1.00
+there - so this is arm occlusion, not the output belt. The park named **`back`**
+(ready + j1 -0.50 / j2 -0.60 / j4 -0.50 rad; `configs/arm_parks.json`) moves the
+arm up and downstream into the spawn corner and takes the **marginal** cover -
+the share of the stream the belt would have shown and the arm hides - to
+**0.002**; the stream's mean visible fraction then equals the belt-only ceiling
+(0.77). Rendered, with static fruit proxies on *current* frames (two identical
+renders required): a 68 mm pear at (0.219, +0.399) reads **0.378 -> 0.878**, a
+58 mm fruit at (0.19, +0.35) **0.000 -> 0.953**, the inner band (0.30, +0.40)
+0.051 -> 0.940. The `outer_edge` proxy (0.23, +0.40) stays 0.105 under every
+park because its occluder is the output belt's **frame** prim, not the arm.
+
+**The sweep and the safety reads.** 53 parks per side (`ready` + 7 joints x 3
+magnitudes x 2 signs clipped + 5 named folds + a 4-step ladder of the deepest),
+each with both arms' `link_pose` chains, the rendered silhouette + depth, the
+90-tick hold, the lowest link, the belt footprint, the parked-to-active link gap
+and the torso gap. No single-joint move clears the band without **relocating**
+the occlusion: `j2+080` and `high` clear +0.30..+0.55 and then cover the decision
+zone (0.87/0.65 at +0.20/+0.25 for `high`), `j1-080` covers more (0.58), and
+`fold_85` re-enters at 0.41/0.33 because its hand lands on the belt's inner edge
+(x 0.102). `j1+080` is the lowest-cost pose measured (0.007) and is **not a
+park**: clipped at the limit it settles 0.209 rad from the command and puts a
+link below the belt top (1.141). `back` holds **0.0007 rad over 900 ticks** with
+a 0.3 mm jaw drop (`30_park_hold.log`), the hand 0.287 m above the belt, 0.187 m
+from the active arm's chain and 0.688 m from the torso; `side_deep` is the
+runner-up (cost 0.036, hold 0.0001 rad, hand out of the belt footprint but 9 mm
+above it at x ~0). The **right** arm is not part of the lever: at `ready` it
+covers 0.00 everywhere, and its `back` vector does not hold (0.174 rad) and puts
+the fingertip in the belt footprint - so the park is **one-sided, left only**,
+and the population it can act on is the **right-arm** episodes (the direct env
+presents B/C to the right).
+
+**The camera is priced and dominated.** Rendered through one `RtxCamera` per
+pose (the shipped pose through its own camera reproduces the head camera's mask
+at IoU 0.959/0.937): the best camera (`x -0.10`) reaches marginal cost 0.075 /
+visible 0.69 against the park's 0.002 / 0.77, and every camera moves every
+pixel. Named second, not proposed.
+
+**A correction to P34-B (and to this lane's premise).** The right-arm
+`first_rel` 0.077/0.131 at along +0.441/+0.445 is the **pre-reset frame** - its
+bboxes there are 222/213 px of `/World/Conveyor/Belt` with the fruit absent, and
+the arm contributes 24/12 px *beside* the disc; the +0.399 row is real (the arm
+dominates the bbox at 127 px) and the proxies quantify it as 0.378 visible at
+`ready`, not 0.115. The arm's occlusion is real but sits at along **+0.30..+0.45**
+(the approach/decision band); at the shipped first call (along +0.541) the
+occluder is the **output belt** (`212` 0.00), not the arm. The first-call mask
+stays unusable as a manipulation check: with `back` the same call still reads
+`target_px=0` and now shows `link3`/`link4` in the bbox - the park applied, the
+frame still one render behind - so the pre-registered check is read **per call** at
+the first target along in +0.30..+0.45 (target mask vs the episode max + the
+parked arm's pixels in its bbox; a default-off diag), not at the first call.
+
+**Default off, no shipped default changed.** `rl_env.py` `FRUIT_ARM_PARK`
+(+46/0; `arm_park` in the manifest; unset = one `dict.get` per arm at reset) and
+`configs/arm_parks.json`; both branches exercised (`40` off, `41` on) and the
+active-arm guard checked (`42`: with the left active the reset reads
+`along_reset=+0.443`, `target_px=158` - the P34-B left control exactly - so the
+park adds no second settle to the active side).
+`scripts/selfcheck.sh` PASS (0 failures, 1 skipped). The A/B is pre-registered
+in `logs/p35/PREREG.md` (endpoints: the right arm's paired carried-not-placed
+class, its no-grasp/composite, the outer-band subgroup; guard: the left, which
+the treatment cannot touch), and a positive still needs a **recollection** to
+ship (the park is a static scene change in every frame: 3497 -> 4155 px of arm
+silhouette; a null is OOD-confounded).
+
+### P35 phase 2: the arm-park A/B - the park removes the fruit's band occlusion and the right's carried class 26 -> 0, the mediator is not identified, and adoption stays blocked (2026-10-24)
+
+**The lever moves the outcome, on the arm the pre-registration predicted.** N = 5
+runs x 15 episodes per arm, seeds 77/101/202/303/404, policy seed 11, interleaved
+in one claim, the P33/W8-A scenario verbatim, `moe_v13s` `61da390a` on **both**
+arms; A = the shipped env, B = `FRUIT_ARM_PARK=back` (the inactive **left** arm
+only). **Pooled 29/75 (39 %) -> 47/75 (63 %)**; the lever is one-sided by
+construction, and the effect is where it must be: the **right** arm (the
+population the direct env presents grade B/C to) goes **28/57 (49 %) -> 45/48
+(94 %)**, its **carried-not-placed class 26 -> 0**, its no-grasp 3 -> 3 (no class
+relocation), the composite 29 -> 3; the **left** arm - the treatment's no-op,
+because the park never touches the active arm - is **1/18 -> 2/27**, flat. Per
+run (right ok/ng/carried): A 7/2/2, 1/0/8, 8/0/6, 5/1/5, 7/0/5 vs B 8/2/0,
+9/1/0, 8/0/0, 11/0/0, 9/0/0 - **B >= A in 5/5 seeds**, strictly better in 4/5
+(one-sided p = 0.0625). The primary pairing (exact instance: run, episode,
+species, diameter, arm) has **22 usable pairs** of 75 slots (53 excluded - the
+streams diverge), 5 both-ok / 7 both-fail / **8 B-only / 2 A-only**
+(**p = 0.0547**), and the **carried-class conversion is 7 B-only / 1 A-only**,
+which **meets** the pre-registered bar (>= 5 / <= 1). The outer-band subgroup
+(right, check-frame x < 0.26) is A n=24 ok 4 / carried 18 / no-grasp 2 vs B n=15
+**ok 15 / carried 0 / no-grasp 0**. Cycle 1851 -> 1821 ticks (-1.6 %; right 1823
+-> 1793). The sign test is one pair short of 0.05, as the pre-registration said it
+would be at this N - the primary read is the class conversion and the per-run
+consistency, not the pooled sign test.
+
+**The mechanism is measured in vivo, per call, on the frame the model
+conditioned on.** The new default-off `FRUIT_PARK_DIAG=1` census (`[park]` rows,
+one per band call in +0.30..+0.45, the band the arm occludes and the +Y belt
+does not): with the park, the inactive arm's pixels inside the target's own
+rendered bbox are **0.000 at every one of the 1645 band calls** (control: median
+`arm_frac` **1.125**, max **3.000**, 56/57 episodes above 0.10); the fruit's
+**median visibility over the band rises 0.423 -> 0.942** of the episode's own
+depth-corrected maximum (`px * d^2`, the `[align]` `pfc`/`pcm` normalisation);
+and the band's **fully-hidden calls fall 1017/2010 = 51 % -> 17/1645 = 1.0 %**.
+The within-batch negative control is clean: on **left-active** episodes the
+tournament arm is the **right** one, which `configs/arm_parks.json` leaves
+shipped, so both arms run the same scene - episode-median visibility 0.940 (A,
+n=18) vs 0.933 (B, n=27), `arm_frac` 0.000 on 18/18 and 27/27.
+
+**Both pre-registered check instruments failed on their own smoke data, and the
+amendment was written before the A/B** (`logs/p35/B_PREREG_AMEND.md`, on the
+check's three smoke pairs only, no outcome read): **M1**'s 0.02 rad bar sits
+below the reset's own teleport accuracy - the shipped `ready` misses its command
+by **0.027-0.038 rad** and the park by **0.090-0.102 rad**, because
+`ArmController.teleport_joints` re-bases `sync_command_to_measured()` after a
+30-substep settle and the 0.5 rad j1 move is unfinished; the residual is stable
+(+0.011 rad first-call -> band-call) and reproducible (0.091/0.090). **M2**'s
+"first call in the band" is the band's **least-occluding edge** (phase 1's cover
+0.81/0.98/0.57/**0.01** at +0.30/+0.35/+0.40/+0.45), so the control passes it
+23/57. The amended gate reads the same questions at the pose and over the whole
+band: **M1'** (applied + stable: `|q-back| <= 0.15`, `|q-ready| >= 0.30`, drift
+<= 0.02) **48/48** treatment / **0/57** control; **M2a'** (the arm term,
+`max arm_frac < 0.10`) **48/48** / **1/57**; **M2b'** (episode-median visibility
+>= 0.85) **48/48** / **1/57**. The strict per-call visibility form is **not
+usable** and the reason is measured: the small-fruit mask is 24-30 px, so +-2 px
+is +-8 %, and the no-op side (where the arm is not an occluder at all) fails it
+**0/27** while passing its median form 25/27. Where the visibility term still
+fails under the park, the largest instance at the worst visible call is the
+**target itself** (24/24) - mask jitter and the outer x's belt frame, the phase-1
+`outer_edge` (0.105 visible under every park), not the arm.
+
+**The verdict: the falsifier does not fire; the adoption blocks are the
+pre-registered ones.** The **park is a measured interface lever on this
+scenario** - check passed, class converted, guard flat, cycle -1.6 % - and the
+check shows it **removes the fruit's band occlusion**. **The mediator is not
+identified**: the park is a static scene change on the image (3497 -> 4155 px of
+silhouette in every frame) *and* on the **7 inactive-arm joints of the 25-D
+proprio** (every store frame has the left arm at `ready`), and this A/B does not
+separate the two; the C record's control succeeding with the fruit invisible
+argues against a simple perception bottleneck (see the next entry). It ships
+**default off** (unset = the shipped `ready` teleport; no shipped default
+changed, no commit) and the **adoption is blocked twice, as written**: (1) **one
+new failure reason**, B run 1 episode 10 (strawberry 3.6 cm, right, x 0.355):
+`fruit drifted 6160 mm off the pick centre` -> `fruit left the pick station
+(17977 mm cross-belt); aborting` - a 6-18 m displacement is a runaway body state,
+not a mechanism, and it lands in the existing **no-grasp** class, but the string
+is new and `PREREG.md` section 5 blocks on it; (2) the park's realized pose is
+**0.090-0.102 rad** from its command (> 0.02) - a teleport-settle artifact (the
+census is 48/48), but the bullet is the bullet. The shipping path is a
+**recollection**, and its own A/B is the adoption gate.
+
+**No-harm and provenance.** `scripts/selfcheck.sh` **PASS** (0 failures, 1
+skipped) before and after the batch; the scripted acceptance with the knob
+**unset** reads **6/10 + `fingerprint: matches configs/motion_reference.json`**
+with its **376 `[fruit]` lines IDENTICAL** to `logs/p34/73_accept_no_harm.log`
+(the 6/10 is the pre-existing P32 pear-on branch, rate-only FAIL). The tree is
+byte-identical before and after the batch: `rl_env.py` **611b18d8** (the P35
+phase-1 knob + the new `FRUIT_PARK_DIAG` census, default off), `tasks.py`
+`cdde6bd2`, `trigger.py` `d7ec85fc`, `runtime.py` `379ac706`, `meshes.py`
+`41efc522`, `configs/arm_parks.json` `42ab4fb7`; `moe_v13s` `61da390a`.
+Evidence: `logs/p35/B_ab/` (`B_driver.log`, `A_1..5`/`B_1..5`, `B_report.txt`,
+`B_class_split.txt`, `B_pairs.txt`, `B_verdict.txt`, `B_attribution.txt`,
+`B_band_stats.txt`, `B_tables.txt`, the md5 pins), `logs/p35/B_RESULTS.md`,
+`logs/p35/B_PREREG_AMEND.md`, the smokes `logs/p35/1[0-3]_smoke*.log`, and the
+report script `logs/p35/park_ab_report.py` + `logs/p35/C_attribution.py`.
+
+### P35 phase 2, Gate-1 P0 revision + re-run: the check is fixed, the park still converts the right's carried class 25 -> 0 (run-level 5/5; 7-0 on the exact pairs), the record of record is `C_ab`, and the mediator is not identified (2026-10-24)
+
+**Gate 1 blocked the batch on the check's *instrument*, not on the lever, and all
+five items were measured defects.** (1) **M1 vs the configured command** was
+unreachable by construction: `ArmController.teleport_joints` writes the pose,
+steps 30 substeps and then `sync_command_to_measured()`, so the pose is *held*
+where the drive reached it - the shipped `ready` sits **0.037 rad** from its own
+command and the park **0.088**, while the bar was 0.02. The fix keeps the bar's
+intent and changes its reference: **held vs the pose the reset achieved**
+(<= 0.02 rad, so a drift or an overwrite still fails), with the
+achieved-vs-commanded residual reported (the gate's second option, a 0.04 rad
+command bar, would fail the *shipped* reset too, so it cannot be the gate).
+(2) **M2 was read at +0.45**, where phase 1's cover is 0.01 - the band's
+least-occluding edge, which is why the pre-P0 control passed it 23/57; the census
+is now **+0.30..+0.40** and read at the band's **worst** call. (3) **The bbox was
+the visible-mask extent**, i.e. the disc minus the occluder it is measuring, so the
+arm's share of it was under-counted; it is now the **projected disc**
+(`r_px = f r / sqrt(d^2 - r^2)`, exact area `pi r_px^2`, the `212`/`217` camera
+model). (4) **The stale first call** is skipped (`_infer_calls >= 1`,
+`stale_skipped` = 1/episode) - it conditions on the pre-reset frame, `px=0` on
+72/75. (5) The diag is **documented** (sentinels `px=0`, `rel=-1`, `frac=-1`),
+selfcheck PASS before/after, the tree re-pinned, and a **2-episode pilot per arm**
+ran before the batch (`23`/`24_pilot_*`). The revision is pre-registered in
+`logs/p35/C_PREREG_AMEND.md`; the pre-P0 batch (`B_ab`) is kept as provenance and
+its file is marked superseded. Two of my own bugs were caught by the pilot/early
+runs and fixed before the record batch: a bbox-`pi` disc area that over-read small
+fruit by ~40 % (now the exact analytic silhouette, calibrated offline: 157 px for a
+68 mm fruit vs a 174 px render; 39 vs 27 for a 36 mm one) and a `ZeroDivisionError`
+in the `[park]` row when the control's first band call is fully occluded (it killed
+three arm-A runs of the first attempt at the record batch).
+
+**The record batch (`logs/p35/C_ab/`, N=5x15, seeds 77/101/202/303/404, one claim,
+`moe_v13s` `61da390a` both arms, `FRUIT_ARM_PARK=back` vs unset).** **Pooled 24/75
+(32 %) -> 49/75 (65 %)**; the **right** (the lever's population) **23/51 (45 %) ->
+47/50 (94 %)** with its **carried-not-placed class 25 -> 0**, no-grasp 3 -> 3, the
+composite **28 -> 3**; the **left** (no-op guard) 1/24 -> 2/25 flat; **B > A in
+5/5 runs, every one strict (one-sided sign p = 0.031)**; median cycle 1867 -> 1802
+ticks (-3.5 %, on **different outcome mixes** - right 45 % vs 94 % success, so it
+is not a like-for-like speed read). **The design-valid leg is the run level +
+the standardised counts**: the right's **94.9 % class-standardised / 94.1 %
+size-standardised** success against the control's 52.3 % / 45.2 % (the raw 45 % ->
+94 %), with the per-class deltas `113` prints (apple +42, kiwi +7, ...) carrying
+**different denominators** each, i.e. not mix-adjusted effects. **The
+exact-instance pairing is conditioned on a post-treatment variable** (the streams
+diverge with the outcomes, so which slots stay pairable is a consequence of the
+treatment): **22 usable pairs** of 75 slots, 6 both-ok, 8 both-fail, **8 B-only /
+0 A-only (one-sided sign p = 0.0039)**, **carried-class 7 B-only / 0 A-only** (the
+pre-registered bar >= 5 / <= 1 met). The **outer band** (right, check-frame
+x < 0.26): A n=23 ok 6 / carried 16, B n=17 **ok 16 / carried 0**, pairs 13 usable
+**6 B-only / 0 A-only** (p = 0.0156), carried 5-0. `C_pairs.txt` is the looser
+**same-species** set (`113`): **24 pairs, 8 B-only / 1 A-only** (p = 0.0195) - the
+extra A-only pair is run4 ep10 **orange 6.5 vs 6.1 cm, a different fruit**, which
+the diameter-matched exact pairing excludes. `112_rl_ab.sh` runs **A then B** in a
+fixed order per run (no randomisation), so an order term is not separated here.
+**No new failure reason**; per-class B >= A in all eight classes.
+
+**The check, in exact counts (no bar, no normalisation).** The lever's population
+(inactive = the left arm): the band's **fully-hidden target calls 856/1257 =
+68.1 % -> 0/1236 = 0.0 %**, and calls carrying **any** inactive-arm pixel inside
+the fruit's **projected-disc bbox** **1257/1257 = 100 % (worst arm/target pixel
+ratio 333) -> 0/1236 = 0 %**; **M1 applied** (realized pose is `back`, not
+`ready`, drift <= 0.02) **0/51 -> 50/50**, **M1 held** 51/51 / 50/50, **M2a** (arm
+term at the worst call) **0/51 -> 50/50**. **The gate of record is M1 + M2a**; the
+control fails M2a 51/51. The **no-op side is the within-batch negative control**
+(left-active episodes, the right arm shipped in both): hidden 65/584 (11.1 %) vs
+55/610 (9.0 %), inactive-arm pixels 0/584 vs 0/610 - the instrument behaves
+identically when the lever is absent. **M2b (the episode-relative `rel >= 0.85`
+at the worst call) is a recorded report at 36/50 = 72 %, not the gate**: all 14
+misses have **`arm_px = 0`** (masks of 22-47 px whose largest instance is the
+**belt**), the disc-relative `vis` is **0.57-1.02** (**2** >= 0.98, 3 >= 0.97),
+and `rel` divides by a **running** `px*d^2` maximum (updated on every non-stale
+call, not the episode's final maximum) - so a band call is normalised against
+another call's geometry, and the small-mask raster drift is the rest. So the
+claim rests on the exact counts (hidden 68.1 % -> 0.0 %, arm 100 % -> 0 %) and
+M2b is reported beside them. `C_attribution.py` counted a `frac = -1` row as
+passing the arm term; fixed (`max(frac) >= 0` required), re-run and annotated:
+**A's inactive-left arm term is 0/51, not 11/51** - the 11 were the
+never-visible rows (`arm 40, never-visible 11`).
+
+**Verdict.** The **falsifier does not fire**: the check passes on M1 / M2a / the
+census and the right's carried class converts 25 -> 0 (run-level 5/5; 7-0
+paired). **The park is a measured interface lever on this scenario; the check
+shows it removes the fruit's band occlusion; the mediator (image vs the 7
+proprio channels) is not identified - the control's invisible-fruit successes
+argue against a simple perception bottleneck** (9 of its 23 right-arm successes
+read `px=0` at every band call; the successes' median fully-hidden share 0.84
+against the failures' 0.60). **Default off, no shipped default changed, no
+commit.** Adoption still needs a **recollection** and its own A/B, but a
+recollection fixes both channels at once and **can erase a checkpoint-specific
+input-shift win**, so it should not be the first spend on the mechanism: the
+named discriminator is a small-N **2x2 spoof** - the **proprio-spoof** (the
+park's joint values in the observation, the arm *not* moved) x the
+**image-spoof** (the arm moved to `back`, the `ready` proprio). **`PREREG.md`
+section 5's literal "arm-pose residual > 0.02 rad" block is failed** by the
+park's 0.088 rad achieved-vs-commanded residual (the shipped `ready` reset is
+0.037 from its own command, so the block is a teleport-settle property); the
+conclusion - not adopted - is unchanged. The `113` line "B PASSES the
+improvement criterion" is a **P33-era harness readout, not the decision** (its
+criteria are the old rate/sign/strawberry set). **No-harm**: `selfcheck.sh` PASS
+(0 failures, 1 skipped) before and after; the scripted acceptance with both
+knobs unset **6/10 + `fingerprint: matches`** (its `exit=1` is the expected
+rate-only result) and its **376 `[fruit]` lines IDENTICAL** to
+`logs/p34/73_accept_no_harm.log` - the identity was re-verified after the
+driver's premature `cat` (14:22 vs the 14:25 file); the tree md5s identical
+before/after the batch. Pins: `rl_env.py` **fd18bb1b** (**+424/-1 vs HEAD**; the
+P35 knob + the P0 diag), `arm_parks.json` `42ab4fb7`, `scripts/217_arm_park_map.py`
+`d73618f9`, `logs/p35/park_ab_report.py` `cce04b95` ->
+`a796db0b` and `logs/p35/C_attribution.py` `c15c03ca` -> `b3311523` (the Gate-2
+doc/`frac` fixes: the `C_attribution.txt` here is the re-run, annotated), `tasks.py`
+`cdde6bd2`, `trigger.py` `d7ec85fc`, `runtime.py` `379ac706`, `meshes.py`
+`41efc522`, `moe_v13s` `61da390a`, HEAD `21b9acc`.
+Evidence: `logs/p35/C_ab/` (`C_driver.log`, `A_1..5`/`B_1..5`, `C_report.txt`,
+`C_class_split.txt`, `C_pairs.txt` - labelled as the same-species set -,
+`C_verdict.txt` - `113`'s "B PASSES the improvement criterion" -, `C_tables.txt`,
+`C_attribution.txt`, `C_misses.txt`, the
+md5 pins), `logs/p35/C_RESULTS.md`, `C_PREREG_AMEND.md`, the pilots
+`logs/p35/23_pilot_ready.log` / `24_pilot_back.log`, no-harm
+`C_accept_identity.txt`, and the report/attribution scripts
+`logs/p35/park_ab_report.py` (+ the P0 row) and `logs/p35/C_attribution.py`.
+
+### P35 phase 3 (Gate 2): the claim narrowed to the lever it measured, the pairing labelled as post-treatment, the attribution bug fixed, and P35 committed (2026-10-24)
+
+**Gate 2 rejected the headline, not the measurement.** (1) **The sightline is not
+shown to be the mediator.** The control **succeeds with the fruit invisible** -
+**9 of its 23 right-arm successes read `px=0` at every band call**, and the
+successes' median fully-hidden share is **0.84** against the failures' **0.60**
+(the successes are the *more* occluded population) - so "the policy could not see
+the fruit" is not an established mechanism, and the park moves **two** input
+channels at once (the image, 3497 -> 4155 px of silhouette in every frame; and the
+**7 inactive-arm joints of the 25-D proprio**). The claim is now, everywhere
+(WORKLOG headings + this entry, `logs/p35/C_RESULTS.md` §0/§3, `B_RESULTS.md`,
+`.slim/deepwork/p35-arm-park.md`, `AGENTS.md` §2, `README.md`): **"the park is a
+measured interface lever; the check shows it removes the fruit's band occlusion;
+the mediator (image vs the 7 proprio channels) is not identified - the control's
+invisible-fruit successes argue against a simple perception bottleneck"**. The
+**named mechanism test** is a small-N 2x2 input spoof: the **proprio-spoof** (the
+park's joint values in the observation, the arm *not* moved) x the **image-spoof**
+(the arm moved to `back`, the `ready` proprio) - and a recollection fixes both
+channels at once and **can erase a checkpoint-specific input-shift win**, so it
+should not be the first spend on the mechanism question.
+
+(2) **The occlusion term is "inside the disc's bbox"**, with the exact counts
+(the target mask empty 68.1 % -> 0 %, the arm silhouette intersecting the disc
+bbox 100 % -> 0 %, `C_attribution`'s `arm 40/51, never-visible 11`). (3) **The
+exact-instance pairing is conditioned on a post-treatment variable** - the streams
+diverge with the outcomes, so which slots stay pairable is itself an effect of the
+treatment; the design-valid leg is the **run level (B > A in 5/5, all strict,
+one-sided p = 0.031)** plus the standardised counts. `C_pairs.txt` is now labelled
+as the **same-species** set it is (**24 pairs, 8 B-only / 1 A-only**; the extra
+A-only is run4 ep10 **orange 6.5 vs 6.1 cm, a different fruit**), against the
+exact **22 pairs, 8/0**; and `112_rl_ab.sh` runs **A then B** in a fixed order per
+run (no randomisation), which an order term would confound. (4) The `vis >= 0.98`
+read is **2** of the misses, not 4 (3 at >= 0.97). (5) `C_attribution.py` counted
+`frac = -1` (no bbox) as **passing** the arm term, which is how A read 11/51;
+fixed (`max(frac) >= 0`), re-run and annotated - **A's arm term is 0/51**, the 11
+being exactly the never-visible rows; the docstring's band corrected to
++0.30..+0.40. (6) **The gate of record is stated as M1 + M2a**; M2b is a
+**recorded report at 36/50 = 72 %**, not the gate; and `PREREG.md` §5's literal
+"arm-pose residual > 0.02 rad" block is **failed** by the 0.088 rad
+achieved-vs-commanded residual (the shipped `ready` reset is 0.037 from its own
+command) - the conclusion, **default off / not adopted**, is unchanged. (7) M2b's
+miss cause is the **running** `px*d^2` maximum (updated on every non-stale call,
+not the episode's final maximum) plus **small-mask raster drift** (22-47 px masks,
+the belt/frame the largest instance where present) - `park_ab_report.py`'s
+docstring corrected. (8) `C_noharm_outer.log` annotated: the acceptance `exit=1`
+is the **expected rate-only 6/10**, and the identity step `cat` a file before it
+was written (14:22 vs 14:25) - the identity was **re-verified 376/376
+IDENTICAL**. (9) The diff pin is **+424/-1** (`fd18bb1b` matches); the three P35
+scripts are pinned; `logs/p35/` is force-added. (10) The cycle's **mix** is
+labelled (right 45 % vs 94 % success) and the **class-standardised 94.9 % /
+size-standardised 94.1 %** rates are quoted beside the raw 45 % -> 94 % (A
+52.3 % / 45.2 % reweighted); the per-class deltas are marked as different
+denominators, and `113`'s "B PASSES the improvement criterion" as a **P33-era
+harness readout**, not the decision.
+
+**Committed** as "P35: the inactive-arm park removes the band occlusion; the A/B
+reads the right 23/51->47/50 (carried 25->0, exact 8-0 p=0.0039, run-level 5/5);
+the mediator is not identified (image vs proprio) - default off, not adopted; the
+mechanism discriminator is the named next" - the code (`rl_env.py`, both knobs
+default off), `configs/arm_parks.json`, `scripts/217_arm_park_map.py`, the P35
+drivers/reports (`logs/p35/park_ab_report.py`, `C_attribution.py`), the
+`logs/p35/` evidence (force-added; `logs/` is gitignored) and the docs
+(this file, `.slim/deepwork/p35-arm-park.md`, `AGENTS.md` §2, `README.md`).
+Re-verification on the final tree: `scripts/selfcheck.sh` PASS (0 failures, 1
+skipped); `scripts/106_index_audit.py` PASS; `scripts/107_collect_merge_test.py`
+PASS; `rl_env.py` still `fd18bb1b` (+424/-1).

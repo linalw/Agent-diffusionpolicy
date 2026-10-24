@@ -1,0 +1,24 @@
+# P35 C_ab band-census attribution (logs/p35/C_attribution.py).
+# Gate-2 fix (2026-10-24): the arm term now requires at least one DEFINED
+# frac (max(frac) >= 0) as well as max(frac) < 0.10; before the fix a
+# `frac = -1` row (no bbox / fully visible-less) counted as passing, which let
+# arm A's 11 never-visible episodes pass. A's inactive=left arm term therefore
+# reads 0/51 here, not 11/51; the 11 were the never-visible rows and the other
+# 40 are attributed to the arm (`arm 40, never-visible 11`). Regenerated from
+# the same A_*.log / B_*.log with `python3 logs/p35/C_attribution.py --dir
+# logs/p35/C_ab --a A --b B`; the census lines are unchanged.
+== arm A: 75 episodes with a band census
+  inactive=left  n=51 | arm-term (max_frac<0.10, defined frac required) 0/51 | visibility-term (min_rel>=0.85) 0/51 | both 0/51
+      worst visible call's largest instance (the episodes whose visibility term fails): arm 40, never-visible 11
+      band calls: 1257 | arm_frac median=-1.000 max=333.000 | rel median=-1.000 min=-1.000 | px=0 calls 856/1257
+  inactive=right n=24 | arm-term (max_frac<0.10, defined frac required) 24/24 | visibility-term (min_rel>=0.85) 0/24 | both 0/24
+      worst visible call's largest instance (the episodes whose visibility term fails): arm 22, target 2
+      band calls: 584 | arm_frac median=0.000 max=0.000 | rel median=0.904 min=-1.000 | px=0 calls 65/584
+
+== arm B: 75 episodes with a band census
+  inactive=left  n=50 | arm-term (max_frac<0.10, defined frac required) 50/50 | visibility-term (min_rel>=0.85) 36/50 | both 36/50
+      worst visible call's largest instance (the episodes whose visibility term fails): belt 14
+      band calls: 1236 | arm_frac median=0.000 max=0.000 | rel median=0.929 min=0.766 | px=0 calls 0/1236
+  inactive=right n=25 | arm-term (max_frac<0.10, defined frac required) 25/25 | visibility-term (min_rel>=0.85) 4/25 | both 4/25
+      worst visible call's largest instance (the episodes whose visibility term fails): arm 20, target 1
+      band calls: 610 | arm_frac median=0.000 max=0.000 | rel median=0.910 min=-1.000 | px=0 calls 55/610

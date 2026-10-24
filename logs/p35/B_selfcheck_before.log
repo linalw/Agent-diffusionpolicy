@@ -1,0 +1,799 @@
+### offline motion checks: PASS (0.07s)
+$ python3 scripts/96_motion_check.py
+    == jerk-limited profiles ==
+      d=+0.012 m ->   39 steps (0.33 s), |v|=0.071 (limit 0.300), |a|=0.691 (limit 2.000), |j|=20.9 (limit 25.0)
+    [ok  ]   endpoint d=+0.012
+    [ok  ]   starts/ends at rest d=+0.012
+    [ok  ]   |v| <= v_max d=+0.012
+    [ok  ]   |a| <= a_max d=+0.012
+    [ok  ]   |j| <= j_max d=+0.012
+      d=+0.050 m ->   62 steps (0.52 s), |v|=0.184 (limit 0.300), |a|=1.117 (limit 2.000), |j|=21.7 (limit 25.0)
+    [ok  ]   endpoint d=+0.050
+    [ok  ]   starts/ends at rest d=+0.050
+    [ok  ]   |v| <= v_max d=+0.050
+    [ok  ]   |a| <= a_max d=+0.050
+    [ok  ]   |j| <= j_max d=+0.050
+      d=+0.250 m ->  193 steps (1.61 s), |v|=0.293 (limit 0.300), |a|=0.564 (limit 2.000), |j|=3.6 (limit 25.0)
+    [ok  ]   endpoint d=+0.250
+    [ok  ]   starts/ends at rest d=+0.250
+    [ok  ]   |v| <= v_max d=+0.250
+    [ok  ]   |a| <= a_max d=+0.250
+    [ok  ]   |j| <= j_max d=+0.250
+      d=+0.780 m ->  598 steps (4.98 s), |v|=0.294 (limit 0.300), |a|=0.182 (limit 2.000), |j|=0.4 (limit 25.0)
+    [ok  ]   endpoint d=+0.780
+    [ok  ]   starts/ends at rest d=+0.780
+    [ok  ]   |v| <= v_max d=+0.780
+    [ok  ]   |a| <= a_max d=+0.780
+    [ok  ]   |j| <= j_max d=+0.780
+      d=-0.400 m ->  307 steps (2.56 s), |v|=0.294 (limit 0.300), |a|=0.355 (limit 2.000), |j|=1.4 (limit 25.0)
+    [ok  ]   endpoint d=-0.400
+    [ok  ]   starts/ends at rest d=-0.400
+    [ok  ]   |v| <= v_max d=-0.400
+    [ok  ]   |a| <= a_max d=-0.400
+    [ok  ]   |j| <= j_max d=-0.400
+    
+    == friction-cone acceleration budget ==
+          horizontal: a_max =   6.51 m/s^2
+         straight up: a_max =   1.96 m/s^2
+       straight down: a_max =  21.58 m/s^2
+         diagonal up: a_max =   2.57 m/s^2
+    [ok  ] horizontal budget = g*sqrt(mu^2-1)
+    [ok  ] upward budget = g*(mu-1)
+    [ok  ] cone_scale zeroes an over-budget accel
+    [ok  ] cone_scale leaves a safe accel alone
+    
+    == cone-limited move (the lift leg) ==
+      requested v=0.30 a=2.00 j=25.0 -> carrying v=0.30 a=1.96 j=19.6
+      d=+0.250 m ->  193 steps (1.61 s), |v|=0.293 (limit 0.300), |a|=0.564 (limit 1.962), |j|=3.6 (limit 19.6)
+    [ok  ]   endpoint d=+0.250
+    [ok  ]   starts/ends at rest d=+0.250
+    [ok  ]   |v| <= v_max d=+0.250
+    [ok  ]   |a| <= a_max d=+0.250
+    [ok  ]   |j| <= j_max d=+0.250
+    
+    == grasp attitude helpers (top-down / mirrored) ==
+      right closes along [1.0, 0.0, 0.0], fingers [0.0, 0.0, -1.0]
+      left  closes along [-1.0, 0.0, 0.0], fingers [0.0, 0.0, -1.0]
+    [ok  ] top-down x closes the jaws along X
+    [ok  ] top-down x points the fingers straight down
+    [ok  ] the mirror stays a rotation (det = +1)
+    [ok  ] the mirror swaps the closing axis to -X on the left arm
+    [ok  ] mirroring twice is the identity
+    
+    == min-jerk jaw blend ==
+      jaw 0.090 -> 0.0314 m in 60 ticks: |v|max=0.220 m/s, |a|max=1.35 m/s^2
+      first-tick jaw speed: quintic 0.0022 m/s vs linear ramp 0.1172 m/s
+    [ok  ] jaw blend starts far more gently than a linear ramp
+    
+    == monitor on a synthetic carry ==
+      [motion] synthetic lift: steps=193, |v|max=0.293 m/s, |a|max=0.564 m/s^2, |j|max=3.5 m/s^3, cone=0.88x budget (0 pct over), ends |v|=0.000/0.000 m/s (a_step=0.01), a_med=0.41 peak@0.21 (first10=0.42 last10=0.42) m/s^2, a_win5=0.56 m/s^2, slip=0.0 mm
+    
+    == motion gate profile defaults ==
+      tasks.py approach v_max=0.15 a_max=0.8; gate defaults v_max=0.15 a_max=0.8
+    [ok  ] gate dynamic v_max default equals the task's
+    [ok  ] gate a_max default equals the task's
+    
+    all motion checks passed
+
+### dataset index audit: PASS (0.88s)
+$ python3 scripts/106_index_audit.py --root datasets
+    datasets/*: 56 dataset(s) with data or index
+      demos_v10            entries=154 files=154 index_frames= 72837 file_frames= 72837 windows= 70219 unique_content=154 OK
+      demos_v10_vlash      entries= 80 files= 80 index_frames= 37654 file_frames= 37654 windows= 36294 unique_content= 80 OK
+      demos_v11            entries= 50 files= 50 index_frames= 10228 file_frames= 10228 windows=  9378 unique_content= 50 OK
+      demos_v12            entries=158 files=158 index_frames= 32298 file_frames= 32298 windows= 29612 unique_content=158 OK
+      demos_v12_015        entries= 25 files= 25 index_frames=  4293 file_frames=  4293 windows=  3868 unique_content= 25 OK
+      demos_v12_spaced     entries=157 files=157 index_frames= 34163 file_frames= 34163 windows= 31494 unique_content=157 OK
+      demos_v13p           entries=173 files=173 index_frames= 35225 file_frames= 35225 windows= 32284 unique_content=173 OK
+      demos_v7             entries= 42 files= 42 index_frames= 20966 file_frames= 20966 windows= 20252 unique_content= 42 OK
+      demos_v8             entries= 42 files= 42 index_frames= 20966 file_frames= 20966 windows= 20252 unique_content= 42 OK
+      demos_v9             entries= 63 files= 63 index_frames= 29121 file_frames= 29121 windows= 28050 unique_content= 63 OK
+      p33_pear             entries=180 files=180 index_frames= 35730 file_frames= 35730 windows= 32670 unique_content=180 OK
+      p33_pear_s0          entries= 25 files= 25 index_frames=  5200 file_frames=  5200 windows=  4775 unique_content= 25 OK
+      p33_pear_s0_r2       entries= 32 files= 32 index_frames=  6464 file_frames=  6464 windows=  5920 unique_content= 32 OK
+      p33_pear_s1          entries= 34 files= 34 index_frames=  6761 file_frames=  6761 windows=  6183 unique_content= 34 OK
+      p33_pear_s1_r2       entries= 33 files= 33 index_frames=  6683 file_frames=  6683 windows=  6122 unique_content= 33 OK
+      p33_pear_s2          entries= 26 files= 26 index_frames=  4615 file_frames=  4615 windows=  4173 unique_content= 26 OK
+      p33_pear_s2_r2       entries= 30 files= 30 index_frames=  6007 file_frames=  6007 windows=  5497 unique_content= 30 OK
+      p33_pear_smoke       entries=  1 files=  1 index_frames=   235 file_frames=   235 windows=   218 unique_content=  1 OK
+      ss008                entries= 25 files= 25 index_frames=  6490 file_frames=  6490 windows=  6065 unique_content= 25 OK
+      ss012                entries= 25 files= 25 index_frames=  4668 file_frames=  4668 windows=  4243 unique_content= 25 OK
+      ss015                entries= 17 files= 17 index_frames=  2857 file_frames=  2857 windows=  2568 unique_content= 17 OK
+      ss_multi             entries= 67 files= 67 index_frames= 14015 file_frames= 14015 windows= 12876 unique_content= 67 OK
+      v10_s0               entries= 50 files= 50 index_frames= 24110 file_frames= 24110 windows= 23260 unique_content= 50 OK
+      v10_s1               entries= 50 files= 50 index_frames= 23271 file_frames= 23271 windows= 22421 unique_content= 50 OK
+      v10_s2               entries= 35 files= 35 index_frames= 16153 file_frames= 16153 windows= 15558 unique_content= 35 OK
+      v10_s2x_1            entries= 10 files= 10 index_frames=  4548 file_frames=  4548 windows=  4378 unique_content= 10 OK
+      v10_s2x_2            entries=  5 files=  5 index_frames=  2128 file_frames=  2128 windows=  2043 unique_content=  5 OK
+      v10_s3               entries= 19 files= 19 index_frames=  9303 file_frames=  9303 windows=  8980 unique_content= 19 OK
+      v10_s3x_1            entries= 10 files= 10 index_frames=  4861 file_frames=  4861 windows=  4691 unique_content= 10 OK
+      v10_s3x_2            entries= 10 files= 10 index_frames=  4861 file_frames=  4861 windows=  4691 unique_content= 10 OK
+      v10_s3x_3            entries= 10 files= 10 index_frames=  4861 file_frames=  4861 windows=  4691 unique_content= 10 OK
+      v10_s3x_4            entries=  1 files=  1 index_frames=   470 file_frames=   470 windows=   453 unique_content=  1 OK
+      v11_s0               entries= 25 files= 25 index_frames=  5150 file_frames=  5150 windows=  4725 unique_content= 25 OK
+      v11_s1               entries= 25 files= 25 index_frames=  5078 file_frames=  5078 windows=  4653 unique_content= 25 OK
+      v12_s0_015           entries= 25 files= 25 index_frames=  4293 file_frames=  4293 windows=  3868 unique_content= 25 OK
+      v12d_s02             entries=158 files=158 index_frames= 32298 file_frames= 32298 windows= 29612 unique_content=158 OK
+      v12w_s0              entries= 48 files= 48 index_frames= 10308 file_frames= 10308 windows=  9492 unique_content= 48 OK
+      v12w_s02             entries= 48 files= 48 index_frames= 10460 file_frames= 10460 windows=  9644 unique_content= 48 OK
+      v12w_s03             entries=  2 files=  2 index_frames=   444 file_frames=   444 windows=   410 unique_content=  2 OK
+      v12w_s04             entries=  2 files=  2 index_frames=   465 file_frames=   465 windows=   431 unique_content=  2 OK
+      v12w_s05             entries= 33 files= 33 index_frames=  7250 file_frames=  7250 windows=  6689 unique_content= 33 OK
+      v12w_s06             entries= 12 files= 12 index_frames=  2632 file_frames=  2632 windows=  2428 unique_content= 12 OK
+      v12w_s1              entries= 12 files= 12 index_frames=  2604 file_frames=  2604 windows=  2400 unique_content= 12 OK
+      v12w_smoke           entries=  4 files=  4 index_frames=   869 file_frames=   869 windows=   801 unique_content=  4 OK
+      v13p_probe           entries= 32 files= 32 index_frames=  6507 file_frames=  6507 windows=  5963 unique_content= 32 OK
+      v13p_s0              entries= 33 files= 33 index_frames=  6672 file_frames=  6672 windows=  6111 unique_content= 33 OK
+      v13p_s0_r1           entries=  1 files=  1 index_frames=    98 file_frames=    98 windows=    81 unique_content=  1 OK
+      v13p_s1              entries= 33 files= 33 index_frames=  6869 file_frames=  6869 windows=  6308 unique_content= 33 OK
+      v13p_s1_r1           entries=  2 files=  2 index_frames=   450 file_frames=   450 windows=   416 unique_content=  2 OK
+      v13p_s1_r2           entries=  3 files=  3 index_frames=   520 file_frames=   520 windows=   469 unique_content=  3 OK
+      v13p_s2              entries= 37 files= 37 index_frames=  7621 file_frames=  7621 windows=  6992 unique_content= 37 OK
+      v13p_s2_r1           entries=  2 files=  2 index_frames=   405 file_frames=   405 windows=   371 unique_content=  2 OK
+      v13p_s2_r2           entries= 30 files= 30 index_frames=  6083 file_frames=  6083 windows=  5573 unique_content= 30 OK
+      v9_s0                entries= 21 files= 21 index_frames= 10039 file_frames= 10039 windows=  9682 unique_content= 21 OK
+      v9_s1                entries= 21 files= 21 index_frames=  9179 file_frames=  9179 windows=  8822 unique_content= 21 OK
+      v9_s2                entries= 21 files= 21 index_frames=  9903 file_frames=  9903 windows=  9546 unique_content= 21 OK
+    OK: every index matches the files it describes
+
+### collect/merge regression: PASS (0.35s)
+$ python3 scripts/107_collect_merge_test.py
+    == 1. collector restarted onto the same directory ==
+    [fruit] saved /tmp/collect_merge_test_0k1pnbl1/shard_a/episode_00000.npz (7 frames, success=True)
+    [fruit] saved /tmp/collect_merge_test_0k1pnbl1/shard_a/episode_00000.npz (5 frames, success=True)
+      [ok  ] one index row for the rewritten episode
+      [ok  ] its frames match the file on disk
+    == 2. merge a shard that repeats an episode byte-for-byte ==
+    [fruit] saved /tmp/collect_merge_test_0k1pnbl1/shard_b/episode_00000.npz (6 frames, success=True)
+    [fruit] saved /tmp/collect_merge_test_0k1pnbl1/shard_b/episode_00001.npz (5 frames, success=True)
+      [ok  ] merge ran
+          merge: skip /tmp/collect_merge_test_0k1pnbl1/shard_b:episode_00001.npz (byte-identical to episode_00000.npz from /tmp/collect_merge_test_0k1pnbl1/shard_a)
+          merge: merged 2 successful episodes into /tmp/collect_merge_test_0k1pnbl1/out/merged
+      [ok  ] no byte-identical episodes survive the merge
+      [ok  ] one index row per file
+      [ok  ] every frames value matches its file (stale 999 must not survive)
+    == 3. the index audit detects the stale shard, and clears the merge ==
+      [ok  ] audit rejects the shard whose index was left stale
+      [ok  ] audit exits 0 on the merged output
+      [ok  ] audit reports OK
+    == 4. two-line recording: concurrent threads, auto index, station label ==
+    [fruit] saved /tmp/collect_merge_test_0k1pnbl1/two_line/episode_00000.npz (4 frames, success=True)
+    [fruit] saved /tmp/collect_merge_test_0k1pnbl1/two_line/episode_00001.npz (4 frames, success=True)
+    [fruit] saved /tmp/collect_merge_test_0k1pnbl1/two_line/episode_00002.npz (4 frames, success=True)
+    [fruit] saved /tmp/collect_merge_test_0k1pnbl1/two_line/episode_00003.npz (4 frames, success=True)
+    [fruit] saved /tmp/collect_merge_test_0k1pnbl1/two_line/episode_00004.npz (4 frames, success=True)
+    [fruit] saved /tmp/collect_merge_test_0k1pnbl1/two_line/episode_00005.npz (4 frames, success=True)
+      [ok  ] concurrent saves raised no error
+      [ok  ] all six concurrent episodes landed
+      [ok  ] file names are unique
+      [ok  ] auto indices are unique
+      [ok  ] per-arm station labels survive
+      [ok  ] both arms labelled
+    == 5. the provenance lists pin the supply modules (P32 Gate D C1) ==
+      [ok  ] collector manifest lists bed.py
+      [ok  ] collector manifest lists meshes.py
+      [ok  ] rl env manifest lists bed.py
+      [ok  ] rl env manifest lists meshes.py
+      [ok  ] bed manifest block has the resolved geometry keys
+      [ok  ] bed manifest block follows the along override
+    
+    PASS: all 21 checks
+
+### finger collider guard: PASS (0.03s)
+$ python3 scripts/432_finger_collider_guard_test.py
+    finger collider guard: PASS (3 failing verdicts raise, 1 valid passes)
+    sample fail-fast message:
+    FRUIT_GRIPPER_KIND=openarm needs the de-instanced robot asset: the hand holds the payload only through UsdPhysics.CollisionAPI on the robot's own finger meshes, and none could be authored here (the fruit would float).
+      asset in use:                 https://example.invalid/Robots/OpenArm/openarm_bimanual.usd
+      expected de-instanced asset:  /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/assets/openarm_flat/openarm_flat_deinst.usda
+      authoring verdict:            0 collider(s) enabled, 4 skipped, 4 finger visual root(s)
+    Fix one of these and re-run:
+      * make the de-instanced asset available at the expected path, or
+      * point FRUIT_ROBOT_USD at a de-instanced copy, or
+      * run the pad hand deliberately: FRUIT_GRIPPER_KIND=kinematic.
+
+### rl env smoke: PASS (0.07s)
+$ python3 -c import sys; sys.path.insert(0, 'src'); from fruit_sorting.rl_env import RewardConfig, RolloutRecorder, TASKS_MD5; r = RewardConfig(); assert abs(r.compute(True, 0) - 1.0) < 1e-9; assert abs(r.compute(True, 750) - 0.9) < 1e-9; assert abs(r.compute(True, 1500) - 0.8) < 1e-9; assert abs(r.compute(True, 99999) - 0.8) < 1e-9; assert r.compute(False, 100) == 0.0; assert len(TASKS_MD5) == 32; print('rl_env smoke ok')
+    rl_env smoke ok
+
+### tasks.py pin: PASS (0.06s)
+$ python3 -c import hashlib, sys; sys.path.insert(0, 'src'); from fruit_sorting.rl_env import TASKS_MD5; actual = hashlib.md5(open('src/fruit_sorting/tasks.py', 'rb').read()).hexdigest(); assert TASKS_MD5 == actual, f'TASKS_MD5={TASKS_MD5} tasks.py={actual}'; print('TASKS_MD5 pin ok')
+    TASKS_MD5 pin ok
+
+### rl report parser: PASS (0.04s)
+$ python3 scripts/113_rl_report.py --self-test
+    rl report self-test PASS (parser, pairing, sign test, verdict branches)
+
+### r9 endpoint report: PASS (0.04s)
+$ python3 scripts/196_r9_report.py --self-test
+    === arm A
+      run 1: 1/8  0:peac/6.0/ok  1:kiwi/6.0/carried  2:appl/6.0/carried  3:peac/6.0/carried  4:grap/6.0/carried  5:pear/6.0/carried  6:oran/6.0/carried  7:toma/6.0/carried
+    === arm B
+      run 1: 7/8  0:peac/6.0/ok  1:kiwi/6.0/ok  2:appl/6.0/ok  3:peac/6.0/ok  4:grap/6.0/ok  5:pear/6.0/ok  6:oran/6.0/ok  7:toma/6.0/carried
+    
+      pooled A: 1/8 (12%)  median ticks 1800 (successes 1800)
+      pooled B: 7/8 (88%)  median ticks 1800 (successes 1800)
+      classes A: ok=1 no-contact=0 carried-not-placed=7 other=0 | left n=8 {'ok': 1, 'no-contact': 0, 'carried': 7, 'other': 0} | right n=0 {'ok': 0, 'no-contact': 0, 'carried': 0, 'other': 0}
+      classes B: ok=7 no-contact=0 carried-not-placed=1 other=0 | left n=8 {'ok': 7, 'no-contact': 0, 'carried': 1, 'other': 0} | right n=0 {'ok': 0, 'no-contact': 0, 'carried': 0, 'other': 0}
+    
+      paired same-fruit: both ok 1, both fail 1, B-only ok 6, A-only ok 0 (excluded fruit-class differs 0)
+      sign test (B better): p = 0.0156 (discordant 6)
+    
+      [r9] carried-class pair transitions (same-fruit):
+        carried     -> carried       1
+        carried     -> ok            6  <== candidate conversion
+        ok          -> ok            1
+      [r9] carried-class conversion: B-only 6 / A-only 0; one-sided sign p = 0.0156 (6-0 is the p<=0.05 edge at N=5)
+      [r9] candidate-conversion pairs:
+      run1 ep 1 kiwi       A=carried     -> B=ok         
+      run1 ep 2 apple      A=carried     -> B=ok         
+      run1 ep 3 peach      A=carried     -> B=ok         
+      run1 ep 4 grape      A=carried     -> B=ok         
+      run1 ep 5 pear       A=carried     -> B=ok         
+      run1 ep 6 orange     A=carried     -> B=ok         
+    
+      [r9] pooled rate B 88% vs A 12% [above]
+      [r9] strawberry B 0/0 vs A 0/0 [ok]
+      [r9] new failure reasons: none
+      [r9] cycle B 1800 vs A 1800 ticks (+0.0%)
+    
+      [r9] primary endpoint (pooled rate above baseline AND carried-class conversion significant): PASS
+      [r9] secondary (P4 rule: cycle >=5% faster with success non-inferior, or rate+sign p<=0.05): PASS
+      [r9] adoption: never implied by this readout - the pre-registration requires the owner gate, a fresh pinned canary and (on an interface change) a new reference set.
+    
+    == [carry] mechanism readout (FRUIT_CARRY_DIAG live lines; the live onset is contact-agnostic, so zero-force onsets are split out):
+      [A] carry legs: 8
+        grasp_lift n=  8 clean(<2mm)=  1 slip_event=  7 contact_loss=  7 | clean_slip mm min=0.04 med=250.00 p90=250.00 max=250.00
+          pre-onset facet: onset_row med=90 (range 90-90); force@onset med=4.90N over 7 contact legs (0 zero-force/no-contact); contacts@onset==1 7/7; onset->loss med=50 ticks (7 lost); sep@onset>=97mm 0/7
+      [B] carry legs: 8
+        grasp_lift n=  8 clean(<2mm)=  7 slip_event=  1 contact_loss=  0 | clean_slip mm min=0.03 med=0.03 p90=0.03 max=0.03
+          pre-onset facet: onset_row med=150 (range 150-150); force@onset med=nanN over 0 contact legs (1 zero-force/no-contact); contacts@onset==1 0/1; onset->loss med=nan ticks (0 lost); sep@onset>=97mm 0/1
+    === arm A
+      run 1: 1/8  0:peac/6.0/ok  1:kiwi/6.0/carried  2:appl/6.0/carried  3:peac/6.0/carried  4:grap/6.0/carried  5:pear/6.0/carried  6:oran/6.0/carried  7:toma/6.0/carried
+    === arm B
+      run 1: 1/8  0:peac/6.0/ok  1:kiwi/6.0/carried  2:appl/6.0/carried  3:peac/6.0/carried  4:grap/6.0/carried  5:pear/6.0/carried  6:oran/6.0/carried  7:toma/6.0/carried
+    
+      pooled A: 1/8 (12%)  median ticks 1800 (successes 1800)
+      pooled B: 1/8 (12%)  median ticks 1800 (successes 1800)
+      classes A: ok=1 no-contact=0 carried-not-placed=7 other=0 | left n=8 {'ok': 1, 'no-contact': 0, 'carried': 7, 'other': 0} | right n=0 {'ok': 0, 'no-contact': 0, 'carried': 0, 'other': 0}
+      classes B: ok=1 no-contact=0 carried-not-placed=7 other=0 | left n=8 {'ok': 1, 'no-contact': 0, 'carried': 7, 'other': 0} | right n=0 {'ok': 0, 'no-contact': 0, 'carried': 0, 'other': 0}
+    
+      paired same-fruit: both ok 1, both fail 7, B-only ok 0, A-only ok 0 (excluded fruit-class differs 0)
+      sign test (B better): p = 1.0000 (discordant 0)
+    
+      [r9] carried-class pair transitions (same-fruit):
+        carried     -> carried       7
+        ok          -> ok            1
+      [r9] carried-class conversion: B-only 0 / A-only 0; one-sided sign p = 1.0000 (6-0 is the p<=0.05 edge at N=5)
+    
+      [r9] pooled rate B 12% vs A 12% [not above]
+      [r9] strawberry B 0/0 vs A 0/0 [ok]
+      [r9] new failure reasons: none
+      [r9] cycle B 1800 vs A 1800 ticks (+0.0%)
+    
+      [r9] primary endpoint (pooled rate above baseline AND carried-class conversion significant): FAIL
+      [r9] secondary (P4 rule: cycle >=5% faster with success non-inferior, or rate+sign p<=0.05): FAIL
+      [r9] adoption: never implied by this readout - the pre-registration requires the owner gate, a fresh pinned canary and (on an interface change) a new reference set.
+      [r9] kill criterion: the N=5 paired carried-class split is not candidate-positive -> close the lane negative and publish.
+    
+    == [carry] mechanism readout (FRUIT_CARRY_DIAG live lines; the live onset is contact-agnostic, so zero-force onsets are split out):
+      [A] carry legs: 8
+        grasp_lift n=  8 clean(<2mm)=  1 slip_event=  7 contact_loss=  7 | clean_slip mm min=0.04 med=250.00 p90=250.00 max=250.00
+          pre-onset facet: onset_row med=90 (range 90-90); force@onset med=4.90N over 7 contact legs (0 zero-force/no-contact); contacts@onset==1 7/7; onset->loss med=50 ticks (7 lost); sep@onset>=97mm 0/7
+      [B] carry legs: 0
+    196 self-test PASS (parse, pairing, carried endpoint, verdict)
+
+### r9 rollout merge: PASS (0.07s)
+$ python3 scripts/197_r9_merge_rollouts.py --self-test
+    197 self-test PASS (merge, renumber, provenance, overwrite refusal, merged-npz readability)
+
+### rtc runtime selftest: PASS (1.69s)
+$ python3 scripts/128_rtc_selftest.py
+    rtc selftest: PASS (weights, split, bit-exact base, frozen prefix, queue, nan-guard)
+
+### trigger intercept test: PASS (0.06s)
+$ python3 scripts/811_trigger_test.py
+      [PASS] off never fires
+      [PASS] off still reports the geometry
+      [PASS] arrival fires at 6 cm / 1.0 s with lead 1.0 - t_arrive=1.000
+      [PASS] encoder is preferred over the slow measurement
+      [PASS] arrival is independent of the finger
+      [PASS] a shorter lead waits one tick longer
+      [PASS] does not fire early - t_arrive=3.333
+      [PASS] lateral gate rejects a misaligned fruit
+      [PASS] default lateral admits the outer band (dx=0.107)
+      [PASS] explicit lateral=0.06 still refuses dx=0.107
+      [PASS] stationary fruit does not fire
+      [PASS] assist holds while the policy is open
+      [PASS] assist fires once the policy is near closed
+      [PASS] acquisition lead off keeps the fixed gate
+      [PASS] acquisition lead fires earlier for a far jaw - lead=3.02s reach=0.23
+      [PASS] acquisition lead grows with the distance
+      [PASS] acquisition off is byte-neutral (lead/reach unchanged)
+      [PASS] acquisition lead is capped - lead=1.50
+      [PASS] x_max off fires the edge fruit
+      [PASS] x_max refuses a fruit past the reach edge
+      [PASS] the refusal reports the fruit's x - x_refuse=0.4
+      [PASS] x_max admits a fruit inside the band
+      [PASS] x_edge_refusal off returns None
+      [PASS] x_edge_refusal past the edge returns the fruit x
+      [PASS] x_edge_refusal inside the band returns None
+      [PASS] policy gate fires when the guard is off
+      [PASS] the x refusal binds the policy-gate path
+      [PASS] the pre-filtered intercept path still fires
+      [PASS] neither path fires
+      [PASS] from_env parses mode/lead/encoder/frame/present
+      [PASS] acquisition lead defaults off
+      [PASS] from_env parses the acquisition knob
+      [PASS] x_max defaults off
+      [PASS] from_env parses the reach-cliff guard
+      [PASS] x_max unset is None again
+      [PASS] present defaults off
+      [PASS] from_env rejects a bogus mode
+      [PASS] from_env rejects a bogus frame
+    [trigger test] OK
+
+### distill selftest: PASS (3.05s)
+$ python3 scripts/131_distill_selftest.py
+    /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/scripts/../src/fruit_sorting/policy/model.py:161: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+    Consider using tensor.detach() first. (Triggered internally at /pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:836.)
+      if float(wk.abs().max()) < 1e-6:
+    distill selftest: PASS (implied x0, DDIM-1 identity, EMA, CD step, deploy step, probe)
+
+### loop metrics selftest: PASS (0.87s)
+$ python3 scripts/125_loop_metrics.py --self-test
+    loop metrics self-test PASS (step, jerk, boundary split, decision rate)
+
+### path3 event selftest: PASS (0.07s)
+$ python3 scripts/149_path3_selftest.py
+    path3 event selftest PASS (median rule, bounds, alignment bookkeeping)
+
+### a2c2 correction selftest: PASS (1.57s)
+$ python3 scripts/146_train_correction.py --self-test
+    correction selftest PASS (train, save/load, correct, clamp, finger untouched)
+
+### path3 report selftest: PASS (0.04s)
+$ python3 scripts/148_path3_report.py --self-test
+    path3 report self-test PASS (pairing, criteria, verdicts)
+
+### bimanual scheduler test: PASS (0.55s)
+$ python3 scripts/152_biarm_selftest.py
+    pair: 100 requests -> 50 shared ticks, exclusive, alternating
+    pair: deterministic segment order
+    contested station: park/release/resume without deadlock (30 ticks for 50 requests)
+    solo attempt: 5 requests -> 5 ticks
+    feed pump: 50 shared ticks -> 50 pump calls, main thread only
+    biarm selftest PASS
+
+### supply scatter selftest: PASS (3.81s)
+$ python3 scripts/172_supply_selftest.py
+    [fruit] [supply] wave density x1.5: gap 0.085-0.107 m, boundary 0.085-0.085 m
+    [fruit] [supply] patch density x2: slice 0.085-0.110 m, pair 1.00
+    [fruit] [supply] species lock: apple only
+    [fruit] [supply] warning: FRUIT_SUPPLY_SPECIES='durian' is not a known species (['apple', 'kiwi', 'lychee', 'orange', 'peach', 'pear', 'strawberry', 'tomato']); ignored
+    [fruit] [supply] warning: cannot use FRUIT_SUPPLY_GRADES='apple:1' (expected all of ['A', 'B', 'C'] as NAME:WEIGHT); using default
+    [fruit] [supply] warning: FRUIT_SUPPLY_PATCH=1 requires FRUIT_SUPPLY_SCATTER=1; ignored
+    [fruit] [supply] patch density x1.6: slice 0.088-0.137 m, pair 0.84
+    [fruit] [supply] patch density x1.6: slice 0.088-0.137 m, pair 0.84
+    patch sheet (offline run): 32 pair slices, separations 0.085-0.120 m, x 0.200-0.359 m, min live planar separation 0.085 m, approach gaps >0.40 m 79/10800 frames
+    supply selftest ok (74 checks)
+
+### speed channel test: PASS (1.20s)
+$ python3 logs/p28i/check_speed_channel.py
+    section 0: the gate
+      [PASS] gate unset -> the channel is off
+      [PASS] the fixed normaliser pair is (0.12, 0.05)
+      [PASS] the shipped gate default is 0 (opt-in only)
+      [PASS] no silent pin default exists (P28 Gate A B2)
+      [PASS] the legacy provenance table covers the anchor and refuses the 0.15 lineage
+    
+    section 1: source checks (the 13 design sites this lane owns)
+      [PASS] rl_env.proprio: the speed append sits under `if self._speed_channel:`
+      [PASS] rl_env.__init__ reads the gate once into `_speed_channel`
+      [PASS] rl_env refuses a checkpoint whose proprio_dim disagrees with the gate
+      [PASS] _MANIFEST_SOURCES pins policy/data.py and policy/finetune.py (design 2.5.2)
+      [PASS] the run manifest records belt_speed and the channel gate (design 6.1)
+      [PASS] 60_eval_policy is in lockstep: same helper, gated, one append site
+      [PASS] 60_eval_policy reads the same gate
+      [PASS] neither builder inherits the trigger's encoder knob (Gate A sec. 1)
+      [PASS] both builders pass the configured belt speed as the no-belt fallback
+      [PASS] policy/data.py: the column is appended only under `if self.speed_channel:`
+      [PASS] policy/data.py: compute_normalizer WRITES the fixed pair (design C2)
+      [PASS] policy/data.py: the pin chain reads supply.belt_speed from a manifest
+      [PASS] correction.py slices with the head's config, not the module constants
+      [PASS] CorrectionController takes its widths from the payload (Gate A)
+      [PASS] 119_rl_fidelity has a two-width feed + --data-speed (Gate A B3) - no equality assertion for B0
+    
+    section 2: B0 - the widened 26-D artifact is the 25-D anchor at step 0
+      [PASS] the anchor checkpoint exists - /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/checkpoints/moe_v13s/policy_best.pt
+             anchor md5 61da390a85fa209496b54477a8255d23
+      [PASS] the anchor is 25-D
+      [PASS] widen_proprio reports a widening
+      [PASS] config proprio_dim 25 -> 26
+      [PASS] the first Linear is (128, 25) -> (128, 26) - (128, 25) -> (128, 26)
+      [PASS] the new column is EXACTLY 0
+      [PASS] the 25 old columns are bitwise the artifact's
+      [PASS] the bias and every other tensor are bitwise unchanged
+      [PASS] the normaliser grows by exactly the fixed (0.12, 0.05) entry
+      [PASS] widen_proprio is idempotent (a second call is a no-op)
+      [PASS]  ... and it does not re-append a second entry
+      [PASS] the channel value has zero influence (0.0/0.08/0.12/0.15 bit-identical) - max|delta| = 0.000e+00
+             batch  1: conditioning max|delta| 0.000e+00, denoiser output max|delta| 0.000e+00
+             batch  3: conditioning max|delta| 2.384e-07, denoiser output max|delta| 2.861e-06
+             batch 32: conditioning max|delta| 1.192e-07, denoiser output max|delta| 2.384e-06
+      [PASS] batch 1 (the deployed inference shape) is BIT-IDENTICAL - cond 0.0e+00 / out 0.0e+00
+      [PASS] batched forwards differ only by float32 reduction order (<= 5e-6) - b1: 0.0e+00, b3: 2.9e-06, b32: 2.4e-06
+      [PASS] float64 reference: no algorithmic difference (<= 1e-14, the fp64 floor) - max|delta| = 2.220e-16
+    
+    section 2b: B0 through the shipped runtime (`PolicyRunner.act`)
+      [PASS] the runtime reads 25-D from the anchor and 26-D from the widened artifact
+      [PASS] the deployed action chunk is BYTE-IDENTICAL (25-D vs 26-D artifact) - max|delta| = 0.000e+00
+      [PASS] the channel's value has zero influence on the deployed chunk - max|delta| = 0.000e+00
+    
+    section 3: the pin chain (`shard` -> manifest -> supply.belt_speed)
+    [data] speed channel: 1 episodes, proprio_dim=26, pins=[0.15], declared=None, sources={'manifest': 1} (unpinned stores raise; see SPEED_PIN_KNOWN)
+      [PASS] a manifest's supply.belt_speed pins the episode (0.15) - [0.15] ['manifest:/home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p28i/_tmp/stores/s_manifest/manifest.json']
+      [PASS] an unpinned store with no manifest value RAISES (no silent 0.12) - B2 - no belt-speed pin for /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p28i/_tmp/stores/unknown_store (episode episode_00000.npz): its manifest records no supply.belt_speed and no pin was declared. The speed channel trains on a constant, so pin the store explicitly - --store-speed /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p28i/_tmp/stores/unknown_store=<m/s> (or --base-speed) - using the table in logs/p28/SPEED_CHANNEL_DESIGN.md 4.3; a store collected since P28-A carries its speed in its own manifest.
+    [data] speed channel: 1 episodes, proprio_dim=26, pins=[0.12], declared=None, sources={'known': 1} (unpinned stores raise; see SPEED_PIN_KNOWN)
+      [PASS] the documented legacy lineage resolves without a manifest (v11_s0 -> 0.12) - [0.12] ['known:v11_s0']
+      [PASS] the 0.15 legacy shard is NOT in the table, so it must be pinned - B2 - no belt-speed pin for /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p28i/_tmp/stores/v12_s0_015 (episode episode_00000.npz): its manifest records no supply.belt_speed and no pin was declared. The speed channel trains on a constant, so pin the store explicitly - --store-speed /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p28i/_tmp/stores/v12_s0_015=<m/s> (or --base-speed) - using the table in logs/p28/SPEED_CHANNEL_DESIGN.md 4.3; a store collected since P28-A carries its speed in its own manifest.
+    [data] speed channel: 1 episodes, proprio_dim=26, pins=[0.15], declared=0.15, sources={'declared': 1} (unpinned stores raise; see SPEED_PIN_KNOWN)
+      [PASS] the legacy pin resolves an unpinned/unknown store (declared 0.15) - [0.15] ['declared']
+    [data] speed channel: 2 episodes, proprio_dim=26, pins=[0.08, 0.15], declared=None, sources={'manifest': 2} (unpinned stores raise; see SPEED_PIN_KNOWN)
+      [PASS] a merged store resolves PER EPISODE through its shard stamp ([0.08, 0.15]) - [0.08, 0.15] ['manifest:/home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p28i/_tmp/stores/shards/a/manifest.json', 'manifest:/home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p28i/_tmp/stores/shards/b/manifest.json']
+    [data] speed channel: 1 episodes, proprio_dim=26, pins=[0.15], declared=0.15, sources={'manifest': 1} (unpinned stores raise; see SPEED_PIN_KNOWN)
+      [PASS] a declaration that AGREES with the manifest is accepted (manifest wins) - [0.15] ['manifest:/home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p28i/_tmp/stores/s_manifest/manifest.json']
+      [PASS] a declared pin that contradicts the manifest RAISES (design 2.2 risk 2) - belt-speed pin conflict for /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p28i/_tmp/stores/s_manifest: declared pins 0.1200 m/s but /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p28i/_tmp/stores/s_manifest/manifest.json records 0.1500 m/s. The speed channel trains on a constant, so a wrong pin is a silent scenario change; fix the pin (see the table in logs/p28/SPEED_CHANNEL_DESIGN.md 4.3) or the manifest.
+      [PASS] no belt and no fallback raises (0.0 is not a valid channel value)
+      [PASS] no belt with the configured speed reports it (abs, not 0.0) - 0.12
+      [PASS] the synthesised column is the episode's pin, last dim
+      [PASS] the second episode carries its own pin (0.15)
+      [PASS] the live P28-C shard (datasets/ss008, the P28-A field) reads 0.08 - 0.08
+    
+    section 4: the gate-off (25-D) path is byte-inert
+      [PASS] gate off: the store is 25-D
+      [PASS] gate off: one frame is bitwise the shipped expression
+      [PASS] gate off: `proprio(t=None)` is bitwise the shipped all-frames expression
+      [PASS] gate off: compute_normalizer is bitwise the shipped computation
+    [data] speed channel: 1 episodes, proprio_dim=26, pins=[0.15], declared=None, sources={'manifest': 1} (unpinned stores raise; see SPEED_PIN_KNOWN)
+      [PASS] the gate is read per store, not cached module-side
+      [PASS] gate off: the model sees 25 dims and the shipped 5-channel image stack
+    
+    section 5: the 26-D training path
+    [data] speed channel: 2 episodes, proprio_dim=26, pins=[0.08, 0.15], declared=None, sources={'manifest': 2} (unpinned stores raise; see SPEED_PIN_KNOWN)
+      [PASS] compute_normalizer yields 26 entries with the FIXED pair at the last dim
+      [PASS] the 26-D normalised channel is on the documented z grid (0.08 -> -0.80)
+      [PASS] the store's sample width matches its declared proprio_dim
+      [PASS] train.py needs no change: dims come from the sample (26)
+      [PASS] a 26-D Normalizer normalises a 26-D sample (loud on a width mismatch)
+      [PASS] a 26-D sample through the 25-D normaliser raises
+      [PASS] the VLASH state offset keeps the 26th dim on every draw - shapes seen = [26]
+      [PASS] 119 two-width feed: the 25-D arm gets the store prefix, bitwise
+      [PASS] 119 two-width feed: the 26-D arm gets the whole vector
+      [PASS] 119 two-width feed: an unsupported width refuses
+    
+    ==============================================================================
+    note: anchor md5 61da390a85fa209496b54477a8255d23
+    note: batch  1: conditioning max|delta| 0.000e+00, denoiser output max|delta| 0.000e+00
+    note: batch  3: conditioning max|delta| 2.384e-07, denoiser output max|delta| 2.861e-06
+    note: batch 32: conditioning max|delta| 1.192e-07, denoiser output max|delta| 2.384e-06
+    ==============================================================================
+    PASS: all checks (4 notes)
+
+### two-line selector test: PASS (0.07s)
+$ python3 scripts/176_twoline_selftest.py
+    selector floor above the station: 0.399 m
+    ok: fruit under the downstream station's floor is refused
+    ok: fruit above the downstream station's floor is selectable
+    ok: lane 0 prefers grade A over a nearer grade B
+    ok: lane 1 prefers grade B over a farther grade A
+    ok: no preference keeps the single-arm farthest-upstream rule
+    ok: lane 0 falls back to a cross-lane fruit instead of starving
+    ok: the fallback still respects the catch floor
+    ok: the nearest preferred fruit is taken (shortest hover)
+    ok: an excluded (protected) fruit is skipped
+    ok: exclusion can empty the window
+    ok: lane=0 is still grade-filtered (V1 semantics preserved)
+    ok: lane=1 takes the B fruit
+    ok: pure routing is the default when the knob is unset
+    ok: pure lane 0 selects the grade-A fruit
+    ok: pure lane 1 selects the grade-B fruit
+    ok: grade C is refused by lane 0 (unsorted, passes the line)
+    ok: grade C is refused by lane 1
+    ok: pure lane 0 does not fall back to a cross-grade fruit
+    ok: pure lane 1 does not fall back to a cross-grade fruit
+    ok: pure routing still respects the catch floor
+    ok: single-arm selection (no prefer_lane) still sees grade C
+    ok: FRUIT_GRADE_ROUTING=0 restores the V2 fallback
+    ok: an explicit non-fallback value keeps purity
+    ok: the shipped min_lead_s (1.4) stays inert under the 1.5 s floor
+    ok: an explicit lead override (1.0 s) binds below the shipped floor
+    ok: off-centre station without its own pre-pose -> lock required
+    ok: solved off-centre stations -> lock not needed
+    ok: shared station (single arm) -> lock not needed
+    two-line selftest PASS
+
+### reach-anywhere selftest: PASS (0.08s)
+$ python3 scripts/198_r10_selftest.py
+    ok: the shipped default keeps the reach catch off (FRUIT_REACH_ANYWHERE default 0)
+    ok: the shipped default keeps the hover settle off (FRUIT_REACH_HOVER_SETTLE default 0)
+    ok: the R11-A.1 floored variant is the reach selector's default (FRUIT_REACH_SHIPPED_FLOOR default 1)
+    ok: the direct/policy selection opts out of the reach rule (rl_env.py)
+    ok: the knob off is a no-op (the pre-adoption line byte-for-byte)
+    ok: the knob enables the reach-anywhere path on the moving-catch line
+    shipped floor above the station: 0.399 m
+    ok: knob off: the farthest-upstream usable fruit is selected (shipped rule)
+    ok: knob off: a fruit below the shipped floor is refused
+    inside candidate: y=+0.349 -> intercept +0.030 (eq +0.050, feasible True)
+    ok: the inside-floor fruit has a feasible intercept
+    ok: FRUIT_REACH_SHIPPED_FLOOR=0: a fruit inside the shipped floor is selected (the R10-A.1 coverage gain, reproduced)
+    ok: the floored default refuses a fruit inside the shipped floor (the v9 pre-fix collapse condition)
+    ok: the floored default still selects above the shipped floor (the reach aim remains)
+    ok: among floored fruit the earliest reachable intercept wins, not the farthest-upstream pick (the selection moved off the shipped rule)
+    ok: the diag prints one select row per selection
+    ok: the select row carries the eligible field (199's contract)
+    ok: diag: feasible=2, shipped_floor_ok=1, eligible=1 (the floored set)
+    ok: diag: the floored (above-floor) fruit is the chosen one
+    ok: reach_anywhere=False keeps the shipped floor (the direct/policy pin)
+    ok: reach_anywhere=False still selects above the floor (shipped rule)
+    ok: the default (scripted) call is unaffected by the opt-out
+    right arm: the feasibility edge sits at y = +0.220 (band dn -0.080, stall setup 1.5s)
+    ok: the right band's feasibility edge is a real boundary (fruit below it refused)
+    ok: the R10-A.1 rule refuses a fruit past the band edge (floor=0)
+    ok: the floored default refuses it as well (inside the shipped floor)
+    ok: the earliest reachable intercept wins (nearest catchable fruit)
+    ok: among immediately catchable fruit the nearest is taken
+    ok: a far fruit's intercept is clipped to the upstream band edge (0.0300 ~ 0.0300)
+    ok: a far fruit's intercept is feasible (the wait absorbs)
+    ok: the travel time to the clipped intercept is positive
+    ok: a flattened per-arm band is honoured (the env-override form)
+    ok: the x column picks the outer band (left x=0.36; the inset sign is +)
+    ok: x at/below the first measured column gets the inner band
+    ok: x between measured columns takes the next (nested, narrower) column's band
+    ok: the bounded fixed point converges to the solution (0.0948 ~ 0.0948)
+    ok: 60 settle ticks shift the intercept by vy*S/(1-vy/v_hover) (downstream) (-0.0522 ~ -0.0522)
+    ok: the settle shift is toward the belt flow (a later, downstream catch)
+    ok: with the settle on, a far fruit still clips to the band edge (0.0300 ~ 0.0300)
+    ok: a feasible aim is cached
+    ok: the cached intercept is returned as the aim's along-belt coordinate (0.0300 ~ 0.0300)
+    ok: the aim's x is the fruit's measured x (0.2800 ~ 0.2800)
+    ok: a stale key falls back to the station aim (the shipped path) (0.0000 ~ 0.0000)
+    ok: an infeasible interception point leaves the shipped aim in place
+    ok: fallback stub: the reach aim is cached
+    ok: a capped hover move drops the reach aim (the fallback fires)
+    ok: the rebuilt grip target is the station aim (0.0000 ~ 0.0000)
+    ok: the rebuilt hover target is the station hover (0.0000 ~ 0.0000)
+    ok: a converged hover move keeps the reach aim
+    ok: the fallback knob off is a no-op (the aim is kept)
+    ok: the deliverability margin admits a near-cap residual (tol + margin)
+    ok: a residual past tol + margin still fires with the margin on
+    ok: the two-line session is excluded (its stations are its clearance)
+    ok: a non-two-line session keeps the reach rule (the shared-station scope note)
+    r10 reach-anywhere selftest PASS
+
+### claim slot harness: PASS (13.15s)
+$ bash scripts/181_claim_slot_selftest.sh
+    [claim_slot] slot 0/0 claimed (a.log) at 09:52:10
+    [claim_slot] exit=0 09:52:12 log=/tmp/tmp.QfvR9YyaEf/a.log
+    [claim_slot] slot 0/0 claimed (b.log) at 09:52:13
+    [claim_slot] exit=0 09:52:15 log=/tmp/tmp.QfvR9YyaEf/b.log
+    ok: SLOTS=1 serializes two holders (5.0s >= 3.5s, no interleave)
+    [claim_slot] slot 0/1 claimed (d.log) at 09:52:15
+    [claim_slot] slot 1/1 claimed (c.log) at 09:52:15
+    [claim_slot] exit=0 09:52:17 log=/tmp/tmp.QfvR9YyaEf/d.log
+    [claim_slot] exit=0 09:52:17 log=/tmp/tmp.QfvR9YyaEf/c.log
+    ok: SLOTS=2 overlaps two holders (2.0s < 3.5s)
+    [claim_slot] slot 0/0 claimed (s.log) at 09:52:18
+    [claim_slot] exit=0 09:52:18 log=/tmp/tmp.QfvR9YyaEf/s.log
+    ok: a SIGKILLed holder's slot is reclaimed (0.0s)
+    [claim_slot] TIMEOUT: no free slot in 2s (slots=1)
+    slot 0: locked (holder has no owner file)
+    ok: wait times out with exit 2 (2.0s)
+    [claim_slot] slot 0/1 claimed (dup) at 09:52:20
+    [claim_slot] refusing: log '/tmp/tmp.QfvR9YyaEf/dup.log' is already owned by live pid 2637161
+    [claim_slot] exit=0 09:52:23 log=/tmp/tmp.QfvR9YyaEf/dup.log
+    ok: duplicate log path refused (exit 2) while the owner completes
+    ok: owner files removed on exit
+    PASS: claim slot selftest
+
+### ops selfcheck selftest: PASS (1.63s)
+$ bash scripts/191_ops_selfcheck.sh --selftest
+    ops selfcheck selftest (temp dir /tmp/tmp.HljnYfLult, no simulator, no GPU, no DB)
+    ok: OK case (fresh sim log)
+    ok: STALLED-SIM fires (frozen sim log, no corroboration)
+    ok: ACTION fires on a wedge marker
+    ok: ACTION verdict on a wedged sim
+    ok: ACTION on a separately grouped sim (kill line printed)
+    ok: STALLED-CHAIN fires (no sim, stale chain log)
+    ok: widened glob: a stale logs/r5/ chain log fires STALLED-CHAIN
+    ok: widened glob: the chain hint names the logs/r5/ log
+    ok: ACTION fires on a stale claim (dead owner pid)
+    ok: ACTION [wrap] fires (done marker + dirty tree)
+    ok: wrap action suppressed while a wrapper is alive
+    PASS: ops selfcheck selftest
+
+### bed supply audit: PASS (4.39s)
+$ python3 scripts/211_bed_audit.py --fast
+    [211] bed audit (P32 phase 1, offline): rows, corridor, density, bedrock
+    [211] env probes (the [fruit] [supply] warnings below are the probes' own)
+    [fruit] [supply] warning: FRUIT_SUPPLY_BED=1 requires FRUIT_SUPPLY_SCATTER=1; ignored
+    [fruit] [supply] warning: FRUIT_SUPPLY_BED=1 with FRUIT_SUPPLY_PATCH=1; the BED schedule wins
+    [fruit] [supply] warning: FRUIT_SUPPLY_BED=1 with FRUIT_SUPPLY_WAVE=1; the BED schedule wins
+    [fruit] [supply] warning: FRUIT_SUPPLY_TARGET is not used by the bed schedule (it packs its own slots); ignored
+    [211] plan: columns=0.20,0.28,0.36 rows=2 abreast (0.16 m) + mid, pitch=0.130-0.150 m (mid staggered 65-75 mm) margin=0.006 m shift<=0.04 m pool=40 corridor=+/-0.066 m floor=0.08 m
+    [211]   banner | [fruit] [supply] scatter pool=40 seed=5 rows=2 abreast (0.16 m) + conditional mid at x=0.28 pitch=0.130-0.150 m lateral x=0.20-0.36 m stream=on target=0 wave=off grades=A:0.5,B:0.3,C:0.2 classes=strawberry:5,lychee:5,kiwi:5,tomato:5,apple:5,orange:5,peach:5,pear:5
+    [211]   banner | [fruit] [supply] schedule: bed rows=2 abreast (edge pair 0.16 m) + conditional mid columns=0.20,0.28,0.36 pitch=0.130-0.150 m (mid half a pitch downstream, joins only when its diagonal clears the pair rule: <= 6.2-7.5 cm dia) margin=0.006 m shift=0.04 m pool=40 corridor=+/-0.066 m
+    [211]   banner | [fruit] created 40 fruit rigid bodies
+    [211] grade mix (pool 40, schedule=bed): A=20 B=12 C=8 (A:0.5,B:0.3,C:0.2)
+    [211] grade mix (two-line balanced): A=15 B=15 C=10 (pool 40, A:0.375,B:0.375,C:0.25)
+    [211] pure schedule (bed.py, seed=5, 80 due rows, pool model 40 fruit 2.9-6.9 cm, on-time: no shift room):
+    [211]   rows: due 80, placed 80, skipped 0; fruit/row 2x29 3x51 (full rows with the middle 51); middle refused by the pair rule 29
+    [211]   abreast clusters (same along <= 5 mm): 1x51 2x80 (a single-file zigzag reads 1x all)
+    [211]   columns: x=0.20 80 slots  x=0.28 51 slots  x=0.36 80 slots  (rows shifted 0)
+    [211]   per-column size histogram (the middle is a class filter by geometry, not a free column):
+    [211]     x=0.20 n= 80 dia 2.9-6.9 cm (median 6.2) <4.0:16 4.0-5.0:4 5.0-5.8:12 5.8-6.4:24 >=6.4:24
+    [211]     x=0.28 n= 51 dia 3.4-6.9 cm (median 6.2) <4.0:10 4.0-5.0:4 5.0-5.8:5 5.8-6.4:21 >=6.4:11
+    [211]     x=0.36 n= 80 dia 2.9-6.9 cm (median 6.2) <4.0:16 4.0-5.0:4 5.0-5.8:12 5.8-6.4:24 >=6.4:24
+    [211]   class filter read: middle median diameter 6.2 cm vs the edge pair's 6.2 cm; the diagonal admits 6.2-7.5 cm dia, so at the narrow pitch only the small classes join and at the wide pitch most do (which is why the delivered middle share is a pitch number)
+    [211]   pitch: 7.2 rows/m, mean 139.8 mm over 11.04 m; density 19.1 fruit/m over 11.04 m (211 fruit)
+    [211]   within-row separations: 182 pairs, min 103.2 / median 108.9 / max 160.0 mm; edge pair 160.0-160.0 mm; middle diagonal 103.2-109.4 mm
+    [211]   stagger: 51 middles, median 71 mm, p90 74 mm, 100 % inside the drawn half-pitch (65-75 mm)
+    [211]   pairwise (all pairs): 22155 pairs, min d=0.1032 m (p10 0.5921, median 3.3159), min d-0.066-r_other=0.0061 m vs the enforced 0.006 m margin, min slack +0.0001 m, violations 0
+    [211]   layout (newest 4 rows, belt frame): y=0.260 x=0.20e,y=0.260 x=0.36e,y=0.189 x=0.28m | y=0.405 x=0.20e,y=0.405 x=0.36e,y=0.333 x=0.28m | y=0.536 x=0.20e,y=0.536 x=0.36e,y=0.471 x=0.28m | y=0.680 x=0.20e,y=0.680 x=0.36e,y=0.608 x=0.28m
+    [211]   window: 1.10 m spawn window [-0.42, +0.68]: 24 fruit = 21.8/m (per column 8, 8, 8)
+    [211]   corridor geometry: a 7.0 cm fruit needs 107 mm in its own column (row pitch 130-150 mm), and a 4.5 cm one 94 mm; the middle's diagonal 103.1-109.7 mm admits a max radius of 31.1-37.7 mm (6.2-7.5 cm diameter)
+    [211]   shift probe: a 7 cm pair 5 cm downstream of a 6 cm middle -> refused with no room, placed at +30 mm with the 0.04 m bound (the delivered lattice needs none: 0 rows shifted)
+    [211]   pool-order band (8 permutations): skipped 0-0 % of rows, density 18.2-19.5 fruit/m
+    [211]   with the shift budget (0.04 m, the pump's backlog room): rows placed 80, skipped 0, 0 rows shifted, density 19.1 fruit/m (full rows 51)
+    [211]   small-class probe (strawberry/lychee pool, the middle's designed classes, 60 rows): fruit/row 3x60, full rows 60, stagger median 70 mm (100 % inside the band), diagonal 103.1-109.4 mm, density 21.8 fruit/m (skipped 0)
+    [211] pre-load (prime 4 rows): 10 fruit on the belt, min planar separation 0.1067 m, stats={'released': 12, 'reached_end': 0, 'fell_off': 0, 'discharged': 0, 'supply_skipped': 0, 'bed_draws': 12, 'bed_rows': 4, 'bed_placed': 10, 'bed_full_rows': 2}
+    [211]   reset replay: 10 fruit, positions match=True
+    [211] live-recycle counter probe (2-body pool, all 2 live): draw took a LIVE body -> bed_live_recycled=1/1
+    [211] output-lane draw probe (raised output lane: 2 bodies at x=0.628, y=-0.583, z=1.377 vs the 1.270 m cut, nothing parked): draw skipped both -> bed_live_recycled=0 (draws +1)
+    [211] output-lane draw probe (main belt: 2 bodies at x=0.628, y=-0.583, z=1.230 vs the 1.270 m cut, nothing parked): draw took a body -> bed_live_recycled=1 (draws +1)
+    [211] belt-end despawn probe (one boundary pump, then 14 s of belt travel; belt end -0.800 m, despawn -0.700 m = 0.83 s of travel at 0.12 m/s; sweep 0.25 s):
+    [211]   control: fell_off 11 reached_end 0 sweeps 0 swept 0; bodies on the floor 10 (min along -1.486 m); residual fell_off; belt-end kinds ['fell_off', 'fell_off', 'fell_off', 'fell_off']...
+    [211]   fix    : fell_off 1 reached_end 10 sweeps 56 swept 11; bodies on the floor 0 (min along -0.725 m); residual fell_off; belt-end kinds ['reached_end', 'reached_end', 'reached_end', 'reached_end']...
+    [211]   classification equivalence (the R2 refactor vs the pre-split code, 8 cases): main belt mid->None, main belt, past despawn->reached_end, floor mid-belt->fell_off, floor past despawn->fell_off, held, floor level->fell_off, chute band, z=0.88->None, chute band, held->fell_off, chute band, past despawn->reached_end
+    [211] integrated (real FruitSpawner, fake belt, SEED=5, prime 4 rows, 45 s, one consumer / 5.6 s, 2 cadences x 2 queue depths, --fast)
+    [211]   [q6 per-tick] placed 89 slots (1.98/s = 16.5 fruit/m of belt travel) from 102 draws (1.15x), transits 40 spawn-point (40 placed->despawn, 64 despawns), live 17 (peak 24, reserve 16 parked of pool 40)
+    [211]   [q6 per-tick] window 1.1 m: mean 15.3 p10 12 max 19; at pick mean 16.1 | body gaps n=11465 p10=70 p50=73 p90=201 max=347 mm | row gaps n=6484 p10=132 p50=143 p90=273 max=548 mm
+    [211]   [q6 per-tick] selector window (>=0.40 m): mean 3.9 min 0 max 7; at pick mean 4.6 min 3
+    [211]   [q6 per-tick] live-recycled 0/102 (0.0 %), abreast max 2 (75 % paired), min live sep 0.1036 m, min corridor margin +0.0063 m, classes apple:10,kiwi:9,lychee:13,orange:12,peach:11,pear:11,strawberry:10,tomato:13 grades A:43,B:31,C:15
+    [211]   [q6 16 s (attempt boundary)] placed 21 slots (0.47/s = 3.9 fruit/m of belt travel) from 24 draws (1.14x), transits 1 spawn-point (15 placed->despawn, 15 despawns), live 0 (peak 10, reserve 30 parked of pool 40)
+    [211]   [q6 16 s (attempt boundary)] window 1.1 m: mean 3.1 p10 0 max 10; at pick mean 4.8 | body gaps n=1856 p10=71 p50=71 p90=141 max=141 mm | row gaps n=877 p10=132 p50=141 p90=142 max=142 mm
+    [211]   [q6 16 s (attempt boundary)] selector window (>=0.40 m): mean 0.5 min 0 max 6; at pick mean 1.2 min 0
+    [211]   [q6 16 s (attempt boundary)] live-recycled 0/24 (0.0 %), abreast max 2 (75 % paired), min live sep 0.1053 m, min corridor margin +0.0069 m, classes apple:3,kiwi:2,lychee:3,orange:4,peach:3,pear:2,strawberry:1,tomato:3 grades A:10,B:9,C:2
+    [211]   [q18 per-tick] placed 89 slots (1.98/s = 16.5 fruit/m of belt travel) from 102 draws (1.15x), transits 40 spawn-point (40 placed->despawn, 64 despawns), live 17 (peak 24, reserve 16 parked of pool 40)
+    [211]   [q18 per-tick] window 1.1 m: mean 15.3 p10 12 max 19; at pick mean 16.1 | body gaps n=11465 p10=70 p50=73 p90=201 max=347 mm | row gaps n=6484 p10=132 p50=143 p90=273 max=548 mm
+    [211]   [q18 per-tick] selector window (>=0.40 m): mean 3.9 min 0 max 7; at pick mean 4.6 min 3
+    [211]   [q18 per-tick] live-recycled 0/102 (0.0 %), abreast max 2 (75 % paired), min live sep 0.1036 m, min corridor margin +0.0063 m, classes apple:10,kiwi:9,lychee:13,orange:12,peach:11,pear:11,strawberry:10,tomato:13 grades A:43,B:31,C:15
+    [211]   [q18 16 s (attempt boundary)] placed 21 slots (0.47/s = 3.9 fruit/m of belt travel) from 24 draws (1.14x), transits 1 spawn-point (15 placed->despawn, 15 despawns), live 0 (peak 10, reserve 30 parked of pool 40)
+    [211]   [q18 16 s (attempt boundary)] window 1.1 m: mean 3.1 p10 0 max 10; at pick mean 4.8 | body gaps n=1856 p10=71 p50=71 p90=141 max=141 mm | row gaps n=877 p10=132 p50=141 p90=142 max=142 mm
+    [211]   [q18 16 s (attempt boundary)] selector window (>=0.40 m): mean 0.5 min 0 max 6; at pick mean 1.2 min 0
+    [211]   [q18 16 s (attempt boundary)] live-recycled 0/24 (0.0 %), abreast max 2 (75 % paired), min live sep 0.1053 m, min corridor margin +0.0069 m, classes apple:3,kiwi:2,lychee:3,orange:4,peach:3,pear:2,strawberry:1,tomato:3 grades A:10,B:9,C:2
+    [211]   candidate table (mean fruit in the 1.1 m spawn window, all ticks / at pick):
+    [211]     queue     per-tick                16 s (attempt boundary) 
+    [211]     q6                15.3 /     16.1          3.1 /      4.8
+    [211]     q18               15.3 /     16.1          3.1 /      4.8
+    [211]   selector-window table (mean fruit at/above the catch floor, all ticks / at pick):
+    [211]     queue     per-tick                16 s (attempt boundary) 
+    [211]     q6                 3.9 /      4.6          0.5 /      1.2
+    [211]     q18                3.9 /      4.6          0.5 /      1.2
+    [211]   patch baseline (q6 per-tick, its own 16-fruit pool): window mean 8.2 p10 7 max 11, selector window mean 2.3, placed 48 draws | bed/patch window ratio 1.87x (selector window 1.67x) at the same cadence
+    [211] bedrock: legacy slot streams with FRUIT_SUPPLY_BED unset
+    [211]   scatter  122 lines sha256=a9f310a9ec1d4baa... ok
+    [211]   wave     236 lines sha256=c67cbc5fb1b03839... ok
+    [211]   patch    240 lines sha256=711b6f481dde0375... ok
+    [211]   fixed     83 lines sha256=7f5f2cace85af43e... ok
+    [211]   final [bed] stats row: [bed] stats draws=102 placed=89 live_recycled=0/102 (0.0 %) holds=6 refused=0 rebased=0 late_dropped=0.0s fell_off=0 reached_end=0 sweeps=0 swept=0 supply_skipped=0 live=17
+    [211] ok (99 checks)
+
+### prepared-next selftest: PASS (0.09s)
+$ python3 scripts/213_prepared_next_selftest.py
+    [1] the prepared ranking (the shipped selector, applied repeatedly)
+    ok: single-arm nearest-usable rule: farthest upstream first, then downstream
+    ok: no candidate appears twice in the prepared set
+    ok: every prepared row is above the catch floor (0.399 m)
+    ok: a fruit inside the catch floor is not prepared
+    ok: starved line -> empty set
+    ok: the set size is the requested limit, in rule order
+    ok: the protected/current fruit is excluded from the ranking
+    ok: two-line right lane: grade B only, nearest of its lane first (C never)
+    ok: two-line left lane: grade A only
+    ok: the prepared target's lane is the driver's grade rule (A -> left)
+    [2] the refresh policy (release supersedes carry, no downgrade, empty keeps)
+    ok: carry-stage store accepted
+    ok: carry stage recorded
+    ok: release-stage store accepted
+    ok: the release read supersedes the carry read
+    ok: a later carry-stage store cannot downgrade the release set
+    ok: the release set is kept
+    ok: an empty read is counted
+    ok: an empty read keeps the previous set (a transient empty state is not a loss)
+    ok: clear drops set and stage
+    [3] the consume (one-item re-check on the live state)
+    ok: the first row that still passes wins
+    ok: the consume age is quoted (selection -> dispatch) (10.0000 ~ 10.0000)
+    ok: the row inside the floor is counted as dropped
+    ok: the set is consumed once
+    ok: a row the feeder recycled away is refused
+    ok: the missing row is counted as dropped
+    ok: a whole set that dropped inside the floor returns None (select fresh)
+    ok: the failed set is emptied
+    ok: nothing pending -> None
+    ok: knob off -> None
+    [4] the scope and the default-off pins
+    ok: single-arm scripted attempt: the pipeline is in scope
+    ok: direct/policy handover: out of scope
+    ok: a CoopSession (two-line / shared station): out of scope
+    ok: teleport pre-pose (smooth transit off): out of scope
+    ok: FRUIT_PREPARED_NEXT defaults to 0 (off)
+    ok: FRUIT_FEED_CADENCE defaults to 0 (off)
+    ok: FRUIT_FEED_STRIDE defaults to 4 ticks
+    ok: FRUIT_PREPARED_SET defaults to 4 rows
+    ok: the return uses the measured convergence pair 140+80 (W8-R3 hot hold)
+    ok: an empty set does not run the return by default (the A/B control knob)
+    ok: fruits.update keeps advance_furniture=True as its default (byte-identical callers)
+    ok: the driver consumes the prepared set and honours at_prepose
+    ok: the carry hook is a single gated call (`if self._feed_on:`)
+    [4b] the two-line prepared set (built at the other arm's carry start)
+    [fruit] [biarm] right: prepared n=2 (for left's clear) top=index 1 ? along=+0.350m at t=100.0s
+    ok: the idle arm's set is built once
+    ok: the set is the worker's own rule: grade B, nearest of its station lane
+    ok: only the top entry is reserved (the alternates cannot starve the lane)
+    ok: the preparing arm's own set is not touched by the other arm's build
+    [fruit] [biarm] right: prepared consumed index=1 ? along=+0.350m age=0.0s at t=100.0s
+    ok: the slot start consumes the prepared top entry
+    ok: the reservation is released at the consume
+    ok: the consumed set is empty and counted
+    [fruit] [biarm] right: prepared n=2 (for left's clear) top=index 1 ? along=+0.350m at t=100.0s
+    ok: a fresh build reserves again
+    [fruit] [biarm] right: prepared set dropped (n=2, age=0.0s)
+    ok: a set that dropped inside the floor is refused (the slot selects fresh)
+    ok: the reservation is released even when the whole set is refused
+    ok: the refused set is counted in the batch-end report
+    [fruit] [biarm] right: prepared n=2 (for left's clear) top=index 1 ? along=+0.350m at t=100.0s
+    [fruit] [biarm] right: prepared consumed index=2 ? along=+0.450m age=0.0s at t=100.0s
+    ok: a recycled-away top row falls through to the next-ranked alternate
+    ok: the missing row is counted as stale
+    [fruit] [biarm] right: prepared n=2 (for left's clear) top=index 1 ? along=+0.350m at t=100.0s
+    [fruit] [biarm] right: prepared set dropped (n=2, age=0.0s)
+    ok: a set whose rows are all gone is refused
+    ok: every missing row is counted as stale
+    ok: the reservation is released by the take
+    [fruit] [biarm] right: prepared n=2 (for left's clear) top=index 1 ? along=+0.350m at t=100.0s
+    ok: abandoning the set (the worker's finally) releases the reservation
+    ok: the prepare latch is reset at every slot start
+    ok: the build is triggered from the payload-clear tick (the park-gate instant)
+    [5] the feeder cadence (stride arithmetic, furniture flag)
+    ok: stride 1 over 10 ticks -> 10 pump calls
+    ok: stride 1: every tick is counted
+    ok: stride 1: every pump keeps the conveyor furniture on the shipped cadence
+    ok: stride 4 over 10 ticks -> 2 pump calls
+    ok: stride 4: every tick is counted
+    ok: stride 4: every pump keeps the conveyor furniture on the shipped cadence
+    ok: stride 4 over 12 ticks -> 3 pump calls
+    ok: stride 4: every tick is counted
+    ok: stride 4: every pump keeps the conveyor furniture on the shipped cadence
+    ok: stride 2 over 7 ticks -> 3 pump calls
+    ok: stride 2: every tick is counted
+    ok: stride 2: every pump keeps the conveyor furniture on the shipped cadence
+    ok: stride 4 over 1 ticks -> 0 pump calls
+    ok: stride 4: every tick is counted
+    ok: stride 4: every pump keeps the conveyor furniture on the shipped cadence
+    ok: the arming site resets the cadence counters per attempt
+    [6] fruits.update's furniture split (the real spawner)
+    ok: update() with the default steps the conveyor (unchanged)
+    ok: advance_furniture=False keeps the cleat phase where it is (the cadence lever only)
+    ok: the transport wake loop still runs without the furniture step
+    PASS: prepared-next pipeline selftest
+
+### motion budgets: SKIP
+    no run log given; pass one to judge a pick-and-place run:
+      scripts/accept.sh            # produces logs/accept.log
+      scripts/selfcheck.sh logs/accept.log
+    this is not a failure: the run it judges is a separate ten-attempt command
+
+### summary
+    failed=0 skipped=1 total=33.99s

@@ -380,6 +380,41 @@ implementation: the simulation cell, the data pipeline, and the policy training 
 > measured and **not adopted**. Evidence: `AGENTS.md` §2 (the P33 paragraphs),
 > `docs/CLOSEOUT.md` §3/§4 items 5/6/8, WORKLOG "P33 phase 1..4", `logs/p33/`.
 
+> **P35 (2026-10-24): the inactive arm's park - a measured interface lever whose
+> mediator is not identified; default off, not adopted.** `FRUIT_ARM_PARK=back`
+> (direct presentation only; `configs/arm_parks.json`; unset = the shipped `ready`
+> teleport) parks the **inactive** left arm out of the belt's sightline. Phase 1:
+> `ready` covers 98 % of a 58 mm fruit's disc at along +0.35, `back` 0.002. The
+> record A/B (`logs/p35/C_ab/`, N = 5x15 per arm, `moe_v13s` on both arms, P33
+> scenario verbatim): **right 23/51 -> 47/50** with the **carried-not-placed class
+> 25 -> 0** (composite 28 -> 3), left no-op guard flat, pooled **24/75 -> 49/75**,
+> **B > A in 5/5 runs (p = 0.031)** - the design-valid leg, with the standardised
+> counts (right 94.9 % class- / 94.1 % size-standardised vs 52.3 %/45.2 %). The
+> exact-instance pairing is **conditioned on a post-treatment variable** (the
+> streams diverge): 22 of 75 slots pairable, 8 B-only / 0 A-only (p = 0.0039),
+> carried 7-0; `C_pairs.txt` is the same-species set (24 pairs, 8/1 - the extra
+> A-only a different fruit). The Gate-1 P0 check: M1 the pose held vs the pose the
+> reset **achieved** (50/50; the 0.088 rad command residual is reported - the
+> shipped `ready` sits 0.037 from its own command), M2a the arm term at the
+> +0.30..+0.40 band's worst call (50/50; control 0/51), and the census: the band's
+> **fully-hidden calls 68.1 % -> 0 %**, any inactive-arm pixel inside the fruit's
+> projected-disc **bbox 100 % -> 0 %**. M2b is a **recorded report** (36/50 = 72 %,
+> misses `arm_px = 0` on 22-47 px masks), not the gate. **The park moves the image
+> (3497 -> 4155 px) and the 7 inactive-arm proprio channels together and this A/B
+> does not separate them; the control succeeds with the fruit invisible (9 of its
+> 23 right successes `px=0` at every band call), which argues against a simple
+> perception bottleneck** - so the claim is "the park is a measured interface
+> lever; it removes the fruit's band occlusion", not "the sightline is the
+> mechanism". Adoption needs a **recollection's own A/B** (which fixes both
+> channels and can erase a checkpoint-specific input-shift win) and the named
+> discriminator is a small-N **proprio-spoof x image-spoof**. `PREREG.md` §5's
+> literal 0.02 rad arm-pose block is failed by the 0.088 command residual; not
+> adopted either way. No-harm: selfcheck PASS, acceptance **6/10 +
+> `fingerprint: matches`** with **376/376 `[fruit]` lines identical** to
+> `logs/p34/73_accept_no_harm.log`. Evidence: `AGENTS.md` §2 (the P35 paragraph),
+> WORKLOG "P35 phase 1/2", `logs/p35/` (`C_RESULTS.md`, `C_PREREG_AMEND.md`,
+> `C_ab/`).
+
 > **汇报入口**：[项目总结报告.md](项目总结报告.md)（单一文档，含图表与日志编号）；路线取舍见 [决策与交付.md](决策与交付.md)；**项目收尾一页纸见 [docs/CLOSEOUT.md](docs/CLOSEOUT.md)**（R11-C：交付状态 / 全部杠杆族的实测裁定 / 剩余项）；一键演示 `scripts/demo_2min.sh`。
 
 > **Contributing?** [AGENTS.md](AGENTS.md) lists the three commands to run before

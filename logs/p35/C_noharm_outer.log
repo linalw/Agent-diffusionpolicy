@@ -1,0 +1,24 @@
+# P35 C no-harm driver, annotated after the fact (2026-10-24). Two artifacts of
+# this log, neither a failure:
+#  - `acceptance exit=1` is the EXPECTED rate-only result: the scripted
+#    acceptance reads 6/10 with `fingerprint: matches
+#    configs/motion_reference.json` - the pre-existing P32 pear-on branch (which
+#    is below the 75 % dynamic floor only on the rate). See
+#    `C_accept_driver.log` / `C_accept_no_harm.log`.
+#  - the `identity` step's `cat: C_accept_identity.txt: no such file` is a
+#    driver ordering bug, not a missing comparison: the file is written at
+#    14:25 while this line ran at 14:22. The identity was re-verified
+#    afterwards and reads 376/376 `[fruit]` lines IDENTICAL to
+#    `logs/p34/73_accept_no_harm.log` (`C_accept_identity.txt`).
+[p35c-noharm] selfcheck 14:16:49
+[p35c-noharm] selfcheck exit=0
+motion budgets             SKIP      -
+
+PASS: 0 failures, 1 skipped (log: logs/selfcheck.log)
+[p35c-noharm] acceptance (knob unset) 14:17:23
+[claim_run] claimed the simulator 14:17:43
+[claim_run] exit=1 14:22:44 log=logs/p35/C_accept_driver.log
+[p35c-noharm] acceptance exit=1 14:22:44
+[p35c-noharm] identity exit=0
+cat: logs/p35/C_accept_identity.txt: 没有那个文件或目录
+[p35c-noharm] done 14:22:44

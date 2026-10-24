@@ -1,0 +1,67 @@
+runs paired: [1, 2, 3, 4, 5] | episodes per arm: 75 / 75
+
+== arm A: the manipulation check (75 episodes)
+  inactive=left : n=57 with_band=57 park=['ready']
+      pre-reg M1 (<=0.02 @1st call): 0/57 | residual first-call median=0.038 band-call median=0.041
+      M1' applied+stable: 0/57 | |q-back| median=0.602 |q-ready| median=0.042 drift max=0.005 rad
+      pre-reg M2 (1st band call): 23/57 | band_rel median=0.928 arm_frac median=0.000
+      M2' band census (all calls): 0/57 | min_rel median=0.019 (min -1.000) max_frac median=1.125 (max 3.000) | drift max=0.005 rad
+  inactive=right: n=18 with_band=18 park=['ready']
+      pre-reg M1 (<=0.02 @1st call): 0/18 | residual first-call median=0.027 band-call median=0.031
+      pre-reg M2 (1st band call): 10/18 | band_rel median=0.879 arm_frac median=0.000
+      M2' band census (all calls): 0/18 | min_rel median=0.018 (min 0.005) max_frac median=0.000 (max 0.000) | drift max=0.005 rad
+  band calls per episode: median=37 (17-38)
+
+== arm B: the manipulation check (75 episodes)
+  inactive=left : n=48 with_band=48 park=['back']
+      pre-reg M1 (<=0.02 @1st call): 0/48 | residual first-call median=0.090 band-call median=0.099
+      M1' applied+stable: 48/48 | |q-back| median=0.100 |q-ready| median=0.602 drift max=0.012 rad
+      pre-reg M2 (1st band call): 31/48 | band_rel median=0.942 arm_frac median=0.000
+      M2' band census (all calls): 24/48 | min_rel median=0.893 (min 0.766) max_frac median=0.000 (max 0.000) | drift max=0.012 rad
+  inactive=right: n=27 with_band=27 park=['back']
+      pre-reg M1 (<=0.02 @1st call): 0/27 | residual first-call median=0.027 band-call median=0.027
+      pre-reg M2 (1st band call): 14/27 | band_rel median=0.857 arm_frac median=0.000
+      M2' band census (all calls): 0/27 | min_rel median=0.057 (min 0.005) max_frac median=0.000 (max 0.000) | drift max=0.005 rad
+  band calls per episode: median=37 (2-38)
+
+== arm A: [align] first-call counters (n=75)
+  first along median=+0.485 (+0.367..+0.610) | first_px=0 on 72/75 | pfc median=0 pcm median=99 | zone zero-mask median=0/16
+
+== arm B: [align] first-call counters (n=75)
+  first along median=+0.478 (+0.305..+0.583) | first_px=0 on 72/75 | pfc median=0 pcm median=119 | zone zero-mask median=0/12
+
+== arm A: pooled 29/75 | left 1/18 | right 28/57 | median cycle 1851 ticks
+  left : n=18 ok=1 no-grasp=0 carried-not-placed=17 other=0 | composite(carried+no-grasp)=17
+  right: n=57 ok=28 no-grasp=3 carried-not-placed=26 other=0 | composite(carried+no-grasp)=29
+
+== arm B: pooled 47/75 | left 2/27 | right 45/48 | median cycle 1821 ticks
+  left : n=27 ok=2 no-grasp=0 carried-not-placed=25 other=0 | composite(carried+no-grasp)=25
+  right: n=48 ok=45 no-grasp=3 carried-not-placed=0 other=0 | composite(carried+no-grasp)=3
+
+== the right arm (the lever's population: grade B/C)
+  A: right ok 28/57 | x<0.26: n=24 ok=4 carried=18 no-grasp=2
+  B: right ok 45/48 | x<0.26: n=15 ok=15 carried=0 no-grasp=0
+
+== exact-instance pairs: 22 usable (excluded 53 fruit-class, missing 0)
+  both_ok=5 both_fail=7 B-only=8 A-only=2 | one-sided sign p=0.0547
+  carried     -> carried       7
+  carried     -> ok            7  <== flip
+  no-contact  -> ok            1  <== flip
+  ok          -> carried       1  <== flip
+  ok          -> no-contact    1  <== flip
+  ok          -> ok            5
+  carried-class conversions: B-only 7, A-only 1 | no-grasp-class: B-only 1, A-only 1
+
+== exact-instance pairs (x < 0.26): 10 usable (excluded 53 fruit-class, missing 0)
+  both_ok=1 both_fail=5 B-only=3 A-only=1 | one-sided sign p=0.3125
+  carried     -> carried       5
+  carried     -> ok            2  <== flip
+  no-contact  -> ok            1  <== flip
+  ok          -> carried       1  <== flip
+  ok          -> ok            1
+  carried-class conversions: B-only 2, A-only 1 | no-grasp-class: B-only 1, A-only 0
+
+== failure reasons
+  A: ["'fruit fell off the line'", "'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)'", "'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)', 'fruit did not follow the gripper'"]
+  B: ["'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)'", "'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)', 'fruit did not follow the gripper'", "'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)', 'fruit left the pick station during the close (# mm)'"]
+  NEW in B: ["'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)', 'fruit left the pick station during the close (# mm)'"]
