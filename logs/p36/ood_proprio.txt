@@ -1,0 +1,48 @@
+P36 phase 2 - the per-channel OOD asymmetry of the probe cells
+==============================================================================
+the 7 left-arm dof indices (0,2,4,6,8,10,12); z = (written - mean)/sd
+of the population in the same row; the written vectors are
+  ready = [-1.464, -0.375, 1.488, 1.315, -1.496, -0.588, 1.559]
+  back  = [-1.912, -0.978, 1.503, 0.818, -1.498, -0.586, 1.559]
+
+  r9_awr (the direct interface's own rollouts): n=3261 steps
+    joint      mean       sd                range z(ready)  z(back)
+    j1       -1.429   0.2697 [-2.049,+0.459]     -0.13    -1.79
+    j2       -0.278   0.1644 [-0.777,+0.175]     -0.59    -4.26
+    j3       +1.464   0.1892 [-0.268,+1.571]     +0.13    +0.20
+    j4       +1.237   0.1746 [+0.451,+1.612]     +0.45    -2.40
+    j5       -1.404   0.2217 [-1.571,+0.130]     -0.41    -0.42
+    j6       -0.570   0.0957 [-0.785,+0.034]     -0.19    -0.17
+    j7       +1.495   0.1893 [-0.508,+1.571]     +0.34    +0.34
+    => ready: max |z| = 0.59 over the 7 channels
+    => back : j2 at -4.26 sigma (max |z| 4.26); 3/7 channels beyond 1.7 sigma
+    => ready: outside the observed range: none
+    => back: outside the observed range: j2
+
+  demos_v11 (the training base): n=10228 steps
+    joint      mean       sd                range z(ready)  z(back)
+    j1       -1.501   0.0979 [-1.999,-1.215]     +0.37    -4.20
+    j2       -0.354   0.1217 [-0.792,+0.175]     -0.17    -5.13
+    j3       +1.487   0.0344 [+1.175,+1.571]     +0.02    +0.45
+    j4       +1.263   0.1788 [+0.054,+1.440]     +0.29    -2.49
+    j5       -1.479   0.0857 [-1.571,-0.769]     -0.20    -0.23
+    j6       -0.584   0.0478 [-0.769,-0.028]     -0.08    -0.04
+    j7       +1.540   0.1159 [+0.184,+1.570]     +0.17    +0.17
+    => ready: max |z| = 0.37 over the 7 channels
+    => back : j2 at -5.13 sigma (max |z| 5.13); 3/7 channels beyond 1.7 sigma
+    => ready: outside the observed range: none
+    => back: outside the observed range: j2
+
+READING: cell 3 holds the *in-support* ready proprio under the parked
+image; cell 4 holds the *parked* proprio under the shipped image. The
+support claim rests on the RANGE, not on the sigma summary: the parked
+vector's j2 (-0.978 rad) is the *only* one of the 7 channels outside
+either store's observed range ([-0.777,+0.175] direct, [-0.792,+0.175]
+training); the other two >1.7-sigma channels (j1, j4) sit inside theirs,
+so "4-5 sigma" is a pooled-population mixture statistic. So a cell-4
+POSITIVE is the stronger read (the park's own proprio channel, alone, on
+an in-support image) and a cell-4 NULL is the weaker one (an out-of-range
+input may simply be ignored, or the network may have no path for it) -
+the asymmetry the PREREG's section 8a records. The direction is
+conservative: it argues against over-reading the proprio null, not
+against the image cell.

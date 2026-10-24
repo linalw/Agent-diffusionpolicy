@@ -1,0 +1,35 @@
+P36 phase 2 - the exact power of a main-effect table
+==============================================================================
+two-sided Fisher, alpha = 0.05, p1 = 0.49 (the P35 control's
+right-arm carried rate 25/51); n per arm = 60 = 2 cells x ~30
+right-arm episodes (the P35 right share 51/75 = 68 %)
+
+  probe cell r  carrier f  power n=30    n=45    n=60
+         0.000       1.00       1.000   1.000   1.000
+         0.050       0.90       0.978   0.999   1.000
+         0.100       0.80       0.900   0.983   0.998
+         0.150       0.69       0.753   0.922   0.977
+         0.200       0.59       0.566   0.788   0.894
+         0.245       0.50       0.400   0.611   0.744
+         0.250       0.49       0.383   0.590   0.724
+         0.300       0.39       0.235   0.374   0.497
+         0.343       0.30       0.142   0.220   0.310
+         0.400       0.18       0.067   0.090   0.131
+         0.441       0.10       0.038   0.044   0.062
+
+  the pre-registered quartet (n = 60 / arm, the probe cell at
+  0.10 / 0.15 / 0.20 / 0.25 - the 80 / 69 / 59 / 49 % carriers):
+    r=0.10: exact 0.9978 -> 0.998  (the quartet's 0.998)  ok
+    r=0.15: exact 0.9767 -> 0.977  (the quartet's 0.977)  ok
+    r=0.20: exact 0.8945 -> 0.894  (the quartet's 0.894)  ok
+    r=0.25: exact 0.7237 -> 0.724  (the quartet's 0.724)  ok
+
+  at 80 % power the design sees a probe cell at r <= ~0.18 (carrier
+  f >= ~0.63); a 50 % carrier (r = 0.245) reads 0.74, a 30 % carrier
+  (r = 0.343) 0.31, a 10 % carrier (r = 0.441) 0.06 - which is why the
+  primary readout is the effect fraction with its band, not the p-value
+  alone.
+
+  CAVEAT (binding): the 60 episodes are 3 runs x 15; the policy loop is
+  not reproducible across runs, so the effective n is below 60 and these
+  powers are an upper bound. The run level cannot reach p = 0.05 at 3 runs.

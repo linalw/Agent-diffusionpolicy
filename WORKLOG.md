@@ -17529,3 +17529,272 @@ drivers/reports (`logs/p35/park_ab_report.py`, `C_attribution.py`), the
 Re-verification on the final tree: `scripts/selfcheck.sh` PASS (0 failures, 1
 skipped); `scripts/106_index_audit.py` PASS; `scripts/107_collect_merge_test.py`
 PASS; `rl_env.py` still `fd18bb1b` (+424/-1).
+
+### P36 phase 1: the proprio-spoof knob and the 2x2's pre-registration - the offline diff and the six-cell smoke pass, the shipped stream is byte-identical, and no outcome is claimed (2026-10-24)
+
+**The phase delivers the mediator test's instrument, not its answer.** P35 closed
+with the park as a measured interface lever whose **mediator is not identified**
+(the image's 3497 -> 4155 px silhouette and the **7 inactive-arm joints** of the
+25-D proprio move together). This phase adds the other channel's manipulator and
+freezes the design before any 2x2 run.
+
+(1) **`FRUIT_PROPRIO_SPOOF=<pose>`** (`rl_env.py`, direct presentation only,
+default off): `proprio()` writes the **inactive** arm's 7 joint values into the
+observation from `configs/proprio_spoof.json` through the pure
+`apply_proprio_spoof(dof, active, indices, vectors)` - a copy, no simulation
+state touched. The indices are the arm's own `arm_dofs`, read from the measured
+dof order (`logs/33_dof.log`): **left `0,2,4,6,8,10,12`, right
+`1,3,5,7,9,11,13`**; the active arm, the four fingers (14,15,17,18), the hands
+(16,19) and the TCP joints (20,21) are untouched. **The vectors are measured,
+not commanded**: they are the `q_settled=` values of the P35 `[park]` rows (the
+pose the reset *achieved*; `teleport_joints` re-bases onto the measured state,
+so `back`'s command is 0.088 rad off), each string repeating identically across
+its population in `logs/p35/C_ab/` (left ready n=51, left back n=50, right ready
+n=24) on the same tree. `back` has **no right-arm vector** (the park file has no
+right park), so a left-active episode is a no-op in this channel - the 2x2's
+within-batch negative control. `FRUIT_SPOOF_DIAG=1` prints one `[spoof]` row per
+episode: the 7 indices and their live/written values, the md5 of the assembled
+proprio before/after, the md5 of the same vector **with the 7 zeroed**
+(`rest_same`), and `drift = max|live-written|`. The manifest gains a
+`proprio_spoof` block and the vector file is in `_MANIFEST_SOURCES`.
+
+(2) **The offline check** (`scripts/218_proprio_spoof_check.py`, now a selfcheck
+leg, 0.08 s; `logs/p36/offline_obs_diff.txt`): **failures=0**, and it compares
+against artefacts rather than transcriptions - the three vectors == the P35
+`q_settled` rows, the layout == the measured dof order, one call writes 7 and
+**reads 6 changed** (j7 is 1.559 in both poses) with the other **15
+bit-identical**, the caller's array unmutated, the 25-D assembly's finger/tactile
+channels unchanged and the rest-of-vector hash equal, and the no-vector and
+empty-dict paths bit-identical no-ops. `ready -> back` is
+`[0.448, 0.603, 0.015, 0.497, 0.002, 0.002, 0.000]` rad (max 0.603).
+
+(3) **The smoke** (`logs/p36/run_smoke.sh`, six one-episode runs at seed 77 in
+one claim, the P35 scenario verbatim with all four diags; checked by
+`logs/p36/smoke_check.py` -> `P1_smoke.txt`, **failures=0**): cells 1-4 plus two
+source-vector controls (`s1b` writes the ready vector onto a ready arm, `s2b`
+the back vector onto a parked arm). **S1** the no-op drift **0.0059 rad**
+(ready) / **0.0141 rad** (back) against the 0.02 pre-registered bar, the probe
+cells' drift 0.6035/0.6036 (the substitution bites); **S2** `rest_same=1`
+everywhere; **S3** `[park]` M1 holds each cell's pose (0.002/0.004); **S4** the
+inactive arm is in the target's disc bbox in the ready cells (`arm_px` 234,
+frac 4.5) and absent in the parked ones (0, 0.000) - the image follows the arm,
+not the spoof, reproducing P35's ep0 rows. **The strongest part**: the pre-spoof
+proprio hash is **bit-identical inside each physical pair** (cells 1/4
+`68e0e753`, cells 2/3 `98b0df03`), so the two cells of a pair differ in nothing
+but the 7 values and the image at the first call. The six single episodes
+already disagree in outcome (and `s1b` vs `s1` differs by <= 0.006 rad in 7
+channels) - the documented non-reproducibility of the policy loop, which is why
+the 2x2 is 3 x 15 per cell; **nothing in the smoke is a rate**.
+
+(4) **No-harm**: the scripted acceptance reads **6/10 + `fingerprint: matches
+configs/motion_reference.json`** with **376/376 `[fruit]` lines byte-identical**
+to the P35 record (`logs/p36/P1_accept_identity.txt`; the 6/10 is the
+pre-existing P32 pear-on branch, so the rate-only `exit=1` is expected);
+`scripts/selfcheck.sh` **PASS** (0 failures, 1 skipped) with the new leg. Off,
+the knob is one empty-dict test and no copy in `proprio()`; the scripted line
+does not construct the env at all.
+
+(5) **The pre-registration** (`logs/p36/PREREG.md`, written before any 2x2 A/B):
+the 4 cells (ready/ready, park/park, park-image/ready-proprio,
+ready-image/park-proprio), the endpoints (the right's carried-not-placed primary,
+the placed/composite, the pooled, the per-class standardised, no-new-reason, the
+cycle), **N = 3 runs x 15 episodes per cell** (180; seeds 77/101/202, policy seed
+11, **rotated cell order** per run, one claim), and the fixed analysis: the two
+exact Fisher main-effect tables (image `((r2+r3)-(r1+r4))/2`, proprio
+`((r2+r4)-(r1+r3))/2`) on the right-arm population, the interaction
+`(r2-r3)-(r4-r1)` with a within-stratum permutation (5 000 draws, seed
+20261024) read as **redundancy vs synergy** (0 = additive; negative = the
+both-parked cell beats the additive prediction; positive = the single-channel
+cells do), the **effect fraction** `(r1-r_c)/(r1-r2)` with the full/partial/none
+bands, and the power statement (at n = 30 right/arm a channel cell at 0.10 is
+detected with 0.90 power, at 0.15 with 0.75; a third-carrier is not). The
+falsifiers are one-directional: **a positive names the channel, a null is
+ambiguous** (the probe cells are inconsistent input pairs the checkpoint never
+saw); the decision matrix's last row is "not identified", with the conjunction
+pattern noted to move each main-effect table by half. Phase-2 tooling written
+and self-tested: `scripts/219_p36_cells.sh` (the rotated 4-cell driver) and
+`scripts/220_p36_report.py` (the analysis + a `--self-test` that pins the five
+synthetic tables' readings). **No commit; no shipped default changed.**
+
+(6) **Named risks for phase 2**: the OOD probe cells; the spoof is a constant
+with a <= 0.014 rad live drift (so "same proprio" is a <= 0.02 rad
+substitution); the right-arm inference population (~30/cell) means the design
+sees a channel carrying >= ~72 % of the P35 conversion at 80 % power; and the policy loop's
+run-to-run variance is why the left-arm episodes (a no-op in all four cells) are
+quoted as the batch's noise scale.
+
+### P36 phase 2: the park's win travels the image channel - the parked image alone reproduces the whole conversion (0/28 carried) while the parked proprio alone sits at the control level (0.567); the fruit's sightline is the leading but unseparated candidate, the interaction is the pre-registered descriptor only (nothing measurable under the ceiling), and the proprio contribution is inside the batch's own no-op noise (2026-10-24)
+
+**The mediator question P35 left open is answered for one channel.** P35 measured
+the inactive-arm park as a real lever (the right's carried class 25/51 -> 0/50)
+but could not separate the two channels it moves: the image (the arm's silhouette
+3497 -> 4155 px, the fruit's band occlusion 68 % -> 0) and the **7 inactive-arm
+joints** of the 25-D proprio (`[0.448, 0.603, 0.015, 0.497, 0.002, 0.002, 0.000]`
+rad). This phase crosses them 2x2: cell 1 ready/ready (the control), cell 2
+park/park (the lever), cell 3 park-image/ready-proprio, cell 4
+ready-image/park-proprio, with the proprio written through
+`FRUIT_PROPRIO_SPOOF` and the image moved by the real `FRUIT_ARM_PARK`.
+
+(1) **The batch.** 4 cells x 3 runs x 15 episodes = **180**, seeds 77/101/202,
+policy seed 11, one simulator session per cell, **one claim**
+(`RUN_LIMIT=25200`, 19:39-21:04, wall **5146 s** = 85.8 min, 7.1 min/cell). The
+cell order is a **randomised rotation** (`P36_ORDER_SEED=20261024`, base
+`2 3 1 4`: run 1 `2 3 1 4`, run 2 `3 1 4 2`, run 3 `1 4 2 3`), replacing the plain
+rotation whose cell-position alias was fixed within each run. Right-arm
+denominators 27/30/28/30 (the arm follows the grade, so the per-cell fruit mix
+differs - the standardisation exists for that), left 18/15/17/15.
+
+(2) **The manipulation check passes, from the batch's own rows** (S1-S4, 180
+episodes, no separate instrumented run): the probe cells write the file's vector
+bitwise (`28/28`, `30/30`), the written vector matches the **physical
+counterpart cell's live pose** to **0.0020 / 0.0040 rad** (per-episode max, bar
+0.02), `rest_same=1` in **180/180**, the parked arm holds its pose **115/115**,
+and - the design's point - **the image follows the arm, not the spoof**: the
+inactive arm has pixels in the target's disc bbox in **27/27** cell-1 and
+**30/30** cell-4 right-active episodes (the call census **670/670** and
+**724/724**) and **0** in cells 2 (`30/30`) and 3 (`28/28`) (**0/741**,
+**0/680** calls), with the no-op side (the inactive right arm at ready) **0/1555**
+in every cell. So cell 3 presents the parked image with an in-support ready
+proprio and cell 4 the shipped image with the parked proprio - the channels moved
+independently.
+
+(3) **The result (right-arm carried class, the primary).** Cell 1 **18/27 =
+0.667** [0.478, 0.814]; cell 2 **0/30 = 0.000** [0, 0.114] - the lever
+replicates; **cell 3 0/28 = 0.000 [0, 0.121]** - the image alone reproduces
+**100 %** of the conversion; **cell 4 17/30 = 0.567 [0.392, 0.726]** - the
+proprio alone is at the control level (effect fraction **+0.15**, band **none**).
+The pre-registered exact tests: **image 0/58 vs 35/57, p = 8.8e-15** (the exact
+hypergeometric tail); **proprio 17/60 vs 18/55, p = 0.687**; the **interaction
++0.100, permutation p = 0.581** (exact enumeration 0.587) - the pre-registered
+**redundancy/synergy descriptor only**, reading 0 = additive, i.e. the
+conjunction **adds nothing measurable under the ceiling** (the image cell is
+already at 0/28 carried, so the descriptor cannot exclude a contribution above
+it, and it is not a second channel test). **The reading is IMAGE-BORNE** in the
+sense of the decision matrix: the **image channel** carries the win. Per run
+(consistency, not a test): the image contrast is
+negative **3/3** (-0.631/-0.611/-0.625) with cells 2 and 3 at **exactly 0
+carried in every run** (0/12, 0/10, 0/8 and 0/10, 0/9, 0/9), the proprio **2/3**
+(-0.169/-0.056/+0.125) with cell 4 at 6/13, 5/9, 6/8, i.e. **cell 4's effect
+fraction per run is +0.42/+0.17/-0.50** - indistinguishable from no effect.
+
+(4) **The composition and the noise floor.** Class-standardised to cell 1's
+right-arm species mix (coverage 1.00/0.85/0.93/0.96): crude -> standardised
+**carried** 0.667/0.000/0.000/0.567 -> **0.667/0.000/0.000/0.597**, so the
+standardised fractions are **+1.00/+1.00/+0.10** - the mix does not make the
+result (cell 4 moves *up*, the image cells stay at zero). The per-class table
+shows the conversion is class-wide (cell 4's carried mass is orange 6/6, apple
+4/6, lychee 2/5, peach 2/3, pear 2/2, strawberry 1/5, tomato 0/3). **The left
+arm - the no-op population - is at the carried ceiling** (0.889/0.800/0.882/0.733,
+1-4 ok per cell), so it is a one-sided noise floor: its own contrasts read image
+**+0.030**, proprio **-0.119**, interaction **+0.073**, spread **0.156** - and
+**the proprio main effect (-0.050) is smaller than the no-op population's own
+proprio contrast (-0.119)**. The honest sentence is therefore "the image carries
+the win and no proprio contribution is measurable at this n", not "the proprio is
+proven irrelevant": the cell-4 null is also weakened by the OOD asymmetry
+(`logs/p36/ood_proprio.txt`; PREREG section 8a: the written ready proprio is
+in-support, max |z| 0.59, while the parked vector's **j2 (-0.978 rad) is the one
+channel outside either store's observed range** - [-0.777,+0.175] direct,
+[-0.792,+0.175] training; the paired -4.26/-5.13 sigma summary is a
+pooled-population mixture statistic, and the two other >1.7-sigma channels j1/j4
+sit inside their ranges). Secondary: composite 20/27, 1/30, 2/28, 17/30; pooled ok
+7/45, 32/45, 27/45, 17/45; the cycle 1867/1796/1781/1850 ticks (ok-only
+1756/1796/1781/1768, flat <= 5 %); **model calls/attempt 63/60/60/60** (medians) -
+the probes cost no extra inference; **no new failure reason** in any cell.
+
+(5) **The tooling, fixed before the batch and pinned** (`logs/p36/PREREG.md`
+section 10). **H1**: the claim's `RUN_LIMIT` is part of the invocation
+(`RUN_LIMIT=25200`, not exported inside the driver) and the driver refuses to
+start below 7200 s - the 1800 s default would have killed the batch at run 4-5.
+**H2**: the report refuses any batch that is not 3 complete runs of 15
+episodes/cell (verified on the partial tree during the batch: exit 2, no numbers).
+**M1**: the interaction permutation was **miss-centred** (`|T* - did| >= |did|`,
+which reads >= 0.5 on every table: it read **0.5013** on a table whose fixed p is
+**0.0050**) - now `|T*| >= |did|` with `(1+count)/(1+B)`, an exact-enumeration
+cross-check and a self-test pin. **M2**: S1-S4 written as real assertions parsed
+from the `[spoof]`/`[park]` rows, S4 filtered to right-active episodes, the
+0.02 rad aggregation defined per episode, and the **outcome read gated on it**
+(exercised: the self-test makes a parked cell show arm pixels and a wrong vector,
+and both close the gate). **M3**: the power text corrected to the design's real
+arm (60 right-arm episodes per main-effect arm, not 30/45) with the computed
+quartet **0.998/0.977/0.894/0.724** (`logs/p36/power_check.py`) and the
+run-clustering caveat. **M5**: the per-channel OOD asymmetry added (section 8a).
+Also: the Fisher helper's **absolute** `+1e-12` tolerance inflated an extreme p
+(it read 8.1e-13 on a table whose exact tail is **8.8e-15**, by counting every
+table below 1e-12 as "at least as extreme") - now relative, pinned by the
+self-test. **L**: cell 1 is described as the P35 scenario + `TRIGGER_ACQ=1` + the
+four diags (not "the shipped env"), the class-standardised **carried** fraction
+and the **model calls/attempt** are in the report, the failure reasons and the
+cycle are right-arm only, and a **recording** rollout under the spoof is refused
+(`store_guard_reason`, so a probe cell cannot poison a store).
+
+(6) **No-harm.** The scripted acceptance (one claim 21:13-21:18) reads **6/10 +
+`fingerprint: matches configs/motion_reference.json`** with **376/376 `[fruit]`
+lines byte-identical** to the P35 record (`logs/p36/A2_accept_identity.txt`;
+the 6/10 is the pre-existing P32 pear-on branch, so the rate-only `exit=1` is
+expected). `scripts/selfcheck.sh` **PASS** (0 failures, 1 skipped), the
+`proprio spoof check` leg now also pinning the store guard. Tree md5s unchanged
+before/after except the phase's own files (`A_tree_md5_before/after`).
+
+(7) **What this licenses and what it does not.** The park's win travels the
+**image channel**, and *which* image statistic carries it is **not separated** -
+the fruit's **sightline** (the P35 occlusion census) is the leading
+**unseparated** candidate, because the probe moves the parked arm's silhouette as
+well as the fruit's pixels. So the shipping path - a **recollection's own A/B** -
+is the right spend, and this read is **consistent with** a recollection that
+fixes the pixels (it does not substitute for it); the image-only cell is
+synthetic and ships nothing. The design is a **probe at N = 3 runs**: the
+**WS-4.2 N = 5** convention governs the recollection's own A/B. Cell 1 is not
+the shipped default (carried 0.667 is this batch's control). One post-batch
+**print-only** fix: `219`'s per-cell summary
+grep also counted the env's `[rl] episode N: <fruit> grade=...` row and printed
+"episodes 30" for a 15-episode run; the report's parser was never affected (it
+requires `success=`). **No commit at write time; no shipped default changed.**
+
+### P36 phase 2 (Gate 2): the channel claim, not the mechanism; the OOD caveat on j2's range; the gate's population pinned; the probes do not ship (2026-10-24)
+
+**Gate 2 accepted the measurement and narrowed the reading.** (1) **The claim is
+the image channel, not the sightline.** The 2x2 moves the *parked arm's
+silhouette* as well as the fruit's pixels, so the phase-2 entry's "the park's win
+is image-borne" is now, everywhere (`logs/p36/A_RESULTS.md` §3/§5, the WORKLOG
+heading and (7), `scripts/220_p36_report.py`'s `READING_TEXT`): **"the park's win
+travels the image channel; which image statistic carries it is not separated,
+and the fruit's sightline (the P35 68.1 % -> 0 % occlusion census) is the leading
+**unseparated** candidate."** The recommendation is unchanged - a recollection's
+own A/B is the shipping path - and the read is now stated as **consistent with**
+a recollection that fixes the pixels, not as a substitute for it. (2) **The OOD
+caveat rests on j2's range, not on the sigma summary.** The z is a
+pooled-population **mixture statistic**; the support claim is the **range**:
+`back`'s **j2 = -0.978 rad** is the *only* one of the 7 channels outside either
+store's observed range (`[-0.777,+0.175]` `r9_awr`, `[-0.792,+0.175]`
+`demos_v11`), while the other two >1.7-sigma channels (j1 -1.912, j4 0.818) sit
+inside theirs. `PREREG.md` §8a, `A_RESULTS.md` §5 and the report's reading
+paragraph now say that; `logs/p36/ood_proprio.py` prints the range verdict per
+vector and its table is byte-identical on re-run (it reads the stores, never the
+batch). The direction is **conservative** - it weakens the cell-4 null, not the
+image cell - so **no downstream change**. (3) **The interaction is the
+pre-registered descriptor only** and reads 0 = additive: what it licenses is "the
+conjunction adds nothing **measurable under the ceiling**" (the image cell is
+already at 0/28 carried), not a synergy measurement; it is 1 of 3 contrasts.
+(4) **The manipulation gate pins its own population** (`220`'s M2): every episode
+writes one `[park]` row, so `len(records) == 4 x 15 x n_runs` and at least one
+row per cell-run is asserted; a deleted row refuses with **exit 2**, and the
+self-test deletes one and expects exactly that (the batch reads **180/180**).
+(5) **N = 3 is a probe**: the **WS-4.2 N = 5** convention governs the
+recollection's own A/B (the phase-2 text says so in `A_RESULTS.md` §5 and above).
+(6) **Provenance, disclosed rather than tidied**: `ood_proprio.py` was edited
+19:43, four minutes *into* the batch, and is **data-independent** (it reads the
+two stores, not the batch); `power_check.py` is **design-only**; `PREREG.md`'s
+**21:20** mtime is the disclosed post-batch item 8 (the Fisher tolerance), with
+the Gate-2 record fixes as item 9; and `scripts/219_p36_cells.sh`'s header now
+pins **the driver itself** (`md5sum "$0"`) for future batches. (7) The `218`
+self-test's old provenance block compared two constants; it now drives the real
+assertion - `check_vectors` against a fabricated P35 directory must accept the
+file's vector and reject a perturbed one (`-0.978 -> -0.878`).
+
+**No number and no decision changed; the probes still do not ship** (cells 3/4
+are inconsistent input pairs the policy never saw). The next spend is the
+recollection's own A/B at **N = 5, park-collected**; the open image statistic
+(occlusion vs silhouette-as-context) is the named follow-up, not this phase's
+read. The report was re-rendered (`logs/p36/A_ab/A_report.txt`: the M2 line, the
+reading and the OOD paragraph, all other lines identical); the script pins are
+below in the commit.

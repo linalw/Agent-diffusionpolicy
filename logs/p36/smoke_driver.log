@@ -1,0 +1,45 @@
+P36 phase-1 smoke 2026-10-24T18:49:21+08:00
+d6741d866e77e760e458da5306f0e282  src/fruit_sorting/rl_env.py
+cdde6bd20670331ffbe8deb5d4f60b13  src/fruit_sorting/tasks.py
+42ab4fb78a91ea9d85554e6d90e1da80  configs/arm_parks.json
+374b88a7bbbee4947cedcbb0225c2a9b  configs/proprio_spoof.json
+61da390a85fa209496b54477a8255d23  checkpoints/moe_v13s/policy_best.pt
+
+--- s1: 
+    exit=0  1 spoof row(s)  1 park row(s)
+    [fruit] [rl] episode 0: apple grade=C d=6.8cm bin=1 arm=right y=+0.642 presentation=direct
+    [fruit] [rl] episode 0: apple d=6.8cm bin=1 arm=right success=False grasped=True placed=False ticks=2352 decision=294 reward=0.0000 notes=['intercept trigger (dy=25.1cm, dx=-11.4cm, t_arrive=2.09s, speed=0.120m/s/encoder, frame=station, finger=0.0429, lead=2.10s/reach=0.30)'] presentation=direct ablate=none
+    [fruit] [spoof] episode 0 pose=- applied=0 side=left idx=- live=- obs=- pre_md5=68e0e753cb25fd11db39633bfd869b04 obs_md5=68e0e753cb25fd11db39633bfd869b04 rest_md5=68e0e753cb25fd11db39633bfd869b04 rest_same=1 calls=73 drift=-
+    [fruit] [park] episode 0 arm=right inactive=left park=ready m1_hold=+0.002 m1_hold_ok=1 m1_cmd=+0.037 m2_arm=333.000 m2_arm_ok=0 m2_rel=0.005 m2_rel_ok=0 m2_ok=0 m2_vis=0.000 band=+0.397 band_x=+0.219 band_px=52 band_disc=158 band_vis=0.328 arm_px=234 band_frac=4.500 band_calls=25 stale_skipped=1 worst_arm_at=+0.373 worst_vis_at=+0.369 min_frac=1.979 max_frac=333.000 drift=+0.004 calls=73 q=-1.462,-0.374,1.488,1.315,-1.496,-0.588,1.559 q_settled=-1.464,-0.375,1.488,1.315,-1.496,-0.588,1.559 top=26:311px:3/visuals/openarm_left_link3_visual/mesh | 25:27px:/World/Conveyor/Belt | 67:22px:4/visuals/openarm_left_link4_visual/mesh
+--- s2: FRUIT_ARM_PARK=back
+    exit=0  1 spoof row(s)  1 park row(s)
+    [fruit] [rl] episode 0: apple grade=C d=6.8cm bin=1 arm=right y=+0.642 presentation=direct
+    [fruit] [rl] episode 0: apple d=6.8cm bin=1 arm=right success=True grasped=True placed=True ticks=1944 decision=354 reward=0.9528 notes=['intercept trigger (dy=22.0cm, dx=-13.2cm, t_arrive=1.83s, speed=0.120m/s/encoder, frame=station, finger=0.0328, lead=1.84s/reach=0.27)'] presentation=direct ablate=none
+    [fruit] [spoof] episode 0 pose=- applied=0 side=left idx=- live=- obs=- pre_md5=98b0df03f34fbc92bbeabbb4652183ae obs_md5=98b0df03f34fbc92bbeabbb4652183ae rest_md5=98b0df03f34fbc92bbeabbb4652183ae rest_same=1 calls=88 drift=-
+    [fruit] [park] episode 0 arm=right inactive=left park=back m1_hold=+0.004 m1_hold_ok=1 m1_cmd=+0.088 m2_arm=0.000 m2_arm_ok=1 m2_rel=0.897 m2_rel_ok=1 m2_ok=1 m2_vis=1.085 band=+0.397 band_x=+0.219 band_px=184 band_disc=158 band_vis=1.161 arm_px=0 band_frac=0.000 band_calls=25 stale_skipped=1 worst_arm_at=+0.397 worst_vis_at=+0.321 min_frac=0.000 max_frac=0.000 drift=+0.010 calls=88 q=-1.908,-0.978,1.504,0.819,-1.498,-0.586,1.559 q_settled=-1.912,-0.978,1.503,0.818,-1.498,-0.586,1.559 top=80:184px:/World/Fruits/Fruit_15 | 2:158px:/World/Conveyor/Belt
+--- s3: FRUIT_ARM_PARK=back FRUIT_PROPRIO_SPOOF=ready
+    exit=0  1 spoof row(s)  1 park row(s)
+    [fruit] [rl] episode 0: apple grade=C d=6.8cm bin=1 arm=right y=+0.642 presentation=direct
+    [fruit] [rl] episode 0: apple d=6.8cm bin=1 arm=right success=True grasped=True placed=True ticks=1911 decision=295 reward=0.9607 notes=['intercept trigger (dy=25.0cm, dx=-11.4cm, t_arrive=2.08s, speed=0.120m/s/encoder, frame=station, finger=0.0427, lead=2.09s/reach=0.30)'] presentation=direct ablate=none
+    [fruit] [spoof] episode 0 pose=ready applied=1 side=left idx=0,2,4,6,8,10,12 live=-1.910,-0.978,+1.504,+0.818,-1.498,-0.586,+1.559 obs=-1.464,-0.375,+1.488,+1.315,-1.496,-0.588,+1.559 pre_md5=98b0df03f34fbc92bbeabbb4652183ae obs_md5=8a814e9b6ebdd43e076c9c2b9d77d61b rest_md5=287c13f7ce39261bb98b17a123ac0466 rest_same=1 calls=73 drift=+0.6035
+    [fruit] [park] episode 0 arm=right inactive=left park=back m1_hold=+0.004 m1_hold_ok=1 m1_cmd=+0.088 m2_arm=0.000 m2_arm_ok=1 m2_rel=0.897 m2_rel_ok=1 m2_ok=1 m2_vis=1.085 band=+0.397 band_x=+0.219 band_px=184 band_disc=158 band_vis=1.161 arm_px=0 band_frac=0.000 band_calls=25 stale_skipped=1 worst_arm_at=+0.397 worst_vis_at=+0.321 min_frac=0.000 max_frac=0.000 drift=+0.010 calls=73 q=-1.908,-0.978,1.504,0.819,-1.498,-0.586,1.559 q_settled=-1.912,-0.978,1.503,0.818,-1.498,-0.586,1.559 top=71:184px:/World/Fruits/Fruit_15 | 21:158px:/World/Conveyor/Belt
+--- s4: FRUIT_PROPRIO_SPOOF=back
+    exit=0  1 spoof row(s)  1 park row(s)
+    [fruit] [rl] episode 0: apple grade=C d=6.8cm bin=1 arm=right y=+0.642 presentation=direct
+    [fruit] [rl] episode 0: apple d=6.8cm bin=1 arm=right success=False grasped=False placed=False ticks=1466 decision=1466 reward=0.0000 notes=['fruit fell off the line'] presentation=direct ablate=none
+    [fruit] [spoof] episode 0 pose=back applied=1 side=left idx=0,2,4,6,8,10,12 live=-1.463,-0.374,+1.488,+1.315,-1.496,-0.588,+1.559 obs=-1.912,-0.978,+1.503,+0.818,-1.498,-0.586,+1.559 pre_md5=68e0e753cb25fd11db39633bfd869b04 obs_md5=ea53dff444b5346870a015e6c5dec510 rest_md5=62d97725f03c13a8d2e6c6e64002afed rest_same=1 calls=366 drift=+0.6036
+    [fruit] [park] episode 0 arm=right inactive=left park=ready m1_hold=+0.002 m1_hold_ok=1 m1_cmd=+0.037 m2_arm=333.000 m2_arm_ok=0 m2_rel=0.005 m2_rel_ok=0 m2_ok=0 m2_vis=0.000 band=+0.397 band_x=+0.219 band_px=52 band_disc=158 band_vis=0.328 arm_px=234 band_frac=4.500 band_calls=36 stale_skipped=1 worst_arm_at=+0.373 worst_vis_at=+0.369 min_frac=1.870 max_frac=333.000 drift=+0.004 calls=366 q=-1.462,-0.374,1.488,1.315,-1.496,-0.588,1.559 q_settled=-1.464,-0.375,1.488,1.315,-1.496,-0.588,1.559 top=38:311px:3/visuals/openarm_left_link3_visual/mesh | 18:27px:/World/Conveyor/Belt | 37:22px:4/visuals/openarm_left_link4_visual/mesh
+--- s1b: FRUIT_PROPRIO_SPOOF=ready
+    exit=0  1 spoof row(s)  1 park row(s)
+    [fruit] [rl] episode 0: apple grade=C d=6.8cm bin=1 arm=right y=+0.642 presentation=direct
+    [fruit] [rl] episode 0: apple d=6.8cm bin=1 arm=right success=False grasped=False placed=False ticks=2069 decision=294 reward=0.0000 notes=['intercept trigger (dy=25.1cm, dx=-11.4cm, t_arrive=2.09s, speed=0.120m/s/encoder, frame=station, finger=0.0429, lead=2.10s/reach=0.30)', 'fruit did not follow the gripper'] presentation=direct ablate=none
+    [fruit] [spoof] episode 0 pose=ready applied=1 side=left idx=0,2,4,6,8,10,12 live=-1.463,-0.374,+1.488,+1.315,-1.496,-0.588,+1.559 obs=-1.464,-0.375,+1.488,+1.315,-1.496,-0.588,+1.559 pre_md5=68e0e753cb25fd11db39633bfd869b04 obs_md5=2445ef9293339a0b192fbe3a5bfd4ede rest_md5=62d97725f03c13a8d2e6c6e64002afed rest_same=1 calls=73 drift=+0.0059
+    [fruit] [park] episode 0 arm=right inactive=left park=ready m1_hold=+0.002 m1_hold_ok=1 m1_cmd=+0.037 m2_arm=333.000 m2_arm_ok=0 m2_rel=0.005 m2_rel_ok=0 m2_ok=0 m2_vis=0.000 band=+0.397 band_x=+0.219 band_px=52 band_disc=158 band_vis=0.328 arm_px=234 band_frac=4.500 band_calls=25 stale_skipped=1 worst_arm_at=+0.373 worst_vis_at=+0.369 min_frac=1.979 max_frac=333.000 drift=+0.004 calls=73 q=-1.462,-0.374,1.488,1.315,-1.496,-0.588,1.559 q_settled=-1.464,-0.375,1.488,1.315,-1.496,-0.588,1.559 top=41:311px:3/visuals/openarm_left_link3_visual/mesh | 18:27px:/World/Conveyor/Belt | 43:22px:4/visuals/openarm_left_link4_visual/mesh
+--- s2b: FRUIT_ARM_PARK=back FRUIT_PROPRIO_SPOOF=back
+    exit=0  1 spoof row(s)  1 park row(s)
+    [fruit] [rl] episode 0: apple grade=C d=6.8cm bin=1 arm=right y=+0.642 presentation=direct
+    [fruit] [rl] episode 0: apple d=6.8cm bin=1 arm=right success=True grasped=True placed=True ticks=1894 decision=293 reward=0.9609 notes=['intercept trigger (dy=25.6cm, dx=-11.5cm, t_arrive=2.13s, speed=0.120m/s/encoder, frame=station, finger=0.0300, lead=2.14s/reach=0.31)'] presentation=direct ablate=none
+    [fruit] [spoof] episode 0 pose=back applied=1 side=left idx=0,2,4,6,8,10,12 live=-1.910,-0.978,+1.504,+0.818,-1.498,-0.586,+1.559 obs=-1.912,-0.978,+1.503,+0.818,-1.498,-0.586,+1.559 pre_md5=98b0df03f34fbc92bbeabbb4652183ae obs_md5=391a4c52a686aa6aff024a3fb016429b rest_md5=287c13f7ce39261bb98b17a123ac0466 rest_same=1 calls=73 drift=+0.0141
+    [fruit] [park] episode 0 arm=right inactive=left park=back m1_hold=+0.004 m1_hold_ok=1 m1_cmd=+0.088 m2_arm=0.000 m2_arm_ok=1 m2_rel=0.897 m2_rel_ok=1 m2_ok=1 m2_vis=1.085 band=+0.397 band_x=+0.219 band_px=184 band_disc=158 band_vis=1.161 arm_px=0 band_frac=0.000 band_calls=25 stale_skipped=1 worst_arm_at=+0.397 worst_vis_at=+0.321 min_frac=0.000 max_frac=0.000 drift=+0.010 calls=73 q=-1.908,-0.978,1.504,0.819,-1.498,-0.586,1.559 q_settled=-1.912,-0.978,1.503,0.818,-1.498,-0.586,1.559 top=78:184px:/World/Fruits/Fruit_15 | 3:158px:/World/Conveyor/Belt
+
+P36 phase-1 smoke done 2026-10-24T18:54:28+08:00 fail=0

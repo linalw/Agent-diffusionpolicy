@@ -327,6 +327,10 @@ _MANIFEST_SOURCES = (
     "src/fruit_sorting/policy/finetune.py",
     "configs/waypoints.json",
     "configs/motion_reference.json",
+    # P36 phase 1: the proprio spoof's vectors (the P35 achieved poses). A
+    # rollout that writes them into the observation must pin them, or two
+    # "park-proprio" cells with different vectors are indistinguishable.
+    "configs/proprio_spoof.json",
 )
 
 
@@ -336,6 +340,72 @@ def _md5(path: str) -> str:
             return hashlib.md5(handle.read()).hexdigest()
     except OSError:
         return ""
+
+
+def apply_proprio_spoof(
+    dof: np.ndarray,
+    active: str,
+    indices: dict[str, list[int]],
+    vectors: dict[str, np.ndarray],
+) -> tuple[np.ndarray, dict]:
+    """P36: write the *inactive* arm's 7 joints into a copy of the joint row.
+
+    Pure array work - no simulator state is read or written, so this is the one
+    channel the P36 proprio cell moves (`logs/p36/PREREG.md`).
+
+    ``dof`` is the 22-D joint row the observation carries (the interleaved
+    layout `left_joint1, right_joint1, left_joint2, ..., tcp_joint`s);
+    ``indices`` maps each arm to its 7 dof indices (`ArmController.arm_dofs`);
+    ``vectors`` maps a side to the 7 joint values to write. The **active** arm,
+    the fingers, the hand and the TCP joints are copied untouched, and the
+    caller's array is not modified. A side with no vector (the park file has no
+    right-arm `back`) is left live and reported ``applied=0`` - the spoof is
+    defined only where the pose is measured.
+    """
+    out = np.array(dof, dtype=np.float32, copy=True)
+    inactive = "right" if active == "left" else "left"
+    vec = vectors.get(inactive)
+    if vec is None or inactive not in indices:
+        return out, {
+            "applied": 0,
+            "side": inactive,
+            "indices": np.zeros(0, dtype=int),
+            "before": np.zeros(0, dtype=np.float32),
+        }
+    idx = np.asarray(indices[inactive], dtype=int)
+    before = out[idx].copy()
+    out[idx] = np.asarray(vec, dtype=np.float32).reshape(-1)
+    return out, {
+        "applied": 1,
+        "side": inactive,
+        "indices": idx,
+        "before": before,
+    }
+
+
+def store_guard_reason(record: bool, spoof_pose: str) -> str:
+    """P36: why a *recording* rollout may not run under the proprio spoof.
+
+    ``FRUIT_PROPRIO_SPOOF`` rewrites 7 observation channels before ``record``
+    sees them, so the store would carry a proprio pose the robot never held -
+    and for the `ready` pose it would look like an ordinary store. That is a
+    silent poisoning of every later training run, so the combination is refused
+    (the spoof is an *evaluation* interface: it changes what the policy reads,
+    which is exactly what a store must not contain). ``FRUIT_ARM_PARK`` is not
+    refused: a parked store is a real post-park dataset and is named in the
+    manifest's ``arm_park`` block.
+
+    One predicate, so ``scripts/218_proprio_spoof_check.py`` can pin it offline;
+    the env raises on it.
+    """
+    if record and spoof_pose:
+        return (
+            f"FRUIT_PROPRIO_SPOOF={spoof_pose!r} with a recording rollout: the "
+            "store's proprio would carry the spoofed 7 joints instead of the "
+            "measured pose (a training-data poisoning). Collect with the shipped "
+            "channels; spoof the evaluation interface only."
+        )
+    return ""
 
 
 def direct_fire(
@@ -870,6 +940,78 @@ class SortingRLEnv:
                 "source": parks.get("source", ""),
                 "sides": sorted(self._arm_park_poses),
             }
+        # --- P36 phase 1: the proprio spoof, default off --------------------- #
+        #: `FRUIT_PROPRIO_SPOOF=<pose>` (direct presentation only): replace the
+        #: **inactive** arm's 7 joint values in the observation's proprio with
+        #: the pose the reset *achieved* for that pose (the `q_settled` rows of
+        #: the P35 batch, `configs/proprio_spoof.json`), leaving the image, the
+        #: active arm, the fingers and the tactile channels untouched. It is the
+        #: P35 mechanism discriminator's proprio channel: `FRUIT_ARM_PARK` moves
+        #: the arm (the image), this writes the obs (the proprio), and
+        #: `logs/p36/PREREG.md` crosses the two. Pure observation code - no
+        #: simulation state is written - and off it is not even a copy: the
+        #: vector dict is empty and `proprio()` skips the call.
+        self._spoof_pose = os.environ.get("FRUIT_PROPRIO_SPOOF", "").strip()
+        self._spoof_vectors: dict[str, np.ndarray] = {}
+        self._spoof_source: dict | None = None
+        if self._spoof_pose:
+            if presentation != "direct":
+                raise ValueError(
+                    "FRUIT_PROPRIO_SPOOF is only defined for presentation='direct' "
+                    "(the handoff presentation is the harness reproduction)"
+                )
+            spoof_path = os.environ.get(
+                "FRUIT_PROPRIO_SPOOF_FILE",
+                os.path.join(_REPO_ROOT, "configs/proprio_spoof.json"),
+            )
+            with open(spoof_path, encoding="utf-8") as fh:
+                spoof = json.load(fh)
+            poses = spoof.get("poses", {})
+            entry = poses.get(self._spoof_pose)
+            if entry is None:
+                raise ValueError(
+                    f"FRUIT_PROPRIO_SPOOF={self._spoof_pose!r} is not in {spoof_path} "
+                    f"(have: {sorted(poses)})"
+                )
+            for name in ("left", "right"):
+                vec = entry.get(name)
+                if vec is None:
+                    continue
+                arr = np.asarray(vec, dtype=np.float32).reshape(-1)
+                if arr.size != 7 or not np.all(np.isfinite(arr)):
+                    raise ValueError(
+                        f"proprio spoof {self._spoof_pose!r}/{name} must be 7 finite "
+                        f"joint values (got {arr.size})"
+                    )
+                self._spoof_vectors[name] = arr
+            if not self._spoof_vectors:
+                raise ValueError(
+                    f"FRUIT_PROPRIO_SPOOF={self._spoof_pose!r} has no side vector in "
+                    f"{spoof_path}"
+                )
+            self._spoof_source = {
+                "pose": self._spoof_pose,
+                "file": os.path.relpath(spoof_path, _REPO_ROOT),
+                "source": spoof.get("source", ""),
+                "sides": sorted(self._spoof_vectors),
+            }
+        #: P36: a recorded store must not carry a spoofed proprio (the spoof is
+        #: an evaluation interface). `record` + the pose is refused here, before
+        #: any episode runs; the predicate is pinned offline by `218`.
+        _store_refusal = store_guard_reason(record, self._spoof_pose)
+        if _store_refusal:
+            raise ValueError(_store_refusal)
+        #: `FRUIT_SPOOF_DIAG=1` (P36 phase 1): report the substitution from the
+        #: log alone - the 7 indices, the live and written values, the md5 of
+        #: the assembled proprio before/after, and the md5 of the same vector
+        #: with the 7 indices zeroed (equal iff *only* those 7 changed). Pure
+        #: reporting over the array `proprio()` already built; off, nothing is
+        #: hashed or printed.
+        self._spoof_diag = os.environ.get("FRUIT_SPOOF_DIAG", "0") == "1"
+        self._spoof_index_cache: dict[str, list[int]] | None = None
+        self._spoof_calls = 0
+        self._spoof_drift = float("nan")
+        self._spoof_first: dict | None = None
         #: `FRUIT_PARK_DIAG=1` (P35 phase 2, Gate-1 P0 revision): the **per-call
         #: park manipulation check** of `logs/p35/PREREG.md` section 2. M1 is
         #: "the pose held": the inactive arm's joints at the first **non-stale**
@@ -1219,6 +1361,10 @@ class SortingRLEnv:
             #: P35 phase 1: the inactive arm's park (absent = the shipped
             #: `ready` waypoint). A run's arm pose is part of its scenario.
             "arm_park": self._arm_park_source,
+            #: P36 phase 1: the proprio spoof (absent = the measured joints).
+            #: A cell of the 2x2 is identified by this block plus `arm_park`;
+            #: the image channel is the park, the obs channel is this.
+            "proprio_spoof": self._spoof_source,
             "event_replan": {
                 "enabled": bool(self._event),
                 "min": int(self._event_min),
@@ -1506,6 +1652,10 @@ class SortingRLEnv:
         self._tick = 0
         self._step = 0
         self._observed_step = -1
+        #: P36 phase 1: per-episode spoof reporting state (diag only).
+        self._spoof_calls = 0
+        self._spoof_drift = float("nan")
+        self._spoof_first = None
         self._last_rgb = None
         self._last_depth = None
         self._last_mask = None
@@ -1720,10 +1870,25 @@ class SortingRLEnv:
         model's observation, or an A/B arm would move two things at once (P28
         Gate A section 1). With no belt on the spawner the configured belt speed
         is reported, never 0.0 - 0.0 would read as "the belt is stopped".
+
+        P36 (``FRUIT_PROPRIO_SPOOF``, default off): the **inactive** arm's 7
+        joint values are overwritten with a named pose's achieved joints
+        (``configs/proprio_spoof.json``) while the arm itself, the image, the
+        fingers and the tactile channels stay live. It is the proprio half of
+        the P35 mediator test - `FRUIT_ARM_PARK` moves the arm, this writes the
+        observation - and it is pure array work on the copy below.
         """
         dof = np.asarray(self.scene.robot.get_dof_positions().numpy())[0].astype(
             np.float32
         )
+        # P36 phase 1: the inactive arm's 7 joints (the park/proprio 2x2's obs
+        # channel). Off - the shipped default - this is one empty-dict test, no
+        # copy, and the assembled vector below is byte-identical.
+        spoof = None
+        if self._spoof_vectors:
+            dof, spoof = apply_proprio_spoof(
+                dof, self._active, self._spoof_arm_dofs(), self._spoof_vectors
+            )
         if self.presentation == "handoff":
             finger = float(np.mean(dof[[14, 15]]))
         else:
@@ -1758,7 +1923,91 @@ class SortingRLEnv:
                     dtype=np.float32,
                 )
             )
-        return np.concatenate(parts).astype(np.float32)
+        out = np.concatenate(parts).astype(np.float32)
+        if self._spoof_diag:
+            # P36 phase 1: the substitution's log certificate (pure reporting
+            # over the vector just assembled; `spoof is None` = off/no-op).
+            self._spoof_note_call(out, spoof)
+        return out
+
+    def _spoof_arm_dofs(self) -> dict[str, list[int]]:
+        """The 7 proprio indices per arm (built on first use; knob-on only)."""
+        if self._spoof_index_cache is None:
+            self._spoof_index_cache = {
+                name: [int(i) for i in arm.arm_dofs]
+                for name, arm in self.task.arms.items()
+            }
+        return self._spoof_index_cache
+
+    def _spoof_note_call(self, out: np.ndarray, info: dict | None) -> None:
+        """P36: one proprio call's spoof bookkeeping (`FRUIT_SPOOF_DIAG` only).
+
+        The **first** call records the certificate a reader needs to verify the
+        substitution from the log alone: the 7 indices, the live and written
+        values, the md5 of the assembled proprio before/after, and the md5 of
+        the same vector with the 7 indices zeroed (equal before/after iff *only*
+        those 7 channels changed - the report prints `rest_same`). Later calls
+        only track the largest ``|live - written|`` over the episode: the pose
+        the arm is actually in against the pose the observation claims.
+        """
+        self._spoof_calls += 1
+        idx = np.asarray(info["indices"], dtype=int) if info is not None else np.zeros(0, int)
+        inactive = "right" if self._active == "left" else "left"
+        if idx.size and info is not None:
+            vec = self._spoof_vectors.get(info["side"])
+            if vec is not None:
+                drift = float(
+                    np.max(np.abs(np.asarray(info["before"], np.float32) - vec))
+                )
+                if self._spoof_drift != self._spoof_drift or drift > self._spoof_drift:
+                    self._spoof_drift = drift
+        if self._spoof_first is not None:
+            return
+        post = np.ascontiguousarray(out, dtype=np.float32)
+        pre = post.copy()
+        if idx.size and info is not None:
+            pre[idx] = np.asarray(info["before"], dtype=np.float32)
+        rest_post = post.copy()
+        rest_pre = pre.copy()
+        if idx.size:
+            rest_post[idx] = 0.0
+            rest_pre[idx] = 0.0
+        self._spoof_first = {
+            "applied": int(info["applied"]) if info is not None else 0,
+            "side": info["side"] if info is not None else inactive,
+            "indices": [int(i) for i in idx],
+            "live": [float(v) for v in info["before"]] if info is not None else [],
+            "obs": [float(v) for v in post[idx]] if idx.size else [],
+            "pre_md5": hashlib.md5(pre.tobytes()).hexdigest(),
+            "obs_md5": hashlib.md5(post.tobytes()).hexdigest(),
+            "rest_md5": hashlib.md5(rest_post.tobytes()).hexdigest(),
+            "rest_same": int(
+                hashlib.md5(rest_pre.tobytes()).hexdigest()
+                == hashlib.md5(rest_post.tobytes()).hexdigest()
+            ),
+        }
+
+    def _spoof_report(self) -> str:
+        """The `[spoof]` row: the proprio cell's manipulation check (P36)."""
+        first = self._spoof_first or {}
+        pose = self._spoof_pose or "-"
+
+        def vals(values) -> str:
+            return ",".join(f"{float(v):+.3f}" for v in values) if values else "-"
+
+        drift = self._spoof_drift
+        return (
+            f"[spoof] episode {self._episode} pose={pose} "
+            f"applied={int(first.get('applied', 0))} "
+            f"side={first.get('side', '-')} "
+            f"idx={','.join(str(i) for i in first.get('indices', [])) or '-'} "
+            f"live={vals(first.get('live', []))} obs={vals(first.get('obs', []))} "
+            f"pre_md5={first.get('pre_md5', '-')} obs_md5={first.get('obs_md5', '-')} "
+            f"rest_md5={first.get('rest_md5', '-')} "
+            f"rest_same={int(first.get('rest_same', 0))} "
+            f"calls={int(self._spoof_calls)} "
+            f"drift={format(float(drift), '+.4f') if drift == drift else '-'}"
+        )
 
     def _obs_snapshot(self) -> dict:
         """Light observation for the caller (the policy input is built above).
@@ -3190,6 +3439,10 @@ class SortingRLEnv:
             # P35 phase 2: M1/M2 of the park A/B's manipulation check (pure
             # reporting over the frame the calls already conditioned on).
             self._say(self._park_report())
+        if self._spoof_diag:
+            # P36 phase 1: the proprio cell's certificate (the 7 indices, the
+            # before/after hashes, the untouched-rest hash, the live drift).
+            self._say(self._spoof_report())
         if self.dagger is not None:
             decisions = max(1, int(self._step) // 4)
             self._say(

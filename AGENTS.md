@@ -1329,6 +1329,46 @@ rate-only result) with **376/376 `[fruit]` lines identical** to
 `a796db0b`, `logs/p35/C_attribution.py` `b3311523` (batch-time
 `cce04b95`/`c15c03ca`, Gate-2 docs/`frac` fixed).
 
+**P36 (2026-10-24, `logs/p36/`, default off, not adopted): the park's mediator,
+tested 2x2 - the image channel carries the win, the 7 proprio channels do not,
+the probes are inconsistent input pairs and do not ship.** `FRUIT_ARM_PARK` moves
+the arm (the image); the new default-off **`FRUIT_PROPRIO_SPOOF=<pose>`**
+(`rl_env.py`, direct presentation only, vectors from `configs/proprio_spoof.json`
+- the P35 measured `q_settled` poses, *not* the commanded ones) writes only the
+**inactive** arm's 7 joints into the observation, leaving the active arm, the
+image, the fingers and the tactile channels live, so the park's two channels can
+be crossed. The batch (**4 cells x 3 runs x 15 = 180 episodes**, seeds
+77/101/202, policy seed 11, one claim `RUN_LIMIT=25200`, wall 5146 s, randomised
+cell rotation) passes its manipulation check from its own rows - the image
+follows the **arm**, not the spoof: 670/670 and 724/724 band calls with
+inactive-arm pixels in the ready cells vs 0/741 and 0/680 in the parked ones,
+`rest_same=1` 180/180, the written vector within 0.0020/0.0040 rad of the
+physical counterpart's live pose. Right-arm **carried-not-placed** (the primary):
+cell 1 control **18/27 = 0.667**, cell 2 park/park **0/30**, **cell 3
+park-image/ready-proprio 0/28**, cell 4 ready-image/park-proprio **17/30 =
+0.567**; **image 0/58 vs 35/57, p = 8.8e-15**, **proprio 17/60 vs 18/55, p =
+0.687**, interaction +0.100 (permutation p = 0.581 - the pre-registered
+**descriptor only**: "adds nothing measurable under the ceiling", since the image
+cell is already at 0/28). **The reading is the image channel** - *which* image
+statistic carries it is **not separated**, with the fruit's **sightline** (the
+P35 68.1 % -> 0 % occlusion census) the leading **unseparated** candidate (the
+probe moves the parked silhouette as well as the fruit's pixels). **The probes do
+not ship**: they are input pairs the checkpoint never saw, so the shipping path
+stays a **recollection's own A/B** - which this read is *consistent with* - run at
+the **WS-4.2 N = 5** convention (this 2x2 is a probe at N = 3), with the park
+collected in. The cell-4 null is the **weaker** read (the parked proprio's j2 =
+-0.978 rad is outside both reference stores' observed ranges - the only channel
+that is; the 4-5 sigma summary is a mixed-population statistic) and it also sits
+inside the batch's own left-arm no-op noise (0.050 vs 0.119), so the honest
+statement is "no proprio contribution measurable at this n". A recording rollout
+under the spoof is **refused** (a spoofed store would carry a pose the arm never
+held); the park is not. No-harm: selfcheck PASS; acceptance **6/10 +
+`fingerprint: matches`** with **376/376 `[fruit]` lines identical** to the P35
+record. Pins: `rl_env.py` `aa54b022`, `configs/proprio_spoof.json` `374b88a7`,
+`scripts/218_proprio_spoof_check.py` `95a3fe28`, `scripts/219_p36_cells.sh`
+`2fe202d7` (batch `e19fa36d`), `scripts/220_p36_report.py` `42dd8339` (batch
+`72f22dd5`).
+
 ## 3. What changed -> what to run
 
 | you changed | run |

@@ -1,0 +1,157 @@
+P36 2x2 (the park image x the proprio spoof) 2026-10-24T19:39:00+08:00
+  15 episodes x 3 runs per cell, policy seed=11
+  seeds: 77 101 202
+  checkpoint: checkpoints/moe_v13s/policy_best.pt  md5 61da390a85fa209496b54477a8255d23
+  claim RUN_LIMIT=25200 s (the batch's wall ceiling)
+  cell order: randomised rotation, seed 20261024, base 2 3 1 4
+    run 1 order: 2 3 1 4 
+    run 2 order: 3 1 4 2 
+    run 3 order: 1 4 2 3 
+  cells:
+    1  env=''
+    2  env='FRUIT_ARM_PARK=back'
+    3  env='FRUIT_ARM_PARK=back FRUIT_PROPRIO_SPOOF=ready'
+    4  env='FRUIT_PROPRIO_SPOOF=back'
+  tree:
+    aa54b0226b04e2f720c5dcdb9d9fc107  src/fruit_sorting/rl_env.py
+    cdde6bd20670331ffbe8deb5d4f60b13  src/fruit_sorting/tasks.py
+    42ab4fb78a91ea9d85554e6d90e1da80  configs/arm_parks.json
+    374b88a7bbbee4947cedcbb0225c2a9b  configs/proprio_spoof.json
+    25ade92bc0bd79b614131b4815934a4c  configs/motion_reference.json
+
+  run 1 order: 2 3 1 4  (seed 77, 19:39:00)
+  cell 2 run 1 (seed 77, 450s): [rl] rollout success 13/15 | spoof 0 applied | park rows 15 | episodes 30
+  cell 3 run 1 (seed 77, 445s): [rl] rollout success 9/15 | spoof 15 applied | park rows 15 | episodes 30
+  cell 1 run 1 (seed 77, 425s): [rl] rollout success 1/15 | spoof 0 applied | park rows 15 | episodes 30
+  cell 4 run 1 (seed 77, 429s): [rl] rollout success 8/15 | spoof 13 applied | park rows 15 | episodes 30
+  run 2 order: 3 1 4 2  (seed 101, 20:08:09)
+  cell 3 run 2 (seed 101, 421s): [rl] rollout success 9/15 | spoof 15 applied | park rows 15 | episodes 30
+  cell 1 run 2 (seed 101, 417s): [rl] rollout success 3/15 | spoof 0 applied | park rows 15 | episodes 30
+  cell 4 run 2 (seed 101, 428s): [rl] rollout success 6/15 | spoof 9 applied | park rows 15 | episodes 30
+  cell 2 run 2 (seed 101, 430s): [rl] rollout success 9/15 | spoof 0 applied | park rows 15 | episodes 30
+  run 3 order: 1 4 2 3  (seed 202, 20:36:25)
+  cell 1 run 3 (seed 202, 416s): [rl] rollout success 3/15 | spoof 0 applied | park rows 15 | episodes 30
+  cell 4 run 3 (seed 202, 428s): [rl] rollout success 3/15 | spoof 8 applied | park rows 15 | episodes 30
+  cell 2 run 3 (seed 202, 421s): [rl] rollout success 10/15 | spoof 0 applied | park rows 15 | episodes 30
+  cell 3 run 3 (seed 202, 436s): [rl] rollout success 9/15 | spoof 15 applied | park rows 15 | episodes 30
+  batch wall 5146 s
+
+P36 2x2 - the park's image x the proprio spoof (3 runs x 4 cells)
+============================================================================================
+  runs: [1, 2, 3]   right-arm inference population (cell 1 = the P35 C-batch scenario + the four diags)
+  cell order: randomised rotation, seed 20261024, base 2 3 1 4
+  run 1 order: 2 3 1 4
+  run 2 order: 3 1 4 2
+  run 3 order: 1 4 2 3
+
+[1] COMPLETENESS (H2: 3 complete runs, 15 episodes per cell-run)
+
+  PASS  every cell has runs 1, 2, 3 with 15 episodes each
+    cell 1: run 1=15, run 2=15, run 3=15
+    cell 2: run 1=15, run 2=15, run 3=15
+    cell 3: run 1=15, run 2=15, run 3=15
+    cell 4: run 1=15, run 2=15, run 3=15
+
+[2] THE MANIPULATION CHECK (S1-S4; a failure blocks the outcome read)
+
+  PASS  S1 cell 3                                     28/28   the 'ready' vector
+  PASS  S1 cell 4                                     30/30   the 'back' vector
+  PASS  S1 no-op cell 1 (left-active)                 18/18   applied=0, hashes equal
+  PASS  S1 no-op cell 2 (left-active)                 15/15   applied=0, hashes equal
+  PASS  S1 no-op cell 4 (left-active)                 15/15   applied=0, hashes equal
+  PASS  S1 no-op cells 1/2 (right-active)             57/57   no spoof requested
+  PASS  S1 cell 3 no-op (left-active)                 17/17   the right 'ready' vector, drift <= 0.02
+  info  S1c counterpart 1 reset spread                27/27   max |q - median| = 0.0000 rad
+  info  S1c counterpart 2 reset spread                30/30   max |q - median| = 0.0000 rad
+  PASS  S1c cell 3 vs 1                               28/28   median 0.0020 / max 0.0020 rad
+  PASS  S1c cell 4 vs 2                               30/30   median 0.0040 / max 0.0040 rad
+  PASS  S2 rest_same                                 180/180  the 25-D with the 7 zeroed, before/after
+  PASS  S3 right-active (the parked arm)             115/115  park == the cell's pose, M1 held
+  info  S3 left-active (the right arm, always ready)  65/65   no right-arm park vector: the no-op side
+  PASS  S4 cell 1 (right-active)                      27/27   100% of episodes, first band call arm_px > 0
+  PASS  S4 cell 2 (right-active)                      30/30   100% of episodes, first band call arm_px = 0
+  PASS  S4 cell 3 (right-active)                      28/28   100% of episodes, first band call arm_px = 0
+  PASS  S4 cell 4 (right-active)                      30/30   100% of episodes, first band call arm_px > 0
+  info  S4 call-level census (right-active)          cell 1: 670/670 calls arm_px>0  cell 2: 0/741 calls arm_px>0  cell 3: 0/680 calls arm_px>0  cell 4: 724/724 calls arm_px>0
+  info  S4 no-op side (left-active)                    0/1555  the right arm at ready: not in the target's disc bbox, all cells
+  => manipulation PASS (180 episodes, 0 separate instrumented runs)
+
+[3] THE CELLS (right = the lever's population; left = the no-op control)
+
+  cell  role                                        right: ok carried n-grasp  n | left: ok/n carried/n | pooled ok/n
+  1     ready / ready (control: P35 scenario + diags)      7     18      2  27 |    0/18     16/18    |    7/45  
+  2     park / park (the lever)                           29      0      1  30 |    3/15     12/15    |   32/45  
+  3     park / ready-proprio (image probe)                26      0      2  28 |    1/17     15/17    |   27/45  
+  4     ready / park-proprio (proprio probe)              13     17      0  30 |    4/15     11/15    |   17/45  
+
+  right-arm carried rate with the Wilson 95 % interval, the effect
+  fraction (r1-r_c)/(r1-r2) and the pre-registered band:
+
+    cell 1: 0.667  [0.478, 0.814]   fraction +0.00   band reference
+    cell 2: 0.000  [0.000, 0.114]   fraction +1.00   band reference
+    cell 3: 0.000  [0.000, 0.121]   fraction +1.00   band full
+    cell 4: 0.567  [0.392, 0.726]   fraction +0.15   band none
+
+[4] THE PRE-REGISTERED MAIN EFFECTS (right-arm carried class)
+
+  image  ((r2+r3)-(r1+r4))/2       0/58 vs 35/57   effect -0.617   Fisher two-sided p = 8.097e-13
+  proprio ((r2+r4)-(r1+r3))/2      17/60 vs 18/55   effect -0.050   Fisher two-sided p = 0.6866
+
+  interaction (secondary)          (r2-r3)-(r4-r1) = +0.100   within-stratum permutation p = 0.5815
+    (5000 draws, seed 20261024, criterion |T*| >= |did|, p = (1+count)/(1+B);
+     the exact enumeration reads 0.5868)
+    a redundancy/synergy descriptor, not the channel test: NEGATIVE = the
+    both-parked cell (2) beats the additive prediction (neither channel alone
+    suffices); POSITIVE = the single-channel cells beat it (either suffices);
+    0 = additive, and the main effects carry the read. Because cell 2 enters
+    both main-effect tables, a converting cell 2 with null probe cells moves
+    each table by half the effect - read the cells, not the tables alone.
+
+[5] THE COMPOSITION READ (right arm): crude vs class-standardised
+
+  cell   crude ok   std ok   crude carried   std carried   fraction (crude / std)   weight covered
+  1      0.259    0.259    0.667          0.667         +0.00 / +0.00          1.00
+  2      0.967    0.957    0.000          0.000         +1.00 / +1.00          0.85
+  3      0.929    0.940    0.000          0.000         +1.00 / +1.00          0.93
+  4      0.433    0.403    0.567          0.597         +0.15 / +0.10          0.96
+    (direct standardisation to cell 1's right-arm species mix; `fraction`
+     uses the standardised *carried* rate, the quantity the primary
+     endpoint is about - `coverage` < 1 means a species cell 1 had is
+     absent in that cell and the rest is renormalised)
+
+[6] THE SECONDARY ENDPOINTS (right arm unless stated)
+
+  cell 1: composite (carried+no-grasp) 20/27   pooled ok 7/45   cycle all 1867 / ok-only 1756 ticks   model calls/attempt 63 (35-91, n=27)
+  cell 2: composite (carried+no-grasp) 1/30   pooled ok 32/45   cycle all 1796 / ok-only 1796 ticks   model calls/attempt 60 (29-83, n=30)
+  cell 3: composite (carried+no-grasp) 2/28   pooled ok 27/45   cycle all 1781 / ok-only 1781 ticks   model calls/attempt 60 (30-86, n=28)
+  cell 4: composite (carried+no-grasp) 17/30   pooled ok 17/45   cycle all 1850 / ok-only 1768 ticks   model calls/attempt 60 (34-83, n=30)
+
+  new failure reasons vs cell 1 (right arm), cell 2: none
+  new failure reasons vs cell 1 (right arm), cell 3: none
+  new failure reasons vs cell 1 (right arm), cell 4: none
+
+  run-level signs (negative = the contrast helps; consistency, not a test):
+    image    ['-0.631', '-0.611', '-0.625']   negative in 3/3 runs
+    proprio  ['-0.169', '-0.056', '+0.125']   negative in 2/3 runs
+
+  the noise floor - the LEFT arm, a no-op in all four cells:
+    carried rate per cell 1:0.889(16/18)  2:0.800(12/15)  3:0.882(15/17)  4:0.733(11/15)
+    the same contrasts on the no-op population: image +0.030, proprio -0.119, interaction +0.073; cell spread 0.156
+
+[7] THE PRE-REGISTERED READING
+
+  reading: IMAGE-BORNE
+  the image cell (3) converts and the proprio cell (4) does not: the park's win is the sightline; a recollection's own A/B is the shipping path
+
+  The between-cell contrast is the design-valid leg (the cells diverge after
+  the first call, so no per-episode pairing is used). Cells 3/4 are OOD input
+  pairs: a positive names the channel and does not ship; a null is weak
+  evidence (PREREG section 8). The asymmetry is measured
+  (logs/p36/ood_proprio.txt): cell 3 writes the in-support ready proprio
+  (max |z| = 0.59 of the 7 channels, direct store; 0.37 of the training
+  store) under the parked image; cell 4 writes the parked proprio under the
+  shipped image, and that vector's j2 (-0.978 rad) sits at -4.26 sigma of
+  the direct store and -5.13 of the training store, 3 of the 7 channels
+  beyond 1.7 sigma. So a cell-4 positive is the stronger read (the park's
+  own proprio, alone, on an in-support image) and a cell-4 null the weaker
+  one (a 4-sigma input may simply be ignored or unrepresented).

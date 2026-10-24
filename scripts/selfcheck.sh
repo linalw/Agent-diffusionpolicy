@@ -89,6 +89,12 @@ run_check "rl env smoke" "$python" -c "import sys; sys.path.insert(0, 'src'); fr
 # shipped `tasks.py`; this asserts the equality on every selfcheck so a
 # metadata-only follow cannot be forgotten again.
 run_check "tasks.py pin" "$python" -c "import hashlib, sys; sys.path.insert(0, 'src'); from fruit_sorting.rl_env import TASKS_MD5; actual = hashlib.md5(open('src/fruit_sorting/tasks.py', 'rb').read()).hexdigest(); assert TASKS_MD5 == actual, f'TASKS_MD5={TASKS_MD5} tasks.py={actual}'; print('TASKS_MD5 pin ok')"
+# P36 phase 1: the proprio spoof (default off). The vectors against the P35
+# measured settled poses (`logs/p35/C_ab/` `[park] q_settled=`), the 7 indices
+# against the robot's measured dof order (`logs/33_dof.log`), and the
+# observation diff (only the inactive arm's 7 channels move, the rest is
+# bit-identical) - all pure arrays, no simulator.
+run_check "proprio spoof check" "$python" scripts/218_proprio_spoof_check.py
 run_check "rl report parser" "$python" scripts/113_rl_report.py --self-test
 # R9: the RL/DAgger lane's two offline tools - the N=5 endpoint readout (parse,
 # same-fruit pairing, carried-class sign test, verdicts, the optional carry

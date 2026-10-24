@@ -415,6 +415,28 @@ implementation: the simulation cell, the data pipeline, and the policy training 
 > WORKLOG "P35 phase 1/2", `logs/p35/` (`C_RESULTS.md`, `C_PREREG_AMEND.md`,
 > `C_ab/`).
 
+> **P36 (2026-10-24): the park's mediator is the image channel - the parked image
+> alone reproduces the whole conversion; default off, not adopted.** The 2x2
+> crosses the park (the image) with the new default-off
+> `FRUIT_PROPRIO_SPOOF=<pose>` (the inactive arm's 7 joints written into the
+> observation only; vectors = the P35 measured poses). 4 cells x 3 runs x 15 =
+> **180 episodes**, one claim: the right-arm carried-not-placed class is
+> **18/27 = 0.667** (control), **0/30** (park/park), **0/28** (park image / ready
+> proprio), **17/30 = 0.567** (ready image / park proprio); **image p = 8.8e-15**,
+> **proprio p = 0.687**, interaction +0.100 (p = 0.581 - the pre-registered
+> descriptor only). The manipulation check passes from the batch's own rows (the
+> image follows the arm, not the spoof). **The reading is the image channel;
+> which image statistic is not separated** - the fruit's sightline (the P35
+> occlusion census) is the leading **unseparated** candidate - and the probes
+> **do not ship**: the shipping path is a recollection's own A/B at the WS-4.2
+> **N = 5** convention (the 2x2 is a probe at N = 3). The cell-4 null is the
+> weaker read (the parked proprio's j2 lies outside both reference stores'
+> observed ranges; the 4-5 sigma summary is a mixed-population statistic) and
+> sits inside the batch's no-op noise. No-harm: selfcheck PASS, acceptance
+> **6/10 + `fingerprint: matches`** with **376/376 `[fruit]` lines identical** to
+> the P35 record. Evidence: `AGENTS.md` §2 (the P36 paragraph), WORKLOG "P36
+> phase 1/2", `logs/p36/` (`A_RESULTS.md`, `PREREG.md`, `A_ab/`).
+
 > **汇报入口**：[项目总结报告.md](项目总结报告.md)（单一文档，含图表与日志编号）；路线取舍见 [决策与交付.md](决策与交付.md)；**项目收尾一页纸见 [docs/CLOSEOUT.md](docs/CLOSEOUT.md)**（R11-C：交付状态 / 全部杠杆族的实测裁定 / 剩余项）；一键演示 `scripts/demo_2min.sh`。
 
 > **Contributing?** [AGENTS.md](AGENTS.md) lists the three commands to run before
