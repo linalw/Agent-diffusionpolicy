@@ -46,7 +46,10 @@ scenario change to flag, not a blocker.
     placed/min** vs the same-scenario single arm 9/10, 3.59 -> **1.19x < the 1.25x
     bar** (`logs/w3/`, `logs/w4/`).
   * W7-A dense re-record (fingerprint `configs/motion_reference_twoline.json`,
-    `181c9151`): **7/10, 9.1 s/attempt, 4.60 placed/min** (left 2/5, right 5/5,
+    `181c9151` *at the time* - the file is now **`d0326030`**, re-recorded by
+    P39 from `logs/p39/p3/twoline_C.log` because the W7-A file predates the P32
+    pear and matches no post-P32 tree; the old file is archived at
+    `logs/p39/motion_reference_twoline_pre_p39.json`): **7/10, 9.1 s/attempt, 4.60 placed/min** (left 2/5, right 5/5,
     `diverted=0`); the park-gate control replays the pre-flip record bit-for-bit
     (`logs/w7/`).
   * Older references for the ratio set: F2 1.30x, G (shared-station, Gate-19
