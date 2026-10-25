@@ -52,6 +52,15 @@ PAD_LIFT = float(os.environ.get("FRUIT_PAD_LIFT", "0.010"))
 #: `_step_sim(1)`, and every trajectory is generated against this rate.
 CONTROL_DT = 1.0 / 120.0
 
+#: Which tactile face each finger joint moves, in `tactile.FINGER_LINK_NAMES`
+#: order (left finger, right finger). Asset geometry, not a convention:
+#: `openarm_left_finger_joint1` has `physics:body1 = openarm_left_right_finger`
+#: (the driven actuator, `assets/openarm_flat/openarm_flat_deinst.usda:3798-3820`)
+#: and `openarm_left_finger_joint2` has `physics:body1 = ..._left_finger`
+#: (the drive-less `PhysxMimicJointAPI:rotY` mimic, usda:3822-3843). So the
+#: joint order (joint1, joint2) maps to the sensor order (1, 0).
+FINGER_JOINT_FACE_INDEX = (1, 0)
+
 #: P39: the physical fingertip's distance below the jaw centre along the tool
 #: axis, as **geometry**: the shipped collider *is* the finger's visual mesh
 #: (a convex hull, `_add_finger_colliders`), and the build print reads its distal
@@ -1314,6 +1323,21 @@ class PickAndPlaceTask:
         #: per-leg reporting built from values the loop already computes; the
         #: per-tick clean-slip read is only taken when this or the guard is on.
         self._carry_diag = os.environ.get("FRUIT_CARRY_DIAG", "0") == "1"
+        #: P40 G0 (`FRUIT_GRIP_EFFORT=1`, **default off**): the finger drive's
+        #: *applied effort* beside the tactile `N` the logs quote. The reported
+        #: `N` is a contact-sensor sum, not a drive force, and this hand's drive
+        #: (k = 1e6 N/m, `maxForce` 10 N per joint) should be saturated at 10 N
+        #: wherever the pads stall 6-26 mm short of their command while the
+        #: sensor reads 4.4 N (`logs/p40/GRIP_CENSUS.md` §2.5, §7) - a 2.2x
+        #: discrepancy with no second sensor in the build. One line per event
+        #: (the close freeze, each carry leg's start and end) carrying a
+        #: **5-tick median** - the pool's contact `Fmax` reaches 612 N, so a
+        #: single sample is a spike, not the hold force. Reading only: no
+        #: command, threshold or existing print is touched.
+        self._grip_effort = os.environ.get("FRUIT_GRIP_EFFORT", "0") == "1"
+        self._grip_effort_banner = False
+        self._grip_effort_req: dict[str, dict] = {}
+        self._grip_effort_kc: dict[str, tuple[np.ndarray, np.ndarray]] = {}
         #: P7-2b C-3 carry monitor (`FRUIT_CARRY_MONITOR`, **default off**;
         #: pre-registration `logs/p7/PREREG_CARRY_MONITOR.md`, Phase-0 gate
         #: `logs/p7/C3_REPLAY.md`). The escape is a persistent state (contact
@@ -2223,6 +2247,211 @@ class PickAndPlaceTask:
             np.asarray(centre, dtype=float),
             np.asarray(quat, dtype=float),
             float(gap),
+        )
+        # P40 G0 (`FRUIT_GRIP_EFFORT=1`, default off): one read-set per tick
+        # while an event's 5-tick window is open, and nothing at all otherwise
+        # (the pending-request lookup is the only added work).
+        if self._grip_effort:
+            self._grip_effort_tick(side)
+
+    # ------------------------------------------------------------------ #
+    # P40 G0: the finger drive's applied effort (`FRUIT_GRIP_EFFORT`, default off)
+    # ------------------------------------------------------------------ #
+    #: Ticks per reported median. The pool's contact `Fmax` reaches 612 N on
+    #: isolated ticks, so one sample is a spike rather than the hold force.
+    GRIP_EFFORT_SAMPLES = 5
+
+    def _grip_effort_drive(self, side: str) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """The finger joints' drive gains and force caps, read once.
+
+        `k` [N/m], `c` [Ns/m] from `get_dof_gains`, `cap` [N] from
+        `get_dof_max_efforts` - the asset's own `maxForce`, read through the
+        same API that reports the joints, so the cap this line grades against is
+        the one the run had, not the one the USD file says.
+        """
+        cached = self._grip_effort_kc.get(side)
+        if cached is not None:
+            return cached
+        arm = self.arms[side]
+        dofs = list(arm.finger_dofs)
+        try:
+            stiffness, damping = arm.robot.get_dof_gains(dof_indices=dofs)
+            k = np.asarray(stiffness.numpy())[0].astype(float)
+            c = np.asarray(damping.numpy())[0].astype(float)
+        except Exception:  # noqa: BLE001 - the fallback is reported, not hidden
+            k = np.full(len(dofs), 1.0e6)
+            c = np.full(len(dofs), 100.0)
+        try:
+            cap = np.asarray(arm.robot.get_dof_max_efforts(dof_indices=dofs).numpy())[
+                0
+            ].astype(float)
+        except Exception:  # noqa: BLE001
+            cap = np.full(len(dofs), float("nan"))
+        self._grip_effort_kc[side] = (k, c, cap)
+        return k, c, cap
+
+    def _grip_effort_read(self, side: str) -> dict | None:
+        """One read of the finger drive: tactile, effort, reaction, target error.
+
+        Frame/units: the finger joints are **prismatic** (axis Y, metres) and
+        their drives' outputs are **newtons along that axis**; the tactile
+        `value` is the contact-sensor sum in newtons. Three joint-space
+        instruments are taken on the same tick, so a zero or a scaled reading in
+        one of them cannot silently carry the claim:
+
+        * `eff` - `Articulation.get_dof_efforts()`, the tensor API's *dof
+          actuation force*: what the drive says it applied;
+        * `proj` - `get_dof_projected_joint_forces()`, the same view's
+          *projected* joint force ("the active component of the force", i.e. the
+          reaction along the joint's motion direction): what the physics says
+          the joint carried;
+        * `kpc` - the drive's own law from the joints' gains,
+          `k*(target - position) + c*(v_target - v)`, and `Fsat` =
+          `clip(kpc, +-maxForce)`, the force that law can actually deliver.
+
+        `err` is the task's `drive_target - position`.
+
+        `openarm_<side>_finger_joint2` is a **drive-less** `PhysxMimicJointAPI`
+        mimic (`assets/openarm_flat/openarm_flat_deinst.usda:3822-3843`): its
+        effort is a constraint reaction, not a drive force, and its own gains
+        and cap read 0 - only `joint1` is an actuator (k = 1e6, maxForce 10,
+        usda:3798-3820). The per-finger tactile `value` is the contact-sensor
+        sum the logs' `N` comes from (`tactile.py:104-146`).
+        """
+        arm = self.arms[side]
+        robot = arm.robot
+        dofs = list(arm.finger_dofs)
+        try:
+            q = np.asarray(robot.get_dof_positions(dof_indices=dofs).numpy())[0].astype(float)
+            tgt = np.asarray(
+                robot.get_dof_position_targets(dof_indices=dofs).numpy()
+            )[0].astype(float)
+            vel = np.asarray(robot.get_dof_velocities(dof_indices=dofs).numpy())[0].astype(float)
+            vtgt = np.asarray(
+                robot.get_dof_velocity_targets(dof_indices=dofs).numpy()
+            )[0].astype(float)
+        except Exception as exc:  # noqa: BLE001
+            self._grip_effort = False
+            say(
+                f"[effort] read FAILED ({type(exc).__name__}: {exc}); "
+                "instrumentation disabled for the rest of the run"
+            )
+            return None
+        effort = None
+        try:
+            effort = np.asarray(robot.get_dof_efforts(dof_indices=dofs).numpy())[
+                0
+            ].astype(float)
+        except Exception:  # noqa: BLE001
+            effort = None
+        projected = None
+        try:
+            projected = np.asarray(
+                robot.get_dof_projected_joint_forces(dof_indices=dofs).numpy()
+            )[0].astype(float)
+        except Exception:  # noqa: BLE001
+            projected = None
+        k, c, cap = self._grip_effort_drive(side)
+        kpc = k * (tgt - q) + c * (vtgt - vel)
+        fsat = np.clip(kpc, -cap, cap) if np.all(np.isfinite(cap)) else np.full_like(kpc, np.nan)
+        reading = self.tactile.read().get(side, _EMPTY_TACTILE)
+        faces = dict(reading.fingertip_forces or {})
+        return {
+            "t": self._sim_time(),
+            "q": q,
+            "tgt": tgt,
+            "err": tgt - q,
+            "eff": effort,
+            "proj": projected,
+            "kpc": kpc,
+            "fsat": fsat,
+            # In *joint* order (`FINGER_JOINT_FACE_INDEX`), so face k and joint k
+            # are the same finger and can be compared on the line.
+            "faces": [
+                float(faces.get(f"{side}_{FINGER_JOINT_FACE_INDEX[j]}", 0.0))
+                for j in range(2)
+            ],
+            "sum": float(reading.normal_force),
+            "contacts": int(reading.contact_count),
+        }
+
+    def _grip_effort_begin(self, side: str, sample, label: str) -> None:
+        """Open a 5-tick window at `label` (flushing whatever was pending)."""
+        if not self._grip_effort:
+            return
+        self._grip_effort_flush(side)
+        if not self._grip_effort_banner:
+            self._grip_effort_banner = True
+            arm = self.arms[side]
+            k, c, cap = self._grip_effort_drive(side)
+            say(
+                "[effort] FRUIT_GRIP_EFFORT=1 reporting only; 5-tick median per "
+                "event | joints="
+                f"{list(arm.spec.finger_joint_names)} k="
+                f"{'/'.join(f'{v:.0f}' for v in k)}N/m c="
+                f"{'/'.join(f'{v:.0f}' for v in c)}Ns/m maxForce="
+                f"{'/'.join(f'{v:.1f}' for v in cap)}N | "
+                "eff=get_dof_efforts (dof actuation force, N) "
+                "proj=get_dof_projected_joint_forces (N along the joint axis) "
+                "kpc=k*(target-q)+c*(v_target-v) Fsat=clip(kpc,+-maxForce) | "
+                "tact order = joint order (joint1 -> openarm_<side>_right_finger, "
+                "joint2 -> openarm_<side>_left_finger)"
+            )
+        self._grip_effort_req[side] = {
+            "label": label,
+            "idx": int(getattr(sample, "index", -1)),
+            "rows": [],
+        }
+
+    def _grip_effort_tick(self, side: str) -> None:
+        """Append one sample to the open window; print the median at 5."""
+        req = self._grip_effort_req.get(side)
+        if req is None:
+            return
+        row = self._grip_effort_read(side)
+        if row is None:
+            return
+        req["rows"].append(row)
+        if len(req["rows"]) >= self.GRIP_EFFORT_SAMPLES:
+            self._grip_effort_flush(side)
+
+    def _grip_effort_flush(self, side: str) -> None:
+        """Print the window's 5-tick medians (a partial window is named as such)."""
+        req = self._grip_effort_req.pop(side, None)
+        if not req or not req["rows"]:
+            return
+        rows = req["rows"]
+        arm = self.arms[side]
+        names = list(arm.spec.finger_joint_names)
+        q = np.median(np.array([r["q"] for r in rows]), axis=0)
+        tgt = np.median(np.array([r["tgt"] for r in rows]), axis=0)
+        err = np.median(np.array([r["err"] for r in rows]), axis=0)
+        kpc = np.median(np.array([r["kpc"] for r in rows]), axis=0)
+        fsat = np.median(np.array([r["fsat"] for r in rows]), axis=0)
+        eff_rows = [r["eff"] for r in rows if r["eff"] is not None]
+        eff = np.median(np.array(eff_rows), axis=0) if eff_rows else None
+        proj_rows = [r["proj"] for r in rows if r["proj"] is not None]
+        proj = np.median(np.array(proj_rows), axis=0) if proj_rows else None
+        segs = []
+        for j, name in enumerate(names):
+            eff_txt = "n/a" if eff is None else f"{eff[j]:+.2f}"
+            proj_txt = "n/a" if proj is None else f"{proj[j]:+.2f}"
+            segs.append(
+                f"{name}: eff[N]={eff_txt} proj[N]={proj_txt} "
+                f"kpc[N]={kpc[j]:+.2f} Fsat[N]={fsat[j]:+.2f} "
+                f"q[mm]={q[j] * 1000:.2f} tgt[mm]={tgt[j] * 1000:.2f} "
+                f"err[mm]={err[j] * 1000:+.2f}"
+            )
+        faces = np.median(np.array([r["faces"] for r in rows]), axis=0)
+        fsum = float(np.median(np.array([r["sum"] for r in rows])))
+        contacts = int(np.median(np.array([r["contacts"] for r in rows])))
+        t_mid = float(np.median(np.array([r["t"] for r in rows])))
+        faces_txt = ",".join(f"{v:.2f}" for v in faces)
+        say(
+            f"[effort] {side} idx={req['idx']} {req['label']} "
+            f"sub={substeps()} t={t_mid:.3f}s n={len(rows)} | "
+            f"tact[N]={faces_txt} sum={fsum:.2f} contacts={contacts} | "
+            + " | ".join(segs)
         )
 
     # ------------------------------------------------------------------ #
@@ -3539,6 +3768,17 @@ class PickAndPlaceTask:
                     # following the payload within a few millimetres without the
                     # teleporting that used to do the carrying.
                     self._recentre_gripper(side, sample)
+                # P40 G0 (`FRUIT_GRIP_EFFORT=1`, default off): one read-set per
+                # tick while a leg-boundary window is open - the first 5 ticks
+                # for the leg's start, the last 5 for its end (the same
+                # 5-tick-median rule as the close freeze). No command, no
+                # threshold, no existing print is touched.
+                if self._grip_effort:
+                    if i == 0:
+                        self._grip_effort_begin(side, sample, f"carry_start:{name}")
+                    elif i == max(1, n_ticks - self.GRIP_EFFORT_SAMPLES):
+                        self._grip_effort_begin(side, sample, f"carry_end:{name}")
+                    self._grip_effort_tick(side)
             if guard_armed or relief_acts:
                 # W8-B carry-window readout: one line per dynamic carry leg
                 # (R6-B adds the interference-cap fields; with only the relief
@@ -3686,6 +3926,9 @@ class PickAndPlaceTask:
                     f"[task]   carry(gripper-led) {name}: pads={np.round(finish, 3).tolist()} "
                     f"fruit={np.round(self.spawner.position(sample), 3).tolist()}"
                 )
+            # P40 G0: a window still open (an early leg break) is printed, never
+            # silently dropped. No-op with the knob off.
+            self._grip_effort_flush(side)
             if attitude:
                 self._carry_attitude(side, sample, name)
             return
@@ -3749,6 +3992,8 @@ class PickAndPlaceTask:
                 f"goal={np.round(goal, 3).tolist()} "
                 f"err={float(np.linalg.norm(arm.jaw_centre() - goal)):.4f} m"
             )
+        # P40 G0: flush a window left open by an early break (no-op when off).
+        self._grip_effort_flush(side)
         if attitude:
             self._carry_attitude(side, sample, name)
 
@@ -5169,6 +5414,40 @@ class PickAndPlaceTask:
                     if grade_lane == prefer_lane:
                         return _chosen(state)
                 return _chosen(usable[0][1])
+            # P40 R-S (`FRUIT_SELECT_NEAREST_ABOVE_FLOOR`, default **off**): take
+            # the **nearest** candidate at/above the catch floor instead of the
+            # shipped farthest-upstream one. Scope is this single-arm branch only
+            # (`lane` and `prefer_lane` are both `None` here, so the two-line
+            # selector, its lane rules and the shared-station worker never reach
+            # this line), and it changes *which* floored fruit is taken - never
+            # the floor, the windows or the aim (`_dynamic_select_floor` and
+            # `_dynamic_aim` are untouched). `logs/p40/ARRIVAL_SPLIT.md` measured
+            # the shipped rule's commit 0.04-0.33 m beyond its own floor (median
+            # 0.21 m = 1.75 s of belt travel paid as waiting), because it takes
+            # the farthest of several eligible fruit; `usable` is sorted
+            # ascending, so the nearest floored fruit is `usable[0]`.
+            # `FRUIT_SELECT_NEAREST_MARGIN` (default 0.0 m) raises the near
+            # rule's *own* floor by that much and falls back to the shipped rule
+            # when it would empty the set (a margin experiment, not a new floor:
+            # the shipped `FRUIT_DYNAMIC_SELECT_MARGIN` inside the floor is
+            # unchanged). Both unset -> the shipped pick, byte-identically
+            # (presence/value gate; `accept_C` reproduces on the same tree).
+            if os.environ.get("FRUIT_SELECT_NEAREST_ABOVE_FLOOR", "0") == "1":
+                near_floor = floor + float(
+                    os.environ.get("FRUIT_SELECT_NEAREST_MARGIN", "0.0")
+                )
+                near = [item for item in usable if item[0] >= near_floor]
+                if near:
+                    return _chosen(near[0][1])
+                if diag is not None:
+                    diag.append(
+                        {
+                            "reason": (
+                                "nearest-above-floor: no candidate above "
+                                f"{near_floor:.3f}; shipped rule"
+                            )
+                        }
+                    )
             return _chosen(self._balance_arm(usable))
         if station:
             ordered = sorted(station, key=lambda item: item[0])
@@ -9900,6 +10179,13 @@ class PickAndPlaceTask:
                 if dynamic_capture
                 else "60"
             )
+            # ---- P40 G0: the close freeze's drive-effort window ---- #
+            # Armed here so the 5 samples are the first 5 ticks of the post-close
+            # hold: the freeze pinned `cmd` at the first sustained contact and
+            # the hold re-commands that same gap every tick, so this is the
+            # loaded state the reported `N` describes (default off: with
+            # `FRUIT_GRIP_EFFORT` unset `_grip_effort_begin` returns at once).
+            self._grip_effort_begin(arm_name, sample, "close_freeze")
             for _ in range(hold_ticks):
                 if dynamic_capture:
                     # Keep tracking while the contact settles: the jaws hold the
@@ -10340,7 +10626,23 @@ class PickAndPlaceTask:
         #: tracking, byte-identical.
         lock_takeoff_x = os.environ.get("FRUIT_DYNAMIC_TAKEOFF_LOCK_X", "0") == "1"
         takeoff_x: float | None = None
-        for _regrasp in range(int(os.environ.get("FRUIT_REGRASPS", "3"))):
+        #: P40: the probe/regrasp cap is PATH-SCOPED. On the dynamic capture line
+        #: (the never-stop catch on a moving fruit) a third probe has produced
+        #: nothing in 109 attempts: 17/17 attempts that burned all three never
+        #: closed on the fruit at all (`grasped=0/17`, `lift <= 0.004 m`) and cost
+        #: 1.24 s (two-line) / 1.50 s (single arm) per failed probe, while the only
+        #: measured conversion came on the *second* probe (k=1: 2/3 grasped, 1/3
+        #: placed) - which `2` keeps (`logs/p40/REGRASP_YIELD.md`,
+        #: `logs/p40/P3_RESULTS.md`). The indexed / policy-handover path keeps 3:
+        #: that retry is a different mechanism (no moving fruit, no
+        #: re-seat-in-place) and none of the numbers above covers it. An explicit
+        #: `FRUIT_REGRASPS` wins on both paths.
+        regrasp_cap = int(
+            os.environ.get(
+                "FRUIT_REGRASPS", "2" if self._dynamic_capture_active else "3"
+            )
+        )
+        for _regrasp in range(regrasp_cap):
             probe = grasp_goal + np.array([0.0, 0.0, 0.010])
             # The grip was taken from a *moving* fruit; a coarse test lift (the
             # 0.5 rad/tick default) can work a marginal hold out before the
@@ -10634,7 +10936,7 @@ class PickAndPlaceTask:
             # first sign of the joints being blocked, which leaves the fruit only
             # lightly loaded (5-14 N) - enough to feel, not enough to carry.
             if (
-                _regrasp == int(os.environ.get("FRUIT_REGRASPS", "3")) - 1
+                _regrasp == regrasp_cap - 1
                 and os.environ.get("FRUIT_REGRASP_REOPEN", "0") == "1"
             ):
                 # Last-resort recovery: a full re-grasp. Squeezing harder does not

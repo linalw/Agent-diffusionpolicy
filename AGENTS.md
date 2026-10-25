@@ -1676,6 +1676,80 @@ tested here. Evidence `logs/p39/P1_READ.md`, `PREREG.md` (+A1/A2/**A3**),
 `p2/NOTES.md`, `p3/RESULT.md` (§10 = the gate-3 close-out), `p3/P3_report.txt`,
 `selfcheck.log`; WORKLOG "P39".
 
+**P40 (2026-10-26, `logs/p40/`; **one** shipped change - the regrasp cap becomes
+path-scoped - and nothing else adopted): the grip chain is measured end to end,
+the carry class is **not** converted, and the only free rate on the tree was one
+probe.** The default-off `FRUIT_GRIP_EFFORT=1` readout (reporting only: one
+5-tick median per event, the finger drive's own numbers beside the tactile `N`)
+ran two claimed acceptances (`logs/p40/p2/`, `effort_table.txt`): **the tactile
+is not a scaled read** - the same-tick projected joint reaction agrees to
+0.1 % / 0.5 % in both runs, so `GRIP_CENSUS` §3/§4's capacities and margins stand
+and **nothing is multiplied by 2.2**; **the *command* is at its 10 N/joint cap on
+40/40 contact rows** (the authored `k*err` is 4-8 kN, so `Fsat` clips every
+time) **while the *delivered reaction* is 22 % of it** (2.21 N/joint = 4.42 N per
+pinch) - the "2.2x discrepancy" compared the tactile to a cap the drive never
+reaches, and the `F/err` ratio (**377 N/m at 120 Hz, 1045 N/m at 480 Hz**) is an
+**operating-point timestep signature, not a stiffness** (the law is
+unidentified). **`FRUIT_SUBSTEPS=4` doubles the force** - 4.42 -> 9.95 N
+(**2.25x**, verified by both instruments) - at **3.08x wall** (266 -> 819 s) and
+**+0.66 s/attempt** of span (`[stats]` 150.2 -> 156.8 over 10; *not* "+0.90 s",
+*not* "+4 %"), which puts the **worst-case fruit's friction margin at
+1.20x -> 2.70x** (`mu_eff` 0.45 against the 1.66 N following-error transient;
+`mu_eff` 1.20 reads 3.20x -> 7.19x). Its **8/10 is a different attractor, not a
+class gain**, and the left still carries-not-places **2/7** (orange attempt 3,
+tomato attempt 9), so the class is **not deleted**. It ships as a **finding, not
+a setting**: a store's **`write_manifest` `substeps` field is the unconditional
+precondition** (the controller stays 120 Hz, `common.py:13-20`, so
+*consumability* is not the issue) and a **real-jaw clamp-force anchor** gates
+only a *fidelity* claim; the 2.25x-force / 3.08x-wall pair is **one pair** and
+the scaling law is unidentified.
+
+**The one adoption: `FRUIT_REGRASPS` is path-scoped** - **2 when
+`_dynamic_capture_active`, 3 otherwise**, with an explicit env value winning on
+both (`tasks.py`, `regrasp_cap`; the `FRUIT_REGRASP_REOPEN` slot reads the same
+resolved value). Over 109 attempts a **third probe has produced nothing**: the
+**17/17** attempts that burned all three never closed on the fruit at all
+(`grasped 0/17`, `lift <= 0.004 m`), while the only conversion in the corpus came
+on the **second** probe (`k=1`: 2/3 grasped, 1/3 placed) - which `=2` keeps - at
+1.24 s (two-line) / 1.50 s (single arm) per failed probe. Measured with the knob
+**unset** (the flip *is* the arm under test): the acceptance reads **5/9,
+133.0 s, 14.8 s/attempt, 2 re-seat rows** against the control's **6/10, 150.2 s,
+15.0 s/attempt, 3 rows**, and the two-line **7/10, 88.2 s, 8.8 s/attempt, 5 rows**
+against **6/10, 90.2 s, 9.0 s, 13 rows**; the same-attempt read is the **k=3 tax
+5.45 -> 3.93 s and 5.42 -> 4.00 s** with otherwise identical terminals, and both
+runs are **byte-identical to the phase-3 `FRUIT_REGRASPS=2` battery** (339/339 and
+430/430 filtered `[fruit]` lines), so the flip is exactly the measured arm. Both
+counts are in **moved attractors** (`diverted` 0 -> 1; `no eligible fruit` from
+attempt 4 on the single arm) and are therefore **not rate claims** - the
+two-line throughput columns in `logs/p40/P3_RESULTS.md` are captioned as such and
+stay out of this file. The indexed / policy-handover path keeps **3** by
+construction: every re-seat row is `dynamic_capture`-and-`verbose`-gated and
+`DirectSortEnv` is neither, so **no published number covers that retry** (and
+`grasp.py`'s separate `GraspPrimitive` loop is untouched). **Both references were
+re-recorded from these same-batch runs** because the flip moves both:
+`configs/motion_reference.json` `25ade92b` -> **`adef05c9`** (pre-P40 file
+archived to `logs/p40/motion_reference_single_pre_p40.json`) and
+`configs/motion_reference_twoline.json` `d0326030` -> **`d87c3cdf`** (archived to
+`logs/p40/motion_reference_twoline_pre_p40.json`); the gates then read
+**`fingerprint: matches`** (rate-only FAIL, 5/9 < the 75 % single-arm floor) and
+**`190` PASS** (7/10 at the 0.60 two-line floor). `scripts/189_w7a_chain.sh` was
+**not** run.
+
+**Two opt-ins, no flip.** `FRUIT_SELECT_NEAREST_ABOVE_FLOOR` stays **off**: its
+single-arm rule is also the **direct loop's** episode rule
+(`select_target(..., reach_anywhere=False)` with no lane, `rl_env.py:1656`), so a
+flip would silently move every direct baseline that has been measured, and the
+measured gain is the arrival wait **1.41 -> 0.97 s** mean (1.20 -> 0.63 median) =
+**0.4 s of a 15.0 s attempt (2.7 %)** on one branch, with +1 discharge; its
+commit still sits **~0.15 / ~0.10 m above** the selector floor once the ~0.76 s
+hover (0.09 m) is counted - the naive 0.463 -> 0.411 m read is a **lower bound**,
+not a commit distance - so it does **not** spend the floor's margin.
+`FRUIT_SUBSTEPS` keeps its shipped value (above). Pins: `tasks.py`
+**`ec991e5c`**, `rl_env.py` **`8ebb8d87`** (the `TASKS_MD5` metadata-only
+follow; HEAD `1790b87`), `scene.py` `988985ef`. Evidence
+`logs/p40/{GRIP_CENSUS,RATE_CENSUS,LIT_REVIEW,PREREG,EFFORT_READ,REGRASP_YIELD,ARRIVAL_SPLIT,P3_RESULTS,P4_RESULTS}.md`,
+`p2/`, `p3/`, `p4/`, `selfcheck.log`; WORKLOG "P40".
+
 ## 3. What changed -> what to run
 
 | you changed | run |

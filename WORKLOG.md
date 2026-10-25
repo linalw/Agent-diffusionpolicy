@@ -18509,3 +18509,156 @@ two-line reference's re-record, made from C - the unaffected control arm - so th
 single-arm reference `25ade92b` is untouched. Commit: the two source files +
 the `TASKS_MD5` pin + `configs/motion_reference_twoline.json` + its archive +
 `AGENTS.md` + `WORKLOG.md` + the P33 annotation + `logs/p39/`.
+
+### P40: the grip chain is measured end to end and the carry class is not converted (the command is at the 10 N cap while 22 % of it arrives; the physics rate doubles the force for 3.08x wall), and the one adoption is a path-scoped `FRUIT_REGRASPS` (2 dynamic / 3 otherwise) worth a measured 1.42-1.52 s on the `k=3` class whose third probe is 0/17 — the selector and the substeps stay opt-in, and both motion references are re-recorded from the flipped tree (2026-10-26)
+
+Started on the P39-final tree `1790b87` (clean) with `logs/p40/PREREG.md` + A1
+before any edit. **One shipped change** (`FRUIT_REGRASPS` path-scoped); two
+opt-ins measured and **not** flipped (the selector, the substeps); three
+measurements published (the grip effort chain, the regrasp yield, the arrival
+split). Evidence `logs/p40/`: `GRIP_CENSUS.md`, `RATE_CENSUS.md`,
+`LIT_REVIEW.md`, `PREREG.md` (+A1), `EFFORT_READ.md`, `REGRASP_YIELD.md`,
+`ARRIVAL_SPLIT.md`, `P3_RESULTS.md`, `P4_RESULTS.md`, `p2/`, `p3/`, `p4/`,
+`selfcheck.log`, and the two archived references.
+
+**The grip chain, measured (G0, `FRUIT_GRIP_EFFORT=1`, default off, reporting
+only).** Two claimed acceptance runs, `logs/p40/p2/` (`effort_sub1.log`,
+`effort_sub4.log`; `effort_table.txt` re-derives every row):
+
+* **The 2.2x under-read is REFUTED.** On the shipped substeps the tactile sum is
+  **4.42 N** and the same-tick **projected joint reaction** - a different buffer -
+  sums to **4.42 N** (ratio **0.999**; per face 2.24/2.28 vs 2.25/2.23).
+  A sensor-only 0.44x scaling cannot produce that agreement, so `GRIP_CENSUS`
+  §3/§4's capacities and margins stand as written and **nothing is multiplied by
+  2.2**. `get_dof_efforts` returns **+0.00 N on 98/98** rows in both runs (this
+  build's implicit-PD drives do not populate the actuation buffer), so the
+  claim rests on `get_dof_projected_joint_forces` + the drive law.
+* **The drive's *command* is at its 10 N/joint cap on 40/40 contact rows; what
+  it *delivers* is 22 % of it.** The authored `k*err` is 4-8 kN (`err`
+  3.95-7.57 mm x `k` 1e6 N/m), so `Fsat` clips to 10.00 N on every row, while
+  the delivered reaction is **2.21 N/joint (22.1 %)** - and 5.00 N/joint
+  (50.0 %) at 480 Hz. **The 10 N cap is never the limiter**: what limits the
+  force is what the drive/contact pair can transmit inside one timestep.
+  The **`F/err` ratio is an operating point, not a stiffness** - 377 N/m at
+  120 Hz, 1045 N/m at 480 Hz, i.e. a **timestep signature** - and the *law* is
+  **unidentified**; this pair does not separate stiffness from damping from the
+  solver's implicit-spring regularisation. (`PREREG` A1.1's stated ground, "the
+  drive is at its 10 N/joint cap", therefore does **not** hold; A1 was executed
+  as written - G1 not run - and the post-freeze load phase, if ever revived,
+  needs its premise re-registered.)
+* **`FRUIT_SUBSTEPS=4` is the force lever, and it is not free.** 4.42 -> **9.95 N
+  (2.25x)**, verified by both instruments (tactile/joint ratio 0.995), at
+  **3.08x wall** (266 -> 819 s) and **+0.66 s/attempt** of span (`[stats]`
+  150.2 -> 156.8 s over 10 attempts - say that, *not* "+0.90 s" and *not*
+  "+4 %"). It takes the **worst-case fruit's friction margin 1.20x -> 2.70x**
+  (`mu_eff` 0.45 against the 1.66 N transient; `mu_eff` 1.20 reads
+  3.20x -> 7.19x). Its **8/10 is a different attractor** (480 Hz is a physics
+  setting, not an instrument state, `fingerprint: DIFFERS`) and **the class is
+  not deleted**: the left still carries-not-places **2/7** (attempt 3's orange,
+  `lift +0.218`; attempt 9's tomato, `lift +0.136`) against the shipped run's
+  4/4 left. It ships as a **finding, not a setting**: the controller stays
+  120 Hz (`common.py:13-20`), so a store's *consumability* is not the issue and
+  the **`write_manifest` `substeps` field is the unconditional precondition**
+  for any store; a **real-jaw clamp-force anchor** gates only a *fidelity*
+  claim, and the 2.25x/3.08x pair is **one pair**.
+
+**The regrasp yield (`REGRASP_YIELD.md`, offline, 109 attempts).** A third probe
+has **produced nothing**: the **17/17** attempts that burned all three never
+closed on the fruit (`grasped 0/17`, `lift <= 0.004 m`), and the only conversion
+in the corpus came on the **second** probe (`k=1`: 2/3 grasped, 1/3 placed). The
+per-failed-probe price is **1.24 s (two-line) / 1.50 s (single arm)**, and on a
+`k=3` attempt the `grip` segment is 5.45 s against a healthy 1.74 s. `=2` keeps
+probes 1 and 2 (so the only measured conversion path) and removes only the third.
+
+**The arrival split (`ARRIVAL_SPLIT.md`, offline).** The wait is
+**supply-bound to within one tick** (`N/120` equals
+`(dy0 - dy_arr)/0.12` with a **0 ms median residual and a 10 ms worst case over
+109 attempts**; the within-attempt belt slope is **-0.1200 m/s on all 109**). The
+arm's pre-pose + hover block is **overlapped, not additive** (1.49 s two-line =
+46 % of the 3.26 s gap, 0 s of it additive), so **nothing on the pre-pose/hover
+speed can shorten the gap** - the lever is the commit distance.
+
+**Phase 3 (`P3_RESULTS.md`).** **R-R**: `FRUIT_REGRASPS=2` on the two-line reads
+**7/10, 88.2 s, 8.8 s/attempt, 5 re-seat rows** against the control's **6/10,
+90.2 s, 9.0 s, 13 rows**; on the acceptance **5/9, 133.0 s, 14.8 s/attempt,
+2 rows** against **6/10, 150.2 s, 15.0 s, 3 rows**. Both are **moved attractors**
+(`diverted` 0 -> 1; `no eligible fruit` from attempt 4 on the single arm), and
+the countable mechanism is the same-attempt one: the two capped attempts are the
+control's own `k=3` rows (`right peach idx 12`, `left kiwi idx 13`), they end
+identically (`grasped=False`, `lift +0.003 / +0.000`, `fruit did not follow the
+gripper`) and only the time moves - **5.45 -> 3.93 s** and **5.42 -> 4.00 s**,
+the measured **k=3 tax of 1.42-1.52 s**. **The `k=1` row the treatment creates is
+NOT a rescue**: it is a *new* two-probe attempt on slot 2's right pear, which the
+**control placed first-try** (`k=0`, grip 1.77 s, span 15.3) -> treatment grip
+3.23 s, span 16.8 s. The corpus rescue (`twoline_C` slot 4) has **no counterpart
+in the battery**; `=2` preserves that path by construction but this run does not
+exhibit it. **The two-line rate columns are captioned "NOT a rate claim"** in
+`P3_RESULTS.md` and stay out of AGENTS: `4.76 placed/min` is `60 x 7 / 88.2` and
+the `9.27 s` pooled interval is `60 / 6.47`, i.e. monotone transforms of the
+count on a moved branch (the P1/P2 lesson). **R-S**
+(`FRUIT_SELECT_NEAREST_ABOVE_FLOOR`, default off): the arrival wait falls
+**1.41 -> 0.97 s** mean (1.20 -> 0.63 median), loop-entry `dy0` 0.358 -> 0.305 m,
+span 15.01 -> 14.64 s, s/attempt **15.0 -> 14.6**, placed 6 -> 7, discharge
+4 -> 5, no new failure reason - a positive at 10 attempts on one branch. Its
+**commit distance is a lower-bound artefact** unless the ~0.76 s hover is
+counted: the naive 0.463 -> 0.411 m excludes 0.09 m that the floor's 1.5 s setup
+*includes*, so the true commit is **~0.553 -> ~0.501 m** against a 0.399 m
+floor - **~0.15/0.10 m above it**. The rule therefore **does not spend the
+floor's margin** (risk downgraded); it removes 0.05 m of the 0.21 m median
+over-commit.
+
+**Phase 4 — the adoption.** `FRUIT_REGRASPS` is now **path-scoped**: `2` when
+`_dynamic_capture_active`, `3` otherwise, an explicit env value winning on both
+(`tasks.py`, the single resolved `regrasp_cap`; the `FRUIT_REGRASP_REOPEN` slot
+reads the same value, so the default-off recovery cannot disagree with the loop
+bound). The scope is not cosmetic: every re-seat row is
+`dynamic_capture`-**and**-`verbose`-gated, and the direct/policy handover is
+`scripted=False` with `DirectSortEnv(verbose=False)`, so **no number in this
+phase covers the indexed/policy retry** - it is a different mechanism (no moving
+fruit, no re-seat-in-place) and it keeps 3 (`grasp.py`'s separate
+`GraspPrimitive` loop, reached only under `FRUIT_NO_ATTACH=1`, is untouched).
+Measured with the knob **unset**: `logs/p40/p4/accept_flip.log` **5/9, 133.0 s,
+14.8 s/attempt, 2 re-seat rows** and `logs/p40/p4/twoline_flip.log` **7/10,
+88.2 s, 8.8 s/attempt, 5 rows** (`diverted=1`, left 4/5, right 3/5) - **byte
+identical** to the phase-3 `FRUIT_REGRASPS=2` arms (`filter_stream.py --diff`:
+**339/339** and **430/430** filtered `[fruit]` lines), so the flip *is* the
+measured arm and not "equivalent to" it. **Both references re-recorded from
+these same-batch runs** (the flip moves both): `configs/motion_reference.json`
+`25ade92b` -> **`adef05c9`**, `configs/motion_reference_twoline.json`
+`d0326030` -> **`d87c3cdf`**; the pre-P40 files are archived
+(`logs/p40/motion_reference_single_pre_p40.json`,
+`..._twoline_pre_p40.json`). Every motion budget passed and only the rate floor
+refused, so both writes landed; the gates then read **`fingerprint: matches`**
+(rate-only FAIL, 5/9 < 75 %) and **`190` PASS** (7/10 at the 0.60 floor).
+`scripts/189_w7a_chain.sh` was **not** run.
+
+**Phase 4 — the two opt-ins.** `FRUIT_SELECT_NEAREST_ABOVE_FLOOR` stays **off**:
+its single-arm return is also the **direct loop's** episode rule
+(`select_target(..., reach_anywhere=False)` with no lane at `rl_env.py:1656`;
+the reseed path at `3233` passes a lane and is excluded), so a default flip would
+silently move **every direct baseline on record** with no A/B of its own, and the
+gain is **0.4 s of a 15.0 s attempt (2.7 %)** on one branch with +1 discharge. `FRUIT_SUBSTEPS` keeps its shipped
+value, as a **finding** (the preconditions above). Nothing else was adopted: no
+policy checkpoint, no store, no friction/grip-force sweep (A1.2 closed it a
+second time), no direct-interface claim.
+
+**Corrections applied to the record this phase (Oracle gate 3).** (1) the
+two-line R-R rate columns are captioned **"NOT a rate claim"**. (2) the
+"`k=1` converted again" sentence is **replaced** (it is a new two-probe attempt on
+a fruit the control placed first-try, not the `twoline_C` slot-4 rescue). (3) the
+R-S commit distance is **re-stated with the hover term** (~0.553/0.501 m,
+~0.15/0.10 m above the floor), so the rule does **not** spend the margin. (4)
+`EFFORT_READ` §0/§6/§7: "the drive sits at 22 % of the cap" -> **the command is
+at the cap on 40/40 rows, the delivered reaction is 22 % of it**; and
+"`k_eff`/effective stiffness" -> an **operating-point `F/err` ratio**, a timestep
+signature, law unidentified. (5) the substeps span is cited as **+0.66 s/attempt**
+(`[stats]` 150.2 -> 156.8 over 10). (6) `logs/p40/__pycache__` excluded from the
+evidence force-add.
+
+**No-harm.** `scripts/selfcheck.sh` **PASS, 0 failures, 1 skipped**
+(`logs/p40/selfcheck.log`) and `scripts/96_motion_check.py` "all motion checks
+passed" (`logs/p40/p4/20_motion_check.txt`); the two flip runs are byte-identical
+to the phase-3 arms they adopt, so the only behaviour change on the tree is the
+dynamic line's third probe. Pins: `tasks.py` **`ec991e5c`**, `rl_env.py`
+**`8ebb8d87`** (`TASKS_MD5` metadata-only follow), `scene.py` `988985ef`,
+HEAD `1790b87` before the commits this entry records.

@@ -298,7 +298,28 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: corrected 76.8 -> 80.5 mm (the `[attitude]` `lip`/`tip=` reporting constant,
 #: geometry not a contact stop) and the line's axis/corner print added. Still
 #: reporting only.
-TASKS_MD5 = "112d2cb109d030c4b57cf99a6101d19c"
+#:
+#: P40 G0 (metadata-only follow): the default-off `FRUIT_GRIP_EFFORT=1`
+#: readout (`[effort]`, reporting only - the finger drive's applied effort
+#: beside the tactile `N`, one 5-tick median per event; no command, threshold
+#: or control path is touched).
+#:
+#: P40 R-S (metadata-only follow): the default-off
+#: `FRUIT_SELECT_NEAREST_ABOVE_FLOOR=1` single-arm selection rule (nearest
+#: floored candidate instead of the farthest-upstream one; the two-line
+#: selector, `_dynamic_select_floor` and the aim are untouched). Scope: it is
+#: the `lane is None and prefer_lane is None` return, so the two-line selector
+#: and the reseed path here (`lane=int(self._bin_index)`) never reach it - but
+#: this environment's *episode* selection (`rl_env.py:1656`, no lane) would, so
+#: a direct-loop use of the knob is a new configuration, not the shipped one.
+#: The knob is unset everywhere in this tree.
+#:
+#: P40 phase 4 (metadata-only follow): the `FRUIT_REGRASPS` probe cap is now
+#: PATH-SCOPED - `2` on the dynamic capture line, `3` on the indexed /
+#: policy-handover path (`tasks.py`, `regrasp_cap`), with an explicit env value
+#: winning on both. The 17/17 zero-conversion third-probe evidence is the
+#: dynamic line only; the indexed retry is a different mechanism.
+TASKS_MD5 = "ec991e5c98a744b019e146cef058d78a"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(
