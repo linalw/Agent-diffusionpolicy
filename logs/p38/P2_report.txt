@@ -1,0 +1,102 @@
+==============================================================================
+M1 - the forced refusal (lateral 0): attribution, the terminal class, the bound
+==============================================================================
+  arm A: n=15 refused=15 no_firable=0 timeout=0 fell_off=12 policy_close=3 intercept=0 placed=0 x 0.224..0.397 m
+    adopted=0 scans=0 (max/episode 0; empty 0, off-lateral 0) median_ticks=1335 median_ticks@end=nan
+    interface: diag=1 end=0 reseed=0 max=2
+  arm B: n=15 refused=15 no_firable=10 timeout=0 fell_off=0 policy_close=5 intercept=0 placed=3 x 0.229..0.369 m
+    adopted=0 scans=0 (max/episode 0; empty 0, off-lateral 0) median_ticks=593 median_ticks@end=562
+    interface: diag=1 end=1 reseed=0 max=2
+  arm C: n=15 refused=15 no_firable=9 timeout=0 fell_off=0 policy_close=6 intercept=0 placed=3 x 0.244..0.365 m
+    adopted=0 scans=54 (max/episode 4; empty 54, off-lateral 0) median_ticks=553 median_ticks@end=510
+    interface: diag=1 end=1 reseed=1 max=2
+
+  P1 attribution (the `lateral refuse:` note): A 15/15, B 15/15, C 15/15
+       PASS (the diag is ON in every arm: the predicate must fire on all 15 episodes of each; PREREG's M1 table's 'A 0/15' is the internal inconsistency the amendment corrects)
+  P3 terminal class: timeouts A 0, B 0, C 0; no_firable B 10, C 9
+       A's terminals: timeout 0, fell-off 12, close 3, placed 0
+       PASS (the named class must absorb the unnamed ends at a shorter cycle; A's median 1335 ticks)
+  reseed bound: C adopted 0 over 54 scan(s), max 4/episode (<= 4 per refusal), budget `RESEED_MAX`=2
+  Fb' (an intercept fire in arm C on a below-gate candidate): 0 intercept fire(s) - clean
+  the second fire path (A1): policy closes A 3, B 5, C 6 - the closure is not total: the END population is the complement
+  the END tick bar (median <= 600 on the named class): PASS (A 1335, B 562, C 510)
+
+==============================================================================
+M2 - the mixed refusal (lateral 0.06): the conversion (A2d)
+==============================================================================
+  run arm   n refused adopted converted placed_ref  scans max  refused-episode terminals
+  1   A     15       7       0         0          2      0   0  close-chase:3,fell-off:4
+  1   C     15       8       0         0          0     32   4  no_firable:8
+  2   A     15      11       0         0          0      0   0  close-chase:1,fell-off:10
+  2   C     15       7       0         0          0     28   4  close-chase:1,no_firable:6
+  3   A     15      10       0         0          0      0   0  close-chase:1,fell-off:9
+  3   C     15       6       0         0          1     23   4  close-chase:1,no_firable:5
+
+  refused episodes: A 28, C 21 (45 / 45 episodes)
+  A's refused terminals: {'fell-off': 23, 'close-chase': 5}
+  C's refused terminals: {'no_firable': 19, 'close-chase': 2}
+  P2a-ii supply limit (reported): adoption among refused 0/21 = 0%; the lane is starved ~46 % of the ticks (`starvation right` 44.5-62.3 %, logs/p38/z1_supply_m1.log)
+  P2a-i correctness: scans returning a candidate 0, adopted 0 (0%, bar 80 %); adopted episodes that fired on the new candidate 0/0 (0%, bar 80 %); bounds ok True
+  P2a-i: UNEXERCISED (no scan ever returned a candidate - the lever cannot act in this harness; the finding is reported)
+  P2b (reported, not gated): placed among refused A 2/28 (7%) vs C 1/21 (5%), one-sided Fisher p=0.8222
+  per-episode (arm, category) agreement: 13/45 - PAIRING BROKEN -> unpaired (A4)
+  Fe (a conversion trades a no-fire for a grip failure): carried among converted 0/0 (-) vs A overall 11/45 (24%) - clean
+
+==============================================================================
+M3 - the shipped patch band: the safety endpoints (A3/A5 forms)
+==============================================================================
+  run arm   n  right_n right_placed right_rate  left_placed  refused no_firable  fired_cycle
+  1   A     15        8           2     25.0%           0       0         0       1893
+  1   C     15       10           3     30.0%           0       0         0       1820
+  2   A     15        9           3     33.3%           1       0         0       1873
+  2   C     15        9           2     22.2%           0       0         0       1879
+  3   A     15        8           5     62.5%           0       0         0       1807
+  3   C     15       12           4     33.3%           0       0         0       1857
+  4   A     15       12           3     25.0%           0       1         0       1865
+  4   C     15       14           6     42.9%           0       0         0       1828
+  5   A     15       14           7     50.0%           1       0         0       1809
+  5   C     15       13          10     76.9%           0       0         0       1773
+
+  per-seed-pair deltas (C - A):
+    run 1: right placed delta +0.050 (n 8/10), fired-only cycle -3.9%
+    run 2: right placed delta -0.111 (n 9/9), fired-only cycle +0.3%
+    run 3: right placed delta -0.292 (n 8/12), fired-only cycle +2.8%
+    run 4: right placed delta +0.179 (n 12/14), fired-only cycle -2.0%
+    run 5: right placed delta +0.269 (n 14/13), fired-only cycle -2.0%
+
+  P4 right-arm placed: A 20/51 (39%) vs C 25/58 (43%), delta +0.039 [95 % Newcombe -0.138, +0.220]
+  A3 gate: all five pairs negative? False; pooled delta +0.039 <= -0.10? False -> PASS
+       (the original point rule alone would read PASS - the 1-sd false-fail it replaces)
+  exposure: 1 refused episode(s) in 150 = 0.67% (patch-band expectation 0.31-0.77 %)
+  P5 reason sets (note level, attribution -> `lateral-refuse`):
+       A only: ['fruit fell off the line', 'lateral-refuse']
+       C only: none
+       FAIL
+  P6 fired-only cycle: per-pair ['-3.9%', '+0.3%', '+2.8%', '-2.0%', '-2.0%'], pooled -2.0%
+       A3 gate (fail iff all five pairs > +5 %): PASS
+  `no firable fruit` episodes: A 0, C 0 (excluded from the cycle median, kept in the rate denominator)
+
+==============================================================================
+the decision rule (PREREG section 6 + PREREG_A1)
+==============================================================================
+  P1 attribution True  P2 conversion None  P3 terminal True  P4 safety True  P5 reasons False  P6 cycle True
+  falsifiers: Fb' clean  Fe clean  (Fa: the diag note absent from M1; Fc': an intercept fire on a refused M2-A candidate; Ff: a cross-lane adoption - all reported in the tables above)
+  VERDICT: not adopted (a pre-registered endpoint failed)
+
+==============================================================================
+G2 - the Gate-2 DIAG=0/1 pair (M1 band, SEED=5): descriptive only
+==============================================================================
+  diag0: n=15 refused=0 close=5 timeout=0 fell_off=10 placed=2 median_ticks=1362 classes={'carried': 1, 'close-chase': 2, 'fell-off': 10, 'placed': 2}
+  diag1: n=15 refused=15 close=3 timeout=0 fell_off=12 placed=0 median_ticks=1360 classes={'carried': 1, 'close-chase': 2, 'fell-off': 12}
+
+  per-episode agreement diag0 vs diag1: fruit (arm, category) 6/15, outcome class 9/15
+       diag0 classes {'carried': 1, 'close-chase': 2, 'fell-off': 10, 'placed': 2}
+       diag1 classes {'carried': 1, 'close-chase': 2, 'fell-off': 12}
+
+  the DIAG=1 vs DIAG=1 repeat (the recorded `M1_A` vs this `G2_diag1`, both DIAG only) reads fruit 12/15, outcome class 14/15 - that is the loop's own run-to-run noise, and the pair above must be read against it
+
+  the learned close's tick (diag1's `[refuse] close:` rows): 3 row(s)
+       tick=430 dy=+0.071 m -> BEFORE the departure
+       tick=506 dy=-0.074 m -> AFTER the departure (PREREG_A1 falsifier #1)
+       tick=171 dy=+0.314 m -> BEFORE the departure
+       the END's closure: 1 of 3 close(s) latched AFTER the departure -> PREREG_A1 falsifier #1 FIRES: C3 is not a total closure, `no firable fruit` over-claims, and a flip needs a re-registered definition or a post-departure grace window (the shipped-band readout is owed in the B-arm batch)

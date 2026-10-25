@@ -17964,3 +17964,374 @@ re-render byte-identical apart from the header); **F9** the S3 arm cut is
 specified (pooled gate + right-arm specifier), x = 0.159 is corrected to **below
 the band's 0.20 m floor** (not "outer band"), and the fixed **A-then-B** order is
 noted with its confound.
+
+### P38 phase 1: the delivered x is the spawn band plus a fixed per-instance settle offset and the transport contributes exactly 0.000 mm (the cascaded lateral-drift hypothesis is falsified); the S3 class is 2/3103 = 0.06 % on the shipped interface with per-arm floors 0.1730 right / 0.1800 left, so no A/B at the project's N can measure it and phase 2 pre-registers a forced-band mechanism endpoint instead (2026-10-25)
+
+The P37 Gate-2 named this lane (a "supply/transport drift tail" + "the harness's
+no-re-selection"). Phase 1 is the measurement and the pre-registration only:
+**no `src/` change, no `configs/` change, no shipped default changed**, tree
+unchanged (`rl_env.py` `aa54b022`, `trigger.py` `d7ec85fc`, `tasks.py`
+`cdde6bd2`, `fruits.py` `6f65e423`, HEAD `dd53d15` before and after; pins in
+`logs/p38/MD5.txt`). The record is `logs/p38/P1_RESULTS.md`, the
+pre-registration `logs/p38/PREREG.md`, the census
+`logs/p38/drift_census.py` -> `drift_census.txt`, the probe
+`logs/p38/probe_drift.py` (five claimed runs).
+
+**The delivered-x distribution, from the committed logs.** Three populations,
+all deduped (a bit-identical replay reproduces an attempt's `(x, along)` to
+4 dp; the scripted buckets carry 3-6x more raw rows than unique attempts):
+(a) the scripted station-zone x per attempt (`wait step=0 fruit_x=`): single
+scatter n=209 p50 0.272, min 0.177, **0 below 0.173**, 8/209 = 3.8 % below the
+spawn floor 0.20; single patch n=272 p50 0.270, **min 0.158**, 1/272 = 0.37 %
+below 0.173, 6.6 % below 0.20; two-line wave n=682 p50 0.276, 2/682 = 0.29 %
+below 0.173, 3.4 % below 0.20; two-line patch n=2016 p50 0.280, **min 0.143**,
+9/2016 = 0.45 % below 0.173, 6.5 % below 0.20; two-line bed n=38, 15.8 % below
+0.20 (the 0.36 column drifts up); single bed n=47 with one unique attempt at
+0.172. (b) the direct station-zone x per episode (`[park] call ... x=`, the
+P35/P36/P37 band census, n=653): p1 0.187, p50 0.264, p90 0.341, **min 0.159**,
+max 0.376, **2/653 = 0.31 % below 0.173**, 5/653 = 0.77 % below 0.180,
+23/653 = 3.5 % below 0.20 (kiwi 8, orange 7, strawberry 5, lychee 2, apple 1)
+and 11/653 = 1.7 % above 0.36. (c) the on-belt design reading
+(`[supply] lateral x:`): the shipped scatter free cadence min 0.148 / p10 0.205
+/ p50 0.279 / p90 0.348 / max 0.364 (`v1/12b`), the patch probe min 0.187 /
+p50 0.264 / max 0.373 (`w6/00_probe_supply_free`), and the **pre-v9 fixed line**
+as the control: min 0.308 / p50 0.334 / max 0.365 with no low tail at all. The
+KS distance to the spawn band is 0.035-0.13 for the freely-drawing schedules, so
+the *core* is the band; the patch/bed schedules do not draw uniformly (a pair's
+first member is `U(x_min, x_max - sep)`), so the tail counts are the reading and
+the KS is not. Within an episode the band census's `along` spans a median
+0.096 m while x does not move: the delivered x is fixed before the band.
+
+**The drift mechanism (measured, not assumed).** `logs/p38/probe_drift.py`
+(scene + spawner, free cadence, **no attempt**, one `(x, y, vx)` sample per
+physics tick per live fruit, one transit per release because the pool is
+recycled) over **475 full transits in five configurations** (scatter/patch x
+arms none / both `ready` / left `ready` + right `grasp`, seeds 5 and 77):
+
+* **the transport contributes exactly 0.000 mm** (`transport mean 0.00 sd 0.00
+  min 0.00 max 0.00` in every run). A sphere rolling on a plane whose surface
+  velocity is along -y has a contact slip along -y only, so the friction is
+  along -y, the spin about x, and there is **no lateral force term**; the cleats
+  - the only part of the conveyor that could push a sphere sideways - are **off
+  by default** (`conveyor.py:186-197`, `FRUIT_CLEATS=0`). The belt/cleat/
+  friction/rolling drift hypothesis is **falsified**, and so is "the belt's own
+  drift does not stay inside the spawn band" as a *transport* statement;
+* **the release/settle is the only stage that moves x, and its displacement is
+  a fixed per-instance offset.** The pool carries two instances per class; each
+  instance reproduces its own value to 0.2 mm across the schedule (scatter vs
+  patch) and across the arm pose. At seed 77: kiwi **-20.20 / +15.04**, peach
+  -10.53 / +0.72, orange -2.66 / -1.23, apple +0.39 / +2.58, pear +1.24 /
+  +2.24, lychee -0.17 / +6.40, strawberry -0.17 / +3.48, tomato +3.88 / +4.59
+  (the per-class mean is the mixture of its two instance values, so it moves
+  with the sample composition, n = 7-16 - which is why a class mean is the
+  wrong summary). Seed 5 draws different instance scales (the spawner seeds the
+  diameter/ripeness/friction draw from `SEED`), hence a different set:
+  kiwi +12.06 / +26.22, strawberry **-35.89** / +19.96, peach +5.12 / +6.83,
+  apple -2.46 / -0.71. The measured instance range is **-35.9..+69.2 mm** (the
+  +69.2 is a patch-run kiwi drawn at 0.343 and delivered at 0.413, twice,
+  identically). The delivered x is `spawn x + offset(instance)`, the low tail is
+  the negative offsets meeting a draw near the 0.20 floor, and the §1 class
+  ordering (kiwi, orange) is the ordering of the instance offsets. **The
+  corollary names the real supply lever**: because the offset is fixed per
+  instance it can be measured once (this probe) and compensated at `respawn`
+  (`target x - offset`), which removes the tail instead of buying margin;
+* **the open residual**: the deepest low-side delivered x in the *attempt* loop
+  is 0.143-0.159, i.e. -41..-57 mm from the 0.20 floor, while the probe's worst
+  instance offset is -35.9 mm (-20.2 at seed 77). A further ~5-20 mm of
+  low-side displacement therefore happens inside the attempt loop and this
+  probe does not see it; the named candidates are the active arm's jaws/links
+  sweeping the fly-by band (the direct reset puts the active arm at `grasp` and
+  the selection floor keeps the target at along >= ~0.40 m), a re-release under
+  a moving arm, and a pair depenetration at release. The discriminator (a
+  recorded action replay through the probe) is named for phase 2 as optional -
+  the harness lever does not need it and the supply floor is computed from the
+  empirical delivered distribution, which already includes it.
+
+**The S3-class census, over every direct-loop log in the repository** (549
+logs, grouped by the log's own `[rl] trigger=... lateral=...` and by whether it
+carries any `x-edge refuse` row): **the shipped interface (gate 0.16, guard
+off) is 3103 episodes with 2 never-fired = 0.06 %** - `logs/p37/B_ab/B_1.log`
+ep 6 (kiwi, right, **x = +0.159**, 25 band calls, the P37 Gate-2 event) and
+`logs/w7/C_eval/direct_ab/B_3.log` ep 12 (peach, left, x not recorded). A third
+low-x episode did **not** become a timeout: `logs/p35/B_ab/A_4.log` ep 14
+(orange, right, **x = +0.162**) ended at tick 1298 as `fruit fell off the line`
+- so the low-x tail's measured terminal notes are 1 timeout + 1 fell-off among
+the 2 episodes below the right floor. The other two never-fired episodes in the
+gate-0.16 population are the **opt-in reach-cliff guard's own high-x refusals**
+(120 guard episodes, 2 never-fired = 1.7 %: `x-edge refuse: fruit x=0.398`
+`logs/r6/A_c2_hsteps150.log` ep 1 and `x = 0.412`
+`logs/r7/A_cap_only_fix.log` ep 2) and must not be pooled with the low-x class.
+The contrasts: the pre-W4 gate 0.06 is **180/3195 = 5.6 %** (nearly all
+`arm=left`, the documented W4 no-fire class - widening the gate is what fixed
+it) and the pre-trigger logs are 414/864 = 47.9 % (the historical policy-gate
+no-fire, a different class). **The per-arm admission floor is not the same for
+both arms** (650 episodes with both a band x and an intercept `dx`, so
+`fruit_x - dx` recovers `_trigger_station`): **right station 0.3330 (n=431) ->
+x >= 0.1730; left station 0.3400 (n=219) -> x >= 0.1800**, i.e. the left
+refuses a 7 mm wider slice of the tail than the right - the P37 text's 0.173 is
+the right arm's number. **Power**: at 0.06 %/episode a WS-4.2 arm of 75 episodes
+expects 0.05 events; the P37 batch's 1/150 is batch clustering (one supply seed
+stream per batch), not a rate - so **no A/B at the project's N can measure this
+class**, which is why phase 2's primary is a mechanism endpoint at 100 %
+incidence.
+
+**The harness path and the levers.** The candidate is chosen **once per
+episode** (`rl_env.py:1538-1560`, `task.select_target(..., reach_anywhere=False)`,
+the arm/bin from the grade); `should_fire` refuses on `|dx| > lateral` and
+returns `False` **with no marker** (`trigger.py`), so the env cannot tell a
+lateral refusal from "not yet in the reach window" and does not try; the only
+exit is `_tick >= reward.horizon` = 1500 control ticks of the *policy phase*
+(`rl_env.py:2668-2674`; the scripted primitive's own steps run after the cap),
+which leaves the note `timeout: no grasp within 1500 ticks` - a class with no
+severity and no mechanism. Options: **(a)** a bounded re-selection inside the
+same grade lane at the *provable* refusal (every other gate passes and only the
+lateral one refuses), **(b)** an explicit terminal class
+(`no firable fruit: candidate x=... beyond the lateral gate`) that ends the
+episode at the refusal instead of burning the horizon, **(c)** both - and the
+reporting constrains the design: `113_rl_report.py`'s `reasons()`
+digit-normalises every note, so **any new note text is a new failure reason**;
+the attribution note must therefore be a **run-neutral diagnostic ON in every
+arm** (`FRUIT_POLICY_REFUSE_DIAG=1`) with only the *terminal* behaviour
+differing (the AGENTS §3b rule). The re-selection is feasible inside the
+horizon (the refusal is detectable at dy ~ 0.30 m ~ tick 300; the re-selected
+fruit sits at along >= the moving-catch floor ~0.40 m; only the *fire* has to
+happen before tick 1500) but it **changes `_goal` mid-episode**, an input pair
+the checkpoint never saw (the default-off P4b2 `present` path is the only
+precedent) - which is why the phase-2 primary is on a *forced* band and the
+shipped-band endpoint is a **safety** check with the exposure reported.
+
+**The supply lever is a margin purchase, not a drift fix.** Admission floors
+0.1730 (right) / 0.1800 (left); the delivered low tail 0.143 (two-line patch),
+0.159 (direct), 0.148 (on-belt) -> a worst downward excursion of **-0.057 m**
+from the 0.20 floor; holding the delivered x above 0.180 needs the release floor
+**>= 0.237**, and the patch pair rule (`x0 ~ U(x_min, x_max - sep)`, sep
+0.085-0.12) then needs the ceiling at >= 0.38 (a 0.24-0.36 band degenerates the
+pair rule), which is still inside the measured reach band (0.18-0.39, cliff
+0.42). The delivered p50 would move 0.264 -> ~0.30, *closer* to the right arm's
+0.333 station, so the mean |dx| falls ~0.035 - the lever's real value. The
+**cost** is a scenario change: three motion references re-recorded
+(`configs/motion_reference.json`, `motion_reference_twoline.json`,
+`motion_reference_twoline_bed.json`), the scripted acceptance re-run and
+re-referenced, both two-line gates re-run, and every dataset/checkpoint store
+becomes a pre-change store. It is registered as **P38b**, not phase 2. A
+*lane keeper* on the transport would be a no-op (0.000 mm to damp); the honest
+transport-side fix is the per-instance offset compensation at `respawn`.
+
+**Phase 2's pre-registration** (`logs/p38/PREREG.md`, written before any code
+change): four default-off direct-only knobs (`FRUIT_POLICY_REFUSE_DIAG`,
+`FRUIT_POLICY_REFUSE_END`, `FRUIT_POLICY_RESEED`, `FRUIT_POLICY_RESEED_MAX` = 2),
+three arms (A diag-only control, B diag+END, C diag+RESEED+END) and four
+scenarios: **M1 the forced band** (x draw 0.10-0.17, 100 % refused: A 15/15
+1500-tick timeouts vs B 15/15 and C 15/15 attributed, median ticks <= 500 for
+B); **M2 the mixed band** (0.10-0.36, 28 % refused: A's refused episodes end at
+1500 ticks vs C's fire on a re-selected fruit, >= 10 of 12 paired, exact
+McNemar p <= 0.01); **M3 the shipped patch band** (P37's scenario, five supply
+seeds 77/101/202/303/404, A then C interleaved, 15 episodes each) for the
+right-arm placed non-inferiority (> -0.10, the P35-P37 margin), the no-new-reason
+set after mapping the attribution notes to the class `lateral-refuse`, and the
+cycle over *fired* attempts only (<= +5 %); **M4 the scripted no-harm**
+(`accept.sh` twice + selfcheck: the 376 `[fruit]` lines byte-identical and
+`fingerprint: matches`, the knobs being direct-only). Six falsifiers, with
+Fa/Fb/Fc/Ff stopping the phase and Fd/Fe killing the lever. The endpoint that
+matters most is **P3: `timeout: no grasp within 1500 ticks` = 0 in B and C** -
+the class is *named*, not fixed: `no firable fruit` is still a failure and stays
+in the rate denominator, so the owner-facing sentence must never be "the
+failure is fixed". Two claims (~90 + 150 episodes) plus one acceptance pair;
+the recommendation is the only output, no shipped default changes in phase 2.
+
+### P38 phase 2: the lateral-refusal harness attributes the class and halves its cycle (M1: 15/15 refused in every arm, the named class at 510-562 ticks against A's 1335) but the re-selection cannot act — the direct harness freezes the feeder inside an episode (54 + 83 scans, 0 candidates) — and on the shipped band the one refusal in 150 fell in the control arm, so the pre-registered rule reads not-adopted while P4/P6 are clean (2026-10-25)
+
+Phase-2 measurement, same tree (`tasks.py` `cdde6bd2` untouched); the code diff is
+`policy/trigger.py` `d7ec85fc -> b09d3cb2` and `rl_env.py` `aa54b022 ->
+f25f6b61`. **No shipped default changed**; all four knobs default off,
+`presentation == "direct"` only. Record: `logs/p38/P2_RESULTS.md`, the binding
+Gate-1 amendment `logs/p38/PREREG_A1.md`, the batches `logs/p38/P2`/`P3`/`M4`,
+the report `logs/p38/p2_report.py` -> `P2_report.txt`.
+
+**The Gate-1 conditions, and what they changed.** **H1** — the "provable
+refusal" ignored the learned policy-close path (`direct_fire = intercept or
+(policy_close and gate_refuse is None)`, and `gate_refuse` is only the opt-in
+`X_MAX` guard), so the terminal class is now named for the *trigger* and gated
+on a **measured joint closure**: the trigger refuses, `x` is frozen (checked
+per episode; the measured in-loop drift is 0.0-12.9 mm), **and the learned close
+never fired** from the reset through the fruit passing the station
+(`dy <= -0.05`) — the END fires at the *departure*, not at the latch. **The
+closure's scope is exactly that**: "no close fired **before** the fruit's
+departure" - and the Gate-2 rerun measured the limit rather than assuming it:
+**1 of 3 closes latched after the departure** (`dy = -0.074 m`, 7.4 cm past the
+station, tick 506), which is `PREREG_A1.md` falsifier #1 **firing**. So C3 is
+not a total closure, `no firable fruit` over-claims on 1/15 of the forced band
+(the episode is a failure either way - the swap is close-chase -> `no firable
+fruit`), and a flip needs a re-registered definition or a post-departure grace
+window; the shipped-band readout is owed in the B-arm batch. This is
+not pedantry: on the forced band the close fired in **5/15 (B) and 6/15 (C)**
+episodes and **placed 3 in each**, and in the M2-A smoke 2 of 4 refused episodes
+ended in a close-chase grip loss. **H2** — the registered supply bands are not
+bands: at 0.13-0.17 the *delivered* x spans **0.117-0.191 (12 % above** the
+right arm's 0.173 floor, `logs/p38/z2_drift_m1.log`) and the free-cadence
+envelope runs **0.080-0.529** (depenetration kicks push fruit off the **low**
+belt edge only: 0.080 against the 0.110 edge, while the 0.529 maximum is still
+inside the 0.570 high edge, `z1_supply_m1.log`), because 16 fruit in a 4 cm lane
+interpenetrate. So M1/M2
+use no supply override at all: the forced-refusal instrument is the **gate** on
+the shipped supply (`TRIGGER_LATERAL=0` in M1, `0.06` — the P2b-era gate — in
+M2), which also makes the learned close a *live* second path (at a below-floor
+band it is geometrically impossible, so the registered M1 could never have asked
+H1's question). **H3** — P4/P6 are run-level **unanimity** gates over the five
+seed pairs (fail iff all five per-pair deltas are negative **and** the pooled
+delta <= -0.10), because 47 right-arm episodes/arm at a ~40-45 % base put the
+1-sd at ~0.10 and the old point rule false-failed ~1 in 6.
+
+**M1 (the forced refusal, SEED=5, 15/arm)** — P1 attribution **15/15 in A, B
+and C** (deterministic); P3 **0 timeouts**, the named class 10/15 (B) and 9/15
+(C) at median **562/510 ticks vs A's 1335**, the complement being the episodes
+whose close fired; the END tick bar (<= 600) met; C scanned **54** times (**max
+4/refusal**, the budget) and **adopted 0**; Fb' clean; A's terminals are
+`fruit fell off the line` 12/15 + close 3/15 — the timeout class does not appear
+on a forced band at all, so what the END replaces is the *lost* episode, not a
+timeout. **That is also a registered deviation, recorded as a finding**:
+`PREREG_A1.md` A1 predicted A would "end at the horizon" (`timeout: no grasp
+within 1500 ticks` or `policy closed`), and it measured **0 timeouts / 12
+fell-off / 3 close** — because a refused fruit *rides off the end of the belt*
+before the 1500-tick horizon (median 1335 ticks, so the line ends it first). The
+**END's strength follows from the deviation, not from the prediction**: it
+collapses *both* terminals (the horizon timeout and the lost episode) into one
+named class at the departure, which is why its median (510-562) is not a
+timeout-saving but a *terminal*-saving.
+
+**M2 (the mixed refusal, `LATERAL=0.06`, 3 seeds x 15 x A/C)** — the refused
+fraction is **62 % (A) / 47 % (C)**, above the registered ~28 %; the refused
+episodes' terminals are `fell-off` 23 + `close` 5 in A and `no_firable` 19 +
+`close` 2 in C; **P2a-i is UNEXERCISED: 83 scans, 0 non-empty**, so no adoption
+ever happened and P2b reads 2/28 vs 1/21 placed (p = 0.82) with the pooled
+success 9/45 in both arms. The pairing is broken (13/45 `(arm, category)`
+agreement) exactly as A4 predicted — an early END moves the belt state — so the
+unpaired Fisher is the read.
+
+**The mechanism that matters: the re-selection has nothing to select because the
+harness freezes the feeder.** The direct env calls `spawner.update` only in the
+reset's feed loop and `enforce_transport` after it, so no fruit is released
+inside an episode; the upstream window empties and every scan returns `None`.
+The amendment had hypothesised the lane's ~46 % station starvation — measured
+and **superseded**: the starvation number is the free/driver cadence, not the
+frozen episode. A live-feeder re-selection is a scenario change the checkpoints
+were never trained on, i.e. its own phase.
+
+**M3 (the shipped patch band, A/C x 5 seeds x 15, `lateral=0.16`)** — **one
+refused episode in 150 (0.67 %)**, against the patch-band expectation 0.31-0.77 %
+(the phase-1 number, not the pooled 0.06 %), and it landed in **A** (seed 303,
+ep 14, orange, **x = 0.157** — the drift tail, which the diag named where the
+shipped note reads only `fruit fell off the line`); **C had 0 refusals and the
+lever executed no action**. P4 right-arm placed **A 20/51 = 39.2 % vs C 25/58 =
+43.1 %, delta +0.039 [-0.138, +0.220]**, per-pair +0.050/-0.111/-0.292/+0.179/
++0.269 → the unanimity gate does not fire (**PASS**); P6 fired-only cycle
+-3.9/+0.3/+2.8/-2.0/-2.0 %, pooled **-2.0 %** (**PASS**); **P5 FAILS** on the
+symmetric note-level rule, both A-only keys (`lateral-refuse`,
+`fruit fell off the line`) coming from that single episode. **P5 is
+structurally a false-fail and that is named**: an arm-only key with a **0.5-1.2
+event expectation per 150 episodes** (the amendment's own exposure arithmetic)
+is *necessarily* arm-unique - one event lands in one arm by construction - so
+the symmetric rule fires whenever the exposure is realised, and here the
+**DIAG's own `lateral-refuse` key is what fires it** (the diagnostic counts
+against the treatment that did nothing). The literal pre-registered read stays
+**`not adopted`**; a **power-controlled form** of the reason endpoint belongs in
+the next registration, not in a post-hoc repair of this one. The un-parked
+**right-arm** base is **39.2 %** (20/51), not the 45 % the amendment assumed:
+the P35 mechanism is the *inactive left arm occluding the right arm's fruit*, so
+the un-parked right rate is the depressed one - the left's own 2/24 (C 0/17) is
+a separate number that drags the **pooled** total (A 22/75), not the right-arm
+base, and the right is the primary as registered. The A/C arm-mix differs
+because **the direct loop is not reproducible** (rendered frames), not because
+the lever moved the reset: ep 0 is the same fruit in both arms (apple, C,
+y = +0.642) and ep 1 already differs (peach, A, y = +0.532 vs +0.546) while C
+executed **zero** actions in the batch.
+
+**M4 (the scripted no-harm)** — `accept.sh` twice: knobs off **6/10 +
+`fingerprint: matches`**, knobs on **6/10 + matches**, the two `[fruit]` streams
+**byte-identical (376 lines, md5 `bc7ca8f0` both; the full logs differ only in
+the startup timestamps)**, selfcheck **PASS 0 failures / 1 skipped**. The 6/10
+and the `exit=1` are the shipped tree's rate-only result (the AGENTS P35/P36/P37
+entry records the same pair), not this phase's. **What M4 proves is narrow**:
+the knobs are **unset by default and the scripted line never reads them**, so
+the identical stream is *near-tautological for this change* (the scripted path
+cannot reach the `if self._refuse_knobs` branch - `226_p38_m4.sh` said so before
+the run). The pin that matters for the `trigger.py` edit is
+`scripts/811_trigger_test.py` (the lateral truth table + `no_firable_ready`)
+plus the **analytic reorder equivalence** (the moved lateral check was already a
+hard `False`, so the return value is unchanged for every input). **M4 did not
+run `accept_policy.sh`**: the four knobs raise on any presentation other than
+`direct`, so the hybrid canary cannot read them - an omission of coverage of the
+shipped default, not of the direct interface.
+
+**Verdict: `not adopted` by the pre-registered rule** (P5's 1-event artefact
+plus P2 unexercised), published as such, with the substantive split: **DIAG is
+recommended as the direct loop's diagnostic** (a note-only instrument that names
+the class), **END is not adopted but is the measurement interface** with a
+B-arm shipped-band safety batch as its named precondition - and that batch's
+readout set **must include `PREREG_A1.md` falsifier #1** (any A close latched
+after the departure voids the END) - and **RESEED is not adopted because it is
+structurally inert here** (137 scans, 0 candidates). The `no firable fruit` note
+stays a failure in every denominator: the endpoint is attribution, never
+elimination. **What the offline pins actually cover**: `811` pins
+`should_fire`'s lateral key and `no_firable_ready`; the reseed's adoption path
+(`_goal` rebuild, the protection handover, the `Ff` guard) has **no test** and
+**no episode exercised it** - "pinned offline" would overstate it.
+
+**Gate-2 (applied 2026-10-25, `logs/p38/G2/`): the two conditions the batch left
+open are closed by measurement, and one of them comes back negative.** Two
+15-episode runs on the M1 band in one claim (`scripts/225_p38_batch.sh g2`):
+`G2_diag0` with **no** refuse knob and `G2_diag1` with **DIAG only** (the arm the
+batch called "A"); `rl_env.py` `dba80de6` (one `[refuse] close:` diagnostic
+print added, `DIAG`-gated, no control read), `225` `eae2d89a`, `811` `00ebe772`.
+
+* **H1 - the close tick's `dy`, and the falsifier FIRES.** `[refuse] close:
+  tick= dy=` prints the second fire path's own timing: ep 2 **tick 430
+  `dy=+0.071`**, ep 9 **tick 506 `dy=-0.074`**, ep 13 **tick 171 `dy=+0.314`**.
+  The middle one is **after** the departure (`dy <= -0.05`): the jaw chased the
+  fruit 7.4 cm past the station and closed on it, then lost the grip. The END
+  would have ended that episode ~24 ticks earlier, so **`PREREG_A1` falsifier #1
+  fires** - C3 is not a total closure, the class must be read as "no close
+  **before** the departure", `no firable fruit` over-claims on **1/15** of the
+  forced band (a failure either way: the terminal swaps close-chase -> `no
+  firable fruit`), and a flip needs a re-registered definition (the
+  post-departure rate quoted with the name) or a post-departure grace window.
+  The shipped-band readout stays owed in the B-arm batch. The other two closes
+  are inside the closure, one of them 31.4 cm upstream (the ACQ lead).
+* **H4 - the DIAG=0/1 pair, measured, and read honestly.** `diag0`: close 5,
+  fell-off 10, placed **2/15**, median 1362; `diag1`: close 3, fell-off 12,
+  placed **0/15**, median 1360; class agreement **9/15**, fruit agreement
+  **6/15**. The two **DIAG=1** samples (`M1_A` vs `G2_diag1`) agree **14/15**
+  and **12/15**, so the loop's run-to-run agreement is *not constant* (both
+  DIAG arms held one attractor to ep 11; `diag0` left it at ep 4, where its
+  ep-3 fell-off ends 90 ticks earlier) and **one pair cannot demonstrate
+  neutrality at n=15**. The doc claim "A behaves as the control" is therefore
+  **withdrawn** and replaced by the pair plus the construction argument (with
+  `END`/`RESEED` off, `_track_refuse` writes notes, bookkeeping and one
+  fruit-pose read per refusal - none of it is a control input).
+* **H2/H3/H5 corrections carried** (so the record matches the code): P5's
+  **structural false-fail** named (an arm-only key at a 0.5-1.2 event
+  expectation per 150 is necessarily arm-unique; the DIAG's own key fires it;
+  a power-controlled form is the next registration's); the M4 claim rephrased
+  (unset by default, the scripted line never reads the knobs - near-tautological
+  for this change; the `trigger.py` edit is pinned by `811` + the reorder
+  equivalence; **`accept_policy.sh` was not run**, and cannot be, because the
+  knobs raise on any presentation but `direct`); the un-parked **right-arm**
+  base is **39.2 %** (20/51), the left's 2/24 drags the *pooled* total rather
+  than that base (P35's occlusion is the inactive left over right-arm
+  episodes); the A/C arm-mix difference is the **direct loop's
+  non-reproducibility** (rendered frames - ep 0 the same fruit, ep 1 already
+  different, C executed zero actions), not a lever-induced reset; A's M1
+  "ends at the horizon" prediction is recorded as a **deviation** (12/15
+  `fell off the line`, 0 timeouts) with the END's strength re-stated (it
+  collapses *both* terminals into one named class at the departure); the
+  free-cadence envelope's 0.080 is **off the low edge only** (the 0.529 maximum
+  is inside the 0.570 edge); and `A1`'s C2 says the **note** records the drift
+  (the `[refuse]` row carries only the counters). Three **latent defects** are
+  named as follow-ups (direct-only, inert at the shipped defaults):
+  `_reseed_step`'s `spawner.protect` leaks into `protected_indices` (no
+  unprotect; the scripted/bimanual callers read that set); the END's `dy` is
+  station-framed while `should_fire`'s is `TRIGGER_FRAME`-framed; the END runs
+  **before** the fire decision, ignoring `intercept`/`present`, with a
+  per-episode `_policy_best_gap`. `p2_report.py` gained `--g2` (the pair + the
+  close rows) and `P2_report.txt` is regenerated with that section (the
+  M1/M2/M3 sections are byte-identical).

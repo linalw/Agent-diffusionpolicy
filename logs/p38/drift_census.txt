@@ -1,0 +1,663 @@
+====================================================================================================
+P38 phase 1 - the delivered-x distribution and the S3-class census
+read-only analysis of committed logs; no simulator, no src/ change
+====================================================================================================
+baselines: spawn band [0.20, 0.36] (fruits.SUPPLY_X_MIN/MAX); trigger admission x >= 0.173 (jaw 0.333 - lateral 0.16); top-down reach band [0.18, 0.39] (174/60, 6 mm)
+
+shortlisted 1691 logs (grep for the four row patterns)
+
+----------------------------------------------------------------------------------------------------
+[1] the station-zone delivered x - scripted lines, one sample per attempt
+    source: [task]   wait step=0 fruit_x= (the primitive's wait loop, tasks.py:7775)
+    DEDUPED: bit-identical replays of one attempt share its (x, along) to 4 dp,
+    so the distribution is over unique attempts; `raw` counts the replays too.
+----------------------------------------------------------------------------------------------------
+biarm/scatter/x0.20-0.36           n=  29  mean 0.271 sd 0.054  min 0.175 p1 0.186 p5 0.213 p10 0.221 p50 0.254 p90 0.348 p95 0.361 p99 0.381 max 0.387  <0.173 0  <0.20 1  >0.36 2  >0.39 0  KS 0.230  raw 40
+    attempts below the spawn floor 0.20: 1 (3.45%), by class {'kiwi': 1}
+single/bed/x0.20-0.36              n=  47  mean 0.298 sd 0.080  min 0.172 p1 0.172 p5 0.190 p10 0.200 p50 0.357 p90 0.369 p95 0.376 p99 0.386 max 0.394  <0.173 2  <0.20 5  >0.36 21  >0.39 1  KS 0.494  raw 148
+    attempts below the admission floor: 2
+      x=0.172 along=+0.372 kiwi logs/p32/72_bed_10_arm1.log
+      x=0.172 along=+0.370 kiwi logs/p32/79_bed_20_settle.log
+    attempts below the spawn floor 0.20: 5 (10.64%), by class {'pear': 1, 'orange': 1, 'tomato': 1, 'kiwi': 2}
+single/patch/x0.20-0.36            n= 272  mean 0.277 sd 0.054  min 0.158 p1 0.185 p5 0.199 p10 0.208 p50 0.270 p90 0.349 p95 0.357 p99 0.369 max 0.376  <0.173 1  <0.20 18  >0.36 9  >0.39 0  KS 0.097  raw 863
+    attempts below the admission floor: 1
+      x=0.158 along=+0.204 kiwi logs/p20i/711_sa_B.log
+    attempts below the spawn floor 0.20: 18 (6.62%), by class {'tomato': 4, 'kiwi': 6, 'strawberry': 3, 'pear': 3, 'peach': 1, 'apple': 1}
+single/scatter/x0.20-0.36          n= 209  mean 0.275 sd 0.051  min 0.177 p1 0.189 p5 0.202 p10 0.209 p50 0.272 p90 0.347 p95 0.353 p99 0.370 max 0.373  <0.173 0  <0.20 8  >0.36 5  >0.39 0  KS 0.082  raw 1228
+    attempts below the spawn floor 0.20: 8 (3.83%), by class {'kiwi': 2, 'apple': 2, 'strawberry': 2, 'orange': 1, 'pear': 1}
+single/scatter/x0.30-0.38          n=  10  mean 0.340 sd 0.026  min 0.287 p1 0.289 p5 0.297 p10 0.307 p50 0.340 p90 0.363 p95 0.372 p99 0.378 max 0.380  <0.173 0  <0.20 0  >0.36 2  >0.39 0  KS 0.599  raw 10
+single/wave/x0.20-0.36             n=  10  mean 0.293 sd 0.054  min 0.203 p1 0.205 p5 0.212 p10 0.221 p50 0.302 p90 0.339 p95 0.357 p99 0.371 max 0.374  <0.173 0  <0.20 0  >0.36 1  >0.39 0  KS 0.302  raw 10
+twoline/bed/x0.20-0.36             n=  38  mean 0.277 sd 0.071  min 0.183 p1 0.187 p5 0.196 p10 0.196 p50 0.275 p90 0.364 p95 0.367 p99 0.370 max 0.371  <0.173 0  <0.20 6  >0.36 10  >0.39 0  KS 0.337  raw 120
+    attempts below the spawn floor 0.20: 6 (15.79%), by class {'lychee': 3, 'orange': 1, 'apple': 1, 'tomato': 1}
+twoline/patch/x0.20-0.36           n=2016  mean 0.278 sd 0.055  min 0.143 p1 0.181 p5 0.198 p10 0.206 p50 0.280 p90 0.347 p95 0.355 p99 0.374 max 0.410  <0.173 9  <0.20 130  >0.36 69  >0.39 5  KS 0.086  raw 4176
+    attempts below the admission floor: 9
+      x=0.143 along=+0.106 kiwi logs/w7/C_final_v13p_s2_r2.log
+      x=0.154 along=+0.335 lychee logs/p21i/11_seed23_relB_1.log
+      x=0.156 along=+0.139 kiwi logs/p12a2/22_seed23_comp.log
+      x=0.164 along=+0.206 kiwi logs/p21c1/14_seed23_c1_c1b.log
+      x=0.165 along=+0.201 strawberry logs/p/00_control.log
+      x=0.165 along=+0.324 kiwi logs/p15/23_seed23_m2.log
+      x=0.165 along=+0.231 strawberry logs/p21i/40_seed5_BR_1.log
+      x=0.172 along=+0.172 strawberry logs/p21i/11_seed5_relB_1.log
+      x=0.173 along=+0.314 orange logs/p11c/45_seed23_B2.log
+    attempts below the spawn floor 0.20: 130 (6.45%), by class {'strawberry': 20, 'orange': 18, 'kiwi': 26, 'lychee': 14, 'apple': 13, 'tomato': 11, 'peach': 18, 'pear': 10}
+twoline/scatter/x0.20-0.36         n= 136  mean 0.272 sd 0.055  min 0.179 p1 0.181 p5 0.201 p10 0.206 p50 0.264 p90 0.348 p95 0.353 p99 0.358 max 0.409  <0.173 0  <0.20 7  >0.36 1  >0.39 1  KS 0.176  raw 382
+    attempts below the spawn floor 0.20: 7 (5.15%), by class {'lychee': 2, 'kiwi': 2, 'peach': 1, 'strawberry': 2}
+twoline/wave/x0.20-0.36            n= 682  mean 0.278 sd 0.049  min 0.169 p1 0.186 p5 0.204 p10 0.212 p50 0.276 p90 0.344 p95 0.353 p99 0.363 max 0.403  <0.173 2  <0.20 23  >0.36 13  >0.39 1  KS 0.035  raw 1002
+    attempts below the admission floor: 2
+      x=0.169 along=+0.188 kiwi logs/w3/41_collect_twoline_s1.log
+      x=0.172 along=+0.332 lychee logs/w3/100_timeout_smoke.log
+    attempts below the spawn floor 0.20: 23 (3.37%), by class {'kiwi': 6, 'lychee': 3, 'orange': 3, 'strawberry': 10, 'peach': 1}
+
+    skipped 215 logs with no [supply] provenance line (pre-v9 fixed-line / banner-less): their spawn x is not the band
+
+    excluded (the reach-anywhere selector, x-correlated - see the docstring):
+      logs/r10/30_control.log  (18 wait rows)
+      logs/r10/33_control_b.log  (8 wait rows)
+      logs/r10/35_reach_settle60.log  (3 wait rows)
+      logs/r10/50_accept.log  (10 wait rows)
+      logs/r10/51_accept_a1.log  (10 wait rows)
+      logs/r10/70_twoline_dense.log  (10 wait rows)
+      logs/r11/10_accept_reach.log  (5 wait rows)
+      logs/r11/11_accept_reach_b.log  (5 wait rows)
+      logs/r11/12_accept_reach_diag.log  (5 wait rows)
+      logs/r11/13_accept_reach_nosettle.log  (1 wait rows)
+      logs/r11/15_accept_control.log  (10 wait rows)
+      logs/r11/20_patch_reach.log  (3 wait rows)
+      logs/r11/21_patch_reach_b.log  (3 wait rows)
+      logs/r11/25_patch_control.log  (18 wait rows)
+      logs/r11/30_twoline_dense.log  (10 wait rows)
+      logs/r11/40_twoline_patch_1.log  (20 wait rows)
+      logs/r11/41_twoline_patch_2.log  (20 wait rows)
+      logs/r11/A1_00_battery_driver.log  (2 wait rows)
+      logs/r11/A1_10_accept_floored.log  (7 wait rows)
+      logs/r11/A1_11_accept_floored_b.log  (7 wait rows)
+      logs/r11/A1_12_accept_floored_diag.log  (7 wait rows)
+      logs/r11/A1_13_accept_floored_nosettle.log  (7 wait rows)
+      logs/r11/A1_15_accept_control.log  (10 wait rows)
+      logs/r11/A1_20_patch_floored.log  (14 wait rows)
+      logs/r11/A1_21_patch_floored_b.log  (14 wait rows)
+      logs/r11/A1_25_patch_control.log  (18 wait rows)
+      logs/r11/B_P0_patch.log  (18 wait rows)
+      logs/r11/B_P0_patch_b.log  (18 wait rows)
+      logs/r11/B_P0_patch_diag.log  (18 wait rows)
+      logs/r11/B_PX_patch.log  (20 wait rows)
+      logs/r11/B_PX_patch_b.log  (20 wait rows)
+      logs/r11/B_PX_patch_diag.log  (20 wait rows)
+      logs/r11/B_accept.log  (10 wait rows)
+      logs/r11/B_probe.log  (1 wait rows)
+      logs/r11/B_twoline.log  (10 wait rows)
+      logs/r11/B_twoline_cycle.log  (10 wait rows)
+      logs/r11/filt/12_noreach.log  (5 wait rows)
+      logs/r11/filt/20_patch_reach_noreach.log  (3 wait rows)
+      logs/r11/filt/35_reach_settle60_noreach.log  (3 wait rows)
+      logs/r11/filt_a1_12_noreach.log  (7 wait rows)
+      logs/r11/filt_a1_20_noreach.log  (14 wait rows)
+
+----------------------------------------------------------------------------------------------------
+[2] the station-zone delivered x - direct lines, one sample per episode
+    source: [park] call ... x= (the band census; P35/P36/P37 batches only)
+----------------------------------------------------------------------------------------------------
+direct/patch/x0.20-0.36            n= 653  mean 0.273 sd 0.049  min 0.159 p1 0.187 p5 0.205 p10 0.216 p50 0.264 p90 0.341 p95 0.353 p99 0.364 max 0.376  <0.173 2  <0.20 23  >0.36 11  >0.39 0  KS 0.132
+    episodes below the admission floor: 2
+      x=0.159 ep=6 kiwi logs/p37/B_ab/B_1.log
+      x=0.162 ep=14 orange logs/p35/B_ab/A_4.log
+    episodes below the spawn floor 0.20: 23 (3.52%), by class {'kiwi': 8, 'lychee': 2, 'orange': 7, 'strawberry': 5, 'apple': 1}
+
+    within-episode `along` span of the band census: median 0.096 m (max 0.148) - x is constant over it
+
+----------------------------------------------------------------------------------------------------
+[3] the on-belt frames - the [supply] lateral x: summary each probe run writes
+    (all along positions pooled, no selection: the DESIGN reading)
+----------------------------------------------------------------------------------------------------
+  logs/v1/10_supply_before_driver.log            scatter  band nan-nan  min +0.308 p10 +0.319 p50 +0.334 p90 +0.363 max +0.365
+  logs/v1/11_supply_after_driver.log             scatter  band nan-nan  min +0.209 p10 +0.220 p50 +0.294 p90 +0.450 max +0.473
+  logs/v1/11b_supply_after_driver.log            scatter  band 0.20-0.36  min +0.147 p10 +0.200 p50 +0.249 p90 +0.352 max +0.373
+  logs/v1/12_supply_after_free.log               scatter  band nan-nan  min +0.202 p10 +0.238 p50 +0.338 p90 +0.443 max +0.464
+  logs/v1/12b_supply_after_free.log              scatter  band 0.20-0.36  min +0.148 p10 +0.205 p50 +0.279 p90 +0.348 max +0.364
+  logs/v1/13_supply_before_free.log              scatter  band nan-nan  min +0.308 p10 +0.320 p50 +0.339 p90 +0.364 max +0.394
+  logs/v1/diag_probe_before.log                  scatter  band nan-nan  min +0.308 p10 +0.334 p50 +0.342 p90 +0.342 max +0.345
+  logs/v2/05_supply_twoline_free.log             scatter  band 0.20-0.36  min +0.148 p10 +0.205 p50 +0.279 p90 +0.348 max +0.364
+  logs/v2/12_supply_twoline_free.log             scatter  band 0.20-0.36  min +0.148 p10 +0.205 p50 +0.279 p90 +0.348 max +0.364
+  logs/v2/16_supply_verify.log                   scatter  band 0.20-0.36  min +0.148 p10 +0.205 p50 +0.279 p90 +0.348 max +0.364
+  logs/w6/00_probe_supply_driver.log             patch    band 0.20-0.36  min +0.186 p10 +0.199 p50 +0.259 p90 +0.342 max +0.357
+  logs/w6/00_probe_supply_free.log               patch    band 0.20-0.36  min +0.187 p10 +0.209 p50 +0.264 p90 +0.346 max +0.373
+  logs/w6/00_probe_supply_worker.log             patch    band 0.20-0.36  min +0.181 p10 +0.206 p50 +0.261 p90 +0.353 max +0.368
+
+----------------------------------------------------------------------------------------------------
+[4] the S3-class census - direct-loop episodes, never-fired attempts
+    a timeout with no [acq] row in the same episode = the primitive never ran
+----------------------------------------------------------------------------------------------------
+  549 direct-loop logs: 474 with the arrival trigger, 75 pre-trigger / trigger-off
+
+  per batch, grouped by the trigger's lateral gate and the reach guard:
+
+    lateral 0.06, x-edge guard off <- pre-W4 (the refused outer band)
+      logs                                           eps   48  placed   25  carried-not-placed    0  never-fired   9 = 18.8%
+      logs/812_trigger_ab_moe_v10_lead0.9            eps   45  placed   23  carried-not-placed    0  never-fired   9 = 20.0%
+      logs/821_trigger_present_ab                    eps   90  placed   39  carried-not-placed    0  never-fired  10 = 11.1%
+      logs/832_gate_sweep                            eps   60  placed   12  carried-not-placed    0  never-fired  15 = 25.0%
+      logs/833_gate_top                              eps   30  placed   12  carried-not-placed    0  never-fired   5 = 16.7%
+      logs/distill                                   eps   68  placed   19  carried-not-placed    0  never-fired  15 = 22.1%
+      logs/dyn_v5                                    eps  103  placed   34  carried-not-placed    0  never-fired  26 = 25.2%
+      logs/final_review                              eps    3  placed    2  carried-not-placed    1  never-fired   0 =  0.0%
+      logs/g                                         eps    3  placed    1  carried-not-placed    0  never-fired   0 =  0.0%
+      logs/p1/ab_b012                                eps   90  placed   32  carried-not-placed    0  never-fired   0 =  0.0%
+      logs/p1/control_b006                           eps   45  placed   24  carried-not-placed    0  never-fired   2 =  4.4%
+      logs/p1/control_b006_hard                      eps   45  placed   31  carried-not-placed    0  never-fired   2 =  4.4%
+      logs/p1/dyn_vs_indexed                         eps   90  placed   43  carried-not-placed    1  never-fired   0 =  0.0%
+      logs/p1/handover_b012                          eps   45  placed   27  carried-not-placed    1  never-fired   0 =  0.0%
+      logs/p10d1/stage1                              eps  175  placed  106  carried-not-placed   27  never-fired   0 =  0.0%
+      logs/p13/B_ab                                  eps   90  placed   57  carried-not-placed   18  never-fired   1 =  1.1%
+      logs/p13/B_ab_n5                               eps  150  placed   92  carried-not-placed   37  never-fired   0 =  0.0%
+      logs/p14c/B_ab                                 eps   45  placed   30  carried-not-placed   11  never-fired   0 =  0.0%
+      logs/p2                                        eps    6  placed    4  carried-not-placed    0  never-fired   0 =  0.0%
+      logs/p2/ab_b012                                eps   90  placed   52  carried-not-placed    1  never-fired   0 =  0.0%
+      logs/p2/scripted_ceiling                       eps   45  placed   33  carried-not-placed    8  never-fired   0 =  0.0%
+      logs/p2b/ab012                                 eps   90  placed   60  carried-not-placed   26  never-fired   0 =  0.0%
+      logs/p2b/diag                                  eps    6  placed    4  carried-not-placed    0  never-fired   0 =  0.0%
+      logs/p2b/diag2                                 eps    3  placed    2  carried-not-placed    0  never-fired   0 =  0.0%
+      logs/p2b/diag3                                 eps    3  placed    2  carried-not-placed    0  never-fired   0 =  0.0%
+      logs/p2b/diag_scripted                         eps    6  placed    4  carried-not-placed    0  never-fired   0 =  0.0%
+      logs/p2b/ladder015_control                     eps   45  placed   31  carried-not-placed    6  never-fired   0 =  0.0%
+      logs/p2b/ladder015_v13                         eps   45  placed   30  carried-not-placed   11  never-fired   0 =  0.0%
+      logs/p2b/smoke_fix1                            eps    6  placed    4  carried-not-placed    0  never-fired   0 =  0.0%
+      logs/p2b/smoke_fix2                            eps    6  placed    0  carried-not-placed    0  never-fired   0 =  0.0%
+      logs/p2b/smoke_fix3                            eps    6  placed    3  carried-not-placed    0  never-fired   0 =  0.0%
+      logs/p2b/smoke_fix4                            eps    6  placed    5  carried-not-placed    0  never-fired   0 =  0.0%
+      logs/p2b/smoke_fix5                            eps    6  placed    5  carried-not-placed    1  never-fired   0 =  0.0%
+      logs/p2b/smoke_fix6                            eps    6  placed    5  carried-not-placed    1  never-fired   0 =  0.0%
+      logs/path1b                                    eps   45  placed   29  carried-not-placed    0  never-fired   3 =  6.7%
+      logs/path2/rtc_ab                              eps  156  placed   74  carried-not-placed    0  never-fired  18 = 11.5%
+      logs/path2b/rtc_ab                             eps  156  placed  103  carried-not-placed    0  never-fired   8 =  5.1%
+      logs/path3                                     eps  265  placed  159  carried-not-placed    0  never-fired   7 =  2.6%
+      logs/path3b                                    eps  156  placed  116  carried-not-placed    0  never-fired   0 =  0.0%
+      logs/v5b/rtc_ab                                eps  288  placed  142  carried-not-placed    0  never-fired  28 =  9.7%
+      logs/v5b/vlash_ab                              eps  135  placed   56  carried-not-placed    0  never-fired  20 = 14.8%
+      logs/v5b/vlash_rtc_ab                          eps   15  placed    7  carried-not-placed    0  never-fired   0 =  0.0%
+      logs/v5b/vlash_smoke                           eps    2  placed    1  carried-not-placed    0  never-fired   0 =  0.0%
+      logs/w3                                        eps  112  placed   20  carried-not-placed   15  never-fired   1 =  0.9%
+      logs/w4                                        eps  141  placed   75  carried-not-placed   17  never-fired   1 =  0.7%
+      logs/w5                                        eps   16  placed   11  carried-not-placed    2  never-fired   0 =  0.0%
+      logs/w7                                        eps   18  placed   12  carried-not-placed    3  never-fired   0 =  0.0%
+      logs/w7/B_ab                                   eps   90  placed   57  carried-not-placed   22  never-fired   0 =  0.0%
+      TOTAL                                          eps 3195  placed 1715  carried-not-placed  209  never-fired 180 =  5.6%
+
+    lateral 0.16, x-edge guard off <- the shipped interface (W4 gate, guard off)
+      logs/p18b                                      eps   30  placed   13  carried-not-placed   14  never-fired   0 =  0.0%
+      logs/p18b/N5_fix                               eps  150  placed   61  carried-not-placed   75  never-fired   0 =  0.0%
+      logs/p18b/N5_tomato                            eps   30  placed   14  carried-not-placed   15  never-fired   0 =  0.0%
+      logs/p27                                       eps   60  placed   19  carried-not-placed   39  never-fired   0 =  0.0%
+      logs/p28e/spd008_n1v3                          eps   30  placed   14  carried-not-placed   14  never-fired   0 =  0.0%
+      logs/p28e/spd012_n1v3                          eps   30  placed    7  carried-not-placed   21  never-fired   0 =  0.0%
+      logs/p28e/spd015_n1v3                          eps   30  placed   13  carried-not-placed   16  never-fired   0 =  0.0%
+      logs/p31/ab                                    eps  150  placed   54  carried-not-placed   88  never-fired   0 =  0.0%
+      logs/p33/E_ab                                  eps   90  placed   24  carried-not-placed   59  never-fired   0 =  0.0%
+      logs/p34                                       eps    8  placed    1  carried-not-placed    2  never-fired   0 =  0.0%
+      logs/p34/A_ab                                  eps  150  placed   43  carried-not-placed   98  never-fired   0 =  0.0%
+      logs/p35                                       eps   16  placed    7  carried-not-placed    5  never-fired   0 =  0.0%
+      logs/p35/B_ab                                  eps  150  placed   76  carried-not-placed   68  never-fired   0 =  0.0%
+      logs/p35/C_ab                                  eps  150  placed   73  carried-not-placed   71  never-fired   0 =  0.0%
+      logs/p36/A_ab                                  eps  180  placed   83  carried-not-placed   89  never-fired   0 =  0.0%
+      logs/p36/smoke                                 eps    6  placed    3  carried-not-placed    1  never-fired   0 =  0.0%
+      logs/p37                                       eps   92  placed   57  carried-not-placed   27  never-fired   0 =  0.0%
+      logs/p37/B_ab                                  eps  150  placed   92  carried-not-placed   53  never-fired   1 =  0.7%
+      logs/p7c/B_direct_ab                           eps  150  placed   40  carried-not-placed  100  never-fired   0 =  0.0%
+      logs/p8d/B_direct_ab                           eps  150  placed   49  carried-not-placed   93  never-fired   0 =  0.0%
+      logs/r11                                       eps   75  placed   30  carried-not-placed   37  never-fired   0 =  0.0%
+      logs/r11/B_N                                   eps   25  placed   13  carried-not-placed    9  never-fired   0 =  0.0%
+      logs/r6                                        eps   30  placed   12  carried-not-placed   17  never-fired   0 =  0.0%
+      logs/r6/B_direct_ab                            eps  150  placed   49  carried-not-placed   90  never-fired   0 =  0.0%
+      logs/r6/B_frozen                               eps    3  placed    3  carried-not-placed    0  never-fired   0 =  0.0%
+      logs/r7                                        eps   15  placed    4  carried-not-placed   11  never-fired   0 =  0.0%
+      logs/r8                                        eps   77  placed   16  carried-not-placed   18  never-fired   0 =  0.0%
+      logs/r9                                        eps   53  placed   16  carried-not-placed   36  never-fired   0 =  0.0%
+      logs/r9/A_direct_ab                            eps  150  placed   43  carried-not-placed   93  never-fired   0 =  0.0%
+      logs/r9/frozen                                 eps   16  placed    5  carried-not-placed    9  never-fired   0 =  0.0%
+      logs/w4                                        eps  135  placed   51  carried-not-placed   45  never-fired   0 =  0.0%
+      logs/w7/C_ab                                   eps   90  placed   28  carried-not-placed   46  never-fired   0 =  0.0%
+      logs/w7/C_eval/direct_ab                       eps   90  placed   23  carried-not-placed   61  never-fired   1 =  1.1%
+      logs/w8                                        eps   92  placed   20  carried-not-placed   44  never-fired   0 =  0.0%
+      logs/w8/A_direct_ab                            eps  150  placed   43  carried-not-placed   96  never-fired   0 =  0.0%
+      logs/w8/B_direct_ab                            eps  150  placed   50  carried-not-placed   92  never-fired   0 =  0.0%
+      TOTAL                                          eps 3103  placed 1149  carried-not-placed 1652  never-fired   2 =  0.1%
+
+    lateral 0.16, x-edge guard on <- guard on (the high-x cliff refusal, opt-in)
+      logs/r6                                        eps   45  placed    9  carried-not-placed    8  never-fired   1 =  2.2%
+      logs/r7                                        eps   60  placed    9  carried-not-placed   12  never-fired   1 =  1.7%
+      logs/w8                                        eps   15  placed    1  carried-not-placed    4  never-fired   0 =  0.0%
+      TOTAL                                          eps  120  placed   19  carried-not-placed   24  never-fired   2 =  1.7%
+
+    lateral 0.20, x-edge guard off
+      logs/832_gate_sweep                            eps   18  placed    6  carried-not-placed    0  never-fired   0 =  0.0%
+      logs/833_gate_top                              eps   30  placed    7  carried-not-placed    0  never-fired   0 =  0.0%
+      TOTAL                                          eps   48  placed   13  carried-not-placed    0  never-fired   0 =  0.0%
+
+  every never-fired episode (the S3 class), with its notes and target x:
+    logs/812_trigger_ab_moe_v10_lead0.9/B_1.log ep 8: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/812_trigger_ab_moe_v10_lead0.9/B_1.log ep 12: kiwi arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/812_trigger_ab_moe_v10_lead0.9/B_1.log ep 13: tomato arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/812_trigger_ab_moe_v10_lead0.9/B_2.log ep 3: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/812_trigger_ab_moe_v10_lead0.9/B_3.log ep 1: pear arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/812_trigger_ab_moe_v10_lead0.9/B_3.log ep 7: orange arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/812_trigger_ab_moe_v10_lead0.9/B_3.log ep 9: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/812_trigger_ab_moe_v10_lead0.9/B_3.log ep 10: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/812_trigger_ab_moe_v10_lead0.9/B_3.log ep 14: apple arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/820_trigger_diag_seed77.log ep 5: kiwi arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/820_trigger_diag_seed77.log ep 8: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/820_trigger_diag_seed77.log ep 13: tomato arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/821_trigger_present_ab/A_1.log ep 8: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/821_trigger_present_ab/A_1.log ep 10: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/821_trigger_present_ab/A_1.log ep 12: kiwi arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/821_trigger_present_ab/A_1.log ep 14: tomato arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/821_trigger_present_ab/A_2.log ep 13: kiwi arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/821_trigger_present_ab/A_3.log ep 7: orange arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/821_trigger_present_ab/B_1.log ep 7: kiwi arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/821_trigger_present_ab/B_2.log ep 14: kiwi arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/821_trigger_present_ab/B_3.log ep 7: orange arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/821_trigger_present_ab/B_3.log ep 9: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/830_trigger_diag_seed101.log ep 4: strawberry arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/830_trigger_diag_seed101.log ep 12: kiwi arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/831_trigger_diag_seed202.log ep 0: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/831_trigger_diag_seed202.log ep 2: pear arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/831_trigger_diag_seed202.log ep 8: orange arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/831_trigger_diag_seed202.log ep 14: apple arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/832_gate_sweep/ctl_lead0.90_lat0.06_reach0.20_seed77.log ep 4: kiwi arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/832_gate_sweep/ctl_lead0.90_lat0.06_reach0.20_seed77.log ep 8: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/832_gate_sweep/ctl_lead0.90_lat0.06_reach0.20_seed77.log ep 13: tomato arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/832_gate_sweep/lead1.20_seed77.log ep 4: kiwi arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/832_gate_sweep/lead1.20_seed77.log ep 6: kiwi arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/832_gate_sweep/lead1.20_seed77.log ep 8: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/832_gate_sweep/lead1.20_seed77.log ep 13: tomato arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/832_gate_sweep/lead2.50_seed77.log ep 5: kiwi arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/832_gate_sweep/lead2.50_seed77.log ep 14: kiwi arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/832_gate_sweep/reach0.08_seed77.log ep 4: kiwi arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/832_gate_sweep/reach0.08_seed77.log ep 5: kiwi arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/832_gate_sweep/reach0.08_seed77.log ep 6: tomato arm=right ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/832_gate_sweep/reach0.08_seed77.log ep 8: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/832_gate_sweep/reach0.08_seed77.log ep 12: kiwi arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/832_gate_sweep/reach0.08_seed77.log ep 13: kiwi arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/833_gate_top/ctl_lead0.90_lat0.06_reach0.20_seed101.log ep 4: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/833_gate_top/ctl_lead0.90_lat0.06_reach0.20_seed202.log ep 1: pear arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/833_gate_top/ctl_lead0.90_lat0.06_reach0.20_seed202.log ep 7: orange arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/833_gate_top/ctl_lead0.90_lat0.06_reach0.20_seed202.log ep 8: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/833_gate_top/ctl_lead0.90_lat0.06_reach0.20_seed202.log ep 14: apple arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/distill/138_student4_trigger_seed101.log ep 6: kiwi arm=right ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/distill/138_student4_trigger_seed77.log ep 2: peach arm=right ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/distill/138_student4_trigger_seed77.log ep 9: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/distill/138_teacher_trigger.log ep 4: kiwi arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/distill/138_teacher_trigger.log ep 8: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/distill/138_teacher_trigger.log ep 13: tomato arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/distill/138_teacher_trigger.log ep 14: tomato arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/distill/138_teacher_trigger.log ep 15: orange arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/distill/138_teacher_trigger.log ep 17: orange arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/distill/138_teacher_trigger_seed77.log ep 4: kiwi arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/distill/138_teacher_trigger_seed77.log ep 8: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/distill/138_teacher_trigger_seed77.log ep 13: tomato arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/distill/138_teacher_trigger_seed77.log ep 14: tomato arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/distill/138_teacher_trigger_seed77.log ep 15: orange arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/distill/138_teacher_trigger_seed77.log ep 17: orange arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/dyn_v5/policy_off.log ep 4: kiwi arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/dyn_v5/policy_off.log ep 8: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/dyn_v5/policy_off.log ep 13: tomato arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/dyn_v5/policy_off.log ep 18: strawberry arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/dyn_v5/policy_off.log ep 20: kiwi arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/dyn_v5/policy_off.log ep 30: apple arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/dyn_v5/policy_off.log ep 32: orange arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/dyn_v5/policy_off.log ep 34: strawberry arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/dyn_v5/policy_off.log ep 37: kiwi arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/dyn_v5/policy_off.log ep 40: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/dyn_v5/policy_on.log ep 4: kiwi arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/dyn_v5/policy_on.log ep 5: kiwi arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/dyn_v5/policy_on.log ep 9: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/dyn_v5/policy_on.log ep 10: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/dyn_v5/policy_on.log ep 12: kiwi arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/dyn_v5/policy_on.log ep 14: apple arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/dyn_v5/policy_on.log ep 15: orange arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/dyn_v5/policy_on.log ep 24: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/dyn_v5/policy_on_aborted_ep30.log ep 4: kiwi arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/dyn_v5/policy_on_aborted_ep30.log ep 5: kiwi arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/dyn_v5/policy_on_aborted_ep30.log ep 9: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/dyn_v5/policy_on_aborted_ep30.log ep 10: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/dyn_v5/policy_on_aborted_ep30.log ep 12: kiwi arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/dyn_v5/policy_on_aborted_ep30.log ep 14: apple arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/dyn_v5/policy_on_aborted_ep30.log ep 15: orange arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/dyn_v5/policy_on_aborted_ep30.log ep 24: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/p1/control_b006/A_1.log ep 6: tomato arm=right ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/p1/control_b006/A_3.log ep 8: apple arm=right ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/p1/control_b006_hard/A_1.log ep 4: lychee arm=right ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/p1/control_b006_hard/A_2.log ep 2: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/p13/B_ab/A_1.log ep 4: kiwi arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/p37/B_ab/B_1.log ep 6: kiwi arm=right ticks=1500 decision=1500 target x=0.159 (band calls 25)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/path1b/138_teacher_trigger_seed101.log ep 2: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/path1b/138_teacher_trigger_seed202.log ep 3: strawberry arm=right ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/path1b/138_teacher_trigger_seed77.log ep 4: lychee arm=right ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/path2/rtc_ab/E4_legacy_run1.log ep 7: kiwi arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/path2/rtc_ab/E4_legacy_run1.log ep 13: tomato arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/path2/rtc_ab/E4_legacy_run2.log ep 1: lychee arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/path2/rtc_ab/E4_legacy_run2.log ep 10: strawberry arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/path2/rtc_ab/E4_legacy_run2.log ep 12: lychee arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/path2/rtc_ab/E4_legacy_run3.log ep 4: pear arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/path2/rtc_ab/E4_legacy_run3.log ep 8: orange arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/path2/rtc_ab/E4_legacy_run4.log ep 6: tomato arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/path2/rtc_ab/E4_legacy_run4.log ep 7: apple arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/path2/rtc_ab/E4_legacy_run4.log ep 9: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/path2/rtc_ab/E4_legacy_run4.log ep 11: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/path2/rtc_ab/E4_legacy_run4.log ep 12: kiwi arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/path2/rtc_ab/E4_legacy_run5.log ep 8: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/path2/rtc_ab/E4_legacy_run5.log ep 9: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/path2/rtc_ab/E4_legacy_run5.log ep 13: tomato arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/path2/rtc_ab/E4_legacy_run5.log ep 14: tomato arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/path2/rtc_ab/E4_rtc_run1.log ep 3: strawberry arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/path2/rtc_ab/E4_rtc_run2.log ep 3: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/path2b/rtc_ab/E4_rtc_run1.log ep 8: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/path2b/rtc_ab/E4_rtc_run1.log ep 13: tomato arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/path2b/rtc_ab/E4_rtc_run2.log ep 13: kiwi arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/path2b/rtc_ab/E4_rtc_run3.log ep 9: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/path2b/rtc_ab/E4_rtc_run4.log ep 2: pear arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/path2b/rtc_ab/E4_rtc_run4.log ep 13: kiwi arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/path2b/rtc_ab/E4_rtc_run5.log ep 8: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/path2b/rtc_ab/E4_rtc_run5.log ep 14: tomato arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/path3/a2c2_1.log ep 4: lychee arm=right ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/path3/a2c2_2.log ep 2: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/path3/base_2.log ep 2: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/path3/track_1.log ep 4: lychee arm=right ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/path3/track_2.log ep 2: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/path3/vlash_1.log ep 9: orange arm=right ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/path3/vlash_3.log ep 1: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/r6/A_c2_hsteps150.log ep 1: tomato arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['x-edge refuse: fruit x=0.398 beyond FRUIT_POLICY_TRIGGER_X_MAX (rides past the station)', 'timeout: no grasp within 1500 ticks']
+    logs/r7/A_cap_only_fix.log ep 2: pear arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['x-edge refuse: fruit x=0.412 beyond FRUIT_POLICY_TRIGGER_X_MAX (rides past the station)', 'timeout: no grasp within 1500 ticks']
+    logs/v5b/rtc_ab/E1_legacy_run2.log ep 2: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/rtc_ab/E1_legacy_run2.log ep 12: kiwi arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/rtc_ab/E1_legacy_run3.log ep 9: orange arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/rtc_ab/E1_rtc_run1.log ep 5: kiwi arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/rtc_ab/E1_rtc_run3.log ep 14: apple arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/rtc_ab/E2_legacy_run1.log ep 5: kiwi arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/rtc_ab/E2_legacy_run1.log ep 11: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/rtc_ab/E2_legacy_run2.log ep 2: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/rtc_ab/E2_legacy_run2.log ep 4: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/rtc_ab/E2_legacy_run2.log ep 12: kiwi arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/rtc_ab/E2_legacy_run3.log ep 1: pear arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/rtc_ab/E2_legacy_run3.log ep 7: orange arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/rtc_ab/E2_legacy_run3.log ep 9: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/rtc_ab/E2_legacy_run3.log ep 14: apple arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/rtc_ab/E2_rtc_run1.log ep 10: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/rtc_ab/E2_rtc_run3.log ep 1: pear arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/rtc_ab/E2_rtc_run3.log ep 7: orange arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/rtc_ab/E2_rtc_run3.log ep 8: orange arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/rtc_ab/E4_legacy_run1.log ep 12: kiwi arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/rtc_ab/E4_legacy_run1.log ep 13: tomato arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/rtc_ab/E4_legacy_run2.log ep 12: kiwi arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/rtc_ab/E4_legacy_run3.log ep 1: pear arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/rtc_ab/E4_legacy_run3.log ep 2: pear arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/rtc_ab/E4_legacy_run3.log ep 7: orange arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/rtc_ab/E4_legacy_run3.log ep 9: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/rtc_ab/E4_legacy_run3.log ep 14: apple arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/rtc_ab/E4_rtc_run1.log ep 8: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/rtc_ab/E4_rtc_run1.log ep 9: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/vlash_ab/E1_vlash_run1.log ep 4: kiwi arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/vlash_ab/E1_vlash_run2.log ep 7: kiwi arm=right ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/vlash_ab/E1_vlash_run2.log ep 11: strawberry arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/vlash_ab/E1_vlash_run3.log ep 2: pear arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/vlash_ab/E1_vlash_run3.log ep 7: orange arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/vlash_ab/E1_vlash_run3.log ep 8: orange arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/vlash_ab/E2_vlash_run1.log ep 7: kiwi arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/vlash_ab/E2_vlash_run2.log ep 3: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/vlash_ab/E2_vlash_run2.log ep 14: kiwi arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/vlash_ab/E2_vlash_run3.log ep 1: pear arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/vlash_ab/E2_vlash_run3.log ep 8: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/vlash_ab/E4_vlash_run1.log ep 4: kiwi arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/vlash_ab/E4_vlash_run1.log ep 5: kiwi arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/vlash_ab/E4_vlash_run1.log ep 6: tomato arm=right ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/vlash_ab/E4_vlash_run1.log ep 8: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/vlash_ab/E4_vlash_run2.log ep 1: lychee arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/vlash_ab/E4_vlash_run2.log ep 6: lychee arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/vlash_ab/E4_vlash_run3.log ep 0: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/vlash_ab/E4_vlash_run3.log ep 8: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/v5b/vlash_ab/E4_vlash_run3.log ep 14: apple arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/w3/70_direct_v13s_full.log ep 35: apple arm=right ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/w4/12_direct_v12_dense.log ep 26: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+    logs/w7/C_eval/direct_ab/B_3.log ep 12: peach arm=left ticks=1500 decision=1500 target x not recorded (no park census in this batch)
+      other notes: ['timeout: no grasp within 1500 ticks']
+
+  pre-trigger / trigger-off logs (the historical no-fire class, NOT the current interface): 75 logs, 864 episodes, 414 timeouts (47.9%) - these are the runs before the arrival trigger, where the policy gate was the dominant no-fire mechanism, not the lateral tail
+    logs                                         eps  327  timeout 185 = 56.6%
+    logs/811_rtc_ab_moe_v10                      eps   90  timeout  67 = 74.4%
+    logs/812_trigger_ab_moe_v10_lead0.9          eps   45  timeout  30 = 66.7%
+    logs/d_v5entry                               eps    4  timeout   4 = 100.0%
+    logs/distill                                 eps   15  timeout   4 = 26.7%
+    logs/p28                                     eps   30  timeout   1 =  3.3%
+    logs/p28e/spd008_n1                          eps   30  timeout  28 = 93.3%
+    logs/rl_ab_rwr1                              eps  150  timeout  60 = 40.0%
+    logs/rtc                                     eps    2  timeout   2 = 100.0%
+    logs/rtc/ab_v1                               eps   26  timeout  12 = 46.2%
+    logs/rtc/diag_e2                             eps    6  timeout   3 = 50.0%
+    logs/rtc/gripper_diag                        eps   30  timeout  16 = 53.3%
+    logs/v5b/baseline_ab                         eps    3  timeout   2 = 66.7%
+
+  the reach-cliff refusal rows (`x-edge refuse`, guard runs only):
+    logs/r6/A_c0_combo.log: 5 rows, x=['0.391', '0.413', '0.397', '0.393', '0.421']
+    logs/r6/A_c1_htol02.log: 9 rows, x=['0.398', '0.411', '0.415', '0.408', '0.412', '0.396']
+    logs/r6/A_c2_hsteps150.log: 7 rows, x=['0.398', '0.400', '0.404', '0.393', '0.411', '0.420']
+    logs/r7/A_cap_only_fix.log: 8 rows, x=['0.403', '0.412', '0.411', '0.394', '0.394', '0.407']
+    logs/r7/A_control_edge.log: 6 rows, x=['0.398', '0.392', '0.411', '0.398', '0.400', '0.404']
+    logs/r7/A_edge_fix.log: 9 rows, x=['0.398', '0.396', '0.411', '0.391', '0.399', '0.395']
+    logs/r7/A_edge_fix2.log: 6 rows, x=['0.398', '0.396', '0.411', '0.415', '0.398', '0.414']
+    logs/w8/R2_p1_edge_cap.log: 7 rows, x=['0.398', '0.392', '0.411', '0.397', '0.408', '0.406']
+
+----------------------------------------------------------------------------------------------------
+[5b] the trigger's station x per arm, and the x each arm can admit
+     source: the intercept note's dx = fruit_x - station_x, paired with the
+     same episode's band-census x (`_trigger_station` = jaw centre at reset)
+----------------------------------------------------------------------------------------------------
+  left   n= 219  station x median 0.3400 (p10 0.3400 p90 0.3410)  ->  admission floor x >= 0.1800
+         direct episodes below that floor: 5/653 = 0.77% (all arms pooled)
+  right  n= 431  station x median 0.3330 (p10 0.3320 p90 0.3330)  ->  admission floor x >= 0.1730
+         direct episodes below that floor: 2/653 = 0.31% (all arms pooled)
+
+----------------------------------------------------------------------------------------------------
+[5] the drift arithmetic - baseline-free tail counts (no drift => none)
+    any delivered x below the spawn floor 0.20 (or above 0.36) is a drift
+    excursion by definition: the draw is rng.uniform(0.20, 0.36).
+----------------------------------------------------------------------------------------------------
+  scripted:
+    biarm/scatter/x0.20-0.36           n=  29  p50 0.254  P(x<0.173)   0 =  0.00%   P(x<0.20)   1 =  3.45%   P(x>0.36)   2 =  6.90%
+    single/bed/x0.20-0.36              n=  47  p50 0.357  P(x<0.173)   2 =  4.26%   P(x<0.20)   5 = 10.64%   P(x>0.36)  21 = 44.68%
+    single/patch/x0.20-0.36            n= 272  p50 0.270  P(x<0.173)   1 =  0.37%   P(x<0.20)  18 =  6.62%   P(x>0.36)   9 =  3.31%
+    single/scatter/x0.20-0.36          n= 209  p50 0.272  P(x<0.173)   0 =  0.00%   P(x<0.20)   8 =  3.83%   P(x>0.36)   5 =  2.39%
+    single/scatter/x0.30-0.38          n=  10  p50 0.340  P(x<0.173)   0 =  0.00%   P(x<0.20)   0 =  0.00%   P(x>0.36)   2 = 20.00%
+    single/wave/x0.20-0.36             n=  10  p50 0.302  P(x<0.173)   0 =  0.00%   P(x<0.20)   0 =  0.00%   P(x>0.36)   1 = 10.00%
+    twoline/bed/x0.20-0.36             n=  38  p50 0.275  P(x<0.173)   0 =  0.00%   P(x<0.20)   6 = 15.79%   P(x>0.36)  10 = 26.32%
+    twoline/patch/x0.20-0.36           n=2016  p50 0.280  P(x<0.173)   9 =  0.45%   P(x<0.20) 130 =  6.45%   P(x>0.36)  69 =  3.42%
+    twoline/scatter/x0.20-0.36         n= 136  p50 0.264  P(x<0.173)   0 =  0.00%   P(x<0.20)   7 =  5.15%   P(x>0.36)   1 =  0.74%
+    twoline/wave/x0.20-0.36            n= 682  p50 0.276  P(x<0.173)   2 =  0.29%   P(x<0.20)  23 =  3.37%   P(x>0.36)  13 =  1.91%
+  direct:
+    direct/patch/x0.20-0.36            n= 653  p50 0.264  P(x<0.173)   2 =  0.31%   P(x<0.20)  23 =  3.52%   P(x>0.36)  11 =  1.68%
+
+  reading: a *shift* moves p50 off the band's centre 0.280; a *tail* leaves p50 and stretches one end. The patch/bed schedules do not draw uniformly on the band (a pair's first
+  member is drawn from [x_min, x_max - sep]), so read the tail counts, not the KS.
+
+DONE

@@ -428,6 +428,22 @@ def direct_fire(
     return bool(intercept or (policy_close and gate_refuse is None))
 
 
+def no_firable_ready(
+    *, latched: bool, policy_close_seen: bool, dy: float
+) -> bool:
+    """The `FRUIT_POLICY_REFUSE_END` predicate (P38 phase 2; default off).
+
+    The terminal class may only be claimed on a **measured joint closure**
+    (`logs/p38/PREREG_A1.md` A1): a latched *provable* trigger refusal
+    (``latched``), no learned close on the candidate since the reset
+    (``policy_close_seen`` False - the lateral gate has never bound
+    `policy_close`, `direct_fire` above), and the fruit past the trigger's own
+    downstream gate (``dy <= -0.05``). Kept module-level and pure so
+    `scripts/811_trigger_test.py` pins the truth table offline.
+    """
+    return bool(latched and not policy_close_seen and float(dy) <= -0.05)
+
+
 @dataclass
 class RewardConfig:
     """Terminal-only reward (the Oracle's recipe): no shaping.
@@ -1084,6 +1100,59 @@ class SortingRLEnv:
         self._align_zone_zero = 0            # ... with a zero target mask
         self._align_zone_px: list[int] = []  # ... target-mask pixels
 
+        # --- P38 phase 2: the lateral-refusal harness, default off ----------- #
+        #: The direct harness holds **one** candidate per episode, and the
+        #: trigger's lateral gate refuses it *silently*: `should_fire` returns
+        #: `False` with no marker, nothing re-selects, and the attempt burns the
+        #: whole 1500-tick policy horizon (`rl_env.py` `act`, the only exit) to
+        #: end `timeout: no grasp within 1500 ticks`. Measured on the shipped
+        #: interface: 2/3103 episodes; on the patch band 2/653 direct episodes
+        #: are delivered below the arm's admission floor (`logs/p38/
+        #: P1_RESULTS.md`). Four knobs, all `presentation == "direct"` only and
+        #: all off by default (`logs/p38/PREREG_A1.md`):
+        #:   FRUIT_POLICY_REFUSE_DIAG=1     one `lateral refuse:` note per
+        #:                                  candidate at the first *provable*
+        #:                                  refusal (run-neutral: a note)
+        #:   FRUIT_POLICY_REFUSE_END=1      end at the fruit's departure with the
+        #:                                  named class `no firable fruit` -
+        #:                                  gated on a **measured** joint closure
+        #:                                  (the trigger refuses *and* the learned
+        #:                                  close never fired), because the lateral
+        #:                                  gate has never bound the policy-close
+        #:                                  path (`direct_fire`), so the trigger's
+        #:                                  refusal alone is not "nothing can fire"
+        #:   FRUIT_POLICY_RESEED=1          bounded same-lane re-selection at the
+        #:                                  first provable refusal (implies DIAG)
+        #:   FRUIT_POLICY_RESEED_MAX=2      adoptions per episode (0 = off); M1
+        #:                                  cannot reach it (nothing is adopted)
+        self._refuse_diag = os.environ.get("FRUIT_POLICY_REFUSE_DIAG", "0") == "1"
+        self._refuse_end = os.environ.get("FRUIT_POLICY_REFUSE_END", "0") == "1"
+        self._reseed = os.environ.get("FRUIT_POLICY_RESEED", "0") == "1"
+        self._reseed_max = max(0, int(os.environ.get("FRUIT_POLICY_RESEED_MAX", "2")))
+        self._reseed_scans_max = 4        # the PREREG's scan bound (per refusal)
+        self._reseed_stride = 60          # ticks between scans (0.5 s, A2c)
+        self._refuse_knobs = bool(self._refuse_diag or self._refuse_end or self._reseed)
+        if self._refuse_knobs and presentation != "direct":
+            raise ValueError(
+                "FRUIT_POLICY_REFUSE_DIAG / _END / RESEED are only defined for "
+                "presentation='direct' (the scripted/collector paths never run "
+                "the trigger's silent refusal)"
+            )
+        if self._reseed and self._reseed_max <= 0:
+            self._reseed = False
+        if self._reseed:
+            # The re-selection note is what the conversion is read from.
+            self._refuse_diag = True
+        self._refuse_latch: dict | None = None
+        self._refuse_count = 0
+        self._refuse_indices: set[int] = set()
+        self._policy_close_seen = False
+        self._policy_best_gap = float("inf")
+        self._reseed_left = int(self._reseed_max)
+        self._reseed_adopted = 0
+        self._reseed_scans = 0
+        self._no_firable = False
+
         # --- event-triggered replanning (path-3 arm), default off ----------- #
         #: DVAC/ChunkTrust-spirited test-time horizon adaptation: the execute
         #: horizon for each newly sampled chunk is chosen from the continuity
@@ -1294,6 +1363,12 @@ class SortingRLEnv:
             f"camera={self._camera_res_text()} tasks_md5={self.tasks_md5[:8]}")
         if self.trigger_settings.enabled:
             say(f"[rl] {self.trigger_settings.summary()}")
+        if self._refuse_knobs:
+            say(
+                f"[rl] refuse: diag={int(self._refuse_diag)} "
+                f"end={int(self._refuse_end)} reseed={int(self._reseed)} "
+                f"max={int(self._reseed_max)}"
+            )
 
     # ------------------------------------------------------------------ #
     # Frozen-tree / manifest
@@ -1365,6 +1440,20 @@ class SortingRLEnv:
             #: A cell of the 2x2 is identified by this block plus `arm_park`;
             #: the image channel is the park, the obs channel is this.
             "proprio_spoof": self._spoof_source,
+            #: P38 phase 2: the lateral-refusal harness (absent = all four
+            #: knobs off, the shipped interface). An A/C arm is identified by
+            #: this block, not by the printed note text.
+            "refuse": (
+                {
+                    "diag": bool(self._refuse_diag),
+                    "end": bool(self._refuse_end),
+                    "reseed": bool(self._reseed),
+                    "max": int(self._reseed_max),
+                    "scans": int(self._reseed_scans_max),
+                }
+                if self._refuse_knobs
+                else None
+            ),
             "event_replan": {
                 "enabled": bool(self._event),
                 "min": int(self._event_min),
@@ -1673,6 +1762,23 @@ class SortingRLEnv:
         #: R7-A (WS-4.6): fruit indices whose *policy-gate* fire the same
         #: guard refused (one note per fruit; see `_note_gate_refuse`).
         self._gate_refused: set[int] = set()
+        #: P38 phase 2: the lateral-refusal harness state for this episode (all
+        #: four knobs off -> every branch below is a `False` short-circuit).
+        self._refuse_latch = None
+        self._refuse_count = 0
+        self._refuse_indices = set()
+        self._policy_close_seen = False
+        self._policy_best_gap = float("inf")
+        self._reseed_left = int(self._reseed_max)
+        self._reseed_adopted = 0
+        self._reseed_scans = 0
+        self._reseed_seen = set()
+        self._reseed_scans_left = 0
+        self._reseed_next_tick = 0
+        self._reseed_empty = 0
+        self._reseed_off = 0
+        self._reseed_exhausted_noted = False
+        self._no_firable = False
         self._last_action = np.zeros(self.action_dim, dtype=np.float32)
         self._episode_t0 = self._sim_time()
         self._decision_step: int | None = None
@@ -2858,6 +2964,15 @@ class SortingRLEnv:
                                 f"{presented.index} ({presented.category}) over the "
                                 f"selected sample (selected dy={selected_dy:+.3f} m)"
                             )
+            if self._refuse_knobs and not self._triggered:
+                # P38 phase 2: the lateral-refusal harness (default off). Runs
+                # after the P4b2 presentation adoption and before the fire
+                # decision; on a refusal tick `intercept` is False by
+                # construction and the learned close is a tracked term, so the
+                # re-selection never races a fire on the same tick.
+                self._track_refuse(distance, policy_close, intercept_info)
+                if self._done:
+                    return
             if direct_fire(
                 intercept=intercept,
                 policy_close=policy_close,
@@ -2949,6 +3064,254 @@ class SortingRLEnv:
             f"FRUIT_POLICY_TRIGGER_X_MAX (finger={finger:.4f}, "
             f"|jaw-fruit|xy={distance * 100:.1f}cm; rides past the station)"
         )
+
+    # ------------------------------------------------------------------ #
+    # P38 phase 2: the lateral-refusal harness (all four knobs default off)
+    #
+    #: Known defects, recorded by the P38 Gate-2 review and NOT fixed here
+    #: (`logs/p38/P2_RESULTS.md` section 8, "the latent defects"):
+    #:  (a) `_reseed_step` calls `spawner.protect(adopted)` and never unprotects
+    #:      it at the episode end (the reset only sets the scalar
+    #:      `spawner.protected`, it does not touch `protected_indices`), so an
+    #:      adoption leaks one index into `protected_indices` for the rest of the
+    #:      process. Inert on the direct path (its selection does not exclude the
+    #:      set); the scripted/bimanual callers read `protected_indices` in their
+    #:      own selectors, which is why the reseed stays direct-only.
+    #:  (b) the END's `dy` is measured against the **captured station**
+    #:      (`_trigger_station`), while `should_fire` measures `dy` in
+    #:      `FRUIT_POLICY_TRIGGER_FRAME`'s frame (default `station`; `jaw` moves
+    #:      the trigger's own downstream gate). Inert at `FRAME=station`.
+    #:  (c) the END is evaluated *before* the tick's fire decision and reads
+    #:      neither `intercept` nor the P4b2 `present` adoption, and
+    #:      `_policy_best_gap` is per-episode rather than per-candidate (the
+    #:      note's "best |jaw-fruit|" spans a pre-reseed candidate too). All
+    #:      three are direct-only and default-off (the era's readings are on the
+    #:      shipped configuration, where none of them can fire).
+    # ------------------------------------------------------------------ #
+    def _track_refuse(
+        self, distance: float, policy_close: bool, info: dict | None
+    ) -> None:
+        """Book one tick of the lateral-refusal harness. No-op when all off.
+
+        The learned close is *tracked* every tick (it is the second fire path the
+        lateral gate has never bound - `direct_fire`), because the terminal class
+        is only allowed to claim a closure the run itself observed
+        (`logs/p38/PREREG_A1.md` A1, term C3).
+        """
+        if policy_close:
+            if not self._policy_close_seen and self._refuse_diag:
+                # P38 Gate-2 (H1): the second fire path's *timing*, so the END's
+                # closure ("no close fired before the fruit's departure") can be
+                # read where it is claimed - the tick the learned close latched,
+                # in the END's own frame (`dy <= -0.05` is past the departure).
+                # One fruit-pose read per episode, in the documented-safe class.
+                fruit = np.asarray(self.spawner.position(self._sample), dtype=float)
+                dy = float(fruit[1]) - float(self._trigger_station[1])
+                self._say(
+                    f"[refuse] close: tick={int(self._tick)} dy={dy:+.3f} m "
+                    f"(station frame; <= -0.05 is past the departure) "
+                    f"|jaw-fruit|xy={distance * 100:.1f}cm"
+                )
+            self._policy_close_seen = True
+        if distance < self._policy_best_gap:
+            self._policy_best_gap = float(distance)
+        if policy_close:
+            # The learned gate fired: the primitive owns the episode.
+            return
+        dx_refuse = (info or {}).get("lateral_refuse")
+        if dx_refuse is not None and int(
+            self._sample.index
+        ) not in self._refuse_indices:
+            self._latch_refusal(float(dx_refuse))
+        if self._refuse_latch is not None:
+            # The temporal scan retry (bounded by the per-refusal budget).
+            self._reseed_step()
+        if (
+            self._refuse_end
+            and self._refuse_latch is not None
+            and not self._policy_close_seen
+        ):
+            self._maybe_end_no_firable()
+
+    def _latch_refusal(self, dx: float) -> None:
+        """The first provable trigger refusal for this candidate (`should_fire`).
+
+        Provable = every other trigger gate passed and only `|dx| > lateral`
+        failed, and `x` is frozen for the rest of the transit (`P1_RESULTS.md`
+        section 2: the transport's lateral term is exactly 0.000 mm, and the
+        reference is the station captured at reset), so no later tick can fire
+        this candidate.
+        """
+        index = int(self._sample.index)
+        fruit = np.asarray(self.spawner.position(self._sample), dtype=float)
+        x = float(fruit[0])
+        station_x = float(self._trigger_station[0])
+        lateral = float(self.trigger_settings.lateral)
+        self._refuse_count += 1
+        self._refuse_indices.add(index)
+        self._refuse_latch = {
+            "index": index,
+            "category": self._sample.category,
+            "x": x,
+            "dx": float(dx),
+            "station_x": station_x,
+            "lateral": lateral,
+            "tick": int(self._tick),
+            "policy_gap": float(self._policy_best_gap),
+        }
+        if self._refuse_diag:
+            self._notes.append(
+                f"lateral refuse: fruit x={x:.3f} |dx|={abs(dx):.3f} > lateral "
+                f"{lateral:.3f} (station x={station_x:.3f} -> x >= "
+                f"{station_x - lateral:.3f} admitted; x frozen, permanent)"
+            )
+        if self._reseed and self._reseed_left > 0:
+            # A fresh scan budget for this refusal. The retry is *temporal*
+            # (one scan per `_reseed_stride` ticks, PREREG_A1 A2c): at the
+            # refusal instant the selector's upstream window is usually empty
+            # of other candidates (measured: 3/3 refusals scanned once and got
+            # `None`, `logs/p38/z6_smoke_m2c6.log`), so a same-instant 4-scan
+            # loop would report "the supply has no alternative" for an
+            # implementation reason. The *bound* is unchanged: 4 scans and
+            # `RESEED_MAX` adoptions per episode.
+            self._reseed_seen = {index}
+            self._reseed_scans_left = int(self._reseed_scans_max)
+            self._reseed_next_tick = 0
+            self._reseed_exhausted_noted = False
+            self._reseed_step()
+
+    def _reseed_step(self) -> None:
+        """One bounded same-lane scan; adopt the first candidate inside the gate.
+
+        Everything is rebuilt exactly as the reset does (`_goal`, `_belt_rest`,
+        protection) so the observation stays coherent. The grade lane is
+        re-checked (`Ff`): a cross-lane adoption would invalidate the arm and the
+        bin, so such a candidate is rejected like an off-lateral one.
+        """
+        if not self._reseed or self._triggered or self._refuse_latch is None:
+            return
+        if self._reseed_left <= 0 or self._reseed_scans_left <= 0:
+            return
+        if int(self._tick) < int(self._reseed_next_tick):
+            return
+        self._reseed_scans_left -= 1
+        self._reseed_scans += 1
+        self._reseed_next_tick = int(self._tick) + int(self._reseed_stride)
+        station_x = float(self._trigger_station[0])
+        lateral = float(self.trigger_settings.lateral)
+        state = self.task.select_target(
+            self.spawner.state(),
+            reach_anywhere=False,
+            lane=int(self._bin_index),
+            exclude=set(self._reseed_seen),
+        )
+        if state is None:
+            self._reseed_empty += 1
+            self._reseed_note_exhausted()
+            return
+        index = int(state["index"])
+        self._reseed_seen.add(index)
+        x = float(state["position"][0])
+        if abs(x - station_x) > lateral:
+            self._reseed_off += 1
+            self._reseed_note_exhausted()
+            return
+        lane = 0 if state.get("grade") == "A" else 1
+        if lane != int(self._bin_index):
+            self._reseed_off += 1
+            self._reseed_note_exhausted()
+            return
+        sample = next(
+            (s for s in self.spawner.samples if int(s.index) == index), None
+        )
+        if sample is None:
+            self._reseed_empty += 1
+            self._reseed_note_exhausted()
+            return
+        old = self._sample
+        position = np.asarray(self.spawner.position(sample), dtype=np.float32)
+        velocity = np.asarray(self.spawner.velocity(sample), dtype=np.float32)
+        self.spawner.unprotect(int(old.index))
+        if self.spawner.protected is not None and int(
+            self.spawner.protected
+        ) == int(old.index):
+            self.spawner.protected = None
+        self._sample = sample
+        self._goal = np.array(
+            [
+                *position,
+                *velocity,
+                float(sample.diameter),
+                float(self._bin_index),
+            ],
+            dtype=np.float32,
+        )
+        self._belt_rest = self.belt_top + float(sample.diameter) / 2.0
+        self.spawner.protect(index)
+        self.spawner.protected = index
+        self._reseed_left -= 1
+        self._reseed_adopted += 1
+        self._refuse_latch = None
+        self._notes.append(
+            f"reseed: adopted index {index} ({sample.category}, x={x:.3f}, "
+            f"dx={x - station_x:+.3f}) over index {int(old.index)} "
+            f"after {int(self._reseed_scans_max) - int(self._reseed_scans_left)} "
+            f"scan(s), budget left {self._reseed_left}"
+        )
+
+    def _reseed_note_exhausted(self) -> None:
+        """One note per refusal when the scan budget is spent (never repeats)."""
+        if self._reseed_scans_left > 0 or self._reseed_exhausted_noted:
+            return
+        self._reseed_exhausted_noted = True
+        self._notes.append(
+            f"reseed: no firable candidate in "
+            f"{int(self._reseed_scans_max)} scan(s) (lane {self._bin_index}, "
+            f"selector empty {self._reseed_empty}, off-lateral/lane "
+            f"{self._reseed_off}; {self._refuse_count} refusal(s) so far)"
+        )
+
+    def _maybe_end_no_firable(self) -> None:
+        """`FRUIT_POLICY_REFUSE_END`: end at the fruit's *departure*.
+
+        Requires a latched provable refusal **and** that the learned close never
+        fired from the reset through the fruit passing the station
+        (`dy <= -0.05`, the trigger's own downstream gate). That is a measured
+        joint closure, not a claim that the policy could never chase the fruit
+        downstream afterwards (`PREREG_A1.md` A1): the trigger will never fire
+        it, and the shipped learned gate has had the whole approach to do so.
+        One fruit-pose read per tick, and only while a refusal is latched and
+        the close has not fired (the documented-safe read class).
+        """
+        latch = self._refuse_latch
+        if latch is None or self._policy_close_seen:
+            return
+        station_x = float(self._trigger_station[0])
+        lateral = float(self.trigger_settings.lateral)
+        fruit = np.asarray(self.spawner.position(self._sample), dtype=float)
+        x = float(fruit[0])
+        dy = float(fruit[1]) - float(self._trigger_station[1])
+        if abs(x - station_x) <= lateral:
+            # The fruit drifted back inside the gate (measured: up to ~13 mm of
+            # in-loop lateral displacement, the P1 section 2 open residual), so
+            # "no firable fruit" is not claimable any more: skip the end and let
+            # the episode take its own course.
+            return
+        if not no_firable_ready(
+            latched=True, policy_close_seen=self._policy_close_seen, dy=dy
+        ):
+            return
+        drift = abs(x - float(latch["x"]))
+        self._no_firable = True
+        self._notes.append(
+            f"no firable fruit: the trigger refuses (candidate x={x:.3f}, "
+            f"|dx|={abs(x - station_x):.3f} > lateral {lateral:.3f}; x >= "
+            f"{station_x - lateral:.3f} admitted) and the learned close never "
+            f"fired (best |jaw-fruit|={self._policy_best_gap * 100:.1f}cm) "
+            f"through dy={dy:+.3f} m (the fruit passed the station); x drift "
+            f"{drift * 1000:.1f}mm since the latch"
+        )
+        self._finalize(notes=self._notes)
 
     def _event_horizon(self, chunk: np.ndarray | None) -> int:
         """Event-triggered execute horizon from chunk-to-chunk continuity.
@@ -3362,6 +3725,25 @@ class SortingRLEnv:
             #: the machine-readable copy for the report tools.
             "policy_inferences": int(self.inference_calls()),
         }
+        if self._refuse_knobs:
+            #: P38 phase 2: the refuse harness's own record (absent when all
+            #: four knobs are off, so the shipped outcome dict is unchanged).
+            self._outcome["refuse"] = {
+                "refusals": int(self._refuse_count),
+                "adopted": int(self._reseed_adopted),
+                "scans": int(self._reseed_scans),
+                "scans_empty": int(self._reseed_empty),
+                "scans_off": int(self._reseed_off),
+                "budget_left": int(self._reseed_left),
+                "policy_close_seen": bool(self._policy_close_seen),
+                "no_firable": bool(self._no_firable),
+                "latched": self._refuse_latch is not None,
+            }
+            if self._no_firable:
+                # The PREREG's named terminal class. Still a failure
+                # (`success=False`) and still in the rate denominator: the
+                # endpoint is *attribution*, never elimination.
+                self._outcome["outcome"] = "no_firable"
         if self._wait_gate_on:
             # P31-A: the gate's own counters (a gated episode's `policy_inferences`
             # above is already the reduced count). Absent with the gate off, so
@@ -3404,6 +3786,22 @@ class SortingRLEnv:
             f"reward={reward:.4f} notes={notes} presentation={self.presentation} "
             f"ablate={self.ablate}"
         )
+        if self._refuse_knobs:
+            # P38 phase 2: the harness's per-episode counters as one row, so
+            # the batch is auditable from the log alone (scans, adoptions, the
+            # mechanism split of a failed scan, and the terminal class). One
+            # print, no state: the shipped path never reaches it.
+            self._say(
+                f"[refuse] episode {self._episode}: "
+                f"refusals={int(self._refuse_count)} "
+                f"adopted={int(self._reseed_adopted)} "
+                f"scans={int(self._reseed_scans)} "
+                f"empty={int(self._reseed_empty)} "
+                f"off={int(self._reseed_off)} "
+                f"budget_left={int(self._reseed_left)} "
+                f"policy_close_seen={int(self._policy_close_seen)} "
+                f"no_firable={int(self._no_firable)}"
+            )
         if report:
             self._say(
                 f"[rtc]   boundaries={report['rtc_boundaries']} "

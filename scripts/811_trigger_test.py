@@ -18,7 +18,7 @@ from fruit_sorting.policy.trigger import (  # noqa: E402
     should_fire,
     x_edge_refusal,
 )
-from fruit_sorting.rl_env import direct_fire  # noqa: E402
+from fruit_sorting.rl_env import direct_fire, no_firable_ready  # noqa: E402
 
 
 def main() -> int:
@@ -154,6 +154,50 @@ def main() -> int:
     check("neither path fires",
           not direct_fire(intercept=False, policy_close=False,
                           gate_refuse=None))
+
+    # P38 phase 2 (default off): the *provable* lateral refusal. `should_fire`
+    # marks `info["lateral_refuse"]` only on a tick that passes every other
+    # gate, and the fire decision is unchanged in either check order (the
+    # shipped path stays byte-identical). It is a *trigger* refusal: the
+    # learned close is a second fire path the lateral gate has never bound
+    # (`direct_fire` above), which is why the END needs `no_firable_ready`.
+    lat = TriggerSettings(mode="arrival", lead=1.0)
+    near = (0.340, 0.020, 1.184)          # 2 cm upstream, aligned, slow
+    fired, info = should_fire(lat, near, jaw, encoder_speed=-0.06)
+    check("lateral_refuse absent on a firable tick", "lateral_refuse" not in info)
+    off_lane = (0.500, 0.020, 1.184)      # dx = 0.167 > 0.16, otherwise firable
+    fired, info = should_fire(lat, off_lane, jaw, encoder_speed=-0.06)
+    check("lateral_refuse marks a would-fire tick", not fired
+          and abs(float(info.get("lateral_refuse", 0.0)) - 0.167) < 1e-9,
+          f"lateral_refuse={info.get('lateral_refuse')}")
+    check("the lateral refusal still reports the geometry",
+          info["dy"] > 0 and info["t_arrive"] >= 0.0)
+    # Far upstream: the tick is not a would-fire tick, so nothing is marked
+    # (the marker means "everything but the lateral gate passed").
+    fired, info = should_fire(lat, (0.500, 0.30, 1.184), jaw, encoder_speed=-0.06)
+    check("no lateral_refuse while still upstream", "lateral_refuse" not in info)
+    # Past the station: not a would-fire tick either.
+    fired, info = should_fire(lat, (0.500, -0.10, 1.184), jaw, encoder_speed=-0.06)
+    check("no lateral_refuse downstream of the station",
+          "lateral_refuse" not in info)
+    # Both refusals at once (only possible with x_max set): the x-edge key lands
+    # too and keeps the note precedence (PREREG_A1 A6).
+    both = TriggerSettings(mode="arrival", lead=1.0, x_max=0.39)
+    fired, info = should_fire(both, (0.500, 0.020, 1.184), jaw, encoder_speed=-0.06)
+    check("both refusals mark both keys", not fired
+          and info.get("x_refuse") == 0.500
+          and info.get("lateral_refuse") is not None)
+
+    # The END predicate: a latched provable refusal, no learned close seen, and
+    # the fruit past the station. Any other combination must not end.
+    check("END needs the latch", not no_firable_ready(
+        latched=False, policy_close_seen=False, dy=-0.10))
+    check("END needs the close to have never fired", not no_firable_ready(
+        latched=True, policy_close_seen=True, dy=-0.10))
+    check("END waits for the departure", not no_firable_ready(
+        latched=True, policy_close_seen=False, dy=-0.049))
+    check("END fires on a latched refusal at the departure", no_firable_ready(
+        latched=True, policy_close_seen=False, dy=-0.05))
 
     env = dict(os.environ)
     try:

@@ -465,6 +465,42 @@ implementation: the simulation cell, the data pipeline, and the policy training 
 > WORKLOG "P37 phase 2", `logs/p37/` (`PREREG.md`, `P1_RESULTS.md`,
 > `P2_RESULTS.md`, `B_ab/`); the checkpoint and store are gitignored.
 
+> **P38 (2026-10-25): the delivered-x drift tail and the lateral-refusal
+> harness - the class is named, the re-selection is structurally inert; default
+> off, not adopted.** Phase 1 measured the drift mechanism: over **475 full
+> transits in five configurations** the transport's lateral contribution is
+> **exactly 0.000 mm** (the belt/cleat/rolling hypothesis is falsified) and the
+> only stage that moves x is the release/settle, a **fixed per-instance offset**
+> (-35.9..+69.2 mm) - so delivered x = spawn x + offset, and the S3 class
+> (`timeout: no grasp within 1500 ticks` from a fruit below the arm's lateral
+> admission floor) is **2/3103 = 0.06 %** on the shipped interface (floors
+> 0.1730 right / 0.1800 left), too rare for any A/B at this project's N. Phase 2
+> therefore measured a **forced-refusal mechanism endpoint** with four
+> default-off, direct-only knobs: on the forced band (`TRIGGER_LATERAL=0`) the
+> `lateral refuse:` note is **15/15 in all three arms**, the named
+> `no firable fruit` class replaces the unnamed end at **562/510 ticks against
+> the control's 1335** (0 timeouts), and the re-selection is **structurally
+> inert** - **137 scans, 0 candidates in M1+M2**, because the direct harness
+> freezes the feeder inside an episode. On the shipped patch band the exposure
+> was **1 refusal in 150 (0.67 %)** and it landed in the **control** arm
+> (x = 0.157), so the lever executed nothing: right-arm placed
+> **A 20/51 vs C 25/58, delta +0.039 [-0.138, +0.220]** (PASS), cycle **-2.0 %**
+> (PASS), **P5 FAIL** on that single episode's notes - a 1-event comparison that
+> is **structurally a false-fail** (an arm-only key with a 0.5-1.2 event
+> expectation per 150 is necessarily arm-unique; the diagnostic's own key fires
+> it). The pre-registered rule reads **not adopted**: the **DIAG is recommended
+> as the direct loop's diagnostic** (owner sign-off), the **END** stays a
+> measurement interface whose closure is **measurably partial** - `PREREG_A1`
+> falsifier #1 **fired** on the forced band (1 of 3 closes latched at
+> `dy = -0.074 m`, 7.4 cm past the departure), so a flip needs a re-registered
+> definition or a post-departure grace window, plus the shipped-band readout in
+> the B-arm batch - and the RESEED waits for a live feeder. The scripted line is
+> unchanged (`accept.sh` **6/10 + `fingerprint: matches`** in both arms,
+> **376/376 `[fruit]` lines identical**; `accept_policy.sh` was not run - the
+> knobs raise on any presentation but `direct`). Evidence: `AGENTS.md` §2 (the
+> P38 paragraphs), WORKLOG "P38 phase 1/2", `logs/p38/` (`P1_RESULTS.md`,
+> `PREREG.md`, `PREREG_A1.md`, `P2_RESULTS.md`, `P2`/`P3`/`G2`/`M4`).
+
 > **汇报入口**：[项目总结报告.md](项目总结报告.md)（单一文档，含图表与日志编号）；路线取舍见 [决策与交付.md](决策与交付.md)；**项目收尾一页纸见 [docs/CLOSEOUT.md](docs/CLOSEOUT.md)**（R11-C：交付状态 / 全部杠杆族的实测裁定 / 剩余项）；一键演示 `scripts/demo_2min.sh`。
 
 > **Contributing?** [AGENTS.md](AGENTS.md) lists the three commands to run before

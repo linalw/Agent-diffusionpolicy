@@ -1,0 +1,42 @@
+# P38 phase 2 M1+M2 batch header (2026-10-25 13:25:22)
+# M1 band 0.13-0.17 SEED=5 arms A/B/C; M2 band 0.13-0.36 seeds 5/101/202 arms A/C
+# scenario: FRUIT_POLICY_TRIGGER=arrival FRUIT_POLICY_TRIGGER_LEAD=0.9 FRUIT_POLICY_TRIGGER_ACQ=1 FRUIT_DYNAMIC_PICK=1 FRUIT_RESET_ALIGN_DIAG=1 HEADLESS=1 FRUIT_CAMERA_RES=240,424 FRUIT_NO_ATTACH=1 FRUIT_NO_SLEEP=1 FRUIT_SIZE_FILTER= FRUIT_SUPPLY_SCATTER=1 FRUIT_POLICY_SEED=11
+# arms: A='FRUIT_POLICY_REFUSE_DIAG=1' B='FRUIT_POLICY_REFUSE_DIAG=1 FRUIT_POLICY_REFUSE_END=1' C='FRUIT_POLICY_REFUSE_DIAG=1 FRUIT_POLICY_REFUSE_END=1 FRUIT_POLICY_RESEED=1 FRUIT_POLICY_RESEED_MAX=2'
+61da390a85fa209496b54477a8255d23  checkpoints/moe_v13s/policy_best.pt
+dd65eb4841c92db9793c5229d8064714  scripts/225_p38_batch.sh
+b5d05ea3b2e39cdc94da6147ec5ed2d8  scripts/110_rl_rollout.py
+f25f6b614623096631395eadab3df692  src/fruit_sorting/rl_env.py
+b09d3cb2389a9f4884a748dbb3461b24  src/fruit_sorting/policy/trigger.py
+cdde6bd20670331ffbe8deb5d4f60b13  src/fruit_sorting/tasks.py
+6f65e4230b3424fe772bdeae0d2f356a  src/fruit_sorting/fruits.py
+25ade92bc0bd79b614131b4815934a4c  configs/motion_reference.json
+dd53d151b5d08529291f72e7289ac4e7ab244294
+[p38batch] M1_A (seed 5) exit=0 13:34:29
+  [rl] rollout success 0/15
+       15 lateral refuse: 
+[p38batch] M1_B (seed 5) exit=0 13:39:52
+  [rl] rollout success 3/15
+       15 lateral refuse:      10 no firable fruit 
+[p38batch] M1_C (seed 5) exit=0 13:45:17
+  [rl] rollout success 3/15
+       15 lateral refuse:       9 no firable fruit      12 reseed: no firable candidate in  
+[p38batch] M2_A_1 (seed 5) exit=0 13:52:50
+  [rl] rollout success 6/15
+        7 lateral refuse: 
+[p38batch] M2_C_1 (seed 5) exit=0 13:58:14
+  [rl] rollout success 3/15
+        8 lateral refuse:       8 no firable fruit       8 reseed: no firable candidate in  
+[p38batch] M2_A_2 (seed 101) exit=0 14:06:50
+  [rl] rollout success 1/15
+       11 lateral refuse: 
+[p38batch] M2_C_2 (seed 101) exit=0 14:12:23
+  [rl] rollout success 3/15
+        7 lateral refuse:       6 no firable fruit       7 reseed: no firable candidate in  
+[p38batch] M2_A_3 (seed 202) exit=0 14:20:45
+  [rl] rollout success 2/15
+       10 lateral refuse: 
+[p38batch] M2_C_3 (seed 202) exit=0 14:26:49
+  [rl] rollout success 3/15
+        6 lateral refuse:       5 no firable fruit       5 reseed: no firable candidate in  
+scripts/225_p38_batch.sh: 行 135: 寻找匹配的 `"' 时遇到了未预期的 EOF
+scripts/225_p38_batch.sh: 行 136: 语法错误：未预期的文件结束符

@@ -301,7 +301,13 @@ def should_fire(
     finds the fruit beyond the band edge returns `False` with
     ``info["x_refuse"]`` holding the fruit's x (the R2.3 reach-cliff guard,
     via the shared `x_edge_refusal` predicate the env's policy-gate path
-    consults too - R7-A/WS-4.6).
+    consults too - R7-A/WS-4.6). A tick that passes every other gate but fails
+    the lateral one returns `False` with ``info["lateral_refuse"]`` holding
+    `dx` (P38 phase 2: the *provable* refusal the direct env's refuse knobs
+    consume; the lateral gate has never bound the learned close path, so the
+    env treats this as a *trigger* refusal only - `PREREG_A1.md` A1). The
+    lateral key is marked before the x-edge one; with `x_max` set and both
+    failing, `x_refuse` also lands and keeps the note precedence.
     """
     fruit = np.asarray(fruit, dtype=float)
     jaw = np.asarray(jaw, dtype=float)
@@ -324,8 +330,6 @@ def should_fire(
     }
     if not settings.enabled:
         return False, info
-    if abs(dx) > settings.lateral:
-        return False, info
     if dy > reach or dy < -0.05:
         return False, info
     if speed <= 1e-3:
@@ -339,6 +343,20 @@ def should_fire(
     if settings.mode == "assist":
         if finger is None or float(finger) >= settings.finger:
             return False, info
+    lateral_refused = abs(dx) > settings.lateral
+    if lateral_refused:
+        # P38 phase 2 (default off, the refuse knobs): the *provable* lateral
+        # refusal. Marked only on a tick that passes every other gate, so the
+        # env can tell "too far across the belt" from "not in the window yet".
+        # The fire decision is unchanged in either order (the shipped path is
+        # byte-identical) and only `info` gains a key the env reads when
+        # `FRUIT_POLICY_REFUSE_DIAG`/`_END`/`_RESEED` is on. `x` is frozen once
+        # the fruit is on the belt and the reference is the station
+        # (`FRAME=station`), so this refusal is permanent for the candidate
+        # (`logs/p38/P1_RESULTS.md` section 2, `PREREG_A1.md` A1). The x-edge
+        # guard below still runs, so `FRUIT_POLICY_TRIGGER_X_MAX`'s own note
+        # keeps its precedence when both would refuse (PREREG_A1 A6).
+        info["lateral_refuse"] = dx
     refuse_x = x_edge_refusal(settings, fruit)
     if refuse_x is not None:
         # R2.3 reach-cliff guard (default off): the fruit would fire now, but it
@@ -350,5 +368,7 @@ def should_fire(
         # predicate also binds the env's policy-gate fire path, so this
         # refusal is not bypassable.
         info["x_refuse"] = refuse_x
+        return False, info
+    if lateral_refused:
         return False, info
     return True, info
