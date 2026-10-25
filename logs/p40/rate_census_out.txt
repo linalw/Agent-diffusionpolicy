@@ -1,0 +1,236 @@
+
+## two-line, P39 control  (`logs/p39/p3/twoline_C.log`)
+* `[stats]`: 10 attempts, 6 successes, 90.2 s span, 9.0 s/attempt
+* `[biarm]`: 10 attempts, 6 successes, 90.2 s span, 9.0 s/attempt, 3.99 placed/min
+
+#### two-line, P39 control - `[cycle]` decomposition (all n=10, placed n=6, not placed n=4; max |cycle total - sim span| = 0.05 s)
+
+| phase | all (s) | share | placed only (s) | not placed (s) |
+| --- | --- | --- | --- | --- |
+| prepose | 0.71 | 0.71 | 0.71 | 4.8 % |
+| hover | 0.78 | 0.77 | 0.80 | 5.2 % |
+| wait | 0.62 | 0.62 | 0.62 | 4.2 % |
+| descent | 2.81 | 2.56 | 3.17 | 18.8 % |
+| close | 1.37 | 1.20 | 1.62 | 9.2 % |
+| grip | 3.39 | 2.02 | 5.44 | 22.7 % |
+| lift | 1.71 | 1.54 | 1.95 | 11.4 % |
+| place | 2.79 | 2.79 |  -  | 18.7 % |
+| release | 2.39 | 2.39 |  -  | 16.0 % |
+| return | 0.64 | 0.64 |  -  | 4.3 % |
+| end | 0.05 | 0.00 | 0.13 | 0.3 % |
+| **total** | **14.92** | **15.24** | **14.45** | 100 % |
+
+#### two-line, P39 control - inside the `descent` segment
+
+| sub-block | source row | sim s | of the segment |
+| --- | --- | --- | --- |
+| arrival wait | `fruit at pick point ... after N steps` | 1.93 | 56 % |
+| handover wait | `dynamic descent: waited N ticks` | 0.62 | 18 % |
+| approach motion | `approach(cartesian) N samples` | 0.74 | 22 % |
+| track/axis/settle | remainder | 0.13 | 4 % |
+| **segment total** | `[cycle] descent=` | **3.43** | 100 % |
+
+#### two-line, P39 control - retention
+
+* attempts **10**, placed **6** (60 %), cnp **0**, no-grasp **4**
+* sim span **90.2 s** (1.50 min; the 10 attempt spans sum to 149.3 s because both arms run concurrently) -> **3.99 placed/min**
+* retention-free ceiling (every attempt converts in the same span): **6.65 placed/min** (+2.66)
+* sim seconds on attempts that placed nothing: **57.8 s** (38.7 % of the per-arm attempt time)
+* no-grasp: n=4, mean **14.4 s**, 57.8 s total
+
+#### two-line, P39 control - per arm
+
+| arm | attempts | placed | cnp | no-grasp | mean span s |
+| --- | --- | --- | --- | --- | --- |
+| left | 5 | 3 | 0 | 2 | 14.6 |
+| right | 5 | 3 | 0 | 2 | 15.3 |
+
+## two-line, P32 bed A0  (`logs/p32/A0_bed_twoline_1.log`)
+* `[stats]`: 20 attempts, 12 successes, 171.8 s span, 8.6 s/attempt
+* `[biarm]`: 20 attempts, 12 successes, 171.8 s span, 8.6 s/attempt, 4.19 placed/min
+
+#### two-line, P32 bed A0 - `[cycle]` decomposition (all n=20, placed n=12, not placed n=8; max |cycle total - sim span| = 0.05 s)
+
+| phase | all (s) | share | placed only (s) | not placed (s) |
+| --- | --- | --- | --- | --- |
+| prepose | 0.71 | 0.71 | 0.71 | 4.9 % |
+| hover | 0.79 | 0.77 | 0.82 | 5.5 % |
+| wait | 0.64 | 0.64 | 0.64 | 4.4 % |
+| descent | 2.41 | 2.30 | 2.56 | 16.6 % |
+| close | 1.29 | 1.22 | 1.41 | 8.9 % |
+| grip | 3.13 | 1.79 | 5.14 | 21.6 % |
+| lift | 1.96 | 1.69 | 2.36 | 13.5 % |
+| place | 2.94 | 2.94 |  -  | 20.3 % |
+| release | 2.36 | 2.36 |  -  | 16.3 % |
+| return | 0.66 | 0.66 |  -  | 4.5 % |
+| end | 0.02 | 0.00 | 0.04 | 0.1 % |
+| **total** | **14.51** | **15.07** | **13.68** | 100 % |
+
+#### two-line, P32 bed A0 - inside the `descent` segment
+
+| sub-block | source row | sim s | of the segment |
+| --- | --- | --- | --- |
+| arrival wait | `fruit at pick point ... after N steps` | 1.55 | 51 % |
+| handover wait | `dynamic descent: waited N ticks` | 0.64 | 21 % |
+| approach motion | `approach(cartesian) N samples` | 0.75 | 25 % |
+| track/axis/settle | remainder | 0.11 | 4 % |
+| **segment total** | `[cycle] descent=` | **3.04** | 100 % |
+
+#### two-line, P32 bed A0 - retention
+
+* attempts **20**, placed **12** (60 %), cnp **1**, no-grasp **7**
+* sim span **171.8 s** (2.86 min; the 20 attempt spans sum to 290.4 s because both arms run concurrently) -> **4.19 placed/min**
+* retention-free ceiling (every attempt converts in the same span): **6.98 placed/min** (+2.79)
+* sim seconds on attempts that placed nothing: **109.5 s** (37.7 % of the per-arm attempt time)
+* cnp: n=1, mean **10.9 s**, 10.9 s total
+* no-grasp: n=7, mean **14.1 s**, 98.6 s total
+
+#### two-line, P32 bed A0 - per arm
+
+| arm | attempts | placed | cnp | no-grasp | mean span s |
+| --- | --- | --- | --- | --- | --- |
+| left | 10 | 6 | 0 | 4 | 14.7 |
+| right | 10 | 6 | 1 | 3 | 14.4 |
+
+## two-line, W7-A dense  (`logs/w7/10_dense_twoline_1.log`)
+* `[stats]`: 10 attempts, 7 successes, 91.3 s span, 9.1 s/attempt
+* `[biarm]`: 10 attempts, 7 successes, 91.3 s span, 9.1 s/attempt, 4.60 placed/min
+
+#### two-line, W7-A dense - `[cycle]` decomposition (all n=10, placed n=7, not placed n=3; max |cycle total - sim span| = 0.03 s)
+
+| phase | all (s) | share | placed only (s) | not placed (s) |
+| --- | --- | --- | --- | --- |
+| prepose | 0.71 | 0.71 | 0.71 | 5.1 % |
+| hover | 0.77 | 0.75 | 0.82 | 5.5 % |
+| wait | 0.60 | 0.60 | 0.60 | 4.3 % |
+| descent | 2.46 | 2.80 | 1.67 | 17.6 % |
+| close | 1.21 | 1.21 | 1.20 | 8.7 % |
+| grip | 1.89 | 1.77 | 2.19 | 13.6 % |
+| lift | 1.75 | 1.77 | 1.71 | 12.5 % |
+| place | 2.80 | 2.64 | 3.95 | 20.1 % |
+| release | 2.25 | 2.34 | 1.63 | 16.1 % |
+| return | 0.63 | 0.65 | 0.50 | 4.5 % |
+| end | 0.03 | 0.00 | 0.11 | 0.2 % |
+| **total** | **13.96** | **15.22** | **11.04** | 100 % |
+
+#### two-line, W7-A dense - inside the `descent` segment
+
+| sub-block | source row | sim s | of the segment |
+| --- | --- | --- | --- |
+| arrival wait | `fruit at pick point ... after N steps` | 1.57 | 51 % |
+| handover wait | `dynamic descent: waited N ticks` | 0.60 | 20 % |
+| approach motion | `approach(cartesian) N samples` | 0.74 | 24 % |
+| track/axis/settle | remainder | 0.14 | 5 % |
+| **segment total** | `[cycle] descent=` | **3.06** | 100 % |
+
+#### two-line, W7-A dense - retention
+
+* attempts **10**, placed **7** (70 %), cnp **1**, no-grasp **2**
+* sim span **91.3 s** (1.52 min; the 10 attempt spans sum to 139.6 s because both arms run concurrently) -> **4.60 placed/min**
+* retention-free ceiling (every attempt converts in the same span): **6.57 placed/min** (+1.97)
+* sim seconds on attempts that placed nothing: **33.1 s** (23.7 % of the per-arm attempt time)
+* cnp: n=1, mean **15.5 s**, 15.5 s total
+* no-grasp: n=2, mean **8.8 s**, 17.6 s total
+
+#### two-line, W7-A dense - per arm
+
+| arm | attempts | placed | cnp | no-grasp | mean span s |
+| --- | --- | --- | --- | --- | --- |
+| left | 5 | 2 | 1 | 2 | 12.7 |
+| right | 5 | 5 | 0 | 0 | 15.2 |
+
+## single arm, P39 acceptance C  (`logs/p39/p3/accept_C.log`)
+* `[stats]`: 10 attempts, 6 successes, 150.2 s span, 15.0 s/attempt
+
+#### single arm, P39 acceptance C - derived (10 attempts, no `[cycle]` marks)
+
+| phase | source row | sim s (mean) | share |
+| --- | --- | --- | --- |
+| prepose | `[task] at pick pose after X s` | 0.88 | 5.9 % |
+| wait | `[task] dynamic descent: waited N ticks` | 0.64 | 4.3 % |
+| descent | `[motion] approach(cartesian) N samples` | 0.75 | 5.0 % |
+| close ramp | `[task] dynamic close: N ticks` | 0.19 | 1.3 % |
+| lift | `[motion] carry grasp_lift N ticks` | 1.44 | 9.6 % |
+| place | `[motion] carry placeN N ticks` | 2.46 | 16.4 % |
+| release | `[task] place low: N ticks` | 0.68 | 4.5 % |
+| **unattributed** | span - the rows above (hover/settle/release-fall/return) | **7.97** | 53.1 % |
+| **total** | `[run] ... sim=X s` | **15.01** | 100 % |
+
+#### single arm, P39 acceptance C - retention
+
+* attempts **10**, placed **6** (60 %), cnp **3**, no-grasp **1**
+* sim span **150.2 s** (2.50 min) -> **2.40 placed/min**
+* retention-free ceiling (every attempt converts in the same span): **3.99 placed/min** (+1.60)
+* sim seconds on attempts that placed nothing: **58.8 s** (39.2 % of the per-arm attempt time)
+* cnp: n=3, mean **14.9 s**, 44.7 s total
+* no-grasp: n=1, mean **14.1 s**, 14.1 s total
+
+## single arm, P39 pear battery C  (`logs/p39/p3/pear_C.log`)
+* `[stats]`: 9 attempts, 6 successes, 137.0 s span, 15.2 s/attempt
+
+#### single arm, P39 pear battery C - derived (9 attempts, no `[cycle]` marks)
+
+| phase | source row | sim s (mean) | share |
+| --- | --- | --- | --- |
+| prepose | `[task] at pick pose after X s` | 0.88 | 5.8 % |
+| wait | `[task] dynamic descent: waited N ticks` | 0.58 | 3.8 % |
+| descent | `[motion] approach(cartesian) N samples` | 0.74 | 4.9 % |
+| close ramp | `[task] dynamic close: N ticks` | 0.17 | 1.1 % |
+| lift | `[motion] carry grasp_lift N ticks` | 1.37 | 9.0 % |
+| place | `[motion] carry placeN N ticks` | 2.44 | 16.0 % |
+| release | `[task] place low: N ticks` | 0.67 | 4.4 % |
+| **unattributed** | span - the rows above (hover/settle/release-fall/return) | **8.40** | 55.1 % |
+| **total** | `[run] ... sim=X s` | **15.24** | 100 % |
+
+#### single arm, P39 pear battery C - retention
+
+* attempts **9**, placed **6** (67 %), cnp **3**, no-grasp **0**
+* sim span **137.0 s** (2.28 min) -> **2.63 placed/min**
+* retention-free ceiling (every attempt converts in the same span): **3.94 placed/min** (+1.31)
+* sim seconds on attempts that placed nothing: **44.7 s** (32.6 % of the per-arm attempt time)
+* cnp: n=3, mean **14.9 s**, 44.7 s total
+
+## single arm, Gate-19 reference  (`logs/g/20_rate_single_1.log`)
+* `[stats]`: 10 attempts, 9 successes, 158.1 s span, 15.8 s/attempt
+
+#### single arm, Gate-19 reference - inside the `descent` segment
+
+| sub-block | source row | sim s | of the segment |
+| --- | --- | --- | --- |
+| arrival wait | `fruit at pick point ... after N steps` | 2.00 | 58 % |
+| handover wait | `dynamic descent: waited N ticks` | 0.54 | 16 % |
+| approach motion | `approach(cartesian) N samples` | 0.73 | 21 % |
+| track/axis/settle | remainder | 0.18 | 5 % |
+| **segment total** | `[cycle] descent=` | **3.46** | 100 % |
+
+#### single arm, Gate-19 reference - retention
+
+  *(per-attempt spans from `[stats] 15.8 s/attempt`: 10 of 10 rows carry no `sim=` field on this tree)*
+* attempts **10**, placed **9** (90 %), cnp **0**, no-grasp **1**
+* sim span **158.1 s** (2.63 min) -> **3.42 placed/min**
+* retention-free ceiling (every attempt converts in the same span): **3.80 placed/min** (+0.38)
+* sim seconds on attempts that placed nothing: **15.8 s** (10.0 % of the per-arm attempt time)
+* no-grasp: n=1, mean **15.8 s**, 15.8 s total
+
+## single arm, pre-Gate-19 reference  (`logs/biarm/rate_single_1.log`)
+* `[stats]`: 10 attempts, 8 successes, 184.2 s span, 18.4 s/attempt
+
+#### single arm, pre-Gate-19 reference - inside the `descent` segment
+
+| sub-block | source row | sim s | of the segment |
+| --- | --- | --- | --- |
+| arrival wait | `fruit at pick point ... after N steps` | 2.00 | 58 % |
+| handover wait | `dynamic descent: waited N ticks` | 0.54 | 16 % |
+| approach motion | `approach(cartesian) N samples` | 0.73 | 21 % |
+| track/axis/settle | remainder | 0.18 | 5 % |
+| **segment total** | `[cycle] descent=` | **3.46** | 100 % |
+
+#### single arm, pre-Gate-19 reference - retention
+
+  *(per-attempt spans from `[stats] 18.4 s/attempt`: 10 of 10 rows carry no `sim=` field on this tree)*
+* attempts **10**, placed **8** (80 %), cnp **1**, no-grasp **1**
+* sim span **184.2 s** (3.07 min) -> **2.61 placed/min**
+* retention-free ceiling (every attempt converts in the same span): **3.26 placed/min** (+0.65)
+* sim seconds on attempts that placed nothing: **36.8 s** (20.0 % of the per-arm attempt time)
+* cnp: n=1, mean **18.4 s**, 18.4 s total
+* no-grasp: n=1, mean **18.4 s**, 18.4 s total

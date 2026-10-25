@@ -1,0 +1,80 @@
+== logs/p39/p3/twoline_C.log
+   percentiles are nearest-order statistics (p90 = sorted[int(0.9*n)], not interpolated)
+   slot arm    fruit      grade lane      t0      t1   span grasp place  notes
+      0 right  peach      B     1       13.4    28.3   14.9 False False  fruit did not follow the gripper
+      1 left   kiwi       A     0       16.4    31.5   15.1 False False  fruit did not follow the gripper
+      2 right  pear       B     1       31.0    46.2   15.2 True  True   -
+      3 left   peach      A     0       35.9    52.1   16.2 True  True   -
+      4 right  peach      B     1       50.4    65.7   15.3 True  True   -
+      5 left   kiwi       A     0       54.9    67.3   12.4 True  True   -
+      6 right  strawberry B     1       68.4    83.3   14.9 False False  fruit did not follow the gripper
+      7 left   peach      A     0       71.6    88.0   16.4 True  True   -
+      8 right  kiwi       B     1       86.7   102.5   15.8 True  True   -
+      9 left   orange     A     0       90.7   103.6   12.9 False False  fruit did not follow the gripper
+   attempts=10 placements=6 failures=4 window=yes
+   inter-placement intervals (t1 of consecutive placements):
+     left  : n=2 mean 17.95s p50 17.95s p90 20.70s min 15.20s max 20.70s
+     right : n=2 mean 28.15s p50 28.15s p90 36.80s min 19.50s max 36.80s
+     pooled : n=5 mean 11.26s p50 13.60s p90 20.70s min 1.60s max 20.70s (attributed to the later arm: left 3, right 2)
+   lock-on latency (previous attempt end -> this attempt's station acquired):
+     left  : n=4 mean 3.55s p50 3.55s p90 4.40s min 2.70s max 4.40s (retries per interval: [3, 0, 3, 0])
+     right : n=4 mean 3.25s p50 3.05s p90 4.20s min 2.70s max 4.20s (retries per interval: [0, 0, 0, 1])
+     left  : pre-first-attempt acquisition 3.0s after the batch's first attempt started, 6 starved slot(s) before it (batch-start priming)
+     right : pre-first-attempt acquisition 0.0s after the batch's first attempt started, 0 starved slot(s) before it (batch-start priming)
+   interval decomposition ([cycle] marks; mean s per matched attempt):
+     arm      n prepose   hover descent   close    grip    lift   place release  return     end   tail    span
+     left     5    0.71    0.76    3.01    1.51    3.26    1.77    1.77    1.43    0.37    0.03  -0.02   14.60
+     right    5    0.71    0.81    3.85    1.23    3.52    1.64    1.58    1.43    0.40    0.07  -0.01   15.22
+     pooled  10    0.71    0.78    3.43    1.37    3.39    1.71    1.67    1.43    0.39    0.05  -0.01   14.91
+   placement-interval decomposition (interval = idle + attempts inside):
+     left  : n=2 mean 17.9s = idle 3.5s (20%) + attempts 14.4s
+            per interval: prepose 0.7 hover 0.8 descent 2.7 close 1.2 grip 1.8 lift 1.6 place 2.6 release 2.4 return 0.6 end 0.0 tail -0.0 (attempts decomposed 2/2)
+     right : n=2 mean 28.1s = idle 5.2s (18%) + attempts 23.0s
+            per interval: prepose 1.1 hover 1.2 descent 5.9 close 1.8 grip 5.2 lift 2.4 place 2.3 release 2.4 return 0.7 end 0.1 tail 0.0 (attempts decomposed 3/3)
+   per-arm spans:
+     left  : span 87.2s, idle 14.2s (16%), 3/5 placed, 2.06 placed/min arm
+     right : span 89.1s, idle 13.0s (15%), 3/5 placed, 2.02 placed/min arm
+   throughput (batch span 90.2s): 6/10 placed = 3.99 placed/min; placement window 56.3s -> 5.33 placed/min steady state
+   run summary line: 6/10 placed, 90.2s span, 9.0s/attempt, 3.99 placed/min; per arm left=3/5 right=3/5
+   starved slots: left 12, right 1 (attributed to a lock-on interval or the batch-start prime: left 12, right 1; trailing before the batch end: left 0, right 0)
+
+== logs/p40/p4/twoline_flip.log
+   percentiles are nearest-order statistics (p90 = sorted[int(0.9*n)], not interpolated)
+   slot arm    fruit      grade lane      t0      t1   span grasp place  notes
+      0 right  peach      B     1       13.4    26.6   13.2 False False  fruit did not follow the gripper
+      1 left   kiwi       A     0       16.4    30.2   13.8 False False  fruit did not follow the gripper
+      2 right  pear       B     1       29.2    46.0   16.8 True  True   -
+      3 left   peach      A     0       34.4    51.0   16.6 True  True   -
+      4 right  peach      B     1       49.2    60.2   11.0 True  False  -
+      5 left   kiwi       A     0       53.7    66.5   12.8 True  True   -
+      6 right  pear       B     1       62.9    76.0   13.1 True  True   -
+      7 left   peach      A     0       69.3    84.3   15.0 True  True   -
+      8 right  kiwi       B     1       84.5   100.3   15.8 True  True   -
+      9 left   kiwi       A     0       87.1   101.6   14.5 True  True   -
+   attempts=10 placements=7 failures=3 window=yes
+   inter-placement intervals (t1 of consecutive placements):
+     left  : n=3 mean 16.87s p50 17.30s p90 17.80s min 15.50s max 17.80s
+     right : n=2 mean 27.15s p50 27.15s p90 30.00s min 24.30s max 30.00s
+     pooled : n=6 mean 9.27s p50 8.90s p90 16.00s min 1.30s max 16.00s (attributed to the later arm: left 4, right 2)
+   lock-on latency (previous attempt end -> this attempt's station acquired):
+     left  : n=4 mean 3.12s p50 2.80s p90 4.20s min 2.70s max 4.20s (retries per interval: [3, 0, 0, 0])
+     right : n=4 mean 4.25s p50 2.95s p90 8.50s min 2.60s max 8.50s (retries per interval: [0, 0, 0, 4])
+     left  : pre-first-attempt acquisition 3.0s after the batch's first attempt started, 6 starved slot(s) before it (batch-start priming)
+     right : pre-first-attempt acquisition 0.0s after the batch's first attempt started, 0 starved slot(s) before it (batch-start priming)
+   interval decomposition ([cycle] marks; mean s per matched attempt):
+     arm      n prepose   hover descent   close    grip    lift   place release  return     end   tail    span
+     left     5    0.71    0.73    2.73    1.50    2.24    1.71    2.48    1.89    0.50    0.03   0.01   14.54
+     right    5    0.71    0.77    3.34    1.23    2.54    1.66    1.91    1.41    0.37    0.03   0.01   13.98
+     pooled  10    0.71    0.75    3.04    1.37    2.39    1.69    2.19    1.65    0.44    0.03   0.01   14.26
+   placement-interval decomposition (interval = idle + attempts inside):
+     left  : n=3 mean 16.9s = idle 2.8s (16%) + attempts 14.1s
+            per interval: prepose 0.7 hover 0.7 descent 2.2 close 1.2 grip 1.8 lift 1.7 place 2.8 release 2.4 return 0.6 end 0.0 tail -0.0 (attempts decomposed 3/3)
+     right : n=2 mean 27.1s = idle 7.2s (27%) + attempts 19.9s
+            per interval: prepose 1.1 hover 1.1 descent 5.6 close 1.8 grip 3.8 lift 2.7 place 2.3 release 1.2 return 0.3 end 0.1 tail -0.0 (attempts decomposed 3/3)
+   per-arm spans:
+     left  : span 85.2s, idle 12.5s (15%), 4/5 placed, 2.82 placed/min arm
+     right : span 86.9s, idle 17.0s (20%), 3/5 placed, 2.07 placed/min arm
+   throughput (batch span 88.2s): 7/10 placed = 4.76 placed/min; placement window 55.6s -> 6.47 placed/min steady state
+   run summary line: 7/10 placed, 88.2s span, 8.8s/attempt, 4.76 placed/min; per arm left=4/5 right=3/5
+   starved slots: left 9, right 4 (attributed to a lock-on interval or the batch-start prime: left 9, right 4; trailing before the batch end: left 0, right 0)
+

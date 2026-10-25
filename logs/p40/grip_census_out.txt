@@ -1,0 +1,229 @@
+# P40 grip census - the rows
+
+## the shipped acceptance (P39 C)  (`logs/p39/p3/accept_C.log`)
+* `per-attempt force`: **10** per-attempt `force=`/`N=` values: min 0.00 / p25 4.43 / med 4.46 / p75 4.50 / max 21.25  (n=10) N
+  * at or below 5 N: 80 %; > 10 N: 10 %; 0 N (no contact): 10 %
+* `carry`: **10** carry-phase `force servo` rows (one per grip)
+  * carried force band low/high: F_min min 0.00 / p25 0.00 / med 3.60 / p75 4.01 / max 4.24  (n=10) N; F_max min 4.57 / p25 4.90 / med 10.92 / p75 24.57 / max 110.22  (n=10) N
+  * servo reference `ref` (median of the grip's first 48 samples, capped at 4.0 N): min 1.89 / p25 4.00 / med 4.00 / p75 4.00 / max 4.00  (n=10) N
+  * `sep - gap` (the joint-model separation minus the command, what R6-B read as 'interference'): min 0.00 / p25 0.00 / med 10.40 / p75 11.80 / max 15.20  (n=10) mm
+  * servo trips per grip: min 0.00 / p25 0.00 / med 4.00 / p75 44.00 / max 58.00  (n=10) (5 of 10 grips never tripped)
+* close freeze: **10** rows; force at the freeze min 3.79 / p25 4.12 / med 4.21 / p75 4.47 / max 6.00  (n=10) N; min 17.00 / p25 20.25 / med 22.50 / p75 25.75 / max 31.00  (n=10) ticks after the close start
+  * `span` at the freeze min 42.60 / p25 54.10 / med 71.30 / p75 74.75 / max 80.70  (n=10) mm, frozen command min 32.30 / p25 44.00 / med 62.85 / p75 65.80 / max 73.40  (n=10) mm, **span - command min 5.70 / p25 8.67 / med 9.25 / p75 10.18 / max 11.50  (n=10) mm**
+* `the shipped acceptance (P39 C)`: friction-cone usage of the carry legs (`|a+g| / (mu_eff g)`, model `mu_eff` = 1.2)
+
+| leg | n | median | max | legs over 1.0 | at `mu_eff` 0.45 the same leg is |
+| --- | --- | --- | --- | --- | --- |
+| grasp_lift | 10 | 0.93 | 1.27 | 1 | 2.5x the cone |
+| place0 | 4 | 0.86 | 1.03 | 1 | 2.3x the cone |
+| place1 | 5 | 0.87 | 1.22 | 2 | 2.3x the cone |
+* `the shipped acceptance (P39 C)`: grip force by outcome
+
+| outcome | n | median N | p25 | p75 |
+| --- | --- | --- | --- | --- |
+| placed | 6 | 4.46 | 4.46 | 5.96 |
+| carried-not-placed | 3 | 4.45 | 4.43 | 4.48 |
+| no grasp (no contact) | 1 | 0.00 | 0.00 | 0.00 |
+* no `[acq]` rows in this log (needs `FRUIT_ACQ_DIAG=1`)
+
+## the pear battery (P39 C)  (`logs/p39/p3/pear_C.log`)
+* `per-attempt force`: **9** per-attempt `force=`/`N=` values: min 4.25 / p25 4.42 / med 4.43 / p75 4.48 / max 4.53  (n=9) N
+  * at or below 5 N: 100 %; > 10 N: 0 %; 0 N (no contact): 0 %
+* `carry`: **9** carry-phase `force servo` rows (one per grip)
+  * carried force band low/high: F_min min 0.00 / p25 0.00 / med 3.67 / p75 3.94 / max 4.20  (n=9) N; F_max min 4.56 / p25 4.62 / med 4.98 / p75 5.55 / max 19.84  (n=9) N
+  * servo reference `ref` (median of the grip's first 48 samples, capped at 4.0 N): min 4.00 / p25 4.00 / med 4.00 / p75 4.00 / max 4.00  (n=9) N
+  * `sep - gap` (the joint-model separation minus the command, what R6-B read as 'interference'): min 0.00 / p25 0.00 / med 10.70 / p75 11.80 / max 11.90  (n=9) mm
+  * servo trips per grip: min 0.00 / p25 0.00 / med 0.00 / p75 38.00 / max 50.00  (n=9) (6 of 9 grips never tripped)
+* close freeze: **9** rows; force at the freeze min 4.05 / p25 4.26 / med 4.51 / p75 4.62 / max 4.88  (n=9) N; min 17.00 / p25 18.00 / med 20.00 / p75 21.00 / max 27.00  (n=9) ticks after the close start
+  * `span` at the freeze min 68.00 / p25 68.70 / med 74.10 / p75 74.90 / max 76.70  (n=9) mm, frozen command min 56.30 / p25 61.30 / med 62.30 / p75 64.30 / max 70.70  (n=9) mm, **span - command min 6.00 / p25 7.10 / med 9.00 / p75 11.10 / max 12.60  (n=9) mm**
+* `the pear battery (P39 C)`: friction-cone usage of the carry legs (`|a+g| / (mu_eff g)`, model `mu_eff` = 1.2)
+
+| leg | n | median | max | legs over 1.0 | at `mu_eff` 0.45 the same leg is |
+| --- | --- | --- | --- | --- | --- |
+| grasp_lift | 9 | 0.91 | 1.03 | 1 | 2.4x the cone |
+| place0 | 4 | 0.87 | 0.87 | 0 | 2.3x the cone |
+| place1 | 5 | 0.93 | 1.19 | 1 | 2.5x the cone |
+* `the pear battery (P39 C)`: grip force by outcome
+
+| outcome | n | median N | p25 | p75 |
+| --- | --- | --- | --- | --- |
+| placed | 6 | 4.44 | 4.42 | 4.47 |
+| carried-not-placed | 3 | 4.28 | 4.27 | 4.41 |
+* no `[acq]` rows in this log (needs `FRUIT_ACQ_DIAG=1`)
+
+## the two-line control (P39)  (`logs/p39/p3/twoline_C.log`)
+* `per-attempt force`: **10** per-attempt `force=`/`N=` values: min 0.00 / p25 3.63 / med 4.21 / p75 4.40 / max 15.70  (n=10) N
+  * at or below 5 N: 90 %; > 10 N: 10 %; 0 N (no contact): 20 %
+* `carry`: **9** carry-phase `force servo` rows (one per grip)
+  * carried force band low/high: F_min min 0.00 / p25 0.00 / med 0.88 / p75 3.98 / max 4.31  (n=9) N; F_max min 0.00 / p25 4.44 / med 4.47 / p75 4.57 / max 118.68  (n=9) N
+  * servo reference `ref` (median of the grip's first 48 samples, capped at 4.0 N): min 0.00 / p25 0.00 / med 4.00 / p75 4.00 / max 4.00  (n=9) N
+  * `sep - gap` (the joint-model separation minus the command, what R6-B read as 'interference'): min 0.00 / p25 0.00 / med 8.20 / p75 9.20 / max 13.90  (n=9) mm
+  * servo trips per grip: min 0.00 / p25 0.00 / med 5.00 / p75 38.00 / max 54.00  (n=9) (4 of 9 grips never tripped)
+* close freeze: **9** rows; force at the freeze min 3.56 / p25 3.93 / med 4.35 / p75 4.48 / max 4.98  (n=9) N; min 20.00 / p25 24.00 / med 24.00 / p75 27.00 / max 29.00  (n=9) ticks after the close start
+  * `span` at the freeze min 41.00 / p25 70.70 / med 71.70 / p75 74.50 / max 75.40  (n=9) mm, frozen command min 38.00 / p25 60.80 / med 62.40 / p75 66.30 / max 71.00  (n=9) mm, **span - command min 3.00 / p25 5.00 / med 5.80 / p75 9.20 / max 14.00  (n=9) mm**
+* `the two-line control (P39)`: friction-cone usage of the carry legs (`|a+g| / (mu_eff g)`, model `mu_eff` = 1.2)
+
+| leg | n | median | max | legs over 1.0 | at `mu_eff` 0.45 the same leg is |
+| --- | --- | --- | --- | --- | --- |
+| grasp_lift | 10 | 1.01 | 3.21 | 5 | 2.7x the cone |
+| place0 | 3 | 0.90 | 1.78 | 1 | 2.4x the cone |
+| place1 | 3 | 1.05 | 1.15 | 2 | 2.8x the cone |
+* `the two-line control (P39)`: grip force by outcome
+
+| outcome | n | median N | p25 | p75 |
+| --- | --- | --- | --- | --- |
+| placed | 6 | 4.27 | 4.18 | 4.40 |
+| no grasp (no contact) | 4 | 1.99 | 0.00 | 6.91 |
+* no `[acq]` rows in this log (needs `FRUIT_ACQ_DIAG=1`)
+
+## the bed battery (P32 A0)  (`logs/p32/A0_bed_twoline_1.log`)
+* `per-attempt force`: **20** per-attempt `force=`/`N=` values: min 0.00 / p25 2.22 / med 4.43 / p75 4.56 / max 14.66  (n=20) N
+  * at or below 5 N: 85 %; > 10 N: 10 %; 0 N (no contact): 15 %
+* `carry`: **16** carry-phase `force servo` rows (one per grip)
+  * carried force band low/high: F_min min 0.00 / p25 0.00 / med 2.04 / p75 3.71 / max 4.37  (n=16) N; F_max min 0.00 / p25 3.92 / med 5.30 / p75 33.74 / max 121.68  (n=16) N
+  * servo reference `ref` (median of the grip's first 48 samples, capped at 4.0 N): min 0.00 / p25 2.39 / med 4.00 / p75 4.00 / max 4.00  (n=16) N
+  * `sep - gap` (the joint-model separation minus the command, what R6-B read as 'interference'): min 0.00 / p25 0.30 / med 10.90 / p75 12.53 / max 25.00  (n=16) mm
+  * servo trips per grip: min 0.00 / p25 0.00 / med 18.00 / p75 42.00 / max 74.00  (n=16) (8 of 16 grips never tripped)
+* close freeze: **19** rows; force at the freeze min 3.73 / p25 4.27 / med 4.40 / p75 4.56 / max 5.31  (n=19) N; min 16.00 / p25 19.50 / med 22.00 / p75 22.50 / max 27.00  (n=19) ticks after the close start
+  * `span` at the freeze min 44.00 / p25 70.70 / med 73.80 / p75 79.20 / max 82.10  (n=19) mm, frozen command min 34.00 / p25 62.30 / med 66.20 / p75 69.05 / max 74.00  (n=19) mm, **span - command min 5.20 / p25 7.00 / med 9.50 / p75 11.30 / max 12.90  (n=19) mm**
+* `the bed battery (P32 A0)`: friction-cone usage of the carry legs (`|a+g| / (mu_eff g)`, model `mu_eff` = 1.2)
+
+| leg | n | median | max | legs over 1.0 | at `mu_eff` 0.45 the same leg is |
+| --- | --- | --- | --- | --- | --- |
+| grasp_lift | 20 | 0.95 | 5.81 | 7 | 2.5x the cone |
+| place0 | 6 | 0.86 | 1.25 | 1 | 2.3x the cone |
+| place1 | 6 | 1.24 | 1.90 | 3 | 3.3x the cone |
+* `the bed battery (P32 A0)`: grip force by outcome
+
+| outcome | n | median N | p25 | p75 |
+| --- | --- | --- | --- | --- |
+| placed | 12 | 4.45 | 3.85 | 4.51 |
+| carried-not-placed | 1 | 3.89 | 3.89 | 3.89 |
+| no grasp (no contact) | 7 | 4.04 | 0.00 | 9.78 |
+* no `[acq]` rows in this log (needs `FRUIT_ACQ_DIAG=1`)
+
+## a current diagnostic acceptance  (`logs/p8/55_accept_control_diag.log`)
+* `per-attempt force`: **10** per-attempt `force=`/`N=` values: min 4.04 / p25 4.42 / med 4.46 / p75 4.51 / max 5.01  (n=10) N
+  * at or below 5 N: 90 %; > 10 N: 0 %; 0 N (no contact): 0 %
+* `carry`: **10** carry-phase `force servo` rows (one per grip)
+  * carried force band low/high: F_min min 0.00 / p25 2.65 / med 3.59 / p75 3.94 / max 4.23  (n=10) N; F_max min 4.28 / p25 4.55 / med 4.88 / p75 5.62 / max 14.92  (n=10) N
+  * servo reference `ref` (median of the grip's first 48 samples, capped at 4.0 N): min 3.39 / p25 4.00 / med 4.00 / p75 4.00 / max 4.00  (n=10) N
+  * `sep - gap` (the joint-model separation minus the command, what R6-B read as 'interference'): min 0.00 / p25 7.72 / med 11.25 / p75 14.05 / max 16.00  (n=10) mm
+  * servo trips per grip: min 0.00 / p25 0.00 / med 0.00 / p75 0.00 / max 38.00  (n=10) (9 of 10 grips never tripped)
+* close freeze: **10** rows; force at the freeze min 3.68 / p25 4.18 / med 4.28 / p75 4.38 / max 4.77  (n=10) N; min 16.00 / p25 17.50 / med 20.50 / p75 23.75 / max 31.00  (n=10) ticks after the close start
+  * `span` at the freeze min 41.20 / p25 68.38 / med 77.85 / p75 80.47 / max 80.90  (n=10) mm, frozen command min 27.90 / p25 59.60 / med 68.10 / p75 71.75 / max 72.70  (n=10) mm, **span - command min 5.60 / p25 7.47 / med 8.60 / p75 9.93 / max 15.20  (n=10) mm**
+* `a current diagnostic acceptance`: friction-cone usage of the carry legs (`|a+g| / (mu_eff g)`, model `mu_eff` = 1.2)
+
+| leg | n | median | max | legs over 1.0 | at `mu_eff` 0.45 the same leg is |
+| --- | --- | --- | --- | --- | --- |
+| grasp_lift | 10 | 0.92 | 1.16 | 1 | 2.5x the cone |
+| place0 | 3 | 0.86 | 1.06 | 1 | 2.3x the cone |
+| place1 | 7 | 0.92 | 1.19 | 3 | 2.5x the cone |
+* `a current diagnostic acceptance`: grip force by outcome
+
+| outcome | n | median N | p25 | p75 |
+| --- | --- | --- | --- | --- |
+| placed | 9 | 4.46 | 4.43 | 4.52 |
+| carried-not-placed | 1 | 4.26 | 4.26 | 4.26 |
+* no `[acq]` rows in this log (needs `FRUIT_ACQ_DIAG=1`)
+
+## the achieved-vs-commanded jaw separation (`[acq]` corpus)
+
+### the WS-4.2 N=5 A/B, A arms
+* `the WS-4.2 N=5 A/B, A arms`: **75** `[acq]` rows, **64** of them with a frozen close (`freeze=Dmm@Nt`) and a measured span
+  * measured span at the close end: min 22.90 / p25 67.20 / med 73.80 / p75 76.90 / max 81.50  (n=64) mm
+  * frozen commanded gap: min 22.90 / p25 60.12 / med 66.10 / p75 70.67 / max 76.10  (n=64) mm
+  * **achieved - commanded** (`span_closed - freeze_depth`): min 0.00 / p25 5.50 / med 6.80 / p75 8.52 / max 14.20  (n=64) mm (98 % of rows are > 1 mm wide)
+  * contact-detection force: min 0.06 / p25 1.21 / med 2.13 / p75 3.75 / max 10.34  (n=64) N
+  * close `Fmax`: min 2.29 / p25 5.09 / med 5.71 / p75 7.30 / max 21.50  (n=64) N
+
+### the WS-4.2 N=5 A/B, B arms
+* `the WS-4.2 N=5 A/B, B arms`: **75** `[acq]` rows, **71** of them with a frozen close (`freeze=Dmm@Nt`) and a measured span
+  * measured span at the close end: min 35.90 / p25 65.00 / med 71.10 / p75 76.50 / max 83.10  (n=71) mm
+  * frozen commanded gap: min 34.40 / p25 64.35 / med 70.90 / p75 74.85 / max 88.90  (n=71) mm
+  * **achieved - commanded** (`span_closed - freeze_depth`): min -49.80 / p25 1.50 / med 1.60 / p75 2.10 / max 15.70  (n=71) mm (99 % of rows are > 1 mm wide)
+  * contact-detection force: min 0.01 / p25 0.38 / med 0.82 / p75 1.76 / max 135.41  (n=70) N
+  * close `Fmax`: min 5.00 / p25 9.72 / med 10.06 / p75 10.35 / max 183.42  (n=71) N
+
+### the R7-A edge-band probes
+* `the R7-A edge-band probes`: **48** `[acq]` rows, **40** of them with a frozen close (`freeze=Dmm@Nt`) and a measured span
+  * measured span at the close end: min 24.00 / p25 68.55 / med 73.40 / p75 77.72 / max 78.90  (n=40) mm
+  * frozen commanded gap: min 22.20 / p25 61.88 / med 67.35 / p75 70.03 / max 72.60  (n=40) mm
+  * **achieved - commanded** (`span_closed - freeze_depth`): min -25.30 / p25 5.97 / med 7.00 / p75 7.68 / max 13.10  (n=40) mm (92 % of rows are > 1 mm wide)
+  * contact-detection force: min 0.10 / p25 1.50 / med 2.16 / p75 3.71 / max 18.89  (n=40) N
+  * close `Fmax`: min 3.25 / p25 5.02 / med 5.99 / p75 6.91 / max 24.15  (n=40) N
+
+## pooled over every log in the tree
+* `per-attempt force (all logs)`: **12619** per-attempt `force=`/`N=` values: min 0.00 / p25 3.08 / med 4.41 / p75 4.52 / max 612.77  (n=12619) N
+  * at or below 5 N: 84 %; > 10 N: 12 %; 0 N (no contact): 20 %
+* `carry (all logs)`: **9253** carry-phase `force servo` rows (one per grip)
+  * carried force band low/high: F_min min 0.00 / p25 0.00 / med 3.44 / p75 4.00 / max 86.85  (n=9253) N; F_max min 0.00 / p25 4.55 / med 5.03 / p75 12.04 / max 1450.74  (n=9253) N
+  * servo reference `ref` (median of the grip's first 48 samples, capped at 4.0 N): min 0.00 / p25 4.00 / med 4.00 / p75 4.00 / max 14.20  (n=9253) N
+  * `sep - gap` (the joint-model separation minus the command, what R6-B read as 'interference'): min -65.00 / p25 0.00 / med 9.60 / p75 12.70 / max 68.10  (n=9253) mm
+  * servo trips per grip: min 0.00 / p25 0.00 / med 0.00 / p75 38.00 / max 238.00  (n=9253) (5196 of 9253 grips never tripped)
+
+* `all logs`: **2749** `[carry]` rows, 1789 of them `grasp_lift`
+  * `clean_slip_max` on the lift leg, **all** lift legs: min 5.20 / p25 267.90 / med 303.80 / p75 795.40 / max 591612.90  (n=1789) mm - **the live row is not a retention verdict on the lift leg** (see the note below)
+  * of the 1789 lift legs, 1317 crossed the 2 mm line *with contact* (the W8-B escape population) and 472 crossed it with no contact at all (never-held class)
+  * force at onset, escapes with contact: min 0.01 / p25 4.76 / med 5.83 / p75 8.70 / max 1105.87  (n=1317) N (W8-B's `logs/w8/B_RESULTS.md` reads median 4.90 N on its 31)
+  * **single-sided contact at onset**: 1125/1317 of them; two-sided 192/1317
+  * achieved - commanded at the leg start (`sep@onset - gap_start`): min -62.00 / p25 10.50 / med 13.70 / p75 16.82 / max 72.30  (n=1212) mm
+
+* `all logs`: friction-cone usage of the carry legs (`|a+g| / (mu_eff g)`, model `mu_eff` = 1.2)
+
+| leg | n | median | max | legs over 1.0 | at `mu_eff` 0.45 the same leg is |
+| --- | --- | --- | --- | --- | --- |
+| bin0_above | 461 | 0.84 | 49.78 | 92 | 2.2x the cone |
+| bin0_inside | 461 | 0.95 | 81.76 | 77 | 2.5x the cone |
+| bin1_above | 862 | 0.84 | 58.45 | 101 | 2.2x the cone |
+| bin1_inside | 862 | 0.95 | 52.01 | 97 | 2.5x the cone |
+| grasp_lift | 12030 | 0.90 | 1627.74 | 2396 | 2.4x the cone |
+| place0 | 3305 | 0.86 | 9.16 | 295 | 2.3x the cone |
+| place1 | 5179 | 0.92 | 10.50 | 2209 | 2.5x the cone |
+
+* `all logs`: grip force by outcome
+
+| outcome | n | median N | p25 | p75 |
+| --- | --- | --- | --- | --- |
+| placed | 8407 | 4.43 | 4.04 | 4.51 |
+| carried-not-placed | 1921 | 4.36 | 3.95 | 4.51 |
+| no grasp (no contact) | 2291 | 3.71 | 0.00 | 4.55 |
+
+## The slip-margin arithmetic
+
+Required tangential force `|F_t| = m |a + g|`, with the mass from `fruits.py:977` (`rho * 4/3 pi r^3 * 0.82`) at each class's mid diameter:
+
+| class | d (mm) | m (g) | m g (N) | +1.0 m/s^2 (N) | +5.83 m/s^2 (N) |
+| --- | --- | --- | --- | --- | --- |
+| strawberry | 37.5 | 15.8 | 0.16 | 0.17 | 0.25 |
+| lychee | 33.0 | 13.1 | 0.13 | 0.14 | 0.21 |
+| kiwi | 59.0 | 79.4 | 0.78 | 0.86 | 1.24 |
+| tomato | 59.0 | 68.8 | 0.67 | 0.74 | 1.08 |
+| apple | 66.0 | 104.9 | 1.03 | 1.13 | 1.64 |
+| orange | 65.0 | 106.1 | 1.04 | 1.15 | 1.66 |
+| peach | 64.0 | 92.3 | 0.91 | 1.00 | 1.44 |
+| pear | 64.0 | 99.0 | 0.97 | 1.07 | 1.55 |
+
+The heaviest class is **orange** at 106 g (65 mm), so the worst-case demand is **1.04 N** static and **1.66 N** at the largest single-tick acceleration the carry legs report (`|a|max` 5.83 m/s^2, `logs/p39/p3/accept_C.log`; the *commanded* profile caps are `FRUIT_DYNAMIC_LIFT_AMAX`=1.0 and `FRUIT_DYNAMIC_PLACE_AMAX`=1.089, `tasks.py:2913/2939`)
+
+Capacity at the measured `N = 4.4 N` (`mu_eff * N`, `mu_eff` = the friction the pad-fruit pair actually combines to):
+
+| `mu_eff` | where it comes from | capacity (N) | margin vs 1.04 N | margin vs 1.66 N |
+| --- | --- | --- | --- | --- |
+| 0.45 | `min` combine x the lowest fruit mu (`meshes.py` pear/apple 0.45) | 1.98 | 1.9x | 1.2x |
+| 1.05 | `min` combine x the highest fruit mu (kiwi 1.05) | 4.62 | 4.4x | 2.8x |
+| 1.20 | `FRUIT_MU_SAFETY` 0.6 x `FRUIT_FINGER_MU` 2.0 (the carry profile's own model) | 5.28 | 5.1x | 3.2x |
+| 1.49 | `average` combine, (2.0 + 0.97)/2 | 6.56 | 6.3x | 4.0x |
+| 2.00 | `max` combine | 8.80 | 8.5x | 5.3x |
+
+**Normal force for a target margin** (at the 1.66 N transient demand):
+
+| `mu_eff` | N for 2x (N) | N for 5x (N) | inside the 10 N/joint cap? |
+| --- | --- | --- | --- |
+| 0.45 | 7.4 | 18.4 | 2x only |
+| 1.05 | 3.2 | 7.9 | both |
+| 1.20 | 2.8 | 6.9 | both |
+| 1.49 | 2.2 | 5.6 | both |
+| 2.00 | 1.7 | 4.1 | both |
+
+The measured `N` is **4.4 N**, i.e. 44% of one joint's 10 N cap (`drive:linear:physics:maxForce = 10`, `assets/openarm_flat/openarm_flat_deinst.usda:3802`) - **the shipped pinch does not reach the actuator's limit**: its force is set by where the close's freeze stops, not by the drive cap (see GRIP_CENSUS.md section 2).

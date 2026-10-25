@@ -1,0 +1,52 @@
+190: two-line gate: reference=configs/motion_reference_twoline.json floor=0.60
+logs/p40/p3/regrasp2_twoline.log: 10 descent leg(s), line=dynamic
+   #   dist samples  |v|max  budget   |a|max   |dv|  a_med  peak@  a_win5  verdict
+   1   5.6c      89   0.109   0.161     1.96  0.016   0.23   0.02    0.76  ok
+   2   5.7c      89   0.107   0.160     1.46  0.012   0.26   0.01    0.54  ok
+   3   5.6c      88   0.109   0.161     2.01  0.017   0.23   0.02    0.79  ok
+   4   5.8c      91   0.110   0.161     1.24  0.010   0.24   0.02    0.39  ok
+   5   5.6c      88   0.108   0.161     2.10  0.018   0.23   0.02    0.84  ok
+   6   5.6c      89   0.107   0.161     1.62  0.014   0.23   0.01    0.61  ok
+   7   5.6c      87   0.109   0.161     2.14  0.018   0.23   0.01    0.82  ok
+   8   5.6c      88   0.109   0.161     2.02  0.017   0.24   0.02    0.72  ok
+   9   5.6c      88   0.108   0.161     2.11  0.018   0.23   0.02    0.84  ok
+  10   5.6c      88   0.109   0.161     1.99  0.017   0.22   0.02    0.71  ok
+  worst: |v|max=0.1100 m/s (budget 0.160-0.161), lurch=0.018 m/s/tick (budget 0.291477), a_win5=0.840 m/s^2 (carrying budget 2, warning)
+
+logs/p40/p3/regrasp2_twoline.log: 18 carry leg(s)
+  leg              dist    cone  over    slip in-hand |v| recov  verdict
+  grasp_lift        19c   1.27x    3%  321.6mm      2.133     0  ok (cone 1.27x reported)
+  grasp_lift        22c   2.28x   70% 112160.2mm  13272.784     0  ok (cone 2.28x reported) (hand 1.11 m/s: rescued)
+  grasp_lift         7c   0.88x    0%   11.4mm      0.047     0  ok
+  place1            42c   1.21x    9%   79.9mm      0.155     0  ok (cone 1.21x reported)
+  grasp_lift        21c   0.88x    0%   23.6mm      0.043     0  ok
+  place0            60c   0.94x    0%   90.8mm      0.109     0  ok
+  grasp_lift        23c   0.90x    0%   20.0mm      0.049     0  ok
+  place1            31c   3.29x   18%   50.8mm      0.672     0  ok (cone 3.29x reported) (hand 0.48 m/s: rescued)
+  grasp_lift        14c   1.46x   17%   65.9mm      0.191     0  ok (cone 1.46x reported) (hand 0.68 m/s: rescued)
+  place0            11c   1.79x   31%   93.5mm      0.205     0  ok (cone 1.79x reported) (hand 0.79 m/s: rescued)
+  grasp_lift        20c   0.93x    0%   17.8mm      0.037     0  ok
+  place1            27c   0.91x    0%   71.6mm      0.178     0  ok
+  grasp_lift        21c   0.88x    0%   24.1mm      0.039     0  ok
+  place0            54c   0.86x    0%   77.9mm      0.057     0  ok
+  grasp_lift        22c   0.91x    0%   41.6mm      0.076     0  ok
+  grasp_lift        21c   0.88x    0%   24.0mm      0.040     0  ok
+  place1            30c   0.89x    0%   60.2mm      0.166     0  ok
+  place0            54c   0.86x    0%   79.2mm      0.061     0  ok
+  worst held-grip cone: 3.29x budget (budget 1x)
+  hand speed: worst 1.112 m/s; 4/18 leg(s) over 0.45 m/s (reported, not gated) - every other leg sits at the commanded 0.176-0.371
+
+  success: 7/10 = 70% (floor 60% - override)
+  fingerprint: DIFFERS from configs/motion_reference_twoline.json - this run landed in a different attractor, so do not compare its success count with the reference log's
+    leg 3: this=[88, 0.109] reference=[86, 0.11]
+    leg 4: this=[91, 0.11] reference=[89, 0.108]
+    leg 5: this=[88, 0.108] reference=[89, 0.109]
+    leg 7: this=[87, 0.109] reference=[89, 0.11]
+    leg 8: this=[88, 0.109] reference=[91, 0.11]
+    leg 9: this=[88, 0.108] reference=[87, 0.11]
+    leg 10: this=[88, 0.109] reference=[93, 0.111]
+
+FAIL: 1 problem(s)
+  - fingerprint differs from the reference (different attractor)
+190: FAIL logs/p40/p3/regrasp2_twoline.log
+190: at least one log failed
