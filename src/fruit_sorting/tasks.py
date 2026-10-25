@@ -52,6 +52,23 @@ PAD_LIFT = float(os.environ.get("FRUIT_PAD_LIFT", "0.010"))
 #: `_step_sim(1)`, and every trajectory is generated against this rate.
 CONTROL_DT = 1.0 / 120.0
 
+#: P39: the physical fingertip's distance below the jaw centre along the tool
+#: axis, as **geometry**: the shipped collider *is* the finger's visual mesh
+#: (a convex hull, `_add_finger_colliders`), and the build print reads its distal
+#: plane at `logs/p39/p2/c2`'s "shipped tip **80.5 mm**" (the
+#: `_finger_face_frame` `tip_coord`). The `logs/166` probe's **76.8 mm** is a
+#: **contact stop**, not the plane: the jaw was driven until the collider hit the
+#: belt, so the plate's tip sits ~3.7 mm short by penetration + rest offset
+#: (`logs/p39/PREREG.md` A2.3). Using the stop as geometry under-estimates the
+#: lip by `3.7 * cos(tilt)` = 2.6-3.2 mm at the measured 31-45 deg tilt; the
+#: ordering across arms survives, the magnitude does not. The scripted aim's own
+#: model is shorter still (`FRUIT_FINGER_LEN` 60 mm + `PAD_LIFT`), which is why
+#: the achieved lip has to be measured rather than inferred. This is a
+#: **reporting** constant for the default-off `[attitude]` line - never a control
+#: input. `FRUIT_FINGER_TIP_DELTA` shifts it by the same amount, since the scene
+#: authors the plate's distal plane at `tip_coord + delta`.
+FINGER_TIP_BELOW_JAW = 0.0805
+
 
 def _quat_matrix(q) -> np.ndarray:
     """Rotation matrix from a (w, x, y, z) quaternion."""
@@ -2708,6 +2725,71 @@ class PickAndPlaceTask:
                     surface, where = rail, "output rail"
         return lowest - surface, where
 
+    def _carry_attitude(self, side: str, sample, name: str) -> None:
+        """One line of tool attitude and pad-fruit offset at a carry leg's end.
+
+        P39 mechanism readout, `FRUIT_CARRY_ATTITUDE=1`, **reporting only**: one
+        TCP-pose read per leg, no per-tick work and no control input, so it
+        cannot change an outcome (the caller reads the flag once per `_carry`).
+        The lip the hand actually achieved is not a property of the aim: the
+        plate's distal plane sits `L * cos(tilt)` below the jaw centre, where `L`
+        is the **geometry** (`FINGER_TIP_BELOW_JAW` 80.5 mm, the build print's
+        shipped distal plane) and the measured stops are 76.8 mm near-vertical
+        and 58.6 mm tilted (`logs/p39/P1_READ.md` §2.1, `02_finger_geometry.txt`
+        §5 - the tilted one is a *corner* stop, not the plane), so the number is
+        `lip = tip * cos(tilt) - dz` and only the two measured terms (`tilt`,
+        `dz`) are free of the model.
+
+        Stated frame: **world** (Z up, the frame `spawner.position`,
+        `pad_centre` and the aim all use). `tilt` is the angle between the tool
+        axis and world -Z, where the tool axis is the TCP frame's column 2 -
+        `motion.py`'s convention: "column 2 [is] the direction the fingers
+        extend", `(0, 0, -1)` at a top-down grasp. The axis is printed as its
+        three world components so the plate corner's **azimuth** relative to the
+        belt is derivable (the jaws close along world X, travel is along -Y).
+        `dz` is the vertical pad-centre-minus-fruit-centre offset (the achieved
+        standoff, positive when the pads are above the fruit's centre); a payload
+        that has left the grip shows up as an anomalous `dz`, which is why it is
+        reported raw alongside the derived lip. Both candidate corner drops are
+        printed too (`16.65 mm` = half the plate's 33.3 mm closing-direction
+        thickness, `30.5 mm` = half its 61.0 mm along-belt width): at a tilt a
+        corner, not the distal face, is the lowest point, and at the measured
+        31-45 deg the term is 8.7-21.6 mm - larger than the whole 4 mm `delta`
+        budget (`logs/p39/PREREG.md` A2.3/A2.4).
+        """
+        try:
+            _pos, quat = self.arms[side].tcp_pose()
+            rot = _quat_matrix(np.asarray(quat, dtype=float))
+            tool = rot[:, 2]
+            tilt_rad = math.acos(max(-1.0, min(1.0, -float(tool[2]))))
+            tilt = math.degrees(tilt_rad)
+            pads = np.asarray(self.grippers[side].pad_centre(), dtype=float)
+            fruit = np.asarray(self.spawner.position(sample), dtype=float)
+            dz = float(pads[2]) - float(fruit[2])
+            try:
+                delta = float(os.environ.get("FRUIT_FINGER_TIP_DELTA", "0.0") or 0.0)
+            except ValueError:
+                delta = 0.0
+            tip = FINGER_TIP_BELOW_JAW + delta
+            drop = tip * math.cos(tilt_rad)
+            lip = drop - dz
+            sin_tilt = math.sin(tilt_rad)
+            say(
+                f"[attitude] {side} {name}: tilt={tilt:.1f}deg from world -Z, "
+                f"tool_axis=({float(tool[0]):+.4f},{float(tool[1]):+.4f},"
+                f"{float(tool[2]):+.4f}) (TCP col 2, world; jaws close along X, "
+                f"travel along -Y), tip={tip * 1000:+.1f}mm "
+                f"(base {FINGER_TIP_BELOW_JAW * 1000:.1f} + delta "
+                f"{delta * 1000:+.1f}), pad_fruit_dz={dz * 1000:+.1f}mm "
+                f"(world +Z, + = pads above the fruit centre), "
+                f"lip={lip * 1000:+.1f}mm (vertical tip drop "
+                f"{drop * 1000:+.1f}mm at this tilt, minus dz), corner drop "
+                f"16.65*sin(tilt)={16.65 * sin_tilt:+.1f}mm / "
+                f"30.5*sin(tilt)={30.5 * sin_tilt:+.1f}mm"
+            )
+        except Exception as exc:  # noqa: BLE001 - a report must never fail a run
+            say(f"[attitude] {side} {name}: unavailable ({exc})")
+
     def _carry(self, side: str, sample, name: str, steps: int = 200) -> None:
         """Move the arm to a named pose with an attached fruit following the hand.
 
@@ -2720,6 +2802,10 @@ class PickAndPlaceTask:
 
         arm = self.arms[side]
         goal = self.jaw_target(side, name)
+        # P39 attitude readout (`FRUIT_CARRY_ATTITUDE=1`, default off): read once
+        # per leg and printed at the leg's end, on both exits of this method.
+        # Reporting only - with the knob unset nothing below runs.
+        attitude = os.environ.get("FRUIT_CARRY_ATTITUDE", "0") == "1"
         if name == "grasp_lift" and self._dynamic_capture_active:
             # A P2 moving catch ends with the payload still over the *running*
             # belt. Break that contact straight up: a diagonal lift drags the
@@ -3600,6 +3686,8 @@ class PickAndPlaceTask:
                     f"[task]   carry(gripper-led) {name}: pads={np.round(finish, 3).tolist()} "
                     f"fruit={np.round(self.spawner.position(sample), 3).tolist()}"
                 )
+            if attitude:
+                self._carry_attitude(side, sample, name)
             return
         offset = arm.tcp_position() - arm.jaw_centre()
         # Slower lateral motion while carrying: the grip survives a vertical lift
@@ -3661,6 +3749,8 @@ class PickAndPlaceTask:
                 f"goal={np.round(goal, 3).tolist()} "
                 f"err={float(np.linalg.norm(arm.jaw_centre() - goal)):.4f} m"
             )
+        if attitude:
+            self._carry_attitude(side, sample, name)
 
     # ------------------------------------------------------------------ #
     # Data collection

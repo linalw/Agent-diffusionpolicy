@@ -18335,3 +18335,177 @@ print added, `DIAG`-gated, no control read), `225` `eae2d89a`, `811` `00ebe772`.
   per-episode `_policy_best_gap`. `p2_report.py` gained `--g2` (the pair + the
   close rows) and `P2_report.txt` is regenerated with that section (the
   M1/M2/M3 sections are byte-identical).
+
+### P39: the finger tip lane closes negative — the left's composite does not move at -4 mm in any evaluable comparison (the pear primary is not evaluable, the acceptance is inadmissible for the arm and the matched-count null holds in one mode only), F1 is the tree's first bimodal arm, the `47` probe jams laterally so the belt-clearance claim is untested, the lane-0 "solved pre-pose" does not exist, and the two-line reference predated the P32 pear (re-recorded) — no adoption, both knobs default off (2026-10-25)
+
+Registered on `e061d94` before any asset edit (`logs/p39/PREREG.md` + A1 + A2;
+A3 is the post-run withdrawal). **Two levers, one arm set.** **L1**
+`FRUIT_FINGER_TIP_DELTA` (`scene.py`, signed, **presence-gated**: unset = the
+shipped mesh colliders byte-identically, `=0` re-authors each plate as a convex
+box of the same mesh (arm **S**), `=-0.004` shortens it (arm **F1**)). **L2** the
+lift-only wrist hold was **closed as a code fact before any run** (A1.1): the
+shipped `grasp_lift` already holds the commanded top-down attitude - `_carry`
+clears `arm.hold_quaternion` only for `name != "grasp_lift"` - so
+`FRUIT_CARRY_HOLD_QUAT=1` only swaps the hold *target*, and `logs/444`'s negative
+is the *place* leg; no W arm exists. Batch: one `154_claim_run.sh` claim per
+battery, arms **interleaved C -> S -> F1** - pear (primary), acceptance, `47`
+probe, mechanism (`FRUIT_CARRY_ATTITUDE=1`), two-line - plus five F1 determinism
+runs added after the first pair diverged. **Pins:** `scene.py` `988985ef`,
+`tasks.py` `112d2cb1`, `rl_env.py` `238e90a4` (the `TASKS_MD5` metadata-only
+follow), `configs/motion_reference.json` `25ade92b` untouched; the two-line
+reference moved `181c9151 -> d0326030` (this phase). Evidence `logs/p39/p3/`
+(`RESULT.md`, `P3_report.txt`, the logs), `p2/NOTES.md`, `selfcheck.log`.
+
+**F-6: the control is valid, and the batch reads.** C's pear battery is
+**345/345 physics lines identical** to `logs/p32/90_pear_battery_new.log` and its
+acceptance **374/374** to `logs/p32/D1_accept_pear.log` (only the two print-only
+`output belt` message rows differ); C's acceptance reads **6/10 +
+`fingerprint: matches`**. Pear battery (left placed/composite, right placed):
+C **1/3**, 5/5 (6/9, one starved slot); S **0/2**, 8/8 (8/10); F1 **1/3**, 6/6
+(7/10). Acceptance: C **6/10** left `1/3/1` (placed/cnp/no-grasp), right 5/5;
+S **8/9** left `5/1/0`; F1 **8/9** left `5/1/0` (one starved slot each). No new
+failure reason in any arm (the only note anywhere is C's own `fruit did not
+follow the gripper`); motion budgets pass in every arm (worst descent `|v|max`
+0.110-0.111 against 0.160-0.161, lurch 0.017-0.019 against 0.291).
+
+**The primary is not evaluable, and no arm improves.** A1.3's count invariance
+fails on the pear battery - the left takes **2** attempts in S and **4** in F1
+(they share attempts 0-5 and diverge at attempt 6: S a 6.1 cm pear, F1 a 7.0 cm
+one; the named mechanism is attempt 1's differing close leaving the escaped pear
+elsewhere on an absolute-schedule feed, **inferred** from the shared prefix) - so
+the census is a snapshot, and it reads **no arm improving** (C 1/3, S 0/2,
+F1 1/3). S is a control, not a verdict arm (A2.6).
+
+**The acceptance is inadmissible for the arm (the Oracle gate-3 correction).**
+C's left takes **5** attempts and S/F1 take **6**; the left's fruit diverge from
+the third left attempt (C `peach 6.5 / peach 6.9 / kiwi 5.6 / orange 6.4 / lychee
+3.0` vs S,F1 `peach 6.5 / peach 6.9 / kiwi 5.4 / tomato 6.6 / tomato 6.2 / ...` -
+S a second 5.4 cm kiwi, F1 an orange 6.4); and **inside S** the same 5.4 cm kiwi
+at the same read interference (grip-dia `+5.60` mm, close 22 ticks) **cnp's at
+attempt 3 and places at attempt 9**. The per-slot class is therefore not a stable
+function of the fruit, and the acceptance's 5/6 left is **not evidence for the
+arm** (AGENTS §2). The matched-count "no fall" statement (S 6 / F1 6, census
+`5/1/0` both) survives **only as F1's mode A**; mode B's left is `1/3` (composite
+3 against S's 1). The secondary band does **not** fall either (left carry legs
+> 0.34 m/s: pear S 4 -> F1 5, acceptance 3 -> 3), and there is no new failure
+reason.
+
+**F1 is bimodal, and that is the phase's structural finding.** Five
+same-configuration acceptance runs land in **two bit-identical modes** - **348
+filtered `[fruit]` lines, 8-of-9** (`accept_F1`, `f1_repeat2`) and **382,
+7-of-10** (`claim_f1_repeat`, `mech_F1`, `f1_repeat3`) - whose first-attempt
+pick-pose settle differs by **one tick** (0.88 vs 0.87 s; residual 0.0431 vs
+0.0432 m, i.e. the mode is *not* a monotone function of the residual). C (3
+same-config pairs: `accept_C` vs `mech_C`, vs `logs/p32/D1_accept_pear.log`, and
+`pear_C` vs `logs/p32/90...`) and S (1 pair) are **single-mode**, so the shipped
+line's per-configuration determinism is **not contradicted** - but one
+configuration is multi-modal run-to-run, **its numbers are one draw**, and
+**configuration vs harness is not separated** (the separators: more C/S repeats;
+a fixed-pose contact read). Two consequences are carried in the record:
+**F-1 is not adjudicable on F1** (a byte-identity falsifier cannot be run on an
+arm that is not self-identical, so the "contact-neutral" algebra is **untested**,
+not confirmed), and the pear-battery F1 row is one draw of a marginal arm.
+
+**The `47` probe jams, so the belt-clearance claim is untested (N5, via a
+different route than registered).** The probe is registered as a straight
+`-0.35 m` z descent that seats the distal plane on the belt; it instead
+**translates laterally** - jaw end `[0.210, -0.161, 1.229]` (C) /
+`[0.183, -0.179, 1.207]` (S) / `[0.176, -0.181, 1.208]` (F1) from
+`[0.341, 0.003, 1.262]`, i.e. **0.13-0.17 m in x** and **0.16-0.18 m in y** for
+**0.03-0.06 m of z** - and C ends in a different hand configuration (finger long
+axes along world X vs S/F1's Y). `47` prints **no tool axis**, so **N4 is not
+computable as registered**; the `+1.00 mm` F1-vs-S jaw-floor difference and
+N4b's `-22.0 mm` are configuration outcomes of two different jams, not
+distal-plane shifts. The re-author itself **is** proven by the **build print**
+(long `84.9 -> 80.9 mm`, distal `80.5 -> 76.5 mm` at `delta = -4 mm`). Two
+readings were **deleted** from the record on the gate's finding: the
+"`delta` footprint <= 1 mm in every geometry read" sentence (the 0.3 mm `dz`
+pair is a **pad-fruit contact height**, insensitive by construction to a shorter
+distal extent) and "the AABB bottoms are a second, independent read" (that bound
+is the union of the link's visual mesh and the authored box). The valid
+instrument, if the clearance bit is ever wanted, is a **static-pose read of the
+authored collider prims** (`S - F1` must differ by `4*cos(theta)`). **PREREG A3**
+therefore withdraws §6's "still adoptable as a hardware/clearance change": the
+claim is **untested, not measured-zero**, and F1 has no adoptable form on this
+evidence.
+
+**The lane-0 pre-pose lever does not exist (the phase-1 audit fact, which also
+corrects the P33 record).** `_prepare_two_line_stations` skips the arm whose
+station **is** the calibrated pick point, and the two-line's **left** station is
+exactly that (`y = 0.00 = cfg.pick_y`), so the left runs the shared `grasp` config
+and the same aim (the two-line catch lead is `0.0`). The "station-specific
+pre-pose" is true for the **right** station only: the two-line left differs by
+the **supply**, the **scheduler** and the adopted two-line carry monitor, not by
+a pose. `logs/p33/51_phase2_read.md` (§1.2's inline clause, §3.1's "only
+unmeasured bounded candidate", §4.1 (C)'s "solved pre-poses" and §4.1 (B)'s
+"a different pre-pose") now carries a
+**superseded-by** annotation pointing at `logs/p39/03_prepose_audit.txt`; the one
+surviving pose term on that candidate is the **wrist attitude** (the flattest
+posture is the 93.6 deg place solve), whose hold-all-legs form is measured
+negative (`logs/444`) and whose lift-only scope is spanned by L2's code-fact
+closure. Offline pins: `logs/p39/prepose_audit.py` `--assert`, 11/11 PASS.
+
+**The two-line reference predated the P32 pear, so it was archived and
+re-recorded.** `configs/motion_reference_twoline.json` `181c9151` is the W7-A
+record; on this tree the same scenario diverges at the **first** attempt
+(`[task] target peach` vs `target pear`, the P32 pear's per-instance RNG-draw
+change), so the 190 verdict was a **stale-reference** verdict for C as well and
+N3's byte-identity prediction is untestable as registered. Phase 4 archived the
+file byte-identically to `logs/p39/motion_reference_twoline_pre_p39.json` and
+re-recorded the shipped file from the same-batch control
+(`105_motion_regression.py logs/p39/p3/twoline_C.log --write-fingerprint ...`;
+the write is allowed - the only failure is 105's *single-arm* 75 % floor, a
+rate-only result): new md5 **d0326030**, fingerprints `[[89,0.109],[89,0.107],
+[86,0.11],[89,0.108],[89,0.109],[89,0.107],[89,0.11],[91,0.11],[87,0.11],
+[93,0.111]]`, and `scripts/190_twoline_gate.sh logs/p39/p3/twoline_C.log` reads
+**PASS** (6/10 at the 0.60 two-line floor, fingerprint matches). The two-line
+census in the same batch: C 6/10 (3/5 + 3/5), S 5/10 (3/5 + 2/5), F1 6/10
+(3/5 + 3/5); S/F1 do not match C's reference (S is also 5/10, below the floor) -
+expected, since a reference is one scenario's record and neither arm is adopted.
+Two consumers are **not** selfcheck legs but touch the file:
+`scripts/189_w7a_chain.sh` re-writes it from `logs/w7/10` before gating (so
+running it restores the W7-A record), and `scripts/195_r9_chain.sh` gates a fresh
+R9 two-line log against whatever the file holds. `README.md`, `docs/ROADMAP.md`,
+`决策与交付.md` and `项目总结报告.md` still quote `181c9151` - documentation debt,
+not changed in this phase.
+
+**The mechanism batch (`FRUIT_CARRY_ATTITUDE=1`) is run-neutral and reads the
+same signature in all three arms.** C `376/376` and S `347/347` filtered
+identical to their print-off acceptance runs, F1's print-on run equals its
+print-off mode-B repeat `382/382`; the left's lift legs sit at 25.6-31.6 deg and
+its cnp legs are already out of the grip at the leg's end (`dz` **+300..+1517
+mm**, the payload on the belt), the right's never (`dz` +40..+57 on the lift),
+and the corner-drop terms (`16.65*sin tilt` / `30.5*sin tilt`) are 7.3-13.2 /
+13.3-24.6 mm - larger than the whole 4 mm budget (A2.3/A2.4). The `lip` column
+carries the model (`tip = 80.5 + delta`, A2.3) and is **not comparable across S
+and F1 as measured**; `FINGER_TIP_BELOW_JAW` is the **80.5 mm geometry** from the
+build print, not the `logs/166` 76.8 mm **contact stop** (the difference is
+penetration + rest offset, ~3.7 mm, which under-estimated the lip by
+`3.7*cos(tilt)` = 2.6-3.2 mm).
+
+**Two registered deviations.** (1) **The pear primary is N = 1 per arm** -
+PREREG §3 asks N = 2, and no determinism pair exists for the pear battery, so its
+census is one draw on top of the count mismatch (the acceptance's second runs are
+the §6 pairs). (2) **The `47` probe deflected laterally** instead of descending -
+a probe failure, registered as such, which is why N4/N4b are reported as
+uncomputable rather than as a failed shift.
+
+**What was not run, and why.** F2 (`FRUIT_FINGER_TIP_DELTA=+0.004`, the extension
+the mechanism rewards) stays **withheld and owner-gated** - it is not the
+authorized form, and A1.7's scope holds: a -4 mm null is **not** evidence against
+the authorized P30-C hardware form, whose usable magnitude is 24-45 mm and which
+the sim cannot test (the pads are *placed*, not reached). The direct/policy
+interface is untouched (a finger change is a sim-only image artifact), no
+checkpoint or store was read, D3-proper and the C1 class-matched direct re-run
+are out of scope, and no closed lever was re-run.
+
+**No-harm (final tree).** `scripts/selfcheck.sh` **PASS, 0 failures, 1 skipped**
+(`logs/p39/selfcheck.log`; the skip is the log-dependent motion-budget leg), and
+`scripts/96_motion_check.py` passes ("all motion checks passed"). Every
+acceptance arm ran with `SKIP_SELFCHECK=1`, so this is the final tree's only
+selfcheck. Both new knobs are **default off**; with them unset the scripted line
+is byte-unchanged (C's own pairs above), and the only `configs/` change is the
+two-line reference's re-record, made from C - the unaffected control arm - so the
+single-arm reference `25ade92b` is untouched. Commit: the two source files +
+the `TASKS_MD5` pin + `configs/motion_reference_twoline.json` + its archive +
+`AGENTS.md` + `WORKLOG.md` + the P33 annotation + `logs/p39/`.

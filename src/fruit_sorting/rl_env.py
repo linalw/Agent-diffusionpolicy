@@ -288,7 +288,17 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: P32 phase D: the follow had gone stale again by the Phase-B/C tree
 #: (`ea271ccc` here vs the file's `9277fa64`), so the direct env refused to
 #: start; the pin now follows the shipped `tasks.py`. Metadata-only.
-TASKS_MD5 = "cdde6bd20670331ffbe8deb5d4f60b13"
+#:
+#: P39 phase 2: the follow for the default-off `FRUIT_CARRY_ATTITUDE` report
+#: (`[attitude]`, reporting only: one TCP-pose read per carry leg, no control
+#: input). `RL_TASKS_MD5` is a provenance guard, not a behaviour switch - the
+#: direct/policy path is untouched by the changes it names.
+#:
+#: P39 phase 2, amendment A2.3 (metadata-only follow): `FINGER_TIP_BELOW_JAW`
+#: corrected 76.8 -> 80.5 mm (the `[attitude]` `lip`/`tip=` reporting constant,
+#: geometry not a contact stop) and the line's axis/corner print added. Still
+#: reporting only.
+TASKS_MD5 = "112d2cb109d030c4b57cf99a6101d19c"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(

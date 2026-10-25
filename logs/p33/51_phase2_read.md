@@ -98,6 +98,15 @@ reads **0/10 carried-not-placed but 4/10 no-follow**, i.e. **6/10 placed with 0
 cnp**, against the single-arm bed's left **11/44 placed with 21 cnp** on the
 same bed supply (counts, not a rate comparison - two different configurations
 and two different branches). The class *moved* (cnp -> no-grasp) while the rate
+
+*[P39 annotation - **superseded by `logs/p39/03_prepose_audit.txt`**: the
+"station-specific pre-pose" phrase is true for the two-line's **right** station
+only. The left's station *is* the calibrated pick point (`y = 0.00 =
+cfg.pick_y`), so `_prepare_two_line_stations` **skips its solve** and the left
+runs the shared `grasp` config - the same arm, hand **and pre-pose** as the
+single-arm line (and the same catch aim, the two-line lead being `0.0`). Re-read
+"a different station / a different grasp configuration" here as "a different
+**supply and scheduler**".]*
 did not improve, and a cnp-only endpoint would have scored this as a win: quote
 it as a lead, not a fix. Its one carried-not-placed (right pear, lift +0.089 m)
 has a **10.9 s** span, the shortest of all 20 attempts (its placements run
@@ -291,6 +300,13 @@ R6-B's retuned guard (line 876).
   pre-registration, its own acceptance re-record and a no-harm proof** that the
   right lane and the two-line are byte-unchanged.
 
+  *[P39 annotation - **superseded by `logs/p39/03_prepose_audit.txt`**: the
+  station-specific pre-pose exists for the two-line's **right** station only.
+  The two-line's left station is the calibrated pick point, so its solve is
+  skipped and there is no solved left pre-pose to inherit; the only surviving
+  pose term on this candidate is the **wrist attitude** (`FRUIT_CARRY_HOLD_QUAT`,
+  measured negative when held through the place, `logs/444`).]*
+
 ---
 
 ## 4. Verdict
@@ -347,6 +363,14 @@ The lane-0 transfer configuration (§3.1): a lane-0-specific pre-pose/grasp
 configuration taken from the two-line's own solved pre-poses, plus - if an
 offline audit says it is the same term - the unmeasured wrist hold
 `FRUIT_CARRY_HOLD_QUAT`. Measured as a paired scripted battery + the acceptance.
+
+*[P39 annotation - **superseded by `logs/p39/03_prepose_audit.txt`**: "the
+two-line's own solved pre-poses" does not exist for the **left**. The two-line
+has a station-specific solve for its **right** station only; the left's station
+*is* the calibrated pick point, so the solve is skipped and the left already
+runs the shared `grasp` config with the same aim. The candidate therefore
+reduces to the **wrist attitude** (`FRUIT_CARRY_HOLD_QUAT`, and only its
+lift-leg scope is unmeasured).]*
 Its pre-registration must fix, before any asset is touched:
 
 * **primary endpoint = the left's *placed* count on the same scenario**
@@ -377,6 +401,13 @@ owner's sign-off. That burden is why it is second, not because its mechanism is
 weaker. **Any new option needs that pre-registration and its own re-recorded
 `configs/motion_reference.json`; the shipped reference is per-scenario and
 cannot certify a new branch.**
+
+*[P39 annotation - **superseded by `logs/p39/03_prepose_audit.txt`**: "a
+different pre-pose" above is true for the two-line's **right** station only. The
+left station is the calibrated pick point, so its station-specific solve is
+skipped and the left runs the **same** `grasp` config as the single arm - what
+differs is the supply, the scheduler and the adopted two-line carry monitor, not
+a pre-pose.]*
 
 **Do not** re-run the closed levers as if they were untested. The one named
 **open** item is the C1's **class-matched direct re-run** (`B_RESULTS` §5: the

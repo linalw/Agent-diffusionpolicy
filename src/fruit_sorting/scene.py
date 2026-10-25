@@ -17,6 +17,7 @@ available to the policy.
 
 from __future__ import annotations
 
+import math
 import os
 from dataclasses import dataclass, field
 
@@ -392,6 +393,49 @@ class SortingScene:
                 + (f", friction combine={combine}" if combine else "")
                 + " (friction combine override)"
             )
+        # P39 L1 (opt-in, **presence-gated**: unset = the shipped mesh colliders,
+        # byte-identical build): replace the four finger plates' collider with a
+        # convex box on the same face plane whose distal plane sits at
+        # `tip_coord + FRUIT_FINGER_TIP_DELTA`. The gate is presence, not value:
+        # `=0` re-authors the plate as an AABB of the shipped mesh (arm S, "box
+        # == mesh") so the mechanism can be separated from the geometry change;
+        # a negative value shortens the plate (F1), a positive one extends it.
+        # Must run after `_add_finger_colliders` (its verdict and
+        # `assert_finger_colliders` count the shipped meshes) and before the
+        # modes that author their own finger geometry, which it refuses to mix
+        # with. See `_author_finger_tip_delta`.
+        tip_delta_text = os.environ.get("FRUIT_FINGER_TIP_DELTA")
+        if tip_delta_text is not None:
+            if not (openarm_hand and finger_colliders):
+                # Nothing to replace: without the OpenArm hand's mesh colliders
+                # there is no plate surface, and the kinematic-pad hand brings
+                # its own contact bodies.
+                say(
+                    f"finger tip delta {tip_delta_text!r} ignored: needs "
+                    "FRUIT_GRIPPER_KIND=openarm and FRUIT_FINGER_COLLIDERS=1"
+                )
+            else:
+                try:
+                    tip_delta = float(tip_delta_text)
+                except ValueError:
+                    tip_delta = math.nan
+                # A typo must not silently run the shipped hand, which is
+                # what an ignored parse would do (Kit exits 0 on a raising
+                # script, see the finger-collider gate above). Two further
+                # values have to take the same FATAL path: a **non-finite**
+                # one (NaN compares False against the downstream
+                # `length < 0.005` guard, so `nan` would author an undefined
+                # plate) and an **absurd** one (`=1.0` would author a 1 m
+                # plate). The bound is a sanity envelope, not the lever's
+                # legal range - the physical bounds are in `logs/p39/02_
+                # finger_geometry.txt` §2 (`-4.2 / +7.2 mm` on the pool).
+                if not math.isfinite(tip_delta) or abs(tip_delta) > 0.05:
+                    say(
+                        f"FATAL: FRUIT_FINGER_TIP_DELTA={tip_delta_text!r} must be "
+                        "a finite tip delta in [-0.05, 0.05] m"
+                    )
+                    os._exit(1)
+                self._author_finger_tip_delta(tip_delta)
         # P3 contact faces: grooved/rounded pads on the robot's own fingers. The
         # shipped default is `flat` (no new geometry at all); `v`/`h`/`x`/`c`
         # author them during build, before play, so PhysX parses them as part of
@@ -720,6 +764,63 @@ class SortingScene:
             f"({shape}; depth={depth * 1000:.1f} mm, mu={mu}, recessed={recessed})"
         )
 
+    def _disable_finger_plate_colliders(self, link) -> tuple[int, list[str]]:
+        """Turn off the shipped *plate* colliders under one finger link (P39 L1).
+
+        `_disable_link_colliders` switches off **every** CollisionAPI prim under
+        a link, which is only correct when the link carries nothing but the
+        plate. The four OpenArm finger links do: `visuals/<link>_visual/mesh`
+        (the plate's render mesh, which `_add_finger_colliders` makes collidable)
+        and `collisions/<link>_collision/mesh` (the asset's convex-decomposition
+        collision proxy, whose extent equals the visual plate's), plus the
+        `contact_faces` subtree this class authors. The palm is **not** a
+        descendant of a finger link - it is a sibling link
+        (`/World/OpenArm/openarm_<side>_hand`) - so this walks the link and
+        disables only prims inside `visuals/` or `collisions/`, and returns the
+        paths of any CollisionAPI prim it found *outside* those subtrees
+        **still enabled**, for the caller to report instead of silently
+        widening the disable.
+
+        Returns `(disabled_count, kept_paths)`; the kept paths are CollisionAPI
+        prims outside the plate's own subtrees that were left **enabled**.
+        """
+        proxies = Usd.TraverseInstanceProxies(Usd.PrimAllPrimsPredicate)
+        prefix = link.GetPath().pathString
+        plate_roots = (
+            f"{prefix}/visuals",
+            f"{prefix}/collisions",
+            # Authored by `_author_flat_face`/`_add_contact_faces`; the caller
+            # authors or has authored the replacements there.
+            f"{prefix}/contact_faces",
+        )
+        disabled = 0
+        kept: list[str] = []
+        for prim in Usd.PrimRange(link, proxies):
+            if not prim.HasAPI(UsdPhysics.CollisionAPI):
+                continue
+            path = prim.GetPath().pathString
+            if not any(path == root or path.startswith(f"{root}/") for root in plate_roots):
+                kept.append(path)
+                continue
+            UsdPhysics.CollisionAPI(prim).GetCollisionEnabledAttr().Set(False)
+            disabled += 1
+        return disabled, kept
+
+    def _link_collider_counts(self, link) -> tuple[int, int]:
+        """`(CollisionAPI prims, enabled CollisionAPI prims)` under a link."""
+        proxies = Usd.TraverseInstanceProxies(Usd.PrimAllPrimsPredicate)
+        total = enabled = 0
+        for prim in Usd.PrimRange(link, proxies):
+            if not prim.HasAPI(UsdPhysics.CollisionAPI):
+                continue
+            total += 1
+            api = UsdPhysics.CollisionAPI(prim)
+            attr = api.GetCollisionEnabledAttr()
+            if attr.IsValid() and not bool(attr.Get()):
+                continue
+            enabled += 1
+        return total, enabled
+
     def _disable_link_colliders(self, link) -> int:
         """Turn off every shipped collider under a finger link (recessed faces).
 
@@ -892,6 +993,193 @@ class SortingScene:
             prim.GetPrim(), mu, mu, 0.0, stiffness, damping, colour=(0.07, 0.07, 0.08)
         )
         return 1
+
+    def _author_finger_tip_delta(self, delta: float) -> None:
+        """P39 L1: re-author the four finger plates with a signed distal plane.
+
+        `FRUIT_FINGER_TIP_DELTA=<m>` (signed, presence-gated in `build`) is the
+        hardware lever from `logs/p39/P1_READ.md` §2: the plate's grip margin is
+        `lip + tip-belt clearance == r`, so moving the **distal plane** trades
+        lip against belt clearance 1:1. A negative value shortens the plate (F1,
+        the authorized "short tip"), a positive one extends it (F2, the
+        lip/class form, withheld for owner sign-off), and `0` re-authors the
+        shipped plate as its own bounding box (arm S) so the box-for-mesh
+        substitution can be measured apart from the geometry change.
+
+        Per link, in the `_finger_face_frame` contact frame (`e_face` toward the
+        other finger, `e_mid` across the plate, `e_long` toward the fingertip):
+
+        1. the shipped plate colliders are disabled **by path** - only the
+           `visuals/` and `collisions/` subtrees, which is the plate's render
+           mesh (made collidable by `_add_finger_colliders`) and the asset's
+           convex-decomposition proxy of the same plate. Any CollisionAPI prim
+           outside those subtrees is left enabled and reported, never disabled
+           wholesale; the palm is a *sibling* link, not a descendant, and its
+           collider count is read before and after;
+        2. one convex box is authored through `_author_flat_face` - the shipped
+           face plane (`face_coord`) unchanged, the full across-width
+           (`extents[1]`, ~61 mm) and the full plate thickness in the closing
+           direction (`extents[0]`, ~33.3 mm), running from the plate's proximal
+           end (`bounds[2]`) to `tip_coord + delta`. The cross-section is the
+           whole plate, so the finger cannot go hollow behind the new distal
+           plane; at `delta = 0` the box *is* the plate's AABB (long extent
+           `84.9 mm`);
+        3. the link is re-counted (`_link_collider_counts`) so the build log
+           states the collider the finger actually has.
+
+        The **visual** mesh is never touched, so the rendered image is
+        unchanged - the reason the finger arms are scripted-line only.
+
+        One build line reports the change; per-link readouts are only printed
+        for a link that had to be skipped.
+        """
+        conflicts: list[str] = []
+        face_shape = os.environ.get("FRUIT_FINGER_FACE", "flat").strip().lower()
+        if face_shape not in ("", "flat", "none", "0"):
+            conflicts.append(f"FRUIT_FINGER_FACE={face_shape}")
+        for knob in ("FRUIT_FINGER_PADS", "FRUIT_FINGER_SOFT_PAD", "FRUIT_FINGER_SCOOP"):
+            if os.environ.get(knob, "0") == "1":
+                conflicts.append(f"{knob}=1")
+        if conflicts:
+            # Each of those authors its own finger contact geometry (and the
+            # soft pads *re-disable* every link collider, which would drop the
+            # box again). Refuse rather than build a half-replaced hand.
+            say(
+                "finger tip delta NOT authored: it replaces the plate collider and "
+                "cannot be combined with another finger-geometry mode ("
+                + ", ".join(conflicts)
+                + ")"
+            )
+            return
+        mu = float(os.environ.get("FRUIT_FINGER_MU", "2.0"))
+        stiffness = float(os.environ.get("FRUIT_FINGER_COMPLIANCE", "0"))
+        damping = float(os.environ.get("FRUIT_FINGER_CONTACT_DAMPING", "60"))
+        palms: dict[str, tuple[int, int] | None] = {}
+        for side in ("left", "right"):
+            palm = self.stage.GetPrimAtPath(f"/World/OpenArm/openarm_{side}_hand")
+            palms[side] = self._link_collider_counts(palm) if palm.IsValid() else None
+        rows: list[dict] = []
+        kept_all: list[str] = []
+        disabled_total = 0
+        for side in ("left", "right"):
+            for which in ("left", "right"):
+                path = f"/World/OpenArm/openarm_{side}_{which}_finger"
+                other = "right" if which == "left" else "left"
+                link = self.stage.GetPrimAtPath(path)
+                other_link = self.stage.GetPrimAtPath(
+                    f"/World/OpenArm/openarm_{side}_{other}_finger"
+                )
+                tcp = self.stage.GetPrimAtPath(f"/World/OpenArm/openarm_{side}_ee_tcp")
+                visuals = self.stage.GetPrimAtPath(f"{path}/visuals")
+                if not (
+                    link.IsValid() and other_link.IsValid() and tcp.IsValid()
+                    and visuals.IsValid()
+                ):
+                    say(f"finger tip delta: {path} incomplete; skipped")
+                    continue
+                points = _link_local_mesh_points(
+                    visuals, np.linalg.inv(_world_matrix(link))
+                )
+                if len(points) < 32:
+                    say(f"finger tip delta: {path} has {len(points)} visual points; skipped")
+                    continue
+                (
+                    e_face, e_mid, e_long, face_coord, mid_coord, tip_coord,
+                    extents, bounds,
+                ) = _finger_face_frame(link, other_link, tcp, points)
+                long_lo = float(bounds[2])
+                distal = float(tip_coord) + float(delta)
+                length = distal - long_lo
+                if length < 0.005:
+                    say(
+                        f"finger tip delta {delta * 1000:+.1f} mm puts the distal "
+                        f"plane at {distal * 1000:+.1f} mm, inside the plate's "
+                        f"proximal end ({long_lo * 1000:+.1f} mm); {path} skipped"
+                    )
+                    continue
+                disabled, kept = self._disable_finger_plate_colliders(link)
+                disabled_total += disabled
+                kept_all.extend(kept)
+                # Front face on the true face plane, full plate cross-section,
+                # proximal end to `tip_coord + delta`. `_author_flat_face` builds
+                # the box behind `origin` along `e_face` and forward along
+                # `e_long`, and binds FRUIT_FINGER_MU/COMPLIANCE/CONTACT_DAMPING.
+                origin = (
+                    e_face * float(face_coord)
+                    + e_mid * float(mid_coord)
+                    + e_long * long_lo
+                )
+                self._author_flat_face(
+                    link, "tip_delta", origin, e_face, e_mid, e_long,
+                    length, float(extents[1]), float(extents[0]),
+                    mu, stiffness, damping,
+                )
+                _total, enabled_after = self._link_collider_counts(link)
+                rows.append(
+                    {
+                        "path": path,
+                        "face": float(extents[0]),
+                        "mid": float(extents[1]),
+                        "long": length,
+                        "face_plane": float(face_coord),
+                        "distal": distal,
+                        "tip": float(tip_coord),
+                        "enabled": enabled_after,
+                    }
+                )
+        if not rows:
+            say(
+                f"finger tip delta {delta * 1000:+.1f} mm: no finger link could be "
+                "re-authored (see the per-link skips above)"
+            )
+            return
+
+        def _span(values: list[float]) -> str:
+            lo, hi = min(values), max(values)
+            if hi - lo <= 5e-5:  # 0.05 mm: the four links are the same plate
+                return f"{lo * 1000:.1f}"
+            return f"{lo * 1000:.1f}..{hi * 1000:.1f}"
+
+        palms_after = {}
+        for side in ("left", "right"):
+            palm = self.stage.GetPrimAtPath(f"/World/OpenArm/openarm_{side}_hand")
+            palms_after[side] = self._link_collider_counts(palm) if palm.IsValid() else None
+        if palms_after != palms:
+            say(
+                "WARNING: a palm link's collider count changed while re-authoring the "
+                f"finger plates (before={palms}, after={palms_after})"
+            )
+        palm_text = ", ".join(
+            f"openarm_{side}_hand="
+            + ("absent" if palms[side] is None else f"{palms[side][0]} prims")
+            for side in ("left", "right")
+        )
+        # Plain `print`, **not** `say`: `say` prefixes `[fruit]` unconditionally
+        # (`common.py:28-30`) and every byte-identity criterion in this tree counts
+        # `[fruit]` lines, so a knob-set arm would read as a moved stream (the
+        # phase-2 `c2` run read 98 `[fruit]` lines against the 92-row physics
+        # stream). The identity census filters this tag out (plus `[attitude]`);
+        # `accepted` echoes the parsed value, not the raw text.
+        print(
+            f"[p39] finger tip delta accepted {delta * 1000:+.1f} mm "
+            f"(FRUIT_FINGER_TIP_DELTA={os.environ.get('FRUIT_FINGER_TIP_DELTA')!r}): "
+            f"{len(rows)}/4 finger links "
+            f"re-authored, shipped plate colliders disabled={disabled_total} "
+            f"(visuals+collisions), colliders left enabled outside the plate="
+            f"{len(kept_all)}"
+            + (f" ({', '.join(kept_all)})" if kept_all else "")
+            + f"; box face/mid/long={_span([r['face'] for r in rows])}/"
+            f"{_span([r['mid'] for r in rows])}/{_span([r['long'] for r in rows])} mm "
+            f"(closing x across x down the finger), face plane="
+            f"{_span([r['face_plane'] for r in rows])} mm, distal plane="
+            f"{_span([r['distal'] for r in rows])} mm (shipped tip "
+            f"{_span([r['tip'] for r in rows])} mm), enabled colliders per link after="
+            f"{max(r['enabled'] for r in rows)} (contact_faces/tip_delta), palms unchanged: "
+            f"{palm_text}",
+            flush=True,
+        )
+        if len(rows) != 4:
+            say(f"WARNING: finger tip delta authored on {len(rows)} of 4 finger links")
 
     def _add_soft_pads(self) -> None:
         """Author the opt-in compliant pad bodies on the OpenArm finger faces.
