@@ -1,0 +1,22 @@
+logs/p41/sweep/sub4_k100000.log: 2 descent leg(s), line=dynamic
+   #   dist samples  |v|max  budget   |a|max   |dv|  a_med  peak@  a_win5  verdict
+   1   5.9c      92   0.110   0.160     0.88  0.007   0.24   0.02    0.36  ok
+   2   5.9c      93   0.110   0.160     0.48  0.004   0.23   0.02    0.36  ok
+  worst: |v|max=0.1100 m/s (budget 0.160-0.160), lurch=0.007 m/s/tick (budget 0.291688), a_win5=0.360 m/s^2 (carrying budget 2, warning)
+
+logs/p41/sweep/sub4_k100000.log: 4 carry leg(s)
+  leg              dist    cone  over    slip in-hand |v| recov  verdict
+  grasp_lift        15c   1.60x    5%   34.9mm      0.050     0  ok (cone 1.60x reported)
+  place0            23c   1.38x   13%   75.7mm      0.174     0  ok (cone 1.38x reported)
+  grasp_lift        21c   0.98x    0%   59.3mm      0.105     0  ok (hand 0.52 m/s: rescued)
+  place1            39c   1.22x    9%   59.0mm      0.184     0  ok (cone 1.22x reported)
+  worst held-grip cone: 1.60x budget (budget 1x)
+  hand speed: worst 0.523 m/s; 1/4 leg(s) over 0.45 m/s (reported, not gated) - every other leg sits at the commanded 0.176-0.371
+
+  success: 2/2 = 100% (floor 75% - dynamic line, measured baseline 9/10)
+
+PASS: every descent is inside its profile's speed and lurch bound, the carry cone/slip is reported, and the success rate is at or above the dynamic line's floor
+note: 3 warning(s) (reported, not gating):
+  - carry grasp_lift: cone=1.60x over the 1x budget with slip=34.9mm - reported on the dynamic line, not gated
+  - carry place0: cone=1.38x over the 1x budget with slip=75.7mm - reported on the dynamic line, not gated
+  - carry place1: cone=1.22x over the 1x budget with slip=59.0mm - reported on the dynamic line, not gated

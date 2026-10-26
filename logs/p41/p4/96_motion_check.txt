@@ -1,0 +1,74 @@
+== jerk-limited profiles ==
+  d=+0.012 m ->   39 steps (0.33 s), |v|=0.071 (limit 0.300), |a|=0.691 (limit 2.000), |j|=20.9 (limit 25.0)
+[ok  ]   endpoint d=+0.012
+[ok  ]   starts/ends at rest d=+0.012
+[ok  ]   |v| <= v_max d=+0.012
+[ok  ]   |a| <= a_max d=+0.012
+[ok  ]   |j| <= j_max d=+0.012
+  d=+0.050 m ->   62 steps (0.52 s), |v|=0.184 (limit 0.300), |a|=1.117 (limit 2.000), |j|=21.7 (limit 25.0)
+[ok  ]   endpoint d=+0.050
+[ok  ]   starts/ends at rest d=+0.050
+[ok  ]   |v| <= v_max d=+0.050
+[ok  ]   |a| <= a_max d=+0.050
+[ok  ]   |j| <= j_max d=+0.050
+  d=+0.250 m ->  193 steps (1.61 s), |v|=0.293 (limit 0.300), |a|=0.564 (limit 2.000), |j|=3.6 (limit 25.0)
+[ok  ]   endpoint d=+0.250
+[ok  ]   starts/ends at rest d=+0.250
+[ok  ]   |v| <= v_max d=+0.250
+[ok  ]   |a| <= a_max d=+0.250
+[ok  ]   |j| <= j_max d=+0.250
+  d=+0.780 m ->  598 steps (4.98 s), |v|=0.294 (limit 0.300), |a|=0.182 (limit 2.000), |j|=0.4 (limit 25.0)
+[ok  ]   endpoint d=+0.780
+[ok  ]   starts/ends at rest d=+0.780
+[ok  ]   |v| <= v_max d=+0.780
+[ok  ]   |a| <= a_max d=+0.780
+[ok  ]   |j| <= j_max d=+0.780
+  d=-0.400 m ->  307 steps (2.56 s), |v|=0.294 (limit 0.300), |a|=0.355 (limit 2.000), |j|=1.4 (limit 25.0)
+[ok  ]   endpoint d=-0.400
+[ok  ]   starts/ends at rest d=-0.400
+[ok  ]   |v| <= v_max d=-0.400
+[ok  ]   |a| <= a_max d=-0.400
+[ok  ]   |j| <= j_max d=-0.400
+
+== friction-cone acceleration budget ==
+      horizontal: a_max =   6.51 m/s^2
+     straight up: a_max =   1.96 m/s^2
+   straight down: a_max =  21.58 m/s^2
+     diagonal up: a_max =   2.57 m/s^2
+[ok  ] horizontal budget = g*sqrt(mu^2-1)
+[ok  ] upward budget = g*(mu-1)
+[ok  ] cone_scale zeroes an over-budget accel
+[ok  ] cone_scale leaves a safe accel alone
+
+== cone-limited move (the lift leg) ==
+  requested v=0.30 a=2.00 j=25.0 -> carrying v=0.30 a=1.96 j=19.6
+  d=+0.250 m ->  193 steps (1.61 s), |v|=0.293 (limit 0.300), |a|=0.564 (limit 1.962), |j|=3.6 (limit 19.6)
+[ok  ]   endpoint d=+0.250
+[ok  ]   starts/ends at rest d=+0.250
+[ok  ]   |v| <= v_max d=+0.250
+[ok  ]   |a| <= a_max d=+0.250
+[ok  ]   |j| <= j_max d=+0.250
+
+== grasp attitude helpers (top-down / mirrored) ==
+  right closes along [1.0, 0.0, 0.0], fingers [0.0, 0.0, -1.0]
+  left  closes along [-1.0, 0.0, 0.0], fingers [0.0, 0.0, -1.0]
+[ok  ] top-down x closes the jaws along X
+[ok  ] top-down x points the fingers straight down
+[ok  ] the mirror stays a rotation (det = +1)
+[ok  ] the mirror swaps the closing axis to -X on the left arm
+[ok  ] mirroring twice is the identity
+
+== min-jerk jaw blend ==
+  jaw 0.090 -> 0.0314 m in 60 ticks: |v|max=0.220 m/s, |a|max=1.35 m/s^2
+  first-tick jaw speed: quintic 0.0022 m/s vs linear ramp 0.1172 m/s
+[ok  ] jaw blend starts far more gently than a linear ramp
+
+== monitor on a synthetic carry ==
+  [motion] synthetic lift: steps=193, |v|max=0.293 m/s, |a|max=0.564 m/s^2, |j|max=3.5 m/s^3, cone=0.88x budget (0 pct over), ends |v|=0.000/0.000 m/s (a_step=0.01), a_med=0.41 peak@0.21 (first10=0.42 last10=0.42) m/s^2, a_win5=0.56 m/s^2, slip=0.0 mm
+
+== motion gate profile defaults ==
+  tasks.py approach v_max=0.15 a_max=0.8; gate defaults v_max=0.15 a_max=0.8
+[ok  ] gate dynamic v_max default equals the task's
+[ok  ] gate a_max default equals the task's
+
+all motion checks passed

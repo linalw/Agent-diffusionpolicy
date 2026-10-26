@@ -1,0 +1,27 @@
+P41 phase 4 A4 - the drive-cap read fix is inert, measured
+========================================================================
+fix: scene.py's _finger_drive_caps / _finger_drive_rows read
+       prim.GetAttribute("drive:linear:physics:maxForce")
+     instead of UsdPhysics.DriveAPI.Get(prim, 'linear') - the call
+     _finger_drive_rows' own docstring forbids, and one that constructs
+     a DriveAPI schema object for the drive-less joint2 mimic.
+
+new      : logs/p41/p4/build_print_default.log
+           ATTEMPTS=1 SEED=5 FRUIT_MOTION_REPORT=1, post-fix tree
+reference: logs/p41/p3/accept_control.log
+           P41 phase 3 control (pre-fix scene.py 8fae708f); same-tick
+           build path, 10 attempts, FRUIT_CARRY_DIAG=1
+
+build header identical: True
+  [fruit] finger links bound with mu=2.0, compliant k=30000 N/m c=80 Ns/m (friction combine override) | finger drive profile=finger_damp02 k=100000 N/m c=2000 Ns/m maxForce=10.0/0.0N (joint1/joint2; joint2 is a drive-less mimic)
+
+physics [fruit] lines (diag/trace/carry excluded): new=69 old=377
+identical leading lines: 65  (the 1-attempt run's attempt 0, ending on
+its own outcome row: [fruit] [run] attempt 0: grasped=True placed=False lift=+0.138 m force=9.98 N notes=[] sim=7.3-21.2s)
+index 65 new: [fruit] [stats] attempts=1 successes=0 diverted=0 success_rate=0% sim=13.9s total, 13.9s/attempt, 13.9s/succes
+index 65 old: [fruit] [run] attempt 1: picking peach grade A into output lane 0 at (0.43, 0.5)
+
+Verdict: attempt 0's physics stream (65/65 lines incl. the outcome row) and
+the build header are byte-identical to the pre-fix run, so the read-path
+change cannot move any P41 measurement; the streams differ only where the
+1-attempt run prints its summary instead of attempt 1.

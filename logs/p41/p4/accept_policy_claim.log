@@ -1,0 +1,21 @@
+=== policy closed loop (hybrid): 10 episodes, checkpoints/moe_v12/policy_best.pt ===
+[fruit] loaded checkpoints/moe_v12/policy_best.pt (obs_horizon=2, action_horizon=16)
+[fruit] [eval] policy success 7/10 (attempts=10)
+
+=== policy gate ===
+   # fruit           d bin  result reason
+   0 lychee       3.1c   1  ok     
+   1 peach        6.8c   1  ok     
+   2 pear         6.5c   1  ok     
+   3 strawberry   4.4c   1  ok     
+   4 lychee       3.4c   1  ok     
+   5 kiwi         5.1c   0  FAIL   grip loss
+   6 apple        6.8c   0  FAIL   unexpected reason
+   7 orange       6.8c   0  ok     
+   8 peach        6.5c   1  ok     
+   9 pear         5.8c   0  FAIL   grip loss
+  episodes: 10, successes 7
+  rate: 70% (floor 60%)
+  failures: 2 grip loss, 0 grasped-not-placed
+FAIL: 1 problem(s)
+  - failure reason not seen in the baseline: [fruit] [eval] episode 6: hybrid grasped=False placed=False lift=+0.0cm notes=['fruit left the pick station during the close (1416 mm)']
