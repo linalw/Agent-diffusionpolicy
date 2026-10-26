@@ -1,0 +1,290 @@
+tree: /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy
+logs: ['accept_profile.log', 'pear_profile.log', 'twoline_profile.log', 'd0_accept_A_s5.log', '16_accept_indexed_v7.log']
+================================================================================================
+A. THE DRIVES  (assets/openarm_flat/openarm_flat_deinst.usda, authoring units)
+================================================================================================
+The USD authors every arm drive PER DEGREE; Isaac reads them back PER RADIAN
+(x 57.29578, verified at runtime in logs/164_gains_probe.log).
+
+joint                       line  k[deg]    k[rad]   c[rad]    tau  Fmax  sat.err    vlim    vlim       range[deg]
+                                 N/m|Nm/deg           Ns/m|Nms/rad      s                  deg/s   rad/s
+openarm_left_joint1         3630     400   22918.3   4583.7  0.200    40    1.75m   960.0   16.75  -200.0..   80.0
+openarm_left_joint2         3654     400   22918.3   4583.7  0.200    40    1.75m   960.0   16.75  -190.0..   10.0
+openarm_left_joint3         3678     400   22918.3   4583.7  0.200    27    1.18m   312.0    5.45   -90.0..   90.0
+openarm_left_joint4         3702     400   22918.3   4583.7  0.200    27    1.18m   312.0    5.45     0.0..  140.0
+openarm_left_joint5         3726     400   22918.3   4583.7  0.200     7    0.31m  1200.0   20.94   -90.0..   90.0
+openarm_left_joint6         3750     400   22918.3   4583.7  0.200     7    0.31m  1200.0   20.94   -45.0..   45.0
+openarm_left_joint7         3774     400   22918.3   4583.7  0.200     7    0.31m  1200.0   20.94   -90.0..   90.0
+openarm_left_finger_joint1  3798 1000000     [N/m]      100      -  10.0    0.01m     1.0       -         0..44 mm
+openarm_right_joint1        3893     400   22918.3   4583.7  0.200    40    1.75m   960.0   16.75   -80.0..  200.0
+openarm_right_joint2        3917     400   22918.3   4583.7  0.200    40    1.75m   960.0   16.75   -10.0..  190.0
+openarm_right_joint3        3941     400   22918.3   4583.7  0.200    27    1.18m   312.0    5.45   -90.0..   90.0
+openarm_right_joint4        3965     400   22918.3   4583.7  0.200    27    1.18m   312.0    5.45     0.0..  140.0
+openarm_right_joint5        3989     400   22918.3   4583.7  0.200     7    0.31m  1200.0   20.94   -90.0..   90.0
+openarm_right_joint6        4013     400   22918.3   4583.7  0.200     7    0.31m  1200.0   20.94   -45.0..   45.0
+openarm_right_joint7        4037     400   22918.3   4583.7  0.200     7    0.31m  1200.0   20.94   -90.0..   90.0
+openarm_right_finger_joint1  4061 1000000     [N/m]      100      -  10.0    0.01m     1.0       -         0..44 mm
+
+`sat.err` = maxForce / k[rad]: the joint error at which the drive saturates.
+`tau` = c/k: the closed-loop following error for a ramp at v is ~v*tau (G).
+
+A2. THE GAIN KNOBS  (control.py)
+  FRUIT_TUNE_GAINS      default "0"  control.py:214   =1 -> set_dof_gains(k, c, arm_dofs)
+  FRUIT_ARM_STIFFNESS   default 1500  control.py:215   only read when TUNE_GAINS=1
+  FRUIT_ARM_DAMPING     default 60    control.py:216   only read when TUNE_GAINS=1
+  finger profile        k=1e5 c=2000  control.py:234-236 (P41 `finger_damp02`,
+                        c/k = 0.02; FRUIT_FINGER_STIFFNESS=0 restores the asset's 1e6/100)
+  No script or shell driver in the tree sets FRUIT_TUNE_GAINS: the *shipped* arm
+  drive is the asset's own k=22918 / c=4583 (tau 0.200 s) and the tuned pair is
+  an opt-in experiment (measured null on the descent's arrival, logs/165).
+    k=  22918.3 c=  4583.7  tau= 0.200 s  v*tau at 0.15 m/s = 30.00 mm   at 0.35 m/s = 70.00 mm
+    k=   1500.0 c=    60.0  tau= 0.040 s  v*tau at 0.15 m/s =  6.00 mm   at 0.35 m/s = 14.00 mm
+
+A3. THE CAP REGISTER  (shipped defaults; a * is a two-line-scoped default)
+  knob                                 default  site                   bounds
+  FRUIT_CARRY_VMAX                        0.38  motion.py:174          every carry leg's speed cap [m/s]
+  FRUIT_CARRY_AMAX                         2.0  motion.py:175          every carry leg's accel cap [m/s^2]
+  FRUIT_CARRY_JMAX                          25  motion.py:176          jerk cap [m/s^3]; cone sets j=10a when it binds
+  FRUIT_LIFT_VMAX                         0.18  tasks.py:3379          indexed/policy grasp_lift speed
+  FRUIT_LIFT_AMAX                          1.0  tasks.py:3380          indexed/policy grasp_lift accel
+  FRUIT_DYNAMIC_LIFT_VMAX                 0.30  tasks.py:3399          dynamic grasp_lift speed (the shipped line)
+  FRUIT_DYNAMIC_LIFT_AMAX                  1.0  tasks.py:3402          dynamic grasp_lift accel
+  FRUIT_DYNAMIC_PLACE_VMAX                0.35  tasks.py:3424          dynamic place0/place1 speed (0 = off)
+  FRUIT_DYNAMIC_PLACE_AMAX               1.089  tasks.py:3427          dynamic place accel (0 = off)
+  FRUIT_PLACE_LOW_VMAX                    0.30  tasks.py:12191         the release's vertical drop speed
+  FRUIT_PLACE_LOW_AMAX                     2.0  tasks.py:12192         the release's drop accel (cone clips to 1.962)
+  FRUIT_PLACE_LOW_STEPS                     40  tasks.py:12123         drop ramp floor; the profile length wins
+  FRUIT_DYNAMIC_APPROACH_VMAX             0.15  tasks.py:5937,9352     dynamic descent speed
+  FRUIT_APPROACH_AMAX                      0.8  tasks.py:9354          dynamic descent accel
+  FRUIT_APPROACH_VMAX                     0.03  tasks.py:13083,13103   indexed (policy-handover) descent speed
+  FRUIT_MU_SAFETY                          0.6  tasks.py:3366,12193    cone scale: mu_eff = 0.6 x gripper.mu(2.0)
+  FRUIT_IK_DAMPING                        0.05  control.py:145         damped-LS lambda; regularisation only
+  FRUIT_IK_GAIN                            1.0  control.py:146         dq multiplier (1.0 = no cap)
+  FRUIT_IK_MAX_STEP                        0.5  control.py:147,423     per-tick |dq| clamp [rad] (joint space)
+  FRUIT_IK_RATE                            0.0  control.py:479         per-tick |dq| rate cap (0 = off)
+  FRUIT_IK_WARN                            0.0  control.py:486         reporting only
+  FRUIT_HOVER_STEP                        0.04  tasks.py:8282          hover move's |dq| clamp [rad] (grasp.py: 0.20)
+  FRUIT_DYNAMIC_HOVER_MOVE                 300  tasks.py:8285          hover move's max iterations
+  FRUIT_DYNAMIC_HOVER_SETTLE                20  tasks.py:8299          post-hover fixed hold [ticks]
+  FRUIT_PREPOSE_TICKS                       45  tasks.py:8179          pre-pose joint blend length [ticks]
+  FRUIT_DYNAMIC_CLOSE_FAST                  24  tasks.py:9692          close ramp before contact [ticks]
+  FRUIT_DYNAMIC_CLOSE_LOAD                  60  tasks.py:9693          close ramp after contact [ticks]
+  FRUIT_DYNAMIC_HOLD                        48  tasks.py:10537         post-close hold [ticks]
+  FRUIT_DYNAMIC_PROBE_TICKS             40/60*  tasks.py:8861          test-lift probe length [ticks]
+  FRUIT_RELEASE_DWELL                       20  tasks.py:11799         release dwell [ticks]
+  FRUIT_RELEASE_PAD_HOLD                     3  tasks.py:11805         ticks per pad-ramp step (40 steps)
+  FRUIT_RELEASE_FINGER_HOLD                  3  tasks.py:11818         ticks per finger-ramp step (16 steps)
+  FRUIT_HAND_VMAX                          0.0  kinematic_gripper.py:219 pad speed cap (0 = off; capping measured worse)
+  FRUIT_CARRY_HOLD_QUAT                      0  tasks.py:3344          hold the wrist attitude through the carry
+  FRUIT_WRIST_VMAX                        0.15  actuated_gripper.py:263 actuated-hand wrist only (not the shipped jaw)
+
+================================================================================================
+B. THE LEG IS THE CAP, NOT THE SERVO - measured ticks vs the modelled profile
+================================================================================================
+`ticks` is how many times the leg steps the sim, and the leg steps once per
+profile sample: the modelled length IS the leg. A match means the cap sets the
+duration and the servo only has to keep up inside it.
+
+log / leg                                        n  d[cm]  ticks  model     d%  binds ref/cap  cone awin/cmd
+16_accept_indexed_v7.log / grasp_lift           10   27.4  350.8  351.1  -0.1%  v_max    0.98  0.86     2.63
+16_accept_indexed_v7.log / place0                3   49.3  300.3  299.0  +0.4%  v_max    0.98  0.87     1.32
+16_accept_indexed_v7.log / place1                7   49.9  300.9  302.1  -0.4%  v_max    0.98  0.86     1.32
+accept_profile.log / grasp_lift                 10   21.6  168.0  166.5  +0.9%  v_max    0.97  0.99     4.62
+accept_profile.log / place0                      5   57.6  378.4  379.0  -0.2%  v_max    0.98  0.87     2.89
+accept_profile.log / place1                      5   37.4  245.8  246.6  -0.3%  v_max    0.97  1.01     7.11
+d0_accept_A_s5.log / grasp_lift                 10   21.6  168.0  166.5  +0.9%  v_max    0.97  0.99     4.62
+d0_accept_A_s5.log / place0                      5   57.6  378.4  379.0  -0.2%  v_max    0.98  0.87     2.89
+d0_accept_A_s5.log / place1                      5   37.4  245.8  246.6  -0.3%  v_max    0.97  1.01     7.11
+pear_profile.log / grasp_lift                   10   21.0  162.7  162.0  +0.4%  v_max    0.97  0.91     3.70
+pear_profile.log / place0                        6   57.0  375.0  375.2  -0.0%  v_max    0.98  0.86     3.10
+pear_profile.log / place1                        4   40.5  266.0  267.0  -0.4%  v_max    0.98  1.04     7.58
+twoline_profile.log / grasp_lift                10   21.6  166.6  166.7  -0.1%  v_max    0.97  1.16     6.93
+twoline_profile.log / place0                     4   56.2  370.5  370.5  +0.0%  v_max    0.98  0.86     2.09
+twoline_profile.log / place1                     4   39.5  259.5  260.2  -0.3%  v_max    0.98  0.99     3.92
+
+log / leg                                        n  d[cm]  ticks  model     d%  binds ref/cap ach/ref end[mm]  v_end
+16_accept_indexed_v7.log / approach             10    5.6  427.9  429.2  -0.3%  v_max    0.98    0.99     4.4  0.002
+accept_profile.log / approach                   10    5.7   89.9   89.0  +1.0%  v_max    0.96    0.75     9.4  0.060
+d0_accept_A_s5.log / approach                   10    5.7   89.9   89.0  +1.0%  v_max    0.96    0.75     9.4  0.060
+pear_profile.log / approach                     10    5.7   89.5   88.6  +1.0%  v_max    0.97    0.76     9.4  0.061
+twoline_profile.log / approach                  10    5.6   88.3   87.1  +1.4%  v_max    0.96    0.75     8.9  0.060
+
+`ref/cap` = the profile's own peak speed / the cap it was given (1.00 = the cap
+sets the leg's length). `cone` is the measured acceleration in cone budgets and
+`awin/cmd` the 5-tick smoothed acceleration as a multiple of the commanded peak
+(>1 is the servo's following-error transient, the W8-B/AGENTS carry report - a
+carry leg's own |v|max is the hand, so it is not used as a payload speed here).
+
+================================================================================================
+C. THE `[cycle]` PHASES  (s per attempt; only logs run with FRUIT_CYCLE_REPORT=1)
+================================================================================================
+log                              n   prepose     hover   descent     close      grip      lift     place   release    return       end    total
+twoline_profile.log             10      0.71      0.76      3.42      1.36      2.29      1.80      3.21      2.30      0.67      0.02    15.29
+                                        4.6%      5.0%     22.3%      8.9%     15.0%     11.8%     21.0%     15.1%      4.4%      0.1%
+d0_accept_A_s5.log              10      0.88      0.77      2.75      1.19      1.61      1.82      3.35      2.04      0.64      0.00    15.05
+                                        5.8%      5.1%     18.3%      7.9%     10.7%     12.1%     22.3%     13.6%      4.2%      0.0%
+
+The shipped single-arm branch (`d0_accept_A_s5.log`; its 387 non-`[bed]`
+`[fruit]` lines are byte-identical to `post_revert_accept_unset.log`, i.e. the
+shipped tree's acceptance stream):
+  prepose    0.88 s    5.8 %  n=10
+  hover      0.77 s    5.1 %  n=10
+  descent    2.75 s   18.3 %  n=10
+  close      1.19 s    7.9 %  n=10
+  grip       1.61 s   10.7 %  n=10
+  lift       1.82 s   12.1 %  n=10
+  place      3.35 s   22.3 %  n=10
+  release    2.04 s   13.6 %  n=10
+  return     0.64 s    4.2 %  n=10
+  end        0.00 s    0.0 %  n=10
+  TOTAL     15.05 s
+
+================================================================================================
+D. THE FIXED TICK BUDGETS  (open-loop holds: not motion caps, but clocks)
+================================================================================================
+block                     ticks      s  phase     site
+pre-feed drive catch-up      20   0.17  prepose   tasks.py:1958 _catch_up_drive
+pre-pose joint blend         45   0.38  prepose   tasks.py:8179 FRUIT_PREPOSE_TICKS
+pre-pose settle              20   0.17  prepose   tasks.py:8245 app_utils.update_app(steps=20)
+hover settle hold            20   0.17  hover     tasks.py:8299 FRUIT_DYNAMIC_HOVER_SETTLE
+close fast ramp              24   0.20  close     tasks.py:9692 FRUIT_DYNAMIC_CLOSE_FAST
+close load ramp              60   0.50  close     tasks.py:9693 FRUIT_DYNAMIC_CLOSE_LOAD
+post-close hold              48   0.40  close     tasks.py:10537 FRUIT_DYNAMIC_HOLD
+probe (test lift)            60   0.50  grip      tasks.py:8861 FRUIT_DYNAMIC_PROBE_TICKS (two-line)
+release dwell                20   0.17  release   tasks.py:11799 FRUIT_RELEASE_DWELL
+release pad ramp            120   1.00  release   tasks.py:11805 40 steps x FRUIT_RELEASE_PAD_HOLD 3
+release finger ramp          48   0.40  release   tasks.py:11818 16 steps x FRUIT_RELEASE_FINGER_HOLD 3
+
+  `[cycle] prepose` = 0.88 s; the clocks own 0.71 s (81 %).
+
+  `[cycle] hover` = 0.77 s; the clocks own 0.17 s (22 %).
+
+  `[cycle] close` = 1.19 s; the clocks own 1.10 s (92 %).
+
+  `[cycle] release` = 2.04 s; the clocks own 1.57 s (77 %).
+
+  `[cycle] grip` = 1.61 s; the clocks own 0.50 s (31 %).
+
+The release's inner 1.57 s (RATE_LEDGER 4.5 called it unnamed) is these three
+hold budgets: 20 + 120 + 48 = 188 ticks = 1.57 s of pure open-loop hold, with the
+pads re-commanded at the same gap every PAD_HOLD-th tick.
+
+================================================================================================
+E. HEADROOM - what each cap would buy, and what binds next
+================================================================================================
+Leg geometry is the *measured* mean of the shipped two-arm corpus; `now` is the
+shipped profile. Seconds saved against `now` are in brackets.
+
+leg             d[cm]        now     v x1.25      v x1.5        v x2      a x1.5        a x2     both x2
+grasp_lift       22.6  175(0.00)   141(0.28)   141(0.28)   141(0.28)   175(0.00)   175(0.00)   109(0.55)
+place0           56.1  370(0.00)   296(0.62)   247(1.02)   213(1.31)   370(0.00)   370(0.00)   186(1.53)
+approach          5.7   88(0.00)    80(0.07)    80(0.07)    80(0.07)    88(0.00)    88(0.00)    57(0.26)
+
+A column that stops moving is a cap that has stopped binding. The v-only
+ceiling (where a_max takes over), per leg:
+  grasp_lift     a_max=1.000 -> v_max can rise to 0.371 m/s (1.24x)
+  place0         a_max=1.089 -> v_max can rise to 0.610 m/s (1.74x)
+  approach       a_max=0.800 -> v_max can rise to 0.166 m/s (1.11x)
+
+The friction cone (mu_eff = 0.6 x 2.0 = 1.2):
+  accel_budget(lift, +z                ) =  1.962 m/s^2 at mu_eff 1.2   ( 0.000 at 0.45)
+  accel_budget(place, horizontal+rise  ) =  4.273 m/s^2 at mu_eff 1.2   ( 0.000 at 0.45)
+  accel_budget(descent / drop, -z      ) = 21.582 m/s^2 at mu_eff 1.2   ( 9.810 at 0.45)
+  cone_scale(vertical 9.81 m/s^2) = 0.200
+  NOTE: at mu_eff 0.45 the +z budget is 0.000 by construction (N = m g, no squeeze),
+  so that column is the model leaving its own validity - the physical worst-fruit
+  margin is the measured 1.20x of P40 (4.42 N pinch), not a cone acceleration.
+
+================================================================================================
+F. DO THE JOINT VELOCITY / EFFORT LIMITS BIND?
+================================================================================================
+The fastest reference the profile asks for is 0.373 m/s (an indexed
+`place1` |v|cmd; the dynamic line's fastest is 0.343 m/s), under the 0.38 m/s
+FRUIT_CARRY_VMAX cap. The descent's measured TCP acceleration
+peak is 2.31 m/s^2, and `need` below is the joint acceleration that asks for.
+A joint's tool speed contribution = omega x lever (levers are the nominal
+openarm link offsets, an order-of-magnitude check, not a kinematic solve).
+
+joint    vlim[deg/s] vlim[rad/s] lever[m] tool[m/s]  x cap x peak Fmax[Nm]  I[kgm2] F/I[rad/s2]   need
+joint1         960.0       16.75    0.500      8.38   22.0   22.5       40   0.6143          65    4.6
+joint2         960.0       16.75    0.440      7.37   19.4   19.8       40   0.5508          73    5.3
+joint3         312.0        5.45    0.300      1.63    4.3    4.4       27   0.5397          50    7.7
+joint4         312.0        5.45    0.154      0.84    2.2    2.2       27   0.3559          76   15.0
+joint5        1200.0       20.94    0.096      2.00    5.3    5.4        7   0.1182          59   24.2
+joint6        1200.0       20.94    0.120      2.52    6.6    6.8        7   0.0413         169   19.2
+joint7        1200.0       20.94    0.037      0.79    2.1    2.1        7   0.0070        1001   61.6
+
+Tightest velocity margin: 2.1x the fastest reference (0.373 m/s) at that joint's lever.
+joint4 / joint7 can carry 0.79-0.84 m/s at their levers against the 0.38 m/s
+the profile can ever ask for, so no joint velocity limit is reachable.
+Tightest effort margin: 2.4x the torque the descent's measured 2.31 m/s^2 would need at that lever (joint5, the thin wrist).
+`need` = a_max / lever, the joint acceleration a Cartesian a_max asks for;
+`F/I` is an upper bound (the torque is shared across the chain).
+
+What the effort cap *does* do: the drive saturates at `sat.err` = 1.75 mrad
+(j1/2), 1.18 mrad (j3/4) or 0.31 mrad (j5/6/7) of error, and the measured
+8.1-10.4 mm tool lag at a ~0.3 m lever is ~30 mrad - 17-95x past saturation. So on
+every real leg the arm drive is a *torque source*, not a stiffness, which is
+why `sat.err` is not a speed number and why the gains are not a rate lever.
+
+================================================================================================
+G. THE FOLLOWING ERROR, AND THE TWO CAP CLASSES (clock vs convergence)
+================================================================================================
+A leg whose duration is a profile length is *clocked*: the ticks are fixed by
+`jerk_limited`, so the drive's bandwidth can only change how *well* the leg
+tracks, never how long it takes. `end=` is that tracking error:
+
+log                                  n  endmin  median  endmax   v_end  v_end*tau   [mm]
+accept_profile.log                  10     8.1     9.6    10.3   0.060      12.0
+pear_profile.log                    10     8.3     9.2    10.4   0.061      12.2
+twoline_profile.log                 10     8.1     8.7    10.4   0.060      12.0
+d0_accept_A_s5.log                  10     8.1     9.6    10.3   0.060      12.0
+16_accept_indexed_v7.log            10     1.9     4.8     5.2   0.002       0.4
+161_accept_endmetric.log            10    42.1    46.3    88.1   0.007       1.4
+
+`v_end*tau` is the first-order bound on the following error at the leg's end
+with the asset's tau = 0.200 s. The historical corpus (logs/161, the indexed
+descent commanded into the belt) reads 42-88 mm with v_end 0.002-0.013 m/s - that
+gap is a *boundary stop*, not a lag, and logs/165 measured it unchanged under
+FRUIT_TUNE_GAINS=1 (36-98 mm), which is why the gains are not a speed lever.
+
+The convergence-bound blocks (duration set by tau and the move's tolerance):
+  hover 0.74-0.86 s = move_to(max_steps=300, tol 0.008 m) from ~6 cm above the
+  pick point + the 20-tick settle; return 0.50-0.67 s = the same loop to `ready`.
+  Both are *not* profile-clocked, so these are the only blocks a drive gain could
+  shorten - and `FRUIT_HOVER_STEP` 0.04 rad/tick is not what bounds them: 0.04 rad
+  at a 0.3 m lever is 12 mm/tick, i.e. the 6 cm hover is ~5 ticks of travel
+  against the 82-103 measured. The binder is the 8 mm tolerance under tau.
+
+The finger drive's own following error at the close (P40, logs/p40/EFFORT_READ.md
+`err` = drive_target - position): 3.95-7.57 mm (median 5.59) at k = 1e6 N/m, i.e.
+the authored k*err is 4-8 kN and the 10 N/joint cap clips every row; at the P41
+profile (k = 1e5) the same err is 40-76x the 0.1 mm saturation error. The finger
+cap is therefore *not* the limiter - the delivered pinch is (9.8 N of 20).
+
+================================================================================================
+H. THE RANKED CANDIDATES (see CAP_CENSUS.md sections 5-7 for the measured risk)
+================================================================================================
+1. FRUIT_DYNAMIC_PLACE_VMAX 0.35 -> 0.52-0.61 (tasks.py:3424)
+   moves: place0/place1, 3.35 s of the single arm / 3.21 s of the two-line
+   gain: -1.09 s at 0.52, -1.38 s at the 0.61 a_max ceiling
+   risk: the place is loaded for its whole length; Gate-19 (0.20/0.25/0.30/0.35 ->
+   7/7/8/9 of 10) is monotone and is the only speed evidence; >0.35 unswept
+2. FRUIT_RELEASE_PAD_HOLD/FINGER_HOLD 3 -> 2 (tasks.py:11805/11818)
+   moves: release 2.04 s (single) / 2.30 s (two-line), 188 clocks = 1.57 s
+   gain: -0.33 s (pad) -0.13 s (finger) -0.17 s (dwell 20 -> 0) = -0.63 s
+   risk: the release-induced ejection the debug flag exists for; 3 -> 1 is -1.02 s
+3. FRUIT_DYNAMIC_LIFT_AMAX 1.0 -> 1.9 + VMAX 0.30 -> 0.36 (tasks.py:3402/3399)
+   moves: lift 1.82 s (164 ticks = 1.37 s of profile)
+   gain: -0.23 s (v alone, a then binds at 1.2x) / -0.56 s (both x2)
+   risk: the grip-critical leg; the vertical cone budget is 1.962 so a <= 1.9
+4. FRUIT_DYNAMIC_APPROACH_VMAX 0.15 -> 0.25 (tasks.py:5937/9352)
+   moves: 0.74 s of descent motion + the lead it sets (t_desc enters the handover)
+   gain: ~-0.2 s motion, ~-0.1 s wait; risk: reach boundary, ach/ref 0.75
+5. FRUIT_TUNE_GAINS=1 (k 1500 / c 60): NOT a rate lever (every leg is clocked);
+   it is the only lever on the two convergence loops and on the 8-11 mm end-gap,
+   and its measured effect there is untested (logs/165 tested the boundary gap).
+
+Cannot help: joint velocity limits, joint effort limits, the arm drive gains
+(rate), FRUIT_IK_MAX_STEP/GAIN/RATE, FRUIT_HAND_VMAX, the cone on lift/place,
+FRUIT_HOVER_STEP, the close/hold clocks (grip class), the belt speed, the supply.
