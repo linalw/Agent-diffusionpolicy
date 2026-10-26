@@ -1,0 +1,78 @@
+##############################################################################
+# P43 phase 3 - the arm park on the P41 grip-profile tree (logs/p43/p3)
+##############################################################################
+runs paired: [1, 2, 3, 4, 5] | episodes per arm: 75 / 75
+
+== arm A: the manipulation check (P8) - 54 banded, right-active episodes (inactive=left)
+  M1-held vs the pose the reset ACHIEVED (<= 0.02 rad): 54/54 | median 0.002 rad | achieved-vs-commanded residual median 0.037 rad
+  the shipped-pose negative (|q-ready| <= 0.15): 54/54 | |q-ready| median 0.037 | |q-back| median 0.601
+  M2a the arm term at the band's WORST call (< 0.1): 0/54 | worst-call median 99.500 (max 333.000)  [the CONTROL readout - fails by design]
+  band census (inactive=left): fully hidden 903/1340 =  67.4% | any inactive-arm pixel 1340/1340 = 100.0%
+  -> arm A check: PASS (M1-held + the shipped-pose negative)
+== arm B: the manipulation check (P8) - 56 banded, right-active episodes (inactive=left)
+  M1-held vs the pose the reset ACHIEVED (<= 0.02 rad): 56/56 | median 0.004 rad | achieved-vs-commanded residual median 0.088 rad
+  M1-applied, P35 read (`q_settled`, nearest reference + drift): 56/56 | |q-back| median 0.089 | |q-ready| median 0.602 | drift max 0.010 rad
+  M1-applied, P37 read (`q`, the first non-stale call): 56/56 | |q-back| median 0.093 | |q-ready| median 0.602
+  M2a the arm term at the band's WORST call (< 0.1): 56/56 | worst-call median 0.000 (max 0.000)
+  band census (inactive=left): fully hidden 0/1364 =   0.0% | any inactive-arm pixel 0/1364 =   0.0%
+  -> arm B check: PASS (M1-held + M1-applied + M2a + 0 fully-hidden calls)
+
+P8 the check: PASS (A: PASS, B: PASS)
+
+== arm A: the classes
+  all   n= 75 ok= 33 carried= 40 no-grasp=  2 other=  0 | placed 33/75 =  44.0% | carried rate  53.3%
+  left  n= 21 ok=  1 carried= 20 no-grasp=  0 other=  0 | placed 1/21 =   4.8% | carried rate  95.2%
+  right n= 54 ok= 32 carried= 20 no-grasp=  2 other=  0 | placed 32/54 =  59.3% | carried rate  37.0%
+
+== arm B: the classes
+  all   n= 75 ok= 53 carried= 18 no-grasp=  4 other=  0 | placed 53/75 =  70.7% | carried rate  24.0%
+  left  n= 19 ok=  0 carried= 18 no-grasp=  1 other=  0 | placed 0/19 =   0.0% | carried rate  94.7%
+  right n= 56 ok= 53 carried=  0 no-grasp=  3 other=  0 | placed 53/56 =  94.6% | carried rate   0.0%
+
+P0 the baseline: A's right-arm carried rate = 20/54 = 0.370 -> BRANCH B (the class contrast is a report only; the placed read carries it)
+   B's right-arm carried rate = 0/56 = 0.000
+P0b the post-P41 direct baseline (A, the shipped env, no park): right 32/54 placed, 20 carried | left 1/21 placed, 20 carried | pooled 33/75
+    (B: right 53/56 placed, 0 carried | left 0/19 placed, 18 carried | pooled 53/75)
+
+P1 the right-arm carried 2x2 (carried / not): A 20/54 ( 37.0%) vs B 0/56 (  0.0%) | contrast -0.370
+   exact two-sided Fisher p = 7.314e-08 | one-sided (B fewer carried) p = 7.314e-08 | significant at 0.05  [a REPORT in branch B - not the gate]
+
+P2 the PRIMARY - right-arm placed: A 32/54 = 0.593 -> B 53/56 = 0.946 | delta +0.354 (bar >= -0.1)
+   exact two-sided Fisher p = 7.748e-06 | exact non-inferiority p at margin 0.1 = 8.003e-07 | Newcombe one-sided 95% lower bound +0.228
+   standardised to A's weights: species 0.593 -> 0.942 (+0.349, coverage 1.00) | diameter tertiles 0.593 -> 0.947 (+0.355, coverage 1.00) [cuts 4.00/6.10 cm]
+   -> P2 PASS
+
+P3 the pooled placed rate (REPORT ONLY - not a test, P37): raw A 0.440 -> B 0.707 (+0.267); realised right-arm mix 0.720 -> 0.747
+   arm-standardised at 50/50: 0.320 -> 0.473 (+0.153) | at A's mix (0.720): 0.440 -> 0.681 (+0.241)
+   (the raw number moves with the mix: right A 0.593 vs B 0.946; left 0.048 vs 0.000)
+
+P4 the left arm (the park's no-op guard - the left has no park vector): placed A 0.048 (21) -> B 0.000 (19) | delta -0.048 (bar >= -0.05) -> PASS | carried 20 -> 18
+
+P5 new failure reasons (113's number normalisation):
+   A: 3 distinct
+   B: 3 distinct
+   NEW in B: none
+   -> P5 PASS
+
+P6 median cycle: pooled 1826 -> 1830 ticks (+0.2%, bar <= +5%) -> PASS | right arm only 1806 -> 1790
+
+P7 the run level (the primary per seed pair; branch B):
+   run 1: right placed 4/11 -> 10/11 | carried 6 -> 0 | placed 4/11 -> 10/11 -> B
+   run 2: right placed 6/9 -> 10/11 | carried 3 -> 0 | placed 6/9 -> 10/11 -> B
+   run 3: right placed 7/12 -> 9/9 | carried 5 -> 0 | placed 7/12 -> 9/9 -> B
+   run 4: right placed 6/9 -> 9/10 | carried 3 -> 0 | placed 6/9 -> 9/10 -> B
+   run 5: right placed 9/13 -> 15/15 | carried 3 -> 0 | placed 9/13 -> 15/15 -> B
+   B better in 5/5 runs, worse in 0, tied 0 | one-sided sign p = 0.0312 | bar >= 4/5 -> PASS
+   run-stratified placed (Mantel-Haenszel over the 5 pairs): OR 13.025 | CMH chi2 18.92, p 1.363e-05
+
+==============================================================================
+falsifiers: P8 check PASS | right placed delta +0.354 (PASS) | new reasons none | carried better / placed better
+VERDICT: ADOPTED - branch B (P0 = 0.370 < 0.4: the carried contrast is a REPORT, the placed/run-level read carries the decision). The report reads carried 20/54 -> 0/56 (contrast -0.370, p = 7.31e-08) - stronger than the branch required, but not the gate
+   P1: PASS (p = 7.314e-08)
+   P2: PASS
+   P4: PASS
+   P5: PASS
+   P6: PASS
+   P7: PASS
+   P8: PASS
+==============================================================================
