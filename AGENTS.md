@@ -2025,6 +2025,29 @@ says so. Pins: `tasks.py` **`b6de439c`**, `rl_env.py` **`93e35ef7`**,
 Evidence `logs/p44/{CAP_CENSUS,FRONTIER,PREREG,P2_RESULTS}.md`, `p2/`; WORKLOG
 "P44".
 
+**P44 amend (2026-10-27, `logs/p44/P2_RESULTS.md` §9) - the per-leg attribution,
+with the existing knobs only (no `src/` edit) and the diagnostics proven
+row-identical.** **S1** (`place` 0.52) moves `place0` **-135.4 ticks** and
+`place1` **-64.2** (-1.13/-0.53 s) to **14.20 s/attempt, 6/10**, and is clean at
+**both seeds** (the seed-6 pair 6/10 at 14.20 vs the control's 15.00).
+**S3-v** (`lift` 0.37, `a` kept at **1.0**) moves the lift **-29.4 ticks
+(-0.245 s)** with **no new failure row** and drops the `force_min == 0` legs
+**5 vs the control's 7** - **the cleanest single cell**. **S2** at the clock floor
+(dwell 0/pad 1/finger 1) takes the release block **2.04 -> 1.08 s** (130 ticks;
+this confirms the **132-tick / 1.10 s** floor to two ticks, so the census's
+"3 -> 1 = -1.02 s" was optimistic), reads **-0.96 s, 7/10**, and the release
+landing is verified on every payload that reached it (**C 6/6, S2 7/7**; the
+off-belt traces are lost *upstream*, never at the release). **The acceleration
+half is not the lever**: the `a` 1.9 cell reads 1.59 s against S3-v's 1.57 s -
+**0.00 s bought** - while spending transient (cone 1.42x vs 1.19x). `--strict-cone`
+fails on the **control** too, so it is a relative report (C 5 legs/1.53x,
+S1 3/1.53x, S3-v 7/1.19x, S2 4). **The pre-registered decision stands: nothing is
+adopted.** The named adoption candidates, each needing its own pre-registration
+and the two reference re-records, are **S1** (the largest clean single cell,
+5.3 %) and the **two-line union** (class-identical, 11 %); the union's seed-6
+5/10 stands as the reason it is not shipped as-is. Pins: `tasks.py` `b6de439c`,
+`rl_env.py` `93e35ef7` (unchanged by the amend), the evidence as above.
+
 ## 3. What changed -> what to run
 
 | you changed | run |

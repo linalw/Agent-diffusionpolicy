@@ -19162,3 +19162,56 @@ S13 11/20) at the profile's own commanded 0.51 m/s.
 (every endpoint, the class split, the deviations), `logs/p44/p2/` (the 11 logs,
 the drivers, `P2_report.txt`, `gates.txt`). Deviations: S1/S2/S3 measured on one
 battery only (F1 fired), and `scripts/189_w7a_chain.sh` was **not** run.
+
+### P44 phase 2 amend: S3-v is the clean lift cell, the release floor is 130 ticks, and the diags are provably run-neutral
+
+**The Oracle's correction, measured.** Three runs added/exchanged on the same
+tree with **existing knobs only, no `src/` edit** (`logs/p44/p2/amend_*`, §9 of
+`logs/p44/P2_RESULTS.md`): **S1** re-run through `FRUIT_DYNAMIC_PLACE_VMAX=0.52`,
+**S3-v** = `FRUIT_DYNAMIC_LIFT_VMAX=0.37` with **`a_max` untouched at 1.0**, and
+**S2** = the release clock's **floor** form (`FRUIT_RELEASE_DWELL=0`,
+`..._PAD_HOLD=1`, `..._FINGER_HOLD=1`). **The instruments are part of the
+measurement and are ceiling-proven neutral**: the core stream (`[run] attempt` +
+`[stats]` + `[cycle]` + `[motion]` + `[supply]`) is **row-identical** for
+phase-2 C vs `FRUIT_CARRY_DIAG=1` C (83 rows), phase-2 S1 vs `CARRY_DIAG` S1
+(81), and `CARRY_DIAG` C vs `+RELEASE_DEBUG +PLACE_TRACE` C (83), so **S1
+reproduces the first pass exactly** (14.20 s/attempt, `diverted=1`).
+
+**E1 as the per-leg tick delta** (the amend's primary): S1's `place0/place1` lose
+**135.4 / 64.2 ticks** (-1.13 / -0.53 s) with its lift at -3.6; **S3-v's
+`grasp_lift` loses 29.4 ticks (-0.245 s)** with the place legs at -3.6/-1.4
+(untouched, branch distances). **`a` staying at 1.0 is right**: the phase-2 S3
+(0.36 + `a` 1.9) measured `lift` 1.59 s against S3-v's **1.57 s** - the extra
+acceleration buys **0.00 s** and only spends transient (its worst `grasp_lift`
+cone 1.42x against S3-v's 1.19x). **The release floor is real and the amendment's
+arithmetic is confirmed**: S2's `release` block reads **1.08 s = 130 ticks**
+against the control's 2.04 s, i.e. the Oracle's **132-tick / 1.10 s floor to 2
+ticks**, so the census's "3 -> 1 = -1.02 s" over-states the clock (the floor caps
+it near -0.95 s; the measured saving is **-0.96 s**, and s/attempt 15.00 -> 14.00).
+The holds are the ramps' opening **rates** (a 40-step pad ramp and a 16-step
+finger ramp times the hold), which is why the saving is bounded.
+
+**E4 on the amended instruments** (`CARRY_DIAG=1` on every arm; the gate is the
+new grip row and `force_min == 0`; `clean_slip_max` arm-vs-control only):
+**no arm adds a lost leg** (C **7**, S1 **7**, S3-v **5**, S2 **5**), and
+**S3-v draws no grip row at all** - it is the only single cell that passes the
+gate. The residue the cells leave is a live `clean_slip_max` of **8.8-17.7 mm on
+one surviving leg each** (the control's clean legs read 0.1 mm), the largest
+S1's `grasp_lift` (17.7 mm at `force_min` 7.4 N) - a transient, not a loss. S2's
+`--strict-cone` 5.25x outlier is the **empty-hand flail on the never-held
+attempt** (in-hand 5.007 m/s), not a loaded grip. **`--strict-cone` fails on the
+control too** (5 legs, worst 1.53x), so it is not an absolute gate here: the
+counts read C 5 / S1 3 / **S3-v 7 (max 1.19x)** / S2 4 - the faster lift buys a
+narrower magnitude for a **broader** count (the take-off transient is a larger
+share of every leg), which is the lift cell's measured cost. **No PASS is claimed
+on any reference**: every moved arm's fingerprint differs by construction; C
+matches. **F4 verified, not inferred**: with `FRUIT_PLACE_TRACE=1` on both F
+arms, **every payload that reached the release landed on the belt** (C 6/6, S2
+**7/7**, release bottom 47-67 mm, impact -0.92..-0.81 m/s, bounce <= 6 mm, settle
+467-1000 ms), and the off-belt traces read `release_bottom = -184 mm`,
+`impact = 0.00` - lost **upstream**, never at the release. Pins unchanged
+(`tasks.py` **`b6de439c`**, `rl_env.py` **`93e35ef7`**); new evidence
+`logs/p44/p2/{amend_E_*,amend_F_*,run_amend*.sh,amend_report.py,amend_table.txt,amend_gates.txt}`.
+**Nothing adopted**; S3-v is named the amended phase's best cell (no new row,
+5 vs 7 lost legs, -0.245 s, `a` untouched) and the adoption call stays the
+oracle's.

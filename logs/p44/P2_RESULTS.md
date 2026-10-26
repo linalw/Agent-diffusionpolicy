@@ -7,8 +7,17 @@ Tree: HEAD `ca99148` + the working-tree cells; `tasks.py` **`b6de439c`**,
 `configs/motion_reference.json` **`8a399626`** and
 `configs/motion_reference_twoline.json` **`2246f83c`** untouched.
 Evidence: `logs/p44/p2/` (11 runs, `run_batch.sh`, `p2_report.py` ->
-`P2_report.txt`, `gates.txt`), `logs/p44/{CAP_CENSUS,PREREG}.md`.
+`P2_report.txt`, `gates.txt`) **plus the 5 amend runs of §9** (`amend_*`,
+`run_amend*.sh`, `amend_report.py` -> `amend_table.txt`, `amend_gates.txt`),
+`logs/p44/{CAP_CENSUS,PREREG}.md`.
 PREREG endpoints E1-E6 / falsifiers F1-F5 are judged in §7.
+
+> **§9 is the Oracle amend and it supersedes two arms**: S3 becomes **S3-v**
+> (lift `v` 0.30 -> 0.37, `a` untouched) and S2 becomes the release clock's
+> **floor** form (dwell 0, pad 1, finger 1 = **1.08 s**, the Oracle's 132-tick
+> floor confirmed to 2 ticks). Section 3-7's S3/S2 rows are the first pass
+> (0.36/1.9 and the 3 -> 2 settle) and stand as measured; §9 is the amended read
+> with `FRUIT_CARRY_DIAG=1` on every arm and `--strict-cone` on every gate.
 
 **The headline.** The three caps are exactly the lever the census said they were:
 the union buys **-1.45 s/attempt (median of two seeds; 15.00 -> 13.50 and
@@ -281,3 +290,144 @@ configuration; the *timing* and the *two-line* are already positive.
   2.4x headroom and no duration effect), and the direct/policy interface (the
   scripted primitive owns all three blocks; the policy path would need its own
   arm).
+
+---
+
+## 9. The Oracle amend (S1 first, S3-v, S2 last at the clock floor)
+
+Run 2026-10-27 after the first pass. **Existing knobs only, no `src/` edit**
+(`FRUIT_DYNAMIC_PLACE_VMAX=0.52`, `FRUIT_DYNAMIC_LIFT_VMAX=0.37`,
+`FRUIT_RELEASE_DWELL=0` + `FRUIT_RELEASE_PAD_HOLD=1` + `FRUIT_RELEASE_FINGER_HOLD=1`).
+Five runs, acceptance seed 5, one claim each, logs
+`logs/p44/p2/amend_{E,F}_*.log`, drivers `run_amend.sh` / `run_amend2.sh`,
+report `amend_report.py` -> `amend_table.txt`.
+
+**The instruments are provably run-neutral on this scenario** (the core stream -
+`[run] attempt` + `[stats]` + `[cycle]` + `[motion]` + `[supply]` + summary rows -
+is **row-identical**, which is the branch identity, not a statistic):
+
+| pair | core rows | identical |
+| --- | --- | --- |
+| phase-2 C (no diag) vs amend C (`FRUIT_CARRY_DIAG=1`) | 83 | **yes** |
+| phase-2 S1 vs amend S1 (`CARRY_DIAG=1`) | 81 | **yes** |
+| amend C (`CARRY_DIAG=1`) vs F C (`+RELEASE_DEBUG=1 +PLACE_TRACE=1`) | 83 | **yes** |
+
+So the diag sits inside the contrast without moving it, and **the S1 arm
+reproduces the first pass exactly** (14.20 s/attempt, `diverted=1`).
+
+### 9.1 The per-arm table (`amend_table.txt` is the run of record)
+
+| arm | placed | s/att | `lift` | `place` | `release` | lift ticks | place0 ticks | place1 ticks | new grip rows | `force_min==0` legs |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| **C** (E) | 6/10 | 15.00 | 1.82 | 3.35 | 2.04 | 168.0 | 378.4 | 245.8 | 0 | 7 |
+| **S1** place 0.52 | 6/10 | **14.20** | 1.79 | **2.49** | 2.06 | 164.4 | **243.0 (-135.4t)** | **181.6 (-64.2t)** | 1 | 7 |
+| **S3-v** lift 0.37 | 6/9 | **14.60** | **1.57** | 3.27 | 2.09 | **138.6 (-29.4t)** | 374.8 (-3.6t) | 244.4 (-1.4t) | **0** | **5** |
+| **C** (F) | 6/10 | 15.00 | 1.82 | 3.35 | 2.04 | 168.0 | 378.4 | 245.8 | 0 | 7 |
+| **S2** release floor | **7/10** | **14.00** | 1.81 | 3.17 | **1.08 (-0.96 s)** | 166.7 | 360.5 | 234.0 | 1 | **5** |
+
+**E1 is the tick delta now**, and it names the cell: S1's `place0/1` lose
+**135.4 / 64.2 ticks** (-1.13 / -0.53 s at 120 Hz) with its `lift` at -3.6 ticks
+(branch distances); S3-v's `grasp_lift` loses **29.4 ticks** (-0.245 s) with the
+place legs at -3.6 / -1.4 (untouched, so that is the branch's own distances); S2
+touches no leg (-1.3 / -17.9 / -11.8 ticks are branch distances) and buys its
+**0.96 s from the release clock**. `S3v`'s 6/9 is a `no eligible fruit` on one
+of its nine slots (`active` window had nothing above the catch floor), not a pick
+failure; the other cells' denominators are 10.
+
+**`a_max` stays at 1.0 for S3-v, and the census is right that the raise buys
+nothing**: the phase-2 S3 (0.36 **and** `a` 1.9) measured `lift` 1.59 s against
+S3-v's **1.57 s** - the extra acceleration bought **0.00 s** and only spent grip
+transient (its `grasp_lift` worst cone 1.42x against S3-v's 1.19x). **S3-v is the
+strictly better form of the lift cell.**
+
+**The release clock's floor is real.** S2's release block reads **1.08 s (130
+ticks)** against the control's 2.04 s, i.e. **the Oracle's 132-tick / 1.10 s floor
+to within 2 ticks** - so the census's "3 -> 1 = -1.02 s" over-states what the
+clock can give (the floor caps the saving at about -0.95 s) and the measured
+**-0.96 s** is what the block yields. The holds are the ramps' opening **rates**
+(a 40-step pad ramp and a 16-step finger ramp multiplied by the hold), which is
+why the saving is bounded.
+
+### 9.2 E4 on the amended instruments (CARRY_DIAG on every arm)
+
+The gate is the **new grip row** and the **`force_min == 0`** leg count;
+`clean_slip_max` is quoted **arm-vs-control only** (the live value is not W8-B's
+offline `clean_slip` and has no absolute bar).
+
+| arm | grip rows | no-grasp | cnp | `force_min==0` legs | clean-leg `clean_slip_max` p50 / max | lost-leg `clean_slip_max` |
+| --- | --- | --- | --- | --- | --- | --- |
+| C (E) | 0 | 0 | 4 | **7** (4 lift + 3 place0) | **0.1 / 0.1 mm** | 978.8 / 1402.3 mm |
+| S1 | **1** (never-held) | 1 | 3 | **7** (4 lift + 3 place0) | 0.1 / **17.7 mm** | 736.5 / 1204.7 mm |
+| S3-v | **0** | 0 | 3 | **5** (3 lift + 2 place0) | 0.1 / **9.7 mm** | 935.7 / 1389.2 mm |
+| C (F) | 0 | 0 | 4 | **7** | 0.1 / 0.1 mm | 978.8 / 1402.3 mm |
+| S2 | **1** (never-held) | 1 | 2 | **5** | 0.0 / **8.8 mm** | 1059.1 / 1411.5 mm |
+
+* **No arm adds a `force_min==0` leg** (C 7; S1 7; S3-v 5; S2 5). The control's
+  seven are the loaded-slide class the phase-2 guard measured; the cells' counts
+  are equal or lower.
+* **S3-v draws no grip row at all** - it is the only single cell that passes the
+  amended E4 outright.
+* The cells' one measurable residue is a **live `clean_slip_max` of 8.8-17.7 mm
+  on a single surviving leg each** (the control's clean legs read 0.1 mm). The
+  largest is S1's `grasp_lift` (17.7 mm at `force_min` 7.4 N) - a transient, not a
+  lost leg, and it is the **only** signal the faster place leaves behind.
+* S2's `--strict-cone` outlier (5.25x) is the **empty-hand flail on the never-held
+  attempt** (in-hand 5.007 m/s, `clean_slip_max` 1411 mm, `force_min` 0.00) - a
+  lost-grasp read, not a loaded grip.
+
+### 9.3 `--strict-cone`, and the reference rule
+
+`scripts/105_motion_regression.py <log> --strict-cone` **fails on the control
+too** (C: 5 legs over the 1x budget, worst 1.53x), so it is not an absolute gate
+on this scenario - the shipped branch already has the loaded-slide cone class.
+The arm-vs-control counts are the read: **C 5 (1.53x) / S1 3 (1.53x) / S3-v 7
+(1.19x) / S2 4 (5.25x, the flail)**. S3-v **raises the number** of legs over 1x
+(5 -> 7) while **lowering the magnitude** (1.13-1.19x against C's 1.07-1.53x):
+the faster lift makes the take-off transient a larger share of every leg, and it
+is where the cell's cost sits. The descent budgets are unaffected everywhere
+(`|v|max` 0.110-0.114 against 0.160-0.161; lurch 0.017 against 0.2915).
+
+**No PASS is claimed on any reference.** C matches
+`configs/motion_reference.json` (the default-off proof, §2); every moved arm's
+fingerprint **differs by construction** (the fingerprint contains each leg's
+`|v|max`), so the amended arms are gated on the budgets and the cone/leg read,
+never on a reference.
+
+### 9.4 F4 - the shortened release still lands the payload (place trace, both arms)
+
+`FRUIT_PLACE_TRACE=1` on both F arms gives one landing report per place:
+
+| arm | place traces | on the belt | the on-belt landing |
+| --- | --- | --- | --- |
+| C | 10 | **6** (= its placed count) | release bottom 46.7-67.6 mm, impact -0.92..-0.70 m/s, bounce <= 4.4 mm, settle 683-1075 ms |
+| S2 (floor release) | 9 | **7** (= its placed count) | release bottom 47.3-66.5 mm, impact -0.92..-0.81 m/s, bounce <= 6.0 mm, settle 467-1000 ms |
+
+The four (C) and two (S2) off-belt traces read `release_bottom = -184 mm`,
+`impact = 0.00 m/s`, `settle = nan` - the payload was already below the pads when
+the pads were still closed, i.e. **lost upstream of the release**, exactly the
+phase-2 jaw-fruit reading. **Every payload that reached the release landed on the
+belt, in the control's own landing band**: the release cut does not lose fruit.
+
+### 9.5 The amend's verdicts
+
+| | S1 place 0.52 | **S3-v lift 0.37 (v only)** | S2 release floor |
+| --- | --- | --- | --- |
+| **E1** per-leg tick delta | **-135.4 / -64.2 t** (place) | **-29.4 t** (lift) | the clock: **-0.96 s**, 130 ticks (floor 132 confirmed) |
+| **E1** `s/attempt` | **-0.80 s** | **-0.40 s** (6/9; one supply-window skip) | **-1.00 s** |
+| **E2** placed | 6/10 = C | 6/9 vs 6/10 = C | 7/10 > C |
+| **E3** budget / strict-cone | pass / 3 legs (1.53x) | pass / **7 legs (max 1.19x)** | pass / 4 legs (one flail 5.25x) |
+| **E4** amended gate | **1 new row** (never-held) | **0 new rows** | **1 new row** (never-held) |
+| **F4** release lands | n/a | n/a | **yes, 7/7 on the belt** |
+| **F1/F3** | F1 fires | **neither fires** | F1 fires |
+| **adopted** | no | **no - but it is the clean cell** | no |
+
+**S3-v is the amended phase's best result**: the only cell with no new grip row,
+fewer `force_min==0` legs than the control (5 vs 7), a real -0.245 s on its own
+leg, and its `a_max` untouched. It is still **not adopted** here - the adoption
+decision is the oracle's, and its one caveat is measured rather than assumed: the
+strict-cone leg count rises 5 -> 7 (magnitude down, breadth up). **S1** is
+confirmed byte-for-byte on the amended instruments, and its place is the biggest
+single win (-135 ticks) with the same lost-leg count as the control and one
+17.7 mm live-slip transient. **S2** at the clock floor gives the largest single
+cell saving (**-0.96 s**) with the landing verified, and one never-held row that
+the control also draws elsewhere (2.0 %/attempt, §5).
