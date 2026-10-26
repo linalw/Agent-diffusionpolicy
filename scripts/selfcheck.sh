@@ -170,6 +170,12 @@ run_check "prepared-next selftest" "$python" scripts/213_prepared_next_selftest.
 # scope** (direct -> `back`, handoff -> no park, `=ready` the escape hatch, the
 # manifest's `defaulted` field, the two printed label sites). No simulator.
 run_check "P43 selector + park" "$python" scripts/224_p43_selftest.py
+# P44 phase 2: the speed cells (`FRUIT_SPEED_PLACE/_RELEASE/_LIFT`, S13 =
+# `FRUIT_SPEED_ALL`). The real resolver on the stubbed import: unset = the
+# shipped default *strings* (byte-identical by construction), one knob per cell,
+# an explicit per-leg override winning, the union, and the seven read sites by
+# AST. No simulator.
+run_check "P44 speed cells" "$python" scripts/225_p44_speed_selftest.py
 
 if [ -n "$run_log" ] && [ -f "$run_log" ]; then
     run_check "motion budgets" "$python" scripts/105_motion_regression.py "$run_log" \

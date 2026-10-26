@@ -1970,6 +1970,61 @@ both untouched, checkpoint `moe_v13s` `61da390a`. Evidence
 `logs/p43/{RATE_LEDGER,PARK_STATUS,POLICY_STATUS,PREREG,P2_RESULTS,P3_RESULTS}.md`,
 `p2/`, `p3/`, `p4/`; WORKLOG "P43".
 
+**P44 (2026-10-27, `logs/p44/`; default off, **nothing adopted**): the "don't cap
+the arm" question is answered by arithmetic, and the speed cells buy 7-14 % at a
+branch-dependent class cost.** The census (`logs/p44/CAP_CENSUS.md`) measures
+every cap: **the joint velocity limits carry 2.1x** (`maxJointVelocity`
+312 deg/s = 5.45 rad/s against the fastest reference), **the effort limits 2.4x**
+(`maxForce` 7 N·m), and **the drive gains cannot change duration** - every leg is
+**tick-clocked by its profile** (the model reproduces each leg to +-1.4 %, and
+the gains were already measured null on the descent, `logs/165`). **The friction
+cone does not bind on `lift` (a = 1.0 of 1.962) or `place` (1.089 of 4.273)** -
+so what looks like a speed lock is a **profile choice**, and **48 % of the
+15.05 s cycle sits in three blocks**: `place` **3.35 -> 2.49 s** (one
+jerk-limited profile at `v_max` 0.35), `release` **2.04 -> 1.48 s** (1.57 s of
+three open-loop holds), `lift` **1.82 -> 1.59 s** (the profile at `v_max` 0.30).
+Three default-off cells (`FRUIT_SPEED_PLACE=0.52`, `FRUIT_SPEED_RELEASE=1`,
+`FRUIT_SPEED_LIFT=0.36`) and their union (`FRUIT_SPEED_ALL=1`) are implemented
+**on the existing per-leg overrides** (the `_SPEED_SHIPPED` block, `tasks.py`),
+with a byte-identical unset path and a new selfcheck leg
+(`scripts/225_p44_speed_selftest.py`) pinning the resolver and the seven caps /
+ten read sites. **The union is real**: **-1.45 s/attempt** (median of two seeds:
+15.00 -> 13.50, 14.60 -> 13.20), **-1.90 s** on the pear, **-1.10 s** on the
+two-line (**+12 % placed/min, 4.90 -> 5.49, same 8/10**). **Nothing is adopted.**
+S1/S2/S3 each fail the registered E4 **on the letter** (one new
+`fruit did not follow the gripper` row apiece), and that class is the
+**pre-contact acquisition** signature - the fingertip-to-fruit distance is
+**59-63 mm** at the close and the payload never sits between the pads; **the
+control draws the same signature on seed 6 (59.4 mm) and 3/147 = 2.0 % of the
+shipped single-arm corpus does**. The union passes E4 on all four batteries but
+**fails E2 on the acceptance seed 6 - 5/10 vs 8/10** (Fisher **p = 0.30**; the
+shipped line's own two seeds read 4 and 1 load losses), so the branch, not a
+cell, decides. **On the held legs the cells read *lower* in-hand motion
+(0.08-0.13 vs 0.07-0.18 m/s) and a *lower* place cone (median 0.87-0.88x vs
+0.97/0.89x)**, i.e. the carried class is not implicated; the E4 failures are
+acquisition. **The one positive worth a follow-up is the two-line**, where the
+union is class-identical to the control and **11 % faster** - a two-line-only
+adoption needs its own pre-registration and reference re-record. **A real defect
+was found and fixed**: `FRUIT_DYNAMIC_PLACE_VMAX` was `min()`'d against the base
+`FRUIT_CARRY_VMAX` (0.38), so a 0.52 cell silently resolved to **0.38** (-0.42 s,
+not -1.09 s); the place branch now **assigns** its own cap, with byte-identity
+proven on every recorded configuration (the shipped 0.35 is already below 0.38
+and nothing sets `FRUIT_CARRY_VMAX`). **The ForceDelta half is scoped out with a
+reason, not skipped**: it corrects a force/pose residual on a contact-rich
+segment, and this tree's only such segment is the carry, whose class is closed
+(`SIM_LIMIT.md`) with the cone not binding - and the guard family already
+measured negative (`FRUIT_CARRY_GUARD` +5.4 % cycle, R6-B +4.5 %). The S13/E2
+finding **justifies it as the named remedy** if the speed is ever adopted; it
+would need its own pre-registration. **The 2026 frontier survey could not be
+fetched** (a TLS `UNKNOWN_CERTIFICATE_VERIFICATION_ERROR`, then an `ECONNRESET`),
+so `logs/p44/FRONTIER.md` records only what the local record already fixes and
+says so. Pins: `tasks.py` **`b6de439c`**, `rl_env.py` **`93e35ef7`**,
+`scripts/225_p44_speed_selftest.py` **`6b2e1945`**, `scripts/selfcheck.sh`
+**`d82aa3af`**; `configs/motion_reference.json` **`8a399626`** and
+`..._twoline.json` **`2246f83c`** untouched; `scripts/189_w7a_chain.sh` not run.
+Evidence `logs/p44/{CAP_CENSUS,FRONTIER,PREREG,P2_RESULTS}.md`, `p2/`; WORKLOG
+"P44".
+
 ## 3. What changed -> what to run
 
 | you changed | run |

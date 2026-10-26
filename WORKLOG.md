@@ -19086,3 +19086,79 @@ pair, this phase's selfcheck/acceptance logs). Nothing re-opens the grip/seat
 class (`logs/p42/SIM_LIMIT.md` stands: the loaded slide persists at 9.8 N — 20
 right-arm carried legs in the control), the supply density (P1c), the place
 geometry (P3) or the belt speed (R3).
+
+### P44 phase 2: the speed cells are the cap arithmetic, the grip guard is the acquisition class, nothing adopted
+
+**The cells.** Three default-off knobs (`tasks.py`, the `speed_cell_defaults()`
+block + seven caps / ten read sites): `FRUIT_SPEED_PLACE=0.52` (place `v_max`
+0.35 -> 0.52, `a_max` left at 1.089 - inside the census's 0.61 m/s ceiling),
+`FRUIT_SPEED_RELEASE=1` (dwell 20 -> 0, pad/finger 3 -> 2), `FRUIT_SPEED_LIFT=0.36`
+(lift 0.30/1.0 -> 0.36/1.9) and `FRUIT_SPEED_ALL=1` (S13, the union). Each sets
+only the *default string* of an existing per-leg override. **A defect the cell
+found:** `FRUIT_DYNAMIC_PLACE_VMAX` was `min()`'d against `FRUIT_CARRY_VMAX`
+(0.38), so 0.52 would have silently resolved to 0.38 (-0.42 s, not -1.09 s); the
+place branch now assigns its own cap - byte-identical for every recorded
+configuration (the shipped 0.35 is below 0.38 and no driver sets
+`FRUIT_CARRY_VMAX`). Offline contract pinned by the new selfcheck leg
+`scripts/225_p44_speed_selftest.py`; `rl_env.py` `TASKS_MD5` follows
+(`a1b3d673` -> `b6de439c`, metadata only); `selfcheck.sh` **PASS 0 failures**.
+**Default off proven four ways** (the acceptance seed 5 **387/387** `[fruit]`
+lines vs `logs/p43/p2/post_revert_accept_unset.log`, seed 6 **388/388** vs
+`r_accept_A_s6`, the pear **388/388** vs `d0_pear_A_s5` minus its `[bed*]` rows,
+and the two-line `190` **fingerprint: matches** + the single-arm `105`
+**fingerprint: matches**).
+
+**The measurements** (11 runs, arms interleaved, one instrumentation set on every
+arm, `FRUIT_MOTION_REPORT=1 FRUIT_CYCLE_REPORT=1`; acceptance seed 5 all five
+arms, then C vs S13 on seed 6 / the pear / the two-line):
+
+| arm | placed | s/att | `place` | `release` | `lift` | notes | held-then-lost |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| C (acc s5) | 6/10 | 15.00 | 3.35 | 2.04 | 1.82 | 0 | 4/10 |
+| S1 | 6/10 | **14.20** | **2.49** | 2.06 | 1.79 | **1** | 3/10 |
+| S2 | 6/10 | **14.30** | 3.42 | **1.48** | 1.80 | **1** | 3/10 |
+| S3 | **8/10** | **14.50** | 3.28 | 2.24 | **1.59** | **1** | 1/10 |
+| **S13** | 6/10 | **13.50** | **2.62** | **1.38** | **1.56** | **0** | 4/10 |
+
+S13 also reads **13.20 s/att vs 14.60** (acceptance seed 6), **13.80 vs 15.70**
+(the pear, and its cone 0.99x/0 over against the control's 1.20x/2) and **8.70 vs
+9.80 s/att on the two-line with the same 8/10, the pooled interval 8.27 vs 9.13 s
+and 5.49 vs 4.90 placed/min**. The leg tick counts are the profile's arithmetic
+(`grasp_lift` 168.0 -> 136.8, `place0` 378.4 -> 246.6, `place1` 245.8 -> 172.3,
+place `|v|cmd` 0.343 -> 0.510).
+
+**The guard (the pillar).** The note is a **closure test** (`tasks.py:11733`, `if
+not result.grasped`), so it also covers a never-grasped attempt. Every row in the
+battery is **one class**: all five single-arm rows read **fingertip-to-fruit
+59-63 mm at the close** (the pads close on air, two re-seats, `lift
++0.000..+0.004 m`) - the pre-contact acquisition class - and the **control draws
+the identical signature on seed 6 (59.4 mm), S13's seed-6 row being that same
+attempt bit-for-bit through the grip**. The shipped line's own rate is **3/147 =
+2.0 %** per attempt over the P41/P42/P43 single-arm corpus (and the two-line
+record's is 2/10, which both of my two-line arms reproduce). On the held legs the
+cells read *lower* payload-in-hand motion (0.08-0.13 vs 0.07-0.18 m/s) and a
+*lower* place cone (median 0.87-0.88x vs 0.97/0.89x). The **held-then-lost** count
+is branch-dominated: C's own two seeds read 4 and 1; pooled C 5/20 vs S13 8/20 is
+Fisher **p = 0.50** (seed 6 alone 1 vs 4, p = 0.30).
+
+**Verdicts.** S1/S2/S3 **fail E4 on the letter** (one new row each) and were
+stopped after their attribution battery; their E1 is -0.80/-0.70/-0.50 s. S13
+**passes E1** (median -1.45 s), E3, E4 (0 vs 0 on seed 5; 1 vs 1 on seed 6), E5
+(the two-line) and E6, and **fails E2/F3 on the acceptance seed 6 (5/10 vs
+8/10)**. **Nothing adopted; every cell stays default off; no `configs/` change.**
+The force-delta remedy is **not** justified by these rows (they are pre-contact,
+and the carried segment reads better); the named open item is the acquisition
+path (W7-B ACQ / R2 reach edge), and the named next measurement is a placed-count
+battery at the WS-4.2 N on the acceptance, where the class that decides E2 swings
+borderline 4x within one configuration. One reported (not gated) change: the
+place cell spends the **0.45 m/s hand convention** (C 3/20 legs over, S1 11/19,
+S13 11/20) at the profile's own commanded 0.51 m/s.
+
+**Pins.** `tasks.py` **`b6de439c`**, `rl_env.py` **`93e35ef7`**,
+`scripts/225_p44_speed_selftest.py` **`6b2e1945`**, `scripts/selfcheck.sh`
+**`d82aa3af`**, `logs/p44/p2/p2_report.py` `b74e4138`, `run_batch.sh`
+`b7c30c97`; `configs/motion_reference.json` **`8a399626`** and
+`..._twoline.json` **`2246f83c`** untouched. **Record.** `logs/p44/P2_RESULTS.md`
+(every endpoint, the class split, the deviations), `logs/p44/p2/` (the 11 logs,
+the drivers, `P2_report.txt`, `gates.txt`). Deviations: S1/S2/S3 measured on one
+battery only (F1 fired), and `scripts/189_w7a_chain.sh` was **not** run.

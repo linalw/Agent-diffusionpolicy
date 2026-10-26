@@ -96,6 +96,119 @@ FINGER_TIP_BELOW_JAW = 0.0805
 #: `FRUIT_SELECT_NEAREST_ABOVE_FLOOR=1` with no code change.
 NEAREST_ABOVE_FLOOR_SCRIPTED = "0"
 
+# ---- P44 speed cells: the three profile/clock caps, one knob per cell --------
+# The census (`logs/p44/CAP_CENSUS.md` sections 5-6) prices three blocks at
+# **6.10 s of parameter** of the 15.05 s attempt: the `place` profile (3.16 s at
+# one jerk-limited profile, `v_max` 0.35), the `release`'s three open-loop holds
+# (1.57 s = 20 + 120 + 48 ticks) and the `lift` profile (1.37 s at `v_max` 0.30).
+# Each cell below is **one** env knob that moves its block's caps coherently, and
+# each resolves to the shipped string when unset, so the shipped path is
+# byte-identical by construction (the per-leg overrides
+# `FRUIT_DYNAMIC_PLACE_VMAX/_AMAX`, `FRUIT_DYNAMIC_LIFT_VMAX/_AMAX` and
+# `FRUIT_RELEASE_DWELL/_PAD_HOLD/_FINGER_HOLD` all still win over a cell default).
+#
+# * `FRUIT_SPEED_PLACE` (**S1**, unset/`0` = off): the `place0/1` profile. The
+#   registered value is `v_max` 0.35 -> **0.52**, which is inside the census's
+#   **0.61 m/s** ceiling for this leg (the speed at which the acceleration term
+#   starts to bind at `a_max` 1.089) - so the acceleration stays the shipped
+#   **1.089** and the cell is a pure speed raise that spends no cone margin
+#   (the place's +z-horizontal cone budget is 4.273 m/s^2, section 2.4).
+#   `FRUIT_SPEED_PLACE_AMAX` scales `a_max` as well (the shipped shape is
+#   `a = 0.20*(v/0.15)^2`, i.e. 0.35 -> 1.089, 0.52 -> 2.4036, clipped to the
+#   carry base cap 2.0) for the attribution run; it buys **0.00 s** at 0.52
+#   because `t_v` binds, so the default keeps the low acceleration.
+# * `FRUIT_SPEED_RELEASE` (**S2**): the three open-loop holds -> dwell **20 -> 0**
+#   and the pad/finger settles **3 -> 2** ticks each (0.63 s of the 2.04 s
+#   block). The accompanied `place low` descent is *before* these clocks and is
+#   untouched - the drop still completes, which `placed`/`on_output_belt`
+#   verifies. `FRUIT_SPEED_RELEASE_SETTLE` moves the 3 -> 2 settle; `=1` for the
+#   3 -> 1 form (the census's 1.02 s variant) once 3 -> 2 is measured.
+# * `FRUIT_SPEED_LIFT` (**S3**): `grasp_lift` `v_max` 0.30 -> **0.36** with
+#   `a_max` 1.0 -> **1.9** (the census ceiling of the 1.962 m/s^2 vertical cone
+#   budget; `limited_by_cone` clips anything above it). `FRUIT_SPEED_LIFT_AMAX`
+#   pins the acceleration instead - at `v_max` 0.36 the acceleration term does
+#   not bind below 0.371 m/s, so the pin is the grip-risk control.
+# * `FRUIT_SPEED_ALL=1` (**S13**): all three cells on; an explicit single-cell
+#   value still wins.
+#
+# A cell's value may be its own speed [m/s] (`FRUIT_SPEED_PLACE=0.52`), or
+# `1`/`on`/`true` for the registered value. `0`/unset is off. The default-off
+# discipline is AGENTS section 2's: every knob added here changes a shipped
+# constant's *default string* only when it is set.
+_SPEED_SHIPPED = {
+    "place_vmax": "0.35",
+    "place_amax": "1.089",
+    "lift_vmax": "0.30",
+    "lift_amax": "1.0",
+    "release_dwell": "20",
+    "release_pad_hold": "3",
+    "release_finger_hold": "3",
+}
+
+#: The registered (PREREG item S) speed of each motion cell [m/s].
+_SPEED_REGISTERED = {"place": "0.52", "lift": "0.36"}
+
+
+def _speed_cell_value(cell: str, env_name: str) -> str | None:
+    """One motion cell's speed as the caller's own string (`None` = cell off)."""
+    raw = os.environ.get(env_name, "").strip()
+    if not raw:
+        if os.environ.get("FRUIT_SPEED_ALL", "0") == "1":
+            return _SPEED_REGISTERED[cell]
+        return None
+    if raw.lower() in ("1", "on", "true", "yes"):
+        return _SPEED_REGISTERED[cell]
+    try:
+        return raw if float(raw) > 0.0 else None
+    except ValueError:
+        say(f"[speed] ignoring {env_name}={raw!r} (not a speed); cell stays off")
+        return None
+
+
+def _speed_cell_flag(env_name: str) -> bool:
+    """A boolean speed cell (`FRUIT_SPEED_RELEASE`), with `FRUIT_SPEED_ALL` as the fallback."""
+    raw = os.environ.get(env_name, "").strip().lower()
+    if raw:
+        return raw not in ("0", "off", "false", "no")
+    return os.environ.get("FRUIT_SPEED_ALL", "0") == "1"
+
+
+def speed_cell_defaults() -> dict[str, str]:
+    """Default strings for the caps the P44 speed cells move (shipped unless on).
+
+    Read once per attempt (not per tick), and only ever changes which *default*
+    `os.environ.get` falls back to, so with every cell unset the returned dict is
+    `_SPEED_SHIPPED` and the shipped path is byte-identical.
+    """
+    out = dict(_SPEED_SHIPPED)
+    place = _speed_cell_value("place", "FRUIT_SPEED_PLACE")
+    if place is not None:
+        out["place_vmax"] = place
+        pin = os.environ.get("FRUIT_SPEED_PLACE_AMAX", "").strip()
+        if pin:
+            out["place_amax"] = pin
+        elif place == _SPEED_REGISTERED["place"]:
+            # The registered cell is a pure speed raise: 0.52 is below the
+            # 0.61 m/s ceiling where the acceleration term starts to bind at
+            # the shipped `a_max`, so `a` stays 1.089 (0.00 s of the raise).
+            out["place_amax"] = _SPEED_SHIPPED["place_amax"]
+        else:
+            # A caller's own speed scales the pair on the shipped shape
+            # `a = 0.20*(v/0.15)^2` (0.35 -> 1.089).
+            out["place_amax"] = f"{0.20 * (float(place) / 0.15) ** 2:.4f}"
+    lift = _speed_cell_value("lift", "FRUIT_SPEED_LIFT")
+    if lift is not None:
+        out["lift_vmax"] = lift
+        out["lift_amax"] = (
+            os.environ.get("FRUIT_SPEED_LIFT_AMAX", "").strip() or "1.9"
+        )
+    if _speed_cell_flag("FRUIT_SPEED_RELEASE"):
+        settle = os.environ.get("FRUIT_SPEED_RELEASE_SETTLE", "").strip() or "2"
+        out["release_dwell"] = "0"
+        out["release_pad_hold"] = settle
+        out["release_finger_hold"] = settle
+    return out
+
 
 def _quat_matrix(q) -> np.ndarray:
     """Rotation matrix from a (w, x, y, z) quaternion."""
@@ -3367,6 +3480,10 @@ class PickAndPlaceTask:
                 self.grippers[side].mu
             )
             if os.environ.get("FRUIT_CARRY_PROFILE", "1") == "1":
+                # P44 speed cells (S1 place / S3 lift, `FRUIT_SPEED_*`): one dict
+                # per leg; every value is the shipped string unless a cell is on,
+                # and an explicit `FRUIT_DYNAMIC_*` knob still wins over it.
+                _speed = speed_cell_defaults()
                 # Jerk-limited reference instead of the constant-velocity ramp:
                 # the old interpolation demanded an infinite acceleration at both
                 # ends of every leg, which is exactly where the fruit slipped.
@@ -3396,10 +3513,10 @@ class PickAndPlaceTask:
                         # `logs/fast/sweep_iso_p035_l0*`) measured 8/10, 8/10 and
                         # 9/10, so the 0.30 stays the shipped cap.
                         limits.v_max = float(
-                            os.environ.get("FRUIT_DYNAMIC_LIFT_VMAX", "0.30")
+                            os.environ.get("FRUIT_DYNAMIC_LIFT_VMAX", _speed["lift_vmax"])
                         )
                         limits.a_max = float(
-                            os.environ.get("FRUIT_DYNAMIC_LIFT_AMAX", "1.0")
+                            os.environ.get("FRUIT_DYNAMIC_LIFT_AMAX", _speed["lift_amax"])
                         )
                 elif self._dynamic_capture_active:
                     # A moving catch's grip is the most marginal at the first
@@ -3421,10 +3538,22 @@ class PickAndPlaceTask:
                     # The place block falls 5.64 -> 2.85 s and the old "place
                     # raise is 7/10" reading was the unisolated approach+x-track
                     # change, not the place.
-                    place_v = float(os.environ.get("FRUIT_DYNAMIC_PLACE_VMAX", "0.35"))
+                    place_v = float(
+                        os.environ.get("FRUIT_DYNAMIC_PLACE_VMAX", _speed["place_vmax"])
+                    )
                     if place_v > 0.0:
-                        limits.v_max = min(limits.v_max, place_v)
-                    place_a = float(os.environ.get("FRUIT_DYNAMIC_PLACE_AMAX", "1.089"))
+                        # The dynamic place value is **authoritative** on the
+                        # place leg, not a min() against the base carry cap
+                        # `FRUIT_CARRY_VMAX` (0.38): the P44 S1 cell asks 0.52,
+                        # and a min() would silently resolve it to 0.38 (a
+                        # -0.42 s block, not the census's -1.09 s). Byte-identical
+                        # for every recorded configuration because the shipped
+                        # place cap 0.35 is already below 0.38 and no driver sets
+                        # `FRUIT_CARRY_VMAX`.
+                        limits.v_max = place_v
+                    place_a = float(
+                        os.environ.get("FRUIT_DYNAMIC_PLACE_AMAX", _speed["place_amax"])
+                    )
                     if place_a > 0.0:
                         limits.a_max = min(limits.a_max, place_a)
                 limits = limits.limited_by_cone(direction, mu_eff)
@@ -8664,6 +8793,9 @@ class PickAndPlaceTask:
         """
         belt = getattr(self.spawner, "belt", None)
         arm = self.arms[arm_name]
+        #: P44 speed cells (S2 release holds, and the S1/S3 defaults `_carry`
+        #: re-reads): one dict per attempt, shipped strings unless a cell is on.
+        _speed = speed_cell_defaults()
         #: The arm's own pick station (two-line scheduler); 0.0 on every other
         #: path. `arm_name` is authoritative here: the policy handover may call
         #: this without `_run_impl` having set `current_arm`.
@@ -11796,13 +11928,13 @@ class PickAndPlaceTask:
                                 )
                             self._place_probe(place_trace, sample, "relax", _index, float(value))
                 gap = relax_gap
-            for _index in range(max(0, int(os.environ.get("FRUIT_RELEASE_DWELL", "20")))):
+            for _index in range(max(0, int(os.environ.get("FRUIT_RELEASE_DWELL", _speed["release_dwell"])))):
                 gripper.follow_centre(centre, quat, gap)
                 self._step_sim(1)
                 if release_debug:
                     self._release_probe(arm_name, sample, trace, "dwell", _index, gap)
                 self._place_probe(place_trace, sample, "dwell", _index, gap)
-            pad_hold = max(1, int(os.environ.get("FRUIT_RELEASE_PAD_HOLD", "3")))
+            pad_hold = max(1, int(os.environ.get("FRUIT_RELEASE_PAD_HOLD", _speed["release_pad_hold"])))
             for _index, value in enumerate(min_jerk_ramp(gap, release_gap, 40)):
                 gripper.follow_centre(centre, quat, float(value))
                 for _ in range(pad_hold):
@@ -11815,7 +11947,7 @@ class PickAndPlaceTask:
             self._gripper_offset[arm_name] = None
             self._grip_quat[arm_name] = None
             self._grip_centre[arm_name] = None
-        finger_hold = max(1, int(os.environ.get("FRUIT_RELEASE_FINGER_HOLD", "3")))
+        finger_hold = max(1, int(os.environ.get("FRUIT_RELEASE_FINGER_HOLD", _speed["release_finger_hold"])))
         for _index, value in enumerate(min_jerk_ramp(fingers, arm.OPEN, 16)):
             arm.set_gripper(float(value))
             for _ in range(finger_hold):
@@ -11827,9 +11959,9 @@ class PickAndPlaceTask:
         #: clock (the B1c re-anchor applied to the span saving), so the pump
         #: instant stays attempt-relative invariant under the tail trim.
         if self._release_resync:
-            _dwell = max(0, int(os.environ.get("FRUIT_RELEASE_DWELL", "20")))
-            _pad = max(1, int(os.environ.get("FRUIT_RELEASE_PAD_HOLD", "3")))
-            _fing = max(1, int(os.environ.get("FRUIT_RELEASE_FINGER_HOLD", "3")))
+            _dwell = max(0, int(os.environ.get("FRUIT_RELEASE_DWELL", _speed["release_dwell"])))
+            _pad = max(1, int(os.environ.get("FRUIT_RELEASE_PAD_HOLD", _speed["release_pad_hold"])))
+            _fing = max(1, int(os.environ.get("FRUIT_RELEASE_FINGER_HOLD", _speed["release_finger_hold"])))
             _saved = (20 - _dwell) + 40 * (3 - _pad) + 16 * (3 - _fing)
             if _saved > 0:
                 _credited = self._resync_supply_clock(_saved, armed=True)
