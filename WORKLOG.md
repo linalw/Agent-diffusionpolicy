@@ -18796,3 +18796,139 @@ and no wedge occurred, so the single registered retry was not used.
 carries), `rl_env.py` **`afe2c49b`**, `scripts/40_collect_demos.py`
 **`cfcc6394`** - measurement-time `8fae708f` / `6f9eba0b` / `1542ab4d`, before
 this close's read-path and manifest-sharing edits.
+
+### P42: the seat is centred and the seat family is **closed in this parameter space** — the pads sit 1.36-4.65 mm off the payload's centre on 20/20 grips, the bounded centring lever's 2.99 mm is **absorbed** because the close re-aims the pose itself every tick, and `logs/p42/SIM_LIMIT.md` becomes the canonical record of the loaded-slide limit (2026-10-26)
+
+Started on the P41-final tree `c2760bf` (clean) with `logs/p42/PREREG.md`
+drafted *after* the phase-1 census and before the phase-2 run. Two phases (the
+census, the lever) then this close-out; Oracle verdict at the gate **ACCEPT WITH
+AMENDMENTS** (five, all landed here). Evidence `logs/p42/`:
+`SEAT_CENSUS.md`, `PREREG.md`, `P2_RESULTS.md`, `SIM_LIMIT.md`, `p2/`, `p3/`,
+`selfcheck.log`. Nothing is adopted and **no shipped default changed**;
+`configs/**` is untouched (**8a399626** / **2246f83c**).
+
+**The census (phase 1): the pads are on the payload.** The default-off instrument
+(`FRUIT_SEAT_DIAG=1`, one `[seat]` row per read, five samples per grip at leg
+fractions 0.02/0.60/0.99 + the place leg's first ticks) reads, on two 10-grip
+corpora (the acceptance and the species-locked pear battery,
+`ATTEMPTS=10 SEED=5`): the pads' midpoint is **1.36-4.65 mm** from the fruit's
+centre in x/y on **every one of the 20 grips** (median 1.72-2.41 mm), the contact
+is **two-sided on 20/20** with the per-pad split `asym` 0.01-0.35 (median
+0.06-0.17), and the only systematic axis is **z**: **+69.3..+71.7 mm**, identical
+in the placed and escape classes and equal to `_pad_standoff(True, sample)` - the
+**commanded** standoff, so "centring z" is the grip-plane question whose D2a form
+is measured negative (`logs/r8/A_RESULTS.md`). The jaws cannot be biased by a
+finger asymmetry: the second finger joint is a `PhysxMimicJointAPI:rotY` with
+`gearing = -1`, `naturalFrequency = 0` and no drive of its own, i.e. a **rigid
+1:1-opposed mimic** (`assets/openarm_flat/openarm_flat_deinst.usda:3822-3843`).
+**The offset does not predict the escape**: on the pear the four escapes are the
+*tightest* seat cluster (1.36-2.06 mm, median 1.72) while the corpus's largest
+offset (4.65 mm) **placed**, and the inversions hold for the z term, the force
+split and the span-vs-command wedge too. **That rank inversion is noise at
+n = 4/6 and is not the claim** - the claim is the **magnitude**: the whole
+available correction is ~3-4.6 mm against a **104-276 mm** mid-lift walk, a factor
+of **30-60**. What separates the classes is the **walk**, and it separates late:
+the payload's hand-frame displacement by the lift's 99 % sample is
+**104-276 mm on the pear escapes vs 28-58 mm on the placed legs** (acceptance
+30.6-259.4 vs 33.0-57.3), with one pad out of contact on **18/32 escape carry
+samples vs 0/48 placed** and the first one-sided sample never at the freeze; at
+the first lift sample both classes read the same **2.8-9.9 mm**. Four of the
+pear's four escapes lose the grip *inside* the lift (the acceptance's peach
+survives at 24.3 mm and goes on the place leg's first ticks).
+
+**The lever (phase 2): `FRUIT_SEAT_CENTRE=<m>`, one pre-close `ik_step`, and the
+close removes it.** Registered as one read of `pad_centre() - spawner.position()`
+and one command of `clip(-d_xy, +-m)` (x/y only, `m = min(env, 0.020)`, unset =
+off and byte-inert) in the window after the catch-up's last tick and before the
+close ramp. Measured (pear + acceptance pair, one branch each): the command is
+issued on **every grip**, **|c| median 2.99 mm** [2.30, 4.02] pear and **2.91 mm**
+[2.50, 3.64] acceptance, the 10 mm clamp **never binding** - and at the freeze
+18-22 ticks later the seat is the control's again: paired per grip **+0.00 mm**
+median (pear, n = 6: [-0.1, +0.9]) and **+0.01 mm** (acceptance, n = 10:
+[-1.2, +0.4]), with pooled medians 1.81 -> 1.83 mm. **The seat family's ceiling in
+this tree is therefore ~3 mm of commanded correction against a 100-350 mm walk,
+and it does not survive the close.**
+
+**Why: the close is coherent, and the registration read the wrong variable.** The
+close's *own* local `coherent` - the flag that gates the per-tick `ik_step` -
+reads **True 20/20** grip closes; `PREREG §2` quoted the **carry bookkeeping's**
+`self._coherent[arm_name]`, which reads **False 60/60** and is a **different
+variable** (it is only ever set `True` on the `pad_error <=
+FRUIT_COHERENT_FALLBACK` branch, never reset on the "closing anyway" branches, and
+the OpenArm's pre-grasp `pad_error` exceeds 20 mm, so it keeps its `False` for the
+session). It is structural, not these runs: `coherent` is set `False` in exactly
+two places and **both are guarded by `if openarm: ... else:`**, so with the only
+hand this line runs the close can never take the non-coherent branch. What the
+close actually issues is an **absolute** `ik_step` on every close tick with
+`aim = [frozen_x, fruit_y + vy*lead, z = _pad_standoff]`
+(`tasks.py:10064-10074`; the freeze at `tasks.py:9996-10007`): with the shipped
+P2b x-lock (`FRUIT_DYNAMIC_CLOSE_LOCK_X=1`) **x is pinned** at the first close
+tick, **y is live** and **z is commanded** - so the sub-clause "the close re-aims
+live in x" is false too, but y and z alone are enough to overwrite a one-shot. The
+residual **1.4-4.6 mm** the freeze reads is **servo following error, not a seating
+error**. By the registration's own mandatory evaluability clause ("if any leg
+reads `coherent=True` ... that leg is not evaluable") **P1/P2/P3 are not
+evaluable**; **P4 PASS** (span 15.7 -> 15.5 s pear, 15.0 -> 15.0 s acceptance);
+**P5** as measured (knob unset: structural + the phase-1 control still
+`fingerprint: matches` - no re-run spent; the lever arm's own acceptance
+fingerprint **DIFFERS** at leg 3, `|v|max` 0.109 vs 0.108 m/s). Falsifiers: F1
+fired (phase 1), **F2 fired by its letter, not by its named mechanism** (the arm
+executes the command - no `unavailable` row, no clamp binding - and the *close*
+removes it; F2 named the reach boundary), F3 clear (40/40 `notes=[]`), F4 clear
+(the catch-up residuals are the shipped 5.6-6.0 mm on all 40 attempts), **F5
+fired** on the pear.
+
+**No count from this phase is a rate, and there is no bare 6/10 -> 7/10.** The
+pear reads 6/10 (left 2/6, right 4/4, 4 cnp) against 7/10 (left **1/4**, right
+6/6, 3 cnp) - the **left attempt count moved 6 -> 4**, the first divergence is
+attempt 5's *selected fruit* (control pear A lane 0, lever pear B lane 1), so F5
+makes the class endpoint a report. The acceptance is 6/10 in **both** arms (left
+1/5, right 5/5, span 15.0 s in both) but on **two different attractors** (the
+fingerprint line above), and its escapes are attempts 0/1/3/9 vs 1/2/3/9. The
+phase's sharpest single row is a class-sensitivity fact, not a lever effect: the
+*same* peach reads a freeze seat of 2.63 mm (control 2.62, +0.01) and lifts
+**27.5 mm** of `slip_max` in the lever run against **266.2 mm** (cnp) in the
+control - i.e. a fully re-aimed 3.5 mm jog still changes the close's *approach
+history* enough to flip that attempt, and the kiwi at attempt 2 flips the other
+way.
+
+**The Oracle's corrections, all landed.** (1) `_seat_centre_step`'s docstring
+repeated the false premise in **code** - corrected **comment only**
+(`tasks.py` `3e6ea4cf` -> **`e2d0f12a`**; a reverse substitution of the old block
+reproduces `3e6ea4cf` byte-for-byte, so every number above is that code), with
+`rl_env.TASKS_MD5` **`50980bf5`** following. (2) `logs/p42/PREREG.md` gains an
+**A1 correction block** (the P39/P41 precedent): §2's premise was the variable
+confusion, §8's lever is therefore **absorbed**, P1-P3 **not evaluable**, F2
+fired on the letter, and the measured record stands as `P2_RESULTS.md` states it -
+the registration itself is **not** rewritten. (3) `logs/p42/SIM_LIMIT.md` is
+finalised: §5's provenance is the **commit** + the final md5s, §2 now lists the
+seat family's **other arms** so "closed" is not read as "only the one-shot" -
+**P2b live-x steering** (measured to *expel* the payload: cross-belt +122/+147 mm
+with force 0 through the hold, which is why the shipped default **pins** x,
+`tasks.py:9889-9904`), the **R2 walk lead / bounded x-track** (`WALK_LEAD` 0.0
+off, `X_TRACK_VMAX` **0.12** / `_VX_MAX` 0.05 / `_LATCH` 1 **shipped** - the
+bounded centring form that is already on, and why the freeze seat reads centred
+before the one-shot adds anything) and **R8-A D2a's** z drop - plus the **scope
+sentence**: measured on the **scripted single arm**; the close is shared code, the
+two-line and direct/policy paths are **unmeasured**. (4) `AGENTS.md` §2 gains the
+compact P42 paragraph, `README.md` a "Known limit" paragraph, both pointing at
+`SIM_LIMIT.md` as the canonical record. (5) `logs/p36/offline_obs_diff.txt` is a
+**generated** md5 row that selfcheck refreshes (its `rl_env` pin); it ships in the
+**evidence** commit with that note rather than being reverted - the P41 commit
+carried the same refresh.
+
+**Verdict and the record.** **No adoption**, `FRUIT_SEAT_CENTRE` and
+`FRUIT_SEAT_DIAG` stay default **off** and are measurement interfaces with a
+documented null. The seat family is **closed in this parameter space**: reopen it
+only via a **new pad asset** (one that envelops) or a **real-jaw clamp-force
+anchor** (`logs/p42/SIM_LIMIT.md` §4) - never by re-running "seat it better", and
+never read the class as "the sim cannot hold the fruit" (the acceptance still
+reads 6/10 and the pear 6/10 under the shipped `finger_damp02` profile) or as
+"unfixable".
+
+**No-harm and pins.** `scripts/selfcheck.sh` **PASS** (0 failures; the pin check
+now reads `e2d0f12a`) -> `logs/p42/selfcheck.log`; `scripts/96_motion_check.py`
+all checks passed. Pins: `tasks.py` **`e2d0f12a`** (measured tree `3e6ea4cf`, the
+close-out edit is the docstring only), `rl_env.py` **`50980bf5`**, `configs/**`
+untouched (**8a399626** / **2246f83c**), HEAD `c2760bf` + the two P42 commits;
+`scene.py` `27e3d64a`, `control.py` `9384ff4f` unchanged by this phase.

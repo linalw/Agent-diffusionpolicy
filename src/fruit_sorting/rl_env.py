@@ -323,7 +323,21 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: gains `sep@loss` (the pad span on the tick contact is lost - the W8-B
 #: 98-99 mm pry read, live) and `sep_end`. Both exist only under
 #: `FRUIT_CARRY_DIAG=1`; with the knob unset the run is unchanged.
-TASKS_MD5 = "546449167678ee59546354bc9267ab36"
+#: P42 phase 1 (default-off reporting only): the `[seat]` census row
+#: (`FRUIT_SEAT_DIAG=1`) prints the pads' midpoint minus the fruit's centre in
+#: x/y/z at the close freeze and at four bounded carry ticks. Unset = inert.
+#: P42 phase 2 (default-off lever): `FRUIT_SEAT_CENTRE=<m>` is ONE bounded
+#: pre-close re-aim of the pads' midpoint onto the fruit's centre (`clip` at the
+#: registered 20 mm per axis, x/y only, no re-approach). Scope: the scripted
+#: OpenArm moving catch - the direct/policy handover and the two-line scheduler
+#: are not armed, so this environment's path never reads it. Unset = one float
+#: test per close, i.e. inert.
+#: The P42 phase-3 pin records the **comment-only** docstring correction on
+#: `_seat_centre_step` (`3e6ea4cf -> e2d0f12a`): the close's own `coherent` flag
+#: is True on this hand and the close re-aims every tick, so the one-shot lever is
+#: absorbed and the freeze's 1.4-4.6 mm is servo following error. No byte of code
+#: changed - the measured runs (`logs/p42/p3/`, P2_RESULTS) ran `3e6ea4cf`.
+TASKS_MD5 = "e2d0f12a08c5d44e0bd82ffdeead3b3b"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(

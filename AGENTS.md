@@ -1843,6 +1843,54 @@ default presentation's drive) stays **unmeasured under it** and is the named
 residual. No wedge, so no retry (the single retry was registered for a wedge
 only); `189_w7a_chain.sh` not run.
 
+**P42 (2026-10-26, `logs/p42/`; default off, **not adopted**): the seat is
+centred and the seat family is closed in this parameter space - the pads are on
+the payload at the close freeze and the payload leaves anyway.** The default-off
+seat instrument (`FRUIT_SEAT_DIAG=1`, `[seat]` rows, 5 samples per grip) reads, on
+two corpora (the acceptance and the species-locked pear battery, 10 grips each):
+the pads' midpoint is **1.36-4.65 mm** from the fruit's centre in x/y on **20/20
+grips** (median 1.7-2.4), **two-sided on 20/20** (per-pad `asym` 0.01-0.35, median
+0.06-0.17), and the escapes are **not** the off-centre ones - on the pear the four
+escapes are the *tightest* cluster (1.36-2.06 mm) while the corpus's largest
+offset (4.65 mm) **placed**. That rank inversion is **noise at n = 4/6**; the
+claim is carried by the **magnitude**: the entire available correction is ~3-4.6 mm
+against a **104-276 mm** mid-lift walk - a factor of **30-60**. The only systematic
+axis is **z** (+69.3..+71.7 mm = `_pad_standoff(True, sample)`, the *commanded*
+standoff, i.e. the grip-plane question whose D2a form is measured negative),
+not an error. What separates the classes is the **walk**, and it separates late:
+the payload's hand-frame displacement by the lift's 99 % sample is **104-276 mm on
+escapes vs 28-58 mm on placed legs**, with one pad out of contact on **18/32 escape
+carry samples vs 0/48 placed** (at the first lift sample both classes read the
+same 2.8-9.9 mm). **The bounded centring lever
+(`FRUIT_SEAT_CENTRE=0.010`) acted and was absorbed**: it issued one `ik_step` per
+grip (**|c| median 2.99 mm**, the 10 mm clamp never binding) and the freeze seat
+was back at the control's value to **+0.00 mm** (pear, n = 6 pairs) / **+0.01 mm**
+(acceptance, n = 10), because **the close owns the pose** - its own `coherent` flag
+is **True on 20/20** grip closes and it issues an **absolute** `ik_step` every close
+tick (`aim = [frozen_x, fruit_y + vy*lead, z = _pad_standoff]`; x **pinned** at the
+first close tick by the shipped P2b x-lock, **y live**, **z commanded**), so a
+one-shot pre-close correction cannot persist and the residual 1.4-4.6 mm is **servo
+following error, not seating error**. The pre-registration's premise was a
+**variable confusion** (`self._coherent[side]`, the carry bookkeeping's flag, False
+60/60 - not the close's), so P1/P2/P3 are **not evaluable** and F2 fired by its
+letter, not its named mechanism (`logs/p42/PREREG.md` amendment A1); the docstring
+that repeated the false premise was corrected in **comment only**. **No count here
+is a rate and there is no bare 6/10 -> 7/10**: the pear's moved branch changes the
+**left attempt count 6 -> 4** (F5), and the acceptance is 6/10 in both arms on two
+**different attractors** (the lever arm's fingerprint DIFFERS at leg 3,
+0.109 vs 0.108 m/s). Verdict: the seat family is **closed in this parameter space** -
+**reopen only via a new pad asset or a real-jaw clamp-force anchor**, never by
+re-running "seat it better", and never read this as "the sim cannot hold the fruit"
+or as "unfixable": `logs/p42/SIM_LIMIT.md` is **the canonical record** of the
+loaded-slide limit (the mechanism, the closed force family, the reading rules - any
+rate on this tree carries the `cnp` class). Scope: the **scripted single arm**; the
+close is shared code but the two-line and direct paths were not run with the
+instrument. Pins: `tasks.py` **`e2d0f12a`** (the measured tree was `3e6ea4cf`; the
+close-out edit is the docstring only), `rl_env.py` **`50980bf5`** (`TASKS_MD5`
+follow), **no `configs/` file moved** (`8a399626` / `2246f83c`). Evidence
+`logs/p42/{SEAT_CENSUS,PREREG,P2_RESULTS,SIM_LIMIT}.md`, `p2/`, `p3/`,
+`selfcheck.log`; WORKLOG "P42".
+
 ## 3. What changed -> what to run
 
 | you changed | run |

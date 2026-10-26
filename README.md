@@ -916,6 +916,25 @@ and why it is not shipped" and "the descent transient is the arm straining at a
 boundary it cannot reach"); admitting it means deciding what the descent's speed
 budget should mean, which is the owner's call.
 
+**Known limit: the carried-not-placed class.** A fruit can leave the closed,
+loaded jaw on the way to the output line (`cnp`) - a **loaded slide**, not a grip
+failure and not a force shortage. **`logs/p42/SIM_LIMIT.md` is the canonical
+record** and the one to read before quoting any rate on this tree: it carries the
+mechanism (rigidly-geared symmetric pads, 9.8-9.9 N delivered pinch, two-sided
+contact throughout, the payload walking 104-276 mm in the hand frame mid-lift
+against 28-58 mm on placed legs, one pad out at 18/32 escape samples vs 0/48), the
+**closed force family** (2.2x pinch and a 10 -> 30 -> 60 N cap both leave the
+class, the cap making it worse), and the **closed seat family** - the pads are
+already centred to **1.36-4.65 mm** at the close freeze on 20/20 grips, and the
+bounded centring lever's 2.99 mm correction is absorbed before the freeze because
+the close re-aims the pose itself every tick (x pinned, y live, z commanded).
+Reopen either family only via **a new pad asset** (one that envelops) or **a
+real-jaw clamp-force anchor**, never by re-measuring "seat it better"; none of
+this says a real compliant jaw would behave this way, and none of it says the sim
+"cannot hold" the fruit (the acceptance reads 6/10 and the pear 6/10 under the
+shipped profile). Every `cnp` count also belongs to its interface and attractor -
+the two-line and direct/policy paths were not measured with the seat instrument.
+
 **Arrival tolerance (v2 history).** With a gate the line queued, so
 `FRUIT_ARRIVE_TOL_STOP` (60 mm) accepted a fruit that stopped behind another one.
 That was the last repeatable failure mode; the default 5-attempt suite was

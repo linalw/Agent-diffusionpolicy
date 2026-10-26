@@ -1338,6 +1338,51 @@ class PickAndPlaceTask:
         self._grip_effort_banner = False
         self._grip_effort_req: dict[str, dict] = {}
         self._grip_effort_kc: dict[str, tuple[np.ndarray, np.ndarray]] = {}
+        #: P42 (`FRUIT_SEAT_DIAG=1`, **default off**): the seating geometry.
+        #: The carried-not-placed class is a measured **loaded slide** - the pads
+        #: hold (two-sided at the freeze, force 9.8-9.9 N after the drive profile
+        #: flip) and the payload walks out along the tool axis, single-sided at
+        #: the loss (`logs/p41/P3_RESULTS.md` section 3, W8-B) - and the two
+        #: fingers are **rigidly geared** (`PhysxMimicJointAPI:rotY`, gearing -1,
+        #: naturalFrequency 0, `assets/openarm_flat/openarm_flat_deinst.usda`
+        #: 3823-3842), so the jaw is symmetric by construction and "one finger
+        #: lags" is not the asymmetry source. What is left is *where the pads'
+        #: midpoint sits relative to the fruit's centre* when the close freezes,
+        #: and how the payload moves from there. The logs carry the vertical term
+        #: only (`[attitude] pad_fruit_dz`); this prints **x/y/z**, in world and
+        #: in the tool frame, at the freeze and at four bounded carry ticks.
+        #: Reporting only: no command, no threshold, no existing print is
+        #: touched, and the pose reads it needs are the ones the carry loop
+        #: already takes every tick (`fruit`/`pads` at its slip bookkeeping).
+        #: With the knob unset `_seat_arm` returns None and the loops take one
+        #: false branch per leg, so the default tree is byte-identical.
+        self._seat_diag = os.environ.get("FRUIT_SEAT_DIAG", "0") == "1"
+        self._seat_book: dict[str, dict] = {}
+        #: P42 phase 2 (`FRUIT_SEAT_CENTRE=<m>`, **default off**): the bounded
+        #: pre-close centring registered in `logs/p42/PREREG.md` section 2. The
+        #: value is a **per-axis clamp in metres** for one re-aim of the pads'
+        #: midpoint onto the fruit's centre, taken after the catch-up and before
+        #: the close ramp (`_seat_centre_step`); x and y only, z is the commanded
+        #: standoff (`_pad_standoff`, and the grip-plane drop that did address it,
+        #: D2a, is measured negative in `logs/r8/A_RESULTS.md`). Unset, empty,
+        #: unparseable or `<= 0` is **off** and one false test per close, so the
+        #: default tree is byte-identical; the registered bound is 20 mm and a
+        #: larger value is clamped (with one note) rather than silently honoured.
+        self._seat_centre = 0.0
+        _seat_centre_raw = os.environ.get("FRUIT_SEAT_CENTRE", "").strip()
+        if _seat_centre_raw:
+            try:
+                _seat_centre_val = float(_seat_centre_raw)
+            except ValueError:
+                _seat_centre_val = 0.0
+            if _seat_centre_val > 0.0:
+                self._seat_centre = min(_seat_centre_val, 0.020)
+                if _seat_centre_val > 0.020:
+                    say(
+                        f"[seat] FRUIT_SEAT_CENTRE={_seat_centre_val * 1000:.1f}mm "
+                        "clamped to the registered bound "
+                        f"{self._seat_centre * 1000:.1f}mm"
+                    )
         #: P7-2b C-3 carry monitor (`FRUIT_CARRY_MONITOR`, **default off**;
         #: pre-registration `logs/p7/PREREG_CARRY_MONITOR.md`, Phase-0 gate
         #: `logs/p7/C3_REPLAY.md`). The escape is a persistent state (contact
@@ -3019,6 +3064,196 @@ class PickAndPlaceTask:
         except Exception as exc:  # noqa: BLE001 - a report must never fail a run
             say(f"[attitude] {side} {name}: unavailable ({exc})")
 
+    # ------------------------------------------------------------------ #
+    # P42: the seat census (`FRUIT_SEAT_DIAG=1`, default off)
+    # ------------------------------------------------------------------ #
+    #: Sample positions, as a **fraction of the leg's own profile**, per carry
+    #: leg (bounded: the freeze sample plus 3 lift + 1 place = 5 reads per grip,
+    #: `SEAT_MAX_SAMPLES`). Fractions, not ticks: a first pass at fixed ticks
+    #: (2/8/20) sampled only the first 12 % of a 160-180-tick lift and read a
+    #: *constant* offset there, while the measured slip onset is at rows 70-149
+    #: of that leg (W8-B / `logs/p41/p2/accept_profile.log`) - i.e. the schedule
+    #: has to cover the late leg or it cannot see the walk-out at all. 0.02 is
+    #: the lift's first two ticks (the payload's vertical sag into the jaw),
+    #: 0.60/0.99 straddle the measured onset, and the place leg's first ticks
+    #: are where the payload that survived the lift is lost (a 877-996 mm
+    #: `clean_slip` on the escapes, `logs/p42/p2/seat_pear.log`).
+    SEAT_TICKS = {
+        "grasp_lift": (0.02, 0.60, 0.99),
+        "place0": (0.01,),
+        "place1": (0.01,),
+    }
+    SEAT_MAX_SAMPLES = 5
+
+    def _seat_arm(self, side: str, name: str) -> dict | None:
+        """The pending freeze book with this leg's sample fractions (None = none).
+
+        Called once per carry leg; with `FRUIT_SEAT_DIAG` unset it is one
+        attribute test and returns None, so nothing below ever runs.
+        """
+        if not self._seat_diag:
+            return None
+        book = self._seat_book.get(side)
+        if book is None:
+            return None
+        if int(book.get("samples", 0)) >= self.SEAT_MAX_SAMPLES:
+            self._seat_book.pop(side, None)
+            return None
+        fracs = self.SEAT_TICKS.get(name)
+        if not fracs:
+            return None
+        book["fracs"] = fracs
+        return book
+
+    def _seat_read(
+        self,
+        side: str,
+        sample,
+        when: str,
+        tick: int,
+        cmd,
+        reading=None,
+        pads=None,
+        fruit=None,
+    ) -> None:
+        """One `[seat]` row: the pads' midpoint minus the fruit's centre [mm].
+
+        Frames. `d=` is **world** - the frame `spawner.position`, `pad_centre`
+        and the aim all use (Z up, the jaws close along world X at the pick pose
+        and the belt travels along -Y). `tool=` is the same vector in the TCP
+        frame whose column 2 is the direction the fingers extend
+        (`motion.py`'s convention, `(0, 0, -1)` world at the top-down grasp), so
+        `tool_z > 0` means the pads sit *below* the fruit's centre along the
+        finger axis. `drift=` is `d` minus its freeze value, i.e. minus the
+        payload's own displacement in the hand frame - the quantity a loaded
+        slide is made of, and the one the old `[attitude]` `dz` could only see
+        vertically.
+
+        `F=` is the per-face tactile magnitude (`_freeze2_split`, the same
+        grouping the P17-B freeze gate uses) and `n` the contact count
+        `TactileReading` sums; the per-face *boolean* is not exposed separately,
+        so a face reading 0.00 N is the out-of-contact one. `asym` is
+        `|F1-F2|/(F1+F2)` (0 = balanced, 1 = one face only) - the W8-B
+        single-sided-at-the-loss signature. `cmd`/`sep` are the commanded and the
+        measured jaw face separations (`faces=` their difference, positive when
+        the pads are held wider than commanded, the pear's 7-14 mm wedge), and
+        `tilt` the tool angle from world -Z.
+
+        Reporting only: one read-set per call, five calls per grip, no control
+        input and no existing print touched. `pads`/`fruit` may be passed in when
+        the caller has just read them (the carry loop does, every tick).
+        """
+        book = self._seat_book.get(side)
+        if book is None:
+            return
+        try:
+            if pads is None:
+                pads = self.grippers[side].pad_centre()
+            if fruit is None:
+                fruit = self.spawner.position(sample)
+            pads = np.asarray(pads, dtype=float)
+            fruit = np.asarray(fruit, dtype=float)
+            delta = pads - fruit
+            if book.get("freeze") is None:
+                book["freeze"] = delta.copy()
+            drift = delta - np.asarray(book["freeze"], dtype=float)
+            arm = self.arms[side]
+            _pos, quat = arm.tcp_pose()
+            rot = _quat_matrix(np.asarray(quat, dtype=float))
+            tool = rot.T @ delta
+            tilt = math.degrees(
+                math.acos(max(-1.0, min(1.0, -float(rot[2, 2]))))
+            )
+            if reading is None:
+                reading = self.tactile.read().get(side, _EMPTY_TACTILE)
+            face_l, face_r = self._freeze2_split(reading)
+            total = float(face_l) + float(face_r)
+            asym = (
+                abs(float(face_l) - float(face_r)) / total if total > 0.0 else 0.0
+            )
+            sep = float(
+                arm.JAW_SEPARATION_OFFSET
+                + arm.JAW_SEPARATION_PER_JOINT * arm.finger_opening()
+                - arm.FINGER_FACE_OFFSET
+            )
+            book["samples"] = int(book.get("samples", 0)) + 1
+            try:
+                attempt = int(book.get("attempt", -1))
+            except (TypeError, ValueError):
+                attempt = -1
+            say(
+                f"[seat] {side} a={attempt} idx={int(getattr(sample, 'index', -1))} "
+                f"{when} t={int(tick)} "
+                f"d=({delta[0] * 1000:+.1f},{delta[1] * 1000:+.1f},"
+                f"{delta[2] * 1000:+.1f})mm "
+                f"|d|={float(np.linalg.norm(delta)) * 1000:.1f}mm "
+                f"tool=({tool[0] * 1000:+.1f},{tool[1] * 1000:+.1f},"
+                f"{tool[2] * 1000:+.1f})mm "
+                f"drift=({drift[0] * 1000:+.1f},{drift[1] * 1000:+.1f},"
+                f"{drift[2] * 1000:+.1f})mm "
+                f"F=({float(face_l):.2f},{float(face_r):.2f})N "
+                f"n={int(getattr(reading, 'contact_count', 0))} asym={asym:.2f} "
+                f"cmd={float(cmd) * 1000:.1f}mm sep={sep * 1000:.1f}mm "
+                f"faces={(sep - float(cmd)) * 1000:+.1f}mm tilt={tilt:.1f}deg"
+            )
+        except Exception as exc:  # noqa: BLE001 - a report must never fail a run
+            say(f"[seat] {side} {when}: unavailable ({exc})")
+
+    def _seat_centre_step(
+        self, side: str, sample, arm, coherent: bool
+    ) -> None:
+        """One bounded re-aim of the pads' midpoint onto the fruit's centre.
+
+        `FRUIT_SEAT_CENTRE=<m>` (default off; `logs/p42/PREREG.md` section 2):
+        one fruit-pose read, one IK command, **no** re-measure, no loop, no
+        re-approach, and nothing else in the close is touched. The correction is
+        `clip(-d_xy, +-m)` per axis, applied to the pads' midpoint as the jaw
+        target (so the pads move *towards* the fruit's centre by at most `m` on
+        each axis); z is left alone because `dz` is the *commanded* standoff.
+
+        `coherent` is printed because it decides whether the command survives,
+        and on this hand it says the command does **not**: the close's own
+        flag reads **True** on every measured OpenArm grip close (20/20,
+        `logs/p42/P2_RESULTS.md` section 2), so the close issues an **absolute**
+        `ik_step` on every close tick (`aim = [frozen_x, fruit_y + vy*lead,
+        z = _pad_standoff]`, `tasks.py:10064-10074`, the freeze at
+        `tasks.py:9996-10007`). With the P2b x-lock on (the shipped default,
+        `FRUIT_DYNAMIC_CLOSE_LOCK_X=1`) x is **pinned** at the first close
+        tick, y is live and z is the commanded standoff - so "the close re-aims
+        live in x" is false, but y is live and z is commanded, and a one-shot
+        pre-close correction cannot persist: it is absorbed before the freeze.
+        The residual 1.4-4.6 mm `|d_xy|` the freeze then reads is the servo's
+        following error, **not** a seating error (measured: the paired freeze
+        seat changes by +0.00 mm with the lever on).
+        Do **not** read the carry bookkeeping's `self._coherent[side]` as this
+        flag: that one is `False` on 60/60 legs (it is only set True on the
+        `pad_error <= FRUIT_COHERENT_FALLBACK` branch, never reset on the
+        OpenArm's "closing anyway" branches), and PREREG section 2's premise
+        came from it - see PREREG's A1 correction block.
+        """
+        try:
+            pads = np.asarray(self.grippers[side].pad_centre(), dtype=float)
+            fruit = np.asarray(self.spawner.position(sample), dtype=float)
+            delta = pads - fruit
+            limit = float(self._seat_centre)
+            corr = np.array(
+                [
+                    float(np.clip(-delta[0], -limit, limit)),
+                    float(np.clip(-delta[1], -limit, limit)),
+                    0.0,
+                ],
+                dtype=float,
+            )
+            arm.ik_step(arm.tcp_target_for_jaw(pads + corr))
+            say(
+                f"[seat] centre {side} idx={int(getattr(sample, 'index', -1))} "
+                f"d=({delta[0] * 1000:+.1f},{delta[1] * 1000:+.1f})mm "
+                f"applied=({corr[0] * 1000:+.1f},{corr[1] * 1000:+.1f})mm "
+                f"m={limit * 1000:.1f}mm coherent={bool(coherent)}"
+            )
+        except Exception as exc:  # noqa: BLE001 - a report must never fail a run
+            say(f"[seat] centre {side}: unavailable ({exc})")
+
     def _carry(self, side: str, sample, name: str, steps: int = 200) -> None:
         """Move the arm to a named pose with an attached fruit following the hand.
 
@@ -3035,6 +3270,12 @@ class PickAndPlaceTask:
         # per leg and printed at the leg's end, on both exits of this method.
         # Reporting only - with the knob unset nothing below runs.
         attitude = os.environ.get("FRUIT_CARRY_ATTITUDE", "0") == "1"
+        # P42 seat census (`FRUIT_SEAT_DIAG=1`, default off): the freeze book is
+        # picked up here once per leg; its sample ticks are resolved from the
+        # leg's own profile length below (`SEAT_TICKS`, fractions). With the
+        # knob unset `seat` is None and nothing below runs.
+        seat: dict | None = self._seat_arm(side, name)
+        seat_ticks: tuple[int, ...] = ()
         if name == "grasp_lift" and self._dynamic_capture_active:
             # A P2 moving catch ends with the payload still over the *running*
             # belt. Break that contact straight up: a diagonal lift drags the
@@ -3397,6 +3638,19 @@ class PickAndPlaceTask:
                     + len(commands) * (1.0 / self._carry_guard_derate - 1.0)
                     + 8
                 )
+            if seat is not None:
+                # P42: the leg's sample ticks, resolved against *its own*
+                # profile (the fraction is what makes the late-leg samples land
+                # on the measured slip onset instead of on the first 12 %).
+                _total = max(1, len(commands) - 1)
+                seat_ticks = tuple(
+                    sorted(
+                        {
+                            max(0, min(n_ticks - 1, int(round(float(f) * _total))))
+                            for f in (seat.get("fracs") or ())
+                        }
+                    )
+                )
             for i in range(n_ticks):
                 if guard_acts and guard_done:
                     break
@@ -3611,6 +3865,19 @@ class PickAndPlaceTask:
                     slip_vel_max, float(np.linalg.norm(rel_now - rel_prev)) / CONTROL_DT
                 )
                 rel_prev = rel_now
+                if seat is not None and i in seat_ticks:
+                    # P42 seat sample (reporting only). `pads`/`fruit` are the
+                    # reads the slip bookkeeping above already took this tick,
+                    # so the added work is one tactile set + one TCP pose.
+                    self._seat_read(
+                        side,
+                        sample,
+                        f"{name}@{i}",
+                        i,
+                        gap_command,
+                        pads=pads,
+                        fruit=fruit,
+                    )
                 if guard_armed:
                     # W8-B clean in-hand read: the payload's displacement since
                     # the leg's first tick, in the leg's own (self-consistent)
@@ -9610,6 +9877,25 @@ class PickAndPlaceTask:
                         f"fruit={np.round(_fruit, 4).tolist()} "
                         f"tip_y-fruit_y={float(_jaw[1] - _fruit[1]):+.4f}"
                     )
+            # --- P42 phase 2: the bounded pre-close centring --------------- #
+            # `FRUIT_SEAT_CENTRE=<m>`, **default off** (`logs/p42/PREREG.md`
+            # section 2). The registered window is exactly here: after the
+            # catch-up's last tick (the tip has converged to its 6 mm tolerance)
+            # and before the close ramp's first tick. One read of
+            # `pad_centre() - spawner.position()`, one `ik_step` of
+            # `clip(-d_xy, +-m)`, no re-measure and no re-approach - nothing is
+            # re-selected, re-scheduled or re-timed, so the catch window and the
+            # close ramp are the shipped ones. Scope is the **scripted OpenArm
+            # moving catch**: the direct/policy handover (`direct_capture`) and
+            # the two-line scheduler are out of the registration's scope and are
+            # not armed. With the knob unset this is one float test per close.
+            if (
+                self._seat_centre > 0.0
+                and dynamic_capture
+                and not direct_capture
+                and not self.two_line_enabled()
+            ):
+                self._seat_centre_step(arm_name, sample, arm, coherent)
             live_squeeze = float(os.environ.get("FRUIT_DYNAMIC_CLOSE_LIVE", "0.97"))
             # --- P2b: stop the close expelling the fruit ------------------- #
             # The pre-P2b close let the live clamp keep deepening the squeeze
@@ -9951,6 +10237,26 @@ class PickAndPlaceTask:
                                     shipped_tick,
                                     shipped_depth,
                                 )
+                        if self._seat_diag and freeze_cmd is not None:
+                            # P42 seat census t=0 (`FRUIT_SEAT_DIAG=1`, default
+                            # off): the freeze is the tick the pads' seat relative
+                            # to the payload is set, so the offset that the loaded
+                            # slide then grows from is taken here, in the same
+                            # read-set the freeze criterion just used.
+                            self._seat_book[arm_name] = {
+                                "freeze": None,
+                                "samples": 0,
+                                "ticks": (),
+                                "attempt": os.environ.get("FRUIT_EPISODE_INDEX", "-1"),
+                            }
+                            self._seat_read(
+                                arm_name,
+                                sample,
+                                "freeze",
+                                int(_close_step),
+                                float(freeze_cmd),
+                                reading=reading,
+                            )
                     last_cmd = cmd
                     gripper.follow_centre(centre, close_quat, cmd)
                     self._step_sim(close_substeps)
