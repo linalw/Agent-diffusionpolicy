@@ -160,6 +160,16 @@ run_check "bed supply audit" "$python" scripts/211_bed_audit.py --fast
 # belt). No simulator; `--cost` is the manual wall-time probe and is not run
 # here.
 run_check "prepared-next selftest" "$python" scripts/213_prepared_next_selftest.py
+# P43 L1: the nearest-above-floor **scope** (the `direct` keyword). The real
+# selector on a stubbed task: the scripted line takes the nearest floored
+# candidate, the direct/policy env's episode selection keeps the shipped
+# farthest-upstream pick, an explicit `FRUIT_SELECT_NEAREST_ABOVE_FLOOR` wins on
+# both paths, and the lane/prefer_lane callers (two-line + shared-station) are
+# byte-identical under all three settings. Plus the AST call-site census and the
+# `TASKS_MD5` provenance pin. P43 phase 4 adds the arm park's **default and
+# scope** (direct -> `back`, handoff -> no park, `=ready` the escape hatch, the
+# manifest's `defaulted` field, the two printed label sites). No simulator.
+run_check "P43 selector + park" "$python" scripts/224_p43_selftest.py
 
 if [ -n "$run_log" ] && [ -f "$run_log" ]; then
     run_check "motion budgets" "$python" scripts/105_motion_regression.py "$run_log" \

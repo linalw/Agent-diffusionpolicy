@@ -5,7 +5,7 @@
 # skipped). The pre-P0 batch is `logs/p35/B_ab` (superseded, kept as provenance).
 # The P33/W8-A direct protocol:
 #
-#   A = the shipped direct env            (`FRUIT_ARM_PARK` unset -> `ready`)
+#   A = the shipped direct env            (`FRUIT_ARM_PARK=ready`, explicit - A2)
 #   B = `FRUIT_ARM_PARK=back`             (the inactive LEFT arm only)
 #   N = 5 runs/arm x 15 episodes, seeds 77/101/202/303/404, sampler seed 11,
 #   interleaved A,B,A,B... in one `scripts/154_claim_run.sh` claim.
@@ -36,7 +36,11 @@ export AB_POLICY_SEED=11
 export AB_DIR=logs/p35/C_ab
 export ARM_A="--ckpt $CKPT"
 export ARM_B="--ckpt $CKPT"
-export ARM_A_ENV=""
+# P43 phase 4 (A2): A is the *pre-park* arm, so it must say so. Since the P43
+# flip the direct presentation's default is `back`, and an unset
+# `FRUIT_ARM_PARK` would silently make A == B (the P35/P43 numbers would then
+# be a park-vs-park null). `ready` restores the shipped pose exactly.
+export ARM_A_ENV="FRUIT_ARM_PARK=ready"
 export ARM_B_ENV="FRUIT_ARM_PARK=back"
 export AB_EXTRA_ENV="FRUIT_POLICY_TRIGGER=arrival FRUIT_POLICY_TRIGGER_LEAD=0.9 FRUIT_DYNAMIC_PICK=1 $PATCH_ENV FRUIT_ACQ_DIAG=1 FRUIT_RESET_ALIGN_DIAG=1 FRUIT_PARK_DIAG=1 FRUIT_POLICY_TRIGGER_ACQ=1"
 

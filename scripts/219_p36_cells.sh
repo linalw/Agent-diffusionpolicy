@@ -14,7 +14,13 @@
 #   1  ready / ready          (the P35 C-batch scenario + the four diags) - control
 #   2  park  / park           FRUIT_ARM_PARK=back                       - the lever
 #   3  park  / ready-proprio  FRUIT_ARM_PARK=back FRUIT_PROPRIO_SPOOF=ready
-#   4  ready / park-proprio                     FRUIT_PROPRIO_SPOOF=back
+#   4  ready / park-proprio   FRUIT_ARM_PARK=ready FRUIT_PROPRIO_SPOOF=back
+#
+# P43 phase 4 (A2): cells 1 and 4 pass `FRUIT_ARM_PARK=ready` **explicitly**.
+# They are the "ready arm" cells, and since the P43 flip the direct
+# presentation's default is `back` - an unset value would silently turn cells
+# 1 and 4 into park cells and void the 2x2. `ready` restores the shipped pose
+# exactly (cells 2 and 3 are unchanged: they were already explicit).
 #
 # Cell 1 is **not the shipped default**: it is the P35 C batch's arm A verbatim
 # (the patch sheet, `FRUIT_POLICY_TRIGGER_ACQ=1`, the same seeds) with the four
@@ -59,10 +65,10 @@ if [ "${limit:-0}" -lt 7200 ]; then
 fi
 
 cells=(
-    "1|"
+    "1|FRUIT_ARM_PARK=ready"
     "2|FRUIT_ARM_PARK=back"
     "3|FRUIT_ARM_PARK=back FRUIT_PROPRIO_SPOOF=ready"
-    "4|FRUIT_PROPRIO_SPOOF=back"
+    "4|FRUIT_ARM_PARK=ready FRUIT_PROPRIO_SPOOF=back"
 )
 
 if [ "${#seeds[@]}" -lt "$runs" ]; then

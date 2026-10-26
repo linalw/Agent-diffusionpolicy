@@ -337,12 +337,51 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: is True on this hand and the close re-aims every tick, so the one-shot lever is
 #: absorbed and the freeze's 1.4-4.6 mm is servo following error. No byte of code
 #: changed - the measured runs (`logs/p42/p3/`, P2_RESULTS) ran `3e6ea4cf`.
-TASKS_MD5 = "e2d0f12a08c5d44e0bd82ffdeead3b3b"
+#:
+#: P43 phase 2 (metadata-only follow, `e2d0f12a -> a1b3d673`): `select_target`
+#: gains the `direct` keyword, which only resolves the **default** of
+#: `FRUIT_SELECT_NEAREST_ABOVE_FLOOR` (always `"0"` for this env's episode
+#: selection; the scripted line reads the module constant
+#: `NEAREST_ABOVE_FLOOR_SCRIPTED`, **off** in the shipped tree - the P43 flip was
+#: measured and not adopted, `logs/p43/P2_RESULTS.md`). The rule itself is
+#: unchanged and this env passes `direct=True`, i.e. it keeps the
+#: farthest-upstream pick byte-for-byte. An explicit env value wins on both paths
+#: (`=1` reproduces the measured treatment arm with no code change).
+TASKS_MD5 = "a1b3d673d7016c6363698ef3e6c6b9fb"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 )
+
+
+def resolve_arm_park(presentation: str, env_value: str | None) -> tuple[str, bool]:
+    """The resolved `FRUIT_ARM_PARK` and whether it came from the P43 default.
+
+    P43 phase 4 (the adoption, `logs/p43/P3_RESULTS.md`): the park named `back`
+    is the **`direct` presentation's default** - the phase-3 A/B re-measured it
+    on this tree's 9.8-9.9 N grip profile (right-arm carried 20/54 -> 0/56,
+    placed 32/54 -> 53/56, 5/5 runs, cycle +0.2 %).
+
+    The default is scoped to `presentation == "direct"` for a reason: the park
+    can only be applied there (the reset teleports the arms; the guard in
+    `__init__` raises for any other presentation), so an unscoped default would
+    make `handoff` constructions raise. `handoff` therefore resolves to `""`,
+    i.e. the shipped `ready` pose, exactly as before.
+
+    An explicit env value always wins, which is the escape hatch: `=ready`
+    restores the shipped pose everywhere (**every direct number before P43 is a
+    pre-park number and is reproduced with `FRUIT_ARM_PARK=ready`**), `=back`
+    reproduces the opt-in arm, and `=""` is the same as `=ready`.
+
+    Returns `(name, defaulted)`; `defaulted` is the manifest field that tells a
+    post-flip store (`defaulted: true`) from a pre-P43 one (no `arm_park` block)
+    and from an explicit `=back` arm (`defaulted: false`).
+    """
+    default = "back" if presentation == "direct" else ""
+    name = (default if env_value is None else env_value).strip()
+    return name, bool(env_value is None and name)
+
 
 #: Sources whose md5 goes into the run manifest (mirrors 40_collect_demos.py's
 #: shard manifest, plus this file and the waypoints it moves the arms with, plus
@@ -970,15 +1009,30 @@ class SortingRLEnv:
             self._reset_align_max_ticks = max(
                 1, int(os.environ.get("FRUIT_RESET_ALIGN_MAX_TICKS", "600"))
             )
-        # --- P35 phase 1: the inactive arm's park, default off --------------- #
-        #: `FRUIT_ARM_PARK=<name>` (direct presentation only): park the
-        #: **inactive** arm at a named pose from `configs/arm_parks.json` instead
-        #: of the shipped `ready` waypoint, for the whole episode. Measured
-        #: (P35 phase 1, `logs/p35/A_READ.md`): the inactive left arm at `ready`
-        #: hides 98 % of a 58 mm fruit at along +0.35 and 57 % at +0.40, and the
-        #: park named `back` takes the marginal cover to 0.002. Unset, or
-        #: `=ready`, is byte-inert: no file read, one dict lookup per arm.
-        self._arm_park = os.environ.get("FRUIT_ARM_PARK", "").strip()
+        # --- P35 phase 1 / P43 phase 4: the inactive arm's park -------------- #
+        #: `FRUIT_ARM_PARK=<name>`: park the **inactive** arm at a named pose
+        #: from `configs/arm_parks.json` instead of the shipped `ready`
+        #: waypoint, for the whole episode. Measured (P35 phase 1,
+        #: `logs/p35/A_READ.md`): the inactive left arm at `ready` hides 98 % of
+        #: a 58 mm fruit at along +0.35 and 57 % at +0.40, and the park named
+        #: `back` takes the marginal cover to 0.002. `=ready` is byte-inert: no
+        #: file read, one dict lookup per arm.
+        #:
+        #: **P43 phase 4 (the adoption): `back` is the `direct` presentation's
+        #: default.** The phase-3 A/B re-measured the park on this tree's
+        #: 9.8-9.9 N grip profile (`logs/p43/P3_RESULTS.md`): right-arm carried
+        #: **20/54 -> 0/56**, right placed **32/54 -> 53/56**, run level 5/5,
+        #: cycle +0.2 %. The default is scoped to `presentation == "direct"`
+        #: (the guard below still raises for a named park on any other
+        #: presentation, so `handoff` constructions are unchanged);
+        #: **`FRUIT_ARM_PARK=ready` restores the shipped pose** everywhere, and an
+        #: explicit env value always wins - which is also the escape hatch for
+        #: reproducing a pre-P43 direct arm (every direct number before this
+        #: phase is a *pre-park* number).
+        self._park_env = os.environ.get("FRUIT_ARM_PARK")
+        self._arm_park, self._arm_park_defaulted = resolve_arm_park(
+            presentation, self._park_env
+        )
         self._arm_park_poses: dict[str, np.ndarray] = {}
         self._arm_park_source: dict | None = None
         if self._arm_park and self._arm_park != "ready":
@@ -1004,6 +1058,11 @@ class SortingRLEnv:
                     self._arm_park_poses[name] = np.asarray(vec, dtype=float).reshape(7)
             self._arm_park_source = {
                 "name": self._arm_park,
+                #: P43 phase 4 (A1): the resolved park's origin. `true` = the
+                #: direct presentation's default (the adoption), `false` = an
+                #: explicit `FRUIT_ARM_PARK`. Without it a post-flip store and
+                #: an opt-in arm look identical in the manifest.
+                "defaulted": self._arm_park_defaulted,
                 "file": os.path.relpath(park_path, _REPO_ROOT),
                 "source": parks.get("source", ""),
                 "sides": sorted(self._arm_park_poses),
@@ -1247,6 +1306,22 @@ class SortingRLEnv:
         #: off for the rate runs.
         self._rtc_report = os.environ.get("FRUIT_RTC_REPORT", "0") == "1"
         self.rtc = None
+        #: P43 L2 (`FRUIT_LOOP_TIMING=1`, default off): the policy loop's wall
+        #: **decomposition** - one accumulator per stage of the decision period,
+        #: so the pause is attributed instead of inferred. The stages are the
+        #: three that can own it: the model call (`sample_chunk`), the render
+        #: (`RenderingManager.render()`, inside `_observe`) and the camera reads
+        #: (`get_data`, same site); "other" is derived per episode as the total
+        #: episode wall minus those three. `perf_counter` only - no command, no
+        #: state read, no control input - but per `AGENTS.md` section 2 the
+        #: instrument sits *inside* the run it measures, so the row is a wall
+        #: measurement of that run, never a rate pair, and it is off by default.
+        self._loop_timing = os.environ.get("FRUIT_LOOP_TIMING", "0") == "1"
+        self._loop_t: dict[str, float] = {
+            "policy_ms": 0.0, "render_ms": 0.0, "camera_ms": 0.0,
+        }
+        self._loop_counts: dict[str, int] = {"observations": 0, "decisions": 0}
+        self._loop_episodes: list[dict] = []
         #: Run-level RTC report accumulators (only filled when `_rtc_report`).
         self._rtc_totals: dict = {
             "boundary": [], "within": [], "step": [], "jerk": [],
@@ -1412,6 +1487,7 @@ class SortingRLEnv:
         self._ep_expert_ticks = 0
         say(f"[rl] env ready: presentation={presentation} ablate={ablate} "
             f"dagger={'on' if dagger is not None else 'off'} "
+            f"park={self._park_label()} "
             f"camera={self._camera_res_text()} tasks_md5={self.tasks_md5[:8]}")
         if self.trigger_settings.enabled:
             say(f"[rl] {self.trigger_settings.summary()}")
@@ -1468,6 +1544,10 @@ class SortingRLEnv:
             "dagger": asdict(self.dagger) if self.dagger is not None else None,
             "rtc": asdict(self.rtc_settings) if self.rtc_settings.enabled else None,
             "rtc_report": bool(self._rtc_report),
+            #: P43 L2: the wall-decomposition instrument's provenance (absent
+            #: from every pre-P43 manifest = off). Reporting only; it never
+            #: touches a command.
+            "loop_timing": bool(self._loop_timing),
             "policy_track": bool(self._policy_track),
             #: P31-A: the wait gate's provenance (absent = off). An A/B arm must
             #: be identified by this block, not by the printed count alone.
@@ -1653,6 +1733,13 @@ class SortingRLEnv:
         episodes call `reset()` so the fruit sequence continues rather than
         restarting from the same RNG state every time.
         """
+        if self._loop_timing:
+            # P43 L2: the episode wall starts at the reset (setup included) and
+            # is closed in `_finalize`, so the per-episode wall below is the
+            # whole episode including selection and setup.
+            self._loop_reset_start = time.perf_counter()
+            self._loop_t = {"policy_ms": 0.0, "render_ms": 0.0, "camera_ms": 0.0}
+            self._loop_counts = {"observations": 0, "decisions": 0}
         if self._recorder is not None and self._recorder.recording:
             # An episode that is reset without reaching `_finalize` (the driver
             # grew impatient) must not leak a half file into the index.
@@ -1700,8 +1787,16 @@ class SortingRLEnv:
                 # line (`logs/r11/A_RESULTS.md`). The scripted loop, the
                 # collector and the bimanual workers leave `select_target`'s
                 # default and inherit it.
+                #
+                # P43 L1 scope (`direct=True`): the same applies to the
+                # nearest-above-floor rule, whose scripted default is **on**
+                # (`tasks.py` `select_target`). This call is the direct
+                # environment's episode selection - the one unlaned caller of
+                # the single-arm branch - so it resolves the rule off and the
+                # shipped farthest-upstream pick stays byte-identical. An
+                # explicit `FRUIT_SELECT_NEAREST_ABOVE_FLOOR` wins either way.
                 target_state = self.task.select_target(
-                    self.spawner.state(), reach_anywhere=False
+                    self.spawner.state(), reach_anywhere=False, direct=True
                 )
             if target_state is not None or rounds >= 40:
                 break
@@ -1993,7 +2088,12 @@ class SortingRLEnv:
         self._observed_step = self._step
         if self.policy is None and self._recorder is None:
             return
+        _t0 = time.perf_counter() if self._loop_timing else 0.0
         self._RenderingManager.render()
+        if self._loop_timing:
+            # P43 L2: the render stage of the decision period.
+            self._loop_t["render_ms"] += (time.perf_counter() - _t0) * 1e3
+            self._t_camera = time.perf_counter()
         raw_rgb = self.scene.camera_sensor.get_data("rgb")
         raw_depth = self.scene.camera_sensor.get_data("distance_to_image_plane")
         rgb = np.asarray(raw_rgb[0].numpy()) if raw_rgb is not None else None
@@ -2027,6 +2127,12 @@ class SortingRLEnv:
                             target_id = int(key)
                             break
                     mask = (seg == target_id).astype(np.float32)
+        if self._loop_timing:
+            # P43 L2: the camera stage (every `get_data` read of the observation
+            # plus the mask arithmetic) and the observation count. `push_frame`
+            # below is the observation *assembly* and lands in "other".
+            self._loop_t["camera_ms"] += (time.perf_counter() - self._t_camera) * 1e3
+            self._loop_counts["observations"] += 1
         self._last_rgb, self._last_depth, self._last_mask = rgb, depth, mask
         if self.policy is not None and rgb is not None and depth is not None:
             self.policy.push_frame(rgb, depth, mask)
@@ -2254,10 +2360,15 @@ class SortingRLEnv:
             # P35 phase 2: the per-call park counters (same site: one fruit-pose
             # read plus a bbox census on the band call only).
             self._park_note_call()
+        _loop_start = time.perf_counter() if self._loop_timing else 0.0
         chunk = self.policy.act(
             self.proprio(), self._goal, num_steps=self.ddim_steps if num_steps is None
             else int(num_steps)
         )
+        if self._loop_timing:
+            # P43 L2: the model-inference stage of the decision period.
+            self._loop_t["policy_ms"] += (time.perf_counter() - _loop_start) * 1e3
+            self._loop_counts["decisions"] += 1
         # P30-B: one model inference = one action chunk (a `ddim_steps`-step
         # denoising chain). Counted here, the only synchronous sampling site.
         self._infer_calls += 1
@@ -2681,6 +2792,40 @@ class SortingRLEnv:
         )
         return arm_px, target_px, top
 
+    def _park_label(self) -> str:
+        """The resolved park **and its origin**, e.g. `back(default)`.
+
+        P43 phase 4 (A1): every row that names the park names where the value
+        came from - `default` (the direct presentation's P43 default),
+        `explicit` (`FRUIT_ARM_PARK` was set) or `shipped` (nothing set, no
+        park). Without it a post-flip log cannot be told from an opt-in arm's,
+        and the A arm of any pre-P43 A/B is an `explicit`/`shipped` `ready`.
+        """
+        origin = (
+            "default"
+            if self._arm_park_defaulted
+            else "explicit"
+            if self._park_env is not None
+            else "shipped"
+        )
+        return f"{self._arm_park or 'ready'}({origin})"
+
+    def _park_poses_label(self) -> str:
+        """The pose each arm **resolves** to, e.g. `left:back,right:ready`.
+
+        `configs/arm_parks.json` carries a `back` vector for the left arm only
+        (the right arm's `back` does not hold and puts the fingertip in the
+        belt footprint), so a **right-inactive** episode's park name is `back`
+        while the right arm stayed at the shipped `ready`. P43 phase 3's rows
+        printed only the name and therefore read as if both arms had moved;
+        this states which pose each arm actually takes. The row's `inactive=`
+        field names the one that is applied this episode.
+        """
+        return ",".join(
+            f"{side}:{self._arm_park if side in self._arm_park_poses else 'ready'}"
+            for side in ("left", "right")
+        )
+
     def _park_report(self) -> str:
         """The `[park]` row: M1/M2 of `logs/p35/PREREG.md` section 2 (P0 gate)."""
         def num(value: float, fmt: str = "+.3f") -> str:
@@ -2713,7 +2858,7 @@ class SortingRLEnv:
                                         - np.asarray(self._park_q_first, float))))
         return (
             f"[park] episode {self._episode} arm={self._active} inactive={inactive} "
-            f"park={self._arm_park or 'ready'} "
+            f"park={self._park_label()}[{self._park_poses_label()}] "
             f"m1_hold={num(self._park_m1_hold)} m1_hold_ok={m1_hold_ok} "
             f"m1_cmd={num(self._park_m1_cmd)} "
             f"m2_arm={self._park_worst_arm:.3f} m2_arm_ok={m2_arm if band else -1} "
@@ -3856,6 +4001,8 @@ class SortingRLEnv:
         report = self._collect_rtc_report()
         if report:
             self._outcome.update(report)
+        if self._loop_timing:
+            self._say(self._loop_episode_row())
         self._say(
             f"[rl] episode {self._episode}: {self._sample.category} "
             f"d={self._sample.diameter * 100:.1f}cm bin={self._bin_index} "
@@ -3925,6 +4072,80 @@ class SortingRLEnv:
                 f"[rl]   dagger: interventions={self._ep_interventions}/{decisions} "
                 f"expert_ticks={self._ep_expert_ticks}/{int(self._step)}"
             )
+
+    def _loop_episode_row(self) -> str:
+        """One `[loop]` row: the decision period's wall split (P43 L2).
+
+        `FRUIT_LOOP_TIMING=1` only. The stages are `policy` (the model call in
+        `sample_chunk`), `render` (`RenderingManager.render()`), `camera` (every
+        `get_data` read of the observation plus its mask arithmetic) and
+        `other` = the episode wall minus those three (setup/selection, the
+        `ik_step`/`_apply` path, `advance` = `SimulationManager.step` +
+        `update_app(steps=0)`, and the `push_frame` assembly). Because a
+        decision and an observation both happen every 4th control step, the two
+        divisors are the same number on the shipped synchronous path.
+        """
+        wall_ms = max((time.perf_counter() - self._loop_reset_start) * 1e3, 1e-6)
+        decisions = max(int(self._loop_counts["decisions"]), 1)
+        obs = max(int(self._loop_counts["observations"]), 1)
+        policy_ms = self._loop_t["policy_ms"]
+        render_ms = self._loop_t["render_ms"]
+        camera_ms = self._loop_t["camera_ms"]
+        other_ms = max(wall_ms - policy_ms - render_ms - camera_ms, 0.0)
+        row = {
+            "episode": int(self._episode),
+            "wall_s": wall_ms / 1e3,
+            "sim_s": int(self._ticks) / 120.0,
+            "decisions": int(self._loop_counts["decisions"]),
+            "observations": int(self._loop_counts["observations"]),
+            "policy_ms_dec": policy_ms / decisions,
+            "render_ms_obs": render_ms / obs,
+            "camera_ms_obs": camera_ms / obs,
+            "other_ms_dec": other_ms / decisions,
+            "policy_share": policy_ms / wall_ms,
+            "render_share": render_ms / wall_ms,
+            "camera_share": camera_ms / wall_ms,
+            "other_share": other_ms / wall_ms,
+        }
+        self._loop_episodes.append(row)
+        return (
+            f"[loop] ep={row['episode']} wall={row['wall_s']:.1f}s "
+            f"sim={row['sim_s']:.1f}s "
+            f"sim/wall={row['sim_s'] / row['wall_s']:.2f} "
+            f"decisions={row['decisions']} obs={row['observations']} | ms/decision: "
+            f"policy={row['policy_ms_dec']:.1f} "
+            f"render={row['render_ms_obs']:.1f} "
+            f"camera={row['camera_ms_obs']:.1f} "
+            f"other={row['other_ms_dec']:.1f} | share: "
+            f"policy={row['policy_share']:.1%} "
+            f"render={row['render_share']:.1%} "
+            f"camera={row['camera_share']:.1%} "
+            f"other={row['other_share']:.1%}"
+        )
+
+    def _loop_summary(self) -> str:
+        """Run-level `[loop]` summary (mean of the per-episode rows)."""
+        rows = self._loop_episodes
+        n = max(len(rows), 1)
+
+        def _mean(key: str) -> float:
+            return sum(float(r[key]) for r in rows) / n
+
+        wall = sum(float(r["wall_s"]) for r in rows)
+        sim = sum(float(r["sim_s"]) for r in rows)
+        return (
+            f"[loop] summary: episodes={len(rows)} wall={wall:.1f}s "
+            f"sim={sim:.1f}s sim/wall={sim / max(wall, 1e-9):.2f} "
+            f"wall/episode={wall / n:.1f}s | ms/decision: "
+            f"policy={_mean('policy_ms_dec'):.1f} "
+            f"render={_mean('render_ms_obs'):.1f} "
+            f"camera={_mean('camera_ms_obs'):.1f} "
+            f"other={_mean('other_ms_dec'):.1f} | share: "
+            f"policy={_mean('policy_share'):.1%} "
+            f"render={_mean('render_share'):.1%} "
+            f"camera={_mean('camera_share'):.1%} "
+            f"other={_mean('other_share'):.1%}"
+        )
 
     def _collect_rtc_report(self) -> dict:
         """Episode-level executed-boundary + wall-time stats (empty when off)."""
@@ -3996,7 +4217,9 @@ class SortingRLEnv:
     def report_summary(self) -> str | None:
         """Run-level RTC timing/boundary summary; None when reporting is off."""
         if not self._rtc_report:
-            return None
+            # P43 L2: the loop-timing instrument has its own summary and does
+            # not need RTC's (the two are independent knobs).
+            return self._loop_summary() if self._loop_timing else None
         boundary = np.asarray(self._rtc_totals["boundary"], dtype=np.float64)
         within = np.asarray(self._rtc_totals["within"], dtype=np.float64)
         step = np.asarray(self._rtc_totals["step"], dtype=np.float64)
@@ -4026,6 +4249,9 @@ class SortingRLEnv:
             f"policy_ms {_stats(policy, 'ms')} | "
             f"policy_ms/step {self._rtc_totals['policy_ms_total'] / steps:.2f} | "
             f"control_ms {_stats(controls, 'ms')}"
+            # P43 L2: the two instruments are independent switches; when both are
+            # on the run prints both rows.
+            + (f"\n{self._loop_summary()}" if self._loop_timing else "")
         )
 
     def _step_result(self) -> StepResult:

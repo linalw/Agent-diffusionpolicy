@@ -18932,3 +18932,157 @@ all checks passed. Pins: `tasks.py` **`e2d0f12a`** (measured tree `3e6ea4cf`, th
 close-out edit is the docstring only), `rl_env.py` **`50980bf5`**, `configs/**`
 untouched (**8a399626** / **2246f83c**), HEAD `c2760bf` + the two P42 commits;
 `scene.py` `27e3d64a`, `control.py` `9384ff4f` unchanged by this phase.
+
+### P43: the arm park becomes the **direct env's default** (right-arm carried 20/54 -> 0/56, placed 32/54 -> 53/56, 5/5 runs) after re-measuring it on the P41 9.8-9.9 N grip profile — one shipped change, scoped to `presentation="direct"`, with `FRUIT_ARM_PARK=ready` as the escape hatch and the whole direct interface re-baselined; the phase-2 rate lever (nearest-above-floor) and the loop's RTC/VLASH cell are both measured **not adopted** (2026-10-26)
+
+**What ships.** `FRUIT_ARM_PARK=back` is the **`direct` presentation's default**.
+The resolution is one module function (`rl_env.resolve_arm_park`):
+`_park_default = "back" if presentation == "direct" else ""`, an explicit env
+value wins everywhere, `=ready` restores the shipped pose, and `handoff`
+resolves to **no park** so it cannot raise (the guard for a *named* park on a
+non-direct presentation is unchanged). No `configs/` file moved and no motion
+reference was re-recorded.
+
+**The numbers of record** (`logs/p43/P3_RESULTS.md`, batch 4423 s = 73.7 min,
+one claim, no wedge; N = 5 runs x 15 episodes per arm, seeds 77/101/202/303/404,
+policy seed 11, interleaved A-then-B, `moe_v13s` `61da390a` on **both** arms, the
+P35/P36/P37 patch scenario verbatim, `ACQ`/`CARRY`/`PARK`/`RESET_ALIGN` diags on
+both arms):
+
+* right-arm carried **20/54 = 0.370 -> 0/56 = 0.000**, exact two-sided Fisher
+  **p = 7.31e-08**;
+* right-arm placed **32/54 = 0.593 -> 53/56 = 0.946**, delta **+0.354**
+  (bar >= -0.10), Fisher **p = 7.75e-06**, Newcombe one-sided 95 % lower bound
+  **+0.228**; species- and diameter-tertile-standardised deltas **+0.349 /
+  +0.355** (coverage 1.00);
+* run level **B > A in 5/5** (one-sided sign **p = 0.0312**; MH OR 13.03,
+  CMH chi2 18.92, p = 1.36e-05);
+* pooled **33/75 = 44.0 % -> 53/75 = 70.7 %** — **a report, never a test** —
+  with the arm-standardised forms **0.320 -> 0.473** (50/50) and 0.440 -> 0.681
+  (A's own 0.720 right mix);
+* left **1/21 -> 0/19**, cycle **+0.2 %** (pooled median 1826 -> 1830 ticks;
+  right arm only -0.9 %), **no new failure reason** (both arms the same three
+  normalised reason sets).
+
+**The Oracle's corrections (Gate 3), which the documents carry verbatim.**
+(1) **P4 is "not failed", not "PASS"**: 1/21 -> 0/19 clears the -0.05 bar by
+**0.0024 = one episode**, which is inside the no-op noise P36 measured on the
+same guard (0.050 vs 0.119); the informative read is the left's **carried 20 ->
+18** — the built-in no-op, since `configs/arm_parks.json` has a **left-only**
+vector and the left-arm episodes never move. (2) **P1 and P2 are one 3-way
+outcome counted twice** (`placed = n - carried - no-grasp`): "+0.354 placed,
+p = 7e-8 carried" is **one count**, and the independent legs are **P7 / P8 / P5
+/ P6**; because **5/5 at five runs has p = 0.031 as its minimum attainable**,
+P7 is the design's **ceiling**, not a strong standalone result. (3) **"0 carried"
+is 0/56** — `<= ~5 %` at 95 % by the rule of three — and **2 residual
+`force_min = 0` legs survive** (16 -> 2, ~8x reduced, **not deleted**). (4) the
+band census's **1364 calls are ~56 clustered episodes**, i.e. **"0 in 56
+episodes"**, not 1364 independent reads. (5) **"94.6 %" is one draw of a
+non-reproducible loop** (rendered frames; CI ~0.85-0.99), not a rate. (6) the
+**re-baseline rule** below.
+
+**The check** (P8, read before any outcome): the park arm holds the pose the
+reset **achieved** **56/56** on both reads (M1-held, and M1-applied against the
+0.088 rad settle), **M2a 56/56**, band census **0/1364 fully hidden in 56
+episodes**; the control reads M1-held 54/54, shipped-pose negative 54/54, M2a
+0/54 and **903/1340 = 67.4 %** fully hidden — the pre-treatment state
+reproduced. The 0.088 rad achieved-vs-commanded residual is the
+`teleport_joints` settle property (the shipped `ready` reset sits 0.037 from
+*its* own command), which is why the gate is written against the achieved pose.
+M2b (`rel >= 0.85`) stays a report (39/56 = 69.6 %; its denominator is a running
+`px*d^2` maximum and the batch's masks are 20-192 px).
+
+**The mechanism** is the W8-B loaded slide, on the right: `force_min = 0`
+(payload out) **16/53 -> 2/55**, `clean_slip > 50 mm` **15/53 -> 2/55**, the
+retained pinch **9.31 N (A, n = 37) / 9.74 N (B, n = 53)** against the pre-P41
+direct corpus's **3.57 N** median, and the left (no park vector) unchanged
+(16/21 -> 15/19 lost legs, `clean_slip` median 268.5 -> 253.8 mm). The channel is
+the **image** (P36's 2x2: image p = 8.8e-15, proprio p = 0.687); *which* image
+statistic remains unseparated.
+
+**The scope, and what the flip costs.** Direct presentation only: the canary
+(`scripts/60_eval_policy.py`) never constructs `SortingRLEnv`, so
+`moe_v12` + park is **untested** and has no deployment path. The flip
+**re-baselines the direct interface** — every direct/policy number quoted before
+this entry (P33, W7-C, W8-A, R9, P35, P36, P37, P38, P43-p2's F5 pair) is a
+**pre-park** number, and **to reproduce any of them set `FRUIT_ARM_PARK=ready`**;
+park/no-park stores must not be mixed (P37's transfer confound). `121`/`136`/
+`127`/`130`/`195` and the `110`-driven workflows **silently re-baseline**. **No
+motion reference was re-recorded**: the scripted gate never imports `rl_env`, so
+`fingerprint: matches` is an **import guard** on this change — stated as the
+P38-M4-style near-tautology it is, not as evidence about the park.
+
+**A1 — the state is named in every log and every store.** (i) `[rl] env ready:`
+now prints `park=back(default)` / `park=ready(explicit)` / `park=ready(shipped)`;
+(ii) the manifest's `arm_park` block gains **`defaulted: true|false`** (absent =
+pre-P43), so a defaulted store, an explicit `=back` arm and a pre-P43 store are
+distinguishable; (iii) the `[park]` row prints the name, the origin **and the
+per-arm resolution** — `park=back(default)[left:back,right:ready]` — because the
+P43 phase-3 B rows read `park=back` while the **right** arm sat at `ready` (the
+config's vector is left-only) and the old row invited the opposite reading. The
+`[park]` token stays one whitespace-free field, so the pinned P35/P43 parsers
+still read new logs. Verified end to end with two one-episode direct rollouts
+(`logs/p43/p4/A1_default.log`, `A1_ready.log`): default → `park=back(default)`,
+manifest `defaulted: true`, `[park] ... arm_px=0 band_px=184 m2_ok=1`, success;
+`=ready` → `park=ready(explicit)`, `arm_park: null`, `arm_px=234 band_px=52
+m2_ok=0`, failure — the occlusion mechanism, one episode each, a smoke not a rate.
+
+**A2 — the pre-flip reproductions are pinned.** The drivers that defined "A =
+shipped (no park)" **by unset** now pass `FRUIT_ARM_PARK=ready` explicitly, with
+a comment saying why: `logs/p43/p3/run_batch.sh` (the A arm),
+`logs/p35/run_p35b_ab.sh`, `logs/p35/run_p35c_ab.sh`, and
+`scripts/219_p36_cells.sh` cells **1 and 4**. Without it those batches would run
+**A == B** and become park-vs-park nulls. The B/park arms are unchanged, and
+`scripts/223_p37_ab.sh` needed nothing (its park is in `AB_EXTRA_ENV`, i.e. on
+both arms by design).
+
+**The two negatives that ride the same commit.** (1) **L1 — the
+nearest-above-floor selector is scoped and NOT adopted.** The scope is the
+`direct` keyword (`select_target(..., direct=True)` → always `"0"`; the scripted
+constant `NEAREST_ABOVE_FLOOR_SCRIPTED` ships **"0"**), proven three ways: the
+AST census (8 laned/pass-through sites in `tasks.py`, 2 in `rl_env.py`, all
+`direct=True`), the three-way invariance of the lane callers, and an F5 gate on
+the direct path (unset and `=0` select the same fruit to the digit, `=1` moves it
+0.240 m). **The measurement is exact and the gate fails**: the wait fell
+**0.32-0.73 s** in **4/4** pairs, the 2 ms mechanism reads **1.958 s predicted
+vs 1.960 s measured** on the seeded attempt (convert factor 1.0, not the
+registered 0.6), and the descent is the only segment that moves — but `placed`
+fell on **3/4** pairs (0 / -3 / -1 / -1), both treatment acceptance runs lost a
+slot to `no eligible fruit`, the pear's left cnp rose 4 -> 5, and the mechanism's
+**prevalence is 20 %** of attempts against the 50 % bar, so **E3 and E5 fail**
+and the flip stays `"0"`. The machinery ships, so `=1` reproduces the treatment
+byte-identically with no code change; the reopen condition is a supply whose
+floored set carries two candidates on >= 50 % of attempts. (2) **L2 — the loop's
+pause is 10.7 % and there is no loop lever.** One instrumented run
+(`FRUIT_LOOP_TIMING=1`, default off, reporting only) attributes a decision to
+**47.4 ms** model, **20.0 ms** render, **3.6 ms** camera against **33.3 ms** of
+sim; policy+render+camera is **16.0 %** of the 28.6 s episode wall and **84 %**
+is the scripted primitive plus physics stepping, so the **F4** rule fired and the
+**RTC/VLASH cell was not run** (RTC's own recorded mechanism pays its wait back
+in `control_ms` 9.2 → 32.7 ms, and its other-checkpoint rate record is
+null-to-negative).
+
+**No-harm and pins.** `scripts/selfcheck.sh` **PASS, 0 failures, 1 skipped**
+(the new leg is `P43 selector + park`, `scripts/224_p43_selftest.py`, which now
+also pins the park default/scope offline: direct → `back`, handoff → none,
+`=ready` restores, the guard unchanged, the manifest field and both label
+sites) → `logs/p43/selfcheck.log`; `scripts/96_motion_check.py` PASS; the
+acceptance on the flipped default reads **`fingerprint: matches`** → the import
+guard above. Pins: `tasks.py` **`a1b3d673`**, `rl_env.py` **`0cefb13d`**,
+`control.py` `9384ff4f`, `scene.py` `27e3d64a`, `policy/trigger.py`
+`b09d3cb2`, `policy/runtime.py` `379ac706`, `meshes.py` `41efc522`,
+`fruits.py` `6f65e423`; `scripts/224_p43_selftest.py` **`2edd81de`**,
+`scripts/selfcheck.sh` `58ec6862`, `scripts/219_p36_cells.sh` `0efdcbbe`,
+`logs/p35/run_p35b_ab.sh` `02b1ddfe`, `logs/p35/run_p35c_ab.sh` `ef59696c`,
+`logs/p43/p3/run_batch.sh` `79c3fb02`; `configs/arm_parks.json` `42ab4fb7`,
+`motion_reference.json` **`8a399626`** and `..._twoline.json` **`2246f83c`**
+untouched; checkpoint `moe_v13s` `61da390a`.
+
+**Record.** `logs/p43/P3_RESULTS.md` (the adoption + every endpoint),
+`logs/p43/P2_RESULTS.md` (L1/L2), `logs/p43/PARK_STATUS.md` (the pre-measurement
+evidence status), `logs/p43/p3/` (the batch, its report, the P35 and 113
+cross-checks), `logs/p43/p2/` (the rate levers), `logs/p43/p4/` (the A1 rollout
+pair, this phase's selfcheck/acceptance logs). Nothing re-opens the grip/seat
+class (`logs/p42/SIM_LIMIT.md` stands: the loaded slide persists at 9.8 N — 20
+right-arm carried legs in the control), the supply density (P1c), the place
+geometry (P3) or the belt speed (R3).

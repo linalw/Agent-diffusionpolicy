@@ -78,6 +78,24 @@ FINGER_JOINT_FACE_INDEX = (1, 0)
 #: authors the plate's distal plane at `tip_coord + delta`.
 FINGER_TIP_BELOW_JAW = 0.0805
 
+#: P43 L1: the **scripted** single-arm default for
+#: `FRUIT_SELECT_NEAREST_ABOVE_FLOOR` (`select_target`'s single-arm branch).
+#: **Off**, and it stays off: the flip was measured on the current tree
+#: (acceptance + pear, two seeds each) and its pre-registered gate failed - the
+#: arrival wait falls (**-0.35 / -0.32 s** acceptance, **-0.73 / -0.61 s** pear,
+#: the mechanism exact to 2 ms on the seeded attempt) but `placed` falls on 3 of
+#: 4 pairs (0 / -3 / -1 / -1), both treatment acceptance runs lose a slot to
+#: "no eligible fruit" (0 in either control) and the pear's left cnp rises 4 -> 5
+#: on seed 5, so E3 and E5 fail; the mechanism's prevalence is **20 %** of
+#: attempts on the acceptance supply (2/10 windows have two candidates) against
+#: the pre-registered 50 % (`logs/p43/P2_RESULTS.md`). The direct/policy
+#: environment's episode selection is off whatever this value is
+#: (`select_target(..., direct=True)`, `rl_env.py`): its store/A-B history lives
+#: on the farthest-upstream pick. An explicit env value wins on **both** paths,
+#: so the measured treatment stays reproducible as
+#: `FRUIT_SELECT_NEAREST_ABOVE_FLOOR=1` with no code change.
+NEAREST_ABOVE_FLOOR_SCRIPTED = "0"
+
 
 def _quat_matrix(q) -> np.ndarray:
     """Rotation matrix from a (w, x, y, z) quaternion."""
@@ -5426,7 +5444,7 @@ class PickAndPlaceTask:
         min_lead_s: float | None = None, station_y: float | None = None,
         prefer_lane: int | None = None, exclude: set[int] | None = None,
         lead_override_s: float | None = None, reach_anywhere: bool = True,
-        diag: list | None = None,
+        diag: list | None = None, direct: bool = False,
     ) -> dict | None:
         """Choose the next fruit that will reach the pick pose.
 
@@ -5478,6 +5496,16 @@ class PickAndPlaceTask:
         driver's summary - it printed the fruit but not the predicate - so this
         is pure reporting on the decision the selector already made. `None` on
         every shipped call.
+
+        `direct` (P43 L1 scope): this call is the **direct/policy environment's**
+        episode selection (`rl_env.py` passes `direct=True`), whose interface
+        history lives on the shipped farthest-upstream rule. It only resolves
+        the default of `FRUIT_SELECT_NEAREST_ABOVE_FLOOR` (`"0"` here, `"1"` on
+        the scripted line) - an explicit env value wins on both paths, exactly
+        like the regrasp cap. The rule itself stays where it was (the single-arm
+        branch below `_balance_arm`, `lane`/`prefer_lane` both `None`), so the
+        two-line selector, its lane rules and the shared-station worker return
+        above it whatever this flag says.
         """
         pick_y = float(self.cfg.pick_y) if station_y is None else float(station_y)
         exclude = exclude or ()
@@ -5694,9 +5722,9 @@ class PickAndPlaceTask:
                     if grade_lane == prefer_lane:
                         return _chosen(state)
                 return _chosen(usable[0][1])
-            # P40 R-S (`FRUIT_SELECT_NEAREST_ABOVE_FLOOR`, default **off**): take
-            # the **nearest** candidate at/above the catch floor instead of the
-            # shipped farthest-upstream one. Scope is this single-arm branch only
+            # P40 R-S (`FRUIT_SELECT_NEAREST_ABOVE_FLOOR`): take the **nearest**
+            # candidate at/above the catch floor instead of the shipped
+            # farthest-upstream one. Scope is this single-arm branch only
             # (`lane` and `prefer_lane` are both `None` here, so the two-line
             # selector, its lane rules and the shared-station worker never reach
             # this line), and it changes *which* floored fruit is taken - never
@@ -5710,9 +5738,21 @@ class PickAndPlaceTask:
             # rule's *own* floor by that much and falls back to the shipped rule
             # when it would empty the set (a margin experiment, not a new floor:
             # the shipped `FRUIT_DYNAMIC_SELECT_MARGIN` inside the floor is
-            # unchanged). Both unset -> the shipped pick, byte-identically
-            # (presence/value gate; `accept_C` reproduces on the same tree).
-            if os.environ.get("FRUIT_SELECT_NEAREST_ABOVE_FLOOR", "0") == "1":
+            # unchanged).
+            #
+            # P43 L1: the default is resolved **per path** - `direct=True` (the
+            # direct/policy environment's episode selection, `rl_env.py`) is
+            # always off, and the scripted line reads
+            # `NEAREST_ABOVE_FLOOR_SCRIPTED` (a module constant, **off** in the
+            # shipped tree; the P43 flip was measured and not adopted, see the
+            # constant's note and `logs/p43/P2_RESULTS.md`). An explicit env
+            # value wins on both paths: `=0` restores the shipped farthest-
+            # upstream pick everywhere and `=1` arms the rule everywhere (which
+            # is exactly the measured treatment arm).
+            nearest_default = "0" if direct else NEAREST_ABOVE_FLOOR_SCRIPTED
+            if os.environ.get(
+                "FRUIT_SELECT_NEAREST_ABOVE_FLOOR", nearest_default
+            ) == "1":
                 near_floor = floor + float(
                     os.environ.get("FRUIT_SELECT_NEAREST_MARGIN", "0.0")
                 )

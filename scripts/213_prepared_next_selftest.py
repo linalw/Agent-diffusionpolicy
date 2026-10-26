@@ -256,7 +256,22 @@ def test_ranking() -> None:
     far = task._prepared_rank(rows, 4)
     check(
         [int(row["index"]) for row in far] == [3, 2, 1, 0],
-        "single-arm nearest-usable rule: farthest upstream first, then downstream",
+        "single-arm rule: farthest upstream first, then downstream "
+        "(the shipped default; `FRUIT_SELECT_NEAREST_ABOVE_FLOOR=1` reverses it)",
+    )
+    _prev = os.environ.get("FRUIT_SELECT_NEAREST_ABOVE_FLOOR")
+    os.environ["FRUIT_SELECT_NEAREST_ABOVE_FLOOR"] = "1"
+    try:
+        near = task._prepared_rank(rows, 4)
+    finally:
+        if _prev is None:
+            os.environ.pop("FRUIT_SELECT_NEAREST_ABOVE_FLOOR", None)
+        else:
+            os.environ["FRUIT_SELECT_NEAREST_ABOVE_FLOOR"] = _prev
+    check(
+        [int(row["index"]) for row in near] == [0, 1, 2, 3],
+        "`FRUIT_SELECT_NEAREST_ABOVE_FLOOR=1` (the P43 measured treatment): "
+        "nearest above the floor first",
     )
     check(
         len({int(row["index"]) for row in far}) == len(far),

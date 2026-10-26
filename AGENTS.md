@@ -1891,6 +1891,85 @@ follow), **no `configs/` file moved** (`8a399626` / `2246f83c`). Evidence
 `logs/p42/{SEAT_CENSUS,PREREG,P2_RESULTS,SIM_LIMIT}.md`, `p2/`, `p3/`,
 `selfcheck.log`; WORKLOG "P42".
 
+**P43 (2026-10-26, `logs/p43/`; **one shipped change - the arm park becomes the
+direct env's default** - plus the phase-2 selector machinery at "0"): the park's
+win reproduces at the P41 grip profile and it ships, scoped to the direct
+presentation.** `FRUIT_ARM_PARK=back` is now the `direct` presentation's default
+(`_park_default = "back" if presentation == "direct" else ""`, resolution owned
+by `resolve_arm_park`): **`FRUIT_ARM_PARK=ready` restores the shipped pose** and
+an explicit value wins everywhere; `handoff` resolves to no park, so it does not
+raise. The phase-3 A/B (N = 5 runs x 15 episodes per arm, seeds 77/101/202/303/404,
+policy seed 11, interleaved, one claim, `moe_v13s` `61da390a` on **both** arms,
+the P35/P36/P37 patch scenario verbatim, four diagnostics on both arms) reads
+right-arm carried **20/54 = 0.370 -> 0/56 = 0.000** (Fisher **7.31e-08**),
+right placed **32/54 = 0.593 -> 53/56 = 0.946** (**+0.354**, Fisher 7.75e-06,
+Newcombe one-sided 95 % lower **+0.228**), run level **5/5** (sign p = 0.031),
+pooled **33/75 = 44.0 % -> 53/75 = 70.7 %** (**report only**; the
+arm-standardised read is **0.320 -> 0.473** at 50/50 and 0.440 -> 0.707 at A's
+mix), left **1/21 -> 0/19**, cycle **+0.2 %**. **Read it as one count, not five
+legs**: **P1 and P2 are one 3-way outcome counted twice** (`placed = n - carried
+- no-grasp`), so "+0.354 placed, p = 7e-8 carried" is a single contrast - the
+independent legs are **P7 (the run level), P8 (the check), P5 (reasons), P6
+(the cycle)**, and because 5/5 at five runs has **p = 0.031 as its minimum
+attainable**, **P7 is the design's ceiling**, not a strong result on its own.
+The left guard is **"not failed", not "PASS"**: 1/21 -> 0/19 clears the -0.05 bar
+by **0.0024 = one episode**, and the informative read is its **carried 20 -> 18**
+(the built-in no-op - `configs/arm_parks.json` lists a left-only vector, so the
+left-arm episodes never move). **"0 carried" is 0/56, i.e. <= ~5 % at 95 % by the
+rule of three, and 2 residual `force_min = 0` legs survive** (16 -> 2, roughly
+8x reduced, **not deleted**); **"94.6 %" is one draw of a non-reproducible loop**
+(rendered frames, CI ~0.85-0.99), not a rate. **The check** (read before any
+outcome): the park arm holds the pose the reset **achieved** 56/56 on both reads
+(M1-held/M1-applied), M2a 56/56, and the band census **0/1364 fully hidden** -
+which is **"0 in 56 episodes"**, since those 1364 calls are ~56 clustered
+episodes - against the control's 903/1340 = **67.4 %**; the 0.088 rad
+achieved-vs-commanded residual is the `teleport_joints` settle property (the
+shipped `ready` reset sits 0.037 from *its* command), which is why the gate is
+written against the achieved pose. **The mechanism** is the W8-B loaded slide on
+the right: `force_min = 0` **16/53 -> 2/55**, `clean_slip > 50 mm` **15/53 ->
+2/55**, the retained pinch **9.31 N (A) / 9.74 N (B)** against the pre-P41 direct
+corpus's **3.57 N**, and the left (no vector) unchanged (16/21 -> 15/19 lost legs,
+`clean_slip` median 268.5 -> 253.8 mm) - the image channel, which P36's 2x2
+separated (`which` image statistic remains unseparated). **Scope and the
+re-baseline rule**: the flip is **direct-presentation only** (the canary
+`60_eval_policy.py` never constructs `SortingRLEnv`, so `moe_v12` + park is
+**untested** and has no deployment path), it **re-baselines the direct
+interface** - every direct/policy number before P43 is a **pre-park** number, so
+**to reproduce any of them set `FRUIT_ARM_PARK=ready`**, and park/no-park stores
+must not be mixed (P37's transfer confound) - and **no motion reference was
+re-recorded**: the scripted gate never imports `rl_env`, so `fingerprint:
+matches` is an **import guard** on this change (the P38-M4-style near-tautology,
+stated as such). `121`/`136`/`127`/`130`/`195` and the `110`-driven workflows
+**silently re-baseline** to park-default. The A1 naming makes every log say it:
+`[rl] env ready: ... park=back(default)` (`ready(explicit)` when set), the
+`[park]` row `park=back(default)[left:back,right:ready]` (name, origin **and the
+per-arm resolution** - the P43 B logs read `park=back` while the right arm sat at
+`ready`), and the manifest's `arm_park.defaulted` (`true` = the default,
+`false` = explicit, absent = pre-P43). The pinned pre-flip reproductions are
+`logs/p43/p3/run_batch.sh`, `logs/p35/run_p35{b,c}_ab.sh` and
+`scripts/219_p36_cells.sh` cells 1/4, whose A arms now pass
+`FRUIT_ARM_PARK=ready` **explicitly**. **Two measured negatives ride the same
+commit.** (1) **L1**: the nearest-above-floor selector is scoped
+(`direct=True` -> always "0"; the scripted constant `NEAREST_ABOVE_FLOOR_SCRIPTED`
+ships **"0"**) - the wait fell **0.32-0.73 s** in 4/4 pairs with a 2 ms mechanism
+(1.958 s predicted vs 1.960 s measured on the seeded attempt), but `placed` fell
+on **3/4** pairs, both treatment acceptance runs lost a slot to `no eligible
+fruit`, and the mechanism's **prevalence is 20 %** of attempts against the 50 %
+bar, so E3/E5 fail and the flip is **not** adopted - the machinery ships, so
+`FRUIT_SELECT_NEAREST_ABOVE_FLOOR=1` reproduces it with no code change. (2)
+**L2**: the loop's pause is **10.7 %** of the episode wall (model 47.4 ms,
+render 20.0 ms, camera 3.6 ms per decision) and **84 %** is the scripted primitive
+plus physics stepping, so F4 fired and **no RTC/VLASH cell was run** - there is
+no loop lever here. Pins: `tasks.py` **`a1b3d673`**, `rl_env.py`
+**`0cefb13d`**, `control.py` `9384ff4f`, `scene.py` `27e3d64a`,
+`policy/trigger.py` `b09d3cb2`, `policy/runtime.py` `379ac706`,
+`scripts/224_p43_selftest.py` **`2edd81de`** (selfcheck: the selector scope + the
+park default/scope), `configs/arm_parks.json` `42ab4fb7`,
+`motion_reference.json` **`8a399626`** and `..._twoline.json` **`2246f83c`**
+both untouched, checkpoint `moe_v13s` `61da390a`. Evidence
+`logs/p43/{RATE_LEDGER,PARK_STATUS,POLICY_STATUS,PREREG,P2_RESULTS,P3_RESULTS}.md`,
+`p2/`, `p3/`, `p4/`; WORKLOG "P43".
+
 ## 3. What changed -> what to run
 
 | you changed | run |
