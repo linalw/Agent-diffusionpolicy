@@ -177,6 +177,314 @@ def _world_matrix(prim) -> np.ndarray:
     ).reshape(4, 4).T
 
 
+#: The finger drive's force cap, in **raw attribute** form. This is exactly what
+#: `UsdPhysics.DriveAPI.GetMaxForceAttr()` returns (the API's instance name is
+#: `linear`), but reading it by name does not touch the prim's applied schemas.
+#: `UsdPhysics.DriveAPI.Get(prim, "linear")` is documented to **apply** the
+#: schema, which is harmless on `joint1` (already `PhysicsDriveAPI:linear`,
+#: usda:3799-3803) and wrong on the `joint2` mimic, which carries no drive block
+#: at all (usda:3822-3843) - asking for its cap would author one. Measured on
+#: this USD/lib (`logs/p41/p4/a4_drive_read_out.txt`): the `Get` does **not**
+#: author an applied-schema opinion, so the pre-P41-phase-4 builds were inert;
+#: this form removes the question instead of relying on that.
+_DRIVE_MAXFORCE_ATTR = "drive:linear:physics:maxForce"
+
+
+def _drive_maxforce_cap(prim) -> float | None:
+    """The authored `PhysicsDriveAPI:linear` force cap, or `None` if unauthored.
+
+    Never `UsdPhysics.DriveAPI.Get`: see `_DRIVE_MAXFORCE_ATTR`. `GetAttribute`
+    only reads; `None` is the asset's own "this joint cannot push" state, so a
+    drive-less mimic answers `None` instead of being handed an opinion.
+    """
+    try:
+        attr = prim.GetAttribute(_DRIVE_MAXFORCE_ATTR)
+        if not attr or not attr.HasAuthoredValue():
+            return None
+        return float(attr.Get())
+    except Exception:  # noqa: BLE001 - a header read must not stop a build
+        return None
+
+
+def _finger_drive_caps(stage, side: str = "left") -> str:
+    """The asset's own finger-drive force caps, `joint1/joint2`, from the USD.
+
+    `joint2` is a drive-less `PhysxMimicJointAPI` mimic: it has no drive block
+    at all, so its cap reads `0.0` - the second jaw face is nominally driven
+    and cannot push (P41 phase 1: authoring gains on it is byte-inert). This is
+    the cap the runtime gain call does not move, so it belongs in the build
+    header beside the programmed k/c. Read through `_drive_maxforce_cap`, i.e.
+    **without** `DriveAPI.Get`, so this header cannot apply a drive schema to
+    the mimic it is describing.
+    """
+    caps = []
+    for index in (1, 2):
+        prim = stage.GetPrimAtPath(
+            f"/World/OpenArm/joints/openarm_{side}_finger_joint{index}"
+        )
+        if not prim.IsValid():
+            return "n/a"
+        cap = _drive_maxforce_cap(prim)
+        caps.append(0.0 if cap is None else cap)
+    return "/".join(f"{value:.1f}" for value in caps)
+
+
+def resolve_finger_maxforce() -> float | None:
+    """`FRUIT_FINGER_MAXFORCE` - the finger drives' force cap for this build [N].
+
+    **Default off**: unset (or empty) returns `None`, nothing is written, and the
+    drives keep the asset's own caps exactly (`10 N` on each `joint1`, `0` on the
+    drive-less `joint2` mimic) - the byte-identical shipped build. A value is the
+    per-joint clamp the drive may apply; the pinch the pads deliver is at most
+    twice it. Non-positive or unparsable values are refused with a print rather
+    than silently authoring a free jaw.
+    """
+    text = os.environ.get("FRUIT_FINGER_MAXFORCE", "").strip()
+    if not text:
+        return None
+    try:
+        value = float(text)
+    except ValueError:
+        say(
+            f"FRUIT_FINGER_MAXFORCE={text!r} is not a number; the drives keep the "
+            "asset's own caps"
+        )
+        return None
+    if value <= 0.0:
+        say(
+            f"FRUIT_FINGER_MAXFORCE={value:g} N refused (must be > 0); the drives keep "
+            "the asset's own caps"
+        )
+        return None
+    return value
+
+
+def _finger_drive_rows(stage) -> list[dict]:
+    """The four finger joints' drive caps, read back off the stage per joint.
+
+    `joint1` is the arm's only finger actuator (k = 1e6 N/m, `maxForce` 10 N in
+    `assets/openarm_flat/openarm_flat_deinst.usda:3798-3820`); `joint2` is a
+    `PhysxMimicJointAPI` mimic with **no drive block at all** (usda:3822-3843),
+    so its cap is physically 0 and a cap written there would make it fight its
+    own reference joint. The readback uses `HasAPI` and the raw attribute name
+    (never `DriveAPI.Get`, which applies the schema) so asking a question
+    cannot change the asset.
+    """
+    rows = []
+    for side in ("left", "right"):
+        for index in (1, 2):
+            name = f"openarm_{side}_finger_joint{index}"
+            prim = stage.GetPrimAtPath(f"/World/OpenArm/joints/{name}")
+            row = {"joint": name, "drive": False, "maxForce": None}
+            if prim.IsValid():
+                row["drive"] = prim.HasAPI(UsdPhysics.DriveAPI, "linear")
+                if row["drive"]:
+                    row["maxForce"] = _drive_maxforce_cap(prim)
+            rows.append(row)
+    return rows
+
+
+def apply_finger_maxforce(stage, value: float) -> str:
+    """Write `value` N onto every finger **drive**; return the per-joint readback.
+
+    Runs in `build()` - i.e. *before* `start()` creates the `Articulation`, so
+    PhysX parses the cap when it builds the DOFs. Writing the USD after the
+    articulation view exists would be inert (only `set_dof_gains` /
+    `set_dof_max_efforts` act on a live view), which is why this is a build-time
+    authoring step and the print is a *stage* readback, not a physics claim.
+    """
+    for side in ("left", "right"):
+        prim = stage.GetPrimAtPath(
+            f"/World/OpenArm/joints/openarm_{side}_finger_joint1"
+        )
+        if not prim.IsValid() or not prim.HasAPI(UsdPhysics.DriveAPI, "linear"):
+            say(
+                f"FRUIT_FINGER_MAXFORCE={value:g} N: {side} joint1 has no linear "
+                "drive on this asset - nothing written for that arm"
+            )
+            continue
+        # `Get` (not the raw attribute) is correct *here*: this is the writer,
+        # it is reached only for a prim that already has the schema (the
+        # `HasAPI` guard above), and it must be able to `CreateMaxForceAttr`.
+        # The readers never use it (`_drive_maxforce_cap`).
+        drive = UsdPhysics.DriveAPI.Get(prim, "linear")
+        attr = drive.GetMaxForceAttr()
+        if attr is None:
+            attr = drive.CreateMaxForceAttr()
+        attr.Set(float(value))
+    rows = _finger_drive_rows(stage)
+    parts = []
+    for row in rows:
+        cap = row["maxForce"]
+        text = "n/a" if cap is None else f"{cap:.1f}"
+        suffix = "" if row["drive"] else " (drive-less mimic)"
+        parts.append(f"{row['joint']}={text}{suffix}")
+    return (
+        f" | FRUIT_FINGER_MAXFORCE={value:g} N -> "
+        + ", ".join(parts)
+        + " (written on the stage before the articulation is created)"
+    )
+
+
+#: The asset's authored `joint1` finger force cap
+#: (`assets/openarm_flat/openarm_flat_deinst.usda:3803`). `joint2`'s is 0 by
+#: construction (a drive-less `PhysxMimicJointAPI` mimic, usda:3822-3843).
+ASSET_FINGER_MAXFORCE = 10.0
+
+
+def finger_maxforce_intent() -> tuple[float, float]:
+    """The per-finger-joint force caps this build intends, `(joint1, joint2)` [N].
+
+    `FRUIT_FINGER_MAXFORCE` (default off) writes `joint1` on both arms and never
+    `joint2`, so unset means the asset's own 10.0 N. A read-back is compared
+    against this pair, not against k/c alone: a `nan` or an absent cap must not
+    read like an `mf10` shard (P41 phase 4 A4).
+    """
+    value = resolve_finger_maxforce()
+    return (ASSET_FINGER_MAXFORCE if value is None else float(value), 0.0)
+
+
+def _finger_drive_readback(arms: dict) -> tuple[dict, bool, str]:
+    """Per-finger-joint runtime gains and caps; `(rows, matches, why_not)`.
+
+    Reads the **live articulations** (one array read each per joint, outside any
+    control loop), because the gain call is not symmetric: it programs both
+    finger joints, while `joint2`'s 0.0 N cap means it cannot push. `matches`
+    is true only if every joint's k/c is the resolver's pair (skipped on the
+    asset path, which programs nothing) **and** its cap is the intent cap.
+    """
+    from .control import finger_drive_profile
+
+    intent_j1, intent_j2 = finger_maxforce_intent()
+    intent = {"joint1": intent_j1, "joint2": intent_j2}
+    rows: dict[str, dict] = {}
+    for side in ("left", "right"):
+        arm = arms.get(side)
+        if arm is None:
+            return {}, False, f"no {side} arm"
+        dofs = list(arm.finger_dofs)
+        names = list(arm.spec.finger_joint_names)
+        try:
+            stiffness, damping = arm.robot.get_dof_gains(dof_indices=dofs)
+            ks = [float(v) for v in stiffness.numpy()[0]]
+            cs = [float(v) for v in damping.numpy()[0]]
+        except Exception as exc:  # noqa: BLE001 - report, do not hide
+            return {}, False, f"gain read-back failed on {side}: {exc}"
+        try:
+            caps = [
+                float(v)
+                for v in arm.robot.get_dof_max_efforts(dof_indices=dofs).numpy()[0]
+            ]
+        except Exception:  # noqa: BLE001 - a cap must not stop a manifest
+            caps = [float("nan")] * len(dofs)
+        for name, joint_k, joint_c, cap in zip(names, ks, cs, caps):
+            rows[name] = {"k": joint_k, "c": joint_c, "maxForce": cap}
+    resolved_k, resolved_c, _ = finger_drive_profile()
+    wrong = []
+    for name, row in rows.items():
+        want_cap = intent.get(name.rsplit("_", 1)[-1])
+        cap = row["maxForce"]
+        if want_cap is None or not math.isfinite(cap) or abs(cap - want_cap) > 1e-3:
+            wrong.append(f"{name} maxForce={cap}")
+        if resolved_k > 0.0 and (
+            abs(row["k"] - resolved_k) > 1e-6 or abs(row["c"] - resolved_c) > 1e-6
+        ):
+            wrong.append(f"{name} k/c={row['k']:.0f}/{row['c']:.0f}")
+    return rows, not wrong, "; ".join(wrong)
+
+
+def finger_physics_provenance(arms: dict | None = None, control_dt: float = 1.0 / 120.0) -> dict:
+    """The physics that sets the grip, as a store manifest's `physics` block.
+
+    P41 phase 2: a store is reusable only if its *contact forces* are
+    identifiable. The shipped finger-drive profile moves the delivered pinch
+    2.2x (4.4 -> 9.8 N per pinch) without touching a single trajectory, and
+    `FRUIT_SUBSTEPS` reaches the same force at 3.08x wall; neither left a trace
+    in a pre-P41 manifest, so a pre/post-profile shard was indistinguishable by
+    its own metadata (`logs/p41/FIDELITY_SWEEP.md` section 6.6).
+
+    `arms` (a `{side: ArmController}` mapping) switches `finger_drive` to the
+    **runtime read-back** and fills `readback_matches`; without it the block
+    carries the env-resolved pair, so a build that dies before the task exists
+    still leaves a named block. `finger_contact.combine` is `None` when unset -
+    the engine's default pair rule, which `GRIP_CENSUS` section 3 records as
+    **unverified** (min vs average is a 2.7x capacity spread), so it must not be
+    asserted here. The fruit side is what makes the *pair* reconstructible.
+    """
+    from .control import finger_drive_profile
+    from .fruits import REAL_CONTACT_DAMPING
+    from .meshes import FRUIT_SHAPES, physics_real_compliance
+
+    stiffness, damping, profile = finger_drive_profile()
+    kind = os.environ.get("FRUIT_GRIPPER_KIND", "openarm")
+    fruit_compliant = physics_real_compliance()
+    steps = substeps()
+    block = {
+        "profile": profile,
+        "substeps": steps,
+        "control_dt": control_dt,
+        "dt": control_dt / steps,
+        #: The ratio the collapse is measured on (phase 1 section 3); `None` on
+        #: the asset's own drive, which the profile does not express as k/c.
+        "c_over_k": (damping / stiffness) if stiffness > 0.0 else None,
+        #: The *intent* land: `None` = the asset's own caps (10 N / 0 N). The
+        #: read-back below is what the articulation carries.
+        "finger_maxforce": resolve_finger_maxforce(),
+        "finger_drive": {
+            "source": "env-resolved",
+            "k": stiffness,
+            "c": damping,
+            "maxForce": "read back at task start",
+        },
+        "finger_contact": {
+            "compliance": float(os.environ.get("FRUIT_FINGER_COMPLIANCE", "0")),
+            "contact_damping": float(
+                os.environ.get("FRUIT_FINGER_CONTACT_DAMPING", "60")
+            ),
+            "mu": float(
+                os.environ.get("FRUIT_FINGER_MU", "2.0" if kind == "openarm" else "0.0")
+            ),
+            "combine": os.environ.get("FRUIT_FINGER_FRICTION_COMBINE", "").strip()
+            or None,
+            "fruit": {
+                "mu": "per-class draw",
+                "mu_band": [
+                    min(shape.friction[0] for shape in FRUIT_SHAPES.values()),
+                    max(shape.friction[1] for shape in FRUIT_SHAPES.values()),
+                ],
+                "compliance": (
+                    "per-class (FRUIT_PHYSICS_REAL_COMPLIANCE)"
+                    if fruit_compliant
+                    else 0.0
+                ),
+                "contact_damping": REAL_CONTACT_DAMPING if fruit_compliant else None,
+            },
+        },
+    }
+    if not arms:
+        return block
+    rows, matches, why_not = _finger_drive_readback(arms)
+    if not rows:
+        block["finger_drive"] = {"source": "runtime-failed", "why": why_not}
+        return block
+    block["finger_drive"] = {
+        "source": "runtime",
+        "joints": rows,
+        "readback_matches": bool(matches),
+    }
+    if why_not:
+        block["finger_drive"]["readback_mismatch"] = why_not
+    #: The name comes from the *resolver* (it alone knows whether the gain call
+    #: was skipped, i.e. the asset path); the read-back is the check that the
+    #: articulation really carries that pair. A disagreement names the run
+    #: `custom` rather than trusting either side.
+    block["profile"] = profile if matches else "custom"
+    first = rows.get("openarm_left_finger_joint1")
+    if first is not None:
+        block["c_over_k"] = (first["c"] / first["k"]) if first["k"] > 0.0 else None
+    return block
+
+
 def _link_local_mesh_points(visuals, link_world_inv: np.ndarray, budget: int = 60000) -> np.ndarray:
     """All Mesh points under `visuals`, expressed in the finger link's frame.
 
@@ -383,6 +691,25 @@ class SortingScene:
                             finger_damping,
                         )
             combine = os.environ.get("FRUIT_FINGER_FRICTION_COMBINE", "").strip()
+            # P41 phase 2: the header names the finger *drive* as well as the
+            # contact material, so every entry script's log is self-describing.
+            # The gains are what `ArmController` will program (the same
+            # resolver, so the print cannot drift from the call); the caps are
+            # the asset's own and are not moved by that call. No JSON here.
+            from .control import finger_drive_profile
+
+            drive_k, drive_c, drive_profile = finger_drive_profile()
+            # P41 phase 3: the drive's force cap, `FRUIT_FINGER_MAXFORCE`
+            # (default off). Written on the stage *here* - before `start()`
+            # creates the articulation - so PhysX parses it; the print below is
+            # the stage's own post-write readback, per joint.
+            finger_maxforce = resolve_finger_maxforce()
+            maxforce_note = (
+                ""
+                if finger_maxforce is None
+                else apply_finger_maxforce(self.stage, finger_maxforce)
+            )
+            caps = _finger_drive_caps(self.stage)
             say(
                 f"finger links bound with mu={finger_mu}"
                 + (
@@ -392,6 +719,14 @@ class SortingScene:
                 )
                 + (f", friction combine={combine}" if combine else "")
                 + " (friction combine override)"
+                + f" | finger drive profile={drive_profile}"
+                + (
+                    f" k={drive_k:.0f} N/m c={drive_c:.0f} Ns/m"
+                    if drive_k > 0.0
+                    else " (the asset's own gains)"
+                )
+                + f" maxForce={caps}N (joint1/joint2; joint2 is a drive-less mimic)"
+                + maxforce_note
             )
         # P39 L1 (opt-in, **presence-gated**: unset = the shipped mesh colliders,
         # byte-identical build): replace the four finger plates' collider with a

@@ -1750,6 +1750,99 @@ follow; HEAD `1790b87`), `scene.py` `988985ef`. Evidence
 `logs/p40/{GRIP_CENSUS,RATE_CENSUS,LIT_REVIEW,PREREG,EFFORT_READ,REGRASP_YIELD,ARRIVAL_SPLIT,P3_RESULTS,P4_RESULTS}.md`,
 `p2/`, `p3/`, `p4/`, `selfcheck.log`; WORKLOG "P40".
 
+**P41 (2026-10-26, `logs/p41/`; **one** shipped change - the finger-drive
+profile becomes the shipped default - and one **recorded deviation** from the
+pre-registered F2): the grip force was a parameterization defect, the force
+family is closed with a mechanism, and the carried-not-placed class does not
+convert.** `control.finger_drive_profile()` ships **`finger_damp02`** —
+**k = 1e5 N/m, c = 2000 Ns/m, pinned explicitly** (`c` is *not* derived from
+`k`: the **ratio c/k = 0.02** is the mechanism) — with
+`FRUIT_FINGER_STIFFNESS=0` as the pre-P41 path (the asset's own k = 1e6 /
+c = 100, the 22 % delivery) and both env knobs still winning.
+**Caption:** the delivered pinch goes **4.38-4.42 → 9.75-9.9 N (2.2x)** at
+**1.00-1.01x wall per attempt** (14.8 → 15.0 s; the totals differ because the
+branches take 9 vs 10 attempts), and 9.8 N is **50 % of the per-face cap** — 5.0 N
+per face of the `Fsat` 10.0 N per joint (the tactile pinch sums both faces, i.e.
+9.8-9.9 N of the 20 N the two caps could apply) — **the same ceiling
+`FRUIT_SUBSTEPS=4` reaches at 480 Hz (9.95 N, P40)** for a third of the wall. The
+plateau is reached at **c/k >= ~3e-3** (bracketed 0.002 → 7.2 N, 0.0033 →
+10.0 N); the mechanism behind the ratio is **not identified**, so no threshold
+number travels into the documents. **The pre-registered F2 fired**
+(`logs/p41/DEVIATION.md`): the force rises and the class does not move, and the
+profile ships *anyway* because the shipped 4.4 N is **44 % of what the same drive
+delivers at 480 Hz** — the 120 Hz setting contradicts the asset's own authored
+drive, i.e. a **parameterization defect, not a lever** — so the default flips and
+**both references are re-recorded** although F2's clause says neither happens.
+**Mechanism-positive, class-negative.**
+
+The **census that decides it** (`logs/p41/P2_RESULTS.md` §4; `sep_max` from the
+trace twins, which are byte-identical to the claimed runs, against the
+`0.010 + 2·0.044 = 98 mm` mechanical stop): on the profile's escape legs
+`sep_max` reads **98.5 / 76.0 / 77.4 / 64.2 mm** against the control's
+**98.3 / 98.2 / 77.9**, so the pads **still reach their own open stop** while the
+payload walks out along the tool axis (contact loss 12-63 ticks after the onset,
+single-sided contact, `F → 0.00 N`, 38-54 servo trips) — **the pads hold and the
+payload slides**, the W8-B loaded-slide class. The carried class is **not
+force-starved** on this scenario. **`FRUIT_FINGER_MAXFORCE`** (default **off**,
+**not adopted**) then takes the force family to its top end: the **cap** deletes
+the pry — `sep_max` **98.5 → 43.5 → 31.2 mm** at **10 → 30 → 60 N** (that ladder
+is why the default-off `[carry]` row carries `sep@loss`/`sep_end`) — and the
+class does not convert: the acceptance **6/10 → 8/9 → 9/10** are **three
+attractors** (not a rate), the pear **6/10 → 4/10**, the two-line **8/10 →
+6/10**, and **60 N crushes a 3.7 cm strawberry** out of the hand (`clean_slip`
+641 mm at `F@onset` 62.3 N). The pear control is **P41's same-tree 6/10**, *not*
+P39's 6/9 (a different tree). **The sim's hold limit is geometry/hardware, not
+force** — nothing here says the sim now holds the fruit (the acceptance still
+reads 6/10 and the pear 6/10 under the profile).
+
+**Provenance was the other half, and it is now unconditional.** `control.py` and
+`common.py` were **absent from the collector's `sources`**, so no manifest could
+tell a pre-profile shard from a post-profile one; both are pinned, and one
+builder (`scene.finger_physics_provenance`) now writes the **`physics` block**
+for **both** the collector's shards and the direct env's rollout manifests:
+`profile`, `substeps`, `control_dt`, `dt`, `c_over_k`, the intent level
+`FRUIT_FINGER_MAXFORCE` (null when unset), the contact pair, and the **per-joint
+runtime read-back of k / c / `maxForce`** (`joint2`'s 0.0 N is the drive-less
+mimic; `readback_matches` compares the **caps too**, so a `nan`/absent cap cannot
+read like an `mf10` shard). The build print names the drive
+(`profile=finger_damp02 k=100000 N/m c=2000 Ns/m maxForce=10.0/0.0N`), and the
+drive-cap readers read the raw attribute **`drive:linear:physics:maxForce`**
+instead of `UsdPhysics.DriveAPI.Get` (the call that constructs a schema object on
+the mimic it describes; measured **inert** on this USD/lib, so the pre-fix builds
+were sound, and the post-fix one-attempt run is **65/65 physics lines identical**
+to the pre-fix control, `logs/p41/p4/a4_*`). Both references moved and were
+re-recorded from the same-batch profile runs: `configs/motion_reference.json`
+`adef05c9` → **`8a399626`** (the control arm matches the archive, so the move is
+the flip's; gate `fingerprint: matches`, rate-only FAIL at 6/10 < the 0.75 floor)
+and `configs/motion_reference_twoline.json` `d87c3cdf` → **`2246f83c`** (`190`
+**PASS**, 8/10 at the 0.60 floor); the pre-P41 archives are
+`logs/p41/motion_reference_{single,twoline}_pre_p41.json` and
+`scripts/189_w7a_chain.sh` was **not** run. Pins: `control.py` **`9384ff4f`**,
+`scene.py` **`27e3d64a`**, `tasks.py` **`54644916`** (the `[carry]
+sep@loss`/`sep_end` diag), `rl_env.py` **`afe2c49b`**,
+`scripts/40_collect_demos.py` **`cfcc6394`** (measurement-time
+`8fae708f` / `6f9eba0b` / `1542ab4d`, before the phase-4 read-path and
+manifest-sharing edits). Evidence `logs/p41/{FIDELITY_SWEEP,P2_RESULTS,P3_RESULTS,DEVIATION}.md`,
+`p2/`, `p3/`, `p4/`, `selfcheck.log`; WORKLOG "P41".
+
+**The phase-4 canary is a smoke, and it is inside the recorded spread.** The
+hybrid policy canary (`SKIP_SELFCHECK=1 scripts/accept_policy.sh`, the shipped
+`moe_v12`, the fixed pre-v9 supply, ten episodes,
+`logs/p41/p4/accept_policy_profile.log`) reads **7/10 = 70 %** at the 0.60 floor
+with **2 grip losses + 1 pick-station escape**
+(`fruit left the pick station during the close (1416 mm)`, after the close had
+already drifted the apple 283 mm - the policy's hand, not the drive: on the
+preceding kiwi the fingertips were **575 mm** from the fruit when the close
+started). The gate **FAILs on its reason clause only** (that note is outside the
+recorded baseline set `logs/336_hybrid_v3all.log`; the verdict is printed in
+`logs/p41/p4/accept_policy_claim.log`). This interface's recorded history is
+**5-8/10** (`moe_v11` 8, `moe_v12` 6, P2b 5 and 6, P32 D0 5), so 7/10 is a
+sample of the *p33-era* grip/station class, **not a rate** and not a profile
+effect in either direction; the **direct** interface (where the profile is the
+default presentation's drive) stays **unmeasured under it** and is the named
+residual. No wedge, so no retry (the single retry was registered for a wedge
+only); `189_w7a_chain.sh` not run.
+
 ## 3. What changed -> what to run
 
 | you changed | run |

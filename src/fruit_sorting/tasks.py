@@ -3347,6 +3347,7 @@ class PickAndPlaceTask:
             guard_onset_sep = None
             guard_onset_contacts = None
             guard_loss_i = None
+            guard_loss_sep = None
             guard_contacts_min = 10
             guard_force_min = float("inf")
             guard_events = 0
@@ -3658,6 +3659,12 @@ class PickAndPlaceTask:
                             and contacts_now == 0
                         ):
                             guard_loss_i = i
+                            #: P41 phase 2 pry census: the pad span at the tick
+                            #: contact is lost. The W8-B corpus reads the jaws
+                            #: pried to 98-99 mm on 17/31 escapes; this is the
+                            #: same quantity read live at the loss, so a force
+                            #: lever can be graded without a trace dump.
+                            guard_loss_sep = float(arm.jaw_separation())
                         guard_fruit_prev = fruit.copy()
                         guard_pads_prev = pads.copy()
                         guard_rot_prev = rot_now
@@ -3791,6 +3798,11 @@ class PickAndPlaceTask:
                     "n/a" if guard_onset_sep is None
                     else f"{guard_onset_sep * 1000:.1f}"
                 )
+                loss_sep = (
+                    "n/a" if guard_loss_sep is None
+                    else f"{guard_loss_sep * 1000:.1f}"
+                )
+                sep_end = float(arm.jaw_separation()) * 1000.0
                 fmin = guard_force_min if guard_force_min < float("inf") else -1.0
                 say(
                     f"[carry] {side} {name}: ticks={i + 1}/{len(commands)} "
@@ -3799,7 +3811,8 @@ class PickAndPlaceTask:
                     f"onset_row={guard_onset_i} force@onset={force_at}N "
                     f"sep@onset={sep_at}mm contacts@onset={guard_onset_contacts} "
                     f"min_contacts={guard_contacts_min} force_min={fmin:.2f}N "
-                    f"loss_row={guard_loss_i} guard={int(guard_acts)} "
+                    f"loss_row={guard_loss_i} sep@loss={loss_sep}mm "
+                    f"sep_end={sep_end:.1f}mm guard={int(guard_acts)} "
                     f"events={guard_events} holds={guard_holds} "
                     f"reseat={guard_reseat_used * 1000:.1f}mm "
                     f"relief={int(relief_acts)} "

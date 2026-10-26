@@ -319,7 +319,11 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: policy-handover path (`tasks.py`, `regrasp_cap`), with an explicit env value
 #: winning on both. The 17/17 zero-conversion third-probe evidence is the
 #: dynamic line only; the indexed retry is a different mechanism.
-TASKS_MD5 = "ec991e5c98a744b019e146cef058d78a"
+#: P41 phase 2 (default-off reporting only): the W8-B `[carry]` diag line
+#: gains `sep@loss` (the pad span on the tick contact is lost - the W8-B
+#: 98-99 mm pry read, live) and `sep_end`. Both exist only under
+#: `FRUIT_CARRY_DIAG=1`; with the knob unset the run is unchanged.
+TASKS_MD5 = "546449167678ee59546354bc9267ab36"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(
@@ -346,6 +350,9 @@ _MANIFEST_SOURCES = (
     # this key is pre-pear (the same rule as the collector's sources).
     "src/fruit_sorting/meshes.py",
     "src/fruit_sorting/control.py",
+    # P41 phase 2: `common.py` holds the physics substep count (`substeps()`),
+    # the other lever to the same delivered pinch (3.08x wall at 480 Hz).
+    "src/fruit_sorting/common.py",
     "src/fruit_sorting/rl_env.py",
     "src/fruit_sorting/policy/runtime.py",
     "src/fruit_sorting/policy/diffusion.py",
@@ -1572,8 +1579,34 @@ class SortingRLEnv:
             "speed_channel": bool(self._speed_channel),
             "python": sys.version.split()[0],
             "numpy": np.__version__,
+            #: P41 phase 4 (A2): the grip's physics, not just the tree that ran
+            #: it. The shipped finger-drive profile moves the delivered pinch
+            #: 2.2x (4.4 -> 9.8 N per pinch) without touching one trajectory,
+            #: and `FRUIT_SUBSTEPS` reaches the same force at 3.08x wall, so a
+            #: rollout store recorded under either was indistinguishable from a
+            #: pre-profile one by its own metadata. The block is the *same
+            #: builder the collector writes* (`finger_physics_provenance`), read
+            #: back from the live articulations (gains **and** maxForce caps),
+            #: so a direct-rollout store and a collector shard are comparable.
+            #: A failure here must not stop an eval run: it degrades to a named
+            #: block with the reason.
+            "physics": self._physics_provenance(),
             "sources": sources,
         }
+
+    def _physics_provenance(self) -> dict:
+        """The manifest's `physics` block, with the runtime finger-drive read-back.
+
+        Kept as a method so a failure cannot take the manifest (or the run)
+        down: the collector's builder raises nothing by design, but an env that
+        cannot read its own articulation is a reported state, not a crash.
+        """
+        try:
+            from .scene import finger_physics_provenance
+
+            return finger_physics_provenance(arms=self.task.arms)
+        except Exception as exc:  # noqa: BLE001 - provenance must not stop a run
+            return {"finger_drive": {"source": "error", "why": str(exc)}}
 
     def _write_manifest(self) -> None:
         assert self.run_dir is not None

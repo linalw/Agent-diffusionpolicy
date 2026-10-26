@@ -49,6 +49,60 @@ def arm_spec(side: str) -> ArmSpec:
     )
 
 
+#: P41 phase 2: the shipped finger-drive fidelity profile. The asset's own
+#: drive (k = 1e6 N/m, c = 100 Ns/m, 10 N cap on joint1) delivers only ~22 % of
+#: its cap per pinch at the 120 Hz physics step - 4.42 N of the 10 N/joint
+#: (P40 `FRUIT_GRIP_EFFORT`). P41 phase 1 located the collapse on the damping
+#: *ratio* c/k, not on k: the asset gains authored on both joints are
+#: byte-identical to shipped, and k = 3e5 with the asset's c = 100 stays at
+#: 4.44 N. At c/k = 0.02 the pinch reaches **9.75-9.87 N = 50 % of the
+#: two-joint cap** (5.0 N per face of Fsat 10.0 N) - the same ceiling a 480 Hz
+#: physics step reaches - at **1.00-1.01x wall**. That is the delivery this
+#: profile ships; it changes no trajectory, only the drive's force.
+FINGER_PROFILE = "finger_damp02"
+FINGER_PROFILE_STIFFNESS = 100000.0
+FINGER_PROFILE_DAMPING = 2000.0
+
+
+def finger_profile_name(stiffness: float, damping: float) -> str:
+    """Name the resolved finger drive: the profile, `asset`, or `custom`.
+
+    `asset` = no gain call at all (the USD's k = 1e6 / c = 100 on joint1, a
+    drive-less mimic on joint2) - the pre-P41 shipped behaviour, reproduced by
+    `FRUIT_FINGER_STIFFNESS=0`. `custom` = any other env-resolved pair. The
+    name travels into the build print and the dataset manifest, so a store
+    names the drive it was collected under.
+    """
+    if stiffness <= 0.0:
+        return "asset"
+    if (
+        stiffness == FINGER_PROFILE_STIFFNESS
+        and damping == FINGER_PROFILE_DAMPING
+    ):
+        return FINGER_PROFILE
+    return "custom"
+
+
+def finger_drive_profile() -> tuple[float, float, str]:
+    """The finger drive the shipped default programs: ``(k, c, profile)``.
+
+    The defaults are the `finger_damp02` profile and its damping is **pinned
+    explicitly** - it is *not* derived from k (the ratio c/k is the mechanism,
+    so a `FRUIT_FINGER_STIFFNESS` override must not silently move c with it).
+    Both env knobs still win; `FRUIT_FINGER_STIFFNESS=0` skips the gain call
+    and leaves the asset's own gains (the pre-P41 line).
+    """
+    stiffness = float(
+        os.environ.get("FRUIT_FINGER_STIFFNESS", str(FINGER_PROFILE_STIFFNESS))
+    )
+    if stiffness <= 0.0:
+        return 0.0, 0.0, "asset"
+    damping = float(
+        os.environ.get("FRUIT_FINGER_DAMPING", str(FINGER_PROFILE_DAMPING))
+    )
+    return stiffness, damping, finger_profile_name(stiffness, damping)
+
+
 class ArmController:
     """Damped least-squares differential IK for one OpenArm arm.
 
@@ -161,16 +215,45 @@ class ArmController:
             k = float(os.environ.get("FRUIT_ARM_STIFFNESS", 1500.0))
             c = float(os.environ.get("FRUIT_ARM_DAMPING", 60.0))
             self.robot.set_dof_gains(k, c, dof_indices=self.arm_dofs)
-        # The finger drives are stiff and weakly actuated in this asset: with the
-        # jaw centre down at the pick pose they sometimes refuse to move at all
-        # (logs/85: commanded 0.044 -> 0.0, measured q stayed 0.044), which reads
-        # as "no contact" in every grasp test. Raise their stiffness so a small
-        # jam cannot stall the close.
-        finger_default = "60000" if os.environ.get("FRUIT_FINGER_PADS", "0") == "1" else "0"
-        finger_k = float(os.environ.get("FRUIT_FINGER_STIFFNESS", finger_default))
+        # The finger drives are the grip's own force source. The asset ships a
+        # very stiff, lightly damped position drive (k = 1e6 N/m, c = 100 Ns/m,
+        # maxForce 10 N on joint1 and a drive-less mimic with a 0 N cap on
+        # joint2), and at the 120 Hz physics step that pair delivers ~2.2 N per
+        # face. P41 phase 1: the delivered pinch collapses on the damping
+        # *ratio* c/k (the asset gains on both joints are byte-identical to
+        # shipped; k = 3e5 at the asset's c = 100 stays at 4.44 N), and at
+        # c/k = 0.02 it reaches 9.75-9.87 N - 50 % of the two-joint cap, the
+        # same ceiling 480 Hz reaches - for 1.00-1.01x wall. The shipped
+        # profile (`finger_damp02`) is that pair, with c pinned explicitly
+        # (`finger_drive_profile`); both env knobs still win and
+        # `FRUIT_FINGER_STIFFNESS=0` restores the asset's own gains.
+        # The old `FRUIT_FINGER_PADS=1` 60000 N/m default is gone: it existed
+        # only to unstick a jammed close on the padded hand, and the shipped
+        # 1e5 now delivers that unconditionally - keeping a softer-than-default
+        # override would undo this profile on the one hand that has pads.
+        finger_k, finger_c, _ = finger_drive_profile()
         if finger_k > 0.0:
-            finger_c = float(os.environ.get("FRUIT_FINGER_DAMPING", str(finger_k * 0.02)))
             self.robot.set_dof_gains(finger_k, finger_c, dof_indices=self.finger_dofs)
+        # P41 phase 3: when the drive's force cap is raised, read it back from
+        # the *live* articulation (the value PhysX parsed) rather than trusting
+        # the stage. One array read at construction, i.e. outside the control
+        # loop, and only when the knob is set - the default path prints nothing.
+        try:
+            requested = float(os.environ.get("FRUIT_FINGER_MAXFORCE", "0") or 0.0)
+        except ValueError:
+            requested = 0.0
+        if requested > 0.0:
+            try:
+                caps = np.asarray(
+                    self.robot.get_dof_max_efforts(dof_indices=self.finger_dofs).numpy()
+                )[0]
+                say(
+                    f"[drive] {side} finger drive maxForce readback "
+                    f"joint1/joint2={float(caps[0]):.2f}/{float(caps[1]):.2f} N "
+                    f"(requested {requested:g} N; joint2 is the drive-less mimic)"
+                )
+            except Exception as exc:  # noqa: BLE001 - a readback must not stop a run
+                say(f"[drive] {side} finger drive maxForce readback failed: {exc}")
 
     # ------------------------------------------------------------------ #
     # State

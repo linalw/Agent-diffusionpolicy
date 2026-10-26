@@ -132,6 +132,77 @@ def _md5(path: str) -> str:
         return ""
 
 
+def _physics_provenance() -> dict:
+    """The resolved physics that sets the grip (P41 phase 2).
+
+    A store is reusable only if its *contact forces* are identifiable: P41's
+    finger-drive profile moves the delivered pinch 2.2x (4.4 -> 9.8 N per
+    pinch) without touching a single trajectory, and `FRUIT_SUBSTEPS` reaches
+    the same force at 3.08x wall. Neither left a trace in a pre-P41 manifest,
+    so a pre/post-profile shard was indistinguishable by its own metadata
+    (`logs/p41/FIDELITY_SWEEP.md` section 6.6). This block names the profile,
+    the physics rate and the contact *pair*.
+
+    The block itself lives in `fruit_sorting.scene.finger_physics_provenance`,
+    so the collector's shards and the direct env's rollout manifests cannot
+    drift apart (P41 phase 4 A2). `finger_drive` is written here as the
+    env-resolved pair and **replaced at task start** by
+    `update_manifest_physics`, which reads the articulations' real gains and
+    caps back (`get_dof_gains` / `get_dof_max_efforts`); `joint2`'s 0.0 N cap is
+    why the second jaw face cannot push (phase 1: the byte-identical
+    `rho_asset` cell).
+    """
+    from fruit_sorting.scene import finger_physics_provenance
+
+    return finger_physics_provenance(control_dt=DT)
+
+
+def update_manifest_physics(out_dir: str, task) -> None:
+    """Replace the manifest's env-resolved finger drive with the runtime read-back.
+
+    Called once the task (and therefore both articulations) exist, before the
+    first episode. The manifest is already on disk, so a build that fails
+    before this point still leaves the env-resolved block rather than nothing.
+    Gains **and caps** are read per finger joint on **both** arms: the profile
+    is programmed in `ArmController.__init__`, and the read-back is what shows
+    `joint2`'s cap staying at 0.0. `readback_matches` compares the caps too, so
+    a `nan`/absent cap cannot read like an `mf10` shard (P41 phase 4 A4).
+    """
+    import json
+
+    from fruit_sorting.scene import finger_physics_provenance
+
+    path = os.path.join(out_dir, "manifest.json")
+    try:
+        with open(path, encoding="utf-8") as handle:
+            manifest = json.load(handle)
+    except (OSError, ValueError):
+        say(f"[collect] physics read-back skipped: no manifest at {path}")
+        return
+    block = finger_physics_provenance(arms=task.arms, control_dt=DT)
+    physics = manifest.setdefault("physics", {})
+    physics.update(block)
+    with open(path, "w", encoding="utf-8") as handle:
+        json.dump(manifest, handle, indent=2, sort_keys=True)
+    drive = physics.get("finger_drive", {})
+    rows = drive.get("joints") or {}
+    first = rows.get("openarm_left_finger_joint1")
+    if first is None:
+        say(
+            "[collect] physics read-back: no finger joints found "
+            f"({drive.get('why', 'no rows')})"
+        )
+        return
+    say(
+        "[collect] physics read-back: "
+        f"profile={physics.get('profile')} "
+        f"k={first['k']:.0f} N/m c={first['c']:.0f} Ns/m "
+        f"maxForce={first['maxForce']:.1f}N "
+        f"matches={drive.get('readback_matches')} "
+        f"c/k={physics.get('c_over_k')}"
+    )
+
+
 def write_manifest(out_dir: str, cfg: SceneConfig) -> None:
     """Record what produced this shard: sources, configs, seed, knobs.
 
@@ -157,6 +228,10 @@ def write_manifest(out_dir: str, cfg: SceneConfig) -> None:
     `bed.py` edit moved no md5 (Gate D condition C1). The `supply` block gains
     a `bed` geometry record only when the bed is on, so every pre-bed manifest
     keeps its meaning.
+    P41 phase 2 adds the `physics` block (see `_physics_provenance`): the finger
+    drive, the physics rate and the contact pair. A profile flip moves the
+    delivered pinch 2.2x without moving a trajectory, so a store recorded under
+    it is identified by this block, not by its md5 pins alone.
     """
     import json
     import time
@@ -174,6 +249,11 @@ def write_manifest(out_dir: str, cfg: SceneConfig) -> None:
         "src/fruit_sorting/meshes.py",
         "src/fruit_sorting/dataset.py",
         "src/fruit_sorting/bimanual.py",
+        # P41 phase 2: the finger drive decides the grip force, and the profile
+        # is programmed here - `control.py` / `common.py` were unpinned, so no
+        # manifest could tell a pre-profile shard from a post-profile one.
+        "src/fruit_sorting/control.py",
+        "src/fruit_sorting/common.py",
         "scripts/40_collect_demos.py",
         "configs/waypoints.json",
         "configs/motion_reference.json",
@@ -271,6 +351,10 @@ def write_manifest(out_dir: str, cfg: SceneConfig) -> None:
             "classes": {key: weight for key, weight in supply.classes},
         },
         "md5": {name: _md5(os.path.join(root, name)) for name in sources},
+        # P41 phase 2: the grip's physics, not just the tree that ran it. See
+        # `_physics_provenance` (the runtime read-back lands here after the
+        # task exists).
+        "physics": _physics_provenance(),
     }
     # P32 phase-D remediation (Gate D C1): the bed's resolved geometry is
     # provenance too. `BedSchedule` draws the row pitch, the middle-column
@@ -476,6 +560,9 @@ def main() -> int:
     spawner.prime(count=6)
 
     task = PickAndPlaceTask(scene, spawner, tactile, cfg)
+    # P41 phase 2: the finger drive now exists on both articulations - replace
+    # the manifest's env-resolved pair with the runtime read-back.
+    update_manifest_physics(OUT_DIR, task)
     task.recorder = EpisodeRecorder(OUT_DIR, decimation=4, auto_index=TWO_LINE)
     #: Soft per-episode watchdog: `_step_sim` aborts an attempt that runs past
     #: this wall budget; the collector skips it and retries. The belt is never
