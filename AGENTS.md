@@ -2269,9 +2269,16 @@ the frontier's "beat the demo speed" framing does not transfer: the **policy pha
 is 14.2 % of a placed episode** (256 of 1800 ticks, `logs/p52/P2A_RESULTS.md`), a
 1.5x re-timing of the whole phase is worth at most **4.8 %**, and with the contact
 gate firing on **44.1 % of the decisions** (4492 of 10202 ticks; peak force
-216.4 N) the measured gain is **-48.1 ticks = -2.7 %** (paired, n = 23, 17/23
-negative) - **the arithmetic to the tick, and the registered -8 % bar was
-unreachable by construction**, so `FRUIT_POLICY_TIME_SCALE` /
+216.4 N - RoboPace's "mostly free space" premise does **not** hold here, since
+touch alone is 21.8 %) the measured gain is **-2.9 %** (median 1800 -> 1748 ticks;
+paired -48.1, n = 23, 17/23 negative; **-5.0 % on the clean tree**) against a
+**<= 4.8 % ceiling** - the registered -8 % bar was **unreachable by construction**,
+and the paired/tick coincidence is **partly an unmatched initial condition** (the
+treatment's fruit starts 21 mm closer at the reset, a feedback from shorter
+episodes), so it is **not** a validation of the arithmetic. **The right arm - the
+one the lever acts on - is unchanged**: 30/31 -> 28/29 placed (**delta -0.002**,
+P2 PASS), and the pooled 32/45 -> 28/45 is entirely the **left's closed-`cnp`
+draw**; no new failure reason (P3). `FRUIT_POLICY_TIME_SCALE` /
 `FRUIT_POLICY_RETIME_GATE` stay **default off** (the 85 % scripted primitive is
 untouchable by any policy-side execution lever). **Two success hypotheses died
 offline** (`logs/p52/P2B_FEASIBILITY.md`): (1) the **reached-state supervision**
