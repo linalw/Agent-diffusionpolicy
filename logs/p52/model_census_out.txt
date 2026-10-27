@@ -1,0 +1,207 @@
+P52 phase 1 — MODEL_CENSUS (offline; no simulator, no src/ edit)
+tree: HEAD da0c914
+==============================================================================
+A. THE PLUMBING
+==============================================================================
+[A] moe_v12: action_dim=9 action_horizon=16 obs_horizon=2 proprio_dim=25 goal_dim=8 image_size=128 image_channels=5 num_diffusion_steps=100 beta_schedule=cosine
+[A]   action_mean [j1..j7, finger, finger] = +0.259 +0.023 -0.287 +0.883 +0.227 +0.113 -0.252 +0.035 +0.035
+[A]   action_std  = 1.439 0.255 1.513 0.246 1.235 0.647 1.333 0.012 0.012   (finger 12.1 mm)
+[A] moe_v13s: action_dim=9 action_horizon=16 obs_horizon=2 proprio_dim=25 goal_dim=8 image_size=128 image_channels=5 num_diffusion_steps=100 beta_schedule=cosine
+[A]   action_mean [j1..j7, finger, finger] = +0.259 +0.023 -0.287 +0.883 +0.227 +0.113 -0.252 +0.035 +0.035
+[A]   action_std  = 1.439 0.255 1.513 0.246 1.235 0.647 1.333 0.012 0.012   (finger 12.1 mm)
+[A] units: action[:7] = the active arm's 7 ABSOLUTE joint POSITIONS [rad]
+          action[7] = the finger opening [m] (clipped to [0, 0.044]),
+          action[8] = the same value, recorded only (rl_env.py:62-64, 3036-3045)
+    NOT deltas, NOT Cartesian: `_apply` writes them straight to the drive
+    targets (`set_dof_position_targets([action[:7]])`, rl_env.py:3033-3039;
+    the same two lines in the hybrid evaluator, 60_eval_policy.py:393-395).
+[A] the env-side shapers that touch the action before the drive:
+    FRUIT_POLICY_TRACK      (rl_env.py:945, 3584-3609)  default 0: adds
+                            J^+ v_fruit dt to the 7 joint targets (a
+                            velocity feed-forward, not a scale)
+    FRUIT_A2C2              (rl_env.py:1291-1298, 3026-3030) default off:
+                            a trained 9-D correction head, gain/clamp
+                            via FRUIT_A2C2_GAIN/_CLAMP
+    FRUIT_POLICY_EVENT      (rl_env.py:2939-2940, 3560-3582) changes the
+                            per-decision horizon, not the action
+    FRUIT_RTC / FRUIT_VLASH (runtime.py:100-124) default off: continuous
+                            chunk switching (one action per control tick)
+    NO clamp, NO IK: `ik_step`'s FRUIT_IK_MAX_STEP 0.5 rad (control.py:147,
+    423) is on the SCRIPTED path only; the direct path never calls IK.
+    NO scaling: the only clip is the finger [0, 0.044] (rl_env.py:3036).
+    Consequence: a policy command past a joint limit is not refused - the
+    drive pushes into the limit (the `[acq] ... clip_min` class).
+[A] the cadence (code sites):
+    control/physics tick  1/120 s, FRUIT_SUBSTEPS 1      (control.py:30, common.py)
+    observation + model   every 4th control tick -> 30 Hz of sim
+                           (rl_env.py:2945 `if self._step % 4 == 0`)
+    execute_steps          4 (rl_env.py:900 default; 2931 `steps`)
+    one action per control tick, physics advanced one tick per action
+                           (rl_env.py:2978-2990 `_apply` then `advance(1)`)
+    => one DECISION = 4 control ticks = 33.3 ms of sim; it executes 4 of
+       the 16 predicted actions (25 % of the chunk, receding horizon)
+    chunk                  16 actions x 33.3 ms = 0.533 s of geometric path
+    DDIM                   16 denoising steps, training chain 100 (cosine)
+                           (60_eval_policy.py:49, rl_env.py:901)
+    policy horizon         1500 control steps = 12.5 s of sim, reward.horizon
+                           (rl_env.py:457-481)
+    demo cadence           30 Hz (4-tick decimation), same as the policy's
+[A] the direct corpus's own tick census (P43 A/B, `[rl] episode` rows):
+    arm A: n=75 episodes  ticks mean 1827 (median 1826, range 1012-2006)
+           sim time/episode 15.22 s   decisions 259 (1034 policy ticks = 57 % of the episode)
+           app wall 28.0 s/episode over 5 runs of 15 (startup included)
+           placed episodes: n=33 ticks 1765 = policy phase 1089 ticks (9.07 s) + scripted phase 676 ticks (5.64 s)
+    arm B: n=75 episodes  ticks mean 1812 (median 1830, range 921-2551)
+           sim time/episode 15.10 s   decisions 246 (985 policy ticks = 54 % of the episode)
+           app wall 28.2 s/episode over 5 runs of 15 (startup included)
+           placed episodes: n=53 ticks 1795 = policy phase 1015 ticks (8.46 s) + scripted phase 779 ticks (6.50 s)
+[A] the policy phase's belt floor (the part a time-scale CANNOT touch):
+    arm A: n=33 placed episodes | fruit travel during the
+      policy phase 0.268 m at 0.120 m/s -> belt floor 2.23 s (25 % of the 9.07 s policy phase)
+      => arm motion 6.84 s of the 9.07 s phase; at s=1.25 it falls 1.71 s = 12 % of the 14.71 s episode; at s=1.5 2.28 s = 15 %
+    arm B: n=53 placed episodes | fruit travel during the
+      policy phase 0.250 m at 0.120 m/s -> belt floor 2.08 s (25 % of the 8.46 s policy phase)
+      => arm motion 6.38 s of the 8.46 s phase; at s=1.25 it falls 1.60 s = 11 % of the 14.96 s episode; at s=1.5 2.13 s = 14 %
+
+==============================================================================
+B1. THE DEMOS' ACTION STREAM (the scripted line, 30 Hz commands)
+==============================================================================
+    50 episodes, 10178 30 Hz steps (339 s of demo time)
+    per joint: p50 / p90 / p99 | smooth-only max | jumps (n) |
+               p99 speed [rad/s] (% of the joint limit) | smooth max speed
+      j1: 0.0020 0.0297 0.0729 | 0.1200 |   117 |  2.19 rad/s (  13 %) |  3.60 rad/s (  21 %)
+      j2: 0.0025 0.0162 0.1066 | 0.4829 |    33 |  3.20 rad/s (  19 %) | 14.49 rad/s (  86 %)
+      j3: 0.0000 0.0015 0.0255 | 0.1575 |     9 |  0.76 rad/s (  14 %) |  4.72 rad/s (  87 %)
+      j4: 0.0065 0.0344 0.0775 | 0.5805 |   108 |  2.32 rad/s (  43 %) | 17.42 rad/s ( 320 %)
+      j5: 0.0000 0.0298 0.0642 | 0.1611 |    72 |  1.93 rad/s (   9 %) |  4.83 rad/s (  23 %)
+      j6: 0.0000 0.0328 0.1059 | 0.1200 |    78 |  3.18 rad/s (  15 %) |  3.60 rad/s (  17 %)
+      j7: 0.0000 0.0540 0.1200 | 0.1314 |    71 |  3.60 rad/s (  17 %) |  3.94 rad/s (  19 %)
+    finger channel (m/step): p50 0.0000 p99 0.0041 max 0.0093 -> p99 0.123 m/s of the
+      1.0 m/s drive limit (the close is a 48-tick clock, not a speed)
+    NET DISPLACEMENT the demo stream asks for (non-overlapping, rad):
+      per 4 steps  median 0.011 0.011 0.000 0.027 0.001 0.000 0.000  | summed 0.141
+      per 16 steps median 0.092 0.050 0.000 0.132 0.034 0.001 0.005  | summed 0.769
+    the joint-space speed the demo stream actually commands:
+      p99 = 2.81 rad/s over the 7 joints, i.e. 0.13x the tightest limit
+
+==============================================================================
+B2. THE POLICY'S OWN CHUNKS (cached from policy_chunks.npz)
+==============================================================================
+    moe_v12, 16 DDIM steps, FRUIT_POLICY_SEED=11 (72 chunk pairs)
+    policy intra-chunk (the emitted rate): steps whose command exceeds the joint limit
+      s=1.0 : total     0 over-limit joint-steps (  0.0 % of 7560) | worst j1    0 ( 0.0 % of steps)
+      s=1.25: total     2 over-limit joint-steps (  0.0 % of 7560) | worst j4    2 ( 0.2 % of steps)
+      s=1.5 : total     2 over-limit joint-steps (  0.0 % of 7560) | worst j4    2 ( 0.2 % of steps)
+      s=2.0 : total     3 over-limit joint-steps (  0.0 % of 7560) | worst j4    3 ( 0.3 % of steps)
+    policy executed steps: steps whose command exceeds the joint limit
+      s=1.0 : total     0 over-limit joint-steps (  0.0 % of 1512) | worst j1    0 ( 0.0 % of steps)
+      s=1.25: total     1 over-limit joint-steps (  0.1 % of 1512) | worst j4    1 ( 0.5 % of steps)
+      s=1.5 : total     1 over-limit joint-steps (  0.1 % of 1512) | worst j4    1 ( 0.5 % of steps)
+      s=2.0 : total     2 over-limit joint-steps (  0.1 % of 1512) | worst j4    2 ( 0.9 % of steps)
+    policy re-plan boundary: steps whose command exceeds the joint limit
+      s=1.0 : total     7 over-limit joint-steps (  1.4 % of 504) | worst j4    6 ( 8.3 % of steps)
+      s=1.25: total    16 over-limit joint-steps (  3.2 % of 504) | worst j4   15 (20.8 % of steps)
+      s=1.5 : total    22 over-limit joint-steps (  4.4 % of 504) | worst j4   19 (26.4 % of steps)
+      s=2.0 : total    26 over-limit joint-steps (  5.2 % of 504) | worst j4   22 (30.6 % of steps)
+
+==============================================================================
+B3. THE RECORDED EXECUTED COMMAND (rollout stores, 30 Hz observation ticks)
+==============================================================================
+    CAVEAT (structural): `_record_tick` fires only when `_step == `_observed_step`
+    (rl_env.py:3767-3772), i.e. on the FIRST tick of each 4-tick `act` call,
+    which is chunk index 0. A recorded 30 Hz pair therefore spans one full
+    re-plan (3 executed intra-chunk steps + the boundary jump), so this
+    stream is the *decision-cadence* command, not the intra-chunk rate.
+    p37_park: 90 episodes, 5138 steps
+      j1: p50 0.0562 p90 0.1863 p99 0.6640 | p99 19.92 rad/s (  119 %)
+      j2: p50 0.0521 p90 0.1814 p99 0.4106 | p99 12.32 rad/s (   74 %)
+      j3: p50 0.0473 p90 0.1566 p99 0.6987 | p99 20.96 rad/s (  385 %)
+      j4: p50 0.0746 p90 0.2424 p99 0.5497 | p99 16.49 rad/s (  303 %)
+      j5: p50 0.0603 p90 0.2447 p99 0.7547 | p99 22.64 rad/s (  108 %)
+      j6: p50 0.0275 p90 0.0901 p99 0.2781 | p99  8.34 rad/s (   40 %)
+      j7: p50 0.0631 p90 0.2741 p99 0.8982 | p99 26.95 rad/s (  129 %)
+    p37_park: steps whose command exceeds the joint limit
+      s=1.0 : total  1501 over-limit joint-steps (  4.2 % of 35966) | worst j4  883 (17.2 % of steps)
+      s=1.25: total  2231 over-limit joint-steps (  6.2 % of 35966) | worst j4 1238 (24.1 % of steps)
+      s=1.5 : total  3000 over-limit joint-steps (  8.3 % of 35966) | worst j4 1548 (30.1 % of steps)
+      s=2.0 : total  4612 over-limit joint-steps ( 12.8 % of 35966) | worst j4 2168 (42.2 % of steps)
+    r9_awr: 56 episodes, 3205 steps
+      j1: p50 0.0295 p90 0.1392 p99 0.6776 | p99 20.33 rad/s (  121 %)
+      j2: p50 0.0230 p90 0.1178 p99 0.4307 | p99 12.92 rad/s (   77 %)
+      j3: p50 0.0214 p90 0.0898 p99 0.6527 | p99 19.58 rad/s (  359 %)
+      j4: p50 0.0332 p90 0.1424 p99 0.4593 | p99 13.78 rad/s (  253 %)
+      j5: p50 0.0283 p90 0.1326 p99 0.6623 | p99 19.87 rad/s (   95 %)
+      j6: p50 0.0171 p90 0.0666 p99 0.2142 | p99  6.42 rad/s (   31 %)
+      j7: p50 0.0286 p90 0.1412 p99 0.8245 | p99 24.73 rad/s (  118 %)
+    r9_awr: steps whose command exceeds the joint limit
+      s=1.0 : total   499 over-limit joint-steps (  2.2 % of 22435) | worst j4  214 ( 6.7 % of steps)
+      s=1.25: total   726 over-limit joint-steps (  3.2 % of 22435) | worst j4  300 ( 9.4 % of steps)
+      s=1.5 : total   968 over-limit joint-steps (  4.3 % of 22435) | worst j4  423 (13.2 % of steps)
+      s=2.0 : total  1406 over-limit joint-steps (  6.3 % of 22435) | worst j4  643 (20.1 % of steps)
+
+==============================================================================
+C. THE DEMO'S PER-LEG DYNAMICS (the `[motion]` rows)
+==============================================================================
+    `|v|cmd` / `|a|cmd` = the COMMANDED profile's peak (tasks.py:4287);
+    `|v|max` in the `steps=` block = the ACHIEVED TCP speed (MotionMonitor).
+    grasp_lift: n=50  d 21.0 cm  ticks 164
+      |v|cmd 0.291 (range 0.200-0.294) |a|cmd 0.665 (0.494-0.856)
+      achieved |v|max median 0.320 (0.242-1.107) | 16/50 legs above 1.5x their command (the escape signature)
+      cone 1.02x budget (range 0.88-2.49); 8/50 legs over 1.0x
+    place0: n=23  d 57.0 cm  ticks 375
+      |v|cmd 0.343 (range 0.342-0.343) |a|cmd 0.340 (0.313-0.382)
+      achieved |v|max median 0.331 (0.328-0.334) | 0/23 legs above 1.5x their command (the escape signature)
+      cone 0.87x budget (range 0.85-0.92); 0/23 legs over 1.0x
+    place1: n=24  d 37.7 cm  ticks 248
+      |v|cmd 0.343 (range 0.341-0.343) |a|cmd 0.527 (0.390-0.919)
+      achieved |v|max median 0.317 (0.299-0.352) | 0/24 legs above 1.5x their command (the escape signature)
+      cone 1.01x budget (range 0.85-1.31); 11/24 legs over 1.0x
+    approach: n=50  d 5.7 cm  ticks 89
+      achieved |v|max 0.109 (0.107-0.121) |a|max median 1.804
+      end= shortfall 9.3 mm (8.1-10.4)  ends |v| 0.001 m/s  a_med 0.24 m/s^2
+
+==============================================================================
+D. THE RE-TIMING HEADROOM (a time-scale s: same path, 1/s the ticks)
+==============================================================================
+    A time-scale multiplies v by s, a by s^2, j by s^3 (the same path).
+    `s_*` columns are the scale at which that one limit is reached:
+      s_joint  joint velocity, tip-equivalent (tightest joint 0.79-0.84 m/s)
+      s_cone   the friction cone's a-budget (loaded legs only)
+      s_pay    where the profile's v-term meets its a-term (raise v alone
+               and the duration stops falling - CAP_CENSUS section 4.3)
+      s_drive  the achieved/commanded speed ratio (how well the servo
+               tracks the CURRENT cap; < 1 means it cannot track it)
+    grasp_lift d= 21.0 cm | cmd v=0.291 a=0.665 | ach v=0.385 (ach/cmd 1.10)
+               s_joint= 2.72  s_cone= 1.72  s_pay= 2.16 | MAX SAFE s=1.72 (cone binds) | profile 161 ticks at the shipped cap
+    place0     d= 57.0 cm | cmd v=0.343 a=0.340 | ach v=0.331 (ach/cmd 0.97)
+               s_joint= 2.30  s_cone= 3.55  s_pay= 3.15 | MAX SAFE s=2.30 (joint binds) | profile 374 ticks at the shipped cap
+    place1     d= 37.7 cm | cmd v=0.343 a=0.527 | ach v=0.319 (ach/cmd 0.93)
+               s_joint= 2.31  s_cone= 2.85  s_pay= 2.56 | MAX SAFE s=2.31 (joint binds) | profile 247 ticks at the shipped cap
+    approach   d=  5.7 cm | cmd v=0.150 a=0.800 | ach v=0.109 (ach/cmd 0.73)
+               s_joint= 5.27  s_cone=  inf  s_pay= 1.95 | MAX SAFE s=5.27 (joint binds) | profile 87 ticks at the shipped cap
+
+    THE POLICY'S OWN STREAM (the object a time-scale actually multiplies):
+      emitted intra-chunk : max safe s at p99 =  3.34 (j4 binds) | at the worst single step =  1.14 (j4 binds)
+      executed (first 3)  : max safe s at p99 =  2.35 (j3 binds) | at the worst single step =  1.15 (j4 binds)
+      re-plan boundary    : max safe s at p99 =  0.67 (j4 binds) | at the worst single step =  0.61 (j4 binds)
+      NOTE the boundary row is NOT a rate: it is a position discontinuity
+      between two plans, so a time-scale does not shorten it and the
+      drive's 0.2 s time constant is what converts it into motion.
+
+    NET COMMANDED DISPLACEMENT (the path the chunk asks for, rad):
+      policy: per decision (4 actions) median 0.033 0.016 0.013 0.015 0.027 0.007 0.021
+              per chunk (16 actions)   median 0.096 0.065 0.020 0.103 0.087 0.022 0.059
+      => median net per chunk summed over the 7 joints = 0.648 rad (range 0.035-2.015)
+      => median net per decision summed = 0.183 rad
+
+==============================================================================
+E. THE FAILURE CLASSES (P43 park A/B: A = park `ready`, B = park `back`)
+==============================================================================
+    arm A: n=75 placed=33 (44.0 %)
+      left : n= 21 placed   1 (  4.8 %)  carried-not-placed  20 ( 95.2 %)  no-grasp   0 (  0.0 %)
+      right: n= 54 placed  32 ( 59.3 %)  carried-not-placed  20 ( 37.0 %)  no-grasp   2 (  3.7 %)
+      note classes among the failures: station escape=1, no follow=1
+    arm B: n=75 placed=53 (70.7 %)
+      left : n= 19 placed   0 (  0.0 %)  carried-not-placed  18 ( 94.7 %)  no-grasp   1 (  5.3 %)
+      right: n= 56 placed  53 ( 94.6 %)  carried-not-placed   0 (  0.0 %)  no-grasp   3 (  5.4 %)
+      note classes among the failures: no follow=3, station escape=1

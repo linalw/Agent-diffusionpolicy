@@ -1,0 +1,24 @@
+==============================================================================
+P52 lane A mechanism: the episode is policy phase + scripted phase
+==============================================================================
+  T0: placed n=32  ticks mean 1809.8 median 1800 | policy mean 257.6 | scripted mean 1552.2
+  TG: placed n=28  ticks mean 1758.9 median 1748 | policy mean 229.6 | scripted mean 1529.3
+
+  paired placed episodes (same run + index, placed in both arms):
+    n pairs = 23  same (species, diameter) = 10
+    ticks (total)    mean    -48.1  median    -36  sd 89.2 sem 18.6  n<0 17/23  (-2.7% of T0's placed-episode ticks)
+    policy phase     mean    -28.0  median     -3  sd 93.4 sem 19.5  n<0 13/23  (-1.5% of T0's placed-episode ticks)
+    scripted phase   mean    -20.1  median    -11  sd 72.7 sem 15.2  n<0 14/23  (-1.1% of T0's placed-episode ticks)
+    same-fruit subset (n=10): total -1.1 ticks (sd 36.4 sem 11.5), policy +7.6 ticks  [no power at this n - the sd of a single pair is ~70 ticks]
+
+  The arithmetic (all inputs measured, no free parameters):
+    T0: the policy phase is 14.2% of a placed episode (256/1800 ticks)
+    TG: the policy phase is 13.0% of a placed episode (228/1748 ticks)
+    a 1.5x on the WHOLE policy phase could save at most 86 ticks = 4.8% of the episode
+    with the gate at 44.1% duty, the ungated 56% can move -> 48 ticks = 2.7%
+    the pre-registered bar was 8 % = 144 ticks: UNREACHABLE by construction
+
+  Reading: the time-scale can only touch the *policy phase*, and that
+  phase is a rendezvous with a 0.120 m/s belt (its floor is 2.08-2.23 s).
+  The scripted primitive owns the rest of the episode and is not a policy
+  lever at all - so a policy-side speed-up is bounded by the policy share.

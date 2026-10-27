@@ -1,0 +1,18 @@
+==============================================================================
+Where an episode's sim time goes (placed episodes, 120 Hz ticks)
+==============================================================================
+  P43 park A/B (moe_v13s, the P43 protocol)
+    n=86  policy phase 266 ticks (2.22 s, 66 model calls)  scripted 1514 ticks (12.61 s)  total 1778 ticks (14.82 s)
+    -> the policy phase is 15% of the episode; the scripted primitive is 85%
+  P35 park A/B (moe_v13s)
+    n=73  policy phase 252 ticks (2.10 s, 63 model calls)  scripted 1517 ticks (12.64 s)  total 1762 ticks (14.68 s)
+    -> the policy phase is 14% of the episode; the scripted primitive is 86%
+  P52 phase 2 lane A (this batch)
+    n=4  policy phase 266 ticks (2.21 s, 66 model calls)  scripted 1542 ticks (12.85 s)  total 1830 ticks (15.25 s)
+    -> the policy phase is 15% of the episode; the scripted primitive is 85%
+
+  The census's section 1.4 reads 54-57 % policy phase (1034/985 ticks).
+  That does not reproduce: `decision=` is a tick index, not a count of
+  4-tick decisions, and it is 250-270 ticks on every corpus above - less
+  than the census's own 2.08-2.23 s belt floor, i.e. the policy phase is
+  the belt rendezvous, not 6.4-6.8 s of arm motion.

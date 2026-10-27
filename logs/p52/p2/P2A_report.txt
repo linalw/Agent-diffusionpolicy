@@ -1,0 +1,91 @@
+==============================================================================
+P52 phase 2 lane A: T0 (shipped) vs TG (contact-gated s) - 3 paired runs
+==============================================================================
+  runs found: [1, 2, 3]
+  T0 run 1: 15 episodes, wall 445.4, retime rows 0
+  T0 run 2: 15 episodes, wall 432.8, retime rows 0
+  T0 run 3: 15 episodes, wall 419.9, retime rows 0
+  TG run 1: 15 episodes, wall 445.5, retime rows 15
+  TG run 2: 15 episodes, wall 395.6, retime rows 15
+  TG run 3: 15 episodes, wall 412.1, retime rows 15
+
+------------------------------------------------------------------------------
+P1  THE SPEED: placed-episode ticks (sim time)
+------------------------------------------------------------------------------
+  T0: n=32  median 1800  mean 1809.8  sd 74.3  min 1642  max 1935
+  TG: n=28  median 1748  mean 1758.9  sd 76.6  min 1640  max 1937
+  median 1800 -> 1748 ticks  = +2.9%
+  mean   1809.8 -> 1758.9 ticks  = +2.8%
+  P1 bar: TG falls >= 8 %  ->  FAIL (+2.9%)
+  per-seed paired (placed episodes only, seeds are the spawn sets):
+    seed-run 1: 1793 -> 1808  (+14 ticks)
+    seed-run 2: 1814 -> 1704  (-110 ticks)
+    seed-run 3: 1785 -> 1737  (-48 ticks)
+
+------------------------------------------------------------------------------
+P2  THE PLACEMENTS (right arm = the park's population)
+------------------------------------------------------------------------------
+  T0: right placed 30/31 (96.8%)   left 2/14 (14.3%)   pooled placed 32/45
+    per-run right: ['12/12', '10/11', '8/8']
+  TG: right placed 28/29 (96.6%)   left 0/16 (0.0%)   pooled placed 28/45
+    per-run right: ['12/12', '7/8', '9/9']
+  delta placed(right) -0.002  one-sided 95 % Newcombe lower -0.142
+  P2 bar: >= -0.10  ->  PASS
+  run level: TG better 0, worse 1 (one-sided sign p = 1.000)
+
+------------------------------------------------------------------------------
+P3  THE FAILURE REASONS
+------------------------------------------------------------------------------
+  T0:
+     12  intercept trigger (dy=#cm
+     12  dx=#cm
+     12  t_arrive=#s
+     12  speed=#m/s/encoder
+     12  frame=station
+     12  finger=#
+     12  lead=#s/reach=#)
+      1  intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)
+      1  fruit did not follow the gripper
+  TG:
+     15  intercept trigger (dy=#cm
+     15  dx=#cm
+     15  t_arrive=#s
+     15  speed=#m/s/encoder
+     15  frame=station
+     15  finger=#
+     15  lead=#s/reach=#)
+      2  intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)
+      2  fruit did not follow the gripper
+  new under TG: none
+  P3 bar: no new reason  ->  PASS
+
+  the outcome classes (placed | carried-not-placed | no-grasp):
+    T0  left  n=14  placed  2  cnp 12  no-grasp  0
+    T0  right n=31  placed 30  cnp  0  no-grasp  1
+    TG  left  n=16  placed  0  cnp 15  no-grasp  1
+    TG  right n=29  placed 28  cnp  0  no-grasp  1
+
+------------------------------------------------------------------------------
+P4  THE WALL and THE GATE'S DUTY CYCLE (reports)
+------------------------------------------------------------------------------
+  T0: wall 1298s over 45 episodes = 28.8 s/episode
+    gate: not instrumented (control arm)
+  TG: wall 1253s over 45 episodes = 27.8 s/episode
+    gate: 45 episodes instrumented, 1131/2567 decisions gated (44.1%), 4492/10202 ticks (44.0%), by force 2226 ticks / by finger 2744 ticks (the finger criterion is a subset), peak force max 216.4 N
+    gate per run: 15/1001, 11/725, 14/841
+
+------------------------------------------------------------------------------
+P5  WHERE THE TIME IS (the mechanism; reports)
+------------------------------------------------------------------------------
+  T0: placed 32  policy phase (decision=) 256 ticks (2.14 s, 14% of the episode)  scripted remainder 1550 ticks (12.92 s)
+    [acq] n=45  premove 0.52  axis 0.52  hover 0.86  wait 1.62  catchup 1.85s / 26t
+  TG: placed 28  policy phase (decision=) 228 ticks (1.90 s, 13% of the episode)  scripted remainder 1524 ticks (12.70 s)
+    [acq] n=45  premove 0.53  axis 0.54  hover 0.88  wait 1.66  catchup 1.87s / 26t
+
+==============================================================================
+VERDICTS
+==============================================================================
+  P1 speed (>= 8 % fewer placed-episode ticks): FAIL  (+2.9%)
+  P2 placements (right >= -0.10): PASS
+  P3 no new failure reason: PASS
+  P4 wall / gate duty cycle: reported (not gated)

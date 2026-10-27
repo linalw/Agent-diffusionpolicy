@@ -1,0 +1,315 @@
+
+==============================================================================
+A. THE REACHED-STATE CHECK (FRONTIER §5 E2)
+
+==============================================================================
+  The policy's action is 7 absolute JOINT positions (`rl_env.py:3020-3045` at HEAD `da0c914`),
+  so the reached-state question is asked in joint space: the measured dof row
+  beside the recorded command, on the 30 Hz observation grid.
+
+[A1] the scripted supervision: `checkpoints/moe_v12/finetune_history.json`
+     records `rollouts = datasets/demos_v11` (50 episodes, 9 378 windows)
+     and `base = datasets/demos_v10` (154 episodes, 70 219 windows), so
+     both stores are the supervision half of the shipped checkpoint.
+
+  demos_v10 (base half): 72837 frames  (154 episodes)
+    same-tick |cmd - achieved| [mrad]   p50  11.3   2.8   4.3   0.6   3.6   7.1   5.4  p90  45.9  41.7  32.7  93.0  59.0  41.2  54.1
+    same-tick max  [mrad]                138.7 149.4  85.7 185.6 177.9 177.3 256.7
+    +1 frame  |cmd - achieved| p50        11.4   2.8   4.3   0.6   3.6   6.4   5.2  p90  40.6  35.0  26.8  77.8  49.9  33.6  43.6
+    task-space equivalent at the 0.30 m lever: same-tick p50 1.3 mm, p90 15.7 mm
+    share of joint-steps above the 5 mm-equivalent (17 mrad): 20.6 %
+    HOLD frames 44781 (61.5 % of the stream): |cmd - achieved| p50  9.93  2.70  4.20  0.50  3.53  8.22  5.45 mrad  (task-space 0.84 mm)
+    command speed |dq|/dt p50 0.00 rad/s, p90 0.77 rad/s
+  demos_v10 (base half): targets outside the joint range 0/509859 (0.00 %), within 20 mrad of a limit 98129/509859 (19.25 %)
+
+[A1b] the fine-tune half (`datasets/demos_v11`, 50 episodes)
+  demos_v11: 10228 frames  (the demo store, 30 Hz)
+    same-tick |cmd - achieved| [mrad]   p50  11.7  21.8   0.5  33.3   8.5   0.0   3.0  p90 142.1  87.0   7.9 162.0 141.4 121.3 234.9
+    same-tick max  [mrad]                288.9 170.0 148.6 270.2 256.1 503.6 559.5
+    +1 frame  |cmd - achieved| p50        11.7  18.4   0.5  28.1   7.0   0.0   2.6  p90 124.0  72.6   7.5 136.4 124.6 104.6 195.8
+    task-space equivalent at the 0.30 m lever: same-tick p50 2.2 mm, p90 37.8 mm
+    share of joint-steps above the 5 mm-equivalent (17 mrad): 37.4 %
+    HOLD frames 3230 (31.6 % of the stream): |cmd - achieved| p50 11.57  0.41  0.51  0.05  0.01  0.01  0.00 mrad  (task-space 0.01 mm)
+    command speed |dq|/dt p50 0.42 rad/s, p90 1.74 rad/s
+
+  demos_v11: beta [s] = cov(r,v)/var(v) per joint, and the intercept at v=0
+    joint   beta[s]   r       intercept[mrad]
+      j1     0.069  +0.55    +15.83
+      j2     0.016  +0.29     +4.87
+      j3     0.016  +0.23     +0.05
+      j4     0.040  +0.46    -30.81
+      j5     0.059  +0.51    -14.86
+      j6     0.066  +0.54    -15.48
+      j7     0.082  +0.63    +20.30
+    pooled |v| p50 0.00 rad/s, |r| p50 7.2 mrad -> implied |r|/|v| p50 5.879 s
+  demos_v11: targets outside the joint range 0/71596 (0.00 %), within 20 mrad of a limit 15603/71596 (21.79 %)
+
+[A2] the policy's own applied commands (direct rollout stores)
+  p37_park: 3364 frames  (60 episodes)
+    same-tick |cmd - achieved| [mrad]   p50  83.7  71.9  50.0  87.9  67.6  33.1  77.7  p90 219.8 193.7 165.9 270.0 250.9 137.6 358.9
+    same-tick max  [mrad]                2141.2 574.6 2788.9 792.3 2112.0 1058.9 2607.0
+    +1 frame  |cmd - achieved| p50        74.5  62.8  45.5  74.2  58.5  29.7  69.4  p90 193.9 165.6 154.9 227.6 215.1 124.0 315.3
+    task-space equivalent at the 0.30 m lever: same-tick p50 19.3 mm, p90 67.3 mm
+    share of joint-steps above the 5 mm-equivalent (17 mrad): 84.1 %
+    HOLD frames: none (the command is never stationary at 30 Hz)
+    command speed |dq|/dt p50 4.51 rad/s, p90 12.08 rad/s
+  p37_park: beta [s] = cov(r,v)/var(v) per joint, and the intercept at v=0
+    joint   beta[s]   r       intercept[mrad]
+      j1    -0.015  -0.43    +24.37
+      j2    -0.015  -0.51    -47.63
+      j3    -0.015  -0.51    -46.81
+      j4    -0.015  -0.47    -25.59
+      j5    -0.016  -0.42     +3.74
+      j6    -0.015  -0.37     +0.07
+      j7    -0.016  -0.44    +61.59
+    pooled |v| p50 1.64 rad/s, |r| p50 64.4 mrad -> implied |r|/|v| p50 0.039 s
+  p37_park: targets outside the joint range 3087/23548 (13.11 %), within 20 mrad of a limit 3810/23548 (16.18 %)
+    per joint outside: j1 0 j2 981 j3 1750 j4 1 j5 43 j6 56 j7 256
+  p37_park: 3087/23548 joint targets outside the range (13.1 %), on 2501/3364 ticks (74.3 %)
+    per joint (outside low/high, overshoot p50/p90/max [deg], measured distance to the stop p50 [deg]):
+      j2: 981 (1376/0), overshoot p50 2.8 p90 8.2 max 18.8
+      j3: 1750 (1438/312), overshoot p50 3.2 p90 8.6 max 21.2
+      j4: 1 (1/0), overshoot p50 0.2 p90 0.2 max 0.2
+      j5: 43 (26/17), overshoot p50 0.8 p90 2.2 max 6.2
+      j6: 56 (35/21), overshoot p50 1.3 p90 3.3 max 5.5
+      j7: 256 (0/256), overshoot p50 1.4 p90 3.4 max 6.2
+    residual p50 65.2 mrad inside vs 64.0 mrad on out-of-range ticks -> the residual is not
+    caused by the stop (it is the same on both sets).
+
+  r9_awr: 3261 frames  (56 episodes)
+    same-tick |cmd - achieved| [mrad]   p50  50.7  41.9  23.3  57.9  42.9  24.2  37.0  p90 176.3 152.1  84.8 205.0 144.2  90.2 130.2
+    same-tick max  [mrad]                2748.3 705.6 3443.4 1262.9 2232.2 1285.5 2707.8
+    +1 frame  |cmd - achieved| p50        45.0  34.5  21.0  48.8  36.5  21.1  32.1  p90 154.0 125.3  77.9 171.5 119.6  78.1 113.5
+    task-space equivalent at the 0.30 m lever: same-tick p50 11.1 mm, p90 43.9 mm
+    share of joint-steps above the 5 mm-equivalent (17 mrad): 72.5 %
+    HOLD frames: none (the command is never stationary at 30 Hz)
+    command speed |dq|/dt p50 2.06 rad/s, p90 7.70 rad/s
+  r9_awr: beta [s] = cov(r,v)/var(v) per joint, and the intercept at v=0
+    joint   beta[s]   r       intercept[mrad]
+      j1    -0.014  -0.41     -1.05
+      j2    -0.013  -0.39     +3.53
+      j3    -0.014  -0.40    -24.41
+      j4    -0.014  -0.39    +42.67
+      j5    -0.013  -0.37     +0.23
+      j6    -0.014  -0.31     +3.57
+      j7    -0.015  -0.38     -6.91
+    pooled |v| p50 0.75 rad/s, |r| p50 37.0 mrad -> implied |r|/|v| p50 0.049 s
+  r9_awr: targets outside the joint range 1694/22827 (7.42 %), within 20 mrad of a limit 2447/22827 (10.72 %)
+    per joint outside: j1 6 j2 99 j3 1165 j4 3 j5 137 j6 28 j7 256
+  r9_awr: 1694/22827 joint targets outside the range (7.4 %), on 1431/3261 ticks (43.9 %)
+    per joint (outside low/high, overshoot p50/p90/max [deg], measured distance to the stop p50 [deg]):
+      j1: 6 (0/293), overshoot p50 4.6 p90 20.1 max 25.3
+      j2: 99 (0/1342), overshoot p50 -22.2 p90 2.9 max 26.2
+      j3: 1165 (869/296), overshoot p50 1.4 p90 4.2 max 28.8
+      j4: 3 (3/0), overshoot p50 1.3 p90 2.0 max 2.1
+      j5: 137 (97/40), overshoot p50 1.6 p90 7.6 max 13.4
+      j6: 28 (21/7), overshoot p50 1.1 p90 3.3 max 5.6
+      j7: 256 (21/235), overshoot p50 1.1 p90 3.4 max 8.4
+    residual p50 29.1 mrad inside vs 47.4 mrad on out-of-range ticks -> the residual is not
+    caused by the stop (it is the same on both sets).
+
+  direct_zero_seed99: 635 frames  (2 episodes)
+    same-tick |cmd - achieved| [mrad]   p50   9.7  24.6  21.3 1280.2 142.0 329.9 118.9  p90 281.0  26.3  39.9 1281.2 167.4 496.6 230.9
+    same-tick max  [mrad]                1534.7 329.9 1569.5 1281.5 1560.3 620.0 1565.8
+    +1 frame  |cmd - achieved| p50         9.7  24.6  21.2 1280.2 142.0 329.8 118.6  p90 280.9  26.2  39.8 1281.2 167.0 496.6 230.9
+    task-space equivalent at the 0.30 m lever: same-tick p50 24.6 mm, p90 384.1 mm
+    share of joint-steps above the 5 mm-equivalent (17 mrad): 82.1 %
+    HOLD frames 631 (99.4 % of the stream): |cmd - achieved| p50  9.74 24.62 21.26 1280.24 142.03 329.24 118.89 mrad  (task-space 24.56 mm)
+    command speed |dq|/dt p50 0.00 rad/s, p90 0.00 rad/s
+  direct_zero_seed99: beta [s] = cov(r,v)/var(v) per joint, and the intercept at v=0
+    joint   beta[s]   r       intercept[mrad]
+      j1       nan   +nan      +nan
+      j2       nan   +nan      +nan
+      j3       nan   +nan      +nan
+      j4       nan   +nan      +nan
+      j5       nan   +nan      +nan
+      j6       nan   +nan      +nan
+      j7       nan   +nan      +nan
+    pooled |v| p50 0.00 rad/s, |r| p50 82.0 mrad -> implied |r|/|v| p50 81991203.129 s
+  direct_zero_seed99: targets outside the joint range 0/4445 (0.00 %), within 20 mrad of a limit 635/4445 (14.29 %)
+  direct_zero_seed99: 0/4445 joint targets outside the range (0.0 %), on 0/635 ticks (0.0 %)
+    per joint (outside low/high, overshoot p50/p90/max [deg], measured distance to the stop p50 [deg]):
+    residual p50 82.0 mrad inside vs nan mrad on out-of-range ticks -> the residual is not
+    caused by the stop (it is the same on both sets).
+
+[A3] the task-space residuals that exist on this tree
+    `[motion] approach ... end=` (the pad centre vs the pose the leg was sent
+    to, `motion.py:359-368`) over 11703 descents in 1026 logs:
+      median 8.9 mm, p90 10.5 mm, max 434.9 mm  -> the SETTLED task-space gap on the current tree
+    the same row on the pre-arrive tree (`logs/160_endgap028.log`, 10 descents;
+    `logs/168_accept_after_probe.log`): 40.4-89.7 / 42.1-88.1 mm -> the
+    40-90 mm the census and the AGENTS section-2 note quote is THIS row,
+    not a current measurement (see A4).
+    the drive's own lag, measured end-to-end: 8.1-10.4 mm (~30 mrad at a 0.3 m lever, `logs/p44/CAP_CENSUS.md` §1.1).
+
+[A4] the 120 Hz per-tick traces (the descent, `logs/trace159/approach_*.json`)
+    every row is one control tick with `command` (7 joint targets), `measured`,
+    `lag`, `task_err` (TCP vs the Cartesian aim), `limit_clipped`, `limit_margin`.
+      file                 ticks  |lag| p50  p90   max   task_err@end  clips  min-margin
+      approach_001.json     325      6.5   35.3  120.5       42.2 mm     0    216.2 mrad
+      approach_002.json     359     24.4   88.5  146.2       86.9 mm     0    239.4 mrad
+      approach_003.json     241     10.0   95.4  156.1       37.9 mm     0    177.1 mrad
+      approach_004.json     227     20.3   72.9  132.8       34.4 mm     0    202.6 mrad
+      approach_005.json     302     25.5  109.4  233.3       53.5 mm     0    118.9 mrad
+      approach_006.json     280     11.6  120.2  201.7       45.1 mm     0    134.5 mrad
+      approach_007.json     326      7.5   37.1  119.6       38.5 mm     0    205.6 mrad
+      approach_008.json     317      4.4   31.8  142.8       70.4 mm     0    309.5 mrad
+      approach_009.json     264     12.1   86.2  131.2       67.5 mm     0    362.9 mrad
+      approach_010.json     288      5.4   25.2  128.5       56.9 mm     0    309.6 mrad
+      pooled: |cmd - measured| p50 9.7 mrad, p90 85.7, max 233.3; per-joint p50 7.4 11.7 8.9 58.7 22.0 3.8 5.0 mrad
+      0 joint-limit clips and >=119 mrad of limit margin on every tick -> the
+      task-space shortfall is kinematic (workspace), not a joint limit.
+
+[A5] THE E2 VERDICT (computed from A1/A2/A4)
+    the SUPERVISION (both halves: `demos_v10` base + `demos_v11` fine-tune):
+      0/581455 joint targets outside the joint range (0.00 %).
+      HOLD residual: 0.84 mm task-space on the base half (61.5 % of its frames)
+      and 0.01 mm on the fine-tune half (31.6 %); moving p50 1.3 / 2.2 mm.
+      -> the labels ARE poses the arm reaches.
+    the POLICY's own emissions (`p37_park`): 3087/23548 joint-steps outside
+      the range (13.1 %), on 74.3 % of ticks; the overshoot
+      is 3.0-3.2 deg p50 (j2/j3) and the measured joint sits at the stop
+      (0.03 deg from it on j3). There is NO clamp on this path
+      (`rl_env.py:3033-3040`; MODEL_CENSUS §1.5).
+    -> E2 AS STATED IS DEAD: a reached-state retrain relabels a stream whose
+       poses are already reached (0 out of range, 0.01 mm at hold).
+    -> the measured defect is on the POLICY side with other actuators:
+       (i) the 13 %/74 % out-of-range emissions (a one-line joint clamp,
+           default off - but the residual is 65 mrad inside vs 64 mrad on
+           those ticks, so the stop is not the residual's mechanism);
+       (ii) the 19.3 mm p50 tracking residual = the 4x replay dither (B5c).
+
+==============================================================================
+B. THE PACE FEASIBILITY
+
+==============================================================================
+[B1] chunks cached (72 demo-obs + 60 direct-obs), from `p2b_chunks_abs.npz`
+
+
+    rate convention: one action is executed for ONE control tick, so the
+    chunk's own rate is 120 Hz (the census's §2.3/§3.2 multiply by 30 Hz,
+    the *recorded frame* rate - a 4x understatement, see B6).
+[B2] demo-observation chunks: 72 chunks x 15 steps
+    per-step speed [rad/s, 120 Hz]: chunk-median p50 2.60, range 0.39-7.93; per-step p10/p50/p90 0.73/2.75/6.33
+    (the census's 30 Hz convention would read 0.69 at p50 / 1.58 at p90)
+    within-chunk minimum: p50 1.24, max 3.99 rad/s
+    smoothness: median |2nd diff| / |1st diff| = 0.84 (a smooth trajectory is <<1; a noisy one ~1)
+    tau=0.10 rad/s: 0/72 chunks carry a transition; horizons p50 16, mean 16.0, share h=16 100 %
+    tau=0.20 rad/s: 3/72 chunks carry a transition; horizons p50 16, mean 15.5, share h=16 96 %
+    tau=0.30 rad/s: 5/72 chunks carry a transition; horizons p50 16, mean 15.2, share h=16 93 %
+    tau=0.50 rad/s: 7/72 chunks carry a transition; horizons p50 16, mean 14.9, share h=16 90 %
+    joint-velocity exceedance at 120 Hz (per joint p99 [rad/s] / % of limit):
+      j1  8.98/ 54%  j2  6.26/ 37%  j3  6.67/122%  j4  7.53/138%  j5  8.87/ 42%  j6  3.80/ 18%  j7  8.34/ 40%
+      s=1.0 : 83/7560 joint-steps over a limit (1.10 %)
+      s=1.25: 139/7560 joint-steps over a limit (1.84 %)
+      s=1.5 : 226/7560 joint-steps over a limit (2.99 %)
+
+[B2] direct-policy chunks: 60 chunks x 15 steps
+    per-step speed [rad/s, 120 Hz]: chunk-median p50 5.87, range 1.09-35.84; per-step p10/p50/p90 2.14/6.21/16.56
+    (the census's 30 Hz convention would read 1.55 at p50 / 4.14 at p90)
+    within-chunk minimum: p50 2.44, max 19.09 rad/s
+    smoothness: median |2nd diff| / |1st diff| = 1.16 (a smooth trajectory is <<1; a noisy one ~1)
+    tau=0.10 rad/s: 0/60 chunks carry a transition; horizons p50 16, mean 16.0, share h=16 100 %
+    tau=0.20 rad/s: 0/60 chunks carry a transition; horizons p50 16, mean 16.0, share h=16 100 %
+    tau=0.30 rad/s: 0/60 chunks carry a transition; horizons p50 16, mean 16.0, share h=16 100 %
+    tau=0.50 rad/s: 1/60 chunks carry a transition; horizons p50 16, mean 15.8, share h=16 98 %
+    joint-velocity exceedance at 120 Hz (per joint p99 [rad/s] / % of limit):
+      j1 27.84/166%  j2 13.80/ 82%  j3 24.12/443%  j4 15.68/288%  j5 20.44/ 98%  j6 13.11/ 63%  j7 32.72/156%
+      s=1.0 : 382/6300 joint-steps over a limit (6.06 %)
+      s=1.25: 556/6300 joint-steps over a limit (8.83 %)
+      s=1.5 : 708/6300 joint-steps over a limit (11.24 %)
+
+[B3] positive control - the same rule on the SCRIPTED stream (demos_v11
+     actions, 30 Hz), where the phase boundaries are real:
+    10178 frames: speed p10/p50/p90 0.00/0.42/1.74 rad/s; share <0.10 rad/s 34.9 %, <0.30 43.4 %
+    low-speed plateaus (>=3 frames < 0.10 rad/s): 19.5 per episode (median 4.0)
+    16-step windows at every decision point (n=2363): 22.4 % carry a transition; horizons p50 16, mean 14.1, share h=16 78 %
+
+[B4] the replan count
+    measured decisions/episode (`[loop]` rows, `logs/p43/p2/l2_loop_timing_e5.log`): [73, 62, 57, 77, 53] -> mean 64.4
+    cross-check: the `[rl] episode` row's `decision=` field is the control
+    step at which the primitive takes over (`rl_env.py:3864`, 3898: `_decision_step = self._step`), i.e. decisions = decision/4:
+      n=150, handover step 78-393 (mean 252) -> 20-98 decisions/episode, mean 63 = 14 % of the episode's ticks
+
+    what a PACE horizon would pick, applied to the policy's own chunks
+      tau=0.20: mean h 16.0 -> decisions 64 -> 16/episode (-48); wall 4.57 s -> 1.14 s per episode
+      tau=0.30: mean h 16.0 -> decisions 64 -> 16/episode (-48); wall 4.57 s -> 1.14 s per episode
+    (1 decision = 4 executed actions = 4 control ticks = 33.3 ms of sim;
+     71.0 ms wall = policy 47.4 + render 20.0 + camera 3.6,
+     `logs/p43/P2_RESULTS.md` §5.1)
+    the wall saving is wall only: the sim time, the handover step and the
+    placements are tick-clocked and do not move with the horizon.
+    if the chunks carried the SCRIPTED stream's phase content (22.4 % of
+    16-step windows straddle a boundary) and a boundary forced h=4, the
+    count would be 0.776*16 + 0.224*64 = 27/episode -> 1.9 s wall (-2.3 s).
+    So PACE can only (a) keep h=16 where nothing happens, or (b) SHORTEN h
+    at a boundary, i.e. add replans exactly where the frontier wants them.
+
+[B5] the latency arithmetic, and the census's '13 actions' claim
+    a decision costs 71.0 ms = 8.52 ACTIONS of sim
+    time (one action = one control tick = 8.33 ms; 4 actions per
+    decision = 33.3 ms; a 16-action chunk = 133 ms, not the census's 533 ms)
+    the shipped horizon executes 4 of 16 actions -> buffer 12 actions = 100 ms = 1.4x the decision cost
+    the bound: executing h of a 16-action chunk leaves (16-h) actions of
+    buffer, so h <= 16 - 8.52 = 7.48 -> 7.
+    The census's '13' is the same formula with 33.3 ms per action (the
+    decision period) instead of 8.33 ms - 16 - 71/33.3 = 13.87 -> 13.
+    And it is a CEILING on h with a chunk in flight, i.e. an async-inference
+    (SAIL delta_lb) constraint; the FRONTIER E3 sentence reads it as a FLOOR
+    ('s cannot go below ~13') - the direction is inverted twice over.
+    Also: the shipped loop is SYNCHRONOUS (RTC/VLASH default off,
+    `runtime.py:100-124`), so no chunk is ever in flight while actions
+    execute: the bound does not apply at all, and h=16 is latency-free here
+    (the only cost is staleness against the belt: 0.12 m/s x 0.133 s = 16 mm).
+    At the phase-2 re-timing scale s the bound becomes h <= 16 - 8.52s: s=1.25 -> 5, s=1.5 -> 3 (so a horizon lengthening
+    and a time-scale interact only through the async form).
+
+==============================================================================
+[B5c] THE REPLAY RATE: the chunk is played 4x faster than it was trained
+
+==============================================================================
+  (a) the training stream's cadence is 30 Hz: the recorded stores hold one
+      frame per 4 control ticks (`_record_tick` fires when `_observed_step ==
+      `_step`, `rl_env.py:3771`, and `_observe` runs at `_step % 4 == 0`, 2945),
+      and the chunk is built from 16 CONSECUTIVE frames
+      (`policy/data.py:537`: `action[t : t+16]`) = 16 x 33.3 ms = 533 ms.
+  (b) the execution cadence is 120 Hz: `act` applies one action and then
+      `advance(1)` (one control tick = 8.33 ms, `rl_env.py:2979-2986`,
+      1716-1724), so the same 16 actions are replayed in 16 x 8.33 = 133 ms.
+      There is no hold: the drive target is overwritten every tick.
+  measured (max-joint speed, rad/s):
+      the demo stream (30 Hz frames, the true demo rate)   p50  0.42  p90  1.74
+      the emitted chunk (120 Hz per-step, the exec rate)   p50  6.21  p90 16.56
+      the ACHIEVED joint motion (120 Hz, from the store)   p50  0.64  p90  1.85
+  so the command/achievement ratio is 10x, and the
+  achieved rate (0.64 rad/s) is the demo's own (0.42 rad/s): the
+  drive is a 0.2 s low-pass and turns the 4x replay into a dither.
+  The discriminating one-line battery for phase 3 (not run here): hold each
+  action for 4 ticks (execute_steps=16, or a hold counter) and measure the
+  achieved rate, the residual and the decisions (= one per 0.533 s of sim,
+  i.e. ~4/episode instead of ~64, -4.3 s of the 28.6 s wall).
+
+==============================================================================
+B6. THE CENSUS CORRECTIONS THIS LANE MEASURED (read with A and B above)
+
+==============================================================================
+  (1) DECISIONS/EPISODE. The census's '246-259 decisions/episode' is a
+      misreading of the `[rl] episode` row's `decision=` field, which is the
+      control step at which the primitive takes over (`_run_primitive`,
+      `rl_env.py:3864`; `_finalize` reads it at 3917). The measured decision
+      count is 53-77/episode (the `[loop]` rows) and the handover step is
+      78-393 (mean 252 = 14 % of the episode's ticks).
+  (2) CHUNK DURATION. 16 actions x 1 control tick = 133 ms, not 533 ms; the
+      '0.533 s planning horizon' in MODEL_CENSUS §1.3 is a 4x overstatement.
+  (3) THE CHUNK'S OWN RATE. `MODEL_CENSUS` §2.3/§3.2 convert the intra-chunk
+      deltas at 30 Hz (the recorded-frame rate); the chunk is executed at
+      120 Hz, so every intra-chunk speed and every headroom ratio there is
+      4x too small. From the census's OWN cache:
+        executed (first 3 steps): p99 % of limit  51  46 170 157  41  26  30 | max 3.5x (j4)
+          over a limit: s=1.0 10/1512, s=1.25 16/1512, s=1.5 33/1512, s=2.0 60/1512
+        all 15 steps: p99 % of limit  54  37 106 120  45  19  31 | max 3.5x (j4)
+          over a limit: s=1.0 47/7560, s=1.25 124/7560, s=1.5 226/7560, s=2.0 390/7560
+      (the census's table reads 0/1512 at s=1.0 and 1/1512 at 1.25/1.5;
+      the p99 headroom it calls 2.35x/3.34x is 0.83x at j4.)
+  (4) THE '13 ACTIONS' BOUND. It is h <= 7 (per-action execution is 8.33 ms),
+      it is a ceiling, and it does not bind the synchronous shipped loop.
