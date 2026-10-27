@@ -184,6 +184,18 @@ run_check "P44 speed cells" "$python" scripts/225_p44_speed_selftest.py
 # `!= 1.0` guard and nothing else, the size paths untouched, and the "inertia is
 # derived, not authored" property plus the one-shot read-back. No simulator.
 run_check "P45 mass scale" "$python" scripts/227_p45_mass_selftest.py
+# P52 phase 2: the contact-gated action time-scale (`FRUIT_POLICY_TIME_SCALE`,
+# `FRUIT_POLICY_RETIME_GATE`, both default off). The real resolver and the real
+# interpolation run offline: `s = 1.0` returns `chunk[index]` **exactly**
+# (array-equal over random chunks, signed zeros included - the direct loop is
+# not bit-reproducible, so the algebra is the only proof of byte-identity), the
+# executed path advances `s` waypoints per tick, the last waypoint is a hold and
+# never an extrapolation, the finger channels ride the same index, the gate is
+# the strict-union truth table of the two already-sampled channels, and the
+# resolver refuses a slow-down / a zero / a non-finite / a non-number. The
+# env-side wiring is pinned by AST (the shipped `action = arr[index]` survives
+# as the knob-off branch, `_apply` is retime-free, the gate adds no sensor read).
+run_check "P52 retime scale" "$python" scripts/228_p52_retime_selftest.py
 
 if [ -n "$run_log" ] && [ -f "$run_log" ]; then
     run_check "motion budgets" "$python" scripts/105_motion_regression.py "$run_log" \

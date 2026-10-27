@@ -88,6 +88,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import sys
 import time
@@ -497,6 +498,121 @@ def store_guard_reason(record: bool, spoof_pose: str) -> str:
             "channels; spoof the evaluation interface only."
         )
     return ""
+
+
+def resolve_time_scale(raw: str | None) -> float:
+    """P52 phase 2: `FRUIT_POLICY_TIME_SCALE` -> the executed-chunk rate ``s``.
+
+    ``s == 1.0`` (unset) is the shipped path: one chunk waypoint per control
+    tick, and the env never consults the interpolation at all - which is what
+    makes the control arm byte-identical by construction rather than by
+    arithmetic luck.
+
+    A value below 1 would *slow* the chunk, which is not a registered cell (the
+    lever is a speed-up, `logs/p52/PREREG_DRAFT.md` section 1.2), and a
+    non-number, a non-positive or a non-finite value is a hard error - an A/B
+    arm must never run with a knob it did not resolve, and a silently ignored
+    typo would read as a null result.
+    """
+    text = "" if raw is None else str(raw).strip()
+    if not text:
+        return 1.0
+    try:
+        value = float(text)
+    except ValueError:
+        raise ValueError(
+            f"FRUIT_POLICY_TIME_SCALE={raw!r} is not a number"
+        ) from None
+    if not math.isfinite(value) or value <= 0.0:
+        raise ValueError(
+            f"FRUIT_POLICY_TIME_SCALE={raw!r} must be a finite positive number"
+        )
+    if value < 1.0:
+        raise ValueError(
+            f"FRUIT_POLICY_TIME_SCALE={raw!r} is a slow-down; only s >= 1 is "
+            "registered (the lever is a speed-up of the executed chunk)"
+        )
+    return float(value)
+
+
+def retime_action(chunk: np.ndarray, index: int, scale: float) -> np.ndarray:
+    """P52 phase 2: the action to apply on control tick ``index`` of a chunk.
+
+    The chunk is a sequence of **absolute 9-D joint targets** (the active arm's
+    7 joints, then the finger opening twice), so "execute it faster" is a
+    re-parameterisation of the waypoint path: at rate ``scale`` the position
+    along that path advances ``scale`` waypoints per control tick, tick
+    ``index`` sits at ``i = scale * index``, and the applied action is the
+    **linear interpolation of the two bracketing waypoints**. Nothing about the
+    model changes - the same predicted path is executed in fewer ticks.
+
+    **At ``scale == 1.0`` this returns ``chunk[index]`` exactly** (``i`` is the
+    integer ``index``, so the fraction is 0 and the arithmetic short-circuits
+    before any float operation touches the values). That identity is what makes
+    the control arm byte-identical; `scripts/228_p52_retime_selftest.py` asserts
+    it over random chunks, because the direct loop itself is not bit-reproducible
+    (rendered frames, AGENTS.md section 3b) and no *run* can prove it.
+
+    The last waypoint is a terminal hold, not a clamp of convenience: past it
+    the chunk carries no further information, so the return is that waypoint
+    rather than an extrapolation of the final segment. The re-plan boundary is
+    untouched - the next chunk's action 0 is applied unchanged (census section
+    6), which is the jump a time-scale cannot and does not scale.
+    """
+    arr = np.asarray(chunk, dtype=np.float64)
+    if arr.ndim != 2 or arr.shape[0] == 0:
+        raise ValueError(
+            f"a chunk must be 2-D with at least one waypoint, got shape {arr.shape}"
+        )
+    horizon = int(arr.shape[0])
+    i = float(scale) * float(index)
+    base = int(i)  # scale >= 1 and index >= 0, so this is floor(i)
+    if base >= horizon - 1:
+        return arr[horizon - 1]
+    frac = i - base
+    if frac == 0.0:
+        return arr[base]
+    return arr[base] * (1.0 - frac) + arr[base + 1] * frac
+
+
+def retime_contact(
+    force: float, finger: float, force_threshold: float, open_threshold: float
+) -> bool:
+    """P52 phase 2's contact gate: is the action **in contact** this tick?
+
+    Two channels the environment **already samples** every decision - so the
+    gate costs no simulator read and cannot perturb the loop (AGENTS.md section
+    2: instrumentation that runs in the control loop changes the result):
+
+    * the **tactile normal force** on the active hand's finger links - above
+      ``force_threshold`` (~1 N) the fingers are loaded. On the direct path this
+      is a *spiky* signal (0 N for most decisions, 15-190 N while the hand is in
+      the belt or on the fruit), which is exactly what a contact gate should
+      catch;
+    * the **finger opening** - the fallback. Note the measured range on this
+      interface: the pool's diameters are 2.8-7.0 cm and the channel's ceiling is
+      4.4 cm, so a *loaded* finger reads 2.5-4.4 cm, i.e. **the finger channel
+      cannot separate "holding a fruit" from "open"** (`logs/p52/p2/`, the
+      `[retime]` rows: 25-44 mm across a whole approach). The default threshold
+      is therefore **2.0 cm - below every class's diameter**, so it fires only on
+      a *collapsed* finger (a close that passed through the fruit), which is the
+      one state the channel does identify. A threshold at the trigger's own
+      `finger < 0.030` close test would gate on the policy's ordinary approach
+      posture (measured: 14 % of decisions) and is not a contact reading.
+
+    Either one is enough (the conservative union). Returns ``True`` when the
+    caller must clamp the effective scale to 1.0, i.e. execute at the
+    demonstrated rate. This is the RoboPace shape, restricted to what this tree
+    can measure: the cost of a retimed chunk is the speed **at contact**, not
+    the speed overall (`logs/p52/FRONTIER.md` section 2.1), and the robot's
+    kinematic limits are not the binding constraint there.
+
+    Pure arithmetic, so `scripts/228_p52_retime_selftest.py` pins it offline.
+    """
+    return bool(
+        float(force) > float(force_threshold)
+        or float(finger) < float(open_threshold)
+    )
 
 
 def direct_fire(
@@ -1429,6 +1545,77 @@ class SortingRLEnv:
             self.action_horizon = 16
             self._image_channels = 5
 
+        # --- P52 phase 2: the contact-gated action time-scale, default off -- #
+        #: `FRUIT_POLICY_TIME_SCALE=<s>` executes the active chunk's waypoints
+        #: `s` times faster by linearly interpolating the 9-D absolute joint
+        #: targets (`retime_action`) - the same predicted path in fewer ticks,
+        #: the model unchanged. `s == 1.0` (unset) is the shipped one-waypoint-
+        #: per-tick path, byte-identical by construction: `act` never reaches the
+        #: interpolation. `FRUIT_POLICY_RETIME_GATE=1` arms the **contact gate**
+        #: (`retime_contact`): the scale applies only outside contact and is
+        #: clamped to 1.0 while the fingers are loaded or closed.
+        #:
+        #: Scope: `direct` only. The `handoff`/canary presentation and the
+        #: scripted/bimanual paths never see a policy chunk re-timed - the
+        #: scripted line's own speed lever is the P44 profile cells, whose cost
+        #: class is measured (`logs/p51/COMBO_MAP.md`), and mixing them would
+        #: move two things at once. RTC is refused because it never returns a
+        #: chunk to `act` (one action per tick from its own queue), so the knob
+        #: would silently be a no-op arm.
+        self._time_scale = resolve_time_scale(
+            os.environ.get("FRUIT_POLICY_TIME_SCALE")
+        )
+        self._retime_gate_on = (
+            os.environ.get("FRUIT_POLICY_RETIME_GATE", "0") == "1"
+        )
+        self._retime_force_threshold = float(
+            os.environ.get("FRUIT_POLICY_RETIME_FORCE", "1.0")
+        )
+        self._retime_open_threshold = float(
+            os.environ.get("FRUIT_POLICY_RETIME_OPEN", "0.020")
+        )
+        #: True when either knob is armed. Off, every branch below is the
+        #: shipped one and no counter, read or print exists.
+        self._retime_on = bool(self._time_scale != 1.0 or self._retime_gate_on)
+        if self._retime_on:
+            if presentation != "direct":
+                raise ValueError(
+                    "FRUIT_POLICY_TIME_SCALE / FRUIT_POLICY_RETIME_GATE are only "
+                    f"defined for presentation='direct', got {presentation!r}"
+                )
+            if self.rtc_settings.enabled:
+                raise ValueError(
+                    "the action time-scale needs a chunk from `act`; RTC executes "
+                    "one action per tick from its own queue and never passes one"
+                )
+            if self._time_scale * self.execute_steps > self.action_horizon:
+                raise ValueError(
+                    f"FRUIT_POLICY_TIME_SCALE={self._time_scale} x "
+                    f"execute_steps={self.execute_steps} exceeds the chunk's "
+                    f"action_horizon={self.action_horizon}"
+                )
+            if self._retime_force_threshold < 0.0:
+                raise ValueError("FRUIT_POLICY_RETIME_FORCE must be >= 0 N")
+            if self._retime_open_threshold < 0.0:
+                raise ValueError("FRUIT_POLICY_RETIME_OPEN must be >= 0 m")
+        #: The gate's two cached channels. They are written in `proprio()` from
+        #: the reads that already happen there (the tactile normal force and the
+        #: active arm's finger opening), so the gate adds **no** sensor read to
+        #: the control loop - the value a tick uses is the one from the
+        #: decision's own observation, at most 3 ticks old.
+        self._retime_force_live = 0.0
+        self._retime_finger_live = 0.0
+        #: Per-episode gate bookkeeping (only touched when armed): consulted
+        #: ticks and clamped ticks, the per-decision pair the `[retime]` rows
+        #: report, and the peak force seen.
+        self._retime_calls = 0
+        self._retime_gated = 0
+        self._retime_decisions = 0
+        self._retime_gated_decisions = 0
+        self._retime_force_gated = 0
+        self._retime_finger_gated = 0
+        self._retime_force_max = 0.0
+
         # The task is used for its primitives only; it must not record.
         self.task = PickAndPlaceTask(self.scene, self.spawner, self.tactile, self.cfg,
                                      waypoint_path=waypoint_path)
@@ -1496,6 +1683,17 @@ class SortingRLEnv:
                 f"[rl] refuse: diag={int(self._refuse_diag)} "
                 f"end={int(self._refuse_end)} reseed={int(self._reseed)} "
                 f"max={int(self._reseed_max)}"
+            )
+        if self._retime_on:
+            # P52 phase 2: the knob's own banner, so an armed run is identifiable
+            # from its first lines (and from the manifest's `retime` block).
+            say(
+                f"[rl] retime: scale={self._time_scale:.2f} "
+                f"gate={int(self._retime_gate_on)} "
+                f"force>{self._retime_force_threshold:.2f}N "
+                f"finger<{self._retime_open_threshold * 1000:.1f}mm "
+                f"execute_steps={self.execute_steps} "
+                f"horizon={self.action_horizon}"
             )
 
     # ------------------------------------------------------------------ #
@@ -1592,6 +1790,19 @@ class SortingRLEnv:
                 "max": int(self._event_max),
                 "default": int(self._event_default),
             },
+            #: P52 phase 2: the contact-gated action time-scale (null = off, the
+            #: shipped one-waypoint-per-tick execution). An A/B arm is
+            #: identified by this block, not by the `[retime]` rows alone.
+            "retime": (
+                {
+                    "scale": float(self._time_scale),
+                    "gate": bool(self._retime_gate_on),
+                    "force_n": float(self._retime_force_threshold),
+                    "open_m": float(self._retime_open_threshold),
+                }
+                if self._retime_on
+                else None
+            ),
             "a2c2": (
                 {
                     "path": self._a2c2_path,
@@ -1987,6 +2198,18 @@ class SortingRLEnv:
         self._prev_exec = 0
         self._event_continuities: list[float] = []
         self._event_horizons: list[int] = []
+        # P52 phase 2: the contact gate's per-episode bookkeeping (written only
+        # when the time-scale knobs are armed; the shipped path leaves them at
+        # these values and never reads them).
+        self._retime_calls = 0
+        self._retime_gated = 0
+        self._retime_decisions = 0
+        self._retime_gated_decisions = 0
+        self._retime_force_gated = 0
+        self._retime_finger_gated = 0
+        self._retime_force_max = 0.0
+        self._retime_force_live = 0.0
+        self._retime_finger_live = 0.0
         # DAgger bookkeeping for this episode (the expert label buffer starts
         # empty; `_observe`/`_record_tick` fill it at the decision points).
         self._expert_until = -1
@@ -2190,6 +2413,18 @@ class SortingRLEnv:
             float(reading.get("left").normal_force) if reading.get("left") else zero,
             float(reading.get("right").normal_force) if reading.get("right") else zero,
         ]
+        if self._retime_on:
+            # P52 phase 2: the contact gate's two channels, cached from the read
+            # that just happened. The gate itself never reads a sensor (AGENTS.md
+            # section 2 - per-tick work inside the control loop is what shifts a
+            # run), and with the knob off neither this block nor the attributes
+            # are touched, so the assembled vector below is byte-identical.
+            side = "left" if self._active == "left" else "right"
+            live = reading.get(side)
+            self._retime_force_live = float(live.normal_force) if live else zero
+            self._retime_finger_live = finger
+            if self._retime_force_live > self._retime_force_max:
+                self._retime_force_max = self._retime_force_live
         parts = [
             dof,
             np.array([finger], dtype=np.float32),
@@ -2969,7 +3204,13 @@ class SortingRLEnv:
             elif chunk is not None:
                 arr = np.asarray(chunk)
                 if index < arr.shape[0]:
-                    action = arr[index]
+                    if self._retime_on:
+                        # P52 phase 2: apply the contact-gated time-scale. With
+                        # the gate clamped to 1.0 (or the scale unset) this
+                        # returns `arr[index]` exactly - see `retime_action`.
+                        action = self._retime_step(arr, index)
+                    else:
+                        action = arr[index]
                 if self._rtc_report and index == 0:
                     self._switch_flag = bool(self._pending_switch)
                     self._pending_switch = False
@@ -3016,6 +3257,72 @@ class SortingRLEnv:
             self._wait_gate_held += int(executed)
             self._wait_gate_hold_chunk = False
         return self._step_result()
+
+    def _retime_step(self, arr: np.ndarray, index: int) -> np.ndarray:
+        """P52 phase 2: the re-timed action for tick ``index`` (+ the gate row).
+
+        The gate is consulted per control tick against the **decision's own**
+        observation (the channels `proprio()` cached: at most 3 ticks old, since
+        the observation grid is 4 ticks). With the gate armed and the hand in
+        contact the effective scale is 1.0, which is the demonstrated rate - the
+        re-timing is applied to free-space motion only.
+
+        One ``[retime]`` row per **decision** (``index == 0``) carrying ``s``,
+        the effective scale, the gate state and the two channels it read, plus a
+        per-episode summary in `_retime_row`. Off, neither exists.
+        """
+        in_contact = bool(
+            self._retime_gate_on
+            and retime_contact(
+                self._retime_force_live,
+                self._retime_finger_live,
+                self._retime_force_threshold,
+                self._retime_open_threshold,
+            )
+        )
+        effective = 1.0 if in_contact else float(self._time_scale)
+        self._retime_calls += 1
+        if in_contact:
+            self._retime_gated += 1
+            if self._retime_force_live > self._retime_force_threshold:
+                self._retime_force_gated += 1
+            if self._retime_finger_live < self._retime_open_threshold:
+                self._retime_finger_gated += 1
+        if index == 0:
+            self._retime_decisions += 1
+            if in_contact:
+                self._retime_gated_decisions += 1
+            self._say(
+                f"[retime] ep={self._episode} decision={self._retime_decisions - 1} "
+                f"s={self._time_scale:.2f} s_eff={effective:.2f} "
+                f"contact={int(in_contact)} "
+                f"force={self._retime_force_live:.2f}N "
+                f"finger={self._retime_finger_live * 1000:.1f}mm "
+                f"step={self._step} tick={self._tick}"
+            )
+        return retime_action(arr, index, effective)
+
+    def _retime_row(self) -> str:
+        """P52 phase 2: the per-episode gate summary (armed runs only)."""
+        share = (
+            self._retime_gated_decisions / self._retime_decisions
+            if self._retime_decisions
+            else 0.0
+        )
+        tick_share = (
+            self._retime_gated / self._retime_calls if self._retime_calls else 0.0
+        )
+        return (
+            f"[retime] episode {self._episode}: s={self._time_scale:.2f} "
+            f"gate={int(self._retime_gate_on)} "
+            f"decisions={self._retime_decisions} "
+            f"gated={self._retime_gated_decisions} ({share:.1%}) "
+            f"ticks={self._retime_calls} gated_ticks={self._retime_gated} "
+            f"({tick_share:.1%}) "
+            f"by_force_ticks={self._retime_force_gated} "
+            f"by_finger_ticks={self._retime_finger_gated} "
+            f"force_max={self._retime_force_max:.2f}N"
+        )
 
     def _apply(self, action, index: int = 0) -> None:
         action = np.asarray(action, dtype=np.float64).reshape(-1)
@@ -4011,6 +4318,11 @@ class SortingRLEnv:
             f"reward={reward:.4f} notes={notes} presentation={self.presentation} "
             f"ablate={self.ablate}"
         )
+        if self._retime_on:
+            # P52 phase 2: the gate's own per-episode summary, so the duty cycle
+            # is readable without re-flowing the per-decision rows. One print,
+            # no state; the shipped path never reaches it.
+            self._say(self._retime_row())
         if self._refuse_knobs:
             # P38 phase 2: the harness's per-episode counters as one row, so
             # the batch is auditable from the log alone (scans, adoptions, the
