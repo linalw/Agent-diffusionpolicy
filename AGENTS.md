@@ -2330,6 +2330,36 @@ Pins: `rl_env.py` **`a1ae217a`** (both knobs default off), a new selfcheck leg
 `scripts/229_p53_emit_selftest.py`; no `configs/` change; evidence
 `logs/p53/{PREREG,P53_RESULTS}.md`, `p3/`.
 
+**P54 (2026-10-28, `logs/p54/`; **one shipped change, a recorded deviation from
+R5: the adaptive acquisition lead is now the direct presentation's default**): the
+shipped direct config was **not** the configuration on record.** Every "direct
+94.6 % / 4.8 %" number in this file was measured at `FRUIT_POLICY_TRIGGER_ACQ=1`,
+while the shipped default left `acq` **off** (W7-B/R5 kept the knob a *measurement
+interface*). P54 ran the A/B the record never did (N = 3 x 15, seeds 77/101/202,
+the P43 protocol, the park default, `moe_v13s` `61da390a`): **A (shipped, ACQ
+unset) 16/45 = 35.6 %** - right **15/28 = 53.6 %**, the **never-held class 26/45 =
+57.8 %**, the catch-up residual p50 **90.6 mm** (p90 391.6, max 1212.6; 24/45 over
+the 6 mm tolerance) - against **B (ACQ=1) 34/45 = 75.6 %**, right **34/35 =
+97.1 %**, never-held **2/45 = 4.4 %** (Fisher **p = 3.2e-8**; right 12/28 -> 1/35,
+left 14/17 -> 1/10), the residual p50 **5.7 mm**. **The mechanism is the fire
+budget**: the fixed 0.90 s lead fires at `t_arrive` 0.89-0.90 s on 45/45 against
+the handover's own **1.17 s** `wait` setup, so the close happens **72-566 mm past
+the fruit**; the ACQ lead (p50 2.11 s, cap 4.50) holds 0.75 s and closes at
+**3.6-3.9 mm**. **The left arm does not move** (1/17 -> 0/10; its class shifts
+14 never-held -> 9 cnp but not its rate - the closed grip class, not an ACQ
+effect). One B-only `fruit fell off the line` (a left kiwi at x = 0.176, below the
+left's 0.180 m floor - the P38 x-tail, not the knob). **The change**:
+`FRUIT_POLICY_TRIGGER_ACQ` resolves **on when `presentation == "direct"`**, an
+explicit `=0` restores, and the scripted / hybrid / two-line paths are untouched
+(the env-only knob is read in `rl_env.__init__`, verified by a 2-episode smoke
+that prints `acq=on` with the env unset). **The re-baseline rule**: every direct
+number from here is **ACQ-on**; the pre-P54 direct corpus is **ACQ-off** (35.6 %
+pooled / 53.6 % right) and must be labelled so. The root-cause alternative is
+named: a default lead **>= 1.17 s** would fix the timing without the ACQ formula
+(the lead is a plain env default) - its own pre-registration. Pins: `rl_env.py`
+**`5bc084d3`**, `policy/trigger.py` `b09d3cb2` unchanged; no `configs/` change;
+evidence `logs/p54/{PREREG,P54_RESULTS}.md`, `p1/`, `flip_smoke.log`.
+
 ## 3. What changed -> what to run
 
 | you changed | run |

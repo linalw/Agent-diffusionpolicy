@@ -1178,6 +1178,21 @@ class SortingRLEnv:
         #: enabled it fires the scripted primitive on the fruit's predicted
         #: arrival at the jaw, from the belt encoder / measured velocity.
         self.trigger_settings = TriggerSettings.from_env()
+        #: P54: the **direct presentation**'s measured configuration carries the
+        #: adaptive acquisition lead. The shipped default left `acq` off, and P54
+        #: measured the shipped direct config at **16/45** against **34/45** with
+        #: it (right 15/28 = 53.6 % -> 34/35 = 97.1 %; the never-held class 26 -> 2),
+        #: because the fixed 0.90 s lead fires *behind* the handover's own 1.17 s
+        #: setup (the catch-up residual p50 90.6 mm over the 6 mm tolerance). The
+        #: knob was registered as a measurement interface in W7-B/R5; this default
+        #: is a **recorded deviation** from that decision, scoped to the direct
+        #: presentation. An explicit `FRUIT_POLICY_TRIGGER_ACQ=0` restores the
+        #: pre-P54 default; the scripted, hybrid and two-line paths are untouched.
+        if (
+            "FRUIT_POLICY_TRIGGER_ACQ" not in os.environ
+            and self.presentation == "direct"
+        ):
+            self.trigger_settings.acq = True
         #: P28-B belt-speed channel, default off: with `FRUIT_OBS_SPEED` unset
         #: `proprio()` is the shipped 25-D vector and the extra value is never
         #: computed. Armed, the observation is 26-D and the checkpoint must be a
