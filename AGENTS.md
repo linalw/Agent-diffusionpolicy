@@ -2258,6 +2258,41 @@ class**. A future speed adoption therefore has to be argued on the **time**
 class, not on a class fix. Pins: no `src/` or `configs/` change; evidence
 `logs/p51/{COMBO_MAP,PREREG}.md`, `combo_map.py`/`_out.txt`.
 
+**P52 (2026-10-28, `logs/p52/`; the model lane: **the policy-side speed has a
+structural ceiling**, the two success hypotheses die offline; nothing adopted).**
+The frontier's gate is RoboPace's ladder (arXiv 2610.09696, on a **dual-arm
+OpenArm**): the same chunks at 10/30/50 Hz read **22/50 / ref / 4/50**, the
+kinematic-only RACE-style retiming **1/50**, and the **contact-gated 32/50** at
+half the slow arm's time - **the trade-off is speed *at contact***, and 1.67x
+uniform costs 84 % of the success. This tree's policy does not own the cycle, so
+the frontier's "beat the demo speed" framing does not transfer: the **policy phase
+is 14.2 % of a placed episode** (256 of 1800 ticks, `logs/p52/P2A_RESULTS.md`), a
+1.5x re-timing of the whole phase is worth at most **4.8 %**, and with the contact
+gate firing on **44.1 % of the decisions** (4492 of 10202 ticks; peak force
+216.4 N) the measured gain is **-48.1 ticks = -2.7 %** (paired, n = 23, 17/23
+negative) - **the arithmetic to the tick, and the registered -8 % bar was
+unreachable by construction**, so `FRUIT_POLICY_TIME_SCALE` /
+`FRUIT_POLICY_RETIME_GATE` stay **default off** (the 85 % scripted primitive is
+untouchable by any policy-side execution lever). **Two success hypotheses died
+offline** (`logs/p52/P2B_FEASIBILITY.md`): (1) the **reached-state supervision**
+is not a defect - the labels are **0/581 455** out-of-range and the HOLD-frame
+residual is 0.84/0.01 mm; the real defect is the **policy's own emissions**
+(**13.1 % of joint steps out-of-range on 74.3 % of ticks**, 3-9 deg overshoot, no
+clamp, a **19.3 mm p50 task-space dither**); (2) **PACE** (NeurIPS 2026, the
+phase-aware execution horizon) dies structurally - the policy's chunks are **noise,
+not a trajectory** (within-chunk min p50 2.44 rad/s, 0/60 below 0.30 rad/s,
+|2nd|/|1st| 1.16), so the horizon rule returns h = 16 everywhere (64 -> 16
+decisions, wall -12 %, **sim and placements unchanged**), and the policy's "phase"
+is the belt-arrival wait, which the floor already covers. **Corrections the lane
+made to its own census**: the decisions/episode is **53-84** (not 246-259 - that
+was a tick count), the latency bound is **h <= 7** (71 ms = 8.5 actions, not 13),
+and the intra-chunk rates were **4x understated** (the p99 headroom 2.35x/3.34x ->
+**0.83x**). The named next lever is the **opposite** direction: an **action-hold**
+(more ticks per action, to fix the dither/overshoot) plus a **joint clamp** on the
+emissions - a success-first cell with the ticks as a reported cost. Pins: no
+`src/`/`configs/` change shipped (both knobs default off); evidence
+`logs/p52/{FRONTIER,MODEL_CENSUS,P2A_RESULTS,P2B_FEASIBILITY}.md`, `p2/`.
+
 ## 3. What changed -> what to run
 
 | you changed | run |

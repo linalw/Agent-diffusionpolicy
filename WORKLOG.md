@@ -19404,3 +19404,23 @@ guard, the hand-over timing, the x-ceiling and the combination were all refuted 
 measurement, the speed is real, and its cost is the closed grip class - a future
 adoption must be argued on the time with the cost named as the documented class.
 Evidence `logs/p51/{COMBO_MAP,PREREG}.md`.
+
+### P52: the model lane - the policy-side speed is capped at ~3-5 %, the two success hypotheses die offline (2026-10-28)
+
+Frontier gate: RoboPace (arXiv 2610.09696, a dual-arm OpenArm) - the same chunks at
+10/30/50 Hz read 22/50 / ref / 4/50, kinematic-only RACE-style 1/50, contact-gated
+32/50 at half the slow arm's time: the trade-off is speed AT CONTACT, and 1.67x
+uniform costs 84 % of the success. This tree's policy does not own the cycle: the
+policy phase is 14.2 % of a placed episode (256/1800 ticks), so a 1.5x re-timing is
+worth <= 4.8 %, and with the gate firing on 44.1 % of decisions the measured gain is
+-48.1 ticks = -2.7 % (n = 23, 17/23 negative) - the arithmetic to the tick, and the
+-8 % bar was unreachable. FRUIT_POLICY_TIME_SCALE / _RETIME_GATE stay default off.
+Two success hypotheses died offline: the reached-state supervision is not a defect
+(0/581455 labels out of range, HOLD residual 0.84/0.01 mm; the defect is the policy's
+own emissions: 13.1 % of joint steps out of range on 74.3 % of ticks, a 19.3 mm p50
+dither), and PACE dies structurally (the chunks are noise: 0/60 below 0.30 rad/s, so
+h = 16 everywhere; 64 -> 16 decisions, wall -12 %, sim/placements unchanged; the
+policy's phase is the belt-arrival wait). Corrections: the decisions/episode is
+53-84 (not 246-259 - a tick count), the latency bound is h <= 7 (not 13), and the
+intra-chunk rates were 4x understated. Named next: the action-hold (more ticks per
+action) + a joint clamp - a success-first cell.
