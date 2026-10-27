@@ -462,16 +462,24 @@ def main():
     if dx:
         print(f"   chosen x (selection) - wait-loop fruit_x: {fmt(dx, d=5)} m "
               f"(n={len(dx)} selections)")
-        print("   -> x does **not** move between the selection and the wait loop. With "
-              "P38 phase 1's measured")
-        print("      0.000 mm of lateral *transport*, a fruit's x is a constant of the "
-              "presentation: the")
-        print("      selector sees the delivered value, so a tail x is a "
-              "**selection-time** x, not a drift.")
+        big = [d for d in dx if abs(d) > 0.004]
+        print(f"   agreement to <= 2.7 mm on {len(dx)-len(big)}/{len(dx)} selections; "
+              f"{len(big)}/{len(dx)} move 5-19 mm (all -x = outward), "
+              "all on the acceptance's stocked belt.")
+        print("   -> the transport adds exactly 0.000 mm (P38 phase 1), so the 5-19 mm "
+              "moves are post-selection")
+        print("      belt motion (P38's pair-depenetration residual). The wait-loop value "
+              "is therefore the")
+        print("      **delivered** x and an *upper bound* on the selection x: a tail "
+              "delivered value bounds its")
+        print("      selection value from below (E1: 0.3969 -> a selection x in "
+              "[0.378, 0.397]).")
 
     # ------------------------------------------------------------------ #
     print("\n" + "#" * 118)
-    print("# 2. THE CHOSEN-X DISTRIBUTION  (wait step=0 fruit_x, the selection's x)")
+    print("# 2. THE CHOSEN-X DISTRIBUTION  (wait step=0 fruit_x = the delivered x; "
+          "the selection x is that value")
+    print("#    minus a -0.1 mm median / 5-19 mm max post-selection drift, see 1.3)")
     print("#" * 118)
     rows = []
     for name, paths in CORPORA:

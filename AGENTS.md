@@ -2178,21 +2178,23 @@ displacement** event. Pins: no `src/` or `configs/` change; evidence
 `logs/p48/{HANDOVER_CENSUS,PREREG}.md`, `handover_census.py`/`_out.txt`.
 
 **P49 (2026-10-27, `logs/p49/`; **not run - the ceiling refuses nothing**, nothing
-adopted): the selector's x is always inside the band, and the failing x is the
-**post-selection drift**.** The census (`logs/p49/SELECT_CENSUS.md`) reads the
-`[bed-sel]` selection census across the shipped / P44 / P46 corpora: the **chosen
-fruit's x never exceeds 0.38** (max **0.3653-0.3802**), so a ceiling at 0.39,
-0.40 or 0.42 refuses **0 of 40** selections at every threshold - the lever is
-**inert by construction**, because the P48 failures' x (0.391-0.397) is the
-**drifted x at the close**, measured **after** the selection. The drift is P38's
-**per-instance release offset** (delivered x = spawn x + offset(instance)), not a
-selection error. A binding ceiling would also be expensive: a usable set of **1**
-in **25/40** selections means a **skip** (no substitute), and the 14/40 with two
-would substitute at **+1.08 to +2.08 s** (the next fruit arrives sooner). **The
-named next lever is therefore P38b's per-instance release-offset compensation at
-`respawn`** - the one thing that puts the *delivered* x back inside the band - and
-not a selection rule. Pins: no `src/` or `configs/` change; evidence
-`logs/p49/{SELECT_CENSUS,PREREG}.md`, `select_census.py`/`_out.txt`.
+adopted): there are **two x populations**, and the ceiling only sees the first.**
+The census (`logs/p49/SELECT_CENSUS.md`) separates them: the **selection-time x**
+(the `[bed-sel]` live set, 40 selections) has max **0.369**, so a ceiling at 0.39,
+0.40 or 0.42 refuses **0 of 40**; the **delivered x** (174 unique attempts of 346
+raw rows) reads p50 **0.276**, p90 **0.347**, max **0.3969**, with **> 0.39 =
+3 (1.7 %)** - shipped 0/33, P44 2/73, P45 0/33, two-line 1/35. **The post-selection
+x is not an identity**: 34/39 selections agree to <= 2.7 mm but **5/39 move
+outward 5.3-19.2 mm** (P38's depenetration residual), so the failing x is bounded
+to **[0.378, 0.397]** and the ceiling cannot catch it - the lever is **inert for
+this class** (an earlier draft of this paragraph overstated it as "never exceeds
+0.38" by reading one arm's range). A binding ceiling would also be expensive: a
+usable set of **1** in **25/40** selections means a **skip** (no substitute), and
+the 14/40 with two would substitute at **+0.9 to +2.1 s** (the next fruit arrives
+sooner). **The named next lever is therefore P38b's per-instance release-offset
+compensation at `respawn`** (P50) - the one thing that puts the *delivered* x back
+inside the band - not a selection rule. Pins: no `src/` or `configs/` change;
+evidence `logs/p49/{SELECT_CENSUS,PREREG}.md`, `select_census.py`/`_out.txt`.
 
 ## 3. What changed -> what to run
 

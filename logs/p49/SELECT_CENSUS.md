@@ -131,7 +131,7 @@ the overlap). So:
 reach **0.18-0.39** with a hard cliff at **0.42** (P34/P38/P47); the pick station
 sits at x ~ 0.333, so the tail that matters is the **high** side.
 
-Why `wait step=0` is taken as the selection's x — with a **measured 5-19 mm
+Why `wait step=0` is used as the x of record — with a **measured 5-19 mm
 exception**: the transport contributes exactly 0.000 mm of lateral motion (P38
 phase 1), and 34 of 39 selections agree between the block's selection read and
 the wait-loop read to <= 2.7 mm (median -0.1 mm). But **5 of 39 move 5.3-19.2 mm
@@ -373,9 +373,10 @@ there). No claim that the 0.39 ceiling is the *right* value — the corpus only
 says 0.40 and 0.42 are empty and 0.39 is a 1.7 % tail; the clean-band edge (0.39)
 is P34's measurement, not this census's. And **no claim that the lever is inert
 by construction**: it refuses nothing on the *shipped C branch* (0/40), but the
-population contains 3 tail presentations and 1.3 of them (by the 34/39 frequency)
-would be refused at the selection instant — which is a measurement the event arm
-owes, not an inference either way.
+population does contain tail presentations whose *selection* x is **bounded, not
+known** (E1 in [0.378, 0.397]; the drift distribution that produces the bound is
+34/39 within 2.7 mm, 5/39 up to 19.2 mm). Whether the ceiling fires there is a
+measurement the event arm owes — neither an inference nor a closure.
 
 **Corrections carried here.** (i) P48 §2's `queue = 5` for E3 -> **3** (§4). (ii)
 `queue` is a 0.50 m along-band depth, not a floored-window count — P48 used it as
