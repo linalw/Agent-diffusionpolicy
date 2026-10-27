@@ -1,0 +1,385 @@
+P48 phase 1 - the hand-over timing census
+====================================================================================================
+
+## shipped   (2 measured logs of 2 files, 20 attempts)
+   outcomes placed 12 cnp 7 nograsp 0 skip 1
+   residual      19 rows: n=19  min=   5.6 p50=   5.9 p90=   5.9 p99=   6.0 max=   6.0
+   > 6 mm        0 rows
+   delivered x   n=19  min= 0.209 p50= 0.291 p90= 0.354 p99= 0.365 max= 0.365   (|x| >= 0.390: 0/19)
+   selection dy0 n=19  min= 0.230 p50= 0.375 p90= 0.462 p99= 0.486 max= 0.486
+
+## P44-speed   (16 measured logs of 17 files, 160 attempts)
+   outcomes placed 104 cnp 44 nograsp 11 skip 1
+   residual      159 rows: n=159 min=   5.4 p50=   5.9 p90=   6.0 p99= 245.8 max= 251.0
+   > 6 mm        4 rows -> nograsp, nograsp, nograsp, nograsp
+      accept_s5_S2.log           idx=1    kiwi       arm=left  residual=  219.6 x0=0.3969 dy0=0.3849
+      twoline_s5_C.log           idx=13   kiwi       arm=left  residual=  251.0 x0=0.3908 dy0=0.4486
+      twoline_s5_S13.log         idx=13   kiwi       arm=left  residual=  251.0 x0=0.3908 dy0=0.4486
+      amend_F_S2.log             idx=1    kiwi       arm=left  residual=  245.8 x0=0.3966 dy0=0.442
+   delivered x   n=159 min= 0.201 p50= 0.282 p90= 0.365 p99= 0.391 max= 0.397   (|x| >= 0.390: 4/159)
+   selection dy0 n=159 min= 0.201 p50= 0.379 p90= 0.477 p99= 0.545 max= 0.570
+
+## P45-mass   (10 measured logs of 10 files, 100 attempts)
+   outcomes placed 59 cnp 40 nograsp 0 skip 1
+   residual      99 rows: n=99  min=   5.6 p50=   5.9 p90=   6.0 p99=   6.0 max=   6.0
+   > 6 mm        0 rows
+   delivered x   n=99  min= 0.193 p50= 0.273 p90= 0.351 p99= 0.365 max= 0.365   (|x| >= 0.390: 0/99)
+   selection dy0 n=99  min= 0.211 p50= 0.390 p90= 0.468 p99= 0.488 max= 0.491
+
+## P46-twoline   (4 measured logs of 4 files, 40 attempts)
+   outcomes placed 32 cnp 0 nograsp 8 skip 0
+   residual      40 rows: n=40  min=   5.4 p50=   5.9 p90=   6.0 p99= 480.6 max= 480.6
+   > 6 mm        4 rows -> nograsp, nograsp, nograsp, nograsp
+      twoline_s5_C.log           idx=13   kiwi       arm=left  residual=  251.0 x0=0.3908 dy0=0.4486
+      twoline_s5_U.log           idx=13   kiwi       arm=left  residual=  251.0 x0=0.3908 dy0=0.4486
+      twoline_s6_C.log           idx=7    kiwi       arm=right residual=  480.6 x0=0.273 dy0=0.3902
+      twoline_s6_U.log           idx=7    kiwi       arm=right residual=  480.6 x0=0.273 dy0=0.3902
+   delivered x   n=40  min= 0.204 p50= 0.302 p90= 0.355 p99= 0.391 max= 0.391   (|x| >= 0.390: 2/40)
+   selection dy0 n=40  min= 0.239 p50= 0.411 p90= 0.535 p99= 0.570 max= 0.570
+
+====================================================================================================
+POOLED
+   closes with a residual print: 317
+   > 6 mm : 8 rows; outcomes nograsp=8
+   <=6 mm : 309 rows; outcomes placed=207, cnp=91, nograsp=11
+   Fisher (nograsp | >6 vs <=6): p = 3.27e-11
+
+   delivered |x| >= 0.390: 6 of 317 closes; >6 mm in that set 6/6
+   >6 mm share: |x|>=0.390 6/6  vs |x|<0.390 2/311  Fisher p = 2.08e-11
+
+   per-species: closes / >6 mm / placed / cnp / nograsp
+     apple       23 /  0 /  23 /   0 /   0
+     kiwi        35 /  8 /  22 /   3 /  10
+     lychee      26 /  0 /  14 /  11 /   1
+     orange      19 /  0 /   6 /  13 /   0
+     peach       50 /  0 /  15 /  29 /   6
+     pear       114 /  0 /  85 /  29 /   0
+     strawberry  31 /  0 /  28 /   1 /   2
+     tomato      19 /  0 /  14 /   5 /   0
+
+====================================================================================================
+THE DELIVERED-X BANDS (the fruit's lateral x at the wait loop's first step)
+   |x| <=0.25     n=106  >6mm= 0  placed= 55 cnp= 45 nograsp=  6  species=['apple', 'lychee', 'orange', 'peach', 'pear', 'strawberry', 'tomato']
+   |x| 0.25-0.30  n= 86  >6mm= 2  placed= 74 cnp= 10 nograsp=  2  species=['apple', 'kiwi', 'lychee', 'orange', 'peach', 'pear', 'strawberry', 'tomato']
+   |x| 0.30-0.35  n= 78  >6mm= 0  placed= 58 cnp= 17 nograsp=  3  species=['apple', 'kiwi', 'lychee', 'orange', 'peach', 'pear', 'strawberry', 'tomato']
+   |x| 0.35-0.38  n= 39  >6mm= 0  placed= 20 cnp= 19 nograsp=  0  species=['kiwi', 'peach', 'pear', 'strawberry']
+   |x| 0.38-0.39  n=  2  >6mm= 0  placed=  0 cnp=  0 nograsp=  2  species=['kiwi']
+   |x| >=0.390    n=  6  >6mm= 6  placed=  0 cnp=  0 nograsp=  6  species=['kiwi']
+
+   THE APPROACH'S FINAL ERROR (`end=`, the descent's last commanded-vs-achieved gap)
+     placed         n=207 min=   8.1 p50=   9.2 p90=  10.2 p99=  10.4 max=  10.4
+     cnp            n=91  min=   8.1 p50=   9.5 p90=  10.4 p99=  10.4 max=  10.6
+     nograsp <=6mm  n=11  min=   8.5 p50=   9.2 p90=   9.4 p99=  10.0 max=  10.0
+     nograsp >6mm   n=8   min=  10.1 p50=  10.6 p90=  14.8 p99=  15.3 max=  15.3
+     |x| >= 0.38    n=8   min=   8.8 p50=  10.1 p90=  14.8 p99=  15.3 max=  15.3
+
+   WITHIN-SPECIES TEST (is |x| a proxy for the species?)
+     kiwi       |x|>=0.38 nograsp 8/8  vs  <0.38 2/27   Fisher p = 1.91e-06
+     peach      no 2x2 (hi 0 / lo 50)
+     pear       no 2x2 (hi 0 / lo 114)
+     strawberry no 2x2 (hi 0 / lo 31)
+
+   the residual's gap (sorted values above the 6 mm tolerance):
+      [219.6, 245.8, 251.0, 480.6]   (below it: max 6.0 mm)
+
+   EACH EVENT'S INPUT RANK IN THE 317-CLOSE POPULATION (percentile, 0 = low)
+      accept_s5_S2.log         idx=1    res=  219.6  x0=100% (317/317)  dy0=49% (154/317)  wait=18% (56/317)  tip=65% (207/317)  arrived=54% (138/257)
+      twoline_s5_C.log         idx=13   res=  251.0  x0=99% (315/317)  dy0=74% (235/317)  wait= 6% (20/317)  tip=32% (100/317)  arrived=            -
+      twoline_s5_S13.log       idx=13   res=  251.0  x0=99% (315/317)  dy0=74% (235/317)  wait= 6% (20/317)  tip=32% (100/317)  arrived=            -
+      amend_F_S2.log           idx=1    res=  245.8  x0=100% (316/317)  dy0=72% (229/317)  wait=31% (97/317)  tip=65% (207/317)  arrived=75% (193/257)
+      twoline_s5_C.log         idx=13   res=  251.0  x0=99% (315/317)  dy0=74% (235/317)  wait= 6% (20/317)  tip=32% (100/317)  arrived=            -
+      twoline_s5_U.log         idx=13   res=  251.0  x0=99% (315/317)  dy0=74% (235/317)  wait= 6% (20/317)  tip=32% (100/317)  arrived=            -
+      twoline_s6_C.log         idx=7    res=  480.6  x0=46% (147/317)  dy0=52% (165/317)  wait=  3% (8/317)  tip=32% (100/317)  arrived=            -
+      twoline_s6_U.log         idx=7    res=  480.6  x0=46% (147/317)  dy0=52% (165/317)  wait=  3% (8/317)  tip=32% (100/317)  arrived=            -
+
+   THE TICK DECOMPOSITION (residual - 200 ticks x 1.0 mm/tick of belt travel)
+      accept_s5_S2.log         idx=1    res=  219.6  - 200 mm =    19.6 mm   (1.10x the horizon)   approach end=15.3 mm
+      twoline_s5_C.log         idx=13   res=  251.0  - 200 mm =    51.0 mm   (1.25x the horizon)   approach end=10.1 mm
+      twoline_s5_S13.log       idx=13   res=  251.0  - 200 mm =    51.0 mm   (1.25x the horizon)   approach end=10.1 mm
+      amend_F_S2.log           idx=1    res=  245.8  - 200 mm =    45.8 mm   (1.23x the horizon)   approach end=14.8 mm
+      twoline_s5_C.log         idx=13   res=  251.0  - 200 mm =    51.0 mm   (1.25x the horizon)   approach end=10.1 mm
+      twoline_s5_U.log         idx=13   res=  251.0  - 200 mm =    51.0 mm   (1.25x the horizon)   approach end=10.1 mm
+      twoline_s6_C.log         idx=7    res=  480.6  - 200 mm =   280.6 mm   (2.40x the horizon)   approach end=10.6 mm
+      twoline_s6_U.log         idx=7    res=  480.6  - 200 mm =   280.6 mm   (2.40x the horizon)   approach end=10.6 mm
+
+====================================================================================================
+THE FOUR FAILING EVENTS (residual > 6 mm), full record
+
+   logs/p44/p2/accept_s5_S2.log   attempt idx=1  arm=left  species=kiwi  dia=5.6  ordinal=False
+      x0               0.3969
+      dy0              0.3849
+      lead             0.189
+      handover_dy      0.1889
+      queue            2
+      arrived_steps    196
+      moving_mm        196
+      tip              61
+      wait_ticks       65
+      shift            0.0172
+      desc_fruit_dy    0.085
+      approach_vmax    0.115
+      approach_end     15.3
+      residual         219.6
+      grip_closed      54.1
+      grip_fruit       55.8
+      reseats          2
+      outcome          nograsp
+      lift             0.0
+      notes            'fruit did not follow the gripper'
+
+   logs/p44/p2/twoline_s5_C.log   attempt idx=13  arm=left  species=kiwi  dia=5.4  ordinal=True
+      x0               0.3908
+      dy0              0.4486
+      tip              59
+      wait_ticks       59
+      shift            0.0179
+      desc_fruit_dy    0.085
+      approach_vmax    0.107
+      approach_end     10.1
+      residual         251.0
+      reseats          0
+      outcome          nograsp
+      lift             0.0
+      notes            'fruit did not follow the gripper'
+
+   logs/p44/p2/twoline_s5_S13.log   attempt idx=13  arm=left  species=kiwi  dia=5.4  ordinal=True
+      x0               0.3908
+      dy0              0.4486
+      tip              59
+      wait_ticks       59
+      shift            0.0179
+      desc_fruit_dy    0.085
+      approach_vmax    0.107
+      approach_end     10.1
+      residual         251.0
+      reseats          0
+      outcome          nograsp
+      lift             0.0
+      notes            'fruit did not follow the gripper'
+
+   logs/p44/p2/amend_F_S2.log   attempt idx=1  arm=left  species=kiwi  dia=5.6  ordinal=False
+      x0               0.3966
+      dy0              0.442
+      lead             0.189
+      handover_dy      0.189
+      queue            2
+      arrived_steps    253
+      moving_mm        196
+      tip              61
+      wait_ticks       68
+      shift            0.0178
+      desc_fruit_dy    0.084
+      approach_vmax    0.114
+      approach_end     14.8
+      residual         245.8
+      grip_closed      53.8
+      grip_fruit       55.8
+      reseats          2
+      outcome          nograsp
+      lift             0.0
+      notes            'fruit did not follow the gripper'
+
+   logs/p46/p1/twoline_s5_C.log   attempt idx=13  arm=left  species=kiwi  dia=5.4  ordinal=True
+      x0               0.3908
+      dy0              0.4486
+      tip              59
+      wait_ticks       59
+      shift            0.0179
+      desc_fruit_dy    0.085
+      approach_vmax    0.107
+      approach_end     10.1
+      residual         251.0
+      reseats          0
+      outcome          nograsp
+      lift             0.0
+      notes            'fruit did not follow the gripper'
+
+   logs/p46/p1/twoline_s5_U.log   attempt idx=13  arm=left  species=kiwi  dia=5.4  ordinal=True
+      x0               0.3908
+      dy0              0.4486
+      tip              59
+      wait_ticks       59
+      shift            0.0179
+      desc_fruit_dy    0.085
+      approach_vmax    0.107
+      approach_end     10.1
+      residual         251.0
+      reseats          0
+      outcome          nograsp
+      lift             0.0
+      notes            'fruit did not follow the gripper'
+
+   logs/p46/p1/twoline_s6_C.log   attempt idx=7  arm=right  species=kiwi  dia=6.2  ordinal=True
+      x0               0.273
+      dy0              0.3902
+      tip              59
+      wait_ticks       53
+      shift            0.0172
+      desc_fruit_dy    0.083
+      approach_vmax    0.108
+      approach_end     10.6
+      residual         480.6
+      reseats          0
+      outcome          nograsp
+      lift             0.0
+      notes            'fruit did not follow the gripper'
+
+   logs/p46/p1/twoline_s6_U.log   attempt idx=7  arm=right  species=kiwi  dia=6.2  ordinal=True
+      x0               0.273
+      dy0              0.3902
+      tip              59
+      wait_ticks       53
+      shift            0.0172
+      desc_fruit_dy    0.083
+      approach_vmax    0.108
+      approach_end     10.6
+      residual         480.6
+      reseats          0
+      outcome          nograsp
+      lift             0.0
+      notes            'fruit did not follow the gripper'
+
+====================================================================================================
+THE CONVERGED CLOSE LOSSES (residual <= 6 mm, outcome no-grasp)
+   11 rows
+
+   accept_s5_S1.log           idx=1    kiwi       arm=left  dia=5.6 residual=5.5 x0=0.3802 dy0=0.4307
+      close_ticks      22
+      close_force      9.24
+      close_span       70.1
+      grip_closed      61.7
+      grip_fruit       55.8
+      reseats          2
+      lift             0.0
+      notes            'fruit did not follow the gripper'
+
+   accept_s5_S3.log           idx=3    lychee     arm=left  dia=3.0 residual=6.0 x0=0.2239 dy0=0.2675
+      close_ticks      60
+      close_force      8.6
+      close_span       42.5
+      grip_closed      27.1
+      grip_fruit       29.6
+      reseats          2
+      lift             0.003
+      notes            'fruit did not follow the gripper'
+
+   accept_s6_C.log            idx=0    strawberry arm=right dia=3.1 residual=5.8 x0=0.3162 dy0=0.3217
+      close_ticks      50
+      close_force      35.85
+      close_span       39.2
+      grip_closed      26.299999999999997
+      grip_fruit       31.400000000000002
+      reseats          2
+      lift             0.004
+      notes            'fruit did not follow the gripper'
+
+   accept_s6_S13.log          idx=0    strawberry arm=right dia=3.1 residual=5.8 x0=0.3162 dy0=0.3217
+      close_ticks      50
+      close_force      35.85
+      close_span       39.2
+      grip_closed      26.299999999999997
+      grip_fruit       31.400000000000002
+      reseats          2
+      lift             0.004
+      notes            'fruit did not follow the gripper'
+
+   twoline_s5_C.log           idx=12   peach      arm=right dia=6.9 residual=5.9 x0=0.2395 dy0=0.5703
+      reseats          0
+      lift             0.002
+      notes            'fruit did not follow the gripper'
+
+   twoline_s5_S13.log         idx=12   peach      arm=right dia=6.9 residual=5.9 x0=0.2395 dy0=0.5703
+      reseats          0
+      lift             0.002
+      notes            'fruit did not follow the gripper'
+
+   amend_E_S1.log             idx=1    kiwi       arm=left  dia=5.6 residual=5.5 x0=0.3802 dy0=0.4307
+      close_ticks      22
+      close_force      9.24
+      close_span       70.1
+      grip_closed      61.7
+      grip_fruit       55.8
+      reseats          2
+      lift             0.0
+      notes            'fruit did not follow the gripper'
+      carry            {'clean_slip': '736.5', 'force_onset': '0.00', 'sep_onset': '31.7', 'contacts_onset': '0', 'min_contacts': '0', 'force_min': '0.00', 'loss_row': '1', 'gap_start': '46.7'}
+
+   twoline_s5_C.log           idx=12   peach      arm=right dia=6.9 residual=5.9 x0=0.2395 dy0=0.5703
+      reseats          0
+      lift             0.002
+      notes            'fruit did not follow the gripper'
+
+   twoline_s5_U.log           idx=12   peach      arm=right dia=6.9 residual=5.9 x0=0.2395 dy0=0.5703
+      reseats          0
+      lift             0.002
+      notes            'fruit did not follow the gripper'
+
+   twoline_s6_U.log           idx=0    peach      arm=left  dia=6.6 residual=6.0 x0=0.3343 dy0=0.272
+      reseats          0
+      lift             0.04
+      notes            'fruit did not follow the gripper'
+
+   twoline_s6_U.log           idx=13   peach      arm=right dia=6.6 residual=6.0 x0=0.2306 dy0=0.5138
+      reseats          0
+      lift             0.002
+      notes            'fruit did not follow the gripper'
+
+   placed reference (same fields):
+      close_ticks      n=159 min=  16.0 p50=  23.0 p90=  29.0 p99=  44.0 max=  49.0
+      close_force      n=159 min=   4.3 p50=  10.0 p90=  11.6 p99=  13.4 max=  16.6
+      close_span       n=159 min=  38.6 p50=  70.8 p90=  79.6 p99=  81.4 max=  83.7
+      reseats          n=207 min=   0.0 p50=   0.0 p90=   0.0 p99=   0.0 max=   0.0
+      grip_closed - dia  losses n=5   min= -5.10 p50= -2.50 p90= +5.90 p99= +5.90 max= +5.90
+      grip_closed - dia  placed n=159 min= -9.70 p50= -1.40 p90= -0.90 p99= +5.50 max= +5.90
+
+====================================================================================================
+TWO-LINE META (arm-blind rows, listed for the record)
+
+   logs/p44/p2/twoline_s5_C.log
+      catches 10 arm-by-descent {'left': 5, 'right': 5, '?': 0}
+      closes 9 grips 10 reseats 5 drifts []
+
+   logs/p44/p2/twoline_s5_S13.log
+      catches 10 arm-by-descent {'left': 5, 'right': 5, '?': 0}
+      closes 9 grips 10 reseats 6 drifts []
+
+   logs/p46/p1/twoline_s5_C.log
+      catches 10 arm-by-descent {'left': 5, 'right': 5, '?': 0}
+      closes 9 grips 10 reseats 5 drifts []
+
+   logs/p46/p1/twoline_s5_U.log
+      catches 10 arm-by-descent {'left': 5, 'right': 5, '?': 0}
+      closes 9 grips 10 reseats 6 drifts []
+
+   logs/p46/p1/twoline_s6_C.log
+      catches 10 arm-by-descent {'left': 5, 'right': 5, '?': 0}
+      closes 10 grips 10 reseats 2 drifts [379]
+      anomalous close {'ticks': 5, 'force': 58.15, 'span': 99.1}
+      anomalous close {'ticks': 39, 'force': 21.23, 'span': 37.7}
+
+   logs/p46/p1/twoline_s6_U.log
+      catches 10 arm-by-descent {'left': 5, 'right': 5, '?': 0}
+      closes 10 grips 10 reseats 4 drifts [379]
+      anomalous close {'ticks': 5, 'force': 58.15, 'span': 99.1}
+      anomalous close {'ticks': 84, 'force': 21.72, 'span': 38.3}
+      anomalous close {'ticks': 65, 'force': 22.59, 'span': 35.4}
+
+VALIDATION: per-arm row counts (targets / waits / descents / results / catches)
+   logs/p44/p2/twoline_s5_C.log
+      ('left', 5, 5, 5, 5, 5)
+      ('right', 5, 5, 5, 5, 5)
+   logs/p44/p2/twoline_s5_S13.log
+      ('left', 5, 5, 5, 5, 5)
+      ('right', 5, 5, 5, 5, 5)
+   logs/p46/p1/twoline_s5_C.log
+      ('left', 5, 5, 5, 5, 5)
+      ('right', 5, 5, 5, 5, 5)
+   logs/p46/p1/twoline_s5_U.log
+      ('left', 5, 5, 5, 5, 5)
+      ('right', 5, 5, 5, 5, 5)
+   logs/p46/p1/twoline_s6_C.log
+      ('left', 5, 5, 5, 5, 5)
+      ('right', 5, 5, 5, 5, 5)
+   logs/p46/p1/twoline_s6_U.log
+      ('left', 5, 5, 5, 5, 5)
+      ('right', 5, 5, 5, 5, 5)
