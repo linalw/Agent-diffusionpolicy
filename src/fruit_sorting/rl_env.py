@@ -615,6 +615,119 @@ def retime_contact(
     )
 
 
+def resolve_joint_clamp(raw: str | None) -> bool:
+    """P53 C1: `FRUIT_POLICY_JOINT_CLAMP` -> clip the 7 joint targets?
+
+    ``False`` (unset) is the shipped path: `_apply` hands the policy's 7
+    absolute joint targets to the drives **untouched**, so a command past a
+    joint stop is not refused and the drive pushes into the stop - the mechanism
+    `logs/p52/P2B_FEASIBILITY.md` section 1.6 measures (**13.1 % of joint-steps
+    out of range, on 74.3 % of ticks**, j3 1 750 of 23 548, a 2.8-3.2 deg p50
+    overshoot with the measured joint at the stop). ``True`` clips each of the
+    seven targets into the arm's own measured joint range
+    (`ArmController.arm_lo`/`arm_hi`, read once from `get_dof_limits()` at
+    construction - `control.py:197-202`) before the drives see it.
+
+    The tokens are parsed strictly (the P44/P45/P52 precedent): a typo that fell
+    back to the shipped value would be published as a null result, so anything
+    that is not an explicit false/true token is a hard error.
+    """
+    text = "" if raw is None else str(raw).strip().lower()
+    if text in ("", "0", "false", "no", "off"):
+        return False
+    if text in ("1", "true", "yes", "on"):
+        return True
+    raise ValueError(
+        f"FRUIT_POLICY_JOINT_CLAMP={raw!r} is not a boolean (0/1, off/on, "
+        "false/true, no/yes)"
+    )
+
+
+def resolve_action_hold(raw: str | None) -> int:
+    """P53 C2: `FRUIT_POLICY_ACTION_HOLD` -> control ticks per executed waypoint.
+
+    ``1`` (unset) is the shipped path: one chunk waypoint per control tick, i.e.
+    the 16-waypoint chunk is replayed at **120 Hz** although the training stream
+    was recorded at 30 Hz (one frame per 4 control ticks, `_record_tick`). The
+    census's own read of that mismatch is a **10x command dither** with a
+    **19.3 mm p50** same-tick tracking residual while the arm's *achieved* rate
+    is the demo's own (`logs/p52/P2B_FEASIBILITY.md` section 2.5).
+
+    ``hold = n`` executes each waypoint for ``n`` control ticks, so the chunk's
+    command rate becomes ``120 / n`` Hz and one decision covers
+    ``execute_steps * n`` ticks. The registered cell is ``n = 2`` (60 Hz, half
+    the command rate, half the decisions); any integer >= 1 is accepted so the
+    knob is a rate, not a switch. A non-integer, a zero, a negative and a
+    non-finite value are hard errors for the same reason as C1's.
+    """
+    text = "" if raw is None else str(raw).strip()
+    if not text:
+        return 1
+    try:
+        value = float(text)
+    except ValueError:
+        raise ValueError(f"FRUIT_POLICY_ACTION_HOLD={raw!r} is not a number") from None
+    if not math.isfinite(value) or value != int(value):
+        raise ValueError(
+            f"FRUIT_POLICY_ACTION_HOLD={raw!r} must be a whole number of ticks"
+        )
+    value = int(value)
+    if value < 1:
+        raise ValueError(
+            f"FRUIT_POLICY_ACTION_HOLD={raw!r} must be >= 1 tick per waypoint "
+            "(1 is the shipped one-waypoint-per-tick execution)"
+        )
+    return value
+
+
+def clamp_joint_targets(action: np.ndarray, lo, hi) -> np.ndarray:
+    """P53 C1: the 9-D action with its 7 arm targets inside ``[lo, hi]``.
+
+    Returns a **new** array: `_apply` receives a row of the caller's chunk
+    (`np.asarray(...).reshape(-1)` can be a view of a float64 chunk), so writing
+    the clip in place would silently rewrite the policy's prediction for every
+    later tick of the same chunk. The finger channels (7, 8) are untouched -
+    `_apply` already clips channel 7 to the 0-44 mm opening.
+
+    With every value already inside the range this is the input values
+    unchanged (element for element, signed zeros included), which is why the
+    knob-off path is the shipped expression rather than "the same arithmetic".
+    """
+    out = np.array(action, dtype=np.float64, copy=True)
+    out[:7] = np.clip(out[:7], np.asarray(lo, dtype=np.float64), np.asarray(hi, dtype=np.float64))
+    return out
+
+
+def emit_out_of_range(q, lo, hi) -> tuple[int, float]:
+    """P53: how many of the 7 joint targets are outside the range, and by how far.
+
+    The number is the census's own count (`logs/p52/P2B_FEASIBILITY.md` 1.6:
+    "13.1 % of joint-steps ... on 74.3 % of ticks"), reported for the command
+    *before* the clamp (C1's input, T0's whole stream) and *after* it (what the
+    drives receive). The overshoot is the largest single-joint excursion in rad,
+    so a clamp that only trims rounding noise reads differently from one that
+    trims a 3 deg overshoot. A 1e-12 tolerance keeps an exactly-on-the-stop
+    command out of the count.
+    """
+    q = np.asarray(q, dtype=np.float64)[:7]
+    lo = np.asarray(lo, dtype=np.float64)[:7]
+    hi = np.asarray(hi, dtype=np.float64)[:7]
+    over = np.maximum(lo - q, 0.0)
+    under = np.maximum(q - hi, 0.0)
+    count = int(np.count_nonzero((over > 1e-12) | (under > 1e-12)))
+    return count, float(max(float(over.max()), float(under.max())))
+
+
+def hold_index(tick: int, hold: int) -> int:
+    """P53 C2: the chunk waypoint control tick ``tick`` of a decision executes.
+
+    ``hold == 1`` is the shipped mapping (``arr[index]``); the repeat of each
+    waypoint is what makes the command rate ``120 / hold`` Hz. Pure, so the
+    offline selftest can pin the mapping the env uses.
+    """
+    return int(tick) // max(1, int(hold))
+
+
 def direct_fire(
     *, intercept: bool, policy_close: bool, gate_refuse: float | None
 ) -> bool:
@@ -1616,6 +1729,69 @@ class SortingRLEnv:
         self._retime_finger_gated = 0
         self._retime_force_max = 0.0
 
+        # P53: the policy's own emission defect - two default-off cells. C1
+        # clips the 7 absolute joint targets into the joint range before the
+        # drives see them (`FRUIT_POLICY_JOINT_CLAMP`); C2 executes each chunk
+        # waypoint over `hold` control ticks (`FRUIT_POLICY_ACTION_HOLD`). Both
+        # resolve to the shipped path when unset, and `_apply`/`act` then take
+        # the shipped branch exactly (`if self._joint_clamp:` /
+        # `if self._action_hold > 1:`), which is what makes the control arm the
+        # shipped code rather than a re-derivation of it. The joint range is
+        # NOT copied here: `_apply` reads the arm's own `arm_lo`/`arm_hi`
+        # (`control.py:197-202`, one `get_dof_limits()` read at construction),
+        # so the clip uses the drive's own limits on the arm it commands.
+        self._joint_clamp = resolve_joint_clamp(
+            os.environ.get("FRUIT_POLICY_JOINT_CLAMP")
+        )
+        self._action_hold = resolve_action_hold(
+            os.environ.get("FRUIT_POLICY_ACTION_HOLD")
+        )
+        if (self._joint_clamp or self._action_hold > 1) and presentation != "direct":
+            raise ValueError(
+                "FRUIT_POLICY_JOINT_CLAMP / FRUIT_POLICY_ACTION_HOLD are only "
+                f"defined for presentation='direct', got {presentation!r}"
+            )
+        if self._action_hold > 1:
+            if self.rtc_settings.enabled:
+                raise ValueError(
+                    "the action hold needs a chunk from `act`; RTC executes one "
+                    "action per tick from its own queue and never passes one"
+                )
+            if self._retime_on:
+                raise ValueError(
+                    "FRUIT_POLICY_ACTION_HOLD (a slower replay) and "
+                    "FRUIT_POLICY_TIME_SCALE / FRUIT_POLICY_RETIME_GATE (a faster "
+                    "one) are opposite re-parameterisations of the same chunk"
+                )
+            if self._event:
+                raise ValueError(
+                    "FRUIT_POLICY_ACTION_HOLD and FRUIT_POLICY_EVENT both choose "
+                    "how many ticks a decision covers"
+                )
+            if self.execute_steps > self.action_horizon:
+                raise ValueError(
+                    f"execute_steps={self.execute_steps} exceeds the chunk's "
+                    f"action_horizon={self.action_horizon}"
+                )
+        if self._joint_clamp and self._retime_on:
+            raise ValueError(
+                "FRUIT_POLICY_JOINT_CLAMP is measured on the shipped "
+                "one-waypoint-per-tick replay; combining it with the time-scale "
+                "would move two things at once"
+            )
+        #: The `[emit]` row's provenance (P53): one flag, so the per-episode
+        #: out-of-range count is a *report* and never a control input. The
+        #: counter is pure array work on the action `_apply` already holds - no
+        #: simulator read - so it cannot perturb the loop the way a per-tick
+        #: articulation read does (AGENTS.md section 2).
+        self._emit_diag = os.environ.get("FRUIT_EMIT_DIAG", "0") == "1"
+        self._emit_ticks = 0
+        self._emit_decisions = 0
+        self._emit_pre_out = 0
+        self._emit_post_out = 0
+        self._emit_pre_max = 0.0
+        self._emit_clamped_ticks = 0
+
         # The task is used for its primitives only; it must not record.
         self.task = PickAndPlaceTask(self.scene, self.spawner, self.tactile, self.cfg,
                                      waypoint_path=waypoint_path)
@@ -1694,6 +1870,23 @@ class SortingRLEnv:
                 f"finger<{self._retime_open_threshold * 1000:.1f}mm "
                 f"execute_steps={self.execute_steps} "
                 f"horizon={self.action_horizon}"
+            )
+        if self._joint_clamp or self._action_hold > 1:
+            # P53: the emission cells' own banner - the resolved knobs plus the
+            # joint ranges the clamp actually uses (read from the arm, so the
+            # log proves which limits were applied rather than which were
+            # intended).
+            right = self.task.arms["right"]
+            ranges = " ".join(
+                f"j{i + 1}[{float(lo):+.3f},{float(hi):+.3f}]"
+                for i, (lo, hi) in enumerate(zip(right.arm_lo, right.arm_hi))
+            )
+            say(
+                f"[rl] emit: joint_clamp={int(self._joint_clamp)} "
+                f"action_hold={self._action_hold} "
+                f"execute_steps={self.execute_steps} "
+                f"ticks_per_decision={self.execute_steps * self._action_hold} "
+                f"hz={120.0 / self._action_hold:.1f} range(right)={ranges}"
             )
 
     # ------------------------------------------------------------------ #
@@ -1801,6 +1994,20 @@ class SortingRLEnv:
                     "open_m": float(self._retime_open_threshold),
                 }
                 if self._retime_on
+                else None
+            ),
+            #: P53: the emission cells (null = both knobs off, the shipped
+            #: unchamped one-waypoint-per-tick replay). An A/B arm is identified
+            #: by this block, not by the `[emit]` rows alone.
+            "emit": (
+                {
+                    "joint_clamp": bool(self._joint_clamp),
+                    "action_hold": int(self._action_hold),
+                    "ticks_per_decision": int(
+                        self.execute_steps * self._action_hold
+                    ),
+                }
+                if (self._joint_clamp or self._action_hold > 1)
                 else None
             ),
             "a2c2": (
@@ -2210,6 +2417,14 @@ class SortingRLEnv:
         self._retime_force_max = 0.0
         self._retime_force_live = 0.0
         self._retime_finger_live = 0.0
+        # P53: the `[emit]` row's per-episode counters (zero-cost unless
+        # `FRUIT_EMIT_DIAG=1`: the shipped path never increments them).
+        self._emit_ticks = 0
+        self._emit_decisions = 0
+        self._emit_pre_out = 0
+        self._emit_post_out = 0
+        self._emit_pre_max = 0.0
+        self._emit_clamped_ticks = 0
         # DAgger bookkeeping for this episode (the expert label buffer starts
         # empty; `_observe`/`_record_tick` fill it at the decision points).
         self._expert_until = -1
@@ -3164,6 +3379,14 @@ class SortingRLEnv:
         ``execute_steps``; the argument is then the reference/default only.
         """
         steps = self.execute_steps if execute_steps is None else max(1, int(execute_steps))
+        if self._action_hold > 1:
+            # P53 C2: one chunk waypoint per `_action_hold` control ticks, so a
+            # decision covers `execute_steps * hold` ticks and the chunk's
+            # command rate is 120/hold Hz. Twice the ticks, half the decisions
+            # and half the re-plan boundaries per second of sim time - the
+            # direction the census's 30 Hz-vs-120 Hz mismatch points at
+            # (`logs/p52/P2B_FEASIBILITY.md` 2.5).
+            steps *= self._action_hold
         if self._done:
             return self._step_result()
         if self._sample is None:
@@ -3203,6 +3426,12 @@ class SortingRLEnv:
                         self._report_policy_ms.append((time.perf_counter() - start) * 1e3)
             elif chunk is not None:
                 arr = np.asarray(chunk)
+                if self._action_hold > 1:
+                    # P53 C2: expand each waypoint to `hold` control ticks, so
+                    # the shipped `arr[index]` lookup below stays the lookup and
+                    # the hold is a property of the *path*, not of the index
+                    # arithmetic. Once per decision, 16x9 -> 32x9 floats.
+                    arr = np.repeat(arr, self._action_hold, axis=0)
                 if index < arr.shape[0]:
                     if self._retime_on:
                         # P52 phase 2: apply the contact-gated time-scale. With
@@ -3324,6 +3553,31 @@ class SortingRLEnv:
             f"force_max={self._retime_force_max:.2f}N"
         )
 
+    def _emit_row(self) -> str:
+        """P53: the per-episode emission summary (printed only with the diag on).
+
+        One print, no state: the out-of-range joint count of the command the
+        policy emitted (`pre`, the census's 13.1 % / 74.3 % measurement) beside
+        the count the drives received (`post` - identical without C1's clamp by
+        construction), the applied ticks and the policy decisions, so the
+        hold's effect on the decision count is auditable from the log alone.
+        """
+        post = self._emit_post_out if self._joint_clamp else self._emit_pre_out
+        share = (self._emit_pre_out / (7 * self._emit_ticks)) if self._emit_ticks else 0.0
+        post_share = (
+            post / (7 * self._emit_ticks) if self._emit_ticks else 0.0
+        )
+        return (
+            f"[emit] episode {self._episode}: hold={self._action_hold} "
+            f"clamp={int(self._joint_clamp)} ticks={self._emit_ticks} "
+            f"decisions={self._emit_decisions} "
+            f"out_pre={self._emit_pre_out}/{7 * self._emit_ticks} "
+            f"({share:.1%}) "
+            f"out_post={post}/{7 * self._emit_ticks} ({post_share:.1%}) "
+            f"ticks_with_overshoot={self._emit_clamped_ticks} "
+            f"overshoot_max={self._emit_pre_max * 1000:.1f}mrad"
+        )
+
     def _apply(self, action, index: int = 0) -> None:
         action = np.asarray(action, dtype=np.float64).reshape(-1)
         if not np.isfinite(action).all():
@@ -3337,6 +3591,29 @@ class SortingRLEnv:
             action = self._a2c2.correct(action, self.proprio(), self._goal, index)
         if self._policy_track and self._sample is not None and not self._sample.attached:
             action = self._tracking_action(action, arm)
+        if self._emit_diag:
+            # P53: the out-of-range count of the command as the policy emits it
+            # (T0's whole stream, C1's input) - pure array work on the action in
+            # hand, no simulator read.
+            count, over = emit_out_of_range(action, arm.arm_lo, arm.arm_hi)
+            self._emit_ticks += 1
+            if index == 0:
+                self._emit_decisions += 1
+            self._emit_pre_out += count
+            if over > self._emit_pre_max:
+                self._emit_pre_max = over
+            if count:
+                self._emit_clamped_ticks += 1
+        if self._joint_clamp:
+            # P53 C1: clip the 7 absolute joint targets into the arm's own joint
+            # range before the drives see them. The census measured the shipped
+            # emissions out of range on 74.3 % of ticks with no clamp on this
+            # path (`logs/p52/P2B_FEASIBILITY.md` 1.6), so the drive pushes into
+            # the stop; this is the zero-time-cost cell that removes that.
+            action = clamp_joint_targets(action, arm.arm_lo, arm.arm_hi)
+            if self._emit_diag:
+                count, over = emit_out_of_range(action, arm.arm_lo, arm.arm_hi)
+                self._emit_post_out += count
         self.scene.robot.set_dof_position_targets(
             [action[:7].tolist()], dof_indices=list(arm.arm_dofs)
         )
@@ -4323,6 +4600,11 @@ class SortingRLEnv:
             # is readable without re-flowing the per-decision rows. One print,
             # no state; the shipped path never reaches it.
             self._say(self._retime_row())
+        if self._emit_diag:
+            # P53: the emission census (out of range before/after the clamp, the
+            # applied ticks and the policy decisions). One print, no state; the
+            # shipped path never reaches it.
+            self._say(self._emit_row())
         if self._refuse_knobs:
             # P38 phase 2: the harness's per-episode counters as one row, so
             # the batch is auditable from the log alone (scans, adoptions, the

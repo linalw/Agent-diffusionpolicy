@@ -196,6 +196,17 @@ run_check "P45 mass scale" "$python" scripts/227_p45_mass_selftest.py
 # env-side wiring is pinned by AST (the shipped `action = arr[index]` survives
 # as the knob-off branch, `_apply` is retime-free, the gate adds no sensor read).
 run_check "P52 retime scale" "$python" scripts/228_p52_retime_selftest.py
+# P53: the policy's own emission cells (`FRUIT_POLICY_JOINT_CLAMP`, C1, and
+# `FRUIT_POLICY_ACTION_HOLD`, C2 - both default off). The real resolvers and the
+# real clip/hold helpers run offline: the clamp is a **copy** that is
+# element-identical inside the range (so a knob-off run is the shipped
+# expression and a chunk row is never rewritten in place), the hold is
+# `np.repeat` (tick i executes waypoint i//hold, the shipped `arr[index]`
+# lookup survives), the census counter is the P2B measurement (13.1 % of
+# joint-steps / 74.3 % of ticks), and both resolvers refuse a typo rather than
+# reading it as "off". The env wiring is pinned by AST (the clip is the last
+# shaping before the drives; the hold scales `steps` behind its knob).
+run_check "P53 emission cells" "$python" scripts/229_p53_emit_selftest.py
 
 if [ -n "$run_log" ] && [ -f "$run_log" ]; then
     run_check "motion budgets" "$python" scripts/105_motion_regression.py "$run_log" \

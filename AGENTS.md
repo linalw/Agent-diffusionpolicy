@@ -2300,6 +2300,27 @@ emissions - a success-first cell with the ticks as a reported cost. Pins: no
 `src/`/`configs/` change shipped (both knobs default off); evidence
 `logs/p52/{FRONTIER,MODEL_CENSUS,P2A_RESULTS,P2B_FEASIBILITY}.md`, `p2/`.
 
+**P53 (2026-10-28, `logs/p53/`; nothing adopted): the policy's own emission defect
+is not the success bottleneck.** The direct path emits **4.8 % of its joint steps
+out of range** (101 of 2093; 3-9 deg overshoot, no clamp). Two default-off cells
+on the P43 protocol (N = 3 x 15, seeds 77/101/202): **C1 the joint clamp** removes
+the defect **completely** (`out_pre 101/2093 = 4.8 % -> out_post 0/2093 = 0.0 %`,
+zero time cost) yet reads **30/45 -> 29/45 placed** (per seed +1/-1/-1) - a **null**
+on the class, so the overshoot was **not** the binding term; **C2 the action hold**
+(`action_hold=2`, 8 ticks/decision = 60 Hz of decisions) reads **26/45** (0/-1/-3)
+- **negative** (the slower policy loses placements). So the policy's own emission
+path is exhausted as a success lever: the right arm's remaining ~5 % sits in the
+**scripted close/handover/grip** class (P35-P43), not in the policy's targets. With
+P52 this closes the **model lane**: the policy owns **14.2 %** of the episode (its
+speed lever is bounded at 4.8 %, measured -2.9 %/-5.0 %), its supervision is
+sound, its chunks carry no phase structure, and clamping its emissions is free
+but gains nothing. The model-side levers that remain are the **interface** ones
+already measured (the park default; `FRUIT_POLICY_EVENT=1` at +6.7 pt on N = 3,
+never at N = 5; the ACQ question that the shipped direct config leaves untested).
+Pins: `rl_env.py` **`a1ae217a`** (both knobs default off), a new selfcheck leg
+`scripts/229_p53_emit_selftest.py`; no `configs/` change; evidence
+`logs/p53/{PREREG,P53_RESULTS}.md`, `p3/`.
+
 ## 3. What changed -> what to run
 
 | you changed | run |
