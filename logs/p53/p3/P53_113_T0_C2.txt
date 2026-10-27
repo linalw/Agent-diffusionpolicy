@@ -1,0 +1,29 @@
+=== arm T0
+  run 1: 11/15  0:appl/6.8/ok  1:stra/3.6/ok  2:pear/6.1/FAIL  3:lych/3.4/ok  4:stra/3.6/ok  5:pear/6.8/FAIL  6:pear/6.1/FAIL  7:appl/6.3/ok  8:stra/4.3/ok  9:kiwi/6.3/ok  10:peac/5.8/FAIL  11:stra/4.3/ok  12:kiwi/6.3/ok  13:appl/6.3/ok  14:oran/6.0/ok
+  run 2: 10/15  0:appl/7.0/FAIL  1:oran/6.3/FAIL  2:pear/6.6/FAIL  3:stra/3.9/ok  4:lych/3.7/FAIL  5:toma/5.0/ok  6:stra/3.9/ok  7:lych/3.7/ok  8:peac/5.9/ok  9:oran/6.0/ok  10:lych/3.7/ok  11:toma/5.0/ok  12:kiwi/5.3/FAIL  13:stra/4.2/ok  14:toma/6.1/ok
+  run 3: 9/15  0:oran/6.4/ok  1:pear/5.9/FAIL  2:appl/6.7/FAIL  3:peac/6.2/FAIL  4:pear/5.9/FAIL  5:appl/6.7/FAIL  6:peac/5.9/ok  7:appl/6.4/ok  8:toma/6.0/ok  9:peac/5.9/ok  10:lych/3.5/ok  11:appl/6.7/FAIL  12:lych/3.3/ok  13:appl/6.4/ok  14:pear/6.5/ok
+=== arm C2
+  run 1: 11/15  0:appl/6.8/ok  1:peac/6.0/ok  2:toma/5.4/ok  3:lych/3.4/ok  4:peac/5.8/FAIL  5:stra/4.3/ok  6:toma/5.4/ok  7:appl/6.3/ok  8:stra/4.3/ok  9:lych/3.4/ok  10:peac/5.8/FAIL  11:pear/6.1/FAIL  12:appl/6.8/ok  13:stra/4.3/ok  14:pear/6.1/FAIL
+  run 2: 9/15  0:appl/7.0/FAIL  1:oran/6.3/FAIL  2:pear/6.6/FAIL  3:toma/6.1/ok  4:appl/6.3/ok  5:lych/3.7/ok  6:toma/5.0/ok  7:stra/3.9/ok  8:oran/6.3/FAIL  9:pear/6.6/FAIL  10:toma/5.0/ok  11:kiwi/6.7/FAIL  12:lych/3.7/ok  13:toma/5.0/ok  14:stra/3.9/ok
+  run 3: 6/15  0:oran/6.4/ok  1:pear/5.9/FAIL  2:appl/6.7/FAIL  3:peac/6.2/FAIL  4:pear/5.9/FAIL  5:appl/6.7/FAIL  6:peac/5.9/ok  7:appl/6.4/ok  8:peac/6.2/FAIL  9:pear/5.9/FAIL  10:appl/6.4/ok  11:pear/6.5/ok  12:pear/5.9/FAIL  13:oran/6.3/ok  14:kiwi/5.7/FAIL
+
+  pooled T0: 30/45 (67%)  median ticks 1836
+  pooled C2: 26/45 (58%)  median ticks 1829
+
+  paired: 7 both ok, 9 both fail, 0 C2-only ok, 0 T0-only ok, 29 excluded (fruit class differs)
+  sign test (C2 better): p = 1.0000 (discordant 0)
+  class                T0         C2  delta
+  apple           5/9        6/9      +11%
+  kiwi            2/3        0/2      -67%
+  lychee          5/6        4/4      +17%
+  orange          3/4        2/4      -25%
+  peach           3/5        2/6      -27%
+  pear            1/7        1/9      -3%
+  strawberry      7/7        5/5      +0%
+  tomato          4/4        6/6      +0%
+  median cycle: T0 1836 ticks, C2 1829 ticks (-0.4%)
+  failure reasons T0: ["'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)'", "'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)', 'fruit did not follow the gripper'"]
+  failure reasons C2: ["'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)'"]
+
+  criteria: rate C2 58% vs T0 67% [worse]; sign p=1.0000 [no]; strawberry 100% vs 100% [ok]; new reasons none; cycle 1829 vs 1836 (not faster)
+  VERDICT: no measured improvement of C2 over T0 (publish the negative and re-plan)

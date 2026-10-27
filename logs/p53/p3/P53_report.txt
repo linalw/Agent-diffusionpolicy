@@ -1,0 +1,69 @@
+================================================================================================
+P53 - the policy's own emission defect: T0 (shipped) / C1 (clamp) / C2 (hold 2)
+================================================================================================
+
+[1] per run (placed = the gate's outcome; ticks = simulated ticks)
+  arm  run   placed  right  left  ticks_p50  decisions  wall_s
+  T0   1     11/15   11/11  0/4        1834         67   458.3
+  T0   2     10/15   10/11  0/4        1758         51   427.4
+  T0   3      9/15    8/8   1/7        1794         58   440.3
+  C1   1     12/15   11/11  1/4        1790         63   444.6
+  C1   2      9/15    9/9   0/6        1756         48   423.5
+  C1   3      8/15    8/8   0/7        1744         58   432.8
+  C2   1     11/15   11/11  0/4        1742         27   421.2
+  C2   2      9/15    9/9   0/6        1715         24   393.5
+  C2   3      6/15    6/6   0/9        1794         35   420.0
+
+[2] pooled per arm
+  arm     placed     right     left   cnp  no-grasp  ticks_p50  dec_p50  wall/ep  sim_s/ep
+  T0    30/45   29/30  1/15    14         1       1836       58     29.5     15.30
+  C1    29/45   28/28  1/17    16         0       1809       53     28.9     15.07
+  C2    26/45   26/26  0/19    19         0       1829       28     27.4     15.24
+
+[3] per-run delta against T0 (the registered bar: placed >= T0 - 1)
+  C1 vs T0, seed-run 1: 12 vs 11 (+1/15) OK
+  C1 vs T0, seed-run 2: 9 vs 10 (-1/15) OK
+  C1 vs T0, seed-run 3: 8 vs 9 (-1/15) OK
+  C1: deltas [1, -1, -1] sum -1 min -1 PASS (the -1/15 per-run bar)
+  C2 vs T0, seed-run 1: 11 vs 11 (+0/15) OK
+  C2 vs T0, seed-run 2: 9 vs 10 (-1/15) OK
+  C2 vs T0, seed-run 3: 6 vs 9 (-3/15) FAIL
+  C2: deltas [0, -1, -3] sum -4 min -3 FAIL (the -1/15 per-run bar)
+
+[4] the emission census (the `[emit]` rows): out-of-range joint-steps
+  arm  episodes    ticks    dec hold clamp          out_pre         out_post ticks>stop  over_max
+  T0         45    10941   2752    1     0   8341/76587      8341/76587     7107/10941       1350.0
+       pre 10.9% of joint-steps, on 65.0% of ticks; post 10.9%
+  C1         45    10134   2551    1     1   7832/70938         0/70938     6932/10134       1016.8
+       pre 11.0% of joint-steps, on 68.4% of ticks; post 0.0%
+  C2         45    10250   1301    2     0   8830/71750      8830/71750     7152/10250        587.0
+       pre 12.3% of joint-steps, on 69.8% of ticks; post 12.3%
+
+[5] the dither: same-tick |cmd - achieved| from the stores (P2B's own metric)
+  arm       frames  p50_mrad  p90_mrad  task_p50  task_p90 slow_share   slow_p50  cmd_rate  achieved
+       (the 'slow' half is `max|da| <= 0.130 rad` between two 30 Hz frames = 3.90 rad/s, the pooled median)
+  T0          2739      72.6     275.4     21.8mm     82.6mm     38.3%     14.3mm     4.98/s     0.87/s
+  T0/right    1896      88.2     335.8     26.5mm    100.8mm     21.0%     15.6mm     6.52/s     1.03/s
+  T0/left      843      48.4     155.8     14.5mm     46.7mm     77.2%     13.4mm     2.39/s     0.69/s
+  C1          2536      60.6     244.8     18.2mm     73.4mm     46.0%     13.3mm     4.13/s     0.84/s
+  C1/right    1552      75.9     341.0     22.8mm    102.3mm     23.8%     13.9mm     6.16/s     0.98/s
+  C1/left      984      44.2     153.2     13.3mm     46.0mm     81.0%     12.9mm     2.30/s     0.72/s
+  C2          2569      56.9     194.5     17.1mm     58.4mm     63.8%     14.1mm     2.83/s     0.73/s
+  C2/right    1422      73.9     236.0     22.2mm     70.8mm     44.8%     18.3mm     4.15/s     0.90/s
+  C2/left     1147      42.7     133.1     12.8mm     39.9mm     87.4%     12.2mm     1.49/s     0.59/s
+
+[6] failure notes (the raw note text of every non-placed episode)
+  T0: {'cnp:apple': 4, 'cnp:kiwi': 1, 'cnp:orange': 1, 'cnp:peach': 2, 'cnp:pear': 6, 'no-grasp:lychee': 1}
+  C1: {'cnp:apple': 5, 'cnp:kiwi': 1, 'cnp:orange': 2, 'cnp:peach': 1, 'cnp:pear': 7}
+  C2: {'cnp:apple': 3, 'cnp:kiwi': 2, 'cnp:orange': 2, 'cnp:peach': 4, 'cnp:pear': 8}
+
+[7] the file set
+  T0_1.log  episodes=15 emit_rows=15 wall=458.3
+  T0_2.log  episodes=15 emit_rows=15 wall=427.4
+  T0_3.log  episodes=15 emit_rows=15 wall=440.3
+  C1_1.log  episodes=15 emit_rows=15 wall=444.6
+  C1_2.log  episodes=15 emit_rows=15 wall=423.5
+  C1_3.log  episodes=15 emit_rows=15 wall=432.8
+  C2_1.log  episodes=15 emit_rows=15 wall=421.2
+  C2_2.log  episodes=15 emit_rows=15 wall=393.5
+  C2_3.log  episodes=15 emit_rows=15 wall=420.0

@@ -1,0 +1,57 @@
+# P53 batch header (2026-10-28 00:35:00)
+# tree: dae12561728983ad4ba3ae2841fd75ecf3a05119
+61da390a85fa209496b54477a8255d23  checkpoints/moe_v13s/policy_best.pt
+a1ae217a561a995db8a89b2d80d7086d  src/fruit_sorting/rl_env.py
+b6de439c0447790910f855e263757bd8  src/fruit_sorting/tasks.py
+9384ff4fa3e62b359bf10d2123ef41fa  src/fruit_sorting/control.py
+27e3d64a3e8b8dab415eed222dfee023  src/fruit_sorting/scene.py
+379ac7064fd49df8417e94dbf6ed2616  src/fruit_sorting/policy/runtime.py
+b09d3cb2389a9f4884a748dbb3461b24  src/fruit_sorting/policy/trigger.py
+1ad5af0e63cfc93ffbd58b2f206978f6  src/fruit_sorting/meshes.py
+e81051c1d98d7e8120dcb80356722607  src/fruit_sorting/fruits.py
+42ab4fb78a91ea9d85554e6d90e1da80  configs/arm_parks.json
+8a399626c12a4e9205ce10e630b94ce9  configs/motion_reference.json
+2246f83c336f7fd6e1f8fe43d0ee8644  configs/motion_reference_twoline.json
+b5d05ea3b2e39cdc94da6147ec5ed2d8  scripts/110_rl_rollout.py
+c27c49b89cca5753c0f551be138c6379  scripts/113_rl_report.py
+1d4ef07753c9b5c06174c33d68bca0d1  scripts/229_p53_emit_selftest.py
+b172883f528f5dc303b2c4968d737770  logs/p53/run_batch.sh
+5259b82c1eccdcbdafbc5fae93956ffe  logs/p53/p53_report.py
+# scenario: FRUIT_SUPPLY_SCATTER=1 FRUIT_SUPPLY_PATCH=1 FRUIT_SUPPLY_GRADES=A:0.375,B:0.375,C:0.25 FRUIT_POLICY_TRIGGER=arrival FRUIT_POLICY_TRIGGER_LEAD=0.9 FRUIT_POLICY_TRIGGER_ACQ=1 FRUIT_DYNAMIC_PICK=1 FRUIT_ACQ_DIAG=1 FRUIT_CARRY_DIAG=1 FRUIT_EMIT_DIAG=1
+# T0 = shipped (knobs unset) ; C1 = FRUIT_POLICY_JOINT_CLAMP=1 ; C2 = FRUIT_POLICY_ACTION_HOLD=2
+# RUNS=3 EPISODES=15 SEEDS=77 101 202 policy_seed=11, interleaved T0,C1,C2
+# all three arms --record into /tmp/opencode/p53/raw (the dither store)
+[p53] batch start 2026-10-28 00:35:00
+[claim_run] claimed the simulator 00:35:20
+[claim_run] exit=0 00:43:17 log=logs/p53/p3/T0_1.log
+  T0 run 1 (seed 77): exit=0 [rl] rollout success 11/15
+[claim_run] claimed the simulator 00:43:37
+[claim_run] exit=0 00:51:20 log=logs/p53/p3/C1_1.log
+  C1 run 1 (seed 77): exit=0 [rl] rollout success 12/15
+[claim_run] claimed the simulator 00:51:40
+[claim_run] exit=0 00:59:00 log=logs/p53/p3/C2_1.log
+  C2 run 1 (seed 77): exit=0 [rl] rollout success 11/15
+[claim_run] claimed the simulator 00:59:21
+[claim_run] exit=0 01:06:47 log=logs/p53/p3/T0_2.log
+  T0 run 2 (seed 101): exit=0 [rl] rollout success 10/15
+[claim_run] claimed the simulator 01:07:07
+[claim_run] exit=0 01:14:29 log=logs/p53/p3/C1_2.log
+  C1 run 2 (seed 101): exit=0 [rl] rollout success 9/15
+[claim_run] claimed the simulator 01:14:49
+[claim_run] exit=0 01:21:41 log=logs/p53/p3/C2_2.log
+  C2 run 2 (seed 101): exit=0 [rl] rollout success 9/15
+[claim_run] claimed the simulator 01:22:01
+[claim_run] exit=0 01:29:40 log=logs/p53/p3/T0_3.log
+  T0 run 3 (seed 202): exit=0 [rl] rollout success 9/15
+[claim_run] claimed the simulator 01:30:00
+[claim_run] exit=0 01:37:32 log=logs/p53/p3/C1_3.log
+  C1 run 3 (seed 202): exit=0 [rl] rollout success 8/15
+[claim_run] claimed the simulator 01:37:52
+[claim_run] exit=0 01:45:11 log=logs/p53/p3/C2_3.log
+  C2 run 3 (seed 202): exit=0 [rl] rollout success 6/15
+[p53] batch end 2026-10-28 01:45:11 wall=4211s
+[p53] reports
+[p53] p53 report exit=0
+[p53] 113 T0/C1 exit=1
+[p53] 113 T0/C2 exit=1
+[p53] done 2026-10-28 01:45:11
