@@ -19389,3 +19389,18 @@ overwrite, `p2_report.py` re-derives every number above. Pins
 `configs/motion_reference.json` `8a399626` and `..._twoline.json` `2246f83c`
 untouched; HEAD `3a8a581`. Evidence `logs/p50/P2_RESULTS.md`, `logs/p50/p2/`,
 WORKLOG "P50 phase 2".
+
+### P51 phase 1: the speed cells' cost is the closed grip class, not the tail - the speed arc closes (2026-10-27)
+
+The hypothesis (the speed cost is P48's x tail, so P50's compensation + the speed
+would be class-clean) fails its offline map: of the 5 cell-attributable acquisition
+events, **1 is tail and 4 are mid-band** (x 0.22-0.38) with a **converged close**
+(catch-up residual 5.5-6.0 mm, inside the 6 mm tolerance) - the closed grip/hold
+class. So `O + U` cannot be class-clean and the battery was not spent. The speed
+gain stands separately (union -1.45 s/attempt; two-line -0.76 pooled, -10.7 % on
+the seed-5 branch); its count cost is branch-draw cnp (single arm) and converged
+closes (two-line). No remaining lever on the acquisition/tail side: the distance
+guard, the hand-over timing, the x-ceiling and the combination were all refuted by
+measurement, the speed is real, and its cost is the closed grip class - a future
+adoption must be argued on the time with the cost named as the documented class.
+Evidence `logs/p51/{COMBO_MAP,PREREG}.md`.

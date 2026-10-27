@@ -2232,6 +2232,32 @@ benefit for free, but its A/B is its own pre-registration. Pins: `fruits.py`
 untouched (`8a399626` / `2246f83c`); evidence
 `logs/p50/{OFFSET_TABLE,PREREG,P2_RESULTS}.md`, `p1/`, `p2/`.
 
+**P51 (2026-10-27, `logs/p51/`; **not run - the map refuted the hypothesis**,
+nothing adopted): the speed cells' cost is the closed grip class, not the
+release-x tail - and the speed arc closes.** The hypothesis was that the P44/P46
+speed cells' only cost was the **pre-contact acquisition** and that P48's x tail
+is that class, so `O + U` (P50's compensation + the speed) would be class-clean.
+The offline map (`logs/p51/COMBO_MAP.md`) says **F1 fires**: of the **5
+cell-attributable events, 1 is tail and 4 are mid-band** (x 0.22-0.38) **with a
+converged close** (`dynamic catch-up: residual` 5.5-6.0 mm, i.e. **inside** the
+6 mm tolerance) - the **closed grip/hold class**, not a supply-x object. So
+`O + U` **cannot** be class-clean and the phase-2 battery was **not spent** (the
+PREREG keeps its pre-run prediction). **The speed gain stands separately** (P44's
+union -1.45 s/attempt; P46's two-line -0.76 pooled, -10.7 % on the seed-5 branch),
+and its count cost is measured as **branch-draw `cnp`** on the single arm and
+**converged closes** on the two-line - the same class `logs/p42/SIM_LIMIT.md`
+documents as closed. This does **not** say the P50 tables are wrong (their object,
+the release x, is simply not this corpus's cost), and it claims no rate (the same
+cell draws 0 rows at seed 5 and the shared strawberry at seed 6 - one branch's
+count). **What closes with it**: there is no remaining lever on the
+acquisition/tail side of the speed question - the acquisition family is exhausted
+(the distance guard, the hand-over timing, the x-ceiling and now the combination
+all refuted by measurement), the speed is real, and **its cost is the closed grip
+class**. A future speed adoption therefore has to be argued on the **time**
+(-1.45 s/attempt at 10-14 %) with the placement cost named as the documented
+class, not on a class fix. Pins: no `src/` or `configs/` change; evidence
+`logs/p51/{COMBO_MAP,PREREG}.md`, `combo_map.py`/`_out.txt`.
+
 ## 3. What changed -> what to run
 
 | you changed | run |
