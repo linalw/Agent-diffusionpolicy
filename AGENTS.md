@@ -2093,6 +2093,33 @@ project's three recollections read no-gain). Pins: `fruits.py` `b6de...`-era tre
 + the P45 faces (`meshes.py`, `fruits.py`), the cells default off, `configs/`
 untouched.
 
+**P46 (2026-10-27, `logs/p46/`; nothing adopted): the two-line union's +12 %
+did not replicate at a fresh seed, and the class that moves is the pre-contact
+acquisition, not the grip.** The P44 two-line positive was one seed; P46
+pre-registered a **2-seed** confirmation **before** the run (`logs/p46/PREREG.md`)
+and ran it with the existing knobs only (`FRUIT_SPEED_ALL=1`, no `src/`, no
+`configs/`; the C arm is **453/453 rows identical** to P44's
+`twoline_s5_C.log` and the U arm **446/446** to its S13 arm, so the instruments
+are neutral and the default-off path is proven). **Seed 5 (a P44 replay)**:
+placed **8 -> 8**, `s/attempt` **9.80 -> 8.75 (-1.05)**, interval 9.13 -> 8.27,
+**4.90 -> 5.49 placed/min**. **Seed 6 (the fresh draw)**: placed **9 -> 7 (-2)**,
+`s/attempt` 9.98 -> 9.51 (-0.47), interval 10.09 -> 10.88, **5.41 -> 4.42
+placed/min**. **The guard is clean**: 0 held-then-lost rows in all four logs, the
+held legs' >50 mm slip 0/0, `clean_slip` p50 0.00-0.05 mm; the s6 `force_min==0`
+legs (1 -> 3) are **never-held** (contacts@onset 0, force@onset 0.00 N, the pads
+closing on air 52-65 mm) - the **acquisition** class, not the loaded slide. The
+landing is clean too (**32/32 release-reached traces `on_belt=True`**). E1/E2
+fail on seed 6, E3 fails by its letter only, E4/E6 pass; **F2 fires -> no flip,
+no Phase 2** - the union stays **opt-in** and the single-arm cells stay opt-in.
+**The lesson, stated for the next lane**: the speed is **real and reproducible**
+(-10.7 % `s/attempt` on the seed-5 branch; the blocks move by the profile
+arithmetic), but the **placement count is not stable across branches**, and what
+moves is the **acquisition** class (a faster leg re-times which fruit is offered
+at the close), **not** the grip - so a speed adoption must be gated on an
+acquisition-class fix (a supply/station change) and not on the carried class.
+Pins: no `src/` or `configs/` change (refs `8a399626` / `2246f83c` untouched);
+evidence `logs/p46/{PREREG,P1_RESULTS}.md`, `p1/`.
+
 ## 3. What changed -> what to run
 
 | you changed | run |

@@ -19259,3 +19259,20 @@ shape is the **bounded force-derived pose residual between reference updates**
 Pins: `fruits.py`/`meshes.py` (the P45 faces), `scripts/227_p45_mass_selftest.py`
 (a selfcheck leg), the cells default off, `configs/` untouched; evidence
 `logs/p45/{MASS_CENSUS,FRONTIER,PREREG_DRAFT,P2_RESULTS}.md`, `p2/`.
+
+### P46 phase 1: the two-line speed union does not replicate at a fresh seed - the acquisition class is the cost (2026-10-27)
+
+The P44 two-line positive (8/10 at 9.8 -> 8.7 s/attempt, +12 % placed/min) was one
+seed. P46 pre-registered a **2-seed** confirmation before running and did it with
+the existing knobs only. Seed 5 is a P44 replay (C 453/453 and U 446/446 rows
+identical to P44) and reproduces: placed 8 -> 8, -1.05 s/attempt, 4.90 -> 5.49
+placed/min. **Seed 6, the fresh draw, loses two placements** (9 -> 7) for -0.47
+s/attempt and 5.41 -> 4.42 placed/min. The guard is clean (0 held-then-lost rows,
+held >50 mm slip 0/0, clean_slip p50 0.00-0.05 mm; the s6 force_min==0 legs are
+never-held, contacts@onset 0, pads closing on air 52-65 mm) and the landing is
+32/32 on_belt. E1/E2 fail on s6, E3 fails by letter only, E4/E6 pass; **F2 fires
+-> no flip**, the union and the single-arm cells stay opt-in. The lesson: the
+speed is real and reproducible, the placement count is not stable across
+branches, and the moving class is the **pre-contact acquisition** - so a speed
+adoption needs an acquisition-class fix (supply/station), not a grip lever.
+Evidence `logs/p46/{PREREG,P1_RESULTS}.md`, `p1/`.
