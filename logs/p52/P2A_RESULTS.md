@@ -1,26 +1,33 @@
 # P52 phase 2, lane A — the contact-gated action time-scale (the claimed battery)
 
-Measured **2026-10-27/28** on branch `p-supply`, HEAD `da0c914` (no commit).
-Claimed battery `logs/p52/p2/` (~45 min of episode wall, one claim, 90 episodes).
+Measured **2026-10-27/28** on branch `p-supply`, work tree at `da0c914` (the code
+and this file were then committed by the orchestrator as `aae9377` / `8862fec` /
+`b4a7899`; the §3.1b correction below is a **post-commit working-tree edit** and
+is not in those commits). Claimed battery `logs/p52/p2/` (~45 min of episode
+wall, one claim, 90 episodes).
 
 **The four sentences this phase exists to support.**
 
-1. **The lever works exactly as designed, and the design is worth 2.7 %.** The
+1. **The lever runs, and its whole design is worth less than 5 %.** The
    pre-registered **P1 fails**: placed-episode ticks 1800 → 1748 median
-   (**−2.9 %**, bar −8 %). The paired per-episode read is **−48.1 ticks**
-   (−2.7 %, n = 23, 17/23 negative).
+   (**−2.9 %**, bar −8 %); the same statistic on the two runs taken entirely on
+   one tree reads **−5.0 %** (§3.1c). The paired per-episode read is
+   **−48.1 ticks** (−2.7 %, n = 23, 17/23 negative). **The effect cannot be
+   attributed to the arm** (§3.1b: the arms' initial conditions are not
+   matched), and it does not need to be — the **ceiling** of sentence 2 is what
+   decides the lane.
 2. **That is not an implementation null — it is the arithmetic.** A 1.5x
    re-timing can only shorten the **policy phase**, which is measured at
    **14.2 %** of a placed episode (256 of 1800 ticks); a 1.5x on the *whole*
    phase is therefore worth at most **86 ticks = 4.8 %**, and with the contact
    gate at a **44.1 %** duty the ungated 56 % is worth **48 ticks = 2.7 %**.
-   The measured −48.1 is **the prediction to the tick**. The 8 % bar was
-   unreachable by construction.
+   **The 8 % bar was unreachable by construction** — it needs 56 % of the entire
+   policy phase removed — and no cell of this knob can reach it.
 3. **The gate is expensive and that is the honest cost.** It clamps **44.1 % of
    decisions** (4492 of 10202 ticks; by force 2226, by finger 2744, overlap 478)
    with a peak force of 216.4 N — the direct approach is *in contact* about as
    often as it is in free space. Removing the gate halves the duty and would at
-   most double the gain (to 4.8 %), still under the bar.
+   most lift the gain to the 4.8 % ceiling, still under the bar.
 4. **Nothing is adopted.** `FRUIT_POLICY_TIME_SCALE` / `FRUIT_POLICY_RETIME_GATE`
    stay **default off**; the direct interface's episode time is 85 % scripted
    primitive, which no policy-side execution lever can touch (AGENTS §2 "P43"
@@ -46,9 +53,10 @@ summary, the manifest's `retime` block, and a `[rl] retime:` banner.
 
 **Where the re-timing lives, and where it does not.** In the **chunk lookup**,
 not in `_apply`: the 4-ticks-per-action cadence is untouched, so the model is
-still called every 4 ticks (measured: 72-75 decisions per episode on both arms,
-P5/F4), and the **re-plan boundary is untouched** — chunk k+1's action 0 is
-applied unchanged, which is the jump a time-scale cannot scale (census §2.3).
+still called every 4 ticks on both arms (`decision=` / 4 reproduces the
+instrument's own decision count exactly; §3.4), and the **re-plan boundary is
+untouched** — chunk k+1's action 0 is applied unchanged, which is the jump a
+time-scale cannot scale (census §2.3).
 Scope is `presentation == "direct"` and the constructor **raises** otherwise
 (`handoff`/canary, scripted, bimanual are all untouched); RTC is refused (it
 never hands `act` a chunk, so the knob would silently be a no-op arm).
@@ -134,6 +142,59 @@ n = 23, of which 10 keep the same species and diameter):
 The 10 same-fruit pairs read −1.1 ticks (sd 36.4) — **no power at that n**, and
 not quoted as a result either way.
 
+### 3.1b The arms are not matched on the initial condition (measured)
+
+The two arms' **target fruit does not start at the same place on the belt**, and
+this is a *downstream* quantity, not a controlled one: the spawner runs an
+absolute release/pump schedule, so where the next fruit sits when an episode
+resets depends on how long the previous episode ran. Measured from the
+`FRUIT_RESET_ALIGN_DIAG` rows (`[align] episode N ... reset=<along>`):
+
+| quantity | value |
+| --- | --- |
+| `reset` along, T0 | p50 **0.510 m**, mean 0.505 m |
+| `reset` along, TG | p50 **0.499 m**, mean 0.484 m |
+| paired difference, all 45 same-run+index pairs | **mean −21.0 mm**, p50 −4.0 mm |
+| paired difference, the 12 pairs on the clean-tree runs | **mean −46.1 mm** |
+| in belt ticks at 0.120 m/s | 21 / 46 ticks |
+| paired difference at episode 0 of each run (identical starting state) | **0.0 mm** (3/3) |
+
+So the treatment arm's fruit starts **closer** — and the gap is *larger* on the
+subset where the effect is *larger* (−46.1 mm at −76.2 ticks). That is the
+signature of a **feedback**, not of a bias: a shorter episode leaves the line
+further advanced, so the next fruit starts nearer, so the next episode is shorter
+again. **The initial condition is part of the system under test**, and a
+per-episode tick comparison cannot separate "the arm moved faster" from "the line
+presented the fruit sooner".
+
+**Consequence, stated as a limit rather than a correction.** The arm's own
+contribution is **not resolved** by this battery: it is bounded above by the
+whole difference (−2.9 % registered, −5.0 % clean-tree) and below by ~0. What
+decides the lane is therefore not the point estimate but the **ceiling** of §3.5,
+which is independent of the pairing: **a 1.5x on the entire policy phase is worth
+at most 4.8 % of the episode, so the 8 % bar cannot be met by any cell of this
+knob** — and the measured −5.0 % clean-tree read sits right at that ceiling.
+
+### 3.1c Provenance: one of the six runs started on an earlier `rl_env.py`
+
+The per-run manifests (`logs/p52/p2/raw/*/`) record every source md5, and they
+split:
+
+| run | started | `rl_env.py` |
+| --- | --- | --- |
+| **A_1** | 23:23:22 | **`db4cd585`** |
+| A_2, A_3, B_1, B_2, B_3 | 23:31 - 00:00 | `29297e0c` (the committed file) |
+
+The change between them is a **comment** I edited after launching the batch (the
+manifest's `retime` block's "absent = off" → "null = off"), i.e. no code. It is
+not reconstructible from the working tree, so it is reported rather than
+asserted away — and it does not matter for the control arm: **A_1 is a T0 run,
+where `_retime_on` is `False` on every tick**, so the whole retime block
+(comment included) is never entered, and the shipped `action = arr[index]`
+statement is what executed. The registered P1 statistic is reported with all
+three runs; **§3.1's −5.0 % is the same statistic on the five clean-tree runs'
+two pairs**, which is the sensitivity to that one run.
+
 ### 3.2 P2 — the placements: **PASS** (with its power stated)
 
 | arm | right placed | left placed | pooled |
@@ -183,7 +244,16 @@ independently agrees: `failure reasons A` and `B` are the same set
 | gate: ticks clamped | — | **4492/10202 = 44.0 %** |
 | gate ticks by force / by finger | — | 2226 / 2744 (overlap 478; finger-only 2266, force-only 1748) |
 | peak tactile force seen | — | 216.4 N |
-| decisions per episode (must not move, F4) | 66.6 (`decision/4`) | 66.5 — unchanged |
+| decisions per placed episode (F4) | 63.5 (`decision/4`) | 58.2 |
+| cadence (ticks per action) | 4 | **4** (untouched) |
+
+**F4 restated honestly:** the *cadence* does not move — 4 control ticks per
+action on both arms, so the model is still asked once per 4 ticks (max 84 model
+calls per episode on either arm; the PREREG's "it must not move" is about the
+cadence). The *count* **does** fall (63.5 → 58.2) because it is
+`policy_phase_ticks / 4` and the phase is shorter — a consequence, not an
+implementation error. The nearest-tick cross-check is exact: `decision=303` with
+`[retime] decisions=75` = 75 complete + 1 partial, on both arms.
 
 The wall follows the ticks (the loop is primitive-bound, P43 L2); a −3.5 % wall
 for a −2.9 % sim-time change is the same measurement twice, not a second gain.
@@ -220,26 +290,45 @@ arm finishes its approach and **waits for the fruit**.
 ```
 policy phase                     256 ticks of 1800 = 14.2 % of the episode
 a 1.5x on the WHOLE phase        -86 ticks  = 4.8 %   <- the ceiling
-with the gate at 44.1 % duty     -48 ticks  = 2.7 %   <- the prediction
-measured (paired, n=23)          -48.1 ticks = 2.7 %  <- the measurement
+with the gate at 44.1 % duty     -48 ticks  = 2.7 %   <- the envelope
+registered (n=3)                 -2.9 %   median placed ticks  }
+clean-tree (runs 2-3)            -5.0 %                         } both inside the
+paired (n=23)                    -48.1 ticks                    } ceiling, none
 pre-registered bar               -144 ticks = 8.0 %   <- unreachable by construction
 ```
 
-So the lever is **fully effective inside its scope** (100 % of the predicted
-effect realised, to the tick) and the **scope is the problem**: three quarters
-of the episode is the scripted primitive, which no policy-side execution lever
-touches. **No time-scale — including a gate-free 1.5x, and including a 2x — can
-reach a 8 % episode-time bar on this interface**; a 2x on the whole phase would
-be 128 ticks = 7.1 %. The named ceiling for this lane is therefore **~4.8 % at
-1.5x ungated (7.1 % at 2x)**, against the census's 11-12 %.
+**Do not quote the −48 / −48 coincidence as a validation.** The two numbers are
+the same size, but the initial condition is not matched between the arms (§3.1b),
+so the pairing cannot attribute the difference to the arm. **The ceiling is the
+claim, not the match.**
 
-The 44 % duty cycle is the *only* thing the gate costs (4.8 → 2.7 %), and the
-gate is what keeps the contact legs at the demonstrated rate — the half of the
-RoboPace ladder this tree can test (`logs/p52/FRONTIER.md` §2.1: contact-gated
-32/50 vs uniform-1.67x 4/50 vs RACE-style 1/50). **On this interface the
-contact-gated cell and the ungated cell differ by 2.7 % vs 4.8 % of episode
-time and by 0.002 of right-arm placement** — the contact cost the frontier
-measures on a 50-trial contact-rich assembly is not visible here at this n.
+The lever sits **inside its envelope and the envelope is the problem**: the whole
+policy phase is 14 % of the episode, so **no time-scale can reach an 8 %
+episode-time bar on this interface** (the bar needs 56 % of the entire policy
+phase removed; a 1.5x can remove at most a third of it, and the gate lets only
+56 % of the ticks move). A 2x on the whole phase would be 128 ticks = 7.1 %, and
+2x is already a different regime (the census's joint-velocity exceedance goes
+0.0 % → 0.13 %). The named ceiling for this lane is therefore **~4.8 % at 1.5x
+ungated (7.1 % at 2x)**, against the census's 11-12 %.
+
+The clean-tree read (−5.0 % = −90 ticks) is **above** the geometric envelope
+(−48 ticks) — which is the pairing confound of §3.1b showing itself, not a
+mechanism: the treatment arm's episodes are shorter *and* its fruit starts
+nearer, and the two feed each other. So the honest reading of the mechanism is
+the negative one: **nothing here separates "the servo tracks the re-timed path"
+from "the line presented the fruit sooner", and the ceiling says the separation
+would not change the verdict.** The census's §2.4 note ("the drive is a 0.2 s
+first-order lag at a saturated torque, so a jump is filtered into a ramp and a
+ramp is tracked") remains untested *inside* the policy phase.
+
+The 44 % duty cycle is the *only* thing the gate costs (4.8 → 2.7 % envelope),
+and the gate is what keeps the contact legs at the demonstrated rate — the half
+of the RoboPace ladder this tree can test (`logs/p52/FRONTIER.md` §2.1:
+contact-gated 32/50 vs uniform-1.67x 4/50 vs RACE-style 1/50). **On this
+interface the contact-gated cell and the ungated cell differ by at most 4.8 % vs
+2.7 % of episode time and by 0.002 of right-arm placement** — the contact cost
+the frontier measures on a 50-trial contact-rich assembly is not visible here at
+this n.
 
 ---
 
@@ -247,7 +336,7 @@ measures on a 50-trial contact-rich assembly is not visible here at this n.
 
 | # | endpoint | bar | measured | verdict |
 | --- | --- | --- | --- | --- |
-| **P1** | placed-episode ticks | TG ≥ 8 % below T0 | **−2.9 %** median (−2.8 % mean; −2.7 % paired) | **FAIL** |
+| **P1** | placed-episode ticks | TG ≥ 8 % below T0 | **−2.9 %** median (−2.8 % mean; −2.7 % paired; **−5.0 %** on the clean-tree pair); the ceiling is 4.8 % | **FAIL** |
 | **P2** | right-arm placed | ≥ −0.10 | **−0.002** (Newcombe lower −0.142) | **PASS** (point; interval unresolved) |
 | **P3** | failure reasons | none new | none new (same two families) | **PASS** |
 | **P4** | wall / motion | report | wall −3.5 %; duty 44.1 %; 216.4 N peak | reported |
@@ -264,19 +353,24 @@ policy phase is 14 % of the episode and the arm-side ceiling is 4.8 %.
 * **No rate.** Every count is one attractor: the pooled 32/45 vs 28/45 is the
   left arm's draw on the closed `cnp` class, and the two arms are two different
   command streams by construction.
+* **No "the arithmetic reproduces to the tick" claim.** The paired total (−48.1)
+  coincides with the envelope (−48), but the arms are not matched on their
+  starting state (§3.1b), so the coincidence is not a validation. Quote the
+  **bound** (≤ 4.8 %), not the match.
+* **No attribution of the saved ticks.** Whether the arm moved faster or the line
+  presented the fruit sooner is **not separated** by this battery, and the
+  feedback in §3.1b makes the two observationally entangled. A separating design
+  would need a fixed initial condition (a controlled reset) or a policy-phase
+  TCP-speed trace.
 * **No claim that 1.5x is the best cell.** 1.25 and 2.0 were registered in the
   PREREG but this lane ran the contact-gated cell only (the task's scope). The
   arithmetic says the same bound holds for all of them (2.0 → 4.8 % ungated),
   so the cell choice cannot change the verdict.
 * **The ungated cell is not measured here.** The 4.8 % figure is arithmetic
   from the measured phase share and the measured duty cycle, not an arm.
-* **The F1 falsifier's second clause is untested.** If 1.25 had been run it
-  would have been the same test; the `s=1` identity is proven offline only.
-* **The policy phase's internal achieved speed was not traced.** The measured
-  effect matching the arithmetic to the tick is evidence that the drive *does*
-  follow the re-timed command; a `FRUIT_RTC_REPORT` or TCP-speed trace inside
-  the policy phase would settle it and is the named follow-up **if** the lane is
-  ever reopened for a different reason (it cannot change the ceiling).
+* **The policy phase's internal achieved speed was not traced.** A
+  `FRUIT_RTC_REPORT` run or a TCP-speed read inside the policy phase would
+  settle the 56 % figure; it cannot change the ceiling.
 * **The canary was not run.** `60_eval_policy.py` never constructs
   `SortingRLEnv`, and the knob *raises* on `presentation != "direct"`, so the
   hybrid canary cannot read it; and its policy window is a fixed
@@ -300,8 +394,12 @@ policy phase is 14 % of the episode and the arm-side ceiling is 4.8 %.
 | `logs/p52/p2/P2A_accept_noharm.log` | the scripted acceptance (see the framing below) |
 
 **The no-harm framing, stated honestly.** The scripted acceptance never imports
-`rl_env`, so its `fingerprint: matches` is an *import guard* on this change
-(the P38-M4 / P43 pattern) — the real no-harm evidence is (a) the offline
-`s = 1` exact identity, (b) the `selfcheck.sh` PASS including the `rl_env`
-import and the `TASKS_MD5` pin, and (c) the T0 arm of this batch, which *is*
-the unset path driven for 45 live episodes.
+`rl_env`, so its result is an *import guard* on this change (the P38-M4 / P43
+pattern) — the real no-harm evidence is (a) the offline `s = 1` exact identity,
+(b) the `selfcheck.sh` PASS including the `rl_env` import and the `TASKS_MD5` pin,
+and (c) the T0 arm of this batch, which *is* the unset path driven for 45 live
+episodes. It was run anyway (`SKIP_SELFCHECK=1 scripts/accept.sh`,
+`logs/p52/p2/P2A_accept_noharm.log`): **6/10, `fingerprint: matches
+configs/motion_reference.json`** — the shipped P32/P40/P41 branch (AGENTS §1
+records the shipped 6/10), with the FAIL rate-only and expected. `configs/*` is
+byte-untouched (`8a399626` / `2246f83c`, `P2A_tree_md5_after.txt`).
