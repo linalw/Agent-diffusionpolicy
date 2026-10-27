@@ -15,7 +15,8 @@ there a legal substitute when it does, and what does a refusal cost?**
 The answers in order, before the tables:
 
 1. **The chosen x is a tight distribution with a 1.7 % tail**: pooled unique
-   p50 **0.276**, p90 **0.347**, max **0.3969**; **3 of 174 unique attempts
+   p50 **0.276**, p90 **0.347**, max **0.3969** (the *delivered* value; §1.3
+   bounds the selection value from below); **3 of 174 unique attempts
    (1.7 %) above 0.39, 0 above 0.40, 0 above 0.42**. So on this corpus the
    *only* ceiling with any action is 0.39, and its action is confined to the
    0.390-0.397 window; 0.40 and 0.42 are measured no-ops.
@@ -93,6 +94,35 @@ the `[bed-*]`/`[supply-diag]`/`[feed]` rows are filtered out. The bed census add
 print rows and one fruit-pose read; it touches no control input. (P44's batch
 header already stated this equality; this is the re-derivation.)
 
+### 1.3 Is the chosen x the x at the wait loop? (the "drift" question)
+
+The block reads the chosen fruit's x **at the selection**; the attempt's own
+`wait step=0` row reads it **1.64 s later** (0.197 m of belt travel, §3.3). The
+difference, over the same 39 selections:
+
+| | value |
+| --- | --- |
+| `chosen_x (selection) - fruit_x (wait loop)` | n=39, min **-19.2 mm**, p50 **-0.1 mm**, p90 +0.3 mm, max +2.7 mm |
+| agreement to <= 2.7 mm | **34/39 selections** |
+| larger moves | **5/39**: 5.3, 12.3, 13.0, 18.9, **19.2 mm**, all **-x** (the fruit moves *outward*, +x), all on the **acceptance's stocked belt**, none on the pear |
+
+Read with P38 phase 1 (the transport's lateral contribution is **exactly
+0.000 mm** over 475 transits), the x is a constant of the *transport*; the
+5-19 mm moves are **post-selection motion on the belt**, not transport — they are
+P38's own named "open residual 5-20 mm ... a pair depenetration" (two fruit
+released abreast within 0.10-0.16 m of each other push apart as PhysX resolves
+the overlap). So:
+
+* the **selection x is the delivered x to -0.1 mm median**, with a **13 %
+  (5/39) chance of a 5-19 mm outward move** between the selection and the wait
+  loop;
+* therefore a wait-loop tail value is a **selection-time value within that
+  bound**: E1's **0.3969** implies a selection x in **[0.378, 0.397]**, i.e.
+  above the 0.39 ceiling **iff the move was < 6.9 mm** — which holds in 34/39 of
+  the measured population. **The census cannot settle E1's selection x; the
+  phase-2 event arm prints it** (`[xsel]`/`[bed-sel]` read the selection
+  instant), and that is now a named question rather than an assumption.
+
 ---
 
 ## 2. The chosen-x distribution (every corpus, `wait step=0 fruit_x=`)
@@ -101,10 +131,14 @@ header already stated this equality; this is the re-derivation.)
 reach **0.18-0.39** with a hard cliff at **0.42** (P34/P38/P47); the pick station
 sits at x ~ 0.333, so the tail that matters is the **high** side.
 
-Why `wait step=0` is the selection's x: the later transport contributes
-**exactly 0.000 mm** of lateral motion (P38 phase 1), and the attempt-0 block of
-`d0_accept_A_s5` shows the identity to printing precision — chosen
-`x = 0.365` at selection, `fruit_x = +0.3653` at the wait loop.
+Why `wait step=0` is taken as the selection's x — with a **measured 5-19 mm
+exception**: the transport contributes exactly 0.000 mm of lateral motion (P38
+phase 1), and 34 of 39 selections agree between the block's selection read and
+the wait-loop read to <= 2.7 mm (median -0.1 mm). But **5 of 39 move 5.3-19.2 mm
+outward** between the two instants (post-selection belt motion, P38's
+pair-depenetration residual — §1.3). So the wait-loop value is the *delivered* x
+and an upper bound on the selection x, not an identity; §1.3 carries the bound
+and what it leaves open for the tail.
 
 | corpus | logs | n | min | p50 | p90 | max | >0.39 | >0.40 | >0.42 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -304,22 +338,31 @@ registered 0.39, and its action is a 0.390-0.397 window.
 
 **Settled.**
 
-1. The chosen x is p50 0.276 / p90 0.347 / max 0.3969 over 174 unique attempts;
-   **> 0.39 is 3 rows = 1.7 %, > 0.40 and > 0.42 are 0**. The tail is
-   **instance- and cell-bound** (2 of 29 single-arm runs, both S2; the shipped
-   branch tops out at 0.3653).
+1. The chosen x (**delivered**, at the wait loop) is p50 0.276 / p90 0.347 / max
+   0.3969 over 174 unique attempts; **> 0.39 is 3 rows = 1.7 %, > 0.40 and
+   > 0.42 are 0**. The tail is **instance- and cell-bound** (2 of 29 single-arm
+   runs, both S2; the shipped C branch tops out at 0.3653).
 2. **The shipped acceptance/pear line presents no fruit a 0.39 ceiling would
-   refuse** (0/40 full-set selections; the usable population's x max is 0.369).
-   So a ceiling arm on that branch is an *inertness* test, predicted
-   byte-identical, not a conversion test.
-3. **A binding refusal is a skip with ~60 % probability** (one eligible fruit),
+   refuse at the selection instant** (0/40 full-set selections; the chosen x at
+   selection maxes at 0.3650, the usable population at 0.369). So a ceiling arm
+   on that branch is an *inertness* test, predicted byte-identical, not a
+   conversion test.
+3. **The selection x and the delivered x differ by -0.1 mm median, but not
+   always**: 34/39 selections agree to <= 2.7 mm and **5/39 move 5.3-19.2 mm
+   outward** between the selection and the wait loop (post-selection belt
+   motion; P38's pair-depenetration residual, transport itself is 0.000 mm). A
+   tail *delivered* value therefore bounds its selection value from below: E1's
+   0.3969 -> a selection x in **[0.378, 0.397]**, above 0.39 iff the move was
+   < 6.9 mm (true in 34/39 of the measured population). **The census cannot
+   settle E1's selection x** — the event arm reads it directly.
+4. **A binding refusal is a skip with ~60 % probability** (one eligible fruit),
    one substitute deep at most (never 3 candidates in 40 selections), and the
    substitute *saves* 0.9-2.1 s of belt travel. The skip burns 1-5 of the ten
    attempts at 0.5 s each.
-4. **The events' alternatives are not in the record.** No arm that carries a tail
+5. **The events' alternatives are not in the record.** No arm that carries a tail
    instance ran the bed census, and `queue` is not the floored set. Phase 2 must
    measure the substitute, not infer it.
-5. **The two-line and the shared-station worker cannot reach the rule** (the
+6. **The two-line and the shared-station worker cannot reach the rule** (the
    selector returns at `lane`/`prefer_lane` before it), and must not.
 
 **What it does not claim.** No rate: every count is a deterministic branch's
@@ -328,12 +371,18 @@ that does not draw them **cannot** re-measure them. No claim about the direct or
 policy interfaces (they pass `direct=True`, and §PREREG scopes the knob off
 there). No claim that the 0.39 ceiling is the *right* value — the corpus only
 says 0.40 and 0.42 are empty and 0.39 is a 1.7 % tail; the clean-band edge (0.39)
-is P34's measurement, not this census's.
+is P34's measurement, not this census's. And **no claim that the lever is inert
+by construction**: it refuses nothing on the *shipped C branch* (0/40), but the
+population contains 3 tail presentations and 1.3 of them (by the 34/39 frequency)
+would be refused at the selection instant — which is a measurement the event arm
+owes, not an inference either way.
 
 **Corrections carried here.** (i) P48 §2's `queue = 5` for E3 -> **3** (§4). (ii)
 `queue` is a 0.50 m along-band depth, not a floored-window count — P48 used it as
 a bound, which is what it is. (iii) The substitution's sign depends on the
-selection rule; the shipped rule's is a *saving*.
+selection rule; the shipped rule's is a *saving*. (iv) The `wait step=0` value is
+the **delivered** x and only an upper bound on the selection x (§1.3): a
+statement about "the chosen fruit's x" must say which instant it means.
 
 Evidence: `logs/p49/select_census.py` (the reader) and
 `logs/p49/select_census_out.txt` (its full output: per-block live sets, per-log

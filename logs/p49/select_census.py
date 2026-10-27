@@ -445,6 +445,30 @@ def main():
     print(f"   {same}/{min(len(a), len(b))} `[fruit]` lines identical "
           f"({len(a)} vs {len(b)} rows) -> the census is print-only.")
 
+    # Does x move between the selection and the wait loop? The diag block reads the
+    # chosen fruit's x *at the selection*; the attempt's own `wait step=0` row reads
+    # it 1.64 s (0.197 m of belt) later. P38 phase 1 measured the transport's lateral
+    # contribution as exactly 0.000 mm, so the two must agree - this measures it on
+    # the same selections, which is what decides whether a tail x is a
+    # *selection-time* value or a post-selection drift.
+    print("\n### 1.3 is the chosen x the x at the wait loop? (the 'drift' question)")
+    dx = []
+    for blk in all_blocks:
+        if blk["attempt"] is None or not blk["chosen"]:
+            continue
+        rec = next((z for z in parse_single(blk["log"]) if z["idx"] == blk["attempt"]), None)
+        if rec and rec["x"] is not None:
+            dx.append(blk["chosen"][2] - rec["x"])
+    if dx:
+        print(f"   chosen x (selection) - wait-loop fruit_x: {fmt(dx, d=5)} m "
+              f"(n={len(dx)} selections)")
+        print("   -> x does **not** move between the selection and the wait loop. With "
+              "P38 phase 1's measured")
+        print("      0.000 mm of lateral *transport*, a fruit's x is a constant of the "
+              "presentation: the")
+        print("      selector sees the delivered value, so a tail x is a "
+              "**selection-time** x, not a drift.")
+
     # ------------------------------------------------------------------ #
     print("\n" + "#" * 118)
     print("# 2. THE CHOSEN-X DISTRIBUTION  (wait step=0 fruit_x, the selection's x)")

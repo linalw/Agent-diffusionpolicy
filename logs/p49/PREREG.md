@@ -15,10 +15,12 @@ candidate in 40 full-set selections exceeds **0.369**. Therefore:
   **0 times** and must be **byte-identical** to its control. These arms are an
   *inertness + no-harm* test, **not** a conversion test.
 * **P-B**: the only single-arm instance the lever can meet in this corpus is
-  **E1** (`accept_s5_S2` attempt 1, kiwi 5.6 at x = **0.3969**), which lives in
+  **E1** (`accept_s5_S2` attempt 1, kiwi 5.6, delivered x = **0.3969**, its
+  *selection* x bounded to **[0.378, 0.397]**), which lives in
   `FRUIT_SPEED_RELEASE=1`. Hence the battery carries an **event-bearing arm**
-  (§2.3) — without it the registered `C/X/X+U` cells cannot exercise the knob at
-  all.
+  (§2.2) — without it the registered `C/X/X+U` cells cannot exercise the knob at
+  all, and the one open question (does the ceiling fire at the selection
+  instant?) is unanswerable from the record.
 
 Everything below is fixed before the first run. Deviations get an amendment
 (`PREREG_A1.md`), not an edit here.
@@ -107,11 +109,11 @@ and is the only compressible part; it is **not** dropped unless the owner says s
 
 | id | endpoint | definition | pre-registered prediction |
 | --- | --- | --- | --- |
-| **E1** | the ceiling's action | per arm: `[xsel]` rows with `decision != pass` (**refusals**), and the `[run] attempt N: no eligible fruit` rows (**skipped slots**), with the refused x and the substitute's x/along | **0 refusals, 0 skips on arms 1-8**; **1 refusal** on arm 10 (E1, x = 0.3969); 0 on arm 11 |
+| **E1** | the ceiling's action | per arm: `[xsel]` rows with `decision != pass` (**refusals**), and the `[run] attempt N: no eligible fruit` rows (**skipped slots**), with the refused x and the substitute's x/along | **0 refusals, 0 skips on arms 1-8**; **0 or 1** on arm 10 — E1's *selection* x is bounded to **[0.378, 0.397]** by the census (§1.3), so the `[xsel]` row decides it; 0 on arm 11 |
 | **E2** | placed count | `[stats] successes` per arm; contrasts **X vs C**, **X+U vs U** (both scenarios), **X' vs C'**; plus the event's conversion class (substitute attempted / skipped) | **X = C, X+U = U** exactly (inertness); X' either attempts a legal substitute or skips 1-3 slots — one instance, a **mechanism** read |
 | **E3** | `s/attempt` | `[stats]` `s/attempt` (the project's definition of record, not span/attempts) | **identical** where E1 is 0; on X' no more than the skip cost (+0.5 s x skips over 10 attempts) |
 | **E4** | no new reason | the per-attempt `notes=[...]` strings vs the baseline set (P44's: `fruit did not follow the gripper` only); `no eligible fruit` skips are **not** a note and are counted in E1 | **no new note** |
-| **E5** | the motion gate | `python3 scripts/105_motion_regression.py <log> --fingerprint configs/motion_reference.json` on the single-arm arms; `scripts/190_twoline_gate.sh -m 0.6` on arm 11 | C/U/X/X+U **`fingerprint: matches`** (all byte-identical); C' does not match (a different branch) and is gated on **budgets only**; arm 11 **PASS** |
+| **E5** | the motion gate | `python3 scripts/105_motion_regression.py <log> --fingerprint configs/motion_reference.json` on the single-arm arms; `scripts/190_twoline_gate.sh` (default reference `2246f83c`, floor 0.60) on arm 11 | C/U/X/X+U **`fingerprint: matches`** (all byte-identical); C' does not match (a different branch) and is gated on **budgets only**; arm 11 **PASS** |
 | **E6** | the scope | arm 11's physics `[fruit]` stream vs `twoline_s5_C.log`, and the code properties of §1 | **byte-identical**; the two-line/shared/direct/indexed paths cannot reach the site |
 
 **Instrument neutrality is a condition, not a claim**: the `[bed-sel]` census is
@@ -140,8 +142,12 @@ claim.
 **Predictions that would make the phase a finding either way**
 
 * **P1** C ≡ X and U ≡ X+U, byte-identical on both scenarios (0 refusals).
-* **P2** arm 10 refuses exactly once, at attempt 1, x = 0.3969, and the refused
-  fruit's next legal substitute is whatever the `[bed-sel]` block shows.
+* **P2** arm 10's first divergence from `accept_s5_S2.log` is at attempt 1's
+  **selection** (or not at all), and its `[xsel]` row prints the selection x,
+  which the census bounds to **[0.378, 0.397]** — the run resolves whether the
+  ceiling fires there. (A refusal is not assumed: 34/39 of the measured
+  selections agree with their delivered x to <= 2.7 mm, 5/39 move 5-19 mm
+  outward *after* the selection.)
 * **P3** arm 10's outcome class is "1-3 skipped slots" **or** "one attempt on a
   substitute at x <= 0.39". The census cannot say which (the event arm's live set
   was never censused) — that is what arm 10 buys.
