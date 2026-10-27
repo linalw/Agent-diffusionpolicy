@@ -2301,16 +2301,25 @@ emissions - a success-first cell with the ticks as a reported cost. Pins: no
 `logs/p52/{FRONTIER,MODEL_CENSUS,P2A_RESULTS,P2B_FEASIBILITY}.md`, `p2/`.
 
 **P53 (2026-10-28, `logs/p53/`; nothing adopted): the policy's own emission defect
-is not the success bottleneck.** The direct path emits **4.8 % of its joint steps
-out of range** (101 of 2093; 3-9 deg overshoot, no clamp). Two default-off cells
-on the P43 protocol (N = 3 x 15, seeds 77/101/202): **C1 the joint clamp** removes
-the defect **completely** (`out_pre 101/2093 = 4.8 % -> out_post 0/2093 = 0.0 %`,
-zero time cost) yet reads **30/45 -> 29/45 placed** (per seed +1/-1/-1) - a **null**
-on the class, so the overshoot was **not** the binding term; **C2 the action hold**
-(`action_hold=2`, 8 ticks/decision = 60 Hz of decisions) reads **26/45** (0/-1/-3)
-- **negative** (the slower policy loses placements). So the policy's own emission
-path is exhausted as a success lever: the right arm's remaining ~5 % sits in the
-**scripted close/handover/grip** class (P35-P43), not in the policy's targets. With
+is not the success bottleneck.** The direct path emits **10.9-11.0 % of its joint
+steps out of range** (8341 of 76587 ticks; 65.0 % of ticks carry one; 3-9 deg
+overshoot, no clamp) - the earlier "4.8 %" was **one episode**, not the corpus.
+Two default-off cells on the P43 protocol (N = 3 x 15, seeds 77/101/202): **C1 the
+joint clamp** (the targets clipped to the arm's own `get_dof_limits()`, a copy,
+after the shapers) removes the defect **completely** (`out 11.0 % -> 0/70938`, zero
+time cost) yet reads **30/45 -> 29/45 placed** (per seed +1/-1/-1; the right arm
+**29/30 vs 28/28**) - a **null** on the class, so the overshoot was **not** the
+binding term; **C2 the action hold** (`action_hold=2`, 8 ticks/decision, 60 Hz of
+decisions) reads **26/45** (0/-1/-3) - but that is a **pooled/arm-mix** statement:
+the right arm is **26/26 = 100 %** and arm-standardised at T0's mix it is **30.0 vs
+30.0**, the pooled drop being the left's closed-`cnp` draw, while the hold's real
+win is the **wall** (**-7.1 %**, decisions **61 -> 29**, the 32 fewer model calls at
+71 ms; the sim time is flat). **The dither story is corrected too**: the
+same-tick dither falls 21.8 -> 17.1 mm but the **achieved arm rate falls 0.87 ->
+0.73 rad/s** (-16 % of real motion), so the dither was buying motion, not waste. So
+the policy's own emission path is exhausted as a success lever: the right arm's
+remaining ~5 % sits in the **scripted close/handover/grip** class (P35-P43), not in
+the policy's targets. With
 P52 this closes the **model lane**: the policy owns **14.2 %** of the episode (its
 speed lever is bounded at 4.8 %, measured -2.9 %/-5.0 %), its supervision is
 sound, its chunks carry no phase structure, and clamping its emissions is free

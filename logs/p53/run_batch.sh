@@ -114,7 +114,9 @@ echo "[p53] batch end $(date '+%F %T') wall=$((t1 - t0))s"
 # the manifests of record (the stores themselves stay in /tmp)
 mkdir -p logs/p53/p3/manifests
 for d in /tmp/opencode/p53/raw/*/; do
-    [ -f "$d/manifest.json" ] && cp "$d/manifest.json" "logs/p53/p3/manifests/$(basename "$d").json"
+    n=$(basename "$d")
+    m=$(find "$d" -name manifest.json | head -1)
+    [ -n "$m" ] && cp "$m" "logs/p53/p3/manifests/${n}.json"
 done
 
 echo "[p53] reports"
