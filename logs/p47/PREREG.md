@@ -222,7 +222,16 @@ converged-but-lost closes).
 
 ## 7. Deviations
 
-*(empty at write time; append, dated, if the run departs from this file.)*
+* **2026-10-27 (orchestrator, before any run): the battery was not spent.**
+  AGENTS §2's P47 paragraph records the close: the census's pre-run prediction
+  (§2 above) is that the guard fires on 8/317 = 2.5 % of closes with **0 rows in
+  the convertible 35-75 mm band**, so the six runs were not booked and no `src/`
+  edit was made. This file is kept **unamended as the record** of what was
+  registered before the decision; §3's arms and §4's endpoints were never
+  executed. The named next lever is the hand-over timing/selection plus the 11
+  converged close losses (`ACQ_CENSUS.md` §4).
+
+*(any further departure from this file gets its own dated entry here.)*
 
 ---
 

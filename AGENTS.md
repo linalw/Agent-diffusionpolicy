@@ -1993,8 +1993,9 @@ ten read sites. **The union is real**: **-1.45 s/attempt** (median of two seeds:
 two-line (**+12 % placed/min, 4.90 -> 5.49, same 8/10**). **Nothing is adopted.**
 S1/S2/S3 each fail the registered E4 **on the letter** (one new
 `fruit did not follow the gripper` row apiece), and that class is the
-**pre-contact acquisition** signature - the fingertip-to-fruit distance is
-**59-63 mm** at the close and the payload never sits between the pads; **the
+**pre-contact acquisition** signature - the **pad span at onset** is 59-63 mm
+(`sep@onset`; the *miss* is **219-481 mm**, `dynamic catch-up: residual` - P47's
+correction), so the payload never sits between the pads; **the
 control draws the same signature on seed 6 (59.4 mm) and 3/147 = 2.0 % of the
 shipped single-arm corpus does**. The union passes E4 on all four batteries but
 **fails E2 on the acceptance seed 6 - 5/10 vs 8/10** (Fisher **p = 0.30**; the
@@ -2107,7 +2108,9 @@ placed **8 -> 8**, `s/attempt` **9.80 -> 8.75 (-1.05)**, interval 9.13 -> 8.27,
 placed/min**. **The guard is clean**: 0 held-then-lost rows in all four logs, the
 held legs' >50 mm slip 0/0, `clean_slip` p50 0.00-0.05 mm; the s6 `force_min==0`
 legs (1 -> 3) are **never-held** (contacts@onset 0, force@onset 0.00 N, the pads
-closing on air 52-65 mm) - the **acquisition** class, not the loaded slide. The
+closing on air; **52-65 mm is the pad span at onset, not the miss** - the miss
+is 219-481 mm, P47's correction) - the **acquisition** class, not the loaded
+slide. The
 landing is clean too (**32/32 release-reached traces `on_belt=True`**). E1/E2
 fail on seed 6, E3 fails by its letter only, E4/E6 pass; **F2 fires -> no flip,
 no Phase 2** - the union stays **opt-in** and the single-arm cells stay opt-in.
