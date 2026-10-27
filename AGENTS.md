@@ -2177,6 +2177,23 @@ selector polls, unlike the direct env's frozen feeder) plus the **supply
 displacement** event. Pins: no `src/` or `configs/` change; evidence
 `logs/p48/{HANDOVER_CENSUS,PREREG}.md`, `handover_census.py`/`_out.txt`.
 
+**P49 (2026-10-27, `logs/p49/`; **not run - the ceiling refuses nothing**, nothing
+adopted): the selector's x is always inside the band, and the failing x is the
+**post-selection drift**.** The census (`logs/p49/SELECT_CENSUS.md`) reads the
+`[bed-sel]` selection census across the shipped / P44 / P46 corpora: the **chosen
+fruit's x never exceeds 0.38** (max **0.3653-0.3802**), so a ceiling at 0.39,
+0.40 or 0.42 refuses **0 of 40** selections at every threshold - the lever is
+**inert by construction**, because the P48 failures' x (0.391-0.397) is the
+**drifted x at the close**, measured **after** the selection. The drift is P38's
+**per-instance release offset** (delivered x = spawn x + offset(instance)), not a
+selection error. A binding ceiling would also be expensive: a usable set of **1**
+in **25/40** selections means a **skip** (no substitute), and the 14/40 with two
+would substitute at **+1.08 to +2.08 s** (the next fruit arrives sooner). **The
+named next lever is therefore P38b's per-instance release-offset compensation at
+`respawn`** - the one thing that puts the *delivered* x back inside the band - and
+not a selection rule. Pins: no `src/` or `configs/` change; evidence
+`logs/p49/{SELECT_CENSUS,PREREG}.md`, `select_census.py`/`_out.txt`.
+
 ## 3. What changed -> what to run
 
 | you changed | run |

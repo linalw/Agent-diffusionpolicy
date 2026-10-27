@@ -19314,3 +19314,15 @@ helps only the displaced fruit and worsens the other three by ~200 mm), so the
 battery was not spent. The 11 converged losses are the closed grip class (the
 loaded slide). The named next lever is a scripted selector x-ceiling (x > 0.39),
 plus the supply-displacement event. Evidence `logs/p48/{HANDOVER_CENSUS,PREREG}.md`.
+
+### P49 phase 1: the selector's x-ceiling refuses nothing - the failing x is the post-selection drift (2026-10-27)
+
+The `[bed-sel]` census across the shipped / P44 / P46 corpora: the chosen fruit's
+x never exceeds **0.38** (max 0.3653-0.3802), so a ceiling at 0.39/0.40/0.42
+refuses **0 of 40** selections at every threshold - inert by construction, because
+the P48 failures' x (0.391-0.397) is the **drifted x at the close**, measured
+after the selection. The drift is P38's per-instance release offset (delivered x =
+spawn x + offset(instance)). A binding ceiling would also cost: a usable set of 1
+in 25/40 selections means a skip, and the 14/40 with two substitute at +1.08 to
++2.08 s. The named next lever is P38b's per-instance release-offset compensation
+at respawn, not a selection rule. Evidence `logs/p49/{SELECT_CENSUS,PREREG}.md`.
