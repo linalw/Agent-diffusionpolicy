@@ -1,0 +1,53 @@
+# P54 phase 1 batch header (2026-10-28 01:59:40)
+# tree: c717de0962d677d69775c2265bb7569f4d6c7ed0
+61da390a85fa209496b54477a8255d23  checkpoints/moe_v13s/policy_best.pt
+a1ae217a561a995db8a89b2d80d7086d  src/fruit_sorting/rl_env.py
+b6de439c0447790910f855e263757bd8  src/fruit_sorting/tasks.py
+9384ff4fa3e62b359bf10d2123ef41fa  src/fruit_sorting/control.py
+27e3d64a3e8b8dab415eed222dfee023  src/fruit_sorting/scene.py
+379ac7064fd49df8417e94dbf6ed2616  src/fruit_sorting/policy/runtime.py
+b09d3cb2389a9f4884a748dbb3461b24  src/fruit_sorting/policy/trigger.py
+1ad5af0e63cfc93ffbd58b2f206978f6  src/fruit_sorting/meshes.py
+e81051c1d98d7e8120dcb80356722607  src/fruit_sorting/fruits.py
+42ab4fb78a91ea9d85554e6d90e1da80  configs/arm_parks.json
+8a399626c12a4e9205ce10e630b94ce9  configs/motion_reference.json
+2246f83c336f7fd6e1f8fe43d0ee8644  configs/motion_reference_twoline.json
+b5d05ea3b2e39cdc94da6147ec5ed2d8  scripts/110_rl_rollout.py
+c27c49b89cca5753c0f551be138c6379  scripts/113_rl_report.py
+1a5adba65df4e4e825ad798287de12eb  scripts/154_claim_run.sh
+6d60db0a2661766fc9e83d49b4d3569d  logs/w7/B_ab_report.py
+e7b178ec5b611f09da7044c9c2943746  logs/p53/p53_report.py
+3ed62c4bf59258ad82f325e0748bf994  logs/p54/run_batch.sh
+4dc32453e7c5dc8c18df5c8ba6e45f35  logs/p54/p54_report.py
+f39620c566c83378d9d5c972032f349a  logs/p54/PREREG.md
+# scenario (both arms): FRUIT_SUPPLY_SCATTER=1 FRUIT_SUPPLY_PATCH=1 FRUIT_SUPPLY_GRADES=A:0.375,B:0.375,C:0.25 FRUIT_POLICY_TRIGGER=arrival FRUIT_POLICY_TRIGGER_LEAD=0.9 FRUIT_DYNAMIC_PICK=1 FRUIT_ACQ_DIAG=1 FRUIT_CARRY_DIAG=1 FRUIT_PARK_DIAG=1
+# A = FRUIT_POLICY_TRIGGER_ACQ unset (the SHIPPED config) ; B = FRUIT_POLICY_TRIGGER_ACQ=1 (the measured config)
+# ckpt=checkpoints/moe_v13s/policy_best.pt on BOTH arms; park unset = the P43 default (back)
+# RUNS=3 EPISODES=15 SEEDS=77 101 202 policy_seed=11, interleaved A then B
+[p54] batch start 2026-10-28 01:59:40
+[claim_run] claimed the simulator 02:00:00
+[claim_run] exit=0 02:09:00 log=logs/p54/p1/A_1.log
+  A run 1 (seed 77): exit=0 [rl] rollout success 6/15
+  [p54] simulator busy (1 python.sh); waiting 60 s (02:09:00)
+  [p54] simulator busy (1 python.sh); waiting 60 s (02:10:00)
+[claim_run] claimed the simulator 02:11:20
+[claim_run] exit=0 02:19:13 log=logs/p54/p1/B_1.log
+  B run 1 (seed 77): exit=0 [rl] rollout success 14/15
+[claim_run] claimed the simulator 02:19:33
+[claim_run] exit=0 02:27:20 log=logs/p54/p1/A_2.log
+  A run 2 (seed 101): exit=0 [rl] rollout success 4/15
+[claim_run] claimed the simulator 02:27:40
+[claim_run] exit=0 02:35:04 log=logs/p54/p1/B_2.log
+  B run 2 (seed 101): exit=0 [rl] rollout success 11/15
+[claim_run] claimed the simulator 02:35:24
+[claim_run] exit=0 02:43:15 log=logs/p54/p1/A_3.log
+  A run 3 (seed 202): exit=0 [rl] rollout success 6/15
+[claim_run] claimed the simulator 02:43:35
+[claim_run] exit=0 02:50:50 log=logs/p54/p1/B_3.log
+  B run 3 (seed 202): exit=0 [rl] rollout success 9/15
+[p54] batch end 2026-10-28 02:50:50 wall=3070s
+[p54] reports
+[p54] p54 report exit=0
+[p54] 113 A/B exit=1
+[p54] w7 acq report exit=0
+[p54] done 2026-10-28 02:50:50

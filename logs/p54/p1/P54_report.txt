@@ -1,0 +1,84 @@
+====================================================================================================
+P54 phase 1 - the SHIPPED direct config (ACQ off, arm A) vs ACQ=1 (arm B)
+====================================================================================================
+
+[0] the manipulation check (the `[rl] trigger=` row of every file)
+  A_1.log    lead=0.90s reach=0.20 lateral=0.160 -> acq=off
+  A_2.log    lead=0.90s reach=0.20 lateral=0.160 -> acq=off
+  A_3.log    lead=0.90s reach=0.20 lateral=0.160 -> acq=off
+  B_1.log    lead=0.90s reach=0.20 lateral=0.160 -> acq=ON  speed=0.20,margin=0.60,cap=4.50,reach_margin=0.05
+  B_2.log    lead=0.90s reach=0.20 lateral=0.160 -> acq=ON  speed=0.20,margin=0.60,cap=4.50,reach_margin=0.05
+  B_3.log    lead=0.90s reach=0.20 lateral=0.160 -> acq=ON  speed=0.20,margin=0.60,cap=4.50,reach_margin=0.05
+
+[1] per run (placed = the `placed` flag; sim s = ticks/120)
+  arm run seed     placed   right   left  never  cnp ticks_p50  s/att  wall_s
+  A   1   77      6/15    6/10   0/5       8    1      1796  14.97   521.1
+  A   2   101     4/15    3/8    1/7      10    1      1951  16.26   447.9
+  A   3   202     6/15    6/10   0/5       8    1      1838  15.32   452.7
+  B   1   77     14/15   14/14   0/1       0    1      1828  15.23   454.2
+  B   2   101    11/15   11/11   0/4       1    3      1776  14.80   424.8
+  B   3   202     9/15    9/10   0/5       1    5      1815  15.12   416.2
+
+[2] pooled per arm
+  arm    placed     right     left never-held  cnp ticks_p50  s/att  wall/ep
+  A    16/45   15/28   1/17         26    3      1838  15.32     31.6
+  B    34/45   34/35   0/10          2    9      1798  14.98     28.8
+
+[3] E1 - the right-arm placed delta (registered bar: A - B >= -0.10; negative = the shipped config is worse)
+  seed-run      A right     B right  deltaA-B   A placed   B placed  dA-B
+  1            6/10       14/14        -0.400       6/15      14/15    -8
+  2            3/8        11/11        -0.625       4/15      11/15    -7
+  3            6/10        9/10        -0.300       6/15       9/15    -3
+  pooled: A right 15/28 = 0.536 vs B right 34/35 = 0.971 -> delta -0.436
+  E1 FAIL (bar -0.10); per-run right deltas [-0.4, -0.625, -0.3], per-run placed deltas [-8, -7, -3]
+  run level: A's right arm is behind in 3/3 runs (a 3-run design's smallest one-sided sign p is 2^-3 = 0.125, so the run level can only be reported, never gated)
+  paired (right, same fruit): 3 both placed, 0 both fail, 5 B-only placed, 0 A-only placed, 15 excluded (fruit differs); sign test (B better) p = 0.0312
+  paired (both, same fruit): 3 both placed, 5 both fail, 5 B-only placed, 1 A-only placed, 31 excluded (fruit differs); sign test (B better) p = 0.1094
+
+[4] E2a - the never-held class (`grasped=False`), the ACQ knob's own target
+  arm side      n  never    rate  trigger-path  policy-gate
+  A   right    28     12   0.429            12            0
+  A   left     17     14   0.824            14            0
+  A   both     45     26   0.578            26            0
+  B   right    35      1   0.029             1            0
+  B   left     10      1   0.100             1            0
+  B   both     45      2   0.044             2            0
+  never-held pooled: A 26/45 = 0.578 vs B 2/45 = 0.044 (two-sided Fisher p = 0.000)
+  right arm only: A 12/28 vs B 1/35 (Fisher p = 0.000)
+  A never-held rows: ep0 apple right res=78.9mm close_y=72.0mm t_arrive=0.89 lead=None; ep1 strawberry right res=264.7mm close_y=259.1mm t_arrive=0.89 lead=None; ep2 pear left res=335.9mm close_y=325.4mm t_arrive=0.9 lead=None; ep3 apple right res=90.6mm close_y=28.2mm t_arrive=0.9 lead=None; ep5 pear left res=565.8mm close_y=566.6mm t_arrive=0.9 lead=None; ep6 orange left res=190.8mm close_y=191.2mm t_arrive=0.9 lead=None; ep12 orange left res=200.9mm close_y=201.1mm t_arrive=0.9 lead=None; ep13 tomato left res=187.4mm close_y=188.1mm t_arrive=0.9 lead=None; ep0 apple left res=252.1mm close_y=220.7mm t_arrive=0.89 lead=None; ep1 orange left res=175.6mm close_y=175.4mm t_arrive=0.89 lead=None; ep3 tomato right res=1212.6mm close_y=435.7mm t_arrive=0.9 lead=None; ep4 kiwi left res=195.5mm close_y=195.6mm t_arrive=0.9 lead=None; ep5 strawberry right res=1153.2mm close_y=279.1mm t_arrive=0.9 lead=None; ep6 peach right res=391.6mm close_y=134.4mm t_arrive=0.89 lead=None; ep8 lychee right res=344.2mm close_y=72.4mm t_arrive=0.9 lead=None; ep10 kiwi left res=177.3mm close_y=177.3mm t_arrive=0.9 lead=None; ep13 kiwi left res=185.8mm close_y=185.7mm t_arrive=0.89 lead=None; ep14 strawberry right res=349.0mm close_y=34.6mm t_arrive=0.89 lead=None; ep1 pear left res=260.0mm close_y=244.2mm t_arrive=0.9 lead=None; ep2 orange right res=550.0mm close_y=-179.3mm t_arrive=0.9 lead=None; ep3 peach left res=181.7mm close_y=99.1mm t_arrive=0.9 lead=None; ep6 kiwi left res=165.9mm close_y=163.9mm t_arrive=0.89 lead=None; ep10 strawberry right res=5.9mm close_y=4.3mm t_arrive=0.9 lead=None; ep11 apple right res=5.9mm close_y=0.1mm t_arrive=0.9 lead=None; ep13 pear left res=1129.9mm close_y=-28.1mm t_arrive=0.9 lead=None; ep14 orange right res=100.8mm close_y=100.1mm t_arrive=0.9 lead=None
+  B never-held rows: ep4 kiwi left res=n/amm close_y=n/amm t_arrive=None lead=None; ep12 strawberry right res=216.8mm close_y=210.5mm t_arrive=2.13 lead=2.13
+
+[5] E2b - the acquisition mechanism from the `[acq]` rows
+  arm side     n  res_p50  res_p90  res_max    >6mm  catchup_t  close|y|p50  close|y|max  t_arrive  hover   wait
+  A   right   28     5.90   391.60  1212.60  10/28          30         4.90       435.70      0.90   0.92   1.08
+  A   left    17   187.40   335.90  1129.90  14/17         200       185.70       566.60      0.90   1.12   1.28
+  A   both    45    90.60   391.60  1212.60  24/45         200        28.20       566.60      0.90   0.98   1.17
+  B   right   35     5.70     5.90   216.80   1/35          26         3.90       210.50      2.11   0.85   1.59
+  B   left     9     5.70     5.90     5.90   0/9           24         3.60         4.20      2.12   0.83   1.69
+  B   both    44     5.70     5.90   216.80   1/44          26         3.90       210.50      2.11   0.85   1.59
+  columns `t_arrive` = the belt time left at the fire tick (the arm's budget); `hover`/`wait` = the handover's own stamps **from its start** (the primitive's `t0`), so the fire->handover dispatch sits between the two columns and is not logged. The measured miss is the `res` column, not this arithmetic.
+  the fire geometry (the knob's own actuation; `lead`/`reach` are only recorded with ACQ on):
+    A: n_lead=0 (not recorded: ACQ off, the shipped 0.90 s) | |dy| p50=10.8cm max=10.8 | runaway/zone-fruit rows 0/45
+    B: n_lead=44 lead p50=2.11s min=1.59 max=2.59 | |dy| p50=25.3cm max=31.1 | runaway/zone-fruit rows 0/44
+  never-held subset only:
+    A: n=26 res=[78.9, 264.7, 335.9, 90.6, 565.8, 190.8, 200.9, 187.4, 252.1, 175.6, 1212.6, 195.5, 1153.2, 391.6, 344.2, 177.3, 185.8, 349.0, 260.0, 550.0, 181.7, 165.9, 5.9, 5.9, 1129.9, 100.8] close_y=[72.0, 259.1, 325.4, 28.2, 566.6, 191.2, 201.1, 188.1, 220.7, 175.4, 435.7, 195.6, 279.1, 134.4, 72.4, 177.3, 185.7, 34.6, 244.2, -179.3, 99.1, 163.9, 4.3, 0.1, -28.1, 100.1]
+    B: n=1 res=[216.8] close_y=[210.5]
+
+[6] E3 - failure reasons (the `intercept trigger (...)` stamp removed: its lead/reach suffix exists only with ACQ on)
+  A (29 failures): 'fruit did not follow the gripper' x26; 'trigger-stamp only' x3
+  B (11 failures): 'fruit did not follow the gripper' x1; 'fruit fell off the line' x1; 'trigger-stamp only' x9
+  B-only keys: ['fruit fell off the line']
+  A-only keys: none
+  E3 FAIL (baseline = A, the shipped config)
+
+[7] the left arm (reported, not an endpoint: the closed carried-not-placed class, `logs/p42/SIM_LIMIT.md`)
+  A: placed 1/17, cnp 2, never-held 14, catch-up res p50 187.4mm, s/att 16.26
+  B: placed 0/10, cnp 9, never-held 1, catch-up res p50 5.7mm, s/att 15.80
+
+[8] the file set
+  A_1.log    seed=77 episodes=15 acq_rows=15 wall=521.1
+  A_2.log    seed=101 episodes=15 acq_rows=15 wall=447.9
+  A_3.log    seed=202 episodes=15 acq_rows=15 wall=452.7
+  B_1.log    seed=77 episodes=15 acq_rows=15 wall=454.2
+  B_2.log    seed=101 episodes=15 acq_rows=14 wall=424.8
+  B_3.log    seed=202 episodes=15 acq_rows=15 wall=416.2
