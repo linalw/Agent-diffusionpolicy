@@ -396,6 +396,75 @@ def physics_real_compliance() -> bool:
     return _component_real(_PHYSICS_REAL_COMPLIANCE_RAW)
 
 
+# --------------------------------------------------------------------------- #
+# P45: the mass-scale experiment knob (`FRUIT_MASS_SCALE=<x>`).
+#
+# **This is a physics change, not a fidelity claim.** It multiplies every fruit
+# body's authored mass by `<x>` while leaving the *size* untouched (the mesh, the
+# collider, `sample.diameter`, `pinch_width` and the pad standoff are all
+# unchanged), so at a fixed size a 0.25x mass is a 205-225 kg/m^3 design density
+# - cork, or a 1.93 mm rind on a 6.5 cm peach (`logs/p45/MASS_CENSUS.md` §5).
+# It exists to isolate the mass term in the carry class, and by construction it
+# can never be a shipped default: the default's job is to represent a real fruit.
+#
+# The **inertia needs no second attribute**: no fruit authors
+# `physics:diagonalInertia` (`fruits.py`, both mass sites - mass only, and grep
+# confirms the only `diagonalInertia` prims in the tree are the OpenArm links),
+# so PhysX derives the tensor from the collider's volume at the authored mass and
+# `I` scales with the mass **exactly** (`I = 2/5 m R^2` for the near-spherical
+# hull). `FruitSpawner.refresh_rigids` prints a one-shot runtime read-back of
+# that when the knob is set.
+#
+# Applied at exactly two sites, both in `fruits.py` (`_create_fruit`, the pool
+# build; `rescale`, the recycled fruit - the site that is easy to miss, since a
+# respawned fruit would otherwise silently return to full mass). Unset skips the
+# multiply entirely (`if scale != 1.0:`), so the shipped float path is
+# byte-identical **by construction**, not by `x1.0`.
+#
+# Confound, registered: the *indexed / policy* close budget is mass-proportional
+# (`tasks.py`: `clip(m*g*100, 25, 60) N`, `clip(m*g*60, 20, 40) N`;
+# `grasp.py:223`), so the knob would silently move the grip on that path. The
+# shipped scripted dynamic line has no mass term in its control path, which is
+# why the P45 cells are scripted-only.
+_MASS_SCALE_RAW = os.environ.get("FRUIT_MASS_SCALE")
+
+
+def _parse_mass_scale(raw: str | None) -> float:
+    """Parse `FRUIT_MASS_SCALE`; unset/blank = the shipped 1.0, `<= 0` is fatal.
+
+    Read **once at import**, like the P12-A switches, because this gates
+    build-time physics authoring and must not change mid-run.
+    """
+    if raw is None or raw.strip() == "":
+        return 1.0
+    try:
+        value = float(raw)
+    except ValueError:
+        raise RuntimeError(
+            f"FRUIT_MASS_SCALE={raw!r} is not a number; it takes a positive "
+            "factor (1.0 = the shipped mass, 0.5 = half mass at unchanged size)"
+        ) from None
+    if not math.isfinite(value) or value <= 0.0:
+        raise RuntimeError(
+            f"FRUIT_MASS_SCALE={raw!r} must be finite and > 0; a zero-mass body "
+            "is not a scenario"
+        )
+    return value
+
+
+_MASS_SCALE = _parse_mass_scale(_MASS_SCALE_RAW)
+
+
+def mass_scale() -> float:
+    """The P45 fruit mass factor: `1.0` shipped, `FRUIT_MASS_SCALE` when set.
+
+    A **physics experiment**, not a fidelity claim (`logs/p45/MASS_CENSUS.md`):
+    it scales the authored mass and (by PhysX's derivation) the inertia, and
+    leaves every length - size, mesh, collider, pinch span - untouched.
+    """
+    return _MASS_SCALE
+
+
 def fruit_density(shape: FruitShape, real: bool | None = None) -> float:
     """The class's mass density [kg/m^3] for the fruit mass formula.
 
@@ -403,6 +472,12 @@ def fruit_density(shape: FruitShape, real: bool | None = None) -> float:
     when the mass component is on (`FRUIT_PHYSICS_REAL_MASS=1`, or the master
     with the sub-knob unset; a class without a real value falls back to the
     shipped one). `real` overrides the resolution for the offline stub.
+
+    This is the *density* the class is authored with, i.e. what makes the mass
+    represent a real fruit. The P45 `mass_scale()` factor is applied by the
+    caller **on top of** this value and is a **physics experiment, not a
+    fidelity claim** - do not fold the two together: a scaled density is no
+    longer a produce density (`logs/p45/MASS_CENSUS.md` §5).
     """
     on = physics_real_mass() if real is None else bool(real)
     if on and shape.density_real > 0.0:

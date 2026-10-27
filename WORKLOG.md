@@ -19215,3 +19215,47 @@ arms, **every payload that reached the release landed on the belt** (C 6/6, S2
 **Nothing adopted**; S3-v is named the amended phase's best cell (no new row,
 5 vs 7 lost legs, -0.245 s, `a` untouched) and the adoption call stays the
 oracle's.
+
+### P45 phase 1/2: a lighter fruit makes the walk worse and leaves the fling alone - the mass is not the speed term (2026-10-27)
+
+Owner: "速度快甩飞是不是因为果蔬质量大的缘故 是否可以先大幅减小果蔬质量 先以提速尝试为主" + a frontier retry.
+
+`FRUIT_MASS_SCALE=<x>` (default off, a named **physics** change): `meshes.mass_scale()`
+parsed once at import (hard errors on 0/negative/inf/nan), applied at the **two**
+mass sites in `fruits.py` (the pool build and the recycle `rescale`), behind
+`if scale != 1.0` so unset skips the multiply; inertia needs no second attribute
+(no fruit authors `diagonalInertia`; PhysX derives it), the sizes/meshes stay
+fixed, one build banner. Battery (5 arms x acceptance + pear, `CARRY_DIAG` +
+`RELEASE_DEBUG` + `CYCLE_REPORT` on every arm): acceptance **C 6, M50 6/9, M25
+4/10, M50S 5, M25S 5**; pear **C 6, M50 7, M25 7, M50S 7, M25S 6**. The speed is
+entirely the P44 cells (15.0 -> 13.4-13.5 s/attempt; the mass contributes
+0.0-0.1 s), so **the mass buys nothing**.
+
+**The census's fling prediction was wrong, and the measurement says why**: the
+release is a **displacement-controlled pad ramp**, not a fixed impulse, so
+`v = J/m` does not apply - the in-hand release peak is **0.93-1.08x** of the
+control at 0.25x mass. What *worsens* is the **walk**, on the mixed pool only:
+at 0.25x the acceptance's escape legs go **7/20 -> 12/20**, its zero-force
+(loaded-slide) legs **7/20 -> 13/20**, `clean_slip_max` p50 **0.1 -> 228 mm** -
+the loaded slide is not mass-starved (4-5 N on one face while the payload walks),
+so less mass gives the contact less to resist; the single-class pear reads
+*better* than a control that lost 8/20 legs - the branch, not the mass. At a
+fixed size 0.25x is 205-225 kg/m3 (cork) - **the cell can never ship**; the
+physical equivalent is a smaller real fruit, a new scenario.
+
+**Frontier** (`logs/p45/FRONTIER.md`, the live survey succeeded on the third
+attempt done directly after the tool failed twice): ForceDelta-VLA verified
+against the abstract (a correction-distillation from a frozen teacher's paired
+force-conditioned/agnostic predictions, a separate delay-correction target,
+asynchronous schedule replay with cached context, a lightweight policy adjusting
+the reference from recent force history **without regenerating chunks**; 82.2 %
+vs 54.4 %, the Stage-1 teacher 70.6 %, ~26 % lower peak contact force); the ICLR
+2026 *time-optimal execution of action-chunk policies*; the delta robots'
+>100-200 picks/min as vendor claims on a different kinematics; and **no measured
+study of a light payload being flung out of a parallel jaw**. The transferable
+shape is the **bounded force-derived pose residual between reference updates**
+(the named remedy for the P44 speed cells), not the distillation.
+
+Pins: `fruits.py`/`meshes.py` (the P45 faces), `scripts/227_p45_mass_selftest.py`
+(a selfcheck leg), the cells default off, `configs/` untouched; evidence
+`logs/p45/{MASS_CENSUS,FRONTIER,PREREG_DRAFT,P2_RESULTS}.md`, `p2/`.

@@ -176,6 +176,14 @@ run_check "P43 selector + park" "$python" scripts/224_p43_selftest.py
 # an explicit per-leg override winning, the union, and the seven read sites by
 # AST. No simulator.
 run_check "P44 speed cells" "$python" scripts/225_p44_speed_selftest.py
+# P45 phase 2: the mass-scale experiment knob (`FRUIT_MASS_SCALE`, a documented
+# *physics change* at unchanged size). The real resolver on the stubbed import:
+# unset = 1.0 and **no banner** (so the shipped stream is byte-identical), the
+# resolution table, `0`/negative/`inf`/`nan`/a non-number as hard errors, both
+# mass sites (create + the recycled-fruit `rescale`) multiplied behind the
+# `!= 1.0` guard and nothing else, the size paths untouched, and the "inertia is
+# derived, not authored" property plus the one-shot read-back. No simulator.
+run_check "P45 mass scale" "$python" scripts/227_p45_mass_selftest.py
 
 if [ -n "$run_log" ] && [ -f "$run_log" ]; then
     run_check "motion budgets" "$python" scripts/105_motion_regression.py "$run_log" \

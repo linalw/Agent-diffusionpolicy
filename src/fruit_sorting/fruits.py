@@ -27,6 +27,7 @@ from .meshes import (
     fruit_contact_stiffness,
     fruit_density,
     make_material,
+    mass_scale,
     physics_real,
     physics_real_compliance,
     physics_real_mass,
@@ -123,6 +124,24 @@ def _physics_banner() -> str | None:
         "[physics] FRUIT_PHYSICS_REAL components: "
         f"mass={int(mass_on)} rest={int(rest_on)} "
         f"compliance={int(compliance_on)} (P12-A.2)"
+    )
+
+
+def _mass_scale_banner() -> str | None:
+    """The P45 banner naming the fruit mass scale, or None when it is shipped.
+
+    Printed once per pool beside the P12-A banner, so every log names its
+    physics; the shipped path prints nothing and is byte-identical. The line
+    carries `mass_scale=<x>` so a battery log can be grepped for the arm it is.
+    """
+    scale = mass_scale()
+    if scale == 1.0:
+        return None
+    return (
+        f"[physics] FRUIT_MASS_SCALE={scale:g}: mass_scale={scale:g} "
+        f"(mass x{scale:g} and, by PhysX's derivation, the inertia x{scale:g}; "
+        "sizes/meshes/colliders unchanged - a physics experiment, not a "
+        "fidelity claim; P45)"
     )
 
 
@@ -731,6 +750,8 @@ class FruitSpawner:
         self.samples: list[FruitSample] = []
         self.active: list[FruitSample] = []
         self._rigids: dict[int, RigidPrim] = {}
+        #: P45: printed the one-shot mass/inertia read-back already.
+        self._mass_probe_done = False
         self._attach_offset: dict[int, np.ndarray] = {}
         self._cursor = 0
         self._next_release = 0.0
@@ -945,6 +966,11 @@ class FruitSpawner:
         banner = _physics_banner()
         if banner is not None:
             say(banner)
+        # P45: one banner when the mass scale is set (unset prints nothing, so
+        # the shipped stream is byte-identical).
+        banner = _mass_scale_banner()
+        if banner is not None:
+            say(banner)
         say(f"created {len(self.samples)} fruit rigid bodies")
 
     def _create_fruit(self, index: int, category: str, grade: str | None = None) -> None:
@@ -975,6 +1001,15 @@ class FruitSpawner:
         # component is on (`fruit_density`; the 0.82 sphere-shape discount is
         # unchanged).
         mass = float(fruit_density(shape) * (4.0 / 3.0) * np.pi * (diameter / 2.0) ** 3 * 0.82)
+        # P45: the mass-scale experiment. A **physics change, not a fidelity
+        # claim** (`meshes.mass_scale`): the size, the mesh, the collider and the
+        # pinch span stay exactly as they are, only the authored mass moves - and
+        # because no fruit authors `physics:diagonalInertia`, PhysX derives the
+        # tensor from that mass and the tensor scales with it. Unset skips the
+        # multiply entirely, so the shipped float path cannot move.
+        scale = mass_scale()
+        if scale != 1.0:
+            mass *= scale
         friction = self.rng.uniform(*shape.friction)
         UsdPhysics.RigidBodyAPI.Apply(prim)
         mass_api = UsdPhysics.MassAPI.Apply(prim)
@@ -1028,6 +1063,64 @@ class FruitSpawner:
         """(Re)build rigid prim handles; call after the simulation starts."""
         for sample in self.samples:
             self._rigids[sample.index] = RigidPrim(sample.prim_path)
+        self._probe_mass_inertia()
+
+    def _probe_mass_inertia(self) -> None:
+        """One-shot read-back of the authored mass and the derived inertia (P45).
+
+        `logs/p45/MASS_CENSUS.md` §1.4 says the fruit authors `mass` **only**
+        (`_create_fruit` / `rescale`, no `physics:diagonalInertia`), so PhysX
+        derives the tensor from the collider's volume at that mass and a mass
+        scale is also an **inertia** scale. That was a *documented* derivation,
+        not a measurement, because nothing read the tensor back; this is the
+        read. It runs **once**, at the rig-handle refresh before the attempt
+        loop, and only when `FRUIT_MASS_SCALE` is set - so the shipped stream
+        gets no line and no extra tensor call (the AGENTS rule about
+        instrumentation in a control loop does not apply to a one-shot read
+        that no attempt has started under, but a per-tick version would).
+
+        `I/m` is the gyration radius squared; for the near-spherical hull it
+        sits at `(2/5) R^2` with `R = d/2` and must be **identical across mass
+        scales** - that is "the size did not move", read from physics rather
+        than from the config.
+        """
+        scale = mass_scale()
+        if scale == 1.0 or not self._rigids or self._mass_probe_done:
+            return
+        self._mass_probe_done = True
+        masses: list[float] = []
+        ratios: list[float] = []
+        shape_ratios: list[float] = []
+        for sample in self.samples:
+            rigid = self._rigids.get(sample.index)
+            if rigid is None:
+                continue
+            try:
+                mass = float(np.asarray(rigid.get_masses(indices=[0])).reshape(-1)[0])
+                tensor = np.asarray(rigid.get_inertias(indices=[0])).reshape(-1)
+            except Exception as exc:  # noqa: BLE001 - report, never fatal
+                say(f"[physics] mass readback (P45) unavailable: {exc}")
+                return
+            inertia = float(np.mean(tensor[[0, 4, 8]]))
+            if mass <= 0.0 or inertia <= 0.0:
+                say("[physics] mass readback (P45): non-positive mass/inertia")
+                return
+            masses.append(mass)
+            ratio = inertia / mass
+            ratios.append(ratio)
+            shape_ratios.append(ratio / (0.4 * (sample.diameter / 2.0) ** 2))
+        if not masses:
+            return
+        say(
+            f"[physics] mass readback (P45): n={len(masses)} "
+            f"mass={min(masses) * 1e3:.2f}-{max(masses) * 1e3:.2f} g "
+            f"(/ {scale:g} = {min(masses) / scale * 1e3:.2f}-"
+            f"{max(masses) / scale * 1e3:.2f} g unscaled), "
+            f"I/m={min(ratios):.3e}-{max(ratios):.3e} m^2, "
+            f"I/m / (2/5)R^2 = {min(shape_ratios):.2f}-{max(shape_ratios):.2f} "
+            f"(1.00 = a sphere; the spread is the hull's own shape) - "
+            f"the inertia follows the authored mass, sizes unchanged"
+        )
 
     def rescale(self, sample: FruitSample, category: str, diameter: float) -> None:
         """Change a recycled fruit's category/size (rebuilds its mesh)."""
@@ -1038,6 +1131,14 @@ class FruitSpawner:
         sample.mass = float(
             fruit_density(shape) * (4.0 / 3.0) * np.pi * (sample.diameter / 2.0) ** 3 * 0.82
         )
+        # P45: the *second* mass site - the recycled fruit. Miss this one and a
+        # respawned fruit silently returns to full mass, which would make every
+        # later attempt in a shard a different experiment. Same unset-skips rule
+        # as `_create_fruit`; the inertia follows the authored mass by PhysX's
+        # own derivation (no `physics:diagonalInertia` is authored here either).
+        scale = mass_scale()
+        if scale != 1.0:
+            sample.mass *= scale
         sample.friction = self.rng.uniform(*shape.friction)
         sample.grade = self.rng.choice(self.cfg.grades)
         sample.ripeness = self.rng.uniform(0.4, 1.0)
