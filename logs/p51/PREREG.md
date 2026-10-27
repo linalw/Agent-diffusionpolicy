@@ -3,7 +3,7 @@
 **Status: REGISTERED, NOT EXECUTED.** Phase 1 (`logs/p51/COMBO_MAP.md`) measured the
 falsifier **F1** before any simulator time: the speed/mass cells' acquisition rows are
 **not** the release-offset tail (1 tail of 5 cell-attributable events; the other 4 are
-mid/upper-band and **converged**, i.e. the closed grip class). Under §5's own rule the
+mid/upper-band and **converged**, i.e. the closed grip class). Under §4's own rule the
 battery is therefore **not to be spent**; this file is kept as the registration and its
 pre-run prediction, the practice of P47/P48/P49. If the owner overrides, everything below is
 ready to run unchanged.
@@ -84,7 +84,7 @@ the converged-class count **not** increased.
 
 **E3 — the placed.** Placed count per arm (10 attempts), **OU vs U and vs C**. Report-only as
 a rate (AGENTS §2: one deterministic branch, and the pool recycles), but the *direction* is a
-gate: OU must not be below U (§5's F3).
+gate: OU must not be below U (§4's F3).
 
 **E4 — `s/attempt`.** The `[stats]` span / attempts, per arm: OU must keep U's gain (the
 union's own measured -1.45 s/attempt P44, -0.76 s pooled P46) within **0.20 s** — i.e. the
