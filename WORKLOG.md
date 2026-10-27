@@ -19295,3 +19295,22 @@ guard was predicted to fire on **2.5 %** of closes and convert **~0**, so the
 battery was not spent (the PREREG keeps the prediction). The named next lever:
 the hand-over timing/selection (a target 2.4x the catch-up's reach budget away)
 and the 11 converged close losses. Evidence `logs/p47/{ACQ_CENSUS,PREREG}.md`.
+
+### P48 phase 1: the acquisition misses are the delivered-x tail, not the hand-over timing - both levers catch 0/4 (2026-10-27)
+
+The catch-up residual's >6 mm band is 8/8 no-grasp vs 3.6 % below
+(p = 3.3e-11) and the 6.0 -> 219.6 mm band is empty. The four events share the
+**x tail**: |x| >= 0.390 is 6/6 failed (p = 2.1e-11 vs 2/311), >= 0.38 is 8 rows
+with 0 placed, within kiwi 8/8 vs 2/27 (p = 1.9e-06); 3/4 are kiwis at
+x 0.391-0.397, i.e. 0.8-6.9 mm past the 0.39 m clean lateral band, while the arm
+recovered only 20-51 mm of the 200 mm the fruit moved; the fourth (480.6 mm) is
+the corpus's only cross-belt displacement (379 mm drift) - a supply event. The
+hand-over lead is a constant 0.189 m on all 317 attempts (it cannot
+discriminate); the reach budget is 200 ticks x 1.0 mm = 200 mm and the residuals
+are 1.10/1.23/1.26/2.40x it (P47's 2.4x was the maximum, on the non-timing
+event). Both registered levers catch 0/4 (the lead 0.03 -> 0.20 lifts the floor
+to 0.569 m against a dy0 max of 0.570 for +1.42 s/attempt; the 400-tick catch-up
+helps only the displaced fruit and worsens the other three by ~200 mm), so the
+battery was not spent. The 11 converged losses are the closed grip class (the
+loaded slide). The named next lever is a scripted selector x-ceiling (x > 0.39),
+plus the supply-displacement event. Evidence `logs/p48/{HANDOVER_CENSUS,PREREG}.md`.

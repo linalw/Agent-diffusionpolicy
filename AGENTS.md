@@ -2148,6 +2148,35 @@ reach budget away) plus the **11 converged close losses**, not a distance wait.
 Pins: no `src/` or `configs/` change; evidence `logs/p47/{ACQ_CENSUS,PREREG}.md`,
 `census.py`/`census_out.txt`.
 
+**P48 (2026-10-27, `logs/p48/`; **not run - the census refuted both registered
+levers**, nothing adopted): the acquisition misses are the **delivered-x tail**,
+not the hand-over timing.** Across 317 closes the catch-up residual's >6 mm band
+is **8/8 no-grasp** against 3.6 % below (Fisher **p = 3.3e-11**), and the band
+6.0 -> 219.6 mm is **empty** - so the split is categorical. **The four events
+share the x tail, not a timing**: **|x| >= 0.390 is 6/6 failed** (p = 2.1e-11
+against 2/311), `>= 0.38` is 8 rows with **0 placed**, and within kiwi 8/8 vs
+2/27 (p = 1.9e-06) - 3/4 are kiwis at **x 0.391-0.397**, i.e. **0.8-6.9 mm past
+the 0.39 m clean lateral band**, while the arm recovered only 20-51 mm of the
+200 mm the fruit moved; the fourth (480.6 mm) is the corpus's **only cross-belt
+displacement** (a 379 mm drift, a 58.15 N / 99.1 mm-span close in 5 ticks) - a
+supply event, not a timing miss. **The hand-over lead is a constant 0.189 m on
+all 317 attempts**, so it cannot discriminate, and `dy0` ranks mid-population.
+The reach budget is 200 ticks x 1.0 mm/tick = **200 mm**, and the residuals are
+**1.10 / 1.23 / 1.26 / 2.40x** it - P47's "2.4x" was the **maximum and belongs
+to the non-timing event**. **Both registered levers catch 0/4**: the lead
+(`FRUIT_DYNAMIC_LEAD_MARGIN` 0.03 -> 0.20) moves the lead to 0.359 m but the
+selector floor to **0.569 m** (against a measured dy0 max 0.570) for **+1.42 s
+per attempt**, and the longer catch-up (200 -> 400 ticks) helps only the
+displaced fruit while making the other three **~200 mm worse** - so the battery
+was **not spent** (the PREREG keeps both predictions). The **11 converged close
+losses** are the closed **grip/hold** class (the W8-B loaded slide: `contacts@
+onset = 0`, `force_min = 0.00 N`, 2 re-seat rows on every single-arm one), not
+acquisition. **The named next lever is a scripted selector x-ceiling** (refuse or
+re-select fruit with x > 0.39 - the P38-style refusal on the scripted line, whose
+selector polls, unlike the direct env's frozen feeder) plus the **supply
+displacement** event. Pins: no `src/` or `configs/` change; evidence
+`logs/p48/{HANDOVER_CENSUS,PREREG}.md`, `handover_census.py`/`_out.txt`.
+
 ## 3. What changed -> what to run
 
 | you changed | run |
