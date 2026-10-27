@@ -1,0 +1,267 @@
+P45 phase 1 - MASS CENSUS (offline; no stage, no pxr, no simulator)
+tree: HEAD 1bae811; fruits.py 6f65e423, meshes.py 41efc522,
+      assets.py 61baf52b, tasks.py b6de439c, grasp.py 6417e1d2
+
+==============================================================================
+A. The shipped mass table (density x 4/3 pi r^3 x 0.82, fruits.py:977)
+==============================================================================
+class        d lo   d hi    rho     m@lo    m@mid     m@hi  2x m@mid   mu range
+               cm     cm  kg/m3        g        g        g         g
+strawberry    3.0    4.5    700      8.1     15.8     27.4      31.7   0.55-0.85
+lychee        2.8    3.8    850      8.0     13.1     20.0      26.2   0.55-0.85
+kiwi          5.0    6.8    900     48.3     79.4    121.5     158.7   0.75-1.05
+tomato        5.0    6.8    780     41.9     68.8    105.3     137.6   0.50-0.75
+apple         6.2    7.0    850     87.0    104.9    125.2     209.8   0.45-0.70
+orange        6.0    7.0    900     83.5    106.1    132.5     212.2   0.70-1.00
+peach         5.8    7.0    820     68.7     92.3    120.8     184.6   0.55-0.85
+pear          5.8    7.0    880     73.7     99.0    129.6     198.1   0.45-0.70
+
+  pool range (16 fruit, 2 of each class, sizes drawn uniformly): 8.0 g .. 132.5 g
+  The P45 sketch's '~20-200 g' is WRONG at both ends (8.0 / 132.5 g).
+  The P40 arithmetic's 0.106 kg is right - it is the orange at its mid
+  diameter (logs/p40/GRIP_CENSUS.md 4.1).
+
+==============================================================================
+B. The real-mass table (FRUIT_PHYSICS_REAL_MASS=1, meshes.py:399-410)
+==============================================================================
+class       rho ship rho real  m@mid ship  m@mid real   delta
+strawberry       700      950        15.8        21.5  +35.7%
+lychee           850     1000        13.1        15.4  +17.6%
+kiwi             900     1050        79.4        92.6  +16.7%
+tomato           780      960        68.8        84.7  +23.1%
+apple            850      840       104.9       103.7   -1.2%
+orange           900     1000       106.1       117.9  +11.1%
+peach            820     1000        92.3       112.6  +22.0%
+pear             880      950        99.0       106.9   +8.0%
+
+  real-mass pool range: 9.4 g .. 147.3 g
+  The formula, the 0.82 discount and every diameter are unchanged -
+  only the per-class density switches. The knob is read ONCE at import
+  (meshes.py:355-358), so it cannot change mid-run.
+
+==============================================================================
+C. The inertia the physics actually uses
+==============================================================================
+  No `physics:diagonalInertia` is authored anywhere on a fruit:
+    fruits.py:980-981  UsdPhysics.MassAPI.Apply(prim)
+                       .CreateMassAttr().Set(mass)      <- mass ONLY
+    fruits.py:1063     the same line on the rescale path
+  (grep: the only `physics:diagonalInertia` in the tree is on the
+   openarm links, assets/openarm_flat/openarm_flat_deinst.usda:4166 et al.)
+  -> PhysX computes the tensor from the *collider's* volume at the
+     authored mass, i.e. a uniform-density solid hull. For a sphere
+     that is I = 2/5 m R^2 on all three diagonal entries.
+
+class        d mid        m       R   I = 2/5 m R^2        I/m
+                cm        g      mm          kg m^2        m^2
+strawberry     3.8     15.8    18.8       2.229e-06  1.406e-04
+lychee         3.3     13.1    16.5       1.428e-06  1.089e-04
+kiwi           5.9     79.4    29.5       2.763e-05  3.481e-04
+tomato         5.9     68.8    29.5       2.394e-05  3.481e-04
+apple          6.6    104.9    33.0       4.570e-05  4.356e-04
+orange         6.5    106.1    32.5       4.484e-05  4.225e-04
+peach          6.4     92.3    32.0       3.780e-05  4.096e-04
+pear           6.4     99.0    32.0       4.057e-05  4.096e-04
+
+  Consequence for the design: because I is derived from the mass, a
+  `mass *= s` knob scales the inertia by exactly s for free. There is
+  no second attribute to keep in sync - 'mass + inertia' is one line.
+
+==============================================================================
+D. The slip ratio r = m|a+g| / (mu N) - does a lighter fruit change it?
+==============================================================================
+  N is GRIP-SET, not weight-set. Verified in the code:
+    * the shipped dynamic grip's force comes from the finger drive's
+      position target: k=1e5, c=2000 N s/m, c/k=0.02, Fsat 10 N/joint
+      (control.py:218-236) against a close depth from the GEOMETRY
+      (`pinch_width * 0.98`, tasks.py:9768-9771);
+    * the hold servo's reference is the MEASURED tactile median capped
+      at `FRUIT_DYNAMIC_FORCE_REF_MAX = 4.0 N` (tasks.py:2705-2710),
+      not m*g;
+    * the only two mass sites in the control path are the INDEXED /
+      policy close budget `clip(m*g*100, 25, 60) N` and
+      `clip(m*g*60, 20, 40) N` (tasks.py:11003, 11029; grasp.py:223) -
+      not reached by the shipped dynamic line.
+
+  The closing axis is NOT vertical: the release traces' pad-centre
+  separation reads |dz|/|axis| = 0.60-0.96 (p50 0.84, n=11 holding
+  traces, logs/p44/p2/amend_F_{C,S2}.log), so the payload's weight has
+  an along-axis share 0.6-1.0 m g. That share is carried by a pad-to-pad
+  ASYMMETRY (N1 - N2), not by more total normal force: one side gains
+  what the other loses, so N1 + N2 = the drive's own preload. On the
+  heaviest fruit it is 0.62-1.03 N against the 9.85 N grip (6-10 %),
+  i.e. it cannot unload a pad by itself - the measured single-sided
+  onsets are a SEATING property (logs/p9 section 3.1), which agrees.
+  => the friction supply `mu*N` is a CONSTANT in m, so r is
+     proportional to m.
+     The P45 sketch's 'mass-independent if N is grip-set' is backwards:
+     mass-independence is the WEIGHT-set case (N = m g / mu), i.e. the
+     textbook version, which is not this cell. Halving the mass halves r.
+
+  worst class = apple: m = 104.9 g, mu_lo = 0.45
+  pinch N = 9.85 N (P41 shipped) / 4.42 N (P40 record)
+
+  |a| =  1.00 m/s^2   (the commanded lift cap (a_max 1.0))
+     scale    m [g]  demand [N]   r @N=9.85   r @N=4.42  1/r @9.85
+      1.00    104.9       1.134       0.256       0.570       3.91x
+      0.50     52.5       0.567       0.128       0.285       7.82x
+      0.25     26.2       0.284       0.064       0.143      15.63x
+
+  |a| =  5.83 m/s^2   (the measured worst single-tick transient (P40))
+     scale    m [g]  demand [N]   r @N=9.85   r @N=4.42  1/r @9.85
+      1.00    104.9       1.641       0.370       0.825       2.70x
+      0.50     52.5       0.820       0.185       0.413       5.40x
+      0.25     26.2       0.410       0.093       0.206      10.80x
+
+  |a| =  1.09 m/s^2   (the commanded place cap (a_max 1.089))
+     scale    m [g]  demand [N]   r @N=9.85   r @N=4.42  1/r @9.85
+      1.00    104.9       1.144       0.258       0.575       3.88x
+      0.50     52.5       0.572       0.129       0.287       7.75x
+      0.25     26.2       0.286       0.064       0.144      15.50x
+
+  VECTOR note: |a - g| for a horizontal transient is sqrt(a^2+g^2), not
+  a+g. At 5.83 m/s^2 that is 11.41 m/s^2 (r 0.270 at 1x) against P40's
+  scalar-sum 15.64 (r 0.370). P40's number is the upper bound;
+  the tangential form (g_share 0.54, from the measured pad axis) reads
+  r = 0.263 at 1x. Every form gives the
+  same 2x / 4x scaling - only the intercept moves.
+
+  What the record says about whether that improvement is worth anything:
+  `logs/p9/FRICTION_AUDIT.md` measures the real ratio per leg - escapes
+  0.10-0.78 of the available friction on 29/31 legs (median 0.36), HELD
+  legs median 0.37, i.e. the ratio does not separate the classes. A 0.25x
+  mass moves a quantity that is already non-discriminative.
+
+==============================================================================
+E. The fling v = J/m - the same impulse, a lighter fruit
+==============================================================================
+  Anchor: `logs/473_probe_final.log` trial 16 - a 2.8 cm lychee released
+  by the fast SYMMETRIC relax at peak |v| = 1.335 m/s; the SHIPPED
+  asymmetric relax on the same pool/offsets (`logs/474_probe_asym.log`,
+  trial 16) reads 0.695 m/s, and that run's max 0.748 m/s is the
+  <= 0.75 m/s convention.
+
+  the 2.8 cm lychee: m = 8.01 g at rho 850
+  the impulse that produced 1.335 m/s: J = 10.70 mN s
+
+     scale    m [g]   v same J   vs 0.75   same J on a 6.6cm apple
+      1.00     8.01       1.33      1.8x                  0.102 m/s
+      0.50     4.01       2.67      3.6x                  0.102 m/s
+      0.25     2.00       5.34      7.1x                  0.102 m/s
+
+  the same J = 10.7 mN s is 101.9 mm/s on a
+  6.6 cm apple (104.9 g): the ejection speed is a pure 1/m
+  statement about the SAME contact state, which is why the light fruit
+  is the one that flies. 0.5x doubles it, 0.25x quadruples it.
+
+  A second, independent 1/m channel: at grip-set N the friction force
+  mu*N is fixed, so the roll-out angular acceleration
+  alpha = tau/I = mu*N*R / ((2/5) m R^2) = 2.5*mu*N/(m*R) scales as 1/m.
+  For the 6.6 cm apple that is 3.2e3 rad/s^2 at 1x and 2x/4x
+  that at 0.5x/0.25x - the walk, if it is the rotational mode, gets
+  FASTER as the mass falls. The two channels point opposite ways.
+
+==============================================================================
+E2. The contact / rolling term - does mass enter the geometric walk?
+==============================================================================
+  The walk's own geometry carries NO mass term. All four sites are pure
+  length algebra:
+    * `pinch_width(sample, quat)` = the mesh's extent along the closing
+      axis (`axis_extent`, tasks.py:12529-12546) - a shape profile, no
+      mass;
+    * the close depth `pinch_width * 0.98` (tasks.py:9768-9771);
+    * the carry's commanded span and the pads' local-width shrink: the
+      condition is that the fruit's projected width between the faces
+      falls as the hand advances - kinematics of the two rigid bodies;
+    * the release relax target `pinch_width + PAD_THICK + margin`
+      (tasks.py:12151-12172) - geometry plus a 6 mm margin.
+  `grep 'sample.mass' src/fruit_sorting/tasks.py` finds only the two
+  INDEXED close budgets (11003, 11029). Nothing in the dynamic carry,
+  the servo, or the release reads a mass.
+
+  So the walk is a kinematic/contact-state path, and the mass enters it
+  only through the two 1/m channels already computed:
+    (i)  the friction FORCE is mu*N (grip-set), so the roll-out angular
+         acceleration is 2.5*mu*N/(m R) - worse as m falls;
+    (ii) a depenetration kick is an impulse, so its speed is J/m - worse
+         as m falls (section E).
+  What a lighter fruit DOES improve is the translational force margin r
+  (section D) - the exact quantity `logs/p9` measures as
+  non-discriminative (0.36 escapes vs 0.37 held).
+
+  Prediction the PREREG can state and falsify: a mass scale should move
+  NOTHING in the timing (the profiles are tick-clocked by caps, not by
+  inertia: logs/p44/CAP_CENSUS.md rule 1) and nothing in the walk; only
+  the fling and any force-limited leg can move. If a 0.25x arm changes
+  the `[cycle]` block times, the mass is leaking into a path this
+  census did not find.
+
+==============================================================================
+F. What a 0.25x mass implies physically (fixed size)
+==============================================================================
+  Two equivalent readings of the same number: the DESIGN density rho
+  (what `fruit_density` returns) and the SOLID-EQUIVALENT density
+  m/V_sphere (what a physicist would call the density, since the 0.82
+  factor is only a shape fudge).
+
+    fruit                d   m ship  rho ship  rho 0.5x  rho 0.25x  solid 0.25x
+    peach 6.5cm        6.5     96.7       820       410        205          168
+    kiwi 5.6cm         5.6     67.9       900       450        225          184
+    apple 6.6cm        6.6    104.9       850       425        212          174
+    orange 6.5cm       6.5    106.1       900       450        225          184
+
+  Reference densities [kg/m^3]: water 1000, real peach ~1000 (the P11
+  audit's own 137 g at 60 mm implies 1215), real kiwi ~1050, cork ~240,
+  balsa ~160, pine ~500. So:
+    0.5x  -> 410-450 kg/m^3 = softwood; floats; not fruit.
+    0.25x -> 205-225 kg/m^3 = cork; floats high; definitely not fruit.
+
+  The one physical way to read it: a HOLLOW SHELL of real-density flesh.
+    0.50x peach 6.5 cm: m =  48.3 g -> a wall of 4.15 mm at 1000 kg/m^3
+    0.25x peach 6.5 cm: m =  24.2 g -> a wall of 1.93 mm at 1000 kg/m^3
+    0.50x kiwi 5.6 cm: m =  33.9 g -> a wall of 3.98 mm at 1000 kg/m^3
+    0.25x kiwi 5.6 cm: m =  17.0 g -> a wall of 1.84 mm at 1000 kg/m^3
+
+  And the physical version of the SAME experiment: at the real density,
+  0.25x the mass is a SMALLER fruit -
+    peach 6.5 cm -> 4.1 cm
+    kiwi 5.6 cm -> 3.5 cm
+  - which changes the pinch span (`pinch_width`), the pad standoff and
+  the reach: a different geometric experiment, not a mass one.
+
+==============================================================================
+G. The measured anchors
+==============================================================================
+  pool mass range (shipped)          8.0-132.5 g                              section A, this script
+  pool mass range (REAL_MASS)        9.4-147.3 g                              section B
+  pool composition                   16 fruit, 2 of each class                [supply] scatter pool=16 ... classes=strawberry:2,... in every log
+  release probe peak, shipped asym   0.748 m/s (20 trials)                    logs/474_probe_asym.log
+  release probe peak, fast symmetric 1.335 m/s (a 2.8 cm lychee)              logs/473_probe_final.log trial 16
+  line release peak, in-hand         0.771-0.932 m/s (8 of 10)                logs/p44/p2/amend_F_C.log
+  line release peak, already lost    4.782 / 4.810 m/s (2 of 10)              same log: free fall from the place height, not an ejection
+  clean_slip, clean legs             0.02-1.43 mm (median 0.04, n=33)         logs/w8/B_RESULTS.md / logs/p9
+  clean_slip, escape legs            17.9-957 mm (median 278, n=31)           same
+  live clean_slip_max, P44 C         0.1 mm clean / 978-1402 mm lost          logs/p44/P2_RESULTS.md 9.2
+  carry force, held legs             4.1-4.5 N (9.31/9.74 N at P41+park)      logs/p9 3.4 / logs/p43 P3
+  worst carry transient              5.83 m/s^2 single tick                   logs/p40/GRIP_CENSUS.md 4.1
+  the slip ratio, measured           0.10-0.78 (median 0.36 escapes / 0.37 held) logs/p9/FRICTION_AUDIT.md section 1
+
+==============================================================================
+H. Every knob / site that changes mass or density
+==============================================================================
+  FRUIT_PHYSICS_REAL         unset                    meshes.py:355, 362                       master; =1 turns on all three P12-A components
+  FRUIT_PHYSICS_REAL_MASS    unset (follows the master) meshes.py:356, 384, 399-410              switches `fruit_density` to `density_real`; read once at import
+  FruitShape.density         700-900 kg/m^3           meshes.py:261-310                        the shipped per-class density
+  FruitShape.density_real    840-1050 kg/m^3          meshes.py:261-310                        the P12-A per-class real density
+  the mass site              -                        fruits.py:977 (create), 1039 (rescale)   rho * 4/3 pi r^3 * 0.82 -> CreateMassAttr().Set(mass)
+  the inertia                -                        fruits.py:980-981, 1063                  NOT authored: PhysX derives it from the collider volume at that mass
+  FRUIT_FORCE_FACTOR         100                      tasks.py:11003, grasp.py:223             INDEXED/policy close budget clip(m*g*100, 25, 60) N
+  (same, second site)        60                       tasks.py:11029                           INDEXED/policy load-up clip(m*g*60, 20, 40) N
+  SceneConfig.fruit_dimensions sec. A                   assets.py:439-456                        mass ~ d^3; FRUIT_SIZE_FILTER (assets.py:441) narrows it
+
+  There is NO scale knob: `grep FRUIT_[A-Z_]*MASS src/` finds only the two
+  P12-A switches plus FRUIT_FINGER_SOFT_PAD_MASS (the opt-in padded hand's
+  pad mass, scene.py:1575 - not a fruit). `FRUIT_MASS_SCALE` is the
+  PREREG's design, not shipped code.
+
+(run of record: logs/p45/MASS_CENSUS_out.txt)
