@@ -1,0 +1,192 @@
+P51 phase 1 - the speed/mass cells' acquisition rows, and whether the
+P50 release-offset table would have prevented them
+======================================================================================================================
+tail = delivered x >= 0.390 m (P48: 6/6 failed); band [0.180, 0.390] = the clean top-down reach (174 / P48 2.1)
+compensation: x_comp = x_delivered - offset(species|diameter); a table is PER POOL (P50 rule)
+  table accept: scenario=accept_s5 identity=False instances=16
+  table pear: scenario=pear_s5 identity=True instances=16
+
+######################################################################################################################
+# 1. EVERY ACQUISITION ROW (nograsp / 'fruit did not follow the gripper')
+#    res.cls = P48's split: residual > 6 mm = the distance class, <= 6 mm = a converged close
+######################################################################################################################
+corpus       arm     scenario     att  cyc arm   species     dia       x cls    resid res.cls     end nh
+--------------------------------------------------------------------------------------------------------
+P44-speed    S1      accept_s5      1    2 left  kiwi        5.6  0.3802 mid      5.5 converged   8.8 0
+P44-speed    S2      accept_s5      1    2 left  kiwi        5.6  0.3969 TAIL   219.6 distance   15.3 0
+P44-speed    S3      accept_s5      3    4 left  lychee      3.0  0.2239 mid      6.0 converged  10.0 0
+P44-speed    C       accept_s6      0    1 right strawberry  3.1  0.3162 mid      5.8 converged   8.9 0
+P44-speed    S13     accept_s6      0    1 right strawberry  3.1  0.3162 mid      5.8 converged   8.9 0
+P44-amend    E_S1    accept_s5      1    2 left  kiwi        5.6  0.3802 mid      5.5 converged   8.8 3
+P44-amend    F_S2    accept_s5      1    2 left  kiwi        5.6  0.3966 TAIL   245.8 distance   14.8 3
+P44-twoline  C       twoline_s5     0    2 left  kiwi        5.4  0.3908 TAIL   251.0 distance   10.1 0
+P44-twoline  C       twoline_s5     0    1 right peach       6.9  0.2395 mid      5.9 converged   9.2 0
+P44-twoline  S13     twoline_s5     0    2 left  kiwi        5.4  0.3908 TAIL   251.0 distance   10.1 0
+P44-twoline  S13     twoline_s5     0    1 right peach       6.9  0.2395 mid      5.9 converged   9.2 0
+P46-twoline  C       twoline_s5     0    2 left  kiwi        5.4  0.3908 TAIL   251.0 distance   10.1 1
+P46-twoline  C       twoline_s5     0    1 right peach       6.9  0.2395 mid      5.9 converged   9.2 1
+P46-twoline  U       twoline_s5     0    2 left  kiwi        5.4  0.3908 TAIL   251.0 distance   10.1 1
+P46-twoline  U       twoline_s5     0    1 right peach       6.9  0.2395 mid      5.9 converged   9.2 1
+P46-twoline  C       twoline_s6     0    1 right kiwi        6.2  0.2730 mid    480.6 distance   10.6 1
+P46-twoline  U       twoline_s6     1    3 left  peach       6.6  0.3343 mid      6.0 converged   8.5 3
+P46-twoline  U       twoline_s6     0    1 right kiwi        6.2  0.2730 mid    480.6 distance   10.6 3
+P46-twoline  U       twoline_s6     4   10 right peach       6.6  0.2306 mid      6.0 converged   9.4 3
+shipped      accept_preprofile accept_s5      3   -1 left  orange      6.4  0.2155 mid      5.8 converged  10.3 2
+shipped      accept_C accept_s5      3   -1 left  orange      6.4  0.2155 mid      5.8 converged  10.3 0
+
+######################################################################################################################
+# 2. THE DISTINCT EVENTS, and whether the arm's OWN CONTROL draws the same
+#    event (shared = the scenario's, not the cell's; new = cell-attributable)
+######################################################################################################################
+event                                          rows labels                             C has it?  status
+--------------------------------------------------------------------------------------------------------
+accept_s5/kiwi5.6/left/0.3970                  2    F_S2,S2                            no         NEW
+accept_s5/kiwi5.6/left/0.3800                  2    E_S1,S1                            no         NEW
+accept_s5/lychee3.0/left/0.2240                1    S3                                 no         NEW
+accept_s5/orange6.4/left/0.2150                2    accept_C,accept_preprofile         yes        shared
+accept_s6/strawberry3.1/right/0.3160           2    C,S13                              yes        shared
+twoline_s5/kiwi5.4/left/0.3910                 4    C,S13,U                            yes        shared
+twoline_s5/peach6.9/right/0.2390               4    C,S13,U                            yes        shared
+twoline_s6/peach6.6/left/0.3340                1    U                                  no         NEW
+twoline_s6/kiwi6.2/right/0.2730                2    C,U                                yes        shared
+twoline_s6/peach6.6/right/0.2310               1    U                                  no         NEW
+
+######################################################################################################################
+# 3. THE COUNTERFACTUAL: x_comp = x - offset  ->  inside [0.18, 0.39]?
+#    (a table exists only for its own pool: accept_s5, pear_s5; accept_s6 and the two-line are out of scope)
+######################################################################################################################
+event                                              x   offset  x_comp in band  res.cls   mechanism / scope
+----------------------------------------------------------------------------------------------------------
+accept_s5/kiwi5.6/left/0.3969                 0.3969   44.805  0.3521 yes      distance  kiwi|55.8
+twoline_s5/kiwi5.4/left/0.3908                0.3908      nan     nan -        distance  no table (pool out of scope)
+accept_s5/kiwi5.6/left/0.3802                 0.3802   44.805  0.3354 yes      converged kiwi|55.8
+twoline_s6/peach6.6/left/0.3343               0.3343      nan     nan -        converged no table (pool out of scope)
+accept_s6/strawberry3.1/right/0.3162          0.3162      nan     nan -        converged no table (pool out of scope)
+twoline_s6/kiwi6.2/right/0.2730               0.2730      nan     nan -        distance  no table (pool out of scope)
+twoline_s5/peach6.9/right/0.2395              0.2395      nan     nan -        converged no table (pool out of scope)
+twoline_s6/peach6.6/right/0.2306              0.2306      nan     nan -        converged no table (pool out of scope)
+accept_s5/lychee3.0/left/0.2239               0.2239   -2.820  0.2267 yes      converged lychee|29.6
+accept_s5/orange6.4/left/0.2155               0.2155  -26.910  0.2424 yes      converged orange|63.6
+
+######################################################################################################################
+# 4. THE COUNTS: rows and distinct events per corpus, tail vs mid-band
+######################################################################################################################
+P44-speed      rows=  5 events= 4  tail=1 mid=3 low=0 | distance=1 converged=3 | x=[0.224, 0.316, 0.38, 0.397]
+P44-amend      rows=  2 events= 2  tail=1 mid=1 low=0 | distance=1 converged=1 | x=[0.38, 0.397]
+P44-twoline    rows=  4 events= 2  tail=1 mid=1 low=0 | distance=1 converged=1 | x=[0.239, 0.391]
+P45-mass       rows=  0 events= 0  tail=0 mid=0 low=0 | distance=0 converged=0 | x=[]
+P46-twoline    rows=  8 events= 5  tail=1 mid=4 low=0 | distance=2 converged=3 | x=[0.231, 0.239, 0.273, 0.334, 0.391]
+shipped        rows=  2 events= 1  tail=0 mid=1 low=0 | distance=0 converged=1 | x=[0.215]
+
+######################################################################################################################
+# 5. PER ARM: the outcome classes (this is where a count loss shows up)
+######################################################################################################################
+-------------------------------------------------------------------------------------
+corpus        arm     scenario      n placed  cnp nograsp skip  acq x of the acq rows
+-------------------------------------------------------------------------------------
+P44-speed     C       accept_s5    10      6    4       0    0    0 []
+P44-speed     S1      accept_s5    10      6    3       1    0    1 [(0.3802, 'conv')]
+P44-speed     S2      accept_s5    10      6    3       1    0    1 [(0.3969, 'dist')]
+P44-speed     S3      accept_s5    10      8    1       1    0    1 [(0.2239, 'conv')]
+P44-speed     S13     accept_s5    10      6    4       0    0    0 []
+P44-speed     C       accept_s6    10      8    1       1    0    1 [(0.3162, 'conv')]
+P44-speed     S13     accept_s6    10      5    4       1    0    1 [(0.3162, 'conv')]
+P44-amend     E_C     accept_s5    10      6    4       0    0    0 []
+P44-amend     E_S1    accept_s5    10      6    3       1    0    1 [(0.3802, 'conv')]
+P44-amend     E_S3v   accept_s5    10      6    3       0    1    0 []
+P44-amend     F_C     accept_s5    10      6    4       0    0    0 []
+P44-amend     F_S2    accept_s5    10      7    2       1    0    1 [(0.3966, 'dist')]
+P44-speed     C       pear_s5      10      6    4       0    0    0 []
+P44-speed     S13     pear_s5      10      6    4       0    0    0 []
+P44-twoline   C       twoline_s5   10      8    0       2    0    2 [(0.3908, 'dist'), (0.2395, 'conv')]
+P44-twoline   S13     twoline_s5   10      8    0       2    0    2 [(0.3908, 'dist'), (0.2395, 'conv')]
+P45-mass      C       accept_s5    10      6    4       0    0    0 []
+P45-mass      M25     accept_s5    10      4    6       0    0    0 []
+P45-mass      M50     accept_s5    10      6    3       0    1    0 []
+P45-mass      M25S    accept_s5    10      5    5       0    0    0 []
+P45-mass      M50S    accept_s5    10      5    5       0    0    0 []
+P45-mass      C       pear_s5      10      6    4       0    0    0 []
+P45-mass      M25     pear_s5      10      7    3       0    0    0 []
+P45-mass      M50     pear_s5      10      7    3       0    0    0 []
+P45-mass      M25S    pear_s5      10      6    4       0    0    0 []
+P45-mass      M50S    pear_s5      10      7    3       0    0    0 []
+P46-twoline   C       twoline_s5   10      8    0       2    0    2 [(0.3908, 'dist'), (0.2395, 'conv')]
+P46-twoline   U       twoline_s5   10      8    0       2    0    2 [(0.3908, 'dist'), (0.2395, 'conv')]
+P46-twoline   C       twoline_s6   10      9    0       1    0    1 [(0.273, 'dist')]
+P46-twoline   U       twoline_s6   10      7    0       3    0    3 [(0.3343, 'conv'), (0.273, 'dist'), (0.2306, 'conv')]
+shipped       accept_profile accept_s5    10      6    4       0    0    0 []
+shipped       accept_preprofile accept_s5    10      5    3       1    1    1 [(0.2155, 'conv')]
+shipped       pear_profile pear_s5      10      6    4       0    0    0 []
+shipped       accept_C accept_s5    10      6    3       1    0    1 [(0.2155, 'conv')]
+shipped       pear_C  pear_s5      10      6    3       0    1    0 []
+
+######################################################################################################################
+# 6. THE MID-BAND / NON-TAIL ROWS: what else distinguishes them
+######################################################################################################################
+  non-tail acquisition rows: 15 (converged 13, distance 2)
+   accept_s5_S1.log       S1      kiwi 5.6 left  x=0.3802 resid=5.5 (converged) end=8.8 nh=0 queue=2
+   accept_s5_S3.log       S3      lychee 3.0 left  x=0.2239 resid=6.0 (converged) end=10.0 nh=0 queue=2
+   accept_s6_C.log        C       strawberry 3.1 right x=0.3162 resid=5.8 (converged) end=8.9 nh=0 queue=2
+   accept_s6_S13.log      S13     strawberry 3.1 right x=0.3162 resid=5.8 (converged) end=8.9 nh=0 queue=2
+   amend_E_S1.log         E_S1    kiwi 5.6 left  x=0.3802 resid=5.5 (converged) end=8.8 nh=3 queue=2
+   twoline_s5_C.log       C       peach 6.9 right x=0.2395 resid=5.9 (converged) end=9.2 nh=0 queue=5
+   twoline_s5_S13.log     S13     peach 6.9 right x=0.2395 resid=5.9 (converged) end=9.2 nh=0 queue=5
+   twoline_s5_C.log       C       peach 6.9 right x=0.2395 resid=5.9 (converged) end=9.2 nh=1 queue=5
+   twoline_s5_U.log       U       peach 6.9 right x=0.2395 resid=5.9 (converged) end=9.2 nh=1 queue=5
+   twoline_s6_C.log       C       kiwi 6.2 right x=0.2730 resid=480.6 (distance) end=10.6 nh=1 queue=4
+   twoline_s6_U.log       U       peach 6.6 left  x=0.3343 resid=6.0 (converged) end=8.5 nh=3 queue=3
+   twoline_s6_U.log       U       kiwi 6.2 right x=0.2730 resid=480.6 (distance) end=10.6 nh=3 queue=4
+   twoline_s6_U.log       U       peach 6.6 right x=0.2306 resid=6.0 (converged) end=9.4 nh=3 queue=3
+   accept_preprofile.log  accept_preprofile orange 6.4 left  x=0.2155 resid=5.8 (converged) end=10.3 nh=2 queue=2
+   accept_C.log           accept_C orange 6.4 left  x=0.2155 resid=5.8 (converged) end=10.3 nh=0 queue=2
+
+  placed attempts: n=224 x min=0.2011 p50=0.2850 max=0.3714; residual 5.4-6.0; approach end= 8.1-10.4
+  -> no placed attempt in this corpus is delivered past 0.3714 m
+
+######################################################################################################################
+# 7. THE 2x2 ACROSS THE WHOLE MAP (rows): tail vs below, failed vs placed
+######################################################################################################################
+  rows (all mapped logs, duplicates included): tail fail=6 ok=0 | below fail=15 ok=325
+  Fisher exact: p0=2.379e-08  two-sided=2.379e-08
+  cell-attributable events (no C row of the same event): 5
+    accept_s5/kiwi5.6/left x=0.3970 (TAIL) resid=219.6 (distance)
+    accept_s5/kiwi5.6/left x=0.3800 (mid) resid=5.5 (converged)
+    twoline_s6/peach6.6/left x=0.3340 (mid) resid=6.0 (converged)
+    twoline_s6/peach6.6/right x=0.2310 (mid) resid=6.0 (converged)
+    accept_s5/lychee3.0/left x=0.2240 (mid) resid=6.0 (converged)
+
+######################################################################################################################
+# 8. TABLE COVERAGE PER SCENARIO (a table is per pool: this is what limits
+#    which arms an `O` run can even be measured on)
+######################################################################################################################
+  accept_s5    instances=16  table=accept_s5  covered=16 miss= 0
+  accept_s6    instances=12  NO TABLE for this pool (P50 measured accept_s5 and pear_s5 only); name-covered by the seed-5 table: 3/12 ['orange6.6', 'pear6.8', 'tomato6.6']
+  pear_s5      instances= 8  table=pear_s5    covered= 8 miss= 0
+  twoline_s5   instances= 8  NO TABLE for this pool (P50 measured accept_s5 and pear_s5 only); name-covered by the seed-5 table: 8/8 ['kiwi5.4', 'kiwi5.6', 'peach6.5', 'peach6.9', 'pear6.1', 'pear6.8', 'strawberry3.7', 'tomato6.2']
+  twoline_s6   instances= 8  NO TABLE for this pool (P50 measured accept_s5 and pear_s5 only); name-covered by the seed-5 table: 1/8 ['orange6.6']
+
+######################################################################################################################
+# 9. THE DELIVERED-x POPULATION OF THIS MAP (unique attempts)
+######################################################################################################################
+  unique attempts with an x: n=170  min=0.193 p50=0.281 p90=0.347 max=0.397
+  >= 0.390: 2 (1.2 %); >= 0.380: 3; in band [0.18,0.380): 167; < 0.18: 0
+  the placed population's max x = 0.3710 -> the empirical no-placement edge is ~0.371, not the registered 0.390
+
+######################################################################################################################
+# 10. THE SAME-BATTERY CONTROL vs THE CELLS: the event mix
+#     (the control of an arm is the C log of its own battery; the shipped
+#      logs are listed apart - they are a different tree's baseline)
+######################################################################################################################
+  same-battery control   events= 4  tail=1  non-tail=3  distance=2  converged=2
+      twoline_s5/kiwi5.4/left  x=0.3910 resid=251.0 (distance)
+      accept_s6/strawberry3.1/right x=0.3160 resid=5.8 (converged)
+      twoline_s6/kiwi6.2/right x=0.2730 resid=480.6 (distance)
+      twoline_s5/peach6.9/right x=0.2390 resid=5.9 (converged)
+  cells (new)            events= 5  tail=1  non-tail=4  distance=1  converged=4
+      accept_s5/kiwi5.6/left  x=0.3970 resid=219.6 (distance)
+      accept_s5/kiwi5.6/left  x=0.3800 resid=5.5 (converged)
+      twoline_s6/peach6.6/left  x=0.3340 resid=6.0 (converged)
+      twoline_s6/peach6.6/right x=0.2310 resid=6.0 (converged)
+      accept_s5/lychee3.0/left  x=0.2240 resid=6.0 (converged)
+  tail share: cells 1/5 vs control 1/4 -> Fisher p0=0.556 two-sided=1.000
+  -> the two mixes are the same object; the tail is not a cell-specific signature
