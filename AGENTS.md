@@ -2120,6 +2120,31 @@ acquisition-class fix (a supply/station change) and not on the carried class.
 Pins: no `src/` or `configs/` change (refs `8a399626` / `2246f83c` untouched);
 evidence `logs/p46/{PREREG,P1_RESULTS}.md`, `p1/`.
 
+**P47 (2026-10-27, `logs/p47/`; **not run - the census refuted the lever before
+it was built**, nothing adopted): the "close on air" row is a standing property,
+not an event, and the real pre-close discriminator is the catch-up residual.** A
+census of 317 closes across the shipped / P44 / P45 / P46 corpora settles it: the
+`... mm from the fruit; closing anyway` row fires on **317/317** closes with a
+**7 mm-wide band** that is the **hover clearance** (70 mm nominal = `hover +
+pad_lift`) measured **against the station, before the hover and the descent** -
+its value carries **no** outcome information (Fisher **p = 0.61**), and the axis
+sibling is **dead** (0/317). The fallback the row names is **unreachable**:
+`pad_error > 20 mm` is always true, so `self._coherent[arm]` is **never set**
+(0/317) - a dead code path, the P42 note's mechanism generalised. **The live
+pre-close error is what separates the classes, and it is already printed**:
+`[task] dynamic catch-up: residual` above its 6 mm tolerance reads **8/8
+no-grasp** against **11/309 = 3.6 %** below it (**p = 3.3e-11**) - but it
+explains only **42 %** of the no-grasp class, and its failing values are
+**220-481 mm**, i.e. a **hand-over-timing** failure, not a distance-to-close. The
+registered `35 mm / 40 tick` guard was therefore **predicted to fire on 8/317 =
+2.5 % of closes and convert ~0** (the convertible 35-75 mm band is empty in the
+corpus), so the battery was **not spent** - the PREREG is kept with its own
+pre-run prediction as the record (`logs/p47/PREREG.md` §prediction). **The named
+next lever is the hand-over timing/selection** (a target **2.4x** the catch-up's
+reach budget away) plus the **11 converged close losses**, not a distance wait.
+Pins: no `src/` or `configs/` change; evidence `logs/p47/{ACQ_CENSUS,PREREG}.md`,
+`census.py`/`census_out.txt`.
+
 ## 3. What changed -> what to run
 
 | you changed | run |

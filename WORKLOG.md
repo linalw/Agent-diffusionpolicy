@@ -19276,3 +19276,22 @@ speed is real and reproducible, the placement count is not stable across
 branches, and the moving class is the **pre-contact acquisition** - so a speed
 adoption needs an acquisition-class fix (supply/station), not a grip lever.
 Evidence `logs/p46/{PREREG,P1_RESULTS}.md`, `p1/`.
+
+### P47 phase 1: the "closing anyway" row is a standing property, and the real pre-close discriminator is the catch-up residual - the guard is not run (2026-10-27)
+
+The census of 317 closes (shipped + P44 + P45 + P46 corpora) settles the lever
+before it was built: the `... mm from the fruit; closing anyway` row fires on
+**317/317** closes with a **7 mm band** = the hover clearance (70 mm nominal,
+`hover + pad_lift`) measured **against the station, before the hover and the
+descent**; its value carries no outcome information (Fisher p = 0.61) and the
+axis sibling is dead (0/317). The fallback it names is unreachable
+(`pad_error > 20 mm` always true -> `self._coherent[arm]` never set, 0/317 - a
+dead code path). **The live pre-close error does separate the classes and is
+already printed**: `[task] dynamic catch-up: residual` above its 6 mm tolerance
+reads **8/8 no-grasp** vs **11/309 = 3.6 %** below (p = 3.3e-11), but it explains
+only **42 %** of the class and its failing values are **220-481 mm** - a
+hand-over-timing failure, not a distance-to-close. The registered 35 mm/40 tick
+guard was predicted to fire on **2.5 %** of closes and convert **~0**, so the
+battery was not spent (the PREREG keeps the prediction). The named next lever:
+the hand-over timing/selection (a target 2.4x the catch-up's reach budget away)
+and the 11 converged close losses. Evidence `logs/p47/{ACQ_CENSUS,PREREG}.md`.
