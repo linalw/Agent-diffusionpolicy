@@ -2196,6 +2196,42 @@ compensation at `respawn`** (P50) - the one thing that puts the *delivered* x ba
 inside the band - not a selection rule. Pins: no `src/` or `configs/` change;
 evidence `logs/p49/{SELECT_CENSUS,PREREG}.md`, `select_census.py`/`_out.txt`.
 
+**P50 (2026-10-27, `logs/p50/`; **the mechanism lands, the count gate fails, not
+adopted**; the compensation ships **opt-in** with its per-pool tables).** The
+per-instance release offset P38 left as a corollary is now measured: it is a
+**per-instance constant to 0.00 mm** (two passes over 48 cells **bit-identical**, a
+3-repeat cell `-2.90 x3`, settle -> station **0.09 mm** over 215-224 ticks,
+cross-process <= 0.15 mm), **13/16 are x-independent** and the three rollers are
+**1-3 discrete modes 11-20 mm apart** (not a slope), and a **(species, diameter)
+table cannot carry it** - two strawberries **0.9 mm** apart in diameter differ
+**44.3 mm** (pooled fit R^2 0.74, residual sd 10.2, max 31.0) - so the table is
+**per pool**. `FRUIT_RELEASE_OFFSET=1` + `FRUIT_RELEASE_OFFSET_TABLE=<path>` shift
+the already-drawn spawn x by `-offset(instance)` at `respawn` (no band clamp; the
+measured excursion **0.155-0.389 m** stays inside the belt 0.11-0.57), default
+**off**, and the tables are `configs/release_offsets_{accept_s5,pear_s5}.json`
+(16 instances each, the two rollers at the pre-registered **minimax midpoint**,
+the pear **identity**). **The mechanism is proven**: the isolated table goes
+**8/96 -> 0/96** cells outside `[0.180, 0.390]` (0.1730-0.4131 -> 0.1932-0.3785,
+pass spread 0.00 mm) and the live line's residual collapses **-35.73..+54.63 ->
+-9.84..+9.83 mm** with the **planned draws untouched (65/65)**; the pear is
+**inert** (378/378 physics lines identical, 6/10 both) and the no-harm arm is
+**377/377 identical** to the reference with `fingerprint: matches`. **The
+pre-registered count gate fails**: the acceptance reads **6/10 -> 4/10** on a
+**moved branch** (the fruit sequence diverges at attempt 1; attempts 5/7 are apples
+in O vs strawberries in C; every failure is `cnp`, the closed grip class), while
+**both arms read 0/10 outside the registered band** - the PREREG's own power
+statement says a 10-attempt count **cannot resolve** a 1.5-3 % tail. **Verdict:
+P1/P2/P4/P5/P6 pass, P3 fails -> not adopted** (PREREG §5); the mechanism and its
+tables stay opt-in for a scenario whose endpoint is the tail (the powered M1b form)
+rather than a count. Named residuals: the mode rule is a **bound, not a
+prediction** (the strawberry collapsed to one mode, the tomato became bimodal - both
+inside the 20 mm margin); the **patch/bed** schedules are scope-gated and
+unmeasured; the **direct/policy** interface reads the *delivered* x, so it would
+benefit for free, but its A/B is its own pre-registration. Pins: `fruits.py`
+**`e81051c1`** (+188/-0), `tasks.py` `b6de439c` unchanged, the two existing refs
+untouched (`8a399626` / `2246f83c`); evidence
+`logs/p50/{OFFSET_TABLE,PREREG,P2_RESULTS}.md`, `p1/`, `p2/`.
+
 ## 3. What changed -> what to run
 
 | you changed | run |

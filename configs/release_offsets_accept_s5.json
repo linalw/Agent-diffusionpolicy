@@ -1,0 +1,461 @@
+{
+  "schema": "fruit_sorting.release_offsets/v1",
+  "scenario": "accept_s5",
+  "units": "mm",
+  "meaning": "offset = x_delivered - x_spawn for this pool instance (applied as x_spawn = planned_x - offset/1000)",
+  "identity": false,
+  "note": "the shipped scattered acceptance pool (FRUIT_SUPPLY_SCATTER=1, 16 instances, SEED=5); offsets are the shipped-condition live values, compensation ON",
+  "provenance": {
+    "phase": "P50 phase 2 (P38b), 2026-10-27",
+    "tree_head": "3a8a581",
+    "tree_md5": {
+      "src/fruit_sorting/fruits.py": "e81051c1d98d7e8120dcb80356722607",
+      "src/fruit_sorting/meshes.py": "1ad5af0e63cfc93ffbd58b2f206978f6",
+      "configs/motion_reference.json": "8a399626c12a4e9205ce10e630b94ce9"
+    },
+    "probe_logs": {
+      "offset_live_s5.log": "be421ddc68538af9571ab3138752f1ee",
+      "offset_probe_s5.log": "62304b9c522cb09c60c2d856be0c7d74",
+      "offset_probe_s5_wake.log": "04da59021002fd1d9eb97b7bb22f95a7"
+    },
+    "table_rule": "per-instance live mean; >=2 clusters > 5 mm apart -> midpoint of the extreme modes (PREREG section 2)",
+    "measurement": "logs/p50/OFFSET_TABLE.md (sections 2, 4, 7, 8)"
+  },
+  "rows": [
+    {
+      "idx": 0,
+      "signature": "lychee|29.6",
+      "category": "lychee",
+      "diameter_mm": 29.6,
+      "grade": "A",
+      "live_n": 4,
+      "live_offsets_mm": [
+        -2.8,
+        -2.8,
+        -2.85,
+        -2.83
+      ],
+      "live_mean_mm": -2.82,
+      "rule": "mean n=4",
+      "measured_mm": -2.82,
+      "applied_mm": -2.82,
+      "isolated_mm_at_0.20/0.28/0.36": [
+        -3.0,
+        -2.9,
+        -2.98
+      ],
+      "wake_mm_at_0.28": -2.9,
+      "applied_vs_live_mean_mm": 0.0,
+      "applied_vs_wake_mm": 0.08
+    },
+    {
+      "idx": 1,
+      "signature": "lychee|34.4",
+      "category": "lychee",
+      "diameter_mm": 34.4,
+      "grade": "B",
+      "live_n": 5,
+      "live_offsets_mm": [
+        4.28,
+        4.28,
+        4.28,
+        4.28,
+        4.28
+      ],
+      "live_mean_mm": 4.28,
+      "rule": "mean n=5",
+      "measured_mm": 4.28,
+      "applied_mm": 4.28,
+      "isolated_mm_at_0.20/0.28/0.36": [
+        4.3,
+        4.3,
+        4.3
+      ],
+      "wake_mm_at_0.28": 4.3,
+      "applied_vs_live_mean_mm": 0.0,
+      "applied_vs_wake_mm": -0.02
+    },
+    {
+      "idx": 2,
+      "signature": "kiwi|55.8",
+      "category": "kiwi",
+      "diameter_mm": 55.8,
+      "grade": "A",
+      "live_n": 4,
+      "live_offsets_mm": [
+        54.53,
+        54.63,
+        34.98,
+        39.67
+      ],
+      "live_mean_mm": 45.953,
+      "rule": "mode-midpoint [+34.98, +54.63]",
+      "measured_mm": 44.805,
+      "applied_mm": 44.805,
+      "isolated_mm_at_0.20/0.28/0.36": [
+        54.61,
+        35.06,
+        39.8
+      ],
+      "wake_mm_at_0.28": 35.06,
+      "applied_vs_live_mean_mm": -1.15,
+      "applied_vs_wake_mm": 9.74
+    },
+    {
+      "idx": 3,
+      "signature": "peach|65.1",
+      "category": "peach",
+      "diameter_mm": 65.1,
+      "grade": "A",
+      "live_n": 4,
+      "live_offsets_mm": [
+        5.45,
+        5.45,
+        5.45,
+        5.45
+      ],
+      "live_mean_mm": 5.45,
+      "rule": "mean n=4",
+      "measured_mm": 5.45,
+      "applied_mm": 5.45,
+      "isolated_mm_at_0.20/0.28/0.36": [
+        5.42,
+        5.42,
+        5.42
+      ],
+      "wake_mm_at_0.28": 5.42,
+      "applied_vs_live_mean_mm": 0.0,
+      "applied_vs_wake_mm": 0.03
+    },
+    {
+      "idx": 4,
+      "signature": "apple|65.2",
+      "category": "apple",
+      "diameter_mm": 65.2,
+      "grade": "B",
+      "live_n": 4,
+      "live_offsets_mm": [
+        -0.71,
+        -0.71,
+        -0.71,
+        -0.71
+      ],
+      "live_mean_mm": -0.71,
+      "rule": "mean n=4",
+      "measured_mm": -0.71,
+      "applied_mm": -0.71,
+      "isolated_mm_at_0.20/0.28/0.36": [
+        -0.71,
+        -0.71,
+        -0.71
+      ],
+      "wake_mm_at_0.28": -0.71,
+      "applied_vs_live_mean_mm": 0.0,
+      "applied_vs_wake_mm": 0.0
+    },
+    {
+      "idx": 5,
+      "signature": "strawberry|37.2",
+      "category": "strawberry",
+      "diameter_mm": 37.2,
+      "grade": "B",
+      "live_n": 4,
+      "live_offsets_mm": [
+        -24.33,
+        -22.1,
+        -35.73,
+        -22.1
+      ],
+      "live_mean_mm": -26.065,
+      "rule": "mode-midpoint [-35.73, -22.10]",
+      "measured_mm": -28.915,
+      "applied_mm": -28.915,
+      "isolated_mm_at_0.20/0.28/0.36": [
+        -22.01,
+        -24.3,
+        -35.71
+      ],
+      "wake_mm_at_0.28": -24.3,
+      "applied_vs_live_mean_mm": -2.85,
+      "applied_vs_wake_mm": -4.61
+    },
+    {
+      "idx": 6,
+      "signature": "tomato|66.1",
+      "category": "tomato",
+      "diameter_mm": 66.1,
+      "grade": "A",
+      "live_n": 4,
+      "live_offsets_mm": [
+        6.62,
+        6.6,
+        6.62,
+        6.63
+      ],
+      "live_mean_mm": 6.617,
+      "rule": "mean n=4",
+      "measured_mm": 6.617,
+      "applied_mm": 6.617,
+      "isolated_mm_at_0.20/0.28/0.36": [
+        6.72,
+        6.71,
+        6.72
+      ],
+      "wake_mm_at_0.28": 6.71,
+      "applied_vs_live_mean_mm": -0.0,
+      "applied_vs_wake_mm": -0.09
+    },
+    {
+      "idx": 7,
+      "signature": "tomato|61.8",
+      "category": "tomato",
+      "diameter_mm": 61.8,
+      "grade": "A",
+      "live_n": 4,
+      "live_offsets_mm": [
+        -6.27,
+        -6.27,
+        -6.27,
+        -6.28
+      ],
+      "live_mean_mm": -6.272,
+      "rule": "mean n=4",
+      "measured_mm": -6.272,
+      "applied_mm": -6.272,
+      "isolated_mm_at_0.20/0.28/0.36": [
+        -6.26,
+        -6.26,
+        -6.26
+      ],
+      "wake_mm_at_0.28": -6.26,
+      "applied_vs_live_mean_mm": 0.0,
+      "applied_vs_wake_mm": -0.01
+    },
+    {
+      "idx": 8,
+      "signature": "strawberry|36.3",
+      "category": "strawberry",
+      "diameter_mm": 36.3,
+      "grade": "C",
+      "live_n": 4,
+      "live_offsets_mm": [
+        18.69,
+        18.69,
+        18.69,
+        18.69
+      ],
+      "live_mean_mm": 18.69,
+      "rule": "mean n=4",
+      "measured_mm": 18.69,
+      "applied_mm": 18.69,
+      "isolated_mm_at_0.20/0.28/0.36": [
+        18.75,
+        20.0,
+        18.76
+      ],
+      "wake_mm_at_0.28": 20.0,
+      "applied_vs_live_mean_mm": 0.0,
+      "applied_vs_wake_mm": -1.31
+    },
+    {
+      "idx": 9,
+      "signature": "pear|68.1",
+      "category": "pear",
+      "diameter_mm": 68.1,
+      "grade": "B",
+      "live_n": 4,
+      "live_offsets_mm": [
+        2.57,
+        2.58,
+        2.57,
+        2.58
+      ],
+      "live_mean_mm": 2.575,
+      "rule": "mean n=4",
+      "measured_mm": 2.575,
+      "applied_mm": 2.575,
+      "isolated_mm_at_0.20/0.28/0.36": [
+        2.57,
+        2.58,
+        2.58
+      ],
+      "wake_mm_at_0.28": 2.58,
+      "applied_vs_live_mean_mm": 0.0,
+      "applied_vs_wake_mm": -0.0
+    },
+    {
+      "idx": 10,
+      "signature": "orange|63.6",
+      "category": "orange",
+      "diameter_mm": 63.6,
+      "grade": "A",
+      "live_n": 4,
+      "live_offsets_mm": [
+        -26.91,
+        -26.91,
+        -26.91,
+        -26.91
+      ],
+      "live_mean_mm": -26.91,
+      "rule": "mean n=4",
+      "measured_mm": -26.91,
+      "applied_mm": -26.91,
+      "isolated_mm_at_0.20/0.28/0.36": [
+        -26.96,
+        -26.97,
+        -26.97
+      ],
+      "wake_mm_at_0.28": -26.97,
+      "applied_vs_live_mean_mm": 0.0,
+      "applied_vs_wake_mm": 0.06
+    },
+    {
+      "idx": 11,
+      "signature": "pear|60.6",
+      "category": "pear",
+      "diameter_mm": 60.6,
+      "grade": "B",
+      "live_n": 4,
+      "live_offsets_mm": [
+        0.5,
+        0.5,
+        0.49,
+        0.5
+      ],
+      "live_mean_mm": 0.497,
+      "rule": "mean n=4",
+      "measured_mm": 0.497,
+      "applied_mm": 0.497,
+      "isolated_mm_at_0.20/0.28/0.36": [
+        0.52,
+        0.52,
+        0.52
+      ],
+      "wake_mm_at_0.28": 0.52,
+      "applied_vs_live_mean_mm": -0.0,
+      "applied_vs_wake_mm": -0.02
+    },
+    {
+      "idx": 12,
+      "signature": "peach|68.9",
+      "category": "peach",
+      "diameter_mm": 68.9,
+      "grade": "A",
+      "live_n": 4,
+      "live_offsets_mm": [
+        6.41,
+        6.37,
+        6.64,
+        6.64
+      ],
+      "live_mean_mm": 6.515,
+      "rule": "mean n=4",
+      "measured_mm": 6.515,
+      "applied_mm": 6.515,
+      "isolated_mm_at_0.20/0.28/0.36": [
+        6.45,
+        6.42,
+        6.44
+      ],
+      "wake_mm_at_0.28": 6.42,
+      "applied_vs_live_mean_mm": 0.0,
+      "applied_vs_wake_mm": 0.09
+    },
+    {
+      "idx": 13,
+      "signature": "kiwi|53.8",
+      "category": "kiwi",
+      "diameter_mm": 53.8,
+      "grade": "A",
+      "live_n": 4,
+      "live_offsets_mm": [
+        34.97,
+        35.04,
+        34.98,
+        34.98
+      ],
+      "live_mean_mm": 34.992,
+      "rule": "mean n=4",
+      "measured_mm": 34.992,
+      "applied_mm": 34.992,
+      "isolated_mm_at_0.20/0.28/0.36": [
+        53.13,
+        53.12,
+        53.08
+      ],
+      "wake_mm_at_0.28": 35.04,
+      "applied_vs_live_mean_mm": -0.0,
+      "applied_vs_wake_mm": -0.05
+    },
+    {
+      "idx": 14,
+      "signature": "orange|65.8",
+      "category": "orange",
+      "diameter_mm": 65.8,
+      "grade": "C",
+      "live_n": 4,
+      "live_offsets_mm": [
+        -0.36,
+        -0.36,
+        -0.36,
+        -0.36
+      ],
+      "live_mean_mm": -0.36,
+      "rule": "mean n=4",
+      "measured_mm": -0.36,
+      "applied_mm": -0.36,
+      "isolated_mm_at_0.20/0.28/0.36": [
+        -0.39,
+        -0.39,
+        -0.4
+      ],
+      "wake_mm_at_0.28": -0.39,
+      "applied_vs_live_mean_mm": 0.0,
+      "applied_vs_wake_mm": 0.03
+    },
+    {
+      "idx": 15,
+      "signature": "apple|69.6",
+      "category": "apple",
+      "diameter_mm": 69.6,
+      "grade": "C",
+      "live_n": 4,
+      "live_offsets_mm": [
+        -2.56,
+        -2.56,
+        -2.56,
+        -2.56
+      ],
+      "live_mean_mm": -2.56,
+      "rule": "mean n=4",
+      "measured_mm": -2.56,
+      "applied_mm": -2.56,
+      "isolated_mm_at_0.20/0.28/0.36": [
+        -2.52,
+        -2.52,
+        -2.52
+      ],
+      "wake_mm_at_0.28": -2.52,
+      "applied_vs_live_mean_mm": 0.0,
+      "applied_vs_wake_mm": -0.04
+    }
+  ],
+  "offsets": {
+    "lychee|29.6": -2.82,
+    "lychee|34.4": 4.28,
+    "kiwi|55.8": 44.805,
+    "peach|65.1": 5.45,
+    "apple|65.2": -0.71,
+    "strawberry|37.2": -28.915,
+    "tomato|66.1": 6.617,
+    "tomato|61.8": -6.272,
+    "strawberry|36.3": 18.69,
+    "pear|68.1": 2.575,
+    "orange|63.6": -26.91,
+    "pear|60.6": 0.497,
+    "peach|68.9": 6.515,
+    "kiwi|53.8": 34.992,
+    "orange|65.8": -0.36,
+    "apple|69.6": -2.56
+  }
+}

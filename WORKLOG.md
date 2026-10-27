@@ -19326,3 +19326,66 @@ spawn x + offset(instance)). A binding ceiling would also cost: a usable set of 
 in 25/40 selections means a skip, and the 14/40 with two substitute at +1.08 to
 +2.08 s. The named next lever is P38b's per-instance release-offset compensation
 at respawn, not a selection rule. Evidence `logs/p49/{SELECT_CENSUS,PREREG}.md`.
+
+### P50 phase 2: the per-pool release-offset compensation works at the cell level (8/96 -> 0/96) and the acceptance's count gate fails, so it is NOT adopted (2026-10-27)
+
+The lever P49 named was implemented (default off) and run: `FRUIT_RELEASE_OFFSET=1`
++ `FRUIT_RELEASE_OFFSET_TABLE=<pool table>` shifts the value `respawn` already drew
+(`x_spawn = planned - offset(instance)/1000`), so the delivered x lands back on the
+planned one and the **draw sequence is untouched**. Seven claimed runs
+(`logs/p50/p2/`, ~30 min, one claim each, all exit 0), no commit, no existing
+`configs/` file touched.
+
+**The tables are per pool because the offset is a per-instance constant, not a
+(species, diameter) function** (phase 1). `configs/release_offsets_accept_s5.json`
+(16 instances, seed 5) carries the pre-registered rule: the live mean per instance,
+and the two rollers' **minimax midpoint** - kiwi|55.8 **+44.80** (mid of +34.98 /
++54.63) and strawberry|37.2 **-28.91** (mid of -35.73 / -22.10). The pear table is
+**identity** by design (its offsets are -3.33..+2.69 mm, no tail), i.e. the phase's
+inertness control. Each run proves its own coverage: the banner reads
+`instances=16/16`.
+
+**P1 (the powered endpoint) passes decisively**: the compensated isolated probe
+delivers **0/96 cells outside [0.180, 0.390]** (min 0.1932, max 0.3785,
+pass-to-pass spread 0.00 mm) against the control's **8/96** (min 0.1730, max 0.4131
+- the four pre-registered cells x 2 passes: kiwi idx 02 @0.36 0.3998, kiwi idx 13
+@0.36 0.4131, strawberry idx 05 @0.20 0.1780, orange idx 10 @0.20 0.1730).
+**The live line confirms it is the same draws**: 65 vs 65 attributed releases with a
+**bit-identical planned-x sequence (65/65)** while the residual falls from
+**-35.73..+54.63 mm to -9.84..+9.83 mm** (p50 |.| 5.45 -> 0.00, max 9.84 = the
+kiwi's two modes either side of the midpoint). The compensation **re-selects modes**:
+the strawberry collapses (spread 13.63 -> 0.25 mm) and tomato idx 06 becomes newly
+bimodal (0.03 -> 7.05 mm, one mode exactly on the table); F1's 20 mm bar is not
+crossed (max 19.67 mm) but by 0.33 mm only. No clamp was needed: the table's
+excursion over `U(0.20, 0.36)` is **0.1552..0.3889 m** against a belt of 0.11-0.57 m
+(45 mm to the near edge), and the run's actual spawns were 0.1642..0.3888 m.
+
+**P3 is the gate that fails, and it is a count in a moved branch** (AGENTS section
+2): the acceptance reads **C 6/10 at 15.0 s/attempt vs O 4/10 at 15.1 s/attempt**
+(+0.7 %, inside the +5 % guard). Attempt 0 is the same peach with an identical lift;
+the **fruit sequence diverges from attempt 1** (O grasps at 2.50 N where C reads
+9.59 N) and attempts 5/7 are apples in O vs strawberries in C. Every failure in both
+arms is grasped-not-placed - the class `logs/p42/SIM_LIMIT.md` closes - so the
+release x did not touch the grip; the 1.7 %-of-attempts tail cannot explain two
+placements at ~58-62 releases per arm, and both arms read **0/10 outside the band**
+(the acceptance has no power on the tail; the discrimination lives in M1/M1b). P2
+(0 vs 0 catch-up rows over 6 mm, 0 vs 0 no-grasp), P4 (`{'empty note'}` both), P5
+(all five arms pass every motion budget; the only FAIL is the rate-only floor) and
+P6 pass; **no falsifier fires** (F3: 4 > 6-3). By PREREG section 5 (P1-P6 all
+required) the lever is **not adopted**, published as a negative with the mechanism
+measured; the enable path stays the explicit env pair.
+
+**The inertness and no-harm arms are exact.** The pear with the identity table is
+**physics-identical** to its control (**378/378** `[fruit]` lines, both 6/10 at
+15.7 s/attempt, 68 releases with a 0.00 mm shift), and the every-knob-unset
+acceptance is **377/377 identical** to both `logs/p41/p2/accept_profile.log` (the
+TASK reference) and `logs/p44/p2/accept_s5_C.log` (F5), with
+`fingerprint: matches configs/motion_reference.json` and `selfcheck.sh` PASS. The
+C arm also proves the diagnostic is run-neutral: `FRUIT_RELEASE_OFFSET_DIAG=1`
+replays the reference's physics stream 377/377. Offline:
+`logs/p50/p2/offset_knob_selftest.py` PASS 18/18, `make_offset_table.py` refuses to
+overwrite, `p2_report.py` re-derives every number above. Pins
+`logs/p50/p2/MD5.txt`; `fruits.py` `dff684b1` -> **`e81051c1`** (+188/-0);
+`configs/motion_reference.json` `8a399626` and `..._twoline.json` `2246f83c`
+untouched; HEAD `3a8a581`. Evidence `logs/p50/P2_RESULTS.md`, `logs/p50/p2/`,
+WORKLOG "P50 phase 2".

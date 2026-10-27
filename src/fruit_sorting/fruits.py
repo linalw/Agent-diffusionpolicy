@@ -7,6 +7,7 @@ random and used only as task labels.
 
 from __future__ import annotations
 
+import json
 import os
 import random
 from dataclasses import dataclass
@@ -715,6 +716,98 @@ class SupplyPlan:
         return "scatter"
 
 
+# --------------------------------------------------------------------------- #
+# P50 phase 2 (2026-10-27, **default off**): the per-instance release-offset
+# compensation at `respawn`.
+#
+# Measured (`logs/p50/OFFSET_TABLE.md`): the delivered lateral x is
+#
+#     x_delivered = x_spawn + offset(instance)
+#
+# with the transport contributing **0.00 mm** (475 transits, P38; 0.09 mm over
+# 215-224 ticks on the delivered path) and the offset a **per-instance
+# constant** - two passes over 48 cells are bit-identical (spread 0.00 mm) and
+# the shipped line agrees to <= 0.5 mm on 55/65 attributed releases. It is
+# **not** a function of (species, diameter): two strawberries 0.9 mm apart in
+# diameter read +20.0 and -24.3 mm, and a pooled fit leaves a 10.19 mm residual
+# sd, so the table has to be measured **per pool** (OFFSET_TABLE.md section 5).
+#
+# With `FRUIT_RELEASE_OFFSET=1` the value the schedule already drew is
+# post-processed inside `respawn`:
+#
+#     x_spawn = planned_x - offset(instance) / 1000
+#
+# so the *delivered* x lands back on the planned x. **The draw and the RNG
+# stream are untouched** - the compensation shifts the value `respawn` already
+# drew - which is what makes an A/B against `=0` a comparison of the *same
+# supply draws* with only the physical x differing (PREREG section 2). The
+# spawn band is deliberately **not clamped**: the measured excursion is
+# 0.165-0.387 m, still inside the belt (x 0.11-0.57) with >= 45 mm to the near
+# edge; the band the metric is about is the *delivered* one.
+#
+# Scope gate (PREREG section 2, measured reason): the patch and bed schedules
+# put two fruit **abreast** 0.085-0.12 m apart, so a +-55 mm per-instance
+# lateral shift would change a pair's separation. Those schedules are skipped
+# and counted (`offset_scoped_off`). Inside their scope the single-file
+# schedules (scatter/wave/fixed) are compensated on every release - the pump's
+# slot, its top-up and the `release_next` recycle all go through `respawn`.
+#
+# Unset contract: with the knob unset no table is read, no draw changes, no
+# line and no `stats` key is added - the tree is byte-identical (proven by the
+# arm M4, not asserted). The table is `{signature: offset_mm}` with
+# `signature = "<species>|<diameter to 0.1 mm>"` (the instance identity the pool
+# exposes); a missing signature leaves that instance **uncompensated** and is
+# counted (`offset_misses`), never silently zeroed. `FRUIT_RELEASE_OFFSET_DIAG=1`
+# adds one print-only `[offset] release` row per release in **both** arms (the
+# paired planned/spawn read). Tables are generated per pool by
+# `logs/p50/p2/make_offset_table.py`.
+# --------------------------------------------------------------------------- #
+RELEASE_OFFSET_ACTIVE = os.environ.get("FRUIT_RELEASE_OFFSET", "0").strip() == "1"
+RELEASE_OFFSET_TABLE_PATH = os.environ.get("FRUIT_RELEASE_OFFSET_TABLE", "").strip()
+RELEASE_OFFSET_DIAG = os.environ.get("FRUIT_RELEASE_OFFSET_DIAG", "0").strip() == "1"
+
+
+def release_offset_signature(sample: FruitSample) -> str:
+    """The pool-instance identity the P50 offset table is keyed on.
+
+    `species|diameter to 0.1 mm` - the identity the pool exposes without adding
+    a field to the sample. `rescale` (the collector's recycle) can rewrite a
+    sample's category/diameter, in which case its signature changes and the
+    release is counted as a miss instead of being compensated with a stale
+    value.
+    """
+    return f"{sample.category}|{sample.diameter * 1000.0:.1f}"
+
+
+def load_release_offset_table(path: str) -> dict[str, float]:
+    """Read a P50 per-pool offset table (`{signature: offset_mm}`).
+
+    Accepts either the flat map or the generator's envelope
+    (`{"schema": ..., "offsets": {...}, "provenance": {...}}`), so a hand-written
+    table and a generated one are the same object here.
+    """
+    with open(path, encoding="utf-8") as handle:
+        payload = json.load(handle)
+    raw = payload.get("offsets") if isinstance(payload, dict) else None
+    if raw is None:
+        raw = payload
+    if not isinstance(raw, dict) or not raw:
+        raise RuntimeError(
+            f"FRUIT_RELEASE_OFFSET_TABLE={path}: expected a non-empty "
+            "{signature: offset_mm} map (or an object with an 'offsets' map)"
+        )
+    table: dict[str, float] = {}
+    for key, value in raw.items():
+        try:
+            table[str(key)] = float(value)
+        except (TypeError, ValueError) as exc:
+            raise RuntimeError(
+                f"FRUIT_RELEASE_OFFSET_TABLE={path}: entry {key!r} is not a "
+                f"number in mm ({value!r})"
+            ) from exc
+    return table
+
+
 class FruitSpawner:
     """Owns a fixed pool of fruit rigid bodies recycled onto the belt."""
 
@@ -855,6 +948,23 @@ class FruitSpawner:
         self._despawn_ticks = 0
         #: Set to a CleatedBelt so the cleats advance with the physics loop.
         self.belt = None
+        #: P50 phase 2 (default off): the per-pool release-offset table. Resolved
+        #: once here; with `FRUIT_RELEASE_OFFSET` unset nothing is read and the
+        #: three counters below do not exist, so `stats` (and every offline
+        #: comparison of it, e.g. `scripts/172_supply_selftest.py`) is unchanged.
+        self._release_offsets: dict[str, float] = {}
+        self._release_table_path = ""
+        if RELEASE_OFFSET_ACTIVE:
+            if not RELEASE_OFFSET_TABLE_PATH:
+                raise RuntimeError(
+                    "FRUIT_RELEASE_OFFSET=1 needs FRUIT_RELEASE_OFFSET_TABLE=<path>: "
+                    "a missing table must not silently no-op (P50 PREREG section 2)"
+                )
+            self._release_table_path = RELEASE_OFFSET_TABLE_PATH
+            self._release_offsets = load_release_offset_table(RELEASE_OFFSET_TABLE_PATH)
+            self.stats["offset_shifted"] = 0
+            self.stats["offset_misses"] = 0
+            self.stats["offset_scoped_off"] = 0
         stage.DefinePrim(root, "Xform")
 
     # ------------------------------------------------------------------ #
@@ -971,6 +1081,21 @@ class FruitSpawner:
         banner = _mass_scale_banner()
         if banner is not None:
             say(banner)
+        # P50 (default off): one line naming the table and the pool coverage, so
+        # a compensated log proves its own table applies to the pool it drew. No
+        # line with the knob unset (byte-identical stream).
+        if RELEASE_OFFSET_ACTIVE:
+            signatures = [release_offset_signature(sample) for sample in self.samples]
+            covered = [self._release_offsets[key] for key in signatures
+                       if key in self._release_offsets]
+            say(
+                f"[offset] release compensation: table={self._release_table_path} "
+                f"instances={len(covered)}/{len(signatures)} "
+                f"offset_mm="
+                + (f"{min(covered):+.1f}..{max(covered):+.1f}" if covered else "n/a")
+                + " (x_spawn = planned_x - offset, single-file schedules only, "
+                "spawn band not clamped)"
+            )
         say(f"created {len(self.samples)} fruit rigid bodies")
 
     def _create_fruit(self, index: int, category: str, grade: str | None = None) -> None:
@@ -1172,6 +1297,60 @@ class FruitSpawner:
         )
         tune_contact_body(prim)
 
+    # ------------------------------------------------------------------ #
+    # P50 phase 2: the per-instance release-offset compensation (default off)
+    # ------------------------------------------------------------------ #
+    def _release_offset(self, sample: FruitSample, x: float) -> float:
+        """Return the spawn x for a planned x, through the P50 offset table.
+
+        Inert (one boolean, no read, no line, no counter) unless
+        `FRUIT_RELEASE_OFFSET=1` or the print-only `FRUIT_RELEASE_OFFSET_DIAG=1`
+        is set. With the knob on: `x_spawn = planned - offset(instance)/1000`,
+        **not clamped** (the measured excursion stays on the belt), skipped and
+        counted on the patch/bed schedules (a pair's abreast separation must not
+        move), and left uncompensated + counted on a table miss.
+        """
+        if not RELEASE_OFFSET_ACTIVE:
+            if RELEASE_OFFSET_DIAG:
+                say(
+                    f"[offset] release idx={int(sample.index):02d} "
+                    f"cat={sample.category:<10s} "
+                    f"dia_mm={sample.diameter * 1000:6.1f} planned={x:+.5f} "
+                    f"spawn={x:+.5f} off_mm=  +0.00 src=control"
+                )
+            return x
+        if self.supply.patch or self.supply.bed:
+            self.stats["offset_scoped_off"] += 1
+            if RELEASE_OFFSET_DIAG:
+                say(
+                    f"[offset] release idx={int(sample.index):02d} "
+                    f"cat={sample.category:<10s} "
+                    f"dia_mm={sample.diameter * 1000:6.1f} planned={x:+.5f} "
+                    f"spawn={x:+.5f} off_mm=  +0.00 src=scoped-off"
+                )
+            return x
+        offset_mm = self._release_offsets.get(release_offset_signature(sample))
+        if offset_mm is None:
+            self.stats["offset_misses"] += 1
+            if RELEASE_OFFSET_DIAG:
+                say(
+                    f"[offset] release idx={int(sample.index):02d} "
+                    f"cat={sample.category:<10s} "
+                    f"dia_mm={sample.diameter * 1000:6.1f} planned={x:+.5f} "
+                    f"spawn={x:+.5f} off_mm=  +0.00 src=miss"
+                )
+            return x
+        self.stats["offset_shifted"] += 1
+        spawn = x - float(offset_mm) / 1000.0
+        if RELEASE_OFFSET_DIAG:
+            say(
+                f"[offset] release idx={int(sample.index):02d} "
+                f"cat={sample.category:<10s} "
+                f"dia_mm={sample.diameter * 1000:6.1f} planned={x:+.5f} "
+                f"spawn={spawn:+.5f} off_mm={float(offset_mm):+7.2f} src=table"
+            )
+        return spawn
+
     def respawn(self, sample: FruitSample, along: float | None = None,
                 x_jitter: float = 0.10, x: float | None = None) -> None:
         """Drop a fruit onto the belt at the upstream end.
@@ -1182,6 +1361,10 @@ class FruitSpawner:
         seeded draw, so every pre-patch path is unchanged. The fruit is placed
         a few centimetres above the surface and falls onto it, so the physics
         engine never has to resolve an interpenetration.
+
+        P50 (default off): ``FRUIT_RELEASE_OFFSET=1`` post-processes that lateral
+        value through the per-instance table (``x_spawn = planned - offset``) so
+        the *delivered* x lands on the planned one; see `_release_offset`.
         """
         cfg = self.cfg
         y = cfg.spawn_y if along is None else along
@@ -1197,6 +1380,11 @@ class FruitSpawner:
                 )
         else:
             x = cfg.belt_center[0] + self.rng.uniform(-cfg.lateral_jitter, cfg.lateral_jitter)
+        # P50 phase 2 (default off): the per-instance release-offset compensation.
+        # The draw above is unchanged; only the value that reaches the rigid body
+        # moves, so the A/B compares the same supply draws (see the block above
+        # `class FruitSpawner`).
+        x = self._release_offset(sample, float(x))
         z = cfg.belt_center[2] + cfg.belt_size[2] / 2.0 + sample.diameter / 2.0 + 0.03
         rigid = self._rigids[sample.index]
         rigid.set_world_poses(
