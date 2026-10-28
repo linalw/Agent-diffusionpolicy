@@ -19424,3 +19424,19 @@ policy's phase is the belt-arrival wait). Corrections: the decisions/episode is
 53-84 (not 246-259 - a tick count), the latency bound is h <= 7 (not 13), and the
 intra-chunk rates were 4x understated. Named next: the action-hold (more ticks per
 action) + a joint clamp - a success-first cell.
+
+### P54 demo: the before/after clips of the ACQ default (2026-10-28)
+
+Recorded with `scripts/121_policy_video.py` (`moe_v13s` `61da390a`, the patch
+sheet, `FRUIT_POLICY_TRIGGER=arrival` lead 0.9, `FRUIT_DYNAMIC_PICK=1`, the park
+default, seed 77, 3 episodes each) - two runs identical except the knob:
+`FRUIT_POLICY_TRIGGER_ACQ` unset (the new default) vs `=0` (the pre-P54 shipped
+config). **The first episode is the same fruit** (seed 77 ep0: the 6.8 cm apple,
+right arm) and it is the clean paired contrast: **ACQ on -> placed; ACQ off ->
+not placed**. The clips: `logs/p54/video_acq_on/` and `logs/p54/video_acq_off/`
+(each `observer.mp4`, `head.mp4`, `gripper.mp4`, `side_by_side.mp4` + a
+`video.json` manifest with the checkpoint md5 and the loop settings), and the
+side-by-side composite `logs/p54/demo_acq_before_after.mp4` (1920x540, 40 s,
+labelled). The n=3 clips are a demonstration of the mechanism (the annotated
+observer shows the 2-D |jaw-fruit| trigger quantity and the outcome), not a rate -
+the rate is P54's N = 3 x 15 (16/45 vs 34/45).
