@@ -272,3 +272,17 @@ retry.
 - `logs/p56/p2_report.py` - the P1-P6 report (re-derives everything from the logs).
 - `logs/p56/DESIGN.md`, `logs/p56/PREREG.md`, `logs/p56/{continuity_census.py,CENSUS.txt}`
   - phase 1, unchanged.
+
+## Addendum (after the close-out): the queue interlock is not the aperture
+
+`logs/p56/P3_QUEUE_MAX.txt` - `FRUIT_QUEUE_MAX=12` (the interlock depth the
+DESIGN named as one of the three sliver terms) leaves the 15-pick episode
+**exactly as it was**: placed **8/15**, gap classes **[50, 80x9, 110x4]**, only
+the stock depth moves (`on_belt` median 5 -> 6, peaks 13-14). The `[bed-sel]`
+rows name the real aperture: at a starvation round the belt's fruit are either
+**past the station** (5 rows, along -0.514..-0.097) or **inside the 0.399 m
+catch floor** (4 rows, along +0.125..+0.284), with only the ~[0.399, 0.55] m
+band usable - **0.15 m, 2-4 fruit, against the 1.8 m (15 fruit) one pick
+traverses**. So the continuous episode is **starve-limited by the pick's own belt
+consumption**, not by the feeder; the fix is a station-geometry / belt-speed /
+staged-queue change, each with its own pre-registration.
