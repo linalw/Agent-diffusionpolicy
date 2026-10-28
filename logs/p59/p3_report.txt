@@ -1,0 +1,94 @@
+# P59 phase 3 report — the same-tree 45-block control and the cap-5 re-read
+
+== 1. is the cap-5 arm same-tree comparable? (the arm reads these files) ==
+  current tree 1b1e5cdf rl_env / 8ad8ddc8 tasks / c7461d41 fruits
+  phase-2 batch wrote: rl_env 1b1e5cdf / tasks 8ad8ddc8 / fruits c7461d41
+  phase-3 batch wrote: rl_env 1b1e5cdf / tasks 8ad8ddc8 / fruits c7461d41
+  compared files with a phase-2 pin: 14/14
+  files whose md5 MOVED since phase 2: none
+  for contrast, the P2 control A2 (logs/p58/p3b) moved 4/14 of these files: rl_env.py ddcb7816->1b1e5cdf, tasks.py c7eef701->8ad8ddc8, fruits.py 55921c46->c7461d41, 110_rl_rollout.py b5d05ea3->abd2b5f1
+  -> cap 5 vs the shipped control is SAME-TREE; cap 5 vs A2 is and remains CROSS-TREE (4 files differ).
+  control seeds [77, 101, 202]  arm A (cap 5, phase 2) seeds [77, 101, 202]
+
+== the arm is what it claims (PREREG_P2 reading rule 5; stop if not) ==
+  C seed  77: direct profile: cadence=on(default) band=on(4)(default) feed=on(default) target_from=0.35(default)   -> OK
+  C seed 101: direct profile: cadence=on(default) band=on(4)(default) feed=on(default) target_from=0.35(default)   -> OK
+  C seed 202: direct profile: cadence=on(default) band=on(4)(default) feed=on(default) target_from=0.35(default)   -> OK
+  A seed  77: direct profile: cadence=on(default) band=on(5(explicit))(default) feed=on(default) target_from=0.35(default)   -> OK
+  A seed 101: direct profile: cadence=on(default) band=on(5(explicit))(default) feed=on(default) target_from=0.35(default)   -> OK
+  A seed 202: direct profile: cadence=on(default) band=on(5(explicit))(default) feed=on(default) target_from=0.35(default)   -> OK
+
+== the runs (unit = one pick = one `[rl] episode ... success=` row) ==
+  C seed  77: picks=15 placed=11 (11/15 summary) (left 0/4, right 11/11) bed_rows=15 on_belt mean 11.07 window mean 2.07 ==1 5/15 skipped_final 7 gap max 141 wall=505.4s starve_lines=0
+  C seed 101: picks=15 placed= 6 (6/15 summary) (left 1/10, right 5/5) bed_rows=15 on_belt mean 11.33 window mean 2.40 ==1 0/15 skipped_final 6 gap max 141 wall=530.2s starve_lines=0
+  C seed 202: picks=15 placed= 9 (9/15 summary) (left 1/6, right 8/9) bed_rows=15 on_belt mean 11.33 window mean 2.47 ==1 3/15 skipped_final 11 gap max 141 wall=516.6s starve_lines=0
+  A seed  77: picks=15 placed= 9 (9/15 summary) (left 0/4, right 9/11) bed_rows=15 on_belt mean 12.20 window mean 2.60 ==1 1/15 skipped_final 6 gap max 141 wall=534.4s starve_lines=0
+  A seed 101: picks=15 placed= 8 (8/15 summary) (left 0/6, right 8/9) bed_rows=15 on_belt mean 11.87 window mean 2.60 ==1 2/15 skipped_final 11 gap max 141 wall=531.9s starve_lines=0
+  A seed 202: picks=15 placed=10 (10/15 summary) (left 0/4, right 10/11) bed_rows=15 on_belt mean 11.40 window mean 2.40 ==1 1/15 skipped_final 4 gap max 141 wall=524.4s starve_lines=0
+
+== the registered table (pooled per arm; a reopening needs these two on one foot) ==
+  control C (cap 4, shipped): sel 45  window mean 2.31  ==1  8/45  ==0  0  dist {1: 8, 2: 21, 3: 10, 4: 6}
+                            sel_gap multiset {139: 4, 140: 32, 141: 6}  starved 0/42  skipped {77: 7, 101: 6, 202: 11}
+                            on_belt mean 11.24  admitted mean 5.02  live med 12  below-window 6.18/block  identity mismatches 0  placed 26/45  wall/pick 34.49s  ticks/pick 1832.1
+  arm A (cap 5, phase 2)  : sel 45  window mean 2.53  ==1  4/45  ==0  0  dist {1: 4, 2: 20, 3: 14, 4: 7}
+                            sel_gap multiset {139: 8, 140: 25, 141: 9}  starved 0/42  skipped {77: 6, 101: 11, 202: 4}
+                            on_belt mean 11.82  admitted mean 5.33  live med 13  below-window 6.47/block  identity mismatches 0  placed 27/45  wall/pick 35.35s  ticks/pick 1816.8
+  A2 (cross-tree control) : sel 45  window mean 2.38  ==1  9/45  ==0  0  dist {1: 9, 2: 18, 3: 10, 4: 8}
+                            sel_gap multiset {139: 8, 140: 25, 141: 9}  starved 0/42  skipped {77: 8, 101: 4, 202: 9}
+                            on_belt mean 10.93  admitted mean 4.69  live med 12  below-window 6.24/block  identity mismatches 0  placed 28/45  wall/pick 35.40s  ticks/pick 1823.7
+
+== 3b. does any BEHAVIOURAL counter differ? (PREREG_P2 'what a reopening needs' 2) ==
+  window==0 (no candidate at all)   : control 0   cap 5 0   SAME
+  window>=1 blocks                  : control 45   cap 5 45   SAME
+  starved feed rounds (sel_gap>=169): control 0   cap 5 0   SAME
+  sel_gap support / total           : control ([139, 140, 141], 42)   cap 5 ([139, 140, 141], 42)   SAME
+  sel_gap counts within the support : control {139: 4, 140: 32, 141: 6}   cap 5 {139: 8, 140: 25, 141: 9}   DIFFERS (magnitude below)
+  skipped (final, summed over seeds): control 24   cap 5 21   DIFFERS (magnitude below)
+  placed (report only)              : control 26   cap 5 27   DIFFERS (magnitude below)
+  on_belt mean                      : control 11.24   cap 5 11.82   DIFFERS (magnitude below)
+  window mean                       : control 2.31   cap 5 2.53   DIFFERS (magnitude below)
+  -> the INVARIANTS that the reopening criterion names are IDENTICAL; the counters that move are the depth and its 1-tick variants.
+
+== 3c. the per-seed pairing (the 'non-worse in N/3 seeds' claim, re-read) ==
+  seed         sum(window)         ==1       skipped        placed
+    77  C  31 vs A  39  C 5/15 vs A 1/15  C 7 vs A 6  C 11/15 vs A 9/15
+   101  C  36 vs A  39  C 0/15 vs A 2/15  C 6 vs A 11  C 6/15 vs A 8/15   <- cap 5 has MORE marginal blocks than the control
+   202  C  37 vs A  36  C 3/15 vs A 1/15  C 11 vs A 4  C 9/15 vs A 10/15
+  -> cap 5 is non-worse on `window==1` in 2/3 seeds against the same-tree control (against the cross-tree A2 it was 3/3).
+
+== 3d. the depth difference and the cross-tree control it replaces ==
+  control C (cap 4, same-tree)          : n 45  mean 2.311  sd 0.925  SE 0.138  95 % CI [2.041, 2.581]  ==1 8/45  ==0 0
+  arm A (cap 5, same-tree)              : n 45  mean 2.533  sd 0.869  SE 0.129  95 % CI [2.280, 2.787]  ==1 4/45  ==0 0
+  A2 (cap 4, CROSS-tree, the P2 control): n 45  mean 2.378  sd 1.007  SE 0.150  95 % CI [2.084, 2.672]  ==1 9/45  ==0 0
+  depth delta (cap 5 - control) = +0.222; two 45-block arms need |delta| >= 0.37 to separate at 95 % (P2_RESULTS §2's power statement) -> DOES NOT separate
+  window==1: control 8/45 vs cap 5 4/45  Fisher p = 0.353
+  the two CONTROL cells of the same configuration differ by -0.067 (same-tree 2.311 vs cross-tree 2.378) - a control-vs-control spread of the same order as the arm effect: the depth mean cannot rank the arms at this n.
+
+== 4. the post-profile direct number (a BRANCH of the shipped config, not a rate) ==
+  seed  77: placed 11/15  summary 11/15  cnp 3  no-grasp 1  left 0/4  right 11/11
+  seed 101: placed  6/15  summary 6/15  cnp 9  no-grasp 0  left 1/10  right 5/5
+  seed 202: placed  9/15  summary 9/15  cnp 5  no-grasp 1  left 1/6  right 8/9
+  pooled: placed 26/45 = 57.8 %  cnp 17  no-grasp 2  left 2/20  right 24/25
+  per arm/species (the class the count is dominated by):
+    left  apple       placed 1/4
+    left  kiwi        placed 1/8
+    left  lychee      placed 0/2
+    left  orange      placed 0/1
+    left  peach       placed 0/3
+    left  pear        placed 0/2
+    right apple       placed 2/2
+    right kiwi        placed 1/1
+    right lychee      placed 5/5
+    right orange      placed 3/4
+    right peach       placed 4/4
+    right pear        placed 1/1
+    right strawberry  placed 5/5
+    right tomato      placed 3/3
+
+== the failure classes (113's normalisation; E4 read) ==
+  control keys (2):
+    - 'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)'
+    - 'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)', 'fruit did not follow the gripper'
+  control keys not in cap 5: none
+  cap 5 keys not in control: none
+  -> E4 (no new failure reason vs the cap-5 arm + the P43/P54 baseline): no new key on the control side

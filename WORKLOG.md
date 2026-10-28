@@ -19657,3 +19657,46 @@ artifact is a registration error, and its remedy is a **new** registration with 
 this one. Cap 6 is predicted flat (dose-response saturated, aperture bounded by the
 0.399 m catch floor). Artifact: `logs/p59/p2_report.py` exits **0** and writes the
 table (`logs/p59/p2_report.txt`).
+
+### P59 P3: the same-tree control closes the cap lane - no behavioural endpoint moves, so no cap can satisfy the reopening criterion
+
+The same-tree 45-block control now exists (`logs/p59/p3/`, 14/14 pins identical to
+the phase-2 batch, `git diff ee522c1..HEAD -- src configs scripts` empty): `window`
+**2.311** (2.07/2.40/2.47), `==1` **8/45**, `==0` **0/45**, starved **0/42**,
+`skipped` **24**, `on_belt` 11.24, wall **34.49 s/pick**, placed **26/45 = 57.8 %**
+(right **24/25**, left **2/20**; 17 of the 19 failures are the left `cnp` class).
+On that foot **cap 5 reads 2.533** - **+0.222 against the 0.371 a 95 % separation
+of two 45-block arms needs**, so it **does not separate** - and `==1` 4/45
+(Fisher p = 0.353), 0/42 starves. The two cap-4 cells' own spread is **0.067**
+(2.311 same-tree vs 2.378 cross-tree, four pins apart): **a corroborating floor,
+not the reason the delta fails**.
+
+**The behavioural endpoint still does not differ, and now cannot**: `window==0`
+0/45 = 0/45, `window>=1` 45/45 = 45/45, starved 0/42 = 0/42 and `sel_gap` the same
+**support and total** (`{139,140,141}` x 42, max 141) are all **saturated**, so
+**no cap 3-6 can satisfy the reopening criterion** - **cap 6 is retired, not
+"predicted flat"**. The counters that do move sit at the same-configuration
+cell-to-cell spread and attribute to nothing: `skipped` **24 vs 21** is the same 3
+the two cap-4 cells differ by, `placed` **26 vs 27** is *less* than the cap-4
+cells' own 26 vs 28.
+
+**Two phase-2 readings are downgraded**: "non-worse in 3/3 seeds" is **2/3**
+against this control (seed 101 draws 0/15 `window==1` to cap 5's 2/15), and
+"`sel_gap` the identical multiset" held only against the cross-tree A2 cell (this
+control reads `{139:4, 140:32, 141:6}` vs cap 5's `{139:8, 140:25, 141:9}` - the
+same support, not the same counts).
+
+**The post-profile direct number is 26/45 = 57.8 %** (11/6/9 per seed; a branch,
+not a rate) and it is the **post-profile "pre"** every later direct comparison
+starts from. **`moe_v12` is out of reach of the profile, not untested on it**:
+`_resolve_supply_profile` is `SortingRLEnv`-only (`rl_env.py:2259`) and
+`60_eval_policy.py` builds its own `FruitSpawner` (`:142`) and `PickAndPlaceTask`
+(`:238`) with no profile kwargs, so they fall back to the raw reads (interlock
+`0` / cap `3` / `FRUIT_FEED_CADENCE=0`); `FRUIT_DIRECT_FEED` has **no fallback
+outside `rl_env`**, and `accept_policy.sh:80` fixes `FRUIT_SUPPLY_SCATTER=0` -
+every canary number, before and after P58, is the **pre-v9 fixed supply**, and the
+re-baseline statement owed for the canary is **"no path"** (a policy-side number
+under the profile needs a harness change with its own pre-registration). P59
+closes with **no shipped default change**: cap 4, `TARGET_FROM` 0.35 and the P58
+profile intact; `rl_env.py` `1b1e5cdf` (gate 1's provenance-only edit), `tasks.py`
+`8ad8ddc8`, `fruits.py` `c7461d41`; no reference re-recorded.

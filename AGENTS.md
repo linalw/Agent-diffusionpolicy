@@ -2444,11 +2444,23 @@ FRUIT_DIRECT_FEED=0` restores it, composed with `FRUIT_ARM_PARK=ready`
 and none is re-recorded: the scripted path never constructs `SortingRLEnv`, so
 `accept.sh`'s `fingerprint: matches` is an **import guard** (its `[fruit]`
 stream is 377/377 identical to `logs/p41/p2/accept_profile.log`), and the hybrid
-canary builds its own spawner (`60_eval_policy.py`), so `moe_v12` is
-**untested** on this profile. Not covered: `BAND_MAX` 5-6,
-`FRUIT_SUPPLY_TARGET_FROM` 0.40, the two-line (its own `feed_pump`; `_feed_scope`
+canary is **out of reach of** this profile, not untested on it:
+`_resolve_supply_profile` is `SortingRLEnv`-only (`rl_env.py:2259`) and
+`60_eval_policy.py` builds its own `FruitSpawner` (`:142`) and
+`PickAndPlaceTask` (`:238`) with no profile kwargs, so they fall back to the raw
+reads whose defaults are interlock `0` / cap `3` (`fruits.py:951-960`) and
+`FRUIT_FEED_CADENCE=0` (`tasks.py:1150-1154`); `FRUIT_DIRECT_FEED` has **no
+fallback outside `rl_env`**, and `accept_policy.sh:80` fixes
+`FRUIT_SUPPLY_SCATTER=0`. Every canary number, before and after P58, is the
+**pre-v9 fixed supply** - the re-baseline statement owed for `moe_v12` is
+**"no path"**. Not covered: `BAND_MAX` 6 (`5` and
+`FRUIT_SUPPLY_TARGET_FROM=0.40` are measured and rejected, P59 P2/P3), the
+two-line (its own `feed_pump`; `_feed_scope`
 excludes it), the handoff presentation, and any store recorded under the
-profile. Pins: `rl_env.py` **`6d7cb329`**, `tasks.py` **`8ad8ddc8`**,
+profile. Pins: `rl_env.py` **`6d7cb329`** (*the file P58 shipped*; P59 gate 1
+then moved it to **`1b1e5cdf`** with a provenance-only edit, `be5e41c` - row
+provenance + `target_from` in the manifest, the shipped path byte-unchanged),
+`tasks.py` **`8ad8ddc8`**,
 `fruits.py` **`c7461d41`**, `scripts/230_p58_supply_selftest.py`; `configs/*`
 untouched (`8a399626` / `2246f83c` both stand); checkpoint `moe_v13s`
 `61da390a`. Evidence
@@ -2459,17 +2471,21 @@ untouched (`8a399626` / `2246f83c` both stand); checkpoint `moe_v13s`
 catch-margin arms both fail E1 and the bar is not adjudicable, so the lane closes
 as **non-binding** rather than as a loss).** With the shipped profile as the
 control (`window` **2.378**, `==1` 9/45), **A (`FRUIT_SUPPLY_BAND_MAX=5`)** reads
-**2.533**, `==1` **4/45** (non-worse in 3/3 seeds; the per-seed pairs are 39/39/36 vs 36/39/32, ties-dropped p = 0.25, pooled p = 0.50) and
+**2.533**, `==1` **4/45** (**non-worse in 3/3 seeds against the cross-tree P58 phase-3b cell A2, 2/3 against P59 phase 3's same-tree control** - on seed 101 the control draws **0/15** `window==1` to cap 5's 2/15; per-seed sums 39/39/36 vs A2's 36/39/32, ties-dropped p = 0.25, pooled p = 0.50) and
 **B (`FRUIT_SUPPLY_TARGET_FROM=0.40`)** 2.267, 10/45; both have **0/42 starved
 rounds**. E1's `2.57` bar is the **pre-P58 burst** cell pooled over **51** blocks
 - it includes the 5-pick aborted run while every other cell is 45 (same foot:
 **2.600**) - so it matches no row, and A's mean 95 % CI is **[2.282, 2.784]**
 (two arms need |delta| >= 0.50 to separate at n=45): **no depth mean ranks the
-arms**. What decides it is that **nothing behavioural moves** - `window==0` 0/45
-and starves 0/42 in all four cells, `sel_gap` the **identical multiset**
-{139x8, 140x25, 141x9} for cap 4 and cap 5, `skipped` **21 = 21**, placed 27 vs
-28, wall 530.2 vs 531.1 s/pick - so cap 5 moves a counter no behaviour reads and
-**cap 4 stays**. **`TARGET_FROM=0.40` is rejected mechanically**: `window` counts
+arms**. What decides it is that **no behavioural invariant moves** - `window==0` 0/45
+and starves 0/42 in all four cells, `sel_gap` the **same support and total**
+(`{139,140,141}` x 42 - one ~140-tick gap split by the 1-tick print rounding; the
+*multiset* equality {139x8, 140x25, 141x9} holds only against the cross-tree A2
+cell) - and that **the counters which do move sit at the same-configuration
+cell-to-cell spread, so none is attributable to the cap**: `skipped` **21 = 21
+against A2 but 24 vs 21 against the same-tree control**, exactly the 3 the two
+cap-4 cells differ by; `placed` 26 vs 27, *less* than the cap-4 cells' own 26 vs
+28; wall 34.49 vs 35.35 s/pick (inside the live-body confound). **cap 4 stays.** **`TARGET_FROM=0.40` is rejected mechanically**: `window` counts
 only `usable`/`chosen` (`tasks.py:5515`), so its "dead sliver" rationale targeted
 a re-derived occupancy, and on the real counter it reads 2.244 vs 2.711 while
 `below catch floor` **rises 2.31 -> 2.82/block** - it feeds the sliver it meant
@@ -2484,6 +2500,45 @@ exits **0** (the arm check matches the `[supply] direct profile` row) ->
 `fruits.py` `c7461d41`); no `configs/` change. Evidence
 `logs/p59/{PREREG_P2,P2_RESULTS}.md`, `p2/`, `p2_report.{py,txt}`; WORKLOG
 "P59 P2".
+
+**P59 phase 3 (2026-10-29, `logs/p59/p3/`; **no shipped default change** - and the
+same-tree control this paragraph's P2 section names does **not** reopen the cap).**
+The control now exists **on cap 5's own tree** (`logs/p59/p3/header.txt` matches
+`logs/p59/p2/header.txt` on **14/14** pins, `git diff ee522c1..HEAD -- src configs
+scripts` empty): 45 `[bed-sel]` blocks, `window` mean **2.311** (2.07/2.40/2.47),
+`==1` **8/45**, `==0` **0/45**, starved **0/42**, `skipped` **24** (7/6/11),
+`on_belt` 11.24, wall **34.49 s/pick**, placed **26/45 = 57.8 %** (right
+**24/25**, left **2/20**; **17 of the 19 failures are the left `cnp`** class of
+`logs/p42/SIM_LIMIT.md`, which the P43 park removes on the right and cannot touch
+on the left). On that foot **cap 5 reads 2.533** - **+0.222 against the 0.371 a
+95 % separation of two 45-block arms needs** (overlapping CIs [2.041, 2.581] /
+[2.280, 2.787]), so it **does not separate**; `==1` 4/45 (Fisher p = 0.353),
+0/42 starves. The two cap-4 cells' own spread is **0.067** (2.311 same-tree vs
+2.378 cross-tree - the same configuration, **four pins apart**) = **30 % of the
+arm effect: a corroborating floor, not the reason the delta fails** (the
+threshold is). **The behavioural endpoint still does not differ, and now cannot**:
+`window==0` 0/45 = 0/45, `window>=1` 45/45 = 45/45, starved 0/42 = 0/42 and
+`sel_gap` the **same support and total** (`{139,140,141}` x 42, max 141 < the
+169-tick starve threshold) are all **saturated**, so **no cap 3-6 can satisfy the
+reopening criterion** - **cap 6 is retired, not "predicted flat"**. The counters
+that do move sit at the same-configuration cell-to-cell spread and attribute to
+nothing: `skipped` **24 vs 21** is the same 3 the two cap-4 cells differ by,
+`placed` **26 vs 27** is *less* than the cap-4 cells' own 26 vs 28, and `on_belt`
+11.24 vs 11.82 is a body count, not a catch metric. **Two phase-2 readings are
+downgraded**: "non-worse in 3/3 seeds" is **2/3** against this control (seed 101
+draws 0/15 `window==1` to cap 5's 2/15) and "`sel_gap` the identical multiset"
+held only against A2 (this control reads `{139:4, 140:32, 141:6}` vs cap 5's
+`{139:8, 140:25, 141:9}` - the same **support**, not the same counts). **The
+post-profile direct number is 26/45 = 57.8 %** (11/6/9 per seed - a **branch, not
+a rate**: the loop conditions on rendered frames) and it is the **post-profile
+"pre"** every later direct comparison starts from. Phase 1's four checks are PASS
+(`logs/p59/DEMO.md`) and its film **stands** (no cap default moved, so
+`PREREG_P2` rule 5 was not triggered). Artifact: `logs/p59/p3_report.py` exits
+**0** - it asserts every arm's `[supply] direct profile` row before reading and
+the `on_belt` identity on 45/45 blocks -> `p3_report.txt`. Pins: `rl_env.py`
+**`1b1e5cdf`**, `tasks.py` `8ad8ddc8`, `fruits.py` `c7461d41`; `configs/*`
+untouched, **no reference re-recorded**; ckpt `moe_v13s` `61da390a`. Evidence
+`logs/p59/{P3_RESULTS.md,p3/,p3_report.{py,txt},run_p3.sh}`; WORKLOG "P59 P3".
 
 ## 3. What changed -> what to run
 
