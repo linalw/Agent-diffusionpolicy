@@ -86,6 +86,29 @@ def main() -> int:
               and handoff["feed"] is False and handoff["band_max"] is None,
               "non-direct: the resolver is inert (shipped kwargs, None)")
 
+        # 3b: the row's three provenance cases (P59 gate 1's defect).
+        shipped = SortingRLEnv._supply_profile_row(prof, prof["feed"])
+        check("band=on(4)(default)" in shipped,
+              "shipped row prints band=on(4)(default)")
+        pre = SortingRLEnv._resolve_supply_profile(True) if False else None
+        os.environ.clear(); os.environ.update(clean_env())
+        os.environ.update({"FRUIT_FEED_CADENCE": "0",
+                           "FRUIT_SUPPLY_BAND_INTERLOCK": "0",
+                           "FRUIT_DIRECT_FEED": "0"})
+        pre_prof = SortingRLEnv._resolve_supply_profile(True)
+        pre_row = SortingRLEnv._supply_profile_row(pre_prof, pre_prof["feed"])
+        check("band=off(explicit)" in pre_row and "(4)" not in pre_row,
+              "pre-P58 row drops the cap (no misleading (4))")
+        os.environ.clear(); os.environ.update(clean_env())
+        os.environ["FRUIT_SUPPLY_BAND_MAX"] = "5"
+        cap5 = SortingRLEnv._resolve_supply_profile(True)
+        cap5_row = SortingRLEnv._supply_profile_row(cap5, cap5["feed"])
+        check("band=on(5(explicit))(default)" in cap5_row,
+              "a cap override names itself (on(5(explicit))(default))")
+        check("target_from=0.35(default)" in shipped
+              and cap5["defaulted"]["target_from"] is True,
+              "the row and manifest carry target_from provenance")
+
         # 4-5: static pins (fruits.py/tasks.py import pxr, so no offline import).
         fruits_src = (ROOT / "src/fruit_sorting/fruits.py").read_text(encoding="utf-8")
         tasks_src = (ROOT / "src/fruit_sorting/tasks.py").read_text(encoding="utf-8")

@@ -515,7 +515,22 @@ def main() -> int:
         json.dump(summary, handle, indent=2)
     say(f"[video] summary -> {summary_path}")
     ok = sum(1 for record in episodes if record["success"])
-    say(f"[video] outcome {ok}/{len(episodes)} success; DONE")
+    #: P59: in a continuous (multi-pick) episode `record["success"]` is the
+    #: **last pick's**, so `outcome 1/1` described a run that placed 7 of 8.
+    #: Promote the summary to the pick with the env's own counters, exactly as
+    #: `110_rl_rollout.py` does (the same fix, the same unit).
+    picks_done = int(getattr(env, "_picks_done", 0) or 0)
+    picks_placed = int(getattr(env, "_cont_placed", 0) or 0)
+    if args.continuous and picks_done:
+        summary["picks"] = {"placed": picks_placed, "done": picks_done,
+                            "unit": "pick", "continuous": int(args.continuous)}
+        with open(summary_path, "w", encoding="utf-8") as handle:
+            json.dump(summary, handle, indent=2)
+        say(f"[video] picks placed {picks_placed}/{picks_done} "
+            f"(continuous mode: the unit is the pick, not the episode)")
+        say(f"[video] outcome {picks_placed}/{picks_done} success (unit=pick); DONE")
+    else:
+        say(f"[video] outcome {ok}/{len(episodes)} success; DONE")
     app_utils.pause()
     return 0
 

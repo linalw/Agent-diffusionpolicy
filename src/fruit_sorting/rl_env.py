@@ -1957,17 +1957,7 @@ class SortingRLEnv:
         if self.trigger_settings.enabled:
             say(f"[rl] {self.trigger_settings.summary()}")
         if self.presentation == "direct":
-            d = self._supply["defaulted"]
-            say(
-                "[supply] direct profile: "
-                f"cadence={'on' if self._supply['cadence'] else 'off'}"
-                f"{'(default)' if d['cadence'] else '(explicit)'} "
-                f"band={'on' if self._supply['band_interlock'] else 'off'}"
-                f"({self._supply['band_max']})"
-                f"{'(default)' if d['band_interlock'] else '(explicit)'} "
-                f"feed={'on' if self._direct_feed else 'off'}"
-                f"{'(default)' if d['feed'] else '(explicit)'}"
-            )
+            say(self._supply_profile_row(self._supply, self._direct_feed))
         if self._continuous_picks > 0:
             say(
                 f"[cont] enabled: picks_target={self._continuous_picks} "
@@ -2232,6 +2222,7 @@ class SortingRLEnv:
                 "cadence": bool(self._supply["cadence"]),
                 "band_interlock": bool(self._supply["band_interlock"]),
                 "band_max": self._supply["band_max"],
+                "target_from": self._supply["target_from"],
                 "direct_feed": bool(self._direct_feed),
                 "continuous": int(self._continuous_picks),
                 "defaulted": dict(self._supply["defaulted"]),
@@ -2293,18 +2284,63 @@ class SortingRLEnv:
             band_max = max(1, int(raw_max))
         else:
             band_max = 4 if direct else None
+        #: The band's upstream edge (`_approach_depth`): not flipped, but it
+        #: moves the interlock's window, so phase 2's arm B must be attributable
+        #: from the artefacts - P59 gate 1 (Oracle) found it in neither the row
+        #: nor the manifest.
+        raw_from = os.environ.get("FRUIT_SUPPLY_TARGET_FROM")
+        target_from = float(raw_from) if raw_from is not None else 0.35
         return {
             "cadence": bool(cadence) and direct,
             "band_interlock": bool(band) and direct,
             "band_max": band_max if direct else None,
             "feed": bool(feed) and direct,
+            "target_from": target_from,
             "defaulted": {
                 "cadence": cad_defaulted,
                 "band_interlock": band_defaulted,
                 "band_max": raw_max is None,
                 "feed": feed_defaulted,
+                "target_from": raw_from is None,
             },
         }
+
+    @staticmethod
+    def _supply_profile_row(profile: dict, direct_feed: bool) -> str:
+        """The `[supply] direct profile:` row (pure; pinned by `230`).
+
+        Each member names its **own** provenance, and the band's cap is printed
+        **only when the interlock is on** - P59 gate 1 found that the cap was
+        labelled from the interlock's `defaulted` flag, so a phase-2 arm with
+        `FRUIT_SUPPLY_BAND_MAX=5` explicit would have read
+        `band=on(5)(default)`, i.e. indistinguishable from the shipped default
+        on the very instrument that answers "is the profile what runs?". The
+        three cases are pinned in `scripts/230_p58_supply_selftest.py`:
+
+        * shipped (interlock default on, cap 4 default) - `band=on(4)(default)`
+          (byte-identical to the P58 row, so every P58/P59 log stays valid);
+        * the pre-P58 recipe (interlock explicit off) - `band=off(explicit)`
+          (the misleading `(4)` is gone);
+        * a cap override (interlock default, cap explicit) -
+          `band=on(5(explicit))(default)`.
+        """
+        d = profile["defaulted"]
+
+        def mark(key: str) -> str:
+            return "(default)" if d.get(key) else "(explicit)"
+
+        if profile["band_interlock"]:
+            cap = f"({profile['band_max']}{'' if d.get('band_max') else '(explicit)'})"
+        else:
+            cap = ""
+        return (
+            "[supply] direct profile: "
+            f"cadence={'on' if profile['cadence'] else 'off'}{mark('cadence')} "
+            f"band={'on' if profile['band_interlock'] else 'off'}{cap}"
+            f"{mark('band_interlock')} "
+            f"feed={'on' if direct_feed else 'off'}{mark('feed')} "
+            f"target_from={profile['target_from']:.2f}{mark('target_from')}"
+        )
 
     def advance(self, steps: int) -> None:
         """Tick-exact physics advance + callback pump.
