@@ -1,0 +1,38 @@
+check 1 - the profile is what runs (01_profile.log)
+  PASS  profile row is byte-exact
+  PASS  not one member reads (explicit)
+  PASS  park=back(default)
+  PASS  acq=on(
+  PASS  manifest cadence/band/feed true
+  PASS  manifest band_max 4 / continuous 0
+  PASS  manifest defaulted all true
+  PASS  recorded store has 2 npz + index
+check 2 - the pre-P58 recipe (02_pre58_recipe.log)
+  PASS  profile row is off(explicit) x3
+  PASS  re-run (preserving --out) reads the same row
+  PASS  manifest members false
+  PASS  their defaulted flags false
+  PASS  band_max exception is the predicted inert one (4 / true, keyed to BAND_MAX)
+  PASS  pre-profile sample recorded (both runs agree)  on_belt=5 window=4
+check 3 - --continuous 10 is explicit and pick-level (03_continuous10.log)
+  PASS  cont enabled picks_target=10
+  PASS  10 per-pick outcome rows  n=10
+  PASS  9 [cont] pick transitions (pick 1 has none by construction)  n=9
+  PASS  pick-level 'picks placed' line
+  PASS  summary is not 0/1
+  PASS  per-pick success rows == placed rows  success=7 placed=7
+  PASS  summary agrees with the rows
+check 4 - the continuous video at the shipped profile (04_video_shipped.log)
+  PASS  profile row is the shipped one
+  PASS  no waiting/no candidate lines
+  PASS  8 per-pick outcome rows  n=8
+  PASS  cont episode summary present  [cont] episode 7: picks=8/8 placed=6 reward=5.794800 ticks=14513 gap_ticks=62.9 
+  PASS  gap classes are {50, 80} only  gaps=[80, 50, 80, 80, 50, 50, 50]
+  PASS  picks placed agrees with the rows
+  PASS  catchable window never 0 across the 8 selections  window=[2, 2, 2, 2, 2, 2, 3, 4]
+  PASS  belt population grows from 4 to 11-14  on_belt=[4, 13, 14, 13, 13, 11, 11, 13]
+  PASS  four mp4s written
+  PASS  all clips are the same 1686-frame clip
+  PASS  video.json records one episode (the last pick) - the 121 limitation
+
+OK: 32/32 assertions PASS
