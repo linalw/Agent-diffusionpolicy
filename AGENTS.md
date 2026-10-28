@@ -2360,6 +2360,45 @@ named: a default lead **>= 1.17 s** would fix the timing without the ACQ formula
 **`5bc084d3`**, `policy/trigger.py` `b09d3cb2` unchanged; no `configs/` change;
 evidence `logs/p54/{PREREG,P54_RESULTS}.md`, `p1/`, `flip_smoke.log`.
 
+**P55/P56 (2026-10-28, `logs/p54/`, `logs/p56/`; both **default off**, nothing
+adopted): the direct line's supply is continuous **once fed**, and the multi-pick
+episode buys 2.7 % of a pick - because the 30-tick feed round it removes is
+**load-bearing for the supply**. The owner's "the fruit comes in waves" is
+structural: the direct env's only `spawner.update` site was the reset's
+selection loop, so the supply was built at `reset` and frozen - the belt is
+**not** rebuilt (`create_pool`/`prime` are `__init__`-only) and it is **already
+stocked** at selection (farthest-upstream `y` = **0.491-0.675 m against
+`spawn_y` 0.68 = 72-99 %**), so the wave is the **episode boundary**. `FRUIT_DIRECT_FEED=1`
+(P55, `rl_env.py`) runs the spawner's schedule every `advance` (+11.1 % wall,
+belt stock +11 mm median - it does not buy supply); `FRUIT_DIRECT_CONTINUOUS=<n>`
+(P56) is the multi-pick episode (one reset, n picks, the recorder's npz index
+increments, the reward/outcome accumulated, `[cont]` rows, `[bed-sel]`/`[grasp]`
+now wired into the direct env), raising unless `presentation == "direct"` and
+`ablate == "none"`, and **implying** the feeder. The census: the inter-attempt
+gap is **exactly 140 ticks = 1.167 s** (30 feed + 3x30 teleport + 20 settle) =
+**6.4-6.7 %** of the span, starvation 0/11, and the mode's sim ceiling is
+**2.97-4.45 %** of a pick (arm switch 55-64 %); the larger wait is the
+**arrival** (2.07-2.13 s = 13.5-14.4 %), which continuity does not touch. The
+measured battery (seed 77, A 15 single-pick episodes vs B one 15-pick episode):
+gap A **140x14** vs B **[50, 80x9, 110x4] (med 80, max 110)** = **-53.6 ticks
+(-0.45 s, 2.7 %)** with **8/14 transitions starved** - the removed feed round is
+**supply-load-bearing**: the catch floor **0.399 m** against the queue interlock's
+edge `pick_y+0.45` with `FRUIT_QUEUE_MAX=6` leaves a **5 cm** catchable sliver,
+so a 15 s pick drains it and the next selection reads `window=0` with
+`on_belt=8` (P33's aperture class, direct line). Placed **A 11/15 (2.67/min) vs
+B 8/15 (2.00/min)** is a **different branch** (right 10/10 vs 8/9, left 1/5 vs
+0/6) and carries no rate claim; P1 FAIL on its max (median at the 80 bar),
+P3 FAIL (73.3 % < 90 %, the control itself 80 %), **P6 FAIL as registered** but
+the **shipped** line's own start pose is outside the same 0.011 rad bar on
+14/15, so the bar - not the mode - is the finding; P4/P5 PASS (no new reason;
+15 distinct indices/npz in both stores, `ticks_total == sum`). No-harm:
+`--ablate scripted` **44/44 lines byte-identical** across the pre-edit, measured
+and final trees; selfcheck PASS. Pins: measured `rl_env.py` **`cfbce71d`**,
+final **`1845c2c4`** (docstring-only close-out, reconstructed-and-matched);
+`tasks.py` `b6de439c`, `fruits.py` `e81051c1`, `policy/trigger.py` `b09d3cb2`
+unchanged; `configs/*` untouched; checkpoint `moe_v13s` `61da390a`. Evidence
+`logs/p56/{DESIGN,PREREG,PREREG_A1,CENSUS,P56_RESULTS}.md`, `p0/`, `p2/`.
+
 ## 3. What changed -> what to run
 
 | you changed | run |

@@ -19462,3 +19462,57 @@ Smokes: 2 and 3 episodes ran clean; the 12-episode recording
 vs apples/peaches/oranges), so the counts are not a rate comparison (AGENTS §2).
 The knob stays **default off**: its own A/B (fed vs unfed, the same seeds) is the
 named next measurement.
+
+### P56: the continuous scenario is the episode boundary, and the feed round is supply-load-bearing
+
+The owner's "the fruit comes in waves" (and "the candidate-fruit planning was
+for continuous conveying and sorting") is **structural**, not a recording
+artifact. The census (`logs/p56/CENSUS.txt`) separates the three things:
+
+* **the belt and the pool are never rebuilt** - `create_pool()`/`prime()` are
+  `__init__`-only, so the world is already continuous;
+* the only `spawner.update` site was the reset's selection loop, so the
+  **release schedule** and the **episode** are the discontinuous part;
+* the belt is **already stocked** at every selection (farthest-upstream `y` =
+  0.491-0.675 m against `spawn_y` 0.68 = **72-99 %**), and the P55 live feeder
+  moves that median only **+11 mm** while costing **+11.1 % wall** (452.7 vs
+  407.5 s).
+
+So the wave is the **episode boundary**: the inter-attempt gap reads **exactly
+140 ticks = 1.167 s** (30 feed + 3x30 teleport + 20 settle) = **6.4-6.7 %** of
+the span in both runs, with **0/11 starvation**. The larger wait is the
+**arrival** (2.07-2.13 s = 13.5-14.4 % of the cycle), which continuity does not
+touch - so the mode's sim ceiling is **2.97-4.45 %** of a pick (the arm-switch
+rate 55-64 %).
+
+P56 implemented the multi-pick episode (`FRUIT_DIRECT_CONTINUOUS=<n>`, default
+**off**, direct + `ablate=none` only, **implies** `FRUIT_DIRECT_FEED=1`):
+`reset` split into its run-level half and `_begin_pick`, `_finalize` continues
+via `_begin_next_pick` (same `select_target`, `protected` cleared, the recorder's
+index incremented, the reward/outcome accumulated), `[cont]` rows, and the
+`[bed-sel]`/`[grasp]` census wired into the direct env. Two implementation
+deviations are recorded (`logs/p56/PREREG_A1.md`): the design's literal split
+measured **110 ticks/transition** (`p0/C3_literal_split.log`) so the reduced
+continuation setup is used (**50** same-arm / **80** arm-switch), and the
+design's "end on `None`" killed a 3-pick run (`p0/C3_norec.log`), replaced by the
+reset's own 40x30-tick bound with a printed wait round.
+
+The battery (seed 77, `logs/p56/p2/`; A = `--episodes 15` vs B = `--episodes 1`
+with `FRUIT_DIRECT_CONTINUOUS=15`) reads gap A **140x14** vs B **[50, 80x9,
+110x4] (med 80, max 110)** = **-53.6 ticks = -0.45 s = 2.7 %** of a pick - and
+**8/14 transitions starved**: the 30-tick feed round the mode removes is
+**supply-load-bearing**. The mechanism is the catch floor **0.399 m** against the
+queue interlock's edge `pick_y+0.45` with `FRUIT_QUEUE_MAX=6`, which leaves a
+**5 cm** catchable sliver: a 15 s pick drains it and the next selection reads
+`window=0` with `on_belt=8` (the P33 aperture class, now measured on the direct
+line). Placed A **11/15 (2.67/min)** vs B **8/15 (2.00/min)** is a **different
+branch** (right 10/10 vs 8/9, left 1/5 vs 0/6) and carries no rate claim. P1
+FAILs on its max (the median sits *at* the 80 bar), P3 FAILs (73.3 % < 90 %; the
+control itself 80 %), **P6 fails as registered** - but the **shipped** line's own
+first-tick pose is outside the same 0.011 rad bar on **14/15**, so the bar is the
+finding and the continuation's two right-arm outliers (0.0330/0.0217) are
+unseparated; P4/P5 PASS (no new reason; 15 distinct indices and 15 npz files in both
+stores, `ticks_total == sum`). By F1 the P2/P3/P4 readings are void; **nothing is
+adopted** and seeds 101/202 were not spent. No-harm: `--ablate scripted` **44/44
+lines byte-identical** across the pre-edit, measured and final trees; the policy
+pair's 1-tick delta is reproduced *within* one tree; selfcheck PASS.

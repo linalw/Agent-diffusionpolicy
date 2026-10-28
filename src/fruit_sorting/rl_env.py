@@ -1152,6 +1152,62 @@ class SortingRLEnv:
         )
         self._direct_feed_warned = False
         self._direct_feed_refreshed = False
+        #: P56: the **multi-pick episode** (`FRUIT_DIRECT_CONTINUOUS=<n>`, default
+        #: 0 = the shipped one-fruit-per-episode loop). One logical episode = *n*
+        #: picks: after a place the env re-selects the next candidate from the
+        #: live belt and starts it instead of returning `done`, so the belt is
+        #: never drained between picks. The mode **implies** the P55 feeder
+        #: (`FRUIT_DIRECT_FEED=1`): separating the two knobs would make the A/B
+        #: measure two things at once.
+        #:
+        #: What is per pick and what is per run, and why (`logs/p56/DESIGN.md`
+        #: A.1-A.3): the world (pool, belt, spawner schedule) is process-scoped
+        #: and is *not* rebuilt by `reset` - so the only per-pick work is the
+        #: selection, the active arm's teleport to the calibrated `grasp` pose
+        #: (the demos' frame 0), its settle, the trigger station, the bookkeeping
+        #: block and `policy.reset()`. The last one is load-bearing: the obs
+        #: history is 2 frames, so keeping it across picks would condition pick
+        #: k+1's first chunk on pick k's carry frames - a state no demonstration
+        #: contains (PREREG F2). `self._episode` still increments **per pick**: it
+        #: is the recorder's npz name, and two picks under one index would
+        #: silently overwrite the first file.
+        self._continuous_picks = int(os.environ.get("FRUIT_DIRECT_CONTINUOUS", "0"))
+        if self._continuous_picks < 0:
+            raise ValueError(
+                "FRUIT_DIRECT_CONTINUOUS must be >= 0, got "
+                f"{self._continuous_picks}"
+            )
+        if self._continuous_picks and (presentation != "direct" or ablate != "none"):
+            raise ValueError(
+                "FRUIT_DIRECT_CONTINUOUS is only defined for presentation='direct' "
+                f"with ablate='none' (got presentation={presentation!r}, "
+                f"ablate={ablate!r}); the handoff presentation teleports the fruit "
+                "to the station and a scripted/zero ablation does not run the "
+                "learned loop the mode re-primes"
+            )
+        if self._continuous_picks:
+            self._direct_feed = True
+        self._picks_done = 0          # picks finished in the current episode
+        self._cont_reward = 0.0
+        self._cont_ticks = 0
+        self._cont_placed = 0
+        self._cont_gaps: list[int] = []
+        #: Set by `_finalize` when it started the next pick: `act` must stop
+        #: executing the finished pick's remaining actions on the new pick.
+        self._pick_boundary = False
+        #: P56: pass `select_target`'s refusal census through to `bed_diag_report`
+        #: (`FRUIT_BED_DIAG=1`, the scripted driver's own instrument). The direct
+        #: env never passed `diag`, so "the belt stays stocked" was not
+        #: measurable on this interface - pure reporting, off by default.
+        self._bed_diag = os.environ.get("FRUIT_BED_DIAG", "0") == "1"
+        #: P56 P6 (`FRUIT_GRASP_DIAG=1`, default off): one `[grasp]` row per pick
+        #: with the active arm's distance from the calibrated `grasp` pose (the
+        #: demos' frame-0 state) and the pick's own start time. One articulation
+        #: read per pick; it is the manipulation check that says the continuation
+        #: reproduced the per-episode loop's start state, so it must run in **both**
+        #: arms of a comparison (an asymmetric instrument is not a measurement).
+        self._grasp_diag = os.environ.get("FRUIT_GRASP_DIAG", "0") == "1"
+        self._grasp_err = float("nan")
         self.ablate = ablate
         self.dagger = dagger
         self.seed = int(seed)
@@ -1878,6 +1934,12 @@ class SortingRLEnv:
             f"camera={self._camera_res_text()} tasks_md5={self.tasks_md5[:8]}")
         if self.trigger_settings.enabled:
             say(f"[rl] {self.trigger_settings.summary()}")
+        if self._continuous_picks > 0:
+            say(
+                f"[cont] enabled: picks_target={self._continuous_picks} "
+                f"feed=on(implied) bed_diag={int(self._bed_diag)} "
+                "(one reset per episode, one episode per n picks)"
+            )
         if self._refuse_knobs:
             say(
                 f"[rl] refuse: diag={int(self._refuse_diag)} "
@@ -2222,7 +2284,15 @@ class SortingRLEnv:
                 self.spawner.rng.seed(seed)
                 self._active_seed = seed
                 self.seed = seed
-        self._episode += 1
+        # P56: a new **logical** episode. The multi-pick counters start here and
+        # are cleared only by this method - never by `_begin_pick`, which a
+        # continuous episode calls *n* times.
+        self._picks_done = 0
+        self._cont_reward = 0.0
+        self._cont_ticks = 0
+        self._cont_placed = 0
+        self._cont_gaps = []
+        self._pick_boundary = False
 
         # Target selection. `handoff` uses the hybrid evaluator's window (the
         # teleport makes distance harmless); `direct` uses the *scripted line's*
@@ -2233,11 +2303,16 @@ class SortingRLEnv:
         # from the one it was trained on.
         rounds = 0
         target_state: dict | None = None
+        diag: list | None = None
         while True:
             for _ in range(30):
                 self.advance(1)
                 self.spawner.update(self._sim_time())
                 self.spawner.enforce_transport()
+            # P56: the refusal census (`FRUIT_BED_DIAG=1`) is *reporting*; one fresh
+            # list per round (a 41-round starvation loop must not stack rows), and
+            # `_begin_pick` prints it before the teleports.
+            diag = [] if self._bed_diag else None
             if self.presentation == "handoff":
                 states = [
                     s for s in self.spawner.state()
@@ -2268,7 +2343,8 @@ class SortingRLEnv:
                 # shipped farthest-upstream pick stays byte-identical. An
                 # explicit `FRUIT_SELECT_NEAREST_ABOVE_FLOOR` wins either way.
                 target_state = self.task.select_target(
-                    self.spawner.state(), reach_anywhere=False, direct=True
+                    self.spawner.state(), reach_anywhere=False, direct=True,
+                    diag=diag,
                 )
             if target_state is not None or rounds >= 40:
                 break
@@ -2277,6 +2353,38 @@ class SortingRLEnv:
             raise RuntimeError(
                 "no graspable fruit reached the selection window in 40 feed rounds"
             )
+        return self._begin_pick(target_state, diag=diag)
+
+    def _begin_pick(self, target_state: dict, diag: list | None = None,
+                    continuation: bool = False, prev_active: str | None = None) -> dict:
+        """Start one pick from an already-selected target (P56).
+
+        Factored out of `reset`: everything here is per pick (the episode index,
+        the target bookkeeping, the `grasp` teleport + settle, the trigger
+        station, the per-episode counters and `policy.reset()`), while `reset`
+        keeps the run-level half (the loop timer, the recorder abort, the RNG
+        seeding and the feed/selection loop). On the shipped per-episode path the
+        body is the code that used to sit in `reset`, unchanged (proven
+        byte-identical by `logs/p56/p0/base_{before,after}.sh`).
+
+        `continuation=True` (only `FRUIT_DIRECT_CONTINUOUS`) reduces the setup to
+        DESIGN A.1 row 7's "partly": the active arm skips its redundant `ready`
+        teleport (the `grasp` teleport overwrites it) and the inactive arm is
+        re-parked only when the pick switches arms - 50 ticks instead of 110.
+        """
+        self._episode += 1
+        self._pick_boundary = False
+        #: `StepResult.reward` reads `_outcome`; a new pick must not inherit the
+        #: previous pick's value (in the per-episode loop the reset always ran
+        #: between them, and nothing consumed it - here a consumer would).
+        self._outcome = None
+        if diag is not None:
+            # P56: the same block the scripted driver prints after its selection
+            # (`scripts/20_pick_place.py`), so the belt stock at every pick is
+            # readable from the log (`window` = candidates at/above the catch
+            # floor). Printed before the teleports: the numbers describe the
+            # selection instant.
+            self.task.bed_diag_report(self._episode, diag)
         target = target_state
         sample = next(s for s in self.spawner.samples if s.index == target["index"])
         grade = target["grade"]
@@ -2310,8 +2418,24 @@ class SortingRLEnv:
         # not left wherever the previous carry dropped it.
         arm = self.task.arms[active]
         if self.presentation == "direct":
+            # P56 continuation: the per-pick setup is reduced to what the demos'
+            # frame 0 actually needs (DESIGN section 1 A.1 row 7, "partly").
+            # (a) The active arm's teleport to `ready` in the loop below is
+            #     immediately overwritten by its `grasp` teleport, so on a
+            #     continuation it is skipped - one settle, not two.
+            # (b) The inactive arm is re-parked only when this pick **switches**
+            #     arms: an arm that just carried is where the park put it, and
+            #     re-teleporting it costs 30 ticks of belt travel for nothing.
+            # Both are continuation-only, so the shipped per-episode reset is
+            # byte-unchanged (the `[grasp]` row's `q_err_max` is what checks that
+            # the reduced setup still lands on the demos' start pose - PREREG P6).
+            switched = continuation and prev_active is not None and prev_active != active
             for name, other in self.task.arms.items():
                 other.set_gripper(other.OPEN)
+                if name == active and continuation:
+                    continue
+                if name != active and continuation and not switched:
+                    continue
                 # P35: the *inactive* arm only - the active one is teleported to
                 # its `grasp` right below, and a second park teleport would add a
                 # settle's worth of belt travel to the reset. An unset
@@ -2352,6 +2476,18 @@ class SortingRLEnv:
         #: this point instead of the current jaw, which is robust to the policy's
         #: own slow arm drift over the long wait (`FRUIT_POLICY_TRIGGER_FRAME`).
         self._trigger_station = np.asarray(arm.jaw_centre()[:2], dtype=float).copy()
+        if self._grasp_diag:
+            # P56 P6: the pick's start state against the demos' frame-0 pose. Read
+            # after the settle (the last pose change before the first observation),
+            # so it is the state the policy's first chunk conditions on.
+            self._grasp_err = float(
+                np.abs(
+                    np.asarray(arm.joint_positions(), dtype=float)
+                    - np.asarray(start, dtype=float)
+                ).max()
+            )
+        else:
+            self._grasp_err = float("nan")
         if self.spawner.belt is not None:
             self.spawner.belt.start()
         # P34-B: the active arm's pose at the reset return (diag only; one
@@ -2547,6 +2683,16 @@ class SortingRLEnv:
             self._align_zone_zero = 0
             self._align_zone_px = []
 
+        if self._grasp_diag:
+            # P56 P6 + P1's cross-check: the start pose error and the pick's own
+            # clock start. `t0` is `_episode_t0` (after the per-pick setup), so a
+            # gap is `t0(k+1) - t0(k) - ticks(k)` for **either** arm.
+            self._say(
+                f"[grasp] episode {self._episode} "
+                f"pick={self._picks_done + 1}/"
+                f"{self._continuous_picks or 1} arm={active} "
+                f"t0={self._episode_t0:.4f} q_err_max={self._grasp_err:.4f}"
+            )
         self._say(
             f"[rl] episode {self._episode}: {target['category']} grade={grade} "
             f"d={target['diameter'] * 100:.1f}cm bin={bin_index} arm={active} "
@@ -3445,6 +3591,10 @@ class SortingRLEnv:
             return self._step_result()
         if self._sample is None:
             raise RuntimeError("call reset() before act()")
+        # P56: a fresh `act` call starts the pick that is now active; the flag is
+        # only read inside this loop (it is set by `_finalize` when a continuous
+        # episode moved on to the next pick mid-call).
+        self._pick_boundary = False
         if self.ablate == "scripted":
             self._run_scripted()
             return self._step_result()
@@ -3501,7 +3651,7 @@ class SortingRLEnv:
                 action = self._dagger_action(action)
             if action is not None:
                 self._apply(action, index)
-                if self._done:
+                if self._done or self._pick_boundary:
                     executed = index + 1
                     break
                 self._record_tick()
@@ -3517,6 +3667,10 @@ class SortingRLEnv:
             self._step += 1
             executed = index + 1
             if self._episode_events():
+                if self._pick_boundary:
+                    # P56: the event ended pick k and started pick k+1; the rest
+                    # of this chunk belongs to the old pick.
+                    break
                 continue
             if self._tick >= int(self.reward.horizon):
                 self._finalize(
@@ -4636,10 +4790,24 @@ class SortingRLEnv:
             )
         self.spawner.protected = None
         self._done = True
-        report = self._collect_rtc_report()
+        # --- P56: the continuous episode -------------------------------------- #
+        #: Accumulate this pick into the logical episode and decide whether the
+        #: episode continues. The **per-pick** rows below still print for every
+        #: pick (one `[rl] episode` row per pick, never zero and never two - that
+        #: is what `scripts/113_rl_report.py` and the P54 report parse); the
+        #: *episode-level* rows (`[loop]`, the `[cont]` summary and the diag
+        #: summaries, whose buffers `_begin_pick` resets) belong to the true end.
+        cont = False
+        if self._continuous_picks > 0:
+            self._picks_done += 1
+            self._cont_reward += float(reward)
+            self._cont_ticks += int(self._ticks)
+            self._cont_placed += int(bool(self._placed))
+            cont = self._picks_done < self._continuous_picks
+        report = None if cont else self._collect_rtc_report()
         if report:
             self._outcome.update(report)
-        if self._loop_timing:
+        if self._loop_timing and not cont:
             self._say(self._loop_episode_row())
         self._say(
             f"[rl] episode {self._episode}: {self._sample.category} "
@@ -4649,6 +4817,9 @@ class SortingRLEnv:
             f"reward={reward:.4f} notes={notes} presentation={self.presentation} "
             f"ablate={self.ablate}"
         )
+        if cont:
+            self._begin_next_pick(notes)
+            return
         if self._retime_on:
             # P52 phase 2: the gate's own per-episode summary, so the duty cycle
             # is readable without re-flowing the per-decision rows. One print,
@@ -4720,6 +4891,102 @@ class SortingRLEnv:
                 f"[rl]   dagger: interventions={self._ep_interventions}/{decisions} "
                 f"expert_ticks={self._ep_expert_ticks}/{int(self._step)}"
             )
+        if self._continuous_picks > 0:
+            # P56: the logical episode's totals, printed once at the true end.
+            # `StepResult.reward` stays this pick's own reward, so a per-pick
+            # consumer is unchanged; the episode total lives in the info dict.
+            gaps = [int(g) for g in self._cont_gaps]
+            self._outcome["continuous"] = {
+                "picks": int(self._picks_done),
+                "target_picks": int(self._continuous_picks),
+                "picks_placed": int(self._cont_placed),
+                "reward_total": float(self._cont_reward),
+                "ticks_total": int(self._cont_ticks),
+                "gap_ticks": gaps,
+                "gap_ticks_mean": (
+                    float(np.mean(gaps)) if gaps else float("nan")
+                ),
+            }
+            self._say(
+                f"[cont] episode {self._episode}: picks={self._picks_done}/"
+                f"{self._continuous_picks} placed={self._cont_placed} "
+                f"reward={self._cont_reward:.6f} ticks={self._cont_ticks} "
+                f"gap_ticks={np.mean(gaps) if gaps else float('nan'):.1f} "
+                f"gaps={gaps}"
+            )
+
+    def _begin_next_pick(self, notes: list[str]) -> None:
+        """P56: re-target the live belt and start the next pick of the episode.
+
+        Called from `_finalize` **after** the finished pick's outcome row has been
+        printed. It clears the feeder's `protected` index (already done by the
+        caller), re-runs the **same** selection the reset runs -
+        `select_target(..., direct=True)`, which rejects a fruit on an output
+        conveyor or above the main belt (`tasks.py:5709-5727`) and therefore
+        cannot re-pick the one just placed - and starts pick *k+1* with
+        `_begin_pick`, which re-primes `policy.reset()` and restores the
+        calibrated `grasp` pose.
+
+        A belt with no candidate ends the episode **honestly** (a note, then the
+        normal end); it never raises - the reset's "40 feed rounds" error is not
+        available mid-episode, because a real continuous cell that runs dry is a
+        result, not an exception.
+        """
+        gap_t0 = self._sim_time()
+        prev_active = self._active
+        # The reset's own starvation contract, reused: a selection round is 30
+        # ticks of belt travel and the reset allows 40 of them (10 s) before it
+        # raises. Mid-episode there is no exception to raise, so the same bound
+        # ends the episode - but a **momentary** gap in front of the catch floor
+        # (all live fruit already inside it, the next release still upstream)
+        # must not end the run: that is what the wait is for, and the census
+        # measured 0/11 reset transitions needing a second round, so a wait here
+        # is an event worth printing, not the normal path.
+        rounds = 0
+        while True:
+            diag = [] if self._bed_diag else None
+            target = self.task.select_target(
+                self.spawner.state(), reach_anywhere=False, direct=True, diag=diag
+            )
+            if target is not None:
+                break
+            if diag is not None and (rounds == 0 or rounds >= 40):
+                # Name the predicate that refused every live fruit. The scripted
+                # driver prints the same block on its empty-selection path; the
+                # direct env had no census at all before P56.
+                self.task.bed_diag_report(self._episode + 1, diag)
+            if rounds >= 40:
+                self._notes.append(
+                    "continuous: no candidate on the belt in 40 feed rounds; "
+                    "ending the episode"
+                )
+                self._say(
+                    f"[cont] pick {self._picks_done + 1}/{self._continuous_picks}: "
+                    "no candidate on the belt in 40 feed rounds; ending the episode"
+                )
+                return
+            rounds += 1
+            self._say(
+                f"[cont] pick {self._picks_done + 1}/{self._continuous_picks}: "
+                f"waiting for a candidate (round {rounds}/40)"
+            )
+            for _ in range(30):
+                self.advance(1)
+        self._begin_pick(
+            target, diag=diag, continuation=True, prev_active=prev_active
+        )
+        gap = int(round((self._sim_time() - gap_t0) * 120.0))
+        self._cont_gaps.append(gap)
+        #: Tells `act` that the pick it was executing has ended: the remaining
+        #: actions of that pick's chunk belong to the *old* pick and must not be
+        #: applied to the new one.
+        self._pick_boundary = True
+        self._say(
+            f"[cont] pick {self._picks_done + 1}/{self._continuous_picks}: "
+            f"{target['category']} grade={target['grade']} "
+            f"y={float(target['position'][1]):+.3f} gap_ticks={gap} "
+            f"placed_so_far={self._cont_placed}"
+        )
 
     def _loop_episode_row(self) -> str:
         """One `[loop]` row: the decision period's wall split (P43 L2).
