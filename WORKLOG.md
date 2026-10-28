@@ -19440,3 +19440,25 @@ side-by-side composite `logs/p54/demo_acq_before_after.mp4` (1920x540, 40 s,
 labelled). The n=3 clips are a demonstration of the mechanism (the annotated
 observer shows the 2-D |jaw-fruit| trigger quantity and the outcome), not a rate -
 the rate is P54's N = 3 x 15 (16/45 vs 34/45).
+
+### P55: the direct interface's live feeder (the "one burst per episode" fix)
+
+Observed from the P54 continuous video: the fruit arrives in **one burst per
+episode**. The cause is structural, not a recording artifact: the direct env's
+**only** `spawner.update` site was the reset's target-selection loop
+(`rl_env.py:2200`), so the supply is built at `reset` and then frozen - the belt
+drains, the episode ends, the next reset re-feeds. `FRUIT_DIRECT_FEED=1`
+(default **off**) runs the spawner's own absolute schedule every `advance`, so the
+belt stays stocked and the policy works back-to-back. Two integration defects
+surfaced and were fixed: (1) the first live update hit
+`KeyError: 1` in `_pick_recyclable -> position` because the direct pool can gain
+samples after the env's setup `refresh_rigids`; the feeder now does a **one-shot
+`refresh_rigids()`** before its first update, and (2) a per-tick `KeyError` guard
+remains as a backstop (it printed once before the refresh fix, zero times after).
+Smokes: 2 and 3 episodes ran clean; the 12-episode recording
+(`logs/p54/video_fed/`, 171 s side-by-side, seed 77, capture-every 2) reads
+**right 7/8, left 0/4, pooled 7/12 = 58.3 %** against the unfed 12-episode run's
+8/12 = 66.7 % - a **different branch** (the fed stream is pears/tomatoes/kiwis
+vs apples/peaches/oranges), so the counts are not a rate comparison (AGENTS §2).
+The knob stays **default off**: its own A/B (fed vs unfed, the same seeds) is the
+named next measurement.

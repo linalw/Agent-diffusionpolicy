@@ -1143,6 +1143,15 @@ class SortingRLEnv:
         if dagger is not None and presentation != "direct":
             raise ValueError("the DAgger expert is only defined for presentation='direct'")
         self.presentation = presentation
+        #: P55: the live feeder for the direct interface (`FRUIT_DIRECT_FEED=1`,
+        #: default off). See `advance`; the scripted/two-line paths already feed
+        #: inside their loops and are untouched.
+        self._direct_feed = (
+            os.environ.get("FRUIT_DIRECT_FEED", "0") == "1"
+            and presentation == "direct"
+        )
+        self._direct_feed_warned = False
+        self._direct_feed_refreshed = False
         self.ablate = ablate
         self.dagger = dagger
         self.seed = int(seed)
@@ -2155,6 +2164,36 @@ class SortingRLEnv:
         """
         self._SimulationManager.step(steps=int(steps))
         self._app_utils.update_app(steps=0)
+        if self._direct_feed:
+            # P55: the live feeder. The direct interface's supply used to be
+            # built once per `reset` and then frozen for the whole episode (the
+            # only `spawner.update` site was the reset's target-selection loop,
+            # which is why the belt drains and the fruit arrives in one burst per
+            # episode). With `FRUIT_DIRECT_FEED=1` the spawner's own absolute
+            # schedule runs every advance, so the belt stays stocked and the
+            # policy works back-to-back. Default off: unset is byte-identical.
+            if not self._direct_feed_refreshed:
+                # One-shot: the direct pool can gain samples after the env's
+                # setup refresh (the reset path re-creates/recycles), and the
+                # spawner's `_pick_recyclable` indexes `_rigids` by sample index.
+                self._direct_feed_refreshed = True
+                self.spawner.refresh_rigids()
+            try:
+                self.spawner.update(self._sim_time())
+            except KeyError:
+                # The direct pool can hold a sample whose rigid is not in the
+                # spawner's `_rigids` (the recycle path in `_pick_recyclable`
+                # assumes every sample has one); the transport still has to be
+                # enforced, and the release pump is skipped for this tick.
+                if not self._direct_feed_warned:
+                    self._direct_feed_warned = True
+                    print(
+                        "[rl] FRUIT_DIRECT_FEED: the spawner's recycle path hit a "
+                        "sample without a rigid; the release pump is skipped for "
+                        "that tick (transport still enforced)",
+                        flush=True,
+                    )
+            self.spawner.enforce_transport()
 
     # ------------------------------------------------------------------ #
     # Episode setup
