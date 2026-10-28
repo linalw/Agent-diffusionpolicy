@@ -20,15 +20,22 @@ truth is one 30-tick round, its cause is a **pump backlog of 11.0-12.5 s**
 (≈11 due rows at the patch period) that **one pump call** burns, and the
 separator is exact on the corpus: pump lag **+11.01..+12.46 s at 8/8 starved
 instants** vs **-1.32..-0.00 s at 15/15 successful picks** (23/23, an 11 s
-margin). So the board's job is to forecast *the feeder* (the band has nothing
-to forecast) and to census the band it already has, and the actuator it unlocks
-is a **pump-before-decide** call plus a **park folded into the wait**.
-Measured ceiling of the whole module on the P56 continuous arm: **240 ticks =
-2.0 s = 0.83 % of the 239.6 s span** (gap mean 86.4 -> 69.3), against a 50-tick
-per-transition floor that no module can remove (the calibrated `grasp` teleport
-+ settle). Everything below the 0.83 % is a *measurement* contribution (the
-forecast, the pre-decision, the `[board]` row), and that is how the PREREG should
-spend it.
+margin). So the board's job is to forecast *the feeder* (the band has nothing to
+forecast) and to census the band it already has, and the actuator it unlocks is
+a **pump-before-decide** call in the cadence-off world or an **exact-length
+wait** in the cadence-on one (§3.5).
+And the wait has **two causes**, selected by the feeder's pumping scope (the
+tree already carries that arm in flight, `FRUIT_FEED_CADENCE` widened to the
+direct path): with the cadence **off** it is a `lag`-bound backlog burn (one
+pump call; 8/8 rounds at `lag = +11..+12.5 s`); with it **on** the pump is
+current and the wait becomes **interlock-bound** - 12 rows on the belt, every one
+below the 0.399 m floor, and **the same 8 rounds** paid in two waits of 2 + 6
+(`logs/p57/cad_s77.log`, cited not claimed). Measured ceiling of the module on the P56 continuous arm: **232 ticks =
+1.93 s = 0.81 % of the 239.6 s span** (ceiling 240 / 0.83 % with the wait -> 0;
+gap mean 86.4 -> 69.5), against a 50-tick per-transition floor that no module can
+remove (the calibrated `grasp` teleport + settle). Everything below that is a
+*measurement* contribution (the forecast, the pre-decision, the `[board]` row),
+and that is how the PREREG spends it.
 
 ---
 
@@ -277,32 +284,59 @@ is the **release plan**:
 That is exactly enough for the two things the module needs: **which arm** the
 next pick will use, and **whether the pump is owed a call before the selection**.
 
-### 2.4 The tree already carries a candidate for the *cause* (not this phase's edit)
+### 2.4 The pumping scope changes *which* cause you see - and the tree already has that arm
 
 While this phase was being written the working tree gained an **uncommitted,
 P57-labelled change that this phase did not author**: `tasks.py` `b6de439c ->
-c7eef701` adds `_feed_scope()` and widens `FRUIT_FEED_CADENCE` from
-`_prepared_scope(scripted)` to every single-arm path (`rl_env.py`'s
-`TASKS_MD5` follows to `c7eef701`; HEAD is `6f58c32`). That knob - already
-implemented, default **off** - pumps the feeder on the primitive's own ticks,
-which is the *cause-level* fix for §2.2: with `_feed_on` the pump runs through
-the close/carry/place phase (line 2379-2380), so the schedule never falls 11-12 s
-behind and the boundary selection finds a stocked band.
+c7eef701` adds `_feed_scope()` and widens `FRUIT_FEED_CADENCE` (existing knob,
+default **off**) from `_prepared_scope(scripted)` to every single-arm path
+(`rl_env.py`'s `TASKS_MD5` follows; HEAD is `6f58c32`). The same session also
+left **`logs/p57/cad_s77.log`** (md5 `fe6e3e66`) - an unregistered,
+15-pick, seed-77 run of that arm (`tasks_md5=c7eef701`, `[feed]` rows on the
+direct path, `skipped=+0`). It is **cited, not claimed** as this phase's
+measurement, and it answers §2.2's open question about the *other* cause:
 
-This matters for the phase's reading, and it is why the PREREG's first arm is
-**F** (`FRUIT_FEED_CADENCE=1`) rather than the board:
+| | cadence **off** (`B_1`) | cadence **on** (`cad_s77`) |
+|---|---|---|
+| gaps | `[50, 80x9, 110x4]`, mean **86.4** | `[50 x5, 80 x7, 110 x1, **230 x1**]`, mean **82.1** (from its own `gaps=[...]` row) |
+| starvation | **8 transitions x 1 round = 8 rounds** | **2 transitions: 2 rounds + 6 rounds = 8 rounds** (the `110` is the 2-round one) |
+| `lag` at the starved instant | **+11.01..+12.46 s** | **-0.11 s** (caught up), `skipped=+0` all attempt |
+| belt at the starved instant | **0** rows on the belt | **12** rows on the belt, along **-0.703 .. +0.383** - every one below the floor |
+| placed | 8/15 | 7/15 (different branch, no rate) |
 
-- if F removes the starvation rounds, **the boundary wait was a pumping-scope
-  artifact**, the board's A1 actuator is redundant, and the module's remaining
-  value is the forecast + the pre-decision (its measurement contribution) - which
-  is still worth exactly what §3.6 says and no rate;
-- if F does not remove them, the backlog has a second cause and §2.2's one-call
-  burst model is the thing to test with A1/B1.
+**The rounds are redistributed, not removed: 8 before, 8 after.** What the
+cadence buys is the *stock* (`on_belt` median 5 -> 12, `skipped` 50 -> 3) and a
+current clock - not the waiting. That is the sharpest single number in this
+table, and it is why the module has to be aimed at the *wait*, not at the
+feeder.
 
-The phase-1 census was measured on the P56 logs, i.e. **before** this edit, and
-its numbers describe the shipped default (cadence off). Nothing here endorses or
-reviews the in-flight change; it is recorded because a phase-2 read that ignored
-it would attribute F's effect to the board.
+So the boundary wait has **two causes** and the pumping scope selects which:
+
+- **cadence off** -> a `lag`-bound **backlog burn**: one pump call, 1 tick of
+  real content, 30 ticks of quantisation (2.2);
+- **cadence on** -> an **interlock-bound** wait: the pump is current
+  (`lag = -0.11 s`) but every slot is held because the approach window
+  `[pick_y-0.05, pick_y+0.45]` is at `FRUIT_QUEUE_MAX = 6` deep with fruit that
+  are all *below* the 0.399 m floor. Nothing new arrives until one of them
+  leaves the window; the measured cost is **2 + 6 rounds** (a 110 and a 230
+  gap, the longest in the corpus).
+
+The second one is the **aperture** (P56 addendum) in its pump-current form, and
+it is exactly the case a board can describe and a blind 30-tick round cannot:
+`t_free` is a distance over `v` from the live rows. But what the corpus *cannot*
+say is whether the true wait at that instant was 2 ticks (the oldest row in the
+window, `along = -0.048`, leaves it in `(0.05 - 0.048)/0.12 = 0.02 s`) or 180:
+the intermediate rounds print only `waiting for a candidate (round r/40)`, with
+no census. **The `[board]` per-round row (§4) is the smallest instrument that
+closes this** - and it is the strongest argument for the page, not for the
+thread.
+
+*(Bookkeeping note for whoever reconciles the two documents: the same session's
+`logs/p57/RESULT.md` summarises the cadence-on branch as
+`[50x4, 80x8, 82, 110x2, 230]` - 15 entries for a 14-transition list. The primary
+datum is that log's own `gaps=[...]` row, which has 14 entries and derives to
+`[50 x5, 80 x7, 110 x1, 230 x1]`; this file quotes the derivation, not the
+summary.)*
 
 ## 3. C — the module
 
@@ -339,14 +373,19 @@ board.forecast_starvation(now, horizon_s) -> Forecast
 
 1. **band term**: `0` if any `usable & reachable` row exists, else `inf`
    (there is no growing set to look forward to - §2.1);
-2. **feeder term**: `t_feed = ceil(max(0, -lag) / TICK) + 1` ticks - the due
-   time of the next release plus the one pump call that lands it. When the
-   pump is overdue (`lag > 0`) that is **1 tick**, and the call burns the whole
-   backlog and delivers `<= burst_max` rows at `0.68 - late*v`
-   (`fruits.py:2293-2320`). `source = "feed-blocked"`, `t_feed = inf`, when
-   `n_due > 0` but no free pool sample exists (`_pick_recyclable` would return
-   `None`; the board can only *count* free samples, never call it - it mutates
-   `_cursor`);
+2. **feeder term**, three parts, each from a different printed quantity:
+   - **due time** `max(0, -lag)` (the pump owes a call -> 0);
+   - **interlock hold** `t_free`: while `_queue_depth() >= FRUIT_QUEUE_MAX`, no
+     release is allowed (`fruits.py:2332-2350`), so
+     `t_free = max(0, min over rows in [pick_y-0.05, pick_y+0.45] of
+     (along - (pick_y-0.05)) / v)` - the time until one leaves the window.
+     This is the term §2.4 shows binding once the pump is current;
+   - **the landing** `+1 tick`: one pump call burns the remaining backlog and
+     delivers `<= burst_max` rows at `0.68 - late*v` (`fruits.py:2293-2320`).
+   `t_feed = ceil((max(0,-lag) + t_free)/TICK) + 1`. `source = "feed-blocked"`,
+   `t_feed = inf`, when a release is owed but no free pool sample exists
+   (`_pick_recyclable` would return `None`; the board can only *count* free
+   samples, never call it - it mutates `_cursor`);
 3. `t_next_usable = min(band, feed)`; `verdict = "usable now" | "wait k ticks" |
    "no supply in horizon"`; `source ∈ {band, feed, feed-blocked, none}`;
    `conf = "exact"` for the feeder term (a pure function of `_next_release`,
@@ -438,6 +477,12 @@ no-harm pattern).
 
 ### 3.5 The actuators, and the measured budget
 
+**Two worlds, two actuators.** In the cadence-**off** world (§2.2) the round is a
+`lag`-bound backlog burn and the actuator is **A1: pump before deciding**. In the
+cadence-**on** world (§2.4) the round is an **interlock hold** and the actuator is
+**A2: size the wait from `t_free`** - pumping cannot help, because the pump is
+current. A3 (pre-decision) is the same in both.
+
 B_1's 14 transitions are 1210 ticks (`gap_ticks=86.4` mean), and the classes are
 exactly additive:
 
@@ -455,11 +500,16 @@ exactly additive:
   239.6 s span; the **240-tick / 0.83 %** figure is the `wait -> 0` ceiling
   (gap mean 86.4 -> 69.3). The corpus cannot resolve below 30, because 30 is
   the only re-check unit ever measured - hence F9.
-- **A2 park-in-wait** (item 3): 120 ticks *if it ran alone* (the 4 co-occurring
-  rounds), and **it is not additive with A1**: once the wait is 1 tick there is
-  nothing left to fold a 30-tick park into, so the park term stays 270 and A2
-  buys 0. A1 and A2 are **alternatives**, and A1 is the larger one - so the
-  module's realistic ceiling is **232 ticks (0.81 %)**, not 352.
+- **A2 exact wait** (item 2, the cadence-**on** world): the measured per-round
+  waste is the same 30-tick quantum. The cadence-on branch's one round is
+  **6 rounds long** (230-tick gap), so exact sizing is worth up to `6 x 29 = 174`
+  ticks there - *if* the true slack is 6 ticks, which the corpus cannot resolve
+  (§2.4). Bounded above by 174 for that one transition; the registered endpoint
+  is therefore the round count, not the tick count.
+- **A2' park-in-wait** (item 3): 120 ticks *if it ran alone* (the 4 co-occurring
+  rounds), and **not additive with A1**: once the wait is 1 tick there is nothing
+  left to fold a 30-tick park into. A1 and A2' are alternatives and A1 is larger;
+  in the cadence-on world A2' is available again (the wait is 6 rounds there).
 - **A3 pre-decision** (item 1's `next_target` + item 5): 0 ticks by itself; it
   is what makes the *park* pre-decidable at a non-starved boundary if a later
   phase finds a place to overlap it (none exists today: the single-arm direct

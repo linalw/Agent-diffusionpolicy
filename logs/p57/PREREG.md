@@ -38,20 +38,24 @@ on in every arm** (`FRUIT_BED_DIAG=1 FRUIT_GRASP_DIAG=1 FRUIT_BOARD_DIAG=1`).
 A diagnostic in every arm is the P38-M4 rule: a run-neutral report cannot be
 compared against its absence.
 
-| arm | knobs | what it isolates |
-|---|---|---|
-| **A** control | none | the P56 B branch, reproduced (it must replay `[50, 80x9, 110x4]` and 8/14; if it does not, the tree moved and the phase is re-based, not read) |
-| **F** cause-level (run **first**) | `FRUIT_FEED_CADENCE=1` | the in-flight `_feed_scope` widening (DESIGN §2.4, **not this phase's edit**, `tasks.py` `c7eef701`): the pump runs on the primitive's ticks, so the 11-12 s backlog never forms |
-| **B1** actuator | `FRUIT_DIRECT_PUMP_FIRST=1` | the pump-before-decide call alone (DESIGN §3.4 item 1), no forecast, no park change |
-| **B2** module | `FRUIT_DIRECT_BOARD=1` (implies B1) | + the forecast-sized wait (item 2) + park-in-wait (item 3) + `next_target` (item 5) |
-| **B3** conditional | `FRUIT_DIRECT_BOARD=1 FRUIT_BOARD_PARK_IN_WAIT=0` | only if B2's max gap is still > 90: separates the park term from the pump term |
+The ladder has **two families**, because DESIGN §2.4 shows the boundary wait has
+two causes and a different actuator each. Every endpoint is read **against its
+own control**, never across families.
 
-**Order.** F is spent first: if it removes the rounds, the boundary wait was a
-*pumping-scope* artifact, the board's actuator is redundant, and the phase reads
-the module as a forecast/pre-decision instrument only (PREREG §4). If F does not,
-B1 follows and its read is the actuator's. If B1 already reaches P1a **and** P2,
-B2 is still run (the registered question includes the forecast); if B1 reaches
-neither, B2's read is the phase's answer and B3 is not spent.
+| arm | knobs | control for | what it isolates |
+|---|---|---|---|
+| **A** | none | - | the P56 B branch (cadence off, `lag`-bound). It must replay `[50, 80x9, 110x4]` / 8 rounds |
+| **B1** | `FRUIT_DIRECT_PUMP_FIRST=1` | **A** | the pump-before-decide call alone (DESIGN §3.4 item 1) - the cadence-off actuator |
+| **F** | `FRUIT_FEED_CADENCE=1` | **A** | the in-flight `_feed_scope` widening (DESIGN §2.4; **not this phase's edit**, `tasks.py` `c7eef701`). Already sampled once by another session (`logs/p57/cad_s77.log`, cited not claimed): `gaps=[80,110,80,50,80,80,230,80,50,80,50,50,80,50]` = `[50 x5, 80 x7, 110 x1, 230 x1]`, mean 82.1, **2 starved transitions paying 2 + 6 = 8 rounds** (the same total as cadence-off), `lag = -0.11 s` |
+| **B2** | `FRUIT_FEED_CADENCE=1 FRUIT_DIRECT_BOARD=1` | **F** | the module in the pump-current world: exact wait sizing (item 2) + `next_target` (item 5) + park-in-wait (item 3) |
+| **B3** | `FRUIT_DIRECT_BOARD=1` (cadence **off**) | **A** | the module in the `lag`-bound world (item 1's pump call + item 2 + item 5) |
+
+**Order.** A first (it validates the tree). Then **F** (one run, ~8 min): it
+decides which world the module ships into. Then the module's arm for that world
+(B2 if F's wait is interlock-bound, B3 if F does not move the wait). The other
+family's module arm is spent only if the first reads a null. If B2/B3 reach
+P1a **and** P2, the remaining arm is still run - the registered question includes
+the forecast, and a gap-only pass cannot answer P3.
 
 ---
 
@@ -66,23 +70,31 @@ header's `window` on **100 %** of them, and `target=` is a live index.
 Rationale: with the classifier shared (DESIGN §3.3) a disagreement here is a
 wiring bug, not a measurement.
 
-**P1a - the boundary gap (the bar of record, P56's own).**
-`median <= 80` **and** `max <= 90` ticks over the 14 transitions. Control: 80 /
-110 -> **FAIL today**. The pre-computed prediction if A1 removes the 8 rounds
-entirely: the four 110s (switch + round) become 80 and the four 80s (round only)
-become 50, i.e. **`[50 x5, 80 x9]`, median 80, max 80** - a PASS exactly at the
-bar, so P1b (the class count) is the sharper read.
+**P1a - the boundary gap (against the arm's own control).**
+`median <= 80` **and** `max <= 90` over the 14 transitions.
+- family A (B1/B3 vs A): control `[50, 80x9, 110x4]`, median 80 **max 110** ->
+  **FAIL today**. Pre-computed prediction if the rounds go: the four 110s
+  (switch + round) become 80 and the four 80s (round only) become 50, i.e.
+  **`[50 x5, 80 x9]`, median 80, max 80** - a PASS exactly at the bar, so P1b is
+  the sharper read.
+- family F (B2 vs F): control `[50 x4, 80 x8, 110 x1, 230]`, median 80 **max
+  230** -> `max <= 110` is the bar; `max <= 90` would require the 110 too.
 
 **P1b - the mechanism (names the class).**
-`count(gap == 110) == 0` **and** `count(gap == 50) >= 4`. Registered *because*
-P1a is a threshold on a quantised quantity: the class composition is the result,
-the median/max are the bar. (The 4 round-only 80s become 50; the 4 switch+round
-110s become 80.)
+- family A: `count(gap == 110) == 0` **and** `count(gap == 50) >= 4` (the 4
+  round-only 80s become 50; the 4 switch+round 110s become 80).
+- family F: `count(gap >= 230) == 0` and `count(gap == 50) >= 4`.
+Registered *because* P1a is a threshold on a quantised quantity: the class
+composition is the result, the median/max are the bar.
 
 **P2 - the starvation rounds.**
-`rounds == 0 of 14` (control 8). If any remain, each must be a **forecast
-wait** with `|pred_ticks - measured_ticks| <= 30`, and the count may not exceed
-2 of 14 (a partial pass is reported as `rounds = k/14`, not as PASS).
+Read **against the arm's own control**:
+- family A (B1 vs A): `rounds == 0 of 14` (control 8);
+- family F (B2 vs F): `rounds_paid <= 2` total (control: **8 rounds** over 2
+  transitions, 2 + 6) and no single wait longer than **2 rounds**, with
+  `|pred_ticks - measured_ticks| <= 30` on each.
+A partial pass is reported as `rounds = k/R` with `R` the rounds in the wait,
+never as PASS.
 
 **P3 - the forecast accuracy (the phase's scientific endpoint).**
 The board is refreshed on the **pre-pump** snapshot (it is what decides whether
@@ -91,11 +103,13 @@ A1 removes every round. Over every instant the board predicts:
 - the **class** (`usable now` / `wait k` / `none`) matches the measured outcome
   on **>= 90 %** of instants, and
 - where `pred = wait k`, `|k - measured| <= 30` ticks on **>= 90 %** of them.
-Control for the comparison: the **band-only** variant (no `t_feed` term), which
+Control for the comparison: the **band-only** variant (no feeder term), which
 phase 1 read as **0 of 8** correct on the rounds - structurally, not by luck
-(no live fruit can enter the band). The feeder term must be the
-reason the class is right: `src = feed` on **>= 7 of 8** rounds.
-A forecast that ties the band-only model is not a forecast; publish it as such.
+(no live fruit can enter the band). The feeder term must be the reason the class
+is right: `src = feed` on **every** instant where the raw state has 0 usable and
+the arm recovered inside the horizon (**8 of 8** in family A, **1 of 1** in
+family F). A forecast that ties the band-only model is not a forecast; publish
+it as such.
 
 **P4 - the pre-decision agreement.**
 `next_target().index == select_target`'s `chosen` index on **>= 98 %** of the 15
@@ -153,7 +167,12 @@ B's normalised reason key set `⊆` A's `∪` the P43/P54 baseline set
   pump needs the full round after all) -> the one-call burst arithmetic is wrong;
   publish the correction, do not size waits.
 - **F10** A fails to replay `[50, 80x9, 110x4]` -> the tree moved; the phase is
-  re-based on the new control, not read against these numbers.
+  re-based on the new control, not read against these numbers (F's own sample
+  `logs/p57/cad_s77.log` is then the only F datum and the family-F read waits).
+- **F11** family F only: the interlock term is not what predicts the round
+  (prediction off by > 30 ticks on the one round, or `src != feed` there) -> the
+  `t_free` model of DESIGN §3.1 is wrong; publish it and do not size a wait in
+  the pump-current world.
 
 ---
 
@@ -177,21 +196,19 @@ and any attribution of arm **F**'s effect (DESIGN §2.4) to the board.
 
 - **One claim**, seed **77** (the control's own seed; B_1 is a fixed scenario, so
   a different seed is a different branch and not a replication).
-- Order: **F first** (DESIGN §2.4), then the **P1/P2 pre-check on B1 alone**
-  (~8 min at P56's measured 471 s/arm). If B1 reaches neither P1a nor P2, B2/B3
-  are not spent and the phase publishes the actuator null. F's own read is the
-  same P1a/P1b/P2 triple plus P4 - and if F passes, the board's arms are read
-  as forecast/instrument measurements, with the attribution stated.
-- Ladder cost: A + B1 + B2 ~= **24 min** of simulator, plus the no-harm pairs
-  (~6 min) and the scripted byte-identity pair (~1 min). B3 only on the
-  registered condition. Seeds 101/202 are spent **only** if the ladder passes
-  P1a + P2 + P3 (the P56 §6 rule).
+- Order: **A** (the control), then **F** (one run) - F decides the world. Then
+  the module's arm for that world (**B2** if F's wait is interlock-bound, **B3**
+  if F leaves the `lag`-bound wait). Each rung is one continuous 15-pick episode
+  at P56's measured 471 s, so A + F + one module arm ~= **24 min**, plus the
+  no-harm pairs (~6 min) and the scripted byte-identity pair (~1 min). The
+  second family's module arm is spent only on a null, and seeds 101/202 only if
+  the ladder passes P1a + P2 + P3 (the P56 §6 rule).
 - One selfcheck, one `accept.sh` (the shipped default's no-harm - the knobs are
   unset, so this is the P43-style import guard and is stated as such).
 
 ## 6. The record this phase must leave
 
-- `logs/p57/p2/{A,B1,B2}_1.log` + the batch driver and its header, `P2_report.txt`
+- `logs/p57/p2/{A,F,B2,B3}_1.log` + the batch driver and its header, `P2_report.txt`
   re-deriving P1a/P1b/P2/P5/P6 from the logs.
 - The `[board]` forecast table: instant, class, `t_band`, `t_feed`, `k`,
   measured, error (`forecast.txt`).
