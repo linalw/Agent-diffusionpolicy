@@ -1,0 +1,101 @@
+# P58 phase 1 report — the continuous-supply stack vs the shipped direct config
+# dir logs/p58/p1   seeds [77, 101, 202]   logs 6
+
+== the runs (unit = one pick = one `[rl] episode ... success=` row) ==
+  A seed  77: picks=15 placed=12 (left 0/2, right 12/13) bed_rows=15 window>=1=15/15 gaps=n/a (per-episode) longest=140 wall=453.1s  (30.2 s/pick)
+  A seed 101: picks=15 placed=11 (left 1/5, right 10/10) bed_rows=15 window>=1=15/15 gaps=n/a (per-episode) longest=140 wall=445.9s  (29.7 s/pick)
+  A seed 202: picks=15 placed=10 (left 0/5, right 10/10) bed_rows=15 window>=1=15/15 gaps=n/a (per-episode) longest=140 wall=435.5s  (29.0 s/pick)
+  B seed  77: picks=15 placed=10 (left 1/5, right 9/10) bed_rows=15 window>=1=15/15 gaps=[50, 80, 50, 80, 80, 50, 80, 80, 50, 50, 50, 50, 50, 80] longest=80 wall=503.2s  (33.5 s/pick)
+  B seed 101: picks=15 placed= 9 (left 1/7, right 8/8) bed_rows=15 window>=1=15/15 gaps=[50, 80, 50, 50, 80, 80, 50, 80, 80, 80, 50, 80, 80, 80] longest=80 wall=516.0s  (34.4 s/pick)
+  B seed 202: picks=15 placed=11 (left 1/4, right 10/11) bed_rows=15 window>=1=15/15 gaps=[50, 50, 50, 50, 50, 80, 50, 50, 50, 80, 50, 50, 50, 50] longest=80 wall=527.5s  (35.2 s/pick)
+
+== B accounting (the multi-pick `[cont]` row vs the per-pick rows) ==
+  B seed  77: picks=15/15 placed=10 ticks_total=27485 sum(per-pick ticks)=27485 equal=True | reward_total=9.666133 sum=9.666100 abs_diff=3.30e-05 (per-pick rows are printed to 4 dp, so the sum is a rounded sum)
+  B seed 101: picks=15/15 placed=9 ticks_total=27889 sum(per-pick ticks)=27889 equal=True | reward_total=8.692400 sum=8.692500 abs_diff=1.00e-04 (per-pick rows are printed to 4 dp, so the sum is a rounded sum)
+  B seed 202: picks=15/15 placed=11 ticks_total=27725 sum(per-pick ticks)=27725 equal=True | reward_total=10.615733 sum=10.615800 abs_diff=6.70e-05 (per-pick rows are printed to 4 dp, so the sum is a rounded sum)
+
+== manipulation check (PREREG §1: ACQ unset, park unset, B's stack on) ==
+  A seed  77: presentation=direct ablate=none dagger=off park=back(default) camera=240,424 tasks_md5=c7eef701
+                 [fruit] [rl] trigger=arrival lead=0.90s lateral=0.160 reach=0.20 finger=0.040 frame=station encoder=on present=off acq=on(speed=0.20,margin=0.60,cap=4.50,reach_margin=0.05)
+  A seed 101: presentation=direct ablate=none dagger=off park=back(default) camera=240,424 tasks_md5=c7eef701
+                 [fruit] [rl] trigger=arrival lead=0.90s lateral=0.160 reach=0.20 finger=0.040 frame=station encoder=on present=off acq=on(speed=0.20,margin=0.60,cap=4.50,reach_margin=0.05)
+  A seed 202: presentation=direct ablate=none dagger=off park=back(default) camera=240,424 tasks_md5=c7eef701
+                 [fruit] [rl] trigger=arrival lead=0.90s lateral=0.160 reach=0.20 finger=0.040 frame=station encoder=on present=off acq=on(speed=0.20,margin=0.60,cap=4.50,reach_margin=0.05)
+  B seed  77: presentation=direct ablate=none dagger=off park=back(default) camera=240,424 tasks_md5=c7eef701
+                 [fruit] [rl] trigger=arrival lead=0.90s lateral=0.160 reach=0.20 finger=0.040 frame=station encoder=on present=off acq=on(speed=0.20,margin=0.60,cap=4.50,reach_margin=0.05)
+                 [cont] enabled:picks_target=15 feed=on(implied) bed_diag=1 (one reset per episode, one episode per n picks)
+  B seed 101: presentation=direct ablate=none dagger=off park=back(default) camera=240,424 tasks_md5=c7eef701
+                 [fruit] [rl] trigger=arrival lead=0.90s lateral=0.160 reach=0.20 finger=0.040 frame=station encoder=on present=off acq=on(speed=0.20,margin=0.60,cap=4.50,reach_margin=0.05)
+                 [cont] enabled:picks_target=15 feed=on(implied) bed_diag=1 (one reset per episode, one episode per n picks)
+  B seed 202: presentation=direct ablate=none dagger=off park=back(default) camera=240,424 tasks_md5=c7eef701
+                 [fruit] [rl] trigger=arrival lead=0.90s lateral=0.160 reach=0.20 finger=0.040 frame=station encoder=on present=off acq=on(speed=0.20,margin=0.60,cap=4.50,reach_margin=0.05)
+                 [cont] enabled:picks_target=15 feed=on(implied) bed_diag=1 (one reset per episode, one episode per n picks)
+
+== P1 the pickable-band stock (primary) ==
+  arm A: window>=1 at 45/45 = 100.0% | window distribution {1: 4, 2: 20, 3: 11, 4: 10} | pick=none 0 | on_belt med 5 live med 6 admitted med 5 lag med -0.92s | skipped max 107
+  arm B: window>=1 at 45/45 = 100.0% | window distribution {1: 10, 2: 21, 3: 14} | pick=none 0 | on_belt med 10 live med 11 admitted med 4 lag med -0.75s | skipped max 40
+  B gaps pooled: n=42 [50, 80, 50, 80, 80, 50, 80, 80, 50, 50, 50, 50, 50, 80, 50, 80, 50, 50, 80, 80, 50, 80, 80, 80, 50, 80, 80, 80, 50, 50, 50, 50, 50, 80, 50, 50, 50, 80, 50, 50, 50, 50]
+  B longest gap per run: {77: 80, 101: 80, 202: 80}
+  A gaps: 140 by construction on every boundary (per-episode reset; P56 census 14/14), not re-measured; A starved resets: [0, 0, 0]
+  P1a window>=1 share >= 95 % (B pooled) : PASS (45/45 = 100.0%)
+  P1b longest gap <= 140 ticks (every B): PASS {77: 80, 101: 80, 202: 80}
+  P1  PASS
+
+  P1 secondary (amendment A1.2, reported not gated): the selection-clock gap
+    sel_gap_k = 120*(t_{k+1}-t_k) - ticks_k; A expected 140 + 30*retries,
+    B expected 50/110 (teleport) + the printed gap; B's empty-round rows offset by 30.
+    A seed  77: n=14 min=139 med=140 max=141 >200=0 [140, 141, 139, 140, 140, 140, 140, 140, 140, 140, 140, 139, 141, 139]
+    A seed 101: n=14 min=139 med=140 max=141 >200=0 [141, 140, 140, 139, 140, 140, 140, 141, 139, 140, 140, 140, 139, 141]
+    A seed 202: n=14 min=139 med=140 max=141 >200=0 [140, 141, 140, 140, 139, 140, 141, 140, 140, 140, 141, 140, 140, 140]
+    B seed  77: n=14 min=50 med=50 max=111 >200=0 [111, 50, 79, 50, 79, 80, 50, 80, 80, 51, 50, 50, 50, 50]
+    B seed 101: n=14 min=49 med=80 max=110 >200=0 [110, 50, 81, 49, 50, 80, 80, 50, 79, 80, 81, 50, 80, 79]
+    B seed 202: n=14 min=49 med=50 max=111 >200=0 [111, 49, 50, 50, 51, 50, 79, 50, 50, 50, 80, 49, 50, 51]
+
+== P2 no new failure reason (113's normalisation) ==
+  A keys (2):
+    - 'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)'
+    - 'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)', 'fruit did not follow the gripper'
+  B keys (3):
+    - 'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)'
+    - 'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)', 'fruit did not follow the gripper'
+    - 'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)', 'fruit left the pick station during the close (# mm)'
+  P43/P54 baseline keys: 6
+  NEW in B (vs A + baseline): none
+  missing in B (vs A): none
+  A fragments: ['fruit did not follow the gripper', 'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)']
+  B fragments: ['fruit did not follow the gripper', 'fruit left the pick station during the close (# mm)', 'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)']
+  B fragments not in A: ['fruit left the pick station during the close (# mm)']  (the raw class names)
+  P2  PASS
+
+  per-seed new keys (B_seed vs A_seed + baseline):
+    seed 77: none
+    seed 101: none
+    seed 202: none
+
+== P4 the placed count (reported only; branches, no rate claim) ==
+  arm A: placed 33/45  (left 1/12, right 32/33)
+  arm B: placed 30/45  (left 3/16, right 27/29)
+  arm A per run: 77:12/15  101:11/15  202:10/15
+  arm B per run: 77:10/15  101:9/15  202:11/15
+
+== P5 the wall per pick (reported) ==
+  arm A: walls [453, 446, 436]s  per pick [30, 30, 29]  pooled 1334s / 45 picks = 29.7 s/pick
+  arm B: walls [503, 516, 528]s  per pick [34, 34, 35]  pooled 1547s / 45 picks = 34.4 s/pick
+
+== P3 the scripted no-harm (accept.sh, all knobs unset) ==
+  motion gate: fingerprint: matches
+  [fruit] [run] summary: 6/10 successful
+  [fruit] lines: got 377 (filtered 377)  reference 457 (filtered 377)  logs/p41/p2/accept_profile.log  identical=True
+  cross-check (unfiltered): logs/p53/03b_accept_noharm_run.log: got 377 / ref 377  identical=True
+  DIAGNOSTIC (amendment A2/A3): vs the pre-P41 record logs/p34/73_accept_no_harm.log: got 377 / registered 376 lines, identical=False - not gated; that file is pre-P41 and no post-P41 tree reproduces it
+  P3  PASS
+
+== falsifiers (PREREG §3) ==
+  F1 P1 fails -> nothing adopted          : does not fire
+  F2 any B gap > 200 ticks -> not continuous: does not fire (longest {77: 80, 101: 80, 202: 80})
+  F3 a new reason in every seed pair       : does not fire ({77: 'none', 101: 'none', 202: 'none'})
+  F4 P3 fails -> a shipped path moved      : does not fire
+
+== verdict ==
+  P1 PASS | P2 PASS | P3 PASS | P4 reported | P5 reported
+  adoption gate (F1-F4 clear and P1 passes): PASS — proceed to the Oracle 1 adoption decision

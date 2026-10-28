@@ -1,0 +1,177 @@
+# P58 phase 3c report — cell A''': A' with FRUIT_SUPPLY_BAND_INTERLOCK 1 -> 0
+# (the clock pair FRUIT_FEED_CADENCE=1 + FRUIT_DIRECT_FEED=1, shipped station-window pacing at queue_max=6)
+# cell logs/p58/p3c seeds [77, 101, 202] logs 3  |  A' [77, 101, 202]  |  A'' [77, 101, 202]  |  phase-1 A [77, 101, 202]  |  phase-1 B [77, 101, 202]
+
+== the runs (unit = one pick = one `[rl] episode ... success=` row) ==
+  A''' seed  77: picks=15 placed= 7 (left 0/8, right 7/7) bed_rows=15 feed_rows=15 cont_rows=0 on_belt med 11 admitted med 4 skipped_final 2 gap max 169 wall=531.2s ticks=27694
+  A''' seed 101: picks=15 placed=11 (left 1/5, right 10/10) bed_rows=15 feed_rows=15 cont_rows=0 on_belt med 11 admitted med 5 skipped_final 0 gap max 380 wall=539.3s ticks=27523
+  A''' seed 202: picks=15 placed=10 (left 2/6, right 8/9) bed_rows=15 feed_rows=13 cont_rows=0 on_belt med 11 admitted med 4 skipped_final 2 gap max 291 wall=523.9s ticks=27104
+  [A' (interlock 1, cap 3)] seed  77: picks=15 placed= 7 on_belt med 10 admitted med 4 skipped_final 41 gap max 141 wall=512.1s
+  [A' (interlock 1, cap 3)] seed 101: picks=15 placed= 7 on_belt med 9 admitted med 4 skipped_final 36 gap max 170 wall=509.4s
+  [A' (interlock 1, cap 3)] seed 202: picks=15 placed=10 on_belt med 10 admitted med 4 skipped_final 39 gap max 141 wall=511.6s
+  [A'' (interlock 1, cap 4)] seed  77: picks=15 placed= 9 on_belt med 11 admitted med 5 skipped_final 8 gap max 141 wall=531.9s
+  [A'' (interlock 1, cap 4)] seed 101: picks=15 placed= 7 on_belt med 11 admitted med 5 skipped_final 4 gap max 141 wall=543.7s
+  [A'' (interlock 1, cap 4)] seed 202: picks=15 placed=12 on_belt med 11 admitted med 4 skipped_final 9 gap max 141 wall=517.6s
+  [phase-1 A (shipped, no pair)] seed  77: picks=15 placed=12 on_belt med 5 admitted med 4 skipped_final 104 gap max 141 wall=453.1s
+  [phase-1 A (shipped, no pair)] seed 101: picks=15 placed=11 on_belt med 5 admitted med 5 skipped_final 107 gap max 141 wall=445.9s
+  [phase-1 A (shipped, no pair)] seed 202: picks=15 placed=10 on_belt med 5 admitted med 5 skipped_final 105 gap max 141 wall=435.5s
+  [phase-1 B (stack)] seed  77: picks=15 placed=10 on_belt med 10 admitted med 4 skipped_final 40 gap max n/a (cont) wall=503.2s
+  [phase-1 B (stack)] seed 101: picks=15 placed= 9 on_belt med 10 admitted med 4 skipped_final 36 gap max n/a (cont) wall=516.0s
+  [phase-1 B (stack)] seed 202: picks=15 placed=11 on_belt med 10 admitted med 4 skipped_final 38 gap max n/a (cont) wall=527.5s
+
+== manipulation + construction check (PREREG §1.1, G2, G4) ==
+  A''' seed  77: presentation=direct ablate=none dagger=off park=back(default) camera=240,424 tasks_md5=c7eef701
+                   [rl] trigger=arrival lead=0.90s lateral=0.160 reach=0.20 finger=0.040 frame=station encoder=on present=off acq=on(speed=0.20,margin=0.60,cap=4.50,reach_margin=0.05)
+  A''' seed 101: presentation=direct ablate=none dagger=off park=back(default) camera=240,424 tasks_md5=c7eef701
+                   [rl] trigger=arrival lead=0.90s lateral=0.160 reach=0.20 finger=0.040 frame=station encoder=on present=off acq=on(speed=0.20,margin=0.60,cap=4.50,reach_margin=0.05)
+  A''' seed 202: presentation=direct ablate=none dagger=off park=back(default) camera=240,424 tasks_md5=c7eef701
+                   [rl] trigger=arrival lead=0.90s lateral=0.160 reach=0.20 finger=0.040 frame=station encoder=on present=off acq=on(speed=0.20,margin=0.60,cap=4.50,reach_margin=0.05)
+  G2 [cont] rows in a log (not the shipped interface): does not fire ({77: 0, 101: 0, 202: 0})
+  G4 FRUIT_SUPPLY_TARGET_FROM in a log (two variables): does not fire
+  FRUIT_SUPPLY_BAND_MAX mentioned in a log (inert off; registered unset): no
+
+== supply provenance (PREREG §2, read-only; the A' check verbatim) ==
+  seed  77: patch=on True  grades_balanced True  [bed-sel] rows 15/15  [feed] rows 15
+                  supply: [supply] scatter pool=16 seed=77 gaps=0.10-0.35 m lateral x=0.20-0.36 m stream=on target=0 wave=off grades=A:0.375,B:0.375,C:0.25 classes=strawberry:2,lychee:2,kiwi:2,tomato:2,appl
+  seed 101: patch=on True  grades_balanced True  [bed-sel] rows 15/15  [feed] rows 15
+                  supply: [supply] scatter pool=16 seed=101 gaps=0.10-0.35 m lateral x=0.20-0.36 m stream=on target=0 wave=off grades=A:0.375,B:0.375,C:0.25 classes=strawberry:2,lychee:2,kiwi:2,tomato:2,app
+  seed 202: patch=on True  grades_balanced True  [bed-sel] rows 15/15  [feed] rows 13
+                  supply: [supply] scatter pool=16 seed=202 gaps=0.10-0.35 m lateral x=0.20-0.36 m stream=on target=0 wave=off grades=A:0.375,B:0.375,C:0.25 classes=strawberry:2,lychee:2,kiwi:2,tomato:2,app
+
+== E1 starved feed rounds (PREREG §E1: no gap >= 169, starved count 0) ==
+   sel_gap_k = 120*(t_{k+1}-t_k) - ticks_k ; 139-141 = a 140-tick boundary within the 2-dp print quantization (NOT a failure)
+  A'''   seed  77: n=14 min=139 med=140 max=169  in 139-141: 13/14  >140: 4  >=169 (a starved feed round): 1 [169]
+  A'''   seed 101: n=14 min=139 med=140 max=380  in 139-141: 11/14  >140: 5  >=169 (a starved feed round): 3 [380, 170, 289]
+  A'''   seed 202: n=14 min=139 med=140 max=291  in 139-141: 13/14  >140: 2  >=169 (a starved feed round): 1 [291]
+  A'     seed  77: n=14 min=139 med=140 max=141  in 139-141: 14/14  >140: 3  >=169 (a starved feed round): 0 
+  A'     seed 101: n=14 min=139 med=140 max=170  in 139-141: 13/14  >140: 3  >=169 (a starved feed round): 1 [170]
+  A'     seed 202: n=14 min=139 med=140 max=141  in 139-141: 14/14  >140: 1  >=169 (a starved feed round): 0 
+  A''    seed  77: n=14 min=139 med=140 max=141  in 139-141: 14/14  >140: 4  >=169 (a starved feed round): 0 
+  A''    seed 101: n=14 min=139 med=140 max=141  in 139-141: 14/14  >140: 3  >=169 (a starved feed round): 0 
+  A''    seed 202: n=14 min=139 med=140 max=141  in 139-141: 14/14  >140: 2  >=169 (a starved feed round): 0 
+  A ctl  seed  77: n=14 min=139 med=140 max=141  in 139-141: 14/14  >140: 2  >=169 (a starved feed round): 0 
+  A ctl  seed 101: n=14 min=139 med=140 max=141  in 139-141: 14/14  >140: 3  >=169 (a starved feed round): 0 
+  A ctl  seed 202: n=14 min=139 med=140 max=141  in 139-141: 14/14  >140: 3  >=169 (a starved feed round): 0 
+  pooled: 5 starved feed round(s) over 42 boundaries (11.9 %)  [A' 1/42 = 2.4 %; A'' 0/42; control 0/42]
+  starved_reset (the reset's own retry path, NOT pooled into E1): 0 ({77: 0, 101: 0, 202: 0})
+  E1  FAIL
+  STARVE seed 77 boundary 1->2: gap 169 ticks (1.41 s)
+    preceding selection: on_belt=11 live=11 admitted=6 window=2 pick=lychee@0.576 skipped=2
+    starved pick      : 1 lychee d=3.4cm arm=right ticks=1753
+    next selection    : on_belt=12 live=13 admitted=4 window=2 pick=orange@0.652 skipped=2
+  STARVE seed 101 boundary 2->3: gap 380 ticks (3.17 s)
+    preceding selection: on_belt=11 live=12 admitted=7 window=4 pick=lychee@0.659 skipped=0
+    starved pick      : 2 lychee d=3.7cm arm=right ticks=1946
+    next selection    : on_belt=11 live=12 admitted=3 window=1 pick=strawberry@0.655 skipped=0
+  STARVE seed 101 boundary 5->6: gap 170 ticks (1.42 s)
+    preceding selection: on_belt=11 live=12 admitted=6 window=3 pick=strawberry@0.532 skipped=0
+    starved pick      : 5 strawberry d=4.2cm arm=right ticks=1684
+    next selection    : on_belt=10 live=11 admitted=3 window=1 pick=orange@0.665 skipped=0
+  STARVE seed 101 boundary 7->8: gap 289 ticks (2.41 s)
+    preceding selection: on_belt=10 live=10 admitted=4 window=2 pick=orange@0.536 skipped=0
+    starved pick      : 7 orange d=6.3cm arm=left ticks=1842
+    next selection    : on_belt=12 live=12 admitted=3 window=1 pick=strawberry@0.662 skipped=0
+  STARVE seed 202 boundary 10->11: gap 291 ticks (2.42 s)
+    preceding selection: on_belt=10 live=10 admitted=2 window=1 pick=peach@0.523 skipped=2
+    starved pick      : 10 peach d=5.9cm arm=right ticks=1706
+    next selection    : on_belt=10 live=11 admitted=2 window=1 pick=lychee@0.674 skipped=2
+
+== E2 the stock and the scheduler (PREREG §2 E2) ==
+   bar: every run's final cumulative `skipped` <= 60  AND  pooled `on_belt` median >= 8
+  instrument check `on_belt = admitted + below_window + above_belt` per block: HOLDS on all 45 blocks
+  A'''        : on_belt pooled med 11.0 (mean 10.78)  admitted med 4.0 (mean 4.47)  skipped_final {77: 2, 101: 0, 202: 2}  per-run on_belt {77: 11, 101: 11, 202: 11}
+  A'          : on_belt pooled med 9.0 (mean 9.18)  admitted med 4.0 (mean 3.96)  skipped_final {77: 41, 101: 36, 202: 39}
+  A''         : on_belt pooled med 11.0 (mean 10.93)  admitted med 5.0 (mean 4.69)  skipped_final {77: 8, 101: 4, 202: 9}
+  phase-1 A   : on_belt pooled med 5.0 (mean 5.22)  admitted med 5.0 (mean 5.00)  skipped_final {77: 104, 101: 107, 202: 105}
+  phase-1 B   : on_belt pooled med 10.0 (mean 9.58)  admitted med 4.0 (mean 4.07)  skipped_final {77: 40, 101: 36, 202: 38}
+  E2a on_belt median >= 8 : PASS  (11.0; per run {77: 11, 101: 11, 202: 11})
+  E2b every run skipped <= 60: PASS  ({77: 2, 101: 0, 202: 2})
+  E2  PASS
+
+== E3 window>=1 at every selection AND the composition (PREREG §2 E3) ==
+  A'''        : window>=1 45/45  distribution {1: 12, 2: 20, 3: 6, 4: 6, 5: 1}  mean 2.20  window==1 at 12/45  max 5
+  A'          : window>=1 45/45  distribution {1: 12, 2: 20, 3: 13}  mean 2.02  window==1 at 12/45  max 3
+  A''         : window>=1 45/45  distribution {1: 9, 2: 18, 3: 10, 4: 8}  mean 2.38  window==1 at 9/45  max 4
+  phase-1 A   : window>=1 45/45  distribution {1: 4, 2: 20, 3: 11, 4: 10}  mean 2.60  window==1 at 4/45  max 4
+  phase-1 B   : window>=1 45/45  distribution {1: 10, 2: 21, 3: 14}  mean 2.09  window==1 at 10/45  max 3
+    A''' seed  77: {1: 2, 2: 10, 3: 1, 4: 2}  mean 2.20  window==1 at 2/15
+    A''' seed 101: {1: 5, 2: 5, 3: 2, 4: 2, 5: 1}  mean 2.27  window==1 at 5/15
+    A''' seed 202: {1: 5, 2: 5, 3: 3, 4: 2}  mean 2.13  window==1 at 5/15
+  E3a window>=1 at 45/45: PASS (45/45)
+  E3b window mean >= 2.38 (the cap-4 cell): FAIL (2.20)
+  E3c window==1 <= 9/45: FAIL (12/45)
+  E3  FAIL
+
+  -- the composition: below-window (past-station) `[bed-sel]` rows --
+     per block = the block's rows whose reason contains 'below window'; pooled = total / blocks
+  A''' (interlock 0)  : pooled 281/45 = 6.24 per block  (55.2 % of 509 candidate rows)  per run {77: 6.13, 101: 6.07, 202: 6.53}
+  A' (cap 3)          : pooled 234/45 = 5.20 per block  (53.8 % of 435 candidate rows)  per run {77: 5.07, 101: 4.93, 202: 5.6}
+  A'' (cap 4)         : pooled 281/45 = 6.24 per block  (54.2 % of 518 candidate rows)  per run {77: 6.13, 101: 6.33, 202: 6.27}
+  phase-1 A           : pooled 9/45 = 0.20 per block  (3.4 % of 265 candidate rows)  per run {77: 0.13, 101: 0.27, 202: 0.2}
+  phase-1 B (stack)   : pooled 243/45 = 5.40 per block  (53.5 % of 454 candidate rows)  per run {77: 5.47, 101: 5.2, 202: 5.53}
+  identity mismatches (all arms): 0
+
+== E4 no new failure reason (113's normalisation; PREREG §2 E4) ==
+  A''' keys (2):
+    - 'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)'
+    - 'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)', 'fruit did not follow the gripper'
+  control (phase-1 A) keys: 2  |  P43/P54 baseline: 6  |  A' 2  |  A'' 2
+  NEW in A''' (vs all of the above): none
+  A''' keys not in A'' (this knob's own signature): none
+  A'' keys not in A''': none
+  missing in A''' (vs phase-1 A): none
+  A''' fragments: ['fruit did not follow the gripper', 'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)']
+  A''' fragments not in A'': none
+  E4  PASS
+
+== reported only: the placed count (branches; NO rate claim) ==
+  A''': placed 28/45 (left 3/19, right 25/26)
+    seed  77: 7/15 (left 0/8, right 7/7)
+    seed 101: 11/15 (left 1/5, right 10/10)
+    seed 202: 10/15 (left 2/6, right 8/9)
+  A' (cap 3)  : placed 24/45  (right 21/22, left 3/23)
+  A'' (cap 4) : placed 28/45  (right 24/26, left 4/19)
+  phase-1 A   : placed 33/45  (right 32/33, left 1/12)
+  phase-1 B   : placed 30/45  (right 27/29, left 3/16)
+
+== reported only: the wall per pick and the simulated span ==
+  A''' walls [531, 539, 524]s  per pick [35.4, 36.0, 34.9]  pooled 1594s / 45 = 35.43 s/pick  ticks/pick [1846, 1835, 1807] pooled 1829
+  A' (cap 3)  : 1533s / 45 = 34.07 s/pick  ticks/pick 1833
+  A'' (cap 4) : 1593s / 45 = 35.40 s/pick  ticks/pick 1824
+  phase-1 A   : 1334s / 45 = 29.66 s/pick  ticks/pick 1827
+  phase-1 B   : 1547s / 45 = 34.37 s/pick  ticks/pick 1847
+
+== reported: the mechanism columns ==
+  seed  77: admitted med 4 (mean 4.60) lag med -0.80s rebased 0 dropped 0.0s live med 12
+                 [feed] rows 15: updates 306-349 ticks 1227-1398 stride [4]
+  seed 101: admitted med 5 (mean 4.73) lag med -0.91s rebased 0 dropped 0.0s live med 12
+                 [feed] rows 15: updates 318-355 ticks 1273-1420 stride [4]
+  seed 202: admitted med 4 (mean 4.07) lag med -0.95s rebased 0 dropped 0.0s live med 11
+                 [feed] rows 13: updates 308-344 ticks 1232-1376 stride [4]
+
+== mechanism: the feeder rate and the occupancy shape (registered as reported) ==
+   the release rate is the *same* across the clock-pair arms; what moves is where the bodies sit
+  A''' (interlock 0)  : releases 517 over 56894 feed-ticks = 1.09/sim-s (per run [1.07, 1.12, 1.08])  |  station-window occ med 4 mean 4.13 max 6  |  catchable band occ med 3 mean 2.69 max 6
+  A' (cap 3)          : releases 441 over 57718 feed-ticks = 0.92/sim-s (per run [0.92, 0.9, 0.93])  |  station-window occ med 3 mean 3.29 max 6  |  catchable band occ med 2 mean 2.22 max 3
+  A'' (cap 4)         : releases 537 over 58305 feed-ticks = 1.11/sim-s (per run [1.15, 1.07, 1.1])  |  station-window occ med 4 mean 3.98 max 6  |  catchable band occ med 3 mean 2.71 max 4
+  phase-1 A           : releases 0 over 0 feed-ticks = n/a/sim-s  <-- the cadence does not run (no [feed] rows)  |  station-window occ med 3 mean 2.98 max 6  |  catchable band occ med 3 mean 2.82 max 4
+  phase-1 B (stack)   : releases 426 over 55794 feed-ticks = 0.92/sim-s (per run [0.91, 0.88, 0.96])  |  station-window occ med 3 mean 3.40 max 5  |  catchable band occ med 3 mean 2.38 max 3
+  A'''        : window mean 2.20 sd 1.05  ==1 12/45  >=3 13/45
+  A'          : window mean 2.02 sd 0.75  ==1 12/45  >=3 13/45
+  A''         : window mean 2.38 sd 1.00  ==1 9/45  >=3 18/45
+  phase-1 A   : window mean 2.60 sd 0.93  ==1 4/45  >=3 21/45
+  phase-1 B   : window mean 2.09 sd 0.72  ==1 10/45  >=3 14/45
+  boundary starves (>= 169 ticks): A''' 5/42, A' 1/42, A'' 0/42, control 0/42
+  Fisher exact (two-sided) A''' vs A'': p = 0.0551   A''' vs A': p = 0.2016
+  wait length at the 5 events, in 30-tick feed rounds (the reset's loop): every gap is 140 + 30k -> k = [1, 8, 1, 5, 5]
+
+== registered predictions (PREREG §3) ==
+  P1 the clock pair runs: [feed] rows {77: 15, 101: 15, 202: 13} in 14-15 : FAILS
+  P2 the station window is the binding pacer: skipped {77: 2, 101: 0, 202: 2}; > 39 in >= 2 runs : FAILS (the interlock is not load-bearing for the scheduler)
+  P3 the interlock owns the past-station composition: below-window 6.24 per block < 3.0 : FAILS (the composition is not the interlock's)
+  P4 wall/pick <= 35.40 s (A''): FAILS (35.43)
+
+== verdict (PREREG §4; the FIRST clause that applies decides) ==
+  E1 FAIL | E2 PASS (on_belt PASS, skipped PASS) | E3 FAIL (window>=1 45/45, mean 2.20, ==1 12/45) | E4 PASS | supply provenance OK | G2 clear | G4 clear
+  below-window share 6.24 per block (A'' 6.24, A' 5.20, control 0.20)
+  B2 -> the interlock is LOAD-BEARING; the triple (+ BAND_MAX=4) is the unit, with A' 's one starve carried as a recorded deviation

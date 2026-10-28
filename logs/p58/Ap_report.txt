@@ -1,0 +1,90 @@
+# P58 phase 3a report — cell A': the supply triple on the SHIPPED per-pick interface
+# dir logs/p58/p3a  seeds [77, 101, 202]  logs 3
+# control (phase 1 arm A, same scenario, per-pick, no triple): [77, 101, 202]  |  stack (phase 1 arm B, continuous): [77, 101, 202]
+
+== the runs (unit = one pick = one `[rl] episode ... success=` row) ==
+  A' seed  77: picks=15 placed= 7 (left 2/9, right 5/6) bed_rows=15 feed_rows=15 cont_rows=0 on_belt med 10 skipped_final 41 gap max 141 wall=512.1s
+  A' seed 101: picks=15 placed= 7 (left 1/9, right 6/6) bed_rows=15 feed_rows=15 cont_rows=0 on_belt med 9 skipped_final 36 gap max 170 wall=509.4s
+  A' seed 202: picks=15 placed=10 (left 0/5, right 10/10) bed_rows=15 feed_rows=14 cont_rows=0 on_belt med 10 skipped_final 39 gap max 141 wall=511.6s
+
+== manipulation check (PREREG §1: the triple on, the shipped interface) ==
+  A' seed  77: presentation=direct ablate=none dagger=off park=back(default) camera=240,424 tasks_md5=c7eef701
+                  [rl] trigger=arrival lead=0.90s lateral=0.160 reach=0.20 finger=0.040 frame=station encoder=on present=off acq=on(speed=0.20,margin=0.60,cap=4.50,reach_margin=0.05)
+  A' seed 101: presentation=direct ablate=none dagger=off park=back(default) camera=240,424 tasks_md5=c7eef701
+                  [rl] trigger=arrival lead=0.90s lateral=0.160 reach=0.20 finger=0.040 frame=station encoder=on present=off acq=on(speed=0.20,margin=0.60,cap=4.50,reach_margin=0.05)
+  A' seed 202: presentation=direct ablate=none dagger=off park=back(default) camera=240,424 tasks_md5=c7eef701
+                  [rl] trigger=arrival lead=0.90s lateral=0.160 reach=0.20 finger=0.040 frame=station encoder=on present=off acq=on(speed=0.20,margin=0.60,cap=4.50,reach_margin=0.05)
+
+== supply provenance (PREREG §4, read-only) ==
+  seed  77: patch=on True  grades_balanced True  [bed-sel] rows 15/15 with the skipped= column parsed  [feed] rows 15 (the cadence ran: True)
+  seed 101: patch=on True  grades_balanced True  [bed-sel] rows 15/15 with the skipped= column parsed  [feed] rows 15 (the cadence ran: True)
+  seed 202: patch=on True  grades_balanced True  [bed-sel] rows 15/15 with the skipped= column parsed  [feed] rows 14 (the cadence ran: True)
+
+== E1 the selection-clock boundary (PREREG §E1: every gap <= 141 ticks) ==
+   sel_gap_k = 120*(t_{k+1}-t_k) - ticks_k  (no [cont] rows in this cell)
+  A'     seed  77: n=14 min=139 med=140 max=141  >140: 3 [141, 141, 141]   >=169 (a starved feed round): 0
+  A'     seed 101: n=14 min=139 med=140 max=170  >140: 3 [141, 170, 141]   >=169 (a starved feed round): 1
+  A'     seed 202: n=14 min=139 med=140 max=141  >140: 1 [141]   >=169 (a starved feed round): 0
+  A ctl  seed  77: n=14 min=139 med=140 max=141  >140: 2 [141, 141]   >=169 (a starved feed round): 0
+  A ctl  seed 101: n=14 min=139 med=140 max=141  >140: 3 [141, 141, 141]   >=169 (a starved feed round): 0
+  A ctl  seed 202: n=14 min=139 med=140 max=141  >140: 3 [141, 141, 141]   >=169 (a starved feed round): 0
+  E1  FAIL
+
+== E2 the stock and the scheduler (PREREG §E2) ==
+   bar: pooled `on_belt` median >= 8  AND  every run's final cumulative `skipped` <= 60
+  on_belt median: A' pooled 9.0 (per run {77: 10, 101: 9, 202: 10})
+                  control (phase-1 A) pooled 5.0  stack (phase-1 B) pooled 10.0
+  final cumulative skipped: A' {77: 41, 101: 36, 202: 39}
+                  control (phase-1 A) {77: 104, 101: 107, 202: 105}  stack (phase-1 B) {77: 40, 101: 36, 202: 38}
+  E2a on_belt median >= 8 : PASS
+  E2b every run skipped <= 60: PASS
+  E2  PASS
+
+== E3 window>=1 at every selection (PREREG §E3: 45/45) ==
+  A': window>=1 45/45 = 100.0%  distribution {1: 12, 2: 20, 3: 13}
+  control (phase-1 A) window>=1 45/45  distribution {1: 4, 2: 20, 3: 11, 4: 10}
+  stack   (phase-1 B) window>=1 45/45  distribution {1: 10, 2: 21, 3: 14}
+  E3  PASS   (a starved retry round is invisible in this census on the per-pick path - PREREG §E3/A1.1 - and is read by E1)
+
+== E4 no new failure reason (113's normalisation) ==
+  A' keys (2):
+    - 'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)'
+    - 'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)', 'fruit did not follow the gripper'
+  control (phase-1 A) keys: 2  |  P43/P54 baseline keys: 6
+  NEW in A' (vs control + baseline): none
+  missing in A' (vs control): none
+  A' fragments: ['fruit did not follow the gripper', 'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)']
+  A' fragments not in control: none
+  E4  PASS
+
+== reported only: the placed count (branches; NO rate claim) ==
+  A': placed 24/45 (left 3/23, right 21/22)
+    seed  77: 7/15 (left 2/9, right 5/6)
+    seed 101: 7/15 (left 1/9, right 6/6)
+    seed 202: 10/15 (left 0/5, right 10/10)
+  phase-1 control: placed 33/45
+  phase-1 stack: placed 30/45
+
+== reported only: the wall per pick ==
+  A' walls [512, 509, 512]s  per pick [34, 34, 34]  pooled 1533s / 45 = 34.07 s/pick
+  phase-1 control: 1334s / 45 = 29.66 s/pick
+  phase-1 stack: 1547s / 45 = 34.37 s/pick
+
+== reported: the mechanism columns ==
+  seed  77: admitted med 4 lag med -0.93s rebased 0 dropped 0.0s live med 10
+                 [feed] rows 15: updates 258-345 ticks 1032-1383 stride [4]
+  seed 101: admitted med 4 lag med -0.71s rebased 0 dropped 0.0s live med 9
+                 [feed] rows 15: updates 310-348 ticks 1243-1394 stride [4]
+  seed 202: admitted med 4 lag med -0.93s rebased 0 dropped 0.0s live med 10
+                 [feed] rows 14: updates 311-349 ticks 1245-1399 stride [4]
+  phase-1 control: on_belt med 5 live med 6 admitted med 5 lag med -0.92s
+  phase-1 stack: on_belt med 10 live med 11 admitted med 4 lag med -0.75s
+
+== falsifiers (PREREG §5) ==
+  G1 every run delivers 15 picks, no wedge : does not fire ({77: 15, 101: 15, 202: 15})
+  G2 [cont] rows in a log (not the shipped interface): does not fire ({77: 0, 101: 0, 202: 0})
+  G3 tree pins stable: see logs/p58/p3a/Ap_header.txt vs Ap_tree_md5_after.txt
+
+== verdict ==
+  E1 FAIL | E2 PASS (on_belt PASS, skipped PASS) | E3 PASS | E4 PASS | supply provenance OK
+  E1 FAIL -> the per-pick boundary starves; DO NOT FLIP (E2's stock read is still reported)
