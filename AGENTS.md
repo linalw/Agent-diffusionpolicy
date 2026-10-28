@@ -2399,6 +2399,62 @@ final **`1845c2c4`** (docstring-only close-out, reconstructed-and-matched);
 unchanged; `configs/*` untouched; checkpoint `moe_v13s` `61da390a`. Evidence
 `logs/p56/{DESIGN,PREREG,PREREG_A1,CENSUS,P56_RESULTS}.md`, `p0/`, `p2/`.
 
+**P58 (2026-10-28, `logs/p58/`; **one shipped change** - the direct presentation's
+supply profile - and nothing else flipped): the shipped direct supply was a
+per-episode burst with a timed refresh, and the profile that replaces it is the
+**clock pair plus the band interlock at `FRUIT_SUPPLY_BAND_MAX=4`**, all resolved
+on for `presentation == "direct"` only, an explicit environment value winning.
+Four arms, 3 seeds x 15 picks, the shipped per-pick interface
+(`FRUIT_DIRECT_CONTINUOUS` never set): **control** `window` **2.60** (2.57 on the
+pooled-with-abort read), `==1` **4/45**, `on_belt` 5, `skipped` **104/107/105**,
+starves **0/42** (bought by the reset's re-stock), wall **29.66** s/pick;
+**A' (cap 3)** 2.02, 12/45, 9, 41/36/39, **1/42**, 34.07; **A'' (cap 4)**
+**2.38**, **9/45**, **11**, **8/4/9**, **0/42**, **35.40**; **A''' (interlock
+off)** 2.20, 12/45, 11, **2/0/2**, **5/42 (169/380/170/289/291 - 11.9 %)**,
+35.43. The registrations' branches read: **B1 does not fire** (A''' fails E1
+*and* E3), **B2 fires** (A''' starves 5/42 against A' 's 1/42 and A'''s 0/42),
+**B3 is unreached** - so the unit is the triple at **cap 4**, and **cap 3 is a
+measured regression** (its cap binds and refuses ~2.5 patch partners per pick).
+**Read the two counters together:** `supply_skipped` is *not* the slot-loss
+counter on the non-bed path - a depth-capped release re-bases `_next_release` in
+`_pump_supply` without incrementing it, so the loss appears as a **starved feed
+round** (`sel_gap >= 169`), not a skip; that is exactly A'''s 2/0/2-with-5/42,
+its pacing counting the station window `[-0.05,+0.45]` at `queue_max=6` (mostly
+past-station bodies, P56's aperture) while A'' paces on the approach band at 4.
+**`on_belt` is not a catch metric:** the identity `on_belt = admitted +
+below_window` holds on all 45 blocks, and at cap 4 the below-station share is
+**6.24/block = 54 % of candidate rows** (control 0.20 = 3.4 %), so `on_belt` 11
+must never be read as "11 fruit available"; the catchable read is the `window`
+distribution. The control's 2.60 is a **post-reset-burst** instant (one feed per
+episode, ~7 stale slots dropped per reset - the timed refresh the owner
+rejected), so it is quoted as the rejected baseline, never as the composition
+bar. **Wall:** +19.3 % (29.66 -> 35.40 s/pick) at a **flat sim span** (1827 ->
+1824 ticks/pick), i.e. 0.01623 -> 0.01941 s/tick with 6 -> 12 live bodies - a
+harness cost, reported, never gated and never attributed to the policy (P55
+measured the feeder alone at +11.1 %; P33 phase A the body physics at +24 % for
+21 vs 6.6). **`FRUIT_DIRECT_CONTINUOUS` must not be defaulted:** it is a
+run-length parameter (it rescales `--episodes` in `110/121/136`) and it
+corrupted the printed summary (`[rl] rollout success 0/1` on a 10-placed run -
+parsed by `113_rl_report.py:41` and `129_rtc_report.py:34`); it is
+`--continuous N`, opt-in, and the summary is pick-level in that mode.
+**Re-baseline:** every direct number before P58 is a **pre-profile (burst)
+number** - `FRUIT_FEED_CADENCE=0 FRUIT_SUPPLY_BAND_INTERLOCK=0
+FRUIT_DIRECT_FEED=0` restores it, composed with `FRUIT_ARM_PARK=ready`
+(pre-P43) and `FRUIT_POLICY_TRIGGER_ACQ=0` (pre-P54). No motion reference moved
+and none is re-recorded: the scripted path never constructs `SortingRLEnv`, so
+`accept.sh`'s `fingerprint: matches` is an **import guard** (its `[fruit]`
+stream is 377/377 identical to `logs/p41/p2/accept_profile.log`), and the hybrid
+canary builds its own spawner (`60_eval_policy.py`), so `moe_v12` is
+**untested** on this profile. Not covered: `BAND_MAX` 5-6,
+`FRUIT_SUPPLY_TARGET_FROM` 0.40, the two-line (its own `feed_pump`; `_feed_scope`
+excludes it), the handoff presentation, and any store recorded under the
+profile. Pins: `rl_env.py` **`5060a18a`**, `tasks.py` **`8ad8ddc8`**,
+`fruits.py` **`c7461d41`**, `scripts/230_p58_supply_selftest.py`; `configs/*`
+untouched (`8a399626` / `2246f83c` both stand); checkpoint `moe_v13s`
+`61da390a`. Evidence
+`logs/p58/{PREREG,PREREG_A_APRIME,PREREG_A_APRIME2,PREREG_A_APRIME3,A_RESULTS,A_APRIME_RESULTS,A_APRIME2_RESULTS,A_APRIME3_RESULTS,P58_RESULTS}.md`,
+`A{2,3}_report.txt`, `p1/`, `p3a/`, `p3b/`, `p3c/`, `v_*.log`; WORKLOG "P58".
+
 ## 3. What changed -> what to run
 
 | you changed | run |
@@ -2410,6 +2466,7 @@ unchanged; `configs/*` untouched; checkpoint `moe_v13s` `61da390a`. Evidence
 | the supply schedule (`fruits.py`, `bed.py`) | `python3 scripts/211_bed_audit.py`, then `scripts/selfcheck.sh` |
 | the bimanual scheduler (`bimanual.py`, or the task loop under `FRUIT_BIARM=1`) | `scripts/selfcheck.sh` (the 152 leg), the `logs/biarm/` rate batch (`scripts/153_biarm_rates.sh biarm 5`), then `FRUIT_BIARM=1 scripts/accept.sh` |
 | the policy, training or the dataset schema | `scripts/selfcheck.sh`, `scripts/accept.sh` (scripted baseline), `scripts/accept_policy.sh` (policy loop) |
+| the direct supply profile (`rl_env.py` `_resolve_supply_profile`, the `fruits.py`/`tasks.py` kwargs) | `scripts/selfcheck.sh` (the `230` leg), `scripts/accept.sh` (import guard: 377/377 + `fingerprint: matches`), one two-line run + `scripts/190_towline_gate.sh`, `python3 scripts/211_bed_audit.py` |
 
 To compare two **policy** arms, use the harness rather than two runs:
 

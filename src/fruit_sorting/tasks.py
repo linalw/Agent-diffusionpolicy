@@ -656,7 +656,8 @@ class PickAndPlaceTask:
             self.__dict__["_attempt_tls"] = container
         return container
 
-    def __init__(self, scene, spawner, tactile, cfg, waypoint_path: str | None = None):
+    def __init__(self, scene, spawner, tactile, cfg, waypoint_path: str | None = None,
+                 feed_cadence: bool | None = None):
         # The v1 file reproduces the recorded datasets. Physical grasping uses the
         # orientation-constrained poses: FRUIT_WAYPOINTS=configs/waypoints_oriented.json
         waypoint_path = waypoint_path or os.environ.get(
@@ -1143,7 +1144,14 @@ class PickAndPlaceTask:
         #: when the two-line scheduler arms the same pump through
         #: `CoopSession.feed_pump` (P33 phase 1); they live as plain attributes
         #: so `_carry`'s per-tick check stays one attribute read.
-        self._feed_cadence = os.environ.get("FRUIT_FEED_CADENCE", "0") == "1"
+        #: P58: the caller may own the resolution (the direct presentation's
+        #: supply profile). `None` keeps the shipped environment read, so the
+        #: scripted, handoff and two-line callers are byte-inert.
+        self._feed_cadence = (
+            feed_cadence
+            if feed_cadence is not None
+            else os.environ.get("FRUIT_FEED_CADENCE", "0") == "1"
+        )
         self._feed_stride = max(1, int(os.environ.get("FRUIT_FEED_STRIDE", "4")))
         #: `_feed_on` is armed per **attempt** by `_run_impl` (it also requires the
         #: scripted single-arm scope) and is deliberately **not** reset when the

@@ -19516,3 +19516,108 @@ stores, `ticks_total == sum`). By F1 the P2/P3/P4 readings are void; **nothing i
 adopted** and seeds 101/202 were not spent. No-harm: `--ablate scripted` **44/44
 lines byte-identical** across the pre-edit, measured and final trees; the policy
 pair's 1-tick delta is reproduced *within* one tree; selfcheck PASS.
+
+### P57 phase 1: the "wave" was the feeder's scope gate
+
+The direct line's supply arrived in **one burst per policy phase** because
+`FruitSpawner.update` - the only release clock - ran only inside
+`SortingRLEnv.advance` (the ~2-3 s policy phase) and the reset's selection loop.
+The primitive phase (~12-13 s of a ~15 s pick) never pumped it, so
+`_next_release` fell **12-16 s behind**, the late backlog was placed at its
+virtual position and every slot past the station was **skipped**: measured
+`lag=+15.72`, `skipped` 2 -> **50** over 15 picks
+(`logs/p56/p3/Q12_s77.log`). The mid-attempt pump existed all along
+(`FRUIT_FEED_CADENCE=1` -> `_feed_tick` on every control tick of every phase) but
+resolved through `_prepared_scope()`, which is `False` when `not scripted` - right
+for the pre-pose/return levers (a `reset()` discards a pre-positioned hand), wrong
+for a supply clock. The fix is a new `_feed_scope()` = "no `CoopSession`"
+(`tasks.py` `b6de439c` -> `c7eef701`; the two-line installs its own `feed_pump`),
+leaving `_prepared_scope` untouched. With `FRUIT_FEED_CADENCE` unset the shipped
+path is byte-unchanged (`0 and ...` in both trees). Measured on the same 15-pick
+episode: lag **-0.11..-1.64 s** (was +11.9..+15.7), `skipped` 2 -> **3** (was 50),
+`on_belt` **9-13 (median 12)** vs 5-6, `window=0` at **2/16 selections** vs 8/14
+transitions, gaps [50x4, 80x8, 82, 110x2, 230] vs [50, 80x9, 110x4], placed 7/15
+(right **7/7**, left 0/8 - the closed `cnp` class) vs 8/15 (right 8/9, left 0/6):
+different branches, no rate claim. The **catchable band is still ~0.15 m**, so a
+selection can still read `window=0` - the supply clock is now correct, the
+aperture is not.
+
+### P57 phase 2: the release interlock counted the wrong region
+
+`_queue_depth()` counts `[pick_y - 0.05, pick_y + 0.45]` - the **station window**.
+With the dynamic catch's 0.399 m floor, everything the window counts is already
+too close or past, so six bodies "south" of the floor hold the release shut while
+the 0.281 m segment the selector draws from is empty. The census names it
+(`logs/p57/cad_s77.log` attempt 3: nine of eleven bodies at along -0.581..+0.068,
+four usable at +0.464..+0.611). The bed had already solved this
+(`_bed_stock_depth`, `logs/p32/60_probe_nocap.log`); the single-file schedules had
+no equivalent. `FRUIT_SUPPLY_BAND_INTERLOCK=1` (+ `FRUIT_SUPPLY_BAND_MAX=3`) paces
+them on `_approach_depth()` with a density-preserving depth ceiling through two
+new helpers used at both release sites; off = the shipped rule byte-for-byte
+(selfcheck PASS, `211` 115 checks). Measured on the same 15-pick episode as P57
+phase 1: `admitted` 3-6 in the band, `window=0` at **1/16** selections (phase 1:
+2/16, P56: 8/14 transitions), longest gap **110** (was 230), placed **11/15**
+(right **10/10**, left 1/5) - a different branch, no rate claim. The 12-pick video
+run reads 9/12 (right 7/7, left 2/5) with no starvation gap. Still true: the
+catchable segment is 0.281 m against the 1.8 m a pick consumes, so 1-2 picks in
+16 can still find nothing - station geometry is the remaining lever, not supply.
+Both knobs default off; no `configs/` change.
+
+### P58: the direct supply profile - the clock pair plus the band interlock at cap 4
+
+The owner's second requirement ("fruit must appear continuously, not in bursts or
+on a timed refresh") is now a **shipped default for the `direct` presentation
+only**: `FRUIT_FEED_CADENCE`, `FRUIT_SUPPLY_BAND_INTERLOCK` (+
+`FRUIT_SUPPLY_BAND_MAX=4`) and `FRUIT_DIRECT_FEED` resolve on when
+`presentation == "direct"`, an explicit environment value winning;
+`FRUIT_DIRECT_CONTINUOUS` stays **0** (opt-in `--continuous N`). The mechanism is
+in P57's entry (the clock ran only inside the policy phase, so the schedule fell
+12-16 s behind and skipped 50 slots) and P58 adds the measurement + the scoping.
+
+**Four cells, 3 seeds x 15 picks, the shipped per-pick interface** (`window`
+mean / `==1` / starved rounds `sel_gap>=169` / final `skipped` / `on_belt` /
+wall s/pick): control **2.57 / 4/45 / 0/42** (the 0 is bought by the reset's
+re-stock) **/ 104-107 / 5.2 / 29.66**; A' cap 3 **2.02 / 12/45 / 1/42 / 41-36-39
+/ 9.2 / 34.07**; **A'' cap 4 2.38 / 9/45 / 0/42 / 8-4-9 / 11 / 35.40**; A'''
+interlock off **2.20 / 12/45 / 5/42 (169/380/170/289/291) / 2-0-2 / 10.8 /
+35.43**. The pre-registered branch rule reads **B2**: dropping the interlock
+starves **5/42** against A' 's 1/42 and A''s 0/42, so the interlock is
+load-bearing - and it must be **cap 4**: at cap 3 the cap binds and refuses ~2.5
+patch partners per pick, which thins the window and starves once. **Cap 3 is a
+measured regression.**
+
+**Two instrument lessons, both now in AGENTS.** (1) `supply_skipped` does not
+count the non-bed interlock's drop - that branch re-bases `_next_release` without
+touching the counter, so the loss shows up as a **starved feed round**; A'''s
+"best skips (2/0/2), worst boundary (5/42)" is exactly that. (2) `on_belt` is
+not a catch metric: `on_belt = admitted + below_window` on all 45 blocks, and at
+cap 4 **54 %** of the candidate rows are already past the 0.180 window floor -
+the catchable read is the `window` distribution. The control's deeper window
+(2.60) is a **post-reset-burst** instant - the timed refresh the owner rejected -
+so it is the rejected baseline, not the bar.
+
+**Wall +19.3 %** (29.66 -> 35.40 s/pick) at a **flat sim span**: a harness cost
+(0.01623 -> 0.01941 s/tick with 6 -> 12 live bodies; P55's feeder alone +11.1 %,
+P33-A's body physics +24 % for 21 vs 6.6), reported and never gated.
+
+**Implementation**: the profile is resolved once by `rl_env._resolve_supply_profile`
+and passed as **kwargs** (`FruitSpawner(band_interlock=, band_max=)`,
+`PickAndPlaceTask(feed_cadence=)`, `None` = the shipped env read) - never by
+mutating the environment, because `tasks.py`/`fruits.py` have no `presentation`
+and a global default would arm the scripted line and move the two-line supply.
+The manifest gains a `supply` block (`cadence`/`band_interlock`/`band_max`/
+`direct_feed`/`continuous`/`defaulted`) and the run prints
+`[supply] direct profile: cadence=on(default) band=on(4)(default) feed=on(default)`.
+`--continuous N` is added to `110/121/136`, and a continuous run's summary is
+**pick-level** (`[rl] picks placed k/n` + `rollout success k/n ... unit=pick`) so
+`113`/`129` stop reading a `0/1`.
+
+**Validation**: selfcheck PASS (the new `230_p58_supply_selftest.py` leg);
+`accept.sh` **6/10 + `fingerprint: matches`** with **377/377** `[fruit]` lines
+identical to `logs/p41/p2/accept_profile.log` (an import guard - the scripted
+path never builds `SortingRLEnv`); the two-line dense run **PASS** at `190`'s
+floor 0.60 against `2246f83c`; `211` ok (115 checks); the direct smoke prints the
+profile row and writes the manifest block with `defaulted` all true.
+**Re-baseline:** every pre-P58 direct number is a pre-profile number
+(`FRUIT_FEED_CADENCE=0 FRUIT_SUPPLY_BAND_INTERLOCK=0 FRUIT_DIRECT_FEED=0`, plus
+`FRUIT_ARM_PARK=ready` for pre-P43 and `FRUIT_POLICY_TRIGGER_ACQ=0` for pre-P54).

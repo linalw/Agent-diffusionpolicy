@@ -823,7 +823,15 @@ class FruitSpawner:
         "pear": ((0.72, 0.78, 0.25), 0.45),
     }
 
-    def __init__(self, stage: Usd.Stage, cfg: SceneConfig, root: str = "/World/Fruits", seed: int = 0):
+    def __init__(
+        self,
+        stage: Usd.Stage,
+        cfg: SceneConfig,
+        root: str = "/World/Fruits",
+        seed: int = 0,
+        band_interlock: bool | None = None,
+        band_max: int | None = None,
+    ):
         self.stage = stage
         self.cfg = cfg
         self.root = root
@@ -937,8 +945,19 @@ class FruitSpawner:
         #: ceiling is a **depth** over the same 0.58 m band, so the linear density
         #: is preserved (`FRUIT_SUPPLY_BAND_MAX=3` = 5.2/m). Off: every existing
         #: schedule keeps the station-window rule byte-for-byte.
-        self._band_interlock = os.environ.get("FRUIT_SUPPLY_BAND_INTERLOCK", "0") == "1"
-        self._band_max = max(1, int(os.environ.get("FRUIT_SUPPLY_BAND_MAX", "3")))
+        #: P58: the caller may own the resolution (the direct presentation's
+        #: supply profile, `rl_env._resolve_supply_profile`). `None` keeps the
+        #: shipped environment read, so every non-direct caller is byte-inert.
+        self._band_interlock = (
+            band_interlock
+            if band_interlock is not None
+            else os.environ.get("FRUIT_SUPPLY_BAND_INTERLOCK", "0") == "1"
+        )
+        self._band_max = (
+            max(1, int(band_max))
+            if band_max is not None
+            else max(1, int(os.environ.get("FRUIT_SUPPLY_BAND_MAX", "3")))
+        )
         #: P32 Gate-A residual R2, bed only: the stride of the scan-only
         #: end-of-line sweep (`scan_despawn`, called from the driver's
         #: `_step_sim`). The end-of-line recycle lived **only** inside `update`,

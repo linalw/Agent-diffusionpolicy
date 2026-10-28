@@ -348,7 +348,7 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: unchanged and this env passes `direct=True`, i.e. it keeps the
 #: farthest-upstream pick byte-for-byte. An explicit env value wins on both paths
 #: (`=1` reproduces the measured treatment arm with no code change).
-TASKS_MD5 = "c7eef7010b7c7e55cd8f997bea3c2cc1"
+TASKS_MD5 = "8ad8ddc8a13b6f4d9a96e84791dc04bb"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(
@@ -1143,13 +1143,20 @@ class SortingRLEnv:
         if dagger is not None and presentation != "direct":
             raise ValueError("the DAgger expert is only defined for presentation='direct'")
         self.presentation = presentation
-        #: P55: the live feeder for the direct interface (`FRUIT_DIRECT_FEED=1`,
-        #: default off). See `advance`; the scripted/two-line paths already feed
-        #: inside their loops and are untouched.
-        self._direct_feed = (
-            os.environ.get("FRUIT_DIRECT_FEED", "0") == "1"
-            and presentation == "direct"
-        )
+        #: P58: the direct presentation's **supply profile** - the release clock
+        #: on every tick of both loops (`FRUIT_FEED_CADENCE` in the task, the
+        #: P55 `FRUIT_DIRECT_FEED` in `advance`), the release interlock paced on
+        #: the selector's approach band at `FRUIT_SUPPLY_BAND_MAX=4`, all
+        #: resolved **on for `presentation == "direct"` only** with an explicit
+        #: environment value winning. Note the cap is **4**, not 3: cap 3 is a
+        #: measured regression (`logs/p58/A_APRIME_RESULTS.md`: the cap binds,
+        #: refuses ~2.5 patch partners per pick, thins the catchable window
+        #: 2.38 -> 2.02 and starves 1/42) and cap 4 reads 0/42 with `skipped`
+        #: 8/4/9 against the shipped control's 104/107/105.
+        self._supply = self._resolve_supply_profile(presentation == "direct")
+        #: P55: the live feeder, now part of the profile. `FRUIT_DIRECT_FEED=0`
+        #: restores the pre-P55 behaviour; non-direct presentations stay off.
+        self._direct_feed = bool(self._supply["feed"])
         self._direct_feed_warned = False
         self._direct_feed_refreshed = False
         #: P56: the **multi-pick episode** (`FRUIT_DIRECT_CONTINUOUS=<n>`, default
@@ -1679,7 +1686,17 @@ class SortingRLEnv:
         self.scene.start(physics_dt=1.0 / 120.0, warmup_steps=60)
         self.tactile.refresh()
 
-        self.spawner = FruitSpawner(self.scene.stage, self.cfg, seed=self.seed)
+        self.spawner = FruitSpawner(
+            self.scene.stage,
+            self.cfg,
+            seed=self.seed,
+            band_interlock=(
+                self._supply["band_interlock"] if self.presentation == "direct" else None
+            ),
+            band_max=(
+                self._supply["band_max"] if self.presentation == "direct" else None
+            ),
+        )
         self.spawner.create_pool()
         self.advance(30)
         self.spawner.refresh_rigids()
@@ -1873,8 +1890,13 @@ class SortingRLEnv:
         self._emit_clamped_ticks = 0
 
         # The task is used for its primitives only; it must not record.
-        self.task = PickAndPlaceTask(self.scene, self.spawner, self.tactile, self.cfg,
-                                     waypoint_path=waypoint_path)
+        self.task = PickAndPlaceTask(
+            self.scene, self.spawner, self.tactile, self.cfg,
+            waypoint_path=waypoint_path,
+            feed_cadence=(
+                self._supply["cadence"] if self.presentation == "direct" else None
+            ),
+        )
         self.task.recorder = None
 
         with open("configs/waypoints.json", encoding="utf-8") as fh:
@@ -1934,6 +1956,18 @@ class SortingRLEnv:
             f"camera={self._camera_res_text()} tasks_md5={self.tasks_md5[:8]}")
         if self.trigger_settings.enabled:
             say(f"[rl] {self.trigger_settings.summary()}")
+        if self.presentation == "direct":
+            d = self._supply["defaulted"]
+            say(
+                "[supply] direct profile: "
+                f"cadence={'on' if self._supply['cadence'] else 'off'}"
+                f"{'(default)' if d['cadence'] else '(explicit)'} "
+                f"band={'on' if self._supply['band_interlock'] else 'off'}"
+                f"({self._supply['band_max']})"
+                f"{'(default)' if d['band_interlock'] else '(explicit)'} "
+                f"feed={'on' if self._direct_feed else 'off'}"
+                f"{'(default)' if d['feed'] else '(explicit)'}"
+            )
         if self._continuous_picks > 0:
             say(
                 f"[cont] enabled: picks_target={self._continuous_picks} "
@@ -2189,6 +2223,19 @@ class SortingRLEnv:
             #: A failure here must not stop an eval run: it degrades to a named
             #: block with the reason.
             "physics": self._physics_provenance(),
+            #: P58: the supply profile this store was recorded under. The flip
+            #: changes the release schedule of every direct run, and without
+            #: this block a post-profile store is indistinguishable from a
+            #: pre-profile one by its own metadata (the P41 `physics` rationale,
+            #: `defaulted` following P43's `arm_park.defaulted`).
+            "supply": {
+                "cadence": bool(self._supply["cadence"]),
+                "band_interlock": bool(self._supply["band_interlock"]),
+                "band_max": self._supply["band_max"],
+                "direct_feed": bool(self._direct_feed),
+                "continuous": int(self._continuous_picks),
+                "defaulted": dict(self._supply["defaulted"]),
+            },
             "sources": sources,
         }
 
@@ -2217,6 +2264,48 @@ class SortingRLEnv:
     # ------------------------------------------------------------------ #
     # Stepping
     # ------------------------------------------------------------------ #
+    @staticmethod
+    def _resolve_supply_profile(direct: bool) -> dict:
+        """P58: the direct presentation's supply profile, resolved once.
+
+        Four knobs, one mechanism - the release clock must run on the task's
+        primitive ticks (`FRUIT_FEED_CADENCE` -> `PickAndPlaceTask`) and on the
+        policy phase's `advance` (`FRUIT_DIRECT_FEED`), and the interlock must
+        pace the **approach band** rather than the station window
+        (`FRUIT_SUPPLY_BAND_INTERLOCK`, cap `FRUIT_SUPPLY_BAND_MAX`). All four
+        default **on for `direct` only**; an explicit environment value wins, so
+        `FRUIT_FEED_CADENCE=0 FRUIT_SUPPLY_BAND_INTERLOCK=0 FRUIT_DIRECT_FEED=0`
+        reproduces every pre-P58 direct number. The profile is passed to the
+        spawner/task as keyword arguments (`None` there = the shipped env read),
+        never by mutating the process environment, so the scripted line and the
+        two-line scheduler stay byte-identical (`logs/p58/A_RESULTS.md` P3:
+        `accept.sh` 377/377 identical + `fingerprint: matches`).
+        """
+        def _flag(name: str, default: bool) -> tuple[bool, bool]:
+            raw = os.environ.get(name)
+            return (default, True) if raw is None else (raw == "1", False)
+
+        cadence, cad_defaulted = _flag("FRUIT_FEED_CADENCE", direct)
+        band, band_defaulted = _flag("FRUIT_SUPPLY_BAND_INTERLOCK", direct)
+        feed, feed_defaulted = _flag("FRUIT_DIRECT_FEED", direct)
+        raw_max = os.environ.get("FRUIT_SUPPLY_BAND_MAX")
+        if raw_max is not None:
+            band_max = max(1, int(raw_max))
+        else:
+            band_max = 4 if direct else None
+        return {
+            "cadence": bool(cadence) and direct,
+            "band_interlock": bool(band) and direct,
+            "band_max": band_max if direct else None,
+            "feed": bool(feed) and direct,
+            "defaulted": {
+                "cadence": cad_defaulted,
+                "band_interlock": band_defaulted,
+                "band_max": raw_max is None,
+                "feed": feed_defaulted,
+            },
+        }
+
     def advance(self, steps: int) -> None:
         """Tick-exact physics advance + callback pump.
 

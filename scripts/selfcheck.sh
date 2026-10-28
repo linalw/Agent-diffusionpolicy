@@ -207,6 +207,7 @@ run_check "P52 retime scale" "$python" scripts/228_p52_retime_selftest.py
 # reading it as "off". The env wiring is pinned by AST (the clip is the last
 # shaping before the drives; the hold scales `steps` behind its knob).
 run_check "P53 emission cells" "$python" scripts/229_p53_emit_selftest.py
+run_check "P58 supply profile" "$python" scripts/230_p58_supply_selftest.py
 
 if [ -n "$run_log" ] && [ -f "$run_log" ]; then
     run_check "motion budgets" "$python" scripts/105_motion_regression.py "$run_log" \

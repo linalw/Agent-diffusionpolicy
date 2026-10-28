@@ -127,6 +127,9 @@ def main() -> int:
         help="policy checkpoint to roll out",
     )
     parser.add_argument("--episodes", type=int, default=int(os.environ.get("FRUIT_EPISODES", "3")))
+    parser.add_argument("--continuous", type=int,
+                        default=int(os.environ.get("FRUIT_DIRECT_CONTINUOUS", "0")),
+                        help="multi-pick episode: N picks per reset (P56/P58). Sets FRUIT_DIRECT_CONTINUOUS; 0 = the shipped one-pick-per-episode loop")
     parser.add_argument(
         "--seed",
         type=int,
@@ -149,6 +152,10 @@ def main() -> int:
     parser.add_argument("--size-filter", choices=["", "small", "large"], default="")
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
+    if args.continuous:
+        # P58: the multi-pick episode is an explicit run-length mode, never a
+        # default (it rescales --episodes and the summary becomes pick-level).
+        os.environ["FRUIT_DIRECT_CONTINUOUS"] = str(int(args.continuous))
     install_failure_handler("121_policy_video")
 
     stride = max(1, int(args.capture_every))

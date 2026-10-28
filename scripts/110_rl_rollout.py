@@ -80,6 +80,9 @@ def main() -> int:
                         default=int(os.environ.get("FRUIT_EPISODES", "15")))
     parser.add_argument("--seeds", default=os.environ.get("FRUIT_RL_SEEDS", "77"),
                         help="comma-separated spawner seeds, one run each")
+    parser.add_argument("--continuous", type=int,
+                        default=int(os.environ.get("FRUIT_DIRECT_CONTINUOUS", "0")),
+                        help="multi-pick episode: N picks per reset (P56/P58). Sets FRUIT_DIRECT_CONTINUOUS; 0 = the shipped one-pick-per-episode loop")
     parser.add_argument("--presentation", choices=["direct", "handoff"], default="direct")
     parser.add_argument("--size-filter", choices=["", "small", "large"], default="",
                         help="SceneConfig fruit-size pool (empty = FRUIT_SIZE_FILTER/default)")
@@ -158,6 +161,10 @@ def main() -> int:
                              "from the selected sample (default off)")
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
+    if args.continuous:
+        # P58: the multi-pick episode is an explicit run-length mode, never a
+        # default (it rescales --episodes and the summary becomes pick-level).
+        os.environ["FRUIT_DIRECT_CONTINUOUS"] = str(int(args.continuous))
     install_failure_handler("110_rl_rollout")
 
     # RTC knobs are environment-driven so the env and its manifest see exactly
@@ -248,6 +255,8 @@ def main() -> int:
 
     totals = []
     dagger_totals = []
+    picks_done = 0
+    picks_placed = 0
     for seed in seeds:
         successes = 0
         episodes = 0
@@ -269,15 +278,30 @@ def main() -> int:
             expert_ticks += int(info.get("expert_ticks", 0))
             agent_ticks += int(info.get("decision", 0))
         totals.append((successes, episodes))
+        #: P58: in a continuous (multi-pick) episode `info["success"]` is the
+        #: **last pick's**, so an episode-level line reads e.g. `0/1` for a run
+        #: that placed 10 of 15. The pick is the unit of that mode, and the
+        #: summary is promoted to it so `113_rl_report.py`/`129_rtc_report.py`
+        #: (which parse `rollout success k/n`) read the right numbers.
+        picks_done += int(getattr(env, "_picks_done", 0) or 0)
+        picks_placed += int(getattr(env, "_cont_placed", 0) or 0)
         dagger_totals.append((interventions, expert_ticks, agent_ticks))
         say(f"[rl] seed {seed}: {successes}/{episodes} success")
 
     ok = sum(s for s, _ in totals)
     n = sum(e for _, e in totals)
     run_end = time.time()
+    if args.continuous and picks_done:
+        say(
+            f"[rl] picks placed {picks_placed}/{picks_done} (continuous mode: "
+            f"the unit is the pick, not the episode)"
+        )
     say(
-        f"[rl] rollout success {ok}/{n} "
-        f"(presentation={args.presentation}, ablate={args.ablate}, seeds={seeds})"
+        f"[rl] rollout success "
+        f"{picks_placed if (args.continuous and picks_done) else ok}/"
+        f"{picks_done if (args.continuous and picks_done) else n} "
+        f"(presentation={args.presentation}, ablate={args.ablate}, seeds={seeds}"
+        f"{', unit=pick' if args.continuous else ''})"
     )
     say(
         f"[rl] run wall end {run_end:.3f} duration {run_end - run_start:.1f}s"
