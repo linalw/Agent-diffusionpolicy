@@ -2459,7 +2459,7 @@ untouched (`8a399626` / `2246f83c` both stand); checkpoint `moe_v13s`
 catch-margin arms both fail E1 and the bar is not adjudicable, so the lane closes
 as **non-binding** rather than as a loss).** With the shipped profile as the
 control (`window` **2.378**, `==1` 9/45), **A (`FRUIT_SUPPLY_BAND_MAX=5`)** reads
-**2.533**, `==1` **4/45** (non-worse in 3/3 seeds, per-run exact p = 0.125) and
+**2.533**, `==1` **4/45** (non-worse in 3/3 seeds; the per-seed pairs are 39/39/36 vs 36/39/32, ties-dropped p = 0.25, pooled p = 0.50) and
 **B (`FRUIT_SUPPLY_TARGET_FROM=0.40`)** 2.267, 10/45; both have **0/42 starved
 rounds**. E1's `2.57` bar is the **pre-P58 burst** cell pooled over **51** blocks
 - it includes the 5-pick aborted run while every other cell is 45 (same foot:
@@ -2480,7 +2480,7 @@ P58 phase-3b cell, `rl_env` `ddcb7816` vs `1b1e5cdf`) **and a behavioural
 endpoint**, not a depth mean; cap 6 is predicted flat by the saturated
 dose-response and the 0.399 m catch floor. Artifact: `logs/p59/p2_report.py`
 exits **0** (the arm check matches the `[supply] direct profile` row) ->
-`p2_report.txt`. Pins unchanged (`rl_env.py` `6d7cb329` / `tasks.py` `8ad8ddc8` /
+`p2_report.txt`. Pins unchanged (`rl_env.py` `1b1e5cdf` / `tasks.py` `8ad8ddc8` /
 `fruits.py` `c7461d41`); no `configs/` change. Evidence
 `logs/p59/{PREREG_P2,P2_RESULTS}.md`, `p2/`, `p2_report.{py,txt}`; WORKLOG
 "P59 P2".
