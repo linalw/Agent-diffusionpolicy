@@ -19621,3 +19621,39 @@ profile row and writes the manifest block with `defaulted` all true.
 **Re-baseline:** every pre-P58 direct number is a pre-profile number
 (`FRUIT_FEED_CADENCE=0 FRUIT_SUPPLY_BAND_INTERLOCK=0 FRUIT_DIRECT_FEED=0`, plus
 `FRUIT_ARM_PARK=ready` for pre-P43 and `FRUIT_POLICY_TRIGGER_ACQ=0` for pre-P54).
+
+### P59 P2: the catch-margin arms are non-binding, and the bar is not adjudicable
+
+The shipped profile keeps 2.38 bodies in the catchable window against the pre-P58
+burst control's 2.600. Two substitute knobs were registered (one variable each):
+`BAND_MAX=5` and `TARGET_FROM=0.40`. Measured on 45 `[bed-sel]` blocks per cell:
+cap 5 reads **2.533 / ==1 4/45** (from cap 4's 2.378 / 9/45; non-worse in 3/3
+seeds, per-run exact p = 0.125), upstream-edge reads 2.267 / 10/45; both 0/42
+starves, `skipped` 21 = 21, placed 27 vs 28, wall 530.2 vs 531.1 s/pick.
+
+**E1's 2.57 bar is mis-footed**: it is the burst cell pooled over **51** blocks and
+includes the 5-pick aborted run (`logs/p58/p1/A_77_aborted_5picks.log`) while every
+other cell is 45 - on the same foot the burst reads **2.600**, so the bar sits
+0.03 below its own cell and 0.26 SE inside cap 5's 95 % CI **[2.282, 2.784]**
+(sd 0.859 -> SE 0.128; two arms need |delta| >= 0.50 at n=45). **No depth mean
+ranks the arms**, and **nothing behavioural moves**: `sel_gap` is the identical
+multiset {139x8, 140x25, 141x9} for cap 4 and cap 5, `window==0` 0/45 and starves
+0/42 in all four cells. So **cap 4 stays** and the lane closes as **non-binding**,
+not as a loss.
+
+`TARGET_FROM=0.40` is rejected **mechanically**: `window` counts only
+`usable`/`chosen` (`tasks.py:5515`), so the "12.9 % dead sliver" rationale targeted
+the report's re-derived occupancy; on the real counter the arm reads **2.244 vs
+2.711** while **`below catch floor` rises 2.31 -> 2.82 per block** - it moves stock
+into the sliver it meant to delete.
+
+**Two registration defects are named, not papered over**: (1) the control E1 named
+("the P59 phase-1 logs, 45 selections") **does not exist** - phase 1 ran
+2/1/continuous-10/continuous-8 picks - so the substitute is the cross-tree P58
+phase-3b cell (`rl_env` `ddcb7816` vs `1b1e5cdf`) whose cap-4 membership rests on
+`A2_header.txt`; (2) registering a bar the analyst had already argued is a refresh
+artifact is a registration error, and its remedy is a **new** registration with a
+**same-tree 45-block control** and a **behavioural** endpoint, never a reading of
+this one. Cap 6 is predicted flat (dose-response saturated, aperture bounded by the
+0.399 m catch floor). Artifact: `logs/p59/p2_report.py` exits **0** and writes the
+table (`logs/p59/p2_report.txt`).

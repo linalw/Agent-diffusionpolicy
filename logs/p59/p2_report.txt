@@ -1,0 +1,96 @@
+# P59 phase 2 report — the catch-margin arms (one variable each)
+# # tree: ee522c160266775b6c0eb5df51773b52d1ab7be5  (working tree has the P59 gate-1 provenance-only edit)
+# 61da390a85fa209496b54477a8255d23  checkpoints/moe_v13s/policy_best.pt
+# 1b1e5cdf32f3ccf93d94d8f5835d0a3b  src/fruit_sorting/rl_env.py
+# 8ad8ddc8a13b6f4d9a96e84791dc04bb  src/fruit_sorting/tasks.py
+# c7461d4104cf2c5f6c5a2daab80fbf32  src/fruit_sorting/fruits.py
+# abd2b5f1e1adb3c225c19a9c3fdd0d91  scripts/110_rl_rollout.py
+# tree pins after the batch: STABLE
+# arms A (cap 5) [77, 101, 202]  B (upstream 0.40) [77, 101, 202]  | control A'' [77, 101, 202]  burst [77, 101, 202]
+
+== the arm is what it claims (PREREG_P2 reading rule 5; stop if not) ==
+  A seed  77: direct profile: cadence=on(default) band=on(5(explicit))(default) feed=on(default) target_from=0.35(default)   -> OK
+  A seed 101: direct profile: cadence=on(default) band=on(5(explicit))(default) feed=on(default) target_from=0.35(default)   -> OK
+  A seed 202: direct profile: cadence=on(default) band=on(5(explicit))(default) feed=on(default) target_from=0.35(default)   -> OK
+  B seed  77: direct profile: cadence=on(default) band=on(4)(default) feed=on(default) target_from=0.40(explicit)   -> OK
+  B seed 101: direct profile: cadence=on(default) band=on(4)(default) feed=on(default) target_from=0.40(explicit)   -> OK
+  B seed 202: direct profile: cadence=on(default) band=on(4)(default) feed=on(default) target_from=0.40(explicit)   -> OK
+
+== the runs (unit = one pick = one `[rl] episode ... success=` row) ==
+  A seed  77: picks=15 placed= 9 (left 0/4, right 9/11) bed_rows=15 feed_rows=12 cont_rows=0 on_belt med 13 window mean 2.60 ==1 1/15 skipped_final 6 gap max 141 wall=534.4s starve_lines=0
+  A seed 101: picks=15 placed= 8 (left 0/6, right 8/9) bed_rows=15 feed_rows=14 cont_rows=0 on_belt med 12 window mean 2.60 ==1 2/15 skipped_final 11 gap max 141 wall=531.9s starve_lines=0
+  A seed 202: picks=15 placed=10 (left 0/4, right 10/11) bed_rows=15 feed_rows=14 cont_rows=0 on_belt med 13 window mean 2.40 ==1 1/15 skipped_final 4 gap max 141 wall=524.4s starve_lines=0
+  B seed  77: picks=15 placed=11 (left 0/4, right 11/11) bed_rows=15 feed_rows=14 cont_rows=0 on_belt med 12 window mean 2.33 ==1 3/15 skipped_final 3 gap max 141 wall=535.4s starve_lines=0
+  B seed 101: picks=15 placed= 9 (left 0/5, right 9/10) bed_rows=15 feed_rows=15 cont_rows=0 on_belt med 12 window mean 2.13 ==1 4/15 skipped_final 3 gap max 141 wall=514.1s starve_lines=0
+  B seed 202: picks=15 placed= 9 (left 1/7, right 8/8) bed_rows=15 feed_rows=14 cont_rows=0 on_belt med 13 window mean 2.33 ==1 3/15 skipped_final 2 gap max 141 wall=510.3s starve_lines=0
+
+== the registered table (pooled per arm; controls re-read from their logs) ==
+  burst control (pre-P58)   : sel 45  window mean 2.60  ==1  4/45  >=3 21  dist {1: 4, 2: 20, 3: 11, 4: 10}
+                              on_belt med 5 (mean 5.22)  admitted med 5 (mean 5.00)  live med 6  below-window 0.20/block  starves 0/42  skipped {77: 104, 101: 107, 202: 105}  placed 33/45  wall/pick 29.66
+                              feeder: releases 0 over 0 feed-ticks = n/a/sim-s  lag med -0.92s  rebased 0  dropped 0.0s  station-window occ mean 2.98  interlock-band occ mean 2.82  catchable-aperture occ mean 2.60  sum(window) 117
+  control A'' (cap 4)       : sel 45  window mean 2.38  ==1  9/45  >=3 18  dist {1: 9, 2: 18, 3: 10, 4: 8}
+                              on_belt med 11 (mean 10.93)  admitted med 5 (mean 4.69)  live med 12  below-window 6.24/block  starves 0/42  skipped {77: 8, 101: 4, 202: 9}  placed 28/45  wall/pick 35.40
+                              feeder: releases 537 over 58305 feed-ticks = 1.11/sim-s  lag med -0.78s  rebased 0  dropped 0.0s  station-window occ mean 3.98  interlock-band occ mean 2.71  catchable-aperture occ mean 2.40  sum(window) 107
+  arm A (cap 5)             : sel 45  window mean 2.53  ==1  4/45  >=3 21  dist {1: 4, 2: 20, 3: 14, 4: 7}
+                              on_belt med 13 (mean 11.82)  admitted med 5 (mean 5.33)  live med 13  below-window 6.47/block  starves 0/42  skipped {77: 6, 101: 11, 202: 4}  placed 27/45  wall/pick 35.35
+                              feeder: releases 500 over 52498 feed-ticks = 1.14/sim-s  lag med -0.87s  rebased 0  dropped 0.0s  station-window occ mean 4.27  interlock-band occ mean 3.11  catchable-aperture occ mean 2.53  sum(window) 114
+  arm B (upstream 0.40)     : sel 45  window mean 2.27  ==1 10/45  >=3 16  dist {1: 10, 2: 19, 3: 10, 4: 6}
+                              on_belt med 12 (mean 11.62)  admitted med 5 (mean 5.09)  live med 13  below-window 6.49/block  starves 0/42  skipped {77: 3, 101: 3, 202: 2}  placed 29/45  wall/pick 34.66
+                              feeder: releases 562 over 56915 feed-ticks = 1.18/sim-s  lag med -0.67s  rebased 0  dropped 0.0s  station-window occ mean 4.53  interlock-band occ mean 2.24  catchable-aperture occ mean 2.27  sum(window) 102
+  note: the burst-control directory also holds 1 aborted run(s), excluded by the numeric-seed load; PREREG's 2.57 is the pooled 51-selection read.
+
+== endpoints (PREREG_P2 §Endpoints) ==
+  arm A: E1 window mean 2.53 >= 2.57 and ==1 4/45 <= 4  FAIL   (window>=1 45/45)
+         E2 starved feed rounds 0/42 (sel_gap>=169) PASS   starve-string lines {77: 0, 101: 0, 202: 0}
+         E3 skipped {77: 6, 101: 11, 202: 4} every run <= 20  PASS
+         window==1 vs control A'' 4/45 vs 9/45  Fisher p = 0.230  | vs burst 4/45 -> equal
+         reported only (not registered): permutation p on the `window` mean vs control A'' = 0.50; vs burst = 0.82
+  arm B: E1 window mean 2.27 >= 2.57 and ==1 10/45 <= 4  FAIL   (window>=1 45/45)
+         E2 starved feed rounds 0/42 (sel_gap>=169) PASS   starve-string lines {77: 0, 101: 0, 202: 0}
+         E3 skipped {77: 3, 101: 3, 202: 2} every run <= 20  PASS
+         window==1 vs control A'' 10/45 vs 9/45  Fisher p = 1.000  | vs burst 4/45 -> more
+         reported only (not registered): permutation p on the `window` mean vs control A'' = 0.67; vs burst = 0.12
+
+== E4 no new failure reason (113's normalisation) ==
+  arm A keys (2):
+    - 'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)'
+    - 'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)', 'fruit did not follow the gripper'
+  arm A NEW vs control A'' + the P43/P54 baseline: none  -> E4 PASS
+  arm B keys (2):
+    - 'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)'
+    - 'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)', 'fruit did not follow the gripper'
+  arm B NEW vs control A'' + the P43/P54 baseline: none  -> E4 PASS
+  A keys not in B: none
+  B keys not in A: none
+
+== composition detail: the below-window (past-station) rows ==
+  burst control (pre-P58)   : below-window   9/45 = 0.20 per block (3.4 % of 265 candidate rows)  identity mismatches 0  per run {77: 0.13, 101: 0.27, 202: 0.2}
+  control A'' (cap 4)       : below-window 281/45 = 6.24 per block (54.2 % of 518 candidate rows)  identity mismatches 0  per run {77: 6.13, 101: 6.33, 202: 6.27}
+  arm A (cap 5)             : below-window 291/45 = 6.47 per block (52.4 % of 555 candidate rows)  identity mismatches 0  per run {77: 6.53, 101: 6.53, 202: 6.33}
+  arm B (upstream 0.40)     : below-window 292/45 = 6.49 per block (53.2 % of 549 candidate rows)  identity mismatches 0  per run {77: 6.6, 101: 6.53, 202: 6.33}
+
+== the along histogram at the selection instants (bodies per bin, pooled 45 selections, off-belt excluded) ==
+   bins: past station (<0) | 0..0.15 | 0.15..0.399 (approach) | 0.399..0.68 (catchable aperture) | above spawn (>0.68)
+  burst control (pre-P58)   : [1, 32, 84, 117, 0]  total 234  shares 0.4% 13.7% 35.9% 50.0% 0.0%
+  control A'' (cap 4)       : [240, 52, 92, 108, 0]  total 492  shares 48.8% 10.6% 18.7% 22.0% 0.0%
+  arm A (cap 5)             : [256, 60, 101, 114, 0]  total 531  shares 48.2% 11.3% 19.0% 21.5% 0.0%
+  arm B (upstream 0.40)     : [261, 50, 108, 102, 0]  total 521  shares 50.1% 9.6% 20.7% 19.6% 0.0%
+
+== supply provenance (read-only; the P58 check verbatim) ==
+  arm A seed  77: patch=on True  grades_balanced True  [bed-sel] 15/15  [feed] 12  cont_rows 0
+                  presentation=direct ablate=none dagger=off park=back(default) camera=240,424 tasks_md5=8ad8ddc8
+  arm A seed 101: patch=on True  grades_balanced True  [bed-sel] 15/15  [feed] 14  cont_rows 0
+                  presentation=direct ablate=none dagger=off park=back(default) camera=240,424 tasks_md5=8ad8ddc8
+  arm A seed 202: patch=on True  grades_balanced True  [bed-sel] 15/15  [feed] 14  cont_rows 0
+                  presentation=direct ablate=none dagger=off park=back(default) camera=240,424 tasks_md5=8ad8ddc8
+  arm B seed  77: patch=on True  grades_balanced True  [bed-sel] 15/15  [feed] 14  cont_rows 0
+                  presentation=direct ablate=none dagger=off park=back(default) camera=240,424 tasks_md5=8ad8ddc8
+  arm B seed 101: patch=on True  grades_balanced True  [bed-sel] 15/15  [feed] 15  cont_rows 0
+                  presentation=direct ablate=none dagger=off park=back(default) camera=240,424 tasks_md5=8ad8ddc8
+  arm B seed 202: patch=on True  grades_balanced True  [bed-sel] 15/15  [feed] 14  cont_rows 0
+                  presentation=direct ablate=none dagger=off park=back(default) camera=240,424 tasks_md5=8ad8ddc8
+
+== decision rule (PREREG_P2 §Decision rule) ==
+  A meets E1-E4: False | B meets E1-E4: False
+  neither meets E1 -> change nothing; record the residual (the aperture ceiling is the named limit, P33/P56)
+  residual read: window mean A 2.53 / B 2.27 vs control A'' 2.38 and burst 2.57; window>=1 A 45/45 B 45/45

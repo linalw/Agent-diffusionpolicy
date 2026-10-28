@@ -2455,6 +2455,36 @@ untouched (`8a399626` / `2246f83c` both stand); checkpoint `moe_v13s`
 `logs/p58/{PREREG,PREREG_A_APRIME,PREREG_A_APRIME2,PREREG_A_APRIME3,A_RESULTS,A_APRIME_RESULTS,A_APRIME2_RESULTS,A_APRIME3_RESULTS,P58_RESULTS}.md`,
 `A{2,3}_report.txt`, `p1/`, `p3a/`, `p3b/`, `p3c/`, `v_*.log`; WORKLOG "P58".
 
+**P59 phase 2 (2026-10-28, `logs/p59/p2/`; **no shipped change** - the
+catch-margin arms both fail E1 and the bar is not adjudicable, so the lane closes
+as **non-binding** rather than as a loss).** With the shipped profile as the
+control (`window` **2.378**, `==1` 9/45), **A (`FRUIT_SUPPLY_BAND_MAX=5`)** reads
+**2.533**, `==1` **4/45** (non-worse in 3/3 seeds, per-run exact p = 0.125) and
+**B (`FRUIT_SUPPLY_TARGET_FROM=0.40`)** 2.267, 10/45; both have **0/42 starved
+rounds**. E1's `2.57` bar is the **pre-P58 burst** cell pooled over **51** blocks
+- it includes the 5-pick aborted run while every other cell is 45 (same foot:
+**2.600**) - so it matches no row, and A's mean 95 % CI is **[2.282, 2.784]**
+(two arms need |delta| >= 0.50 to separate at n=45): **no depth mean ranks the
+arms**. What decides it is that **nothing behavioural moves** - `window==0` 0/45
+and starves 0/42 in all four cells, `sel_gap` the **identical multiset**
+{139x8, 140x25, 141x9} for cap 4 and cap 5, `skipped` **21 = 21**, placed 27 vs
+28, wall 530.2 vs 531.1 s/pick - so cap 5 moves a counter no behaviour reads and
+**cap 4 stays**. **`TARGET_FROM=0.40` is rejected mechanically**: `window` counts
+only `usable`/`chosen` (`tasks.py:5515`), so its "dead sliver" rationale targeted
+a re-derived occupancy, and on the real counter it reads 2.244 vs 2.711 while
+`below catch floor` **rises 2.31 -> 2.82/block** - it feeds the sliver it meant
+to delete (its `skipped` 8 vs 21 at zero starvation is the recorded trade).
+**Reopening** needs a **same-tree 45-block control** (this registration's named
+control does not exist - phase 1 never ran one; the substitute was the cross-tree
+P58 phase-3b cell, `rl_env` `ddcb7816` vs `1b1e5cdf`) **and a behavioural
+endpoint**, not a depth mean; cap 6 is predicted flat by the saturated
+dose-response and the 0.399 m catch floor. Artifact: `logs/p59/p2_report.py`
+exits **0** (the arm check matches the `[supply] direct profile` row) ->
+`p2_report.txt`. Pins unchanged (`rl_env.py` `6d7cb329` / `tasks.py` `8ad8ddc8` /
+`fruits.py` `c7461d41`); no `configs/` change. Evidence
+`logs/p59/{PREREG_P2,P2_RESULTS}.md`, `p2/`, `p2_report.{py,txt}`; WORKLOG
+"P59 P2".
+
 ## 3. What changed -> what to run
 
 | you changed | run |
