@@ -2448,7 +2448,7 @@ canary builds its own spawner (`60_eval_policy.py`), so `moe_v12` is
 **untested** on this profile. Not covered: `BAND_MAX` 5-6,
 `FRUIT_SUPPLY_TARGET_FROM` 0.40, the two-line (its own `feed_pump`; `_feed_scope`
 excludes it), the handoff presentation, and any store recorded under the
-profile. Pins: `rl_env.py` **`5060a18a`**, `tasks.py` **`8ad8ddc8`**,
+profile. Pins: `rl_env.py` **`6d7cb329`**, `tasks.py` **`8ad8ddc8`**,
 `fruits.py` **`c7461d41`**, `scripts/230_p58_supply_selftest.py`; `configs/*`
 untouched (`8a399626` / `2246f83c` both stand); checkpoint `moe_v13s`
 `61da390a`. Evidence
