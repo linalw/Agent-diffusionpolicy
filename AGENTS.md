@@ -2412,7 +2412,7 @@ starves **0/42** (bought by the reset's re-stock), wall **29.66** s/pick;
 **2.38**, **9/45**, **11**, **8/4/9**, **0/42**, **35.40**; **A''' (interlock
 off)** 2.20, 12/45, 11, **2/0/2**, **5/42 (169/380/170/289/291 - 11.9 %)**,
 35.43. The registrations' branches read: **B1 does not fire** (A''' fails E1
-*and* E3), **B2 fires** (A''' starves 5/42 against A' 's 1/42 and A'''s 0/42),
+*and* E3), **B2 fires** (A''' starves 5/42 against A' 's 1/42 and A''s 0/42),
 **B3 is unreached** - so the unit is the triple at **cap 4**, and **cap 3 is a
 measured regression** (its cap binds and refuses ~2.5 patch partners per pick).
 **Read the two counters together:** `supply_skipped` is *not* the slot-loss
