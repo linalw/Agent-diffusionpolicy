@@ -1,0 +1,44 @@
+P58 phase 2 lever table - every term evaluated from the code, no simulator
+descent profile for hover 0.060 m at v_max 0.15: 93 ticks = 0.7750 s (jerk-limited, TrajectoryLimits.from_env)
+floor = lead + v*setup + margin, lead = min(v*(0.4 + 0.7750 + 0.15) + 0.03, 0.8)
+
+0 baseline (all shipped)                   v=0.120 spawn=+0.680 pick=+0.000 floor=0.399 L=0.2810 T=2.34s
+
+-- one line per lever/value; dL vs the baseline, and the residence time T = L/v
+A pick_y -0.10 (station downstream, WITH the arm) v=0.120 spawn=+0.680 pick=-0.100 floor=0.399 L=0.3810 T=3.18s  dL=+0.1000 m  dT=+0.83 s
+A' pick_y -0.05                            v=0.120 spawn=+0.680 pick=-0.050 floor=0.399 L=0.3310 T=2.76s  dL=+0.0500 m  dT=+0.42 s
+B spawn_y 0.72 (belt edge 0.80)            v=0.120 spawn=+0.720 pick=+0.000 floor=0.399 L=0.3210 T=2.67s  dL=+0.0400 m  dT=+0.33 s
+B' spawn_y 0.74                            v=0.120 spawn=+0.740 pick=+0.000 floor=0.399 L=0.3410 T=2.84s  dL=+0.0600 m  dT=+0.50 s
+B'' spawn_y 0.80 (the measured fall-off edge) v=0.120 spawn=+0.800 pick=+0.000 floor=0.399 L=0.4010 T=3.34s  dL=+0.1200 m  dT=+1.00 s
+C belt 0.09 m/s (slower)                   v=0.090 spawn=+0.680 pick=+0.000 floor=0.314 L=0.3658 T=4.06s  dL=+0.0847 m  dT=+1.72 s
+C' belt 0.06 m/s (the old P1 feed speed)   v=0.060 spawn=+0.680 pick=+0.000 floor=0.230 L=0.4505 T=7.51s  dL=+0.1695 m  dT=+5.17 s
+C'' belt 0.15 m/s (R3's measured point)    v=0.150 spawn=+0.680 pick=+0.000 floor=0.484 L=0.1963 T=1.31s  dL=-0.0847 m  dT=-1.03 s
+C''' belt 0.18 m/s (R3's starvation point) v=0.180 spawn=+0.680 pick=+0.000 floor=0.569 L=0.1115 T=0.62s  dL=-0.1695 m  dT=-1.72 s
+D setup 1.4 s (R3's inert two-line value)  v=0.120 floor=0.387 L=0.2930 T=2.44s  dL=+0.0120 m
+D' setup 1.0 s (R3's tight probe)          v=0.120 floor=0.339 L=0.3410 T=2.84s  dL=+0.0600 m
+D'' setup 0.0 s (the floor's whole setup term) v=0.120 floor=0.219 L=0.4610 T=3.84s  dL=+0.1800 m
+E margin 0.02 (lead margin 0.02 too)       v=0.120 floor=0.379 L=0.3010 T=2.51s  dL=+0.0200 m
+E' margin 0.00                             v=0.120 floor=0.339 L=0.3410 T=2.84s  dL=+0.0600 m
+F descent v_max 0.15                       v=0.120 tdesc=0.775s floor=0.399 L=0.2810 T=2.34s  dL=+0.0000 m
+F descent v_max 0.22                       v=0.120 tdesc=0.550s floor=0.372 L=0.3080 T=2.57s  dL=+0.0270 m
+F descent v_max 0.3                        v=0.120 tdesc=0.550s floor=0.372 L=0.3080 T=2.57s  dL=+0.0270 m
+
+-- the floor's decomposition at the shipped values
+   overhead v*0.4           0.0480 m  12% of the floor
+   descent v*0.775          0.0930 m  23% of the floor
+   descend margin v*0.15    0.0180 m  5% of the floor
+   lead margin              0.0300 m  8% of the floor
+   selection setup v*1.5    0.1800 m  45% of the floor
+   select margin            0.0300 m  8% of the floor
+   floor                    0.1890 m   (lead 0.189 + 0.180 + 0.030)
+
+-- the required release interval (spacing <= L) and the design spacings
+   required interval <= L/v = 2.342 s  (spacing <= 0.281 m)
+   patch sheet slice 0.14-0.22 m -> 1.17-1.83 s  (inside: 0.22 < 0.281)
+   scatter gaps 0.10-0.35 m -> 0.83-2.92 s  (the 0.35 end is +0.069 m OVER L)
+   interlock cap 3 over the counted band [0.35, 0.73] = 0.38 m -> spacing 0.127 m -> 2.22 bodies in the segment
+   a 15 s pick consumes 1.80 m of belt; the segment holds 0.28 m = 0.16 pick-consumptions
+
+-- belt-length limits for the station term
+   belt spans y = +0.80 .. -0.80 (center 0 +- 0.80); spawn_y 0.68 leaves 0.120 m to the upstream edge
+   pick_y to despawn_y headroom 0.70 m (the station can move downstream by at most that before the end-of-line zone)

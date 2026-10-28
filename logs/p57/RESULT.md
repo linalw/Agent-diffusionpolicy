@@ -99,7 +99,7 @@ shipped values, so the default path is byte-unchanged (selfcheck PASS, `211`
 | | cadence off (P56 `Q12`) | cadence on (P57 `cad_s77`) | **+ band interlock (`band_s77`)** |
 |---|---|---|---|
 | pump lag | +11.9..+15.7 s | -0.1..-1.6 s | **-0.5..-1.0 s** |
-| `skipped` | 50 | 3 | **3** |
+| `skipped` | 50 | 3 | **37** (errata, see below) |
 | `on_belt` | 5-6 (median) | 9-13 (median 12) | **8-10** |
 | `admitted` (in the band) | 0-4 | - | **3-6** |
 | `window` = 0 | 8/14 transitions | 2/16 | **1/16** |
@@ -131,3 +131,23 @@ Both new knobs are **off** (`FRUIT_FEED_CADENCE`, `FRUIT_SUPPLY_BAND_INTERLOCK`)
 no `configs/` change. The adoption path is the pre-registered A/B (3 seeds, the
 cadence-off control vs cadence + band, the endpoints `window>=1` share / longest
 gap / `admitted` / no new reason, the placed count reported only).
+
+### Errata (P58 Oracle 2, `logs/p58/GEOMETRY.md` F1)
+
+The `skipped` cell for the band-interlock arm above first read **3**; the log
+reads **37**. The error is mine (the value was copied from the cadence arm).
+Mechanism, now named (and corrected by Oracle 2's re-review): the band cap
+(`FRUIT_SUPPLY_BAND_MAX=3`) **binds** (the band's own median depth is 3), and the
+non-bed interlock **drops** the due slot and re-bases the clock (`fruits.py`
+`_next_release = max(_next_release, sim_time + period)`, ~2391-2393) where the bed
+**holds** it (`bed_holds`). **`skipped` does not count that branch** - it counts
+the clear refusals and the patch's **partner-half** refusals - so the 37 is mostly
+partner halves (~2 lost bodies per pick = ~16.3 % of due slots), and the drop
+itself is proved by the **gap arithmetic**: the realised interval at the one
+starved selection is **2.42 s**, above even the 1.83 s design ceiling (0.22 m /
+0.12 m/s). The `[supply-diag]` row (`FRUIT_SUPPLY_DIAG=1`, `queue=`/`clear=`) is
+the instrument that would separate them; it was not enabled on this run. The window/occupancy/placed numbers
+above are unaffected (they are reads of the same log); the *supply-cost* reading
+is not, and the free knobs that address it (`FRUIT_SUPPLY_BAND_MAX` 3 -> 4-6,
+`FRUIT_SUPPLY_TARGET_FROM` 0.35 -> 0.40) are **unmeasured** and are the P58
+phase-3 follow-up.

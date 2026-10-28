@@ -1,0 +1,99 @@
+P58 phase 2 segment census - belt 0.12 m/s, tick 1/120 s,
+band 0.350..0.730 (the interlock's window),
+segment 0.399..0.680 (the selector's floor .. spawn_y).
+
+== the arithmetic (code sites: tasks.py:5971-6004, tasks.py:6065-6086,
+   fruits.py:2504-2523, assets.py:236-244, assets.py:214-218)
+   segment = spawn_y 0.680 - (pick_y +0.000 + floor 0.399) = 0.281 m
+   residence = 0.281 / 0.12 = 2.34 s
+   a pick consumes 1.80 m; required release interval <= segment/belt = 2.34 s  (spacing <= 0.281 m)
+
+== cadence-on (p57/cad_s77)  selections=17
+   band  [0.350, 0.730] bodies/selection: n=17 p0=0 p25=1 p50=3 p75=4 p90=4 max=4   dist {0: 1, 1: 4, 2: 2, 3: 5, 4: 5}
+   SEG   [0.399, 0.680] bodies/selection: n=17 p0=0 p25=1 p50=2 p75=3 p90=3 max=4   dist {0: 2, 1: 3, 2: 5, 3: 5, 4: 2}
+   header window (usable+chosen): n=17 p0=0 p25=1 p50=2 p75=3 p90=3 max=4   dist {0: 2, 1: 3, 2: 5, 3: 5, 4: 2}
+   on_belt bodies: n=17 p0=4 p25=11 p50=12 p75=12 p90=13 max=13
+   belt travel between selections (gap ticks): n=14 p0=50 p25=50 p50=80 p75=80 p90=110 max=230   = n=14 p0=50 mm p25=50 mm p50=80 mm p75=80 mm p90=110 mm max=230 mm
+   EMPTY SEGMENT: 2/17 selections
+     att  2 t= 34.31 segment=0 band=0 (below floor 0) on_belt=10 window=0 pick=none band_along=[]
+     att  7 t=110.72 segment=0 band=1 (below floor 1) on_belt=12 window=0 pick=none band_along=[0.383]
+   exactly ONE body in the segment: 3/17
+     att  7 t=112.22 seg_along=[0.671] band=1 gap=50
+     att 11 t=180.46 seg_along=[0.618] band=1 gap=80
+     att 14 t=230.45 seg_along=[0.614] band=1 gap=None
+
+== band interlock (p57/band_s77)  selections=16
+   band  [0.350, 0.730] bodies/selection: n=16 p0=1 p25=2 p50=3 p75=3 p90=3 max=3   dist {1: 2, 2: 6, 3: 8}
+   SEG   [0.399, 0.680] bodies/selection: n=16 p0=0 p25=2 p50=2 p75=2 p90=3 max=3   dist {0: 1, 1: 2, 2: 9, 3: 4}
+   header window (usable+chosen): n=16 p0=0 p25=2 p50=2 p75=2 p90=3 max=3   dist {0: 1, 1: 2, 2: 9, 3: 4}
+   on_belt bodies: n=16 p0=4 p25=9 p50=10 p75=10 p90=10 max=10
+   belt travel between selections (gap ticks): n=14 p0=50 p25=50 p50=50 p75=80 p90=80 max=110   = n=14 p0=50 mm p25=50 mm p50=50 mm p75=80 mm p90=80 mm max=110 mm
+   EMPTY SEGMENT: 1/16 selections
+     att  8 t=123.06 segment=0 band=2 (below floor 2) on_belt=8 window=0 pick=none band_along=[0.368, 0.39]
+   exactly ONE body in the segment: 2/16
+     att  2 t= 34.09 seg_along=[0.585] band=1 gap=80
+     att  5 t= 75.67 seg_along=[0.535] band=1 gap=80
+
+== band + video (p57/video_band)  selections=0
+   band  [0.350, 0.730] bodies/selection: n=0   dist {}
+   SEG   [0.399, 0.680] bodies/selection: n=0   dist {}
+   header window (usable+chosen): n=0   dist {}
+   on_belt bodies: n=0
+   EMPTY SEGMENT: 0/0 selections
+   exactly ONE body in the segment: 0/0
+
+== per-pick control (p56/p2/A_1)  selections=15
+   band  [0.350, 0.730] bodies/selection: n=15 p0=2 p25=2 p50=3 p75=4 p90=4 max=4   dist {2: 6, 3: 3, 4: 6}
+   SEG   [0.399, 0.680] bodies/selection: n=15 p0=1 p25=2 p50=2 p75=4 p90=4 max=4   dist {1: 2, 2: 6, 3: 2, 4: 5}
+   header window (usable+chosen): n=15 p0=1 p25=2 p50=2 p75=4 p90=4 max=4   dist {1: 3, 2: 5, 3: 2, 4: 5}
+   on_belt bodies: n=15 p0=3 p25=5 p50=6 p75=7 p90=8 max=8
+   EMPTY SEGMENT: 0/15 selections
+   exactly ONE body in the segment: 2/15
+     att  2 t= 35.48 seg_along=[0.521] band=2 gap=None
+     att 14 t=232.93 seg_along=[0.623] band=2 gap=None
+
+== continuous control (p56/p2/B_1)  selections=23
+   band  [0.350, 0.730] bodies/selection: n=23 p0=0 p25=0 p50=2 p75=3 p90=3 max=4   dist {0: 8, 2: 6, 3: 7, 4: 2}
+   SEG   [0.399, 0.680] bodies/selection: n=23 p0=0 p25=0 p50=1 p75=2 p90=3 max=3   dist {0: 8, 1: 4, 2: 8, 3: 3}
+   header window (usable+chosen): n=23 p0=0 p25=0 p50=1 p75=2 p90=3 max=3   dist {0: 8, 1: 4, 2: 8, 3: 3}
+   on_belt bodies: n=23 p0=4 p25=5 p50=6 p75=7 p90=9 max=11
+   belt travel between selections (gap ticks): n=14 p0=50 p25=80 p50=80 p75=110 p90=110 max=110   = n=14 p0=50 mm p25=80 mm p50=80 mm p75=110 mm p90=110 mm max=110 mm
+   EMPTY SEGMENT: 8/23 selections
+     att  3 t= 49.17 segment=0 band=0 (below floor 0) on_belt=6 window=0 pick=none band_along=[]
+     att  5 t= 81.63 segment=0 band=0 (below floor 0) on_belt=6 window=0 pick=none band_along=[]
+     att  7 t=114.66 segment=0 band=0 (below floor 0) on_belt=9 window=0 pick=none band_along=[]
+     att  8 t=129.28 segment=0 band=0 (below floor 0) on_belt=9 window=0 pick=none band_along=[]
+     att  9 t=145.36 segment=0 band=0 (below floor 0) on_belt=7 window=0 pick=none band_along=[]
+     att 10 t=162.43 segment=0 band=0 (below floor 0) on_belt=11 window=0 pick=none band_along=[]
+     att 12 t=194.50 segment=0 band=0 (below floor 0) on_belt=10 window=0 pick=none band_along=[]
+     att 13 t=210.15 segment=0 band=0 (below floor 0) on_belt=9 window=0 pick=none band_along=[]
+   exactly ONE body in the segment: 4/23
+     att  4 t= 65.99 seg_along=[0.6] band=3 gap=110
+     att  8 t=129.53 seg_along=[0.598] band=2 gap=80
+     att 11 t=178.88 seg_along=[0.539] band=3 gap=None
+     att 14 t=226.55 seg_along=[0.619] band=3 gap=None
+
+== QUEUE_MAX=12 (p56/p3/Q12_s77)  selections=24
+   band  [0.350, 0.730] bodies/selection: n=24 p0=0 p25=0 p50=2 p75=2 p90=3 max=4   dist {0: 9, 1: 3, 2: 6, 3: 4, 4: 2}
+   SEG   [0.399, 0.680] bodies/selection: n=24 p0=0 p25=0 p50=1 p75=2 p90=3 max=4   dist {0: 9, 1: 6, 2: 5, 3: 2, 4: 2}
+   header window (usable+chosen): n=24 p0=0 p25=0 p50=1 p75=2 p90=3 max=4   dist {0: 9, 1: 6, 2: 5, 3: 2, 4: 2}
+   on_belt bodies: n=24 p0=1 p25=5 p50=6 p75=8 p90=9 max=14
+   belt travel between selections (gap ticks): n=14 p0=50 p25=80 p50=80 p75=110 p90=110 max=110   = n=14 p0=50 mm p25=80 mm p50=80 mm p75=110 mm p90=110 mm max=110 mm
+   EMPTY SEGMENT: 9/24 selections
+     att  2 t= 37.58 segment=0 band=0 (below floor 0) on_belt=8 window=0 pick=none band_along=[]
+     att  4 t= 64.50 segment=0 band=0 (below floor 0) on_belt=14 window=0 pick=none band_along=[]
+     att  5 t= 80.81 segment=0 band=0 (below floor 0) on_belt=6 window=0 pick=none band_along=[]
+     att  6 t= 96.67 segment=0 band=0 (below floor 0) on_belt=7 window=0 pick=none band_along=[]
+     att  7 t=112.44 segment=0 band=0 (below floor 0) on_belt=8 window=0 pick=none band_along=[]
+     att  8 t=129.56 segment=0 band=0 (below floor 0) on_belt=7 window=0 pick=none band_along=[]
+     att 10 t=161.85 segment=0 band=0 (below floor 0) on_belt=7 window=0 pick=none band_along=[]
+     att 12 t=194.43 segment=0 band=0 (below floor 0) on_belt=9 window=0 pick=none band_along=[]
+     att 13 t=211.12 segment=0 band=0 (below floor 0) on_belt=9 window=0 pick=none band_along=[]
+   exactly ONE body in the segment: 6/24
+     att  2 t= 37.83 seg_along=[0.56] band=1 gap=50
+     att  4 t= 64.75 seg_along=[0.527] band=1 gap=80
+     att  5 t= 81.06 seg_along=[0.553] band=1 gap=110
+     att  6 t= 96.92 seg_along=[0.592] band=2 gap=110
+     att  8 t=129.81 seg_along=[0.529] band=3 gap=80
+     att 14 t=227.22 seg_along=[0.579] band=2 gap=None
+
