@@ -1,0 +1,25 @@
+=== arm A
+  run 1: 11/15  0:pear/6.1/FAIL  1:peac/6.0/ok  2:kiwi/6.3/ok  3:stra/3.6/ok  4:pear/6.1/FAIL  5:stra/4.3/ok  6:appl/6.8/ok  7:oran/6.0/ok  8:toma/5.4/ok  9:peac/6.0/ok  10:stra/3.6/ok  11:pear/6.1/ok  12:stra/4.3/ok  13:peac/5.8/FAIL  14:pear/6.1/FAIL
+=== arm B
+  run 1: 8/15  0:pear/6.1/FAIL  1:peac/5.8/FAIL  2:kiwi/6.3/ok  3:peac/5.8/FAIL  4:kiwi/6.3/ok  5:toma/5.3/FAIL  6:appl/6.8/ok  7:kiwi/6.3/ok  8:oran/6.0/ok  9:stra/4.3/FAIL  10:peac/5.8/FAIL  11:appl/6.8/ok  12:kiwi/6.3/ok  13:pear/6.1/FAIL  14:stra/3.6/ok
+
+  pooled A: 11/15 (73%)  median ticks 1856
+  pooled B: 8/15 (53%)  median ticks 1828
+
+  paired: 2 both ok, 1 both fail, 0 B-only ok, 1 A-only ok, 11 excluded (fruit class differs)
+  sign test (B better): p = 1.0000 (discordant 1)
+  class                 A          B  delta
+  apple           1/1        2/2      +0%
+  kiwi            1/1        4/4      +0%
+  orange          1/1        1/1      +0%
+  peach           2/3        0/3      -67%
+  pear            1/4        0/2      -25%
+  strawberry      4/4        1/2      -50%
+  tomato          1/1        0/1      -100%
+  median cycle: A 1856 ticks, B 1828 ticks (-1.5%)
+  failure reasons A: ["'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)'"]
+  failure reasons B: ["'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)'", "'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)', 'fruit did not follow the gripper'"]
+  NEW failure reasons in B: ["'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)', 'fruit did not follow the gripper'"]
+
+  criteria: rate B 53% vs A 73% [worse]; sign p=1.0000 [no]; strawberry 50% vs 100% [worse]; new reasons ["'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)', 'fruit did not follow the gripper'"]; cycle 1828 vs 1856 (not faster)
+  VERDICT: no measured improvement of B over A (publish the negative and re-plan)

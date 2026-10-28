@@ -1,0 +1,39 @@
+== fed  (12 episodes)
+   per-episode ticks   {'n': 12, 'min': 1639, 'median': 1888.5, 'mean': 1881.4166666666667, 'max': 2448}
+   inter-attempt gap   {'n': 11, 'min': 140, 'median': 140, 'mean': 140.0, 'max': 140}  unique=[140] extra feed rounds=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+   sim span            24117 ticks = 201.0 s; gap share 6.386%
+   stocked depth (y)   {'n': 12, 'min': 0.491, 'median': 0.583, 'mean': 0.5800833333333334, 'max': 0.675}
+     as a fraction of spawn_y=0.68: {'n': 12, 'min': 0.7220588235294118, 'median': 0.8573529411764705, 'mean': 0.853063725490196, 'max': 0.9926470588235294}
+   arrival wait        {'n': 12, 'min': 1.71, 'median': 2.0700000000000003, 'mean': 2.1241666666666665, 'max': 2.56} s  (mean share of the cycle 13.5%)
+   placed 7/12  success 7/12  placed/min (sim) 2.09
+   arm switches        7/11 (64%)  arms=['left', 'right', 'right', 'left', 'right', 'left', 'right', 'right', 'right', 'right', 'left', 'right']
+   spawner.update on   24117 of 24117 ticks = 100.00% of the span
+   wall 452.7 s  = 37.7 s/pick  sim/wall 0.444
+   code arithmetic     reset=140 ticks (30 feed + 3x30 teleport + 20 settle)
+
+== unfed  (12 episodes)
+   per-episode ticks   {'n': 12, 'min': 1675, 'median': 1786.0, 'mean': 1796.9166666666667, 'max': 1920}
+   inter-attempt gap   {'n': 11, 'min': 140, 'median': 140, 'mean': 140.0, 'max': 140}  unique=[140] extra feed rounds=[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+   sim span            23103 ticks = 192.5 s; gap share 6.666%
+   stocked depth (y)   {'n': 12, 'min': 0.517, 'median': 0.572, 'mean': 0.5709166666666666, 'max': 0.641}
+     as a fraction of spawn_y=0.68: {'n': 12, 'min': 0.7602941176470588, 'median': 0.8411764705882352, 'mean': 0.8395833333333332, 'max': 0.9426470588235294}
+   arrival wait        {'n': 12, 'min': 1.89, 'median': 2.13, 'mean': 2.16, 'max': 2.45} s  (mean share of the cycle 14.4%)
+   placed 8/12  success 8/12  placed/min (sim) 2.49
+   arm switches        6/11 (55%)  arms=['right', 'left', 'right', 'right', 'left', 'right', 'right', 'right', 'right', 'left', 'left', 'right']
+   spawner.update on   360 of 23103 ticks = 1.56% of the span
+   wall 407.5 s  = 34.0 s/pick  sim/wall 0.473
+   code arithmetic     reset=140 ticks (30 feed + 3x30 teleport + 20 settle)
+
+== the two runs side by side
+   gap              140 vs 140 ticks
+   stocked depth    0.583 vs 0.572 m (median), min 0.491 vs 0.517
+   arrival wait     2.07 vs 2.13 s (median)
+   wall             452.7 vs 407.5 s  (+11.1 %)  per sim-s 2.25 vs 2.12
+
+== the reset's 140 ticks, and what continuity can remove
+   feed round (30)          removable: selection reads the live belt
+   inactive-arm park (30)   removable only when the arm does not switch
+   active-arm teleport (30) NOT removable: the pick starts at `grasp`
+   reset settle (20)        NOT removable: the teleport must settle
+   same-arm continue       50 ticks -> saves  90 ticks = 0.75 s = 4.45% of a pick
+   arm-switch continue     80 ticks -> saves  60 ticks = 0.50 s = 2.97% of a pick

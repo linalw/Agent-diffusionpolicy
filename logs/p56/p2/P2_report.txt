@@ -1,0 +1,71 @@
+== per-run shape (a `--episodes` mix-up would show here) ==
+  A_1.log    outcome_rows=15 grasp_rows=15 bedsel=15 distinct_index=15 rollout=(11, 15) wall=494.7 OK
+  B_1.log    outcome_rows=15 grasp_rows=15 bedsel=23 distinct_index=15 rollout=(1, 1) wall=471.1 OK
+
+== P1 the inter-pick gap (sim ticks; bar: median <= 80, max <= 90) ==
+  A_1.log    gaps=[140, 140, 140, 140, 140, 140, 140, 140, 140, 140, 140, 140, 140, 140]
+  A: n=14 min=140 med=140 max=140
+  A: gaps by class 50=0 80=0 110=0 other=[140] | starvation rounds=0
+  B_1.log    gaps=[50, 80, 110, 80, 110, 80, 80, 80, 80, 110, 80, 80, 110, 80]
+  B: n=14 min=50 med=80 max=110
+  B: gaps by class 50=1 80=9 110=4 other=[] | starvation rounds=8
+  B: [cont] gap_ticks=[50, 80, 110, 80, 110, 80, 80, 80, 80, 110, 80, 80, 110, 80] (n=14 min=50 med=80 max=110)
+
+== P2 placed (counts per run; placed/min on the sim span incl. gaps) ==
+  A_1.log    placed=11/15 success=11 sim_span=247.2s  placed/min=2.67  wall=494.7s wall/pick=33.0
+  A: pooled placed=11/15 = 0.733; sim=247.2s -> 2.67 placed/min
+  B_1.log    placed=8/15 success=8 sim_span=239.6s  placed/min=2.00  wall=471.1s wall/pick=31.4
+  B: pooled placed=8/15 = 0.533; sim=239.6s -> 2.00 placed/min
+
+== P3 the belt stock at every selection ([bed-sel] window) ==
+  A_1.log    window=[2, 4, 1, 4, 2, 3, 3, 2, 4, 2, 4, 2, 1, 4, 1] on_belt=[4, 7, 3, 7, 5, 6, 6, 6, 8, 6, 7, 4, 4, 8, 6] (all blocks 15)
+  A: window>=2 at 80.0% of picks (12/15); window med=2; on_belt med=6; live med=6
+  B_1.log    window=[2, 2, 2, 2, 1, 3, 3, 2, 1, 3, 2, 1, 2, 2, 1] on_belt=[4, 5, 5, 5, 5, 6, 7, 6, 4, 7, 5, 6, 5, 6, 5] (all blocks 23)
+  B: window>=2 at 73.3% of picks (11/15); window med=2; on_belt med=5; live med=6
+
+== P4 failure reasons (113's normalisation) ==
+  A: ["'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)'"]
+  B: ["'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)'", "'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)', 'fruit did not follow the gripper'"]
+  P43/P54 baseline set: ["'fruit fell off the line'", "'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#)'", "'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#)', 'fruit did not follow the gripper'", "'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)'", "'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)', 'fruit did not follow the gripper'", "'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)', 'fruit left the pick station during the close (# mm)'"]
+  NEW in B (vs A): ["'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)', 'fruit did not follow the gripper'"]
+  NEW in B (vs A + baseline): none
+  MISSING in B: none
+
+== P5 the accounting (15 distinct indices, the npz files, the sums) ==
+  A_1.log    distinct_index=15/15 contiguous=True
+  B_1.log    distinct_index=15/15 contiguous=True
+  B_1.log    [cont] picks=15/15 placed=8 vs rows 8; ticks_total=27538 == sum(rows)=27538 OK; reward_total=7.710133 vs sum(4dp rows)=7.7101 (delta +3.30e-05)
+  store/A/direct_none_seed77/index.json: index_rows=15 distinct_index=15/15 npz=15 distinct_npz=15
+  store/B/direct_none_seed77/index.json: index_rows=15 distinct_index=15/15 npz=15 distinct_npz=15
+
+== per-pick table (arm B: pick | arm | gap | window | on_belt | placed | ticks) ==
+  B_1.log:  starvation rounds=8 at picks [4, 6, 8, 9, 10, 11, 13, 14]
+    pick  1/15 ep= 0 arm=left  gap=  0 wait= 0 window= 2 on_belt= 4 placed=0 ticks= 1887 q_err=0.0146
+    pick  2/15 ep= 1 arm=left  gap= 50 wait= 0 window= 2 on_belt= 5 placed=0 ticks= 1828 q_err=0.0147
+    pick  3/15 ep= 2 arm=right gap= 80 wait= 0 window= 2 on_belt= 5 placed=1 ticks= 1720 q_err=0.0110
+    pick  4/15 ep= 3 arm=left  gap=110 wait= 1 window= 2 on_belt= 5 placed=0 ticks= 1908 q_err=0.0147
+    pick  5/15 ep= 4 arm=right gap= 80 wait= 0 window= 1 on_belt= 5 placed=1 ticks= 1797 q_err=0.0330
+    pick  6/15 ep= 5 arm=left  gap=110 wait= 1 window= 3 on_belt= 6 placed=0 ticks= 1976 q_err=0.0139
+    pick  7/15 ep= 6 arm=right gap= 80 wait= 0 window= 3 on_belt= 7 placed=1 ticks= 1797 q_err=0.0114
+    pick  8/15 ep= 7 arm=right gap= 80 wait= 1 window= 2 on_belt= 6 placed=1 ticks= 1674 q_err=0.0112
+    pick  9/15 ep= 8 arm=right gap= 80 wait= 1 window= 1 on_belt= 4 placed=1 ticks= 1850 q_err=0.0114
+    pick 10/15 ep= 9 arm=right gap= 80 wait= 1 window= 3 on_belt= 7 placed=0 ticks= 1969 q_err=0.0108
+    pick 11/15 ep=10 arm=left  gap=110 wait= 1 window= 2 on_belt= 5 placed=0 ticks= 1864 q_err=0.0147
+    pick 12/15 ep=11 arm=right gap= 80 wait= 0 window= 1 on_belt= 6 placed=1 ticks= 1794 q_err=0.0090
+    pick 13/15 ep=12 arm=right gap= 80 wait= 1 window= 2 on_belt= 5 placed=1 ticks= 1798 q_err=0.0106
+    pick 14/15 ep=13 arm=left  gap=110 wait= 1 window= 2 on_belt= 6 placed=0 ticks= 1858 q_err=0.0147
+    pick 15/15 ep=14 arm=right gap= 80 wait= 0 window= 1 on_belt= 5 placed=1 ticks= 1818 q_err=0.0217
+
+== P6 the policy's start state (|q - grasp|_max; bar: >= 95% <= 0.011 rad) ==
+  A: n=15 within_0.011=1/15 = 6.7%  min=0.0083 med=0.0114 max=0.0147
+     A/left: n=5 med=0.0147 max=0.0147
+     A/right: n=10 med=0.0114 max=0.0114
+  B: n=15 within_0.011=4/15 = 26.7%  min=0.0090 med=0.0139 max=0.0330
+     B/left: n=6 med=0.0147 max=0.0147
+     B/right: n=9 med=0.0112 max=0.0330
+
+== verdicts ==
+  P1 gap median<=80 & max<=90      : FAIL
+  P2 |placed_B - placed_A| <= 4    : PASS (8 vs 11)
+  P3 window>=2 at >=90% of B picks : FAIL
+  P4 no new reason in B (A+base)   : PASS []
