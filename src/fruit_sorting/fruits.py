@@ -924,6 +924,21 @@ class FruitSpawner:
         self.supply_bed_stock_max = max(
             1, min(requested, capacity) if capacity > 0 else requested
         )
+        #: P57 phase 2, default off: pace the **non-bed** schedules on the band
+        #: the selector draws from (`_approach_depth`, the segment between
+        #: `FRUIT_SUPPLY_TARGET_FROM` and the spawn point) instead of the station
+        #: window `[pick_y - 0.05, pick_y + 0.45]`. The shipped window counts the
+        #: fruit that are already *too close or past* the dynamic catch's 0.399 m
+        #: floor, so six bodies there hold the release shut while the catchable
+        #: segment is empty - the mechanism the P56 census found
+        #: (`logs/p57/cad_s77.log` attempt 3: nine of eleven bodies at along
+        #: -0.581..+0.068, four usable at +0.464..+0.611) and the same one the bed
+        #: solved with `_bed_stock_depth` (`logs/p32/60_probe_nocap.log`). The
+        #: ceiling is a **depth** over the same 0.58 m band, so the linear density
+        #: is preserved (`FRUIT_SUPPLY_BAND_MAX=3` = 5.2/m). Off: every existing
+        #: schedule keeps the station-window rule byte-for-byte.
+        self._band_interlock = os.environ.get("FRUIT_SUPPLY_BAND_INTERLOCK", "0") == "1"
+        self._band_max = max(1, int(os.environ.get("FRUIT_SUPPLY_BAND_MAX", "3")))
         #: P32 Gate-A residual R2, bed only: the stride of the scan-only
         #: end-of-line sweep (`scan_despawn`, called from the driver's
         #: `_step_sim`). The end-of-line recycle lived **only** inside `update`,
@@ -1859,6 +1874,28 @@ class FruitSpawner:
                 depth += 1
         return depth
 
+    def _interlock_depth(self) -> int:
+        """The release interlock's depth input (P57 `FRUIT_SUPPLY_BAND_INTERLOCK`).
+
+        Bed schedules pace on their own band (`_bed_stock_depth`); with the P57
+        knob the single-file schedules pace on `_approach_depth` (the segment the
+        selector draws from) instead of the station window. Off: the shipped
+        `_queue_depth`, byte-for-byte.
+        """
+        if self.bed_schedule is not None:
+            return self._bed_stock_depth()
+        if self._band_interlock:
+            return self._approach_depth()
+        return self._queue_depth()
+
+    def _interlock_max(self, queue_max: int) -> int:
+        """The interlock ceiling that pairs with `_interlock_depth`."""
+        if self.bed_schedule is not None:
+            return self.supply_bed_stock_max
+        if self._band_interlock:
+            return self._band_max
+        return queue_max
+
     def _queue_depth(self) -> int:
         """Fruit waiting just upstream of the gate (the line-full interlock input).
 
@@ -2197,7 +2234,7 @@ class FruitSpawner:
             return True
         if (
             len(released) >= self.supply.burst_max
-            or self._queue_depth() >= queue_max
+            or self._interlock_depth() >= self._interlock_max(queue_max)
             or not self._release_clear(along, partner)
         ):
             self.stats["supply_skipped"] += 1
@@ -2334,17 +2371,9 @@ class FruitSpawner:
             # empty for 2-3 s at a time (`logs/p32/60_probe_nocap.log`: 8/10
             # selections with nothing above the catch floor). Every legacy
             # schedule keeps the station-window rule byte-for-byte.
-            depth = (
-                self._bed_stock_depth()
-                if self.bed_schedule is not None
-                else self._queue_depth()
-            )
+            depth = self._interlock_depth()
             bed_band = depth
-            bed_band_max = (
-                self.supply_bed_stock_max
-                if self.bed_schedule is not None
-                else queue_max
-            )
+            bed_band_max = self._interlock_max(queue_max)
             if depth >= bed_band_max:
                 if self.bed_schedule is not None:
                     # The bed **holds** its due row instead of dropping it: a
