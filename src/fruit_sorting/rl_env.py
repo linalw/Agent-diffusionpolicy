@@ -348,7 +348,7 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: unchanged and this env passes `direct=True`, i.e. it keeps the
 #: farthest-upstream pick byte-for-byte. An explicit env value wins on both paths
 #: (`=1` reproduces the measured treatment arm with no code change).
-TASKS_MD5 = "b6de439c0447790910f855e263757bd8"
+TASKS_MD5 = "c7eef7010b7c7e55cd8f997bea3c2cc1"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(

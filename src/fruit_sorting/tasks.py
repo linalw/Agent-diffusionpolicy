@@ -5187,6 +5187,18 @@ class PickAndPlaceTask:
     # ------------------------------------------------------------------ #
     # P32 phase 2: the prepared-next pipeline (single arm + two-line hook)
     # ------------------------------------------------------------------ #
+    def _feed_scope(self) -> bool:
+        """Whether this attempt pumps the feeder on its own ticks (P57).
+
+        Single-arm paths only: a `CoopSession` (the two-line scheduler or the F2
+        shared station) installs its own `feed_pump` on the shared tick, so
+        pumping here as well would double the release clock. Unlike
+        `_prepared_scope` this has **no** scripted/pre-pose requirement - the
+        feeder is a supply clock, not a posture lever, and the direct line needs
+        it on the primitive's ticks exactly like the scripted line does.
+        """
+        return self._active_session is None
+
     def _prepared_scope(self, scripted: bool) -> bool:
         """Whether this attempt runs the P32 phase-2 levers.
 
@@ -8829,7 +8841,17 @@ class PickAndPlaceTask:
         #: left for the driver's selection skip, so the pair is not a supported
         #: combination to compare - run them separately.
         self._prepared_on = bool(self._prepared_next and self._prepared_scope(scripted))
-        self._feed_on = bool(self._feed_cadence and self._prepared_scope(scripted))
+        # P57: the feeder cadence is **not** a pre-pose lever. `_prepared_scope`
+        # excludes the policy/direct path because `reset()` throws a
+        # pre-positioned hand away - but the feeder has no such conflict, and
+        # gating it on `scripted` was what made the direct line's supply arrive
+        # in one burst per policy phase: the pump then ran only inside
+        # `env.advance` (the ~2-3 s policy phase), the schedule fell 12-16 s
+        # behind during the primitive phase, and every stale slot was skipped
+        # (`logs/p56/p3/Q12_s77.log`: `lag=+15.72 skipped=50`). `_feed_scope`
+        # arms it on every single-arm path (scripted and direct); a CoopSession
+        # installs its own `feed_pump`, so the two-line is still excluded.
+        self._feed_on = bool(self._feed_cadence and self._feed_scope())
         if self._feed_on:
             # The per-attempt `[feed]` deltas are relative to the arm instant.
             stats = getattr(self.spawner, "stats", {})
