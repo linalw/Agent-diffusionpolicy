@@ -3737,6 +3737,16 @@ class PickAndPlaceTask:
             guard_rot_prev = None
             guard_slip = 0.0
             guard_slip_max = 0.0
+            #: P61: the **direction** of the slip at its maximum, in the leg's
+            #: own frame (`rel_frame - guard_ref`). `clean_slip_max` is a norm
+            #: and cannot tell a payload leaving along the belt (-y) from one
+            #: leaving along the lift axis - the question P60 could not answer
+            #: for the left arm, whose grasp attitude is the exact mirror of the
+            #: right's (`configs/waypoints_oriented.json`). Reporting only: one
+            #: 3-vector copy when a new maximum is set, and one field on the
+            #: `[carry]` row (`slip_xyz=`), whose norm must equal
+            #: `clean_slip_max` to the print's own 0.1 mm.
+            guard_slip_at_max = np.zeros(3, dtype=float)
             guard_vmax = 0.0
             guard_onset_i = None
             guard_onset_force = None
@@ -4053,7 +4063,10 @@ class PickAndPlaceTask:
                         guard_fruit_prev = fruit.copy()
                         guard_pads_prev = pads.copy()
                     else:
-                        guard_slip = float(np.linalg.norm(rel_frame - guard_ref))
+                        _slip_vec = rel_frame - guard_ref
+                        guard_slip = float(np.linalg.norm(_slip_vec))
+                        if guard_slip > guard_slip_max:
+                            guard_slip_at_max = _slip_vec.copy()
                         guard_slip_max = max(guard_slip_max, guard_slip)
                         guard_vmax = max(
                             guard_vmax,
@@ -4229,6 +4242,9 @@ class PickAndPlaceTask:
                 say(
                     f"[carry] {side} {name}: ticks={i + 1}/{len(commands)} "
                     f"clean_slip_max={guard_slip_max * 1000:.1f}mm "
+                    f"slip_xyz=({guard_slip_at_max[0] * 1000:.1f},"
+                    f"{guard_slip_at_max[1] * 1000:.1f},"
+                    f"{guard_slip_at_max[2] * 1000:.1f})mm "
                     f"in-hand_vmax={guard_vmax:.3f} "
                     f"onset_row={guard_onset_i} force@onset={force_at}N "
                     f"sep@onset={sep_at}mm contacts@onset={guard_onset_contacts} "

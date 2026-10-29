@@ -2581,7 +2581,9 @@ reference agrees to 7 mm), so the arm is not at a different part of the band.
 **Nothing decouples arm from lane from grade** (`rl_env.py:2516`: grade A -> bin 0
 -> left) and **the direct left's signature is the scripted left's**, so the class is
 not an interface artefact; why the left reaches it at **47x** the right's rate on the
-same pad asset is **not identified**. **No lever is left unspent**: the record's one
+same pad asset is **not attributable on this interface** (`rl_env.py:2516`:
+arm = grade = lane); P61 measures *where* the payload goes - out along the finger
+axis, off the distal lip (`logs/p61/P2_RESULTS.md`). **No lever is left unspent**: the record's one
 direct carried-class lever, `FRUIT_CLOSE_LOAD_RATE` (R11-B, default off), re-read
 **by arm** in its own batch converts the **right** (cnps 28 -> 5) and not the left
 (**20 -> 22**, placed 2/24 vs 2/27, p = 1.0) - pre-P41 and pre-park, i.e. exactly
@@ -2596,6 +2598,48 @@ instrumentation-or-branch; P4's note keys are the control's) and the diag's own
 `rl_env.py` `1b1e5cdf`, `tasks.py` `8ad8ddc8`, `fruits.py` `c7461d41`; `configs/*`
 untouched; ckpt `moe_v13s` `61da390a`; `FRUIT_CARRY_DIAG` default off. Evidence
 `logs/p60/**`; WORKLOG "P60".
+
+**P61 (2026-10-29, `logs/p61/`; default off, **nothing adopted**): the left's
+payload leaves **out along the finger axis, off the pads' distal lip** - not along
+the belt - and the follow-up the brief named is a **commanded constant**. The
+default-off `[carry]` field `slip_xyz=(x,y,z)mm` (`tasks.py` **`9a5e0459`**, the
+payload-minus-pads displacement **at the running maximum**, leg (TCP) frame,
+reporting-only under `FRUIT_CARRY_DIAG`, pinned by `scripts/231_p61_slip_selftest.py`
+`202b40c7`) holds its identity on **88/88** rows, max `abs(|slip_xyz| -
+clean_slip_max)` **0.072 mm** against the print's **0.137 mm** bound; the *frame*
+is carried **not** by that identity (a rotation preserves the norm) but by the
+held-payload corpus - **right `grasp_lift` 25/26 legs <= 2.3 mm** against the
+code's measured 34-88 mm pre/post-step artifact - and by P42's attitude-free
+`[seat] drift`, which agrees with the mapped world vector on all three signs. The
+cell (3 seeds x 15 picks, `moe_v13s` `61da390a`, the shipped direct profile, no
+wedge) reads **left n = 14 in-hand slides**: leg-frame mean unit **(-0.351,
++0.240, +0.905)** = **25.2 deg from the tool axis**, 76.1 deg from the
+jaw-opening axis, **48.9 deg from belt -y** (a pure drag's triple is (+0.034,
++0.858, +0.513)); world mean **(+0.623, -0.658, -0.422)** with **belt -y the
+largest single component (0.658), y < 0 on 14/14**, but **+x 0.623 and -z 0.422
+are predicted by no registered hypothesis** - a **downward, distal, cross-belt
+walk**, and only the tool-axis half is **frame-free** (leg z *is* the finger axis
+by construction; the world split is a `grasp_quaternion` approximation whose
+threat is measured - P42's `tilt` reaches **38.2 deg** on an escape leg against
+the 25.2 deg the reading uses). **The motion candidate is refuted** (achieved
+`|v|max` **0.987x**, the 1.637x `|a|max` entirely on the loss tick). **The 47x is
+not attributable on this interface**: `rl_env.py:2516` makes `active = left if
+grade == "A"`, so **arm = grade = lane**; the contrast is unmeasurable on
+*escapes* (**right 1 in 27**) but complete on *magnitudes* (**left 18/18 legs >=
+11.3 mm vs right 25/26 <= 2.3 mm, zero overlap**), and that one right leg is
+**sign-opposite** (world-y **+224.8** upstream, leg y **-0.404**) to what a belt
+drag (+0.858) requires - the observation a belt-drag mechanism cannot produce.
+**The named next instrument is already measured and is a constant**: the
+along-tool seat is `_pad_standoff(True)` = `FRUIT_FINGER_LEN` 0.060 + `PAD_LIFT`
+0.010 = **70.0 mm for both arms and every fruit**, P42's `[seat] tool=` reads
+**-69.3..-71.7 mm** without separating escape from placed, and both levers that
+move it (`FRUIT_GRIP_PLANE_DROP` D2a 4/8 mm; `..._PAD_LIFT_FRAC` 0.15) are
+**measured negative** - so the seat family closes on the direction side too and
+**no batch was spent on it**. The tactile carries no contact geometry
+(`normal_force`/`contact_count`/per-link scalars only), so a contact-patch read is
+not buildable. Refs untouched (`8a399626` / `2246f83c`), `configs/*` untouched,
+`selfcheck.sh` PASS. Evidence `logs/p61/{PREREG,PREREG_AMENDMENTS,P2_RESULTS}.md`,
+`p2_report.{py,txt}`, `p2/`; WORKLOG "P61".
 
 ## 3. What changed -> what to run
 

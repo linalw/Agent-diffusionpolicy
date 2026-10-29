@@ -19765,3 +19765,52 @@ decouples arm from lane from grade (`rl_env.py:2516`), and the same hand places
 lever is ever wanted is the **active-arm pixel-share census** on the live wait pose
 (`_park_bbox_census` takes any arm name), never a pre-pose hover (a motion change
 that confounds the physics and costs both references plus the acceptance).
+
+### P61: the left's payload leaves out along the finger axis, off the distal lip - and the 47x is not attributable here
+
+P60 closed with the left's deficit characterised but unexplained. The one
+asymmetry never measured was the **direction** of the slip: the two arms' grasp
+attitudes are exact mirrors (`configs/waypoints_oriented.json`) while the belt
+drags -y, and `clean_slip` is a **norm**.
+
+**The instrument** (default off, reporting-only under `FRUIT_CARRY_DIAG`): the
+`[carry]` row gains `slip_xyz=(x,y,z)mm`, the payload-minus-pads displacement **at
+the running maximum**, in the leg (TCP) frame; `tasks.py` **`9a5e0459`**, pinned by
+`scripts/231_p61_slip_selftest.py` (`202b40c7`, a selfcheck leg). It holds its
+identity on **88/88** rows, max `abs(|slip_xyz| - clean_slip_max)` **0.072 mm**
+against the print's 0.137 mm bound. **The frame is not carried by that identity** -
+a rotation preserves the norm - but by the held-payload corpus (**right
+`grasp_lift` 25/26 legs <= 2.3 mm** against the code's measured 34-88 mm
+pre/post-step artifact) and by P42's attitude-free `[seat] drift`, which agrees
+with the mapped vector on all three signs.
+
+**The cell** (3 seeds x 15 picks, the shipped profile, no wedge): **left n = 14
+in-hand slides**, leg-frame mean unit **(-0.351, +0.240, +0.905)** = **25.2 deg
+from the tool axis**, 76.1 deg from the jaw-opening axis, **48.9 deg from belt
+-y** (a pure drag would read (+0.034, +0.858, +0.513)). In world terms
+**(+0.623, -0.658, -0.422)**: belt -y is the **largest single component (0.658)**
+and **y < 0 on 14/14**, but **+x 0.623 and -z 0.422 are predicted by no registered
+hypothesis** - a **downward, distal, cross-belt walk**, and only the tool-axis half
+is **frame-free** (leg z *is* the finger axis; the world split is a grasp-quaternion
+approximation whose threat is measured - P42's `tilt` reaches **38.2 deg** on an
+escape leg against the 25.2 deg the reading uses).
+
+**The motion candidate is refuted**: achieved `|v|max` **0.987x** the right's, and
+the 1.637x `|a|max` is entirely the loss tick (placed lifts 3.170 vs 2.196).
+
+**The 47x is not attributable on this interface**: `rl_env.py:2516` makes `active =
+left if grade == "A"`, so **arm = grade = lane**. The contrast is unmeasurable on
+*escapes* (**right 1 in 27**) but complete on *magnitudes* - **left 18/18
+`grasp_lift` legs >= 11.3 mm vs right 25/26 <= 2.3 mm, zero overlap** - and that
+one right leg is **sign-opposite** (world-y **+224.8 mm upstream**, leg y
+**-0.404**) to what a belt drag (+0.858) requires: **the observation a belt-drag
+mechanism cannot produce**.
+
+**The follow-up the brief named is a commanded constant**: the along-tool seat is
+`_pad_standoff(True)` = `FRUIT_FINGER_LEN` 0.060 + `PAD_LIFT` 0.010 = **70.0 mm for
+both arms and every fruit**, P42's `[seat] tool=` reads **-69.3..-71.7 mm** without
+separating escape from placed, and both levers that move it (`FRUIT_GRIP_PLANE_DROP`
+D2a 4/8 mm; `..._PAD_LIFT_FRAC` 0.15) are **measured negative** - so the seat family
+closes on the direction side too and **no batch was spent on it**. The tactile
+carries no contact geometry, so a contact-patch read is not buildable. **Nothing
+adopted**: no default changed, no `configs/` file moved, both references untouched.
