@@ -19854,3 +19854,38 @@ grasp seed** (T0 solves from the shipped seed at a j3 margin of +0.007 rad) and 
 **No-harm**: `accept.sh` with all knobs unset is **377/377 identical** to
 `logs/p41/p2/accept_profile.log` + `fingerprint: matches` (6/10, the recorded
 branch); `configs/*` untouched, no reference re-recorded, no default changed.
+
+### P63: the 26-29 deg is the hold's, it is arm-common, and the arm-specific part is its azimuth - along the belt on the left
+
+P62 left one question: the left is *commanded* the pure top-down attitude and
+*achieves* 26.3-28.7 deg of tilt. The instrument (`[carry] hold_drift=<deg>`,
+`2*acos(|dot(hold_quaternion, tcp_quat)|)`, reporting-only, `tasks.py` `1d27566c`,
+pinned by `scripts/233_p63_attitude_selftest.py`) and its cell (3 seeds x 15, both
+arms, 87 `[carry]` rows) answer it in three parts:
+
+1. **The command is right, the arm cannot hold it**: the left's failing legs carry a
+   median `hold_drift` of **24.6 deg** (n = 11, 22.4-29.4) while the command is T0
+   (belt projection **0.0000**, verified three ways - the file, the mirror identity,
+   and the independent `[attitude] tilt` agreeing to <= 4.6 deg on 9/9 legs).
+2. **The command path is closed by construction**: `tasks.py:3488` - the only line
+   that would re-point the hold at an achieved attitude - is gated on
+   `FRUIT_CARRY_HOLD_QUAT`, unset in this cell.
+3. **The drift does NOT split the class**: the right places **29/30** `grasp_lift`
+   legs at a median drift of **25.8 deg** (20.9-52.3), the same distribution as the
+   left's *failing* legs; the left's two placed legs read 23.7 and 36.1. The tilt is
+   an **arm-common attitude-tracking residual** (Spearman -0.36 left / +0.20 right).
+
+**What is arm-specific is the tilt's azimuth, and it is sign-consistent**: the
+left's achieved tool axis is **downstream on 3/3** legs (tool_y -0.326..-0.366,
+**77 % of the tilt on the belt axis**) while the right's is **downstream on 0/6**
+(3 upstream, 3 across, median share 0.23). So the ~25 deg lands **along the belt**
+on the left and **across it** on the right - which is exactly the +/-0.513 the P61
+slip was projected onto.
+
+**The mechanism chain is now closed at every link**: command T0 -> an arm-common
+~25 deg tracking residual -> whose azimuth is the belt axis on the left -> the
+belt's drag walks the payload out along the tool axis (P61) -> the `cnp` class at
+47x the right's rate. **The lever this hands on is a pre-compensated command**: if
+the residual is deterministic (~25 deg at a stable azimuth), commanding T0 rotated
+by its inverse puts the *achieved* attitude at projection ~0 without touching the
+arm's kinematics. No default changed; `configs/*` untouched; no reference moved.

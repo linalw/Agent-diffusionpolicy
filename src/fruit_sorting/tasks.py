@@ -3768,6 +3768,15 @@ class PickAndPlaceTask:
             #: `[carry]` row (`slip_xyz=`), whose norm must equal
             #: `clean_slip_max` to the print's own 0.1 mm.
             guard_slip_at_max = np.zeros(3, dtype=float)
+            #: P63: the **commanded vs achieved** wrist attitude on this leg,
+            #: in degrees. P62 measured that the left is *commanded* the pure
+            #: top-down attitude and still **achieves 26.3-28.7 deg of tilt**
+            #: (belt projection +0.32..+0.36) - and `arm.hold_quaternion` is the
+            #: command, so the gap is either the hold/IK (commanded correct,
+            #: achieved drifts) or the command path itself. Reporting only: one
+            #: dot product per guarded tick and one field on `[carry]`.
+            guard_drift_max = 0.0
+            guard_hold_seen = 0
             guard_vmax = 0.0
             guard_onset_i = None
             guard_onset_force = None
@@ -4074,7 +4083,16 @@ class PickAndPlaceTask:
                     # the loop's `rot` is the pre-step wrist, and mixing it with
                     # post-step positions accumulates a rotation artifact
                     # (34-88 mm on a held payload, measured).
-                    rot_now = _quat_matrix(np.asarray(arm.tcp_pose()[1], dtype=float))
+                    _tcp_quat = np.asarray(arm.tcp_pose()[1], dtype=float)
+                    rot_now = _quat_matrix(_tcp_quat)
+                    _hold = getattr(arm, "hold_quaternion", None)
+                    if _hold is not None:
+                        guard_hold_seen = 1
+                        _dot = abs(float(np.dot(np.asarray(_hold, dtype=float), _tcp_quat)))
+                        guard_drift_max = max(
+                            guard_drift_max,
+                            2.0 * np.degrees(np.arccos(float(np.clip(_dot, 0.0, 1.0)))),
+                        )
                     rel_frame = rot_now.T @ (fruit - pads)
                     if guard_ref is None:
                         # First tick of the leg: the reference is this tick's
@@ -4266,6 +4284,8 @@ class PickAndPlaceTask:
                     f"slip_xyz=({guard_slip_at_max[0] * 1000:.1f},"
                     f"{guard_slip_at_max[1] * 1000:.1f},"
                     f"{guard_slip_at_max[2] * 1000:.1f})mm "
+                    f"hold_drift={guard_drift_max:.1f}deg"
+                    f"{'' if guard_hold_seen else '(no-hold)'} "
                     f"in-hand_vmax={guard_vmax:.3f} "
                     f"onset_row={guard_onset_i} force@onset={force_at}N "
                     f"sep@onset={sep_at}mm contacts@onset={guard_onset_contacts} "

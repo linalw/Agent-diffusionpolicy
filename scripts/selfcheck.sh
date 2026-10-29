@@ -209,6 +209,7 @@ run_check "P52 retime scale" "$python" scripts/228_p52_retime_selftest.py
 run_check "P53 emission cells" "$python" scripts/229_p53_emit_selftest.py
 run_check "P58 supply profile" "$python" scripts/230_p58_supply_selftest.py
 run_check "P61 slip direction" "$python" scripts/231_p61_slip_selftest.py
+run_check "P63 attitude drift" "$python" scripts/233_p63_attitude_selftest.py
 # P62 phase 2: the left-only, direct-scoped grasp-attitude override
 # (`FRUIT_GRASP_LEFT_TOPDOWN`, default off). The resolver is offline and inert by
 # default; the real `_grasp_quat` body (extracted with `ast`, so no pxr import)

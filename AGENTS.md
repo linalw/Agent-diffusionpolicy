@@ -2684,6 +2684,35 @@ reference re-recorded; ckpt `moe_v13s` `61da390a`. Evidence
 `logs/p62/{CANDIDATES.md,IK_PROBE.txt,PREREG_P2.md,P2_RESULTS.md,p2/}`; WORKLOG
 "P62".
 
+**P63 (2026-10-29, `logs/p63/`; default off, **nothing adopted**): the 26-29 deg is
+an **arm-common hold/IK residual**, and the **arm-specific part is its azimuth -
+along the belt on the left, across it on the right.** The default-off `[carry]`
+field `hold_drift=<deg>` (`tasks.py` **`1d27566c`**, `2*acos(|dot(hold_quaternion,
+tcp_quat)|)`, pinned by `scripts/233_p63_attitude_selftest.py`) reads on **87/87**
+rows (0/45 `grasp_lift` legs are `(no-hold)`; the 42 `(no-hold)` rows are exactly
+the **place** legs). The cell (3 seeds x 15, both arms): the left's **failing** legs
+carry a median drift of **24.6 deg** (n = 11, 22.4-29.4) while the command is T0
+(projection **0.0000**, verified three ways, the independent `[attitude] tilt`
+agreeing to <= 4.6 deg on 9/9 legs), so **the command is right and the arm cannot
+hold it**; the command path is **closed by construction** (`tasks.py:3488` is gated
+on `FRUIT_CARRY_HOLD_QUAT`, unset here). **But the magnitude does not split the
+class**: the right places **29/30** `grasp_lift` legs at a median drift of **25.8
+deg** (20.9-52.3), the same distribution as the left's failing legs (Spearman
+-0.36 left / +0.20 right / -0.15 pooled). **What is arm-specific is the azimuth,
+and it is sign-consistent**: the left's achieved tool axis is **downstream on 3/3**
+legs (tool_y -0.326..-0.366, **77 % of the tilt on the belt axis**) against the
+right's **0/6** (3 upstream, 3 across; median share 0.23) - so the ~25 deg lands
+**along** the belt on the left, which is the +/-0.513 the P61 slip was projected
+onto. **The chain is closed at every link**: command T0 -> an arm-common ~25 deg
+tracking residual -> belt-aligned azimuth on the left -> the drag walks the payload
+out along the tool axis (P61) -> the `cnp` class at 47x. **The lever this hands on
+is a pre-compensated command** (command T0 rotated by the residual's inverse so the
+*achieved* attitude sits at projection ~0, with no arm/kinematics change), and it
+needs its own pre-registration. Pins: `tasks.py` **`1d27566c`**, `rl_env.py`
+(metadata-only `TASKS_MD5` follow), `scripts/233_p63_attitude_selftest.py`;
+`configs/*` untouched, no reference re-recorded. Evidence
+`logs/p63/{PREREG.md,P2_RESULTS.md,p2_report.{py,txt},p2/}`; WORKLOG "P63".
+
 ## 3. What changed -> what to run
 
 | you changed | run |

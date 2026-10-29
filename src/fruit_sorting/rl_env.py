@@ -356,7 +356,7 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: reads the waypoints file byte-for-byte; the only armed caller is this env,
 #: behind `FRUIT_GRASP_LEFT_TOPDOWN=1` (default off, `direct` only), and on this
 #: tree it resolves to the attitude `configs/waypoints.json` already carries.
-TASKS_MD5 = "fe11910a169949e118e82be252e459fa"
+TASKS_MD5 = "1d27566c399804ed65f88642d7db619c"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(
