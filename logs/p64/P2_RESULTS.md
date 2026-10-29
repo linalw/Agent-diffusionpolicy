@@ -91,7 +91,7 @@ which half of the corpus is used.
 | `_grasp_quat` / `grasp_quat_override` (`tasks.py`, P62's channel) | **dead for the lift** - the never-stop catch releases it before the descent and installs its own top-down hold; P62 measured the override at -0.0018 / +0.0001 belt projection |
 | `FRUIT_CARRY_HOLD_QUAT` (`tasks.py:3488`) | **live but not a pre-compensation**: it writes the **grip** quaternion (the attitude the pads froze at) and is off on this line - a different object |
 | the hold the dynamic catch installs (`tasks._run_impl`, hover + coherent block) | **the command the lift inherits** - `_carry`'s clear is `name != "grasp_lift"`, so `grasp_lift` keeps it and every place leg clears it |
-| **the leg's own hold** (`_carry`, at the `grasp_lift` leg's start) | **the site this phase writes** - and it is **live**: the treated legs read 42.4-57.9 deg (smoke + cell) against the control's 25.1-28.7 |
+| **the leg's own hold** (`_carry`, at the `grasp_lift` leg's start) | **the site this phase writes** - and it is **live**: the treated legs read 32.5-57.9 deg (cell; the smoke's two: 42.4/49.3) against the control's 25.1-28.7 on its graded tool-axis legs |
 
 The implementation is the default-off knob `FRUIT_GRASP_LEFT_PRECOMP=1`
 (`rl_env.resolve_carry_hold_override`, **direct + left only**): it passes

@@ -19911,7 +19911,7 @@ exists, stop" branch does not apply, and a scoped, default-off knob
 deg), giving a command projection of **-0.3410**. Commanding it takes the achieved
 projection **from +0.32..+0.37 to +0.51..+0.83** (achieved tilt 38.5-57.9,
 `hold_drift` 54.9-107.4 deg against the control's 20.5-29.4), the holds lose
-contact **earlier** (onset rows 37-39 vs 97-127) and the left places **1/32**
+contact **earlier** (onset rows 37-39 vs 97-127) and the left places **1/16**
 against the control's 2/15. **E1 fails by sign.**
 
 **Mechanically**: `ik_step`'s 6-DoF solve at a station whose grasp seed already

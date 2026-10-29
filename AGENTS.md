@@ -2729,7 +2729,7 @@ clears it), so writing it at the lift's start **does** move the achieved attitud
 command projection of **-0.3410**. **Commanding it moves the achieved projection
 the WRONG way**: from **+0.32..+0.37 to +0.51..+0.83** (achieved tilt 38.5-57.9
 deg, `hold_drift` 54.9-107.4 deg against the control's 20.5-29.4), the holds lose
-contact **earlier** (onset rows 37-39 against 97-127), and the left places **1/32**
+contact **earlier** (onset rows 37-39 against 97-127), and the left places **1/16**
 against the control's 2/15 - **E1 fails by sign**. Mechanically: the `ik_step`
 6-DoF solve at a station whose grasp seed already sits at the reach edge
 **trades orientation against position**, so the achieved attitude is a function of
