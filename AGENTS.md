@@ -2762,7 +2762,7 @@ joint-limit clip is refuted by discrimination**: the measured margin is **0.000 
 on 86/86 legs** (the left's 20 lifts, the right's 24 lifts **and all 42 place
 legs**), so "a joint at its limit" is a **standing condition of this workspace**,
 not a lift-specific cause - and on the left's 18 failing legs the drift's onset
-(median tick **106 of ~160, 65 %%** of the leg) **precedes** the tick of the leg's
+(median tick **106 of ~160, 65 %** of the leg) **precedes** the tick of the leg's
 smallest margin by a median of **-41 ticks** (inside the registered +-20 on only
 3/18). **The pads' line points the other way**: at the lift's first tick both arms
 are flat (|jaw_z| 0.0084 left / 0.0104 right) and over the leg the **right** twists
@@ -2774,7 +2774,8 @@ P63 shape at a moved branch (left 1/18/1, right 23/0/2 against P63's 2/11/2 and
 29/0/1; attempt split 20/25 vs 15/30, so F3 = instrumentation-or-branch). Named and
 **not** measured: the payload-induced wrist deflection (a load path, not a command),
 `ik_step`'s `gain` term, and how often the hold is re-applied. Pins:
-`tasks.py` (the P65 fields), `scripts/235_p65_lift_selftest.py`; `control.py`
+`tasks.py` **`309e5a38`**, `rl_env.py` **`a10e753a`** (`TASKS_MD5` follow),
+`scripts/235_p65_lift_selftest.py`; `control.py`
 **untouched**, `configs/*` untouched, no reference re-recorded. Evidence
 `logs/p65/{PREREG.md,P2_RESULTS.md,p2_report.{py,txt},p2/}`; WORKLOG "P65".
 
