@@ -1,0 +1,137 @@
+# P63 phase 2 - where the left's 26-29 deg goes (hold/IK vs command path)
+# cell: logs/p63/p2/D_77.log, logs/p63/p2/D_101.log, logs/p63/p2/D_202.log
+# comparator (F3): logs/p61/p2/S_77.log, logs/p61/p2/S_101.log, logs/p61/p2/S_202.log
+
+== P1 - the instrument ==
+  [carry] rows            : 87 (45 episodes over 3 logs)
+  rows with hold_drift=   : 87/87
+  rows flagged (no-hold)  : 42 -> left/place0 x13, right/place1 x29
+  grasp_lift legs         : 45 (live hold 45, (no-hold) 0)
+  hold cleared at lines   : [2218, 3466, 3927, 4386, 6732, 8439, 12465] (tasks.py `arm.hold_quaternion = None`)
+  FRUIT_CARRY_HOLD_QUAT   : unset -> tasks.py:3488 not taken; the T0 hold installed by the dynamic catch stands on grasp_lift
+  scenario echo           : trigger=arrival lead=0.90s lateral=0.160 reach=0.20 finger=0.040 frame=station encoder=on present=off acq=on(speed=0.20,margin=0.60,cap=4.50,reach_margin=0.05)
+
+== the command identity (offline, PREREG section 3) ==
+  top_down('x')           : [0.0, 0.707107, 0.707107, 0.0]
+  left : catch's install vs configs/waypoints.json -> IDENTICAL (install [0.0, -0.707107, 0.707107, -0.0], file [0.0, -0.707107, 0.707107, 0.0])
+          belt projection of that command: +0.0000
+  right: catch's install vs configs/waypoints.json -> IDENTICAL (install [0.0, 0.707107, 0.707107, 0.0], file [0.0, 0.707107, 0.707107, 0.0])
+          belt projection of that command: +0.0000
+  => on a grasp_lift leg with the hold live, `hold_drift` IS the tilt from the commanded T0 (left) / T0' (right) attitude
+     grasp_lift legs with the hold live: 45/45
+
+== P2 - the drift, per arm and per outcome (grasp_lift legs) ==
+  left: 15 grasp_lift legs
+    placed      n= 2 drift n= 2 median= 29.9 range=[23.7,36.1] p10/p90=24.9/34.9 deg
+    cnp         n=11 drift n=11 median= 24.6 range=[22.4,29.4] p10/p90=22.4/29.1 deg
+    never-held  n= 2 drift n= 2 median= 82.0 range=[47.8,116.2] p10/p90=54.6/109.4 deg
+  right: 30 grasp_lift legs
+    placed      n=29 drift n=29 median= 25.8 range=[20.9,52.3] p10/p90=22.7/32.7 deg
+    never-held  n= 1 drift n= 1 median=133.7 range=[133.7,133.7] p10/p90=133.7/133.7 deg
+  per leg (drift deg, clean_slip mm, outcome):
+    left  ep 0 pear        cnp        drift= 24.6          clean_slip=   143.7mm onset_row=127 force@onset=7.74N
+    left  ep 3 peach       never-held drift= 47.8          clean_slip=110542.0mm onset_row=1 force@onset=0.00N
+    left  ep 5 kiwi        never-held drift=116.2          clean_slip=263038.5mm onset_row=1 force@onset=8.72N
+    left  ep 0 apple       cnp        drift= 25.5          clean_slip=    21.4mm onset_row=80 force@onset=5.22N
+    left  ep 2 kiwi        cnp        drift= 25.4          clean_slip=   209.3mm onset_row=105 force@onset=9.91N
+    left  ep 3 kiwi        placed     drift= 36.1          clean_slip=     0.0mm onset_row=None force@onset=n/aN
+    left  ep 4 kiwi        cnp        drift= 24.5          clean_slip=   270.9mm onset_row=107 force@onset=10.14N
+    left  ep 6 orange      cnp        drift= 29.1          clean_slip=    87.1mm onset_row=104 force@onset=8.77N
+    left  ep13 kiwi        cnp        drift= 22.4          clean_slip=    87.1mm onset_row=133 force@onset=0.00N
+    left  ep14 kiwi        cnp        drift= 22.9          clean_slip=    32.8mm onset_row=132 force@onset=15.36N
+    left  ep 6 kiwi        placed     drift= 23.7          clean_slip=    25.8mm onset_row=104 force@onset=15.59N
+    left  ep 8 kiwi        cnp        drift= 22.8          clean_slip=   399.8mm onset_row=65 force@onset=10.76N
+    left  ep10 lychee      cnp        drift= 22.4          clean_slip=   296.4mm onset_row=107 force@onset=14.30N
+    left  ep11 lychee      cnp        drift= 26.9          clean_slip=   118.2mm onset_row=136 force@onset=14.64N
+    left  ep13 apple       cnp        drift= 29.4          clean_slip=   214.8mm onset_row=92 force@onset=8.67N
+    right ep 1 lychee      placed     drift= 25.1          clean_slip=     0.0mm onset_row=None force@onset=n/aN
+    right ep 2 apple       placed     drift= 33.7          clean_slip=     0.0mm onset_row=None force@onset=n/aN
+    right ep 4 apple       placed     drift= 52.3          clean_slip=     0.1mm onset_row=None force@onset=n/aN
+    right ep 6 apple       placed     drift= 29.2          clean_slip=     0.0mm onset_row=None force@onset=n/aN
+    right ep 7 strawberry  placed     drift= 21.3          clean_slip=     0.1mm onset_row=None force@onset=n/aN
+    right ep 8 peach       placed     drift= 22.4          clean_slip=     0.2mm onset_row=None force@onset=n/aN
+    right ep 9 strawberry  placed     drift= 22.9          clean_slip=     0.0mm onset_row=None force@onset=n/aN
+    right ep10 peach       placed     drift= 26.1          clean_slip=     2.0mm onset_row=27 force@onset=8.99N
+    right ep11 strawberry  placed     drift= 29.6          clean_slip=     0.2mm onset_row=None force@onset=n/aN
+    right ep12 peach       placed     drift= 25.4          clean_slip=     0.0mm onset_row=None force@onset=n/aN
+    right ep13 tomato      placed     drift= 25.6          clean_slip=     0.0mm onset_row=None force@onset=n/aN
+    right ep14 peach       placed     drift= 25.7          clean_slip=     0.0mm onset_row=None force@onset=n/aN
+    right ep 1 orange      placed     drift= 23.8          clean_slip=     0.0mm onset_row=None force@onset=n/aN
+    right ep 5 lychee      placed     drift= 27.1          clean_slip=     0.0mm onset_row=None force@onset=n/aN
+    right ep 7 lychee      placed     drift= 31.1          clean_slip=     0.1mm onset_row=None force@onset=n/aN
+    right ep 8 pear        placed     drift= 24.3          clean_slip=     0.0mm onset_row=None force@onset=n/aN
+    right ep 9 tomato      placed     drift= 24.1          clean_slip=     0.0mm onset_row=None force@onset=n/aN
+    right ep10 strawberry  placed     drift= 24.4          clean_slip=     0.0mm onset_row=None force@onset=n/aN
+    right ep11 orange      placed     drift= 25.8          clean_slip=     5.9mm onset_row=6 force@onset=8.34N
+    right ep12 apple       placed     drift= 28.9          clean_slip=     2.2mm onset_row=19 force@onset=9.18N
+    right ep 0 orange      placed     drift= 32.4          clean_slip=     0.0mm onset_row=None force@onset=n/aN
+    right ep 1 strawberry  placed     drift= 24.2          clean_slip=     0.0mm onset_row=None force@onset=n/aN
+    right ep 2 peach       never-held drift=133.7          clean_slip= 64568.1mm onset_row=1 force@onset=0.00N
+    right ep 3 strawberry  placed     drift= 30.1          clean_slip=     0.1mm onset_row=None force@onset=n/aN
+    right ep 4 tomato      placed     drift= 22.8          clean_slip=     0.0mm onset_row=None force@onset=n/aN
+    right ep 5 strawberry  placed     drift= 36.6          clean_slip=     0.0mm onset_row=None force@onset=n/aN
+    right ep 7 peach       placed     drift= 25.9          clean_slip=     0.0mm onset_row=None force@onset=n/aN
+    right ep 9 peach       placed     drift= 26.6          clean_slip=     0.0mm onset_row=None force@onset=n/aN
+    right ep12 apple       placed     drift= 20.9          clean_slip=     0.0mm onset_row=None force@onset=n/aN
+    right ep14 tomato      placed     drift= 25.9          clean_slip=     0.0mm onset_row=None force@onset=n/aN
+
+== the decision (PREREG section 4) ==
+  VERDICT: hold/IK
+  because: the failing legs' median drift is 24.6 deg on the left (the right has no cnp legs in this cell)
+
+== P3 - does the drift predict the slip? (grasp_lift, live hold) ==
+  left  n=15  Spearman(drift, clean_slip)= 0.117  sign=positive   | in-hand subset (slip <= 1000 mm) n=13 rho=-0.360
+        escapes (> 50 mm): 11/15  drift median escapes=25.4 / non-escapes=24.6 deg  clean_slip range [0.0, 263038.5] mm
+  right n=30  Spearman(drift, clean_slip)= 0.293  sign=positive   | in-hand subset (slip <= 1000 mm) n=29 rho=0.201
+        escapes (> 50 mm): 1/30  drift median escapes=133.7 / non-escapes=25.8 deg  clean_slip range [0.0, 64568.1] mm
+  pooled n=45 Spearman=0.076   | in-hand n=42 rho=-0.147
+
+== P4 - the split (report only) and the note keys ==
+  left  n= 15  placed= 2 cnp=11 never-held= 2
+  right n= 30  placed=29 cnp= 0 never-held= 1
+  pooled: placed 31/45  per seed 101: 9/15, 202: 10/15, 77: 12/15
+  note keys (digit-normalised):
+     36 x intercept trigger (dy=#cm, dx=-#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)
+      9 x intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)
+      3 x fruit did not follow the gripper
+  F3 comparator (logs/p61/p2, 45 episodes):
+    left  cell n=15 placed= 2 cnp=11 never-held= 2   | P61 n=18 placed= 2 cnp=16 never-held= 0
+    right cell n=30 placed=29 cnp= 0 never-held= 1   | P61 n=27 placed=25 cnp= 1 never-held= 1
+    pooled cell 31/45 vs P61 27/45
+  new note keys vs P61: ['fruit did not follow the gripper']
+
+== addendum A1 - the achieved attitude per leg (logs/p63/p2/A1_77.log, reporting only) ==
+  episodes=10  [attitude] rows=18  grasp_lift rows=9
+  per leg (grasp_lift): drift = the per-leg MAX over guarded ticks; tilt = [attitude]'s read at the leg's end (both from T0 = tool axis (0,0,-1))
+    left  ep 0 pear        cnp        drift= 24.6  tilt= 28.7  tool_y=-0.3658 (belt component)  tool_x=+0.3109  share=0.76
+    right ep 1 lychee      placed     drift= 23.8  tilt= 26.9  tool_y=+0.0031 (belt component)  tool_x=+0.4532  share=0.01
+    right ep 3 orange      placed     drift= 23.9  tilt= 27.2  tool_y=+0.3216 (belt component)  tool_x=+0.3238  share=0.70
+    left  ep 4 pear        placed     drift= 22.7  tilt= 26.8  tool_y=-0.3589 (belt component)  tool_x=+0.2729  share=0.80
+    right ep 5 kiwi        placed     drift= 25.1  tilt= 28.7  tool_y=+0.3529 (belt component)  tool_x=+0.3262  share=0.73
+    right ep 6 lychee      placed     drift= 31.5  tilt= 35.1  tool_y=+0.2663 (belt component)  tool_x=+0.5097  share=0.46
+    right ep 7 apple       placed     drift= 26.9  tilt= 30.4  tool_y=+0.0010 (belt component)  tool_x=+0.5063  share=0.00
+    left  ep 8 orange      cnp        drift= 20.5  tilt= 25.1  tool_y=-0.3255 (belt component)  tool_x=+0.2729  share=0.77
+    right ep 9 apple       placed     drift= 32.2  tilt= 30.1  tool_y=+0.0000 (belt component)  tool_x=+0.5020  share=0.00
+  per-arm medians (grasp_lift, live hold):
+    left  n= 3  drift median 22.7  tilt median 26.8  |tool_y| median 0.359  belt share of the tilt 0.77  |drift-tilt| median 4.1
+          tilt azimuth: downstream (tool_y < -0.05) 3/3, upstream (> +0.05) 0/3, across |y| <= 0.05 0/3; |drift-tilt| max 4.6 deg
+    right n= 6  drift median 26.0  tilt median 29.4  |tool_y| median 0.135  belt share of the tilt 0.23  |drift-tilt| median 3.4
+          tilt azimuth: downstream (tool_y < -0.05) 0/6, upstream (> +0.05) 3/6, across |y| <= 0.05 3/6; |drift-tilt| max 3.6 deg
+
+== checks ==
+  PASS: the cell has [carry] rows (87)
+  PASS: every [carry] row carries hold_drift= (87/87)
+  PASS: every drift is a finite angle in [0, 180] deg
+  PASS: every grasped attempt has at least one [carry] row
+  PASS: every leg's side matches its episode's arm
+  PASS: logs/p60/p3/report.py parse_leg reads all 87 rows
+  PASS: the catch's left install == configs/waypoints.json's left grasp (T0)
+  PASS: no-hold on grasp_lift legs = 0 (PREREG Pa predicted 0)
+  PASS: every (no-hold) row is a place leg (the hold is cleared for name != grasp_lift)
+  PASS: A1 left: |hold_drift - [attitude] tilt| median 4.1 deg <= 6 (same angle, different tick)
+  PASS: A1 right: |hold_drift - [attitude] tilt| median 3.4 deg <= 6 (same angle, different tick)
+  PASS: tree md5s identical before/after the batch
+  PASS: D_77.log carries the rollout summary
+  PASS: D_101.log carries the rollout summary
+  PASS: D_202.log carries the rollout summary
+  PASS: 0 failure(s)
