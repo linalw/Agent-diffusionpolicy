@@ -210,6 +210,16 @@ run_check "P53 emission cells" "$python" scripts/229_p53_emit_selftest.py
 run_check "P58 supply profile" "$python" scripts/230_p58_supply_selftest.py
 run_check "P61 slip direction" "$python" scripts/231_p61_slip_selftest.py
 run_check "P63 attitude drift" "$python" scripts/233_p63_attitude_selftest.py
+# P65: where the drift lives - the `[carry]` row's joint-limit margin
+# (`q_margin=`, measured, min over the leg + its 1-based binding joint), the same
+# for the controller's post-clip command (`q_cmd_margin=`, free attribute), the
+# command's largest per-tick step (`q_step_max=`, the `FRUIT_IK_MAX_STEP`
+# operand), the jaw-opening axis' world z (`jaw_z=`, first tick / max abs) and the
+# first tick the hold drift passes 10 deg (`drift_on=`). The leg pins the field
+# set and order, the `guard_armed` (FRUIT_CARRY_DIAG, default off) containment
+# that makes `None` byte-inert, the margin/argmin/min-over-leg arithmetic, the
+# `rot[:,1]` jaw axis and the first-crossing onset.
+run_check "P65 lift drift" "$python" scripts/235_p65_lift_selftest.py
 # P62 phase 2: the left-only, direct-scoped grasp-attitude override
 # (`FRUIT_GRASP_LEFT_TOPDOWN`, default off). The resolver is offline and inert by
 # default; the real `_grasp_quat` body (extracted with `ast`, so no pxr import)

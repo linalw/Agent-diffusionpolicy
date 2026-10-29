@@ -3828,6 +3828,36 @@ class PickAndPlaceTask:
             #: dot product per guarded tick and one field on `[carry]`.
             guard_drift_max = 0.0
             guard_hold_seen = 0
+            #: P65: *where* the drift lives. P64's screen measured the static
+            #: solve at the station tracking its attitude command to <= 1 deg
+            #: while the carry reads 24.6 deg (P63), so the drift is created in
+            #: the lift; the two named suspects act on the *commanded* joint
+            #: vector (`control.py:423`'s per-tick `max_step`, `:494`'s hard
+            #: joint-limit clip). Reporting only, one field group on `[carry]`:
+            #:   * `q_margin=` the **measured** joint-limit margin (min over the
+            #:     leg + its 1-based binding joint) - the one added sensor read
+            #:     per guarded tick, `control.py:387`'s own reader;
+            #:   * `q_cmd_margin=` the same for the controller's post-clip
+            #:     command `arm._q_cmd` (a numpy attribute: no read) - the
+            #:     direct operand of the clip suspect;
+            #:   * `q_step_max=` the largest per-tick `max abs(dq)` of that
+            #:     command over the leg - the `max_step` suspect's operand
+            #:     (it can bind only above `FRUIT_IK_MAX_STEP`, default 0.5);
+            #:   * `jaw_z=` the jaw-opening axis' world z (`rot_now[:, 1]`, the
+            #:     axis P64's probe re-settled) at the leg's first tick and its
+            #:     max abs over the leg - free, `rot_now` is built anyway;
+            #:   * `drift_on=` the first tick `hold_drift` passes 10 deg - free,
+            #:     the same dot product.
+            guard_q_margin = float("inf")
+            guard_q_margin_j = -1
+            guard_q_margin_i = None
+            guard_qc_margin = float("inf")
+            guard_qc_margin_j = -1
+            guard_q_prev = None
+            guard_q_step_max = 0.0
+            guard_jaw_first = None
+            guard_jaw_abs_max = 0.0
+            guard_drift_on_i = None
             guard_vmax = 0.0
             guard_onset_i = None
             guard_onset_force = None
@@ -4140,10 +4170,11 @@ class PickAndPlaceTask:
                     if _hold is not None:
                         guard_hold_seen = 1
                         _dot = abs(float(np.dot(np.asarray(_hold, dtype=float), _tcp_quat)))
-                        guard_drift_max = max(
-                            guard_drift_max,
-                            2.0 * np.degrees(np.arccos(float(np.clip(_dot, 0.0, 1.0)))),
-                        )
+                        _drift_now = 2.0 * np.degrees(np.arccos(float(np.clip(_dot, 0.0, 1.0))))
+                        guard_drift_max = max(guard_drift_max, _drift_now)
+                        if guard_drift_on_i is None and _drift_now > 10.0:
+                            # P65: first tick the hold drift passes 10 deg.
+                            guard_drift_on_i = i
                     rel_frame = rot_now.T @ (fruit - pads)
                     if guard_ref is None:
                         # First tick of the leg: the reference is this tick's
@@ -4193,6 +4224,38 @@ class PickAndPlaceTask:
                         guard_fruit_prev = fruit.copy()
                         guard_pads_prev = pads.copy()
                         guard_rot_prev = rot_now
+                    # ---- P65: the joint margin and the pads' line -------------
+                    # Reporting only (see `__init__`'s P65 block). `rot_now` is
+                    # free and `arm._q_cmd` is a numpy attribute; the joint
+                    # vector is the block's only added read.
+                    _q_now = np.asarray(arm.joint_positions(), dtype=float)
+                    _marg = np.minimum(_q_now - arm.arm_lo, arm.arm_hi - _q_now)
+                    _j = int(np.argmin(_marg))
+                    if float(_marg[_j]) < guard_q_margin:
+                        guard_q_margin = float(_marg[_j])
+                        guard_q_margin_j = _j
+                        guard_q_margin_i = i
+                    _q_cmd_now = getattr(arm, "_q_cmd", None)
+                    if _q_cmd_now is not None:
+                        _q_cmd_now = np.asarray(_q_cmd_now, dtype=float)
+                        if _q_cmd_now.size == _q_now.size:
+                            _cmarg = np.minimum(
+                                _q_cmd_now - arm.arm_lo, arm.arm_hi - _q_cmd_now
+                            )
+                            _jc = int(np.argmin(_cmarg))
+                            if float(_cmarg[_jc]) < guard_qc_margin:
+                                guard_qc_margin = float(_cmarg[_jc])
+                                guard_qc_margin_j = _jc
+                            if guard_q_prev is not None:
+                                guard_q_step_max = max(
+                                    guard_q_step_max,
+                                    float(np.max(np.abs(_q_cmd_now - guard_q_prev))),
+                                )
+                            guard_q_prev = _q_cmd_now.copy()
+                    _jaw_now = float(rot_now[2, 1])
+                    if guard_jaw_first is None:
+                        guard_jaw_first = _jaw_now
+                    guard_jaw_abs_max = max(guard_jaw_abs_max, abs(_jaw_now))
                 elif mon_leg is not None:
                     # P10-C.2 minimal clean-slip accumulator (see `__init__`):
                     # the guard/diag tracker above is off, but the confirmation
@@ -4329,6 +4392,26 @@ class PickAndPlaceTask:
                 )
                 sep_end = float(arm.jaw_separation()) * 1000.0
                 fmin = guard_force_min if guard_force_min < float("inf") else -1.0
+                # P65: the reads above, formatted once per leg (`n/a` where the
+                # leg never entered the guarded branch). `@jN/tI` = the 1-based
+                # binding joint and the tick the leg's minimum was taken, which
+                # is what the registered coincidence test needs.
+                _qm = (
+                    "n/a"
+                    if guard_q_margin == float("inf")
+                    else f"{guard_q_margin:.3f}@j{guard_q_margin_j + 1}"
+                    f"/t{guard_q_margin_i}"
+                )
+                _qcm = (
+                    "n/a"
+                    if guard_qc_margin == float("inf")
+                    else f"{guard_qc_margin:.3f}@j{guard_qc_margin_j + 1}"
+                )
+                _jawz = (
+                    "n/a"
+                    if guard_jaw_first is None
+                    else f"{guard_jaw_first:+.4f}/{guard_jaw_abs_max:.4f}"
+                )
                 say(
                     f"[carry] {side} {name}: ticks={i + 1}/{len(commands)} "
                     f"clean_slip_max={guard_slip_max * 1000:.1f}mm "
@@ -4337,6 +4420,9 @@ class PickAndPlaceTask:
                     f"{guard_slip_at_max[2] * 1000:.1f})mm "
                     f"hold_drift={guard_drift_max:.1f}deg"
                     f"{'' if guard_hold_seen else '(no-hold)'} "
+                    f"q_margin={_qm} q_cmd_margin={_qcm} "
+                    f"q_step_max={guard_q_step_max:.4f} "
+                    f"jaw_z={_jawz} drift_on={guard_drift_on_i} "
                     f"in-hand_vmax={guard_vmax:.3f} "
                     f"onset_row={guard_onset_i} force@onset={force_at}N "
                     f"sep@onset={sep_at}mm contacts@onset={guard_onset_contacts} "

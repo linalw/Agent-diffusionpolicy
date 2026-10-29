@@ -356,7 +356,16 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: reads the waypoints file byte-for-byte; the only armed caller is this env,
 #: behind `FRUIT_GRASP_LEFT_TOPDOWN=1` (default off, `direct` only), and on this
 #: tree it resolves to the attitude `configs/waypoints.json` already carries.
-TASKS_MD5 = "7a8a163a5884ed8d95d76d6da2c58ae8"
+#:
+#: P65 phase 1 (metadata-only follow, `7a8a163a -> 309e5a38`): the `[carry]`
+#: row gains five reporting-only fields under `FRUIT_CARRY_DIAG` (the measured
+#: joint-limit margin and its binding joint, the same for the controller's
+#: post-clip command, the command's largest per-tick step, the jaw-opening
+#: axis' world z, and the first tick the hold drift passes 10 deg). Nothing in
+#: `tasks.py` changes behaviour: the whole block needs `_carry_guard_active or
+#: _carry_diag` (the knob is default off) **and** `_dynamic_capture_active`, so
+#: the scripted line cannot reach it (377/377 `[fruit]` lines identical).
+TASKS_MD5 = "309e5a38d66e5ac5c1892102506a2908"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(

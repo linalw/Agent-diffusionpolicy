@@ -19960,3 +19960,29 @@ free).
 **Also corrected**: `logs/p58/GEOMETRY.md` prices the **station y** for the
 *catchable-segment* question (R10), **not** a general station NO-GO - the P64
 paragraph's citation was out of scope. Evidence `logs/p64/{SCREEN.md,ik_screen.*}`.
+
+### P65: both IK suspects for the lift's drift are measured out, and the drift's cause is still open
+
+The instrument (`q_margin`, `q_cmd_margin`, `q_step_max`, `jaw_z`, `drift_on` on the
+`[carry]` row; 44/44 `grasp_lift` legs carry all five) and its cell (3 seeds x 15,
+both arms) answer the question P64's screen raised - and answer it **negatively**:
+
+* **`max_step` refuted by measurement**: the largest per-tick command step on any
+  leg is **0.0300 rad** against the **0.5 rad** cap - **6 %**, never binding.
+* **The joint-limit clip refuted by discrimination**: the measured margin is
+  **0.000 rad on 86/86 legs** (20 left lifts, 24 right lifts, **all 42 place
+  legs**), so "a joint at its limit" is a **standing condition of this
+  workspace**; and on the left's 18 failing legs the drift's onset (median tick
+  **106 of ~160**) **precedes** the margin's minimum by a median of **-41 ticks**.
+* **The pads' line points the other way**: both arms start flat (|jaw_z| 8.4/10.4
+  thousandths) and over the leg the **right** twists more (0.371 vs 0.239) yet
+  places 23/24.
+
+**So the ~25 deg drift is still unexplained at the code level measured so far** -
+the two named suspects are out, and the only left-specific term remains the tilt's
+**azimuth** (P63). The class counts are the P63 shape at a moved branch (left
+1/18/1, right 23/0/2; attempt split 20/25, F3 = instrumentation-or-branch).
+
+**Named and not measured**: the payload-induced wrist deflection (a load path, not
+a command), `ik_step`'s `gain` term, and the hold's re-application rate. `control.py`
+untouched, `configs/*` untouched, no reference re-recorded, no default changed.

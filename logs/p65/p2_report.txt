@@ -1,0 +1,144 @@
+# P65 phase 1 report - does the lift's drift coincide with a joint limit?
+
+Cell: `FRUIT_CARRY_DIAG=1` + the P65 fields, the shipped `direct` profile, 3 seeds x 15 picks (`logs/p65/PREREG.md`).
+
+## P0 - the instrument (PREREG P1)
+
+| read | value |
+| --- | --- |
+| `[carry]` rows | **86** (grasp_lift 44, place 42) |
+| `q_margin` on grasp_lift | **44/44** |
+| `q_cmd_margin` on grasp_lift | **44/44** |
+| `q_step_max` on grasp_lift | **44/44** |
+| `jaw_z` on grasp_lift | **44/44** |
+| `drift_on` on grasp_lift | **44/44** |
+| `(no-hold)` on grasp_lift | **0/44** |
+| all five on one grasp_lift row | **44/44** |
+
+## P1 - the margin per arm and per outcome
+
+| arm | outcome | n | drift deg | q_margin rad | binding | drift_on | q_step_max rad |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| left | placed | 1 | 23.100 | -0.000 | j2x1 | 112 | 0.0300 |
+| left | cnp | 18 | 23.950 [20.400-29.600] | 0.000 [0.000-0.000] | j2x5 j5x3 j7x10 | 106 [89-125] | 0.0300 |
+| left | never-held | 1 | 44.500 | -0.000 | j6x1 | 0 | 0.0300 |
+| right | placed | 23 | 27.100 [20.200-34.400] | 0.000 [0.000-0.000] | j6x1 j7x22 | 104 [99-121] | 0.0300 |
+| right | never-held | 1 | 128.400 | -0.001 | j3x1 | 0 | 0.0300 |
+
+## P2 - the test: is the drift coincident with a joint at its limit?
+
+### the left's failing (`cnp`) legs, one row each
+
+| ep | leg | ticks | drift deg | q_margin rad | j | t_min | drift_on | dt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 0 | grasp_lift | 156 | 25.2 | -0.000 | j2 | 127 | 101 | -26 |
+| 3 | grasp_lift | 164 | 21.6 | 0.000 | j7 | 163 | 116 | -47 |
+| 6 | grasp_lift | 156 | 20.9 | 0.000 | j7 | 155 | 112 | -43 |
+| 8 | grasp_lift | 154 | 27.4 | -0.000 | j2 | 121 | 89 | -32 |
+| 13 | grasp_lift | 153 | 26.4 | -0.000 | j5 | 130 | 96 | -34 |
+| 0 | grasp_lift | 153 | 26.8 | -0.000 | j7 | 101 | 96 | -5 |
+| 2 | grasp_lift | 156 | 21.9 | 0.000 | j7 | 155 | 104 | -51 |
+| 4 | grasp_lift | 158 | 22.3 | 0.000 | j7 | 157 | 105 | -52 |
+| 5 | grasp_lift | 165 | 22.8 | 0.000 | j2 | 137 | 118 | -19 |
+| 10 | grasp_lift | 163 | 23.8 | 0.000 | j7 | 162 | 107 | -55 |
+| 11 | grasp_lift | 157 | 29.6 | -0.000 | j5 | 116 | 96 | -20 |
+| 14 | grasp_lift | 161 | 22.3 | 0.000 | j2 | 157 | 111 | -46 |
+| 1 | grasp_lift | 162 | 24.1 | 0.000 | j7 | 161 | 106 | -55 |
+| 3 | grasp_lift | 167 | 25.4 | -0.000 | j7 | 35 | 108 | +73 |
+| 4 | grasp_lift | 174 | 20.4 | 0.000 | j7 | 173 | 125 | -48 |
+| 5 | grasp_lift | 159 | 24.1 | -0.000 | j7 | 83 | 104 | +21 |
+| 6 | grasp_lift | 163 | 22.0 | -0.000 | j5 | 162 | 116 | -46 |
+| 7 | grasp_lift | 161 | 25.2 | -0.000 | j2 | 138 | 105 | -33 |
+
+`q_margin` is the leg's **minimum** (one number on the row), so the `at a limit` clause is read on the min - the conservative form (min <= end value). `dt` = `drift_on - t_min`, the registered coincidence operand.
+
+### the registered decision (PREREG P2)
+
+* left cnp legs with a readable margin: **18/18**
+* at/near a limit (`q_margin <= 0.05`): **18/18**
+* healthy (`q_margin >= 0.15`): **0/18**
+* onset coincident with the margin's minimum (+-20 ticks): **3/18**
+* min over all left cnp legs: **-0.000 rad**
+* the **command** margin on the same legs: median **0.000 rad**, min **0.000** (the ``np.clip`` operand, `control.py:494`)
+* `q_step_max` on the same legs: max **0.030 rad/tick** against the **0.5** `FRUIT_IK_MAX_STEP` cap (= 6% of it)
+
+**`max_step` (`control.py:423`) as a separate object:** the leg's largest per-tick command step is **0.0300 rad** against the **0.5** cap -> it **never binds** (6.0% of the cap). So the two suspects are **not one question** on this instrument: the step cap is refuted by measurement, while the joint-limit clip is the one the margin decides.
+
+### P2b - does the margin discriminate? (all legs, both arms, lift and place)
+
+| group | n | margin <= 0.05 | margin >= 0.15 | median | min |
+| --- | --- | --- | --- | --- | --- |
+| left grasp_lift | 20 | 20/20 | 0/20 | 0.000 | -0.000 |
+| right grasp_lift | 24 | 24/24 | 0/24 | -0.000 | -0.001 |
+| left place | 19 | 19/19 | 0/19 | -0.000 | -0.000 |
+| right place | 23 | 23/23 | 0/23 | -0.000 | -0.000 |
+
+The drift's onset vs the margin's minimum over **all** `grasp_lift` legs: median **-41 ticks** [-99..+73], inside +-20: **5/44**.
+
+**Degenerate?** YES - 86/86 of *all* legs (both arms, lift and place) read a margin at the limit, so the joint-limit clip is a **standing condition of this workspace**, not a lift-specific cause: it is present on the right's placing legs too.
+
+**P2 - the registered rule, literal: SUPPORTED** (a joint *is* at its limit on every failing leg)
+
+**P2 - the causal reading, and the one the phase carries:** the clip is **not separated** - the margin is at the limit on every leg of both arms (and on all 42 place legs), so it is a standing condition of this workspace, not the lift's cause; and the drift's onset precedes the margin's own minimum by a median of -41 ticks (inside +-20 on 5/44 legs). `max_step` is refuted by measurement on the same rows. **Both named suspects are therefore refuted as the creator of the 25 deg**; the residual (the margin at the onset tick is not on the row - only the leg's minimum is) is named in `logs/p65/P2_RESULTS.md`.
+
+## P3 - the pads' line: does the left tip its jaw?
+
+| arm | n | `|jaw_z|` first (med) | `|jaw_z|` max (med) | max over legs | pad dz at max (mm) |
+| --- | --- | --- | --- | --- | --- |
+| left | 20 | 0.0084 | 0.2392 | 0.3610 | 35.4 |
+| right | 24 | 0.0104 | 0.3705 | 0.5653 | 55.4 |
+
+P64's `QPREC` reference: `|jaw_z| = 0.2949` -> 28.9 mm of pad height difference across the 98 mm jaw (the one-pad-first class); the control `C0` reads 0.0095 -> 0.9 mm.
+
+## P4 - the class counts, and F3 vs P63's control
+
+| arm | placed | cnp | never-held | attempts | `grasp_lift` legs |
+| --- | --- | --- | --- | --- | --- |
+| left | 1 | 18 | 1 | 20 | 20 |
+| right | 23 | 0 | 2 | 25 | 24 |
+| pooled | 24 | 18 | 3 | 45 | 44 |
+
+**No rate claim** (3 seeds of a rendered-frame loop, AGENTS.md §3b).
+
+### note keys in this cell
+
+* `'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)'` x4
+* `'intercept trigger (dy=#cm, dx=-#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)'` x11
+* `'fruit fell off the line'` x1
+* `'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)', 'fruit did not follow the gripper'` x1
+* `'intercept trigger (dy=#cm, dx=-#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)'` x12
+* `'intercept trigger (dy=#cm, dx=-#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)', 'fruit did not follow the gripper'` x1
+* `'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)'` x2
+* `'intercept trigger (dy=#cm, dx=-#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)'` x13
+
+**Reasons not present in P63's control:** `'fruit fell off the line'` (x1)
+**Control-only keys:** none
+
+**F3 control (P63's `D_*`, same scenario/checkpoint/seeds):**
+
+| arm | placed | cnp | never-held |
+| --- | --- | --- | --- |
+| left | 2 | 11 | 2 |
+| right | 29 | 0 | 1 |
+
+## reproduction
+
+```bash
+bash logs/p65/p2/run_p2.sh
+python3 logs/p65/p2_report.py --check > logs/p65/p2_report.txt
+```
+
+ok: the cell has grasp_lift legs
+ok: every grasp_lift row carries all five fields (44)
+ok: every margin tick is inside its leg
+ok: every margin tick is one the leg actually ran
+ok: jaw_z max abs >= the first tick's |z| on every leg
+ok: q_step_max is a magnitude
+ok: drift_on is a tick index or None
+ok: no margin beyond -0.5 rad (a sane joint vector)
+ok: every leg's side matches its episode's arm
+ok: P60's parse_leg still reads the row
+ok: the log carries its rollout summary
+ok: the tree md5s are identical before/after
+
+CHECKS: PASS
