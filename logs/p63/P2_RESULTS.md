@@ -72,7 +72,7 @@ and it is **explicitly exempt for `grasp_lift`** (`name != "grasp_lift"`), which
 is why the count is 0/45 — the mechanism read is confirmed by the field itself,
 not assumed from the code.
 
-## 2. The command, verified three ways (the identity the interpretation rests on)
+## 2. The command, verified three ways — and the corollary that makes `hold_drift` the tilt
 
 | way | read |
 |---|---|
