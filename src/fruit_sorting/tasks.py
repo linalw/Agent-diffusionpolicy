@@ -243,6 +243,28 @@ def _quat_about_axis(q, axis, angle: float) -> np.ndarray:
     return out / max(float(np.linalg.norm(out)), 1e-9)
 
 
+def carry_hold_override_for(overrides, side: str, name: str) -> np.ndarray | None:
+    """P64: the pre-compensated hold for one carry leg, or `None` (shipped).
+
+    Pure, and the **only** place a carry-leg attitude override is resolved. The
+    scope is `grasp_lift` on purpose: on the OpenArm hand that is the one leg
+    whose hold is *inherited* - the dynamic catch installs its top-down hold
+    before the hover/descent/close (`_run_impl`) and the `_carry` clear is
+    explicitly exempt for `grasp_lift` (`name != "grasp_lift"`), while every
+    place leg clears it. So writing the hold here changes exactly the attitude
+    the lift is commanded, and nothing else - the grip is still taken at the
+    shipped attitude (the P42/P61 seat and close work keeps its own geometry).
+
+    `overrides` is the caller-owned `carry_hold_override` dict (side ->
+    quaternion, `[w, x, y, z]`); `None`, a missing side or any other leg name
+    returns `None`, i.e. the shipped path writes nothing at all.
+    """
+    if overrides is None or name != "grasp_lift":
+        return None
+    q = overrides.get(side)
+    return None if q is None else np.asarray(q, dtype=float).copy()
+
+
 _EMPTY_TACTILE = TactileReading(side="none")
 
 # ---- P7-2b C-3 carry monitor: the frozen Phase-0 logistic constants ----------
@@ -658,7 +680,8 @@ class PickAndPlaceTask:
 
     def __init__(self, scene, spawner, tactile, cfg, waypoint_path: str | None = None,
                  feed_cadence: bool | None = None,
-                 grasp_quat_override: dict | None = None):
+                 grasp_quat_override: dict | None = None,
+                 carry_hold_override: dict | None = None):
         # The v1 file reproduces the recorded datasets. Physical grasping uses the
         # orientation-constrained poses: FRUIT_WAYPOINTS=configs/waypoints_oriented.json
         waypoint_path = waypoint_path or os.environ.get(
@@ -680,6 +703,25 @@ class PickAndPlaceTask:
             {}
             if grasp_quat_override is None
             else {str(k): np.asarray(v, dtype=float) for k, v in grasp_quat_override.items()}
+        )
+        #: P64: a per-arm **carry** attitude override, keyed by side,
+        #: `[w, x, y, z]`, applied only to the `grasp_lift` leg (see
+        #: `carry_hold_override_for`). `None` (the default everywhere) writes
+        #: nothing, so the scripted line, the collector, the two-line scheduler
+        #: and the hybrid canary are byte-inert; only `rl_env` resolves it, and
+        #: only for `direct` + left (`FRUIT_GRASP_LEFT_PRECOMP=1`, default off).
+        #: This is **not** the P62 `grasp_quat_override` channel: that one feeds
+        #: `_grasp_quat`, which the never-stop catch releases before the descent
+        #: (P62 phase 2 measured it inert on the achieved attitude), while this
+        #: one writes `arm.hold_quaternion` - the command `ik_step` actually
+        #: tracks during the lift.
+        self._carry_hold_override: dict[str, np.ndarray] = (
+            {}
+            if carry_hold_override is None
+            else {
+                str(k): np.asarray(v, dtype=float)
+                for k, v in carry_hold_override.items()
+            }
         )
         self.arms = {
             "left": ArmController(scene, "left"),
@@ -3425,6 +3467,15 @@ class PickAndPlaceTask:
         from isaacsim.core.simulation_manager import SimulationManager
 
         arm = self.arms[side]
+        # P64: the pre-compensated carry attitude (default off; only the direct
+        # env sets it, direct + left). `_carry`'s hold is otherwise the one the
+        # dynamic catch installed before the descent - `grasp_lift` keeps it,
+        # every place leg is cleared below - so this is the single site that can
+        # move the attitude the lift is *commanded*. `None` (the shipped path)
+        # writes nothing.
+        _hold_override = carry_hold_override_for(self._carry_hold_override, side, name)
+        if _hold_override is not None:
+            arm.hold_quaternion = _hold_override
         goal = self.jaw_target(side, name)
         # P39 attitude readout (`FRUIT_CARRY_ATTITUDE=1`, default off): read once
         # per leg and printed at the leg's end, on both exits of this method.

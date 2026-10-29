@@ -19889,3 +19889,41 @@ belt's drag walks the payload out along the tool axis (P61) -> the `cnp` class a
 the residual is deterministic (~25 deg at a stable azimuth), commanding T0 rotated
 by its inverse puts the *achieved* attitude at projection ~0 without touching the
 arm's kinematics. No default changed; `configs/*` untouched; no reference moved.
+
+### P64: the pre-compensated command is live and INVERTED - the achieved attitude is a 6-DoF IK trade, not an offset
+
+The last parameter-level lever the chain handed on (P63) was a pre-compensated
+command: command `q_drift^-1 (x) q_T0` so the *achieved* attitude lands at
+projection ~0. Two things were measured.
+
+**The channel is real, and it is not P62's.** `_grasp_quat`/`grasp_quat_override` is
+inert on the lift (P62), but the command `ik_step` actually tracks during
+`grasp_lift` is **`arm.hold_quaternion`**, installed by the never-stop catch before
+the hover and **inherited** by the lift (the `_carry` clear is `name !=
+"grasp_lift"`; every place leg clears it). Writing it at the lift's start moves the
+achieved attitude by 17-32 deg in the gate smoke - so the brief's "if no path
+exists, stop" branch does not apply, and a scoped, default-off knob
+(`carry_hold_override_for`, `tasks.py` `7a8a163a`) is in the tree.
+
+**The response is inverted.** The drift from 7 left `grasp_lift` legs is `axis
+(-0.7564, -0.6541, 0)`, `angle 26.798 deg` (median achieved tool axis
+`(+0.3035, -0.3509, -0.8859)`, per-leg tilt 25.1-28.7 deg, azimuth spread +-3.2
+deg), giving a command projection of **-0.3410**. Commanding it takes the achieved
+projection **from +0.32..+0.37 to +0.51..+0.83** (achieved tilt 38.5-57.9,
+`hold_drift` 54.9-107.4 deg against the control's 20.5-29.4), the holds lose
+contact **earlier** (onset rows 37-39 vs 97-127) and the left places **1/32**
+against the control's 2/15. **E1 fails by sign.**
+
+**Mechanically**: `ik_step`'s 6-DoF solve at a station whose grasp seed already
+sits at the reach edge **trades orientation against position**, so the achieved
+attitude is a function of the whole task rather than of the orientation target -
+at `q_cmd = T0` it settles 25-29 deg downstream, at `q_cmd = T0 - 26.8 deg` it
+settles 38-58 deg. **No constant pre-compensation can set it.**
+
+**So the pose family is exhausted in every form measured**: the yaw family is
+IK-infeasible (P62), the command is already T0 (P62), the residual's magnitude is
+arm-common with only its azimuth left-specific (P63), and a constant
+pre-compensation is inverted (P64). What remains is **structural** - the station's
+reach (P58's `GEOMETRY.md` priced a station move NO-GO at the current margins) or
+the arm/gripper hardware - **never a command parameter.** Knob default off, no
+`configs/` change, no reference re-recorded.

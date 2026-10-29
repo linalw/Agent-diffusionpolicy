@@ -2713,6 +2713,38 @@ needs its own pre-registration. Pins: `tasks.py` **`1d27566c`**, `rl_env.py`
 `configs/*` untouched, no reference re-recorded. Evidence
 `logs/p63/{PREREG.md,P2_RESULTS.md,p2_report.{py,txt},p2/}`; WORKLOG "P63".
 
+**P64 (2026-10-29, `logs/p64/`; default off, **nothing adopted**): the
+pre-compensated command is **live and inverted** - the left's achieved attitude is
+a **6-DoF IK trade**, not a constant offset from its command, so no
+command-level pre-compensation can set it.** The channel is real and it is
+**`arm.hold_quaternion`**, not `_grasp_quat` (P62's inert channel): the
+never-stop catch installs the top-down hold before the hover and `grasp_lift`
+**inherits** it (the `_carry` clear is `name != "grasp_lift"`; every place leg
+clears it), so writing it at the lift's start **does** move the achieved attitude
+(17-32 deg in the gate smoke). The drift derived from 7 left `grasp_lift` legs is
+`axis (-0.7564, -0.6541, 0)`, `angle 26.798 deg`, median achieved tool axis
+`(+0.3035, -0.3509, -0.8859)` (belt projection +0.32..+0.37, per-leg tilt
+25.1-28.7 deg, azimuth spread +-3.2 deg), giving
+`q_cmd = q_drift^-1 (x) q_T0 = [+0.01675, -0.68786, +0.68786, +0.23113]` with a
+command projection of **-0.3410**. **Commanding it moves the achieved projection
+the WRONG way**: from **+0.32..+0.37 to +0.51..+0.83** (achieved tilt 38.5-57.9
+deg, `hold_drift` 54.9-107.4 deg against the control's 20.5-29.4), the holds lose
+contact **earlier** (onset rows 37-39 against 97-127), and the left places **1/32**
+against the control's 2/15 - **E1 fails by sign**. Mechanically: the `ik_step`
+6-DoF solve at a station whose grasp seed already sits at the reach edge
+**trades orientation against position**, so the achieved attitude is a function of
+the whole task, not of the orientation target - at `q_cmd = T0` it settles 25-29
+deg downstream, at `q_cmd = T0 - 26.8 deg` it settles 38-58 deg. **The pose family
+is therefore exhausted in every form measured**: the yaw family is IK-infeasible
+(P62), the command is already T0 (P62), the residual's magnitude is arm-common and
+only its azimuth is left-specific (P63), and a constant pre-compensation is
+inverted (P64). What remains is **structural** - the station's reach (P58's
+`GEOMETRY.md` priced a station move NO-GO at the current margins) or the
+arm/gripper hardware - never a command parameter. Pins: `tasks.py` **`7a8a163a`**,
+`rl_env.py` **`7c137553`** (`TASKS_MD5` follow), `scripts/234_p64_precomp_selftest.py`;
+`configs/*` untouched, no reference re-recorded. Evidence
+`logs/p64/{PREREG_P2.md,P2_RESULTS.md,p1/,p2/}`; WORKLOG "P64".
+
 ## 3. What changed -> what to run
 
 | you changed | run |

@@ -220,6 +220,18 @@ run_check "P63 attitude drift" "$python" scripts/233_p63_attitude_selftest.py
 # arms, and the never-stop catch's own installed hold IS that left value, so the
 # armed run commands what the shipped run commands.
 run_check "P62 grasp attitude" "$python" scripts/232_p62_grasp_selftest.py
+# P64 phase 1: the pre-compensated left carry attitude
+# (`FRUIT_GRASP_LEFT_PRECOMP`, default off, `direct` + left only). The resolver
+# is offline and inert by default; the **composition** `q_cmd = q_drift^-1 (x)
+# q_T0` is recomputed from the measured axis/angle constant and checked against
+# the module value (and against the tool-frame alternative, which it is not);
+# the real `tasks.carry_hold_override_for` (extracted with `ast`) returns `None`
+# for `None`, an empty dict, an unnamed side and every leg but `grasp_lift`, and
+# a copy for the armed one, so a knob-off task writes no hold at all. The site is
+# the one guarded `arm.hold_quaternion` write in `_carry` - a *different* channel
+# from P62's `grasp_quat_override`, which P62 measured inert on the achieved
+# attitude - and the row / manifest / untouched `configs/` are pinned.
+run_check "P64 left precomp" "$python" scripts/234_p64_precomp_selftest.py
 
 if [ -n "$run_log" ] && [ -f "$run_log" ]; then
     run_check "motion budgets" "$python" scripts/105_motion_regression.py "$run_log" \

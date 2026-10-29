@@ -356,7 +356,7 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: reads the waypoints file byte-for-byte; the only armed caller is this env,
 #: behind `FRUIT_GRASP_LEFT_TOPDOWN=1` (default off, `direct` only), and on this
 #: tree it resolves to the attitude `configs/waypoints.json` already carries.
-TASKS_MD5 = "1d27566c399804ed65f88642d7db619c"
+TASKS_MD5 = "7a8a163a5884ed8d95d76d6da2c58ae8"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(
@@ -400,6 +400,114 @@ def _tool_belt_proj(q) -> float:
     # `+0.0000` rather than `-0.0000` (the belt points along -y, so the
     # negated y-component is the natural signed form).
     return float(-tool[1]) + 0.0
+
+
+#: ---------------------------------------------------------------------------
+#: P64 phase 1: the **measured** left `grasp_lift` achieved-attitude drift and
+#: its pre-compensated command (default off; `direct` + left only).
+#:
+#: The chain P61-P63 measured: the left is **commanded** T0 (fingers straight
+#: down, `GRASP_LEFT_TOPDOWN` = `configs/waypoints.json`'s left value) and
+#: **achieves** a 25-29 deg tilt whose azimuth is the belt axis (tool `y`
+#: -0.32..-0.37, downstream, while the right's azimuth lands across the belt).
+#: The command path is exhausted (the P62 world-z yaw family never solves at
+#: this station and its `_grasp_quat` channel is inert on the achieved
+#: attitude), so the remaining object is the **tracking residual** and the only
+#: lever is to ask for the inverse of it.
+#:
+#: Derived in `logs/p64/p1/derive.py` from the `[attitude] ... tool_axis=` rows
+#: of seven left `grasp_lift` legs in the P63 cell's own scenario/checkpoint
+#: (`logs/p63/p2/A1_77.log`, 3 legs; `logs/p62/p2/P0{A,B}.log` and
+#: `P0b{A,B}.log`, 1 leg each), **median over the legs** of the achieved tool
+#: axis and of the tilt:
+#:
+#:   median achieved tool axis (+0.303490, -0.350929, -0.885857), belt
+#:   projection +0.3509; per-leg tilt 25.1-28.7 deg (median 26.80), per-leg
+#:   azimuth -127.2..-133.6 deg from +y (spread +-3.2), per-leg projection
+#:   +0.3210..+0.3658 -> a single constant is a first-order model of a
+#:   residual that varies by ~1.8 deg in magnitude and ~3 deg in azimuth.
+#:
+#: `q_drift` is the **minimal** rotation from the commanded axis (0, 0, -1) to
+#: that median: axis = (0,0,-1) x t = (t_y, -t_x, 0) normalized, angle =
+#: acos(-t_z) (the brief's definition; a roll about the tool axis is not
+#: observable from the axis and does not move it). The command is the inverse
+#: on the **left** - `q_cmd = q_drift^-1 (x) q_T0`, i.e. the world-frame
+#: residual model `q_ach = q_drift (x) q_cmd` - which is the brief's registered
+#: form; `q_T0 (x) q_drift^-1` is the tool-frame alternative (`logs/p64/p1/
+#: derive_out.txt` prints both, the registered one is used).
+#:
+#: **Caveat, measured by P62 and re-read in the code for this phase:** the
+#: `GRASP_LEFT_TOPDOWN`/`grasp_quat_override` channel (`tasks._grasp_quat`) is
+#: **not** what the lift runs - the never-stop catch releases it before the
+#: descent and installs its own top-down hold, which `_carry` then inherits on
+#: `grasp_lift` (the clear is `name != "grasp_lift"`). So this knob does **not**
+#: reuse that kwarg: it passes `carry_hold_override` to `PickAndPlaceTask` and
+#: `tasks.carry_hold_override_for` writes `arm.hold_quaternion` for the
+#: `grasp_lift` leg only - the command `ik_step` actually tracks during the lift.
+#: The grip itself is still taken at the shipped attitude (one leg, not the
+#: hover/descent/close), so the P42/P61 seat geometry is untouched.
+P64_LEFT_DRIFT_AXIS = (-0.756380334927, -0.654132088294, 0.0)
+P64_LEFT_DRIFT_ANGLE_DEG = 26.798198
+
+
+def _quat_conjugate(q) -> np.ndarray:
+    q = np.asarray(q, dtype=float)
+    return np.array([q[0], -q[1], -q[2], -q[3]], dtype=float)
+
+
+def _quat_mul(a, b) -> np.ndarray:
+    """Hamilton product, `[w, x, y, z]`: `R(a (x) b) = R(a) R(b)`."""
+    a = np.asarray(a, dtype=float)
+    b = np.asarray(b, dtype=float)
+    w1, v1 = float(a[0]), a[1:]
+    w2, v2 = float(b[0]), b[1:]
+    return np.array(
+        [w1 * w2 - float(v1 @ v2), *(w1 * v2 + w2 * v1 + np.cross(v1, v2))],
+        dtype=float,
+    )
+
+
+def _quat_from_axis_angle(axis, angle_deg: float) -> np.ndarray:
+    axis = np.asarray(axis, dtype=float)
+    axis = axis / max(float(np.linalg.norm(axis)), 1e-12)
+    half = math.radians(float(angle_deg)) / 2.0
+    return np.array([math.cos(half), *(math.sin(half) * axis)], dtype=float)
+
+
+def left_precomp_quat(axis, angle_deg: float, commanded) -> np.ndarray:
+    """`q_drift^-1 (x) q_cmd`, normalized, `[w, x, y, z]` (pure; pinned by `234`).
+
+    `q_drift` is built from `axis`/`angle_deg` (the measured residual), and the
+    result is the command whose *predicted* achieved attitude is `commanded`.
+    """
+    q_drift = _quat_from_axis_angle(axis, angle_deg)
+    q = _quat_mul(_quat_conjugate(q_drift), np.asarray(commanded, dtype=float))
+    return q / max(float(np.linalg.norm(q)), 1e-12)
+
+
+#: The resolved command (one array, built at import from the two constants).
+GRASP_LEFT_PRECOMP = left_precomp_quat(
+    P64_LEFT_DRIFT_AXIS, P64_LEFT_DRIFT_ANGLE_DEG, GRASP_LEFT_TOPDOWN
+)
+
+
+def resolve_carry_hold_override(
+    presentation: str, env_value: str | None
+) -> dict[str, np.ndarray] | None:
+    """The resolved `FRUIT_GRASP_LEFT_PRECOMP` carry-hold override, or `None`.
+
+    P64 phase 1: **direct-scoped and left-only, default off**. Returns
+    `{"left": GRASP_LEFT_PRECOMP}` only for `presentation == "direct"` with an
+    explicit `FRUIT_GRASP_LEFT_PRECOMP=1`; every other combination returns
+    `None`, which is the shipped `PickAndPlaceTask(carry_hold_override=None)`
+    path (no write to any arm's hold). The scripted line, the collector, the
+    two-line scheduler and the hybrid canary never construct this env.
+    """
+    if presentation != "direct":
+        return None
+    if (env_value if env_value is not None else "0") != "1":
+        return None
+    return {"left": np.asarray(GRASP_LEFT_PRECOMP, dtype=float)}
 
 
 def resolve_grasp_quat_override(
@@ -1239,6 +1347,17 @@ class SortingRLEnv:
         self._grasp_quat_override = resolve_grasp_quat_override(
             presentation, os.environ.get("FRUIT_GRASP_LEFT_TOPDOWN")
         )
+        #: P64 phase 1: the **pre-compensated left carry attitude**
+        #: (`FRUIT_GRASP_LEFT_PRECOMP=1`, default **off**, `direct` + left only).
+        #: A different channel from the override above on purpose: P62 measured
+        #: that `_grasp_quat` cannot reach the achieved lift attitude (the
+        #: never-stop catch releases it before the descent), so this one is
+        #: passed as `carry_hold_override` and written into `arm.hold_quaternion`
+        #: for the `grasp_lift` leg - the command `ik_step` tracks. The constant,
+        #: its derivation and the measured spread are at `P64_LEFT_DRIFT_*`.
+        self._carry_hold_override = resolve_carry_hold_override(
+            presentation, os.environ.get("FRUIT_GRASP_LEFT_PRECOMP")
+        )
         #: P55: the live feeder, now part of the profile. `FRUIT_DIRECT_FEED=0`
         #: restores the pre-P55 behaviour; non-direct presentations stay off.
         self._direct_feed = bool(self._supply["feed"])
@@ -1982,6 +2101,7 @@ class SortingRLEnv:
                 self._supply["cadence"] if self.presentation == "direct" else None
             ),
             grasp_quat_override=self._grasp_quat_override,
+            carry_hold_override=self._carry_hold_override,
         )
         self.task.recorder = None
 
@@ -2061,6 +2181,13 @@ class SortingRLEnv:
                     os.environ.get("FRUIT_HAND_AXIS", "x"),
                 )
             )
+        if self._carry_hold_override:
+            # P64 phase 1: the armed pre-compensation's own row - the command
+            # quaternion, the measured drift it inverts, and the belt projection
+            # it is predicted to remove. The *control* (knob unset) prints
+            # nothing at all, so a log says in its first lines whether it ran
+            # the pre-compensated lift.
+            say(self._precomp_row(self._carry_hold_override))
         if self._continuous_picks > 0:
             say(
                 f"[cont] enabled: picks_target={self._continuous_picks} "
@@ -2172,6 +2299,22 @@ class SortingRLEnv:
             #: P35 phase 1: the inactive arm's park (absent = the shipped
             #: `ready` waypoint). A run's arm pose is part of its scenario.
             "arm_park": self._arm_park_source,
+            #: P64 phase 1: the pre-compensated left carry attitude (null = off,
+            #: the shipped hold). An armed arm is identified by this block, not
+            #: by the `[grasp] left precomp:` row alone - and it is a different
+            #: scenario (the lift is commanded an attitude no shipped run has).
+            "carry_hold_precomp": (
+                {
+                    "arm": "left",
+                    "leg": "grasp_lift",
+                    "axis": list(P64_LEFT_DRIFT_AXIS),
+                    "angle_deg": P64_LEFT_DRIFT_ANGLE_DEG,
+                    "q_cmd": [float(v) for v in GRASP_LEFT_PRECOMP],
+                    "source": "median of 7 left grasp_lift legs (P63 A1_77 + P62 P0/P0b)",
+                }
+                if self._carry_hold_override
+                else None
+            ),
             #: P36 phase 1: the proprio spoof (absent = the measured joints).
             #: A cell of the 2x2 is identified by this block plus `arm_park`;
             #: the image channel is the park, the obs channel is this.
@@ -2493,6 +2636,43 @@ class SortingRLEnv:
             f"hold_same={same(left_q, hold_q)} | "
             f"right=file {fmt(right_q)} belt_proj="
             f"{'n/a' if right_q is None else f'{_tool_belt_proj(right_q):+.4f}'}"
+        )
+
+    @staticmethod
+    def _precomp_row(override: dict) -> str:
+        """The `[grasp] left precomp:` row (pure; pinned by `234`).
+
+        P64 phase 1, printed **only when the knob is armed**, so the control arm
+        (and every scripted path, which never constructs this env) prints
+        nothing. It names what the run commands and what that is predicted to
+        achieve:
+
+        * the **drift** inverted: axis and angle (the measured median) and the
+          per-leg spread it was taken over;
+        * the resulting **command** `q_cmd = q_drift^-1 (x) q_T0`, its belt
+          projection (the command is tilted *upstream* by the drift angle) and
+          the **predicted achieved** projection - computed by applying
+          `q_drift` to `q_cmd`, i.e. the registered model `q_ach = q_drift (x)
+          q_cmd`, so the row proves the arithmetic rather than asserting a 0;
+        * the scope: one leg (`grasp_lift`), one arm (left), the right shipped.
+        """
+        q_cmd = override.get("left")
+        q_cmd = np.asarray(q_cmd, dtype=float)
+        q_drift = _quat_from_axis_angle(
+            P64_LEFT_DRIFT_AXIS, P64_LEFT_DRIFT_ANGLE_DEG
+        )
+        predicted = _quat_mul(q_drift, q_cmd)
+        return (
+            "[grasp] left precomp: "
+            f"q_cmd=[{','.join(f'{float(v):+.6f}' for v in q_cmd)}] (w,x,y,z) "
+            f"axis=({P64_LEFT_DRIFT_AXIS[0]:+.6f},{P64_LEFT_DRIFT_AXIS[1]:+.6f},"
+            f"{P64_LEFT_DRIFT_AXIS[2]:+.6f}) angle={P64_LEFT_DRIFT_ANGLE_DEG:.3f}deg "
+            f"cmd_belt_proj={_tool_belt_proj(q_cmd):+.4f} "
+            f"predicted_proj={_tool_belt_proj(predicted):+.4f} | "
+            "leg=grasp_lift (hold written at the leg start; the grip is the "
+            "shipped attitude), side=left (right=shipped) | "
+            "source=median of 7 left grasp_lift legs (P63 A1_77 + P62 P0/P0b), "
+            "per-leg tilt 25.1..28.7deg, achieved proj +0.3210..+0.3658"
         )
 
     def advance(self, steps: int) -> None:
