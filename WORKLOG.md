@@ -19700,3 +19700,68 @@ under the profile needs a harness change with its own pre-registration). P59
 closes with **no shipped default change**: cap 4, `TARGET_FROM` 0.35 and the P58
 profile intact; `rl_env.py` `1b1e5cdf` (gate 1's provenance-only edit), `tasks.py`
 `8ad8ddc8`, `fruits.py` `c7461d41`; no reference re-recorded.
+
+### P60: the left arm is the closed loaded-slide class at a 47x rate - no seat, occlusion, band or trigger object
+
+P59 left one dominant term: the post-profile direct number is 26/45 = 57.8 % with
+**left 2/20** against **right 24/25**. P60 asked what that is, in three steps.
+
+**Phase 1 (census, 180 episodes, four post-profile corpora)**: left **7 placed /
+58 cnp / 4 never-held (n=69)** against right **103 / 2 / 6 (n=111)** - 93.5 % of
+the left's failures are the carry class, and the payload-absence measurement is
+sound rather than inferred: `_place_low` (`tasks.py:12259`) is called
+unconditionally on every place leg, after the `spawner.detach`, and reads the
+fruit's **own** position, so **0/58 cnps against 110/110 placed** printed the row
+(p = 6.7e-13). The four never-held are the **+x reach cliff** (x 0.347-0.398,
+dx +14..+58 mm). The x band does **not** differ (0.278 vs 0.280 m, Mann-Whitney
+p = 0.876) while the outcome-vs-offset does: `|dx| <= 66 mm` left **7/33** vs right
+**54/62**, `|dx| > 66 mm` left **0/36** vs right **49/49** - and the left's 36 are
+**100 % cnp**, the same class, so there is no second mechanism there and no
+trigger-side lever (it would refuse 52 % of the left's attempts to leave 21 % on
+the rest, and re-selection is structurally inert, P38 phase 2).
+
+**The "where" is the take-off, not mid-carry** (a correction the Oracle made): lane
+0's release is `(0.43, +0.55)` (`assets.py:486-494`; grade A -> bin 0 -> the left,
+`rl_env.py:2516`), so the left carries toward **+y**, while the only positional
+evidence - 5/58 `[bed-fall] ... held=True` rows - reads **y -0.153..-0.424**, the
+opposite side: the payload is out of the hand **before** the carry turns to the
+bin. The coordinate is a feed-tick snapshot (`fruits.py:1750-1780`) and `held` can
+be stale, so only the **direction** is quoted.
+
+**Phase 2 (occlusion map, P35's own scorer and masks)**: the inactive **right** arm
+at `ready` covers **0.000** of a 58 mm disc anywhere in the delivered band (fire
+band +0.209..+0.304 decide mean/max 0.000/0.000; 0/45 selection points >= 0.10);
+its silhouette unprojects to y -0.196..-0.025, entirely downstream on the -y side
+with the camera at y = 0; and `ready` is the **minimum** of the 53-pose sweep, the
+poses that reach more (`fold_70` 0.118) only *adding* occlusion. The instrument
+reproduces P35's published 0.382/0.144/0.98/0.00 to the rounding. **No right park
+lever exists and none is needed** (`configs/arm_parks.json` untouched). Recorded as
+**open, not a cause**: the **left's own** `grasp` (reset) pose covers its own fruit
+**0.592** for the last 0.8 s before the fire while the right's covers 0.000
+upstream - but that is the reset pose, the trigger is geometry/encoder-only and the
+close is the scripted primitive, and the seat evidence contradicts it (the left's
+pre-close pad error is *better* centred, 45-52 vs 55 mm).
+
+**Phase 3 (`FRUIT_CARRY_DIAG=1`, 3 seeds x 15, the cell the Oracle named)**: left
+21 attempts = **1 placed / 19 cnp / 1 never-held**, and **19/19 cnps are
+`seated_then_slid`** on their first escaping leg (always `grasp_lift`):
+`onset_row` p50 **104/160** ticks, `force@onset` p50 **10.06 N [2.44-22.58]**,
+`contacts@onset` 1 (14) / 2 (5), `clean_slip_max` p50 171 mm, `force_min = 0.00` +
+`loss_row` on **17/19**; **`never_seated` 0/19** and threshold-insensitive (19/19
+at 1 N and 2 N, 18/19 at 3 and 5 N). The scripted comparator matches field for
+field (4/4 `seated_then_slid @grasp_lift`, onset 93-149, force 7.68-18.19 N; 24/24
+across `logs/p41/p2/`) and P43's independent direct-left corpus is 38/38 the same.
+The placed left control is 1/1 `no_slip`; the right 23/24 with 0 cnp. **Reading
+rule**: the `place0` row's `contacts@onset = 0` is the **downstream view** (the
+payload left mid-lift), never the seat - the lift row carries it.
+
+**Verdict: no shipped change, no new lever.** The direct left's loss is the object
+`logs/p42/SIM_LIMIT.md` closes (the loaded slide on this pad geometry), so the
+seat/force/geometry family stays closed. What remains is **a rate, not a class** -
+left 19/21 against right 0/24 - and its cause is **not identified**: nothing
+decouples arm from lane from grade (`rl_env.py:2516`), and the same hand places
+~6/10 on the scripted line against 2/20 here, so the residue is
+**interface/handover-specific** as much as arm-specific. The named instrument if a
+lever is ever wanted is the **active-arm pixel-share census** on the live wait pose
+(`_park_bbox_census` takes any arm name), never a pre-pose hover (a motion change
+that confounds the physics and costs both references plus the acceptance).

@@ -1220,7 +1220,12 @@ direct interface**: it moves the carried class there, and it is **negative on
 all three scripted measurements** (this stage-P and the two-line **28/60 vs
 45/60**, nc 8 -> 25 in `logs/p21/RESULTS.md` - the slow close is incompatible
 with the never-stop dynamic catch). The knob stays **default off and not
-shipped**; the one open item is the class-matched direct re-run.
+shipped**. **P60 re-read that batch by arm and the "one open item" is answered:
+it is not a left lever** - joining each episode's opening `arm=` to its closing
+triple, the 48 -> 27 carried conversion is the **right's 28/51 -> 5/48** (Fisher
+~2e-6) with the **left flat at 20/24 -> 22/27** (placed 2/24 vs 2/27, p = 1.0);
+pre-P41 and pre-park, i.e. exactly the arm P43's park already fixed, so **no
+direct carried-class lever for the left remains unspent**.
 No-harm: acceptance **9/10 + motion gate
 PASS + `fingerprint: matches`**, 385/385 `[fruit]` identical to the pre-phase
 control; the scripted control 681/681 == `A1_25_patch_control.log`; the
@@ -2539,6 +2544,58 @@ the `on_belt` identity on 45/45 blocks -> `p3_report.txt`. Pins: `rl_env.py`
 **`1b1e5cdf`**, `tasks.py` `8ad8ddc8`, `fruits.py` `c7461d41`; `configs/*`
 untouched, **no reference re-recorded**; ckpt `moe_v13s` `61da390a`. Evidence
 `logs/p59/{P3_RESULTS.md,p3/,p3_report.{py,txt},run_p3.sh}`; WORKLOG "P59 P3".
+
+**P60 (2026-10-29, `logs/p60/`; offline + one measurement cell, **no shipped change,
+no new lever**): the left-arm deficit is the **closed loaded-slide class at a higher
+rate** - not a seat, an occlusion, a trigger object or the lateral offset.** 180
+episodes across four post-P58 corpora (two are P59 supply arms, one sits four pins
+apart; the class share reproduces in each, left cnp 79-93 % of attempts vs right
+0-4 %) read **left 7 placed / 58 carried-not-placed / 4 never-held (n=69)** against
+**right 103 / 2 / 6 (n=111)**, and it is not one species (left kiwi 4/25 vs right
+kiwi 4/4). The payload-absence proxy is sound: the `place low` row (printed only
+when the fingertip floor binds, `tasks.py:12346`; `need` read 82-144 mm on all 110
+placed) is present on **0/58 cnps vs 110/110 placed**, p = 6.7e-13; only **5/58**
+cnps carry positional evidence (`[bed-fall] held=True`: x ~ 0.00 +- 0.05,
+y = -0.15..-0.42, the source-belt side, not the +y bin at `(0.43, +0.50)` - a
+feed-tick snapshot, so quote the direction). **The `FRUIT_CARRY_DIAG=1` cell
+settles what the census could not**: **19/19** of the left's cnps are
+**`seated_then_slid`** on their first escaping leg (always `grasp_lift`) -
+`onset_row` p50 **104/160**, `force@onset` p50 **10.06 N [2.44-22.58]** (a one-tick
+sample), `contacts@onset` 1 (14) / 2 (5), `clean_slip` p50 **171 mm**,
+`force_min = 0.00` + `loss_row` on **17/19**, **`never_seated` 0/19**, and
+threshold-insensitive (19/19 at 1 and 2 N, 18/19 at 3 and 5). It is not the offset:
+**4 of the 19 sit inside 66 mm**, and the cell's one left placement is at
+**|dx| = 117 mm** - outside the "ceiling" the census's n = 7 suggested. The
+scripted left reads the same (24/24 lift rows `seated_then_slid`, 4/4 escapes at
+onset 93-149, 7.68-18.19 N; its one placement a 20 mm transient, left lane 1/5)
+and P43's direct left is 38/38 (context: different supply profile) - so
+**`logs/p42/SIM_LIMIT.md`'s closure transfers and "seat it better" stays closed**.
+**Read `[carry]` rows by leg**: a `place0` row's `contacts@onset = 0` is the
+downstream view of a payload already gone (18/19 here), never the seat. **The
+right-arm occluder is closed at 0.000** (the inactive right at `ready` covers 0.000
+of a 58 mm disc across the delivered band, sits at the floor of the 53-pose sweep,
+and the scorer reproduces P35 to the rounding), so no right park vector exists or is
+wanted (`configs/arm_parks.json` untouched). **The delivered x overlaps** (p50
+0.274 vs 0.295 m; `x >= 0.30` 28/69 vs 51/111, p = 0.54; the fire-time jaw
+reference agrees to 7 mm), so the arm is not at a different part of the band.
+**Nothing decouples arm from lane from grade** (`rl_env.py:2516`: grade A -> bin 0
+-> left) and **the direct left's signature is the scripted left's**, so the class is
+not an interface artefact; why the left reaches it at **47x** the right's rate on the
+same pad asset is **not identified**. **No lever is left unspent**: the record's one
+direct carried-class lever, `FRUIT_CLOSE_LOAD_RATE` (R11-B, default off), re-read
+**by arm** in its own batch converts the **right** (cnps 28 -> 5) and not the left
+(**20 -> 22**, placed 2/24 vs 2/27, p = 1.0) - pre-P41 and pre-park, i.e. exactly
+the arm P43's park already fixed. The left's own `grasp` reset pose covers a 58 mm
+disc on the decision band (mean **0.592**; fully hidden over along +0.18..+0.28, the
+last ~0.8 s of belt travel before the fire) while the right's covers 0.000 -
+recorded **open, no measured pathway** (the trigger is geometry-only, the close is
+scripted, and the left's pre-close pad error is *better* centred). F3 fired formally
+(a 1-2 episode difference against the P59-p3 control, recorded as
+instrumentation-or-branch; P4's note keys are the control's) and the diag's own
+`guard/events/holds/reseat/relief` counters are 0 on **88/88** rows. Pins:
+`rl_env.py` `1b1e5cdf`, `tasks.py` `8ad8ddc8`, `fruits.py` `c7461d41`; `configs/*`
+untouched; ckpt `moe_v13s` `61da390a`; `FRUIT_CARRY_DIAG` default off. Evidence
+`logs/p60/**`; WORKLOG "P60".
 
 ## 3. What changed -> what to run
 

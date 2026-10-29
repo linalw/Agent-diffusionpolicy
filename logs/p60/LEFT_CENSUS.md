@@ -9,7 +9,7 @@ placed episodes print, Fisher **p = 6.7e-13**). Five of those 58 carry the only
 positional evidence in the logs, a `[bed-fall] … held=True` row, and it puts the
 fruit **beside the source belt** (x ≈ 0.00 ± 0.05, y = −0.15…−0.42, z ≈ 0.77–0.86),
 not at the bin — i.e. a drop **at the take-off, on the pick side of the station** (lane 0's
-release is `(0.43, +0.55)` and the left carries toward **+y**, while the falls read
+release is `(0.43, +0.50)` (the belt centre is +0.55; `assets.py:377-379`) and the left carries toward **+y**, while the falls read
 y < 0; the coordinate is a feed-tick snapshot, so quote the **direction**, not the point), in the window between
 the grasp and the release. The other **4/62 (6.5 %) are `never-held`** and those
 are the **+x reach cliff** (selection x 0.347–0.398 m, trigger dx +14…+58 mm), not
