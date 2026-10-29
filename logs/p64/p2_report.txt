@@ -1,0 +1,112 @@
+P64 phase 2 - the pre-compensated left carry attitude (cell)
+==========================================================================================
+
+== P1 the armed instrument ==
+  logs/p64/p2/P_77.log: 1 `[grasp] left precomp` row(s)
+    [fruit] [grasp] left precomp: q_cmd=[+0.016754,-0.687859,+0.687859,+0.231126] (w,x,y,z) axis=(-0.756380,-0.654132,+0.000000) angle=26.798deg cmd_belt_proj=-0.3410 predicted_proj=+0.0000 | leg=grasp_li
+  logs/p64/p2/P_101.log: 1 `[grasp] left precomp` row(s)
+    [fruit] [grasp] left precomp: q_cmd=[+0.016754,-0.687859,+0.687859,+0.231126] (w,x,y,z) axis=(-0.756380,-0.654132,+0.000000) angle=26.798deg cmd_belt_proj=-0.3410 predicted_proj=+0.0000 | leg=grasp_li
+  logs/p64/p2/P_202.log: 1 `[grasp] left precomp` row(s)
+    [fruit] [grasp] left precomp: q_cmd=[+0.016754,-0.687859,+0.687859,+0.231126] (w,x,y,z) axis=(-0.756380,-0.654132,+0.000000) angle=26.798deg cmd_belt_proj=-0.3410 predicted_proj=+0.0000 | leg=grasp_li
+  left `grasp_lift` legs with hold_drift: treatment 16, control 15
+  treatment hold_drift (vs the PRE-COMPENSATED command, so this is the tracking residual, not the tilt): 65.8 [50.5..107.4] n=16
+  control   hold_drift (vs T0, so this IS the achieved tilt):        25.4 [22.4..116.2] n=15
+
+== E1 the left's achieved belt projection (grasp_lift) ==
+  treatment, per leg (achieved tool axis, [attitude] end-of-leg):
+    tilt= 57.9 (acos(-tz)= 57.9) tool=(+0.1692,-0.8301,-0.5314) belt_proj=+0.8301
+    tilt= 46.9 (acos(-tz)= 46.9) tool=(+0.2872,-0.6713,-0.6833) belt_proj=+0.6713
+    tilt= 38.5 (acos(-tz)= 38.5) tool=(+0.3511,-0.5141,-0.7826) belt_proj=+0.5141
+    tilt= 32.5 (acos(-tz)= 32.5) tool=(+0.3656,-0.3936,-0.8435) belt_proj=+0.3936
+    tilt= 36.2 (acos(-tz)= 36.2) tool=(+0.3370,-0.4856,-0.8066) belt_proj=+0.4856
+    tilt= 47.2 (acos(-tz)= 47.2) tool=(+0.2876,-0.6752,-0.6793) belt_proj=+0.6752
+    tilt= 51.8 (acos(-tz)= 51.8) tool=(+0.2639,-0.7401,-0.6186) belt_proj=+0.7401
+    tilt= 42.2 (acos(-tz)= 42.2) tool=(+0.3394,-0.5793,-0.7411) belt_proj=+0.5793
+    tilt= 33.8 (acos(-tz)= 33.8) tool=(+0.3352,-0.4434,-0.8313) belt_proj=+0.4434
+    tilt= 48.4 (acos(-tz)= 48.4) tool=(+0.2586,-0.7012,-0.6644) belt_proj=+0.7012
+    tilt= 47.9 (acos(-tz)= 47.9) tool=(+0.2813,-0.6866,-0.6704) belt_proj=+0.6866
+    tilt= 54.6 (acos(-tz)= 54.6) tool=(+0.2338,-0.7811,-0.5790) belt_proj=+0.7811
+    tilt= 41.0 (acos(-tz)= 41.0) tool=(+0.6545,-0.0417,-0.7549) belt_proj=+0.0417
+    tilt= 52.4 (acos(-tz)= 52.4) tool=(+0.2476,-0.7522,-0.6107) belt_proj=+0.7522
+    tilt= 34.3 (acos(-tz)= 34.3) tool=(+0.3393,-0.4494,-0.8264) belt_proj=+0.4494
+    tilt= 50.6 (acos(-tz)= 50.6) tool=(+0.2634,-0.7268,-0.6344) belt_proj=+0.7268
+  treatment belt projection: 0.673 [0.042..0.830] n=16   tilt: 47.0 [32.5..57.9] n=16
+  control   belt projection ([attitude], P63 A1 + P62 pairs): 0.354 [0.321..0.366] n=7   tilt: 26.8 [25.1..28.7] n=7
+  control   belt projection (all 15 left legs, hold_drift = tilt from T0): proj = sin(tilt): 0.429 [0.381..0.897] n=15   tilt: 25.4 [22.4..116.2] n=15
+  E1: treatment median proj +0.6733 vs the <= +0.10 bar -> FAIL
+
+== E2/E3 the class counts (exact, no rate claim) ==
+  left  treatment placed  1 / cnp 13 / never-held  2 (n=16)   control placed  2 / cnp 11 / never-held  2 (n=15)
+  right treatment placed 28 / cnp  0 / never-held  1 (n=29)   control placed 29 / cnp  0 / never-held  1 (n=30)
+  P_77: left 0/3/1 (n=4), right 10/0/1 (n=11)   [placed/cnp/never-held]
+  P_101: left 0/5/0 (n=5), right 10/0/0 (n=10)   [placed/cnp/never-held]
+  P_202: left 1/5/1 (n=7), right 8/0/0 (n=8)   [placed/cnp/never-held]
+  right (untouched) `grasp_lift` hold_drift vs T0: 24.2 [20.7..45.6] n=28
+
+  left legs, treatment:
+    ep 0 pear        never-held grasp_lift(lost)
+    ep 5 pear        cnp        grasp_lift(lost) place0(lost)
+    ep10 orange      cnp        grasp_lift(lost) place0(lost)
+    ep12 tomato      cnp        grasp_lift(lost) place0(lost)
+    ep 0 apple       cnp        grasp_lift(lost) place0(lost)
+    ep 2 apple       cnp        grasp_lift(lost) place0(lost)
+    ep 4 apple       cnp        grasp_lift(lost) place0(lost)
+    ep 8 kiwi        cnp        grasp_lift(lost) place0(lost)
+    ep10 peach       cnp        grasp_lift(lost) place0(lost)
+    ep 1 kiwi        placed     grasp_lift(held) place0(held)
+    ep 3 kiwi        cnp        grasp_lift(lost) place0(lost)
+    ep 5 peach       cnp        grasp_lift(lost) place0(lost)
+    ep 7 kiwi        never-held grasp_lift(lost)
+    ep 8 apple       cnp        grasp_lift(lost) place0(lost)
+    ep10 apple       cnp        grasp_lift(lost) place0(lost)
+    ep14 lychee      cnp        grasp_lift(lost) place0(lost)
+
+== E1b the leg-level table (tilt vs the post-loss window) ==
+  the [attitude] read is at the leg's end; on a leg that lost the payload the
+  wrist is already unloaded, so the reading mixes tracking with post-loss drift.
+  seed ep fruit       outcome    tilt   proj  drift onset loss ticks post slip[mm]
+  P_77  0 pear        never-held  57.9 +0.830  73.0     1    5   215  210  88772.4
+  P_77  5 pear        cnp         46.9 +0.671  67.1    10   99   161   62    348.6
+  P_77 10 orange      cnp         38.5 +0.514  54.9    80  110   154   44    350.1
+  P_77 12 tomato      cnp         32.5 +0.394  51.6    80  114   165   51    560.1
+  P_101  0 apple       cnp         36.2 +0.486  52.4    63   94   153   59    412.9
+  P_101  2 apple       cnp         47.2 +0.675  66.6    13   91   157   66    385.2
+  P_101  4 apple       cnp         51.8 +0.740  62.3    10   98   158   60    566.3
+  P_101  8 kiwi        cnp         42.2 +0.579  62.6    82  112   158   46    315.9
+  P_101 10 peach       cnp         33.8 +0.443  50.5    56   93   160   67    374.4
+  P_202  1 kiwi        placed      48.4 +0.701  68.8   102 None   164 None      2.9
+  P_202  3 kiwi        cnp         47.9 +0.687  67.6    70   99   163   64    388.7
+  P_202  5 peach       cnp         54.6 +0.781  65.1    11   95   164   69    752.5
+  P_202  7 kiwi        never-held  41.0 +0.042 107.4     1   39   249  210 263035.6
+  P_202  8 apple       cnp         52.4 +0.752  68.3    61  105   161   56    348.8
+  P_202 10 apple       cnp         34.3 +0.449  51.2    59  113   160   47    411.6
+  P_202 14 lychee      cnp         50.6 +0.727  68.1    88  112   173   61    367.0
+  Spearman(post-loss ticks, achieved tilt) over the 13 cnp legs: +0.37
+  placed left legs under the treatment: 1: kiwi tilt 48.4 proj +0.701
+  onset row (loaded-slide start), left `grasp_lift` legs (PRE-loss read):
+    treatment [1, 1, 10, 10, 11, 13, 56, 59, 61, 63, 70, 80, 80, 82, 88, 102]  control [1, 1, 65, 80, 92, 104, 104, 105, 107, 107, 127, 132, 133, 136]
+  post-loss window (ticks): treatment [44, 46, 47, 51, 56, 59, 60, 61, 62, 64, 66, 67, 69, 210, 210] control [12, 16, 20, 22, 28, 30, 36, 50, 52, 58, 186, 231]
+
+== E4 note keys ==
+  treatment 2 keys, control 1 keys; new in treatment: ["'fruit fell off the line'"]
+
+== E4 the knob-off acceptance ==
+  logs/p64/p2/accept_wall.log: 10 descent leg(s), line=dynamic | #   dist samples  |v|max  budget   |a|max   |dv|  a_med  peak@  a_win5  verdict | 1   5.6c      88   0.109   0.161     2.06  0.017   0.23   0.02    0.75  ok | 2   5.8c      91   0.110   0.161     1.44  0.012   0.23   0.02    0.46  ok | 3   5.6c      89   0.108   0.161     1.88  0.016   0.24   0.02    0.65  ok | 4   5.8c      91   0.110
+  [fruit] rows in the acceptance: 377
+
+== structural checks ==
+  ok  logs/p64/p2/P_77.log exists
+  ok  logs/p64/p2/P_77.log carries the armed `[grasp] left precomp` row
+  ok  logs/p64/p2/P_101.log exists
+  ok  logs/p64/p2/P_101.log carries the armed `[grasp] left precomp` row
+  ok  logs/p64/p2/P_202.log exists
+  ok  logs/p64/p2/P_202.log carries the armed `[grasp] left precomp` row
+  ok  the cell parsed as 45 episodes (45)
+  ok  the control parsed as 45 episodes (45)
+  ok  every treatment left grasp_lift leg has both reads (16 [attitude], 16 [carry])
+  ok  each [attitude] tilt equals acos(-tool_z)
+  ok  hold_drift present on the held left legs
+  ok  the treatment's arm counts sum to 45
+  ok  the tree md5s are identical before/after the batch
+  ok  the control log D_77.log is byte-unchanged (b7e64e96)
+  -> PASS

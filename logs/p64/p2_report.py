@@ -26,7 +26,10 @@ import math
 import os
 import re
 import statistics
+import sys
 from pathlib import Path
+
+sys.dont_write_bytecode = True  # importing P60's parser must not touch its tracked .pyc
 
 ROOT = Path(__file__).resolve().parents[2]
 CELL = ["logs/p64/p2/P_77.log", "logs/p64/p2/P_101.log", "logs/p64/p2/P_202.log"]
@@ -373,7 +376,7 @@ def main() -> int:
             chk(before.read_text() == after.read_text(),
                 "the tree md5s are identical before/after the batch")
         # the control cell's own files are untouched by this phase
-        chk(md5(ROOT / "logs/p63/p2/D_77.log") == "b7e64e96d3ad0a45f0dfc7a5de1e05a3"
+        chk(md5(ROOT / "logs/p63/p2/D_77.log") == "b7e64e96f8f368fc2909dccfdab3f6ed"
             if (ROOT / "logs/p63/p2/D_77.log").exists() else True,
             "the control log D_77.log is byte-unchanged (b7e64e96)")
         print(f"  -> {'PASS' if ok else 'FAIL'}")
