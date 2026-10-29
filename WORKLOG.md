@@ -19927,3 +19927,36 @@ pre-compensation is inverted (P64). What remains is **structural** - the station
 reach (P58's `GEOMETRY.md` priced a station move NO-GO at the current margins) or
 the arm/gripper hardware - **never a command parameter.** Knob default off, no
 `configs/` change, no reference re-recorded.
+
+### P64 errata + the screen: my own treatment command was inadmissible, and the lift (not the station) creates the drift
+
+The gate asked the one question I had skipped: **was `q_cmd` ever screened for
+admissibility?** It was not, and the screen (P62's own `ik_probe.py`, 2 min)
+answers it: **`q_cmd` (`[+0.01675, -0.68786, +0.68786, +0.23113]`, command
+projection -0.3410) solves 0/3** with a residual of **42.6-72.9 mm (7-12x
+tolerance)**, a joint margin of **0.000/-0.000 at j6-j7** (the control holds
++0.204 at j2), and **`jaw_z = +0.2949` -> a 28.9 mm pad-height difference across
+the 98 mm jaw** - the exact class `configs/waypoints_oriented.json`'s note rejects.
+**So "the response is inverted" is withdrawn: it was an inadmissible command, not
+a mechanism.** The two-point "no command can set it" is withdrawn with it (P64's
+own prereg §6 said the slope was not identifiable).
+
+The screen's **reachable** directions: **`q_drift (x) q_T0` (+0.341) solves 3/3**
+(better conditioned than T0's 2/3 at +0.007 @j3) but carries the same 28.2-28.6 mm
+jaw twist and **is the attitude already achieved**; the `waypoints_oriented` left
+quaternion (+0.513) is **exactly the shipped control** (row for row).
+
+**The by-product is the finding that matters**: at the station the static solve
+tracks its command to **<= 1 deg at both projection 0 (T0: 0.77 deg) and +0.35
+(`q_drift`: 0.78-0.93 deg)**, while P63's failing **carry** legs read **24.6 deg**.
+So **the drift is created in the lift**, not by the station's reach - the
+"6-DoF trade at the reach edge" reading is retired with it, and
+`hold_quaternion` pre-compensation has **no station-level target in either sign**.
+What is not yet measured: why the lift drifts when the station tracks
+(`control.py:423` `max_step` and `:494`'s hard joint clip are the named suspects),
+and the pads' line (the jaw axis was never printed; `tasks.py:3237`'s `rot[:,1]` is
+free).
+
+**Also corrected**: `logs/p58/GEOMETRY.md` prices the **station y** for the
+*catchable-segment* question (R10), **not** a general station NO-GO - the P64
+paragraph's citation was out of scope. Evidence `logs/p64/{SCREEN.md,ik_screen.*}`.

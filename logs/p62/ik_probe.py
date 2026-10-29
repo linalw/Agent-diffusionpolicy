@@ -33,6 +33,24 @@ candidate table's "tool axis" label depends on.
 
 Env: `FRUIT_P62_CANDIDATES` (comma list, default `C0,Y31,Y46,Y62`),
 `FRUIT_P62_X` (default `0.274,0.34,0.398`), `FRUIT_P62_JSON` (raw rows).
+
+P64 screen addition (default-off, additive - the P62 rows are unchanged): the
+candidate list may name three **derived** attitudes that are not in
+`candidates.json`:
+
+* `QPREC`  - P64's pre-compensated command `q_drift^-1 (x) q_T0`
+  (`logs/p64/P2_RESULTS.md`), the literal file value;
+* `QDRIFT` - `q_drift (x) q_T0`, i.e. the command whose **own** attitude is the
+  one the left actually achieves under `T0` (belt projection +0.351) - the
+  reachable direction the Oracle named;
+* `QFILE`  - `configs/waypoints_oriented.json`'s left `grasp_quaternion` (the
+  shipped control's own file attitude, projection +0.513; sampled here as an
+  independent re-solve, so `QFILE` must reproduce `C0` row for row).
+
+Each row also carries the **jaw-opening axis' z** (`jaw_z`, the field the
+`waypoints_oriented.json` note rejects: one pad above the other) and the
+**achieved** belt projection, so a commanded attitude can be read against the
+attitude the solve actually reaches.
 """
 
 from __future__ import annotations
@@ -79,6 +97,20 @@ TOL = float(os.environ.get("FRUIT_P62_TOL", "0.006"))
 #: question the control path would ask it.
 RESTARTS = int(os.environ.get("FRUIT_P62_RESTARTS", "1"))
 PAD_RADIUS = float(os.environ.get("FRUIT_PAD_RADIUS", "0.010"))
+JSON_OUT = os.environ.get("FRUIT_P62_JSON", os.path.join(HERE, "ik_probe_rows.json"))
+
+#: The belt's travel direction (the conveyor's surface velocity is `[0, -, 0]`,
+#: so the fruit moves toward -y); the frame columns are `col0`=up-ish,
+#: `col1`=-jaw-opening, `col2`=approach (TCP) axis - see the seed print below.
+BELT = np.array([0.0, -1.0, 0.0])
+
+#: P64 phase 1's measured hold drift, as `q_drift (x) q_cmd = q_achieved`
+#: (`logs/p64/P2_RESULTS.md`: axis (-0.7564,-0.6541,0), 26.798 deg, from 7 left
+#: `grasp_lift` legs), and P64's shipped pre-compensated command
+#: `q_cmd = q_drift^-1 (x) q_T0` - the literal file value, checked below.
+DRIFT_AXIS = (-0.7564, -0.6541, 0.0)
+DRIFT_ANGLE_DEG = 26.798
+QPREC_FILE = np.array([+0.01675, -0.68786, +0.68786, +0.23113], dtype=float)
 
 
 def quat_matrix(q) -> np.ndarray:
@@ -92,6 +124,33 @@ def quat_matrix(q) -> np.ndarray:
             [2 * (x * z - y * w), 2 * (y * z + x * w), 1 - 2 * (x * x + y * y)],
         ]
     )
+
+
+def quat_mul(a, b) -> np.ndarray:
+    """Hamilton product, `[w, x, y, z]` order."""
+    aw, ax, ay, az = (float(v) for v in a)
+    bw, bx, by, bz = (float(v) for v in b)
+    return np.array(
+        [
+            aw * bw - ax * bx - ay * by - az * bz,
+            aw * bx + ax * bw + ay * bz - az * by,
+            aw * by - ax * bz + ay * bw + az * bx,
+            aw * bz + ax * by - ay * bx + az * bw,
+        ]
+    )
+
+
+def axis_quat(axis, angle_rad) -> np.ndarray:
+    axis = np.asarray(axis, dtype=float)
+    axis = axis / max(float(np.linalg.norm(axis)), 1e-12)
+    half = 0.5 * float(angle_rad)
+    return np.concatenate([[np.cos(half)], np.sin(half) * axis])
+
+
+def attitude_reads(q) -> tuple[float, float]:
+    """(belt projection of the approach axis, jaw-opening axis' z), commanded frame."""
+    r = quat_matrix(q)
+    return float(r[:, 2] @ BELT), float(r[2, 1])
 
 
 def pad_lowest_z(link_pos, link_quat, spec) -> float:
@@ -111,6 +170,31 @@ def main() -> int:
         waypoints = json.load(handle)
     with open(os.path.join(ROOT, "configs", "finger_pads.json"), encoding="utf-8") as handle:
         pads = json.load(handle)["left"]
+
+    # ---- the P64-screen derived attitudes (additive; C0..F3 rows unchanged) -- #
+    q_t0 = np.asarray(candidates["T0"]["quat"], dtype=float)
+    q_drift = axis_quat(DRIFT_AXIS, np.radians(DRIFT_ANGLE_DEG))
+    q_prec = quat_mul(np.array([q_drift[0], -q_drift[1], -q_drift[2], -q_drift[3]]), q_t0)
+    q_prec = q_prec / np.linalg.norm(q_prec)
+    q_drift_cmd = quat_mul(q_drift, q_t0)
+    q_drift_cmd = q_drift_cmd / np.linalg.norm(q_drift_cmd)
+    # The file value is the shipped pre-compensation; the re-derivation must agree.
+    same = abs(float(q_prec @ (QPREC_FILE / np.linalg.norm(QPREC_FILE))))
+    say(
+        f"[p62] QPREC check: q_drift^-1(x)q_T0 = "
+        f"[{q_prec[0]:+.6f},{q_prec[1]:+.6f},{q_prec[2]:+.6f},{q_prec[3]:+.6f}] "
+        f"vs file [{QPREC_FILE[0]:+.6f},{QPREC_FILE[1]:+.6f},{QPREC_FILE[2]:+.6f},"
+        f"{QPREC_FILE[3]:+.6f}] |dot|={same:.6f} (1.0 = same rotation)"
+    )
+    candidates["QPREC"] = {"name": "QPREC", "quat": [float(v) for v in QPREC_FILE]}
+    candidates["QDRIFT"] = {"name": "QDRIFT", "quat": [float(v) for v in q_drift_cmd]}
+    candidates["QFILE"] = {
+        "name": "QFILE",
+        "quat": [float(v) for v in waypoints["grasp_quaternion"]["left"]],
+    }
+    for name in ("QPREC", "QDRIFT", "QFILE"):
+        proj, jz = attitude_reads(candidates[name]["quat"])
+        say(f"[p62] derived {name:6s} proj_cmd={proj:+.4f} jaw_z_cmd={jz:+.4f}")
 
     cfg = SceneConfig()
     scene = SortingScene(cfg).build(parts=("environment", "pedestal", "robot", "conveyor"))
@@ -183,6 +267,14 @@ def main() -> int:
             tcp, quat = arm.tcp_pose()
             jaw = np.asarray(arm.jaw_centre(), dtype=float)
             qerr = float(np.degrees(np.linalg.norm(quaternion_error(q, quat))))
+            # Achieved TCP frame: col2 is the approach axis, col1 the -jaw axis
+            # (the seed print below settles that on the shipped attitude), so the
+            # achieved belt projection is directly comparable to the command's.
+            r_ach = quat_matrix(quat)
+            proj_cmd, jawz_cmd = attitude_reads(q)
+            proj_ach = float(r_ach[:, 2] @ BELT)
+            jawz_ach = float(r_ach[2, 1])
+            jaw_sep = float(np.linalg.norm(np.asarray(arm.jaw_positions()[1]) - np.asarray(arm.jaw_positions()[0])))
             margins = np.minimum(config - arm.arm_lo, arm.arm_hi - config)
             joint = int(np.argmin(margins))
             pos_l, quat_l = arm._finger_prims[0].get_world_poses()
@@ -200,6 +292,12 @@ def main() -> int:
                 "restarts": RESTARTS,
                 "residual_mm": 1000 * residual,
                 "qerr_deg": qerr,
+                "belt_proj_cmd": proj_cmd,
+                "belt_proj_ach": proj_ach,
+                "jaw_z_cmd": jawz_cmd,
+                "jaw_z_ach": jawz_ach,
+                "jaw_sep_mm": 1000 * jaw_sep,
+                "jaw_pad_dz_mm": 1000 * abs(jawz_ach) * jaw_sep,
                 "margin_rad": float(margins[joint]),
                 "margin_joint": joint + 1,
                 "config": [float(v) for v in config],
@@ -212,10 +310,12 @@ def main() -> int:
             }
             rows.append(row)
             say(
-                f"[p62] {name:5s} x={x:.3f} res={row['residual_mm']:6.1f}mm "
+                f"[p62] {name:6s} x={x:.3f} res={row['residual_mm']:6.1f}mm "
                 f"qerr={qerr:5.2f}deg margin={row['margin_rad']:+.3f}rad@j{row['margin_joint']} "
                 f"jaw_dz={row['jaw_dz_mm']:+6.1f}mm pad_belt={row['pad_low_belt_mm']:+7.1f}mm "
-                f"finger_belt={row['finger_min_belt_mm']:+7.1f}mm tcp_belt={row['tcp_z_belt_mm']:+7.1f}mm"
+                f"finger_belt={row['finger_min_belt_mm']:+7.1f}mm tcp_belt={row['tcp_z_belt_mm']:+7.1f}mm "
+                f"proj_cmd={proj_cmd:+.4f} proj_ach={proj_ach:+.4f} "
+                f"jaw_z={jawz_ach:+.4f} pad_dz={row['jaw_pad_dz_mm']:5.1f}mm"
             )
 
     # ---- verdict per candidate, against the control at the same x ---------- #
@@ -247,13 +347,13 @@ def main() -> int:
         }
         v = verds[name]
         say(
-            f"[p62] {name:5s} solved {v['solved']}/{v['of']} (<=tol), "
+            f"[p62] {name:6s} solved {v['solved']}/{v['of']} (<=tol), "
             f"max_res={v['max_residual_mm']:.1f}mm worst_qerr={v['worst_qerr_deg']:.2f}deg "
             f"worst_margin={v['worst_margin_rad']:+.3f}rad "
             f"worst_pad_delta_vs_control={'-' if worst_pad_delta is None else f'{worst_pad_delta:+.1f}mm'}"
         )
 
-    out = os.path.join(HERE, "ik_probe_rows.json")
+    out = JSON_OUT
     with open(out, "w", encoding="utf-8") as handle:
         json.dump(
             {
@@ -261,6 +361,9 @@ def main() -> int:
                 "pick": [cfg.pick_x, cfg.pick_y],
                 "z_grip": Z_GRIP,
                 "tol": TOL,
+                "quats": {n: [float(v) for v in candidates[n]["quat"]] for n in CANDIDATES},
+                "drift": {"axis": list(DRIFT_AXIS), "angle_deg": DRIFT_ANGLE_DEG,
+                          "qprec_file": [float(v) for v in QPREC_FILE], "prec_dot": same},
                 "seed": {
                     "jaw": [float(v) for v in jaw_seed],
                     "tcp_z_belt_mm": 1000 * (float(tcp_seed[2]) - belt_top),

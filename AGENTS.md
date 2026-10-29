@@ -2713,37 +2713,42 @@ needs its own pre-registration. Pins: `tasks.py` **`1d27566c`**, `rl_env.py`
 `configs/*` untouched, no reference re-recorded. Evidence
 `logs/p63/{PREREG.md,P2_RESULTS.md,p2_report.{py,txt},p2/}`; WORKLOG "P63".
 
-**P64 (2026-10-29, `logs/p64/`; default off, **nothing adopted**): the
-pre-compensated command is **live and inverted** - the left's achieved attitude is
-a **6-DoF IK trade**, not a constant offset from its command, so no
-command-level pre-compensation can set it.** The channel is real and it is
-**`arm.hold_quaternion`**, not `_grasp_quat` (P62's inert channel): the
-never-stop catch installs the top-down hold before the hover and `grasp_lift`
-**inherits** it (the `_carry` clear is `name != "grasp_lift"`; every place leg
-clears it), so writing it at the lift's start **does** move the achieved attitude
-(17-32 deg in the gate smoke). The drift derived from 7 left `grasp_lift` legs is
-`axis (-0.7564, -0.6541, 0)`, `angle 26.798 deg`, median achieved tool axis
-`(+0.3035, -0.3509, -0.8859)` (belt projection +0.32..+0.37, per-leg tilt
-25.1-28.7 deg, azimuth spread +-3.2 deg), giving
-`q_cmd = q_drift^-1 (x) q_T0 = [+0.01675, -0.68786, +0.68786, +0.23113]` with a
-command projection of **-0.3410**. **Commanding it moves the achieved projection
-the WRONG way**: from **+0.32..+0.37 to +0.51..+0.83** (achieved tilt 38.5-57.9
-deg, `hold_drift` 54.9-107.4 deg against the control's 20.5-29.4), the holds lose
-contact **earlier** (onset rows 37-39 against 97-127), and the left places **1/16**
-against the control's 2/15 - **E1 fails by sign**. Mechanically: the `ik_step`
-6-DoF solve at a station whose grasp seed already sits at the reach edge
-**trades orientation against position**, so the achieved attitude is a function of
-the whole task, not of the orientation target - at `q_cmd = T0` it settles 25-29
-deg downstream, at `q_cmd = T0 - 26.8 deg` it settles 38-58 deg. **The pose family
-is therefore exhausted in every form measured**: the yaw family is IK-infeasible
-(P62), the command is already T0 (P62), the residual's magnitude is arm-common and
-only its azimuth is left-specific (P63), and a constant pre-compensation is
-inverted (P64). What remains is **structural** - the station's reach (P58's
-`GEOMETRY.md` priced a station move NO-GO at the current margins) or the
-arm/gripper hardware - never a command parameter. Pins: `tasks.py` **`7a8a163a`**,
-`rl_env.py` **`7c137553`** (`TASKS_MD5` follow), `scripts/234_p64_precomp_selftest.py`;
-`configs/*` untouched, no reference re-recorded. Evidence
-`logs/p64/{PREREG_P2.md,P2_RESULTS.md,p1/,p2/}`; WORKLOG "P64".
+**P64 (2026-10-29, `logs/p64/`; default off, **nothing adopted**; **its own
+headline was retracted by its screen**): the pre-compensated command was
+**inadmissible**, and the corrected finding is that **the lift - not the station -
+creates the drift.** The live site is real and it is **`arm.hold_quaternion`**
+(not P62's inert `_grasp_quat`): the never-stop catch installs the top-down hold
+before the hover and `grasp_lift` **inherits** it (the `_carry` clear is `name !=
+"grasp_lift"`), so writing it at the lift's start moves the achieved attitude. The
+drift derived from 7 left `grasp_lift` legs is `axis (-0.7564, -0.6541, 0)`,
+`angle 26.798 deg`; commanding its inverse (`q_cmd = [+0.01675, -0.68786,
++0.68786, +0.23113]`, command projection **-0.3410**) moved the achieved projection
+the wrong way (+0.35 -> **+0.673 median, tilt 47.0 deg**, `hold_drift` 54.9-107.4,
+the loaded slide starting **60 ticks vs the control's 104.5**, left **1/16** vs
+2/15). **The screen then showed the command was never admissible**: P62's own probe
+reads `q_cmd` at **0/3 solves, residual 42.6-72.9 mm (7-12x tolerance), joint
+margin 0.000/-0.000 at j6-j7** and a **28.9 mm pad-height difference across the 98 mm
+jaw** (`jaw_z = +0.2949`) - so *"the response is inverted"* is an **inadmissible
+command, not a mechanism**, and that reading is withdrawn. The two reachable
+directions were screened instead: **`q_drift (x) q_T0` (+0.341) solves 3/3**
+(better conditioned than T0's 2/3 at `+0.007 @j3`) but carries the same 28.2-28.6 mm
+jaw twist and **is the attitude already achieved**; the `waypoints_oriented` left
+quaternion (+0.513) is **exactly the shipped control**. **The new by-product is the
+finding that matters**: at the station the static solve tracks its command to
+**<= 1 deg at both projection 0 (T0: 0.77 deg) and +0.35 (`q_drift`: 0.78-0.93
+deg)**, while the failing **carry** legs read **24.6 deg** - so **the drift is
+created in the lift**, not by the station's reach, and `hold_quaternion`
+pre-compensation has **no station-level target in either sign**. The two-point
+"never" claim is withdrawn with it (the slope was not identifiable, P64's own
+prereg §6). What is *not* yet measured: why the lift drifts when the station
+tracks (`control.py:423` `max_step` and `:494`'s hard joint clip are the named
+suspects), and the pads' line (the jaw axis was never printed; `tasks.py:3237`'s
+`rot[:,1]` is free). Prior citations corrected: `logs/p58/GEOMETRY.md` prices the
+**station y** for the *catchable-segment* question (R10), **not** a general station
+NO-GO. Pins: `tasks.py` **`7a8a163a`**, `rl_env.py` **`7c137553`**,
+`scripts/234_p64_precomp_selftest.py`; `configs/*` untouched, no reference
+re-recorded. Evidence `logs/p64/{SCREEN.md,ik_screen.*,PREREG_P2.md,P2_RESULTS.md,p1/,p2/}`;
+WORKLOG "P64".
 
 ## 3. What changed -> what to run
 
