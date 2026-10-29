@@ -1,0 +1,283 @@
+====================================================================================================
+P60 phase 1 - the left-arm failure census (offline; every number carries its file:line)
+====================================================================================================
+
+## 1. the corpora
+
+corpus   log                    seed  eps  left right  role
+p59p3    C_101.log               101   15    10     5  shipped profile control (cap 4)
+p59p3    C_202.log               202   15     6     9  shipped profile control (cap 4)
+p59p3    C_77.log                 77   15     4    11  shipped profile control (cap 4)
+p58p3b   A2_101.log              101   15     8     7  cell A'' (cap 4, pre-profile-row tree)
+p58p3b   A2_202.log              202   15     5    10  cell A'' (cap 4, pre-profile-row tree)
+p58p3b   A2_77.log                77   15     6     9  cell A'' (cap 4, pre-profile-row tree)
+p59p2A   A_101.log               101   15     6     9  arm A (FRUIT_SUPPLY_BAND_MAX=5)
+p59p2A   A_202.log               202   15     4    11  arm A (FRUIT_SUPPLY_BAND_MAX=5)
+p59p2A   A_77.log                 77   15     4    11  arm A (FRUIT_SUPPLY_BAND_MAX=5)
+p59p2B   B_101.log               101   15     5    10  arm B (FRUIT_SUPPLY_TARGET_FROM=0.40)
+p59p2B   B_202.log               202   15     7     8  arm B (FRUIT_SUPPLY_TARGET_FROM=0.40)
+p59p2B   B_77.log                 77   15     4    11  arm B (FRUIT_SUPPLY_TARGET_FROM=0.40)
+
+  [env ready] presentation=direct ablate=none dagger=off park=back(default) camera=240,424 tasks_md5=8ad8ddc8
+  [trigger] trigger=arrival lead=0.90s lateral=0.160 reach=0.20 finger=0.040 frame=station encoder=on present=off acq=on(speed=0.20,margin=0.60,cap=4.50,reach_margin=0.05)
+  [profile] cadence=on(default) band=on(4)(default) feed=on(default) target_from=0.35(default)
+  [env ready] presentation=direct ablate=none dagger=off park=back(default) camera=240,424 tasks_md5=c7eef701
+  [profile] cadence=on(default) band=on(5(explicit))(default) feed=on(default) target_from=0.35(default)
+  [profile] cadence=on(default) band=on(4)(default) feed=on(default) target_from=0.40(explicit)
+
+## 2. arm x class (every episode in the four corpora)
+
+corpus   arm                 placed  carried-not-placed          never-held     placed-off-belt   n
+p59p3    left                     2                  17                   1                   0   20
+p59p3    right                   24                   0                   1                   0   25
+p58p3b   left                     4                  15                   0                   0   19
+p58p3b   right                   24                   1                   1                   0   26
+p59p2A   left                     0                  13                   1                   0   14
+p59p2A   right                   27                   0                   4                   0   31
+p59p2B   left                     1                  13                   2                   0   16
+p59p2B   right                   28                   1                   0                   0   29
+
+  pooled left  n= 69  placed=7  carried-not-placed=58  never-held=4  placed-off-belt=0
+  pooled right n=111  placed=103  carried-not-placed=2  never-held=6  placed-off-belt=0
+
+## 3. class shares
+
+  left: 7/69 placed; 62 failures
+    carried-not-placed    58/62 =  93.5% of failures, 84.1% of attempts
+    never-held             4/62 =   6.5% of failures,  5.8% of attempts
+  right: 103/111 placed; 8 failures
+    carried-not-placed     2/8 =  25.0% of failures,  1.8% of attempts
+    never-held             6/8 =  75.0% of failures,  5.4% of attempts
+
+  Fisher exact (two-sided), left vs right, pooled:
+    cnp among attempts           left 58/69  right  2/111  p = 1.06e-12
+    never-held among attempts    left  4/69  right  6/111  p = 1.00e+00
+    placed among attempts        left  7/69  right 103/111  p = 6.92e-13
+
+## 2b. the `113_rl_report.py` note key (digit-normalised) per class
+
+  carried-not-placed n=60 (left+right)  intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)
+  never-held         n=10 (left+right)  intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)', 'fruit did not follow the gripper
+
+  => the note adds nothing beyond `grasped`: every cnp carries the trigger
+     row alone, every never-held carries it plus `fruit did not follow the
+     gripper`. A 'no new reason' gate on this corpus is cheap by
+     construction for the cnp class.
+
+## 4. every left failure (one row per episode)
+
+corpus  log           ln  ep species       d bin class              ticks ftips     dx     dy t_arr  lead reach legs         plow feed x_sel               fall
+---------------------------------------------------------------------------------------------------------------------------------------------------------------
+p59p3   C_101.log    401   0 apple       7.0   0 carried-not-placed  1863    45  -82.0  230.0  1.91  1.92  0.28 lift+p0        no  yes 0.258 held apple idx13 y=-0.20
+p59p3   C_101.log    440   2 apple       7.0   0 carried-not-placed  1983    53  -20.0  223.0  1.86  1.87  0.27 lift+p0        no  yes 0.319                  -
+p59p3   C_101.log    462   3 kiwi        5.3   0 carried-not-placed  1949    46  -17.0  234.0  1.95  1.96  0.29 lift+p0        no  yes 0.359                  -
+p59p3   C_101.log    501   5 kiwi        5.3   0 carried-not-placed  1902    48  -29.0  262.0  2.18  2.19  0.31 lift+p0        no  yes 0.311                  -
+p59p3   C_101.log    522   6 kiwi        6.7   0 carried-not-placed  1978    46  -43.0  279.0  2.33  2.34  0.33 lift+p0        no  yes 0.314                  -
+p59p3   C_101.log    540   7 kiwi        6.7   0 carried-not-placed  1910    69  -21.0  241.0  2.01  2.01  0.29 lift+p0        no  yes 0.328                  -
+p59p3   C_101.log    561   8 pear        6.6   0 carried-not-placed  1978    35  -44.0  209.0  1.74  1.75  0.26 lift+p0        no  yes 0.299 held pear idx14 y=-0.19
+p59p3   C_101.log    669  13 kiwi        5.3   0 carried-not-placed  1898    55  -68.0  284.0  2.37  2.38  0.34 lift+p0        no  yes 0.272                  -
+p59p3   C_101.log    690  14 kiwi        5.3   0 carried-not-placed  2023    54  -80.0  297.0  2.47  2.49  0.35 lift+p0        no  yes 0.295                  -
+p59p3   C_202.log    442   2 kiwi        5.7   0 carried-not-placed  1856    58 -139.0  247.0  2.06  2.06  0.30 lift+p0        no  yes 0.201                  -
+p59p3   C_202.log    459   3 peach       6.2   0 carried-not-placed  1883    58 -125.0  269.0  2.24  2.26  0.32 lift+p0        no  yes 0.215                  -
+p59p3   C_202.log    521   6 lychee      3.3   0 carried-not-placed  1974    59 -134.0  298.0  2.48  2.49  0.35 lift+p0        no  yes 0.206                  -
+p59p3   C_202.log    635  11 apple       6.7   0 carried-not-placed  1895    56  -93.0  274.0  2.29  2.30  0.33 lift+p0        no  yes 0.247 held apple idx7 y=-0.42
+p59p3   C_202.log    700  14 lychee      3.3   0 carried-not-placed  1911    48  -36.0  268.0  2.23  2.25  0.32 lift+p0        no  yes 0.304                  -
+p59p3   C_77.log     399   0 pear        6.1   0 carried-not-placed  1885    56 -112.0  259.0  2.15  2.16  0.31 lift+p0        no  yes 0.228                  -
+p59p3   C_77.log     464   3 peach       5.8   0 never-held          1340    47  +17.0  230.0  1.92  1.92  0.28 lift           no   no 0.357                  -
+p59p3   C_77.log     484   4 orange      6.8   0 carried-not-placed  1921    57 -103.0  287.0  2.40  2.41  0.34 lift+p0        no  yes 0.237                  -
+p59p3   C_77.log     503   5 peach       5.8   0 carried-not-placed  1845    45   -9.0  239.0  1.99  2.02  0.29 lift+p0        no  yes 0.331                  -
+p58p3b  A2_101.log   400   0 apple       7.0   0 carried-not-placed  1846    45  -82.0  229.0  1.91  1.93  0.28 lift+p0        no  yes 0.258                  -
+p58p3b  A2_101.log   457   3 kiwi        5.3   0 carried-not-placed  1892    50   -9.0  262.0  2.18  2.19  0.31 lift+p0        no  yes 0.331                  -
+p58p3b  A2_101.log   476   4 kiwi        5.3   0 carried-not-placed  1855    56 -105.0  257.0  2.14  2.17  0.31 lift+p0        no  yes 0.235                  -
+p58p3b  A2_101.log   516   6 kiwi        5.3   0 carried-not-placed  1838    55 -153.0  242.0  2.02  2.05  0.30 lift+p0        no  yes 0.188                  -
+p58p3b  A2_101.log   536   7 kiwi        6.7   0 carried-not-placed  1997    56 -122.0  282.0  2.35  2.37  0.33 lift+p0        no  yes 0.233                  -
+p58p3b  A2_101.log   667  13 kiwi        6.7   0 carried-not-placed  2016    30 -156.0  242.0  2.02  2.02  0.29 lift+p0        no  yes 0.210                  -
+p58p3b  A2_101.log   688  14 kiwi        6.7   0 carried-not-placed  2027    28 -155.0  244.0  2.03  2.04  0.29 lift+p0        no  yes 0.207                  -
+p58p3b  A2_202.log   459   3 kiwi        5.7   0 carried-not-placed  1925    40  -33.0  216.0  1.80  1.81  0.27 lift+p0        no  yes 0.323                  -
+p58p3b  A2_202.log   583   9 pear        5.9   0 carried-not-placed  1956    55  -88.0  278.0  2.32  2.33  0.33 lift+p0        no  yes 0.252                  -
+p58p3b  A2_202.log   669  13 apple       6.7   0 carried-not-placed  1814    54 -125.0  241.0  2.00  2.01  0.29 lift+p0        no  yes 0.215 held apple idx7 y=-0.16
+p58p3b  A2_77.log    398   0 pear        6.1   0 carried-not-placed  1887    55 -112.0  257.0  2.14  2.14  0.31 lift+p0        no  yes 0.228                  -
+p58p3b  A2_77.log    441   2 peach       5.8   0 carried-not-placed  2002    49  -71.0  215.0  1.79  1.80  0.27 lift+p0        no  yes 0.274                  -
+p58p3b  A2_77.log    483   4 pear        6.8   0 carried-not-placed  1816    42   -8.0  236.0  1.97  1.98  0.29 lift+p0        no  yes 0.333                  -
+p58p3b  A2_77.log    561   8 peach       5.8   0 carried-not-placed  1915    52  -97.0  244.0  2.04  2.04  0.29 lift+p0        no  yes 0.243                  -
+p58p3b  A2_77.log    622  11 pear        6.1   0 carried-not-placed  1952    37  -32.0  221.0  1.84  1.86  0.27 lift+p0        no  yes 0.307                  -
+p59p2A  A_101.log    402   0 orange      6.3   0 carried-not-placed  1982    57 -139.0  232.0  1.93  1.94  0.28 lift+p0        no  yes 0.201                  -
+p59p2A  A_101.log    419   1 kiwi        5.3   0 carried-not-placed  1997     -  -37.0  205.0  1.71  1.71  0.26 lift+p0        no  yes 0.326                  -
+p59p2A  A_101.log    483   4 peach       6.6   0 carried-not-placed  1812    40   -7.0  226.0  1.88  1.88  0.28 lift+p0        no  yes 0.333                  -
+p59p2A  A_101.log    568   8 kiwi        5.3   0 carried-not-placed  1973    44  -41.0  246.0  2.05  2.06  0.30 lift+p0        no  yes 0.322                  -
+p59p2A  A_101.log    587   9 orange      6.3   0 carried-not-placed  1825    55 -138.0  239.0  1.99  2.00  0.29 lift+p0        no  yes 0.202                  -
+p59p2A  A_101.log    673  13 apple       7.0   0 carried-not-placed  1911    56 -133.0  256.0  2.13  2.14  0.31 lift+p0        no  yes 0.207                  -
+p59p2A  A_202.log    443   2 lychee      3.3   0 carried-not-placed  1853    43  -36.0  248.0  2.07  2.07  0.30 lift+p0        no  yes 0.304                  -
+p59p2A  A_202.log    608  10 apple       6.7   0 carried-not-placed  1819    53  -99.0  251.0  2.09  2.11  0.30 lift+p0        no  yes 0.241 held apple idx7 y=-0.15
+p59p2A  A_202.log    652  12 peach       6.2   0 carried-not-placed  1867    50  -61.0  270.0  2.25  2.27  0.32 lift+p0        no  yes 0.279                  -
+p59p2A  A_202.log    674  13 pear        5.9   0 carried-not-placed  2009    53 -108.0  230.0  1.92  1.92  0.28 lift+p0        no  yes 0.235                  -
+p59p2A  A_77.log     399   0 pear        6.1   0 carried-not-placed  1886    55 -112.0  259.0  2.15  2.16  0.31 lift+p0        no  yes 0.228                  -
+p59p2A  A_77.log     442   2 peach       5.8   0 carried-not-placed  2006    62  -71.0  329.0  2.74  2.75  0.38 lift+p0        no  yes 0.272                  -
+p59p2A  A_77.log     505   5 pear        6.8   0 carried-not-placed  1946    52 -115.0  224.0  1.86  1.87  0.27 lift+p0        no  yes 0.225                  -
+p59p2A  A_77.log     616  10 pear        6.8   0 never-held          1405    43  +14.0  245.0  2.04  2.04  0.29 lift           no   no 0.354                  -
+p59p2B  B_101.log    401   0 apple       7.0   0 carried-not-placed  1873    45  -82.0  227.0  1.89  1.90  0.28 lift+p0        no  yes 0.258                  -
+p59p2B  B_101.log    459   3 kiwi        6.7   0 carried-not-placed  1861    53  -88.0  251.0  2.09  2.11  0.30 lift+p0        no  yes 0.255                  -
+p59p2B  B_101.log    477   4 kiwi        5.3   0 carried-not-placed  1858    58 -117.0  270.0  2.25  2.27  0.32 lift+p0        no  yes 0.223                  -
+p59p2B  B_101.log    613  10 orange      6.3   0 carried-not-placed  2005    28 -109.0  242.0  2.02  2.02  0.29 lift+p0        no  yes 0.231                  -
+p59p2B  B_101.log    697  14 peach       6.6   0 carried-not-placed  1882    43  +16.0  246.0  2.05  2.05  0.30 lift+p0        no  yes 0.356                  -
+p59p2B  B_202.log    445   2 lychee      3.3   0 carried-not-placed  1900    56  -81.0  292.0  2.43  2.45  0.34 lift+p0        no  yes 0.259                  -
+p59p2B  B_202.log    463   3 lychee      3.3   0 carried-not-placed  1884    49  -22.0  261.0  2.17  2.18  0.31 lift+p0        no  yes 0.318                  -
+p59p2B  B_202.log    482   4 kiwi        5.7   0 never-held          1421    51  +15.0  232.0  1.93  1.94  0.28 lift           no   no 0.347                  -
+p59p2B  B_202.log    501   5 kiwi        5.7   0 carried-not-placed  1834    48  -59.0  237.0  1.98  1.98  0.29 lift+p0        no  yes 0.281                  -
+p59p2B  B_202.log    523   6 lychee      3.3   0 carried-not-placed  1818    25  +11.0  215.0  1.79  1.80  0.27 lift+p0        no  yes 0.351                  -
+p59p2B  B_202.log    544   7 pear        5.9   0 carried-not-placed  1931    60 -123.0  290.0  2.42  2.43  0.34 lift+p0        no  yes 0.218                  -
+p59p2B  B_77.log     399   0 pear        6.1   0 carried-not-placed  1885    56 -112.0  259.0  2.15  2.16  0.31 lift+p0        no  yes 0.228                  -
+p59p2B  B_77.log     462   3 kiwi        6.4   0 never-held          1986    61  +58.0  219.0  1.82  1.83  0.27 lift           no   no 0.398       detached n=4
+p59p2B  B_77.log     528   6 pear        6.1   0 carried-not-placed  1855    46  +16.0  230.0  1.92  1.92  0.28 lift+p0        no  yes 0.356                  -
+p59p2B  B_77.log     572   8 orange      6.8   0 carried-not-placed  1963    48  -90.0  259.0  2.16  2.18  0.31 lift+p0        no  yes 0.248                  -
+
+  legend: ftips = `[task] openarm fingertips NN mm from the fruit; closing anyway`
+          legs  = the `[task] carry <leg>` rows that printed (one per leg START)
+          plow  = a `[task] place low:` row printed (finger-floor bound descent)
+          feed  = a `[feed] <arm>: ... (attempt start -> release)` row printed
+          x_sel = the `-> chosen` candidate's x in the `[bed-sel]` block
+          fall  = a `[bed-fall] ... held=True` row inside this episode's window
+
+## 5. the cnp onset signatures, left vs right (the rows these logs carry)
+
+group           n               ftips mm                |dx| mm          lift drift mm         place drift mm
+left cnp       58       52.0 [25.0-69.0]       82.0 [7.0-156.0]    128.0 [121.0-162.0]      91.0 [69.0-107.0]
+right cnp       2       50.0 [49.0-51.0]         8.5 [5.0-12.0]    140.0 [125.0-155.0]       86.0 [82.0-90.0]
+left placed     7       45.0 [26.0-48.0]         9.0 [0.0-66.0]    126.0 [122.0-133.0]      96.0 [81.0-101.0]
+right placed  103      55.0 [40.0-115.0]       47.0 [0.0-155.0]    127.0 [121.0-276.0]      90.0 [35.0-191.0]
+
+  median [min-max]; '-' = no row. `drift` = `stored pad centre NN mm from the
+  measured pads` at that carry leg's start (one row per leg, so its presence
+  proves the leg ran: every cnp episode here printed its place leg).
+
+group           n           dx mm (signed)                  dy mm             reach mm             lead s            t_arr s
+left cnp       58      -82.0 [-156.0-16.0]    246.5 [205.0-329.0]        300 [260-380]   2.06 [1.71-2.75]   2.05 [1.71-2.74]
+right cnp       2        -8.5 [-12.0--5.0]    251.0 [248.0-254.0]        300 [300-300]   2.09 [2.07-2.12]   2.09 [2.07-2.12]
+left placed     7         -9.0 [-66.0-8.0]    237.0 [216.0-268.0]        290 [270-320]   1.98 [1.80-2.24]   1.98 [1.80-2.24]
+right placed  103      -47.0 [-155.0-20.0]    257.0 [182.0-314.0]        310 [230-370]   2.14 [1.52-2.64]   2.14 [1.52-2.62]
+
+  per-class leg census (how far the episode got):
+    left cnp      n= 58  fingertips  57  lift-leg  58  place-leg  58  place-low   0  feed/release  58  retry row  58
+    right cnp     n=  2  fingertips   2  lift-leg   2  place-leg   2  place-low   0  feed/release   2  retry row   2
+    left placed   n=  7  fingertips   7  lift-leg   7  place-leg   7  place-low   7  feed/release   7  retry row   0
+    right placed  n=103  fingertips 103  lift-leg 103  place-leg 103  place-low 103  feed/release 103  retry row   0
+
+  Fisher exact on `place-low printed`, left cnp vs right placed: p = 6.70e-13
+
+  the `place low` rows that did print (the payload's height at the descent):
+    group                    bottom mm            need mm       finger budget mm     final clearance mm
+    left cnp                         - (no row)
+    right cnp                        - (no row)
+    left placed       1464 [1457-1481]        89 [82-106]             75 [69-90]             46 [43-51]
+    right placed      1478 [1460-1519]       103 [85-144]            84 [68-140]             53 [31-68]
+
+  (the row prints only when `finger_budget < drop`, `tasks.py:12344`, and the
+  descent is skipped entirely when `need <= 0`, `tasks.py:12303`: so a missing
+  row means the payload was NOT at the carried height, ~0.15 m above the
+  output belt top (1.35 m, `assets.py:309`) - not that the leg was skipped.)
+## 6. the lateral band: where the left's attempts sit vs the right's
+
+  (a) the `[bed-sel] -> chosen` x at the selection instant (absolute, m)
+    left   n= 69  0.274 m [0.188-0.398]
+    right  n=111  0.295 m [0.177-0.365]
+    x >= 0.30 m: left 28/69 right 51/111  Fisher p = 0.538
+
+  (b) the trigger's lateral offset at the fire tick (dx = fruit x - measured jaw x, `trigger.py:314`)
+    left   n= 69  -71.0 mm [-156.0-58.0]  |dx| max 156.0 mm
+    right  n=111  -39.0 mm [-155.0-39.0]  |dx| max 155.0 mm
+
+  (c) per-class chosen x (selection instant):
+    left cnp      n= 58  0.258 m [0.188-0.359]
+    right cnp     n=  2  0.325 m [0.321-0.328]
+    left placed   n=  7  0.331 m [0.274-0.346]
+    right placed  n=103  0.286 m [0.177-0.357]
+
+  (d) is a large fire-time lateral offset a *left-only* risk? (|dx| at the fire tick)
+    band                left placed   right placed   Fisher p
+    |dx| <= 66 mm        7/33          54/62         2.18e-10
+    |dx| >  66 mm        0/36          49/49         7.98e-13
+    left  : placed |dx| max 66 mm (n=7, median 9); failures' |dx| median 82 mm [7-156]
+    right : placed |dx| max 155 mm (n=103, median 47); failures' |dx| median 13 mm [5-39]
+    66 mm is the left's own placed maximum, i.e. the observed left ceiling;
+    it is quoted as a band split, not as a gate (n = 7 left placements).
+
+  (e) the left's 4 never-held episodes: x_sel 0.355 m [0.347-0.398], signed dx 16 mm [14-58] - all at the +x end of the band
+
+  (f) the jaw's implied x at the fire tick (x_sel - dx; the P49 caveat: 34/39
+      selections agree to <= 2.7 mm, 5/39 move outward 5.3-19.2 mm)
+    left   n= 69  0.340 m [0.332-0.376]
+    right  n=111  0.333 m [0.320-0.373]
+
+## 7. what the left actually attempts (the grade lane is the arm)
+
+  left: bin [0], grade ['A']
+    kiwi         4/25 placed  cnp 19
+    pear         1/14 placed  cnp 12
+    apple        1/9  placed  cnp  8
+    peach        0/9  placed  cnp  8
+    lychee       1/7  placed  cnp  6
+    orange       0/5  placed  cnp  5
+  right: bin [1], grade ['B', 'C']
+    strawberry  24/27 placed  cnp  1
+    lychee      18/19 placed  cnp  0
+    orange      16/18 placed  cnp  0
+    apple       12/13 placed  cnp  1
+    tomato      11/11 placed  cnp  0
+    peach       10/10 placed  cnp  0
+    pear         8/9  placed  cnp  0
+    kiwi         4/4  placed  cnp  0
+
+## 8. `[bed-fall]` rows (the only positional evidence of a lost payload)
+
+log             ln   ep species    idx       x       y      z  held  attributed
+C_101.log      405    0 apple       13  +0.022  -0.195  0.824  True  mid-carry (grasp..release)
+C_101.log      564    8 pear        14  +0.000  -0.187  0.857  True  mid-carry (grasp..release)
+C_202.log      567    8 pear         6  +0.440  -0.900  0.026 False  detached
+C_202.log      568    8 kiwi         1  +0.220  -1.167  0.025 False  detached
+C_202.log      569    8 peach       15  +0.345  -0.919  0.025 False  detached
+C_202.log      570    8 kiwi         2  +0.490  -1.356  0.024 False  detached
+C_202.log      571    8 lychee       3  +0.242  -0.954  0.015 False  detached
+C_202.log      572    8 pear         9  +0.523  -0.935  0.025 False  detached
+C_202.log      573    8 lychee      11  +0.200  -0.878  0.797 False  detached
+C_202.log      574    8 tomato      12  +0.823  -0.161  0.831 False  detached
+C_202.log      640   11 apple        7  -0.044  -0.424  0.770  True  mid-carry (grasp..release)
+C_77.log       606   10 apple        5  +0.235  -0.944  0.285 False  detached
+C_77.log       631   11 kiwi         9  +0.005  +0.196  0.823 False  detached
+C_77.log       652   12 kiwi         9  +0.082  +0.004  0.848 False  detached
+A2_101.log     437    2 tomato      11  +1.046  +0.352  0.025 False  detached
+A2_202.log     674   13 apple        7  +0.025  -0.160  0.824  True  mid-carry (grasp..release)
+A_101.log      505    5 kiwi         2  +0.251  -0.914  0.023 False  detached
+A_101.log      506    5 kiwi        12  +0.367  -1.071  0.033 False  detached
+A_202.log      612   10 apple        7  -0.048  -0.153  0.823  True  mid-carry (grasp..release)
+A_202.log      633   11 orange      14  +0.070  -0.058  0.875 False  detached
+A_77.log       636   11 lychee      13  +0.430  -0.974  0.016 False  detached
+A_77.log       637   11 apple       15  +0.309  -1.029  0.032 False  detached
+A_77.log       680   13 apple        5  +0.143  -1.003  0.029 False  detached
+A_77.log       681   13 peach       12  +0.440  -0.978  0.026 False  detached
+A_77.log       682   13 tomato       8  +0.341  -0.867  0.022 False  detached
+A_77.log       683   13 strawberry  10  +0.360  -0.962  0.014 False  detached
+B_101.log      590    9 strawberry  10  +0.042  -0.153  0.865 False  detached
+B_202.log      567    8 peach        5  +0.248  -0.893  0.738 False  detached
+B_77.log       465    3 pear         1  +0.265  -0.879  0.027 False  detached
+B_77.log       466    3 kiwi         9  +0.731  -0.871  0.029 False  detached
+B_77.log       467    3 lychee       0  +0.294  -0.931  0.013 False  detached
+B_77.log       468    3 tomato       2  +0.800  +0.507  0.868 False  detached
+B_77.log       638   11 pear         4  +0.082  -0.070  0.876 False  detached
+B_77.log       662   12 pear         1  +0.044  -0.078  0.883 False  detached
+
+  held=True (mid-carry) falls: 5 in 34 row(s) total
+
+## 9. checks (assertions - a FAIL means the parse or the corpus is wrong)
+
+  [PASS] every log has 15 episodes
+  [PASS] every episode has an end row
+  [PASS] the `fingertips` row (>20 mm close) on >= 95% of episodes
+  [PASS] every episode has a trigger note
+  [PASS] every episode resolved its chosen x from [bed-sel]
+  [PASS] `retry` row iff grasped and not placed
+  [PASS] every cnp episode printed its place leg
+  [PASS] every never-held episode printed no place leg
+  [PASS] a `[feed]` row iff the episode reached a release
+  [PASS] left episodes are all bin 0 / grade A
+  [PASS] right episodes are all bin 1 / grade B or C
+

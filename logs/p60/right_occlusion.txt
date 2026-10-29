@@ -1,0 +1,207 @@
+# P60 phase 2 - the right arm at `ready` against a fruit at the LEFT's station
+# instrument: 212's camera (eye [0.05, 0.0, 2.0] target [0.34, 0.22, 1.1] res [240, 424] focal 0.016) + 217's disc/cover test
+# occluder: rendered instance masks + depth, logs/p35/park_masks.npz (571 arrays); poses logs/p35/park_sweep.json
+# station (pick_x, pick_y) = (0.34, +0.00), belt top 1.170, fruit d 58 mm (small control 45 mm), cover = disc pixels with arm depth in front
+# pins: logs/p35/park_sweep.json=4d15513f  logs/p35/park_masks.npz=565e66c8  scripts/212_occlusion_map.py=8ca8c97e  scripts/217_arm_park_map.py=d73618f9  configs/arm_parks.json=42ab4fb7  configs/waypoints.json=d81c6f1c  src/fruit_sorting/tasks.py=8ad8ddc8  src/fruit_sorting/rl_env.py=1b1e5cdf
+# deliverable band source: logs/p59/p3/C_*.log (md5 e01766ed,a7fbdfc8,e578abf4)
+
+## 0. The delivered band (what the direct line actually presents)
+- `[bed-sel]` **chosen** (45 rows, 3 logs x 15 picks):
+    along  n=45 min=+0.511 p10=+0.532 p50=+0.586 p90=+0.672 max=+0.680
+    x      n=45 min=+0.201 p10=+0.216 p50=+0.287 p90=+0.335 max=+0.359
+    d(cm)  n=45 min=+0.030 p10=+0.034 p50=+0.058 p90=+0.067 max=+0.070
+- `[bed-sel]` all candidates (chosen + refused, 529 rows): x n=529 min=+0.155 p10=+0.209 p50=+0.277 p90=+0.356 max=+0.770
+- `intercept trigger` **fire tick** (45 episodes):
+    dy (along at the fire)  n=45 min=+0.209 p10=+0.230 p50=+0.258 p90=+0.287 max=+0.304
+    dx (x - station_x)      n=45 min=-0.139 p10=-0.121 p50=-0.066 p90=-0.004 max=+0.020
+    arm split: left n=20 dy n=20 min=+0.209 p10=+0.229 p50=+0.261 p90=+0.288 max=+0.298
+               right n=25 dy n=25 min=+0.214 p10=+0.248 p50=+0.256 p90=+0.282 max=+0.304
+- the grid's bands: decide = along (0.2, 0.31), approach = (0.31, 0.45), selection = (0.45, 0.68); x 0.14-0.42 (the delivered x 0.201-0.359 inside it)
+
+## A. `right:ready` vs a 58 mm fruit at the left's station (cover of the fruit's disc)
+| along |  0.14  0.16  0.18  0.20  0.22  0.24  0.26  0.28  0.30  0.32  0.34  0.36  0.38  0.40  0.42 | belt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| -0.30 |  1.00  1.00  0.88  0.62  0.45  0.53  0.69  0.82  0.93  1.00  1.00  1.00  1.00  0.85  0.54 | 1.00 |
+| -0.28 |  1.00  1.00  0.69  0.32  0.04  0.18  0.33  0.52  0.75  0.96  1.00  1.00  1.00  0.97  0.66 | 1.00 |
+| -0.26 |  0.88  0.71  0.44  0.13  0.00  0.00  0.04  0.23  0.56  0.91  1.00  1.00  1.00  0.97  0.79 | 1.00 |
+| -0.24 |  0.50  0.34  0.16  0.00  0.00  0.00  0.00  0.11  0.42  0.80  1.00  1.00  1.00  0.98  0.89 | 1.00 |
+| -0.22 |  0.13  0.03  0.00  0.00  0.00  0.00  0.00  0.01  0.25  0.58  0.88  0.98  1.00  1.00  1.00 | 1.00 |
+| -0.20 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.10  0.36  0.70  0.96  1.00  1.00  1.00 | 1.00 |
+| -0.18 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.17  0.51  0.86  1.00  1.00  1.00 | 1.00 |
+| -0.16 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.04  0.37  0.72  0.99  1.00  1.00 | 1.00 |
+| -0.14 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.19  0.51  0.79  0.95  0.99 | 1.00 |
+| -0.12 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.05  0.37  0.67  0.85  0.95 | 1.00 |
+| -0.10 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.02  0.03  0.16  0.39  0.69  0.87  0.95 | 1.00 |
+| -0.08 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.06  0.14  0.23  0.38  0.67  0.94  0.98  1.00 | 1.00 |
+| -0.06 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.06  0.15  0.24  0.38  0.69  0.96  0.99  0.99 | 1.00 |
+| -0.04 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.01  0.04  0.06  0.19  0.40  0.60  0.66  0.63 | 1.00 |
+| -0.02 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.04  0.14  0.23  0.23  0.19 | 1.00 |
+| +0.00 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00 | 1.00 |
+| +0.02 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00 | 1.00 |
+| +0.04 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00 | 1.00 |
+| +0.06 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00 | 1.00 |
+| +0.08 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00 | 1.00 |
+| +0.10 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00 | 1.00 |
+| +0.12 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00 | 1.00 |
+| +0.14 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00 | 1.00 |
+| +0.16 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00 | 1.00 |
+| +0.18 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00 | 1.00 |
+| +0.20 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00 | 1.00 |
+| +0.22 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00 | 1.00 |
+| +0.24 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00 | 1.00 |
+| +0.26 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00 | 1.00 |
+| +0.28 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00 | 1.00 |
+| +0.30 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00 | 1.00 |
+| +0.32 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00 | 1.00 |
+| +0.34 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00 | 1.00 |
+| +0.36 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00 | 1.00 |
+| +0.38 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00 | 1.00 |
+| +0.40 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00 | 1.00 |
+| +0.42 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00 | 1.00 |
+| +0.44 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00 | 1.00 |
+| +0.46 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00 | 0.87 |
+| +0.48 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00 | 0.52 |
+| +0.50 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00 | 0.16 |
+| +0.52 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00 | 0.00 |
+| +0.54 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00 | 0.00 |
+| +0.56 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00 | 0.00 |
+| +0.58 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00 | 0.00 |
+| +0.60 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00 | 0.00 |
+| +0.62 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00 | 0.00 |
+| +0.64 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00 | 0.00 |
+| +0.66 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00 | 0.00 |
+| +0.68 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00 | 0.00 |
+| +0.70 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00 | 0.00 |
+| +0.72 |  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00 | 0.00 |
+(a `-` is a fruit whose centre projects out of frame; `belt` is 212's belt-only visible fraction at the same cells)
+
+## B. Every right-arm pose from P35's sweep, against the left's station
+| pose | hold | px | gap | in belt | decide 0.20-0.31 | approach 0.31-0.45 | selection 0.45-0.68 | max | >=0.5 along |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| ready | 0.0125 | 5104 | 0.079 | - | 0.000 | 0.000 | 0.000 | 1.00 | -0.42..-0.04 |
+| j1+025 | 0.0130 | 6171 | 0.061 | - | 0.000 | 0.000 | 0.000 | 1.00 | -0.46..-0.06 |
+| j1-025 | 0.0112 | 4285 | 0.050 | - | 0.000 | 0.000 | 0.000 | 1.00 | -0.36..-0.04 |
+| j1+050 | 0.0128 | 7058 | 0.091 | - | 0.000 | 0.000 | 0.000 | 1.00 | -0.50..-0.18 |
+| j1-050 | 0.1598 | 3855 | 0.054 | ee_tcp | 0.000 | 0.000 | 0.000 | 1.00 | -0.36..-0.04 |
+| j1+080 | 0.0115 | 7705 | 0.187 | - | 0.000 | 0.000 | 0.000 | 1.00 | -0.50..-0.20 |
+| j1-080 | 0.3129 | 3314 | 0.103 | - | 0.000 | 0.000 | 0.000 | 1.00 | -0.34..0.00 |
+| j2+025 | 0.0167 | 4766 | 0.150 | - | 0.000 | 0.000 | 0.000 | 1.00 | -0.48..-0.14 |
+| j2-025 | 0.0103 | 4852 | 0.094 | - | 0.000 | 0.000 | 0.000 | 1.00 | -0.32..0.06 |
+| j2+050 | 0.0239 | 3937 | 0.187 | - | 0.000 | 0.000 | 0.000 | 1.00 | -0.50..-0.24 |
+| j2-050 | 0.0087 | 4567 | 0.097 | - | 0.010 | 0.000 | 0.000 | 1.00 | -0.28..0.18 |
+| j2+080 | 0.0488 | 2855 | 0.187 | - | 0.000 | 0.000 | 0.000 | 1.00 | -0.50..-0.34 |
+| j2-080 | 0.0086 | 4514 | 0.098 | - | 0.008 | 0.000 | 0.000 | 1.00 | -0.28..0.18 |
+| j3+025 | 0.0125 | 5633 | 0.027 | - | 0.000 | 0.000 | 0.000 | 1.00 | -0.40..0.00 |
+| j3-025 | 0.0127 | 5113 | 0.090 | - | 0.000 | 0.000 | 0.000 | 1.00 | -0.42..-0.04 |
+| j3+050 | 0.0113 | 6337 | 0.028 | - | 0.000 | 0.000 | 0.000 | 1.00 | -0.42..-0.04 |
+| j3-050 | 0.0125 | 5117 | 0.087 | - | 0.000 | 0.000 | 0.000 | 1.00 | -0.42..-0.04 |
+| j3+080 | 0.0087 | 7150 | 0.102 | - | 0.000 | 0.000 | 0.000 | 1.00 | -0.42..-0.22 |
+| j3-080 | 0.0125 | 5108 | 0.085 | - | 0.000 | 0.000 | 0.000 | 1.00 | -0.42..-0.04 |
+| j4+025 | 0.0111 | 5109 | 0.084 | - | 0.000 | 0.000 | 0.000 | 1.00 | -0.42..0.00 |
+| j4-025 | 0.0134 | 5155 | 0.115 | - | 0.000 | 0.000 | 0.000 | 1.00 | -0.40..-0.08 |
+| j4+050 | 0.0092 | 5043 | 0.114 | - | 0.000 | 0.000 | 0.000 | 1.00 | -0.42..0.02 |
+| j4-050 | 0.0134 | 5116 | 0.160 | - | 0.000 | 0.000 | 0.000 | 1.00 | -0.40..-0.22 |
+| j4+080 | 0.0070 | 4918 | 0.147 | - | 0.000 | 0.000 | 0.000 | 1.00 | -0.40..0.02 |
+| j4-080 | 0.0113 | 5048 | 0.187 | - | 0.000 | 0.000 | 0.000 | 1.00 | -0.42..-0.24 |
+| j5+025 | 0.0125 | 5062 | 0.075 | - | 0.000 | 0.000 | 0.000 | 1.00 | -0.40..-0.06 |
+| j5-025 | 0.0132 | 4913 | 0.100 | - | 0.000 | 0.000 | 0.000 | 1.00 | -0.40..-0.06 |
+| j5+050 | 0.0125 | 5094 | 0.073 | - | 0.000 | 0.000 | 0.000 | 1.00 | -0.42..-0.04 |
+| j5-050 | 0.0139 | 4808 | 0.107 | - | 0.000 | 0.000 | 0.000 | 1.00 | -0.40..-0.08 |
+| j5+080 | 0.0125 | 5078 | 0.070 | - | 0.000 | 0.000 | 0.000 | 1.00 | -0.42..-0.04 |
+| j5-080 | 0.0150 | 4977 | 0.110 | - | 0.000 | 0.000 | 0.000 | 1.00 | -0.40..-0.08 |
+| j6+025 | 0.0124 | 5070 | 0.069 | - | 0.000 | 0.000 | 0.000 | 1.00 | -0.42..-0.04 |
+| j6-025 | 0.0126 | 5083 | 0.067 | - | 0.000 | 0.000 | 0.000 | 1.00 | -0.42..-0.04 |
+| j6+050 | 0.0124 | 5102 | 0.066 | - | 0.000 | 0.000 | 0.000 | 1.00 | -0.42..-0.04 |
+| j6-050 | 0.0126 | 5085 | 0.065 | - | 0.000 | 0.000 | 0.000 | 1.00 | -0.42..-0.04 |
+| j6+080 | 0.0124 | 5097 | 0.064 | - | 0.000 | 0.000 | 0.000 | 1.00 | -0.42..-0.04 |
+| j6-080 | 0.0126 | 5094 | 0.063 | - | 0.000 | 0.000 | 0.000 | 1.00 | -0.42..-0.04 |
+| j7+025 | 0.0126 | 5164 | 0.048 | - | 0.000 | 0.000 | 0.000 | 1.00 | -0.40..0.00 |
+| j7-025 | 0.0125 | 5105 | 0.061 | - | 0.000 | 0.000 | 0.000 | 1.00 | -0.42..-0.04 |
+| j7+050 | 0.0344 | 5310 | 0.065 | - | 0.000 | 0.000 | 0.000 | 1.00 | -0.40..0.04 |
+| j7-050 | 0.0126 | 5110 | 0.059 | - | 0.000 | 0.000 | 0.000 | 1.00 | -0.42..-0.04 |
+| j7+080 | 0.0644 | 5465 | 0.092 | - | 0.000 | 0.000 | 0.000 | 1.00 | -0.40..0.08 |
+| j7-080 | 0.0126 | 5120 | 0.057 | - | 0.000 | 0.000 | 0.000 | 1.00 | -0.42..-0.04 |
+| side | 0.0068 | 6208 | 0.074 | - | 0.106 | 0.000 | 0.000 | 1.00 | -0.32..0.22 |
+| side_deep | 0.0051 | 7759 | 0.103 | - | 0.023 | 0.000 | 0.000 | 1.00 | -0.36..0.16 |
+| back | 0.1741 | 3279 | 0.062 | ee_tcp | 0.000 | 0.000 | 0.000 | 1.00 | -0.26..0.08 |
+| low | 0.0042 | 4663 | 0.080 | - | 0.002 | 0.000 | 0.000 | 1.00 | -0.28..0.16 |
+| high | 0.0251 | 3276 | 0.117 | - | 0.000 | 0.000 | 0.000 | 1.00 | -0.50..-0.18 |
+| fold_hi | 0.0054 | 6909 | 0.083 | - | 0.053 | 0.000 | 0.000 | 1.00 | -0.34..0.20 |
+| fold_40 | 0.0080 | 5785 | 0.069 | - | 0.001 | 0.000 | 0.000 | 1.00 | -0.36..0.16 |
+| fold_55 | 0.0067 | 6138 | 0.068 | - | 0.070 | 0.000 | 0.000 | 1.00 | -0.32..0.20 |
+| fold_70 | 0.0058 | 6715 | 0.080 | - | 0.118 | 0.000 | 0.000 | 1.00 | -0.32..0.22 |
+| fold_85 | 0.0052 | 7490 | 0.098 | - | 0.057 | 0.000 | 0.000 | 1.00 | -0.34..0.20 |
+
+## B2. The same, for the two poses on record as the shipped ones (`configs/waypoints.json`: `ready`, and `grasp` = the pose the reset teleports the **active** arm to)
+- **left@grasp** (mask `right__ready__active`, 2894 px): station 0.40, decide 0.592, approach 0.005, selection 0.000, max 1.00, >=0.5 along -0.02..+0.28
+    silhouette in space: x 0.050..0.356 y -0.027..+0.199 z 1.265..1.542; over the belt: y -0.027..+0.199 z 1.265..1.495
+- **right@grasp** (mask `left__ready__active`, 3616 px): station 0.38, decide 0.000, approach 0.000, selection 0.000, max 1.00, >=0.5 along -0.30..+0.02
+    silhouette in space: x 0.050..0.347 y -0.173..+0.017 z 1.258..1.603; over the belt: y -0.173..+0.017 z 1.258..1.566
+
+## B3. The bbox form (P34-B/P36 `frac`): arm pixels inside the fruit's disc bbox at the fire band
+| fruit cell | disc px | bbox | right:ready | left@grasp | right@grasp |
+| --- | --- | --- | --- | --- | --- |
+| x=0.20, along=+0.30 | 131 | 13x13 | 0 | 72 | 0 |
+| x=0.28, along=+0.25 | 127 | 13x13 | 0 | 167 | 0 |
+| x=0.28, along=+0.20 | 128 | 13x12 | 0 | 156 | 0 |
+| x=0.34, along=+0.30 | 118 | 12x12 | 0 | 0 | 0 |
+(the count is arm pixels sharing the disc's projected bbox *whatever their depth* - a 0 here rules the pose out absolutely, which the depth-tested `cover` cannot do on its own)
+
+## C. The along profile at the delivered x columns (58 mm fruit)
+
+`right@ready`: -0.100:0.00/0.00/0.16 -0.050:0.00/0.03/0.35 +0.000:0.00/0.00/0.00 +0.050:0.00/0.00/0.00 +0.100:0.00/0.00/0.00 +0.150:0.00/0.00/0.00 +0.200:0.00/0.00/0.00 +0.250:0.00/0.00/0.00 +0.300:0.00/0.00/0.00 +0.350:0.00/0.00/0.00
+
+`right@ready (d=45)`: -0.100:0.00/0.00/0.04 -0.050:0.00/0.00/0.21 +0.000:0.00/0.00/0.00 +0.050:0.00/0.00/0.00 +0.100:0.00/0.00/0.00 +0.150:0.00/0.00/0.00 +0.200:0.00/0.00/0.00 +0.250:0.00/0.00/0.00 +0.300:0.00/0.00/0.00 +0.350:0.00/0.00/0.00
+
+`left@grasp`: -0.100:0.00/0.00/0.00 -0.050:0.00/0.00/0.10 +0.000:0.00/0.16/0.91 +0.050:0.00/0.00/0.81 +0.100:0.00/0.28/1.00 +0.150:0.00/0.76/1.00 +0.200:0.65/1.00/1.00 +0.250:1.00/1.00/0.55 +0.300:0.43/0.29/0.00 +0.350:0.00/0.00/0.00
+
+`right@grasp`: -0.100:0.00/0.35/1.00 -0.050:0.00/0.04/0.94 +0.000:0.00/0.16/0.83 +0.050:0.00/0.00/0.00 +0.100:0.00/0.00/0.00 +0.150:0.00/0.00/0.00 +0.200:0.00/0.00/0.00 +0.250:0.00/0.00/0.00 +0.300:0.00/0.00/0.00 +0.350:0.00/0.00/0.00
+
+`left:ready (P35 control)`: -0.100:0.00/0.00/0.00 -0.050:0.00/0.00/0.00 +0.000:0.00/0.00/0.00 +0.050:0.00/0.06/0.31 +0.100:0.00/0.00/0.08 +0.150:0.00/0.00/0.42 +0.200:0.00/0.00/0.82 +0.250:0.00/0.32/1.00 +0.300:0.56/0.90/1.00 +0.350:1.00/1.00/1.00
+
+`left:back  (P35 control)`: -0.100:0.00/0.00/0.00 -0.050:0.00/0.00/0.00 +0.000:0.00/0.00/0.00 +0.050:0.00/0.00/0.00 +0.100:0.00/0.00/0.00 +0.150:0.00/0.00/0.00 +0.200:0.00/0.00/0.00 +0.250:0.00/0.00/0.00 +0.300:0.00/0.00/0.00 +0.350:0.00/0.00/0.00
+
+(cells are `cover` at along : x=0.22/x=0.28/x=0.34; every 0.05 m shown)
+
+## D. The 45 delivered **selection** points, scored exactly (each fruit at its own diameter)
+- **right@ready**: max 0.000, mean 0.0000; >=0.50 0/45, >=0.10 0/45
+- **right@grasp**: max 0.000, mean 0.0000; >=0.50 0/45, >=0.10 0/45
+- **left@grasp**: max 0.000, mean 0.0000; >=0.50 0/45, >=0.10 0/45
+- belt-only visible fraction at the same points: p50 0.00 - the sheet is behind the +Y output belt there, so for *any* pose the arm has little left to hide: the selection instant is not a perception event on this camera whatever the arm does
+
+## E. The occlusion geometry, stated as the answer
+- `right:ready` >=50 % region: along -0.42..-0.04 (142 grid cells); the cell **nearest the station** is along -0.04 at x 0.38 (cover 0.60); the farthest is along -0.42 at x 0.32 (belt-only 1.00)
+- the delivered decision band is along +0.20..+0.31 (fire dy +0.209..+0.304); `right:ready` cover there: mean 0.000, max 0.000
+- the delivered selection band +0.45..+0.68: cover mean 0.000, max 0.000 - and the belt alone already hides the fruit there (belt-only p50 0.00), so no arm pose changes it
+- every right pose at the decide band: fold_70 0.118, side 0.106, fold_55 0.070, fold_85 0.057, fold_hi 0.053, side_deep 0.023 (top 6; `ready` 0.000)
+- `right:ready` silhouette in space: x 0.050..0.347, y -0.196..-0.025 (the station line is y=+0.00), z 1.316..1.630 -> it hangs over the belt's **downstream** tail (y -0.196..-0.025)
+- the camera's own belt window (212, belt-only): >=0.50 visible up to along +0.48, i.e. the fruit is belt-hidden above that - the delivered selection positions (+0.511..+0.680) are all inside the belt-hidden region, so the *fire* is the perception instant, not the selection
+
+## F. Instrument check - this scorer against P35's own published table (`logs/p35/20_map.json`)
+| pose | P35 `stream` | this script `stream` | P35 `first` 0.40-0.50 | this `first` | P35 `by_along` +0.35 | this +0.35 | P35 +0.50 | this +0.50 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| left:ready | 0.382 | 0.382 | 0.144 | 0.144 | 0.98 | 0.98 | 0.00 | 0.00 |
+| left:back | 0.080 | 0.080 | 0.160 | 0.160 | 0.00 | 0.00 | 0.10 | 0.10 |
+| right:ready | 0.000 | 0.000 | 0.000 | 0.000 | 0.00 | 0.00 | 0.00 | 0.00 |
+(P35's `stream` = the mean over along >= 0.20, x 0.19-0.36, d 45/58 mm; `first` = 0.40-0.50. Agreement to the rounding is what licenses reading the 0.000 rows above as geometry rather than as a broken scorer - the same code reproduces the left arm's 0.38.)
+
+## G. How long the fruit is clear, if the arm holds that pose (belt-visible = 212 belt-only >= 0.99; 0.12 m/s)
+| pose | clean: belt-visible and cover<0.5 | hidden: belt-visible and cover>=0.5 |
+| --- | --- | --- |
+| right@ready (inactive right) | -0.50..-0.40 (0.10 m / 0.8 s), -0.24..+0.44 (0.68 m / 5.7 s) | -0.38..-0.26 (0.12 m / 1.0 s) |
+| left@grasp  (active left) | -0.50..+0.16 (0.66 m / 5.5 s), +0.30..+0.44 (0.14 m / 1.2 s) | +0.18..+0.28 (0.10 m / 0.8 s) |
+| right@grasp (active right) | -0.50..-0.30 (0.20 m / 1.7 s), -0.18..+0.44 (0.62 m / 5.2 s) | -0.28..-0.20 (0.08 m / 0.7 s) |
+(`clean`/`hidden` are the contiguous along runs where the belt alone is >= 0.99 visible and the pose's mean cover is below/above 0.5; the fire band is along +0.20..+0.31, the last 0.9 s before the station)
+
+## H. The lever: is there a right-arm park to test?
+- `configs/arm_parks.json` (md5 42ab4fb7) carries `parks.['back', 'ready', 'side_deep']`, and every entry's `right` is null: back->None, ready->None, side_deep->None
+- `rl_env.py` already resolves a right vector with **no code change**: the loader loops `for name in ("left", "right")` and stores `entry[name]` when non-null (`rl_env.py:1371-1374`), the reset applies `self._arm_park_poses.get(name)` (`:2569`), the P35 census reads `self._arm_park_poses.get(inactive)` (`:3414`), and `_park_poses_label` already prints the per-arm resolution (`left:back,right:ready`). So a right vector is a **config-only** addition.
+- but there is nothing to remove: `right:ready` is 0.000 over the whole delivered band, and it is already at the floor of the achievable set - the only right poses that cover **more** of the decision band are folds (`fold_70` 0.118, `side` 0.106, `fold_55` 0.070); `side`/`side_deep`/`fold_*` also hold (<= 0.008 rad) while `back` does not (hold 0.1741 rad, fingertip in the belt footprint ['ee_tcp']).
+- verdict: **no right-arm park lever for the left's station.** A `right` vector would move a silhouette that is not in the fruit's sightline; the honest close is that this mechanism is empty, and the adjacent measurement in B2/C is what the geometry leaves standing.
+
+## I. What this map does not say
+- it measures **silhouette overlap**, not the policy's attention: a 0.000 cover rules occlusion *out* of the decision band, it does not prove the policy sees the fruit (P35's own control succeeded with the fruit fully invisible in 9 of its 23 right-arm successes, and P36's 2x2 found the *image* channel carries the park's win with the statistic unseparated).
+- the occluder is a **rendered single frame per pose** from `logs/p35/park_probe.py`; the *active* arm's pose during the wait is the policy's own, so `left@grasp`/`right@grasp` are the reset poses (`rl_env.py:2575`) - the measurement of the live wait pose is a simulator item (record the **active** arm's pixel share at the band calls: `_park_bbox_census(bbox, side)` already takes any arm name).
+- one camera (the shipped head pose), one scene, `pick_y = 0.00`; the two-line's right station (`y = -0.10`) is a different scenario.
+
+wrote /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p60/right_occlusion.json
