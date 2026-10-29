@@ -1,0 +1,134 @@
+P61 phase 2 - the direction of the direct line's carry slip
+==============================================================================
+cell     : S_77.log, S_101.log, S_202.log
+comparator: D_77.log, D_101.log, D_202.log (P60 phase 3)
+
+== P1: the instrument's identity, |slip_xyz| == clean_slip_max ==
+  [carry] rows            : 88
+  rows with slip_xyz      : 88
+  max |norm - clean|      : 0.072 mm
+    worst row             : S_202.log ep7 place0 slip_xyz=(182.3,776.8,-1133.5) clean=1386.1
+  rows > 0.1 mm (letter)  : 0
+  rows > 0.15 mm (bound)  : 0  (PREREG: >0.15 is F1)
+
+== P2: the direction (primary, **world frame**; belt = world -y) ==
+  escape = clean_slip_max > 50 mm; unit = the attempt's first grasp_lift leg in (50, 1000] mm
+
+  -- the frame map (offline, configs/waypoints_oriented.json) --
+  R_right == M R_left M^T (M = diag(-1,+1,-1)) : max err 0.00e+00  (a 180 deg turn about the belt axis)
+  left  hand axes in world: x=(+0.075,-0.034,+0.997)  y=(-0.514,-0.858,+0.010)  z=(+0.854,-0.513,-0.082)
+  right hand axes in world: x=(+0.075,+0.034,+0.997)  y=(+0.514,-0.858,-0.010)  z=(+0.854,+0.513,-0.082)
+  candidate world dir          ->  L hand frame          R hand frame
+  world -y (belt travel)       -> (+0.034,+0.858,+0.513)  (-0.034,+0.858,-0.513)
+  world -z (down / lift axis)  -> (-0.997,-0.010,+0.082)  (-0.997,+0.010,+0.082)
+  world +z (up)                -> (+0.997,+0.010,-0.082)  (+0.997,-0.010,-0.082)
+  world +x (across belt)       -> (+0.075,-0.514,+0.854)  (+0.075,+0.514,+0.854)
+  world -x (across belt)       -> (-0.075,+0.514,-0.854)  (-0.075,-0.514,-0.854)
+  the grasp's own axes in world (rot columns):
+    left  tool axis (finger length)  world=(+0.854,-0.513,-0.082)  cos(belt -y)=+0.513
+    left  jaw opening axis           world=(-0.514,-0.858,+0.010)  cos(belt -y)=+0.858
+    left  hand x (up/down)           world=(+0.075,-0.034,+0.997)  cos(belt -y)=+0.034
+    right tool axis (finger length)  world=(+0.854,+0.513,-0.082)  cos(belt -y)=-0.513
+    right jaw opening axis           world=(+0.514,-0.858,-0.010)  cos(belt -y)=+0.858
+    right hand x (up/down)           world=(+0.075,+0.034,+0.997)  cos(belt -y)=-0.034
+
+  -- left --
+  attempts 18; escaping attempts (registered, first leg > 50mm) 16; in-hand slides 14; ejecta (grasp_lift > 1000mm) 1; downstream (place > 50mm) 16; escaping legs 31; transient legs 3
+  as registered (all 16 first-escaping legs, LEG frame): mean y -2446.5 mm, mean dir (-0.397,+0.220,+0.891)  <- the extra legs are the ejecta/downstream rows below
+    EXCLUDED (A3) S_202.log ep3 grasp_lift 49596.8mm (-28528.2,-40457.6,-3027.8)  onset=1 sep@onset=98.3 contacts@onset=1
+    EXCLUDED (A3) S_77.log ep0 place0 1444.2mm (+200.7,+1015.6,-1007.0)  onset=3 sep@onset=50.7 contacts@onset=0
+    EXCLUDED (A3) S_77.log ep8 place0 1203.6mm (+74.0,+816.0,-881.6)  onset=4 sep@onset=53.4 contacts@onset=0
+    EXCLUDED (A3) S_77.log ep10 place0 1309.1mm (+162.5,+696.1,-1096.7)  onset=3 sep@onset=55.1 contacts@onset=0
+    EXCLUDED (A3) S_77.log ep11 place0 1264.9mm (+114.9,+873.2,-908.0)  onset=2 sep@onset=51.9 contacts@onset=0
+    EXCLUDED (A3) S_101.log ep0 place0 1186.3mm (+157.7,+939.3,-707.2)  onset=4 sep@onset=58.6 contacts@onset=0
+    EXCLUDED (A3) S_101.log ep5 place0 1262.6mm (+124.4,+1001.3,-759.0)  onset=3 sep@onset=50.9 contacts@onset=0
+    EXCLUDED (A3) S_101.log ep6 place0 1241.8mm (+32.6,+853.6,-901.3)  onset=4 sep@onset=42.5 contacts@onset=0
+    EXCLUDED (A3) S_101.log ep7 place0 1288.6mm (+77.8,+869.9,-947.4)  onset=4 sep@onset=42.6 contacts@onset=0
+    EXCLUDED (A3) S_101.log ep8 place0 1101.0mm (+338.2,+398.9,-968.9)  onset=2 sep@onset=65.2 contacts@onset=0
+    EXCLUDED (A3) S_101.log ep10 place0 1274.7mm (+24.9,+750.4,-1030.1)  onset=4 sep@onset=57.3 contacts@onset=0
+    EXCLUDED (A3) S_101.log ep14 place0 1095.1mm (+69.7,+640.0,-885.9)  onset=2 sep@onset=53.7 contacts@onset=0
+    EXCLUDED (A3) S_202.log ep3 place0 126532.6mm (+116592.1,+13913.5,-47150.8)  onset=1 sep@onset=17.3 contacts@onset=0
+    EXCLUDED (A3) S_202.log ep4 place0 1244.3mm (+234.1,+627.9,-1048.4)  onset=2 sep@onset=52.4 contacts@onset=0
+    EXCLUDED (A3) S_202.log ep7 place0 1386.1mm (+182.3,+776.8,-1133.5)  onset=3 sep@onset=52.4 contacts@onset=0
+    EXCLUDED (A3) S_202.log ep8 place0 102692.7mm (+11530.4,+70497.7,+73776.2)  onset=2 sep@onset=56.2 contacts@onset=0
+    EXCLUDED (A3) S_202.log ep12 place0 696.2mm (-106.9,+120.6,-677.3)  onset=4 sep@onset=51.4 contacts@onset=0
+  WORLD (primary; belt = -y):
+    dominant axis        : mixed(x>y)=3, mixed(x>z)=2, mixed(y>x)=2, mixed(z>x)=1, x=2, y=4
+    signed mean world-y  : -150.9 mm  (median -160.2 [-341.3..-38.9])  y<0 14/14
+    mean world vector    : (+123.2,-150.9,-81.7) mm | mean unit dir (+0.623,-0.658,-0.422)
+    axis shares          : +x +0.623 | belt -y +0.658 | -z +0.422   per-leg: x>0 13/14, y<0 14/14, z<0 14/14
+  LEG frame (mechanism only; hand +y is 61.9 deg apart between the arms, so do not compare it across arms):
+    dominant axis        : mixed(z>x)=2, y=1, z=11
+    components (mm)      : x -68.5 [-140.4--7.0] | y 37.0 [-18.6-307.2] | z 192.4 [77.2-262.8]
+    signed mean y        : +65.3 mm (median +37.0); y>0 on 11/14
+    mean unit dir        : (-0.351,+0.240,+0.905)
+    grasp-axis shares    : tool axis +0.905 | jaw opening axis +0.240 | hand x -0.351   (a belt drag would put +0.034/+0.858/+0.513 on x/y/z)
+    cos(mean dir, world) : -y +0.658 | -z +0.422 | +z -0.422 | +x +0.623 | -x -0.623
+    concentration        : +0.872 (mean pairwise cos)
+    secondary (all escaping legs, n=31): mixed(y>x)=1, mixed(y>z)=3, mixed(z>x)=2, mixed(z>y)=7, x=1, y=1, z=16
+    transients (5-50 mm) : S_77.log:ep4 grasp_lift 16.4mm (+8.7,-0.9,+13.9); S_77.log:ep13 grasp_lift 11.3mm (+4.5,-0.1,+10.4); S_101.log:ep8 grasp_lift 42.1mm (-24.6,+10.1,+32.7)
+
+  -- right --
+  attempts 27; escaping attempts (registered, first leg > 50mm) 1; in-hand slides 1; ejecta (grasp_lift > 1000mm) 0; downstream (place > 50mm) 1; escaping legs 2; transient legs 0
+    EXCLUDED (A3) S_101.log ep2 place1 158.7mm (+91.4,+129.6,+4.5)  onset=3 sep@onset=44.2 contacts@onset=0
+  WORLD (primary; belt = -y):
+    dominant axis        : mixed(y>z)=1
+    signed mean world-y  : +224.8 mm  (median +224.8 [+224.8..+224.8])  y<0 0/1
+    mean world vector    : (+112.1,+224.8,-213.2) mm | mean unit dir (+0.340,+0.682,-0.647)
+    axis shares          : +x +0.340 | belt -y -0.682 | -z +0.647   per-leg: x>0 1/1, y<0 0/1, z<0 1/1
+  LEG frame (mechanism only; hand +y is 61.9 deg apart between the arms, so do not compare it across arms):
+    dominant axis        : mixed(z>x)=1
+    components (mm)      : x -196.4 | y -133.1 | z 228.6
+    signed mean y        : -133.1 mm (median -133.1); y>0 on 0/1
+    mean unit dir        : (-0.596,-0.404,+0.694)
+    grasp-axis shares    : tool axis +0.694 | jaw opening axis -0.404 | hand x -0.596   (a belt drag would put +0.034/+0.858/+0.513 on x/y/z)
+    cos(mean dir, world) : -y -0.682 | -z +0.647 | +z -0.647 | +x +0.340 | -x -0.340
+    concentration        : n/a (n<2)
+    secondary (all escaping legs, n=2): mixed(y>x)=1, mixed(z>x)=1
+
+== P3: the motion contrast on grasp_lift (the hand's own speed) ==
+  left  all    n=18  |v|max 0.312 [0.288-0.593] m/s   |a|max 3.676 [1.492-15.977] m/s^2   |v|cmd 0.293 [0.192-0.294] |a|cmd 0.683 [0.661-0.727]   recoveries sum=0 max=0
+  left  placed n= 2  |v|max 0.311 [0.307-0.315] m/s   |a|max 3.170 [2.567-3.773] m/s^2   |v|cmd 0.293 [0.293-0.294] |a|cmd 0.677 [0.677-0.678]   recoveries sum=0 max=0
+  right all    n=26  |v|max 0.316 [0.289-0.416] m/s   |a|max 2.245 [1.071-9.286] m/s^2   |v|cmd 0.293 [0.292-0.294] |a|cmd 0.665 [0.624-0.713]   recoveries sum=0 max=0
+  right placed n=25  |v|max 0.316 [0.289-0.416] m/s   |a|max 2.196 [1.071-9.286] m/s^2   |v|cmd 0.293 [0.292-0.294] |a|cmd 0.665 [0.624-0.713]   recoveries sum=0 max=0
+  median ratio L/R       : |v|max 0.987x   |a|max 1.637x
+
+== P4: the split (report only) and the note keys ==
+  cell  placed/cnp/never-held: left 2/16/0 (n=18) | right 25/1/1 (n=27)  pooled placed 27/45
+  P60   placed/cnp/never-held: left 1/19/1 (n=21) | right 23/0/1 (n=24)  pooled placed 24/45
+  note keys cell  : ["'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)'", "'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)', 'fruit left the pick station during the close (# mm)'"]
+  note keys P60   : ["'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)'", "'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)', 'fruit did not follow the gripper'"]
+  NEW keys        : ["'intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, frame=station, finger=#, lead=#s/reach=#)', 'fruit left the pick station during the close (# mm)'"]
+
+== P5: the row format still parses (read-only) ==
+  logs/p60/p3/report.py parse_leg on the new rows : 88 ok, 0 bad
+  logs/w8/B_metric.py reads trace-JSON rows (hand_rel), untouched by this change: ok
+    (its clean_slip is the same framed quantity; the trace schema and the [carry] text are independent)
+
+== verdict (world frame; belt = -y) ==
+  left: n=14  world dominant {'mixed(z>x)': 1, 'y': 4, 'mixed(x>z)': 2, 'mixed(x>y)': 3, 'x': 2, 'mixed(y>x)': 2}  mean world-y -150.9 mm (median -160.2, y<0 14/14)
+        world mean unit dir (+0.623,-0.658,-0.422) : +x +0.623 | belt -y +0.658 | -z +0.422
+        leg-frame mechanism shares: tool axis +0.905, jaw opening axis +0.240, hand x (down) -0.351
+  right: n=1  world dominant {'mixed(y>z)': 1}  mean world-y +224.8 mm (y<0 0/1)
+  -> the largest single world component is **belt -y** (+0.658); the per-leg dominant axis is **y** ({'mixed(z>x)': 1, 'y': 4, 'mixed(x>z)': 2, 'mixed(x>y)': 3, 'x': 2, 'mixed(y>x)': 2})
+  motion: median grasp_lift |v|max L/R 0.987x, |a|max L/R 1.637x
+
+  VERDICT: world belt -y +0.658; dominant y; belt -y +0.658; world-y -150.9 mm
+
+== --check ==
+  ok    S_77.log: 15 episodes (15)
+  ok    S_77.log: every cnp attempt ran a carry leg
+  ok    S_101.log: 15 episodes (15)
+  ok    S_101.log: every cnp attempt ran a carry leg
+  ok    S_202.log: 15 episodes (15)
+  ok    S_202.log: every cnp attempt ran a carry leg
+  ok    every [carry] row carries slip_xyz
+  ok    no row beyond the 0.15 mm print bound (worst 0.072 mm)
+  ok    the P60 parser reads every new row
+  ok    B_metric reads trace rows, untouched
+  ok    at least one escaping attempt
+  ok    left: every escaping attempt classifies to one axis
+  ok    right: every escaping attempt classifies to one axis
+  ok    tree md5s identical before/after the batch
+
+  PASS: 0 failing check(s)
