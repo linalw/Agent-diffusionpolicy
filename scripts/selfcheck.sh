@@ -209,6 +209,16 @@ run_check "P52 retime scale" "$python" scripts/228_p52_retime_selftest.py
 run_check "P53 emission cells" "$python" scripts/229_p53_emit_selftest.py
 run_check "P58 supply profile" "$python" scripts/230_p58_supply_selftest.py
 run_check "P61 slip direction" "$python" scripts/231_p61_slip_selftest.py
+# P62 phase 2: the left-only, direct-scoped grasp-attitude override
+# (`FRUIT_GRASP_LEFT_TOPDOWN`, default off). The resolver is offline and inert by
+# default; the real `_grasp_quat` body (extracted with `ast`, so no pxr import)
+# is honoured per arm with `None` = the file exactly; the shipped file branch,
+# the single construction site and the untouched `configs/` are pinned; and the
+# finding that decides the knob's meaning is pinned as a tree property - the file
+# the direct env loads (`configs/waypoints.json`) already carries T0 for both
+# arms, and the never-stop catch's own installed hold IS that left value, so the
+# armed run commands what the shipped run commands.
+run_check "P62 grasp attitude" "$python" scripts/232_p62_grasp_selftest.py
 
 if [ -n "$run_log" ] && [ -f "$run_log" ]; then
     run_check "motion budgets" "$python" scripts/105_motion_regression.py "$run_log" \

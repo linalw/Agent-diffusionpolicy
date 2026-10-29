@@ -19814,3 +19814,43 @@ D2a 4/8 mm; `..._PAD_LIFT_FRAC` 0.15) are **measured negative** - so the seat fa
 closes on the direction side too and **no batch was spent on it**. The tactile
 carries no contact geometry, so a contact-patch read is not buildable. **Nothing
 adopted**: no default changed, no `configs/` file moved, both references untouched.
+
+### P62: the left is already commanded top-down - it cannot hold it, and that tilt is the mechanism
+
+The owner's directive: try a left-specific grasp attitude, because a plain mirror of
+the right may not suit the dynamic catch. Both halves turned out to be measurable.
+
+**Phase 1 (the attitude family).** `configs/waypoints_oriented.json` is `[w,x,y,z]`
+(verified through `_grasp_quat` -> `hold_quaternion` -> `quaternion_error`), its left
+tool axis is **(+0.8543, -0.5132, -0.0819)** with a **belt (-y) projection of
++0.5132**, and re-projecting P61's slip gives **0.9045** against the published
+**0.905** - the same frame. **The yaw family is infeasible, monotonically measured**:
++15.5/21/31/46.5/62 deg give projections 0.266/0.161/**0.000**/-0.266/-0.513 against
+IK residuals **10.6/13.6/19.9/48.9/118.0 mm**, j2 margins 0.182 -> 0.001 rad and
+pad-to-belt clearance **+20.2 -> +3.0 -> -14.2 mm**: the left's station reach is
+**azimuth-limited**, so no yaw removes the projection without removing the station.
+**Rolls about the tool axis cannot** (a rotation fixes its own axis: exactly 0.0).
+The one attitude that reaches projection **0.000** *and* solves is the harness **T0**
+(`[+0.0, -0.7071, +0.7071, +0.0]`, fingers straight down, jaws 90 deg across the
+belt): 2/3 solves at the control's residual (6.0/5.8 vs 5.9/5.7 mm), 0.8 deg
+attitude error, +15..26 mm more pad clearance, 100.7 deg away from the right's -
+with a j3 margin of +0.007 rad and 32.8 mm at the x = 0.398 cliff (control 8.3).
+
+**Phase 2 found the knob is a no-op**: `configs/waypoints.json`'s left grasp is
+already `mirror_across_xz(top_down_quaternion("x"))` - **bit-identical to T0** - and
+`_run_impl` discards `_grasp_quat` before the descent, so the override prints
+`file_same=1 hold_same=1` and moves the achieved projection by **-0.0018/+0.0001**
+against a 0.05 gate (the right's own noise floor is 0.0675/0.0174, 37x/174x larger).
+The knob is built, **default off**, and proven inert.
+
+**The finding that matters**: the left is **commanded** T0 but **achieves 26.3-28.7
+deg of tilt (+0.32..+0.36 belt projection)** on every carry leg. So the residual is
+**the attitude the arm can hold at this station, not the attitude it is told to
+hold** - exactly the +0.513 the slip direction was projected onto. The
+commanded-attitude family is **exhausted**; the remaining levers are the **re-solved
+grasp seed** (T0 solves from the shipped seed at a j3 margin of +0.007 rad) and the
+**hold stiffness**, each needing its own pre-registration.
+
+**No-harm**: `accept.sh` with all knobs unset is **377/377 identical** to
+`logs/p41/p2/accept_profile.log` + `fingerprint: matches` (6/10, the recorded
+branch); `configs/*` untouched, no reference re-recorded, no default changed.

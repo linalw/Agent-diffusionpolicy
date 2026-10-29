@@ -657,7 +657,8 @@ class PickAndPlaceTask:
         return container
 
     def __init__(self, scene, spawner, tactile, cfg, waypoint_path: str | None = None,
-                 feed_cadence: bool | None = None):
+                 feed_cadence: bool | None = None,
+                 grasp_quat_override: dict | None = None):
         # The v1 file reproduces the recorded datasets. Physical grasping uses the
         # orientation-constrained poses: FRUIT_WAYPOINTS=configs/waypoints_oriented.json
         waypoint_path = waypoint_path or os.environ.get(
@@ -667,6 +668,19 @@ class PickAndPlaceTask:
         self.spawner = spawner
         self.tactile = tactile
         self.cfg = cfg
+        #: P62: a per-arm tool-attitude override for the grasp pose, keyed by
+        #: side, `[w, x, y, z]`. `None` (the default everywhere) leaves
+        #: `_grasp_quat` reading the waypoints file, so the scripted line, the
+        #: collector, the two-line scheduler and the hybrid canary are
+        #: byte-inert. Same caller-owned-kwarg pattern as `feed_cadence`
+        #: (`None` = the shipped read), so no caller mutates the process
+        #: environment to change an attitude. Only the direct presentation
+        #: resolves it (`rl_env.resolve_grasp_quat_override`).
+        self._grasp_quat_override: dict[str, np.ndarray] = (
+            {}
+            if grasp_quat_override is None
+            else {str(k): np.asarray(v, dtype=float) for k, v in grasp_quat_override.items()}
+        )
         self.arms = {
             "left": ArmController(scene, "left"),
             "right": ArmController(scene, "right"),
@@ -2339,7 +2353,14 @@ class PickAndPlaceTask:
 
         Pinning it keeps the jaws closing across the belt (along X) instead of
         letting a position-only IK solve drift the wrist back to jaws-along-Y.
+
+        P62: a caller-supplied `grasp_quat_override` wins for the arm it names;
+        every other arm (and every run with the kwarg unset) reads the file
+        exactly as shipped.
         """
+        override = self._grasp_quat_override.get(side)
+        if override is not None:
+            return override.copy()
         entry = (self.waypoints.get("grasp_quaternion") or {}).get(side)
         return None if entry is None else np.asarray(entry, dtype=float)
 

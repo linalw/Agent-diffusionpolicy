@@ -2641,6 +2641,49 @@ not buildable. Refs untouched (`8a399626` / `2246f83c`), `configs/*` untouched,
 `selfcheck.sh` PASS. Evidence `logs/p61/{PREREG,PREREG_AMENDMENTS,P2_RESULTS}.md`,
 `p2_report.{py,txt}`, `p2/`; WORKLOG "P61".
 
+**P62 (2026-10-29, `logs/p62/`; default off, **nothing adopted**): the left is
+**already commanded the top-down attitude** - the gap is that it cannot **hold**
+it, and the resulting 26-29 deg tilt *is* the belt-aligned projection that feeds
+the slip.** Phase 1 computed the attitude family from
+`configs/waypoints_oriented.json` (`q[w,x,y,z]` order verified through
+`_grasp_quat` -> `hold_quaternion` -> `quaternion_error`): the tool axis is
+**(+0.8543, -0.5132, -0.0819)** with a **belt (-y) projection of +0.5132**, and
+re-projecting P61's measured slip gives **0.9045** against its published
+**0.905** - the same frame. **The world-z yaw family is infeasible, monotonically
+measured**: yaw +15.5/21/31/46.5/62 deg gives projections 0.266/0.161/**0.000**/
+-0.266/-0.513 against IK residuals **10.6/13.6/19.9/48.9/118.0 mm**, j2 margins
+0.182 -> 0.001 rad, and pad-to-belt clearance **+20.2 -> +3.0 -> -14.2 mm** - i.e.
+the left's station reach is **azimuth-limited**, so no yaw removes the projection
+without removing the station (the same constraint `motion.py` records from the
+other side). **Rolls about the tool axis cannot change it** (a rotation fixes its
+own axis: delta 0.0e+00). The one attitude that reaches projection **0.000** *and*
+solves is the harness **T0** (`[+0.0, -0.7071, +0.7071, +0.0]`, fingers straight
+down, jaws 90 deg across the belt): **2/3** solves at the control's own residual
+(**6.0/5.8** vs 5.9/5.7 mm), a **0.8 deg** attitude error, **+15..26 mm more** pad
+clearance, and **100.7 deg away from the right's** attitude - but with a j3 margin
+of **+0.007 rad** and **32.8 mm** at the x = 0.398 cliff (control 8.3).
+**Phase 2 then found the knob is a no-op: `configs/waypoints.json`'s left grasp is
+already `mirror_across_xz(top_down_quaternion("x"))` - bit-identical to T0 - and
+`_run_impl` discards `_grasp_quat` before the descent (the OpenArm hand skips the
+only `solve_to` that reads it)**, so the armed override prints `file_same=1
+hold_same=1` and moves the achieved belt projection by **-0.0018 / +0.0001**
+against the pre-registered 0.05 gate (the right's own noise floor is **0.0675 /
+0.0174**, 37x/174x larger). **The finding that matters**: the left is *commanded*
+T0 but **achieves 26.3-28.7 deg of tilt (+0.32..+0.36 belt projection)** on every
+carry leg, so the residual is **the attitude the arm can hold at this station, not
+the attitude it is told to hold** - which is the mechanism P61 measured and the
+owner's hypothesis confirmed. The remaining levers are the **re-solved grasp seed**
+(T0 solves from the shipped seed, j3 +0.007 rad) and the **hold stiffness**, each
+needing its own pre-registration; the commanded-attitude family is exhausted. The
+scripted line is untouched by construction and **proven**: `accept.sh` with all
+knobs unset is **377/377 identical** to `logs/p41/p2/accept_profile.log` +
+`fingerprint: matches` (6/10, the recorded branch). Pins: `tasks.py` **`fe11910a`**,
+`rl_env.py` **`921972a3`**, `scripts/232_p62_grasp_selftest.py` **`e1f86725`**;
+`configs/*` untouched (`8a399626` / `2246f83c` / `0ea08ebb` / `d81c6f1c`), no
+reference re-recorded; ckpt `moe_v13s` `61da390a`. Evidence
+`logs/p62/{CANDIDATES.md,IK_PROBE.txt,PREREG_P2.md,P2_RESULTS.md,p2/}`; WORKLOG
+"P62".
+
 ## 3. What changed -> what to run
 
 | you changed | run |

@@ -96,7 +96,7 @@ from dataclasses import asdict, dataclass, field
 
 import numpy as np
 
-from .motion import min_jerk_ramp
+from .motion import min_jerk_ramp, mirror_across_xz, top_down_quaternion
 from .policy.data import belt_speed_scalar, speed_channel_enabled
 from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 
@@ -348,12 +348,79 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: unchanged and this env passes `direct=True`, i.e. it keeps the
 #: farthest-upstream pick byte-for-byte. An explicit env value wins on both paths
 #: (`=1` reproduces the measured treatment arm with no code change).
-TASKS_MD5 = "9a5e0459a326e03b127cf13c1866cad8"
+#:
+#: P62 phase 2 (metadata-only follow, `9a5e0459 -> fe11910a`): `PickAndPlaceTask`
+#: gains the caller-owned kwarg `grasp_quat_override` and `_grasp_quat` returns
+#: that arm's entry when present. The default is `None`/empty everywhere, so
+#: every caller (scripted line, collector, two-line scheduler, hybrid canary)
+#: reads the waypoints file byte-for-byte; the only armed caller is this env,
+#: behind `FRUIT_GRASP_LEFT_TOPDOWN=1` (default off, `direct` only), and on this
+#: tree it resolves to the attitude `configs/waypoints.json` already carries.
+TASKS_MD5 = "fe11910a169949e118e82be252e459fa"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 )
+
+
+#: P62 phase 2: the left-only, direct-scoped grasp attitude candidate **T0** -
+#: fingers straight down, jaws exactly across the belt, `[w, x, y, z]`, written
+#: here as the full-double form (`-0.7071067811865475 / +0.7071067811865476`,
+#: i.e. the registered `-0.70710678 / +0.70710678` to 8 dp) that
+#: `configs/waypoints.json` already carries, so the override is bit-identical to
+#: that file's left value rather than 1e-9 away from it.
+#: Source: `logs/p62/CANDIDATES.md` §3 - it is the reach harness's own
+#: `top_down_quaternion("x")` mirrored for the left. Its tool axis is `(0, 0, -1)`,
+#: so the belt's world `-y` drag has **zero** component along the finger axis
+#: (`proj 0.000`, against the `waypoints_oriented.json` attitude's `+0.513`).
+GRASP_LEFT_TOPDOWN = (0.0, -0.7071067811865475, 0.7071067811865476, 0.0)
+
+
+def _tool_belt_proj(q) -> float:
+    """`(tool axis) . (belt direction)` for a `[w, x, y, z]` tool quaternion.
+
+    The belt runs toward world `-y` (`fruits.py` sets the conveyor's surface
+    velocity to `[0, cfg.belt_speed, 0]` with a negative `belt_speed`), and the
+    tool axis is the TCP frame's column 2 (`motion.top_down_quaternion`'s
+    convention: "column 2 [is] the direction the fingers extend"). Pure numpy;
+    used only by the P62 `[grasp]` row, never as a control input.
+    """
+    w, x, y, z = (float(v) for v in q)
+    n = math.sqrt(w * w + x * x + y * y + z * z)
+    w, x, y, z = w / n, x / n, y / n, z / n
+    tool = np.array(
+        [
+            2 * (x * z + y * w),
+            2 * (y * z - x * w),
+            1 - 2 * (x * x + y * y),
+        ]
+    )
+    # `+ 0.0` folds a signed zero to `+0.0`, so a zero projection prints
+    # `+0.0000` rather than `-0.0000` (the belt points along -y, so the
+    # negated y-component is the natural signed form).
+    return float(-tool[1]) + 0.0
+
+
+def resolve_grasp_quat_override(
+    presentation: str, env_value: str | None
+) -> dict[str, np.ndarray] | None:
+    """The resolved `FRUIT_GRASP_LEFT_TOPDOWN` override, or `None` (shipped).
+
+    P62 phase 2: **direct-scoped and left-only, default off**. The scripted
+    line, the collector, the two-line scheduler and the hybrid canary never
+    construct this env, so they keep `configs/waypoints*.json`'s attitude
+    byte-for-byte (the constraint `logs/p62/CANDIDATES.md` §5.4 registers).
+
+    An explicit `FRUIT_GRASP_LEFT_TOPDOWN=1` on the direct presentation returns
+    `{"left": T0}`; every other combination returns `None`, which is the
+    shipped `PickAndPlaceTask(grasp_quat_override=None)` path.
+    """
+    if presentation != "direct":
+        return None
+    if (env_value if env_value is not None else "0") != "1":
+        return None
+    return {"left": np.asarray(GRASP_LEFT_TOPDOWN, dtype=float)}
 
 
 def resolve_arm_park(presentation: str, env_value: str | None) -> tuple[str, bool]:
@@ -1154,6 +1221,24 @@ class SortingRLEnv:
         #: 2.38 -> 2.02 and starves 1/42) and cap 4 reads 0/42 with `skipped`
         #: 8/4/9 against the shipped control's 104/107/105.
         self._supply = self._resolve_supply_profile(presentation == "direct")
+        #: P62 phase 2: the **left-only, direct-scoped grasp attitude** override
+        #: (`FRUIT_GRASP_LEFT_TOPDOWN=1`, default **off**). Resolved here, one
+        #: dict lookup when off, and passed to the task as the caller-owned kwarg
+        #: `grasp_quat_override` - never by writing the environment or the
+        #: `configs/` file, so the scripted acceptance, the collector, the
+        #: two-line scheduler and the hybrid canary keep the attitude the
+        #: waypoints file records (`logs/p62/CANDIDATES.md` §5.4).
+        #:
+        #: The candidate is **T0** (`logs/p62/CANDIDATES.md` §3/§5: fingers
+        #: straight down, jaws exactly across the belt), the only attitude of the
+        #: measured family that zeroes the belt's projection on the finger axis
+        #: *and* still solves at the left station. Phase 2 measures what it does
+        #: to the mechanism; the row below prints the resolved attitude, the
+        #: file's, and the hold the dynamic catch actually commands, so an armed
+        #: run says in its own log which attitude it ran.
+        self._grasp_quat_override = resolve_grasp_quat_override(
+            presentation, os.environ.get("FRUIT_GRASP_LEFT_TOPDOWN")
+        )
         #: P55: the live feeder, now part of the profile. `FRUIT_DIRECT_FEED=0`
         #: restores the pre-P55 behaviour; non-direct presentations stay off.
         self._direct_feed = bool(self._supply["feed"])
@@ -1896,6 +1981,7 @@ class SortingRLEnv:
             feed_cadence=(
                 self._supply["cadence"] if self.presentation == "direct" else None
             ),
+            grasp_quat_override=self._grasp_quat_override,
         )
         self.task.recorder = None
 
@@ -1958,6 +2044,23 @@ class SortingRLEnv:
             say(f"[rl] {self.trigger_settings.summary()}")
         if self.presentation == "direct":
             say(self._supply_profile_row(self._supply, self._direct_feed))
+        if self._grasp_quat_override:
+            # P62 phase 2: the armed knob's own row. It names **all three**
+            # attitudes the run touches, because on the dynamic catch the
+            # commands are not all the same object: the `grasp` pre-pose hold
+            # (`_grasp_quat`, i.e. the override / the file) is released before
+            # the descent (`tasks._run_impl` sets `hold_quaternion = None`, then
+            # the never-stop catch installs its own top-down hold), so a row
+            # that named only the override could not say which attitude the arm
+            # was asked for during the close. `file_same` / `hold_same` are the
+            # two equalities that decide whether the knob can move anything.
+            say(
+                self._grasp_override_row(
+                    self._grasp_quat_override,
+                    self.task.waypoints,
+                    os.environ.get("FRUIT_HAND_AXIS", "x"),
+                )
+            )
         if self._continuous_picks > 0:
             say(
                 f"[cont] enabled: picks_target={self._continuous_picks} "
@@ -2340,6 +2443,56 @@ class SortingRLEnv:
             f"{mark('band_interlock')} "
             f"feed={'on' if direct_feed else 'off'}{mark('feed')} "
             f"target_from={profile['target_from']:.2f}{mark('target_from')}"
+        )
+
+    @staticmethod
+    def _grasp_override_row(override: dict, waypoints: dict, hand_axis: str) -> str:
+        """The `[grasp] left attitude override:` row (pure; pinned by `232`).
+
+        P62 phase 2. Printed **only when the knob is armed**, so every knob-off
+        log (and the scripted acceptance, which never constructs this env) is
+        byte-unchanged. The row reports:
+
+        * the resolved **override** for the left arm and its belt projection;
+        * the **file**'s left value (`waypoints["grasp_quaternion"]["left"]`) and
+          its belt projection;
+        * the hold the **never-stop catch** installs before the descent - 
+          `top_down_quaternion(FRUIT_HAND_AXIS)`, mirrored for the left
+          (`tasks._run_impl`), which *replaces* `_grasp_quat`'s value;
+        * the right arm, unchanged, and its projection.
+
+        `file_same` and `hold_same` are the two equalities that decide whether
+        the knob can move the mechanism at all: if the override equals the file's
+        value *and* equals the dynamic hold, the armed run commands exactly what
+        the shipped run commands and the cell is a structural null.
+        """
+        file_q = (waypoints.get("grasp_quaternion") or {}).get("left")
+        file_q = None if file_q is None else np.asarray(file_q, dtype=float)
+        hold_q = mirror_across_xz(top_down_quaternion(hand_axis))
+        right_q = (waypoints.get("grasp_quaternion") or {}).get("right")
+
+        def fmt(q) -> str:
+            if q is None:
+                return "none"
+            return "[" + ",".join(f"{float(v):+.6f}" for v in q) + "]"
+
+        def same(a, b) -> str:
+            if a is None or b is None:
+                return "n/a"
+            return "1" if float(np.max(np.abs(np.asarray(a) - np.asarray(b)))) < 1e-6 else "0"
+
+        left_q = override.get("left")
+        return (
+            "[grasp] left attitude override: "
+            f"q={fmt(left_q)} (w,x,y,z) belt_proj={_tool_belt_proj(left_q):+.4f} | "
+            f"file={fmt(file_q)} belt_proj="
+            f"{'n/a' if file_q is None else f'{_tool_belt_proj(file_q):+.4f}'} "
+            f"file_same={same(left_q, file_q)} | "
+            f"dynamic_hold={fmt(hold_q)} (top_down FRUIT_HAND_AXIS={hand_axis}, "
+            f"mirrored for the left) belt_proj={_tool_belt_proj(hold_q):+.4f} "
+            f"hold_same={same(left_q, hold_q)} | "
+            f"right=file {fmt(right_q)} belt_proj="
+            f"{'n/a' if right_q is None else f'{_tool_belt_proj(right_q):+.4f}'}"
         )
 
     def advance(self, steps: int) -> None:
