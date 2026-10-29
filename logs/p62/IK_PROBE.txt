@@ -1,0 +1,107 @@
+P62 phase 1 - the left grasp-attitude IK/reach probe at the pick station
+==============================================================================
+
+Harness: logs/p62/ik_probe.py (the scripts/174|183 recipe: `SortingScene`
+(environment, pedestal, robot, conveyor), the **left** arm, teleport to
+`configs/waypoints_oriented.json` arms.left.grasp, pin
+`ArmController.hold_quaternion`, then `solve_to(jaw centre at
+(x, pick_y, belt_top + 0.09), iterations=400, tolerance=6 mm)`. The scene is
+the shipped one: belt surface z = 1.170, station (0.340, 0.000).
+
+x ladder = the left's delivered band from logs/p60/LEFT_CENSUS.md:
+  x = 0.274 (p50 selection x), 0.340 (the pick station), 0.398 (the max;
+  the same file's never-held band is x 0.347-0.398).
+
+Claim: logs/p62/ik_probe.log (FRUIT_P62_CANDIDATES=C0,Y15,Y21,Y31,Y46,Y62,T0),
+cross-check logs/p62/ik_probe_restarts.log (FRUIT_P62_RESTARTS=4, C0,T0,Y15).
+
+Frame semantics (measured, not assumed) - the calibrated seed:
+  approach_axis = +0.854,-0.512,-0.095   |dot| with cols 0/1/2 = 0.000 / 0.000 / 1.000
+  jaw_axis      = +0.513,+0.858,-0.020   |dot| with cols 0/1/2 = 0.000 / 1.000 / 0.000
+  => the rotation matrix's **z column is the finger long axis** (as P61
+     assumed) and column 1 is the jaw-opening axis (98.0 mm pad separation).
+
+Per candidate (worst over the three x, then the p50/station read):
+
+cand     proj slip.sh solved  res p50  res stn res cliff   qerr  margin*  pad-belt
+C0     +0.513  +0.905 2/3         5.9      5.7       8.3    1.5   +0.299     +30.2
+Y15    +0.266  +0.808 0/3        10.6      9.2       9.2    8.3   +0.182     +20.2
+Y21    +0.161  +0.753 0/3        13.6     11.9      11.7   10.3   +0.129     +14.5
+Y31    +0.000  +0.655 0/3        19.2     19.8      19.9   13.9   +0.087      +3.0
+Y46    -0.266  +0.458 0/3        41.7     45.4      48.9   12.2   +0.001     -13.1
+Y62    -0.513  +0.229 0/3        56.3    118.0     104.9   55.4   -0.000     -14.2
+T0     +0.000  +0.422 2/3         6.0      5.8      32.8    0.8   +0.007     +59.6
+
+  `margin*` is min over the 7 arm joints of min(q - lo, hi - q) [rad] at the
+  solved configuration, over the delivered **core** x = 0.274 and 0.340
+  (j2 for the yaw family, j3 for T0); the 0.398 cliff is the `res cliff`
+  column. `pad-belt` is the fingertip pads' lowest world point above the belt
+  top (min over all three x), from the live finger-link pose composed with
+  configs/finger_pads.json (capsule, r = 10 mm, total length 57 mm).
+
+The two families (candidates.py proves these, they are not fits):
+  F1 yaw about world z: proj +0.5132 -> 0.0000 (dtheta 30.995 deg) ->
+     -0.5132 (61.990 deg); EVERY column's z-component is invariant, so the
+     attitude's relation to the vertical (finger height, pad droop) cannot
+     change - the family is 'top-down-safe' by construction. It is still
+     infeasible: the left's station reach is azimuth-limited (below).
+  F2 roll about the frame's z column: proj delta 0.0e+00 exactly (a rotation
+     about an axis fixes that axis) - it CANNOT be the lever for this
+     mechanism; and it is not neutral either: the jaw axis tips out of the
+     horizontal plane 0.5 -> 44.3 -> 85.3 deg at phi = 45/90 deg.
+     (one pad above the other = the shipped config's own v1 failure note)
+  F3 rotation about world y (the belt axis): proj delta 0.0e+00 exactly - the
+     projection IS the y component, and a rotation preserves its own axis.
+     A rotation about world x is the only other single-axis option and needs
+     +80.94 deg (the first root of t_y cos - t_z sin = 0): proj 0.000 but the
+     finger axis ends 31.5 deg BELOW horizontal and still 0.854 across the
+     belt - not a top-down attitude. T0 is not any single-axis rotation of
+     the shipped frame (it is 100.7 deg away and swaps which column is
+     vertical); it reaches proj 0 by pointing the fingers straight down.
+
+Verdict:
+  * The yaw family is INFEASIBLE at the left station, monotonically (worst
+    over the three x): the residual grows 8.3 -> 10.6 (15 deg) -> 13.6 (21.7)
+    -> 19.9 (31.0) -> 48.9 (46.5) -> 118.0 mm (62.0), the wrist attitude
+    error 2.0 -> 13.9 -> 55.4 deg, the binding j2 margin collapses
+    0.204 -> 0.056 -> 0.000 rad, and the pads drop 30.2 -> 3.0 -> -14.2 mm
+    relative to the belt top. So a yaw that removes the +0.513 belt
+    projection also removes the station.
+  * T0 (the reach harness's own top-down: fingers straight down, jaws exactly
+    across the belt - 90.0 deg vs the shipped 31.0 deg) is the only candidate
+    that reaches proj 0.000 AND solves: 6.0 / 5.8 mm at p50/station (the
+    control's 5.9 / 5.7), attitude error 0.77 deg, pads +59.6..+64.6 mm
+    (+14.7..+25.7 mm HIGHER than the control, so the descent's documented
+    40-90 mm shortfall is not worsened by the pad geometry).
+  * T0's costs are measured and must travel with the cell: the binding margin
+    is +0.007 rad at j3 (the arm is at its configuration limit; unchanged at
+    FRUIT_P62_RESTARTS=4, so it is the attitude, not the seed), and at the +x
+    cliff x = 0.398 it reads 32.8 mm / 17.0 deg vs the control's 8.3 / 2.0 -
+    i.e. T0 makes the never-held tail worse, not better.
+
+Checks:
+  [PASS] P1a control residual <= 6 mm at x=0.274 / 0.340: 0.274: 5.9 mm, 0.340: 5.7 mm
+  [PASS] P1b control residual > 6 mm at the +x cliff x=0.398: 0.398: 8.3 mm (P60's never-held band is x 0.347-0.398)
+  [PASS] P2a the z column IS the finger long axis (|dot approach_axis| = 1.000): |dot| with cols 0/1/2 = 0.000 / 0.000 / 1.000
+  [PASS] P2b column 1 IS the jaw-opening axis (|dot jaw_axis| = 1.000): |dot| with cols 0/1/2 = 0.000 / 1.000 / 0.000
+  [PASS] P3 shipped slip share on the z column reproduces P61's 0.905: 0.9045
+  [PASS] P4a Y15 solves nowhere (0/3 within 6 mm): solved 0/3, worst 10.6 mm
+  [PASS] P4a Y21 solves nowhere (0/3 within 6 mm): solved 0/3, worst 13.6 mm
+  [PASS] P4a Y31 solves nowhere (0/3 within 6 mm): solved 0/3, worst 19.9 mm
+  [PASS] P4a Y46 solves nowhere (0/3 within 6 mm): solved 0/3, worst 48.9 mm
+  [PASS] P4a Y62 solves nowhere (0/3 within 6 mm): solved 0/3, worst 118.0 mm
+  [PASS] P4b T0 solves at p50 and station (2/3): 0.274: 6.0 mm, 0.340: 5.8 mm, 0.398: 32.8 mm
+  [PASS] P4c T0's tight j-margin is the attitude, not the seed (4-restart solve reads the same): restarts=4 margins +0.007, +0.008, -0.000 vs restarts=1 +0.007, +0.008, -0.000
+  [PASS] P5 the yaw residual grows with theta (monotone family): Y15 10.6 -> Y21 13.6 -> Y31 19.9 -> Y46 48.9 -> Y62 118.0
+
+RESULT: PASS (13/13)
+
+Provenance (md5):
+  candidates.py            2df434b6c82a13613a655476803f7744
+  candidates.json          2ddcb9a95e71fc796e2b1080a02da22c
+  ik_probe.py              abf0b00bea3d70b48fc922623247ebaf
+  ik_report.py             60bfc9a54661f38d2bd13842dadb06ff
+  CANDIDATES.md            09904bc512fe0f400101b2206eba6341
+  ik_probe_rows.json       c41688c7a307bcb0806e2f9b0ac15ae3
+  ik_probe.log             2f199afa1a3aad04a5a91238afd3d7d8
+  ik_probe_restarts.log    eeb2d9e86bd4169db73dc1733d978d24

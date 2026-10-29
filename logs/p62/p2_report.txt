@@ -1,0 +1,83 @@
+P62 phase 2 — the T0 left attitude: gate P0/P0b, and the acceptance identity
+==============================================================================
+
+P0. the two arms — seed 77, 2 episodes each, `P0` = control
+    header: logs/p62/p2/p0_header.txt (carries the run's pins)
+    A: 1/2 placed  [0:pear/left/cnp 1:lychee/right/placed]
+    B: 1/2 placed  [0:pear/left/cnp 1:lychee/right/placed]
+  [PASS] P0: both arms drew the same fruit sequence on the same arms
+  [PASS] P0: both arms placed the same episodes (the treatment is the control)
+  [PASS] P0: control arm prints no `[grasp]` override row
+  [PASS] P0: armed arm prints the `[grasp]` override row
+  [PASS] P0: both arms ran the shipped direct supply profile
+    A left  grasp_lift tilt= 28.6deg belt_proj=+0.3554 axis=(+0.3217,-0.3554,-0.8776)
+    A left  place0     tilt= 85.6deg belt_proj=-0.7008 axis=(+0.7092,+0.7008,-0.0772)
+    A right grasp_lift tilt= 25.4deg belt_proj=-0.0689 axis=(+0.4241,+0.0689,-0.9030)
+    A right place1     tilt= 92.8deg belt_proj=+0.6475 axis=(+0.7606,-0.6475,+0.0482)
+    B left  grasp_lift tilt= 28.7deg belt_proj=+0.3536 axis=(+0.3239,-0.3536,-0.8775)
+    B left  place0     tilt= 85.2deg belt_proj=-0.7012 axis=(+0.7081,+0.7012,-0.0829)
+    B right grasp_lift tilt= 29.6deg belt_proj=-0.0014 axis=(+0.4936,+0.0014,-0.8697)
+    B right place1     tilt= 96.1deg belt_proj=+0.6257 axis=(+0.7728,-0.6257,+0.1064)
+    left  grasp_lift belt_proj +0.3554 -> +0.3536  delta -0.0018 (gate |delta| >= 0.05)
+    right grasp_lift belt_proj -0.0689 -> -0.0014  delta +0.0675 (NOT touched by the knob)
+  [PASS] P0 F3: the treated arm's projection moved 0.0018 < 0.05
+  [PASS] P0: the untouched arm moved more than the treated one
+    A left `grasp_lift` slip: clean_slip_max=  101.2mm  slip_xyz=(-75.0,+0.7,+67.9)mm  tool-axis share=+0.671
+    B left `grasp_lift` slip: clean_slip_max=  102.8mm  slip_xyz=(-75.0,+15.9,+68.5)mm  tool-axis share=+0.666
+  [PASS] P0: both arms produced a left `grasp_lift` slip row
+  [PASS] P0: the slip's tool-axis share is unchanged (P61 mean +0.905, n=14)
+
+P0b. the two arms — seed 101, 2 episodes each, `P0b` = final tree
+    A: 1/2 placed  [0:apple/left/cnp 1:orange/right/placed]
+    B: 1/2 placed  [0:apple/left/cnp 1:orange/right/placed]
+  [PASS] P0b: both arms drew the same fruit sequence on the same arms
+  [PASS] P0b: both arms placed the same episodes (the treatment is the control)
+  [PASS] P0b: control arm prints no `[grasp]` override row
+  [PASS] P0b: armed arm prints the `[grasp]` override row
+  [PASS] P0b: both arms ran the shipped direct supply profile
+    A left  grasp_lift tilt= 26.3deg belt_proj=+0.3210 axis=(+0.3058,-0.3210,-0.8964)
+    A left  place0     tilt= 75.5deg belt_proj=-0.6426 axis=(+0.7240,+0.6426,-0.2508)
+    A right grasp_lift tilt= 26.7deg belt_proj=-0.2776 axis=(+0.3526,+0.2776,-0.8936)
+    A right place1     tilt= 84.2deg belt_proj=+0.6728 axis=(+0.7330,-0.6728,-0.1006)
+    B left  grasp_lift tilt= 26.3deg belt_proj=+0.3211 axis=(+0.3058,-0.3211,-0.8963)
+    B left  place0     tilt= 75.5deg belt_proj=-0.6427 axis=(+0.7238,+0.6427,-0.2509)
+    B right grasp_lift tilt= 26.2deg belt_proj=-0.2950 axis=(+0.3277,+0.2950,-0.8976)
+    B right place1     tilt= 83.4deg belt_proj=+0.6764 axis=(+0.7274,-0.6764,-0.1155)
+    left  grasp_lift belt_proj +0.3210 -> +0.3211  delta +0.0001 (gate |delta| >= 0.05)
+    right grasp_lift belt_proj -0.2776 -> -0.2950  delta -0.0174 (NOT touched by the knob)
+  [PASS] P0b F3: the treated arm's projection moved 0.0001 < 0.05
+  [PASS] P0b: the untouched arm moved more than the treated one
+    A left `grasp_lift` slip: clean_slip_max=   23.0mm  slip_xyz=(-0.2,+0.6,+23.0)mm  tool-axis share=+1.000
+    B left `grasp_lift` slip: clean_slip_max=   21.6mm  slip_xyz=(-1.2,+0.2,+21.6)mm  tool-axis share=+0.998
+  [PASS] P0b: both arms produced a left `grasp_lift` slip row
+  [PASS] P0b: the slip's tool-axis share is unchanged (P61 mean +0.905, n=14)
+
+3. the armed row as printed (seed 77 arm B)
+   [fruit] [grasp] left attitude override: q=[+0.000000,-0.707107,+0.707107,+0.000000] (w,x,y,z) belt_proj=+0.0000 | file=[+0.000000,-0.707107,+0.707107,+0.000000] belt_proj=+0.0000 file_same=1 | dynamic_hold=[+0.000000,-0.707107,+0.707107,+0.000000] (top_down FRUIT_HAND_AXIS=x, mirrored for the left) belt_proj=+0.0000 hold_same=1 | right=file [+0.000000,+0.707107,+0.707107,+0.000000] belt_proj=+0.0000
+  [PASS] the override equals the waypoints file's left value
+  [PASS] the override equals the hold the never-stop catch installs
+  [PASS] the armed attitude's belt projection is 0.0000
+  [PASS] the row's `file=` field is NOT the +0.513 oriented attitude
+
+4. A1 - the scripted line is byte-identical by construction
+   [fruit] physics rows: ours 377  reference 377
+  [PASS] the `[fruit]` stream is 377/377 IDENTICAL (stream md5 8345af7f)
+  [PASS] the motion gate reads `fingerprint: matches`
+  [PASS] the gate FAILs on the rate only (6/10 is this tree's documented count)
+   [fruit] [stats] attempts=10 successes=6 diverted=0 success_rate=60% sim=150.5s total, 15.0s/attempt, 25.1s/success gate_open=0.0s total, queue_peak=0 recirculated=0 encod
+  [PASS] the shipped never-stop invariant holds (gate_open=0.0 s)
+
+5. pins
+   src/fruit_sorting/tasks.py                   fe11910a169949e118e82be252e459fa
+  [PASS] src/fruit_sorting/tasks.py unchanged (fe11910a)
+   configs/waypoints.json                       d81c6f1ccad96254264b62331968716b
+  [PASS] configs/waypoints.json unchanged (d81c6f1c)
+   configs/waypoints_oriented.json              0ea08ebb6bdbd1e78a2402ca263ded01
+  [PASS] configs/waypoints_oriented.json unchanged (0ea08ebb)
+   configs/motion_reference.json                8a399626c12a4e9205ce10e630b94ce9
+  [PASS] configs/motion_reference.json unchanged (8a399626)
+   configs/motion_reference_twoline.json        2246f83c336f7fd6e1f8fe43d0ee8644
+  [PASS] configs/motion_reference_twoline.json unchanged (2246f83c)
+
+==============================================================================
+RESULT: PASS (31/31)
