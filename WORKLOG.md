@@ -20096,3 +20096,39 @@ clamp-force anchor) or a workstation/transfer change; **a recollection/retrain i
 not indicated** (the policy is not where the loss is). Nothing flipped
 (`FRUIT_LIFT_DZ` defaults to the shipped +0.08, `FRUIT_LIFT_CLIMB` off), nothing
 re-recorded, selfcheck PASS, acceptance 6/10 + `fingerprint: matches` + 377/377.
+
+### P69: the pad asset dies of contact geometry, and the rail floor is measured at (+7, +14] mm
+
+Three deliverables (the owner: "if useful, do all of them").
+
+**A - the pad asset: closed by contact geometry, not by preference.** The static read
+is exact (the plate's long dimension 84.902 -> 80.902/60.902/49.902/39.902 mm at
+0/-4/-24/-35/-45 mm; the distal plane rises by `|delta|cos(theta)` to 9.7e-7 mm; the
+proximal plane does not move; 1/3 colliders enabled). **The authorized magnitude
+cannot grip**: the pads touch iff the plate's lower edge reaches the fruit's equator,
+and at the shipped aim (standoff 0.070 m) -24/-35/-45 land **+13.5/+24.5/+34.5 mm
+above** it - no contact on any of the 8 classes (closest +2.6 mm). The admissible band
+is **+3.5..-7.9 mm** (patch intact) / **-13.1 mm** (any contact). A cut buys
+**descent +24/35/45 mm unconsumed** (the tip already clears; the residual is a
+jaw-plane 8.1-10.3 mm), **carry +21.8/31.8/40.9 mm = the lip 1:1**, and **rail
++0.0 mm**. Probe: the same peach, `C` grasped (lift +0.2894, force 10.00 N) vs
+`-24 mm` **lift 0.0000, force 0.00, sep_end 32.3 vs 70.6 mm**. Reopen: a real-jaw
+clamp-force anchor or a new pad asset.
+
+**B - the workstation: ranked.** The inner rail **1.00 mm/mm** (the obstacle moves),
+a place-only transfer raise **0.825**, a place `y` shift **0.264**, and the shipped
+transfer lift **excluded** (read at both sites).
+
+**G0 - the floor is a convention and is now measured.** Contact at **`clr <= +7 mm`**,
+clean at **`>= +14`** (15 legs at `>= +14`: 2.6-5.7 m/s2, 0.0-0.1 mm slip; 5 legs at
+`-2..+7`: **14.9-32.7 m/s2**, **27-76 mm** displacement, `sep_end` 97.5-98.3 - the
+pads at their open stop; **no overlap, 2.6x**). So `-1 mm` is a **contact**, P66's
+"non-contacting graze" is falsified, and **the low lift straddles the boundary**
+(+3..+17: 3 of 5 legs in the band) - **but 5/5 of its contacting legs placed.**
+
+**The package**: the low lift **+ a floor re-signed at the measured boundary**
+(0 h, 0 references, 0 stores, the contact documented on ~40 % of the crossing legs),
+vs a contact-free crossing at **~+11 mm** of dose (`FRUIT_OUTPUT_RAIL_HEIGHT 0.05 ->
+0.039`, 24 of 35 mm of lip kept) whose blast radius is **binary** (the scene branch,
+both references, every store). The 34 mm flush is over-dosed and its flush shelf is
+the ledge class's worst case. Nothing adopted.

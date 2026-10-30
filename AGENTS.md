@@ -2879,6 +2879,54 @@ untouched. Evidence
 `logs/p66/P4_RESULTS.md`, `logs/p67/{RESULTS.md,p67_report.*,A,B,A2,B2_77.log}`,
 `logs/p68/{RESULTS.md,pop2/}`; WORKLOG "P66"/"P67"/"P68".
 
+**P69 (2026-10-30/31, `logs/p69/`, default off, **nothing adopted**): the pad-asset
+lane closes **by contact geometry**, and the rail-crossing floor - the project's
++33 mm convention - is **measured at `(+7, +14] mm`, so the low lift's crossing is a
+real contact on ~40 % of its legs but does not cost the placement (5/5).** Phase A
+(the pad asset): the authored boxes go **84.902 -> 80.902 / 60.902 / 49.902 / 39.902
+mm** at `0 / -4 / -24 / -35 / -45 mm`, the distal plane rises by
+`|delta|*cos(theta)` (identity to **9.7e-7 mm**) and the proximal plane does not
+move; **the authorized magnitude cannot grip** - at the shipped aim
+(standoff 0.070 m) the plates at -24/-35/-45 sit **+13.5/+24.5/+34.5 mm above the
+fruit's equator** and close **without touching any of the 8 pool classes** (closest
++2.6 mm; +0.3 mm even under D2a's -8 mm seat), so the admissible band is
+**+3.5..-7.9 mm** (patch intact) / **-13.1 mm** (any contact) and the authorized
+magnitudes are **1.8-3.4x past the last that touches**; what a cut would buy is
+**descent +24/35/45 mm unconsumed** (the tip already clears by 3.5-24.5 mm and the
+residual is a **jaw-plane** 8.1-10.3 mm), **carry +21.8/31.8/40.9 mm = the lip lost
+1:1**, and **rail +0.0 mm** (`clr` is a payload clearance), so the whole band is
+**4.1-10.9 %** (intact) / **6.0-16.0 %** (any contact) of the 104-276 mm walk; the
+one probe is categorical (`C` grasped, lift +0.2894, force 10.00 N; `-24 mm`
+lift 0.0000, force 0.00, `sep_end` 32.3 vs 70.6 mm, with `end=8.1 mm` and
+`belt_margin=+37.4 mm` identical in both arms) and the **matched pair is a null**
+(shorten by `d` and lower the aim by `d` leaves the lip *and* the belt clearance
+unchanged, 4/4). Reopen = a **real-jaw clamp-force anchor** or a **new pad asset**,
+not another magnitude. Phase B (the workstation) ranks the levers by
+crossing-gain: **the inner rail 1.00** (the obstacle moves 1:1), a **place-only
+transfer raise 0.825**, a **place `y` shift 0.264**, and **the shipped transfer
+lift excluded** (read at both sites, `tasks.py:3269`/`:3308`). **G0 then measured
+the floor** (scripted runs, no code): the payload touches at **`clr <= +7 mm`** and
+not at **`>= +14`** (15 legs at `>= +14` read **2.6-5.7 m/s2** and 0.0-0.1 mm slip;
+5 legs at `-2..+7` read **14.9-32.7 m/s2**, **27-76 mm** of displacement, `sep_end`
+97.5-98.3 = the pads at their open stop - **the populations do not overlap, a 2.6x
+gap**), so `-1 mm` is a **contact, not a graze** and P66's "non-contacting graze" is
+falsified; **the low lift straddles the boundary** (+3..+17 crossing: 3 of 5 legs at
+or below the band) - **but 5/5 of its contacting legs still placed.** So the
+**cheapest honest package is the low lift + a floor re-signed at the measured
+boundary** (0 h, 0 references, 0 stores, the contact accepted and documented on
+~40 % of the crossing legs), while a contact-free crossing needs **~+11 mm** of dose
+(`FRUIT_OUTPUT_RAIL_HEIGHT 0.05 -> 0.039`, 24 of the 35 mm of lip kept) at a
+**binary** blast radius (any rail value moves the scene branch, **both** references
+and **every** store) - the 34 mm flush is over-dosed and its flush shelf is the
+ledge class's worst case. Nothing adopted; the low lift, the climb and the rail are
+all opt-in/default. Pins: `tasks.py` `e5168578`, `conveyor.py` `b0d95a08`, `assets.py`
+`61baf52b`, `rl_env.py` `d88c3729`; `configs/motion_reference.json` `8a399626`,
+`..._twoline.json` `2246f83c`, `..._patch.json` `7b028049`, `..._twoline_bed.json`
+`dcd19758`; ckpt `moe_v13s` `61da390a`. Evidence
+`logs/p69/{A_PREREG,B_PREREG,G0_RESULTS}.md`, `tip_geometry.{py,txt}`,
+`collider_*.log` + JSONs, `probe_{C,T}.log`, `g0/t0{25,35,45,50,80}.log`; the
+delivery page `docs/LEFT_ARM.md` + the README block + the `项目总结报告.md` section.
+
 ## 3. What changed -> what to run
 
 | you changed | run |
