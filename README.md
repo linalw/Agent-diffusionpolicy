@@ -501,6 +501,30 @@ implementation: the simulation cell, the data pipeline, and the policy training 
 > P38 paragraphs), WORKLOG "P38 phase 1/2", `logs/p38/` (`P1_RESULTS.md`,
 > `PREREG.md`, `PREREG_A1.md`, `P2_RESULTS.md`, `P2`/`P3`/`G2`/`M4`).
 
+> **P66-P68 (2026-10-30): the left arm's deficit is the lift's height, not the
+> policy - the carry class is fixable, the place transfer is what charges for it;
+> default off, nothing adopted.** The post-profile direct number is **26/45 =
+> 57.8 %**, split right **24/25** / left **2/20**; P60-P68 explain the 47x. The
+> payload leaves **along the finger axis** (`25.2 deg` from the tool axis) during a
+> **~25 deg attitude rotation** whose **azimuth is the belt axis on the left**
+> (3/3 legs downstream; the right's is 0/6 - the magnitude is arm-common, the right
+> places 29/30 at 25.8 deg). The rotation is **not** a controller defect: the yaw
+> family is IK-infeasible, the commanded attitude is already top-down, the
+> pre-compensation is inadmissible, `max_step` never binds and the joint clip is a
+> standing condition. It is the **lift's height** - at `belt_top + 0.36` the
+> top-down attitude is **statically unsolvable** (qerr 24.3-60 deg, margin 0.000,
+> with no payload, no controller, no transient) - and **lowering the lift to 0.20
+> moves the drift 25.1 -> 0.7 deg and the left 0/25 -> 14/25** (N=5, 5/5 runs,
+> Fisher ~2e-4). **But the low lift spends the rail margin**: the place transit
+> crosses the output rail at **+5 mm** against the project's +33 mm floor, and the
+> climb that restores the crossing (+33..+54) **drops the payload on 8/16 place
+> legs** (`SIM_LIMIT.md`'s loaded slide; the wrist hold makes it **worse**, 16/16).
+> So the two closed classes meet and **no net gain ships today**; the remaining
+> paths are a **new pad asset** (P30-C's 24-45 mm, owner-gated) and a **workstation
+> / transfer change**, both registered in `logs/p69/`. Full page:
+> [docs/LEFT_ARM.md](docs/LEFT_ARM.md). Evidence: `AGENTS.md` §2 (P60-P68),
+> WORKLOG "P60".."P68", `logs/p60/`..`logs/p68/`.
+
 > **汇报入口**：[项目总结报告.md](项目总结报告.md)（单一文档，含图表与日志编号）；路线取舍见 [决策与交付.md](决策与交付.md)；**项目收尾一页纸见 [docs/CLOSEOUT.md](docs/CLOSEOUT.md)**（R11-C：交付状态 / 全部杠杆族的实测裁定 / 剩余项）；一键演示 `scripts/demo_2min.sh`。
 
 > **Contributing?** [AGENTS.md](AGENTS.md) lists the three commands to run before
