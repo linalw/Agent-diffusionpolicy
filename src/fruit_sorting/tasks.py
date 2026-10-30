@@ -268,6 +268,52 @@ def lift_dz_for(offsets, side: str, name: str) -> float | None:
     return None if value is None else float(value)
 
 
+def lift_climb_for(climbs, side: str, name: str) -> float | None:
+    """P67: the place leg's start **climb** (metres, vertical), or `None`.
+
+    Pure, and the **only** place this climb is resolved. The scope is the
+    **place** leg (`place0`/`place1`): that is the leg whose straight line to the
+    transfer pose is the one that crosses the output rail, and P66 phase 4
+    measured that the low lift's crossing sits `0.175 x (transfer - lift_end)`
+    below the transfer (the crossing is 82.5 % of the leg's `y` span). A raise
+    **at the leg's start** shortens that remaining climb-and-cross gap, so the
+    whole re-shape is one extra waypoint - see `_carry`'s use and
+    `logs/p67/RESULTS.md` for the arithmetic (`climb = 0.18 m` restores the
+    shipped crossing height on the 0.20 m rung).
+
+    `climbs` is the caller-owned `lift_climb` dict (side -> metres, e.g.
+    `{"left": 0.18}`); `None`, a missing side or any other leg name returns
+    `None`, i.e. the shipped command list - same caller-owned-kwarg pattern as
+    `lift_dz_for` (`None` = byte-inert), so no caller mutates the process
+    environment to change a trajectory.
+    """
+    if climbs is None or not name.startswith("place"):
+        return None
+    value = climbs.get(side)
+    return None if value is None else float(value)
+
+
+def lift_climb_commands(start, climb: float, limits) -> tuple[np.ndarray, ...]:
+    """P67: the place leg's **prepended climb**, as absolute pad-centre commands.
+
+    Pure (numpy + `jerk_limited`), so `scripts/237_p67_climb_selftest.py` can pin
+    it without a simulator: it is the one thing the climb re-shape adds to the
+    command list, and its last sample **is** the waypoint the transit starts from
+    (`start + climb * z_hat`, exact - `jerk_limited` pins the final sample), with
+    the x/y of the lift's end untouched on every sample. The caller concatenates
+    it in front of the shipped transit commands, so `None`/`0` never calls this
+    and the shipped list is byte-identical.
+    """
+    origin = np.asarray(start, dtype=float)
+    up = np.array([0.0, 0.0, 1.0])
+    positions, velocities, accelerations = jerk_limited(float(climb), limits)
+    return (
+        origin[None, :] + positions[:, None] * up[None, :],
+        velocities,
+        accelerations,
+    )
+
+
 def carry_hold_override_for(overrides, side: str, name: str) -> np.ndarray | None:
     """P64: the pre-compensated hold for one carry leg, or `None` (shipped).
 
@@ -737,7 +783,8 @@ class PickAndPlaceTask:
                  feed_cadence: bool | None = None,
                  grasp_quat_override: dict | None = None,
                  carry_hold_override: dict | None = None,
-                 lift_dz: dict | None = None):
+                 lift_dz: dict | None = None,
+                 lift_climb: dict | None = None):
         # The v1 file reproduces the recorded datasets. Physical grasping uses the
         # orientation-constrained poses: FRUIT_WAYPOINTS=configs/waypoints_oriented.json
         waypoint_path = waypoint_path or os.environ.get(
@@ -790,6 +837,20 @@ class PickAndPlaceTask:
             {}
             if lift_dz is None
             else {str(k): float(v) for k, v in lift_dz.items()}
+        )
+        #: P67: a per-arm **climb at the start of the place leg**, in metres of
+        #: vertical raise at the lift's own x/y (see `lift_climb_for`). `None`
+        #: (the default everywhere) leaves the place leg's command list untouched
+        #: - one segment, built by exactly the shipped expressions - so the
+        #: scripted line, the collector, the two-line scheduler and the hybrid
+        #: canary are byte-inert; only `rl_env` resolves it, and only for `direct`
+        #: + left (`FRUIT_LIFT_CLIMB`, default off). Unlike `lift_dz` it does not
+        #: move any target pose: the leg still ends at `jaw_target`, and the
+        #: climb is a prepended waypoint, so the release geometry is unchanged.
+        self._lift_climb: dict[str, float] = (
+            {}
+            if lift_climb is None
+            else {str(k): float(v) for k, v in lift_climb.items()}
         )
         self.arms = {
             "left": ArmController(scene, "left"),
@@ -3657,7 +3718,36 @@ class PickAndPlaceTask:
                     start = None
             start = (measured if start is None else np.asarray(start, dtype=float)).copy()
             finish = np.asarray(goal, dtype=float) + np.array([0.0, 0.0, 0.0])
-            delta = finish - start
+            #: P67: the opt-in **climb** at the leg's start (`FRUIT_LIFT_CLIMB`,
+            #: default off, `direct` + left only; resolved by `lift_climb_for`,
+            #: which is scoped to the place legs). The chosen shape is a
+            #: **prepended waypoint**, not a first-segment z offset:
+            #:
+            #:   * the climb is its own straight, vertical, jerk-limited segment
+            #:     from the leg's start (the pads where `grasp_lift` left them) to
+            #:     `start + climb*z_hat`, and the transit below then starts at that
+            #:     waypoint and still **ends exactly at `jaw_target`** - so the
+            #:     release geometry, the place pose and `_place_low` are untouched
+            #:     and the leg's end state is the shipped one;
+            #:   * a first-segment z offset would bend the transit and move every
+            #:     intermediate sample (and the endpoint, if it were not unwound) -
+            #:     two things at once, against the P66/P44 one-variable rule;
+            #:   * the extra segment is generated by the same `jerk_limited`
+            #:     profile as the rest of the leg (cone-limited along +Z, the
+            #:     direction the lift itself uses), so the tick cost is measured
+            #:     rather than asserted and there is no velocity step at the
+            #:     waypoint (`jerk_limited` starts and ends at rest - the transit's
+            #:     own profile starts at rest too).
+            #:
+            #: `None` (every caller but the direct env) keeps
+            #: `transit_start is start`, so the shipped command list is built by
+            #: exactly the same expressions on exactly the same arrays.
+            _climb = lift_climb_for(self._lift_climb, side, name)
+            climb_m = 0.0 if _climb is None else float(_climb)
+            transit_start = start
+            if climb_m > 0.0:
+                transit_start = start + np.array([0.0, 0.0, climb_m])
+            delta = finish - transit_start
             distance = float(np.linalg.norm(delta))
             direction = delta / max(distance, 1e-9)
             report = os.environ.get("FRUIT_MOTION_REPORT", "0") == "1"
@@ -3743,14 +3833,51 @@ class PickAndPlaceTask:
                         limits.a_max = min(limits.a_max, place_a)
                 limits = limits.limited_by_cone(direction, mu_eff)
                 positions, velocities, accelerations = jerk_limited(distance, limits)
-                commands = start[None, :] + positions[:, None] * direction[None, :]
+                commands = transit_start[None, :] + positions[:, None] * direction[None, :]
             else:
                 steps = int(steps * float(os.environ.get("FRUIT_CARRY_SLOWDOWN", "2.0")))
                 commands = np.array(
-                    [start + delta * (i / steps) for i in range(1, steps + 1)]
+                    [transit_start + delta * (i / steps) for i in range(1, steps + 1)]
                 )
                 velocities = np.full(len(commands), distance * 120.0 / max(steps, 1))
                 accelerations = np.zeros(len(commands))
+            if climb_m > 0.0:
+                # The climb is prepended as its own straight vertical segment, with
+                # the same profile family as the leg (see the block above): the
+                # place leg's limits, cone-limited along +Z (the direction the
+                # dynamic lift uses), so a held payload's acceleration budget is
+                # unchanged by the extra segment. `limited_by_cone` can only
+                # tighten the already-computed limits, so the climb is never more
+                # aggressive than the transit it precedes.
+                if os.environ.get("FRUIT_CARRY_PROFILE", "1") == "1":
+                    climb_limits = limits.limited_by_cone(
+                        np.array([0.0, 0.0, 1.0]), mu_eff
+                    )
+                    ccmd, cvel, cacc = lift_climb_commands(start, climb_m, climb_limits)
+                else:
+                    n_climb = max(
+                        1, int(round(steps * climb_m / max(distance, 1e-9)))
+                    )
+                    _cpos = np.linspace(0.0, climb_m, n_climb + 1)[1:]
+                    ccmd = start[None, :] + _cpos[:, None] * np.array(
+                        [[0.0, 0.0, 1.0]]
+                    )
+                    cvel = np.full(n_climb, climb_m * 120.0 / n_climb)
+                    cacc = np.zeros(n_climb)
+                commands = np.concatenate([ccmd, commands])
+                velocities = np.concatenate([cvel, velocities])
+                accelerations = np.concatenate([cacc, accelerations])
+                climb_ticks = len(ccmd)
+            if climb_m > 0.0:
+                # Provenance for the motion report only (and empty when the knob
+                # is off, so a shipped leg's label is byte-identical): the climb's
+                # own size and the ticks it added, which is the honest cost.
+                climb_note = (
+                    f" [+{climb_m * 100:.0f} cm climb at the start, "
+                    f"{climb_ticks} of {len(commands)} ticks]"
+                )
+            else:
+                climb_note = ""
             monitor = MotionMonitor(f"carry {name}", mu_eff=mu_eff) if report else None
             if monitor is not None:
                 # Include the start sample, otherwise a velocity step *into* the
@@ -3813,7 +3940,15 @@ class PickAndPlaceTask:
             # to real slip only - the earlier 3 mm trigger fired 128 times per run
             # on jitter alone and cost the default suite a point.
             slip_enabled = (
-                os.environ.get("FRUIT_SLIP_RECOVERY", "1") == "1" and not hand_is_jaw
+                os.environ.get("FRUIT_SLIP_RECOVERY", "1") == "1"
+                and not hand_is_jaw
+                # P67: with a climb armed the command list is two segments, so the
+                # rebase below (`positions`/`direction` describe the *transit*
+                # only) has no meaning over the climb's ticks. The combination is
+                # unreachable on the shipped hand (`hand_is_jaw` is already False
+                # for this flag), so this only refuses to re-anchor on a path the
+                # profile arrays no longer describe.
+                and not (climb_m > 0.0)
             )
             slip_trigger = float(os.environ.get("FRUIT_SLIP_TRIGGER", "0.025"))
             # Gross relative motion means the payload is being held by something
@@ -4704,6 +4839,7 @@ class PickAndPlaceTask:
                     f"|v|cmd={np.abs(velocities).max():.3f} |a|cmd={np.abs(accelerations).max():.3f}, "
                     f"slip_max={slip_max * 1000:.1f} mm, "
                     f"in-hand |v|max={slip_vel_max:.3f} m/s, recoveries={recoveries}"
+                    f"{climb_note}"
                 )
                 say(MotionMonitor.format(summary))
                 if clearance_min < float("inf"):

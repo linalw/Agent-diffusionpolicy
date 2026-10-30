@@ -232,6 +232,18 @@ run_check "P65 lift drift" "$python" scripts/235_p65_lift_selftest.py
 # after both goal forms, z only) and that the scripted entries never construct
 # the env that arms it.
 run_check "P66 lift end + dz" "$python" scripts/236_p66_lift_selftest.py
+# P67: the **place-leg climb** (`FRUIT_LIFT_CLIMB`, metres of vertical raise at the
+# place leg's start, `direct` + left only, default OFF) - the re-shape of P66 phase
+# 4's failed rail-crossing gate: the crossing is only 0.175:1 with the lift height
+# and 1:1 with the height the transit starts at. The leg pins the resolver (strict,
+# `<= 0` and non-finite raise, every other presentation `None`), the place-leg-only
+# scope (a `grasp_lift` leg cannot be touched), the **prepended waypoint** by
+# building the real `tasks.lift_climb_commands` offline (its last sample IS
+# `start + climb*z`, x/y untouched, z monotone, the place profile's caps), the
+# `transit_start = start` byte-identity when off, the crossing arithmetic
+# (f = 0.825, the `(1 - f)` leverage, the solved 0.179 m for the +33 mm floor), the
+# row / manifest, and that no scripted entry can reach the env that arms it.
+run_check "P67 place-leg climb" "$python" scripts/237_p67_climb_selftest.py
 # P62 phase 2: the left-only, direct-scoped grasp-attitude override
 # (`FRUIT_GRASP_LEFT_TOPDOWN`, default off). The resolver is offline and inert by
 # default; the real `_grasp_quat` body (extracted with `ast`, so no pxr import)

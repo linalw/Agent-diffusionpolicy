@@ -394,7 +394,17 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: and P3's leg minimum kept as `clr_min=`; one pure formatter
 #: (`_clearance_field`), still no new read, so every scripted and direct
 #: trajectory is byte-unchanged.
-TASKS_MD5 = "1296bd448ecf59df1dd885b9ddd807fe"
+#:
+#: P67 (metadata-only follow, `1296bd44 -> e5168578`): `PickAndPlaceTask` gains
+#: the caller-owned kwarg `lift_climb` (applied by `tasks.lift_climb_for` in
+#: `_carry`) - the **climb re-shape** of P66 phase 4's failed rail-crossing gate:
+#: a vertical raise at the **place leg's** start, before the transit, so the
+#: crossing (only 0.175:1 with the lift height) is bought at 1:1. `None` (every
+#: caller but this env behind `FRUIT_LIFT_CLIMB`, default off, `direct` + left)
+#: keeps `transit_start is start`, i.e. the shipped command list is built by
+#: exactly the same expressions; the climb is a prepended waypoint that leaves
+#: the leg's end pose (the release geometry) untouched.
+TASKS_MD5 = "e5168578633bf094e86042d5ec54ce0f"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(
@@ -644,6 +654,53 @@ def resolve_lift_dz(
     if not math.isfinite(dz):
         raise ValueError(f"FRUIT_LIFT_DZ={env_value!r} is not finite")
     return {"left": dz}, False
+
+
+def resolve_lift_climb(
+    presentation: str, env_value: str | None
+) -> dict[str, float] | None:
+    """The resolved `FRUIT_LIFT_CLIMB` place-leg climb, or `None` (shipped).
+
+    P67: the **climb re-shape** of P66 phase 4's failed rail-crossing gate. The
+    P66 measurement: the 0.20 m rung's place transit crosses the output rail's
+    centreline at `+5 mm` against the `+33 mm` access floor, because the crossing
+    sits 82.5 % of the way along the leg's `y` span, so only
+    `1 - 0.825 = 0.175` of the lift's deficit is recovered there
+    (`logs/p66/P4_RESULTS.md` §4). The lever that **is** 1:1 with the crossing is
+    the height at the **start of the place transit**, so this knob raises the
+    pads by `climb` metres **vertically at the lift's own x/y** before the
+    transit begins, and the leg still ends at `jaw_target` (the release geometry
+    is untouched). It is applied by `tasks.lift_climb_for` in `_carry` as a
+    **prepended waypoint**.
+
+    Scope: `direct` only, left arm only, `None` = **no arithmetic at all** - not
+    "a climb of zero": `_carry` then keeps `transit_start is start`, so every
+    cached print and the whole shipped command list are byte-identical. There is
+    no presentation default (unlike `FRUIT_LIFT_DZ`): the re-shape is opt-in.
+
+    Strict parsing is the P44/P45/P52/P53/P66 precedent: a climb is a **positive**
+    number of metres, so a non-number, a non-finite value and `<= 0` raise (the
+    off state is the unset or empty value, never `0`).
+    """
+    if presentation != "direct":
+        return None
+    text = "" if env_value is None else str(env_value).strip()
+    if not text:
+        return None
+    try:
+        climb = float(text)
+    except ValueError:
+        raise ValueError(
+            f"FRUIT_LIFT_CLIMB={env_value!r} is not a number of metres"
+        ) from None
+    if not math.isfinite(climb):
+        raise ValueError(f"FRUIT_LIFT_CLIMB={env_value!r} is not finite")
+    if climb <= 0.0:
+        raise ValueError(
+            f"FRUIT_LIFT_CLIMB={env_value!r}: a climb is positive metres "
+            "(leave it unset for the shipped path)"
+        )
+    return {"left": climb}
 
 
 def resolve_arm_park(presentation: str, env_value: str | None) -> tuple[str, bool]:
@@ -1489,6 +1546,18 @@ class SortingRLEnv:
         self._lift_dz, self._lift_dz_defaulted = resolve_lift_dz(
             presentation, os.environ.get("FRUIT_LIFT_DZ")
         )
+        #: P67: the **place-leg climb** (`FRUIT_LIFT_CLIMB`, metres of vertical
+        #: raise at the lift's own x/y, `direct` + left only, default **off**).
+        #: P66 phase 4's gate (a) named this shape: the crossing is only
+        #: 0.175:1 with the lift height, and 1:1 with the height the place
+        #: transit *starts* at. Threaded the `lift_dz` way (one resolve here, one
+        #: caller-owned kwarg, `tasks.lift_climb_for` at `_carry`); it moves the
+        #: command list and **not** the leg's end pose, so the release geometry is
+        #: the shipped one. `None` = no arithmetic at all (every non-direct caller,
+        #: and a direct run with the knob unset).
+        self._lift_climb = resolve_lift_climb(
+            presentation, os.environ.get("FRUIT_LIFT_CLIMB")
+        )
         #: P55: the live feeder, now part of the profile. `FRUIT_DIRECT_FEED=0`
         #: restores the pre-P55 behaviour; non-direct presentations stay off.
         self._direct_feed = bool(self._supply["feed"])
@@ -2234,6 +2303,7 @@ class SortingRLEnv:
             grasp_quat_override=self._grasp_quat_override,
             carry_hold_override=self._carry_hold_override,
             lift_dz=self._lift_dz,
+            lift_climb=self._lift_climb,
         )
         self.task.recorder = None
 
@@ -2330,6 +2400,17 @@ class SortingRLEnv:
             say(
                 self._lift_dz_row(
                     self._lift_dz, self.task.belt_top, self._lift_dz_defaulted
+                )
+            )
+        if self._lift_climb is not None:
+            # P67: the climb re-shape's own row (only when armed - the knob has
+            # no presentation default, so an unset run prints nothing at all).
+            say(
+                self._lift_climb_row(
+                    self._lift_climb,
+                    self.task.belt_top,
+                    self.cfg,
+                    self._lift_dz,
                 )
             )
         if self._continuous_picks > 0:
@@ -2489,6 +2570,22 @@ class SortingRLEnv:
                     },
                 }
                 if self._lift_dz is not None
+                else None
+            ),
+            #: P67: the place-leg climb (null = the shipped place leg, i.e. every
+            #: non-direct caller and a direct run with `FRUIT_LIFT_CLIMB` unset).
+            #: A climbed place leg is a **different trajectory** - it raises the
+            #: pads vertically at the lift's own x/y before transiting - so a run
+            #: is identified by this block (the `[grasp] lift_climb:` row alone is
+            #: a print).
+            "lift_climb": (
+                {
+                    "legs": "place0,place1",
+                    "climb_m": float(self._lift_climb.get("left", 0.0)),
+                    "arms": {"left": float(self._lift_climb.get("left", 0.0)),
+                             "right": "shipped"},
+                }
+                if self._lift_climb is not None
                 else None
             ),
             #: P36 phase 1: the proprio spoof (absent = the measured joints).
@@ -2883,6 +2980,55 @@ class SortingRLEnv:
             f"{0.28 + LIFT_DZ_DIRECT_DEFAULT:.4f} m; "
             f"restore the shipped {belt_top + hand:.4f} m with "
             "FRUIT_LIFT_DZ=+0.0800 (the hand's own add)"
+        )
+
+    @staticmethod
+    def _lift_climb_row(climb: dict, belt_top: float, cfg, lift_dz: dict | None) -> str:
+        """The `[grasp] lift_climb:` row (pure; pinned by `237`).
+
+        P67. Names the resolved climb, its scope, the two heights the re-shape
+        moves (the place transit's **start** and, through the leg's own straight
+        line, the **crossing**), and the documented restore. Rebuilt from the
+        numbers `tasks.jaw_target` builds and the scene's own geometry, not from
+        the cell's table:
+
+        * the lift's end is `belt_top + 0.28 + dz` (`dz` = the resolved
+          `FRUIT_LIFT_DZ`, i.e. the `[grasp] lift_dz:` row's own value);
+        * the transfer pose is `output_place_z + the hand's add`;
+        * the crossing fraction is `rail centreline / |place y|` - the same
+          derivation `tasks._output_rail_y` uses for the rail (a 0.025 m thick
+          rail at `output_belt_y - (size/2 + 0.0125)`, so its centreline is at
+          `|output_belt_y| - size/2 - 0.0125`), against the drop point's `|y|`.
+
+        With a climb the transit is a straight line from `lift_end + climb` to
+        the transfer, so
+        `z_crossing = transfer - (1 - f) * (transfer - lift_end - climb)`. The
+        row prints that value and its rise over the same arm without the climb,
+        which is the point: the transit's **start** moves 1:1 with the climb,
+        the **crossing** only `(1 - f) = 0.175:1`.
+        """
+        c = float(climb.get("left", 0.0))
+        hand = float(os.environ.get("FRUIT_OPENARM_TRANSFER_LIFT", "0.08"))
+        dz = float((lift_dz or {}).get("left", LIFT_DZ_HAND_ADD))
+        lift_end = belt_top + 0.28 + dz
+        transfer = float(cfg.output_place_z) + hand
+        rail_centre = abs(float(cfg.output_belt_y)) - (
+            float(cfg.output_belt_size[1]) / 2.0 + 0.0125
+        )
+        place_y = abs(float(cfg.output_belt_drop_points[0][1]))
+        f = rail_centre / place_y
+        start = lift_end + c
+        cross = transfer - (1.0 - f) * (transfer - start)
+        cross_no = transfer - (1.0 - f) * (transfer - lift_end)
+        return (
+            "[grasp] lift_climb: "
+            f"climb={c:+.4f}(explicit) m, arm=left legs=place0,place1 | "
+            f"lift end {lift_end:.4f} -> transit start {start:.4f} m "
+            f"(+{c * 1000:.1f} mm at 1:1) | transfer {transfer:.4f} m | "
+            f"crossing |y|={rail_centre:.4f} of the {place_y:.4f} m span "
+            f"(f={f:.3f}) -> z_crossing {cross:.4f} m "
+            f"({(cross - cross_no) * 1000:+.1f} mm vs no climb) | "
+            "restore the shipped place leg by leaving FRUIT_LIFT_CLIMB unset"
         )
 
     def advance(self, steps: int) -> None:
