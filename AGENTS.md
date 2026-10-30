@@ -2873,7 +2873,7 @@ flip to `-0.08` was **reverted** at P4 when gate (a) failed, the `236` pins upda
 and a smoke confirming `dz=+0.0800(default) -> belt_top + 0.3600`), and
 `FRUIT_LIFT_CLIMB` is default off. Selfcheck PASS; the acceptance is
 **6/10 + `fingerprint: matches`** with **377/377** `[fruit]` lines identical to
-`logs/p66/p2/accept_noharm.log`. Pins: `tasks.py` **`e5168578`**, `rl_env.py`
+`logs/p66/p2/accept_noharm.log`. Pins: `tasks.py` **`e5168578`**, `rl_env.py` **`d88c3729`**
 (the `TASKS_MD5` follow), `scripts/237_p67_climb_selftest.py`; `configs/*`
 untouched. Evidence
 `logs/p66/P4_RESULTS.md`, `logs/p67/{RESULTS.md,p67_report.*,A,B,A2,B2_77.log}`,
