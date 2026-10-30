@@ -2779,6 +2779,54 @@ P63 shape at a moved branch (left 1/18/1, right 23/0/2 against P63's 2/11/2 and
 **untouched**, `configs/*` untouched, no reference re-recorded. Evidence
 `logs/p65/{PREREG.md,P2_RESULTS.md,p2_report.{py,txt},p2/}`; WORKLOG "P65".
 
+**P66 (2026-10-30, `logs/p66/`; **default off, nothing adopted**; the lever is
+found but the adoption gate is unmeasured): the left's 25 deg carry rotation is a
+**height** problem, and lowering the lift's end fixes most of the left.**
+`FRUIT_LIFT_DZ` (default **off**, `direct` + `left` only; it shifts the
+`grasp_lift` target height above the shipped `belt_top + 0.28` base, `+0.08`
+restoring the shipped 0.36) moves the left's `drift_end` **23.8-25.7 -> 9.7 ->
+0.7 deg** over the ladder 0.36/0.28/0.20 and the left's placed count
+**1/34 -> 1/18 -> 10/16** (phase 2, 3 seeds interleaved); the N=4 rung batch
+(`logs/p66/p3/`, seeds 77/101/202/303 - the fifth was lost to a server restart)
+reads **control 0/19 (0 %), C24 11/23 (47.8 %), C20 11/19 (57.9 %)** with
+`drift_end` **25.2 / 3.4 / 0.7**, so **the rung is flat** (C24 vs C20 Fisher
+p ~ 0.75) and **0.24 is the economical one** (Fisher ~3e-4 against the control).
+**The mechanism is settled by three independent instruments**: the mediator has
+zero overlap; the achieved position error collapses with it (`res_end` 80.6 ->
+33.7 -> 13.3 mm); and the **static sweep** (`logs/p66/STATION_SWEEP.md`) predicts
+it with no payload, no controller and no profile - `T0` at `belt_top + 0.36` is
+**24.27-60.00 deg off with `margin +0.000` on 25/25 cells** (0/75 of the delivered
+band passes the 0.05 rad margin clause at any x/y/depth, while the shipped `C0`
+passes 31/75), so P63's live 24.6 deg **is** the static number and the drift was
+never a controller defect. **Two gates are unmeasured and the flip is withheld**:
+(a) the **place-transit clearance** - the lift ends 0.16 m lower and the record's
+arithmetic is 1:1 mm per mm of crossing height (+35 mm shipped, -45 mm at
+transfer-lift 0), but the new print-only `clr=<mm>@<surface>` field prints the
+leg's **minimum** (including the on-belt phase: `@rail -18..-24`, `@belt -3..-7`,
+`@obelt -182`), **not the crossing**, so the reading that could block it does not
+exist yet; (b) the **right-arm no-op** is structural (`resolve_lift_dz` emits only
+`{"left": dz}`; `lift_dz_for` returns `None` for the right) but reads
+**100 / 97.3 / 85.4 %** across the arms, i.e. inside its own branch spread
+(88.9-95.8 % in phase 2) rather than cleanly flat. **The residual is not the
+lift**: the remaining left `cnp`s are **place-leg** losses (P66 phase 2: 6/16 at
+0.20, `clean_slip` 833-931 mm, tilt 75-91 deg, `tool_y +0.65..+0.70`) - the place
+leg reinstates the belt-aligned attitude by reach and the lift's height cannot
+touch it, and the **control has no loaded left place legs at all**
+(`contacts@onset = 0`), so that class's baseline is the right arm's. **Nothing was
+re-recorded** (the knob is direct-scoped; the scripted line never constructs
+`SortingRLEnv`, so `configs/motion_reference*.json` `8a399626`/`2246f83c` stand);
+**every pre-P66 direct number is a 0.36-lift number** (`FRUIT_LIFT_DZ=+0.08`
+restores it, composed with `FRUIT_ARM_PARK=ready`, `FRUIT_POLICY_TRIGGER_ACQ=0`
+and the P58 burst profile); the hybrid canary has **no path** to the knob. Also
+recorded: the **finger-tip identity holds** (`S` 84.902 -> `F1` 80.902 mm =
+`4*cos(0)` on all four links, <0.001 mm) but at the descent's vertical fingers it
+buys **4.00 mm** of clearance, i.e. 4.4-10 % of the 40-90 mm descent shortfall -
+the pad lane stays closed on P39's measurement and on scale; P30-C's 24-45 mm
+stays owner-gated. Pins: `tasks.py` **`40e196e8`**, `rl_env.py` **`3fab4733`**,
+`scripts/236_p66_lift_selftest.py`; `configs/*` untouched. Evidence
+`logs/p66/{STATION_SWEEP.md,COLLIDER_READ.md,P2_RESULTS.md,DEVIATION.md,P3_RESULTS.md,p2/,p3/}`;
+WORKLOG "P66".
+
 ## 3. What changed -> what to run
 
 | you changed | run |

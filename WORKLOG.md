@@ -19986,3 +19986,41 @@ the two named suspects are out, and the only left-specific term remains the tilt
 **Named and not measured**: the payload-induced wrist deflection (a load path, not
 a command), `ik_step`'s `gain` term, and the hold's re-application rate. `control.py`
 untouched, `configs/*` untouched, no reference re-recorded, no default changed.
+
+### P66: the left's 25 deg carry rotation is a HEIGHT problem - and lowering the lift fixes most of it
+
+The arc that began at P60 ended here: the rotation is not a controller defect, not a
+pose command, not a joint limit - it is what the arm does when the lift asks it to
+hold a top-down attitude above the belt.
+
+**Phase 1 (offline, free).** A 150-cell station sweep finds **no point in the
+delivered band where T0 holds** (0/75 of its own cells passing the 0.05 rad margin
+clause; best +0.010 rad) while the shipped C0 passes 31/75; at the **lift's end
+height** T0 is **statically unsolvable** (qerr 24.3-60.0 deg, margin 0.000), i.e.
+P63's live 24.6 deg with no payload, no controller, no transient. The
+finger-tip identity (`S` 84.902 -> `F1` 80.902 mm = `4*cos(0)`) holds to <0.001 mm,
+but at the descent's vertical fingers the -4 mm buys 4.00 mm - 4.4-10 % of the
+40-90 mm shortfall - so the pad lane stays closed on measurement and scale.
+
+**Phase 2 (the ladder, 3 seeds).** `FRUIT_LIFT_DZ` shifts the `grasp_lift` target
+height: 0.36 / 0.28 / 0.20 gives `drift_end` **23.8/25.7 -> 9.7 -> 0.7 deg**,
+`res_end` **80.6 -> 33.7 -> 13.3 mm**, and the left **1/34 -> 1/18 -> 10/16**, with
+the right flat in shape and the cycle flat (sim 15.0 -> 14.7 s/pick). F1 fired
+*favourably* (0.7 vs the predicted 3 +- 2); F4 fired **falsely** (`fruit fell off
+the line` is shared with the pre-grasp supply class, 4/4 events right-arm
+`grasped=False`, 2 of them in the control); P3 was self-contradictory and its
+"share" dose is withdrawn in favour of `|tool_y|` (0.322/0.327 -> 0.162 -> 0.002).
+
+**Phase 3 (the rung batch, N=4 of 5).** The control **0/19**, C24 (0.24) **11/23
+(47.8 %)**, C20 (0.20) **11/19 (57.9 %)**, `drift_end` **25.2 / 3.4 / 0.7**. The
+rungs are **flat** (Fisher p ~ 0.75) so **0.24 is the economical one**; the class
+effect is one-sided (Fisher ~3e-4). Seed 404 was lost to a **server restart**, not
+a wedge.
+
+**Nothing was flipped.** Two gates are unmeasured: the **place-transit clearance**
+(the new `clr` field prints the leg's *minimum*, including the on-belt phase, not
+the crossing - the reading that could block the flip does not exist yet) and the
+**right-arm no-op** (structural, but 85.4-100 % at N=4 sits inside its own branch
+spread rather than flat). `FRUIT_LIFT_DZ` stays default off, `configs/*` untouched,
+no reference re-recorded; every pre-P66 direct number is a **0.36-lift** number
+(`FRUIT_LIFT_DZ=+0.08` restores it).
