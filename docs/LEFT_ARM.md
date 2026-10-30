@@ -74,11 +74,26 @@ cannot).
 
 ## The two registered paths (P69)
 
-1. **A new pad asset** (`logs/p69/A_PREREG.md`): P30-C's **24-45 mm** shorter tip,
-   the one `SIM_LIMIT.md` sanction that needs no scenario change. The **free static
-   read** comes first (the authored collider prims, the `S - F1 = 4*cos(theta)`
-   identity, the distal plane), then a geometry probe; the cost is **both motion
-   references + the acceptance** (the collider is authored in `scene.py`).
+1. **A new pad asset - MEASURED CLOSED at the authorized magnitude**
+   (`logs/p69/A_PREREG.md`). The free static read is exact (the plate's long
+   dimension 84.902 -> 80.902/60.902/49.902/39.902 mm at 0/-4/-24/-35/-45 mm; the
+   distal plane rises by `|delta|*cos(theta)`; the proximal plane does not move; the
+   identity holds to 9.7e-7 mm), and it **kills the magnitude by contact geometry**:
+   at the shipped aim (jaw standoff 0.070 m) the plate's lower edge would sit
+   **+13.5/+24.5/+34.5 mm above the fruit's equator**, so the pads close **without
+   touching any of the 8 pool classes** (closest approach +2.6 mm; +0.3 mm even
+   under D2a's -8 mm seat). The **admissible band is +3.5 .. -7.9 mm** (patch intact)
+   / **-13.1 mm** (any contact), and the probe confirms it on the same peach:
+   control `grasped, lift +0.289 m, force 10.00 N`; at -24 mm `grasped=false, lift
+   +0.000, force_min 0.00 N`. What the cut would buy: descent **+24/+35/+45 mm of
+   tip-belt clearance - unconsumed** (the tip already clears by 3.5-24.5 mm; the
+   descent's residual is a **jaw-plane** 8.1-10.3 mm, and the probe reads
+   `end=8.1 mm` in both arms), carry **+21.8/+31.8/+40.9 mm** (= the lip lost, 1:1),
+   **rail crossing +0.0 mm**. So the lane is registrable only in a band **1.8-10.8x
+   smaller** than authorized, where every move is **5-13 %** of the phenomenon: the
+   reopen conditions are a **real-jaw clamp-force anchor**, the class-indicated
+   **+3.5 mm extension** (owner-gated, predicted null: 1.3-3.4 % of the 104-276 mm
+   walk), or a genuinely new pad design.
 2. **A workstation/transfer change** (`logs/p69/B_PREREG.md`): the rail-crossing
    options ranked by gain per cost (a lower outer rail, a shorter transit, a raised
    transfer), each with its reference/acceptance/store consequences.

@@ -520,8 +520,11 @@ implementation: the simulation cell, the data pipeline, and the policy training 
 > climb that restores the crossing (+33..+54) **drops the payload on 8/16 place
 > legs** (`SIM_LIMIT.md`'s loaded slide; the wrist hold makes it **worse**, 16/16).
 > So the two closed classes meet and **no net gain ships today**; the remaining
-> paths are a **new pad asset** (P30-C's 24-45 mm, owner-gated) and a **workstation
-> / transfer change**, both registered in `logs/p69/`. Full page:
+> paths are a **new pad asset** (P30-C's 24-45 mm - **measured closed**: at the shipped aim the
+> shortened plate would sit 13.5-34.5 mm above the fruit's equator and touch nothing,
+> `logs/p69/A_PREREG.md`; the admissible band is +3.5..-7.9 mm and buys 5-13 %) and a
+> **workstation / transfer change** (recommended: flush the inner output rail, 1:1,
+> ~7 h wall, `logs/p69/B_PREREG.md`), both registered in `logs/p69/`. Full page:
 > [docs/LEFT_ARM.md](docs/LEFT_ARM.md). Evidence: `AGENTS.md` §2 (P60-P68),
 > WORKLOG "P60".."P68", `logs/p60/`..`logs/p68/`.
 
