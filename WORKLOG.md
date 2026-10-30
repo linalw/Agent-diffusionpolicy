@@ -20070,3 +20070,29 @@ the `236` pins assert the shipped default (three of them had to move). Selfcheck
 PASS. The named re-shape - keep the low lift and re-establish the crossing height on
 the place leg's first segment (the only term that is 1:1 with the crossing) - is
 the registered next step, not a default change.
+
+### P68: the climb + the wrist hold - the hold makes it worse, and the trade is now fully measured
+
+The last shippable candidate (P67's pair + `FRUIT_DYNAMIC_PLACE_WRIST_HOLD_S=1.0`)
+is **negative**: on the population cell (all-grade-A supply, every attempt left) the
+hold arm reads **0/18 / 0/18** against the pair's **3/18**, with the payload gone
+before the crossing (`clean_slip 881-1157 mm`, `clr -216..-218`).
+
+**The trade, complete** (population cell unless named):
+
+| form | carry class | rail crossing | left placed |
+|---|---|---|---|
+| shipped 0.36 | 25 deg rotation | +30/+29 mm | **0/25** (N=5 batch) |
+| low lift 0.20 | **0.7 deg** | **+5 mm** (floor +33) | **14/25** |
+| low lift + climb 0.18 | 1.1 deg | **+33..+54 mm** | **3/18** |
+| + wrist hold 1.0 s | 1.1 deg | (payload gone) | **0/18** |
+
+**So the two closed classes meet**: the lift's height fixes the *carry* rotation
+(proven at N=5), and restoring the rail crossing needs a vertical transfer at the
+place leg's start, which the hand cannot carry (`SIM_LIMIT.md`'s loaded slide).
+**No net gain is shippable today.** The remaining levers are the two `SIM_LIMIT.md`
+sanctions (a new pad asset - P30-C's 24-45 mm stays owner-gated - or a real-jaw
+clamp-force anchor) or a workstation/transfer change; **a recollection/retrain is
+not indicated** (the policy is not where the loss is). Nothing flipped
+(`FRUIT_LIFT_DZ` defaults to the shipped +0.08, `FRUIT_LIFT_CLIMB` off), nothing
+re-recorded, selfcheck PASS, acceptance 6/10 + `fingerprint: matches` + 377/377.

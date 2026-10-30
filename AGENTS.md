@@ -2842,6 +2842,43 @@ stays owner-gated. Pins: `tasks.py` **`40e196e8`**, `rl_env.py` **`3fab4733`**,
 `logs/p66/{STATION_SWEEP.md,COLLIDER_READ.md,P2_RESULTS.md,DEVIATION.md,P3_RESULTS.md,p2/,p3/}`;
 WORKLOG "P66".
 
+**P66 P4/P67/P68 (2026-10-30, `logs/p66/p4/`, `logs/p67/`, `logs/p68/`; **nothing
+adopted**): the lift-height lever fixes the *carry* class, and **every shippable
+form trades it for the place leg's closed class - the two meet, and no net gain
+ships today.** The rail-crossing gate is **measured and failed** by the lift-only
+form: the 0.20 rung enters the output rail's footprint level with its top
+(window min `+0 mm`, t333) and crosses the centreline at **+5 mm** against the
+**+33 mm** floor (shipped `+30/+29`; no contact, 0/16 legs negative, but 25 of the
+30 mm spent), and **the rung ladder cannot buy it back** (`dz_cross = 0.175 x
+dz_lift`; only the transfer height is 1:1). The re-shape (`FRUIT_LIFT_CLIMB`, a
+prepended vertical waypoint at the place leg's start; derived `0.18 m` from
+`z_cross = transfer - 0.175*(transfer - lift_end - climb)` and re-derived by
+`scripts/237_p67_climb_selftest.py`) **clears the crossing** (`+51/+50, +37/+37,
++33/+33, +54/+53, +36/+35`, median +37, worst +33) with the attitude held
+(`drift_end` 1.1 deg) - **but drops the payload on 3 of 8 climbed place legs**
+(`clean_slip` 0.92-1.00 m, onset 113-152 = the climb's exit; the W8-B loaded
+slide, the leg runs with no wrist hold), and `FRUIT_DYNAMIC_PLACE_WRIST_HOLD_S=1.0`
+makes it **worse** (**0/18** against the pair's 3/18; the payload is gone before the
+crossing, `clr -216..-218`). The full trade: shipped **0/25** / low lift **14/25**
+(crossing +5 mm) / low lift + climb **3/18** (crossing +33..+54) / + the hold
+**0/18**. **So the lift's height explains and fixes the carry rotation, and the
+place transfer - `SIM_LIMIT.md`'s loaded slide - is what charges for it.** The
+remaining levers are the two `SIM_LIMIT.md` sanctions (**a new pad asset** -
+P30-C's 24-45 mm stays owner-gated - or **a real-jaw clamp-force anchor**) or a
+**workstation/transfer change** (a lower output rail or a shorter transit, both
+references re-recorded); **a recollection/retrain is not indicated** (the policy is
+not where the loss is). **Nothing was re-recorded** and **nothing is flipped**:
+`FRUIT_LIFT_DZ` defaults to `+0.08` (the shipped 0.36; the phase-3 lane's premature
+flip to `-0.08` was **reverted** at P4 when gate (a) failed, the `236` pins updated
+and a smoke confirming `dz=+0.0800(default) -> belt_top + 0.3600`), and
+`FRUIT_LIFT_CLIMB` is default off. Selfcheck PASS; the acceptance is
+**6/10 + `fingerprint: matches`** with **377/377** `[fruit]` lines identical to
+`logs/p66/p2/accept_noharm.log`. Pins: `tasks.py` **`e5168578`**, `rl_env.py`
+(the `TASKS_MD5` follow), `scripts/237_p67_climb_selftest.py`; `configs/*`
+untouched. Evidence
+`logs/p66/P4_RESULTS.md`, `logs/p67/{RESULTS.md,p67_report.*,A,B,A2,B2_77.log}`,
+`logs/p68/{RESULTS.md,pop2/}`; WORKLOG "P66"/"P67"/"P68".
+
 ## 3. What changed -> what to run
 
 | you changed | run |
