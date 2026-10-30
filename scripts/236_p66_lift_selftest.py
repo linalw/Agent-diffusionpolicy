@@ -12,10 +12,21 @@ Pins what is **off or inert by default**, and since phase 3 the one thing that i
    component, signed). The target is the array `ik_step` was handed and
    `tcp_pose()` already returns the position, so the fields add **no pose read**:
    the old `np.asarray(arm.tcp_pose()[1], ...)` form (quaternion only) is gone.
-   Phase 3 adds `clr=` - the leg's **minimum** payload clearance to the highest
-   surface under it (P2-3's `_payload_clearance`, already measured every tick in
-   the slip bookkeeping - again no new read) with the surface code the +33 mm
-   access floor of record needs (`@belt/@obelt/@rail`).
+   Phase 3 adds the payload clearance; **phase 4 changes its reduction** (P3's
+   leg minimum could not answer the crossing question, `logs/p66/P3_RESULTS.md`
+   gate (a)). Three fields, all off the same per-tick `(clearance, where)` pair
+   (`_payload_clearance`, already measured every tick in the slip bookkeeping -
+   again no new read):
+     * `clr=` - the sample at the **first** tick whose `|payload y|` reaches the
+       output rail's **centreline** (`_output_rail_y`, 0.4125 m shipped - the y
+       the +33 mm access floor of record was measured at);
+     * `clr_win=` - the **minimum** over the ticks inside the rail's 25 mm
+       footprint (the transfer segment; catches a clip between the crossing
+       sample and the release);
+     * `clr_min=` - the leg minimum, unchanged, in the pre-phase-4 `clr`'s own
+       spelling (so an old log's `clr` maps onto the new `clr_min`).
+   Every value carries its surface code (`@belt/@obelt/@rail`), the two samples
+   also carry the tick (`/t302`).
 2. **The knob** `FRUIT_LIFT_DZ` (metres above the `0.28` base, left arm,
    `grasp_lift` only): `rl_env.resolve_lift_dz` parses it strictly, `tasks.lift_dz_for`
    is the only resolver (None / empty / another side / any leg but `grasp_lift`
@@ -25,7 +36,8 @@ Pins what is **off or inert by default**, and since phase 3 the one thing that i
    byte-for-byte, and the dynamic catch's own goal inherits the target's z
    (`float(goal[2])`), so the ladder reads +0.08 = the shipped 0.36 m,
    0.00 = 0.28 m, -0.08 = 0.20 m. **Phase 3 flips the `direct` default to the
-   0.20 m rung** (`LIFT_DZ_DIRECT_DEFAULT`) with `+0.08` as the documented
+   SHIPPED lift** (`LIFT_DZ_DIRECT_DEFAULT = +0.08`, the P4 revert) with the
+  0.20 m rung (`-0.08`) documented as an opt-in
    restore, and records the origin (`default`/`explicit`) in the row and the
    manifest; every other presentation still resolves to `None`.
 
@@ -72,7 +84,7 @@ def indented_body_contains(src: str, header: str, needle: int) -> bool:
     return True
 
 
-def load_function(name: str, path: Path) -> tuple:
+def load_function(name: str, path: Path, extra: dict | None = None) -> tuple:
     """Compile one module-level function from source (tasks.py imports pxr)."""
     src = path.read_text(encoding="utf-8")
     node = next(
@@ -81,6 +93,8 @@ def load_function(name: str, path: Path) -> tuple:
         if isinstance(n, ast.FunctionDef) and n.name == name
     )
     ns: dict = {"np": np}
+    if extra:
+        ns.update(extra)
     exec(  # noqa: S102 - a pinned, self-owned source file
         compile(
             ast.fix_missing_locations(ast.Module(body=[node], type_ignores=[])),
@@ -108,48 +122,117 @@ def main() -> int:
         env_src = env_py.read_text(encoding="utf-8")
 
         # ---------------------------------------------------------------- 1
-        # the row's four fields, in place and in order
+        # the row's fields, in place and in order
         for token in (
             'f"drift_end={_drift_end} "',
             'f"res_end={_res_end}mm dz_end={_dz_end}mm "',
-            'f"clr={_clr} "',
+            'f"clr={_clr} clr_win={_clr_win} clr_min={_clr_min} "',
         ):
             check(token in src, f"the [carry] row prints {token[2:].split('=')[0]}")
         order = [
             src.index('f"hold_drift={guard_drift_max:.1f}deg"'),
             src.index('f"drift_end={_drift_end} "'),
             src.index('f"res_end={_res_end}mm dz_end={_dz_end}mm "'),
-            src.index('f"clr={_clr} "'),
+            src.index('f"clr={_clr} clr_win={_clr_win} clr_min={_clr_min} "'),
             src.index('f"q_margin={_qm} q_cmd_margin={_qcm} "'),
             src.index('f"in-hand_vmax={guard_vmax:.3f} "'),
         ]
         check(order == sorted(order),
-              "drift_end/res_end/dz_end/clr sit next to hold_drift= (before q_margin=)")
+              "drift_end/res_end/dz_end/clr* sit next to hold_drift= (before q_margin=)")
 
         # ---------------------------------------------------------------- 1b
-        # `clr` is P2-3's own per-leg minimum, already measured every tick: the
-        # field must not take a new read and must carry its surface code
+        # P66 phase 4: `clr` is the **crossing** sample, `clr_win` the
+        # transfer-window minimum and `clr_min` the leg minimum - all three off
+        # the per-tick `_payload_clearance` pair the loop already computes.
         check(
             'clearance, where = self._payload_clearance(sample, fruit)' in src,
             "the clearance is the existing per-tick `_payload_clearance` read",
         )
-        clr_block = src[src.index("if clearance_min == float(\"inf\"):"):]
-        clr_block = clr_block[: clr_block.index('f"q_margin=')]
-        for banned in ("position(", "tcp_pose(", "_shape_support(", "pad_centre("):
-            check(banned not in clr_block, f"the clr field adds no read ({banned})")
+        clr_field, _ = load_function("_clearance_field", tasks_py, {
+            "_CLEARANCE_SURFACES": {
+                "main belt": "belt",
+                "output belt": "obelt",
+                "output rail": "rail",
+            }
+        })
+        rail, _ = load_function("_output_rail_y", tasks_py)
+        from fruit_sorting.assets import SceneConfig
+
+        class _Fake:
+            cfg = SceneConfig()
+
+        rail_inner, rail_centre = rail(_Fake())
+        check(abs(rail_inner - 0.400) < 1e-12 and abs(rail_centre - 0.4125) < 1e-12,
+              "the rail's footprint inner face 0.400 m / centreline 0.4125 m "
+              "(the crossing of record, logs/p30a/RAILS_DESIGN.md)")
+        check(abs(abs(float(_Fake.cfg.output_belt_y)) - (0.125 + 0.0125)
+                  - rail_centre) < 1e-12,
+              "the crossing is derived from output_belt_y/size (+0.0125), not hardcoded")
+        got = clr_field(0.0031, "output rail", 302)
+        check(got == "+3mm@rail/t302", f"the crossing field spells {got!r}")
+        got = clr_field(float("inf"), "", -1)
+        check(got == "n/a", "an unmeasured tracker prints n/a (a lift leg)")
+        got = clr_field(0.0331, "output rail")
+        check(got == "+33mm@rail",
+              "the leg-min spelling is the pre-phase-4 `clr` (no tick)")
+        got = clr_field(-0.0182, "output rail", 12)
+        check(got == "-18mm@rail/t12", "a negative crossing keeps its sign")
+        got = clr_field(0.25, "main belt", 0)
+        check(got == "+250mm@belt/t0", "the surface code comes from the table")
+        for banned in ("position(", "tcp_pose(", "_shape_support(", "pad_centre(",
+                       "jaw_centre(", "tactile"):
+            body = src[src.index("def _clearance_field("):]
+            body = body[: body.index("\ndef ", 1)]
+            check(banned not in body, f"the formatter adds no read ({banned})")
         check(
             "clearance_min = float(\"inf\")" in src
             and "clearance_min, clearance_where = clearance, where" in src,
-            "the field reads the leg's min and the surface it was taken against",
+            "the leg min and the surface it was taken against are still tracked",
         )
+        check(
+            "_clr_min = _clearance_field(clearance_min, clearance_where)" in src,
+            "clr_min is the leg minimum, unchanged (the second field)",
+        )
+        # the crossing trackers: init, latch, window minimum, place-leg scope
+        for name in (
+            "rail_inner = rail_centre = float(\"inf\")",
+            "clr_x = float(\"inf\")",
+            "clr_win = float(\"inf\")",
+            "clr_x_i = -1",
+            "clr_win_i = -1",
+        ):
+            check(name in src, f"the crossing tracker inits: {name.split(' =')[0]}")
+        check(
+            "if name.startswith(\"place\"):\n                rail_inner, rail_centre = "
+            "self._output_rail_y()" in src,
+            "the thresholds are armed on the place leg only (a lift leg -> +inf)",
+        )
+        check("rail_inner = rail_centre = float(\"inf\")" in src,
+              "off a place leg the thresholds are unreachable (the fields print n/a)")
+        latch = "if _abs_y >= rail_centre and clr_x_i < 0:"
+        check(latch in src, "the crossing is the FIRST tick past the centreline (latched)")
+        check(
+            "if _abs_y >= rail_inner and clearance < clr_win:" in src,
+            "the window field is the minimum inside the rail footprint",
+        )
+        red = src.index("_abs_y = abs(float(fruit[1]))")
+        check(indented_body_contains(src, "if guard_armed:", red),
+              "the crossing reduction runs inside `if guard_armed:` (no diag-off work)")
+        check(indented_body_contains(src, "for i in range(n_ticks)", red),
+              "the crossing reduction is in the per-tick loop")
+        check("_abs_y = abs(float(fruit[1]))" in src
+              and "fruit = np.asarray(self.spawner.position(sample), dtype=float)" in src
+              and red > src.index("fruit = np.asarray(self.spawner.position(sample)"),
+              "the crossing reuses the payload read the slip bookkeeping took "
+              "(no second spawner read)")
         for surface, code in (("main belt", "belt"), ("output belt", "obelt"),
                              ("output rail", "rail")):
             check(f'"{surface}": "{code}"' in src,
                   f"the surface code table maps {surface!r} -> @{code}")
         check(
             indented_body_contains(src, "if guard_armed or relief_acts:",
-                                   src.index('f"clr={_clr} "')),
-            "clr prints inside the `guard_armed or relief_acts` block (carry diag)",
+                                   src.index('f"clr={_clr} clr_win={_clr_win}')),
+            "clr/clr_win/clr_min print inside the `guard_armed or relief_acts` block",
         )
 
         # ---------------------------------------------------------------- 2
@@ -269,13 +352,16 @@ def main() -> int:
 
         # ---------------------------------------------------------------- 6
         # the env-side resolver: direct-scoped, left-only, strict parsing, and
-        # since phase 3 a **direct default** with `+0.08` as its documented restore
+        # at P4 the **direct default is the shipped height** (`+0.08`), the flip
+        # to the 0.20 rung having been reverted when gate (a) failed
         os.environ.pop("FRUIT_LIFT_DZ", None)
         got, defaulted = resolve_lift_dz("direct", None)
-        check(got == {"left": -0.08} and defaulted is True,
-              "the direct default is the 0.20 m rung (dz=-0.08), and it says so")
-        check(LIFT_DZ_DIRECT_DEFAULT == -0.08 and LIFT_DZ_HAND_ADD == 0.08,
-              "the two constants are the 0.20 m rung and the hand's own add")
+        check(got == {"left": 0.08} and defaulted is True,
+              "the direct default is the SHIPPED lift (dz=+0.08, the P4 revert - "
+              "the 0.20 rung failed the rail-crossing gate), and it says so")
+        check(LIFT_DZ_DIRECT_DEFAULT == 0.08 and LIFT_DZ_HAND_ADD == 0.08,
+              "the two constants are both the shipped height (the default is inert; "
+              "the rungs are opt-in via FRUIT_LIFT_DZ)")
         for other in ("handoff", "scripted", "two_line", ""):
             check(resolve_lift_dz(other, None) == (None, False),
                   f"`{other or 'empty'}` is inert even with the default (direct-scoped)")
@@ -350,8 +436,8 @@ def main() -> int:
               "the row names the resolved offset and that it is the default")
         check("-> 1.2100 m above floor" in row and "belt_top 1.0100 + 0.2000" in row,
               "the row prints the height the lift ends at (belt_top + 0.20)")
-        check("default dz=-0.0800 = 0.2000 m" in row,
-              "the row names the presentation's default rung")
+        check("default dz=+0.0800" in row,
+              "the row names the presentation's default (the shipped lift, +0.08)")
         check("restore the shipped 1.3700 m with FRUIT_LIFT_DZ=+0.0800" in row,
               "the row names the documented restore and its height")
         check("arm=left leg=grasp_lift" in row and "right=shipped" in row

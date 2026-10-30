@@ -386,7 +386,15 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: `direct` presentation's `FRUIT_LIFT_DZ` **default** becomes the 0.20 m rung
 #: (`LIFT_DZ_DIRECT_DEFAULT`; `+0.08` restores the shipped 0.36 m). Both are
 #: print/no-op for every scripted path (they never construct this env).
-TASKS_MD5 = "40e196e8cf69242d04e419ec6ac87b6e"
+#:
+#: P66 phase 4 (metadata-only follow, `40e196e8 -> 1296bd44`): only the `clr`
+#: reduction changes - `clr=` becomes the **rail-crossing** sample (the first
+#: tick whose |payload y| reaches the inner rail's centreline, 0.4125 m, derived
+#: by `_output_rail_y`) with the transfer-window minimum beside it (`clr_win=`)
+#: and P3's leg minimum kept as `clr_min=`; one pure formatter
+#: (`_clearance_field`), still no new read, so every scripted and direct
+#: trajectory is byte-unchanged.
+TASKS_MD5 = "1296bd448ecf59df1dd885b9ddd807fe"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(
@@ -568,7 +576,16 @@ def resolve_grasp_quat_override(
 #: 10/16 (`logs/p66/P2_RESULTS.md`). The value is expressed on the **code's** base
 #: (the `0.28`), never on the shipped height: "shipped - 0.16" would be 0.12 m,
 #: i.e. the pads 40 mm above the belt (`logs/p66/DEVIATION.md` D4/D5).
-LIFT_DZ_DIRECT_DEFAULT = -0.08
+#: P66 P4 correction: this **was** `-0.08` (the 0.20 m rung) - the phase-3 lane
+#: flipped it as part of the adoption package before gate (a) was measured, and
+#: gate (a) then **failed** (`logs/p66/P4_RESULTS.md`: the lowered rung crosses the
+#: output rail at `+5 mm` against the +33 mm floor, spending 25 of the shipped
+#: 30 mm). So the default is **the shipped lift** again (`+0.08`, bit-identical to
+#: the unset path by construction - the docstring's own identity), and the rung is
+#: opt-in via `FRUIT_LIFT_DZ=-0.08` (0.20) or `-0.04` (0.24) until the named
+#: re-shape (a transfer-height change on the place leg's first segment) is
+#: registered and measured.
+LIFT_DZ_DIRECT_DEFAULT = 0.08
 #: The hand's own clearance add above the same base (`FRUIT_OPENARM_TRANSFER_LIFT`'s
 #: default), i.e. the shipped `grasp_lift` height. `FRUIT_LIFT_DZ=+0.08` restores
 #: it and is the documented escape from the phase-3 default; the env var still
@@ -582,8 +599,9 @@ def resolve_lift_dz(
 ) -> tuple[dict[str, float] | None, bool]:
     """The resolved `FRUIT_LIFT_DZ` lift-target-height offset, and its origin.
 
-    P66 phase 3: **direct-scoped and left-only**, and since this phase the
-    `direct` presentation's **default** is the 0.20 m rung
+    P66 phase 3 (corrected at P4): **direct-scoped and left-only**, and the
+    `direct` presentation's **default is the shipped lift** (the flip to the
+    0.20 m rung was reverted when gate (a) failed); the rung is opt-in
     (`LIFT_DZ_DIRECT_DEFAULT`, i.e. `dz = -0.08` above
     `tasks.jaw_target("grasp_lift")`'s `belt_top + 0.28` base). `dz` **replaces**
     the hand's `FRUIT_OPENARM_TRANSFER_LIFT` add on that leg, so the ladder reads

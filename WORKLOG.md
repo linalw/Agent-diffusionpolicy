@@ -20051,3 +20051,22 @@ fails at +5 mm with no contact. **The re-shape is named**: keep the low lift (th
 attitude holds) and re-establish the crossing height on the place leg's first
 segment, which is a transfer-height change with its own 1:1 measurement and its own
 registration. `FRUIT_LIFT_DZ` stays default off; nothing was flipped.
+
+### P66 errata: the phase-3 lane had already flipped the default, and P4 reverts it
+
+A provenance error in my own reporting, found by the P4 lane: **the phase-3 lane
+flipped `LIFT_DZ_DIRECT_DEFAULT` to the 0.20 m rung (`-0.08`) as part of its
+"adoption package's code parts"**, and my P66 paragraph and WORKLOG said "default
+off, nothing flipped" - which was false from `43b2322` onward. The N=5 table is
+**unaffected**: the batch passed its arms **explicitly** (`+0.08` control, `-0.04`
+C24, `-0.08` C20; `logs/p66/p3/run_p3.sh`), so the control really was the 0.36 lift.
+
+**The revert is the correct action, not a formality**: gate (a) then **failed** -
+the 0.20 rung crosses the output rail at **+5 mm** against the **+33 mm** floor
+(shipped +30/+29, no contact, 25 of the 30 mm spent). So
+`LIFT_DZ_DIRECT_DEFAULT` is back to **`+0.08`** (the shipped lift, bit-identical by
+the docstring's own identity), the rungs are **opt-in** via `FRUIT_LIFT_DZ`, and
+the `236` pins assert the shipped default (three of them had to move). Selfcheck
+PASS. The named re-shape - keep the low lift and re-establish the crossing height on
+the place leg's first segment (the only term that is 1:1 with the crossing) - is
+the registered next step, not a default change.

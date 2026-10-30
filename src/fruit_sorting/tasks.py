@@ -357,6 +357,25 @@ _CLEARANCE_SURFACES = {
 }
 
 
+def _clearance_field(gap: float, where: str, tick: int | None = None) -> str:
+    """One `[carry]` clearance field: `+3mm@rail/t302`, or `n/a` if unmeasured.
+
+    P66 phase 4. Two reductions of the same per-tick `_payload_clearance` pair
+    print through here: the **crossing** sample and the transfer-window
+    minimum, both carrying the tick they were taken at (a sample is auditable
+    only with its index), and the **leg minimum** with no tick - so its spelling
+    is exactly the pre-phase-4 `clr=` field's (`+3mm@rail`), which is how an old
+    log's `clr` maps onto the new `clr_min`. `n/a` when the tracker never fired
+    (a `grasp_lift` leg never reaches the rail, and an unarmed leg records
+    nothing). Pure formatting - no read, no state.
+    """
+    if gap == float("inf"):
+        return "n/a"
+    code = _CLEARANCE_SURFACES.get(where, where or "?")
+    suffix = "" if tick is None else f"/t{tick}"
+    return f"{gap * 1000:+.0f}mm@{code}{suffix}"
+
+
 def _carry_monitor_logit(sep, pry, vsep, ft_min, force, contacts) -> float:
     """The frozen monitor's standardized logit for one tick (pure arithmetic).
 
@@ -3263,6 +3282,26 @@ class PickAndPlaceTask:
                     surface, where = rail, "output rail"
         return lowest - surface, where
 
+    def _output_rail_y(self) -> tuple[float, float]:
+        """The robot-side output rail's (inner face, centreline), in |y| [m].
+
+        P66 phase 4: the geometry the `[carry]` row's **crossing** reduction
+        needs. The payload crosses the *inner* rail on every place transit, and
+        the access floor of record (**+33 mm**, `logs/p30a/RAILS_DESIGN.md`) is
+        measured at its **centreline** - `|y| = 0.4125` on the shipped geometry
+        (`logs/p66/P3_RESULTS.md` gate (a): the leg minimum cannot answer that
+        question). Derived, not hardcoded: `conveyor.OutputBelt.build` authors
+        the rail at `output_belt_y - (output_belt_size[1] / 2 + 0.0125)` with a
+        0.025 m thickness, so its 25 mm top face spans `centreline +- 0.0125`
+        (0.400..0.425 shipped). Pure arithmetic on the scene config: no
+        simulator read, no pose read, and nothing on the control path.
+        """
+        cfg = self.cfg
+        centre = abs(float(cfg.output_belt_y)) - (
+            float(cfg.output_belt_size[1]) / 2.0 + 0.0125
+        )
+        return centre - 0.0125, centre
+
     def _carry_attitude(self, side: str, sample, name: str) -> None:
         """One line of tool attitude and pad-fruit offset at a carry leg's end.
 
@@ -3828,6 +3867,36 @@ class PickAndPlaceTask:
             # reported per carry leg (the motion gate does not read it).
             clearance_min = float("inf")
             clearance_where = ""
+            #: P66 phase 4 (reporting only): the place leg's **rail-crossing**
+            #: read. `clearance_min` is the leg minimum to the highest surface
+            #: under the payload, which includes the phase where the payload is
+            #: still over the *input* belt - it cannot answer "does the lowered
+            #: lift clip the output rail at the crossing" (`logs/p66/
+            #: P3_RESULTS.md` gate (a)). Three trackers, all fed by the
+            #: `(clearance, where)` pair and the `fruit` position the slip
+            #: bookkeeping already reads every tick - **no new read**, and none
+            #: of them is a control input:
+            #:   * `clr_x`  - the sample at the **first** tick whose |y| reaches
+            #:               the rail's centreline (the crossing of record,
+            #:               0.4125 m); latched, so a payload that drifts back
+            #:               over the rail keeps the crossing sample;
+            #:   * `clr_win`- the **minimum** over the ticks whose |y| is inside
+            #:               the rail's footprint, i.e. the transfer segment
+            #:               (this is the read that can catch a clip *between*
+            #:               the crossing sample and the release);
+            #:   * `clearance_min` - the leg minimum, unchanged, printed second.
+            #: The thresholds are +inf off a place leg, so a `grasp_lift` leg
+            #: takes neither branch and prints `n/a`.
+            if name.startswith("place"):
+                rail_inner, rail_centre = self._output_rail_y()
+            else:
+                rail_inner = rail_centre = float("inf")
+            clr_x = float("inf")
+            clr_x_where = ""
+            clr_x_i = -1
+            clr_win = float("inf")
+            clr_win_where = ""
+            clr_win_i = -1
             rel_prev = slip_ref
             recoveries = 0
             coherent = self._coherent.get(side, False)
@@ -4220,6 +4289,17 @@ class PickAndPlaceTask:
                 clearance, where = self._payload_clearance(sample, fruit)
                 if clearance < clearance_min:
                     clearance_min, clearance_where = clearance, where
+                if guard_armed:
+                    # P66 phase 4: the two crossing trackers (see the init above).
+                    # Under the same `guard_armed` flag that prints the row, so the
+                    # diag-off path runs no extra work at all; `abs(fruit[1])` is
+                    # the payload's own `y`, and `clearance`/`where` are this
+                    # tick's `_payload_clearance` return.
+                    _abs_y = abs(float(fruit[1]))
+                    if _abs_y >= rail_centre and clr_x_i < 0:
+                        clr_x, clr_x_where, clr_x_i = clearance, where, i
+                    if _abs_y >= rail_inner and clearance < clr_win:
+                        clr_win, clr_win_where, clr_win_i = clearance, where, i
                 slip = float(np.linalg.norm((rot.T @ (fruit - pads)) - slip_ref))
                 slip_max = max(slip_max, slip)
                 rel_now = rot.T @ (fruit - pads)
@@ -4518,20 +4598,23 @@ class PickAndPlaceTask:
                     if guard_drift_end is None
                     else f"{guard_drift_end:.1f}"
                 )
-                # P66 phase 3: the leg's **minimum payload clearance** to the
-                # highest surface under it (P2-3's `_payload_clearance`, already
-                # measured every tick in the slip bookkeeping above - no new
-                # read, no motion monitor, no control input). The surface code
-                # is part of the field because the access floor of record
-                # (+33 mm, `logs/p30a/RAILS_DESIGN.md`) is the **output rail**'s
-                # and the rail is 35 mm above the output belt's top.
-                if clearance_min == float("inf"):
-                    _clr = "n/a"
-                else:
-                    _clr_surface = _CLEARANCE_SURFACES.get(
-                        clearance_where, clearance_where or "?"
-                    )
-                    _clr = f"{clearance_min * 1000:+.0f}mm@{_clr_surface}"
+                # P66 phase 4: the place leg's **crossing** clearance is the field
+                # of record; the leg minimum is kept as the second field.
+                # `clr` = the sample at the first tick whose |y| reaches the
+                # output rail's centreline (`_output_rail_y`, 0.4125 m shipped -
+                # the y the +33 mm access floor of record was measured at,
+                # `logs/p30a/RAILS_DESIGN.md`); `clr_win` = the minimum over every
+                # tick inside the rail's 25 mm footprint (the transfer segment,
+                # the reduction that catches a clip between the crossing sample
+                # and the release); `clr_min` = the leg minimum, unchanged (its
+                # spelling is the pre-phase-4 `clr`'s). All three come from the
+                # per-tick `_payload_clearance` pair the slip bookkeeping already
+                # computes - **no new read** (P3's leg minimum could not answer
+                # the crossing question: it includes the phase where the payload
+                # is still over the input belt, `logs/p66/P3_RESULTS.md` gate (a)).
+                _clr = _clearance_field(clr_x, clr_x_where, clr_x_i)
+                _clr_win = _clearance_field(clr_win, clr_win_where, clr_win_i)
+                _clr_min = _clearance_field(clearance_min, clearance_where)
                 if guard_tcp_end is None or guard_tcp_target is None:
                     _res_end = "n/a"
                     _dz_end = "n/a"
@@ -4551,7 +4634,7 @@ class PickAndPlaceTask:
                     f"{'' if guard_hold_seen else '(no-hold)'} "
                     f"drift_end={_drift_end} "
                     f"res_end={_res_end}mm dz_end={_dz_end}mm "
-                    f"clr={_clr} "
+                    f"clr={_clr} clr_win={_clr_win} clr_min={_clr_min} "
                     f"q_margin={_qm} q_cmd_margin={_qcm} "
                     f"q_step_max={guard_q_step_max:.4f} "
                     f"jaw_z={_jawz} drift_on={guard_drift_on_i} "

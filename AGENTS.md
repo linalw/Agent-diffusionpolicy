@@ -2779,12 +2779,16 @@ P63 shape at a moved branch (left 1/18/1, right 23/0/2 against P63's 2/11/2 and
 **untouched**, `configs/*` untouched, no reference re-recorded. Evidence
 `logs/p65/{PREREG.md,P2_RESULTS.md,p2_report.{py,txt},p2/}`; WORKLOG "P65".
 
-**P66 (2026-10-30, `logs/p66/`; **default off, nothing adopted**; the lever is
-found but the adoption gate is unmeasured): the left's 25 deg carry rotation is a
-**height** problem, and lowering the lift's end fixes most of the left.**
-`FRUIT_LIFT_DZ` (default **off**, `direct` + `left` only; it shifts the
-`grasp_lift` target height above the shipped `belt_top + 0.28` base, `+0.08`
-restoring the shipped 0.36) moves the left's `drift_end` **23.8-25.7 -> 9.7 ->
+**P66 (2026-10-30, `logs/p66/`; **nothing adopted - and a flip that the phase-3
+lane made early was REVERTED** when its gate failed): the left's 25 deg carry
+rotation is a **height** problem, and lowering the lift's end fixes most of the
+left.** `FRUIT_LIFT_DZ` (`direct` + `left` only; it shifts the `grasp_lift`
+target height above the shipped `belt_top + 0.28` base, `+0.08` = the shipped
+0.36) **defaults to `+0.08`, i.e. the shipped lift**: the phase-3 lane had flipped
+the default to the 0.20 rung (`-0.08`) as part of its adoption package, and P66 P4
+**reverted it** (`LIFT_DZ_DIRECT_DEFAULT` back to `+0.08`, the `236` pins updated)
+because gate (a) below **failed** - the rung is opt-in. Measured (explicit rungs,
+so the table is unaffected by the flip) moves the left's `drift_end` **23.8-25.7 -> 9.7 ->
 0.7 deg** over the ladder 0.36/0.28/0.20 and the left's placed count
 **1/34 -> 1/18 -> 10/16** (phase 2, 3 seeds interleaved); the **N=5** rung batch
 (`logs/p66/p3/`, seeds 77/101/202/303/404) reads **control 0/25 (0 %), C24 12/30
@@ -2800,7 +2804,7 @@ it with no payload, no controller and no profile - `T0` at `belt_top + 0.36` is
 **24.27-60.00 deg off with `margin +0.000` on 25/25 cells** (0/75 of the delivered
 band passes the 0.05 rad margin clause at any x/y/depth, while the shipped `C0`
 passes 31/75), so P63's live 24.6 deg **is** the static number and the drift was
-never a controller defect. **Two gates are unmeasured and the flip is withheld**:
+never a controller defect. **Gate (a) is measured and FAILED; gate (b) is structural but not flat**:
 (a) the **place-transit clearance: MEASURED AND FAILED at the +33 mm floor.**
 With the reduction fixed to the rail-crossing form (`clr_x` at the crossing,
 `clr_win` over the transfer window; `logs/p66/P4_RESULTS.md`, one seed, 2 runs,
@@ -2825,9 +2829,10 @@ touch it, and the **control has no loaded left place legs at all**
 (`contacts@onset = 0`), so that class's baseline is the right arm's. **Nothing was
 re-recorded** (the knob is direct-scoped; the scripted line never constructs
 `SortingRLEnv`, so `configs/motion_reference*.json` `8a399626`/`2246f83c` stand);
-**every pre-P66 direct number is a 0.36-lift number** (`FRUIT_LIFT_DZ=+0.08`
-restores it, composed with `FRUIT_ARM_PARK=ready`, `FRUIT_POLICY_TRIGGER_ACQ=0`
-and the P58 burst profile); the hybrid canary has **no path** to the knob. Also
+**every pre-P66 direct number is a 0.36-lift number and the default IS that
+height again** (the rungs are opt-in; compose with `FRUIT_ARM_PARK=ready` for the
+pre-P43, `FRUIT_POLICY_TRIGGER_ACQ=0` for the pre-P54 and the P58 burst profile for
+the pre-P58 baselines); the hybrid canary has **no path** to the knob. Also
 recorded: the **finger-tip identity holds** (`S` 84.902 -> `F1` 80.902 mm =
 `4*cos(0)` on all four links, <0.001 mm) but at the descent's vertical fingers it
 buys **4.00 mm** of clearance, i.e. 4.4-10 % of the 40-90 mm descent shortfall -

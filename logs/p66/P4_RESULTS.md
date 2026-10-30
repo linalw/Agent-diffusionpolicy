@@ -62,6 +62,12 @@ answer "does the lowered lift clip the output rail **at the crossing**".
   contains the window contains the crossing sample). It is also the reason the
   window field exists: on a *climbing* leg the binding point is the footprint's
   **inner edge**, not the centreline (`+0` at `t333` vs `+5` at `t340`).
+* **Names, so a grep lands in the right place**: the **printed** fields are
+  `clr=` (the crossing), `clr_win=` (the window minimum) and `clr_min=` (the leg
+  minimum). `clr_x` / `clr_win_i` are the **code's internal** variables for the
+  crossing sample and its tick - they do not appear on the row. (The AGENTS §2
+  P66 paragraph's "(a)" says `clr_x` for the printed crossing field; the row
+  spells it `clr=`.)
 * `scripts/236_p66_lift_selftest.py` (`e3d3bc31`) pins all three fields in the
   row, the two constants, the "no read" set, the gating, the latch, the window
   reduction, and the formatter's spellings (incl. `n/a` and the exact
