@@ -2786,11 +2786,13 @@ found but the adoption gate is unmeasured): the left's 25 deg carry rotation is 
 `grasp_lift` target height above the shipped `belt_top + 0.28` base, `+0.08`
 restoring the shipped 0.36) moves the left's `drift_end` **23.8-25.7 -> 9.7 ->
 0.7 deg** over the ladder 0.36/0.28/0.20 and the left's placed count
-**1/34 -> 1/18 -> 10/16** (phase 2, 3 seeds interleaved); the N=4 rung batch
-(`logs/p66/p3/`, seeds 77/101/202/303 - the fifth was lost to a server restart)
-reads **control 0/19 (0 %), C24 11/23 (47.8 %), C20 11/19 (57.9 %)** with
-`drift_end` **25.2 / 3.4 / 0.7**, so **the rung is flat** (C24 vs C20 Fisher
-p ~ 0.75) and **0.24 is the economical one** (Fisher ~3e-4 against the control).
+**1/34 -> 1/18 -> 10/16** (phase 2, 3 seeds interleaved); the **N=5** rung batch
+(`logs/p66/p3/`, seeds 77/101/202/303/404) reads **control 0/25 (0 %), C24 12/30
+(40.0 %), C20 14/25 (56.0 %)** with `drift_end` **25.1 / 3.4 / 0.7** - the control
+is **0 in every seed** and each treatment beats it in **5/5** (the run-level sign
+test's ceiling, p = 0.031; Fisher ~2e-4 for C24), while **the two rungs are not
+separable** (40.0 vs 56.0 %, Fisher p ~ 0.28) so **0.24 is the economical one**
+(same class, half the place cost) and 0.20 reads the deeper mediator.
 **The mechanism is settled by three independent instruments**: the mediator has
 zero overlap; the achieved position error collapses with it (`res_end` 80.6 ->
 33.7 -> 13.3 mm); and the **static sweep** (`logs/p66/STATION_SWEEP.md`) predicts
@@ -2806,7 +2808,7 @@ leg's **minimum** (including the on-belt phase: `@rail -18..-24`, `@belt -3..-7`
 `@obelt -182`), **not the crossing**, so the reading that could block it does not
 exist yet; (b) the **right-arm no-op** is structural (`resolve_lift_dz` emits only
 `{"left": dz}`; `lift_dz_for` returns `None` for the right) but reads
-**100 / 97.3 / 85.4 %** across the arms, i.e. inside its own branch spread
+**100 / 97.8 / 88.0 %** across the arms, i.e. inside its own branch spread
 (88.9-95.8 % in phase 2) rather than cleanly flat. **The residual is not the
 lift**: the remaining left `cnp`s are **place-leg** losses (P66 phase 2: 6/16 at
 0.20, `clean_slip` 833-931 mm, tilt 75-91 deg, `tool_y +0.65..+0.70`) - the place

@@ -1,9 +1,8 @@
-# P66 phase 3 results — the N=5 rung batch, completed to N=4 (the fifth seed was lost to a server restart)
+# P66 phase 3 results — the N=5 rung batch (completed)
 
-Written by the orchestrator after the phase-3 lane was cancelled by a server
-restart. The batch is intact in `logs/p66/p3/`; **seed 404's runs were interrupted**
-(`control_404.log` is partial, no `C24_404`/`C20_404`), so the table is **N=4**
-(seeds 77/101/202/303 x 3 arms), which the doc states rather than rounding up.
+Written by the orchestrator. The phase-3 lane was cancelled by a server restart
+mid-batch; the batch itself resumed and **completed**, so this is the **N=5**
+table (seeds 77/101/202/303/404 x 3 arms).
 
 Registration: `logs/p66/PREREG_P2.md` (the rung test the gate asked for, plus the
 place-transit `clr` gate). Dispositions: `logs/p66/DEVIATION.md`.
@@ -12,14 +11,17 @@ place-transit `clr` gate). Dispositions: `logs/p66/DEVIATION.md`.
 
 | arm | lift end | `drift_end` median [range] | **left placed** | right placed |
 |---|---|---|---|---|
-| **control (shipped)** | 0.36 | **25.2 [20.3-62.1]** | **0/19 (0 %)** | 41/41 (100 %) |
-| **C24** | 0.24 | **3.4 [2.0-23.8]** | **11/23 (47.8 %)** | 36/37 (97.3 %) |
-| **C20** | 0.20 | **0.7 [0.6-24.9]** | **11/19 (57.9 %)** | 35/41 (85.4 %) |
+| **control (shipped)** | 0.36 | **25.1 [20.3-62.1]** | **0/25 (0 %)** | 50/50 (100 %) |
+| **C24** | 0.24 | **3.4 [2.0-23.8]** | **12/30 (40.0 %)** | 44/45 (97.8 %) |
+| **C20** | 0.20 | **0.7 [0.6-24.9]** | **14/25 (56.0 %)** | 44/50 (88.0 %) |
 
-**The class effect is large and one-sided**: 0/19 vs 11/23 (Fisher **p ~ 3e-4**) and
-0/19 vs 11/19 (p ~ 1e-4). **The rung reads flat**: C24 and C20 are
-indistinguishable (47.8 vs 57.9 %, Fisher p ~ 0.75), so **0.24 is the economical
-rung** - the lowered lift costs the place leg less and buys the same class.
+**The class effect is large and one-sided, and it is run-level unanimous**: the
+control places **0/25** and is **0 in every one of the 5 seeds**; C24 places
+**12/30** (Fisher vs the control **p ~ 2e-4**) and C20 **14/25** (p ~ 2e-5), each
+beating the control in **5/5 seeds** (the run-level sign test's ceiling, p = 0.031).
+**The rungs are not separable at this n** (40.0 vs 56.0 %, Fisher p ~ 0.28), so
+**0.24 remains the economical rung** - it buys the same class at half the place
+cost - while 0.20 reads the deeper mediator (0.7 vs 3.4 deg).
 
 The mediator is monotone with the rung and **zero-overlap at the bottom**: 25.2 ->
 3.4 -> 0.7 deg, the same dose-response the static sweep predicted
