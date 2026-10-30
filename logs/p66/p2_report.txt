@@ -1,0 +1,128 @@
+# P66 phase 2 - the lift-end-height ladder (logs/p66/PREREG_P2.md)
+# cell: C1_77.log, C1_101.log, C1_202.log, L1_77.log, L1_101.log, L1_202.log, L2_77.log, L2_101.log, L2_202.log, C2_77.log, C2_101.log, C2_202.log
+# prediction (drift_end): C 24.6 +- 3 / L1 8 +- 3 / L2 3 +- 2 deg
+
+== P1 - the instrument and the arm identity ==
+  C1: episodes=45 [carry]=84 left_lift_legs=13 drift_end live=13/13 place(n/a)=42/42 [attitude] left_lift=13 lift_dz rows=0/3
+  L1: episodes=45 [carry]=84 left_lift_legs=17 drift_end live=17/17 place(n/a)=41/41 [attitude] left_lift=17 lift_dz rows=3/3
+  L2: episodes=45 [carry]=86 left_lift_legs=16 drift_end live=16/16 place(n/a)=43/43 [attitude] left_lift=16 lift_dz rows=3/3
+  C2: episodes=45 [carry]=87 left_lift_legs=21 drift_end live=21/21 place(n/a)=43/43 [attitude] left_lift=21 lift_dz rows=0/3
+  C1 rung: unset (the shipped 0.36 m) -> lift_dz rows=0 (want 0)
+  L1 rung: FRUIT_LIFT_DZ=+0.00 -> rows=3/3 dz=[0.0] armed_target_m=[1.45] (want 0.28 m above the floor's belt_top)
+  L2 rung: FRUIT_LIFT_DZ=-0.08 -> rows=3/3 dz=[-0.08] armed_target_m=[1.37] (want 0.20 m above the floor's belt_top)
+  C2 rung: unset (the shipped 0.36 m) -> lift_dz rows=0 (want 0)
+  diag actuation: 341 rows, guard/events/holds/reseat/relief != 0 on 0 (want 0)
+
+== P2 - the mediator: drift_end per arm (left grasp_lift legs) ==
+  C1 (lift end 0.36 m, n=13): drift_end=23.8 [21.5-28.0]  vs predicted 24.6 +- 3.0 -> INSIDE (median |delta| 0.8)
+       hold_drift (the leg's max, for reference)=23.8 [21.5-28.0]
+       placed n= 1 drift_end=23.3
+       cnp    n=12 drift_end=24.5 [21.5-28.0]
+  L1 (lift end 0.28 m, n=17): drift_end=9.7 [7.0-14.0]  vs predicted 8.0 +- 3.0 -> INSIDE (median |delta| 1.7)
+       hold_drift (the leg's max, for reference)=9.7 [7.0-14.0]
+       placed n= 1 drift_end=13.2
+       cnp    n=16 drift_end=9.7 [7.0-14.0]
+  L2 (lift end 0.20 m, n=16): drift_end=0.7 [0.6-6.0]  vs predicted 3.0 +- 2.0 -> OUTSIDE (median |delta| 2.3)
+       hold_drift (the leg's max, for reference)=0.8 [0.6-6.0]
+       placed n=10 drift_end=0.7 [0.6-1.1]
+       cnp    n= 6 drift_end=1.1 [0.6-6.0]
+  C2 (lift end 0.36 m, n=21): drift_end=25.7 [20.8-28.3]  vs predicted 24.6 +- 3.0 -> INSIDE (median |delta| 1.1)
+       hold_drift (the leg's max, for reference)=25.7 [20.8-28.3]
+       cnp    n=20 drift_end=25.9 [22.5-28.3]
+  ladder monotonicity (medians): C1 23.8 -> L1 9.7 -> L2 0.7 -> C2 25.7
+
+== P2b - the end position error (res_end / dz_end) and the margins ==
+  C1: res_end=80.6 [63.8-110.4] mm  dz_end=4.4 [-5.4-15.5] mm  q_margin=0.000 [-0.000-0.001]  q_cmd_margin=0.000 [0.000-0.000]
+  L1: res_end=33.7 [28.3-73.4] mm  dz_end=-16.7 [-20.6--13.3] mm  q_margin=-0.000 [-0.000-0.002]  q_cmd_margin=0.000 [0.000-0.000]
+  L2: res_end=13.3 [9.8-42.8] mm  dz_end=-13.2 [-16.6--9.4] mm  q_margin=0.002 [-0.000-0.009]  q_cmd_margin=0.000 [0.000-0.000]
+  C2: res_end=79.2 [62.4-94.2] mm  dz_end=9.2 [-3.0-13.8] mm  q_margin=0.000 [-0.000--0.000]  q_cmd_margin=0.000 [0.000-0.000]
+
+== P3 - the manipulation check: the achieved belt projection ==
+  |tool_y| of the [attitude] tool_axis; share = |tool_y| / sin(tilt)
+  C1: proj=0.322 [0.102-0.369] deg=|26.6 [24.2-31.9]| share=0.72 [0.23-0.80]  vs registered band [0.32,0.37] +- 0.03 -> OUTSIDE
+  L1: proj=0.162 [0.127-0.204] deg=|13.1 [10.1-17.0]| share=0.74 [0.56-0.81]  vs registered band [0.32,0.37] +- 0.03 -> OUTSIDE
+  L2: proj=0.002 [0.001-0.006] deg=|0.7 [0.6-0.9]| share=0.16 [0.04-0.52]  vs registered band [0.32,0.37] +- 0.03 -> OUTSIDE
+  C2: proj=0.327 [0.230-0.384] deg=|29.5 [24.2-32.2]| share=0.71 [0.45-0.77]  vs registered band [0.32,0.37] +- 0.03 -> OUTSIDE
+  (the band is the shipped lift's own value; projection = sin(tilt) * share, so the
+   registered 'unchanged' clause and the registered drift prediction cannot both hold -
+   see P2_RESULTS section 3: the surviving invariant is the SHARE.)
+
+== P4 - the class (the primary endpoint) ==
+  C1: left n=13 placed= 1 cnp=12 never-held= 0 | right n=32 placed=29 cnp= 0 never-held= 3 | pooled placed 30/45
+  L1: left n=18 placed= 1 cnp=16 never-held= 1 | right n=27 placed=24 cnp= 0 never-held= 3 | pooled placed 25/45
+  L2: left n=16 placed=10 cnp= 6 never-held= 0 | right n=29 placed=26 cnp= 1 never-held= 2 | pooled placed 36/45
+  C2: left n=21 placed= 0 cnp=20 never-held= 1 | right n=24 placed=23 cnp= 0 never-held= 1 | pooled placed 23/45
+
+  C1 per seed: 77: 8/15, 101: 9/15, 202: 13/15
+  L1 per seed: 77: 7/15, 101: 9/15, 202: 9/15
+  L2 per seed: 77: 8/15, 101: 13/15, 202: 15/15
+  C2 per seed: 77: 10/15, 101: 7/15, 202: 6/15
+
+  the left's escaping legs (clean_slip_max > 50 mm) - onset_row / slip / class:
+    C1: escapes=11/13  onset_row=84.0 [3.0-122.0]  clean_slip_max=278.7 [102.8-326.9] mm
+    L1: escapes=2/17  onset_row=27.0 [5.0-49.0]  clean_slip_max=190.4 [166.9-213.9] mm
+    L2: escapes=0/16  onset_row=n/a  clean_slip_max=n/a mm
+    C2: escapes=20/21  onset_row=96.0 [47.0-130.0]  clean_slip_max=261.9 [120.6-302.4] mm
+
+  s/attempt (log wall / 15, and the episode's own sim ticks):
+    C1: wall=35.9 [34.1-36.1] s/pick (log durations [541.8, 539.0, 512.2])  ticks/pick=15.0 [10.4-16.7] s sim
+    L1: wall=35.6 [34.6-36.3] s/pick (log durations [534.6, 544.8, 519.1])  ticks/pick=15.1 [9.9-16.5] s sim
+    L2: wall=34.3 [33.3-34.9] s/pick (log durations [514.3, 523.4, 499.3])  ticks/pick=14.7 [9.2-16.2] s sim
+    C2: wall=33.8 [33.7-35.3] s/pick (log durations [529.7, 505.6, 506.6])  ticks/pick=15.3 [7.2-16.7] s sim
+
+== P4b - the right arm (the unarmed one; the registered secondary) ==
+  C1: right lift_legs=29 drift_end=26.0 [20.8-37.2] (hold_drift max 26.0 [20.8-37.2]) proj=0.250 [0.001-0.380] | placed=29/32 cnp=0 never-held=3
+  L1: right lift_legs=26 drift_end=25.9 [3.9-54.9] (hold_drift max 25.9 [10.9-59.4]) proj=0.246 [0.001-0.439] | placed=24/27 cnp=0 never-held=3
+  L2: right lift_legs=27 drift_end=26.2 [19.5-33.9] (hold_drift max 26.2 [19.5-33.9]) proj=0.225 [0.000-0.379] | placed=26/29 cnp=1 never-held=2
+  C2: right lift_legs=23 drift_end=26.2 [20.1-41.5] (hold_drift max 26.2 [20.1-41.5]) proj=0.249 [0.000-0.363] | placed=23/24 cnp=0 never-held=1
+
+== P5 - falsifiers ==
+  F1 (drift_end inside every band): FIRED - ['L2']
+  F2 (slip/onset move but the cnp count does not): see P4 - report only, no automatic verdict
+  F3 (C1 vs the C1 control's note keys): new=none
+  F3 (L1 vs the C1 control's note keys): new=['fruit did not follow the gripper']
+  F3 (L2 vs the C1 control's note keys): new=none
+  F3 (C2 vs the C1 control's note keys): new=['fruit did not follow the gripper']
+  F4 (the place leg loses payloads): FIRED - [('C1', 77, 5), ('C1', 77, 8), ('L1', 77, 10), ('L2', 77, 1)]
+
+== checks ==
+  PASS: C1: 45 episodes (45)
+  PASS: C1: every left grasp_lift row carries drift_end (13/13)
+  PASS: C1: every left grasp_lift row carries res_end/dz_end
+  PASS: C1: every place row prints drift_end=n/a (42 rows)
+  PASS: C1: every drift_end is a finite angle in [0, 180] deg
+  PASS: C1: logs/p60/p3/report.py parse_leg reads all 84 rows
+  PASS: C1: the diag did not actuate (guard/events/holds/reseat/relief all 0)
+  PASS: C1: the control prints no [grasp] lift_dz row
+  PASS: L1: 45 episodes (45)
+  PASS: L1: every left grasp_lift row carries drift_end (17/17)
+  PASS: L1: every left grasp_lift row carries res_end/dz_end
+  PASS: L1: every place row prints drift_end=n/a (41 rows)
+  PASS: L1: every drift_end is a finite angle in [0, 180] deg
+  PASS: L1: logs/p60/p3/report.py parse_leg reads all 84 rows
+  PASS: L1: the diag did not actuate (guard/events/holds/reseat/relief all 0)
+  PASS: L1: every run prints its own rung (dz=+0.00)
+  PASS: L1: the printed armed target is the rung's height (1.45 m)
+  PASS: L2: 45 episodes (45)
+  PASS: L2: every left grasp_lift row carries drift_end (16/16)
+  PASS: L2: every left grasp_lift row carries res_end/dz_end
+  PASS: L2: every place row prints drift_end=n/a (43 rows)
+  PASS: L2: every drift_end is a finite angle in [0, 180] deg
+  PASS: L2: logs/p60/p3/report.py parse_leg reads all 86 rows
+  PASS: L2: the diag did not actuate (guard/events/holds/reseat/relief all 0)
+  PASS: L2: every run prints its own rung (dz=-0.08)
+  PASS: L2: the printed armed target is the rung's height (1.37 m)
+  PASS: C2: 45 episodes (45)
+  PASS: C2: every left grasp_lift row carries drift_end (21/21)
+  PASS: C2: every left grasp_lift row carries res_end/dz_end
+  PASS: C2: every place row prints drift_end=n/a (43 rows)
+  PASS: C2: every drift_end is a finite angle in [0, 180] deg
+  PASS: C2: logs/p60/p3/report.py parse_leg reads all 87 rows
+  PASS: C2: the diag did not actuate (guard/events/holds/reseat/relief all 0)
+  PASS: C2: the control prints no [grasp] lift_dz row
+  PASS: C1: the [attitude] rows exist for the projection check (13)
+  PASS: L1: the [attitude] rows exist for the projection check (17)
+  PASS: L2: the [attitude] rows exist for the projection check (16)
+  PASS: C2: the [attitude] rows exist for the projection check (21)
+  PASS: tree md5s identical before/after the batch
+  PASS: 0 failure(s)

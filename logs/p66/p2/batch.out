@@ -1,0 +1,79 @@
+# P66 phase 2 header (2026-10-30 09:30:26)
+# tree: 2331733e180a96a692ca8772d6df683e7199404c + the uncommitted P66 lift-end instrument + FRUIT_LIFT_DZ
+61da390a85fa209496b54477a8255d23  checkpoints/moe_v13s/policy_best.pt
+7edf432487bdffbcdaba61c55786f36f  src/fruit_sorting/tasks.py
+5398eaffc8bcded73c38b59081cfb45c  src/fruit_sorting/rl_env.py
+c7461d4104cf2c5f6c5a2daab80fbf32  src/fruit_sorting/fruits.py
+27e3d64a3e8b8dab415eed222dfee023  src/fruit_sorting/scene.py
+9384ff4fa3e62b359bf10d2123ef41fa  src/fruit_sorting/control.py
+1ad5af0e63cfc93ffbd58b2f206978f6  src/fruit_sorting/meshes.py
+b09d3cb2389a9f4884a748dbb3461b24  src/fruit_sorting/policy/trigger.py
+379ac7064fd49df8417e94dbf6ed2616  src/fruit_sorting/policy/runtime.py
+42ab4fb78a91ea9d85554e6d90e1da80  configs/arm_parks.json
+d81c6f1ccad96254264b62331968716b  configs/waypoints.json
+0ea08ebb6bdbd1e78a2402ca263ded01  configs/waypoints_oriented.json
+8a399626c12a4e9205ce10e630b94ce9  configs/motion_reference.json
+2246f83c336f7fd6e1f8fe43d0ee8644  configs/motion_reference_twoline.json
+abd2b5f1e1adb3c225c19a9c3fdd0d91  scripts/110_rl_rollout.py
+c27c49b89cca5753c0f551be138c6379  scripts/113_rl_report.py
+1a5adba65df4e4e825ad798287de12eb  scripts/154_claim_run.sh
+2556b49a489cdbdaa6c25d068378d32e  scripts/236_p66_lift_selftest.py
+03385044794e3ef1f8dff58393e9f0f3  scripts/selfcheck.sh
+bb9eb94815a9e41221b39210ee5ce72e  logs/p66/p2/run_p2.sh
+a92e18fc223a7fc7cc2b8aa9b62baafa  logs/p66/PREREG_P2.md
+# scenario: FRUIT_SUPPLY_SCATTER=1 FRUIT_SUPPLY_PATCH=1 FRUIT_SUPPLY_GRADES=A:0.375,B:0.375,C:0.25 FRUIT_POLICY_TRIGGER=arrival FRUIT_POLICY_TRIGGER_LEAD=0.9 FRUIT_DYNAMIC_PICK=1 FRUIT_POLICY_SEED=11 FRUIT_BED_DIAG=1 FRUIT_CARRY_DIAG=1 FRUIT_CARRY_ATTITUDE=1
+# shipped profile: no supply env (FRUIT_FEED_CADENCE / FRUIT_SUPPLY_BAND_INTERLOCK / FRUIT_DIRECT_FEED all unset -> on for direct)
+# arms: control=FRUIT_LIFT_DZ unset (lift end belt_top+0.36); L1==0.00 (0.28); L2==-0.08 (0.20)
+# interleave: control -> L1 -> L2 -> control, per seed, one claim per run
+# NOT set : FRUIT_DIRECT_CONTINUOUS, FRUIT_POLICY_TRIGGER_ACQ, FRUIT_ARM_PARK, FRUIT_GRASP_LEFT_TOPDOWN, FRUIT_GRASP_LEFT_PRECOMP, FRUIT_CARRY_HOLD_QUAT, FRUIT_SEAT_DIAG, FRUIT_ACQ_DIAG, FRUIT_MOTION_REPORT, FRUIT_IK_MAX_STEP, FRUIT_IK_RATE
+# harness : HEADLESS=1 FRUIT_CAMERA_RES=240,424 FRUIT_SIZE_FILTER= FRUIT_NO_ATTACH=1 FRUIT_NO_SLEEP=1 ; ckpt=checkpoints/moe_v13s/policy_best.pt ; --episodes 15 --seeds <seed> --out logs/p66/p2/rollouts
+# SEEDS=77 101 202 policy_seed=11
+  [p2] C1 seed 77 start 09:30:26
+[claim_run] claimed the simulator 09:30:47
+[claim_run] exit=0 09:40:07 log=logs/p66/p2/C1_77.log
+  [p2] C1 seed 77 exit=0 09:40:07
+  [p2] L1 seed 77 start 09:40:07
+[claim_run] claimed the simulator 09:40:27
+[claim_run] exit=0 09:49:41 log=logs/p66/p2/L1_77.log
+  [p2] L1 seed 77 exit=0 09:49:41
+  [p2] L2 seed 77 start 09:49:41
+[claim_run] claimed the simulator 09:50:01
+[claim_run] exit=0 09:58:54 log=logs/p66/p2/L2_77.log
+  [p2] L2 seed 77 exit=0 09:58:54
+  [p2] C2 seed 77 start 09:58:54
+[claim_run] claimed the simulator 09:59:14
+[claim_run] exit=0 10:08:23 log=logs/p66/p2/C2_77.log
+  [p2] C2 seed 77 exit=0 10:08:23
+  [p2] C1 seed 101 start 10:08:23
+[claim_run] claimed the simulator 10:08:43
+[claim_run] exit=0 10:18:01 log=logs/p66/p2/C1_101.log
+  [p2] C1 seed 101 exit=0 10:18:01
+  [p2] L1 seed 101 start 10:18:01
+[claim_run] claimed the simulator 10:18:21
+[claim_run] exit=0 10:27:45 log=logs/p66/p2/L1_101.log
+  [p2] L1 seed 101 exit=0 10:27:45
+  [p2] L2 seed 101 start 10:27:45
+[claim_run] claimed the simulator 10:28:05
+[claim_run] exit=0 10:37:08 log=logs/p66/p2/L2_101.log
+  [p2] L2 seed 101 exit=0 10:37:08
+  [p2] C2 seed 101 start 10:37:08
+[claim_run] claimed the simulator 10:37:28
+[claim_run] exit=0 10:46:12 log=logs/p66/p2/C2_101.log
+  [p2] C2 seed 101 exit=0 10:46:12
+  [p2] C1 seed 202 start 10:46:12
+[claim_run] claimed the simulator 10:46:32
+[claim_run] exit=0 10:55:23 log=logs/p66/p2/C1_202.log
+  [p2] C1 seed 202 exit=0 10:55:23
+  [p2] L1 seed 202 start 10:55:23
+[claim_run] claimed the simulator 10:55:43
+[claim_run] exit=0 11:04:41 log=logs/p66/p2/L1_202.log
+  [p2] L1 seed 202 exit=0 11:04:41
+  [p2] L2 seed 202 start 11:04:41
+[claim_run] claimed the simulator 11:05:01
+[claim_run] exit=0 11:13:39 log=logs/p66/p2/L2_202.log
+  [p2] L2 seed 202 exit=0 11:13:39
+  [p2] C2 seed 202 start 11:13:40
+[claim_run] claimed the simulator 11:14:00
+[claim_run] exit=0 11:22:45 log=logs/p66/p2/C2_202.log
+  [p2] C2 seed 202 exit=0 11:22:45
+[p2] batch end 2026-10-30 11:22:45 fail=0

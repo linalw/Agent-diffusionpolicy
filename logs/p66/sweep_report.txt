@@ -1,0 +1,77 @@
+P66 phase 1a - the left station feasibility sweep (T0 vs the shipped control)
+grid: 5 x 5 x 3 depths x 2 attitudes = 150 cells
+criterion: qerr <= 2.0 deg AND margin >= 0.05 rad AND pad >= 2.0 mm
+|dot(C0, waypoints_oriented.left)| = 1.000000000
+wall: sweep 458.7 s over 150 cells (3.06 s/cell), total 469.2 s
+LIFT_HEIGHT=0.16 m -> depths 0.090, 0.250, 0.360 m above the belt top (0.090 grip, 0.250 grip+LIFT_HEIGHT, 0.360 shipped jaw_target('grasp_lift') = belt_top + 0.28 + FRUIT_OPENARM_TRANSFER_LIFT 0.08)
+
+== the question, per attitude and depth ==
+T0  z=0.090: pass 0/25  best margin +0.010 rad @j3 (x=0.320 y=-0.05)  qerr range 0.63..22.56 deg  pad range +56.1..+66.1 mm  solved 17/25
+T0  z=0.250: pass 0/25  best margin +0.000 rad @j7 (x=0.398 y=+0.10)  qerr range 6.03..26.18 deg  pad range +208.7..+218.8 mm  solved 0/25
+T0  z=0.360: pass 0/25  best margin +0.000 rad @j7 (x=0.320 y=+0.05)  qerr range 24.27..60.00 deg  pad range +328.8..+487.2 mm  solved 0/25
+C0  z=0.090: pass 12/25  best margin +0.677 rad @j2 (x=0.274 y=+0.10)  qerr range 0.70..8.66 deg  pad range +17.2..+44.2 mm  solved 10/25
+C0  z=0.250: pass 9/25  best margin +0.508 rad @j2 (x=0.398 y=+0.10)  qerr range 0.62..12.03 deg  pad range +136.5..+198.7 mm  solved 15/25
+C0  z=0.360: pass 10/25  best margin +0.451 rad @j2 (x=0.398 y=+0.10)  qerr range 0.64..22.78 deg  pad range +267.9..+363.8 mm  solved 16/25
+
+== T0: every cell (the answer to 'is there any station point') ==
+T0 pass 0/75 | margin range -0.000..+0.010 rad | qerr range 0.63..60.00 deg | pad range +56.1..+487.2 mm
+T0 BEST POINT: x=0.320 y=-0.05 z=0.090 res=   5.9mm qerr=  1.27deg margin=+0.010rad@j3 pad=  +64.7mm jaw_z=+0.0007 proj_ach=+0.0136 pass=0
+T0 cells with margin >= 0.05 rad: 0/75; >= 0.02 rad: 0/75; >= 0.01 rad: 1/75
+C0 pass 31/75 | C0 BEST POINT: x=0.274 y=+0.10 z=0.090 res=   6.0mm qerr=  0.70deg margin=+0.677rad@j2 pad=  +39.6mm jaw_z=+0.0104 proj_ach=+0.5120 pass=1
+
+== does y help? (T0, per y; all x and the grip depth 0.090) ==
+y=-0.10: margin -0.000..+0.003 rad  qerr 1.00..22.56 deg  solved 1/5  joints [2, 3]
+y=-0.05: margin +0.002..+0.010 rad  qerr 0.64..20.02 deg  solved 4/5  joints [2, 3]
+y=+0.00: margin -0.000..+0.008 rad  qerr 0.63..16.98 deg  solved 4/5  joints [3, 6]
+y=+0.05: margin -0.000..+0.008 rad  qerr 0.66..15.48 deg  solved 4/5  joints [3, 6]
+y=+0.10: margin -0.000..+0.007 rad  qerr 0.75..18.51 deg  solved 4/5  joints [3, 6]
+
+== delivered-band coverage (P60: x 0.188-0.398, p50 0.274) ==
+T0  z=0.090 x-columns covered 0/5  0.188:[-] 0.240:[-] 0.274:[-] 0.320:[-] 0.398:[-]
+T0  z=0.250 x-columns covered 0/5  0.188:[-] 0.240:[-] 0.274:[-] 0.320:[-] 0.398:[-]
+T0  z=0.360 x-columns covered 0/5  0.188:[-] 0.240:[-] 0.274:[-] 0.320:[-] 0.398:[-]
+C0  z=0.090 x-columns covered 5/5  0.188:[+0.05,+0.10] 0.240:[+0.00,+0.05,+0.10] 0.274:[+0.00,+0.05,+0.10] 0.320:[+0.00,+0.05,+0.10] 0.398:[+0.00]
+C0  z=0.250 x-columns covered 3/5  0.188:[-] 0.240:[-] 0.274:[+0.05,+0.10] 0.320:[+0.00,+0.05,+0.10] 0.398:[-0.05,+0.00,+0.05,+0.10]
+C0  z=0.360 x-columns covered 4/5  0.188:[-] 0.240:[+0.00] 0.274:[+0.00,+0.05,+0.10] 0.320:[+0.00,+0.05,+0.10] 0.398:[+0.00,+0.05,+0.10]
+
+== the lift's end pose (z = 0.360 = the shipped jaw_target('grasp_lift')) ==
+T0 : qerr 24.27..60.00 deg, res 45.8..203.9 mm, achieved belt projection +0.000..+0.635 (commanded +0.000), pass 0/25
+C0 : qerr 0.64..22.78 deg, res 5.9..82.9 mm, achieved belt projection +0.352..+0.538 (commanded +0.513), pass 10/25
+
+== robustness A: T0 at the grip depth with RESTARTS=4 (P62's seed check, over y) ==
+  x=0.274 y=-0.10 z=0.090 res=  23.6mm qerr=  4.41deg margin=+0.002rad@j2 pad=  +56.2mm jaw_z=-0.0384 proj_ach=-0.0528 pass=0
+  x=0.320 y=-0.10 z=0.090 res=  61.2mm qerr=  7.81deg margin=-0.000rad@j2 pad=  +56.1mm jaw_z=-0.0340 proj_ach=-0.0680 pass=0
+  x=0.274 y=+0.00 z=0.090 res=   6.0mm qerr=  0.77deg margin=+0.007rad@j3 pad=  +64.6mm jaw_z=+0.0043 proj_ach=+0.0114 pass=0
+  x=0.320 y=+0.00 z=0.090 res=   5.9mm qerr=  0.79deg margin=+0.008rad@j3 pad=  +63.9mm jaw_z=+0.0047 proj_ach=+0.0117 pass=0
+  x=0.274 y=+0.10 z=0.090 res=   6.0mm qerr=  0.79deg margin=+0.007rad@j3 pad=  +62.8mm jaw_z=+0.0096 proj_ach=+0.0092 pass=0
+  x=0.320 y=+0.10 z=0.090 res=   6.0mm qerr=  0.75deg margin=+0.007rad@j3 pad=  +62.1mm jaw_z=+0.0094 proj_ach=+0.0086 pass=0
+  best margin +0.008 rad @j3 (x=0.320 y=+0.00); pass 0/6
+  wall 47.0 s over 6 cells
+
+== robustness B: solved FROM the grasp_lift seed, RESTARTS=3, z=0.360 ==
+  x=0.188 y=+0.00 z=0.360 res= 119.1mm qerr= 37.26deg margin=+0.000rad@j7 pad= +365.5mm jaw_z=-0.4310 proj_ach=+0.4021 pass=0
+  x=0.274 y=+0.00 z=0.360 res=  90.9mm qerr= 27.63deg margin=-0.000rad@j5 pad= +334.4mm jaw_z=-0.3545 proj_ach=+0.2688 pass=0
+  x=0.320 y=+0.00 z=0.360 res=  79.8mm qerr= 22.90deg margin=-0.000rad@j3 pad= +315.2mm jaw_z=-0.3795 proj_ach=+0.0000 pass=0
+  x=0.398 y=+0.00 z=0.360 res=  45.8mm qerr= 47.73deg margin=-0.000rad@j5 pad= +343.5mm jaw_z=+0.0420 proj_ach=+0.5478 pass=0
+  x=0.188 y=+0.00 z=0.360 res=  18.1mm qerr=  6.36deg margin=+0.001rad@j4 pad= +312.2mm jaw_z=-0.0443 proj_ach=+0.4901 pass=0
+  x=0.274 y=+0.00 z=0.360 res=   6.0mm qerr=  0.90deg margin=+0.189rad@j2 pad= +319.3mm jaw_z=+0.0174 proj_ach=+0.5143 pass=1
+  x=0.320 y=+0.00 z=0.360 res=   5.9mm qerr=  0.86deg margin=+0.097rad@j2 pad= +319.6mm jaw_z=+0.0125 proj_ach=+0.5120 pass=1
+  x=0.398 y=+0.00 z=0.360 res=   5.8mm qerr=  0.85deg margin=+0.098rad@j2 pad= +319.4mm jaw_z=+0.0062 proj_ach=+0.5116 pass=1
+  T0 : pass 0/4 | best margin -0.000 rad @j5 | qerr 22.90..47.73 deg
+  C0 : pass 3/4 | best margin +0.189 rad @j2 | qerr 0.85..6.36 deg
+  wall 68.4 s over 8 cells
+
+== structural checks ==
+  [PASS] 150 main cells
+  [PASS] both attitudes at every depth
+  [PASS] T0 passes nothing
+  [PASS] T0's best margin is < 0.05 rad
+  [PASS] T0's best margin is >= 0.005 rad (it is not a zero-margin artefact)
+  [PASS] every T0 cell at the grip depth solves <= 6 mm inside the reach band (x <= 0.320, y=0)
+  [PASS] no T0 cell at the lift depth solves
+  [PASS] C0 covers the whole band at the grip depth
+  [PASS] the control IS the file quaternion
+  [PASS] pad is never the binding clause (T0 min pad > 2 mm)
+  [PASS] restarts do not lift T0 above 0.01 rad
+  [PASS] from the lift seed T0 still passes nothing
+  12/12

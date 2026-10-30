@@ -1,0 +1,857 @@
+[run.sh] soft nofile=1048576 -> /home/ubuntu/linalw/App/isaacsim/_build/linux-x86_64/release/python.sh scripts/110_rl_rollout.py --ckpt checkpoints/moe_v13s/policy_best.pt --presentation direct --episodes 15 --seeds 77 --out logs/p66/p3/rollouts
+Warning: running in conda env, please deactivate before executing this script
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+E0000 00:00:1793334102.757589  287915 descriptor_database.cc:633] File already exists in database: grpc/health/v1/health.proto
+W0000 00:00:1793334102.757613  287915 message.cc:301] Protobuf GeneratedMessageFactory: File is already registered: grpc/health/v1/health.proto
+2026-10-30T04:21:42Z [Info] [carb] Logging to file: /home/ubuntu/.cache/packman/chk/kit-kernel/110.1.2+production.manylinux_2_35_x86_64.release/logs/Kit/Isaac-Sim Python/6.0/kit_20261030_122142.log
+[0.055s] [ext: omni.assets.plugins-0.0.0] startup
+[0.056s] [ext: omni.blobkey-1.1.2] startup
+[0.056s] [ext: omni.kit.async_engine-0.0.3] startup
+[0.391s] [ext: omni.client.lib-1.1.1] startup
+[0.400s] [ext: omni.client-1.3.0] startup
+[0.403s] [ext: omni.protobuf.lib-1.0.0] startup
+[0.404s] [ext: omni.grpc.lib-1.0.0] startup
+[0.407s] [ext: omni.metrics.core-0.0.3] startup
+[0.407s] [ext: omni.datastore-0.0.0] startup
+[0.408s] [ext: omni.gpu_foundation.shadercache.vulkan-1.0.0] startup
+[0.411s] [ext: omni.hsscclient-1.1.4] startup
+[0.412s] [ext: omni.stats-1.0.1] startup
+[0.412s] [ext: omni.ujitso.default-1.0.0] startup
+[0.423s] [ext: omni.gpu_foundation-0.0.0] startup
+[0.620s] [ext: carb.windowing.plugins-1.0.1] startup
+[0.621s] [ext: omni.kit.renderer.init-1.0.1] startup
+
+|---------------------------------------------------------------------------------------------|
+| Driver Version: 580.105.08    | Graphics API: Vulkan
+|=============================================================================================|
+| GPU | Name                             | Active | LDA | GPU Memory | Vendor-ID | LUID       |
+|     |                                  |        |     |            | Device-ID | UUID       |
+|     |                                  |        |     |            | Bus-ID    |            |
+|---------------------------------------------------------------------------------------------|
+| 0   | NVIDIA GeForce RTX 5090          | Yes: 0 |     | 32853   MB | 10de      | 0          |
+|     |                                  |        |     |            | 2b85      | 493bfb57.. |
+|     |                                  |        |     |            | 1         |            |
+|=============================================================================================|
+| OS: 22.04.5 LTS (Jammy Jellyfish) ubuntu, Version: 22.04.5, Kernel: 6.8.0-138-generic
+| XServer Vendor: The X.Org Foundation, XServer Version: 12101004 (1.21.1.4)
+| Processor: Intel(R) Core(TM) i9-14900KF
+| Cores: 24 | Logical Cores: 32
+|---------------------------------------------------------------------------------------------|
+| Total Memory (MB): 128641 | Free Memory: 114543
+| Total Page/Swap (MB): 2047 | Free Page/Swap: 2046
+|---------------------------------------------------------------------------------------------|
+2026-10-30T04:21:43Z [1,179ms] [Warning] [omni.rtx] CPU performance profile is set to powersave. This profile sets the CPU to the lowest frequency reducing performance.
+2026-10-30T04:21:43Z [1,190ms] [Warning] [omni.rtx] IOMMU is enabled.
+[1.337s] [ext: omni.kit.pipapi-0.0.0] startup
+[1.338s] [ext: omni.kit.pip_archive-0.0.0] startup
+[1.338s] [ext: isaacsim.pip.newton-0.6.1] startup
+[1.338s] [ext: omni.pip.compute-1.9.2] startup
+[1.339s] [ext: omni.isaac.core_archive-5.3.1] startup
+[1.339s] [ext: omni.kit.telemetry-0.5.2] startup
+[1.361s] [ext: omni.kit.loop-isaac-1.6.0] startup
+[1.363s] [ext: omni.kit.test-2.0.7] startup
+[1.422s] [ext: omni.materialx.libs-1.0.9] startup
+[1.428s] [ext: omni.gpucompute.plugins-0.0.0] startup
+[1.428s] [ext: omni.usd.config-1.0.7] startup
+[1.431s] [ext: omni.usd.libs-1.0.3] startup
+[1.497s] [ext: omni.iray.libs-0.0.1] startup
+[1.501s] [ext: omni.mdl-57.0.3] startup
+[1.553s] [ext: omni.mdl.neuraylib-0.2.20] startup
+[1.554s] [ext: omni.kit.usd.mdl-1.1.9] startup
+[1.638s] [ext: omni.appwindow-1.2.2] startup
+[1.640s] [ext: omni.kit.renderer.core-1.2.2] startup
+[1.668s] [ext: omni.kit.renderer.capture-2.0.1] startup
+[1.669s] [ext: omni.kit.renderer.imgui-2.0.6] startup
+[1.707s] [ext: omni.ui-3.2.0] startup
+[1.715s] [ext: omni.kit.mainwindow-1.0.3] startup
+[1.716s] [ext: carb.audio-0.1.0] startup
+[1.719s] [ext: omni.uiaudio-1.0.0] startup
+[1.719s] [ext: omni.kit.uiapp-0.0.0] startup
+[1.719s] [ext: omni.usd.schema.metrics.assembler-110.1.0] startup
+[1.722s] [ext: omni.usd.schema.audio-0.0.1] startup
+[1.724s] [ext: omni.usd_resolver-1.0.0] startup
+[1.726s] [ext: omni.usd.core-1.8.3] startup
+[1.729s] [ext: omni.metropolis.schema-0.0.3] startup
+[1.729s] [ext: isaacsim.anim.robot.schema-0.1.1] startup
+[1.730s] [ext: omni.usd.schema.anim-0.0.1] startup
+[1.745s] [ext: omni.usd.schema.geospatial-0.0.1] startup
+[1.747s] [ext: omni.usd.schema.omnigraph-1.0.1] startup
+[1.751s] [ext: omni.usd.schema.semantics-0.0.0] startup
+[1.753s] [ext: omni.activity.core-1.0.3] startup
+[1.754s] [ext: omni.cubric-0.1.0] startup
+[1.754s] [ext: omni.graph.exec-0.9.6] startup
+[1.754s] [ext: omni.hydra.scene_delegate-0.3.5] startup
+[1.757s] [ext: usdrt.scenegraph-7.6.3] startup
+[1.780s] [ext: omni.hydra.usdrt_delegate-7.5.2] startup
+[1.784s] [ext: omni.inspect-1.0.2] startup
+[1.786s] [ext: omni.kit.actions.core-1.0.0] startup
+[1.787s] [ext: omni.kit.audiodeviceenum-1.0.2] startup
+[1.788s] [ext: omni.kit.commands-1.5.0] startup
+[1.791s] [ext: omni.kit.exec.core-0.13.5] startup
+[1.792s] [ext: omni.kit.usd_undo-0.1.8] startup
+[1.793s] [ext: omni.kit.window.popup_dialog-2.0.25] startup
+[1.796s] [ext: omni.kit.widget.nucleus_connector-2.3.1] startup
+[1.798s] [ext: omni.timeline-1.1.0] startup
+[1.799s] [ext: omni.usd-1.16.0] startup
+[1.831s] [ext: omni.graph.core-3.1.2] startup
+[1.834s] [ext: omni.kit.notification_manager-1.0.11] startup
+[1.836s] [ext: isaacsim.core.deprecation_manager-0.4.2] startup
+[1.836s] [ext: isaacsim.replicator.agent.schema-0.1.1] startup
+[1.837s] [ext: isaacsim.robot.schema-6.3.7] startup
+[1.840s] [ext: isaacsim.robot_motion.schema-0.2.1] startup
+[1.841s] [ext: omni.anim.behavior.schema-110.1.0] startup
+[1.844s] [ext: omni.anim.graph.schema-110.1.1] startup
+[1.848s] [ext: omni.anim.navigation.schema-110.1.0] startup
+[1.851s] [ext: omni.behavior.tree.schema-110.1.0] startup
+[1.851s] [ext: omni.isaac.ml_archive-3.3.0] startup
+[1.851s] [ext: omni.kit.asset_converter-6.0.1] startup
+[1.860s] [ext: omni.pip.cloud-1.5.4] startup
+[1.862s] [ext: omni.usd.schema.flow-110.0.0] startup
+[1.863s] [ext: omni.usd.schema.mujoco-1.1.1] startup
+[1.863s] [ext: omni.usd.schema.newton-1.2.1] startup
+[1.863s] [ext: omni.usd.schema.omni_lens_distortion-1.0.0] startup
+[1.864s] [ext: omni.usd.schema.omni_projectors-1.0.0] startup
+[1.864s] [ext: omni.usd.schema.omni_sensors-0.0.0] startup
+[1.871s] [ext: omni.usd.schema.omniscripting-1.0.1] startup
+[1.874s] [ext: omni.usd.schema.physical_lighting-0.1.0] startup
+[1.877s] [ext: omni.usd.schema.physx-110.1.13] startup
+[1.902s] [ext: omni.usd.schema.render_settings.rtx-1.0.2] startup
+[1.905s] [ext: omni.usd.schema.usd_particle_field-1.0.0] startup
+[1.906s] [ext: isaacsim.core.version-2.1.1] startup
+[1.906s] [ext: omni.kit.menu.core-1.2.0] startup
+[1.907s] [ext: omni.kit.menu.utils-2.2.4] startup
+[1.913s] [ext: isaacsim.app.about-2.3.1] startup
+[1.917s] [ext: isaacsim.asset.transformer-1.2.5] startup
+[1.920s] [ext: omni.scene.optimizer.core-110.1.0] startup
+[1.964s] [ext: isaacsim.asset.importer.utils-1.8.1] startup
+[1.966s] [ext: omni.convexdecomposition-110.1.13] startup
+[1.968s] [ext: omni.physics-110.1.13] startup
+[1.970s] [ext: omni.physx.gpu-110.1.13] startup
+[1.970s] [ext: omni.physx.foundation-110.1.13] startup
+[1.972s] [ext: omni.usdphysics-110.1.13] startup
+[1.973s] [ext: omni.physx.cooking-110.1.13] startup
+[1.975s] [ext: omni.physx-110.1.13] startup
+[1.983s] [ext: omni.physics.physx-110.1.13] startup
+[1.985s] [ext: isaacsim.asset.exporter.urdf-2.0.5] startup
+[1.992s] [ext: omni.kit.clipboard-1.1.1] startup
+[1.993s] [ext: omni.kit.usd.layers-2.6.1] startup
+[1.999s] [ext: omni.kit.widget.context_menu-1.4.0] startup
+[2.000s] [ext: omni.kit.context_menu-1.9.0] startup
+[2.002s] [ext: omni.kit.helper.file_utils-0.1.10] startup
+[2.003s] [ext: omni.kit.widget.nucleus_info-2.0.2] startup
+[2.003s] [ext: omni.kit.search_core-1.0.8] startup
+[2.004s] [ext: omni.kit.widget.path_field-2.0.13] startup
+[2.004s] [ext: omni.kit.widget.browser_bar-2.0.10] startup
+[2.005s] [ext: omni.kit.widget.filebrowser-2.13.4] startup
+[2.009s] [ext: omni.kit.widget.options_menu-1.1.6] startup
+[2.011s] [ext: omni.kit.widget.options_button-1.0.3] startup
+[2.012s] [ext: omni.kit.widget.search_delegate-1.0.9] startup
+[2.013s] [ext: omni.ui.scene-2.0.3] startup
+[2.017s] [ext: omni.kit.window.filepicker-2.15.5] startup
+[2.028s] [ext: omni.kit.window.file_importer-1.1.21] startup
+[2.030s] [ext: omni.kit.material.library-3.1.2] startup
+[2.034s] [ext: isaacsim.asset.transformer.rules-1.7.10] startup
+[2.044s] [ext: omni.usdex.libs-2.2.2] startup
+[2.051s] [ext: isaacsim.asset.importer.mjcf-3.10.1] startup
+[2.052s] [ext: isaacsim.asset.importer.urdf-3.11.2] startup
+[2.056s] [ext: omni.kit.primitive.mesh-1.1.0] startup
+[2.058s] [ext: omni.kit.stage_template.core-1.1.22] startup
+[2.059s] [ext: omni.kit.stage_templates-2.0.2] startup
+[2.060s] [ext: omni.usd.metrics.assembler-110.1.2] startup
+[2.062s] [ext: omni.warp.core-1.13.0] startup
+[2.281s] [ext: isaacsim.core.experimental.utils-0.17.2] startup
+[2.282s] [ext: omni.physics.stageupdate-110.1.13] startup
+[2.284s] [ext: omni.physics.tensors-110.1.13] startup
+[2.288s] [ext: omni.physx.tensors-110.1.13] startup
+[2.291s] [ext: isaacsim.core.simulation_manager-1.15.6] startup
+[2.303s] [ext: isaacsim.storage.native-1.9.3] startup
+[2.304s] [ext: omni.usd.metrics.assembler.physics-110.1.13] startup
+[2.305s] [ext: isaacsim.core.utils-4.1.7] startup
+[2.307s] [ext: isaacsim.core.prims-0.11.7] startup
+[3.377s] [ext: isaacsim.core.api-5.2.13] startup
+[3.384s] [ext: isaacsim.core.cloner-1.7.3] startup
+[3.385s] [ext: isaacsim.test.docstring-1.3.2] startup
+[3.388s] [ext: isaacsim.core.experimental.prims-1.8.9] startup
+[3.410s] [ext: isaacsim.core.experimental.primdata-0.3.2] startup
+[3.412s] [ext: omni.graph.tools-1.81.0] startup
+[3.434s] [ext: omni.graph-1.142.5] startup
+[3.472s] [ext: isaacsim.core.experimental.actuators-0.1.2] startup
+[3.488s] [ext: isaacsim.core.experimental.materials-0.7.1] startup
+[3.491s] [ext: isaacsim.core.experimental.objects-0.8.1] startup
+[3.556s] [ext: omni.hydra.engine.stats-1.0.5] startup
+[3.558s] [ext: omni.hydra.rtx.shadercache.vulkan-1.0.0] startup
+[3.559s] [ext: omni.index.libs-387500.4413.0] startup
+[3.559s] [ext: omni.index-1.0.1] startup
+[3.560s] [ext: omni.ujitso.client-0.0.0] startup
+[3.560s] [ext: omni.usd.schema.playback-1.0.0] startup
+[3.563s] [ext: omni.volume-0.5.2] startup
+[3.567s] [ext: omni.hydra.rtx-1.0.4] startup
+2026-10-30T04:21:45Z [3,551ms] [Warning] [omni.log] Source: omni.hydra was already registered.
+[3.593s] [ext: omni.kit.hydra_texture-1.6.0] startup
+[3.597s] [ext: omni.kit.raycast.query-1.2.0] startup
+[3.601s] [ext: omni.kit.viewport.legacy_gizmos-1.0.24] startup
+[3.603s] [ext: omni.kit.viewport.registry-104.0.6] startup
+[3.604s] [ext: omni.kit.viewport.scene_camera_model-1.0.7] startup
+[3.608s] [ext: omni.kit.widget.viewport-109.2.0] startup
+[3.612s] [ext: omni.kit.window.drop_support-1.0.8] startup
+[3.612s] [ext: omni.kit.viewport.window-109.0.2] startup
+[3.629s] [ext: omni.kit.viewport.utility-2.0.1] startup
+[3.630s] [ext: isaacsim.core.rendering_manager-0.4.3] startup
+[3.653s] [ext: omni.graph.action_core-1.1.9] startup
+[3.655s] [ext: omni.graph.action_nodes_core-2.11.0] startup
+[3.657s] [ext: omni.graph.action_nodes-2.11.0] startup
+[3.681s] [ext: omni.graph.action-2.10.2] startup
+[3.682s] [ext: omni.graph.image.core-0.6.1] startup
+[3.683s] [ext: omni.graph.image.nodes-1.3.1] startup
+[3.683s] [ext: omni.graph.nodes_core-2.11.0] startup
+[3.688s] [ext: omni.graph.nodes-2.12.0] startup
+[3.693s] [ext: omni.kit.hotkeys.core-1.3.12] startup
+[3.694s] [ext: omni.kit.property.adapter.core-1.1.1] startup
+[3.697s] [ext: omni.kit.property.adapter.usd-1.0.5] startup
+[3.698s] [ext: omni.kit.widget.filter-1.1.5] startup
+[3.699s] [ext: omni.kit.widget.highlight_label-1.0.3] startup
+[3.700s] [ext: omni.kit.widget.searchfield-1.1.8] startup
+[3.701s] [ext: omni.kit.window.file_exporter-1.0.36] startup
+[3.702s] [ext: omni.kit.widget.stage-4.4.0] startup
+[3.711s] [ext: omni.kit.window.content_browser_registry-0.0.6] startup
+[3.712s] [ext: omni.kit.window.file-2.0.10] startup
+[3.715s] [ext: omni.kit.window.content_browser-3.1.8] startup
+[3.725s] [ext: omni.kit.window.property-1.15.1] startup
+[3.736s] [ext: omni.kit.property.usd-4.9.4] startup
+[3.746s] [ext: omni.graph.scriptnode-2.10.2] startup
+[3.756s] [ext: omni.kit.widget.searchable_combobox-1.0.7] startup
+[3.757s] [ext: omni.kit.widget.settings-2.0.0] startup
+[3.759s] [ext: omni.kit.window.preferences-1.8.3] startup
+[3.764s] [ext: omni.kit.viewport.menubar.core-107.2.2] startup
+[3.780s] [ext: omni.syntheticdata-0.6.15] startup
+[3.809s] [ext: omni.replicator.nv-1.1.1] startup
+[3.814s] [ext: omni.videoencoding-0.2.1] startup
+[3.816s] [ext: omni.replicator.core-1.13.27] startup
+2026-10-30T04:21:46Z [3,795ms] [Warning] [pxr.Semantics] pxr.Semantics is deprecated - please use Semantics instead
+2026-10-30T04:21:46Z [3,871ms] [Warning] [omni.replicator.core.scripts.extension] No material configuration file, adding configuration to material settings directly.
+[4.065s] [ext: isaacsim.core.nodes-5.10.5] startup
+[4.099s] [ext: isaacsim.core.throttling-2.3.5] startup
+[4.100s] [ext: omni.kit.manipulator.viewport-107.0.1] startup
+[4.101s] [ext: omni.graph.visualization.nodes-2.1.4] startup
+[4.116s] [ext: omni.kit.window.extensions-1.5.10] startup
+[4.121s] [ext: isaacsim.gui.components-1.8.5] startup
+[4.126s] [ext: isaacsim.robot.surface_gripper-3.6.2] startup
+[4.138s] [ext: isaacsim.robot.manipulators-3.4.4] startup
+[4.149s] [ext: isaacsim.robot_motion.lula-4.1.3] startup
+[4.155s] [ext: isaacsim.robot_motion.motion_generation-8.2.9] startup
+[4.161s] [ext: isaacsim.cortex.framework-1.0.18] startup
+[4.162s] [ext: isaacsim.cortex.behaviors-2.0.17] startup
+[4.164s] [ext: isaacsim.examples.base-1.3.2] startup
+[4.165s] [ext: omni.kit.widget.zoombar-1.0.7] startup
+[4.166s] [ext: omni.kit.browser.core-2.3.18] startup
+[4.170s] [ext: omni.kit.browser.folder.core-2.0.2] startup
+[4.174s] [ext: omni.kit.widget.stage_icons-1.0.8] startup
+[4.175s] [ext: omni.kit.window.stage-2.6.1] startup
+[4.178s] [ext: omni.kit.menu.stage-1.2.7] startup
+[4.179s] [ext: omni.kit.usd.collect-3.0.6] startup
+[4.182s] [ext: omni.kit.widget.prompt-1.0.7] startup
+[4.183s] [ext: omni.kit.tool.collect-2.2.19] startup
+[4.185s] [ext: isaacsim.examples.browser-0.3.2] startup
+[4.187s] [ext: omni.kit.search.files-1.0.4] startup
+[4.188s] [ext: omni.kit.widget.calendar-1.0.9] startup
+[4.189s] [ext: omni.kit.widget.extended_searchfield-1.0.31] startup
+[4.199s] [ext: omni.simready.content.browser-0.3.7] startup
+[4.298s] [ext: isaacsim.gui.content_browser-0.4.3] startup
+[4.300s] [ext: omni.kit.selection-0.1.6] startup
+[4.302s] [ext: isaacsim.gui.menu-2.10.5] startup
+[4.310s] [ext: isaacsim.gui.property-1.6.4] startup
+[4.317s] [ext: omni.kit.viewport.actions-110.0.0] startup
+[4.321s] [ext: omni.kit.viewport.menubar.display-107.1.3] startup
+[4.323s] [ext: isaacsim.gui.sensors.icon-2.2.1] startup
+[4.326s] [ext: omni.behavior.scripting.core-110.1.0] startup
+[4.328s] [ext: isaacsim.replicator.behavior-1.5.4] startup
+[4.329s] [ext: isaacsim.replicator.experimental.domain_randomization-1.2.5] startup
+[4.346s] [ext: isaacsim.replicator.domain_randomization-1.2.2] startup
+[4.424s] [ext: isaacsim.replicator.writers-1.5.4] startup
+[4.449s] [ext: isaacsim.robot.experimental.wheeled_robots-0.2.11] startup
+[4.472s] [ext: isaacsim.robot.policy.examples-5.2.12] startup
+[4.493s] [ext: isaacsim.robot.wheeled_robots-5.2.4] startup
+[4.497s] [ext: isaacsim.robot.wheeled_robots.nodes-0.1.5] startup
+[4.517s] [ext: isaacsim.robot_motion.experimental.motion_generation-6.1.3] startup
+[4.529s] [ext: isaacsim.robot_motion.cumotion-1.3.1] startup
+[4.543s] [ext: omni.kit.numpy.common-0.1.3] startup
+[4.544s] [ext: isaacsim.sensors.camera-1.7.9] startup
+[4.578s] [ext: isaacsim.sensors.experimental.physics-3.0.2] startup
+[4.586s] [ext: omni.sensors.net-1.0.1] startup
+[4.588s] [ext: omni.sensors.nv.common-3.0.0] startup
+[4.598s] [ext: omni.sensors.nv.materials-2.0.0] startup
+[4.601s] [ext: omni.sensors.nv.acoustic-3.0.0] startup
+[4.603s] [ext: omni.sensors.nv.ids-2.0.1] startup
+[4.605s] [ext: omni.sensors.nv.lidar-3.0.0] startup
+[4.609s] [ext: omni.sensors.nv.radar-3.0.0] startup
+[4.611s] [ext: isaacsim.sensors.experimental.rtx-1.4.6] startup
+[4.886s] [ext: isaacsim.sensors.physics.nodes-1.5.3] startup
+[4.893s] [ext: isaacsim.util.debug_draw-3.2.3] startup
+[4.898s] [ext: isaacsim.sensors.physx-2.5.5] startup
+[4.906s] [ext: isaacsim.sensors.rtx-15.17.1] startup
+[4.916s] [ext: isaacsim.simulation_app-2.18.4] startup
+[4.917s] [ext: omni.anim.curve.core-1.6.0] startup
+[4.927s] [ext: omni.graph.ui_nodes-2.11.1] startup
+[4.959s] [ext: omni.hydra.scene_api-0.1.3] startup
+[4.963s] [ext: omni.kit.manipulator.camera-110.0.0] startup
+[4.967s] [ext: omni.kit.manipulator.selector-1.1.4] startup
+[4.968s] [ext: omni.kit.manipulator.transform-107.0.0] startup
+[4.972s] [ext: omni.kit.widget.toolbar-2.1.0] startup
+[4.978s] [ext: omni.kit.manipulator.tool.snap-1.5.14] startup
+[4.982s] [ext: omni.kit.viewport.manipulator.transform-107.0.4] startup
+[4.983s] [ext: omni.kit.manipulator.prim.core-108.0.2] startup
+[4.989s] [ext: omni.kit.manipulator.prim.usd-107.0.3] startup
+[4.990s] [ext: omni.kit.manipulator.prim-108.0.0] startup
+[4.990s] [ext: omni.kit.manipulator.selection-109.0.1] startup
+[4.991s] [ext: omni.kit.menu.create-2.0.2] startup
+[4.993s] [ext: omni.kit.property.audio-1.0.16] startup
+[4.996s] [ext: omni.kit.property.camera-1.0.14] startup
+[4.997s] [ext: omni.kit.property.geometry-2.1.2] startup
+[5.000s] [ext: omni.kit.property.light-1.0.14] startup
+2026-10-30T04:21:47Z [4,995ms] [Warning] [omni.usd] Encountered USD Warnings but USD Diagnostics are currently muted. To view USD Warnings, please set the '/persistent/app/usd/muteUsdDiagnostics' setting to false in Preferences page.
+[5.032s] [ext: omni.kit.property.material-1.14.6] startup
+[5.037s] [ext: omni.kit.property.render-1.2.2] startup
+[5.039s] [ext: omni.kit.property.transform-1.6.9] startup
+[5.042s] [ext: omni.kit.property.bundle-1.5.1] startup
+[5.043s] [ext: omni.kit.usdz_export-1.1.0] startup
+[5.046s] [ext: omni.kit.tool.asset_importer-6.0.1] startup
+[5.051s] [ext: omni.kit.ui.actions-1.0.5] startup
+[5.053s] [ext: omni.kit.viewport.menubar.camera-107.0.10] startup
+[5.058s] [ext: omni.kit.viewport.menubar.lighting-107.3.2] startup
+[5.060s] [ext: omni.kit.viewport.menubar.render-110.0.0] startup
+[5.064s] [ext: omni.kit.viewport.menubar.settings-110.0.1] startup
+[5.069s] [ext: omni.kit.window.console-1.1.9] startup
+[5.074s] [ext: omni.kit.window.status_bar-0.1.11] startup
+[5.078s] [ext: omni.kit.window.toolbar-3.0.3] startup
+[5.081s] [ext: omni.ocio-0.1.1] startup
+[5.082s] [ext: omni.physx.commands-110.1.13] startup
+[5.086s] [ext: omni.replicator.replicator_yaml-2.0.12] startup
+[5.097s] [ext: omni.rtx.window.settings-0.8.0] startup
+[5.101s] [ext: omni.rtx.settings.core-0.7.1] startup
+[5.104s] [ext: omni.usd.metrics.assembler.ui-110.1.1] startup
+[5.111s] [ext: semantics.schema.editor-2.0.2] startup
+[5.113s] [ext: semantics.schema.property-2.0.2] startup
+[5.115s] [ext: omni.kit.menu.common-2.0.2] startup
+[5.116s] [ext: isaacsim.exp.base-6.0.1] startup
+[5.116s] [ext: isaacsim.exp.base.python-6.0.1] startup
+[5.118s] Simulation App Starting
+2026-10-30T04:21:48Z [6,170ms] [Warning] [omni.rtx] DLSS increasing input dimensions: Render resolution of (320, 240) is below minimal input resolution of 300.
+[6.283s] Simulation App Startup Complete
+[6.293s] app ready
+Starting kit application with the following args:  ['/home/ubuntu/linalw/App/isaacsim/_build/linux-x86_64/release/exts/isaacsim.simulation_app/isaacsim/simulation_app/simulation_app.py', '/home/ubuntu/linalw/App/isaacsim/_build/linux-x86_64/release/apps/isaacsim.exp.base.python.kit', '--/app/tokens/exe-path=/home/ubuntu/linalw/App/isaacsim/_build/linux-x86_64/release/kit', '--/persistent/app/viewport/displayOptions=3094', '--/rtx/materialDb/syncLoads=True', '--/rtx/hydra/materialSyncLoads=True', '--/omni/kit/plugin/syncUsdLoads=True', '--/app/renderer/resolution/width=640', '--/app/renderer/resolution/height=480', '--/app/window/width=1440', '--/app/window/height=900', '--/renderer/multiGpu/enabled=True', '--/app/fastShutdown=True', '--/app/installSignalHandlers=0', '--ext-folder', '/home/ubuntu/linalw/App/isaacsim/_build/linux-x86_64/release/exts', '--ext-folder', '/home/ubuntu/linalw/App/isaacsim/_build/linux-x86_64/release/apps', '--/physics/cudaDevice=0', '--/plugins/carb.tasking.plugin/threadCount=32', '--/plugins/omni.tbb.globalcontrol/maxThreadCount=32', '--portable', '--no-window', '--/app/window/hideUi=1']
+Passing the following args to the base kit application:  ['--ckpt', 'checkpoints/moe_v13s/policy_best.pt', '--presentation', 'direct', '--episodes', '15', '--seeds', '77', '--out', 'logs/p66/p3/rollouts']
+Warp 1.13.0 initialized:
+   CUDA Toolkit 12.9, Driver 13.0
+   Devices:
+     "cpu"      : "x86_64"
+     "cuda:0"   : "NVIDIA GeForce RTX 5090" (31 GiB, sm_120, mempool enabled)
+   Kernel cache:
+     /home/ubuntu/.cache/warp/1.13.0
+[fruit] [rl] rollout: presentation=direct ablate=none episodes=15 seeds=[77] ckpt=checkpoints/moe_v13s/policy_best.pt execute_steps=4 ddim=16 dagger=None reward=RewardConfig(success_value=1.0, time_penalty=0.2, horizon=1500) rtc=off schedule=EXP delay=0 horizon=10 guidance=1 vlash=off track=off event=off a2c2=off trigger=arrival trigger_present=off
+[fruit] stage created (meters, Z-up)
+[fruit] building part: environment
+[fruit] studio lighting + floor + backdrop added
+[fruit] building part: pedestal
+[fruit] pedestal top at z=0.79 m
+[fruit] building part: robot
+[fruit] robot referenced -> local flattened asset (/home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/assets/openarm_flat/openarm_flat_deinst.usda)
+[fruit] building part: conveyor
+[fruit] cleated belt built: 0 cleats, spacing 0.18 m, surface velocity -0.12 m/s, mu=0.9
+[fruit] belt surface z=1.170
+[fruit] building part: output_belts
+[fruit] discharge P: chute 55 deg from (1.200,1.344) to (1.361,1.120) m (sheet 0.28 m long, 0.24 m wide); tray 0.60x0.34 m centre x=1.65 on the 0.90 m stand, floor z=0.92, rim z=1.06, 3.0 s settle dwell
+[fruit] output belt P (0): 1.10x0.25x0.05 m at (0.65,+0.55), top 1.35, surface +0.12 m/s along +X | underside clears main belt top by 0.130 m, the tallest fruit (pear body, 84 mm) by 0.046 m (nominal; 0.040 m at the 1.07 instance scale, 90 mm) and its 32 mm stem bound by 0.014 m; inner edge clears the pedestal by 0.075 m; legs: -X pair x=[0.0255,0.0755] clear the main belt frame rail's outer face (x=0.0855) by +0.0100 m and the slab edge (x=0.110) by +0.0345 m; +X pair x=[1.1000,1.1500] leaves the discharge chute (x>=1.200) +0.0500 m clear
+[fruit] discharge N: chute 55 deg from (1.200,1.344) to (1.361,1.120) m (sheet 0.28 m long, 0.24 m wide); tray 0.60x0.34 m centre x=1.65 on the 0.90 m stand, floor z=0.92, rim z=1.06, 3.0 s settle dwell
+[fruit] output belt N (1): 1.10x0.25x0.05 m at (0.65,-0.55), top 1.35, surface +0.12 m/s along +X | underside clears main belt top by 0.130 m, the tallest fruit (pear body, 84 mm) by 0.046 m (nominal; 0.040 m at the 1.07 instance scale, 90 mm) and its 32 mm stem bound by 0.014 m; inner edge clears the pedestal by 0.075 m; legs: -X pair x=[0.0255,0.0755] clear the main belt frame rail's outer face (x=0.0855) by +0.0100 m and the slab edge (x=0.110) by +0.0345 m; +X pair x=[1.1000,1.1500] leaves the discharge chute (x>=1.200) +0.0500 m clear
+[fruit] output conveyors added (2 x raised belts along +X)
+[fruit] building part: camera
+[fruit] head camera at (0.05, 0.0, 2.0) looking at (0.34, 0.22, 1.1), res=(240, 424), annotators=['rgb', 'distance_to_image_plane', 'instance_id_segmentation']
+[fruit] finger colliders: 4 mesh prims enabled
+[fruit] finger links bound with mu=2.0, compliant k=30000 N/m c=80 Ns/m (friction combine override) | finger drive profile=finger_damp02 k=100000 N/m c=2000 Ns/m maxForce=10.0/0.0N (joint1/joint2; joint2 is a drive-less mimic)
+[fruit] scene built (parts=['environment', 'pedestal', 'robot', 'conveyor', 'output_belts', 'camera'])
+[fruit] attached 4 tactile contact sensors and 4 per-finger force readers
+[fruit] physics substeps = 1 (dt = 0.00833s)
+[fruit] setting tensor backend = torch
+[fruit] switching physics engine = physx
+[fruit] setting physics dt = 0.00833s
+[fruit] play(commit=True)
+2026-10-30T04:21:57Z [15,531ms] [Error] [omni.physx.plugin] PhysicsUSD: Parse collision - triangle mesh collision (approximation None/MeshSimplification) cannot be a part of a dynamic body, falling back to convexHull approximation: /World/OpenArm/openarm_left_right_finger/visuals/openarm_left_right_finger_visual/mesh.For dynamic collision please use approximations : convex hull, convex decomposition, box, sphere or SDF approximation.
+2026-10-30T04:21:57Z [15,547ms] [Error] [omni.physx.plugin] PhysicsUSD: Parse collision - triangle mesh collision (approximation None/MeshSimplification) cannot be a part of a dynamic body, falling back to convexHull approximation: /World/OpenArm/openarm_left_left_finger/visuals/openarm_left_left_finger_visual/mesh.For dynamic collision please use approximations : convex hull, convex decomposition, box, sphere or SDF approximation.
+2026-10-30T04:21:57Z [15,567ms] [Error] [omni.physx.plugin] PhysicsUSD: Parse collision - triangle mesh collision (approximation None/MeshSimplification) cannot be a part of a dynamic body, falling back to convexHull approximation: /World/OpenArm/openarm_right_right_finger/visuals/openarm_right_right_finger_visual/mesh.For dynamic collision please use approximations : convex hull, convex decomposition, box, sphere or SDF approximation.
+2026-10-30T04:21:57Z [15,583ms] [Error] [omni.physx.plugin] PhysicsUSD: Parse collision - triangle mesh collision (approximation None/MeshSimplification) cannot be a part of a dynamic body, falling back to convexHull approximation: /World/OpenArm/openarm_right_left_finger/visuals/openarm_right_left_finger_visual/mesh.For dynamic collision please use approximations : convex hull, convex decomposition, box, sphere or SDF approximation.
+[fruit] warm-up 60 steps
+[fruit] simulation running, dt=0.00833s, joints=22
+[fruit] refreshed 4 contact-force readers
+[fruit] [supply] scatter pool=16 seed=77 gaps=0.10-0.35 m lateral x=0.20-0.36 m stream=on target=0 wave=off grades=A:0.375,B:0.375,C:0.25 classes=strawberry:2,lychee:2,kiwi:2,tomato:2,apple:2,orange:2,peach:2,pear:2 patch=on slice=0.14-0.22 pair=0.60 sep=0.085-0.12
+[fruit] created 16 fruit rigid bodies
+[fruit] [rl] loaded checkpoints/moe_v13s/policy_best.pt (obs_horizon=2, action_horizon=16)
+[fruit] [rl] manifest -> logs/p66/p3/rollouts/direct_none_seed77/manifest.json (reward={"success_value": 1.0, "time_penalty": 0.2, "horizon": 1500})
+[fruit] [rl] env ready: presentation=direct ablate=none dagger=off park=back(default) camera=240,424 tasks_md5=40e196e8
+[fruit] [rl] trigger=arrival lead=0.90s lateral=0.160 reach=0.20 finger=0.040 frame=station encoder=on present=off acq=on(speed=0.20,margin=0.60,cap=4.50,reach_margin=0.05)
+[fruit] [supply] direct profile: cadence=on(default) band=on(4)(default) feed=on(default) target_from=0.35(default)
+[fruit] [grasp] lift_dz: dz=+0.0800(explicit) m above the 0.28 base -> 1.5300 m above floor (belt_top 1.1700 + 0.3600) | arm=left leg=grasp_lift (right=shipped, place legs=shipped) | default dz=-0.0800 = 0.2000 m; restore the shipped 1.5300 m with FRUIT_LIFT_DZ=+0.0800 (the hand's own add)
+[fruit] [rl] manifest: logs/p66/p3/rollouts/direct_none_seed77/manifest.json
+[fruit] [rl] run wall start 1793334120.518
+[fruit] [bed-sel] attempt 0 t=1.88 live=4 on_belt=4 admitted=3 window=2 pick=pear@0.559 pump_next=2.98 lag=-1.10 rebased=0 dropped=0.0s skipped=2 refused=0 placed=0
+[fruit] [bed-sel]   lychee     along=+0.046 x=0.360 z=1.185 r=0.017 grade=C -> below window along=0.046 floor=0.180
+[fruit] [bed-sel]   pear       along=+0.559 x=0.228 z=1.200 r=0.031 grade=A -> chosen
+[fruit] [bed-sel]   kiwi       along=+0.403 x=0.302 z=1.200 r=0.032 grade=C -> usable
+[fruit] [bed-sel]   lychee     along=+0.189 x=0.241 z=1.183 r=0.015 grade=B -> below catch floor 0.189 < 0.399
+[fruit] [rl] episode 0: pear grade=A d=6.1cm bin=0 arm=left y=+0.559 presentation=direct
+[fruit] [task]   openarm fingertips 55 mm from the fruit; closing anyway
+[fruit] [task]   carry grasp_lift: stored pad centre 147 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist left grasp_lift tick 0: cmd_centre=[0.197, -0.1015, 1.3332] offset=[-0.0492, -0.0008, -0.0055] |offset|=49 mm jaw_target=[0.1962, -0.1507, 1.3277] jaw=[0.19699999690055847, -0.1014999970793724, 1.3331999778747559] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist left grasp_lift tick 1: cmd_centre=[0.197, -0.1015, 1.3332] offset=[-0.0492, -0.0008, -0.0055] |offset|=49 mm jaw_target=[0.1962, -0.1507, 1.3277] jaw=[0.1972000002861023, -0.10159999877214432, 1.3329999446868896] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist left grasp_lift tick 2: cmd_centre=[0.197, -0.1015, 1.3332] offset=[-0.0492, -0.0008, -0.0055] |offset|=49 mm jaw_target=[0.1962, -0.1507, 1.3277] jaw=[0.19769999384880066, -0.10159999877214432, 1.332800030708313] coherent=False hand_is_jaw=True
+[fruit] [carry] left grasp_lift: ticks=152/152 clean_slip_max=296.1mm slip_xyz=(-87.5,17.3,282.4)mm hold_drift=29.6deg drift_end=29.6 res_end=135.5mm dz_end=+21.8mm clr=-15mm@belt q_margin=-0.000@j2/t112 q_cmd_margin=0.000@j2 q_step_max=0.0300 jaw_z=+0.0084/0.2212 drift_on=44 in-hand_vmax=2.213 onset_row=113 force@onset=9.07N sep@onset=72.3mm contacts@onset=2 min_contacts=0 force_min=0.00N loss_row=124 sep@loss=61.7mm sep_end=50.5mm guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=60.1mm open_max=0.0mm
+[fruit] [attitude] left grasp_lift: tilt=28.4deg from world -Z, tool_axis=(+0.3328,-0.3405,-0.8794) (TCP col 2, world; jaws close along X, travel along -Y), tip=+80.5mm (base 80.5 + delta +0.0), pad_fruit_dz=+376.2mm (world +Z, + = pads above the fruit centre), lip=-305.4mm (vertical tip drop +70.8mm at this tilt, minus dz), corner drop 16.65*sin(tilt)=+7.9mm / 30.5*sin(tilt)=+14.5mm
+[fruit] [task]   carry place0: stored pad centre 112 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist left place0 tick 0: cmd_centre=[0.3026, -0.1059, 1.5675] offset=[-0.0492, -0.0008, -0.0055] |offset|=49 mm jaw_target=[0.3018, -0.1551, 1.5619] jaw=[0.3025999963283539, -0.10589999705553055, 1.5674999952316284] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist left place0 tick 1: cmd_centre=[0.3026, -0.1059, 1.5675] offset=[-0.0492, -0.0008, -0.0055] |offset|=49 mm jaw_target=[0.3018, -0.1551, 1.5619] jaw=[0.30300000309944153, -0.10589999705553055, 1.5672999620437622] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist left place0 tick 2: cmd_centre=[0.3026, -0.1059, 1.5675] offset=[-0.0492, -0.0008, -0.0055] |offset|=49 mm jaw_target=[0.3018, -0.1551, 1.5619] jaw=[0.3037000000476837, -0.10599999874830246, 1.5670000314712524] coherent=False hand_is_jaw=True
+[fruit] [carry] left place0: ticks=408/408 clean_slip_max=1194.5mm slip_xyz=(53.5,973.7,-689.8)mm hold_drift=0.0deg(no-hold) drift_end=n/a res_end=23.9mm dz_end=-19.7mm clr=-217mm@rail q_margin=-0.000@j5/t64 q_cmd_margin=0.000@j2 q_step_max=0.0300 jaw_z=-0.2567/0.4341 drift_on=None in-hand_vmax=0.450 onset_row=3 force@onset=0.00N sep@onset=48.7mm contacts@onset=0 min_contacts=0 force_min=0.00N loss_row=3 sep@loss=48.7mm sep_end=45.1mm guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=49.7mm open_max=0.0mm
+[fruit] [attitude] left place0: tilt=74.8deg from world -Z, tool_axis=(+0.7158,+0.6474,-0.2616) (TCP col 2, world; jaws close along X, travel along -Y), tip=+80.5mm (base 80.5 + delta +0.0), pad_fruit_dz=+305.5mm (world +Z, + = pads above the fruit centre), lip=-284.4mm (vertical tip drop +21.1mm at this tilt, minus dz), corner drop 16.65*sin(tilt)=+16.1mm / 30.5*sin(tilt)=+29.4mm
+[fruit] [feed] left: updates=336 ticks=1347 stride=4 released=+13 placed=+0 skipped=+0 (attempt start -> release)
+[fruit] [rl]   grasp did not land on the belt; re-running carry_and_release
+[fruit] [rl] episode 0: pear d=6.1cm bin=0 arm=left success=False grasped=True placed=False ticks=1918 decision=187 reward=0.0000 notes=['intercept trigger (dy=25.9cm, dx=-11.2cm, t_arrive=2.15s, speed=0.120m/s/encoder, frame=station, finger=0.0218, lead=2.16s/reach=0.31)'] presentation=direct ablate=none
+[fruit] [bed-sel] attempt 1 t=19.03 live=11 on_belt=11 admitted=6 window=2 pick=lychee@0.543 pump_next=19.43 lag=-0.40 rebased=0 dropped=0.0s skipped=2 refused=0 placed=0
+[fruit] [bed-sel]   tomato     along=-0.606 x=0.362 z=1.192 r=0.027 grade=A -> below window along=-0.606 floor=0.180
+[fruit] [bed-sel]   strawberry along=-0.380 x=0.248 z=1.184 r=0.018 grade=B -> below window along=-0.380 floor=0.180
+[fruit] [bed-sel]   peach      along=-0.258 x=0.217 z=1.196 r=0.030 grade=B -> below window along=-0.258 floor=0.180
+[fruit] [bed-sel]   strawberry along=-0.280 x=0.349 z=1.186 r=0.021 grade=B -> below window along=-0.280 floor=0.180
+[fruit] [bed-sel]   pear       along=-0.069 x=0.218 z=1.203 r=0.034 grade=A -> below window along=-0.069 floor=0.180
+[fruit] [bed-sel]   orange     along=+0.140 x=0.228 z=1.200 r=0.030 grade=B -> below catch floor 0.140 < 0.399
+[fruit] [bed-sel]   tomato     along=+0.130 x=0.331 z=1.191 r=0.027 grade=C -> below catch floor 0.130 < 0.399
+[fruit] [bed-sel]   kiwi       along=+0.335 x=0.159 z=1.200 r=0.032 grade=C -> below catch floor 0.335 < 0.399
+[fruit] [bed-sel]   lychee     along=+0.315 x=0.330 z=1.183 r=0.015 grade=B -> below catch floor 0.315 < 0.399
+[fruit] [bed-sel]   lychee     along=+0.543 x=0.214 z=1.185 r=0.017 grade=C -> chosen
+[fruit] [bed-sel]   apple      along=+0.539 x=0.328 z=1.200 r=0.034 grade=C -> usable
+[fruit] [rl] episode 1: lychee grade=C d=3.4cm bin=1 arm=right y=+0.543 presentation=direct
+[fruit] [task]   openarm fingertips 92 mm from the fruit; closing anyway
+[fruit] [task]   carry grasp_lift: stored pad centre 126 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist right grasp_lift tick 0: cmd_centre=[0.1909, -0.0091, 1.3099] offset=[0.0035, 0.0042, -0.0098] |offset|=11 mm jaw_target=[0.1866, -0.0125, 1.3002] jaw=[0.19089999794960022, -0.009100000374019146, 1.3099000453948975] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right grasp_lift tick 1: cmd_centre=[0.1909, -0.0091, 1.3099] offset=[0.0035, 0.0042, -0.0098] |offset|=11 mm jaw_target=[0.1866, -0.0125, 1.3002] jaw=[0.1907999962568283, -0.009100000374019146, 1.3098000288009644] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right grasp_lift tick 2: cmd_centre=[0.1909, -0.0091, 1.3099] offset=[0.0035, 0.0042, -0.0098] |offset|=11 mm jaw_target=[0.1866, -0.0125, 1.3002] jaw=[0.19059999287128448, -0.009100000374019146, 1.309499979019165] coherent=False hand_is_jaw=True
+[fruit] [carry] right grasp_lift: ticks=170/170 clean_slip_max=0.0mm slip_xyz=(-0.0,-0.0,-0.0)mm hold_drift=30.0deg drift_end=30.0 res_end=87.8mm dz_end=+19.0mm clr=+49mm@belt q_margin=-0.000@j7/t165 q_cmd_margin=0.000@j3 q_step_max=0.0151 jaw_z=-0.0075/0.3981 drift_on=106 in-hand_vmax=0.063 onset_row=None force@onset=n/aN sep@onset=n/amm contacts@onset=None min_contacts=2 force_min=9.45N loss_row=None sep@loss=n/amm sep_end=45.4mm guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=33.6mm open_max=0.0mm
+[fruit] [attitude] right grasp_lift: tilt=33.7deg from world -Z, tool_axis=(+0.4450,+0.3311,-0.8320) (TCP col 2, world; jaws close along X, travel along -Y), tip=+80.5mm (base 80.5 + delta +0.0), pad_fruit_dz=+56.0mm (world +Z, + = pads above the fruit centre), lip=+11.0mm (vertical tip drop +67.0mm at this tilt, minus dz), corner drop 16.65*sin(tilt)=+9.2mm / 30.5*sin(tilt)=+16.9mm
+[fruit] [task]   carry place1: stored pad centre 102 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist right place1 tick 0: cmd_centre=[0.2658, 0.0492, 1.5687] offset=[0.0035, 0.0042, -0.0098] |offset|=11 mm jaw_target=[0.2615, 0.0457, 1.5589] jaw=[0.26579999923706055, 0.04919999837875366, 1.5686999559402466] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right place1 tick 1: cmd_centre=[0.2658, 0.0492, 1.5687] offset=[0.0035, 0.0042, -0.0098] |offset|=11 mm jaw_target=[0.2615, 0.0457, 1.5589] jaw=[0.26570001244544983, 0.04919999837875366, 1.5683000087738037] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right place1 tick 2: cmd_centre=[0.2658, 0.0492, 1.5687] offset=[0.0035, 0.0042, -0.0098] |offset|=11 mm jaw_target=[0.2615, 0.0457, 1.5589] jaw=[0.2655999958515167, 0.049300000071525574, 1.5678999423980713] coherent=False hand_is_jaw=True
+[fruit] [carry] right place1: ticks=378/378 clean_slip_max=0.0mm slip_xyz=(-0.0,0.0,-0.0)mm hold_drift=0.0deg(no-hold) drift_end=n/a res_end=28.4mm dz_end=-25.4mm clr=+58mm@rail q_margin=-0.000@j3/t283 q_cmd_margin=0.000@j5 q_step_max=0.0106 jaw_z=+0.4409/0.7133 drift_on=None in-hand_vmax=0.058 onset_row=None force@onset=n/aN sep@onset=n/amm contacts@onset=None min_contacts=2 force_min=9.45N loss_row=None sep@loss=n/amm sep_end=45.4mm guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=33.6mm open_max=0.0mm
+[fruit] [attitude] right place1: tilt=91.5deg from world -Z, tool_axis=(+0.7417,-0.6703,+0.0263) (TCP col 2, world; jaws close along X, travel along -Y), tip=+80.5mm (base 80.5 + delta +0.0), pad_fruit_dz=-3.2mm (world +Z, + = pads above the fruit centre), lip=+1.1mm (vertical tip drop -2.1mm at this tilt, minus dz), corner drop 16.65*sin(tilt)=+16.6mm / 30.5*sin(tilt)=+30.5mm
+[fruit] [task] place low: bottom 1493 -> 57 mm (target 25), drop 94/118 mm, FINGER FLOOR budget 94 mm, residual 0.0 mm, 82 ticks
+[fruit] [feed] right: updates=326 ticks=1307 stride=4 released=+13 placed=+0 skipped=+1 (attempt start -> release)
+[fruit] [rl] episode 1: lychee d=3.4cm bin=1 arm=right success=True grasped=True placed=True ticks=1768 decision=220 reward=0.9707 notes=['intercept trigger (dy=22.0cm, dx=-12.0cm, t_arrive=1.84s, speed=0.120m/s/encoder, frame=station, finger=0.0159, lead=1.84s/reach=0.27)'] presentation=direct ablate=none
+[fruit] [bed-sel] attempt 2 t=34.93 live=14 on_belt=13 admitted=5 window=2 pick=apple@0.637 pump_next=36.00 lag=-1.07 rebased=0 dropped=0.0s skipped=3 refused=0 placed=0
+[fruit] [bed-sel]   tomato     along=-0.241 x=0.320 z=1.191 r=0.027 grade=C -> below window along=-0.241 floor=0.180
+[fruit] [bed-sel]   lychee     along=-0.565 x=0.726 z=1.366 r=0.017 grade=C -> off belt x=0.726 z=1.366 (output conveyor or off the line)
+[fruit] [bed-sel]   strawberry along=-0.643 x=0.258 z=1.181 r=0.018 grade=B -> below window along=-0.643 floor=0.180
+[fruit] [bed-sel]   peach      along=-0.652 x=0.332 z=1.196 r=0.030 grade=B -> below window along=-0.652 floor=0.180
+[fruit] [bed-sel]   strawberry along=-0.462 x=0.280 z=1.186 r=0.021 grade=B -> below window along=-0.462 floor=0.180
+[fruit] [bed-sel]   pear       along=-0.447 x=0.353 z=1.203 r=0.034 grade=A -> below window along=-0.447 floor=0.180
+[fruit] [bed-sel]   orange     along=-0.231 x=0.209 z=1.200 r=0.030 grade=B -> below window along=-0.231 floor=0.180
+[fruit] [bed-sel]   pear       along=-0.083 x=0.218 z=1.200 r=0.031 grade=A -> below window along=-0.083 floor=0.180
+[fruit] [bed-sel]   kiwi       along=-0.065 x=0.280 z=1.200 r=0.032 grade=C -> below window along=-0.065 floor=0.180
+[fruit] [bed-sel]   lychee     along=+0.114 x=0.224 z=1.183 r=0.015 grade=B -> below catch floor 0.114 < 0.399
+[fruit] [bed-sel]   apple      along=+0.119 x=0.340 z=1.200 r=0.034 grade=C -> below catch floor 0.119 < 0.399
+[fruit] [bed-sel]   orange     along=+0.264 x=0.222 z=1.202 r=0.034 grade=A -> below catch floor 0.264 < 0.399
+[fruit] [bed-sel]   kiwi       along=+0.447 x=0.332 z=1.199 r=0.032 grade=A -> usable
+[fruit] [bed-sel]   apple      along=+0.637 x=0.263 z=1.198 r=0.031 grade=B -> chosen
+[fruit] [rl] episode 2: apple grade=B d=6.3cm bin=1 arm=right y=+0.637 presentation=direct
+[fruit] [task]   openarm fingertips 71 mm from the fruit; closing anyway
+[fruit] [task]   carry grasp_lift: stored pad centre 127 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist right grasp_lift tick 0: cmd_centre=[0.2223, -0.0456, 1.3203] offset=[0.0135, 0.0072, -0.0106] |offset|=19 mm jaw_target=[0.215, -0.0592, 1.3098] jaw=[0.2222999930381775, -0.04560000076889992, 1.3202999830245972] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right grasp_lift tick 1: cmd_centre=[0.2223, -0.0456, 1.3203] offset=[0.0135, 0.0072, -0.0106] |offset|=19 mm jaw_target=[0.215, -0.0592, 1.3098] jaw=[0.22200000286102295, -0.04580000042915344, 1.3199000358581543] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right grasp_lift tick 2: cmd_centre=[0.2223, -0.0456, 1.3203] offset=[0.0135, 0.0072, -0.0106] |offset|=19 mm jaw_target=[0.215, -0.0592, 1.3098] jaw=[0.22169999778270721, -0.046300001442432404, 1.3193999528884888] coherent=False hand_is_jaw=True
+[fruit] [belt] lychee (index 13) discharged to the tray at x=1.62 (settled 3.0s)
+[fruit] [carry] right grasp_lift: ticks=162/162 clean_slip_max=0.1mm slip_xyz=(0.0,-0.1,-0.0)mm hold_drift=29.5deg drift_end=29.5 res_end=86.0mm dz_end=+14.0mm clr=+46mm@belt q_margin=-0.000@j7/t138 q_cmd_margin=0.000@j7 q_step_max=0.0300 jaw_z=-0.0129/0.4802 drift_on=101 in-hand_vmax=0.063 onset_row=None force@onset=n/aN sep@onset=n/amm contacts@onset=None min_contacts=2 force_min=8.13N loss_row=None sep@loss=n/amm sep_end=73.7mm guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=61.9mm open_max=0.0mm
+[fruit] [attitude] right grasp_lift: tilt=33.4deg from world -Z, tool_axis=(+0.5456,+0.0775,-0.8345) (TCP col 2, world; jaws close along X, travel along -Y), tip=+80.5mm (base 80.5 + delta +0.0), pad_fruit_dz=+55.1mm (world +Z, + = pads above the fruit centre), lip=+12.1mm (vertical tip drop +67.2mm at this tilt, minus dz), corner drop 16.65*sin(tilt)=+9.2mm / 30.5*sin(tilt)=+16.8mm
+[fruit] [task]   carry place1: stored pad centre 100 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist right place1 tick 0: cmd_centre=[0.3156, -0.0324, 1.5631] offset=[0.0135, 0.0072, -0.0106] |offset|=19 mm jaw_target=[0.3083, -0.0459, 1.5526] jaw=[0.3156000077724457, -0.03240000084042549, 1.563099980354309] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right place1 tick 1: cmd_centre=[0.3156, -0.0324, 1.5631] offset=[0.0135, 0.0072, -0.0106] |offset|=19 mm jaw_target=[0.3083, -0.0459, 1.5526] jaw=[0.3154999911785126, -0.032600000500679016, 1.5628000497817993] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right place1 tick 2: cmd_centre=[0.3156, -0.0324, 1.5631] offset=[0.0135, 0.0072, -0.0106] |offset|=19 mm jaw_target=[0.3083, -0.0459, 1.5526] jaw=[0.31540000438690186, -0.032999999821186066, 1.562399983406067] coherent=False hand_is_jaw=True
+[fruit] [carry] right place1: ticks=318/318 clean_slip_max=0.0mm slip_xyz=(-0.0,-0.0,-0.0)mm hold_drift=0.0deg(no-hold) drift_end=n/a res_end=30.1mm dz_end=-24.9mm clr=+42mm@rail q_margin=-0.000@j3/t177 q_cmd_margin=0.000@j5 q_step_max=0.0266 jaw_z=+0.5342/0.7697 drift_on=None in-hand_vmax=0.062 onset_row=None force@onset=n/aN sep@onset=n/amm contacts@onset=None min_contacts=2 force_min=8.23N loss_row=None sep@loss=n/amm sep_end=73.7mm guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=61.9mm open_max=0.0mm
+[fruit] [attitude] right place1: tilt=88.5deg from world -Z, tool_axis=(+0.7441,-0.6675,-0.0266) (TCP col 2, world; jaws close along X, travel along -Y), tip=+80.5mm (base 80.5 + delta +0.0), pad_fruit_dz=+1.7mm (world +Z, + = pads above the fruit centre), lip=+0.4mm (vertical tip drop +2.1mm at this tilt, minus dz), corner drop 16.65*sin(tilt)=+16.6mm / 30.5*sin(tilt)=+30.5mm
+[fruit] [task] place low: bottom 1473 -> 51 mm (target 25), drop 80/98 mm, FINGER FLOOR budget 80 mm, residual 0.0 mm, 78 ticks
+[fruit] [feed] right: updates=321 ticks=1285 stride=4 released=+10 placed=+0 skipped=+0 (attempt start -> release)
+[fruit] [rl] episode 2: apple d=6.3cm bin=1 arm=right success=True grasped=True placed=True ticks=1790 decision=283 reward=0.9623 notes=['intercept trigger (dy=25.2cm, dx=-7.0cm, t_arrive=2.10s, speed=0.120m/s/encoder, frame=station, finger=0.0196, lead=2.10s/reach=0.30)'] presentation=direct ablate=none
+[fruit] [bed-sel] attempt 3 t=51.02 live=11 on_belt=10 admitted=4 window=3 pick=orange@0.574 pump_next=51.26 lag=-0.25 rebased=0 dropped=0.0s skipped=4 refused=0 placed=0
+[fruit] [bed-sel]   apple      along=-0.584 x=0.709 z=1.380 r=0.031 grade=B -> off belt x=0.709 z=1.380 (output conveyor or off the line)
+[fruit] [bed-sel]   strawberry along=-0.534 x=0.366 z=1.186 r=0.021 grade=B -> below window along=-0.534 floor=0.180
+[fruit] [bed-sel]   pear       along=-0.348 x=0.237 z=1.203 r=0.034 grade=A -> below window along=-0.348 floor=0.180
+[fruit] [bed-sel]   orange     along=-0.343 x=0.321 z=1.200 r=0.030 grade=B -> below window along=-0.343 floor=0.180
+[fruit] [bed-sel]   tomato     along=-0.156 x=0.239 z=1.191 r=0.027 grade=C -> below window along=-0.156 floor=0.180
+[fruit] [bed-sel]   pear       along=-0.147 x=0.334 z=1.200 r=0.031 grade=A -> below window along=-0.147 floor=0.180
+[fruit] [bed-sel]   kiwi       along=+0.057 x=0.262 z=1.200 r=0.032 grade=C -> below window along=0.057 floor=0.180
+[fruit] [bed-sel]   lychee     along=+0.248 x=0.202 z=1.183 r=0.015 grade=B -> below catch floor 0.248 < 0.399
+[fruit] [bed-sel]   lychee     along=+0.421 x=0.270 z=1.185 r=0.017 grade=C -> usable
+[fruit] [bed-sel]   apple      along=+0.417 x=0.362 z=1.200 r=0.034 grade=C -> usable
+[fruit] [bed-sel]   orange     along=+0.574 x=0.244 z=1.202 r=0.034 grade=A -> chosen
+[fruit] [rl] episode 3: orange grade=A d=6.8cm bin=0 arm=left y=+0.574 presentation=direct
+[fruit] [task]   openarm fingertips 53 mm from the fruit; closing anyway
+[fruit] [task]   carry grasp_lift: stored pad centre 127 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist left grasp_lift tick 0: cmd_centre=[0.2195, 0.0037, 1.3303] offset=[0.0033, -0.0038, -0.0091] |offset|=10 mm jaw_target=[0.2156, 0.0069, 1.3213] jaw=[0.21950000524520874, 0.003700000001117587, 1.330299973487854] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist left grasp_lift tick 1: cmd_centre=[0.2195, 0.0037, 1.3303] offset=[0.0033, -0.0038, -0.0091] |offset|=10 mm jaw_target=[0.2156, 0.0069, 1.3213] jaw=[0.21940000355243683, 0.003800000064074993, 1.3300000429153442] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist left grasp_lift tick 2: cmd_centre=[0.2195, 0.0037, 1.3303] offset=[0.0033, -0.0038, -0.0091] |offset|=10 mm jaw_target=[0.2156, 0.0069, 1.3213] jaw=[0.219200000166893, 0.0038999998942017555, 1.329699993133545] coherent=False hand_is_jaw=True
+[fruit] [belt] apple (index 5) discharged to the tray at x=1.51 (settled 3.0s)
+[fruit] [carry] left grasp_lift: ticks=154/154 clean_slip_max=183.3mm slip_xyz=(-116.1,94.0,106.1)mm hold_drift=26.9deg drift_end=26.9 res_end=78.3mm dz_end=+8.9mm clr=+53mm@belt q_margin=0.000@j7/t153 q_cmd_margin=0.000@j3 q_step_max=0.0101 jaw_z=+0.0087/0.3794 drift_on=97 in-hand_vmax=1.268 onset_row=87 force@onset=9.78N sep@onset=82.2mm contacts@onset=1 min_contacts=0 force_min=0.00N loss_row=128 sep@loss=72.1mm sep_end=60.4mm guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=69.6mm open_max=0.0mm
+[fruit] [attitude] left grasp_lift: tilt=30.3deg from world -Z, tool_axis=(+0.4254,-0.2713,-0.8634) (TCP col 2, world; jaws close along X, travel along -Y), tip=+80.5mm (base 80.5 + delta +0.0), pad_fruit_dz=+358.4mm (world +Z, + = pads above the fruit centre), lip=-288.9mm (vertical tip drop +69.5mm at this tilt, minus dz), corner drop 16.65*sin(tilt)=+8.4mm / 30.5*sin(tilt)=+15.4mm
+[fruit] [task]   carry place0: stored pad centre 92 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist left place0 tick 0: cmd_centre=[0.2929, -0.0447, 1.5574] offset=[0.0033, -0.0038, -0.0091] |offset|=10 mm jaw_target=[0.2891, -0.0414, 1.5483] jaw=[0.2928999960422516, -0.04470000043511391, 1.5573999881744385] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist left place0 tick 1: cmd_centre=[0.2929, -0.0447, 1.5574] offset=[0.0033, -0.0038, -0.0091] |offset|=10 mm jaw_target=[0.2891, -0.0414, 1.5483] jaw=[0.2928999960422516, -0.04470000043511391, 1.5570000410079956] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist left place0 tick 2: cmd_centre=[0.2929, -0.0447, 1.5574] offset=[0.0033, -0.0038, -0.0091] |offset|=10 mm jaw_target=[0.2891, -0.0414, 1.5483] jaw=[0.29280000925064087, -0.04479999840259552, 1.5565999746322632] coherent=False hand_is_jaw=True
+[fruit] [bed-fall] orange idx=6 x=0.073 y=-0.052 z=0.865 held=True
+[fruit] [carry] left place0: ticks=370/370 clean_slip_max=107217.2mm slip_xyz=(-5049.4,82218.5,68630.5)mm hold_drift=0.0deg(no-hold) drift_end=n/a res_end=27.8mm dz_end=-24.1mm clr=-74319mm@belt q_margin=-0.000@j3/t264 q_cmd_margin=0.000@j5 q_step_max=0.0099 jaw_z=-0.4174/0.7057 drift_on=None in-hand_vmax=11168.329 onset_row=2 force@onset=0.00N sep@onset=59.0mm contacts@onset=0 min_contacts=0 force_min=0.00N loss_row=2 sep@loss=59.0mm sep_end=51.6mm guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=59.6mm open_max=0.0mm
+[fruit] [attitude] left place0: tilt=89.7deg from world -Z, tool_axis=(+0.7428,+0.6695,-0.0060) (TCP col 2, world; jaws close along X, travel along -Y), tip=+80.5mm (base 80.5 + delta +0.0), pad_fruit_dz=+84346.6mm (world +Z, + = pads above the fruit centre), lip=-84346.1mm (vertical tip drop +0.5mm at this tilt, minus dz), corner drop 16.65*sin(tilt)=+16.6mm / 30.5*sin(tilt)=+30.5mm
+[fruit] [feed] left: updates=315 ticks=1262 stride=4 released=+12 placed=+0 skipped=+1 (attempt start -> release)
+[fruit] [rl]   grasp did not land on the belt; re-running carry_and_release
+[fruit] [rl] episode 3: orange d=6.8cm bin=0 arm=left success=False grasped=True placed=False ticks=1855 decision=210 reward=0.0000 notes=['intercept trigger (dy=25.0cm, dx=-9.6cm, t_arrive=2.09s, speed=0.120m/s/encoder, frame=station, finger=0.0237, lead=2.10s/reach=0.30)'] presentation=direct ablate=none
+[fruit] [bed-sel] attempt 4 t=67.64 live=12 on_belt=12 admitted=6 window=2 pick=peach@0.513 pump_next=67.89 lag=-0.24 rebased=0 dropped=0.0s skipped=5 refused=0 placed=0
+[fruit] [bed-sel]   pear       along=-0.610 x=0.319 z=1.203 r=0.034 grade=A -> below window along=-0.610 floor=0.180
+[fruit] [bed-sel]   orange     along=-0.421 x=0.224 z=1.200 r=0.030 grade=B -> below window along=-0.421 floor=0.180
+[fruit] [bed-sel]   tomato     along=-0.431 x=0.342 z=1.191 r=0.027 grade=C -> below window along=-0.431 floor=0.180
+[fruit] [bed-sel]   pear       along=-0.203 x=0.227 z=1.200 r=0.031 grade=A -> below window along=-0.203 floor=0.180
+[fruit] [bed-sel]   kiwi       along=-0.198 x=0.288 z=1.199 r=0.032 grade=C -> below window along=-0.198 floor=0.180
+[fruit] [bed-sel]   lychee     along=-0.042 x=0.265 z=1.183 r=0.015 grade=B -> below window along=-0.042 floor=0.180
+[fruit] [bed-sel]   lychee     along=+0.156 x=0.250 z=1.185 r=0.017 grade=C -> below catch floor 0.156 < 0.399
+[fruit] [bed-sel]   apple      along=+0.153 x=0.335 z=1.200 r=0.034 grade=C -> below catch floor 0.153 < 0.399
+[fruit] [bed-sel]   orange     along=+0.331 x=0.238 z=1.202 r=0.034 grade=A -> below catch floor 0.331 < 0.399
+[fruit] [bed-sel]   kiwi       along=+0.303 x=0.406 z=1.200 r=0.032 grade=A -> below catch floor 0.303 < 0.399
+[fruit] [bed-sel]   apple      along=+0.499 x=0.241 z=1.198 r=0.031 grade=B -> usable
+[fruit] [bed-sel]   peach      along=+0.513 x=0.356 z=1.196 r=0.029 grade=A -> chosen
+[fruit] [rl] episode 4: peach grade=A d=5.8cm bin=0 arm=left y=+0.513 presentation=direct
+[fruit] [task]   openarm fingertips 24 mm from the fruit; closing anyway
+[fruit] [task]   carry grasp_lift: stored pad centre 125 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist left grasp_lift tick 0: cmd_centre=[0.3129, -0.0592, 1.3182] offset=[-0.0054, -0.0025, -0.0122] |offset|=14 mm jaw_target=[0.3103, -0.0646, 1.306] jaw=[0.31290000677108765, -0.05920000001788139, 1.3181999921798706] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist left grasp_lift tick 1: cmd_centre=[0.3129, -0.0592, 1.3182] offset=[-0.0054, -0.0025, -0.0122] |offset|=14 mm jaw_target=[0.3103, -0.0646, 1.306] jaw=[0.31279999017715454, -0.059300001710653305, 1.3177000284194946] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist left grasp_lift tick 2: cmd_centre=[0.3129, -0.0592, 1.3182] offset=[-0.0054, -0.0025, -0.0122] |offset|=14 mm jaw_target=[0.3103, -0.0646, 1.306] jaw=[0.3125999867916107, -0.05950000137090683, 1.3171000480651855] coherent=False hand_is_jaw=True
+[fruit] [carry] left grasp_lift: ticks=164/164 clean_slip_max=278.0mm slip_xyz=(7.7,59.9,271.3)mm hold_drift=21.7deg drift_end=21.7 res_end=67.8mm dz_end=+0.7mm clr=-5mm@belt q_margin=0.000@j7/t163 q_cmd_margin=0.000@j7 q_step_max=0.0117 jaw_z=+0.0098/0.2064 drift_on=117 in-hand_vmax=2.015 onset_row=68 force@onset=10.60N sep@onset=66.7mm contacts@onset=2 min_contacts=0 force_min=0.00N loss_row=122 sep@loss=60.1mm sep_end=42.5mm guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=57.1mm open_max=0.0mm
+[fruit] [attitude] left grasp_lift: tilt=26.9deg from world -Z, tool_axis=(+0.2725,-0.3603,-0.8922) (TCP col 2, world; jaws close along X, travel along -Y), tip=+80.5mm (base 80.5 + delta +0.0), pad_fruit_dz=+362.5mm (world +Z, + = pads above the fruit centre), lip=-290.7mm (vertical tip drop +71.8mm at this tilt, minus dz), corner drop 16.65*sin(tilt)=+7.5mm / 30.5*sin(tilt)=+13.8mm
+[fruit] [task]   carry place0: stored pad centre 89 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist left place0 tick 0: cmd_centre=[0.396, -0.035, 1.5495] offset=[-0.0054, -0.0025, -0.0122] |offset|=14 mm jaw_target=[0.3934, -0.0404, 1.5373] jaw=[0.3959999978542328, -0.03500000014901161, 1.5494999885559082] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist left place0 tick 1: cmd_centre=[0.396, -0.035, 1.5495] offset=[-0.0054, -0.0025, -0.0122] |offset|=14 mm jaw_target=[0.3934, -0.0404, 1.5373] jaw=[0.3961000144481659, -0.03500000014901161, 1.5490000247955322] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist left place0 tick 2: cmd_centre=[0.396, -0.035, 1.5495] offset=[-0.0054, -0.0025, -0.0122] |offset|=14 mm jaw_target=[0.3934, -0.0404, 1.5373] jaw=[0.3962000012397766, -0.03500000014901161, 1.5484000444412231] coherent=False hand_is_jaw=True
+[fruit] [carry] left place0: ticks=353/353 clean_slip_max=1254.0mm slip_xyz=(62.5,895.5,-875.5)mm hold_drift=0.0deg(no-hold) drift_end=n/a res_end=22.2mm dz_end=-15.6mm clr=-217mm@rail q_margin=-0.000@j3/t312 q_cmd_margin=0.000@j2 q_step_max=0.0107 jaw_z=-0.1931/0.5861 drift_on=None in-hand_vmax=0.447 onset_row=2 force@onset=0.00N sep@onset=42.0mm contacts@onset=0 min_contacts=0 force_min=0.00N loss_row=2 sep@loss=42.0mm sep_end=42.1mm guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=42.1mm open_max=0.0mm
+[fruit] [attitude] left place0: tilt=77.3deg from world -Z, tool_axis=(+0.7617,+0.6094,-0.2200) (TCP col 2, world; jaws close along X, travel along -Y), tip=+80.5mm (base 80.5 + delta +0.0), pad_fruit_dz=+317.3mm (world +Z, + = pads above the fruit centre), lip=-299.6mm (vertical tip drop +17.7mm at this tilt, minus dz), corner drop 16.65*sin(tilt)=+16.2mm / 30.5*sin(tilt)=+29.8mm
+[fruit] [feed] left: updates=315 ticks=1261 stride=4 released=+10 placed=+0 skipped=+1 (attempt start -> release)
+[fruit] [rl]   grasp did not land on the belt; re-running carry_and_release
+[fruit] [rl] episode 4: peach d=5.8cm bin=0 arm=left success=False grasped=True placed=False ticks=1788 decision=188 reward=0.0000 notes=['intercept trigger (dy=21.2cm, dx=1.5cm, t_arrive=1.77s, speed=0.120m/s/encoder, frame=station, finger=0.0216, lead=1.78s/reach=0.26)'] presentation=direct ablate=none
+[fruit] [bed-sel] attempt 5 t=83.71 live=10 on_belt=10 admitted=4 window=1 pick=apple@0.558 pump_next=84.12 lag=-0.41 rebased=0 dropped=0.0s skipped=6 refused=0 placed=0
+[fruit] [bed-sel]   orange     along=-0.644 x=0.324 z=1.200 r=0.030 grade=B -> below window along=-0.644 floor=0.180
+[fruit] [bed-sel]   tomato     along=-0.466 x=0.213 z=1.191 r=0.027 grade=C -> below window along=-0.466 floor=0.180
+[fruit] [bed-sel]   pear       along=-0.457 x=0.310 z=1.200 r=0.031 grade=A -> below window along=-0.457 floor=0.180
+[fruit] [bed-sel]   kiwi       along=-0.292 x=0.217 z=1.200 r=0.032 grade=C -> below window along=-0.292 floor=0.180
+[fruit] [bed-sel]   lychee     along=-0.156 x=0.320 z=1.183 r=0.015 grade=B -> below window along=-0.156 floor=0.180
+[fruit] [bed-sel]   lychee     along=+0.038 x=0.344 z=1.185 r=0.017 grade=C -> below window along=0.038 floor=0.180
+[fruit] [bed-sel]   apple      along=+0.207 x=0.245 z=1.200 r=0.034 grade=C -> below catch floor 0.207 < 0.399
+[fruit] [bed-sel]   orange     along=+0.208 x=0.328 z=1.202 r=0.034 grade=A -> below catch floor 0.208 < 0.399
+[fruit] [bed-sel]   kiwi       along=+0.338 x=0.273 z=1.200 r=0.032 grade=A -> below catch floor 0.338 < 0.399
+[fruit] [bed-sel]   apple      along=+0.558 x=0.298 z=1.198 r=0.031 grade=B -> chosen
+[fruit] [rl] episode 5: apple grade=B d=6.3cm bin=1 arm=right y=+0.558 presentation=direct
+[fruit] [task]   openarm fingertips 54 mm from the fruit; closing anyway
+[fruit] [task]   carry grasp_lift: stored pad centre 128 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist right grasp_lift tick 0: cmd_centre=[0.2512, -0.0702, 1.3203] offset=[0.0183, 0.0088, -0.0115] |offset|=23 mm jaw_target=[0.2423, -0.0884, 1.3089] jaw=[0.25119999051094055, -0.07020000368356705, 1.3202999830245972] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right grasp_lift tick 1: cmd_centre=[0.2512, -0.0702, 1.3203] offset=[0.0183, 0.0088, -0.0115] |offset|=23 mm jaw_target=[0.2423, -0.0884, 1.3089] jaw=[0.250900000333786, -0.07029999792575836, 1.3199000358581543] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right grasp_lift tick 2: cmd_centre=[0.2512, -0.0702, 1.3203] offset=[0.0183, 0.0088, -0.0115] |offset|=23 mm jaw_target=[0.2423, -0.0884, 1.3089] jaw=[0.25049999356269836, -0.07069999724626541, 1.3193000555038452] coherent=False hand_is_jaw=True
+[fruit] [carry] right grasp_lift: ticks=162/162 clean_slip_max=0.1mm slip_xyz=(0.0,-0.1,-0.0)mm hold_drift=29.9deg drift_end=29.9 res_end=84.1mm dz_end=+22.1mm clr=+47mm@belt q_margin=-0.000@j7/t153 q_cmd_margin=0.000@j7 q_step_max=0.0300 jaw_z=-0.0154/0.4980 drift_on=104 in-hand_vmax=0.063 onset_row=None force@onset=n/aN sep@onset=n/amm contacts@onset=None min_contacts=2 force_min=9.72N loss_row=None sep@loss=n/amm sep_end=74.1mm guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=61.9mm open_max=0.0mm
+[fruit] [attitude] right grasp_lift: tilt=34.6deg from world -Z, tool_axis=(+0.5678,+0.0009,-0.8232) (TCP col 2, world; jaws close along X, travel along -Y), tip=+80.5mm (base 80.5 + delta +0.0), pad_fruit_dz=+54.2mm (world +Z, + = pads above the fruit centre), lip=+12.1mm (vertical tip drop +66.3mm at this tilt, minus dz), corner drop 16.65*sin(tilt)=+9.5mm / 30.5*sin(tilt)=+17.3mm
+[fruit] [task]   carry place1: stored pad centre 101 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist right place1 tick 0: cmd_centre=[0.3402, -0.0738, 1.5771] offset=[0.0183, 0.0088, -0.0115] |offset|=23 mm jaw_target=[0.3313, -0.0921, 1.5657] jaw=[0.3402000069618225, -0.0737999975681305, 1.5771000385284424] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right place1 tick 1: cmd_centre=[0.3402, -0.0738, 1.5771] offset=[0.0183, 0.0088, -0.0115] |offset|=23 mm jaw_target=[0.3313, -0.0921, 1.5657] jaw=[0.3400999903678894, -0.07400000095367432, 1.5769000053405762] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right place1 tick 2: cmd_centre=[0.3402, -0.0738, 1.5771] offset=[0.0183, 0.0088, -0.0115] |offset|=23 mm jaw_target=[0.3313, -0.0921, 1.5657] jaw=[0.3400000035762787, -0.07440000027418137, 1.5765999555587769] coherent=False hand_is_jaw=True
+[fruit] [carry] right place1: ticks=289/289 clean_slip_max=0.0mm slip_xyz=(-0.0,-0.0,-0.0)mm hold_drift=0.0deg(no-hold) drift_end=n/a res_end=29.6mm dz_end=-23.0mm clr=+46mm@rail q_margin=-0.000@j3/t155 q_cmd_margin=0.000@j3 q_step_max=0.0300 jaw_z=+0.5554/0.8074 drift_on=None in-hand_vmax=0.064 onset_row=None force@onset=n/aN sep@onset=n/amm contacts@onset=None min_contacts=2 force_min=9.70N loss_row=None sep@loss=n/amm sep_end=74.1mm guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=61.9mm open_max=0.0mm
+[fruit] [attitude] right place1: tilt=85.7deg from world -Z, tool_axis=(+0.7430,-0.6651,-0.0749) (TCP col 2, world; jaws close along X, travel along -Y), tip=+80.5mm (base 80.5 + delta +0.0), pad_fruit_dz=+5.3mm (world +Z, + = pads above the fruit centre), lip=+0.7mm (vertical tip drop +6.0mm at this tilt, minus dz), corner drop 16.65*sin(tilt)=+16.6mm / 30.5*sin(tilt)=+30.4mm
+[fruit] [task] place low: bottom 1470 -> 52 mm (target 25), drop 76/95 mm, FINGER FLOOR budget 76 mm, residual 0.0 mm, 77 ticks
+[fruit] [feed] right: updates=317 ticks=1270 stride=4 released=+14 placed=+0 skipped=+1 (attempt start -> release)
+[fruit] [rl] episode 5: apple d=6.3cm bin=1 arm=right success=True grasped=True placed=True ticks=1685 decision=186 reward=0.9752 notes=['intercept trigger (dy=26.9cm, dx=-3.6cm, t_arrive=2.24s, speed=0.120m/s/encoder, frame=station, finger=0.0264, lead=2.24s/reach=0.32)'] presentation=direct ablate=none
+[fruit] [bed-sel] attempt 6 t=98.92 live=15 on_belt=14 admitted=7 window=4 pick=strawberry@0.644 pump_next=99.72 lag=-0.81 rebased=0 dropped=0.0s skipped=7 refused=0 placed=0
+[fruit] [bed-sel]   apple      along=-0.590 x=0.729 z=1.379 r=0.031 grade=B -> off belt x=0.729 z=1.379 (output conveyor or off the line)
+[fruit] [bed-sel]   strawberry along=-0.610 x=0.253 z=1.186 r=0.021 grade=B -> below window along=-0.610 floor=0.180
+[fruit] [bed-sel]   pear       along=-0.595 x=0.313 z=1.203 r=0.034 grade=A -> below window along=-0.595 floor=0.180
+[fruit] [bed-sel]   orange     along=-0.382 x=0.234 z=1.200 r=0.030 grade=B -> below window along=-0.382 floor=0.180
+[fruit] [bed-sel]   tomato     along=-0.392 x=0.351 z=1.191 r=0.027 grade=C -> below window along=-0.392 floor=0.180
+[fruit] [bed-sel]   pear       along=-0.195 x=0.291 z=1.200 r=0.031 grade=A -> below window along=-0.195 floor=0.180
+[fruit] [bed-sel]   kiwi       along=-0.030 x=0.172 z=1.200 r=0.032 grade=C -> below window along=-0.030 floor=0.180
+[fruit] [bed-sel]   lychee     along=-0.052 x=0.336 z=1.183 r=0.015 grade=B -> below window along=-0.052 floor=0.180
+[fruit] [bed-sel]   lychee     along=+0.118 x=0.222 z=1.185 r=0.017 grade=C -> below catch floor 0.118 < 0.399
+[fruit] [bed-sel]   strawberry along=+0.644 x=0.296 z=1.184 r=0.018 grade=B -> chosen
+[fruit] [bed-sel]   apple      along=+0.282 x=0.211 z=1.200 r=0.034 grade=C -> below catch floor 0.282 < 0.399
+[fruit] [bed-sel]   orange     along=+0.282 x=0.317 z=1.202 r=0.034 grade=A -> below catch floor 0.282 < 0.399
+[fruit] [bed-sel]   kiwi       along=+0.441 x=0.279 z=1.201 r=0.032 grade=A -> usable
+[fruit] [bed-sel]   peach      along=+0.483 x=0.323 z=1.196 r=0.029 grade=A -> usable
+[fruit] [bed-sel]   tomato     along=+0.623 x=0.207 z=1.192 r=0.027 grade=A -> usable
+[fruit] [rl] episode 6: strawberry grade=B d=3.6cm bin=1 arm=right y=+0.644 presentation=direct
+[fruit] [task]   openarm fingertips 47 mm from the fruit; closing anyway
+[fruit] [belt] apple (index 5) discharged to the tray at x=1.52 (settled 3.0s)
+[fruit] [task]   carry grasp_lift: stored pad centre 439 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist right grasp_lift tick 0: cmd_centre=[0.5022, -0.2737, 1.5081] offset=[0.0452, -0.0009, -0.0111] |offset|=47 mm jaw_target=[0.5033, -0.3193, 1.4992] jaw=[0.5022000074386597, -0.2736999988555908, 1.5081000328063965] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right grasp_lift tick 1: cmd_centre=[0.5022, -0.2737, 1.5081] offset=[0.0452, -0.0009, -0.0111] |offset|=47 mm jaw_target=[0.5033, -0.3193, 1.4992] jaw=[0.5023000240325928, -0.2736000120639801, 1.5083999633789062] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right grasp_lift tick 2: cmd_centre=[0.5022, -0.2737, 1.5081] offset=[0.0452, -0.0009, -0.0111] |offset|=47 mm jaw_target=[0.5033, -0.3193, 1.4993] jaw=[0.5023999810218811, -0.2732999920845032, 1.5091999769210815] coherent=False hand_is_jaw=True
+[fruit] [carry] right grasp_lift: ticks=64/64 clean_slip_max=0.1mm slip_xyz=(0.0,-0.1,-0.0)mm hold_drift=63.2deg drift_end=52.4 res_end=151.1mm dz_end=+32.5mm clr=+287mm@belt q_margin=-0.000@j3/t13 q_cmd_margin=0.000@j3 q_step_max=0.0300 jaw_z=+0.8275/0.8573 drift_on=0 in-hand_vmax=0.135 onset_row=None force@onset=n/aN sep@onset=n/amm contacts@onset=None min_contacts=2 force_min=9.58N loss_row=None sep@loss=n/amm sep_end=39.8mm guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=28.4mm open_max=0.0mm
+[fruit] [attitude] right grasp_lift: tilt=21.5deg from world -Z, tool_axis=(+0.3665,+0.0186,-0.9302) (TCP col 2, world; jaws close along X, travel along -Y), tip=+80.5mm (base 80.5 + delta +0.0), pad_fruit_dz=+62.7mm (world +Z, + = pads above the fruit centre), lip=+12.2mm (vertical tip drop +74.9mm at this tilt, minus dz), corner drop 16.65*sin(tilt)=+6.1mm / 30.5*sin(tilt)=+11.2mm
+[fruit] [task]   carry place1: stored pad centre 107 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist right place1 tick 0: cmd_centre=[0.4544, -0.1778, 1.5251] offset=[0.0452, -0.0009, -0.0111] |offset|=47 mm jaw_target=[0.4555, -0.2235, 1.5163] jaw=[0.4544000029563904, -0.1777999997138977, 1.5250999927520752] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right place1 tick 1: cmd_centre=[0.4544, -0.1778, 1.5251] offset=[0.0452, -0.0009, -0.0111] |offset|=47 mm jaw_target=[0.4555, -0.2235, 1.5163] jaw=[0.4544999897480011, -0.17800000309944153, 1.5247999429702759] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right place1 tick 2: cmd_centre=[0.4544, -0.1778, 1.5251] offset=[0.0452, -0.0009, -0.0111] |offset|=47 mm jaw_target=[0.4555, -0.2235, 1.5163] jaw=[0.4546000063419342, -0.17870000004768372, 1.5245000123977661] coherent=False hand_is_jaw=True
+[fruit] [carry] right place1: ticks=213/213 clean_slip_max=0.1mm slip_xyz=(0.0,0.0,-0.0)mm hold_drift=0.0deg(no-hold) drift_end=n/a res_end=48.1mm dz_end=-15.6mm clr=+59mm@rail q_margin=-0.000@j3/t18 q_cmd_margin=0.000@j3 q_step_max=0.0300 jaw_z=+0.2993/0.3024 drift_on=None in-hand_vmax=0.186 onset_row=None force@onset=n/aN sep@onset=n/amm contacts@onset=None min_contacts=2 force_min=9.70N loss_row=None sep@loss=n/amm sep_end=39.8mm guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=28.4mm open_max=0.0mm
+[fruit] [attitude] right place1: tilt=94.4deg from world -Z, tool_axis=(+0.7773,-0.6245,+0.0763) (TCP col 2, world; jaws close along X, travel along -Y), tip=+80.5mm (base 80.5 + delta +0.0), pad_fruit_dz=-6.6mm (world +Z, + = pads above the fruit centre), lip=+0.5mm (vertical tip drop -6.1mm at this tilt, minus dz), corner drop 16.65*sin(tilt)=+16.6mm / 30.5*sin(tilt)=+30.4mm
+[fruit] [task] place low: bottom 1517 -> 40 mm (target 25), drop 135/142 mm, FINGER FLOOR budget 135 mm, residual 0.0 mm, 105 ticks
+[fruit] [feed] right: updates=326 ticks=1304 stride=4 released=+13 placed=+0 skipped=+0 (attempt start -> release)
+[fruit] [rl] episode 6: strawberry d=3.6cm bin=1 arm=right success=True grasped=True placed=True ticks=1810 decision=292 reward=0.9611 notes=['intercept trigger (dy=25.1cm, dx=-4.5cm, t_arrive=2.09s, speed=0.120m/s/encoder, frame=station, finger=0.0115, lead=2.09s/reach=0.30)'] presentation=direct ablate=none
+[fruit] [bed-sel] attempt 7 t=115.17 live=13 on_belt=12 admitted=5 window=2 pick=peach@0.674 pump_next=116.29 lag=-1.13 rebased=0 dropped=0.0s skipped=7 refused=0 placed=0
+[fruit] [bed-sel]   strawberry along=-0.545 x=0.736 z=1.365 r=0.018 grade=B -> off belt x=0.736 z=1.365 (output conveyor or off the line)
+[fruit] [bed-sel]   tomato     along=-0.564 x=0.248 z=1.191 r=0.027 grade=C -> below window along=-0.564 floor=0.180
+[fruit] [bed-sel]   pear       along=-0.555 x=0.361 z=1.200 r=0.031 grade=A -> below window along=-0.555 floor=0.180
+[fruit] [bed-sel]   kiwi       along=-0.386 x=0.196 z=1.199 r=0.032 grade=C -> below window along=-0.386 floor=0.180
+[fruit] [bed-sel]   lychee     along=-0.199 x=0.255 z=1.183 r=0.015 grade=B -> below window along=-0.199 floor=0.180
+[fruit] [bed-sel]   lychee     along=-0.191 x=0.361 z=1.185 r=0.017 grade=C -> below window along=-0.191 floor=0.180
+[fruit] [bed-sel]   apple      along=-0.051 x=0.209 z=1.200 r=0.034 grade=C -> below window along=-0.051 floor=0.180
+[fruit] [bed-sel]   orange     along=-0.050 x=0.310 z=1.202 r=0.034 grade=A -> below window along=-0.050 floor=0.180
+[fruit] [bed-sel]   kiwi       along=+0.119 x=0.280 z=1.199 r=0.032 grade=A -> below catch floor 0.119 < 0.399
+[fruit] [bed-sel]   apple      along=+0.135 x=0.341 z=1.198 r=0.031 grade=B -> below catch floor 0.135 < 0.399
+[fruit] [bed-sel]   peach      along=+0.309 x=0.315 z=1.196 r=0.029 grade=A -> below catch floor 0.309 < 0.399
+[fruit] [bed-sel]   tomato     along=+0.470 x=0.292 z=1.192 r=0.027 grade=A -> usable
+[fruit] [bed-sel]   peach      along=+0.674 x=0.278 z=1.220 r=0.030 grade=B -> chosen
+[fruit] [rl] episode 7: peach grade=B d=6.0cm bin=1 arm=right y=+0.674 presentation=direct
+[fruit] [bed-fall] peach idx=12 x=0.051 y=0.077 z=0.887 held=False
+[fruit] [task]   openarm fingertips 104 mm from the fruit; closing anyway
+[fruit] [belt] strawberry (index 10) discharged to the tray at x=1.55 (settled 3.0s)
+[fruit] [task]   carry grasp_lift: stored pad centre 134 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist right grasp_lift tick 0: cmd_centre=[0.2365, 0.0655, 1.3201] offset=[-0.0129, 0.0061, -0.0103] |offset|=18 mm jaw_target=[0.2304, 0.0785, 1.3099] jaw=[0.23649999499320984, 0.06549999862909317, 1.320099949836731] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right grasp_lift tick 1: cmd_centre=[0.2365, 0.0655, 1.3201] offset=[-0.0129, 0.0061, -0.0103] |offset|=18 mm jaw_target=[0.2304, 0.0785, 1.3099] jaw=[0.23639999330043793, 0.065700002014637, 1.319599986076355] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right grasp_lift tick 2: cmd_centre=[0.2365, 0.0655, 1.3201] offset=[-0.0129, 0.0061, -0.0103] |offset|=18 mm jaw_target=[0.2304, 0.0785, 1.3099] jaw=[0.2361000031232834, 0.06620000302791595, 1.319200038909912] coherent=False hand_is_jaw=True
+[fruit] [carry] right grasp_lift: ticks=162/162 clean_slip_max=3.9mm slip_xyz=(0.2,-0.1,-3.9)mm hold_drift=22.6deg drift_end=22.6 res_end=66.3mm dz_end=+4.6mm clr=+58mm@belt q_margin=-0.000@j7/t140 q_cmd_margin=0.000@j3 q_step_max=0.0231 jaw_z=-0.0082/0.2524 drift_on=109 in-hand_vmax=0.069 onset_row=5 force@onset=5.41N sep@onset=69.3mm contacts@onset=1 min_contacts=1 force_min=3.69N loss_row=None sep@loss=n/amm sep_end=68.7mm guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=61.0mm open_max=0.0mm
+[fruit] [attitude] right grasp_lift: tilt=26.2deg from world -Z, tool_axis=(+0.3019,+0.3229,-0.8970) (TCP col 2, world; jaws close along X, travel along -Y), tip=+80.5mm (base 80.5 + delta +0.0), pad_fruit_dz=+50.7mm (world +Z, + = pads above the fruit centre), lip=+21.5mm (vertical tip drop +72.2mm at this tilt, minus dz), corner drop 16.65*sin(tilt)=+7.4mm / 30.5*sin(tilt)=+13.5mm
+[fruit] [task]   carry place1: stored pad centre 81 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist right place1 tick 0: cmd_centre=[0.3022, 0.1072, 1.551] offset=[-0.0129, 0.0061, -0.0103] |offset|=18 mm jaw_target=[0.2961, 0.1202, 1.5408] jaw=[0.30219998955726624, 0.10719999670982361, 1.5509999990463257] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right place1 tick 1: cmd_centre=[0.3022, 0.1072, 1.551] offset=[-0.0129, 0.0061, -0.0103] |offset|=18 mm jaw_target=[0.2961, 0.1202, 1.5408] jaw=[0.30230000615119934, 0.10729999840259552, 1.5506000518798828] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right place1 tick 2: cmd_centre=[0.3022, 0.1072, 1.551] offset=[-0.0129, 0.0061, -0.0103] |offset|=18 mm jaw_target=[0.2961, 0.1202, 1.5408] jaw=[0.30239999294281006, 0.10750000178813934, 1.5501999855041504] coherent=False hand_is_jaw=True
+[fruit] [carry] right place1: ticks=409/409 clean_slip_max=0.0mm slip_xyz=(-0.0,-0.0,0.0)mm hold_drift=0.0deg(no-hold) drift_end=n/a res_end=25.8mm dz_end=-21.6mm clr=+49mm@rail q_margin=-0.000@j3/t303 q_cmd_margin=0.000@j2 q_step_max=0.0105 jaw_z=+0.2777/0.6507 drift_on=None in-hand_vmax=0.040 onset_row=None force@onset=n/aN sep@onset=n/amm contacts@onset=None min_contacts=1 force_min=5.28N loss_row=None sep@loss=n/amm sep_end=68.7mm guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=61.0mm open_max=0.0mm
+[fruit] [attitude] right place1: tilt=82.0deg from world -Z, tool_axis=(+0.7195,-0.6804,-0.1392) (TCP col 2, world; jaws close along X, travel along -Y), tip=+80.5mm (base 80.5 + delta +0.0), pad_fruit_dz=+7.0mm (world +Z, + = pads above the fruit centre), lip=+4.2mm (vertical tip drop +11.2mm at this tilt, minus dz), corner drop 16.65*sin(tilt)=+16.5mm / 30.5*sin(tilt)=+30.2mm
+[fruit] [task] place low: bottom 1466 -> 49 mm (target 25), drop 72/91 mm, FINGER FLOOR budget 72 mm, residual 0.0 mm, 75 ticks
+[fruit] [feed] right: updates=347 ticks=1388 stride=4 released=+12 placed=+0 skipped=+0 (attempt start -> release)
+[fruit] [rl] episode 7: peach d=6.0cm bin=1 arm=right success=True grasped=True placed=True ticks=1943 decision=377 reward=0.9497 notes=['intercept trigger (dy=19.8cm, dx=-6.5cm, t_arrive=1.65s, speed=0.120m/s/encoder, frame=station, finger=0.0335, lead=1.66s/reach=0.25)'] presentation=direct ablate=none
+[fruit] [bed-sel] attempt 8 t=132.53 live=11 on_belt=10 admitted=5 window=1 pick=strawberry@0.587 pump_next=133.33 lag=-0.81 rebased=0 dropped=0.0s skipped=7 refused=0 placed=0
+[fruit] [bed-sel]   peach      along=-0.619 x=0.656 z=1.379 r=0.030 grade=B -> off belt x=0.656 z=1.379 (output conveyor or off the line)
+[fruit] [bed-sel]   lychee     along=-0.503 x=0.220 z=1.183 r=0.015 grade=B -> below window along=-0.503 floor=0.180
+[fruit] [bed-sel]   lychee     along=-0.495 x=0.311 z=1.185 r=0.017 grade=C -> below window along=-0.495 floor=0.180
+[fruit] [bed-sel]   apple      along=-0.343 x=0.227 z=1.200 r=0.034 grade=C -> below window along=-0.343 floor=0.180
+[fruit] [bed-sel]   orange     along=-0.196 x=0.274 z=1.202 r=0.034 grade=A -> below window along=-0.196 floor=0.180
+[fruit] [bed-sel]   kiwi       along=-0.062 x=0.272 z=1.200 r=0.032 grade=A -> below window along=-0.062 floor=0.180
+[fruit] [bed-sel]   apple      along=+0.158 x=0.245 z=1.198 r=0.031 grade=B -> below catch floor 0.158 < 0.399
+[fruit] [bed-sel]   peach      along=+0.172 x=0.343 z=1.196 r=0.029 grade=A -> below catch floor 0.172 < 0.399
+[fruit] [bed-sel]   tomato     along=+0.306 x=0.233 z=1.192 r=0.027 grade=A -> below catch floor 0.306 < 0.399
+[fruit] [bed-sel]   strawberry along=+0.328 x=0.328 z=1.181 r=0.018 grade=B -> below catch floor 0.328 < 0.399
+[fruit] [bed-sel]   strawberry along=+0.587 x=0.337 z=1.186 r=0.021 grade=B -> chosen
+[fruit] [rl] episode 8: strawberry grade=B d=4.3cm bin=1 arm=right y=+0.587 presentation=direct
+[fruit] [task]   openarm fingertips 45 mm from the fruit; closing anyway
+[fruit] [task]   carry grasp_lift: stored pad centre 127 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist right grasp_lift tick 0: cmd_centre=[0.2795, -0.0447, 1.3072] offset=[0.0096, 0.0092, -0.0118] |offset|=18 mm jaw_target=[0.2701, -0.0542, 1.2955] jaw=[0.27950000762939453, -0.04470000043511391, 1.3071999549865723] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right grasp_lift tick 1: cmd_centre=[0.2795, -0.0447, 1.3072] offset=[0.0096, 0.0092, -0.0118] |offset|=18 mm jaw_target=[0.2701, -0.0542, 1.2955] jaw=[0.2793000042438507, -0.04490000009536743, 1.3068000078201294] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right grasp_lift tick 2: cmd_centre=[0.2795, -0.0447, 1.3072] offset=[0.0096, 0.0092, -0.0118] |offset|=18 mm jaw_target=[0.2701, -0.0542, 1.2955] jaw=[0.27889999747276306, -0.04529999941587448, 1.3062000274658203] coherent=False hand_is_jaw=True
+[fruit] [belt] peach (index 11) discharged to the tray at x=1.63 (settled 3.0s)
+[fruit] [carry] right grasp_lift: ticks=172/172 clean_slip_max=0.0mm slip_xyz=(0.0,-0.0,-0.0)mm hold_drift=25.5deg drift_end=25.5 res_end=74.7mm dz_end=+6.8mm clr=+44mm@belt q_margin=-0.000@j7/t159 q_cmd_margin=0.000@j7 q_step_max=0.0300 jaw_z=-0.0128/0.4302 drift_on=115 in-hand_vmax=0.054 onset_row=None force@onset=n/aN sep@onset=n/amm contacts@onset=None min_contacts=2 force_min=8.19N loss_row=None sep@loss=n/amm sep_end=44.6mm guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=32.8mm open_max=0.0mm
+[fruit] [attitude] right grasp_lift: tilt=29.1deg from world -Z, tool_axis=(+0.4867,+0.0027,-0.8736) (TCP col 2, world; jaws close along X, travel along -Y), tip=+80.5mm (base 80.5 + delta +0.0), pad_fruit_dz=+58.4mm (world +Z, + = pads above the fruit centre), lip=+11.9mm (vertical tip drop +70.3mm at this tilt, minus dz), corner drop 16.65*sin(tilt)=+8.1mm / 30.5*sin(tilt)=+14.8mm
+[fruit] [task]   carry place1: stored pad centre 86 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist right place1 tick 0: cmd_centre=[0.362, -0.0449, 1.5535] offset=[0.0096, 0.0092, -0.0118] |offset|=18 mm jaw_target=[0.3526, -0.0545, 1.5418] jaw=[0.3619999885559082, -0.04490000009536743, 1.5535000562667847] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right place1 tick 1: cmd_centre=[0.362, -0.0449, 1.5535] offset=[0.0096, 0.0092, -0.0118] |offset|=18 mm jaw_target=[0.3526, -0.0545, 1.5418] jaw=[0.3619999885559082, -0.04500000178813934, 1.5532000064849854] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right place1 tick 2: cmd_centre=[0.362, -0.0449, 1.5535] offset=[0.0096, 0.0092, -0.0118] |offset|=18 mm jaw_target=[0.3526, -0.0545, 1.5418] jaw=[0.3617999851703644, -0.04529999941587448, 1.5528000593185425] coherent=False hand_is_jaw=True
+[fruit] [carry] right place1: ticks=304/304 clean_slip_max=0.0mm slip_xyz=(-0.0,-0.0,0.0)mm hold_drift=0.0deg(no-hold) drift_end=n/a res_end=27.7mm dz_end=-20.4mm clr=+54mm@rail q_margin=-0.000@j3/t163 q_cmd_margin=0.000@j3 q_step_max=0.0300 jaw_z=+0.4755/0.7389 drift_on=None in-hand_vmax=0.060 onset_row=None force@onset=n/aN sep@onset=n/amm contacts@onset=None min_contacts=2 force_min=8.20N loss_row=None sep@loss=n/amm sep_end=44.6mm guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=32.8mm open_max=0.0mm
+[fruit] [attitude] right place1: tilt=80.4deg from world -Z, tool_axis=(+0.7407,-0.6507,-0.1672) (TCP col 2, world; jaws close along X, travel along -Y), tip=+80.5mm (base 80.5 + delta +0.0), pad_fruit_dz=+12.4mm (world +Z, + = pads above the fruit centre), lip=+1.1mm (vertical tip drop +13.5mm at this tilt, minus dz), corner drop 16.65*sin(tilt)=+16.4mm / 30.5*sin(tilt)=+30.1mm
+[fruit] [task] place low: bottom 1478 -> 55 mm (target 25), drop 81/103 mm, FINGER FLOOR budget 81 mm, residual 0.0 mm, 78 ticks
+[fruit] [feed] right: updates=333 ticks=1333 stride=4 released=+11 placed=+0 skipped=+0 (attempt start -> release)
+[fruit] [rl] episode 8: strawberry d=4.3cm bin=1 arm=right success=True grasped=True placed=True ticks=1765 decision=230 reward=0.9693 notes=['intercept trigger (dy=25.4cm, dx=0.4cm, t_arrive=2.12s, speed=0.120m/s/encoder, frame=station, finger=0.0133, lead=2.12s/reach=0.30)'] presentation=direct ablate=none
+[fruit] [bed-sel] attempt 9 t=148.40 live=13 on_belt=12 admitted=6 window=3 pick=peach@0.650 pump_next=149.29 lag=-0.89 rebased=0 dropped=0.0s skipped=7 refused=0 placed=0
+[fruit] [bed-sel]   strawberry along=-0.576 x=0.719 z=1.363 r=0.021 grade=B -> off belt x=0.719 z=1.363 (output conveyor or off the line)
+[fruit] [bed-sel]   kiwi       along=-0.629 x=0.162 z=1.200 r=0.032 grade=C -> below window along=-0.629 floor=0.180
+[fruit] [bed-sel]   lychee     along=-0.650 x=0.309 z=1.183 r=0.015 grade=B -> below window along=-0.650 floor=0.180
+[fruit] [bed-sel]   lychee     along=-0.445 x=0.206 z=1.185 r=0.017 grade=C -> below window along=-0.445 floor=0.180
+[fruit] [bed-sel]   apple      along=-0.230 x=0.207 z=1.200 r=0.034 grade=C -> below window along=-0.230 floor=0.180
+[fruit] [bed-sel]   orange     along=-0.065 x=0.208 z=1.202 r=0.034 grade=A -> below window along=-0.065 floor=0.180
+[fruit] [bed-sel]   kiwi       along=-0.093 x=0.385 z=1.200 r=0.032 grade=A -> below window along=-0.093 floor=0.180
+[fruit] [bed-sel]   apple      along=+0.142 x=0.248 z=1.198 r=0.031 grade=B -> below catch floor 0.142 < 0.399
+[fruit] [bed-sel]   peach      along=+0.156 x=0.341 z=1.196 r=0.029 grade=A -> below catch floor 0.156 < 0.399
+[fruit] [bed-sel]   tomato     along=+0.295 x=0.302 z=1.192 r=0.027 grade=A -> below catch floor 0.295 < 0.399
+[fruit] [bed-sel]   strawberry along=+0.469 x=0.272 z=1.181 r=0.018 grade=B -> usable
+[fruit] [bed-sel]   peach      along=+0.650 x=0.206 z=1.196 r=0.030 grade=B -> chosen
+[fruit] [bed-sel]   pear       along=+0.643 x=0.319 z=1.203 r=0.034 grade=A -> usable
+[fruit] [rl] episode 9: peach grade=B d=6.0cm bin=1 arm=right y=+0.650 presentation=direct
+[fruit] [task]   openarm fingertips 84 mm from the fruit; closing anyway
+[fruit] [belt] strawberry (index 3) discharged to the tray at x=1.50 (settled 3.0s)
+[fruit] [task]   carry grasp_lift: stored pad centre 146 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist right grasp_lift tick 0: cmd_centre=[0.208, 0.1005, 1.3194] offset=[-0.019, 0.0046, -0.0094] |offset|=22 mm jaw_target=[0.2033, 0.1195, 1.3101] jaw=[0.20800000429153442, 0.10050000250339508, 1.3193999528884888] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right grasp_lift tick 1: cmd_centre=[0.208, 0.1005, 1.3194] offset=[-0.019, 0.0046, -0.0094] |offset|=22 mm jaw_target=[0.2033, 0.1195, 1.3101] jaw=[0.20819999277591705, 0.1005999967455864, 1.319200038909912] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right grasp_lift tick 2: cmd_centre=[0.208, 0.1005, 1.3194] offset=[-0.019, 0.0046, -0.0094] |offset|=22 mm jaw_target=[0.2033, 0.1195, 1.3101] jaw=[0.2085999995470047, 0.1005999967455864, 1.3187999725341797] coherent=False hand_is_jaw=True
+[fruit] [carry] right grasp_lift: ticks=163/163 clean_slip_max=0.0mm slip_xyz=(-0.0,-0.0,-0.0)mm hold_drift=25.9deg drift_end=25.9 res_end=98.1mm dz_end=+15.8mm clr=+44mm@belt q_margin=-0.000@j7/t154 q_cmd_margin=0.000@j2 q_step_max=0.0300 jaw_z=-0.0100/0.2370 drift_on=106 in-hand_vmax=0.048 onset_row=None force@onset=n/aN sep@onset=n/amm contacts@onset=None min_contacts=2 force_min=9.93N loss_row=None sep@loss=n/amm sep_end=70.3mm guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=61.0mm open_max=0.0mm
+[fruit] [attitude] right grasp_lift: tilt=27.9deg from world -Z, tool_axis=(+0.3309,+0.3312,-0.8836) (TCP col 2, world; jaws close along X, travel along -Y), tip=+80.5mm (base 80.5 + delta +0.0), pad_fruit_dz=+59.6mm (world +Z, + = pads above the fruit centre), lip=+11.6mm (vertical tip drop +71.1mm at this tilt, minus dz), corner drop 16.65*sin(tilt)=+7.8mm / 30.5*sin(tilt)=+14.3mm
+[fruit] [task]   carry place1: stored pad centre 104 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist right place1 tick 0: cmd_centre=[0.306, 0.1045, 1.5643] offset=[-0.019, 0.0046, -0.0094] |offset|=22 mm jaw_target=[0.3013, 0.1235, 1.555] jaw=[0.3059999942779541, 0.10450000315904617, 1.5642999410629272] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right place1 tick 1: cmd_centre=[0.306, 0.1045, 1.5643] offset=[-0.019, 0.0046, -0.0094] |offset|=22 mm jaw_target=[0.3013, 0.1235, 1.555] jaw=[0.3061999976634979, 0.10459999740123749, 1.5640000104904175] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right place1 tick 2: cmd_centre=[0.306, 0.1045, 1.5643] offset=[-0.019, 0.0046, -0.0094] |offset|=22 mm jaw_target=[0.3013, 0.1235, 1.555] jaw=[0.30640000104904175, 0.10480000078678131, 1.563599944114685] coherent=False hand_is_jaw=True
+[fruit] [carry] right place1: ticks=407/407 clean_slip_max=0.0mm slip_xyz=(-0.0,-0.0,-0.0)mm hold_drift=0.0deg(no-hold) drift_end=n/a res_end=25.5mm dz_end=-21.3mm clr=+44mm@rail q_margin=-0.000@j2/t2 q_cmd_margin=0.000@j2 q_step_max=0.0247 jaw_z=+0.2667/0.5987 drift_on=None in-hand_vmax=0.048 onset_row=None force@onset=n/aN sep@onset=n/amm contacts@onset=None min_contacts=2 force_min=9.88N loss_row=None sep@loss=n/amm sep_end=70.3mm guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=61.0mm open_max=0.0mm
+[fruit] [attitude] right place1: tilt=81.5deg from world -Z, tool_axis=(+0.7138,-0.6847,-0.1473) (TCP col 2, world; jaws close along X, travel along -Y), tip=+80.5mm (base 80.5 + delta +0.0), pad_fruit_dz=+8.3mm (world +Z, + = pads above the fruit centre), lip=+3.5mm (vertical tip drop +11.9mm at this tilt, minus dz), corner drop 16.65*sin(tilt)=+16.5mm / 30.5*sin(tilt)=+30.2mm
+[fruit] [task] place low: bottom 1464 -> 46 mm (target 25), drop 72/89 mm, FINGER FLOOR budget 72 mm, residual 0.0 mm, 75 ticks
+[fruit] [feed] right: updates=327 ticks=1311 stride=4 released=+13 placed=+0 skipped=+1 (attempt start -> release)
+[fruit] [rl] episode 9: peach d=6.0cm bin=1 arm=right success=True grasped=True placed=True ticks=1890 decision=345 reward=0.9540 notes=['intercept trigger (dy=20.2cm, dx=-12.7cm, t_arrive=1.69s, speed=0.120m/s/encoder, frame=station, finger=0.0302, lead=1.69s/reach=0.25)'] presentation=direct ablate=none
+[fruit] [bed-sel] attempt 10 t=165.32 live=12 on_belt=11 admitted=6 window=2 pick=orange@0.492 pump_next=165.55 lag=-0.24 rebased=0 dropped=0.0s skipped=9 refused=0 placed=0
+[fruit] [bed-sel]   peach      along=-0.582 x=0.669 z=1.376 r=0.030 grade=B -> off belt x=0.669 z=1.376 (output conveyor or off the line)
+[fruit] [bed-sel]   lychee     along=-0.664 x=0.305 z=1.185 r=0.017 grade=C -> below window along=-0.664 floor=0.180
+[fruit] [bed-sel]   apple      along=-0.489 x=0.217 z=1.200 r=0.034 grade=C -> below window along=-0.489 floor=0.180
+[fruit] [bed-sel]   orange     along=-0.288 x=0.217 z=1.202 r=0.034 grade=A -> below window along=-0.288 floor=0.180
+[fruit] [bed-sel]   kiwi       along=-0.314 x=0.373 z=1.199 r=0.032 grade=A -> below window along=-0.314 floor=0.180
+[fruit] [bed-sel]   apple      along=-0.098 x=0.311 z=1.198 r=0.031 grade=B -> below window along=-0.098 floor=0.180
+[fruit] [bed-sel]   peach      along=+0.130 x=0.211 z=1.196 r=0.029 grade=A -> below catch floor 0.130 < 0.399
+[fruit] [bed-sel]   tomato     along=+0.111 x=0.337 z=1.192 r=0.027 grade=A -> below catch floor 0.111 < 0.399
+[fruit] [bed-sel]   strawberry along=+0.311 x=0.255 z=1.184 r=0.018 grade=B -> below catch floor 0.311 < 0.399
+[fruit] [bed-sel]   strawberry along=+0.270 x=0.387 z=1.186 r=0.021 grade=B -> below catch floor 0.270 < 0.399
+[fruit] [bed-sel]   pear       along=+0.487 x=0.251 z=1.203 r=0.034 grade=A -> usable
+[fruit] [bed-sel]   orange     along=+0.492 x=0.336 z=1.200 r=0.030 grade=B -> chosen
+[fruit] [rl] episode 10: orange grade=B d=6.0cm bin=1 arm=right y=+0.492 presentation=direct
+[fruit] [task]   openarm fingertips 47 mm from the fruit; closing anyway
+[fruit] [task]   carry grasp_lift: stored pad centre 146 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist right grasp_lift tick 0: cmd_centre=[0.2977, 0.0771, 1.3278] offset=[-0.0172, 0.0077, -0.0109] |offset|=22 mm jaw_target=[0.2898, 0.0943, 1.317] jaw=[0.2976999878883362, 0.0771000012755394, 1.3278000354766846] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right grasp_lift tick 1: cmd_centre=[0.2977, 0.0771, 1.3278] offset=[-0.0172, 0.0077, -0.0109] |offset|=22 mm jaw_target=[0.2898, 0.0943, 1.317] jaw=[0.29760000109672546, 0.07729999721050262, 1.327299952507019] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right grasp_lift tick 2: cmd_centre=[0.2977, 0.0771, 1.3278] offset=[-0.0172, 0.0077, -0.0109] |offset|=22 mm jaw_target=[0.2898, 0.0943, 1.317] jaw=[0.29750001430511475, 0.07750000059604645, 1.32669997215271] coherent=False hand_is_jaw=True
+[fruit] [carry] right grasp_lift: ticks=156/156 clean_slip_max=5.8mm slip_xyz=(2.0,-0.0,-5.4)mm hold_drift=23.7deg drift_end=23.7 res_end=90.2mm dz_end=+4.6mm clr=+62mm@belt q_margin=-0.000@j2/t101 q_cmd_margin=0.000@j2 q_step_max=0.0112 jaw_z=-0.0115/0.1961 drift_on=107 in-hand_vmax=0.063 onset_row=7 force@onset=7.46N sep@onset=70.0mm contacts@onset=2 min_contacts=2 force_min=4.89N loss_row=None sep@loss=n/amm sep_end=69.0mm guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=59.1mm open_max=0.0mm
+[fruit] [belt] peach (index 11) discharged to the tray at x=1.45 (settled 3.0s)
+[fruit] [attitude] right grasp_lift: tilt=26.7deg from world -Z, tool_axis=(+0.2832,+0.3490,-0.8933) (TCP col 2, world; jaws close along X, travel along -Y), tip=+80.5mm (base 80.5 + delta +0.0), pad_fruit_dz=+50.1mm (world +Z, + = pads above the fruit centre), lip=+21.8mm (vertical tip drop +71.9mm at this tilt, minus dz), corner drop 16.65*sin(tilt)=+7.5mm / 30.5*sin(tilt)=+13.7mm
+[fruit] [task]   carry place1: stored pad centre 100 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist right place1 tick 0: cmd_centre=[0.3889, 0.0431, 1.553] offset=[-0.0172, 0.0077, -0.0109] |offset|=22 mm jaw_target=[0.381, 0.0603, 1.5422] jaw=[0.3889000117778778, 0.04309999942779541, 1.5529999732971191] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right place1 tick 1: cmd_centre=[0.3889, 0.0431, 1.553] offset=[-0.0172, 0.0077, -0.0109] |offset|=22 mm jaw_target=[0.381, 0.0603, 1.5422] jaw=[0.3889000117778778, 0.04320000112056732, 1.5526000261306763] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right place1 tick 2: cmd_centre=[0.3889, 0.0431, 1.553] offset=[-0.0172, 0.0077, -0.0109] |offset|=22 mm jaw_target=[0.381, 0.0603, 1.5422] jaw=[0.3889999985694885, 0.04340000078082085, 1.5520000457763672] coherent=False hand_is_jaw=True
+[fruit] [carry] right place1: ticks=359/359 clean_slip_max=0.0mm slip_xyz=(-0.0,-0.0,-0.0)mm hold_drift=0.0deg(no-hold) drift_end=n/a res_end=22.3mm dz_end=-16.3mm clr=+48mm@rail q_margin=-0.000@j5/t2 q_cmd_margin=0.000@j2 q_step_max=0.0094 jaw_z=+0.1962/0.5744 drift_on=None in-hand_vmax=0.041 onset_row=None force@onset=n/aN sep@onset=n/amm contacts@onset=None min_contacts=2 force_min=6.27N loss_row=None sep@loss=n/amm sep_end=69.0mm guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=59.1mm open_max=0.0mm
+[fruit] [attitude] right place1: tilt=72.0deg from world -Z, tool_axis=(+0.7333,-0.6060,-0.3082) (TCP col 2, world; jaws close along X, travel along -Y), tip=+80.5mm (base 80.5 + delta +0.0), pad_fruit_dz=+15.9mm (world +Z, + = pads above the fruit centre), lip=+8.9mm (vertical tip drop +24.8mm at this tilt, minus dz), corner drop 16.65*sin(tilt)=+15.8mm / 30.5*sin(tilt)=+29.0mm
+[fruit] [task] place low: bottom 1461 -> 52 mm (target 25), drop 67/86 mm, FINGER FLOOR budget 67 mm, residual 0.0 mm, 74 ticks
+[fruit] [feed] right: updates=342 ticks=1368 stride=4 released=+14 placed=+0 skipped=+0 (attempt start -> release)
+[fruit] [rl] episode 10: orange d=6.0cm bin=1 arm=right success=True grasped=True placed=True ticks=1705 decision=133 reward=0.9823 notes=['intercept trigger (dy=25.7cm, dx=0.3cm, t_arrive=2.14s, speed=0.120m/s/encoder, frame=station, finger=0.0243, lead=2.14s/reach=0.31)'] presentation=direct ablate=none
+[fruit] [bed-sel] attempt 11 t=180.69 live=14 on_belt=13 admitted=5 window=3 pick=kiwi@0.629 pump_next=181.90 lag=-1.21 rebased=0 dropped=0.0s skipped=9 refused=0 placed=0
+[fruit] [bed-sel]   orange     along=-0.533 x=0.732 z=1.380 r=0.030 grade=B -> off belt x=0.732 z=1.380 (output conveyor or off the line)
+[fruit] [bed-sel]   apple      along=-0.623 x=0.241 z=1.200 r=0.034 grade=C -> below window along=-0.623 floor=0.180
+[fruit] [bed-sel]   orange     along=-0.622 x=0.327 z=1.202 r=0.034 grade=A -> below window along=-0.622 floor=0.180
+[fruit] [bed-sel]   kiwi       along=-0.448 x=0.266 z=1.199 r=0.032 grade=A -> below window along=-0.448 floor=0.180
+[fruit] [bed-sel]   apple      along=-0.430 x=0.339 z=1.198 r=0.031 grade=B -> below window along=-0.430 floor=0.180
+[fruit] [bed-sel]   peach      along=-0.241 x=0.251 z=1.196 r=0.029 grade=A -> below window along=-0.241 floor=0.180
+[fruit] [bed-sel]   tomato     along=-0.261 x=0.358 z=1.192 r=0.027 grade=A -> below window along=-0.261 floor=0.180
+[fruit] [bed-sel]   strawberry along=-0.074 x=0.250 z=1.184 r=0.018 grade=B -> below window along=-0.074 floor=0.180
+[fruit] [bed-sel]   peach      along=+0.077 x=0.241 z=1.196 r=0.030 grade=B -> below window along=0.077 floor=0.180
+[fruit] [bed-sel]   strawberry along=+0.240 x=0.263 z=1.186 r=0.021 grade=B -> below catch floor 0.240 < 0.399
+[fruit] [bed-sel]   pear       along=+0.253 x=0.356 z=1.203 r=0.034 grade=A -> below catch floor 0.253 < 0.399
+[fruit] [bed-sel]   tomato     along=+0.436 x=0.259 z=1.191 r=0.027 grade=C -> usable
+[fruit] [bed-sel]   pear       along=+0.445 x=0.343 z=1.200 r=0.031 grade=A -> usable
+[fruit] [bed-sel]   kiwi       along=+0.629 x=0.219 z=1.200 r=0.032 grade=C -> chosen
+[fruit] [rl] episode 11: kiwi grade=C d=6.3cm bin=1 arm=right y=+0.629 presentation=direct
+[fruit] [task]   openarm fingertips 75 mm from the fruit; closing anyway
+[fruit] [task]   carry grasp_lift: stored pad centre 134 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist right grasp_lift tick 0: cmd_centre=[0.1946, 0.029, 1.3258] offset=[0.0005, 0.0045, -0.0099] |offset|=11 mm jaw_target=[0.1901, 0.0285, 1.3159] jaw=[0.19460000097751617, 0.028999999165534973, 1.3257999420166016] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right grasp_lift tick 1: cmd_centre=[0.1946, 0.029, 1.3258] offset=[0.0005, 0.0045, -0.0099] |offset|=11 mm jaw_target=[0.1901, 0.0285, 1.3159] jaw=[0.19449999928474426, 0.029200000688433647, 1.325600028038025] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right grasp_lift tick 2: cmd_centre=[0.1946, 0.029, 1.3258] offset=[0.0005, 0.0045, -0.0099] |offset|=11 mm jaw_target=[0.1901, 0.0285, 1.3159] jaw=[0.19429999589920044, 0.02930000051856041, 1.3253999948501587] coherent=False hand_is_jaw=True
+[fruit] [belt] orange (index 7) discharged to the tray at x=1.53 (settled 3.0s)
+[fruit] [carry] right grasp_lift: ticks=158/158 clean_slip_max=0.0mm slip_xyz=(-0.0,-0.0,-0.0)mm hold_drift=26.8deg drift_end=26.8 res_end=78.2mm dz_end=+10.6mm clr=+51mm@belt q_margin=0.000@j7/t157 q_cmd_margin=0.000@j3 q_step_max=0.0100 jaw_z=-0.0067/0.3203 drift_on=99 in-hand_vmax=0.055 onset_row=None force@onset=n/aN sep@onset=n/amm contacts@onset=None min_contacts=2 force_min=9.95N loss_row=None sep@loss=n/amm sep_end=76.0mm guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=69.7mm open_max=0.0mm
+[fruit] [attitude] right grasp_lift: tilt=30.5deg from world -Z, tool_axis=(+0.3580,+0.3589,-0.8620) (TCP col 2, world; jaws close along X, travel along -Y), tip=+80.5mm (base 80.5 + delta +0.0), pad_fruit_dz=+57.9mm (world +Z, + = pads above the fruit centre), lip=+11.5mm (vertical tip drop +69.4mm at this tilt, minus dz), corner drop 16.65*sin(tilt)=+8.4mm / 30.5*sin(tilt)=+15.5mm
+[fruit] [task]   carry place1: stored pad centre 93 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist right place1 tick 0: cmd_centre=[0.2548, 0.0931, 1.5593] offset=[0.0005, 0.0045, -0.0099] |offset|=11 mm jaw_target=[0.2503, 0.0926, 1.5494] jaw=[0.2547999918460846, 0.09309999644756317, 1.5592999458312988] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right place1 tick 1: cmd_centre=[0.2548, 0.0931, 1.5593] offset=[0.0005, 0.0045, -0.0099] |offset|=11 mm jaw_target=[0.2503, 0.0926, 1.5494] jaw=[0.2547999918460846, 0.09319999814033508, 1.558899998664856] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right place1 tick 2: cmd_centre=[0.2548, 0.0931, 1.5593] offset=[0.0005, 0.0045, -0.0099] |offset|=11 mm jaw_target=[0.2503, 0.0926, 1.5494] jaw=[0.25459998846054077, 0.093299999833107, 1.558500051498413] coherent=False hand_is_jaw=True
+[fruit] [carry] right place1: ticks=407/407 clean_slip_max=0.0mm slip_xyz=(-0.0,-0.0,-0.0)mm hold_drift=0.0deg(no-hold) drift_end=n/a res_end=27.7mm dz_end=-25.2mm clr=+39mm@rail q_margin=-0.000@j3/t293 q_cmd_margin=0.000@j5 q_step_max=0.0093 jaw_z=+0.3552/0.6979 drift_on=None in-hand_vmax=0.055 onset_row=None force@onset=n/aN sep@onset=n/amm contacts@onset=None min_contacts=2 force_min=9.92N loss_row=None sep@loss=n/amm sep_end=76.0mm guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=69.7mm open_max=0.0mm
+[fruit] [attitude] right place1: tilt=91.2deg from world -Z, tool_axis=(+0.7398,-0.6725,+0.0212) (TCP col 2, world; jaws close along X, travel along -Y), tip=+80.5mm (base 80.5 + delta +0.0), pad_fruit_dz=-2.9mm (world +Z, + = pads above the fruit centre), lip=+1.2mm (vertical tip drop -1.7mm at this tilt, minus dz), corner drop 16.65*sin(tilt)=+16.6mm / 30.5*sin(tilt)=+30.5mm
+[fruit] [task] place low: bottom 1477 -> 50 mm (target 25), drop 83/102 mm, FINGER FLOOR budget 83 mm, residual 0.0 mm, 79 ticks
+[fruit] [feed] right: updates=333 ticks=1335 stride=4 released=+14 placed=+0 skipped=+0 (attempt start -> release)
+[fruit] [rl] episode 11: kiwi d=6.3cm bin=1 arm=right success=True grasped=True placed=True ticks=1874 decision=261 reward=0.9652 notes=['intercept trigger (dy=26.6cm, dx=-11.4cm, t_arrive=2.22s, speed=0.120m/s/encoder, frame=station, finger=0.0231, lead=2.24s/reach=0.32)'] presentation=direct ablate=none
+[fruit] [bed-sel] attempt 12 t=197.47 live=14 on_belt=13 admitted=5 window=3 pick=apple@0.612 pump_next=198.56 lag=-1.08 rebased=0 dropped=0.0s skipped=9 refused=0 placed=0
+[fruit] [bed-sel]   kiwi       along=-0.568 x=0.652 z=1.382 r=0.032 grade=C -> off belt x=0.652 z=1.382 (output conveyor or off the line)
+[fruit] [bed-sel]   apple      along=-0.624 x=0.325 z=1.198 r=0.031 grade=B -> below window along=-0.624 floor=0.180
+[fruit] [bed-sel]   peach      along=-0.465 x=0.267 z=1.196 r=0.029 grade=A -> below window along=-0.465 floor=0.180
+[fruit] [bed-sel]   tomato     along=-0.484 x=0.362 z=1.192 r=0.027 grade=A -> below window along=-0.484 floor=0.180
+[fruit] [bed-sel]   strawberry along=-0.264 x=0.218 z=1.184 r=0.018 grade=B -> below window along=-0.264 floor=0.180
+[fruit] [bed-sel]   peach      along=-0.283 x=0.318 z=1.196 r=0.030 grade=B -> below window along=-0.283 floor=0.180
+[fruit] [bed-sel]   strawberry along=-0.103 x=0.286 z=1.186 r=0.021 grade=B -> below window along=-0.103 floor=0.180
+[fruit] [bed-sel]   pear       along=+0.059 x=0.227 z=1.203 r=0.034 grade=A -> below window along=0.059 floor=0.180
+[fruit] [bed-sel]   orange     along=+0.064 x=0.314 z=1.200 r=0.030 grade=B -> below window along=0.064 floor=0.180
+[fruit] [bed-sel]   tomato     along=+0.244 x=0.219 z=1.191 r=0.027 grade=C -> below catch floor 0.244 < 0.399
+[fruit] [bed-sel]   pear       along=+0.253 x=0.325 z=1.200 r=0.031 grade=A -> below catch floor 0.253 < 0.399
+[fruit] [bed-sel]   lychee     along=+0.450 x=0.215 z=1.183 r=0.015 grade=B -> usable
+[fruit] [bed-sel]   lychee     along=+0.459 x=0.324 z=1.185 r=0.017 grade=C -> usable
+[fruit] [bed-sel]   apple      along=+0.612 x=0.272 z=1.200 r=0.034 grade=C -> chosen
+[fruit] [rl] episode 12: apple grade=C d=6.8cm bin=1 arm=right y=+0.612 presentation=direct
+[fruit] [task]   openarm fingertips 57 mm from the fruit; closing anyway
+[fruit] [task]   carry grasp_lift: stored pad centre 125 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist right grasp_lift tick 0: cmd_centre=[0.2308, -0.0, 1.322] offset=[0.0012, 0.0063, -0.0107] |offset|=12 mm jaw_target=[0.2243, -0.0012, 1.3114] jaw=[0.23080000281333923, -0.0, 1.3220000267028809] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right grasp_lift tick 1: cmd_centre=[0.2308, -0.0, 1.322] offset=[0.0012, 0.0063, -0.0107] |offset|=12 mm jaw_target=[0.2243, -0.0012, 1.3114] jaw=[0.2304999977350235, -9.999999747378752e-05, 1.3214999437332153] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right grasp_lift tick 2: cmd_centre=[0.2308, -0.0, 1.322] offset=[0.0012, 0.0063, -0.0107] |offset|=12 mm jaw_target=[0.2243, -0.0012, 1.3114] jaw=[0.23010000586509705, -9.999999747378752e-05, 1.3209999799728394] coherent=False hand_is_jaw=True
+[fruit] [belt] kiwi (index 9) discharged to the tray at x=1.64 (settled 3.0s)
+[fruit] [carry] right grasp_lift: ticks=161/161 clean_slip_max=5.5mm slip_xyz=(1.9,-0.3,-5.2)mm hold_drift=25.7deg drift_end=25.7 res_end=75.6mm dz_end=+7.1mm clr=+48mm@belt q_margin=-0.000@j7/t139 q_cmd_margin=0.000@j3 q_step_max=0.0147 jaw_z=-0.0117/0.3674 drift_on=104 in-hand_vmax=0.053 onset_row=8 force@onset=9.95N sep@onset=80.6mm contacts@onset=2 min_contacts=2 force_min=9.57N loss_row=None sep@loss=n/amm sep_end=80.7mm guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=67.4mm open_max=0.0mm
+[fruit] [attitude] right grasp_lift: tilt=29.0deg from world -Z, tool_axis=(+0.4110,+0.2578,-0.8744) (TCP col 2, world; jaws close along X, travel along -Y), tip=+80.5mm (base 80.5 + delta +0.0), pad_fruit_dz=+53.8mm (world +Z, + = pads above the fruit centre), lip=+16.6mm (vertical tip drop +70.4mm at this tilt, minus dz), corner drop 16.65*sin(tilt)=+8.1mm / 30.5*sin(tilt)=+14.8mm
+[fruit] [task]   carry place1: stored pad centre 88 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist right place1 tick 0: cmd_centre=[0.3012, 0.0472, 1.5532] offset=[0.0012, 0.0063, -0.0107] |offset|=12 mm jaw_target=[0.2948, 0.0459, 1.5426] jaw=[0.3012000024318695, 0.047200001776218414, 1.5532000064849854] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right place1 tick 1: cmd_centre=[0.3012, 0.0472, 1.5532] offset=[0.0012, 0.0063, -0.0107] |offset|=12 mm jaw_target=[0.2948, 0.0459, 1.5426] jaw=[0.3012000024318695, 0.047200001776218414, 1.5528000593185425] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right place1 tick 2: cmd_centre=[0.3012, 0.0472, 1.5532] offset=[0.0012, 0.0063, -0.0107] |offset|=12 mm jaw_target=[0.2948, 0.0459, 1.5426] jaw=[0.3009999990463257, 0.04729999974370003, 1.552299976348877] coherent=False hand_is_jaw=True
+[fruit] [carry] right place1: ticks=370/370 clean_slip_max=0.0mm slip_xyz=(-0.0,-0.0,0.0)mm hold_drift=0.0deg(no-hold) drift_end=n/a res_end=28.0mm dz_end=-23.8mm clr=+39mm@rail q_margin=-0.000@j3/t258 q_cmd_margin=0.000@j5 q_step_max=0.0115 jaw_z=+0.4052/0.7035 drift_on=None in-hand_vmax=0.053 onset_row=None force@onset=n/aN sep@onset=n/amm contacts@onset=None min_contacts=2 force_min=9.91N loss_row=None sep@loss=n/amm sep_end=80.7mm guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=67.4mm open_max=0.0mm
+[fruit] [attitude] right place1: tilt=86.4deg from world -Z, tool_axis=(+0.7378,-0.6722,-0.0624) (TCP col 2, world; jaws close along X, travel along -Y), tip=+80.5mm (base 80.5 + delta +0.0), pad_fruit_dz=+2.4mm (world +Z, + = pads above the fruit centre), lip=+2.6mm (vertical tip drop +5.0mm at this tilt, minus dz), corner drop 16.65*sin(tilt)=+16.6mm / 30.5*sin(tilt)=+30.4mm
+[fruit] [task] place low: bottom 1467 -> 49 mm (target 25), drop 74/92 mm, FINGER FLOOR budget 74 mm, residual 0.0 mm, 76 ticks
+[fruit] [feed] right: updates=339 ticks=1356 stride=4 released=+12 placed=+0 skipped=+1 (attempt start -> release)
+[fruit] [rl] episode 12: apple d=6.8cm bin=1 arm=right success=True grasped=True placed=True ticks=1819 decision=226 reward=0.9699 notes=['intercept trigger (dy=28.3cm, dx=-6.1cm, t_arrive=2.36s, speed=0.120m/s/encoder, frame=station, finger=0.0226, lead=2.36s/reach=0.33)'] presentation=direct ablate=none
+[fruit] [bed-sel] attempt 13 t=213.80 live=12 on_belt=11 admitted=5 window=2 pick=orange@0.629 pump_next=215.21 lag=-1.41 rebased=0 dropped=0.0s skipped=10 refused=0 placed=0
+[fruit] [bed-sel]   apple      along=-0.641 x=0.669 z=1.378 r=0.034 grade=C -> off belt x=0.669 z=1.378 (output conveyor or off the line)
+[fruit] [bed-sel]   strawberry along=-0.572 x=0.205 z=1.184 r=0.018 grade=B -> below window along=-0.572 floor=0.180
+[fruit] [bed-sel]   peach      along=-0.592 x=0.303 z=1.196 r=0.030 grade=B -> below window along=-0.592 floor=0.180
+[fruit] [bed-sel]   strawberry along=-0.404 x=0.270 z=1.186 r=0.021 grade=B -> below window along=-0.404 floor=0.180
+[fruit] [bed-sel]   pear       along=-0.391 x=0.360 z=1.203 r=0.034 grade=A -> below window along=-0.391 floor=0.180
+[fruit] [bed-sel]   orange     along=-0.197 x=0.337 z=1.200 r=0.030 grade=B -> below window along=-0.197 floor=0.180
+[fruit] [bed-sel]   tomato     along=+0.000 x=0.352 z=1.191 r=0.027 grade=C -> below window along=0.000 floor=0.180
+[fruit] [bed-sel]   pear       along=+0.172 x=0.239 z=1.200 r=0.031 grade=A -> below catch floor 0.172 < 0.399
+[fruit] [bed-sel]   kiwi       along=+0.183 x=0.310 z=1.201 r=0.032 grade=C -> below catch floor 0.183 < 0.399
+[fruit] [bed-sel]   lychee     along=+0.323 x=0.248 z=1.183 r=0.015 grade=B -> below catch floor 0.323 < 0.399
+[fruit] [bed-sel]   lychee     along=+0.495 x=0.219 z=1.185 r=0.017 grade=C -> usable
+[fruit] [bed-sel]   orange     along=+0.629 x=0.202 z=1.203 r=0.034 grade=A -> chosen
+[fruit] [rl] episode 13: orange grade=A d=6.8cm bin=0 arm=left y=+0.629 presentation=direct
+[fruit] [task]   openarm fingertips 56 mm from the fruit; closing anyway
+[fruit] [task]   carry grasp_lift: stored pad centre 137 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist left grasp_lift tick 0: cmd_centre=[0.1832, -0.0494, 1.3319] offset=[-0.0009, -0.0028, -0.0096] |offset|=10 mm jaw_target=[0.1803, -0.0504, 1.3223] jaw=[0.18320000171661377, -0.049400001764297485, 1.3319000005722046] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist left grasp_lift tick 1: cmd_centre=[0.1832, -0.0494, 1.3319] offset=[-0.0009, -0.0028, -0.0096] |offset|=10 mm jaw_target=[0.1803, -0.0504, 1.3223] jaw=[0.18310000002384186, -0.04969999939203262, 1.3317999839782715] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist left grasp_lift tick 2: cmd_centre=[0.1832, -0.0494, 1.3319] offset=[-0.0009, -0.0028, -0.0096] |offset|=10 mm jaw_target=[0.1803, -0.0504, 1.3224] jaw=[0.18299999833106995, -0.05000000074505806, 1.3315999507904053] coherent=False hand_is_jaw=True
+[fruit] [belt] apple (index 15) discharged to the tray at x=1.49 (settled 3.0s)
+[fruit] [carry] left grasp_lift: ticks=153/153 clean_slip_max=37.2mm slip_xyz=(-22.1,20.7,21.7)mm hold_drift=26.5deg drift_end=26.5 res_end=65.8mm dz_end=+3.5mm clr=+57mm@belt q_margin=-0.000@j7/t134 q_cmd_margin=0.000@j3 q_step_max=0.0096 jaw_z=+0.0041/0.2934 drift_on=96 in-hand_vmax=0.299 onset_row=125 force@onset=11.84N sep@onset=83.9mm contacts@onset=1 min_contacts=1 force_min=9.39N loss_row=None sep@loss=n/amm sep_end=98.7mm guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=66.6mm open_max=0.0mm
+[fruit] [attitude] left grasp_lift: tilt=30.1deg from world -Z, tool_axis=(+0.3127,-0.3913,-0.8655) (TCP col 2, world; jaws close along X, travel along -Y), tip=+80.5mm (base 80.5 + delta +0.0), pad_fruit_dz=+358.9mm (world +Z, + = pads above the fruit centre), lip=-289.3mm (vertical tip drop +69.7mm at this tilt, minus dz), corner drop 16.65*sin(tilt)=+8.3mm / 30.5*sin(tilt)=+15.3mm
+[fruit] [task]   carry place0: stored pad centre 87 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist left place0 tick 0: cmd_centre=[0.2261, -0.1206, 1.5574] offset=[-0.0009, -0.0028, -0.0096] |offset|=10 mm jaw_target=[0.2233, -0.1215, 1.5478] jaw=[0.22609999775886536, -0.12060000002384186, 1.5573999881744385] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist left place0 tick 1: cmd_centre=[0.2261, -0.1206, 1.5574] offset=[-0.0009, -0.0028, -0.0096] |offset|=10 mm jaw_target=[0.2233, -0.1215, 1.5478] jaw=[0.22609999775886536, -0.12070000171661377, 1.5570000410079956] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist left place0 tick 2: cmd_centre=[0.2261, -0.1206, 1.5574] offset=[-0.0009, -0.0028, -0.0096] |offset|=10 mm jaw_target=[0.2233, -0.1215, 1.5478] jaw=[0.22599999606609344, -0.12080000340938568, 1.55649995803833] coherent=False hand_is_jaw=True
+[fruit] [carry] left place0: ticks=430/430 clean_slip_max=1308.6mm slip_xyz=(287.5,562.8,-1145.9)mm hold_drift=0.0deg(no-hold) drift_end=n/a res_end=26.4mm dz_end=-24.7mm clr=-216mm@rail q_margin=-0.000@j3/t308 q_cmd_margin=0.000@j5 q_step_max=0.0091 jaw_z=-0.3163/0.6938 drift_on=None in-hand_vmax=0.451 onset_row=2 force@onset=0.00N sep@onset=69.5mm contacts@onset=0 min_contacts=0 force_min=0.00N loss_row=2 sep@loss=69.5mm sep_end=51.6mm guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=69.6mm open_max=0.0mm
+[fruit] [attitude] left place0: tilt=92.7deg from world -Z, tool_axis=(+0.7428,+0.6678,+0.0471) (TCP col 2, world; jaws close along X, travel along -Y), tip=+80.5mm (base 80.5 + delta +0.0), pad_fruit_dz=+306.8mm (world +Z, + = pads above the fruit centre), lip=-310.5mm (vertical tip drop -3.8mm at this tilt, minus dz), corner drop 16.65*sin(tilt)=+16.6mm / 30.5*sin(tilt)=+30.5mm
+[fruit] [feed] left: updates=331 ticks=1327 stride=4 released=+10 placed=+0 skipped=+0 (attempt start -> release)
+[fruit] [rl]   grasp did not land on the belt; re-running carry_and_release
+[fruit] [rl] episode 13: orange d=6.8cm bin=0 arm=left success=False grasped=True placed=False ticks=1984 decision=267 reward=0.0000 notes=['intercept trigger (dy=25.4cm, dx=-14.0cm, t_arrive=2.11s, speed=0.120m/s/encoder, frame=station, finger=0.0253, lead=2.13s/reach=0.31)'] presentation=direct ablate=none
+[fruit] [bed-sel] attempt 14 t=231.50 live=10 on_belt=10 admitted=5 window=2 pick=lychee@0.504 pump_next=231.72 lag=-0.22 rebased=0 dropped=0.0s skipped=10 refused=0 placed=0
+[fruit] [bed-sel]   strawberry along=-0.566 x=0.316 z=1.181 r=0.018 grade=B -> below window along=-0.566 floor=0.180
+[fruit] [bed-sel]   peach      along=-0.434 x=0.263 z=1.196 r=0.030 grade=B -> below window along=-0.434 floor=0.180
+[fruit] [bed-sel]   strawberry along=-0.267 x=0.257 z=1.186 r=0.021 grade=B -> below window along=-0.267 floor=0.180
+[fruit] [bed-sel]   pear       along=-0.252 x=0.332 z=1.203 r=0.034 grade=A -> below window along=-0.252 floor=0.180
+[fruit] [bed-sel]   orange     along=-0.027 x=0.334 z=1.200 r=0.030 grade=B -> below window along=-0.027 floor=0.180
+[fruit] [bed-sel]   tomato     along=+0.159 x=0.293 z=1.191 r=0.027 grade=C -> below catch floor 0.159 < 0.399
+[fruit] [bed-sel]   pear       along=+0.336 x=0.216 z=1.200 r=0.031 grade=A -> below catch floor 0.336 < 0.399
+[fruit] [bed-sel]   kiwi       along=+0.349 x=0.280 z=1.200 r=0.032 grade=C -> below catch floor 0.349 < 0.399
+[fruit] [bed-sel]   lychee     along=+0.495 x=0.233 z=1.183 r=0.015 grade=B -> usable
+[fruit] [bed-sel]   lychee     along=+0.504 x=0.337 z=1.185 r=0.017 grade=C -> chosen
+[fruit] [rl] episode 14: lychee grade=C d=3.4cm bin=1 arm=right y=+0.504 presentation=direct
+[fruit] [task]   openarm fingertips 43 mm from the fruit; closing anyway
+[fruit] [task]   carry grasp_lift: stored pad centre 123 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist right grasp_lift tick 0: cmd_centre=[0.3025, -0.0373, 1.305] offset=[0.0129, 0.0069, -0.0118] |offset|=19 mm jaw_target=[0.2954, -0.0502, 1.2933] jaw=[0.30250000953674316, -0.037300001829862595, 1.3049999475479126] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right grasp_lift tick 1: cmd_centre=[0.3025, -0.0373, 1.305] offset=[0.0129, 0.0069, -0.0118] |offset|=19 mm jaw_target=[0.2954, -0.0502, 1.2933] jaw=[0.30230000615119934, -0.03750000149011612, 1.3046000003814697] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right grasp_lift tick 2: cmd_centre=[0.3025, -0.0373, 1.305] offset=[0.0129, 0.0069, -0.0118] |offset|=19 mm jaw_target=[0.2954, -0.0502, 1.2933] jaw=[0.3018999993801117, -0.03799999877810478, 1.3040000200271606] coherent=False hand_is_jaw=True
+[fruit] [carry] right grasp_lift: ticks=174/174 clean_slip_max=0.0mm slip_xyz=(-0.0,-0.0,-0.0)mm hold_drift=23.8deg drift_end=23.8 res_end=69.8mm dz_end=+4.9mm clr=+43mm@belt q_margin=-0.000@j7/t170 q_cmd_margin=0.000@j7 q_step_max=0.0300 jaw_z=-0.0143/0.4037 drift_on=118 in-hand_vmax=0.047 onset_row=None force@onset=n/aN sep@onset=n/amm contacts@onset=None min_contacts=2 force_min=10.00N loss_row=None sep@loss=n/amm sep_end=45.3mm guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=33.6mm open_max=0.0mm
+[fruit] [attitude] right grasp_lift: tilt=26.6deg from world -Z, tool_axis=(+0.4478,+0.0020,-0.8941) (TCP col 2, world; jaws close along X, travel along -Y), tip=+80.5mm (base 80.5 + delta +0.0), pad_fruit_dz=+58.7mm (world +Z, + = pads above the fruit centre), lip=+13.3mm (vertical tip drop +72.0mm at this tilt, minus dz), corner drop 16.65*sin(tilt)=+7.5mm / 30.5*sin(tilt)=+13.7mm
+[fruit] [task]   carry place1: stored pad centre 80 mm from the measured pads; re-anchoring
+[fruit] [diag] carry-assist right place1 tick 0: cmd_centre=[0.3805, -0.0391, 1.5462] offset=[0.0129, 0.0069, -0.0118] |offset|=19 mm jaw_target=[0.3734, -0.052, 1.5345] jaw=[0.3804999887943268, -0.03909999877214432, 1.5462000370025635] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right place1 tick 1: cmd_centre=[0.3805, -0.0391, 1.5462] offset=[0.0129, 0.0069, -0.0118] |offset|=19 mm jaw_target=[0.3734, -0.052, 1.5345] jaw=[0.38040000200271606, -0.03929999843239784, 1.5458999872207642] coherent=False hand_is_jaw=True
+[fruit] [diag] carry-assist right place1 tick 2: cmd_centre=[0.3805, -0.0391, 1.5462] offset=[0.0129, 0.0069, -0.0118] |offset|=19 mm jaw_target=[0.3734, -0.052, 1.5345] jaw=[0.38040000200271606, -0.039500001817941666, 1.5454000234603882] coherent=False hand_is_jaw=True
+[fruit] [carry] right place1: ticks=306/306 clean_slip_max=0.0mm slip_xyz=(-0.0,-0.0,-0.0)mm hold_drift=0.0deg(no-hold) drift_end=n/a res_end=27.0mm dz_end=-19.6mm clr=+53mm@rail q_margin=-0.000@j3/t164 q_cmd_margin=0.000@j3 q_step_max=0.0286 jaw_z=+0.4385/0.7159 drift_on=None in-hand_vmax=0.063 onset_row=None force@onset=n/aN sep@onset=n/amm contacts@onset=None min_contacts=2 force_min=9.99N loss_row=None sep@loss=n/amm sep_end=45.3mm guard=0 events=0 holds=0 reseat=0.0mm relief=0 gap_start=33.6mm open_max=0.0mm
+[fruit] [attitude] right place1: tilt=81.9deg from world -Z, tool_axis=(+0.7517,-0.6441,-0.1417) (TCP col 2, world; jaws close along X, travel along -Y), tip=+80.5mm (base 80.5 + delta +0.0), pad_fruit_dz=+8.8mm (world +Z, + = pads above the fruit centre), lip=+2.6mm (vertical tip drop +11.4mm at this tilt, minus dz), corner drop 16.65*sin(tilt)=+16.5mm / 30.5*sin(tilt)=+30.2mm
+[fruit] [task] place low: bottom 1484 -> 58 mm (target 25), drop 86/109 mm, FINGER FLOOR budget 86 mm, residual 0.0 mm, 80 ticks
+[fruit] [feed] right: updates=328 ticks=1313 stride=4 released=+14 placed=+0 skipped=+1 (attempt start -> release)
+[fruit] [rl] episode 14: lychee d=3.4cm bin=1 arm=right success=True grasped=True placed=True ticks=1665 decision=152 reward=0.9797 notes=['intercept trigger (dy=25.0cm, dx=0.4cm, t_arrive=2.08s, speed=0.120m/s/encoder, frame=station, finger=0.0082, lead=2.09s/reach=0.30)'] presentation=direct ablate=none
+[fruit] [rl] seed 77: 11/15 success
+[fruit] [rl] rollout success 11/15 (presentation=direct, ablate=none, seeds=[77])
+[fruit] [rl] run wall end 1793334652.020 duration 531.5s
+2026-10-30T04:21:58Z [16,613ms] [Warning] [omni.syntheticdata.plugin] SdRenderVarPtr missing valid input renderVar LdrColorSDbuff
+[549.879s] Simulation App Shutting Down

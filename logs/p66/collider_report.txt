@@ -1,0 +1,51 @@
+P66 phase 1b - the static read of the authored finger-tip collider prims
+S  : FRUIT_FINGER_TIP_DELTA='0'  parts=['robot']  physics_started=False
+F1 : FRUIT_FINGER_TIP_DELTA='-0.004'  parts=['robot']  physics_started=False
+
+link                          face    mid     long  | theta(deg)  span_z  | d_long  d_span_z  4cos(theta)
+--------------------------------------------------------------------------------------------------------------------
+openarm_left_left_finger      33.26  61.00   84.90  |     0.000   84.902  |  4.000     4.000      4.000
+openarm_left_right_finger     33.26  61.00   84.90  |     0.000   84.902  |  4.000     4.000      4.000
+openarm_right_left_finger     33.26  61.00   84.90  |     0.000   84.902  |  4.000     4.000      4.000
+openarm_right_right_finger    33.26  61.00   84.90  |     0.000   84.902  |  4.000     4.000      4.000
+
+box (S )  33.261 x 61.000 x 84.902 mm   (face x mid x long)
+box (F1)  33.261 x 61.000 x 80.902 mm
+long dimension:  84.902 - 80.902 = 4.000 mm
+theta (long axis vs the vertical, this static pose) = 0.0000 deg
+4*cos(theta) = 4.0000 mm
+distal plane (world z): 856.399 -> 860.399 mm (+4.000)
+proximal plane (world z): 941.301 -> 941.301 mm
+
+the same identity at a tilt (arithmetic on P63's measured carry attitude):
+  theta =   0.0 deg -> 4*cos(theta) = 4.000 mm (along the belt 4*sin(theta) = 0.000 mm)
+  theta =  10.0 deg -> 4*cos(theta) = 3.939 mm (along the belt 4*sin(theta) = 0.695 mm)
+  theta =  24.6 deg -> 4*cos(theta) = 3.637 mm (along the belt 4*sin(theta) = 1.665 mm)
+  theta =  30.0 deg -> 4*cos(theta) = 3.464 mm (along the belt 4*sin(theta) = 2.000 mm)
+
+== structural checks ==
+  [PASS] openarm_left_left_finger: the two boxes differ only in the long axis
+  [PASS] openarm_left_left_finger: long(S)-long(F1) == 4.000 mm
+  [PASS] openarm_left_left_finger: span_z(S)-span_z(F1) == 4*cos(theta)
+  [PASS] openarm_left_left_finger: the AABB z extent tracks the span
+  [PASS] openarm_left_left_finger: the proximal plane does not move
+  [PASS] openarm_left_left_finger: exactly one collision prim enabled (the box)
+  [PASS] openarm_left_right_finger: the two boxes differ only in the long axis
+  [PASS] openarm_left_right_finger: long(S)-long(F1) == 4.000 mm
+  [PASS] openarm_left_right_finger: span_z(S)-span_z(F1) == 4*cos(theta)
+  [PASS] openarm_left_right_finger: the AABB z extent tracks the span
+  [PASS] openarm_left_right_finger: the proximal plane does not move
+  [PASS] openarm_left_right_finger: exactly one collision prim enabled (the box)
+  [PASS] openarm_right_left_finger: the two boxes differ only in the long axis
+  [PASS] openarm_right_left_finger: long(S)-long(F1) == 4.000 mm
+  [PASS] openarm_right_left_finger: span_z(S)-span_z(F1) == 4*cos(theta)
+  [PASS] openarm_right_left_finger: the AABB z extent tracks the span
+  [PASS] openarm_right_left_finger: the proximal plane does not move
+  [PASS] openarm_right_left_finger: exactly one collision prim enabled (the box)
+  [PASS] openarm_right_right_finger: the two boxes differ only in the long axis
+  [PASS] openarm_right_right_finger: long(S)-long(F1) == 4.000 mm
+  [PASS] openarm_right_right_finger: span_z(S)-span_z(F1) == 4*cos(theta)
+  [PASS] openarm_right_right_finger: the AABB z extent tracks the span
+  [PASS] openarm_right_right_finger: the proximal plane does not move
+  [PASS] openarm_right_right_finger: exactly one collision prim enabled (the box)
+  24/24

@@ -1,0 +1,123 @@
+# P66 phase 3 - the clearance cost of the lift-height ladder
+# cell: control_77.log, control_101.log, control_202.log, control_303.log, C24_77.log, C24_101.log, C24_202.log, C24_303.log, C20_77.log, C20_101.log, C20_202.log, C20_303.log
+# arms: control=+0.08 (0.36 m) / C24=-0.04 (0.24 m) / C20=-0.08 (0.20 m), all explicit
+# the question: does 0.24 match 0.20 at half the depth, and is the place clr >= +33 mm?
+
+== P1 - the instrument, the rung identity and the arm scope ==
+  control: episodes=60 [carry]=117 left_lift_legs=18 left_place_legs=17 clr on 117/117 rows | dz rows=4/4 dz=[0.08] origin=['explicit'] target_m=[1.53]
+  C24: episodes=60 [carry]=116 left_lift_legs=22 left_place_legs=21 clr on 116/116 rows | dz rows=4/4 dz=[-0.04] origin=['explicit'] target_m=[1.41]
+  C20: episodes=60 [carry]=110 left_lift_legs=19 left_place_legs=18 clr on 110/110 rows | dz rows=4/4 dz=[-0.08] origin=['explicit'] target_m=[1.37]
+  wanted: dz={'control': 0.08, 'C24': -0.04, 'C20': -0.08}, target=1.53/1.41/1.37 m above the floor (belt_top 1.17), origin=explicit in all arms
+  diag actuation: 343 rows, guard/events/holds/reseat/relief != 0 on 0 (want 0)
+
+== P2 - THE QUESTION: the place leg's minimum `clr` against the +33 mm rail floor ==
+  three explicit populations per arm, fixed before the read (the exclusion is
+  structural: `_payload_clearance` tracks the payload's position whether or not the
+  hand holds it, so a payload that is already gone reads the *main belt*):
+    clean  = clean_slip <= 50 mm  -> the payload crossed the rail in the pads: THE FLOOR'S READ
+    slide  = 50 < slip <= 400 mm  -> the payload slid out during the leg: its min clr is
+                                     the slide's, reported beside (not excused)
+    escaped= slip > 400 mm        -> excluded: the fruit is on another belt (-215..-219 mm
+                                     is the record's own escaped-payload class)
+  control (lift end 0.36 m): clean n=0 clr_min=n/a mm | below +33 mm: 0/0 | negative: 0/0 || slide n=0 clr=[] mm || escaped 17/17
+  C24 (lift end 0.24 m): clean n=6 clr_min=2 [-2-12] mm | below +33 mm: 6/6 | negative: 2/6 || slide n=5 clr=[-18, -24, -24, -24, -36] mm || escaped 10/21
+      clean clr=-2 mm ep=12 seed=101 apple | in-hand_vmax=0.095 clean_slip=0.9 mm force_min=2.20 N outcome=placed
+      clean clr=-1 mm ep=4 seed=303 orange | in-hand_vmax=0.090 clean_slip=8.6 mm force_min=8.18 N outcome=placed
+      clean clr=-0 mm ep=14 seed=101 apple | in-hand_vmax=0.478 clean_slip=18.2 mm force_min=0.00 N outcome=placed
+      clean clr=+3 mm ep=10 seed=202 apple | in-hand_vmax=0.596 clean_slip=26.2 mm force_min=0.00 N outcome=placed
+      clean clr=+5 mm ep=14 seed=303 kiwi | in-hand_vmax=0.791 clean_slip=19.5 mm force_min=0.00 N outcome=placed
+      clean clr=+12 mm ep=14 seed=202 kiwi | in-hand_vmax=0.053 clean_slip=0.4 mm force_min=9.54 N outcome=placed
+      slide clr=-18 mm ep=4 seed=77 orange | clean_slip=131.5 mm loss_row=262/361 in-hand_vmax=0.741 outcome=placed
+      slide clr=-24 mm ep=13 seed=77 orange | clean_slip=122.0 mm loss_row=265/363 in-hand_vmax=0.710 outcome=placed
+      slide clr=-24 mm ep=3 seed=101 orange | clean_slip=124.0 mm loss_row=275/378 in-hand_vmax=0.891 outcome=placed
+      slide clr=-24 mm ep=2 seed=303 orange | clean_slip=117.6 mm loss_row=269/370 in-hand_vmax=0.806 outcome=placed
+      slide clr=-36 mm ep=10 seed=303 kiwi | clean_slip=99.2 mm loss_row=345/404 in-hand_vmax=0.666 outcome=placed
+  C20 (lift end 0.20 m): clean n=8 clr_min=4 [2-20] mm | below +33 mm: 8/8 | negative: 0/8 || slide n=3 clr=[-26, -26, -29] mm || escaped 7/18
+      clean clr=+2 mm ep=12 seed=202 pear | in-hand_vmax=0.479 clean_slip=9.4 mm force_min=6.79 N outcome=placed
+      clean clr=+3 mm ep=0 seed=77 pear | in-hand_vmax=0.414 clean_slip=19.7 mm force_min=0.00 N outcome=placed
+      clean clr=+3 mm ep=10 seed=77 pear | in-hand_vmax=0.698 clean_slip=20.6 mm force_min=0.00 N outcome=placed
+      clean clr=+4 mm ep=5 seed=77 pear | in-hand_vmax=0.494 clean_slip=27.8 mm force_min=0.00 N outcome=placed
+      clean clr=+4 mm ep=11 seed=202 lychee | in-hand_vmax=0.078 clean_slip=8.5 mm force_min=8.54 N outcome=placed
+      clean clr=+5 mm ep=3 seed=77 peach | in-hand_vmax=0.611 clean_slip=19.7 mm force_min=0.00 N outcome=placed
+      clean clr=+8 mm ep=13 seed=77 pear | in-hand_vmax=0.603 clean_slip=30.5 mm force_min=0.00 N outcome=placed
+      clean clr=+20 mm ep=1 seed=303 strawberry | in-hand_vmax=0.060 clean_slip=0.0 mm force_min=9.99 N outcome=placed
+      slide clr=-26 mm ep=0 seed=101 apple | clean_slip=146.9 mm loss_row=259/376 in-hand_vmax=0.797 outcome=placed
+      slide clr=-26 mm ep=2 seed=303 orange | clean_slip=140.4 mm loss_row=272/380 in-hand_vmax=0.784 outcome=placed
+      slide clr=-29 mm ep=4 seed=303 pear | clean_slip=122.3 mm loss_row=321/435 in-hand_vmax=0.673 outcome=placed
+  per-seed clean minima (the branch check - a rung's cost is not a single leg):
+    control: 77: n=0 min=n/a, 101: n=0 min=n/a, 202: n=0 min=n/a, 303: n=0 min=n/a
+    C24: 77: n=0 min=n/a, 101: n=2 min=-2, 202: n=2 min=3, 303: n=2 min=-1
+    C20: 77: n=5 min=3, 101: n=0 min=n/a, 202: n=2 min=2, 303: n=1 min=20
+  for context, the left's own LIFT leg (the main belt; its min is the leg's FIRST tick,
+  i.e. the payload being seated - identical work in every arm, not this lever's object):
+    control: n=17 clr_min=44 [-15-62] mm@belt
+    C24: n=21 clr_min=49 [44-60] mm@belt
+    C20: n=18 clr_min=54 [34-62] mm@belt
+  THE SHIPPED-HEIGHT REFERENCE: the right arm is unarmed by this knob (its lift ends at
+  0.36 m), so its clean place legs are the same-batch measurement of the floor that the
+  control's left cannot give - the control's left never carries a payload into place:
+    control: n=41 clr_min=45 [34-128] mm@rail | below +33: 0/41
+    C24: n=35 clr_min=45 [31-126] mm@rail | below +33: 1/35
+    C20: n=35 clr_min=50 [32-84] mm@rail | below +33: 1/35
+    pooled: n=111 clr_min=46 [31-128] mm@rail, 2/111 below the floor
+
+== P2b - did the rail bite? the clean place legs' own motion (the record's signature
+   is a jolt + ~4 cm of slip on the legs that dip under the rail top)
+  control: in-hand_vmax=n/a clean_slip_max=n/a mm force_min=n/a N
+  C24: in-hand_vmax=0.286 [0.053-0.791] clean_slip_max=13.4 [0.4-26.2] mm force_min=1.10 [0.00-9.54] N
+  C20: in-hand_vmax=0.486 [0.060-0.698] clean_slip_max=19.7 [0.0-30.5] mm force_min=0.00 [0.00-9.99] N
+
+== P3 - the mediator: drift_end and |tool_y| per rung (the left's lift legs) ==
+  control (lift end 0.36 m, n=18): drift_end=25.2 [20.3-62.1] deg | |tool_y|=0.327 [0.004-0.391] | res_end=73.0 [58.8-594.6] mm
+  C24 (lift end 0.24 m, n=22): drift_end=3.4 [2.0-23.8] deg | |tool_y|=0.071 [0.036-0.117] | res_end=18.9 [17.7-80.3] mm
+  C20 (lift end 0.20 m, n=19): drift_end=0.7 [0.6-24.9] deg | |tool_y|=0.003 [0.000-0.330] | res_end=12.9 [8.7-520.4] mm
+  dose reference (phase 2, same instrument): 0.36 -> 24.6, 0.28 -> 8.0, 0.20 -> 0.7 deg
+
+== P4 - the class (the primary): the left's placed, raw and standardised ==
+  control: left n=19 placed= 0 cnp=17 never-held= 2 | right n=41 placed=41 cnp= 0 never-held= 0
+  C24: left n=23 placed=11 cnp=10 never-held= 2 | right n=37 placed=36 cnp= 0 never-held= 1
+  C20: left n=19 placed=11 cnp= 7 never-held= 1 | right n=41 placed=35 cnp= 0 never-held= 6
+  the left's per-species placed / n (the arm is the lane, so one arm per grade):
+    control: apple 0/4, kiwi 0/3, lychee 0/1, orange 0/3, peach 0/4, pear 0/3, strawberry 0/1
+    C24: apple 3/6, kiwi 3/5, lychee 0/1, orange 5/6, peach 0/3, pear 0/2
+    C20: apple 1/3, kiwi 0/5, lychee 1/1, orange 1/2, peach 1/1, pear 6/6, strawberry 1/1
+  standardised (species; common support ['apple', 'kiwi', 'lychee', 'orange', 'peach', 'pear'], pooled weights {'apple': 13, 'kiwi': 13, 'lychee': 3, 'orange': 11, 'peach': 8, 'pear': 11}, total 59):
+    control: standardised placed=0.000 (restricted 0/18, weight 1.000)
+    C24: standardised placed=0.398 (restricted 11/23, weight 1.000)
+    C20: standardised placed=0.540 (restricted 10/18, weight 1.000)
+  per-seed left placed:
+    control: 77: 0/4, 101: 0/7, 202: 0/4, 303: 0/4
+    C24: 77: 2/6, 101: 3/7, 202: 2/5, 303: 4/5
+    C20: 77: 5/5, 101: 1/5, 202: 2/4, 303: 3/5
+
+  the left's escaping lift legs (clean_slip_max > 50 mm) and the place class:
+    control: lift escapes=15/18  cnps=17 lift-class=15 place-class=3
+    C24: lift escapes=1/22  cnps=10 lift-class=1 place-class=10
+    C20: lift escapes=1/19  cnps=7 lift-class=1 place-class=7
+
+== P4b - the right arm (unarmed: the invariance check) ==
+  control: right placed=41/41 (100.0 %) cnp=0 never-held=0
+  C24: right placed=36/37 (97.3 %) cnp=0 never-held=1
+  C20: right placed=35/41 (85.4 %) cnp=0 never-held=6
+  control vs C20, right arm placed: one-sided Fisher p=0.013 (row 1 = control >= row 2 = C20)
+
+  no new failure reason (note keys vs the same-batch control):
+    control: new=none
+    C24: new=none
+    C20: new=['fruit fell off the line']
+
+  the cycle: s/attempt (log wall / 15) and s sim / pick
+    control: wall=35.1 [34.6-36.0] s/pick (durations [531.5, 520.5, 519.6, 540.3]) | sim=15.1 [12.9-16.8] s/pick
+    C24: wall=34.5 [33.5-35.6] s/pick (durations [507.0, 529.5, 534.7, 501.8]) | sim=15.0 [7.7-16.5] s/pick
+    C20: wall=35.9 [33.7-128.1] s/pick (durations [535.8, 540.1, 505.4, 1921.0]) | sim=14.9 [9.1-16.8] s/pick
+
+== P5 - the verdict ==
+  Q1 does 0.24 match 0.20 at half the depth?  standardised placed control 0.000 / C24 0.398 / C20 0.540
+     C24 - C20 = -0.142; C24 - control = +0.398; C20 - control = +0.540
+  floor reference (the unarmed right arm, lift end 0.36 m): n=111 clr_min=46 [31-128] mm@rail, 2/111 below +33 mm
+  Q2 is the place clr >= +33 mm?  control: min n/a mm, 0/0 below | C24: min -2 mm, 6/6 below | C20: min 2 mm, 8/8 below
+  STOP RULE at 0.24 m (DEVIATION D4): clean min -2 mm, 6/6 below the floor, slide minima [-18, -24, -24, -24, -36] -> FIRED (a negative crossing exists)
+  STOP RULE at 0.20 m (DEVIATION D4): clean min 2 mm, 8/8 below the floor, slide minima [-26, -26, -29] -> FIRED (a negative crossing exists)
+  COST: the floor's same-batch reference is 46 [31-128] mm (the unarmed right arm at 0.36 m, 2/111 below the floor); the two rungs read C24 2 mm / C20 4 mm.
+  drift_end medians: control 25.2 / C24 3.4 / C20 0.7 deg (phase 2 at 0.36/0.20: 24.6/0.7)
+
