@@ -20024,3 +20024,30 @@ the crossing - the reading that could block the flip does not exist yet) and the
 spread rather than flat). `FRUIT_LIFT_DZ` stays default off, `configs/*` untouched,
 no reference re-recorded; every pre-P66 direct number is a **0.36-lift** number
 (`FRUIT_LIFT_DZ=+0.08` restores it).
+
+### P66 P4: the rail-crossing gate measured - the lift lever works but cannot ship alone
+
+The last gate (a) of P66 is measured. With the `clr` reduction fixed to the
+rail-crossing form (`clr_x` at the crossing, `clr_win` over the transfer window;
+one seed, 2 runs, `p4_report.py --check` PASS):
+
+- **0.20 m rung**: the left's held place leg enters the rail's footprint **level
+  with the rail top** (window minimum **+0 mm**, tick 333) and crosses the
+  centreline at **+5 mm** (tick 340);
+- **shipped 0.36 rung**: its own left leg reads **+30 / +29 mm** on the same
+  scenario;
+- **no held leg goes negative in either arm (0/16)** - there is **no contact** -
+  but the rung spends **25 of the 30 mm** the shipped lift had, i.e. the rail's
+  entire remaining margin.
+
+**The rung ladder cannot buy it back**: the crossing sits at 82.5 % of the place
+leg's `y` span, so `dz_crossing = 0.175 x dz_lift` - the 0.24 rung buys +7 mm, not
++40. Only the **transfer height** is 1:1 with the crossing, and the lift lever does
+not touch it.
+
+**So: the lever is proven (P66 phase 3: control 0/25, C24 12/30, C20 14/25, 5/5
+runs) but it is not shippable as a lift-only change** - the gate (a) floor (+33 mm)
+fails at +5 mm with no contact. **The re-shape is named**: keep the low lift (the
+attitude holds) and re-establish the crossing height on the place leg's first
+segment, which is a transfer-height change with its own 1:1 measurement and its own
+registration. `FRUIT_LIFT_DZ` stays default off; nothing was flipped.

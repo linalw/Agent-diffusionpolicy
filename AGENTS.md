@@ -2801,12 +2801,20 @@ it with no payload, no controller and no profile - `T0` at `belt_top + 0.36` is
 band passes the 0.05 rad margin clause at any x/y/depth, while the shipped `C0`
 passes 31/75), so P63's live 24.6 deg **is** the static number and the drift was
 never a controller defect. **Two gates are unmeasured and the flip is withheld**:
-(a) the **place-transit clearance** - the lift ends 0.16 m lower and the record's
-arithmetic is 1:1 mm per mm of crossing height (+35 mm shipped, -45 mm at
-transfer-lift 0), but the new print-only `clr=<mm>@<surface>` field prints the
-leg's **minimum** (including the on-belt phase: `@rail -18..-24`, `@belt -3..-7`,
-`@obelt -182`), **not the crossing**, so the reading that could block it does not
-exist yet; (b) the **right-arm no-op** is structural (`resolve_lift_dz` emits only
+(a) the **place-transit clearance: MEASURED AND FAILED at the +33 mm floor.**
+With the reduction fixed to the rail-crossing form (`clr_x` at the crossing,
+`clr_win` over the transfer window; `logs/p66/P4_RESULTS.md`, one seed, 2 runs,
+`p4_report.py --check` PASS), the **0.20 m rung enters the rail's footprint level
+with the rail top (window minimum `+0 mm`, tick 333) and crosses the centreline at
+`+5 mm`** against the shipped rung's own left leg at **`+30 / +29 mm`** - **no held
+leg goes negative in either arm (0/16)**, so there is **no contact**, but the rung
+**spends 25 of the 30 mm** the shipped lift had. **The rung ladder cannot buy it
+back**: the crossing sits at 82.5 % of the place leg's `y` span, so
+`dz_crossing = 0.175 x dz_lift` and the 0.24 rung buys **+7 mm**, not +40 - only
+the **transfer height** is 1:1 with the crossing, and the lift lever does not touch
+it. **The re-shape is therefore named, not guessed**: keep the low lift (the
+attitude holds) and re-establish the crossing height on the place leg's first
+segment (a transfer-height change, 1:1 with the crossing, its own registration); (b) the **right-arm no-op** is structural (`resolve_lift_dz` emits only
 `{"left": dz}`; `lift_dz_for` returns `None` for the right) but reads
 **100 / 97.8 / 88.0 %** across the arms, i.e. inside its own branch spread
 (88.9-95.8 % in phase 2) rather than cleanly flat. **The residual is not the

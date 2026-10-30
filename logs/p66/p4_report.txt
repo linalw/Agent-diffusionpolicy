@@ -1,0 +1,88 @@
+# P66 phase 4 - the place leg's rail-crossing clearance (gate (a))
+# cell: ['logs/p66/p4/control_77.log', 'logs/p66/p4/L2_77.log'], seed 77, FRUIT_CARRY_DIAG=1, the phase-3 scenario verbatim
+# floor of record: +33 mm to the inner rail's top (`logs/p30a/RAILS_DESIGN.md`)
+# crossing |y| = 0.4125 m (the rail's centreline, `_output_rail_y`)
+
+== 0 - the arms, from their own rows ==
+  control  episodes=15 placed= 7 cnp= 6 never= 2 | lift legs=13 place legs=13 | dz=+0.08(explicit) -> lift end 1.530 m (= belt_top + 0.36)
+  L2       episodes=15 placed=10 cnp= 3 never= 2 | lift legs=15 place legs=13 | dz=-0.08(explicit) -> lift end 1.370 m (= belt_top + 0.20)
+
+== 1 - every place leg ==
+  arm      ep side  fruit        oc       class                 slip    clr(tick)        clr_win(tick)     clr_min        loss
+  control   0 left  pear         cnp      escaped(slip)         +1433      -218mm/t211    -218mm/t217       -218mm@rail    3
+  control   1 righ  lychee       placed   held                  +0      +59mm/t203     +59mm/t218        +59mm@rail     None
+  control   3 righ  orange       placed   held                  +0      +43mm/t314     +42mm/t308        +42mm@rail     None
+  control   4 left  pear         cnp      escaped(slip)         +1263      -217mm/t142    -217mm/t184       -217mm@rail    3
+  control   5 righ  kiwi         placed   held                  +0      +35mm/t263     +35mm/t258        +35mm@rail     None
+  control   6 righ  lychee       placed   held                  +0      +60mm/t274     +60mm/t278        +60mm@rail     None
+  control   7 left  kiwi         cnp      escaped(slip)         +1242      -218mm/t188    -218mm/t223       -218mm@rail    2
+  control   8 left  orange       cnp      no-crossing           +791      n/a            n/a               -10mm@belt     61
+  control   9 left  kiwi         cnp      escaped(slip)         +1144      -217mm/t169    -217mm/t178       -217mm@rail    4
+  control  10 righ  strawberry   placed   held                  +0      +58mm/t198     +57mm/t193        +57mm@rail     None
+  control  11 left  pear         cnp      escaped(slip)         +1299      -218mm/t217    -218mm/t238       -218mm@rail    3
+  control  12 righ  orange       placed   held                  +0      +40mm/t237     +39mm/t232        +39mm@rail     None
+  control  13 left  pear         placed   held                  +1      +30mm/t290     +29mm/t284        +29mm@rail     None
+  L2        0 left  pear         placed   held                  +0      +5mm/t340      +0mm/t333         +0mm@rail      None
+  L2        1 righ  lychee       placed   held                  +0      +79mm/t187     +74mm/t205        +74mm@rail     None
+  L2        2 righ  kiwi         placed   held                  +0      +43mm/t298     +43mm/t294        +43mm@rail     None
+  L2        4 righ  lychee       placed   held                  +0      +56mm/t293     +56mm/t287        +56mm@rail     None
+  L2        5 left  orange       placed   escaped(slip)         +126      +2mm/t363      -22mm/t385        -22mm@rail     293
+  L2        6 righ  lychee       placed   held                  +0      +59mm/t273     +58mm/t279        +58mm@rail     None
+  L2        7 righ  apple        placed   held                  +0      +38mm/t216     +38mm/t211        +38mm@rail     None
+  L2        8 left  kiwi         cnp      no-crossing           +938      n/a            n/a               -2mm@belt      109
+  L2        9 left  tomato       cnp      no-crossing           +904      n/a            n/a               -9mm@belt      146
+  L2       11 righ  kiwi         placed   held                  +0      +39mm/t291     +39mm/t286        +39mm@rail     None
+  L2       12 righ  apple        placed   held                  +0      +33mm/t263     +32mm/t258        +32mm@rail     None
+  L2       13 left  orange       cnp      no-crossing           +0      n/a            n/a               +88mm@belt     None
+  L2       14 righ  lychee       placed   held                  +0      +59mm/t242     +58mm/t260        +58mm@rail     None
+
+== 2 - THE READ: the crossing clearance on the legs that were still held (the gate) ==
+  control  left : held n=1 | crossing +30 mm | window min +29 mm | leg min +29 mm
+           worst of the two reductions: +29 mm -> MARGINAL (0..+33 mm)
+           negative held legs: 0/1
+           excluded n=6: ep0 place0 escaped(slip) x=-218 win=-218, ep4 place0 escaped(slip) x=-217 win=-217, ep7 place0 escaped(slip) x=-218 win=-218, ep8 place0 no-crossing x=n/a win=n/a, ep9 place0 escaped(slip) x=-217 win=-217, ep11 place0 escaped(slip) x=-218 win=-218
+  control  right: held n=6 | crossing +50 [+35..+60] mm | window min +50 [+35..+60] mm | leg min +50 [+35..+60] mm
+           worst of the two reductions: +35 mm -> CLEAR (>= +33 mm)
+           negative held legs: 0/6
+  L2       left : held n=1 | crossing +5 mm | window min +0 mm | leg min +0 mm
+           worst of the two reductions: +0 mm -> MARGINAL (0..+33 mm)
+           negative held legs: 0/1
+           excluded n=4: ep5 place0 escaped(slip) x=+2 win=-22, ep8 place0 no-crossing x=n/a win=n/a, ep9 place0 no-crossing x=n/a win=n/a, ep13 place0 no-crossing x=n/a win=n/a
+  L2       right: held n=8 | crossing +50 [+33..+79] mm | window min +50 [+32..+74] mm | leg min +50 [+32..+74] mm
+           worst of the two reductions: +32 mm -> MARGINAL (0..+33 mm)
+           negative held legs: 0/8
+
+== 3 - the right arm: the same configuration in both arms (the knob's scope is left-only) ==
+  left : control +30 mm (n=1) | L2 +5 mm (n=1)
+  right: control +50 [+35..+60] mm (n=6) | L2 +50 [+33..+79] mm (n=8)
+  (the right arm's lift is untouched - `resolve_lift_dz` emits `{'left': dz}` - so its two columns are
+   the same configuration on two branches: the spread is the reading's own branch noise.)
+
+== 4 - the arithmetic the rung can and cannot buy (derived, not measured) ==
+  the place target is (0.43, +-0.50, 1.53); the leg is a straight line from the lift end
+  the crossing is 82.5 % of the y span, so
+    z_crossing = transfer - 0.175 * (transfer - lift_end)
+  control  lift_end 1.530 -> z_crossing 1.530 m (+0 mm vs the 0.36 m rung)
+  L2       lift_end 1.370 -> z_crossing 1.502 m (-28 mm vs the 0.36 m rung)
+  => raising the lift end by 160 mm buys only 28 mm at the crossing; lowering the *transfer* by 1 mm costs 1.00 mm there.
+
+== 5 - VERDICT ==
+  floor 33 mm (the access floor of record)
+  control  left  worst +29 mm -> MARGINAL (0..+33 mm)
+  control  right worst +35 mm -> CLEAR (>= +33 mm)
+  L2       left  worst +0 mm -> MARGINAL (0..+33 mm)
+  L2       right worst +32 mm -> MARGINAL (0..+33 mm)
+  gate (a) on the arm the lever exists for (left, 0.20 m): FAIL (+0 mm vs +33 mm)
+
+== checks ==
+  ok   control: every place leg prints a leg minimum
+  ok   L2: every place leg prints a leg minimum
+  ok   control: no lift leg carries a crossing field
+  ok   L2: no lift leg carries a crossing field
+  ok   control: every crossing sample is a rail sample
+  ok   L2: every crossing sample is a rail sample
+  ok   clr_min <= clr_win <= clr on every row (no problems)
+  ok   the 0.20 m arm's own row says 1.370 m (the rung is what ran)
+  ok   the control's own row says 1.530 m (the shipped height)
+
+PASS: the crossing read is consistent on every row

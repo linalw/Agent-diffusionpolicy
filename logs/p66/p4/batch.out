@@ -1,0 +1,36 @@
+logs/p66/p4/run_p4.sh: 行 45: clr: 未找到命令
+logs/p66/p4/run_p4.sh: 行 45: _clearance_field: 未找到命令
+logs/p66/p4/run_p4.sh: 行 45: _output_rail_y: 未找到命令
+logs/p66/p4/run_p4.sh: 行 55: _output_rail_y: 未找到命令
+logs/p66/p4/run_p4.sh: 行 56: logs/p30a/RAILS_DESIGN.md: 权限不够
+# P66 phase 4 header (2026-10-30 16:30:51)
+# tree: 60102767942396f12d181febcbca39e367ea8e24 + the uncommitted P66 phase-4  reduction ( / )
+61da390a85fa209496b54477a8255d23  checkpoints/moe_v13s/policy_best.pt
+1296bd448ecf59df1dd885b9ddd807fe  src/fruit_sorting/tasks.py
+cedaa3b48762c291fc6959850755fe65  src/fruit_sorting/rl_env.py
+c7461d4104cf2c5f6c5a2daab80fbf32  src/fruit_sorting/fruits.py
+27e3d64a3e8b8dab415eed222dfee023  src/fruit_sorting/scene.py
+9384ff4fa3e62b359bf10d2123ef41fa  src/fruit_sorting/control.py
+b09d3cb2389a9f4884a748dbb3461b24  src/fruit_sorting/policy/trigger.py
+42ab4fb78a91ea9d85554e6d90e1da80  configs/arm_parks.json
+d81c6f1ccad96254264b62331968716b  configs/waypoints.json
+0ea08ebb6bdbd1e78a2402ca263ded01  configs/waypoints_oriented.json
+8a399626c12a4e9205ce10e630b94ce9  configs/motion_reference.json
+2246f83c336f7fd6e1f8fe43d0ee8644  configs/motion_reference_twoline.json
+abd2b5f1e1adb3c225c19a9c3fdd0d91  scripts/110_rl_rollout.py
+e3d3bc31b342125ed0dd96397a66cff3  scripts/236_p66_lift_selftest.py
+03385044794e3ef1f8dff58393e9f0f3  scripts/selfcheck.sh
+# scenario (the phase-3 cell verbatim): FRUIT_SUPPLY_SCATTER=1 FRUIT_SUPPLY_PATCH=1 FRUIT_SUPPLY_GRADES=A:0.375,B:0.375,C:0.25 FRUIT_POLICY_TRIGGER=arrival FRUIT_POLICY_TRIGGER_LEAD=0.9 FRUIT_DYNAMIC_PICK=1 FRUIT_POLICY_SEED=11 FRUIT_BED_DIAG=1 FRUIT_CARRY_DIAG=1 FRUIT_CARRY_ATTITUDE=1
+# arms: control FRUIT_LIFT_DZ=+0.08 -> 0.36 m (shipped); L2 FRUIT_LIFT_DZ=-0.08 -> 0.20 m
+# crossing: |payload y| >= the inner rail's centreline (0.4125 m, )
+# floor   : +33 mm to the rail's top ()
+# harness : HEADLESS=1 FRUIT_CAMERA_RES=240,424 FRUIT_SIZE_FILTER= FRUIT_NO_ATTACH=1 FRUIT_NO_SLEEP=1 ; ckpt=checkpoints/moe_v13s/policy_best.pt ; --episodes 15 --seeds 77 --out logs/p66/p4/rollouts
+  [p4] control seed 77 dz=0.08 start 16:30:51
+[claim_run] claimed the simulator 16:31:11
+[claim_run] exit=0 16:40:12 log=logs/p66/p4/control_77.log
+  [p4] control seed 77 exit=0 16:40:12
+  [p4] L2 seed 77 dz=-0.08 start 16:40:12
+[claim_run] claimed the simulator 16:40:32
+[claim_run] exit=0 16:50:01 log=logs/p66/p4/L2_77.log
+  [p4] L2 seed 77 exit=0 16:50:01
+[p4] batch end 2026-10-30 16:50:01 fail=0
