@@ -269,9 +269,16 @@ def main() -> int:
              and all(not l["no_hold"] for d in data["A"].values() for l in d["legs"])),
             ("arm B's place legs print no hold (the knob was unset)",
              all(l["no_hold"] for d in data["B"].values() for l in d["legs"])),
-            ("the hold is scoped to place legs (every lift leg is no-hold in both arms)",
-             all(l["no_hold"] for a in data.values() for d in a.values()
+            ("the lift leg's own hold is the shipped dynamic catch's, in BOTH arms "
+             "(the knob did not reach the lift)",
+             all((not l["no_hold"]) for a in data.values() for d in a.values()
                  for l in d["lifts"])),
+            ("the lift's drift_end is the same band in both arms (the mediator is "
+             "untouched by the place-leg hold)",
+             max([l["drift_end"] for d in data["A"].values() for l in d["lifts"]
+                  if l["drift_end"] is not None], default=0.0) < 10.0
+             and max([l["drift_end"] for d in data["B"].values() for l in d["lifts"]
+                      if l["drift_end"] is not None], default=0.0) < 10.0),
             (f"the hold window ({HOLD_TICKS} ticks) covers the climb "
              f"({CLIMB_TICKS} ticks) to within one tick",
              abs(HOLD_TICKS - CLIMB_TICKS) <= 1),

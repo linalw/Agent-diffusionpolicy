@@ -43,6 +43,13 @@ CLIMB_M = 0.18
 #: `tasks.lift_climb_commands` (`scripts/237_p67_climb_selftest.py` prints it)
 CLIMB_TICKS = 121
 ESCAPE_MM = 50.0
+#: single-episode fixture runs of the climb arm (same configuration, one pick
+#: each); reported separately, never pooled into the gate population
+SMOKES = (
+    ("logs/p67/smoke.log", "mixed supply, 1 pick"),
+    ("logs/p67/smoke_pop.log", "mixed supply (the A:1 attempt was refused), 1 pick"),
+    ("logs/p67/smoke_pop2.log", "all-A supply, 2 picks"),
+)
 
 CELLS = {
     "registered": {"arms": ("A", "B"), "prefix": ""},
@@ -256,6 +263,47 @@ def main() -> int:
         print(f"    (the climb segment alone is {CLIMB_TICKS} ticks; the transit itself")
         print("     shortens because it starts 0.18 m higher, so quote the NET.)")
         print()
+
+    print("===== the left's payload-loss onset against the climb window =====")
+    print(f"  the climb occupies rows 0..{CLIMB_TICKS - 1} of a treatment place leg; the")
+    print("  control's same rows are just the start of its transit. `slip-only` legs")
+    print("  of <= 50 mm are the ones that still had the payload when it crossed.")
+    for cell, spec in CELLS.items():
+        for arm in spec["arms"]:
+            d = data[cell][arm]
+            for leg in d["legs"]:
+                if leg["side"] != "left":
+                    continue
+                onset = leg.get("onset_row")
+                loss = leg.get("loss_row")
+                where = "n/a"
+                if onset is not None:
+                    inside = arm == spec["arms"][1] and 0 <= onset <= CLIMB_TICKS
+                    where = "IN the climb" if inside else "after it"
+                x = "n/a" if leg["clr"] is None else f"{leg['clr']:+.0f}"
+                print(f"    {cell:10s} {arm:3s} ep{leg['ep']['idx']:2d} "
+                      f"{leg['ep']['fruit'][:10]:10s} slip={leg.get('clean_slip'):8.1f}mm "
+                      f"onset={str(onset):>4s} loss={str(loss):>4s} -> {where:12s} "
+                      f"crossing={x}")
+    print()
+
+    print("===== single-episode fixture runs (same climb arm, not pooled) =====")
+    for path, note in SMOKES:
+        if not (ROOT / path).exists():
+            continue
+        d = load(path, p4)
+        d["arm"] = path.rsplit("/", 1)[-1].replace(".log", "")
+        for leg in d["legs"]:
+            if leg["side"] != "left":
+                continue
+            x = "n/a" if leg["clr"] is None else f"{leg['clr']:+.0f}"
+            w = "n/a" if leg["clr_win"] is None else f"{leg['clr_win']:+.0f}"
+            print(f"    {d['arm']:12s} {note:44s} {leg['ep']['fruit'][:10]:10s} "
+                  f"slip={leg.get('clean_slip'):8.1f}mm "
+                  f"onset={str(leg.get('onset_row')):>4s} "
+                  f"loss={str(leg.get('loss_row')):>4s} "
+                  f"clr={x} clr_win={w} ticks={leg.get('ticks_total')}")
+    print()
 
     print("===== VERDICT =====")
     print(f"  floor {RAIL_FLOOR_MM:.0f} mm (P30-A's access floor of record)")

@@ -1,83 +1,155 @@
 # P67 - the place-leg climb re-shape (P66 phase-4 gate (a) re-read)
-# cell: ['logs/p67/A_77.log', 'logs/p67/B_77.log'], seed 77, FRUIT_CARRY_DIAG=1
-# A = FRUIT_LIFT_DZ=-0.08 (the 0.20 m rung); B = A + FRUIT_LIFT_CLIMB=0.18
+# seed 77, FRUIT_CARRY_DIAG=1, FRUIT_LIFT_DZ=-0.08 in every arm
+# climb = 0.18 m (derived: z_cross = transfer - 0.175*(transfer - lift_end - climb);
+#   +33 mm needs z_cross 1.533 -> climb 0.179, see scripts/237_p67_climb_selftest.py)
 # floor: +33 mm to the inner rail's top; crossing |y| = 0.4125 m
 
-== 0 - the arms, from their own rows ==
+===== registered cell (A = control, B = + 0.18 m climb) =====
   A: episodes=15 placed=11 cnp= 1 never= 3 | lift legs=13 place legs=12 | dz=-0.08(explicit) -> lift end 1.370 m
      climb row: absent (the knob is unset - the shipped place leg)
   B: episodes=15 placed=13 cnp= 2 never= 0 | lift legs=15 place legs=15 | dz=-0.08(explicit) -> lift end 1.370 m
      climb row: climb=+0.1800(explicit) -> z_crossing 1.5335 m (+31.5 mm vs no climb)
 
-== 1 - the attitude the lift still holds (the mediator, per arm) ==
-  A: left grasp_lift drift_end +0.6 [+0.6..+1.1] deg (n=4) | right +26.4 [+20.9..+32.4] deg (n=9)
-  B: left grasp_lift drift_end +0.9 [+0.6..+1.2] deg (n=2) | right +29.1 [+19.8..+40.5] deg (n=13)
-  (the lift leg is untouched by this knob - the clip exists so a moved
-   lift leg would show up here as a drift_end that left the 0.7-6.3 deg
-   band P66 phase 3/4 measured at this rung)
+  the attitude the lift still holds (the mediator; the lift leg is untouched):
+    A left grasp_lift drift_end +0.6 [+0.6..+1.1] deg (n=4)
+    B left grasp_lift drift_end +0.9 [+0.6..+1.2] deg (n=2)
 
-== 2 - every place leg ==
-  arm ep side  fruit      oc      class                slip    ticks(climb)  clr(tick)        clr_win(tick)    tilt
-  A    0 left  pear       placed  escaped(loss-before-x)   21.7   432        +8mm/t336        +5mm/t330        90.3
-  A    3 left  peach      placed  escaped(loss-before-x)   13.2   406        +8mm/t310        +4mm/t304        89.8
-  A    5 righ  peach      placed  held                    0.0   418        +43mm/t314       +43mm/t309       91.3
-  A    6 righ  strawberry placed  held                    0.1   310        +53mm/t226       +53mm/t224       80.1
-  A    7 righ  peach      placed  held                    0.0   407        +44mm/t309       +44mm/t306       86.7
-  A    8 righ  orange     placed  held                    0.0   393        +40mm/t303       +40mm/t297       78.7
-  A    9 righ  kiwi       placed  held                    0.0   422        +40mm/t319       +39mm/t314       90.3
-  A   10 righ  lychee     placed  held                    0.0   277        +72mm/t188       +67mm/t206       96.6
-  A   11 righ  apple      placed  held                    0.0   422        +34mm/t318       +34mm/t313       90.8
-  A   12 righ  apple      placed  held                    0.0   265        +58mm/t180       +52mm/t198       88.2
-  A   13 left  peach      placed  held                    0.5   397        +6mm/t297        +2mm/t291        92.3
-  A   14 left  orange     cnp     no-crossing           830.6   395        n/a              n/a              88.2
-  B    0 left  pear       cnp     no-crossing           970.7   542        n/a              n/a              90.2
-  B    1 righ  lychee     placed  held                    0.0   355        +60mm/t257       +60mm/t270       93.6
-  B    2 righ  apple      placed  held                    0.0   328        +43mm/t234       +43mm/t245       92.2
-  B    3 left  orange     cnp     no-crossing           958.6   494        n/a              n/a              91.6
-  B    4 righ  peach      placed  held                    0.0   377        +40mm/t284       +40mm/t279       83.4
-  B    5 righ  strawberry placed  held                    0.1   272        +105mm/t176      +94mm/t193       92.7
-  B    6 righ  orange     placed  held                    0.0   394        +40mm/t302       +39mm/t297       80.0
-  B    7 righ  kiwi       placed  held                    0.0   375        +39mm/t281       +39mm/t277       87.1
-  B    8 righ  tomato     placed  held                    0.0   255        +83mm/t166       +73mm/t183       96.0
-  B    9 righ  orange     placed  held                    0.0   406        +41mm/t310       +41mm/t304       85.3
-  B   10 righ  kiwi       placed  held                    0.0   370        +34mm/t281       +33mm/t275       77.5
-  B   11 righ  lychee     placed  held                    0.0   354        +61mm/t255       +61mm/t269       95.2
-  B   12 righ  apple      placed  held                    0.0   269        +50mm/t182       +47mm/t200       96.8
-  B   13 righ  lychee     placed  held                    0.0   299        +70mm/t207       +66mm/t226       93.4
-  B   14 righ  kiwi       placed  held                    0.0   398        +39mm/t303       +39mm/t297       83.9
-  (tilt = the `[attitude]` row's achieved tool tilt at the leg's END. On a
-   place leg that end is the transfer pose, where the wrist is flattened by
-   construction (89.7 deg in P66's own L2 leg), so this column says whether
-   the transit's END STATE moved - it is not the drift mediator. The
-   mediator is the lift legs' drift_end, section 1.)
+  every place leg:
+  arm ep side  fruit      oc      class                slip( mm) ticks  clr(tick)        clr_win(tick)    tilt
+  A    0 left  pear       placed  escaped(loss-before-x)    21.7   432  +8mm/t336        +5mm/t330        90.3
+  A    3 left  peach      placed  escaped(loss-before-x)    13.2   406  +8mm/t310        +4mm/t304        89.8
+  A    5 righ  peach      placed  held                     0.0   418  +43mm/t314       +43mm/t309       91.3
+  A    6 righ  strawberry placed  held                     0.1   310  +53mm/t226       +53mm/t224       80.1
+  A    7 righ  peach      placed  held                     0.0   407  +44mm/t309       +44mm/t306       86.7
+  A    8 righ  orange     placed  held                     0.0   393  +40mm/t303       +40mm/t297       78.7
+  A    9 righ  kiwi       placed  held                     0.0   422  +40mm/t319       +39mm/t314       90.3
+  A   10 righ  lychee     placed  held                     0.0   277  +72mm/t188       +67mm/t206       96.6
+  A   11 righ  apple      placed  held                     0.0   422  +34mm/t318       +34mm/t313       90.8
+  A   12 righ  apple      placed  held                     0.0   265  +58mm/t180       +52mm/t198       88.2
+  A   13 left  peach      placed  held                     0.5   397  +6mm/t297        +2mm/t291        92.3
+  A   14 left  orange     cnp     no-crossing            830.6   395  n/a              n/a              88.2
+  B    0 left  pear       cnp     no-crossing            970.7   542  n/a              n/a              90.2
+  B    1 righ  lychee     placed  held                     0.0   355  +60mm/t257       +60mm/t270       93.6
+  B    2 righ  apple      placed  held                     0.0   328  +43mm/t234       +43mm/t245       92.2
+  B    3 left  orange     cnp     no-crossing            958.6   494  n/a              n/a              91.6
+  B    4 righ  peach      placed  held                     0.0   377  +40mm/t284       +40mm/t279       83.4
+  B    5 righ  strawberry placed  held                     0.1   272  +105mm/t176      +94mm/t193       92.7
+  B    6 righ  orange     placed  held                     0.0   394  +40mm/t302       +39mm/t297       80.0
+  B    7 righ  kiwi       placed  held                     0.0   375  +39mm/t281       +39mm/t277       87.1
+  B    8 righ  tomato     placed  held                     0.0   255  +83mm/t166       +73mm/t183       96.0
+  B    9 righ  orange     placed  held                     0.0   406  +41mm/t310       +41mm/t304       85.3
+  B   10 righ  kiwi       placed  held                     0.0   370  +34mm/t281       +33mm/t275       77.5
+  B   11 righ  lychee     placed  held                     0.0   354  +61mm/t255       +61mm/t269       95.2
+  B   12 righ  apple      placed  held                     0.0   269  +50mm/t182       +47mm/t200       96.8
+  B   13 righ  lychee     placed  held                     0.0   299  +70mm/t207       +66mm/t226       93.4
+  B   14 righ  kiwi       placed  held                     0.0   398  +39mm/t303       +39mm/t297       83.9
 
-== 3 - THE READ: the crossing on the held legs (the gate) ==
-  A left : held n=1 | crossing +6 mm | window min +2 mm | leg min +2 mm -> MARGINAL (0..+33 mm)
-         excluded: ep0 place0 escaped(loss-before-x) x=+8, ep3 place0 escaped(loss-before-x) x=+8, ep14 place0 no-crossing x=n/a
-  A right: held n=8 | crossing +44 [+34..+72] mm | window min +44 [+34..+67] mm | leg min +44 [+34..+67] mm -> CLEAR (>= +33 mm)
-  B left : held n=0 | crossing n/a mm | window min n/a mm | leg min n/a mm -> no data
-         excluded: ep0 place0 no-crossing x=n/a, ep3 place0 no-crossing x=n/a
-  B right: held n=13 | crossing +43 [+34..+105] mm | window min +43 [+33..+94] mm | leg min +43 [+33..+94] mm -> CLEAR (>= +33 mm)
+  the crossing (held = P66's convention: slip <= 50 mm AND contact at the
+  crossing tick; slip-only = the payload had not moved in the hand):
+    A   left : legs n= 4 | strict n= 1 crossing +6 win +2 -> MARGINAL (0..+33 mm)
+               slip-only n= 3 crossing +8 [+6..+8] win +4 [+2..+5] -> MARGINAL (0..+33 mm)
+    A   right: legs n= 8 | strict n= 8 crossing +44 [+34..+72] win +44 [+34..+67] -> CLEAR (>= +33 mm)
+               slip-only n= 8 crossing +44 [+34..+72] win +44 [+34..+67] -> CLEAR (>= +33 mm)
+    B   left : legs n= 2 | strict n= 0 crossing n/a win n/a -> no data
+               slip-only n= 0 crossing n/a win n/a -> no data
+    B   right: legs n=13 | strict n=13 crossing +43 [+34..+105] win +43 [+33..+94] -> CLEAR (>= +33 mm)
+               slip-only n=13 crossing +43 [+34..+105] win +43 [+33..+94] -> CLEAR (>= +33 mm)
 
-== 4 - the ticks the climb costs (per place leg) ==
-  left: A 402 ticks (n=4) | B 518 (n=2) | net +116 ticks = 0.97 s
-  right: A 400 ticks (n=8) | B 355 (n=13) | net -45 ticks = -0.38 s
-  (the climb segment alone is 121 ticks at the place profile; the
-   transit itself shortens because it starts 0.18 m higher, so the net is
-   the number to quote. The left's place legs are the arm the lever acts on.)
+  the ticks the place legs cost:
+    left : A 402 (n=4) | B 518 (n=2) | net +116 ticks = +0.97 s
+    right: A 400 (n=8) | B 355 (n=13) | net -45 ticks = -0.38 s
+    (the climb segment alone is 121 ticks; the transit itself
+     shortens because it starts 0.18 m higher, so quote the NET.)
 
-== 5 - VERDICT ==
-  floor 33 mm | A (0.20 rung) left worst +2 mm -> MARGINAL (0..+33 mm)
-                        B (0.20 + 0.18 climb) left worst n/a mm -> no data
-  gate (a) on the arm the lever exists for (left): FAIL
+===== population cell (A2 = control, B2 = + 0.18 m climb) =====
+  A2: episodes= 8 placed= 5 cnp= 2 never= 1 | lift legs= 7 place legs= 7 | dz=-0.08(explicit) -> lift end 1.370 m
+     climb row: absent (the knob is unset - the shipped place leg)
+  B2: episodes= 8 placed= 5 cnp= 3 never= 0 | lift legs= 8 place legs= 8 | dz=-0.08(explicit) -> lift end 1.370 m
+     climb row: climb=+0.1800(explicit) -> z_crossing 1.5335 m (+31.5 mm vs no climb)
+
+  the attitude the lift still holds (the mediator; the lift leg is untouched):
+    A2 left grasp_lift drift_end +0.7 [+0.6..+5.0] deg (n=7)
+    B2 left grasp_lift drift_end +1.1 [+0.6..+1.2] deg (n=8)
+
+  every place leg:
+  arm ep side  fruit      oc      class                slip( mm) ticks  clr(tick)        clr_win(tick)    tilt
+  A2   0 left  pear       placed  escaped(loss-before-x)    21.3   431  +7mm/t335        +4mm/t329        90.4
+  A2   2 left  strawberry placed  held                     0.0   379  +17mm/t283       +12mm/t277       86.1
+  A2   3 left  apple      placed  escaped(loss-before-x)    15.9   391  +3mm/t300        -1mm/t294        84.9
+  A2   4 left  tomato     placed  escaped(slip)           94.3   368  +8mm/t284        -21mm/t295       44.7
+  A2   5 left  strawberry placed  held                     0.1   397  +16mm/t297       +13mm/t292       90.3
+  A2   6 left  peach      cnp     no-crossing          114749.4   424  n/a              n/a              85.9
+  A2   7 left  peach      cnp     no-crossing              1.2   349  n/a              n/a              31.5
+  B2   0 left  pear       cnp     no-crossing            997.5   542  n/a              n/a              90.2
+  B2   1 left  lychee     placed  held                     0.1   533  +51mm/t435       +50mm/t430       90.8
+  B2   2 left  peach      placed  held                     0.0   511  +37mm/t412       +37mm/t407       92.3
+  B2   3 left  apple      cnp     no-crossing            916.4   534  n/a              n/a              88.3
+  B2   4 left  peach      placed  held                     0.0   480  +33mm/t377       +33mm/t375       94.3
+  B2   5 left  strawberry placed  held                     0.1   520  +54mm/t426       +53mm/t420       90.0
+  B2   6 left  orange     placed  held                     0.0   506  +36mm/t412       +35mm/t407       90.4
+  B2   7 left  pear       cnp     no-crossing          87789.6   540  n/a              n/a              89.9
+
+  the crossing (held = P66's convention: slip <= 50 mm AND contact at the
+  crossing tick; slip-only = the payload had not moved in the hand):
+    A2  left : legs n= 7 | strict n= 2 crossing +16 [+16..+17] win +12 [+12..+13] -> MARGINAL (0..+33 mm)
+               slip-only n= 4 crossing +12 [+3..+17] win +8 [-1..+13] -> CLIPPING (< 0 mm)
+    B2  left : legs n= 8 | strict n= 5 crossing +37 [+33..+54] win +37 [+33..+53] -> CLEAR (>= +33 mm)
+               slip-only n= 5 crossing +37 [+33..+54] win +37 [+33..+53] -> CLEAR (>= +33 mm)
+
+  the ticks the place legs cost:
+    left : A2 391 (n=7) | B2 526 (n=8) | net +136 ticks = +1.13 s
+    (the climb segment alone is 121 ticks; the transit itself
+     shortens because it starts 0.18 m higher, so quote the NET.)
+
+===== the left's payload-loss onset against the climb window =====
+  the climb occupies rows 0..120 of a treatment place leg; the
+  control's same rows are just the start of its transit. `slip-only` legs
+  of <= 50 mm are the ones that still had the payload when it crossed.
+    registered A   ep 0 pear       slip=    21.7mm onset= 314 loss= 321 -> after it     crossing=+8
+    registered A   ep 3 peach      slip=    13.2mm onset= 294 loss= 299 -> after it     crossing=+8
+    registered A   ep13 peach      slip=     0.5mm onset=None loss=None -> n/a          crossing=+6
+    registered A   ep14 orange     slip=   830.6mm onset=  95 loss= 146 -> after it     crossing=n/a
+    registered B   ep 0 pear       slip=   970.7mm onset= 150 loss= 260 -> after it     crossing=n/a
+    registered B   ep 3 orange     slip=   958.6mm onset=  71 loss= 117 -> IN the climb crossing=n/a
+    population A2  ep 0 pear       slip=    21.3mm onset= 312 loss= 319 -> after it     crossing=+7
+    population A2  ep 2 strawberry slip=     0.0mm onset=None loss=None -> n/a          crossing=+17
+    population A2  ep 3 apple      slip=    15.9mm onset= 281 loss= 292 -> after it     crossing=+3
+    population A2  ep 4 tomato     slip=    94.3mm onset= 252 loss= 265 -> after it     crossing=+8
+    population A2  ep 5 strawberry slip=     0.1mm onset=None loss=None -> n/a          crossing=+16
+    population A2  ep 6 peach      slip=114749.4mm onset= 112 loss= 157 -> after it     crossing=n/a
+    population A2  ep 7 peach      slip=     1.2mm onset=None loss=None -> n/a          crossing=n/a
+    population B2  ep 0 pear       slip=   997.5mm onset= 152 loss= 266 -> after it     crossing=n/a
+    population B2  ep 1 lychee     slip=     0.1mm onset=None loss=None -> n/a          crossing=+51
+    population B2  ep 2 peach      slip=     0.0mm onset=None loss=None -> n/a          crossing=+37
+    population B2  ep 3 apple      slip=   916.4mm onset= 113 loss= 210 -> IN the climb crossing=n/a
+    population B2  ep 4 peach      slip=     0.0mm onset=None loss=None -> n/a          crossing=+33
+    population B2  ep 5 strawberry slip=     0.1mm onset=None loss=None -> n/a          crossing=+54
+    population B2  ep 6 orange     slip=     0.0mm onset=None loss=None -> n/a          crossing=+36
+    population B2  ep 7 pear       slip= 87789.6mm onset= 142 loss= 260 -> after it     crossing=n/a
+
+===== single-episode fixture runs (same climb arm, not pooled) =====
+    smoke        mixed supply, 1 pick                         pear       slip=   998.9mm onset= 149 loss= 264 clr=n/a clr_win=n/a ticks=542
+    smoke_pop    mixed supply (the A:1 attempt was refused), 1 pick pear       slip=  1004.7mm onset= 131 loss= 262 clr=-218 clr_win=-218 ticks=548
+    smoke_pop2   all-A supply, 2 picks                        pear       slip=   955.4mm onset= 150 loss= 260 clr=n/a clr_win=n/a ticks=542
+    smoke_pop2   all-A supply, 2 picks                        lychee     slip=     0.1mm onset=None loss=None clr=+51 clr_win=+50 ticks=533
+
+===== VERDICT =====
+  floor 33 mm (P30-A's access floor of record)
+  registered A   left : slip-only worst +2 mm -> MARGINAL (0..+33 mm)
+  registered A   right: slip-only worst +34 mm -> CLEAR (>= +33 mm)
+  registered B   left : slip-only worst n/a mm -> no data
+  registered B   right: slip-only worst +33 mm -> CLEAR (>= +33 mm)
+  population A2  left : slip-only worst -1 mm -> CLIPPING (< 0 mm)
+  population B2  left : slip-only worst +33 mm -> CLEAR (>= +33 mm)
 
 == checks ==
-  ok   A ran the 0.20 m rung (its own row says 1.370 m)
-  ok   A has no climb row (the knob was unset)
-  ok   B's climb row says the armed value and its crossing
-  ok   B's crossing row agrees with the formula (+31.5 mm)
+  ok   every control arm ran the 0.20 m rung (its own row says 1.370 m)
+  ok   every control arm has no climb row (the knob was unset)
+  ok   every climb arm's row says the armed value
+  ok   the climb row's crossing agrees with the formula (+31.5 mm)
   ok   every crossing sample is a rail sample
   ok   clr_min <= clr_win <= clr on every row (no problems)
   ok   no lift leg carries a crossing field
+  ok   the population cell's attempts are the LEFT arm's
 
 PASS: the climb read is consistent on every row
