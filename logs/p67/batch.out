@@ -1,0 +1,34 @@
+# P67 header (2026-10-30 20:43:00)
+# tree: 540ae9983796fd38a160e194753a0958d9ffe0c1 + the uncommitted P67 lift_climb knob (tasks._carry + rl_env.resolve_lift_climb)
+61da390a85fa209496b54477a8255d23  checkpoints/moe_v13s/policy_best.pt
+e5168578633bf094e86042d5ec54ce0f  src/fruit_sorting/tasks.py
+d88c3729749bc471bbd769c393701228  src/fruit_sorting/rl_env.py
+c7461d4104cf2c5f6c5a2daab80fbf32  src/fruit_sorting/fruits.py
+27e3d64a3e8b8dab415eed222dfee023  src/fruit_sorting/scene.py
+9384ff4fa3e62b359bf10d2123ef41fa  src/fruit_sorting/control.py
+b09d3cb2389a9f4884a748dbb3461b24  src/fruit_sorting/policy/trigger.py
+42ab4fb78a91ea9d85554e6d90e1da80  configs/arm_parks.json
+d81c6f1ccad96254264b62331968716b  configs/waypoints.json
+0ea08ebb6bdbd1e78a2402ca263ded01  configs/waypoints_oriented.json
+8a399626c12a4e9205ce10e630b94ce9  configs/motion_reference.json
+2246f83c336f7fd6e1f8fe43d0ee8644  configs/motion_reference_twoline.json
+abd2b5f1e1adb3c225c19a9c3fdd0d91  scripts/110_rl_rollout.py
+1016818702bdd9af922fc061cff0802a  scripts/237_p67_climb_selftest.py
+7dca2c7d38825d6c00c90bf915c50a97  scripts/selfcheck.sh
+# scenario (the phase-3 / P4 cell verbatim): FRUIT_SUPPLY_SCATTER=1 FRUIT_SUPPLY_PATCH=1 FRUIT_SUPPLY_GRADES=A:0.375,B:0.375,C:0.25 FRUIT_POLICY_TRIGGER=arrival FRUIT_POLICY_TRIGGER_LEAD=0.9 FRUIT_DYNAMIC_PICK=1 FRUIT_POLICY_SEED=11 FRUIT_BED_DIAG=1 FRUIT_CARRY_DIAG=1 FRUIT_CARRY_ATTITUDE=1
+# arms: A control FRUIT_LIFT_DZ=-0.08 (the 0.20 m rung, P66 L2); B = A + FRUIT_LIFT_CLIMB=0.18
+# crossing: |payload y| >= the inner rail's centreline (0.4125 m, _output_rail_y)
+# floor   : +33 mm to the rail's top (logs/p30a/RAILS_DESIGN.md)
+# climb derivation: z_cross = transfer - 0.175*(transfer - lift_end - climb);
+#   lift_end 1.370, transfer 1.530, z_cross(0) = 1.502 (+5 mm measured);
+#   +33 mm needs z_cross 1.533 -> climb = (1.533-1.502)/0.175 = 0.179 m -> 0.18
+# harness : HEADLESS=1 FRUIT_CAMERA_RES=240,424 FRUIT_SIZE_FILTER= FRUIT_NO_ATTACH=1 FRUIT_NO_SLEEP=1 ; ckpt=checkpoints/moe_v13s/policy_best.pt ; --episodes 15 --seeds 77 --out logs/p67/rollouts
+  [p67] A seed 77 start 20:43:00
+[claim_run] claimed the simulator 20:43:20
+[claim_run] exit=0 20:52:28 log=logs/p67/A_77.log
+  [p67] A seed 77 exit=0 20:52:28
+  [p67] B seed 77 start 20:52:28
+[claim_run] claimed the simulator 20:52:49
+[claim_run] exit=0 21:01:50 log=logs/p67/B_77.log
+  [p67] B seed 77 exit=0 21:01:50
+[p67] batch end 2026-10-30 21:01:50 fail=0
