@@ -31,6 +31,29 @@ def check(cond: bool, what: str) -> None:
     print(f"ok: {what}")
 
 
+def indented_body_contains(src: str, header: str, needle: int) -> bool:
+    """True when `needle` (a character offset) lies in `header`'s indented body.
+
+    Structural, not a character budget: the first later line indented **at or
+    below** the header's own indentation ends the block. (P66 phase 2 replaced
+    the original `idx - branch < 2500` window with this - the guarded branch grew
+    two legitimate instrument blocks and the window became a false failure; the
+    `235` leg already made the same correction, `logs/p66/P2_RESULTS.md`.)
+    """
+    start = src.rfind(header, 0, needle)
+    if start == -1:
+        return False
+    line_start = src.rfind("\n", 0, start) + 1
+    indent = start - line_start
+    for line in src[start:].splitlines()[1:]:
+        if not line.strip():
+            continue
+        if len(line) - len(line.lstrip()) <= indent:
+            end = start + src[start:].index(line)
+            return needle < end
+    return True
+
+
 def main() -> int:
     src = (ROOT / "src/fruit_sorting/tasks.py").read_text(encoding="utf-8")
 
@@ -54,8 +77,7 @@ def main() -> int:
 
     # 3: the capture lives in the diag/guard branch and the knob is default off
     idx = src.index("guard_slip_at_max = _slip_vec.copy()")
-    branch = src.rfind("if guard_armed:", 0, idx)
-    check(branch != -1 and idx - branch < 2500,
+    check(indented_body_contains(src, "if guard_armed:", idx),
           "the capture is inside the guard_armed (diag/guard) branch")
     diag_default = 'os.environ.get("FRUIT_CARRY_DIAG", "0")' in src
     check(diag_default, 'FRUIT_CARRY_DIAG still defaults to "0" (off)')

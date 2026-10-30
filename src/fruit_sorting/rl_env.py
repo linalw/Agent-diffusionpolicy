@@ -365,7 +365,28 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: `tasks.py` changes behaviour: the whole block needs `_carry_guard_active or
 #: _carry_diag` (the knob is default off) **and** `_dynamic_capture_active`, so
 #: the scripted line cannot reach it (377/377 `[fruit]` lines identical).
-TASKS_MD5 = "309e5a38d66e5ac5c1892102506a2908"
+#:
+#: P66 phase 2 (metadata-only follow, `309e5a38 -> 7edf4324`): the `[carry]` row
+#: gains three more reporting-only fields under the same `FRUIT_CARRY_DIAG`
+#: (`drift_end`, the **last** guarded tick's hold drift rather than the max;
+#: `res_end`/`dz_end`, the achieved TCP position error at the leg's end against
+#: the target the same tick issued - the target is the array `ik_step` was handed
+#: and `tcp_pose()` already returns the position, so **no new read**), and
+#: `PickAndPlaceTask` gains the caller-owned kwarg `lift_dz`, applied by
+#: `tasks.lift_dz_for` at `_carry`'s `grasp_lift` end pose. `None` (every caller
+#: but this env) does no arithmetic at all, so the scripted line's targets are
+#: byte-for-byte the shipped ones; the only armed caller is this env behind
+#: `FRUIT_LIFT_DZ` (default off, `direct` only).
+#:
+#: P66 phase 3 (metadata-only follow, `7edf4324 -> d41d8e1c`): the same row gains
+#: `clr=` (the leg's **minimum** payload clearance to the highest surface under
+#: it - P2-3's `_payload_clearance`, already measured every tick in the slip
+#: bookkeeping, so again **no new read**, and its surface code `@belt/@obelt/
+#: @rail` because the +33 mm access floor of record is the *rail*'s), and the
+#: `direct` presentation's `FRUIT_LIFT_DZ` **default** becomes the 0.20 m rung
+#: (`LIFT_DZ_DIRECT_DEFAULT`; `+0.08` restores the shipped 0.36 m). Both are
+#: print/no-op for every scripted path (they never construct this env).
+TASKS_MD5 = "40e196e8cf69242d04e419ec6ac87b6e"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(
@@ -538,6 +559,73 @@ def resolve_grasp_quat_override(
     if (env_value if env_value is not None else "0") != "1":
         return None
     return {"left": np.asarray(GRASP_LEFT_TOPDOWN, dtype=float)}
+
+
+#: P66 phase 3: the `direct` presentation's default lift-height offset, in metres
+#: above `tasks.jaw_target("grasp_lift")`'s `belt_top + 0.28` base. `-0.08` is
+#: **0.20 m above the belt** - the phase-2 `L2` rung, which moved the left's
+#: `drift_end` from 23.8-25.7 deg to 0.7 deg and its placed count from 1/34 to
+#: 10/16 (`logs/p66/P2_RESULTS.md`). The value is expressed on the **code's** base
+#: (the `0.28`), never on the shipped height: "shipped - 0.16" would be 0.12 m,
+#: i.e. the pads 40 mm above the belt (`logs/p66/DEVIATION.md` D4/D5).
+LIFT_DZ_DIRECT_DEFAULT = -0.08
+#: The hand's own clearance add above the same base (`FRUIT_OPENARM_TRANSFER_LIFT`'s
+#: default), i.e. the shipped `grasp_lift` height. `FRUIT_LIFT_DZ=+0.08` restores
+#: it and is the documented escape from the phase-3 default; the env var still
+#: wins at the *task*, so this constant is the restore's value, not a second
+#: source of truth for the target.
+LIFT_DZ_HAND_ADD = 0.08
+
+
+def resolve_lift_dz(
+    presentation: str, env_value: str | None
+) -> tuple[dict[str, float] | None, bool]:
+    """The resolved `FRUIT_LIFT_DZ` lift-target-height offset, and its origin.
+
+    P66 phase 3: **direct-scoped and left-only**, and since this phase the
+    `direct` presentation's **default** is the 0.20 m rung
+    (`LIFT_DZ_DIRECT_DEFAULT`, i.e. `dz = -0.08` above
+    `tasks.jaw_target("grasp_lift")`'s `belt_top + 0.28` base). `dz` **replaces**
+    the hand's `FRUIT_OPENARM_TRANSFER_LIFT` add on that leg, so the ladder reads
+    `+0.08` = the shipped `0.36 m` (the documented restore), `0.00` = `0.28 m`,
+    `-0.08` = `0.20 m`. The code's base is the `0.28`, **not** the shipped
+    height: a value written as "0.36 + dz" (the phase-3 brief's `-0.16`) would
+    put the pads 40 mm above the belt (`logs/p66/DEVIATION.md` D4/D5).
+
+    Returns `(offsets, defaulted)`, the P43 `resolve_arm_park` shape:
+
+    * any presentation but `direct` -> `(None, False)`, the shipped
+      `PickAndPlaceTask(lift_dz=None)` path with **no target arithmetic at all**
+      (so the scripted line, the collector, the two-line scheduler and the
+      hybrid canary are byte-inert - none of them constructs this env);
+    * `direct`, value unset -> `({"left": LIFT_DZ_DIRECT_DEFAULT}, True)`: the
+      phase-3 default, and the manifest's `defaulted: true` tells a post-flip
+      store from an explicit arm;
+    * `direct`, value set -> `({"left": dz}, False)`, parsed strictly. `+0.08`
+      restores the shipped height (the same two float adds, so a `+0.08` arm's
+      targets are bit-identical to the unset path); an empty value is the same
+      explicit restore (the P43 `FRUIT_ARM_PARK=ready` precedent).
+
+    Strict parsing is the P44/P45/P52/P53 precedent: a typo that fell back to
+    the shipped height would be published as a null result, so a non-number and a
+    non-finite value raise.
+    """
+    if presentation != "direct":
+        return None, False
+    text = "" if env_value is None else str(env_value).strip()
+    if env_value is None or not text:
+        if env_value is None:
+            return {"left": LIFT_DZ_DIRECT_DEFAULT}, True
+        return {"left": LIFT_DZ_HAND_ADD}, False
+    try:
+        dz = float(text)
+    except ValueError:
+        raise ValueError(
+            f"FRUIT_LIFT_DZ={env_value!r} is not a number of metres"
+        ) from None
+    if not math.isfinite(dz):
+        raise ValueError(f"FRUIT_LIFT_DZ={env_value!r} is not finite")
+    return {"left": dz}, False
 
 
 def resolve_arm_park(presentation: str, env_value: str | None) -> tuple[str, bool]:
@@ -1367,6 +1455,22 @@ class SortingRLEnv:
         self._carry_hold_override = resolve_carry_hold_override(
             presentation, os.environ.get("FRUIT_GRASP_LEFT_PRECOMP")
         )
+        #: P66 phase 2/3: the **lift's target height** (`FRUIT_LIFT_DZ`, metres
+        #: above `belt_top + 0.28`, **`direct` + left only**; since phase 3 the
+        #: `direct` **default** is the 0.20 m rung, `LIFT_DZ_DIRECT_DEFAULT`).
+        #: Threaded the P64 way: resolved here, passed as a caller-owned kwarg,
+        #: applied by `tasks.lift_dz_for` at `_carry`'s `grasp_lift` end pose. It
+        #: moves one number (the leg's end z) and nothing else - the attitude,
+        #: grip, station and command are the shipped ones - which is what makes
+        #: the cell a test of the rotation (the reachability curve
+        #: `logs/p66/STATION_SWEEP.md` measured) rather than of the drag.
+        #: `_lift_dz_defaulted` is the P43-style origin flag: `True` = the direct
+        #: default, `False` = an explicit env value (including the `+0.08`
+        #: restore), and it is printed and recorded so a pre-flip log cannot be
+        #: mistaken for a post-flip one.
+        self._lift_dz, self._lift_dz_defaulted = resolve_lift_dz(
+            presentation, os.environ.get("FRUIT_LIFT_DZ")
+        )
         #: P55: the live feeder, now part of the profile. `FRUIT_DIRECT_FEED=0`
         #: restores the pre-P55 behaviour; non-direct presentations stay off.
         self._direct_feed = bool(self._supply["feed"])
@@ -2111,6 +2215,7 @@ class SortingRLEnv:
             ),
             grasp_quat_override=self._grasp_quat_override,
             carry_hold_override=self._carry_hold_override,
+            lift_dz=self._lift_dz,
         )
         self.task.recorder = None
 
@@ -2197,6 +2302,18 @@ class SortingRLEnv:
             # nothing at all, so a log says in its first lines whether it ran
             # the pre-compensated lift.
             say(self._precomp_row(self._carry_hold_override))
+        if self._lift_dz is not None:
+            # P66 phase 2/3: the lift-height offset's own row - the resolved dz
+            # **and its origin** (`default` / `explicit`, the `park=back(default)`
+            # pattern), the arm/leg scope, the height it puts the lift's end at
+            # and the documented restore, so a log says which rung it ran
+            # (`belt_top` from the task, i.e. the value `jaw_target` itself adds
+            # to). Since the flip it prints on every `direct` run.
+            say(
+                self._lift_dz_row(
+                    self._lift_dz, self.task.belt_top, self._lift_dz_defaulted
+                )
+            )
         if self._continuous_picks > 0:
             say(
                 f"[cont] enabled: picks_target={self._continuous_picks} "
@@ -2322,6 +2439,38 @@ class SortingRLEnv:
                     "source": "median of 7 left grasp_lift legs (P63 A1_77 + P62 P0/P0b)",
                 }
                 if self._carry_hold_override
+                else None
+            ),
+            #: P66 phase 2/3: the lift's target-height offset (null = the shipped
+            #: `grasp_lift` end pose, i.e. a non-`direct` caller). A lifted arm is
+            #: a **different scenario** - its lift ends at another height - so it
+            #: is identified by this block, not by the `[grasp] lift_dz:` row
+            #: alone. Since the flip `defaulted` says whether the value is the
+            #: `direct` default or an explicit `FRUIT_LIFT_DZ`, and the per-arm
+            #: `arms` map names the resolution the run actually applied (the right
+            #: arm is never armed by this knob). `hand_target_m_above_belt` is the
+            #: hand's own add - **not** "the shipped target": after a flip the
+            #: shipped height is no longer the run's default, which is the P43
+            #: `park` defect this rename closes. `default_target_m_above_belt` is
+            #: what an unset `FRUIT_LIFT_DZ` would resolve to on this
+            #: presentation.
+            "lift_dz": (
+                {
+                    "leg": "grasp_lift",
+                    "defaulted": bool(self._lift_dz_defaulted),
+                    "dz_m_above_0p28": float(self._lift_dz.get("left", 0.0)),
+                    "target_m_above_belt": 0.28
+                    + float(self._lift_dz.get("left", 0.0)),
+                    "default_dz_m_above_0p28": LIFT_DZ_DIRECT_DEFAULT,
+                    "default_target_m_above_belt": 0.28 + LIFT_DZ_DIRECT_DEFAULT,
+                    "hand_target_m_above_belt": 0.28
+                    + float(os.environ.get("FRUIT_OPENARM_TRANSFER_LIFT", "0.08")),
+                    "arms": {
+                        "left": float(self._lift_dz.get("left", 0.0)),
+                        "right": "shipped",
+                    },
+                }
+                if self._lift_dz is not None
                 else None
             ),
             #: P36 phase 1: the proprio spoof (absent = the measured joints).
@@ -2682,6 +2831,40 @@ class SortingRLEnv:
             "shipped attitude), side=left (right=shipped) | "
             "source=median of 7 left grasp_lift legs (P63 A1_77 + P62 P0/P0b), "
             "per-leg tilt 25.1..28.7deg, achieved proj +0.3210..+0.3658"
+        )
+
+    @staticmethod
+    def _lift_dz_row(offsets: dict, belt_top: float, defaulted: bool = False) -> str:
+        """The `[grasp] lift_dz:` row (pure; pinned by `236`).
+
+        P66 phase 2/3. Since the phase-3 flip it prints on **every `direct`**
+        run (the offset is the presentation's default there) and never on a
+        scripted path (they do not construct this env, so `offsets` is `None`).
+        It names the resolved offset **with its origin** - `(default)` = the
+        P66 phase-3 `direct` default, `(explicit)` = `FRUIT_LIFT_DZ` was set,
+        the `park=back(default)` pattern - the height it puts the lift's end at,
+        and the documented **restore** (`+0.08` = the hand's own add = the
+        shipped 0.36 m), all rebuilt from the numbers
+        `tasks.jaw_target("grasp_lift")` itself uses: the offset is measured
+        above the `belt_top + 0.28` base and **replaces** the hand's
+        `FRUIT_OPENARM_TRANSFER_LIFT` add, so `+0.08` is the shipped height and
+        `-0.08` the 0.20 m rung. A log therefore proves which rung it ran rather
+        than asserting the cell's table, and its origin says whether a flip
+        could have caused it.
+        """
+        dz = float(offsets.get("left", 0.0))
+        origin = "default" if defaulted else "explicit"
+        hand = 0.28 + float(os.environ.get("FRUIT_OPENARM_TRANSFER_LIFT", "0.08"))
+        return (
+            "[grasp] lift_dz: "
+            f"dz={dz:+.4f}({origin}) m above the 0.28 base "
+            f"-> {belt_top + 0.28 + dz:.4f} m above floor "
+            f"(belt_top {belt_top:.4f} + {0.28 + dz:.4f}) | "
+            "arm=left leg=grasp_lift (right=shipped, place legs=shipped) | "
+            f"default dz={LIFT_DZ_DIRECT_DEFAULT:+.4f} = "
+            f"{0.28 + LIFT_DZ_DIRECT_DEFAULT:.4f} m; "
+            f"restore the shipped {belt_top + hand:.4f} m with "
+            "FRUIT_LIFT_DZ=+0.0800 (the hand's own add)"
         )
 
     def advance(self, steps: int) -> None:

@@ -220,6 +220,18 @@ run_check "P63 attitude drift" "$python" scripts/233_p63_attitude_selftest.py
 # that makes `None` byte-inert, the margin/argmin/min-over-leg arithmetic, the
 # `rot[:,1]` jaw axis and the first-crossing onset.
 run_check "P65 lift drift" "$python" scripts/235_p65_lift_selftest.py
+# P66 phase 2: the lift's **end** reads on the same `[carry]` row (`drift_end=`,
+# the last guarded tick's hold drift rather than the max; `res_end=`/`dz_end=`,
+# the achieved TCP position error at the leg's end against the target the same
+# tick issued - the target array `ik_step` was handed and `tcp_pose()`'s own
+# position, so no new read) and the **lift-height knob** (`FRUIT_LIFT_DZ`,
+# default off, `direct` + left only). The leg pins the fields and order, the
+# `guard_armed` containment that makes `None` byte-inert, the last-tick
+# semantics, the error arithmetic, the P64-style threading (resolve once ->
+# caller-owned kwarg -> `tasks.lift_dz_for` at `_carry`'s `grasp_lift` end pose,
+# after both goal forms, z only) and that the scripted entries never construct
+# the env that arms it.
+run_check "P66 lift end + dz" "$python" scripts/236_p66_lift_selftest.py
 # P62 phase 2: the left-only, direct-scoped grasp-attitude override
 # (`FRUIT_GRASP_LEFT_TOPDOWN`, default off). The resolver is offline and inert by
 # default; the real `_grasp_quat` body (extracted with `ast`, so no pxr import)

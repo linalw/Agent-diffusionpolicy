@@ -243,6 +243,31 @@ def _quat_about_axis(q, axis, angle: float) -> np.ndarray:
     return out / max(float(np.linalg.norm(out)), 1e-9)
 
 
+def lift_dz_for(offsets, side: str, name: str) -> float | None:
+    """P66: the lift's target-height offset for one carry leg, or `None`.
+
+    Pure, and the **only** place this offset is resolved. The scope is
+    `grasp_lift` on purpose: that is the one leg P66 phase 2 moves, and its end
+    height is the mediator's own lever - the P66 station sweep (`logs/p66/
+    STATION_SWEEP.md`) measured that the top-down attitude `T0` degrades
+    monotonically with height while the shipped attitude does not, and the live
+    lift's drift onset sits where that curve crosses 10 deg. Every other leg
+    returns `None`, so the place legs' targets are untouched even with the knob
+    armed.
+
+    `offsets` is the caller-owned `lift_dz` dict (side -> metres, e.g.
+    `{"left": -0.08}`); `None`, a missing side or any other leg name returns
+    `None`, i.e. the shipped `jaw_target("grasp_lift")` height. Same
+    caller-owned-kwarg pattern as `carry_hold_override_for` (`None` = the
+    shipped read), so no caller mutates the process environment to change a
+    target.
+    """
+    if offsets is None or name != "grasp_lift":
+        return None
+    value = offsets.get(side)
+    return None if value is None else float(value)
+
+
 def carry_hold_override_for(overrides, side: str, name: str) -> np.ndarray | None:
     """P64: the pre-compensated hold for one carry leg, or `None` (shipped).
 
@@ -319,6 +344,17 @@ _CARRY_MONITOR_SD = (
 )
 #: The frozen persistence (ticks) from the pre-registration; not tunable.
 _CARRY_MONITOR_PERSIST = 2
+
+#: P66 phase 3: the short surface codes the `[carry]` row's `clr=` field prints.
+#: `_payload_clearance` names the surface it measured against ("main belt",
+#: "output belt", "output rail"); the field of record is the *rail*'s +33 mm
+#: (`logs/p30a/RAILS_DESIGN.md`), and the rail sits 35 mm above the output
+#: belt's top, so a number without its surface would be unreadable.
+_CLEARANCE_SURFACES = {
+    "main belt": "belt",
+    "output belt": "obelt",
+    "output rail": "rail",
+}
 
 
 def _carry_monitor_logit(sep, pry, vsep, ft_min, force, contacts) -> float:
@@ -681,7 +717,8 @@ class PickAndPlaceTask:
     def __init__(self, scene, spawner, tactile, cfg, waypoint_path: str | None = None,
                  feed_cadence: bool | None = None,
                  grasp_quat_override: dict | None = None,
-                 carry_hold_override: dict | None = None):
+                 carry_hold_override: dict | None = None,
+                 lift_dz: dict | None = None):
         # The v1 file reproduces the recorded datasets. Physical grasping uses the
         # orientation-constrained poses: FRUIT_WAYPOINTS=configs/waypoints_oriented.json
         waypoint_path = waypoint_path or os.environ.get(
@@ -722,6 +759,18 @@ class PickAndPlaceTask:
                 str(k): np.asarray(v, dtype=float)
                 for k, v in carry_hold_override.items()
             }
+        )
+        #: P66: a per-arm **target-height** offset for the `grasp_lift` leg, in
+        #: metres above `jaw_target`'s `belt_top + 0.28` base (see `lift_dz_for`).
+        #: `None` (the default everywhere) writes nothing, so the scripted line,
+        #: the collector, the two-line scheduler and the hybrid canary are
+        #: byte-inert; only `rl_env` resolves it, and only for `direct` + left
+        #: (`FRUIT_LIFT_DZ`, default off). It moves the leg's *end pose* and
+        #: nothing else - not the attitude, not the grip, not the station.
+        self._lift_dz: dict[str, float] = (
+            {}
+            if lift_dz is None
+            else {str(k): float(v) for k, v in lift_dz.items()}
         )
         self.arms = {
             "left": ArmController(scene, "left"),
@@ -3119,7 +3168,20 @@ class PickAndPlaceTask:
             return np.array([cfg.pick_x, cfg.pick_y, belt_top + cfg.grasp_clearance])
         if name == "grasp_lift":
             z = belt_top + 0.28
-            if getattr(self.grippers.get(side), "kind", "") == "openarm":
+            #: P66 phase 2: the lift's **target height**, the registered ladder's
+            #: one variable (`FRUIT_LIFT_DZ`, metres above `belt_top + 0.28`;
+            #: default off). This is the single site that builds it - the
+            #: dynamic catch's own goal takes this return's z (`_carry` keeps the
+            #: pads' x/y and `float(goal[2])`), so arming it moves the lift's end
+            #: pose and nothing else. The offset **replaces** the hand's
+            #: clearance add when armed, which is why the registered control is
+            #: `+0.08` (the shipped 0.36 for this hand) and `0.00` is the middle
+            #: rung at 0.28; `None` (every caller but the direct env) runs the
+            #: shipped expression below byte-for-byte.
+            _lift_dz = lift_dz_for(self._lift_dz, side, name)
+            if _lift_dz is not None:
+                z += _lift_dz
+            elif getattr(self.grippers.get(side), "kind", "") == "openarm":
                 # The jaws hang ~8 cm below the jaw centre; riding higher keeps
                 # the fingertips clear of the output line's side rail when the
                 # transfer crosses it (measured: the fingertips clipped the rail
@@ -3495,6 +3557,10 @@ class PickAndPlaceTask:
             # acceptance (`logs/p2_012_run2`). The lateral transfer is the place
             # leg's job, after the grip has left the belt.
             pad = np.asarray(self.grippers[side].pad_centre(), dtype=float)
+            # P66 phase 2: `goal[2]` is `jaw_target("grasp_lift")`'s height, which
+            # is where `FRUIT_LIFT_DZ` (default off) is applied - so the lift's
+            # height is moved once, at the pose builder, and this form inherits it
+            # while keeping the pads' x/y.
             goal = np.array([float(pad[0]), float(pad[1]), float(goal[2])])
         gap = self._closed_gap.get(side)
         offset_tool = self._gripper_offset.get(side)
@@ -3858,6 +3924,19 @@ class PickAndPlaceTask:
             guard_jaw_first = None
             guard_jaw_abs_max = 0.0
             guard_drift_on_i = None
+            #: P66: the leg's **end** reads, one dot each. The registered
+            #: mediator test needs the drift *at the leg's end* (`hold_drift` is
+            #: the per-leg max, which a transient can set) and the achieved
+            #: position error against the leg's own target end, so the two are
+            #: kept as the last guarded tick's values rather than an extreme:
+            #: `guard_drift_end` = the last tick with a live hold,
+            #: `guard_tcp_end`/`guard_tcp_target` = the achieved TCP position and
+            #: the target the same tick issued. Free: the quaternion read below
+            #: is the one P63 already takes (`tcp_pose()` returns both), and the
+            #: target is the array `ik_step` was handed - no new read at all.
+            guard_drift_end = None
+            guard_tcp_end = None
+            guard_tcp_target = None
             guard_vmax = 0.0
             guard_onset_i = None
             guard_onset_force = None
@@ -3930,6 +4009,10 @@ class PickAndPlaceTask:
             for i in range(n_ticks):
                 if guard_acts and guard_done:
                     break
+                #: P66: the TCP target this tick actually hands to `ik_step` (set
+                #: in both command branches below), so the leg's end error is
+                #: measured against what was commanded - no extra pose read.
+                _tcp_tgt_issued = None
                 if guard_acts:
                     # Profile cursor (`guard_u`): one command per tick normally,
                     # the derate rate after the first guard event, frozen during
@@ -4053,13 +4136,13 @@ class PickAndPlaceTask:
                     # pads follow wherever the arm actually is - the IK lag is real
                     # hand deflection, and the payload is carried by friction.
                     if hand_is_jaw:
-                        arm.ik_step(arm.tcp_target_for_jaw(centre))
+                        _tcp_tgt_issued = arm.tcp_target_for_jaw(centre)
+                        arm.ik_step(_tcp_tgt_issued)
                     else:
-                        arm.ik_step(
-                            arm.tcp_target_for_jaw(
-                                centre + np.array([0.0, 0.0, finger_len + PAD_LIFT])
-                            )
+                        _tcp_tgt_issued = arm.tcp_target_for_jaw(
+                            centre + np.array([0.0, 0.0, finger_len + PAD_LIFT])
                         )
+                        arm.ik_step(_tcp_tgt_issued)
                     quat = np.asarray(arm.tcp_pose()[1], dtype=float)
                     rot = _quat_matrix(quat)
                     if hand_is_jaw:
@@ -4092,7 +4175,10 @@ class PickAndPlaceTask:
                         dtype=float,
                     )
                     self._grip_centre[side] = centre
-                    arm.ik_step(arm.tcp_target_for_jaw(centre - rot @ offset_tool))
+                    _tcp_tgt_issued = arm.tcp_target_for_jaw(
+                        centre - rot @ offset_tool
+                    )
+                    arm.ik_step(_tcp_tgt_issued)
                     if os.environ.get("FRUIT_CARRY_DIAG", "0") == "1" and i < 3:
                         say(
                             f"[diag] carry-assist {side} {name} tick {i}: "
@@ -4164,7 +4250,9 @@ class PickAndPlaceTask:
                     # the loop's `rot` is the pre-step wrist, and mixing it with
                     # post-step positions accumulates a rotation artifact
                     # (34-88 mm on a held payload, measured).
-                    _tcp_quat = np.asarray(arm.tcp_pose()[1], dtype=float)
+                    _tcp_pos, _tcp_quat = arm.tcp_pose()
+                    _tcp_pos = np.asarray(_tcp_pos, dtype=float)
+                    _tcp_quat = np.asarray(_tcp_quat, dtype=float)
                     rot_now = _quat_matrix(_tcp_quat)
                     _hold = getattr(arm, "hold_quaternion", None)
                     if _hold is not None:
@@ -4172,9 +4260,17 @@ class PickAndPlaceTask:
                         _dot = abs(float(np.dot(np.asarray(_hold, dtype=float), _tcp_quat)))
                         _drift_now = 2.0 * np.degrees(np.arccos(float(np.clip(_dot, 0.0, 1.0))))
                         guard_drift_max = max(guard_drift_max, _drift_now)
+                        # P66: the same angle read at the leg's *end* (the last
+                        # tick with a live hold), not an extreme of it.
+                        guard_drift_end = _drift_now
                         if guard_drift_on_i is None and _drift_now > 10.0:
                             # P65: first tick the hold drift passes 10 deg.
                             guard_drift_on_i = i
+                    # P66: the leg's end state - the achieved TCP position and the
+                    # target the same tick issued (free: `tcp_pose()` above is the
+                    # P63 read and the target is the array `ik_step` was handed).
+                    guard_tcp_end = _tcp_pos
+                    guard_tcp_target = _tcp_tgt_issued
                     rel_frame = rot_now.T @ (fruit - pads)
                     if guard_ref is None:
                         # First tick of the leg: the reference is this tick's
@@ -4412,6 +4508,39 @@ class PickAndPlaceTask:
                     if guard_jaw_first is None
                     else f"{guard_jaw_first:+.4f}/{guard_jaw_abs_max:.4f}"
                 )
+                # P66: the leg's **end** reads (one dot per leg, reporting only).
+                # `drift_end` = the last tick's `hold_drift` (`n/a` when no tick
+                # had a live hold, i.e. the place legs); `res_end`/`dz_end` = the
+                # achieved TCP position error against the target the last guarded
+                # tick issued (norm, and its world-z component, signed).
+                _drift_end = (
+                    "n/a"
+                    if guard_drift_end is None
+                    else f"{guard_drift_end:.1f}"
+                )
+                # P66 phase 3: the leg's **minimum payload clearance** to the
+                # highest surface under it (P2-3's `_payload_clearance`, already
+                # measured every tick in the slip bookkeeping above - no new
+                # read, no motion monitor, no control input). The surface code
+                # is part of the field because the access floor of record
+                # (+33 mm, `logs/p30a/RAILS_DESIGN.md`) is the **output rail**'s
+                # and the rail is 35 mm above the output belt's top.
+                if clearance_min == float("inf"):
+                    _clr = "n/a"
+                else:
+                    _clr_surface = _CLEARANCE_SURFACES.get(
+                        clearance_where, clearance_where or "?"
+                    )
+                    _clr = f"{clearance_min * 1000:+.0f}mm@{_clr_surface}"
+                if guard_tcp_end is None or guard_tcp_target is None:
+                    _res_end = "n/a"
+                    _dz_end = "n/a"
+                else:
+                    _err_end = np.asarray(guard_tcp_end, dtype=float) - np.asarray(
+                        guard_tcp_target, dtype=float
+                    )
+                    _res_end = f"{float(np.linalg.norm(_err_end)) * 1000.0:.1f}"
+                    _dz_end = f"{float(_err_end[2]) * 1000.0:+.1f}"
                 say(
                     f"[carry] {side} {name}: ticks={i + 1}/{len(commands)} "
                     f"clean_slip_max={guard_slip_max * 1000:.1f}mm "
@@ -4420,6 +4549,9 @@ class PickAndPlaceTask:
                     f"{guard_slip_at_max[2] * 1000:.1f})mm "
                     f"hold_drift={guard_drift_max:.1f}deg"
                     f"{'' if guard_hold_seen else '(no-hold)'} "
+                    f"drift_end={_drift_end} "
+                    f"res_end={_res_end}mm dz_end={_dz_end}mm "
+                    f"clr={_clr} "
                     f"q_margin={_qm} q_cmd_margin={_qcm} "
                     f"q_step_max={guard_q_step_max:.4f} "
                     f"jaw_z={_jawz} drift_on={guard_drift_on_i} "

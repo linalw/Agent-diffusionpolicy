@@ -103,9 +103,8 @@ def main() -> int:
         "the P65 reads are inside `if guard_armed:`",
     )
     ridx = src.index('f"q_margin={_qm} q_cmd_margin={_qcm} "')
-    rbranch = src.rfind("if guard_armed or relief_acts:", 0, ridx)
     check(
-        rbranch != -1 and ridx - rbranch < 4000,
+        indented_body_contains(src, "if guard_armed or relief_acts:", ridx),
         "the print is inside the `guard_armed or relief_acts` block",
     )
     for name in (
