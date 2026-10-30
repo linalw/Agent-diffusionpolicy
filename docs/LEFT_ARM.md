@@ -90,7 +90,7 @@ cannot).
    descent's residual is a **jaw-plane** 8.1-10.3 mm, and the probe reads
    `end=8.1 mm` in both arms), carry **+21.8/+31.8/+40.9 mm** (= the lip lost, 1:1),
    **rail crossing +0.0 mm**. So the lane is registrable only in a band **1.8-10.8x
-   smaller** than authorized, where every move is **5-13 %** of the phenomenon: the
+   smaller** than authorized, where every move is **4.1-10.9 %** (patch intact) / **6.0-16.0 %** (any contact) of the phenomenon: the
    reopen conditions are a **real-jaw clamp-force anchor**, the class-indicated
    **+3.5 mm extension** (owner-gated, predicted null: 1.3-3.4 % of the 104-276 mm
    walk), or a genuinely new pad design.
