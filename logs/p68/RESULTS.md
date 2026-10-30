@@ -222,7 +222,7 @@ before/after labels must not mix).
 **`d6e91c8`** at the batch (`logs/p68/pop2_header.txt` carries the same md5s from
 the run's own shell). Evidence files:
 `logs/p68/run_p68_pop2.sh` `81e3255f`, `logs/p68/run_p68_extra.sh` `70260990`,
-`logs/p68/p68_report.py` `b18138fe`, `logs/p68/mechanism.py` `477892ca`.
+`logs/p68/p68_report.py` `df528ec9`, `logs/p68/mechanism.py` `477892ca`.
 
 Evidence: `logs/p68/{pop2/, smoke_A.log, smoke_rollouts/, mixed_A_77.log,
 rollouts_mixed/, pop2_header.txt, pop2_batch.out, extra_batch.out,
@@ -233,8 +233,17 @@ accept_noharm_gate.txt, selfcheck.log}`, and the control
 
 ## Addendum (the lane's extra cell): the mixed supply confirms the negative
 
-A post-report cell on the **mixed** supply (the general scenario, same pair + the
-hold): the left places **1/26 (4 %)** with one held place leg at `clr +16 mm`
-(below the +33 floor). So the negative is **not** an artefact of the all-grade-A
-population cell: on the general supply the pair (+hold) is no better than the
-shipped form (0/25).
+*Appended by the orchestrator from the lane's post-report cell and corrected here
+to the cell's own denominators (the print "1/26" does not correspond to any count
+this tree's logs carry; the shipped "0/25" is P66 phase-3's N=5 rung control, a
+different cell).*
+
+`logs/p68/mixed_A_77.log` — the general scenario (A:0.375/B:0.375/C:0.25), the
+same pair + the hold, 15 picks, seed 77: **the left places 1 of 12 attempts
+(8 %)**, and its single held place leg reads `clr +16 mm` — **below the +33 mm
+floor**. The same run's **right** places 3/3 at `clr +43 [+43..+50]` with the hold
+achieved to 0.8 deg (P67's no-hold right: 13/13, +43 [+34..+105]). So the negative
+is **not** an artefact of the all-grade-A population cell: on the general supply
+the pair + the hold still loses the left's payload on 11 of 12 legs, the hold is
+achieved only on the right, and the one left leg that survives does not clear the
+crossing floor.
