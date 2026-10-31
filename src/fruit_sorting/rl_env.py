@@ -422,7 +422,15 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: which is that block's own read for `clean_slip`: no new articulation read, no
 #: command, threshold or control path touched, and the whole block is still gated
 #: by `FRUIT_CARRY_DIAG` (default "0"). `logs/p73/PREREG.md` §3.
-TASKS_MD5 = "303d025d7085236ce2ee93b735c55f73"
+#:
+#: P76 (metadata-only follow, `303d025d -> 9d5824ef`): the `[carry]` row gains
+#: the **pry/crush** group (`dia`, `sep_max=…@t<tick>`, `gap@sep_max`, `sep_min`,
+#: `fmax`) - reporting only, inside the same `if guard_armed:` block, gated by
+#: `FRUIT_CARRY_DIAG` (default "0"). One added `jaw_separation()` per guarded
+#: tick (the read `sep@onset`/`sep@loss`/`sep_end` already take at their own
+#: ticks); no command, threshold or control path touched. `logs/p76/PREREG.md`
+#: §3.
+TASKS_MD5 = "9d5824ef2fe08efa060bdd8c4be3cfd3"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(

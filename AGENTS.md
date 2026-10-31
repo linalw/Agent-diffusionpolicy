@@ -3326,6 +3326,81 @@ reference re-recorded, ckpt `moe_v13s` `61da390a`. Evidence
 `logs/p75/{METHOD.md,PREREG.md5,RESULTS.md,header.txt,p75_report.py,
 p75_report.txt,direct/,smoke.log,accept_noharm.log}`; WORKLOG "P75".
 
+**P76 (2026-10-31, `logs/p76/`; **nothing adopted, no default changed, `configs/*`
+untouched**): the pad pry needs **> 30 N**, the payload **> 45 N**, and the
+smallest fruit is **not crushed at 60 N** on the direct line - so P76's two
+numbers are `60 N` (pry deleted) and "no crush at 60 N", and P41's "60 N crushes
+a 3.7 cm strawberry" is a **seating** event, not a force threshold.** One
+default-off `[carry]` field group (`dia=`, `sep_max=…@t<tick>`, `gap@sep_max=`,
+`sep_min=`, `fmax=`, reporting only inside the existing `if guard_armed:` block,
+`FRUIT_CARRY_DIAG`-gated) exists because `sep@loss` is sampled at the loss while
+P75 measured the pads reaching their **98.1 mm stop 9 ticks later**. The ladder is
+`FRUIT_FINGER_MAXFORCE` **10 (unset) / 15 / 20 / 30 N**, seeds **77 and 101**, one
+claim per cell, the P66-phase-3/P71-phase-2/P73/P74/P75 scenario verbatim, plus
+**two declared extension cells** (45 and 60 N) registered before they ran
+(`PREREG.md` `62567d8b` → A1 `0397a929` → A2 `5e51d95b` → A3 `af7da4e5` → A4
+`1991c5fa`). **The manipulation check is two independent confirmations per rung**
+(the build print's `maxForce=<cap>/0.0N` and the **live articulation** read-back
+`[drive] … joint1/joint2=15.00/0.00 N`) with the behavioural third leg the held-leg
+`force_min` median **9.66 / 14.19 / 19.27 / 29.19 / 53.9 N** - the rung *is* the
+delivered force (P41's law), and `F10` is evaluable as the unset path (no
+`[drive]` row by construction). **The pry does not stop in 10-30 N**: the pads
+reach their stop on **5 / 1 / 2 / 2** legs of 55/54/55/54, and the **same 6.8 cm
+pear** (left, seed 77, the phase's cleanest control - only the cap differs) reads
+`place0 sep_max` **98.1 / 98.1 / 98.1 / 98.3 mm at 10/15/20/30 N** with
+`gap@sep_max` 66.9-69.9 mm, i.e. the pads are **25.7-31.2 mm wider than the
+command** at every low rung, exactly P75's wedge - so **30 N does not relieve the
+travel limit here**, which is where this interface departs from P41's scripted
+ladder (98.5 → 43.5 → 31.2 there). The two thresholds are **separated**:
+**the pads' stop is relieved between 30 and 45 N** (45 N: **0/26** legs past
+95 mm, corpus max **90.4 mm**) **and the payload is not saved by it** (the same
+pear still leaves, **829.5 mm**, force 0.00 N) - only **60 N** gives **0/26 pried**
+(corpus max **76.7 mm**) and **0/26 escapes**, with the pear at 75.2-75.8 mm and
+**0.0 mm** slip. Retention is **not monotone** (20 N keeps it at 11.0/13.6 mm,
+30 N ejects it 96.8 m, 45 N loses it) and every cell is **one draw** - those rows
+are a per-instance dose-response, **not a rate**; what is monotone is the pad
+travel, which is what the phase asked. **The crush guard reads 0 legs at the
+registered C1/C2 in all six cells**: C1 was sharpened **before the extensions** to
+the **loss tick** (`sep@loss - dia`, the only tick the payload is provably between
+the pads, because a loaded `sep_min` also catches the pads pressing **each
+other** after a small fruit has gone - two 3.9 cm strawberry legs at seed 101
+read a 148 m / 223 m `clean_slip`, i.e. recycled payloads, with the pads at their
+10.0 mm closed limit). The **strawberry** (3.6 cm, the binding class) reads
+`sep@loss - dia` **+0.5 mm** at a **36.1 mm** span under a **60.16 N** pinch,
+`force_min` 55.40 N, **placed** - and the closest low-rung number is **-14.8 mm**
+(one 3.9 cm instance at 15 N, `fmax` 24.26 N, 496 mm) which sits **0.2 mm inside**
+the -15 mm rule, so the rule does not fire: that is a **seating** event (the close
+landed 24.7 mm inside the fruit) whose depth the cap amplifies, which is why P41's
+scripted 60 N crush (pads to 10.0 mm around 37 mm) does **not** reproduce here.
+**Counts are reported, never gated** (20/30, 23/30, 24/30, 24/30, 12/15, 13/15
+placed; left 6/14 → 6/9 → 7/10 → 7/10 → 4/5 → 6/6; held `force_min` medians
+9.66 / 14.19 / 19.27 / 29.19 / 39.86 / 53.9 N) - a count across rungs **compares attractors**, and the only rate-shaped
+claim is per-leg (**0/26 pried at 60 N vs 5/55 at 10 N**). **Deviations, all
+pinned before the runs they govern**: **A1** `sep_min` is the **loaded** span (the
+unconditional minimum fires on every escape leg - a lost payload lets the servo
+close the pads onto nothing, `sep_end` 51.9 mm inside a 68.3 mm fruit; the
+discarded pre-A1 cell is kept as `DISCARDED_F10_pre_a1.log`); **A2** the 45/60 N
+cells are **declared extensions, not rungs** (P75's A4 convention); **A3** an
+escape leg must have had a **pinch** (`fmax > 0` - one leg's `clean_slip_max` is
+**308 215 mm** with `fmax = 0.00 N`, a recycled payload, listed separately as
+never-held); **A4** the bisection ran because F60 came back clean on **both**
+endpoints. **No phase-2 cell is run**: the §5.1 condition is met only at a
+**declared extension** (F60), so it licenses a plan - **3 seeds x 15** at 60 N
+with the paired carried-class endpoint, the **two-line and scripted no-harm**
+(three references and every store re-recorded, the expensive item), and the
+**sanction**: the cap is not physical until a real jaw is anchored to it, i.e.
+"the sim needs 60 N; a real jaw would have to deliver 60 N" - the owner decides.
+No-harm: `accept.sh` **6/9 + `fingerprint: matches`** with its **346 `[fruit]`
+lines byte-identical** to `logs/p73/accept_noharm.log` (the new fields need
+`FRUIT_CARRY_DIAG=1`, so they cannot run on the scripted path), `selfcheck.sh`
+**PASS, 0 failures** (the new leg). Pins: `tasks.py` **`9d5824ef`**, `rl_env.py`
+(the `TASKS_MD5` metadata-only follow), `scripts/243_p76_sep_selftest.py`
+**`fc0e738e`**, `scripts/selfcheck.sh` **`84f77dcb`**, `logs/p76/p76_report.py`;
+references **`8952c320` / `eb697f23`** both untouched, no reference re-recorded,
+ckpt `moe_v13s` `61da390a`. Evidence
+`logs/p76/{PREREG.md,PREREG.md5,RESULTS.md,header.txt,run_p76.sh,p76_report.py,
+p76_report.txt,direct/,smoke_a1.log,accept_noharm.log}`; WORKLOG "P76".
+
 ## 3. What changed -> what to run
 
 | you changed | run |

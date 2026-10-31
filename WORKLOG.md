@@ -20863,3 +20863,136 @@ follow), `scripts/241_p75_place_trace_selftest.py` **`14be55ea`**,
 `..._twoline.json` **`eb697f23`** untouched, no reference re-recorded, ckpt
 `moe_v13s` **`61da390a`**. Evidence `logs/p75/{METHOD.md,PREREG.md5,RESULTS.md,
 header.txt,p75_report.py,p75_report.txt,direct/,smoke.log,accept_noharm.log}`.
+
+## P76 — the pry needs more than 30 N and the payload more than 45 N; the smallest fruit is not crushed at 60 N
+
+**Measurement phase, one default-off `[carry]` field group, nothing adopted, no
+default changed, `configs/*` untouched, no commit.** The rule and its four
+amendments were pinned before the runs they govern (`logs/p76/PREREG.md`, md5
+`62567d8b` → A1 `0397a929` → A2 `5e51d95b` → A3 `af7da4e5` → A4 `1991c5fa`).
+
+**Why it was asked.** `logs/p75/RESULTS.md` settled the left place leg's escape
+as an **expulsion**: the payload's hand-frame displacement is 0.0 mm for 110
+ticks, the force then collapses in two (5.03 → 4.11 → 0.00 N), and the pads are
+driven to their **98.1 mm mechanical open stop in 9 ticks while the force servo
+closes the command** (68.7 → 66.7 mm). That makes the class **force-limited in
+the pry mode**, which is why P41's ladder deleted `sep_max` (98.5 → 43.5 → 31.2 mm
+at 10/30/60 N) - but P41 never ran the **direct** line under a raised cap, its
+ladder has a 20 mm-wide hole between 10 and 30 N, and its 60 N rung crushed a
+3.7 cm strawberry.
+
+**The instrument.** Five reporting-only fields on the `[carry]` row, inside the
+existing `if guard_armed:` block (`FRUIT_CARRY_DIAG`, default "0", so unset is
+byte-inert): `dia=` (the fruit's class width), `sep_max=…@t<tick>` (the leg's
+**extreme** measured pad separation and its tick), `gap@sep_max=` (the commanded
+gap at that tick), `sep_min=` (the minimum **loaded** separation) and `fmax=` (the
+leg's peak tactile pinch). They exist because `sep@loss` is sampled at the loss
+tick and the pads reach the stop **9 ticks later**, so a sample cannot answer "did
+this leg pry the pads open". `sep` is `arm.jaw_separation()` - the same link-origin
+read as `sep@onset`/`sep@loss`/`sep_end` and P41's offline `sep_max`, so every
+number is comparable to the 98.1 mm stop. Pinned by
+`scripts/243_p76_sep_selftest.py` (a selfcheck leg).
+
+**The cells.** Eight claimed runs, ~85 min of simulator wall, one claim each: the
+ladder **10 (unset) / 15 / 20 / 30 N** at seeds **77 and 101**, plus **two
+declared extension cells** (45 and 60 N, seed 77) registered before they ran. The
+scenario is the P66-phase-3 / P71-phase-2 / P73 / P74 / P75 cell verbatim and the
+instrument is identical in every arm, so the controls cancel.
+
+**Manipulation check, two independent confirmations per rung** - the build print
+(`maxForce=<cap>/0.0N`, `F10` = the shipped 10.0 string with nothing written) and
+the **live articulation** read-back (`[drive] … joint1/joint2=15.00/0.00 N` on
+both arms; absent on `F10` by construction, which is why `F10` is checked as the
+unset path instead). The behavioural third leg is the held-leg `force_min` median:
+**9.66 / 14.19 / 19.27 / 29.19 / 39.86 / 53.9 N** at 10/15/20/30/45/60 N - the
+rung **is** the delivered force (P41's law), so no rung is a stage-only write.
+
+**The result, and the two numbers the phase was for.**
+
+| rung | carry legs | escape legs | at the stop | legs pried to the stop | `sep_max` on escape legs |
+|---|---|---|---|---|---|
+| 10 N | 55 | 7 | 3 | **5** | 69.6 - **98.2** |
+| 15 N | 54 | 4 | 1 | **1** | 24.4 - **98.1** |
+| 20 N | 55 | 3 | 0 | **2** | 69.0 - 92.0 |
+| 30 N | 54 | 3 | 2 | **2** | 10.2 - **98.3** |
+| 45 N (ext) | 26 | 1 | 0 | **0** | 90.4 |
+| 60 N (ext) | 26 | **0** | 0 | **0** | - (corpus max **76.7**) |
+
+* **The pry does not stop in 10-30 N.** The same **6.8 cm pear** (left, seed 77 -
+  the phase's cleanest control, only the cap differs) reads `place0 sep_max`
+  **98.1 / 98.1 / 98.1 / 98.3 mm** at 10/15/20/30 N with `gap@sep_max`
+  66.9-69.9 mm, i.e. the pads are **25.7-31.2 mm wider than the command** at every
+  low rung - P75's wedge, reproduced. **30 N does not relieve it**, which is
+  exactly where this interface departs from P41's scripted ladder (98.5 → 43.5 →
+  31.2 there); the direct line's catch hands the fruit over in a pose the jaw can
+  wedge against, and the scripted station pick does not.
+* **The pads' stop is relieved between 30 and 45 N**: at 45 N **0 of 26** legs pass
+  95 mm and the corpus max is **90.4 mm** (92 % of the stop).
+* **The payload is not saved by that**: at 45 N the same pear still leaves,
+  **829.5 mm**, with the force collapsing to 0.00 N. The pry has only become
+  *shallow*.
+* **Only 60 N deletes it**: **0/26** pried (corpus max **76.7 mm**, i.e. below the
+  fruit's own 68.3 mm + a 7 mm pad shell) and **0/26** escapes, with the pear at
+  75.2-75.8 mm and **0.0 mm** slip.
+* **Retention is not monotone** (20 N keeps it at 11.0 / 13.6 mm, 30 N ejects it
+  96.8 m, 45 N loses it) and every cell is **one draw** (the direct loop conditions
+  on rendered frames). Those rows are a **per-instance dose-response, not a rate**;
+  what is monotone is the **pad travel**, which is what the phase asked about.
+
+**The crush guard reads 0 legs at the registered C1/C2 in all six cells**, and the
+sharpening is itself a finding. C1 was moved to the **loss tick**
+(`sep@loss - dia`) before the extensions ran, because a **loaded** `sep_min` also
+catches the pads pressing **each other** once a small fruit has gone: two 3.9 cm
+strawberry legs at seed 101 read `clean_slip_max` **148 m / 223 m** (recycled
+payloads) with the pads at their **10.0 mm closed limit**. On the loss-tick form
+the **strawberry** (3.6 cm, the binding class) reads **+0.5 mm** at a **36.1 mm**
+span under a **60.16 N** pinch, `force_min` **55.40 N**, held and placed. The
+closest low-rung number is **-14.8 mm** (one 3.9 cm instance at 15 N, `fmax`
+24.26 N, 496 mm slip) - **0.2 mm inside** the registered -15 mm rule, so the rule
+does not fire, and it is a **seating** event (the close landed 24.7 mm inside the
+fruit's width) whose depth the cap amplifies. That is why **P41's scripted 60 N
+crush does not reproduce on the direct line**: a crush is where the close lands,
+not what the cap is.
+
+**Counts (reported, never gated).** placed **20/30, 23/30, 24/30, 24/30, 12/15,
+13/15** for 10/15/20/30/45/60 N; left **6/14 → 6/9 → 7/10 → 7/10 → 4/5 → 6/6**;
+`cnp` 3/2/1/2/1/0 and never-held 5/5/5/3/2/2. A count across rungs **compares
+attractors** (AGENTS §2) and 13-15 attempts per cell is one draw, so none of these
+is a rate; the only rate-shaped claim is the per-leg one (**0/26 pried at 60 N vs
+5/55 at 10 N**).
+
+**Deviations, each pinned before the run it governs.** **A1**: `sep_min` is the
+**loaded** span, because the unconditional minimum fires on every escape leg (a
+lost payload lets the servo close the pads onto nothing - `sep_end` 51.9 mm inside
+a 68.3 mm fruit); the pre-A1 partial cell is kept as
+`direct/DISCARDED_F10_pre_a1.log` and is not counted. **A2**: the 45/60 N cells are
+**declared extensions, not rungs** (P75's A4 convention), registered to close the
+crush's upper bracket. **A3**: an escape leg must have had a **pinch** (`fmax > 0`)
+- one leg's `clean_slip_max` is **308 215 mm** with `fmax = 0.00 N`, a recycled
+payload; never-held legs are listed separately. **A4**: the bisection ran because
+F60 came back clean on **both** endpoints (A2 had made it conditional on a crush).
+
+**No phase-2 cell is run.** The §5.1 condition is met only at a **declared
+extension** (F60), so it licenses a **plan**, not an adoption: 3 seeds x 15 at
+60 N with the paired carried-class endpoint, the **two-line and scripted no-harm**
+(three references re-recorded and every store's provenance - the expensive item,
+since a cap change **moves the branch**: P41's `accept_mf30` DIFFERS on legs
+7/9/10 and the two-line `190` gate fails on the fingerprint alone), and the
+**sanction**: a raised cap is not physical until a real jaw is anchored to it, so
+the deliverable stays **"the sim needs 60 N per finger joint (a ~54-60 N pinch); a
+real jaw would have to deliver 60 N"** and the owner decides.
+
+**No-harm.** `scripts/accept.sh` with every knob unset: **6/9,
+`fingerprint: matches`, and its 346 `[fruit]` lines byte-identical to
+`logs/p73/accept_noharm.log`** (the new fields need `FRUIT_CARRY_DIAG=1` and the
+scripted path never sets it). The exit=1 is the standing rate floor (6/9 = 67 %
+< 75 %), this tree's branch since P32. `scripts/selfcheck.sh` **PASS, 0 failures**
+(the new `P76 pry/crush fields` leg).
+
+**Pins**: `tasks.py` **`9d5824ef`**, `rl_env.py` (the `TASKS_MD5` metadata-only
+follow), `scripts/243_p76_sep_selftest.py` **`fc0e738e`**, `scripts/selfcheck.sh`
+**`84f77dcb`**, `logs/p76/p76_report.py`; `configs/motion_reference.json`
+**`8952c320`** and `..._twoline.json` **`eb697f23`** both untouched, no reference
+re-recorded, ckpt `moe_v13s` **`61da390a`**. Evidence
+`logs/p76/{PREREG.md,PREREG.md5,RESULTS.md,header.txt,run_p76.sh,p76_report.py,
+p76_report.txt,direct/,smoke_a1.log,accept_noharm.log}`.

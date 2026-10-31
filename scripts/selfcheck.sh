@@ -282,6 +282,18 @@ run_check "P73 rotation schedule" "$python" scripts/240_p73_tilt_selftest.py
 # classification cases (a)/(b)/(c)/none plus the flat-error and same-tick
 # controls. No simulator.
 run_check "P75 place-onset trace" "$python" scripts/241_p75_place_trace_selftest.py
+# P76: the `[carry]` row's **pry/crush** group (`dia=`, `sep_max=…@t<tick>`,
+# `gap@sep_max=`, `sep_min=`, `fmax=`) - the force-ladder phase's instrument.
+# `sep@loss` is sampled at the loss tick while P75 measured the pads reaching
+# their 98.1 mm stop 9 ticks later, so the pry needs the leg's EXTREME separation
+# plus the gap the servo commanded at that tick; `sep_min` against the fruit's own
+# `dia` is the crush's interference form and `fmax`/`force_min` its force form.
+# The leg pins the field order, the `guard_armed` containment (`FRUIT_CARRY_DIAG`,
+# default off), that the separation read is `arm.jaw_separation()` (the same call
+# as `sep@onset`/`sep@loss`/`sep_end` and P41's offline `sep_max`), that the stored
+# gap is the per-tick command, the n/a forms, the first-tick convention (an
+# inherited firing site STARTS at the stop) and the row parsing back. No simulator.
+run_check "P76 pry/crush fields" "$python" scripts/243_p76_sep_selftest.py
 # P67: the **place-leg climb** (`FRUIT_LIFT_CLIMB`, metres of vertical raise at the
 # place leg's start, `direct` + left only, default OFF) - the re-shape of P66 phase
 # 4's failed rail-crossing gate: the crossing is only 0.175:1 with the lift height

@@ -4264,6 +4264,28 @@ class PickAndPlaceTask:
             guard_onset_force = None
             guard_onset_sep = None
             guard_onset_contacts = None
+            #: P76: the **pry / crush** reads (see the report block below).
+            #: `sep@loss` is taken at the tick contact is lost, but P75 measured
+            #: the pads reaching their 98.1 mm mechanical stop **9 ticks later**
+            #: - so the pry needs the leg's *extreme* separation, not a sample,
+            #: and it needs the gap the servo had commanded at that tick (the
+            #: pads are driven open while the command closes). `sep_min` is the
+            #: crush side (interference below the fruit's own width) and
+            #: `force_max` is its other half (a payload lost with the force
+            #: *not* collapsed). `sep_min` is taken **only while the pinch is
+            #: loaded** (`force_now > 0`): a payload that has already left lets
+            #: the servo close the pads onto nothing, and an unconditional
+            #: minimum would read that as crushing on every escape leg (a
+            #: shipped 10 N escape reads `sep_end=51.9 mm` inside a 68.3 mm
+            #: fruit). Reporting only: one `jaw_separation()` per guarded tick
+            #: (two prim world-pose reads, the same instrument as
+            #: `sep@onset`/`sep@loss`/`sep_end` and as P41's offline `sep_max`),
+            #: three floats, one int, and the max force the block already reads.
+            guard_sep_max = 0.0
+            guard_sep_max_i = None
+            guard_sep_max_gap = None
+            guard_sep_min = float("inf")
+            guard_force_max = 0.0
             guard_loss_i = None
             guard_loss_sep = None
             guard_contacts_min = 10
@@ -4607,6 +4629,17 @@ class PickAndPlaceTask:
                     _tcp_pos = np.asarray(_tcp_pos, dtype=float)
                     _tcp_quat = np.asarray(_tcp_quat, dtype=float)
                     rot_now = _quat_matrix(_tcp_quat)
+                    # P76: the leg's extreme pad separation and the command it
+                    # was fighting at that tick - the pry's own read (see the
+                    # init). Taken every guarded tick, including the first: the
+                    # inherited firing site (P75 2a) starts the *place* leg
+                    # already at 85-98 mm, so a skip on the first tick would
+                    # lose exactly the legs it is meant to catch.
+                    _sep_now = float(arm.jaw_separation())
+                    if _sep_now > guard_sep_max:
+                        guard_sep_max = _sep_now
+                        guard_sep_max_i = i
+                        guard_sep_max_gap = float(gap_command)
                     _hold = getattr(arm, "hold_quaternion", None)
                     if _hold is not None:
                         guard_hold_seen = 1
@@ -4652,6 +4685,16 @@ class PickAndPlaceTask:
                         force_now = float(reading_now.normal_force)
                         contacts_now = int(reading_now.contact_count)
                         guard_force_min = min(guard_force_min, force_now)
+                        guard_force_max = max(guard_force_max, force_now)
+                        # P76 crush side: the **loaded** span. A payload that has
+                        # already left lets the servo close the pads onto nothing
+                        # (a shipped escape leg reads 51.9 mm at `sep_end` inside
+                        # a 68.3 mm fruit), so an unconditional minimum would
+                        # fire on every escape. The interference that matters is
+                        # the span *while the pads are on the fruit*, i.e. while
+                        # the tactile force is non-zero.
+                        if force_now > 0.0:
+                            guard_sep_min = min(guard_sep_min, _sep_now)
                         guard_contacts_min = min(guard_contacts_min, contacts_now)
                         if guard_onset_i is None and guard_slip > guard_trigger:
                             guard_onset_i = i
@@ -4928,6 +4971,31 @@ class PickAndPlaceTask:
                 )
                 sep_end = float(arm.jaw_separation()) * 1000.0
                 fmin = guard_force_min if guard_force_min < float("inf") else -1.0
+                # P76: the pry/crush field group (see the init). `sep_max` with
+                # its tick and the gap the servo had commanded there is the
+                # pry's read (P75's ordering, now per leg); `sep_min` against
+                # `dia` is the crush's interference form and `fmax` beside
+                # `force_min` its force form. `n/a` where the block never ran.
+                _sep_max = (
+                    "n/a"
+                    if guard_sep_max_i is None
+                    else f"{guard_sep_max * 1000:.1f}@t{guard_sep_max_i}"
+                )
+                _gap_at_sep = (
+                    "n/a"
+                    if guard_sep_max_gap is None
+                    else f"{guard_sep_max_gap * 1000:.1f}"
+                )
+                _sep_min = (
+                    "n/a"
+                    if guard_sep_min == float("inf")
+                    else f"{guard_sep_min * 1000:.1f}"
+                )
+                _fmax = (
+                    "n/a"
+                    if guard_force_min == float("inf")
+                    else f"{guard_force_max:.2f}N"
+                )
                 # P65: the reads above, formatted once per leg (`n/a` where the
                 # leg never entered the guarded branch). `@jN/tI` = the 1-based
                 # binding joint and the tick the leg's minimum was taken, which
@@ -5032,7 +5100,11 @@ class PickAndPlaceTask:
                     f"sep@onset={sep_at}mm contacts@onset={guard_onset_contacts} "
                     f"min_contacts={guard_contacts_min} force_min={fmin:.2f}N "
                     f"loss_row={guard_loss_i} sep@loss={loss_sep}mm "
-                    f"sep_end={sep_end:.1f}mm guard={int(guard_acts)} "
+                    f"sep_end={sep_end:.1f}mm "
+                    f"dia={float(sample.diameter) * 1000.0:.1f} "
+                    f"sep_max={_sep_max} gap@sep_max={_gap_at_sep} "
+                    f"sep_min={_sep_min} fmax={_fmax} "
+                    f"guard={int(guard_acts)} "
                     f"events={guard_events} holds={guard_holds} "
                     f"reseat={guard_reseat_used * 1000:.1f}mm "
                     f"relief={int(relief_acts)} "
