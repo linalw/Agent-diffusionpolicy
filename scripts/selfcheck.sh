@@ -258,6 +258,17 @@ run_check "P70 belt top + rails" "$python" scripts/238_p70_belt_top_selftest.py
 # manifest writers call (rail mode/height/proud/inset, the slab's top z and edge,
 # the direct lift rung; the collector's `lift` is null by construction).
 run_check "P72 clr_edge + scene" "$python" scripts/239_p72_clr_edge_selftest.py
+# P73: the `[carry]` row's **rotation schedule** (`tilt0=`, `tilt_end=`,
+# `tilt_max=`, `t45=`, `t75=`, `tilt_rate=`) - the instrument the place-leg
+# question needs, because the leg-end `[attitude]` tilt is saturated by the place
+# pose (80.8-94.6 deg across BOTH the placed and the lost legs of the P71 corpus,
+# and the right reaches it too). The leg pins the six fields and their order
+# (between `jaw_z=` and `drift_on=`), the `guard_armed` containment
+# (`FRUIT_CARRY_DIAG`, default off), that the tilt is `[attitude]`'s own
+# `acos(-rot[2,2])`, that the accumulation adds **no articulation read**
+# (`rot_now` is the block's existing one), the first-crossing/max/signed-step
+# arithmetic, and the printed row parsing back. No simulator.
+run_check "P73 rotation schedule" "$python" scripts/240_p73_tilt_selftest.py
 # P67: the **place-leg climb** (`FRUIT_LIFT_CLIMB`, metres of vertical raise at the
 # place leg's start, `direct` + left only, default OFF) - the re-shape of P66 phase
 # 4's failed rail-crossing gate: the crossing is only 0.175:1 with the lift height

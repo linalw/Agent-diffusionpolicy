@@ -4185,6 +4185,24 @@ class PickAndPlaceTask:
             guard_jaw_first = None
             guard_jaw_abs_max = 0.0
             guard_drift_on_i = None
+            #: P73: the **rotation schedule** (see the report below). The
+            #: achieved attitude's tilt from world -Z - the same expression
+            #: `[attitude]` prints once at the leg's end - accumulated per
+            #: guarded tick. Free: `rot_now` is this block's own read for
+            #: `clean_slip`, so nothing new is read off the articulation. It
+            #: exists because the leg-end sample is **saturated by the place
+            #: pose** (80.8-94.6 deg on both the placed and the lost legs of the
+            #: P71 corpus, and the right reaches it too), so the endpoint cannot
+            #: be the mediator - only *when* and *how fast* the wrist turns can
+            #: (`logs/p73/PREREG.md` §3).
+            guard_tilt_first = None
+            guard_tilt_end = None
+            guard_tilt_prev = None
+            guard_tilt_max = 0.0
+            guard_tilt45_i = None
+            guard_tilt75_i = None
+            guard_tilt_rate = 0.0
+            guard_tilt_rate_i = None
             #: P66: the leg's **end** reads, one dot each. The registered
             #: mediator test needs the drift *at the leg's end* (`hold_drift` is
             #: the per-leg max, which a transient can set) and the achieved
@@ -4633,6 +4651,28 @@ class PickAndPlaceTask:
                     if guard_jaw_first is None:
                         guard_jaw_first = _jaw_now
                     guard_jaw_abs_max = max(guard_jaw_abs_max, abs(_jaw_now))
+                    # ---- P73: the rotation schedule (reporting only) --------
+                    # `acos(-rot_now[2,2])` is `[attitude]`'s own `tilt`; the
+                    # per-tick deltas are the rotation *rate* the wrist actually
+                    # spends, which is the only part of this mediator the
+                    # endpoint cannot see (see the init block).
+                    _tilt_now = math.degrees(
+                        math.acos(max(-1.0, min(1.0, -float(rot_now[2, 2]))))
+                    )
+                    if guard_tilt_first is None:
+                        guard_tilt_first = _tilt_now
+                    else:
+                        _dtilt = _tilt_now - float(guard_tilt_prev)
+                        if abs(_dtilt) > abs(guard_tilt_rate):
+                            guard_tilt_rate = _dtilt
+                            guard_tilt_rate_i = i
+                    guard_tilt_prev = _tilt_now
+                    if guard_tilt45_i is None and _tilt_now >= 45.0:
+                        guard_tilt45_i = i
+                    if guard_tilt75_i is None and _tilt_now >= 75.0:
+                        guard_tilt75_i = i
+                    guard_tilt_max = max(guard_tilt_max, _tilt_now)
+                    guard_tilt_end = _tilt_now
                 elif mon_leg is not None:
                     # P10-C.2 minimal clean-slip accumulator (see `__init__`):
                     # the guard/diag tracker above is off, but the confirmation
@@ -4789,6 +4829,26 @@ class PickAndPlaceTask:
                     if guard_jaw_first is None
                     else f"{guard_jaw_first:+.4f}/{guard_jaw_abs_max:.4f}"
                 )
+                # P73: the rotation schedule - the leg's first/end/max achieved
+                # tilt from world -Z (`[attitude]`'s own expression, accumulated
+                # per guarded tick for free), the first ticks at/above 45 and 75
+                # deg, and the largest signed per-tick tilt step with its tick.
+                # `-` = never reached; `n/a` = the block never ran.
+                if guard_tilt_first is None:
+                    _tilt_sched = "tilt0=n/a tilt_end=n/a tilt_max=n/a t45=- t75=- tilt_rate=-"
+                else:
+                    _t45 = "-" if guard_tilt45_i is None else str(guard_tilt45_i)
+                    _t75 = "-" if guard_tilt75_i is None else str(guard_tilt75_i)
+                    _trate = (
+                        "-"
+                        if guard_tilt_rate_i is None
+                        else f"{guard_tilt_rate:+.4f}/t{guard_tilt_rate_i}"
+                    )
+                    _tilt_sched = (
+                        f"tilt0={guard_tilt_first:.1f} tilt_end={guard_tilt_end:.1f} "
+                        f"tilt_max={guard_tilt_max:.1f} t45={_t45} t75={_t75} "
+                        f"tilt_rate={_trate}"
+                    )
                 # P66: the leg's **end** reads (one dot per leg, reporting only).
                 # `drift_end` = the last tick's `hold_drift` (`n/a` when no tick
                 # had a live hold, i.e. the place legs); `res_end`/`dz_end` = the
@@ -4847,7 +4907,7 @@ class PickAndPlaceTask:
                     f"clr_edge={_clr_edge} clr_edge_min={_clr_edge_min} "
                     f"q_margin={_qm} q_cmd_margin={_qcm} "
                     f"q_step_max={guard_q_step_max:.4f} "
-                    f"jaw_z={_jawz} drift_on={guard_drift_on_i} "
+                    f"jaw_z={_jawz} {_tilt_sched} drift_on={guard_drift_on_i} "
                     f"in-hand_vmax={guard_vmax:.3f} "
                     f"onset_row={guard_onset_i} force@onset={force_at}N "
                     f"sep@onset={sep_at}mm contacts@onset={guard_onset_contacts} "

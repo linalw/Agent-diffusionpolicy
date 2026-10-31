@@ -3088,6 +3088,81 @@ edit, no default change, both references untouched (`8952c320` / `eb697f23`),
 p72_report.txt,p72_scope.py,p72_scope.txt,manifest_probe.py,
 manifest_probe.log,canary_rails_none.log,direct/treat_77.log}`; WORKLOG "P72".
 
+**P73 (2026-10-31, `logs/p73/`; default off, **nothing adopted**): the place
+transfer's **height is not a lever** on the left's place-leg loaded slide, and the
+rotation is **not the actuator** - the hypothesis fails on its own second link and
+its first link has the **wrong sign**.** The registered screen
+(`PREREG.md` md5 **`81b70bb3`**, pinned before any run) raised
+`FRUIT_OPENARM_TRANSFER_LIFT` 0.08 -> 0.14 -> 0.20 (**C / T1 / T2**, the
+P66-phase-3 cell verbatim, seed 77, 15 picks, `moe_v13s` `61da390a`, one claim
+each; the conditional `SLOW` arm was run because the registered rule B trigger
+fired). **On the direct line the knob is place-only on the left**: P71's
+`FRUIT_LIFT_DZ` override takes the `grasp_lift` site (`tasks.py:3261-3263`
+bypasses the env read), so only `jaw_target("place*")` moves - but the **right's
+lift end moves with it** (its `lift_dz_for` is `None`), so the right is read as
+"no new class", never as "unchanged". **The class is flat to the leg: 1 / 1 / 1**
+loaded slides (1 of 5, 1 of 4, 1 of 5 left place legs; 995 / 983 / 887 mm), with
+**`cnp` 2 / 1 / 1** and the acquisition class 2 / 0 / 0. **The mechanism moves
+monotonically the other way**: the achieved place-leg rotation `tilt_end`
+**78.7 -> 93.8 -> 105.2 deg** (+26.5) and `t45` **313 -> 303 -> 299** ticks, so a
+higher transfer *demands more* wrist rotation, not less (falsifier **A does not
+fire**); with the rotation moving 26.5 deg and the count flat, falsifier **B
+fires**. **The causal order is visibly wrong**: in **8 of 8** payload losses the
+onset row is **before** the leg's 45-deg crossing (onsets 4, 133, 103, 136, 3, 4,
+157, 265 against `t45` 313-561) - the payload leaves at **1-41 %** of the leg at a
+tilt **below 45 deg**, while the 90-105 deg sweep happens at **73-79 %**, i.e.
+*after* the failure. **Not inertial either**: the slowed place leg
+(`FRUIT_SPEED_PLACE=0.20`) reads **4 slides in 8 legs** against C's 1 in 5, with
+the rotation starting at the *same fraction* of the leg (73-78 % vs 73-79 %) but
+**+211 ticks = +1.76 s of absolute dwell at near-top-down** - so the class tracks
+**time spent hanging in a top-down pinch under lateral load**, and the P44
+speed-up is the direction with a measured contrast (its cost stays the closed grip
+class, P44/P46). **The escape's signature**: `contacts@onset` **1**, `force@onset`
+7.9-11.2 N (the pinch's own 9.8 N), then `fmin 0.00` and the jaws end **closed**
+at 42-53 mm (the lift-leg form ends at the **98 mm** open stop) - a **clean
+single-sided exit**, neither a force deficit nor a pry. **What the lever does
+buy, as predicted**: `clr` **34 -> 88 -> 142.5 mm** and `clr_edge` **38 -> 94 ->
+151.5** (+54 / +108.5 against PREREG P1's +49 / +99, so P69-B's 0.825:1 is
+confirmed on a second axis; no leg negative), at **+4.5 / +7.0 % episode ticks**
+(the descent +41 / +90 ticks; the *leg* total only +22 / +17 because the transit
+shrank - **P2 partially missed, P3 missed informatively**: the endpoint was
+predicted to stay 85-95 deg and went to 105.2, which is *why* A does not fire).
+**The right reaches a median 107.3 deg (max 109.7) and slips 0.0-0.1 mm on 10 of
+10 legs** - the strongest single argument that the rotation is not the cause;
+right placed 7/8 -> 10/11 -> 10/10, no new class (P5). **No landing regression**:
+1 `did not land` per T arm vs C's 2, no `fell off` row, `need` 248 mm against the
+300 mm `FRUIT_PLACE_LOW_MAX_DROP` ceiling. **The instrument is the reason the
+negative is readable**: the pre-existing per-leg read (`[attitude]`) is printed
+once at the leg's end and reads 80.8-94.6 deg on **both** the lost and the placed
+legs of the shipped corpus, so a screen using it alone would have concluded "the
+height does not move the rotation" - and been **wrong**. The default-off
+`[carry]` fields `tilt0`/`tilt_end`/`tilt_max`/`t45`/`t75`/`tilt_rate`
+(`tasks.py` **`adcfd348`**, inside the existing `if guard_armed:` block,
+**pure arithmetic on `rot_now`** - no new articulation read) make the schedule
+visible; pinned by `scripts/240_p73_tilt_selftest.py`, `235` re-pinned for the
+inserted fields. **Named consequence**: do not spend another transfer rung,
+another rotation lever (`FRUIT_GRASP_LEFT_TOPDOWN`/P64's pre-compensation act on a
+link measured off the failure's path), or a *slower* place leg; the residual is
+the closed `SIM_LIMIT.md` loaded slide on a leg that carries the payload top-down
+for ~0.5 m, so the levers that touch it are the ones `SIM_LIMIT.md` sanctions (a
+new pad asset, a real-jaw clamp-force anchor) or a workstation move that shortens
+that transit at top-down (`FRUIT_PLACE_INNER_SHIFT` is already measured negative,
+P3). **Provenance gap named, not fixed**: the manifest records `lift_dz`,
+`lift_climb`, `scene`, `physics` but **not** the transfer height - a store under a
+different value would be indistinguishable, so the field must go into
+`assets.scene_provenance` before any recollection uses the knob. No-harm:
+`accept.sh` **6/9 + `fingerprint: matches`** with its **346/346 `[fruit]` lines
+byte-identical** to `logs/p71/accept_rails_none.log` (the instrument is inert on
+the scripted path), `configs/` untouched (`8952c320` / `eb697f23`, no re-record),
+`selfcheck.sh` PASS (the new leg included). Pins: `tasks.py` **`adcfd348`**,
+`rl_env.py` **`157e6d`** (the `TASKS_MD5` metadata-only follow),
+`scripts/235_p65_lift_selftest.py` **`bdcbb4`**, `scripts/240_p73_tilt_selftest.py`
+**`28cd1f`**; ckpt `moe_v13s` `61da390a`. Evidence
+`logs/p73/{PREREG.md,PREREG.md5,P1_RESULTS.md,header.txt,p0_census.py,
+p0_census.txt,p1_report.py,p1_report.txt,run_p73.sh,batch_s77.out,
+batch_slow.out,direct/,smoke_T1.log,accept_noharm.log,accept_noharm.driver}`;
+WORKLOG "P73".
+
 ## 3. What changed -> what to run
 
 | you changed | run |
@@ -3102,6 +3177,7 @@ manifest_probe.log,canary_rails_none.log,direct/treat_77.log}`; WORKLOG "P72".
 | the direct supply profile (`rl_env.py` `_resolve_supply_profile`, the `fruits.py`/`tasks.py` kwargs) | `scripts/selfcheck.sh` (the `230` leg), `scripts/accept.sh` (import guard: 377/377 + `fingerprint: matches`), one two-line run + `scripts/190_twoline_gate.sh`, `python3 scripts/211_bed_audit.py` |
 | the output station (`assets.py` `output_rails` / `output_belt_top_z`, `conveyor.OutputBelt`) | `scripts/selfcheck.sh` (the `238` leg), `scripts/accept.sh`, one two-line run + `scripts/190_twoline_gate.sh`, then the direct cell with `FRUIT_CARRY_DIAG=1` (the crossing `clr`/`clr_win` **and the P72 corner `clr_edge`/`clr_edge_min`** per held place leg, read with `logs/p72/p72_report.py --check`) - and re-record both references if the flip is shipped (`logs/p71/RESULTS.md` §5) |
 | the scene's collider set or a store's provenance (`assets.scene_provenance`, the manifests) | `scripts/selfcheck.sh` (the `239` leg), then one collection or direct run and check its `manifest.json` carries the `scene` block (`logs/p72/manifest_probe.py` does it without a simulator app) |
+| a new default-off diagnostic field on the `[carry]` row (or a new `[place]`/`[seat]` line) | `scripts/selfcheck.sh` (the field's own leg - `235`/`239`/`240` are the pattern), then **one direct run with `FRUIT_CARRY_DIAG=1`** to read it, then `scripts/accept.sh` and require its **346/346 `[fruit]` lines** to be byte-identical to the pre-change record - a diag-only change must be inert on the scripted path (`logs/p73/P1_RESULTS.md` §5) |
 
 To compare two **policy** arms, use the harness rather than two runs:
 

@@ -76,14 +76,17 @@ def main() -> int:
     for token in (
         'f"q_margin={_qm} q_cmd_margin={_qcm} "',
         'f"q_step_max={guard_q_step_max:.4f} "',
-        'f"jaw_z={_jawz} drift_on={guard_drift_on_i} "',
+        # P73 inserted the rotation schedule between `jaw_z=` and `drift_on=`
+        # (`jaw_z={_jawz} {_tilt_sched} drift_on=`); the field that this leg pins
+        # - the jaw axis and the drift onset, in that order - is unchanged.
+        'f"jaw_z={_jawz} {_tilt_sched} drift_on={guard_drift_on_i} "',
         'f"hold_drift={guard_drift_max:.1f}deg"',
     ):
         check(token in src, f"the [carry] row prints {token.split('=')[0].strip()}")
     order = [
         src.index('f"hold_drift={guard_drift_max:.1f}deg"'),
         src.index('f"q_margin={_qm} q_cmd_margin={_qcm} "'),
-        src.index('f"jaw_z={_jawz} drift_on={guard_drift_on_i} "'),
+        src.index('f"jaw_z={_jawz} {_tilt_sched} drift_on={guard_drift_on_i} "'),
         src.index('f"in-hand_vmax={guard_vmax:.3f} "'),
     ]
     check(order == sorted(order), "the new fields sit next to hold_drift= (before in-hand_vmax)")

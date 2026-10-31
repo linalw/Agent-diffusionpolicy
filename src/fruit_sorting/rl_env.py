@@ -414,7 +414,15 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: (default 1.35 = the shipped geometry). Print/report only - nothing on the
 #: control path reads either, and at the shipped geometry the reported surface
 #: is the same to 1e-12 m (`scripts/238_p70_belt_top_selftest.py`).
-TASKS_MD5 = "f61323f25d7f354cce39f09ea2543f7e"
+#:
+#: P73 (metadata-only follow, `f61323f2 -> adcfd348`): the `[carry]` row gains
+#: the **rotation schedule** (`tilt0`/`tilt_end`/`tilt_max`/`t45`/`t75`/
+#: `tilt_rate`) - the achieved tilt from world -Z accumulated per guarded tick
+#: inside the existing `if guard_armed:` block. Pure arithmetic on `rot_now`,
+#: which is that block's own read for `clean_slip`: no new articulation read, no
+#: command, threshold or control path touched, and the whole block is still gated
+#: by `FRUIT_CARRY_DIAG` (default "0"). `logs/p73/PREREG.md` §3.
+TASKS_MD5 = "adcfd3488f7cd16dc7ee3dd84ebab065"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(
