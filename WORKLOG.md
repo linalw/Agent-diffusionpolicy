@@ -20997,3 +20997,155 @@ follow), `scripts/243_p76_sep_selftest.py` **`fc0e738e`**, `scripts/selfcheck.sh
 re-recorded, ckpt `moe_v13s` **`61da390a`**. Evidence
 `logs/p76/{PREREG.md,PREREG.md5,RESULTS.md,header.txt,run_p76.sh,p76_report.py,
 p76_report.txt,direct/,smoke_a1.log,accept_noharm.log,accept_noharm_full.log}`.
+
+## P77 — the 60 N clamp at three seeds: the count converts, the escape class does not
+
+**Evidence phase (owner-chosen), nothing adopted, no default changed, no `src/`
+or `configs/` edit, no commit.** The rule was pinned before any run
+(`logs/p77/PREREG.md`, md5 **`d31c3e4a`**) and the two arms are **C** = the
+shipped 10 N (`FRUIT_FINGER_MAXFORCE` **unset**) and **T** = `=60`, interleaved
+by seed (77 C→T, 101 T→C, 202 C→T), **seeds 77/101/202 x 15 picks**, one claim
+per cell, the P66-phase-3 / P71-phase-2 / P73 / P74 / P75 / P76 scenario
+verbatim, `moe_v13s` `61da390a`, `FRUIT_CARRY_DIAG=1 FRUIT_MOTION_REPORT=1` in
+**both** arms. Six cells + two pricing runs, 68 min of simulator wall.
+
+**The honesty frame, which the report carries first.** 60 N per joint is
+**jaw-feasible** - a 2F-85-class jaw covers 20-235 N - but it **would bruise a
+3.6 cm berry in reality**, and this simulator has **no bruise model, no damage
+model and no flesh-compliance model**. A clean read is therefore a statement
+about **geometry and retention**, never about fruit quality. That is why the cell
+is a **sensitivity** and not a decision to ship.
+
+**Manipulation check, three legs per cell.** (1) the build print
+`maxForce=10.0/0.0N` (C, the shipped string, nothing written) or
+`maxForce=60.0/0.0N` + `FRUIT_FINGER_MAXFORCE=60 N -> openarm_left_finger_joint1=60.0
+…` (T); (2) the **live articulation** read-back
+`[drive] … joint1/joint2=60.00/0.00 N` on both arms, and the manifest's
+`physics.finger_maxforce` = `null` / `60.0` with `readback_matches: true`;
+(3) the behavioural **held-leg `force_min` median 9.72 / 9.96 / 9.71 N** in C
+against **56.31 / 53.41 / 52.08 N** in T (87-94 % of the cap, P41's law). All six
+cells are evaluable; `p77_report.py --check` exits 0 with 166 `[carry]` rows and
+15 episodes in every cell.
+
+**The primary: the left's placed count and its `cnp` class.**
+
+| seed | C left placed | C `cnp` | T left placed | T `cnp` |
+|---|---|---|---|---|
+| 77 | 3/6 | 2 | 6/7 | 1 |
+| 101 | 4/10 | 4 | 5/6 | 1 |
+| 202 | 4/5 | 1 | 6/7 | 1 |
+| **pooled** | **11/21 = 52.4 %** | **7** | **17/20 = 85.0 %** | **3** |
+
+Fisher exact on left placed vs not: **p = 0.043**; on `cnp` vs placed:
+p = 0.144. Left never-held 3 → 0. **The run level is 3/3 seeds** (+3/+1/+2
+attempts) - and at N=3 the one-sided sign test's **minimum attainable p is
+0.125**, so it is quoted as a ceiling, not as confirmation. **Class-standardised
+at C's species mix: 0.524 → 0.927** (in the same direction as the raw pooled
+0.524 → 0.850), so the delta is not a class-draw artifact; per class kiwi
+4/11 → 4/4, peach 1/2 → 4/5, pear 3/4 → 5/7, apple 1/2 → 2/2, orange 2/2 → 1/1.
+**The pairing that can be defended** is `(seed, arm=left, species, diameter to
+0.1 cm)` greedy 1:1: only **11 of C's 21** left attempts pair, **10 are
+unpairable** (a fruit the other arm never drew), both placed 5 / C-only 0 /
+T-only 6, exact McNemar **p = 0.031**. It is a **descriptor**, not the primary:
+the fruit presented depends on earlier outcomes (a post-treatment variable), and
+a same-configuration replay proves no instance pairing exists here - **C_77
+against P76's F10_77 agrees on 2 of 15 episodes and diverges at episode 2** (a
+3.6 cm strawberry in P76's cell, a 6.0 cm peach here).
+
+**The mechanism, and the pre-registered bar it fails.** Left carry legs **38
+(C) / 40 (T)**; escape legs (`clean_slip_max > 100 mm` **with a pinch**, P74's
+count) **7 → 3**; legs **pried** to the 98.1 mm stop (`sep_max >= 95`) **4 → 1**;
+never-held 2 → 0. Right: 43/45 legs, **0 escapes, 0 pries, 0 `cnp`** in both
+arms. So **M1 FAILS** (3 is 43 % of 7, not <= 1/3), **M2 PASSes** (25 %),
+**M3 passes** (0 crush legs in T), **M4 passes** (C's escape set is non-empty) →
+the composite **"MECHANISM: DOES NOT CONVERT"**, while **N5/N6/N7 all PASS** →
+**"COUNT: CONVERTS"**. Both statements are true and the report quotes them
+together: the cap **more than halves** the class and deletes three quarters of
+its pries, and that is a real count gain - but the class is not closed.
+
+**The residue is a different mode, and that is the phase's finding.** The
+discriminator is the **pad opening beyond the fruit's own width**
+(`sep_max - dia`), and the two arms separate cleanly:
+
+| arm | leg (all left `place0`) | `sep_max` | `dia` | `sep_max - dia` | `fmax` | slip |
+|---|---|---|---|---|---|---|
+| C | pear 6.1 | 89.8 | 61.3 | +28.5 | 14.95 | 740.0 |
+| C | peach 5.8 | **98.1** | 58.2 | +39.9 | 11.38 | 918.0 |
+| C | apple 7.0 | **98.1** | 69.6 | +28.5 | 16.89 | 843.4 |
+| C | kiwi 6.7 | 85.7 | 66.8 | +18.9 | 14.65 | 811.7 |
+| C | kiwi 5.3 | 66.8 | 53.3 | +13.5 | 13.19 | 858.7 |
+| C | kiwi 6.7 | **98.1** | 66.8 | +31.3 | 15.28 | 709.0 |
+| C | kiwi 5.7 | 80.4 | 57.1 | +23.3 | 12.90 | 828.6 |
+| **T** | pear 6.8 | 76.2 | 68.3 | **+7.9** | 57.83 | 834.7 |
+| **T** | pear 6.6 | 69.3 | 65.9 | **+3.4** | 58.79 | 844.5 |
+| **T** | peach 6.2 | **98.1** | 61.9 | +36.2 | **64.52** | 782.9 |
+
+At 10 N **all 7** escapes leave through a **13.5-39.9 mm** opening (3 at the
+travel stop): the radial **pry** P75 measured. At 60 N **2 of 3** leave through a
+**3.4 / 7.9 mm** opening - the pads essentially closed on the fruit - and the
+payload walks out **along the tool axis**, which is P61's measured direction
+(leg-frame mean unit `(-0.351, +0.240, +0.905)`, 25.2 deg off the tool axis).
+**Force resists the radial pry; it does not resist the axial slide.** The third
+T escape is a **full pry** (peach 6.2, `sep_max` 98.1, `fmax` **64.52 N** - above
+the 60 N cap's delivered level), so 60 N buys a 4x reduction in pries, not a
+guarantee. A control pry that **recovered** is named too: a kiwi 6.7 reads
+`sep_max` 98.4 and slips 13.1 mm, so `sep_max >= 95` alone is not an outcome.
+
+**P76's single draw does not reproduce, and that is the correction.** P76 read
+**0/26 pried and 0/26 escaped** at 60 N (seed 77, one cell) and concluded "the
+pry is deleted". At 40 left carry legs over three seeds the same cap reads
+**1 pried and 3 escaped**, and the **same 6.8 cm pear** P76 saw held
+(`place0 sep_max` 75.2, slip 0.0 mm) **escapes here** (76.2, 834.7 mm). P76's own
+reading rule - every cell is one draw - applies to P76's own 60 N cell.
+
+**The strawberry and the crush guard.** C **5/5** strawberry legs placed, T
+**6/6 real legs** placed (`sep_max - dia` **-0.7 .. +6.2 mm**), and the 3.6 cm
+fruit is held at a **36.7 mm** span under **52.6-54.2 N** - the P76 extension
+read at three seeds. **C1 (`sep@loss - dia <= -15 mm`) and C2
+(`force_min >= 35 N` on an escape leg) fire on 0 legs in 0/6 cells.** The one
+non-placed T strawberry leg is the **recycled-payload artifact** (T_101:
+`fmax` **0.00 N**, `clean_slip_max` **160 769.6 mm**, `sep@loss` 10.0 mm), which
+P76's A3 rule excludes and which is named in the report rather than dropped.
+
+**Guards.** The right is **not worse**: 21/24 → 22/25 placed, `cnp` 0 → 0,
+never-held 3 → 3, escapes 0 → 0, **no new reason**. Failure ledger: the only
+**reason** string on any failure in either arm is `fruit fell off the line`
+(C 3, T 2 - the supply class); the `cnp` legs carry no reason note and are read
+from `grasped`/`placed`. Landing class: `did not land` 0, `discharged` 0 in both
+arms. Arm mix (arm = grade = lane): C 6/10/5, T 7/6/7 left of 15 → 21 vs 20
+pooled, so the count delta is not a mix artifact. Cycle ticks (cell medians)
+1779/1765/1795 vs 1770/1776/1753 = **-0.5 %**: the cap costs no cycle time.
+
+**The price of an adoption (report only, nothing re-recorded).** **P1**, the
+scripted acceptance at 60 N: **6/10** against the archive's **6/9**, **378 vs
+346 `[fruit]` lines** (md5 `4d89c743` vs `d0079a23`; **57** identical with the
+print-only rows dropped), the **first physics-line difference on attempt 0's
+descent** (`|a|max` 2.061 vs 2.060 m/s²) and the **first outcome difference at
+attempt 0 itself** (60 N: `grasped=True placed=True lift=+0.411 m force=60.05 N`;
+10 N: `grasped=True placed=False lift=+0.138 m force=9.98 N`), and
+**`fingerprint: DIFFERS`** from `configs/motion_reference.json` (`8952c320`,
+which has 9 legs against this run's 10, so *any* 10-attempt run differs - but
+legs 2-9 move too). **P2**, the two-line at 60 N: **8/10 = 80 %** at its own
+0.60 floor with all ten descents inside their speed budgets (worst `|v|max`
+0.129 against 0.160-0.161), and the `190` gate **FAILs on the fingerprint alone**
+against `eb697f23` (legs 3-10 move; leg 6 descends in 92 samples at 0.129 m/s
+against 88 at 0.109). Two of 18 carry legs still slip >400 mm (1485.7 and
+484.2 mm, the latter at a 9.12x reported cone), but the **shipped-cap** P71
+two-line has **three of its own** (805.2 / 332.9 / 112 673 mm), so that is not a
+cap effect and **60 N does not make the two-line escape-free**. A flip therefore
+owes **both motion references, a scripted re-baseline and every store's
+provenance** - for a class that shrinks rather than closes.
+
+**No-harm.** The phase is **env-only**: no `src/`, `configs/`, reference or
+checkpoint change, so `scripts/accept.sh` at the shipped cap is untouched by
+construction and both references stand (`8952c320` / `eb697f23`).
+`scripts/selfcheck.sh` at the close of the phase: **PASS, 0 failures, 1 skipped**
+(`logs/p77/selfcheck.log`).
+
+**Pins**: `tasks.py` **`9d5824ef`**, `rl_env.py` `7ca5aa70`, `assets.py`
+`540406fa`, `fruits.py` `c7461d41`, `scene.py` `27e3d64a`, `control.py`
+`9384ff4f`, `policy/trigger.py` `b09d3cb2`, `configs/motion_reference.json`
+**`8952c320`**, `..._twoline.json` **`eb697f23`**, ckpt `moe_v13s` `61da390a`.
+Evidence `logs/p77/{PREREG.md,PREREG.md5,RESULTS.md,header.txt,run_p77.sh,
+p77_report.py,p77_report.txt,direct/,rollouts/,p1_accept_mf60.log,
+p1_accept_mf60.driver,p2_twoline_mf60.log,p2_twoline_mf60.gate,selfcheck.log}`.

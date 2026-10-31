@@ -3404,6 +3404,67 @@ ckpt `moe_v13s` `61da390a`. Evidence
 p76_report.txt,direct/,smoke_a1.log,accept_noharm.log,accept_noharm_full.log}`;
 WORKLOG "P76".
 
+**P77 (2026-10-31, `logs/p77/`; **evidence only - nothing adopted, no default
+changed, no `src/` or `configs/` edit**): the owner's 3-seed cell at 60 N -
+**the count converts, the escape class does not.** The honesty frame first: 60 N
+per joint is **jaw-feasible** (a 2F-85-class jaw covers 20-235 N) but it **would
+bruise a 3.6 cm berry in reality** and **this sim has no bruise model**, so a
+clean read here is about **geometry and retention**, never fruit quality. Arms
+**C** = the shipped 10 N (`FRUIT_FINGER_MAXFORCE` unset) and **T** = `=60`,
+interleaved by seed (77 C->T, 101 T->C, 202 C->T), **seeds 77/101/202 x 15**, one
+claim per cell, the P66-phase-3/P71-phase-2/P73/P74/P75/P76 scenario verbatim,
+`moe_v13s` `61da390a`, `PREREG.md` **`d31c3e4a`** pinned before any run. **The
+primary: left placed 11/21 -> 17/20** (Fisher **p = 0.043**; **3/3 seeds**
+improve by +3/+1/+2, so the run level's one-sided sign p = 0.125 **is its
+minimum attainable at N=3 and is quoted as a ceiling**; class-standardised
+**0.524 -> 0.927** at C's species mix), **left `cnp` 7 -> 3**, left never-held
+3 -> 0, and the **right is not worse** (21/24 -> 22/25, 0 cnp, 0 escapes, no new
+reason). The **pairing** is `(seed, arm=left, species, diameter to 0.1 cm)`,
+greedy 1:1: only **11 of 21** pair (10 **unpairable** - a fruit the other arm
+never drew), both placed 5 / C-only 0 / T-only 6, McNemar **p = 0.031**, and it
+is a **descriptor, not the primary**, because the fruit presented is a
+post-treatment variable - a same-configuration replay (C_77 against P76's F10_77)
+agrees on **2 of 15 episodes and diverges at episode 2**, so no instance-level
+pairing exists on this interface. **The pre-registered mechanism bar fails**:
+left escape legs (`clean_slip_max > 100 mm`, pinched) fall **7 -> 3** = 43 %, not
+<= 1/3 (M1 FAIL), while the pries fall **4/38 -> 1/40** (M2 PASS, 25 %) and the
+crush guard stays **0/6 cells** (M3). **The residue is a different mode**:
+**2 of the 3** T escapes leave through a **3.4 / 7.9 mm** pad opening (the pads
+essentially closed on the fruit - P61's **axial** walk off the distal lip)
+against the control's **13.5-39.9 mm** radial pry, and **1 of 40** T legs still
+**pries fully** to the 98.1 mm stop (peach 6.2 cm, `fmax` **64.52 N**, 782.9 mm).
+Every escape and every pry in **both** arms is a left `place0` leg: the site is
+invariant, the mode is not. **P76's single draw does not reproduce**: its
+**0/26 pried, 0/26 escaped** at seed 77 becomes **1 pried / 3 escaped of 40 left
+legs**, and the same 6.8 cm pear P76 saw held (`place0 sep_max` 75.2, slip 0.0)
+**escapes here** (76.2, 834.7 mm) - so 60 N **reduces the class by more than half
+and changes its mode; it does not delete it.** **The strawberry** (the binding
+class) is held in both arms - C **5/5**, T **6/6 real legs**, `sep_max - dia`
+**-0.7..+6.2 mm**, the 3.6 cm fruit at a **36.7 mm** span under **52.6-54.2 N** -
+and **no crush leg fires**; the one T_101 strawberry "loss" is the **recycled
+payload** artifact (`fmax` **0.00 N**, `clean_slip_max` **160 769 mm**), excluded
+by P76 A3 and named, not hidden. **The manipulation check is three-fold per
+cell**: build print `maxForce=10.0/60.0`, env derev, **live `[drive]` read-back
+60.00/0.00 on both arms**, the manifest's `physics.finger_maxforce` + the
+drive-`readback_matches`, and the behavioural **held `force_min` median 9.72 ->
+53.41 N** (per seed 9.72/9.96/9.71 against 56.31/53.41/52.08). **The price
+(report only, nothing re-recorded)**: at 60 N the scripted acceptance reads
+**6/10** against the archive's **6/9**, with the **branch moving at attempt 0**
+(60 N places it: lift +0.411 m / 60.05 N; 10 N fails it: +0.138 / 9.98 N),
+**378 vs 346 `[fruit]` lines** (md5 `4d89c743` vs `d0079a23`, 57 identical with
+the print rows dropped) and **`fingerprint: DIFFERS`** from `8952c320`; the
+two-line reads **8/10** at its own 0.60 floor with all ten descents inside budget
+and **`190` FAIL on the fingerprint alone** against `eb697f23` - and 2/18 carry
+legs still slip >400 mm, of which the shipped-cap P71 two-line has **three of its
+own**, so that is not a cap effect. A flip therefore owes **both motion
+references, a scripted re-baseline and every store's provenance** - for a class
+that shrinks rather than closes. Pins unchanged (env-only phase): `tasks.py`
+**`9d5824ef`**, `rl_env.py` `7ca5aa70`, refs **`8952c320` / `eb697f23`**, ckpt
+`61da390a`; `scripts/selfcheck.sh` **PASS, 0 failures**. Evidence
+`logs/p77/{PREREG.md,PREREG.md5,RESULTS.md,header.txt,run_p77.sh,p77_report.py,
+p77_report.txt,direct/,rollouts/,p1_accept_mf60.log,p1_accept_mf60.driver,
+p2_twoline_mf60.log,p2_twoline_mf60.gate,selfcheck.log}`; WORKLOG "P77".
+
 ## 3. What changed -> what to run
 
 | you changed | run |
