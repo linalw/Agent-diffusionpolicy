@@ -118,9 +118,9 @@ Left place legs, all of them (held and lost):
 | arm | `tilt0` | `tilt_end` | `t45` | `t75` | max \|rate\| |
 |---|---|---|---|---|---|
 | **C** (n=5) | 0.8-1.3 | **78.7** [71.9..83.3] | 313 [307..319] | 393.5 | 0.42 deg/tick |
-| **T1** (n=4) | 0.8-1.1 | **93.8** [79.0..98.0] | 303 [255..322] | 365 | 0.44 |
-| **T2** (n=5) | 0.8-1.1 | **105.2** [100.5..105.5] | 299 [250..303] | 356 | 0.49 |
-| **SLOW** (n=8) | 0.8-1.7 | **85.6** [70.1..92.4] | 524.5 [463..561] | 556 | 0.29 |
+| **T1** (n=4) | 0.8-1.1 | **93.8** [79.0..98.0] | 303 [255..322] | 373 | 0.44 |
+| **T2** (n=5) | 0.8-1.1 | **105.2** [100.5..105.5] | 299 [250..303] | 365 | 0.49 |
+| **SLOW** (n=8) | 0.8-1.7 | **85.6** [70.1..92.4] | 524.5 [463..561] | 599.5 | 0.29 |
 
 **This is a monotone lever on the achieved rotation** (+13.8 deg then +11.4 deg,
 **+26.5 deg** from C to T2; `t45` **-14 ticks**) and it is **blind to the slide**.
@@ -292,6 +292,10 @@ on P3 it would have been **wrong** (the endpoint does move; it moves up).
 | `configs/` | untouched (`motion_reference.json` `8952c320`, `..._twoline.json` `eb697f23`); **no re-record** |
 | `scripts/selfcheck.sh` | **PASS, 0 failures**, 1 skip (the motion-budget leg, which needs a logged run) - now including the P73 leg |
 | shipped defaults | none moved; `FRUIT_OPENARM_TRANSFER_LIFT` is read per call from the environment and its default is still `"0.08"` |
+
+The `218` selfcheck leg **regenerates** the tracked `logs/p36/offline_obs_diff.txt`
+(it records `rl_env.py`'s md5), so that file now carries `157e6d85`; the diff is
+that one line, and it is a side effect of running the gate, not an edit of mine.
 
 ---
 
