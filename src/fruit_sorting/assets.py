@@ -692,3 +692,80 @@ class SceneConfig:
     #: the fruit's equator and the fingers straddle it.
     finger_length: float = 0.076
     grasp_palm_offset: float = 0.076
+
+
+# --------------------------------------------------------------------------- #
+# Store provenance: the scene's collider set (P72)
+# --------------------------------------------------------------------------- #
+def scene_provenance(
+    cfg,
+    lift_dz: dict | None = None,
+    lift_dz_defaulted: bool = False,
+) -> dict:
+    """The scene's **collider set**, as a store manifest's `scene` block (P72).
+
+    P71's close-out named this as the gap: the two flips change the geometry a
+    store was recorded in - `FRUIT_OUTPUT_RAILS` `both` -> `none` removes the
+    two inner rail boxes from the output belts, and the low direct lift changes
+    the carry height - and the collector's `[fruit]` stream moves by an 8 mm
+    release `y` at the same attempt because the collider set moves the solver
+    ordering (`logs/p71/RESULTS.md` section 1, P30-A's precedent). A pre-P71
+    shard was distinguishable only by its `assets.py` md5 pin, which also moves
+    for every unrelated edit to that file, and the direct lift already carries
+    its own `lift_dz` field while the *scene* had none. The `physics` block
+    (P41) covers the finger drive only.
+
+    Same shape and same builders-from-two-paths rule as
+    `finger_physics_provenance`: one function, called by the collector's shard
+    manifest **and** the direct env's rollout manifest, so they cannot drift
+    apart. Everything here is a *derived* read of the scene config - no
+    simulator, no articulation, no state - so it is written before the first
+    episode and cannot fail a build.
+
+    Fields, and why each is needed to tell two stores apart:
+
+    * `output_rails` - the resolved mode string (`both`/`outer`/`inner`/`none`)
+      and `rail_keep`, the resolved `(inner, outer)` pair. The pair, not the
+      string, is what the geometry builder reads; `none` is the shipped default
+      since P71.
+    * `rail_height` / `rail_proud` / `rail_inset` - the authored box, its height
+      **above** the belt surface (`height - inset`, 0.035 shipped) and the inset
+      that makes the boxes' bottoms sit inside the slab. `rail_proud` is what
+      `_payload_clearance` reports a kept rail against, so a manifest without
+      it cannot reconstruct a pre-P71 clearance row.
+    * `output_belt.top_z` / `y` / `size` / `inboard_edge_y` - the plate the
+      payload lands on and the **corner** it crosses: `inboard_edge_y =
+      |y| - size[1]/2` (0.425 shipped) is the P72 `clr_edge` threshold. The
+      belt height is a `FRUIT_OUTPUT_BELT_TOP_Z` knob (P70/P71 keeps 1.35).
+    * `lift` - the **direct** rung, `{dz: {arm: m}, defaulted: bool}` the
+      `[grasp] lift_dz:` row's own resolution, or `None` on a path that has no
+      lift rung (every scripted collector shard: the knob is `SortingRLEnv`-
+      only). `None` is therefore "not a direct run", not "the 0.36 m rung".
+
+    A manifest **without** this key predates P72 (the `arm_park.defaulted`
+    convention): it may be either geometry.
+    """
+    keep = tuple(bool(v) for v in cfg.output_rail_keep)
+    size = [float(v) for v in cfg.output_belt_size]
+    block = {
+        "output_rails": str(cfg.output_rails),
+        "rail_keep": {"inner": keep[0], "outer": keep[1]},
+        "rail_height": float(cfg.output_rail_height),
+        "rail_proud": float(cfg.output_rail_proud),
+        "rail_inset": float(OUTPUT_RAIL_INSET),
+        "output_belt": {
+            "top_z": float(cfg.output_belt_top_z),
+            "y": float(cfg.output_belt_y),
+            "size": size,
+            "inboard_edge_y": abs(float(cfg.output_belt_y)) - size[1] / 2.0,
+        },
+        "lift": None,
+    }
+    if lift_dz is not None:
+        block["lift"] = {
+            "dz": {str(side): float(offset) for side, offset in lift_dz.items()},
+            "defaulted": bool(lift_dz_defaulted),
+        }
+    return block
+
+

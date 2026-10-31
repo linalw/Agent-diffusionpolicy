@@ -221,6 +221,10 @@ expected = {
     "assets.py:SceneConfig.output_chute_top",
     "assets.py:SceneConfig.output_chute_bottom",
     "assets.py:SceneConfig.on_output_discharge",
+    # P72: the store manifest's `scene` block records the slab's top z (and its
+    # inboard edge) so a pre/post-P71 store is identifiable by its own metadata;
+    # a read, not a consumer - it moves no pose and no collider.
+    "assets.py:scene_provenance",
     "conveyor.py:OutputBelt.__init__",
     "conveyor.py:OutputBelt.build",
     "tasks.py:PickAndPlaceTask._grasp_carry_place_impl",

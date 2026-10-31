@@ -20335,3 +20335,143 @@ Pins: `assets.py` **`e9fd74`**, `rl_env.py` **`cb686f5`**, `tasks.py` `7c00e5`,
 `d9c807`/`a101e3`/`7cbfc0` and `fe18b6`/`18ec13`/`024c98`. Evidence
 `logs/p71/RESULTS.md`, `{run_p71.sh,p71_report.py,p71_report.txt,accept_diff.py,
 header.txt}`.
+
+## P72 - the canary smoke, the corner instrument, the new-frame boundary, the scene manifest
+
+The four residuals `logs/p71/RESULTS.md` §5/§6 named. No `configs/` edit, no default change,
+no commit. Tree: `tasks.py` **`f61323f2`**, `assets.py` **`540406fa`**,
+`rl_env.py` **`92a25c8e`**, `scripts/40_collect_demos.py` **`86b3d6ba`**,
+`scripts/239_p72_clr_edge_selftest.py` **`c3027c4f`**, `236`/`238` re-pinned, ckpt
+`moe_v13s` `61da390a`, references `8952c320` / `eb697f23` untouched.
+
+**The hybrid canary smoke is inside its spread and the rail flip is not implicated.**
+`SKIP_SELFCHECK=1 scripts/accept_policy.sh` (the interface of record: `60_eval_policy.py`,
+`moe_v12`, the pre-v9 fixed supply, ten episodes) reads **8/10 = 80 % PASS** at the 0.60
+floor with **2 grip losses** (`fruit did not follow the gripper`), **0
+grasped-not-placed** and **no failure reason outside the recorded baseline** - the gate's
+own reason clause prints the PASS. It **inherits the rail flip** and that is proven in-log
+rather than assumed (`output belt rails P: FRUIT_OUTPUT_RAILS=none authors 0/2 (inner
+y=+0.4125 REMOVED), height 0.050 m (top +1.3850, shipped)`, and the same for `N`), and it
+**cannot** see the lift flip (no `[rl] env ready`, no `[grasp] lift_dz:` row - the canary
+never constructs `SortingRLEnv`). **8/10 is the top of the interface's recorded 5-8/10
+spread** (`moe_v11` 8, `moe_v12` 6, P2b 5 and 6, P32 D0 5, P41 p4 7), so it is one draw of
+a non-reproducible loop and says nothing about a rail effect in either direction; the two
+failures are pick-side grip losses (ep6 tomato 6.5 cm, ep9 peach 6.5 cm, both
+`grasped=False`, `lift=-0.0 cm`), i.e. upstream of the output line, and every placed
+episode lands on the slab, whose top plane is 25 mm *below* where the rail's face was.
+
+**`clr_edge` - the corner instrument, and why its threshold is 0.425 and not the 0.400
+switch.** `tasks._payload_clearance` switches surfaces at a **literal** `|y| = 0.40`; that
+number is the **removed inner rail's inner face**, not the slab's edge. The rail box is
+25 mm thick with its bottom `OUTPUT_RAIL_INSET` (0.015) inside the slab, so on the shipped
+geometry it spans **0.400..0.425 m** and its **outer face is flush with the slab's inner
+edge** (`assets.SceneConfig.output_rail_keep`'s own docstring; `z_cross`'s fraction is
+`0.4125/0.50 = 0.825`). So the band 0.400-0.425 is **inboard of the surface** - a payload
+there is over the main belt (1.17 m), 180 mm below the raised slab - and the plane charge
+is conservative by construction, which is exactly the leg P71 flagged (`clr_win = -6 mm`
+on a leg that **placed** with 0.4 mm slip). The new fields are the **first** tick the
+payload's `|y|` reaches **0.425** (the slab's own inboard edge, `_output_belt_edge_y` =
+`|output_belt_y| - size[1]/2`, derived not hardcoded) with its tick, plus
+`clr_edge_min`, the minimum over the same band - printed beside `clr`/`clr_win`/`clr_min`,
+through the existing `_clearance_field`. **Reporting only**: both trackers sit inside
+`if guard_armed:` (whose first condition is `_carry_guard_active or _carry_diag`,
+`FRUIT_CARRY_DIAG` default `"0"`), so the diag-off path runs nothing new and its row is
+byte-identical, and the armed path consumes the `(clearance, where, i)` triple and
+`_abs_y` the leg already computes - **no new read** (`_payload_clearance`, `pad_centre`,
+`tcp_pose`, `spawner.position` are all absent from the tracker body and the new leg
+asserts it). Pinned by `scripts/239_p72_clr_edge_selftest.py` (a selfcheck leg): the row
+and its order, the containment and the no-new-read property, the executed `_output_belt_edge_y`
+body on stub configs (a wider or further-out slab moves the edge 1:1, no `0.0125` in it),
+that the edge is 25 mm outboard of `rail_inner` (a *different, later* tick - not a rename
+of `clr_win`), the parse-back form, and the `scene` block (§below). **The field's own
+read** - one direct run, seed 77, 15 episodes, the P66/P71 cell verbatim, `moe_v13s`
+`61da390a`, the flip proven in-log (`dz=-0.0800(default) -> 1.3700 m`, `park=back(default)`,
+`tasks_md5=f61323f2`): **`clr_edge` n = 10 held place legs, min +26, median +77.5, max
++109 mm; `clr_edge_min` min +26, median +77.5, max +104; `<= 0` on 0/10** - every value
+`@obelt`, every held leg's `|a|max` **<= 4.49 m/s²** (G0's contact floor is 14.9) and no
+slip above 0.1 mm, i.e. **positive with no contact signature on all ten**. The draw is
+right-heavy (13 place legs right, 8 held; **2 held left**), and the left - the arm the
+package targets - sits **+4..+5 mm above its own centreline sample** (ep0 +33 -> +38, ep6
++22 -> +26) while the right's is flat, so P71's left `clr` +14..+50 maps to roughly
++18..+55 at the corner by that measured delta (an inference from two legs, flagged).
+**P70's hand estimate is confirmed to 1 mm where the two runs share a leg**: P70 D1 ep0 and
+this run's ep0 are the same leg (`clr = +33 @t329`, `clr_win = +29 @t323`, 430 ticks,
+`res_end` 31.6 mm) and `edge~+37` (a slope model, `clr + 4 mm`) reads **+38** measured.
+Outcome mix (not a rate): 10/15 placed, 3 carried-not-placed (loaded slide), 2 never-held
+(`fruit fell off the line`, the supply tail).
+
+**The new-frame boundary is `clr_edge > 0`, and it is a bracket, not a calibrated floor.**
+With `output_rail_keep = (False, False)` the rail branch of `_payload_clearance`
+(`if y <= 0.46 and cfg.output_rail_keep[0]`) is never entered, so the only surface a place
+transit can clip is the slab - its **top plane** (1.35) and its **inboard edge** (0.425) -
+and contact requires the payload's lowest point **below the plane while horizontally over
+the slab**, i.e. `clr_edge <= 0`; **no raised surface exists, so no `+N mm` rail convention
+transfers to this frame.** The record's only sub-zero *plane* sample is **P70 D1 ep8's
+`clr = -1 mm @obelt / t247`**, taken 25 mm inboard of the surface, and it carries **no
+contact signature** (`|a|max` 0.98, `sep_end` 69.9 mm, slip 0.4 mm) against **G0's measured
+contact population 14.9-32.7 m/s²** (27-76 mm displacement, `sep_end` 97.5-98.3 on 4/5);
+G0's boundary (`clr <= +7` touches, `>= +14` clean) was calibrated on the rail's 25 mm top
+ledge. **No dose ladder was spent, and none can close a gap anyway**: `z_cross =
+f*z_transfer + (1-f)*z_lift_end` with `f = 0.825` at the rail centreline (0.85 at the
+edge), `z_transfer = output_place_z + hand = belt_top + 0.10 + hand` moves **1:1 with the
+belt top** (i.e. with the obstacle) while `z_lift_end = main_belt_top + 0.28 + dz` is
+anchored to the **main** belt and does not move with the output belt at all - hence
+`d clr/d(lift) = +(1-f) = +0.175` and `d clr/d(belt top) = f - 1 = -0.175` (0.15 each at
+the edge sample), the lift lever buys 17.5 % of its travel at the crossing, and the
+belt-height lever spends the 40 mm under-slab audit for +7 mm (`logs/p66/P4_RESULTS.md`,
+`logs/p70/RESULTS.md` §3 - both measured negative on the count). The honest shipped
+statement is therefore: **the floor is `clr_edge > 0`; the package's measured minimum is
++26 mm with no contact signature; the +33 convention has no counterpart surface now** -
+and the evidence is a **bracket** (one sub-zero plane sample with a clean signature plus
+the measured corner values), not a contact-calibrated boundary at the corner. Calibrating
+one needs a forced descent into the edge band (the G2-style fixture) and a contact read;
+named, not run.
+
+**The scene's collider set is a manifest field now.** `assets.scene_provenance(cfg,
+lift_dz=None, lift_dz_defaulted=False)` - pure `SceneConfig` arithmetic, so it imports
+without the simulator and the offline leg executes it - is the **one builder both writers
+call** (the P41 `physics` rule): `scripts/40_collect_demos.write_manifest` writes
+`scene_provenance(cfg)` (its `lift` is **`null`** by construction - a scripted shard has no
+lift rung) and `rl_env._build_manifest` writes `scene_provenance(self.cfg,
+lift_dz=self._lift_dz, lift_dz_defaulted=self._lift_dz_defaulted)`. Fields:
+`output_rails` (the resolved mode string) + `rail_keep` (the `(inner, outer)` pair the
+builder actually reads), `rail_height` / `rail_proud` / `rail_inset` (a pre-P71 clearance
+row is reconstructible from them - `rail_proud` is what `_payload_clearance` reports a kept
+rail against), `output_belt.{top_z,y,size,inboard_edge_y}` (P70's height knob, kept at
+1.35, and the P72 corner), and `lift = {dz: {arm: m}, defaulted: bool}` / `null`.
+Shipped: `none`, proud 0.035, inset 0.015, top 1.35, edge 0.425, `dz.left -0.08 defaulted`.
+**Metadata only** - nothing reads it, both callers wrap the call in `try/except` (a
+reported state, never a failed run) - and **a store without the key predates P72**
+(`arm_park.defaulted`'s convention), so the mixing rule P71 wrote is now checkable from the
+store itself. Exercised end-to-end on **both** writers: `logs/p72/manifest_probe.py` (run
+under the simulator python, since it imports `isaacsim` - not an offline leg) calls the real
+`write_manifest` for `none` and `=both` and prints `none` -> `rail_keep` both false,
+`=both` -> both true, `lift` null in both, `inboard_edge_y` 0.425; and the phase's direct
+run wrote its own `manifest.json` with the block live (`lift.dz.left -0.08`,
+`defaulted true`).
+
+**Re-pins the work forced** (each test's meaning kept, not weakened): `236`'s tracker-init
+list and its `inf` assertions (the init line grew `edge_y`), `236`'s print-containment
+check (a **character budget** -> the file's own `indented_body_contains`, the `235`
+helper), `236`'s "one construction site" count (the new `scene` call also passes
+`lift_dz=`, so the check is now scoped to the `PickAndPlaceTask(` call), and `238`'s
+`output_belt_top_z` read census, which **declared** the new consumer
+(`assets.py:scene_provenance`) exactly as designed. `rl_env.py`'s `TASKS_MD5` follows
+`7c00e555` -> **`f61323f2`** (metadata only; the direct run logs `tasks_md5=f61323f2`).
+`scripts/selfcheck.sh` PASS, 0 failures (1 skip, the motion-budget leg). Nothing was
+adopted, no default moved, no reference re-recorded. Residuals: the left's corner
+distribution is **n = 2** in this draw (a second seed would give it a population); the
+corner sample is **one tick per leg** plus the band minimum, so a corner contact by the
+payload's **outboard overhang** while its centre is still inboard of 0.425 is not separable
+with this instrument (single-digit-mm bound at this roundness); the collector was not
+re-collected (the field was proven by calling the real writer, not by a shard); the ledge
+class stays **untested, not zero** (P70 §4's fixture still not run); the belt height stays
+1.35 by P70's verdict.
+
+Pins: `tasks.py` **`f61323f2`**, `assets.py` **`540406fa`**, `rl_env.py`
+**`92a25c8e`**, `scripts/40_collect_demos.py` **`86b3d6ba`**,
+`scripts/239_p72_clr_edge_selftest.py` **`c3027c4f`**; logs
+`canary_rails_none.log` **`fd4c9172`**, `direct/treat_77.log` **`fb588810`**,
+`p72_report.py` **`0c5efea4`**, `p72_report.txt` **`882eec0b`**, `manifest_probe.log`
+**`ceb0f616`**. Evidence `logs/p72/{RESULTS.md,p72_report.py,p72_report.txt,p72_scope.py,
+p72_scope.txt,manifest_probe.py,manifest_probe.log,canary_rails_none.log,direct/treat_77.log}`.

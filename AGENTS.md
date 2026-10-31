@@ -3009,6 +3009,85 @@ across P71. Pins: `assets.py` **`e9fd74`**, `rl_env.py` **`cb686f5`**,
 `{header,twoline/,direct/,p71_report.txt,run_p71.sh,accept_diff.py}`; WORKLOG
 "P71".
 
+**P72 (2026-10-31, `logs/p72/`; **one** shipped change - the `scene` manifest
+block - plus the corner instrument and the canary's owed smoke; no default
+moved): the canary is inside its spread, the crossing is
+measured at the surface that remains, and the new-frame floor is a
+**bracket**.** (1) **The hybrid canary smoke** (`SKIP_SELFCHECK=1
+scripts/accept_policy.sh`, the interface of record, `moe_v12`, the pre-v9 fixed
+supply) reads **8/10 = 80 % PASS** with **2 grip losses** (`fruit did not follow
+the gripper`), 0 grasped-not-placed and **no reason outside the recorded
+baseline** - the **top of the 5-8/10 spread**, so one draw, not a rate. It
+**does** inherit the rail flip (its build print reads `FRUIT_OUTPUT_RAILS=none
+authors 0/2 (inner y=+0.4125 REMOVED)`) and **cannot** see the lift flip (no
+`[grasp] lift_dz:`/`[rl] env ready` row); both failures are pick-side grip
+losses, upstream of the output line, so **the rail flip is not implicated**.
+(2) **`clr_edge`/`clr_edge_min`** on the `[carry]` row (reporting only, same
+`FRUIT_CARRY_DIAG` gate, inside `if guard_armed:`, **no new read** - the
+`(clearance, where, i)` triple the leg already has): the **first** tick the
+payload's `|y|` reaches the output slab's **own** inboard edge and the minimum
+over that band, through the existing `_clearance_field`. **The threshold is
+0.425 m, not the 0.400 m surface switch**: `_payload_clearance` switches at the
+literal 0.40, which is the **removed inner rail's inner face** - the rail box
+spanned 0.400..0.425 with its outer face flush with the slab (`assets
+output_rail_keep`'s own docstring), so the band 0.400-0.425 is **inboard of the
+surface** and the plane charge there is conservative (the `clr_win = -6 mm` leg
+that placed with 0.4 mm slip). Derived in `tasks._output_belt_edge_y` =
+`|output_belt_y| - size[1]/2`, pinned by the new **`239`** leg (which also
+executes the body on stub configs and asserts no rail constant in it) and run by
+`selfcheck.sh` as "P72 clr_edge + scene". **Read on one direct run** (seed 77,
+15 episodes, the P66/P71 cell verbatim): **`clr_edge` n=10, min +26, median
++77.5, max +109 mm; `clr_edge_min` min +26, median +77.5, max +104; `<= 0` on
+0/10**, every value `@obelt`, every held leg's `|a|max` **<= 4.49** (G0's
+contact floor is 14.9) and no slip above 0.1 mm. The draw is right-heavy (8
+held right / **2 left**, the left being the arm the package targets), the
+left's corner sits **+4..+5 mm above its centreline sample** while the right's
+is flat, and on the leg P70 and P72 share (ep0: same `clr=+33@t329`, 430 ticks)
+P70's hand estimate `edge~+37` reads **+38** measured. (3) **The boundary:
+`clr_edge > 0`, and it is a bracket, not a calibrated floor.** With
+`output_rail_keep = (False, False)` the rail branch of `_payload_clearance` is
+never entered, so the only surface a transit can clip is the slab - its top
+plane (1.35) **and** its inboard edge (0.425) - and contact requires the
+payload's lowest point below the plane **while over the slab**, i.e.
+`clr_edge <= 0`. The record's only sub-zero *plane* sample is P70 D1 ep8's
+**`clr = -1 mm @obelt / t247`**, taken 25 mm inboard of the surface, with **no
+contact signature** (`|a|max` 0.98, `sep_end` 69.9 mm, slip 0.4 mm) against
+G0's measured contact population of **14.9-32.7 m/s²**; the **+33 convention was
+calibrated against a raised rail top and has no counterpart surface now**. **No
+dose ladder was spent and none can close a gap**: `z_cross = f*z_transfer +
+(1-f)*z_lift_end` with `f = 0.825` (0.85 at the edge), the transfer follows the
+belt **1:1** while the lift end is anchored to the **main** belt, so
+`d clr/d(lift) = +0.175` and `d clr/d(belt top) = -0.175` (0.15 at the edge) -
+the lift lever buys 17.5 % of its travel at the crossing and the belt-height
+lever spends the 40 mm under-slab audit for +7 mm (P66 P4 / P70, both negative
+on the count). (4) **The `scene` provenance block** - `assets.scene_provenance(
+cfg, lift_dz=None, lift_dz_defaulted=False)`, pure config arithmetic, the one
+builder **both** manifest writers call (the P41 `physics` rule):
+`output_rails` + the resolved `rail_keep` pair, `rail_height` / `rail_proud` /
+`rail_inset`, `output_belt.{top_z,y,size,inboard_edge_y}`, and
+`lift = {dz, defaulted}` on the direct env / **`null`** on a scripted shard (no
+lift rung there). Shipped: `none`, proud 0.035, inset 0.015, top 1.35, edge
+0.425, `dz.left -0.08 defaulted`. **Metadata only** (nothing reads it; both
+callers wrap it in `try/except`); a store **without** the key predates P72
+(`arm_park.defaulted`'s convention), and the collector's `write_manifest` was
+exercised end-to-end under the simulator python (`manifest_probe.log`:
+`none` → both false, `=both` → both true, `lift` null in both), while the direct
+env's own manifest from the phase's run carries the block live. **Re-pins the
+work forced** (each test's meaning kept): `236`'s tracker-init list / its
+`inf` assertions (the line grew `edge_y`), its print-containment check (a
+character budget → the file's own `indented_body_contains`), its "one
+construction site" count (now scoped to the `PickAndPlaceTask(` call, because
+the `scene` call also passes `lift_dz=`), and `238`'s read census, which
+**declared** the new consumer `assets.py:scene_provenance`. `rl_env.py`'s
+`TASKS_MD5` follows (`7c00e555` -> **`f61323f2`**, metadata only). No `configs/`
+edit, no default change, both references untouched (`8952c320` / `eb697f23`),
+`selfcheck.sh` PASS. Pins: `tasks.py` **`f61323f2`**, `assets.py`
+**`540406fa`**, `rl_env.py` **`92a25c8e`**, `scripts/40_collect_demos.py`
+**`86b3d6ba`**, `scripts/239_p72_clr_edge_selftest.py` **`c3027c4f`**; ckpt
+`moe_v13s` `61da390a`. Evidence `logs/p72/{RESULTS.md,p72_report.py,
+p72_report.txt,p72_scope.py,p72_scope.txt,manifest_probe.py,
+manifest_probe.log,canary_rails_none.log,direct/treat_77.log}`; WORKLOG "P72".
+
 ## 3. What changed -> what to run
 
 | you changed | run |
@@ -3021,7 +3100,8 @@ across P71. Pins: `assets.py` **`e9fd74`**, `rl_env.py` **`cb686f5`**,
 | the bimanual scheduler (`bimanual.py`, or the task loop under `FRUIT_BIARM=1`) | `scripts/selfcheck.sh` (the 152 leg), the `logs/biarm/` rate batch (`scripts/153_biarm_rates.sh biarm 5`), then `FRUIT_BIARM=1 scripts/accept.sh` |
 | the policy, training or the dataset schema | `scripts/selfcheck.sh`, `scripts/accept.sh` (scripted baseline), `scripts/accept_policy.sh` (policy loop) |
 | the direct supply profile (`rl_env.py` `_resolve_supply_profile`, the `fruits.py`/`tasks.py` kwargs) | `scripts/selfcheck.sh` (the `230` leg), `scripts/accept.sh` (import guard: 377/377 + `fingerprint: matches`), one two-line run + `scripts/190_twoline_gate.sh`, `python3 scripts/211_bed_audit.py` |
-| the output station (`assets.py` `output_rails` / `output_belt_top_z`, `conveyor.OutputBelt`) | `scripts/selfcheck.sh` (the `238` leg), `scripts/accept.sh`, one two-line run + `scripts/190_twoline_gate.sh`, then the direct cell with `FRUIT_CARRY_DIAG=1` (the crossing `clr`/`clr_win` per held place leg) - and re-record both references if the flip is shipped (`logs/p71/RESULTS.md` §5) |
+| the output station (`assets.py` `output_rails` / `output_belt_top_z`, `conveyor.OutputBelt`) | `scripts/selfcheck.sh` (the `238` leg), `scripts/accept.sh`, one two-line run + `scripts/190_twoline_gate.sh`, then the direct cell with `FRUIT_CARRY_DIAG=1` (the crossing `clr`/`clr_win` **and the P72 corner `clr_edge`/`clr_edge_min`** per held place leg, read with `logs/p72/p72_report.py --check`) - and re-record both references if the flip is shipped (`logs/p71/RESULTS.md` §5) |
+| the scene's collider set or a store's provenance (`assets.scene_provenance`, the manifests) | `scripts/selfcheck.sh` (the `239` leg), then one collection or direct run and check its `manifest.json` carries the `scene` block (`logs/p72/manifest_probe.py` does it without a simulator app) |
 
 To compare two **policy** arms, use the harness rather than two runs:
 

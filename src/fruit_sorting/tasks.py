@@ -3373,6 +3373,32 @@ class PickAndPlaceTask:
         )
         return centre - 0.0125, centre
 
+    def _output_belt_edge_y(self) -> float:
+        """The output belt slab's **inboard edge**, in |y| [m] (`clr_edge`'s y).
+
+        P72. With the side rails removed (`FRUIT_OUTPUT_RAILS=none`, the P71
+        default) the obstacle a place transit can clip is the slab's inboard
+        top **corner**, and the only surface under the payload there is the
+        slab's top plane from this |y| outboard. The rail's former footprint is
+        ``inner face .. slab edge`` (0.400..0.425 shipped: the 25 mm box's outer
+        face was flush with the slab), so a sample taken at the rail's inner
+        face (``clr_win``'s ``rail_inner``, 0.400) is 25 mm **inboard of the
+        surface** - over a void, which `_payload_clearance` charges as if the
+        plane were there (P71 section 3.2's conservative leg, the -6 mm
+        `clr_win` that placed with 0.4 mm slip). This threshold is where the
+        surface actually begins; ``clearance`` itself is the same plane gap, so
+        the only difference from ``clr_win`` is *when* the leg is sampled.
+
+        Derived, not hardcoded: `conveyor.OutputBelt.build` authors the slab
+        centred on ``output_belt_y`` with half-width ``output_belt_size[1]/2``,
+        so its inboard edge is ``|output_belt_y| - size[1]/2`` (0.425 at the
+        shipped 0.55 / 0.25). Note ``_payload_clearance``'s own surface switch
+        is the literal 0.40 (the removed rail's inner face), i.e. the plane
+        reading **charges 25 mm early**; that is reported, not changed.
+        """
+        cfg = self.cfg
+        return abs(float(cfg.output_belt_y)) - float(cfg.output_belt_size[1]) / 2.0
+
     def _carry_attitude(self, side: str, sample, name: str) -> None:
         """One line of tool attitude and pad-fruit offset at a carry leg's end.
 
@@ -4031,17 +4057,38 @@ class PickAndPlaceTask:
             #:               the crossing sample and the release);
             #:   * `clearance_min` - the leg minimum, unchanged, printed second.
             #: The thresholds are +inf off a place leg, so a `grasp_lift` leg
-            #: takes neither branch and prints `n/a`.
+            #: takes neither branch and prints `n/a`. **P72 adds the corner
+            #: pair** (`clr_edge`/`clr_edge_min`, see the init below): the same
+            #: pair sampled at the output slab's own inboard edge, which is the
+            #: obstacle that remains once the rails are gone.
             if name.startswith("place"):
                 rail_inner, rail_centre = self._output_rail_y()
+                edge_y = self._output_belt_edge_y()
             else:
-                rail_inner = rail_centre = float("inf")
+                rail_inner = rail_centre = edge_y = float("inf")
             clr_x = float("inf")
             clr_x_where = ""
             clr_x_i = -1
             clr_win = float("inf")
             clr_win_where = ""
             clr_win_i = -1
+            #: P72 (reporting only): the **corner** read. `clr`/`clr_win` sample
+            #: the rail's centreline / its former 25 mm footprint, i.e. from
+            #: `rail_inner` (0.400 shipped), which is 25 mm **inboard of the
+            #: output slab** - the void the P71 note calls conservative. With
+            #: the rails gone the only obstacle is the slab's inboard top
+            #: corner, so `clr_edge` is the sample at the **first** tick the
+            #: payload's |y| reaches that edge (`_output_belt_edge_y`, 0.425),
+            #: latched, and `clr_edge_min` the minimum over the same band (the
+            #: reduction that can catch a dip between the edge and the
+            #: release). Same `(clearance, where)` pair, same `guard_armed`
+            #: gate, no new read and no control input.
+            clr_edge = float("inf")
+            clr_edge_where = ""
+            clr_edge_i = -1
+            clr_edge_min = float("inf")
+            clr_edge_min_where = ""
+            clr_edge_min_i = -1
             rel_prev = slip_ref
             recoveries = 0
             coherent = self._coherent.get(side, False)
@@ -4445,6 +4492,15 @@ class PickAndPlaceTask:
                         clr_x, clr_x_where, clr_x_i = clearance, where, i
                     if _abs_y >= rail_inner and clearance < clr_win:
                         clr_win, clr_win_where, clr_win_i = clearance, where, i
+                    # P72: the corner band (see the init above) - the slab's own
+                    # inboard edge, not the removed rail's inner face.
+                    if _abs_y >= edge_y:
+                        if clr_edge_i < 0:
+                            clr_edge, clr_edge_where, clr_edge_i = clearance, where, i
+                        if clearance < clr_edge_min:
+                            clr_edge_min = clearance
+                            clr_edge_min_where = where
+                            clr_edge_min_i = i
                 slip = float(np.linalg.norm((rot.T @ (fruit - pads)) - slip_ref))
                 slip_max = max(slip_max, slip)
                 rel_now = rot.T @ (fruit - pads)
@@ -4760,6 +4816,14 @@ class PickAndPlaceTask:
                 _clr = _clearance_field(clr_x, clr_x_where, clr_x_i)
                 _clr_win = _clearance_field(clr_win, clr_win_where, clr_win_i)
                 _clr_min = _clearance_field(clearance_min, clearance_where)
+                # P72: the corner band - the slab's inboard edge, the surface
+                # that remains after the P71 rail removal (see the init and
+                # `_output_belt_edge_y`). Printed beside the two rail-frame
+                # reductions so a pre/post-P71 comparison carries both.
+                _clr_edge = _clearance_field(clr_edge, clr_edge_where, clr_edge_i)
+                _clr_edge_min = _clearance_field(
+                    clr_edge_min, clr_edge_min_where, clr_edge_min_i
+                )
                 if guard_tcp_end is None or guard_tcp_target is None:
                     _res_end = "n/a"
                     _dz_end = "n/a"
@@ -4780,6 +4844,7 @@ class PickAndPlaceTask:
                     f"drift_end={_drift_end} "
                     f"res_end={_res_end}mm dz_end={_dz_end}mm "
                     f"clr={_clr} clr_win={_clr_win} clr_min={_clr_min} "
+                    f"clr_edge={_clr_edge} clr_edge_min={_clr_edge_min} "
                     f"q_margin={_qm} q_cmd_margin={_qcm} "
                     f"q_step_max={guard_q_step_max:.4f} "
                     f"jaw_z={_jawz} drift_on={guard_drift_on_i} "

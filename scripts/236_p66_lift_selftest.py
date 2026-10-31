@@ -196,7 +196,7 @@ def main() -> int:
         )
         # the crossing trackers: init, latch, window minimum, place-leg scope
         for name in (
-            "rail_inner = rail_centre = float(\"inf\")",
+            "rail_inner = rail_centre = edge_y = float(\"inf\")",
             "clr_x = float(\"inf\")",
             "clr_win = float(\"inf\")",
             "clr_x_i = -1",
@@ -208,7 +208,7 @@ def main() -> int:
             "self._output_rail_y()" in src,
             "the thresholds are armed on the place leg only (a lift leg -> +inf)",
         )
-        check("rail_inner = rail_centre = float(\"inf\")" in src,
+        check("rail_inner = rail_centre = edge_y = float(\"inf\")" in src,
               "off a place leg the thresholds are unreachable (the fields print n/a)")
         latch = "if _abs_y >= rail_centre and clr_x_i < 0:"
         check(latch in src, "the crossing is the FIRST tick past the centreline (latched)")
@@ -257,9 +257,8 @@ def main() -> int:
                 f"`{needle}` is inside `if guard_armed:`",
             )
         ridx = src.index('f"res_end={_res_end}mm dz_end={_dz_end}mm "')
-        rbranch = src.rfind("if guard_armed or relief_acts:", 0, ridx)
         check(
-            rbranch != -1 and ridx - rbranch < 5000,
+            indented_body_contains(src, "if guard_armed or relief_acts:", ridx),
             "the fields print inside the `guard_armed or relief_acts` block",
         )
         for name in (
@@ -392,8 +391,14 @@ def main() -> int:
         # the env wires it the P64 way: resolved once, one construction site, one row
         check("self._lift_dz, self._lift_dz_defaulted = resolve_lift_dz(" in env_src,
               "the env resolves both the offset and its origin once in __init__")
-        check(env_src.count("lift_dz=self._lift_dz,") == 1,
-              "it is passed to PickAndPlaceTask at the one construction site")
+        check(env_src.count("self.task = PickAndPlaceTask(") == 1,
+              "the env constructs the task at exactly one site")
+        _call = env_src.index("self.task = PickAndPlaceTask(")
+        _end = env_src.index("\n        )", _call)
+        check(
+            "lift_dz=self._lift_dz," in env_src[_call:_end],
+            "it is passed to PickAndPlaceTask at the one construction site",
+        )
         check(env_src.count('os.environ.get("FRUIT_LIFT_DZ")') == 1,
               "the env var is read exactly once (the resolver call site)")
         check('"lift_dz": (' in env_src,

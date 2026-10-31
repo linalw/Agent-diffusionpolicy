@@ -414,7 +414,7 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: (default 1.35 = the shipped geometry). Print/report only - nothing on the
 #: control path reads either, and at the shipped geometry the reported surface
 #: is the same to 1e-12 m (`scripts/238_p70_belt_top_selftest.py`).
-TASKS_MD5 = "7c00e55526a12e053d76105443510513"
+TASKS_MD5 = "f61323f25d7f354cce39f09ea2543f7e"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(
@@ -2752,6 +2752,13 @@ class SortingRLEnv:
             #: A failure here must not stop an eval run: it degrades to a named
             #: block with the reason.
             "physics": self._physics_provenance(),
+            #: P72: the scene's collider set (the rail pair, the output slab's
+            #: top z / inboard edge, and the direct lift rung). P71's flips move
+            #: the stream without moving one trajectory, and no manifest field
+            #: named the geometry - so a pre-P71 store was identifiable only by
+            #: an `assets.py` md5 that any unrelated edit also moves. Same
+            #: builder as the collector's shard (`assets.scene_provenance`).
+            "scene": self._scene_provenance(),
             #: P58: the supply profile this store was recorded under. The flip
             #: changes the release schedule of every direct run, and without
             #: this block a post-profile store is indistinguishable from a
@@ -2782,6 +2789,29 @@ class SortingRLEnv:
             return finger_physics_provenance(arms=self.task.arms)
         except Exception as exc:  # noqa: BLE001 - provenance must not stop a run
             return {"finger_drive": {"source": "error", "why": str(exc)}}
+
+    def _scene_provenance(self) -> dict:
+        """The manifest's `scene` block (P72): the collider set this run was in.
+
+        Same builder the collector's shards call (`assets.scene_provenance`), so
+        a direct rollout store and a collector shard name their rail pair, the
+        output slab's top z / inboard edge and the lift rung the same way. P71
+        moved both rails and the lift default; without this block a pre-P71
+        store is distinguishable only by an `assets.py` md5 that also moves for
+        unrelated edits (`logs/p71/RESULTS.md` section 5's named gap). The full
+        lift resolution stays in the `lift_dz` block; the copy here keeps
+        `scene` readable on its own.
+        """
+        try:
+            from .assets import scene_provenance
+
+            return scene_provenance(
+                self.cfg,
+                lift_dz=self._lift_dz,
+                lift_dz_defaulted=self._lift_dz_defaulted,
+            )
+        except Exception as exc:  # noqa: BLE001 - provenance must not stop a run
+            return {"why": str(exc)}
 
     def _write_manifest(self) -> None:
         assert self.run_dir is not None

@@ -248,6 +248,16 @@ run_check "P66 lift end + dz" "$python" scripts/236_p66_lift_selftest.py
 # that default (the env-read `default_factory` reads `none`, an unset config reads
 # exactly like an explicit `none`, and `=both` restores the pre-P71 rail pair).
 run_check "P70 belt top + rails" "$python" scripts/238_p70_belt_top_selftest.py
+# P72: the **corner** clearance instrument (`clr_edge=`/`clr_edge_min=` on the
+# `[carry]` row) and the `scene` provenance block. P71 removed the rails, so the
+# rail-frame `clr`/`clr_win` sample a surface that no longer exists; the fields
+# pin the slab's own inboard edge (`|output_belt_y| - width/2`, 0.425 m = the
+# removed rail's OUTER face, 25 mm outboard of `rail_inner`), the first-tick
+# latch + the band minimum, the `guard_armed` containment (FRUIT_CARRY_DIAG off by
+# default, no new read), and `assets.scene_provenance` as the shared builder both
+# manifest writers call (rail mode/height/proud/inset, the slab's top z and edge,
+# the direct lift rung; the collector's `lift` is null by construction).
+run_check "P72 clr_edge + scene" "$python" scripts/239_p72_clr_edge_selftest.py
 # P67: the **place-leg climb** (`FRUIT_LIFT_CLIMB`, metres of vertical raise at the
 # place leg's start, `direct` + left only, default OFF) - the re-shape of P66 phase
 # 4's failed rail-crossing gate: the crossing is only 0.175:1 with the lift height

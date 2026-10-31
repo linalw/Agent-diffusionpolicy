@@ -157,6 +157,24 @@ def _physics_provenance() -> dict:
     return finger_physics_provenance(control_dt=DT)
 
 
+def _scene_provenance(cfg) -> dict:
+    """The scene's collider set (P72), so a shard names its rail/lift geometry.
+
+    The block itself lives in `fruit_sorting.assets.scene_provenance` (pure
+    `SceneConfig` arithmetic, so it imports without the simulator and the
+    offline selfcheck leg executes it), shared with the direct env's rollout
+    manifest so the two writers cannot drift apart (the P41 `physics` rule).
+    The collector is a scripted path: `lift` is written `None` there by
+    construction (the lift rung is the direct env's alone - this script never
+    constructs it), and the fields that
+    matter are the rail mode/proud and the output slab's top z and inboard edge
+    - the surface a post-P71 store was recorded across.
+    """
+    from fruit_sorting.assets import scene_provenance
+
+    return scene_provenance(cfg)
+
+
 def update_manifest_physics(out_dir: str, task) -> None:
     """Replace the manifest's env-resolved finger drive with the runtime read-back.
 
@@ -355,6 +373,14 @@ def write_manifest(out_dir: str, cfg: SceneConfig) -> None:
         # `_physics_provenance` (the runtime read-back lands here after the
         # task exists).
         "physics": _physics_provenance(),
+        # P72: the scene's collider set (the rail pair, the output slab's top z
+        # and inboard edge, the lift rung). P71's two flips move the `[fruit]`
+        # stream (8 mm release y at the same attempt) and no manifest named the
+        # geometry, so a pre-P71 shard was distinguishable only by an `assets.py`
+        # md5 that also moves for unrelated edits. `lift` is `None` on this
+        # scripted path (the knob belongs to the direct env alone). A manifest without
+        # this key predates P72.
+        "scene": _scene_provenance(cfg),
     }
     # P32 phase-D remediation (Gate D C1): the bed's resolved geometry is
     # provenance too. `BedSchedule` draws the row pitch, the middle-column
