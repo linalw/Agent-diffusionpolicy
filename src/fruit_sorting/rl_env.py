@@ -440,7 +440,15 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: hybrid canary run the shipped leg with one dict lookup and no write/read).
 #: `FRUIT_FINGER_MAXFORCE_SCOPE` is default off and `direct`-only
 #: (`rl_env.resolve_finger_cap_scope`). `logs/p78/PREREG.md` §2.
-TASKS_MD5 = "b1464c43b173d5427343152dc29eb121"
+#:
+#: P79 (metadata-only follow, `b1464c43 -> e8dfa6d8`): the **pick half** of the
+#: same form. `finger_cap_scope_for` now keys on `"<side>:<legs>"` and resolves
+#: two disjoint carry-leg classes - `place*` (P78's `place-left`) and
+#: `grasp_lift` (P79's `grasp-left`) - so a lift-only cap cannot move the place
+#: transfer and a place-only cap cannot move the pick. Default off, `direct`
+#: only, same wrapper and same `finally` restore; the shipped path is one dict
+#: lookup, unchanged. `logs/p79/PREREG.md` §2.
+TASKS_MD5 = "e8dfa6d819bf41d800d90fff349aa951"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(
@@ -752,12 +760,48 @@ def resolve_lift_climb(
 #: P78: the token `FRUIT_FINGER_MAXFORCE_SCOPE` accepts. The scope is one
 #: **site** - P77 §2 measured that every escape and every pry, in both arms, is a
 #: left `place0` leg (C 7/38 escaped and 4/38 pried, T 3/40 and 1/40, right 0 and
-#: 0 on 43/45 legs), so there is exactly one site to name and no second token.
+#: P78/P79: the two scoped sites, as `token -> (side, leg class)`. The class is
+#: the **carry-leg class** `tasks.finger_cap_scope_for` resolves against
+#: (`place*` for `place-left`, `grasp_lift` for `grasp-left`); the two are
+#: disjoint, so neither token can arm the other's legs. P78 shipped
+#: `place-left`; P79 adds `grasp-left` to isolate the **pick** half of P77's
+#: global 60 N arm.
+FINGER_CAP_SCOPE_TOKENS: dict[str, tuple[str, str]] = {
+    "place-left": ("left", "place"),
+    "grasp-left": ("left", "grasp"),
+}
+#: The P78 token, kept named for the `place*`-scoped documents and the 244 leg.
 FINGER_CAP_SCOPE_TOKEN = "place-left"
 #: P78: the scoped cap used when `FRUIT_FINGER_MAXFORCE_SCOPED` is unset - the
 #: P77 `T` rung (60 N per joint, ~53 N delivered), which is the only dose this
 #: tree has measured at three seeds. The ladder passes it explicitly.
 FINGER_CAP_SCOPE_DEFAULT = 60.0
+#: The leg name a scope's class arms, for the `[drive] finger cap scope` row.
+#: The manifest carries the class itself (`"grasp"` / `"place"`), not this text.
+FINGER_CAP_LEG_TEXT: dict[str, str] = {"grasp": "grasp_lift", "place": "place*"}
+
+
+def finger_cap_scope_label(scope: dict | None) -> str:
+    """The token a resolved scope dict came from (`grasp-left`), `""` when off.
+
+    Pure, derived from the dict's own keys (`"<side>:<legs>"`), so the row can
+    never print a token the resolver did not resolve.
+    """
+    if not scope:
+        return ""
+    out = []
+    for key in sorted(scope):
+        side, _, legs = str(key).partition(":")
+        out.append(f"{legs}-{side}")
+    return "+".join(out)
+
+
+def finger_cap_scope_legs(scope: dict | None) -> str:
+    """The leg names a resolved scope dict arms (`grasp_lift`), `""` when off."""
+    if not scope:
+        return ""
+    classes = sorted({str(key).partition(":")[2] for key in scope})
+    return "+".join(FINGER_CAP_LEG_TEXT.get(cls, cls) for cls in classes)
 
 
 def resolve_finger_cap_scope(
@@ -787,9 +831,13 @@ def resolve_finger_cap_scope(
     * `direct` with an **explicit** `FRUIT_FINGER_MAXFORCE` -> `(None, None)`:
       the existing global knob wins, so the global path keeps its meaning and
       the two cannot stack;
-    * `direct`, scope `place-left`, global unset -> `({"left": cap}, cap)`, the
-      cap from `FRUIT_FINGER_MAXFORCE_SCOPED` (default
-      `FINGER_CAP_SCOPE_DEFAULT`), parsed strictly.
+    * `direct`, scope `place-left` -> `({"left:place": cap}, cap)`; scope
+      `grasp-left` (P79) -> `({"left:grasp": cap}, cap)`. The key carries the
+      leg **class** because it is the dict's own scope: `place*` for
+      `place-left`, `grasp_lift` for `grasp-left`, disjoint by construction
+      (`tasks.finger_cap_scope_for`). The cap comes from
+      `FRUIT_FINGER_MAXFORCE_SCOPED` (default `FINGER_CAP_SCOPE_DEFAULT`),
+      parsed strictly.
     Strict parsing is the P44/P45/P52/P53/P66 precedent: a typo that fell back to
     the shipped cap would be published as a null result, so an unknown token, a
     non-number, a non-finite value and `<= 0` all raise.
@@ -799,10 +847,11 @@ def resolve_finger_cap_scope(
     token = "" if scope_value is None else str(scope_value).strip()
     if not token:
         return None, None
-    if token != FINGER_CAP_SCOPE_TOKEN:
+    site = FINGER_CAP_SCOPE_TOKENS.get(token)
+    if site is None:
         raise ValueError(
             f"FRUIT_FINGER_MAXFORCE_SCOPE={scope_value!r} is not a known scope; "
-            f"the only token is {FINGER_CAP_SCOPE_TOKEN!r}"
+            f"the tokens are {', '.join(sorted(FINGER_CAP_SCOPE_TOKENS))!r}"
         )
     explicit_global = "" if global_value is None else str(global_value).strip()
     if explicit_global:
@@ -812,9 +861,10 @@ def resolve_finger_cap_scope(
             f"{token} resolves to no runtime write"
         )
         return None, None
+    key = f"{site[0]}:{site[1]}"
     text = "" if cap_value is None else str(cap_value).strip()
     if not text:
-        return {"left": FINGER_CAP_SCOPE_DEFAULT}, FINGER_CAP_SCOPE_DEFAULT
+        return {key: FINGER_CAP_SCOPE_DEFAULT}, FINGER_CAP_SCOPE_DEFAULT
     try:
         cap = float(text)
     except ValueError:
@@ -829,7 +879,7 @@ def resolve_finger_cap_scope(
             "positive newtons (leave FRUIT_FINGER_MAXFORCE_SCOPE unset for the "
             "shipped cap)"
         )
-    return {"left": cap}, cap
+    return {key: cap}, cap
 
 
 def resolve_arm_park(presentation: str, env_value: str | None) -> tuple[str, bool]:
@@ -1687,13 +1737,15 @@ class SortingRLEnv:
         self._lift_climb = resolve_lift_climb(
             presentation, os.environ.get("FRUIT_LIFT_CLIMB")
         )
-        #: P78: the **runtime, per-leg** finger-drive force cap
-        #: (`FRUIT_FINGER_MAXFORCE_SCOPE=place-left`, `direct` only, default
-        #: off): `{"left": <N>}` while the left arm's `place*` legs run, restored
-        #: to the cap the leg found at its end. P77 measured the 60 N count win
-        #: and the global form's price (both motion references, a scripted
-        #: re-baseline, every store); this is the contained form. `None` = the
-        #: shipped build-time cap, with no write and no read on any path.
+        #: P78/P79: the **runtime, per-leg** finger-drive force cap
+        #: (`FRUIT_FINGER_MAXFORCE_SCOPE=place-left|grasp-left`, `direct` only,
+        #: default off): `{"left:place": <N>}` while the left arm's `place*`
+        #: legs run (P78), or `{"left:grasp": <N>}` while its single
+        #: `grasp_lift` leg runs (P79, the pick half), restored to the cap the
+        #: leg found at its end. P77 measured the 60 N count win and the global
+        #: form's price (both motion references, a scripted re-baseline, every
+        #: store); this is the contained form. `None` = the shipped build-time
+        #: cap, with no write and no read on any path.
         self._finger_cap_scope, self._finger_cap_value = resolve_finger_cap_scope(
             presentation,
             os.environ.get("FRUIT_FINGER_MAXFORCE_SCOPE"),
@@ -2510,15 +2562,19 @@ class SortingRLEnv:
         if self.presentation == "direct":
             say(self._supply_profile_row(self._supply, self._direct_feed))
         if self._finger_cap_scope:
-            # P78: the armed runtime cap's own row. Only an armed run prints it,
-            # so a log's first lines say whether the drive was re-clamped - the
-            # per-leg `[drive] ... finger cap raise/restore` rows carry the
-            # in-leg read-back, this row carries the intent and the scope.
+            # P78/P79: the armed runtime cap's own row. Only an armed run prints
+            # it, so a log's first lines say whether the drive was re-clamped -
+            # the per-leg `[drive] ... finger cap raise/restore` rows carry the
+            # in-leg read-back, this row carries the intent, the scope and the
+            # leg class ("place*" for `place-left`, "grasp_lift" for the P79
+            # `grasp-left`).
             say(
                 f"[drive] finger cap scope: "
-                f"{FINGER_CAP_SCOPE_TOKEN} x {self._finger_cap_value:g} N "
+                f"{finger_cap_scope_label(self._finger_cap_scope)} x "
+                f"{self._finger_cap_value:g} N "
                 f"(runtime, {', '.join(sorted(self._finger_cap_scope))} "
-                f"place* legs; restored at each leg's end)"
+                f"{finger_cap_scope_legs(self._finger_cap_scope)} legs; "
+                f"restored at each leg's end)"
             )
         if self._grasp_quat_override:
             # P62 phase 2: the armed knob's own row. It names **all three**

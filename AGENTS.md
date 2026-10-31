@@ -3476,12 +3476,15 @@ both motion references, a scripted re-baseline and every store. But P77 §2 also
 measured the class's **site**: every escape and every pry, in both arms, is a
 left `place0` leg. So the lever is a **runtime** cap on one arm's `place*` legs:
 `FRUIT_FINGER_MAXFORCE_SCOPE=place-left` (+ `..._SCOPED=<N>`, default 60), the
-only token; an **explicit `FRUIT_FINGER_MAXFORCE` still wins** (the global path
+only token at P78 - **the P79 paragraph below adds `grasp-left` for the pick half,
+and the scope dict is now keyed `"<side>:<legs>"` so the two classes cannot
+overlap**; an **explicit `FRUIT_FINGER_MAXFORCE` still wins** (the global path
 keeps its meaning, the two cannot stack) and **every non-`direct` presentation
 resolves `(None, None)` before reading a value** (`rl_env.resolve_finger_cap_scope`,
 strict: unknown token / non-number / non-finite / `<= 0` raise). The task takes
 it as a caller-owned kwarg and `tasks.finger_cap_scope_for` is the **only** site
-resolver (`place*` only, per side, so `grasp_lift` can never be armed); `_carry`
+resolver (one carry-leg class per key, per side; from P79 one key is `place*` and
+the other `grasp_lift`, so neither can arm the other's legs); `_carry`
 is now a **wrapper** that raises the left drive's `joint1` cap via
 `set_dof_max_efforts` and restores **the cap the leg found** in a **`finally`**
 (the leg body is `_carry_leg`; `237`'s locator follows it, assertions unchanged).
@@ -3540,6 +3543,58 @@ b1_accept_armed.log,b1_accept_armed.driver,b2_twoline_armed.log,
 b2_twoline_armed.gate,p1_driver.log,p32_driver.log,p4_ext_driver.log,
 selfcheck.log}`; WORKLOG "P78".
 
+**P79 (2026-10-31, `logs/p79/`, default off, **nothing adopted**): the pick half of
+the clamp - `grasp-left` - is a measured **null on the count** and a measured **win on
+the leg state**, and neither scoped 60 N arm reproduces P77's global count.** The token
+`FRUIT_FINGER_MAXFORCE_SCOPE=grasp-left` arms P78's runtime cap on the left arm's single
+`grasp_lift` leg only (keyed `"<side>:<legs>"` -> `{"left:grasp"}`, disjoint from
+`{"left:place"}`, so neither token can arm the other's legs), default off, `direct`
+only, an explicit `FRUIT_FINGER_MAXFORCE` wins, strict parsing, `_carry`'s `try`/`finally`
+restore. **The site proof is exact**: one raise+restore per left lift leg (15/15 at
+30 N, 17/17 at 60 N), **zero** rows on any `place*` leg or the right arm across six
+armed cells, delivered lift pinch **10.02 -> 30.09 -> 57.48 N** (`fmax` medians; `fmin`
+9.75 -> 29.43 -> 49.14) while the **place stays at 10.02/10.05 N** against the control's
+10.07, and the manifest's `sites`/`readback_matches` agree in every cell. **The count is
+flat at the recorded dose**: left placed **C 11/20 = 0.550 -> G60 9/17 = 0.529**
+(Fisher **p = 1.0000**, per-seed **0/-4/+2**), `cnp` **7 = 7**, `never-held` 1 vs 2 (one
+episode). **What does move is the lift leg's pinch integrity**: legs that **lose a pad**
+**6/20 -> 2/15 (30 N) -> 1/17 (60 N)** (p = 0.0975), `sep_end - gap_start` 10.5 -> 9.2 mm -
+i.e. P75's inherited-state mechanism works and the class it should feed does not
+convert. **30 N is where the direction is and it is a dose, not a result**: **12/15 =
+0.800** (p = 0.163, +3/-1/+1), `cnp` 2, lost-a-face 2, place escapes 2/14, but it misses
+the registered `+3` bar and sits **below** P77's dose - and P78's place arm at 30 N read
+the same shape (0.706). **The dose is not monotone** (30 N 0.706/0.800 vs 60 N 0.688/0.529),
+so at n ~ 15-20 per arm no force above the control's own 10 N is identified as the
+actuator. **The register's answer**: the three controls agree tightly (0.524/0.556/0.550,
+pooled 32/59 = 0.542) and the two scoped 60 N arms bracket them (pooled 20/33 = 0.606),
+while the global arm alone reads 0.85 - and the one leg class the global cap touched that
+**no `_carry` token can reach is the close** (`_carry` is only ever called with `place{i}`
+and `grasp_lift`), which is also where P77's `never-held` 3 -> 0 must have happened (a
+never-held carry leg has `fmax == 0`; no lift-phase force can create contact the close did
+not make). **The named next spend is a `close-left` scope at the close's own site** (not a
+carry leg, its own registration), not another lift or place dose. **Guards**: right
+**21/25 -> 26/30 -> 25/28** (p = 0.69), cycle **1751/1773/1772** ticks, crush guards 0 in
+nine cells, and **every one of the batch's 30 strawberry legs was presented to the right
+arm** (all grade B/C - the direct env sets arm from grade), so a 60 N pick on a berry is
+**not exposed here, not measured safe**. **Blast radius re-proved with the scope armed**:
+`accept.sh` **346/346 `[fruit]` lines byte-identical** to `logs/p76/accept_noharm_full.log`
+(md5 **`d0079a23`**) + `fingerprint: matches` + **0** scope rows, and the two-line **7/10 +
+`190` PASS** against `eb697f23`; no reference re-recorded. One **recorded deviation**
+(`PREREG.md` §9 **A1**, pin `0cdfd227` pre-run / `afde5127` amended): the registered
+per-cell `place* fmax <= 11.25 N` band is a **transient** test - it fired in 1/6 cells on
+an **escaping** leg (12.13 N, `force_min` 0.00, slip 940 mm) at the shipped cap, and `fmax`
+exceeds the cap on single legs even at 10 N (this batch's control reads 35.53 N; P78's
+79.43/134.29/155.12) - so P3 is gated on the **structural** rows + the pooled force and
+the band is reported; **no verdict moves** (P1 fails independently). Pins: `tasks.py`
+**`e8dfa6d8`**, `rl_env.py` **`7d26eb5b`** (`TASKS_MD5` metadata-only follow),
+`scene.py` **`07d6fdad`**, `scripts/244_p78_scope_selftest.py` **`50fde0fa`** (72 checks),
+`scripts/selfcheck.sh` **`dd4bf41a`**; `configs/*` untouched (`8952c320` / `eb697f23`),
+ckpt `moe_v13s` `61da390a`. Evidence `logs/p79/{PREREG.md,PREREG.md5,RESULTS.md,
+header.txt,header_phase3.txt,batch_driver.log,run_p79.sh,p79_report.py,p79_report.txt,direct/,rollouts/,
+smoke_grasp_left_60.log,smoke_site_proof.txt,b1_accept_armed.log,
+b1_accept_armed.driver,b2_twoline_armed.log,b2_twoline_armed.gate,selfcheck.log}`;
+WORKLOG "P79".
+
 ## 3. What changed -> what to run
 
 | you changed | run |
@@ -3555,7 +3610,7 @@ selfcheck.log}`; WORKLOG "P78".
 | the output station (`assets.py` `output_rails` / `output_belt_top_z`, `conveyor.OutputBelt`) | `scripts/selfcheck.sh` (the `238` leg), `scripts/accept.sh`, one two-line run + `scripts/190_twoline_gate.sh`, then the direct cell with `FRUIT_CARRY_DIAG=1` (the crossing `clr`/`clr_win` **and the P72 corner `clr_edge`/`clr_edge_min`** per held place leg, read with `logs/p72/p72_report.py --check`) - and re-record both references if the flip is shipped (`logs/p71/RESULTS.md` §5) |
 | the scene's collider set or a store's provenance (`assets.scene_provenance`, the manifests) | `scripts/selfcheck.sh` (the `239` leg), then one collection or direct run and check its `manifest.json` carries the `scene` block (`logs/p72/manifest_probe.py` does it without a simulator app) |
 | a new default-off diagnostic field on the `[carry]` row (or a new `[place]`/`[seat]` line, or a new `[place-trace]` per-tick print) | `scripts/selfcheck.sh` (the field's own leg - `235`/`239`/`240`/`241` are the pattern), then **one direct run with `FRUIT_CARRY_DIAG=1`** to read it, then `scripts/accept.sh` and require its **346/346 `[fruit]` lines** to be byte-identical to the pre-change record - a diag-only change must be inert on the scripted path (`logs/p73/P1_RESULTS.md` §5, `logs/p75/RESULTS.md` §5) |
-| the finger drive's force cap, or a leg-scoped drive write (`FRUIT_FINGER_MAXFORCE`, `FRUIT_FINGER_MAXFORCE_SCOPE`/`..._SCOPED`, `tasks.finger_cap_scope_for`, `_carry`'s wrapper) | `scripts/selfcheck.sh` (the `244` leg), then **one direct run with `FRUIT_CARRY_DIAG=1`** and read the `[drive] ... finger cap raise/restore` rows **and** `force_min` by leg class (`place*` at the scoped cap, `grasp_lift` at ~9.7 N - the site proof), then `scripts/accept.sh` + one two-line run + `scripts/190_twoline_gate.sh` **with the knob armed** and require **346/346 `[fruit]` lines + both fingerprints** to be unmoved (`logs/p78/RESULTS.md` §7) - the scoped form must move no reference; a **global** `FRUIT_FINGER_MAXFORCE` instead owes both references and every store |
+| the finger drive's force cap, or a leg-scoped drive write (`FRUIT_FINGER_MAXFORCE`, `FRUIT_FINGER_MAXFORCE_SCOPE=place-left|grasp-left`/`..._SCOPED`, `tasks.finger_cap_scope_for`, `_carry`'s wrapper) | `scripts/selfcheck.sh` (the `244` leg), then **one direct run with `FRUIT_CARRY_DIAG=1`** and read the `[drive] ... finger cap raise/restore` rows **and** the delivered force by leg class - **the site proof is the pair**: `place-left` -> `place*` at the scoped cap with `grasp_lift` at ~9.7 N (`logs/p78/RESULTS.md` §0), `grasp-left` -> `grasp_lift` at the scoped cap with `place*` at ~10 N (`logs/p79/RESULTS.md` §1); then `scripts/accept.sh` + one two-line run + `scripts/190_twoline_gate.sh` **with the knob armed** and require **346/346 `[fruit]` lines + both fingerprints** to be unmoved (`logs/p78/RESULTS.md` §7, `logs/p79/RESULTS.md` §6) - the scoped form must move no reference; a **global** `FRUIT_FINGER_MAXFORCE` instead owes both references and every store. Read `fmax` as a **peak transient** that exceeds the cap on single legs even at 10 N, and `force_min` as the leg's weakest moment - neither is a `place*`-was-re-clamped test on one cell (`logs/p79/PREREG.md` §9 A1); the structural rows are |
 
 To compare two **policy** arms, use the harness rather than two runs:
 

@@ -315,28 +315,42 @@ def lift_climb_commands(start, climb: float, limits) -> tuple[np.ndarray, ...]:
 
 
 def finger_cap_scope_for(scopes, side: str, name: str) -> float | None:
-    """P78: the **runtime** finger-drive force cap this leg runs at, or `None`.
+    """P78/P79: the **runtime** finger-drive force cap this leg runs at, or `None`.
 
-    Pure, and the **only** place the scoped cap is resolved. The scope is the
-    **`place*` leg** - P77 §2 measured that every escape and every pry, in both
-    arms, is a left `place0` leg (C 7/38 escaped and 4/38 pried, T 3/40 and
-    1/40, right 0 and 0 on 43/45 legs) - so `grasp_lift` is deliberately out of
-    scope: the P77 P1 scripted difference at attempt 0 was a **grasp** one
-    (`lift=+0.411 m / 60.05 N` against `+0.138 m / 9.98 N`), and a cap that is
-    only up during the place transfer cannot move the pick.
+    Pure, and the **only** place the scoped cap is resolved. `scopes` is the
+    caller-owned `finger_cap_scope` dict keyed by **`"<side>:<legs>"`**, where
+    `legs` is the carry-leg class:
 
-    `scopes` is the caller-owned `finger_cap_scope` dict (side -> newtons,
-    e.g. `{"left": 60.0}`); `None`, a missing side or any other leg name
-    returns `None`, i.e. the shipped build-time cap with **no write and no
-    read** - the same caller-owned-kwarg pattern as `lift_dz_for` and
-    `lift_climb_for`, so no caller mutates the process environment to change a
-    drive. Only `rl_env` resolves it, and only for `direct`
-    (`rl_env.resolve_finger_cap_scope`), so the scripted line, the collector,
-    the two-line scheduler and the hybrid canary never reach this function.
+    * `"left:place"` - P78's `FRUIT_FINGER_MAXFORCE_SCOPE=place-left`: the
+      left arm's `place*` legs, armed by the P77 §2 measurement that every
+      escape and every pry in both arms is a left `place0` leg;
+    * `"left:grasp"` - P79's `...=grasp-left`: the left arm's **`grasp_lift`**
+      leg only, which is the *pick* half. P77's global 60 N arm also raised the
+      close and the lift (build time, both arms), and its left `never-held`
+      went 3 -> 0 - a **pick** class - while P78's place-only arm read 2 -> 5.
+      This token isolates that half: the place transfer runs at the shipped
+      cap, so a count that moves here cannot be a `place*` effect.
+
+    The two classes are **disjoint by construction** (`grasp_lift` and
+    `place*` are the only legs `_carry` is called with), so a `grasp` key can
+    never arm a place leg and a `place` key can never arm the lift. `None`, an
+    empty dict, a missing key or any other leg name returns `None`, i.e. the
+    shipped build-time cap with **no write and no read** - the same
+    caller-owned-kwarg pattern as `lift_dz_for` and `lift_climb_for`, so no
+    caller mutates the process environment to change a drive. Only `rl_env`
+    resolves it, and only for `direct` (`rl_env.resolve_finger_cap_scope`), so
+    the scripted line, the collector, the two-line scheduler and the hybrid
+    canary never reach this function.
     """
-    if scopes is None or not name.startswith("place"):
+    if not scopes:
         return None
-    value = scopes.get(side)
+    if name == "grasp_lift":
+        legs = "grasp"
+    elif name.startswith("place"):
+        legs = "place"
+    else:
+        return None
+    value = scopes.get(f"{side}:{legs}")
     return None if value is None else float(value)
 
 
@@ -879,18 +893,21 @@ class PickAndPlaceTask:
             if lift_climb is None
             else {str(k): float(v) for k, v in lift_climb.items()}
         )
-        #: P78: a per-arm **runtime** finger-drive force cap for the `place*`
-        #: legs, in newtons (see `finger_cap_scope_for`). `None` (the default
-        #: everywhere) leaves the drive's cap alone - one dict lookup per carry
-        #: leg and no write, no read, no simulator call - so the scripted line,
-        #: the collector, the two-line scheduler and the hybrid canary are
-        #: byte-inert; only `rl_env` resolves it, and only for `direct`
-        #: (`FRUIT_FINGER_MAXFORCE_SCOPE=place-left`, default off). The write is
-        #: a **live view** call (`set_dof_max_efforts`, which the experimental
-        #: articulation routes to the tensor backend's `set_dof_max_forces` and
-        #: its solver notify), not a USD authoring step: `scene.build`'s
-        #: `apply_finger_maxforce` runs before the `Articulation` exists, and its
-        #: docstring names this API as the one that acts on a live view.
+        #: P78/P79: a per-arm **runtime** finger-drive force cap for one
+        #: carry-leg class, in newtons (see `finger_cap_scope_for`). Keyed by
+        #: `"<side>:<legs>"` - `"left:place"` (P78) or `"left:grasp"` (P79, the
+        #: `grasp_lift` half only). `None` (the default everywhere) leaves the
+        #: drive's cap alone - one dict lookup per carry leg and no write, no
+        #: read, no simulator call - so the scripted line, the collector, the
+        #: two-line scheduler and the hybrid canary are byte-inert; only
+        #: `rl_env` resolves it, and only for `direct`
+        #: (`FRUIT_FINGER_MAXFORCE_SCOPE=place-left|grasp-left`, default off).
+        #: The write is a **live view** call (`set_dof_max_efforts`, which the
+        #: experimental articulation routes to the tensor backend's
+        #: `set_dof_max_forces` and its solver notify), not a USD authoring
+        #: step: `scene.build`'s `apply_finger_maxforce` runs before the
+        #: `Articulation` exists, and its docstring names this API as the one
+        #: that acts on a live view.
         self._finger_cap_scope: dict[str, float] = (
             {}
             if finger_cap_scope is None
@@ -3807,16 +3824,18 @@ class PickAndPlaceTask:
         )
 
     def _carry(self, side: str, sample, name: str, steps: int = 200) -> None:
-        """Carry leg **wrapper**: the P78 scoped finger force, then the leg.
+        """Carry leg **wrapper**: the P78/P79 scoped finger force, then the leg.
 
-        With a cap armed for this `(side, leg)` by
+        With a cap armed for this `(side, leg)`, by
         `finger_cap_scope_for` it raises the drive's cap for exactly this leg
         and restores the cap the leg **found** in a `finally`, so an exception
-        inside the leg cannot leave the cap raised. With nothing armed (the
-        default everywhere, and every non-`direct` caller by construction) it
-        is one dict lookup plus one call: no write, no read, no simulator
-        interaction, so the shipped path is byte-identical. The leg itself is
-        `_carry_leg`.
+        inside the leg cannot leave the cap raised. The armed class is the
+        dict's own (`left:place` = the `place*` legs, `left:grasp` = the
+        `grasp_lift` leg), so the same wrapper serves both tokens and the two
+        can never overlap. With nothing armed (the default everywhere, and
+        every non-`direct` caller by construction) it is one dict lookup plus
+        one call: no write, no read, no simulator interaction, so the shipped
+        path is byte-identical. The leg itself is `_carry_leg`.
         """
         cap = finger_cap_scope_for(self._finger_cap_scope, side, name)
         if cap is None:

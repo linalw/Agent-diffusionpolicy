@@ -21285,3 +21285,119 @@ Evidence `logs/p78/{PREREG.md,PREREG.md5,PREREG_EXT.md,PREREG_EXT.md5,RESULTS.md
 header.txt,run_p78.sh,p78_report.py,p78_report.txt,direct/,rollouts/,smoke_60.log,
 b1_accept_armed.log,b1_accept_armed.driver,b2_twoline_armed.log,
 b2_twoline_armed.gate,p1_driver.log,p32_driver.log,p4_ext_driver.log,selfcheck.log}`.
+
+### P79: the pick half of the clamp - the count is not the lift's, and the one leg no token can reach is the close
+
+`logs/p79/`, 2026-10-31, default off, nothing adopted, no default changed, no commit,
+`configs/*` untouched. Registration `logs/p79/PREREG.md` md5 **`0cdfd227`** (pinned
+before the first cell) + one recorded deviation **A1** (§9; amended file `afde5127`).
+Direct line, `moe_v13s` `61da390a`, the P66-phase-3 / P71-phase-2 / P73 / P74 / P75 /
+P76 / P77 / P78 cell verbatim, 15 picks per cell, seeds 77/101/202, arms interleaved
+within a seed, 85 min for nine cells.
+
+**The question.** `logs/p77/RESULTS.md` measured the only count win on this tree - left
+placed **11/21 -> 17/20** (p = 0.043) under a **global** 60 N build-time cap - and its
+price (both arms of every presentation: the scripted acceptance moves at attempt 0, so
+both motion references, a scripted re-baseline and every store). `logs/p78/RESULTS.md`
+contained it to a runtime cap on the left's `place*` legs at **zero blast radius** and
+reproduced the mechanism (pries 3/36 -> 1/31) but not the count (+1 attempt, p = 0.50).
+The one class that moved in P77 and not in P78 is P77's left `never-held` **3 -> 0**, a
+**pick** class (`fmax == 0` on the carry; the pads never touched the fruit) - and the
+global cap also raised the **close** and the **lift**, which the place cap raised not
+at all. So: is the count the pick's, and at what force?
+
+**The token.** `FRUIT_FINGER_MAXFORCE_SCOPE=grasp-left` (+ `..._SCOPED=<N>`, default 60)
+arms P78's machinery unchanged on the left arm's single `grasp_lift` leg. The scope dict
+is now keyed **`"<side>:<legs>"`** (`{"left:grasp"}` / `{"left:place"}`), so the two
+tokens are *disjoint leg classes by construction* - `finger_cap_scope_for` resolves the
+class from the leg name, and neither token can arm the other's legs. Default off,
+`direct` only (`resolve_finger_cap_scope` returns `(None, None)` for every other
+presentation **before** it reads a value), an explicit `FRUIT_FINGER_MAXFORCE` still
+wins, strict parsing, `_carry`'s `try`/`finally` restore of the cap the leg **found**,
+one write site. `scripts/244` extended (45 -> **72** checks: both tokens' resolution
+rows, the disjoint-class property in both directions, the label/legs helpers derived
+from the dict's own keys, the single-site counts). `scene.finger_physics_provenance`
+now also records the exact `sites`.
+
+**The site proof is exact, three ways.** (1) One `[drive] left grasp_lift finger cap
+raise: 10.00 -> <N> N (readback <N>)` + restore per left lift leg - **15/15** legs at
+30 N and **17/17** at 60 N - and **zero** raise/restore rows on any `place*` leg or the
+right arm across the six armed cells (`grep 'finger cap' logs/p79/direct/*.log | grep -v
+grasp_lift | grep -v 'scope:'` = **0**). (2) The delivered pinch follows: left
+`grasp_lift` `fmax` medians pooled **10.02 -> 30.09 -> 57.48 N**, `force_min` **9.75 ->
+29.43 -> 49.14**. (3) The place does **not** follow: left `place*` `fmax` pooled
+**10.02 / 10.05** against the control's **10.07**, and the manifest carries
+`physics.finger_cap_scope.sites = {"left:grasp": <cap>}` with
+`finger_drive.readback_matches: true` in every armed cell (that field is built *after*
+the last restore, so a leaked cap would read `false`).
+
+**The count is flat at the recorded dose.** Left placed **C 11/20 = 0.550 -> G60 9/17 =
+0.529** (Fisher **p = 1.0000**; per-seed deltas **0 / -4 / +2**), `cnp` **7 = 7**,
+`never-held` 1 vs 2 (one episode). The registered P1a (`+3`) and P1c (`rate >= 0.75`)
+fail; the verdict is **NO-PICK**.
+
+**What *does* move is the lift leg's own pinch integrity.** Left `grasp_lift` legs that
+**lose a pad** during the leg (`min_contacts <= 1`, P75/P61's state): **6/20 -> 2/15
+(30 N) -> 1/17 (60 N)** (60 N vs C p = 0.0975), `sep_end - gap_start` p50 10.5 -> 9.2 mm.
+So the H-pick-b path (the lift ends cleanly -> the place leg inherits a good pinch, P75
+measured 2 of 6 escapes as inherited) is *working at the leg*, and the class it should
+feed - `cnp` - does not convert at 60 N. That is the phase's mechanism finding: **the
+lift's pinch integrity is not the binding term for the placed count.**
+
+**30 N is where the direction is, and it is a dose, not a result.** G30 reads left
+**12/15 = 0.800** (p = 0.163; per-seed **+3 / -1 / +1**), `cnp` **2**, lost-a-face **2**,
+place escapes **2/14** - all toward P77 - but it misses P1a's `+3` bar (12 < 14) and it
+sits **below** the global arm's dose, so it is not a reproduction of P77's win. P78's
+place arm at 30 N read the same shape (**12/17 = 0.706**, p = 0.49). **The dose is not
+monotone** (30 N 0.706 / 0.800 against 60 N 0.688 / 0.529), and a non-monotone dose is
+the opposite of the evidence that a force is the actuator - at n ~ 15-20 left attempts
+per arm, **no force above the control's own 10 N is identified**.
+
+**Where the win is, then - the register's answer.** The three controls agree tightly
+(**0.524 / 0.556 / 0.550**; pooled **32/59 = 0.542**) and the two scoped 60 N arms
+bracket them (**0.688** place, **0.529** grasp; pooled 20/33 = 0.606). Only the global
+arm reads **0.85**. The global cap is the only arm that raised the **close**, and the
+close is **not a `_carry` leg** - `_carry` is only ever called with `place{i}` and
+`grasp_lift`, so *no token can reach the close by construction*. P77's `never-held`
+3 -> 0 also had to happen there: a never-held carry leg has `fmax == 0` (no contact
+was ever made) and a lift-phase force cannot create contact the close did not make.
+**The named next spend is a `close-left` scope at the close's own site** (its own
+registration, a different site), not another lift or place dose.
+
+**Guards.** Right placed **21/25 -> 26/30 -> 25/28** (p = 0.69; 0 right escapes at
+60 N); cycle **1751 / 1773 / 1772** ticks (14.6 / 14.8 / 14.8 s/attempt); crush guards
+**0** in all nine cells. Left place escapes **6/18 -> 2/14 (30 N) -> 7/16 (60 N)** at an
+*unchanged* force - the 60 N rise is a branch draw, not a cap effect. **The strawberry
+is a scope limit, not a clean bill**: **all 30 of the batch's berry legs (nine cells,
+every one grade B or C) were presented to the right arm** - the direct env sets the arm
+from the grade, so no A-grade berry was drawn - and the left-only token never touched a
+berry. A 60 N pick on a 3.6 cm fruit is therefore **not exposed here** (P76 measured it
+on the *global* cap and found no crush; a real jaw would bruise it), so the berry risk of
+this token is **untested**.
+
+**Blast radius, re-proved with the scope armed.** `scripts/accept.sh` -> **346/346
+`[fruit]` lines byte-identical** to `logs/p76/accept_noharm_full.log` (md5
+**`d0079a23`**), `fingerprint: matches`, and **0** scope rows printed (the FAIL is the
+standing 6/9 rate-only branch since P71). Two-line -> **7/10**, `fingerprint: matches`,
+`190_twoline_gate.sh` **PASS** against `eb697f23`. No reference re-recorded.
+
+**One recorded deviation (A1).** The registered per-cell `place* fmax <= 11.25 N` clause
+fired in **1 of 6** armed cells (`G30_202`, 11.37 N) and the leg behind it **escaped**
+(`place0 fmax=12.13`, `force_min=0.00`, `loss_row=114`, slip 940.1 mm) at the **shipped**
+10 N cap: `fmax` is a peak contact transient that exceeds the drive cap on single legs
+even at 10 N (this batch's own control reads **35.53 N** on a right `grasp_lift`; P78's
+control read 79.43 / 134.29 / 155.12). The clause compared a transient against a *pooled
+median* and could not separate a re-clamp from an escape, so P3 is gated on the
+**structural** rows (zero place/right raises) plus the **pooled** force (10.05 vs 10.07)
+and the band is printed beside it. **No verdict moves** - P1 fails independently. The
+correction is appended to `PREREG.md` §9 (pin `0cdfd227` pre-run, `afde5127` amended).
+
+**Pins.** `tasks.py` **`e8dfa6d8`**, `rl_env.py` **`7d26eb5b`** (the `TASKS_MD5`
+metadata-only follow), `scene.py` **`07d6fdad`**, `scripts/244_p78_scope_selftest.py`
+**`50fde0fa`**, `scripts/selfcheck.sh` **`dd4bf41a`**; `configs/motion_reference.json`
+**`8952c320`** and `..._twoline.json` **`eb697f23`** untouched; ckpt `moe_v13s`
+`61da390a`. No-harm: `scripts/selfcheck.sh` **PASS, 0 failures**; the report's
+`--check` exits 0. Evidence `logs/p79/{PREREG.md,PREREG.md5,RESULTS.md,header.txt,
+header_phase3.txt,batch_driver.log,run_p79.sh,p79_report.py,p79_report.txt,direct/,rollouts/,
+smoke_grasp_left_60.log,smoke_site_proof.txt,b1_accept_armed.log,b1_accept_armed.driver,
+b2_twoline_armed.log,b2_twoline_armed.gate,selfcheck.log}`.

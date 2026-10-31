@@ -302,15 +302,16 @@ run_check "P76 pry/crush fields" "$python" scripts/243_p76_sep_selftest.py
 # acceptance moves at attempt 0, `fingerprint: DIFFERS`), and that every escape
 # and every pry is a left `place0` leg. The leg pins the resolution table
 # (non-`direct` is `(None, None)` before any value is read, an explicit global
-# `FRUIT_FINGER_MAXFORCE` wins, `place-left` -> `{"left": cap}`, every strict
-# raise), the `place*`-only / per-side scope (a `grasp_lift` leg can never be
-# armed, so the pick keeps the shipped grip), the `_carry` wrapper's
-# `try`/`finally` (the leg is inside the try and the restore in the finally), the
-# live-view `set_dof_max_efforts` write site (one, and the restore target is the
-# cap READ at the leg's start, never a hard-coded 10 N), the single place-leg
-# dispatch site, the untouched build-time global writer, and the manifest field.
+# `FRUIT_FINGER_MAXFORCE` wins, `place-left` -> `{"left:place": cap}`,
+# every strict raise), the **two disjoint leg classes** (`place*` for
+# `place-left`, `grasp_lift` for P79's `grasp-left`, so neither token can arm the
+# other's leg), the `_carry` wrapper's `try`/`finally` (the leg is inside the try
+# and the restore in the finally), the live-view `set_dof_max_efforts` write site
+# (one, and the restore target is the cap READ at the leg's start, never a
+# hard-coded 10 N), the two dispatch sites, the untouched build-time global
+# writer, and the manifest field (which keeps the exact `<side>:<legs>` keys).
 # No simulator.
-run_check "P78 scoped finger force" "$python" scripts/244_p78_scope_selftest.py
+run_check "P78/P79 scoped finger force" "$python" scripts/244_p78_scope_selftest.py
 # P67: the **place-leg climb** (`FRUIT_LIFT_CLIMB`, metres of vertical raise at the
 # place leg's start, `direct` + left only, default OFF) - the re-shape of P66 phase
 # 4's failed rail-crossing gate: the crossing is only 0.175:1 with the lift height

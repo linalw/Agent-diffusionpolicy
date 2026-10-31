@@ -464,17 +464,24 @@ def finger_physics_provenance(arms: dict | None = None,
         },
     }
     if scope:
-        #: P78: the **runtime, per-leg** clamp (`rl_env.resolve_finger_cap_scope`).
-        #: `None` = the shipped build-time cap. The block names the site (which
-        #: arms, which legs) and the cap, because the write is transient: this
-        #: block is built *after* the last leg's restore, so `finger_drive`'s
-        #: read-back below shows the shipped cap and could never say a scoped
-        #: run happened. The in-leg read-back is the `[drive] <side> <leg>
-        #: finger cap raise/restore` row (P78), not this field.
+        #: P78/P79: the **runtime, per-leg** clamp
+        #: (`rl_env.resolve_finger_cap_scope`). `None` = the shipped build-time
+        #: cap. The block names the site (which arm, which carry-leg class) and
+        #: the cap, because the write is transient: this block is built *after*
+        #: the last leg's restore, so `finger_drive`'s read-back below shows the
+        #: shipped cap and could never say a scoped run happened. The in-leg
+        #: read-back is the `[drive] <side> <leg> finger cap raise/restore` row
+        #: (P78), not this field. `sites` keeps the exact `"<side>:<legs>"` keys
+        #: (`left:grasp` for P79's pick half, `left:place` for P78's place half),
+        #: because `arms` collapses the side and the leg class is the whole
+        #: point of the P79 arm.
+        classes = sorted({str(key).partition(":")[2] for key in scope})
         block["finger_cap_scope"] = {
             "mode": "runtime",
-            "legs": "place*",
-            "arms": {str(side): float(cap) for side, cap in sorted(scope.items())},
+            "legs": ", ".join(f"{cls}*" for cls in classes),
+            "arms": {str(key).partition(":")[0]: float(cap)
+                     for key, cap in sorted(scope.items())},
+            "sites": {str(key): float(cap) for key, cap in sorted(scope.items())},
             "restore": "the cap read from the drive at the leg's start",
         }
     if not arms:
