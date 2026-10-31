@@ -528,9 +528,17 @@ implementation: the simulation cell, the data pipeline, and the policy training 
 > (P30-C's 24-45 mm - **measured closed**: at the shipped aim the shortened plate
 > would sit 13.5-34.5 mm above the fruit's equator and touch nothing,
 > `logs/p69/A_PREREG.md`; the admissible band is +3.5..-7.9 mm and buys 5-13 %).
-> Both are registered in `logs/p69/`. Full page:
-> [docs/LEFT_ARM.md](docs/LEFT_ARM.md). Evidence: `AGENTS.md` §2 (P60-P71),
-> WORKLOG "P60".."P71", `logs/p60/`..`logs/p71/`.
+> Both are registered in `logs/p69/`. **What is left on the left is one closed
+> class**: the place leg has now had its three candidate mechanisms measured out -
+> the transfer's **height** (P73: the rotation moves the wrong way, 78.7 -> 105.2
+> deg, and the class is flat 1/1/1), the **rotation** itself (P73: all 8 losses
+> start *before* the leg's 45-deg crossing, and the right reaches 107.3 deg and
+> slips 0.0-0.1 mm on 10/10 legs), and the profile's **speed / dwell** (P74, 3
+> seeds: the escape rate is 50/42/50 % across a 2.6x range, p = 0.733) - so the
+> residual is `SIM_LIMIT.md`'s single-sided loaded slide and only its two
+> sanctions or a workstation move can touch it. Full page:
+> [docs/LEFT_ARM.md](docs/LEFT_ARM.md). Evidence: `AGENTS.md` §2 (P60-P74),
+> WORKLOG "P60".."P74", `logs/p60/`..`logs/p74/`.
 
 > **汇报入口**：[项目总结报告.md](项目总结报告.md)（单一文档，含图表与日志编号）；路线取舍见 [决策与交付.md](决策与交付.md)；**项目收尾一页纸见 [docs/CLOSEOUT.md](docs/CLOSEOUT.md)**（R11-C：交付状态 / 全部杠杆族的实测裁定 / 剩余项）；一键演示 `scripts/demo_2min.sh`。
 
