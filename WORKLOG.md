@@ -21515,3 +21515,93 @@ p80_report.py,p80_report.txt,stamp.py,one_run.sh,run_p80.sh,S10.gate,T10.gate,
 T20.reference,motion_reference_twoline_p80_20.json,S20.log,S20.stamps,T20.log,
 T20.stamps,U20.log,U20.stamps,V20.log,V20.stamps,S6.log,S6.stamps,T6.log,T6.stamps,
 T10.log,T10.stamps}`; `scripts/selfcheck.sh` PASS.
+
+### P81: the two-line's scheduler vs its supply package - the net 1.88x clock is the scheduler's, the feed and the overlap strength are the package's
+
+`logs/p81/`, 2026-11-01, **measurement only - nothing adopted, no default changed, no
+commit, `configs/` untouched**. Registration `logs/p81/PREREG.md` md5 **`461e1709`**
+(pinned before any run, unchanged). The owner's cell: P80 measured the two-line at
+**16/20, 9.70 s/attempt, 5.57 window / 4.96 batch placed/min = 2.48x / 2.38x** and
+decomposed it as **1.88x clock x 1.27x count**, with the clock the scheduler's and the
+count the *package's* (its W3 dense-sheet supply + balanced mix). P81 removes the
+package and asks whether the **clock** survives: `FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=1
+FRUIT_SUPPLY_WAVE=0` at `ATTEMPTS=20`, seeds 5/6, with the **50/30/20 mix from the code
+default** (`balanced = (wave or patch or bed) and FRUIT_BIARM_TWOLINE == "1"` is False;
+the runtime row is the proof: `wave=off grades=A:0.5,B:0.3,C:0.2`, **0** `A:0.375` rows
+on both seeds) and **pure routing unchanged** (left A=12/11, right B=8/9, C picked=0).
+Controls are P80's `S20/T20/S6/T6` on the **identical tree md5s** - not re-run.
+
+**The clock does not need the package.** Tp5/Tp6 read **10.10 / 9.90 s/attempt** (single
+15.10 / 15.00) and **batch sim 10.13 / 9.94 s per executed attempt**, so the clock
+ratio is **1.80x / 1.82x** (pooled 1.81x) against the package-on **1.88x / 1.87x**
+(pooled 1.88x) - **96 % / 97 %** of it, inside the pre-registered [1.75, 2.00] band at
+both seeds. The successful attempt is still the single arm's: placed-only mean spans
+**15.64 / 16.15 s** against the package-on 15.78 / 15.51 and the single arm's 15.05 /
+15.15 - the pipelining overlaps attempts, it never shortens one (P80's finding holds).
+
+**What the package supplies is the feed and the overlap strength.** The mean number of
+arms inside an attempt (sum of per-attempt spans / batch span) falls **1.58 -> 1.30** at
+seed 5 (seed 6: 1.44 -> 1.42, unchanged) against the single arm's **0.83**; the right
+arm's slots report no eligible fruit on **93.3 % / 82.0 %** of polls (package-on
+**65.5 % / 63.0 %**) with **112 / 41** starved polls on the right; the left's slot
+starvation is mixed (53.8 % vs the control's 71.4 % at seed 5, 70.3 % vs 61.5 % at seed
+6), so the right is the robust loser. Its idle **43 %** at seed 5 and its lock-on
+**11.24 s** (p90 23.10, 103 polls) against 4.54 s; starved polls per attempt rise
+**6.30 vs 2.20** and **3.35 vs 1.65** (**2.86x / 2.03x**). That is the v9-era "bimanual
+on the shipped scattered supply is structurally starved" (74 % of station slots)
+reproduced on today's tree and localised to the **B lane**: under pure routing the right
+draws 30 % of the pool instead of 37.5 % and the mean gap is 1.8x wider, so B arrivals
+fall 2.25x (3/m -> 1.33/m) - exactly the pre-registered arithmetic. The seed-5 net
+clock also carries a **class-mix tailwind**: its failed attempts are shorter (10.79 s vs
+the control's 13.35, the single arm's 15.16), and holding the control's attempt-length
+factor fixed the seed-5 clock would read **~1.55x**, not 1.80x.
+
+**The delivered side is where the package is required, and the count is still a draw.**
+Counts **10/20 vs 16/20** (seed 5) and **13/20 vs 10/20** (seed 6), pooled **23/40 vs
+26/40**; against the single arm 10 vs 12 and 13 vs 13 (P80's 1.27x / 0.73x factor read
+from the other side). Sim rates: window **3.08 / 4.16** vs the single arm's 2.25 / 2.30
+(1.37x / 1.81x) and batch **2.96 / 3.92** vs 2.08 / 2.27; interval **19.47 / 14.43 s**
+(control 10.77 / 19.34). **On this harness's wall the package-off line is below the
+single arm**: 1.20 / 1.57 vs 1.51 / 1.63 placed/min (**0.79x / 0.96x**; pooled **1.38 vs
+1.57 = 0.88x**), because wall/sim is 2.48-2.51 for the two-line against 1.38-1.40 for the
+single arm - pooled sim batch rate 3.44 vs 2.18 (**1.58x**) is the transferable number,
+the wall one is this machine's.
+
+**The registered decision (PREREG section 4).** D1's clock/count clauses: seed 5
+`s/attempt` 10.10 PASS, interval 19.47 **FAIL** (12 / control 10.77), clock ratio 1.80
+PASS, window 3.08 > 2.25 PASS; seed 6 all four PASS (9.90, 14.43 <= control 19.34,
+1.82, 4.16 > 2.30). D2's starvation clauses: **S-poll FIRES at both seeds** (6.30 vs
+2.20; 3.35 vs 1.65), **S-idle fires at seed 5** (right 43 % vs 21 %), not at seed 6
+(26/19, 28/30). **Verdict: D2 - the package is required**, with the mixed reading the
+preregistration named: **the net clock is scheduler-only; the delivered interval/rate is
+package-required.** The package's stable value is the feed and the interval, not a
+guaranteed +count.
+
+**Gates.** Tp5/Tp6 motion budgets **PASS**: worst descent `|v|max` **0.1370 / 0.1210**
+against 0.160-0.161, lurch **0.050 / 0.028** against 0.291, `a_win5` 3.69 / 1.61
+(reported, payload-free), carry cone reported under the dynamic convention (worst held
+**1.89x / 1.62x**), hand speed 0/31 and 5/33 legs > 0.45 m/s. `190` against P80's
+20-attempt reference (the only same-count file) records **DIFFERS on both from leg 1**
+(Tp5 `[89, 0.108]` vs `[89, 0.109]`; Tp6 `[89, 0.110]` vs `[89, 0.109]`) - **by
+construction**: the
+reference is the package-on scenario and a different supply changes the fruit sequence,
+hence every descent; no reference was written, `configs/` untouched (`8952c320` /
+`eb697f23`). The branch probe `accept.sh` reads **6/9 + `fingerprint: matches`** with
+worst descent 0.1100 / lurch 0.017 - the standing rate-only FAIL, same shape as P80's
+G-S10. `scripts/selfcheck.sh` **PASS, 0 failures**.
+
+**Not claimed.** One supply (the single arm's), two seeds; "any supply" is not tested.
+The package's **density vs mix** is not separated (the cell removes both; a single-grade
+supply is the next cell if needed). The count is not a rate. The wall column is harness
+cost. A post-run **reporting-only** fix to `p81_report.py` is named in `RESULTS.md` §7
+(header pin `1a7e31f0` -> final `c7bae670`; no log, stamp or gate touched).
+
+**Pins.** Unchanged from P80's tree: `tasks.py` **`e8dfa6d8`**, `bimanual.py`
+`980923a6`, `assets.py` `540406fa`, `conveyor.py` `fb2c58c6`, `scene.py` `07d6fdad`,
+`rl_env.py` `7d26eb5b`, `fruits.py` `c7461d41`, `control.py` `9384ff4f`;
+`configs/motion_reference.json` **`8952c320`** and
+`configs/motion_reference_twoline.json` **`eb697f23`** untouched. Evidence
+`logs/p81/{PREREG.md,PREREG.md5,RESULTS.md,header.txt,battery_driver.log,p81_report.py,
+p81_report.txt,supply_proof.txt,stamp.py,one_run.sh,run_p81.sh,Tp5.log,Tp5.stamps,
+Tp5.budgets,Tp5.gate,Tp6.log,Tp6.stamps,Tp6.budgets,Tp6.gate,accept_noharm.log,
+accept.gate,selfcheck.log}`.

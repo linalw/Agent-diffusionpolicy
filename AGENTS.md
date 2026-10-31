@@ -3636,6 +3636,47 @@ needs >= 2 seeds** - the two-line's count advantage reversed at seed 6. No `src/
 `configs/` change; the 20-attempt two-line reference is
 `logs/p80/motion_reference_twoline_p80_20.json` and never `configs/`.
 
+**P81 (2026-11-01, `logs/p81/`; measurement only - nothing adopted, no default changed,
+no commit, `configs/` untouched).** The two-line's **scheduler** is separated from its
+**supply package**: the **net 1.88x clock is the scheduler's own** (1.80x / 1.82x on
+the single arm's shipped scattered supply, **96-97 %** of the package-on clock, at both
+seeds), while the **feed and the overlap strength are the package's**: without it the
+right arm reports no eligible fruit on **93.3 % / 82.0 %** of its polls (package-on
+65.5 % / 63.0 %), the mean concurrency falls **1.58 -> 1.30 arms** at seed 5 (1.44 ->
+1.42 at seed 6), and the delivered sim window rate falls 5.57 -> 3.08 at seed 5 while
+the **count stays a seed draw** (10 vs 16 then 13 vs 10; pooled **23/40 vs 26/40**). The
+cell is `FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=1 FRUIT_SUPPLY_WAVE=0` at `ATTEMPTS=20`,
+seeds 5/6, with the 50/30/20 mix from the **code default** (`balanced = (wave or patch
+or bed) and FRUIT_BIARM_TWOLINE == "1"` is False; runtime row `wave=off
+grades=A:0.5,B:0.3,C:0.2`, **0** `A:0.375` rows) and **pure routing unchanged**; the
+controls are P80's `S20/T20/S6/T6` on the identical tree md5s (no re-runs). **The
+registered rule returns D2 (package required)** on its *delivered* clauses - seed 5
+interval **19.47 s** vs 12 / 10.77, S-poll **6.30 vs 2.20** polls/attempt, S-idle right
+**43 % vs 21 %**; seed 6 S-poll **3.35 vs 1.65** - while its four clock/count clauses
+pass at seed 6 and three of four at seed 5: **the net clock is scheduler-only, the
+delivered interval/rate is package-required.** Per-seed `s/attempt` 10.10 / 9.90 vs the
+single arm's 15.10 / 15.00; clock ratio **1.80x / 1.82x** (control 1.88x / 1.87x);
+interval **19.47 / 14.43 s**; sim window **3.08 / 4.16** and batch **2.96 / 3.92**
+placed/min vs the single arm's 2.25/2.30 and 2.08/2.27; **wall 1.20 / 1.57 vs 1.51 /
+1.63 (pooled 1.38 vs 1.57 = 0.88x)** - on this machine the package-off line is *below*
+the single arm on the wall because the two-line pays 2.48-2.51x wall/sim (P80 section 6),
+so the sim rate (pooled batch 3.44 vs 2.18 = **1.58x**) is the transferable number.
+**The overlap-only read**: mean arms busy 1.30 / 1.42 vs the single arm's 0.83 and the
+package-on 1.58 / 1.44; the seed-5 clock keeps 1.80x partly because its failed attempts
+are shorter (10.79 s vs the control's 13.35) - holding that fixed the seed-5 clock would
+be **~1.55x**. Tp5/Tp6 motion budgets **PASS** (worst `|v|max` 0.137 / 0.121 vs
+0.160-0.161, lurch 0.050 / 0.028 vs 0.291, carry cone reported 1.89x / 1.62x);
+`190` against P80's 20-attempt reference records **DIFFERS by construction** (the
+supply changes the fruit sequence; no reference written, `configs/` untouched
+`8952c320` / `eb697f23`); the accept probe is **6/9 + `fingerprint: matches`**; selfcheck
+PASS. Pins unchanged from P80's tree: `tasks.py` **`e8dfa6d8`**, `bimanual.py`
+`980923a6`, `fruits.py` `c7461d41`, `rl_env.py` `7d26eb5b`, `scene.py` `07d6fdad`,
+`assets.py` `540406fa`, `control.py` `9384ff4f`, `conveyor.py` `fb2c58c6`. Evidence
+`logs/p81/{PREREG.md,PREREG.md5,RESULTS.md,header.txt,battery_driver.log,
+p81_report.py,p81_report.txt,supply_proof.txt,stamp.py,one_run.sh,run_p81.sh,
+Tp5.log,Tp5.stamps,Tp5.budgets,Tp5.gate,Tp6.log,Tp6.stamps,Tp6.budgets,Tp6.gate,
+accept_noharm.log,accept.gate,selfcheck.log}`; WORKLOG "P81".
+
 ## 3. What changed -> what to run
 
 | you changed | run |
