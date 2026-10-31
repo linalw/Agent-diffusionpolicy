@@ -348,7 +348,7 @@ def report(arms: list[str], seeds: list[str], check: bool) -> int:
 
     bad = 0
     print("=" * 108)
-    print("P76 - the clamp-force ladder on the direct line (PREREG 0397a929 (A1))")
+    print("P76 - the clamp-force ladder on the direct line (PREREG 1991c5fa (A4))")
     print("=" * 108)
 
     # ---- 0. the manipulation check ------------------------------------
