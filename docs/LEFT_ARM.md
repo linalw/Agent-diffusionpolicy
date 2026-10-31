@@ -1,6 +1,6 @@
 # The left arm's deficit: the mechanism, the eliminations, and what is left
 
-One page. It condenses P60-P71 (`logs/p6*/`, `logs/p7*/`, AGENTS §2's paragraphs)
+One page. It condenses P60-P74 (`logs/p6*/`, `logs/p7*/`, AGENTS §2's paragraphs)
 into the chain, the closed classes, the shipped package, and what is left. Every
 number traces to a log in `logs/`.
 
@@ -10,6 +10,16 @@ left's carry rotation is 0.7 deg and its placed count reads **10/17** (N = 3,
 `logs/p71/RESULTS.md` §3) against **4/20** for the pre-P71 package measured in the
 same batch. The sections below are the chain that got there; §"The cost" says how
 the rail gate was resolved.
+
+**Status (P74, 2026-10-31): what is left on the left is one closed class.** The
+place leg - where the remaining left losses are - has now had its three candidate
+mechanisms measured out (**the transfer's height**, **the rotation**, **the
+profile's speed / dwell**: §"The place leg"), and the escape is the same
+single-sided loaded slide as the carried class. So the left's deficit is no
+longer an open question: it is `logs/p42/SIM_LIMIT.md`'s class, and only its two
+sanctions (**a new pad asset** at a magnitude the current authorization does not
+cover, a **real-jaw clamp-force anchor**) or a **workstation move** can touch it.
+Everything the record calls a lever has been measured and is closed.
 
 ## The question
 
@@ -45,6 +55,11 @@ binding term by then (0/42 starved rounds, `window >= 1` 45/45). What is the lef
    `drift_end` **25.1 -> 3.4 -> 0.7 deg** and the left **0/25 -> 12/30 -> 14/25**
    (N=5, interleaved, **5/5 runs**; Fisher ~2e-4), with a flat cycle (sim 15.0 ->
    14.7 s/pick).
+6. **What is left is the place leg, not the carry** (P73/P74, §"The place leg"): the
+   shipped package's remaining left losses are held through the transit and lost
+   **on the way to the release**, and the three candidates for that leg - the
+   transfer's **height**, the **rotation**, the profile's **speed / dwell** - are
+   each measured out. The escape is the same single-sided loaded slide.
 
 ## The cost: the two closed classes meet - and how P71 resolved it
 
@@ -83,6 +98,46 @@ cannot). That is why the climb is not the shipping path.
 | + the wrist hold | 1.1 deg | - | **0/16** |
 | **P71 shipped: low lift 0.20, no rails** | **0.7 deg** | **+14..+50 vs the belt top** (0/10 vs the rail top, which no longer exists) | **10/17** (N = 3, `logs/p71`) |
 
+## The place leg (P73/P74): three more mechanisms measured out
+
+With the carry fixed, the left's remaining losses are **place-leg loaded slides**
+(`logs/p71/RESULTS.md`: 6 of 7 at `loss_row` 103-150, i.e. held through the
+transit and lost on the way to the release). Three mechanisms were registered and
+measured, and all three are out:
+
+| candidate | how it was measured | result |
+| --- | --- | --- |
+| **the transfer's height** sets the required wrist rotation (`FRUIT_OPENARM_TRANSFER_LIFT` 0.08/0.14/0.20) | P73, 3 arms, seed 77 | the rotation moves **the wrong way** (**78.7 -> 93.8 -> 105.2 deg**) and the class is **flat (1 / 1 / 1)**: falsifier fires |
+| **the rotation** drags the payload | the new `t45`/`tilt_rate` schedule (P73) | **all 8 losses start before the leg's 45 deg crossing**, at a tilt below 45 deg, while the 90-105 deg sweep happens at **73-79 % of the leg** - after the failure; and the **right reaches 107.3 deg and slips 0.0-0.1 mm on 10/10** legs |
+| **the dwell** in a top-down pinch (the "creep" reading of P73's slow arm) | P74, 2 arms x **3 seeds**, `FRUIT_SPEED_PLACE` 0.352 -> 0.52 | the escape rate is **50 / 42 / 50 %** across a **2.6x** range of leg ticks (680/405/262): **flat** (p = 0.733), so the creep reading is withdrawn |
+
+**Two instrument lessons came out of it, and they bind the next reader.**
+
+1. **A leg-end sample cannot see this class.** The `[attitude] tilt` at the leg's
+   end reads 80.8-94.6 deg on **both** the lost and the placed legs of the shipped
+   corpus; a screen using it alone would have reported "the height does not move
+   the rotation" and been wrong. The schedule (`tilt0/tilt_end/tilt_max/t45/t75/
+   tilt_rate`, `[carry]` under `FRUIT_CARRY_DIAG`) is what makes it readable.
+2. **`clean_slip_max > 800 mm` is not speed-invariant.** The reported walk after
+   an escape is `rate x (ticks - loss_row)`; a faster place raises the rate
+   **3.2 -> 4.0 mm/tick** and cuts the remaining leg **38 %**, so escapes migrate
+   under the 800 mm line without the escape rate moving (S drew four near-misses
+   at 659.6-799.1 mm). **Quote the escape count (`> 100 mm`) for any speed
+   change**; the 800 mm threshold stays usable for height / rotation / retiming,
+   where the remaining leg is constant (that is why P71's `15 -> 7` stands).
+3. **A 15-pick single seed is not a direction on this class.** P74's seed 77 read
+   `2/4 -> 1/6` in the predicted direction and would have published a 15-point
+   win; seeds 101 (`4/7 -> 4/5`) and 202 (`2/8 -> 2/3`) reverse it. **>= 3 seeds.**
+
+**What that leaves on the place leg:** the escape's signature is
+speed-invariant and is the **same single-sided loaded slide** as the carried
+class (`force@onset` at the pinch's own ~10 N, then `fmin 0.00`, jaws ending at
+**17-54 mm**, never the 98 mm open stop, `contacts@onset` 1 on most) - i.e. the
+payload walks out along the finger axis while the pads hold. So the levers that
+can still touch it are exactly `logs/p42/SIM_LIMIT.md`'s two sanctions (**a new
+pad asset**, **a real-jaw clamp-force anchor**) or **a workstation move that
+shortens the lateral transit at top-down** - pose, rotation and clock are spent.
+
 ## What is NOT the answer
 
 - **Not the policy**: the loss is in the primitive's grip (the loaded slide), and
@@ -92,7 +147,9 @@ cannot). That is why the climb is not the shipping path.
 - **Not a knob**: every parameter-level candidate measured is closed (the pose
   family, the seat, the force family, the pre-compensation, `max_step`, the joint
   clip, the pads' line, the direct carried-class lever - which converts the
-  **right**, 28 -> 5 cnp, and not the left, 20 -> 22, p = 1.0).
+  **right**, 28 -> 5 cnp, and not the left, 20 -> 22, p = 1.0 - and, since P73/P74,
+  the place **transfer's height**, the place-leg **rotation**, and the place
+  **profile's speed / dwell** as well; see the place-leg section above).
 
 ## The two registered paths (P69)
 
@@ -128,3 +185,20 @@ side rails** (`FRUIT_OUTPUT_RAILS=both` restores), no climb, no wrist hold, and
 both motion references are the P71 re-records (`8952c320` / `eb697f23`,
 `logs/p71/RESULTS.md` §5). The climb, the wrist hold, the pre-compensation, the
 seat and the pad families remain **opt-in and default off** (measured negative).
+
+**The crossing, as it now reads (P72).** The `clr`/`clr_win` fields sampled the
+**removed rail's face**; the P72 `clr_edge`/`clr_edge_min` sample the **slab's own
+inboard edge** (0.425 m), which is the only surface left. On the shipped package
+the held place legs read **min +26 mm, median +77.5, max +109, `<= 0` on 0/10**,
+with every `|a|max` **<= 4.49** against G0's measured contact population of
+**14.9-32.7 m/s²**. The new-frame floor is therefore **`clr_edge > 0`** and it is a
+**bracket, not a calibrated floor**: no dose ladder can close it, because the
+transfer follows the belt 1:1 while the lift end is anchored to the main belt
+(`d clr/d lift = d clr/d belt = 0.175`), and the +33 mm convention was calibrated
+against a raised rail top that no longer exists.
+
+**The hybrid canary (the interface of record) after the rail flip: 8/10 PASS**
+(`logs/p72/RESULTS.md`), two `fruit did not follow the gripper` grip losses, no
+reason outside the recorded baseline, both upstream of the output line - so the
+rail removal is not implicated. One smoke, and 8/10 is the **top** of the
+interface's recorded 5-8/10 spread: a sample, not a rate.
