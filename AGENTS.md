@@ -3163,6 +3163,84 @@ p0_census.txt,p1_report.py,p1_report.txt,run_p73.sh,batch_s77.out,
 batch_slow.out,direct/,smoke_T1.log,accept_noharm.log,accept_noharm.driver}`;
 WORKLOG "P73".
 
+**P74 (2026-10-31, `logs/p74/`; nothing adopted, no default change, **no `src/`
+or `configs/` edit**): the place profile's **speed does not move the left's
+place-leg loaded slide**, and the **`clean_slip_max > 800 mm` threshold is not
+speed-invariant** — so the class's rate is flat over a **2.6x** dwell range and
+is **stochastic given the pinch**. The knob is **`FRUIT_SPEED_PLACE=0.52`** (the
+P44 **S1** cell, the mirror of the `=0.20` arm P73 inferred the mechanism from;
+it supplies the **default** of `FRUIT_DYNAMIC_PLACE_VMAX` read at
+`tasks.py:3853` inside `elif self._dynamic_capture_active:`, which the direct
+presentation arms — and it is **not direct-scoped**, the same site runs on the
+scripted dynamic line, which is why P44 could measure it there). The manipulation
+gate (`logs/p74/p1_report.py --check`) passes **every clause on all three seeds**:
+`|v|cmd` **0.343 -> 0.509** on the left place legs, the per-leg tick count
+matching `motion.jerk_limited` at the printed distance to **<= 1 % on 33/33
+legs**, **S/C ticks 0.676-0.678** on the distance-matched pairs (predicted 0.673),
+and the `place low` descent in its ±20 % band. Cell: the P66-phase-3 / P73
+scenario verbatim, `moe_v13s` `61da390a`, 15 picks, one claim per run, **seeds
+77/101/202** — and the expansion is what saved the phase: **seed 77 read 2/4 ->
+1/6 in the predicted direction and fired the registered rule, seed 101 read 4/7
+-> 4/5 and seed 202 2/8 -> 2/3**, the opposite way at both. Pooled left place
+legs: the registered primary **`> 800 mm` 7/19 = 37 % -> 3/14 = 21 %**
+(Fisher **p = 0.455**) while the **mechanism count** (`clean_slip_max > 100 mm`,
+a payload that left the pinch) is **8/19 = 42 % -> 7/14 = 50 %** (**p = 0.733**),
+left placed 11/20 -> 6/15 (p = 0.5), the **failure ledger identical in count**
+(left `cnp` 8 vs 8, left `never-grasped` 1 vs 1, right 2 vs 2, `did not land`
+8 vs 8, `fell off` 0 vs 0, blow-ups 0 vs 0) and the **right flat** (23/25 vs
+28/30 placed, **0 loaded slides in both**, its place legs also shorten, 356 ->
+258 ticks). **The primary fell for a measurement reason, and that is the
+phase's transferable finding**: after the escape the reported slip is
+`rate x (ticks - loss_row)`, the rate rises **3.13-3.25 -> 3.93-4.00 mm/tick
+(+25 %)** with the pads' speed and the remaining leg falls **-38 %**, so events
+migrate from the `> 800` band into `100-800` (S draws **4 near-misses at 659.6 /
+740.9 / 798.8 / 799.1 mm** against C's one at 617.1). **Quote the escape count,
+not the threshold, for any speed change**; the threshold stays usable for
+height/rotation/retiming, where the remaining leg is constant (P73's own
+793.3 mm "held" leg was already named a payload loss). **The dwell is not the
+actuator**: with P73's slow arm the rate is **50 % (680-tick legs) / 42 %
+(405) / 50 % (262)** across a 2.6x range, so P73's `4/8` is a draw of the same
+~45 % rate and its "time-accumulating loaded creep" reading is **withdrawn** —
+what survives is its positive half (the escape's **onset precedes the wrist's
+45-deg crossing on 15/15** losses here too, `loss_row/ticks` 0.01-0.44 against
+`t45/ticks` 0.71-0.86; the right reaches the same attitude and slips 0.0-0.1 mm
+on 28/28 place legs). The escape's **signature is speed-invariant** (both arms
+`force_min = 0.00 N` on every loss, `contacts@onset` 1 on 6/8 and 6/7, jaws
+ending at the **17.3-53.7 mm** closed form, never the 98 mm open stop; one S leg
+is a `27.09 N` / `sep@onset 98.2 mm` squeeze-out at the open stop rather than a
+slip, and both arms carry exactly one `0.00 N / contacts 0` never-held leg). `clr`/`clr_edge`
+are **leg-determined, not profile-determined**: on distance-matched legs they
+read **-1 / -3 / -9 mm** (65/61 cm), and the arm-median drop is leg mix (S drew a
+53 cm leg at +4 mm; C's own four 58 cm legs span 18-49 mm); the **achieved**
+rotation lags ~4 % of the leg later at 0.46 m/s (`t45/ticks` 0.75-0.86 vs
+0.71-0.81, `tilt_end` 61-79 vs 68-88 deg) while the commanded path is identical.
+The speed's **time** saving is real and reproducible (left place leg **405 ->
+262 ticks = -35 %**, episode median **-5..-7 %**, `|a|cmd` 0.30 -> 0.72 with the
+`place` cone still **0.84-0.90x** of budget) but it is a **throughput** candidate,
+not a class fix, and P44/P46 already priced that direction's placement cost; the
+`place low` descent also loses **5 %** because the faster leg ends **12 mm** lower
+in achieved z (the release re-measures its clearance, so the landing class is
+unchanged). One S `cnp` is **not** the class — a **place-reach/landing shortfall**
+with the payload held (`clean_slip 0.0`, `clr +23 mm`, `res_end 50.2 mm` against
+29-31 on healthy legs) — and one note text is new to the batch on a
+**`grasped=False`** leg (`fruit left the pick station during the close
+(27454 mm)`, a recycle artifact upstream of any carry leg). **Verdict: falsifier
+F1 fires -> no adoption, no phase 2**; the named consequence is that **this
+class needs >= 3 seeds before a direction is called** (a 15-pick single-seed cell
+produced a 15-point false positive), and that with P73 the place-leg lever space
+is exhausted for **pose, rotation and clock** — what remains is
+`logs/p42/SIM_LIMIT.md`'s two sanctions (a new pad asset, a real-jaw clamp-force
+anchor) or a workstation change that shortens the lateral transit at top-down.
+No motion reference moved (`8952c320` / `eb697f23` stand — nothing was flipped,
+so no re-record was owed). Provenance: the batch spans two commits
+(`75e980a` seed 77, `90f31a6` seeds 101/202) whose diff is **two `logs/` files**
+and **no `src/`/`configs/`/`scripts/` change**. Pins: `tasks.py` `adcfd348`,
+`rl_env.py` `157e6d85`, the batch's `header.txt` `0d246950`,
+`PREREG.md` **`1c3546de`**, ckpt `moe_v13s` `61da390a`; evidence
+`logs/p74/{PREREG.md,PREREG.md5,P1_RESULTS.md,header.txt,p1_report.py,
+p1_report.txt,p1_aggregate.py,p1_aggregate.txt,run_p74.sh,batch_s77.out,
+batch_s101_202.out,direct/}`; WORKLOG "P74".
+
 ## 3. What changed -> what to run
 
 | you changed | run |

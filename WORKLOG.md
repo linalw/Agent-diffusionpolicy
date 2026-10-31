@@ -20578,3 +20578,144 @@ Pins: `tasks.py` **`adcfd348`**, `rl_env.py` **`157e6d`**,
 P1_RESULTS.md,header.txt,p0_census.py,p0_census.txt,p1_report.py,p1_report.txt,
 run_p73.sh,batch_s77.out,batch_slow.out,direct/,smoke_T1.log,accept_noharm.log,
 accept_noharm.driver}`.
+
+## P74 — the place-profile speed does not move the place-leg slide, and the 800 mm threshold is not speed-invariant
+
+P73 left exactly one measured direction unspent: it falsified the transfer height
+(both ways) and the rotation, and its **slowed** place profile
+(`FRUIT_SPEED_PLACE=0.20`) read **4 payload losses in 8 place legs** against C's
+1 in 5 — "the class tracks the time the payload hangs in a top-down pinch under
+lateral load". The mirror test is therefore a **faster** place leg, and the
+project already owns one: P44's S1 cell, `FRUIT_SPEED_PLACE=0.52`, measured at
+`place0 -135.4 ticks` on the scripted line. Nothing was adopted; no default
+moved; **no `src/`, `configs/` or `scripts/` file was edited** by this phase.
+
+**What was registered first.** `logs/p74/PREREG.md` (md5 `1c3546de`, pinned
+04:30:48Z, before any run of the phase): two arms (**C** the shipped place
+profile, **S** `FRUIT_SPEED_PLACE=0.52`) on the P66-phase-3 / P71-phase-2 / P73
+cell verbatim, seed 77, 15 picks, `moe_v13s` `61da390a`, one claim each,
+`FRUIT_CARRY_DIAG=1 FRUIT_MOTION_REPORT=1`; the primary (the left's
+`clean_slip > 800 mm` legs and the left's placed count), the secondary (place-leg
+ticks and `|v|cmd`, `clr`/`clr_edge`, the escape signature, the acquisition and
+`cnp` split, any new reason, the right), five predictions (P1 the class falls,
+P2 the leg is `0.673x`, P3 space unchanged, P4 no new class, P5 the right flat),
+three falsifiers (F1 flat, F2 rises, F3 a guard regresses), and an expansion rule
+(101/202 only if the seed-77 mechanism read is consistent **and** `placed` does
+not fall **and** the acquisition guard is clean).
+
+**The knob, resolved before the run.** `FRUIT_SPEED_PLACE` is the P44 S1 cell and
+changes nothing by itself: it supplies the **default string** of
+`FRUIT_DYNAMIC_PLACE_VMAX` at `tasks.py:3853` inside `elif
+self._dynamic_capture_active:`, which the direct presentation arms
+(`dynamic_pick` from `FRUIT_DYNAMIC_PICK=1` × openarm → `dynamic_capture` →
+`direct_capture`, `tasks.py:9677`). `FRUIT_SPEED_PLACE=0.52` and
+`FRUIT_DYNAMIC_PLACE_VMAX=0.52` are **limit-identical** (the registered value
+keeps `a_max` at the shipped 1.089), and the direct path resolves the explicit
+env var first, so naming the cell names what supplies the value when only it is
+set. P73's `SLOW` arm is the manipulated-positive control for the resolution
+(`|v|cmd` 0.342 → 0.196 on the same leg), and the PREREG derived the expected
+numbers **offline** from `motion.jerk_limited` (`T = max(1.875d/v,
+sqrt(5.774d/a), cbrt(60d/j))·1.02`, so `|v|cmd = 1.875d/T` and `ticks ∝ 1/v`
+while the velocity term binds): `|v|cmd` 0.343 → 0.510 and **ticks 0.673x**,
+which the C column reproduces to 0-3 ticks on the P73 corpus.
+
+**The manipulation gate passes on every clause and every seed**
+(`logs/p74/p1_report.py --check`): C `|v|cmd` median **0.343**, S **0.509**; the
+per-leg tick count matches `jerk_limited` at the printed distance to **≤ 1 % on
+33/33 legs**; the distance-matched S/C ratios are **0.676 / 0.677 / 0.678**
+(predicted 0.673 ± 0.06); the `place low` descent stays inside its ±20 % band.
+The knob is **not side-scoped** — the right's place legs shorten too (356 → 258
+ticks), which the PREREG registered up front rather than discovering.
+
+**What happened: seed 77 said yes and the expansion said no.** Seed 77 read
+**2 payload losses in 4 left place legs (C) → 1 in 6 (S)** — the predicted
+direction — and the registered expansion fired (`Δ slides -2`, `Δ placed +2`,
+clean acquisition). Seeds 101 and 202 then read **4/7 → 4/5** and **2/8 → 2/3**,
+the *opposite* direction at both. Pooled (19 C legs, 14 S legs): the registered
+primary **`> 800 mm` 7/19 = 37 % → 3/14 = 21 %** (Fisher p = 0.455) while the
+**mechanism count** (`clean_slip_max > 100 mm`, i.e. a payload that left the
+pinch) is **8/19 = 42 % → 7/14 = 50 %** (p = 0.733); left placed 11/20 → 6/15
+(p = 0.5). **F1 fires.** A single seed would have published a 15-point win.
+
+**Why the primary moved and the mechanism did not — the phase's real finding.**
+After the escape the payload free-falls while the pads continue, so the reported
+class value is essentially `rate × (ticks - loss_row)`. Measured across all
+three seeds: the rate rises **3.13-3.25 → 3.93-4.00 mm/tick (+25 %)** with the
+pads' speed (0.32 → 0.46 m/s achieved) and the remaining leg falls **-38 %**, so
+the product straddles the 800 mm line — S's four sub-threshold payload losses sit
+at **659.6 / 740.9 / 798.8 / 799.1 mm** and C's one at **617.1**. **So
+`clean_slip_max > 800 mm` is not a speed-invariant classifier**: quote the
+**escape count** for any speed change, and keep the threshold for
+height/rotation/retiming, where the remaining leg is constant. This also
+re-reads P73's own 793.3 mm "held-by-the-rule" leg as part of the same band.
+
+**The dwell is not the actuator.** With P73's slow arm the rate is **50 %
+(680-tick legs) / 42 % (405) / 50 % (262)** — flat across a **2.6x** range of
+dwell. So P73's `4/8` is a draw of the same ~45 % rate, and its
+"time-accumulating loaded creep" reading is **withdrawn** (its own caveat said so
+if the fast direction came back empty). What survives is P73's positive half,
+reproduced here: the escape's onset **precedes** the wrist's 45-deg crossing on
+**15/15** payload losses (`loss_row/ticks` 0.01-0.44 against `t45/ticks`
+0.71-0.86), the right reaches the same attitude and slips **0.0-0.1 mm on 28/28**
+place legs, and the escape's signature is unchanged — both arms read
+`force_min = 0.00 N` on every loss, `contacts@onset = 1` on 6/8 and 6/7, jaws
+ending in the **17.3-53.7 mm** closed form (never the 98 mm open stop), with one
+`27.09 N` / `sep@onset 98.2 mm` squeeze-out on each side of the class and exactly
+one `0.00 N / contacts 0` never-held leg each. **The class is stochastic given
+the pinch**: neither the pose nor the clock drives it.
+
+**The guards (P4/P5), which are the reason the negative is clean.** The failure
+ledger is **identical in count**: left `cnp` **8 vs 8**, left `never-grasped`
+**1 vs 1**, right `never-grasped` **2 vs 2**, `did not land` **8 vs 8**,
+`fell off` **0 vs 0**, blow-ups **0 vs 0**; right placed **23/25 vs 28/30** with
+**0 loaded slides in both**. `clr`/`clr_edge` are **leg-determined, not
+profile-determined**: on distance-matched held legs they read **-1 mm (65 cm)**,
+**-3 and -9 mm (61 cm)**, while the C arm's own four 58 cm legs span **18-49 mm**,
+so the arm-median drop is leg mix (S drew a 53 cm leg whose transit passes
++4 mm). The **achieved** rotation lags ~4 points of the leg later at 0.46 m/s
+(`t45/ticks` 0.75-0.86 vs 0.71-0.81; `tilt_end` 61-79 vs 68-88 deg) while the
+commanded path is identical.
+
+Two things are named rather than smoothed: **one S `cnp` is not the class** — a
+place-reach/landing shortfall with the payload still held (`clean_slip 0.0`,
+`clr +23 mm`, `res_end 50.2 mm` against 29-31 mm on healthy legs; the `FINGER
+FLOOR` budget binds on **34/34** `place low` rows in *both* arms, so it is a
+standing condition) — and **one note text is new to the batch** on a
+`grasped=False` leg (`fruit left the pick station during the close (27454 mm)`,
+a recycle artifact upstream of any carry leg; its C-arm counterpart reads `fruit
+did not follow the gripper`).
+
+**The time saving is real** and is a throughput candidate, not a class fix: the
+left place leg goes **405 → 262 ticks (-35 %)**, the episode median **-5..-7 %**,
+`|a|cmd` 0.30 → 0.72 with the `place` cone still **0.84-0.90x** of budget, and
+the `place low` descent loses 5 % because the faster leg ends **12 mm** lower in
+achieved z (the descent re-measures its clearance, so the release geometry and
+the landing class are unchanged). P44/P46 already priced that direction's
+placement cost.
+
+**The correction to the brief, recorded.** The test was framed as "the knob is
+direct-scoped, so the scripted reference cannot move". **It is not
+direct-scoped**: `FRUIT_SPEED_PLACE` sets the default at the same
+`_dynamic_capture_active` site the scripted dynamic line runs, which is exactly
+how P44 measured `place0 -135.4 ticks` there. The reference does not move because
+**nothing was flipped** and the knob is an `os.environ` read — so no re-record
+was owed, and none was made (`8952c320` / `eb697f23` stand).
+
+**Provenance.** The batch spans two commits: seed 77 on `75e980a`, seeds 101/202
+on `90f31a6` (another lane committed while the batch ran). `git diff 75e980a
+90f31a6` is **two files, both under `logs/`** and **no `src/`/`configs/`/
+`scripts/` change**, and every md5 the batch's `header.txt` records is the value
+this phase registered against. `logs/` is gitignored and nothing in it is a
+control input.
+
+Pins: `tasks.py` **`adcfd348`** and `rl_env.py` **`157e6d85`** (unchanged by this
+phase), `configs/motion_reference.json` **`8952c320`** and
+`..._twoline.json` **`eb697f23`** (untouched), checkpoint `moe_v13s`
+**`61da390a`**; `PREREG.md` **`1c3546de`**, `PREREG.md5` `ecdf77e5`,
+`header.txt` `0d246950`; `direct/C_77.log` **`b5170c7e`**, `S_77.log`
+**`4365f202`**, `C_101.log` **`8eebc3f4`**, `S_101.log` **`b0563207`**,
+`C_202.log` **`3542bc21`**, `S_202.log` **`bee13107`**; `p1_report.txt`
+`1503edcc`, `p1_aggregate.txt` `c44d5b95`, `run_p74.sh` `b1254817`,
+`logs/selfcheck.log` `e581667b`. Evidence `logs/p74/{PREREG.md,PREREG.md5,
+P1_RESULTS.md,header.txt,p1_report.py,p1_report.txt,p1_aggregate.py,
+p1_aggregate.txt,run_p74.sh,batch_s77.out,batch_s101_202.out,direct/}`.
