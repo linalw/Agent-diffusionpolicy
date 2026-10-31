@@ -1,0 +1,58 @@
+=== scripted line: 10 attempts, HEADLESS=1 ===
+[fruit] [stats] attempts=10 successes=6 diverted=0 success_rate=60% sim=150.2s total, 15.0s/attempt, 25.0s/success gate_open=0.0s total, queue_peak=0 recirculated=0 encoder=-0.120 m/s nominal (command -0.120, no cleats to measure travel)
+[fruit] [run] summary: 6/10 successful
+
+=== motion gate ===
+logs/p77/p1_accept_mf60.log: 10 descent leg(s), line=dynamic
+   #   dist samples  |v|max  budget   |a|max   |dv|  a_med  peak@  a_win5  verdict
+   1   5.6c      88   0.109   0.161     2.06  0.017   0.24   0.02    0.75  ok
+   2   5.7c      90   0.110   0.160     1.56  0.013   0.25   0.02    0.51  ok
+   3   5.7c      90   0.109   0.160     1.68  0.014   0.24   0.02    0.56  ok
+   4   5.7c      90   0.109   0.160     1.67  0.014   0.24   0.02    0.55  ok
+   5   5.8c      91   0.110   0.161     1.41  0.012   0.23   0.02    0.45  ok
+   6   5.6c      88   0.109   0.161     1.98  0.016   0.23   0.01    0.66  ok
+   7   5.6c      89   0.108   0.161     1.92  0.016   0.24   0.02    0.67  ok
+   8   5.7c      89   0.109   0.160     1.77  0.015   0.23   0.02    0.60  ok
+   9   5.6c      88   0.109   0.161     2.06  0.017   0.24   0.01    0.71  ok
+  10   5.7c      90   0.109   0.160     1.58  0.013   0.25   0.02    0.52  ok
+  worst: |v|max=0.1100 m/s (budget 0.160-0.161), lurch=0.017 m/s/tick (budget 0.291477), a_win5=0.750 m/s^2 (carrying budget 2, warning)
+
+logs/p77/p1_accept_mf60.log: 19 carry leg(s)
+  leg              dist    cone  over    slip in-hand |v| recov  verdict
+  grasp_lift        16c   1.69x    4%   46.2mm      0.128     0  ok (cone 1.69x reported)
+  place0            38c   1.51x   11%   81.1mm      0.181     0  ok (cone 1.51x reported)
+  grasp_lift        25c   0.94x    0%   40.7mm      0.069     0  ok
+  place1            27c   1.07x    4%   68.1mm      0.093     0  ok (cone 1.07x reported)
+  grasp_lift        22c   1.12x    3%  269.8mm      2.008     0  ok (cone 1.12x reported)
+  place0            57c   1.19x    6%  923.1mm      0.451     0  ok (cone 1.19x reported)
+  grasp_lift        21c   1.18x    2%   31.3mm      0.150     0  ok (cone 1.18x reported)
+  place0            56c   0.87x    0%   93.4mm      0.067     0  ok
+  grasp_lift        22c   1.20x    2%   29.2mm      0.150     0  ok (cone 1.20x reported)
+  place0            57c   1.40x  187%  111.0mm      0.159     0  ok (cone 1.40x reported)
+  grasp_lift        20c   0.89x    0%   18.4mm      0.044     0  ok
+  place1            30c   0.86x    0%   71.1mm      0.141     0  ok
+  grasp_lift        26c   0.99x    0%  314.5mm      0.320     0  ok
+  grasp_lift        21c   1.67x    3%   24.0mm      0.217     0  ok (cone 1.67x reported)
+  place0            58c   1.08x    4%  128.2mm      0.175     0  ok (cone 1.08x reported)
+  grasp_lift        21c   1.20x    3%  267.1mm      1.866     0  ok (cone 1.20x reported)
+  place0            49c   0.92x    0%  800.4mm      0.462     0  ok
+  grasp_lift        22c   1.04x    1%   36.9mm      0.354     0  ok (cone 1.04x reported)
+  place1            60c   1.07x    1%  183.5mm      0.323     0  ok (cone 1.07x reported)
+  worst held-grip cone: 1.69x budget (budget 1x)
+  hand speed: worst 0.434 m/s; 0/19 leg(s) over 0.45 m/s (reported, not gated) - every other leg sits at the commanded 0.176-0.371
+
+  success: 6/10 = 60% (floor 75% - dynamic line, measured baseline 9/10)
+  fingerprint: DIFFERS from configs/motion_reference.json - this run landed in a different attractor, so do not compare its success count with the reference log's
+    leg 2: this=[90, 0.11] reference=[91, 0.11]
+    leg 3: this=[90, 0.109] reference=[89, 0.108]
+    leg 4: this=[90, 0.109] reference=[91, 0.11]
+    leg 5: this=[91, 0.11] reference=[89, 0.108]
+    leg 6: this=[88, 0.109] reference=[90, 0.109]
+    leg 7: this=[89, 0.108] reference=[91, 0.11]
+    leg 8: this=[89, 0.109] reference=[90, 0.109]
+    leg 9: this=[88, 0.109] reference=[89, 0.109]
+    leg 10: this=[90, 0.109] reference=None
+
+FAIL: 2 problem(s)
+  - success 6/10 below 75%
+  - fingerprint differs from the reference (different attractor)

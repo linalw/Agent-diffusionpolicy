@@ -1,0 +1,223 @@
+================================================================================================================
+P77 - the 60 N clamp at three seeds (a force-ceiling sensitivity)
+PREREG d31c3e4a; C = shipped 10 N (unset), T = FRUIT_FINGER_MAXFORCE=60
+================================================================================================================
+
+## 0. The manipulation check (PREREG §1): does the cap reach the drive?
+  arm seed  stage print  env derev  live L/R          manifest                      evaluable
+  C   77    10.0         (unset)    (shipped, unset)  maxforce=n/a readback=True    yes
+  T   77    60.0         60.0       60.0/60.0         maxforce=60 readback=True     yes
+  C   101   10.0         (unset)    (shipped, unset)  maxforce=n/a readback=True    yes
+  T   101   60.0         60.0       60.0/60.0         maxforce=60 readback=True     yes
+  C   202   10.0         (unset)    (shipped, unset)  maxforce=n/a readback=True    yes
+  T   202   60.0         60.0       60.0/60.0         maxforce=60 readback=True     yes
+  C is the unset path: the shipped build string is 10.0 and the [drive]
+  read-back row is absent by construction (P41 made it default-off).
+
+## 1. The leg census (PREREG §2.2)
+   escape = clean_slip_max > 100 mm with a pinch; pried = sep_max >= 95 mm of the 98.1 mm stop
+  arm seed  side  legs  escape  >800mm  pried  never-held  sep_max max 
+  C   77    left  11    2       1       1      1           98.1
+  C   77    right 16    0       0       0      0           80.6
+  T   77    left  14    1       1       0      0           76.2
+  T   77    right 12    0       0       0      0           72.2
+  C   101   left  17    4       3       3      1           98.4
+  C   101   right 7     0       0       0      1           72.5
+  T   101   left  12    1       1       0      0           78.4
+  T   101   right 17    0       0       0      1           73.3
+  C   202   left  10    1       1       0      0           80.4
+  C   202   right 20    0       0       0      0           78.4
+  T   202   left  14    1       0       1      0           98.1
+  T   202   right 16    0       0       0      0           77.6
+
+  --- pooled per arm (the mechanism denominators)
+  arm side  legs  escape  pried  never-held  
+  C   left  38    7       4      2           
+  C   right 43    0       0      1           
+  T   left  40    3       1      0           
+  T   right 45    0       0      1           
+
+## 2. Every escape leg (clean_slip_max > 100 mm, pinched)
+
+  --- C (cap 10 N) seed 77: 2 escape leg(s)
+    pear          6.1cm left place0     slip=   740.0 sep_max=  89.8@t157  gap=  60.1 sep@loss=  60.5 sep_end=  45.1 fmax= 14.95 fmin=  0.00
+    peach         5.8cm left place0     slip=   918.0 sep_max=  98.1@t128  gap=  57.1 sep@loss=  70.4 sep_end=  42.1 fmax= 11.38 fmin=  0.00 STOP
+
+  --- T (cap 60 N) seed 77: 1 escape leg(s)
+    pear          6.8cm left place0     slip=   834.7 sep_max=  76.2@t99   gap=  69.9 sep@loss=  70.1 sep_end=  51.9 fmax= 57.83 fmin=  0.00
+
+  --- C (cap 10 N) seed 101: 4 escape leg(s)
+    apple         7.0cm left place0     slip=   843.4 sep_max=  98.1@t115  gap=  68.7 sep@loss=  71.8 sep_end=  53.7 fmax= 16.89 fmin=  0.00 STOP
+    kiwi          6.7cm left place0     slip=   811.7 sep_max=  85.7@t154  gap=  65.7 sep@loss=  68.1 sep_end=  50.7 fmax= 14.65 fmin=  0.00
+    kiwi          5.3cm left place0     slip=   858.7 sep_max=  66.8@t115  gap=  57.7 sep@loss=  57.8 sep_end=  42.7 fmax= 13.19 fmin=  0.00
+    kiwi          6.7cm left place0     slip=   709.0 sep_max=  98.1@t160  gap=  66.9 sep@loss=  66.9 sep_end=  51.8 fmax= 15.28 fmin=  0.00 STOP
+
+  --- T (cap 60 N) seed 101: 1 escape leg(s)
+    pear          6.6cm left place0     slip=   844.5 sep_max=  69.3@t41   gap=  66.3 sep@loss=  66.4 sep_end=  48.3 fmax= 58.79 fmin=  0.00
+
+  --- C (cap 10 N) seed 202: 1 escape leg(s)
+    kiwi          5.7cm left place0     slip=   828.6 sep_max=  80.4@t159  gap=  57.4 sep@loss=  60.4 sep_end=  42.3 fmax= 12.90 fmin=  0.00
+
+  --- T (cap 60 N) seed 202: 1 escape leg(s)
+    peach         6.2cm left place0     slip=   782.9 sep_max=  98.1@t159  gap=  63.5 sep@loss=  64.8 sep_end=  45.5 fmax= 64.52 fmin=  0.00 STOP
+
+## 2b. Every pried leg (sep_max >= 95 mm, escape or not)
+
+  --- C (cap 10 N) seed 77: 1 pried leg(s)
+    peach         5.8cm left place0     slip=   918.0 sep_max=  98.1@t128  gap=  57.1 sep@loss=  70.4 sep_end=  42.1 fmax= 11.38 fmin=  0.00 STOP
+
+  --- T (cap 60 N) seed 77: 0 pried leg(s)
+    (none)
+
+  --- C (cap 10 N) seed 101: 3 pried leg(s)
+    apple         7.0cm left place0     slip=   843.4 sep_max=  98.1@t115  gap=  68.7 sep@loss=  71.8 sep_end=  53.7 fmax= 16.89 fmin=  0.00 STOP
+    kiwi          6.7cm left place0     slip=   709.0 sep_max=  98.1@t160  gap=  66.9 sep@loss=  66.9 sep_end=  51.8 fmax= 15.28 fmin=  0.00 STOP
+    kiwi          6.7cm left place0     slip=    13.1 sep_max=  98.4@t239  gap=  65.6 sep@loss=  79.0 sep_end=  79.1 fmax= 52.58 fmin=  0.00 STOP
+
+  --- T (cap 60 N) seed 101: 0 pried leg(s)
+    (none)
+
+  --- C (cap 10 N) seed 202: 0 pried leg(s)
+    (none)
+
+  --- T (cap 60 N) seed 202: 1 pried leg(s)
+    peach         6.2cm left place0     slip=   782.9 sep_max=  98.1@t159  gap=  63.5 sep@loss=  64.8 sep_end=  45.5 fmax= 64.52 fmin=  0.00 STOP
+
+## 3. The smallest fruits (the class a higher clamp would damage first)
+   every strawberry leg, plus any leg at <= 36 mm - the binding class
+  arm seed  fruit          dia  sep@loss  loss-dia  sep_max    fmax    fmin     slip  outcome
+  C   77    strawberry    35.6       n/an/a     38.8    9.73    9.72      0.0  placed
+  C   77    strawberry    43.0       n/an/a     46.1    5.55    4.98      0.0  placed
+  C   77    lychee        34.3       n/an/a     44.5   18.26    9.79      0.1  placed
+  C   77    lychee        30.0       n/an/a     43.3   24.15    9.37      0.2  placed
+  T   77    strawberry    35.6       n/an/a     36.7   52.61   52.25      0.1  placed
+  T   77    strawberry    35.6       n/an/a     36.7   54.18   54.12      0.0  placed
+  C   101   strawberry    38.8       n/an/a     47.5   46.71    8.78      0.3  placed
+  T   101   strawberry    38.8      10.0     -28.8     10.0    0.00    0.00 160769.6  LOST
+  T   101   strawberry    38.8       n/an/a     39.3   65.86   40.69      0.2  placed
+  T   101   strawberry    38.8       n/an/a     45.0   48.52   48.06      0.0  placed
+  T   101   strawberry    38.8       n/an/a     42.3   73.33   39.10      1.8  placed
+  C   202   strawberry    40.4       n/an/a     43.7   47.64    5.07      0.8  placed
+  C   202   lychee        35.4       n/an/a     47.1   12.37    6.77      4.3  placed
+  C   202   strawberry    40.4       n/an/a     42.9   69.08    7.64      7.4  placed
+  T   202   strawberry    40.4       n/an/a     40.7   70.87   46.34      0.1  placed
+  T   202   strawberry    40.4       n/an/a     39.7   38.89   35.58      0.1  placed
+  T   202   lychee        32.9       n/an/a     40.8   51.72   43.62      0.1  placed
+
+## 4. The delivered pinch (held-leg force_min median; P41's law: pinch ~= cap)
+  C seed 77: 9.72 N
+  T seed 77: 56.31 N
+  C seed 101: 9.96 N
+  T seed 101: 53.41 N
+  C seed 202: 9.71 N
+  T seed 202: 52.08 N
+  C pooled median of cell medians: 9.72 N
+  T pooled median of cell medians: 53.41 N
+
+## 5. The counts, per cell - a REPORT, not a rate (PREREG §3)
+  arm seed  n   placed  left     right    cnp   never  ticks/att  arm mix L/R
+  C   77    15  11      3/6      8/9      2     2      1779       6/9
+  T   77    15  12      6/7      6/8      1     2      1770       7/8
+  C   101   15  7       4/10     3/5      4     4      1765       10/5
+  T   101   15  13      5/6      8/9      1     1      1776       6/9
+  C   202   15  14      4/5      10/10     1     0      1795       5/10
+  T   202   15  14      6/7      8/8      1     0      1753       7/8
+
+## 6. The pooled primary (PREREG §2.1) - left placed / cnp / never-held
+  left: C placed 11/21  cnp 7  never-held 3   |   T placed 17/20  cnp 3  never-held 0
+    Fisher (placed vs not): p = 0.04307; Fisher (cnp vs placed): p = 0.144
+  right: C placed 21/24  cnp 0  never-held 3   |   T placed 22/25  cnp 0  never-held 3
+    Fisher (placed vs not): p = 1; Fisher (cnp vs placed): p = 1
+
+  --- per seed, the left (the run level; N=3, so the minimum one-sided
+      sign-test p is 0.125 and that is stated, not hidden)
+    seed 77: left placed C 3/6 -> T 6/7 (delta +3); cnp C 2 -> T 1
+    seed 101: left placed C 4/10 -> T 5/6 (delta +1); cnp C 4 -> T 1
+    seed 202: left placed C 4/5 -> T 6/7 (delta +2); cnp C 1 -> T 1
+    run-level: T's left placed is higher in 3/3 seed pairs (one-sided sign p = 0.125)
+
+  --- class-standardised left placed rate (T re-weighted to C's species mix)
+    shared classes: apple, kiwi, orange, peach, pear (21 of C's 21 left attempts)
+    C 0.524 -> T 0.927 (class-standardised; raw pooled 0.524 -> 0.850)
+      apple        C 1/2   T 2/2  
+      kiwi         C 4/11  T 4/4  
+      lychee       C 0/0   T 1/1  
+      orange       C 2/2   T 1/1  
+      peach        C 1/2   T 4/5  
+      pear         C 3/4   T 5/7  
+
+  --- the pairing (seed, arm=left, species, dia to 0.1 cm), greedy 1:1
+    paired 11 of C's 21 left attempts; unpairable 10 (a fruit the other arm never drew)
+    both placed 5; C-only 0; T-only 6; neither 0; exact McNemar p = 0.03125
+    this pairing is CONDITIONED ON A POST-TREATMENT VARIABLE (the fruit
+    presented depends on earlier outcomes): it is a descriptor, not the
+    primary - the mechanism rows (§1/§2) and the run level are the claim.
+
+## 7. The guards (PREREG §2.3)
+
+  --- the class split per arm (the failure ledger's spine; arm x class)
+  C:
+    placed      left 11/21   right 21/24
+    cnp         left 7/21   right 0/24
+    never-held  left 3/21   right 3/24
+  T:
+    placed      left 17/20   right 22/25
+    cnp         left 3/20   right 0/25
+    never-held  left 0/20   right 3/25
+
+  --- the note strings on non-placed episodes (digits normalised out);
+      the `intercept trigger (...)` note is the trigger RECORD, not a reason
+  C:
+      9L   1R  (no reason note; the class is read from grasped/placed)
+      1L   2R  fruit fell off the line
+  T:
+      3L   1R  (no reason note; the class is read from grasped/placed)
+      0L   2R  fruit fell off the line
+
+  --- new failure reasons in T (not seen in C): none
+
+  --- the landing class (the notes that mean the payload went nowhere)
+  C: did not land 0, fell off the line 3, discharged 0
+  T: did not land 0, fell off the line 2, discharged 0
+
+  --- the arm mix per seed (arm = grade = lane: rl_env.py:2516)
+    seed 77: C 6/15  T 7/15
+    seed 101: C 10/15  T 6/15
+    seed 202: C 5/15  T 7/15
+
+  --- cycle ticks (median per cell; a cost read, not a rate)
+  C: 1779, 1765, 1795 (median of medians 1779)
+  T: 1770, 1776, 1753 (median of medians 1770)
+
+## 8. The registered decision rule (PREREG §3)
+  M1  T left escapes <= 1/3 C's: C 7 -> T 3  -> FAIL
+  M2  T left pried   <= 1/3 C's: C 4 -> T 1  -> PASS
+  M3  zero crush legs in T: 0 -> PASS
+  M4  C's left escape set non-empty: 7 -> PASS
+  N5  T left placed up (11 -> 17) and cnp down (7 -> 3) and run level not against (2/3): 3/3  -> PASS
+  N6  right placed within 1: C 21 -> T 22 and no new right reason (none)  -> PASS
+  N7  class-standardised left placed moves with the raw pooled rate: 0.524 -> 0.927 -> PASS
+
+  -> MECHANISM: DOES NOT CONVERT (M1-M4; the pry is the evaluable half)
+  -> COUNT:     CONVERTS (N5-N7)
+
+  M1 fails: the payload still leaves at 60 N on the left.
+
+## 9. The price of an adoption (PREREG §4, report only, no re-record)
+  P1 scripted accept @60N: 378 [fruit] lines (archive 346); md5 4d89c7430964e57580bedac17a6edf3d (archive d0079a237202e2f9b0e152655af32a77)
+     physics lines (prints dropped): 375 vs 345; identical at the same index: 57, first difference line 51
+       A[51]: [fruit] [motion] approach(cartesian): 5.6 cm, 88 samples: steps=88, |v|max=0.109 m/s, |a|max=2.061 m/s^2, |j|max=246.3 m/s^3, ends |v|=0.001/0.059 m/s
+       B[51]: [fruit] [motion] approach(cartesian): 5.6 cm, 88 samples: steps=88, |v|max=0.109 m/s, |a|max=2.060 m/s^2, |j|max=246.9 m/s^3, ends |v|=0.001/0.059 m/s
+     first differing OUTCOME row (attempt index 0):
+       A: [fruit] [run] attempt 0: grasped=True placed=True lift=+0.411 m force=60.05 N notes=[] sim=7.3-21.2s
+       B: [fruit] [run] attempt 0: grasped=True placed=False lift=+0.138 m force=9.98 N notes=[] sim=7.3-21.2s
+     fingerprint: fingerprint: DIFFERS from configs/motion_reference.json - this run landed in a different attractor, so do not compare its success count with the reference log's
+     summary: [run] summary: 6/10 successful
+  P2 two-line @60N: 444 [fruit] lines (reference eb697f23, NOT re-recorded)
+     summary: [run] summary: 8/10 successful
+     fingerprint: fingerprint: DIFFERS from configs/motion_reference_twoline.json - this run landed in a different attractor, so do not compare its success count with the reference log's
+     success: 8/10 = 80% (floor 60% - override)
+     gate: 190: two-line gate: reference=configs/motion_reference_twoline.json floor=0.60; 190: FAIL logs/p77/p2_twoline_mf60.log; 190: at least one log failed
+
+CHECK OK: every cell's declared cap is the cap the drive read back,
+  all 6 cells carry 15 episodes, and all 166 [carry] rows parsed.
