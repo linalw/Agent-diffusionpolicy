@@ -1,0 +1,515 @@
+==============================================================================
+0. PROVENANCE
+==============================================================================
+  PREREG.md md5 b57e979a50766e3f2f8c2155ec8840e4 (pinned before the runs)  now b57e979a50766e3f2f8c2155ec8840e4  UNCHANGED
+  # 20-attempt instrumentation: HEADLESS=1 ATTEMPTS=20 SEED=5 FRUIT_MOTION_REPORT=1 FRUIT_CYCLE_REPORT=1
+  # rails: shipped (FRUIT_OUTPUT_RAILS unset = none, P71); no supply/grade/knob env
+  tree now (a mismatch against header.txt means the tree moved):
+    e8dfa6d819bf41d800d90fff349aa951  src/fruit_sorting/tasks.py
+    980923a640d9a07be2d040a4f82e9c9f  src/fruit_sorting/bimanual.py
+    540406fac53992d32bee5f04a3a25785  src/fruit_sorting/assets.py
+    8952c320d798ef42e03ba815c9e96b23  configs/motion_reference.json
+    eb697f23adb5d6b9ef8656f3319d3ce8  configs/motion_reference_twoline.json
+
+==============================================================================
+1. THE ARMS AT A GLANCE (PREREG section 2's endpoints)
+==============================================================================
+  placement-window rate = 60 / pooled interval mean (186's identity, P3).
+  batch rate = placed / (t_last_end - t_first_start). Both printed; never mixed.
+  arm  what                               att placed  s/att     sim wall/pick w/sim wall/min | int mean     p90 win/min batch/min
+  S20  single, shipped                     19  12/19  15.10   345.7      25.2  1.38     1.51 |    26.72   36.90    2.25      2.08
+  T20  two-line                            20  16/20   9.70   193.4      24.9  2.57     1.93 |    10.77   18.00    5.57      4.96
+  U20  single + FRUIT_SPEED_ALL=1          20  10/20  13.40   329.5      22.1  1.34     1.35 |    28.04   50.30    2.14      1.82
+  V20  two-line + FRUIT_SPEED_ALL=1        20  13/20   8.70   174.2      21.9  2.52     1.78 |    11.19   17.40    5.36      4.48
+  S6   single, shipped (seed 6)            19  13/19  15.00   343.1      25.2  1.40     1.63 |    26.12   38.50    2.30      2.27
+  T6   two-line (seed 6)                   20  10/20   9.70   193.2      23.8  2.47     1.26 |    19.34   35.60    3.10      3.11
+  U6   single + speed union (seed 6)      MISSING
+  V6   two-line + speed union (seed 6)    MISSING
+  S10  the acceptance (10 attempts, gate arm)   9   6/9   14.80   160.0       n/a   n/a      n/a |    21.64   35.60    2.77      2.25
+  T10  two-line (10 attempts, gate arm)    10   7/10   9.20    92.5      24.2  2.62     1.74 |    10.12   17.80    5.93      4.54
+
+  per-arm split (the arm is set by the fruit's grade, so the pool is a supply draw):
+    S20  single 12/19, int 26.72s, idle 17%
+         by the summary's arm: left 1/7 (14.3%), right 11/12 (91.7%); standardised to S's mix (left 37%, right 63%) -> 63.2%
+         starved slots (no eligible fruit): 1
+    T20  left 9/10, int 19.64s, idle 18%; right 7/10, int 26.52s, idle 21%
+         by the summary's arm: left 9/10 (90.0%), right 7/10 (70.0%); standardised to S's mix (left 37%, right 63%) -> 77.4%
+         left lock-on 3.83s (p90 6.80, 19 retries), right lock-on 4.54s (p90 9.60, 19 retries)
+    U20  single 10/20, int 28.04s, idle 19%
+         by the summary's arm: left 2/12 (16.7%), right 8/8 (100.0%); standardised to S's mix (left 37%, right 63%) -> 69.3%
+    V20  left 6/10, int 25.88s, idle 18%; right 7/10, int 21.65s, idle 24%
+         by the summary's arm: left 6/10 (60.0%), right 7/10 (70.0%); standardised to S's mix (left 37%, right 63%) -> 66.3%
+         left lock-on 3.16s (p90 5.30, 7 retries), right lock-on 4.63s (p90 10.30, 7 retries)
+    S6   single 13/19, int 26.12s, idle 17%
+         by the summary's arm: left 2/6 (33.3%), right 11/13 (84.6%); standardised to S's mix (left 37%, right 63%) -> 65.7%
+         starved slots (no eligible fruit): 1
+    T6   left 6/10, int 31.76s, idle 19%; right 4/10, int 50.30s, idle 30%
+         by the summary's arm: left 6/10 (60.0%), right 4/10 (40.0%); standardised to S's mix (left 37%, right 63%) -> 47.4%
+         left lock-on 3.63s (p90 5.80, 10 retries), right lock-on 6.46s (p90 10.50, 17 retries)
+    S10  single 6/9, int 21.64s, idle 16%
+         by the summary's arm: left 1/4 (25.0%), right 5/5 (100.0%); standardised to S's mix (left 37%, right 63%) -> 72.4%
+         starved slots (no eligible fruit): 1
+    T10  left 4/5, int 18.73s, idle 15%; right 3/5, int 29.25s, idle 18%
+         by the summary's arm: left 4/5 (80.0%), right 3/5 (60.0%); standardised to S's mix (left 37%, right 63%) -> 67.4%
+         left lock-on 3.40s (p90 4.30, 5 retries), right lock-on 4.10s (p90 6.20, 4 retries)
+
+==============================================================================
+2. THE PER-LOG TABLES (scripts/186_w6_report.py - the W6/P33 definitions)
+==============================================================================
+
+== /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p80/S20.log
+   percentiles are nearest-order statistics (p90 = sorted[int(0.9*n)], not interpolated)
+   slot arm    fruit      grade lane      t0      t1   span grasp place  notes
+      0 single peach      A     0        7.3    21.2   13.9 True  False  -
+      1 single peach      A     0       24.4    40.7   16.3 True  False  -
+      2 single kiwi       A     0       43.9    59.1   15.2 True  True   -
+      3 single orange     A     0       62.4    76.9   14.5 True  False  -
+      4 single lychee     B     1       80.1    94.7   14.6 True  True   -
+      5 single strawberry B     1       97.9   112.2   14.3 True  True   -
+      6 single pear       B     1      115.5   129.8   14.3 True  True   -
+      7 -      no eligible fruit
+      8 single strawberry C     1      133.6   149.4   15.8 True  True   -
+      9 single apple      C     1      152.6   167.3   14.7 True  True   -
+     10 single lychee     A     0      170.6   187.0   16.4 True  False  -
+     11 single lychee     B     1      190.2   205.5   15.3 True  True   -
+     12 single apple      B     1      208.7   223.9   15.2 True  False  -
+     13 single orange     C     1      227.2   242.2   15.0 True  True   -
+     14 single apple      C     1      245.5   260.7   15.2 True  True   -
+     15 single kiwi       A     0      263.9   278.9   15.0 True  False  -
+     16 single pear       B     1      282.2   297.6   15.4 True  True   -
+     17 single strawberry B     1      300.9   316.2   15.3 True  True   -
+     18 single peach      A     0      319.4   334.2   14.8 True  False  -
+     19 single strawberry C     1      337.5   353.0   15.5 True  True   -
+   attempts=19 placements=12 failures=7 window=yes
+   inter-placement intervals (t1 of consecutive placements):
+     single: n=11 mean 26.72s p50 19.60s p90 36.90s min 17.50s max 38.20s
+     pooled : n=11 mean 26.72s p50 19.60s p90 36.90s min 17.50s max 38.20s (attributed to the later arm: single 11)
+   interval decomposition ([cycle] marks; mean s per matched attempt):
+     arm      n prepose   hover descent   close    grip    lift   place release  return     end   tail    span
+     single  19    0.88    0.77    2.92    1.19    1.60    1.82    3.19    2.11    0.63    0.00  -0.00   15.09
+     pooled  19    0.88    0.77    2.92    1.19    1.60    1.82    3.19    2.11    0.63    0.00  -0.00   15.09
+   placement-interval decomposition (interval = idle + attempts inside):
+     single: n=11 mean 26.7s = idle 4.8s (18%) + attempts 21.9s
+            per interval: prepose 1.3 hover 1.1 descent 4.2 close 1.7 grip 2.3 lift 2.7 place 4.6 release 3.1 return 0.9 end 0.0 tail -0.0 (attempts decomposed 16/16)
+   per-arm spans:
+     single: span 345.7s, idle 59.0s (17%), 12/19 placed, 2.08 placed/min arm
+   throughput (batch span 345.7s): 12/19 placed = 2.08 placed/min; placement window 293.9s -> 2.25 placed/min steady state
+
+== /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p80/T20.log
+   percentiles are nearest-order statistics (p90 = sorted[int(0.9*n)], not interpolated)
+   slot arm    fruit      grade lane      t0      t1   span grasp place  notes
+      0 right  peach      B     1       13.4    26.6   13.2 False False  fruit did not follow the gripper
+      1 left   kiwi       A     0       16.4    30.2   13.8 False False  fruit did not follow the gripper
+      2 right  pear       B     1       29.1    45.2   16.1 True  True   -
+      3 left   peach      A     0       33.9    49.7   15.8 True  True   -
+      4 right  peach      B     1       48.4    61.1   12.7 False False  fruit did not follow the gripper
+      5 left   kiwi       A     0       52.5    67.5   15.0 True  True   -
+      6 right  pear       B     1       65.6    81.5   15.9 True  True   -
+      7 left   peach      A     0       71.8    87.9   16.1 True  True   -
+      8 right  kiwi       B     1       87.7   103.7   16.0 True  True   -
+      9 left   lychee     A     0       90.7   105.9   15.2 True  True   -
+     10 right  strawberry B     1      106.4   121.7   15.3 True  True   -
+     11 left   peach      A     0      109.2   125.2   16.0 True  True   -
+     12 right  kiwi       B     1      126.0   139.7   13.7 False False  fruit did not follow the gripper
+     13 left   kiwi       A     0      128.0   143.4   15.4 True  True   -
+     14 right  pear       B     1      144.8   161.4   16.6 True  True   -
+     15 left   tomato     A     0      147.1   163.3   16.2 True  True   -
+     16 right  pear       B     1      164.2   178.5   14.3 True  True   -
+     17 left   kiwi       A     0      170.1   186.4   16.3 True  True   -
+     18 right  strawberry B     1      188.1   204.3   16.2 True  True   -
+     19 left   peach      A     0      190.7   206.8   16.1 True  True   -
+   attempts=20 placements=16 failures=4 window=yes
+   inter-placement intervals (t1 of consecutive placements):
+     left  : n=8 mean 19.64s p50 19.60s p90 23.10s min 17.80s max 23.10s
+     right : n=6 mean 26.52s p50 24.00s p90 39.70s min 17.10s max 39.70s
+     pooled : n=15 mean 10.77s p50 14.00s p90 18.00s min 1.90s max 18.20s (attributed to the later arm: left 9, right 6)
+   lock-on latency (previous attempt end -> this attempt's station acquired):
+     left  : n=9 mean 3.83s p50 3.70s p90 6.80s min 2.80s max 6.80s (retries per interval: [2, 0, 3, 0, 1, 0, 2, 8, 3])
+     right : n=9 mean 4.54s p50 4.30s p90 9.60s min 2.50s max 9.60s (retries per interval: [0, 1, 0, 3, 0, 3, 5, 0, 7])
+     left  : pre-first-attempt acquisition 3.0s after the batch's first attempt started, 6 starved slot(s) before it (batch-start priming)
+     right : pre-first-attempt acquisition 0.0s after the batch's first attempt started, 0 starved slot(s) before it (batch-start priming)
+   interval decomposition ([cycle] marks; mean s per matched attempt):
+     arm      n prepose   hover descent   close    grip    lift   place release  return     end   tail    span
+     left    10    0.71    0.75    3.04    1.35    1.98    1.77    3.29    2.09    0.59    0.02   0.01   15.59
+     right   10    0.71    0.77    3.75    1.40    2.91    1.52    1.81    1.66    0.47    0.02  -0.01   15.00
+     pooled  20    0.71    0.76    3.39    1.37    2.45    1.65    2.55    1.88    0.53    0.02   0.00   15.30
+   placement-interval decomposition (interval = idle + attempts inside):
+     left  : n=8 mean 19.6s = idle 3.8s (20%) + attempts 15.8s
+            per interval: prepose 0.7 hover 0.8 descent 3.0 close 1.2 grip 1.8 lift 1.8 place 3.7 release 2.3 return 0.6 end 0.0 tail 0.0 (attempts decomposed 8/8)
+     right : n=6 mean 26.5s = idle 6.4s (24%) + attempts 20.1s
+            per interval: prepose 0.9 hover 1.0 descent 5.0 close 1.9 grip 3.6 lift 2.1 place 2.5 release 2.4 return 0.7 end 0.0 tail -0.0 (attempts decomposed 8/8)
+   per-arm spans:
+     left  : span 190.4s, idle 34.5s (18%), 9/10 placed, 2.84 placed/min arm
+     right : span 190.9s, idle 40.9s (21%), 7/10 placed, 2.20 placed/min arm
+   throughput (batch span 193.4s): 16/20 placed = 4.96 placed/min; placement window 161.6s -> 5.57 placed/min steady state
+   run summary line: 16/20 placed, 193.3s span, 9.7s/attempt, 4.97 placed/min; per arm left=9/10 right=7/10
+   starved slots: left 25, right 19 (attributed to a lock-on interval or the batch-start prime: left 25, right 19; trailing before the batch end: left 0, right 0)
+
+== /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p80/U20.log
+   percentiles are nearest-order statistics (p90 = sorted[int(0.9*n)], not interpolated)
+   slot arm    fruit      grade lane      t0      t1   span grasp place  notes
+      0 single peach      A     0        7.3    19.5   12.2 True  False  -
+      1 single apple      C     1       22.8    36.4   13.6 True  True   -
+      2 single lychee     A     0       39.8    52.4   12.6 False False  fruit did not follow the gripper
+      3 single tomato     A     0       55.4    67.9   12.5 True  False  -
+      4 single tomato     A     0       71.2    85.6   14.4 True  True   -
+      5 single pear       B     1       88.9   102.4   13.5 True  True   -
+      6 single strawberry C     1      105.7   119.4   13.7 True  True   -
+      7 single kiwi       A     0      122.7   136.7   14.0 True  False  -
+      8 single orange     A     0      140.0   154.3   14.3 True  False  -
+      9 single pear       B     1      157.5   169.7   12.2 True  True   -
+     10 single apple      B     1      172.9   187.3   14.4 True  True   -
+     11 single orange     C     1      190.5   204.7   14.2 True  True   -
+     12 single apple      C     1      207.9   221.2   13.3 True  True   -
+     13 single lychee     A     0      224.4   238.6   14.2 True  True   -
+     14 single tomato     A     0      241.9   255.1   13.2 True  False  -
+     15 single tomato     A     0      258.4   272.8   14.4 True  False  -
+     16 single apple      B     1      276.0   288.8   12.8 True  True   -
+     17 single peach      A     0      292.1   304.4   12.3 True  False  -
+     18 single peach      A     0      307.7   321.1   13.4 True  False  -
+     19 single kiwi       A     0      324.4   336.8   12.4 True  False  -
+   attempts=20 placements=10 failures=10 window=yes
+   inter-placement intervals (t1 of consecutive placements):
+     single: n=9 mean 28.04s p50 17.40s p90 50.30s min 16.50s max 50.30s
+     pooled : n=9 mean 28.04s p50 17.40s p90 50.30s min 16.50s max 50.30s (attributed to the later arm: single 9)
+   interval decomposition ([cycle] marks; mean s per matched attempt):
+     arm      n prepose   hover descent   close    grip    lift   place release  return     end   tail    span
+     single  20    0.88    0.78    2.87    1.19    1.72    1.58    2.44    1.27    0.64    0.02   0.00   13.38
+     pooled  20    0.88    0.78    2.87    1.19    1.72    1.58    2.44    1.27    0.64    0.02   0.00   13.38
+   placement-interval decomposition (interval = idle + attempts inside):
+     single: n=9 mean 28.0s = idle 5.4s (19%) + attempts 22.6s
+            per interval: prepose 1.5 hover 1.3 descent 5.1 close 2.0 grip 2.9 lift 2.6 place 4.0 release 2.1 return 1.0 end 0.0 tail 0.0 (attempts decomposed 15/15)
+   per-arm spans:
+     single: span 329.5s, idle 61.9s (19%), 10/20 placed, 1.82 placed/min arm
+   throughput (batch span 329.5s): 10/20 placed = 1.82 placed/min; placement window 252.4s -> 2.14 placed/min steady state
+
+== /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p80/V20.log
+   percentiles are nearest-order statistics (p90 = sorted[int(0.9*n)], not interpolated)
+   slot arm    fruit      grade lane      t0      t1   span grasp place  notes
+      0 right  peach      B     1       13.4    26.3   12.9 False False  fruit did not follow the gripper
+      1 left   kiwi       A     0       16.4    30.0   13.6 False False  fruit did not follow the gripper
+      2 right  pear       B     1       28.9    43.0   14.1 True  True   -
+      3 left   peach      A     0       33.7    47.9   14.2 True  True   -
+      4 right  peach      B     1       47.8    62.4   14.6 True  True   -
+      5 left   kiwi       A     0       50.6    64.8   14.2 True  True   -
+      6 right  pear       B     1       65.1    82.2   17.1 True  True   -
+      7 left   tomato     A     0       67.6    80.5   12.9 True  False  -
+      8 left   peach      A     0       83.3    91.2    7.9 True  False  -
+      9 right  peach      B     1       85.0    99.6   14.6 True  True   -
+     10 left   lychee     A     0       93.9   107.5   13.6 True  True   -
+     11 right  strawberry B     1      109.9   120.2   10.3 False False  fruit did not follow the gripper
+     12 left   peach      A     0      112.8   127.2   14.4 True  True   -
+     13 right  peach      B     1      126.5   138.9   12.4 True  True   -
+     14 left   kiwi       A     0      129.9   143.5   13.6 False False  fruit did not follow the gripper
+     15 right  pear       B     1      141.7   154.8   13.1 True  True   -
+     16 left   peach      A     0      146.4   161.1   14.7 True  True   -
+     17 right  peach      B     1      160.4   172.9   12.5 True  True   -
+     18 left   kiwi       A     0      163.9   177.3   13.4 True  True   -
+     19 right  pear       B     1      176.7   187.6   10.9 False False  fruit did not follow the gripper
+   attempts=20 placements=13 failures=7 window=yes
+   inter-placement intervals (t1 of consecutive placements):
+     left  : n=5 mean 25.88s p50 19.70s p90 42.70s min 16.20s max 42.70s
+     right : n=6 mean 21.65s p50 18.75s p90 39.30s min 15.90s max 39.30s
+     pooled : n=12 mean 11.19s p50 11.75s p90 17.40s min 2.40s max 19.70s (attributed to the later arm: left 6, right 6)
+   lock-on latency (previous attempt end -> this attempt's station acquired):
+     left  : n=9 mean 3.16s p50 2.80s p90 5.30s min 2.70s max 5.30s (retries per interval: [2, 0, 0, 0, 0, 5, 0, 0, 0])
+     right : n=9 mean 4.63s p50 3.80s p90 10.30s min 2.60s max 10.30s (retries per interval: [0, 1, 0, 0, 6, 0, 0, 0, 0])
+     left  : pre-first-attempt acquisition 3.0s after the batch's first attempt started, 6 starved slot(s) before it (batch-start priming)
+     right : pre-first-attempt acquisition 0.0s after the batch's first attempt started, 0 starved slot(s) before it (batch-start priming)
+   interval decomposition ([cycle] marks; mean s per matched attempt):
+     arm      n prepose   hover descent   close    grip    lift   place release  return     end   tail    span
+     left    10    0.71    0.65    3.19    1.50    2.34    1.57    1.86    0.98    0.40    0.03   0.02   13.25
+     right   10    0.71    0.77    3.44    1.23    2.62    1.47    1.43    1.14    0.45    0.00  -0.01   13.25
+     pooled  20    0.71    0.71    3.32    1.37    2.48    1.52    1.64    1.06    0.43    0.02   0.01   13.25
+   placement-interval decomposition (interval = idle + attempts inside):
+     left  : n=5 mean 25.9s = idle 4.9s (19%) + attempts 20.9s
+            per interval: prepose 1.1 hover 1.1 descent 5.1 close 2.5 grip 4.0 lift 2.5 place 2.7 release 1.3 return 0.5 end 0.1 tail 0.0 (attempts decomposed 8/8)
+     right : n=6 mean 21.7s = idle 5.9s (27%) + attempts 15.8s
+            per interval: prepose 0.8 hover 0.9 descent 4.0 close 1.4 grip 2.5 lift 1.8 place 2.0 release 1.6 return 0.7 end 0.0 tail -0.0 (attempts decomposed 7/7)
+   per-arm spans:
+     left  : span 160.9s, idle 28.4s (18%), 6/10 placed, 2.24 placed/min arm
+     right : span 174.2s, idle 41.7s (24%), 7/10 placed, 2.41 placed/min arm
+   throughput (batch span 174.2s): 13/20 placed = 4.48 placed/min; placement window 134.3s -> 5.36 placed/min steady state
+   run summary line: 13/20 placed, 174.2s span, 8.7s/attempt, 4.48 placed/min; per arm left=6/10 right=7/10
+   starved slots: left 13, right 7 (attributed to a lock-on interval or the batch-start prime: left 13, right 7; trailing before the batch end: left 0, right 0)
+
+== /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p80/S6.log
+   percentiles are nearest-order statistics (p90 = sorted[int(0.9*n)], not interpolated)
+   slot arm    fruit      grade lane      t0      t1   span grasp place  notes
+      0 single strawberry B     1        7.3    18.4   11.1 False False  fruit did not follow the gripper
+      1 single tomato     C     1       21.4    37.0   15.6 True  True   -
+      2 single apple      B     1       40.2    55.8   15.6 True  True   -
+      3 single peach      B     1       59.0    72.4   13.4 True  True   -
+      4 single lychee     C     1       75.7    90.8   15.1 True  True   -
+      5 single strawberry B     1       94.1   107.8   13.7 True  True   -
+      6 single tomato     A     0      111.0   126.2   15.2 True  False  -
+      7 single kiwi       B     1      129.4   143.1   13.7 True  True   -
+      8 -      no eligible fruit
+      9 single peach      B     1      146.9   162.4   15.5 True  True   -
+     10 single strawberry B     1      165.7   181.7   16.0 True  True   -
+     11 single kiwi       A     0      184.9   200.9   16.0 True  False  -
+     12 single kiwi       B     1      204.1   219.4   15.3 True  False  -
+     13 single orange     A     0      222.7   237.3   14.6 True  False  -
+     14 single lychee     A     0      240.5   256.5   16.0 True  True   -
+     15 single strawberry B     1      259.8   275.4   15.6 True  True   -
+     16 single pear       C     1      278.6   293.2   14.6 True  True   -
+     17 single kiwi       B     1      296.5   311.9   15.4 True  True   -
+     18 single orange     A     0      315.2   330.4   15.2 True  False  -
+     19 single peach      A     0      333.7   350.4   16.7 True  True   -
+   attempts=19 placements=13 failures=6 window=yes
+   inter-placement intervals (t1 of consecutive placements):
+     single: n=12 mean 26.12s p50 18.85s p90 38.50s min 16.60s max 74.80s
+     pooled : n=12 mean 26.12s p50 18.85s p90 38.50s min 16.60s max 74.80s (attributed to the later arm: single 12)
+   interval decomposition ([cycle] marks; mean s per matched attempt):
+     arm      n prepose   hover descent   close    grip    lift   place release  return     end   tail    span
+     single  19    0.88    0.74    2.95    1.19    1.72    1.74    3.04    2.07    0.61    0.02   0.00   14.96
+     pooled  19    0.88    0.74    2.95    1.19    1.72    1.74    3.04    2.07    0.61    0.02   0.00   14.96
+   placement-interval decomposition (interval = idle + attempts inside):
+     single: n=12 mean 26.1s = idle 4.7s (18%) + attempts 21.5s
+            per interval: prepose 1.2 hover 1.1 descent 4.2 close 1.7 grip 2.2 lift 2.5 place 4.6 release 3.1 return 0.9 end 0.0 tail 0.0 (attempts decomposed 17/17)
+   per-arm spans:
+     single: span 343.1s, idle 58.8s (17%), 13/19 placed, 2.27 placed/min arm
+   throughput (batch span 343.1s): 13/19 placed = 2.27 placed/min; placement window 313.4s -> 2.30 placed/min steady state
+
+== /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p80/T6.log
+   percentiles are nearest-order statistics (p90 = sorted[int(0.9*n)], not interpolated)
+   slot arm    fruit      grade lane      t0      t1   span grasp place  notes
+      0 right  kiwi       B     1       13.4    29.6   16.2 False False  fruit did not follow the gripper
+      1 left   pear       A     0       16.4    32.5   16.1 True  True   -
+      2 left   peach      A     0       35.2    44.3    9.1 True  False  -
+      3 right  strawberry B     1       39.1    55.7   16.6 True  True   -
+      4 left   pear       A     0       50.1    65.5   15.4 True  False  -
+      5 right  peach      B     1       58.5    72.8   14.3 True  True   -
+      6 left   orange     A     0       71.3    81.8   10.5 False False  fruit did not follow the gripper
+      7 right  kiwi       B     1       75.5    89.0   13.5 False False  fruit did not follow the gripper
+      8 left   orange     A     0       84.3    98.8   14.5 True  True   -
+      9 right  peach      B     1       96.9   110.3   13.4 True  True   -
+     10 left   orange     A     0      102.6   119.3   16.7 True  True   -
+     11 right  tomato     B     1      117.4   127.4   10.0 True  False  -
+     12 left   pear       A     0      122.0   136.8   14.8 True  True   -
+     13 right  strawberry B     1      137.9   152.0   14.1 False False  fruit did not follow the gripper
+     14 left   orange     A     0      139.6   155.7   16.1 True  True   -
+     15 right  tomato     B     1      156.6   166.8   10.2 True  False  -
+     16 left   pear       A     0      159.5   172.5   13.0 True  False  -
+     17 right  peach      B     1      175.2   185.4   10.2 False False  fruit did not follow the gripper
+     18 left   peach      A     0      175.3   191.3   16.0 True  True   -
+     19 right  strawberry B     1      190.0   206.6   16.6 True  True   -
+   attempts=20 placements=10 failures=10 window=yes
+   inter-placement intervals (t1 of consecutive placements):
+     left  : n=5 mean 31.76s p50 20.50s p90 66.30s min 17.50s max 66.30s
+     right : n=3 mean 50.30s p50 37.50s p90 96.30s min 17.10s max 96.30s
+     pooled : n=9 mean 19.34s p50 17.50s p90 35.60s min 9.00s max 35.60s (attributed to the later arm: left 5, right 4)
+   lock-on latency (previous attempt end -> this attempt's station acquired):
+     left  : n=9 mean 3.63s p50 2.80s p90 5.80s min 2.50s max 5.80s (retries per interval: [0, 6, 0, 0, 2, 0, 0, 2, 0])
+     right : n=9 mean 6.46s p50 7.10s p90 10.50s min 2.70s max 10.50s (retries per interval: [6, 0, 0, 0, 0, 6, 4, 0, 1])
+     left  : pre-first-attempt acquisition 3.0s after the batch's first attempt started, 6 starved slot(s) before it (batch-start priming)
+     right : pre-first-attempt acquisition 0.0s after the batch's first attempt started, 0 starved slot(s) before it (batch-start priming)
+   interval decomposition ([cycle] marks; mean s per matched attempt):
+     arm      n prepose   hover descent   close    grip    lift   place release  return     end   tail    span
+     left    10    0.71    0.76    3.05    1.18    1.88    1.74    2.90    1.55    0.44    0.02   0.00   14.22
+     right   10    0.71    0.74    3.29    1.82    2.78    1.76    1.13    0.97    0.27    0.07  -0.00   13.51
+     pooled  20    0.71    0.75    3.17    1.50    2.33    1.75    2.01    1.26    0.35    0.04  -0.00   13.87
+   placement-interval decomposition (interval = idle + attempts inside):
+     left  : n=5 mean 31.8s = idle 6.5s (21%) + attempts 25.2s
+            per interval: prepose 1.3 hover 1.4 descent 5.4 close 2.1 grip 3.4 lift 3.1 place 5.0 release 2.6 return 0.8 end 0.0 tail -0.0 (attempts decomposed 9/9)
+     right : n=3 mean 50.3s = idle 16.2s (32%) + attempts 34.1s
+            per interval: prepose 1.9 hover 2.0 descent 8.5 close 4.3 grip 7.3 lift 4.2 place 2.7 release 2.4 return 0.7 end 0.2 tail -0.0 (attempts decomposed 8/8)
+   per-arm spans:
+     left  : span 174.9s, idle 32.7s (19%), 6/10 placed, 2.06 placed/min arm
+     right : span 193.2s, idle 58.1s (30%), 4/10 placed, 1.24 placed/min arm
+   throughput (batch span 193.2s): 10/20 placed = 3.11 placed/min; placement window 174.1s -> 3.10 placed/min steady state
+   run summary line: 10/20 placed, 193.2s span, 9.7s/attempt, 3.11 placed/min; per arm left=6/10 right=4/10
+   starved slots: left 16, right 17 (attributed to a lock-on interval or the batch-start prime: left 16, right 17; trailing before the batch end: left 0, right 0)
+
+== /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p80/S10.log
+   percentiles are nearest-order statistics (p90 = sorted[int(0.9*n)], not interpolated)
+   slot arm    fruit      grade lane      t0      t1   span grasp place  notes
+      0 single peach      A     0        7.3    21.2   13.9 True  False  -
+      1 single peach      A     0       24.4    40.7   16.3 True  False  -
+      2 single kiwi       A     0       43.9    59.1   15.2 True  True   -
+      3 single orange     A     0       62.4    76.9   14.5 True  False  -
+      4 single lychee     B     1       80.1    94.7   14.6 True  True   -
+      5 single strawberry B     1       97.9   112.2   14.3 True  True   -
+      6 single pear       B     1      115.5   129.8   14.3 True  True   -
+      7 -      no eligible fruit
+      8 single strawberry C     1      133.6   149.4   15.8 True  True   -
+      9 single apple      C     1      152.6   167.3   14.7 True  True   -
+   attempts=9 placements=6 failures=3 window=yes
+   inter-placement intervals (t1 of consecutive placements):
+     single: n=5 mean 21.64s p50 17.90s p90 35.60s min 17.50s max 35.60s
+     pooled : n=5 mean 21.64s p50 17.90s p90 35.60s min 17.50s max 35.60s (attributed to the later arm: single 5)
+   per-arm spans:
+     single: span 160.0s, idle 26.4s (16%), 6/9 placed, 2.25 placed/min arm
+   throughput (batch span 160.0s): 6/9 placed = 2.25 placed/min; placement window 108.2s -> 2.77 placed/min steady state
+
+== /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p80/T10.log
+   percentiles are nearest-order statistics (p90 = sorted[int(0.9*n)], not interpolated)
+   slot arm    fruit      grade lane      t0      t1   span grasp place  notes
+      0 right  peach      B     1       13.4    26.6   13.2 False False  fruit did not follow the gripper
+      1 left   kiwi       A     0       16.4    30.2   13.8 False False  fruit did not follow the gripper
+      2 right  pear       B     1       29.1    45.2   16.1 True  True   -
+      3 left   peach      A     0       33.9    49.7   15.8 True  True   -
+      4 right  peach      B     1       48.4    61.1   12.7 False False  fruit did not follow the gripper
+      5 left   kiwi       A     0       52.5    67.5   15.0 True  True   -
+      6 right  pear       B     1       65.6    81.5   15.9 True  True   -
+      7 left   peach      A     0       71.8    87.9   16.1 True  True   -
+      8 right  kiwi       B     1       87.7   103.7   16.0 True  True   -
+      9 left   lychee     A     0       90.7   105.9   15.2 True  True   -
+   attempts=10 placements=7 failures=3 window=yes
+   inter-placement intervals (t1 of consecutive placements):
+     left  : n=3 mean 18.73s p50 18.00s p90 20.40s min 17.80s max 20.40s
+     right : n=2 mean 29.25s p50 29.25s p90 36.30s min 22.20s max 36.30s
+     pooled : n=6 mean 10.12s p50 10.20s p90 17.80s min 2.20s max 17.80s (attributed to the later arm: left 4, right 2)
+   lock-on latency (previous attempt end -> this attempt's station acquired):
+     left  : n=4 mean 3.40s p50 3.25s p90 4.30s min 2.80s max 4.30s (retries per interval: [2, 0, 3, 0])
+     right : n=4 mean 4.10s p50 3.85s p90 6.20s min 2.50s max 6.20s (retries per interval: [0, 1, 0, 3])
+     left  : pre-first-attempt acquisition 3.0s after the batch's first attempt started, 6 starved slot(s) before it (batch-start priming)
+     right : pre-first-attempt acquisition 0.0s after the batch's first attempt started, 0 starved slot(s) before it (batch-start priming)
+   per-arm spans:
+     left  : span 89.5s, idle 13.6s (15%), 4/5 placed, 2.68 placed/min arm
+     right : span 90.3s, idle 16.4s (18%), 3/5 placed, 1.99 placed/min arm
+   throughput (batch span 92.5s): 7/10 placed = 4.54 placed/min; placement window 60.7s -> 5.93 placed/min steady state
+   run summary line: 7/10 placed, 92.4s span, 9.2s/attempt, 4.54 placed/min; per arm left=4/5 right=3/5
+   starved slots: left 11, right 4 (attributed to a lock-on interval or the batch-start prime: left 11, right 4; trailing before the batch end: left 0, right 0)
+
+==============================================================================
+3. THE TWO-LINE QUESTION (PREREG 4b - the standing 1.25x bar)
+==============================================================================
+  placement window: S 2.25 vs T 5.57 placed/min -> 2.48x   (bar 1.25x)
+  batch span      : S 2.08 vs T 4.96 placed/min -> 2.38x   (cross-branch reference only)
+  pooled interval : S 26.72 vs T 10.77s mean -> 2.48x shorter; p90 36.90 vs 18.00s
+  per attempt     : S 15.10 vs T 9.70s
+  placed          : S 12/19 vs T 16/20  (counts are attractor reads, PREREG R0)
+  arm-standardised: S 63.2% vs T 77.4% at S's mix (left 37%, right 63%); per-arm S left 1/7, right 11/12 / T left 9/10, right 7/10
+  non-inferiority : T.placed >= S.placed - 1 -> PASS (16 vs 12)
+  seed 6          : S 2.30 vs T 3.10 placed/min -> 1.35x; interval 26.12 vs 19.34s; placed 13/19 vs 10/20 (seed-6 non-inferiority: FAIL - the count advantage does not replicate)
+
+  -> the two-line MEETS the registered default rule (bar + non-inferior + seed 6).
+
+==============================================================================
+4. THE UNION QUESTION (PREREG 4c - the interval/time claim, never the count)
+==============================================================================
+  s/attempt       : S 15.10 -> U 13.40  (delta 1.70s; bar >= 1.0 s)
+  pooled interval : S 26.72 -> U 28.04s (5.0%; bar <= -10 %)
+  p90 interval    : S 36.90 -> U 50.30s
+  placement window: S 2.25 -> U 2.14 placed/min
+  placed (reported only, PREREG R1): S 12/19 -> U 10/20
+  arm-standardised: S 63.2% -> U 69.3% at S's mix; per-arm S left 1/7, right 11/12 / U left 2/12, right 8/8
+  (the pooled count moves with the grade draw: A -> the left arm, and the left is the closed cnp class - P43/P59/P60)
+  class split     : S {'carried-not-placed': 7, 'placed': 12} -> U {'carried-not-placed': 9, 'placed': 10, 'never-grasped': 1}
+  licence (R2)    : PASS -> V is spent
+  licence.py said:
+    P80 R2 licence - does the speed union pay? (PREREG section 3 R2, 4c)
+      S20: s/attempt 15.10  pooled interval mean 26.72s  placed 12/19
+      U20: s/attempt 13.40  pooled interval mean 28.04s  placed 10/20
+      d_s/attempt = 1.70s   (bar: >= 1.0 s)  -> PASS
+      d_interval = -1.33s = -5.0% (bar: >= 10 %)  -> fail
+      V is LICENSED - run the two-line arm on the union
+
+  V (two-line + union): s/attempt 8.70, interval 11.19s, window 5.36 placed/min, placed 13/20
+    vs T20: s/attempt 9.70 -> 8.70 (1.00s), interval 10.77 -> 11.19s, window rate -3.7%
+
+  the mover read (PREREG R3):
+    P80 R3 mover - pooled inter-placement interval vs S20 (26.72s mean)
+      T20: 10.77s mean (-59.7%), p90 18.00s, placed 16/20, s/attempt 9.70
+      V20: 11.19s mean (-58.1%), p90 17.40s, placed 13/20, s/attempt 8.70
+      U20: 28.04s mean (+5.0%), p90 50.30s, placed 10/20, s/attempt 13.40
+      -> seed-6 pair: S6 + T6
+
+  seed 6, T6 vs S6: s/attempt 15.00 -> 9.70 (delta 5.30s); interval 26.12 -> 19.34s (-25.9%); placed 13/19 -> 10/20 (reported, R0)
+
+==============================================================================
+5. WALL vs SIM (PREREG 4d - a harness fact, reported, never gated)
+==============================================================================
+  wall = `[run] attempt 0` -> `[fruit] DONE` on the stamp stream; sim = the batch
+  span over the same interval. `app clock` is the whole process (Isaac boot in).
+  `wall/min` = 60 * placed / wall: the operator's placements per wall minute.
+  arm  attempts    wall wall/pick sim/pick  w/sim wall/min app clock
+  S20        19   478.0      25.2     18.2   1.38     1.51     502.5
+  T20        20   497.2      24.9      9.7   2.57     1.93     527.0
+  U20        20   442.9      22.1     16.5   1.34     1.35     466.9
+  V20        20   438.4      21.9      8.7   2.52     1.78     468.3
+  S6         19   478.8      25.2     18.1   1.40     1.63     503.0
+  T6         20   476.8      23.8      9.7   2.47     1.26     506.8
+  S10         9     n/a       n/a     17.8    n/a      n/a     248.2
+  T10        10   242.0      24.2      9.2   2.62     1.74     272.1
+
+==============================================================================
+6. CLASS SPLIT PER ARM (counts - reported, never gated; PREREG R0)
+==============================================================================
+  S20  {'carried-not-placed': 7, 'placed': 12}
+        7x grasped, not placed (no note)
+  T20  {'never-grasped': 4, 'placed': 16}
+        4x fruit did not follow the gripper
+  U20  {'carried-not-placed': 9, 'placed': 10, 'never-grasped': 1}
+        9x grasped, not placed (no note)
+        1x fruit did not follow the gripper
+  V20  {'never-grasped': 5, 'placed': 13, 'carried-not-placed': 2}
+        5x fruit did not follow the gripper
+        2x grasped, not placed (no note)
+  S6   {'never-grasped': 1, 'placed': 13, 'carried-not-placed': 5}
+        5x grasped, not placed (no note)
+        1x fruit did not follow the gripper
+  T6   {'never-grasped': 5, 'placed': 10, 'carried-not-placed': 5}
+        5x fruit did not follow the gripper
+        5x grasped, not placed (no note)
+  S10  {'carried-not-placed': 3, 'placed': 6}
+        3x grasped, not placed (no note)
+  T10  {'never-grasped': 3, 'placed': 7}
+        3x fruit did not follow the gripper
+
+==============================================================================
+7. THE MOTION GATES AS RECORDED (PREREG section 1 / E9)
+==============================================================================
+  G-S10 (S10.gate):
+       #   dist samples  |v|max  budget   |a|max   |dv|  a_med  peak@  a_win5  verdict
+      worst: |v|max=0.1100 m/s (budget 0.160-0.161), lurch=0.017 m/s/tick (budget 0.291477), a_win5=0.750 m/s^2 (carrying budget 2, warning)
+      worst held-grip cone: 1.53x budget (budget 1x)
+      success: 6/9 = 67% (floor 75% - dynamic line, measured baseline 9/10)
+      fingerprint: matches configs/motion_reference.json
+    FAIL: 1 problem(s)
+      - success 6/9 below 75%
+  G-T10 (T10.gate):
+       #   dist samples  |v|max  budget   |a|max   |dv|  a_med  peak@  a_win5  verdict
+      worst: |v|max=0.1120 m/s (budget 0.160-0.161), lurch=0.019 m/s/tick (budget 0.291096), a_win5=0.890 m/s^2 (carrying budget 2, warning)
+      worst held-grip cone: 1.62x budget (budget 1x)
+      success: 7/10 = 70% (floor 60% - override)
+      fingerprint: matches configs/motion_reference_twoline.json
+    PASS: every descent is inside its profile's speed and lurch bound, the carry cone/slip is reported, and the success rate is at or above the dynamic line's floor
+      - carry grasp_lift: cone=1.17x over the 1x budget with slip=112673.2mm - reported on the dynamic line, not gated
+      - carry grasp_lift: cone=1.50x over the 1x budget with slip=40.7mm - reported on the dynamic line, not gated
+      - carry place1: cone=1.23x over the 1x budget with slip=91.5mm - reported on the dynamic line, not gated
+      - carry grasp_lift: cone=1.62x over the 1x budget with slip=28.9mm - reported on the dynamic line, not gated
+      - carry place1: cone=1.15x over the 1x budget with slip=73.7mm - reported on the dynamic line, not gated
+    190: PASS logs/p80/T10.log
+  T20's own 20-attempt reference (logs/p80/, the shipped configs/ file untouched):
+      success: 16/20 = 80% (floor 50% - override)
+      wrote fingerprint -> logs/p80/motion_reference_twoline_p80_20.json
+    PASS: every descent is inside its profile's speed and lurch bound, the carry cone/slip is reported, and the success rate is at or above the dynamic line's floor
+  V20.gate:
+      fingerprint: DIFFERS from logs/p80/motion_reference_twoline_p80_20.json - this run landed in a different attractor, so do not compare its success count with the reference log's
+    FAIL: 1 problem(s)
+      - fingerprint differs from the reference (different attractor)
+    190: FAIL logs/p80/V20.log
+
+==============================================================================
+8. VERDICTS (the rules of PREREG section 4, applied verbatim)
+==============================================================================
+  (a) today: the shipped single arm places 12/19 = 2.25 placed/min (window) / 2.08 (batch), inter-placement interval 26.72s mean / 36.90s p90, 15.10s/attempt.
+      the two-line (opt-in) places 16/20 = 5.57 (window) / 4.96 (batch), interval 10.77s / 18.00s p90, 9.70s/attempt.
+
+  (b) two-line default: MEETS the registered rule - placement-window ratio 2.48x (bar 1.25x), seed-6 ratio 1.35x. Read it with the wall lines below and RESULTS.md 7b: the registered letter passes, the count advantage does not replicate.
+      on the wall: placed/min 1.51 -> 1.93
+                   seed 6 1.63 -> 1.26; pooled 1.57 -> 1.60
+      pooled over both seeds: sim placed/min 2.18 -> 4.04 (1.85x), count 25/38 -> 26/40
+
+  (c) the speed union: clock PASS (s/attempt delta 1.70s, bar 1.0; pooled interval 5.0%, bar -10%)
+      throughput: window 2.25 -> 2.14 placed/min (-4.7%), batch 2.08 -> 1.82 (-12.6%) - the placed count 12/19 -> 10/20 is the closed class + the grade draw, so the union is a cycle-time lever, not a throughput lever at this seed.
+
+  (d) wall/sim: S20 1.38x, T20 2.57x, U20 1.34x, V20 2.52x - the harness share of the wall is outside every sim-time lever in this phase.
+      the two-line's wall per simulated second is 1.86x the single arm's, so a sim-time ratio r becomes a wall ratio r / 1.86: sim/pick 1.88x -> wall/pick 1.01x.
+      per placement the wall ratio is 1.28x (39.8 vs 31.1 s/placement) - and that is the count difference, not the clock.
+
+  note: arms not run: U6, V6 (V is conditional on R2; the seed-6 arm on R3)
+
+  report done
