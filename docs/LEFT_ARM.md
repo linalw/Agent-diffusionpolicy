@@ -1,8 +1,15 @@
 # The left arm's deficit: the mechanism, the eliminations, and what is left
 
-One page. It condenses P60-P68 (`logs/p6*/`, AGENTS §2's paragraphs) into the
-chain, the closed classes, and the two registered paths. Every number traces to a
-log in `logs/`.
+One page. It condenses P60-P71 (`logs/p6*/`, `logs/p7*/`, AGENTS §2's paragraphs)
+into the chain, the closed classes, the shipped package, and what is left. Every
+number traces to a log in `logs/`.
+
+**Status (P71, 2026-10-31): the fix ships.** The direct presentation's lift is
+`belt_top + 0.20` by default and the output belts carry no side rails, so the
+left's carry rotation is 0.7 deg and its placed count reads **10/17** (N = 3,
+`logs/p71/RESULTS.md` §3) against **4/20** for the pre-P71 package measured in the
+same batch. The sections below are the chain that got there; §"The cost" says how
+the rail gate was resolved.
 
 ## The question
 
@@ -39,12 +46,26 @@ binding term by then (0/42 starved rounds, `window >= 1` 45/45). What is the lef
    (N=5, interleaved, **5/5 runs**; Fisher ~2e-4), with a flat cycle (sim 15.0 ->
    14.7 s/pick).
 
-## The cost: the two closed classes meet
+## The cost: the two closed classes meet - and how P71 resolved it
 
-The low lift **spends the rail margin**: the place transit then crosses the output
-rail at **+5 mm** against the project's **+33 mm** floor (shipped +30/+29; no
-contact, 0/16 legs negative). And the crossing is **1:1 with the transfer height**
-but only **0.175:1** with the lift, so the rung ladder cannot buy it back.
+The low lift **spends the rail margin**: the place transit crosses the output rail
+at **+5 mm** against the project's **+33 mm** floor (shipped +30/+29; no contact,
+0/16 legs negative). And the crossing is **1:1 with the transfer height** but only
+**0.175:1** with the lift, so the rung ladder cannot buy it back.
+
+**P71 shipped the lever that does: the rail is gone** (`FRUIT_OUTPUT_RAILS` now
+defaults to `none`), so the surface the payload crosses is the slab's inboard top
+edge instead of a 35 mm fence. Measured on the direct line with both flips in
+effect (N = 3 x 15, `logs/p71/RESULTS.md`): the left's held place legs pass
+**+14..+50 mm above the belt top** (median +35, 8/10 at or above the +33
+convention, `clr_win` +10..+45) with **no contact signature** (`|a|max`
+0.31-8.69 m/s² against G0's 14.9-32.7 contact population) and the payload is
+35 mm **below** where the rail top used to be - which is why P66's
+`+33 at the rail` gate read `+5` and would read `+5` for ever: a lower lift
+cannot raise a payload over a fence, it can only be given a crossing that is not
+fenced. `docs`-level consequence: the low lift is now the **direct
+presentation's default** (`belt_top + 0.20`), and the crossing is a *margin*
+report rather than a rail gate.
 
 The re-shape (a vertical climb of 0.18 m at the place leg's start) **clears the
 crossing** (+33..+54, 6/9 held legs >= floor) **but the hand cannot carry it**:
@@ -52,14 +73,15 @@ crossing** (+33..+54, 6/9 held legs >= floor) **but the hand cannot carry it**:
 exit) - `logs/p42/SIM_LIMIT.md`'s loaded slide - and the record's wrist hold makes it
 **worse** (**16/16**, because the hold is a full 6-DoF pin that spends the per-tick
 step budget the position command needs; the right achieves it to 0.8 deg, the left
-cannot).
+cannot). That is why the climb is not the shipping path.
 
 | form | carry class | rail crossing | left placed |
 |---|---|---|---|
-| shipped 0.36 | 25 deg | +30/+29 | **0/25** |
-| low lift 0.20 | **0.7 deg** | **+5** (floor +33) | **14/25** |
+| shipped 0.36 + rails | 25 deg | +30/+29 | **0/25** |
+| low lift 0.20 + rails | **0.7 deg** | **+5** (floor +33) | **14/25** |
 | low lift + climb | 1.1 deg | **+33..+54** | **8/16 held** |
 | + the wrist hold | 1.1 deg | - | **0/16** |
+| **P71 shipped: low lift 0.20, no rails** | **0.7 deg** | **+14..+50 vs the belt top** (0/10 vs the rail top, which no longer exists) | **10/17** (N = 3, `logs/p71`) |
 
 ## What is NOT the answer
 
@@ -96,8 +118,13 @@ cannot).
    walk), or a genuinely new pad design.
 2. **A workstation/transfer change** (`logs/p69/B_PREREG.md`): the rail-crossing
    options ranked by gain per cost (a lower outer rail, a shorter transit, a raised
-   transfer), each with its reference/acceptance/store consequences.
+   transfer), each with its reference/acceptance/store consequences. **P71 shipped
+   the rail removal** (the strongest of this family at 1:1) and re-recorded both
+   motion references.
 
-**Nothing is adopted.** The shipped defaults are unchanged: the lift at
-`belt_top + 0.36`, no climb, no wrist hold, `configs/*` untouched, both motion
-references as recorded. The levers above are **opt-in and default off**.
+**What is shipped today (P71).** The lift is `belt_top + 0.20` for the **direct**
+presentation (`FRUIT_LIFT_DZ=+0.08` restores 0.36), the output belts carry **no
+side rails** (`FRUIT_OUTPUT_RAILS=both` restores), no climb, no wrist hold, and
+both motion references are the P71 re-records (`8952c320` / `eb697f23`,
+`logs/p71/RESULTS.md` §5). The climb, the wrist hold, the pre-compensation, the
+seat and the pad families remain **opt-in and default off** (measured negative).

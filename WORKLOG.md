@@ -20132,3 +20132,206 @@ vs a contact-free crossing at **~+11 mm** of dose (`FRUIT_OUTPUT_RAIL_HEIGHT 0.0
 0.039`, 24 of 35 mm of lip kept) whose blast radius is **binary** (the scene branch,
 both references, every store). The 34 mm flush is over-dosed and its flush shelf is
 the ledge class's worst case. Nothing adopted.
+
+### P70: the rails are the lever (1:1, inert here) and the belt height is not (0.175:1, it costs placements)
+
+The owner's directive: remove the output belts' side rails (the "ledges") and lower the
+output belt's height as appropriate. Nothing adopted at P70 - the deliverable is the
+measurement and the knob; **P71 ships the rail half**.
+
+**The knob and the instrument.** `FRUIT_OUTPUT_BELT_TOP_Z` (default **1.35**, an env-read
+`field(default_factory=...)`, so the shipped scene is built by the same float) lowers the
+whole output station; the **eleven** read sites are pinned by an AST census in
+`scripts/238_p70_belt_top_selftest.py` (`output_place_z`, `on_output_belt`,
+`output_chute_top/bottom`, `on_output_discharge`, `conveyor` slab/build,
+`tasks._place_low`/`_place_trace_report`/`_grasp_carry_place_impl`/`_payload_clearance`),
+and `rl_env.py`/`fruits.py` reach it only through a property. **The instrument defect
+that made the cell unreadable is fixed**: `tasks._payload_clearance` hard-coded
+`belt_top + 0.035`, so it was blind to `FRUIT_OUTPUT_RAIL_HEIGHT` *and* to a removed
+rail; it now reads `output_rail_keep[0]` and `SceneConfig.output_rail_proud =
+output_rail_height - OUTPUT_RAIL_INSET` (one constant, two readers: the builder and the
+report), and at the shipped geometry the reported surface is unchanged to 1e-12 m.
+
+**The cells** (scripted, 10 attempts, one claim each, `FRUIT_MOTION_REPORT=1
+FRUIT_CARRY_DIAG=1`): C (shipped `both`, 1.35) **6/10**, `clr` +30..+120 @rail,
+`clr_win` +29..+96, 4/10 loaded slides; A (`RAILS=none`, 1.35) **6/9** (one slot
+starved), +65..+156 @obelt / +64..+113, 3/9; B (`RAILS=none`, **1.31**) **4/10**,
++126..+167 / +91..+108, 6/10. **The 1:1 proof is one leg at one tick**: the same 5.6 cm
+kiwi on the same left arm crosses at `+30 @rail / t275` in C and `+65 @obelt / t275` in
+A - **+35.0 mm**, exactly the rail box's `0.05 - 0.015` proud height. Only ep2 has both
+a matching tick and the same fruit; the rest are branch-shifted inside the leg.
+
+**The arithmetic** (derived): the place leg is a straight line and the crossing sits at
+`f = 0.4125 / 0.50 = 0.825` of the `|y|` span, so `z_crossing = f * transfer + (1-f) *
+lift_end` and **`d clr / d(belt top) = f - 1 = -0.175`** - 40 mm of lowering buys
+**+7.0 mm** while spending **1:1** of the 40 mm under-slab audit (at 1.31 the build's
+print reads 0.006 m nominal / **0.000 m** at the tallest instance). Removing the rail
+buys **35 mm** in one step, 5x the biggest admissible height dose. Cell B is also the
+only arm whose count falls (4/10) and its place legs are 6.8 % longer.
+
+**The ledge census** (the reason P30-A's register had the rails in): of 16 in-hand
+releases across the three arms, **16/16 sit 116-122 mm outboard** of the slab's inner
+edge, **0** in the rail's top-face band (0.400-0.425) and 0 inboard of 0.400 - the
+2.3 %-of-10 195 class is a property of the *pooled* population, not this scenario's.
+With the rail gone that band has **no surface under it** (the slab starts at 0.425, the
+main belt is 180 mm below), so a release landing there falls instead of parking; the G2
+fixture for it is registered and **not run**.
+
+**The direct pair, the low lift with and without the rails** (`logs/p70/run_direct.sh`;
+all-A supply so every attempt is a left place leg, `FRUIT_LIFT_DZ=-0.08` explicit in
+both, `FRUIT_MOTION_REPORT=1` on both for the contact channel, seed 77, 15 picks):
+**D0 (rails both) 6/15 placed, 6 loaded slides, 3 held legs, crossing `clr` +7/+16/+17
+@rail**; **D1 (rails none) 10/15, 3 loaded slides, 10 held legs, `clr` -1..+54 @obelt**
+(`clr_win` -6..+50). That is the rails isolated at the low lift: **+4 placements and
+half the loaded slides**, and it is the pair that made P71's rail flip safe.
+
+**Verdict**: the rails are the lever and the height is not; the recommendation on the
+height is **0 mm** (1.33 / 1.31 are the conservative / endpoint picks if it is ever
+wanted for another reason). P70 itself adopted nothing: the knobs defaulted to the
+shipped geometry, no reference was re-recorded, no commit.
+
+Pins: `tasks.py` **`7c00e5`**, `assets.py` `9e9804`, `conveyor.py` `fb2c58`,
+`rl_env.py` `588669` (the `TASKS_MD5` metadata-only follow), `fruits.py` `c7461d41`,
+`scene.py` `27e3d64a`; `scripts/238_p70_belt_top_selftest.py` `42f8a5`,
+`scripts/selfcheck.sh` `5a31a0`; `logs/p70/{C,A,B}.log` `de8c73`/`62e280`/`9f3391`,
+`direct/D0.log` `9455bd`, `direct/D1.log` `fabe21`; `configs/motion_reference.json`
+`8a399626`, `..._twoline.json` `2246f83c`, ckpt `moe_v13s` `61da390a` (the reference
+and `assets.py` pins moved at P71). Evidence `logs/p70/RESULTS.md`,
+`{run_cells.sh,run_direct.sh,p70_report.py,p70_report.txt,p70_direct_report.py}`.
+
+### P71: the adoption package ships - the side rails removed and the low direct lift as the default; the left's carry class converts, the crossing is measured against the surface that remains
+
+The owner authorized 方案 b from P70: **remove the output belts' side rails**, keep the
+belt height at the shipped **1.35**. Two defaults flip, both to values already measured:
+
+| knob | before | after | restore |
+|---|---|---|---|
+| `FRUIT_OUTPUT_RAILS` (`assets.SceneConfig`) | `both` | **`none`** | `FRUIT_OUTPUT_RAILS=both` |
+| `FRUIT_LIFT_DZ` (`rl_env.LIFT_DZ_DIRECT_DEFAULT`) | `+0.08` (0.36 m) | **`-0.08`** (0.20 m) | `FRUIT_LIFT_DZ=+0.08` |
+
+The low lift is the only measured fix for the left's 25 deg carry rotation (P66 phase 3:
+left 0/25 -> 14/25 at N = 5, `drift_end` 25.1 -> 0.7 deg) and P66 P4 had reverted the
+default because the rung crosses the output rail at `+5 mm` against the +33 floor. P67
+and P68 closed the re-shape lane (the climb clears the crossing and drops 8/16
+payloads; the wrist hold makes it worse), so P70's rail removal is the way the gate is
+*satisfied* rather than paid for: the rail is **1:1** with the crossing, the lift height
+only **0.175:1** and it costs placements.
+
+**The scripted pair is same-batch, same-tree, and the control restores the old
+geometry** - which is what makes the move attributable. `scripts/accept.sh`, one claim
+per arm: **control (`RAILS=both`) 6/10, 377 `[fruit]` lines, `fingerprint: matches`, and
+377/377 byte-identical to the pre-P71 archive `logs/p66/p2/accept_noharm.log`**;
+**treatment (the shipped default) 6/9 = 67 %** (one slot starved), **346 `[fruit]`
+lines** (344 physics + the two new `output belt rails ... authors 0/2` build prints,
+one per belt) and the fingerprint **moved**. The move is small and its cause is named:
+after dropping the build prints and the report-only clearance rows, the first
+difference is a **release `y` 0.595 -> 0.603 m (8 mm)** at stripped line 121 with
+171/326 lines identical at the same index - the scene's collider set moving the solver
+ordering, P30-A's precedent; and **every clearance row shifts by exactly the rail's
+35 mm** (`-219 mm to the output rail` -> `-184 mm to the output belt`). Motion is
+identical in both arms (worst `|v|max` 0.1100 against a 0.160-0.161 budget, lurch 0.017
+against 0.291); the FAIL on both logs is the standing rate floor (6/10 < 75 %, the
+tree's branch since P32). **The two-line** (`FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=1`,
+10 attempts): control **8/10 (left 4/5, right 4/5, 9.8 s/attempt, `diverted=0`) with
+`scripts/190_twoline_gate.sh` PASS + `matches`**, treatment **7/10 (4/5, 3/5,
+9.2 s/attempt, `diverted=1`) with `190` PASS after its re-record** - the reference moved
+on legs **3/4/5/7/8/10** by 1-3 ticks and 0.002-0.004 m/s, i.e. the same branch effect;
+the two are different attractors, so 8 vs 7 is not a rate. The two-line's own clearance
+report shows the geometry directly: the control's tightest place leg reads
+**`+32 mm output rail`** (just under the +33 convention) against the treatment's
+**`+63..+101 mm output belt`**.
+
+**The direct line, both flips in effect** (the P66 phase-3 cell verbatim - its own
+sentence is the registered one for this lever - seeds 77/101/202 x 15 picks,
+interleaved ctrl -> treat, `moe_v13s` `61da390a` on both, policy seed 11,
+`FRUIT_CARRY_DIAG`/`FRUIT_CARRY_ATTITUDE` plus `FRUIT_MOTION_REPORT=1` on **both** arms
+so the G0 contact channel exists; `|a|max` is a reporting read and identical in both
+arms). The flip is proven in-log by the `[grasp] lift_dz:` row:
+**`dz=-0.0800(default) -> 1.3700 m`** vs the control's `dz=+0.0800(explicit) ->
+1.5300 m`; both print `park=back(default)` (P43).
+
+* **The carry class converts**: left placed **4/20 = 20 % -> 10/17 = 59 %**
+  (one-sided Fisher **p = 0.018**), left loaded-slide legs **15 -> 7** (**p = 0.039**),
+  overall **26/45 -> 32/45** (p = 0.135). Per seed: 77 **2/8 -> 4/5**, 101
+  **2/6 -> 2/6**, 202 **0/6 -> 4/6** (2 of 3 improved, 1 tie - run-level sign p = 0.25).
+  The read is **weaker than P66's N = 5** (0/25 -> 14/25) and one seed is a tie: this is
+  a population contrast inside one batch, not a rate.
+* **The right is unchanged in count**: **22 placed in both arms** (22/25 vs 22/28). Its
+  3 extra attempts in the treatment arm are all **`fruit fell off the line`** - two
+  6.3 cm kiwis and a 4.0 cm strawberry that were **never grasped** and rode to the main
+  belt's end (`grasped=False`, `decision = ticks`) - the recorded supply tail (already in
+  `logs/p66/p3/C20_77.log`), i.e. the left's faster cadence re-timing the shared feeder,
+  not a new class and not the lift (which is left-only by construction:
+  `lift_dz_for` returns `None` for the right).
+* **The surviving losses moved later in the leg**: the treatment's 6 loaded slides all
+  sit at `loss_row` **103-150** (held through the transit, lost in the place leg) while
+  most of the control's 16 sit at `loss_row` **1-4** (never seated) - the package
+  deletes the early-seat variant and leaves the closed `logs/p42/SIM_LIMIT.md` place
+  phase.
+* **The P70 D0/D1 pair isolates the rail at the low lift**: 6/15 -> 10/15 placed and
+  6 -> 3 loaded slides with nothing else changed (all-A, seed 77, one run each).
+
+**The crossing, and what the +33 clause now means.** The clause was written against the
+**rail top** (`belt_top + 0.035`). Removing the rail does **not** raise the payload - it
+drops the reported surface by 35 mm, so the *same* trajectory reads 35 mm **higher**,
+and the low lift reads **-21..+15 mm at the rail top**, which is exactly P66 P4's
+`+5 / +0` and P70 D0's `+7..+17`. **The clause at the rail top is therefore failed by
+the low lift on 0/10 held left legs and can never be met by a lower lift; only the
+obstacle's removal makes the crossing physically safe**, and it is: measured against
+the surface that remains (the slab's inboard top edge = the belt-top plane), the
+package's held **left `clr` is +14..+50 mm (median +35, 8/10 at or above +33,
+`clr_win` +10..+45 at 4/10)** against the control's **+24..+45 (median +31, 2/4)** at
+*its* rail top; the **right is 22/22 in both** (+69..+138 vs +36..+58). The two
+configurations sit at the same margin to their own obstacle - the package has 2.5x more
+held left legs to show it on (10 vs 4) and a lower minimum (+14 vs +24) because its
+population is bigger. **No contact signature in either arm**: held-leg `|a|max`
+**0.31-8.69** (treat) / **1.36-6.21** (ctrl) against G0's measured contact population
+**14.9-32.7 m/s2** (27-76 mm of displacement), and the largest held-leg `clean_slip` is
+**20.3 mm** (treat seed 77 ep13) / 15.9 mm (ctrl). In the package's frame G0's contact
+boundary (`clr <= +7 mm` at the rail top) sits at **-28 mm**, so the worst held leg is
+42 mm above it. One `clr_win` reads -6 on a leg that **placed** (0.4 mm slip,
+0.98 m/s2): at that tick the payload's centre is 12.5-25 mm inboard of the slab's edge
+(a void) and the instrument conservatively charges the plane anyway.
+
+**Re-records (both, from this batch's shipped-scenario runs; the controls' matches
+prove the move is the flip's)**: `configs/motion_reference.json` `8a399626` ->
+**`8952c320`** (from `logs/p71/accept_rails_none.log`; it now carries **9** legs, so a
+pre-P71 10-attempt log must be gated against
+`logs/p71/motion_reference_single_pre_p71.json`) and
+`configs/motion_reference_twoline.json` `2246f83c` -> **`eb697f23`** (from
+`logs/p71/twoline/none.log`; archive
+`logs/p71/motion_reference_twoline_pre_p71.json`). `scripts/189_w7a_chain.sh` was not
+run.
+
+**Re-baseline: every pre-P71 number is a `both`-rails + 0.36 m-lift number.** Restore
+with **`FRUIT_OUTPUT_RAILS=both`** (scene, every path) **and
+`FRUIT_LIFT_DZ=+0.08`** (direct only), composed with the earlier restores
+(`FRUIT_ARM_PARK=ready` pre-P43, `FRUIT_POLICY_TRIGGER_ACQ=0` pre-P54,
+`FRUIT_FEED_CADENCE=0 FRUIT_SUPPLY_BAND_INTERLOCK=0 FRUIT_DIRECT_FEED=0` for the
+pre-P58 burst supply). The **hybrid canary inherits the rail flip** (it builds its own
+`SceneConfig`) and **not** the lift flip (it never constructs `SortingRLEnv`): it was
+**not re-run**, so that is a smoke owed, not a measurement made. The scene's collider
+set has **no manifest field** (the direct lift does, `lift_dz`/`defaulted`), so stores
+must not be mixed across P71 - the named gap.
+
+**No-harm / gates**: `scripts/selfcheck.sh` **PASS, 0 failures** (the `236` leg now
+asserts `LIFT_DZ_DIRECT_DEFAULT == -0.08` and the default resolution; the `238` leg
+asserts the rails' env-read `default_factory` reads `none`, `=both` restores, and an
+unset config reads exactly like an explicit `none`); `scripts/211_bed_audit.py` PASS;
+`106`/`107` re-run for the doc/index edits. Residuals: the +33 clause has **no measured
+contact boundary in the new frame** (the named instrument is a `clr_edge` sample at
+`|y| = 0.425`); the ledge class is **untested, not zero** (the G2 fixture was again not
+run); the belt height stays 1.35 by P70; the direct batch's **wall is up**
+(503.9-518.6 s -> 530.4-548.2 s per 15 picks) at a **lower** sim span (15.08 -> 14.78
+s/episode) - a harness cost, reported not gated.
+
+Pins: `assets.py` **`e9fd74`**, `rl_env.py` **`cb686f5`**, `tasks.py` `7c00e5`,
+`conveyor.py` `fb2c58`, `fruits.py` `c7461d41`, `scene.py` `27e3d64a`;
+`scripts/236_p66_lift_selftest.py` `e6547e`, `scripts/238_p70_belt_top_selftest.py`
+`2ccceb`; `configs/motion_reference.json` **`8952c320`**,
+`..._twoline.json` **`eb697f23`**; ckpt `moe_v13s` `61da390a`; the batch's logs
+`logs/p71/{accept_rails_both,accept_rails_none}.log` `5bbda1`/`0352e0`,
+`twoline/{both,none}.log` `da011f`/`127241`, `direct/{ctrl,treat}_{77,101,202}.log`
+`d9c807`/`a101e3`/`7cbfc0` and `fe18b6`/`18ec13`/`024c98`. Evidence
+`logs/p71/RESULTS.md`, `{run_p71.sh,p71_report.py,p71_report.txt,accept_diff.py,
+header.txt}`.

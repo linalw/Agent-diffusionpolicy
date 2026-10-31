@@ -30,25 +30,26 @@ prompted by `logs/p69/A_PREREG.md` §0's last row. Scripted runs only: no `src/`
    overlap** (5.71 vs 14.85 m/s^2 = a 2.6x gap).
 3. **So the low lift's own population is *not* inside the safe region — it straddles
    the boundary.** P67's in-place population reads `clr` +3..+17 / `clr_win` -1..+13:
-   three of its five legs are at or below the contact band (`+3`, `+7`, `+8` crossing;
-   `-1` window) and two are clear (`+16`, `+17`). Its own rows corroborate it —
+   three of its five legs sit in the contact band or the unmeasured gap between the two
+   instruments (`clr` **+3 / +7 / +8**, `clr_win` **-1 / +4 / -21**) and two are clear
+   (`clr` **+16 / +17**, `clr_win` **+12 / +13**). Its own rows corroborate it —
    the `clr_win <= 0` legs carry 15.9 and 94.3 mm of `clean_slip` with `loss_row` set
    on the same tick as the window minimum, while the `+12/+13` legs read 0.1/0.0 with
    no loss. **P66 §5's "measured, non-contacting geometric graze" is falsified as a
    *non-contacting* claim**; it is a measured contact on the population's tail.
-4. **But the 7 h is answering the wrong question, and its dose is ~2.6x the measured
-   one.** Contact-freedom for the low lift's worst valid leg needs **~+13 mm** of
+4. **But the 7 h is answering the wrong question, and its dose is ~2.6-3x the measured
+   one.** Contact-freedom for the low lift's worst valid leg needs **~+11-13 mm** of
    crossing clearance (from `clr` +3 / `clr_win` -1 to the lowest measured clean +14 /
-   +12), not the registered 34-35 mm: `FRUIT_OUTPUT_RAIL_HEIGHT` **0.05 -> 0.037** keeps
-   22 of the 35 mm of lip and still leaves F1's ledge class a 22 mm face instead of a
-   flush shelf. What the 7 h actually prices is the **blast radius, which is binary**: any
-   rail value moves the scene branch, both motion references and every store
-   (`B_PREREG.md` §6.2/§6.5). Shrinking 34 -> 13 mm does not shrink it.
+   +12), not the registered 34-35 mm: `FRUIT_OUTPUT_RAIL_HEIGHT` **0.05 -> 0.037-0.039**
+   keeps 22-24 of the 35 mm of lip and still leaves F1's ledge class a 22 mm face
+   instead of a flush shelf. What the 7 h actually prices is the **blast radius, which is
+   binary**: any rail value moves the scene branch, both motion references and every
+   store (`B_PREREG.md` §6.2/§6.5). Shrinking 34 -> 13 mm does not shrink it.
 5. **The honest package is therefore the low lift + a signed floor at the measured
    boundary — 0 h, 0 references, 0 stores — but it must be signed as an accepted
    *contact* on ~40 % of the low lift's crossing legs, not as a "graze".** What that
    contact costs, measured: the grip (27-76 mm of payload displacement, pads at the
-   98 mm stop, up to 86 N tactile) and 15-33 m/s^2 of hand reaction; what it does
+   98 mm stop, up to 109.9 N tactile) and 15-33 m/s^2 of hand reaction; what it does
    **not** cost, measured: the placement — **5/5 of the contacting legs placed**, and
    `logs/p30a`'s A4 read 6/9 with three contacts against 6/9 with none. The reason is
    geometric: the collision happens at the output belt's inner fence, so a payload
@@ -92,9 +93,9 @@ limit how far the ladder reaches, both measured here:
   across the five runs (the closed `cnp` class of `logs/p42/SIM_LIMIT.md`); its other
   28 legs read `clr` -215..-220 mm (the escaped-payload class — a fruit on the *main*
   belt, `logs/p30a/RESULTS.md` §5) or never latch a rail reading at all. The one held
-  left leg (control, kiwi) reads **`clr` +30 / `clr_win` +29**, i.e. the record's own
-  +33 floor to the millimetre. **The calibration curve is measured on lane 1 (the
-  right arm's `place1`).**
+  left leg (control, kiwi) reads **`clr` +30 / `clr_win` +29** — within 3 mm of the
+  record's +33 floor. **The calibration curve is measured on lane 1 (the right arm's
+  `place1`).**
 * **At 0.025 a second obstacle appears.** One right leg is blocked before the rail
   (`clr_min` +144 mm *to the main belt*, i.e. it never reached `|y| >= 0.40`),
   `res_end` 180.3 mm, `force@onset` 80.15 N: the payload is 36 mm below the output
@@ -107,13 +108,13 @@ limit how far the ladder reaches, both measured here:
 `res_end` is the leg's achieved-vs-target TCP residual; `sep_end` the jaw separation at
 the release (`98 mm` = the pads' mechanical open stop).
 
-| run | `clr` | `clr_win` | fruit | lane | `|a|max` | slip | res_end | sep_end | placed |
+| run | `clr` | `clr_win` | fruit | lane | `a_max` | slip | res_end | sep_end | placed |
 |---|---|---|---|---|---|---|---|---|---|
 | t035 | **-2** | -30 | apple | 1 | **26.93** | 76.3 | 117.6 | 98.3 | True |
 | t035 | **-1** | -31 | pear | 1 | **26.37** | 52.1 | 136.0 | 98.0 | True |
 | t025 | **-1** | -38 | lychee | 1 | **29.82** | 62.1 | 121.9 | 97.5 | True |
 | t025 | **+0** | -39 | strawberry | 1 | **14.85** | 63.6 | 127.9 | 97.8 | True |
-| t025 | **+7** | **-0** | strawberry | 1 | **32.71** | 27.4 | 37.0 | 70.8 | True |
+| t025 | **+7** | **-0** | strawberry | 1 | **32.71** | 27.4 | 37.0 | 40.5 | True |
 | t035 | +14 | **+12** | lychee | 1 | 4.21 | 0.0 | 34.6 | 44.3 | True |
 | t035 | +21 | +18 | strawberry | 1 | 4.10 | 0.0 | 35.2 | 40.7 | True |
 | t045 | +22 | +17 | pear | 1 | 3.95 | 0.0 | 36.2 | 74.5 | True |
@@ -130,7 +131,7 @@ the release (`98 mm` = the pads' mechanical open stop).
 | t080 | +112 | +95 | strawberry | 1 | 4.43 | 0.0 | 31.0 | 48.3 | True |
 | t080 | +120 | +96 | pear | 1 | 4.62 | 0.0 | 36.3 | 74.5 | True |
 
-| class | n | `clr` | `clr_win` | `|a|max` | slip | res_end | sep_end |
+| class | n | `clr` | `clr_win` | `a_max` | slip | res_end | sep_end |
 |---|---|---|---|---|---|---|---|
 | **clean** | 15 | +14 .. +120 | +12 .. +96 | **2.63-5.71** (med 4.53) | 0.0-0.1 | 23-44 (med 36) | 41-78 |
 | **jolt** | 5 | **-2 .. +7** | **-39 .. -0** | **14.85-32.71** (med 26.93) | **27.4-76.3** | 37 / 118-136 | 40.5 / 97.5-98.3 (4) |
@@ -214,14 +215,16 @@ is a payload that had already slid 94 mm and no rail height fixes it):
 
 | target | required gain (from the low lift's worst valid leg, `clr` +3 / `clr_win` -1) | rail dose (1:1) | what it keeps |
 |---|---|---|---|
-| the lowest measured **contact-free** reading (`clr` +14 / `clr_win` +12) | **+13 mm** | `FRUIT_OUTPUT_RAIL_HEIGHT` 0.05 -> **0.037** | 22 of the 35 mm of lip |
-| the record's **+33** convention | **+34 mm** | 0.05 -> **0.016** | 1 mm of lip |
+| the lowest measured **contact-free** reading on the **crossing sample** (`clr` +14) | **+11 mm** | `FRUIT_OUTPUT_RAIL_HEIGHT` 0.05 -> **0.039** | 24 of the 35 mm of lip |
+| the same on the **footprint window** (`clr_win` +12) — the binding one, since `clr_win <= clr` always | **+13 mm** | 0.05 -> **0.037** | 22 of the 35 mm of lip |
+| the record's **+33** convention (window: -1 -> +33) | **+34 mm** | 0.05 -> **0.016** | 1 mm of lip |
 | the registered `B_PREREG.md` setting (flush) | +35 mm | 0.05 -> **0.015** | 0 (a flush shelf) |
 
 The transfer lever is the alternative at 0.825:1 (**+16 mm**, 1.530 -> 1.546) and the
 lift-end lever at 0.175:1 (**+74 mm**, i.e. 0.274 — just under the 0.28 rung whose
 `drift_end` is 3.4 deg). **The registered 34-35 mm is the +33-convention dose, not the
-contact-freedom dose**: contact-freedom is ~13 mm, **2.6x smaller**.
+contact-freedom dose**: contact-freedom is **~+11-13 mm** (the two instruments' ends),
+i.e. **2.6-3.1x smaller**.
 
 **Shrinking the dose does not shrink the bill.** Every option above is a *rail value*,
 and a rail value is binary in blast radius: one scene branch, `configs/motion_reference.json`
@@ -239,24 +242,25 @@ wrong.** What the measurement supports, stated plainly:
    five legs in this batch demonstrably collide at.
 2. **A floor signed at the measured boundary is available** — `clr` `>= +14` /
    `clr_win >= +12` contact-free, `+7..+14` the unmeasured band, `<= +7` in contact —
-   and the low lift's population straddles it (3 of 5 legs in the band or below).
+   and the low lift's population straddles it (3 of 5 legs in the contact band or the
+   unmeasured gap, 2 clear).
    Signing it means **accepting a contact on ~40-60 % of the low lift's crossing legs**,
    with the measured cost in §3 (grip displacement, 98 mm pads, 15-33 m/s^2) and the
    measured non-cost (**5/5 placed here, 6/9 = 6/9 in A4**).
 3. **The 7 h rail change is not justified by the placements and its registered dose is
-   ~3x the measured one.** If the owner wants a contact-free low lift, the dose is
-   **~11 mm**, not 34-35; if the owner wants the +33 convention back, only then is the
-   registered flush (or its 30 mm equivalent) the right dose — and it is a *convention*
+   ~2.6-3x the measured one.** If the owner wants a contact-free low lift, the dose is
+   **~11-13 mm**, not 34-35; if the owner wants the +33 convention back, only then is the
+   registered flush (or its 34 mm equivalent) the right dose — and it is a *convention*
    purchase, exactly as `B_PREREG.md` §10 says, now with the number behind it.
 4. **The recommendation, in one line**: ship the low lift with a floor at the *measured*
    boundary and the contact documented as a contact (0 h, 0 references, 0 stores), and
-   treat the rail change as a **convention** purchase that is available at 11 mm if the
-   +33 floor is to be honoured — not as a repair.
+   treat the rail change as a **convention** purchase that is available at 11-13 mm if
+   the +33 floor is to be honoured — not as a repair.
 
 **What would change this verdict**: a corpus in which a `clr` <= +7 leg places without
 `|a|max` above 10 (the class gap is 2.6x, so one leg would not overturn it — five
 would), or an owner rule that a crossing contact is unacceptable regardless of the
-placement outcome, which makes the +33 convention binding and the 11 mm dose the
+placement outcome, which makes the +33 convention binding and the 11-13 mm dose the
 cheapest route to it.
 
 ## 7. Scope and what this does not measure
