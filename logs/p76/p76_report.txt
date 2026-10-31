@@ -1,0 +1,217 @@
+(no cell: F45_101.log)
+(no cell: F60_101.log)
+============================================================================================================
+P76 - the clamp-force ladder on the direct line (PREREG 0397a929 (A1))
+============================================================================================================
+
+## 0. The manipulation check (PREREG 1): does the cap reach the drive?
+  arm  seed  stage print  env derev  live readback L/R   evaluable
+  F10  77    10.0         (unset)    (shipped, unset)    yes
+  F15  77    15.0         15.0       15.0/15.0           yes
+  F20  77    20.0         20.0       20.0/20.0           yes
+  F30  77    30.0         30.0       30.0/30.0           yes
+  F45  77    45.0         45.0       45.0/45.0           yes
+  F60  77    60.0         60.0       60.0/60.0           yes
+  F10  101   10.0         (unset)    (shipped, unset)    yes
+  F15  101   15.0         15.0       15.0/15.0           yes
+  F20  101   20.0         20.0       20.0/20.0           yes
+  F30  101   30.0         30.0       30.0/30.0           yes
+  (an unset arm is the asset's own 10 N: the build print is the shipped string, the live read-back still reads 10.00)
+
+## 1. The pry, per escape leg (clean_slip_max > 100 mm)
+   open stop 98.1 mm; 'STOP' = sep_max >= 95.0 mm; 'band' = sep_max in [40, 70] mm (still gripping)
+
+  --- F10 (cap 10 N) seed 77: 28 carry legs, 2 escape legs (1 > 800 mm)
+    pear          6.8cm left place0     slip=  791.0 sep_max=  98.1@t169  gap=  66.9 sep@loss=  67.3 sep_end=  51.9 sep_min-dia=   -0.8 fmax= 15.72 fmin=  0.00 STOP
+    pear          6.1cm left place0     slip=  894.3 sep_max=  78.1@t0    gap=  60.1 sep@loss=  61.0 sep_end=  45.1 sep_min-dia=    0.2 fmax= 10.73 fmin=  0.00 
+    -> at the stop: 1/2; sep_max range 78.1-98.1 mm
+
+  --- F15 (cap 15 N) seed 77: 26 carry legs, 1 escape legs (0 > 800 mm)
+    pear          6.8cm left place0     slip=  741.6 sep_max=  98.1@t167  gap=  69.9 sep@loss=  71.6 sep_end=  51.9 sep_min-dia=    2.3 fmax= 20.70 fmin=  0.00 STOP
+    -> at the stop: 1/1; sep_max range 98.1-98.1 mm
+
+  --- F20 (cap 20 N) seed 77: 26 carry legs, 0 escape legs (0 > 800 mm)
+    -> no escape leg: no evidence either way (PREREG §5 ambiguity rule)
+
+  --- F30 (cap 30 N) seed 77: 26 carry legs, 1 escape legs (1 > 800 mm)
+    pear          6.8cm left place0     slip=96756.7 sep_max=  98.3@t139  gap=  69.9 sep@loss=  72.6 sep_end=  51.9 sep_min-dia=    2.0 fmax= 33.54 fmin=  0.00 STOP
+    -> at the stop: 1/1; sep_max range 98.3-98.3 mm
+
+  --- F45 (cap 45 N) seed 77: 26 carry legs, 1 escape legs (1 > 800 mm)
+    pear          6.8cm left place0     slip=  829.5 sep_max=  90.4@t150  gap=  69.9 sep@loss=  70.3 sep_end=  51.9 sep_min-dia=    2.2 fmax= 52.65 fmin=  0.00 
+    -> at the stop: 0/1; sep_max range 90.4-90.4 mm
+
+  --- F60 (cap 60 N) seed 77: 26 carry legs, 0 escape legs (0 > 800 mm)
+    -> no escape leg: no evidence either way (PREREG §5 ambiguity rule)
+
+  --- F10 (cap 10 N) seed 101: 27 carry legs, 5 escape legs (4 > 800 mm)
+    apple         7.0cm left place0     slip=  853.7 sep_max=  98.1@t120  gap=  68.7 sep@loss=  70.0 sep_end=  53.7 sep_min-dia=    1.1 fmax= 14.15 fmin=  0.00 STOP
+    orange        6.3cm left place0     slip=  810.4 sep_max=  98.2@t8    gap=  64.8 sep@loss=  72.4 sep_end=  46.8 sep_min-dia=   13.1 fmax= 31.26 fmin=  0.00 STOP
+    kiwi          5.3cm left grasp_lift slip=  119.2 sep_max=  69.6@t12   gap=  58.4 sep@loss=  60.5 sep_end=  43.7 sep_min-dia=    7.1 fmax=132.39 fmin=  0.00 band
+    kiwi          6.7cm left place0     slip= 1057.8 sep_max=  88.4@t67   gap=  67.2 sep@loss=  68.2 sep_end=  51.8 sep_min-dia=    1.9 fmax= 12.03 fmin=  0.00 
+    kiwi          6.7cm left place0     slip=  820.1 sep_max=  86.8@t164  gap=  66.8 sep@loss=  69.5 sep_end=  51.8 sep_min-dia=    0.8 fmax= 16.56 fmin=  0.00 
+    -> at the stop: 2/5; sep_max range 69.6-98.2 mm
+
+  --- F15 (cap 15 N) seed 101: 28 carry legs, 3 escape legs (1 > 800 mm)
+    apple         7.0cm left place0     slip=  954.5 sep_max=  72.1@t0    gap=  71.7 sep@loss=  71.8 sep_end=  53.7 sep_min-dia=    2.2 fmax= 10.01 fmin=  0.00 
+    strawberry    3.9cm rightgrasp_lift slip=  496.0 sep_max=  24.4@t12   gap=  24.7 sep@loss=  24.0 sep_end=  10.0 sep_min-dia=  -27.3 fmax= 24.26 fmin=  0.00 
+    kiwi          6.7cm left place0     slip=  683.2 sep_max=  81.4@t147  gap=  69.9 sep@loss=  70.0 sep_end=  51.9 sep_min-dia=    3.3 fmax= 23.35 fmin=  0.00 
+    -> at the stop: 0/3; sep_max range 24.4-81.4 mm
+
+  --- F20 (cap 20 N) seed 101: 29 carry legs, 3 escape legs (3 > 800 mm)
+    kiwi          5.3cm left place0     slip=  866.2 sep_max=  69.0@t0    gap=  60.7 sep@loss=  60.9 sep_end=  42.7 sep_min-dia=    7.7 fmax= 22.76 fmin=  0.00 band
+    kiwi          6.7cm left place0     slip=  857.7 sep_max=  92.0@t72   gap=  69.8 sep@loss=  71.1 sep_end=  51.8 sep_min-dia=    5.1 fmax= 17.69 fmin=  0.00 
+    orange        6.3cm left place0     slip=  919.9 sep_max=  84.7@t117  gap=  64.8 sep@loss=  72.3 sep_end=  46.8 sep_min-dia=    7.2 fmax= 21.76 fmin=  0.00 
+    -> at the stop: 0/3; sep_max range 69.0-92.0 mm
+
+  --- F30 (cap 30 N) seed 101: 28 carry legs, 2 escape legs (2 > 800 mm)
+    apple         7.0cm left place0     slip=116912.8 sep_max=  98.2@t120  gap=  71.7 sep@loss=  72.5 sep_end=  53.7 sep_min-dia=    2.4 fmax= 37.78 fmin=  0.00 STOP
+    strawberry    3.9cm rightgrasp_lift slip=223648.4 sep_max=  10.2@t20   gap=   1.1 sep@loss=  10.1 sep_end=  10.0 sep_min-dia=  -28.9 fmax= 12.74 fmin=  0.00 
+    -> at the stop: 1/2; sep_max range 10.2-98.2 mm
+
+## 1b. The pry census on every carry leg (sep_max >= 95 mm, escape or not)
+   A pry is the PADS reaching their travel limit; an escape is the
+   PAYLOAD leaving. They are different events and the ladder separates them.
+
+  --- F10 (cap 10 N): 1/28 legs pried to the stop
+    pear          6.8cm left place0     slip=  791.0 sep_max=  98.1@t169  gap=  66.9 sep@loss=  67.3 sep_end=  51.9 sep_min-dia=   -0.8 fmax= 15.72 fmin=  0.00 STOP
+    species: pear; escape among them: 1
+
+  --- F15 (cap 15 N): 1/26 legs pried to the stop
+    pear          6.8cm left place0     slip=  741.6 sep_max=  98.1@t167  gap=  69.9 sep@loss=  71.6 sep_end=  51.9 sep_min-dia=    2.3 fmax= 20.70 fmin=  0.00 STOP
+    species: pear; escape among them: 1
+
+  --- F20 (cap 20 N): 2/26 legs pried to the stop
+    pear          6.8cm left grasp_lift slip=   11.0 sep_max=  96.4@t78   gap=  69.9 sep@loss=n/a sep_end=  96.4 sep_min-dia=    7.7 fmax= 21.10 fmin= 17.91 STOP
+    pear          6.8cm left place0     slip=   13.6 sep_max=  98.1@t0    gap=  69.9 sep@loss=n/a sep_end=  75.6 sep_min-dia=    7.3 fmax= 18.87 fmin= 15.61 STOP
+    species: pear; escape among them: 0
+
+  --- F30 (cap 30 N): 1/26 legs pried to the stop
+    pear          6.8cm left place0     slip=96756.7 sep_max=  98.3@t139  gap=  69.9 sep@loss=  72.6 sep_end=  51.9 sep_min-dia=    2.0 fmax= 33.54 fmin=  0.00 STOP
+    species: pear; escape among them: 1
+
+  --- F45 (cap 45 N): 0/26 legs pried to the stop
+
+  --- F60 (cap 60 N): 0/26 legs pried to the stop
+
+  --- F10 (cap 10 N): 4/27 legs pried to the stop
+    apple         7.0cm left place0     slip=  853.7 sep_max=  98.1@t120  gap=  68.7 sep@loss=  70.0 sep_end=  53.7 sep_min-dia=    1.1 fmax= 14.15 fmin=  0.00 STOP
+    orange        6.3cm left grasp_lift slip=   17.1 sep_max=  98.2@t58   gap=  64.8 sep@loss=n/a sep_end=  98.2 sep_min-dia=   22.2 fmax= 43.88 fmin=  9.07 STOP
+    orange        6.3cm left place0     slip=  810.4 sep_max=  98.2@t8    gap=  64.8 sep@loss=  72.4 sep_end=  46.8 sep_min-dia=   13.1 fmax= 31.26 fmin=  0.00 STOP
+    apple         7.0cm left grasp_lift slip=   22.0 sep_max=  95.8@t78   gap=  68.7 sep@loss=n/a sep_end=  95.8 sep_min-dia=    8.6 fmax= 12.35 fmin=  7.62 STOP
+    species: apple, orange; escape among them: 2
+
+  --- F15 (cap 15 N): 0/28 legs pried to the stop
+
+  --- F20 (cap 20 N): 0/29 legs pried to the stop
+
+  --- F30 (cap 30 N): 1/28 legs pried to the stop
+    apple         7.0cm left place0     slip=116912.8 sep_max=  98.2@t120  gap=  71.7 sep@loss=  72.5 sep_end=  53.7 sep_min-dia=    2.4 fmax= 37.78 fmin=  0.00 STOP
+    species: apple; escape among them: 1
+
+## 1c. Never-held legs (fmax == 0, PREREG A3): slip is not read
+  F10 seed 77: 0 never-held leg(s)
+  F15 seed 77: 0 never-held leg(s)
+  F20 seed 77: 0 never-held leg(s)
+  F30 seed 77: 0 never-held leg(s)
+  F45 seed 77: 0 never-held leg(s)
+  F60 seed 77: 0 never-held leg(s)
+  F10 seed 101: 1 never-held leg(s)
+      left place0 slip=1311mm sep_max=42.8
+  F15 seed 101: 1 never-held leg(s)
+      right grasp_lift slip=148760mm sep_max=10.0
+  F20 seed 101: 1 never-held leg(s)
+      right grasp_lift slip=308215mm sep_max=10.4
+  F30 seed 101: 1 never-held leg(s)
+      left grasp_lift slip=218mm sep_max=31.8
+
+## 2. The crush guard, per fruit (PREREG 4.2, C1 sharpened to the
+   loss tick: `sep@loss - dia`, the one tick the payload is provably
+   between the pads; C1 fires at <= -15 mm, C2 at force_min >= 35 N on an escape leg)
+
+  --- F10 (cap 10 N) seed 77: C1 0 legs, C2 0 legs, worst loss-interference -1.0 mm
+
+  --- F15 (cap 15 N) seed 77: C1 0 legs, C2 0 legs, worst loss-interference +3.3 mm
+
+  --- F20 (cap 20 N) seed 77: C1 0 legs, C2 0 legs, worst loss-interference n/a mm
+
+  --- F30 (cap 30 N) seed 77: C1 0 legs, C2 0 legs, worst loss-interference n/a mm
+
+  --- F45 (cap 45 N) seed 77: C1 0 legs, C2 0 legs, worst loss-interference +2.0 mm
+
+  --- F60 (cap 60 N) seed 77: C1 0 legs, C2 0 legs, worst loss-interference n/a mm
+
+  --- F10 (cap 10 N) seed 101: C1 0 legs, C2 0 legs, worst loss-interference -10.6 mm
+
+  --- F15 (cap 15 N) seed 101: C1 0 legs, C2 0 legs, worst loss-interference -14.8 mm
+
+  --- F20 (cap 20 N) seed 101: C1 0 legs, C2 0 legs, worst loss-interference +4.3 mm
+
+  --- F30 (cap 30 N) seed 101: C1 0 legs, C2 0 legs, worst loss-interference -37.8 mm
+
+  --- the smallest fruits, every rung (the binding class)
+  arm  seed  fruit          dia  sep@loss  loss-dia  sep_max    fmax   fmin      slip  outcome
+  F10  77    strawberry    35.6n/an/a     39.3    9.74   9.49       0.0  placed
+  F10  77    strawberry    35.6n/an/a     39.3   10.25   9.74       0.0  placed
+  F10  77    lychee        30.0n/an/a     43.2   10.38   9.29       0.1  placed
+  F15  77    strawberry    35.6n/an/a     38.9   14.47  14.46       0.0  placed
+  F15  77    strawberry    35.6n/an/a     38.7   14.54  14.53       0.0  placed
+  F20  77    strawberry    35.6n/an/a     38.9   19.23  19.22       0.0  placed
+  F20  77    strawberry    35.6n/an/a     39.3   19.95  19.28       0.0  placed
+  F30  77    strawberry    35.6n/an/a     38.3   29.22  29.20       0.0  placed
+  F30  77    strawberry    35.6n/an/a     38.0   30.00  30.00       0.0  placed
+  F45  77    strawberry    35.6n/an/a     37.2   41.70  41.68       0.0  placed
+  F60  77    strawberry    35.6n/an/a     36.1   60.16  55.40       0.2  placed
+  F60  77    strawberry    35.6n/an/a     35.4   42.79  42.44       0.0  placed
+  F10  101   lychee        36.7n/an/a     49.5   10.26   9.58       0.0  placed
+  F15  101   strawberry    38.8      10.0     -28.8     10.0    0.00   0.00  148760.3  LOST
+  F15  101   strawberry    38.8n/an/a     44.4  110.16   6.76       2.7  placed
+  F15  101   strawberry    38.8      24.0     -14.8     24.4   24.26   0.00     496.0  LOST
+  F15  101   lychee        36.7n/an/a     49.3   15.09  14.60       0.4  placed
+  F15  101   strawberry    41.7n/an/a     44.1   15.00  14.99       0.1  placed
+  F15  101   lychee        36.8n/an/a     47.4   14.74  14.44       0.0  placed
+  F15  101   strawberry    41.7n/an/a     49.3   15.00  14.99       0.1  placed
+  F20  101   strawberry    38.8      10.0     -28.8     10.4    0.00   0.00  308214.9  LOST
+  F20  101   strawberry    38.8n/an/a     41.5  118.85   9.41       2.5  placed
+  F20  101   strawberry    38.8n/an/a     41.8   17.45  12.39       0.1  placed
+  F20  101   lychee        36.8n/an/a     47.2   19.22  18.22       0.1  placed
+  F20  101   strawberry    38.8n/an/a     41.9   11.65  11.35       0.0  placed
+  F30  101   strawberry    38.8n/an/a     41.4   16.69  16.61       0.0  placed
+  F30  101   strawberry    38.8      10.1     -28.7     10.2   12.74   0.00  223648.4  LOST
+  F30  101   strawberry    38.8n/an/a     41.4   22.01  17.07       0.2  placed
+  F30  101   strawberry    38.8n/an/a     41.6   21.46  17.40       0.2  placed
+
+## 3. Counts - a report, NOT a rate (PREREG 4.3: a count across rungs
+   compares attractors; the direct loop is not reproducible)
+  arm  seed  attempts  placed  left   right  cnp   never-held  held fmin median  ticks/attempt
+  F10  77    15        12      3/5    9/10   2     1           9.66              1747
+  F15  77    15        12      4/5    8/10   1     2           14.19             1748
+  F20  77    15        13      5/5    8/10   0     2           19.27             1749
+  F30  77    15        12      4/5    8/10   1     2           29.19             1756
+  F45  77    15        12      4/5    8/10   1     2           39.86             1764
+  F60  77    15        13      6/6    7/9    0     2           53.92             1729
+  F10  101   15        8       3/9    5/6    5     2           9.58              1810
+  F15  101   15        11      2/4    9/11   2     2           14.67             1780
+  F20  101   15        11      2/5    9/10   3     1           18.22             1832
+  F30  101   15        12      3/5    9/10   1     2           25.32             1762
+  held fmin median = the delivered pinch on non-escape legs - the
+  behavioural consequence of the cap (P41's law: pinch ~= cap).
+
+## 4. The registered read (PREREG §5), aggregated PER RUNG across seeds
+  rung    cap  legs  escapes  at stop  pried (any)  crushed   placed
+  F10      10    55        7        3            5        0   20/30 
+  F15      15    54        4        1            1        0   23/30 
+  F20      20    55        3        0            2        0   24/30 
+  F30      30    54        3        2            2        0   24/30 
+  F45      45    26        1        0            0        0   12/15 
+  F60      60    26        0        0            0        0   13/15 
+  'pried (any)' = legs whose pads reached the stop, escape or not:
+  the PRY and the ESCAPE are different events.
+
+  -> PREREG §5.1 obtains at F60: no leg pried to the
+     stop, no escape leg, nothing crushed - the phase-2 point.
+  -> §5.1 fires only by its LETTER at F20, F45: no escape leg
+     reached the stop, but payloads still left and the pads still
+     reached the stop on other legs - not the mechanism (§1b).
+
+CHECK OK: every run's declared cap is the cap the drive read back, and all 270 [carry] rows parsed.
