@@ -20719,3 +20719,147 @@ phase), `configs/motion_reference.json` **`8952c320`** and
 `logs/selfcheck.log` `e581667b`. Evidence `logs/p74/{PREREG.md,PREREG.md5,
 P1_RESULTS.md,header.txt,p1_report.py,p1_report.txt,p1_aggregate.py,
 p1_aggregate.txt,run_p74.sh,batch_s77.out,batch_s101_202.out,direct/}`.
+
+## P75 — the place-leg escape is a pry, not a slide: the pads are driven to their open stop in 9 ticks
+
+**Diagnostic-only phase: one default-off trace, two registered cells, one
+declared extension, nothing adopted, no default moved, `configs/*` untouched, no
+`src/` change outside the trace.**
+
+P73 closed the transfer height and the rotation, P74 closed the profile's speed
+and dwell, and both left one measured fact standing: the place-leg escape's onset
+is at `loss_row` = 1-44 % of the leg while the wrist's 45 deg crossing is at
+71-86 %, i.e. **the payload is gone before the leg rotates**. Three candidate
+mechanisms survived: (a) an **expulsion** (the pads close behind a payload already
+past the lip), (b) a **slip at constant `sep`** (a genuine slide through the gap -
+what `logs/p42/SIM_LIMIT.md` says the class is), (c) a **command transient** at the
+leg boundary. The brief was to settle which, at 1-tick resolution, without adding
+a data source.
+
+**The resolution argument came first** (`logs/p75/METHOD.md` §1). The shipped
+`FRUIT_CARRY_DIAG=1` rows already carry `onset_row`, `force@onset`, `sep@onset`,
+`contacts@onset`, `loss_row`, `sep@loss`, `sep_end`, `clean_slip_max`, `slip_xyz`,
+`q_margin`, `q_step_max`, `res_end`; `[seat]` carries 5 samples per grip;
+`[diag] carry-assist` carries 3 ticks of the non-coherent branch. What is missing
+is not a source but **two references**: the `sep`/force at the leg's *first* tick
+(so "did the pads close before the payload moved?" cannot be asked - only "what
+was `sep` at the 2 mm crossing"), and any per-tick `tcp_err` (so (c) is not
+evaluable at all).
+
+**The instrument** (`tasks.py` `303d025d`, default **0 = off = the shipped path**):
+`FRUIT_PLACE_ONSET_TRACE=<ticks>` prints one `[place-trace]` row per tick for the
+first `<ticks>` ticks of every `place*` leg, post-step, inside the existing W8-B
+carry block - **which it also arms**, so it is self-sufficient (`guard_armed`
+gains `or self._place_onset_trace > 0` as a third operand; the pre-P75 two-term
+gate is kept as one operand so the four legs that pin it stay valid). Row:
+`t`, `|d|` + `d=(x,y,z)` (the hand-frame displacement and its components - `z` is
+the tool/finger axis, P61's escape axis), `sep` **measured** beside `gap`
+**commanded**, `f=(f0,f1)`, `n`, `tcp_err`, `v_cmd`, `v_ach`, this tick's
+`q_margin=…@jN`. **No articulation read**: `rot_now`, `pads`, `_tcp_pos`, `_marg`
+and `gap_command` are the block's own; the two additions are `jaw_separation()`
+(two finger-prim world poses the loop's own pad-midpoint call already reads) and
+one tactile set per traced tick. Pinned by `scripts/241_p75_place_trace_selftest.py`
+(selfcheck leg **`14be55ea`**), read by `scripts/242_p75_classify.py`
+(**`4f41d983`**).
+
+**The rule was pinned before the runs** (`PREREG.md5` **`479bb896`**): `t_d` = the
+first `|d| >= 2 mm` (the diag's own `FRUIT_CARRY_GUARD_TRIGGER`); `t_sep` = the
+first measured-separation drop `>= 1 mm`; `t_f` = the first tick the **stronger**
+face is below half its leg-start value, or `n == 0`; `t_err` = the first `tcp_err`
+20 mm above the leg's **own** steady state (the median of the last third, so a leg
+that tracks with a large constant error is not a transient); `t_cmd` = `t_err` or
+a `|Δv_cmd| >= 0.10 m/s` step. Class **(c)** if `t_cmd <= t_d - 2`, else **(a)** if
+`t_sep`/`t_f <= t_d`, else **(b)**.
+
+**The cells.** `A_77` and `A_101` (15 picks, seed 77/101, `moe_v13s` `61da390a`,
+the P66-phase-3 / P71-phase-2 / P73 / P74 cell verbatim plus
+`FRUIT_CARRY_DIAG=1 FRUIT_MOTION_REPORT=1 FRUIT_PLACE_ONSET_TRACE=60`, one claim
+each, 532 s and 529 s wall = **35.5 / 35.3 s/pick**, inside the untraced P74 cell's
+29.7-35.4 range). **26 place legs traced (12 left)**, and **6 left place-leg
+escapes**: 832.5 / 833.6 / 806.8 mm in seed 77 and 895.7 / 844.8 / 851.9 mm in seed
+101, **all `cnp`** - `escape <=> cnp` on **12/12** left legs, so `clean_slip_max`
+is a faithful proxy here. No rate is quotable (the trace arms the carry block and
+adds two reads per traced tick, the direct loop is not reproducible, and six
+escapes over two cells is a sample).
+
+**Two sites, one mechanism.** *Inherited at the boundary* (2 of 6, both seed 77):
+the place leg's **first** tick already reads `n=1`, one face at **0.00 N**, and
+`sep - gap` **+25.3 / +28.5 mm** (the third such leg, +31.2 mm, held at 13.9 mm and
+**placed**) - against **+8.5..+14.7 mm** (median 11.0) on the 23 normal legs, **no
+overlap**. Those three legs are also the three whose **lift** leg slipped
+7.9-11.3 mm - but that second separator is **not clean**: eight of the other nine
+left lifts read 0.0-3.2 mm and the ninth (`A_101` ep14) reads **7.5 mm**, 0.4 mm
+below the pried set, and its place leg still starts normal (+8.8 mm, two-sided) -
+so the wedge fired during `grasp_lift` on those three, the place leg inheriting a
+jaw at or near its open stop, but a lift-leg slip alone does not produce that
+state.
+*Inside the place leg* (4 of 6): `onset_row` **105 / 140 / 142 / 159**, the leg
+starting clean (`n=2`, two-sided 4.28-4.95 / 4.89-5.07 N) with **`|d| = 0.0 mm for
+the whole 60-tick window** - which is itself the answer to the brief's "the first
+~40 ticks": for that family the payload does not begin to go there.
+
+**The one leg the 200-tick extension resolved end-to-end** (`B_101_t200`, 8 of 15
+episodes, apple 7.0 cm, left, `cnp`): `|d| = 0.0 mm` and `sep` constant to the
+print **for 110 ticks**; **t=111** `|d| 0.3 mm`, `f` 5.03 -> **4.11** N, `sep`
+starts **rising**; **t=112** `f = 0.00 N`, `n = 0`, `sep +1.0 mm`; **t=113**
+`sep 80.0`; **t=121** `sep = 98.1 mm` = the pads' **mechanical open stop** with
+`|d| = 12.6 mm`, while the force servo **closes** the command `68.7 -> 66.7 mm`;
+by t=199 `|d| = 247 mm`. So the escape is **(a) expulsion**: the payload is pried
+out through a *widening* gap against a closing command. **(b) is refuted** - `sep`
+does not hold; the constant-`sep` legs are precisely the held ones. Note what this
+does and does not do to `SIM_LIMIT.md`: it does **not** contradict the class (P41's
+own ladder shows the pry is force-sensitive - `sep_max` 98.5 -> 43.5 -> 31.2 mm at
+10/30/60 N - while the class did not convert), but the sentence "the pads hold and
+the payload slides" is **not this interface's mechanism**, and the residue it
+names is therefore **pad face geometry** (the new-pad-asset sanction), not force.
+
+**(c) is refuted by measurement, and that closes the profile-continuity lane
+before it opened**: **0 of 26** traced legs show a `|Δv_cmd| >= 0.10 m/s` step at
+any tick, and at the escape tick every commanded quantity is smooth - `v_cmd`
+0.202 -> 0.205 -> 0.207 -> 0.210 over t = 110..113, `tcp_err` on a straight
++0.6 mm/tick ramp - **while a held leg carries the same ramp** (25.1 -> 46+ mm over
+the same window) and holds. The 4 legs whose `tcp_err` starts above its own steady
+state (+20 mm) are 3 escapes **and 1 hold**. Nothing is registered for a boundary
+blend. (`q_margin` at the escape tick reads 0.031-0.036 rad and 0.000-0.009 in the
+60-tick cells - the standing saturation P65 measured on 86/86 legs, not the
+escape.)
+
+**Named next, post-hoc and not a result**: the four late escapes' *preceding lift*
+ended **27.6-58.9 mm behind its own command** (`res_end`) against **8.6-14.6 mm** on
+the eight legs that held or were pried at the boundary - no overlap, n = 12 left
+legs, 4-vs-8. "Does the lift leg's tracking deficit predict the place leg's
+escape?" needs its own PREREG and more seeds, and it does **not** fit a "the
+catch-up feeds the slip" story: `|d|` is 0.0 mm through the fastest part of the
+catch-up (t = 1-60) and the wedge fires at t = 111 with `v_cmd` already 0.20 m/s.
+
+**Deviations (all in `METHOD.md`).** **A1** (after a 1-episode smoke, before the
+measured cells) withdrew a `v_ach >= 1.5*v_cmd + 0.05` clause: on a *clean* leg
+`v_ach` reads 0.095-0.099 m/s for t=1..3 while `v_cmd` is 0.000 (the arm closing
+the previous leg's 19.4 mm residual), so it fired on every leg. **A2** (after the
+cells) took the force reference from the **stronger** face at t=0, because a leg
+that starts single-sided would otherwise read "collapsed" against its own zero -
+no leg's class changes except by removing that artefact. **A3** labels a leg that
+is **already** single-sided with `sep - gap >= 20 mm` at t=0 **`a0`** (inherited
+expulsion): on such a leg `sep` *cannot* fall further - it is at the stop - so the
+literal in-window test falls through to (b) (pre-A3 seed 77 read `a=2 b=1`, the b
+being that artefact; the mechanism verdict is unchanged). **A4** marks the 200-tick
+cell as an extension, not a registered cell; it is not counted in the 6 and no rate
+comes from it (at 200 ticks the cost is **~3.5 min/episode**, so 200 is a
+batch-lane setting, not a casual one).
+
+**No-harm.** `scripts/accept.sh` with the knob unset: **6/9,
+`fingerprint: matches`, and its 346 `[fruit]` lines are byte-identical to
+`logs/p73/accept_noharm.log`'s 346** - both streams md5 **`d0079a23`**
+(`logs/p75/accept_noharm.log`). The exit=1 is the standing rate floor (6/9 = 67 %
+< 75 %), this tree's branch since P32. `scripts/selfcheck.sh` **PASS, 0 failures**
+(the new `P75 place-onset trace` leg). The scripted path never constructs
+`SortingRLEnv` and `_place_onset_trace == 0` leaves `guard_armed`'s boolean
+unchanged, so the shipped stream is byte-identical.
+
+**Pins**: `tasks.py` **`303d025d`**, `rl_env.py` (the `TASKS_MD5` metadata-only
+follow), `scripts/241_p75_place_trace_selftest.py` **`14be55ea`**,
+`scripts/242_p75_classify.py` **`4f41d983`**, `logs/p75/p75_report.py`;
+`configs/motion_reference.json` **`8952c320`** and
+`..._twoline.json` **`eb697f23`** untouched, no reference re-recorded, ckpt
+`moe_v13s` **`61da390a`**. Evidence `logs/p75/{METHOD.md,PREREG.md5,RESULTS.md,
+header.txt,p75_report.py,p75_report.txt,direct/,smoke.log,accept_noharm.log}`.

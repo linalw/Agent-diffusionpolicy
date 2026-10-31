@@ -81,15 +81,19 @@ reference is the leg's own first tick:
 | 23 normal legs | - | - | **+8.5 .. +14.7** (median 11.0) | two-sided 4.3-5.1 each | 2 | none | 0.0-3.4 | - |
 
 The pad-shell offset `sep - gap` separates the two states **with no overlap**
-(8.5-14.7 vs 25.3-31.2 mm), and the three pried legs are exactly the three whose
-**lift** leg slipped 7.9-11.3 mm (the other nine left lifts read 0.0-3.2). So the
-wedge fired during `grasp_lift`, and the place leg inherits a jaw that is already
-at or near its open stop with one face unloaded. **Pried is necessary, not
-sufficient**: ep9 held with 13.9 mm.
+(8.5-14.7 vs 25.3-31.2 mm). The three pried legs are also the three whose **lift**
+leg slipped 7.9-11.3 mm - but that separator is **not clean**: eight of the other
+nine left lifts read 0.0-3.2 mm and the ninth (`A_101` ep14) reads **7.5 mm**,
+0.4 mm below the pried set, and its place leg still starts **normal** (+8.8 mm,
+two-sided). So a lift-leg slip alone does not produce a pried boundary; the
+**first-tick pinch state** is the discriminator, and it says the wedge fired
+during `grasp_lift` and the place leg inherits a jaw already at or near its open
+stop with one face unloaded. **Pried is necessary, not sufficient**: ep9 held at
+13.9 mm.
 
 ### 2b. Inside the place leg - 4 of 6 escapes, at t = 105-159
 
-These legs start **clean** (n=2, f two-sided 4.28-4.95 / 4.89-5.09, offset
+These legs start **clean** (n=2, f two-sided 4.28-4.95 / 4.89-5.07, offset
 +8.8..+13.1) and `|d|` stays **0.0 mm for the whole 60-tick window** - which is
 itself the finding: the payload does not begin to go in the first 60 ticks.
 
@@ -125,6 +129,10 @@ gone, not to the 98 mm stop.
 | **(a) expulsion** | `sep` collapses / `fmin` drops **before** the displacement grows | 2/6 escapes: already collapsed at t=0 (inherited); 4/6: `f` 5.03→0.00 in 2 ticks and `sep` 78.0→98.1 in 9 ticks **before** the payload has moved 2 mm, against a closing command | **the class** |
 | **(b) slip at constant `sep`** | the displacement grows while `sep` and `f` stay at their leg-start values | on every escaped leg `sep` moves (to 98.1 or from 85-98 to 42-54 mm); the only constant-`sep` legs are the **held** ones | **refuted** |
 | **(c) command transient** | `tcp_err` or `|v|cmd|` steps at the boundary before the displacement | **0/26** legs have a `|Δv_cmd| >= 0.10 m/s` step; the 4 legs whose `tcp_err` starts above its own steady state (+20 mm) are 3 escapes **and 1 hold**, and at the escape tick the ramp is smooth (+0.6 mm/tick) and shared by a holding leg | **refuted** |
+
+Across all three logs - **32 traced place legs** - the pinned rule returns
+**`a0=3, a=2, b=0, c=0, none=27`**: not one leg classifies (b) or (c), on any of
+the two registered cells or the extension.
 
 **What each would have implied, and what holds now.** (a) means the pinch *depth
 and face geometry* is the object - so the place leg is not a profile problem and
@@ -178,6 +186,18 @@ byte-identical to `logs/p73/accept_noharm.log`'s 346** - both streams md5
 `_place_onset_trace == 0` leaves `guard_armed`'s boolean unchanged, so the
 shipped stream is byte-identical.
 
+**Provenance / tree drift (recorded, not resolved).** The two registered cells and
+the `accept.sh` no-harm run were measured on `tasks.py` **`303d025d`** (the P75
+tree, commit `85dc38b`), where `scripts/selfcheck.sh` read **PASS, 0 failures**
+(`logs/selfcheck.log` `1895d7f2`). A **concurrent P76 lane** then began building
+on that code in the same file (`scripts/243_p76_sep_selftest.py` +
+`guard_sep_max`/`sep_min` readouts), so the *current working tree* is not the
+measured one, and its `rl_env.TASKS_MD5` follow was not yet in place when this
+note was written - which is why `scripts/selfcheck.sh` on the current tree reports
+the `TASKS_MD5`-following legs (P62/P64 and the tasks.py pin) failing. **That is
+P76's in-flight state, not a P75 result**: every P75 leg passes on both trees, and
+the `[fruit]` byte-identity above was established on the measured one.
+
 ## 6. Deviations recorded (all before or outside the counted cells)
 
 * **A1** (before the measured cells, after a 1-episode smoke): the
@@ -207,7 +227,10 @@ needs it; `configs/*` and both motion references are untouched (`8952c320` /
 Pins: `tasks.py` **`303d025d`** (`303d025d7085236ce2ee93b735c55f73`, the trace),
 `rl_env.py` (the metadata-only `TASKS_MD5` follow),
 `scripts/241_p75_place_trace_selftest.py`, `scripts/242_p75_classify.py`,
-`logs/p75/p75_report.py`; checkpoint `moe_v13s` `61da390a`.
+`logs/p75/p75_report.py`; checkpoint `moe_v13s` `61da390a`. Log pins: `A_77.log`
+**`23a9f18a`**, `A_101.log` **`d79504a9`**, `B_101_t200.log` **`39fe6bb8`**,
+`accept_noharm.log` **`6aa199f3`**, `p75_report.txt` **`556f2d4b`**,
+`logs/selfcheck.log` **`1895d7f2`**.
 
 ## 7. Evidence layout
 

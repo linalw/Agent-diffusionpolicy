@@ -3241,6 +3241,91 @@ and **no `src/`/`configs/`/`scripts/` change**. Pins: `tasks.py` `adcfd348`,
 p1_report.txt,p1_aggregate.py,p1_aggregate.txt,run_p74.sh,batch_s77.out,
 batch_s101_202.out,direct/}`; WORKLOG "P74".
 
+**P75 (2026-10-31, `logs/p75/`; **one default-off diagnostic, nothing adopted, no
+default moved, `configs/*` untouched**): the place leg's escape is an
+**expulsion - a wedge/pry runaway**, not a slide at constant `sep` and not a
+command transient, and the trace settles it at one tick.** The instrument is
+`FRUIT_PLACE_ONSET_TRACE=<ticks>` (`tasks.py`, **0 = off = the shipped path**;
+`place*` legs only, one `[place-trace]` row per tick, post-step, inside the
+existing W8-B carry block **which it also arms** so it is self-sufficient):
+`t`, `|d|` and `d=(x,y,z)` (the hand-frame displacement and its components, P61's
+axis), `sep` (measured) beside `gap` (commanded), `f=(f0,f1)`, `n`, `tcp_err`,
+`v_cmd`, `v_ach` and this tick's `q_margin=…@jN`. **No articulation read is
+added** (`rot_now`/`pads`/`_tcp_pos`/`_marg`/`gap_command` are the block's own;
+the two additions are `jaw_separation()` and one tactile set per traced tick);
+pinned by `scripts/241_p75_place_trace_selftest.py` (selfcheck leg) and read by
+`scripts/242_p75_classify.py`, whose **rule was pinned before the runs**
+(`logs/p75/METHOD.md`, `PREREG.md5` **`479bb896`**): `t_d` = the first `|d| >= 2 mm`
+(the diag's own trigger), `t_sep`/`t_f` = the first measured-separation drop
+`>= 1 mm` / the strong face below half its leg-start value, `t_err` = the first
+`tcp_err` 20 mm above the leg's **own steady state** (median of the last third),
+`t_cmd` = `t_err` or a `|Δv_cmd| >= 0.10 m/s` step; **(c)** if `t_cmd <= t_d - 2`,
+else **(a)** if `t_sep`/`t_f <= t_d`, else **(b)**. Two registered cells
+(`A_77`, `A_101`: 15 picks, seed 77/101, `moe_v13s` `61da390a`, the
+P66-phase-3/P71-phase-2/P73/P74 cell verbatim, `FRUIT_CARRY_DIAG=1` +
+`FRUIT_MOTION_REPORT=1`) trace **26 place legs** (12 left) at 60 ticks and draw
+**6 left place-leg escapes** (832.5/833.6/806.8 mm in s77, 895.7/844.8/851.9 in
+s101; **all `cnp`**, and `escape <=> cnp` on **12/12** left legs), plus one
+**declared extension** (`B_101_t200`, 8 of 15 episodes, `=200` ticks) that
+resolves one of them end-to-end. **The finding is the ordering**: that leg holds
+the payload with `|d| = 0.0 mm for 110 ticks` and `sep` constant to the print;
+at **t=111** `|d|` reads 0.3 mm while `f` falls 5.03 → 4.11 N and `sep` starts
+**rising**; at **t=112** `f = 0.00 N`, `n = 0`, `sep +1.0 mm`; at **t=121** the
+pads sit at their **98.1 mm mechanical open stop** with `|d| = 12.6 mm` **while
+the force servo closes the command 68.7 → 66.7 mm** - i.e. the payload is pried
+out through a widening gap, so **(b) is refuted** (`sep` does not hold) and the
+`SIM_LIMIT.md` sentence "the pads hold and the payload slides" is *not* this
+interface's mechanism (**it refines, not contradicts, the class**: the pry is
+force-sensitive - P41's ladder deleted `sep_max` 98.5 → 43.5 → 31.2 at 10/30/60 N
+- while the class did not convert, so the residue is pad **face geometry**, the
+`SIM_LIMIT` new-pad-asset sanction, not more force). **(c) is refuted by
+measurement**: **0 of 26** traced legs show a `|Δv_cmd| >= 0.10 m/s` step, and at
+the escape tick every commanded quantity is smooth (`v_cmd` 0.202 → 0.205 → 0.207
+→ 0.210 over t = 110..113; `tcp_err` on a straight +0.6 mm/tick ramp) while a
+**held** leg carries the same ramp (25.1 → 46+ mm) and holds - so **there is no
+profile-continuity lever at the leg boundary** and none is registered. **The
+wedge fires at two sites, one mechanism**: 2 of 6 escapes at the **end of the
+lift** (the place leg then *starts* with `n = 1`, one face at **0.00 N**, and
+`sep - gap` **+25.3/+28.5 mm** against **+8.5..+14.7** on the 23 normal legs - no
+overlap - and their preceding lift legs are the three that slipped 7.9-11.3 mm,
+though that second separator is **not clean** (eight of the other nine left lifts
+read 0.0-3.2 mm and the ninth 7.5 mm, and *its* place leg still started normal -
+so the first-tick pinch state is the discriminator, not the lift's slip), and 4 of 6 **inside** the place leg at
+`onset_row` **105 / 140 / 142 / 159** with the leg starting clean (`n=2`,
+4.28-4.95 / 4.89-5.07 N) and **`|d| = 0.0 mm for the whole 60-tick window** -
+which is itself the answer to "the first ~40 ticks": for that family the payload
+does not begin to go there. **Named next (post-hoc, not a result)**:
+the 4 late escapes' *preceding lift* ended **27.6-58.9 mm behind its command**
+(`res_end`) against **8.6-14.6 mm** on the 8 held-or-pried legs (no overlap,
+n = 12 left legs, 4-vs-8) - "does the lift leg's tracking deficit predict the
+place leg's escape?" is a phase that needs its own PREREG, and it does **not**
+fit a "the catch-up feeds the slip" story (`|d|` is 0.0 mm through the fastest
+part of the catch-up, t = 1-60, and the wedge fires at t = 111 with `v_cmd`
+already 0.20 m/s). Deviations, all recorded in `METHOD.md`: **A1** withdrew a
+`v_ach >= 1.5*v_cmd + 0.05` clause (it fires on every *clean* leg - `v_ach`
+0.095-0.099 m/s while `v_cmd` is 0.000, the arm closing the previous leg's
+19.4 mm residual); **A2** took the force reference from the **stronger** face at
+t = 0; **A3** labels a leg that is **already** single-sided with
+`sep - gap >= 20 mm` at t = 0 **`a0`** (inherited expulsion) because on such a
+leg `sep` *cannot* fall further - it is at the stop - so the literal in-window
+test would fall through to (b) (pre-A3 seed 77 read `a=2 b=1`, the b being that
+artefact; the **mechanism** verdict is unchanged); **A4** marks the 200-tick cell
+as an extension, not a registered cell, and no rate comes from any of them (the
+trace arms the carry block and adds two reads per traced tick - the 60-tick
+cells ran at **35.5/35.3 s/pick**, inside the untraced P74 range 29.7-35.4, and
+at 200 ticks the cost is **~3.5 min/episode**, so 200 is a batch-lane setting).
+No-harm: `scripts/accept.sh` with the knob unset reads **6/9,
+`fingerprint: matches`, and its 346 `[fruit]` lines are byte-identical to
+`logs/p73/accept_noharm.log`** (both streams md5 **`d0079a23`**; the exit=1 is
+the standing rate floor, this tree's branch since P32); `scripts/selfcheck.sh`
+**PASS, 0 failures**. Pins: `tasks.py` **`303d025d`**, `rl_env.py` (the
+`TASKS_MD5` metadata-only follow), `scripts/241_p75_place_trace_selftest.py`
+**`14be55ea`**, `scripts/242_p75_classify.py` **`4f41d983`**,
+`logs/p75/p75_report.py`; `configs/*` untouched (`8952c320` / `eb697f23`), no
+reference re-recorded, ckpt `moe_v13s` `61da390a`. Evidence
+`logs/p75/{METHOD.md,PREREG.md5,RESULTS.md,header.txt,p75_report.py,
+p75_report.txt,direct/,smoke.log,accept_noharm.log}`; WORKLOG "P75".
+
 ## 3. What changed -> what to run
 
 | you changed | run |
@@ -3255,7 +3340,7 @@ batch_s101_202.out,direct/}`; WORKLOG "P74".
 | the direct supply profile (`rl_env.py` `_resolve_supply_profile`, the `fruits.py`/`tasks.py` kwargs) | `scripts/selfcheck.sh` (the `230` leg), `scripts/accept.sh` (import guard: 377/377 + `fingerprint: matches`), one two-line run + `scripts/190_twoline_gate.sh`, `python3 scripts/211_bed_audit.py` |
 | the output station (`assets.py` `output_rails` / `output_belt_top_z`, `conveyor.OutputBelt`) | `scripts/selfcheck.sh` (the `238` leg), `scripts/accept.sh`, one two-line run + `scripts/190_twoline_gate.sh`, then the direct cell with `FRUIT_CARRY_DIAG=1` (the crossing `clr`/`clr_win` **and the P72 corner `clr_edge`/`clr_edge_min`** per held place leg, read with `logs/p72/p72_report.py --check`) - and re-record both references if the flip is shipped (`logs/p71/RESULTS.md` §5) |
 | the scene's collider set or a store's provenance (`assets.scene_provenance`, the manifests) | `scripts/selfcheck.sh` (the `239` leg), then one collection or direct run and check its `manifest.json` carries the `scene` block (`logs/p72/manifest_probe.py` does it without a simulator app) |
-| a new default-off diagnostic field on the `[carry]` row (or a new `[place]`/`[seat]` line) | `scripts/selfcheck.sh` (the field's own leg - `235`/`239`/`240` are the pattern), then **one direct run with `FRUIT_CARRY_DIAG=1`** to read it, then `scripts/accept.sh` and require its **346/346 `[fruit]` lines** to be byte-identical to the pre-change record - a diag-only change must be inert on the scripted path (`logs/p73/P1_RESULTS.md` §5) |
+| a new default-off diagnostic field on the `[carry]` row (or a new `[place]`/`[seat]` line, or a new `[place-trace]` per-tick print) | `scripts/selfcheck.sh` (the field's own leg - `235`/`239`/`240`/`241` are the pattern), then **one direct run with `FRUIT_CARRY_DIAG=1`** to read it, then `scripts/accept.sh` and require its **346/346 `[fruit]` lines** to be byte-identical to the pre-change record - a diag-only change must be inert on the scripted path (`logs/p73/P1_RESULTS.md` §5, `logs/p75/RESULTS.md` §5) |
 
 To compare two **policy** arms, use the harness rather than two runs:
 
