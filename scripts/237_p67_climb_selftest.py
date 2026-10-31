@@ -187,9 +187,13 @@ def main() -> int:
         n_long = len(climb_cmd(start, 0.18, lim)[0])
         check(n_short < n_long, "the tick cost grows with the climb")
 
-        # `_carry`: shipped expression first, rebinding only when armed, and the
-        # climb prepended (so the leg's end pose is the shipped one)
-        body_start = src.index("    def _carry(")
+        # `_carry_leg`: shipped expression first, rebinding only when armed, and
+        # the climb prepended (so the leg's end pose is the shipped one).
+        # P78 renamed the leg body to `_carry_leg` (the `_carry` name is now the
+        # scoped-force wrapper, which resolves the cap and calls this body), so
+        # the locator follows the body - the assertions below are unchanged and
+        # still read the thing they were written for.
+        body_start = src.index("    def _carry_leg(")
         nxt = src.find("\n    def ", body_start + 10)
         body = src[body_start:nxt]
         check("_climb = lift_climb_for(self._lift_climb, side, name)" in body,

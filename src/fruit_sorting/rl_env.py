@@ -430,7 +430,17 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: tick (the read `sep@onset`/`sep@loss`/`sep_end` already take at their own
 #: ticks); no command, threshold or control path touched. `logs/p76/PREREG.md`
 #: §3.
-TASKS_MD5 = "9d5824ef2fe08efa060bdd8c4be3cfd3"
+#:
+#: P78 (metadata-only follow, `9d5824ef -> b1464c43`): the P77 scoped-finger-
+#: force form. `_carry` becomes a wrapper (the leg body is `_carry_leg`) that
+#: raises the left finger drive's live `maxForce` for a `place*` leg and restores
+#: it in a `finally`; the new pure resolver `finger_cap_scope_for` and the new
+#: caller-owned kwarg `finger_cap_scope` are `None` on every path that does not
+#: pass it (so the scripted line, the collector, the two-line scheduler and the
+#: hybrid canary run the shipped leg with one dict lookup and no write/read).
+#: `FRUIT_FINGER_MAXFORCE_SCOPE` is default off and `direct`-only
+#: (`rl_env.resolve_finger_cap_scope`). `logs/p78/PREREG.md` §2.
+TASKS_MD5 = "b1464c43b173d5427343152dc29eb121"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(
@@ -737,6 +747,89 @@ def resolve_lift_climb(
             "(leave it unset for the shipped path)"
         )
     return {"left": climb}
+
+
+#: P78: the token `FRUIT_FINGER_MAXFORCE_SCOPE` accepts. The scope is one
+#: **site** - P77 §2 measured that every escape and every pry, in both arms, is a
+#: left `place0` leg (C 7/38 escaped and 4/38 pried, T 3/40 and 1/40, right 0 and
+#: 0 on 43/45 legs), so there is exactly one site to name and no second token.
+FINGER_CAP_SCOPE_TOKEN = "place-left"
+#: P78: the scoped cap used when `FRUIT_FINGER_MAXFORCE_SCOPED` is unset - the
+#: P77 `T` rung (60 N per joint, ~53 N delivered), which is the only dose this
+#: tree has measured at three seeds. The ladder passes it explicitly.
+FINGER_CAP_SCOPE_DEFAULT = 60.0
+
+
+def resolve_finger_cap_scope(
+    presentation: str,
+    scope_value: str | None,
+    cap_value: str | None,
+    global_value: str | None,
+) -> tuple[dict[str, float] | None, float | None]:
+    """The resolved `FRUIT_FINGER_MAXFORCE_SCOPE` write, or `None` (shipped).
+
+    P78: a **runtime, per-leg** finger-drive force cap - the shippable form of
+    P77's 60 N count win. P77 measured the win (left placed 11/21 -> 17/20,
+    Fisher p = 0.043, 3/3 seeds) and its price: the cap is a per-joint drive
+    property written at build time on **both arms of every presentation**, so a
+    global flip moves the scripted acceptance at attempt 0 (`fingerprint:
+    DIFFERS`) and the two-line's fingerprint too, and owes both motion
+    references, a scripted re-baseline and every store's provenance.
+
+    This resolver is the containment. It returns `(scopes, cap)`:
+
+    * any presentation but `direct` -> `(None, None)`: the shipped
+      `PickAndPlaceTask(finger_cap_scope=None)` path, with **no resolver call,
+      no write and no read** on that path at all - the scripted line, the
+      collector, the two-line scheduler and the hybrid canary never construct
+      this env, so "no blast radius" is structural before it is measured;
+    * `direct` with the scope unset or empty -> `(None, None)`;
+    * `direct` with an **explicit** `FRUIT_FINGER_MAXFORCE` -> `(None, None)`:
+      the existing global knob wins, so the global path keeps its meaning and
+      the two cannot stack;
+    * `direct`, scope `place-left`, global unset -> `({"left": cap}, cap)`, the
+      cap from `FRUIT_FINGER_MAXFORCE_SCOPED` (default
+      `FINGER_CAP_SCOPE_DEFAULT`), parsed strictly.
+    Strict parsing is the P44/P45/P52/P53/P66 precedent: a typo that fell back to
+    the shipped cap would be published as a null result, so an unknown token, a
+    non-number, a non-finite value and `<= 0` all raise.
+    """
+    if presentation != "direct":
+        return None, None
+    token = "" if scope_value is None else str(scope_value).strip()
+    if not token:
+        return None, None
+    if token != FINGER_CAP_SCOPE_TOKEN:
+        raise ValueError(
+            f"FRUIT_FINGER_MAXFORCE_SCOPE={scope_value!r} is not a known scope; "
+            f"the only token is {FINGER_CAP_SCOPE_TOKEN!r}"
+        )
+    explicit_global = "" if global_value is None else str(global_value).strip()
+    if explicit_global:
+        say(
+            f"[drive] FRUIT_FINGER_MAXFORCE={explicit_global} is set, so the "
+            f"global build-time cap wins and FRUIT_FINGER_MAXFORCE_SCOPE="
+            f"{token} resolves to no runtime write"
+        )
+        return None, None
+    text = "" if cap_value is None else str(cap_value).strip()
+    if not text:
+        return {"left": FINGER_CAP_SCOPE_DEFAULT}, FINGER_CAP_SCOPE_DEFAULT
+    try:
+        cap = float(text)
+    except ValueError:
+        raise ValueError(
+            f"FRUIT_FINGER_MAXFORCE_SCOPED={cap_value!r} is not a number of newtons"
+        ) from None
+    if not math.isfinite(cap):
+        raise ValueError(f"FRUIT_FINGER_MAXFORCE_SCOPED={cap_value!r} is not finite")
+    if cap <= 0.0:
+        raise ValueError(
+            f"FRUIT_FINGER_MAXFORCE_SCOPED={cap_value!r}: a clamp force is "
+            "positive newtons (leave FRUIT_FINGER_MAXFORCE_SCOPE unset for the "
+            "shipped cap)"
+        )
+    return {"left": cap}, cap
 
 
 def resolve_arm_park(presentation: str, env_value: str | None) -> tuple[str, bool]:
@@ -1594,6 +1687,19 @@ class SortingRLEnv:
         self._lift_climb = resolve_lift_climb(
             presentation, os.environ.get("FRUIT_LIFT_CLIMB")
         )
+        #: P78: the **runtime, per-leg** finger-drive force cap
+        #: (`FRUIT_FINGER_MAXFORCE_SCOPE=place-left`, `direct` only, default
+        #: off): `{"left": <N>}` while the left arm's `place*` legs run, restored
+        #: to the cap the leg found at its end. P77 measured the 60 N count win
+        #: and the global form's price (both motion references, a scripted
+        #: re-baseline, every store); this is the contained form. `None` = the
+        #: shipped build-time cap, with no write and no read on any path.
+        self._finger_cap_scope, self._finger_cap_value = resolve_finger_cap_scope(
+            presentation,
+            os.environ.get("FRUIT_FINGER_MAXFORCE_SCOPE"),
+            os.environ.get("FRUIT_FINGER_MAXFORCE_SCOPED"),
+            os.environ.get("FRUIT_FINGER_MAXFORCE"),
+        )
         #: P55: the live feeder, now part of the profile. `FRUIT_DIRECT_FEED=0`
         #: restores the pre-P55 behaviour; non-direct presentations stay off.
         self._direct_feed = bool(self._supply["feed"])
@@ -2340,6 +2446,7 @@ class SortingRLEnv:
             carry_hold_override=self._carry_hold_override,
             lift_dz=self._lift_dz,
             lift_climb=self._lift_climb,
+            finger_cap_scope=self._finger_cap_scope,
         )
         self.task.recorder = None
 
@@ -2402,6 +2509,17 @@ class SortingRLEnv:
             say(f"[rl] {self.trigger_settings.summary()}")
         if self.presentation == "direct":
             say(self._supply_profile_row(self._supply, self._direct_feed))
+        if self._finger_cap_scope:
+            # P78: the armed runtime cap's own row. Only an armed run prints it,
+            # so a log's first lines say whether the drive was re-clamped - the
+            # per-leg `[drive] ... finger cap raise/restore` rows carry the
+            # in-leg read-back, this row carries the intent and the scope.
+            say(
+                f"[drive] finger cap scope: "
+                f"{FINGER_CAP_SCOPE_TOKEN} x {self._finger_cap_value:g} N "
+                f"(runtime, {', '.join(sorted(self._finger_cap_scope))} "
+                f"place* legs; restored at each leg's end)"
+            )
         if self._grasp_quat_override:
             # P62 phase 2: the armed knob's own row. It names **all three**
             # attitudes the run touches, because on the dynamic catch the
@@ -2802,7 +2920,9 @@ class SortingRLEnv:
         try:
             from .scene import finger_physics_provenance
 
-            return finger_physics_provenance(arms=self.task.arms)
+            return finger_physics_provenance(
+                arms=self.task.arms, scope=self._finger_cap_scope
+            )
         except Exception as exc:  # noqa: BLE001 - provenance must not stop a run
             return {"finger_drive": {"source": "error", "why": str(exc)}}
 

@@ -294,6 +294,23 @@ run_check "P75 place-onset trace" "$python" scripts/241_p75_place_trace_selftest
 # gap is the per-tick command, the n/a forms, the first-tick convention (an
 # inherited firing site STARTS at the stop) and the row parsing back. No simulator.
 run_check "P76 pry/crush fields" "$python" scripts/243_p76_sep_selftest.py
+# P78: the **contained** form of P77's 60 N count win - a runtime finger-drive
+# force cap raised for the left arm's `place*` legs only and restored at each
+# leg's end (`FRUIT_FINGER_MAXFORCE_SCOPE=place-left`, default OFF). P77 measured
+# the win (left placed 11/21 -> 17/20, p = 0.043, 3/3 seeds) and the global cap's
+# price (a build-time property of both arms of every presentation: the scripted
+# acceptance moves at attempt 0, `fingerprint: DIFFERS`), and that every escape
+# and every pry is a left `place0` leg. The leg pins the resolution table
+# (non-`direct` is `(None, None)` before any value is read, an explicit global
+# `FRUIT_FINGER_MAXFORCE` wins, `place-left` -> `{"left": cap}`, every strict
+# raise), the `place*`-only / per-side scope (a `grasp_lift` leg can never be
+# armed, so the pick keeps the shipped grip), the `_carry` wrapper's
+# `try`/`finally` (the leg is inside the try and the restore in the finally), the
+# live-view `set_dof_max_efforts` write site (one, and the restore target is the
+# cap READ at the leg's start, never a hard-coded 10 N), the single place-leg
+# dispatch site, the untouched build-time global writer, and the manifest field.
+# No simulator.
+run_check "P78 scoped finger force" "$python" scripts/244_p78_scope_selftest.py
 # P67: the **place-leg climb** (`FRUIT_LIFT_CLIMB`, metres of vertical raise at the
 # place leg's start, `direct` + left only, default OFF) - the re-shape of P66 phase
 # 4's failed rail-crossing gate: the crossing is only 0.175:1 with the lift height

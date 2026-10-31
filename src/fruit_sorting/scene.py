@@ -393,7 +393,9 @@ def _finger_drive_readback(arms: dict) -> tuple[dict, bool, str]:
     return rows, not wrong, "; ".join(wrong)
 
 
-def finger_physics_provenance(arms: dict | None = None, control_dt: float = 1.0 / 120.0) -> dict:
+def finger_physics_provenance(arms: dict | None = None,
+                              control_dt: float = 1.0 / 120.0,
+                              scope: dict | None = None) -> dict:
     """The physics that sets the grip, as a store manifest's `physics` block.
 
     P41 phase 2: a store is reusable only if its *contact forces* are
@@ -461,6 +463,20 @@ def finger_physics_provenance(arms: dict | None = None, control_dt: float = 1.0 
             },
         },
     }
+    if scope:
+        #: P78: the **runtime, per-leg** clamp (`rl_env.resolve_finger_cap_scope`).
+        #: `None` = the shipped build-time cap. The block names the site (which
+        #: arms, which legs) and the cap, because the write is transient: this
+        #: block is built *after* the last leg's restore, so `finger_drive`'s
+        #: read-back below shows the shipped cap and could never say a scoped
+        #: run happened. The in-leg read-back is the `[drive] <side> <leg>
+        #: finger cap raise/restore` row (P78), not this field.
+        block["finger_cap_scope"] = {
+            "mode": "runtime",
+            "legs": "place*",
+            "arms": {str(side): float(cap) for side, cap in sorted(scope.items())},
+            "restore": "the cap read from the drive at the leg's start",
+        }
     if not arms:
         return block
     rows, matches, why_not = _finger_drive_readback(arms)

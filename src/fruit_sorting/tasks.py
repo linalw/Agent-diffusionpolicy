@@ -314,6 +314,32 @@ def lift_climb_commands(start, climb: float, limits) -> tuple[np.ndarray, ...]:
     )
 
 
+def finger_cap_scope_for(scopes, side: str, name: str) -> float | None:
+    """P78: the **runtime** finger-drive force cap this leg runs at, or `None`.
+
+    Pure, and the **only** place the scoped cap is resolved. The scope is the
+    **`place*` leg** - P77 §2 measured that every escape and every pry, in both
+    arms, is a left `place0` leg (C 7/38 escaped and 4/38 pried, T 3/40 and
+    1/40, right 0 and 0 on 43/45 legs) - so `grasp_lift` is deliberately out of
+    scope: the P77 P1 scripted difference at attempt 0 was a **grasp** one
+    (`lift=+0.411 m / 60.05 N` against `+0.138 m / 9.98 N`), and a cap that is
+    only up during the place transfer cannot move the pick.
+
+    `scopes` is the caller-owned `finger_cap_scope` dict (side -> newtons,
+    e.g. `{"left": 60.0}`); `None`, a missing side or any other leg name
+    returns `None`, i.e. the shipped build-time cap with **no write and no
+    read** - the same caller-owned-kwarg pattern as `lift_dz_for` and
+    `lift_climb_for`, so no caller mutates the process environment to change a
+    drive. Only `rl_env` resolves it, and only for `direct`
+    (`rl_env.resolve_finger_cap_scope`), so the scripted line, the collector,
+    the two-line scheduler and the hybrid canary never reach this function.
+    """
+    if scopes is None or not name.startswith("place"):
+        return None
+    value = scopes.get(side)
+    return None if value is None else float(value)
+
+
 def carry_hold_override_for(overrides, side: str, name: str) -> np.ndarray | None:
     """P64: the pre-compensated hold for one carry leg, or `None` (shipped).
 
@@ -784,7 +810,8 @@ class PickAndPlaceTask:
                  grasp_quat_override: dict | None = None,
                  carry_hold_override: dict | None = None,
                  lift_dz: dict | None = None,
-                 lift_climb: dict | None = None):
+                 lift_climb: dict | None = None,
+                 finger_cap_scope: dict | None = None):
         # The v1 file reproduces the recorded datasets. Physical grasping uses the
         # orientation-constrained poses: FRUIT_WAYPOINTS=configs/waypoints_oriented.json
         waypoint_path = waypoint_path or os.environ.get(
@@ -852,6 +879,29 @@ class PickAndPlaceTask:
             if lift_climb is None
             else {str(k): float(v) for k, v in lift_climb.items()}
         )
+        #: P78: a per-arm **runtime** finger-drive force cap for the `place*`
+        #: legs, in newtons (see `finger_cap_scope_for`). `None` (the default
+        #: everywhere) leaves the drive's cap alone - one dict lookup per carry
+        #: leg and no write, no read, no simulator call - so the scripted line,
+        #: the collector, the two-line scheduler and the hybrid canary are
+        #: byte-inert; only `rl_env` resolves it, and only for `direct`
+        #: (`FRUIT_FINGER_MAXFORCE_SCOPE=place-left`, default off). The write is
+        #: a **live view** call (`set_dof_max_efforts`, which the experimental
+        #: articulation routes to the tensor backend's `set_dof_max_forces` and
+        #: its solver notify), not a USD authoring step: `scene.build`'s
+        #: `apply_finger_maxforce` runs before the `Articulation` exists, and its
+        #: docstring names this API as the one that acts on a live view.
+        self._finger_cap_scope: dict[str, float] = (
+            {}
+            if finger_cap_scope is None
+            else {str(k): float(v) for k, v in finger_cap_scope.items()}
+        )
+        #: The cap each side's finger drive had **before** the first scoped
+        #: write, read from the live articulation. The restore target, so a
+        #: scoped leg always puts back the cap it found (a global
+        #: `FRUIT_FINGER_MAXFORCE` build would restore *that* value, never a
+        #: hard-coded 10 N).
+        self._finger_cap_base: dict[str, float] = {}
         self.arms = {
             "left": ArmController(scene, "left"),
             "right": ArmController(scene, "right"),
@@ -3694,7 +3744,102 @@ class PickAndPlaceTask:
         except Exception as exc:  # noqa: BLE001 - a report must never fail a run
             say(f"[seat] centre {side}: unavailable ({exc})")
 
+    # ------------------------------------------------------------------ #
+    # P78: the runtime finger-drive force cap (`FRUIT_FINGER_MAXFORCE_SCOPE`)
+    # ------------------------------------------------------------------ #
+    def _finger_cap_read(self, side: str) -> float | None:
+        """The live `joint1` drive cap of one arm, or `None` if unreadable.
+
+        One array read of the **articulation view** - the value PhysX carries -
+        not of the USD attribute: `scene._drive_maxforce_cap` reads the stage
+        and would keep answering the build-time number after a runtime write.
+        Called twice per scoped leg (the restore target, then each read-back),
+        never per tick, and never at all with the knob off.
+        """
+        arm = self.arms[side]
+        try:
+            caps = np.asarray(
+                arm.robot.get_dof_max_efforts(
+                    dof_indices=[int(arm.finger_dofs[0])]
+                ).numpy()
+            )[0]
+            return float(caps[0])
+        except Exception as exc:  # noqa: BLE001 - a cap read must not stop a leg
+            say(f"[drive] {side} finger cap read failed: {exc}")
+            return None
+
+    def _finger_cap_write(self, side: str, value: float) -> float | None:
+        """Write `value` N onto one arm's `joint1` **live** drive cap; read back.
+
+        `set_dof_max_efforts` is the runtime mutator the experimental
+        `Articulation` routes to the tensor backend's `set_dof_max_forces`,
+        which writes the live model's `joint_effort_limit` and notifies the
+        solver's `JOINT_DOF_PROPERTIES` - i.e. the same quantity
+        `scene.apply_finger_maxforce` authors at build time, applied to a view
+        that already exists. `joint2` is a drive-less `PhysxMimicJointAPI`
+        mimic with a 0 N cap and is never written (the global writer does the
+        same). Returns the read-back after the write, or `None` on failure.
+        """
+        arm = self.arms[side]
+        dof = int(arm.finger_dofs[0])
+        try:
+            arm.robot.set_dof_max_efforts([float(value)], dof_indices=[dof])
+        except Exception as exc:  # noqa: BLE001 - a cap write must not stop a leg
+            say(f"[drive] {side} finger cap write {value:g} N failed: {exc}")
+            return None
+        return self._finger_cap_read(side)
+
+    def _finger_cap_row(self, side: str, name: str, stage: str,
+                        before: float, wanted: float,
+                        readback: float | None) -> None:
+        """One `[drive]` row per scoped-leg transition (`FRUIT_CARRY_DIAG=1`).
+
+        Reporting only, and only on a leg the scope armed, so the shipped path
+        prints nothing. It is the **in-leg** proof - the manifest is built after
+        the restore and can only show the cap the run ended with.
+        """
+        if os.environ.get("FRUIT_CARRY_DIAG", "0") != "1":
+            return
+        rb = "n/a" if readback is None else f"{readback:.2f}"
+        say(
+            f"[drive] {side} {name} finger cap {stage}: "
+            f"{before:.2f} -> {wanted:.2f} N (readback {rb} N)"
+        )
+
     def _carry(self, side: str, sample, name: str, steps: int = 200) -> None:
+        """Carry leg **wrapper**: the P78 scoped finger force, then the leg.
+
+        With a cap armed for this `(side, leg)` by
+        `finger_cap_scope_for` it raises the drive's cap for exactly this leg
+        and restores the cap the leg **found** in a `finally`, so an exception
+        inside the leg cannot leave the cap raised. With nothing armed (the
+        default everywhere, and every non-`direct` caller by construction) it
+        is one dict lookup plus one call: no write, no read, no simulator
+        interaction, so the shipped path is byte-identical. The leg itself is
+        `_carry_leg`.
+        """
+        cap = finger_cap_scope_for(self._finger_cap_scope, side, name)
+        if cap is None:
+            self._carry_leg(side, sample, name, steps)
+            return
+        base = self._finger_cap_base.get(side)
+        if base is None:
+            base = self._finger_cap_read(side)
+            if base is None:
+                # Cannot read the cap we would have to put back: run the
+                # shipped leg rather than leave a raised cap behind.
+                self._carry_leg(side, sample, name, steps)
+                return
+            self._finger_cap_base[side] = base
+        up = self._finger_cap_write(side, cap)
+        self._finger_cap_row(side, name, "raise", base, cap, up)
+        try:
+            self._carry_leg(side, sample, name, steps)
+        finally:
+            back = self._finger_cap_write(side, base)
+            self._finger_cap_row(side, name, "restore", cap, base, back)
+
+    def _carry_leg(self, side: str, sample, name: str, steps: int = 200) -> None:
         """Move the arm to a named pose with an attached fruit following the hand.
 
         Cartesian IK, not straight-line joint interpolation: a joint-space line

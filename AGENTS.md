@@ -3465,6 +3465,81 @@ that shrinks rather than closes. Pins unchanged (env-only phase): `tasks.py`
 p77_report.txt,direct/,rollouts/,p1_accept_mf60.log,p1_accept_mf60.driver,
 p2_twoline_mf60.log,p2_twoline_mf60.gate,selfcheck.log}`; WORKLOG "P77".
 
+**P78 (2026-10-31, `logs/p78/`; **default off, nothing adopted** - one new knob
+and its runtime write): the clamp can be **scoped to the site**, the runtime
+write works, the containment is total - and the dose reproduces P77's
+mechanism without the grasp half, at a count that is a direction, not a rate.**
+P77's win was measured on a **global** cap, which is a per-joint drive property
+written at build time on **both arms of every presentation** - so a flip moves
+the scripted acceptance at attempt 0 and the two-line's fingerprint, and owes
+both motion references, a scripted re-baseline and every store. But P77 §2 also
+measured the class's **site**: every escape and every pry, in both arms, is a
+left `place0` leg. So the lever is a **runtime** cap on one arm's `place*` legs:
+`FRUIT_FINGER_MAXFORCE_SCOPE=place-left` (+ `..._SCOPED=<N>`, default 60), the
+only token; an **explicit `FRUIT_FINGER_MAXFORCE` still wins** (the global path
+keeps its meaning, the two cannot stack) and **every non-`direct` presentation
+resolves `(None, None)` before reading a value** (`rl_env.resolve_finger_cap_scope`,
+strict: unknown token / non-number / non-finite / `<= 0` raise). The task takes
+it as a caller-owned kwarg and `tasks.finger_cap_scope_for` is the **only** site
+resolver (`place*` only, per side, so `grasp_lift` can never be armed); `_carry`
+is now a **wrapper** that raises the left drive's `joint1` cap via
+`set_dof_max_efforts` and restores **the cap the leg found** in a **`finally`**
+(the leg body is `_carry_leg`; `237`'s locator follows it, assertions unchanged).
+**The runtime write is real and proven three ways**: the API is the tensor
+backend's `set_dof_max_forces` -> live `joint_effort_limit` + a
+`JOINT_DOF_PROPERTIES` notify (the one `scene.apply_finger_maxforce`'s docstring
+names as acting on a live view); the per-leg `[drive]` read-back follows
+(`10.00 -> 60.00`, readback `60.00`, restore `-> 10.00`); and the **physics**
+follows - `place*` **peak** force **29.75 / 44.99 / 56.08 N at caps 30 / 45 / 60**
+(99 / 100 / 93 %) against a control of 10.69 N, while **`grasp_lift` stays at
+9.10-9.97 N in the same runs** (the pick is untouched by construction *and* by
+measurement). **The blast radius with the scope armed is zero**: the scripted
+acceptance is **346/346 `[fruit]` lines, md5 `d0079a23` - byte-identical** to
+`logs/p76/accept_noharm_full.log` - with `fingerprint: matches` (the only failing
+clause is the standing 6/9 rate), the two-line is **7/10 + `190: PASS`** against
+`eb697f23`, neither prints a scope row, and **no reference was re-recorded**;
+B1/B2 are **import/structure guards** (the scripted entries never construct
+`SortingRLEnv`) and the substantive proof is the direct line's own read-back.
+**The dose** (seed 77 screen, then three seeds): the screen passed S30 and S60
+and the economical rule sent **S30** to seeds 101/202 - where its 6-leg "0
+escapes" became 4/32, **P74's lesson again**. Three-seed pooled **C / S30 / S60**:
+left placed **10/18 · 12/17 (p = 0.49) · 11/16 (p = 0.50)**, left escapes
+**8/36 · 4/32 · 4/31 (both 50 % of C, not <= 1/3)**, left pried **3/36 · 0/32 ·
+1/31**, right **25/27 · 22/28 · 25/29**, cycle **1774 · 1804 · 1789**. **No rung
+meets its bar** (S30 fails D2 and D4; S60 fails D2 and the per-cell crush guard),
+so nothing is adopted - but the **mechanism is P77's without the grasp half**
+(pries essentially deleted, escapes halved rather than closed - P77's T was
+4/38 -> 1/40 and 7 -> 3 = 43 %) and the **mode migrates**: the control's escapes
+are **0/8 axial**, both doses are **2/4 axial** (`sep_max - dia` +2.7 .. +9.9),
+i.e. **force removes the radial pry and leaves the axial walk**
+(`logs/p42/SIM_LIMIT.md`, P61). The extension's **P5 did not fire**: a
+place-leg-only cap that cannot touch the pick still moves the left count in
+P77's direction, so the **place leg carries the direction** and only the
+magnitude is unresolved. Two negatives are recorded, not smoothed: **S45's
+6.8 cm pear pries at a delivered 46.05 N** (`sep_max` 95.6 mm - force reduces,
+does not delete), and **the one crush-guard leg is a RIGHT `grasp_lift` at the
+shipped 10 N cap** (S60/101, a 3.88 cm strawberry, `sep@loss - dia` **-15.9 mm**,
+`grasped=False` - the shipped close's squeeze-out, one event in ten cells, **not
+dose-attributable**; it fails the registered per-cell D3/G7 as written). **A
+recorded PREREG correction**: `force_min` is a leg *minimum* (a contact
+transient), not a clamp read under a leg-scoped cap - it reads 80 / 78 % at
+45 / 60 N while the leg *maximum* tracks the cap at 99 / 100 / 93 %; the report
+prints both and gates on `fmin >= 75 % AND fmax <= 110 %`. No-harm:
+`scripts/selfcheck.sh` **PASS, 0 failures** (new leg `scripts/244_p78_scope_selftest.py`
+`aadea2d3`, 45 checks), `TASKS_MD5` metadata-only follow `9d5824ef ->
+b1464c43`, `logs/p36/offline_obs_diff.txt` regenerated by the `218` leg (a
+generated index, not a claim). Pins: `tasks.py` **`b1464c43`**, `rl_env.py`
+**`5c7322d2`**, `scene.py` **`fbd7e2bb`**, `control.py` `9384ff4f`,
+`assets.py` `540406fa`, `fruits.py` `c7461d41`, `policy/trigger.py` `b09d3cb2`,
+`scripts/selfcheck.sh` `ce338611`, `scripts/237_p67_climb_selftest.py`
+`6a6b18bf`, `configs/motion_reference.json` **`8952c320`**, `..._twoline.json`
+**`eb697f23`** (both untouched), ckpt `moe_v13s` `61da390a`. Evidence
+`logs/p78/{PREREG.md,PREREG.md5,PREREG_EXT.md,PREREG_EXT.md5,RESULTS.md,
+header.txt,run_p78.sh,p78_report.py,p78_report.txt,direct/,rollouts/,smoke_60.log,
+b1_accept_armed.log,b1_accept_armed.driver,b2_twoline_armed.log,
+b2_twoline_armed.gate,p1_driver.log,p32_driver.log,p4_ext_driver.log,
+selfcheck.log}`; WORKLOG "P78".
+
 ## 3. What changed -> what to run
 
 | you changed | run |
@@ -3480,6 +3555,7 @@ p2_twoline_mf60.log,p2_twoline_mf60.gate,selfcheck.log}`; WORKLOG "P77".
 | the output station (`assets.py` `output_rails` / `output_belt_top_z`, `conveyor.OutputBelt`) | `scripts/selfcheck.sh` (the `238` leg), `scripts/accept.sh`, one two-line run + `scripts/190_twoline_gate.sh`, then the direct cell with `FRUIT_CARRY_DIAG=1` (the crossing `clr`/`clr_win` **and the P72 corner `clr_edge`/`clr_edge_min`** per held place leg, read with `logs/p72/p72_report.py --check`) - and re-record both references if the flip is shipped (`logs/p71/RESULTS.md` §5) |
 | the scene's collider set or a store's provenance (`assets.scene_provenance`, the manifests) | `scripts/selfcheck.sh` (the `239` leg), then one collection or direct run and check its `manifest.json` carries the `scene` block (`logs/p72/manifest_probe.py` does it without a simulator app) |
 | a new default-off diagnostic field on the `[carry]` row (or a new `[place]`/`[seat]` line, or a new `[place-trace]` per-tick print) | `scripts/selfcheck.sh` (the field's own leg - `235`/`239`/`240`/`241` are the pattern), then **one direct run with `FRUIT_CARRY_DIAG=1`** to read it, then `scripts/accept.sh` and require its **346/346 `[fruit]` lines** to be byte-identical to the pre-change record - a diag-only change must be inert on the scripted path (`logs/p73/P1_RESULTS.md` §5, `logs/p75/RESULTS.md` §5) |
+| the finger drive's force cap, or a leg-scoped drive write (`FRUIT_FINGER_MAXFORCE`, `FRUIT_FINGER_MAXFORCE_SCOPE`/`..._SCOPED`, `tasks.finger_cap_scope_for`, `_carry`'s wrapper) | `scripts/selfcheck.sh` (the `244` leg), then **one direct run with `FRUIT_CARRY_DIAG=1`** and read the `[drive] ... finger cap raise/restore` rows **and** `force_min` by leg class (`place*` at the scoped cap, `grasp_lift` at ~9.7 N - the site proof), then `scripts/accept.sh` + one two-line run + `scripts/190_twoline_gate.sh` **with the knob armed** and require **346/346 `[fruit]` lines + both fingerprints** to be unmoved (`logs/p78/RESULTS.md` §7) - the scoped form must move no reference; a **global** `FRUIT_FINGER_MAXFORCE` instead owes both references and every store |
 
 To compare two **policy** arms, use the harness rather than two runs:
 

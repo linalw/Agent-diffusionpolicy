@@ -21149,3 +21149,139 @@ construction and both references stand (`8952c320` / `eb697f23`).
 Evidence `logs/p77/{PREREG.md,PREREG.md5,RESULTS.md,header.txt,run_p77.sh,
 p77_report.py,p77_report.txt,direct/,rollouts/,p1_accept_mf60.log,
 p1_accept_mf60.driver,p2_twoline_mf60.log,p2_twoline_mf60.gate,selfcheck.log}`.
+
+## P78 — the clamp, scoped to the site: the containment is total, the dose is P77's mechanism, the count is a direction
+
+**One shipped change - a new default-off knob and its runtime write - and
+nothing adopted.** The question was mechanical: P77's global 60 N count win owes
+**both motion references, a scripted re-baseline and every store**, because the
+cap is a per-joint drive property written at build time on both arms of every
+presentation; but P77 §2 measured that **every escape and every pry, in both
+arms, is a left `place0` leg** (C 7/38 escaped and 4/38 pried, T 3/40 and 1/40,
+right 0 and 0 on 43/45). The class is a **site**, so the force can be one.
+Two registrations, both pinned before their runs: `logs/p78/PREREG.md`
+(**`01077e1a`**, the knob + the seed-77 ladder + the blast-radius gate) and
+`logs/p78/PREREG_EXT.md` (**`4a3b8081`**, the scoped-60 extension at seeds
+101/202, pinned *after* the S30 three-seed read and before those cells - a
+declared extension, the P76 A2 / P77 A2 convention, said so in its own first
+line).
+
+**1. The runtime write works, and it is proven three ways - this was the phase's
+gate, not an assumption.** Static: `Articulation.set_dof_max_efforts`
+(`isaacsim.core.experimental.prims`) has a **tensor-backend** branch that calls
+the view's `set_dof_max_forces`, which writes the **live** model's
+`joint_effort_limit` and then `notify_model_changed(JOINT_DOF_PROPERTIES)`
+(`isaacsim.physics.newton/.../tensors/articulation_view.py:1364-1385`, `:108-114`
+- on this build the engine is `physx` with the `torch` backend,
+`scene.start`). That is exactly the API `scene.apply_finger_maxforce`'s own
+docstring names as the one that "act[s] on a live view", and `tasks`'
+`arms[side].robot` **is** that `Articulation`. Empirical, and this is what
+counts: a 2-pick smoke (`logs/p78/smoke_60.log`) prints
+`[drive] left place0 finger cap raise: 10.00 -> 60.00 N (readback 60.00 N)` and
+the restore row, the **delivered** `place0` force reads **58.16 N**, and the
+**same run's** `grasp_lift` reads **10.01 N** - i.e. the physics moved and it
+moved **only on the scoped leg**. Across the ladder the place-leg **peak** force
+is **29.75 / 44.99 / 56.08 N at caps 30 / 45 / 60** (99 / 100 / 93 %) against a
+control of 10.69 N, while `grasp_lift` sits at **9.10-9.97 N** in every armed
+cell. So the pick is untouched by construction *and* by measurement.
+
+**2. The knob, and the containment that makes the blast radius zero.**
+`FRUIT_FINGER_MAXFORCE_SCOPE=place-left` (+ `..._SCOPED=<N>`, default 60) is
+resolved by `rl_env.resolve_finger_cap_scope`, a pure function with a strict
+table: **any presentation but `direct` -> `(None, None)` before any value is
+read**; `direct` + unset -> `None`; `direct` + an **explicit
+`FRUIT_FINGER_MAXFORCE`** -> `None` (the global knob wins, the two cannot
+stack); `direct` + `place-left` -> `{"left": cap}`; **any other token, a
+non-number, a non-finite value or `<= 0` raises** (P44/P45/P52/P53's rule: a
+typo must not read as a null). The task gets it as a caller-owned kwarg
+(`PickAndPlaceTask(finger_cap_scope=...)`, the `lift_dz`/`lift_climb` pattern)
+and `tasks.finger_cap_scope_for` - the **only** site resolver - arms the
+**`place*` leg only**, per side. `_carry` became a **wrapper**: it raises the
+left drive's cap through `set_dof_max_efforts` on `joint1` (never the drive-less
+`joint2` mimic) and restores the cap the leg **found** in a **`finally`**, so an
+exception inside the leg cannot leave it raised; the leg body is `_carry_leg`
+(and `237`'s locator follows the body, every assertion unchanged). The manifest
+carries `physics.finger_cap_scope`, and `finger_drive.readback_matches` is a
+**real structural guard** here: it is read after the last restore, so a leaked
+cap would read `false` (it reads `true`, every joint at the shipped 10.0 / 0.0).
+
+**3. The blast radius - the deliverable - is zero, measured with the scope
+armed on both scripted paths.** **B1**: `scripts/accept.sh` under
+`FRUIT_FINGER_MAXFORCE_SCOPE=place-left ..._SCOPED=60` reads **346/346 `[fruit]`
+lines, md5 `d0079a23`** - **byte-identical** to `logs/p76/accept_noharm_full.log`
+- with **`fingerprint: matches`**; the only failing clause is the standing
+**6/9 < 75 %** rate on this tree's P32 branch, and **no scope row is printed at
+all**. **B2**: the two-line under the same env reads **7/10 = 70 %**,
+**`fingerprint: matches configs/motion_reference_twoline.json`** and
+**`190: PASS`**. **B3**: both references **unchanged** (`8952c320` / `eb697f23`),
+nothing re-recorded. B1/B2 are **import/structure guards** and are documented as
+such - the scripted entries never construct `SortingRLEnv` - while the
+*substantive* proof that the write is real and leg-scoped is the direct line's
+own §1 evidence. Both statements are needed; neither substitutes for the other.
+
+**4. The dose. Seed 77 screen first, and it ranked the doses wrongly - P74's
+lesson, again.** Ladder cells (left placed / left escapes / left pried / right /
+cycle): **C 3/5 · 2 · 1 · 9/10 · 1750**; **S30 3/4 · 0 · 0 · 8/11 · 1790**;
+**S45 3/6 · 2 · 1 · 8/9 · 1780**; **S60 4/4 · 0 · 0 · 9/11 · 1787**. Two rungs
+passed D1-D5, so the registered economical rule sent the **lower** (S30) to
+seeds 101/202 - and at three seeds its 6-leg "0 escapes" became **4/32**.
+**Three-seed pooled reads (C / S30 / S60): left placed 10/18 · 12/17 (p = 0.49) ·
+11/16 (p = 0.50); left escapes 8/36 · 4/32 (50 % of C) · 4/31 (50 %); left
+pried 3/36 · 0/32 · 1/31; right 25/27 · 22/28 · 25/29; cycle 1774 · 1804
+(+1.7 %) · 1789 (+0.8 %).** So **no rung meets its bar** (S30 fails D2 and D4,
+S60 fails D2 and G7's crush leg) and nothing is adopted - but the **mechanism is
+P77's, reproduced without the grasp half**: pries essentially deleted, escapes
+halved rather than closed (P77's T: 4/38 -> 1/40 pries, 7 -> 3 = 43 %), and the
+**mode migrates** - the control's escapes are **0/8 axial** while both doses are
+**2/4 axial** (`sep_max - dia` +2.7 .. +9.9 on the shallow ones), i.e. **force
+removes the radial pry and leaves the axial walk**, which is `logs/p42/SIM_LIMIT.md`
+and P61's geometry. The extension's **P5 did not fire**: a place-leg-only cap
+that cannot touch the pick still moves the left count in P77's direction, so the
+**place leg carries the direction**; only the magnitude is unresolved at this n.
+
+**5. Two negatives that matter, recorded rather than smoothed.** (a) **S45's
+6.8 cm pear pries at a delivered 46.05 N** (`sep_max` 95.6 mm) - more than four
+times the shipped force does not stop that instance, the P76/P77 "reduces, does
+not delete" statement on a second axis. (b) **The one crush-guard leg is on a
+leg the scope cannot reach**: S60/101, **right `grasp_lift`**, a 3.88 cm
+strawberry, `sep@loss` 22.9 mm against `dia` 38.8 (**-15.9 mm** interference,
+C1 fires), `fmax` **32.07 N** at the **shipped 10 N cap**, `grasped=False` - the
+shipped close's own squeeze-out, drawn once in ten cells (the control's three
+seeds did not draw it). It fails the registered per-cell D3/G7 as written and is
+**not dose-attributable**; both facts are stated. The `-28.8 / -14.0 / -14.6 mm`
+`sep@loss - dia` values in the S30 cells are the **never-held artifact** class
+(`fmax = 0.00`, 181 997 / 251 284 mm slips, P76 A3) and are excluded by the
+guards' own term, listed so the exclusion is visible.
+
+**6. A recorded PREREG correction (the manipulation statistic).** Criterion (2)
+asked for `force_min` in P76/P77's 85-99 % band; it reads **36.07 / 46.74 N
+(80 % / 78 %)** at 45 / 60 N, and the reason is the **statistic**: `force_min`
+is a leg's *minimum* (a contact transient) and P76/P77 quoted it over **all**
+legs of a **global** arm where lift legs share the cap. Under a leg-scoped cap
+the leg **maximum** is the clamp read and it tracks the cap (99 / 100 / 93 %).
+The condition's intent - "did the physics move, not just the attribute" - is met
+with a 3-5x margin and **F2 does not fire**; the report prints both statistics
+and gates on `fmin >= 75 % AND fmax <= 110 %`.
+
+No-harm: `scripts/selfcheck.sh` **PASS, 0 failures** (`logs/p78/selfcheck.log`),
+with the new leg **`scripts/244_p78_scope_selftest.py`** (`aadea2d3`, 45 checks:
+the resolution table, the `place*`-only per-side scope, the `try`/`finally`
+wrapper, the single live-view write site, the read restore target, the untouched
+build-time global writer, the manifest field). No `configs/` edit and no
+reference re-recorded. `TASKS_MD5` metadata-only follow `9d5824ef -> b1464c43`
+(three selftest legs pin it). `logs/p36/offline_obs_diff.txt` is **regenerated**
+by the selfcheck's `218` leg and therefore names the new `rl_env.py` md5 - a
+generated index, not a claim change. **The owner's decision is now a real one and
+its price is zero**: a +2/14 left direction with a 2-3x pry reduction and a mode
+shift, shippable as a `direct`-only default if a count that has not reached
+significance here is acceptable; the 30 vs 60 N choice is a documented trade
+(three right placements vs a slightly larger count) and the phase recommends
+neither. Pins: `tasks.py` **`b1464c43`**, `rl_env.py` **`5c7322d2`**, `scene.py`
+**`fbd7e2bb`**, `control.py` `9384ff4f`, `assets.py` `540406fa`, `fruits.py`
+`c7461d41`, `policy/trigger.py` `b09d3cb2`, `scripts/selfcheck.sh` `ce338611`,
+`scripts/237_p67_climb_selftest.py` `6a6b18bf`, `configs/motion_reference.json`
+**`8952c320`**, `..._twoline.json` **`eb697f23`**, ckpt `moe_v13s` `61da390a`.
+Evidence `logs/p78/{PREREG.md,PREREG.md5,PREREG_EXT.md,PREREG_EXT.md5,RESULTS.md,
+header.txt,run_p78.sh,p78_report.py,p78_report.txt,direct/,rollouts/,smoke_60.log,
+b1_accept_armed.log,b1_accept_armed.driver,b2_twoline_armed.log,
+b2_twoline_armed.gate,p1_driver.log,p32_driver.log,p4_ext_driver.log,selfcheck.log}`.
