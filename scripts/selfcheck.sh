@@ -269,6 +269,19 @@ run_check "P72 clr_edge + scene" "$python" scripts/239_p72_clr_edge_selftest.py
 # (`rot_now` is the block's existing one), the first-crossing/max/signed-step
 # arithmetic, and the printed row parsing back. No simulator.
 run_check "P73 rotation schedule" "$python" scripts/240_p73_tilt_selftest.py
+# P75: the **place-onset trace** (`FRUIT_PLACE_ONSET_TRACE=<ticks>`, default 0 =
+# off) - one `[place-trace]` row per tick for the first `<ticks>` ticks of every
+# `place*` leg, for the question P73/P74 left open (where in the first ~40 ticks
+# the payload leaves the pinch, and in what ORDER the symptoms appear). The leg
+# pins the resolver (`unset`/blank/non-numeric/negative -> off), the
+# `guard_armed` term that makes it self-sufficient, the `place*`-only scope, the
+# field order and the round-trip through the report's own reader
+# (`scripts/242_p75_classify.py`), that **no articulation read is added** (the
+# block's own `rot_now`/`pads`/`_tcp_pos` are reused; the two reporting readers
+# it adds are named), the `|v|ach` first-tick convention, and the four
+# classification cases (a)/(b)/(c)/none plus the flat-error and same-tick
+# controls. No simulator.
+run_check "P75 place-onset trace" "$python" scripts/241_p75_place_trace_selftest.py
 # P67: the **place-leg climb** (`FRUIT_LIFT_CLIMB`, metres of vertical raise at the
 # place leg's start, `direct` + left only, default OFF) - the re-shape of P66 phase
 # 4's failed rail-crossing gate: the crossing is only 0.175:1 with the lift height

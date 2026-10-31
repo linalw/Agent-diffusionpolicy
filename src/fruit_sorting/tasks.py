@@ -1647,6 +1647,46 @@ class PickAndPlaceTask:
         #: per-leg reporting built from values the loop already computes; the
         #: per-tick clean-slip read is only taken when this or the guard is on.
         self._carry_diag = os.environ.get("FRUIT_CARRY_DIAG", "0") == "1"
+        #: P75 (`FRUIT_PLACE_ONSET_TRACE=<ticks>`, **0 = off, the shipped
+        #: path**): a dense per-tick trace of the **first `<ticks>` ticks of
+        #: every `place*` leg**, for the one place-leg question P73/P74 left
+        #: open - *what exactly happens in the first ~40 ticks, where the
+        #: payload leaves the pinch?* Those two phases closed the transfer
+        #: height, the wrist rotation and the profile's speed/dwell, and left
+        #: one fact standing: the escape's onset sits at `loss_row` = 1-44 % of
+        #: the leg while the wrist's 45 deg crossing is at 71-86 %, i.e. **the
+        #: payload is gone before the leg rotates** (`logs/p74/P1_RESULTS.md`).
+        #: The three candidate mechanisms left are (a) an **expulsion** (the
+        #: pads close behind a payload already past the lip - `sep`/force
+        #: collapse *first*), (b) a **slip at constant `sep`** (a genuine slide
+        #: through the gap - displacement grows at the leg-start `sep`/force) and
+        #: (c) a **command transient** at the leg boundary (the
+        #: commanded-vs-achieved error or `|v|cmd` steps *before* the
+        #: displacement moves). One row per tick carries all three orderings,
+        #: which is what decides whether anything is left to build
+        #: (`logs/p75/METHOD.md` pins the classification rule; the phase is
+        #: diagnostic-only and adopts nothing).
+        #:
+        #: Scope, deliberately narrow: `place*` legs only, printed **post-step**
+        #: like every other read in that block, and only where the W8-B carry
+        #: block is armed (`hand_is_jaw and _dynamic_capture_active`, i.e. the
+        #: direct/policy handover). Setting this value **also arms that block**
+        #: (see `guard_armed` below) so the trace is self-sufficient - the
+        #: reference (`guard_ref`) and the `[carry]` row it shares come with it.
+        #: Unset it is one integer compare per leg and the block is byte-inert.
+        #:
+        #: Cost, and the honesty note P73/P74 carry: this is a **diagnostic**,
+        #: so its run is allowed to differ from the shipped one (it adds one
+        #: tactile read and one `jaw_separation()` read per traced tick, plus
+        #: the tracker the trace arms); **no rate may be quoted from a traced
+        #: run**, only the per-tick mechanism.
+        self._place_onset_trace = 0
+        _place_trace_raw = os.environ.get("FRUIT_PLACE_ONSET_TRACE", "").strip()
+        if _place_trace_raw:
+            try:
+                self._place_onset_trace = max(0, int(_place_trace_raw))
+            except ValueError:
+                self._place_onset_trace = 0
         #: P40 G0 (`FRUIT_GRIP_EFFORT=1`, **default off**): the finger drive's
         #: *applied effort* beside the tactile `N` the logs quote. The reported
         #: `N` is a contact-sensor sum, not a drive force, and this hand's drive
@@ -4110,7 +4150,10 @@ class PickAndPlaceTask:
                 ).copy()
             # ---- W8-B carry guard / diag (default off; see `__init__`) ------
             guard_armed = bool(
-                (self._carry_guard_active or self._carry_diag)
+                (
+                    (self._carry_guard_active or self._carry_diag)
+                    or self._place_onset_trace > 0
+                )
                 and hand_is_jaw
                 and self._dynamic_capture_active
             )
@@ -4262,6 +4305,17 @@ class PickAndPlaceTask:
             #: the largest opening the cap applied over the leg.
             relief_gap_start = float(gap_command)
             relief_open_max = 0.0
+            #: P75: the place-onset trace's own per-leg state (see the knob block
+            #: in `__init__`). `trace_ticks` is 0 on every non-`place` leg and
+            #: whenever the knob is unset, so the row below is one integer test;
+            #: `~tcp_prev` is the previous traced tick's achieved TCP position -
+            #: it is the **only** new bookkeeping (the achieved speed is a finite
+            #: difference of the block's own post-step `tcp_pose()` read, so no
+            #: new articulation read is added for `|v|ach`).
+            trace_ticks = (
+                self._place_onset_trace if name.startswith("place") else 0
+            )
+            _tr_tcp_prev = None
             n_ticks = len(commands)
             if guard_acts:
                 # The profile may be frozen for up to the hold budget; the
@@ -4673,6 +4727,71 @@ class PickAndPlaceTask:
                         guard_tilt75_i = i
                     guard_tilt_max = max(guard_tilt_max, _tilt_now)
                     guard_tilt_end = _tilt_now
+                    # ---- P75: the place leg's onset trace (reporting only) ----
+                    # `FRUIT_PLACE_ONSET_TRACE=<ticks>` (0 = off, see `__init__`).
+                    # The ordering of the three symptoms **on one tick-indexed
+                    # row** is the whole point: the hand-frame displacement
+                    # (P61's axis - `d=` splits it, `|d|` is the `clean_slip`
+                    # operand's own norm), the pad geometry (`sep` measured,
+                    # `gap` commanded - `sep - gap` is the pad-shell offset, so
+                    # a payload being pried reads as `sep` growing at constant
+                    # `gap`, and the force servo's own closing reads as `gap`
+                    # falling), the two tactile faces, the commanded-vs-achieved
+                    # TCP error (`res_end`'s quantity, per tick) and the two
+                    # speeds. `q_margin` is this tick's own minimum (the P65
+                    # block's `_marg`, already read) rather than the leg's min.
+                    # Every field comes from reads this block already took;
+                    # `jaw_separation()` and one tactile set are the only two
+                    # per-traced-tick additions, both `FRUIT_CARRY_DIAG`-class
+                    # reporting readers, and **no articulation read is added**.
+                    if trace_ticks and i < trace_ticks:
+                        _tr_tac = self.tactile.read().get(side, _EMPTY_TACTILE)
+                        _tr_faces = sorted(
+                            float(v) for v in (_tr_tac.fingertip_forces or {}).values()
+                        )
+                        _tr_f0 = _tr_faces[0] if len(_tr_faces) > 0 else 0.0
+                        _tr_f1 = _tr_faces[1] if len(_tr_faces) > 1 else 0.0
+                        _tr_d = rel_frame - guard_ref
+                        _tr_norm = float(np.linalg.norm(_tr_d))
+                        # The row's `sep` (reporting reader; the same
+                        # `jaw_separation()` the `[carry]` row's `sep_end` takes -
+                        # two finger-prim world poses, already read this tick by
+                        # the loop's own pad-midpoint call).
+                        _tr_sep = float(arm.jaw_separation()) * 1000.0
+                        if _tcp_tgt_issued is None:
+                            _tr_err = float("nan")
+                        else:
+                            _tr_err = float(
+                                np.linalg.norm(
+                                    _tcp_pos - np.asarray(_tcp_tgt_issued, dtype=float)
+                                )
+                            )
+                        _tr_vcmd = float(
+                            np.linalg.norm(velocities[min(i, len(velocities) - 1)])
+                        )
+                        if _tr_tcp_prev is None:
+                            # The first traced tick has no predecessor: report the
+                            # leg-boundary speed as 0 rather than as the distance
+                            # from a stale pose of the previous leg.
+                            _tr_vach = 0.0
+                        else:
+                            _tr_vach = float(
+                                np.linalg.norm(_tcp_pos - _tr_tcp_prev) / CONTROL_DT
+                            )
+                        _tr_tcp_prev = _tcp_pos.copy()
+                        say(
+                            f"[place-trace] {side} {name} t={i} "
+                            f"|d|={_tr_norm * 1000:.1f}mm "
+                            f"d=({_tr_d[0] * 1000:+.1f},"
+                            f"{_tr_d[1] * 1000:+.1f},"
+                            f"{_tr_d[2] * 1000:+.1f})mm "
+                            f"sep={_tr_sep:.1f}mm gap={gap_command * 1000:.1f}mm "
+                            f"f=({_tr_f0:.2f},{_tr_f1:.2f})N "
+                            f"n={int(_tr_tac.contact_count)} "
+                            f"tcp_err={_tr_err * 1000:.1f}mm "
+                            f"v_cmd={_tr_vcmd:.3f} v_ach={_tr_vach:.3f} "
+                            f"q_margin={float(_marg[_j]):.3f}@j{_j}"
+                        )
                 elif mon_leg is not None:
                     # P10-C.2 minimal clean-slip accumulator (see `__init__`):
                     # the guard/diag tracker above is off, but the confirmation

@@ -422,7 +422,7 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: which is that block's own read for `clean_slip`: no new articulation read, no
 #: command, threshold or control path touched, and the whole block is still gated
 #: by `FRUIT_CARRY_DIAG` (default "0"). `logs/p73/PREREG.md` §3.
-TASKS_MD5 = "adcfd3488f7cd16dc7ee3dd84ebab065"
+TASKS_MD5 = "303d025d7085236ce2ee93b735c55f73"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(
