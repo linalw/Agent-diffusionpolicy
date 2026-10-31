@@ -1,0 +1,973 @@
+# P81 header (2026-11-01 06:32:26)
+# tree: 4a25b3dabc4ec6e85bf55d5ffe95ce928a9aad8f  dirty=0
+e8dfa6d819bf41d800d90fff349aa951  src/fruit_sorting/tasks.py
+980923a640d9a07be2d040a4f82e9c9f  src/fruit_sorting/bimanual.py
+540406fac53992d32bee5f04a3a25785  src/fruit_sorting/assets.py
+fb2c58c6ffdf1a478a25393180da4cda  src/fruit_sorting/conveyor.py
+07d6fdad013528c6074d6d624f5c9807  src/fruit_sorting/scene.py
+7d26eb5bd27bc17d3729b77472a354d4  src/fruit_sorting/rl_env.py
+c7461d4104cf2c5f6c5a2daab80fbf32  src/fruit_sorting/fruits.py
+9384ff4fa3e62b359bf10d2123ef41fa  src/fruit_sorting/control.py
+8952c320d798ef42e03ba815c9e96b23  configs/motion_reference.json
+eb697f23adb5d6b9ef8656f3319d3ce8  configs/motion_reference_twoline.json
+492428759291f779cf65cf26fc974790  scripts/186_w6_report.py
+3a67682792614696b57273f24c002b80  scripts/175_twoline_report.py
+a24cfc5b610cde99366a4044cc15490b  scripts/190_twoline_gate.sh
+16a3d790ca5fbc06d8afe3229daaec37  scripts/105_motion_regression.py
+be5832e123257d623fc6332c34755c7d  scripts/accept.sh
+1a5adba65df4e4e825ad798287de12eb  scripts/154_claim_run.sh
+dd4bf41a04425d34946ca4db484d8d61  scripts/selfcheck.sh
+e69306fbc2c1be2422a8f779bc6cbaf3  logs/p80/S20.log
+179d4f9efa1d462d9287daedefbe7094  logs/p80/T20.log
+874b10b4c31730a886ae6223265af6ab  logs/p80/S6.log
+282f8d571780e1a835a578ce1b95e503  logs/p80/T6.log
+fe5dd0b5a64395a7c0978ba72132d120  logs/p80/motion_reference_twoline_p80_20.json
+44c961008e2850e635df3d6b20e3c904  logs/p80/p80lib.py
+fae805cd51140f5a68b448151994a37e  logs/p80/stamp.py
+461e170964fe343b20a3f0f52580031e  logs/p81/PREREG.md
+1a7e31f082042b5e8787452394fa0453  logs/p81/p81_report.py
+f5dea51b354f8c3d9b8444398fb9b6fd  logs/p81/one_run.sh
+fae805cd51140f5a68b448151994a37e  logs/p81/stamp.py
+# arms: Tp5/Tp6 = FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=1 FRUIT_SUPPLY_WAVE=0 at 20 attempts, seeds 5/6
+# controls (read, not re-run): logs/p80/{S20,T20,S6,T6}.log
+# instrumentation: HEADLESS=1 ATTEMPTS=20 FRUIT_MOTION_REPORT=1 FRUIT_CYCLE_REPORT=1
+# rails: shipped (FRUIT_OUTPUT_RAILS unset = none, P71); no patch/bed/
+# grades env - the 50/30/20 must come from the code default (PREREG F1)
+[p81] START 06:32:26 Tp5  HEADLESS=1 ATTEMPTS=20 FRUIT_MOTION_REPORT=1 FRUIT_CYCLE_REPORT=1 SEED=5 FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=1 FRUIT_SUPPLY_WAVE=0
+[claim_run] claimed the simulator 06:32:46
+[claim_run] exit=0 06:41:38 log=logs/p81/Tp5.driver
+[p81] exit=0 06:41:38 Tp5
+    [fruit] [stats] attempts=20 successes=10 diverted=3 success_rate=50% sim=202.6s total, 10.1s/attempt, 20.3s/success gate_open=0.0s total, queue_peak=0 recirculated=0 encoder=-0.120 m/s nominal (command -0.120, no cleats to measure travel)
+    [fruit] [biarm] 1 pipelined slots, 20 attempts, 10 successes, 202.6s sim span, 10.1s/attempt, 20.3s/success, 2.96 fruits/min; per arm left=7/12 right=3/8
+[p81] START 06:41:38 Tp6  HEADLESS=1 ATTEMPTS=20 FRUIT_MOTION_REPORT=1 FRUIT_CYCLE_REPORT=1 SEED=6 FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=1 FRUIT_SUPPLY_WAVE=0
+[claim_run] claimed the simulator 06:41:59
+[claim_run] exit=0 06:50:47 log=logs/p81/Tp6.driver
+[p81] exit=0 06:50:47 Tp6
+    [fruit] [stats] attempts=20 successes=13 diverted=1 success_rate=65% sim=198.8s total, 9.9s/attempt, 15.3s/success gate_open=0.0s total, queue_peak=0 recirculated=0 encoder=-0.120 m/s nominal (command -0.120, no cleats to measure travel)
+    [fruit] [biarm] 1 pipelined slots, 20 attempts, 13 successes, 198.8s sim span, 9.9s/attempt, 15.3s/success, 3.92 fruits/min; per arm left=6/11 right=7/9
+[p81] supply proof
+-- Tp5
+[fruit] [supply] scatter pool=16 seed=5 gaps=0.10-0.35 m lateral x=0.20-0.36 m stream=on target=0 wave=off grades=A:0.5,B:0.3,C:0.2 classes=strawberry:2,lychee:2,kiwi:2,tomato:2,apple:2,orange:2,peach:2,pear:2
+A:0.375 rows: 0
+wave=off: yes
+shipped 50/30/20: yes
+-- Tp6
+[fruit] [supply] scatter pool=16 seed=6 gaps=0.10-0.35 m lateral x=0.20-0.36 m stream=on target=0 wave=off grades=A:0.5,B:0.3,C:0.2 classes=strawberry:2,lychee:2,kiwi:2,tomato:2,apple:2,orange:2,peach:2,pear:2
+A:0.375 rows: 0
+wave=off: yes
+shipped 50/30/20: yes
+[p81] 105 budgets Tp5
+logs/p81/Tp5.log: 20 descent leg(s), line=dynamic
+   #   dist samples  |v|max  budget   |a|max   |dv|  a_med  peak@  a_win5  verdict
+   1   5.7c      89   0.108   0.160     1.84  0.015   0.23   0.02    0.71  ok
+   2   5.6c      89   0.108   0.161     1.91  0.016   0.23   0.02    0.66  ok
+   3   5.8c      91   0.110   0.161     1.32  0.011   0.24   0.02    0.42  ok
+   4   5.6c      88   0.109   0.161     2.08  0.017   0.23   0.03    0.83  ok
+   5   5.6c      88   0.137   0.161     5.97  0.050   0.45   0.52    3.69  ok (rough)
+   6   5.5c      87   0.109   0.160     2.13  0.018   0.25   0.02    0.85  ok
+   7   5.7c      90   0.131   0.160     3.65  0.030   0.36   0.55    2.18  ok (rough)
+   8   5.6c      88   0.109   0.161     2.06  0.017   0.24   0.01    0.72  ok
+   9   5.7c      90   0.109   0.160     1.68  0.014   0.24   0.02    0.55  ok
+  10   5.6c      89   0.112   0.161     3.45  0.029   0.33   0.82    1.59  ok
+  11   5.5c      87   0.109   0.160     2.16  0.018   0.24   0.02    0.88  ok
+  12   5.6c      89   0.108   0.161     1.94  0.016   0.22   0.02    0.67  ok
+  13   5.7c      89   0.108   0.160     1.86  0.016   0.24   0.02    0.72  ok
+  14   5.7c      90   0.109   0.160     1.65  0.014   0.24   0.02    0.54  ok
+  15   5.6c      88   0.109   0.161     2.06  0.017   0.23   0.01    0.73  ok
+  16   5.6c      88   0.110   0.161     1.98  0.016   0.25   0.02    0.79  ok
+  17   5.8c      91   0.110   0.161     1.42  0.012   0.23   0.02    0.45  ok
+  18   5.8c      91   0.108   0.161     1.59  0.013   0.25   0.02    0.62  ok
+  19   5.6c      88   0.108   0.161     2.01  0.017   0.24   0.01    0.69  ok
+  20   5.6c      88   0.108   0.161     2.02  0.017   0.24   0.01    0.69  ok
+  worst: |v|max=0.1370 m/s (budget 0.160-0.161), lurch=0.050 m/s/tick (budget 0.291096), a_win5=3.690 m/s^2 (carrying budget 2, warning)
+
+logs/p81/Tp5.log: 31 carry leg(s)
+  leg              dist    cone  over    slip in-hand |v| recov  verdict
+  grasp_lift        21c   0.88x    0%   24.4mm      0.039     0  ok
+  grasp_lift        26c   1.89x   22%  863.2mm      3.092     0  ok (cone 1.89x reported)
+  place0            55c   0.86x    0%   82.7mm      0.062     0  ok
+  grasp_lift        20c   0.89x    0%  140.4mm      1.408     0  ok
+  grasp_lift        21c   0.89x    0%  279.2mm      0.349     0  ok
+  grasp_lift        21c   1.03x    1%   26.4mm      0.053     0  ok (cone 1.03x reported)
+  place0            48c   1.34x   13%  107.9mm      0.186     0  ok (cone 1.34x reported)
+  grasp_lift        22c   0.89x    0%   45.9mm      0.088     0  ok
+  grasp_lift        21c   0.88x    0%   23.6mm      0.039     0  ok
+  place1            32c   0.87x    0%   60.2mm      0.153     0  ok
+  place0            56c   0.87x    0%   88.7mm      0.098     0  ok
+  grasp_lift        21c   0.90x    0%  284.6mm      1.680     0  ok
+  grasp_lift        20c   0.90x    0%  269.7mm      0.337     0  ok
+  grasp_lift        20c   0.89x    0%   28.4mm      0.051     0  ok
+  place1            64c   0.94x    0%  270.7mm      2.168     0  ok
+  grasp_lift        22c   0.94x    0%   17.8mm      0.045     0  ok
+  grasp_lift        22c   0.88x    0%   24.6mm      0.039     0  ok
+  place1            23c   0.89x    0%   44.3mm      0.092     0  ok
+  place0            54c   0.86x    0%   83.3mm      0.063     0  ok
+  grasp_lift        19c   0.89x    0%  227.8mm      0.305     0  ok
+  grasp_lift        21c   0.88x    0%   23.5mm      0.039     0  ok
+  place0            57c   0.87x    0%   89.1mm      0.101     0  ok
+  grasp_lift        21c   0.90x    0%  266.6mm      1.838     0  ok
+  grasp_lift        21c   0.88x    0%   24.2mm      0.044     0  ok
+  grasp_lift        21c   0.91x    0% 1362.6mm      4.947     0  ok
+  place0            60c   0.86x    0%   84.2mm      0.062     0  ok
+  grasp_lift        26c   1.77x   28%   18.3mm      0.077     0  ok (cone 1.77x reported)
+  place1            19c   0.96x    0%   57.9mm      0.106     0  ok
+  grasp_lift        21c   0.88x    0%   24.4mm      0.039     0  ok
+  place0            53c   0.86x    0%   77.6mm      0.057     0  ok
+  grasp_lift        21c   0.91x    0%   39.0mm      0.190     0  ok
+  worst held-grip cone: 1.89x budget (budget 1x)
+  hand speed: worst 0.450 m/s; 0/31 leg(s) over 0.45 m/s (reported, not gated) - every other leg sits at the commanded 0.176-0.371
+
+  success: 10/20 = 50% (floor 0% - override)
+
+PASS: every descent is inside its profile's speed and lurch bound, the carry cone/slip is reported, and the success rate is at or above the dynamic line's floor
+note: 6 warning(s) (reported, not gating):
+  - descent 5 (5.6 cm): a_win5=3.69 over the 2 m/s^2 carrying budget - reported, not gated (see the module docstring)
+  - descent 7 (5.7 cm): a_win5=2.18 over the 2 m/s^2 carrying budget - reported, not gated (see the module docstring)
+  - carry grasp_lift: cone=1.89x over the 1x budget with slip=863.2mm - reported on the dynamic line, not gated
+  - carry grasp_lift: cone=1.03x over the 1x budget with slip=26.4mm - reported on the dynamic line, not gated
+  - carry place0: cone=1.34x over the 1x budget with slip=107.9mm - reported on the dynamic line, not gated
+  - carry grasp_lift: cone=1.77x over the 1x budget with slip=18.3mm - reported on the dynamic line, not gated
+[p81] 105 Tp5 exit=0 (budgets only; the rate is reported)
+[p81] 190 (recorded) Tp5
+190: two-line gate: reference=logs/p80/motion_reference_twoline_p80_20.json floor=0.60
+logs/p81/Tp5.log: 20 descent leg(s), line=dynamic
+   #   dist samples  |v|max  budget   |a|max   |dv|  a_med  peak@  a_win5  verdict
+   1   5.7c      89   0.108   0.160     1.84  0.015   0.23   0.02    0.71  ok
+   2   5.6c      89   0.108   0.161     1.91  0.016   0.23   0.02    0.66  ok
+   3   5.8c      91   0.110   0.161     1.32  0.011   0.24   0.02    0.42  ok
+   4   5.6c      88   0.109   0.161     2.08  0.017   0.23   0.03    0.83  ok
+   5   5.6c      88   0.137   0.161     5.97  0.050   0.45   0.52    3.69  ok (rough)
+   6   5.5c      87   0.109   0.160     2.13  0.018   0.25   0.02    0.85  ok
+   7   5.7c      90   0.131   0.160     3.65  0.030   0.36   0.55    2.18  ok (rough)
+   8   5.6c      88   0.109   0.161     2.06  0.017   0.24   0.01    0.72  ok
+   9   5.7c      90   0.109   0.160     1.68  0.014   0.24   0.02    0.55  ok
+  10   5.6c      89   0.112   0.161     3.45  0.029   0.33   0.82    1.59  ok
+  11   5.5c      87   0.109   0.160     2.16  0.018   0.24   0.02    0.88  ok
+  12   5.6c      89   0.108   0.161     1.94  0.016   0.22   0.02    0.67  ok
+  13   5.7c      89   0.108   0.160     1.86  0.016   0.24   0.02    0.72  ok
+  14   5.7c      90   0.109   0.160     1.65  0.014   0.24   0.02    0.54  ok
+  15   5.6c      88   0.109   0.161     2.06  0.017   0.23   0.01    0.73  ok
+  16   5.6c      88   0.110   0.161     1.98  0.016   0.25   0.02    0.79  ok
+  17   5.8c      91   0.110   0.161     1.42  0.012   0.23   0.02    0.45  ok
+  18   5.8c      91   0.108   0.161     1.59  0.013   0.25   0.02    0.62  ok
+  19   5.6c      88   0.108   0.161     2.01  0.017   0.24   0.01    0.69  ok
+  20   5.6c      88   0.108   0.161     2.02  0.017   0.24   0.01    0.69  ok
+  worst: |v|max=0.1370 m/s (budget 0.160-0.161), lurch=0.050 m/s/tick (budget 0.291096), a_win5=3.690 m/s^2 (carrying budget 2, warning)
+
+logs/p81/Tp5.log: 31 carry leg(s)
+  leg              dist    cone  over    slip in-hand |v| recov  verdict
+  grasp_lift        21c   0.88x    0%   24.4mm      0.039     0  ok
+  grasp_lift        26c   1.89x   22%  863.2mm      3.092     0  ok (cone 1.89x reported)
+  place0            55c   0.86x    0%   82.7mm      0.062     0  ok
+  grasp_lift        20c   0.89x    0%  140.4mm      1.408     0  ok
+  grasp_lift        21c   0.89x    0%  279.2mm      0.349     0  ok
+  grasp_lift        21c   1.03x    1%   26.4mm      0.053     0  ok (cone 1.03x reported)
+  place0            48c   1.34x   13%  107.9mm      0.186     0  ok (cone 1.34x reported)
+  grasp_lift        22c   0.89x    0%   45.9mm      0.088     0  ok
+  grasp_lift        21c   0.88x    0%   23.6mm      0.039     0  ok
+  place1            32c   0.87x    0%   60.2mm      0.153     0  ok
+  place0            56c   0.87x    0%   88.7mm      0.098     0  ok
+  grasp_lift        21c   0.90x    0%  284.6mm      1.680     0  ok
+  grasp_lift        20c   0.90x    0%  269.7mm      0.337     0  ok
+  grasp_lift        20c   0.89x    0%   28.4mm      0.051     0  ok
+  place1            64c   0.94x    0%  270.7mm      2.168     0  ok
+  grasp_lift        22c   0.94x    0%   17.8mm      0.045     0  ok
+  grasp_lift        22c   0.88x    0%   24.6mm      0.039     0  ok
+  place1            23c   0.89x    0%   44.3mm      0.092     0  ok
+  place0            54c   0.86x    0%   83.3mm      0.063     0  ok
+  grasp_lift        19c   0.89x    0%  227.8mm      0.305     0  ok
+  grasp_lift        21c   0.88x    0%   23.5mm      0.039     0  ok
+  place0            57c   0.87x    0%   89.1mm      0.101     0  ok
+  grasp_lift        21c   0.90x    0%  266.6mm      1.838     0  ok
+  grasp_lift        21c   0.88x    0%   24.2mm      0.044     0  ok
+  grasp_lift        21c   0.91x    0% 1362.6mm      4.947     0  ok
+  place0            60c   0.86x    0%   84.2mm      0.062     0  ok
+  grasp_lift        26c   1.77x   28%   18.3mm      0.077     0  ok (cone 1.77x reported)
+  place1            19c   0.96x    0%   57.9mm      0.106     0  ok
+  grasp_lift        21c   0.88x    0%   24.4mm      0.039     0  ok
+  place0            53c   0.86x    0%   77.6mm      0.057     0  ok
+  grasp_lift        21c   0.91x    0%   39.0mm      0.190     0  ok
+  worst held-grip cone: 1.89x budget (budget 1x)
+  hand speed: worst 0.450 m/s; 0/31 leg(s) over 0.45 m/s (reported, not gated) - every other leg sits at the commanded 0.176-0.371
+
+  success: 10/20 = 50% (floor 60% - override)
+  fingerprint: DIFFERS from logs/p80/motion_reference_twoline_p80_20.json - this run landed in a different attractor, so do not compare its success count with the reference log's
+    leg 1: this=[89, 0.108] reference=[89, 0.109]
+    leg 2: this=[89, 0.108] reference=[89, 0.107]
+    leg 3: this=[91, 0.11] reference=[88, 0.11]
+    leg 4: this=[88, 0.109] reference=[89, 0.108]
+    leg 5: this=[88, 0.137] reference=[88, 0.11]
+    leg 6: this=[87, 0.109] reference=[88, 0.109]
+    leg 7: this=[90, 0.131] reference=[89, 0.108]
+    leg 8: this=[88, 0.109] reference=[91, 0.11]
+    leg 9: this=[90, 0.109] reference=[87, 0.109]
+    leg 10: this=[89, 0.112] reference=[92, 0.112]
+    leg 11: this=[87, 0.109] reference=[88, 0.11]
+    leg 13: this=[89, 0.108] reference=[93, 0.105]
+    leg 14: this=[90, 0.109] reference=[89, 0.108]
+    leg 15: this=[88, 0.109] reference=[87, 0.109]
+    leg 16: this=[88, 0.11] reference=[91, 0.11]
+    leg 17: this=[91, 0.11] reference=[87, 0.109]
+    leg 18: this=[91, 0.108] reference=[90, 0.109]
+    leg 19: this=[88, 0.108] reference=[88, 0.109]
+    leg 20: this=[88, 0.108] reference=[90, 0.109]
+
+FAIL: 2 problem(s)
+  - success 10/20 below 60%
+  - fingerprint differs from the reference (different attractor)
+190: FAIL logs/p81/Tp5.log
+190: at least one log failed
+[p81] 190 Tp5 exit=1 (DIFFERS is expected: different supply)
+[p81] 105 budgets Tp6
+logs/p81/Tp6.log: 20 descent leg(s), line=dynamic
+   #   dist samples  |v|max  budget   |a|max   |dv|  a_med  peak@  a_win5  verdict
+   1   5.7c      89   0.110   0.160     1.85  0.015   0.24   0.02    0.74  ok
+   2   5.6c      89   0.108   0.161     1.94  0.016   0.22   0.02    0.67  ok
+   3   5.6c      89   0.108   0.161     1.85  0.015   0.24   0.02    0.63  ok
+   4   5.5c      87   0.109   0.160     2.19  0.018   0.25   0.01    0.85  ok
+   5   5.5c      87   0.109   0.160     2.19  0.018   0.24   0.01    0.86  ok
+   6   5.6c      89   0.108   0.161     1.85  0.015   0.23   0.02    0.63  ok
+   7   5.8c      91   0.121   0.161     3.31  0.028   0.33   0.57    1.61  ok
+   8   5.6c      89   0.108   0.161     1.85  0.015   0.23   0.02    0.63  ok
+   9   5.6c      89   0.107   0.161     1.65  0.014   0.23   0.01    0.62  ok
+  10   5.5c      86   0.110   0.160     2.26  0.019   0.24   0.01    0.90  ok
+  11   5.8c      91   0.110   0.161     1.32  0.011   0.24   0.02    0.42  ok
+  12   5.6c      88   0.111   0.161     2.34  0.019   0.27   0.01    1.10  ok
+  13   5.7c      90   0.109   0.160     1.60  0.013   0.24   0.02    0.53  ok
+  14   5.7c      89   0.112   0.160     1.50  0.012   0.27   0.01    0.59  ok
+  15   5.6c      89   0.108   0.161     1.89  0.016   0.22   0.02    0.65  ok
+  16   5.6c      88   0.108   0.161     2.08  0.017   0.24   0.02    0.82  ok
+  17   5.7c      90   0.110   0.160     1.51  0.013   0.24   0.02    0.48  ok
+  18   5.6c      88   0.109   0.161     1.98  0.016   0.24   0.02    0.70  ok
+  19   5.5c      87   0.109   0.160     2.17  0.018   0.28   0.02    0.90  ok
+  20   5.6c      89   0.108   0.161     1.86  0.016   0.24   0.02    0.64  ok
+  worst: |v|max=0.1210 m/s (budget 0.160-0.161), lurch=0.028 m/s/tick (budget 0.291096), a_win5=1.610 m/s^2 (carrying budget 2, warning)
+
+logs/p81/Tp6.log: 33 carry leg(s)
+  leg              dist    cone  over    slip in-hand |v| recov  verdict
+  grasp_lift         9c   1.62x   12%   30.9mm      0.172     0  ok (cone 1.62x reported) (hand 0.88 m/s: rescued)
+  grasp_lift        21c   0.88x    0%   25.2mm      0.044     0  ok
+  place1            38c   1.36x   10%  100.5mm      0.209     0  ok (cone 1.36x reported)
+  place0            57c   0.87x    0%   70.8mm      0.050     0  ok
+  grasp_lift        20c   0.88x    0%   24.1mm      0.039     0  ok
+  grasp_lift        21c   0.92x    0%   23.4mm      0.046     0  ok
+  place1            30c   1.17x    3%   79.3mm      0.185     0  ok (cone 1.17x reported)
+  place0            54c   0.86x    0%   85.2mm      0.068     0  ok
+  grasp_lift        20c   0.88x    0%   23.8mm      0.038     0  ok
+  grasp_lift        13c   1.13x    3%  267.7mm      1.442     0  ok (cone 1.13x reported)
+  place0            54c   0.87x    0%   89.5mm      0.098     0  ok
+  grasp_lift        21c   0.88x    0%   23.9mm      0.039     0  ok
+  grasp_lift        27c   1.60x   13%   84.3mm      0.184     0  ok (cone 1.60x reported) (hand 0.84 m/s: rescued)
+  place0            59c   0.86x    0%   80.6mm      0.057     0  ok
+  place1            51c   1.26x   10%  127.6mm      0.204     0  ok (cone 1.26x reported)
+  grasp_lift        20c   0.97x    0%  314.0mm      0.655     0  ok (hand 0.54 m/s: rescued)
+  grasp_lift        20c   0.90x    0%   30.2mm      0.057     0  ok
+  place1            48c   0.92x    0%   90.5mm      0.082     0  ok
+  grasp_lift        20c   0.88x    0%  272.3mm      0.340     0  ok
+  grasp_lift        21c   1.08x    1%   59.0mm      0.355     0  ok (cone 1.08x reported)
+  grasp_lift        22c   0.94x    0%  304.2mm      1.504     0  ok
+  grasp_lift        16c   1.50x    3%   15.0mm      0.066     0  ok (cone 1.50x reported)
+  place1            43c   1.32x   13%  109.8mm      0.213     0  ok (cone 1.32x reported)
+  grasp_lift        21c   0.93x    0%   24.7mm      0.041     0  ok
+  place0            59c   0.86x    0%   68.7mm      0.044     0  ok
+  grasp_lift        22c   0.91x    0%   44.2mm      0.087     0  ok (hand 0.48 m/s: rescued)
+  place1            34c   1.17x    3%   59.6mm      0.166     0  ok (cone 1.17x reported)
+  grasp_lift        20c   0.88x    0%   24.2mm      0.042     0  ok
+  place0            59c   0.86x    0%   80.0mm      0.056     0  ok
+  grasp_lift        20c   0.92x    0%  273.9mm      0.912     0  ok
+  grasp_lift        14c   0.88x    0%   28.4mm      0.056     0  ok
+  place1            47c   1.41x   30%  110.9mm      0.204     0  ok (cone 1.41x reported) (hand 0.49 m/s: rescued)
+  grasp_lift        21c   0.95x    0%  310.9mm      1.777     0  ok
+  worst held-grip cone: 1.62x budget (budget 1x)
+  hand speed: worst 0.882 m/s; 5/33 leg(s) over 0.45 m/s (reported, not gated) - every other leg sits at the commanded 0.176-0.371
+
+  success: 13/20 = 65% (floor 0% - override)
+
+PASS: every descent is inside its profile's speed and lurch bound, the carry cone/slip is reported, and the success rate is at or above the dynamic line's floor
+note: 11 warning(s) (reported, not gating):
+  - carry grasp_lift: cone=1.62x over the 1x budget with slip=30.9mm - reported on the dynamic line, not gated
+  - carry place1: cone=1.36x over the 1x budget with slip=100.5mm - reported on the dynamic line, not gated
+  - carry place1: cone=1.17x over the 1x budget with slip=79.3mm - reported on the dynamic line, not gated
+  - carry grasp_lift: cone=1.13x over the 1x budget with slip=267.7mm - reported on the dynamic line, not gated
+  - carry grasp_lift: cone=1.60x over the 1x budget with slip=84.3mm - reported on the dynamic line, not gated
+  - carry place1: cone=1.26x over the 1x budget with slip=127.6mm - reported on the dynamic line, not gated
+  - carry grasp_lift: cone=1.08x over the 1x budget with slip=59.0mm - reported on the dynamic line, not gated
+  - carry grasp_lift: cone=1.50x over the 1x budget with slip=15.0mm - reported on the dynamic line, not gated
+  - carry place1: cone=1.32x over the 1x budget with slip=109.8mm - reported on the dynamic line, not gated
+  - carry place1: cone=1.17x over the 1x budget with slip=59.6mm - reported on the dynamic line, not gated
+  - carry place1: cone=1.41x over the 1x budget with slip=110.9mm - reported on the dynamic line, not gated
+[p81] 105 Tp6 exit=0 (budgets only; the rate is reported)
+[p81] 190 (recorded) Tp6
+190: two-line gate: reference=logs/p80/motion_reference_twoline_p80_20.json floor=0.60
+logs/p81/Tp6.log: 20 descent leg(s), line=dynamic
+   #   dist samples  |v|max  budget   |a|max   |dv|  a_med  peak@  a_win5  verdict
+   1   5.7c      89   0.110   0.160     1.85  0.015   0.24   0.02    0.74  ok
+   2   5.6c      89   0.108   0.161     1.94  0.016   0.22   0.02    0.67  ok
+   3   5.6c      89   0.108   0.161     1.85  0.015   0.24   0.02    0.63  ok
+   4   5.5c      87   0.109   0.160     2.19  0.018   0.25   0.01    0.85  ok
+   5   5.5c      87   0.109   0.160     2.19  0.018   0.24   0.01    0.86  ok
+   6   5.6c      89   0.108   0.161     1.85  0.015   0.23   0.02    0.63  ok
+   7   5.8c      91   0.121   0.161     3.31  0.028   0.33   0.57    1.61  ok
+   8   5.6c      89   0.108   0.161     1.85  0.015   0.23   0.02    0.63  ok
+   9   5.6c      89   0.107   0.161     1.65  0.014   0.23   0.01    0.62  ok
+  10   5.5c      86   0.110   0.160     2.26  0.019   0.24   0.01    0.90  ok
+  11   5.8c      91   0.110   0.161     1.32  0.011   0.24   0.02    0.42  ok
+  12   5.6c      88   0.111   0.161     2.34  0.019   0.27   0.01    1.10  ok
+  13   5.7c      90   0.109   0.160     1.60  0.013   0.24   0.02    0.53  ok
+  14   5.7c      89   0.112   0.160     1.50  0.012   0.27   0.01    0.59  ok
+  15   5.6c      89   0.108   0.161     1.89  0.016   0.22   0.02    0.65  ok
+  16   5.6c      88   0.108   0.161     2.08  0.017   0.24   0.02    0.82  ok
+  17   5.7c      90   0.110   0.160     1.51  0.013   0.24   0.02    0.48  ok
+  18   5.6c      88   0.109   0.161     1.98  0.016   0.24   0.02    0.70  ok
+  19   5.5c      87   0.109   0.160     2.17  0.018   0.28   0.02    0.90  ok
+  20   5.6c      89   0.108   0.161     1.86  0.016   0.24   0.02    0.64  ok
+  worst: |v|max=0.1210 m/s (budget 0.160-0.161), lurch=0.028 m/s/tick (budget 0.291096), a_win5=1.610 m/s^2 (carrying budget 2, warning)
+
+logs/p81/Tp6.log: 33 carry leg(s)
+  leg              dist    cone  over    slip in-hand |v| recov  verdict
+  grasp_lift         9c   1.62x   12%   30.9mm      0.172     0  ok (cone 1.62x reported) (hand 0.88 m/s: rescued)
+  grasp_lift        21c   0.88x    0%   25.2mm      0.044     0  ok
+  place1            38c   1.36x   10%  100.5mm      0.209     0  ok (cone 1.36x reported)
+  place0            57c   0.87x    0%   70.8mm      0.050     0  ok
+  grasp_lift        20c   0.88x    0%   24.1mm      0.039     0  ok
+  grasp_lift        21c   0.92x    0%   23.4mm      0.046     0  ok
+  place1            30c   1.17x    3%   79.3mm      0.185     0  ok (cone 1.17x reported)
+  place0            54c   0.86x    0%   85.2mm      0.068     0  ok
+  grasp_lift        20c   0.88x    0%   23.8mm      0.038     0  ok
+  grasp_lift        13c   1.13x    3%  267.7mm      1.442     0  ok (cone 1.13x reported)
+  place0            54c   0.87x    0%   89.5mm      0.098     0  ok
+  grasp_lift        21c   0.88x    0%   23.9mm      0.039     0  ok
+  grasp_lift        27c   1.60x   13%   84.3mm      0.184     0  ok (cone 1.60x reported) (hand 0.84 m/s: rescued)
+  place0            59c   0.86x    0%   80.6mm      0.057     0  ok
+  place1            51c   1.26x   10%  127.6mm      0.204     0  ok (cone 1.26x reported)
+  grasp_lift        20c   0.97x    0%  314.0mm      0.655     0  ok (hand 0.54 m/s: rescued)
+  grasp_lift        20c   0.90x    0%   30.2mm      0.057     0  ok
+  place1            48c   0.92x    0%   90.5mm      0.082     0  ok
+  grasp_lift        20c   0.88x    0%  272.3mm      0.340     0  ok
+  grasp_lift        21c   1.08x    1%   59.0mm      0.355     0  ok (cone 1.08x reported)
+  grasp_lift        22c   0.94x    0%  304.2mm      1.504     0  ok
+  grasp_lift        16c   1.50x    3%   15.0mm      0.066     0  ok (cone 1.50x reported)
+  place1            43c   1.32x   13%  109.8mm      0.213     0  ok (cone 1.32x reported)
+  grasp_lift        21c   0.93x    0%   24.7mm      0.041     0  ok
+  place0            59c   0.86x    0%   68.7mm      0.044     0  ok
+  grasp_lift        22c   0.91x    0%   44.2mm      0.087     0  ok (hand 0.48 m/s: rescued)
+  place1            34c   1.17x    3%   59.6mm      0.166     0  ok (cone 1.17x reported)
+  grasp_lift        20c   0.88x    0%   24.2mm      0.042     0  ok
+  place0            59c   0.86x    0%   80.0mm      0.056     0  ok
+  grasp_lift        20c   0.92x    0%  273.9mm      0.912     0  ok
+  grasp_lift        14c   0.88x    0%   28.4mm      0.056     0  ok
+  place1            47c   1.41x   30%  110.9mm      0.204     0  ok (cone 1.41x reported) (hand 0.49 m/s: rescued)
+  grasp_lift        21c   0.95x    0%  310.9mm      1.777     0  ok
+  worst held-grip cone: 1.62x budget (budget 1x)
+  hand speed: worst 0.882 m/s; 5/33 leg(s) over 0.45 m/s (reported, not gated) - every other leg sits at the commanded 0.176-0.371
+
+  success: 13/20 = 65% (floor 60% - override)
+  fingerprint: DIFFERS from logs/p80/motion_reference_twoline_p80_20.json - this run landed in a different attractor, so do not compare its success count with the reference log's
+    leg 1: this=[89, 0.11] reference=[89, 0.109]
+    leg 2: this=[89, 0.108] reference=[89, 0.107]
+    leg 3: this=[89, 0.108] reference=[88, 0.11]
+    leg 4: this=[87, 0.109] reference=[89, 0.108]
+    leg 5: this=[87, 0.109] reference=[88, 0.11]
+    leg 6: this=[89, 0.108] reference=[88, 0.109]
+    leg 7: this=[91, 0.121] reference=[89, 0.108]
+    leg 8: this=[89, 0.108] reference=[91, 0.11]
+    leg 9: this=[89, 0.107] reference=[87, 0.109]
+    leg 10: this=[86, 0.11] reference=[92, 0.112]
+    leg 11: this=[91, 0.11] reference=[88, 0.11]
+    leg 12: this=[88, 0.111] reference=[89, 0.108]
+    leg 13: this=[90, 0.109] reference=[93, 0.105]
+    leg 14: this=[89, 0.112] reference=[89, 0.108]
+    leg 15: this=[89, 0.108] reference=[87, 0.109]
+    leg 16: this=[88, 0.108] reference=[91, 0.11]
+    leg 17: this=[90, 0.11] reference=[87, 0.109]
+    leg 18: this=[88, 0.109] reference=[90, 0.109]
+    leg 19: this=[87, 0.109] reference=[88, 0.109]
+    leg 20: this=[89, 0.108] reference=[90, 0.109]
+
+FAIL: 1 problem(s)
+  - fingerprint differs from the reference (different attractor)
+190: FAIL logs/p81/Tp6.log
+190: at least one log failed
+[p81] 190 Tp6 exit=1 (DIFFERS is expected: different supply)
+[p81] accept probe start 06:50:48
+[claim_run] claimed the simulator 06:51:08
+[claim_run] exit=1 06:55:17 log=logs/p81/accept.driver
+[p81] accept probe exit=1 (the standing rate-only FAIL is expected at 6/9)
+logs/p81/accept_noharm.log: 9 descent leg(s), line=dynamic
+   #   dist samples  |v|max  budget   |a|max   |dv|  a_med  peak@  a_win5  verdict
+   1   5.6c      88   0.109   0.161     2.06  0.017   0.23   0.02    0.75  ok
+   2   5.8c      91   0.110   0.161     1.44  0.012   0.23   0.02    0.46  ok
+   3   5.6c      89   0.108   0.161     1.88  0.016   0.24   0.02    0.65  ok
+   4   5.8c      91   0.110   0.161     1.33  0.011   0.24   0.02    0.41  ok
+   5   5.7c      89   0.108   0.160     1.86  0.015   0.24   0.01    0.61  ok
+   6   5.7c      90   0.109   0.160     1.59  0.013   0.25   0.02    0.52  ok
+   7   5.8c      91   0.110   0.161     1.43  0.012   0.23   0.02    0.45  ok
+   8   5.7c      90   0.109   0.160     1.59  0.013   0.25   0.02    0.52  ok
+   9   5.7c      89   0.109   0.160     1.82  0.015   0.24   0.02    0.60  ok
+  worst: |v|max=0.1100 m/s (budget 0.160-0.161), lurch=0.017 m/s/tick (budget 0.291477), a_win5=0.750 m/s^2 (carrying budget 2, warning)
+
+logs/p81/accept_noharm.log: 18 carry leg(s)
+  leg              dist    cone  over    slip in-hand |v| recov  verdict
+  grasp_lift        21c   1.53x    2%  266.2mm      1.646     0  ok (cone 1.53x reported)
+  place0            51c   0.86x    0%  845.3mm      0.448     0  ok
+  grasp_lift        20c   0.88x    0%   32.0mm      0.295     0  ok
+  place0            59c   0.92x    0%  884.0mm      1.984     0  ok
+  grasp_lift        21c   0.90x    0%   35.2mm      0.538     0  ok
+  place0            56c   0.86x    0%  104.9mm      0.075     0  ok
+  grasp_lift        21c   0.91x    0%  132.3mm      1.379     0  ok
+  place0            61c   0.86x    0%  982.9mm      0.451     0  ok
+  grasp_lift        23c   0.92x    0%   47.9mm      0.084     0  ok
+  place1            33c   0.87x    0%   56.6mm      0.102     0  ok
+  grasp_lift        23c   0.92x    0%   48.7mm      0.079     0  ok
+  place1            41c   0.86x    0%   62.5mm      0.140     0  ok
+  grasp_lift        21c   0.93x    0%   58.3mm      0.104     0  ok (hand 0.53 m/s: rescued)
+  place1            42c   1.17x    6%   55.9mm      0.165     0  ok (cone 1.17x reported)
+  grasp_lift        23c   0.94x    0%   55.0mm      0.089     0  ok (hand 0.46 m/s: rescued)
+  place1            40c   0.89x    0%   59.8mm      0.155     0  ok
+  grasp_lift        21c   0.96x    0%   50.2mm      0.092     0  ok (hand 0.47 m/s: rescued)
+  place1            37c   1.06x    1%   62.7mm      0.166     0  ok (cone 1.06x reported)
+  worst held-grip cone: 1.53x budget (budget 1x)
+  hand speed: worst 0.526 m/s; 3/18 leg(s) over 0.45 m/s (reported, not gated) - every other leg sits at the commanded 0.176-0.371
+
+  success: 6/9 = 67% (floor 75% - dynamic line, measured baseline 9/10)
+  fingerprint: matches configs/motion_reference.json
+
+FAIL: 1 problem(s)
+  - success 6/9 below 75%
+[p81] accept gate exit=1 (fingerprint must read matches)
+[p81] report
+==============================================================================
+0. PROVENANCE
+==============================================================================
+  PREREG.md md5 461e170964fe343b20a3f0f52580031e (pinned before the runs)  now 461e170964fe343b20a3f0f52580031e  UNCHANGED
+  # arms: Tp5/Tp6 = FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=1 FRUIT_SUPPLY_WAVE=0 at 20 attempts, seeds 5/6
+  # controls (read, not re-run): logs/p80/{S20,T20,S6,T6}.log
+  tree now (a mismatch against header.txt means the tree moved):
+    e8dfa6d819bf41d800d90fff349aa951  src/fruit_sorting/tasks.py
+    980923a640d9a07be2d040a4f82e9c9f  src/fruit_sorting/bimanual.py
+    c7461d4104cf2c5f6c5a2daab80fbf32  src/fruit_sorting/fruits.py
+    8952c320d798ef42e03ba815c9e96b23  configs/motion_reference.json
+    eb697f23adb5d6b9ef8656f3319d3ce8  configs/motion_reference_twoline.json
+  instruments: logs/p81/stamp.py = the byte copy of logs/p80/stamp.py (fae805cd51140f5a68b448151994a37e)
+
+==============================================================================
+1. THE PACKAGE-OFF PROOF (PREREG E0 / F1)
+==============================================================================
+  Tp5: [fruit] [supply] scatter pool=16 seed=5 gaps=0.10-0.35 m lateral x=0.20-0.36 m stream=on target=0 wave=off grades=A:0.5,B:0.3,C:0.2 classes=strawberry:2,lychee:2,kiwi:2,tomato:2,apple:2,orange:2,peach:2,pear:2
+  Tp5: wave=off True; shipped 50/30/20 True; A:0.375 rows 0
+  Tp6: [fruit] [supply] scatter pool=16 seed=6 gaps=0.10-0.35 m lateral x=0.20-0.36 m stream=on target=0 wave=off grades=A:0.5,B:0.3,C:0.2 classes=strawberry:2,lychee:2,kiwi:2,tomato:2,apple:2,orange:2,peach:2,pear:2
+  Tp6: wave=off True; shipped 50/30/20 True; A:0.375 rows 0
+
+==============================================================================
+2. THE ARMS AT A GLANCE (PREREG section 2)
+==============================================================================
+  clock = batch sim span / executed attempt (P80's 1.88 identity).
+  window rate = 60 / pooled interval mean; batch rate = 60*placed/batch span.
+  arm  what                     seed att placed  s/att int mean    p90 win/min bat/min bp/att wall/pick w/sim wall/min polls pol/att
+  S20  single, shipped             5  19  12/19  15.10    26.72  36.90    2.25    2.08  18.19      25.2  1.38     1.51     0    0.00
+  T20  two-line + package          5  20  16/20   9.70    10.77  18.00    5.57    4.96   9.67      24.9  2.57     1.93    44    2.20
+  Tp5  two-line, package OFF       5  20  10/20  10.10    19.47  47.00    3.08    2.96  10.13      25.1  2.48     1.20   126    6.30
+  S6   single, shipped             6  19  13/19  15.00    26.12  38.50    2.30    2.27  18.06      25.2  1.40     1.63     0    0.00
+  T6   two-line + package          6  20  10/20   9.70    19.34  35.60    3.10    3.11   9.66      23.8  2.47     1.26    33    1.65
+  Tp6  two-line, package OFF       6  20  13/20   9.90    14.43  23.90    4.16    3.92   9.94      24.9  2.51     1.57    67    3.35
+
+  clock ratio (S / Tp) and the two-line's two containers:
+    seed 6: S/Tp 1.82x  (S/control 1.87x);  s/attempt S 15.00 / Tp 9.90 / C 9.70
+
+  starved polls: the two-line worker re-polls every ~0.5 s and parks; the
+  package-on control has 44 (seed 5) / 33 (seed 6), so the literal PREREG
+  '> 0' is informative only against that baseline (PREREG R4).
+
+==============================================================================
+3. PER-ARM: idle, lock-on, starvation, and the class split
+==============================================================================
+  == S20 (single, shipped, seed 5)
+     single: placed 12/19  interval 26.72s  idle 17%  polls n/a
+     classes: carried-not-placed 7, placed 12
+     classes by arm: left placed 0 / cnp 0 / never 0, right placed 0 / cnp 0 / never 0
+     reasons: grasped, not placed (no note) x7
+     by summary arm: left 1/7 (14.3%), right 11/12 (91.7%)
+     lost slots (no eligible fruit on a slot): 1
+  == T20 (two-line + package, seed 5)
+     left : placed 9/10  interval 19.64s  idle 18%  polls 25
+     right: placed 7/10  interval 26.52s  idle 21%  polls 19
+     lock-on: left 3.83s (p90 6.80, 19 polls), right 4.54s (p90 9.60, 19 polls)
+     classes: never-grasped 4, placed 16
+     classes by arm: left placed 9 / cnp 0 / never 1, right placed 7 / cnp 0 / never 3
+     reasons: fruit did not follow the gripper x4
+     by summary arm: left 9/10 (90.0%), right 7/10 (70.0%)
+     lost slots (no eligible fruit on a slot): 0
+  == Tp5 (two-line, package OFF, seed 5)
+     left : placed 7/12  interval 29.20s  idle 21%  polls 14
+     right: placed 3/8  interval 59.35s  idle 43%  polls 112
+     lock-on: left 3.92s (p90 5.60, 13 polls), right 11.24s (p90 23.10, 103 polls)
+     classes: carried-not-placed 6, never-grasped 4, placed 10
+     classes by arm: left placed 7 / cnp 4 / never 1, right placed 3 / cnp 2 / never 3
+     reasons: fruit did not follow the gripper x4; grasped, not placed (no note) x6
+     by summary arm: left 7/12 (58.3%), right 3/8 (37.5%)
+     lost slots (no eligible fruit on a slot): 0
+  == S6 (single, shipped, seed 6)
+     single: placed 13/19  interval 26.12s  idle 17%  polls n/a
+     classes: carried-not-placed 5, never-grasped 1, placed 13
+     classes by arm: left placed 0 / cnp 0 / never 0, right placed 0 / cnp 0 / never 0
+     reasons: fruit did not follow the gripper x1; grasped, not placed (no note) x5
+     by summary arm: left 2/6 (33.3%), right 11/13 (84.6%)
+     lost slots (no eligible fruit on a slot): 1
+  == T6 (two-line + package, seed 6)
+     left : placed 6/10  interval 31.76s  idle 19%  polls 16
+     right: placed 4/10  interval 50.30s  idle 30%  polls 17
+     lock-on: left 3.63s (p90 5.80, 10 polls), right 6.46s (p90 10.50, 17 polls)
+     classes: carried-not-placed 5, never-grasped 5, placed 10
+     classes by arm: left placed 6 / cnp 3 / never 1, right placed 4 / cnp 2 / never 4
+     reasons: fruit did not follow the gripper x5; grasped, not placed (no note) x5
+     by summary arm: left 6/10 (60.0%), right 4/10 (40.0%)
+     lost slots (no eligible fruit on a slot): 0
+  == Tp6 (two-line, package OFF, seed 6)
+     left : placed 6/11  interval 29.78s  idle 26%  polls 26
+     right: placed 7/9  interval 28.85s  idle 28%  polls 41
+     lock-on: left 5.02s (p90 10.70, 21 polls), right 6.64s (p90 12.30, 41 polls)
+     classes: carried-not-placed 4, never-grasped 3, placed 13
+     classes by arm: left placed 6 / cnp 3 / never 2, right placed 7 / cnp 1 / never 1
+     reasons: fruit did not follow the gripper x3; grasped, not placed (no note) x4
+     by summary arm: left 6/11 (54.5%), right 7/9 (77.8%)
+     lost slots (no eligible fruit on a slot): 0
+
+==============================================================================
+4. THE DECISION RULE (PREREG section 4) - clause by clause
+==============================================================================
+  seed 5: missing S/Tp/control -> D1 not evaluable
+  seed 6
+    D1.1 s/attempt 9.90 <= 11.0: PASS
+    D1.2 interval 14.43s <= 12.0s or <= control 19.34s: PASS
+    D1.3 clock ratio 1.82 in [1.75, 2.0]: PASS
+    D1.4 window 4.16 > single 2.30: PASS
+    D2.S-poll polls/attempt 3.35 vs control 1.65 (bar 2.06): FIRES
+    D2.S-idle left 26% vs 19% (bar 28%), right 28% vs 30% (bar 45%): no
+    report-only: wall placed/min single 1.63 vs Tp 1.57 (0.96x) - the harness column, not a D1 clause
+
+  VERDICT: D2 - the package is required: seed 5: missing arm; seed 6: S-poll
+
+==============================================================================
+5. THE PER-LOG TABLES (scripts/186_w6_report.py, scripts/175_twoline_report.py)
+==============================================================================
+
+== /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p80/S20.log
+   percentiles are nearest-order statistics (p90 = sorted[int(0.9*n)], not interpolated)
+   slot arm    fruit      grade lane      t0      t1   span grasp place  notes
+      0 single peach      A     0        7.3    21.2   13.9 True  False  -
+      1 single peach      A     0       24.4    40.7   16.3 True  False  -
+      2 single kiwi       A     0       43.9    59.1   15.2 True  True   -
+      3 single orange     A     0       62.4    76.9   14.5 True  False  -
+      4 single lychee     B     1       80.1    94.7   14.6 True  True   -
+      5 single strawberry B     1       97.9   112.2   14.3 True  True   -
+      6 single pear       B     1      115.5   129.8   14.3 True  True   -
+      7 -      no eligible fruit
+      8 single strawberry C     1      133.6   149.4   15.8 True  True   -
+      9 single apple      C     1      152.6   167.3   14.7 True  True   -
+     10 single lychee     A     0      170.6   187.0   16.4 True  False  -
+     11 single lychee     B     1      190.2   205.5   15.3 True  True   -
+     12 single apple      B     1      208.7   223.9   15.2 True  False  -
+     13 single orange     C     1      227.2   242.2   15.0 True  True   -
+     14 single apple      C     1      245.5   260.7   15.2 True  True   -
+     15 single kiwi       A     0      263.9   278.9   15.0 True  False  -
+     16 single pear       B     1      282.2   297.6   15.4 True  True   -
+     17 single strawberry B     1      300.9   316.2   15.3 True  True   -
+     18 single peach      A     0      319.4   334.2   14.8 True  False  -
+     19 single strawberry C     1      337.5   353.0   15.5 True  True   -
+   attempts=19 placements=12 failures=7 window=yes
+   inter-placement intervals (t1 of consecutive placements):
+     single: n=11 mean 26.72s p50 19.60s p90 36.90s min 17.50s max 38.20s
+     pooled : n=11 mean 26.72s p50 19.60s p90 36.90s min 17.50s max 38.20s (attributed to the later arm: single 11)
+   interval decomposition ([cycle] marks; mean s per matched attempt):
+     arm      n prepose   hover descent   close    grip    lift   place release  return     end   tail    span
+     single  19    0.88    0.77    2.92    1.19    1.60    1.82    3.19    2.11    0.63    0.00  -0.00   15.09
+     pooled  19    0.88    0.77    2.92    1.19    1.60    1.82    3.19    2.11    0.63    0.00  -0.00   15.09
+   placement-interval decomposition (interval = idle + attempts inside):
+     single: n=11 mean 26.7s = idle 4.8s (18%) + attempts 21.9s
+            per interval: prepose 1.3 hover 1.1 descent 4.2 close 1.7 grip 2.3 lift 2.7 place 4.6 release 3.1 return 0.9 end 0.0 tail -0.0 (attempts decomposed 16/16)
+   per-arm spans:
+     single: span 345.7s, idle 59.0s (17%), 12/19 placed, 2.08 placed/min arm
+   throughput (batch span 345.7s): 12/19 placed = 2.08 placed/min; placement window 293.9s -> 2.25 placed/min steady state
+
+== /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p80/T20.log
+   percentiles are nearest-order statistics (p90 = sorted[int(0.9*n)], not interpolated)
+   slot arm    fruit      grade lane      t0      t1   span grasp place  notes
+      0 right  peach      B     1       13.4    26.6   13.2 False False  fruit did not follow the gripper
+      1 left   kiwi       A     0       16.4    30.2   13.8 False False  fruit did not follow the gripper
+      2 right  pear       B     1       29.1    45.2   16.1 True  True   -
+      3 left   peach      A     0       33.9    49.7   15.8 True  True   -
+      4 right  peach      B     1       48.4    61.1   12.7 False False  fruit did not follow the gripper
+      5 left   kiwi       A     0       52.5    67.5   15.0 True  True   -
+      6 right  pear       B     1       65.6    81.5   15.9 True  True   -
+      7 left   peach      A     0       71.8    87.9   16.1 True  True   -
+      8 right  kiwi       B     1       87.7   103.7   16.0 True  True   -
+      9 left   lychee     A     0       90.7   105.9   15.2 True  True   -
+     10 right  strawberry B     1      106.4   121.7   15.3 True  True   -
+     11 left   peach      A     0      109.2   125.2   16.0 True  True   -
+     12 right  kiwi       B     1      126.0   139.7   13.7 False False  fruit did not follow the gripper
+     13 left   kiwi       A     0      128.0   143.4   15.4 True  True   -
+     14 right  pear       B     1      144.8   161.4   16.6 True  True   -
+     15 left   tomato     A     0      147.1   163.3   16.2 True  True   -
+     16 right  pear       B     1      164.2   178.5   14.3 True  True   -
+     17 left   kiwi       A     0      170.1   186.4   16.3 True  True   -
+     18 right  strawberry B     1      188.1   204.3   16.2 True  True   -
+     19 left   peach      A     0      190.7   206.8   16.1 True  True   -
+   attempts=20 placements=16 failures=4 window=yes
+   inter-placement intervals (t1 of consecutive placements):
+     left  : n=8 mean 19.64s p50 19.60s p90 23.10s min 17.80s max 23.10s
+     right : n=6 mean 26.52s p50 24.00s p90 39.70s min 17.10s max 39.70s
+     pooled : n=15 mean 10.77s p50 14.00s p90 18.00s min 1.90s max 18.20s (attributed to the later arm: left 9, right 6)
+   lock-on latency (previous attempt end -> this attempt's station acquired):
+     left  : n=9 mean 3.83s p50 3.70s p90 6.80s min 2.80s max 6.80s (retries per interval: [2, 0, 3, 0, 1, 0, 2, 8, 3])
+     right : n=9 mean 4.54s p50 4.30s p90 9.60s min 2.50s max 9.60s (retries per interval: [0, 1, 0, 3, 0, 3, 5, 0, 7])
+     left  : pre-first-attempt acquisition 3.0s after the batch's first attempt started, 6 starved slot(s) before it (batch-start priming)
+     right : pre-first-attempt acquisition 0.0s after the batch's first attempt started, 0 starved slot(s) before it (batch-start priming)
+   interval decomposition ([cycle] marks; mean s per matched attempt):
+     arm      n prepose   hover descent   close    grip    lift   place release  return     end   tail    span
+     left    10    0.71    0.75    3.04    1.35    1.98    1.77    3.29    2.09    0.59    0.02   0.01   15.59
+     right   10    0.71    0.77    3.75    1.40    2.91    1.52    1.81    1.66    0.47    0.02  -0.01   15.00
+     pooled  20    0.71    0.76    3.39    1.37    2.45    1.65    2.55    1.88    0.53    0.02   0.00   15.30
+   placement-interval decomposition (interval = idle + attempts inside):
+     left  : n=8 mean 19.6s = idle 3.8s (20%) + attempts 15.8s
+            per interval: prepose 0.7 hover 0.8 descent 3.0 close 1.2 grip 1.8 lift 1.8 place 3.7 release 2.3 return 0.6 end 0.0 tail 0.0 (attempts decomposed 8/8)
+     right : n=6 mean 26.5s = idle 6.4s (24%) + attempts 20.1s
+            per interval: prepose 0.9 hover 1.0 descent 5.0 close 1.9 grip 3.6 lift 2.1 place 2.5 release 2.4 return 0.7 end 0.0 tail -0.0 (attempts decomposed 8/8)
+   per-arm spans:
+     left  : span 190.4s, idle 34.5s (18%), 9/10 placed, 2.84 placed/min arm
+     right : span 190.9s, idle 40.9s (21%), 7/10 placed, 2.20 placed/min arm
+   throughput (batch span 193.4s): 16/20 placed = 4.96 placed/min; placement window 161.6s -> 5.57 placed/min steady state
+   run summary line: 16/20 placed, 193.3s span, 9.7s/attempt, 4.97 placed/min; per arm left=9/10 right=7/10
+   starved slots: left 25, right 19 (attributed to a lock-on interval or the batch-start prime: left 25, right 19; trailing before the batch end: left 0, right 0)
+
+== /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p81/Tp5.log
+   percentiles are nearest-order statistics (p90 = sorted[int(0.9*n)], not interpolated)
+   slot arm    fruit      grade lane      t0      t1   span grasp place  notes
+      0 right  pear       B     1       13.4    23.4   10.0 True  False  -
+      1 left   peach      A     0       13.9    29.5   15.6 True  True   -
+      2 left   peach      A     0       32.2    41.1    8.9 True  False  -
+      3 right  pear       B     1       43.5    56.1   12.6 False False  fruit did not follow the gripper
+      4 left   tomato     A     0       46.7    64.1   17.4 True  True   -
+      5 right  apple      B     1       62.6    78.7   16.1 True  True   -
+      6 left   peach      A     0       66.9    82.2   15.3 True  True   -
+      7 left   peach      A     0       84.9    94.3    9.4 True  False  -
+      8 left   tomato     A     0       97.0   106.5    9.5 False False  fruit did not follow the gripper
+      9 right  pear       B     1       98.5   113.1   14.6 True  False  -
+     10 left   tomato     A     0      115.7   131.3   15.6 True  True   -
+     11 right  lychee     B     1      115.8   129.2   13.4 True  True   -
+     12 right  apple      B     1      132.0   143.5   11.5 False False  fruit did not follow the gripper
+     13 left   peach      A     0      134.1   150.6   16.5 True  True   -
+     14 left   kiwi       A     0      155.8   165.6    9.8 True  False  -
+     15 right  lychee     B     1      166.6   179.7   13.1 False False  fruit did not follow the gripper
+     16 left   tomato     A     0      169.4   185.5   16.1 True  True   -
+     17 right  strawberry B     1      183.4   197.4   14.0 True  True   -
+     18 left   peach      A     0      188.3   204.7   16.4 True  True   -
+     19 left   kiwi       A     0      207.5   216.0    8.5 True  False  -
+   attempts=20 placements=10 failures=10 window=yes
+   inter-placement intervals (t1 of consecutive placements):
+     left  : n=6 mean 29.20s p50 26.95s p90 49.10s min 18.10s max 49.10s
+     right : n=2 mean 59.35s p50 59.35s p90 68.20s min 50.50s max 68.20s
+     pooled : n=9 mean 19.47s p50 14.60s p90 47.00s min 2.10s max 47.00s (attributed to the later arm: left 6, right 3)
+   lock-on latency (previous attempt end -> this attempt's station acquired):
+     left  : n=11 mean 3.92s p50 2.80s p90 5.60s min 2.70s max 9.20s (retries per interval: [0, 6, 0, 0, 0, 0, 0, 5, 2, 0, 0])
+     right : n=7 mean 11.24s p50 6.50s p90 23.10s min 2.70s max 23.10s (retries per interval: [32, 1, 34, 0, 0, 36, 0])
+     left  : pre-first-attempt acquisition 0.5s after the batch's first attempt started, 1 starved slot(s) before it (batch-start priming)
+     right : pre-first-attempt acquisition 0.0s after the batch's first attempt started, 0 starved slot(s) before it (batch-start priming)
+   interval decomposition ([cycle] marks; mean s per matched attempt):
+     arm      n prepose   hover descent   close    grip    lift   place release  return     end   tail    span
+     left    12    0.71    0.72    3.12    1.32    1.77    1.76    2.09    1.36    0.39    0.00   0.00   13.25
+     right    8    0.71    0.79    3.52    1.30    2.58    1.85    1.24    0.86    0.23    0.06   0.01   13.16
+     pooled  20    0.71    0.75    3.28    1.31    2.10    1.80    1.75    1.16    0.33    0.03   0.01   13.21
+   placement-interval decomposition (interval = idle + attempts inside):
+     left  : n=6 mean 29.2s = idle 6.7s (23%) + attempts 22.5s
+            per interval: prepose 1.2 hover 1.2 descent 5.3 close 2.2 grip 3.0 lift 2.9 place 3.6 release 2.3 return 0.7 end 0.0 tail 0.0 (attempts decomposed 10/10)
+     right : n=2 mean 59.4s = idle 26.1s (44%) + attempts 33.3s
+            per interval: prepose 1.8 hover 2.0 descent 8.1 close 3.2 grip 6.9 lift 4.5 place 3.8 release 2.3 return 0.7 end 0.2 tail -0.0 (attempts decomposed 5/5)
+   per-arm spans:
+     left  : span 202.1s, idle 43.1s (21%), 7/12 placed, 2.08 placed/min arm
+     right : span 184.0s, idle 78.7s (43%), 3/8 placed, 0.98 placed/min arm
+   throughput (batch span 202.6s): 10/20 placed = 2.96 placed/min; placement window 175.2s -> 3.08 placed/min steady state
+   run summary line: 10/20 placed, 202.6s span, 10.1s/attempt, 2.96 placed/min; per arm left=7/12 right=3/8
+   starved slots: left 14, right 112 (attributed to a lock-on interval or the batch-start prime: left 14, right 103; trailing before the batch end: left 0, right 9)
+
+== /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p80/S6.log
+   percentiles are nearest-order statistics (p90 = sorted[int(0.9*n)], not interpolated)
+   slot arm    fruit      grade lane      t0      t1   span grasp place  notes
+      0 single strawberry B     1        7.3    18.4   11.1 False False  fruit did not follow the gripper
+      1 single tomato     C     1       21.4    37.0   15.6 True  True   -
+      2 single apple      B     1       40.2    55.8   15.6 True  True   -
+      3 single peach      B     1       59.0    72.4   13.4 True  True   -
+      4 single lychee     C     1       75.7    90.8   15.1 True  True   -
+      5 single strawberry B     1       94.1   107.8   13.7 True  True   -
+      6 single tomato     A     0      111.0   126.2   15.2 True  False  -
+      7 single kiwi       B     1      129.4   143.1   13.7 True  True   -
+      8 -      no eligible fruit
+      9 single peach      B     1      146.9   162.4   15.5 True  True   -
+     10 single strawberry B     1      165.7   181.7   16.0 True  True   -
+     11 single kiwi       A     0      184.9   200.9   16.0 True  False  -
+     12 single kiwi       B     1      204.1   219.4   15.3 True  False  -
+     13 single orange     A     0      222.7   237.3   14.6 True  False  -
+     14 single lychee     A     0      240.5   256.5   16.0 True  True   -
+     15 single strawberry B     1      259.8   275.4   15.6 True  True   -
+     16 single pear       C     1      278.6   293.2   14.6 True  True   -
+     17 single kiwi       B     1      296.5   311.9   15.4 True  True   -
+     18 single orange     A     0      315.2   330.4   15.2 True  False  -
+     19 single peach      A     0      333.7   350.4   16.7 True  True   -
+   attempts=19 placements=13 failures=6 window=yes
+   inter-placement intervals (t1 of consecutive placements):
+     single: n=12 mean 26.12s p50 18.85s p90 38.50s min 16.60s max 74.80s
+     pooled : n=12 mean 26.12s p50 18.85s p90 38.50s min 16.60s max 74.80s (attributed to the later arm: single 12)
+   interval decomposition ([cycle] marks; mean s per matched attempt):
+     arm      n prepose   hover descent   close    grip    lift   place release  return     end   tail    span
+     single  19    0.88    0.74    2.95    1.19    1.72    1.74    3.04    2.07    0.61    0.02   0.00   14.96
+     pooled  19    0.88    0.74    2.95    1.19    1.72    1.74    3.04    2.07    0.61    0.02   0.00   14.96
+   placement-interval decomposition (interval = idle + attempts inside):
+     single: n=12 mean 26.1s = idle 4.7s (18%) + attempts 21.5s
+            per interval: prepose 1.2 hover 1.1 descent 4.2 close 1.7 grip 2.2 lift 2.5 place 4.6 release 3.1 return 0.9 end 0.0 tail 0.0 (attempts decomposed 17/17)
+   per-arm spans:
+     single: span 343.1s, idle 58.8s (17%), 13/19 placed, 2.27 placed/min arm
+   throughput (batch span 343.1s): 13/19 placed = 2.27 placed/min; placement window 313.4s -> 2.30 placed/min steady state
+
+== /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p80/T6.log
+   percentiles are nearest-order statistics (p90 = sorted[int(0.9*n)], not interpolated)
+   slot arm    fruit      grade lane      t0      t1   span grasp place  notes
+      0 right  kiwi       B     1       13.4    29.6   16.2 False False  fruit did not follow the gripper
+      1 left   pear       A     0       16.4    32.5   16.1 True  True   -
+      2 left   peach      A     0       35.2    44.3    9.1 True  False  -
+      3 right  strawberry B     1       39.1    55.7   16.6 True  True   -
+      4 left   pear       A     0       50.1    65.5   15.4 True  False  -
+      5 right  peach      B     1       58.5    72.8   14.3 True  True   -
+      6 left   orange     A     0       71.3    81.8   10.5 False False  fruit did not follow the gripper
+      7 right  kiwi       B     1       75.5    89.0   13.5 False False  fruit did not follow the gripper
+      8 left   orange     A     0       84.3    98.8   14.5 True  True   -
+      9 right  peach      B     1       96.9   110.3   13.4 True  True   -
+     10 left   orange     A     0      102.6   119.3   16.7 True  True   -
+     11 right  tomato     B     1      117.4   127.4   10.0 True  False  -
+     12 left   pear       A     0      122.0   136.8   14.8 True  True   -
+     13 right  strawberry B     1      137.9   152.0   14.1 False False  fruit did not follow the gripper
+     14 left   orange     A     0      139.6   155.7   16.1 True  True   -
+     15 right  tomato     B     1      156.6   166.8   10.2 True  False  -
+     16 left   pear       A     0      159.5   172.5   13.0 True  False  -
+     17 right  peach      B     1      175.2   185.4   10.2 False False  fruit did not follow the gripper
+     18 left   peach      A     0      175.3   191.3   16.0 True  True   -
+     19 right  strawberry B     1      190.0   206.6   16.6 True  True   -
+   attempts=20 placements=10 failures=10 window=yes
+   inter-placement intervals (t1 of consecutive placements):
+     left  : n=5 mean 31.76s p50 20.50s p90 66.30s min 17.50s max 66.30s
+     right : n=3 mean 50.30s p50 37.50s p90 96.30s min 17.10s max 96.30s
+     pooled : n=9 mean 19.34s p50 17.50s p90 35.60s min 9.00s max 35.60s (attributed to the later arm: left 5, right 4)
+   lock-on latency (previous attempt end -> this attempt's station acquired):
+     left  : n=9 mean 3.63s p50 2.80s p90 5.80s min 2.50s max 5.80s (retries per interval: [0, 6, 0, 0, 2, 0, 0, 2, 0])
+     right : n=9 mean 6.46s p50 7.10s p90 10.50s min 2.70s max 10.50s (retries per interval: [6, 0, 0, 0, 0, 6, 4, 0, 1])
+     left  : pre-first-attempt acquisition 3.0s after the batch's first attempt started, 6 starved slot(s) before it (batch-start priming)
+     right : pre-first-attempt acquisition 0.0s after the batch's first attempt started, 0 starved slot(s) before it (batch-start priming)
+   interval decomposition ([cycle] marks; mean s per matched attempt):
+     arm      n prepose   hover descent   close    grip    lift   place release  return     end   tail    span
+     left    10    0.71    0.76    3.05    1.18    1.88    1.74    2.90    1.55    0.44    0.02   0.00   14.22
+     right   10    0.71    0.74    3.29    1.82    2.78    1.76    1.13    0.97    0.27    0.07  -0.00   13.51
+     pooled  20    0.71    0.75    3.17    1.50    2.33    1.75    2.01    1.26    0.35    0.04  -0.00   13.87
+   placement-interval decomposition (interval = idle + attempts inside):
+     left  : n=5 mean 31.8s = idle 6.5s (21%) + attempts 25.2s
+            per interval: prepose 1.3 hover 1.4 descent 5.4 close 2.1 grip 3.4 lift 3.1 place 5.0 release 2.6 return 0.8 end 0.0 tail -0.0 (attempts decomposed 9/9)
+     right : n=3 mean 50.3s = idle 16.2s (32%) + attempts 34.1s
+            per interval: prepose 1.9 hover 2.0 descent 8.5 close 4.3 grip 7.3 lift 4.2 place 2.7 release 2.4 return 0.7 end 0.2 tail -0.0 (attempts decomposed 8/8)
+   per-arm spans:
+     left  : span 174.9s, idle 32.7s (19%), 6/10 placed, 2.06 placed/min arm
+     right : span 193.2s, idle 58.1s (30%), 4/10 placed, 1.24 placed/min arm
+   throughput (batch span 193.2s): 10/20 placed = 3.11 placed/min; placement window 174.1s -> 3.10 placed/min steady state
+   run summary line: 10/20 placed, 193.2s span, 9.7s/attempt, 3.11 placed/min; per arm left=6/10 right=4/10
+   starved slots: left 16, right 17 (attributed to a lock-on interval or the batch-start prime: left 16, right 17; trailing before the batch end: left 0, right 0)
+
+== /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p81/Tp6.log
+   percentiles are nearest-order statistics (p90 = sorted[int(0.9*n)], not interpolated)
+   slot arm    fruit      grade lane      t0      t1   span grasp place  notes
+      0 right  strawberry B     1       13.4    28.7   15.3 True  True   -
+      1 left   kiwi       A     0       15.9    31.9   16.0 True  True   -
+      2 right  kiwi       B     1       33.5    49.0   15.5 True  True   -
+      3 left   pear       A     0       34.7    50.3   15.6 True  True   -
+      4 right  peach      B     1       52.8    65.6   12.8 False False  fruit did not follow the gripper
+      5 left   peach      A     0       56.0    71.8   15.8 True  True   -
+      6 right  strawberry B     1       73.0    91.6   18.6 True  True   -
+      7 left   orange     A     0       74.5    91.1   16.6 True  True   -
+      8 left   kiwi       A     0       93.8   105.8   12.0 False False  fruit did not follow the gripper
+      9 right  kiwi       B     1       98.9   115.5   16.6 True  True   -
+     10 left   orange     A     0      114.3   124.4   10.1 False False  fruit did not follow the gripper
+     11 right  peach      B     1      118.3   127.1    8.8 True  False  -
+     12 left   lychee     A     0      129.8   139.6    9.8 True  False  -
+     13 right  strawberry B     1      133.3   149.6   16.3 True  True   -
+     14 left   kiwi       A     0      143.7   159.9   16.2 True  True   -
+     15 right  kiwi       B     1      158.1   173.2   15.1 True  True   -
+     16 left   orange     A     0      164.7   180.8   16.1 True  True   -
+     17 left   apple      A     0      183.6   191.9    8.3 True  False  -
+     18 right  strawberry B     1      185.5   201.8   16.3 True  True   -
+     19 left   kiwi       A     0      202.6   212.2    9.6 True  False  -
+   attempts=20 placements=13 failures=7 window=yes
+   inter-placement intervals (t1 of consecutive placements):
+     left  : n=5 mean 29.78s p50 20.90s p90 68.80s min 18.40s max 68.80s
+     right : n=6 mean 28.85s p50 26.25s p90 42.60s min 20.30s max 42.60s
+     pooled : n=12 mean 14.43s p50 15.20s p90 23.90s min 0.50s max 34.10s (attributed to the later arm: left 6, right 6)
+   lock-on latency (previous attempt end -> this attempt's station acquired):
+     left  : n=10 mean 5.02s p50 4.45s p90 10.70s min 2.70s max 10.70s (retries per interval: [0, 6, 0, 0, 0, 0, 3, 4, 0, 8])
+     right : n=8 mean 6.64s p50 6.75s p90 12.30s min 2.80s max 12.30s (retries per interval: [4, 2, 6, 9, 0, 7, 0, 13])
+     left  : pre-first-attempt acquisition 2.5s after the batch's first attempt started, 5 starved slot(s) before it (batch-start priming)
+     right : pre-first-attempt acquisition 0.0s after the batch's first attempt started, 0 starved slot(s) before it (batch-start priming)
+   interval decomposition ([cycle] marks; mean s per matched attempt):
+     arm      n prepose   hover descent   close    grip    lift   place release  return     end   tail    span
+     left    11    0.71    0.73    3.37    1.19    1.96    1.74    1.97    1.25    0.33    0.03   0.00   13.28
+     right    9    0.71    0.74    3.62    1.23    2.39    1.64    2.30    1.89    0.52    0.00   0.00   15.03
+     pooled  20    0.71    0.73    3.49    1.21    2.15    1.69    2.12    1.54    0.42    0.02   0.00   14.07
+   placement-interval decomposition (interval = idle + attempts inside):
+     left  : n=5 mean 29.8s = idle 7.3s (25%) + attempts 22.4s
+            per interval: prepose 1.1 hover 1.2 descent 5.6 close 1.9 grip 3.3 lift 2.8 place 3.6 release 2.3 return 0.6 end 0.1 tail 0.0 (attempts decomposed 8/8)
+     right : n=6 mean 28.9s = idle 8.9s (31%) + attempts 20.0s
+            per interval: prepose 0.9 hover 1.0 descent 4.9 close 1.6 grip 3.3 lift 2.2 place 3.0 release 2.4 return 0.7 end 0.0 tail -0.0 (attempts decomposed 8/8)
+   per-arm spans:
+     left  : span 196.3s, idle 50.2s (26%), 6/11 placed, 1.83 placed/min arm
+     right : span 188.4s, idle 53.1s (28%), 7/9 placed, 2.23 placed/min arm
+   throughput (batch span 198.8s): 13/20 placed = 3.92 placed/min; placement window 173.1s -> 4.16 placed/min steady state
+   run summary line: 13/20 placed, 198.8s span, 9.9s/attempt, 3.92 placed/min; per arm left=6/11 right=7/9
+   starved slots: left 26, right 41 (attributed to a lock-on interval or the batch-start prime: left 26, right 41; trailing before the batch end: left 0, right 0)
+
+-- 175: the two-line starvation / steady-state / routing read --
+== /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p81/Tp5.log
+   geometry: left station y=+0.000, right station y=-0.100 (separation 0.100 m)
+   station pre-pose solves: right y=-0.100 6.7 mm
+   left : slots=26 no-eligible=14 (53.8% of slots) attempts=12 placed=7/12
+         steady-state (after the first attempt at 13.9s): no-eligible=13/25 (52.0%); 1 batch-start miss(es) excluded (t=13.4-13.4s)
+         idle between turns: 43.1s over 11 gaps (median 2.8s), 21% of the 202.1s arm span
+   right: slots=120 no-eligible=112 (93.3% of slots) attempts=8 placed=3/8
+         steady-state (after the first attempt at 13.4s): no-eligible=112/120 (93.3%)
+         idle between turns: 78.7s over 7 gaps (median 6.5s), 43% of the 184.0s arm span
+   routing: A->lane0: 12, B->lane1: 8 (crossovers 0/20 = 0%)
+   grade routing: left A=12 B=0 C=0; right A=0 B=8 C=0; C picked=0; pure=on
+   throughput: 10/20 placed, 202.6s span, 10.1s/attempt, 2.96 placed/min (per arm left=7/12 right=3/8)
+
+== /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p81/Tp6.log
+   geometry: left station y=+0.000, right station y=-0.100 (separation 0.100 m)
+   station pre-pose solves: right y=-0.100 6.7 mm
+   left : slots=37 no-eligible=26 (70.3% of slots) attempts=11 placed=6/11
+         steady-state (after the first attempt at 15.9s): no-eligible=21/32 (65.6%); 5 batch-start miss(es) excluded (t=13.4-15.4s)
+         idle between turns: 50.2s over 10 gaps (median 4.8s), 26% of the 196.3s arm span
+   right: slots=50 no-eligible=41 (82.0% of slots) attempts=9 placed=7/9
+         steady-state (after the first attempt at 13.4s): no-eligible=41/50 (82.0%)
+         idle between turns: 53.1s over 8 gaps (median 7.3s), 28% of the 188.4s arm span
+   routing: A->lane0: 11, B->lane1: 9 (crossovers 0/20 = 0%)
+   grade routing: left A=11 B=0 C=0; right A=0 B=9 C=0; C picked=0; pure=on
+   throughput: 13/20 placed, 198.8s span, 9.9s/attempt, 3.92 placed/min (per arm left=6/11 right=7/9)
+
+== /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p80/T20.log
+   geometry: left station y=+0.000, right station y=-0.100 (separation 0.100 m)
+   station pre-pose solves: right y=-0.100 6.7 mm
+   left : slots=35 no-eligible=25 (71.4% of slots) attempts=10 placed=9/10
+         steady-state (after the first attempt at 16.4s): no-eligible=19/29 (65.5%); 6 batch-start miss(es) excluded (t=13.4-15.9s)
+         idle between turns: 34.5s over 9 gaps (median 3.7s), 18% of the 190.4s arm span
+   right: slots=29 no-eligible=19 (65.5% of slots) attempts=10 placed=7/10
+         steady-state (after the first attempt at 13.4s): no-eligible=19/29 (65.5%)
+         idle between turns: 40.9s over 9 gaps (median 4.3s), 21% of the 190.9s arm span
+   routing: A->lane0: 10, B->lane1: 10 (crossovers 0/20 = 0%)
+   grade routing: left A=10 B=0 C=0; right A=0 B=10 C=0; C picked=0; pure=on
+   throughput: 16/20 placed, 193.3s span, 9.7s/attempt, 4.97 placed/min (per arm left=9/10 right=7/10)
+
+== /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p80/T6.log
+   geometry: left station y=+0.000, right station y=-0.100 (separation 0.100 m)
+   station pre-pose solves: right y=-0.100 6.7 mm
+   left : slots=26 no-eligible=16 (61.5% of slots) attempts=10 placed=6/10
+         steady-state (after the first attempt at 16.4s): no-eligible=10/20 (50.0%); 6 batch-start miss(es) excluded (t=13.4-15.9s)
+         idle between turns: 32.7s over 9 gaps (median 2.8s), 19% of the 174.9s arm span
+   right: slots=27 no-eligible=17 (63.0% of slots) attempts=10 placed=4/10
+         steady-state (after the first attempt at 13.4s): no-eligible=17/27 (63.0%)
+         idle between turns: 58.1s over 9 gaps (median 7.1s), 30% of the 193.2s arm span
+   routing: A->lane0: 10, B->lane1: 10 (crossovers 0/20 = 0%)
+   grade routing: left A=10 B=0 C=0; right A=0 B=10 C=0; C picked=0; pure=on
+   throughput: 10/20 placed, 193.2s span, 9.7s/attempt, 3.11 placed/min (per arm left=6/10 right=4/10)
+
+==============================================================================
+6. THE MOTION GATES AND THE ACCEPT PROBE (as recorded)
+==============================================================================
+  -- Tp5.budgets
+    worst: |v|max=0.1370 m/s (budget 0.160-0.161), lurch=0.050 m/s/tick (budget 0.291096), a_win5=3.690 m/s^2 (carrying budget 2, warning)
+    success: 10/20 = 50% (floor 0% - override)
+    PASS: every descent is inside its profile's speed and lurch bound, the carry cone/slip is reported, and the success rate is at or above the dynamic line's floor
+    note: 6 warning(s) (reported, not gating):
+  -- Tp6.budgets
+    worst: |v|max=0.1210 m/s (budget 0.160-0.161), lurch=0.028 m/s/tick (budget 0.291096), a_win5=1.610 m/s^2 (carrying budget 2, warning)
+    success: 13/20 = 65% (floor 0% - override)
+    PASS: every descent is inside its profile's speed and lurch bound, the carry cone/slip is reported, and the success rate is at or above the dynamic line's floor
+    note: 11 warning(s) (reported, not gating):
+  -- Tp5.gate
+    190: two-line gate: reference=logs/p80/motion_reference_twoline_p80_20.json floor=0.60
+    worst: |v|max=0.1370 m/s (budget 0.160-0.161), lurch=0.050 m/s/tick (budget 0.291096), a_win5=3.690 m/s^2 (carrying budget 2, warning)
+    success: 10/20 = 50% (floor 60% - override)
+    fingerprint: DIFFERS from logs/p80/motion_reference_twoline_p80_20.json - this run landed in a different attractor, so do not compare its success count with the reference log's
+    FAIL: 2 problem(s)
+    190: FAIL logs/p81/Tp5.log
+    190: at least one log failed
+  -- Tp6.gate
+    190: two-line gate: reference=logs/p80/motion_reference_twoline_p80_20.json floor=0.60
+    worst: |v|max=0.1210 m/s (budget 0.160-0.161), lurch=0.028 m/s/tick (budget 0.291096), a_win5=1.610 m/s^2 (carrying budget 2, warning)
+    success: 13/20 = 65% (floor 60% - override)
+    fingerprint: DIFFERS from logs/p80/motion_reference_twoline_p80_20.json - this run landed in a different attractor, so do not compare its success count with the reference log's
+    FAIL: 1 problem(s)
+    190: FAIL logs/p81/Tp6.log
+    190: at least one log failed
+  -- accept.gate
+    worst: |v|max=0.1100 m/s (budget 0.160-0.161), lurch=0.017 m/s/tick (budget 0.291477), a_win5=0.750 m/s^2 (carrying budget 2, warning)
+    success: 6/9 = 67% (floor 75% - dynamic line, measured baseline 9/10)
+    fingerprint: matches configs/motion_reference.json
+    FAIL: 1 problem(s)
+
+==============================================================================
+  inputs complete: True; package-off proof: True; verdict: D2
+[p81] report exit=0
+[p81] selfcheck
+selfcheck: 2026-11-01T06:55:17+08:00
+
+offline motion checks      PASS   0.07s
+dataset index audit        PASS   0.88s
+collect/merge regression   PASS   0.34s
+finger collider guard      PASS   0.02s
+rl env smoke               PASS   0.06s
+tasks.py pin               PASS   0.07s
+proprio spoof check        PASS   0.10s
+rl report parser           PASS   0.04s
+r9 endpoint report         PASS   0.04s
+r9 rollout merge           PASS   0.08s
+rtc runtime selftest       PASS   2.12s
+trigger intercept test     PASS   0.07s
+distill selftest           PASS   3.52s
+loop metrics selftest      PASS   0.82s
+path3 event selftest       PASS   0.08s
+a2c2 correction selftest   PASS   1.48s
+path3 report selftest      PASS   0.03s
+bimanual scheduler test    PASS   0.55s
+supply scatter selftest    PASS   3.87s
+speed channel test         PASS   1.33s
+two-line selector test     PASS   0.07s
+reach-anywhere selftest    PASS   0.11s
+claim slot harness         PASS  13.15s
+ops selfcheck selftest     PASS   1.65s
+bed supply audit           PASS   4.43s
+prepared-next selftest     PASS   0.12s
+P43 selector + park        PASS   0.25s
+P44 speed cells            PASS   0.23s
+P45 mass scale             PASS   0.13s
+P52 retime scale           PASS   0.13s
+P53 emission cells         PASS   0.14s
+P58 supply profile         PASS   0.10s
+P61 slip direction         PASS   0.02s
+P63 attitude drift         PASS   0.02s
+P65 lift drift             PASS   0.10s
+P66 lift end + dz          PASS   0.32s
+P70 belt top + rails       PASS   0.48s
+P72 clr_edge + scene       PASS   0.31s
+P73 rotation schedule      PASS   0.02s
+P75 place-onset trace      PASS   0.02s
+P76 pry/crush fields       PASS   0.02s
+P78/P79 scoped finger force PASS   0.10s
+P67 place-leg climb        PASS   0.33s
+P62 grasp attitude         PASS   0.16s
+P64 left precomp           PASS   0.16s
+motion budgets             SKIP      -
+
+PASS: 0 failures, 1 skipped (log: logs/selfcheck.log)
+[p81] selfcheck exit=0
+[p81] battery done 06:55:56 fail=0
