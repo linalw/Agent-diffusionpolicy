@@ -1,0 +1,41 @@
+==============================================================================
+P72 - the new-frame boundary (rails none, direct lift belt_top + 0.20)
+==============================================================================
+1. the [carry] clearance thresholds (|y|, m)
+   main belt .. 0.4000  the surface switch (the removed rail's INNER face)
+   0.4000 .. 0.4125  the rail's former 25 mm footprint (a void now)
+   0.4125 .. 0.4250  still inboard of the slab: `clr_win` charges it, conservatively
+   >= 0.4250                 the slab's own inboard edge -> `clr_edge` samples here
+   (rail inset 0.015 m; rail box height 0.050 m, proud 0.035 m)
+
+2. the surfaces that exist with FRUIT_OUTPUT_RAILS=none
+   output_rail_keep = (False, False) -> `_payload_clearance`'s rail branch (`y <= 0.46 and keep[0]`) is never entered
+   main belt top      1.170 m (|y| < 0.400 - inboard of the crossing)
+   output belt top    1.350 m (the slab, |y| >= 0.425)
+   => contact requires the payload's lowest point BELOW the top plane while
+      horizontally OVER the slab, i.e. `clr_edge <= 0`. No raised surface exists,
+      so no +N mm rail convention transfers to this frame.
+
+3. the crossing height and its two slopes
+   z_transfer = output_place_z + hand = 1.450 + 0.08 = 1.530 m (moves 1:1 with the belt top)
+   z_lift_end = main belt top + 0.28 - 0.08 = 1.370 m (anchored to the MAIN belt: invariant in the output belt top)
+   rail centreline (clr)      |y|=0.4125 f=0.825 -> z_cross=1.502 clr=+152.0 mm | d clr/d(lift)=+0.175 d clr/d(belt top)=-0.175
+   the P72 edge (clr_edge)    |y|=0.4250 f=0.850 -> z_cross=1.506 clr=+156.0 mm | d clr/d(lift)=+0.150 d clr/d(belt top)=-0.150
+   why: the transfer follows the belt 1:1 while the lift end is anchored to the
+        main belt, so only (1-f) of a lift change reaches the crossing and only
+        f of a belt change does, against an obstacle that moves 1:1 -> |0.175|
+        (0.15 at the edge). Neither lever reaches a zero crossing without the
+        placements (P66 P4, P70 cell B).
+   the ABSOLUTE above is a straight-line envelope, not a prediction: the
+        achieved transfer descends early, so P71's measured `clr` at the rail
+        centreline is +14..+50 mm - 100-140 mm below the envelope. The slopes
+        are the derivable content; the value is measured (`clr_edge`).
+
+4. the bracket in the record
+   P70 D1 ep8 (left, held): clr = -1 mm @obelt / t247, a PLANE sample taken at
+        |y| = 0.4125 (25 mm inboard of the surface): |a|max 0.98 m/s2,
+        sep_end 69.9 mm, slip 0.4 mm -> NO contact signature
+   G0 contact population (rail frame): 14.9-32.7 m/s2, 27-76 mm displacement
+   G0 clean population  (rail frame):  2.6-5.7 m/s2, 0.0-0.1 mm slip
+   => the floor is `clr_edge > 0`, and the record's evidence is a BRACKET,
+      not a contact-calibrated boundary at the corner.
