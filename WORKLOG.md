@@ -21401,3 +21401,117 @@ metadata-only follow), `scene.py` **`07d6fdad`**, `scripts/244_p78_scope_selftes
 header_phase3.txt,batch_driver.log,run_p79.sh,p79_report.py,p79_report.txt,direct/,rollouts/,
 smoke_grasp_left_60.log,smoke_site_proof.txt,b1_accept_armed.log,b1_accept_armed.driver,
 b2_twoline_armed.log,b2_twoline_armed.gate,selfcheck.log}`.
+
+### P80: the cell's throughput today, and the two levers priced - the two-line is a 1.87x sim clock and a 1.02x wall wash, the union a cycle-time lever
+
+`logs/p80/`, 2026-11-01, **measurement only - nothing adopted, no default changed, no
+commit, `configs/` untouched**. Registration `logs/p80/PREREG.md` md5
+**`b57e979a`** (pinned before any run, unchanged). Owner directive: the left-arm lane is
+closed; the work moves to throughput. Scripted line, shipped scenario, `ATTEMPTS=20`,
+`SEED=5` (then 6), one claim per run, one instrumentation set on every 20-attempt arm
+(`FRUIT_MOTION_REPORT=1 FRUIT_CYCLE_REPORT=1`).
+
+**What moved under the old numbers, and what did not.** P71's rails flip is the only
+shipping change inside this battery's contrast: the P43 park, the P58 supply profile and
+the P71 lift flip are `SortingRLEnv`-only, so the scripted line still lifts to 0.36 m
+and still runs the v9 scattered supply (`PREREG` §0 says this up front, so nothing here
+can be read as a test of the low lift). Two 10-attempt gate arms locate the tree: **G-S10
+reads `fingerprint: matches` `8952c320` with 346/346 `[fruit]` lines byte-identical to
+`logs/p71/accept_rails_none.log`** (6/9, the standing rate-only FAIL at 0.75), and
+**G-T10 reads `190: PASS` + `matches` `eb697f23` with 423/423 non-camera lines
+byte-identical to `logs/p71/twoline/none.log`** (7/10, 9.2 s/attempt). So the two-line
+record was one draw and today's tree reproduces it exactly; the 20-attempt arm extends a
+bit-identical branch rather than landing in a new attractor.
+
+**Today's cell (shipped single arm, seed 5).** 19 executed attempts of 20 slots (one
+starved), **12 placed = 63.2 %, 15.10 s/attempt, batch span 345.7 s sim, wall 478.0 s =
+25.2 s/pick, inter-placement interval 26.72 s mean / 36.90 s p90, 2.25 placed/min on the
+placement window and 2.08 on the batch span.** The interval is **bimodal** and that is
+the mechanism: 17.5-19.6 s between two consecutive placements, 35.6-38.2 s across one
+failed attempt, i.e. **26.7 s = 4.8 s idle + 1.45 attempts x 15.1 s** (186's own
+decomposition). All seven failures are `grasped, not placed`, split **left 1/7 vs right
+11/12** - the left's 6-of-7 is *not* the lateral tail (failed `fruit_x` 0.215-0.365
+against the one placement at 0.305) and not the station (identical pick-pose jaw,
+`x=0.342`, residual 43.1 mm, on every left attempt), and the wait-start `dy` does not
+separate the classes either.
+
+**The two-line's first measurement on the shipped tree.** 20 attempts, **16 placed =
+80 %, 9.70 s/attempt, interval 10.77 / 18.00 s, 5.57 window / 4.96 batch placed/min =
+2.48x / 2.38x**, lock-on **3.83 s left / 4.54 s right** (p90 6.80 / 9.60, 19 retry polls
+each), idle **18 % / 21 %**, 44 starved half-second polls and **zero lost slots**. The
+per-arm attempt span is **15.0-15.6 s - the single arm's 15.09**: the pipelining
+*overlaps* two attempts, it does not make one faster. The 2.38x batch ratio is exactly
+**1.88x of clock x 1.27x of count**, and the count half is the *package*, not the
+scheduler: the two-line runs its own W3 dense-sheet supply (`wave=on ... grades
+A:0.375,B:0.375,C:0.25`) and its own pure grade routing, and its left arm places 9/10
+where the single arm's places 1/7 on the same station pose and overlapping delivered-x
+band. So the 2.48x is what a **default flip would deliver** (supply and routing come
+with it) and **not** "the scheduler doubles throughput".
+
+**The seed-6 pair is where the count half collapses.** `pick_mover.py` picked the
+two-line (interval -59.7 % vs the union's +5.0 %), so `S6 + T6` were spent: **S6 13/19
+(68.4 %), 15.00 s/attempt, interval 26.12 s, window 2.30** - the single-arm baseline is
+*stable* across seeds - and **T6 10/20 (50 %), 9.70 s/attempt, interval 19.34 s, window
+3.10 -> 1.35x**. So the **clock factor replicates exactly (1.88x / 1.87x)** while the
+**count factor swings 1.27x -> 0.73x**: the count advantage was +4 at seed 5 and -3 at
+seed 6, and pooled the two lines place the **same** amount (26/40 = 65.0 % vs 25/38 =
+65.8 %). T6's class split is P51's acquisition class (5 never-grasped + 5 cnp) with the
+right arm starving (50.3 s mean interval, 30 % idle) on that sheet draw.
+
+**Wall vs sim is the other half of the answer, and it cancels the clock.**
+`logs/p80/stamp.py` stamps every line through a `tee` (the plain log stays canonical), so
+wall/pick is measured, not inferred: **S20 478.0 s -> 25.2 s/pick at wall/sim 1.38;
+T20 497.2 s -> 24.9 s/pick at 2.57; S6 25.2 s at 1.40; T6 23.8 s at 2.47; U20 22.1 s at
+1.34; V20 21.9 s at 2.52.** The scheduler's wall cost per simulated second is **1.86x**
+the single arm's, so a sim ratio r becomes a wall ratio r/1.86: **wall/pick is flat
+(1.01x / 1.06x, pooled 1.03x)** and the wall placed rate is **1.28x then 0.77x - 1.02x
+pooled**. The 1.86x is **the scheduler's, not the supply's**, and it is discriminated:
+on the W6-B battery, which ran both lines on the *same* dense patch sheet, the single arm
+reads 1.25x and the two-line 2.32x (app clock, boot 45 s); today's pair reads 1.38 vs
+2.57 - the same multiplier, two trees, two supplies - so more live bodies are not it
+(the single arm on the 20-body sheet is as cheap as on the 6.6-body line). **Pooled over
+the two seeds: sim placed/min 2.18 -> 4.04 (1.86x), wall placed/min 1.57 -> 1.60
+(1.02x).** The transferable statement is the sim one (1.87x); on this machine the harness
+pays it back.
+
+**The speed union (`FRUIT_SPEED_ALL=1`, P44's S1+S2+S3) is a cycle-time lever, not a
+throughput lever.** Single arm: **15.10 -> 13.40 s/attempt (-1.70 s, bar 1.0: PASS)**,
+exactly P44's three blocks (place -0.75, release -0.84, lift -0.24 = -1.83 predicted vs
+-1.71 measured), **wall/pick -12 %** - but the **interval rises to 28.04 s (+4.9 %)**, the
+placement window falls to 2.14 (-4.9 %) and the batch rate to 1.82 (-12.6 %), because the
+placed count falls to 10/20. That fall is **not a new grip class**: 9 `cnp` + 1 `fruit did
+not follow the gripper`, and the pooled drop is largely the grade draw (left share 37 % ->
+60 %; arm-standardised the union is **69.3 % vs 63.2 %**). On the two-line the same
+lever reads **9.70 -> 8.70 s/attempt (-12 % wall/pick)** with the interval +3.9 % and the
+window -3.8 % (13/20, 5 never-grasped + 2 cnp). So: **the clock pays everywhere, the
+placed-per-minute does not, at this seed.**
+
+**The decisions (PREREG §4).** (a) Today: **2.25 placed/min window / 2.08 batch, interval
+26.72 s / 36.90 s p90, 25.2 s wall/pick.** (b) The two-line **meets the standing 1.25x bar
+on the sim clock at both seeds (2.48x, 1.35x)** with a **reproducible 1.87x clock**, but
+its **count is a seed draw** (+4 / -3, pooled equal) and its **wall rate is 1.02x**, so the
+recommendation is **keep it opt-in unless the objective is simulated-time throughput** -
+and on a cell that did not pay this harness it would realize the 1.87x (a 1.89x wall
+gain). (c) The union **pays on the clock (-1.70 s / -1.00 s, -12 % wall per pick) and does
+not pay on throughput** (+5 % interval, -5 % window); its cost is P51's closed class, so
+the count is reported and not gated. (d) Wall is **28 % harness on the single arm and 61 %
+on the two-line** (`1 - 1/1.38`, `1 - 1/2.57`).
+
+**Not claimed.** No scheduler-only control (that needs `FRUIT_SUPPLY_WAVE=0` + the single
+arm's mix — a different scenario with its own reference); one seed for U/V (R3 spends the
+pair on the mover); the direct line unmeasured here (its last number is P59's 26/45 with
+the same harness-dominated ~35 s/pick); two recycled-payload slip artifacts in T10
+reported, not gated (P76-A3's class). The battery's own exit is `fail=1` from **G-S10's
+standing rate-only acceptance FAIL**, not from a broken arm.
+
+**Pins.** `tasks.py` **`e8dfa6d8`**, `bimanual.py` `980923a6`, `assets.py` `540406fa`,
+`conveyor.py` `fb2c58c6`, `scene.py` `07d6fdad`, `rl_env.py` `7d26eb5b`, `fruits.py`
+`c7461d41`, `control.py` `9384ff4f`; `configs/motion_reference.json` **`8952c320`** and
+`configs/motion_reference_twoline.json` **`eb697f23`** **untouched**; the 20-attempt
+two-line reference is `logs/p80/motion_reference_twoline_p80_20.json` (own file, by
+design). Evidence `logs/p80/{PREREG.md,PREREG.md5,RESULTS.md,header.txt,
+battery_driver.log,licence.py,licence.txt,pick_mover.py,mover.txt,p80lib.py,
+p80_report.py,p80_report.txt,stamp.py,one_run.sh,run_p80.sh,S10.gate,T10.gate,
+T20.reference,motion_reference_twoline_p80_20.json,S20.log,S20.stamps,T20.log,
+T20.stamps,U20.log,U20.stamps,V20.log,V20.stamps,S6.log,S6.stamps,T6.log,T6.stamps,
+T10.log,T10.stamps}`; `scripts/selfcheck.sh` PASS.

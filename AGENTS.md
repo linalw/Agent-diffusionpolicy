@@ -3595,10 +3595,52 @@ smoke_grasp_left_60.log,smoke_site_proof.txt,b1_accept_armed.log,
 b1_accept_armed.driver,b2_twoline_armed.log,b2_twoline_armed.gate,selfcheck.log}`;
 WORKLOG "P79".
 
+**P80 (2026-11-01, `logs/p80/`; measurement only - nothing adopted, no default changed,
+no commit, `configs/` untouched): the cell's throughput on the shipped tree, and the two
+levers priced against it - the two-line is a **1.87x sim clock and a 1.02x wall wash**,
+the speed union a **cycle-time lever**. Today's cell (shipped single arm, 20
+slots, seed 5): **12/19, 15.10 s/attempt, inter-placement interval 26.72 s mean / 36.90 s
+p90, 2.25 placed/min on the placement window and 2.08 on the batch span, 25.2 s
+wall/pick**; the interval is **bimodal** (17.5-19.6 s between two placements, 35.6-38.2 s
+across a failure, i.e. `26.7 = 4.8 idle + 1.45 x 15.1 s attempts`) and **all seven
+failures are `cnp`**, left 1/7 vs right 11/12 (not the lateral tail: the failed
+`fruit_x` span 0.215-0.365 around a 0.305 placement, and the pick-pose jaw is identical
+on every left attempt). Two 10-attempt gate arms prove the branch: **G-S10
+`fingerprint: matches` `8952c320` with 346/346 `[fruit]` lines byte-identical to
+`logs/p71/accept_rails_none.log`**, and **G-T10 `190: PASS` + `matches` `eb697f23` with
+423/423 non-camera lines byte-identical to `logs/p71/twoline/none.log`** (so the P71
+two-line record was one draw and today's tree reproduces it). **The two-line, first
+measured on the shipped tree**: 16/20, 9.70 s/attempt, interval 10.77 / 18.00 s, **5.57
+window / 4.96 batch = 2.48x / 2.38x**, lock-on 3.83 s left / 4.54 s right (19 retry polls
+each), idle 18 %/21 %, 44 starved polls and **zero lost slots** - and its per-arm attempt
+span **15.0-15.6 s is the single arm's 15.09**, so it *overlaps* attempts rather than
+shortening one: **2.38x = 1.88x clock x 1.27x count**, the count half being the
+*package* (its own W3 dense-sheet supply `wave=on grades A:0.375,B:0.375,C:0.25` + pure
+grade routing) and the left arm's 1/7 -> 9/10. **The seed-6 pair (`S6` + `T6`) keeps the
+clock and reverses the count**: 1.88x / **1.87x** clock, count 16 vs 12 then 10 vs 13,
+**pooled 26/40 vs 25/38 - equal**, so pooled **sim 1.86x**. **Wall is measured, not
+inferred** (`logs/p80/stamp.py` stamps every line through a `tee`): wall/sim **1.38 (S)
+vs 2.57 (T) = 1.86x**, so **wall/pick is flat** (1.01x / 1.06x, pooled 1.03x) and the
+**wall placed rate is 1.28x then 0.77x = 1.02x pooled**; the 1.86x is the *scheduler's*
+per-tick cost, discriminated on the W6-B pair (both lines on the same dense sheet: single
+1.25x, two-line 2.32x), not the supply's. **The union** (`FRUIT_SPEED_ALL=1`) **pays on
+the clock** (-1.70 s single / -1.00 s two-line, -12 % wall/pick, exactly P44's place
+-0.75 / release -0.84 / lift -0.24) **and not on throughput** (interval +4.9 %, window
+-4.9 %, batch -12.6 %), its count fall being P51's acquisition class plus the grade draw
+(arm-standardised it is +6 pt better, 69.3 % vs 63.2 %). So **a two-line default is a
+simulated-time decision (1.87x) and a wash on this machine's wall (1.02x)**, and the union
+is a cycle-time lever rather than a throughput lever. **Read rules for this tree from
+here: quote both denominators (window and batch) and the wall column; never read a count
+difference as the lever's (the closed `cnp` class owns it); and any throughput claim
+needs >= 2 seeds** - the two-line's count advantage reversed at seed 6. No `src/` or
+`configs/` change; the 20-attempt two-line reference is
+`logs/p80/motion_reference_twoline_p80_20.json` and never `configs/`.
+
 ## 3. What changed -> what to run
 
 | you changed | run |
 | --- | --- |
+| a **throughput or rate** claim (a speed profile, a scheduler/supply change, a wall number) | `scripts/186_w6_report.py` on **>= 2 seeds** with **both denominators** (placement window and batch span) **and the wall column** (`logs/p80/p80_report.py` is the template: wall from per-line stamps, never inferred), that scenario's own motion gate (single arm: `105 --fingerprint configs/motion_reference.json`; two-line: `scripts/190_twoline_gate.sh` against a reference of the **same attempt count**), then `scripts/accept.sh` |
 | docs, or a number's provenance/data size | `python3 scripts/106_index_audit.py` and `python3 scripts/107_collect_merge_test.py` |
 | motion, control, `trajectory` limits, IK | `python3 scripts/96_motion_check.py`, then `scripts/accept.sh` |
 | collection (`40_collect_demos.py`) or merging (`41_merge_demos.py`) | `scripts/107_collect_merge_test.py`, then `python3 scripts/106_index_audit.py` |
