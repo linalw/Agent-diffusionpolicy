@@ -1,0 +1,39 @@
+==== per (arm, seed) left place-leg ledger [loss = slide + near; >800 = the PREREG primary]
+  C_77         legs  4  loss  2/ 4  | >800  2  near  0  micro  0  held  2  blowup  0
+  C_101        legs  7  loss  4/ 7  | >800  3  near  1  micro  0  held  3  blowup  0
+  C_202        legs  8  loss  2/ 8  | >800  2  near  0  micro  1  held  5  blowup  0
+  S_77         legs  6  loss  1/ 6  | >800  0  near  1  micro  0  held  5  blowup  0
+  S_101        legs  5  loss  4/ 5  | >800  3  near  1  micro  0  held  1  blowup  0
+  S_202        legs  3  loss  2/ 3  | >800  0  near  2  micro  0  held  1  blowup  0
+
+==== the walk rate `clean_slip_max / (ticks - loss_row)` [mm/tick]
+  C_77         rate median 3.21 range 3.08..3.33   leg ticks median 420
+  C_101        rate median 3.25 range 2.51..3.39   leg ticks median 430
+  C_202        rate median 3.13 range 3.01..3.26   leg ticks median 415
+  S_77         rate median 4.00 range 4.00..4.00   leg ticks median 275
+  S_101        rate median 3.93 range 3.57..4.63   leg ticks median 267
+  S_202        rate median 3.98 range 3.95..4.00   leg ticks median 278
+
+==== the schedule discriminator (registered, PREREG section 4.7)
+  C_77         loss_row/ticks [0.42, 0.26]   t45/ticks [0.74, 0.75, 0.76, 0.79]
+  C_101        loss_row/ticks [0.41, 0.44, 0.4, 0.44]   t45/ticks [0.76, 0.79, 0.76, 0.74, 0.75, 0.75, 0.72]
+  C_202        loss_row/ticks [0.25, 0.37]   t45/ticks [0.8, 0.81, 0.78, 0.75, 0.79, 0.81, 0.75, 0.71]
+  S_77         loss_row/ticks [0.27]   t45/ticks [0.77, 0.75, 0.76, 0.85, 0.76, 0.86]
+  S_101        loss_row/ticks [0.38, 0.05, 0.23, 0.01]   t45/ticks [0.79, 0.84, 0.82, 0.85, 0.83]
+  S_202        loss_row/ticks [0.43, 0.29]   t45/ticks [0.79, 0.77, 0.85]
+
+==== pooled by arm
+  C: left place legs 19  escape 8 (42%)  >800 7 (37%)  near 1  blowup 0  |  left placed 11/20  right placed 23/25  never-grasped 3  cnp 8  did-not-land 8  fell-off 0
+       left place-leg ticks median 405 (372..436)  `place low` descent ticks median 78 (n=34)
+  S: left place legs 14  escape 7 (50%)  >800 3 (21%)  near 4  blowup 0  |  left placed 6/15  right placed 28/30  never-grasped 3  cnp 8  did-not-land 8  fell-off 0
+       left place-leg ticks median 262 (237..294)  `place low` descent ticks median 74 (n=34)
+
+==== the two registered contrasts (pooled over 3 seeds)
+  loss (slide+near, the mechanism):  C 8/19 vs S 7/14  Fisher two-sided p = 0.733
+  >800 mm (the PREREG primary):  C 7/19 vs S 3/14  Fisher two-sided p = 0.455
+
+==== per seed, the registered primary and the mechanism count
+  seed   C >800 / legs   S >800 / legs   C loss    S loss
+  101     3 /  7           3 /  5           4 /  7      4 /  5
+  202     2 /  8           0 /  3           2 /  8      2 /  3
+  77      2 /  4           0 /  6           2 /  4      1 /  6
