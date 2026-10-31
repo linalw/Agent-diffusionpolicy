@@ -52,9 +52,20 @@ confirmations the phase asked for:
 | F60 (ext) | `60.0` | `60` | `60.00/0.00` |
 
 The behavioural consequence is the third leg of the check: the **held-leg
-`force_min` median** tracks the cap **1:1** at every rung - **9.66 / 14.19 / 19.27
-/ 29.19 N** at 10/15/20/30 N (P41's law: delivered pinch ≈ cap), **53.9 N at
-60 N**. So the rung *is* the delivered force, and no rung is a stage-only write.
+`force_min` median** tracks the cap at every rung - **9.6-9.7 / 14.2-14.7 /
+18.2-19.3 / 25.3-29.2 N** at 10/15/20/30 N, **39.9 N at 45 N** and **53.9 N at
+60 N**, i.e. **85-99 % of the cap** across the two seeds (P41's law: delivered
+pinch ≈ cap). So the rung *is* the delivered force, and no rung is a stage-only
+write.
+
+**The manifest's `physics` block carries the same pin** (phase 4's provenance
+rule), read back from the live articulation after the task exists: all **11**
+rollout manifests (`logs/p76/rollouts/<arm>_<seed>/direct_none_seed<seed>/`)
+report `finger_drive.readback_matches: true` with
+`left/right_finger_joint1 = 10.0 / 15.0 / 20.0 / 30.0 / 45.0 / 60.0` and
+`joint2 = 0.0` (the drive-less mimic), and `finger_maxforce` = the rung
+(`null` on the unset control). So the two independent confirmations the phase
+asked for are both on record, per cell.
 
 ## 2. The cells, and the instrument
 
@@ -163,10 +174,10 @@ close lands, not on the cap alone.
 
 | rung | placed | left | right | cnp | never-held | held `force_min` median | ticks/attempt |
 |---|---|---|---|---|---|---|---|
-| 10 N | 20/30 | 6/14 | 14/16 | 3 | 5 | 9.66 N | 1747 |
-| 15 N | 23/30 | 6/9 | 17/21 | 2 | 5 | 14.19 N | 1748 |
-| 20 N | 24/30 | 7/10 | 17/20 | 1 | 5 | 19.27 N | 1749 |
-| 30 N | 24/30 | 7/10 | 17/20 | 2 | 3 | 29.19 N | 1756 |
+| 10 N | 20/30 | 6/14 | 14/16 | 3 | 5 | 9.58-9.66 N | 1747 |
+| 15 N | 23/30 | 6/9 | 17/21 | 2 | 5 | 14.19-14.67 N | 1748 |
+| 20 N | 24/30 | 7/10 | 17/20 | 1 | 5 | 18.22-19.27 N | 1749 |
+| 30 N | 24/30 | 7/10 | 17/20 | 2 | 3 | 25.32-29.19 N | 1756 |
 | 45 N (ext) | 12/15 | 4/5 | 8/10 | 1 | 2 | 39.86 N | 1730 |
 | 60 N (ext) | 13/15 | 6/6 | 7/9 | 0 | 2 | 53.9 N | 1729 |
 
@@ -231,8 +242,9 @@ are unchanged (`8952c320` / `eb697f23`) - no reference was re-recorded.
 `scripts/accept.sh` with every knob unset (the new fields need
 `FRUIT_CARRY_DIAG=1`, so they cannot run on the scripted path): **6/9,
 `fingerprint: matches`, and its 346 `[fruit]` lines are byte-identical to
-`logs/p73/accept_noharm.log`** (stream md5 `d0079a237202e2f9b0e152655af32a77`,
-`logs/p76/accept_noharm.log`). The exit=1 is the standing rate floor (6/9 = 67 %
+`logs/p73/accept_noharm.log`** (stream md5 `d0079a237202e2f9b0e152655af32a77`;
+`logs/p76/accept_noharm_full.log` is the run stream, `logs/p76/accept_noharm.log`
+the summary + gate). The exit=1 is the standing rate floor (6/9 = 67 %
 < 75 %), this tree's branch since P32. `scripts/selfcheck.sh` **PASS, 0
 failures** (the new `P76 pry/crush fields` leg).
 
@@ -253,7 +265,7 @@ logs/p76/smoke_a1.log         the 2-episode smoke on the amended tree
 Pins: `tasks.py` **`9d5824ef`** (`9d5824ef2fe08efa060bdd8c4be3cfd3`, the field
 group), `rl_env.py` (the `TASKS_MD5` metadata-only follow),
 `scripts/243_p76_sep_selftest.py` **`fc0e738e`**, `scripts/selfcheck.sh`
-**`84f77dcb`**, `logs/p76/p76_report.py`; `configs/arm_parks.json` `42ab4fb7`,
+**`84f77dcb`**, `logs/p76/p76_report.py` **`544fc6f2`**; `configs/arm_parks.json` `42ab4fb7`,
 `configs/waypoints.json` `d81c6f1c`, `configs/motion_reference.json`
 **`8952c320`** and `..._twoline.json` **`eb697f23`** both untouched, checkpoint
 `moe_v13s` `61da390a`.

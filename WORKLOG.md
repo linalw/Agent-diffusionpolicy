@@ -20904,8 +20904,9 @@ instrument is identical in every arm, so the controls cancel.
 the **live articulation** read-back (`[drive] … joint1/joint2=15.00/0.00 N` on
 both arms; absent on `F10` by construction, which is why `F10` is checked as the
 unset path instead). The behavioural third leg is the held-leg `force_min` median:
-**9.66 / 14.19 / 19.27 / 29.19 / 39.86 / 53.9 N** at 10/15/20/30/45/60 N - the
-rung **is** the delivered force (P41's law), so no rung is a stage-only write.
+**9.58-9.66 / 14.19-14.67 / 18.22-19.27 / 25.32-29.19 / 39.9 / 53.9 N** at
+10/15/20/30/45/60 N (85-99 % of the cap across the two seeds) - the rung **is**
+the delivered force (P41's law), so no rung is a stage-only write.
 
 **The result, and the two numbers the phase was for.**
 
@@ -20983,16 +20984,16 @@ the deliverable stays **"the sim needs 60 N per finger joint (a ~54-60 N pinch);
 real jaw would have to deliver 60 N"** and the owner decides.
 
 **No-harm.** `scripts/accept.sh` with every knob unset: **6/9,
-`fingerprint: matches`, and its 346 `[fruit]` lines byte-identical to
-`logs/p73/accept_noharm.log`** (the new fields need `FRUIT_CARRY_DIAG=1` and the
-scripted path never sets it). The exit=1 is the standing rate floor (6/9 = 67 %
+`fingerprint: matches`, and its 346 `[fruit]` lines byte-identical (stream md5
+`d0079a23`) to `logs/p73/accept_noharm.log`** (`logs/p76/accept_noharm_full.log`;
+the new fields need `FRUIT_CARRY_DIAG=1` and the scripted path never sets it). The exit=1 is the standing rate floor (6/9 = 67 %
 < 75 %), this tree's branch since P32. `scripts/selfcheck.sh` **PASS, 0 failures**
 (the new `P76 pry/crush fields` leg).
 
 **Pins**: `tasks.py` **`9d5824ef`**, `rl_env.py` (the `TASKS_MD5` metadata-only
 follow), `scripts/243_p76_sep_selftest.py` **`fc0e738e`**, `scripts/selfcheck.sh`
-**`84f77dcb`**, `logs/p76/p76_report.py`; `configs/motion_reference.json`
+**`84f77dcb`**, `logs/p76/p76_report.py` **`544fc6f2`**; `configs/motion_reference.json`
 **`8952c320`** and `..._twoline.json` **`eb697f23`** both untouched, no reference
 re-recorded, ckpt `moe_v13s` **`61da390a`**. Evidence
 `logs/p76/{PREREG.md,PREREG.md5,RESULTS.md,header.txt,run_p76.sh,p76_report.py,
-p76_report.txt,direct/,smoke_a1.log,accept_noharm.log}`.
+p76_report.txt,direct/,smoke_a1.log,accept_noharm.log,accept_noharm_full.log}`.

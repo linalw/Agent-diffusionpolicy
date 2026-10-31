@@ -3342,7 +3342,8 @@ claim per cell, the P66-phase-3/P71-phase-2/P73/P74/P75 scenario verbatim, plus
 `1991c5fa`). **The manipulation check is two independent confirmations per rung**
 (the build print's `maxForce=<cap>/0.0N` and the **live articulation** read-back
 `[drive] … joint1/joint2=15.00/0.00 N`) with the behavioural third leg the held-leg
-`force_min` median **9.66 / 14.19 / 19.27 / 29.19 / 53.9 N** - the rung *is* the
+`force_min` median **9.6-9.7 / 14.2-14.7 / 18.2-19.3 / 25.3-29.2 / 39.9 / 53.9 N**
+(85-99 % of the cap) - the rung *is* the
 delivered force (P41's law), and `F10` is evaluable as the unset path (no
 `[drive]` row by construction). **The pry does not stop in 10-30 N**: the pads
 reach their stop on **5 / 1 / 2 / 2** legs of 55/54/55/54, and the **same 6.8 cm
@@ -3374,7 +3375,7 @@ landed 24.7 mm inside the fruit) whose depth the cap amplifies, which is why P41
 scripted 60 N crush (pads to 10.0 mm around 37 mm) does **not** reproduce here.
 **Counts are reported, never gated** (20/30, 23/30, 24/30, 24/30, 12/15, 13/15
 placed; left 6/14 → 6/9 → 7/10 → 7/10 → 4/5 → 6/6; held `force_min` medians
-9.66 / 14.19 / 19.27 / 29.19 / 39.86 / 53.9 N) - a count across rungs **compares attractors**, and the only rate-shaped
+9.58-9.66 / 14.19-14.67 / 18.22-19.27 / 25.32-29.19 / 39.9 / 53.9 N) - a count across rungs **compares attractors**, and the only rate-shaped
 claim is per-leg (**0/26 pried at 60 N vs 5/55 at 10 N**). **Deviations, all
 pinned before the runs they govern**: **A1** `sep_min` is the **loaded** span (the
 unconditional minimum fires on every escape leg - a lost payload lets the servo
@@ -3391,15 +3392,17 @@ with the paired carried-class endpoint, the **two-line and scripted no-harm**
 **sanction**: the cap is not physical until a real jaw is anchored to it, i.e.
 "the sim needs 60 N; a real jaw would have to deliver 60 N" - the owner decides.
 No-harm: `accept.sh` **6/9 + `fingerprint: matches`** with its **346 `[fruit]`
-lines byte-identical** to `logs/p73/accept_noharm.log` (the new fields need
+lines byte-identical** (stream md5 `d0079a23`) to `logs/p73/accept_noharm.log`
+(`logs/p76/accept_noharm_full.log`; the new fields need
 `FRUIT_CARRY_DIAG=1`, so they cannot run on the scripted path), `selfcheck.sh`
 **PASS, 0 failures** (the new leg). Pins: `tasks.py` **`9d5824ef`**, `rl_env.py`
 (the `TASKS_MD5` metadata-only follow), `scripts/243_p76_sep_selftest.py`
-**`fc0e738e`**, `scripts/selfcheck.sh` **`84f77dcb`**, `logs/p76/p76_report.py`;
+**`fc0e738e`**, `scripts/selfcheck.sh` **`84f77dcb`**, `logs/p76/p76_report.py` **`544fc6f2`**;
 references **`8952c320` / `eb697f23`** both untouched, no reference re-recorded,
 ckpt `moe_v13s` `61da390a`. Evidence
 `logs/p76/{PREREG.md,PREREG.md5,RESULTS.md,header.txt,run_p76.sh,p76_report.py,
-p76_report.txt,direct/,smoke_a1.log,accept_noharm.log}`; WORKLOG "P76".
+p76_report.txt,direct/,smoke_a1.log,accept_noharm.log,accept_noharm_full.log}`;
+WORKLOG "P76".
 
 ## 3. What changed -> what to run
 
