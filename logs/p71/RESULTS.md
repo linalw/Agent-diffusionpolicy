@@ -78,11 +78,15 @@ pre-P71 geometry explicitly so the pair is same-batch and same-tree.
 | **ctrl** | `FRUIT_OUTPUT_RAILS=both` | 10 | **6/10 = 60 %** | 15.0 (150.5 s) | **377** | **`fingerprint: matches`** |
 | **treat** | (default `none`) | 9 (1 slot starved) | **6/9 = 67 %** (6/10 slots) | 14.8 (133.6 s) | **346** (344 + 2 build prints) | **DIFFERS** -> re-recorded (§5) |
 
-* **The control is byte-identical to the pre-P71 archive**: its 377 `[fruit]`
-  lines are 377/377 identical to `logs/p66/p2/accept_noharm.log`, and it matches
-  the archived reference `logs/p71/motion_reference_single_pre_p71.json`
-  (`8a399626`). So the new tree is **inert with the old geometry restored**, and
-  everything the treatment shows is attributable to the flip.
+* **The control is byte-identical to the pre-P71 archive and to P70's same-tree
+  cell C**: its 377 `[fruit]` lines are 377/377 identical to
+  `logs/p66/p2/accept_noharm.log`, and its **357 non-clearance `[fruit]` lines are
+  357/357 identical to `logs/p70/C.log`** (P70's rails-on control, same tree, same
+  10 attempts, `FRUIT_CARRY_DIAG` on - its stream is a superset by the diag rows),
+  with the same **6/10** placed. It also matches the archived reference
+  `logs/p71/motion_reference_single_pre_p71.json` (`8a399626`). So the new tree is
+  **inert with the old geometry restored**, and everything the treatment shows is
+  attributable to the flip.
 * **The treatment moves the branch, by 8 mm.** After dropping the two build
   prints (`[fruit] output belt rails P/N: ... authors 0/2 ... inner ... REMOVED`)
   and the report-only clearance rows, the first difference is a **release y**
@@ -203,8 +207,9 @@ Measured on the **held** place legs (`logs/p71/p71_report.txt`):
 | treat (belt top) | right | 22 | +69..+138 / 22/22 | +69..+119 / 22/22 | 22/22 |
 
 * **The package's left margin to the obstacle that exists is the +33 clause's own
-  order**: median +35, 8/10 at or above it - against the pre-P71 line's **+24..+
-  45, median +31, 2/4** to *its* obstacle. The two configurations sit at the same
+  order**: `clr` median **+35**, 8/10 at or above it (the window minimum `clr_win`
+  reads +10..+45, median **+30.5**, 4/10) - against the pre-P71 line's **+24..+45,
+  median +31, 2/4** to *its* obstacle. The two configurations sit at the same
   margin; the package has 2.5x more held left legs to show it on (10 vs 4), which
   is the carry conversion, and its minimum is lower (+14 vs +24) because its
   population is bigger.
@@ -306,10 +311,21 @@ mechanism; that is a **smoke owed**, not a measurement made.
   (P58's convention).
 * The **collector/two-line-camera** paths were not re-collected: a post-P71 store
   is a new scene and needs its own A/B (`logs/p37/`'s rule).
+* **Two out-of-tree probes read the output geometry by hand** and are stale until
+  re-run with the config: `scripts/212_occlusion_map.py` (hard-codes
+  `OUT_TOP_Z = 1.35`) and `scripts/461_release_probe.py:93` (`rim = floor + 0.035`,
+  i.e. the rail). Neither is on a shipped path; with the rail gone the second one's
+  `rim` is a phantom surface.
 
 ---
 
-## 7. Reproduce and pins
+## 7. Reproduce, gates and pins
+
+Gates on the final tree: **`scripts/selfcheck.sh` PASS, 0 failures** (one skip, the
+motion-budget leg which needs a logged run); **`scripts/211_bed_audit.py` ok, 115
+checks**; **`scripts/106_index_audit.py` OK** (every index matches its files);
+**`scripts/107_collect_merge_test.py` PASS, 21 checks**; the two motion gates read
+`fingerprint: matches` / `190 PASS` against the re-recorded references.
 
 ```bash
 bash logs/p71/run_p71.sh                     # phase 1 (scripted) + phase 2 (direct)
@@ -326,11 +342,11 @@ Pins (md5 first 6; `logs/` is gitignored - `git add -f` at the close-out):
 `logs/p71/accept_rails_both.log` **`5bbda1`**, `accept_rails_none.log`
 **`0352e0`**, `twoline/both.log` **`da011f`**, `twoline/none.log` **`127241`**,
 `direct/{ctrl,treat}_{77,101,202}.log` **`d9c807`/`a101e3`/`7cbfc0`** and
-**`fe18b6`/`18ec13`/`024c98`**, `p71_report.py` **`86b9fa`**, `p71_report.txt`
-**`139680`**, `run_p71.sh` **`73b3da`**, `header.txt` `dcdbc8`;
+**`fe18b6`/`18ec13`/`024c98`**, `p71_report.py` **`2d5326`**, `p71_report.txt`
+**`c04272`**, `run_p71.sh` **`73b3da`**, `header.txt` `dcdbc8`;
 `src/fruit_sorting/assets.py` **`e9fd74`**, `rl_env.py` **`cb686f5`**,
 `tasks.py` `7c00e5`, `conveyor.py` `fb2c58`;
 `scripts/236_p66_lift_selftest.py` **`e6547e`**, `scripts/238_p70_belt_top_selftest.py`
-**`2ccceb`**; `configs/motion_reference.json` **`8952c320`**,
-`configs/motion_reference_twoline.json` **`eb697f23`**; checkpoint `moe_v13s`
-**`61da390a`**.
+**`2ccceb`**, `scripts/selfcheck.sh` **`9f7ee1`**; `configs/motion_reference.json`
+**`8952c320`**, `configs/motion_reference_twoline.json` **`eb697f23`**; checkpoint
+`moe_v13s` **`61da390a`**.

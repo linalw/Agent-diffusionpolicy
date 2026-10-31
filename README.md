@@ -515,18 +515,22 @@ implementation: the simulation cell, the data pipeline, and the policy training 
 > top-down attitude is **statically unsolvable** (qerr 24.3-60 deg, margin 0.000,
 > with no payload, no controller, no transient) - and **lowering the lift to 0.20
 > moves the drift 25.1 -> 0.7 deg and the left 0/25 -> 14/25** (N=5, 5/5 runs,
-> Fisher ~2e-4). **But the low lift spends the rail margin**: the place transit
-> crosses the output rail at **+5 mm** against the project's +33 mm floor, and the
-> climb that restores the crossing (+33..+54) **drops the payload on 8/16 place
-> legs** (`SIM_LIMIT.md`'s loaded slide; the wrist hold makes it **worse**, 16/16).
-> So the two closed classes meet and **no net gain ships today**; the remaining
-> paths are a **new pad asset** (P30-C's 24-45 mm - **measured closed**: at the shipped aim the
-> shortened plate would sit 13.5-34.5 mm above the fruit's equator and touch nothing,
-> `logs/p69/A_PREREG.md`; the admissible band is +3.5..-7.9 mm and buys 5-13 %) and a
-> **workstation / transfer change** (recommended: flush the inner output rail, 1:1,
-> ~7 h wall, `logs/p69/B_PREREG.md`), both registered in `logs/p69/`. Full page:
-> [docs/LEFT_ARM.md](docs/LEFT_ARM.md). Evidence: `AGENTS.md` §2 (P60-P68),
-> WORKLOG "P60".."P68", `logs/p60/`..`logs/p68/`.
+> Fisher ~2e-4). **The low lift also passes 35 mm below the rail top**, so P66 P4
+> reverted it on the +33 mm rail clause; **P71 resolved that gate by removing its
+> obstacle** - the output belts' side rails are gone by default
+> (`FRUIT_OUTPUT_RAILS=none`) and the crossing is measured against the slab's
+> inboard top edge, where the package's held left legs read **+14..+50 mm (median
+> +35, 8/10 at or above +33, no contact signature)** and the left reads
+> **10/17 placed** (N=3) against the pre-P71 **4/20** (`logs/p71/RESULTS.md`). The
+> climb re-shape that restores a rail-frame crossing (+33..+54) still **drops the
+> payload on 8/16 place legs** (`SIM_LIMIT.md`'s loaded slide; the wrist hold makes
+> it **worse**, 16/16), so the **new pad asset** stays the other closed lane
+> (P30-C's 24-45 mm - **measured closed**: at the shipped aim the shortened plate
+> would sit 13.5-34.5 mm above the fruit's equator and touch nothing,
+> `logs/p69/A_PREREG.md`; the admissible band is +3.5..-7.9 mm and buys 5-13 %).
+> Both are registered in `logs/p69/`. Full page:
+> [docs/LEFT_ARM.md](docs/LEFT_ARM.md). Evidence: `AGENTS.md` §2 (P60-P71),
+> WORKLOG "P60".."P71", `logs/p60/`..`logs/p71/`.
 
 > **汇报入口**：[项目总结报告.md](项目总结报告.md)（单一文档，含图表与日志编号）；路线取舍见 [决策与交付.md](决策与交付.md)；**项目收尾一页纸见 [docs/CLOSEOUT.md](docs/CLOSEOUT.md)**（R11-C：交付状态 / 全部杠杆族的实测裁定 / 剩余项）；一键演示 `scripts/demo_2min.sh`。
 
@@ -1302,8 +1306,9 @@ reach of ~0.68 m. The main belt surface is at `z = 1.17` m; the output conveyors
 are 1.10 x 0.25 x 0.05 m slabs centred at `(0.65, +-0.55)`, surface `z = 1.35`,
 driven along `+X` at `0.10 m/s` (`FRUIT_OUTPUT_SPEED`). They are built like the
 main belt - a **kinematic rigid body** with `PhysxSurfaceVelocityAPI` (a static
-slab does not drag fruit; measured `logs/171`) plus a framed body, legs and
-colliding side rails. Measured on the raised belts
+slab does not drag fruit; measured `logs/171`) plus a framed body, legs and - since P71 -
+**no side rails** (`FRUIT_OUTPUT_RAILS=none`; `=both` restores the pre-P71
+fenced belt). Measured on the raised belts
 (`scripts/422_v3_layout_probe.py`): fruit ride at **1.01x** the commanded speed
 with a roll ratio of 0.00-0.02, i.e. sliding as intended.
 

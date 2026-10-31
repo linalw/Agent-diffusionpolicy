@@ -225,12 +225,14 @@ run_check "P65 lift drift" "$python" scripts/235_p65_lift_selftest.py
 # the achieved TCP position error at the leg's end against the target the same
 # tick issued - the target array `ik_step` was handed and `tcp_pose()`'s own
 # position, so no new read) and the **lift-height knob** (`FRUIT_LIFT_DZ`,
-# default off, `direct` + left only). The leg pins the fields and order, the
-# `guard_armed` containment that makes `None` byte-inert, the last-tick
-# semantics, the error arithmetic, the P64-style threading (resolve once ->
-# caller-owned kwarg -> `tasks.lift_dz_for` at `_carry`'s `grasp_lift` end pose,
-# after both goal forms, z only) and that the scripted entries never construct
-# the env that arms it.
+# default off, `direct` + left only). **P71: the `direct` default is the 0.20 m
+# rung (`dz = -0.08`), and `+0.08` is the documented restore** - the leg pins the
+# default and its origin (the `[grasp] lift_dz:` row / the manifest). It also pins
+# the fields and order, the `guard_armed` containment that makes `None` byte-inert,
+# the last-tick semantics, the error arithmetic, the P64-style threading (resolve
+# once -> caller-owned kwarg -> `tasks.lift_dz_for` at `_carry`'s `grasp_lift` end
+# pose, after both goal forms, z only) and that the scripted entries never
+# construct the env that arms it.
 run_check "P66 lift end + dz" "$python" scripts/236_p66_lift_selftest.py
 # P70: the output station's **height** knob (`FRUIT_OUTPUT_BELT_TOP_Z`, default
 # 1.35 = shipped) and the clearance report reading the **authored** rail (height
@@ -241,7 +243,10 @@ run_check "P66 lift end + dz" "$python" scripts/236_p66_lift_selftest.py
 # eleven `output_belt_top_z` read scopes, the real `_payload_clearance` body on a
 # stub (`rails both/outer/none`, `rail_height` 0.05/0.039/0.015 - byte-identical
 # at the shipped geometry), and the crossing arithmetic: `f = 0.825`, so the
-# belt height is a **0.175:1** lever and removing the rails is 1:1.
+# belt height is a **0.175:1** lever and removing the rails is 1:1. **P71: the
+# rails are now the shipped default (`output_rails=none`)**, so the leg also pins
+# that default (the env-read `default_factory` reads `none`, an unset config reads
+# exactly like an explicit `none`, and `=both` restores the pre-P71 rail pair).
 run_check "P70 belt top + rails" "$python" scripts/238_p70_belt_top_selftest.py
 # P67: the **place-leg climb** (`FRUIT_LIFT_CLIMB`, metres of vertical raise at the
 # place leg's start, `direct` + left only, default OFF) - the re-shape of P66 phase

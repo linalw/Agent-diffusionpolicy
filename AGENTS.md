@@ -2977,7 +2977,7 @@ artefact of the left's extra placements, not a new class. The treat's surviving
 place leg) against the control's mostly `loss_row` 1-4 (never seated). **The
 crossing, against the surface that remains** (belt top; `logs/p71/p71_report.txt`):
 held **left `clr` +14..+50, median +35, 8/10 >= +33** (`clr_win` +10..+45,
-4/10) against the ctrl's **+24..+45, 2/4** at *its* rail top; the **right is
+median +30.5, 4/10) against the ctrl's **+24..+45, 2/4** at *its* rail top; the **right is
 22/22 in both** (+69..+138 vs +36..+58). At the rail top the package reads
 **0/10** - the payload passes 35 mm *below* where the rail top was, which is
 exactly P66 P4's `+5 / +0` and P70 D0's `+7..+17`, so **the clause as written can
