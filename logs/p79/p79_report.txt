@@ -1,0 +1,189 @@
+==============================================================================
+P79 REPORT - the pick half (`grasp-left`) at 30 and 60 N against the
+shipped 10 N. Counts, not rates (PREREG §7).
+==============================================================================
+
+## 0. The manipulation check / site proof (PREREG §4)
+  arm  seed  scope row    rows  legs armed                  L lift fmax L place fmax 
+  C    77    off          0     -                            10.08       10.07       
+  G30  77    grasp-left   14    left grasp_lift 7/7          30.04       10.02       
+  G60  77    grasp-left   12    left grasp_lift 6/6          59.85       10.16       
+  C    101   off          0     -                            10.00       10.10       
+  G30  101   grasp-left   12    left grasp_lift 6/6          31.14       10.00       
+  G60  101   grasp-left   6     left grasp_lift 3/3          54.78        8.19       
+  C    202   off          0     -                            11.88        9.95       
+  G30  202   grasp-left   4     left grasp_lift 2/2          30.42       11.37       
+  G60  202   grasp-left   16    left grasp_lift 8/8          56.80       10.10       
+
+  the registered per-cell band clause (place* fmax <= 11.25 N, DEVIATION A1: reported, not gated):
+    G30_202: place* fmax median 11.37 N - over the band; the leg rows and the pooled column below are the read
+
+  delivered force by leg class, pooled over the cells of an arm (medians):
+  arm   L lift fmax  L lift fmin  L place fmax  L place fmin  R lift fmax  
+  C        10.02         9.75        10.07          9.86         10.09     
+  G30      30.09        29.43        10.02          9.96         10.00     
+  G60      57.48        49.14        10.05          9.75          9.85     
+
+## 1. The leg census (PREREG §5)
+  escape = clean_slip_max > 100 mm with a pinch; pried = sep_max >= 95 mm of the 98.1 mm stop;
+  never-held = fmax == 0 on that carry leg
+  arm  seed  side   legs  escape  >800  pried  never  sep_max max  
+  C    77    left   11    2       2     0      0        83.4       
+  C    77    right  15    1       1     0      1        73.7       
+  G30  77    left   13    1       1     0      0        84.4       
+  G30  77    right  14    0       0     0      0        80.6       
+  G60  77    left   12    3       3     2      0        98.1       
+  G60  77    right  14    0       0     0      0        80.6       
+  C    101   left   18    3       1     2      0        98.4       
+  C    101   right  12    0       0     0      0        74.5       
+  G30  101   left   12    1       1     1      0        98.0       
+  G30  101   right  16    1       0     0      3        74.0       
+  G60  101   left   6     1       1     0      0        83.0       
+  G60  101   right  23    0       0     0      1        73.6       
+  C    202   left   9     2       2     0      1        85.6       
+  C    202   right  19    0       0     0      1        78.6       
+  G30  202   left   4     1       1     0      0        72.4       
+  G30  202   right  26    0       0     0      0        78.6       
+  G60  202   left   15    4       4     2      0       123.5       
+  G60  202   right  14    0       0     0      0        78.6       
+
+  --- pooled per arm
+  arm   side   class   legs  esc  pried  never  lost-a-face  
+  C     left   grasp   20    1    0      0      6            
+  C     left   place   18    6    2      1      10           
+  C     right  grasp   24    1    0      1      3            
+  C     right  place   22    0    0      1      1            
+  G30   left   grasp   15    1    0      0      2            
+  G30   left   place   14    2    1      0      4            
+  G30   right  grasp   29    1    0      2      5            
+  G30   right  place   27    0    0      1      3            
+  G60   left   grasp   17    1    1      0      1            
+  G60   left   place   16    7    3      0      8            
+  G60   right  grasp   26    0    0      1      2            
+  G60   right  place   25    0    0      0      2            
+
+## 2. The counts, per cell - a REPORT, not a rate (PREREG §7)
+  arm  seed  n   placed  left    right   cnp   never  ticks/att  arm mix L/R 
+  C    77    15  10      3/6     7/9     2     1      1685       6/9         
+  G30  77    15  13      6/7     7/8     0     1      1726       7/8         
+  G60  77    15  10      3/6     7/9     3     0      1726       6/9         
+  C    101   15  12      6/9     6/6     3     0      1790       9/6         
+  G30  101   15  11      5/6     6/9     1     0      1794       6/9         
+  G60  101   15  13      2/3     11/12   1     0      1773       3/12        
+  C    202   15  10      2/5     8/10    2     1      1780       5/10        
+  G30  202   15  14      1/2     13/13   1     0      1798       2/13        
+  G60  202   15  11      4/8     7/7     3     1      1817       8/7         
+
+## 3. The pooled primary - left placed (PREREG §6 P1)
+  arm   left placed    rate    cnp   never  right placed   p vs C    
+  C     11/20          0.550   7     2      21/25          -         
+  G30   12/15          0.800   2     1      26/30          0.1629    
+  G60   9/17           0.529   7     1      25/28          1.0000    
+
+  the records this phase is read against (not re-run, PREREG §3):
+    P77 C (global off)     left 11/21 = 0.524  never-held 3  cnp 7  right 21/24  pries 4/38
+    P77 T (global 60 N)    left 17/20 = 0.850  never-held 0  cnp 3  right 22/25  pries 1/40
+    P78 C (place off)      left 10/18 = 0.556  never-held 2  cnp 8  right 25/27  pries 3/36
+    P78 S60 (place 60 N)   left 11/16 = 0.688  never-held 5  cnp 4  right 25/29  pries 1/31
+
+  per seed (P1b: G >= C on >= 2 of 3, at least one strict):
+  seed    C         G30       G60       
+  77      3/6       6/7       3/6       
+  101     6/9       5/6       2/3       
+  202     2/5       1/2       4/8       
+
+## 4. The lift leg's own state (E4, H-pick-b)
+  arm   L legs  lost-a-face  sep_end-gap p50   fmin p50  fmax p50  
+  C     20      6                10.5              9.75     10.02  
+  G30   15      2                11.8             29.43     30.09  
+  G60   17      1                 9.2             49.14     57.48  
+
+## 5. The place guard (E5) - the cap must not be reachable there
+  arm   L place legs  escapes  pried  place fmax p50  place fmin p50  
+  C     18            6        2         10.07            9.86        
+  G30   14            2        1         10.02            9.96        
+  G60   16            7        3         10.05            9.75        
+
+## 6. The strawberry (E8) - the bruise-critical class
+  arm  seed  side  leg        dia    fmax    fmin    sep_max-dia  slip     placed  
+  C    77    right grasp_lift  35.6   35.53    0.00     -7.2      105175.6 no      
+  C    77    right grasp_lift  35.6   10.24    9.63      3.6      0.1      yes     
+  C    77    right place1      35.6   10.23    9.76      3.6      0.1      yes     
+  G30  77    right grasp_lift  35.6    9.86    9.85      2.7      0.0      yes     
+  G30  77    right place1      35.6    9.85    9.84      2.7      0.0      yes     
+  G60  77    right grasp_lift  35.6    9.73    9.49      3.7      0.0      yes     
+  G60  77    right place1      35.6    9.70    9.46      3.7      0.1      yes     
+  G60  77    right grasp_lift  35.6   10.00   10.00      4.1      0.0      yes     
+  G60  77    right place1      35.6   10.00   10.00      4.1      0.0      yes     
+  G30  101   right grasp_lift  38.8    0.00    0.00    -28.6      138474.5 no      
+  G30  101   right grasp_lift  38.8    0.00    0.00    -22.9      450.1    no      
+  G30  101   right grasp_lift  38.8   77.15    9.20      3.1      0.1      yes     
+  G30  101   right place1      38.8    9.74    9.73      3.1      0.0      yes     
+  G60  101   right grasp_lift  38.8    0.00    0.00    -27.9      149670.8 no      
+  G60  101   right grasp_lift  38.8  101.97    7.50      2.4      1.9      yes     
+  G60  101   right place1      38.8    9.74    7.54      1.8      0.0      yes     
+  G60  101   right grasp_lift  38.8    5.89    5.71      4.2      0.0      yes     
+  G60  101   right place1      38.8    5.83    5.68      4.2      0.0      yes     
+  G60  101   right grasp_lift  41.7    9.58    6.04      1.5      1.8      yes     
+  G60  101   right place1      41.7    6.94    6.64      1.2      0.0      yes     
+  G30  202   right grasp_lift  40.4   10.47   10.11      8.3      0.0      yes     
+  G30  202   right place1      40.4   10.47   10.12      8.4      0.0      yes     
+  G30  202   right grasp_lift  40.4    5.06    5.01      4.0      0.0      yes     
+  G30  202   right place1      40.4    5.07    5.02      4.0      0.0      yes     
+  G30  202   right grasp_lift  40.4   34.30    5.02      3.3      0.3      yes     
+  G30  202   right place1      40.4    5.20    5.17      3.3      0.0      yes     
+  G30  202   right grasp_lift  37.8   10.00   10.00      4.2      0.0      yes     
+  G30  202   right place1      37.8   10.00   10.00      4.2      0.0      yes     
+  G60  202   right grasp_lift  40.4    8.91    7.01      7.3      0.0      yes     
+  G60  202   right place1      40.4    8.79    7.05      7.3      0.0      yes     
+
+  crush guards: C1 (sep@loss - dia <= -15 mm): 0 leg(s); C2 (escape + fmin >= 35 N on a <= 3.9 cm fruit): 0 leg(s)
+
+## 7. The ledger (E9), the right arm (E6) and the cycle (E7)
+
+  --- C
+    seed 77: intercept trigger (dy=#cm, dx=-#cm, t_arrive=#s, speed=#m/s/encoder, fra x3; fruit did not follow the gripper x2; fruit fell off the line x1; intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, fram x1
+    seed 101: intercept trigger (dy=#cm, dx=-#cm, t_arrive=#s, speed=#m/s/encoder, fra x3
+    seed 202: intercept trigger (dy=#cm, dx=-#cm, t_arrive=#s, speed=#m/s/encoder, fra x3; intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, fram x2; fruit did not follow the gripper x2
+
+  --- G30
+    seed 77: fruit fell off the line x1; intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, fram x1; fruit did not follow the gripper x1
+    seed 101: intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, fram x2; fruit did not follow the gripper x2; intercept trigger (dy=#cm, dx=-#cm, t_arrive=#s, speed=#m/s/encoder, fra x2
+    seed 202: intercept trigger (dy=#cm, dx=-#cm, t_arrive=#s, speed=#m/s/encoder, fra x1
+
+  --- G60
+    seed 77: intercept trigger (dy=#cm, dx=-#cm, t_arrive=#s, speed=#m/s/encoder, fra x3; fruit fell off the line x2
+    seed 101: intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, fram x1; fruit did not follow the gripper x1; intercept trigger (dy=#cm, dx=-#cm, t_arrive=#s, speed=#m/s/encoder, fra x1
+    seed 202: intercept trigger (dy=#cm, dx=-#cm, t_arrive=#s, speed=#m/s/encoder, fra x3; intercept trigger (dy=#cm, dx=#cm, t_arrive=#s, speed=#m/s/encoder, fram x1; fruit did not follow the gripper x1
+
+  arm   right placed   right cnp   right esc  s/att   ticks/att  
+  C     21/25          1           1          14.6    1751       
+  G30   26/30          1           1          14.8    1773       
+  G60   25/28          0           0          14.8    1772       
+
+## 8. The decision rule (PREREG §6) - pre-registered, evaluated
+  P1a  left placed(G60) 9 >= C 11 + 3  -> FAIL
+  P1b  per-seed deltas [0, -4, 2] (>= 0 on 2/3, >= 1 strict)  -> PASS
+  P1c  rate(G60) 0.529 >= 0.75  -> FAIL
+  P2a  never-held(G60) 1 < C 2  -> PASS
+  P2b  cnp(G60) 7 < C 7 AND E4 improves (lost-a-face 1 vs 6, sep_end-gap p50 9.2 vs 10.5)  -> FAIL
+  P3   the site proof: 0 place-leg / right-arm raise rows in 6 armed cells, pooled place* fmax  10.05 vs C  10.07  -> PASS
+       (DEVIATION A1: 1 cell(s) over the registered 11.25 N per-cell band - a peak transient, not a re-clamp: the escaping leg reads fmax 12.13 N at the shipped cap)
+  P4   right placed(G60) 25 >= C 21 - 1  -> PASS
+  P5   crush guards clean  -> PASS
+  P6   ticks/attempt(G60) 1772 <= 1.05 x C 1751  -> PASS
+
+  VERDICT: NO-PICK
+  (G30, a dose not a second primary: left 12/15, cnp 2 (C 7), never 1 (C 2), lost-a-face 2 (C 6), place escapes 2 (C 6))
+
+## 9. The blast radius (PREREG §8)
+  B1 scripted acceptance with the scope ARMED: 346 [fruit] lines, md5 d0079a237202e2f9b0e152655af32a77
+     archive 346 lines, md5 d0079a237202e2f9b0e152655af32a77
+     byte-identical: YES
+     -> PASS
+     scope rows printed on the scripted path: 0 (must be 0)
+  B2 two-line gate: PASS (reference eb697f23)
+
+==============================================================================
+all structural checks PASS
+==============================================================================
