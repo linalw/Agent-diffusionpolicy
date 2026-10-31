@@ -11,6 +11,13 @@ left's carry rotation is 0.7 deg and its placed count reads **10/17** (N = 3,
 same batch. The sections below are the chain that got there; §"The cost" says how
 the rail gate was resolved.
 
+**Status (P79, 2026-10-31): the force lane is measured out; the residue is a
+geometry limit.** The pry is real (P75: the pads are driven to their 98.1 mm stop
+in 9 ticks while the command closes), force deletes its **radial** half and never
+its **axial** half (P76-P78), and no scoped force reproduces the global count
+(P78/P79: 0.688 and 0.529 against controls at 0.524-0.556, while the global 0.85
+is one draw). §"The force lane" has the thresholds and the decomposition.
+
 **Status (P74, 2026-10-31): what is left on the left is one closed class.** The
 place leg - where the remaining left losses are - has now had its three candidate
 mechanisms measured out (**the transfer's height**, **the rotation**, **the
@@ -137,6 +144,57 @@ payload walks out along the finger axis while the pads hold. So the levers that
 can still touch it are exactly `logs/p42/SIM_LIMIT.md`'s two sanctions (**a new
 pad asset**, **a real-jaw clamp-force anchor**) or **a workstation move that
 shortens the lateral transit at top-down** - pose, rotation and clock are spent.
+
+## The force lane (P75-P79): what the pads actually do, and why force is not the answer
+
+P75's per-tick trace settled the mechanism at one tick: the payload's hand-frame
+displacement is **0.0 mm for 110 ticks**, the force then collapses in **two**
+(5.03 -> 4.11 -> 0.00 N), the measured `sep` **starts rising on the same tick**,
+and within **9 ticks** the pads sit at their **98.1 mm mechanical stop** while the
+commanded gap is **closing** (68.7 -> 66.7 mm). So the class is a **wedge/pry**,
+not a slide at constant `sep` (that reading of the P41 census - "the pads hold and
+the payload slides" - is not this interface), and it is not a command transient
+(0 of 26 traced legs show a `|dv_cmd| >= 0.10 m/s` step; a held leg carries the
+same `tcp_err` ramp and holds).
+
+The force ladder then separates three thresholds that the record had conflated
+(P76, six cells, 26-55 left legs each):
+
+| question | answer |
+| --- | --- |
+| when do the pads stop being **pried to their travel stop**? | **> 30 N**; gone at **45 N** (0/26 legs past 95 mm) |
+| when does the **payload** stop being pried out? | **> 45 N**; gone at **60 N** (0/26 pried, 0/26 escaped, the pear at 75.2 mm and 0.0 mm slip) |
+| when is the **smallest fruit crushed**? | **not at 60 N** on this interface (the 3.6 cm berry reads `sep@loss - dia` **+0.5 mm** under a 60.16 N pinch and places) - P41's "60 N crushes a strawberry" is a **seating** event (the close landed 24.7 mm inside the fruit), not a force threshold |
+
+**Then the count did not survive replication, and that is the lane's real result.**
+P77's **global** 60 N read left placed **11/21 -> 17/20** (Fisher p = 0.043) - but
+P78 and P79 scoped the same write to the two carry classes with **zero blast
+radius** (the scripted acceptance stays **346/346 byte-identical** with
+`fingerprint: matches`, the two-line passes `190`, no reference moves) and read
+**0.688** (`place-left`) and **0.529** (`grasp-left`) against controls that agree
+at **0.524 / 0.556 / 0.550**. Neither half reproduces the global arm, the dose is
+not monotone (30 N reads 0.706/0.800 against 60 N's 0.688/0.529), and the one
+class the global cap touched that no `_carry` token can reach is **the close**
+(where its `never-held` 3 -> 0 must have happened) - so the honest reading is
+that **the global 0.85 is one draw of a branch**, not a force effect.
+
+**What force does do, mechanically, is delete the radial pry and leave the axial
+walk.** At 10 N, 5 of 7 escapes leave with the pads **13.5-39.9 mm** past the
+fruit's width; at 60 N, **2 of 3** leave at **+3.4 / +7.9 mm** - the pads
+essentially closed, the payload walking out along the **tool axis** (P61's
+measured direction, 25.2 deg off the axis). So the class **decomposes**: the
+radial half is force-limited, the axial half is a **geometry** limit - there is no
+distal lip to block the walk. That is `logs/p42/SIM_LIMIT.md`'s new-pad-asset
+sanction, now with a **specific target** (block the axial exit, not lengthen the
+plate: P30-C's 24-45 mm shortening was measured closed because it was aimed at the
+wrong dimension).
+
+**And the honesty item that governs any force adoption:** 60 N per joint is
+**jaw-feasible** (commercial parallel jaws cover 20-235 N) but it **would bruise a
+3.6 cm berry**, and **this simulator has no bruise model, no damage model and no
+flesh-compliance model**. A clean read at 60 N is a statement about **geometry and
+retention**, never about fruit quality - which is the other reason the geometry
+lane is the physical one.
 
 ## What is NOT the answer
 
