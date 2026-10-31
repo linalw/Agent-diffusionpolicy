@@ -1,0 +1,432 @@
+############ P78 report - generated 2026-10-31 21:28:57 ############
+
+########## PART 1: the dose ladder, seed 77 (PREREG.md section 3) ##########
+====================================================================================================================
+P78 - the site-scoped clamp force (left `place*` legs) and its dose
+PREREG 01077e1a; C = the scope unset (shipped 10 N), S<n> = FRUIT_FINGER_MAXFORCE_SCOPE=place-left SCOPED=<n>
+====================================================================================================================
+
+## 0. The manipulation check (PREREG §1): did the cap reach the drive,
+   on the scoped site only?
+   `place*` fmin/fmax = the leg's MINIMUM and MAXIMUM tactile force. The cap
+   bounds the drive, so the leg MAX is the clamp read; the leg MIN is the
+   leg's weakest moment, set by contact transients, not by the cap (§0.1 in
+   RESULTS.md - the recorded PREREG correction).
+  arm  seed  armed row       raise/restore rows    place* fmin  place* fmax  lift fmin   manifest scope  evaluable
+  C    77    (off, unset)    0/0                   9.90         10.69        9.33        null            yes
+  S30  77    place-left x 30 3/3                   29.65        29.75        9.10        left 30         yes
+  S45  77    place-left x 45 5/5                   36.07        44.99        9.52        left 45         yes
+  S60  77    place-left x 60 4/4                   46.74        56.08        9.97        left 60         yes
+  the scoped contract: `place*` fmin >= 75 % and fmax <= 110 % of the cap
+  (P41's law plus the transient band), `grasp_lift` < 15 N (the PICK keeps
+  the shipped cap - the site-scoping proof), every raise paired with a
+  restore whose read-back is the value asked for, readback_matches true.
+
+## 1. The leg census (PREREG §3)
+   escape = clean_slip_max > 100 mm with a pinch; pried = sep_max >= 95 mm of the 98.1 mm stop
+  arm  seed  side  legs  escape  >800mm  pried  never-held  sep_max max 
+  C    77    left  10    2       2       1      0           98.1
+  C    77    right 18    0       0       0      0           80.2
+  S30  77    left  6     0       0       0      0           77.9
+  S30  77    right 18    0       0       0      2           77.2
+  S45  77    left  11    2       2       1      0           95.6
+  S45  77    right 16    0       0       0      0           74.1
+  S60  77    left  8     0       0       0      0           79.5
+  S60  77    right 18    0       0       0      0           80.7
+
+  --- pooled per arm (the mechanism denominators)
+  arm  side  legs  escape  pried  never-held  
+  C    left  10    2       1      0           
+  C    right 18    0       0      0           
+  S30  left  6     0       0      0           
+  S30  right 18    0       0      2           
+  S45  left  11    2       1      0           
+  S45  right 16    0       0      0           
+  S60  left  8     0       0      0           
+  S60  right 18    0       0      0           
+
+## 2. Every escape leg (clean_slip_max > 100 mm, pinched)
+
+  --- C seed 77: 2 escape leg(s)
+    pear          6.8cm left place0     slip=   809.8 sep_max=  98.1 dia=  68.3 max-dia=  +29.8 [radial ] fmax= 12.45 fmin=  0.00 STOP
+    pear          6.1cm left place0     slip=   831.1 sep_max=  71.6 dia=  61.3 max-dia=  +10.3 [between] fmax= 11.50 fmin=  0.00
+
+  --- S30 seed 77: 0 escape leg(s)
+    (none)
+
+  --- S45 seed 77: 2 escape leg(s)
+    pear          6.8cm left place0     slip=   907.2 sep_max=  95.6 dia=  68.3 max-dia=  +27.3 [radial ] fmax= 46.05 fmin=  0.00 STOP
+    pear          6.1cm left place0     slip=   939.2 sep_max=  70.7 dia=  61.3 max-dia=   +9.4 [axial  ] fmax= 45.16 fmin=  0.00
+
+  --- S60 seed 77: 0 escape leg(s)
+    (none)
+
+## 2b. Every pried leg (sep_max >= 95 mm, escape or not)
+
+  --- C seed 77: 1 pried leg(s)
+    pear          6.8cm left place0     slip=   809.8 sep_max=  98.1 dia=  68.3 max-dia=  +29.8 [radial ] fmax= 12.45 fmin=  0.00 STOP
+
+  --- S30 seed 77: 0 pried leg(s)
+    (none)
+
+  --- S45 seed 77: 1 pried leg(s)
+    pear          6.8cm left place0     slip=   907.2 sep_max=  95.6 dia=  68.3 max-dia=  +27.3 [radial ] fmax= 46.05 fmin=  0.00 STOP
+
+  --- S60 seed 77: 0 pried leg(s)
+    (none)
+
+## 3. The mode split on the escape legs - `sep_max - dia` (P77 §2)
+   radial = >= +13 mm beyond the fruit's own width (an expulsion
+   through an opening gap); axial = <= +10 mm (the pads closed on it
+   and the payload walked out along the tool axis)
+  arm  seed  escapes  radial  axial  between  max-dia range
+  C    77    2        1       0      1        +10.3 .. +29.8
+  S30  77    0        0       0      0        n/a
+  S45  77    2        1       1      0        +9.4 .. +27.3
+  S60  77    0        0       0      0        n/a
+
+## 4. The smallest fruit (the binding class), with the crush guards
+  arm  seed  fruit          dia  sep@loss  loss-dia  sep_max  max-dia    fmax    fmin     slip  outcome
+  C    77    strawberry    35.6       n/a       n/a     39.2     +3.6    9.74    9.50      0.0  placed
+  C    77    strawberry    35.6       n/a       n/a     39.7     +4.1   10.00   10.00      0.0  placed
+  C    77    lychee        30.0       n/a       n/a     43.2    +13.2    9.81    9.81      0.0  placed
+  C    77    lychee        34.3       n/a       n/a     45.9    +11.6  134.29    4.28      3.5  placed
+  S30  77    strawberry    35.6      21.6     -14.0     22.1    -13.5    0.00    0.00    483.5  LOST
+  S30  77    lychee        34.3      19.7     -14.6     19.9    -14.4    0.00    0.00 181997.6  LOST
+  S30  77    strawberry    35.6       n/a       n/a     38.3     +2.7    9.76    9.75      0.0  placed
+  S30  77    strawberry    35.6       n/a       n/a     39.2     +3.6   27.39    9.67      0.0  placed
+  S30  77    lychee        34.3       n/a       n/a     45.1    +10.8   10.00    9.99      0.0  placed
+  S45  77    strawberry    35.6       n/a       n/a     39.3     +3.7    9.73    9.49      0.0  placed
+  S45  77    strawberry    35.6       n/a       n/a     39.7     +4.1   10.00   10.00      0.0  placed
+  S45  77    lychee        34.3       n/a       n/a     45.1    +10.8   30.14    9.47      0.2  placed
+  S60  77    strawberry    35.6       n/a       n/a     39.3     +3.7    9.73    9.49      0.0  placed
+  S60  77    strawberry    35.6       n/a       n/a     39.4     +3.8   10.19    9.68      0.1  placed
+  S60  77    lychee        34.3       n/a       n/a     45.1    +10.8   10.08    9.87      0.2  placed
+
+## 5. The counts, per cell - a REPORT, not a rate (PREREG §3)
+  arm  seed  n   placed  left     right    cnp   never  ticks/att  arm mix L/R
+  C    77    15  12      3/5      9/10     2     1      1750       5/10
+  S30  77    15  11      3/4      8/11     0     4      1790       4/11
+  S45  77    15  11      3/6      8/9      2     2      1780       6/9
+  S60  77    15  13      4/4      9/11     0     2      1787       4/11
+
+## 6. The ladder: D1-D5 per rung against C (PREREG §3)
+   the per-cell rows below are informational; the RULE is evaluated on the
+   POOLED arm (every cell of the rung against every cell of C), because the
+   mechanism denominators are leg counts and a single 15-pick cell is one
+   draw of a non-reproducible branch. See the pooled verdict block.
+
+  rung  seed  L placed    R placed    cycle    pried   crush  
+  C     77    3/5         9/10        1750     1       0      
+  S30   77    3/4         8/11        1790     0       0      
+  S45   77    3/6         8/9         1780     1       0      
+  S60   77    4/4         9/11        1787     0       0      
+
+  --- the pooled verdict (C: left 3/5, right 9/10, escapes 2/10, pried 1, crush 0, cycle 1750)
+  rung  L placed    escapes        pried        right       cycle     crush  D1-D5
+  S30   3/4         0/6            0            8/11        1790      0      +++++
+  S45   3/6         2/11           1            8/9         1780      0      +-+++
+  S60   4/4         0/8            0            9/11        1787      0      +++++
+
+  D1 placed >= C (pooled); D2 escapes AND pries <= 1/3 of C (pooled legs);
+  D3 zero crush legs across the rung's cells; D4 right within 1; D5 cycle
+  (median of cell medians) <= +5 %.
+  -> rungs satisfying D1-D5: S30, S60
+     S45 fails: D2
+
+## 7. The guards
+
+  --- the note strings on non-placed episodes (digits normalised out)
+  C:
+      2L   0R  (no reason note; the class is read from grasped/placed)
+      0L   1R  fruit fell off the line
+  S30:
+      1L   2R  (no reason note; the class is read from grasped/placed)
+      0L   1R  fruit fell off the line
+  S45:
+      3L   0R  (no reason note; the class is read from grasped/placed)
+      0L   1R  fruit fell off the line
+  S60:
+      0L   2R  fruit fell off the line
+
+  --- new RIGHT failure reasons in S30 (not seen in C): none
+
+  --- new RIGHT failure reasons in S45 (not seen in C): none
+
+  --- new RIGHT failure reasons in S60 (not seen in C): none
+
+  --- the landing class (the payload went nowhere)
+  C: did not land 0, fell off the line 1, discharged 0
+  S30: did not land 0, fell off the line 1, discharged 0
+  S45: did not land 0, fell off the line 1, discharged 0
+  S60: did not land 0, fell off the line 2, discharged 0
+
+  --- cycle ticks (median per cell; a cost read, not a rate)
+  C: 1750 (median of medians 1750)
+  S30: 1790 (median of medians 1790)
+  S45: 1780 (median of medians 1780)
+  S60: 1787 (median of medians 1787)
+
+## 8. The blast radius (PREREG §4) - the scope ARMED on both scripted paths
+  B1 scripted acceptance, scope armed: 346 [fruit] lines (archive 346); md5 d0079a237202e2f9b0e152655af32a77 (archive d0079a237202e2f9b0e152655af32a77)
+     identical at the same index: 346/346  -> BYTE-IDENTICAL
+     fingerprint: fingerprint: matches configs/motion_reference.json
+     scope row in the scripted run: ABSENT
+  B2 two-line, scope armed: 424 [fruit] lines (reference eb697f23, NOT re-recorded)
+     fingerprint: fingerprint: matches configs/motion_reference_twoline.json
+     gate: 190: two-line gate: reference=configs/motion_reference_twoline.json floor=0.60; 190: PASS logs/p78/b2_twoline_armed.log; 190: every log matches configs/motion_reference_twoline.json and is at or above the two-line floor 0.60
+
+CHECK OK: every cell's cap reached the scoped site only, all 4 cells carry 15 episodes, and all 105 [carry] rows parsed.
+
+########## PART 2: the three-seed reads (PREREG_EXT.md + the economical rung) ##########
+====================================================================================================================
+P78 - the site-scoped clamp force (left `place*` legs) and its dose
+PREREG 01077e1a; C = the scope unset (shipped 10 N), S<n> = FRUIT_FINGER_MAXFORCE_SCOPE=place-left SCOPED=<n>
+====================================================================================================================
+
+## 0. The manipulation check (PREREG §1): did the cap reach the drive,
+   on the scoped site only?
+   `place*` fmin/fmax = the leg's MINIMUM and MAXIMUM tactile force. The cap
+   bounds the drive, so the leg MAX is the clamp read; the leg MIN is the
+   leg's weakest moment, set by contact transients, not by the cap (§0.1 in
+   RESULTS.md - the recorded PREREG correction).
+  arm  seed  armed row       raise/restore rows    place* fmin  place* fmax  lift fmin   manifest scope  evaluable
+  C    77    (off, unset)    0/0                   9.90         10.69        9.33        null            yes
+  S30  77    place-left x 30 3/3                   29.65        29.75        9.10        left 30         yes
+  S60  77    place-left x 60 4/4                   46.74        56.08        9.97        left 60         yes
+  C    101   (off, unset)    0/0                   9.99         10.02        9.97        null            yes
+  S30  101   place-left x 30 6/6                   29.03        30.66        9.64        left 30         yes
+  S60  101   place-left x 60 6/6                   48.15        59.25        8.35        left 60         yes
+  C    202   (off, unset)    0/0                   9.75         11.25        9.71        null            yes
+  S30  202   place-left x 30 7/7                   28.22        30.85        9.83        left 30         yes
+  S60  202   place-left x 60 5/5                   54.35        58.89        9.67        left 60         yes
+  the scoped contract: `place*` fmin >= 75 % and fmax <= 110 % of the cap
+  (P41's law plus the transient band), `grasp_lift` < 15 N (the PICK keeps
+  the shipped cap - the site-scoping proof), every raise paired with a
+  restore whose read-back is the value asked for, readback_matches true.
+
+## 1. The leg census (PREREG §3)
+   escape = clean_slip_max > 100 mm with a pinch; pried = sep_max >= 95 mm of the 98.1 mm stop
+  arm  seed  side  legs  escape  >800mm  pried  never-held  sep_max max 
+  C    77    left  10    2       2       1      0           98.1
+  C    77    right 18    0       0       0      0           80.2
+  S30  77    left  6     0       0       0      0           77.9
+  S30  77    right 18    0       0       0      2           77.2
+  S60  77    left  8     0       0       0      0           79.5
+  S60  77    right 18    0       0       0      0           80.7
+  C    101   left  16    3       3       2      0           98.1
+  C    101   right 14    0       0       0      0           73.0
+  S30  101   left  12    2       2       0      0           81.2
+  S30  101   right 16    1       1       1      1           98.5
+  S60  101   left  12    3       3       1      0           95.2
+  S60  101   right 17    1       0       0      0           74.5
+  C    202   left  10    3       3       0      0           82.8
+  C    202   right 19    0       0       0      1           78.4
+  S30  202   left  14    2       2       0      0           79.6
+  S30  202   right 15    0       0       0      1           78.6
+  S60  202   left  11    1       1       0      1           73.1
+  S60  202   right 17    0       0       0      1           78.9
+
+  --- pooled per arm (the mechanism denominators)
+  arm  side  legs  escape  pried  never-held  
+  C    left  36    8       3      0           
+  C    right 51    0       0      1           
+  S30  left  32    4       0      0           
+  S30  right 49    1       1      4           
+  S60  left  31    4       1      1           
+  S60  right 52    1       0      1           
+
+## 2. Every escape leg (clean_slip_max > 100 mm, pinched)
+
+  --- C seed 77: 2 escape leg(s)
+    pear          6.8cm left place0     slip=   809.8 sep_max=  98.1 dia=  68.3 max-dia=  +29.8 [radial ] fmax= 12.45 fmin=  0.00 STOP
+    pear          6.1cm left place0     slip=   831.1 sep_max=  71.6 dia=  61.3 max-dia=  +10.3 [between] fmax= 11.50 fmin=  0.00
+
+  --- S30 seed 77: 0 escape leg(s)
+    (none)
+
+  --- S60 seed 77: 0 escape leg(s)
+    (none)
+
+  --- C seed 101: 3 escape leg(s)
+    apple         7.0cm left place0     slip=   855.4 sep_max=  98.1 dia=  69.6 max-dia=  +28.5 [radial ] fmax= 14.08 fmin=  0.00 STOP
+    kiwi          5.3cm left place0     slip=   864.0 sep_max=  79.3 dia=  53.3 max-dia=  +26.0 [radial ] fmax= 10.90 fmin=  0.00
+    kiwi          6.7cm left place0     slip=113666.7 sep_max=  98.1 dia=  66.8 max-dia=  +31.3 [radial ] fmax= 16.78 fmin=  0.00 STOP
+
+  --- S30 seed 101: 3 escape leg(s)
+    kiwi          6.7cm left place0     slip=   871.0 sep_max=  80.3 dia=  66.8 max-dia=  +13.5 [radial ] fmax= 30.56 fmin=  0.00
+    lychee        3.7cm rightgrasp_lift slip=   889.9 sep_max=  98.5 dia=  36.7 max-dia=  +61.8 [radial ] fmax= 30.03 fmin=  0.00 STOP
+    kiwi          5.3cm left place0     slip=   830.2 sep_max=  74.8 dia=  53.3 max-dia=  +21.5 [radial ] fmax= 35.01 fmin=  0.00
+
+  --- S60 seed 101: 4 escape leg(s)
+    apple         7.0cm left place0     slip=115658.6 sep_max=  95.2 dia=  69.6 max-dia=  +25.6 [radial ] fmax= 59.58 fmin=  0.00 STOP
+    apple         7.0cm left place0     slip=   950.3 sep_max=  86.4 dia=  69.6 max-dia=  +16.8 [radial ] fmax= 59.26 fmin=  0.00
+    strawberry    3.9cm rightgrasp_lift slip=   474.7 sep_max=  23.6 dia=  38.8 max-dia=  -15.2 [axial  ] fmax= 32.07 fmin=  0.00
+    peach         6.6cm left place0     slip=   977.0 sep_max=  75.2 dia=  66.4 max-dia=   +8.8 [axial  ] fmax= 62.43 fmin=  0.00
+
+  --- C seed 202: 3 escape leg(s)
+    kiwi          5.7cm left place0     slip=   855.1 sep_max=  81.3 dia=  57.1 max-dia=  +24.2 [radial ] fmax= 13.75 fmin=  0.00
+    pear          5.9cm left place0     slip=   839.8 sep_max=  72.3 dia=  58.8 max-dia=  +13.5 [radial ] fmax= 11.25 fmin=  0.00
+    apple         6.7cm left place0     slip=   810.3 sep_max=  79.4 dia=  67.2 max-dia=  +12.2 [between] fmax= 12.25 fmin=  0.00
+
+  --- S30 seed 202: 2 escape leg(s)
+    kiwi          5.7cm left place0     slip=   901.1 sep_max=  67.0 dia=  57.1 max-dia=   +9.9 [axial  ] fmax= 30.92 fmin=  0.00
+    peach         6.2cm left place0     slip=   933.8 sep_max=  67.6 dia=  61.9 max-dia=   +5.7 [axial  ] fmax= 30.16 fmin=  0.00
+
+  --- S60 seed 202: 1 escape leg(s)
+    kiwi          5.7cm left grasp_lift slip=214899.5 sep_max=  59.8 dia=  57.1 max-dia=   +2.7 [axial  ] fmax=119.98 fmin=  0.00
+
+## 2b. Every pried leg (sep_max >= 95 mm, escape or not)
+
+  --- C seed 77: 1 pried leg(s)
+    pear          6.8cm left place0     slip=   809.8 sep_max=  98.1 dia=  68.3 max-dia=  +29.8 [radial ] fmax= 12.45 fmin=  0.00 STOP
+
+  --- S30 seed 77: 0 pried leg(s)
+    (none)
+
+  --- S60 seed 77: 0 pried leg(s)
+    (none)
+
+  --- C seed 101: 2 pried leg(s)
+    apple         7.0cm left place0     slip=   855.4 sep_max=  98.1 dia=  69.6 max-dia=  +28.5 [radial ] fmax= 14.08 fmin=  0.00 STOP
+    kiwi          6.7cm left place0     slip=113666.7 sep_max=  98.1 dia=  66.8 max-dia=  +31.3 [radial ] fmax= 16.78 fmin=  0.00 STOP
+
+  --- S30 seed 101: 1 pried leg(s)
+    lychee        3.7cm rightgrasp_lift slip=   889.9 sep_max=  98.5 dia=  36.7 max-dia=  +61.8 [radial ] fmax= 30.03 fmin=  0.00 STOP
+
+  --- S60 seed 101: 1 pried leg(s)
+    apple         7.0cm left place0     slip=115658.6 sep_max=  95.2 dia=  69.6 max-dia=  +25.6 [radial ] fmax= 59.58 fmin=  0.00 STOP
+
+  --- C seed 202: 0 pried leg(s)
+    (none)
+
+  --- S30 seed 202: 0 pried leg(s)
+    (none)
+
+  --- S60 seed 202: 0 pried leg(s)
+    (none)
+
+## 3. The mode split on the escape legs - `sep_max - dia` (P77 §2)
+   radial = >= +13 mm beyond the fruit's own width (an expulsion
+   through an opening gap); axial = <= +10 mm (the pads closed on it
+   and the payload walked out along the tool axis)
+  arm  seed  escapes  radial  axial  between  max-dia range
+  C    77    2        1       0      1        +10.3 .. +29.8
+  S30  77    0        0       0      0        n/a
+  S60  77    0        0       0      0        n/a
+  C    101   3        3       0      0        +26.0 .. +31.3
+  S30  101   3        3       0      0        +13.5 .. +61.8
+  S60  101   4        2       2      0        -15.2 .. +25.6
+  C    202   3        2       0      1        +12.2 .. +24.2
+  S30  202   2        0       2      0        +5.7 .. +9.9
+  S60  202   1        0       1      0        +2.7 .. +2.7
+
+## 4. The smallest fruit (the binding class), with the crush guards
+  arm  seed  fruit          dia  sep@loss  loss-dia  sep_max  max-dia    fmax    fmin     slip  outcome
+  C    77    strawberry    35.6       n/a       n/a     39.2     +3.6    9.74    9.50      0.0  placed
+  C    77    strawberry    35.6       n/a       n/a     39.7     +4.1   10.00   10.00      0.0  placed
+  C    77    lychee        30.0       n/a       n/a     43.2    +13.2    9.81    9.81      0.0  placed
+  C    77    lychee        34.3       n/a       n/a     45.9    +11.6  134.29    4.28      3.5  placed
+  S30  77    strawberry    35.6      21.6     -14.0     22.1    -13.5    0.00    0.00    483.5  LOST
+  S30  77    lychee        34.3      19.7     -14.6     19.9    -14.4    0.00    0.00 181997.6  LOST
+  S30  77    strawberry    35.6       n/a       n/a     38.3     +2.7    9.76    9.75      0.0  placed
+  S30  77    strawberry    35.6       n/a       n/a     39.2     +3.6   27.39    9.67      0.0  placed
+  S30  77    lychee        34.3       n/a       n/a     45.1    +10.8   10.00    9.99      0.0  placed
+  S60  77    strawberry    35.6       n/a       n/a     39.3     +3.7    9.73    9.49      0.0  placed
+  S60  77    strawberry    35.6       n/a       n/a     39.4     +3.8   10.19    9.68      0.1  placed
+  S60  77    lychee        34.3       n/a       n/a     45.1    +10.8   10.08    9.87      0.2  placed
+  C    101   strawberry    41.7       n/a       n/a     43.3     +1.6    9.98    7.88      0.0  placed
+  C    101   strawberry    41.7       n/a       n/a     44.6     +2.9    9.89    9.89      0.0  placed
+  S30  101   strawberry    38.8      10.0     -28.8     10.2    -28.6    0.00    0.00 251284.1  LOST
+  S30  101   strawberry    38.8       n/a       n/a     47.6     +8.8   87.21    6.89      0.8  placed
+  S30  101   strawberry    38.8       n/a       n/a     42.3     +3.5   25.36    5.82      0.1  placed
+  S60  101   strawberry    38.8       n/a       n/a     43.8     +5.0    5.00    4.97      0.0  placed
+  S60  101   strawberry    38.8      22.9     -15.9     23.6    -15.2   32.07    0.00    474.7  LOST CRUSH
+  C    202   strawberry    40.4       n/a       n/a     48.8     +8.4    8.65    8.64      0.0  placed
+  C    202   lychee        32.9       n/a       n/a     43.2    +10.3   10.40    9.79      0.1  placed
+  C    202   lychee        35.4       n/a       n/a     46.4    +11.0    9.66    9.24      0.1  placed
+  C    202   lychee        32.9       n/a       n/a     43.2    +10.3   10.47    9.71      0.1  placed
+  C    202   strawberry    37.8       n/a       n/a     46.7     +8.9  155.12    5.00      0.3  placed
+  C    202   strawberry    40.4       n/a       n/a     42.4     +2.0   93.74    9.72      0.2  placed
+  S30  202   lychee        35.4       n/a       n/a     47.5    +12.1   10.03   10.00      0.0  placed
+  S60  202   strawberry    40.4       n/a       n/a     48.9     +8.5   10.00   10.00      0.0  placed
+  S60  202   lychee        32.9       n/a       n/a     43.2    +10.3   10.46    9.54      0.1  placed
+
+## 5. The counts, per cell - a REPORT, not a rate (PREREG §3)
+  arm  seed  n   placed  left     right    cnp   never  ticks/att  arm mix L/R
+  C    77    15  12      3/5      9/10     2     1      1750       5/10
+  S30  77    15  11      3/4      8/11     0     4      1790       4/11
+  S60  77    15  13      4/4      9/11     0     2      1787       4/11
+  C    101   15  12      5/8      7/7      3     0      1774       8/7
+  S30  101   15  11      4/6      7/9      2     2      1813       6/9
+  S60  101   15  11      3/6      8/9      3     1      1807       6/9
+  C    202   15  11      2/5      9/10     3     1      1814       5/10
+  S30  202   15  12      5/7      7/8      2     1      1804       7/8
+  S60  202   15  12      4/6      8/9      1     2      1789       6/9
+
+## 6. The ladder: D1-D5 per rung against C (PREREG §3)
+   the per-cell rows below are informational; the RULE is evaluated on the
+   POOLED arm (every cell of the rung against every cell of C), because the
+   mechanism denominators are leg counts and a single 15-pick cell is one
+   draw of a non-reproducible branch. See the pooled verdict block.
+
+  rung  seed  L placed    R placed    cycle    pried   crush  
+  C     77    3/5         9/10        1750     1       0      
+  S30   77    3/4         8/11        1790     0       0      
+  S60   77    4/4         9/11        1787     0       0      
+  C     101   5/8         7/7         1774     2       0      
+  S30   101   4/6         7/9         1813     0       0      
+  S60   101   3/6         8/9         1807     1       1      
+  C     202   2/5         9/10        1814     0       0      
+  S30   202   5/7         7/8         1804     0       0      
+  S60   202   4/6         8/9         1789     0       0      
+
+  --- the pooled verdict (C: left 10/18, right 25/27, escapes 8/36, pried 3, crush 0, cycle 1774)
+  rung  L placed    escapes        pried        right       cycle     crush  D1-D5
+  S30   12/17       4/32           0            22/28       1804      0      +-+-+
+  S60   11/16       4/31           1            25/29       1789      1      +--++
+
+  D1 placed >= C (pooled); D2 escapes AND pries <= 1/3 of C (pooled legs);
+  D3 zero crush legs across the rung's cells; D4 right within 1; D5 cycle
+  (median of cell medians) <= +5 %.
+  -> rungs satisfying D1-D5: none
+     S30 fails: D2, D4
+     S60 fails: D2, D3
+
+## 7. The guards
+
+  --- the note strings on non-placed episodes (digits normalised out)
+  C:
+      8L   1R  (no reason note; the class is read from grasped/placed)
+      0L   1R  fruit fell off the line
+  S30:
+      5L   5R  (no reason note; the class is read from grasped/placed)
+      0L   1R  fruit fell off the line
+  S60:
+      5L   2R  (no reason note; the class is read from grasped/placed)
+      0L   2R  fruit fell off the line
+
+  --- new RIGHT failure reasons in S30 (not seen in C): none
+
+  --- new RIGHT failure reasons in S60 (not seen in C): none
+
+  --- the landing class (the payload went nowhere)
+  C: did not land 0, fell off the line 1, discharged 0
+  S30: did not land 0, fell off the line 1, discharged 0
+  S60: did not land 0, fell off the line 2, discharged 0
+
+  --- cycle ticks (median per cell; a cost read, not a rate)
+  C: 1750, 1774, 1814 (median of medians 1774)
+  S30: 1790, 1813, 1804 (median of medians 1804)
+  S60: 1787, 1807, 1789 (median of medians 1789)
+
+## 8. The blast radius (PREREG §4) - the scope ARMED on both scripted paths
+  B1 scripted acceptance, scope armed: 346 [fruit] lines (archive 346); md5 d0079a237202e2f9b0e152655af32a77 (archive d0079a237202e2f9b0e152655af32a77)
+     identical at the same index: 346/346  -> BYTE-IDENTICAL
+     fingerprint: fingerprint: matches configs/motion_reference.json
+     scope row in the scripted run: ABSENT
+  B2 two-line, scope armed: 424 [fruit] lines (reference eb697f23, NOT re-recorded)
+     fingerprint: fingerprint: matches configs/motion_reference_twoline.json
+     gate: 190: two-line gate: reference=configs/motion_reference_twoline.json floor=0.60; 190: PASS logs/p78/b2_twoline_armed.log; 190: every log matches configs/motion_reference_twoline.json and is at or above the two-line floor 0.60
+
+CHECK OK: every cell's cap reached the scoped site only, all 9 cells carry 15 episodes, and all 251 [carry] rows parsed.

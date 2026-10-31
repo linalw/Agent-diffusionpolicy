@@ -1,0 +1,111 @@
+# P78 header (2026-10-31 20:07:10)
+# tree: b4b0e11e698a866fcc700bc0047d66ac57e191c1 + the P78 scoped-force change (see the md5s below)
+# prereg: 01077e1a8d857cbc2f5db1b06dbc5c25  logs/p78/PREREG.md # pinned 2026-10-31 18:55:02 # tree b4b0e11e698a866fcc700bc0047d66ac57e191c1 (before any P78 source edit) 
+61da390a85fa209496b54477a8255d23  checkpoints/moe_v13s/policy_best.pt
+b1464c43b173d5427343152dc29eb121  src/fruit_sorting/tasks.py
+5c7322d2d3871ef9fcd25d748d6b552a  src/fruit_sorting/rl_env.py
+540406fac53992d32bee5f04a3a25785  src/fruit_sorting/assets.py
+fb2c58c6ffdf1a478a25393180da4cda  src/fruit_sorting/conveyor.py
+c7461d4104cf2c5f6c5a2daab80fbf32  src/fruit_sorting/fruits.py
+fbd7e2bb494ff0d7a772551878b7fcc2  src/fruit_sorting/scene.py
+1ad5af0e63cfc93ffbd58b2f206978f6  src/fruit_sorting/meshes.py
+9384ff4fa3e62b359bf10d2123ef41fa  src/fruit_sorting/control.py
+7f2443c14a35c83010efb91b549fcb0a  src/fruit_sorting/motion.py
+b09d3cb2389a9f4884a748dbb3461b24  src/fruit_sorting/policy/trigger.py
+379ac7064fd49df8417e94dbf6ed2616  src/fruit_sorting/policy/runtime.py
+42ab4fb78a91ea9d85554e6d90e1da80  configs/arm_parks.json
+d81c6f1ccad96254264b62331968716b  configs/waypoints.json
+8952c320d798ef42e03ba815c9e96b23  configs/motion_reference.json
+eb697f23adb5d6b9ef8656f3319d3ce8  configs/motion_reference_twoline.json
+abd2b5f1e1adb3c225c19a9c3fdd0d91  scripts/110_rl_rollout.py
+1a5adba65df4e4e825ad798287de12eb  scripts/154_claim_run.sh
+aadea2d35a9791e5d5eb2b5dc1fda7b9  scripts/244_p78_scope_selftest.py
+ce338611f5f725cbf562e3145be2c535  scripts/selfcheck.sh
+# arms: C (scope unset = the shipped 10 N build cap)
+#       S30/S45/S60 (FRUIT_FINGER_MAXFORCE_SCOPE=place-left, ..._SCOPED=30/45/60)
+# batch: seed 77 x 15 picks, order C -> S30 -> S45 -> S60 (dose ascending)
+# scenario (P66 phase-3 / P71 phase-2 / P73 / P74 / P75 / P76 / P77 verbatim): FRUIT_SUPPLY_SCATTER=1 FRUIT_SUPPLY_PATCH=1 FRUIT_SUPPLY_GRADES=A:0.375,B:0.375,C:0.25 FRUIT_POLICY_TRIGGER=arrival FRUIT_POLICY_TRIGGER_LEAD=0.9 FRUIT_DYNAMIC_PICK=1 FRUIT_POLICY_SEED=11 FRUIT_BED_DIAG=1 FRUIT_CARRY_DIAG=1 FRUIT_CARRY_ATTITUDE=1 FRUIT_MOTION_REPORT=1
+# harness: HEADLESS=1 FRUIT_CAMERA_RES=240,424 FRUIT_SIZE_FILTER= FRUIT_NO_ATTACH=1 FRUIT_NO_SLEEP=1
+  [p78] B1 accept.sh with the scope ARMED start 20:07:10
+  [p78] B1 exit=1 20:11:19
+
+  success: 6/9 = 67% (floor 75% - dynamic line, measured baseline 9/10)
+  fingerprint: matches configs/motion_reference.json
+
+FAIL: 1 problem(s)
+  - success 6/9 below 75%
+  [p78] B2 two-line with the scope ARMED start 20:11:19
+[claim_run] claimed the simulator 20:11:39
+[claim_run] exit=0 20:16:12 log=logs/p78/b2_twoline_armed.log
+  [p78] B2 exit=0 20:16:12
+  [p78] B2 gate exit=0 (see logs/p78/b2_twoline_armed.gate)
+  success: 7/10 = 70% (floor 60% - override)
+  fingerprint: matches configs/motion_reference_twoline.json
+
+PASS: every descent is inside its profile's speed and lurch bound, the carry cone/slip is reported, and the success rate is at or above the dynamic line's floor
+note: 5 warning(s) (reported, not gating):
+  - carry grasp_lift: cone=1.17x over the 1x budget with slip=112673.2mm - reported on the dynamic line, not gated
+  - carry grasp_lift: cone=1.50x over the 1x budget with slip=40.7mm - reported on the dynamic line, not gated
+  - carry place1: cone=1.23x over the 1x budget with slip=91.5mm - reported on the dynamic line, not gated
+  - carry grasp_lift: cone=1.62x over the 1x budget with slip=28.9mm - reported on the dynamic line, not gated
+  - carry place1: cone=1.15x over the 1x budget with slip=73.7mm - reported on the dynamic line, not gated
+190: PASS logs/p78/b2_twoline_armed.log
+190: every log matches configs/motion_reference_twoline.json and is at or above the two-line floor 0.60
+[p78] end 2026-10-31 20:16:12 fail=0
+# P78 header (2026-10-31 20:16:12)
+# tree: b4b0e11e698a866fcc700bc0047d66ac57e191c1 + the P78 scoped-force change (see the md5s below)
+# prereg: 01077e1a8d857cbc2f5db1b06dbc5c25  logs/p78/PREREG.md # pinned 2026-10-31 18:55:02 # tree b4b0e11e698a866fcc700bc0047d66ac57e191c1 (before any P78 source edit) 
+61da390a85fa209496b54477a8255d23  checkpoints/moe_v13s/policy_best.pt
+b1464c43b173d5427343152dc29eb121  src/fruit_sorting/tasks.py
+5c7322d2d3871ef9fcd25d748d6b552a  src/fruit_sorting/rl_env.py
+540406fac53992d32bee5f04a3a25785  src/fruit_sorting/assets.py
+fb2c58c6ffdf1a478a25393180da4cda  src/fruit_sorting/conveyor.py
+c7461d4104cf2c5f6c5a2daab80fbf32  src/fruit_sorting/fruits.py
+fbd7e2bb494ff0d7a772551878b7fcc2  src/fruit_sorting/scene.py
+1ad5af0e63cfc93ffbd58b2f206978f6  src/fruit_sorting/meshes.py
+9384ff4fa3e62b359bf10d2123ef41fa  src/fruit_sorting/control.py
+7f2443c14a35c83010efb91b549fcb0a  src/fruit_sorting/motion.py
+b09d3cb2389a9f4884a748dbb3461b24  src/fruit_sorting/policy/trigger.py
+379ac7064fd49df8417e94dbf6ed2616  src/fruit_sorting/policy/runtime.py
+42ab4fb78a91ea9d85554e6d90e1da80  configs/arm_parks.json
+d81c6f1ccad96254264b62331968716b  configs/waypoints.json
+8952c320d798ef42e03ba815c9e96b23  configs/motion_reference.json
+eb697f23adb5d6b9ef8656f3319d3ce8  configs/motion_reference_twoline.json
+abd2b5f1e1adb3c225c19a9c3fdd0d91  scripts/110_rl_rollout.py
+1a5adba65df4e4e825ad798287de12eb  scripts/154_claim_run.sh
+aadea2d35a9791e5d5eb2b5dc1fda7b9  scripts/244_p78_scope_selftest.py
+ce338611f5f725cbf562e3145be2c535  scripts/selfcheck.sh
+# arms: C (scope unset = the shipped 10 N build cap)
+#       S30/S45/S60 (FRUIT_FINGER_MAXFORCE_SCOPE=place-left, ..._SCOPED=30/45/60)
+# batch: seed 77 x 15 picks, order C -> S30 -> S45 -> S60 (dose ascending)
+# scenario (P66 phase-3 / P71 phase-2 / P73 / P74 / P75 / P76 / P77 verbatim): FRUIT_SUPPLY_SCATTER=1 FRUIT_SUPPLY_PATCH=1 FRUIT_SUPPLY_GRADES=A:0.375,B:0.375,C:0.25 FRUIT_POLICY_TRIGGER=arrival FRUIT_POLICY_TRIGGER_LEAD=0.9 FRUIT_DYNAMIC_PICK=1 FRUIT_POLICY_SEED=11 FRUIT_BED_DIAG=1 FRUIT_CARRY_DIAG=1 FRUIT_CARRY_ATTITUDE=1 FRUIT_MOTION_REPORT=1
+# harness: HEADLESS=1 FRUIT_CAMERA_RES=240,424 FRUIT_SIZE_FILTER= FRUIT_NO_ATTACH=1 FRUIT_NO_SLEEP=1
+  [p78] direct C seed 101 start 20:16:12
+[claim_run] claimed the simulator 20:16:32
+[claim_run] exit=0 20:25:34 log=logs/p78/direct/C_101.log
+  [p78] direct C seed 101 exit=0 20:25:34
+[fruit] [rl] run wall end 1793449533.804 duration 523.0s
+2026-10-31T12:16:49Z [16,512ms] [Warning] [omni.syntheticdata.plugin] SdRenderVarPtr missing valid input renderVar LdrColorSDbuff
+[541.316s] Simulation App Shutting Down
+  [p78] direct S30 seed 101 start 20:25:34
+[claim_run] claimed the simulator 20:25:54
+[claim_run] exit=0 20:35:18 log=logs/p78/direct/S30_101.log
+  [p78] direct S30 seed 101 exit=0 20:35:18
+[fruit] [rl] run wall end 1793450117.260 duration 544.5s
+2026-10-31T12:26:11Z [16,479ms] [Warning] [omni.syntheticdata.plugin] SdRenderVarPtr missing valid input renderVar LdrColorSDbuff
+[562.789s] Simulation App Shutting Down
+  [p78] direct C seed 202 start 20:35:18
+[claim_run] claimed the simulator 20:35:38
+[claim_run] exit=0 20:44:40 log=logs/p78/direct/C_202.log
+  [p78] direct C seed 202 exit=0 20:44:40
+[fruit] [rl] run wall end 1793450679.678 duration 523.3s
+2026-10-31T12:35:54Z [16,680ms] [Warning] [omni.syntheticdata.plugin] SdRenderVarPtr missing valid input renderVar LdrColorSDbuff
+[541.706s] Simulation App Shutting Down
+  [p78] direct S30 seed 202 start 20:44:40
+[claim_run] claimed the simulator 20:45:00
+[claim_run] exit=0 20:54:01 log=logs/p78/direct/S30_202.log
+  [p78] direct S30 seed 202 exit=0 20:54:01
+[fruit] [rl] run wall end 1793451241.216 duration 522.6s
+2026-10-31T12:45:17Z [16,545ms] [Warning] [omni.syntheticdata.plugin] SdRenderVarPtr missing valid input renderVar LdrColorSDbuff
+[540.862s] Simulation App Shutting Down
+[p78] end 2026-10-31 20:54:01 fail=0
