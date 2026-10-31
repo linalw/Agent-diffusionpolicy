@@ -3337,8 +3337,18 @@ class PickAndPlaceTask:
             surface, where = self.belt_top, "main belt"
         else:
             surface, where = float(self.cfg.output_belt_top_z), "output belt"
-            if y <= 0.46:
-                rail = float(self.cfg.output_belt_top_z) + 0.035
+            if y <= 0.46 and self.cfg.output_rail_keep[0]:
+                # P70: the rail top is the *authored* one - `rail_height` above a
+                # bottom that sits `OUTPUT_RAIL_INSET` inside the slab - so the
+                # report tracks `FRUIT_OUTPUT_RAIL_HEIGHT` (0.035 m proud at the
+                # shipped 0.05, 0 at a flush 0.015) and, with the inner rail
+                # dropped (`FRUIT_OUTPUT_RAILS=outer`/`none`), falls through to
+                # this line's belt top: the slab's inboard top edge is then the
+                # binding surface at the crossing. The old literal 0.035 was
+                # blind to both, which is why a removed rail reported the
+                # shipped +33..+55 instead of its true +68..+90 (P69
+                # `B_PREREG.md` §2.3 named this as the cell's precondition).
+                rail = float(self.cfg.output_belt_top_z) + float(self.cfg.output_rail_proud)
                 if rail > surface:
                     surface, where = rail, "output rail"
         return lowest - surface, where

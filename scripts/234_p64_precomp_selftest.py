@@ -239,10 +239,11 @@ def main() -> int:
               "0ea08ebb6bdbd1e78a2402ca263ded01",
               "configs/waypoints_oriented.json is byte-untouched (0ea08ebb)")
         check(md5(ROOT / "configs/motion_reference.json") ==
-              "8a399626c12a4e9205ce10e630b94ce9"
+              "8952c320d798ef42e03ba815c9e96b23"
               and md5(ROOT / "configs/motion_reference_twoline.json") ==
-              "2246f83c336f7fd6e1f8fe43d0ee8644",
-              "both motion references are untouched (8a399626 / 2246f83c)")
+              "eb697f23adb5d6b9ef8656f3319d3ce8",
+              "both motion references are the P71 re-records (8952c320 / eb697f23); "
+              "the pre-P71 files are archived in logs/p71/")
         env_pin = env_src.split('TASKS_MD5 = "', 1)[1].split('"', 1)[0]
         check(env_pin == md5(ROOT / "src/fruit_sorting/tasks.py"),
               f"TASKS_MD5 follows tasks.py ({env_pin[:8]})")

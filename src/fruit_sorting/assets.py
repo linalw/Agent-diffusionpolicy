@@ -18,6 +18,15 @@ def isaac_asset(rel_path: str) -> str:
     return f"{ASSET_ROOT}/Isaac/{rel_path.lstrip('/')}"
 
 
+#: How far the output-belt side rails' box bottom sits *inside* the slab [m]
+#: (`conveyor.OutputBelt.build` authors the bottom at `belt_top - this`), so the
+#: shipped 0.05 m rail stands 3.5 cm proud of the belt surface. One number, two
+#: readers: the builder (`conveyor.py`) and the payload-clearance report
+#: (`tasks._payload_clearance`), which used to hard-code the resulting 0.035 and
+#: was therefore blind to `FRUIT_OUTPUT_RAIL_HEIGHT` and to a removed rail (P70).
+OUTPUT_RAIL_INSET: float = 0.015
+
+
 # --------------------------------------------------------------------------- #
 # OpenArm bimanual: an open-source humanoid upper-body dual-arm platform with
 # 2x 7-DoF arms and a 1-DoF parallel gripper per arm.
@@ -306,7 +315,25 @@ class SceneConfig:
     output_belt_y: float = 0.55
     #: Belt surface height. The main belt top is 1.17, so the raised line runs
     #: 18 cm above the line the robot picks from.
-    output_belt_top_z: float = 1.35
+    #:
+    #: `FRUIT_OUTPUT_BELT_TOP_Z` (P70, default 1.35 = the shipped geometry,
+    #: byte-inert) lowers the **whole** output station: the slab moves 1:1
+    #: (`conveyor.OutputBelt.build`: the slab, both rails - whose bottom is
+    #: `top - OUTPUT_RAIL_INSET` - the support legs and the chute), and every
+    #: derived height in this file moves with it (`output_place_z`, i.e. the
+    #: place *transfer* pose, the release height of `tasks._place_low`, the
+    #: chute top, the discharge envelope, the `on_output_belt` z test and the
+    #: place-trace floor). The **main** belt, the pick station and the lift's
+    #: base (`main belt top + 0.28 + dz`) do not move, so a lower output line
+    #: lengthens the place leg's descent and changes the place transit's
+    #: straight line - see `logs/p70/RESULTS.md` for the sign of the crossing.
+    #: The **binding audit** is the slab's underside over the main belt: at the
+    #: shipped 1.35 it clears the tallest pear body by 46 mm nominal / 40 mm at
+    #: the 1.0706 instance scale (`conveyor.OutputBelt.build`'s print), so the
+    #: auditing budget is 40 mm of lowering before a main-belt fruit touches it.
+    output_belt_top_z: float = field(
+        default_factory=lambda: float(os.environ.get("FRUIT_OUTPUT_BELT_TOP_Z", "1.35"))
+    )
     #: Centre along X. The belt is long enough that the release point (below)
     #: sits over the upstream half and the fruit still has 0.5-0.7 m of travel.
     output_belt_center_x: float = 0.65
@@ -322,30 +349,41 @@ class SceneConfig:
     output_belt_friction: float = 0.9
     #: Which of each output belt's two side rails is authored (P30-A).
     #:
-    #: ``both`` (shipped) - a 25 mm thick, 50 mm tall keeper along X at *each*
-    #:   edge of each output belt. The inner one's outer face is flush with the
-    #:   slab's inner edge (|y| = 0.425) and stands 35 mm above the belt top, so
-    #:   it is the hard edge the payload crosses on its way to the release.
-    #: ``outer`` - drop the robot-side rail, keep the far-side one. This is the
-    #:   candidate of `logs/p30a/RAILS_DESIGN.md`: the payload's measured
-    #:   transit clearance to the nearest hard edge goes from +31 mm to the slab
-    #:   top (+66 mm) and, with the inner rail gone, the transfer height no longer
-    #:   has to buy the rail's 35 mm (`FRUIT_OPENARM_TRANSFER_LIFT` in tasks.py
-    #:   could drop from 0.08 to ~0.02 - measured, not adopted).
-    #: ``inner`` / ``none`` - the remaining combinations, for completeness.
+    #: ``both`` - a 25 mm thick, 50 mm tall keeper along X at *each* edge of each
+    #:   output belt. The inner one's outer face is flush with the slab's inner
+    #:   edge (|y| = 0.425) and stands 35 mm above the belt top, so it is the hard
+    #:   edge the payload crosses on its way to the release. This was the shipped
+    #:   geometry up to P71; ``FRUIT_OUTPUT_RAILS=both`` still restores it.
+    #: ``outer`` - drop the robot-side rail, keep the far-side one.
+    #: ``inner`` - the mirror image, for completeness.
+    #: ``none`` - **the shipped default since P71**: no rail on either edge. The
+    #:   payload's crossing surface falls through to the slab's inboard top edge,
+    #:   i.e. the belt top plane (`tasks._payload_clearance` reports it as
+    #:   `@obelt`), which is the rail box's `0.05 - 0.015` proud height measured
+    #:   1:1: **+35 mm at an identical crossing tick** (`logs/p70/RESULTS.md` §3,
+    #:   the same 5.6 cm kiwi on the same arm: `+30 @rail / t275` ->
+    #:   `+65 @obelt / t275`), and behaviourally inert on that scenario (same
+    #:   placed count, no contact signature; `logs/p71/RESULTS.md`).
     #:
-    #: **Default ``both`` = the shipped geometry, byte-inert**: the builder
-    #: authors exactly the same two boxes and prints nothing extra. Nothing on
-    #: the shipped path is short of clearance: across 7 267 logged place-clearance
-    #: rows the positive population is 5-199 mm (p1 23, median 50) and the shipped
-    #: acceptance's place legs read +35..+55 mm; the last measured contact is the
-    #: pre-fix `logs/445` (-3/-5 mm, the 48 m/s^2 jolt the transfer lift repaired).
-    #: So removal is a *margin* change, not a repair - and it takes away the ledge a
-    #: short release lands on (96.6 % placed over the 234 logged releases that
-    #: land on its top face, vs 47.6 % for releases inboard of it) - the measured case for a
-    #: default change is **negative** (`logs/p30a/RESULTS.md`).
+    #: **Why the default moved (P71)**: the low direct lift (`FRUIT_LIFT_DZ=-0.08`
+    #: above `tasks.jaw_target`'s `belt_top + 0.28`, i.e. `belt_top + 0.20`) is
+    #: the only measured lever that fixes the left arm's 25 deg carry rotation
+    #: (`logs/p66/P3_RESULTS.md`: left placed 0/25 -> 14/25 at N = 5), and it
+    #: failed the +33 mm crossing floor at the rail (`+5 / +0 mm`). Removing the
+    #: rail is **1:1** with the crossing while the belt height is only **0.175:1**
+    #: and costs placements (`logs/p70/RESULTS.md` §2), so the rail is the lever
+    #: that lets both ship.
+    #:
+    #: **What removal gives up**: the ledge a short release lands on (96.6 %
+    #: placed over the 234 logged releases that land on its top face, vs 47.6 %
+    #: for releases inboard of it - `logs/p30a/RESULTS.md`). That class is
+    #: **not exercised** on the shipped scenarios: 16/16 in-hand releases sit
+    #: 116-122 mm outboard of the slab's inner edge, 0 in the ledge band
+    #: (`logs/p70/RESULTS.md` §4). A scenario that *does* land releases there gets
+    #: a fall instead of a park, and the G2 fixture for it is registered, not run
+    #: (`logs/p69/B_PREREG.md` §8).
     output_rails: str = field(
-        default_factory=lambda: os.environ.get("FRUIT_OUTPUT_RAILS", "both").strip().lower()
+        default_factory=lambda: os.environ.get("FRUIT_OUTPUT_RAILS", "none").strip().lower()
     )
     #: Output-belt side-rail height above the rail box's bottom [m]. The box's
     #: bottom sits 15 mm inside the slab, so the shipped 0.05 stands 35 mm proud
@@ -542,6 +580,19 @@ class SceneConfig:
                 f"{sorted(modes)}"
             )
         return modes[mode]
+
+    @property
+    def output_rail_proud(self) -> float:
+        """Height of an authored rail's top above the belt surface [m].
+
+        The box's bottom is `OUTPUT_RAIL_INSET` inside the slab, so the shipped
+        ``output_rail_height = 0.05`` stands **0.035 m** proud - the number
+        `tasks._payload_clearance` reports the transit clearance against. A
+        lowered rail reports the lowered top (a flush rail, 0.015, reports 0.0
+        and the belt surface becomes the binding one); a removed rail is not
+        read from here at all (the caller tests `output_rail_keep[0]`).
+        """
+        return float(self.output_rail_height) - OUTPUT_RAIL_INSET
 
     @property
     def output_belt_end_x(self) -> float:

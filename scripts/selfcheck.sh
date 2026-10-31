@@ -232,6 +232,17 @@ run_check "P65 lift drift" "$python" scripts/235_p65_lift_selftest.py
 # after both goal forms, z only) and that the scripted entries never construct
 # the env that arms it.
 run_check "P66 lift end + dz" "$python" scripts/236_p66_lift_selftest.py
+# P70: the output station's **height** knob (`FRUIT_OUTPUT_BELT_TOP_Z`, default
+# 1.35 = shipped) and the clearance report reading the **authored** rail (height
+# and keep flag) instead of a hard-coded 0.035. The leg pins the field's
+# env-read shape, the five derived consumers that move 1:1 (`output_place_z`,
+# the chute top, the chute's run, the discharge envelope, `on_output_belt`), the
+# two that must not (the tray floor, the chute's end z), the AST census of the
+# eleven `output_belt_top_z` read scopes, the real `_payload_clearance` body on a
+# stub (`rails both/outer/none`, `rail_height` 0.05/0.039/0.015 - byte-identical
+# at the shipped geometry), and the crossing arithmetic: `f = 0.825`, so the
+# belt height is a **0.175:1** lever and removing the rails is 1:1.
+run_check "P70 belt top + rails" "$python" scripts/238_p70_belt_top_selftest.py
 # P67: the **place-leg climb** (`FRUIT_LIFT_CLIMB`, metres of vertical raise at the
 # place leg's start, `direct` + left only, default OFF) - the re-shape of P66 phase
 # 4's failed rail-crossing gate: the crossing is only 0.175:1 with the lift height

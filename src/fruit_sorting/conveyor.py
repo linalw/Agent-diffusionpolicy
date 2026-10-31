@@ -19,7 +19,7 @@ from pxr import Gf, PhysxSchema, Sdf, Usd, UsdGeom, UsdPhysics, UsdShade
 
 from isaacsim.core.experimental.prims import RigidPrim
 
-from .assets import SceneConfig
+from .assets import OUTPUT_RAIL_INSET, SceneConfig
 from .common import say
 from .meshes import INSTANCE_SCALE_MAX, fruit_height, shape_for, stem_over_top
 from .scene import _define_box, _set_color
@@ -582,7 +582,9 @@ class OutputBelt:
         # boxes (logs/p30a/RAILS_DESIGN.md, logs/p30a/rails_geometry.py).
         keep_inner, keep_outer = cfg.output_rail_keep
         rail_height = float(cfg.output_rail_height)
-        rail_bottom = cfg.output_belt_top_z - 0.015  # 15 mm of the box sits in the slab
+        # One number, two readers: the same inset is `assets.OUTPUT_RAIL_INSET`,
+        # which `SceneConfig.output_rail_proud` uses for the clearance report.
+        rail_bottom = cfg.output_belt_top_z - OUTPUT_RAIL_INSET  # 15 mm of the box sits in the slab
         authored = 0
         for side_sign in (-1.0, 1.0):
             keep = keep_inner if side_sign * self.sign < 0 else keep_outer

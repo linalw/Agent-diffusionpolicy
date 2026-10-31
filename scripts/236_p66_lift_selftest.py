@@ -35,11 +35,12 @@ Pins what is **off or inert by default**, and since phase 3 the one thing that i
    `None` (every caller but the direct env) runs the shipped expression
    byte-for-byte, and the dynamic catch's own goal inherits the target's z
    (`float(goal[2])`), so the ladder reads +0.08 = the shipped 0.36 m,
-   0.00 = 0.28 m, -0.08 = 0.20 m. **Phase 3 flips the `direct` default to the
-   SHIPPED lift** (`LIFT_DZ_DIRECT_DEFAULT = +0.08`, the P4 revert) with the
-  0.20 m rung (`-0.08`) documented as an opt-in
-   restore, and records the origin (`default`/`explicit`) in the row and the
-   manifest; every other presentation still resolves to `None`.
+   0.00 = 0.28 m, -0.08 = 0.20 m. **Since P71 the `direct` default is the 0.20 m
+   rung** (`LIFT_DZ_DIRECT_DEFAULT = -0.08`; the P66 P4 revert to the shipped
+   lift was lifted once P70 removed the rail the rung used to cross), with
+   `+0.08` documented as the restore, and the origin (`default`/`explicit`) is
+   recorded in the row and the manifest; every other presentation still
+   resolves to `None`.
 
 Exit 0 on pass, 1 on the first failure. No simulator, no file writes.
 """
@@ -352,16 +353,18 @@ def main() -> int:
 
         # ---------------------------------------------------------------- 6
         # the env-side resolver: direct-scoped, left-only, strict parsing, and
-        # at P4 the **direct default is the shipped height** (`+0.08`), the flip
-        # to the 0.20 rung having been reverted when gate (a) failed
+        # since **P71** the **direct default is the 0.20 m rung** (`-0.08`): the
+        # P66 P4 revert that restored the shipped lift is lifted because P70
+        # removed the *obstacle* (the output belts' inner side rail) rather than
+        # paying for it with a place-leg re-shape
         os.environ.pop("FRUIT_LIFT_DZ", None)
         got, defaulted = resolve_lift_dz("direct", None)
-        check(got == {"left": 0.08} and defaulted is True,
-              "the direct default is the SHIPPED lift (dz=+0.08, the P4 revert - "
-              "the 0.20 rung failed the rail-crossing gate), and it says so")
-        check(LIFT_DZ_DIRECT_DEFAULT == 0.08 and LIFT_DZ_HAND_ADD == 0.08,
-              "the two constants are both the shipped height (the default is inert; "
-              "the rungs are opt-in via FRUIT_LIFT_DZ)")
+        check(got == {"left": -0.08} and defaulted is True,
+              "the direct default is the 0.20 m rung (dz=-0.08, the P71 flip) and "
+              "it says so")
+        check(LIFT_DZ_DIRECT_DEFAULT == -0.08 and LIFT_DZ_HAND_ADD == 0.08,
+              "the default is the rung; the hand's add (+0.08 = the shipped 0.36 m) "
+              "is the documented restore's value")
         for other in ("handoff", "scripted", "two_line", ""):
             check(resolve_lift_dz(other, None) == (None, False),
                   f"`{other or 'empty'}` is inert even with the default (direct-scoped)")
@@ -436,8 +439,8 @@ def main() -> int:
               "the row names the resolved offset and that it is the default")
         check("-> 1.2100 m above floor" in row and "belt_top 1.0100 + 0.2000" in row,
               "the row prints the height the lift ends at (belt_top + 0.20)")
-        check("default dz=+0.0800" in row,
-              "the row names the presentation's default (the shipped lift, +0.08)")
+        check("default dz=-0.0800" in row,
+              "the row names the presentation's default (the 0.20 m rung, -0.08)")
         check("restore the shipped 1.3700 m with FRUIT_LIFT_DZ=+0.0800" in row,
               "the row names the documented restore and its height")
         check("arm=left leg=grasp_lift" in row and "right=shipped" in row

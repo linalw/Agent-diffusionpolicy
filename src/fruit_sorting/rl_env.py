@@ -404,7 +404,17 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: keeps `transit_start is start`, i.e. the shipped command list is built by
 #: exactly the same expressions; the climb is a prepended waypoint that leaves
 #: the leg's end pose (the release geometry) untouched.
-TASKS_MD5 = "e5168578633bf094e86042d5ec54ce0f"
+#:
+#: P70 (metadata-only follow, `e5168578 -> 7c00e555`): the clearance report reads
+#: the **authored** rail instead of a hard-coded 0.035 (`_payload_clearance` now
+#: tests `output_rail_keep[0]` and adds `SceneConfig.output_rail_proud =
+#: output_rail_height - OUTPUT_RAIL_INSET`), so `clr`/`clr_win` follow
+#: `FRUIT_OUTPUT_RAIL_HEIGHT` and fall through to the belt top when the inner
+#: rail is dropped; and the scene gains the `FRUIT_OUTPUT_BELT_TOP_Z` knob
+#: (default 1.35 = the shipped geometry). Print/report only - nothing on the
+#: control path reads either, and at the shipped geometry the reported surface
+#: is the same to 1e-12 m (`scripts/238_p70_belt_top_selftest.py`).
+TASKS_MD5 = "7c00e55526a12e053d76105443510513"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(
@@ -586,16 +596,22 @@ def resolve_grasp_quat_override(
 #: 10/16 (`logs/p66/P2_RESULTS.md`). The value is expressed on the **code's** base
 #: (the `0.28`), never on the shipped height: "shipped - 0.16" would be 0.12 m,
 #: i.e. the pads 40 mm above the belt (`logs/p66/DEVIATION.md` D4/D5).
-#: P66 P4 correction: this **was** `-0.08` (the 0.20 m rung) - the phase-3 lane
-#: flipped it as part of the adoption package before gate (a) was measured, and
-#: gate (a) then **failed** (`logs/p66/P4_RESULTS.md`: the lowered rung crosses the
-#: output rail at `+5 mm` against the +33 mm floor, spending 25 of the shipped
-#: 30 mm). So the default is **the shipped lift** again (`+0.08`, bit-identical to
-#: the unset path by construction - the docstring's own identity), and the rung is
-#: opt-in via `FRUIT_LIFT_DZ=-0.08` (0.20) or `-0.04` (0.24) until the named
-#: re-shape (a transfer-height change on the place leg's first segment) is
-#: registered and measured.
-LIFT_DZ_DIRECT_DEFAULT = 0.08
+#:
+#: **P71: this is `-0.08` again, and now it ships.** P66 P4 had reverted it to
+#: `+0.08` (the shipped 0.36 m) because gate (a) - the rail crossing - failed at
+#: `+5 mm` against the +33 mm floor (`logs/p66/P4_RESULTS.md`); the reverting
+#: brief said the rung stays opt-in "until the named re-shape is registered and
+#: measured". P67/P68 measured the climb re-shape (it clears the crossing but
+#: drops the payload on 3/8 place legs) and P70 measured the geometry instead:
+#: **removing the output belts' side rails raises the crossing 1:1 (+35 mm) and
+#: is inert on this scenario** (`logs/p70/RESULTS.md`), so the rung's gate (a)
+#: now passes for a reason that costs the carry nothing - and the rung's own
+#: win is the left's 25 deg carry rotation (0/25 -> 14/25, N = 5). Both are
+#: defaults as of P71 (`FRUIT_LIFT_DZ=+0.08` restores the 0.36 m lift; the
+#: `FRUIT_OUTPUT_RAILS=both` restore is `assets.SceneConfig`'s).
+#: `+0.08` (the shipped 0.36 m) is the documented restore and is bit-identical
+#: to the pre-P71 unset path.
+LIFT_DZ_DIRECT_DEFAULT = -0.08
 #: The hand's own clearance add above the same base (`FRUIT_OPENARM_TRANSFER_LIFT`'s
 #: default), i.e. the shipped `grasp_lift` height. `FRUIT_LIFT_DZ=+0.08` restores
 #: it and is the documented escape from the phase-3 default; the env var still
@@ -609,16 +625,20 @@ def resolve_lift_dz(
 ) -> tuple[dict[str, float] | None, bool]:
     """The resolved `FRUIT_LIFT_DZ` lift-target-height offset, and its origin.
 
-    P66 phase 3 (corrected at P4): **direct-scoped and left-only**, and the
-    `direct` presentation's **default is the shipped lift** (the flip to the
-    0.20 m rung was reverted when gate (a) failed); the rung is opt-in
-    (`LIFT_DZ_DIRECT_DEFAULT`, i.e. `dz = -0.08` above
-    `tasks.jaw_target("grasp_lift")`'s `belt_top + 0.28` base). `dz` **replaces**
-    the hand's `FRUIT_OPENARM_TRANSFER_LIFT` add on that leg, so the ladder reads
+    **P71: `direct`-scoped and left-only, and the `direct` presentation's default
+    is the 0.20 m rung** (`LIFT_DZ_DIRECT_DEFAULT = -0.08` above
+    `tasks.jaw_target("grasp_lift")`'s `belt_top + 0.28` base; `FRUIT_LIFT_DZ=+0.08`
+    restores the pre-P71 shipped 0.36 m). `dz` **replaces** the hand's
+    `FRUIT_OPENARM_TRANSFER_LIFT` add on that leg, so the ladder reads
     `+0.08` = the shipped `0.36 m` (the documented restore), `0.00` = `0.28 m`,
     `-0.08` = `0.20 m`. The code's base is the `0.28`, **not** the shipped
     height: a value written as "0.36 + dz" (the phase-3 brief's `-0.16`) would
     put the pads 40 mm above the belt (`logs/p66/DEVIATION.md` D4/D5).
+
+    History: P66 phase 3 flipped this to `-0.08`, P4 reverted it when the rung's
+    rail-crossing gate failed, and P71 flips it back because the gate's *obstacle*
+    was removed instead (`FRUIT_OUTPUT_RAILS=none` is the P71 default, +35 mm 1:1,
+    `logs/p70/RESULTS.md`) - so the carry win and the crossing both hold.
 
     Returns `(offsets, defaulted)`, the P43 `resolve_arm_park` shape:
 
@@ -627,12 +647,12 @@ def resolve_lift_dz(
       (so the scripted line, the collector, the two-line scheduler and the
       hybrid canary are byte-inert - none of them constructs this env);
     * `direct`, value unset -> `({"left": LIFT_DZ_DIRECT_DEFAULT}, True)`: the
-      phase-3 default, and the manifest's `defaulted: true` tells a post-flip
+      P71 default, and the manifest's `defaulted: true` tells a post-flip
       store from an explicit arm;
     * `direct`, value set -> `({"left": dz}, False)`, parsed strictly. `+0.08`
       restores the shipped height (the same two float adds, so a `+0.08` arm's
-      targets are bit-identical to the unset path); an empty value is the same
-      explicit restore (the P43 `FRUIT_ARM_PARK=ready` precedent).
+      targets are bit-identical to the pre-P71 unset path); an empty value is
+      the same explicit restore (the P43 `FRUIT_ARM_PARK=ready` precedent).
 
     Strict parsing is the P44/P45/P52/P53 precedent: a typo that fell back to
     the shipped height would be published as a null result, so a non-number and a

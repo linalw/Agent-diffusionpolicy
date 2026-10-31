@@ -2927,6 +2927,88 @@ all opt-in/default. Pins: `tasks.py` `e5168578`, `conveyor.py` `b0d95a08`, `asse
 `collider_*.log` + JSONs, `probe_{C,T}.log`, `g0/t0{25,35,45,50,80}.log`; the
 delivery page `docs/LEFT_ARM.md` + the README block + the `项目总结报告.md` section.
 
+**P71 (2026-10-31, `logs/p71/`): the adoption package - the output belts' side
+rails are gone and the low direct lift is the shipped default; the left's carry
+class converts, and the crossing clears the surface that remains (median +35 mm)
+while failing the +33 clause *at the rail top* on 0/10 legs, as it must, because
+that surface no longer exists.** Two flips, both the measured values:
+**`FRUIT_OUTPUT_RAILS` default `both` -> `none`** (`assets.py`; `=both`
+restores) and **`FRUIT_LIFT_DZ`'s direct default `+0.08` -> `-0.08`**
+(`rl_env.LIFT_DZ_DIRECT_DEFAULT`, i.e. 0.20 m; `=+0.08` restores the 0.36 m):
+the rail is **1:1** with the crossing and the height only **0.175:1** and it
+costs placements (`logs/p70/RESULTS.md`), while the height is the only measured
+fix for the left's 25 deg carry rotation (`logs/p66/P3_RESULTS.md`) - so P66 P4's
+reverted rung ships now that its gate's *obstacle* is gone (P67/P68 measured the
+re-shape lane closed: the climb clears the crossing and drops 8/16 payloads).
+`236`/`238` re-pinned (the rung is the default; the rails' env-read
+`default_factory` reads `none`, `=both` restores, an unset config reads exactly
+like an explicit `none`), selfcheck PASS.
+
+**The scripted line.** The two arms are same-batch and same-tree and the
+**control restores the pre-P71 geometry explicitly** (`RAILS=both`): acceptance
+**6/10, 377 `[fruit]` lines, `fingerprint: matches`, and 377/377 byte-identical
+to the pre-P71 archive `logs/p66/p2/accept_noharm.log`** - so the tree is inert
+with the old scene, and the treatment's move is the flip's. The treatment (the
+new default) reads **6/9 = 67 % (one slot starved), 346 `[fruit]` lines** (344 +
+two new `output belt rails ... authors 0/2` build prints) with the fingerprint
+**moved**: first difference is the print, then a **release y 0.595 -> 0.603 (8
+mm)** at stripped line 121, 171/326 lines identical at the same index - the
+scene's collider set moving the solver ordering (P30-A's precedent), and every
+report-only clearance row shifts by exactly the rail's **+35 mm**. Motion is
+identical in both arms (worst `|v|max` 0.1100 against 0.160-0.161, lurch 0.017
+against 0.291), the FAIL is the standing rate floor. The **two-line** reads
+**8/10 (left 4/5, right 4/5, 9.8 s/attempt) with `190` PASS + `matches`** as the
+control, **7/10 (4/5, 3/5, 9.2 s/attempt) with `190` PASS after its re-record**
+(the reference moved on legs 3/4/5/7/8/10 by 1-3 ticks); the two are different
+attractors (no rate claim) and the ctrl's own tightest place leg reads
+**`+32 mm output rail`** against the treat's `+63..+101 mm output belt`.
+
+**The direct line** (the P66 phase-3 cell verbatim, seeds 77/101/202 x 15,
+interleaved, `moe_v13s` `61da390a`, `FRUIT_MOTION_REPORT=1` on both arms): the
+flip is proven in-log (`dz=-0.0800(default) -> 1.3700 m` vs `+0.0800(explicit) ->
+1.5300 m`). **Left placed 4/20 -> 10/17** (one-sided Fisher p = 0.018), **left
+loaded-slide legs 15 -> 7** (p = 0.039), overall 26/45 -> 32/45 (p = 0.135);
+per seed 2/8->4/5, 2/6->2/6, 0/6->4/6 (2/3 improved, 1 tie). **The right's
+placed count is unchanged (22 in both)**, its 3 extra attempts in the treat arm
+all `fruit fell off the line` (kiwi 6.3 x2, strawberry 4.0 - never grasped, the
+recorded supply tail, already in `logs/p66/p3/C20_77.log`), i.e. a cadence
+artefact of the left's extra placements, not a new class. The treat's surviving
+6 loaded slides sit at `loss_row` 103-150 (held through the transit, lost in the
+place leg) against the control's mostly `loss_row` 1-4 (never seated). **The
+crossing, against the surface that remains** (belt top; `logs/p71/p71_report.txt`):
+held **left `clr` +14..+50, median +35, 8/10 >= +33** (`clr_win` +10..+45,
+4/10) against the ctrl's **+24..+45, 2/4** at *its* rail top; the **right is
+22/22 in both** (+69..+138 vs +36..+58). At the rail top the package reads
+**0/10** - the payload passes 35 mm *below* where the rail top was, which is
+exactly P66 P4's `+5 / +0` and P70 D0's `+7..+17`, so **the clause as written can
+never be met by a lower lift; only the obstacle's removal makes the crossing
+physically safe**, and it is: held-leg `|a|max` **0.31-8.69** against G0's
+measured contact population **14.9-32.7 m/s²** (max held slip 20.3 mm). The
+P70 D0/D1 pair - the **rails isolated** at the low lift, all-A, seed 77 -
+reads **6/15 -> 10/15 left placed** and **6 -> 3 loaded slides**. Both motion
+references were **re-recorded from this batch's shipped-scenario runs**:
+`configs/motion_reference.json` `8a399626` -> **`8952c320`** (from the 6/9
+treatment; 9 legs now, so a pre-P71 10-attempt log needs the archive
+`logs/p71/motion_reference_single_pre_p71.json`) and
+`..._twoline.json` `2246f83c` -> **`eb697f23`** (from the 7/10 run; archive
+`logs/p71/motion_reference_twoline_pre_p71.json`); `189_w7a_chain.sh` not run.
+**Re-baseline: every pre-P71 number is a `both`-rails + 0.36 m-lift number** -
+restore with `FRUIT_OUTPUT_RAILS=both` (all paths) **and** `FRUIT_LIFT_DZ=+0.08`
+(direct only), composed with the pre-P43/P54/P58 restores. The **hybrid canary
+inherits the rail flip** (it builds its own `SceneConfig`) and **not** the lift
+flip (it never constructs `SortingRLEnv`): it was **not re-run** - a smoke owed,
+not a measurement made. Residuals: the +33 clause has **no contact boundary in
+the new frame** (G0's is at the rail top; the named instrument is a
+`clr_edge` sample at `|y| = 0.425`); the ledge class stays **untested, not
+zero** (the G2 fixture was again not run, no release in either batch lands in
+`0.400-0.425`); the belt height stays 1.35 by P70; the scenes' collider set has
+**no manifest field** (the direct lift does), so stores must not be mixed
+across P71. Pins: `assets.py` **`e9fd74`**, `rl_env.py` **`cb686f5`**,
+`tasks.py` `7c00e5`, `conveyor.py` `fb2c58`; `236` **`e6547e`**, `238`
+**`2ccceb`**; ckpt `moe_v13s` `61da390a`. Evidence `logs/p71/RESULTS.md`,
+`{header,twoline/,direct/,p71_report.txt,run_p71.sh,accept_diff.py}`; WORKLOG
+"P71".
+
 ## 3. What changed -> what to run
 
 | you changed | run |
@@ -2938,7 +3020,8 @@ delivery page `docs/LEFT_ARM.md` + the README block + the `项目总结报告.md
 | the supply schedule (`fruits.py`, `bed.py`) | `python3 scripts/211_bed_audit.py`, then `scripts/selfcheck.sh` |
 | the bimanual scheduler (`bimanual.py`, or the task loop under `FRUIT_BIARM=1`) | `scripts/selfcheck.sh` (the 152 leg), the `logs/biarm/` rate batch (`scripts/153_biarm_rates.sh biarm 5`), then `FRUIT_BIARM=1 scripts/accept.sh` |
 | the policy, training or the dataset schema | `scripts/selfcheck.sh`, `scripts/accept.sh` (scripted baseline), `scripts/accept_policy.sh` (policy loop) |
-| the direct supply profile (`rl_env.py` `_resolve_supply_profile`, the `fruits.py`/`tasks.py` kwargs) | `scripts/selfcheck.sh` (the `230` leg), `scripts/accept.sh` (import guard: 377/377 + `fingerprint: matches`), one two-line run + `scripts/190_towline_gate.sh`, `python3 scripts/211_bed_audit.py` |
+| the direct supply profile (`rl_env.py` `_resolve_supply_profile`, the `fruits.py`/`tasks.py` kwargs) | `scripts/selfcheck.sh` (the `230` leg), `scripts/accept.sh` (import guard: 377/377 + `fingerprint: matches`), one two-line run + `scripts/190_twoline_gate.sh`, `python3 scripts/211_bed_audit.py` |
+| the output station (`assets.py` `output_rails` / `output_belt_top_z`, `conveyor.OutputBelt`) | `scripts/selfcheck.sh` (the `238` leg), `scripts/accept.sh`, one two-line run + `scripts/190_twoline_gate.sh`, then the direct cell with `FRUIT_CARRY_DIAG=1` (the crossing `clr`/`clr_win` per held place leg) - and re-record both references if the flip is shipped (`logs/p71/RESULTS.md` §5) |
 
 To compare two **policy** arms, use the harness rather than two runs:
 
