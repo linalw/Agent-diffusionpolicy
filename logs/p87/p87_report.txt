@@ -1,0 +1,122 @@
+P87 - the release trim as a two-line-scoped default (PREREG S5)
+==============================================================================
+
+== logs/p87/C5.log ==
+  release profile FRUIT_SPEED_RELEASE=0(explicit) scope=two-line -> 20/3/3 (188 ticks, shipped 188, saved 0)
+  [cycle] rows 20  [run] windows 20  paired 16 with a release block  worst |total-window| 0.08 s  arm mismatches 0
+  placed 16/20 = 80.0 %   s/attempt 9.70   sim 193.30 s
+  per arm  left 9/10   right 7/10   pipelined slots 1   biarm 4.97 fruits/min
+  blocks (mean s; n in brackets):
+   prepose=0.71[20]  hover=0.76[20]  descent=3.39[20]  close=1.37[20]  grip=2.45[20]  lift=1.65[20]  place=3.19[16]  release=2.35[16]  return=0.66[16]  end=0.02[20]  total=15.29[20]
+  release block  mean 2.35 s   MEDIAN 2.33 s   p50 ticks 279
+    left: release mean 2.32 s median 2.32 s (n=9)  span@release 15.79 s
+    right: release mean 2.38 s median 2.36 s (n=7)  span@release 15.77 s
+  pooled interval 10.77 s mean / 14.00 p50 / 18.00 p90 (n=15)
+    left: placed 9/10  interval 19.64 / 23.10 s  idle 18.1 %
+    right: placed 7/10  interval 26.52 / 39.70 s  idle 21.4 %
+  window 5.57 placed/min   batch 4.96 placed/min   window span 161.60 s   batch span 193.40 s
+  wall 328.4 s   wall/pick 16.42 s   wall/sim 1.70x   placed/min wall 2.92
+  landing: 16 traces, 16 payload-present, on_belt 16/16   discharged 14
+    release_bottom 35.8..62.5 mm   impact -0.83..-0.45 m/s   bounce <= 5.5 mm   upstream-lost 0
+  descent legs 20 (105's parser + per-leg budget)  over budget 0  budgets [0.16, 0.161]  worst |v|max 0.112 (leg 10, 5.9 cm)  worst lurch 0.019
+  classes {'never-grasped': 4, 'placed': 16}
+  reasons {'fruit did not follow the gripper': 4}
+
+== logs/p87/T5.log ==
+  release profile FRUIT_SPEED_RELEASE=1(default) scope=two-line -> 0/2/2 (112 ticks, shipped 188, saved 76)
+  [cycle] rows 20  [run] windows 20  paired 16 with a release block  worst |total-window| 0.09 s  arm mismatches 0
+  placed 16/20 = 80.0 %   s/attempt 9.50   sim 190.10 s
+  per arm  left 9/10   right 7/10   pipelined slots 1   biarm 5.05 fruits/min
+  blocks (mean s; n in brackets):
+   prepose=0.71[20]  hover=0.75[20]  descent=3.64[20]  close=1.36[20]  grip=2.36[20]  lift=1.68[20]  place=3.14[16]  release=1.70[16]  return=0.66[16]  end=0.03[20]  total=14.92[20]
+  release block  mean 1.70 s   MEDIAN 1.68 s   p50 ticks 202
+    left: release mean 1.68 s median 1.68 s (n=9)  span@release 15.38 s
+    right: release mean 1.72 s median 1.72 s (n=7)  span@release 15.20 s
+  pooled interval 10.59 s mean / 13.30 p50 / 17.80 p90 (n=15)
+    left: placed 9/10  interval 19.30 / 21.30 s  idle 18.7 %
+    right: placed 7/10  interval 26.02 / 38.50 s  idle 22.0 %
+  window 5.66 placed/min   batch 5.05 placed/min   window span 158.90 s   batch span 190.10 s
+  wall 325.4 s   wall/pick 16.27 s   wall/sim 1.71x   placed/min wall 2.95
+  landing: 16 traces, 16 payload-present, on_belt 16/16   discharged 14
+    release_bottom 39.0..64.3 mm   impact -0.91..-0.61 m/s   bounce <= 5.6 mm   upstream-lost 0
+  descent legs 20 (105's parser + per-leg budget)  over budget 0  budgets [0.16, 0.161]  worst |v|max 0.111 (leg 20, 5.9 cm)  worst lurch 0.018
+  classes {'never-grasped': 4, 'placed': 16}
+  reasons {'fruit did not follow the gripper': 4}
+
+## seed 5
+  P1a release block MEDIAN  C 2.325 s -> T 1.680 s   delta -0.645 s (-77.4 ticks; registered -76)   band +-0.03 s
+  report: attempt span (release attempts)  C 15.78 s -> T 15.30 s   delta -0.48 s   rest 0.16 s
+    left: release median 2.320 -> 1.680 s   delta -0.640 s (n=9/9)
+    right: release median 2.360 -> 1.720 s   delta -0.640 s (n=7/7)
+  P2 pooled interval  C 10.77 -> T 10.59 s   delta -0.18 s
+    left: interval 19.64 -> 19.30 s   placed 9/10 -> 9/10
+    right: interval 26.52 -> 26.02 s   placed 7/10 -> 7/10
+  P5 placed  C 16/20 -> T 16/20   window 5.57 -> 5.66   batch 4.96 -> 5.05
+    wall  C 328.4 s -> T 325.4 s   placed/min wall 2.92 -> 2.95
+  P3 landing  C 16/16 on belt -> T 16/16   P4 new reasons none
+  P6 descent budgets (105's per-leg budget)  C over 0/20 -> T over 0/20
+  -> P1a PASS   P2 PASS   P3 PASS   P4 PASS   P6 PASS
+
+== logs/p87/C6.log ==
+  release profile FRUIT_SPEED_RELEASE=0(explicit) scope=two-line -> 20/3/3 (188 ticks, shipped 188, saved 0)
+  [cycle] rows 20  [run] windows 20  paired 11 with a release block  worst |total-window| 0.08 s  arm mismatches 0
+  placed 10/20 = 50.0 %   s/attempt 9.70   sim 193.20 s
+  per arm  left 6/10   right 4/10   pipelined slots 1   biarm 3.11 fruits/min
+  blocks (mean s; n in brackets):
+   prepose=0.71[20]  hover=0.75[20]  descent=3.17[20]  close=1.50[20]  grip=2.33[20]  lift=1.75[20]  place=3.35[12]  release=2.29[11]  return=0.64[11]  end=0.04[20]  total=13.87[20]
+  release block  mean 2.29 s   MEDIAN 2.32 s   p50 ticks 278
+    left: release mean 2.21 s median 2.31 s (n=7)  span@release 15.66 s
+    right: release mean 2.43 s median 2.42 s (n=4)  span@release 15.22 s
+  pooled interval 19.34 s mean / 17.50 p50 / 35.60 p90 (n=9)
+    left: placed 6/10  interval 31.76 / 66.30 s  idle 18.7 %
+    right: placed 4/10  interval 50.30 / 96.30 s  idle 30.1 %
+  window 3.10 placed/min   batch 3.11 placed/min   window span 174.10 s   batch span 193.20 s
+  wall 308.2 s   wall/pick 15.41 s   wall/sim 1.60x   placed/min wall 1.95
+  landing: 11 traces, 10 payload-present, on_belt 10/10   discharged 9
+    release_bottom 31.8..64.2 mm   impact -0.93..-0.62 m/s   bounce <= 3.6 mm   upstream-lost 1
+  descent legs 20 (105's parser + per-leg budget)  over budget 0  budgets [0.16, 0.161]  worst |v|max 0.132 (leg 12, 6.0 cm)  worst lurch 0.036
+  classes {'never-grasped': 5, 'placed': 10, 'carried-not-placed': 5}
+  reasons {'fruit did not follow the gripper': 5, 'grasped, not placed (no note)': 5}
+
+== logs/p87/T6.log ==
+  release profile FRUIT_SPEED_RELEASE=1(default) scope=two-line -> 0/2/2 (112 ticks, shipped 188, saved 76)
+  [cycle] rows 20  [run] windows 20  paired 12 with a release block  worst |total-window| 0.08 s  arm mismatches 0
+  placed 12/20 = 60.0 %   s/attempt 9.10   sim 182.60 s
+  per arm  left 6/11   right 6/9   pipelined slots 1   biarm 3.94 fruits/min
+  blocks (mean s; n in brackets):
+   prepose=0.71[20]  hover=0.78[20]  descent=3.23[20]  close=1.35[20]  grip=1.98[20]  lift=1.77[20]  place=3.19[13]  release=1.73[12]  return=0.63[12]  end=0.01[20]  total=13.31[20]
+  release block  mean 1.73 s   MEDIAN 1.68 s   p50 ticks 202
+    left: release mean 1.67 s median 1.67 s (n=6)  span@release 15.38 s
+    right: release mean 1.80 s median 1.81 s (n=6)  span@release 14.27 s
+  pooled interval 11.08 s mean / 11.80 p50 / 17.60 p90 (n=11)
+    left: placed 6/11  interval 24.38 / 44.70 s  idle 19.7 %
+    right: placed 6/9  interval 18.26 / 24.50 s  idle 28.2 %
+  window 5.41 placed/min   batch 3.94 placed/min   window span 121.90 s   batch span 182.60 s
+  wall 306.3 s   wall/pick 15.32 s   wall/sim 1.68x   placed/min wall 2.35
+  landing: 12 traces, 12 payload-present, on_belt 12/12   discharged 12
+    release_bottom 32.1..64.2 mm   impact -0.93..-0.61 m/s   bounce <= 4.9 mm   upstream-lost 0
+  descent legs 20 (105's parser + per-leg budget)  over budget 1  budgets [0.16, 0.161]  worst |v|max 0.164 (leg 12, 5.9 cm)  worst lurch 0.036
+    OVER leg 12 (5.9 cm): |v|max 0.164>0.160
+  classes {'never-grasped': 1, 'placed': 12, 'carried-not-placed': 7}
+  reasons {'fruit did not follow the gripper': 1, 'grasped, not placed (no note)': 7}
+
+## seed 6
+  P1a release block MEDIAN  C 2.320 s -> T 1.680 s   delta -0.640 s (-76.8 ticks; registered -76)   band +-0.03 s
+  report: attempt span (release attempts)  C 15.50 s -> T 14.83 s   delta -0.67 s   rest -0.03 s
+    left: release median 2.310 -> 1.675 s   delta -0.635 s (n=7/6)
+    right: release median 2.420 -> 1.805 s   delta -0.615 s (n=4/6)
+  P2 pooled interval  C 19.34 -> T 11.08 s   delta -8.26 s
+    left: interval 31.76 -> 24.38 s   placed 6/10 -> 6/11
+    right: interval 50.30 -> 18.26 s   placed 4/10 -> 6/9
+  P5 placed  C 10/20 -> T 12/20   window 3.10 -> 5.41   batch 3.11 -> 3.94
+    wall  C 308.2 s -> T 306.3 s   placed/min wall 1.95 -> 2.35
+  P3 landing  C 10/10 on belt -> T 12/12   P4 new reasons none
+  P6 descent budgets (105's per-leg budget)  C over 0/20 -> T over 1/20   leg 12 0.164/0.160 (5.9 cm)
+  -> P1a PASS   P2 PASS   P3 PASS   P4 PASS   P6 FAIL
+
+DECISION RULE (PREREG S5): clean pass = P1a (median -0.633 +- 0.03 s) AND P2 (interval down)
+  AND P3 (landing) AND P4 (no new class) AND P6 (no leg over budget) at BOTH seeds.
+  Considered trade = the core four hold and P6 shows exactly the one P86 R6 leg (<= 2.5 % over).
+
+P6 pool: 1 over-budget descent legs of 40 treatment legs (worst 0.164 against a 0.160 budget)
+verdict: CONSIDERED TRADE - ship, P6 documented

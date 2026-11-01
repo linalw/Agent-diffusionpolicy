@@ -1,0 +1,111 @@
+=== pre-flight self-check (SKIP_SELFCHECK=1 to skip) ===
+selfcheck: 2026-11-01T17:16:08+08:00
+
+offline motion checks      PASS   0.11s
+dataset index audit        PASS   0.89s
+collect/merge regression   PASS   0.36s
+finger collider guard      PASS   0.03s
+rl env smoke               PASS   0.07s
+tasks.py pin               PASS   0.07s
+proprio spoof check        PASS   0.08s
+rl report parser           PASS   0.03s
+r9 endpoint report         PASS   0.03s
+r9 rollout merge           PASS   0.08s
+rtc runtime selftest       PASS   3.23s
+trigger intercept test     PASS   0.07s
+distill selftest           PASS   3.87s
+loop metrics selftest      PASS   0.88s
+path3 event selftest       PASS   0.07s
+a2c2 correction selftest   PASS   1.50s
+path3 report selftest      PASS   0.03s
+bimanual scheduler test    PASS   0.55s
+supply scatter selftest    PASS   3.83s
+speed channel test         PASS   1.28s
+two-line selector test     PASS   0.10s
+reach-anywhere selftest    PASS   0.13s
+claim slot harness         PASS  13.15s
+ops selfcheck selftest     PASS   1.64s
+bed supply audit           PASS   4.38s
+prepared-next selftest     PASS   0.09s
+P43 selector + park        PASS   0.21s
+P44 speed cells            PASS   0.22s
+P45 mass scale             PASS   0.13s
+P52 retime scale           PASS   0.17s
+P53 emission cells         PASS   0.13s
+P58 supply profile         PASS   0.12s
+P61 slip direction         PASS   0.02s
+P63 attitude drift         PASS   0.02s
+P65 lift drift             PASS   0.10s
+P66 lift end + dz          PASS   0.31s
+P70 belt top + rails       PASS   0.49s
+P72 clr_edge + scene       PASS   0.32s
+P73 rotation schedule      PASS   0.02s
+P75 place-onset trace      PASS   0.02s
+P76 pry/crush fields       PASS   0.02s
+P78/P79 scoped finger force PASS   0.11s
+P83 fail fast              PASS   0.02s
+P67 place-leg climb        PASS   0.31s
+P62 grasp attitude         PASS   0.18s
+P64 left precomp           PASS   0.18s
+P85 two-line default       PASS   0.42s
+P87 release scope          PASS   0.24s
+motion budgets             SKIP      -
+
+PASS: 0 failures, 1 skipped (log: logs/selfcheck.log)
+
+=== scripted line: 10 attempts, HEADLESS=1 ===
+[fruit] [stats] attempts=10 successes=7 diverted=1 success_rate=70% sim=94.0s total, 9.4s/attempt, 13.4s/success gate_open=0.0s total, queue_peak=0 recirculated=0 encoder=-0.120 m/s nominal (command -0.120, no cleats to measure travel)
+[fruit] [run] summary: 7/10 successful
+[fruit] [biarm] scheduler: FRUIT_BIARM=1(default) FRUIT_BIARM_TWOLINE=1(default)
+[fruit] [biarm] two-line scheduler: left station y=+0.000, right station y=-0.100 (separation 0.100 m)
+
+=== motion gate (session: two-line) ===
+190: two-line gate: reference=configs/motion_reference.json floor=0.60
+logs/p87/accept_final.log: 10 descent leg(s), line=dynamic
+   #   dist samples  |v|max  budget   |a|max   |dv|  a_med  peak@  a_win5  verdict
+   1   5.6c      89   0.109   0.161     1.97  0.016   0.24   0.02    0.76  ok
+   2   5.7c      89   0.107   0.160     1.46  0.012   0.26   0.01    0.54  ok
+   3   5.6c      88   0.110   0.161     1.98  0.017   0.24   0.02    0.78  ok
+   4   5.6c      89   0.108   0.161     1.85  0.015   0.24   0.02    0.63  ok
+   5   5.6c      89   0.109   0.161     1.97  0.016   0.24   0.02    0.77  ok
+   6   5.6c      88   0.109   0.161     2.07  0.017   0.24   0.01    0.73  ok
+   7   5.6c      88   0.109   0.161     2.03  0.017   0.23   0.02    0.80  ok
+   8   5.8c      91   0.110   0.161     1.34  0.011   0.23   0.02    0.42  ok
+   9   5.6c      88   0.108   0.161     2.12  0.018   0.24   0.02    0.84  ok
+  10   5.7c      90   0.109   0.160     1.59  0.013   0.25   0.02    0.52  ok
+  worst: |v|max=0.1100 m/s (budget 0.160-0.161), lurch=0.018 m/s/tick (budget 0.291477), a_win5=0.840 m/s^2 (carrying budget 2, warning)
+
+logs/p87/accept_final.log: 17 carry leg(s)
+  leg              dist    cone  over    slip in-hand |v| recov  verdict
+  grasp_lift        20c   0.94x    0%  805.2mm      3.478     0  ok
+  grasp_lift        22c   1.17x   20% 112673.2mm  13270.608     0  ok (cone 1.17x reported) (hand 1.11 m/s: rescued)
+  grasp_lift         7c   1.50x    7%   40.7mm      0.127     0  ok (cone 1.50x reported) (hand 0.49 m/s: rescued)
+  place1            43c   1.23x    6%   91.5mm      0.163     0  ok (cone 1.23x reported)
+  grasp_lift        21c   0.88x    0%   23.7mm      0.039     0  ok
+  place0            55c   0.87x    0%   86.9mm      0.080     0  ok
+  grasp_lift        13c   1.01x    1%  395.6mm      2.307     0  ok (cone 1.01x reported)
+  grasp_lift        21c   0.88x    0%   28.9mm      0.053     0  ok
+  place0            48c   0.86x    0%   85.5mm      0.072     0  ok
+  grasp_lift        14c   0.93x    0%   17.9mm      0.055     0  ok
+  place1            47c   1.23x    7%   98.8mm      0.167     0  ok (cone 1.23x reported)
+  grasp_lift        21c   0.88x    0%   24.0mm      0.040     0  ok
+  place0            60c   0.86x    0%   85.0mm      0.061     0  ok
+  grasp_lift        22c   0.94x    0%   35.2mm      0.064     0  ok
+  grasp_lift        21c   0.88x    0%   24.0mm      0.040     0  ok
+  place1            28c   0.89x    0%   62.1mm      0.153     0  ok
+  place0            59c   0.86x    0%   86.8mm      0.079     0  ok
+  worst held-grip cone: 1.50x budget (budget 1x)
+  hand speed: worst 1.108 m/s; 2/17 leg(s) over 0.45 m/s (reported, not gated) - every other leg sits at the commanded 0.176-0.371
+
+  success: 7/10 = 70% (floor 60% - override)
+  fingerprint: matches configs/motion_reference.json
+
+PASS: every descent is inside its profile's speed and lurch bound, the carry cone/slip is reported, and the success rate is at or above the dynamic line's floor
+note: 5 warning(s) (reported, not gating):
+  - carry grasp_lift: cone=1.17x over the 1x budget with slip=112673.2mm - reported on the dynamic line, not gated
+  - carry grasp_lift: cone=1.50x over the 1x budget with slip=40.7mm - reported on the dynamic line, not gated
+  - carry place1: cone=1.23x over the 1x budget with slip=91.5mm - reported on the dynamic line, not gated
+  - carry grasp_lift: cone=1.01x over the 1x budget with slip=395.6mm - reported on the dynamic line, not gated
+  - carry place1: cone=1.23x over the 1x budget with slip=98.8mm - reported on the dynamic line, not gated
+190: PASS logs/p87/accept_final.log
+190: every log matches configs/motion_reference.json and is at or above the two-line floor 0.60
