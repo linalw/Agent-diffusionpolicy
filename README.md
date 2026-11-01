@@ -539,6 +539,15 @@ implementation: the simulation cell, the data pipeline, and the policy training 
 > sanctions or a workstation move can touch it. Full page:
 > [docs/LEFT_ARM.md](docs/LEFT_ARM.md). Evidence: `AGENTS.md` §2 (P60-P74),
 > WORKLOG "P60".."P74", `logs/p60/`..`logs/p74/`.
+>
+> **Throughput (P80-P84)**: the shipped cell reads **2.25 placed/min** on the
+> placement window / **2.08** on the batch span at 15.10 s/attempt, interval
+> **26.72 s** (`1.45 x 15.1 + 4.8 idle`, so a failure costs an attempt); the
+> **two-line** reads **1.54x on simulated time** (the scheduler's own overlap,
+> 1.80-1.88x clock) and, after P82, **1.55x on the wall** too - it pays 32 % of
+> its wall in a **5 ms poll timeout** that is now removed (`FRUIT_BIARM_WAKE_ON_REQUEST`,
+> default on, run bit-identical). Fail-fast on a lost payload is measured out
+> twice (P83/P84). Full page: [docs/THROUGHPUT.md](docs/THROUGHPUT.md).
 
 > **汇报入口**：[项目总结报告.md](项目总结报告.md)（单一文档，含图表与日志编号）；路线取舍见 [决策与交付.md](决策与交付.md)；**项目收尾一页纸见 [docs/CLOSEOUT.md](docs/CLOSEOUT.md)**（R11-C：交付状态 / 全部杠杆族的实测裁定 / 剩余项）；一键演示 `scripts/demo_2min.sh`。
 
