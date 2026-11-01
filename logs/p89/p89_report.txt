@@ -1,0 +1,145 @@
+P89 - the lift raise as a two-line-scoped default (PREREG S5)
+==============================================================================
+
+== logs/p89/C5.log ==
+  FRUIT_SPEED_RELEASE=1(default) (two-line)
+  FRUIT_SPEED_PLACE=0.35(scope-off) (two-line)
+  lift profile FRUIT_SPEED_LIFT=0.30(explicit) scope=two-line -> v_max=0.30 a_max=1.0 (162 ticks at 0.21 m; shipped 162, saved 0)
+  [cycle] rows 20  lift pairs 20  unpaired {'cycles': 0, 'legs': 0}  legs w/o arm 0
+  placed 16/20 = 80.0 %   s/attempt 9.50   sim 190.10 s
+  per arm  left 9/10   right 7/10   pipelined slots 1
+  lift block  mean 1.684 s   MEDIAN 1.770 s  n=20
+  lift legs   cm 7-22  ticks 91-170  |v|cmd 0.163-0.294  remainder 0.412-0.420 s
+  ticks vs the profile at 0.30 from each leg's own cm: median 0.0, max |3|
+  pooled interval 10.59 s mean / 13.30 p50 / 17.80 p90 (n=15)
+    left: placed 9/10  interval 19.30 / 21.30 s  idle 18.7 %
+    right: placed 7/10  interval 26.02 / 38.50 s  idle 22.0 %
+  window 5.66 placed/min   batch 5.05 placed/min   window span 158.90 s   batch span 190.10 s
+  wall 325.6 s   wall/pick 16.28 s   wall/sim 1.71x   placed/min wall 2.95
+  landing: 16 traces, 16 payload-present, on_belt 16/16   discharged 14
+  descent legs 20  over budget 0  worst |v|max 0.111 (leg 20, 5.9 cm)
+  classes (per arm:leg; escaped = clean_slip>100 mm with a pinch):
+    left:grasp_lift: n=10 escaped=0 never-held=1 force_min==0=0 slip>800=1
+    left:place0: n=9 escaped=0 never-held=0 force_min==0=0 slip>800=0
+    right:grasp_lift: n=10 escaped=2 never-held=1 force_min==0=2 slip>800=1
+    right:place1: n=7 escaped=0 never-held=0 force_min==0=0 slip>800=0
+  reasons {'fruit did not follow the gripper': 4}
+
+== logs/p89/T5.log ==
+  FRUIT_SPEED_RELEASE=1(default) (two-line)
+  FRUIT_SPEED_PLACE=0.35(scope-off) (two-line)
+  lift profile FRUIT_SPEED_LIFT=0.37(default) scope=two-line -> v_max=0.37 a_max=1.0 (136 ticks at 0.21 m; shipped 162, saved 26)
+  [cycle] rows 20  lift pairs 20  unpaired {'cycles': 0, 'legs': 0}  legs w/o arm 0
+  placed 12/20 = 60.0 %   s/attempt 8.90   sim 178.50 s
+  per arm  left 5/10   right 7/10   pipelined slots 1
+  lift block  mean 1.510 s   MEDIAN 1.550 s  n=20
+  lift legs   cm 1-28  ticks 54-175  |v|cmd 0.055-0.362  remainder 0.412-0.422 s
+  ticks vs the profile at 0.30 from each leg's own cm: median -26.0, max |41|
+  pooled interval 13.43 s mean / 15.90 p50 / 28.60 p90 (n=11)
+    left: placed 5/10  interval 35.75 / 72.30 s  idle 22.3 %
+    right: placed 7/10  interval 23.08 / 33.10 s  idle 18.1 %
+  window 4.47 placed/min   batch 4.03 placed/min   window span 147.70 s   batch span 178.50 s
+  wall 293.7 s   wall/pick 14.69 s   wall/sim 1.65x   placed/min wall 2.45
+  landing: 13 traces, 12 payload-present, on_belt 12/12   discharged 11
+  descent legs 20  over budget 0  worst |v|max 0.154 (leg 14, 6.2 cm)
+  classes (per arm:leg; escaped = clean_slip>100 mm with a pinch):
+    left:grasp_lift: n=10 escaped=3 never-held=1 force_min==0=3 slip>800=2
+    left:place0: n=6 escaped=0 never-held=1 force_min==0=0 slip>800=1
+    right:grasp_lift: n=10 escaped=3 never-held=0 force_min==0=3 slip>800=0
+    right:place1: n=7 escaped=0 never-held=0 force_min==0=0 slip>800=0
+  reasons {'fruit did not follow the gripper': 7, 'grasped, not placed (no note)': 1}
+
+## seed 5
+  P1a lift block MEAN   C 1.684 s -> T 1.510 s   delta -0.175 s   predicted -0.177 s (control legs re-generated at 0.37/1.0)   band +-0.08 s
+  report: MEDIAN  C 1.770 -> T 1.550 s   delta -0.220 s   predicted -0.222 s
+  P1b ticks vs the raised profile (each leg's own cm): median 0.0, max |5|   control vs the shipped profile: median 0.0, max |3|
+       |v|cmd  C 0.163-0.294 (median 0.293) -> T 0.055-0.362 (median 0.350)   peak err max |0.013| m/s
+       remainder  C 0.412-0.420 s -> T 0.412-0.422 s   (every treatment leg inside 0.41-0.43 s: True)
+  P2 pooled interval  C 10.59 s -> T 13.43 s   delta 2.83 s
+    left: interval 19.30 -> 35.75 s   placed 9/10 -> 5/10
+    right: interval 26.02 -> 23.08 s   placed 7/10 -> 7/10
+  P5 placed  C 16/20 -> T 12/20   window span 158.90 -> 147.70 s   window 5.66 -> 4.47 placed/min   batch 5.05 -> 4.03
+  P5 wall  C 325.6 s -> T 293.7 s   placed/min wall 2.95 -> 2.45
+  P3 landing  C 16/16 on belt -> T 12/12 on belt
+  P4 class  escaped 2 -> 6   never-held 2 -> 2   force_min==0 2 -> 6
+     lift legs  C escaped 2/20 zero 2 never 2  ->  T escaped 6/20 zero 6 never 1   (left lift escaped 0 -> 3)
+     place legs escaped 0/16 -> 0/13
+     new reason keys {'grasped, not placed (no note)': 1}
+  P6 C: 20 descent legs, 0 over budget
+  P6 T: 20 descent legs, 0 over budget
+  -> P1a PASS  P1b PASS  P2 FAIL  P3 PASS  P4 FAIL
+
+== logs/p89/C6.log ==
+  FRUIT_SPEED_RELEASE=1(default) (two-line)
+  FRUIT_SPEED_PLACE=0.35(scope-off) (two-line)
+  lift profile FRUIT_SPEED_LIFT=0.30(explicit) scope=two-line -> v_max=0.30 a_max=1.0 (162 ticks at 0.21 m; shipped 162, saved 0)
+  [cycle] rows 20  lift pairs 20  unpaired {'cycles': 0, 'legs': 0}  legs w/o arm 0
+  placed 12/20 = 60.0 %   s/attempt 9.10   sim 182.60 s
+  per arm  left 6/11   right 6/9   pipelined slots 1
+  lift block  mean 1.768 s   MEDIAN 1.735 s  n=20
+  lift legs   cm 6-50  ticks 90-380  |v|cmd 0.160-0.294  remainder 0.413-0.420 s
+  ticks vs the profile at 0.30 from each leg's own cm: median 0.0, max |4|
+  pooled interval 11.08 s mean / 11.80 p50 / 17.60 p90 (n=11)
+    left: placed 6/11  interval 24.38 / 44.70 s  idle 19.7 %
+    right: placed 6/9  interval 18.26 / 24.50 s  idle 28.2 %
+  window 5.41 placed/min   batch 3.94 placed/min   window span 121.90 s   batch span 182.60 s
+  wall 303.6 s   wall/pick 15.18 s   wall/sim 1.66x   placed/min wall 2.37
+  landing: 12 traces, 12 payload-present, on_belt 12/12   discharged 12
+  descent legs 20  over budget 1  worst |v|max 0.164 (leg 12, 5.9 cm)
+  classes (per arm:leg; escaped = clean_slip>100 mm with a pinch):
+    left:grasp_lift: n=11 escaped=3 never-held=0 force_min==0=3 slip>800=0
+    left:place0: n=7 escaped=1 never-held=0 force_min==0=1 slip>800=0
+    right:grasp_lift: n=9 escaped=2 never-held=1 force_min==0=2 slip>800=0
+    right:place1: n=6 escaped=0 never-held=0 force_min==0=0 slip>800=0
+  reasons {'fruit did not follow the gripper': 1, 'grasped, not placed (no note)': 7}
+  !! 2 [cycle] rows disagree with their window's arm
+
+== logs/p89/T6.log ==
+  FRUIT_SPEED_RELEASE=1(default) (two-line)
+  FRUIT_SPEED_PLACE=0.35(scope-off) (two-line)
+  lift profile FRUIT_SPEED_LIFT=0.37(default) scope=two-line -> v_max=0.37 a_max=1.0 (136 ticks at 0.21 m; shipped 162, saved 26)
+  [cycle] rows 20  lift pairs 20  unpaired {'cycles': 0, 'legs': 0}  legs w/o arm 0
+  placed 14/20 = 70.0 %   s/attempt 9.00   sim 179.20 s
+  per arm  left 7/10   right 7/10   pipelined slots 1
+  lift block  mean 1.595 s   MEDIAN 1.540 s  n=20
+  lift legs   cm 14-50  ticks 116-309  |v|cmd 0.267-0.362  remainder 0.413-0.422 s
+  ticks vs the profile at 0.30 from each leg's own cm: median -21.5, max |75|
+  pooled interval 12.38 s mean / 15.30 p50 / 19.30 p90 (n=13)
+    left: placed 7/10  interval 24.87 / 42.70 s  idle 21.2 %
+    right: placed 7/10  interval 23.25 / 32.90 s  idle 23.0 %
+  window 4.85 placed/min   batch 4.69 placed/min   window span 160.90 s   batch span 179.20 s
+  wall 306.9 s   wall/pick 15.34 s   wall/sim 1.71x   placed/min wall 2.74
+  landing: 14 traces, 14 payload-present, on_belt 14/14   discharged 13
+  descent legs 20  over budget 0  worst |v|max 0.112 (leg 4, 5.7 cm)
+  classes (per arm:leg; escaped = clean_slip>100 mm with a pinch):
+    left:grasp_lift: n=10 escaped=2 never-held=1 force_min==0=2 slip>800=0
+    left:place0: n=7 escaped=0 never-held=0 force_min==0=0 slip>800=0
+    right:grasp_lift: n=10 escaped=2 never-held=1 force_min==0=2 slip>800=0
+    right:place1: n=7 escaped=0 never-held=0 force_min==0=0 slip>800=0
+  reasons {'fruit did not follow the gripper': 3, 'grasped, not placed (no note)': 3}
+
+## seed 6
+  P1a lift block MEAN   C 1.768 s -> T 1.595 s   delta -0.173 s   predicted -0.193 s (control legs re-generated at 0.37/1.0)   band +-0.08 s
+  report: MEDIAN  C 1.735 -> T 1.540 s   delta -0.195 s   predicted -0.188 s
+  P1b ticks vs the raised profile (each leg's own cm): median 0.0, max |3|   control vs the shipped profile: median 0.0, max |4|
+       |v|cmd  C 0.160-0.294 (median 0.293) -> T 0.267-0.362 (median 0.345)   peak err max |0.008| m/s
+       remainder  C 0.413-0.420 s -> T 0.413-0.422 s   (every treatment leg inside 0.41-0.43 s: True)
+  P2 pooled interval  C 11.08 s -> T 12.38 s   delta 1.30 s
+    left: interval 24.38 -> 24.87 s   placed 6/11 -> 7/10
+    right: interval 18.26 -> 23.25 s   placed 6/9 -> 7/10
+  P5 placed  C 12/20 -> T 14/20   window span 121.90 -> 160.90 s   window 5.41 -> 4.85 placed/min   batch 3.94 -> 4.69
+  P5 wall  C 303.6 s -> T 306.9 s   placed/min wall 2.37 -> 2.74
+  P3 landing  C 12/12 on belt -> T 14/14 on belt
+  P4 class  escaped 6 -> 4   never-held 1 -> 2   force_min==0 6 -> 4
+     lift legs  C escaped 5/20 zero 5 never 1  ->  T escaped 4/20 zero 4 never 2   (left lift escaped 3 -> 2)
+     place legs escaped 1/13 -> 0/14
+     new reason keys none
+  P6 C: 20 descent legs, 1 over budget -> legs [12]
+  P6 T: 20 descent legs, 0 over budget
+  -> P1a PASS  P1b PASS  P2 FAIL  P3 PASS  P4 PASS
+
+==============================================================================
+P4b pooled place-leg escapes: control 1/29, treatment 0/27 -> PASS
+seed 5: lift mean -0.175 s (predicted -0.177), interval 2.83 s, landing 12/12, escaped 2->6
+seed 6: lift mean -0.173 s (predicted -0.193), interval 1.30 s, landing 14/14, escaped 6->4
+P89 gate: FAIL (do not flip)
