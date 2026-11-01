@@ -448,7 +448,11 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: transfer and a place-only cap cannot move the pick. Default off, `direct`
 #: only, same wrapper and same `finally` restore; the shipped path is one dict
 #: lookup, unchanged. `logs/p79/PREREG.md` §2.
-TASKS_MD5 = "e8dfa6d819bf41d800d90fff349aa951"
+#: P83 follow is **metadata-only**: `FRUIT_FAIL_FAST=<mm>` (default unset/0 = off)
+#: is a **`scripted`-only** knob read by `PickAndPlaceTask.__init__`, so the
+#: direct env neither arms it nor can reach it - the pin below follows the new
+#: `tasks.py` hash without a behaviour change on this path.
+TASKS_MD5 = "f1e44af6e9a9d6639cf1dbfd0f9f9cc7"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(

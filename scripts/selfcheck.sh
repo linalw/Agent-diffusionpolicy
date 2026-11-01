@@ -312,6 +312,22 @@ run_check "P76 pry/crush fields" "$python" scripts/243_p76_sep_selftest.py
 # writer, and the manifest field (which keeps the exact `<side>:<legs>` keys).
 # No simulator.
 run_check "P78/P79 scoped finger force" "$python" scripts/244_p78_scope_selftest.py
+# P83: **fail fast** (`FRUIT_FAIL_FAST=<mm>`, default unset/0 = off, `scripted`
+# only) - the cell pays a full attempt for every failure (P80: all 7 failures were
+# `cnp` and each cost the whole 15.1 s attempt), so the attempt ends the tick the
+# payload's in-hand displacement (`clean_slip_max`, the `[carry]` row's own
+# operand) reaches the threshold. The leg pins the resolver (`0`/unset is off,
+# `>= 100` mm becomes metres, and the `0 < mm < 100` band raises - the census's
+# worst **placed** leg is 76.3 mm over 249 attempts, `logs/p83/census.txt`), the
+# single trip site (one `>=` on the tracker's operand, gated by the per-attempt
+# `threshold > 0 and scripted` flag, latching once and **breaking** the leg loop),
+# the attempt-local latch cleared at every attempt start, that the knob is the
+# fourth arm of the W8-B `guard_armed` disjunction (its operand is computed
+# there), that both early-exit sites read the one `_attempt_ended_early()`
+# predicate (so the abort reuses the shipped P7-2b fast-skip machinery), that the
+# trip adds **no** `result.notes` entry (the class stays `cnp`), the audit row's
+# fields, and the restored `arm.max_step`/wrist hold on the tail. No simulator.
+run_check "P83 fail fast" "$python" scripts/245_p83_failfast_selftest.py
 # P67: the **place-leg climb** (`FRUIT_LIFT_CLIMB`, metres of vertical raise at the
 # place leg's start, `direct` + left only, default OFF) - the re-shape of P66 phase
 # 4's failed rail-crossing gate: the crossing is only 0.175:1 with the lift height

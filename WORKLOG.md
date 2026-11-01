@@ -21742,3 +21742,139 @@ reports `{p82_report.py,p82_ab.py}`, the cells
 `R3/R4.{speedscope.json.gz,profile.txt}`, `W1.gate`, `selfcheck.log`, `smoke/` (the four
 pre-flight probes, including the two `run_pyspy.sh` launcher attempts that failed
 before it was rewritten to go through `scripts/run.sh`).
+
+### P83: fail fast - the abort halves the failed attempt (5.14 s / 617 ticks, both seeds, to the tick) and the cell's throughput does not follow
+
+Owner directive: *the cell pays a full attempt for every failure; fail fast.*
+P80 measured the shipped scripted cell at `26.72 s = 4.8 s idle + 1.45 attempts x
+15.1 s`, and **all** of its failures were `grasped, not placed`: the payload is
+gone mid-carry while the cell runs out the place transfer (3.19 s), the release
+(2.11 s) and the return (0.63 s). The phase built the lever, registered it, and
+measured it on two seeds. **Nothing is adopted, no default changed, no commit.**
+
+**The lever.** `FRUIT_FAIL_FAST=<mm>` (`tasks.parse_fail_fast`, unset/0 = off):
+one compare per guarded tick of the W8-B tracker's own `clean_slip_max` - the
+payload's displacement in the leg's frame, the number the `[carry]` row already
+prints - against the threshold; on a trip the leg **breaks at that tick** and the
+attempt ends at one of the **two early-exit sites the P7-2b carry monitor already
+uses** (the lift boundary, and the place boundary which is before the
+release/retreat block), through one predicate
+`_attempt_ended_early() = _carry_monitor_skip or _fail_fast_trip`. No note is
+added, so the class is unchanged (`grasped` from the shipped peak-lift predicate,
+`placed = False` → `cnp`); the payload is recycled by `run()`'s own `finally`; the
+next pre-pose is the driver's `go_ready` → `_goto` teleport, the path every
+shipped failure takes; there is **no new exception type**, so the scripted entry,
+the collector and the two-line worker handle it as a `not grasped` return. Scope
+is `scripted` only, so the direct/policy handover keeps its P10-C leg-boundary
+classifier skip and cannot reach the knob. `0 < mm < 100` **raises at task
+construction**: the pre-run census (`logs/p83/census.py`, 43 scripted logs that
+already print `[carry]` rows, 249 placed / 165 failed attempts joined to their own
+outcome rows) reads the worst **placed** leg at **76.3 mm** and 164/165 failures
+at `>= 150 mm`, so the registered arm is 150 mm - a 1.97x margin - and 0/249
+placed attempts ever reach it.
+
+**The design problem this phase had to solve first: the trip needs the tracker.**
+`clean_slip` is computed only inside the W8-B block, so the treatment arms carry
+`FRUIT_CARRY_DIAG=1` as well as the knob, and a treatment-vs-shipped contrast
+would otherwise differ by *instrumentation plus abort*. Two controls were
+therefore run: **C** (shipped, knob off) and **D** (tracker only). **G1** C5
+replays P80's `S20.log` **710/710 `[fruit]` lines byte-identical**, and **G2 D5 =
+C5 (710/710) and D6 = S6 (708/708)** with the diag-only rows dropped: **the W8-B
+tracker is run-neutral on the scripted line** - `tcp_pose`, `jaw_separation`,
+`joint_positions` and one tactile set per tick do not move the branch, unlike the
+link-world-pose reads AGENTS §2 forbids. That is the first time this tree has
+proved it, and it is why `F` vs `C` is admissible as an abort-only contrast.
+**G3** the treatment's first 57 (F5) / 59 (F6) physics lines equal the control's
+with the first trip exactly at the boundary.
+
+**The measurement** (20 attempts, shipped scenario, P80's instrumentation set):
+
+| | seed 5: C5 → F5 | seed 6: S6/D6 → F6 |
+| --- | --- | --- |
+| failed attempt mean span | **15.157 → 10.013 s** | **14.567 → 9.422 s** |
+| ... in ticks | **-617** | **-617** |
+| `s/attempt` | 15.10 → 12.30 | 15.00 → 12.80 |
+| pooled interval mean / p90 | 26.72 / 36.90 → **35.26 / 87.30** (+32.0 %) | 26.12 / 38.50 → **27.38 / 55.40** (+4.8 %) |
+| placed/min window / batch | 2.25 / 2.08 → **1.70 / 1.68** | 2.30 / 2.27 → **2.19 / 2.08** |
+| placed | 12/19 → 6/14 | 13/19 → 11/20 |
+| wall/pick / placed/min wall | 25.33 → 21.62 s / **1.50 → 1.19** | 25.20 → 22.30 s / **1.61 → 1.48** |
+| trips | 7 | 8 |
+
+**The saving is arithmetic and it replicates to the tick** (-5.144 s both seeds
+because an aborted leg skips 1-310 ticks of its own profile plus the 50-tick leg
+tail, and the attempt then skips the release block and the retreat).
+
+**Why the throughput does not follow.** The interval is `attempts/placement x
+attempt span + idle`. The span term fell and the other two rose:
+attempts/placement **1.583 → 2.333** at seed 5 and **1.462 → 1.818** at seed 6,
+and the idle term 2.81 → 6.56 s at seed 5 (six starved slots) against 4.19 →
+4.11 s at seed 6 (none). At the control's *own* failure rate the -2.80 / -2.20 s
+per attempt would have taken the interval to ~22.3 / ~23.0 s, i.e. **the abort
+is worth -16 % / -12 % of the interval and it cannot set the rate**. The count is
+a branch draw (pooled 25/38 vs 17/34) and two seeds cannot separate "the re-timed
+presentation is harder" from "the branch is harder"; the registration forbids
+reading a count difference as the lever's.
+
+**The seed-5 starvation, attributed.** Six slots (14-19) starved while four live
+fruit remained. The post-hoc probe (`logs/p83/probe_bed.sh`, `FRUIT_BED_DIAG=1`
+reproducing F5 exactly - 14 attempts, 6 placed, 7 trips, `sim = 172.8 s`) prints
+the first refusing predicate per candidate: the only body above the **0.399 m**
+catch floor (a peach at 0.626) is **`diverted (max_retries)`**, the apple (0.105)
+and pear (0.339) are **inside** the floor and only creep downstream 0.06 m per
+starved slot, a strawberry is on the output conveyor (`x = 1.08`), and the feeder
+has nothing to release (`admitted 2 → 0`, `skipped = 85`, `pump_next` within
+0.01 s of `t`). So it is a **pool state** (a diverted upstream fruit plus two
+inside the floor plus a boundary-only pump), not an abort effect - and the
+seed-6 arm starves **0/20** with the same saving. The 43 `[bed-fall]` rows are all
+at `y = -0.63..-1.41, z ≈ 0.02, held = False`: P32's unattended belt-loss cadence
+artifact, not payloads dropped by the abort.
+
+**The audit, and the guards.** **15/15 trips** fire with `force = 0.00 N` *and*
+`contacts = 0` at the trip tick (`force_min = 0.00 N` over the leg): by the time
+the displacement reaches 1.97x the worst placed leg the pads are empty. **34/34
+carry legs of the 17 placed attempts read `ticks = X/X`** - not one successful leg
+is shortened - with the worst placed-leg `clean_slip_max` at 0.1 / 19.8 mm. The
+20-attempt motion budgets pass (worst descent `|v|max` 0.110-0.120 against
+0.160-0.161, lurch 0.017-0.027 against 0.291; the only `105` FAIL is the standing
+0.75 rate floor), every run accounts, no run wedged. **G6 fails by its letter
+only**: each treatment arm has **one** new reason text (`fruit did not follow the
+gripper`), from a **never-held** attempt (`sep = gap = 22.2 mm` on a 53.8 mm fruit,
+`onset_row = 1`, `stored pad centre 415 mm from the measured pads`,
+`force servo: gap=22.2 sep=22.2 closed=15.00 trips=38` - the R11-A.1 left
+acquisition signature) whose `grasped = False` the shipped predicate decides; the
+seed-6 **control** carries the same text (1/19). The two trip families are 9
+near the end of the lift (the W8-B loaded slide) and 5 inside the place leg
+(three with `onset_row = 2-3`, i.e. the loss was at the end of the lift and the
+place leg was pure run-out - those are the 253-310-tick savings).
+
+**Verdict: not adopted.** M1 (G4/G5) and M2 (-5.144 s >= 3.0 s) pass; M3 fails on
+G6's letter; T1/T2/T3 fail at both seeds. `FRUIT_FAIL_FAST` stays default off.
+The named re-entry is a scenario where the **presentation** is not the binding
+term - the two-line, whose scheduler parks an arm on the *other arm* rather than
+on the belt (P80/P81), where 5.14 s per failure is a duty-cycle gain instead of
+re-drawn fruit. **The transferable read rules:** quote `placed/min wall`, never
+`wall/pick` (a run that places less divides a much smaller wall by a smaller
+count: 25.33 → 21.62 s/pick at 1.50 → 1.19 placed/min); quote a trip as the pair
+`clean_slip >= 150 mm` **and** `force = 0.00 N / contacts = 0` (a norm alone cannot
+say the payload left); read the cut off the leg's own row (`[carry]
+ticks=<trip>/<total>`, `[motion] steps=<trip+1>`); and run the tracker-only
+control before claiming a treatment effect.
+
+**No-harm.** `scripts/accept.sh` (knob unset) reads **6/9 + `fingerprint:
+matches configs/motion_reference.json` (`8952c320`)** with its **346/346 `[fruit]`
+lines byte-identical to `logs/p80/S10.log`**; `scripts/selfcheck.sh` **PASS, 0
+failures** with the new leg `scripts/245_p83_failfast_selftest.py` (65 checks: the
+resolver table, the 100 mm floor, the single trip site, the attempt-local latch,
+the `scripted` scope, the `guard_armed` arming clause, the one-predicate early
+exit, no `notes` entry, the restored `arm.max_step`/wrist hold, the one call
+site). `configs/` untouched, no reference re-recorded, no commit.
+
+Pins: `tasks.py` `f1e44af6`, `rl_env.py` `d786279c` (the metadata-only
+`TASKS_MD5` follow), `scripts/245_p83_failfast_selftest.py` `086c6022`,
+`scripts/selfcheck.sh` `39b8916f`, `configs/motion_reference.json` `8952c320` and
+`..._twoline.json` `eb697f23` untouched, ckpt `moe_v13s` `61da390a`. Evidence
+`logs/p83/`: `PREREG.md` (+`PREREG.md5` `1e1e6345…`), `RESULTS.md`, `census.py` +
+`census.txt`, `p83_report.py` + `p83_report.txt` (`--check` runs every registered
+guard), `run_p83.sh`, `one_run.sh`, `probe_bed.sh`, `battery_driver.log`, the
+cells `{C5,D5,F5,D6,F6}.{log,stamps,driver.log}`, `{C5,F5,F6}.gate`, the probe
+`probe_bed.log`, `accept_noharm.log` (+ `.driver`), `smoke.log`.

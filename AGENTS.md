@@ -3759,6 +3759,104 @@ p82_report.py,p82_ab.py}`, the cells `{R1,R2,R3,R4,W0,W1,W2,W3,W4,F0,F1,A1}` wit
 `.stamps`/`.driver`, `R3/R4.speedscope.json.gz` + `.profile.txt`, `W1.gate`,
 `selfcheck.log`; WORKLOG "P82".
 
+**P83 (2026-11-01, `logs/p83/`; default off, **nothing adopted**, no default
+change, no commit, `configs/` untouched): the cell pays a full attempt for every
+failure, and ending it the tick the payload is provably gone **halves the failed
+attempt - by exactly 5.14 s / 617 ticks at both seeds - and the throughput does
+not follow**, because the interval's other two terms absorb it.** The knob is
+`FRUIT_FAIL_FAST=<mm>` (`tasks.py` `parse_fail_fast`, **unset/0 = off**): one
+compare per guarded tick on the W8-B tracker's own `clean_slip_max` (the payload's
+displacement in the leg's frame, the number the `[carry]` row already prints)
+against the threshold, and on a trip the leg **breaks at that tick** plus the
+**two early-exit sites the P7-2b monitor already uses** (the lift boundary, and
+the place boundary which is *before* the release/retreat block) through one
+predicate `_attempt_ended_early() = _carry_monitor_skip or _fail_fast_trip`. It
+adds **no `notes` entry**, so the class is unchanged (`grasped` still comes from
+the shipped peak-lift predicate, `placed` stays False → `cnp`); the payload is
+recycled by `run()`'s own `finally`; the next pre-pose is the driver's
+`go_ready` → `_goto` teleport, the path every shipped failure takes; **no new
+exception type**, so the entry script, the collector and the two-line worker
+handle it as a `not grasped` return; and the scope is **`scripted` only**
+(`_fail_fast_active = threshold > 0 and scripted`), so the direct/policy handover
+and the hybrid canary cannot reach it (they keep the P10-C *leg-boundary*
+classifier skip, which cannot save the leg's remainder). **The floor is 100 mm and
+anything `0 < mm < 100` raises at task construction**: the pre-run corpus census
+(`logs/p83/census.py`, 43 scripted logs that already print `[carry]` rows, **249
+placed / 165 failed** attempts joined to their own outcome rows) reads the worst
+**placed** leg at **76.3 mm** (p99 62.1) and **164/165 failed** at `>= 150 mm`, so
+the registered arm is **150 mm** - a 1.97x margin over the worst placed leg - and
+**0/249** placed attempts ever reach it. **The A/B** (`ATTEMPTS=20`, shipped
+scenario, `FRUIT_MOTION_REPORT=1 FRUIT_CYCLE_REPORT=1`, one claim per run;
+**C5** control replay, **D5/D6** tracker-only, **F5/F6** `=150` + the tracker):
+**G1** C5 is **710/710 `[fruit]` lines byte-identical to P80's `S20.log`** (the
+off path is inert), **G2** D5 = C5 and D6 = **S6** on **710/710** and **708/708**
+physics lines - **the W8-B tracker is run-neutral on the scripted line**, so
+`F` vs `C` differs by the abort alone (unlike the link-world-pose reads AGENTS
+§2 forbids: `tcp_pose`, `jaw_separation`, `joint_positions` and one tactile set
+per tick do not move the branch), **G3** F5/F6's first 57/59 physics lines equal
+the control's with the first trip exactly at the boundary, **G4** **15/15 trips**
+fire with `force = 0.00 N` *and* `contacts = 0` (and `force_min = 0.00 N`) - the
+pads are empty when the displacement reaches 1.97x the worst placed leg - **G5**
+**34/34 carry legs of the 17 placed attempts read `ticks = X/X`** (not one
+shortened; worst placed-leg `clean_slip` 0.1 / 19.8 mm), **G7** the 20-attempt
+motion budgets pass (worst descent `|v|max` 0.110-0.120 against 0.160-0.161, lurch
+0.017-0.027 against 0.291; the only `105` FAIL is the standing 0.75 *rate* floor),
+**G8** every run accounts and no slot is lost to the abort, and **G6 fails by its
+letter only**: one new reason text (`fruit did not follow the gripper`) in each
+treatment arm, from **one never-held attempt** (`sep = gap = 22.2 mm` on a 53.8 mm
+fruit, `onset_row = 1`, `stored pad centre 415 mm from the measured pads`,
+`force servo: gap=22.2 sep=22.2 closed=15.00 trips=38` = the R11-A.1 left
+acquisition signature) whose `grasped = False` the **shipped** predicate decides -
+and **the seed-6 control carries the same text** (S6/D6 1/19). **The numbers:
+the failed attempt's mean span falls 15.157 → 10.013 s (seed 5) and 14.567 →
+9.422 s (seed 6) = the same -5.144 s = -617 ticks**, `s/attempt` -2.80 / -2.20 s,
+wall/pick -14.6 / -11.5 %; and **the interval gets worse, 26.72 → 35.26 s
+(+32.0 %) and 26.12 → 27.38 s (+4.8 %)**, placed/min falls on **both**
+denominators (window 2.25 → 1.70 / 2.30 → 2.19; batch 2.08 → 1.68 / 2.27 → 2.08),
+`placed/min wall` 1.50 → 1.19 / 1.61 → 1.48, and the count 12 → 6 / 13 → 11.
+**The decomposition is the finding**: `interval = attempts/placement × attempt
+span + idle`; the span term fell and **attempts/placement rose 1.583 → 2.333
+(seed 5) and 1.462 → 1.818 (seed 6)**, with idle 2.81 → 6.56 s at seed 5 (**6
+starved slots**) against 4.19 → 4.11 s at seed 6 (**0 starved**) - so the abort
+**is** worth -16 / -12 % of the interval *at the control's own failure rate* and
+it cannot set that rate. **The seed-5 starvation is a pool state, not a trip
+effect**: the post-hoc probe (`logs/p83/probe_bed.sh`, `FRUIT_BED_DIAG=1`,
+reproducing F5 exactly - 14 attempts, 6 placed, 7 trips, `sim = 172.8 s`) names
+every refusal at those six slots - the only body above the **0.399 m** catch floor
+(the peach at 0.626) is **`diverted (max_retries)`**, the apple (0.105) and pear
+(0.339) are **inside** the floor and only creep downstream 0.06 m per starved slot,
+a strawberry sits on the output conveyor (`x = 1.08`), and the feeder has nothing
+to release (`admitted 2 → 0`, `skipped = 85`, `pump_next` within 0.01 s of `t`) -
+while the seed-6 arm starves **0/20** with the same saving. The 43 `[bed-fall]`
+rows are all at `y = -0.63..-1.41, z ≈ 0.02, held = False`, i.e. P32's
+unattended-belt-loss cadence artifact, **not** payloads dropped by the abort.
+**Read rules from here**: quote **`placed/min wall`, not `wall/pick`** (a run that
+places less divides a much smaller wall by a smaller count: 25.33 → 21.62 s/pick
+with 1.50 → 1.19 placed/min); **quote the pair `clean_slip >= 150 mm` *and*
+`force = 0.00 N / contacts = 0`** for a trip (the slip alone is a norm); read the
+cut off the leg's own row (`[carry] ticks=<trip>/<total>`, `[motion] steps=<trip+1>`);
+and treat a count difference as a **branch draw** (pooled 25/38 vs 17/34: two seeds
+cannot separate "the re-timed presentation is harder" from "the branch is
+harder"). **Verdict: M1/M2 PASS, M3 fails on G6's letter, T1/T2/T3 fail at both
+seeds → not adopted; `FRUIT_FAIL_FAST` stays default off.** The named re-entry is a
+scenario where the presentation is not the binding term - the **two-line**, whose
+scheduler parks an arm on the *other arm* rather than on the belt (P80/P81), where
+5.14 s per failure is a duty-cycle gain rather than re-drawn fruit. No motion
+reference is re-recorded and none is owed (`8952c320` / `eb697f23` stand: C5 proves
+the scripted line does not move); `scripts/selfcheck.sh` **PASS, 0 failures** with
+the new leg `scripts/245_p83_failfast_selftest.py` (65 checks: the resolver table,
+the 100 mm floor, the single trip site, the attempt-local latch, the `scripted`
+scope, the `guard_armed` arming clause, the one-predicate early exit, no `notes`
+entry, the restored step cap, the one call site). Pins: `tasks.py` `f1e44af6`,
+`rl_env.py` `d786279c` (the metadata-only `TASKS_MD5` follow),
+`scripts/245_p83_failfast_selftest.py` `086c6022`, `scripts/selfcheck.sh`
+`39b8916f`; `configs/motion_reference.json` `8952c320` and
+`..._twoline.json` `eb697f23` both **untouched**; ckpt `moe_v13s` `61da390a`.
+Evidence `logs/p83/{PREREG.md,PREREG.md5,RESULTS.md,census.py,census.txt,
+p83_report.py,p83_report.txt,run_p83.sh,one_run.sh,probe_bed.sh,battery_driver.log}`,
+the cells `{C5,D5,F5,D6,F6}.{log,stamps,driver.log}`, `{C5,F5,F6}.gate`, the probe
+`probe_bed.log`, `accept_noharm.log`; WORKLOG "P83".
+
 ## 3. What changed -> what to run
 
 | you changed | run |
@@ -3777,6 +3875,7 @@ p82_report.py,p82_ab.py}`, the cells `{R1,R2,R3,R4,W0,W1,W2,W3,W4,F0,F1,A1}` wit
 | the scene's collider set or a store's provenance (`assets.scene_provenance`, the manifests) | `scripts/selfcheck.sh` (the `239` leg), then one collection or direct run and check its `manifest.json` carries the `scene` block (`logs/p72/manifest_probe.py` does it without a simulator app) |
 | a new default-off diagnostic field on the `[carry]` row (or a new `[place]`/`[seat]` line, or a new `[place-trace]` per-tick print) | `scripts/selfcheck.sh` (the field's own leg - `235`/`239`/`240`/`241` are the pattern), then **one direct run with `FRUIT_CARRY_DIAG=1`** to read it, then `scripts/accept.sh` and require its **346/346 `[fruit]` lines** to be byte-identical to the pre-change record - a diag-only change must be inert on the scripted path (`logs/p73/P1_RESULTS.md` §5, `logs/p75/RESULTS.md` §5) |
 | the finger drive's force cap, or a leg-scoped drive write (`FRUIT_FINGER_MAXFORCE`, `FRUIT_FINGER_MAXFORCE_SCOPE=place-left|grasp-left`/`..._SCOPED`, `tasks.finger_cap_scope_for`, `_carry`'s wrapper) | `scripts/selfcheck.sh` (the `244` leg), then **one direct run with `FRUIT_CARRY_DIAG=1`** and read the `[drive] ... finger cap raise/restore` rows **and** the delivered force by leg class - **the site proof is the pair**: `place-left` -> `place*` at the scoped cap with `grasp_lift` at ~9.7 N (`logs/p78/RESULTS.md` §0), `grasp-left` -> `grasp_lift` at the scoped cap with `place*` at ~10 N (`logs/p79/RESULTS.md` §1); then `scripts/accept.sh` + one two-line run + `scripts/190_twoline_gate.sh` **with the knob armed** and require **346/346 `[fruit]` lines + both fingerprints** to be unmoved (`logs/p78/RESULTS.md` §7, `logs/p79/RESULTS.md` §6) - the scoped form must move no reference; a **global** `FRUIT_FINGER_MAXFORCE` instead owes both references and every store. Read `fmax` as a **peak transient** that exceeds the cap on single legs even at 10 N, and `force_min` as the leg's weakest moment - neither is a `place*`-was-re-clamped test on one cell (`logs/p79/PREREG.md` §9 A1); the structural rows are |
+| an **early end of a carry leg** (a new skip/trip on `_carry_monitor_skip`/`_fail_fast_trip`, a new threshold, `_attempt_ended_early`, or a new failure path out of `_grasp_carry_place_impl`) | `scripts/selfcheck.sh` (the `245` leg is the pattern: the resolver table, the refuse-below floor, **one** trip site, the attempt-local latch, the scope, the arming clause, and that the trip adds **no `result.notes` entry**), then **the tracker-only control first**: `FRUIT_CARRY_DIAG=1` alone on the same seed must be **byte-identical** to the shipped run (`--same`, diag rows dropped) - otherwise the treatment differs by instrumentation and no time claim is admissible (`logs/p83/RESULTS.md` §6 G2) - then the A/B against **that** control on **>= 2 seeds**, reading **the failed attempt's own span** as the mechanism number (branch-free) and the interval/count as the claim, plus `scripts/accept.sh` and require its `[fruit]` stream to be byte-identical to the pre-change record |
 
 To compare two **policy** arms, use the harness rather than two runs:
 

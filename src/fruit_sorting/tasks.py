@@ -354,6 +354,54 @@ def finger_cap_scope_for(scopes, side: str, name: str) -> float | None:
     return None if value is None else float(value)
 
 
+def parse_fail_fast(raw: str | None = None) -> float:
+    """P83: `FRUIT_FAIL_FAST=<mm>` -> the trip threshold in **metres** (0 = off).
+
+    Pure and total, so the parse can be pinned without a simulator
+    (`scripts/245_p83_failfast_selftest.py`). The environment value is in
+    **millimetres** because the corpus that justifies it is (`[carry]
+    clean_slip_max` prints mm); the returned operand is metres because that is
+    what `_carry_leg` compares against the tracker's own value.
+
+    Rules (P83 PREREG §1, frozen before the phase's first run):
+
+    * unset / empty / `0` -> `0.0`, i.e. the shipped path. On that path the
+      knob costs one attribute read per carry leg and **no** per-tick work: the
+      trip test sits inside the `guard_armed` block, which the knob does not
+      arm when it is off.
+    * `0 < mm < 100` -> `ValueError`. The pre-run census (`logs/p83/census.py`,
+      `census.txt`) reads **0.0-76.3 mm on the worst leg of 249 placed
+      attempts** and `>= 150 mm` on 164/165 failed ones, so a threshold under
+      100 mm is not separated from a clean leg: at such a value "fail fast"
+      would sometimes end a leg that was going to place.
+    * non-numeric / negative / `nan` / `inf` -> `ValueError`, raised at task
+      construction. A silently disabled knob is how a phase measures nothing.
+    """
+    text = os.environ.get("FRUIT_FAIL_FAST", "") if raw is None else raw
+    text = str(text).strip()
+    if not text:
+        return 0.0
+    try:
+        mm = float(text)
+    except ValueError:
+        raise ValueError(
+            f"FRUIT_FAIL_FAST={text!r}: not a number (millimetres, 0 = off)"
+        ) from None
+    if not math.isfinite(mm):
+        raise ValueError(f"FRUIT_FAIL_FAST={text!r}: must be a finite number")
+    if mm == 0.0:
+        return 0.0
+    if mm < 0.0:
+        raise ValueError(f"FRUIT_FAIL_FAST={text!r}: must be >= 0 (0 = off)")
+    if mm < 100.0:
+        raise ValueError(
+            f"FRUIT_FAIL_FAST={text!r}: the floor is 100 mm - the worst leg of a "
+            "placed attempt reads 76.3 mm over 249 attempts "
+            "(logs/p83/census.txt), so a lower threshold is not separated"
+        )
+    return mm / 1000.0
+
+
 def carry_hold_override_for(overrides, side: str, name: str) -> np.ndarray | None:
     """P64: the pre-compensated hold for one carry leg, or `None` (shipped).
 
@@ -783,6 +831,12 @@ class PickAndPlaceTask:
     _carry_monitor_fires = _AttemptLocal("_carry_monitor_fires", 0)
     _carry_monitor_legs = _AttemptLocal("_carry_monitor_legs", 0)
     _carry_monitor_fired = _AttemptLocal("_carry_monitor_fired", factory=list)
+    #: P83 fail-fast per-attempt state: the trip latch (a mid-leg break, then the
+    #: same two early-exit sites the monitor uses) and the one audit record the
+    #: `[fail-fast]` row prints. Attempt-local for the same reason the monitor's
+    #: latch is: the two-line runs two attempts on two threads.
+    _fail_fast_trip = _AttemptLocal("_fail_fast_trip", False)
+    _fail_fast_info = _AttemptLocal("_fail_fast_info")
     _dynamic_peak_z = _AttemptLocal("_dynamic_peak_z")
     _dynamic_grip_target = _AttemptLocal("_dynamic_grip_target")
     _dynamic_hover_target = _AttemptLocal("_dynamic_hover_target")
@@ -1754,6 +1808,37 @@ class PickAndPlaceTask:
                 self._place_onset_trace = max(0, int(_place_trace_raw))
             except ValueError:
                 self._place_onset_trace = 0
+        #: P83 (`FRUIT_FAIL_FAST=<mm>`, **unset/0 = off, the shipped path**): the
+        #: cell pays a full attempt for every failure - P80 measured
+        #: `26.72 s = 4.8 s idle + 1.45 attempts x 15.1 s` and **all** of the
+        #: failures were `cnp`, i.e. the payload was gone mid-carry while the leg
+        #: ran out its place transfer (3.19 s), release (2.11 s) and return
+        #: (0.63 s). This knob ends an attempt the moment the payload's in-hand
+        #: displacement (the W8-B `clean_slip` the `[carry]` row reports, in the
+        #: leg's own frame) reaches `<mm>`: the trip is a **mid-leg break** plus
+        #: the two early-exit sites the P7-2b monitor already uses, so the rest of
+        #: the leg, the other carry leg, the release and the retreat do not run.
+        #:
+        #: It is a **clock lever on a loss that already happened**, not a grip
+        #: fix: the attempt still scores `cnp` (no note is added, so the
+        #: failure-reason parser sees what the shipped run would have seen), the
+        #: payload is recycled by `run()`'s own `finally`, and the next pre-pose
+        #: is the calibrated teleport `go_ready` already performs after every
+        #: shipped failure.
+        #:
+        #: Scope: `scripted` only (single arm, two-line worker, collector). The
+        #: direct/policy handover keeps its own P10-C monitor (a *classifier*
+        #: fast-skip taken at the leg boundary, which cannot save the leg's
+        #: remainder), so `rl_env`/the hybrid canary resolve this to off.
+        #:
+        #: Refused values are in `parse_fail_fast`: anything `0 < mm < 100`
+        #: raises at construction (the worst placed leg reads 76.3 mm over 249
+        #: attempts, `logs/p83/census.txt`).
+        self.fail_fast_m = parse_fail_fast()
+        #: Resolved per attempt (`_grasp_carry_place_impl`), like the guard's own
+        #: flag: the threshold with the `scripted` scope applied. Inert (`False`)
+        #: at construction and on every direct/hybrid attempt.
+        self._fail_fast_active = False
         #: P40 G0 (`FRUIT_GRIP_EFFORT=1`, **default off**): the finger drive's
         #: *applied effort* beside the tactile `N` the logs quote. The reported
         #: `N` is a contact-sensor sum, not a drive force, and this hand's drive
@@ -3823,6 +3908,52 @@ class PickAndPlaceTask:
             f"{before:.2f} -> {wanted:.2f} N (readback {rb} N)"
         )
 
+    def _fail_fast_text(self) -> str:
+        """P83: the one `[fail-fast]` audit row, formatted from the trip record.
+
+        Reads `_fail_fast_info` (written by the tick loop at the trip), so the
+        row is printed **at the trip tick** and cannot drift from the trip's own
+        state. Fields, left to right: the leg and the trip tick against the
+        leg's full length, the displacement that crossed the threshold, its
+        direction in the leg frame (`d=`, P61's axis), the pad geometry
+        (`sep` measured against `gap` commanded - the pry's read), the tactile
+        state at the trip (`force`, the leg's `force_min`, `contacts`), and the
+        tracker's onset/loss rows. `leg_left` is the ticks the abort did not
+        spend, before the 50-tick leg tail.
+        """
+        info = self._fail_fast_info or {}
+        d = info.get("d_mm", (0.0, 0.0, 0.0))
+        tick = int(info.get("tick", 0))
+        ticks = int(info.get("ticks", 0))
+        return (
+            f"[fail-fast] {info.get('side')} {info.get('leg')}: "
+            f"trip=t{tick}/{ticks} "
+            f"clean_slip={info.get('slip_mm', 0.0):.1f}mm "
+            f">= {info.get('threshold_mm', 0.0):.0f}mm "
+            f"d=({d[0]:+.1f},{d[1]:+.1f},{d[2]:+.1f})mm "
+            f"sep={info.get('sep_mm', 0.0):.1f}mm "
+            f"gap={info.get('gap_mm', 0.0):.1f}mm "
+            f"force={info.get('force_n', 0.0):.2f}N "
+            f"force_min={info.get('force_min_n', -1.0):.2f}N "
+            f"contacts={info.get('contacts')} "
+            f"onset_row={info.get('onset_row')} "
+            f"loss_row={info.get('loss_row')} "
+            f"leg_left={max(0, ticks - tick - 1)}+50tail "
+            "skipped; attempt ends here"
+        )
+
+    def _attempt_ended_early(self) -> bool:
+        """P7-2b monitor skip **or** P83 fail-fast trip: the attempt ends here.
+
+        Both are early ends of one carry leg, and both leave the attempt's
+        book-keeping untouched: the outcome is whatever the attempt had already
+        earned (`grasped` from the peak lift, `placed=False`), the payload is
+        recycled by `run()`'s own `finally`, and the arm's next pre-pose is the
+        driver's normal `go_ready`. Kept as one predicate so the sites that read
+        it cannot drift apart.
+        """
+        return bool(self._carry_monitor_skip or self._fail_fast_trip)
+
     def _carry(self, side: str, sample, name: str, steps: int = 200) -> None:
         """Carry leg **wrapper**: the P78/P79 scoped finger force, then the leg.
 
@@ -4317,6 +4448,7 @@ class PickAndPlaceTask:
                 (
                     (self._carry_guard_active or self._carry_diag)
                     or self._place_onset_trace > 0
+                    or self._fail_fast_active
                 )
                 and hand_is_jaw
                 and self._dynamic_capture_active
@@ -4877,6 +5009,53 @@ class PickAndPlaceTask:
                             #: same quantity read live at the loss, so a force
                             #: lever can be graded without a trace dump.
                             guard_loss_sep = float(arm.jaw_separation())
+                        # ---- P83 fail-fast trip (default off) ----------------
+                        # The knob's whole test: the payload's in-hand
+                        # displacement (this block's own `clean_slip_max`, the
+                        # number the `[carry]` row prints) has reached the
+                        # threshold. One compare per guarded tick, and the
+                        # first operand is a plain bool, so with the knob off
+                        # the block does nothing. On a trip the leg breaks
+                        # **here** - the rest of the profile, the 50-tick leg
+                        # tail, the other carry leg, the release and the
+                        # retreat never run - and the one `[fail-fast]` row
+                        # prints **at the trip**, before the leg's own summary
+                        # rows, so the log's own ordering makes the audit
+                        # unambiguous (P83 PREREG §1/E9: the tick, the leg, the
+                        # displacement and the pinch state at that tick, which
+                        # is what shows the payload was already gone).
+                        if (
+                            self._fail_fast_active
+                            and not self._fail_fast_trip
+                            and guard_slip_max >= self.fail_fast_m
+                        ):
+                            self._fail_fast_trip = True
+                            self._fail_fast_info = {
+                                "side": side,
+                                "leg": name,
+                                "tick": int(i),
+                                "ticks": int(len(commands)),
+                                "slip_mm": float(guard_slip_max) * 1000.0,
+                                "d_mm": (
+                                    float(_slip_vec[0]) * 1000.0,
+                                    float(_slip_vec[1]) * 1000.0,
+                                    float(_slip_vec[2]) * 1000.0,
+                                ),
+                                "sep_mm": float(_sep_now) * 1000.0,
+                                "gap_mm": float(gap_command) * 1000.0,
+                                "force_n": float(force_now),
+                                "contacts": int(contacts_now),
+                                "force_min_n": (
+                                    float(guard_force_min)
+                                    if guard_force_min < float("inf")
+                                    else -1.0
+                                ),
+                                "onset_row": guard_onset_i,
+                                "loss_row": guard_loss_i,
+                                "threshold_mm": float(self.fail_fast_m) * 1000.0,
+                            }
+                            say(self._fail_fast_text())
+                            break
                         guard_fruit_prev = fruit.copy()
                         guard_pads_prev = pads.copy()
                         guard_rot_prev = rot_now
@@ -5337,6 +5516,20 @@ class PickAndPlaceTask:
                         f"[motion] carry {name} clearance: lowest payload point "
                         f"{clearance_min * 1000:+.0f} mm to the {clearance_where}"
                     )
+            if self._fail_fast_trip:
+                # ---- P83: the attempt ends at this tick ---------------------
+                # The `[fail-fast]` row itself printed **at the trip** (see the
+                # tick loop); this is the tail's own work only. The 30-tick
+                # settle and the `FRUIT_CARRY_FREEZE` ramp (50 ticks together)
+                # are skipped as well: they exist to land the hand on the leg's
+                # target, and a payload that has left the pinch has no landing
+                # to be kind to. Everything that must be restored is restored
+                # here exactly as the leg's own tail does it.
+                self._grip_effort_flush(side)
+                arm.max_step = previous_carry_step
+                if hold_wrist:
+                    arm.hold_quaternion = None
+                return
             for _ in range(30):
                 # When the leg was rebased after a slip, `finish` is up to a
                 # re-seat away from where the pads are; take the achieved centre
@@ -9990,6 +10183,15 @@ class PickAndPlaceTask:
             self._carry_monitor_fires = 0
             self._carry_monitor_legs = 0
             self._carry_monitor_fired = []
+        # P83: the fail-fast latch is cleared on EVERY attempt start for the same
+        # reason (the two early-exit sites below are unconditional), and the
+        # scope is resolved here rather than at the trip so the knob can never
+        # reach the direct/policy handover - `scripted` is the whole scope. With
+        # the threshold at 0 this is one bool on every path and the trip test's
+        # first operand is False, so the shipped run does no per-tick work.
+        self._fail_fast_trip = False
+        self._fail_fast_info = None
+        self._fail_fast_active = bool(self.fail_fast_m > 0.0 and scripted)
         direct_hover = float(os.environ.get("FRUIT_DIRECT_HOVER", "0.0"))
         direct_catch_lead = float(os.environ.get("FRUIT_DIRECT_CATCH_LEAD", "0.25"))
         #: Safety net for the direct catch-up: never command the tip more than
@@ -12737,7 +12939,7 @@ class PickAndPlaceTask:
             hub_marks["grasp"] = self._sim_time()
         self._carry(arm_name, sample, "grasp_lift")
         self._cycle_mark("lift")
-        if self._prepared_on and not self._carry_monitor_skip:
+        if self._prepared_on and not self._attempt_ended_early():
             # P32 phase 2, stage 1 (the carry start): rank the next candidates
             # while the arm carries. The supply has advanced one setup span, and
             # on a sparse line the selector's 0.85 m window may hold nothing
@@ -12779,7 +12981,7 @@ class PickAndPlaceTask:
             # Remember the configuration that worked: it is the best seed for the
             # next episode on this arm.
             self._grasp_cache[arm_name] = np.asarray(grasp_config, dtype=float).copy()
-        if self._carry_monitor_skip:
+        if self._attempt_ended_early():
             # P7-2b fast-skip (see the knob block in `__init__` and
             # `_CarryMonitorLeg`): the monitor fired on the lift leg, so the
             # attempt ends at this leg boundary - the place leg and the
@@ -12793,6 +12995,14 @@ class PickAndPlaceTask:
             # the scope knob additionally arms the two-line worker's attempts,
             # this same boundary ends them and the worker's own park/gate/
             # arbiter path is reached exactly as after any early return.
+            #
+            # P83: the same boundary serves `FRUIT_FAIL_FAST` when the trip
+            # happened on the **lift** - the payload left the pinch there, so
+            # the place transfer was never going to carry it. `result.grasped`
+            # is computed above from the peak lift, i.e. by the shipped
+            # predicate, so the class is what the run-out would have scored;
+            # the `[fail-fast]` row (one per trip, inside `_carry_leg`) is the
+            # only new line and it is not a `notes` entry.
             if belt is not None and openarm:
                 belt.start()
             if not result.grasped:
@@ -12847,12 +13057,14 @@ class PickAndPlaceTask:
         if hub:
             # P30-B: the hub -> place leg ended (`hub_to_place` in the row).
             hub_marks["hub_place"] = self._sim_time()
-        if self._carry_monitor_skip:
+        if self._attempt_ended_early():
             # P7-2b fast-skip (see the knob block in `__init__`): the fire
             # belongs to the place leg; the attempt ends here, before the
             # release/retreat block, so the payload is not released onto the
             # output line (`placed=False`). Same conventions as the lift-leg
-            # skip above.
+            # skip above - and the same boundary carries P83's trip when the
+            # payload was lost in the place transfer: the release block, the
+            # retreat and the return are the ticks the abort exists to save.
             return result
         if verbose:
             jaw = arm.jaw_centre()
