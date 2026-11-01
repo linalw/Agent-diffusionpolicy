@@ -1,0 +1,188 @@
+==============================================================================
+0. PROVENANCE
+==============================================================================
+  PREREG.md md5 62c94cdcef07bf3f8a7aa61ebde0049d (pinned before the runs)  now 62c94cdcef07bf3f8a7aa61ebde0049d  UNCHANGED
+  # arms: D5/D6 = FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=1 FRUIT_CARRY_DIAG=1 FRUIT_BIARM_PARK_TRACE=1; F5/F6 = the same + FRUIT_FAIL_FAST=150
+  # controls re-run: D=the scheduler only; G1 compares them to
+  tree now (a mismatch against header.txt means the tree moved):
+    f1e44af6e9a9d6639cf1dbfd0f9f9cc7  src/fruit_sorting/tasks.py
+    7e2b7d7e0e2f9ed76abaea8cc423e958  src/fruit_sorting/bimanual.py
+    c7461d4104cf2c5f6c5a2daab80fbf32  src/fruit_sorting/fruits.py
+    eb697f23adb5d6b9ef8656f3319d3ce8  configs/motion_reference_twoline.json
+    fe5dd0b5a64395a7c0978ba72132d120  logs/p80/motion_reference_twoline_p80_20.json
+
+==============================================================================
+1. G1 - THE TRACKER + PARK TRACE ARE NEUTRAL ON THE TWO-LINE
+==============================================================================
+  `[fruit]` stream identity against P80's record. The phase's own diag
+  rows are dropped and nothing else (see DIAG in this file).
+  D5 vs logs/p80/T20.log: IDENTICAL (865 ref / 865 candidate physics lines; dropped: carry 36, carry-assist 108, park 60; prefix 865)
+  D6 vs logs/p80/T6.log: IDENTICAL (814 ref / 814 candidate physics lines; dropped: carry 32, carry-assist 96, park 60; prefix 814)
+
+==============================================================================
+2. THE ARMS AT A GLANCE (E1-E3, E8; wall from the stamps)
+==============================================================================
+ arm seed  placed  s/att      interval    p90 failed att   win batch  wall w/sim trips  polls
+  D5    5  16/20    9.70         10.77  18.00  13.35 s/4  5.57  4.96  2.85  1.74     0     44
+  F5    5  10/20    8.90         14.39  21.60 11.58 s/10  4.17  3.36  2.01  1.67     8     53
+  D6    6  10/20    9.70         19.34  35.60 12.22 s/10  3.10  3.11  1.92  1.61     0     33
+  F6    6  15/20    9.50         12.21  17.10   9.60 s/5  4.92  4.74  2.83  1.67     4     33
+
+==============================================================================
+3. PER ARM - idle, lock-on, starvation, class split (E4-E7)
+==============================================================================
+  D5: places 25 left / 19 right polls; mean idle 19.77 %
+    left  att=10 placed= 9 idle= 18 % interval= 19.64 (p90 23.10) lock-on=3.83 (p90 6.80, retries 19) | placed 9 cnp 0 never 1
+    right att=10 placed= 7 idle= 21 % interval= 26.52 (p90 39.70) lock-on=4.54 (p90 9.60, retries 19) | placed 7 cnp 0 never 3
+  F5: places 24 left / 29 right polls; mean idle 23.50 %
+    left  att=10 placed= 7 idle= 20 % interval= 18.90 (p90 21.60) lock-on=3.83 (p90 8.10, retries 18) | placed 7 cnp 2 never 1
+    right att=10 placed= 3 idle= 27 % interval= 47.80 (p90 57.30) lock-on=5.33 (p90 8.10, retries 29) | placed 3 cnp 2 never 5
+  D6: places 16 left / 17 right polls; mean idle 24.38 %
+    left  att=10 placed= 6 idle= 19 % interval= 31.76 (p90 66.30) lock-on=3.63 (p90 5.80, retries 10) | placed 6 cnp 3 never 1
+    right att=10 placed= 4 idle= 30 % interval= 50.30 (p90 96.30) lock-on=6.46 (p90 10.50, retries 17) | placed 4 cnp 2 never 4
+  F6: places 23 left / 10 right polls; mean idle 21.73 %
+    left  att=10 placed= 7 idle= 19 % interval= 25.87 (p90 55.50) lock-on=3.64 (p90 7.70, retries 17) | placed 7 cnp 3 never 0
+    right att=10 placed= 8 idle= 24 % interval= 22.21 (p90 39.30) lock-on=5.13 (p90 7.90, retries 10) | placed 8 cnp 0 never 2
+
+==============================================================================
+4. THE DECOMPOSITION AND THE REGISTERED ARITHMETIC (PREREG section 2)
+==============================================================================
+  interval ~= (attempts/placement x mean span) / concurrency + idle/concurrency
+  seed  D/F  interval  att/plc   span  span term  conc   idle trips failed
+     5   D5     10.77     1.25  15.30      19.12  1.58    20%     0      4
+     5   F5     14.39     2.00  13.38      26.75  1.50    24%     8     10
+     6   D6     19.34     2.00  13.87      27.73  1.44    24%     0     10
+     6   F6     12.21     1.33  14.12      18.82  1.49    22%     4      5
+
+==============================================================================
+5. THE PARK GATE (E6) - `FRUIT_BIARM_PARK_TRACE=1`, both arms
+==============================================================================
+  An arm already at ready returns with no trace line, so n counts real parks.
+  D5: l: n=10 blocked=0.0s (mean 0.0) motion=25.1s gate-wait=0tk | r: n=10 blocked=7.1s (mean 0.7) motion=24.5s gate-wait=852tk
+  F5: l: n=10 blocked=1.3s (mean 0.1) motion=24.9s gate-wait=157tk | r: n=10 blocked=9.1s (mean 0.9) motion=24.5s gate-wait=1096tk
+  D6: l: n=10 blocked=3.2s (mean 0.3) motion=24.5s gate-wait=392tk | r: n=10 blocked=21.8s (mean 2.2) motion=27.9s gate-wait=2625tk
+  F6: l: n=10 blocked=0.0s (mean 0.0) motion=24.8s gate-wait=0tk | r: n=10 blocked=13.6s (mean 1.4) motion=28.1s gate-wait=1619tk
+
+==============================================================================
+6b. THE CYCLE DECOMPOSITION (E10) - mean s per attempt, by class
+==============================================================================
+   arm   class   n prepose   hover descent   close    grip    lift   place release  return     end   total
+    D5  placed  16    0.71    0.76    3.20    1.22    2.06    1.64    3.19    2.35    0.66    0.00   15.78
+    D5  failed   4    0.71    0.74    4.17    2.00    3.99    1.65    0.00    0.00    0.00    0.09   13.34
+    F5  placed  10    0.71    0.72    3.11    1.21    1.81    1.64    2.60    2.14    0.59    0.00   14.51
+    F5  failed  10    0.71    0.79    3.86    1.57    3.30    0.96    0.79    0.23    0.05    0.00   12.25
+    D6  placed  10    0.71    0.75    3.06    1.21    1.79    1.68    3.34    2.36    0.64    0.00   15.52
+    D6  failed  10    0.71    0.75    3.28    1.79    2.87    1.82    0.68    0.16    0.07    0.09   12.21
+    F6  placed  15    0.71    0.76    3.19    1.21    1.89    1.63    3.21    2.37    0.64    0.00   15.60
+    F6  failed   5    0.71    0.74    2.62    2.08    2.59    0.84    0.00    0.00    0.00    0.00    9.59
+
+==============================================================================
+6c. THE SAVING BY FAILURE CLASS - and what the shipped line already skips
+==============================================================================
+  seed   class          control        treatment   delta
+     5  placed   15.78 s (n=16)   15.17 s (n=10)   -0.61
+     5     cnp        n/a (n=0)    11.15 s (n=4)     n/a
+     5   never    13.35 s (n=4)    11.87 s (n=6)   -1.48
+     6  placed   15.51 s (n=10)   15.62 s (n=15)    0.11
+     6     cnp    11.54 s (n=5)     8.20 s (n=3)   -3.34
+     6   never    12.90 s (n=5)    11.70 s (n=2)   -1.20
+
+  The shipped two-line already ends most lost attempts at a leg boundary:
+  a `grasped=False` attempt returns right after the lift (the shipped
+  `not result.grasped` return), and the P10-C carry monitor - armed by
+  default in a two-line session - skips the next leg at its boundary. Both
+  are read here as `place` absent from the `[cycle]` row.
+   arm  never: no place  cnp: no place  cnp: no release
+    D5              4/4            0/0              0/0
+    F5              6/6            1/4              2/4
+    D6              5/5            3/5              1/5
+    F6              2/2            3/3              0/3
+
+==============================================================================
+6. THE ABORT AUDIT (E9 / G4 / G5)
+==============================================================================
+  D5: trips=0  empty-pinch=0/0  placed legs=30  shortened=0  worst placed clean_slip=1.8 mm  carry rows=36
+  F5: trips=8  empty-pinch=7/8  placed legs=16  shortened=0  worst placed clean_slip=0.1 mm  carry rows=33
+    leg remainder + 50-tick tail: 107-365 ticks (mean 204 = 1.70 s); a place-leg trip also skips release + return
+    trip right      t  97/154  slip 151.4 mm  sep/gap 39.5/39.5  force 0.00/+0.00 N  contacts 0  onset/loss 2/72  d=(-65.0,-52.3,+126.4) mm
+    trip left       t   1/169  slip 354.4 mm  sep/gap 17.0/17.0  force 0.00/+0.00 N  contacts 0  onset/loss 1/1  d=(-278.4,-144.6,+165.0) mm
+    trip left       t 147/396  slip 159.4 mm  sep/gap 57.1/56.3  force 0.00/+0.00 N  contacts 0  onset/loss 103/132  d=(+29.1,+88.5,+129.4) mm
+    trip right      t  21/193  slip 156.7 mm  sep/gap 37.4/37.3  force 0.00/+0.00 N  contacts 0  onset/loss 1/1  d=(-80.2,-16.0,+133.6) mm
+    trip right      t  73/153  slip 161.1 mm  sep/gap 10.0/9.0  force 0.00/+0.00 N  contacts 0  onset/loss 2/69  d=(-104.2,-35.0,+117.7) mm
+    trip right      t  52/163  slip 155.5 mm  sep/gap 9.9/-2.2  force 9.33/+0.00 N  contacts 1  onset/loss 1/1  d=(-63.6,-29.1,+138.8) mm
+    trip right      t  30/114  slip 152.5 mm  sep/gap 23.8/23.8  force 0.00/+0.00 N  contacts 0  onset/loss 1/1  d=(+13.2,-150.3,+22.1) mm
+    trip left       t  59/374  slip 156.4 mm  sep/gap 52.8/52.1  force 0.00/+0.00 N  contacts 0  onset/loss 3/41  d=(-2.4,+54.3,+146.7) mm
+  D6: trips=0  empty-pinch=0/0  placed legs=16  shortened=0  worst placed clean_slip=0.2 mm  carry rows=32
+  F6: trips=4  empty-pinch=4/4  placed legs=29  shortened=0  worst placed clean_slip=0.4 mm  carry rows=35
+    leg remainder + 50-tick tail: 95-384 ticks (mean 182 = 1.52 s); a place-leg trip also skips release + return
+    trip right      t  46/380  slip 155.4 mm  sep/gap 29.8/29.8  force 0.00/+0.00 N  contacts 0  onset/loss 4/4  d=(+152.4,+30.3,+2.9) mm
+    trip right      t  26/112  slip 152.0 mm  sep/gap 47.8/47.8  force 0.00/+0.00 N  contacts 0  onset/loss 1/1  d=(+27.9,-147.6,+23.5) mm
+    trip left       t 106/171  slip 150.8 mm  sep/gap 28.4/27.6  force 0.00/+0.00 N  contacts 0  onset/loss 78/87  d=(-13.2,+10.3,+149.8) mm
+    trip left       t 116/161  slip 151.2 mm  sep/gap 63.8/63.0  force 0.00/+0.00 N  contacts 0  onset/loss 54/103  d=(-35.8,+68.4,+130.0) mm
+
+==============================================================================
+7. G2 - THE IN-BATCH PREFIX, AND G3 - THE FAILURE-REASON LEDGER
+==============================================================================
+  seed 5: F5 vs D5 DIFFERS (865 ref / 858 candidate physics lines, 8 trips)
+    first difference at line 95:
+      ref  : [fruit] [motion] carry grasp_lift: 20 cm, 154 ticks, |v|cmd=0.292 |a|cmd=0.706, slip_max=805.2 mm, in-hand |v|max=3.478 m/s, recoveries=0: s
+      cand : [fruit] [fail-fast] right grasp_lift: trip=t97/154 clean_slip=151.4mm >= 150mm d=(-65.0,-52.3,+126.4)mm sep=39.5mm gap=39.5mm force=0.00N fo
+    -> the candidate's first new line is the trip row itself: YES
+  seed 6: F6 vs D6 DIFFERS (814 ref / 835 candidate physics lines, 4 trips)
+    first difference at line 101:
+      ref  : [fruit] [motion] carry grasp_lift: 50 cm, 380 ticks, |v|cmd=0.294 |a|cmd=0.287, slip_max=346.7 mm, in-hand |v|max=0.763 m/s, recoveries=0: s
+      cand : [fruit] [fail-fast] right grasp_lift: trip=t46/380 clean_slip=155.4mm >= 150mm d=(+152.4,+30.3,+2.9)mm sep=29.8mm gap=29.8mm force=0.00N for
+    -> the candidate's first new line is the trip row itself: YES
+
+  failure reasons (p80lib `reasons`, control vs treatment), per seed:
+  seed 5:
+    D5: fruit did not follow the gripper x4
+    F5: fruit did not follow the gripper x6, grasped, not placed (no note) x4
+    -> new in treatment: ['grasped, not placed (no note)']   (a class this seed's control drew ZERO of, not a new text)
+  seed 6:
+    D6: fruit did not follow the gripper x5, grasped, not placed (no note) x5
+    F6: fruit did not follow the gripper x2, grasped, not placed (no note) x3
+    -> new in treatment: none
+  pooled over the two seeds: new in treatment = none
+
+==============================================================================
+8. THE REGISTERED DECISION (PREREG section 6)
+==============================================================================
+  M1 (G4+G5: empty-pinch trips, no placed leg shortened): FAIL
+  M2 seed 5 (failed attempt span): 13.35 -> 11.58 s  delta -1.77 s  (bar <= -3.0)  FAIL
+  M2 seed 6 (failed attempt span): 12.22 -> 9.60 s  delta -2.62 s  (bar <= -3.0)  FAIL
+  M2 overall: FAIL
+  T1 seed 5 (pooled interval): 10.77 -> 14.39 s  33.56 %  (bar <= -3 %)  FAIL
+  T1 seed 6 (pooled interval): 19.34 -> 12.21 s  -36.90 %  (bar <= -3 %)  PASS
+  T1 pooled (mean of the two seeds): -11.69 %  (bar <= -8 %)  PASS
+  T2 seed 5 (mean per-arm idle): 19.8 % -> 23.5 %  delta 3.7 pt  FAIL
+  T2 seed 6 (mean per-arm idle): 24.4 % -> 21.7 %  delta -2.7 pt  PASS
+  T3 window placed/min pooled: 4.34 -> 4.54  PASS
+  T3 batch  placed/min pooled: 4.03 -> 4.05  PASS
+  T3 wall   placed/min pooled: 2.39 -> 2.42 (1.44 %)  (bar >= -5 %)  PASS
+  M3 (G1, G2, G3, G6, G7, G8): FAIL  (G1_neutral=ok, prefix5=ok, prefix6=ok, reasons_seed5=FAIL, reasons_seed6=ok, reasons_pooled=ok, G4_G5_audit=FAIL, G6_gate_control_s5=ok, G6_gate_control_s6=ok, G6_budgets_F5=ok, G6_budgets_F6=ok, G7_no_timeout=ok)
+  count (report only, a branch draw): control 26/40 = 65.0 % -> treatment 25/40 = 62.5 %
+
+  MECHANISM GATE: FAIL   THROUGHPUT GATE: FAIL
+  -> NOT ADOPTED
+
+==============================================================================
+9. THE WALL AS RECORDED (E11) - within-batch only
+==============================================================================
+  P82's wake-on-request ships default on, so the two-line wall/sim here is
+  ~1.7 against P80's recorded 2.57: P80's wall column is a different harness.
+   arm   wall s  sim/att wall/pick wall/sim placed/min wall
+    D5    336.7     9.70     16.83     1.74            2.85
+    F5    298.3     8.90     14.92     1.67            2.01
+    D6    311.8     9.70     15.59     1.61            1.92
+    F6    317.7     9.50     15.88     1.67            2.83
+
+==============================================================================
+10. GATES AS RECORDED
+==============================================================================
+  D5.gate:   fingerprint: matches logs/p80/motion_reference_twoline_p80_20.json | PASS: every descent is inside its profile's speed and lurch bound, the carry cone/slip is reported, and the success rate is at or above the dynamic line's floor | 190: PASS logs/p84/D5.log
+  D6.gate_t6:   fingerprint: matches logs/p84/motion_reference_twoline_T6_20.json | PASS: every descent is inside its profile's speed and lurch bound, the carry cone/slip is reported, and the success rate is at or above the dynamic line's floor | 190: PASS logs/p84/D6.log
+  F5.gate: FAIL: 1 problem(s) |   - fingerprint differs from the reference (different attractor) | 190: FAIL logs/p84/F5.log
+  F6.gate: FAIL: 1 problem(s) |   - fingerprint differs from the reference (different attractor) | 190: FAIL logs/p84/F6.log
+  D6.gate (recorded, against the SEED-5 reference - DIFFERS by construction: a different seed is a different scenario)
+  budgets: F5/F6 are gated on motion budgets only (105, --min-success-rate 0.0) - the treatment is its own attractor
