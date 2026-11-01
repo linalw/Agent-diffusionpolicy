@@ -210,3 +210,18 @@ a `CoopSession`, so the cell has no path there); a saturated machine; the
 `grasp_lift` leg's own `a_max`/cone (the cell does not raise the acceleration -
 P44 §9 priced that at 0.00 s and transient spent); a **global** default (measured
 only as the S3/S13 pair on the single arm, P44).
+
+## 8. The end-of-phase checks on the final tree
+
+* `scripts/selfcheck.sh`: **PASS, 0 failures, 1 skipped** (`logs/selfcheck.log`;
+  the new leg is `P89 lift scope`).
+* `scripts/106_index_audit.py`: **OK** - every index matches the files it
+  describes; `scripts/107_collect_merge_test.py`: **PASS, all 21 checks**.
+* `scripts/accept.sh` (the shipped two-line scenario, ten attempts,
+  `logs/p89/accept_final.log`): **7/10 = 70 %, `fingerprint: matches
+  configs/motion_reference.json`, `190: PASS`** - the shipped branch, unchanged
+  by the phase (nothing was flipped, so no reference was re-recorded).
+* `logs/p89/gates.sh` -> `gates.out`: every admissibility clause (G0/G1/P6,
+  G2a/G2b/G2c) passes; the script's non-zero exit is the **registered verdict**
+  (`p89_report.py --blocks` -> the gate FAIL), which is the phase's outcome, not
+  a check failure.

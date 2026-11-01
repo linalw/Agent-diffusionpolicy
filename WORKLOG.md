@@ -22543,7 +22543,12 @@ constant and comments), `scene.py` **`fb6d9d33`**, `rl_env.py` **`b81d59b6`**
 (the `TASKS_MD5` follow), `scripts/249_p89_lift_scope_selftest.py` (new selfcheck
 leg), `scripts/selfcheck.sh` (the `P89 lift scope` leg); `configs/*` untouched
 (`423896f7` / `423896f7` / `8952c320`); ckpt `moe_v13s` `61da390a`;
-`189_w7a_chain.sh` not run. Evidence `logs/p89/`: `PREREG.md` (+`PREREG.md5`),
+`189_w7a_chain.sh` not run. **The final tree's own checks**: `selfcheck.sh`
+**PASS** (0 failures, the new `P89 lift scope` leg), `106`/`107` **OK / PASS 21
+checks**, and `scripts/accept.sh` **7/10 = 70 %, `fingerprint: matches
+configs/motion_reference.json`, `190: PASS`** (`logs/p89/accept_final.log`) - the
+shipped branch, unchanged because nothing was flipped. Evidence `logs/p89/`:
+`PREREG.md` (+`PREREG.md5`),
 `PREREG_A1.md` (+`.md5`), `RESULTS.md`, `p89_report.py` -> `p89_report.txt`,
 `run_p89.sh`, `run_p89_extra.sh`, `gates.sh` -> `gates.out`, `header.txt`,
 `battery_driver.log`, `extra_driver.log`, the cells
