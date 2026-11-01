@@ -374,6 +374,19 @@ run_check "P64 left precomp" "$python" scripts/234_p64_precomp_selftest.py
 # canary pin `two_line=False`, the collector manifest's four new provenance keys,
 # and `accept.sh` gating a two-line session through `190`.
 run_check "P85 two-line default" "$python" scripts/246_p85_selftest.py
+# P87: the release trim as a **two-line-scoped shipped default**. P86 measured
+# the S2 cell (dwell 20 -> 0, the pad/finger settles 3 -> 2 = -76 ticks) as a
+# clean positive on the two-line, but the knob is read at a site **every**
+# presentation shares - so the flip is scoped, not global. The leg runs the real
+# resolver and the real provenance builder: unset + no scope is `_SPEED_SHIPPED`
+# **exactly** (the single arm / shared station / canary / direct env cannot
+# move), unset + two-line is P86's 0/2/2, the override table (`=0` restores even
+# on the two-line, `=1` and `FRUIT_SPEED_ALL` still win globally, `=0` beats the
+# union, `FRUIT_SPEED_RELEASE_SETTLE` moves the settle only when the cell is on),
+# the clock arithmetic (188 / 112 / saved 76), the scope being the **session**
+# predicate at exactly one call site, the `[biarm] release profile:` row printing
+# only inside `run_bimanual`, and `physics.release` in both manifest writers.
+run_check "P87 release scope" "$python" scripts/247_p87_release_scope_selftest.py
 
 if [ -n "$run_log" ] && [ -f "$run_log" ]; then
     # P85: the log decides the scenario (and therefore the reference and the

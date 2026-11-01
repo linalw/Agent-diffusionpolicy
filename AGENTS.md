@@ -27,12 +27,22 @@ also call `fruit_sorting.fdlimit.raise_fd_limit()` before creating `SimulationAp
 so invoking `$ISAAC_SIM_DIR/python.sh` directly no longer dies that way; the wrapper
 is still the supported path.
 
-**P85 (2026-11-01) supersedes every acceptance number below in this section: the
-shipped scripted cell is now the bimanual two-line**, so `scripts/accept.sh` runs
-a *different scenario* (7/10, `configs/motion_reference.json` = `eb697f23`, the
-two-line floor 0.60) and `FRUIT_BIARM=0` restores the single-arm record archived
-at `logs/p85/motion_reference_single_pre_p85.json` (`8952c320`, 6/9). Read §2's
-"P85" paragraph before quoting any acceptance, rate or store from here.
+**P87 (2026-11-01) re-baselines the acceptance again: the shipped two-line cell
+now runs the release trim** (P86's S2 cell, `FRUIT_SPEED_RELEASE`, as a
+**two-line-scoped** default), so the acceptance reads **7/10, 9.4 s/attempt**
+with `configs/motion_reference.json` = **`423896f7`** (re-recorded from
+`logs/p87/accept10.log`; the pre-P87 file `eb697f23` is archived at
+`logs/p87/motion_reference_pre_p87.json`, and `configs/motion_reference_single.json`
+`8952c320` is **untouched**). **Every two-line rate, span or interval recorded
+before P87 is a 2.35 s-release number; `FRUIT_SPEED_RELEASE=0` restores it.**
+
+**P85 (2026-11-01) superseded every acceptance number below in this section: the
+shipped scripted cell became the bimanual two-line**, so `scripts/accept.sh` runs
+a *different scenario* (7/10, `configs/motion_reference.json` = `eb697f23` at the
+time, the two-line floor 0.60) and `FRUIT_BIARM=0` restores the single-arm record
+archived at `logs/p85/motion_reference_single_pre_p85.json` (`8952c320`, 6/9).
+Read §2's "P85" and "P87" paragraphs before quoting any acceptance, rate or store
+from here.
 
 **On this tree (P32, 2026-10-22) the acceptance reads 6/10 with the pear and
 7/10 with only the pear profile reverted - both below the 75 % dynamic floor -
@@ -4068,12 +4078,109 @@ p86_report.txt,run_p86.sh,gates.sh,header.txt,battery_driver.log}`,
 `{C5,R5,C6,R6}.{log,stamps,driver}`, `{C5,C6}.gate`, `{R5,R6}.gate`,
 `{C5,R5,C6,R6}.budgets`, `motion_reference_twoline_C6_20.json`; WORKLOG "P86".
 
+**P87 (2026-11-01, `logs/p87/`; **one shipped change: the release trim is the
+two-line session's default** - scoped, not global - and nothing else moved): the
+gap displays **-0.64 s of pure dwell at both seeds**, the scope is proven
+**bit-for-bit**, and one descent leg on one seed keeps the flip in the
+"considered trade" tier rather than a clean pass.** P86 measured the S2 cell and
+priced it; the blocker to shipping it was that the release block is read at a
+site **every** presentation shares (`_grasp_carry_place_impl`), so a *global*
+default would also move the single arm, the shared-station pipeline, the hybrid
+canary (`60_eval_policy.py` builds its own `PickAndPlaceTask`) and the scripted
+collector - none of which P86 measured. P87 ships it **two-line-scoped**, the
+`_dynamic_profile` pattern: **`FRUIT_SPEED_RELEASE` now resolves ON for a
+two-line session** (`dwell` **20 -> 0**, the pad/finger settles **3 -> 2** =
+**-76 ticks = -0.633 s** at 120 Hz, `origin=default`) and **off everywhere else**
+(`origin=scope-off`, the shipped 20/3/3). **`FRUIT_SPEED_RELEASE=0` restores** on
+the two-line too, an explicit **`=1` still wins globally** (as does
+`FRUIT_SPEED_ALL=1`, the S13 union; an explicit `=0` beats the union), and
+`FRUIT_SPEED_RELEASE_SETTLE` still moves the settle, read only when the cell is
+on. One resolver (`tasks.release_speed_resolution`) feeds the per-attempt holds,
+the new **`[fruit] [biarm] release profile:`** row and the store manifest's
+**`physics.release`** block; the scope argument is
+**`Task.two_line_enabled()`** (the `CoopSession` predicate), so a path with no
+session cannot arm it. **The gate (PREREG `738c1b54`, pinned before the runs;
+`ATTEMPTS=20`, seeds 5/6, arms = `FRUIT_SPEED_RELEASE=0` vs unset, P86's
+instrumentation on both):** **G0 - the flip is resolution-only, proved by
+replay**: the four cells are **byte-identical to P86's own four** on the
+`[fruit]` stream (`C5` **865/865** = `logs/p86/C5.log`, `T5` **865/865** =
+`R5`, `C6` **814/814** = `C6`, `T6` **821/821** = `R6`, dropping the diag rows
+**and the one new row**, which reads `=1(default)` where P86's treatment read
+`=1(explicit)`) - **so the shipped default *is* the measured arm, bit for bit**,
+and P86's whole measurement transfers. **P1a PASS both seeds**: the `[cycle]
+release=` **median** falls **-0.645 / -0.640 s** (**77 / 77 ticks**) against the
+registered -0.633 +- 0.03, and in **all four arm-seed cells** (-0.640/-0.640 at
+seed 5, -0.635/-0.615 at seed 6). **P2 PASS both seeds** - the pooled interval
+**10.77 -> 10.59** and **19.34 -> 11.08 s**, and on **both arms at both seeds**;
+the seed-5 pair is the clean read (16/20 identical, same 9/10 + 7/10 split, so
+the -0.18 s is the lever), seed 6's -8.26 s carries a +2 count draw. **P3 PASS**
+(**28/28** payload-present releases `on_belt`, in the control's own
+height/impact/bounce band: 32.1-64.3 mm, -0.93..-0.61 m/s, bounce <= 4.9 mm);
+**P4 PASS** (no new reason key at either seed; the `force_min == 0` loaded-slide
+guard flat at seed 5 (4 -> 4) and better at seed 6 (11 -> 7)); **P5 (reported,
+never gated)** window **5.57 -> 5.66 / 3.10 -> 5.41** placed/min, batch **4.96 ->
+5.05 / 3.11 -> 3.94**, wall **328.4 -> 325.4 / 308.2 -> 306.3 s**,
+**`placed/min wall` 2.92 -> 2.95 / 1.95 -> 2.35**. **P6 is the one clause that
+misses its clean-pass form**: **seed 5 is clean (0/20 legs)** and **seed 6 has
+exactly one leg over budget** - leg 12, a 5.9 cm descent, `|v|max` **0.164**
+against its **0.160** per-leg budget (2.5 % over, lurch 0.036 of 0.291) - which
+is **the same leg P86's R6 recorded**, so the 40-attempt sample answers P86's
+open question the only way it could: the excursion is a **deterministic property
+of that seed's branch**, not a random draw and not a systematic cost (T5's worst
+is 0.111). By PREREG §5's pre-registered tier that is a **CONSIDERED TRADE -
+ship, P6 documented**, not a clean pass; the budget was **not** re-tuned (AGENTS
+§2) and the named next spend is a third seed if the owner wants it priced
+further. **The inertness is proven, not argued**: `FRUIT_BIARM=0
+scripts/accept.sh` is **346/346 raw byte-identical** to
+`logs/p71/accept_rails_none.log` (**the new row does not print on the single
+arm at all** - 0 occurrences) with `fingerprint: matches
+configs/motion_reference_single.json`, and the shared-station pair (`=1
+FRUIT_BIARM_TWOLINE=0`, 4 attempts, unset vs `=0`) is **identical on all 218
+other `[fruit]` lines** with the **same resolved clock** (20/3/3, 188 ticks) -
+the one difference is the row's `origin` field (`scope-off` vs `explicit`),
+which is what the label is for; that is **PREREG deviation A1**, recorded in
+`logs/p87/RESULTS.md`. **`190`**: C5 **PASS** vs P80's seed-5
+20-attempt reference, C6 **PASS** vs P86's seed-6 record; T5/T6 **DIFFER by
+construction** and were gated on budgets only. **Re-recorded, two-line side
+only**: `configs/motion_reference.json` `eb697f23` -> **`423896f7`** and
+`configs/motion_reference_twoline.json` `eb697f23` -> **`423896f7`** (both from
+`logs/p87/accept10.log`; the pre-flip pair is archived at
+`logs/p87/motion_reference_pre_p87.json` /
+`..._twoline_pre_p87.json`); **`configs/motion_reference_single.json`
+`8952c320` is untouched**. `scripts/234` (P64) pinned the P85 *value*; it now
+pins the *arrangement* (acceptance == two-line record, single-arm = `8952c320`),
+which is the invariant that can break. **Provenance before any recollection**:
+`scene._release_provenance` writes `physics.release={dwell, pad_hold,
+finger_hold, ticks, shipped_ticks, saved_ticks, profile, origin, two_line,
+label}` in **both** manifest writers (the collector passes its own `TWO_LINE`,
+the direct env `False`), so a store **without** the key predates P87. The
+acceptance on the final tree reads **7/10 = 70 %, 9.4 s/attempt,
+`fingerprint: matches`, `190: PASS`** (`logs/p87/accept_final.log`, byte-identical
+to the reference-source run); selfcheck **PASS (0 failures)** with the new `247`
+leg. **Re-baseline: every two-line rate, span or interval recorded before P87 is
+a 2.35 s-release number; `FRUIT_SPEED_RELEASE=0` restores it** (compose with
+`FRUIT_ARM_PARK=ready` for pre-P43, `FRUIT_POLICY_TRIGGER_ACQ=0` for pre-P54 and
+`FRUIT_FEED_CADENCE=0 FRUIT_SUPPLY_BAND_INTERLOCK=0 FRUIT_DIRECT_FEED=0` for the
+pre-P58 **direct** profile - which this flip never reaches). Pins: `tasks.py`
+**`6b267ecc`**, `scene.py` **`047d9e7b`**, `rl_env.py` **`b5b31919`**
+(metadata-only `TASKS_MD5` follow), `scripts/40_collect_demos.py` **`77e0331f`**,
+`scripts/247_p87_release_scope_selftest.py` **`a4aa4756`**, `scripts/225`
+**`395d3cd3`** (the scoped-call census), `scripts/234` **`4c1c78a3`**;
+`configs/motion_reference.json` `423896f7` / `..._twoline.json` `423896f7` /
+`..._single.json` `8952c320`; ckpt `moe_v13s` `61da390a`. Evidence
+`logs/p87/{PREREG.md,PREREG.md5,RESULTS.md,p87_report.py,p87_report.txt,
+run_p87.sh,run_p87_extra.sh,gates.sh,gates.out,header.txt}`, `{C5,T5,C6,T6}.{log,
+stamps,driver}`, `{C5,T5,C6,T6}.gate`, `{C5,T5,C6,T6}.budgets`,
+`single_accept.*`, `shared_{unset,zero}.*`, `accept10.*`, `accept_final.*`;
+WORKLOG "P87".
+
 ## 3. What changed -> what to run
 
 | you changed | run |
 | --- | --- |
 | a **throughput or rate** claim (a speed profile, a scheduler/supply change, a wall number) | `scripts/186_w6_report.py` on **>= 2 seeds** with **both denominators** (placement window and batch span) **and the wall column** (`logs/p80/p80_report.py` is the template: wall from per-line stamps, never inferred), that scenario's own motion gate (single arm: `105 --fingerprint configs/motion_reference.json`; two-line: `scripts/190_twoline_gate.sh` against a reference of the **same attempt count**), then `scripts/accept.sh` |
 | a **per-leg profile or dwell** change (`FRUIT_SPEED_RELEASE/PLACE/LIFT`, a `[cycle]` block that moves) | `FRUIT_CYCLE_REPORT=1 FRUIT_PLACE_TRACE=1` on **both** arms, **>= 2 seeds**, then the `[cycle]` per-leg block table **by median** (`logs/p86/p86_report.py --blocks`): the **block** is the mechanism, **never the attempt span** - the span carries the supply-phase acquisition legs and re-draws with the shifted attempt boundary (`logs/p86/RESULTS.md` §3, P44 §3). Delivered: the interval (pooled **and** per arm), both denominators, the wall and `placed/min wall`. Landing: `FRUIT_PLACE_TRACE`'s `on_belt` on **every payload present at the release** (`release_bottom >= 0`; the -184 mm rows are the upstream-lost class, reported separately). Then the scenario's own motion gate - a profile change **moves the fingerprint by construction**, so budgets-only for the treatment and a same-seed reference for its control |
+| the **release clock's scoped default** (`tasks.release_speed_resolution`, `speed_cell_defaults(two_line)`, the `[biarm] release profile:` row, `scene._release_provenance`, the manifest's `physics.release`) | `scripts/selfcheck.sh` (the `247` leg: the resolver table - unset/no-scope **is** `_SPEED_SHIPPED` exactly, unset/two-line is the trim, `=0` restores, `=1`/`FRUIT_SPEED_ALL` win globally, `=0` beats the union, the settle is read only when on - the clock arithmetic, the single scoped call site, the row printing only inside `run_bimanual`, and `physics.release` in both writers), then **the replay first**: the same-seed cells must be **byte-identical to the pre-flip record** on the `[fruit]` stream with the phase's rows dropped (`logs/p87/p87_report.py --same`; P87's four cells are 865/865 / 865/865 / 814/814 / 821/821 against P86's), then **the inertness pair** - `FRUIT_BIARM=0 scripts/accept.sh` **raw 346/346** against `logs/p71/accept_rails_none.log` (+ `fingerprint: matches configs/motion_reference_single.json`) and a shared-station `=1 FRUIT_BIARM_TWOLINE=0` pair unset-vs-`=0` compared with `--same` **and** `--profile` (the row's `origin` field legitimately differs; the **clock** must not) - then a 10-attempt shipped acceptance to re-record the two-line references, then `scripts/accept.sh` |
 | docs, or a number's provenance/data size | `python3 scripts/106_index_audit.py` and `python3 scripts/107_collect_merge_test.py` |
 | motion, control, `trajectory` limits, IK | `python3 scripts/96_motion_check.py`, then `scripts/accept.sh` |
 | collection (`40_collect_demos.py`) or merging (`41_merge_demos.py`) | `scripts/107_collect_merge_test.py`, then `python3 scripts/106_index_audit.py` |

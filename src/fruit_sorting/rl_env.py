@@ -452,7 +452,12 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: is a **`scripted`-only** knob read by `PickAndPlaceTask.__init__`, so the
 #: direct env neither arms it nor can reach it - the pin below follows the new
 #: `tasks.py` hash without a behaviour change on this path.
-TASKS_MD5 = "f07a865aa84a15ef849286bdb4147daa"
+#: P87 follow is **metadata-only** too: the release clock's two-line default is
+#: scoped by `Task.two_line_enabled()` (a `CoopSession` predicate this env never
+#: satisfies) and the manifest builder passes `two_line=False`, so the direct
+#: path's release clock is the shipped 20/3/3 unless an explicit
+#: `FRUIT_SPEED_RELEASE`/`FRUIT_SPEED_ALL` says otherwise.
+TASKS_MD5 = "6b267ecc1bd4feb74561255f8a36e9de"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(
@@ -2982,12 +2987,18 @@ class SortingRLEnv:
         Kept as a method so a failure cannot take the manifest (or the run)
         down: the collector's builder raises nothing by design, but an env that
         cannot read its own articulation is a reported state, not a crash.
+
+        `two_line=False` (P87): this env never runs a `CoopSession`, so its
+        release clock is the shipped one unless `FRUIT_SPEED_RELEASE` /
+        `FRUIT_SPEED_ALL` says otherwise - the block records which. The scope
+        argument is the same predicate `_grasp_carry_place_impl` passes to
+        `speed_cell_defaults`, so the store and the run cannot disagree.
         """
         try:
             from .scene import finger_physics_provenance
 
             return finger_physics_provenance(
-                arms=self.task.arms, scope=self._finger_cap_scope
+                arms=self.task.arms, scope=self._finger_cap_scope, two_line=False
             )
         except Exception as exc:  # noqa: BLE001 - provenance must not stop a run
             return {"finger_drive": {"source": "error", "why": str(exc)}}

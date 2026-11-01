@@ -1,33 +1,41 @@
 # The cell's throughput: what it is, what the levers are, and how to read a rate
 
-One page. It condenses P80-P84 (`logs/p80/`..`logs/p84/`, AGENTS §2's paragraphs)
-into the measured throughput of the shipped tree, the two levers priced against it,
-the one that shipped, the two that did not, and the read rules that bind the next
+One page. It condenses P80-P87 (`logs/p80/`..`logs/p87/`, AGENTS §2's paragraphs)
+into the measured throughput of the shipped tree, the levers priced against it,
+the two that shipped, the three that did not, and the read rules that bind the next
 number anybody quotes. Every figure traces to a log in `logs/`.
 
 ## The number today
 
+**Since P87 the shipped two-line cell runs the release trim** (`FRUIT_SPEED_RELEASE`
+resolves **on for a two-line session**, off everywhere else - the P86 cell, shipped
+scoped; `logs/p87/RESULTS.md`), so the cell is **-76 ticks = -0.633 s of pure dwell
+per placed attempt** faster than every figure P80-P86 printed on the same scenario.
 **Since P85 the two-line is the shipped scripted cell** (`FRUIT_BIARM` and
 `FRUIT_BIARM_TWOLINE` both default `1`, the owner's sign-off on the grade-pure
 routing semantics; `logs/p85/RESULTS.md`). The table below is that cell as it
 ships - the "single arm" column is the pre-P85 shipped cell, restored with
-`FRUIT_BIARM=0`. Nothing in the two-line row moved by the flip: the pre-flip
+`FRUIT_BIARM=0`. Nothing in the two-line row moved by the P85 flip: the pre-flip
 *explicit* two-line records are replayed **865/865** (seed 5) and **814/814**
-(seed 6) `[fruit]` physics lines, so the flip changed reachability, not physics.
+(seed 6) `[fruit]` physics lines, so the flip changed reachability, not physics;
+the P87 cells are likewise replayed **865/865** and **814/814** against P86's own
+four, so the scoped trim *is* the arm P86 measured.
 
 Shipped scripted cell, 20 slots, seed 5 (`logs/p85/` = P80's scenario with P82's
-wall):
+wall; the P87 row is `logs/p87/T5.log`, the same scenario with the trim):
 
 | | placed | sim s/attempt | inter-placement interval | placed/min (window / batch) | wall/pick |
 | --- | --- | --- | --- | --- | --- |
-| **two-line (shipped)** | 16/20 = 80 % | **9.70** | **10.77 s** mean / 18.00 p90 | **5.57 / 4.96** | **16.6 s** |
+| **two-line (shipped, pre-P87 clock)** | 16/20 = 80 % | 9.70 | **10.77 s** mean / 18.00 p90 | **5.57 / 4.96** | 16.6 s |
+| **two-line (shipped, P87 trim)** | 16/20 = 80 % | **9.50** | **10.59 s** mean / 17.80 p90 | **5.66 / 5.05** | **16.3 s** |
 | single arm (`FRUIT_BIARM=0`) | 12/19 = 63 % | **15.10** | **26.72 s** mean / 36.90 p90 | **2.25 / 2.08** | 25.2 s |
 
 The shipped **acceptance** is the two-line scenario at ten attempts: **7/10,
-9.2 s/attempt**, fingerprint `configs/motion_reference.json` = `eb697f23` (the
-same bytes as `configs/motion_reference_twoline.json` - see "What is left").
-The single arm's own acceptance record is archived and shipped as
-`configs/motion_reference_single.json` (6/9).
+9.4 s/attempt**, fingerprint `configs/motion_reference.json` = `423896f7` (the
+same bytes as `configs/motion_reference_twoline.json` - see "What is left"); it
+was `7/10, 9.2 s` and `eb697f23` before P87. The single arm's own acceptance
+record is archived and shipped as `configs/motion_reference_single.json` (6/9),
+**untouched by the flip** - and proven byte-identical end to end (346/346).
 
 Two facts fix the interpretation:
 
@@ -95,7 +103,7 @@ restores the timeout); a post-flip 4-attempt pair reads 85.9 s against 119.0 s o
 `[fruit]` span with byte-identical streams. **This is a latency fix, not a physics
 change** - no motion reference and no store moves because of it.
 
-## The two negatives (do not re-spend them)
+## The three negatives (do not re-spend them)
 
 **Fail fast on a lost payload** (P83 single arm, P84 two-line) looked like the
 cheapest 10 %: the cell runs a ~400-tick place leg after the payload is already
@@ -115,6 +123,41 @@ a failure must not raise `attempts/placement`; this one does.**
 **cycle-time** lever, not a throughput lever: -1.70 s/attempt on the single arm and
 -1.00 s on the two-line, -12 % wall/pick, but the interval **+4.9 %** and the
 placement window **-4.9 %**, its count cost being P51's closed acquisition class.
+
+**A per-seed attempt-span gate** (P86's P1b) is not a lever but a *test design*
+that fails: a profile cell's saving is exact in the `[cycle]` block and **not**
+in the attempt span, because the span carries the acquisition legs and they
+re-draw whenever the attempt boundary moves (residual +0.17 / -0.12 s - it
+sign-flips across two seeds). Read rule 6 keeps this closed.
+
+## Lever 3: the release block - pure dwell, shipped in P87
+
+P44's S2 cell (`FRUIT_SPEED_RELEASE`) is the **separable** third of the speed
+union: the place leg's three open-loop holds, `dwell` **20 -> 0** and the pad /
+finger settles **3 -> 2** = **-76 ticks = -0.633 s** at 120 Hz, with no
+trajectory endpoint moved. P86 measured it on the shipped two-line and P87
+shipped it **scoped to the two-line session**:
+
+* the `[cycle] release=` **median** falls **-0.645 / -0.640 s (77 / 77 ticks)**
+  at seeds 5 / 6, and in **all four arm-seed cells** (-0.640/-0.640,
+  -0.635/-0.615) - exact against the arithmetic;
+* the pooled interval falls at **both** seeds (10.77 -> 10.59 and 19.34 ->
+  11.08 s) and on **both arms at both seeds**; the seed-5 pair is the clean read
+  (identical 16/20 and an identical 9/10 + 7/10 arm split), seed 6's -8.26 s
+  carries a +2 count draw;
+* **28/28** payload-present releases land on the output belt in the control's own
+  height/impact/bounce band (32.1-64.3 mm, -0.93..-0.61 m/s, bounce <= 4.9 mm),
+  the failure ledger gains **no class**, and the `force_min == 0` loaded-slide
+  guard is flat at seed 5 (4 -> 4) and better at seed 6 (11 -> 7);
+* the **scope is what shipped**: the trim is read at a site every presentation
+  shares, so it is defaulted **on for a two-line session and off everywhere else**
+  (`FRUIT_SPEED_RELEASE=0` restores; `=1` still wins globally). The single-arm
+  acceptance is **346/346 raw identical** to its pre-flip record and the shared
+  station's clock is unchanged (20/3/3, 188 ticks), which is the inertness proof;
+* **one descent leg on one seed is 2.5 % over its budget** (leg 12, 5.9 cm,
+  0.164 against 0.160) - the same leg P86 recorded, so the 40-attempt sample says
+  it is a **branch property of that seed, not a draw**: the flip shipped as a
+  **considered trade**, and the descent profile was **not** re-tuned to admit it.
 
 ## The read rules (they bind the next rate claim)
 
@@ -139,6 +182,21 @@ placement window **-4.9 %**, its count cost being P51's closed acquisition class
    number is the interval, and the span is a report (P86, `logs/p86/RESULTS.md`
    §3 - there the span moved -0.48 s where the block moved -0.64 s, with a
    sign-flipping +0.17/-0.12 s acquisition residual).
+7. **A scoped default owes a replay and an inertness pair, not an argument.**
+   P87's proof shape: the same-seed cells must be **byte-identical to the
+   pre-flip record** on the `[fruit]` stream (`logs/p87/p87_report.py --same`,
+   the phase's own new row dropped) - that is what makes "the shipped default is
+   the measured arm" a fact rather than a reading - and every path the scope must
+   not touch owes its own byte identity: the single arm **raw 346/346** against
+   its pre-flip acceptance, the shared station a pair whose **clock** must match
+   (`--profile`: the row's `origin` field is *supposed* to differ, that is the
+   label's job). A default that moves a path with no such record has not been
+   scoped, only declared.
+8. **The release clock is provenance now.** A store recorded under the trim
+   differs from a pre-P87 one in its **attempt timing** without moving a
+   trajectory endpoint, so both manifest writers carry
+   `physics.release={dwell,pad_hold,finger_hold,...}`; a manifest **without** the
+   key predates P87, and park/no-park-style mixing of the two is not allowed.
 
 ## What is left
 
@@ -148,12 +206,20 @@ placement window **-4.9 %**, its count cost being P51's closed acquisition class
   shard from a pre-flip one). **Re-baseline rule: every rate, acceptance and
   store recorded before P85 is a single-arm (or explicitly opt-in two-line)
   number.**
+* **The release trim on it (P87, done).** Shipped **two-line-scoped**; see "Lever
+  3". **Re-baseline rule: every two-line rate, span or interval recorded before
+  P87 is a 2.35 s-release number; `FRUIT_SPEED_RELEASE=0` restores it**, and a
+  store without `physics.release` predates the flip. The one open number is the
+  **descent excursion** (seed 6's leg 12, 0.164 vs 0.160) - priced as a branch
+  cost, and a third seed is the spend that would price it further.
 * **The first acceleration read on the new default (P85-ACC, `logs/p85/ACCEL.md`).**
   The P44 speed union's *time* transfers exactly - `place` -0.84 s, `release`
   -0.72 s, `lift` -0.13 s, **-1.00 s/attempt at both seeds** - and its *delivered*
   side has no stable sign: 16 -> 13 placed at seed 5, 10 -> 14 at seed 6, pooled
   26 -> 27 of 40. Not adopted; the class that absorbs it is the closed grip class
-  below.
+  below. **Its `release` third is now the shipped clock (P87)** - the union's
+  remaining cells are `place` (-0.75 s) and `lift` (-0.24 s), and P51 is why they
+  cannot be made class-clean.
 * **The release block, priced on its own (P86, `logs/p86/`).** `FRUIT_SPEED_RELEASE=1`
   (dwell 20 -> 0, pad ramp 3 -> 2, finger ramp 3 -> 2 = **-76 ticks = -0.633 s**)
   moves the `[cycle]` release block by **-0.615..-0.640 s = 74-77 ticks in all
@@ -161,10 +227,11 @@ placement window **-4.9 %**, its count cost being P51's closed acquisition class
   payload-present releases on the output belt, and lowers the interval on both
   arms at both seeds (10.77 -> 10.59 at seed 5 with an identical 16/20 and an
   identical arm split; 19.34 -> 11.08 at seed 6, confounded with a +2 count
-  draw). Not adopted: the phase's own attempt-span clause missed its band (see
-  read rule 6) and one R6 descent leg read 2.5 % over its budget with the descent
-  profile untouched. It is the **first separable** speed cell - the union's
-  `release` third, measured alone - and the cheapest re-entry on this page.
+  draw). P86 recorded it as a measured positive and **not adopted** - its own
+  attempt-span clause missed its band (read rule 6) and one R6 descent leg read
+  2.5 % over its budget with the descent profile untouched. **P87 shipped it
+  two-line-scoped** (Lever 3): the span clause was a test-design defect, not a
+  property of the cell, and the descent leg reproduced as the branch's cost.
 * **The residual 1.19x of wall** - two arms' control plus the permit handoff, with
   the shared physics step at **75 % of what remains**. No arbiter change can move
   it; it is the cost of two arms in one PhysX scene.

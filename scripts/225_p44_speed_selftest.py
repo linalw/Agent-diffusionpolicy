@@ -245,8 +245,18 @@ def main() -> int:
         ):
             assign = node
     check(assign is not None, "the place cap is assigned (`limits.v_max = place_v`), not min()'d")
-    check("_speed = speed_cell_defaults()" in TASKS_SRC,
-          "both consumers build the resolver dict (`_speed = speed_cell_defaults()`)")
+    # P87: the release-carrying consumer passes the **session scope**; the
+    # per-leg consumer (`_carry_leg`, place/lift keys only) does not. Both build
+    # the resolver dict and neither carries a literal.
+    scoped = [node for node in ast.walk(tree)
+              if isinstance(node, ast.Call)
+              and isinstance(node.func, ast.Name)
+              and node.func.id == "speed_cell_defaults"]
+    check(len(scoped) == 2, f"both consumers call `speed_cell_defaults` ({len(scoped)})")
+    check(any(len(node.args) == 1 for node in scoped),
+          "the release-carrying consumer passes the P87 session scope")
+    check(any(len(node.args) == 0 for node in scoped),
+          "the per-leg place/lift consumer keeps the unscoped call")
 
     print("=" * 78)
     print("PASS: the speed cells are default-off, one knob each, and the shipped strings win when unset")

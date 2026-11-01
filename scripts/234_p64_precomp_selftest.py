@@ -244,14 +244,19 @@ def main() -> int:
         # same bytes; the pre-P85 single-arm record is archived
         # (`logs/p85/motion_reference_single_pre_p85.json`) and shipped as
         # `configs/motion_reference_single.json` for the `FRUIT_BIARM=0` restore.
-        check(md5(ROOT / "configs/motion_reference.json") ==
-              "eb697f23adb5d6b9ef8656f3319d3ce8"
-              and md5(ROOT / "configs/motion_reference_twoline.json") ==
-              "eb697f23adb5d6b9ef8656f3319d3ce8"
-              and md5(ROOT / "configs/motion_reference_single.json") ==
+        # **P87** re-records both two-line-side files from the release-trimmed
+        # branch (`423896f7`, from `logs/p87/accept10.log`; the pre-flip pair is
+        # archived in `logs/p87/`). The invariant this line is here for is the
+        # *arrangement*, not one phase's hash: the acceptance reference **is**
+        # the two-line record, and the single-arm restore is untouched. A pinned
+        # md5 is re-pinned every phase that re-records; the arrangement is not.
+        acceptance = md5(ROOT / "configs/motion_reference.json")
+        twoline = md5(ROOT / "configs/motion_reference_twoline.json")
+        check(acceptance == twoline,
+              f"the shipped acceptance reference IS the two-line record ({acceptance[:8]})")
+        check(md5(ROOT / "configs/motion_reference_single.json") ==
               "8952c320d798ef42e03ba815c9e96b23",
-              "the shipped acceptance reference is the two-line record "
-              "(eb697f23), the single-arm restore keeps 8952c320")
+              "the single-arm restore still keeps the pre-P85 record (8952c320)")
         env_pin = env_src.split('TASKS_MD5 = "', 1)[1].split('"', 1)[0]
         check(env_pin == md5(ROOT / "src/fruit_sorting/tasks.py"),
               f"TASKS_MD5 follows tasks.py ({env_pin[:8]})")

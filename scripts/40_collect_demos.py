@@ -169,10 +169,16 @@ def _physics_provenance() -> dict:
     caps back (`get_dof_gains` / `get_dof_max_efforts`); `joint2`'s 0.0 N cap is
     why the second jaw face cannot push (phase 1: the byte-identical
     `rho_asset` cell).
+
+    `two_line` (P87) is this shard's scheduler mode: the release clock is a
+    **two-line-scoped** default (`tasks.release_speed_resolution`), so a shard's
+    `physics.release` must name the scope it was recorded under or a post-P87
+    two-line store and a single-arm one would carry the same block while running
+    76 ticks apart per placed attempt.
     """
     from fruit_sorting.scene import finger_physics_provenance
 
-    return finger_physics_provenance(control_dt=DT)
+    return finger_physics_provenance(control_dt=DT, two_line=TWO_LINE)
 
 
 def _scene_provenance(cfg) -> dict:
@@ -215,7 +221,7 @@ def update_manifest_physics(out_dir: str, task) -> None:
     except (OSError, ValueError):
         say(f"[collect] physics read-back skipped: no manifest at {path}")
         return
-    block = finger_physics_provenance(arms=task.arms, control_dt=DT)
+    block = finger_physics_provenance(arms=task.arms, control_dt=DT, two_line=TWO_LINE)
     physics = manifest.setdefault("physics", {})
     physics.update(block)
     with open(path, "w", encoding="utf-8") as handle:

@@ -123,6 +123,14 @@ NEAREST_ABOVE_FLOOR_SCRIPTED = "0"
 #   untouched - the drop still completes, which `placed`/`on_output_belt`
 #   verifies. `FRUIT_SPEED_RELEASE_SETTLE` moves the 3 -> 2 settle; `=1` for the
 #   3 -> 1 form (the census's 1.02 s variant) once 3 -> 2 is measured.
+#   **P87 ships it as the two-line session's default** (P86 measured -0.645 s of
+#   pure dwell in all four arm-seed cells on the shipped two-line, with the
+#   landing clean and no new failure class); the site is shared with every other
+#   presentation, so the default is **scoped**, not global: unset resolves on
+#   inside a two-line session and off everywhere else, `FRUIT_SPEED_RELEASE=0`
+#   restores, and an explicit `=1` (or `FRUIT_SPEED_ALL=1`) still wins globally.
+#   `release_speed_resolution` is the one resolver; see its docstring for the
+#   table and `[biarm] release profile:` for the row that names it.
 # * `FRUIT_SPEED_LIFT` (**S3**): `grasp_lift` `v_max` 0.30 -> **0.36** with
 #   `a_max` 1.0 -> **1.9** (the census ceiling of the 1.962 m/s^2 vertical cone
 #   budget; `limited_by_cone` clips anything above it). `FRUIT_SPEED_LIFT_AMAX`
@@ -134,7 +142,9 @@ NEAREST_ABOVE_FLOOR_SCRIPTED = "0"
 # A cell's value may be its own speed [m/s] (`FRUIT_SPEED_PLACE=0.52`), or
 # `1`/`on`/`true` for the registered value. `0`/unset is off. The default-off
 # discipline is AGENTS section 2's: every knob added here changes a shipped
-# constant's *default string* only when it is set.
+# constant's *default string* only when it is set - and the one exception (P87's
+# release cell) is a **session-scoped** default, so `speed_cell_defaults()` with
+# no scope still returns `_SPEED_SHIPPED` exactly.
 _SPEED_SHIPPED = {
     "place_vmax": "0.35",
     "place_amax": "1.089",
@@ -165,20 +175,115 @@ def _speed_cell_value(cell: str, env_name: str) -> str | None:
         return None
 
 
-def _speed_cell_flag(env_name: str) -> bool:
-    """A boolean speed cell (`FRUIT_SPEED_RELEASE`), with `FRUIT_SPEED_ALL` as the fallback."""
+def _speed_cell_flag(env_name: str, two_line_default: bool = False) -> bool:
+    """A boolean speed cell (`FRUIT_SPEED_RELEASE`), with `FRUIT_SPEED_ALL` as the fallback.
+
+    `two_line_default` is P87's **scoped** default: unset resolves **on** while a
+    two-line session runs, and off everywhere else (see
+    `release_speed_resolution`). An explicit env value and the `FRUIT_SPEED_ALL`
+    union both still win over it, so the knob keeps its global meaning.
+    """
     raw = os.environ.get(env_name, "").strip().lower()
     if raw:
         return raw not in ("0", "off", "false", "no")
-    return os.environ.get("FRUIT_SPEED_ALL", "0") == "1"
+    if os.environ.get("FRUIT_SPEED_ALL", "0") == "1":
+        return True
+    return bool(two_line_default)
 
 
-def speed_cell_defaults() -> dict[str, str]:
+def release_speed_resolution(two_line: bool = False) -> dict[str, object]:
+    """The resolved **release clock** for this session, with its origin (P87).
+
+    One resolver, three consumers - the per-attempt hold defaults
+    (`speed_cell_defaults`), the `[biarm] release profile:` row and the store
+    manifest's `physics.release` block - so a log, a store and a run cannot
+    disagree about the three open-loop holds.
+
+    **The scope.** P86 measured the S2 trim (`FRUIT_SPEED_RELEASE`: dwell
+    **20 -> 0**, the pad ramp **40 x (3 -> 2)**, the finger ramp **16 x (3 -> 2)**
+    = **-76 ticks = -0.633 s** at 120 Hz) on the shipped two-line and priced the
+    adoption: the knob is read at a **shared** site (the release block of every
+    presentation), so a *global* default would also move the single arm, the
+    hybrid canary (`60_eval_policy.py` builds its own `PickAndPlaceTask`) and the
+    scripted collector - none of which P86 measured. P87 therefore ships it
+    **two-line-scoped**, the `_dynamic_profile` pattern: unset resolves on for a
+    two-line session (`origin="default"`) and off on every other path
+    (`origin="scope-off"`), which is what keeps those paths byte-identical. The
+    override table:
+
+    | `FRUIT_SPEED_RELEASE` | `FRUIT_SPEED_ALL` | two-line session | resolves |
+    | --- | --- | --- | --- |
+    | unset | 0 | yes | **on** (`default`) |
+    | unset | 0 | no | off (`scope-off`) |
+    | `0`/`off`/`false`/`no` | any | any | off (`explicit`) |
+    | `1`/`on`/`true`/`yes` | any | any | **on** (`explicit`) - wins globally |
+    | unset | 1 | any | **on** (`speed-all`, the S13 union) |
+
+    `FRUIT_SPEED_RELEASE_SETTLE` still moves the 3 -> 2 settle of the trim
+    (`=1` is the census's 3 -> 1 form); it is read only when the cell is on, so
+    the shipped clock is exactly `20/3/3` whenever `on` is False.
+    """
+    raw = os.environ.get("FRUIT_SPEED_RELEASE")
+    union = os.environ.get("FRUIT_SPEED_ALL", "0") == "1"
+    on = _speed_cell_flag("FRUIT_SPEED_RELEASE", two_line)
+    if raw is not None and raw.strip():
+        origin = "explicit"
+    elif union:
+        origin = "speed-all"
+    elif two_line:
+        origin = "default"
+    else:
+        origin = "scope-off"
+    if on:
+        settle = os.environ.get("FRUIT_SPEED_RELEASE_SETTLE", "").strip() or "2"
+        dwell, pad_hold, finger_hold = "0", settle, settle
+    else:
+        dwell = _SPEED_SHIPPED["release_dwell"]
+        pad_hold = _SPEED_SHIPPED["release_pad_hold"]
+        finger_hold = _SPEED_SHIPPED["release_finger_hold"]
+
+    def _whole(value: str):
+        """The hold as an int when it parses, else the caller's own string."""
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return value
+
+    dwell_i, pad_i, finger_i = _whole(dwell), _whole(pad_hold), _whole(finger_hold)
+    if all(isinstance(v, int) for v in (dwell_i, pad_i, finger_i)):
+        # The read sites' own clamps (dwell `max(0, ...)`, the two ramps
+        # `max(1, ...)`), so the tick count is the clock a run actually spends.
+        ticks = max(0, dwell_i) + 40 * max(1, pad_i) + 16 * max(1, finger_i)
+    else:
+        ticks = None
+    shipped_ticks = 20 + 40 * 3 + 16 * 3
+    return {
+        "on": on,
+        "origin": origin,
+        "two_line": bool(two_line),
+        "dwell": dwell_i,
+        "pad_hold": pad_i,
+        "finger_hold": finger_i,
+        "ticks": ticks,
+        "shipped_ticks": shipped_ticks,
+        "saved_ticks": shipped_ticks - ticks if ticks is not None else None,
+        "profile": "trim" if on else "shipped",
+        "label": f"FRUIT_SPEED_RELEASE={int(bool(on))}({origin})",
+    }
+
+
+def speed_cell_defaults(two_line: bool = False) -> dict[str, str]:
     """Default strings for the caps the P44 speed cells move (shipped unless on).
 
     Read once per attempt (not per tick), and only ever changes which *default*
     `os.environ.get` falls back to, so with every cell unset the returned dict is
     `_SPEED_SHIPPED` and the shipped path is byte-identical.
+
+    `two_line` (P87) is the **session scope** of the release cell: the caller
+    passes `Task.two_line_enabled()`, so the trim is on for a two-line session
+    and off on the single arm, the shared station, the hybrid canary and the
+    direct/policy presentation. It touches the three `release_*` keys only - the
+    place/lift cells have no session-scoped default.
     """
     out = dict(_SPEED_SHIPPED)
     place = _speed_cell_value("place", "FRUIT_SPEED_PLACE")
@@ -202,11 +307,15 @@ def speed_cell_defaults() -> dict[str, str]:
         out["lift_amax"] = (
             os.environ.get("FRUIT_SPEED_LIFT_AMAX", "").strip() or "1.9"
         )
-    if _speed_cell_flag("FRUIT_SPEED_RELEASE"):
-        settle = os.environ.get("FRUIT_SPEED_RELEASE_SETTLE", "").strip() or "2"
-        out["release_dwell"] = "0"
-        out["release_pad_hold"] = settle
-        out["release_finger_hold"] = settle
+    #: P87: the release clock comes from the one resolver the manifest row and
+    #: the `[biarm] release profile:` row also read, so the per-attempt holds and
+    #: the recorded ones cannot disagree. `two_line` is the caller's session
+    #: scope; every other key is the P44 cell's own.
+    release = release_speed_resolution(two_line)
+    if release["on"]:
+        out["release_dwell"] = str(release["dwell"])
+        out["release_pad_hold"] = str(release["pad_hold"])
+        out["release_finger_hold"] = str(release["finger_hold"])
     return out
 
 
@@ -4128,7 +4237,9 @@ class PickAndPlaceTask:
             if os.environ.get("FRUIT_CARRY_PROFILE", "1") == "1":
                 # P44 speed cells (S1 place / S3 lift, `FRUIT_SPEED_*`): one dict
                 # per leg; every value is the shipped string unless a cell is on,
-                # and an explicit `FRUIT_DYNAMIC_*` knob still wins over it.
+                # and an explicit `FRUIT_DYNAMIC_*` knob still wins over it. Only
+                # the place/lift keys are read here, so the dict is built without
+                # a session scope (P87's release trim is the release block's).
                 _speed = speed_cell_defaults()
                 # Jerk-limited reference instead of the constant-velocity ramp:
                 # the old interpolation demanded an infinite acceleration at both
@@ -8055,6 +8166,28 @@ class PickAndPlaceTask:
             self._prepare_two_line_stations()
         session = CoopSession(["left", "right"], trace=trace)
         session.twoline = two_line
+        #: P87: the release clock this session runs, named the way the
+        #: `[biarm] scheduler:` banner and rl_env's `[drive] finger cap scope:`
+        #: row name theirs. The release holds are read at a **shared** site
+        #: (`_grasp_carry_place_impl`), so the S2 trim is a **two-line-scoped**
+        #: default (`release_speed_resolution`); this row is what makes a log say
+        #: which clock it ran - the two-line prints `=1(default, two-line)` with
+        #: the trim's `dwell=0 pad_hold=2 finger_hold=2` (= 132 ticks), the
+        #: shared-station pipeline prints `=0(scope-off)` with the shipped
+        #: `20/3/3` (= 208). It prints only inside a bimanual session, exactly
+        #: like `[drive] finger cap scope:` prints only when the cap is armed:
+        #: the single arm, the hybrid canary and the direct env have no two-line
+        #: scope at all, and their byte-identity to the pre-P87 records is the
+        #: proof of that (a printed row could not be stronger).
+        release = release_speed_resolution(two_line)
+        say(
+            f"[biarm] release profile: {release['label']} "
+            f"scope={'two-line' if two_line else 'shared-station'} "
+            f"dwell={release['dwell']} pad_hold={release['pad_hold']} "
+            f"finger_hold={release['finger_hold']} ({release['ticks']} ticks; "
+            f"shipped {release['shipped_ticks']}, "
+            f"saved {release['saved_ticks']})"
+        )
         #: W3 capture token: on the wave-supply two-line scenario both arms
         #: catch the same burst, and the measured both-hands band collapsed to
         #: 1.9 mm link-origin separation / 710 samples <30 mm
@@ -10075,7 +10208,12 @@ class PickAndPlaceTask:
         arm = self.arms[arm_name]
         #: P44 speed cells (S2 release holds, and the S1/S3 defaults `_carry`
         #: re-reads): one dict per attempt, shipped strings unless a cell is on.
-        _speed = speed_cell_defaults()
+        #: P87: the release cell's default is **two-line-scoped**, so the scope
+        #: is the session predicate (`two_line_enabled()`), not the ambient
+        #: resolution - a single-arm run, the shared-station pipeline, the hybrid
+        #: canary and the direct/policy presentation have no session here and
+        #: resolve the shipped 20/3/3 clock.
+        _speed = speed_cell_defaults(self.two_line_enabled())
         #: The arm's own pick station (two-line scheduler); 0.0 on every other
         #: path. `arm_name` is authoritative here: the policy handover may call
         #: this without `_run_impl` having set `current_arm`.

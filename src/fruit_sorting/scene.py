@@ -393,9 +393,39 @@ def _finger_drive_readback(arms: dict) -> tuple[dict, bool, str]:
     return rows, not wrong, "; ".join(wrong)
 
 
+def _release_provenance(two_line: bool = False) -> dict:
+    """The `physics.release` block (P87): the release clock and its origin.
+
+    Pure (`tasks.release_speed_resolution`, an env + scope read with no
+    simulator), so it is written before the first episode and cannot fail a
+    build. The three holds are the block's contract (`dwell`, `pad_hold`,
+    `finger_hold`, in ticks); `ticks` is the clock a release actually spends, and
+    `origin` / `profile` / `two_line` say *why* it resolved that way (`default` =
+    P87's two-line scope, `scope-off` = every non-two-line path, `explicit` /
+    `speed-all` = a caller's own override). A manifest without the key predates
+    P87.
+    """
+    from .tasks import release_speed_resolution
+
+    release = release_speed_resolution(two_line)
+    return {
+        "dwell": release["dwell"],
+        "pad_hold": release["pad_hold"],
+        "finger_hold": release["finger_hold"],
+        "ticks": release["ticks"],
+        "shipped_ticks": release["shipped_ticks"],
+        "saved_ticks": release["saved_ticks"],
+        "profile": release["profile"],
+        "origin": release["origin"],
+        "two_line": bool(two_line),
+        "label": release["label"],
+    }
+
+
 def finger_physics_provenance(arms: dict | None = None,
                               control_dt: float = 1.0 / 120.0,
-                              scope: dict | None = None) -> dict:
+                              scope: dict | None = None,
+                              two_line: bool = False) -> dict:
     """The physics that sets the grip, as a store manifest's `physics` block.
 
     P41 phase 2: a store is reusable only if its *contact forces* are
@@ -412,6 +442,17 @@ def finger_physics_provenance(arms: dict | None = None,
     the engine's default pair rule, which `GRIP_CENSUS` section 3 records as
     **unverified** (min vs average is a 2.7x capacity spread), so it must not be
     asserted here. The fruit side is what makes the *pair* reconstructible.
+
+    `release` (P87) is the **release clock**: the three open-loop holds of the
+    place leg's release block (`dwell` / `pad_hold` / `finger_hold`, 208 ticks
+    shipped, 132 under the P86 trim) and their origin. The trim is ~0.64 s of
+    pure dwell inside the per-attempt span, so a store recorded under it differs
+    from a pre-P87 one in its **attempt timing** without moving one trajectory
+    endpoint - exactly the class the P41 `physics` and P72 `scene` blocks exist
+    for. `two_line` is the caller's session scope (the collector's mode; `False`
+    on the direct env, which never runs a `CoopSession`), because the trim is a
+    two-line-scoped default (`tasks.release_speed_resolution`). A manifest
+    **without** this key predates P87 (the `arm_park.defaulted` convention).
     """
     from .control import finger_drive_profile
     from .fruits import REAL_CONTACT_DAMPING
@@ -462,6 +503,13 @@ def finger_physics_provenance(arms: dict | None = None,
                 "contact_damping": REAL_CONTACT_DAMPING if fruit_compliant else None,
             },
         },
+        #: P87: the **release clock** (the S2 trim). Same one resolver the
+        #: per-attempt holds and the `[biarm] release profile:` row read
+        #: (`tasks.release_speed_resolution`), so a store, a log and a run cannot
+        #: disagree. `shipped` 20/3/3 = 208 ticks; the P86 trim is 0/2/2 = 132.
+        #: The block is always written (both origins are meaningful); a manifest
+        #: without the key predates P87.
+        "release": _release_provenance(two_line),
     }
     if scope:
         #: P78/P79: the **runtime, per-leg** clamp
