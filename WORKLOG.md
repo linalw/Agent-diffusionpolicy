@@ -22233,7 +22233,7 @@ integrity line - the endpoint functions are unchanged). Evidence `logs/p86/`:
 `{C5,R5,C6,R6}.{log,stamps,driver}`, `{C5,C6}.gate`, `{R5,R6}.gate`,
 `{C5,R5,C6,R6}.budgets`, `motion_reference_twoline_C6_20.json`.
 
-### P87: the release trim ships two-line-scoped - the scope is proved bit-for-bit by replay (865/865, 865/865, 814/814, 821/821), the single arm stays 346/346, and one descent leg on one seed makes it a considered trade
+### P87: the release trim ships two-line-scoped - the scope is proved bit-for-bit by replay (865/865, 868/868, 814/814, 821/821), the single arm stays 346/346, and one descent leg on one seed makes it a considered trade
 
 P86 measured the S2 cell (`FRUIT_SPEED_RELEASE`: dwell 20 -> 0, the pad/finger
 settles 3 -> 2 = -76 ticks = -0.633 s) as a clean positive on the shipped
@@ -22260,7 +22260,7 @@ measurement lands on 77 ticks, two ticks from the corrected arithmetic.
 **G0 - the flip is resolution-only, and it is a replay, not an argument.** P86's
 treatment cells ran `FRUIT_SPEED_RELEASE=1` (explicit); P87's run it **unset**.
 The four cells are **byte-identical to P86's own four** on the `[fruit]` stream
-(dropping the diag rows plus the one new row): C5 **865/865**, T5 **865/865**,
+(dropping the diag rows plus the one new row): C5 **865/865**, T5 **868/868**,
 C6 **814/814**, T6 **821/821**. So the shipped default *is* the measured arm bit
 for bit, and P86's mechanism/landing/ledger measurements transfer instead of
 being re-derived - the cleanest form this repo has had for a default flip.
