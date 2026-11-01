@@ -404,6 +404,23 @@ run_check "P87 release scope" "$python" scripts/247_p87_release_scope_selftest.p
 # `[biarm] place profile:` row printing only inside `run_bimanual`, and
 # `physics.place` in both manifest writers.
 run_check "P88 place scope" "$python" scripts/248_p88_place_scope_selftest.py
+# P89: the **lift** cap as a two-line-scoped cell, measured and NOT shipped - the
+# last unspent profile block (1.65-1.70 s against the shipped release 1.70 and
+# place 3.14-3.19), and P44's **S3-v** (0.30 -> 0.37 with the shipped `a_max`
+# **1.0**: the acceleration raise bought 0.00 s and spent transient) is its
+# measured arm. The cap is read at the shared `_carry_leg` `grasp_lift` branch,
+# so the cell is scoped exactly like the release's **but its default is OFF**
+# (P89's gate failed on delivery), so the shipped tree is inert. The leg runs the
+# real resolver and the real provenance builder: unset is `_SPEED_SHIPPED`
+# exactly on every path (the two-line included), the explicit `=0.37` is the
+# measured arm (162 -> 136 ticks at the named 0.21 m reference, saved 26), the
+# **S3/S13 pairs are not moved** (`=1` and `FRUIT_SPEED_ALL` keep 0.36/1.9) while
+# 0.37 means 1.0 however it is written, `FRUIT_SPEED_LIFT_AMAX` pins the
+# acceleration, the profile clock reproduces `motion.jerk_limited` at both
+# regimes and the short-leg null, the scope being the **session** predicate at
+# both scoped consumers, the `[biarm] lift profile:` row printing only inside
+# `run_bimanual`, and `physics.lift` in both manifest writers.
+run_check "P89 lift scope" "$python" scripts/249_p89_lift_scope_selftest.py
 
 if [ -n "$run_log" ] && [ -f "$run_log" ]; then
     # P85: the log decides the scenario (and therefore the reference and the

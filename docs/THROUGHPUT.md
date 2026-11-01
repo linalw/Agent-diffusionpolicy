@@ -1,9 +1,10 @@
 # The cell's throughput: what it is, what the levers are, and how to read a rate
 
-One page. It condenses P80-P88 (`logs/p80/`..`logs/p88/`, AGENTS §2's
+One page. It condenses P80-P89 (`logs/p80/`..`logs/p89/`, AGENTS §2's
 paragraphs) into the measured throughput of the shipped tree, the levers priced
-against it, the two that shipped, the four that did not, and the read rules that
-bind the next number anybody quotes. Every figure traces to a log in `logs/`.
+against it, the three that shipped and the ones that did not (with the read rules
+that keep a measured negative from being spent twice). Every figure traces to a
+log in `logs/`.
 
 ## The number today
 
@@ -25,6 +26,14 @@ four, so the scoped trim *is* the arm P86 measured.
 (`logs/p88/RESULTS.md`, "Lever 4"), so **every number in this page is unchanged
 by it**: the place cell's mechanism is exact but the delivered interval rose at
 both seeds, and `FRUIT_SPEED_PLACE` stays off by default.
+
+**P89 measured the last of the three profile blocks - the `lift` - and shipped
+nothing either** (`logs/p89/RESULTS.md`, "Lever 5"): the block falls as the
+profile prices it (-0.175/-0.173 s against the predicted -0.177/-0.193, per leg
+exact), the **delivered interval rises at both seeds** (10.59 -> 13.43 and
+11.08 -> 12.38 s) and the class does not improve, so `FRUIT_SPEED_LIFT` stays off
+and **no number in this page moves**. With that, **all three profile blocks are
+measured**.
 
 Shipped scripted cell, 20 slots, seed 5 (`logs/p85/` = P80's scenario with P82's
 wall; the P87 row is `logs/p87/T5.log`, the same scenario with the trim):
@@ -203,6 +212,52 @@ it** - the gate fails:
   a fresh unset run replays C5 **868/868**, the single arm is **346/346 raw**
   identical, both references untouched).
 
+## Lever 5: the lift block - measured, NOT shipped (P89)
+
+P44's **S3-v** (`logs/p44/P2_RESULTS.md` §9: `grasp_lift` `v_max` 0.30 -> **0.37**
+with the shipped **`a_max` 1.0** - the acceleration raise bought 0.00 s and spent
+transient, so it is deliberately *not* part of the cell) is the **last** of the
+three blocks, and it is also a **class site**: the lift leg's window is where the
+payload is seated, and P75 measured that 2 of 6 place-leg escapes fire at the
+lift's *end*. P89 built the same **two-line-scoped** form as the release and the
+place cells, measured it at seeds 5/6 (controls explicit `=0`, treatments unset),
+and **did not ship it**:
+
+* **the mechanism is exact.** `[cycle] lift=` is the `grasp_lift` leg plus a
+  constant remainder (**0.412-0.422 s** in both arms), so the block **mean** falls
+  **-0.175 / -0.173 s** against the predicted **-0.177 / -0.193** (each control
+  attempt's own printed distance re-generated at 0.37/1.0); the per-leg tick count
+  matches that profile to **median 0.0 (max |5|)** and the leg's `|v|cmd` to
+  **0.013 m/s** of its own peak (median 0.350 against the control's 0.293). At
+  the 0.21 m reference the clock is **162 -> 136 ticks = -0.217 s**. **The two
+  regimes switch at d = 0.225 m** (0.148 shipped), which is why a short leg saves
+  nothing: the raised cap is an **acceleration**-bound clock, not a speed-bound
+  one, and the cell is smaller than the block it prices.
+* **the delivered side does not follow, for two different reasons.** The pooled
+  interval **rises at both seeds** (10.59 -> 13.43 and 11.08 -> 12.38 s). At
+  seed 5 the **count** is the story (16 -> 12 placed, `attempts/placement` 1.25 ->
+  1.67, the left arm 9/10 -> 5/10, and the left's lift legs are where its three
+  new escapes are); at seed 6 the count **rises** (12 -> 14) and the interval
+  rises anyway because the placements spread over a **wider** window (121.9 ->
+  160.9 s) - P88's seed-6 pattern, read rule 7. Pooled **28 -> 26 of 40**,
+  `placed/min wall` **2.67 -> 2.60** on 629 -> 601 s.
+* **the class neither improves nor moves to a new site.** P44's single-arm
+  finding (S3-v dropped the `force_min == 0` legs 5 vs 7, no new failure row) does
+  **not** transfer: the two-line's lift-leg escapes read **7 -> 10 of 40** and its
+  `force_min == 0` legs **8 -> 10** (seed 5 worse 2 -> 6, seed 6 better 5 -> 4 -
+  a draw at n = 20 per arm). The escapes' onset rows are **early** in their legs
+  (median share of the leg 0.05) - the **take-off** loaded slide, not P75's
+  "place leg starts with one face at 0.00 N because the payload left at the lift's
+  end": the treatment's **place-leg escapes are 0/27** against the control's 1/29.
+  One new reason key (`grasped, not placed (no note)` x1) and the class clauses'
+  letter fail at seed 5.
+* **not shipped**: `LIFT_TWO_LINE_DEFAULT = False`, so `FRUIT_SPEED_LIFT` stays
+  off on every path; the measured arm is `FRUIT_SPEED_LIFT=0.37` (0.37 / 1.0), the
+  `[biarm] lift profile:` row and `physics.lift` say which cap ran, and the
+  shipped tree is inert (C5/C6 replay P88's own **C5/C6** 868/868 and 821/821, a
+  fresh unset run replays C5, the single arm is **346/346 raw** identical, both
+  references untouched at `423896f7`).
+
 ## The read rules (they bind the next rate claim)
 
 1. **Quote both denominators and the wall column.** The placement window and the
@@ -231,12 +286,16 @@ it** - the gate fails:
    A cell that lengthens the window can read a worse interval with **more**
    placements (P88's seed 6: 12 -> 15 placed, window 121.9 -> 169.5 s, interval
    11.08 -> 12.11 s). Quote the count and the batch denominator beside it.
-8. **A block that is a transit needs the mean (or the per-leg read), not the
-   median.** The release's holds are a fixed clock, so a median is exact; the
-   place leg's ticks are `f(distance)`, so a median across two arms is
-   **mix-sensitive** - P88's seed-5 median missed its band by 0.014 s while the
-   mean matched to 0.002 s and every leg matched the profile within 2 ticks
-   (`logs/p88/RESULTS.md` §1). Same lesson as 6, one level down.
+8. **A block whose clock is a function of distance needs the mean (or the
+   per-leg read), not the median.** The release's holds are a fixed clock, so a
+   median is exact; the place leg's ticks are `f(distance)`, so a median across
+   two arms is **mix-sensitive** - P88's seed-5 median missed its band by 0.014 s
+   while the mean matched to 0.002 s and every leg matched the profile within 2
+   ticks (`logs/p88/RESULTS.md` §1). The **lift** is not a transit but its clock
+   is still `f(distance)` and it has *two* regimes (speed-bound above
+   `5.774 v^2/(1.875^2 a)` = 0.225 m at 0.37, 0.148 m at 0.30), so P89 gated the
+   **mean** (-0.175 against the predicted -0.177) and the **per-leg** read
+   (`logs/p89/RESULTS.md` §1). Same lesson as 6, one level down.
 9. **A scoped default owes a replay and an inertness pair, not an argument.**
    P87's proof shape: the same-seed cells must be **byte-identical to the
    pre-flip record** on the `[fruit]` stream (`logs/p87/p87_report.py --same`,
@@ -252,9 +311,10 @@ it** - the gate fails:
    trajectory endpoint, so both manifest writers carry
    `physics.release={dwell,pad_hold,finger_hold,...}`; a manifest **without** the
    key predates P87, and park/no-park-style mixing of the two is not allowed.
-   The place cap has its own `physics.place={v_max,a_max,ticks,...}` (P88); its
-   `ticks` are priced at a named **reference distance**, because the place is a
-   transit and a stored tick count without its distance means nothing.
+   The place cap has its own `physics.place={v_max,a_max,ticks,...}` (P88) and the
+   lift its own `physics.lift={v_max,a_max,ticks,...}` (P89); their `ticks` are
+   priced at a named **reference distance**, because both are `f(distance)` and a
+   stored tick count without its distance means nothing.
 
 ## What is left
 
@@ -275,9 +335,11 @@ it** - the gate fails:
   -0.72 s, `lift` -0.13 s, **-1.00 s/attempt at both seeds** - and its *delivered*
   side has no stable sign: 16 -> 13 placed at seed 5, 10 -> 14 at seed 6, pooled
   26 -> 27 of 40. Not adopted; the class that absorbs it is the closed grip class
-  below. **Its `release` third is now the shipped clock (P87)** - the union's
-  remaining cells are `place` (-0.75 s) and `lift` (-0.24 s), and P51 is why they
-  cannot be made class-clean.
+  below. **Its `release` third is now the shipped clock (P87)**, and its **`place`
+  and `lift` thirds have since been measured on their own and both are negative**
+  (P88, P89) - so the union's measured -1.00 s is **fully spent or priced**, and
+  P51 is why the two remaining cells cannot be made class-clean. The union stays
+  `FRUIT_SPEED_ALL=1`: opt-in and global.
 * **The release block, priced on its own (P86, `logs/p86/`).** `FRUIT_SPEED_RELEASE=1`
   (dwell 20 -> 0, pad ramp 3 -> 2, finger ramp 3 -> 2 = **-76 ticks = -0.633 s**)
   moves the `[cycle]` release block by **-0.615..-0.640 s = 74-77 ticks in all
@@ -301,6 +363,18 @@ it** - the gate fails:
   `FRUIT_SPEED_PLACE=0.52`; the **re-entry** is a scenario where the place block
   binds the interval rather than the count, or a class-first registration argued
   on the -0.77 s wall saving alone. See "Lever 4".
+* **The lift block (P89, measured, NOT shipped) - the profile table is closed.**
+  The last of the three: the mechanism is exact (`[cycle] lift=` = the leg +
+  0.412-0.422 s; mean **-0.175/-0.173 s** against the predicted -0.177/-0.193;
+  per leg median 0.0 ticks) but the delivered interval rose at both seeds
+  (10.59 -> 13.43, 11.08 -> 12.38 s), the pooled count fell (28 -> 26 of 40) and
+  the class did not improve (lift-leg escapes 7/40 -> 10/40), so
+  `FRUIT_SPEED_LIFT` stays off (`LIFT_TWO_LINE_DEFAULT = False`). **Re-baseline:
+  none** - nothing shipped, both references untouched. The measured arm is
+  `FRUIT_SPEED_LIFT=0.37` (0.37 / 1.0). With release (shipped), place (negative)
+  and lift (negative) all priced by the same instrument, **the next throughput
+  step is not a profile block**: it is the success rate (the closed grip class)
+  or the arbiter's remaining 1.19x of wall. See "Lever 5".
 * **The residual 1.19x of wall** - two arms' control plus the permit handoff, with
   the shared physics step at **75 % of what remains**. No arbiter change can move
   it; it is the cost of two arms in one PhysX scene.

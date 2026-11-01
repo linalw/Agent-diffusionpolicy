@@ -457,7 +457,7 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: satisfies) and the manifest builder passes `two_line=False`, so the direct
 #: path's release clock is the shipped 20/3/3 unless an explicit
 #: `FRUIT_SPEED_RELEASE`/`FRUIT_SPEED_ALL` says otherwise.
-TASKS_MD5 = "9e1aeef9cecc63d96bb3ad2351b983f3"
+TASKS_MD5 = "32efa98c20d31d8014db7389a6e7e35e"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(

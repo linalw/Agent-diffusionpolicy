@@ -42,6 +42,17 @@ because, although the block's mechanism was exact at **-0.77 / -0.92 s** per
 placed attempt, the delivered interval rose at **both** seeds
 (`logs/p88/RESULTS.md`).
 
+**P89 (2026-11-01) measured the last profile block - the `lift` cap - and shipped
+nothing either**, so every acceptance, reference and store above still stands:
+`FRUIT_SPEED_LIFT` stays **off by default** (`LIFT_TWO_LINE_DEFAULT = False`)
+because, although the block fell to the profile's own arithmetic
+(**-0.175 / -0.173 s** against the predicted -0.177 / -0.193, per leg exact,
+remainder constant), the delivered interval rose at **both** seeds
+(10.59 -> 13.43 and 11.08 -> 12.38 s), the pooled count fell **28 -> 26 of 40**,
+and the class did not improve (lift-leg escapes **7/40 -> 10/40**). **Every
+profile block of the shipped cell is now measured**: release shipped (P87),
+place negative (P88), lift negative (P89) - `docs/THROUGHPUT.md` "Lever 3/4/5".
+
 **P85 (2026-11-01) superseded every acceptance number below in this section: the
 shipped scripted cell became the bimanual two-line**, so `scripts/accept.sh` runs
 a *different scenario* (7/10, `configs/motion_reference.json` = `eb697f23` at the
@@ -4231,6 +4242,64 @@ class-first registration argued on the wall alone. Pins: `tasks.py`
 p88_report.txt,gates.out,accept_final.*}`, `{C5,T5,C6,T6}.log`, `N5.log`,
 `single_accept.*`, `shared_*`; WORKLOG "P88".
 
+**P89 (2026-11-01, `logs/p89/`, default off, **nothing adopted** - the third and
+last profile block, and with it the **profile table is closed**): the `lift`
+block's mechanism is **exact to the profile's own arithmetic** and the delivered
+side still does not follow - the same shape as P88, on the smallest block.** The
+cell is P44's **S3-v** (`logs/p44/P2_RESULTS.md` §9: `grasp_lift` `v_max` 0.30 ->
+**0.37** with the shipped **`a_max` 1.0**; the acceleration raise was measured at
+**0.00 s** for transient spent, so it is *not* part of the cell and
+`FRUIT_SPEED_LIFT=0.37` resolves 1.0 while `=1`/`FRUIT_SPEED_ALL` keep S3/S13's
+measured **0.36 / 1.9**). The scoped plumbing is P87/P88's third instance -
+`tasks.lift_speed_resolution` + `LIFT_TWO_LINE_DEFAULT`, the consumer
+`speed_cell_defaults(self.two_line_enabled())` at `_carry_leg`'s `grasp_lift`
+branch, the `[biarm] lift profile:` row and `physics.lift={v_max,a_max,ticks,
+shipped_ticks,saved_ticks,reference_distance_m,profile,origin,two_line,label}` in
+both manifest writers, pinned by the new `249` selfcheck leg. **The mechanism**
+(`ATTEMPTS=20`, seeds 5/6, controls explicit `FRUIT_SPEED_LIFT=0`, treatments
+unset; `PREREG.md` **`30d8941c`** + `PREREG_A1.md` **`14c73afd`** - the amendment
+corrects G0's replay target to P88's **C5/C6** and was pinned **while the first
+cell was still running**): `[cycle] lift=` is the leg plus a **constant remainder
+0.412-0.422 s** in both arms, so the block **mean** falls **-0.175 / -0.173 s**
+against the predicted **-0.177 / -0.193** (**P1a PASS**, band ±0.08), the per-leg
+tick count matches the profile re-generated at 0.37/1.0 from that leg's own
+printed distance to **median 0.0 (max |5|)**, the leg's `|v|cmd` to **0.013 m/s**
+of its own peak (median **0.350** against the control's 0.293), and the reference
+clock is **162 -> 136 ticks = -0.217 s** at 0.21 m. **The two regimes switch at
+`d = 5.774 v^2/(1.875^2 a)` = 0.225 m** (0.148 shipped), which is *why* the cell
+is small: above the switch the raised leg is acceleration-bound, so a 0.20 m leg
+saves 21 ticks, not the 1.233x speed ratio. **The delivery fails at both seeds
+for two different terms**: the pooled interval **rises** 10.59 -> **13.43**
+(seed 5: the count, 16 -> **12** placed, `attempts/placement` 1.25 -> 1.67, left
+**9/10 -> 5/10**) and 11.08 -> **12.38 s** (seed 6: the count rises 12 -> 14 over
+a **wider** window, 121.9 -> 160.9 s - P88's seed-6 pattern), pooled **28 -> 26
+of 40** and **`placed/min wall` 2.67 -> 2.60**. **The class answers the phase's
+own question - neither P44's improvement nor P75's site**: lift-leg escapes
+**7/40 -> 10/40** (seed 5 **2 -> 6**, seed 6 **5 -> 4** - a draw at n=20 per arm)
+and `force_min == 0` legs **8 -> 10**, so P44's single-arm "S3-v drops them 5 vs
+7, no new failure row" does **not** transfer; every escape's `onset_row` is
+**early in its leg** (median share **0.05** - the **take-off** loaded slide),
+the treatment's **place-leg escapes are 0/27** against the control's 1/29, so no
+place leg inherited a broken pinch and P75's "starts with one face at 0.00 N"
+signature is absent; one new reason key (`grasped, not placed (no note)` x1) and
+P4a/P4b fail at seed 5 while P4c passes (2 -> 6 < +5). Landing **12/12, 14/14**;
+descent budgets **0/20** in C5/T5/T6 and the standing seed-6 leg 12 (0.164 vs
+0.160) in C6, not re-tuned. **Nothing moved**: `LIFT_TWO_LINE_DEFAULT = False`,
+`configs/motion_reference.json` / `..._twoline.json` = **`423896f7`** and
+`..._single.json` = **`8952c320`** untouched, the measured arm is
+`FRUIT_SPEED_LIFT=0.37`, and the shipped tree is inert three ways - C5/C6 replay
+P88's **C5/C6** **868/868** and **821/821** (and *differ* from P88's T cells at
+line 160, a `place1` row, so the filter hides only this phase's own rows), a
+fresh unset `N5` replays C5, and the single arm is **346/346 raw** identical with
+**0** profile rows printed. Pins: `tasks.py` **`32efa98c`** (`LIFT_TWO_LINE_DEFAULT
+= False`), `scene.py` **`fb6d9d33`**, `rl_env.py` **`b81d59b6`** (the `TASKS_MD5`
+follow), `scripts/249_p89_lift_scope_selftest.py`, `scripts/selfcheck.sh`.
+Evidence `logs/p89/{PREREG.md,PREREG_A1.md,RESULTS.md,p89_report.py,
+p89_report.txt,gates.out}`, `{C5,T5,C6,T6}.log`, `N5.log`, `single_accept.*`,
+`shared_*`; WORKLOG "P89". **Re-baseline: none** - nothing shipped, and the
+profile blocks are all measured (release shipped P87, place negative P88, lift
+negative P89).
+
 ## 3. What changed -> what to run
 
 | you changed | run |
@@ -4239,6 +4308,7 @@ p88_report.txt,gates.out,accept_final.*}`, `{C5,T5,C6,T6}.log`, `N5.log`,
 | a **per-leg profile or dwell** change (`FRUIT_SPEED_RELEASE/PLACE/LIFT`, a `[cycle]` block that moves) | `FRUIT_CYCLE_REPORT=1 FRUIT_PLACE_TRACE=1` on **both** arms, **>= 2 seeds**, then the `[cycle]` per-leg block table **by median** (`logs/p86/p86_report.py --blocks`): the **block** is the mechanism, **never the attempt span** - the span carries the supply-phase acquisition legs and re-draws with the shifted attempt boundary (`logs/p86/RESULTS.md` §3, P44 §3). Delivered: the interval (pooled **and** per arm), both denominators, the wall and `placed/min wall`. Landing: `FRUIT_PLACE_TRACE`'s `on_belt` on **every payload present at the release** (`release_bottom >= 0`; the -184 mm rows are the upstream-lost class, reported separately). Then the scenario's own motion gate - a profile change **moves the fingerprint by construction**, so budgets-only for the treatment and a same-seed reference for its control |
 | the **release clock's scoped default** (`tasks.release_speed_resolution`, `speed_cell_defaults(two_line)`, the `[biarm] release profile:` row, `scene._release_provenance`, the manifest's `physics.release`) | `scripts/selfcheck.sh` (the `247` leg: the resolver table - unset/no-scope **is** `_SPEED_SHIPPED` exactly, unset/two-line is the trim, `=0` restores, `=1`/`FRUIT_SPEED_ALL` win globally, `=0` beats the union, the settle is read only when on - the clock arithmetic, the single scoped call site, the row printing only inside `run_bimanual`, and `physics.release` in both writers), then **the replay first**: the same-seed cells must be **byte-identical to the pre-flip record** on the `[fruit]` stream with the phase's rows dropped (`logs/p87/p87_report.py --same`; P87's four cells are 865/865 / 868/868 / 814/814 / 821/821 against P86's), then **the inertness pair** - `FRUIT_BIARM=0 scripts/accept.sh` **raw 346/346** against `logs/p71/accept_rails_none.log` (+ `fingerprint: matches configs/motion_reference_single.json`) and a shared-station `=1 FRUIT_BIARM_TWOLINE=0` pair unset-vs-`=0` compared with `--same` **and** `--profile` (the row's `origin` field legitimately differs; the **clock** must not) - then a 10-attempt shipped acceptance to re-record the two-line references, then `scripts/accept.sh` |
 | the **place cap's scoped cell** (`tasks.place_speed_resolution`, `PLACE_TWO_LINE_DEFAULT`, the `[biarm] place profile:` row, `scene._place_provenance`, the manifest's `physics.place`) | `scripts/selfcheck.sh` (the `248` leg: unset/no-scope **is** `_SPEED_SHIPPED` exactly, unset/two-line is **also** the shipped pair because the default is off, the explicit `=0.52` is the measured arm with its **362 -> 244-tick** clock at the named **0.55 m** reference, the override table, the profile clock reproducing `motion.jerk_limited` in **both** the speed- and acceleration/jerk-limited regimes, both consumers on the session predicate, the row printing only inside `run_bimanual`, and `physics.place` in both writers), then the same replay/inertness shape as the release row (`--same` against the pre-change record, `FRUIT_BIARM=0 scripts/accept.sh` **raw 346/346**, the shared-station `--profile` pair), and read the delivered side on **both denominators**: the interval **is** `window/(n-1)`, so the window rate and the interval are **one statistic** - a place cell that lengthens the placement window reads as a worse interval even with more placements (`logs/p88/RESULTS.md` §3) |
+| the **lift cap's scoped cell** (`tasks.lift_speed_resolution`, `LIFT_TWO_LINE_DEFAULT`, `_LIFT_SCOPED_VMAX` / `_LIFT_REFERENCE_DISTANCE`, the `[biarm] lift profile:` row, `scene._lift_provenance`, the manifest's `physics.lift`) | `scripts/selfcheck.sh` (the `249` leg: unset/no-scope **is** `_SPEED_SHIPPED` exactly, unset/two-line is **also** the shipped pair because the default is off, the explicit `=0.37` is P44's **S3-v** with its **162 -> 136-tick** clock at the named **0.21 m** reference, **`=1`/`FRUIT_SPEED_ALL` keep S3/S13's measured 0.36/1.9** while a `0.37` value means 1.0 however it is written, `..._AMAX` pins the acceleration, the profile clock reproducing `motion.jerk_limited` in both regimes **and the short-leg null below 0.225 m**, both consumers on the session predicate, the row printing only inside `run_bimanual`, and `physics.lift` in both writers), then the P88 shape - `--same` against the pre-change record, `FRUIT_BIARM=0 scripts/accept.sh` **raw 346/346**, the shared-station `--profile` pair, and a fresh unset `N5` replay - and read the block on the **mean plus the per-leg read**, never a median across legs of different lengths (`logs/p89/RESULTS.md` §1) |
 | docs, or a number's provenance/data size | `python3 scripts/106_index_audit.py` and `python3 scripts/107_collect_merge_test.py` |
 | motion, control, `trajectory` limits, IK | `python3 scripts/96_motion_check.py`, then `scripts/accept.sh` |
 | collection (`40_collect_demos.py`) or merging (`41_merge_demos.py`) | `scripts/107_collect_merge_test.py`, then `python3 scripts/106_index_audit.py` |

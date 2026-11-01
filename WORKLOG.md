@@ -22446,3 +22446,107 @@ close-out edits are comment-only), `scene.py` **`1ec3b8f8`**, `rl_env.py`
 `{C5,T5,C6,T6}.{log,stamps,driver,gate,budgets}`, `N5.{log,stamps,driver}`,
 `single_accept.{log,gate,same}`, `shared_{unset,zero}.*`,
 `shared_raw_same.txt`, `accept_final.{log,out}`.
+
+### P89 - the lift block: exact, small, and not the lever; the profile table is closed
+
+The third and last profile block of the shipped two-line cell (release 1.70 s
+after P87's trim, place 3.14-3.19 s, **lift 1.65-1.70 s**). P44's **S3-v** is the
+cell: `grasp_lift` `v_max` 0.30 -> **0.37** with the shipped **`a_max` 1.0** -
+`logs/p44/P2_RESULTS.md` §9 measured the acceleration raise (0.36 **and** 1.9) at
+**0.00 s** for a 1.42x worst cone against S3-v's 1.19x, so it is deliberately not
+part of the cell. The site is the shared `_carry_leg` `grasp_lift` branch, so the
+cell is scoped exactly like the release's and the place's: one resolver
+(`tasks.lift_speed_resolution`), one session predicate
+(`speed_cell_defaults(self.two_line_enabled())`), one row (`[biarm] lift
+profile:`), one manifest block (`physics.lift`), one selfcheck leg (`249`). **The
+gate failed, so the constant is False** and unset resolves 0.30/1.0 on every
+path; the measured arm is `FRUIT_SPEED_LIFT=0.37` (which resolves 1.0 - the S3/S13
+`=1`/`FRUIT_SPEED_ALL` pair stays 0.36/1.9, i.e. P44's recorded arms are not
+moved).
+
+**The mechanism is exact, and small for a measurable reason.** `[cycle] lift=` is
+the leg plus a **constant remainder 0.412-0.422 s** in both arms (40/40 legs), so
+the block **mean** is `ticks(d)/120 + remainder` and the prediction, built from
+each control attempt's own printed `grasp_lift` distance, prices it at
+**-0.177 / -0.193 s**: measured **-0.175 / -0.173 s** (P1a PASS, band ±0.08; the
+medians -0.220/-0.195 against -0.222/-0.188). Per leg the treatment's ticks
+match the profile re-generated at 0.37/1.0 from that leg's own printed centimetre
+to **median 0.0 (max |5|)**, its `|v|cmd` matches that profile's own peak to
+**<= 0.013 m/s** (median 0.350 against the control's 0.293), and the reference
+clock is **162 -> 136 ticks = -0.217 s** at the named 0.21 m. **Why the cell is
+small is arithmetic, not a wish**: the two profile regimes switch at
+`d = 5.774 v^2/(1.875^2 a)` = **0.225 m** at 0.37 (0.148 m shipped), so above it
+the raised leg is *acceleration*-bound - a 0.20 m leg saves 21 ticks, not the
+1.233x speed ratio, and a 0.05-0.12 m leg saves nothing at all. P85's union
+re-pricing had already put the lift at -0.13 s of its -1.00 s; this is the same
+number, now measured on its own.
+
+**The delivery fails at both seeds, for two different terms.** Pooled interval
+**10.59 -> 13.43 s** at seed 5 - where the story is the **count** (16 -> 12
+placed, `attempts/placement` 1.25 -> 1.67, the left arm 9/10 -> 5/10) - and
+**11.08 -> 12.38 s** at seed 6, where the count **rises** (12 -> 14) and the
+interval rises anyway because the placements spread over a **wider** window
+(121.9 -> 160.9 s): `mean_gap = window/(n-1)`, P88's seed-6 pattern exactly.
+Pooled **28 -> 26 of 40**, `placed/min wall` **2.67 -> 2.60** on 629 -> 601 s.
+The attempt itself did get faster (`s/attempt` 9.50 -> 8.90 and 9.10 -> 9.00,
+i.e. -0.60 / -0.10 s against the block's -0.175 / -0.173 - the rest is the
+branch's acquisition re-draw, P86 §3).
+
+**The class question the phase registered is answered "neither".** P44's
+single-arm read was *improves* (S3-v dropped the `force_min == 0` legs 5 vs 7 and
+drew no grip row); P75's was *moves* (2 of 6 place-leg escapes fire at the
+**end** of the lift, leaving the place leg starting with one face at `0.00 N`).
+On the two-line: lift-leg escapes **7/40 -> 10/40** (seed 5 **2 -> 6**, seed 6
+**5 -> 4** - a draw at n = 20 per arm, and the control alone draws 2 at seed 5
+against 5 at seed 6) and `force_min == 0` **8 -> 10**, so **P44's improvement does
+not transfer**. And **P75's signature is absent**: every escape's `onset_row` is
+**early** in its leg (treatment onsets 1, 2, 2, 2, 5, 9, 11, 15, 21, 42 against
+133-175-tick legs; median share **0.05** of the leg, the control's 0.08) - the
+**take-off** loaded slide - and the treatment's **place-leg escapes are 0/27**
+against the control's 1/29, i.e. no place leg inherited a broken pinch. One new
+reason key (`grasped, not placed (no note)` x1) at seed 5; P4a/P4b therefore fail
+at seed 5 while P4c passes (all-leg 2 -> 6, under the +5 bar). Landing **12/12**
+and **14/14**; descent budgets **0/20** in C5/T5/T6 and the standing seed-6 leg
+12 (0.164 vs 0.160) in C6 - the same branch property P86/P87/P88 recorded, not
+re-tuned.
+
+**Admissibility, and the one deviation.** C5/C6 replay P88's **C5/C6** on the
+`[fruit]` stream **868/868** and **821/821** with the diag rows and all three
+profile rows dropped, *and* the same controls **differ** from P88's T5/T6 at line
+160 (a `place1` row) - so the filter hides only this phase's own rows rather than
+everything. The 20-attempt references in `logs/` are pre-P87-clock records, so
+`190` is recorded and **P6's per-leg budget** is the motion gate (P87/P88's
+registered read). The scope's inertness is the P87/P88 triple on the final tree:
+the single arm **346/346 raw** against `logs/p71/accept_rails_none.log` with
+`fingerprint: matches configs/motion_reference_single.json` and **zero** profile
+rows printed; the shared station (`unset` vs `=0`) identical with the same clock
+(0.30/1.0/162 ticks, only the row's `origin` differs); and a fresh unset `N5`
+replays C5. **Deviation A1** (pinned while the first cell was still running,
+`14c73afd`): `PREREG.md` §4 G0 named P88's **T5/T6** as the replay targets; those
+are that phase's *treatment* cells (place 0.52), so the correct targets are its
+**C5/C6** (place 0.35) - a clause-target correction with no outcome-dependent
+content, and the T-cell comparison became the diagnostic above.
+
+**Re-entry** is a registration where the lift's own block is the binding term -
+which this line says it cannot be, because the block is 1.65 s of a 9-15 s
+attempt and the cell moves 0.175 s of it - or a class-first argument, which the
+class read above does not support (the escapes are the take-off loaded slide
+`logs/p42/SIM_LIMIT.md` closes, not something the lift's clock creates). **The
+record is the deliverable**: with release shipped (P87), place negative (P88) and
+lift negative (P89), every profile block of the shipped cell is measured by the
+same instrument and the same read rules.
+
+Pins: battery tree `tasks.py` `967d934b`, `scene.py` `fb6d9d33`, `rl_env.py`
+`b81d59b6`; final tree `tasks.py` **`32efa98c`** (`LIFT_TWO_LINE_DEFAULT =
+False`; the measured cells ran on `967d934b`, the close-out edits are the
+constant and comments), `scene.py` **`fb6d9d33`**, `rl_env.py` **`b81d59b6`**
+(the `TASKS_MD5` follow), `scripts/249_p89_lift_scope_selftest.py` (new selfcheck
+leg), `scripts/selfcheck.sh` (the `P89 lift scope` leg); `configs/*` untouched
+(`423896f7` / `423896f7` / `8952c320`); ckpt `moe_v13s` `61da390a`;
+`189_w7a_chain.sh` not run. Evidence `logs/p89/`: `PREREG.md` (+`PREREG.md5`),
+`PREREG_A1.md` (+`.md5`), `RESULTS.md`, `p89_report.py` -> `p89_report.txt`,
+`run_p89.sh`, `run_p89_extra.sh`, `gates.sh` -> `gates.out`, `header.txt`,
+`battery_driver.log`, `extra_driver.log`, the cells
+`{C5,T5,C6,T6}.{log,stamps,driver,gate,budgets}`, `N5.{log,stamps,driver}`,
+`single_accept.{log,gate,same}`, `shared_{unset,zero}.*`, `shared_raw_same.txt`,
+`C5_vs_p88T5.txt`, `C6_vs_p88T6.txt`.

@@ -454,6 +454,41 @@ def _place_provenance(two_line: bool = False) -> dict:
     }
 
 
+def _lift_provenance(two_line: bool = False) -> dict:
+    """The `physics.lift` block (P89): the lift cap and its origin.
+
+    Pure (`tasks.lift_speed_resolution`, an env + scope read with no simulator),
+    so it is written before the first episode and cannot fail a build. The cap
+    pair (`v_max`, `a_max`, m/s and m/s^2) is the block's contract - for the
+    shipped clock that is **0.30 / 1.0**, and the scoped cell under test is P44's
+    S3-v (**0.37 / 1.0**, the acceleration deliberately *not* raised). `ticks` /
+    `shipped_ticks` / `saved_ticks` are the profile clock at the resolver's
+    **reference distance** (`reference_distance_m`, the median `grasp_lift` leg of
+    the shipped two-line record) - the lift is a short vertical move, but its tick
+    count still depends on the distance, so the reference travels beside it.
+    `origin` / `profile` / `two_line` say *why* it resolved that way: `explicit` /
+    `speed-all` = a caller's own override, `default` = the two-line scope
+    (reachable only if `LIFT_TWO_LINE_DEFAULT` is flipped - **not shipped**,
+    `logs/p89/RESULTS.md`), and `scope-off` = the shipped resolution on every
+    path today. A manifest without the key predates P89.
+    """
+    from .tasks import lift_speed_resolution
+
+    lift = lift_speed_resolution(two_line)
+    return {
+        "v_max": lift["v_max"],
+        "a_max": lift["a_max"],
+        "ticks": lift["ticks"],
+        "shipped_ticks": lift["shipped_ticks"],
+        "saved_ticks": lift["saved_ticks"],
+        "reference_distance_m": lift["reference_distance_m"],
+        "profile": lift["profile"],
+        "origin": lift["origin"],
+        "two_line": bool(two_line),
+        "label": lift["label"],
+    }
+
+
 def finger_physics_provenance(arms: dict | None = None,
                               control_dt: float = 1.0 / 120.0,
                               scope: dict | None = None,
@@ -492,6 +527,12 @@ def finger_physics_provenance(arms: dict | None = None,
     cell's two-line default is **off** - P88 measured it and the gate failed -
     so the shipped tree records 0.35 with `origin="scope-off"`; a store recorded
     under the raise says `explicit`. A manifest without the key predates P88.
+
+    `lift` (P89) is the **lift cap**: the shipped 0.30/1.0 against P44's S3-v
+    0.37/1.0 (the acceleration deliberately not raised). Its two-line default is
+    **off** as well - P89 measured it and the gate failed - so the shipped tree
+    records 0.30 with `origin="scope-off"`. A manifest without the key predates
+    P89.
     """
     from .control import finger_drive_profile
     from .fruits import REAL_CONTACT_DAMPING
@@ -556,6 +597,12 @@ def finger_physics_provenance(arms: dict | None = None,
         #: carry that distance beside them. A manifest without the key predates
         #: P88.
         "place": _place_provenance(two_line),
+        #: P89: the **lift cap** (the S3-v cell). Same one resolver the
+        #: per-attempt caps and the `[biarm] lift profile:` row read
+        #: (`tasks.lift_speed_resolution`); the lift's clock is priced at the
+        #: resolver's own reference distance and carries that distance beside it.
+        #: A manifest without the key predates P89.
+        "lift": _lift_provenance(two_line),
     }
     if scope:
         #: P78/P79: the **runtime, per-leg** clamp
