@@ -3,6 +3,12 @@
 #
 #   scripts/demo_2min.sh            # headless: 3 picks + a video, prints the numbers
 #   HEADLESS=0 scripts/demo_2min.sh # watch it in the Isaac window (GUI)
+#   FRUIT_BIARM=0 scripts/demo_2min.sh  # the pre-P85 single-arm demo
+#
+# P85: the demo runs the **shipped** cell, which is the bimanual two-line - the
+# 3-pick smoke and the clip are both two-line runs, and the motion gate's floor
+# follows the session it ran (0.33 for a three-pick two-line smoke, 0.66 for the
+# single-arm restore).
 #
 # Everything goes through scripts/run.sh, which raises the file-descriptor limit
 # first: without that this Isaac build crashes with "dup failed ... Too many open
@@ -65,11 +71,22 @@ echo "report: 项目总结报告.md   decision doc: 决策与交付.md"
 echo
 echo "=== motion gate  (descent speed vs the reference, a_win5 vs the friction budget) ==="
 gate=0
-# The success floor is relaxed to 2/3 here: a three-pick smoke test is not the
-# ten-attempt acceptance, and the shipped suite's own rate is 8/10, so demanding
-# 3/3 would make the demo flaky. The *motion* budgets stay strict - they are what
-# this demo is for. `scripts/accept.sh` keeps the full floor and the fingerprint.
-python3 scripts/105_motion_regression.py logs/demo_picks.log --min-success-rate 0.66 || gate=$?
+# The success floor is relaxed here: a three-pick smoke test is not the
+# ten-attempt acceptance, and the shipped suite's own rate is 60-80 %, so
+# demanding 3/3 would make the demo flaky. The *motion* budgets stay strict -
+# they are what this demo is for. `scripts/accept.sh` keeps the full floor and
+# the fingerprint.
+#
+# P85: the shipped cell is the bimanual two-line, so the floor is the scenario's
+# own. The two-line's per-attempt branch is 65-80 % at ten attempts, i.e. 2-3 of
+# 3 at this size; a 1/3 floor still catches "the cell stopped working" without
+# pretending a three-pick run can resolve a rate. The single-arm restore
+# (`FRUIT_BIARM=0`) keeps the pre-P85 2/3 bar.
+floor=0.66
+if grep -q '\[fruit\] \[biarm\] two-line scheduler:' logs/demo_picks.log; then
+    floor=0.33
+fi
+python3 scripts/105_motion_regression.py logs/demo_picks.log --min-success-rate "$floor" || gate=$?
 if [ "$gate" -ne 0 ]; then
     echo
     echo "FAIL: this demo broke the motion budgets - do not report it as a pass"

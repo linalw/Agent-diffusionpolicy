@@ -34,6 +34,7 @@ import numpy as np
 
 import isaacsim.core.experimental.utils.app as app_utils
 from fruit_sorting.assets import SceneConfig
+from fruit_sorting.bimanual import biarm_resolution
 from fruit_sorting.common import install_failure_handler, look_at_quat, say
 from fruit_sorting.dataset import EpisodeRecorder
 from fruit_sorting.fruits import FruitSpawner
@@ -107,7 +108,16 @@ def main() -> int:
     scene.start(physics_dt=DT, warmup_steps=60)
     tactile.refresh()
 
-    spawner = FruitSpawner(scene.stage, cfg, seed=int(os.environ.get("SEED", "5")))
+    spawner = FruitSpawner(
+        scene.stage,
+        cfg,
+        seed=int(os.environ.get("SEED", "5")),
+        # P85: one resolution drives the scheduler (`task.bimanual_enabled()`)
+        # and the supply package. The shipped scripted cell is the two-line, so
+        # its dense wave sheet + balanced A:B:C mix ship with it; `FRUIT_BIARM=0`
+        # restores the single arm **and** its pre-P85 supply in one move.
+        two_line=biarm_resolution()["twoline"],
+    )
     spawner.create_pool()
     advance(30)
     spawner.refresh_rigids()
@@ -144,10 +154,11 @@ def main() -> int:
         memory = ExperienceMemory(os.environ.get("FRUIT_MEMORY", "logs/experience.jsonl"))
         agent = SlowLoopAgent(cfg, memory)
         say(f"[agent] slow loop enabled, policy={agent.policy}, memory={memory.summary()}")
-    # F2 pipelined bimanual line (FRUIT_BIARM=1): the whole batch runs in one
-    # session; both arms keep taking station slots until ATTEMPTS attempts are
-    # done (each arm selects its own fruit after acquiring the station). The
-    # per-iteration driver loop below is the single-arm path.
+    # Bimanual scripted cell (P85 shipped default; `FRUIT_BIARM=0` restores the
+    # single arm): the whole batch runs in one session; both arms keep taking
+    # station slots until ATTEMPTS attempts are done (each arm selects its own
+    # fruit after acquiring the station). The per-iteration driver loop below is
+    # the single-arm path.
     bimanual_batch = agent is None and task.bimanual_enabled()
     if bimanual_batch:
         made = task.run_bimanual(ATTEMPTS)

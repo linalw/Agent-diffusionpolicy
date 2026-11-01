@@ -139,7 +139,16 @@ def main() -> int:
     scene.start(physics_dt=DT, warmup_steps=60)
     tactile.refresh()
 
-    spawner = FruitSpawner(scene.stage, cfg, seed=int(os.environ.get("SEED", "77")))
+    spawner = FruitSpawner(
+        scene.stage,
+        cfg,
+        seed=int(os.environ.get("SEED", "77")),
+        # P85 scope: the hybrid canary is the single-arm presentation (it builds
+        # its own `FruitSpawner` / `PickAndPlaceTask` and never constructs the
+        # bimanual session), so it pins the pre-P85 supply defaults instead of
+        # resolving the two scheduler knobs.
+        two_line=False,
+    )
     spawner.create_pool()
     advance(30)
     spawner.refresh_rigids()

@@ -362,10 +362,29 @@ run_check "P62 grasp attitude" "$python" scripts/232_p62_grasp_selftest.py
 # from P62's `grasp_quat_override`, which P62 measured inert on the achieved
 # attitude - and the row / manifest / untouched `configs/` are pinned.
 run_check "P64 left precomp" "$python" scripts/234_p64_precomp_selftest.py
+# P85: **the shipped scripted cell is the bimanual two-line**. The leg runs the
+# real resolvers and the real supply plan: the 1/1 defaults with their origin
+# flags (`FRUIT_BIARM=0` the pre-P85 single arm, `FRUIT_BIARM=1
+# FRUIT_BIARM_TWOLINE=0` the unchanged shared-station pipeline), the two-line's
+# supply package (dense wave sheet + balanced A:B:C, and the single arm's 50/30/20
+# restore), `two_line=None` keeping the pre-P85 raw read for every non-scripted
+# consumer, `two_line_enabled()` being **session-scoped** (so the single-arm and
+# shared-station paths cannot move) against the ambient `two_line_resolved()`,
+# the three scripted entries passing the resolution while `rl_env` and the hybrid
+# canary pin `two_line=False`, the collector manifest's four new provenance keys,
+# and `accept.sh` gating a two-line session through `190`.
+run_check "P85 two-line default" "$python" scripts/246_p85_selftest.py
 
 if [ -n "$run_log" ] && [ -f "$run_log" ]; then
-    run_check "motion budgets" "$python" scripts/105_motion_regression.py "$run_log" \
-        --fingerprint configs/motion_reference.json
+    # P85: the log decides the scenario (and therefore the reference and the
+    # floor), exactly as `scripts/accept.sh` does.
+    if grep -q '\[fruit\] \[biarm\] two-line scheduler:' "$run_log"; then
+        run_check "motion budgets" bash scripts/190_twoline_gate.sh \
+            -r configs/motion_reference.json -m "${TWOLINE_FLOOR:-0.60}" "$run_log"
+    else
+        run_check "motion budgets" "$python" scripts/105_motion_regression.py "$run_log" \
+            --fingerprint configs/motion_reference_single.json
+    fi
 else
     skipped=$((skipped + 1))
     printf '%-26s %-4s %6s\n' "motion budgets" "SKIP" "-"

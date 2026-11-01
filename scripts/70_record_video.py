@@ -35,6 +35,7 @@ from isaacsim.core.rendering_manager import RenderingManager
 from isaacsim.core.simulation_manager import SimulationManager
 from isaacsim.sensors.experimental.rtx import CameraSensor, RtxCamera
 from fruit_sorting.assets import SceneConfig
+from fruit_sorting.bimanual import biarm_resolution
 from fruit_sorting.common import install_failure_handler, look_at_quat, say, to_numpy
 from fruit_sorting.fruits import FruitSpawner
 from fruit_sorting.scene import SortingScene
@@ -121,7 +122,15 @@ def main() -> int:
     scene.start(physics_dt=DT, warmup_steps=60)
     tactile.refresh()
 
-    spawner = FruitSpawner(scene.stage, cfg, seed=int(os.environ.get("SEED", "3")))
+    spawner = FruitSpawner(
+        scene.stage,
+        cfg,
+        seed=int(os.environ.get("SEED", "3")),
+        # P85: the demo inherits the shipped cell (two-line) and its supply
+        # package, so the clip shows what ships; `FRUIT_BIARM=0` restores the
+        # pre-P85 single-arm demo.
+        two_line=biarm_resolution()["twoline"],
+    )
     spawner.create_pool()
     app_utils.update_app(steps=30)
     spawner.refresh_rigids()

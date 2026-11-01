@@ -452,7 +452,7 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: is a **`scripted`-only** knob read by `PickAndPlaceTask.__init__`, so the
 #: direct env neither arms it nor can reach it - the pin below follows the new
 #: `tasks.py` hash without a behaviour change on this path.
-TASKS_MD5 = "f1e44af6e9a9d6639cf1dbfd0f9f9cc7"
+TASKS_MD5 = "f07a865aa84a15ef849286bdb4147daa"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(
@@ -2292,6 +2292,12 @@ class SortingRLEnv:
             self.scene.stage,
             self.cfg,
             seed=self.seed,
+            # P85 scope: the direct/policy presentation is **not** the scripted
+            # bimanual cell. It never runs `run_bimanual`, so it pins the supply
+            # plan to the single-arm defaults instead of resolving the two
+            # scheduler knobs - otherwise the flip's dense wave sheet and
+            # balanced mix would silently re-baseline every direct cell.
+            two_line=False,
             band_interlock=(
                 self._supply["band_interlock"] if self.presentation == "direct" else None
             ),

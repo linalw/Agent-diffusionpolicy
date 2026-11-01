@@ -7,12 +7,27 @@ number anybody quotes. Every figure traces to a log in `logs/`.
 
 ## The number today
 
-Shipped scripted cell, 20 slots, seed 5 (`logs/p80/RESULTS.md` §0):
+**Since P85 the two-line is the shipped scripted cell** (`FRUIT_BIARM` and
+`FRUIT_BIARM_TWOLINE` both default `1`, the owner's sign-off on the grade-pure
+routing semantics; `logs/p85/RESULTS.md`). The table below is that cell as it
+ships - the "single arm" column is the pre-P85 shipped cell, restored with
+`FRUIT_BIARM=0`. Nothing in the two-line row moved by the flip: the pre-flip
+*explicit* two-line records are replayed **865/865** (seed 5) and **814/814**
+(seed 6) `[fruit]` physics lines, so the flip changed reachability, not physics.
+
+Shipped scripted cell, 20 slots, seed 5 (`logs/p85/` = P80's scenario with P82's
+wall):
 
 | | placed | sim s/attempt | inter-placement interval | placed/min (window / batch) | wall/pick |
 | --- | --- | --- | --- | --- | --- |
-| **single arm** | 12/19 = 63 % | **15.10** | **26.72 s** mean / 36.90 p90 | **2.25 / 2.08** | 25.2 s |
-| **two-line** (opt-in) | 16/20 = 80 % | **9.70** | **10.77 / 18.00** | **5.57 / 4.96** | 21.9 s |
+| **two-line (shipped)** | 16/20 = 80 % | **9.70** | **10.77 s** mean / 18.00 p90 | **5.57 / 4.96** | **16.6 s** |
+| single arm (`FRUIT_BIARM=0`) | 12/19 = 63 % | **15.10** | **26.72 s** mean / 36.90 p90 | **2.25 / 2.08** | 25.2 s |
+
+The shipped **acceptance** is the two-line scenario at ten attempts: **7/10,
+9.2 s/attempt**, fingerprint `configs/motion_reference.json` = `eb697f23` (the
+same bytes as `configs/motion_reference_twoline.json` - see "What is left").
+The single arm's own acceptance record is archived and shipped as
+`configs/motion_reference_single.json` (6/9).
 
 Two facts fix the interpretation:
 
@@ -42,7 +57,10 @@ arm's shipped supply) separates the halves:
 
 So: **needing the package is a scheduling answer, not a delivery one.** The
 two-line's default is therefore a *semantics* decision (the W3 pure routing sends
-grade A to the left, B to the right and recycles C), which is the owner's to take.
+grade A to the left, B to the right and recycles C) - **the owner took it in P85**
+(`logs/p85/`): the shipped cell is the two-line with its package, `FRUIT_BIARM=0`
+restores the single arm and `FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=0` the
+shared-station pipeline.
 
 ## Lever 2: the wall - the arbiter was sleeping (shipped, P82)
 
@@ -118,10 +136,18 @@ placement window **-4.9 %**, its count cost being P51's closed acquisition class
 
 ## What is left
 
-* **The two-line default** - the clock (1.87x) and the wall (1.55x) are both
-  measured; the flip is a **grade-pure routing semantics** decision for the owner,
-  and it would owe the collector's and the stores' re-baseline (the routing changes
-  which fruit each arm sees).
+* **The two-line is the default (P85, done).** The clock (1.87x) and the wall
+  (1.55x) are both measured and both ship now; the collector and every store are
+  re-baselined (`collection.biarm_resolved` / `..._defaulted` tell a post-flip
+  shard from a pre-flip one). **Re-baseline rule: every rate, acceptance and
+  store recorded before P85 is a single-arm (or explicitly opt-in two-line)
+  number.**
+* **The first acceleration read on the new default (P85-ACC, `logs/p85/ACCEL.md`).**
+  The P44 speed union's *time* transfers exactly - `place` -0.84 s, `release`
+  -0.72 s, `lift` -0.13 s, **-1.00 s/attempt at both seeds** - and its *delivered*
+  side has no stable sign: 16 -> 13 placed at seed 5, 10 -> 14 at seed 6, pooled
+  26 -> 27 of 40. Not adopted; the class that absorbs it is the closed grip class
+  below.
 * **The residual 1.19x of wall** - two arms' control plus the permit handoff, with
   the shared physics step at **75 % of what remains**. No arbiter change can move
   it; it is the cost of two arms in one PhysX scene.

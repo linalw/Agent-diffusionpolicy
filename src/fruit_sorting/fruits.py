@@ -433,7 +433,18 @@ class SupplyPlan:
     trickle_late_s: float = 0.0
 
     @classmethod
-    def from_env(cls, cfg: SceneConfig) -> "SupplyPlan":
+    def from_env(cls, cfg: SceneConfig, two_line: bool | None = None) -> "SupplyPlan":
+        """Resolve the supply from the environment.
+
+        `two_line` (P85) is the **caller's** resolved scheduler decision - the
+        scripted entry scripts pass `bimanual.biarm_resolution()["twoline"]`, so
+        the shipped default (two-line) gets its own supply package: the dense
+        wave sheet on and the balanced A:B:C mix. `None` keeps the pre-P85 raw
+        environment read (`FRUIT_BIARM_TWOLINE=1`), which is what every probe,
+        the direct env and the hybrid canary use - none of them is the scripted
+        cell, so their streams stay byte-identical. An explicit
+        `FRUIT_SUPPLY_WAVE` / `FRUIT_SUPPLY_GRADES` still wins either way.
+        """
         def number(name: str, default) -> float:
             raw = os.environ.get(name)
             if raw is None:
@@ -445,6 +456,12 @@ class SupplyPlan:
                 return float(default)
 
         scatter = os.environ.get("FRUIT_SUPPLY_SCATTER", "1") == "1"
+        # P85: `None` = the caller did not resolve the scheduler, so keep the
+        # pre-P85 raw read (an explicit `FRUIT_BIARM_TWOLINE=1` opts into the
+        # two-line supply package, unset does not). The shipped scripted cell
+        # passes its resolved value instead; see the docstring.
+        if two_line is None:
+            two_line = os.environ.get("FRUIT_BIARM_TWOLINE", "0") == "1"
         gap_min = max(0.02, number("FRUIT_SUPPLY_GAP_MIN", SUPPLY_GAP_MIN))
         gap_max = max(gap_min, number("FRUIT_SUPPLY_GAP_MAX", SUPPLY_GAP_MAX))
 
@@ -469,11 +486,7 @@ class SupplyPlan:
             lo = max(floor, lo)
             return lo, max(lo, hi)
 
-        wave_default = (
-            "1"
-            if scatter and os.environ.get("FRUIT_BIARM_TWOLINE", "0") == "1"
-            else "0"
-        )
+        wave_default = "1" if scatter and two_line else "0"
         wave = scatter and os.environ.get("FRUIT_SUPPLY_WAVE", wave_default) == "1"
         wave_gap_min = max(
             0.085, number("FRUIT_SUPPLY_WAVE_GAP_MIN", SUPPLY_WAVE_GAP_MIN)
@@ -628,7 +641,7 @@ class SupplyPlan:
             target = 0
         balanced = (
             wave or patch or bed
-        ) and os.environ.get("FRUIT_BIARM_TWOLINE", "0") == "1"
+        ) and two_line
 
         # P1c species lock: `FRUIT_SUPPLY_SPECIES=<name>` restricts the pool to
         # one species (the composition-controlled comparison); unset = shipped.
@@ -831,6 +844,7 @@ class FruitSpawner:
         seed: int = 0,
         band_interlock: bool | None = None,
         band_max: int | None = None,
+        two_line: bool | None = None,
     ):
         self.stage = stage
         self.cfg = cfg
@@ -838,8 +852,11 @@ class FruitSpawner:
         self.seed = int(seed)
         self.rng = random.Random(seed)
         #: Resolved scattered-supply parameters (v9/V1). `scatter=False`
-        #: reproduces the pre-v9 fixed line bit-for-bit.
-        self.supply = SupplyPlan.from_env(cfg)
+        #: reproduces the pre-v9 fixed line bit-for-bit. `two_line` is the
+        #: caller's P85 scheduler decision (the scripted entries pass it; `None`
+        #: keeps the pre-P85 env read - probes, the direct env and the hybrid
+        #: canary are not the scripted cell).
+        self.supply = SupplyPlan.from_env(cfg, two_line)
         #: Dense 2D bed schedule (P32 phase 1, default off). Its own RNG stream
         #: (`BedSchedule`), so nothing here touches `self.rng`: the legacy
         #: arrival streams draw exactly the same numbers with the knob unset.

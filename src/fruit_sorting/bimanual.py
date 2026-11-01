@@ -1,15 +1,19 @@
 """Bimanual scheduling for the scripted sorting line.
 
-Two schedulers live here. **`FRUIT_BIARM=1` runs the F2 shared-station pipeline
-by default** (below). `FRUIT_BIARM_TWOLINE=1` opts into the v9/V2 two-line
-scheduler: each arm owns one pick station on the shared belt (left upstream
-at y = 0, right downstream at y = -0.10, `tasks.py::run_bimanual`), the shared
-`StationLock` is not used, and the two attempts overlap from the descent
-onwards. Each off-centre station gets a station-specific pre-pose configuration
-solved once per batch (so the two approaches stay on their own sides); the
-second `StationLock` (`CoopSession.prepose`) serializes the approaches only if
-such a solve failed. The two-line's placed/min gain missed the pre-registered
-1.25x replacement bar (`logs/v2/RESULT.md`), so it stays opt-in.
+Two schedulers live here. **Since P85 the shipped scripted cell is the v9/V2
+two-line scheduler** (`FRUIT_BIARM` and `FRUIT_BIARM_TWOLINE` both default to
+`1`, resolved by `resolve_biarm` / `resolve_twoline` below): each arm owns one
+pick station on the shared belt (left upstream at y = 0, right downstream at
+y = -0.10, `tasks.py::run_bimanual`), the shared `StationLock` is not used, and
+the two attempts overlap from the descent onwards. Each off-centre station gets
+a station-specific pre-pose configuration solved once per batch (so the two
+approaches stay on their own sides); the second `StationLock`
+(`CoopSession.prepose`) serializes the approaches only if such a solve failed.
+The owner signed off the routing semantics the W3/R5 register held back (pure
+grade lanes, grade C recycled) and `logs/p85/RESULTS.md` is the flip's battery;
+`FRUIT_BIARM=0` restores the pre-P85 single arm and
+`FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=0` restores the F2 shared-station pipeline
+below, which is unchanged.
 
 F2 shared-station scheme (kept for the A/B): **pipelined two-arm operation at
 the shared pick station**. The cell has one main belt, one pick station and two
@@ -68,6 +72,75 @@ import os
 import queue
 import threading
 import time
+
+#: P85: the **shipped scripted cell is the bimanual two-line scheduler**.
+#: The owner signed off the routing semantics (grade-pure lanes, C recycled -
+#: the AGENTS W3/R5 blocker) and the flip's own battery is `logs/p85/`. These
+#: are the two defaults; the single resolvers below are the only place they are
+#: read, and every caller passes the raw environment value in so the origin
+#: ("default" vs "explicit") is recorded and printed the way P43's
+#: `resolve_arm_park` does for the direct interface.
+BIARM_DEFAULT = "1"
+TWOLINE_DEFAULT = "1"
+
+
+def resolve_biarm(env_value: str | None) -> tuple[bool, bool]:
+    """The resolved `FRUIT_BIARM` and whether it came from the P85 default.
+
+    `FRUIT_BIARM=0` restores the shipped-pre-P85 single arm; `=1` runs the
+    bimanual pipeline (two-line unless `FRUIT_BIARM_TWOLINE=0`). Returns
+    `(on, defaulted)`; `defaulted` is the P43-style origin flag that the
+    collector's manifest and the two entry banners record, so a pre-P85 shard
+    (no `biarm_resolved` key) cannot be read as a post-flip one.
+    """
+    raw = BIARM_DEFAULT if env_value is None else env_value
+    return raw.strip() == "1", env_value is None
+
+
+def resolve_twoline(env_value: str | None, *, biarm: bool) -> tuple[bool, bool]:
+    """The resolved `FRUIT_BIARM_TWOLINE` and whether it came from the default.
+
+    The two-line scheduler only exists inside a bimanual session, so the
+    default is honoured only when `FRUIT_BIARM` resolved on; with `biarm=False`
+    this returns `(False, False)` and `FRUIT_BIARM_TWOLINE` is inert (that is
+    what keeps `FRUIT_BIARM=0` - and the shared-station
+    `FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=0` - exactly as it was before P85).
+    """
+    raw = TWOLINE_DEFAULT if env_value is None else env_value
+    return bool(biarm and raw.strip() == "1"), bool(env_value is None and biarm)
+
+
+def biarm_resolution() -> dict[str, object]:
+    """The resolved scheduler pair plus its printed/recorded labels.
+
+    One call per consumer (the two entry scripts, the collector, the task's
+    enable gate), so the two knobs resolve through one function each and no
+    caller re-implements the default. `label` is the P43 form:
+    `FRUIT_BIARM=1(default) FRUIT_BIARM_TWOLINE=1(default)`.
+    """
+    biarm, biarm_defaulted = resolve_biarm(os.environ.get("FRUIT_BIARM"))
+    twoline, twoline_defaulted = resolve_twoline(
+        os.environ.get("FRUIT_BIARM_TWOLINE"), biarm=biarm
+    )
+    #: Two origins, not one: `biarm="0"` is always an explicit decision, while
+    #: `twoline="0"` can be either the default off (biarm off) or an explicit
+    #: `FRUIT_BIARM_TWOLINE=0`. A single `_origin(defaulted, active)` helper got
+    #: this wrong for the biarm half (`biarm-off` on an explicit `=0`).
+    biarm_origin = "default" if biarm_defaulted else "explicit"
+    if not biarm:
+        twoline_origin = "biarm-off"
+    else:
+        twoline_origin = "default" if twoline_defaulted else "explicit"
+    return {
+        "biarm": biarm,
+        "biarm_defaulted": biarm_defaulted,
+        "twoline": twoline,
+        "twoline_defaulted": twoline_defaulted,
+        "label": (
+            f"FRUIT_BIARM={int(biarm)}({biarm_origin}) "
+            f"FRUIT_BIARM_TWOLINE={int(twoline)}({twoline_origin})"
+        ),
+    }
 
 
 class MainBridge:

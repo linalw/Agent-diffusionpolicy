@@ -27,6 +27,13 @@ also call `fruit_sorting.fdlimit.raise_fd_limit()` before creating `SimulationAp
 so invoking `$ISAAC_SIM_DIR/python.sh` directly no longer dies that way; the wrapper
 is still the supported path.
 
+**P85 (2026-11-01) supersedes every acceptance number below in this section: the
+shipped scripted cell is now the bimanual two-line**, so `scripts/accept.sh` runs
+a *different scenario* (7/10, `configs/motion_reference.json` = `eb697f23`, the
+two-line floor 0.60) and `FRUIT_BIARM=0` restores the single-arm record archived
+at `logs/p85/motion_reference_single_pre_p85.json` (`8952c320`, 6/9). Read §2's
+"P85" paragraph before quoting any acceptance, rate or store from here.
+
 **On this tree (P32, 2026-10-22) the acceptance reads 6/10 with the pear and
 7/10 with only the pear profile reverted - both below the 75 % dynamic floor -
 and the fingerprint reference was re-recorded from the pear-on run**
@@ -3913,6 +3920,80 @@ run_p84.sh,gates.sh,one_run.sh,stamp.py,battery_driver.log}`, the cells
 `{D5,F5,D6,F6}.{log,stamps,driver.log}`, `{D5,D6,F5,F6}.gate` + `D6.gate_t6`,
 `{D5,D6,F5,F6}.budgets`, `motion_reference_twoline_T6_20.json`; WORKLOG "P84".
 
+**P85 (2026-11-01, `logs/p85/`; **the shipped default changes: the scripted cell
+is the bimanual two-line**) - the owner signed off the grade-pure routing
+semantics the W3/R5 register held back, so `FRUIT_BIARM` and
+`FRUIT_BIARM_TWOLINE` both default **1**.** Resolvers are single-sited
+(`bimanual.resolve_biarm` / `resolve_twoline` / `biarm_resolution`, one per knob,
+with the P43 `defaulted` origin flag) and the log names the cell:
+`[biarm] scheduler: FRUIT_BIARM=1(default) FRUIT_BIARM_TWOLINE=1(default)`. The
+restores are **`FRUIT_BIARM=0`** (the pre-P85 single arm) and
+**`FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=0`** (the unchanged F2 shared-station
+pipeline); `tasks.two_line_enabled()` became the **session** predicate
+(`session.twoline`, False outside a session) and `two_line_resolved()` is the
+ambient form `run_bimanual` reads, so the single-arm and shared-station paths
+cannot move. The two-line's supply package (`fruits.SupplyPlan.from_env(cfg,
+two_line=...)`: dense wave sheet + balanced A:B:C) follows the same resolution
+and is passed by the three scripted entries only - `SortingRLEnv` and
+`scripts/60_eval_policy.py` pin `two_line=False` (neither is the scripted cell),
+so no direct/policy number moves, and `scripts/accept_policy.sh` has **no path**
+to the flip (it builds its own `FruitSpawner`/`PickAndPlaceTask`, never a
+`CoopSession`).
+
+**The flip is resolution-only, proved three ways.** The default 20-attempt runs
+replay the pre-flip *explicit* two-line records line for line modulo the phase's
+instrumentation rows: seed 5 **865/865** vs `logs/p80/T20.log`, seed 6
+**814/814** vs `T6.log`, and the accel treatment **799/799** vs `V20.log` (the
+union's opt-in two-line arm). Delivered (seed 5): **16/20, 9.70 s/attempt,
+interval 10.77 s, 5.57 / 4.96 placed/min, wall/pick 16.57 s, 2.90 placed/min
+wall** - P80's numbers with P82's wall (331.4 s against T20's 497.2 s). The
+single-arm control (`FRUIT_BIARM=0`, same batch) is **346/346 identical to
+`logs/p71/accept_rails_none.log`** with `fingerprint: matches` the archive, so
+the restore is byte-exact; its rate-only FAIL (6/9 < 0.75) is this tree's
+standing branch, not a P85 effect.
+
+**The acceptance moves scenario and its gate becomes honest.** `scripts/accept.sh`
+now reads the session from its own log: a two-line session is gated by
+`scripts/190_twoline_gate.sh -r configs/motion_reference.json -m 0.60` (the
+scenario pin, the two-line floor and the per-scenario reference - one definition
+of "a two-line gate", never a second floor inside 105), anything else by 105 with
+`configs/motion_reference_single.json`; `selfcheck.sh`'s optional motion leg takes
+the same branch. The acceptance reads **7/10, 9.2 s/attempt**, is **424/424
+identical to `logs/p80/T10.log`** and **matches `configs/motion_reference_twoline.json`**
+- i.e. the flip's acceptance scenario *is* the two-line dense scenario the repo
+already had a reference for. Re-recorded: `configs/motion_reference.json`
+`8952c320` -> **`eb697f23`** from `logs/p85/accept10.log` (archive
+`logs/p85/motion_reference_single_pre_p85.json`, also shipped as
+`configs/motion_reference_single.json` for the restore path);
+`configs/motion_reference_twoline.json` is **untouched** (same scenario, same
+bytes). The collector inherits the flip and its shard manifest gains
+`collection.{biarm_resolved,biarm_twoline_resolved,biarm_defaulted,biarm_twoline_defaulted}`
+next to the raw strings (which read `"0"` when unset) - **a manifest without
+those four keys predates P85** - and `scripts/153_biarm_rates.sh` now names its
+modes explicitly (`two-line` = shipped, `shared` = the pre-P85 `FRUIT_BIARM=1`,
+`single`), while `scripts/126_branch_probe.sh` pins `FRUIT_BIARM=0` (it probes
+the legacy single-arm branch it was written for). `scripts/demo_2min.sh` runs the
+shipped cell (3-pick smoke **1/3**, clip `logs/video_demo/` 1705 frames / 56.8 s,
+motion gate **PASS** with the scenario's own 0.33 three-pick floor).
+
+**The acceleration cell (P85-ACC, `logs/p85/ACCEL.md`)**: the P44 speed union
+re-priced on the now-default line (the park/lock-on family is the larger wall
+term - 18-21 % per-arm idle, a 7.1-21.8 s park-gate wait, 4.19-5.04 s lock-on -
+but every lever on it is already spent or measured negative, so the union is the
+only unspent knob). **The mechanism transfers exactly** - `place` 3.19 -> 2.35,
+`release` 2.35 -> 1.63, `lift` 1.65 -> 1.52, **-1.00 s/attempt at both seeds** -
+and **the delivered side is a branch draw whose sign flips**: seed 5 16 -> 13
+placed (window -3.7 %, 2 new `grasped, not placed`, zero-force legs 4 -> 7),
+seed 6 10 -> 14 (window +60 %, guard better), pooled 26 -> 27 of 40. Not adopted
+(E2/E3 fail at seed 5); the count moved less than one interval in both
+directions, and the class that moves is `logs/p42/SIM_LIMIT.md`'s closed one.
+No default changed. Pins: `tasks.py` `f07a865a`, `bimanual.py` `99be98b9`-era,
+`fruits.py` `dcabe16b`, `rl_env.py` `TASKS_MD5` follow, `scripts/246_p85_selftest.py`
+(new selfcheck leg), `scripts/accept.sh`, `scripts/selfcheck.sh`; references
+`8952c320` (single) / `eb697f23` (two-line, and now also the shipped acceptance
+reference). **Re-baseline: every rate, acceptance, collector shard and store
+recorded before P85 is a single-arm (or explicitly opt-in two-line) number.**
+
 ## 3. What changed -> what to run
 
 | you changed | run |
@@ -3923,7 +4004,8 @@ run_p84.sh,gates.sh,one_run.sh,stamp.py,battery_driver.log}`, the cells
 | collection (`40_collect_demos.py`) or merging (`41_merge_demos.py`) | `scripts/107_collect_merge_test.py`, then `python3 scripts/106_index_audit.py` |
 | simulator behaviour, scene, gripper, conveyor | `scripts/accept.sh`, then `scripts/demo_2min.sh` |
 | the supply schedule (`fruits.py`, `bed.py`) | `python3 scripts/211_bed_audit.py`, then `scripts/selfcheck.sh` |
-| the bimanual scheduler (`bimanual.py`, or the task loop under `FRUIT_BIARM=1`) | `scripts/selfcheck.sh` (the 152 leg), the `logs/biarm/` rate batch (`scripts/153_biarm_rates.sh biarm 5`), then `FRUIT_BIARM=1 scripts/accept.sh` |
+| the bimanual scheduler (`bimanual.py`, or the task loop under `FRUIT_BIARM=1`) | `scripts/selfcheck.sh` (the 152 leg), the rate batch (`scripts/153_biarm_rates.sh two-line 5`; `shared` and `single` are the other two modes), then `scripts/accept.sh` (it gates whatever session it ran) |
+| the **shipped scheduler default** (`bimanual.resolve_biarm`/`resolve_twoline`, `tasks.bimanual_enabled`/`two_line_enabled`, the supply package's `two_line=` scope, `scripts/accept.sh`'s gate branch) | `scripts/selfcheck.sh` (the `246` leg: the resolver table, the session scope, the entry wiring, the manifest keys, the accept branch), then **both restores** - `FRUIT_BIARM=0` at ten attempts against `configs/motion_reference_single.json` and a `FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=0` smoke - then a 20-attempt default rate run compared line-for-line with the pre-flip record (drop only `[fruit] [carry]`, `[fruit] [diag] carry-assist` and the `[biarm] scheduler:` banner; `logs/p85/p85_report.py --same-with-diag`, template `logs/p85/RESULTS.md`), then `scripts/accept.sh` and `scripts/demo_2min.sh` |
 | the arbiter / main-thread bridge (`bimanual.py` `TickRelay`, `MainBridge`, `CoopSession`), or anything that claims a **wall** speedup on the two-line | `scripts/selfcheck.sh` (the 152 leg), then **the same cell twice** (knob unset vs set) with `logs/p80/stamp.py` and require the `[fruit]` stream to be **byte-identical** (`python3 logs/p82/p82_report.py --same <control.log> <cell.log>`) - a scheduler change must not move the physics - plus `scripts/190_twoline_gate.sh` on the cell (its own reference for its own attempt count) and one `FRUIT_BIARM=1` pair for the shared-station consumer; read the wall with `logs/p82/p82_ab.py` and quote **wall/sim**, `wall/pick` and `placed/min wall` against the single arm at **>= 2 seeds** (`logs/p82/RESULTS.md` §4-§6). The arbiter's idle is measured by `logs/p82/timers.py`; do not add per-tick timers to `ik_step` (AGENTS §2) |
 | the policy, training or the dataset schema | `scripts/selfcheck.sh`, `scripts/accept.sh` (scripted baseline), `scripts/accept_policy.sh` (policy loop) |
 | the direct supply profile (`rl_env.py` `_resolve_supply_profile`, the `fruits.py`/`tasks.py` kwargs) | `scripts/selfcheck.sh` (the `230` leg), `scripts/accept.sh` (import guard: 377/377 + `fingerprint: matches`), one two-line run + `scripts/190_twoline_gate.sh`, `python3 scripts/211_bed_audit.py` |

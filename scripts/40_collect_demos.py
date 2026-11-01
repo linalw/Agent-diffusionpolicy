@@ -2,16 +2,28 @@
 
     FRUIT_EPISODES=20 scripts/run.sh scripts/40_collect_demos.py
 
-Two modes, selected by the environment:
+Two modes, selected by the P85 scheduler resolution
+(`fruit_sorting.bimanual.biarm_resolution`, the same call the pick-and-place
+entry uses):
 
-* **single arm (shipped default)**: the collector feeds the line between
-  attempts and records one episode per successful `task.run`;
-* **two-line (`FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=1`)**: the whole collection runs
+* **two-line (P85 shipped default: `FRUIT_BIARM` and `FRUIT_BIARM_TWOLINE` both
+  default `1`)**: the whole collection runs
   through `task.run_bimanual`, which drives both arms on their own stations.
   Each attempt is recorded as its own episode with a per-episode arm/station
   label (`EpisodeMeta.station_y`), and the recorder allocates unique episode
   indices itself because the process-wide `FRUIT_EPISODE_INDEX` cannot label two
   concurrent attempts.
+* **single arm (`FRUIT_BIARM=0`)**: the collector feeds the line between
+  attempts and records one episode per successful `task.run` - the pre-P85
+  shipped mode, byte-unchanged.
+
+The shard manifest records **both** the raw environment values and the
+resolved pair with its origin (`collection.biarm_resolved`,
+`collection.biarm_twoline_resolved`, `collection.biarm_defaulted`,
+`collection.biarm_twoline_defaulted`), because after P85 an unset
+`FRUIT_BIARM` means "on" - the raw `biarm: "0"` field alone would make a
+post-flip shard look exactly like a pre-flip single-arm one. A manifest
+without those keys predates P85.
 
 A **stall guard** is armed for both modes, and it is a **collector-side
 per-episode watchdog - never a belt stop**. Two layers:
@@ -70,6 +82,7 @@ except ImportError:  # pragma: no cover
     SimulationManager = None
 
 from fruit_sorting.assets import SceneConfig
+from fruit_sorting.bimanual import biarm_resolution
 from fruit_sorting.common import install_failure_handler, say
 from fruit_sorting.dataset import EpisodeRecorder
 from fruit_sorting.fruits import FruitSpawner
@@ -101,10 +114,15 @@ GUARD_INTERVAL_S = float(os.environ.get("FRUIT_COLLECT_GUARD_INTERVAL_S", "20"))
 #: loop stop once `FRUIT_EPISODES` successes are recorded instead of spending
 #: the whole attempt budget.
 TWO_LINE_CHUNK = int(os.environ.get("FRUIT_COLLECT_CHUNK", "24"))
-TWO_LINE = (
-    os.environ.get("FRUIT_BIARM", "0") == "1"
-    and os.environ.get("FRUIT_BIARM_TWOLINE", "0") == "1"
-)
+#: P85: the scheduler pair resolves through `fruit_sorting.bimanual` - the same
+#: single-sited call the pick-and-place entry uses - so an unset `FRUIT_BIARM`
+#: now means the bimanual two-line (the owner's sign-off). `FRUIT_BIARM=0`
+#: restores the pre-P85 single arm and `FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=0`
+#: the F2 shared-station pipeline (which this collector drives through the same
+#: `run_bimanual` call).
+SCHEDULER = biarm_resolution()
+TWO_LINE = bool(SCHEDULER["twoline"])
+BIARM = bool(SCHEDULER["biarm"])
 
 
 def advance(steps: int) -> None:
@@ -276,7 +294,12 @@ def write_manifest(out_dir: str, cfg: SceneConfig) -> None:
         "configs/waypoints.json",
         "configs/motion_reference.json",
     ]
-    supply = SupplyPlan.from_env(cfg)
+    # P85: the manifest must describe the **plan the spawner runs**, so it takes
+    # the same resolved scheduler the spawner gets (`two_line=TWO_LINE`). Without
+    # it a defaulted two-line shard recorded `wave=false` and the 50/30/20 mix
+    # while running the dense sheet and the balanced mix - the provenance would
+    # contradict the run.
+    supply = SupplyPlan.from_env(cfg, TWO_LINE)
     manifest = {
         "created": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         # The collection quota, not the recorded count: the collector records
@@ -290,6 +313,17 @@ def write_manifest(out_dir: str, cfg: SceneConfig) -> None:
             "mode": "two_line" if TWO_LINE else "single_arm",
             "biarm": os.environ.get("FRUIT_BIARM", "0"),
             "biarm_twoline": os.environ.get("FRUIT_BIARM_TWOLINE", "0"),
+            # P85: the **resolved** pair and its origin. After the flip an
+            # unset `FRUIT_BIARM` means "on", so the two raw fields above
+            # (`"0"` when unset) would make a post-flip defaulted shard
+            # indistinguishable from a pre-flip single-arm one. A manifest
+            # without these four keys predates P85; `*_defaulted` follows the
+            # P43 `arm_park.defaulted` rule (`true` = the shipped default,
+            # `false` = an explicit environment value).
+            "biarm_resolved": int(BIARM),
+            "biarm_twoline_resolved": int(TWO_LINE),
+            "biarm_defaulted": bool(SCHEDULER["biarm_defaulted"]),
+            "biarm_twoline_defaulted": bool(SCHEDULER["twoline_defaulted"]),
             "grade_routing": os.environ.get("FRUIT_GRADE_ROUTING", "auto"),
             "station_l": os.environ.get("FRUIT_BIARM_STATION_L", "0.0"),
             "station_r": os.environ.get("FRUIT_BIARM_STATION_R", "-0.10"),
@@ -577,7 +611,15 @@ def main() -> int:
     scene.start(physics_dt=DT, warmup_steps=60)
     tactile.refresh()
 
-    spawner = FruitSpawner(scene.stage, cfg, seed=int(os.environ.get("SEED", "21")))
+    spawner = FruitSpawner(
+        scene.stage,
+        cfg,
+        seed=int(os.environ.get("SEED", "21")),
+        # P85: the collector's supply follows the resolved scheduler, exactly as
+        # `20_pick_place.py`'s does, so a defaulted shard is the two-line
+        # scenario end to end.
+        two_line=TWO_LINE,
+    )
     spawner.create_pool()
     app_utils.update_app(steps=30)
     spawner.refresh_rigids()
@@ -623,6 +665,7 @@ def main() -> int:
     dynamic = task._dynamic_pick_mode(openarm=True, scripted=True)
     say(
         f"[collect] mode={'two_line' if TWO_LINE else 'single_arm'} "
+        f"scheduler[{SCHEDULER['label']}] "
         f"episodes={EPISODES} soft_timeout={EPISODE_TIMEOUT_S:.0f}s "
         f"hard_window={GUARD_STALL_S:.0f}s dynamic={dynamic} "
         f"FRUIT_DYNAMIC_PICK={os.environ.get('FRUIT_DYNAMIC_PICK', 'unset')} "

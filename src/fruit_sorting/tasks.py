@@ -24,7 +24,7 @@ import numpy as np
 import isaacsim.core.experimental.utils.app as app_utils
 from isaacsim.core.rendering_manager import RenderingManager
 
-from .bimanual import CoopSession
+from .bimanual import CoopSession, biarm_resolution
 from .common import say, substeps, to_numpy
 from .control import ArmController
 from .dataset import EpisodeMeta, EpisodeRecorder, camera_observation
@@ -7821,25 +7821,30 @@ class PickAndPlaceTask:
     def bimanual_enabled(self) -> bool:
         """Whether the scripted line should run the two-arm pipeline.
 
-        **Default off while F2 measures it.** The shipped v7/F1 default is the
-        single-arm dynamic line and its acceptance fingerprint is the recorded
-        reference; flipping the default is the integration phase's (G) decision.
-        `FRUIT_BIARM=1` enables the pipeline explicitly.
+        **P85: the shipped default is the bimanual two-line** -
+        `FRUIT_BIARM` defaults to `1` and `FRUIT_BIARM_TWOLINE` to `1`, resolved
+        once by `bimanual.biarm_resolution()` (the owner signed off the W3/R5
+        routing semantics). `FRUIT_BIARM=0` restores the pre-P85 single arm and
+        `FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=0` restores the F2 shared-station
+        pipeline; both are byte-unchanged (`logs/p85/RESULTS.md`). The origin is
+        printed here, the P43 way (`FRUIT_BIARM=1(default) ...`), so a log says
+        which cell it ran.
 
         Only the scripted OpenArm dynamic line qualifies: the indexed path stops
         the shared belt (`belt.stop()`), the pad hand keeps its own measured
         line, and the policy handover drives its own primitive - none of those
         can share a station between two concurrent attempts.
         """
-        env = os.environ.get("FRUIT_BIARM")
-        if env != "1" or self._active_session is not None:
+        resolved = biarm_resolution()
+        if not resolved["biarm"] or self._active_session is not None:
             return False
+        label = str(resolved["label"])
         kind = getattr(self.grippers.get("left"), "kind", "")
         if kind != "openarm":
-            say(f"[biarm] FRUIT_BIARM=1 ignored: hand is {kind!r}, not openarm")
+            say(f"[biarm] {label} ignored: hand is {kind!r}, not openarm")
             return False
         if not self._dynamic_pick_mode(openarm=True, scripted=True):
-            say("[biarm] FRUIT_BIARM=1 ignored: the line is the indexed primitive")
+            say(f"[biarm] {label} ignored: the line is the indexed primitive")
             return False
         if self.recorder is not None:
             # W3: the collector records on the two-line branch too. The
@@ -7847,6 +7852,11 @@ class PickAndPlaceTask:
             # `_tick_frame` bridges `RenderingManager.render()` to the main
             # thread under the session, so the recorder runs off-thread safely.
             say("[biarm] recorder attached; two-line episodes are recorded per arm")
+        # One resolution, one banner: the entry asks `bimanual_enabled()` to
+        # choose its loop and `run_bimanual` asks again, so latch it.
+        if not getattr(self, "_biarm_announced", False):
+            self._biarm_announced = True
+            say(f"[biarm] scheduler: {label}")
         return True
 
     def _station_prepose_target(self, arm: str) -> np.ndarray | None:
@@ -7942,25 +7952,46 @@ class PickAndPlaceTask:
                     return True
         return False
 
-    def two_line_enabled(self) -> bool:
-        """Whether the v9/V2 two-line scheduler is on for `FRUIT_BIARM=1`.
+    def two_line_resolved(self) -> bool:
+        """The **ambient** two-line resolution (P85): the entry's decision.
 
-        Default **off**, per the V2 pre-registration's decision rule
-        (`logs/v2/PREREGISTRATION.md`): the two-line's placed/min gain was 1.08x,
-        short of the 1.25x bar for replacing the shared-station meaning of
-        `FRUIT_BIARM=1`, so `FRUIT_BIARM=1` stays the F2 shared-station pipeline
-        and the two-line is the explicit opt-in `FRUIT_BIARM_TWOLINE=1`. When on,
-        each arm owns its own pick station on the shared belt
-        (`FRUIT_BIARM_STATION_L/R`, default 0.0 / -0.10).
+        Reads `FRUIT_BIARM` / `FRUIT_BIARM_TWOLINE` through
+        `bimanual.biarm_resolution()`; unset is now the two-line. Used by
+        `run_bimanual` (before a session exists) and by the entry scripts that
+        build the spawner's supply package (`two_line=` on `FruitSpawner`), so
+        the scheduler and its supply resolve from one call.
         """
-        return os.environ.get("FRUIT_BIARM_TWOLINE", "0") == "1"
+        return bool(biarm_resolution()["twoline"])
+
+    def two_line_enabled(self) -> bool:
+        """Whether **this task is running** the two-line scheduler (session scope).
+
+        P85: this is a *session* predicate, not an environment read - it is
+        `session.twoline` while a `CoopSession` is active and False otherwise.
+        That is what keeps the single-arm and shared-station paths byte-identical
+        to their pre-P85 records (they have no session here) and it is what the
+        three scope guards below want: `_ready_move`'s skip, `_home_hub` and the
+        P42 seat centre all mean "the two-line scheduler is running", which can
+        only be true while the session is. The *ambient* default (what the entry
+        decided) is `two_line_resolved()`; the two agree inside a session.
+
+        Background: before P85 the two-line was the explicit opt-in
+        `FRUIT_BIARM_TWOLINE=1` and this read the environment directly; the
+        V2 pre-registration's 1.25x replacement bar kept it opt-in
+        (`logs/v2/PREREGISTRATION.md`), and the owner's P85 sign-off is what
+        replaced that decision.
+        """
+        session = self._active_session
+        if session is None:
+            return False
+        return bool(getattr(session, "twoline", False))
 
     def run_bimanual(self, attempts: int) -> list[EpisodeResult]:
         """Run a batch of up to `attempts` scripted attempts on two arms.
 
         Two modes:
 
-        * **two-line (`FRUIT_BIARM_TWOLINE=1`, opt-in)**: each arm owns a pick
+        * **two-line (P85 shipped default)**: each arm owns a pick
           station on the shared belt; the left catches at `FRUIT_BIARM_STATION_L`
           (upstream, default 0.0; the W2 +0.05/+0.08 widening screens are
           documented in the comment below and `logs/w2/RESULT.md`) and the
@@ -7974,9 +8005,10 @@ class PickAndPlaceTask:
           Geometry/semantics are pre-registered in
           `logs/v2/PREREGISTRATION.md`; the rate and clearance are in
           `logs/v2/RESULT.md` (pre-W2) and `logs/w2/RESULT.md` (W2 redesign).
-        * **shared station (default, F2)**: the two arms take turns owning one
-          station (acquire -> fresh select -> dynamic attempt) until the batch
-          budget is spent.
+        * **shared station (`FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=0`)**: the two
+          arms take turns owning one station (acquire -> fresh select -> dynamic
+          attempt) until the batch budget is spent. This was `FRUIT_BIARM=1`'s
+          meaning before P85 and is unchanged.
 
         One session spans the whole batch (not one session per pair), so a
         carry never idles the other arm until the previous pair finishes.
@@ -7987,7 +8019,7 @@ class PickAndPlaceTask:
         if not self.bimanual_enabled():
             return []
         trace = os.environ.get("FRUIT_BIARM_TRACE", "0") == "1"
-        two_line = self.two_line_enabled()
+        two_line = self.two_line_resolved()
         saved_stations = dict(self.station_y)
         saved_recycle = float(getattr(self.spawner, "recycle_y", self.cfg.pick_y))
         if two_line:

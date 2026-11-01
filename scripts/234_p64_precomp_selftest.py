@@ -238,12 +238,20 @@ def main() -> int:
         check(md5(ROOT / "configs/waypoints_oriented.json") ==
               "0ea08ebb6bdbd1e78a2402ca263ded01",
               "configs/waypoints_oriented.json is byte-untouched (0ea08ebb)")
+        # P85 (the flip): `configs/motion_reference.json` is now the shipped
+        # (bimanual two-line) acceptance record - which is the two-line
+        # scenario's own reference, so the two files legitimately carry the
+        # same bytes; the pre-P85 single-arm record is archived
+        # (`logs/p85/motion_reference_single_pre_p85.json`) and shipped as
+        # `configs/motion_reference_single.json` for the `FRUIT_BIARM=0` restore.
         check(md5(ROOT / "configs/motion_reference.json") ==
-              "8952c320d798ef42e03ba815c9e96b23"
+              "eb697f23adb5d6b9ef8656f3319d3ce8"
               and md5(ROOT / "configs/motion_reference_twoline.json") ==
-              "eb697f23adb5d6b9ef8656f3319d3ce8",
-              "both motion references are the P71 re-records (8952c320 / eb697f23); "
-              "the pre-P71 files are archived in logs/p71/")
+              "eb697f23adb5d6b9ef8656f3319d3ce8"
+              and md5(ROOT / "configs/motion_reference_single.json") ==
+              "8952c320d798ef42e03ba815c9e96b23",
+              "the shipped acceptance reference is the two-line record "
+              "(eb697f23), the single-arm restore keeps 8952c320")
         env_pin = env_src.split('TASKS_MD5 = "', 1)[1].split('"', 1)[0]
         check(env_pin == md5(ROOT / "src/fruit_sorting/tasks.py"),
               f"TASKS_MD5 follows tasks.py ({env_pin[:8]})")

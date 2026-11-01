@@ -14,6 +14,12 @@
 #
 # Any pending comparison must be done inside one such stretch: probe, run both arms,
 # probe again, and throw the comparison away if the branch changed.
+#
+# P85: the shipped cell is the bimanual two-line, whose first descent line is not
+# the single-arm `approach(cartesian)` row this probe greps. The probe therefore
+# pins `FRUIT_BIARM=0` and measures the **legacy single-arm** branch (its whole
+# history above is that scenario); a two-line run's branch is read from its
+# `[biarm] scheduler:` banner and its own `configs/motion_reference.json`.
 set -uo pipefail
 
 cd "$(dirname "$0")/.."
@@ -25,7 +31,7 @@ mkdir -p "$out_dir"
 echo "probing ${n}x  (HEADLESS=${HEADLESS:-1} CAMERA_ANNOTATORS=${FRUIT_CAMERA_ANNOTATORS:-rgb,distance_to_image_plane} PAUSE=${FRUIT_PAUSE_TIMELINE:-0})"
 for i in $(seq 1 "$n"); do
     log="$out_dir/probe_$(date +%H%M%S)_$i.log"
-    ATTEMPTS=1 FRUIT_MOTION_REPORT=1 scripts/run.sh scripts/20_pick_place.py > "$log" 2>&1
+    ATTEMPTS=1 FRUIT_BIARM=0 FRUIT_MOTION_REPORT=1 scripts/run.sh scripts/20_pick_place.py > "$log" 2>&1
     first=$(grep -oE 'approach\(cartesian\): [0-9.]+ cm, [0-9]+ samples' "$log" | head -1)
     printf '  %2d/%d: %-44s %s\n' "$i" "$n" "${first:-no descent recorded}" "$(basename "$log")"
 done
