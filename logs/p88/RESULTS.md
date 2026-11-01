@@ -8,10 +8,12 @@ stays an **off-by-default** cell (P44's S1); the phase's gate **failed**, so
 `physics.place` manifest block, the `248` selfcheck leg, and the measured arm
 reproducible as `FRUIT_SPEED_PLACE=0.52`.
 
-PREREG `logs/p88/PREREG.md` (**`31e40b60...`**) + amendment
-`logs/p88/PREREG_A1.md` (**`2331d706...`**, pinned 17:34, before the first
-treatment cell ran: P1b's command-peak clause was corrected for the
-acceleration/jerk-limited short legs). Cells `logs/p88/{C5,T5,C6,T6}.{log,stamps,
+PREREG `logs/p88/PREREG.md` (**`31e40b60...`**) + two amendments:
+`PREREG_A1.md` (**`2331d706...`**, pinned 17:34, **before** the first treatment
+cell ran - P1b's command-peak clause corrected for the acceleration/jerk-limited
+short legs) and `PREREG_A2.md` (**`870862d9...`**, pinned 18:17 - G1's
+fingerprint clause was registered against pre-P87-clock references; see §6).
+Cells `logs/p88/{C5,T5,C6,T6}.{log,stamps,
 driver}` (one claim each, `logs/p88/run_p88.sh`), read by
 `logs/p88/p88_report.py` -> `p88_report.txt`; gates in `logs/p88/gates.sh`.
 
@@ -224,14 +226,14 @@ block says `explicit` when it is, and `scope-off` on the shipped tree.
 
 Battery tree (the measured cells): `tasks.py` **`618e7822`**,
 `scene.py` `3fac75c2`, `rl_env.py` `f33c7e04`. Final shipped tree: `tasks.py`
-**`23430d50`** (`PLACE_TWO_LINE_DEFAULT = False`), `scene.py` **`1ec3b8f8`**
+**`9e1aeef9`** (`PLACE_TWO_LINE_DEFAULT = False`; battery-time
+`618e7822`, the close-out edits are comment-only), `scene.py` **`1ec3b8f8`**
 (the `physics.place` builder; battery-time `3fac75c2`, the close-out edits are
-docstring-only), `rl_env.py` **`3ac60be8`** (the `TASKS_MD5`
-follow), `scripts/248_p88_place_scope_selftest.py` **`68758d48`** (the new
+docstring-only), `rl_env.py` **`1900fb26`** (the `TASKS_MD5` follow), `scripts/248_p88_place_scope_selftest.py` **`68758d48`** (the new
 selfcheck leg), `scripts/225` **`6bb08c8b`** (both scoped consumers),
 `scripts/247` **`4e570e6d`** ("only the release keys move" re-asserted),
-`scripts/selfcheck.sh` **`303d1c32`** (the `P88 place scope` leg),
-`logs/p88/p88_report.py` **`8bdb74bb`** (battery-time `4d2e99b2`; extended before
+`scripts/selfcheck.sh` **`1cc7a7e1`** (the `P88 place scope` leg),
+`logs/p88/p88_report.py` **`138cdf3f`** (battery-time `4d2e99b2`; extended before
 T5 for A1's per-leg read and the P1b verdict - read-only changes).
 `configs/*` untouched (`423896f7` / `423896f7` / `8952c320`); checkpoint
 `moe_v13s` `61da390a`. `scripts/189_w7a_chain.sh` not run.

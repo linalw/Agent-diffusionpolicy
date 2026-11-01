@@ -4223,8 +4223,8 @@ profile rows absent (the shared station's clock is unchanged, `--profile`). The
 measured arm is reproducible as `FRUIT_SPEED_PLACE=0.52`; the re-entry is a
 scenario where the place block **binds** the interval (not the count) or a
 class-first registration argued on the wall alone. Pins: `tasks.py`
-**`23430d50`** (`PLACE_TWO_LINE_DEFAULT = False`), `scene.py` **`1ec3b8f8`**,
-`rl_env.py` **`3ac60be8`** (the `TASKS_MD5` follow),
+**`9e1aeef9`** (`PLACE_TWO_LINE_DEFAULT = False`), `scene.py` **`1ec3b8f8`**,
+`rl_env.py` **`1900fb26`** (the `TASKS_MD5` follow),
 `scripts/248_p88_place_scope_selftest.py` (new selfcheck leg),
 `scripts/225`/`247` re-pinned for the second scoped consumer. Evidence
 `logs/p88/{PREREG.md,PREREG_A1.md,PREREG_A2.md,RESULTS.md,p88_report.py,

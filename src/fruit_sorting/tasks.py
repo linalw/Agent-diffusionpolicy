@@ -303,8 +303,8 @@ def release_speed_resolution(two_line: bool = False) -> dict[str, object]:
 def _place_profile_ticks(distance: float, v_max, a_max) -> int | None:
     """The place transit's **own** clock at one distance, from its profile [ticks].
 
-    Pure, and the profile chain the place leg actually runs: `_carry` builds
-    `TrajectoryLimits.from_env` (j_max 25), sets the place cap, then
+    Pure, and the profile chain the place leg actually runs: `_carry_leg`
+    builds `TrajectoryLimits.from_env` (j_max 25), sets the place cap, then
     `limited_by_cone` keeps `j_max = min(25, max(10*a_max, 1))` - so at the
     shipped/registered accelerations the jerk budget is `10*a_max` and the
     duration is the largest of the three terms, with the profile's own 2 %

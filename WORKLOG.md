@@ -22432,9 +22432,10 @@ count and argues the **-0.77 s** mean block saving / -5.6 % wall on its own.
 The measured arm is one env var away.
 
 Pins: battery tree (the measured cells) `tasks.py` `618e7822`, `scene.py`
-`3fac75c2`, `rl_env.py` `f33c7e04`; final tree `tasks.py` **`23430d50`**
-(`PLACE_TWO_LINE_DEFAULT = False`), `scene.py` **`1ec3b8f8`**, `rl_env.py`
-**`3ac60be8`** (the `TASKS_MD5` follow),
+`3fac75c2`, `rl_env.py` `f33c7e04`; final tree `tasks.py` **`9e1aeef9`**
+(`PLACE_TWO_LINE_DEFAULT = False`; the measured cells ran on `618e7822`, the
+close-out edits are comment-only), `scene.py` **`1ec3b8f8`**, `rl_env.py`
+**`1900fb26`** (the `TASKS_MD5` follow),
 `scripts/248_p88_place_scope_selftest.py` (new selfcheck leg), `scripts/225` /
 `247` re-pinned for the second scoped consumer, `scripts/selfcheck.sh` (the
 `P88 place scope` leg); `configs/*` untouched; ckpt `moe_v13s` `61da390a`;
