@@ -565,6 +565,14 @@ implementation: the simulation cell, the data pipeline, and the policy training 
 > recorded before P85 is a single-arm (or opt-in two-line) number, and every
 > **two-line** rate before P87 is a 2.35 s-release number (one descent leg on one
 > seed is 2.5 % over budget - the flip is a documented trade, not a clean pass).
+> **P88 measured the next lever - the `place` block - and shipped nothing**: the
+> mechanism is exact (the block is `transit(0.52, d) + 0.583 s`, per-leg ticks
+> within 2, the mean **-0.774/-0.767 s** against the predicted -0.776/-0.801 at
+> seeds 5/6) but the delivered interval rose at **both** seeds (10.59 -> 13.23
+> and 11.08 -> 12.11 s) and the placement window's density fell at both, so
+> `FRUIT_SPEED_PLACE` stays **off by default** (`PLACE_TWO_LINE_DEFAULT =
+> False`); the measured arm is `FRUIT_SPEED_PLACE=0.52` and the class guard was
+> negative (place-leg escapes **0/27** against the control's 1/29).
 > Full page: [docs/THROUGHPUT.md](docs/THROUGHPUT.md).
 
 > **汇报入口**：[项目总结报告.md](项目总结报告.md)（单一文档，含图表与日志编号）；路线取舍见 [决策与交付.md](决策与交付.md)；**项目收尾一页纸见 [docs/CLOSEOUT.md](docs/CLOSEOUT.md)**（R11-C：交付状态 / 全部杠杆族的实测裁定 / 剩余项）；一键演示 `scripts/demo_2min.sh`。

@@ -422,6 +422,38 @@ def _release_provenance(two_line: bool = False) -> dict:
     }
 
 
+def _place_provenance(two_line: bool = False) -> dict:
+    """The `physics.place` block (P88): the place cap and its origin.
+
+    Pure (`tasks.place_speed_resolution`, an env + scope read with no
+    simulator), so it is written before the first episode and cannot fail a
+    build. The cap pair (`v_max`, `a_max`, m/s and m/s^2) is the block's
+    contract; `ticks` / `shipped_ticks` / `saved_ticks` are the profile clock at
+    the resolver's **reference distance** (`reference_distance_m`) - the place is
+    a transit, so this is a named like-for-like number, not the run's own leg
+    length. `origin` / `profile` / `two_line` say *why* it resolved that way:
+    `explicit` / `speed-all` = a caller's own override, `default` = the two-line
+    scope (reachable only if `PLACE_TWO_LINE_DEFAULT` is flipped - **not
+    shipped**, `logs/p88/RESULTS.md`), and `scope-off` = the shipped resolution
+    on every path today. A manifest without the key predates P88.
+    """
+    from .tasks import place_speed_resolution
+
+    place = place_speed_resolution(two_line)
+    return {
+        "v_max": place["v_max"],
+        "a_max": place["a_max"],
+        "ticks": place["ticks"],
+        "shipped_ticks": place["shipped_ticks"],
+        "saved_ticks": place["saved_ticks"],
+        "reference_distance_m": place["reference_distance_m"],
+        "profile": place["profile"],
+        "origin": place["origin"],
+        "two_line": bool(two_line),
+        "label": place["label"],
+    }
+
+
 def finger_physics_provenance(arms: dict | None = None,
                               control_dt: float = 1.0 / 120.0,
                               scope: dict | None = None,
@@ -444,8 +476,8 @@ def finger_physics_provenance(arms: dict | None = None,
     asserted here. The fruit side is what makes the *pair* reconstructible.
 
     `release` (P87) is the **release clock**: the three open-loop holds of the
-    place leg's release block (`dwell` / `pad_hold` / `finger_hold`, 208 ticks
-    shipped, 132 under the P86 trim) and their origin. The trim is ~0.64 s of
+    place leg's release block (`dwell` / `pad_hold` / `finger_hold`, 188 ticks
+    shipped, 112 under the P86 trim) and their origin. The trim is ~0.64 s of
     pure dwell inside the per-attempt span, so a store recorded under it differs
     from a pre-P87 one in its **attempt timing** without moving one trajectory
     endpoint - exactly the class the P41 `physics` and P72 `scene` blocks exist
@@ -453,6 +485,13 @@ def finger_physics_provenance(arms: dict | None = None,
     on the direct env, which never runs a `CoopSession`), because the trim is a
     two-line-scoped default (`tasks.release_speed_resolution`). A manifest
     **without** this key predates P87 (the `arm_park.defaulted` convention).
+
+    `place` (P88) is the **place cap**: `v_max` 0.35 -> 0.52 at the shipped
+    `a_max` (a transit's clock is distance-dependent, so `ticks` is priced at a
+    named reference distance and `reference_distance_m` travels with it). The
+    cell's two-line default is **off** - P88 measured it and the gate failed -
+    so the shipped tree records 0.35 with `origin="scope-off"`; a store recorded
+    under the raise says `explicit`. A manifest without the key predates P88.
     """
     from .control import finger_drive_profile
     from .fruits import REAL_CONTACT_DAMPING
@@ -506,10 +545,17 @@ def finger_physics_provenance(arms: dict | None = None,
         #: P87: the **release clock** (the S2 trim). Same one resolver the
         #: per-attempt holds and the `[biarm] release profile:` row read
         #: (`tasks.release_speed_resolution`), so a store, a log and a run cannot
-        #: disagree. `shipped` 20/3/3 = 208 ticks; the P86 trim is 0/2/2 = 132.
+        #: disagree. `shipped` 20/3/3 = 188 ticks; the P86 trim is 0/2/2 = 112.
         #: The block is always written (both origins are meaningful); a manifest
         #: without the key predates P87.
         "release": _release_provenance(two_line),
+        #: P88: the **place cap** (the S1 cell). Same one resolver the
+        #: per-attempt caps and the `[biarm] place profile:` row read
+        #: (`tasks.place_speed_resolution`); the place is a transit, so the
+        #: tick fields are priced at the resolver's own reference distance and
+        #: carry that distance beside them. A manifest without the key predates
+        #: P88.
+        "place": _place_provenance(two_line),
     }
     if scope:
         #: P78/P79: the **runtime, per-leg** clamp

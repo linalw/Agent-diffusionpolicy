@@ -22337,3 +22337,111 @@ run. Evidence `logs/p87/`: `PREREG.md` (+`PREREG.md5`), `RESULTS.md`,
 `single_accept.{log,gate,same}`, `shared_{unset,zero}.{log,stamps,driver}`,
 `shared_raw_same.txt`, `accept10.{log,gate,stamps,driver}`,
 `accept_final.{log,out}` and the two pre-P87 reference archives.
+
+### P88 - the place block is exact, the delivery is not: measured, not shipped
+
+**Why.** After P87 the shipped cell (two-line + release trim) has `place` as its
+largest remaining profile block (**3.14-3.19 s** against `release` 1.70 and
+`lift` 1.65), and P44's S1 cell (`FRUIT_SPEED_PLACE=0.52`, `v_max` 0.35 -> 0.52
+at the shipped `a_max` 1.089) is the last unspent one of the three. P44 measured
+it on the single arm as the largest clean single cell; P74 measured that speeding
+the place does not move the loaded-slide class **on the direct line**. The place
+leg is where every escape lives, so the class had to be re-measured on the
+shipped cell - and P74's prediction was "no change".
+
+**The build.** The same two-line-scoped shape as P87, one resolver per cell:
+`tasks.place_speed_resolution` (the caps, the origin, the profile clock at a
+**named** reference distance - the place is a transit, so its ticks are
+`f(distance)`), consumed by `speed_cell_defaults(self.two_line_enabled())` at
+`_carry_leg`, printed as `[biarm] place profile:` inside `run_bimanual`, written
+as `physics.place={v_max,a_max,ticks,shipped_ticks,saved_ticks,
+reference_distance_m,profile,origin,two_line,label}` by
+`scene._place_provenance` in both manifest writers. The registered cell is P44's
+pair exactly; `FRUIT_SPEED_PLACE=0` restores, an explicit value and
+`FRUIT_SPEED_ALL` still win globally, `..._AMAX` pins the acceleration.
+
+**The mechanism is exact.** The place block is **`transit(0.52, d) + 0.583 s`**:
+the untouched `place low` remainder reads 0.583 s (0.578-0.588) in **all four
+cells**, the per-leg tick count matches the profile re-generated at 0.52 from the
+leg's own printed distance to **median 0.0 / +0.5 ticks (max |2|)**, `|v|cmd`
+matches the profile's own peak to **<= 0.009 m/s**, the median leg cruises at
+**0.508 m/s** (control 0.341-0.343), and every leg whose raised prediction is
+`>= 0.45` reads `>= 0.482` (the short legs read 0.42-0.47 because the
+acceleration or jerk term binds - PREREG amendment **A1**, pinned before the
+first treatment cell). The block's **mean** falls **-0.774 / -0.767 s** against
+the predicted -0.776 / -0.801.
+
+**The gate fails.** P1a at seed 5: the block **median** falls -0.770 s against
+the predicted -0.904, i.e. **0.134 s** against a +-0.12 band - and the miss is
+the **leg mix**, not the cell: the prediction is built from the control's legs,
+the treatment drew a longer median leg, and predicted from **its own** legs its
+median is off by **-0.008 / +0.014 s**. A median is not branch-free for a
+distance-dependent block (the release's fixed clock is why P86/P87's medians
+were exact). P2 at **both** seeds: the pooled interval **rises** 10.59 -> 13.23
+and 11.08 -> 12.11 s. P4a at seed 5: one `grasped, not placed (no note)` row - a
+ledger bucket present in three of the four cells.
+
+**The delivered read, and why.** Seed 5 places **16 -> 11**: the left's
+never-held legs go **1 -> 4** (`force@onset = 0.00 N`, `contacts@onset = 0`,
+`sep@onset` 59-63 mm on three of them - the **pre-contact acquisition** class,
+not the place transfer), i.e. the faster leg re-times which fruit the close is
+offered - the same class P51 named as the speed cells' cost. Seed 6 places
+**12 -> 15** and the interval still rises because the placements spread over a
+**wider window** (121.9 -> 169.5 s): the interval **is** `window/(n-1)`, so it
+and the window rate are **one statistic**. Pooled **28 -> 26 of 40** and
+`placed/min wall` **2.65 -> 2.61 (-1.6 %)** while the wall falls 5.6 %
+(9.5 -> 8.9 and 9.1 -> 9.4 s/attempt).
+
+**The class guard is negative** (P74 holds): place-leg escapes **0/27** in the
+treatment against **1/29** in the control, all-leg escapes **5 vs 8**,
+`force_min == 0` **6 vs 8**, landing **16/16, 11/11, 12/12, 15/15**, and the
+descent budgets are clean on both treatments (0/20 each). The control's seed-6
+leg 12 at **0.164 vs 0.160** is the standing branch leg P86's `R6` and P87's
+`T6` recorded - and the treatment does not draw it.
+
+**Not shipped, and the tree is inert.** `PLACE_TWO_LINE_DEFAULT = False`, so
+`FRUIT_SPEED_PLACE` is off on every path (the measured arm is the explicit
+`=0.52`); the resolver, the row and `physics.place` stay as the measurement's
+instruments. Proven three ways: C5/C6 replay P87's T5/T6 **868/868** and
+**821/821** on the `[fruit]` stream (the diag rows and both profile rows
+dropped), a fresh unset 20-attempt run (`N5`) replays C5 **868/868**, and
+`FRUIT_BIARM=0 scripts/accept.sh` is **346/346 raw** identical to
+`logs/p71/accept_rails_none.log` with `fingerprint: matches` and **zero** profile
+rows (the shared station's clock is unchanged, `--profile`; only the row's
+`origin` label differs). **No re-baseline**: `configs/motion_reference.json` and
+`..._twoline.json` = `423896f7`, `..._single.json` = `8952c320`, and the final
+acceptance reads **7/10, 9.4 s/attempt, `fingerprint: matches`, `190: PASS`**.
+
+**Two recorded deviations.** **A1** (pinned 17:34, before T5): P1b's "every
+treatment leg `|v|cmd >= 0.48`" is arithmetically wrong for short legs - at 0.52
+the acceleration term binds below 0.408 m and the jerk term below ~0.19 m - so
+the clause became the per-leg profile match (ticks and `|v|cmd` against the
+profile re-generated from that leg's own distance) plus a median/contrast
+read. **A2** (pinned 18:17, before the final acceptance): G1's "C5/C6 must PASS
+the 20-attempt fingerprint" is unsatisfiable on a post-P87 clock - the only
+20-attempt references are pre-trim records and the trim re-times every attempt
+boundary, which is exactly why P87's own T5/T6 DIFFERED while its
+`FRUIT_SPEED_RELEASE=0` controls matched. The corrected G1 keeps G0 as the
+control's identity proof (byte-identical to P87) and the per-leg budget as the
+substantive motion check; no verdict clause moved (the gate already fails on
+P1a/P2/P4a).
+
+**Re-entry.** A scenario where the place block **binds the interval** rather
+than the count (P51/P80's rule), or a class-first registration that accepts the
+count and argues the **-0.77 s** mean block saving / -5.6 % wall on its own.
+The measured arm is one env var away.
+
+Pins: battery tree (the measured cells) `tasks.py` `618e7822`, `scene.py`
+`3fac75c2`, `rl_env.py` `f33c7e04`; final tree `tasks.py` **`23430d50`**
+(`PLACE_TWO_LINE_DEFAULT = False`), `scene.py` **`1ec3b8f8`**, `rl_env.py`
+**`3ac60be8`** (the `TASKS_MD5` follow),
+`scripts/248_p88_place_scope_selftest.py` (new selfcheck leg), `scripts/225` /
+`247` re-pinned for the second scoped consumer, `scripts/selfcheck.sh` (the
+`P88 place scope` leg); `configs/*` untouched; ckpt `moe_v13s` `61da390a`;
+`189_w7a_chain.sh` not run. Evidence `logs/p88/`: `PREREG.md` (+`PREREG.md5`),
+`PREREG_A1.md`, `PREREG_A2.md`, `RESULTS.md`, `p88_report.py` ->
+`p88_report.txt`, `run_p88.sh`, `run_p88_extra.sh`, `gates.sh` -> `gates.out`,
+`header.txt`, `battery_driver.log`, the cells
+`{C5,T5,C6,T6}.{log,stamps,driver,gate,budgets}`, `N5.{log,stamps,driver}`,
+`single_accept.{log,gate,same}`, `shared_{unset,zero}.*`,
+`shared_raw_same.txt`, `accept_final.{log,out}`.

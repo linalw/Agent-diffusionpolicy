@@ -32,10 +32,10 @@ than a global one, and this leg pins the scope:
    (`max(0, dwell) + 40*max(1, pad) + 16*max(1, finger)`): 188 shipped,
    112 trimmed, 76 saved - the delta P86 registered (its PREREG's absolute
    208/132 rows carry a +20 slip in *both*, so the delta is unaffected).
-5. **The scope is the session predicate.** The release-carrying call site
-   passes `self.two_line_enabled()` (AST), which is `session.twoline` - False
-   whenever no `CoopSession` is active - and the per-leg `_carry_leg` consumer
-   keeps the unscoped call (it reads the place/lift keys only).
+5. **The scope is the session predicate.** Both scoped consumers pass
+   `self.two_line_enabled()` (AST), which is `session.twoline` - False
+   whenever no `CoopSession` is active (P88 adds the place cell's consumer,
+   `_carry`, to the same predicate).
 6. **The row exists and names the resolution** in `run_bimanual` (both modes),
    in the `[biarm] scheduler:` / `[drive] finger cap scope:` form, inside the
    session scope and **never** on the single-arm path (that is what makes the
@@ -199,7 +199,9 @@ def main() -> int:
         check(res["saved_ticks"] == 76, "the trim saves 76 ticks (0.633 s at 120 Hz)")
         check(res["label"] == "FRUIT_SPEED_RELEASE=1(default)",
               f"the label is the P43 form ({res['label']})")
-        # the scope touches the three release keys and nothing else.
+        # the scope touches the three release keys and nothing else (P88's place
+        # cell shares the scope but its default is off - its own `248` leg pins
+        # that; the release stays the one scoped default).
         unset = c.defaults(False)
         moved = {k for k in d if d[k] != unset[k]}
         check(moved == set(HOLDS),
@@ -207,8 +209,8 @@ def main() -> int:
 
     # [3] the override table.
     with cells(FRUIT_SPEED_RELEASE="0") as c:
-        check(c.defaults(True) == _SPEED_SHIPPED,
-              "an explicit =0 restores the shipped clock on the two-line line")
+        check(holds(c.defaults(True)) == ("20", "3", "3"),
+              "an explicit =0 restores the shipped release clock on the two-line line")
         check(c.resolution(True)["origin"] == "explicit",
               "an explicit 0 is labelled `explicit` (not the scope default)")
     with cells(FRUIT_SPEED_RELEASE="1") as c:
@@ -254,9 +256,9 @@ def main() -> int:
     check(len(scoped_calls) == 2,
           f"two consumers build the resolver dict ({len(scoped_calls)})")
     scoped = [n for n in scoped_calls if n.args]
-    check(len(scoped) == 1,
-          "exactly one consumer passes the session scope (the release-carrying one)")
-    check(ast.unparse(scoped[0].args[0]) == "self.two_line_enabled()",
+    check(len(scoped) == 2,
+          "both consumers pass the session scope (release P87 / place P88)")
+    check(all(ast.unparse(n.args[0]) == "self.two_line_enabled()" for n in scoped),
           "the scope argument is the session predicate "
           f"(`{ast.unparse(scoped[0].args[0])}`)")
     enabled = next((n for n in ast.walk(tree)

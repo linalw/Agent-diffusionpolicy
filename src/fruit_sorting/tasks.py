@@ -117,6 +117,13 @@ NEAREST_ABOVE_FLOOR_SCRIPTED = "0"
 #   `a = 0.20*(v/0.15)^2`, i.e. 0.35 -> 1.089, 0.52 -> 2.4036, clipped to the
 #   carry base cap 2.0) for the attribution run; it buys **0.00 s** at 0.52
 #   because `t_v` binds, so the default keeps the low acceleration.
+#   **P88 measured it as a candidate for the two-line session's default** (the
+#   place is the largest remaining block after P87's release trim, and the only
+#   unspent one of the three). **The gate failed, so it is NOT shipped**:
+#   `PLACE_TWO_LINE_DEFAULT = False` and `FRUIT_SPEED_PLACE` stays an
+#   off-by-default cell (`=0.52` is the measured arm). `place_speed_resolution`
+#   is the one resolver; see its docstring for the table and the
+#   `[biarm] place profile:` row.
 # * `FRUIT_SPEED_RELEASE` (**S2**): the three open-loop holds -> dwell **20 -> 0**
 #   and the pad/finger settles **3 -> 2** ticks each (0.63 s of the 2.04 s
 #   block). The accompanied `place low` descent is *before* these clocks and is
@@ -142,9 +149,11 @@ NEAREST_ABOVE_FLOOR_SCRIPTED = "0"
 # A cell's value may be its own speed [m/s] (`FRUIT_SPEED_PLACE=0.52`), or
 # `1`/`on`/`true` for the registered value. `0`/unset is off. The default-off
 # discipline is AGENTS section 2's: every knob added here changes a shipped
-# constant's *default string* only when it is set - and the one exception (P87's
-# release cell) is a **session-scoped** default, so `speed_cell_defaults()` with
-# no scope still returns `_SPEED_SHIPPED` exactly.
+# constant's *default string* only when it is set - the one exception is P87's
+# release cell, a **session-scoped** default, so `speed_cell_defaults()` with no
+# scope still returns `_SPEED_SHIPPED` exactly. P88's place cell has the same
+# scoped shape but its default is **off** (`PLACE_TWO_LINE_DEFAULT`), because
+# P88's gate failed (`logs/p88/RESULTS.md`).
 _SPEED_SHIPPED = {
     "place_vmax": "0.35",
     "place_amax": "1.089",
@@ -157,6 +166,25 @@ _SPEED_SHIPPED = {
 
 #: The registered (PREREG item S) speed of each motion cell [m/s].
 _SPEED_REGISTERED = {"place": "0.52", "lift": "0.36"}
+
+#: P88: whether the place raise is the **two-line session's default**. Measured
+#: and **not shipped** - the gate failed (`logs/p88/RESULTS.md`): the place
+#: block's *mechanism* is exact (mean delta -0.774/-0.767 s against the
+#: predicted -0.776/-0.801; block = `transit(0.52, d) + 0.583 s` on every leg;
+#: per-leg ticks within 2), but the delivered interval rose at **both** seeds
+#: (10.59 -> 13.23 and 11.08 -> 12.11 s), the placement window's density fell
+#: at both, and seed 5 drew 5 fewer placements (the left's never-held class
+#: 1 -> 4). Flipping this constant is the one-line re-entry; the measured arm
+#: is reproducible today as `FRUIT_SPEED_PLACE=0.52` (P44's S1, explicit).
+PLACE_TWO_LINE_DEFAULT = False
+
+#: P88: the distance the place cell's **manifest clock** is priced at [m] - the
+#: median `place0` transit on the P87 two-line record (0.48-0.62 m across the
+#: shipped cells, `logs/p87/{C5,T5}.log`). The place is a transit, so its tick
+#: count is a function of the leg's own distance; a store's `physics.place.ticks`
+#: is therefore a **like-for-like** clock at this reference, with the reference
+#: named beside it, never a claim about a leg the run did not take.
+_PLACE_REFERENCE_DISTANCE = 0.55
 
 
 def _speed_cell_value(cell: str, env_name: str) -> str | None:
@@ -272,6 +300,132 @@ def release_speed_resolution(two_line: bool = False) -> dict[str, object]:
     }
 
 
+def _place_profile_ticks(distance: float, v_max, a_max) -> int | None:
+    """The place transit's **own** clock at one distance, from its profile [ticks].
+
+    Pure, and the profile chain the place leg actually runs: `_carry` builds
+    `TrajectoryLimits.from_env` (j_max 25), sets the place cap, then
+    `limited_by_cone` keeps `j_max = min(25, max(10*a_max, 1))` - so at the
+    shipped/registered accelerations the jerk budget is `10*a_max` and the
+    duration is the largest of the three terms, with the profile's own 2 %
+    margin and its whole-tick ceiling (`motion.jerk_limited`). Using the real
+    `jerk_limited` here means the number a store records is the number the
+    generator would produce, not a re-derivation.
+    """
+    try:
+        v = float(v_max)
+        a = float(a_max)
+    except (TypeError, ValueError):
+        return None
+    if v <= 0.0 or a <= 0.0:
+        return None
+    limits = TrajectoryLimits(v_max=v, a_max=a, j_max=min(25.0, max(a * 10.0, 1.0)),
+                              dt=CONTROL_DT)
+    positions, _velocities, _accelerations = jerk_limited(float(distance), limits)
+    return int(len(positions))
+
+
+def place_speed_resolution(two_line: bool = False) -> dict[str, object]:
+    """The resolved **place cap** for this session, with its origin (P88).
+
+    The sibling of `release_speed_resolution`, and the same three consumers: the
+    per-attempt `speed_cell_defaults`, the `[biarm] place profile:` row and the
+    store manifest's `physics.place` block.
+
+    **The scope, and why it is not shipped.** After P87's release trim the
+    `place` block is the largest remaining block of the per-attempt span (the
+    shipped two-line reads `place` 3.14-3.19 s against `release` 1.70 and
+    `lift` 1.65), and P44 measured the S1 cell (`FRUIT_SPEED_PLACE=0.52`:
+    `v_max` 0.35 -> 0.52 at the shipped `a_max` 1.089, inside the 0.61 m/s
+    ceiling where the acceleration term starts to bind) as the largest clean
+    single cell. The read site is the shared `_carry` leg, so - exactly like
+    the release - a *global* default would also move the single arm, the
+    shared-station pipeline, the hybrid canary and the direct/policy
+    presentation. P88 therefore built the **two-line-scoped** form and measured
+    it: the mechanism is exact (mean -0.774/-0.767 s against the predicted
+    -0.776/-0.801 at seeds 5/6, per-leg ticks within 2, block =
+    `transit(0.52, d) + 0.583 s`) but **the gate failed on delivery** - the
+    interval rose at both seeds and the placement window's density fell at both
+    (`logs/p88/RESULTS.md`) - so `PLACE_TWO_LINE_DEFAULT` is **False** and
+    unset resolves the shipped cap on **every** path. The override table:
+
+    | `FRUIT_SPEED_PLACE` | `FRUIT_SPEED_ALL` | two-line session | resolves |
+    | --- | --- | --- | --- |
+    | unset | 0 | any | 0.35 (shipped; the P88 default is off) |
+    | `0`/`off`/`false`/`no` | any | any | 0.35 (`explicit`) |
+    | a speed (`0.52`, `1`, `on`, ...) | any | any | that speed (`explicit`) - the measured arm |
+    | unset | 1 | any | 0.52 (`speed-all`, the S13 union) |
+
+    `origin` reads `scope-off` whenever the scope is the only thing that could
+    have turned the cell on (so the shipped tree's stores say `scope-off`), and
+    `default` is reachable only if `PLACE_TWO_LINE_DEFAULT` is flipped.
+
+    The **cap pair** is P44's: the registered value keeps the shipped `a_max`
+    1.089 (a pure speed raise), a caller's own speed scales the pair on the
+    shipped shape `a = 0.20*(v/0.15)^2`, and `FRUIT_SPEED_PLACE_AMAX` pins it.
+    `ticks` is the profile clock at `_PLACE_REFERENCE_DISTANCE` (the place is a
+    transit, so this is a named reference, not the run's own distance).
+    """
+    raw = os.environ.get("FRUIT_SPEED_PLACE")
+    union = os.environ.get("FRUIT_SPEED_ALL", "0") == "1"
+    scoped = bool(two_line and PLACE_TWO_LINE_DEFAULT)
+    explicit = raw is not None and raw.strip() != ""
+    if explicit:
+        origin = "explicit"
+    elif union:
+        origin = "speed-all"
+    elif scoped:
+        origin = "default"
+    else:
+        origin = "scope-off"
+    #: The value: a caller's own string when they set one (`_speed_cell_value`
+    #: keeps P44's parsing, including "not a speed" -> off with a message), the
+    #: registered cell under the union or the scoped default, and nothing
+    #: otherwise.
+    if explicit:
+        value = _speed_cell_value("place", "FRUIT_SPEED_PLACE")
+    elif union or scoped:
+        value = _SPEED_REGISTERED["place"]
+    else:
+        value = None
+    on = value is not None
+    if on:
+        v_max: object = value
+        pin = os.environ.get("FRUIT_SPEED_PLACE_AMAX", "").strip()
+        if pin:
+            a_max: object = pin
+        elif v_max == _SPEED_REGISTERED["place"]:
+            a_max = _SPEED_SHIPPED["place_amax"]
+        else:
+            a_max = f"{0.20 * (float(v_max) / 0.15) ** 2:.4f}"
+    else:
+        v_max = _SPEED_SHIPPED["place_vmax"]
+        a_max = _SPEED_SHIPPED["place_amax"]
+
+    ticks = _place_profile_ticks(_PLACE_REFERENCE_DISTANCE, v_max, a_max)
+    shipped_ticks = _place_profile_ticks(
+        _PLACE_REFERENCE_DISTANCE, _SPEED_SHIPPED["place_vmax"],
+        _SPEED_SHIPPED["place_amax"],
+    )
+    return {
+        "on": on,
+        "origin": origin,
+        "two_line": bool(two_line),
+        "v_max": v_max,
+        "a_max": a_max,
+        "ticks": ticks,
+        "shipped_ticks": shipped_ticks,
+        "saved_ticks": (
+            shipped_ticks - ticks
+            if ticks is not None and shipped_ticks is not None
+            else None
+        ),
+        "reference_distance_m": _PLACE_REFERENCE_DISTANCE,
+        "profile": "raised" if on else "shipped",
+        "label": f"FRUIT_SPEED_PLACE={v_max}({origin})",
+    }
+
+
 def speed_cell_defaults(two_line: bool = False) -> dict[str, str]:
     """Default strings for the caps the P44 speed cells move (shipped unless on).
 
@@ -279,28 +433,22 @@ def speed_cell_defaults(two_line: bool = False) -> dict[str, str]:
     `os.environ.get` falls back to, so with every cell unset the returned dict is
     `_SPEED_SHIPPED` and the shipped path is byte-identical.
 
-    `two_line` (P87) is the **session scope** of the release cell: the caller
-    passes `Task.two_line_enabled()`, so the trim is on for a two-line session
-    and off on the single arm, the shared station, the hybrid canary and the
-    direct/policy presentation. It touches the three `release_*` keys only - the
-    place/lift cells have no session-scoped default.
+    `two_line` (P87/P88) is the **session scope** of the scoped cells: the
+    caller passes `Task.two_line_enabled()`, so the release trim is on for a
+    two-line session and off on the single arm, the shared station, the hybrid
+    canary and the direct/policy presentation. P88's place cell reads the same
+    scope but its default is **off** (`PLACE_TWO_LINE_DEFAULT`, measured and
+    not shipped), so the scope touches the three `release_*` keys only today -
+    the lift cell has no session-scoped default either.
     """
     out = dict(_SPEED_SHIPPED)
-    place = _speed_cell_value("place", "FRUIT_SPEED_PLACE")
-    if place is not None:
-        out["place_vmax"] = place
-        pin = os.environ.get("FRUIT_SPEED_PLACE_AMAX", "").strip()
-        if pin:
-            out["place_amax"] = pin
-        elif place == _SPEED_REGISTERED["place"]:
-            # The registered cell is a pure speed raise: 0.52 is below the
-            # 0.61 m/s ceiling where the acceleration term starts to bind at
-            # the shipped `a_max`, so `a` stays 1.089 (0.00 s of the raise).
-            out["place_amax"] = _SPEED_SHIPPED["place_amax"]
-        else:
-            # A caller's own speed scales the pair on the shipped shape
-            # `a = 0.20*(v/0.15)^2` (0.35 -> 1.089).
-            out["place_amax"] = f"{0.20 * (float(place) / 0.15) ** 2:.4f}"
+    #: P88: the place cap comes from the one resolver the manifest row and the
+    #: `[biarm] place profile:` row also read, so the per-attempt caps and the
+    #: recorded ones cannot disagree.
+    place = place_speed_resolution(two_line)
+    if place["on"]:
+        out["place_vmax"] = str(place["v_max"])
+        out["place_amax"] = str(place["a_max"])
     lift = _speed_cell_value("lift", "FRUIT_SPEED_LIFT")
     if lift is not None:
         out["lift_vmax"] = lift
@@ -4237,10 +4385,15 @@ class PickAndPlaceTask:
             if os.environ.get("FRUIT_CARRY_PROFILE", "1") == "1":
                 # P44 speed cells (S1 place / S3 lift, `FRUIT_SPEED_*`): one dict
                 # per leg; every value is the shipped string unless a cell is on,
-                # and an explicit `FRUIT_DYNAMIC_*` knob still wins over it. Only
-                # the place/lift keys are read here, so the dict is built without
-                # a session scope (P87's release trim is the release block's).
-                _speed = speed_cell_defaults()
+                # and an explicit `FRUIT_DYNAMIC_*` knob still wins over it.
+                # P88: this consumer passes the same session predicate the
+                # release-carrying site does (`two_line_enabled()`), so the place
+                # cell's scope is resolved where its caps are read. The default
+                # is **off** (`PLACE_TWO_LINE_DEFAULT = False`, the gate failed),
+                # so every path - the two-line included - resolves the shipped
+                # pair and the single-arm / shared-station / direct records stay
+                # byte-identical; the measured arm is `FRUIT_SPEED_PLACE=0.52`.
+                _speed = speed_cell_defaults(self.two_line_enabled())
                 # Jerk-limited reference instead of the constant-velocity ramp:
                 # the old interpolation demanded an infinite acceleration at both
                 # ends of every leg, which is exactly where the fruit slipped.
@@ -8187,6 +8340,20 @@ class PickAndPlaceTask:
             f"finger_hold={release['finger_hold']} ({release['ticks']} ticks; "
             f"shipped {release['shipped_ticks']}, "
             f"saved {release['saved_ticks']})"
+        )
+        #: P88: the **place cap** this session runs, named the same way. The
+        #: place leg is a transit, so its clock is quoted at the resolver's
+        #: reference distance (`_PLACE_REFERENCE_DISTANCE`) - a like-for-like
+        #: number, not a claim about a leg this run did not take. It prints only
+        #: inside a bimanual session (like the release row), so the single arm,
+        #: the hybrid canary and the direct env stay silent and byte-identical.
+        place = place_speed_resolution(two_line)
+        say(
+            f"[biarm] place profile: {place['label']} "
+            f"scope={'two-line' if two_line else 'shared-station'} "
+            f"v_max={place['v_max']} a_max={place['a_max']} "
+            f"({place['ticks']} ticks at {place['reference_distance_m']:.2f} m; "
+            f"shipped {place['shipped_ticks']}, saved {place['saved_ticks']})"
         )
         #: W3 capture token: on the wave-supply two-line scenario both arms
         #: catch the same burst, and the measured both-hands band collapsed to

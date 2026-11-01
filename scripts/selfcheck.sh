@@ -387,6 +387,21 @@ run_check "P85 two-line default" "$python" scripts/246_p85_selftest.py
 # predicate at exactly one call site, the `[biarm] release profile:` row printing
 # only inside `run_bimanual`, and `physics.release` in both manifest writers.
 run_check "P87 release scope" "$python" scripts/247_p87_release_scope_selftest.py
+# P88: the **place** cap as a two-line-scoped shipped default. After P87's
+# release trim the place block is the largest remaining one (3.19 s vs 1.70 and
+# 1.65), and P44's S1 cell (0.35 -> 0.52 at the shipped `a_max`) is the only
+# unspent cell of the three. The cap is read at the shared `_carry_leg`, so the
+# default is scoped exactly like the release's. The leg runs the real resolver
+# and the real provenance builder: unset + no scope is `_SPEED_SHIPPED` exactly,
+# unset + two-line is P44's 0.52/1.089 (362 -> 244 ticks at the named 0.55 m
+# reference, saved 118), the override table (`=0` restores even on the two-line,
+# an explicit speed and `FRUIT_SPEED_ALL` still win globally, `=0` beats the
+# union, `..._AMAX` pins the acceleration), the profile clock reproducing
+# `motion.jerk_limited` at both the speed- and acceleration-limited regimes, the
+# scope being the **session** predicate at both scoped consumers, the
+# `[biarm] place profile:` row printing only inside `run_bimanual`, and
+# `physics.place` in both manifest writers.
+run_check "P88 place scope" "$python" scripts/248_p88_place_scope_selftest.py
 
 if [ -n "$run_log" ] && [ -f "$run_log" ]; then
     # P85: the log decides the scenario (and therefore the reference and the

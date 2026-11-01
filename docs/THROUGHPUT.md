@@ -1,9 +1,9 @@
 # The cell's throughput: what it is, what the levers are, and how to read a rate
 
-One page. It condenses P80-P87 (`logs/p80/`..`logs/p87/`, AGENTS §2's paragraphs)
-into the measured throughput of the shipped tree, the levers priced against it,
-the two that shipped, the three that did not, and the read rules that bind the next
-number anybody quotes. Every figure traces to a log in `logs/`.
+One page. It condenses P80-P88 (`logs/p80/`..`logs/p88/`, AGENTS §2's
+paragraphs) into the measured throughput of the shipped tree, the levers priced
+against it, the two that shipped, the four that did not, and the read rules that
+bind the next number anybody quotes. Every figure traces to a log in `logs/`.
 
 ## The number today
 
@@ -20,6 +20,11 @@ ships - the "single arm" column is the pre-P85 shipped cell, restored with
 (seed 6) `[fruit]` physics lines, so the flip changed reachability, not physics;
 the P87 cells are likewise replayed **865/865** and **814/814** against P86's own
 four, so the scoped trim *is* the arm P86 measured.
+
+**P88 measured the next lever - the `place` block - and shipped nothing**
+(`logs/p88/RESULTS.md`, "Lever 4"), so **every number in this page is unchanged
+by it**: the place cell's mechanism is exact but the delivered interval rose at
+both seeds, and `FRUIT_SPEED_PLACE` stays off by default.
 
 Shipped scripted cell, 20 slots, seed 5 (`logs/p85/` = P80's scenario with P82's
 wall; the P87 row is `logs/p87/T5.log`, the same scenario with the trim):
@@ -159,6 +164,45 @@ shipped it **scoped to the two-line session**:
   it is a **branch property of that seed, not a draw**: the flip shipped as a
   **considered trade**, and the descent profile was **not** re-tuned to admit it.
 
+## Lever 4: the place block - measured, NOT shipped (P88)
+
+P44's S1 cell (`FRUIT_SPEED_PLACE=0.52`, `v_max` 0.35 -> 0.52 at the shipped
+`a_max` 1.089) is the third and last separable block, and after P87's trim it is
+the **largest remaining** one (3.14-3.19 s against `release` 1.70 and `lift`
+1.65). P88 built the same **two-line-scoped** form as the release cell, measured
+it at seeds 5/6 (controls explicit `=0`, treatments unset), and **did not ship
+it** - the gate fails:
+
+* **the mechanism is exact.** The block is **`transit(0.52, d) + 0.583 s`**: the
+  `place low` remainder is 0.583 s (range 0.578-0.588) in all four cells, the
+  per-leg tick count matches the profile re-generated at 0.52 from the leg's own
+  printed distance to **median 0.0 / +0.5 ticks (max |2|)**, `|v|cmd` matches the
+  profile's own peak to **<= 0.009 m/s**, and the median leg cruises at **0.508
+  m/s** (control 0.341-0.343). The block's **mean** falls **-0.774 / -0.767 s**
+  against the predicted -0.776 / -0.801; the **median** reads -0.770 / -0.915
+  against -0.904 / -0.892, i.e. **seed 5 misses the registered +-0.12 s band by
+  0.014 s**, and the miss is the **leg mix** (the treatment drew a longer median
+  leg; predicted from **its own** legs the median is off by -0.008 / +0.014 s).
+* **the delivered side does not follow.** The pooled interval **rises at both
+  seeds** (10.59 -> 13.23 and 11.08 -> 12.11 s). At seed 5 the count falls
+  **16 -> 11** (the left's never-held legs **1 -> 4**, `force@onset = 0.00 N`,
+  `sep@onset` 59-63 mm - the **pre-contact acquisition** class, not the place
+  transfer); at seed 6 the count rises **12 -> 15** but the placements spread
+  over a **wider** window (121.9 -> 169.5 s), which is the interval rising with
+  **more** placements. **Pooled 28 -> 26 of 40, `placed/min wall` 2.65 -> 2.61
+  (-1.6 %)** while the wall itself falls 5.6 %.
+* **the class guard is negative** (the cell does not create the loaded slide):
+  place-leg escapes **0/27** in the treatment against **1/29** in the control,
+  all-leg escapes **5 vs 8**, `force_min == 0` **6 vs 8**, landing **16/16,
+  11/11, 12/12, 15/15**, and both treatments' descent budgets clean (the
+  control's seed-6 leg 12 at 0.164 vs 0.160 is the standing branch leg).
+* **not shipped**: `PLACE_TWO_LINE_DEFAULT = False`, so `FRUIT_SPEED_PLACE`
+  stays off on every path; the measured arm is `FRUIT_SPEED_PLACE=0.52`, the
+  `[biarm] place profile:` row and `physics.place` say which cap ran, and the
+  shipped tree is inert (C5/C6 replay P87's T5/T6 **868/868** and **821/821**,
+  a fresh unset run replays C5 **868/868**, the single arm is **346/346 raw**
+  identical, both references untouched).
+
 ## The read rules (they bind the next rate claim)
 
 1. **Quote both denominators and the wall column.** The placement window and the
@@ -182,7 +226,18 @@ shipped it **scoped to the two-line session**:
    number is the interval, and the span is a report (P86, `logs/p86/RESULTS.md`
    §3 - there the span moved -0.48 s where the block moved -0.64 s, with a
    sign-flipping +0.17/-0.12 s acquisition residual).
-7. **A scoped default owes a replay and an inertness pair, not an argument.**
+7. **The interval *is* the placement window, inverted** - `mean_gap =
+   (t_last - t_first)/(n-1)`, so it and the window rate are **one statistic**.
+   A cell that lengthens the window can read a worse interval with **more**
+   placements (P88's seed 6: 12 -> 15 placed, window 121.9 -> 169.5 s, interval
+   11.08 -> 12.11 s). Quote the count and the batch denominator beside it.
+8. **A block that is a transit needs the mean (or the per-leg read), not the
+   median.** The release's holds are a fixed clock, so a median is exact; the
+   place leg's ticks are `f(distance)`, so a median across two arms is
+   **mix-sensitive** - P88's seed-5 median missed its band by 0.014 s while the
+   mean matched to 0.002 s and every leg matched the profile within 2 ticks
+   (`logs/p88/RESULTS.md` §1). Same lesson as 6, one level down.
+9. **A scoped default owes a replay and an inertness pair, not an argument.**
    P87's proof shape: the same-seed cells must be **byte-identical to the
    pre-flip record** on the `[fruit]` stream (`logs/p87/p87_report.py --same`,
    the phase's own new row dropped) - that is what makes "the shipped default is
@@ -192,11 +247,14 @@ shipped it **scoped to the two-line session**:
    (`--profile`: the row's `origin` field is *supposed* to differ, that is the
    label's job). A default that moves a path with no such record has not been
    scoped, only declared.
-8. **The release clock is provenance now.** A store recorded under the trim
+10. **The release clock is provenance now.** A store recorded under the trim
    differs from a pre-P87 one in its **attempt timing** without moving a
    trajectory endpoint, so both manifest writers carry
    `physics.release={dwell,pad_hold,finger_hold,...}`; a manifest **without** the
    key predates P87, and park/no-park-style mixing of the two is not allowed.
+   The place cap has its own `physics.place={v_max,a_max,ticks,...}` (P88); its
+   `ticks` are priced at a named **reference distance**, because the place is a
+   transit and a stored tick count without its distance means nothing.
 
 ## What is left
 
@@ -232,6 +290,17 @@ shipped it **scoped to the two-line session**:
   2.5 % over its budget with the descent profile untouched. **P87 shipped it
   two-line-scoped** (Lever 3): the span clause was a test-design defect, not a
   property of the cell, and the descent leg reproduced as the branch's cost.
+* **The place block (P88, measured, NOT shipped).** The third and last profile
+  block: the mechanism is exact (`transit(0.52, d) + 0.583 s`; per-leg ticks
+  within 2; mean **-0.774/-0.767 s** against the predicted -0.776/-0.801) but
+  the **delivered** interval rose at both seeds (10.59 -> 13.23, 11.08 -> 12.11
+  s) and the window density fell at both, so `FRUIT_SPEED_PLACE` stays off
+  (`PLACE_TWO_LINE_DEFAULT = False`). **Re-baseline: none** - nothing shipped,
+  both references untouched (`423896f7`), the acceptance still 7/10 at 9.4
+  s/attempt with `fingerprint: matches`. The measured arm is
+  `FRUIT_SPEED_PLACE=0.52`; the **re-entry** is a scenario where the place block
+  binds the interval rather than the count, or a class-first registration argued
+  on the -0.77 s wall saving alone. See "Lever 4".
 * **The residual 1.19x of wall** - two arms' control plus the permit handoff, with
   the shared physics step at **75 % of what remains**. No arbiter change can move
   it; it is the cost of two arms in one PhysX scene.
