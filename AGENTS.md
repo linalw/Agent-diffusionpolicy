@@ -4293,7 +4293,11 @@ line 160, a `place1` row, so the filter hides only this phase's own rows), a
 fresh unset `N5` replays C5, and the single arm is **346/346 raw** identical with
 **0** profile rows printed. Pins: `tasks.py` **`32efa98c`** (`LIFT_TWO_LINE_DEFAULT
 = False`), `scene.py` **`fb6d9d33`**, `rl_env.py` **`b81d59b6`** (the `TASKS_MD5`
-follow), `scripts/249_p89_lift_scope_selftest.py`, `scripts/selfcheck.sh`.
+follow), `scripts/249_p89_lift_scope_selftest.py`, `scripts/selfcheck.sh`. The
+final tree's own checks: `selfcheck.sh` **PASS** (the `P89 lift scope` leg),
+`106`/`107` **OK/PASS**, and `scripts/accept.sh` **7/10, `fingerprint: matches
+configs/motion_reference.json`, `190: PASS`** (`logs/p89/accept_final.log`) - the
+shipped branch, unchanged.
 Evidence `logs/p89/{PREREG.md,PREREG_A1.md,RESULTS.md,p89_report.py,
 p89_report.txt,gates.out}`, `{C5,T5,C6,T6}.log`, `N5.log`, `single_accept.*`,
 `shared_*`; WORKLOG "P89". **Re-baseline: none** - nothing shipped, and the
