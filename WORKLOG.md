@@ -22127,3 +22127,108 @@ speed20_s5,base20_s6,speed20_s6}.{log,stamps,driver}`, `accept_final.{log,out}`,
 `motion_reference_single_pre_p85.json`. **Re-baseline: every rate, acceptance,
 collector shard and store recorded before P85 is a single-arm (or explicitly
 opt-in two-line) number.**
+
+### P86: the release block is -0.64 s of pure dwell and it is exact at both seeds - the phase's own span clause and one motion leg keep it out of the tree
+
+The cell is P44's S2 knob (`FRUIT_SPEED_RELEASE=1`) on the shipped two-line:
+dwell **20 -> 0**, pad ramp **40 x (3 -> 2)**, finger ramp **16 x (3 -> 2)** =
+**-76 ticks = -0.633 s** at 120 Hz, `FRUIT_RELEASE_RESYNC` off. Four cells, 20
+attempts each, seeds 5/6, one claim per run, the same instrumentation on all
+four (including the landing trace). PREREG `d70cfcc4`, pinned before any run.
+
+**Admissibility.** Both controls replay P85's own records on every physics
+`[fruit]` line with the phase's rows dropped: C5 **865/865** vs
+`logs/p85/base20_s5.log`, C6 **814/814** vs `base20_s6`. So the tree is
+unchanged **and** the per-place landing trace (`FRUIT_PLACE_TRACE`, a fruit-pose
+read) is inert on this line - both controls carry it and still reproduce the
+trace-free record.
+
+**The mechanism is the profile arithmetic, to the tick.** The `[cycle]
+release=` segment falls **-0.615..-0.640 s = 74-77 ticks in all four
+arm-seed cells** by median (per-arm medians 2.320 -> 1.680, 2.360 -> 1.720,
+2.310 -> 1.675, 2.420 -> 1.805), pooled median 2.325 -> 1.680 = **-0.645 s
+(-77 ticks)** against the predicted -0.633 s (-76). The two mean-based
+outliers are one 1.63 s control leg (C6) and one 1.92 s treatment leg (R6) -
+both `place low` descents inside the segment - which is why seed 6's *mean*
+delta (-0.56) sits below its median (-0.640). The block is 2.33 s of a 15.78 s
+per-arm span, the second of the three profile blocks.
+
+**The delivered side.** The pooled interval falls at both seeds (10.77 ->
+**10.59**, 19.34 -> **11.08** s) and on **both arms at both seeds**. The seed-5
+pair is the clean read - identical count (16/20) **and** identical arm split
+(9/10 + 7/10), so its -0.18 s pooled and -0.48 s arm span are the lever's own.
+Seed 6's -8.26 s is confounded with a +2 count draw and is quoted as such.
+`s/attempt` 9.70 -> 9.50 / 9.10; window 5.57 -> 5.66 and 3.10 -> 5.41
+placed/min; batch 4.96 -> 5.05 and 3.11 -> 3.94; `placed/min wall` **2.88 ->
+2.95** and **1.91 -> 2.34** with the wall -2.2 % / -1.9 % (the arbiter's
+per-tick cost is flat, so the wall follows the sim clock).
+
+**The landing is clean.** `FRUIT_PLACE_TRACE` gives one row per place:
+**28/28** payload-present releases land `on_belt` (16/16, 16/16, 10/10, 12/12),
+release bottom 31.8-64.3 mm, impact -0.93..-0.45 m/s, bounce <= 5.6 mm - the
+control's own band. The upstream-lost traces read `release_bottom = -184 mm`
+(C6 has one; that is the control's own `SIM_LIMIT` class, reported separately,
+never gated). P44 §9.4 reproduced on the two-line, and P45's
+displacement-controlled-ramp reading confirmed: a shorter dwell does not fling.
+
+**No class cost.** No new failure-reason key at either seed. The counts shift at
+seed 6 (never-grasped 5 -> 1, `cnp` 5 -> 7) - the re-timed presentation drawing a
+different fruit, P44/P46/P51's class shift, not a grip change (the cell touches
+no grip code) - and the `force_min == 0.00` loaded-slide guard is flat at seed 5
+(4 -> 4) and **better** at seed 6 (11 -> 7).
+
+**What fails.** Two registered clauses, and neither is the lever's own term.
+
+1. **P1b, the attempt-span instance of the same claim**, registered at
+   `-0.633 +- 0.12 s` per seed and per arm: **-0.41 / -0.57** (seed 5) and
+   **-0.27 / -0.96** (seed 6) -> the band fails at both seeds. The residual
+   ("span - block") is **+0.17 / -0.12 s**, i.e. it **sign-flips**: the
+   acquisition blocks re-draw because the trim moves the attempt boundary
+   (`descent` **+0.24** at seed 5; `grip` **-0.35** and `place` -0.17 at seed 6),
+   and over two seeds the span saving (-0.575) tracks the block to 0.04-0.07 s.
+   **A per-seed attempt span is not branch-free** - P44 §3's attribution caveat,
+   which this phase's PREREG §7 asserted away and the data refuted. That is a
+   preregistration defect of the phase, recorded as one: the branch-free instance
+   of the claim is the block itself, and it passes exactly. The re-entry
+   registers the block + the interval and reads the span as a report.
+2. **G2, the motion guard, fails at R6 on one leg**: the log's 12th descent
+   (cycle attempt 12, right arm, kiwi, **placed**, lift +0.559 m) reads `|v|max`
+   **0.164** against the 0.160/0.161 budget (2.5 % over, `a_med` 0.57 peaking at
+   0.68 of the leg, `end = 12.6 mm` short, lurch 0.036 of the 0.291 bound).
+   C5 0.112, R5 0.111, C6 0.132. The descent profile is **not touched by this
+   cell**, and AGENTS §2 forbids re-tuning the budget to admit a configuration,
+   so it is a recorded failure: the trim shifts the attempt boundary, the catch
+   is presented a different fruit at a different belt offset, and one leg of one
+   seed pays it.
+
+**Gates.** C5 `190` **PASS** against `logs/p80/motion_reference_twoline_p80_20.json`
+(16/20 at the 0.5 floor, fingerprint matches); C6 `190` **PASS** against a seed-6
+reference written **from C6 itself** into `logs/p86/` (a seed is a scenario - P84 -
+never `configs/`); R5/R6 are recorded against those two and **DIFFER by
+construction** (a release-profile change re-times every attempt boundary and the
+fingerprint carries each leg's duration), so they are gated on budgets only.
+
+**Verdict.** PREREG §5's letter: **NOT a win - no default change, no `configs/`
+write, no commit.** The sponsor's four-clause rule (block, interval, landing,
+ledger) **passes at both seeds**, so the cell is a measured positive and the
+adoption package is written and priced (RESULTS §9) but not executed: a
+**two-line scope first** (the knob is read at a shared site, so a global default
+would also move the single arm, the hybrid canary and the scripted collector),
+three references re-recorded from same-batch runs if the flip is global,
+`physics.release={dwell,pad_hold,finger_hold}` in both manifests **before** any
+recollection (today a store carries no release clock at all), a 2-seed
+40-attempt budget run of the trimmed branch (R6's one leg is the whole of the
+motion evidence), then `accept.sh` + `demo_2min.sh` + one two-line rate batch.
+
+Pins: `tasks.py` `f07a865a`, `bimanual.py` `9b7fc33f`, `fruits.py` `dcabe16b`,
+`scene.py` `07d6fdad`, `control.py` `9384ff4f`, `conveyor.py` `fb2c58c6`,
+`assets.py` `540406fa`, `rl_env.py` `4d042cbe`; `configs/motion_reference.json`
+`eb697f23`, `..._single.json` `8952c320`, `..._twoline.json` `eb697f23` - **all
+three untouched, no reference written**; ckpt `moe_v13s` `61da390a`; report
+script `295a105a` at the runs / `5a2e20d8` at the close-out (the edits are a
+print-only tick arithmetic fix, the P1a/P1b verdict split and one printed
+integrity line - the endpoint functions are unchanged). Evidence `logs/p86/`:
+`PREREG.md` (+`PREREG.md5`), `RESULTS.md`, `p86_report.py` -> `p86_report.txt`,
+`run_p86.sh`, `gates.sh`, `header.txt`, `battery_driver.log`, the cells
+`{C5,R5,C6,R6}.{log,stamps,driver}`, `{C5,C6}.gate`, `{R5,R6}.gate`,
+`{C5,R5,C6,R6}.budgets`, `motion_reference_twoline_C6_20.json`.

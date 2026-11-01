@@ -133,6 +133,12 @@ placement window **-4.9 %**, its count cost being P51's closed acquisition class
 5. **The interval's three terms** are `attempts/placement`, the attempt span and the
    idle. A lever that moves one of them can lose on the other two - both negatives
    above are exactly that.
+6. **A per-seed attempt span is not branch-free** - it contains the acquisition
+   legs, which re-draw whenever the attempt boundary moves. For a profile cell the
+   mechanism is the moved `[cycle]` block (read by **median**), the delivered
+   number is the interval, and the span is a report (P86, `logs/p86/RESULTS.md`
+   §3 - there the span moved -0.48 s where the block moved -0.64 s, with a
+   sign-flipping +0.17/-0.12 s acquisition residual).
 
 ## What is left
 
@@ -148,6 +154,17 @@ placement window **-4.9 %**, its count cost being P51's closed acquisition class
   side has no stable sign: 16 -> 13 placed at seed 5, 10 -> 14 at seed 6, pooled
   26 -> 27 of 40. Not adopted; the class that absorbs it is the closed grip class
   below.
+* **The release block, priced on its own (P86, `logs/p86/`).** `FRUIT_SPEED_RELEASE=1`
+  (dwell 20 -> 0, pad ramp 3 -> 2, finger ramp 3 -> 2 = **-76 ticks = -0.633 s**)
+  moves the `[cycle]` release block by **-0.615..-0.640 s = 74-77 ticks in all
+  four arm-seed cells** (2.33 s of a 15.78 s per-arm span), lands **28/28**
+  payload-present releases on the output belt, and lowers the interval on both
+  arms at both seeds (10.77 -> 10.59 at seed 5 with an identical 16/20 and an
+  identical arm split; 19.34 -> 11.08 at seed 6, confounded with a +2 count
+  draw). Not adopted: the phase's own attempt-span clause missed its band (see
+  read rule 6) and one R6 descent leg read 2.5 % over its budget with the descent
+  profile untouched. It is the **first separable** speed cell - the union's
+  `release` third, measured alone - and the cheapest re-entry on this page.
 * **The residual 1.19x of wall** - two arms' control plus the permit handoff, with
   the shared physics step at **75 % of what remains**. No arbiter change can move
   it; it is the cost of two arms in one PhysX scene.

@@ -3994,11 +3994,86 @@ No default changed. Pins: `tasks.py` `f07a865a`, `bimanual.py` `9b7fc33f`,
 reference). **Re-baseline: every rate, acceptance, collector shard and store
 recorded before P85 is a single-arm (or explicitly opt-in two-line) number.**
 
+**P86 (2026-11-01, `logs/p86/`; measurement only - **nothing adopted, no default
+changed, no commit, `configs/` untouched**): the release block is `-0.64 s` of
+pure dwell and it is **exact at both seeds**, but the phase's own pinned span
+clause and one motion leg keep it out of the tree.** The cell is P44's S2 knob
+(`FRUIT_SPEED_RELEASE=1`: dwell **20 -> 0**, pad ramp **40 x (3 -> 2)**, finger
+ramp **16 x (3 -> 2)** = **-76 ticks = -0.633 s** at 120 Hz,
+`FRUIT_RELEASE_RESYNC` off), run on the **shipped two-line** at `ATTEMPTS=20`,
+seeds 5/6, with the same instrumentation on all four cells (`FRUIT_PLACE_TRACE`
+included). **Admissibility: both controls replay P85's records line for line
+(C5 **865/865** = `logs/p85/base20_s5.log`, C6 **814/814** = `base20_s6`), so the
+tree is unchanged *and* the per-place landing trace is inert.** **The mechanism
+(P1a, PASS):** the `[cycle] release=` segment - 2.33 s of a 15.78 s per-arm span,
+the second of the three profile blocks - falls **-0.615..-0.640 s = 74-77 ticks
+in all four arm-seed cells** by median (means -0.65 / -0.56; pooled mean
+2.324 -> 1.714 = -0.611 s, median 2.325 -> 1.680 = -0.645 s), against the
+arithmetic's -0.633 s. The two extreme means are one 1.63 s control leg (C6) and
+one 1.92 s treatment leg (R6), both `place low` descents inside the segment.
+**The delivered side (P2, PASS):** the pooled interval falls at **both** seeds
+(10.77 -> **10.59** and 19.34 -> **11.08** s) and on **both arms at both seeds**;
+the seed-5 pair is the clean one (identical 16/20 and identical 9/10 + 7/10 arm
+split, so -0.18 s pooled / -0.48 s arm span is the lever alone) while seed 6's
+-8.26 s is **confounded with a +2 count draw** (`interval = attempts/placement x
+span + idle`). `s/attempt` 9.70 -> 9.50 / 9.10; window 5.57 -> 5.66 and 3.10 ->
+5.41 placed/min; batch 4.96 -> 5.05 and 3.11 -> 3.94; `placed/min wall`
+**2.88 -> 2.95** and **1.91 -> 2.34** (wall -2.2 % / -1.9 % - the arbiter's
+per-tick cost is flat, so the wall follows the sim clock). **The landing is clean
+(P3, PASS)** - **28/28** payload-present releases land `on_belt` (16/16, 16/16,
+10/10, 12/12) in the control's own height/impact/bounce band
+(31.8-64.3 mm, -0.93..-0.45 m/s, bounce <= 5.6 mm), the upstream-lost traces read
+`release_bottom = -184 mm` and are reported separately (C6 has one, the control's
+own `SIM_LIMIT` class) - i.e. P44 §9.4 reproduced on the two-line and P45's
+displacement-controlled ramp confirmed. **The ledger gains no class (P4, PASS)**
+at either seed; the counts shift at seed 6 (never-grasped 5 -> 1, `cnp` 5 -> 7),
+the re-timed presentation drawing a different fruit, and the `force_min == 0.00`
+loaded-slide guard is flat at seed 5 (4 -> 4) and **better** at seed 6 (11 -> 7).
+**What fails, and why it matters:** **(1) P1b, the attempt-span instance of the
+same claim** - registered at `-0.633 +- 0.12 s` per seed and per arm, it reads
+**-0.41 / -0.57** (seed 5) and **-0.27 / -0.96** (seed 6) and fails its band at
+both seeds. **The miss is not the lever**: the residual ("span - block") is
+**+0.17 / -0.12 s**, sign-flipping - the acquisition blocks re-draw with the
+shifted attempt boundary (`descent` +0.24 at seed 5, `grip` -0.35 and `place`
+-0.17 at seed 6) - and over two seeds the span saving (-0.575) tracks the block
+to 0.04-0.07 s. **A per-seed attempt span is not branch-free**, so it is not a
+valid second leg for a profile cell (P44 §3's caveat, which this phase's PREREG
+§7 wrongly denied); the branch-free instance is the block itself and it passes
+exactly. The named re-entry registers the block + the interval and reads the span
+as a report. **(2) G2, the motion guard, FAILS at R6 on one leg** - the log's
+12th descent (cycle attempt 12: **right** arm, kiwi, **placed**, lift +0.559 m)
+reads `|v|max` **0.164** against the 0.160/0.161 budget (**2.5 % over**,
+`a_med` 0.57 peaking at 0.68 of the leg, `end = 12.6 mm` short, lurch 0.036 of
+the 0.291 bound); C5 0.112, R5 0.111, C6 0.132. The descent profile is **not
+touched by this cell** and AGENTS §2 forbids re-tuning the budget to admit a
+configuration, so it is recorded as a failed guard: the trim shifts the attempt
+boundary, the catch is presented a different fruit at a different belt offset,
+and one leg of one seed pays it. **Gates:** C5 `190` **PASS** vs
+`logs/p80/motion_reference_twoline_p80_20.json`; C6 `190` **PASS** vs the seed-6
+reference written **from C6 itself** into `logs/p86/` (a seed is a scenario -
+never `configs/`); R5/R6 recorded **DIFFERS by construction** (the fingerprint
+carries each leg's duration) and gated on budgets only. **Verdict: PREREG §5's
+letter = NOT a win (no default change); the sponsor's four-clause rule (block,
+interval, landing, ledger) passes at both seeds**, so the cell is a measured
+positive whose adoption package is **priced and not executed** (RESULTS §9): a
+**two-line scope first** (the knob is read at a shared site, so a global default
+would also move the single arm, the hybrid canary and the scripted collector),
+three references re-recorded from same-batch runs if the flip is global,
+`physics.release={dwell,pad_hold,finger_hold}` in both manifests **before** any
+recollection, and a 2-seed 40-attempt budget run of the trimmed branch. Pins:
+`tasks.py` `f07a865a`, `bimanual.py` `9b7fc33f`, refs `eb697f23` / `8952c320` /
+`eb697f23` **untouched**, ckpt `moe_v13s` `61da390a`; no new selfcheck leg (env
+only). Evidence `logs/p86/{PREREG.md,PREREG.md5,RESULTS.md,p86_report.py,
+p86_report.txt,run_p86.sh,gates.sh,header.txt,battery_driver.log}`,
+`{C5,R5,C6,R6}.{log,stamps,driver}`, `{C5,C6}.gate`, `{R5,R6}.gate`,
+`{C5,R5,C6,R6}.budgets`, `motion_reference_twoline_C6_20.json`; WORKLOG "P86".
+
 ## 3. What changed -> what to run
 
 | you changed | run |
 | --- | --- |
 | a **throughput or rate** claim (a speed profile, a scheduler/supply change, a wall number) | `scripts/186_w6_report.py` on **>= 2 seeds** with **both denominators** (placement window and batch span) **and the wall column** (`logs/p80/p80_report.py` is the template: wall from per-line stamps, never inferred), that scenario's own motion gate (single arm: `105 --fingerprint configs/motion_reference.json`; two-line: `scripts/190_twoline_gate.sh` against a reference of the **same attempt count**), then `scripts/accept.sh` |
+| a **per-leg profile or dwell** change (`FRUIT_SPEED_RELEASE/PLACE/LIFT`, a `[cycle]` block that moves) | `FRUIT_CYCLE_REPORT=1 FRUIT_PLACE_TRACE=1` on **both** arms, **>= 2 seeds**, then the `[cycle]` per-leg block table **by median** (`logs/p86/p86_report.py --blocks`): the **block** is the mechanism, **never the attempt span** - the span carries the supply-phase acquisition legs and re-draws with the shifted attempt boundary (`logs/p86/RESULTS.md` §3, P44 §3). Delivered: the interval (pooled **and** per arm), both denominators, the wall and `placed/min wall`. Landing: `FRUIT_PLACE_TRACE`'s `on_belt` on **every payload present at the release** (`release_bottom >= 0`; the -184 mm rows are the upstream-lost class, reported separately). Then the scenario's own motion gate - a profile change **moves the fingerprint by construction**, so budgets-only for the treatment and a same-seed reference for its control |
 | docs, or a number's provenance/data size | `python3 scripts/106_index_audit.py` and `python3 scripts/107_collect_merge_test.py` |
 | motion, control, `trajectory` limits, IK | `python3 scripts/96_motion_check.py`, then `scripts/accept.sh` |
 | collection (`40_collect_demos.py`) or merging (`41_merge_demos.py`) | `scripts/107_collect_merge_test.py`, then `python3 scripts/106_index_audit.py` |
