@@ -1,0 +1,49 @@
+file: logs/p82/R4.speedscope.json.gz
+samples: 107203 at 0.01 s each (9 threads)
+
+== per thread (wall sampled, bucket shares) ==
+Process 288351 Thread 288351 "MainThread"               545.7 s  physics=63.9%, control_ik=0.6%, render=12.2%, app_callbacks=9.6%, boot=3.6%, other=10.0%
+Process 288351 Thread 288716 "asyncio_0"                526.0 s  wait=100.0%
+Process 288351 Thread 288595 "ThreadPoolExecutor-23_      0.1 s  wait=18.2%, other=81.8%
+Process 288351 Thread 288523 "ThreadPoolExecutor-1_0      0.1 s  wait=33.3%, other=66.7%
+Process 288351 Thread 288649 "ThreadPoolExecutor-60_      0.1 s  wait=33.3%, other=66.7%
+Process 288351 Thread 288596 "ThreadPoolExecutor-23_      0.1 s  wait=80.0%, other=20.0%
+Process 288411 Thread 288351 "MainThread"                 0.0 s  boot=100.0%
+Process 288351 Thread 288530 "ThreadPoolExecutor-5_1      0.0 s  wait=100.0%
+Process 288351 Thread 288661 "ThreadPoolExecutor-77_      0.0 s  wait=100.0%
+
+== Process 288351 Thread 288351 "MainThread" (545.7 s sampled) ==
+  top caller chains (leaf <- caller):
+       106.9 s  19.6%  step <- _step_sim <- _carry_leg <- _carry <- _grasp_carry_place_impl
+        95.4 s  17.5%  step <- _step_sim <- _grasp_carry_place_impl <- grasp_carry_place <- _run_impl
+        33.2 s   6.1%  update_app <- _run_impl <- run <- main <- <module>
+        32.6 s   6.0%  update_app <- _grasp_carry_place_impl <- grasp_carry_place <- _run_impl <- run
+        31.4 s   5.8%  step <- _step_sim <- _blend_to <- _ready_transit <- _transit_to
+        25.6 s   4.7%  step <- _step_sim <- _run_impl <- run <- main
+        20.4 s   3.7%  step <- _step_sim <- _settle_to_rest <- _grasp_carry_place_impl <- grasp_carry_place
+        11.5 s   2.1%  step <- _step_sim <- _approach <- _grasp_carry_place_impl <- grasp_carry_place
+  top leaf frames:
+       348.6 s  63.9%  step
+        65.8 s  12.1%  update_app
+        12.5 s   2.3%  _on_usd_changed
+        10.1 s   1.9%  _add_robot
+         8.0 s   1.5%  _on_usd_objects_changed
+         8.0 s   1.5%  __init__
+         6.7 s   1.2%  _on_objects_changed
+         5.6 s   1.0%  __getitem__
+
+== Process 288351 Thread 288716 "asyncio_0" (526.0 s sampled) ==
+  top caller chains (leaf <- caller):
+       525.9 s 100.0%  _worker <- run <- _bootstrap_inner <- _bootstrap <- process 288351:"/home/ubuntu/linalw/App/isaacsim/_build/linux-x86_64/release/kit/python/bin/python3 scripts/20_pick_place.py"
+  top leaf frames:
+       525.9 s 100.0%  _worker
+
+== process total (1072.0 s over 107203 samples) ==
+  wait              526.4 s  49.1%
+  physics           348.6 s  32.5%
+  render             66.7 s   6.2%
+  other              54.7 s   5.1%
+  app_callbacks      52.5 s   4.9%
+  boot               19.7 s   1.8%
+  control_ik          3.0 s   0.3%
+  fruit_state         0.3 s   0.0%

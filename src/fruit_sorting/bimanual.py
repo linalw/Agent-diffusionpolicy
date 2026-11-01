@@ -40,6 +40,22 @@ This replaces a first version with a distributed "pass the token" protocol,
 whose `arm`/`pause`/`resume` interleavings could deadlock (thread dumps showed
 the permits lost in a two-way wait). One arbiter, one lock, no races.
 
+**The main thread's poll (P82).** `CoopSession.run` drives `bridge.serve_while`:
+`TickRelay.schedule()` and then `MainBridge.pump(0.005)`. `pump`'s queue only ever
+receives *bridged main-thread jobs* (a render, an `update_app`), never the tick
+requests that `TickRelay.request` files, so a granted worker used to run with the
+main thread asleep for the rest of the 5 ms timeout. Measured on the two-line
+(20 attempts, seed 5): 5.03 ms of `pump` wait per round, 99.2 % of them timeouts,
+2.03 rounds per shared tick - **32.2 % of the run's wall in pure poll latency**, while
+the worker's own segment is 1.70 ms (`logs/p82/R1.timers.json`).
+`FRUIT_BIARM_WAKE_ON_REQUEST=1` makes `request`/`pause`/`resume`/`release` wake the
+main thread, so `schedule` runs again as soon as the arbiter's state changes. It
+moves *when* `schedule` is called, never which tick is stepped or which attempt
+holds the permit, so the run is bit-identical (proved: 865/865 `[fruit]` lines,
+`logs/p82/RESULTS.md`). **Default on since P82** (`FRUIT_BIARM_WAKE_ON_REQUEST=0` restores the timeout),
+because the change is behaviour-neutral by construction and proved bit-identical;
+it is a latency fix, not a physics change.
+
 The step itself runs on the main thread: `omni.kit.app.update` /
 `RenderingManager.render` (the recorder's per-tick capture) are
 main-thread-only, and keeping the physics there removes the
@@ -77,6 +93,12 @@ class MainBridge:
     def __init__(self):
         self._jobs: "queue.Queue[MainBridge._Job]" = queue.Queue()
         self._serving = False
+        #: P82 (`FRUIT_BIARM_WAKE_ON_REQUEST`, **default on**; `=0` restores the
+        #: pre-P82 path): return from `pump` as soon as a worker files a tick
+        #: request, instead of waiting out the poll timeout. Set by `CoopSession`
+        #: from the environment; unset = on.
+        self.wake_on_request = False
+        self._wake = threading.Event()
 
     @property
     def serving(self) -> bool:
@@ -88,17 +110,58 @@ class MainBridge:
             return fn(*args, **kwargs)
         job = self._Job(fn, args, kwargs)
         self._jobs.put(job)
+        self.wake()
         job.done.wait()
         if job.error is not None:
             raise job.error
         return job.result
 
+    def wake(self) -> None:
+        """Let a `pump` that is waiting return now (P82; a no-op when off).
+
+        Called by `TickRelay` whenever the arbiter's state changes - a worker
+        files a tick request, or it pauses/resumes/leaves - because those are the
+        transitions `schedule` acts on and the queue never carries them.
+        """
+        if self.wake_on_request:
+            self._wake.set()
+
+    def _next_job_waiting(self, timeout: float):
+        """Return a queued job, or `None` after a wake/timeout (P82).
+
+        `pump`'s queue only receives *bridged main-thread jobs* (a render, an
+        `update_app`), so waiting on it alone left the main thread asleep for the
+        rest of the timeout while the granted worker ran: measured 5.03 ms per
+        round, 99.2 % timeouts, ~2 rounds per shared tick
+        (`logs/p82/R1.timers.json`). Waiting on the wake costs the same when
+        nobody is ready and returns in microseconds when somebody is; the timeout
+        stays as the safety net, so a lost wake costs latency, never a stall.
+        """
+        try:
+            return self._jobs.get_nowait()
+        except queue.Empty:
+            pass
+        if self._wake.is_set():
+            # A wake that arrived before this call: hand control back so the
+            # caller runs `schedule` again. No clear-without-wait, so a wake that
+            # lands between the test and the wait below is not swallowed.
+            self._wake.clear()
+            return None
+        self._wake.wait(timeout)
+        self._wake.clear()
+        return None
+
     def pump(self, timeout: float = 0.01) -> None:
         """Execute one pending job (must be called on the main thread)."""
-        try:
-            job = self._jobs.get(timeout=timeout)
-        except queue.Empty:
-            return
+        if self.wake_on_request:
+            job = self._next_job_waiting(timeout)
+            if job is None:
+                return
+        else:
+            try:
+                job = self._jobs.get(timeout=timeout)
+            except queue.Empty:
+                return
         try:
             job.result = job.fn(*job.args, **job.kwargs)
         except BaseException as exc:  # noqa: BLE001 - re-raised in the worker
@@ -208,7 +271,7 @@ class TickRelay:
                 rank = {name: i for i, name in enumerate(self._key_order)}
                 self._order.sort(key=lambda t: rank.get(self._keys.get(t, ""), 99))
             self._live.add(me)
-            self._cv.notify_all()
+            self._notify()
 
     def participant(self) -> bool:
         """Whether the calling thread is one of this run's attempt threads."""
@@ -226,7 +289,7 @@ class TickRelay:
         me = threading.get_ident()
         with self._cv:
             self._parked.add(me)
-            self._cv.notify_all()
+            self._notify()
         self._wait_permit()
 
     def request(self, *, steps: int, callback, update_fabric: bool) -> None:
@@ -237,7 +300,7 @@ class TickRelay:
             if self._running == me:
                 self._running = None
             self._parked.add(me)
-            self._cv.notify_all()
+            self._notify()
             while self._running != me and me not in self._done:
                 self._cv.wait()
             self._parked.discard(me)
@@ -251,7 +314,7 @@ class TickRelay:
             self._pending.pop(me, None)
             if self._running == me:
                 self._running = None
-            self._cv.notify_all()
+            self._notify()
 
     def resume(self) -> None:
         """Rejoin the runnable set and wait for the permit."""
@@ -259,7 +322,7 @@ class TickRelay:
         with self._cv:
             self._live.add(me)
             self._parked.add(me)
-            self._cv.notify_all()
+            self._notify()
         self._wait_permit()
 
     def release(self) -> None:
@@ -272,7 +335,7 @@ class TickRelay:
             self._pending.pop(me, None)
             if self._running == me:
                 self._running = None
-            self._cv.notify_all()
+            self._notify()
 
     def _wait_permit(self) -> None:
         me = threading.get_ident()
@@ -330,6 +393,16 @@ class TickRelay:
                     self._last_run = self._running
                     self._log("permit")
             self._cv.notify_all()
+
+    def _notify(self) -> None:
+        """Wake the parked attempts **and** the serving main thread (P82).
+
+        `schedule`'s own `notify_all` is deliberately left alone: waking the main
+        thread from inside `schedule` would make the next `pump` return without
+        waiting and turn the driver loop into a spin.
+        """
+        self._cv.notify_all()
+        self.bridge.wake()
 
     def _log(self, event: str) -> None:
         handle = self._debug
@@ -399,6 +472,20 @@ class CoopSession:
         self._step_descriptor = None
         self._orig_update = None
         self._debug_handle = None
+        #: P82: the arbiter's wake-on-request (**default on**, `=0` restores the
+        #: 5 ms poll timeout). The P82 A/B measured the shipped timeout at
+        #: **5.03 ms per round, 99.2 % of them timeouts, ~2.03 rounds per shared
+        #: tick = 32.2 % of the two-line's wall**, and waking on the request
+        #: instead removes it: wall/pick **25.1 -> 16.4 s (-34.6 %)** at seed 5
+        #: and **23.8 -> 15.6 s (-34.4 %)** at seed 6 with the count, the sim
+        #: span and every per-leg metric unchanged, and the `[fruit]` stream
+        #: **byte-identical** in four configurations (865/865, 814/814, the
+        #: single arm 710/710, the accept cell 346/346) plus the shared-station
+        #: consumer (499/499). The timeout stays as the safety net, so a lost
+        #: wake costs latency and never a stall. `logs/p82/RESULTS.md`.
+        self.bridge.wake_on_request = (
+            os.environ.get("FRUIT_BIARM_WAKE_ON_REQUEST", "1") == "1"
+        )
         relay_log = os.environ.get("FRUIT_BIARM_RELAY_LOG")
         if relay_log:
             directory = os.path.dirname(relay_log)

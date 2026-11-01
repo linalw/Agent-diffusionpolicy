@@ -1,0 +1,94 @@
+file: logs/p82/R3.speedscope.json.gz
+samples: 216098 at 0.01 s each (25 threads)
+
+== per thread (wall sampled, bucket shares) ==
+Process 287247 Thread 287247 "MainThread"               564.7 s  physics=46.9%, wait=43.5%, app_callbacks=5.1%, boot=2.1%, other=2.1%
+Process 287247 Thread 287617 "asyncio_0"                546.0 s  wait=100.0%
+Process 287247 Thread 287632 "biarm-left"               527.0 s  wait=95.5%, app_callbacks=1.0%, boot=0.5%, other=2.8%
+Process 287247 Thread 287633 "biarm-right"              522.8 s  wait=95.3%, app_callbacks=1.1%, boot=0.6%, other=2.8%
+Process 287247 Thread 287503 "ThreadPoolExecutor-23_      0.1 s  wait=36.4%, boot=9.1%, other=54.5%
+Process 287247 Thread 287505 "ThreadPoolExecutor-24_      0.1 s  wait=42.9%, other=57.1%
+Process 287247 Thread 287432 "ThreadPoolExecutor-1_0      0.0 s  wait=50.0%, other=50.0%
+Process 287247 Thread 287446 "ThreadPoolExecutor-10_      0.0 s  other=100.0%
+Process 287247 Thread 287443 "ThreadPoolExecutor-10_      0.0 s  wait=50.0%, other=50.0%
+Process 287247 Thread 287448 "ThreadPoolExecutor-10_      0.0 s  other=100.0%
+Process 287247 Thread 287449 "ThreadPoolExecutor-10_      0.0 s  other=100.0%
+Process 287247 Thread 287467 "ThreadPoolExecutor-19_      0.0 s  wait=50.0%, other=50.0%
+Process 287247 Thread 287562 "ThreadPoolExecutor-76_      0.0 s  other=100.0%
+Process 287247 Thread 287567 "ThreadPoolExecutor-78_      0.0 s  wait=50.0%, other=50.0%
+Process 287247 Thread 287408 ""                           0.0 s  other=100.0%
+Process 287247 Thread 287444 "ThreadPoolExecutor-10_      0.0 s  wait=100.0%
+Process 287247 Thread 287445 "ThreadPoolExecutor-10_      0.0 s  wait=100.0%
+Process 287247 Thread 287447 "ThreadPoolExecutor-10_      0.0 s  wait=100.0%
+Process 287247 Thread 287450 "ThreadPoolExecutor-10_      0.0 s  wait=100.0%
+Process 287247 Thread 287451 "ThreadPoolExecutor-10_      0.0 s  wait=100.0%
+Process 287247 Thread 287452 "ThreadPoolExecutor-10_      0.0 s  other=100.0%
+Process 287247 Thread 287453 "ThreadPoolExecutor-10_      0.0 s  wait=100.0%
+Process 287247 Thread 287454 "ThreadPoolExecutor-10_      0.0 s  wait=100.0%
+Process 287247 Thread 287565 "ThreadPoolExecutor-77_      0.0 s  wait=100.0%
+Process 287307 Thread 287247 "MainThread"                 0.0 s  boot=100.0%
+
+== Process 287247 Thread 287247 "MainThread" (564.7 s sampled) ==
+  top caller chains (leaf <- caller):
+       249.8 s  44.2%  step <- schedule <- alive <- serve_while <- run
+       245.3 s  43.4%  wait <- get <- pump <- serve_while <- run
+         9.8 s   1.7%  _add_robot <- build <- main <- <module> <- process 287247:"/home/ubuntu/linalw/App/isaacsim/_build/linux-x86_64/release/kit/python/bin/python3 scripts/20_pick_place.py"
+         9.7 s   1.7%  _on_usd_changed <- invoke <- step <- schedule <- alive
+         5.0 s   0.9%  _on_usd_objects_changed <- step <- schedule <- alive <- serve_while
+         4.9 s   0.9%  _on_objects_changed <- invoke <- step <- schedule <- alive
+         4.7 s   0.8%  step <- _step_sim <- _blend_to <- _ready_transit <- _transit_to
+         3.6 s   0.6%  stage_changed_notice <- <lambda> <- step <- schedule <- alive
+  top leaf frames:
+       264.6 s  46.9%  step
+       245.3 s  43.4%  wait
+        10.4 s   1.8%  _on_usd_changed
+         9.8 s   1.7%  _add_robot
+         5.4 s   1.0%  _on_objects_changed
+         5.3 s   0.9%  _on_usd_objects_changed
+         3.9 s   0.7%  stage_changed_notice
+         3.5 s   0.6%  on_changes
+
+== Process 287247 Thread 287617 "asyncio_0" (546.0 s sampled) ==
+  top caller chains (leaf <- caller):
+       546.0 s 100.0%  _worker <- run <- _bootstrap_inner <- _bootstrap <- process 287247:"/home/ubuntu/linalw/App/isaacsim/_build/linux-x86_64/release/kit/python/bin/python3 scripts/20_pick_place.py"
+  top leaf frames:
+       546.0 s 100.0%  _worker
+
+== Process 287247 Thread 287632 "biarm-left" (527.0 s sampled) ==
+  top caller chains (leaf <- caller):
+       134.2 s  25.5%  wait <- request <- step_patch <- _step_sim <- _carry_leg
+       133.2 s  25.3%  wait <- request <- step_patch <- _step_sim <- _grasp_carry_place_impl
+        48.9 s   9.3%  wait <- request <- step_patch <- _step_sim <- _blend_to
+        39.6 s   7.5%  wait <- request <- step_patch <- _step_sim <- _run_impl
+        35.3 s   6.7%  wait <- request <- step_patch <- _step_sim <- _biarm_worker
+        25.2 s   4.8%  wait <- request <- step_patch <- _step_sim <- _settle_to_rest
+        21.1 s   4.0%  wait <- request <- step_patch <- _step_sim <- _approach
+        16.8 s   3.2%  wait <- request <- step_patch <- _step_sim <- _place_low
+  top leaf frames:
+       503.1 s  95.5%  wait
+         2.8 s   0.5%  __init__
+
+== Process 287247 Thread 287633 "biarm-right" (522.8 s sampled) ==
+  top caller chains (leaf <- caller):
+       143.8 s  27.5%  wait <- request <- step_patch <- _step_sim <- _grasp_carry_place_impl
+        91.0 s  17.4%  wait <- request <- step_patch <- _step_sim <- _carry_leg
+        54.7 s  10.5%  wait <- request <- step_patch <- _step_sim <- _blend_to
+        51.6 s   9.9%  wait <- request <- step_patch <- _step_sim <- _run_impl
+        28.3 s   5.4%  wait <- request <- step_patch <- _step_sim <- _biarm_worker
+        25.8 s   4.9%  wait <- request <- step_patch <- _step_sim <- _settle_to_rest
+        20.7 s   4.0%  wait <- request <- step_patch <- _step_sim <- _biarm_park
+        17.1 s   3.3%  wait <- request <- step_patch <- _step_sim <- _approach
+  top leaf frames:
+       498.3 s  95.3%  wait
+         2.9 s   0.6%  __init__
+
+== process total (2161.0 s over 216098 samples) ==
+  wait             1793.4 s  83.0%
+  physics           264.6 s  12.2%
+  other              41.0 s   1.9%
+  app_callbacks      40.0 s   1.8%
+  boot               17.6 s   0.8%
+  control_ik          2.8 s   0.1%
+  render              0.7 s   0.0%
+  arbiter             0.7 s   0.0%
+  fruit_state         0.1 s   0.0%

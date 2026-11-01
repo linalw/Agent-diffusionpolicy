@@ -1,0 +1,39 @@
+# P82 header (2026-11-01 08:52:26)
+# tree: 2badf21 dirty=1
+# question: where does the two-line's per-tick wall go (P80/P81 wall/sim 2.57 vs 1.38), and is any of it removable?
+# cells: R1/R2 = I2 arbiter timers (two-line/single, 20 att seed 5); R3/R4 = I1 py-spy (same);
+#        W0 two-line OFF, W1/W2 two-line ON, W3 two-line ON + timers, W4 two-line ON seed 6;
+#        F0/F1 shared-station OFF/ON (10 att); A1 accept with the knob set (single arm)
+# knob: FRUIT_BIARM_WAKE_ON_REQUEST (default off) - the one optimization
+
+## before/after (the only src change)
+980923a640d9a07be2d040a4f82e9c9f  src/fruit_sorting/bimanual.py  (HEAD)
+146e6252bcbeb14276491be55082208d  src/fruit_sorting/bimanual.py
+
+## tree (unchanged files)
+e8dfa6d819bf41d800d90fff349aa951  src/fruit_sorting/tasks.py
+540406fac53992d32bee5f04a3a25785  src/fruit_sorting/assets.py
+fb2c58c6ffdf1a478a25393180da4cda  src/fruit_sorting/conveyor.py
+07d6fdad013528c6074d6d624f5c9807  src/fruit_sorting/scene.py
+7d26eb5bd27bc17d3729b77472a354d4  src/fruit_sorting/rl_env.py
+c7461d4104cf2c5f6c5a2daab80fbf32  src/fruit_sorting/fruits.py
+9384ff4fa3e62b359bf10d2123ef41fa  src/fruit_sorting/control.py
+146e6252bcbeb14276491be55082208d  src/fruit_sorting/bimanual.py
+8952c320d798ef42e03ba815c9e96b23  configs/motion_reference.json
+eb697f23adb5d6b9ef8656f3319d3ce8  configs/motion_reference_twoline.json
+
+## phase artifacts
+93918402e2243355dd909a6418c421e5  logs/p82/METHOD.md
+0993a373fac51a1d328cedf0c6866f67  logs/p82/timers.py
+88e5464a24d9ac76381e0f83946b2c2c  logs/p82/profile_20.py
+a9f34afe78b25b879e975123a819acdd  logs/p82/run_pyspy.sh
+476c68f27cdb5d172ed3240fb2382d7c  logs/p82/ps_agg.py
+271c23244384612773dd6fd7f2a24a22  logs/p82/one_run.sh
+1809ebc7d929a16f75bf48ea8220014b  logs/p82/run_p82.sh
+0ee2db0e1cbf3de29f443ec35f7c7456  logs/p82/run_p82_stage2.sh
+c84b3556f08a5ffea9b9eaf07e89d953  logs/p82/apply_wake_patch.py
+416a9522811ce321e1aa9dcb7af4be32  logs/p82/p82_report.py
+a8da30d2a57f5a1afaa8029d8b6b33be  logs/p82/p82_ab.py
+
+## checkpoint
+61da390a85fa209496b54477a8255d23  checkpoints/moe_v13s/policy_best.pt

@@ -3677,6 +3677,88 @@ p81_report.py,p81_report.txt,supply_proof.txt,stamp.py,one_run.sh,run_p81.sh,
 Tp5.log,Tp5.stamps,Tp5.budgets,Tp5.gate,Tp6.log,Tp6.stamps,Tp6.budgets,Tp6.gate,
 accept_noharm.log,accept.gate,selfcheck.log}`; WORKLOG "P81".
 
+**P82 (2026-11-01, `logs/p82/`; one behaviour-neutral optimization behind a
+default-off knob, **nothing adopted, no default change, no commit**): the two-line's
+61 % harness wall is 51 % physics and **32 % a 5 ms poll timeout** - the poll is
+removable, and removing it turns P80's 1.02x wall wash into **1.55x**.** The
+question was P80/P81's own: the two-line pays wall/sim **2.57** against the single
+arm's 1.38, so its 1.88x simulated clock was 1.02x of wall. The split was measured,
+not guessed, with two instruments on **separate profile builds whose `[fruit]` streams
+are byte-identical to the record** (that is the admissibility test: a profile that
+moves the branch is not a profile of the branch): **I2** = per-round timers at the
+arbiter boundary only, never inside `ik_step` (`logs/p82/timers.py` +
+`profile_20.py`, 47,795 rounds; R1 = 865/865 vs `logs/p80/T20.log`), and **I1** =
+py-spy at 100 Hz with `--idle` (56,473 main-thread samples; R3 = 865/865). Both cost
+wall (+1.0 % / +5.9 %) and neither moved a line. **The four hypotheses:**
+**H1 holds, and as a *wait*, not as Python** - `TickRelay.schedule`'s own cost is
+**0.024 ms/round = 0.2 % of wall**, while `MainBridge.pump`'s fixed 5 ms timeout is
+**5.03 ms/round, 99.2 % of them timeouts, ~2.03 rounds per shared tick** (`CoopSession.run`
+drives `schedule()` then `pump(0.005)`, and `pump`'s queue only receives *bridged
+main-thread jobs* - the tick requests `TickRelay.request` files never reach it);
+**H2 (render) is 0.0 %** - `_tick_frame` is 21,544 calls costing **0.059 s** on the
+whole batch, because the scripted battery has no `frame_callback` and no recorder
+(the *single* arm does pay a render: `update_app(steps=20)` in its pre-pose/feed, **12.7 %
+of its wall**, py-spy); its stack inside `step` is **71.3 %** of its wall (and py-spy's
+52.5 % vs I2's 51.0 % agree on the two-line's share); **H3 (physics) is the largest
+single term and is not removable** - one shared `SimulationManager.step` = one PhysX `simulate(dt)` per
+tick, **10.87 ms = 51.0 %**; **H4 (the second arm) is 15.7 %** (the arms' segments,
+1.70 ms each, 1.97 per tick, serialized by the single permit). The dead wall is the
+same number three ways: `pump` total 240.5 s minus the 78.9 s of segments it covers =
+**161.6 s = 32.2 %**, the residual, and a wait histogram that is **one spike at
+5.07-5.08 ms**. **The one optimization** (`logs/p82/apply_wake_patch.py`, 12 asserted
+anchors; `bimanual.py` `980923a6` -> **`146e6252`**, +87/-10): `MainBridge` gains
+`wake_on_request` + a `threading.Event`, `pump` waits on the event instead of the
+timeout (the timeout stays as the safety net: a lost wake costs latency, never a
+stall), and `TickRelay.register/enter/request/pause/resume/release` call `_notify()` =
+`_cv.notify_all()` + `bridge.wake()`. **`schedule`'s own notify is deliberately left
+alone** - waking from inside `schedule` makes the next `pump` return without waiting
+and spins the driver loop. The knob is **`FRUIT_BIARM_WAKE_ON_REQUEST`, default ON since this phase**
+(`=0` restores the pre-P82 timeout), read once per `CoopSession` - the flip is a
+**latency fix, not a physics change**, and it shipped on the phase's own evidence
+plus a post-flip check: two 4-attempt two-line cells, env unset vs `=0`, read
+**85.9 s against 119.0 s of `[fruit]` span (-27.8 %)** with their 179-line
+streams **byte-identical** (`p82_report.py --same`), so every recorded wall number
+before this phase is a **timeout-path** number and `=0` restores it. **The proof is bit-identity at two seeds
+and in four profile configurations**: W1/W2/W3 (seed 5, knob on, with and without the
+timers) are **865/865** identical to `T20`, W4 (seed 6) **814/814** to `T6`, the
+single-arm cells **710/710** to `S20` and the accept cell **346/346** to
+`logs/p71/accept_rails_none.log`; the shared-station scheduler (`bimanual.py`'s other
+consumer) **499/499** off-vs-on. **The numbers**: wall **497.2 / 501.1 -> 327.1 /
+327.8 s** at seed 5 and **476.8 -> 312.9 s** at seed 6 (**-34.5 %**), wall/sim **2.59
+-> 1.69**, wall/pick **25.1 -> 16.4 s**, placed/min wall **1.92 -> 2.93**, with the
+count (16/20, 10/20), the sim span (193.3 s) and every per-leg metric unchanged; the
+shared-station pair reads **317.6 -> 201.8 s** (2.22 -> 1.41). **The arithmetic**, to
+quote in this order: the sim clock is **1.88x** and the lever cannot move it; the
+harness factor (wall/sim) was **1.81x** the single arm's, so the wall gain was
+`1.88 / 1.81 = 1.03x`; the lever takes it to **1.19x**, so the wall gain is `1.88 /
+1.19 = **1.57x**` per pick; the placed **rate** multiplies that by the count, which is
+a seed draw and **not** the lever's (pooled placed per attempt **0.650 vs 0.658**),
+giving **1.55x pooled** (1.95x at seed 5, 1.18x at seed 6) - **so the two-line now
+meets P80's disowned 1.02x bar and the standing 1.25x bar on the wall denominator,
+not only on the sim denominator.** What is left (1.19x) is measured and is **not** a
+poll: the two arms' control plus the permit handoff, with the shared physics step
+(10.65 ms/tick = **75 % of the remaining wall**) the floor no arbiter change can
+move. **Read it as a latency win, not a cheaper run**: the idle wall is denser, the
+CPU *work* is unchanged (physics 51 -> 75 %, segments 15.7 -> 23.0 % of a shorter
+wall) and the loop rate is unchanged (48,021 vs 47,795 rounds - **no spin**); this box
+runs the cell at ~3 of 32 cores, so a saturated machine would show much less.
+**P80/P81's two-line wall column (1.93 placed/min, 24.9 s/pick) is the *shipped*
+behaviour and stays valid for the tree as it stands** - the knob is off - and the
+knob-on numbers are the same scenario with the wait removed. **No motion reference is
+re-recorded and none is owed** (`8952c320` / `eb697f23` stand: the physics cannot
+move), the two-line gate `190` **PASSes** on the knob-on log against P80's own
+20-attempt reference, `accept.sh` with the knob **set** reads **6/9 + `fingerprint:
+matches`** (the standing rate-only FAIL), and `selfcheck.sh` is **PASS, 0 failures**.
+Not measured: a saturated machine, the collector's `run_bimanual` path (it inherits
+the knob), a concurrent-arm scheduler (a different design - the single permit exists
+because PhysX reads are not thread-safe). Pins: `tasks.py` `e8dfa6d8`,
+`bimanual.py` **`146e6252`**, `configs/*` untouched; ckpt `moe_v13s` `61da390a`.
+Evidence `logs/p82/{METHOD.md,RESULTS.md,header.txt,timers.py,profile_20.py,
+run_pyspy.sh,ps_agg.py,one_run.sh,run_p82.sh,run_p82_stage2.sh,apply_wake_patch.py,
+p82_report.py,p82_ab.py}`, the cells `{R1,R2,R3,R4,W0,W1,W2,W3,W4,F0,F1,A1}` with
+`.stamps`/`.driver`, `R3/R4.speedscope.json.gz` + `.profile.txt`, `W1.gate`,
+`selfcheck.log`; WORKLOG "P82".
+
 ## 3. What changed -> what to run
 
 | you changed | run |
@@ -3688,6 +3770,7 @@ accept_noharm.log,accept.gate,selfcheck.log}`; WORKLOG "P81".
 | simulator behaviour, scene, gripper, conveyor | `scripts/accept.sh`, then `scripts/demo_2min.sh` |
 | the supply schedule (`fruits.py`, `bed.py`) | `python3 scripts/211_bed_audit.py`, then `scripts/selfcheck.sh` |
 | the bimanual scheduler (`bimanual.py`, or the task loop under `FRUIT_BIARM=1`) | `scripts/selfcheck.sh` (the 152 leg), the `logs/biarm/` rate batch (`scripts/153_biarm_rates.sh biarm 5`), then `FRUIT_BIARM=1 scripts/accept.sh` |
+| the arbiter / main-thread bridge (`bimanual.py` `TickRelay`, `MainBridge`, `CoopSession`), or anything that claims a **wall** speedup on the two-line | `scripts/selfcheck.sh` (the 152 leg), then **the same cell twice** (knob unset vs set) with `logs/p80/stamp.py` and require the `[fruit]` stream to be **byte-identical** (`python3 logs/p82/p82_report.py --same <control.log> <cell.log>`) - a scheduler change must not move the physics - plus `scripts/190_twoline_gate.sh` on the cell (its own reference for its own attempt count) and one `FRUIT_BIARM=1` pair for the shared-station consumer; read the wall with `logs/p82/p82_ab.py` and quote **wall/sim**, `wall/pick` and `placed/min wall` against the single arm at **>= 2 seeds** (`logs/p82/RESULTS.md` §4-§6). The arbiter's idle is measured by `logs/p82/timers.py`; do not add per-tick timers to `ik_step` (AGENTS §2) |
 | the policy, training or the dataset schema | `scripts/selfcheck.sh`, `scripts/accept.sh` (scripted baseline), `scripts/accept_policy.sh` (policy loop) |
 | the direct supply profile (`rl_env.py` `_resolve_supply_profile`, the `fruits.py`/`tasks.py` kwargs) | `scripts/selfcheck.sh` (the `230` leg), `scripts/accept.sh` (import guard: 377/377 + `fingerprint: matches`), one two-line run + `scripts/190_twoline_gate.sh`, `python3 scripts/211_bed_audit.py` |
 | the output station (`assets.py` `output_rails` / `output_belt_top_z`, `conveyor.OutputBelt`) | `scripts/selfcheck.sh` (the `238` leg), `scripts/accept.sh`, one two-line run + `scripts/190_twoline_gate.sh`, then the direct cell with `FRUIT_CARRY_DIAG=1` (the crossing `clr`/`clr_win` **and the P72 corner `clr_edge`/`clr_edge_min`** per held place leg, read with `logs/p72/p72_report.py --check`) - and re-record both references if the flip is shipped (`logs/p71/RESULTS.md` §5) |
