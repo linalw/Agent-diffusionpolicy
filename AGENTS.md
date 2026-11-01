@@ -3857,6 +3857,62 @@ p83_report.py,p83_report.txt,run_p83.sh,one_run.sh,probe_bed.sh,battery_driver.l
 the cells `{C5,D5,F5,D6,F6}.{log,stamps,driver.log}`, `{C5,F5,F6}.gate`, the probe
 `probe_bed.log`, `accept_noharm.log`; WORKLOG "P83".
 
+**P84 (2026-11-01, `logs/p84/`; measurement only - nothing adopted, no default
+change, no commit, no `src/` edit, `configs/` untouched): P83's re-entry on the
+two-line. The abort is clean there, the line had already spent most of the saving,
+and whether the overlap absorbs it flips sign between the two registered seeds.**
+P83's named re-entry was a scenario where the presentation is not the binding term -
+the two-line, whose scheduler parks an arm on the *other arm*. Cells
+(`FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=1`, 20 attempts, seeds 5/6, the P80
+instrumentation plus **`FRUIT_CARRY_DIAG=1 FRUIT_BIARM_PARK_TRACE=1` on both arms**,
+`FRUIT_FAIL_FAST=150` on the treatment only, one claim per run): **D5 16/20,
+interval 10.77 s, 2.85 placed/min wall; F5 10/20, 14.39 s, 2.01; D6 10/20, 19.34 s,
+1.92; F6 15/20, 12.21 s, 2.83**. **Both controls are the P80 records again**:
+`D5` = `logs/p80/T20.log` **865/865** and `D6` = `logs/p80/T6.log` **814/814**
+physics `[fruit]` lines, the phase's diag rows dropped - so **the tracker and the
+park trace are neutral on this line** and the A/B is the abort alone (P83 had only
+proved the tracker neutral on the single arm). **The mechanism transfers, the
+arithmetic does not**: 12 trips, **11/12** at `force = 0.00 N` *and* `contacts = 0`
+(the 12th is F5's never-held payload, `clean_slip 354.4 mm` on tick 1, and F5's one
+letter-failure is `force 9.33 N / contacts 1` at a **measured `sep 9.9 mm` with
+`gap = -2.2 mm`** - the pads pressing each other, the payload **138.8 mm above**
+them), **45/45 carry legs of the 25 placed attempts read `ticks = X/X`**, and a
+placement is not slower (`15.51 -> 15.62 s`). The saving is **-1.48 / -1.20 s on a
+never-grasped attempt** and **-3.34 s on a `cnp`** (seed 6, whose control is the
+only one that drew `cnp`), against P83's **-5.14 s**: the shipped two-line **already
+truncates a lost attempt twice** - `tasks.py` returns right after the lift when the
+peak lift is absent (`if not result.grasped: … return result`) and the **P10-C carry
+monitor is armed by default in a two-line session** (`_resolve_carry_monitor_knobs`,
+confirm 8.0 mm, floor 3.5), which ends the *next* leg at its boundary (measured: **3
+of D6's 5 `cnp` attempts have no `place` segment**, 9.1-10.3 s). So the fail-fast's
+increment is only the rest of the tripping leg (mean remainder + 50-tick tail
+**1.70 s / 1.52 s**). **The delivered side is a seed flip**: interval **+33.6 %** at
+seed 5 and **-36.9 %** at seed 6 (pooled **-11.7 %**), count **26/40 -> 25/40**
+(equal), and the three waiting terms move the same way as the interval - idle
+19.8 -> **23.5 %** (s5, rises) but 24.4 -> **21.7 %** (s6, falls), lock-on 4.19 ->
+**4.58** / 5.04 -> **4.39 s**, the right arm's **park-gate wait** 7.1 -> **9.1** /
+21.8 -> **13.6 s**, starved polls 44 -> **53** / 33 -> 33. **Verdict: NOT ADOPTED** -
+M1 fails on G4's letter (11/12), M2 fails at both seeds (-1.77 / -2.62 s against
+P83's 3.0 s bar, because the class mix and the monitor differ), T1 and T2 fail at
+seed 5, T3 passes (window 4.34 -> 4.54, batch 4.03 -> 4.05, wall 2.39 -> 2.42);
+G1/G2/G5/G6/G7/G8 pass and G3 passes pooled but fails its seed-5 letter (the
+`grasped, not placed` label is a class **D5 drew zero of**). **Read rules from here:**
+quote the fail-fast's increment **by class** on a line with the monitor on (never
+~1.2-1.5 s, `cnp` ~3.3 s), never P83's 5.14 s; a **seed is a scenario**, so a
+20-attempt two-line arm needs its own reference (P80's file is seed 5 - `D6`'s is
+written from P80's own `T6.log` into `logs/p84/`, never `configs/`) and the treatment
+is a **DIFFERS-by-construction** arm gated on **budgets only**; and a 20-attempt
+two-line A/B whose **own control swings 16 -> 10 placed between seeds** cannot
+attribute a count - the branch-free read is the per-class failed-attempt span. No
+motion reference moved (`8952c320` / `eb697f23` stand), no reference re-recorded,
+`scripts/selfcheck.sh` **PASS, 0 failures** (no new leg: the phase adds no `src/`
+code). Pins: `tasks.py` `f1e44af6`, `bimanual.py` `7e2b7d7e`, `rl_env.py`
+`d786279c`, `fruits.py` `c7461d41`; ckpt `moe_v13s` `61da390a`. Evidence
+`logs/p84/{PREREG.md,PREREG.md5,RESULTS.md,p84_report.py,p84_report.txt,timeline.py,
+run_p84.sh,gates.sh,one_run.sh,stamp.py,battery_driver.log}`, the cells
+`{D5,F5,D6,F6}.{log,stamps,driver.log}`, `{D5,D6,F5,F6}.gate` + `D6.gate_t6`,
+`{D5,D6,F5,F6}.budgets`, `motion_reference_twoline_T6_20.json`; WORKLOG "P84".
+
 ## 3. What changed -> what to run
 
 | you changed | run |
@@ -3876,6 +3932,7 @@ the cells `{C5,D5,F5,D6,F6}.{log,stamps,driver.log}`, `{C5,F5,F6}.gate`, the pro
 | a new default-off diagnostic field on the `[carry]` row (or a new `[place]`/`[seat]` line, or a new `[place-trace]` per-tick print) | `scripts/selfcheck.sh` (the field's own leg - `235`/`239`/`240`/`241` are the pattern), then **one direct run with `FRUIT_CARRY_DIAG=1`** to read it, then `scripts/accept.sh` and require its **346/346 `[fruit]` lines** to be byte-identical to the pre-change record - a diag-only change must be inert on the scripted path (`logs/p73/P1_RESULTS.md` §5, `logs/p75/RESULTS.md` §5) |
 | the finger drive's force cap, or a leg-scoped drive write (`FRUIT_FINGER_MAXFORCE`, `FRUIT_FINGER_MAXFORCE_SCOPE=place-left|grasp-left`/`..._SCOPED`, `tasks.finger_cap_scope_for`, `_carry`'s wrapper) | `scripts/selfcheck.sh` (the `244` leg), then **one direct run with `FRUIT_CARRY_DIAG=1`** and read the `[drive] ... finger cap raise/restore` rows **and** the delivered force by leg class - **the site proof is the pair**: `place-left` -> `place*` at the scoped cap with `grasp_lift` at ~9.7 N (`logs/p78/RESULTS.md` §0), `grasp-left` -> `grasp_lift` at the scoped cap with `place*` at ~10 N (`logs/p79/RESULTS.md` §1); then `scripts/accept.sh` + one two-line run + `scripts/190_twoline_gate.sh` **with the knob armed** and require **346/346 `[fruit]` lines + both fingerprints** to be unmoved (`logs/p78/RESULTS.md` §7, `logs/p79/RESULTS.md` §6) - the scoped form must move no reference; a **global** `FRUIT_FINGER_MAXFORCE` instead owes both references and every store. Read `fmax` as a **peak transient** that exceeds the cap on single legs even at 10 N, and `force_min` as the leg's weakest moment - neither is a `place*`-was-re-clamped test on one cell (`logs/p79/PREREG.md` §9 A1); the structural rows are |
 | an **early end of a carry leg** (a new skip/trip on `_carry_monitor_skip`/`_fail_fast_trip`, a new threshold, `_attempt_ended_early`, or a new failure path out of `_grasp_carry_place_impl`) | `scripts/selfcheck.sh` (the `245` leg is the pattern: the resolver table, the refuse-below floor, **one** trip site, the attempt-local latch, the scope, the arming clause, and that the trip adds **no `result.notes` entry**), then **the tracker-only control first**: `FRUIT_CARRY_DIAG=1` alone on the same seed must be **byte-identical** to the shipped run (`--same`, diag rows dropped) - otherwise the treatment differs by instrumentation and no time claim is admissible (`logs/p83/RESULTS.md` §6 G2) - then the A/B against **that** control on **>= 2 seeds**, reading **the failed attempt's own span** as the mechanism number (branch-free) and the interval/count as the claim, plus `scripts/accept.sh` and require its `[fruit]` stream to be byte-identical to the pre-change record |
+| a **two-line A/B** (a per-attempt knob on the scripted primitive reaching `run_bimanual`, e.g. `FRUIT_FAIL_FAST`) | the same protocol, with four two-line differences: (a) the control must replay **that scenario's own** record modulo the phase's diag rows (`logs/p82/p82_report.py --same`, dropping `[fruit] [carry]`, `[diag] carry-assist` and `[biarm] … park`) - P84's `D5`/`D6` are `logs/p80/{T20,T6}.log` at **865/865** and **814/814**; (b) **each seed is its own scenario**, so every seed needs its **own** 20-attempt reference (P80's file is seed 5; write another seed's from its own record into `logs/`, **never** `configs/`), and the treatment is a **DIFFERS-by-construction** arm gated on **budgets only** (`105 --min-success-rate 0.0`); (c) the interval is split over two overlapping arms, so quote the pooled **and** per-arm interval, both denominators, the wall and the **park-gate wait / lock-on / idle** triple - the "the overlap absorbs the abort" read; (d) the saving must be quoted **by class**: the shipped two-line already truncates a lost attempt twice (the `not result.grasped` return after the lift and the **P10-C monitor**, armed by default in a two-line session), so the fail-fast increment is ~1.2-1.5 s on a never-grasped attempt and ~3.3 s on a `cnp`, not P83's 5.14 s - and a 20-attempt two-line count is a branch draw whose **own control swings 16 -> 10** between seeds (`logs/p84/RESULTS.md` §2/§4) |
 
 To compare two **policy** arms, use the harness rather than two runs:
 
