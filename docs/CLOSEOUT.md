@@ -11,9 +11,9 @@ lands it (`R11 PLAN`, `.slim/deepwork/sorting-pipeline-v3.md`).
 
 | piece | default | state |
 | --- | --- | --- |
-| **Single-arm scripted line** (OpenArm, never-stop dynamic catch, v9/V1 scattered supply) | `FRUIT_DYNAMIC_PICK` unset (catch on the fly) | **9/10 x5 bit-identical, 15.2 s/attempt, 3.55 placed/min**; acceptance 9/10 + motion gate PASS + `fingerprint: matches` (R6-B-era record; **P32 pear-on: 6/10, the reference re-recorded to 25ade92b, accepted under the owner exception - §3** - see AGENTS §1); `FRUIT_SUPPLY_SCATTER=0` reproduces the pre-v9 fixed line line-identically (`logs/v1/`) |
+| **Single-arm scripted line** (OpenArm, never-stop dynamic catch, v9/V1 scattered supply) | **`FRUIT_BIARM=0`** (the pre-P85 shipped cell) | 9/10 x5 bit-identical, 15.2 s/attempt, 3.55 placed/min in its own era; acceptance on this tree **6/9, 346/346 identical to `logs/p71/accept_rails_none.log`**, `fingerprint: matches` `configs/motion_reference_single.json` (P84/P85); `FRUIT_SUPPLY_SCATTER=0` reproduces the pre-v9 fixed line line-identically (`logs/v1/`) |
 | **Bimanual** (`FRUIT_BIARM=1`, shared-station pipeline) | opt-in | 9/10, 15.0 s/attempt, 3.59 placed/min vs single 3.42 = **1.05x** - below the bar, not flipped (`logs/g/`) |
-| **Two-line** (`FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=1`) | opt-in; **park-gate lever on** (W7-A, `FRUIT_BIARM_PARK_EARLY` default 1 in two-line sessions) | patch: **12/20, 3.63 placed/min** window (timing-only +10 % vs W6-B; residual x1.22 cross-branch); dense W3/W4: 7/10, 9.1 s/attempt, 4.60 placed/min (own reference `configs/motion_reference_twoline.json`); **P32 bed (opt-in `FRUIT_SUPPLY_BED=1`; a different scenario - not a comparison): 12/20, 4.19/4.22 placed/min, interval 14.23/15.50/19.00 s, idle 15/15 %, +24 % wall (285 -> 352-356 s) and a delivered band of 2-8/10 (same-instant census 5.5/6.9) with `late_dropped=139.6 s`; own reference `configs/motion_reference_twoline_bed.json` (`190 -m 0.5` PASS); the prepared-next lever is a zero-actuation null - the dispatch cost is the pre-pose transit, not the selection**; the **P33 mid-attempt pump** (default off) raises that band to 8.3/10 (census 8.4/8.8) but the catchable window is flat (1.5/2.4 -> 0.9/2.2) and left starvation rises to 5/15 (a grade drought) at **+20.9 % wall**; clearance is a **per-config report** (R5) |
+| **Two-line** (`FRUIT_BIARM`/`FRUIT_BIARM_TWOLINE` both default **1** since P85) | **the shipped scripted cell**; park-gate lever on (W7-A) | **P85: 16/20, 9.70 s/attempt, interval 10.77 s, 5.57/4.96 placed/min, wall/pick 16.6 s** (seed 5; `logs/p85/`, replayed bit-identically from the pre-flip record); acceptance **7/10**, gate `190 -m 0.60` + `fingerprint: matches` `configs/motion_reference.json` (`eb697f23`). History: patch: **12/20, 3.63 placed/min** window (timing-only +10 % vs W6-B; residual x1.22 cross-branch); dense W3/W4: 7/10, 9.1 s/attempt, 4.60 placed/min (own reference `configs/motion_reference_twoline.json`); **P32 bed (opt-in `FRUIT_SUPPLY_BED=1`; a different scenario - not a comparison): 12/20, 4.19/4.22 placed/min, interval 14.23/15.50/19.00 s, idle 15/15 %, +24 % wall (285 -> 352-356 s) and a delivered band of 2-8/10 (same-instant census 5.5/6.9) with `late_dropped=139.6 s`; own reference `configs/motion_reference_twoline_bed.json` (`190 -m 0.5` PASS); the prepared-next lever is a zero-actuation null - the dispatch cost is the pre-pose transit, not the selection**; the **P33 mid-attempt pump** (default off) raises that band to 8.3/10 (census 8.4/8.8) but the catchable window is flat (1.5/2.4 -> 0.9/2.2) and left starvation rises to 5/15 (a grade drought) at **+20.9 % wall**; clearance is a **per-config report** (R5) |
 | **Policy** | `moe_v12` (hybrid pinned canary = the gate of record; `FRUIT_POLICY_TRIGGER_LATERAL=0.16`) | the direct causal loop is the mechanism interface under the **N=5 protocol**; the hybrid handoff is inert by construction (R5 decision). The **P33 post-pear checkpoint `p33_pear`** (`31751eaa`) exists and is **not adopted** (direct 8/45 vs 16/45 overall, p = 0.094 - no measured improvement; canary smoke 5/10 matches the shipped post-pear count) - see item 8 |
 | Measurement rules | - | outcome is quantized (compare per-leg metrics + attractor, never cross-config rates); diagnostics default off; Tier A solo; `scripts/selfcheck.sh` / `accept.sh` / `accept_policy.sh` / `demo_2min.sh` |
 
@@ -35,7 +35,14 @@ lands it (`R11 PLAN`, `.slim/deepwork/sorting-pipeline-v3.md`).
 
 ## 3. Owner decisions closed
 
-* **R5 (2026-10-13)**: two-line flip **no** (1.25x bar unchanged); clearance =
+* **P85 (owner, 2026-11-01)**: **the two-line IS the shipped scripted cell** -
+the grade-pure routing semantics R5 held open are signed off, `FRUIT_BIARM` and
+`FRUIT_BIARM_TWOLINE` default `1`, both references re-baselined (the acceptance
+reference becomes the two-line record, the single arm's archived for the
+`FRUIT_BIARM=0` restore) and every pre-P85 number is a single-arm / opt-in
+number (`logs/p85/RESULTS.md`). The rest of R5 stands.
+* **R5 (2026-10-13, superseded in part by P85)**: two-line flip **no** at the
+time (1.25x bar unchanged); clearance =
 per-config report (no gate; no arm-arm contact possible); C-semantics
 two-line-only; ACQ **not shipped**; **hybrid pinned canary = the gate of
 record** (direct loop = mechanism interface).
