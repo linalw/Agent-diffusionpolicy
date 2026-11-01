@@ -220,8 +220,15 @@ only as the S3/S13 pair on the single arm, P44).
 * `scripts/accept.sh` (the shipped two-line scenario, ten attempts,
   `logs/p89/accept_final.log`): **7/10 = 70 %, `fingerprint: matches
   configs/motion_reference.json`, `190: PASS`** - the shipped branch, unchanged
-  by the phase (nothing was flipped, so no reference was re-recorded).
+  by the phase (nothing was flipped, so no reference was re-recorded). Its own
+  `[biarm] lift profile:` row reads **`FRUIT_SPEED_LIFT=0.30(scope-off)`**, i.e.
+  the shipped acceptance runs the shipped lift clock.
 * `logs/p89/gates.sh` -> `gates.out`: every admissibility clause (G0/G1/P6,
   G2a/G2b/G2c) passes; the script's non-zero exit is the **registered verdict**
   (`p89_report.py --blocks` -> the gate FAIL), which is the phase's outcome, not
   a check failure.
+* A second same-tree draw at ten attempts (`logs/p89/accept10.log`, run by
+  `run_p89_extra.sh`'s default selection) reads **7/10, 9.40 s/attempt, interval
+  10.47 s, window 5.73 / batch 4.47 placed/min, `placed/min wall` 2.67, 10/10
+  descents inside budget** with the shipped lift row - the shipped cell's numbers,
+  reported as a draw, not a rate.
