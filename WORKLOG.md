@@ -22555,3 +22555,160 @@ shipped branch, unchanged because nothing was flipped. Evidence `logs/p89/`:
 `{C5,T5,C6,T6}.{log,stamps,driver,gate,budgets}`, `N5.{log,stamps,driver}`,
 `single_accept.{log,gate,same}`, `shared_{unset,zero}.*`, `shared_raw_same.txt`,
 `C5_vs_p88T5.txt`, `C6_vs_p88T6.txt`.
+
+### P90 - the place station has no top-down: the workstation path closes on a 10 mm cliff
+
+The owner picked the **workstation / station-layout** path, and it had one
+answerable question: *is there an output place station where the left arm can hold
+the top-down attitude through the place leg - and what does moving the line there
+cost?* It is answered **no**, with the count, the cliff and the mechanism.
+
+**The instrument is P66's, retargeted.** `logs/p90/station_map.py` is a copy of
+`logs/p66/ik_probe_sweep.py` (itself a copy of `logs/p62/ik_probe.py`, both kept
+byte-untouched so their artifacts stay reproducible) with the target moved from the
+**pick** band to the **place** pose the code actually commands -
+`(x, y, output_place_z [+ the OpenArm 0.08])` - and three additions: **both arms**,
+**two heights** (`z = 1.450`, the place height, and `z = 1.530`, the transfer), and
+**three attitude modes**. The grid is 7 x 7 (+-0.15 m around `(0.43, +-0.50)`, 0.05
+m step = P66's cell size) x 2 heights x 2 arms x 3 modes = **588 cells**, 46 min in
+one claim.
+
+**The criterion was pinned before the run** (`logs/p90/METHOD.md`, md5
+`42bec0f8`, mtime 22:31:42 - before the probe file existed at 22:32:17 and before
+the sweep at 22:33:39): `residual <= 6 mm AND qerr <= 2 deg AND margin >= 0.05 rad
+AND pad >= 2 mm` - P66's three clauses plus the residual tolerance the brief asks
+for - with `NAT`'s `qerr` clause replaced by `tilt <= 5 deg`, the `drift_end` scale
+(P66's rungs read 25.1 / 3.4 / 0.7 deg) rather than an invented number.
+
+**The three modes are the phase's design decision, because the place leg has no
+attitude hold.** `_carry` clears `hold_quaternion` for `name != "grasp_lift"`, so
+the place leg runs a **position-only** 3-DoF solve. `T0` (hold top-down) therefore
+asks a question whose *yes* would need a code change - and that lever is already
+measured **0/16** (P68's place wrist hold). `NAT` (`hold_quaternion = None`) asks
+what the leg **actually achieves** there, and its *yes* is shippable by a station
+move alone. `C0` (the arm's own calibrated belt-aligned `grasp_quaternion`) is
+P66's "which attitude does the workspace offer" control. That split is what makes a
+negative readable: it separates "the attitude is available but not commanded" from
+"the attitude does not exist here".
+
+**The answer is 0 of 588 cells, in every mode, at both heights, on both arms.**
+
+* **`T0`: 0/98 per arm, and at the transfer height the best margin over the whole
+  49-cell grid is `+0.000153 rad` (0.15 mrad)** - not one cell has a milliradian of
+  headroom. The
+  cells with the smallest tilt (7.46 deg at 1.450, 15.16 at 1.530) pay **172-192 mm**
+  of position for it. This is P66's pick-band finding reproduced at the other end of
+  the cell, and the reason both are readable the same way is that they share a
+  criterion.
+* **`NAT`: only 7-8 of 49 cells even solve to 6 mm** (the box `x 0.38..0.48`,
+  `|y| 0.35..0.55`), **and every one reads 77.8-108.4 deg of tilt.** The best
+  *solved* attitude in the entire envelope is **77.75 deg - at the shipped station
+  itself** (`x 0.43, |y| 0.50, z 1.450`: `res 5.9 mm`, `margin +0.185 @ j4`,
+  `tool_y +0.628`). So the station is **not improvable by moving it**: the shipped
+  point is the optimum of the map.
+* **`C0`: also 0/98**, on the **margin**: best `+0.037 rad @ j6` (1.450) /
+  `+0.041 @ j7` (1.530) against 0.05 - and it does not solve at the shipped cell at
+  all (`res 83.2 / 105.3 mm`, `qerr 45.65 / 45.86 deg`, `margin -0.000 @ j3`). That
+  is the sharpest single statement in the phase, and the distinction that makes it
+  readable: `T0` and `C0` are **6-DoF** solves (position + orientation) and **both
+  fail at the shipped cell**, while `NAT` is the **3-DoF position-only** solve the leg
+  actually runs and it arrives with **5.9 mm**. So the place station is at the **reach
+  boundary** and the live leg **buys position with attitude** - exactly what
+  `assets.py`'s own note says (`y_off = 0.41` from the shoulder, i.e. `|y| = 0.50`).
+
+**The instrument is validated against the live record three ways**, statically and
+without a payload: `NAT` at the place height reads **77.75 deg** against P73's live
+`tilt_end` **78.7 deg** and the release-time payload offset's implied **87.9 / 91.1
+deg**; the same row prints `tool_y +0.628` against P66's measured `tool_y
++0.65..+0.70` on the failing place legs (the *azimuth* agrees, not just the
+magnitude); and `NAT` at the transfer does **not** solve to 6 mm (**14.9 mm**),
+which is the live leg's own `res_end` **13.3-34 mm**. A static solve with no
+payload, no controller and no profile lands on the same regime the closed loop
+measures - which is P66's cross-check argument, repeated.
+
+**The cliff is one 10 mm step and the shipped point is on it.** A second run
+bisects the shipped column `x = 0.43` at **0.01 m** in `|y|` (104 cells): at the
+place height `|y|` **0.50 -> 0.51** takes the residual **6 -> 19 mm** and the margin
+**+0.185 -> -0.0000**; at the transfer the cliff sits between **0.49 and 0.50**, so
+the shipped station is already **one step past it** there (which is the live
+`res_end` 13-34 mm). Along `|y| = 0.50` the `x` cliff is the same kind: `x` 0.43 ->
+6 mm, **0.48 -> 46 mm**, 0.53 -> 86 mm. **The shipped point is the corner of a
+0.10 x 0.20 m solvable box, at the limit in both axes.**
+
+**Robustness - the negative is not a seed, a tolerance or a bad starting pose.**
+Re-seeded from the arm's calibrated place pose (`bin0_above` / `bin1_above`,
+`restarts = 3`, P66's robustness-B test): `T0` is **0/14 per arm with `|margin| <= 0.060 mrad` on every cell**; `NAT` finds **28 deg** - but only on the **left**, only at
+`|y| = 0.35` (**75 mm inboard of the slab's 0.425 edge**, the band that has had **no
+authored surface** since P71 removed the inner rail), and 28 deg is **5.6x** the 5 deg
+bar, **inside** the pre-P66 0.36 m rung's own carry-drift range (20.8-28.3 deg) and
+**40x** the shipped 0.20 m rung's `drift_end` (0.7 deg). Relaxing the
+residual to the live leg's own 13-34 mm admits only **worse** attitudes (96-120 deg
+at `x` 0.28-0.33). The `pad >= 2 mm` clause is never binding on a solved cell (the
+shipped cell reads **+46.3 mm**); it fires on **10 of 588** cells, all non-solving,
+with the pads **-81.0 .. +2.0 mm** from the surface as the *consequence* of a failed
+solve. And the `y` sweep - the axis `METHOD.md` §5 already flagged as a capability
+rather than a free variable - is the one that fails **fastest** (10 mm).
+
+**The costs all came back cheap; the gain is what is zero.** That is the phase's
+structural result and it is why no measurement cell is registered (`PREREG.md` is
+**not** written):
+* **crossing** - **exactly 0 mm** for any `y` on the shipped *horizontal* transit
+  (`lift end 1.530 == transfer 1.530`); **+0.30 mm/mm** inboard on the direct low
+  lift (0.160 m of climb over 0.45 m of `y`), i.e. the same order as P70's belt-height
+  lever (0.175:1) and 3x below the rail's 1:1, and bounded to **+5 mm** by the
+  release band. `x` does not enter the crossing at all.
+* **release** - the one binding column, and it *constrains* rather than costs:
+  commanded `|y|` **0.378 .. 0.633** lands the payload on the slab. The shipped
+  0.500 sits inside; the sweep's `0.35 / 0.40` columns are release-dead.
+* **discharge** - **cannot move**: the chute (x 1.200 -> 1.361) and the tray (x
+  1.35..1.95, floor 0.92, rim 1.06) are downstream in `+x` and are functions of the
+  belt, not of the place point; `on_output_discharge` starts at
+  `output_belt_end_x - 0.05` = 1.15. The **tray floor 0.92 and the chute end 1.12
+  are absolute** and stay.
+* **stations** - untouched by construction: the place target reads
+  `output_belt_drop_points` + `output_place_z` and **no `pick_*`**; the two-line's
+  pre-poses are solved at the pick station (`_prepare_two_line_stations`); and the
+  park gate cannot see it either (`_biarm_payload_clear` fires on `|y| = 0.28`
+  mid-transit, long before any admissible place point).
+
+**One correction to the record, and it is worth carrying.** `logs/p70/RESULTS.md` §4
+read the delivered place point at `|y|` 0.542-0.547 against a commanded 0.500 and
+attributed the +45 mm to "the arm's outward overshoot at its reach boundary". A
+census of the same rows (**43 held releases** across `logs/p70/{C,A,B}.log`,
+`logs/p71/{both,none}.log` and the acceptances) says otherwise: **jaw - target =
+(-1..-4, -6.5..+1) mm** - the jaw lands **on** the commanded point - while
+**payload - jaw = (+52, +-42..46, ~0) mm**, `|.|` **72.6 mm** (left) / **66.4 mm**
+(right), implying the tool axis **(+0.775, +-0.631, -0.04)**, i.e. **tilt 87.9 /
+91.1 deg**. The offset is the gripper's own `_pad_standoff` (**70 mm** =
+`FRUIT_FINGER_LEN` 0.060 + `PAD_LIFT` 0.010) hanging the payload **along a
+horizontal tool axis**. Two consequences: the release point is a *function of the
+achieved tilt* (so a top-down station would remove the 44 mm for free), and an
+outboard move at the shipped ~90 deg attitude pushes the delivered point past the
+slab's 0.675 edge **25 mm earlier** than the commanded number suggests.
+
+**Verdict: the workstation path closes, and it closes on the *mediation* as well as
+on the geometry.** Not only is there no top-down place station - **the rotation is
+not the class's measured actuator**: P73 put all 8 payload losses **before** the
+leg's 45 deg crossing, at a tilt **below 45 deg**, with the 90-105 deg sweep
+happening at 73-79 % of the leg, i.e. *after* the failure; and the **right reaches
+107.3 deg and slips 0.0-0.1 mm on 10/10** place legs. A station that removed the
+rotation would remove a mediator the class does not read. So `docs/LEFT_ARM.md`'s
+three named levers reduce to **two** - **a new pad asset** and **a real-jaw
+clamp-force anchor** - and `logs/p42/SIM_LIMIT.md` is unchanged by this phase.
+
+**Scope.** Static, kinematic, no payload, no controller, no profile, and **no
+output-slab geometry in the scene** (the P66 build), so a residual is kinematic and
+not a contact; the `NAT` row is path-dependent in the live leg. `x` and `z` beyond
+the registered ranges were not swept - `x` cannot help (it is absent from
+`_payload_clearance`) and the belt-height lever is P70's closed 0.175:1. The right
+arm was swept as a capability control and mirrors the left to **0.05 deg** in every
+mode, so "the right does not need this" is not a measurement here (the record's
+reason the class is left-only is P63's: the right places 29/30 at 25.8 deg carry
+drift).
+
+No `src/` or `configs/` edit, no default change, no commit, no reference
+re-recorded. `scripts/selfcheck.sh` **PASS, 0 failures**. Evidence
+`logs/p90/{METHOD.md,MAP.md,COST.md,station_map.py,station_map.txt,station_map.log,
+cost_map.py,cost_map.txt,run_p90.sh,run_p90_robust.sh,smoke.log,driver*.log,
+station_rows.json,station_rows_refine.json,station_rows_seed_{left,right}.json,
+station_map_refine.log,station_map_seed_{left,right}.log}`.

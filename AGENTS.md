@@ -4304,6 +4304,87 @@ p89_report.txt,gates.out}`, `{C5,T5,C6,T6}.log`, `N5.log`, `single_accept.*`,
 profile blocks are all measured (release shipped P87, place negative P88, lift
 negative P89).
 
+**P90 (2026-11-01, `logs/p90/`; offline geometry only - no `src/` or `configs/`
+edit, no default change, no commit, no reference re-recorded): the owner's
+workstation path - the output **place-station** map - closes **negative**, and with
+it the last of `docs/LEFT_ARM.md`'s three named levers that had not been measured.
+The instrument is P66's 150-cell pick-band sweep copied and retargeted
+(`logs/p90/station_map.py`), so the two maps read the same way: the target is the
+pose the code commands (`(x, y, output_place_z [ + the OpenArm 0.08])`), the grid
+is **+-0.15 m in `x` and `y`** at **z = 1.450** (the place height) and **z = 1.530**
+(the transfer), **both arms**, and the criterion was pinned in `logs/p90/METHOD.md`
+(md5 **`42bec0f8`**, mtime **22:31:42** - before the probe existed at 22:32:17 and
+before the sweep at 22:33:39): `residual <= 6 mm AND qerr <= 2 deg AND margin >=
+0.05 rad AND pad >= 2 mm` (P66's three clauses plus the residual tolerance), with
+`NAT`'s `qerr` clause replaced by `tilt <= 5 deg` (the `drift_end` scale: P66's rungs
+read 25.1 / 3.4 / 0.7 deg). **Three modes, and the split is the design**: `T0` =
+hold top-down (a survivor needs a place-leg wrist hold, which P68 measured **0/16**),
+`NAT` = `hold_quaternion = None`, the position-only solve the shipped place leg
+**actually runs** - a survivor here is shippable **by a station move alone** - and
+`C0` = the arm's own calibrated belt-aligned `grasp_quaternion`, P66's "which
+attitude does the workspace offer" control. **Result: 0 of 588 cells pass, in every
+mode, at both heights, on both arms** (`station_map.txt`, `cost_map.txt` §5). `T0`:
+**0/98 per arm**, and **at the transfer height the best margin over the whole
+49-cell grid is `+0.000153 rad` (0.15 mrad)** - not one cell has a milliradian of headroom; the
+smallest tilts (7.46 deg at 1.450, 15.16 at 1.530) cost **172-192 mm** of position.
+`NAT`: only **7-8 of 49** cells even solve to 6 mm (the box `x 0.38..0.48`,
+`|y| 0.35..0.55`) and **every one reads 77.8-108.4 deg of tilt** - the best *solved*
+attitude in the entire envelope is **77.75 deg, at the shipped station itself**
+(`x 0.43, |y| 0.50, z 1.450`: res **5.9 mm**, margin **+0.185 @ j4**, `tool_y`
+**+0.628**). `C0`: **also 0/98** - best margin **+0.037 rad @ j6** (1.450) /
+**+0.041 @ j7** (1.530) against the 0.05 bar, and it does **not** solve at the
+shipped cell at all (**res 83.2 / 105.3 mm, qerr 45.65 / 45.86 deg, margin -0.000 @
+j3**). The distinction that matters: `T0` and `C0` are **6-DoF** solves (position +
+orientation) and **both fail at the shipped cell**, while `NAT` is the **3-DoF
+position-only** solve the leg actually runs and it arrives with 5.9 mm - so the place
+station is at the **reach boundary** and the leg **buys position with attitude**,
+which is what `assets.py`'s own note says (`y_off = 0.41` from the shoulder, i.e.
+`|y| = 0.50`). **The instrument reproduces the live record statically**: `NAT` reads
+**77.75 deg** against P73's live `tilt_end` **78.7 deg** and the release-time
+payload offset's implied **87.9 / 91.1 deg**, and `NAT` at the transfer does not
+solve to 6 mm (**14.9 mm**), which is the live leg's own `res_end` **13.3-34 mm**.
+**The cliff is one 10 mm step and the shipped point is on it**: along `x = 0.43`,
+`|y|` 0.50 -> 0.51 takes the residual **6 -> 19 mm** and the margin **+0.185 ->
+-0.0000** at the place height, and the cliff sits between **0.49 and 0.50** at the
+transfer (so the shipped station is already one step *past* it there); along
+`|y| = 0.50`, `x` 0.43 -> 0.48 takes it **6 -> 46 mm**. **Robustness, three ways**:
+re-seeded from the calibrated place pose (`bin0_above`/`bin1_above`, `restarts = 3`)
+`T0` is **0/14 per arm with `|margin| <= 0.060 mrad` on every cell**, and `NAT` finds
+**28 deg** - but only on the **left**, only at `|y| = 0.35` (**75 mm inboard of the
+slab's 0.425 edge**, the band that has had **no surface** since P71 removed the inner
+rail), and 28 deg is **5.6x** the bar, **inside** the pre-P66 0.36 m rung's own carry-drift
+range (20.8-28.3 deg) and **40x** the shipped 0.20 m rung's `drift_end` (0.7 deg). **The costs all came back cheap - the gain is what is zero**
+(`COST.md`): the crossing is **exactly 0 mm** for any `y` on the shipped *horizontal*
+transit and **+0.30 mm/mm** inboard on the direct low lift (bounded to +5 mm by the
+release band); the release is the one binding column and it *constrains* rather than
+costs (commanded `|y|` **0.378..0.633**, which the shipped 0.500 sits inside); the
+chute and tray are **downstream in `+x` and absolute** (0.92 / 1.12 / 1.35, and
+`on_output_discharge` starts at `output_belt_end_x - 0.05` = 1.15); the two-line's
+stations, its pre-poses, the park gate (`_biarm_payload_clear` fires at `|y| = 0.28`
+mid-transit) and the supply read no place field. **One correction to the record**:
+a census of **43 held releases** across 7 logs (`logs/p70/{C,A,B}.log`,
+`p71/{both,none}.log`, the acceptances) reads **jaw - target = (-1..-4, -6.5..+1)
+mm** - the jaw lands **on** the commanded point - and **payload - jaw = (+52,
++-42..46, ~0) mm**, `|.|` **72.6 / 66.4 mm**, implying the tool axis
+**(+0.775, +-0.631, -0.04)** i.e. **tilt 87.9 / 91.1 deg**. So P70 §4's "the arm's
+outward overshoot at its reach boundary" is **wrong**: the +45 mm is the payload
+hanging **`_pad_standoff`'s 70 mm along a horizontal tool axis** (`FRUIT_FINGER_LEN`
+0.060 + `PAD_LIFT` 0.010), and a top-down station would remove it for free. **Verdict:
+the workstation path closes** - the negative is not a siting choice, and P73's
+falsifier B already says the rotation is not the class's actuator (all 8 losses
+start **before** the 45 deg crossing at a tilt **below 45 deg**; the right reaches
+**107.3 deg** and slips **0.0-0.1 mm on 10/10**), so `docs/LEFT_ARM.md`'s remaining
+two sanctions (**a new pad asset**, **a real-jaw clamp-force anchor**) are the whole
+list. **No `PREREG.md` is written**: METHOD's rank-1 form (a `NAT` survivor) has an
+empty candidate set and rank 3 is the outcome. Pins: `station_map.py` **`edf6f3e8`**,
+`cost_map.py` **`194880a2`**, `station_rows.json` **`bb666852`** (588 rows),
+`..._refine` **`ec20d89b`** (104), `..._seed_{left,right}` `540d0cb7` / `6094d7d1`
+(28 each); tree `assets.py` **`540406fa`**, `tasks.py` **`32efa98c`**, `control.py`
+`9384ff4f`, `motion.py` `7f2443c1`; `configs/*` **untouched**
+(`0ea08ebb` / `8d50fdeb` / `423896f7` / `423896f7` / `8952c320`);
+`scripts/selfcheck.sh` **PASS, 0 failures**. **Re-baseline: none** - nothing was
+shipped and the scripted line never reads a place-station field.
+
 ## 3. What changed -> what to run
 
 | you changed | run |
@@ -4323,6 +4404,7 @@ negative P89).
 | the arbiter / main-thread bridge (`bimanual.py` `TickRelay`, `MainBridge`, `CoopSession`), or anything that claims a **wall** speedup on the two-line | `scripts/selfcheck.sh` (the 152 leg), then **the same cell twice** (knob unset vs set) with `logs/p80/stamp.py` and require the `[fruit]` stream to be **byte-identical** (`python3 logs/p82/p82_report.py --same <control.log> <cell.log>`) - a scheduler change must not move the physics - plus `scripts/190_twoline_gate.sh` on the cell (its own reference for its own attempt count) and one `FRUIT_BIARM=1` pair for the shared-station consumer; read the wall with `logs/p82/p82_ab.py` and quote **wall/sim**, `wall/pick` and `placed/min wall` against the single arm at **>= 2 seeds** (`logs/p82/RESULTS.md` §4-§6). The arbiter's idle is measured by `logs/p82/timers.py`; do not add per-tick timers to `ik_step` (AGENTS §2) |
 | the policy, training or the dataset schema | `scripts/selfcheck.sh`, `scripts/accept.sh` (scripted baseline), `scripts/accept_policy.sh` (policy loop) |
 | the direct supply profile (`rl_env.py` `_resolve_supply_profile`, the `fruits.py`/`tasks.py` kwargs) | `scripts/selfcheck.sh` (the `230` leg), `scripts/accept.sh` (import guard: 377/377 + `fingerprint: matches`), one two-line run + `scripts/190_twoline_gate.sh`, `python3 scripts/211_bed_audit.py` |
+| a **place-station move** (`assets.py` `output_place_x/y`, `output_place_clearance`) | the map **first**, offline: `bash logs/p90/run_p90.sh` (the 588-cell `T0`/`NAT`/`C0` sweep over +-0.15 m at 1.450 and 1.530, both arms, ~47 min) and `python3 logs/p90/cost_map.py --check` - **the shipped point is at the corner of the solvable box** and the `NAT` best-solved tilt there is already 77.75 deg, so a candidate must beat that or there is nothing to buy; then the `238` leg, `scripts/accept.sh` (the branch moves by construction - the release point is in the camera's frame), one two-line run + `scripts/190_twoline_gate.sh`, and **every store re-baselined** (`logs/p90/COST.md` §6) |
 | the output station (`assets.py` `output_rails` / `output_belt_top_z`, `conveyor.OutputBelt`) | `scripts/selfcheck.sh` (the `238` leg), `scripts/accept.sh`, one two-line run + `scripts/190_twoline_gate.sh`, then the direct cell with `FRUIT_CARRY_DIAG=1` (the crossing `clr`/`clr_win` **and the P72 corner `clr_edge`/`clr_edge_min`** per held place leg, read with `logs/p72/p72_report.py --check`) - and re-record both references if the flip is shipped (`logs/p71/RESULTS.md` §5) |
 | the scene's collider set or a store's provenance (`assets.scene_provenance`, the manifests) | `scripts/selfcheck.sh` (the `239` leg), then one collection or direct run and check its `manifest.json` carries the `scene` block (`logs/p72/manifest_probe.py` does it without a simulator app) |
 | a new default-off diagnostic field on the `[carry]` row (or a new `[place]`/`[seat]` line, or a new `[place-trace]` per-tick print) | `scripts/selfcheck.sh` (the field's own leg - `235`/`239`/`240`/`241` are the pattern), then **one direct run with `FRUIT_CARRY_DIAG=1`** to read it, then `scripts/accept.sh` and require its **346/346 `[fruit]` lines** to be byte-identical to the pre-change record - a diag-only change must be inert on the scripted path (`logs/p73/P1_RESULTS.md` §5, `logs/p75/RESULTS.md` §5) |

@@ -11,6 +11,17 @@ left's carry rotation is 0.7 deg and its placed count reads **10/17** (N = 3,
 same batch. The sections below are the chain that got there; §"The cost" says how
 the rail gate was resolved.
 
+**Status (P90, 2026-11-01): the workstation path is measured and closed.** The
+output **place station** has **no top-down configuration** - 0 of 588 static IK cells
+over +-0.15 m at the place height and the transfer, both arms, in three attitude
+modes - and the **best solved attitude anywhere in that envelope is 77.75 deg, at the
+shipped station itself**, so the station is not improvable by moving it
+(`logs/p90/MAP.md`). The cliff is one 10 mm step at `|y| = 0.51`, even the arm's own
+calibrated attitude has no margin there (best +0.037 rad), and the only sub-40 deg cell
+the whole phase can produce (28 deg, left only, `|y| = 0.35`) is 75 mm inboard of the
+slab, i.e. a release into the void. So §"What is NOT the answer" and the two registered
+paths below are the **whole** list.
+
 **Status (P79, 2026-10-31): the force lane is measured out; the residue is a
 geometry limit.** The pry is real (P75: the pads are driven to their 98.1 mm stop
 in 9 ticks while the command closes), force deletes its **radial** half and never
@@ -235,7 +246,11 @@ lane is the physical one.
    options ranked by gain per cost (a lower outer rail, a shorter transit, a raised
    transfer), each with its reference/acceptance/store consequences. **P71 shipped
    the rail removal** (the strongest of this family at 1:1) and re-recorded both
-   motion references.
+   motion references. **P90 then closed the station-layout half**: the output place
+   station has no top-down configuration in +-0.15 m (0 of 588 cells), the shipped
+   point is the best the envelope offers (77.75 deg is the best *solved* tilt), and
+   the cost columns came back cheap because there is nothing to buy
+   (`logs/p90/MAP.md`, `logs/p90/COST.md`).
 
 **What is shipped today (P71).** The lift is `belt_top + 0.20` for the **direct**
 presentation (`FRUIT_LIFT_DZ=+0.08` restores 0.36), the output belts carry **no
