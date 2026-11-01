@@ -77,10 +77,10 @@ reproduced on the shipped cell).
 | base20_s6 | 311.7 s | 15.58 s | 1.61x | 1.93 |
 | speed20_s6 | 286.0 s | 14.30 s | 1.64x | 2.94 |
 
-The union is **-12.8 % / -8.2 % wall** and **-1.1 % / +52 % placed/min wall**:
-on this machine the wall follows the sim clock (the arbiter's cost per tick is
-flat), so a shorter sim span is a shorter run, and whether that is a rate gain
-is the count again.
+The union is **-12.8 % / -8.2 % wall** and **-6.9 % / +52 % placed/min wall**
+(2.90 -> 2.70 at seed 5, 1.93 -> 2.94 at seed 6): on this machine the wall follows
+the sim clock (the arbiter's cost per tick is flat), so a shorter sim span is a
+shorter run, and whether that is a rate gain is the count again.
 
 ## 5. Verdict
 

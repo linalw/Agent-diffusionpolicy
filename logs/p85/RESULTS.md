@@ -122,8 +122,27 @@ next to the raw `biarm`/`biarm_twoline` strings (which read `"0"` when unset and
 would otherwise make a post-flip defaulted shard look exactly like a pre-flip
 single-arm one). A manifest **without** these four keys predates P85. The
 pre-existing `park_early`, `supply.wave`/`supply.patch` and `scene` blocks are
-unchanged and still resolve the package. A two-episode defaulted shard was
-collected to prove the writer end to end: `logs/p85/collect_probe/`.
+unchanged and still resolve the package.
+
+A two-episode defaulted shard proves the writer end to end
+(`logs/p85/collect_probe/`, `logs/p85/collect_probe.log`):
+
+```
+[collect] mode=two_line scheduler[FRUIT_BIARM=1(default) FRUIT_BIARM_TWOLINE=1(default)] ... sheet=on
+collection.mode = two_line   collection.biarm = 0   collection.biarm_twoline = 0
+collection.biarm_resolved = 1   collection.biarm_twoline_resolved = 1
+collection.biarm_defaulted = true   collection.biarm_twoline_defaulted = true
+collection.park_early = auto   collection.grade_routing = auto
+supply.wave = true   grades = {'A': 0.375, 'B': 0.375, 'C': 0.25}
+scene.output_rails = none   physics.profile = finger_damp02
+```
+
+**The probe found one bug and it is fixed**: `write_manifest` called
+`SupplyPlan.from_env(cfg)` without the scheduler, so the first probe recorded
+`supply.wave = false` and the 50/30/20 mix while the spawner ran the dense sheet
+and the balanced mix - a post-flip shard whose provenance contradicted its run.
+It now takes the same `TWO_LINE` resolution as the spawner, which is what the
+block above shows.
 
 ## 5. What else moved, and what did not
 

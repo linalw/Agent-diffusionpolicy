@@ -3987,7 +3987,7 @@ placed (window -3.7 %, 2 new `grasped, not placed`, zero-force legs 4 -> 7),
 seed 6 10 -> 14 (window +60 %, guard better), pooled 26 -> 27 of 40. Not adopted
 (E2/E3 fail at seed 5); the count moved less than one interval in both
 directions, and the class that moves is `logs/p42/SIM_LIMIT.md`'s closed one.
-No default changed. Pins: `tasks.py` `f07a865a`, `bimanual.py` `99be98b9`-era,
+No default changed. Pins: `tasks.py` `f07a865a`, `bimanual.py` `9b7fc33f`,
 `fruits.py` `dcabe16b`, `rl_env.py` `TASKS_MD5` follow, `scripts/246_p85_selftest.py`
 (new selfcheck leg), `scripts/accept.sh`, `scripts/selfcheck.sh`; references
 `8952c320` (single) / `eb697f23` (two-line, and now also the shipped acceptance
