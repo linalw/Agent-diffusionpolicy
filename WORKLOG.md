@@ -22232,3 +22232,108 @@ integrity line - the endpoint functions are unchanged). Evidence `logs/p86/`:
 `run_p86.sh`, `gates.sh`, `header.txt`, `battery_driver.log`, the cells
 `{C5,R5,C6,R6}.{log,stamps,driver}`, `{C5,C6}.gate`, `{R5,R6}.gate`,
 `{C5,R5,C6,R6}.budgets`, `motion_reference_twoline_C6_20.json`.
+
+### P87: the release trim ships two-line-scoped - the scope is proved bit-for-bit by replay (865/865, 865/865, 814/814, 821/821), the single arm stays 346/346, and one descent leg on one seed makes it a considered trade
+
+P86 measured the S2 cell (`FRUIT_SPEED_RELEASE`: dwell 20 -> 0, the pad/finger
+settles 3 -> 2 = -76 ticks = -0.633 s) as a clean positive on the shipped
+two-line and priced the adoption: the release block is read at a site **every**
+presentation shares (`_grasp_carry_place_impl`), so a *global* default would also
+move the single arm, the shared-station pipeline, the hybrid canary and the
+scripted collector - none of which P86 measured. P87 executes the package's first
+item: the trim becomes the **two-line session's default**, resolved through
+`Task.two_line_enabled()` (the `CoopSession` predicate), with
+`FRUIT_SPEED_RELEASE=0` restoring, an explicit `=1` / `FRUIT_SPEED_ALL=1` still
+winning globally, and `FRUIT_SPEED_RELEASE_SETTLE` unchanged. One resolver
+(`tasks.release_speed_resolution`) feeds the per-attempt holds, the new
+`[fruit] [biarm] release profile:` row and the store manifest's
+`physics.release`; the row prints only inside `run_bimanual`, the
+`[drive] finger cap scope:` convention - which is why the single arm's log carries
+**no** new line at all.
+
+**The arithmetic first, because P86's PREREG has a slip.** Its table printed the
+totals as `208 / 132` ticks; the three holds sum to **188 / 112** (20 + 40x3 +
+16x3, and 0 + 40x2 + 16x2). Both rows carried the same +20, so the registered
+**delta (-76 ticks / -0.633 s) and every band are unaffected** - and the
+measurement lands on 77 ticks, two ticks from the corrected arithmetic.
+
+**G0 - the flip is resolution-only, and it is a replay, not an argument.** P86's
+treatment cells ran `FRUIT_SPEED_RELEASE=1` (explicit); P87's run it **unset**.
+The four cells are **byte-identical to P86's own four** on the `[fruit]` stream
+(dropping the diag rows plus the one new row): C5 **865/865**, T5 **865/865**,
+C6 **814/814**, T6 **821/821**. So the shipped default *is* the measured arm bit
+for bit, and P86's mechanism/landing/ledger measurements transfer instead of
+being re-derived - the cleanest form this repo has had for a default flip.
+
+**The gate (PREREG `738c1b54`, pinned before the runs; 20 attempts, seeds 5/6,
+arm = `FRUIT_SPEED_RELEASE=0` vs unset, P86's instrumentation on both).** **P1a
+PASS**: the `[cycle] release=` **median** falls **-0.645 / -0.640 s** (77 / 77
+ticks) and in **all four arm-seed cells** (-0.640/-0.640, -0.635/-0.615). **P2
+PASS**: the pooled interval falls **10.77 -> 10.59** and **19.34 -> 11.08 s**, and
+on both arms at both seeds; seed 5 is the clean read (identical 16/20 and an
+identical 9/10 + 7/10 split, so -0.18 s is the lever), seed 6's -8.26 s carries a
++2 count draw. **P3 PASS** (**28/28** payload-present releases `on_belt`, in the
+control's band: 32.1-64.3 mm, -0.93..-0.61 m/s, bounce <= 4.9 mm). **P4 PASS** (no
+new reason key; `force_min==0` 4 -> 4 and 11 -> 7). **P5 reported, never gated**
+(window 5.57 -> 5.66 / 3.10 -> 5.41, batch 4.96 -> 5.05 / 3.11 -> 3.94,
+`placed/min wall` 2.92 -> 2.95 / 1.95 -> 2.35). **P6 misses its clean-pass form
+and that is the phase's honest headline**: seed 5 is **0/20** legs over budget,
+seed 6 is **1/20** - leg 12, 5.9 cm, **0.164 against its 0.160** per-leg budget
+(2.5 % over) - and it is **the same leg P86's R6 recorded**. Forty treatment
+attempts across two seeds therefore say the excursion is a **deterministic
+property of that seed's branch**, not one draw's accident and not a systematic
+cost of the trim (seed 5's worst is 0.111). By PREREG §5's pre-registered tier
+that is a **CONSIDERED TRADE: ship, P6 documented** - not a clean pass. The budget
+was **not** re-tuned (AGENTS §2), the descent profile is untouched, and a third
+seed is the named next spend if the owner wants it priced further.
+
+**Inertness, both halves.** `FRUIT_BIARM=0 scripts/accept.sh` is **346/346 raw
+byte-identical** to `logs/p71/accept_rails_none.log` (raw, no filter) with
+`fingerprint: matches configs/motion_reference_single.json`; its exit=1 is the
+standing `6/9 < 0.75` rate clause this tree has carried since P32, not a P87
+effect. The shared-station pair (`=1 FRUIT_BIARM_TWOLINE=0`, 4 attempts, unset vs
+`=0`) is identical on all 218 other `[fruit]` lines and resolves the same clock
+(20/3/3, 188 ticks). **Deviation A1**, recorded rather than smoothed: PREREG G2b's
+letter said "whole `[fruit]` stream", and the pair differs on exactly one line -
+the new row's `origin` field (`scope-off` vs `explicit`), which is the label's
+purpose (P43's `defaulted` convention). The claim is therefore "identical on every
+other line **and** the same clock", asserted by `p87_report.py --same` plus
+`--profile`, with the raw diff kept.
+
+**Re-recorded, two-line side only, from this batch**:
+`configs/motion_reference.json` `eb697f23` -> **`423896f7`** and
+`configs/motion_reference_twoline.json` `eb697f23` -> **`423896f7`** (from
+`logs/p87/accept10.log`, whose budgets are clean; the final-tree acceptance is
+**byte-identical** to it and reads **7/10 = 70 %, 9.4 s/attempt,
+`fingerprint: matches`, `190: PASS`**). Pre-P87 archives in `logs/p87/`;
+**`configs/motion_reference_single.json` `8952c320` untouched** - the single-arm
+record is the inertness proof. `scripts/234` (P64) pinned the P85 *value*; it now
+pins the *arrangement* (acceptance == two-line record, single-arm = `8952c320`),
+which is the invariant that can break, and `scripts/225` gained the scoped-call
+census (one call passes `two_line_enabled()`, one does not).
+
+**Provenance before any recollection.** `scene._release_provenance` writes
+`physics.release={dwell,pad_hold,finger_hold,ticks,shipped_ticks,saved_ticks,
+profile,origin,two_line,label}` into the `physics` block both manifest writers
+already share (the collector passes its own `TWO_LINE`, the direct env `False`),
+so a store without the key predates P87. The trim moves the attempt timing without
+moving one trajectory endpoint - P41's `physics` / P72's `scene` rationale.
+
+**Re-baseline: every two-line rate, span or interval recorded before P87 is a
+2.35 s-release number; `FRUIT_SPEED_RELEASE=0` restores it** (compose with
+`FRUIT_ARM_PARK=ready` for pre-P43, `FRUIT_POLICY_TRIGGER_ACQ=0` for pre-P54, and
+the P58 burst profile for the direct interface - which this flip never reaches).
+
+Pins: `tasks.py` `6b267ecc`, `scene.py` `047d9e7b`, `rl_env.py` `96076c8b`
+(metadata-only `TASKS_MD5` follow), `scripts/40_collect_demos.py` `77e0331f`,
+`scripts/247_p87_release_scope_selftest.py` `a4aa4756`, `scripts/225`
+`395d3cd3`, `scripts/234` `ec1118be`, `scripts/selfcheck.sh` `b4bf53b4`;
+`configs/motion_reference.json` `423896f7` / `..._twoline.json` `423896f7` /
+`..._single.json` `8952c320`; ckpt `moe_v13s` `61da390a`; `189_w7a_chain.sh` not
+run. Evidence `logs/p87/`: `PREREG.md` (+`PREREG.md5`), `RESULTS.md`,
+`p87_report.py` -> `p87_report.txt`, `run_p87.sh`, `run_p87_extra.sh`, `gates.sh`
+-> `gates.out`, `header.txt`, `smoke.log`, the cells
+`{C5,T5,C6,T6}.{log,stamps,driver,gate,budgets}`,
+`single_accept.{log,gate,same}`, `shared_{unset,zero}.{log,stamps,driver}`,
+`shared_raw_same.txt`, `accept10.{log,gate,stamps,driver}`,
+`accept_final.{log,out}` and the two pre-P87 reference archives.

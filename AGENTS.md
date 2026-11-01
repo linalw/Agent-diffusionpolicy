@@ -4162,10 +4162,10 @@ a 2.35 s-release number; `FRUIT_SPEED_RELEASE=0` restores it** (compose with
 `FRUIT_ARM_PARK=ready` for pre-P43, `FRUIT_POLICY_TRIGGER_ACQ=0` for pre-P54 and
 `FRUIT_FEED_CADENCE=0 FRUIT_SUPPLY_BAND_INTERLOCK=0 FRUIT_DIRECT_FEED=0` for the
 pre-P58 **direct** profile - which this flip never reaches). Pins: `tasks.py`
-**`6b267ecc`**, `scene.py` **`047d9e7b`**, `rl_env.py` **`b5b31919`**
+**`6b267ecc`**, `scene.py` **`047d9e7b`**, `rl_env.py` **`96076c8b`**
 (metadata-only `TASKS_MD5` follow), `scripts/40_collect_demos.py` **`77e0331f`**,
 `scripts/247_p87_release_scope_selftest.py` **`a4aa4756`**, `scripts/225`
-**`395d3cd3`** (the scoped-call census), `scripts/234` **`4c1c78a3`**;
+**`395d3cd3`** (the scoped-call census), `scripts/234` **`ec1118be`**;
 `configs/motion_reference.json` `423896f7` / `..._twoline.json` `423896f7` /
 `..._single.json` `8952c320`; ckpt `moe_v13s` `61da390a`. Evidence
 `logs/p87/{PREREG.md,PREREG.md5,RESULTS.md,p87_report.py,p87_report.txt,
