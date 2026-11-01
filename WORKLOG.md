@@ -22009,3 +22009,121 @@ design), `timeline.py`, `run_p84.sh`, `gates.sh`, `one_run.sh`, `stamp.py`,
 `header.txt`, `battery_driver.log`, the cells `{D5,F5,D6,F6}.{log,stamps,driver.log}`,
 `{D5,D6,F5,F6}.gate` + `D6.gate_t6`, `{D5,D6,F5,F6}.budgets`,
 `motion_reference_twoline_T6_20.json`, `smoke.log`, `selfcheck.log`.
+
+### P85: the shipped scripted cell becomes the bimanual two-line - the flip is resolution-only (865/865, 814/814, 799/799), the acceptance moves scenario and its gate stops using the single arm's floor
+
+**The decision.** The W3/R5 register held `FRUIT_BIARM_TWOLINE` opt-in because the
+two-line replaces the *meaning* of the shipped cell: pure grade lanes (left = A,
+right = B, C recycled at `despawn_y`), a supply package that ships with it (dense
+wave sheet + balanced A:B:C 0.375/0.375/0.25), and a scheduler that overlaps the
+two attempts. `docs/THROUGHPUT.md` §"What is left" and AGENTS' W3/R5 records name
+the owner's sign-off as the blocker; **the owner gave it**, so this phase is the
+flip plus its full re-baseline.
+
+**The change is resolution only.** `FRUIT_BIARM` and `FRUIT_BIARM_TWOLINE` default
+`1`, through one resolver per knob (`bimanual.resolve_biarm` / `resolve_twoline`,
+plus `biarm_resolution()` for the consumers; the P43 `defaulted` origin flag) and
+the log names the cell (`[biarm] scheduler: FRUIT_BIARM=1(default)
+FRUIT_BIARM_TWOLINE=1(default)`). `FRUIT_BIARM=0` is the pre-P85 single arm;
+`FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=0` the unchanged F2 shared-station pipeline.
+Two structural choices carry the no-harm:
+
+* `tasks.two_line_enabled()` became the **session** predicate (`session.twoline`,
+  False outside a session) and `two_line_resolved()` is the ambient form
+  `run_bimanual` reads. The three scope guards that use it (`_ready_move`'s skip,
+  `_home_hub`, the P42 seat centre) all mean "the scheduler is *running*", which
+  can only be true inside a session - so the single-arm and shared-station paths
+  cannot move even with the defaulted pair on.
+* the two-line's **supply package** follows the same resolution
+  (`fruits.SupplyPlan.from_env(cfg, two_line=...)`) and only the three scripted
+  entries pass it. `SortingRLEnv` and `scripts/60_eval_policy.py` pin
+  `two_line=False`: they are not the scripted cell, so no direct/policy number
+  moves, and the hybrid canary has **no path** to the flip at all
+  (`accept_policy.sh` builds its own `FruitSpawner`/`PickAndPlaceTask`, never a
+  `CoopSession`) - which is why it was not re-run.
+
+**The proof that the flip is resolution-only, three ways.** The default 20-attempt
+runs replay the pre-flip *explicit* two-line records line for line, dropping only
+the phase's instrumentation rows (`[fruit] [carry]`, its `[fruit] [diag]
+carry-assist` lines, and the new scheduler banner): seed 5 **865/865** vs
+`logs/p80/T20.log`, seed 6 **814/814** vs `T6.log`, and the accel treatment
+**799/799** vs `V20.log` (the union's own opt-in two-line arm). The treatment
+replaying its own record is the strongest form: the flip changed reachability,
+not physics. Delivered at seed 5: **16/20, 9.70 s/attempt, interval 10.77 s,
+5.57 / 4.96 placed/min, wall/pick 16.57 s, 2.90 placed/min wall** - P80's numbers
+with P82's wall (331.4 s against T20's 497.2 s, wall/sim 1.71x). Per arm left
+9/10, right 7/10, idle 18.1 / 21.4 %, lock-on 3.83 / 4.54 s.
+
+**The acceptance moves scenario, and its gate becomes honest.** `scripts/accept.sh`
+runs the shipped default, which is now the two-line: the run reads **7/10,
+9.2 s/attempt**, is **424/424 identical to `logs/p80/T10.log`**, and **matches
+`configs/motion_reference_twoline.json`** - the flip's acceptance scenario *is*
+the two-line dense scenario the repo already had a reference for. So the
+re-record is `configs/motion_reference.json` `8952c320` -> **`eb697f23`** (same
+bytes as the two-line file), taken from the same-batch log; the pre-P85 record is
+archived to `logs/p85/motion_reference_single_pre_p85.json` and shipped as
+`configs/motion_reference_single.json` for the restore path, and
+`configs/motion_reference_twoline.json` is untouched. The gate: 105's own floor
+is the single arm's 0.75, so `accept.sh` reads the session from its log and sends
+a two-line session through `scripts/190_twoline_gate.sh -r
+configs/motion_reference.json -m 0.60` - the scenario pin, the two-line floor and
+the per-scenario reference, i.e. **one** definition of "a two-line gate" instead
+of a second floor inside 105. `selfcheck.sh`'s optional motion leg takes the same
+branch. The shipped command runs end to end: **accept.sh PASS** (7/10 at the
+0.60 floor, `fingerprint: matches`, `190: PASS`).
+
+**The restore is byte-exact.** `FRUIT_BIARM=0`, same batch, same instrumentation:
+**6/9, 14.8 s/attempt**, **346/346 `[fruit]` lines identical to
+`logs/p71/accept_rails_none.log`** and `fingerprint: matches` the archive. Its
+rate-only FAIL (6/9 < 0.75) is this tree's standing branch since P32/P71, not a
+P85 effect.
+
+**The collector inherits it and says so.** The shard manifest gains
+`collection.{biarm_resolved,biarm_twoline_resolved,biarm_defaulted,biarm_twoline_defaulted}`
+next to the raw strings - which read `"0"` when unset, so **without** the new keys
+a post-flip defaulted shard would look exactly like a pre-flip single-arm one (the
+P71 rule). A two-episode defaulted probe (`logs/p85/collect_probe/`) shows
+`mode=two_line`, raw `biarm=0`, resolved `1`, both `defaulted=true`, and - after
+one bug found by the probe itself - the supply block naming the **plan the
+spawner ran** (`wave=true`, balanced mix): `write_manifest` had been resolving
+`SupplyPlan.from_env(cfg)` without the scheduler, i.e. a two-line shard would have
+recorded the single-arm supply. Both are fixed. `scripts/153_biarm_rates.sh` now
+names its modes (`two-line` / `shared` / `single`) because unset now means the
+two-line, and `scripts/126_branch_probe.sh` pins `FRUIT_BIARM=0` (it probes the
+legacy single-arm branch it was written for).
+
+**The demo and the smoke.** `scripts/demo_2min.sh` runs the shipped cell: 3-pick
+two-line smoke **1/3** (10.6 s/attempt), clip `logs/video_demo/` 1705 frames /
+56.8 s, and the motion gate **PASS**es on the budgets with the scenario's own
+three-pick floor (0.33; a 1/3 smoke is exactly why 0.66 would be a false gate).
+
+**The first acceleration read on the new default (P85-ACC).** The park/lock-on
+family is the larger wall term (per-arm idle 18-21 %, P84's 7.1-21.8 s park-gate
+wait, 4.19-5.04 s lock-on) but every lever on it is spent or negative (W7-A's gate
+is already default-on; W2/W3/W6-C/R3 all measured), so the cell is the P44 speed
+union (`FRUIT_SPEED_ALL=1`) re-priced. **The mechanism transfers exactly**:
+`place` 3.19 -> 2.35, `release` 2.35 -> 1.63, `lift` 1.65 -> 1.52 (**-0.13 s**,
+the one registered sub-clause that misses its -0.2..-0.3 band), **-1.00 s/attempt
+at both seeds**. **The delivered side is a branch draw whose sign flips**: seed 5
+16 -> 13 placed (window -3.7 %, 2 new `grasped, not placed`, zero-force legs
+4 -> 7), seed 6 10 -> 14 (window +60 %, guard better), pooled 26 -> 27 of 40. Not
+adopted (E2/E3 fail at seed 5); the count moved less than one interval in both
+directions and the class that absorbs it is `logs/p42/SIM_LIMIT.md`'s closed one.
+
+Pins: `tasks.py` `f07a865a`, `bimanual.py` `99be98b9`-era, `fruits.py`
+`dcabe16b`, `rl_env.py` (the `TASKS_MD5` metadata-only follow), `scripts/accept.sh`,
+`scripts/selfcheck.sh`, `scripts/246_p85_selftest.py` (new leg: the resolver
+table, the supply package, the session scope, the entry wiring, the manifest
+keys, the accept branch), `scripts/40_collect_demos.py`, `scripts/20_pick_place.py`,
+`scripts/70_record_video.py`, `scripts/153_biarm_rates.sh`, `scripts/126_branch_probe.sh`,
+`scripts/demo_2min.sh`, `scripts/234_p64_precomp_selftest.py` (re-pinned: the
+shipped acceptance reference is now the two-line record); references `8952c320`
+(single) / `eb697f23` (two-line and the shipped acceptance), ckpt `moe_v13s`
+`61da390a`. Evidence `logs/p85/`: `PREREG.md` (+`PREREG.md5`), `PREREG_ACCEL.md`
+(+md5), `RESULTS.md`, `ACCEL.md`, `p85_report.py`, `run_p85.sh`, `run_tail.sh`,
+`header.txt`, `battery_driver.log`, the cells `{accept10,single10,base20_s5,
+speed20_s5,base20_s6,speed20_s6}.{log,stamps,driver}`, `accept_final.{log,out}`,
+`collect_probe/` (+log), `demo.driver`, `demo_2min.out`, `smoke_two_line.log`,
+`motion_reference_single_pre_p85.json`. **Re-baseline: every rate, acceptance,
+collector shard and store recorded before P85 is a single-arm (or explicitly
+opt-in two-line) number.**
