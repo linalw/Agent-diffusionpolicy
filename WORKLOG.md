@@ -23767,3 +23767,196 @@ p99_report.py,run_p99.sh,run_p99_grade.sh,PREREG.md}`; tree `13726ca`; ckpt
 PREREG.md5,census.py,census.txt,p99_report.py,p99_report.txt,run_p99.sh,
 run_p99_grade.sh,slots_C5.csv,slots_C6.csv,header.txt}`, cells
 `{C5,C6,G5,G6}.{log,stamps,driver}`.
+
+## P101 (2026-11-03): the platform survey — the arm stays, the end effector moves
+
+**A plan, not a measurement.** No simulator run, no `src/` change, no `configs/`
+change, no reference re-recorded. The artifact is `docs/PLATFORM_SURVEY.md` plus
+this entry. Every external row is marked **verified [V]** (primary source fetched
+2026-11-03), **reported [R]**, or **unverified [U]**; prices are quoted only
+where a vendor page printed one.
+
+**The decision.** (1) **Do not change the dual-arm platform.** OpenArm is
+2 x 7-DoF, 4.1 kg nominal / 6.0 kg peak payload per arm, CAN-FD, **Apache-2.0
+software + CERN-OHL-S-2.0 hardware**, **$6,500 for a complete bimanual system**,
+ships an **Isaac Sim 6 USD with an Isaac Lab `OPENARM_BI_CFG`**, and is a
+**first-class LeRobot robot including the bimanual config**
+(`bi_openarm_follower`). Its `OPENARM_BI_CFG` effort limits are 40/27/7 N.m at
+2.175/2.61 rad/s - the same 2.1x headroom P44 measured. The one arm-side defect
+on record, **no top-down place station in +-0.15 m** (P90, 0/588 cells), is a
+reach-envelope property the cell already worked around (P66/P71), not a reason to
+re-buy the arm. (2) **The platform change is the end effector**: tactile on the
+existing jaw first, a hand second.
+
+**Why the hand is not the speed lever.** P52's numbers stand: the policy owns
+**14.2 %** of a placed episode and a 1.5x on the whole phase is worth at most
+**4.8 %**. A hand therefore has exactly one business case - the **`cnp` class**
+(P92: 75 % of failures; P93 four-seed pool: 17 of 25) - and the survey's kill
+criteria are written on that class, not on cycle time.
+
+**What the survey found that the repo did not already know.** (a) The direct
+env builds **one** camera, not two - `policy/data.py` stacks RGB + depth + mask
+into 5 channels per frame at `obs_horizon = 2`, i.e. **10 input channels** from a
+single 240x424 head view; the second camera exists only on OpenArm **2.0**'s
+gripper hardware (an Arducam B0495 in the palm), and the sim's asset is the 1.0
+bimanual USD. Any hand stage must *add* the wrist view. (b) **OpenArm 2.0's
+fingers are explicitly replaceable and its gripper has an in-hand camera**, so a
+tactile pad is a reprinted finger, not a new gripper. (c) **There is no Isaac Sim
+USD for LEAP or ORCA** - Isaac Lab's asset list has `allegro`/`shadow_hand`/
+`kuka_allegro`/`openarm`/`so101`, not them - so a hand stage either
+converts an MJCF or uses Allegro as a 16-DoF stand-in. (d) **Half the open-hand
+ecosystem is non-commercial**: LEAP's CAD and Aero's design files are
+CC BY-NC-SA, DIGIT's design files are CC BY-NC, while 9DTact is explicitly
+commercial-OK and ORCA's hardware licence is `NOASSERTION` (resolve first).
+
+**The tactical recommendation.** Stage (i) two **GelSight Mini** ($510 each,
+USB-UVC) or two 9DTact on reprinted fingers, with the *sim* half done first for
+free by upgrading the tactile channel from 2 scalars to a **contact-patch field**
+(contact points + normals off the existing `ContactSensor`); kill if the patch
+channel does not beat the 2 scalars in sim, or if slip onset is not visible
+**>= 10 ticks (83 ms)** before `clean_slip > 2 mm` on >= 70 % of escapes - the
+W5-C measurement (payload out within 0-3 ticks of force collapse) says a 30 Hz
+vision sensor is a labeller, not a reflex. Stage (ii) a hand, gated on a **free
+sim pull-test** (a lateral+axial force ramp on 2-pad vs 3-finger vs 4-finger+thumb,
+critical wrench >= **1.5x** in the axial direction P61 measured) - ORCA (17 DoF,
+tactile integrated, <2,000 CHF, MJCF MIT) or Aero ($314, 7 DoF/16 joints) for the
+pilot, with the recollection at **>= 150 episodes**. Stage (iii) tactile on the
+hand, gated on **+5 points** over the same hand without it.
+
+**Architecture (a), not (c).** Keep the 9-D arm chunk and the sampler/RTC path;
+add an **8-D hand latent** decoded to the hand's joints, conditioned on the same
+FiLM vector plus a phase token from the existing 5-expert router, with the hand
+**inert outside `grip`/`close`/`release`** and its targets clamped *by
+construction* (P53: a post-hoc clamp was free but null on 7 DoF; on 16 DoF it is
+a hardware risk). P52's "the chunks are noise" (within-chunk min p50 2.44 rad/s,
+0/60 below 0.30) and P53's 10.9 % out-of-range emission are the reasons a
+17-dim diffusion target is the wrong first move, and they are the reasons a
+supervised decoder is the right one.
+
+**The baseline to beat** (P93's four control seeds): **58/80 = 72.5 % placed**,
+interval **10.59 / 11.08 / 12.16 / 11.53 s**, 9.50/9.10 s per attempt, wall
+**2.37-2.91 placed/min**, and the shipped acceptance **8/10 at 9.0 s** (P98).
+The brief's "9.4-11.1 s" is the two-seed subset; the four-seed interval range is
+**10.6-12.2 s**, and the class share is **75 %** on the P92 census against
+**68 %** on the P93 pool - quote the range.
+
+**Data cost of the hand**: schema 25-D -> **40-D** (22 arm joints + 16 hand + 2
+tactile) with a second camera, every store invalid (`demos_v12` 158 episodes,
+`p33_pear` 180 / 32,670 windows), a **>= 150-episode** recollection whose
+measured wall anchor is **2 h 6 min for 158 episodes** (W3, one shard, no wedge),
+and **all three motion references re-recorded** (P71's collider-set precedent).
+
+Pins: **this phase touched no `src/` or `configs/` file**; the working tree
+carries another phase's in-flight P100 park-profile edits (`tasks.py`, `scene.py`
+and the metadata-only `rl_env.py` `TASKS_MD5` follow), which are **not** this
+entry's and were **not** measured here - so this entry asserts no `src/` pin.
+The three motion references are untouched and read `30fb99f8` / `30fb99f8` /
+`8952c320`, ckpt `moe_v13s` `61da390a`. `scripts/selfcheck.sh` **PASS (0
+failures, 1 skipped)**; `scripts/106_index_audit.py` **OK**; `scripts/107_collect_merge_test.py` **PASS (21 checks)**. Evidence
+`docs/PLATFORM_SURVEY.md` (sources §6, with the unverified rows named).
+
+## P100 - the park return is 36 % slack and it does not transfer (the throughput lane closes)
+
+The owner's item was P99's: the **park return**, 2.47 s (seed 5) / 2.69 s
+(seed 6) of motion per attempt slot, ~13 % of the inter-placement interval once
+it is halved over two arms. The question was whether the only remaining
+free-space motion could be priced and adopted. Answer: **priced, and no.**
+
+**The path first.** `_biarm_park` (`tasks.py:10157`, called from the worker's
+`finally` at `:9763`) gates on the other arm and then `go_ready` -> `_ready_move`
+-> `_transit_to("ready")` -> `_ready_transit`, which is `_catch_up_drive`
+(20 ticks) + `_lift_clear` (step cap 0.04 rad/tick) + `_blend_to`'s min-jerk
+ramp (90) + its settle hold (120), with `_recover_ready` above `TRANSIT_TOL`
+0.08. The A/B smoke read `catch_up=40 lift=44-55 blend=90 settle=120` =
+**274-299 ticks**, i.e. the block P99 measures as 2.5 s. Only the last two
+stages are fixed; the arm carries nothing on this path. Every knob that already
+existed is either **single-arm scoped** (P9-A's `FRUIT_READY_SKIP`/`_SETTLE`,
+because `scope = self._active_session is None and not self.two_line_enabled()`)
+or **measured out** on this block (`FRUIT_BIARM_HOT_ARM` negative,
+`FRUIT_BIARM_PREFETCH` 0/40 reservations), and `FRUIT_BIARM_PARK_EARLY` moves
+the *gate* (0.03/0.82 s per P99), not the motion.
+
+**The lever** is one new two-line-scoped resolver,
+`tasks.park_profile_resolution(two_line)`, reading `FRUIT_BIARM_PARK_BLEND` and
+`FRUIT_BIARM_PARK_SETTLE`, shipped 90/120 with `PARK_TWO_LINE_DEFAULT = False`.
+The scope is **enforced in the resolver**, not argued: without a two-line
+session the env is not read, which is what keeps the driver's own pre-session
+prime transit (it prints the same `[ready]` row before `run_bimanual` installs
+the session) on the shipped clock. The first smoke with an unguarded read moved
+that prime transit's ramp to 45 ticks, so the guard is a measured correction,
+and the `254` leg pins it.
+
+**The cell: 60/75 = 135 of 210 ticks, -0.625 s.** Chosen from a smoke ladder
+rather than the model: `45/45` ends one park 0.122 rad from ready and fires
+`_recover_ready` (`rec=1`), `45/90` buys the same ticks with a 33 % larger
+commanded joint step, `60/75` spends the same total on motion with more posture
+margin (`q_step` 0.0963 against the posture gate's 0.15).
+
+**Measured (8 cells, 20 attempts each, seeds 5/6/101/202, interleaved
+control -> treatment per seed, one claim per run).** The mechanism is
+**exact**: the fixed clock is -75 ticks on every park of every treatment cell,
+the measured block falls **2.53 -> 1.91 s pooled (-24.6 %)** with
+-0.61/-0.60/-0.62/-0.66 s per seed, `q_step` peaks at 0.0978 rad/tick (65 % of
+the posture gate's 0.15; 11.7 rad/s, i.e. 2.2x the arm's 5.45 rad/s limit - the
+far-seed parks saturate, as the shipped 0.0652 = 1.4x ramp already does), and `post_err` moves 0.0131 median -> 0.0170-0.0282. The
+cost is the readiness margin: the shipped park arrives ~5x inside
+`TRANSIT_TOL`, the trim ~1x (worst 0.0795 rad), with **0** recoveries in 80
+treatment parks beyond the one 6.2 s jammed transit **seed 6's control also
+has** (post_err 1.2047, `rec=1`).
+
+**The delivered side is the answer.** Interval -2.8 %, +9.8 %, +0.2 %, -5.4 %
+at seeds 5/6/101/202 - **pooled 11.04 -> 11.09 s (+0.5 %)** - while placed moves
+59 -> 63 of 80. The saving is **re-absorbed inside the slot loop**: dead time
+(park+gate+feed+polls) 2.91 -> 2.89, 4.43 -> 4.82, 3.66 -> 2.90, 4.03 -> 3.71 s.
+At seed 5 the park gate grows +0.38 s; at seed 6 the starved-poll term goes
+0.78 -> 2.05 s/slot and the poll count 31 -> 82, because an arm that returns
+earlier simply waits for fruit. At seed 101 the dead time **does** convert
+(-21 %) and the interval still does not move (12.16 -> 12.18), because the
+interval is the *placement* sequencing of two overlapped arms and not the slot
+loop. That is P99's sentence one level down: **a motion is not the interval
+either.** Seed 6's rise is not a tail artefact (the treatment's first 11
+intervals also average 12.98 s against the control's 11.08).
+
+Verdict per the registration: **P1 passes at all four seeds, P2 fails** (it was
+registered as "the interval falls at every seed"), and two other registered
+clauses are recorded as **design errors rather than results**: P1b's "zero
+`rec`" (the seed-6 *control* carries one), and P4's key-level reading (the
+`grasped, not placed (no note)` bucket appears in two *controls* of the same
+battery, so the key cannot separate a new class from a standing one). The
+descent budgets fail on **both** arms - the largest excursion in the battery is
+the control C101's 0.224/0.160 = +40 %, the same leg P93 already recorded - and
+were not re-tuned.
+
+**The clearance census** (trace-on pair at seed 5, invasive: no rate from those
+cells) reads min **48.0 -> 57.7 mm** with **0 of 20 689 and 0 of 20 007 samples
+< 30 mm**, 0 bands; the closest pair is the two right fingers at the other arm's
+`grip`/`close`. So the record's 1.9-2.6 mm (`logs/w6`, `logs/w7`) is a
+**pre-P32/P43/P71/P96 artefact** and does not describe this tree - the shipped
+line now holds its hands more than 48 mm apart for a whole batch. The pose
+guard fails its letter at seed 202 (0.0795 against the registered 0.05).
+
+**Inertness, in one comparison**: `C5` replays `logs/p99/C5.log` **1034/1034**
+and `C6` replays `C6.log` **1030/1030** `[fruit]` lines (P100's `[ready]` and
+park rows and P99's `[bed-sel]` block dropped - P99 had already proved its block
+neutral against `logs/p94/{T5,T6}`), and `scripts/accept.sh` with the knob unset
+reads **8/10, 9.2 s/attempt, `fingerprint: matches` `30fb99f8`, `190: PASS`**
+with its `[fruit]` stream **420/420** identical to `logs/p94/accept_final.log`.
+No reference was re-recorded and none is owed.
+
+**What closes with it.** The profile blocks (release shipped P87, place and lift
+negative P88/P89), the clock levers (P83/P84/P85-ACC), the candidate planning
+(P99) and now the return are all measured, and **none of them is the interval**.
+The residual is the closed grip class (`logs/p42/SIM_LIMIT.md`) and the
+sequencing of two overlapped arms. The owner's next decision is the hardware
+path - which is the platform survey's question, not this lane's.
+
+Pins: `tasks.py` **`bfe29961ff82419fbaa5c85480cf1b49`**, `scene.py`
+**`472bfb6c1912ec08bcff1c35aa3af4a9`** (`_park_provenance` -> `physics.park`),
+`rl_env.py` **`fa1b0d0b15f72e19758f453fabb74cae`** (the `TASKS_MD5`
+metadata-only follow), `scripts/254_p100_park_selftest.py`,
+`scripts/selfcheck.sh`, `logs/p100/{PREREG.md,p100_report.py,run_p100.sh,
+gates.sh}`; references **`30fb99f8` / `30fb99f8` / `8952c320`** untouched;
+ckpt `moe_v13s` `61da390a`. `scripts/selfcheck.sh` **PASS (0 failures, 1
+skipped)** with the new `P100 park scope` leg; `scripts/106_index_audit.py`
+**OK**; `scripts/107_collect_merge_test.py` **PASS (21 checks)**. Evidence
+`logs/p100/`.

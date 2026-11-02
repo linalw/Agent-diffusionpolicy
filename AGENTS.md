@@ -124,6 +124,83 @@ branch; `selfcheck.sh` **PASS (0 failures, 1 skipped)**; the acceptance is
 `rl_env.py` `TASKS_MD5` follow, `logs/p99/{census.py,p99_report.py,run_p99.sh,
 run_p99_grade.sh}`; ckpt `moe_v13s` `61da390a`. Evidence `logs/p99/`.
 
+**P100 (2026-11-03, `logs/p100/`; no default change, **not adopted**): the park
+return is **36 % slack** and removing it does not transfer - so the
+non-semantic throughput lane closes, and the named next decision is the hardware
+path.** The owner's item is P99's: **2.47 / 2.69 s of park motion per attempt
+slot** (~13 % of the interval, halved over two arms). **The path, quoted** (all
+of it `tasks.py`): the worker's `finally` calls `_biarm_park` (`:9763`), which
+gates on the other arm and then `go_ready` (`:10240`) -> `_ready_move` (`:7110`)
+-> `_transit_to("ready")` (`:3244`) -> `_ready_transit`, i.e.
+`_catch_up_drive` (20 ticks) + `_lift_clear` (step cap `FRUIT_READY_LIFT_STEP`
+0.04 rad/tick) + `_blend_to`'s min-jerk **ramp** (90) + its **settle** hold
+(120), with `_recover_ready` above `TRANSIT_TOL` 0.08. Only the last two are
+fixed, and the arm carries nothing. **The knobs that already existed are all
+either single-arm-scoped or measured out**: P9-A's `FRUIT_READY_SKIP/_SETTLE`
+are gated on `scope = self._active_session is None and not
+self.two_line_enabled()` (so on the two-line the settle was the hardcoded 120),
+`FRUIT_ARM_PARK` (P43) moves the *reset* pose on the direct path only,
+`FRUIT_BIARM_PARK_EARLY` (W6-C/W7-A) opens the **gate** earlier (P99 measures
+that gate at 0.03/0.82 s), `FRUIT_BIARM_HOT_ARM` (R3 L3) is measured negative and
+`FRUIT_BIARM_PREFETCH` (W6-C L1) is a measured null (0/40 reservations). **The
+cell** is a new two-line-scoped pair, `FRUIT_BIARM_PARK_BLEND=60` /
+`FRUIT_BIARM_PARK_SETTLE=75` = **135 of the shipped 210 ticks (-0.625 s)**,
+resolved by one function `tasks.park_profile_resolution(two_line)` with
+`PARK_TWO_LINE_DEFAULT = False`; **the scope is enforced in the resolver**, so
+an explicit value is *not read* without a two-line session - which is what keeps
+the driver's own **pre-session prime transit** (it prints the same `[ready]` row
+before `run_bimanual` installs the session) on the shipped clock.
+**The mechanism is exact at all four seeds** (5, 6, 101, 202; 20 attempts each;
+`[ready]` parks paired to their `park moving` marker, so the prime rows are
+excluded): the fixed clock is -75 ticks on every park, the measured block falls
+**2.53 -> 1.91 s pooled (-24.6 %; -0.61/-0.60/-0.62/-0.66 s)**, `q_step` peaks
+at **0.0978 rad/tick** (65 % of the posture gate 0.15 = 11.7 rad/s, **2.2x** the
+arm's 5.45 rad/s limit: the far-seed parks saturate, and the shipped 0.0652 =
+7.8 rad/s = 1.4x ramp already does, so the trim lengthens a saturation) and the achieved `post_err` moves 0.0131 (median) -> 0.0170-0.0282.
+**The price is the readiness margin**: the shipped park arrives ~5x inside
+`TRANSIT_TOL`, the trim ~1x (worst park 0.0795 rad, 0.6 % under it), with 0
+`_recover_ready` events in 80 treatment parks beyond the one jammed 6.2 s
+transit **seed 6's control also has** (post_err 1.2047, rec=1). **The delivered
+side fails**: interval **-2.8 % / +9.8 % / +0.2 % / -5.4 %** at seeds 5/6/101/202
+- **pooled 11.04 -> 11.09 s (+0.5 %)** - while placed moves **59 -> 63 of 80**;
+and the reason is measured: **the saving is re-absorbed inside the slot loop** -
+dead time (park+gate+feed+polls) **2.91->2.89, 4.43->4.82, 3.66->2.90,
+4.03->3.71 s**, because the arm that returns earlier **waits** (gate +0.38 s at
+seed 5; starved polls 0.78 -> 2.05 s/slot and 31 -> 82 polls at seed 6). Seed 101
+converts the dead time (-21 %) and the interval still does not move, because the
+interval is the *placement* sequencing, not the slot loop: **a motion is not the
+interval either** (P99's sentence, one level down). The seed-6 rise is not a tail
+artefact (its first 11 intervals average 12.98 s against the control's 11.08).
+**Guards**: landing **17/17, 16/16, 14/14, 16/16** payload-present `on_belt`
+(one upstream-lost `-184 mm` at seed 101, P86/P87's own class, reported
+separately); the descent budgets **fail on both arms** (the largest excursion is
+the **control** C101's 0.224/0.160 = +40 %, the *same leg P93 recorded*; T6
++10 %, T101 +3 %, C6 +2.5 %) and were **not** re-tuned; **the clearance
+census** (trace pair at seed 5, invasive: no rate from those cells) reads min
+**48.0 -> 57.7 mm**, **0 of 20 689 and 0 of 20 007 samples < 30 mm**, 0 bands
+(closest pair `left_right_finger vs right_right_finger` at the other arm's
+`grip`/`close`) - so **the record's 1.9-2.6 mm is a pre-P32/P43/P71/P96
+artefact** and this tree keeps its hands > 48 mm apart; the pose guard **fails
+its letter at seed 202** (0.0795 > the registered 0.05) and at seed 6 for a
+reason the control shares. Two **registered clauses were badly designed and are
+recorded, not re-read**: P1b's "zero rec" (the control carries one) and P4's
+key-level reading (the `grasped, not placed (no note)` bucket is present in two
+*controls* of the same battery). **Inertness proved in one comparison**: `C5` =
+`logs/p99/C5.log` **1034/1034** and `C6` = `C6.log` **1030/1030** `[fruit]` lines
+(P100's `[ready]` + park rows and P99's `[bed-sel]` block dropped), and
+`scripts/accept.sh` with the knob unset is **8/10, 9.2 s/attempt, `fingerprint:
+matches` `30fb99f8`, `190: PASS`** with its `[fruit]` stream **420/420**
+identical to `logs/p94/accept_final.log` (P98's "419" is the same comparison
+under P96's seal, which also drops the pre-pose rows). **No default change, no
+reference re-recorded, `configs/` untouched** (`30fb99f8` / `30fb99f8` /
+`8952c320` stand); the lever is the opt-in pair, and its re-entry is one
+constant (`PARK_TWO_LINE_DEFAULT`) plus the acceptance and a reference re-record.
+**Re-baseline: none** - nothing shipped. Pins: `tasks.py`
+**`bfe29961`**, `scene.py` **`472bfb6c`** (`_park_provenance` ->
+`physics.park`), `rl_env.py` `TASKS_MD5` follow, `scripts/254_p100_park_selftest.py`,
+`scripts/selfcheck.sh`, `logs/p100/{p100_report.py,run_p100.sh,gates.sh}`;
+ckpt `moe_v13s` `61da390a`. Evidence `logs/p100/`.
+
 
 > **Reverted by P98 (2026-11-02).** The paragraph below is the record of the
 > phase that shipped this flip for one phase; `logs/p98/` takes it back out and
@@ -5068,6 +5145,7 @@ p93_report.py,p93_report.txt,run_p93.sh,gates.sh,header.txt}`, the cells
 | the **place cap's scoped cell** (`tasks.place_speed_resolution`, `PLACE_TWO_LINE_DEFAULT`, the `[biarm] place profile:` row, `scene._place_provenance`, the manifest's `physics.place`) | `scripts/selfcheck.sh` (the `248` leg: unset/no-scope **is** `_SPEED_SHIPPED` exactly, unset/two-line is **also** the shipped pair because the default is off, the explicit `=0.52` is the measured arm with its **362 -> 244-tick** clock at the named **0.55 m** reference, the override table, the profile clock reproducing `motion.jerk_limited` in **both** the speed- and acceleration/jerk-limited regimes, both consumers on the session predicate, the row printing only inside `run_bimanual`, and `physics.place` in both writers), then the same replay/inertness shape as the release row (`--same` against the pre-change record, `FRUIT_BIARM=0 scripts/accept.sh` **raw 346/346**, the shared-station `--profile` pair), and read the delivered side on **both denominators**: the interval **is** `window/(n-1)`, so the window rate and the interval are **one statistic** - a place cell that lengthens the placement window reads as a worse interval even with more placements (`logs/p88/RESULTS.md` §3) |
 | the **lift cap's scoped cell** (`tasks.lift_speed_resolution`, `LIFT_TWO_LINE_DEFAULT`, `_LIFT_SCOPED_VMAX` / `_LIFT_REFERENCE_DISTANCE`, the `[biarm] lift profile:` row, `scene._lift_provenance`, the manifest's `physics.lift`) | `scripts/selfcheck.sh` (the `249` leg: unset/no-scope **is** `_SPEED_SHIPPED` exactly, unset/two-line is **also** the shipped pair because the default is off, the explicit `=0.37` is P44's **S3-v** with its **162 -> 136-tick** clock at the named **0.21 m** reference, **`=1`/`FRUIT_SPEED_ALL` keep S3/S13's measured 0.36/1.9** while a `0.37` value means 1.0 however it is written, `..._AMAX` pins the acceleration, the profile clock reproducing `motion.jerk_limited` in both regimes **and the short-leg null below 0.225 m**, both consumers on the session predicate, the row printing only inside `run_bimanual`, and `physics.lift` in both writers), then the P88 shape - `--same` against the pre-change record, `FRUIT_BIARM=0 scripts/accept.sh` **raw 346/346**, the shared-station `--profile` pair, and a fresh unset `N5` replay - and read the block on the **mean plus the per-leg read**, never a median across legs of different lengths (`logs/p89/RESULTS.md` §1) |
 | **any `[cycle]` block** you are about to "speed" (the `descent`/`grip`/`close`/`hover`/`prepose` family, or a per-attempt **tick** constant such as `FRUIT_DYNAMIC_PROBE_TICKS`) | **the audit first, offline** (`python3 logs/p91/audit.py`, `--predict`, `--schedule`, `--grip`): a block is **wait + tax + motion**, and only the motion is a lever - the `descent`'s whole block is `lead/speed − margin` and **cannot move** (a faster leg waits longer; `logs/p91/AUDIT.md` §3), the `grip`'s mean carries P40's probe tax, the `close`'s direction is contested (R11-B), and the `hover`/`prepose` have no profile (an IK step cap and a tuned blend). Then the scoped-resolver shape (`probe_ticks_resolution` is the fourth; the `[biarm] take-off profile:` row + `physics.takeoff`) and the P91 battery: `--blocks` reads **P1b on the clean-mode instance** (the block's deterministic constant), **never the mean**, because a tick trim that makes a *validation* harder moves the **mode mix** against you (P91: clean −0.31 s exact, block mean **+0.23/+0.38**, first-probe success 14/20 → 5/20) - and read the **pinch** (`[carry] force_min`, the P41 9.7-9.9 N plateau) and the loaded-slide guard, because a tick cell can be coupled to a **force** (`logs/p91/RESULTS.md` §2) |
+| the **park return's clock** (`tasks.park_profile_resolution`, `PARK_TWO_LINE_DEFAULT`, `FRUIT_BIARM_PARK_BLEND`/`_SETTLE`, the `[ready]` row's `blend`/`settle`/`q_step`, the `[biarm] park profile:` row, `scene._park_provenance`, the manifest's `physics.park`) | `scripts/selfcheck.sh` (the `254` leg: unset/no-session **is** the shipped 90/120, the env is **not read** without a two-line session - the driver's pre-session prime transit keeps the shipped clock, unset/two-line is also the shipped pair because the default is **off**, the explicit `60/75` is the measured arm with its **135-of-210-tick** clock (`-0.625 s`), the halves are independent overrides with the read sites' clamps, the shipped pair **is** `READY_TRANSIT_BLEND_TICKS` and `_ready_settle`'s own default, `q_step` is arithmetic inside the diag block, `physics.park` in both writers), then the **control replay first** (`python3 logs/p100/p100_report.py --same logs/p100/C5.log logs/p99/C5.log`, dropping `[ready]`, the park row and `[bed-sel]`) - that one comparison proves the tree inert, the control valid and `FRUIT_READY_DIAG` neutral - then **>= 4 seeds**, the **park block** as the mechanism (`park moving -> park done`, and the `[ready]` decomposition), `q_step <= 0.15 rad/tick` and **`post_err` against its own same-seed control** (the shipped park sits ~5x inside `TRANSIT_TOL`, a trim spends that margin), then the **slot dead time split** (`logs/p99/census.py`): **the park is a motion inside the slot loop, and the slot loop is not the interval either** (-0.62 s/slot bought a pooled interval of +0.5 %; the gate and the starved polls take it back), then both denominators + the wall, then the trace-pair clearance census (`--clearance`, no rate from those cells; this tree reads 48 mm min, so the historical 1.9-2.6 mm must not be quoted) - `logs/p100/RESULTS.md` |
 | docs, or a number's provenance/data size | `python3 scripts/106_index_audit.py` and `python3 scripts/107_collect_merge_test.py` |
 | motion, control, `trajectory` limits, IK | `python3 scripts/96_motion_check.py`, then `scripts/accept.sh` |
 | collection (`40_collect_demos.py`) or merging (`41_merge_demos.py`) | `scripts/107_collect_merge_test.py`, then `python3 scripts/106_index_audit.py` |

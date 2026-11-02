@@ -482,6 +482,22 @@ run_check "P95 fruit trace" "$python" scripts/252_p95_ftrace_selftest.py
 # pre-P96 path adds no line) and the collector's three provenance keys.
 run_check "P96/P97/P98 pre-pose clearance" "$python" scripts/253_p96_prepose_selftest.py
 
+# P100: the **park return's fixed clock**. `_biarm_park` -> `go_ready` ->
+# `_ready_move` -> `_transit_to` -> `_ready_transit` is `_catch_up_drive` (20/40)
+# + `_lift_clear` + `_blend_to`'s min-jerk **ramp** (90) + its **settle** hold
+# (120); only the last two are fixed and the arm carries nothing, so they are the
+# cell. The leg pins: unset/no-session **is** the shipped 90/120 exactly, the env
+# is **not read** without a two-line session (the driver's pre-session prime
+# transit keeps the shipped clock), unset/two-line is also the shipped pair
+# because the default is **False**, the explicit `60/75` is the measured arm with
+# its **135-of-210-tick** clock (-0.625 s at 120 Hz), the halves are independent
+# overrides with the read sites' clamps, the flip's 45/45 resolves in the
+# two-line scope only, the shipped pair **is** `READY_TRANSIT_BLEND_TICKS` and
+# `_ready_settle`'s own default, one consumer on the session predicate with the
+# hardcoded `else 120` gone, `q_step` is arithmetic inside the diag block (no
+# read added to the shipped path), and `physics.park` in both writers.
+run_check "P100 park scope" "$python" scripts/254_p100_park_selftest.py
+
 if [ -n "$run_log" ] && [ -f "$run_log" ]; then
     # P85: the log decides the scenario (and therefore the reference and the
     # floor), exactly as `scripts/accept.sh` does.

@@ -326,6 +326,127 @@ def probe_ticks_resolution(two_line: bool = False) -> dict[str, object]:
     }
 
 
+#: P100: the shipped **park / ready-transit** clock, in control ticks. The return
+#: is the only free-space motion the two-line has left: every attempt's worker
+#: calls `_biarm_park` in its `finally`, which gates, then `go_ready` ->
+#: `_ready_move` -> `_transit_to("ready")` -> `_ready_transit`, i.e.
+#: `_catch_up_drive` (20/40) + `_lift_clear`'s step-capped IK lift + `_blend_to`'s
+#: min-jerk **ramp** (90) + its **settle** hold (120). The last two are fixed and
+#: tick-clock the block, and the arm carries nothing on this path, so they are the
+#: one place a free-space profile can be raised without touching a payload.
+#: `_PARK_SHIPPED_BLEND` is `READY_TRANSIT_BLEND_TICKS` (the class constant the
+#: transit's own accounting reads) and `_PARK_SHIPPED_SETTLE` is the literal the
+#: two-line branch of `_ready_move` used before P100; the selfcheck leg pins both
+#: equalities so the shipped clock cannot drift away from its published value.
+_PARK_SHIPPED_BLEND = 90
+_PARK_SHIPPED_SETTLE = 120
+
+#: P100: the shipped value of the park profile's **two-line-scoped default**.
+#: **False** = nothing is adopted: the knob is the opt-in pair
+#: `FRUIT_BIARM_PARK_BLEND` / `FRUIT_BIARM_PARK_SETTLE`, and a two-line session
+#: with the env unset runs the shipped 90/120 clock bit for bit (a `scope-off`
+#: origin on every non-two-line path). Flipping this constant is the adoption and
+#: must be argued from `logs/p100/RESULTS.md`.
+PARK_TWO_LINE_DEFAULT = False
+
+#: The measured cell (P100). `blend` is the min-jerk ramp and `settle` the
+#: convergence hold; `_PARK_SCOPED_*` are the pair the flip would resolve.
+_PARK_SCOPED_BLEND = 45
+_PARK_SCOPED_SETTLE = 45
+
+#: The park's shipped, **fixed** clock (ramp + settle). The block also pays
+#: `_catch_up_drive`'s 20/40-tick re-anchor and `_lift_clear`'s IK lift, which are
+#: distance- and seed-dependent and are **not** part of this cell.
+_PARK_SHIPPED_TICKS = _PARK_SHIPPED_BLEND + _PARK_SHIPPED_SETTLE
+
+
+def park_profile_resolution(two_line: bool = False) -> dict[str, object]:
+    """The resolved **park / ready-transit** clock for this session (P100).
+
+    One resolver, three consumers - `_ready_move`'s blend and settle arguments,
+    the `[biarm] park profile:` row and the store manifest's `physics.park` block
+    - so a log, a store and a run cannot disagree about the return's clock.
+
+    **The scope.** `_ready_move` is the single-arm `go_ready` path as well as the
+    two-line park, so a *global* default would also move the single arm, the
+    shared-station pipeline, the hybrid canary (which builds its own
+    `PickAndPlaceTask`) and the scripted collector - none of which P100 measured.
+    The knob is therefore **two-line-session scoped**, the P87/P88/P89/P91
+    pattern, and the shipped value is what every path resolves today:
+
+    | `FRUIT_BIARM_PARK_BLEND` / `_SETTLE` | two-line session | resolves |
+    | --- | --- | --- |
+    | any | no | the shipped 90 / 120 (`scope-off`) - **the env is not read** |
+    | both unset | yes | the shipped 90 / 120 - the flip is **off** |
+    | any value | yes | that value (`explicit`); the unset half keeps the scope's own default |
+
+    The two values are independent overrides, so a cell can move the ramp alone
+    (`SETTLE` unset) or the settle alone (`BLEND` unset). `on` is True only when
+    the resolved pair differs from the shipped one, i.e. when a park cell is
+    actually armed; `ticks` is the pair's sum - the part of the park the profile
+    owns - and `saved_ticks` is that sum against the shipped 210.
+
+    **The motion is the same path.** `_blend_to` walks the same joint-space line
+    in a time-warped min-jerk ramp, so a shorter ramp visits the same
+    configurations in the same order and only their timing changes; the settle is
+    a hold at the ramp's target. The peak *commanded* per-tick step rises to
+    `1.875 * max|target - start| / blend` (reported per park as `q_step` on the
+    `[ready]` row, pure arithmetic on values `_blend_to` already holds), which is
+    the number to compare against the posture gate's 0.15 rad/tick and the arm's
+    own 5.45 rad/s `maxJointVelocity`.
+    """
+    raw_blend = os.environ.get("FRUIT_BIARM_PARK_BLEND", "").strip()
+    raw_settle = os.environ.get("FRUIT_BIARM_PARK_SETTLE", "").strip()
+    scoped = bool(two_line and PARK_TWO_LINE_DEFAULT)
+    if not two_line:
+        #: **The scope, enforced rather than argued.** The block this cell owns
+        #: only exists on the two-line scheduler (`_biarm_park` -> `go_ready`),
+        #: so a value is read only when a two-line session is active. Every other
+        #: `go_ready` caller - the single arm, the shared-station pipeline, the
+        #: hybrid canary, the direct env, **and the driver's own pre-session
+        #: prime transit** (`20_pick_place.py`'s first `go_ready`, before
+        #: `run_bimanual` installs the session) - resolves the shipped pair even
+        #: with the env set, which makes their byte-identity a construction
+        #: property instead of a measurement one.
+        origin = "scope-off"
+    elif raw_blend or raw_settle:
+        origin = "explicit"
+    elif scoped:
+        origin = "default"
+    else:
+        origin = "scope-off"
+    base_blend = _PARK_SCOPED_BLEND if scoped else _PARK_SHIPPED_BLEND
+    base_settle = _PARK_SCOPED_SETTLE if scoped else _PARK_SHIPPED_SETTLE
+
+    def _whole(value: str, fallback: int, floor: int) -> int:
+        try:
+            return max(floor, int(float(value)))
+        except (TypeError, ValueError):
+            return fallback
+
+    if two_line:
+        blend = _whole(raw_blend, base_blend, 1) if raw_blend else base_blend
+        settle = _whole(raw_settle, base_settle, 0) if raw_settle else base_settle
+    else:
+        blend, settle = _PARK_SHIPPED_BLEND, _PARK_SHIPPED_SETTLE
+    ticks = blend + settle
+    return {
+        "on": (blend, settle) != (_PARK_SHIPPED_BLEND, _PARK_SHIPPED_SETTLE),
+        "origin": origin,
+        "two_line": bool(two_line),
+        "blend": blend,
+        "settle": settle,
+        "ticks": ticks,
+        "shipped_ticks": _PARK_SHIPPED_TICKS,
+        "saved_ticks": _PARK_SHIPPED_TICKS - ticks,
+        "profile": "trim" if (blend, settle) != (_PARK_SHIPPED_BLEND, _PARK_SHIPPED_SETTLE) else "shipped",
+        "label": (
+            f"FRUIT_BIARM_PARK=({'1' if (blend, settle) != (_PARK_SHIPPED_BLEND, _PARK_SHIPPED_SETTLE) else '0'})"
+            f"({origin})"
+        ),
+    }
+
+
 def _speed_cell_value(cell: str, env_name: str) -> str | None:
     """One motion cell's speed as the caller's own string (`None` = cell off)."""
     raw = os.environ.get(env_name, "").strip()
@@ -3477,6 +3598,14 @@ class PickAndPlaceTask:
             self._tick_frame()
         if stats is not None:
             stats["ramp_err"] = float(np.max(np.abs(arm.joint_positions() - target)))
+            #: P100: the ramp's **commanded** peak per-tick joint step - pure
+            #: arithmetic on the two configurations this function already holds
+            #: (min-jerk peak derivative 1.875), so the park cell's posture bound
+            #: is stated by every run without adding a read to the control loop.
+            stats["q_step"] = max(
+                float(stats.get("q_step", 0.0)),
+                1.875 * float(np.max(np.abs(target - start))) / max(1, int(ticks)),
+            )
         for _ in range(max(0, settle)):
             arm.robot.set_dof_position_targets([target], dof_indices=arm.arm_dofs)
             self._step_sim(1)
@@ -7141,11 +7270,13 @@ class PickAndPlaceTask:
             np.max(np.abs(self.arms[side].joint_positions() - self._pose(side, "ready")))
         )
 
-    def _ready_settle(self, shipped: int = 120) -> int:
+    def _ready_settle(self, shipped: int = _PARK_SHIPPED_SETTLE) -> int:
         """P9-A B2: the ready blend tail's settle override (`FRUIT_READY_SETTLE`).
 
-        Unset = the shipped 120. Only ever binds on the single-arm scope; see
-        `_ready_move` (the two-line park/station calibration keeps 120).
+        Unset = the shipped 120 (`_PARK_SHIPPED_SETTLE`). Only ever binds on the
+        single-arm scope; on the two-line the tail comes from the P100 park
+        resolver (`park_profile_resolution`) instead, and this knob is not read
+        there - see `_ready_move`.
         """
         return max(0, int(float(os.environ.get("FRUIT_READY_SETTLE", str(shipped)))))
 
@@ -7224,7 +7355,11 @@ class PickAndPlaceTask:
         a coop session active (two-line scheduler / shared-station pipeline)
         or the two-line scheduler armed keeps the shipped transit - its park
         and station calibration have their own ready logic; every other path
-        is the single-arm one the levers were derived for.
+        is the single-arm one the levers were derived for. **P100** gives the
+        two-line's own clock a name: `park_profile_resolution` resolves the
+        ramp (`FRUIT_BIARM_PARK_BLEND`) and the settle
+        (`FRUIT_BIARM_PARK_SETTLE`) for a two-line session only, and its
+        shipped pair (90/120) is what every other path still resolves.
 
         The skip is the exact B1 form: on the shipped line the parked arm's
         transit is a measured no-op (210 ticks, `dq_max` 0.0005 rad/tick), so
@@ -7242,6 +7377,13 @@ class PickAndPlaceTask:
         scope = self._active_session is None and not self.two_line_enabled()
         skip = scope and os.environ.get("FRUIT_READY_SKIP", "1") == "1"
         diag = self._ready_diag
+        #: P100: the park/ready transit's fixed clock. The resolver is the one
+        #: authority (`park_profile_resolution`); its shipped pair is 90/120, so
+        #: every non-two-line path resolves exactly the literals this site used
+        #: before P100 and stays byte-identical (`origin="scope-off"`). On a
+        #: two-line session the settle used to be the hardcoded 120 here, which is
+        #: what the `scope` fallback below now names.
+        park = park_profile_resolution(self.two_line_enabled())
         err = dg = 0.0
         if skip or diag:
             err, dg = self._ready_residuals(side)
@@ -7290,7 +7432,10 @@ class PickAndPlaceTask:
                 stats["post_err"] = err
             return stats
         self._transit_to(
-            side, "ready", settle=self._ready_settle() if scope else 120, stats=stats
+            side, "ready",
+            ticks=int(park["blend"]),
+            settle=self._ready_settle() if scope else int(park["settle"]),
+            stats=stats,
         )
         if stats is not None:
             stats["post_err"] = self._ready_err(side)
@@ -7317,7 +7462,9 @@ class PickAndPlaceTask:
             f"pre_err={stats['pre_err']:.4f} dg={stats['dg']:.4f} "
             f"catch_up={stats['catch_up']} lift={stats['lift']} "
             f"blend={stats['blend']} settle={stats['settle']} "
-            f"ramp_err={stats['ramp_err']:.4f} post_err={stats['post_err']:.4f} "
+            f"ramp_err={stats['ramp_err']:.4f} "
+            f"q_step={stats.get('q_step', 0.0):.4f} "
+            f"post_err={stats['post_err']:.4f} "
             f"rec={stats['rec']} end_err={stats['end_err']:.4f}"
             + (
                 f" credit={int(self._ready_skip_credit)}"
@@ -9244,6 +9391,21 @@ class PickAndPlaceTask:
             f"probe_lift={takeoff['probe_lift']} "
             f"({takeoff['ticks']} ticks; shipped {takeoff['shipped_ticks']}, "
             f"saved {takeoff['saved_ticks']})"
+        )
+        #: P100: the **park / ready-transit** clock this session runs, the fifth
+        #: name of the same pattern. It is the return an attempt's worker runs in
+        #: its `finally` (`_biarm_park`): the block is
+        #: `_catch_up_drive` + `_lift_clear` + the `_blend_to` ramp + its settle
+        #: hold, and only the last two are fixed - so only they are quoted here.
+        #: Prints only inside a bimanual session, so the single arm, the hybrid
+        #: canary and the direct env stay silent and byte-identical.
+        park = park_profile_resolution(two_line)
+        say(
+            f"[biarm] park profile: {park['label']} "
+            f"scope={'two-line' if two_line else 'shared-station'} "
+            f"blend={park['blend']} settle={park['settle']} "
+            f"({park['ticks']} ticks; shipped {park['shipped_ticks']}, "
+            f"saved {park['saved_ticks']})"
         )
         #: W3 capture token: on the wave-supply two-line scenario both arms
         #: catch the same burst, and the measured both-hands band collapsed to

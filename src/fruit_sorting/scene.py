@@ -518,6 +518,41 @@ def _takeoff_provenance(two_line: bool = False) -> dict:
     }
 
 
+def _park_provenance(two_line: bool = False) -> dict:
+    """The `physics.park` block (P100): the return's fixed clock and its origin.
+
+    Pure (`tasks.park_profile_resolution`, an env + scope read with no
+    simulator), so it is written before the first episode and cannot fail a
+    build. The block's contract is the pair the profile owns: `blend` (the
+    `_blend_to` min-jerk ramp, ticks) and `settle` (its convergence hold, ticks);
+    `ticks` is their sum, `shipped_ticks` the same session's pre-P100 210, and
+    `saved_ticks` the difference. The park's other two stages -
+    `_catch_up_drive`'s 20/40-tick re-anchor and `_lift_clear`'s step-capped IK
+    lift - are seed- and distance-dependent and are **not** part of the cell, so
+    a run's own block never predicts its park; the log's `[biarm] park profile:`
+    row and the worker's `[ready]` rows carry the achieved pair.
+    `origin` / `profile` / `two_line` say *why* it resolved that way:
+    `explicit` = a caller's own `FRUIT_BIARM_PARK_BLEND`/`_SETTLE`, `default` =
+    P100's two-line scope (reachable only if `PARK_TWO_LINE_DEFAULT` is flipped),
+    `scope-off` = the shipped resolution on every path today. A manifest without
+    the key predates P100.
+    """
+    from .tasks import park_profile_resolution
+
+    park = park_profile_resolution(two_line)
+    return {
+        "blend": park["blend"],
+        "settle": park["settle"],
+        "ticks": park["ticks"],
+        "shipped_ticks": park["shipped_ticks"],
+        "saved_ticks": park["saved_ticks"],
+        "profile": park["profile"],
+        "origin": park["origin"],
+        "two_line": bool(two_line),
+        "label": park["label"],
+    }
+
+
 def finger_physics_provenance(arms: dict | None = None,
                               control_dt: float = 1.0 / 120.0,
                               scope: dict | None = None,
@@ -640,6 +675,14 @@ def finger_physics_provenance(arms: dict | None = None,
         #: anti-shear constant) is outside this block and unchanged by the cell.
         #: A manifest without the key predates P91.
         "takeoff": _takeoff_provenance(two_line),
+        #: P100: the **park / ready-transit** clock - the return an attempt's
+        #: worker runs in its `finally` (`_biarm_park`). Same one resolver the
+        #: `_ready_move` consumer and the `[biarm] park profile:` row read
+        #: (`tasks.park_profile_resolution`). The block names the pair the
+        #: profile owns (the ramp and its settle hold); the block's
+        #: `_catch_up_drive` and `_lift_clear` stages are seed-dependent and are
+        #: not part of the cell. A manifest without the key predates P100.
+        "park": _park_provenance(two_line),
     }
     if scope:
         #: P78/P79: the **runtime, per-leg** clamp
