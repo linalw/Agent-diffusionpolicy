@@ -1342,6 +1342,192 @@ _CLEARANCE_SURFACES = {
 }
 
 
+# --------------------------------------------------------------------------- #
+# P102: the contact-patch statistic a vision tactile would give
+# --------------------------------------------------------------------------- #
+#: The shipped OpenArm finger plate's measured AABB, `face/mid/long =
+#: 33.261 x 61.000 x 84.902 mm` (`logs/p66/COLLIDER_READ.md`, the P39 `S` arm at
+#: `FRUIT_FINGER_TIP_DELTA=0`). The **face** the fruit touches is the across x
+#: long rectangle, so its half extents are the ones below. Both constants are
+#: metadata: nothing in the control path reads them, so a wrong pad size can bias
+#: the census's *thresholds*, never a run.
+TACTILE_PAD_HALF_WIDE = 0.061 / 2.0
+TACTILE_PAD_HALF_LONG = 0.084902 / 2.0
+
+#: Where the plate's face rectangle sits **along the finger**, measured from the
+#: finger link origin down the tool axis. The plate runs from its proximal end to
+#: the fingertip, which `assets.SceneConfig.finger_length` puts 0.076 m from the
+#: link origin, and the measured AABB's long extent is 0.084902 m - so the face
+#: spans `[0.076 - 0.084902, 0.076]` and its centre is 0.033549 m out. That
+#: matters: the *seated* payload reads `v = +66.2 mm` (the shipped
+#: `_pad_standoff` = `FRUIT_FINGER_LEN` 60 mm + `PAD_LIFT` 10 mm puts it ~10 mm
+#: behind the distal border), so a rectangle centred on the link origin would
+#: score every good seat as already off the pad (`frac` 0.06, `edge` -24 mm) -
+#: measured, `logs/p102/smoke.log`. `v` stays printed from the link origin (the
+#: raw datum); `frac` and `edge` are taken about this centre.
+TACTILE_PAD_LONG_ORIGIN = 0.076 - TACTILE_PAD_HALF_LONG
+
+#: A 48-point equal-area (sunflower) quadrature of the unit disc, so
+#: `disc_rect_fraction` is a deterministic area estimate with no lattice bias:
+#: `r_i = sqrt((i + 1/2)/N)`, `theta_i = i * pi * (3 - sqrt 5)`. Reproducible
+#: across processes and cheap enough (48 compares) to run per pad per tick.
+_TACTILE_DISC_N = 48
+_TACTILE_DISC_I = np.arange(_TACTILE_DISC_N, dtype=float)
+_TACTILE_DISC_R = np.sqrt((_TACTILE_DISC_I + 0.5) / _TACTILE_DISC_N)
+_TACTILE_DISC_T = _TACTILE_DISC_I * np.pi * (3.0 - math.sqrt(5.0))
+_TACTILE_DISC_X = _TACTILE_DISC_R * np.cos(_TACTILE_DISC_T)
+_TACTILE_DISC_Y = _TACTILE_DISC_R * np.sin(_TACTILE_DISC_T)
+
+
+def parse_tactile_patch(raw: str | None = None) -> int:
+    """`FRUIT_TACTILE_PATCH=<ticks>`; unset/blank/garbage/`<= 0` is off (0).
+
+    Strict like the other P-family diagnostics' resolvers *except* that a
+    non-numeric value is off rather than an error: this knob is
+    reporting-only, so a typo must never refuse to start a simulator run (the
+    `FRUIT_PLACE_ONSET_TRACE` convention, `tasks.py:2713-2722`).
+    """
+    if raw is None:
+        raw = os.environ.get("FRUIT_TACTILE_PATCH", "")
+    raw = str(raw).strip()
+    if not raw:
+        return 0
+    try:
+        return max(0, int(float(raw)))
+    except ValueError:
+        return 0
+
+
+def disc_rect_fraction(
+    u: float,
+    v: float,
+    radius: float,
+    half_wide: float = TACTILE_PAD_HALF_WIDE,
+    half_long: float = TACTILE_PAD_HALF_LONG,
+) -> float:
+    """Share of a disc of `radius` centred at `(u, v)` inside an axis rectangle.
+
+    The rectangle is `|u| <= half_wide, |v| <= half_long`, i.e. the pad's face
+    measured from the finger link origin. Returns the fraction **of the disc**
+    that is over the pad (1.0 = the whole patch is on the pad, 0.0 = the patch
+    has walked off it), which is what a visuotactile image's blob occupancy
+    gives. Pure arithmetic on the module's fixed quadrature; no state, no read.
+    """
+    if radius <= 0.0:
+        return 0.0
+    xs = u + radius * _TACTILE_DISC_X
+    ys = v + radius * _TACTILE_DISC_Y
+    inside = (np.abs(xs) <= half_wide) & (np.abs(ys) <= half_long)
+    return float(np.count_nonzero(inside)) / float(_TACTILE_DISC_N)
+
+
+def tactile_patch_state(
+    fruit,
+    pad_origins,
+    rot,
+    radius: float,
+    half_wide: float = TACTILE_PAD_HALF_WIDE,
+    half_long: float = TACTILE_PAD_HALF_LONG,
+) -> list[dict]:
+    """The per-pad contact-patch statistic a vision tactile would report (P102).
+
+    **What this is, and what it is not.** A GelSight-class pad reports an image
+    of the elastomer's deformation; the two low-dim statistics a controller can
+    use are *where* the blob is (its centroid on the pad) and *how much* of it
+    is on the pad (its area / occupancy). This function derives both from
+    geometry the sim already has - the payload is a sphere of known radius and
+    each pad is a plane with a measured rectangle - so it is the **same
+    information a real pad gives**, with one honest substitution: the sim's pads
+    are rigid and adhesion-free (`logs/p42/SIM_LIMIT.md` §3), so there is no
+    elastomer to deform and the patch is taken to be the payload's **equatorial
+    disc** (radius `radius`, the widest cross-section the jaws can touch) as
+    seen against the pad's face rectangle.
+
+    That substitution is deliberately **generous to the hypothesis**: a real
+    soft pad images a patch *smaller* than the equatorial disc, and a smaller
+    disc clips off the pad *later* as its centre approaches an edge (`frac`
+    only starts falling once the centre is within one radius of the border). So
+    a lead time measured on the equatorial disc is an **upper bound** on the
+    lead any smaller patch model could give - which is what makes a negative
+    here decisive rather than a model artefact.
+
+    Frames. `rot` is the post-step wrist rotation (the block's own `rot_now`),
+    so the pad's face frame is built from the *measured* jaw axis and the
+    finger's own tip direction, not from an axis convention:
+
+      `n`      = `(o1 - o0)/|o1 - o0|` from the two finger **link origins**;
+      `e_long` = `rot[:, 2]` (the tool axis, i.e. **down the finger to the tip** -
+                 the same axis `_pad_standoff` offsets along) projected off `n`;
+      `e_mid`  = `n x e_long` (across the finger, the plate's 61 mm side).
+
+    `e_long` is taken from the tool axis rather than from `n x rot[:,0]` on
+    purpose: the sign of `n` depends on which finger link is on which side, so
+    only the tool axis gives `v` a consistent meaning (+ = toward the tip) and
+    lets `TACTILE_PAD_LONG_ORIGIN` be a positive offset.
+
+    Returns one dict per pad with, in metres:
+    * `v`      - the patch centroid: the payload centre's projection on the
+        pad's face, in the pad frame. **Exact** - no calibration, no fruit
+        model beyond the radius. `u` is across the finger (the plate's 61 mm
+        side), `v` down it (the 84.9 mm side), both measured from the finger
+        link origin;
+      * `h`      - the payload centre's signed distance to the pad's link-origin
+        plane along that pad's own face normal (`+` = in front of the face);
+      * `frac`   - `disc_rect_fraction(u, v - TACTILE_PAD_LONG_ORIGIN, radius)`,
+        the share of the patch still over the pad's **face rectangle**;
+      * `edge`   - the signed distance from the centroid to the nearest face
+        border (`< 0` = the centroid is off the pad);
+      * `face`   - the pad's face normal in the hand frame, for provenance.
+
+    Per-pad degeneracy, stated rather than hidden: two **parallel** rigid pads
+    on a sphere project the same point, so `u`/`v`/`frac`/`edge` are identical
+    on both rows; they differ only in `h` (the measured link origins are not
+    exactly on one plane) and in each pad's **own** contact force, which the
+    caller prints beside them. A real sensor differs because the two elastomers
+    deform differently, which this sim cannot represent - a second reason the
+    sim can only falsify the tactile claim, never confirm it.
+    """
+    o0 = np.asarray(pad_origins[0], dtype=float)
+    o1 = np.asarray(pad_origins[1], dtype=float)
+    axis = o1 - o0
+    sep = float(np.linalg.norm(axis))
+    if sep <= 1e-9:
+        n = np.asarray(rot, dtype=float)[:, 1].copy()
+        n /= max(float(np.linalg.norm(n)), 1e-9)
+    else:
+        n = axis / sep
+    rot = np.asarray(rot, dtype=float)
+    e_long = rot[:, 2] - float(np.dot(rot[:, 2], n)) * n
+    _long_norm = float(np.linalg.norm(e_long))
+    if _long_norm <= 1e-9:
+        # The tool axis is parallel to the closing axis (a degenerate hand
+        # attitude this cell never reaches) - fall back to the wrist's other
+        # axis so the frame stays defined rather than returning garbage.
+        e_long = np.cross(n, rot[:, 0])
+        _long_norm = float(np.linalg.norm(e_long))
+    e_long = e_long / max(_long_norm, 1e-9)
+    e_mid = np.cross(n, e_long)
+    out = []
+    for k, (origin, sign) in enumerate(((o0, 1.0), (o1, -1.0))):
+        face = sign * n
+        d = np.asarray(fruit, dtype=float) - origin
+        u = float(np.dot(d, e_mid))
+        v = float(np.dot(d, e_long))
+        v_pad = v - TACTILE_PAD_LONG_ORIGIN
+        out.append(
+            {
+                "pad": k,
+                "u": u,
+                "v": v,
+                "h": float(np.dot(d, face)),
+                "frac": disc_rect_fraction(u, v_pad, radius, half_wide, half_long),
+                "edge": min(half_wide - abs(u), half_long - abs(v_pad)),
+                "face": face,
+            }
+        )
+    return out
+
+
 def _clearance_field(gap: float, where: str, tick: int | None = None) -> str:
     """One `[carry]` clearance field: `+3mm@rail/t302`, or `n/a` if unmeasured.
 
@@ -2716,6 +2902,34 @@ class PickAndPlaceTask:
                 self._place_onset_trace = max(0, int(_place_trace_raw))
             except ValueError:
                 self._place_onset_trace = 0
+        #: P102 (`FRUIT_TACTILE_PATCH=<ticks>`, **0 = off, the shipped path**):
+        #: the **contact-patch statistic a vision tactile would report**, one
+        #: `[tactile]` row per pad per tick for the first `<ticks>` ticks of
+        #: every carry leg. `docs/PLATFORM_SURVEY.md` §5.1 registers the
+        #: question this answers: the tree's tactile channel is **two normal-force
+        #: scalars** and W5-C measured that where the force collapses the payload
+        #: is gone within **0-3 ticks** (`logs/w5/C_RESULTS.md`, `logs/p42/
+        #: SIM_LIMIT.md` §1), so a 2-scalar channel cannot be a reflex. The
+        #: survey's hypothesis is that a **spatial** channel - the contact
+        #: patch's centroid moving on the pad - leads the collapse. This knob
+        #: produces that channel from geometry the sim already has (see
+        #: `tactile_patch_state`) so the lead time can be measured **before any
+        #: hardware is bought**, with the survey's own kill criterion (slip
+        #: visible >= 10 ticks early, or `cnp` does not fall >= 30 %).
+        #:
+        #: Reporting only: no command, no threshold, no existing print is
+        #: touched, and the block it lives in is the W8-B carry block - the same
+        #: one `FRUIT_PLACE_ONSET_TRACE` uses - so setting it **arms that block**
+        #: (see `guard_armed`) and the reference tracker comes with it. Its reads
+        #: are one tactile set and one `jaw_positions()` per tick, both
+        #: `FRUIT_CARRY_DIAG`-class reporting readers; **no `ik_step` work and no
+        #: articulation read is added** (AGENTS §2). With the knob unset it is
+        #: one integer compare per leg and the tree is byte-inert.
+        #:
+        #: A diagnostic's run is allowed to differ from the shipped one (it adds
+        #: two `say()` per tick), so **no rate may be quoted from a traced run** -
+        #: only the per-tick ordering, which is what the census reads.
+        self._tactile_patch = parse_tactile_patch()
         #: P83 (`FRUIT_FAIL_FAST=<mm>`, **unset/0 = off, the shipped path**): the
         #: cell pays a full attempt for every failure - P80 measured
         #: `26.72 s = 4.8 s idle + 1.45 attempts x 15.1 s` and **all** of the
@@ -5409,6 +5623,7 @@ class PickAndPlaceTask:
                 (
                     (self._carry_guard_active or self._carry_diag)
                     or self._place_onset_trace > 0
+                    or self._tactile_patch > 0
                     or self._fail_fast_active
                 )
                 and hand_is_jaw
@@ -5595,6 +5810,13 @@ class PickAndPlaceTask:
                 self._place_onset_trace if name.startswith("place") else 0
             )
             _tr_tcp_prev = None
+            #: P102: the tactile patch's per-leg reference - each pad's centroid
+            #: `(u, v)` at the leg's first tick, so `du`/`dv` are the patch's
+            #: **motion in the leg**, which is the reflex signal (the absolute
+            #: `u`/`v` on the row is the *state* signal). `tactile_ticks` is 0
+            #: whenever the knob is unset, so the row below is one integer test.
+            tactile_ticks = self._tactile_patch
+            _tac_ref = [None, None]
             n_ticks = len(commands)
             if guard_acts:
                 # The profile may be frozen for up to the hold budget; the
@@ -6097,6 +6319,56 @@ class PickAndPlaceTask:
                         guard_tilt75_i = i
                     guard_tilt_max = max(guard_tilt_max, _tilt_now)
                     guard_tilt_end = _tilt_now
+                    # ---- P102: the contact-patch statistic (reporting only) --
+                    # `FRUIT_TACTILE_PATCH=<ticks>` (0 = off, see `__init__`).
+                    # The whole reason this exists: the shipped tactile channel
+                    # is **two normal-force scalars**, and the survey's
+                    # hypothesis is that a **spatial** channel (the contact
+                    # patch's centroid moving on the pad) leads the force
+                    # collapse by enough to react. `tactile_patch_state` derives
+                    # the centroid and the patch's occupancy from geometry the
+                    # sim already has, so the lead is measurable with no
+                    # hardware. Everything below is a read of state the block
+                    # already holds plus **two reporting readers**
+                    # (`jaw_positions()`, one tactile set) - no `ik_step` work
+                    # and no articulation read is added (AGENTS §2), and with
+                    # the knob unset the branch is one integer test per leg.
+                    if tactile_ticks and i < tactile_ticks:
+                        _tac = self.tactile.read().get(side, _EMPTY_TACTILE)
+                        _tac_faces = [
+                            float((_tac.fingertip_forces or {}).get(f"{side}_{k}", 0.0))
+                            for k in (0, 1)
+                        ]
+                        _tac_o = arm.jaw_positions()
+                        _tac_state = tactile_patch_state(
+                            fruit, _tac_o, rot_now, float(sample.diameter) / 2.0
+                        )
+                        _tac_slip = (
+                            0.0
+                            if guard_ref is None
+                            else float(np.linalg.norm(rel_frame - guard_ref))
+                        )
+                        for _tk, _st in enumerate(_tac_state):
+                            if _tac_ref[_tk] is None:
+                                _tac_ref[_tk] = (_st["u"], _st["v"])
+                            _du = _st["u"] - _tac_ref[_tk][0]
+                            _dv = _st["v"] - _tac_ref[_tk][1]
+                            say(
+                                f"[tactile] {side} {name} pad={_tk} t={i} "
+                                f"u={_st['u'] * 1000:+.1f} "
+                                f"v={_st['v'] * 1000:+.1f} "
+                                f"du={_du * 1000:+.1f} dv={_dv * 1000:+.1f} "
+                                f"dc={math.hypot(_du, _dv) * 1000:.2f} "
+                                f"h={_st['h'] * 1000:+.1f} "
+                                f"frac={_st['frac']:.3f} "
+                                f"edge={_st['edge'] * 1000:+.1f} "
+                                f"sep={_sep_now * 1000:.1f} "
+                                f"gap={gap_command * 1000:.1f} "
+                                f"f={_tac_faces[_tk]:.2f} "
+                                f"n={int(_tac.contact_count)} "
+                                f"clean={_tac_slip * 1000:.1f} "
+                                f"dia={float(sample.diameter) * 1000:.1f}"
+                            )
                     # ---- P75: the place leg's onset trace (reporting only) ----
                     # `FRUIT_PLACE_ONSET_TRACE=<ticks>` (0 = off, see `__init__`).
                     # The ordering of the three symptoms **on one tick-indexed

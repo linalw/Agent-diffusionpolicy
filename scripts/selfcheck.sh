@@ -497,6 +497,25 @@ run_check "P96/P97/P98 pre-pose clearance" "$python" scripts/253_p96_prepose_sel
 # hardcoded `else 120` gone, `q_step` is arithmetic inside the diag block (no
 # read added to the shipped path), and `physics.park` in both writers.
 run_check "P100 park scope" "$python" scripts/254_p100_park_selftest.py
+# P102: the **contact-patch** tactile statistic a vision tactile would report -
+# `docs/PLATFORM_SURVEY.md` §5.1's stage (i), run in sim before any hardware is
+# bought. The tree's tactile channel is 2 normal-force scalars and W5-C measured
+# that where the force collapses the payload is gone within 0-3 ticks, so the
+# survey's hypothesis is that a **spatial** channel (the patch's centroid moving
+# on the pad) leads the collapse. `FRUIT_TACTILE_PATCH=<ticks>` (default **0 =
+# off**) derives that channel from geometry the sim already has. The leg pins:
+# the resolver (unset/blank/typo/`<= 0` -> off, so the shipped path is one integer
+# test per leg), the `guard_armed` term that makes it self-sufficient, that the
+# row block adds **no `ik_step` work and no articulation read** (the two readers
+# it does add are named), the exact geometry (the centroid is invariant under a
+# wrist rotation about the jaw axis and under a translation along it; the two
+# pads' `h` sum to the measured span; the parallel-plane degeneracy is declared),
+# the occupancy arithmetic (1 inside / 0 outside / monotone / zero-radius), the
+# pad rectangle's **long-axis origin** (`finger_length - half_long`, because a
+# rectangle centred on the link origin scores a good seat as off the pad - the
+# measured `frac` 0.062), and the row parsing back through `logs/p102/census.py`'s
+# own reader (a dropped field must fail). No simulator.
+run_check "P102 tactile patch" "$python" scripts/255_p102_tactile_selftest.py
 
 if [ -n "$run_log" ] && [ -f "$run_log" ]; then
     # P85: the log decides the scenario (and therefore the reference and the

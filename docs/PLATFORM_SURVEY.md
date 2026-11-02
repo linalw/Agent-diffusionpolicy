@@ -48,6 +48,12 @@ CC BY-NC and this cell is a *sorting* product, not a paper.
 5. **Staged plan with kill criteria** is §5. The measured thing to beat:
    **58/80 = 72.5 % placed** pooled over four seeds, interval **10.6-12.2 s**,
    `cnp` **17 of 25 failures**, wall **2.37-2.91 placed/min** [V, P93].
+   **Stage (i) has since been measured in sim** (P102, 2026-11-03): the patch
+   channel sees the loaded slide **0.17-0.94 s** before the pinch is lost, so its
+   **kill does not fire** - and the reason §2.4's "30 Hz is too slow" was wrong is
+   that the 0-3 tick number is the *force* channel's last moment, not the slip's
+   first. The one open question left in (i) is the **bench** (§3.3 T2), not the
+   cell.
 
 ---
 
@@ -207,7 +213,20 @@ key fires on successes" (`logs/w5/`, W5-C; restated in `logs/p42/SIM_LIMIT.md`
 §1). At 120 Hz that is a **25 ms** budget. A 30 Hz GelSight gives **33 ms per
 frame** — it can *label* the slip, it cannot *catch* it.
 
+> **Corrected by P102 (2026-11-03, `logs/p102/`).** That 0-3 tick number is the
+> **normal force's** last moment, not the slip's first. Measured on the shipped
+> cell: the payload's in-hand displacement reaches 2 mm **21-113 ticks (median
+> 60 = 0.50 s) before** the pinch is lost, and **when the force finally
+> collapses the payload is already 4.5-46.4 mm out of position** (6 escapes, 2
+> seeds, `logs/p102/RESULTS.md` §3). So the 25 ms budget belongs to the 2-scalar
+> channel; the **relative motion a pad images lasts 0.17-0.94 s, i.e. 5-15
+> frames at 30 Hz**. The conclusion below - that a tactile's defensible uses are
+> supervision and slow-loop verification - is **not** supported by the force
+> channel's timing and must be re-argued from the pad's own 0.17-0.94 s window
+> (§5.1 status).
+
 Therefore the tactile channel has exactly two defensible uses on this cell:
+
 
 1. **Supervision** — record `slip onset`, `contact patch centroid`, `shear` as
    *labels* and train the policy to avoid the pre-slip state (the P42 finding
@@ -486,6 +505,39 @@ deferred until the hand exists and its class is re-measured).
 **Cost**: ~$1,020 sensors + printing + ~1 week. **Sim-vs-real**: the patch
 channel and the policy plumbing are sim; the *sensor* claim is real-only.
 
+#### Status: the mechanism is **CONFIRMED** by measurement (P102, 2026-11-03, `logs/p102/`) — the sensor is not
+
+The free sim half of this stage ran (`logs/p102/RESULTS.md`). On the shipped cell,
+40 attempts, 2 seeds:
+
+| read | value |
+|---|---|
+| the payload's in-hand displacement reaches **2 mm** | **21-113 ticks before the pinch is lost** - median **60 ticks = 0.50 s**, min **21 = 0.17 s**, 6/6 escapes |
+| the patch's state when the walk starts | `frac` 0.52-0.79, `edge` +4.0..+17.2 mm - **on the pad** |
+| the walk's rate | 7-189 mm/s → **a 30 Hz pad gets 5-15 frames**, a 60 Hz pad 10-30 |
+| the payload's position **when the force collapses** | already **4.5-46.4 mm** out |
+| false positives (60 held legs) | 2 at 2.12 mm, **both placed**; occupancy thresholds 0/60 |
+| the class it can reach | **6 of the 11 failures** (all seated slides on `cnp` attempts, 0 of 29 placed attempts); the **4 acquisition failures are unreachable by any pad** |
+
+**So P1 passes in its decision-relevant form and stage (i)'s kill does NOT
+fire** — but **P1 as written is not evaluable**: it asks for a lead over
+`clean_slip > 2 mm`, and the patch centroid's displacement *is* that
+displacement (`dc/clean` 0.77-1.00), so it crosses on the same tick. The
+reference that matters is "before the pinch is lost", and it is 0.17-0.94 s.
+**This also corrects §2.4 below**: W5-C's 0-3 ticks is the **normal force's**
+last moment, not the slip's first.
+
+**What is still to buy, and it is small**: the sim's patch is derived from the
+payload's *ground-truth pose* (rigid, adhesion-free pads; no visuotactile
+renderer), so the **duration and magnitude** of the relative motion transfer and
+**"does a soft pad image 2 mm"** does not. That is §3.3's **T2 bench** — one
+GelSight, one printed finger, the same eight fruit, ~an afternoon — and it is
+now the only open question in this stage. The **next sim spend is the reaction,
+not the sensor** (registered, not built): a re-grip at `dc >= 2 mm` fires on 8 of
+70 legs and costs **0.25 s/attempt worst case = 2.6 %** of a 9.7 s attempt, to be
+scored on P2 (`cnp` 6 → <= 4 of 40) and P3.
+
+
 ### 5.2 Stage (ii) — a dexterous hand, no tactile
 
 **Build**: **ORCA** (17 DoF, <2,000 CHF, integrated tactile *already*, MJCF/URDF
@@ -535,8 +587,10 @@ data-collection instrument.
 
 * (i) is **$1k and reuses the entire policy** — it tests the *tactile* half of the
   hypothesis before the *hand* half, and its failure mode is "we learned the
-  slip is unobservable in time", which is decision-grade on its own (it is
-  already half-measured: W5-C's 0-3 tick window).
+  slip is unobservable in time", which is decision-grade on its own. **That half
+  is now measured and it is not the failure mode** (P102, `logs/p102/`): the
+  relative motion is observable for **0.17-0.94 s**, so what (i) now buys is the
+  *sensor* confirmation (§3.3 T2) plus the reaction the sim can price for free.
 * (ii) is **$0.3k-$2k** and tests the *geometry* half, which is the half the
   theory and `SIM_LIMIT` actually support.
 * (iii) is the only stage that needs **both** and it is the only one that cannot

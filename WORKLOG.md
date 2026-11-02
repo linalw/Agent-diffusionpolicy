@@ -23960,3 +23960,115 @@ ckpt `moe_v13s` `61da390a`. `scripts/selfcheck.sh` **PASS (0 failures, 1
 skipped)** with the new `P100 park scope` leg; `scripts/106_index_audit.py`
 **OK**; `scripts/107_collect_merge_test.py` **PASS (21 checks)**. Evidence
 `logs/p100/`.
+
+### P102: a patch tactile sees the loaded slide 0.17-0.94 s before the pinch is lost - and the 2-scalar force channel is the late one (2026-11-03)
+
+The platform survey (`docs/PLATFORM_SURVEY.md` §5.1, stage (i)) asked one
+question and set its own kill: *can a PATCH-based tactile see the loaded slide
+early enough to act?*, "slip visible >= 10 ticks early, or `cnp` does not fall
+>= 30 % -> kill". The premise on record was W5-C's "where force collapses the
+payload is out within 0-3 ticks", read as the **slip's** clock. **It is not: it
+is the normal force's last moment.** Measured on the shipped cell, the payload's
+in-hand displacement crosses **2 mm 21-113 ticks (median 60 = 0.50 s, min 21 =
+0.17 s) before the pinch is lost**, and **when the force finally collapses the
+payload is already 4.5-46.4 mm out of position**.
+
+**The instrument** (default off, reporting only): `FRUIT_TACTILE_PATCH=<ticks>`,
+one `[tactile]` row **per pad per tick** on every carry leg - the payload
+centre's projection on the pad's face (`u` across the finger, `v` down it), its
+displacement since the leg's first **seated** tick (`dc`), the patch's occupancy
+of the pad's face rectangle (`frac`), the signed distance to the nearest border
+(`edge`), the per-pad force and the shipped `clean_slip`. Derived from geometry
+the sim already has: the payload is a sphere, the pad is the measured plate
+(`61.000 x 84.902 mm`, `logs/p66/COLLIDER_READ.md`) and the frame comes from the
+**measured** jaw axis plus the **tool axis**. Two design points, both measured:
+**the pad rectangle's origin must be the plate's face centre, not the link
+origin** (`TACTILE_PAD_LONG_ORIGIN = finger_length - half_long`; without it the
+shipped `_pad_standoff` seat reads `frac` 0.062 / `edge` -23.8 mm, i.e. every
+good seat scores as off the pad - against 0.646 / +9.8 with it), and **the
+long-axis sign must come from the tool axis** (the jaw axis' sign depends on
+which finger link is on which side: measured `v = -66 mm` on one grasp and `+66`
+on another before the fix). The patch model is the payload's **equatorial disc**,
+which is deliberately **generous** - a real soft pad images a *smaller* patch,
+and a smaller disc clips off the pad *later* - so a negative would have been
+decisive; the positive therefore needs the hardware check (§below).
+
+**Neutrality, three replays.** Same cell, same batch, the knob the only
+difference: `T5` vs `C5` **975/975** and `T6` vs `C6` **971/971** `[fruit]` lines
+identical with the phase's own `[tactile]` rows dropped; and `N5` (a re-run on the
+final tree, after the close-out relocated the block) **17071/17071 `[fruit]`
+lines identical with the rows KEPT** - 16 096 of them the instrument's own. So the
+instrument is inert *and* deterministic. `logs/p91/C5.log` is **not** a valid
+control on this tree: it predates P94's `_gripper_offset` guard and diverges at
+its own guarded row (`jaw_target` `[0.4053,0.0...]` vs `[0.3997,0.4...]`), the
+P96 `PREREG_A2` divergence; P100's cells add park/ready rows. The same-batch pair
+is the only proof, which is why the phase spent two extra cells on it.
+
+**The population** (40 attempts, seeds 5/6): **29 placed / 7 `cnp` / 4 no-grasp**,
+70 carry legs -> **60 held, 6 seated escapes, 4 never-held**. The attempt join is
+exact - the k-th `grasp_lift` a side takes is that side's k-th attempt, so every
+leg maps to its `[run]` outcome - and it decides the business case: **all 6 seated
+escapes sit on `cnp` attempts and 0 of the 29 placed attempts carry one**, while
+all 4 no-grasp attempts carry a never-held leg. **A tactile can reach 6 of the 11
+failures (55 %) and none of the successes; the acquisition class is unreachable
+by any pad.**
+
+**The lead, and why the threshold does not matter.** `dc` at 1 / 2.12 / 4.25 /
+8.49 / 10 mm gives a median lead of 61 / 60 / 53 / 46 / 44 ticks and **all six
+escapes clear 10 ticks at every one** - the motion is a ramp, not a step, so the
+detector's threshold is not the design variable. `frac < 0.75 frac0` leads by 34
+(5/6) and `edge < 0` by 29 (5/6). **False positives:** 2 of 60 held legs trip at
+2.12 mm (5.8 and 10.4 mm) and **both of those attempts placed**; the `frac`
+thresholds trip 0/60; a held leg's patch is motionless (`dc_max` median 0.02 mm).
+The mechanism is visible tick by tick in the `left place0` escape: the payload
+walks **45.6 mm across the finger** over 113 ticks while one pad still carries
+8-10 N (the other face 0.00 N throughout - P75's one-sided pry), and the force
+reaches 0.00 N one tick before `clean_slip` passes 50 mm.
+
+**The survey's P1 clause is not evaluable as written** - it asks for a lead over
+`clean_slip > 2 mm`, but the patch centroid's displacement **is** the payload's
+relative displacement (`dc/clean` median 0.77-1.00 on the six escapes), so it
+crosses that line on the same tick (0-1). A clause comparing a signal with
+itself; **recorded, not re-read** (P100's precedent). The decision-relevant
+reference is "before the pinch is lost", and that is the 21-113 ticks.
+
+**What this does and does not settle.** It settles the **cell**: the relative
+motion has 0.17-0.94 s of notice, 7-189 mm/s, with the patch *on the pad* at the
+start of the walk (`frac` 0.52-0.79, `edge` +4.0..+17.2 mm) - so a 30 Hz pad gets
+5-15 frames, and the survey's "30 Hz can label the slip, it cannot catch it"
+(which was the *force* channel's 25 ms budget) is corrected. It does **not**
+settle the **sensor**: the sim's patch is derived from the payload's ground-truth
+pose, the pads are rigid and adhesion-free (`logs/p42/SIM_LIMIT.md` §3) and there
+is no visuotactile renderer in the loop, so "a soft pad images this" is the
+survey's T2 bench, not a sim result. **Stage (i)'s kill does not fire**; the next
+spend is the **reaction**, registered and not built: a re-grip at `dc >= 2 mm`
+(the tree's own `clean_slip`) fires on 8 of 70 legs (6 escapes + 2 benign) at
+P40's **1.24 s** two-line failed probe = **0.25 s/attempt worst case = 2.6 %** of
+a 9.7 s attempt against P3's +5 %, and the cell is the **sim-only
+perfect-detector re-grip** scored on the survey's **P2** (`cnp` 6 -> <= 4 of 40,
+placed +8 points) and P3.
+
+One more measured correction, which narrows the class and the instrument: a
+`slip_max > 100 mm` rule alone picks up the **failed catch**, not a slide - one
+"escape" carries a **318 mm** pad-to-payload offset under a **21.8 mm** span on a
+68.9 mm fruit (the hand closed on air, and its 22.2 N is a flank contact). So
+`is_escape` needs the **seat** (a loaded pinch **and** the patch on the pad), and
+that is P76 A3's rule applied to `clean_slip` rather than to the force.
+
+Pins: `tasks.py` **`b257687dffe8bb255be70b4f7279711e`** (the measured tree was
+**`42592b5d91e512c00c353961845babfa`**; the close-out move relocates the same
+block out of `_clearance_field`'s tail so the `236` leg's "the formatter adds no
+read" assertion keeps its scope - G3's 17071/17071 replay proves it inert),
+`rl_env.py` `TASKS_MD5` follow, `tactile.py`
+`dee9121af4815fa6353e42eafbdfbe50`, `scene.py`
+`472bfb6c1912ec08bcff1c35aa3af4a9`, `assets.py`
+`eb30c77a84af353428be73a32ea54047`, `control.py`
+`9384ff4fa3e62b359bf10d2123ef41fa`, `bimanual.py`
+`9b7fc33fc45366c3833f652f19b60a9f`, `scripts/20_pick_place.py`
+`3d34342b7860191731b60a4c20592278`, `logs/p102/census.py`,
+`logs/p102/gates.sh`, `scripts/255_p102_tactile_selftest.py`,
+`scripts/selfcheck.sh`; references **`30fb99f8` / `30fb99f8` / `8952c320`**
+untouched (the knob is default-off and the neutrality replay is the proof - **no
+reference was re-recorded and none is owed**); ckpt `moe_v13s` `61da390a`.
+`scripts/selfcheck.sh` **PASS (0 failures, 1 skipped)** with the new `P102
+tactile patch` leg (45 checks). Evidence `logs/p102/`.
