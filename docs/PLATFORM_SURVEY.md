@@ -219,8 +219,8 @@ frame** — it can *label* the slip, it cannot *catch* it.
 > 60 = 0.50 s) before** the pinch is lost, and **when the force finally
 > collapses the payload is already 4.5-46.4 mm out of position** (6 escapes, 2
 > seeds, `logs/p102/RESULTS.md` §3). So the 25 ms budget belongs to the 2-scalar
-> channel; the **relative motion a pad images lasts 0.17-0.94 s, i.e. 5-15
-> frames at 30 Hz**. The conclusion below - that a tactile's defensible uses are
+> channel; the **relative motion a pad images lasts 0.17-0.94 s, i.e. 5-28
+> frames at 30 Hz (median 15)**. The conclusion below - that a tactile's defensible uses are
 > supervision and slow-loop verification - is **not** supported by the force
 > channel's timing and must be re-argued from the pad's own 0.17-0.94 s window
 > (§5.1 status).
@@ -514,7 +514,7 @@ The free sim half of this stage ran (`logs/p102/RESULTS.md`). On the shipped cel
 |---|---|
 | the payload's in-hand displacement reaches **2 mm** | **21-113 ticks before the pinch is lost** - median **60 ticks = 0.50 s**, min **21 = 0.17 s**, 6/6 escapes |
 | the patch's state when the walk starts | `frac` 0.52-0.79, `edge` +4.0..+17.2 mm - **on the pad** |
-| the walk's rate | 7-189 mm/s → **a 30 Hz pad gets 5-15 frames**, a 60 Hz pad 10-30 |
+| the walk's rate | 7-189 mm/s → **a 30 Hz pad gets 5-28 frames (median 15)**, a 60 Hz pad 10-56 |
 | the payload's position **when the force collapses** | already **4.5-46.4 mm** out |
 | false positives (60 held legs) | 2 at 2.12 mm, **both placed**; occupancy thresholds 0/60 |
 | the class it can reach | **6 of the 11 failures** (all seated slides on `cnp` attempts, 0 of 29 placed attempts); the **4 acquisition failures are unreachable by any pad** |

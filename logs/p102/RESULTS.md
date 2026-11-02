@@ -28,7 +28,7 @@ corrected.** W5-C's "where force collapses the payload is out within 0-3 ticks"
 is true and it is the *last* moment, not the first: the relative motion that a
 pad images precedes it by **0.17-0.94 s**. The survey read that 0-3 tick number
 as the *slip's* clock and concluded a 30 Hz GelSight "can label the slip, it
-cannot catch it". On this cell's own timing a 30 Hz pad gets **5-15 frames** of
+cannot catch it". On this cell's own timing a 30 Hz pad gets **5-28 frames** (median 15) of
 the slide before the pinch is lost. The 25 ms budget is the *force sensor's*
 budget, not the cell's.
 

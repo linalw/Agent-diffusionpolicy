@@ -262,7 +262,7 @@ the whole leg - P75's one-sided pry), and **when the force finally collapses the
 payload is already 4.5 / 31.3 / 35.2 / 43.9 / 44.4 / 46.4 mm out** - so W5-C's
 "where force collapses the payload is out within 0-3 ticks" stands as a statement
 about the **normal force** and is the **last** moment, not the first: a 30 Hz
-GelSight gets **5-15 frames** of the slide, a 60 Hz pad 10-30. **The survey's P1
+GelSight gets **5-28 frames** (median 15) of the slide, a 60 Hz pad 10-56. **The survey's P1
 clause is not evaluable as written** ("detectable >= 10 ticks before
 `clean_slip > 2 mm`"): the patch centroid's displacement **is** the payload's
 relative displacement (`dc/clean` median **0.77-1.00** on the six escapes), so it

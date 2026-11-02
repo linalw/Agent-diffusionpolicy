@@ -24035,7 +24035,8 @@ reference is "before the pinch is lost", and that is the 21-113 ticks.
 **What this does and does not settle.** It settles the **cell**: the relative
 motion has 0.17-0.94 s of notice, 7-189 mm/s, with the patch *on the pad* at the
 start of the walk (`frac` 0.52-0.79, `edge` +4.0..+17.2 mm) - so a 30 Hz pad gets
-5-15 frames, and the survey's "30 Hz can label the slip, it cannot catch it"
+5-28 frames (median 15), and the survey's "30 Hz can label the slip, it
+cannot catch it"
 (which was the *force* channel's 25 ms budget) is corrected. It does **not**
 settle the **sensor**: the sim's patch is derived from the payload's ground-truth
 pose, the pads are rigid and adhesion-free (`logs/p42/SIM_LIMIT.md` §3) and there
