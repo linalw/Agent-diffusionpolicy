@@ -1,0 +1,30 @@
+P98 - the P97 revert: the clearance pre-pose is opt-in again
+==============================================================================
+
+[flip] PREPOSE_CLEAR_TWO_LINE_DEFAULT = False  (unset -> the pre-P96 path; =1 arms P96's pose)
+
+[references]
+  configs/motion_reference.json: 30fb99f8824aa4cea906e40ebf5dfa58
+  configs/motion_reference_twoline.json: 30fb99f8824aa4cea906e40ebf5dfa58
+  configs/motion_reference_single.json: 8952c320d798ef42e03ba815c9e96b23
+  archive: logs/p97/motion_reference_pre_p97.json: 30fb99f8824aa4cea906e40ebf5dfa58
+
+[acceptance]
+  accept_revert: 8/10 (80%), 9.0 s/attempt, diverted=0, sim=89.9 s
+    190: two-line gate: reference=configs/motion_reference.json floor=0.60
+    fingerprint: matches configs/motion_reference.json
+    190: PASS logs/p98/accept_revert.log
+    190: every log matches configs/motion_reference.json and is at or above the two-line floor 0.60
+  accept_clear1: 6/10 (60%), 9.6 s/attempt, diverted=1, sim=95.7 s
+    190: two-line gate: reference=configs/motion_reference.json floor=0.60
+    fingerprint: DIFFERS from configs/motion_reference.json - this run landed in a different attractor, so do not compare its success count with the reference log's
+    190: FAIL logs/p98/accept_clear1.log
+    190: at least one log failed
+
+[identities]
+  accept_revert vs logs/p94/accept_final.log:
+[same] ref=/home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p94/accept_final.log (419 lines)  cand=/home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p98/accept_revert.log (419)
+[same] IDENTICAL on every physics line
+  accept_clear1 vs logs/p97/accept_final.log (pre-pose rows dropped):
+[same-pose] ref=/home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p97/accept_final.log (457 lines)  cand=/home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p98/accept_clear1.log (457)
+[same-pose] IDENTICAL on every physics line

@@ -1,0 +1,40 @@
+== G1: the reverted acceptance vs the P94 record (419/419) ==
+[p98gates] G1 IDENTICAL
+[same] ref=logs/p94/accept_final.log (419 lines)  cand=logs/p98/accept_revert.log (419)
+[same] IDENTICAL on every physics line
+[p98gates] G1 fingerprint matches 30fb99f8
+[p98gates] G1 190 PASS
+
+== G2: the references ==
+[p98gates] configs/motion_reference.json = 30fb99f8824aa4cea906e40ebf5dfa58 (archive, restored)
+[p98gates] configs/motion_reference_twoline.json = 30fb99f8824aa4cea906e40ebf5dfa58 (archive, restored)
+[p98gates] configs/motion_reference_single.json = 8952c320d798ef42e03ba815c9e96b23 (untouched)
+
+== G3: the =1 A/B reproduces P97's arm (pre-pose rows dropped) ==
+[p98gates] G3 IDENTICAL
+[same-pose] ref=logs/p97/accept_final.log (457 lines)  cand=logs/p98/accept_clear1.log (457)
+[same-pose] IDENTICAL on every physics line
+[p98gates] G3 =1 arm placed 6/10 (P97's default count)
+[p98gates] G3 fingerprint DIFFERS - by construction (the restored ref is pre-P97)
+[p98gates] G3 budgets recorded
+
+== G4: the single arm cannot read the knob ==
+[p98gates] ok: unset + no two-line session is off with origin `scope-off` (no station)
+[p98gates] ok: unset inside a two-line session is OFF - the pre-P96 path is the shipped default again (P98)
+[p98gates] G4 the 253 leg PASSes (no-session scope-off; unset two-line off)
+
+== G5: the flip is one constant ==
+[p98gates] PREPOSE_CLEAR_TWO_LINE_DEFAULT = False
+[p98gates] occurrences: 3
+
+== the QA gates ==
+[p98gates] selfcheck: 
+[p98gates] selfcheck: PASS: 0 failures, 1 skipped (log: logs/selfcheck.log)
+[p98gates] bed_audit: [211]   final [bed] stats row: [bed] stats draws=201 placed=175 live_recycled=0/201 (0.0 %) holds=12 refused=0 rebased=0 late_dropped=0.0s fell_off=0 reached_end=0 sweeps=0 swept=0 supply_skipped=0 live=21
+[p98gates] bed_audit: [211] ok (115 checks)
+[p98gates] index_audit:   v9_s2                entries= 21 files= 21 index_frames=  9903 file_frames=  9903 windows=  9546 unique_content= 21 OK
+[p98gates] index_audit: OK: every index matches the files it describes
+[p98gates] merge_test: 
+[p98gates] merge_test: PASS: all 21 checks
+
+[p98gates] done rc=0

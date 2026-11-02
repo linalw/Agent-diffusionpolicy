@@ -1,0 +1,46 @@
+P96/P97/P98 - the clearance pre-pose is a two-line-scoped opt-in (P98 reverted P97)
+==============================================================================
+ok: PREPOSE_CLEAR_TWO_LINE_DEFAULT is False - P98 reverted the P97 flip
+ok: unset + no two-line session is off with origin `scope-off` (no station)
+ok: the height defaults to 0.165 m above the belt top
+ok: the attitude defaults to `calib`
+ok: unset inside a two-line session is OFF - the pre-P96 path is the shipped default again (P98)
+ok: … and says so in `two_line`/`origin` (the pre-P96 label)
+ok: … and the label names the off state (FRUIT_BIARM_PREPOSE_CLEAR=0(explicit))
+ok: … while the armed cell keeps P96's measured arm (z=0.165, hold=calib)
+ok: an explicit =0 is the pre-P96 path inside a two-line session, origin `explicit`
+ok: … and the label carries no height
+ok: =1 is on at the default height (0.165)
+ok: the label names value, origin, height and hold (FRUIT_BIARM_PREPOSE_CLEAR=1(explicit), z=+0.165, hold=calib)
+ok: … an explicit =1 also applies outside a two-line session (the override rule)
+ok: a 0.165 target with the solve's 6 mm residual lands at 0.159
+ok: … which clears the invariant's floor (jaw >= belt_top + 0.155)
+ok: … while a 0.155 target would land at 0.149, i.e. BELOW the floor (the phase-0 map's 149.1-151.7 mm rows)
+ok: the band is [0.155, 0.25] - the invariant's floor and the map's ceiling
+ok: a height of 0.12 m raises
+ok: a height of 0.30 m raises
+ok: a height of 0.0 m raises
+ok: a height of -0.1 m raises
+ok: a registered override moves the height and clears `z_defaulted`
+ok: hold=nat is the free-attitude form
+ok: an unknown hold mode raises
+ok: the band is enforced even with no two-line session (an explicit =1)
+ok: `prepose_clear_resolution` has exactly one call site in tasks.py
+ok: `_prepare_two_line_stations` is defined once in tasks.py
+ok: the call site is the station solve and takes the caller's resolved two-line decision
+ok: … because the session is created after the solve (P97: a session predicate here reads False on the first batch and makes the default inert)
+ok: the station-on-the-pick-point skip is bypassed when the cell is on (the left station had no solve at all - P39)
+ok: hold=calib freezes the arm's own **measured** calibrated attitude
+ok: hold=nat leaves the attitude free (the position-only form)
+ok: the target height is the cell's when on and the grasp plane when off
+ok: the solve cache carries the resolution (one process, two cells)
+ok: the per-side verdict is recorded, not inferred from the residual
+ok: the achieved tilt and joint margin are read at the solve
+ok: the `[biarm] pre-pose` row is printed **only** when the cell is on, so the pre-P96 path adds no line (byte-identity, not 'modulo a row')
+ok: the collector resolves the same function, per shard
+ok: the shard manifest writes "prepose_clear"
+ok: the shard manifest writes "prepose_clear_defaulted"
+ok: the shard manifest writes "prepose_clear_z"
+ok: rl_env.TASKS_MD5 == tasks.py (6ce29b56) - the direct env can start
+
+P96/P97/P98 pre-pose selftest: PASS
