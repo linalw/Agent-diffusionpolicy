@@ -486,9 +486,10 @@ count a draw (29 → 30 of 40), the **park gate 0.03 → 0.62 s/attempt** (both 
 never idle, so their station dwells collide), **17/40 fruit mis-sorted**, and
 seed 6 loses 2 payloads upstream.
 
-**The read rule this phase adds: the wait is not the interval.** Removing ~1.4 s
-per attempt of pure fruit wait took **0.57 s off the per-attempt cycle and 0.64 s
-onto the interval**, because the interval is the *sequencing* of two overlapped
+**The read rule this phase adds: the wait is not the interval.** Removing ~1.1 s
+per attempt of pure fruit wait (0.95 s of arrival + 0.17 s of polls) took
+**0.57 s off the per-attempt cycle (18.02 → 17.45 s) and 0.64 s onto the
+interval**, because the interval is the *sequencing* of two overlapped
 arms — seed 5 bunches its placements in pairs (4.5 / 1.8 / 0.4 s between the two
 arms, then 16-18 s), the fallback spreads them (p50 13.00 → 11.70 s). One arm's
 wait is often the slack the other arm's sweep needs, so **a starvation count is

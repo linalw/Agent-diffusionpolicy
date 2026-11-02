@@ -23730,9 +23730,10 @@ polls, **arrival wait 1.62 -> 0.67 s**, `window <= 1` 19/20 -> 5/20, **park gate
 (6.40 -> 5.99, 5.42 -> 5.15), **batch span better at both** (181.1 -> 174.3,
 182.6 -> 166.9), count a draw (29 -> 30 of 40), **17/40 fruit mis-sorted**, and
 seed 6 loses 2 payloads upstream (`release_bottom = -184 mm`, the stranding
-class). **The transferable sentence: the wait is not the interval.** ~1.4 s per
-attempt of pure fruit wait removed took **0.57 s off the per-attempt cycle and
-0.64 s onto the interval**, because the interval is the *sequencing* of two
+class). **The transferable sentence: the wait is not the interval.** ~1.1 s per
+attempt of pure fruit wait removed (0.95 s of arrival + 0.17 s of polls) took
+**0.57 s off the per-attempt cycle (18.02 -> 17.45 s) and 0.64 s onto the
+interval**, because the interval is the *sequencing* of two
 overlapped arms: seed 5's placements bunch in pairs (4.5 / 1.8 / 0.4 s between
 the arms, then 16-18 s), the fallback's are evenly spread (p50 13.00 -> 11.70,
 mean 9.38 -> 10.01). One arm's wait is often the slack the other arm's sweep

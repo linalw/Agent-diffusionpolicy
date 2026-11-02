@@ -104,8 +104,9 @@ constraint the starvation was absorbing), **interval 9.38 -> 10.01 (+6.8 %) and
 5.15) while the **batch span is better at both** (181.1 -> 174.3, 182.6 ->
 166.9), the count a draw (29 -> 30 of 40), **17/40 fruit mis-sorted**, and seed 6
 loses 2 payloads upstream (`release_bottom = -184 mm`). **The transferable
-sentence: the wait is not the interval** - ~1.4 s/attempt of pure fruit wait
-removed took **0.57 s off the cycle and 0.64 s onto the interval**, because the
+sentence: the wait is not the interval** - ~1.1 s/attempt of pure fruit wait
+removed (0.95 s arrival + 0.17 s polls) took **0.57 s off the cycle (18.02 ->
+17.45 s) and 0.64 s onto the interval**, because the
 interval is the *sequencing* of two overlapped arms (seed 5 bunches placements in
 pairs, 4.5/1.8/0.4 s apart then 16-18 s; the fallback spreads them, p50 13.00 ->
 11.70, mean 9.38 -> 10.01) - one arm's wait is often the slack the other arm's
