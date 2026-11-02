@@ -23353,11 +23353,12 @@ contact band; the other three are zero-impulse grazes (seed-5 attempt 16 passes 
 0.0 mm with `|v|` exactly 0.120 m/s, spin exactly 0.0 and `sep` 98.0 throughout).
 
 **Why it costs the attempt.** The hover latches the grip point
-(`_dynamic_grip_target`) and the descent is static and open-loop, so the strike's
-**43 mm of lateral drift** against a **6 mm** catch-up tolerance puts the pads *on*
-the fruit (`58.15 N` after 5 ticks, span 99.1 mm frozen at 88.3 mm), drives it down
-through the belt (`z 1.198 -> 0.818`) and the attempt ends `never_held`
-(`force@onset = 0.00 N`, `contacts@onset = 0`). The phase claims no conversion:
+(`_dynamic_grip_target`, `x = 0.273` at t~14.9) and the descent is static and
+open-loop, so the strike's **28 mm** lateral offset at the leg's start (43 mm of
+drift during the leg, `x -> 0.202`) against a **6 mm** catch-up tolerance puts the
+pads *on* the fruit (`58.15 N` after 5 ticks, span 99.1 mm frozen at 88.3 mm),
+drives it down through the belt (`z 1.198 -> 0.818`) and the attempt ends
+`never_held` (`force@onset = 0.00 N`, `contacts@onset = 0`). The phase claims no conversion:
 there is no counterfactual cell, and it does not need one - the defect is an
 invariant violation, not a rate.
 

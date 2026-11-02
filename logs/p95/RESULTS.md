@@ -12,8 +12,9 @@ leg start - is `logs/p95/METHOD_A1.md`). Battery: `logs/p95/run_p95.sh` →
 *other* arm.** The seed-6 attempt-0 kiwi is struck by the **left** hand's pads
 **2 mm from its surface**, while that hand is running its own pre-pose blend to
 its own station; the fruit takes `+0.40 m/s` in `x` and **21.6 rad/s** of spin
-0.25 s before its descent leg, arrives at the leg 43 mm sideways of the aim the
-hover latched, and the attempt fails as `never_held`. It is **1 of 40 attempts**
+0.25 s before its descent leg, is already **28 mm** sideways of the aim the hover
+latched when the leg starts (43 mm by its end), and the attempt fails as
+`never_held`. It is **1 of 40 attempts**
 (two seeds) and **4-5 of 40** pass within 6 mm of that hand; the class is
 **structural** — the downstream lane's fruit must cross the upstream station —
 and the fix is a **pre-pose clearance pose**, priced in §6 and **not built**.
@@ -67,10 +68,10 @@ record should carry:
 > **`_cycle_mark("descent")` fires *after* `_approach`.** The rows labelled
 > `descent` are the leg's **end** (the catch-up's first tick); the leg's start is
 > `first_descent_tick - steps`, where `steps` is that leg's own
-> `[motion] approach … steps=`. The phase-per-sample `FRUIT_DYNAMIC_TRACE`
-> therefore does not merely *miss* the wait window — its `descent` row is the
-> only row before the catch-up, and the wait window sits between the previous
-> attempt's carry and it, entirely unlabelled.
+> `[motion] approach … steps=`. So the phase-per-sample `FRUIT_DYNAMIC_TRACE`
+> emits its first catch-sequence row *at the leg's start*: everything before it —
+> the hover move, the descent's own wait and the whole pre-pose — is simply
+> absent, and the `descent` label it does print names the leg's end.
 
 That is why P93 wrote "its source is open". The instrument covers it.
 
@@ -103,8 +104,9 @@ Three facts, all measured on the same ticks:
    be commanded by anything — it is a contact displacing the pads. The left arm's
    **own** close on its own pear is much later (its `[cycle]` has
    `prepose=0.71 hover=0.75 descent=3.05`, its descent starts at 20.475 s).
-2. **The left hand is 2 mm from the fruit's surface at that tick**, with the pad's
-   along-belt offset `-16 mm` — i.e. the pads are *beside* the fruit, not above it.
+2. **The left hand's pad is 2 mm from the fruit's surface at that tick**, and the
+   pad is **16 mm downstream of the fruit's centre** in `y` — i.e. it is *beside*
+   the fruit in the belt direction, so the fruit runs into it.
    (The pad *point* is a ±5 mm indicator: the finger plates are angled at a 98 mm
    span, which is why §5 uses the *span displacement*, not the gap, as the verdict.)
 3. **The active (right) hand is 160-190 mm away** at those ticks, at its hover
@@ -178,14 +180,15 @@ penetration depth, i.e. the fruit's own `x` against the hand's fixed pre-pose `x
 ## 4. Why a struck fruit fails: the aim is stale, not the grip
 
 The hover latches the grip point (`_dynamic_grip_target`) from the fruit's
-position **at the hover**, and the descent is a static, open-loop leg
-(`intercept=-0.0828`, the same 88 commanded samples in every cell). Between the
-strike and the leg's start the fruit moves from `x = 0.273` (the latched value) to
-`0.245`, and over the 88-tick leg to `0.202` — **43 mm sideways** — while `y`
-travels 63 mm instead of the 88 mm the schedule prices. The catch-up then starts
-28-43 mm off a 6 mm tolerance, lands the pads *on* the fruit (58.15 N after 5
-ticks, span 99.1 mm frozen at 88.3 mm), drives it down through the belt
-(`z 1.198 → 0.818`) and the attempt ends `never_held`
+position **at the hover** (t ≈ 14.9, `x = 0.273`), and the descent is a static,
+open-loop leg (`intercept=-0.0828`, the same 88 commanded samples in every cell).
+By the leg's start the strike has carried the fruit to `x = 0.245` (**28 mm** off
+the latched aim) and by the leg's end to `0.202` (**71 mm**, i.e. 43 mm of drift
+during the leg alone), while `y` travels 63 mm against the 88 mm the schedule
+prices. The pads then come down 28-71 mm off-centre and close **on** the fruit
+instead of around it (58.15 N after 5 ticks, span 99.1 mm frozen at 88.3 mm),
+drive it down through the belt (`z 1.198 → 0.818`) and the attempt ends
+`never_held`
 (`force@onset = 0.00 N`, `contacts@onset = 0`, `notes=['fruit did not follow the
 gripper']`). The chain is the record's own `logs/p93/diag.txt` §1a/§1a'; what this
 phase adds is **what started it**.

@@ -128,9 +128,10 @@ four within 6 mm exactly **one** displaces the pads (**1 contact / 40**, inside 
 4-5/40 contact band; the other three are zero-impulse grazes - seed-5 attempt 16
 passes at 0.0 mm with `|v|` exactly 0.120, spin 0.0, `sep` 98.0 throughout). **Why
 it costs the attempt**: the hover latches the grip point (`_dynamic_grip_target`)
-and the descent is static and open-loop, so the strike's 43 mm of lateral drift
-against a **6 mm** catch-up tolerance puts the pads *on* the fruit (`58.15 N` after
-5 ticks, span 99.1 mm frozen at 88.3), drives it down through the belt
+and the descent is static and open-loop, so the strike's **28 mm** lateral offset
+at the leg's start (43 mm of drift during the leg) against a **6 mm** catch-up
+tolerance puts the pads *on* the fruit (`58.15 N` after 5 ticks, span 99.1 mm
+frozen at 88.3), drives it down through the belt
 (`z 1.198 -> 0.818`) and the class ends `never_held`
 (`force@onset = 0.00 N`, `contacts@onset = 0`). **The fix is a clearance pre-pose**
 (pads clear the band, `jaw_z >= belt_top + 0.155`; the left station has no such
