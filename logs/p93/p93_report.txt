@@ -1,0 +1,82 @@
+========================================================================================================
+P93 - the re-entry: the supply band's top, four seeds (PREREG logs/p93/PREREG.md)
+========================================================================================================
+
+## 0 the manipulation (PREREG section 2: the build row and the delivered x)
+  seed arm   supply lateral row   n     min     p50     max  >0.36  >=0.39
+  5    C              0.20-0.36  20  0.1998  0.2861  0.3908      4       1
+  5    T              0.20-0.33  20  0.1781  0.2872  0.3616      1       0
+  6    C              0.20-0.36  20  0.2055  0.2994  0.3597      0       0
+  6    T              0.20-0.33  20  0.2051  0.2941  0.3622      1       0
+  101  C              0.20-0.36  20  0.2048  0.3009  0.3541      0       0
+  101  T              0.20-0.33  19  0.2229  0.2896  0.3173      0       0
+  202  C              0.20-0.36  20  0.1702  0.2902  0.3606      1       0
+  202  T              0.20-0.33  20  0.1708  0.2461  0.3404      0       0
+
+## 1 the class census (PREREG section 3; primary = the never-held class)
+  seed arm att placed  cnp never other div starve  s/att
+  5    C    20     16    2     2     0   1     45   9.50
+  5    T    20     18    2     0     0   0     36   9.50
+  6    C    20     12    7     1     0   1     37   9.10
+  6    T    20     18    1     1     0   0     20   9.30
+  101  C    20     15    5     0     0   0     25   9.20
+  101  T    20     14    6     0     0   1     23   9.50
+  202  C    20     15    3     2     0   1     27   9.00
+  202  T    20     15    4     1     0   0     51   9.70
+
+  pooled control   : 58/80 placed (4 cells); cnp 17, never-held 5
+  pooled treatment : 65/80 placed (4 cells); cnp 13, never-held 2
+
+## 2 the per-seed ledger (the class clause and the count clause)
+  seed  never C->T   placed C->T   cnp C->T   chase C->T  class / count / guard
+  5       2 -> 0      16 -> 18      2 -> 2       5 -> 2     class PASS / count PASS / cnp PASS
+  6       1 -> 1      12 -> 18      7 -> 1       8 -> 4     class PASS / count PASS / cnp PASS
+  101     0 -> 0      15 -> 14      5 -> 6       6 -> 5     class PASS / count FAIL / cnp FAIL
+  202     2 -> 1      15 -> 15      3 -> 4       6 -> 5     class PASS / count PASS / cnp FAIL
+
+## 3 the delivered side (read, never the decision's basis)
+  seed arm pooled int    p90  L int  R int win/min batch/min  wall s placed/min wall
+  5    C        10.59  17.80  19.30  26.02    5.66      5.05   330.1            2.91
+  5    T        10.13  16.80  19.13  21.64    5.92      5.66   342.4            3.15
+  6    C        11.08  17.60  24.38  18.26    5.41      3.94   304.0            2.37
+  6    T         9.84  15.50  18.59  19.47    6.10      5.81   322.9            3.35
+  101  C        12.16  22.50  21.11  28.15    4.93      4.87   334.6            2.69
+  101  T        13.28  18.60  21.93  28.77    4.52      4.44   326.8            2.57
+  202  C        11.53  18.90  25.55  22.76    5.20      4.98   310.1            2.90
+  202  T        12.51  20.20  19.36  35.02    4.80      4.62   330.6            2.72
+
+## 4 guards (PREREG section 4)
+  G2 landing C5   : 16 payload-present releases, on belt 16/16 (PASS)
+  G2 landing T5   : 18 payload-present releases, on belt 18/18 (PASS)
+  G2 landing C6   : 12 payload-present releases, on belt 12/12 (PASS)
+  G2 landing T6   : 18 payload-present releases, on belt 18/18 (PASS)
+  G2 landing C101 : 15 payload-present releases, on belt 15/15 (PASS)
+  G2 landing T101 : 14 payload-present releases, on belt 14/14 (PASS)
+  G2 landing C202 : 15 payload-present releases, on belt 15/15 (PASS)
+  G2 landing T202 : 15 payload-present releases, on belt 15/15 (PASS)
+  G3 budgets C5   : 20 descent legs, 0 over budget (PASS) | fingerprint DIFFERS (recorded, not gated)
+  G3 budgets T5   : 20 descent legs, 0 over budget (PASS) | fingerprint DIFFERS (recorded, not gated)
+  G3 budgets C6   : 20 descent legs, 1 over budget (FAIL) | fingerprint DIFFERS (recorded, not gated)
+      12   5.9c      93   0.164   0.160     4.32  0.036   0.57   0.68    2.33  FAIL |v|max>0.160 (profile x1.1) (rough)
+  G3 budgets T6   : 20 descent legs, 1 over budget (FAIL) | fingerprint DIFFERS (recorded, not gated)
+      1   5.6c      88   0.222   0.161     8.34  0.069   0.97   0.52    4.44  FAIL |v|max>0.161 (profile x1.1) (rough)
+  G3 budgets C101 : 20 descent legs, 1 over budget (FAIL) | fingerprint n/a (recorded, not gated)
+      9   5.5c      87   0.224   0.160     7.96  0.066   1.14   0.61    4.78  FAIL |v|max>0.160 (profile x1.1) (rough)
+  G3 budgets T101 : 20 descent legs, 0 over budget (PASS) | fingerprint n/a (recorded, not gated)
+  G3 budgets C202 : 20 descent legs, 0 over budget (PASS) | fingerprint n/a (recorded, not gated)
+  G3 budgets T202 : 20 descent legs, 1 over budget (FAIL) | fingerprint n/a (recorded, not gated)
+      14   5.8c      91   0.183   0.161    17.41  0.145   0.53   0.58    6.43  FAIL |v|max>0.161 (profile x1.1) (rough)
+  G5 the control replays its P91 record (seed 5): 1033/1033 identical (modulo a profile row's origin label) (PASS)
+  G5 the control replays its P91 record (seed 6): 970/970 identical (modulo a profile row's origin label) (PASS)
+  G5 seeds 101/202: a fresh seed has no record to replay (P84's rule) - read as its own cell, stated not invented
+  G6 attempts: 8/8 cells at 20 attempts PASS
+    C5 diversion: peach index=12 after 2
+    C6 diversion: peach index=0 after 2
+    T101 diversion: lychee index=6 after 2
+    C202 diversion: kiwi index=2 after 2
+
+## 5 the verdict (PREREG section 5, applied to the numbers above)
+  1 class: pooled never-held 5 -> 2 (PASS), per seed [(5, 2, 0), (6, 1, 1), (101, 0, 0), (202, 2, 1)] (PASS)
+  2 count: pooled placed 58 -> 65 (FAIL)
+  3 guards: G2 PASS | G1 cnp per seed FAIL | G3 read in section 4 | G5/G6 above | G7/G8 external (selfcheck, accept, 211)
+  -> NOT ADOPTED

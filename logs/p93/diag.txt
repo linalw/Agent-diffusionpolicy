@@ -1,0 +1,65 @@
+====================================================================================================
+P93 DIAGNOSTICS - seed 6 attempt 0, the right arm's first kiwi (PREREG logs/p93/PREREG.md section 1)
+====================================================================================================
+
+## D6C: right fail, 948 trace rows
+   phases: descent=1, catchup=200, close=168, hold=24, grip=1, takeoff_probe=120, takeoff=54, carry=380
+
+## D6T: right fail, 786 trace rows
+   phases: descent=1, catchup=200, close=168, hold=24, grip=1, takeoff_probe=120, takeoff=54, carry=218
+
+## 1a  leg 1: the descent's own numbers, and the state either side
+   cell   |v|max  budget  a_win5     end  fruit dz over leg  fruit dy over leg  F at +1 tick  n    sep
+   D6C     0.108   0.161    1.31   10.6m             +2.0mm            -63.3mm        41.80N  1  0.095
+         leg 733 ms, 88 commanded samples; fruit velocity at the leg's start = (-0.253, -0.125, +0.034) m/s  (belt 0.12 m/s along -y)
+         tip-fruit at the leg's start: (+23.3, -100.3, +62.7) mm;  at the first tick after it: (+66.7, -36.8, +15.5) mm
+   D6T     0.222   0.161    4.44   58.9m             -0.9mm            -90.3mm        71.13N  2  0.097
+         leg 733 ms, 88 commanded samples; fruit velocity at the leg's start = (-0.113, -0.262, -0.013) m/s  (belt 0.12 m/s along -y)
+         tip-fruit at the leg's start: (+10.0, -100.1, +64.1) mm;  at the first tick after it: (+60.1, -29.9, +37.1) mm
+
+## 1a' the catch-up after the leg: where the payload goes
+   cell  min fruit_z final fruit_z  max |vz|   max F    sep range residual (log)
+   D6C        0.8182        0.8182     2.664  211.41 0.010-0.101       480.6 mm
+   D6T        0.0052        0.0396     4.644  323.73 0.075-0.102      1169.1 mm
+   (the two-line belt top is z = 1.195 m; a payload below it has left the line, not been carried)
+
+## 1b  the 419 N leg: is `|offset|` a tool offset or the fruit's distance?
+   logged            |offset| = 1313 mm   offset(tool frame) = (+0.5991, +0.2437, +1.1432)
+   commanded jaw target is |centre - jaw_target| = 1313 mm from the measured pads (centre=[0.1986, -0.518, 1.2467], jaw_target=[-0.2838, -1.0006, 2.3689])
+   clause (ii)  the commanded TCP sits > 0.5 m from the pads: PASS
+   carry row: contacts@onset=1.0, sep@onset=46.6 mm, dia=61.6 mm, force@onset=23.2 N, fmax=419.25 N
+   clause (iii) the pads are on the payload at the leg's start: PASS
+   the catch-up's last row: tip-fruit = (-327.0, -57.8, +1132.0) mm  |.| = 1180 mm
+   clause (i)   the hand's own tool scale is 70 mm (`_pad_standoff`) and every other leg of the batch reads 20-62 mm; this one reads 1313 mm = 18.8x, and the payload is 1180 mm from the fingertip at the catch-up's end - so it is the payload's distance from the tool, not a tool offset: PASS
+   measured tool offsets on every other leg of the batch: 20-62 mm (`[diag] carry-assist ... |offset|=`)
+   the code path: `_gripper_offset[side] = rot.T @ (spawner.position(sample) - tcp_position())` (tasks.py:11047), applied only in `_carry`'s incoherent branch as `centre - rot @ offset_tool` (tasks.py:5361-5366), which - unlike the coherent branch (:5331) and the place loop (:6079) - does not consult `hand_is_jaw`.
+
+## the reading (PREREG sections 1a-1c)
+   1a  the leg's target is fixed and open-loop (`intercept=-0.0831`, 88
+       commanded samples in both cells), so a *chase* is excluded by
+       construction: there is no moving target in the leg. The leg's
+       `end=` 58.9 mm sits INSIDE the record's documented 40-90 mm
+       boundary shortfall, and over the leg itself the payload moves
+       90 mm at 0.123 m/s = exactly the belt speed - the leg does not
+       displace it. What it does is ARRIVE ON it: the first tick after
+       the leg reads 71 N over 2 contacts with the pads' span already
+       closing on a 62 mm fruit. The 1.19 m the payload then travels is
+       the catch-up's: the pads shrink the span 97 -> 76 mm around it
+       and the fruit is driven DOWN through the belt (z 1.197 -> 0.032).
+       The control does the same thing at the same attempt (41.8 N at
+       the leg's end, z 1.202 -> 0.818, 480.6 mm residual). So the
+       excursion is a JAM ONSET, not a chase -> not a systematic cost.
+   1b  all three pre-registered clauses pass: |offset| = the payload's
+       distance from the tool (1132 mm of it in -z), the commanded TCP
+       is 1313 mm from the pads, and the pads are on the payload at the
+       leg's start. -> ARTIFACT with a physical consequence: the 419 N /
+       1.545 m/s leg is the arm flying to a stale target, not a payload
+       event, and not a cost of the band.
+   1c  both flags are present in the SAME-SEED CONTROL (480.6 mm / 41.8 N
+       / z 0.818) and the treatment's amplitude is larger on one seed
+       only. The pre-registered monotonicity test needs two seeds; one
+       seed cannot supply it -> branch artifact, per PREREG 1c.
+       The per-instance witness for 'branch, not band': the delivered x
+       at attempt 0 is 0.2507 (T) against 0.2447 (C) - the treatment's
+       fruit sits 6 mm FURTHER OUT, i.e. a per-instance release offset,
+       not the band's mapping (which compresses x by 0.8125).
