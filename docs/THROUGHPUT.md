@@ -446,6 +446,60 @@ The transferable number: **`jaw_achieved = target - residual`**, so a clearance
 target set exactly at the invariant achieves *below* it (P95's `0.155` lands at
 0.149-0.152). Any future station-depth work must budget the solve's 6 mm.
 
+## The candidate-planning lane (P99): measured, no lever — the wait is not the interval
+
+The owner's question — *can the fruit planning between the feeder and the arms
+raise efficiency, because the inter-placement interval looks long?* — was
+censused on the shipped tree at two seeds (`logs/p99/CENSUS.md`,
+`logs/p99/RESULTS.md`; the census cells replay `logs/p94/{T5,T6}.log` **974/974**
+and **970/970**, so the instrument is neutral and the branch is the shipped one).
+
+**The wait split, per attempt slot.** Seed 5 (17/20, interval **9.38 s**):
+park-gate 0.03, **park-motion 2.47**, feed 0.27, **starved polls 0.17**; seed 6
+(12/20, **11.08 s**): 0.82 / 2.69 / 0.25 / **0.86**. The slot-loop wait is the
+**park return and the feed gap, not fruit**; starvation is 0.9 % and 3.9 % of the
+interval, and the 6-poll batch prime is a further 0.17 s/placement.
+
+**The candidate read.** The belt is stocked (7 live fruits at the decision
+instant) and the arm still has nothing its own grade can catch in **12/32** and
+**37/57** decisions, with ~2.5 fruits already *inside* the catch floor. The pick
+is a **forced choice** (`window <= 1` on **37 of 40** selections), and the
+**delay-aware headroom is 0.000 s on 40/40** — the shipped rule already takes the
+nearest own-grade fruit above the floor. Own lane empty while a cross-lane fruit
+was catchable: 10/32 and **35/57**.
+
+**Convertible seconds, pooled (29 placements, 10.2 s mean interval):** (i)
+cross-lane in-attempt arrival **1.258 s/placement (12.3 %)**, (i') cross-lane
+in-chain polls **0.603 (5.9 %)**, (ii) delay-aware **0.000**, (iii) joint /
+park-gate **0.531 (5.2 %)**. Candidate planning is (i)+(i') = **1.862
+s/placement = 18.2 %** — and it is **all cross-lane**, i.e. a fruit of the other
+arm's grade. Left arm = lane 0 = grade A and right = lane 1 = grade B, the place
+is `run(state, bin_index)` with the arm's own lane, so a cross-lane pick is a
+**sort error**, not a routing semantics switch.
+
+**Priced with the shipped `FRUIT_GRADE_ROUTING=0`** at both seeds: starvation
+**36 → 0** polls, the arrival wait **1.62 → 0.67 s**, `window <= 1` 19/20 →
+5/20 — and the **interval is worse at both seeds** (9.38 → 10.01, +6.8 %; 11.08
+→ 11.66, +5.3 %), the **placement-window rate worse at both** (6.40 → 5.99, 5.42
+→ 5.15), the **batch span better at both** (181.1 → 174.3, 182.6 → 166.9), the
+count a draw (29 → 30 of 40), the **park gate 0.03 → 0.62 s/attempt** (both arms
+never idle, so their station dwells collide), **17/40 fruit mis-sorted**, and
+seed 6 loses 2 payloads upstream.
+
+**The read rule this phase adds: the wait is not the interval.** Removing ~1.4 s
+per attempt of pure fruit wait took **0.57 s off the per-attempt cycle and 0.64 s
+onto the interval**, because the interval is the *sequencing* of two overlapped
+arms — seed 5 bunches its placements in pairs (4.5 / 1.8 / 0.4 s between the two
+arms, then 16-18 s), the fallback spreads them (p50 13.00 → 11.70 s). One arm's
+wait is often the slack the other arm's sweep needs, so **a starvation count is
+not a throughput number**: quote the interval *and* both rates *and* the arm
+split before calling a wait convertible.
+
+**What is left in this lane:** the **park return** — 2.5 s of motion per attempt,
+~13 % of the interval, the largest single dead term — is a return-path object,
+not a planning one; its pose and scheduling levers (P43, W2/W3, P69/P90) all
+closed, and the untried form is a ready pose on the station side of the body.
+
 ## The read rules (they bind the next rate claim)
 
 1. **Quote both denominators and the wall column.** The placement window and the
@@ -521,6 +575,14 @@ target set exactly at the invariant achieves *below* it (P95's `0.155` lands at
 
 ## What is left
 
+* **The candidate planning is closed (P99, measured, no lever).** The interval is
+  not a wait: 18.2 % of it is convertible in principle and all of that is
+  cross-lane, i.e. a sort error; the pick is a forced choice (`window <= 1` on
+  37/40), the delay-aware form is already shipped (0.000 s on 40/40), and
+  switching the fallback on deletes the starvation and costs 5-7 % of interval
+  plus 17/40 mis-sorts. **The next object in this lane is the park return**
+  (2.5 s/attempt, ~13 % of the interval), a return-path change, not a selector.
+  See "The candidate-planning lane (P99)".
 * **The two-line is the default (P85, done).** The clock (1.87x) and the wall
   (1.55x) are both measured and both ship now; the collector and every store are
   re-baselined (`collection.biarm_resolved` / `..._defaulted` tell a post-flip

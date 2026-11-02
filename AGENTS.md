@@ -57,6 +57,73 @@ phase's record, and `FRUIT_BIARM_PREPOSE_CLEAR=1` reproduces the arm.** Gates:
 **`a6d4add1`**, `scripts/selfcheck.sh` **`5937b461`**; refs **`30fb99f8`** /
 **`30fb99f8`** / `8952c320`; ckpt `moe_v13s` `61da390a`. Evidence `logs/p98/`.
 
+**P99 (2026-11-02) answers the owner's candidate-planning question with a census
+and builds nothing: the wait is not the interval, and the one mechanism above
+the 0.5 s/placement bar is cross-lane, i.e. a sort error.** The owner asked
+whether the fruit planning between the feeder and the arms can raise efficiency,
+because the interval looks long; the record's priors (R3's arrival-bound lead,
+P58/P59's 0/42 starved rounds, P80's 44 starved polls with 0 lost slots) said no,
+so the phase pre-registered its decision rule (`logs/p99/PREREG.md` md5
+`0acc5692`, pinned before any cell was read) and censused first. **The
+instrument is one reporting block** - `FRUIT_BED_DIAG=2` adds, from the same
+`diag` list `select_target` already fills, the decision's **selector floor** and
+**one row per live fruit** (`idx/grade/along/x/z/r` + the first refusing
+predicate); `=1`/unset are byte-unchanged and no control path gains a read. The
+attempt end and the park split are P84's `FRUIT_BIARM_PARK_TRACE=1`. **Both
+census cells replay their same-seed P94 record byte for byte** (`C5` =
+`logs/p94/T5.log` **974/974**, `C6` = `T6` **970/970** `[fruit]` lines, the
+instrument's rows dropped), so the P98 revert resolves off here *and* the
+instrument moves nothing; the derived interval reproduces **9.37 / 11.08 /
+10.59** (P94 §5) and **10.77** (`logs/p84/D5.log`) to the digit. **The wait
+split per attempt slot**: seed 5 park-gate **0.03**, park-motion **2.47**, feed
+**0.27**, starved polls **0.17** (dead 2.94, span 15.08, interval **9.38**);
+seed 6 0.82 / 2.69 / 0.25 / **0.86** (dead 4.62, span 13.72, **11.08**) - so the
+slot-loop wait is the **park return and the feed gap, not fruit** (starvation
+0.9 % and 3.9 % of the interval; the 6-poll **batch prime** is a separate 0.17
+s/placement). **The candidate read is the answer**: the belt is stocked (**7
+live** fruits at the decision instant) and the arm still has nothing its own
+grade can catch in **12/32** and **37/57** decisions, with ~2.5 of those fruits
+already *inside* the catch floor; `window <= 1` on **37 of 40** selections, so
+the pick is a **forced choice**; own lane empty while a cross-lane fruit was
+at/above the floor on **10/32** and **35/57**; and the **delay-aware headroom is
+0.000 s on 40/40** (the shipped rule already takes the nearest own-grade fruit,
+`tasks.py:8111-8115`). **Convertible seconds**, pooled over 29 placements and a
+10.2 s mean interval: **(i) cross-lane in-attempt arrival 1.258 s/placement
+(12.3 %)**, **(i') cross-lane in-chain polls 0.603 (5.9 %)**, **(ii)
+delay-aware 0.000**, **(iii) joint/park-gate 0.531 (5.2 %)** - candidate
+planning **(i)+(i') = 1.862 s/placement = 18.2 %**, and the whole of it is
+cross-lane, which the PREREG had registered as the special case because **left =
+lane 0 = grade A and right = lane 1 = grade B**: the place is
+`run(state, bin_index)` with the arm's own lane, so a cross-lane pick is a sort
+error (`tasks.py:11688`), not a semantics switch. **Priced anyway with the
+shipped `FRUIT_GRADE_ROUTING=0`** at both seeds: **starvation 37 -> 0** polls,
+**arrival wait 1.62 -> 0.67 s**, `window <= 1` 19/20 -> 5/20, **park gate 0.03
+-> 0.62 s/attempt** (both arms never idle, so the station dwells collide - the
+constraint the starvation was absorbing), **interval 9.38 -> 10.01 (+6.8 %) and
+11.08 -> 11.66 (+5.3 %)**, **window rate worse at both** (6.40 -> 5.99, 5.42 ->
+5.15) while the **batch span is better at both** (181.1 -> 174.3, 182.6 ->
+166.9), the count a draw (29 -> 30 of 40), **17/40 fruit mis-sorted**, and seed 6
+loses 2 payloads upstream (`release_bottom = -184 mm`). **The transferable
+sentence: the wait is not the interval** - ~1.4 s/attempt of pure fruit wait
+removed took **0.57 s off the cycle and 0.64 s onto the interval**, because the
+interval is the *sequencing* of two overlapped arms (seed 5 bunches placements in
+pairs, 4.5/1.8/0.4 s apart then 16-18 s; the fallback spreads them, p50 13.00 ->
+11.70, mean 9.38 -> 10.01) - one arm's wait is often the slack the other arm's
+sweep needs. **No lever, no default change, `configs/` untouched** (`30fb99f8` /
+`30fb99f8` / `8952c320` stand): the 18.2 % is the **price of grade-pure
+routing**, spendable only by a workstation change (a diverter or a second bin per
+arm), and if it is ever wanted its price is measured here. The named open item is
+the **park return** (2.5 s/attempt, ~13 % of the interval), a return-path object.
+Guards: landing **17/17**, **12/12**, G5 **17/17**, G6 **13/13** payload-present (15
+rows, 2 upstream losses); grade ledger 0/40 vs 17/40; budgets are P94's own (census cells
+byte-identical) and `105 --min-success-rate 0.0` **PASS** on the moved pricing
+branch; `selfcheck.sh` **PASS (0 failures, 1 skipped)**; the acceptance is
+**inert** (`8/10`, `fingerprint: matches`, stream identical to
+`logs/p98/accept_revert.log`). Pins: `tasks.py` **`7c1386e9`**,
+`rl_env.py` `TASKS_MD5` follow, `logs/p99/{census.py,p99_report.py,run_p99.sh,
+run_p99_grade.sh}`; ckpt `moe_v13s` `61da390a`. Evidence `logs/p99/`.
+
+
 > **Reverted by P98 (2026-11-02).** The paragraph below is the record of the
 > phase that shipped this flip for one phase; `logs/p98/` takes it back out and
 > `FRUIT_BIARM_PREPOSE_CLEAR=1` restores the arm it describes. Its numbers stand
@@ -5006,6 +5073,7 @@ p93_report.py,p93_report.txt,run_p93.sh,gates.sh,header.txt}`, the cells
 | simulator behaviour, scene, gripper, conveyor | `scripts/accept.sh`, then `scripts/demo_2min.sh` |
 | the supply schedule (`fruits.py`, `bed.py`) | `python3 scripts/211_bed_audit.py`, then `scripts/selfcheck.sh` |
 | a **supply-geometry** change (the lateral band `FRUIT_SUPPLY_X_MIN/MAX`, the release schedule, a station/column move) | the **census first**, offline: `python3 logs/p92/census.py` and `python3 logs/p92/chase.py` name the class you are trying to move and the servo's `closed > 0` signature (`logs/p92/CENSUS.md`); then the **manipulation check** - `x` is one `uniform(x_min, x_max)` draw and no code branches on it, so the *planned* band is proved by the `[supply] lateral x=` row and the *delivered* x is a **distribution** (plan + a per-instance offset: `0.36 -> 0.3908` at the top), never a bound; then 20 attempts x **>= 2 seeds, of which at least two must be FRESH** (P93: two seeds reuse the same two control branches and over-state the gain - the band's `28 -> 36` became `58/80 -> 65/80` at four, with the two fresh controls reading 15/20 twice against seed 6's 12/20) with the class counts (`cnp` / never-held / chase) as the primary, **both denominators + the wall** as the rest, `bash logs/p92/gates.sh` (**budgets only** - every 20-attempt two-line reference in the tree predates P87's release clock, so any post-P87 cell reads `fingerprint: DIFFERS` by construction; the control proof is the line-identity replay against `logs/p91/{C5,C6}.log`), `python3 scripts/211_bed_audit.py`, and `scripts/accept.sh` |
+| a **candidate-planning / selector** change on the two-line (`select_target`'s lane rules, `_dynamic_select_floor`, the `FRUIT_GRADE_ROUTING` fallback, a prefetch/prepared/reservation path) | **the census first, offline**: `python3 logs/p99/census.py <cell>.log` + `python3 logs/p99/p99_report.py` read the per-slot wait split (park-gate / park-motion / feed / starved polls), the per-decision candidate set and the **convertible seconds per mechanism** (`FRUIT_BED_DIAG=2` + `FRUIT_BIARM_PARK_TRACE=1` on the census cell; prove the instrument neutral by replaying the same-seed record with its rows dropped - `census.py --same`, P99's `974/974` / `970/970`). **A wait is not a throughput number**: quote the interval, both rates and the arm split before calling one convertible, and read the *mechanism* columns, which are branch-free - `window <= 1` (a forced choice), the delay-aware headroom (0.000 s on the shipped two-line, so "take the nearest" is already shipped), `own-lane-empty-while-cross-lane-present`, and the park-gate time (the overlap's price, not a fruit wait). **A cross-lane rule is a sort error on this cell** (left = lane 0 = grade A, right = lane 1 = grade B, `run(state, bin_index)` places on the arm's own lane), so price it with `FRUIT_GRADE_ROUTING=0` and report the **grade-purity ledger**, never as a free lever - P99: starvation 37 -> 0, arrival wait 1.62 -> 0.67 s, **interval +6.8 % / +5.3 % at the two seeds**, window rate worse at both, 17/40 mis-sorted |
 | the bimanual scheduler (`bimanual.py`, or the task loop under `FRUIT_BIARM=1`) | `scripts/selfcheck.sh` (the 152 leg), the rate batch (`scripts/153_biarm_rates.sh two-line 5`; `shared` and `single` are the other two modes), then `scripts/accept.sh` (it gates whatever session it ran) |
 | the **shipped scheduler default** (`bimanual.resolve_biarm`/`resolve_twoline`, `tasks.bimanual_enabled`/`two_line_enabled`, the supply package's `two_line=` scope, `scripts/accept.sh`'s gate branch) | `scripts/selfcheck.sh` (the `246` leg: the resolver table, the session scope, the entry wiring, the manifest keys, the accept branch), then **both restores** - `FRUIT_BIARM=0` at ten attempts against `configs/motion_reference_single.json` and a `FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=0` smoke - then a 20-attempt default rate run compared line-for-line with the pre-flip record (drop only `[fruit] [carry]`, `[fruit] [diag] carry-assist` and the `[biarm] scheduler:` banner; `logs/p85/p85_report.py --same-with-diag`, template `logs/p85/RESULTS.md`), then `scripts/accept.sh` and `scripts/demo_2min.sh` |
 | the arbiter / main-thread bridge (`bimanual.py` `TickRelay`, `MainBridge`, `CoopSession`), or anything that claims a **wall** speedup on the two-line | `scripts/selfcheck.sh` (the 152 leg), then **the same cell twice** (knob unset vs set) with `logs/p80/stamp.py` and require the `[fruit]` stream to be **byte-identical** (`python3 logs/p82/p82_report.py --same <control.log> <cell.log>`) - a scheduler change must not move the physics - plus `scripts/190_twoline_gate.sh` on the cell (its own reference for its own attempt count) and one `FRUIT_BIARM=1` pair for the shared-station consumer; read the wall with `logs/p82/p82_ab.py` and quote **wall/sim**, `wall/pick` and `placed/min wall` against the single arm at **>= 2 seeds** (`logs/p82/RESULTS.md` §4-§6). The arbiter's idle is measured by `logs/p82/timers.py`; do not add per-tick timers to `ik_step` (AGENTS §2) |

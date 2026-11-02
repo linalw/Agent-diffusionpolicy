@@ -23660,3 +23660,109 @@ gates.sh,gates.out,run_p98.sh,p98_check.txt,accept_stage.log,gates_stage.log}`
 and the cells `accept_revert.{log,out}`, `accept_clear1.{log,out,budgets}`,
 `gate_accept_{revert,clear1}.txt`, `G1.same`, `G3.same`, `G4.253`,
 `selfcheck.log`, `bed_audit.log`, `index_audit.log`, `merge_test.log`.
+
+## P99 (2026-11-02): the candidate planning is not the lever - the wait is not the interval
+
+The owner asked whether the **fruit planning between the feeder and the arms**
+can raise efficiency, because the inter-placement interval "looks long". The
+record's priors said no (`logs/w8/R3_RESULTS.md`: the adaptive selection lead is
+bit-identical because the shipped 1.5 s floor *is* the measured setup;
+`logs/p58`/`logs/p59`: 0/42 starved feed rounds; `logs/p80`: 44 starved polls,
+0 lost slots), so the phase was a **census first**, with a pre-registered
+decision rule (`logs/p99/PREREG.md`, md5 `0acc5692`, pinned before any cell was
+read) so the answer could not be written after the fact.
+
+**The instrument is one reporting block.** The shipped records print the slot
+chain but not the attempt's end, and `[bed-sel]` (`FRUIT_BED_DIAG=1`) prints
+only counts. `FRUIT_BED_DIAG=2` now prints, from the same `diag` list
+`select_target` already fills, the **selector floor** of that decision and **one
+row per live fruit** (`idx/grade/along/x/z/r` + the first refusing predicate);
+`=1` and unset are byte-unchanged and no control path gains a read. The attempt
+end and the park split come from the existing `FRUIT_BIARM_PARK_TRACE=1`
+(P84 proved it neutral).
+
+**Two proofs before a number was quoted.** Both census cells replay their
+same-seed P94 record with the instrument's rows dropped: **C5 = `logs/p94/T5.log`
+974/974** and **C6 = `logs/p94/T6.log` 970/970** `[fruit]` lines - so P98's
+revert resolves off on this cell *and* ~500 `[bed-sel]` rows plus 120 park rows
+move nothing (a 1-attempt smoke pair had read 78/78 first). The derivation
+reproduces every published interval to the digit: **9.37 / 11.08 / 10.59**
+(P94 §5) and **10.77** (`logs/p84/D5.log`, P80), with the park split a fixed
+**2.5 s** of motion + **0.25 s** feed and every gap closing to ±0.05 s.
+
+**The wait split (per attempt slot).** Seed 5 (17/20, interval **9.38**):
+park-gate **0.03**, park-motion **2.47**, feed **0.27**, starved polls
+**0.17**, dead 2.94, span 15.08. Seed 6 (12/20, **11.08**): 0.82 / 2.69 / 0.25 /
+**0.86**, dead 4.62, span 13.72. So the slot-loop wait is the **park return and
+the feed gap, not fruit**: starvation is 0.9 % and 3.9 % of the interval. Two
+populations that must never be pooled: the **batch prime** (6 polls before each
+arm's first attempt, 3.0 s once per batch = 0.17 s/placement) and the in-chain
+polls (6 and 31).
+
+**The candidate read, which is what the question was.** The belt is *stocked*
+(7 live fruits at the decision instant) and the arm still has nothing its own
+grade can catch in **12/32** and **37/57** decisions; ~2.5 of those fruits are
+already *inside the catch floor*, i.e. they will be past the pick point when the
+1.5 s setup ends. `window <= 1` on **37 of 40** selections - when the arm has a
+candidate there is exactly one, so **there is no choice to optimise**. Own lane
+empty while a cross-lane fruit was at/above the floor: **10/32** and **35/57**
+(61 % at seed 6). **Delay-aware headroom: 0.000 s on 40/40** - the shipped
+two-line rule already takes the nearest own-grade fruit above the floor
+(`tasks.py:8111-8115`), verified rather than assumed.
+
+**The convertible seconds, and the decision they force.** Pooled over 29
+placements and a 10.2 s mean interval: **(i) cross-lane in-attempt arrival
+1.258 s/placement (12.3 %)**, **(i') cross-lane in-chain polls 0.603 (5.9 %)**,
+**(ii) delay-aware 0.000**, **(iii) joint/park-gate 0.531 (5.2 %)**. The
+candidate-planning total **(i)+(i') = 1.862 s/placement = 18.2 %** - and the
+whole of it is **cross-lane**, which PREREG §3 had already registered as the
+special case: left arm = lane 0 = grade A, right arm = lane 1 = grade B, the
+place is `run(state, bin_index)` with the arm's own lane, so a cross-lane pick
+is a **sort error**, not a semantics switch (`tasks.py:11688`: "the arm cannot
+change lanes mid-attempt ... the sort error is recorded").
+
+**It was still priced, with the shipped knob.** `FRUIT_GRADE_ROUTING=0` (the V2
+any-grade fallback) at both seeds, same instrumentation: **starvation 37 -> 0**
+polls, **arrival wait 1.62 -> 0.67 s**, `window <= 1` 19/20 -> 5/20, **park gate
+0.03 -> 0.62 s/attempt** (both arms never idle, so their station dwells collide
+- the constraint the shipped starvation was *absorbing*), **interval 9.38 ->
+10.01 (+6.8 %) and 11.08 -> 11.66 (+5.3 %)**, **window rate worse at both**
+(6.40 -> 5.99, 5.42 -> 5.15), **batch span better at both** (181.1 -> 174.3,
+182.6 -> 166.9), count a draw (29 -> 30 of 40), **17/40 fruit mis-sorted**, and
+seed 6 loses 2 payloads upstream (`release_bottom = -184 mm`, the stranding
+class). **The transferable sentence: the wait is not the interval.** ~1.4 s per
+attempt of pure fruit wait removed took **0.57 s off the per-attempt cycle and
+0.64 s onto the interval**, because the interval is the *sequencing* of two
+overlapped arms: seed 5's placements bunch in pairs (4.5 / 1.8 / 0.4 s between
+the arms, then 16-18 s), the fallback's are evenly spread (p50 13.00 -> 11.70,
+mean 9.38 -> 10.01). One arm's wait is often the slack the other arm's sweep
+needs.
+
+**Verdict: no lever, no default change, `configs/` untouched**
+(`30fb99f8` / `30fb99f8` / `8952c320` all stand). The 18.2 % is the **price of
+grade-pure routing**, spendable only by changing the workstation (a diverter or
+a second bin per arm), not by planning - and if it is ever wanted, its price is
+measured here: +5-7 % of interval and 42 % mis-sorts on a count that is a draw.
+The named open item is the **park return** (2.5 s/attempt, ~13 % of the
+interval): a return-path/clearance object, whose pose/scheduling levers (P43,
+W2/W3, P69/P90) all closed, and whose untried form is a ready pose on the
+station side of the body.
+
+Guards: landing **17/17** and **12/12** in the census cells (belt index = arm),
+G5 **17/17**, G6 **13/13** payload-present (15 release rows, the other 2 `release_bottom = -184 mm`, reported separately);
+grade ledger 0/40 cross-lane in the census cells and 17/40 in the pricing arms;
+motion budgets are P94's own (the census cells are byte-identical to those
+records) and the pricing cells are a moved branch where
+`105 --min-success-rate 0.0` reads **PASS** on both; `scripts/selfcheck.sh`
+**PASS, 0 failures, 1 skipped**; and the **acceptance is inert**: `scripts/accept.sh`
+reads **8/10, 9.0 s/attempt, `fingerprint: matches configs/motion_reference.json`,
+`190: PASS`** with its **420/420** `[fruit]` lines byte-identical to
+`logs/p98/accept_revert.log` (`logs/p99/accept_noharm{,_sim}.log`), so the
+diag-only change moves nothing on the scripted path and both references stand.
+Pins: `tasks.py` **`7c1386e9`** (P98's `6ce29b56` + the `=2` block, +17/-1),
+`rl_env.py` `TASKS_MD5` metadata-only follow, `logs/p99/{census.py,
+p99_report.py,run_p99.sh,run_p99_grade.sh,PREREG.md}`; tree `13726ca`; ckpt
+`moe_v13s` `61da390a`. Evidence `logs/p99/{CENSUS.md,RESULTS.md,PREREG.md,
+PREREG.md5,census.py,census.txt,p99_report.py,p99_report.txt,run_p99.sh,
+run_p99_grade.sh,slots_C5.csv,slots_C6.csv,header.txt}`, cells
+`{C5,C6,G5,G6}.{log,stamps,driver}`.

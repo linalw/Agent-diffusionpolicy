@@ -7834,6 +7834,29 @@ class PickAndPlaceTask:
             f"refused={int(stats.get('bed_refused', 0))} "
             f"placed={int(stats.get('bed_placed', 0))}"
         )
+        if os.environ.get("FRUIT_BED_DIAG", "0") != "2":
+            return
+        # P99: the per-fruit candidate set of this one decision, with the
+        # selector floor it was judged against. Pure reporting on the same list
+        # `select_target(diag=...)` already filled - no articulation read, no
+        # state, and printed only when the caller asked for `=2`.
+        lead_min, lead_over = self._biarm_lead_args(arm)
+        station = float(self.station_y_for(arm))
+        floor = station + self._dynamic_select_floor(lead_min, lead_over)
+        say(
+            f"[bed-sel]   arm={arm} t={now:.2f} floor={floor:+.3f} "
+            f"station={station:+.3f} v={abs(self._belt_speed_estimate()):.3f} "
+            f"belt_top={self.belt_top:.3f} "
+            f"pure={int(self._pure_grade_routing())} "
+            f"prot={sorted(int(i) for i in self.spawner.protected_indices)}"
+        )
+        for row in rows:
+            say(
+                f"[bed-sel]   arm={arm} idx={row['index']} grade={row['grade']} "
+                f"{row['category']:<10s} along={row['along']:+.3f} "
+                f"x={row['x']:.3f} z={row['z']:.3f} r={0.5 * row['dia']:.3f} "
+                f"-> {row['reason']}"
+            )
 
     def select_target(
         self, states: list[dict], lead_time: float = 0.0, lane: int | None = None,
@@ -9633,9 +9656,14 @@ class PickAndPlaceTask:
                             # `_biarm_bed_census` prints the one-line count the
                             # P32 phase C had no two-line source for. The list
                             # is only allocated when the env is on.
+                            # `=2` (P99) is the same list plus one row per live
+                            # fruit with its own `along`/`grade`, i.e. the
+                            # candidate set a slot's decision saw - the census
+                            # that answers "was there a fruit this arm could have
+                            # taken under a different assignment".
                             diag = (
                                 []
-                                if os.environ.get("FRUIT_BED_DIAG", "0") == "1"
+                                if os.environ.get("FRUIT_BED_DIAG", "0") in ("1", "2")
                                 else None
                             )
                             state = self.select_target(
