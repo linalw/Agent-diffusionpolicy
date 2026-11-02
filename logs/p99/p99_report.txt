@@ -1,0 +1,47 @@
+
+== the shipped default (the census cells)
+cell    ok   L/R interval    p90   armL   armR  dead  gate  park  feed  poll   span polls
+C5      17  9/8      9.38  17.90  18.19  21.13  2.94  0.03  2.47  0.27  0.17  15.08     6
+C6      12  6/6     11.08  17.60  24.37  18.28  4.62  0.82  2.69  0.25  0.86  13.72    31
+
+== the candidate read (per decision, both arms) -- seconds per PLACEMENT
+cell   dec  star  cross  win<=1  arr_w    (i) (i-prime)   (ii)  (iii)    sum  prime  %int
+C5      32    12     10  19/20    1.62  1.154     0.147  0.000  0.035  1.337  0.147  14.3
+C6      57    37     35  18/20    1.49  1.406     1.250  0.000  1.233  3.889  0.208  35.1
+pool                                    1.258     0.603  0.000  0.531  2.393  0.172
+   (i) cross-lane in-attempt arrival = 1.258 s/placement; (i-prime) in-chain starved polls with a cross-lane fruit = 0.603; (ii) delay-aware = 0.000; (iii) joint / park-gate = 0.531
+   candidate planning total (i)+(i-prime) = 1.862 s/placement = 18.2% of the mean interval
+   batch-prime polls of the same kind: 5.0s once per batch = 0.172 s/placement
+
+== the pricing A/B (G = FRUIT_GRADE_ROUTING=0)
+cell    ok   L/R interval    p90   armL   armR  dead  gate  park  feed  poll   span polls
+C5      17  9/8      9.38  17.90  18.19  21.13  2.94  0.03  2.47  0.27  0.17  15.08     6
+C6      12  6/6     11.08  17.60  24.37  18.28  4.62  0.82  2.69  0.25  0.86  13.72    31
+G5      17 10/7     10.01  16.70  17.52  25.67  3.39  0.62  2.52  0.26  0.00  14.06     0
+G6      13  5/8     11.66  16.03  21.60  19.64  3.29  0.54  2.49  0.26  0.00  12.97     0
+
+== the delivered side, both denominators + the wall
+cell   ok    sim    span interval window/m batch/m    wall wall/m wall/pick
+C5     17  181.1   150.0     9.38     6.40    5.63   358.6   2.84      21.1
+G5     17  174.3   160.2    10.01     5.99    5.85   343.4   2.97      20.2
+C6     12  182.6   121.8    11.08     5.42    3.94   336.9   2.14      28.1
+G6     13  166.9   139.9    11.66     5.15    4.67   318.9   2.45      24.5
+
+== the cross-lane price
+seed  arm placed interval   armL   armR  dead polls cross-lane
+   5    C     17     9.38  18.19  21.13  2.94     6    0/20   
+   5    G     17    10.01  17.52  25.67  3.39     0    9/20   
+   6    C     12    11.08  24.37  18.28  4.62    31    0/20   
+   6    G     13    11.66  21.60  19.64  3.29     0    8/20   
+   seed 5: interval 9.38 -> 10.01 (+0.64s, +6.8%), placed 17 -> 17, sort errors 9
+   seed 6: interval 11.08 -> 11.66 (+0.58s, +5.3%), placed 12 -> 13, sort errors 8
+== admissibility
+   C5 vs logs/p94/T5.log: 974/974 [fruit] lines, IDENTICAL
+   C6 vs logs/p94/T6.log: 970/970 [fruit] lines, IDENTICAL
+   C5: cross-lane fruit 0/20 (pure routing -> 0)
+   C6: cross-lane fruit 0/20 (pure routing -> 0)
+   C5: landing 17/17 payload-present releases placed on a belt (17 release rows)
+   C6: landing 12/12 payload-present releases placed on a belt (12 release rows)
+   G5: landing 17/17 payload-present releases placed on a belt (17 release rows)
+   G6: landing 13/13 payload-present releases placed on a belt (15 release rows)
+   PASS

@@ -1,0 +1,108 @@
+
+== logs/p99/C5.log
+   attempts=20 placed=17 grasped=17 interval mean=  9.38s p50= 13.00 p90= 17.90 n=17
+   per-arm interval: left mean= 18.19s (n=9)  right mean= 21.13s (n=8)
+   left: starved polls outside the chain: batch-prime=6 tail=0
+   [A] slot wait split (seconds, per attempt slot)
+       arm   slots polls   gate   park   feed   poll   dead  cycle
+       left      9     5   0.00   2.49   0.28   0.28   3.04  15.01
+       right     9     1   0.07   2.46   0.27   0.06   2.84  15.16
+       all      18     6   0.03   2.47   0.27   0.17   2.94  15.08
+       per-attempt dead time (gate+park+feed+polls) = 2.94s; per placement with 2 arms = 1.47s = 15.7% of the 9.38s interval
+       of which starvation (polls) = 0.17s/attempt = 0.08s/placement = 0.9% of the interval
+   [D] grade-purity ledger  left: A=10 B=0 C=0 cross-lane=0/10 | right: A=0 B=10 C=0 cross-lane=0/10
+   [B] candidate read over 32 decisions
+       decisions=32 starved=12 own-lane-empty-but-cross-lane-present=10 cross-lane-arrives-sooner=24
+       rows refused by a non-grade, non-floor predicate (below belt / output belt / too big)=58; own-or-cross rows inside the catch floor=75
+       left  decisions=21 starved=11 cross_only=10 cross_earlier=17 own_gap_s_sum=  7.992
+       right decisions=11 starved=1 cross_only=0 cross_earlier=7 own_gap_s_sum= 11.633
+       delay-aware headroom (nearest own-lane minus chosen): n=20 mean=+0.000s max=+0.000s (0 = the rule already takes the nearest)
+       selections with window<=1 (a forced choice): 19/20
+       arrival wait (along_chosen-floor)/v: n=20 mean=1.62s total=32.4s (p91's block audit: 2.17 s/attempt)
+   [C] convertible seconds
+       (i)  cross-lane, in-attempt arrival:     19.62s = 1.154s/placement
+       (i') in-chain starved polls with a cross-lane fruit at/above the floor: 5 = 2.50s = 0.147s/placement (batch-prime polls of the same kind: 5 = 2.5s once per batch)
+       (ii) delay-aware (nearest vs chosen):     0.00s = 0.000s/placement
+       (iii) joint / park-gate wait:             0.60s over 18 attempt slots = 0.033s/attempt = 0.035s/placement
+       TOTAL = 22.73s = 1.337s/placement = 15.2% of the placed span
+
+== logs/p99/C6.log
+   attempts=20 placed=12 grasped=19 interval mean= 11.08s p50= 11.53 p90= 17.60 n=12
+   per-arm interval: left mean= 24.37s (n=6)  right mean= 18.28s (n=6)
+   left: starved polls outside the chain: batch-prime=6 tail=0
+   [A] slot wait split (seconds, per attempt slot)
+       arm   slots polls   gate   park   feed   poll   dead  cycle
+       left     10    16   0.00   2.46   0.25   0.80   3.51  13.46
+       right     8    15   1.85   2.97   0.25   0.94   6.01  14.04
+       all      18    31   0.82   2.69   0.25   0.86   4.62  13.72
+       per-attempt dead time (gate+park+feed+polls) = 4.62s; per placement with 2 arms = 2.31s = 20.9% of the 11.08s interval
+       of which starvation (polls) = 0.86s/attempt = 0.43s/placement = 3.9% of the interval
+   [D] grade-purity ledger  left: A=11 B=0 C=0 cross-lane=0/11 | right: A=0 B=9 C=0 cross-lane=0/9
+   [B] candidate read over 57 decisions
+       decisions=57 starved=37 own-lane-empty-but-cross-lane-present=35 cross-lane-arrives-sooner=49
+       rows refused by a non-grade, non-floor predicate (below belt / output belt / too big)=97; own-or-cross rows inside the catch floor=154
+       left  decisions=33 starved=22 cross_only=21 cross_earlier=30 own_gap_s_sum= 10.483
+       right decisions=24 starved=15 cross_only=14 cross_earlier=19 own_gap_s_sum=  6.383
+       delay-aware headroom (nearest own-lane minus chosen): n=20 mean=+0.000s max=+0.000s (0 = the rule already takes the nearest)
+       selections with window<=1 (a forced choice): 18/20
+       arrival wait (along_chosen-floor)/v: n=20 mean=1.49s total=29.9s (p91's block audit: 2.17 s/attempt)
+   [C] convertible seconds
+       (i)  cross-lane, in-attempt arrival:     16.87s = 1.406s/placement
+       (i') in-chain starved polls with a cross-lane fruit at/above the floor: 30 = 15.00s = 1.250s/placement (batch-prime polls of the same kind: 5 = 2.5s once per batch)
+       (ii) delay-aware (nearest vs chosen):     0.00s = 0.000s/placement
+       (iii) joint / park-gate wait:            15.10s over 18 attempt slots = 0.839s/attempt = 1.258s/placement
+       TOTAL = 46.97s = 3.914s/placement = 38.6% of the placed span
+
+== logs/p99/G5.log
+   attempts=20 placed=17 grasped=17 interval mean= 10.01s p50= 11.70 p90= 16.70 n=17
+   per-arm interval: left mean= 17.52s (n=10)  right mean= 25.67s (n=7)
+   left: starved polls outside the chain: batch-prime=1 tail=0
+   [A] slot wait split (seconds, per attempt slot)
+       arm   slots polls   gate   park   feed   poll   dead  cycle
+       left      9     0   0.00   2.52   0.26   0.00   2.78  14.87
+       right     9     0   1.23   2.51   0.26   0.00   4.00  13.24
+       all      18     0   0.62   2.52   0.26   0.00   3.39  14.06
+       per-attempt dead time (gate+park+feed+polls) = 3.39s; per placement with 2 arms = 1.69s = 16.9% of the 10.01s interval
+       of which starvation (polls) = 0.00s/attempt = 0.00s/placement = 0.0% of the interval
+   [D] grade-purity ledger  left: A=6 B=1 C=3 cross-lane=4/10 | right: A=3 B=5 C=2 cross-lane=5/10
+   [B] candidate read over 21 decisions
+       decisions=21 starved=1 own-lane-empty-but-cross-lane-present=8 cross-lane-arrives-sooner=10
+       rows refused by a non-grade, non-floor predicate (below belt / output belt / too big)=41; own-or-cross rows inside the catch floor=32
+       left  decisions=11 starved=1 cross_only=4 cross_earlier=4 own_gap_s_sum=  0.000
+       right decisions=10 starved=0 cross_only=4 cross_earlier=6 own_gap_s_sum=  4.775
+       delay-aware headroom (nearest own-lane minus chosen): n=12 mean=+0.137s max=+1.642s (0 = the rule already takes the nearest)
+       selections with window<=1 (a forced choice): 5/20
+       arrival wait (along_chosen-floor)/v: n=20 mean=0.67s total=13.3s (p91's block audit: 2.17 s/attempt)
+   [C] convertible seconds
+       (i)  cross-lane, in-attempt arrival:      3.13s = 0.184s/placement
+       (i') in-chain starved polls with a cross-lane fruit at/above the floor: 0 = 0.00s = 0.000s/placement (batch-prime polls of the same kind: 0 = 0.0s once per batch)
+       (ii) delay-aware (nearest vs chosen):     1.64s = 0.097s/placement
+       (iii) joint / park-gate wait:            13.20s over 18 attempt slots = 0.733s/attempt = 0.776s/placement
+       TOTAL = 17.98s = 1.057s/placement = 11.2% of the placed span
+
+== logs/p99/G6.log
+   attempts=20 placed=13 grasped=18 interval mean= 11.66s p50= 12.30 p90= 16.03 n=13
+   per-arm interval: left mean= 21.60s (n=5)  right mean= 19.64s (n=8)
+   left: starved polls outside the chain: batch-prime=1 tail=0
+   [A] slot wait split (seconds, per attempt slot)
+       arm   slots polls   gate   park   feed   poll   dead  cycle
+       left      9     0   0.34   2.49   0.26   0.00   3.09  12.31
+       right     9     0   0.73   2.50   0.26   0.00   3.49  13.63
+       all      18     0   0.54   2.49   0.26   0.00   3.29  12.97
+       per-attempt dead time (gate+park+feed+polls) = 3.29s; per placement with 2 arms = 1.64s = 14.1% of the 11.66s interval
+       of which starvation (polls) = 0.00s/attempt = 0.00s/placement = 0.0% of the interval
+   [D] grade-purity ledger  left: A=5 B=1 C=4 cross-lane=5/10 | right: A=2 B=7 C=1 cross-lane=3/10
+   [B] candidate read over 21 decisions
+       decisions=21 starved=1 own-lane-empty-but-cross-lane-present=7 cross-lane-arrives-sooner=11
+       rows refused by a non-grade, non-floor predicate (below belt / output belt / too big)=49; own-or-cross rows inside the catch floor=35
+       left  decisions=11 starved=1 cross_only=5 cross_earlier=6 own_gap_s_sum=  0.800
+       right decisions=10 starved=0 cross_only=2 cross_earlier=5 own_gap_s_sum=  3.442
+       delay-aware headroom (nearest own-lane minus chosen): n=13 mean=+0.058s max=+0.758s (0 = the rule already takes the nearest)
+       selections with window<=1 (a forced choice): 4/20
+       arrival wait (along_chosen-floor)/v: n=20 mean=0.74s total=14.8s (p91's block audit: 2.17 s/attempt)
+   [C] convertible seconds
+       (i)  cross-lane, in-attempt arrival:      3.48s = 0.268s/placement
+       (i') in-chain starved polls with a cross-lane fruit at/above the floor: 0 = 0.00s = 0.000s/placement (batch-prime polls of the same kind: 0 = 0.0s once per batch)
+       (ii) delay-aware (nearest vs chosen):     0.76s = 0.058s/placement
+       (iii) joint / park-gate wait:             9.70s over 18 attempt slots = 0.539s/attempt = 0.746s/placement
+       TOTAL = 13.94s = 1.072s/placement = 10.0% of the placed span
