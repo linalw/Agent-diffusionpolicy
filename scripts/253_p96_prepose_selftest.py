@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""P96/P97 selftest: the **clearance pre-pose** is a two-line-scoped shipped default.
+"""P96/P97/P98 selftest: the **clearance pre-pose** is a two-line-scoped opt-in cell.
 
     python3 scripts/253_p96_prepose_selftest.py
 
@@ -12,17 +12,18 @@ its pads end 29 mm below a fruit's top) and the pre-pose blend therefore sweeps
 *through* the fruit band on every attempt, while the stations are ordered so a
 **right**-arm fruit must cross the **left** station: 1 pad contact in 40
 attempts, 5/19 right-arm attempts inside 6.4 mm. P96 built one solve height and
-measured it; **P97 ships it as the two-line session's default** (the owner's
-invariant decision: the count was a draw, the geometry is the argument). This leg
-pins:
+measured it; P97 shipped it as the two-line session's default for one phase;
+**P98 reverted that flip** (the shipped acceptance sat at its 0.60 floor -
+6/10 against the pre-flip 8/10 - and the gain was never a rate) - so the cell is
+an **opt-in** again (`FRUIT_BIARM_PREPOSE_CLEAR=1` arms P96's measured pose).
+This leg pins:
 
 1. **The resolver table.** Unset + no two-line session is `scope-off`; unset +
-   two-line is `PREPOSE_CLEAR_TWO_LINE_DEFAULT` (**True since P97**, i.e. the
-   measured P96 clearance arm at the same z/hold); `=0` is the pre-P96 path
-   explicitly (bit for bit, and the shipped acceptance's own `=0` A/B); `=1` is
-   on explicitly; the height band `[0.155, 0.25]` raises outside itself (a
-   "clearance" pose below the invariant only looks configured), and so does an
-   unknown hold mode.
+   two-line follows `PREPOSE_CLEAR_TWO_LINE_DEFAULT` (**False since P98**, i.e.
+   the pre-P96 path, origin `explicit` - the pre-P96 label); `=0` is the same
+   path explicitly; `=1` is on at P96's measured arm (z=0.165, hold=calib); the
+   height band `[0.155, 0.25]` raises outside itself (a "clearance" pose below
+   the invariant only looks configured), and so does an unknown hold mode.
 2. **The height arithmetic.** The solve lands its residual **low**, so the
    registered target must be the invariant *plus* the solve tolerance:
    `0.165 - 0.006 = 0.159 >= 0.155` passes, `0.155 - 0.006 = 0.149 < 0.155`
@@ -174,12 +175,12 @@ def count_calls(src: str, attr: str) -> int:
 
 
 def main() -> int:
-    print("P96/P97 - the clearance pre-pose is the two-line session's default")
+    print("P96/P97/P98 - the clearance pre-pose is a two-line-scoped opt-in (P98 reverted P97)")
     print("=" * 78)
 
     # [1] the resolver table ------------------------------------------------ #
-    check(PREPOSE_CLEAR_TWO_LINE_DEFAULT is True,
-          "PREPOSE_CLEAR_TWO_LINE_DEFAULT is True - P97 ships the P96 arm")
+    check(PREPOSE_CLEAR_TWO_LINE_DEFAULT is False,
+          "PREPOSE_CLEAR_TWO_LINE_DEFAULT is False - P98 reverted the P97 flip")
     with cells() as c:
         plain = c.resolution(False)
         check(plain["on"] is False and plain["origin"] == "scope-off",
@@ -189,14 +190,15 @@ def main() -> int:
         check(plain["hold"] == _PREPOSE_CLEAR_HOLD_SHIPPED,
               f"the attitude defaults to `{_PREPOSE_CLEAR_HOLD_SHIPPED}`")
         tl = c.resolution(True)
-        check(tl["on"] is True,
-              "unset inside a two-line session follows the (True) scoped default - P97")
-        check(tl["two_line"] is True and tl["origin"] == "default",
-              "… and says so in `two_line`/`origin` (`default`, not `explicit`)")
+        check(tl["on"] is False,
+              "unset inside a two-line session is OFF - the pre-P96 path is the "
+              "shipped default again (P98)")
+        check(tl["two_line"] is True and tl["origin"] == "explicit",
+              "… and says so in `two_line`/`origin` (the pre-P96 label)")
+        check("z=" not in tl["label"] and tl["label"].endswith("=0(explicit)"),
+              f"… and the label names the off state ({tl['label']})")
         check(tl["z"] == 0.165 and tl["hold"] == "calib",
-              "… at P96's measured arm (z=0.165, hold=calib)")
-        check(tl["label"] == "FRUIT_BIARM_PREPOSE_CLEAR=1(default), z=+0.165, hold=calib",
-              f"the log's label names value, origin, height and hold ({tl['label']})")
+              "… while the armed cell keeps P96's measured arm (z=0.165, hold=calib)")
     with cells(FRUIT_BIARM_PREPOSE_CLEAR="0") as c:
         r = c.resolution(True)
         check(r["on"] is False and r["origin"] == "explicit",
@@ -305,7 +307,7 @@ def main() -> int:
           f"rl_env.TASKS_MD5 == tasks.py ({digest[:8]}) - the direct env can start")
 
     print()
-    print("P96/P97 pre-pose selftest: PASS")
+    print("P96/P97/P98 pre-pose selftest: PASS")
     return 0
 
 

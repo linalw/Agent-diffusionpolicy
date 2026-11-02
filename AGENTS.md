@@ -27,6 +27,41 @@ also call `fruit_sorting.fdlimit.raise_fd_limit()` before creating `SimulationAp
 so invoking `$ISAAC_SIM_DIR/python.sh` directly no longer dies that way; the wrapper
 is still the supported path.
 
+**P98 (2026-11-02) reverts P97: the clearance pre-pose is opt-in again and the
+acceptance returns to 8/10 with `configs/motion_reference.json` = `30fb99f8`.**
+The owner's decision: P97 shipped P96's pose as the two-line default on the
+invariant argument, but the *shipped* acceptance then read **6/10 against its
+0.60 floor** (pre-flip 8/10), the seed-5 sanity cell **12/20 against 17/20** and
+the interval **16.02 s against 10.59 s** - and the gain was never a rate (P96's
+draw 29/40 -> 27/40). A zero-margin gate cannot separate the shipped line from a
+regression, so `PREPOSE_CLEAR_TWO_LINE_DEFAULT` is **False** again: unset +
+two-line resolves off (the pre-P96 path, bit for bit), and
+**`FRUIT_BIARM_PREPOSE_CLEAR=1` still arms P96's measured pose** (z=0.165,
+hold=calib, band `[0.155, 0.25]`) - the resolver/arithmetic, P97's `(two_line)`
+solve wiring and the `253` leg (re-pinned to the reverted table) are unchanged.
+Both two-line-side references are **restored byte-for-byte from the P97
+archives** to **`30fb99f8`** (`configs/motion_reference_single.json` `8952c320`
+untouched). The same-batch acceptance on the reverted tree reads **8/10, 9.0
+s/attempt, `fingerprint: matches` + `190: PASS`** with **419/419** physics lines
+identical to `logs/p94/accept_final.log`, and the `=1` A/B reproduces P97's
+shipped-default arm (**6/10, 9.6 s/attempt**, budgets pass; **457/457** physics
+lines identical to `logs/p97/accept_final.log` with the two pose rows dropped -
+their only change is the origin label; fingerprint **DIFFERS** by construction,
+so it is gated on budgets only). **Nothing else moves.** **Re-baseline: the
+two-line numbers are P97's pre-clearance values again; the P97 paragraph below
+and every P97 store (`collection.prepose_clear=1 / defaulted=true`) are that
+phase's record, and `FRUIT_BIARM_PREPOSE_CLEAR=1` reproduces the arm.** Gates:
+`190` PASS, selfcheck PASS (0 failures, 1 skipped), `211` ok (115 checks),
+`106` OK, `107` PASS (21 checks), `bash logs/p98/gates.sh` rc=0. Pins:
+`tasks.py` **`6ce29b56`**, `rl_env.py` **`82a120fc`**, `scripts/253`
+**`a6d4add1`**, `scripts/selfcheck.sh` **`5937b461`**; refs **`30fb99f8`** /
+**`30fb99f8`** / `8952c320`; ckpt `moe_v13s` `61da390a`. Evidence `logs/p98/`.
+
+> **Reverted by P98 (2026-11-02).** The paragraph below is the record of the
+> phase that shipped this flip for one phase; `logs/p98/` takes it back out and
+> `FRUIT_BIARM_PREPOSE_CLEAR=1` restores the arm it describes. Its numbers stand
+> as that phase's record, not as the shipped tree's.
+
 **P97 (2026-11-02) ships P96's clearance pre-pose as the two-line session's
 default and re-baselines the acceptance a fourth time** (the owner's decision:
 the **invariant** ships, the count is not claimed - it removes an impossible
@@ -243,6 +278,10 @@ cell at `FRUIT_BIARM_PREPOSE_CLEAR=1` with the contact census as the endpoint
 `scripts/253_p96_prepose_selftest.py`, `logs/p96/{PREREG,PREREG_A1,PREREG_A2}.md`
 `bb057405`/`a2e63f60`/`724009a0`; refs `30fb99f8` / `30fb99f8` / `8952c320`;
 ckpt `moe_v13s` `61da390a`.
+
+> **Reverted by P98 (2026-11-02).** The paragraph below is P97's record, not the
+> shipped tree: `logs/p98/` reverts the flip (the shipped acceptance sat on its
+> 0.60 floor), and `FRUIT_BIARM_PREPOSE_CLEAR=1` restores the arm measured here.
 
 **P97 (2026-11-02, `logs/p97/`; the owner's adoption of P96): the clearance
 pre-pose is the two-line session's default - the invariant ships, the count does

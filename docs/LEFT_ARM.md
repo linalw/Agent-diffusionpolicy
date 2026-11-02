@@ -235,6 +235,20 @@ the shard manifest carries `prepose_clear`), rather than a calibrated constant
 with no clearance story - and the shipped default's own census reads **0
 contacts** (`logs/p97/RESULTS.md`).
 
+**P98 (2026-11-02) reverts the default, not the finding.** The clearance pose
+stays the measured fix for the left hand's strike - P96's contact census
+**1/40 -> 0/40** and the pad point **46 mm below -> 20 mm above** the tallest
+fruit's top stand - and it is available as `FRUIT_BIARM_PREPOSE_CLEAR=1`, but
+the shipped **acceptance** ran at **6/10 against its 0.60 floor** (pre-flip
+8/10), the seed-5 cell at **12/20 against 17/20**, and the arm never claimed a
+rate. A gate with zero margin is not a gate, so
+`PREPOSE_CLEAR_TWO_LINE_DEFAULT` returns to **False** and the shipped pre-pose
+is the calibrated grasp configuration again. The reverted acceptance reproduces
+**8/10 + `fingerprint: matches 30fb99f8` + 419/419** physics lines vs
+`logs/p94/accept_final.log`; the `=1` A/B is P97's arm (**6/10**, 457/457 with
+the pose rows dropped, budgets only). This page's remaining sanctions are
+unchanged: a **new pad asset** or a **real-jaw clamp-force anchor**.
+
 ## What is NOT the answer
 
 - **Not the policy**: the loss is in the primitive's grip (the loaded slide), and

@@ -472,7 +472,11 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: `_step_sim`; with the knob unset the hook is one attribute read per tick and
 #: nothing is read, written or measured, so the direct path is unchanged
 #: (`logs/p95/RESULTS.md` section 0 proves it with the scripted stream instead).
-TASKS_MD5 = "e50872637afa1c4e63646a2f99c8a759"
+#: P98 follow is **metadata-only** (the `P97` revert): the clearance pre-pose's
+#: two-line default goes back to False, and this env never constructs a
+#: `CoopSession`, so the resolver reads `scope-off` here in both phases. No
+#: direct/policy behaviour moves.
+TASKS_MD5 = "6ce29b56dbc0e55ee657dc862d750d7d"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(

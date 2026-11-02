@@ -427,6 +427,21 @@ and slightly negative (`prepose` 0.71 s in every cell, `hover` 0.78 -> 0.61 s),
 and **every two-line rate, interval, acceptance and store recorded before P97 is
 a pre-clearance-pre-pose number**.
 
+**P98 (2026-11-02) reverts that flip, and the reason is the gate, not the
+geometry.** The shipped acceptance ran at **6/10 against its 0.60 floor** (the
+pre-flip branch is 8/10), the seed-5 sanity cell **12/20 against 17/20**, the
+interval **16.02 s against 10.59** - and the lane had never claimed a rate
+(P96's draw 29/40 -> 27/40). A zero-margin acceptance cannot separate the
+shipped line from a regression, so the pre-pose is an **opt-in** again
+(`FRUIT_BIARM_PREPOSE_CLEAR=1`); both two-line references are restored to
+`30fb99f8`, the reverted acceptance reads **8/10, 9.0 s/attempt** with
+**419/419** physics lines identical to `logs/p94/accept_final.log`, and the
+`=1` arm is P97's (**6/10**, 457/457 on its physics stream with the pose rows
+dropped, budgets only - its fingerprint differs by construction). **There is no
+throughput claim here either way**: the clearance pose's cost was measured at
+zero (`prepose` 0.71 s unchanged, `hover` **-0.17 s**) and the count is the
+branch draw; what P98 restores is the gate's margin, not a rate.
+
 The transferable number: **`jaw_achieved = target - residual`**, so a clearance
 target set exactly at the invariant achieves *below* it (P95's `0.155` lands at
 0.149-0.152). Any future station-depth work must budget the solve's 6 mm.

@@ -23584,3 +23584,79 @@ census.py,census.txt,run_p97.sh,gates.sh,gates.out,manifest_probe.py,
 manifest_probe.log,shard_manifest.json,shard_index.json}` and the cells
 `accept_{inert_pre_fix,default,twoline_ref,pre97,single,final}.{log,out}`,
 `S5.{log,stamps,budgets,driver}`, `trS5/`.
+
+## P98 (2026-11-02): the P97 revert - the clearance pre-pose is opt-in again, the accept gate gets its margin back
+
+P97 shipped P96's clearance pre-pose as the two-line default as an **invariant**
+fix with no rate claimed. One phase of evidence then showed the cost of that
+choice at the gate: the shipped acceptance read **6/10 against its 0.60 floor**
+(the pre-flip branch is **8/10**), the seed-5 sanity cell **12/20 against
+17/20**, the inter-placement interval **16.02 s against 10.59 s** - and the
+count had never been a gain (P96's two-seed draw **29/40 -> 27/40**). A
+zero-margin acceptance cannot separate the shipped line from a regression, so
+the owner reverted the flip. **The finding stays; the default does not.**
+
+**The flip back is one constant.** `PREPOSE_CLEAR_TWO_LINE_DEFAULT = True ->
+False`; unset + two-line resolves **off** (the pre-P96 path, bit for bit, origin
+`explicit` - the pre-P96 label), and `FRUIT_BIARM_PREPOSE_CLEAR=1` still arms
+P96's measured pose at `belt_top + 0.165`, `hold=calib`, band `[0.155, 0.25]`,
+achieved jaw `+0.160/+0.155`, pad points `+0.079/+0.075`, margins
+`+0.020/+0.013 rad`. Everything else P96/P97 built is untouched: the height
+arithmetic (`jaw_achieved = target - residual`), P97's `(two_line)` solve wiring
+(it is inert with the cell off and is what makes an explicit `=1` correct on the
+first batch), the gated `[biarm] pre-pose` row, the collector's
+`collection.prepose_clear*` keys. The `253` leg's table is re-pinned to the
+reverted default (unset + two-line -> off, label
+`FRUIT_BIARM_PREPOSE_CLEAR=0(explicit)`; `=1` unchanged); `rl_env.TASKS_MD5`
+follows (`e5087263 -> 6ce29b56`, metadata only).
+
+**The references are restored byte-for-byte.** Both two-line-side files were
+re-recorded by P97 from `30fb99f8` to `1490b63e`; P98 copies P97's own archives
+back: `configs/motion_reference.json` and `..._twoline.json` =
+**`30fb99f8`**, verified against `logs/p97/motion_reference{,_twoline}_pre_p97.json`
+before any run. `configs/motion_reference_single.json` `8952c320` was never
+written.
+
+**The reverted acceptance is P94's branch, bit for bit.** `logs/p98/accept_revert.log`
+(10 attempts, no env): **8/10, 9.0 s/attempt, `diverted=0`, sim 89.9 s**;
+**`fingerprint: matches configs/motion_reference.json` = `30fb99f8`**,
+**`190: PASS`**, and its **419/419** physics `[fruit]` lines are byte-identical
+to `logs/p94/accept_final.log` - so the revert is resolution-only by the same
+same-batch proof P97's `=0` A/B used. Motion: 10/10 descents inside budget
+(worst `|v|max` 0.112 against 0.160-0.161, lurch 0.018 against 0.291).
+
+**The `=1` A/B is P97's shipped-default arm.** `logs/p98/accept_clear1.log`:
+**6/10, 9.6 s/attempt, `diverted=1`** (P97's count), 60 % >= the 0.60 floor,
+budgets **PASS** (10/10 descents, worst 0.110), and **457/457** physics lines
+identical to `logs/p97/accept_final.log` once the two `[fruit] [biarm] pre-pose`
+rows are dropped - their only change is the registered origin label
+(`1(default)` -> `1(explicit)`) - same target, achieved jaw/pad, tilt, margin
+and residual. Its fingerprint **DIFFERS** from the restored `30fb99f8` **by
+construction** (that reference is the pre-P97 branch and the clearance arm moves
+every attempt), so it is gated on **budgets only**, never read as a failure.
+**No rate is claimed** in either direction: 8/10 vs 6/10 between two branches is
+the attractor, exactly as P96/P97 recorded.
+
+**Nothing else was run or moved.** The single arm is `scope-off` without a
+`CoopSession` (the `253` leg; the single reference was never written and P97's
+own single run is 346/346 vs P71), no shard/checkpoint/store, no direct/policy
+run, no other default. A post-P98 shard with the env unset writes
+`collection.prepose_clear=0 / defaulted=false / z=0.0` (the pre-clearance path);
+a store with `prepose_clear=1 / defaulted=true` is P97's arm, not this tree's
+default.
+
+Gates: `scripts/accept.sh` **PASS** (8/10 + matches + `190: PASS`);
+`scripts/190_twoline_gate.sh` on it **PASS**; `selfcheck.sh` **PASS, 0 failures,
+1 skipped** (the `253` leg reads the reverted table); `211` **ok (115 checks)**;
+`106` **OK**; `107` **PASS (21 checks)**; `bash logs/p98/gates.sh` **rc=0**
+(G1 419/419 + matches + 190 PASS, G2 both refs `30fb99f8` + single `8952c320`,
+G3 457/457 + 6/10 + the expected DIFFERS, G4 the no-session scope, G5 the one
+constant). Pins: `tasks.py` **`6ce29b56`**, `rl_env.py` **`82a120fc`**,
+`scripts/253_p96_prepose_selftest.py` **`a6d4add1`**, `scripts/selfcheck.sh`
+**`5937b461`**, `logs/p98/PREREG.md` **`135b14f9`**; refs **`30fb99f8`** /
+**`30fb99f8`** / `8952c320`; ckpt `moe_v13s` `61da390a`. Evidence:
+`logs/p98/{RESULTS.md,PREREG.md,PREREG.md5,p98_report.py,p98_report.txt,
+gates.sh,gates.out,run_p98.sh,p98_check.txt,accept_stage.log,gates_stage.log}`
+and the cells `accept_revert.{log,out}`, `accept_clear1.{log,out,budgets}`,
+`gate_accept_{revert,clear1}.txt`, `G1.same`, `G3.same`, `G4.253`,
+`selfcheck.log`, `bed_audit.log`, `index_audit.log`, `merge_test.log`.

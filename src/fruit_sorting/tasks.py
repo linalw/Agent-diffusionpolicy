@@ -439,17 +439,20 @@ def release_speed_resolution(two_line: bool = False) -> dict[str, object]:
     }
 
 
-#: P96/P97: the shipped value of the clearance pre-pose's **two-line-scoped
-#: default**. P97's owner decision ships it (`logs/p97/RESULTS.md`): True = the
-#: resolver resolves **on for a two-line session** and off on every other path
-#: (the P87/P88/P89/P91 pattern), so a run with the env unset holds a pose whose
-#: pad point clears the fruit band; `FRUIT_BIARM_PREPOSE_CLEAR=0` restores the
-#: pre-P96 path bit for bit. P96 measured the arm this default names
-#: (`logs/p96/RESULTS.md`: contacts 1/40 -> 0/40, achieved jaw `belt_top+0.160`
-#: left / `+0.155` right, joint margins +0.020 / +0.013 rad); the count was a
-#: draw, and the invariant is what ships - a hand inside another lane's fruit
-#: band is a defect regardless of its rate (P94's precedent).
-PREPOSE_CLEAR_TWO_LINE_DEFAULT = True
+#: P96/P97/P98: the shipped value of the clearance pre-pose's **two-line-scoped
+#: default**. **False since P98**: P97 shipped it (`logs/p97/RESULTS.md`) as an
+#: invariant fix, and P98 reverted the flip (`logs/p98/RESULTS.md`) because the
+#: *shipped acceptance* sat on its rate floor - it read 6/10 against the 0.60
+#: floor (the pre-flip 8/10), the seed-5 sanity cell 12/20 against 17/20 and the
+#: interval 16.02 s against 10.59 - and the gain was never a rate (P96's count
+#: was the draw 29/40 -> 27/40). False = the knob is the **opt-in**
+#: `FRUIT_BIARM_PREPOSE_CLEAR=1`; the resolver then resolves off for a two-line
+#: session with the env unset (the pre-P96 path, bit for bit), and `=1` still
+#: arms P96's measured pose (contacts 1/40 -> 0/40, achieved jaw
+#: `belt_top+0.160` left / `+0.155` right, joint margins +0.020 / +0.013 rad).
+#: The invariant is real; it is not a default this scenario's acceptance can
+#: carry at its floor.
+PREPOSE_CLEAR_TWO_LINE_DEFAULT = False
 
 #: P96: the clearance pre-pose's solve height above the belt top [m], and its
 #: admissibility band. `0.165` is the phase-0 map's candidate: the position-only
@@ -502,7 +505,7 @@ def prepose_clear_resolution(two_line: bool = False) -> dict[str, object]:
 
     | `FRUIT_BIARM_PREPOSE_CLEAR` | two-line session | resolves |
     | --- | --- | --- |
-    | unset / empty | yes | `PREPOSE_CLEAR_TWO_LINE_DEFAULT` = **True** since P97 (`default`) |
+    | unset / empty | yes | `PREPOSE_CLEAR_TWO_LINE_DEFAULT` = **False** since P98 (`explicit`, the pre-P96 path; `=1` arms the clearance pose) |
     | unset / empty | no | off (`scope-off`) - no two-line station exists |
     | `0`/`off`/`false`/`no` | any | off (`explicit`) - the pre-P96 path, bit for bit |
     | `1`/`on`/`true`/`yes` | any | **on** (`explicit`) |
@@ -8897,9 +8900,10 @@ class PickAndPlaceTask:
         `grasp` seed (the same seed `scripts/174_station_reach.py` uses;
         measured residuals are printed and become part of the run log).
 
-        **P96 - the `clearance pre-pose`** (`FRUIT_BIARM_PREPOSE_CLEAR`, the
-        two-line session's default since P97; `=0` restores this docstring's
-        pre-P96 path, bit for bit). The shipped solve
+        **P96 - the `clearance pre-pose`** (`FRUIT_BIARM_PREPOSE_CLEAR`, an
+        opt-in two-line cell since P98 reverted P97's default; `=1` arms it,
+        unset/`=0` restores this docstring's pre-P96 path, bit for bit). The
+        shipped solve
         targets `belt_top + grasp_clearance`, i.e. the **grasp plane**, and a
         station *on* the pick point skips its solve entirely - so the left arm
         pre-poses to the calibrated `grasp` configuration, whose pads end **29 mm
@@ -8927,7 +8931,9 @@ class PickAndPlaceTask:
         resolved from that decision - reading `two_line_enabled()` here (a
         *session* predicate) reads False on the first batch, which would make
         the shipped default inert. P96's explicit `=1` arm could not see this;
-        the flip's own inertness pass did.
+        the flip's own inertness pass did. P98 reverted the default (not the
+        fix): the wiring stays, the `=1` cell uses it, and the off path is the
+        pre-P96 solve.
         """
         key = (self.station_y_for("left"), self.station_y_for("right"))
         clear = prepose_clear_resolution(two_line)
