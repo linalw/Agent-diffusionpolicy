@@ -4385,6 +4385,77 @@ empty candidate set and rank 3 is the outcome. Pins: `station_map.py` **`edf6f3e
 `scripts/selfcheck.sh` **PASS, 0 failures**. **Re-baseline: none** - nothing was
 shipped and the scripted line never reads a place-station field.
 
+**P91 (2026-11-02, `logs/p91/`; the take-off validation ramp as a two-line-scoped
+tick cell, **default off, NOT adopted**): the audit of the five never-profiled
+`[cycle]` blocks, and the phase's own product, is that they hold **1.08 s = 7.0 %
+of the 15.34 s**, not 57 %.** The owner's question was the **single-pick cycle
+excluding the fruit wait** ("不包含等果时间"), and the five blocks `descent 3.64`,
+`grip 2.36`, `close 1.36`, `hover 0.75`, `prepose 0.71` (**8.82 s**) had never
+been profiled. `logs/p91/AUDIT.md` defines each by its own marks (quoted from
+`_cycle_begin`/`_cycle_mark`, with the emitting code line) and decomposes
+`logs/p87/T5.log`, `logs/p86/C5.log`, `logs/p89/C5.log` into **wait 4.09 s +
+failure tax 0.76 s + arm motion 3.63 s**, leaving **1.08 s speedable**: * **the
+descent is not a descent.** Its block is the **fruit-arrival wait** (2.17 s) plus
+a **scheduled** wait (0.59 s) plus the profiled leg (0.74 s), and the schedule
+makes the block **invariant**: the wait exits when the fruit is
+`speed*(t_desc + FRUIT_DYNAMIC_DESCEND_MARGIN)` away, so
+`block = lead/speed − margin` and **a faster leg just waits longer**. The
+arithmetic agrees from the other side (the 5.5 cm leg is **jerk-bound**: 86 ticks
+at `a_max` 0.8 *and* 1.6; 64 only at `v_max` 0.25 **and** `a_max` 1.6), and the
+measurement agrees from the third (`--schedule`: `t_desc` spans **0.03 s** while
+the block's sd is **8.9 ticks**, so within this cell the leg is not an available
+variable at all). * **the grip is 1.75 s clean / 2.36 s mean**, and its
+bimodality is **P40's tax**: a failed probe costs **+1.53 s**, a burnt cap
+**+2.29 s**, and the mean carries **0.61 s** of it - measured, not sped. Inside
+the clean 210 ticks the **60-tick validation ramp** is the only profile (the
+54-tick belt-break beside it is the P3 anti-shear constant), and it is a **1:1**
+lever: the single-arm 40-tick probe's clean block is **190 ticks** against the
+two-line's **210**, Δ 20 with an identical 150-tick remainder. * **the close is
+catch-up (0.63) + a 22-tick ramp + a 48-tick hold** (direction contested:
+R11-B/P18b measured a *slower* close converting the direct carried class), **the
+hover is `move_to` at the IK step cap** (no profile; R3's residency negative) and
+**the prepose is a tuned 45-tick blend + a 20-tick pump**. So the pick was the
+grip's probe ramp - and **the cell measured the lever exactly and lost anyway**:
+clean `grip` **1.75 → 1.44 s (210 → 173 ticks, −0.31 s against the registered
+−0.300)** at **both** seeds and in both modes (seed 6's cheap re-seat 1.95 →
+1.65), while the **block** mean **rose** (2.36 → 2.58 / 1.98 → 2.37) because the
+**mode mix moved**: first-probe success **14/20 → 5/20** and **18/20 → 9/20**,
+i.e. **the ramp's duration *is* the validation's detection margin** (the grasp
+test is `fruit_z − z_before > 4 mm`; 6 mm/60 ticks leaves 2 mm of slack, 6 mm/24
+ticks does not) **and the force servo's squeeze window** (`..._SQUEEZE_S` = 0.10
+s lives inside the probe). The class moved with it at both seeds -
+`never-grasped` **4 → 6** and **1 → 4**, a new `carried-not-placed` 0 → 3, the
+loaded-slide guard (`force_min == 0`) **4 → 9** and **7 → 11**, and the delivered
+pinch **9.65 → 7.77 N** at seed 6 (**10/18 held legs under the 9.0 N floor**,
+against P41's 9.7-9.9 plateau) - and the delivered side rose at both seeds
+(interval **10.59 → 13.01** and **11.08 → 12.20 s**, window 5.66 → 4.61 / 5.41 →
+4.92 placed/min, `placed/min wall` 2.95 → 2.32 / 2.34 → 2.33), which is
+**P88/P89/the union/the fail-fast for the fourth time**: a 0.30 s block delta is
+not deliverable on this cell. **Nothing shipped**: `PROBE_TWO_LINE_DEFAULT =
+False`, so unset resolves the shipped 60-tick probe on every path; the measured
+arm is `FRUIT_DYNAMIC_PROBE_TICKS=24`; the machinery is the fourth of the
+scoped-resolver family (`tasks.probe_ticks_resolution`, the `[biarm] take-off
+profile:` row, `scene._takeoff_provenance` → `physics.takeoff`, the `250`
+selfcheck leg). Guards that passed (they make the negative readable): **landing
+16/16, 11/11, 12/12, 12/12 `on_belt`**, **catch window** residual median 5.9 mm
+in all four cells / `end=` max 10.6-12.7 mm (bar 25) / grasp 16, 14, 19, 16
+against the 14/20 bar, and the motion budgets clean in all four cells.
+**Recorded deviations**: the `T5` driver-window pairing slipped on 6 adjacent
+rows (|`total − window`| to 6.79 s, arm labels swapping) so the **span is read
+from the cycle `total`**, never from the window; and the **mode-mix change is not
+attributed** (the treatment's descent block is 0.6-0.8 s shorter, i.e. a
+different selection cadence - "the shorter ramp failed more validations" and
+"the re-timed presentation drew harder fruit" are not separated at this N; the
+verdict does not need the separation, P2/P4/P7 fail on the delivered side on
+their own). No reference was re-recorded and none is owed (`423896f7` /
+`8952c320` / `423896f7` untouched). Pins: `tasks.py` **`7ba4bb58`**,
+`rl_env.py` `TASKS_MD5` follow, `scripts/250_p91_probe_scope_selftest.py`,
+`scripts/selfcheck.sh`; ckpt `moe_v13s` `61da390a`. Evidence
+`logs/p91/{AUDIT.md,audit.py,audit.txt,PREREG.md,PREREG.md5,RESULTS.md,
+p91_report.py,p91_report.txt,run_p91.sh,run_p91_extra.sh,gates.sh}`, the cells
+`{C5,T5,C6,T6}.{log,stamps,driver}`, `{C5,T5,C6,T6}.{gate,budgets}`, `N5`,
+`single_accept.*`, `shared_{unset,zero}.*`, `smoke.log`; WORKLOG "P91".
+
 ## 3. What changed -> what to run
 
 | you changed | run |
@@ -4394,6 +4465,7 @@ shipped and the scripted line never reads a place-station field.
 | the **release clock's scoped default** (`tasks.release_speed_resolution`, `speed_cell_defaults(two_line)`, the `[biarm] release profile:` row, `scene._release_provenance`, the manifest's `physics.release`) | `scripts/selfcheck.sh` (the `247` leg: the resolver table - unset/no-scope **is** `_SPEED_SHIPPED` exactly, unset/two-line is the trim, `=0` restores, `=1`/`FRUIT_SPEED_ALL` win globally, `=0` beats the union, the settle is read only when on - the clock arithmetic, the single scoped call site, the row printing only inside `run_bimanual`, and `physics.release` in both writers), then **the replay first**: the same-seed cells must be **byte-identical to the pre-flip record** on the `[fruit]` stream with the phase's rows dropped (`logs/p87/p87_report.py --same`; P87's four cells are 865/865 / 868/868 / 814/814 / 821/821 against P86's), then **the inertness pair** - `FRUIT_BIARM=0 scripts/accept.sh` **raw 346/346** against `logs/p71/accept_rails_none.log` (+ `fingerprint: matches configs/motion_reference_single.json`) and a shared-station `=1 FRUIT_BIARM_TWOLINE=0` pair unset-vs-`=0` compared with `--same` **and** `--profile` (the row's `origin` field legitimately differs; the **clock** must not) - then a 10-attempt shipped acceptance to re-record the two-line references, then `scripts/accept.sh` |
 | the **place cap's scoped cell** (`tasks.place_speed_resolution`, `PLACE_TWO_LINE_DEFAULT`, the `[biarm] place profile:` row, `scene._place_provenance`, the manifest's `physics.place`) | `scripts/selfcheck.sh` (the `248` leg: unset/no-scope **is** `_SPEED_SHIPPED` exactly, unset/two-line is **also** the shipped pair because the default is off, the explicit `=0.52` is the measured arm with its **362 -> 244-tick** clock at the named **0.55 m** reference, the override table, the profile clock reproducing `motion.jerk_limited` in **both** the speed- and acceleration/jerk-limited regimes, both consumers on the session predicate, the row printing only inside `run_bimanual`, and `physics.place` in both writers), then the same replay/inertness shape as the release row (`--same` against the pre-change record, `FRUIT_BIARM=0 scripts/accept.sh` **raw 346/346**, the shared-station `--profile` pair), and read the delivered side on **both denominators**: the interval **is** `window/(n-1)`, so the window rate and the interval are **one statistic** - a place cell that lengthens the placement window reads as a worse interval even with more placements (`logs/p88/RESULTS.md` §3) |
 | the **lift cap's scoped cell** (`tasks.lift_speed_resolution`, `LIFT_TWO_LINE_DEFAULT`, `_LIFT_SCOPED_VMAX` / `_LIFT_REFERENCE_DISTANCE`, the `[biarm] lift profile:` row, `scene._lift_provenance`, the manifest's `physics.lift`) | `scripts/selfcheck.sh` (the `249` leg: unset/no-scope **is** `_SPEED_SHIPPED` exactly, unset/two-line is **also** the shipped pair because the default is off, the explicit `=0.37` is P44's **S3-v** with its **162 -> 136-tick** clock at the named **0.21 m** reference, **`=1`/`FRUIT_SPEED_ALL` keep S3/S13's measured 0.36/1.9** while a `0.37` value means 1.0 however it is written, `..._AMAX` pins the acceleration, the profile clock reproducing `motion.jerk_limited` in both regimes **and the short-leg null below 0.225 m**, both consumers on the session predicate, the row printing only inside `run_bimanual`, and `physics.lift` in both writers), then the P88 shape - `--same` against the pre-change record, `FRUIT_BIARM=0 scripts/accept.sh` **raw 346/346**, the shared-station `--profile` pair, and a fresh unset `N5` replay - and read the block on the **mean plus the per-leg read**, never a median across legs of different lengths (`logs/p89/RESULTS.md` §1) |
+| **any `[cycle]` block** you are about to "speed" (the `descent`/`grip`/`close`/`hover`/`prepose` family, or a per-attempt **tick** constant such as `FRUIT_DYNAMIC_PROBE_TICKS`) | **the audit first, offline** (`python3 logs/p91/audit.py`, `--predict`, `--schedule`, `--grip`): a block is **wait + tax + motion**, and only the motion is a lever - the `descent`'s whole block is `lead/speed − margin` and **cannot move** (a faster leg waits longer; `logs/p91/AUDIT.md` §3), the `grip`'s mean carries P40's probe tax, the `close`'s direction is contested (R11-B), and the `hover`/`prepose` have no profile (an IK step cap and a tuned blend). Then the scoped-resolver shape (`probe_ticks_resolution` is the fourth; the `[biarm] take-off profile:` row + `physics.takeoff`) and the P91 battery: `--blocks` reads **P1b on the clean-mode instance** (the block's deterministic constant), **never the mean**, because a tick trim that makes a *validation* harder moves the **mode mix** against you (P91: clean −0.31 s exact, block mean **+0.23/+0.38**, first-probe success 14/20 → 5/20) - and read the **pinch** (`[carry] force_min`, the P41 9.7-9.9 N plateau) and the loaded-slide guard, because a tick cell can be coupled to a **force** (`logs/p91/RESULTS.md` §2) |
 | docs, or a number's provenance/data size | `python3 scripts/106_index_audit.py` and `python3 scripts/107_collect_merge_test.py` |
 | motion, control, `trajectory` limits, IK | `python3 scripts/96_motion_check.py`, then `scripts/accept.sh` |
 | collection (`40_collect_demos.py`) or merging (`41_merge_demos.py`) | `scripts/107_collect_merge_test.py`, then `python3 scripts/106_index_audit.py` |

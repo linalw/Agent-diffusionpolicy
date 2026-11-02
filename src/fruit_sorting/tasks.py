@@ -157,6 +157,23 @@ NEAREST_ABOVE_FLOOR_SCRIPTED = "0"
 #   and `[biarm] lift profile:` for the row that names it.
 # * `FRUIT_SPEED_ALL=1` (**S13**): all three cells on; an explicit single-cell
 #   value still wins.
+# * `FRUIT_DYNAMIC_PROBE_TICKS` (**P91**, the take-off validation ramp): **not** a
+#   `FRUIT_SPEED_*` cell but a loop count - the probe's 6 mm test lift over
+#   **60** ticks in a two-line session (40 on the single arm). P91's audit of the
+#   five never-profiled `[cycle]` blocks (`logs/p91/AUDIT.md`) found the descent
+#   **schedule-invariant** (its wait exits at `speed*(t_desc+margin)`, so
+#   `block = lead/speed - margin` and a faster leg just waits longer), the hover
+#   and prepose IK-capped transits, and the grip block the largest *speedable*
+#   one - with this ramp the single largest profile in it. **The cell measured
+#   the 1:1 lever exactly (clean probe -0.31 s against -0.30 predicted) and did
+#   NOT ship** (`logs/p91/RESULTS.md`): the mode mix moves against it at both
+#   seeds (first-probe success 14/20 -> 5/20 and 18/20 -> 9/20, i.e. the ramp's
+#   duration *is* the detection margin), the delivered interval rises at both
+#   (`+2.42` / `+1.12` s) and the delivered pinch drops on the second seed
+#   (`force_min` median 9.65 -> 7.77 N, below the 9.0 N floor). `PROBE_TWO_LINE_DEFAULT`
+#   is **False**, so unset resolves the shipped clock on every path;
+#   `probe_ticks_resolution` is the one resolver and `[biarm] take-off profile:`
+#   the row that names it.
 #
 # A cell's value may be its own speed [m/s] (`FRUIT_SPEED_PLACE=0.52`), or
 # `1`/`on`/`true` for the registered value. `0`/unset is off. The default-off
@@ -224,6 +241,89 @@ _LIFT_SCOPED_VMAX = "0.37"
 #: not a transit, but its tick count still depends on the distance the arm
 #: travels, so the reference is named like the place's).
 _LIFT_REFERENCE_DISTANCE = 0.21
+
+#: P91: the take-off **validation ramp** (`FRUIT_DYNAMIC_PROBE_TICKS`), resolved
+#: through `probe_ticks_resolution`. The audit of the five never-profiled
+#: `[cycle]` blocks (`logs/p91/AUDIT.md`) found the grip block to be the largest
+#: *speedable* one of them after the descent's motion was shown to be
+#: **schedule-invariant** (its wait exits at `speed*(t_desc+margin)`, so a faster
+#: leg just waits longer: `block = lead/speed - margin`), and inside the grip the
+#: probe ramp is the single largest profile: **60 ticks of the clean 210**, while
+#: the 54-tick belt-break beside it is the P3 anti-shear constant and is not
+#: touched. The two-line shipped value is 60 (`_dynamic_profile`'s literal) and
+#: the single-arm 40; the cross-check that the knob is a **1:1** lever on the
+#: block is the two records' own difference (single-arm clean grip 1.58 s = 190
+#: ticks with the 40-tick probe against the two-line's 1.75 s = 210 ticks with
+#: 60, `logs/p91/audit.txt`). P91 measured the 24-tick form and the gate's
+#: verdict is in `logs/p91/RESULTS.md`; flipping this constant is the re-entry.
+PROBE_TWO_LINE_DEFAULT = False
+
+#: P91: the cell's value (ticks) and the two shipped values it replaces. A
+#: value equal to `_PROBE_SCOPED_TICKS` resolves `origin="default"` only when the
+#: scope is on; an explicit `FRUIT_DYNAMIC_PROBE_TICKS` always wins and keeps the
+#: knob's pre-P91 meaning on every path.
+_PROBE_SCOPED_TICKS = "24"
+_PROBE_TWO_LINE_TICKS = "60"
+_PROBE_SINGLE_TICKS = "40"
+
+
+def probe_ticks_resolution(two_line: bool = False) -> dict[str, object]:
+    """The resolved **take-off validation ramp** for this session (P91).
+
+    One resolver, three consumers - the probe loop's tick count
+    (`grasp_carry_place`), the `[biarm] take-off profile:` row and the store
+    manifest's `physics.takeoff` block - so a log, a store and a run cannot
+    disagree about the take-off's clock.
+
+    **The scope, and why the site needs one.** `FRUIT_DYNAMIC_PROBE_TICKS` is read
+    at the shared `grasp_carry_place` site, so a *global* default would move the
+    single arm's probe (40), the shared-station pipeline and the hybrid canary -
+    none of which P91 measured. The two-line's own value is already a scoped
+    literal (`_dynamic_profile`'s `"60"`), so the flip is scoped the same way:
+
+    | `FRUIT_DYNAMIC_PROBE_TICKS` | two-line session | resolves |
+    | --- | --- | --- |
+    | unset | yes | `_PROBE_TWO_LINE_TICKS` (60) - or the cell (24) when the flip is on |
+    | unset | no | `_PROBE_SINGLE_TICKS` (40), the shipped single-arm value |
+    | any value | any | that value (`origin="explicit"`) |
+
+    The probe's rate is the *only* thing this moves: `FRUIT_DYNAMIC_PROBE` (the
+    ramp's height, 6 mm in a two-line session) and the belt-break's
+    `FRUIT_DYNAMIC_TAKEOFF_MATCH`/`_TRANS` (the P3 anti-shear clock) are read
+    unchanged, so a run of this cell is a rate-only A/B of the same 6 mm lift.
+    """
+    raw = os.environ.get("FRUIT_DYNAMIC_PROBE_TICKS", "").strip()
+    shipped = _PROBE_TWO_LINE_TICKS if two_line else _PROBE_SINGLE_TICKS
+    if raw:
+        ticks, origin = raw, "explicit"
+    elif two_line and PROBE_TWO_LINE_DEFAULT:
+        ticks, origin = _PROBE_SCOPED_TICKS, "default"
+    else:
+        ticks, origin = shipped, ("two-line" if two_line else "single")
+    try:
+        ticks_i = int(ticks)
+    except (TypeError, ValueError):
+        ticks_i = None
+    try:
+        shipped_i = int(shipped)
+    except (TypeError, ValueError):
+        shipped_i = None
+    saved = (
+        shipped_i - ticks_i
+        if ticks_i is not None and shipped_i is not None
+        else None
+    )
+    return {
+        "on": origin == "default",
+        "origin": origin,
+        "two_line": bool(two_line),
+        "ticks": ticks_i if ticks_i is not None else ticks,
+        "shipped_ticks": shipped_i,
+        "saved_ticks": saved,
+        "probe_lift": os.environ.get("FRUIT_DYNAMIC_PROBE", "").strip()
+        or ("0.006" if two_line else "0.010"),
+        "label": f"FRUIT_DYNAMIC_PROBE_TICKS={ticks}({origin})",
+    }
 
 
 def _speed_cell_value(cell: str, env_name: str) -> str | None:
@@ -8542,6 +8642,21 @@ class PickAndPlaceTask:
             f"({lift['ticks']} ticks at {lift['reference_distance_m']:.2f} m; "
             f"shipped {lift['shipped_ticks']}, saved {lift['saved_ticks']})"
         )
+        #: P91: the **take-off validation ramp** this session runs, the fourth
+        #: name of the same pattern. It is *not* a speed cell (`FRUIT_SPEED_*`)
+        #: but a tick count, so the row names the ticks and the ramp height it
+        #: lifts over; the belt-break clock beside it is the P3 anti-shear
+        #: constant and is not part of this row. Prints only inside a bimanual
+        #: session, so the single arm, the hybrid canary and the direct env stay
+        #: silent and byte-identical.
+        takeoff = probe_ticks_resolution(two_line)
+        say(
+            f"[biarm] take-off profile: {takeoff['label']} "
+            f"scope={'two-line' if two_line else 'shared-station'} "
+            f"probe_lift={takeoff['probe_lift']} "
+            f"({takeoff['ticks']} ticks; shipped {takeoff['shipped_ticks']}, "
+            f"saved {takeoff['saved_ticks']})"
+        )
         #: W3 capture token: on the wave-supply two-line scenario both arms
         #: catch the same burst, and the measured both-hands band collapsed to
         #: 1.9 mm link-origin separation / 710 samples <30 mm
@@ -10780,9 +10895,15 @@ class PickAndPlaceTask:
         regrasp_from_open = (
             self._dynamic_profile("FRUIT_DYNAMIC_REGRASP_FROM_OPEN", "0", "0") == "1"
         )
-        probe_ticks_default = self._dynamic_profile(
-            "FRUIT_DYNAMIC_PROBE_TICKS", "40", "60"
-        )
+        #: P91: the probe's **rate** goes through the one resolver the
+        #: `[biarm] take-off profile:` row and the manifest's `physics.takeoff`
+        #: block also read, so the per-attempt tick count and the recorded one
+        #: cannot disagree. With the cell unset it resolves the pre-P91 values
+        #: exactly (60 in a two-line session, 40 otherwise) and an explicit
+        #: `FRUIT_DYNAMIC_PROBE_TICKS` still wins, so the shipped path is
+        #: byte-identical. The ramp's *height* stays on `_dynamic_profile`.
+        _takeoff = probe_ticks_resolution(self.two_line_enabled())
+        probe_ticks_default = str(_takeoff["ticks"])
         probe_lift_default = self._dynamic_profile(
             "FRUIT_DYNAMIC_PROBE", "0.010", "0.006"
         )

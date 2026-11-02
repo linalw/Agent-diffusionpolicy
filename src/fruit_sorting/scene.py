@@ -489,6 +489,35 @@ def _lift_provenance(two_line: bool = False) -> dict:
     }
 
 
+def _takeoff_provenance(two_line: bool = False) -> dict:
+    """The `physics.takeoff` block (P91): the validation ramp and its origin.
+
+    Pure (`tasks.probe_ticks_resolution`, an env + scope read with no
+    simulator), so it is written before the first episode and cannot fail a
+    build. `ticks` is the probe ramp's **tick count** - the block the cell moves
+    - and `probe_lift` the height it lifts over [m], because a rate without its
+    travel says nothing; `shipped_ticks` is the same session's pre-P91 value (60
+    two-line / 40 single-arm) and `saved_ticks` the difference. `origin` /
+    `two_line` say *why* it resolved that way: `explicit` = a caller's own
+    `FRUIT_DYNAMIC_PROBE_TICKS`, `default` = P91's two-line scope (reachable only
+    if `PROBE_TWO_LINE_DEFAULT` is flipped - see `logs/p91/RESULTS.md`),
+    `two-line` / `single` = the shipped resolution. A manifest without the key
+    predates P91.
+    """
+    from .tasks import probe_ticks_resolution
+
+    takeoff = probe_ticks_resolution(two_line)
+    return {
+        "ticks": takeoff["ticks"],
+        "shipped_ticks": takeoff["shipped_ticks"],
+        "saved_ticks": takeoff["saved_ticks"],
+        "probe_lift": takeoff["probe_lift"],
+        "origin": takeoff["origin"],
+        "two_line": bool(two_line),
+        "label": takeoff["label"],
+    }
+
+
 def finger_physics_provenance(arms: dict | None = None,
                               control_dt: float = 1.0 / 120.0,
                               scope: dict | None = None,
@@ -603,6 +632,14 @@ def finger_physics_provenance(arms: dict | None = None,
         #: resolver's own reference distance and carries that distance beside it.
         #: A manifest without the key predates P89.
         "lift": _lift_provenance(two_line),
+        #: P91: the **take-off validation ramp**. Same one resolver the probe
+        #: loop and the `[biarm] take-off profile:` row read
+        #: (`tasks.probe_ticks_resolution`). It is a tick count, not a speed, so
+        #: the block names the ticks and the ramp height the probe lifts over;
+        #: the belt-break clock (`FRUIT_DYNAMIC_TAKEOFF_MATCH`/`_TRANS`, the P3
+        #: anti-shear constant) is outside this block and unchanged by the cell.
+        #: A manifest without the key predates P91.
+        "takeoff": _takeoff_provenance(two_line),
     }
     if scope:
         #: P78/P79: the **runtime, per-leg** clamp

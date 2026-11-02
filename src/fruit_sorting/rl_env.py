@@ -457,7 +457,12 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: satisfies) and the manifest builder passes `two_line=False`, so the direct
 #: path's release clock is the shipped 20/3/3 unless an explicit
 #: `FRUIT_SPEED_RELEASE`/`FRUIT_SPEED_ALL` says otherwise.
-TASKS_MD5 = "32efa98c20d31d8014db7389a6e7e35e"
+#: P91 follow is **metadata-only** as well: the take-off validation ramp
+#: resolves through `Task.two_line_enabled()` (a `CoopSession` predicate this
+#: env never satisfies) and the manifest builder passes `two_line=False`, so
+#: the direct path keeps its 40-tick probe / 10 mm ramp unless an explicit
+#: `FRUIT_DYNAMIC_PROBE_TICKS`/`FRUIT_DYNAMIC_PROBE` says otherwise.
+TASKS_MD5 = "7ba4bb585f402b8e7e40be340000ff5d"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(

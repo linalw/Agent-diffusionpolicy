@@ -421,6 +421,23 @@ run_check "P88 place scope" "$python" scripts/248_p88_place_scope_selftest.py
 # both scoped consumers, the `[biarm] lift profile:` row printing only inside
 # `run_bimanual`, and `physics.lift` in both manifest writers.
 run_check "P89 lift scope" "$python" scripts/249_p89_lift_scope_selftest.py
+# P91: the **take-off validation ramp** as a two-line-scoped tick cell
+# (`FRUIT_DYNAMIC_PROBE_TICKS` 60 -> 24), measured and NOT shipped. It is not a
+# `FRUIT_SPEED_*` cell but a loop count, and it is the largest genuinely
+# speedable item the P91 audit found among the five never-profiled blocks: the
+# descent is *schedule invariant* (its wait exits at `speed*(t_desc+margin)`, so
+# `block = lead/speed - margin` and a faster leg just waits longer), the hover
+# and prepose are IK-capped transits, and the grip block's 60 of a clean 210
+# ticks is the one real profile left - with the 54-tick belt-break beside it a
+# measured anti-shear constant. The leg runs the real resolver and the real
+# provenance builder: unset is 40 on the single arm and 60 in a two-line session
+# (so the shipped tree is inert - the default is OFF), the cell is 24 ticks
+# (saved 36 = -0.300 s at 120 Hz) in the two-line scope only, an explicit value
+# wins on both scopes, the ramp's *height* is untouched, the probe loop reads the
+# one resolver at the **session** predicate, the `[biarm] take-off profile:` row
+# prints only inside `run_bimanual`, and `physics.takeoff` is in both manifest
+# writers.
+run_check "P91 probe scope" "$python" scripts/250_p91_probe_scope_selftest.py
 
 if [ -n "$run_log" ] && [ -f "$run_log" ]; then
     # P85: the log decides the scenario (and therefore the reference and the
