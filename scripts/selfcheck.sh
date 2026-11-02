@@ -457,6 +457,22 @@ run_check "P91 probe scope" "$python" scripts/250_p91_probe_scope_selftest.py
 # field.
 run_check "P94 offset bound" "$python" scripts/251_p94_offset_selftest.py
 
+# P95 (`FRUIT_FRUIT_TRACE=<max rows>`, off by default): the *selected fruit's*
+# per-tick trace of its whole attempt - the pre-pose blend, the hover move, the
+# descent's own hover wait and the catch - which is the window P93 could not see
+# (`FRUIT_DYNAMIC_TRACE`'s first row *is* the descent leg's start). The row is
+# the fruit's position, linear and angular velocity and every live fruit within
+# 0.15 m; **fruit reads only**, the branch-neutral class of AGENTS section 2,
+# proved by a 970/970 and a 974/974 `[fruit]`-stream replay in `logs/p95`. The
+# opt-in `FRUIT_FRUIT_TRACE_ARM=1` adds each arm's link positions and is the
+# declared branch-moving probe cell; `FRUIT_FRUIT_TRACE_NOOP=1` is the
+# instrument's own no-readback control. The leg runs the real tick body on stubs:
+# the switch table, the one `_step_sim` hook (never inside `ik_step`), the
+# fruit-only default path, the no-op arm returning before any read, the single
+# arming/disarm/flush sites (attempt-local: the two-line runs two attempts on two
+# threads), the row shape, the 0.15 m neighbour filter and the arm gate.
+run_check "P95 fruit trace" "$python" scripts/252_p95_ftrace_selftest.py
+
 if [ -n "$run_log" ] && [ -f "$run_log" ]; then
     # P85: the log decides the scenario (and therefore the reference and the
     # floor), exactly as `scripts/accept.sh` does.

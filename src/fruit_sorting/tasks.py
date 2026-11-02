@@ -1446,6 +1446,17 @@ class PickAndPlaceTask:
             [] if os.environ.get("FRUIT_DYNAMIC_TRACE", "0") == "1" else None
         ),
     )
+    #: P95: this attempt's rows of the **selected fruit's** per-tick state
+    #: (`FRUIT_FRUIT_TRACE=<max rows>`, default off). Unlike `_dynamic_trace`
+    #: this covers the whole attempt - the pre-pose blend, the hover move, the
+    #: descent's own hover wait and the catch - because the P93 open item is a
+    #: disturbance that happens *before* the descent leg, in the window the
+    #: phase-sampled trace cannot see. Armed in `_run_impl`, flushed in
+    #: `note_result`; `None` on every shipped run (one attribute read per tick).
+    _fruit_trace = _AttemptLocal("_fruit_trace")
+    #: The `FruitSample` the armed `_fruit_trace` follows (per attempt thread:
+    #: the two-line runs two attempts at once and `current_sample` is shared).
+    _fruit_trace_sample = _AttemptLocal("_fruit_trace_sample")
     _cycle_marks = _AttemptLocal(
         "_cycle_marks",
         factory=lambda: (
@@ -2271,6 +2282,44 @@ class PickAndPlaceTask:
         self._dynamic_trace_place = (
             os.environ.get("FRUIT_DYNAMIC_TRACE_PLACE", "0") == "1"
         )
+        #: P95: per-tick trace of the *selected fruit* through its whole attempt
+        #: (`FRUIT_FRUIT_TRACE=<max rows per attempt>`, 0 = off). The instrument
+        #: exists to answer where an incoming fruit gets its disturbance (the
+        #: P93/P94 open item): the fruit's position, linear and angular velocity
+        #: and its neighbours within 0.15 m, once per control tick, from the
+        #: attempt's start to its end. **Fruit reads only** - the class of
+        #: readback AGENTS section 2 measures as branch-neutral (WORKLOG
+        #: "Correction: it is the arm-link readback, not reads in general") - so
+        #: a cell that runs it stays on the recorded branch, and this is proved
+        #: by the `[fruit]` stream replay rather than asserted.
+        self._fruit_trace_on = max(
+            0, int(os.environ.get("FRUIT_FRUIT_TRACE", "0") or "0")
+        ) > 0
+        #: Rows kept per attempt (>0 caps; `1` is read as "no cap" so the plain
+        #: `FRUIT_FRUIT_TRACE=1` form means "all ticks").
+        _ftrace_raw = max(0, int(os.environ.get("FRUIT_FRUIT_TRACE", "0") or "0"))
+        self._fruit_trace_limit = 0 if _ftrace_raw == 1 else _ftrace_raw
+        #: **Declared branch-moving** (`FRUIT_FRUIT_TRACE_ARM=1`): add each arm's
+        #: jaw-centre / TCP / finger-link positions to every row. This is the
+        #: articulation-link read of AGENTS section 2, which shifts a run by
+        #: 3-14 s of simulated time and one or two picks, so it is only ever used
+        #: as its own probe cell and never quoted for a rate. The jump's *timing*
+        #: comes from the fruit-only cell; this only says how far the hands were.
+        self._fruit_trace_arm = os.environ.get("FRUIT_FRUIT_TRACE_ARM", "0") == "1"
+        #: Control arm for the instrument question itself: install exactly the
+        #: same per-tick hook and append a placeholder with **no readback**
+        #: (`FRUIT_FRUIT_TRACE_NOOP=1`). If the no-op cell already moves the run,
+        #: the cause is the extra per-tick work; if it does not, the reads are.
+        #: Same A/B shape as `FRUIT_PROXIMITY_TRACE=2` (`logs/451`).
+        self._fruit_trace_noop = os.environ.get("FRUIT_FRUIT_TRACE_NOOP", "0") == "1"
+        if self._fruit_trace_on:
+            say(
+                f"[ftrace] selected-fruit per-tick trace on "
+                f"(FRUIT_FRUIT_TRACE={_ftrace_raw}"
+                f"{', all ticks' if self._fruit_trace_limit == 0 else f', cap {self._fruit_trace_limit}/attempt'}"
+                f"; arm geometry {'ON - this cell moves the branch' if self._fruit_trace_arm else 'off'}"
+                f"; noop={'on' if self._fruit_trace_noop else 'off'})"
+            )
         #: W8-B carry-phase grip-margin guard (default off, direct handover
         #: only - `_carry_guard_active` is set from `direct_capture` in
         #: `_grasp_carry_place_impl`, so the scripted two-line and the shipped
@@ -2904,6 +2953,7 @@ class PickAndPlaceTask:
         (logs/277). Real cells divert such a product to a reject chute.
         """
         self._dynamic_trace_flush(result)
+        self._fruit_trace_flush(result)
         self._force_servo_report(result)
         self._lift_control_report(result)
         self.stats["attempts"] += 1
@@ -3400,6 +3450,15 @@ class PickAndPlaceTask:
             # and the sweep's own tick clock live there. One attribute read per
             # tick when the bed is off (the shipped line).
             self.spawner.scan_despawn(ticks)
+        # P95: the selected fruit's per-tick trace. One attribute read per tick
+        # when off (the shipped line); the hook lives here, never inside
+        # `ik_step`, and it reads fruit bodies only unless
+        # `FRUIT_FRUIT_TRACE_ARM=1` explicitly asks for the declared-moving
+        # arm-link read. See `_fruit_trace_tick`.
+        if self._fruit_trace_on:
+            _ftrace = self._fruit_trace
+            if _ftrace is not None:
+                self._fruit_trace_tick(_ftrace)
         session = self._active_session
         if session is not None and session.after_step is not None:
             # Bimanual bookkeeping runs on the thread that just advanced the
@@ -6637,6 +6696,170 @@ class PickAndPlaceTask:
             )
         except Exception as exc:  # noqa: BLE001
             say(f"[trace] direct trace dump failed: {exc!r}")
+
+    # ------------------------------------------------------------------ #
+    # P95: the selected fruit's per-tick trace (default off)
+    # ------------------------------------------------------------------ #
+    def _fruit_trace_tick(self, rows: list) -> None:
+        """Append one row for the selected fruit (and its near neighbours).
+
+        Called once per control tick from `_step_sim`, only while an attempt has
+        armed the trace. The row is the fruit's own state plus, for every live
+        fruit within 0.15 m, its offset, velocity, mass, diameter and whether it
+        is being carried - **fruit reads only**, the branch-neutral class (see
+        `__init__`). The phase label is the last `FRUIT_CYCLE_REPORT` mark, so
+        the table joins to the `[cycle]` breakdown with no new bookkeeping.
+
+        With `FRUIT_FRUIT_TRACE_ARM=1` the row also carries each arm's jaw
+        centre / TCP / finger-link positions and their distances to the fruit.
+        That is the articulation-link read AGENTS section 2 measures as
+        branch-moving: it is a separate, declared probe cell and its rates are
+        not quotable.
+        """
+        limit = self._fruit_trace_limit
+        if limit and len(rows) >= limit:
+            return
+        if self._fruit_trace_noop:
+            # The instrument's own control arm: same hook, same per-tick call,
+            # no readback at all.
+            rows.append(None)
+            return
+        sample = self._fruit_trace_sample
+        if sample is None:
+            return
+        try:
+            spawner = self.spawner
+            pos = np.asarray(spawner.position(sample), dtype=float)
+            vel = np.asarray(spawner.velocity(sample), dtype=float)
+            omega = np.asarray(spawner.angular(sample), dtype=float)
+            belt = getattr(spawner, "belt", None)
+            marks = self._cycle_marks
+            row = {
+                "phase": marks[-1][0] if marks else "",
+                "t": round(float(self._sim_time()), 5),
+                "p": [round(float(v), 5) for v in pos],
+                "v": [round(float(v), 4) for v in vel],
+                "w": [round(float(v), 4) for v in omega],
+                "s": round(float(np.linalg.norm(vel)), 4),
+                "spin": round(float(np.linalg.norm(omega)), 4),
+                "belt": round(float(getattr(belt, "encoder_speed", 0.0)), 4),
+                "held": bool(sample.attached),
+            }
+            nb = []
+            for other in spawner.active:
+                if other is sample or other.parked:
+                    continue
+                opos = np.asarray(spawner.position(other), dtype=float)
+                delta = opos - pos
+                distance = float(np.linalg.norm(delta))
+                if distance > 0.15:
+                    continue
+                ovel = np.asarray(spawner.velocity(other), dtype=float)
+                entry = {
+                    "i": int(other.index),
+                    "cat": other.category,
+                    "d": [round(float(v) * 1000.0, 1) for v in delta],
+                    "v": [round(float(v), 4) for v in ovel],
+                    "s": round(float(np.linalg.norm(ovel)), 4),
+                    "m": round(float(other.mass), 4),
+                    "dia": round(float(other.diameter), 4),
+                }
+                if other.attached or other.held:
+                    entry["held"] = True
+                nb.append((distance, entry))
+            nb.sort(key=lambda item: item[0])
+            row["nb"] = [entry for _, entry in nb[:4]]
+            if self._fruit_trace_arm:
+                arms = {}
+                for name, hand in self.arms.items():
+                    try:
+                        finger_l, finger_r = hand.jaw_positions()
+                        finger_l = np.asarray(finger_l, dtype=float)
+                        finger_r = np.asarray(finger_r, dtype=float)
+                        tcp = np.asarray(hand.tcp_position(), dtype=float)
+                    except Exception:  # noqa: BLE001 - a probe must not stop a run
+                        continue
+                    centre = (finger_l + finger_r) / 2.0
+                    arms[name] = {
+                        "jaw": [round(float(v), 4) for v in centre],
+                        "d_jaw": round(float(np.linalg.norm(centre - pos)) * 1000.0, 1),
+                        "d_tcp": round(float(np.linalg.norm(tcp - pos)) * 1000.0, 1),
+                        "d_f0": round(float(np.linalg.norm(finger_l - pos)) * 1000.0, 1),
+                        "d_f1": round(float(np.linalg.norm(finger_r - pos)) * 1000.0, 1),
+                        "sep": round(float(hand.jaw_separation()) * 1000.0, 1),
+                    }
+                row["arm"] = arms
+            rows.append(row)
+        except Exception as exc:  # noqa: BLE001 - a trace must never change an outcome
+            # One line per run, not per tick: a probe that fails silently is a
+            # probe that lies. Only reachable with `FRUIT_FRUIT_TRACE` set.
+            if not getattr(self, "_fruit_trace_err", False):
+                self._fruit_trace_err = True
+                say(f"[ftrace] sample failed: {exc!r}")
+
+    def _fruit_trace_flush(self, result) -> None:
+        """Write the armed attempt's fruit trace and print its jump summary.
+
+        One JSON per attempt under `logs/fruit_trace`, plus a `[ftrace]` line
+        carrying the numbers the table is read for: the attempt's window, the
+        peak speed and spin, and the first tick at which the fruit's speed left
+        the belt's neighbourhood (`> 1.25 x belt`). Everything else - the jumps,
+        the neighbour bookkeeping, the arm distances - is read offline by
+        `logs/p95/probe.py`.
+        """
+        rows = self._fruit_trace
+        if rows is None:
+            return
+        self._fruit_trace = None
+        sample = self._fruit_trace_sample
+        self._fruit_trace_sample = None
+        if not rows:
+            return
+        index = int(self.stats.get("attempts", 0))
+        arm = getattr(result, "arm", "") or self.current_arm or ""
+        if rows[0] is None:
+            say(f"[ftrace] noop attempt {index} {arm}: rows={len(rows)} (control arm, no readback)")
+            return
+        try:
+            import json
+
+            out_dir = os.environ.get("FRUIT_FRUIT_TRACE_DIR", "logs/fruit_trace")
+            os.makedirs(out_dir, exist_ok=True)
+            category = getattr(result, "category", "") or "fruit"
+            path = os.path.join(
+                out_dir, f"ftrace_{index:02d}_{arm}_{category}.json"
+            )
+            peak = max(rows, key=lambda r: r["s"])
+            spin = max(rows, key=lambda r: r["spin"])
+            belt = abs(float(rows[len(rows) // 2]["belt"])) or 0.12
+            leave = next(
+                (r for r in rows if r["s"] > 1.25 * belt), None
+            )
+            leave_txt = "-"
+            if leave is not None:
+                leave_txt = "%.2fs(y=%+.3f)" % (leave["t"], leave["p"][1])
+            with open(path, "w", encoding="utf-8") as handle:
+                json.dump(
+                    {
+                        "attempt": index,
+                        "arm": arm,
+                        "category": category,
+                        "sample_index": int(getattr(result, "sample_index", -1)),
+                        "grasped": bool(getattr(result, "grasped", False)),
+                        "placed": bool(getattr(result, "placed", False)),
+                        "rows": rows,
+                    },
+                    handle,
+                )
+            say(
+                f"[ftrace] attempt {index} {arm} {category}: rows={len(rows)} "
+                f"window={rows[0]['t']:.2f}-{rows[-1]['t']:.2f}s "
+                f"|v|max={peak['s']:.3f}@{peak['t']:.2f}s "
+                f"spin_max={spin['spin']:.2f}@{spin['t']:.2f}s "
+                f"belt={belt:.3f} left_belt_at={leave_txt} -> {path}"
+            )
+        except Exception as exc:  # noqa: BLE001
+            say(f"[ftrace] flush failed: {exc!r}")
 
     # ------------------------------------------------------------------ #
     # Helpers
@@ -10191,6 +10414,13 @@ class PickAndPlaceTask:
             else None
         )
         self._cycle_begin()
+        # P95: arm the selected fruit's per-tick trace for this attempt (a no-op
+        # unless `FRUIT_FRUIT_TRACE` is set). Armed here - after the cycle marks
+        # start and before the pre-pose blend, which is itself inside the window
+        # the P93 open item is about - and flushed in `note_result`.
+        if self._fruit_trace_on:
+            self._fruit_trace = []
+            self._fruit_trace_sample = sample
         # Grasp height. The wrist cannot descend to the fruit's equator with the
         # jaws across the belt (measured minimum ~belt_top + 0.08, see
         # `SceneConfig.grasp_clearance`), so the arm is aimed at the reachable pick

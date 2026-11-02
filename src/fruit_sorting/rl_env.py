@@ -462,7 +462,12 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: env never satisfies) and the manifest builder passes `two_line=False`, so
 #: the direct path keeps its 40-tick probe / 10 mm ramp unless an explicit
 #: `FRUIT_DYNAMIC_PROBE_TICKS`/`FRUIT_DYNAMIC_PROBE` says otherwise.
-TASKS_MD5 = "19cd4028b466e0cb29b50110287d188d"
+#: P95 follow is **metadata-only**: `FRUIT_FRUIT_TRACE` / `..._ARM` / `..._NOOP`
+#: are a **diagnostic** read by `PickAndPlaceTask.__init__` and hooked in
+#: `_step_sim`; with the knob unset the hook is one attribute read per tick and
+#: nothing is read, written or measured, so the direct path is unchanged
+#: (`logs/p95/RESULTS.md` section 0 proves it with the scripted stream instead).
+TASKS_MD5 = "cc4eea6625d3bc8334b6a952c179c03a"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(

@@ -68,6 +68,94 @@ it** (compose with `FRUIT_ARM_PARK=ready` for pre-P43, `FRUIT_POLICY_TRIGGER_ACQ
 for pre-P54, the P58 burst profile for pre-P58 and `FRUIT_SPEED_RELEASE=0` for
 pre-P87).
 
+**P95 (2026-11-02, `logs/p95/`; the instrument ships default off, **nothing
+adopted**): P93's open item is closed and the answer is **(a) the other arm** -
+the incoming fruit is struck by the **upstream station's** hand while that hand
+blends to its own pre-pose, 2 mm from the fruit's surface, and the class is
+**structural**: the downstream lane's fruit must cross the upstream station.**
+The instrument is `FRUIT_FRUIT_TRACE=<max rows>` (`tasks.py`): **one row per
+control tick for the selected fruit** through its whole attempt - position,
+linear **and angular** velocity, the belt's encoder speed, and every live fruit
+within 0.15 m (offset, velocity, mass, diameter, carried flag) - armed before the
+pre-pose blend and flushed from `note_result`, one JSON per attempt. It covers the
+window P93 could not see, and it also settles a documentation detail the record
+must carry: **`_cycle_mark("descent")` fires *after* `_approach`**, so the rows
+labelled `descent` are the leg's **end** - a leg's start is
+`first_descent_tick - steps` from that leg's own `[motion] approach … steps=`.
+**Neutrality is measured, not assumed**: the `[fruit]` streams are **970/970**
+identical to `logs/p94/T6.log` for the fruit-only cell **and 970/970** for the
+cell that also reads **both arms' link prims**, and **974/974** for seed 5's arm
+cell - so the two-arm read (3 prims/arm, on a baseline that already reads the
+active hand's TCP and both fingers every tick) did **not** reproduce AGENTS §2's
+7-10-prim link-read shift on this cell; the rule is unchanged, this read set is
+just inside it. **The witness is reproduced to the digit** on the unmodified
+branch: the seed-6 attempt-0 right kiwi reads `v = (-0.2529, -0.1254, +0.0338)`
+with `w = (0.1955, -8.3608, -0.1637)` at the leg's start (tick 339, t=17.225 s) -
+P93's own `descent` row and its `0.284 m/s / 8.36 rad/s`, i.e. **2.37x belt**. The
+departure is at **t=16.98, 0.25 s before the leg**, inside the descent's hover
+wait: the fruit takes `+0.402 x` and `21.6 rad/s` of spin at the tick the **left**
+hand's measured jaw span collapses **98.0 -> 59.8 mm and springs back to 98.0 by
+t=17.25**, with that hand's pad point **+2 mm** from the fruit's surface and the
+pad **-16 mm** along-belt away. A commanded close cannot do that (the finger drive
+is stiffness-limited to **0.1 mm** at P41's `k=1e5 N/m` and the 10 N/joint cap; the
+left arm's own close on its own pear is at 20.475 s), so it is a **contact
+displacing the pads**. The other arm's state is in the log: `[biarm] left: station
+acquired at t=16.4s`, `[task] target pear … with left arm` at 16.45, `at pick pose
+after 0.71 s … jaw=[0.3429, 0.0122, 1.2795]` at ~17.16 - i.e. the strike is 0.53 s
+into **its own pre-pose blend**, whose pad plane sweeps from `belt_top + 0.107` down
+to **`belt_top + 0.029`**, through the fruit band (the kiwi's top is
+`belt_top + 0.058`) and **29 mm below** it. The other four classes are excluded by
+measurement: **(b)** no teleport and no velocity zeroing (the release *is* a
+departure class - airborne at `z=1.230`, `|v|` to 0.665 m/s - but only **2/40**
+attempts start that way and both settle in 8 ticks ~4 s before the leg; P38/P50's
+release offset is the *static* shift, mechanism closed); **(c)** the kick is
+`+x`/`+z` with 21.6 rad/s of spin and the belt drives `-y` only (P38: lateral
+contribution exactly **0.000 mm** over 475 transits; no cleats on this line);
+**(d)** the nearest neighbour (the left pear) is 125 mm away at 0.1201-0.1205 m/s
+with **nb swing 0.0004/0.0001/0.0/0.0 m/s** on the strike ticks and mass-weighted
+momentum closes on nothing; **(e)** the active (right) hand is 160-190 mm away at
+its hover (`sep` 98.0, no descent for another 0.25 s). **The census** (2 seeds x 20
+attempts, `probe.txt` §3-§5): departures before the leg are **3 arm-other clusters
+in 1 attempt + 2 release + 4 upstream rolling transients**, nothing else; **every**
+other leg starts at **1.00x belt** (19/20 at seed 6, 20/20 at seed 5 - so an
+overspeeding payload at the grasp entry is **not** a general property of the
+line); and the exposure is one-directional because the stations are
+`left y=+0.000 / right y=-0.100` on a `-y` belt - a **right**-arm fruit must cross
+the left station and a **left**-arm fruit stops at its own, measured as the other
+hand's closest pad approach: **right 19 attempts median 31.6 mm, min 0.0, 5/19
+<= 6.4 mm** against **left 21 attempts median 217.2 mm, min 126.3, 0/21**; of the
+four within 6 mm exactly **one** displaces the pads (**1 contact / 40**, inside a
+4-5/40 contact band; the other three are zero-impulse grazes - seed-5 attempt 16
+passes at 0.0 mm with `|v|` exactly 0.120, spin 0.0, `sep` 98.0 throughout). **Why
+it costs the attempt**: the hover latches the grip point (`_dynamic_grip_target`)
+and the descent is static and open-loop, so the strike's 43 mm of lateral drift
+against a **6 mm** catch-up tolerance puts the pads *on* the fruit (`58.15 N` after
+5 ticks, span 99.1 mm frozen at 88.3), drives it down through the belt
+(`z 1.198 -> 0.818`) and the class ends `never_held`
+(`force@onset = 0.00 N`, `contacts@onset = 0`). **The fix is a clearance pre-pose**
+(pads clear the band, `jaw_z >= belt_top + 0.155`; the left station has no such
+pose because - P39 - *"the left station is the calibrated pick point … so
+`_prepare_two_line_stations` skips its solve"*), and it is **priced, not built**
+(§6: a second station solve at hover height, using the right station's own
+machinery; it owes **both references**, the acceptance re-base and every two-line
+store, because it moves **every** attempt - unlike P94's bounded ternary). The
+rate cannot be the argument (1/40 = 2.5 points against P93's **364 attempts/arm**
+for 8.75 points at 80 % power); the argument is the **invariant**: a hand inside
+another lane's fruit band is a defect. **Registered as P96** with this report's
+pre-leg contact census as its primary endpoint, which is now one command
+(`FRUIT_FRUIT_TRACE=... FRUIT_FRUIT_TRACE_ARM=1` + `python3 logs/p95/probe.py`
+section 5, criterion `pad gap <= 6 mm` **and** `other-hand span swing >= 2 mm`
+within ±4 ticks - the span is the verdict, the gap ranks ±5 mm because the finger
+plates are angled at a 98 mm span). No `configs/` change, no reference
+re-recorded (none owed: the instrument is inert - **3,334 `[fruit]` lines across 4
+cells**, of which the shipped acceptance is **420/420** byte-identical to
+`logs/p94/accept_final.log` at 8/10 + `fingerprint: matches`), `selfcheck.sh`
+**PASS** with the new `252` leg (67 checks). Pins: `tasks.py` **`cc4eea66`**, `rl_env.py` **`41608912`** (metadata-only
+`TASKS_MD5` follow `19cd4028` -> `cc4eea66`), `scripts/252_p95_ftrace_selftest.py`
+**`880ce131`**, `scripts/selfcheck.sh` **`ed646df6`**, `logs/p95/probe.py`
+**`a78f0924`**, `METHOD.md` **`b79e9a08`**; refs `30fb99f8` / `30fb99f8` /
+`8952c320` untouched; ckpt `moe_v13s` `61da390a`.
+
 **P87 (2026-11-01) re-baselines the acceptance: the shipped two-line cell
 now runs the release trim** (P86's S2 cell, `FRUIT_SPEED_RELEASE`, as a
 **two-line-scoped** default), so the acceptance read **7/10, 9.4 s/attempt**
@@ -407,7 +495,15 @@ the run by 3-14 s of simulated time and one or two picks; so does adding per-tic
 work *inside* `ik_step`, even two small array copies. Fruit-pose reads, camera
 reads and pure reporting do not. Hence every diagnostic knob defaults to off,
 `ik_step` carries a comment saying so, and traces are used for mechanism rather
-than for the numbers quoted in the documents.
+than for the numbers quoted in the documents. **P95 measured the boundary on a
+second axis** (`logs/p95/RESULTS.md` §0): the *fruit* read set now includes
+**linear and angular velocity** plus "every live fruit within 0.15 m", and a
+per-tick read of **three prims on each arm** (jaw centre from the two fingers,
+TCP, jaw span) also replayed its record **970/970 / 974/974** on the two-line at
+two seeds - so what the rule forbids is the *wide* link sweep (7-10 prims across
+many links), not any link read at all. The safe rule for a new instrument is still
+"fruit reads first, prove it by the `[fruit]`-stream replay, and only then add the
+geometry you need, in its own cell".
 
 **The bimanual line is opt-in and shares one station.** `FRUIT_BIARM=1` runs the
 pipelined two-arm scheduler (`src/fruit_sorting/bimanual.py`): one arm owns the
@@ -4743,6 +4839,7 @@ p93_report.py,p93_report.txt,run_p93.sh,gates.sh,header.txt}`, the cells
 | the scene's collider set or a store's provenance (`assets.scene_provenance`, the manifests) | `scripts/selfcheck.sh` (the `239` leg), then one collection or direct run and check its `manifest.json` carries the `scene` block (`logs/p72/manifest_probe.py` does it without a simulator app) |
 | a store's **supply** provenance (`assets.supply_provenance`, the `supply.band` key in both manifests) | `scripts/selfcheck.sh` (the `239` leg's section 6: the builder's signature and arithmetic, all four branch orders, the `SupplyPlan` field set read from the dataclass's own AST, one call site per writer), then one collection or direct run and check its `manifest.json` carries `supply.band.x_min`/`x_max`/`grades`/`schedule` - **a manifest without it predates P93**, and the collector's flat `supply.x_min`/`x_max` are then the witness (`logs/p93/RESULTS.md` §6) |
 | a new default-off diagnostic field on the `[carry]` row (or a new `[place]`/`[seat]` line, or a new `[place-trace]` per-tick print) | `scripts/selfcheck.sh` (the field's own leg - `235`/`239`/`240`/`241` are the pattern), then **one direct run with `FRUIT_CARRY_DIAG=1`** to read it, then `scripts/accept.sh` and require its **346/346 `[fruit]` lines** to be byte-identical to the pre-change record - a diag-only change must be inert on the scripted path (`logs/p73/P1_RESULTS.md` §5, `logs/p75/RESULTS.md` §5) |
+| a **per-tick fruit instrument** or an **acquisition-disturbance claim** (where an incoming fruit's velocity/spin comes from: `FRUIT_FRUIT_TRACE`, the `[ftrace]` rows, a pre-leg pad contact) | `scripts/selfcheck.sh` (the `252` leg: the switch table, the one `_step_sim` hook and that it is *not* in `ik_step`, the fruit-only default path, the no-op arm returning before any read, the single arming/disarm/flush sites, the executed row shape, the 0.15 m neighbour filter, the arm gate), then **the neutrality proof before the claim**: run the fruit-only cell and require its `[fruit]` stream to be **byte-identical** to the same-seed record (`python3 logs/p95/probe.py --same <cell> <record>`; P95: 970/970 and 974/974), and only then add `FRUIT_FRUIT_TRACE_ARM=1` - and re-prove that cell too, because a *narrow* link read (3 prims/arm) is inert while the wide sweep is not. Read the attribution with `python3 logs/p95/probe.py`: a **contact** is `pad gap <= 6 mm` **and** that hand's measured span swing `>= 2 mm` within +-4 ticks - the span is the verdict (the finger drive is stiffness-limited to 0.1 mm, so a displaced span cannot be commanded) and the gap is a +-5 mm indicator (the plates are angled at a 98 mm span). The leg's start is `first_descent_tick - [motion] approach steps=`, never the `descent` label (`_cycle_mark("descent")` fires *after* `_approach`) |
 | the finger drive's force cap, or a leg-scoped drive write (`FRUIT_FINGER_MAXFORCE`, `FRUIT_FINGER_MAXFORCE_SCOPE=place-left|grasp-left`/`..._SCOPED`, `tasks.finger_cap_scope_for`, `_carry`'s wrapper) | `scripts/selfcheck.sh` (the `244` leg), then **one direct run with `FRUIT_CARRY_DIAG=1`** and read the `[drive] ... finger cap raise/restore` rows **and** the delivered force by leg class - **the site proof is the pair**: `place-left` -> `place*` at the scoped cap with `grasp_lift` at ~9.7 N (`logs/p78/RESULTS.md` §0), `grasp-left` -> `grasp_lift` at the scoped cap with `place*` at ~10 N (`logs/p79/RESULTS.md` §1); then `scripts/accept.sh` + one two-line run + `scripts/190_twoline_gate.sh` **with the knob armed** and require **346/346 `[fruit]` lines + both fingerprints** to be unmoved (`logs/p78/RESULTS.md` §7, `logs/p79/RESULTS.md` §6) - the scoped form must move no reference; a **global** `FRUIT_FINGER_MAXFORCE` instead owes both references and every store. Read `fmax` as a **peak transient** that exceeds the cap on single legs even at 10 N, and `force_min` as the leg's weakest moment - neither is a `place*`-was-re-clamped test on one cell (`logs/p79/PREREG.md` §9 A1); the structural rows are |
 | a **carry-command** change (the `_gripper_offset` reading or its use, `FRUIT_CARRY_OFFSET_MAX`, `_carry`'s assisted-branch target, the `hand_is_jaw` fallback) | `scripts/selfcheck.sh` (the `251` leg: the resolver table, **one** site, the jaw-hand scope, the two branch expressions **executed** - inside the bound the command is `centre - rot @ offset` bit for bit, above it `centre`, and the kinematic-pad hand keeps its offset at any magnitude - and the diag row printing the **issued** target so the census reads the applied jump with no new field), then the **jump census first**: `python3 logs/p94/census.py` on the control records (the reading `|_gripper_offset|` per leg and the applied jump `|jaw_target - cmd_centre|`) - a reading above the bound is the defect class, and a leg **below** it must not move (F1); then the four-seed battery with the `logs/p94/run_p94.sh` shape and the **prefix identity** (`python3 logs/p94/p94_report.py --same`) - a treatment cell must equal its same-seed control's `[fruit]` stream up to the **first guarded row**, and the seeds the guard cannot act on must replay **end to end** (P94: 970/970, 1001/1001, 986/986); then `scripts/accept.sh` **twice** - `FRUIT_CARRY_OFFSET_MAX=0` and unset - with `FRUIT_CARRY_DIAG=1` on both, requiring the `=0` arm to reproduce the recorded reference and the unset arm to differ first at the guarded row; the single arm (`FRUIT_BIARM=0`, 346/346) is the other half of guard (e). A change that moves **every** leg (the unconditional `hand_is_jaw` form) is a re-calibration, not a fix: it owes a full four-seed battery, both references and every store, and cannot be attributed on a 20-attempt cell (`logs/p94/RESULTS.md` §8-§9) |
 | an **early end of a carry leg** (a new skip/trip on `_carry_monitor_skip`/`_fail_fast_trip`, a new threshold, `_attempt_ended_early`, or a new failure path out of `_grasp_carry_place_impl`) | `scripts/selfcheck.sh` (the `245` leg is the pattern: the resolver table, the refuse-below floor, **one** trip site, the attempt-local latch, the scope, the arming clause, and that the trip adds **no `result.notes` entry**), then **the tracker-only control first**: `FRUIT_CARRY_DIAG=1` alone on the same seed must be **byte-identical** to the shipped run (`--same`, diag rows dropped) - otherwise the treatment differs by instrumentation and no time claim is admissible (`logs/p83/RESULTS.md` §6 G2) - then the A/B against **that** control on **>= 2 seeds**, reading **the failed attempt's own span** as the mechanism number (branch-free) and the interval/count as the claim, plus `scripts/accept.sh` and require its `[fruit]` stream to be byte-identical to the pre-change record |
