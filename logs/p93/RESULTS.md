@@ -144,18 +144,18 @@ cost", PREREG §1c would have stopped it here.)
 
 ## 2. The fresh seeds (PREREG §2)
 
-| seed | arm | placed | `cnp` | never-held | chase | starved slots | s/attempt |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| 5 | C | 16/20 | 2 | 2 | 5 | 0 | 9.50 |
-| 5 | **T** | **18/20** | 2 | **0** | 2 | 0 | 9.50 |
-| 6 | C | 12/20 | 7 | 1 | 8 | 0 | 9.10 |
-| 6 | **T** | **18/20** | **1** | 1 | 4 | 0 | 9.30 |
-| 101 | C | **15/20** | 5 | 0 | 6 | 0 | 9.20 |
-| 101 | **T** | **14/20** | **6** | 0 | 5 | 1 | 9.50 |
-| 202 | C | **15/20** | 3 | 2 | 6 | 0 | 9.00 |
-| 202 | **T** | **15/20** | **4** | **1** | 5 | 0 | 9.70 |
-| **pooled** | C | **58/80 (72.5 %)** | **17** | **5** | 25 | 0 | - |
-| **pooled** | **T** | **65/80 (81.3 %)** | **13** | **2** | 16 | 1 | - |
+| seed | arm | placed | `cnp` | never-held | chase | starved polls | diverted | s/attempt |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 5 | C | 16/20 | 2 | 2 | 5 | 45 | 1 | 9.50 |
+| 5 | **T** | **18/20** | 2 | **0** | 2 | 36 | 0 | 9.50 |
+| 6 | C | 12/20 | 7 | 1 | 8 | 37 | 1 | 9.10 |
+| 6 | **T** | **18/20** | **1** | 1 | 4 | 20 | 0 | 9.30 |
+| 101 | C | **15/20** | 5 | 0 | 6 | 25 | 0 | 9.20 |
+| 101 | **T** | **14/20** | **6** | 0 | 5 | 23 | 1 | 9.50 |
+| 202 | C | **15/20** | 3 | 2 | 6 | 27 | 1 | 9.00 |
+| 202 | **T** | **15/20** | **4** | **1** | 5 | 51 | 0 | 9.70 |
+| **pooled** | C | **58/80 (72.5 %)** | **17** | **5** | 25 | 134 | 3 | - |
+| **pooled** | **T** | **65/80 (81.3 %)** | **13** | **2** | 16 | 130 | 1 | - |
 
 **The fresh seeds are the phase's headline and they cut both ways.**
 
@@ -188,11 +188,11 @@ per-tick cost is unchanged); the interval follows the count, not the band.
 | guard | reading | verdict |
 | --- | --- | --- |
 | G1 `cnp` must not rise | seed 5 `2->2` PASS; seed 6 `7->1` PASS; **seed 101 `5->6` FAIL**; **seed 202 `3->4` FAIL** | **FAIL** |
-| G2 the landing | **116/116** payload-present releases `on_belt=True` across all eight cells (16/18/12/18/15/14/15/15) | PASS |
+| G2 the landing | **123/123** payload-present releases `on_belt=True` across all eight cells (16/18/12/18/15/14/15/15) | PASS |
 | G3 the motion budgets | 160 descent legs, **4 over budget**: `C6` leg 12 `0.164/0.160` (+2.5 %, the standing P86/P87/P88 branch leg), `T6` leg 1 `0.222/0.161` (+38 %, §1a), **`C101` leg 9 `0.224/0.160` (+40 %, a CONTROL)**, `T202` leg 14 `0.183/0.161` (+14 %) | **FAIL** |
 | G4 no new failure reason | the treatments' note keys stay inside the control set (`fruit did not follow the gripper`); no new key | PASS |
 | G5 the control replay | seed 5 **1033/1033**, seed 6 **970/970** (modulo the origin label); seeds 101/202 are fresh scenarios, stated not invented | PASS |
-| G6 attempts | **8/8** cells at 20 attempts, no lost slot (one starved poll at `T101`) | PASS |
+| G6 attempts | **8/8** cells at 20 attempts, **no lost slot**; the `no eligible fruit` poll counts are 20-51 per cell (a wait, not a loss) and there are 4 diversions in 8 cells (a *pool slot* retired after two failures, P92's reading) | PASS |
 | G7 the tree is inert with the knob unset | `scripts/selfcheck.sh` **PASS (0 failures, 1 skipped)**; `scripts/accept.sh` **7/10, 9.4 s/attempt, `fingerprint: matches configs/motion_reference.json`, `190: PASS`**, and its **449 `[fruit]` lines are byte-identical (449/449)** to the last recorded acceptance of this branch, `logs/p91/accept_final.log` | PASS |
 | G8 the supply audit | `python3 scripts/211_bed_audit.py` **ok (115 checks)** | PASS |
 
