@@ -42,9 +42,9 @@ Two facts make the site live on the shipped line rather than a corner case:
    (`:11302-11308`); on the OpenArm hand the fallback branch prints
    `openarm fingertips <N> mm from the fruit; closing anyway` and **does not set
    it**, so it keeps its previous value (initially `False`). Measured: `p92/C5`
-   prints `fingertip-to-fruit = 59.4-61.8 mm` on 20/20 attempts and
-   **1638/1638** `[diag] carry-assist` rows across the P9x corpus read
-   `coherent=False`.
+   prints `fingertip-to-fruit = 58.3-64.3 mm` on 20/20 attempts and
+   **1638/1638** `[diag] carry-assist` rows across the P91-P93 corpus
+   (531 + 639 + 468) read `coherent=False`.
 2. **The documented reset is dead code.** `if not coherent:
    self._gripper_offset[...] = [0, 0, wrist_back]` (`:11609-11622`) sits **inside
    `if coherent:`** (`:11054`), so it never executes and the raw
@@ -275,15 +275,21 @@ array `ik_step` was handed).
 
 ## 10. Pins and evidence
 
-Tree when measured: `tasks.py` **`19cd4028`** (measured arm `de9abd5a` for the
-battery, both listed with their edits), `rl_env.py` `TASKS_MD5` follow,
-`bimanual.py` `9b7fc33f`, `fruits.py` `dcabe16b`, `scene.py` `3681aad3`,
-`assets.py` `540406fa`, `control.py` `9384ff4f`, `conveyor.py` `fb2c58c6`;
-`configs/motion_reference.json` = `..._twoline.json` = **`30fb99f8`**,
-`..._single.json` **`8952c320`**; checkpoint `moe_v13s` `61da390a`.
-New instruments: `logs/p94/census.py`, `logs/p94/p94_report.py`,
-`logs/p94/gates.sh`, `scripts/251_p94_offset_selftest.py` (selfcheck leg),
-`scripts/236` re-pinned. Evidence: `logs/p94/{PREREG.md,PREREG.md5,census.txt,
+The battery ran on a **dirty tree of exactly two files** - `tasks.py` `de9abd5a`
+(the fix, `FRUIT_CARRY_OFFSET_MAX` resolving **off** until the flip) and
+`rl_env.py` `1d30563b` (the `TASKS_MD5` follow) - which is what the header
+records (`logs/p94/header.txt`, `dirty=2`); every other pin is the P93 tree.
+**Shipped** (post-flip) tree: `tasks.py` **`19cd4028`** (default `0.20`),
+`rl_env.py` **`4149fab4`**, `bimanual.py` `9b7fc33f`, `fruits.py` `dcabe16b`,
+`scene.py` `3681aad3`, `assets.py` `eb30c77a`, `control.py` `9384ff4f`,
+`conveyor.py` `fb2c58c6`, `scripts/selfcheck.sh` `d62a8a2f`,
+`scripts/accept.sh` `5399bff1`; `configs/motion_reference.json` =
+`..._twoline.json` = **`30fb99f8`**, `..._single.json` **`8952c320`**; checkpoint
+`moe_v13s` `61da390a`.
+New instruments: `logs/p94/census.py` `3018225710`, `logs/p94/p94_report.py`
+`be0b662d`, `logs/p94/gates.sh` `2689fd10`, `logs/p94/PREREG.md` `4d793195`,
+`scripts/251_p94_offset_selftest.py` `7f36da77` (selfcheck leg),
+`scripts/236_p66_lift_selftest.py` `80f67e4a` (re-pinned). Evidence: `logs/p94/{PREREG.md,PREREG.md5,census.txt,
 p94_report.txt,leg_table.txt,header.txt,battery_driver.log,gates.sh}`,
 the ten cells `{C5,T5,C6,T6,C101,T101,C202,T202,N5,P5}.{log,stamps,driver}` +
 `P5_preflip.*`, `{C,T}*.budgets`, `smoke.log`, `accept_p94.*`,

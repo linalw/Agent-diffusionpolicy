@@ -23178,7 +23178,7 @@ than a corner case: the shipped OpenArm hand takes the **assisted** branch on
 **every** leg (`self._coherent[arm_name]` is only set `True` when the *pre-close*
 fingertip error is `<= 20 mm`, and the openarm fallback prints
 `openarm fingertips <N> mm from the fruit; closing anyway` and does not set it -
-measured 20/20 at `59.4-61.8 mm`, and 1638/1638 `carry-assist` rows across the P9x
+measured 20/20 at `58.3-64.3 mm`, and 1638/1638 `carry-assist` rows across the P91-P93
 corpus read `coherent=False`), and the documented reset (`if not coherent:
 _gripper_offset[...] = [0, 0, wrist_back]`, `:11609`) is **dead code** - it sits
 inside `if coherent:` (`:11054`) - so the raw value is what the carry reads.
