@@ -4470,6 +4470,102 @@ accept_final.log,selfcheck.log}`, the cells `{C5,T5,C6,T6}.{log,stamps,driver,
 gate,budgets}`, `N5`, `single_accept.*`, `shared_{unset,zero,forty}.*`,
 `shared_raw_same.txt`, `smoke.log`; WORKLOG "P91".
 
+**P92 (2026-11-02, `logs/p92/`; **nothing adopted, no `src/` or `configs/` change,
+no reference re-recorded** - and the scenario lane the record had closed is
+re-opened with a measured mechanism): the shipped cell's 12 failures are **9
+`cnp` + 3 never-held** (0 `fell off the line`, 0 lost slots, 1-2 `diverted`), the
+never-held class is **not an acquisition loss** but the same close collapse one
+phase earlier, the supply band's **top** converts **8 of the 12** at *both* seeds
+(28/40 -> 36/40) and the pre-registered rule still refuses to ship it on **one
+descent leg**, and the force servo's chase - which is the **signature of every
+failure** on the tree (11/11, `p = 5.2e-09`; 14/14 on the pre-P87 block) - is
+**not the cause**: gating it removes the chase and moves the failures between
+labels without converting one.** The census (`logs/p92/CENSUS.md` +
+`census.py`/`chase.py`, offline) reads the **two distinct cells** (`p87/{T5,T6}`,
+seeds 5/6, 40 attempts) and drops the **byte-identical replays** (`p88/{C5,C6,N5}`,
+`p89/{C5,C6}`, `p91/{C5,C6,N5}`) rather than inflating n; the pre-P87 clock
+(`p84/{D5,D6}`, 26/40) is a **separate block**, never pooled (and `p80/{T20,T6}`
+carry no `[carry]` diag, so 4-5 of their rows are unclassifiable - said, not
+guessed). Three reads matter. (1) **The class split**: `cnp` 9 (75 % of failures,
+the closed loaded slide) + never-held 3 (25 %), the latter **exactly** the
+attempts whose `catch-up residual` exceeds 6 mm (3/3 vs 0/37). (2) **The close's
+seat**: `gap_start - dia <= -14 mm` (the pads commanded *inside* the fruit) is
+**5/5 failed** against 7/35 otherwise (**p = 0.0012**) - the 3 never-held and the
+2 seed-5 `cnp` are one event seen at the leg start, and the T5 peach is the
+plainest (close froze at 66.3 mm around a 68.9 mm fruit, the lift leg then started
+at **54.5 mm**). (3) **The servo's own travel**: `closed > 0` on the `[task] force
+servo:` row is **11/11 failed** vs **1/29** without it - i.e. the whole failure
+set is one mechanism, the servo's chase to `FRUIT_DYNAMIC_FORCE_RANGE` (15 mm)
+when the force sits under `max(2 N, 0.8*ref)` and `ref` reads **0.00 N**.
+**Non-classes, measured so they are not re-derived**: starvation is a *wait*
+(20/20 attempts ran in every cell; the failures' `descent` blocks are *longer*
+than the successes'; the handover `queue` is 3.25 on successes vs 3.17 on
+failures); the **diversion** is a *pool slot*, and its second attempt is a
+**different instance** at seed 6 (`x` 0.299 -> 0.343) and the *same* one at seed 5
+(0.239/0.241); and **P38b's low-tail margin purchase has no events** (delivered x
+min **0.1998**, 20 mm above the left's 0.180 floor) - the tail that exists is at
+the **top**. **Arm 1 (`PREREG.md` `07c54712`, cells `T5`/`T6`): the supply band's
+top, `FRUIT_SUPPLY_X_MAX=0.36 -> 0.33`** - one RNG draw re-mapped by the band, so the release
+schedule is the *same stream* and the treatment is the identical scenario with the
+lateral position compressed by 0.8125 (the build row prints `lateral x=0.20-0.33`
+in both cells). **Placed 16 -> 18 and 12 -> 18 (pooled 28 -> 36), `cnp` 9 -> 3,
+never-held 3 -> 1, the chase 11 -> 5, the interval better at both seeds**
+(10.59 -> 10.13, 11.08 -> 9.84; window 5.66 -> 5.92 / 5.41 -> 6.10; wall
+2.91 -> 3.15 / 2.37 -> 3.35 placed/min), and the cleanest single read is the
+**first attempt at seed 5**: the same slot, fruit, release time and
+instrumentation, `x = 0.3908` -> never-held in the control and `x = 0.3616` ->
+placed in the treatment. **Verdict NOT ADOPTED**: the pre-registered G3 fails -
+T6's leg 1 reads `|v|max` **0.222 against 0.161 (38 % over)**, a different leg and
+15x the excursion of the control's own standing branch leg (C6 leg 12,
+0.164/0.160, +2.5 %), and the same seed's branch carries a **419 N** carry leg
+with a **1313 mm** pad-centre bookkeeping offset - so the number is not the
+argument (the same control swings 16 -> 12 between seeds). The mechanism claim is
+the class set, not the rate: **the presentation column moves the closed class**
+(the stations sit at a **band edge** of R10-A's top-down reach at x = 0.36 - left
+`y 0.00..+0.10` with the station at 0.00, right `y -0.10..0.00` with the station
+at **-0.10** - and at x <= 0.33 both are inside the x = 0.28 column's band).
+**Arm 2 (`PREREG_A1.md` `e5150253`, cells `R5`/`R6`): `FRUIT_FORCE_REENTRY=1`**
+(the documented default-off contact gate: run the servo only while the contact
+estimate is confident, otherwise **hold** the gap) - the gate engages exactly where
+the chase was (**31/29 mode entries, 890/1730 withheld chase ticks**, held-leg
+`force_min` medians **9.42/9.36/9.72/9.10 N**, the P41 plateau intact), the chase
+falls **11 -> 3**, and **the count does not move at all** (16 -> 16, 12 -> 12;
+pooled 28 -> 28) while the classes **re-distribute** (`cnp` 9 -> 8, never-held
+3 -> 4, five `grasped, not placed (no note)` rows) and the interval gets *worse*
+at both seeds (10.59 -> 11.59, 11.08 -> 13.48). **G2 fails at seed 5** (`cnp`
+3 > 2) -> **NOT ADOPTED**, and the finding is the phase's most transferable one:
+**the chase is the signature, not the cause** - with the chase withheld the
+payload still leaves, and the attempt then presents as never-held. The gates-on
+branch also **re-draws into the high-x tail** (R5 x = **0.405**, R6 **0.388 /
+0.364**), which is what arm 1 bounds. **No-harm** (the tree is inert): the
+controls replay `logs/p91/{C5,C6}.log` **1033/1033** and **970/970** modulo one
+profile row's `origin` label (`(explicit)` vs `(two-line)`; the resolved clock is
+identical - P87's A1 convention), `scripts/selfcheck.sh` **PASS (0 failures)**,
+`scripts/accept.sh` **7/10 + `fingerprint: matches configs/motion_reference.json`
++ `190: PASS`** (this tree's standing branch), `python3 scripts/211_bed_audit.py`
+**ok (115 checks)**, and every landing is clean (**64/64** payload-present
+releases `on_belt`). **The named re-entry, priced and not executed**: diagnose
+T6's leg 1 and the 419 N leg, run a **third seed** (two seeds at 18/20 is
+suspiciously tight), and if clean, land the full package - both motion references
+re-recorded from same-batch runs, the acceptance/two-line gate re-based, every
+store re-baselined, the **`supply.x_min/x_max` manifest field** added first
+(`assets.scene_provenance` does not carry the supply band today, so a store under
+0.20-0.33 and one under 0.20-0.36 are indistinguishable), and the direct/policy
+interface measured (it builds its own profile from the same
+`SupplyPlan.from_env`). **Re-baseline: none** - nothing shipped, so every rate,
+acceptance, reference and store on the tree stands unchanged. Pins: `tasks.py`
+**`7ba4bb58`**, `bimanual.py` `9b7fc33f`, `fruits.py` `dcabe16b`, `scene.py`
+`3681aad3`, `assets.py` `540406fa`, `control.py` `9384ff4f`, `conveyor.py`
+`fb2c58c6`, `rl_env.py` `e618ae67`; `configs/motion_reference.json` =
+`..._twoline.json` = **`423896f7`**, `..._single.json` = **`8952c320`** (all
+untouched); ckpt `moe_v13s` `61da390a`; new instruments `census.py` `2a59e74d`
+and `chase.py` `b36a1c75`, reports `p92_report.py` `aebc0a3b` /
+`p92_a1_report.py` `2d39924c`. Evidence `logs/p92/{CENSUS,RESULTS}.md`,
+`{PREREG,PREREG_A1}.md` + their `.md5`, `census.txt`, `chase.txt`,
+`p92_report.txt`, `p92_a1_report.txt`, `header{,_r}.txt`, `run_p92.sh`,
+`run_p92_a1.sh`, `gates.sh`, the cells `{C5,T5,C6,T6,R5,R6}.{log,stamps,driver,
+budgets}`, `accept_noharm.log`, `selfcheck.log`; WORKLOG "P92".
+
 ## 3. What changed -> what to run
 
 | you changed | run |
@@ -4485,6 +4581,7 @@ gate,budgets}`, `N5`, `single_accept.*`, `shared_{unset,zero,forty}.*`,
 | collection (`40_collect_demos.py`) or merging (`41_merge_demos.py`) | `scripts/107_collect_merge_test.py`, then `python3 scripts/106_index_audit.py` |
 | simulator behaviour, scene, gripper, conveyor | `scripts/accept.sh`, then `scripts/demo_2min.sh` |
 | the supply schedule (`fruits.py`, `bed.py`) | `python3 scripts/211_bed_audit.py`, then `scripts/selfcheck.sh` |
+| a **supply-geometry** change (the lateral band `FRUIT_SUPPLY_X_MIN/MAX`, the release schedule, a station/column move) | the **census first**, offline: `python3 logs/p92/census.py` and `python3 logs/p92/chase.py` name the class you are trying to move and the servo's `closed > 0` signature (`logs/p92/CENSUS.md`); then the **manipulation check** - `x` is one `uniform(x_min, x_max)` draw and no code branches on it, so the *planned* band is proved by the `[supply] lateral x=` row and the *delivered* x is a **distribution** (plan + a per-instance offset: `0.36 -> 0.3908` at the top), never a bound; then 20 attempts x **>= 2 seeds** with the class counts (`cnp` / never-held / chase) as the primary, **both denominators + the wall** as the rest, `bash logs/p92/gates.sh` (**budgets only** - every 20-attempt two-line reference in the tree predates P87's release clock, so any post-P87 cell reads `fingerprint: DIFFERS` by construction; the control proof is the line-identity replay against `logs/p91/{C5,C6}.log`), `python3 scripts/211_bed_audit.py`, and `scripts/accept.sh` |
 | the bimanual scheduler (`bimanual.py`, or the task loop under `FRUIT_BIARM=1`) | `scripts/selfcheck.sh` (the 152 leg), the rate batch (`scripts/153_biarm_rates.sh two-line 5`; `shared` and `single` are the other two modes), then `scripts/accept.sh` (it gates whatever session it ran) |
 | the **shipped scheduler default** (`bimanual.resolve_biarm`/`resolve_twoline`, `tasks.bimanual_enabled`/`two_line_enabled`, the supply package's `two_line=` scope, `scripts/accept.sh`'s gate branch) | `scripts/selfcheck.sh` (the `246` leg: the resolver table, the session scope, the entry wiring, the manifest keys, the accept branch), then **both restores** - `FRUIT_BIARM=0` at ten attempts against `configs/motion_reference_single.json` and a `FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=0` smoke - then a 20-attempt default rate run compared line-for-line with the pre-flip record (drop only `[fruit] [carry]`, `[fruit] [diag] carry-assist` and the `[biarm] scheduler:` banner; `logs/p85/p85_report.py --same-with-diag`, template `logs/p85/RESULTS.md`), then `scripts/accept.sh` and `scripts/demo_2min.sh` |
 | the arbiter / main-thread bridge (`bimanual.py` `TickRelay`, `MainBridge`, `CoopSession`), or anything that claims a **wall** speedup on the two-line | `scripts/selfcheck.sh` (the 152 leg), then **the same cell twice** (knob unset vs set) with `logs/p80/stamp.py` and require the `[fruit]` stream to be **byte-identical** (`python3 logs/p82/p82_report.py --same <control.log> <cell.log>`) - a scheduler change must not move the physics - plus `scripts/190_twoline_gate.sh` on the cell (its own reference for its own attempt count) and one `FRUIT_BIARM=1` pair for the shared-station consumer; read the wall with `logs/p82/p82_ab.py` and quote **wall/sim**, `wall/pick` and `placed/min wall` against the single arm at **>= 2 seeds** (`logs/p82/RESULTS.md` §4-§6). The arbiter's idle is measured by `logs/p82/timers.py`; do not add per-tick timers to `ik_step` (AGENTS §2) |

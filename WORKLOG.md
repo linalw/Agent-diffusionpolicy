@@ -22831,3 +22831,196 @@ PREREG.md5,RESULTS.md,p91_report.py,p91_report.txt,run_p91.sh,run_p91_extra.sh,
 gates.sh,gates.out,accept_final.log,selfcheck.log}`, the cells
 `{C5,T5,C6,T6}.{log,stamps,driver,gate,budgets}`, `N5`, `single_accept.*`,
 `shared_{unset,zero,forty}.*`, `shared_raw_same.txt`, `smoke.log`.
+
+## P92 - the census says the scenario lane is not empty, and the servo's chase is a symptom
+
+2026-11-02, `logs/p92/`. Owner directive: the shipped cell reads 70 % (28/40, two
+seeds) and the delivered speed is at its floor, so the remaining term is
+*success*; hardware (a new pad asset, a real-jaw clamp-force anchor) is out of
+scope, so find the scenario-side losses. Nothing was adopted, no `src/`,
+`configs/`, `datasets/` or checkpoint change, and no reference was re-recorded.
+
+### What the census had to be careful about
+
+The brief lists ten same-tree logs. They are **two scenarios**, not ten samples:
+`p87/T5` and `p87/T6` are the distinct seed-5/seed-6 cells, and `p88/{C5,C6,N5}`,
+`p89/{C5,C6}`, `p91/{C5,C6,N5}` are byte-identical replays of them (each phase's
+own proof, re-verified here on the `[fruit]` stream). Pooling all ten would
+multiply n by five and make every share below four times too confident. So the
+census reads **40 distinct attempts**, and the pre-P87 clock (`p84/{D5,D6}`,
+26/40) is a **separate block** - same scenario, different release clock, never
+pooled. `p80/{T20,T6}` are its replays and carry no `[carry]` diag, so 4-5 of
+their rows cannot be classified; they are counted as unclassifiable rather than
+guessed.
+
+### The classification, and why the summary text is not evidence
+
+The two-line arms run concurrently and the `[task]` prints are arm-agnostic, so
+the only sound association is the attempt boundary (`[task] target … with <arm>
+arm` -> `[biarm] result <arm> index=…`) plus the `[carry]` rows that name that
+arm. The result row alone cannot separate the two failure classes the brief asks
+for - both present as `fruit did not follow the gripper` - so the class comes
+from the legs: a `cnp` is a payload that left a pinch that existed (`fmax > 0`
+then `force_min == 0`, a `loss_row`, `clean_slip > 100 mm`); **never-held** is a
+leg with `contacts@onset == 0`, `force@onset == 0.00 N` *and* `fmax == 0.00 N`,
+i.e. no pinch ever existed.
+
+### The census: 9 + 3, and the three are not an acquisition class
+
+Twelve failures: **9 `cnp` (75 %) + 3 never-held (25 %)**, zero
+`fell off the line`, zero lost slots, 1-2 `diverted`. The never-held attempts are
+**exactly** the attempts whose `dynamic catch-up: residual` exceeds the 6 mm
+tolerance (**3/3 vs 0/37**), which is P47/P48's live pre-contact discriminator
+reproduced on the two-line.
+
+But "never-held" is a label about *when*, not *what*. Three reads settle it:
+
+1. **`gap_start - dia <= -14 mm` is 5/5 failed against 7/35 otherwise**
+   (Fisher one-sided **p = 0.0012**). `gap_start` is the commanded pad gap the
+   carry leg found; -14 mm means the pads were commanded *inside* the fruit's own
+   width. The five are the 3 never-held **and** the 2 seed-5 `cnp` - one event
+   seen at the leg start. The T5 peach is the plainest: its close froze at
+   **66.3 mm** around a **68.9 mm** fruit (-2.6 mm, a correct seat) and the lift
+   leg then started at **54.5 mm**. Something squeezed 11.8 mm inside the fruit
+   between the freeze and the carry.
+2. **The servo's own travel is the mechanism.** The `[task] force servo:` row
+   prints, per arm, `closed=` - how far the integral law walked the command
+   inward. **`closed > 0` on 11 attempts, all 11 failed; 1 failure in the 29
+   without it** (p = C(12,11)/C(40,11) = **5.2e-09**). The 11 hold all 3
+   never-held and 8 of the 9 `cnp`: the cell's *whole* failure set is one
+   mechanism. In the code's own terms it is `_force_servo_step` closing by `STEP`
+   while the force sits under `max(2.0 N, 0.8 * ref)` for 3 ticks, bounded by
+   `FRUIT_DYNAMIC_FORCE_RANGE = 15 mm`; on a marginal grip the settle reference
+   reads **`ref = 0.00 N`**, so nothing tells the servo the jaws are empty and it
+   walks the full range (`closed = 15.00 / 18.00 / 20.20 / 25.00 mm`,
+   `trips = 38-88`).
+3. **The pre-P87 block reproduces it**: 14 chases, 14 failures; 0 failures in 26
+   without (`logs/p92/chase.txt`).
+
+So the addressable class is 3 attempts *as a count* and **0 as a mechanism**: the
+never-held class is the same close collapse as the 75 %, detected one phase
+earlier. The attractive supply reading - 2 of the 3 at the delivered
+`x = 0.386 / 0.391`, at the record's 0.39 clean edge - **does not survive** the
+pre-P87 block, whose six never-held span `x = 0.273 / 0.279 / 0.291 / 0.368 /
+0.391 / 0.414`. That is the finding that corrected the phase's own first
+registration (D1).
+
+### The non-classes, measured
+
+* **Starvation is a wait, not a loss.** Every cell ran 20/20 attempts. The
+  `no eligible fruit` polls (45 / 37) sit inside the wait, and the failures'
+  `descent` blocks are *longer* than the successes' (3.50 vs 3.05 s at seed 6;
+  4.21 vs 3.50 at seed 5) - the failures are not the starved ones. The handover
+  `queue` is **3.25 on successes vs 3.17 on failures**: no depth signal.
+* **The diversion is a pool slot.** `diverting … after 2 failed attempts` names a
+  *slot*, and its second attempt is a **different instance at seed 6**
+  (`x` 0.299 -> 0.343, i.e. the slot was recycled) and the *same* one at seed 5
+  (0.239 / 0.241). A "retire it sooner" rule would change one attempt in 40 and
+  remove a slot; recorded as a non-lever.
+* **P38b's low-tail margin purchase has no events.** The delivered x minimum is
+  **0.1998 m**, 20 mm above the left arm's 0.180 admission floor, and there is
+  not one low-tail failure in 40 attempts. The record's registered-not-run lever
+  is at the wrong end of *this* distribution; the tail that exists is the **top**.
+
+### Arm 1: the band's top (`PREREG.md` 07c54712, cells T5/T6)
+
+`FRUIT_SUPPLY_X_MAX` 0.36 -> 0.33. The reason this is the cleanest A/B the
+scenario admits: `respawn` draws `x = uniform(x_min, x_max)` - one draw whose
+*value* the bounds map affinely and whose *count* they do not change, and no code
+branches on x - so the treatment is **the identical release stream, laterally
+compressed by 0.8125**: same species, diameters, grades, release times, along
+positions. The build row prints `lateral x=0.20-0.33` in both treatment cells.
+
+Measured (20 attempts x 2 seeds, controls replayed line-for-line with P91):
+
+| | C5 | T5 | C6 | T6 | pooled |
+| --- | --- | --- | --- | --- | --- |
+| placed | 16/20 | **18/20** | 12/20 | **18/20** | **28 -> 36** |
+| `cnp` | 2 | 2 | 7 | **1** | 9 -> 3 |
+| never-held | 2 | **0** | 1 | 1 | 3 -> 1 |
+| chase (`closed > 0`) | 4 | **2** | 7 | **3** | 11 -> 5 |
+| pooled interval | 10.59 | **10.13** | 11.08 | **9.84** | better at both |
+
+The cleanest single read is the **first attempt at seed 5**: same slot, same
+fruit (left kiwi 5.4 cm), same release time, same instrumentation, only the
+lateral position differs - `x = 0.3908` in the control (never-held) becomes
+`x = 0.3616` in the treatment (placed, lift +0.29 m). And the *class* movement is
+at both seeds, not just the count: the closed loaded-slide class, which the
+record closed across its cell parameter space, **falls 9 -> 3** (seed 6: 7 -> 1).
+
+**Verdict: NOT ADOPTED**, on the pre-registered G3. T6's leg 1 reads `|v|max`
+**0.222 against its 0.161 budget** (+38 %) with `a_med 0.97`; the control has its
+own standing over-budget leg at seed 6 (leg 12, `0.164/0.160`, +2.5 %, the same
+leg P86/P87/P88 recorded as a branch fact), so the treatment's is a different leg
+at 15x the excursion. The same seed's branch also carries a **419 N** carry leg
+(`fmax 419.25 N`, in-hand 1.545 m/s, `cone 6.18x`) with **1313 mm** of pad-centre
+bookkeeping offset - absent from both controls (0 rows > 500 mm). The budget was
+not re-tuned (AGENTS section 2), and the count is a draw (the same control swings
+16 -> 12 between these seeds), so the rule stops it. The mechanism claim is
+therefore the **class set**, not the rate: the stations sit at a **band edge** of
+R10-A's top-down reach at the shipped band's top (left x = 0.36 -> `y
+0.00..+0.10` with the station at 0.00; right x = 0.36 -> `y -0.10..0.00` with the
+station at **-0.10**), and at x <= 0.33 both are inside the neighbouring x = 0.28
+column's band. That is an interpolation between two measured columns, not a new
+reach measurement, and it is the named next spend.
+
+### Arm 2: the servo's contact gate (`PREREG_A1.md` e5150253, cells R5/R6)
+
+The census's chase read is the strongest discriminator on the tree, so the phase
+tested its causal reading directly with the cell's own documented, default-off
+discipline (`FRUIT_FORCE_REENTRY=1`, P7's "FARM Port A": run the integral law only
+while the contact estimate is confident, otherwise **hold** the gap).
+
+The gate does exactly what it says: **31 and 29 force-mode entries** with **890
+and 1730 withheld chase ticks**, the chase set **11 -> 3**, and the held-leg pinch
+untouched (median `force_min` **9.42 / 9.36 / 9.72 / 9.10 N** - the P41 plateau
+on all four cells), landing 28/28 on belt. And **the count does not move**: 16 ->
+16 at seed 5, 12 -> 12 at seed 6 (pooled **28 -> 28** against the 30 bar), with
+the classes **re-distributing** (`cnp` 9 -> 8 - seed 5 *up* 2 -> 3, seed 6 down
+7 -> 5 - against never-held 3 -> **4**, seed 6 *up* 1 -> 3, plus five
+`grasped, not placed (no note)` rows) and the interval **worse** at both seeds
+(10.59 -> 11.59, 11.08 -> 13.48). **G2 fails at seed 5** (`cnp` 3 > 2):
+**NOT ADOPTED**.
+
+The transferable finding: **the chase is the signature, not the cause.** With the
+chase withheld the payload still leaves (or was never in the pinch), and the same
+physical event then presents one phase later as never-held. A discriminator with
+p = 5e-09 can still be a *symptom*; only an intervention separates the two.
+
+A detail worth keeping: with the gate on, the branch **re-draws into the high-x
+tail** - R5 presents a left kiwi at **x = 0.405**, R6 at **0.388 / 0.364** - which
+is exactly the zone arm 1 removes. A recovery change lets the presentation
+wander; a supply change bounds it.
+
+### What this phase leaves behind
+
+* **The scenario lane is not empty, and the lever is the presentation.** The
+  record's "the loaded slide is closed" is true of the *cell's* parameter space
+  (force, seat, pads, attitude, height, station, speed, clock) and **not** of
+  *which lateral column the fruit is presented in*: 9 -> 3 on the same class.
+* **The chase (`closed > 0`) is the census's general instrument** (11/11 and
+  14/14) and **not** its causal read.
+* **The re-entry, priced**: (1) diagnose T6's leg 1 and the 419 N leg (the
+  `carry-assist` `|offset| = 1313 mm` family - a hand-frame/bookkeeping
+  pathology, and the `stored pad centre … re-anchoring` rows are the same
+  family); (2) a **third seed** (two seeds both at 18/20 is suspiciously tight);
+  (3) if clean, both motion references re-recorded from same-batch runs, the
+  acceptance and the two-line gate re-based, every store re-baselined with the
+  **`supply.x_min/x_max` manifest field added first** (`assets.scene_provenance`
+  does not carry the supply band, so a store under 0.20-0.33 and one under
+  0.20-0.36 are currently indistinguishable), and the direct/policy interface
+  measured (it builds its own profile from the same `SupplyPlan.from_env`).
+* **No-harm**: the controls replay `logs/p91/{C5,C6}.log` 1033/1033 and 970/970
+  modulo one profile row's `origin` label (the resolved clock is identical - the
+  P87 A1 convention), `selfcheck.sh` PASS (0 failures), `accept.sh` 7/10 +
+  `fingerprint: matches` + `190: PASS` (this tree's standing branch),
+  `211_bed_audit.py` ok (115 checks), 64/64 payload-present releases on belt.
+* **Deviations** (all in `logs/p92/RESULTS.md` section 9): the pre-P87 block
+  corrected registration 1 (D1), F1b's delivered-max "bound" is mis-specified
+  because the delivered x is a distribution (D2), the fingerprint clause is
+  recorded not gated because every 20-attempt two-line reference predates P87's
+  clock (D3), `census.py`/`p92_report.py` evolved after the battery header (D4),
+  `chase.py` is a new instrument created after `PREREG.md` and pinned in
+  `header_r.txt` (D5), and the control at seed 6 has its own standing
+  over-budget leg (D6).
+* **Re-baseline: none** - nothing shipped.
