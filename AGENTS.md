@@ -4566,6 +4566,113 @@ and `chase.py` `b36a1c75`, reports `p92_report.py` `aebc0a3b` /
 `run_p92_a1.sh`, `gates.sh`, the cells `{C5,T5,C6,T6,R5,R6}.{log,stamps,driver,
 budgets}`, `accept_noharm.log`, `selfcheck.log`; WORKLOG "P92".
 
+**P93 (2026-11-02, `logs/p93/`; the re-entry, and the band still does not ship -
+the **third and fourth seeds refute P92's count**, while both of P92's red flags
+are **branch artifacts** and the only shipped change is metadata): the phase
+diagnosed the two guard failures, added seeds **101** and **202**, and applied
+P92's rule to four seeds. Nothing about the criterion moved:
+`FRUIT_SUPPLY_X_MAX` stays **0.36**.
+
+**The two red flags (PREREG §1, `logs/p93/diag.py` → `diag.txt`).** Both are on
+**one attempt** (seed 6, attempt 0, the right arm's first kiwi), read from a
+`FRUIT_DYNAMIC_TRACE=1` per-tick trace of `descent`/`catchup`/`close`/`carry`
+(`logs/p93/p1/{D6C,D6T}/trace/`; the two cells reproduce the untraced P92 cells
+**to the number** - `0.108/10.6 mm` and `0.222/58.9 mm`, `480.6` and `1169.1 mm`
+- and were each run twice, so the event is deterministic and the trace is
+run-neutral at that attempt). **(a) `T6`'s leg 1 is a *jam onset*, not a chase.**
+The leg's target is fixed and open-loop (`intercept=-0.0831`, the same 88
+commanded samples in both cells), so a chase is excluded **by construction**;
+over the leg the payload moves `90 mm` at **exactly the belt speed** (0.123 m/s)
+and `~0 mm` in `z`, so the leg does not displace it; at the **first tick after**
+the leg the pads read **71.1 N over 2 contacts** with the jaw span closing
+97 -> 76 mm around a 62 mm kiwi, and the payload is then driven **down through
+the belt** (`z` 1.197 -> 0.005, peak `|vz|` 4.6 m/s; the control does the same,
+41.8 N and `z` -> 0.818). Both payloads are **already at 2.4x belt speed when the
+leg starts** (`0.284 / 0.286 m/s`, ~4.2-4.7 rad/s of spin), so the disturbance
+**predates the leg and is present in both arms**; its source is **open** (no
+trace covers the wait/pre-pose window; the leading candidate is the other arm's
+pre-pose transit, whose 1.9-2.6 mm minimum separation the record already
+measures). `PREREG` §1a's binary reading is **not applicable as written**: the
+`descent` phase is traced **once**, at the leg's start (`tasks.py:11509` emits
+before the profiled descent), so there is no per-tick contact read inside the
+leg - recorded as deviation **D2**. **(b) the 419 N / 1313 mm leg is a
+*bookkeeping artifact with a physical consequence***: all three registered
+clauses pass. `|offset| = 1313 mm` against the hand's own tool scale of **70 mm**
+(`_pad_standoff`) and **20-62 mm on every other leg of the batch**, and the
+payload sits **1180 mm** from the fingertip (1132 mm of it in `-z`); the
+commanded `jaw_target` is **1313 mm** from the measured pads
+(`centre=[0.1986,-0.518,1.2467]` -> `[-0.2838,-1.0006,2.3689]`); and the pads
+*are* on the payload (`contacts@onset=1`, `sep@onset 46.6 mm` inside a 61.6 mm
+fruit). The path: `_gripper_offset[side]` is set to
+`rot.T @ (payload - tcp_position())` at the grasp routine's start
+(`tasks.py:11047`) - a *tool* offset only while the pads are on the payload -
+and it is applied **only** in `_carry`'s **incoherent** branch
+(`centre - rot @ offset_tool`, `:5361-5366`), which - unlike the coherent branch
+(`:5331`) and the place loop (`:6079`) - **does not consult `hand_is_jaw`**, so
+the payload's distance becomes a commanded 1.3 m jump (the 419 N, the 1.545 m/s
+in-hand peak and the 2361 mm `clean_slip_max` are that arm flight). **The
+control carries the same defect at a smaller amplitude** (116 mm, `fmax 0.00 N`,
+a 380-tick lift leg). **Per PREREG §1c both are branch artifacts** (present in
+the same-seed control; the monotonicity route needs two seeds carrying the
+event and only seed 6 does - seeds 5's attempt 0 reads `5.9 mm` in **both**
+arms), and the per-instance witness is the direction: that attempt delivered
+**`x = 0.2507` (T) against `0.2447` (C)**, i.e. 6 mm *further out*, the wrong
+way for the band's own 0.8125 mapping.
+
+**The seeds (PREREG §2, one claim per cell, 20 attempts, P92's instrumentation
+verbatim).** Controls read **16, 12, 15, 15** and treatments **18, 18, 14, 15**
+of 20; the class ledger is never-held **`2->0 / 1->1 / 0->0 / 2->1`** (pooled
+**5 -> 2**, Fisher **p = 0.4426**) and `cnp` **`2->2 / 7->1 / 5->6 / 3->4`**
+(pooled `17 -> 13`, p = 0.544). **So the class clause passes at every seed and
+the count does not**: pooled placed **58/80 (72.5 %) -> 65/80 (81.3 %)**,
+two-sided Fisher **p = 0.2604**, and **the whole pooled gain is seed 6's +6** -
+the two fresh seeds read `15 -> 14` and `15 -> 15`. **The two fresh controls are
+`15/20` twice against seed 6's `12/20`**, so P92's `28 -> 36` was measured
+against the *worst* of the four control branches the tree has. The delivered
+side follows the count, not the band (interval `10.59->10.13` and `11.08->9.84`
+but `12.16->13.28` and `11.53->12.51`; `placed/min wall` `+/-`, the wall column
+being the harness). **Verdict: NOT ADOPTED**, on three named clauses: rule 2
+(seed 101's placed count falls `15 -> 14`), **G1** (`cnp` rises at both fresh
+seeds), and **G3** (`T202` leg 14 `0.183/0.161`, +14 %). **G3's reading is the
+phase's most transferable one**: the four over-budget legs of **160** sit **two
+in controls** (`C6` leg 12 +2.5 %, `C101` leg 9 `0.224/0.160` = +40 %) **and two
+in treatments** (`T6` leg 1 +38 %, `T202` leg 14 +14 %); they are **uncorrelated
+with the catch-up** (`C101` leg 9 and `T202` leg 14 run clean catch-ups; `C5`'s
+two missed catch-ups `251.0 / 87.6 mm` run descents **inside** budget), so the
+over-budget descent is a **stochastic branch property at 2.5 % of legs in either
+arm** - which is what AGENTS §2 means by "the ratio has no clean gap". The budget
+was **not** re-tuned. **The power statement, for whoever wants it certified**:
+at the observed 8.75-point pooled difference the two-sided 0.05 / 80 %-power
+sample is **364 attempts per arm**, with the **never-held class** as the
+endpoint and the count as a report - not another two-seed batch.
+
+**What shipped is metadata only, and it was PREREG §6's precondition for any
+recollection**: `assets.supply_provenance(plan)` - the resolved **band**
+(`x_min`/`x_max`), the along draws, the two **mixes** and the **resolved schedule
+name** (`bed > patch > wave > scatter`, else `fixed`) - called by **both**
+manifest writers under the same key **`supply.band`**
+(`scripts/40_collect_demos.py` and `SortingRLEnv._supply_band_provenance`), so a
+collection store and a direct/rollout store name their band identically. **The
+gap it closes is specific**: the *collector's* shard manifest already carried
+`supply.x_min`/`x_max` and both mixes (`datasets/v12d_s02/manifest.json` reads
+`x_max: 0.36`), while the **direct env's** rollout manifest carried only its P58
+profile block - no band, no mix. A store without `supply.band` predates P93.
+Pinned in the existing provenance leg (`scripts/239_p72_clr_edge_selftest.py`
+gained a section 6: the signature, the arithmetic, all four branch orders, the
+`SupplyPlan` field set read from the dataclass's own AST, one call site per
+writer). **No stream effect**: `scripts/selfcheck.sh` **PASS (0 failures, 1
+skipped)**, `scripts/accept.sh` **7/10, 9.4 s/attempt, `fingerprint: matches` + `190: PASS`**
+with its **449 `[fruit]` lines byte-identical (449/449)** to
+`logs/p91/accept_final.log` (`logs/p93/accept_noharm.log`), `211` **ok (115 checks)**,
+`106` OK, `107` **PASS (21 checks)**. **No motion reference was re-recorded and
+none is owed** (`423896f7` / `423896f7` / `8952c320` all stand). Pins: `tasks.py`
+`7ba4bb58` **untouched** (so `rl_env.TASKS_MD5` stands), `assets.py`, `rl_env.py`
+and `scripts/40_collect_demos.py` each carry only the new builder and its one
+call site. Evidence `logs/p93/{PREREG.md,PREREG.md5,RESULTS.md,diag.py,diag.txt,
+p93_report.py,p93_report.txt,run_p93.sh,gates.sh,header.txt}`, the cells
+`{D6C,D6T,C101,T101,C202,T202}.{log,stamps,driver}`, `{C101,T101,C202,T202}.budgets`,
+`p1/{D6C,D6T}/`, `accept_noharm.{log,driver}`, `selfcheck.log`; WORKLOG "P93".
+
 ## 3. What changed -> what to run
 
 | you changed | run |
@@ -4581,7 +4688,7 @@ budgets}`, `accept_noharm.log`, `selfcheck.log`; WORKLOG "P92".
 | collection (`40_collect_demos.py`) or merging (`41_merge_demos.py`) | `scripts/107_collect_merge_test.py`, then `python3 scripts/106_index_audit.py` |
 | simulator behaviour, scene, gripper, conveyor | `scripts/accept.sh`, then `scripts/demo_2min.sh` |
 | the supply schedule (`fruits.py`, `bed.py`) | `python3 scripts/211_bed_audit.py`, then `scripts/selfcheck.sh` |
-| a **supply-geometry** change (the lateral band `FRUIT_SUPPLY_X_MIN/MAX`, the release schedule, a station/column move) | the **census first**, offline: `python3 logs/p92/census.py` and `python3 logs/p92/chase.py` name the class you are trying to move and the servo's `closed > 0` signature (`logs/p92/CENSUS.md`); then the **manipulation check** - `x` is one `uniform(x_min, x_max)` draw and no code branches on it, so the *planned* band is proved by the `[supply] lateral x=` row and the *delivered* x is a **distribution** (plan + a per-instance offset: `0.36 -> 0.3908` at the top), never a bound; then 20 attempts x **>= 2 seeds** with the class counts (`cnp` / never-held / chase) as the primary, **both denominators + the wall** as the rest, `bash logs/p92/gates.sh` (**budgets only** - every 20-attempt two-line reference in the tree predates P87's release clock, so any post-P87 cell reads `fingerprint: DIFFERS` by construction; the control proof is the line-identity replay against `logs/p91/{C5,C6}.log`), `python3 scripts/211_bed_audit.py`, and `scripts/accept.sh` |
+| a **supply-geometry** change (the lateral band `FRUIT_SUPPLY_X_MIN/MAX`, the release schedule, a station/column move) | the **census first**, offline: `python3 logs/p92/census.py` and `python3 logs/p92/chase.py` name the class you are trying to move and the servo's `closed > 0` signature (`logs/p92/CENSUS.md`); then the **manipulation check** - `x` is one `uniform(x_min, x_max)` draw and no code branches on it, so the *planned* band is proved by the `[supply] lateral x=` row and the *delivered* x is a **distribution** (plan + a per-instance offset: `0.36 -> 0.3908` at the top), never a bound; then 20 attempts x **>= 2 seeds, of which at least two must be FRESH** (P93: two seeds reuse the same two control branches and over-state the gain - the band's `28 -> 36` became `58/80 -> 65/80` at four, with the two fresh controls reading 15/20 twice against seed 6's 12/20) with the class counts (`cnp` / never-held / chase) as the primary, **both denominators + the wall** as the rest, `bash logs/p92/gates.sh` (**budgets only** - every 20-attempt two-line reference in the tree predates P87's release clock, so any post-P87 cell reads `fingerprint: DIFFERS` by construction; the control proof is the line-identity replay against `logs/p91/{C5,C6}.log`), `python3 scripts/211_bed_audit.py`, and `scripts/accept.sh` |
 | the bimanual scheduler (`bimanual.py`, or the task loop under `FRUIT_BIARM=1`) | `scripts/selfcheck.sh` (the 152 leg), the rate batch (`scripts/153_biarm_rates.sh two-line 5`; `shared` and `single` are the other two modes), then `scripts/accept.sh` (it gates whatever session it ran) |
 | the **shipped scheduler default** (`bimanual.resolve_biarm`/`resolve_twoline`, `tasks.bimanual_enabled`/`two_line_enabled`, the supply package's `two_line=` scope, `scripts/accept.sh`'s gate branch) | `scripts/selfcheck.sh` (the `246` leg: the resolver table, the session scope, the entry wiring, the manifest keys, the accept branch), then **both restores** - `FRUIT_BIARM=0` at ten attempts against `configs/motion_reference_single.json` and a `FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=0` smoke - then a 20-attempt default rate run compared line-for-line with the pre-flip record (drop only `[fruit] [carry]`, `[fruit] [diag] carry-assist` and the `[biarm] scheduler:` banner; `logs/p85/p85_report.py --same-with-diag`, template `logs/p85/RESULTS.md`), then `scripts/accept.sh` and `scripts/demo_2min.sh` |
 | the arbiter / main-thread bridge (`bimanual.py` `TickRelay`, `MainBridge`, `CoopSession`), or anything that claims a **wall** speedup on the two-line | `scripts/selfcheck.sh` (the 152 leg), then **the same cell twice** (knob unset vs set) with `logs/p80/stamp.py` and require the `[fruit]` stream to be **byte-identical** (`python3 logs/p82/p82_report.py --same <control.log> <cell.log>`) - a scheduler change must not move the physics - plus `scripts/190_twoline_gate.sh` on the cell (its own reference for its own attempt count) and one `FRUIT_BIARM=1` pair for the shared-station consumer; read the wall with `logs/p82/p82_ab.py` and quote **wall/sim**, `wall/pick` and `placed/min wall` against the single arm at **>= 2 seeds** (`logs/p82/RESULTS.md` §4-§6). The arbiter's idle is measured by `logs/p82/timers.py`; do not add per-tick timers to `ik_step` (AGENTS §2) |
@@ -4590,6 +4697,7 @@ budgets}`, `accept_noharm.log`, `selfcheck.log`; WORKLOG "P92".
 | a **place-station move** (`assets.py` `output_place_x/y`, `output_place_clearance`) | the map **first**, offline: `bash logs/p90/run_p90.sh` (the 588-cell `T0`/`NAT`/`C0` sweep over +-0.15 m at 1.450 and 1.530, both arms, ~47 min) and `python3 logs/p90/cost_map.py --check` - **the shipped point is at the corner of the solvable box** and the `NAT` best-solved tilt there is already 77.75 deg, so a candidate must beat that or there is nothing to buy; then the `238` leg, `scripts/accept.sh` (the branch moves by construction - the release point is in the camera's frame), one two-line run + `scripts/190_twoline_gate.sh`, and **every store re-baselined** (`logs/p90/COST.md` §6) |
 | the output station (`assets.py` `output_rails` / `output_belt_top_z`, `conveyor.OutputBelt`) | `scripts/selfcheck.sh` (the `238` leg), `scripts/accept.sh`, one two-line run + `scripts/190_twoline_gate.sh`, then the direct cell with `FRUIT_CARRY_DIAG=1` (the crossing `clr`/`clr_win` **and the P72 corner `clr_edge`/`clr_edge_min`** per held place leg, read with `logs/p72/p72_report.py --check`) - and re-record both references if the flip is shipped (`logs/p71/RESULTS.md` §5) |
 | the scene's collider set or a store's provenance (`assets.scene_provenance`, the manifests) | `scripts/selfcheck.sh` (the `239` leg), then one collection or direct run and check its `manifest.json` carries the `scene` block (`logs/p72/manifest_probe.py` does it without a simulator app) |
+| a store's **supply** provenance (`assets.supply_provenance`, the `supply.band` key in both manifests) | `scripts/selfcheck.sh` (the `239` leg's section 6: the builder's signature and arithmetic, all four branch orders, the `SupplyPlan` field set read from the dataclass's own AST, one call site per writer), then one collection or direct run and check its `manifest.json` carries `supply.band.x_min`/`x_max`/`grades`/`schedule` - **a manifest without it predates P93**, and the collector's flat `supply.x_min`/`x_max` are then the witness (`logs/p93/RESULTS.md` §6) |
 | a new default-off diagnostic field on the `[carry]` row (or a new `[place]`/`[seat]` line, or a new `[place-trace]` per-tick print) | `scripts/selfcheck.sh` (the field's own leg - `235`/`239`/`240`/`241` are the pattern), then **one direct run with `FRUIT_CARRY_DIAG=1`** to read it, then `scripts/accept.sh` and require its **346/346 `[fruit]` lines** to be byte-identical to the pre-change record - a diag-only change must be inert on the scripted path (`logs/p73/P1_RESULTS.md` §5, `logs/p75/RESULTS.md` §5) |
 | the finger drive's force cap, or a leg-scoped drive write (`FRUIT_FINGER_MAXFORCE`, `FRUIT_FINGER_MAXFORCE_SCOPE=place-left|grasp-left`/`..._SCOPED`, `tasks.finger_cap_scope_for`, `_carry`'s wrapper) | `scripts/selfcheck.sh` (the `244` leg), then **one direct run with `FRUIT_CARRY_DIAG=1`** and read the `[drive] ... finger cap raise/restore` rows **and** the delivered force by leg class - **the site proof is the pair**: `place-left` -> `place*` at the scoped cap with `grasp_lift` at ~9.7 N (`logs/p78/RESULTS.md` §0), `grasp-left` -> `grasp_lift` at the scoped cap with `place*` at ~10 N (`logs/p79/RESULTS.md` §1); then `scripts/accept.sh` + one two-line run + `scripts/190_twoline_gate.sh` **with the knob armed** and require **346/346 `[fruit]` lines + both fingerprints** to be unmoved (`logs/p78/RESULTS.md` §7, `logs/p79/RESULTS.md` §6) - the scoped form must move no reference; a **global** `FRUIT_FINGER_MAXFORCE` instead owes both references and every store. Read `fmax` as a **peak transient** that exceeds the cap on single legs even at 10 N, and `force_min` as the leg's weakest moment - neither is a `place*`-was-re-clamped test on one cell (`logs/p79/PREREG.md` §9 A1); the structural rows are |
 | an **early end of a carry leg** (a new skip/trip on `_carry_monitor_skip`/`_fail_fast_trip`, a new threshold, `_attempt_ended_early`, or a new failure path out of `_grasp_carry_place_impl`) | `scripts/selfcheck.sh` (the `245` leg is the pattern: the resolver table, the refuse-below floor, **one** trip site, the attempt-local latch, the scope, the arming clause, and that the trip adds **no `result.notes` entry**), then **the tracker-only control first**: `FRUIT_CARRY_DIAG=1` alone on the same seed must be **byte-identical** to the shipped run (`--same`, diag rows dropped) - otherwise the treatment differs by instrumentation and no time claim is admissible (`logs/p83/RESULTS.md` §6 G2) - then the A/B against **that** control on **>= 2 seeds**, reading **the failed attempt's own span** as the mechanism number (branch-free) and the interval/count as the claim, plus `scripts/accept.sh` and require its `[fruit]` stream to be byte-identical to the pre-change record |

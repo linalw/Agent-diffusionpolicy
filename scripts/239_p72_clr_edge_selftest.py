@@ -51,7 +51,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 
-from fruit_sorting.assets import SceneConfig, scene_provenance  # noqa: E402
+from fruit_sorting.assets import (  # noqa: E402
+    SceneConfig,
+    scene_provenance,
+    supply_provenance,
+)
 
 SRC = ROOT / "src" / "fruit_sorting"
 TASKS = SRC / "tasks.py"
@@ -310,6 +314,97 @@ def main() -> int:
         seg = rl_src[idx : idx + 1400]
         check("except Exception" in seg,
               f"{name} cannot stop a run (a reported state, not a crash)")
+
+    # ------------------------------------------------------------------ #
+    # 6. The supply provenance block (P93: the band and the mix)
+    # ------------------------------------------------------------------ #
+    # P92's re-entry named this as its one prerequisite before any
+    # recollection: the *delivered* lateral position is where the closed class's
+    # rate lives, so a store recorded under 0.20-0.33 m and one under
+    # 0.20-0.36 m must be distinguishable from their own metadata. The
+    # collector's shard already carried `supply.x_min`/`x_max`; the **direct
+    # env's** rollout manifest carried neither, which is the gap this closes.
+    fns = ast.parse(assets_src)
+    node = next((n for n in ast.walk(fns)
+                 if isinstance(n, ast.FunctionDef) and n.name == "supply_provenance"),
+                None)
+    check(node is not None, "assets.supply_provenance exists (P93)")
+    check([a.arg for a in node.args.args] == ["plan"],
+          "supply_provenance(plan) - one argument, the resolved SupplyPlan")
+
+    # the fields the builder reads must still exist on the dataclass
+    fruits_src = (SRC / "fruits.py").read_text(encoding="utf-8")
+    fp = ast.parse(fruits_src)
+    plan_cls = next((n for n in ast.walk(fp)
+                     if isinstance(n, ast.ClassDef) and n.name == "SupplyPlan"), None)
+    check(plan_cls is not None, "fruits.SupplyPlan is a class in fruits.py")
+    fields = {n.target.id for n in plan_cls.body
+              if isinstance(n, ast.AnnAssign) and isinstance(n.target, ast.Name)}
+    for need in ("x_min", "x_max", "gap_min", "gap_max", "grades", "classes",
+                 "bed", "patch", "wave", "scatter"):
+        check(need in fields, f"SupplyPlan still carries `{need}` (the builder reads it)")
+
+    # the block itself, on a stub plan (the arithmetic only)
+    class _Plan:
+        x_min = 0.20
+        x_max = 0.33
+        gap_min = 0.10
+        gap_max = 0.35
+        grades = (("A", 0.375), ("B", 0.375), ("C", 0.25))
+        classes = (("apple", 0.5), ("kiwi", 0.5))
+        bed = False
+        patch = False
+        wave = True
+        scatter = True
+
+    band = supply_provenance(_Plan())
+    check(close(band["x_min"], 0.20) and close(band["x_max"], 0.33),
+          "the band is recorded as resolved (0.20 / 0.33 on the P92 treatment)")
+    check(band["grades"] == {"A": 0.375, "B": 0.375, "C": 0.25},
+          "the grade mix is recorded as {name: weight} (a dict, sortable)")
+    check(band["classes"] == {"apple": 0.5, "kiwi": 0.5},
+          "the species mix is recorded the same way")
+    check(band["schedule"] == "wave",
+          "the RESOLVED schedule name is recorded (bed > patch > wave > scatter)")
+    for flags, want in (
+        ({"bed": True, "patch": True, "wave": True, "scatter": True}, "bed"),
+        ({"bed": False, "patch": True, "wave": True, "scatter": True}, "patch"),
+        ({"bed": False, "patch": False, "wave": True, "scatter": True}, "wave"),
+        ({"bed": False, "patch": False, "wave": False, "scatter": True}, "scatter"),
+    ):
+        p2 = _Plan()
+        for k, v in flags.items():
+            setattr(p2, k, v)
+        check(supply_provenance(p2)["schedule"] == want,
+              f"the branch order resolves {want} (bed > patch > wave > scatter)")
+    p3 = _Plan()
+    p3.wave = False
+    p3.scatter = False
+    check(supply_provenance(p3)["schedule"] == "fixed",
+          "a plan with no schedule flag reads `fixed` (never a silent lie)")
+    check(close(band["gap_min"], 0.10) and close(band["gap_max"], 0.35),
+          "the along-schedule draws are recorded too (two densities are distinguishable)")
+
+    # one builder, both writers (the P72 `scene` rule)
+    band_fn = next((n for n in ast.walk(ast.parse(collect_src))
+                    if isinstance(n, ast.FunctionDef)
+                    and n.name == "_supply_band_provenance"), None)
+    check(band_fn is not None, "the collector has one `_supply_band_provenance`")
+    check("from fruit_sorting.assets import supply_provenance" in collect_src,
+          "the collector's shard manifest uses the shared builder")
+    check('"band": _supply_band_provenance(supply),' in collect_src,
+          "the collector writes supply.band")
+    check("from .assets import supply_provenance" in rl_src
+          and '"band": self._supply_band_provenance(),' in rl_src,
+          "the direct rollout manifest writes the same key from the same builder")
+    check(rl_src.count('"band": self._supply_band_provenance(),') == 1,
+          "one call site in the env (no second, drifting copy)")
+    idx = rl_src.index("def _supply_band_provenance(")
+    seg = rl_src[idx : idx + 900]
+    check("except Exception" in seg,
+          "the env's supply block cannot stop a run (a reported state, not a crash)")
+    check("getattr(self.spawner, \"supply\", None)" in seg,
+          "it reads the spawner's resolved plan, not the env strings")
 
     print("PASS: P72 clr_edge + scene provenance")
     return 0

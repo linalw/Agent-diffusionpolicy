@@ -49,6 +49,14 @@ validation's margin and the force servo's squeeze window), so the interval rose
 at both seeds and `PROBE_TWO_LINE_DEFAULT` stays False. **No number in this page
 moves.**
 
+**P92/P93 opened and closed the *success-rate* lane on the same cell** (the
+supply's lateral band), and it ships nothing either: the band converts the
+never-held class at all four seeds but its **count gain is seed 6's alone**
+(pooled `58/80 -> 65/80`, p = 0.26; the two fresh seeds read `15 -> 14` and
+`15 -> 15`). See "The success-rate lane" below - it also carries the phase's two
+new read rules (a one-leg motion-budget failure is not evidence against a
+scenario change; a band is a class lever until it is powered).
+
 Shipped scripted cell, 20 slots, seed 5 (`logs/p85/` = P80's scenario with P82's
 wall; the P87 row is `logs/p87/T5.log`, the same scenario with the trim):
 
@@ -322,6 +330,62 @@ measured arm is `FRUIT_DYNAMIC_PROBE_TICKS=24`; the guards that passed (landing
 mm, all four cells' motion budgets clean) are what makes the negative readable.
 **The five-block family is closed by measurement**: what is left of the cycle is
 **wait (excluded) + the closed grip class + these five floors**.
+
+## The success-rate lane (P92/P93): the supply band, four seeds, NOT shipped
+
+The profile and clock lanes above are all *throughput* levers. The other term in
+the interval is the failure rate (`26.7 s = 1.45 x 15.1 s + 4.8 s` on the single
+arm: **a failure costs a whole attempt**), so P92 opened a **scenario** lane on
+the supply's lateral band and P93 closed it. **Nothing is shipped and no number
+in this page moves**: `FRUIT_SUPPLY_X_MAX` stays **0.36**.
+
+**What P92 found (two seeds).** The shipped cell's 12 failures of 40 were **9
+`cnp` + 3 never-held**; the never-held class is *exactly* the set whose
+`dynamic catch-up` residual exceeds 6 mm, and two of the three were presented at
+the delivered `x = 0.386 / 0.391 m`, at or past the record's 0.39 m clean lateral
+edge. Narrowing the band to `0.20-0.33` (one `uniform(x_min, x_max)` draw, so the
+release stream is the *same* stream laterally compressed by 0.8125) read placed
+**28/40 -> 36/40**, `cnp` **9 -> 3**, never-held **3 -> 1**. The registered rule
+still refused it on one leg: seed 6's descent 1 at `|v|max 0.222` against its
+`0.161` budget.
+
+**What P93 found (four seeds, and the reason the answer is no).** Both of P92's
+red flags are **branch artifacts**: the `|v|max` leg is a **jam onset** (the pads
+arrive on a payload that is already at 2.4x belt speed, the same event the
+control carries at 41.8 N, and the leg itself moves the payload at exactly the
+belt speed), and the 419 N leg is a **bookkeeping artifact** (`_gripper_offset`
+is the *payload-minus-TCP* distance, 1313 mm, applied in `_carry`'s incoherent
+branch which does not consult `hand_is_jaw` - a named `src/` defect, not a
+payload event). So the diagnostics cleared the way. **The fresh seeds then
+refuted the count**:
+
+| seed | control placed | treatment | never-held C->T | `cnp` C->T |
+| --- | --- | --- | --- | --- |
+| 5 | 16/20 | **18/20** | 2 -> 0 | 2 -> 2 |
+| 6 | 12/20 | **18/20** | 1 -> 1 | 7 -> 1 |
+| **101** | **15/20** | **14/20** | 0 -> 0 | 5 -> 6 |
+| **202** | **15/20** | **15/20** | 2 -> 1 | 3 -> 4 |
+| pooled | **58/80 (72.5 %)** | **65/80 (81.3 %)** | **5 -> 2** | 17 -> 13 |
+
+**The whole pooled gain is seed 6's +6.** The two fresh controls read **15/20
+twice** against seed 6's 12/20, so P92's `28 -> 36` was measured against the worst
+of the four control branches the tree has; against the fresh ones the band is
+worth **-1 and 0** placements and it **adds a `cnp` at both**. Pooled: placed
+`p = 0.2604`, never-held `p = 0.4426` - neither is a rate at n = 80.
+
+**The two read rules this lane adds, and they are load-bearing:**
+
+* **A motion-budget failure on one leg is not evidence against a scenario
+  change.** Across the phase's **160 descent legs, 4 left their budget - two in
+  controls and two in treatments** (`C101` leg 9 at **0.224/0.160 = +40 %** is a
+  *control* on the shipped band; `T6` leg 1 is +38 %), and they are
+  **uncorrelated with the catch-up**. The budget has no clean gap (AGENTS §2), so
+  a one-leg G3 failure in a two-seed A/B has measured the branch.
+* **A supply band is a class lever, not a rate lever, until it is powered.** At
+  the observed 8.75-point pooled difference the two-sided 0.05 / 80 %-power
+  sample is **364 attempts per arm**, with the **never-held class** as the
+  endpoint and the count as a report. That is the priced re-entry
+  (`logs/p93/RESULTS.md` §4), not another two-seed batch.
 
 ## The read rules (they bind the next rate claim)
 

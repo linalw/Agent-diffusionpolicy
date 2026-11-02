@@ -2982,9 +2982,33 @@ class SortingRLEnv:
                 "direct_feed": bool(self._direct_feed),
                 "continuous": int(self._continuous_picks),
                 "defaulted": dict(self._supply["defaulted"]),
+                #: P93: the **band and mix** the pool was built with, from the
+                #: shared builder the collector's shards also call
+                #: (`assets.supply_provenance`). Without it a direct/rollout
+                #: store under 0.20-0.33 m and one under 0.20-0.36 m are
+                #: indistinguishable from their own metadata (the collector's
+                #: shard manifest already carried `supply.x_min`/`x_max`; this
+                #: block is the direct env's, and it is the same object).
+                "band": self._supply_band_provenance(),
             },
             "sources": sources,
         }
+
+    def _supply_band_provenance(self) -> dict:
+        """The manifest's `supply.band` block (P93), or a reported error.
+
+        Same builder and same rule as `_scene_provenance`/`_physics_provenance`:
+        a manifest must never take a run down, so a failure is a recorded state.
+        """
+        try:
+            from .assets import supply_provenance
+
+            plan = getattr(self.spawner, "supply", None)
+            if plan is None:
+                return {"why": "the spawner exposes no SupplyPlan"}
+            return supply_provenance(plan)
+        except Exception as exc:  # noqa: BLE001 - provenance must not stop a run
+            return {"why": str(exc)}
 
     def _physics_provenance(self) -> dict:
         """The manifest's `physics` block, with the runtime finger-drive read-back.

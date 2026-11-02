@@ -769,3 +769,68 @@ def scene_provenance(
     return block
 
 
+def supply_provenance(plan) -> dict:
+    """The supply **band and mix** a store was recorded under (P93).
+
+    P92's re-entry named this as its one provenance prerequisite before any
+    recollection: the *delivered* lateral position is where the closed class's
+    rate lives (`logs/p92/RESULTS.md` section 2 - the band's top is where the
+    pinch is taken at the reach edge), so a store recorded under a 0.20-0.33 m
+    band and one recorded under 0.20-0.36 m must be distinguishable from their
+    own metadata.
+
+    What exists today, measured rather than assumed:
+
+    * the **collector's** shard manifest already carries `supply.x_min` /
+      `supply.x_max` and both mixes next to the schedule flags
+      (`datasets/v12d_s02/manifest.json` reads `x_max: 0.36`), so a
+      *collection* store is already distinguishable;
+    * the **direct env's** rollout manifest carries only its P58 profile block
+      (`cadence`/`band_interlock`/`band_max`/`target_from`/`direct_feed`/
+      `continuous`/`defaulted`) - no band, no mix - so a direct/rollout store
+      under a different band is **not** distinguishable today. That is the gap.
+
+    One builder, the same builders-from-two-paths rule as
+    `finger_physics_provenance` (P41) and `scene_provenance` (P72): both manifest
+    writers call **this** function and cannot drift apart. Everything here is a
+    read of the resolved `fruits.SupplyPlan` - no simulator, no articulation, no
+    state - so it is written before the first episode and cannot fail a build.
+
+    Fields:
+
+    * `x_min` / `x_max` - the **planned** lateral band. The *delivered* x is the
+      plan plus a per-instance release offset (P38/P50: the control's own
+      `0.36 -> 0.3908` is +31 mm), so this is a bound on the draw, never a
+      bound on what the pads met.
+    * `gap_min` / `gap_max` - the along-schedule draws, so two stores at the
+      same band but different density (P1's `FRUIT_SUPPLY_PATCH_DENSITY`) are
+      distinguishable too.
+    * `grades` / `classes` - the two mixes as `{name: weight}`. The grade mix is
+      what the pure routing sends to each arm (W3), so it moves the per-arm
+      occupancy without moving one trajectory.
+    * `schedule` - the **resolved** branch name (`bed` > `patch` > `wave` >
+      `scatter`, then `fixed`). This is the branch order the spawner's own
+      `respawn` reads; the flags themselves are already in both manifests, and
+      the resolved name is the one field a reader can compare at a glance (the
+      P33-phase-3 "patch and wave both on means the patch branch" trap).
+
+    A manifest **without** `supply.band` predates P93 (the `arm_park.defaulted`
+    / `scene` convention): it may have been recorded under either band, and the
+    `x_min`/`x_max` fields the collector already writes are then the witness.
+    """
+    schedule = "fixed"
+    for name in ("bed", "patch", "wave", "scatter"):
+        if bool(getattr(plan, name, False)):
+            schedule = name
+            break
+    return {
+        "x_min": float(plan.x_min),
+        "x_max": float(plan.x_max),
+        "gap_min": float(plan.gap_min),
+        "gap_max": float(plan.gap_max),
+        "grades": {str(k): float(v) for k, v in plan.grades},
+        "classes": {str(k): float(v) for k, v in plan.classes},
+        "schedule": schedule,
+    }
+
+

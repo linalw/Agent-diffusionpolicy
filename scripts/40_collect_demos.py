@@ -199,6 +199,19 @@ def _scene_provenance(cfg) -> dict:
     return scene_provenance(cfg)
 
 
+def _supply_band_provenance(plan) -> dict:
+    """The supply band and mix (P93), so a shard names what the pool was built from.
+
+    Same builder the direct env's rollout manifest calls
+    (`fruit_sorting.assets.supply_provenance`): one function, both writers, so a
+    collection store and a direct store name their band the same way. Pure
+    `SupplyPlan` arithmetic - no simulator, no state.
+    """
+    from fruit_sorting.assets import supply_provenance
+
+    return supply_provenance(plan)
+
+
 def update_manifest_physics(out_dir: str, task) -> None:
     """Replace the manifest's env-resolved finger drive with the runtime read-back.
 
@@ -407,6 +420,13 @@ def write_manifest(out_dir: str, cfg: SceneConfig) -> None:
             "patch_sep_max": supply.patch_sep_max,
             "grades": {key: weight for key, weight in supply.grades},
             "classes": {key: weight for key, weight in supply.classes},
+            #: P93: the same `supply.band` object the direct env's rollout
+            #: manifest writes (`assets.supply_provenance`), so the two store
+            #: types name their band and mix identically. The flat
+            #: `x_min`/`x_max`/`grades`/`classes` above are the pre-P93 form and
+            #: are kept: an existing shard is not rewritten, and a reader that
+            #: predates this block still finds them.
+            "band": _supply_band_provenance(supply),
         },
         "md5": {name: _md5(os.path.join(root, name)) for name in sources},
         # P41 phase 2: the grip's physics, not just the tree that ran it. See

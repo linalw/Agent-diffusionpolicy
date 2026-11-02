@@ -23024,3 +23024,141 @@ wander; a supply change bounds it.
   `header_r.txt` (D5), and the control at seed 6 has its own standing
   over-budget leg (D6).
 * **Re-baseline: none** - nothing shipped.
+
+## P93 - the re-entry: both red flags are branch artifacts, and the third seed refutes the count
+
+2026-11-02, `logs/p93/`. Owner directive: P92's named re-entry, and the goal is
+the **success rate**. So: diagnose the two guard failures, add the third seed,
+and land the adoption package **if** the gate passes. It does not: the band stays
+`FRUIT_SUPPLY_X_MAX=0.36` and the only shipped change is metadata.
+
+### The diagnostics: one attempt, two flags, both of them the control's too
+
+Both flags sit on **seed 6, attempt 0, the right arm's first kiwi**, so the whole
+diagnostic is one attempt read twice. `FRUIT_DYNAMIC_TRACE=1` gives one row per
+tick for `descent`/`catchup`/`close`/`carry`; the two traced cells (`D6C`/`D6T`,
+`ATTEMPTS=4`) reproduce the untraced P92 cells **to the number**
+(`0.108/10.6 mm`, `0.222/58.9 mm`, `480.6 mm`, `1169.1 mm`) and each was run
+twice, so the event is deterministic and the trace is run-neutral at that
+attempt. One first-pass mistake is recorded as D1: both cells initially wrote
+into the shared `logs/dynamic_trace/` and overwrote each other's attempt-0 file,
+so each got its own `FRUIT_DYNAMIC_TRACE_DIR` and both cells were re-run.
+
+**`T6`'s leg 1 is a jam onset.** A chase is excluded *by construction* - the
+descent's target is computed before the leg (`intercept=-0.0831`) and the
+commanded profile is the same 88 samples in both cells, so there is no moving
+target to chase. Over the leg the payload moves **90 mm at exactly the belt
+speed** (0.123 m/s) and ~0 mm in `z`: the leg does not displace it. What it does
+is **arrive on it** - at the first tick after the leg the pads read **71.1 N over
+2 contacts** with the jaw span closing 97 -> 76 mm around a 62 mm kiwi, and the
+payload is then driven **down through the belt** (`z` 1.197 -> 0.005, peak `|vz|`
+4.6 m/s). The control does the same thing at the same attempt (41.8 N, `z` ->
+0.818). And both payloads are **already at 2.4x belt speed when the leg starts**
+(0.284 / 0.286 m/s, ~4.2-4.7 rad/s of spin), so the disturbance predates the leg.
+Its source is **open**: no trace covers the wait/pre-pose window, and the leading
+candidate is the other arm's pre-pose transit, whose 1.9-2.6 mm minimum
+separation the record already measures. PREREG §1a's binary reading also turned
+out **not applicable as written** (D2): the `descent` phase is traced **once**,
+at the leg's start (`tasks.py:11509` emits before the profiled descent), so there
+is no per-tick contact read *inside* the leg - the phase reads the two states
+either side of it and says so.
+
+**The 419 N / 1313 mm leg is a bookkeeping artifact with a physical
+consequence.** All three registered clauses pass: `|offset| = 1313 mm` against
+the hand's own tool scale of 70 mm (`_pad_standoff`) and **20-62 mm on every
+other leg of the batch**; the payload sits 1180 mm from the fingertip (1132 mm of
+it in `-z`); the commanded `jaw_target` is 1313 mm from the measured pads; and
+the pads *are* on the payload (`contacts@onset=1`, `sep@onset 46.6 mm` inside a
+61.6 mm fruit). The path is `tasks.py:11047` - `_gripper_offset` is set to
+`rot.T @ (payload - tcp_position())`, a *tool* offset only while the pads are on
+the payload - applied **only** in `_carry`'s **incoherent** branch
+(`centre - rot @ offset_tool`, `:5361-5366`), which **does not consult
+`hand_is_jaw`** while the coherent branch (`:5331`) and the place loop (`:6079`)
+both do. So the payload's distance from the tool becomes a commanded 1.3 m jump;
+the 419 N, the 1.545 m/s in-hand peak and the 2361 mm `clean_slip_max` are that
+arm flight. **The control carries the same defect at 116 mm.**
+
+Per PREREG §1c both are **branch artifacts**: present in the same-seed control,
+and the monotonicity route needs two seeds carrying the event while only seed 6
+does (seeds 5's attempt 0 reads 5.9 mm in **both** arms). The per-instance
+witness for "branch, not band" is the direction: that attempt delivered
+`x = 0.2507` (T) against `0.2447` (C), i.e. **6 mm further out** - the wrong way
+for a band whose mapping compresses `x` by 0.8125.
+
+### The seeds: the class clause survives, the count does not
+
+Two fresh seeds (101, 202), control vs `FRUIT_SUPPLY_X_MAX=0.33`, 20 attempts
+each, P92's instrumentation verbatim, one claim per run. Controls **16, 12, 15,
+15**; treatments **18, 18, 14, 15**. Never-held **2->0 / 1->1 / 0->0 / 2->1**
+(pooled **5 -> 2**, p = 0.44); `cnp` **2->2 / 7->1 / 5->6 / 3->4** (pooled
+17 -> 13, p = 0.54). Placed pooled **58/80 (72.5 %) -> 65/80 (81.3 %)**, Fisher
+**p = 0.2604**, and **the whole pooled gain is seed 6's +6**: the fresh seeds
+read `15 -> 14` and `15 -> 15`. The two fresh controls are **15/20 twice**
+against seed 6's 12/20 - so P92's `28 -> 36` was measured against the *worst* of
+the four control branches the tree has. The delivered side follows the count,
+not the band (interval better at 5/6 and worse at 101/202).
+
+**Verdict: NOT ADOPTED**, on three named clauses: rule 2 (seed 101's placed count
+falls 15 -> 14), G1 (`cnp` rises at both fresh seeds), G3 (`T202` leg 14,
+0.183/0.161). The count clause was deliberately stricter than the project's own
+doctrine; it fires anyway, and the doctrinal read says the same thing.
+
+### G3, read across 160 legs: the motion budget is arm-symmetric
+
+The four over-budget descents sit **two in controls** (`C6` leg 12 +2.5 %, the
+standing P86/P87/P88 branch leg; **`C101` leg 9 `0.224/0.160` = +40 %**) and
+**two in treatments** (`T6` leg 1 +38 %, `T202` leg 14 +14 %) - 2.5 % of 160
+legs - and they are **uncorrelated with the catch-up**: `C101` leg 9 and `T202`
+leg 14 both run clean catch-ups (every residual <= 6.0 mm), while `C5`'s two
+missed catch-ups (251.0 / 87.6 mm) run descents **inside** budget. So the
+over-budget descent is a stochastic branch property of this scenario in either
+arm, which is what AGENTS §2 means by "the ratio has no clean gap and the budget
+cannot tell a boundary strain from a real push". The budget was **not** re-tuned.
+`C101`'s leg 9 is the phase's cleanest single read: **a control cell on the
+shipped band produces the same excursion class the treatment was refused for at
+seed 6** - so a one-leg G3 failure in a two-seed A/B is not evidence against a
+scenario change.
+
+### The power statement, for whoever wants this lever certified
+
+At the observed 8.75-point pooled difference, the two-sided 0.05 / 80 %-power
+sample is **364 attempts per arm** (5-6 times this phase's), with the
+**never-held class** as the registered endpoint and the count as a report. That
+is the named next spend; not another two-seed batch.
+
+### What shipped: `supply.band`, the provenance gap P92 named
+
+PREREG §6 made this the precondition for any recollection and it is metadata
+only. `assets.supply_provenance(plan)` returns the resolved band
+(`x_min`/`x_max`), the along draws, the two mixes and the **resolved schedule
+name** (`bed > patch > wave > scatter`, else `fixed`); **both** manifest writers
+call it under the same key `supply.band` (`scripts/40_collect_demos.py` and
+`SortingRLEnv._supply_band_provenance`, the latter inside a `try/except`). The
+gap it closes is specific: the *collector's* shard manifest already carried
+`supply.x_min`/`x_max` and both mixes (`datasets/v12d_s02/manifest.json` reads
+`x_max: 0.36`), while the **direct env's** rollout manifest carried only its P58
+profile block - so a direct/rollout store under 0.20-0.33 and one under 0.20-0.36
+were indistinguishable. A store without `supply.band` predates P93. Pinned in the
+existing provenance leg (`scripts/239_p72_clr_edge_selftest.py` section 6: the
+signature, the arithmetic, all four branch orders, the `SupplyPlan` field set
+read from the dataclass's own AST, one call site per writer).
+
+### No-harm, and the pins
+
+`selfcheck.sh` PASS (0 failures, 1 skipped); `accept.sh` **7/10, 9.4 s/attempt,
+`fingerprint: matches`, `190: PASS`** with its **449 `[fruit]` lines
+byte-identical (449/449)** to `logs/p91/accept_final.log`; `211_bed_audit.py` ok
+(115 checks); `106` OK; `107` PASS (21 checks). No motion reference was
+re-recorded and none is owed (`423896f7` / `423896f7` / `8952c320` stand).
+`tasks.py` untouched (`7ba4bb58`, so `rl_env.TASKS_MD5` stands).
+
+### Deviations, all in `logs/p93/RESULTS.md` section 8
+
+D1 the shared trace directory cost one wasted pair (fixed, and the re-run doubles
+as the determinism proof); D2 PREREG §1a's binary reading is not applicable as
+written (one descent row, not per tick); D3 forty stale `logs/dynamic_trace_*.json`
+from 2026-10-26 were moved to `/tmp/opencode/`; D4 the report's summary line
+mixes pooled and per-seed verdicts and section 4 is the binding statement; D5 the
+§1c monotonicity route is unreachable by construction at one carrying seed.
+
+**Re-baseline: none** - nothing shipped.
