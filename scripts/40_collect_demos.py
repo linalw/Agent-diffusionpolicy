@@ -88,7 +88,11 @@ from fruit_sorting.dataset import EpisodeRecorder
 from fruit_sorting.fruits import FruitSpawner
 from fruit_sorting.scene import SortingScene
 from fruit_sorting.tactile import GripperTactile
-from fruit_sorting.tasks import AttemptTimeout, PickAndPlaceTask
+from fruit_sorting.tasks import (
+    AttemptTimeout,
+    PickAndPlaceTask,
+    prepose_clear_resolution,
+)
 
 install_failure_handler("40_collect_demos")
 
@@ -122,6 +126,10 @@ TWO_LINE_CHUNK = int(os.environ.get("FRUIT_COLLECT_CHUNK", "24"))
 #: `run_bimanual` call).
 SCHEDULER = biarm_resolution()
 TWO_LINE = bool(SCHEDULER["twoline"])
+#: P96: the pre-pose clearance resolution this shard runs (`prepose_clear`
+#: below). Resolved here, not read back off the task, so the manifest is
+#: written before the first episode exactly like the other collection keys.
+PREPOSE = prepose_clear_resolution(TWO_LINE)
 BIARM = bool(SCHEDULER["biarm"])
 
 
@@ -370,6 +378,18 @@ def write_manifest(out_dir: str, cfg: SceneConfig) -> None:
             # means the same default (`0`); it is not evidence that the pump ran.
             "feed_cadence": os.environ.get("FRUIT_FEED_CADENCE", "0"),
             "park_bias": os.environ.get("FRUIT_BIARM_PARK_BIAS", "0.0"),
+            # P96: the **pre-pose clearance pose** this shard runs. The two-line
+            # pre-pose is held for 65 ticks at the start of every attempt, so a
+            # store recorded under the clearance pose is a different branch from
+            # one recorded under the grasp-plane pre-pose - and the stations above
+            # (`station_l`/`station_r`) name *where*, not *how high*. A manifest
+            # **without** `prepose_clear` predates P96 (the `arm_park.defaulted`
+            # convention); `prepose_clear_defaulted` is true when no env value
+            # decided it, and `prepose_clear_z` is the solve height above the belt
+            # top (0.0 when the cell is off, i.e. the grasp-plane pre-pose).
+            "prepose_clear": int(PREPOSE["on"]),
+            "prepose_clear_defaulted": bool(PREPOSE["origin"] != "explicit"),
+            "prepose_clear_z": float(PREPOSE["z"]) if PREPOSE["on"] else 0.0,
             "start_gap": os.environ.get("FRUIT_BIARM_START_GAP", "0.0"),
             "chunk": TWO_LINE_CHUNK,
             "stall_guard_s": GUARD_STALL_S,

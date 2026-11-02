@@ -23405,3 +23405,93 @@ failures, 1 skipped). Pins: `tasks.py` `cc4eea66`, `rl_env.py` `41608912`,
 `61da390a`. Evidence: `logs/p95/{METHOD.md,RESULTS.md,probe.py,probe.txt,
 run_p95.sh,header.txt}`, the cells `{F6,A6,A5}.{log,stamps,driver}`, the traces
 `logs/p95/{tr6,tr5}/`.
+
+## P96 (2026-11-02): the clearance pre-pose — the invariant is restored, the count is a draw, so the owner decides
+
+P95 priced this fix and did not build it. P96 built it, measured it, and did
+**not** ship it — the count clause failed by its letter while the invariant
+clause passed cleanly. Everything below is in `logs/p96/`.
+
+**The prior question first: can the station hold a clearing pose at all?** The
+offline map (`prepose_map.py`, 36 cells per arm at `x` 0.32/0.34/0.36 and depth
+0.095-0.20, in a `T0` and a position-only mode; `prepose_check.py`, the attitudes
+and a static pad witness, `restarts = 3`) says **yes, on both arms**, and it also
+measured the shipped pose statically for the first time: the calibrated left
+pre-pose (the left station *is* the pick point, so `_prepare_two_line_stations`
+never solved for it — P39) sits **on the j3 limit (+0.000 rad)** with its pad
+point **46 mm below the tallest fruit's top**, and the shipped right pre-pose
+(its own `T0` solve at depth 0.095) sits at +0.007 rad. That is P95's live
+`belt_top + 0.029` read as geometry, with no run.
+
+**The height arithmetic is the phase's most transferable finding**:
+`jaw_achieved = target - residual`, so a target of exactly P95's `0.155` achieves
+**0.149-0.152 and does not clear** — every solve lands its 6 mm residual *low*.
+The registered target is therefore **0.165** (achieved 0.160 left / 0.155
+right), and `FRUIT_BIARM_PREPOSE_CLEAR_Z` raises outside `[0.155, 0.25]`.
+
+**The attitude is not the file.** `configs/waypoints.json`'s declared left
+`grasp_quaternion` is the top-down `T0`; `waypoints_oriented.json`'s is 85 deg
+from vertical; the *calibrated joint config* the pre-pose actually blends to
+stands at **0.7 deg**. So the fix's hold is the pose's **own measured attitude**
+(`capture_hold_pose`, `FRUIT_BIARM_PREPOSE_CLEAR_HOLD=calib`), not a file value —
+and the alternative (`nat`, position-only, the place leg's form) is kept
+reproducible. From the *oriented* seed the two forms read 0.31 rad of margin and
+look equivalent; from the **shipped** seed they are 0.020/0.013 (`calib`) against
+0.000 on the right (`nat`), which is why the shipped seed decided it.
+
+**The census (the primary endpoint).** Four cells, 20 attempts each, identical
+instrumentation (`FRUIT_FRUIT_TRACE=2500 FRUIT_FRUIT_TRACE_ARM=1
+FRUIT_CARRY_DIAG=1 FRUIT_PLACE_TRACE=1` + the P80 reports), control `=0`,
+treatment `=1`. The **control reproduces P95 to the digit**: min gap **0.0 mm**,
+`<= 6 mm` **4/40**, **1 contact/40**, and the contact is seed-6 attempt 0's right
+kiwi at t = 16.99 s (gap +1.8 mm, span swing 26.4 mm). The **treatment reads min
++5.9 mm, `<= 6 mm` 1/40, contacts 0/40** — and the one remaining row is the
+instrument's own floor (a 6.9 cm pear 36.9 mm above a *fixed* 31 mm proxy radius,
+0.1 mm of span swing), not a near-miss. Per arm the exposed lane moves most:
+right min **0.0 -> +5.9**, `<= 6 mm` **4 -> 1**, contacts **1 -> 0**.
+
+**The count.** Seed 5 **17/20 -> 12/20**, seed 6 **12/20 -> 15/20**, pooled
+**29/40 -> 27/40**; per arm pooled **-1 and -1** (left 15/21 -> 14/20, right
+14/19 -> 13/20). So the registered G3 (*pooled >= control **and** neither seed
+lower by more than one*) **fails by its letter at seed 5**, and the phase reads
+it as a draw: the whole movement is seed 5's left arm (9/10 -> 5/10, four `cnp`),
+which is exactly P93's "a 20-attempt two-line count is a branch draw" at n = 40.
+
+**The cost is zero, and slightly negative.** The `[cycle]` `prepose` block is
+**0.71 s in every cell** (a fixed 45 + 20 ticks), `release` p50 1.69 -> 1.68 s,
+and the **`hover` block falls 0.78 -> 0.61 s** because the hand now starts at the
+hover height instead of diving 56 mm below it. Wall 819 -> 828 s over 40
+attempts; landing **29/29** and **27/27** `on_belt`; **0/20** over-budget descent
+legs in both treatment cells (C6's one is its record's own leg 12 — the
+P86/P87 documented branch leg, identical in `logs/p94/T6.log`).
+
+**Decision: not adopted; `PREPOSE_CLEAR_TWO_LINE_DEFAULT = False`.** Per the
+registration, a fix that restores the invariant *without* losing a placement
+ships, and one that trades placements for clearance is the owner's call. This is
+the second case (-5 / +3 on two draws, flat per arm), so the measured arm stays
+an env value (`FRUIT_BIARM_PREPOSE_CLEAR=1`) and the re-entry is a **4-seed**
+cell with the contact census as the endpoint (P93's power rule); more margin on
+the biggest fruit is priced in the map (`..._CLEAR_Z=0.18`, at the right arm's j1
+margin 0.000).
+
+**No-harm, proven rather than argued.** G0: with the phase's `[ftrace]` row and
+the P84/P85 sealed diag rows dropped, **`C5` = `logs/p94/T5.log` 808/808** and
+**`C6` = `logs/p94/T6.log` 825/825** — so the trace stack is branch-neutral on
+this cell (P95 reproduced), and the treatment differs by the lever alone.
+(`PREREG_A2` corrects the reference: `p92/{C5,C6}` predate P94's guard and
+diverge at its own row, `|v|max` 1.108 -> 0.270.) The shipped acceptance is
+**8/10, 9.0 s/attempt, `fingerprint: matches`, `190: PASS`**, its **419** physics
+`[fruit]` lines byte-identical to `logs/p94/accept_final.log`; `selfcheck.sh`
+PASS (0 failures, 1 skipped) with the new `253` leg (39 checks); `106` OK and
+`107` PASS (21 checks). No reference re-recorded, none owed - **the knob is off
+by default** - and the collector's manifest gained `collection.prepose_clear` /
+`prepose_clear_defaulted` / `prepose_clear_z` so a store recorded under the
+clearance pose is identifiable (**a manifest without `prepose_clear` predates
+P96**; the stations were already carried, the *pose* was not). Pins:
+`tasks.py` **`e1095446`**, `rl_env.py` `TASKS_MD5` follow, `scripts/253` new,
+`logs/p96/{PREREG.md,PREREG_A1.md,PREREG_A2.md}` `bb057405` / `a2e63f60` /
+`724009a0`; refs `30fb99f8` / `30fb99f8` / `8952c320`; ckpt `moe_v13s`
+`61da390a`. Evidence: `logs/p96/{RESULTS.md,PREREG*.md,prepose_map.py,
+prepose_rows.json,prepose_check.py,prepose_check_rows*.json,pg_census.py,
+pg_census.txt,p96_report.py,p96_report.txt,gates.sh,run_p96.sh,header.txt}` and
+the cells `{C5,T5,C6,T6}.{log,stamps,budgets}`.

@@ -207,6 +207,26 @@ flesh-compliance model**. A clean read at 60 N is a statement about **geometry a
 retention**, never about fruit quality - which is the other reason the geometry
 lane is the physical one.
 
+## The left hand as an *obstacle* (P95/P96)
+
+One row belongs to the left that is not about its own grasp: the left hand **strikes
+the other lane's fruit**. The two-line's pre-pose is the calibrated grasp
+configuration, so the left hand dives to a pad plane **29 mm below a fruit's top**
+at its own station on every attempt - and a **right**-arm fruit must cross that
+station (`left y=+0.000` upstream of `right y=-0.100` on a `-y` belt). P95 caught
+the witness (the left jaw span knocked 98.0 -> 59.8 mm and springing back, 2 mm
+from the fruit's surface, `21.6 rad/s` of spin) and P96 built the clearance pose:
+`FRUIT_BIARM_PREPOSE_CLEAR=1` solves **both** stations' pre-poses at
+`belt_top + 0.165` with the arm's own measured attitude, which lifts the shipped
+pose's **pad point from 46 mm below the tallest fruit's top to 20 mm above it**,
+takes the contact census **1/40 -> 0/40**, and costs no time (`prepose` 0.71 s
+unchanged, `hover` **0.78 -> 0.61 s**). It is **not shipped** - the delivered count
+came back a draw and the registered clause failed - so it stays an env value; what
+it changes for *this page* is that the left's station pose is now a **measured,
+parameterised object** (`_prepare_two_line_stations` solves it, the log names its
+jaw height/tilt/margin, the shard manifest carries `prepose_clear`), rather than a
+calibrated constant with no clearance story.
+
 ## What is NOT the answer
 
 - **Not the policy**: the loss is in the primitive's grip (the loaded slide), and

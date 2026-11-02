@@ -295,6 +295,11 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: input). `RL_TASKS_MD5` is a provenance guard, not a behaviour switch - the
 #: direct/policy path is untouched by the changes it names.
 #:
+#: P96 (metadata-only follow): `tasks.py` gains the **pre-pose clearance**
+#: resolver + its station solve (`FRUIT_BIARM_PREPOSE_CLEAR`, two-line only).
+#: The direct/policy presentation never constructs a `CoopSession`, so
+#: `two_line_enabled()` is False there and the resolver reads `scope-off`.
+#:
 #: P39 phase 2, amendment A2.3 (metadata-only follow): `FINGER_TIP_BELOW_JAW`
 #: corrected 76.8 -> 80.5 mm (the `[attitude]` `lip`/`tip=` reporting constant,
 #: geometry not a contact stop) and the line's axis/corner print added. Still
@@ -467,7 +472,7 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: `_step_sim`; with the knob unset the hook is one attribute read per tick and
 #: nothing is read, written or measured, so the direct path is unchanged
 #: (`logs/p95/RESULTS.md` section 0 proves it with the scripted stream instead).
-TASKS_MD5 = "cc4eea6625d3bc8334b6a952c179c03a"
+TASKS_MD5 = "e1095446e671a688575c604650ec8b4e"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(

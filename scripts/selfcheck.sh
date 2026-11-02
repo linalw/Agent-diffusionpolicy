@@ -473,6 +473,15 @@ run_check "P94 offset bound" "$python" scripts/251_p94_offset_selftest.py
 # threads), the row shape, the 0.15 m neighbour filter and the arm gate.
 run_check "P95 fruit trace" "$python" scripts/252_p95_ftrace_selftest.py
 
+# P96: the clearance pre-pose - the resolver table (unset/no-session is
+# `scope-off`, unset/two-line follows the still-False scoped default, `=0` is
+# the pre-P96 path, `=1` is on, the height band raises outside [0.155, 0.25]),
+# the height arithmetic the phase-0 map measured (0.165 - 6 mm clears the
+# invariant, 0.155 - 6 mm does not), the one solve site with the pick-point
+# skip bypassed, the two hold forms, the gated print (the pre-P96 path adds no
+# line) and the collector's three provenance keys.
+run_check "P96 pre-pose clearance" "$python" scripts/253_p96_prepose_selftest.py
+
 if [ -n "$run_log" ] && [ -f "$run_log" ]; then
     # P85: the log decides the scenario (and therefore the reference and the
     # floor), exactly as `scripts/accept.sh` does.

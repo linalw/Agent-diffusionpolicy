@@ -157,6 +157,70 @@ cells**, of which the shipped acceptance is **420/420** byte-identical to
 **`a78f0924`**, `METHOD.md` **`b79e9a08`**; refs `30fb99f8` / `30fb99f8` /
 `8952c320` untouched; ckpt `moe_v13s` `61da390a`.
 
+**P96 (2026-11-02, `logs/p96/`; **nothing shipped** - `PREPOSE_CLEAR_TWO_LINE_DEFAULT
+= False`, the measured arm is `FRUIT_BIARM_PREPOSE_CLEAR=1**): P95's clearance
+pre-pose was built and measured: the left station **does** admit it, the pre-leg
+pad census goes **4/40 within 6 mm and 1 contact -> 1/40 and 0 contacts**, the
+delivered count is a **draw**, and the registered "no lost placement" clause
+fails by its letter at seed 5, so the owner decides. **The prior question
+answered**: both stations hold a clearing pose, and the shipped pose was measured
+statically for the first time - the calibrated left pre-pose sits **on the j3
+limit (`+0.000 rad`)** with its **pad point 46 mm below the tallest fruit's top**
+(0.0585 above the belt), and the shipped *right* pre-pose (its own `T0` solve at
+depth 0.095) at +0.007 rad; that is P95's live `belt_top + 0.029` as geometry,
+with no run. **`jaw_achieved = target - residual`**, so a target of exactly
+P95's 0.155 achieves 0.149-0.152 and **does not clear** - the registered target
+is **0.165** (achieved **0.160 left / 0.155 right**, pad points 0.079/0.075),
+`FRUIT_BIARM_PREPOSE_CLEAR_Z` raising outside `[0.155, 0.25]`. **The attitude is
+not the file**: `configs/waypoints.json`'s declared left `grasp_quaternion` is
+top-down (`T0`), `waypoints_oriented.json`'s is 85 deg off vertical, and the
+calibrated joint config the pre-pose actually blends to stands at **0.7 deg** -
+so the hold is the pose's **own measured attitude** (`capture_hold_pose`,
+`..._CLEAR_HOLD=calib`), with `nat` (position-only) reproducible and rejected on
+the right arm (`+0.000 @ j3` live, 0.013 for `calib`). The map's oriented-seed
+cells read 0.31 rad of margin and look equivalent; **the shipped seed decides**
+(0.020/0.013 against the shipped pose's **0.000**). **The census** (4 cells, 20
+attempts each, identical instrumentation `FRUIT_FRUIT_TRACE=2500
+FRUIT_FRUIT_TRACE_ARM=1 FRUIT_CARRY_DIAG=1 FRUIT_PLACE_TRACE=1` + the P80
+reports, control `=0` / treatment `=1`): the **control reproduces P95 to the
+digit** - min gap **0.0 mm**, `<= 6 mm` **4/40**, **1 contact/40** (seed-6
+attempt 0's right kiwi, t = 16.99 s, gap +1.8 mm, span swing 26.4 mm) - and the
+**treatment reads min +5.9 mm, `<= 6 mm` 1/40, 0 contacts**, the one row being
+the instrument's own floor (a 6.9 cm pear 36.9 mm above a **fixed** 31 mm proxy
+radius, 0.1 mm span swing). Per arm the exposed lane moves most: right **0.0 ->
++5.9**, **4 -> 1**, **1 -> 0**. **The count**: seed 5 **17/20 -> 12/20**, seed 6
+**12/20 -> 15/20**, pooled **29/40 -> 27/40**, per arm pooled **-1 / -1** (left
+15/21 -> 14/20, right 14/19 -> 13/20) - so G3 (*pooled >= control and neither
+seed lower by more than one*) **fails at seed 5** and the movement is one seed's
+left arm (9/10 -> 5/10, four `cnp`), i.e. P93's branch draw at n = 40.
+**The cost is zero, slightly negative**: `[cycle]` `prepose` **0.71 s in every
+cell** (a fixed 45 + 20 ticks), `release` p50 1.69 -> 1.68, and the **`hover`
+block 0.78 -> 0.61 s** because the hand starts at the hover height instead of
+diving 56 mm below it; wall 819 -> 828 s, landing **29/29** and **27/27**
+`on_belt`, **0/20** over-budget descents in both treatment cells (C6's one is its
+record's own leg 12, identical in `logs/p94/T6.log`). **No-harm proven**: G0 with
+the phase's `[ftrace]` row + the P84/P85 sealed diag rows dropped reads **`C5` =
+`logs/p94/T5.log` 808/808 and `C6` = `logs/p94/T6.log` 825/825** (so the trace
+stack is branch-neutral on this cell, P95 reproduced and the treatment differs by
+the lever alone - and `PREREG_A2` records why the reference is `p94` and not
+`p92`: the latter predates P94's guard and diverges at its own row, `|v|max`
+1.108 -> 0.270); the shipped acceptance is **8/10, 9.0 s/attempt,
+`fingerprint: matches`, `190: PASS`** with **419/419** physics `[fruit]` lines
+byte-identical to `logs/p94/accept_final.log`; `selfcheck.sh` PASS (0 failures, 1
+skipped) with the new **`253`** leg (39 checks); `106` OK, `107` PASS. **No
+reference re-recorded and none owed** (the knob is off by default), and the
+collector's manifest gained **`collection.prepose_clear` /
+`prepose_clear_defaulted` / `prepose_clear_z`** - **a shard without
+`prepose_clear` predates P96** (the stations were already carried via
+`station_l`/`station_r`; the *pose* was not). **Re-entry priced**: a **4-seed**
+cell at `FRUIT_BIARM_PREPOSE_CLEAR=1` with the contact census as the endpoint
+(P93's 364/arm power rule), and more margin on the biggest fruit is
+`..._CLEAR_Z=0.18` (+174.6/+179.4, at the right arm's j1 margin 0.000). Pins:
+`tasks.py` **`e1095446`**, `rl_env.py` `TASKS_MD5` follow,
+`scripts/253_p96_prepose_selftest.py`, `logs/p96/{PREREG,PREREG_A1,PREREG_A2}.md`
+`bb057405`/`a2e63f60`/`724009a0`; refs `30fb99f8` / `30fb99f8` / `8952c320`;
+ckpt `moe_v13s` `61da390a`.
+
 **P87 (2026-11-01) re-baselines the acceptance: the shipped two-line cell
 now runs the release trim** (P86's S2 cell, `FRUIT_SPEED_RELEASE`, as a
 **two-line-scoped** default), so the acceptance read **7/10, 9.4 s/attempt**
@@ -4844,6 +4908,7 @@ p93_report.py,p93_report.txt,run_p93.sh,gates.sh,header.txt}`, the cells
 | the finger drive's force cap, or a leg-scoped drive write (`FRUIT_FINGER_MAXFORCE`, `FRUIT_FINGER_MAXFORCE_SCOPE=place-left|grasp-left`/`..._SCOPED`, `tasks.finger_cap_scope_for`, `_carry`'s wrapper) | `scripts/selfcheck.sh` (the `244` leg), then **one direct run with `FRUIT_CARRY_DIAG=1`** and read the `[drive] ... finger cap raise/restore` rows **and** the delivered force by leg class - **the site proof is the pair**: `place-left` -> `place*` at the scoped cap with `grasp_lift` at ~9.7 N (`logs/p78/RESULTS.md` §0), `grasp-left` -> `grasp_lift` at the scoped cap with `place*` at ~10 N (`logs/p79/RESULTS.md` §1); then `scripts/accept.sh` + one two-line run + `scripts/190_twoline_gate.sh` **with the knob armed** and require **346/346 `[fruit]` lines + both fingerprints** to be unmoved (`logs/p78/RESULTS.md` §7, `logs/p79/RESULTS.md` §6) - the scoped form must move no reference; a **global** `FRUIT_FINGER_MAXFORCE` instead owes both references and every store. Read `fmax` as a **peak transient** that exceeds the cap on single legs even at 10 N, and `force_min` as the leg's weakest moment - neither is a `place*`-was-re-clamped test on one cell (`logs/p79/PREREG.md` §9 A1); the structural rows are |
 | a **carry-command** change (the `_gripper_offset` reading or its use, `FRUIT_CARRY_OFFSET_MAX`, `_carry`'s assisted-branch target, the `hand_is_jaw` fallback) | `scripts/selfcheck.sh` (the `251` leg: the resolver table, **one** site, the jaw-hand scope, the two branch expressions **executed** - inside the bound the command is `centre - rot @ offset` bit for bit, above it `centre`, and the kinematic-pad hand keeps its offset at any magnitude - and the diag row printing the **issued** target so the census reads the applied jump with no new field), then the **jump census first**: `python3 logs/p94/census.py` on the control records (the reading `|_gripper_offset|` per leg and the applied jump `|jaw_target - cmd_centre|`) - a reading above the bound is the defect class, and a leg **below** it must not move (F1); then the four-seed battery with the `logs/p94/run_p94.sh` shape and the **prefix identity** (`python3 logs/p94/p94_report.py --same`) - a treatment cell must equal its same-seed control's `[fruit]` stream up to the **first guarded row**, and the seeds the guard cannot act on must replay **end to end** (P94: 970/970, 1001/1001, 986/986); then `scripts/accept.sh` **twice** - `FRUIT_CARRY_OFFSET_MAX=0` and unset - with `FRUIT_CARRY_DIAG=1` on both, requiring the `=0` arm to reproduce the recorded reference and the unset arm to differ first at the guarded row; the single arm (`FRUIT_BIARM=0`, 346/346) is the other half of guard (e). A change that moves **every** leg (the unconditional `hand_is_jaw` form) is a re-calibration, not a fix: it owes a full four-seed battery, both references and every store, and cannot be attributed on a 20-attempt cell (`logs/p94/RESULTS.md` §8-§9) |
 | an **early end of a carry leg** (a new skip/trip on `_carry_monitor_skip`/`_fail_fast_trip`, a new threshold, `_attempt_ended_early`, or a new failure path out of `_grasp_carry_place_impl`) | `scripts/selfcheck.sh` (the `245` leg is the pattern: the resolver table, the refuse-below floor, **one** trip site, the attempt-local latch, the scope, the arming clause, and that the trip adds **no `result.notes` entry**), then **the tracker-only control first**: `FRUIT_CARRY_DIAG=1` alone on the same seed must be **byte-identical** to the shipped run (`--same`, diag rows dropped) - otherwise the treatment differs by instrumentation and no time claim is admissible (`logs/p83/RESULTS.md` §6 G2) - then the A/B against **that** control on **>= 2 seeds**, reading **the failed attempt's own span** as the mechanism number (branch-free) and the interval/count as the claim, plus `scripts/accept.sh` and require its `[fruit]` stream to be byte-identical to the pre-change record |
+| a **two-line pre-pose** change (the clearance pose: `prepose_clear_resolution`, `_prepare_two_line_stations`' solve, `FRUIT_BIARM_PREPOSE_CLEAR[_Z|_HOLD]`, the `[biarm] pre-pose` row, `collection.prepose_clear`) | `scripts/selfcheck.sh` (the `253` leg: the resolver table - unset/no-session `scope-off`, unset/two-line the scoped default, `=0` the pre-P96 path, `=1` on, the band raising outside `[0.155, 0.25]` - the **height arithmetic** (`jaw_achieved = target - residual`, so a P95-floor target achieves *below* the floor), the one solve site with the **pick-point skip bypassed**, both hold forms, the **gated print** (the pre-P96 path adds no line) and the three manifest keys), then **the offline map before any battery**: `bash logs/p96/run_p96.sh`'s battery is only owed if a station admits the pose - `scripts/run.sh logs/p96/prepose_map.py` + `prepose_check.py` (the depth ladder, `T0`/`C0`/`NAT`/`CFG`, the joint margin and the authored **pad bodies' lowest point**), and a station that does not admit it means the transit/park bias or the station geometry, with **no battery spent** (P96 PREREG F1); then the four-cell A/B (`C5`/`T5`/`C6`/`T6`, 20 attempts, **identical instrumentation** so the census, the count, the interval and the landing come from one cell each) with `python3 logs/p96/pg_census.py` (**the primary endpoint**: P95's contact = `pad gap <= 6 mm` **and** the other hand's span swing `>= 2 mm`; the gap alone cannot reach 0 - its floor is the fixed 31 mm proxy radius), `python3 logs/p96/p96_report.py`, `bash logs/p96/gates.sh` (**G0** the control cells byte-identical to their own record with the phase's `[ftrace]` + the sealed diag rows dropped; **G5** budgets-only for the treatments, and a control's over-budget leg must equal its record's) and `scripts/accept.sh` with the knob **unset** (it must be inert: 419/419 + `fingerprint: matches`). Expect **no** cell to replay if the lever moves the pre-pose on every attempt: the treatment is its own branch, the **control** is what proves the instrumentation neutral (`logs/p96/RESULTS.md` §0/§7) |
 | a **two-line A/B** (a per-attempt knob on the scripted primitive reaching `run_bimanual`, e.g. `FRUIT_FAIL_FAST`) | the same protocol, with four two-line differences: (a) the control must replay **that scenario's own** record modulo the phase's diag rows (`logs/p82/p82_report.py --same`, dropping `[fruit] [carry]`, `[diag] carry-assist` and `[biarm] … park`) - P84's `D5`/`D6` are `logs/p80/{T20,T6}.log` at **865/865** and **814/814**; (b) **each seed is its own scenario**, so every seed needs its **own** 20-attempt reference (P80's file is seed 5; write another seed's from its own record into `logs/`, **never** `configs/`), and the treatment is a **DIFFERS-by-construction** arm gated on **budgets only** (`105 --min-success-rate 0.0`); (c) the interval is split over two overlapping arms, so quote the pooled **and** per-arm interval, both denominators, the wall and the **park-gate wait / lock-on / idle** triple - the "the overlap absorbs the abort" read; (d) the saving must be quoted **by class**: the shipped two-line already truncates a lost attempt twice (the `not result.grasped` return after the lift and the **P10-C monitor**, armed by default in a two-line session), so the fail-fast increment is ~1.2-1.5 s on a never-grasped attempt and ~3.3 s on a `cnp`, not P83's 5.14 s - and a 20-attempt two-line count is a branch draw whose **own control swings 16 -> 10** between seeds (`logs/p84/RESULTS.md` §2/§4) |
 
 To compare two **policy** arms, use the harness rather than two runs:

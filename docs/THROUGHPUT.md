@@ -387,6 +387,34 @@ worth **-1 and 0** placements and it **adds a `cnp` at both**. Pooled: placed
   endpoint and the count as a report. That is the priced re-entry
   (`logs/p93/RESULTS.md` §4), not another two-seed batch.
 
+## The scenario-structure lane (P95/P96): a hand inside another lane's fruit band
+
+Not a throughput lever, and it is recorded here because it is the one
+**structural** defect the rate work kept stepping on: the two-line's pre-pose is
+the **calibrated grasp configuration** at the arm's own station, so its pads end
+**29 mm below a fruit's top** and the pre-pose blend dives there on every
+attempt - and the stations are `left y=+0.000` / `right y=-0.100` on a `-y` belt,
+so a **right**-arm fruit must cross the **left** station. P95 measured what that
+costs: 19 right-arm attempts read median pad approach 31.6 mm, min **0.0**, 5/19
+<= 6.4 mm, and **1 of 40** was displaced (`+0.402 m/s`, 21.6 rad/s of spin) into
+a `never_held` close.
+
+P96 built the fix (**`FRUIT_BIARM_PREPOSE_CLEAR=1`**, a clearance solve at
+`belt_top + 0.165` on **both** stations) and measured it: the pre-leg census goes
+**min 0.0 -> +5.9 mm, `<= 6 mm` 4/40 -> 1/40, contacts 1/40 -> 0/40**, the clock
+is unchanged (`prepose` 0.71 s in every cell, `hover` **0.78 -> 0.61 s** because
+the hand no longer dives), the landing is clean (29/29 and 27/27 `on_belt`) - and
+the **count is a draw** (seed 5 17 -> 12, seed 6 12 -> 15, pooled 29 -> 27 of 40,
+per arm **-1 / -1**). **Nothing is shipped**: the registered "no lost placement"
+clause fails at seed 5, so it is the owner's decision, and the lane's own read
+rules apply - the contact census is the endpoint, the count is a branch draw, and
+a 5-point count difference needs P93's 364 attempts per arm
+(`logs/p96/RESULTS.md`).
+
+The transferable number: **`jaw_achieved = target - residual`**, so a clearance
+target set exactly at the invariant achieves *below* it (P95's `0.155` lands at
+0.149-0.152). Any future station-depth work must budget the solve's 6 mm.
+
 ## The read rules (they bind the next rate claim)
 
 1. **Quote both denominators and the wall column.** The placement window and the

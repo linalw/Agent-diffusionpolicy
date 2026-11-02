@@ -439,6 +439,139 @@ def release_speed_resolution(two_line: bool = False) -> dict[str, object]:
     }
 
 
+#: P96: the shipped value of the clearance pre-pose's **two-line-scoped default**.
+#: False = the knob is opt-in (`FRUIT_BIARM_PREPOSE_CLEAR=1`); a *ship* decision
+#: flips this to True and the resolver then resolves on for a two-line session and
+#: off on every other path (the P87/P88/P89/P91 pattern).
+PREPOSE_CLEAR_TWO_LINE_DEFAULT = False
+
+#: P96: the clearance pre-pose's solve height above the belt top [m], and its
+#: admissibility band. `0.165` is the phase-0 map's candidate: the position-only
+#: and C0 solves land a 6 mm residual **low**, so a target of 0.155 achieves
+#: 149.1-151.7 mm - below the invariant - while 0.165 achieves 159.1 mm.
+#: The band's floor is the invariant itself (`0.155`, P95's number); its ceiling
+#: is the phase-0 map's highest cell (0.20). A value below the floor is not a
+#: clearance pose and only looks configured, so it raises.
+_PREPOSE_CLEAR_Z_SHIPPED = 0.165
+_PREPOSE_CLEAR_Z_MIN = 0.155
+_PREPOSE_CLEAR_Z_MAX = 0.25
+
+#: P96: which **attitude** the clearance pre-pose is solved with.
+#: `calib` = the attitude the arm's own calibrated `grasp` pose holds, captured
+#: with `ArmController.capture_hold_pose()` - the shipped staging attitude, so
+#: the pose changes height and nothing else. `nat` = no attitude constraint
+#: (`hold_quaternion = None`), the position-only solve the *place* leg runs.
+#: The two are the phase's cell (`logs/p96/PREREG_A1.md`); the shipped value is
+#: the one the phase measured the rest of the package on.
+_PREPOSE_CLEAR_HOLD_SHIPPED = "calib"
+
+
+def prepose_clear_resolution(two_line: bool = False) -> dict[str, object]:
+    """The resolved **pre-pose clearance pose** for this session, with its origin (P96).
+
+    One resolver, three consumers - `_prepare_two_line_stations` (the solve), the
+    `[biarm] pre-pose` row (what the run achieved) and the collector's shard
+    manifest (`collection.prepose_clear*`), so a log, a store and a run cannot
+    disagree.
+
+    **The defect it closes** (`logs/p95/RESULTS.md`): on the two-line the pre-pose
+    is the **calibrated grasp configuration** at the arm's own station, so its
+    pads end **29 mm below a fruit's top** (P95's live reading) and the pre-pose
+    blend dives *through* the fruit band on every attempt. The stations are
+    `left y=+0.000` (upstream) / `right y=-0.100` on a `-y` belt, so a
+    **right**-arm fruit must cross the **left** station while the left hand is
+    doing exactly that blend: 1 of 40 attempts is a pad contact (`+0.40 m/s`,
+    21.6 rad/s of spin), and 5 of 19 right-arm attempts pass within 6.4 mm of
+    that hand. The invariant is a hand inside another lane's fruit band, which is
+    a defect regardless of its rate (P94's precedent).
+
+    **The fix shape.** Solve **every** two-line station's pre-pose at
+    `belt_top + z` with the arm's own calibrated grasp attitude (P96 PREREG_A1:
+    `C0` - the shipped attitude, 56.5 mm higher), instead of at the grasp plane
+    (and instead of *not solving at all* for a station on the pick point, which
+    is why the left had no clearance pose - P39). The staging pose is not
+    attitude-critical: the descent re-asserts the top-down hold as shipped.
+
+    Override table:
+
+    | `FRUIT_BIARM_PREPOSE_CLEAR` | two-line session | resolves |
+    | --- | --- | --- |
+    | unset / empty | yes | `PREPOSE_CLEAR_TWO_LINE_DEFAULT` (`default`) |
+    | unset / empty | no | off (`scope-off`) - no two-line station exists |
+    | `0`/`off`/`false`/`no` | any | off (`explicit`) - the pre-P96 path, bit for bit |
+    | `1`/`on`/`true`/`yes` | any | **on** (`explicit`) |
+
+    `FRUIT_BIARM_PREPOSE_CLEAR_Z` moves the solve height above the belt top; it is
+    read only when the cell is on, and outside `[0.155, 0.25]` it raises here (at
+    task construction), because a "clearance" pose below the invariant is a knob
+    that only looks configured.
+    """
+    raw = os.environ.get("FRUIT_BIARM_PREPOSE_CLEAR")
+    text = "" if raw is None else str(raw).strip().lower()
+    if not text:
+        on = bool(two_line and PREPOSE_CLEAR_TWO_LINE_DEFAULT)
+        origin = "default" if on else ("scope-off" if not two_line else "explicit")
+    elif text in ("0", "off", "false", "no"):
+        on, origin = False, "explicit"
+    else:
+        on, origin = True, "explicit"
+    hold_raw = os.environ.get("FRUIT_BIARM_PREPOSE_CLEAR_HOLD", "").strip().lower()
+    hold_mode = hold_raw or _PREPOSE_CLEAR_HOLD_SHIPPED
+    if hold_mode not in ("calib", "nat"):
+        raise ValueError(
+            f"FRUIT_BIARM_PREPOSE_CLEAR_HOLD={hold_raw!r} is not one of "
+            "'calib' / 'nat'"
+        )
+    z_raw = os.environ.get("FRUIT_BIARM_PREPOSE_CLEAR_Z", "").strip()
+    z = _PREPOSE_CLEAR_Z_SHIPPED
+    if on and z_raw:
+        try:
+            z = float(z_raw)
+        except ValueError as exc:
+            raise ValueError(
+                f"FRUIT_BIARM_PREPOSE_CLEAR_Z={z_raw!r} is not a height in metres"
+            ) from exc
+        if not (_PREPOSE_CLEAR_Z_MIN - 1e-9 <= z <= _PREPOSE_CLEAR_Z_MAX + 1e-9):
+            raise ValueError(
+                f"FRUIT_BIARM_PREPOSE_CLEAR_Z={z} outside "
+                f"[{_PREPOSE_CLEAR_Z_MIN}, {_PREPOSE_CLEAR_Z_MAX}] m above the belt "
+                "top: below the floor the pads do not clear a fruit's band "
+                "(P95), above the ceiling the station's own solve was never mapped "
+                "(P96 phase 0)"
+            )
+    return {
+        "on": bool(on),
+        "origin": origin,
+        "two_line": bool(two_line),
+        "z": float(z),
+        "z_defaulted": not bool(z_raw),
+        "hold": hold_mode,
+        "hold_defaulted": not bool(hold_raw),
+        "z_min": _PREPOSE_CLEAR_Z_MIN,
+        "z_max": _PREPOSE_CLEAR_Z_MAX,
+        "label": f"FRUIT_BIARM_PREPOSE_CLEAR={int(bool(on))}({origin})"
+        + (f", z=+{z:.3f}, hold={hold_mode}" if on else ""),
+    }
+
+
+def _tilt_deg(quat) -> float:
+    """Tilt of a tool frame from straight-down, in degrees (`acos(-R[2,2])`).
+
+    P73's own expression (0 deg = the tool axis points down the world `-z`),
+    used by the P96 pre-pose row. A staging pose is not attitude-critical, so the
+    tilt is the number that says *how far* the solve went from vertical - the
+    shipped left pre-pose holds 84.5 deg and the P96 clearance solve 84.6, i.e.
+    the same attitude 56.5 mm higher.
+    """
+    q = np.asarray(quat, dtype=float)
+    norm = float(np.linalg.norm(q))
+    if not np.isfinite(norm) or norm <= 0.0:
+        return float("nan")
+    w, x, y, z = q / norm
+    r22 = 1.0 - 2.0 * (x * x + y * y)
+    return float(np.degrees(np.arccos(np.clip(-r22, -1.0, 1.0))))
+
+
 def _carry_profile_ticks(distance: float, v_max, a_max) -> int | None:
     """A carry leg's **own** clock at one distance, from its profile [ticks].
 
@@ -2100,6 +2233,14 @@ class PickAndPlaceTask:
         #: by the resolved station pair -> {side: joint config}. Filled once per
         #: batch by `_prepare_two_line_stations`, before the workers start.
         self._station_grasp: dict[tuple[float, float], dict[str, np.ndarray]] = {}
+        #: P96: the cache's *identity* - the station pair **and** the pre-pose
+        #: clearance resolution it was solved under. A second batch in the same
+        #: process may change the knob (a phase's A/B does), so the key alone
+        #: would hand that batch the other arm's pose.
+        self._station_grasp_key: tuple | None = None
+        #: P96: per-side verdict of the clearance pre-pose solve (`False` =
+        #: solved but not clear, or not solved). Empty on the pre-P96 path.
+        self._prepose_clear_ok: dict[str, bool] = {}
         #: How many episodes each arm has been given, for the collector's
         #: target balancing.
         self._episodes_by_arm: dict[str, int] = {"left": 0, "right": 0}
@@ -8750,6 +8891,20 @@ class PickAndPlaceTask:
         `grasp` seed (the same seed `scripts/174_station_reach.py` uses;
         measured residuals are printed and become part of the run log).
 
+        **P96 - the `clearance pre-pose`** (`FRUIT_BIARM_PREPOSE_CLEAR`, default
+        off = this docstring's shipped path, bit for bit). The shipped solve
+        targets `belt_top + grasp_clearance`, i.e. the **grasp plane**, and a
+        station *on* the pick point skips its solve entirely - so the left arm
+        pre-poses to the calibrated `grasp` configuration, whose pads end **29 mm
+        below a fruit's top** (P95). A right-arm fruit must cross that station
+        while the left hand dives there, which is P95's measured contact. With
+        the knob on, **every** station's pre-pose is solved at
+        `belt_top + FRUIT_BIARM_PREPOSE_CLEAR_Z` (default 0.165) with the arm's
+        own calibrated grasp attitude - the shipped attitude, 56.5 mm higher
+        (`logs/p96/PREREG_A1.md`, the `C0` mode: 0.317 rad of joint margin
+        against `T0`'s 0.006) - so the blend never enters the fruit band and the
+        descent still starts from the hover as shipped.
+
         Runs before the workers are started, with both arms at ready, and
         returns each arm to ready before touching the other: the two stations
         are 0.10 m apart but the *seeds* are the same point, so the arms must
@@ -8760,30 +8915,84 @@ class PickAndPlaceTask:
         approaches.
         """
         key = (self.station_y_for("left"), self.station_y_for("right"))
-        if key in self._station_grasp:
+        clear = prepose_clear_resolution(self.two_line_enabled())
+        cache = (key, bool(clear["on"]), float(clear["z"]) if clear["on"] else None)
+        if key in self._station_grasp and self._station_grasp_key == cache:
             return
         solved: dict[str, np.ndarray] = {}
         for side in ("left", "right"):
             target_y = self.station_y_for(side)
-            if abs(target_y - float(self.cfg.pick_y)) < 1e-9:
+            on_pick_point = abs(target_y - float(self.cfg.pick_y)) < 1e-9
+            if on_pick_point and not clear["on"]:
                 continue  # shared station: the calibrated config is correct
             arm = self.arms[side]
             arm.set_gripper(arm.OPEN)
             arm.teleport_joints(self._pose(side, "grasp"))
-            hold = top_down_quaternion(os.environ.get("FRUIT_HAND_AXIS", "x"))
-            if side == "left":
-                hold = mirror_across_xz(hold)
-            arm.hold_quaternion = hold
+            if clear["on"]:
+                # P96: the staging pose's attitude is **not** consumed anywhere -
+                # the hover move re-aims at the fruit and the descent re-asserts
+                # the top-down hold as shipped - so the clearance pose only has
+                # to be a pose the arm holds comfortably and that is above the
+                # fruit band. Two forms are registered (`logs/p96/PREREG_A1.md`):
+                # `calib` freezes the attitude the calibrated grasp pose itself
+                # holds (measured, not read from a file - the file's declared
+                # quaternion is *not* the pose's achieved attitude: the shipped
+                # left pre-pose stands 1.2 deg from vertical while
+                # `waypoints_oriented.json`'s quaternion is 85 deg off), and
+                # `nat` leaves the attitude free. The top-down hold `T0` is
+                # rejected by the map: it solves, but sits 6 mrad from the j3
+                # limit, which is the hermetic pose the *right* station already
+                # runs at the grasp plane and exactly what a 65-tick hold should
+                # not introduce.
+                if clear["hold"] == "calib":
+                    arm.capture_hold_pose()
+                else:
+                    arm.hold_quaternion = None
+                z_above_belt = float(clear["z"])
+            else:
+                arm.hold_quaternion = top_down_quaternion(
+                    os.environ.get("FRUIT_HAND_AXIS", "x")
+                )
+                if side == "left":
+                    arm.hold_quaternion = mirror_across_xz(arm.hold_quaternion)
+                z_above_belt = float(self.cfg.grasp_clearance)
             target = np.array(
-                [self.cfg.pick_x, target_y, self.belt_top + self.cfg.grasp_clearance],
+                [self.cfg.pick_x, target_y, self.belt_top + z_above_belt],
                 dtype=float,
             )
             config, residual = arm.solve_to(target, iterations=400, tolerance=0.006)
+            achieved = np.asarray(arm.jaw_centre(), dtype=float)
+            _tcp, achieved_quat = arm.tcp_pose()
             arm.hold_quaternion = None
+            jaw_above = float(achieved[2]) - self.belt_top
+            tilt = _tilt_deg(achieved_quat)
+            joints = np.asarray(arm.joint_positions(), dtype=float)
+            margins = np.minimum(joints - arm.arm_lo, arm.arm_hi - joints)
+            margin = float(margins[int(np.argmin(margins))])
+            margin_joint = int(np.argmin(margins)) + 1
             say(
                 f"[biarm] station {side} y={target_y:+.3f}: pre-pose solve "
                 f"residual {residual * 1000:.1f} mm"
             )
+            if clear["on"]:
+                # P96: the pose reading the invariant is stated on (PREREG 1):
+                # jaw >= belt_top + 0.155, and its pad-point proxy. A tilted hand
+                # reads the *conservative* pad plane here (P95's own proxy); the
+                # static pad-body witness is `logs/p96/prepose_check_rows.json`
+                # (pad_low +112.3 / +130.5 mm at the chosen cell).
+                ok = jaw_above >= _PREPOSE_CLEAR_Z_MIN - 1e-9
+                self._prepose_clear_ok[side] = bool(ok and residual <= float(
+                    os.environ.get("FRUIT_BIARM_STATION_TOL", "0.010")
+                ))
+                say(
+                    f"[biarm] pre-pose {side}: {clear['label']} target "
+                    f"belt_top+{z_above_belt:.3f} achieved jaw "
+                    f"belt_top+{jaw_above:.3f} (pad point "
+                    f"belt_top+{jaw_above - FINGER_TIP_BELOW_JAW:.3f}) tilt "
+                    f"{tilt:.1f}deg margin {margin:+.3f}@j{margin_joint} residual "
+                    f"{residual * 1000:.1f} mm -> "
+                    f"{'CLEARS (jaw >= belt_top+0.155)' if ok else 'NOT CLEAR'}"
+                )
             if residual <= float(os.environ.get("FRUIT_BIARM_STATION_TOL", "0.010")):
                 solved[side] = np.asarray(config, dtype=float).copy()
             else:
@@ -8802,6 +9011,7 @@ class PickAndPlaceTask:
             SimulationManager.step(steps=10)
             app_utils.update_app(steps=0)
         self._station_grasp[key] = solved
+        self._station_grasp_key = cache
 
     def _two_line_prepose_locked(self) -> bool:
         """Whether the two-line approaches must be serialized by the pre-pose lock.
