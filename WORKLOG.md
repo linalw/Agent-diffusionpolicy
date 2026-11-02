@@ -24422,3 +24422,91 @@ Pins: `docs/HAND_STAGE_PLAN.md` **`2c3ef8cb`**; `tasks.py` `9e3e657b`, `rl_env.p
 `acd50868`, `assets.py` `eb30c77a`, `scene.py` `472bfb6c`, `policy/model.py`
 `89000266`, `policy/data.py` `b4940d74`, `dataset.py` `03617c88`; references
 **`30fb99f8` / `30fb99f8` / `8952c320`** untouched; ckpt `moe_v13s` `61da390a`.
+
+## P106 - the hand stage's M1/M2a: the Allegro mounts, the surrogate passes, the Allegro cannot be priced
+
+**Verdict first.** The Allegro 16-DoF USD **mounts in this scene** (38 DOF, welded,
+driven, tool offset measured) and **fails the close+lift gate as a rate - 1 of 4
+cells**. M2a's kill ("both forms < 1.5x -> buy no hand") **does not fire**: the
+4-pad radial surrogate reads **1.98 / 1.87 / 2.05x** sustained, **1.82 / 1.80 /
+2.10x** at 2 mm and creep **0.25 / 0.15 / 0.11 mm** against the pinch's **3.20 /
+0.85 / 2.68** on the same batch. The **Allegro is not evaluable** - one draw held
+and three dropped the payload at the first release, and its cell cannot be brought
+to the pinch's 4.90 N per contact - so the plan's predicted **1.2-1.6x** is
+**neither confirmed nor refuted**.
+
+**M1, the mount.** Asset `WonikRobotics/AllegroHand/allegro.usd` (1 626 251 B) on
+the tree's own asset root, referenced under
+`/World/OpenArm/openarm_left_ee_tcp` and welded with a `PhysicsFixedJoint`; the
+merged articulation reads **38 DOF = 22 arm + 16 hand**, the hand half
+`index/middle/ring/thumb _joint_0..3` in that order with its limits in radians
+(`index_joint_0 [-0.558,+0.558]`, `index_joint_1 [-0.279,+1.728]`,
+`thumb_joint_0 [+0.279,+1.571]`), 21 bodies weighing **2.135 kg**, and a `+0.300`
+command reading `+0.2894` on the merged articulation. **The tool offset that
+replaces `_pad_standoff`'s 70 mm is 170.7 mm along the tool axis** at the sweep's
+mid posture (**100-216 mm** across it): it is posture-dependent and 1.4-3.1x the
+pad hand's, so it is measured, never copied.
+
+**Two defects the mount exposed.** (1) The asset ships `root_joint`, a
+`PhysicsFixedJoint` from **world** to `allegro_mount`; `stage.RemovePrim` does
+**not** defeat a prim that comes from a reference, so it survived, pinned the hand
+to the world origin while the mount joint pulled it to the flange, and **destroyed
+the articulation** - at play arm joint 1 read **-82.19 rad** (limit -3.49) and a
+`+0.300` command moved it **-34.39**. `prim.SetActive(False)` is the fix; with it
+the arm reads 0.000 at play. (2) **`ArmController.move_to` stalls** from the
+hanging rest pose: **186 mm** and **326 mm** short on two attempts (direct and
+through a 40-waypoint line), tool axis tilted up to 30 deg. The probe therefore
+teleports to the shipped `ready` waypoint and does not claim a station.
+
+**The close+lift gate: 1 of 4.** The pear held (**+59.7 mm**, the primitive's own
+`>4 mm` test) and had already **crept 39.75 mm** under 0.82 N - **12x the pinch's
+3.20 mm and 40x the plan's 1.0 mm bar**; the other three fell to the floor (creep
+1.07-1.09 m). The mechanism is in the read, not in a force shortfall: the fingers
+**knock the payload out of the seat as they close** (after release: `index -0.80 N`,
+the other three 0.00).
+
+**The drive tune is not achievable through a torque cap.** At the asset's
+`k=1e7` the pear reads **no contact at cap 0.46 N.m** and **10.5 N per contact at
+0.48** - a step function, which is `docs/HAND_STAGE_PLAN.md` §1.4's warning
+measured: below the threshold the finger never reaches the payload. A soft drive
+(`k=20`, `c=0.4`) does give 2-6 N per loaded finger but needs a force instrument,
+and this asset has none that is trustworthy: a per-link contact view raises
+`Physics contact view is not valid` or reports fingers 60-90 mm away, and
+`get_dof_gains()` returns **5.73e8** against an authored 1e7.
+
+**The phase's central measurement is topological.** The three fingers span
+**116-123 mm** open and the thumb sits **43-208 mm** from their centroid, so
+**at most 3 of the 4 fingertips can touch one 37-66 mm payload at any posture in
+a 4 x 4 sweep** - 2 for the 60.6 mm pear at most postures, 2 for the 37.2 mm
+strawberry, 3 for the 65.8 mm orange at two postures. A 60 mm fruit is smaller
+than the hand's own tip spread (index-to-ring **102 mm**), which is the mechanism
+the plan's §1.7 `n_eff ~ 2` arithmetic was reaching for. That is why the Allegro
+cannot be priced as a 4-contact cell, and it is a *design input*, not a defect of
+this run.
+
+**M2a's table** (controls from P104's fixture **unchanged**, re-run in this batch
+and identical to the digit): pinch **11.03 / 14.21 / 12.69 N** sustained,
+**10.62 / 13.83 / 12.19** at 2 mm, creep **3.20 / 0.85 / 2.68**, pry 0.13-0.37;
+4-pad radial **21.81 / 26.59 / 25.97 N (1.98 / 1.87 / 2.05x)**, **19.28 / 24.83 /
+25.61 (1.82 / 1.80 / 2.10x)**, creep **0.25 / 0.15 / 0.11**, pry 0.30-0.75 - so
+**the pads do not pry and the 4-contact form does not re-seat past 2 mm**, P104's
+caveat surviving its own transfer. The Allegro's one holding draw: **1.24x at
+2 mm**, bounded **>3.63x** sustained (never left inside the 40 N cap), at a force
+that is not matched to 4.90 N, and with the 39.75 mm creep above.
+
+**So what is licensed is a shape, not a product.** The plan's own clause applies -
+*if only the surrogate passes, the surrogate licenses the purchase and the
+Allegro's number is recorded as the 3+1 topology's own* - which says the form to
+buy is **radial or strongly enveloping, not anthropomorphic 3+1**, and changes
+*which vendor*, not *whether to buy*. **The purchase stays the owner's**; no
+buyable hand was measured, the surrogate cannot approach or run a precision grasp,
+and **M2b (approach) and M3 (scripted hand) are unspent** - and the Allegro's
+failure mode here, batting the payload out of the seat during the close, is
+exactly the class M2b would have to score.
+
+No `src/` or `configs/` change, no shipped default moved, no commit, no reference
+re-recorded (the scripted line never runs this code); `configs/motion_reference.json`
+= `..._twoline.json` = **`30fb99f8`** and `..._single.json` = **`8952c320`** stand;
+ckpt `moe_v13s` `61da390a`. Evidence `logs/p106/`
+(`METHOD.md`, `RESULTS.md`, `m1_mount_probe.py`, `run_p106.sh`, `mount_census.txt`,
+`m2a_allegro.txt`, `m2a_control.txt`, `inspect_allegro.py`, `units_probe.py`).

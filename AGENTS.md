@@ -5388,6 +5388,68 @@ p93_report.py,p93_report.txt,run_p93.sh,gates.sh,header.txt}`, the cells
 `{D6C,D6T,C101,T101,C202,T202}.{log,stamps,driver}`, `{C101,T101,C202,T202}.budgets`,
 `p1/{D6C,D6T}/`, `accept_noharm.{log,driver}`, `selfcheck.log`; WORKLOG "P93".
 
+**P106 (2026-11-03, `logs/p106/`; a probe in `logs/` - **no `src/` or `configs/`
+change, nothing adopted, no commit, all three references untouched**): the hand
+stage's **M1 and M2a**. The **Allegro 16-DoF USD mounts in this scene and the
+close+lift gate fails as a rate (1 of 4 cells)**, and **M2a's kill does not fire**
+because the **4-pad radial surrogate clears 1.5x on both legs on every fruit**
+(sustained **1.98 / 1.87 / 2.05x**, 2 mm **1.82 / 1.80 / 2.10x**, creep
+**0.25 / 0.15 / 0.11 mm** against the pinch's **3.20 / 0.85 / 2.68**), while the
+**Allegro is not evaluable**: one of four draws held, three dropped the payload at
+the first release, and its drive cannot be brought to the pinch's 4.90 N per
+contact. **The mount, structurally, passes**: the asset references under
+`/World/OpenArm/openarm_left_ee_tcp` and welds with a `PhysicsFixedJoint`, the
+merged articulation reads **38 DOF = 22 arm + 16 hand** with the hand half pinned
+by name/order (`index/middle/ring/thumb _joint_0..3`) and its limits in radians
+(`index_joint_1` `[-0.279,+1.728]`), a `+0.300` command reads `+0.2894`, the hand
+is **2.135 kg** over 21 bodies (the plan carried ~1.1 kg), and the **tool offset
+that replaces `_pad_standoff`'s 70 mm is 170.7 mm** along the tool axis at the
+sweep's mid posture (**100-216 mm** across it) - so it must be re-derived per
+posture, not copied. **Two defects cost the phase and are recorded, not
+worked around**: the asset's `root_joint` is a **world** anchor and
+`stage.RemovePrim` does **not** defeat a prim that comes from a reference - it
+survived, pinned the hand to the origin, and destroyed the articulation (arm joint
+1 read **-82.19 rad** against a -3.49 limit and a `+0.3` command moved it
+**-34.39**); `prim.SetActive(False)` is the fix. And **`ArmController.move_to`
+stalls 186-326 mm short** from the hanging rest pose (measured twice, direct and
+through a 40-waypoint line, with the tool axis tilted up to 30 deg), so the probe
+**teleports to the shipped `ready` waypoint** and the phase does not claim a
+station. **The close+lift gate**: 1 of 4 draws - the pear held once (**+59.7 mm**,
+read by the primitive's own `>4 mm` test) and the recorded re-run of that same
+configuration did **not** reproduce it; that one hold had already **crept
+39.75 mm** under 0.82 N (**12x the pinch's 3.20 mm, 40x the plan's 1.0 mm**); the
+other three dropped to
+the floor (creep 1.07-1.09 m), and the mechanism is visible in the read - the
+fingers **knock the payload out of the seat as they close**. **The drive tune the
+plan asks for is not achievable through a torque cap**: at the asset's `k=1e7` the
+pear reads **no contact at 0.46 N.m and 10.5 N per contact at 0.48** - a step
+function, i.e. §1.4's warning measured; a softer drive (`k=20`, `c=0.4`) gives
+2-6 N but no trustworthy force instrument on this asset (a per-link contact view
+reads `Physics contact view is not valid` or reports 60-90 mm-away fingers, and
+`get_dof_gains()` returns **5.73e8** against an authored `1e7`). **The phase's
+central measurement is topological**: the three fingers span **116-123 mm** and
+the thumb sits **43-208 mm** from their centroid, so **at most 3 of the 4
+fingertips can touch one 37-66 mm payload at any posture in a 4 x 4 sweep** (2 for
+the 60.6 mm pear at most postures, 2 for the 37 mm strawberry) - a 60 mm fruit is
+smaller than the hand's own tip spread, which is the mechanism the plan's §1.7
+"`n_eff ≈ 2`" arithmetic was reaching for. **The predicted 1.2-1.6x is therefore
+neither confirmed nor refuted**; the one holding draw reads **1.24x at 2 mm** (in
+band) and **>3.63x sustained** (bounded, out of band, at an unmatched force).
+**So M1 passes on the mount and fails on the grasp, M2a's kill does not fire on
+the surrogate, and the licence is for a *shape* - radial/enveloping, not
+anthropomorphic 3+1 - not for a product**: no buyable hand was measured, the
+surrogate cannot approach or run a precision grasp, and the purchase itself stays
+the owner's (the plan's M3 gate is untouched). **M2b (approach) and M3 (scripted
+hand) are unspent**, and the Allegro's own failure mode here - batting the payload
+out of the seat during the close - is exactly the class M2b would have to score.
+`configs/` untouched (`30fb99f8` / `30fb99f8` / `8952c320` stand), no reference
+re-recorded (the scripted line never runs this code), `scripts/selfcheck.sh`
+**PASS (0 failures, 1 skipped)** - the phase adds no `src/` code and no leg.
+Pins: `docs/HAND_STAGE_PLAN.md` carries the measured M1/M2a rows;
+`logs/p106/{METHOD.md,RESULTS.md,m1_mount_probe.py,run_p106.sh,mount_census.txt,
+m2a_allegro.txt,m2a_control.txt,inspect_allegro.py,units_probe.py}`; ckpt
+`moe_v13s` `61da390a`. Evidence `logs/p106/`.
+
 ## 3. What changed -> what to run
 
 | you changed | run |

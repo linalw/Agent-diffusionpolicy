@@ -808,6 +808,24 @@ stop and re-plan the mount.
 
 **Cost**: 24-40 h [E]; < 1 h simulator; 0 GPU.
 
+**Measured (P106, `logs/p106/`).** The **mount passes structurally and the
+close+lift gate fails as a rate (1 of 4 cells)**, and the two numbers the plan
+owed are in: the asset is **2.135 kg** over 21 bodies (not ~1.1 kg), and the tool
+offset that replaces `_pad_standoff`'s 70 mm is **170.7 mm along the tool axis**
+(100-216 mm across the posture sweep). The DOF count after the mount is
+**38 = 22 + 16**, the hand's half pinned by name/order/limits, and the merged
+articulation is proved in one command (`+0.300` -> `+0.2894`, radians). Two
+defects are recorded because they cost the phase: the asset's `root_joint` is a
+**world** anchor that survives `RemovePrim` through a reference (it destroyed the
+articulation - arm joint 1 read -82.19 rad), and `ArmController.move_to` stalls
+186-326 mm short from the hanging pose, so the probe teleports to `ready` instead.
+The gate's failure is not a force shortfall: the fingers **knock the payload out
+of the seat as they close**, and the one pear that did hold (lift **+59.7 mm**)
+had already crept **39.75 mm** under 0.82 N - 12x the pinch and 40x the 1.0 mm
+bar. The drive tune the plan asks for is **not achievable through a torque cap**:
+at the asset's k=1e7 the pear reads **no contact at 0.46 N.m and 10.5 N per
+contact at 0.48** - a step function, which is §1.4's warning measured.
+
 ### 5.2 M2 - the in-scene pull test (P104 transferred to the mounted hand)
 
 **Two cells, and both are required:**
@@ -840,6 +858,24 @@ the topology was wrong, which is §1.7's prediction and a *design input* for whi
 hand to buy.
 
 **Cost**: 16-24 h (M2a) + 8-16 h (M2b) [E]; ~4 h simulator wall; ~4 GPU-hours.
+
+**Measured (P106, `logs/p106/RESULTS.md`).** One batch, the controls re-run from
+P104's fixture unchanged: the **4-pad radial surrogate passes on both legs on
+every fruit** - sustained **21.81 / 26.59 / 25.97 N = 1.98 / 1.87 / 2.05x**, the
+2 mm criterion **1.82 / 1.80 / 2.10x**, creep **0.25 / 0.15 / 0.11 mm** against
+the pinch's **3.20 / 0.85 / 2.68**, pry 0.30-0.75 mm - so **M2a's kill does not
+fire**. The **Allegro is not evaluable**: its cell cannot be brought to the
+pinch's 4.90 N per contact (the cap is a step function; a softer drive gives
+2-6 N but no trustworthy force instrument on this asset), one of four draws held
+(lift +59.7 mm, 2 mm at **13.20 N = 1.24x**, bounded >40 N sustained) and three
+dropped the payload at the first release. The predicted **1.2-1.6x** is therefore
+**neither confirmed nor refuted**; what is measured is its mechanism - the
+fingertips span **116-123 mm**, so **at most 3 of the 4 can touch one 37-66 mm
+payload at any posture in a 4x4 sweep** (2 for the pear at most postures, 2 for
+the strawberry). The licensing sentence is the plan's own: *if only the surrogate
+passes, the surrogate licenses the purchase and the Allegro's number is recorded
+as the 3+1 topology's own* - i.e. the form to buy is radial/enveloping, not
+anthropomorphic, and the purchase stays the owner's (M3 is untouched).
 
 ### 5.3 M3 - the scripted hand pick-and-place
 
@@ -924,7 +960,9 @@ time). Any of those → **do not ship**; the measured residue goes into
 | | what it decides | gate | kill | labour [E] | sim [E] | GPU [E] |
 |---|---|---|---|---|---|---|
 | **M1** | can a hand be mounted in this cell | close+lift, 4.90 N/contact, tactile reads, **station still reachable** | the station or the TCP frame breaks | 24-40 h | 1 h | 0 |
+| **M1 measured (P106)** | mount **PASS** (38 DOF, 2.135 kg, tool offset 170.7 mm), close+lift **1 of 4** | - | not fired: the mount is sound, the grasp is not | - | - | - |
 | **M2a** | does the mounted hand beat the pinch (P104 transferred) | **>= 1.5x** sustained axial, **creep <= 1.0 mm** | both forms < 1.5x → buy no hand | 16-24 h | 2 h | 2 |
+| **M2a measured (P106)** | surrogate **1.87-2.05x** sustained / creep **0.11-0.25 mm**; Allegro **not evaluable** (<= 3 of 4 tips reach one payload) | surrogate **PASS**; Allegro no result | **not fired** (the surrogate passes) | - | - | - |
 | **M2b** | does it *approach* without batting the fruit | no-contact **<= 1/15** | the hand is a pipeline negative | 8-16 h | 2 h | 2 |
 | **M3** | can the scripted line run it | acceptance **not worse than 8/10**, 0 clearance contacts, landing 100 % | cannot match 8/10, or 1+ contact | 80-120 h | 10 h | 10 |
 | **M4** | does the policy add anything over the scripted hand | **+8 points** vs the scripted hand, no new reason, cycle <= +5 % | ship the scripted hand | 24-40 h | 9 h | 2 |
