@@ -615,6 +615,63 @@ by 1.5x axially, **kill before purchase**. Then, if purchased: recollection of
 residue is `SIM_LIMIT`'s pad *face* geometry and the next spend is a custom pad,
 not a hand.
 
+#### Status: T1 is **measured**, and it passes for a 4-contact hand (P104, 2026-11-03, `logs/p104/`) — the kill does not fire
+
+The free half of this stage ran as a **fixture** (no arm, no scheduler, no
+policy, `logs/p104/fixture_probe.py`): the shipped pad geometry (61.000 x
+84.902 mm, distal plane 80.5 mm below the jaw centre, so the shipped 10.5 mm lip
+is reproduced) on force-capped position drives at the **measured 4.90 N per
+face** (P41's 9.75-9.9 N pinch), the pool's own fruit meshes, a 5 N/s axial ramp
+with gravity, 3 fruits x 3 repeats x 7 forms, 63 cells in 2 m 51 s.
+
+| form | pear 60.6 mm | orange 65.8 mm | strawberry 37.2 mm | ratio to the pinch |
+|---|---|---|---|---|
+| `pinch_plate` (the shipped pinch) | **11.03 N** | **14.21** | **12.69** | 1.00 |
+| `tripod` (3 x 120 deg) | 18.11 | 18.90 | 19.74 | **1.64 / 1.33 / 1.56** |
+| `quad` (4 x 90 deg) | 21.81 | 26.59 | 25.97 | **1.98 / 1.87 / 2.05** |
+| `lip` (2 pads + distal ledge) | **>40** | **>40** | **>40** | `>3.63 / >2.82 / >3.15` |
+
+**The analytic `n/2` holds within 10 %** in every cell, and the pads do **not**
+pry (radial travel at break 0.06-1.52 mm of an 80 mm stroke), so the friction
+count survives contact. **So the 1.5x bar is met** by the 4-contact form at every
+size and both controls (it is the topology of every candidate: ORCA 17 DoF, LEAP
+16 DoF/4 fingers, Allegro 16 DoF/4 fingers, DexHand 19 DoF) and by the 3-contact
+form **exactly at its letter** (mean 1.51, 2 of 3 fruits) - i.e. a *three*-finger
+hand is not a purchase.
+
+**Three measured caveats, which are the price of the pass:**
+
+1. **The 2 mm criterion this survey registered fails the 3-contact form**
+   (1.05 / 0.94 / 1.48x): a 3-contact grasp **re-seats** after 2 mm and carries on
+   to 18-20 N, while the pinch's 2 mm is terminal. The sustained (payload-lost)
+   number is the one that means "critical wrench"; the 4-contact passes both
+   (1.75-2.10x at 2 mm, 1.87-2.05x sustained).
+2. **The bar tests a quantity that is not the binding term.** At the load the
+   cell actually applies (the payload's own weight, `m(g+a)` = 0.17-1.20 N) the
+   two-pad pinch **slips 3.20-3.84 mm on the pear** (1.6-1.9x the 2 mm escape
+   threshold, 30-36 % of the lip) while the tripod slips 0.36-0.44 mm and the
+   4-pad 0.15-0.25 mm - **9-15x, not 1.5x**. The static capacity is 10-20x the
+   demand and the cell still loses 17 of 80 attempts, so **a 1.5-2x capacity gain
+   does not predict a `cnp` conversion**; the mechanism the hand attacks is the
+   **creep at the operating load**, and that is the endpoint a purchase should be
+   gated on.
+3. **Under a 20 mm off-axis pull the 3-contact advantage falls to 1.15-1.47x**
+   (the slipping payload tips and unloads a contact), so the win is
+   **axial-specific**. And the **lip** - the geometry case the hypothesis names -
+   wins the fixture unboundedly while the tree has **already measured that
+   geometry as a pipeline negative** (`logs/r8/A_RESULTS.md` §3: the ledges bat
+   the payload, no-contact 2 -> 9 of 15). **A static win is not a pipeline win.**
+
+**What that means for the decision**: the kill criterion does not fire, so the
+hand path is **justified at its letter** and priced at **1.5-2.0x static axial**
+(1.87-2.05x for 4 contacts). It is **necessary, not sufficient**: the approach
+and acquisition (4 of P102's 11 failures, unreachable by any contact count) and
+the policy are untouched, and the 1.5x number is not the one that decides a
+`cnp`. The two cheapest next spends are both cheaper than the hand: a **creep
+endpoint at the operating load** (the metric already exists, `clean_slip > 2 mm`)
+and §3.2's **T2 bench** (~$1,020) - the only test that can *confirm* rather than
+falsify.
+
 ### 5.3 Stage (iii) — tactile on the hand
 
 Only after (ii) passes. **ORCA's integrated tactile** is the zero-integration

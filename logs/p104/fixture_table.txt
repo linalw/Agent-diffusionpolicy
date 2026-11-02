@@ -1,0 +1,52 @@
+P104 fixture: 63 rows from logs/p104/fixture.txt
+(N = per-contact normal force, measured; settle = the payload's own-weight
+ displacement before the ramp; F2mm = the survey's criterion; Fexit = the
+ sustained capacity; sd = the spread over 3 repeats)
+
+== pear ==
+form              n  N[N]  settle    F2mm   Fexit    sd  reps
+pinch_plate       2  4.90    3.20   10.62   11.03  0.78  [10.66, 12.11, 10.32]
+pinch_tip         2  4.90    3.84   10.91   11.19  0.02  [11.2, 11.16, 11.2]
+tripod            3  4.75    0.42   11.71   18.11  0.15  [18.32, 18.07, 17.95]
+quad              4  4.80    0.25   19.28   21.81  0.28  [21.7, 22.2, 21.53]
+lip               2  4.90    3.84   10.91     nan  0.00  [nan, nan, nan]
+pinch_tip_moment  2  4.90    3.84    8.41    8.53  0.00  [8.53, 8.53, 8.53]
+tripod_moment     3  4.75    0.41    9.57    9.78  0.00  [9.78, 9.78, 9.78]
+
+== orange ==
+form              n  N[N]  settle    F2mm   Fexit    sd  reps
+pinch_plate       2  4.90    0.85   13.83   14.21  0.00  [14.21, 14.21, 14.21]
+pinch_tip         2  4.89    0.22   10.13   13.04  0.00  [13.04, 13.04, 13.04]
+tripod            3  4.89    0.36   12.25   18.90  0.14  [19.08, 18.87, 18.75]
+quad              4  4.88    0.15   24.83   26.59  0.05  [26.58, 26.66, 26.54]
+lip               2  4.89    0.22   10.13     nan  0.00  [nan, nan, nan]
+pinch_tip_moment  2  4.89    0.22    9.41   10.08  0.00  [10.08, 10.08, 10.08]
+tripod_moment     3  4.89    0.38    8.61   13.39  0.09  [13.29, 13.37, 13.5]
+
+== strawberry ==
+form              n  N[N]  settle    F2mm   Fexit    sd  reps
+pinch_plate       2  4.90    2.68   12.19   12.69  0.00  [12.69, 12.69, 12.69]
+pinch_tip         2  4.90    0.79   12.90   13.07  0.00  [13.07, 13.07, 13.07]
+tripod            3  4.90    0.11   19.40   19.74  0.00  [19.74, 19.74, 19.74]
+quad              4  4.90    0.11   25.61   25.97  0.07  [25.9, 26.07, 25.94]
+lip               2  4.86    0.88   22.38     nan  0.00  [nan, nan, nan]
+pinch_tip_moment  2  4.90    0.78   12.28   12.94  0.00  [12.94, 12.94, 12.94]
+tripod_moment     3  4.90    0.11   18.11   18.99  0.18  [19.24, 18.86, 18.86]
+
+== ratios: sustained capacity vs the two controls ==
+(tip = the matched 16 mm two-pad control, plate = the shipped 61 mm pinch;
+ >N = the payload never left inside the 40 N ramp cap, so it is a bound)
+pear        tip=11.19 plate=11.03 | tripod=18.11(1.62x/1.64x) quad=21.81(1.95x/1.98x) lip=>40.00  pinch_tip_moment= 8.53(0.76x/0.77x) tripod_moment= 9.78(0.87x/0.89x) 
+orange      tip=13.04 plate=14.21 | tripod=18.90(1.45x/1.33x) quad=26.59(2.04x/1.87x) lip=>40.00  pinch_tip_moment=10.08(0.77x/0.71x) tripod_moment=13.39(1.03x/0.94x) 
+strawberry  tip=13.07 plate=12.69 | tripod=19.74(1.51x/1.56x) quad=25.97(1.99x/2.05x) lip=>40.00  pinch_tip_moment=12.94(0.99x/1.02x) tripod_moment=18.99(1.45x/1.50x) 
+
+== implied pair friction mu_app = Fexit / (n * N) ==
+  pinch_plate  1.05 .. 1.45  (mean 1.29)
+  pinch_tip    1.14 .. 1.33  (mean 1.27)
+  tripod       1.26 .. 1.34  (mean 1.30)
+  quad         1.12 .. 1.37  (mean 1.27)
+
+== the survey's criterion (F2mm) vs the sustained one (Fexit) ==
+  pear        tripod F2mm 1.05x / 1.06x   tripod Fexit 1.62x / 1.64x
+  orange      tripod F2mm 0.94x / 0.86x   tripod Fexit 1.45x / 1.33x
+  strawberry  tripod F2mm 1.48x / 1.53x   tripod Fexit 1.51x / 1.56x

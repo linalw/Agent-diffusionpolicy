@@ -24201,3 +24201,107 @@ untouched - **no reference was re-recorded and none is owed** (the knob is
 default-off and G1/G2 are the proof); ckpt `moe_v13s` `61da390a`.
 `scripts/selfcheck.sh` **PASS (0 failures, 1 skipped)** with the new `P103 slip
 re-grip` leg. Evidence `logs/p103/`.
+
+### P104: stage (ii)'s free half - 4 contacts beat the pinch by 1.9-2.0x and 3 by 1.5x, the pads do not pry, and the static capacity is 10-20x the load the cell applies (2026-11-03)
+
+**A fixture, not a policy run; nothing shipped, no `src/` or `configs/` change,
+no commit, both references untouched.** The owner's plan moved to stage (ii) of
+`docs/PLATFORM_SURVEY.md` after P103 closed stage (i) (detected, not convertible,
+and a net harm on the false-positive class), and §3.3's **T1** is the gate: a
+hand must beat the pinch by **>= 1.5x** axially or the hypothesis is dead for
+<$0. This phase answers it offline (`analytic.py`) and then with a fixture on the
+sim's own fruit meshes (`fixture_probe.py`, `run_p104.sh` -> `fixture.txt`, 63
+cells, 2 m 51 s, no wedge).
+
+**The analytic frame answers by arithmetic, and says so.** `n` independent point
+contacts, Coulomb, no peel, and the seat's normals perpendicular to the tool axis
+(a pad clamps where the payload's surface is tangent to its face, i.e. at the
+widest ring - `logs/p42/SEAT_CENSUS.md` §0 measures the pads' midpoint 1.4-4.7 mm
+off the payload's centre), so the axial pull is tangential everywhere and
+`F_crit = n * mu * N_c`: 2 contacts = 1.00, **3 = 1.50**, **4 = 2.00**, and the
+ratio is **mu-free**. A distal lip is a *different mode* (the pull is carried by
+a contact normal anti-parallel to it), so its ideal ratio is unbounded. At
+`mu_eff` 0.45 / `N_c` 4.90 N the pinch is 4.41 N; at the measured pair
+friction (1.13-1.45) it is 11.07-14.21 N. The bar is met by the 3-contact form
+**exactly at its letter** and by the 4-contact with 0.5x to spare - in this
+model, for any mu. **The scale is the caveat**: the shipped `a_max` 1.089 puts
+the cell's axial demand at `m(g+a)` = 0.17 / 0.91 / 1.20 N for the strawberry /
+pear / orange, i.e. **3.7-26x below the conservative pinch capacity** - and the
+cell still loses the payload, so the static capacity is not the binding term.
+
+**The fixture.** One payload, `n` pads on **force-capped position drives**
+(k = 1e5 N/m = `finger_damp02`, cap **4.90 N** = the measured per-face pinch,
+P41's 9.75-9.9 N over two faces), the measured plate **61.000 x 84.902 mm** with
+its distal plane 80.5 mm below the jaw centre (`logs/p66/COLLIDER_READ.md`,
+`tasks.FINGER_TIP_BELOW_JAW`) so the shipped **10.5 mm lip** is reproduced, the
+pool's own mesh/mass/friction draw, a 150-tick close on a pinned payload,
+90-tick settle, then a **5 N/s** axial ramp (with gravity) to a 40 N cap. Seven
+forms: `pinch_plate` (the shipped pinch), `pinch_tip` (16 mm matched control),
+`tripod` (3 at 120 deg), `quad` (4 at 90 deg), `lip` (+ a static distal ledge),
+and the two **moment** cells (pull 20 mm off-axis). Three fruits x three repeats;
+the per-cell manipulation check is that **every contact carries the same normal
+force** - 4.75-4.94 N on the tripod, 4.80-4.90 on the quad.
+
+**The measurement (sustained break-away, applied + weight, mean of 3).**
+`pinch_plate` **11.03 / 14.21 / 12.69 N** (pear / orange / strawberry),
+`pinch_tip` 11.19 / 13.04 / 13.07, **`tripod` 18.11 / 18.90 / 19.74**,
+**`quad` 21.81 / 26.59 / 25.97**, `lip` **no break inside 40 N** on all three.
+Ratios to the shipped pinch: **tripod 1.64 / 1.33 / 1.56** (mean 1.51),
+**quad 1.98 / 1.87 / 2.05** (mean 1.97), lip `>3.63 / >2.82 / >3.15`. **The
+arithmetic holds within 10 %** in every cell, and the pads **do not pry** (radial
+travel at break 0.06-1.52 mm of an 80 mm stroke), so the `n/2` survives contact
+- which is the only thing a fixture can add to arithmetic. The pinch's break
+carries the tree's **one-sided** signature: **4.92 / 2.93 N** at its 2 mm event
+on the pear, against the 61 mm plate cell's 4.90-4.94 / 4.90-4.94.
+
+**Two findings that change how the bar must be read.** (1) **The survey's own
+criterion fails the 3-contact form.** Break at `clean_slip > 2 mm` reads
+**1.05 / 0.94 / 1.48x** for the tripod (`fixture_table.txt`), because a 3-contact
+grasp **re-seats** after 2 mm and carries on to 18-20 N while the pinch's 2 mm is
+already its end (11.11 -> 11.19 N) - the 4-contact passes it (1.75-2.10x) and the
+sustained number is the one that means "critical wrench". (2) **The load the cell
+applies is not the load the bar tests.** With the payload hanging on the grasp
+under its own weight (0.17-1.20 N, i.e. the lift's demand), the two-pad pinch
+**slides 3.20-3.84 mm on the pear** - 1.6-1.9x the 2 mm escape threshold and
+30-36 % of the 10.5 mm lip - while the tripod slides **0.36-0.44 mm** and the
+4-pad **0.15-0.25 mm**: **9-15x at the operating load**, not 1.5x. The fidelity
+error is in the conservative direction (the fixture's capped pads follow the
+payload inward; a real close freezes the gap at the fruit's width), so the ratios
+are a lower bound. **Under a 20 mm off-axis pull** the tripod's advantage falls
+to **1.15 / 1.33 / 1.47x** - the slipping payload tips and unloads one contact
+(3.57 / 5.06 / 3.64 N at break) - so the hand's win is **axial-specific**.
+
+**Verdict.** Stage (ii)'s **kill does not fire**: the 4-contact form clears the
+1.5x bar at every fruit size and both controls, under both criteria, and 4+
+contacts is what every candidate hand has (ORCA 17 DoF, LEAP 16 DoF/4 fingers,
+Allegro 16 DoF/4 fingers, DexHand 19 DoF). The 3-contact form sits **on** the bar
+(1.51-1.53 mean, 2 of 3 fruits, fails the 2 mm criterion), so a three-finger hand
+is not a purchase. **But a positive is necessary, not sufficient**, and the
+phase's own numbers say why: the pass is on a quantity the pinch already exceeds
+by 10-20x, so it does not predict a `cnp` conversion; the **lip** - the geometry
+case the survey's hypothesis actually names - wins the fixture unboundedly while
+the tree has already measured that same geometry as a **pipeline negative**
+(`logs/r8/A_RESULTS.md` §3: the ledges bat the payload, no-contact 2 -> 9 of 15);
+and the approach/acquisition (4 of P102's 11 failures) plus the policy are
+untouched. The two cheapest next spends, both cheaper than the hand: a **creep
+endpoint at the operating load** (the metric already exists as `clean_slip >
+2 mm`) and §3.2's **T2 bench** (~$1,020), the only test that can *confirm*.
+
+Recorded as by-products, not acted on: the implied pair friction is
+**`mu_app` = 1.05-1.45** on every form, i.e. consistent with PhysX's default
+**average** combine of the pad's 2.0 with the fruit's draw (1.26-1.41) and **not**
+the *minimum* the `scene._add_physics_material` comment assumes - so `mu_eff`
+0.45 is 2.3-3.2x pessimistic and the measured pinch is 11-14 N, not 4.4 N. No
+comment or constant was edited (that is a cone re-measurement's work, not this
+phase's). Also recorded: the third contact pays only when it is **loaded** - at a
+3 mm commanded interference one tripod pad carried 3.09 N of 4.9 and the tripod
+was worth **1.01x**, which is why the registered manipulation check (all contacts
+at the same normal force) forced the 5 mm setting (`METHOD.md` A1).
+
+Pins: `tasks.py` **`9e3e657b`**, `scene.py` `472bfb6c`, `control.py`
+`9384ff4f`, `fruits.py` `dcabe16b`, `assets.py` `540406fa`; references
+**`30fb99f8` / `30fb99f8` / `8952c320`** untouched; ckpt `moe_v13s` `61da390a`;
+instrument `logs/p104/fixture_probe.py` **`3f18b908`**, record
+`logs/p104/fixture.txt` **`3fbb48f5`** (63 rows), analytic
+`logs/p104/analytic.txt` **`56a7e260`**, `logs/p104/{METHOD.md,RESULTS.md,
+p104_report.py,run_p104.sh}`. Evidence `logs/p104/`.

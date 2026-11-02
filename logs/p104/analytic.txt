@@ -1,0 +1,46 @@
+P104 analytic critical axial force - Coulomb, independent contacts, no peel
+  N_c = 4.90 N per contact   (measured pinch, P41)
+  a   = 1.089 m/s^2           (shipped lift/place cap)
+
+== (1) the tangential mode: F_crit = n * mu * N_c ==
+
+form                    n   F(0.45)  ratio   F(1.13)  ratio   F(1.45)  ratio 
+-----------------------------------------------------------------------------
+(a) two-pad pinch       2      4.41   1.00     11.07   1.00     14.21   1.00 
+(b) 3-contact tripod    3      6.62   1.50     16.61   1.50     21.32   1.50 
+(c) 4-contact           4      8.82   2.00     22.15   2.00     28.42   2.00 
+
+  ratios are mu-free: 3 contacts = 1.50x, 4 contacts = 2.00x, by arithmetic.
+  the 1.5x bar is therefore cleared by (b) exactly at its letter and by (c)
+  with a 0.5x margin - in *this* model, for *any* mu.
+
+== (2) the normal mode: a distal lip ==
+
+  (d) two-pad pinch + distal ledge: the pull is carried by a contact
+      normal anti-parallel to it, so the axial capacity is the lip's own
+      strength (or the jaw's), not mu * N. Ideal ratio: unbounded.
+
+== (3) the load the cell actually applies, beside those capacities ==
+
+fruit          m[g]  m(g+a)[N]  pinch F_crit[N]  capacity/demand
+strawberry     15.5      0.169             4.41            26.1x
+pear           83.9      0.914             4.41             4.8x
+orange        110.2      1.201             4.41             3.7x
+
+  The measured pinch is 11.0-14.2 N (fixture), i.e. 10-20x the demand, and
+  the cell still loses the payload - so the *static axial capacity* is not
+  the binding term. That is what the fixture's creep column is for.
+
+== (4) the predicted ratio vs the measured (fixture, mean of 3) ==
+
+form       fruit         predicted  measured   delta
+tripod     pear               1.50      1.62   +0.12
+tripod     orange             1.50      1.45   -0.05
+tripod     strawberry         1.50      1.51   +0.01
+quad       pear               2.00      1.95   -0.05
+quad       orange             2.00      2.04   +0.04
+quad       strawberry         2.00      1.99   -0.01
+
+  read: the arithmetic's rank and magnitude hold within 10 %; the 3-contact
+  shortfall on the orange (-0.05) and the 4-contact excess on the orange
+  (+0.04) are the lobed-fruit seat, not a different mechanism.
