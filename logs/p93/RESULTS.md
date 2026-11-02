@@ -294,6 +294,12 @@ acceptance of the shipped branch before this phase (§3/G7).
   site per writer, the collector's shard keys).
 * A manifest **without** `supply.band` predates P93; the collector's flat
   `x_min`/`x_max` are then the witness.
+* **Exercised end to end without a `SimulationApp`** (`logs/p93/manifest_probe.py`
+  under the Isaac python, the P72 probe's contract -> `manifest_probe.log`): the
+  collector's own writer emits `supply.band.schedule = "wave"`, the two mixes,
+  and **`x_max` 0.36 shipped / 0.33 under `FRUIT_SUPPLY_X_MAX=0.33`**, with the
+  `scene` block byte-unchanged beside it. So the two stores the prerequisite was
+  written for are now distinguishable from their own metadata.
 
 ## 7. Pins and files
 
@@ -307,8 +313,8 @@ untouched (`423896f7` / `423896f7` / `8952c320`). New under `logs/p93/`:
 `p93_report.txt`, `run_p93.sh`, `gates.sh`, `header.txt`, the cells
 `{D6C,D6T,C101,T101,C202,T202}.{log,stamps,driver}`, `{C101,T101,C202,T202}.budgets`,
 `p1/D6C/`, `p1/D6T/` (the traces), `p1/D6C_first_pass*`, `p1/D6T_first_pass*`,
-`accept_noharm.{log,driver}`, `selfcheck.log`, `diag_driver{,2}.log`,
-`seed_driver.log`, `watch_d6c.log`.
+`accept_noharm.{log,driver}`, `manifest_probe.py`, `manifest_probe.log`,
+`selfcheck.log`, `diag_driver{,2}.log`, `seed_driver.log`, `watch_d6c.log`.
 
 ## 8. Deviations, all recorded
 
