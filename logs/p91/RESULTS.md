@@ -182,3 +182,27 @@ construction), so the gate asserts the raw difference is **only** that row.<br>
 * **No reference was re-recorded and none is owed.** The flip was not shipped;
   `configs/motion_reference{,_single,_twoline}.json` are untouched at
   `423896f7` / `8952c320` / `423896f7`.
+
+## 7. The shipped tree after the phase
+
+The gate failed, so nothing was flipped and the tree is the pre-P91 one plus a
+default-off resolver. On the final tree:
+
+* `scripts/accept.sh` (the shipped two-line scenario, ten attempts) reads
+  **7/10 = 70 %, 9.4 s/attempt, `fingerprint: matches configs/motion_reference.json`,
+  `190: PASS`** — the standing branch P87/P88/P89 recorded, unchanged
+  (`logs/p91/accept_final.log`).
+* `scripts/selfcheck.sh` is **PASS, 0 failures** with the new
+  **`P91 probe scope`** leg (`logs/selfcheck.log`).
+* `logs/p91/gates.sh` exits **0**: G0 (the controls replay the shipped cell
+  868/868 and 821/821), the single arm **346/346 raw** + `fingerprint: matches`,
+  the shared-station pair (unset = 40, the shipped single-arm probe; raw differs
+  only on the row's `origin`), and `N5` (the final tree, unset) replaying
+  `logs/p87/T5.log` and `C5`.
+* **No reference was re-recorded** and none is owed: `configs/motion_reference.json`
+  `423896f7`, `..._single.json` `8952c320`, `..._twoline.json` `423896f7` — all
+  three untouched.
+
+**The re-baseline rule this phase adds: none.** Nothing shipped; the only new
+knob is default-off (`PROBE_TWO_LINE_DEFAULT = False`) and the only new printed
+row is inside a bimanual session.

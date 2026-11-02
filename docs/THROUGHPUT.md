@@ -35,6 +35,20 @@ exact), the **delivered interval rises at both seeds** (10.59 -> 13.43 and
 and **no number in this page moves**. With that, **all three profile blocks are
 measured**.
 
+**P91 audited the five blocks that were never profiled - `descent`, `grip`,
+`close`, `hover`, `prepose`, 8.82 s = 57 % of the span - and shipped nothing
+either** (`logs/p91/RESULTS.md`, "Lever 6"). The audit's verdict is the useful
+part: **wait 4.09 s + failure tax 0.76 s + arm motion 3.63 s, leaving 1.08 s =
+7.0 % genuinely speedable**, because the `descent`'s block is `lead/speed −
+margin` and **cannot move** (a faster leg waits longer), the `grip`'s excess is
+P40's probe tax, the `hover`/`prepose` have no profile and the `close`'s direction
+is contested. The one cell (the 60-tick probe ramp -> 24) confirmed its lever to
+one tick (clean block **210 -> 173 ticks = −0.31 s**) and **lost on the mode
+mix** (first-probe success 14/20 -> 5/20: the ramp's duration *is* the
+validation's margin and the force servo's squeeze window), so the interval rose
+at both seeds and `PROBE_TWO_LINE_DEFAULT` stays False. **No number in this page
+moves.**
+
 Shipped scripted cell, 20 slots, seed 5 (`logs/p85/` = P80's scenario with P82's
 wall; the P87 row is `logs/p87/T5.log`, the same scenario with the trim):
 
@@ -258,6 +272,57 @@ and **did not ship it**:
   fresh unset run replays C5, the single arm is **346/346 raw** identical, both
   references untouched at `423896f7`).
 
+## Lever 6: the five never-profiled blocks - audited, one cell measured, NOT shipped (P91)
+
+The three blocks above were the *named* per-leg profiles. The owner's question
+(P91) was the **single-pick cycle excluding the fruit wait** ("不包含等果时间"),
+and the five `[cycle]` blocks that had never been profiled are `descent 3.64`,
+`grip 2.36`, `close 1.36`, `hover 0.75`, `prepose 0.71` = **8.82 s = 57 %** of the
+**15.34 s** per-arm span (`logs/p87/T5.log`). The audit
+(`logs/p91/AUDIT.md` + `logs/p91/audit.py`) defines each by its own marks and
+splits it into **wait / failure tax / motion**, and the result is that **the five
+hold 1.08 s of genuinely speedable time = 7.0 %, not 57 %**:
+
+* **`descent` 3.64 is not a descent.** It is the **fruit-arrival wait 2.17 s**
+  (`arrived=True after N steps`), a **scheduled** wait **0.59 s**
+  (`dynamic descent: waited N ticks`) and the profiled leg **0.74 s** - and the
+  block is **schedule-invariant**: the wait exits when the fruit is
+  `speed*(t_desc + FRUIT_DYNAMIC_DESCEND_MARGIN)` away, so
+  `block = lead/speed − margin` and **a faster leg just waits longer**. The
+  profile arithmetic agrees (the 5.5 cm leg is **jerk-bound**: 86 ticks at
+  `a_max` 0.8 *and* 1.6; 64 only at `v_max` 0.25 **and** 1.6) and so does the
+  measurement (`t_desc` spans **0.03 s** while the block's own sd is **8.9
+  ticks** — the leg is not an available variable; the per-fruit handover lead
+  is). **A profile cell on the descent can only move the catch window.**
+* **`grip` 2.36 is 1.75 clean + 0.61 of P40's tax** (a failed probe **+1.53 s**,
+  a burnt cap **+2.29 s**, both measured, neither sped). Inside the clean
+  **210 ticks** the 60-tick **validation ramp** is the only profile, and it is a
+  **1:1** lever (the single arm's 40-tick probe's clean block is **190 ticks**,
+  Δ 20 with an identical 150-tick remainder).
+* **`close` 1.36** is catch-up 0.63 + a 22-tick ramp + a 48-tick hold (the
+  direction is contested — R11-B/P18b measured a *slower* close converting the
+  direct carried class), **`hover` 0.75** is `move_to` at the IK step cap (no
+  profile; R3's residency is negative on this line) and **`prepose` 0.71** is a
+  tuned 45-tick blend + a 20-tick pump.
+
+**The one cell (the probe ramp, 60 → 24 ticks, two-line-scoped) measured its
+lever exactly and lost anyway.** The clean `grip` block fell **210 → 173 ticks =
+−0.31 s** against the registered **−0.300** at both seeds and in both modes, and
+the **block mean rose** (+0.23 / +0.38) because the **mode mix moved**:
+first-probe success **14/20 → 5/20** and **18/20 → 9/20**. The mechanism is that
+**the ramp's duration *is* the validation's detection margin** (the grasp test is
+`fruit_z − z_before > 4 mm`) **and the force servo's squeeze window**
+(`..._SQUEEZE_S = 0.10` s lives inside the probe) — so the class moved with it at
+both seeds (`never-grasped` **4 → 6** / **1 → 4**, the loaded-slide guard **4 → 9**
+/ **7 → 11**, the delivered pinch **9.65 → 7.77 N** at seed 6 against P41's
+9.7-9.9 N plateau) and the interval rose at both (**10.59 → 13.01** and
+**11.08 → 12.20 s**). **Not shipped**: `PROBE_TWO_LINE_DEFAULT = False`; the
+measured arm is `FRUIT_DYNAMIC_PROBE_TICKS=24`; the guards that passed (landing
+16/16, 11/11, 12/12, 12/12 `on_belt`, the catch window at 5.9 mm / `end=` ≤ 12.7
+mm, all four cells' motion budgets clean) are what makes the negative readable.
+**The five-block family is closed by measurement**: what is left of the cycle is
+**wait (excluded) + the closed grip class + these five floors**.
+
 ## The read rules (they bind the next rate claim)
 
 1. **Quote both denominators and the wall column.** The placement window and the
@@ -306,7 +371,22 @@ and **did not ship it**:
    (`--profile`: the row's `origin` field is *supposed* to differ, that is the
    label's job). A default that moves a path with no such record has not been
    scoped, only declared.
-10. **The release clock is provenance now.** A store recorded under the trim
+11. **A `[cycle]` block is wait + failure tax + motion, and only the motion is a
+   lever.** Audit before registering (`logs/p91/audit.py`; a block's sub-terms are
+   the *printed* loop counts, so the model is checkable against its own block).
+   Check whether a "block" is **scheduled** (the `descent`: its wait exits at
+   `speed*(t_desc+margin)`, so `block = lead/speed − margin` and a faster leg
+   waits longer - it is **not** a lever, only a catch-window risk), **taxed** (the
+   `grip`'s mean carries P40's probe/regrasp cost) or **unprofiled** (the `hover`
+   is an IK step cap, the `prepose` a tuned blend). And when the cell moves a
+   **tick count on a validation**, read the branch-free instance - the block's
+   **lowest mode** - never the mean: a shorter ramp makes the *validation itself*
+   harder, so the clean instance falls by exactly its ticks while the **mode mix**
+   moves against you (P91: clean **-0.31 s** exact, block mean **+0.23/+0.38**,
+   first-probe success 14/20 -> 5/20). A tick cell can also be coupled to a
+   **force** - read the delivered pinch (`[carry] force_min`) and the
+   loaded-slide guard beside any take-off change.
+12. **The release clock is provenance now.** A store recorded under the trim
    differs from a pre-P87 one in its **attempt timing** without moving a
    trajectory endpoint, so both manifest writers carry
    `physics.release={dwell,pad_hold,finger_hold,...}`; a manifest **without** the

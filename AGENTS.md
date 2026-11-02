@@ -4448,13 +4448,27 @@ different selection cadence - "the shorter ramp failed more validations" and
 "the re-timed presentation drew harder fruit" are not separated at this N; the
 verdict does not need the separation, P2/P4/P7 fail on the delivered side on
 their own). No reference was re-recorded and none is owed (`423896f7` /
-`8952c320` / `423896f7` untouched). Pins: `tasks.py` **`7ba4bb58`**,
-`rl_env.py` `TASKS_MD5` follow, `scripts/250_p91_probe_scope_selftest.py`,
-`scripts/selfcheck.sh`; ckpt `moe_v13s` `61da390a`. Evidence
+`8952c320` / `423896f7` untouched). **The shipped tree after the phase**: the
+acceptance reads **7/10, `fingerprint: matches`, `190: PASS`** (the standing
+branch) and `selfcheck.sh` is **PASS (0 failures)** with the new `P91 probe
+scope` leg; `logs/p91/gates.sh` exits **0** (G0 replays the shipped cell
+868/868 and 821/821, the single arm 346/346 raw + `fingerprint: matches`, the
+shared station resolving the shipped 40 with the raw difference only on the
+row's `origin`, and `N5` replaying the pre-change record) — with one **report
+deviation (PREREG A1)**: P8's clause named `logs/p89/T5.log` as the pre-change
+record, but that file is P89's **lift-raise** arm (its battery ran
+`LIFT_TWO_LINE_DEFAULT = True`), so the target used is `logs/p87/T5.log`, the
+record of the shipped cell (byte-identical to `p88/C5` and `p89/C5`); the `190`
+fingerprints DIFFER on all four cells against the pre-P87-clock 20-attempt
+references, the registered recorded-not-gated read. Pins: `tasks.py`
+**`7ba4bb58`**, `rl_env.py` `TASKS_MD5` follow,
+`scripts/250_p91_probe_scope_selftest.py`, `scripts/selfcheck.sh`; ckpt
+`moe_v13s` `61da390a`. Evidence
 `logs/p91/{AUDIT.md,audit.py,audit.txt,PREREG.md,PREREG.md5,RESULTS.md,
-p91_report.py,p91_report.txt,run_p91.sh,run_p91_extra.sh,gates.sh}`, the cells
-`{C5,T5,C6,T6}.{log,stamps,driver}`, `{C5,T5,C6,T6}.{gate,budgets}`, `N5`,
-`single_accept.*`, `shared_{unset,zero}.*`, `smoke.log`; WORKLOG "P91".
+p91_report.py,p91_report.txt,run_p91.sh,run_p91_extra.sh,gates.sh,gates.out,
+accept_final.log,selfcheck.log}`, the cells `{C5,T5,C6,T6}.{log,stamps,driver,
+gate,budgets}`, `N5`, `single_accept.*`, `shared_{unset,zero,forty}.*`,
+`shared_raw_same.txt`, `smoke.log`; WORKLOG "P91".
 
 ## 3. What changed -> what to run
 
