@@ -1,0 +1,51 @@
+====================================================================================================
+P92/A1 - the force servo's contact gate (PREREG_A1)
+====================================================================================================
+
+## 0 provenance
+  logs/p92/census.py                                   CHANGED 9e908d7d -> 2a59e74d
+  logs/p92/p92_report.py                               CHANGED 2dcedae0 -> aebc0a3b
+  logs/p92/p92_a1_report.py                            CHANGED 2d39924c -> 86419d99
+  PREREG_A1.md md5 e51502538f41cc1438c555f7590de8e7
+  chase.py     md5 b36a1c75524f5508cdb787740a66251b
+
+## 1 the servo's closure per attempt (primary mechanism: PREREG_A1 s2)
+  cell  att placed closed>0 chased-fail never  cnp other
+  C5     20     16        4           4     2    2     0
+  R5     20     16        1           1     1    3     0
+  C6     20     12        7           7     1    7     0
+  R6     20     12        2           2     3    5     0
+  R5 reentry diag rows: 18  e.g. force reentry: left: entries=0 exits=0 gated=391 | right: entries=2 exits=0 gated=0
+  R6 reentry diag rows: 16  e.g. force reentry: left: entries=1 exits=0 gated=0 | right: entries=0 exits=0 gated=603
+
+## 2 the primary (the placed count) and the per-seed pair
+  seed 5: placed 16 -> 16 (+0)   chase set 4 -> 1   never-held 2 -> 1   cnp 2 -> 3
+  seed 6: placed 12 -> 12 (+0)   chase set 7 -> 2   never-held 1 -> 3   cnp 7 -> 5
+  pooled placed 28 -> 28 (bar >= 30): FAIL
+
+## 3 guards (PREREG_A1 s3)
+  G1 held-leg force  C5: median force_min 9.42 N over n=34 held legs (>= 9.0 N): PASS
+  G1 held-leg force  R5: median force_min 9.36 N over n=35 held legs (>= 9.0 N): PASS
+  G1 held-leg force  C6: median force_min 9.72 N over n=32 held legs (>= 9.0 N): PASS
+  G1 held-leg force  R6: median force_min 9.10 N over n=28 held legs (>= 9.0 N): PASS
+  G2 cnp must not rise  R5: 3 (bound 2) FAIL
+  G2 cnp must not rise  R6: 5 (bound 7) PASS
+  G4 landing R5: 16 payload-present, on belt 16/16 PASS
+  G6 attempts R5: 20 (bar 20) PASS
+  G7 the gate engages R5: entries=31 gated_ticks=890 PASS
+  G4 landing R6: 12 payload-present, on belt 12/12 PASS
+  G6 attempts R6: 20 (bar 20) PASS
+  G7 the gate engages R6: entries=29 gated_ticks=1730 PASS
+  G3 reasons (treatment): {'fruit did not follow the gripper': 7, 'grasped, not placed (no note)': 5}
+  G5 budgets R5: 20 descent legs, 0 over budget (PASS) | fingerprint DIFFERS (recorded, not gated: D3)
+  G5 budgets R6: 20 descent legs, 0 over budget (PASS) | fingerprint DIFFERS (recorded, not gated: D3)
+
+## 4 the interval and the wall (P80/186; both denominators)
+  cell  pooled int    p90  L int  R int win/min batch/min  wall s placed/min wall
+  C5         10.59  17.80  19.30  26.02    5.66      5.05   330.1            2.91
+  R5         11.59  18.20  22.10  21.57    5.18      5.03   331.4            2.90
+  C6         11.08  17.60  24.38  18.26    5.41      3.94   304.0            2.37
+  R6         13.48  23.10  24.72  26.23    4.45      4.04   294.0            2.45
+
+## 5 the verdict (PREREG_A1 s4)
+  placed 28 -> 28 (bar 30) | guards a guard FAILED -> NOT ADOPTED

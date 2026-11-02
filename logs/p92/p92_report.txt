@@ -1,0 +1,64 @@
+====================================================================================================
+P92 - the scenario-side loss: the supply band's top (PREREG logs/p92/PREREG.md)
+====================================================================================================
+
+## 0 provenance
+  logs/p92/census.py                                       CHANGED 9e908d7d -> 2a59e74d
+  logs/p92/p92_report.py                                   CHANGED 2dcedae0 -> aebc0a3b
+  PREREG.md  md5 07c54712fdcd139e51d7641eccf01114  (matches file)
+  census.py  md5 2a59e74d53bfbb34e9c7087a6d1b6c63
+
+## 1 the manipulation (PREREG section 1: the band and the delivered x)
+  C5: supply lateral x=0.20-0.36 m  delivered n=20 min=0.1998 p50=0.2861 max=0.3908  >0.36: 4  >=0.39: 1
+  T5: supply lateral x=0.20-0.33 m  delivered n=20 min=0.1781 p50=0.2872 max=0.3616  >0.36: 1  >=0.39: 0
+  C6: supply lateral x=0.20-0.36 m  delivered n=20 min=0.2055 p50=0.2994 max=0.3597  >0.36: 0  >=0.39: 0
+  T6: supply lateral x=0.20-0.33 m  delivered n=20 min=0.2051 p50=0.2941 max=0.3622  >0.36: 1  >=0.39: 0
+  F1 (the band took effect: treatment delivered max <= 0.362 m): FAIL
+
+## 2 the failure census (PREREG section 2; primary = the never-held class)
+  cell  att placed  cnp never other divert starve  s/att
+  C5     20     16    2     2     0      1     45   9.50
+  T5     20     18    2     0     0      0     36   9.50
+  C6     20     12    7     1     0      1     37   9.10
+  T6     20     18    1     1     0      0     20   9.30
+  control   (C5+C6): 28/40 placed; never-held 3, cnp 9
+  treatment (T5+T6): 36/40 placed; never-held 1, cnp 3
+  seed 5: never-held 0 (predicted 0) placed 18 (predicted 17)
+  seed 6: never-held 1 (predicted 1) placed 18 (predicted 12)
+  PRIMARY (pooled never-held 3 -> 1, predicted 1; placed >= 29): PASS
+  Fisher 2x2 (never-held vs the rest, two-sided; reported, never the decision): control 3/37 vs treatment 1/39 -> p = 0.6153
+
+## 3 the paired read (same slot, same species and diameter)
+  C5/T5: 13/20 slots carry the same fruit; both placed 10, control-only 0, treatment-only 2
+     slot kiwi       5.4 cm  never_held(x=0.391) -> success   (x=0.362)
+     slot peach      6.9 cm  cnp       (x=0.241) -> success   (x=0.277)
+  C6/T6: 4/20 slots carry the same fruit; both placed 1, control-only 0, treatment-only 1
+     slot kiwi       6.2 cm  never_held(x=0.273) -> cnp       (x=0.266)
+     slot peach      6.6 cm  cnp       (x=0.299) -> never_held(x=0.303)
+     slot peach      6.6 cm  cnp       (x=0.343) -> success   (x=0.258)
+
+## 4 the delivered interval and the wall (both denominators, P80/186)
+  cell  pooled int    p90  L int  R int win/min batch/min  wall s placed/min wall
+  C5         10.59  17.80  19.30  26.02    5.66      5.05   330.1            2.91
+  T5         10.13  16.80  19.13  21.64    5.92      5.66   342.4            3.15
+  C6         11.08  17.60  24.38  18.26    5.41      3.94   304.0            2.37
+  T6          9.84  15.50  18.59  19.47    6.10      5.81   322.9            3.35
+
+## 5 guards
+  G1 cnp must not rise: C5 2 T5 2 / C6 7 T6 1 -> PASS
+  G2 landing C5: 16 payload-present releases, on belt 16/16 (PASS)
+  G2 landing T5: 18 payload-present releases, on belt 18/18 (PASS)
+  G2 landing C6: 12 payload-present releases, on belt 12/12 (PASS)
+  G2 landing T6: 18 payload-present releases, on belt 18/18 (PASS)
+  G4 reasons (treatment, pooled): {'fruit did not follow the gripper': 3, 'grasped, not placed (no note)': 1}
+  G3 budgets T6: 20 descent legs, 1 over budget (FAIL) | fingerprint DIFFERS (recorded, not gated: no post-P87 20-attempt reference exists)
+  G3 budgets T5: 20 descent legs, 0 over budget (PASS) | fingerprint DIFFERS (recorded, not gated: no post-P87 20-attempt reference exists)
+  G5 the control replays its record (C5 vs logs/p91/C5.log): 1033/1033 identical modulo a profile row's origin label (1 raw diff, first at line 42): [fruit] [biarm] take-off profile: FRUIT_DYNAMIC_PROBE_TICKS=60(explicit) scope=two-line pr (PASS)
+  G5 the control replays its record (C6 vs logs/p91/C6.log): 970/970 identical modulo a profile row's origin label (1 raw diff, first at line 42): [fruit] [biarm] take-off profile: FRUIT_DYNAMIC_PROBE_TICKS=60(explicit) scope=two-line pr (PASS)
+  G6 attempts: 4/4 cells at 20 attempts PASS
+    C5 diversion: diverting peach (index 12) after 2 failed attempts - reject chute
+    C6 diversion: diverting peach (index 0) after 2 failed attempts - reject chute
+
+## 6 the verdict (PREREG section 4's rule, applied to the numbers above)
+  never-held 1 (bar <= 1) | placed 36 (bar >= 29) | guards a guard FAILED
+  -> NOT ADOPTED

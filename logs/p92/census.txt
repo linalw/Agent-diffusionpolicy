@@ -1,0 +1,133 @@
+====================================================================================================
+P92 CENSUS - the shipped two-line cell
+====================================================================================================
+log        att  ok cnp never fell other cnp-l cnp-p div starve acq
+p87/T5      20  16   2     2    0     0     2     0   1     45  65
+p87/T6      20  12   7     1    0     0     5     2   1     37  57
+p88/C5      20  16   2     2    0     0     2     0   1     45  65
+p88/C6      20  12   7     1    0     0     5     2   1     37  57
+p88/N5      20  16   2     2    0     0     2     0   1     45  65
+p89/C5      20  16   2     2    0     0     2     0   1     45  65
+p89/C6      20  12   7     1    0     0     5     2   1     37  57
+p91/C5      20  16   2     2    0     0     2     0   1     45  65
+p91/C6      20  12   7     1    0     0     5     2   1     37  57
+p91/N5      20  16   2     2    0     0     2     0   1     45  65
+
+----------------------------------------------------------------------------------------------------
+DISTINCT CELLS (the replays are byte-identical by each phase's own proof)
+----------------------------------------------------------------------------------------------------
+seed 5 (p87/T5): 16/20 placed; cnp 2, never_held 2, fell_off 0, other 0
+        replays (same stream, dropped from the pool): p88/C5,p89/C5,p91/C5,p91/N5,p88/N5
+seed 6 (p87/T6): 12/20 placed; cnp 7, never_held 1, fell_off 0, other 0
+        replays (same stream, dropped from the pool): p88/C6,p89/C6,p91/C6
+
+POOLED ATTEMPTS: n=40  placed=28 (70.0 %)  failed=12
+
+class          n  share of failures  share of attempts  addressable
+----------------------------------------------------------------------------------------------------
+cnp            9              75.0%              22.5%  NO - closed class (logs/p42/SIM_LIMIT.md): hardware
+never_held     3              25.0%               7.5%  YES - pre-contact acquisition (supply geometry / x)
+other          0               0.0%               0.0%  read the rows
+TOTAL         12             100.0%              30.0%
+
+cnp by onset leg:
+  lift   n=7  clean_slip 232.6-854.5 mm  force_min 0.00-0.00 N
+  place  n=2  clean_slip 11.0-728.6 mm  force_min 0.00-0.24 N
+
+never_held rows (the pads closed on air):
+  T5.log     left  kiwi       5.4 cm sep_end=22.2 gap_start=37.2 lift=+0.000 x=0.391 queue=5
+  T5.log     right kiwi       5.6 cm sep_end=24.1 gap_start=39.1 lift=+0.000 x=0.386 queue=3
+  T6.log     right kiwi       6.2 cm sep_end=29.8 gap_start=44.8 lift=+0.000 x=0.273 queue=4
+
+other rows:
+
+delivered x at selection: n=40 min=0.1998 p50=0.2987 p90=0.3668 max=0.3908
+  non-cnp failures x: [0.3908, 0.3857, 0.273]
+  cnp failures x:     [0.2395, 0.2414, 0.2994, 0.3469, 0.3428, 0.3597, 0.3427, 0.3427, 0.3566]
+catchable queue at the handover: n=40 min=2 p50=3 max=5
+  queue | success  n=28 mean=3.25 dist=[2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 4, 4, 5, 5]
+  queue | failure  n=12 mean=3.17 dist=[2, 2, 2, 3, 3, 3, 3, 3, 3, 4, 5, 5]
+  x in the designed band (<=0.36)     : n=36 failed=10 (28 %) classes=['cnp', 'cnp', 'never_held', 'cnp', 'cnp', 'cnp', 'cnp', 'cnp', 'cnp', 'cnp']
+  x above the designed top (>0.36)    : n= 3 failed= 1 (33 %) classes=['never_held']
+  x at/above the clean edge (>=0.39)  : n= 1 failed= 1 (100 %) classes=['never_held']
+
+the close's frozen command at the lift's first tick (`gap_start`), against the fruit's width:
+  log        arm   class      site  x      dia   gap_start  gap-dia sep_max  fmin
+  T6.log     right never_held       0.273   61.6      44.8    -16.8    29.8  0.00
+  T5.log     right never_held       0.386   55.8      39.1    -16.7    33.6  0.00
+  T5.log     left  never_held       0.391   53.8      37.2    -16.6    22.3  0.00
+  T5.log     right cnp        lift  0.241   68.9      53.1    -15.8    38.1  0.00
+  T5.log     right cnp        lift  0.239   68.9      54.5    -14.4    43.5  0.00
+  T5.log     right success          0.285   37.2      27.8     -9.4    40.3  9.11
+  T6.log     right success          0.299   33.6      25.3     -8.3    38.1 10.00
+  T6.log     right success          0.237   33.6      26.7     -6.9    38.3  7.79
+  T6.log     left  cnp        place 0.343   66.4      60.8     -5.6    79.4  0.24
+  T5.log     left  success          0.317   61.8      58.9     -2.9    67.5  9.99
+  T6.log     right success          0.316   65.9      64.2     -1.7    74.8  9.86
+  T6.log     right cnp        lift  0.343   65.9      64.2     -1.7    93.3  0.00
+  T5.log     left  success          0.200   61.8      60.1     -1.7    66.6  8.27
+  T6.log     left  cnp        lift  0.299   66.4      64.8     -1.6    78.9  0.00
+  T5.log     left  success          0.299   65.1      63.6     -1.5    70.2  9.45
+  T5.log     left  success          0.218   65.1      63.6     -1.5    69.2  9.58
+  T5.log     right success          0.244   68.1      66.7     -1.4    74.6  9.94
+  T5.log     right success          0.254   68.1      66.7     -1.4    74.6  9.98
+  T5.log     right success          0.286   68.1      66.7     -1.4    77.0  9.42
+  T5.log     left  success          0.353   65.1      63.7     -1.4    71.1  9.41
+  T5.log     right success          0.284   68.1      66.7     -1.4    74.4  9.76
+  T6.log     left  success          0.205   68.8      67.4     -1.4    76.5  9.74
+  T6.log     left  cnp        lift  0.347   68.8      67.4     -1.4    98.7  0.00
+  T6.log     left  success          0.209   68.8      67.4     -1.4    76.8  9.85
+  T6.log     left  cnp        place 0.360   68.8      67.4     -1.4    76.3  9.72
+  T5.log     right success          0.308   60.6      59.3     -1.3    74.5 10.00
+  T6.log     left  success          0.242   66.1      64.8     -1.3    77.4  9.97
+  T6.log     left  success          0.222   63.4      62.1     -1.3    74.3  9.89
+  T6.log     left  success          0.237   66.1      64.8     -1.3    78.1  9.98
+  T6.log     left  success          0.357   66.1      64.8     -1.3    77.2  9.98
+  T6.log     left  cnp        lift  0.357   66.1      64.8     -1.3    82.3  0.00
+  T6.log     right success          0.244   65.9      67.2     +1.3    72.0  9.03
+  T6.log     right success          0.288   60.8      62.6     +1.8    69.2  8.11
+  T6.log     right success          0.357   61.6      64.2     +2.6    76.7  9.65
+  T5.log     right success          0.274   55.8      60.7     +4.9    70.3  9.99
+  T5.log     left  success          0.274   53.8      59.1     +5.3    68.7  5.65
+  T5.log     left  success          0.307   53.8      59.1     +5.3    69.3  6.98
+  T5.log     left  success          0.386   53.8      59.1     +5.3    69.3  5.32
+  T6.log     right cnp        lift  0.343   61.6      66.9     +5.3    78.8  0.00
+  T5.log     left  success          0.367   53.8      59.4     +5.6    71.5 10.00
+  collapsed (gap-dia <= -14 mm): n=5 failed=5
+  normal                        : n=35 failed=7
+  Fisher (one-sided, all 5 of the collapsed set failed) p = 0.0012
+
+per arm:
+  left  n=21 placed=15 (71 %) classes={cnp: 5, never_held: 1}
+  right n=19 placed=13 (68 %) classes={cnp: 4, never_held: 2}
+per species:
+  kiwi       n=10 failed= 4 (40 %) ['never_held', 'never_held', 'never_held', 'cnp']
+  orange     n= 5 failed= 1 (20 %) ['cnp']
+  peach      n=10 failed= 5 (50 %) ['cnp', 'cnp', 'cnp', 'cnp', 'cnp']
+  pear       n= 9 failed= 2 (22 %) ['cnp', 'cnp']
+  strawberry n= 3 failed= 0 (0 %) []
+  tomato     n= 3 failed= 0 (0 %) []
+
+diversions (a *slot* retired after 2 failed attempts; the retry is the same pool slot, and its x says whether it was the same instance):
+  p87/T5     peach      index=12 after 2 attempts -> right:cnp:x=0.239,right:cnp:x=0.241
+  p87/T6     peach      index=0 after 2 attempts -> left:cnp:x=0.299,left:cnp:x=0.343
+  p88/C5     peach      index=12 after 2 attempts -> right:cnp:x=0.239,right:cnp:x=0.241
+  p88/C6     peach      index=0 after 2 attempts -> left:cnp:x=0.299,left:cnp:x=0.343
+  p88/N5     peach      index=12 after 2 attempts -> right:cnp:x=0.239,right:cnp:x=0.241
+  p89/C5     peach      index=12 after 2 attempts -> right:cnp:x=0.239,right:cnp:x=0.241
+  p89/C6     peach      index=0 after 2 attempts -> left:cnp:x=0.299,left:cnp:x=0.343
+  p91/C5     peach      index=12 after 2 attempts -> right:cnp:x=0.239,right:cnp:x=0.241
+  p91/C6     peach      index=0 after 2 attempts -> left:cnp:x=0.299,left:cnp:x=0.343
+  p91/N5     peach      index=12 after 2 attempts -> right:cnp:x=0.239,right:cnp:x=0.241
+
+acquisition anomaly lines (arm-agnostic prints, so counted, not attributed):
+  p87/T5     catch-up residuals n=20 >6mm=2 [87.6, 251.0]  drift_rows=[]  left_station_rows=[]
+  p87/T6     catch-up residuals n=20 >6mm=1 [480.6]  drift_rows=['379']  left_station_rows=[]
+  p88/C5     catch-up residuals n=20 >6mm=2 [87.6, 251.0]  drift_rows=[]  left_station_rows=[]
+  p88/C6     catch-up residuals n=20 >6mm=1 [480.6]  drift_rows=['379']  left_station_rows=[]
+  p88/N5     catch-up residuals n=20 >6mm=2 [87.6, 251.0]  drift_rows=[]  left_station_rows=[]
+  p89/C5     catch-up residuals n=20 >6mm=2 [87.6, 251.0]  drift_rows=[]  left_station_rows=[]
+  p89/C6     catch-up residuals n=20 >6mm=1 [480.6]  drift_rows=['379']  left_station_rows=[]
+  p91/C5     catch-up residuals n=20 >6mm=2 [87.6, 251.0]  drift_rows=[]  left_station_rows=[]
+  p91/C6     catch-up residuals n=20 >6mm=1 [480.6]  drift_rows=['379']  left_station_rows=[]
+  p91/N5     catch-up residuals n=20 >6mm=2 [87.6, 251.0]  drift_rows=[]  left_station_rows=[]
