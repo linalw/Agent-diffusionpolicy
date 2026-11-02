@@ -476,7 +476,7 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: two-line default goes back to False, and this env never constructs a
 #: `CoopSession`, so the resolver reads `scope-off` here in both phases. No
 #: direct/policy behaviour moves.
-TASKS_MD5 = "b257687dffe8bb255be70b4f7279711e"
+TASKS_MD5 = "9e3e657b46daf365b9dd6988630f36a5"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(

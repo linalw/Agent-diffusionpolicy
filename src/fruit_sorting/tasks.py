@@ -1193,6 +1193,60 @@ def parse_fail_fast(raw: str | None = None) -> float:
     return mm / 1000.0
 
 
+#: P103: the slip re-grip's floor [mm]. P102's census reads `dc_max` **median
+#: 0.02 mm / p90 0.10 mm on 60 held legs** (`logs/p102/census.txt`, §1) - a
+#: stationary payload's patch does not move at all - and the only held legs that
+#: do move read 5.8 and 10.4 mm. So a threshold below 1 mm sits inside the held
+#: population's own noise and would fire on a payload the pinch is holding.
+SLIP_REGRIP_FLOOR_MM = 1.0
+
+
+
+def parse_slip_regrip(raw: str | None = None) -> float:
+    """P103: `FRUIT_SLIP_REGRIP=<mm>` -> the patch trigger in **metres** (0 = off).
+
+    Pure and total, so the parse can be pinned without a simulator
+    (`scripts/256_p103_regrip_selftest.py`). Millimetres in (the corpus and
+    P102's `[tactile]` rows are in mm), metres out (what the tracker compares).
+
+    Rules, frozen in `logs/p103/PREREG.md` before the phase's first run:
+
+    * unset / empty / `0` -> `0.0`, i.e. the shipped path. On that path the
+      knob costs one attribute read per carry leg and **no** per-tick work: the
+      trigger sits inside the `guard_armed` block, which the knob does not arm
+      when it is off.
+    * `0 < mm < 1` -> `ValueError`. P102's held-leg population reads `dc_max`
+      median 0.02 mm / p90 0.10 mm, so a sub-millimetre threshold is a trigger
+      on the seat's own noise rather than on a slide.
+    * non-numeric / negative / `nan` / `inf` -> `ValueError`, raised at task
+      construction. A silently disabled lever is how a phase measures nothing.
+    """
+    text = os.environ.get("FRUIT_SLIP_REGRIP", "") if raw is None else raw
+    text = str(text).strip()
+    if not text:
+        return 0.0
+    try:
+        mm = float(text)
+    except ValueError:
+        raise ValueError(
+            f"FRUIT_SLIP_REGRIP={text!r}: not a number (millimetres, 0 = off)"
+        ) from None
+    if not math.isfinite(mm):
+        raise ValueError(f"FRUIT_SLIP_REGRIP={text!r}: must be a finite number")
+    if mm == 0.0:
+        return 0.0
+    if mm < 0.0:
+        raise ValueError(f"FRUIT_SLIP_REGRIP={text!r}: must be >= 0 (0 = off)")
+    if mm < SLIP_REGRIP_FLOOR_MM:
+        raise ValueError(
+            f"FRUIT_SLIP_REGRIP={text!r}: the floor is "
+            f"{SLIP_REGRIP_FLOOR_MM:.1f} mm - a held leg's patch moves 0.02 mm "
+            "median / 0.10 mm p90 over 60 legs (logs/p102/census.txt), so a "
+            "lower threshold fires on the seat's noise"
+        )
+    return mm / 1000.0
+
+
 def parse_carry_offset_max(raw: str | None = None) -> float:
     """P94: `FRUIT_CARRY_OFFSET_MAX=<m>` -> the largest tool offset the carry may apply.
 
@@ -2961,6 +3015,54 @@ class PickAndPlaceTask:
         #: flag: the threshold with the `scripted` scope applied. Inert (`False`)
         #: at construction and on every direct/hybrid attempt.
         self._fail_fast_active = False
+        #: P103 (`FRUIT_SLIP_REGRIP=<mm>`, **0 = off, the shipped path**): the
+        #: **reaction** P102 registered and priced but did not build - a re-seat
+        #: of the pads onto the payload the moment the contact patch shows it
+        #: moving, scored on `docs/PLATFORM_SURVEY.md` §5.1's **P2** (`cnp` 6 ->
+        #: <= 4 of 40, placed +8 points) and **P3** (interval cost <= +5 %).
+        #:
+        #: **The trigger is P102's channel, not the pose**: the patch centroid's
+        #: displacement `dc` since the leg's first tick, gated on P102's own
+        #: **seat** test (a loaded pinch, `max(f0, f1) > 1 N`, *and* the patch on
+        #: the pad, `edge > -TACTILE_PAD_HALF_LONG`), so the arm carrying an
+        #: empty hand - P76 A3's `never_held` class, whose `clean_slip` is the
+        #: hand's own motion - cannot trip it. P102 measured the trigger at
+        #: `dc >= 2.12 mm` (5 % of the pad's half-length) firing **21-113 ticks
+        #: (median 60 = 0.50 s) before the sustained pinch loss on 6 of 6
+        #: escapes**, and at **2 of 60 held legs** (both of which placed).
+        #:
+        #: **The action is the tree's own shipped slip re-seat and no new control
+        #: law**: `_carry_leg` already carries a slip re-seat behind
+        #: `FRUIT_SLIP_RECOVERY` (the `slip_enabled` block) - it computes the pad
+        #: centre that restores the leg-start relation
+        #: (`target = fruit - rot @ slip_ref`), applies the **full** correction in
+        #: one go, re-bases the leg's remaining command list onto it
+        #: (`commands[i+1:]`), and re-engages the force servo. That block is
+        #: gated `not hand_is_jaw` - it was written for the kinematic pad hand, and
+        #: the OpenArm hand *is* the robot's fingers, so the same relation has to
+        #: be restored by re-basing the arm's own command list, which is exactly
+        #: what the block does. This knob reaches it from the patch channel
+        #: instead of from the 25 mm `FRUIT_SLIP_TRIGGER`.
+        #:
+        #: Scope: **a two-line session** (`two_line_enabled()`, the P87/P88/P89/P91
+        #: pattern), resolved per attempt. The single arm, the shared-station
+        #: pipeline, the direct/policy handover and the hybrid canary have no
+        #: session here and resolve to off, so their records stand.
+        #:
+        #: Bounds: the shipped abort ceiling `FRUIT_SLIP_REACT_MAX` (60 mm, beyond
+        #: which the tree deliberately stops reacting) is applied **at the
+        #: trigger**, and the re-seat then fires on **every** tick the trigger
+        #: holds - the shipped block's own temporal shape, and safe *by
+        #: construction* because the target it applies is **absolute**
+        #: (`fruit - rot @ slip_ref`), so a repeat cannot accumulate into a
+        #: growing endpoint shift. A re-seat costs **no extra tick**: it moves
+        #: the command, not the clock. (That the construction is safe is **not**
+        #: the same as the lever being benign: `logs/p103/RESULTS.md` §3 measures
+        #: the per-tick re-fire destroying a leg the shipped pinch held.)
+        self.slip_regrip_m = parse_slip_regrip()
+        #: Resolved per attempt (the two-line session scope). Inert at
+        #: construction and on every path without a `CoopSession`.
+        self._slip_regrip_active = False
         #: P94 (`FRUIT_CARRY_OFFSET_MAX=<m>`, **0.20 m since P94 shipped it**;
         #: `=0` restores the pre-P94 path bit for bit): the largest
         #: `_gripper_offset` that `_carry`'s assisted branch may apply as a
@@ -5625,6 +5727,7 @@ class PickAndPlaceTask:
                     or self._place_onset_trace > 0
                     or self._tactile_patch > 0
                     or self._fail_fast_active
+                    or self._slip_regrip_active
                 )
                 and hand_is_jaw
                 and self._dynamic_capture_active
@@ -5817,6 +5920,23 @@ class PickAndPlaceTask:
             #: whenever the knob is unset, so the row below is one integer test.
             tactile_ticks = self._tactile_patch
             _tac_ref = [None, None]
+            #: P103: the slip re-grip's per-leg state (see the knob block in
+            #: `__init__`). `regrip_ref` is the patch centroid at the leg's first
+            #: tick - the same datum P102's `[tactile]` row prints `dc` from, so
+            #: the ledger is re-derivable from a `FRUIT_TACTILE_PATCH` run - and
+            #: `regrip_pending` is the fire the trigger block below latches for
+            #: the action block further down the same tick. `regrip_first` keeps
+            #: the leg's **first** fire's state for the one `[regrip]` row, and
+            #: the leg re-seats on **every** tick the trigger holds (the shipped
+            #: block's own temporal shape - no cooldown, no per-leg cap: the
+            #: target it applies is absolute, `fruit - rot @ slip_ref`, so a
+            #: repeat cannot accumulate into an endpoint shift). All of it is
+            #: dead with the knob unset (`_slip_regrip_active` is False and every
+            #: branch below is one bool).
+            regrip_ref = None
+            regrip_pending = None
+            regrip_first = None
+            regrip_fires = 0
             n_ticks = len(commands)
             if guard_acts:
                 # The profile may be frozen for up to the hold budget; the
@@ -6369,6 +6489,63 @@ class PickAndPlaceTask:
                                 f"clean={_tac_slip * 1000:.1f} "
                                 f"dia={float(sample.diameter) * 1000:.1f}"
                             )
+                    # ---- P103: the slip re-grip's trigger (default off) ------
+                    # The whole test: P102's patch centroid has moved
+                    # `dc >= FRUIT_SLIP_REGRIP` since the leg's first tick
+                    # **while the leg is seated** - a loaded pinch (`max(f) > 1 N`)
+                    # *and* the patch on the pad (`edge > -half_long`), P102's
+                    # own seat (`logs/p102/census.py:analyse`) so the arm
+                    # carrying an empty hand (P76 A3's `never_held` class, whose
+                    # `clean_slip` is the hand's motion) cannot trip it. The
+                    # action is the shipped slip re-seat further down this leg
+                    # (`slip_enabled`'s block, reached from here instead of from
+                    # the 25 mm `FRUIT_SLIP_TRIGGER`): no new control law, and
+                    # it costs no tick - it re-bases the remaining command list.
+                    #
+                    # Reads: one `jaw_positions()` per armed tick (the same
+                    # 3-prims-per-arm set P95 proved inert: 970/970, 974/974)
+                    # plus one tactile set, and **no `ik_step` work and no
+                    # articulation read** (AGENTS §2). With the knob unset this
+                    # is one bool per tick.
+                    if self._slip_regrip_active:
+                        _rg_forces = sorted(
+                            float(v)
+                            for v in (
+                                self.tactile.read().get(side, _EMPTY_TACTILE)
+                                .fingertip_forces or {}
+                            ).values()
+                        )
+                        _rg_strong = _rg_forces[-1] if _rg_forces else 0.0
+                        _rg_state = tactile_patch_state(
+                            fruit,
+                            arm.jaw_positions(),
+                            rot_now,
+                            float(sample.diameter) / 2.0,
+                        )[0]
+                        if regrip_ref is None:
+                            regrip_ref = (_rg_state["u"], _rg_state["v"])
+                        _rg_dc = math.hypot(
+                            _rg_state["u"] - regrip_ref[0],
+                            _rg_state["v"] - regrip_ref[1],
+                        )
+                        _rg_seat = bool(
+                            _rg_strong > 1.0
+                            and _rg_state["edge"] > -TACTILE_PAD_HALF_LONG
+                        )
+                        if (
+                            _rg_seat
+                            and _rg_dc >= self.slip_regrip_m
+                            and guard_slip <= slip_react_max
+                        ):
+                            regrip_pending = {
+                                "tick": int(i),
+                                "dc_mm": _rg_dc * 1000.0,
+                                "slip_mm": float(guard_slip) * 1000.0,
+                                "strong_n": _rg_strong,
+                                "edge_mm": float(_rg_state["edge"]) * 1000.0,
+                                "frac": float(_rg_state["frac"]),
+                                "of": int(len(commands)),
+                            }
                     # ---- P75: the place leg's onset trace (reporting only) ----
                     # `FRUIT_PLACE_ONSET_TRACE=<ticks>` (0 = off, see `__init__`).
                     # The ordering of the three symptoms **on one tick-indexed
@@ -6488,6 +6665,52 @@ class PickAndPlaceTask:
                         float(reading_mon.normal_force),
                         int(reading_mon.contact_count),
                     )
+                if regrip_pending is not None:
+                    # P103: **the same re-seat**, reached from the patch channel
+                    # on the jaw hand (which `slip_enabled` excludes only because
+                    # the block was written for the kinematic pads, whose
+                    # `follow_centre` moves them; on this hand the pads are the
+                    # robot's fingers, so the relation is restored by re-basing
+                    # the arm's own command list, which is what the block below
+                    # does). `target - pads` is the pad centre that restores the
+                    # leg-start relation, so the correction **is** the measured
+                    # slide, applied in one go and re-based into the remaining
+                    # profile - the block below with the trigger swapped and its
+                    # `slip_react_max` ceiling applied at the trigger instead.
+                    _rg = regrip_pending
+                    regrip_pending = None
+                    target = fruit - rot @ slip_ref
+                    correction = target - pads
+                    reseated = pads + correction
+                    placed = self.grippers[side].follow_centre(
+                        reseated, quat, gap_command
+                    )
+                    self._grip_centre[side] = np.asarray(placed, dtype=float)
+                    self._closed_gap[side] = gap_command
+                    if i + 1 < len(commands):
+                        commands[i + 1 :] = (
+                            reseated[None, :]
+                            + (positions[i + 1 :] - positions[i])[:, None] * direction[None, :]
+                        )
+                    regrip_fires += 1
+                    # `recoveries` is the `[motion] carry` line's own counter (it
+                    # counts re-seat *ticks* on the shipped path too - `logs/264`
+                    # reads 128), so a P103 re-seat is visible there and the
+                    # checker's own "a rescued leg is not cone-gated" rule
+                    # (`105_motion_regression.py:402`) applies to it as it does to
+                    # the shipped block.
+                    recoveries += 1
+                    if regrip_first is None:
+                        regrip_first = dict(_rg, correction_mm=float(
+                            np.linalg.norm(correction)) * 1000.0)
+                        say(
+                            f"[regrip] {side} {name} t={_rg['tick']}/{_rg['of']} "
+                            f"dc={_rg['dc_mm']:.2f}mm slip={_rg['slip_mm']:.2f}mm "
+                            f"correction={regrip_first['correction_mm']:.2f}mm "
+                            f"seat_f={_rg['strong_n']:.2f}N "
+                            f"seat_edge={_rg['edge_mm']:+.1f}mm "
+                            f"seat_frac={_rg['frac']:.3f}"
+                        )
                 if slip_enabled:
                     if slip_trigger < slip <= slip_react_max:
                         recoveries += 1
@@ -6679,6 +6902,22 @@ class PickAndPlaceTask:
                     )
                     _res_end = f"{float(np.linalg.norm(_err_end)) * 1000.0:.1f}"
                     _dz_end = f"{float(_err_end[2]) * 1000.0:+.1f}"
+                if regrip_fires:
+                    # P103: one closing row per re-seated leg, so the ledger is
+                    # one line per leg even though the re-seat itself fires every
+                    # tick the trigger holds (the shipped block's shape). The
+                    # leg's outcome is the `[run]` row's; this row is the
+                    # mechanism.
+                    say(
+                        f"[regrip] {side} {name} done fires={regrip_fires} "
+                        f"first_t={regrip_first['tick']}/"
+                        f"{regrip_first['of']} "
+                        f"first_dc={regrip_first['dc_mm']:.2f}mm "
+                        f"first_correction={regrip_first['correction_mm']:.2f}mm "
+                        f"clean_slip_max={guard_slip_max * 1000:.1f}mm "
+                        f"force_min="
+                        f"{(guard_force_min if guard_force_min < float('inf') else -1.0):.2f}N"
+                    )
                 say(
                     f"[carry] {side} {name}: ticks={i + 1}/{len(commands)} "
                     f"clean_slip_max={guard_slip_max * 1000:.1f}mm "
@@ -11717,6 +11956,17 @@ class PickAndPlaceTask:
         #: canary and the direct/policy presentation have no session here and
         #: resolve the shipped 20/3/3 clock.
         _speed = speed_cell_defaults(self.two_line_enabled())
+        #: P103: the slip re-grip's scope, resolved once per attempt like the
+        #: speed cells above and for the same reason - the re-seat block it
+        #: reaches is shared code, so a *global* default would move the single
+        #: arm, the shared-station pipeline, the hybrid canary and the
+        #: direct/policy handover, none of which this cell measured. A two-line
+        #: session is the only scope; the shipped acceptance is a two-line
+        #: session, and with the knob unset (`slip_regrip_m == 0`) the whole
+        #: feature is one bool per attempt and the tree is byte-inert.
+        self._slip_regrip_active = bool(
+            self.slip_regrip_m > 0.0 and self.two_line_enabled()
+        )
         #: The arm's own pick station (two-line scheduler); 0.0 on every other
         #: path. `arm_name` is authoritative here: the policy handover may call
         #: this without `_run_impl` having set `current_arm`.

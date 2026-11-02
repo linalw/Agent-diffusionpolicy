@@ -517,6 +517,26 @@ run_check "P100 park scope" "$python" scripts/254_p100_park_selftest.py
 # own reader (a dropped field must fail). No simulator.
 run_check "P102 tactile patch" "$python" scripts/255_p102_tactile_selftest.py
 
+# --------------------------------------------------------------------------- #
+# P103: the patch-triggered **slip re-grip** (`FRUIT_SLIP_REGRIP=<mm>`, default
+# **0 = off = the shipped path**). P102 measured the signal (a patch tactile sees
+# the loaded slide 21-113 ticks before the pinch is lost, 6/6 escapes) and priced
+# the reaction without building it. This build takes the trigger from P102's
+# channel - `dc >= <mm>` on a **seated** leg, P102's own seat test - and the
+# action from the tree's shipped `slip_enabled` re-seat: the pad centre that
+# restores the leg-start relation, applied in one go and re-based into the rest
+# of the profile, so the re-seat costs no tick and adds no control law. The leg
+# pins: the resolver (unset/blank/`0` -> off; `0 < mm < 1` raises, because a held
+# leg's patch moves 0.02 mm median over 60 legs), the flag's `False` default, the
+# `guard_armed` term that makes the trigger self-sufficient, the trigger's four
+# terms in the registered order (P102's seat, the threshold, the shipped abort
+# ceiling, and **no** cooldown or per-leg cap), that the `[regrip]` branch uses
+# the same six expressions the shipped block does and adds **no `ik_step` and no
+# `_step_sim`** (so no tick and no new profile), the two-line session scope, and
+# the two row grammars parsed back through `logs/p103/p103_report.py`'s own
+# readers. No simulator.
+run_check "P103 slip re-grip" "$python" scripts/256_p103_regrip_selftest.py
+
 if [ -n "$run_log" ] && [ -f "$run_log" ]; then
     # P85: the log decides the scenario (and therefore the reference and the
     # floor), exactly as `scripts/accept.sh` does.

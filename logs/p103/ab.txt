@@ -1,0 +1,56 @@
+======================================================================================================================
+P103 - the A/B on the survey's P2/P3  (every rate/interval/wall is p80lib's)
+======================================================================================================================
+
+cell    seed arm  placed  cnp  nograsp  fmin0  s/att  int_mean    win  batch  wall/pick pl/min_wall
+C5         5   C  17/20     0        3      3   9.10      9.37   6.40   5.63      16.21        3.70
+T5         5   T  14/20     2        4      6   8.90      9.85   6.09   4.74      15.44        3.89
+C6         6   C  12/20     7        1      7   9.10     11.08   5.41   3.94      15.39        3.90
+T6         6   T  15/20     1        4      7  10.00     12.92   4.64   4.51      16.74        3.58
+C101     101   C  15/20     4        1      6   9.20     12.16   4.93   4.87      16.76        3.58
+T101     101   T  14/20     3        3      5   9.10     12.92   4.64   4.60      16.67        3.60
+C202     202   C  15/20     0        5      5   9.00     11.53   5.20   4.98      15.47        3.88
+T202     202   T  11/20     3        6      5   9.60     15.19   3.95   3.45      15.93        3.77
+
+  pooled (all seeds)
+  C: placed 59/80 = 73.8%  cnp 11  never-grasped 10  force_min==0 legs 21  interval mean-of-seeds 11.04s  window 5.49  batch 4.86 placed/min
+  T: placed 54/80 = 67.5%  cnp 9  never-grasped 17  force_min==0 legs 23  interval mean-of-seeds 12.72s  window 4.83  batch 4.33 placed/min
+
+  P2a (the survey's literal form, seeds 5+6 only):
+    cnp 7 -> 3  (bar: <= 4 of 40)      placed 29/40 -> 29/40  (+0.0 points, bar +8)
+  P2b (pooled, all seeds):
+    cnp 11 -> 9 (-18 %, bar <= -30 %)   placed 59/80 -> 54/80 (-6.2 points, bar +8)
+  P3 (the price):
+    interval pooled 11.04 -> 12.72 s (+15.3 %, bar <= +5 %)
+    seed 101: 12.16 -> 12.92 s (+6.2 %)  window 4.93 -> 4.64  batch 4.87 -> 4.60
+      left  interval  21.11 ->  25.72 s (+21.8 %)
+      right interval  28.15 ->  27.77 s (-1.4 %)
+    seed 202: 11.53 -> 15.19 s (+31.8 %)  window 5.20 -> 3.95  batch 4.98 -> 3.45
+      left  interval  25.55 ->  37.97 s (+48.6 %)
+      right interval  22.76 ->  26.24 s (+15.3 %)
+    seed   5: 9.37 -> 9.85 s (+5.1 %)  window 6.40 -> 6.09  batch 5.63 -> 4.74
+      left  interval  18.18 ->  17.98 s (-1.1 %)
+      right interval  21.13 ->  21.33 s (+1.0 %)
+    seed   6: 11.08 -> 12.92 s (+16.6 %)  window 5.41 -> 4.64  batch 3.94 -> 4.51
+      left  interval  24.38 ->  27.37 s (+12.3 %)
+      right interval  18.26 ->  22.53 s (+23.4 %)
+
+  G5 - the failure-reason keys (treatment must be a subset of control)
+    seed 101: control ['fruit did not follow the gripper', 'grasped, not placed (no note)']
+             treatment ['fruit did not follow the gripper', 'grasped, not placed (no note)']   (no new key)
+    seed 202: control ['fruit did not follow the gripper']
+             treatment ['fruit did not follow the gripper', 'grasped, not placed (no note)']   NEW: ['grasped, not placed (no note)']
+    seed   5: control ['fruit did not follow the gripper']
+             treatment ['fruit did not follow the gripper', 'grasped, not placed (no note)']   NEW: ['grasped, not placed (no note)']
+    seed   6: control ['fruit did not follow the gripper', 'grasped, not placed (no note)']
+             treatment ['fruit did not follow the gripper', 'grasped, not placed (no note)']   (no new key)
+
+  G6 - accounting (placed + cnp + never-grasped == attempts?)
+    101 C: attempts 20  classes {'placed': 15, 'carried-not-placed': 4, 'never-grasped': 1}  OK
+    101 T: attempts 20  classes {'placed': 14, 'carried-not-placed': 3, 'never-grasped': 3}  OK
+    202 C: attempts 20  classes {'never-grasped': 5, 'placed': 15}  OK
+    202 T: attempts 20  classes {'never-grasped': 6, 'carried-not-placed': 3, 'placed': 11}  OK
+      5 C: attempts 20  classes {'never-grasped': 3, 'placed': 17}  OK
+      5 T: attempts 20  classes {'never-grasped': 4, 'placed': 14, 'carried-not-placed': 2}  OK
+      6 C: attempts 20  classes {'never-grasped': 1, 'placed': 12, 'carried-not-placed': 7}  OK
+      6 T: attempts 20  classes {'never-grasped': 4, 'placed': 15, 'carried-not-placed': 1}  OK

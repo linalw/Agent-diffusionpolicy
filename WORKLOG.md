@@ -24073,3 +24073,131 @@ untouched (the knob is default-off and the neutrality replay is the proof - **no
 reference was re-recorded and none is owed**); ckpt `moe_v13s` `61da390a`.
 `scripts/selfcheck.sh` **PASS (0 failures, 1 skipped)** with the new `P102
 tactile patch` leg (45 checks). Evidence `logs/p102/`.
+
+### P103: the perfect-detector re-grip converts nothing and destroys two placements - and the tree's own 8 mm slip gate is the ceiling (2026-11-03)
+
+**One default-off knob, nothing adopted, no control law of its own.**
+`FRUIT_SLIP_REGRIP=<mm>` (unset/`0` = the shipped path bit for bit; `0 < mm < 1`
+raises, because a held leg's patch moves 0.02 mm median over 60 legs) takes its
+**trigger** from P102's channel - the patch centroid's displacement `dc` since
+the leg's first tick, gated on **P102's own seat** (`max(f0,f1) > 1 N` **and**
+`edge > -TACTILE_PAD_HALF_LONG`, so the arm carrying an empty hand cannot trip
+it) plus the shipped abort ceiling `slip <= FRUIT_SLIP_REACT_MAX` - and its
+**action** from the tree's shipped slip re-seat: `_carry_leg` already carries one
+behind `FRUIT_SLIP_RECOVERY` (`target = fruit - rot @ slip_ref`, the pad centre
+that restores the leg-start relation, applied in one go and **re-based into the
+remaining command list** so it costs no tick). That block is gated
+`not hand_is_jaw` because it was written for the kinematic pad hand; on the
+OpenArm hand the pads *are* the robot's fingers, so restoring the relation means
+re-basing the arm's own command list - which is what the block does. The knob
+only swaps the trigger. Scope: a two-line session (`two_line_enabled()`), so the
+single arm, the shared station, the direct/policy handover and the hybrid canary
+resolve to off.
+
+**The cells.** Four seeds x 20 attempts (`C5/T5`, `C6/T6`, `C101/T101`,
+`C202/T202`, interleaved, alternating C/T order; two fresh seeds per P93's rule),
+the shipped two-line scenario, `FRUIT_CARRY_DIAG=1` **and** `FRUIT_PLACE_TRACE=1`
+on **both** arms so the A/B is the knob alone. `PREREG.md` **`73bdf35e`** was
+pinned before any 20-attempt cell; the only earlier run is a 6-attempt **build
+smoke** (`logs/p103/smoke.log`), recorded in PREREG §0 because it changed the
+action's temporal form: the first build re-seated at most once per 40 ticks and
+the payload walked **3.07 -> 30.41 mm inside that window**, so the registered
+form is the shipped block's **per-tick** shape.
+
+**Inertness, proved three ways.** `FRUIT_SLIP_REGRIP` unset: the acceptance is
+**8/10, `fingerprint: matches`, `190: PASS`** with its **419/419** `[fruit]`
+lines identical to `logs/p98/accept_revert.log` (sealed: P100's park row
+dropped); the batch's own controls replay P102's current-tree controls **825/825**
+(seed 5) and **837/837** (seed 6); and the read the knob adds is one
+`jaw_positions()` + one tactile set per armed tick, **no `ik_step` work and no
+articulation read** (P95 proved a 3-prims-per-arm set inert on this line,
+970/970 / 974/974). So the A/B is the action, not the instrumentation and not the
+batch.
+
+**The ledger.** 137 carry legs, **12 re-seated** (801 re-seat ticks), first fire
+at `dc` **2.14-5.74 mm** (median 2.38) on 11 of 12 legs, **5-163 ticks into the
+leg**. **1 of 12 re-seated legs placed.** Joined per leg to its attempt (P102's
+join: a side's k-th `grasp_lift` leg *is* that side's k-th attempt - checked) and
+then to the same index on the same seed's control, **7 of the 12 are
+same-instance pairs**: **0 of 5 control `cnp`s converted** and **2 of 2 control
+placements destroyed**. The other 5 diverged (the branches re-draw as soon as the
+action moves a command - P92/P93's rule).
+
+**The harm, one witness.** Seed 5 attempt 17, the same fruit in the same slot on
+the same line, one arm difference: control `clean_slip_max` **5.8 mm**,
+`force_min` 6.17 N, `sep_max` 41.9 mm -> **PLACED**; treatment **153.1 mm**,
+`force_min` **0.00 N**, `sep_max` **98.4 mm** (the pads at their open stop) under
+`fmax` **117.87 N** on a 29.6 mm fruit -> fail. P102 priced `dc >= 2.12 mm` at
+"2 of 60 held legs, both placed" - measured *without acting*. **The trigger's
+false-positive cost is its physics, not its clock (which is zero).**
+
+**Why it cannot convert, and it is the phase's most useful sentence: the
+reaction's ceiling on this tree is 8 mm, not 100 mm.** The two-line session's own
+**P10-C carry monitor** is armed with `FRUIT_CARRY_MONITOR_CONFIRM_MM = 8.0`, so
+an attempt whose lift leg reads `clean_slip_max >= 8.0 mm` is truncated at the
+leg boundary and never takes its place leg. The re-seat *did* hold the payload on
+**7 of 12** legs (5.7-22.7 mm against the controls' 100-2372 mm) - **but only 1
+stayed under 8 mm, and that one placed** (seed 6 attempt 9, 5.7 mm). Six "held"
+legs at 8.3-22.7 mm were truncated anyway. The class boundary is a **harness
+constant**, not physics.
+
+**The endpoints.** P2 fails both ways: **P2a** (survey literal, seeds 5+6, 40)
+reads `cnp` **7 -> 3** (inside the "<= 4" bar) **but placed 29/40 -> 29/40 = +0.0
+points** - the `cnp` class fell only because **4 of them became never-grasped**
+(the payload lost *before* the lift's peak), the P92 shape ("the chase is the
+signature, not the cause") with a harm added; **P2b** (pooled, 80) reads `cnp`
+**11 -> 9 (-18 %)** and placed **59/80 -> 54/80 (-6.2 points)**, Fisher
+**p = 0.49** (never-grasped 10 -> 17, p = 0.20 - **not significant at n = 80**,
+and mostly branch: the action touched 12 legs). **P3 fails at every seed**: the
+interval **9.37/11.08/12.16/11.53 -> 9.85/12.92/12.92/15.19 s** (+5.1 / +16.6 /
++6.2 / +31.8 %, **+15.3 %** on the mean), window **5.49 -> 4.83**, batch **4.86 ->
+4.33**, `placed/min` wall **3.77 -> 3.71**, `s/attempt` **9.10 -> 9.40 (+3.3 %)**.
+The action costs no tick by construction, so the interval movement is the
+**branch** - a failed attempt re-draws the slot loop - which is P83/P88/P89/P91's
+"a block delta is not deliverable on this cell" one level down.
+
+**Guards.** G1 **PASS** (419/419 + `matches` + `190: PASS`); G2 **PASS**
+(825/825, 837/837); G3 **PASS** - **113/113** payload-present releases
+`on_belt`, **0** off, 2 upstream-lost rows reported apart; G4 **4 named legs of
+160, arm-symmetric - 2 controls and 2 treatments** (`C6` leg 12 0.164/0.160, the
+standing branch leg P86/P87 recorded; `C101` leg 9 0.224/0.160; `T101` leg 9
+0.261/0.160; `T202` leg 11 0.226/0.161) and **the budget was not re-tuned**
+(AGENTS §2; P93's finding - a stochastic branch property at ~2.5 % of legs in
+either arm); G5 **fails by its letter at seeds 5 and 202** (the bucket `grasped,
+not placed (no note)` appears in the treatment only - the key P100's A4 already
+found in two *controls* of the same battery, **recorded, not re-read**); G6
+**PASS** (20/20 on all eight cells, no slot lost). `logs/p103/gates.sh` exits
+**1** and its only failing clause is G4's four named legs - the script's own
+"any over-budget leg fails" rule is stricter than the registered "name it".
+
+**Verdict: the survey's stage (i) closes - DETECTED BUT NOT CONVERTIBLE.** P102's
+mechanism stands untouched; what dies is the premise that *acting* at 2 mm buys
+the placement. **The sensor is not justified by this**: a perfect detector was
+given for free and the reaction still lost placements, so a real pad can only do
+worse on the trigger. **Nothing ships** (`FRUIT_SLIP_REGRIP` stays opt-in), the
+knob is one bool when unset, and the owner's decision is whether a pad is worth
+buying for the **supervision/labelling** case P102 established (the slide is
+visible for 0.17-0.94 s), not for a reflex. Named, not registered: (1) the
+**8 mm monitor gate** is the binding term a future reaction would have to beat;
+(2) any such reaction must first **separate the false-positive class** (a slide
+the pinch survives) from the real one, which P102's channel cannot do at 2 mm.
+
+Pins: `tasks.py` **`9e3e657b46daf365b9dd6988630f36a5`** (the cells ran on
+**`73a904610150261f220c06e41fae33c6`**; the close-out is a docstring-only edit,
+and the final tree's acceptance is **419/419** identical to the pre-phase record,
+which is the proof it is inert), `rl_env.py` `TASKS_MD5` follow
+`b257687d` -> `9e3e657b`, `tactile.py`
+`dee9121af4815fa6353e42eafbdfbe50`, `scene.py`
+`472bfb6c1912ec08bcff1c35aa3af4a9`, `assets.py`
+`eb30c77a84af353428be73a32ea54047`, `control.py`
+`9384ff4fa3e62b359bf10d2123ef41fa`, `bimanual.py`
+`9b7fc33fc45366c3833f652f19b60a9f`, `fruits.py`
+`dcabe16bf137dd4fc78bc5bc229bf4cd`, `scripts/20_pick_place.py`
+`3d34342b7860191731b60a4c20592278`, `logs/p103/PREREG.md` **`73bdf35e`**,
+`logs/p103/p103_report.py` **`e52de9a5`** (batch-time),
+`scripts/256_p103_regrip_selftest.py`, `scripts/selfcheck.sh`,
+`logs/p103/gates.sh`; references **`30fb99f8` / `30fb99f8` / `8952c320`**
+untouched - **no reference was re-recorded and none is owed** (the knob is
+default-off and G1/G2 are the proof); ckpt `moe_v13s` `61da390a`.
+`scripts/selfcheck.sh` **PASS (0 failures, 1 skipped)** with the new `P103 slip
+re-grip` leg. Evidence `logs/p103/`.

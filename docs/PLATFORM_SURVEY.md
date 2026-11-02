@@ -48,12 +48,15 @@ CC BY-NC and this cell is a *sorting* product, not a paper.
 5. **Staged plan with kill criteria** is §5. The measured thing to beat:
    **58/80 = 72.5 % placed** pooled over four seeds, interval **10.6-12.2 s**,
    `cnp` **17 of 25 failures**, wall **2.37-2.91 placed/min** [V, P93].
-   **Stage (i) has since been measured in sim** (P102, 2026-11-03): the patch
-   channel sees the loaded slide **0.17-0.94 s** before the pinch is lost, so its
-   **kill does not fire** - and the reason §2.4's "30 Hz is too slow" was wrong is
-   that the 0-3 tick number is the *force* channel's last moment, not the slip's
-   first. The one open question left in (i) is the **bench** (§3.3 T2), not the
-   cell.
+   **Stage (i) has now been measured end to end in sim and it FAILS on its own
+   P2** (P102 the signal, P103 the reaction, 2026-11-03): the patch channel sees
+   the loaded slide **0.17-0.94 s** before the pinch is lost, so §2.4's "30 Hz is
+   too slow" is wrong (the 0-3 tick number is the *force* channel's last moment,
+   not the slip's first) - but a **perfect-detector** re-grip at 2.12 mm converted
+   **0 of 5** same-instance `cnp`s, **destroyed 2 of 2** placements it touched,
+   and pushed the interval **+15.3 %**. So (i) is **not an open buy**: the reflex
+   case is closed, and what remains of it is the *supervision* case (a
+   labelling/fault-log use) which does not justify a sensor on its own.
 
 ---
 
@@ -537,6 +540,47 @@ not the sensor** (registered, not built): a re-grip at `dc >= 2 mm` fires on 8 o
 70 legs and costs **0.25 s/attempt worst case = 2.6 %** of a 9.7 s attempt, to be
 scored on P2 (`cnp` 6 → <= 4 of 40) and P3.
 
+#### Status: the reaction is **measured and does NOT convert** (P103, 2026-11-03, `logs/p103/`) — **stage (i) closes**
+
+The reaction was built and run: `FRUIT_SLIP_REGRIP=2.12` takes the trigger from
+the patch channel above (`dc >= 2.12 mm` on a **seated** leg, P102's own seat
+test) and the action from the **tree's shipped** slip re-seat (the pad centre
+that restores the leg-start relation, applied in one go and re-based into the
+remaining command list — no new control law, no extra tick). Four seeds × 20
+attempts, two of them fresh, with `FRUIT_CARRY_DIAG` in **both** arms.
+
+| read | bar | measured |
+|---|---|---|
+| **the conversions** | the only number that matters | **1 of 12 re-seated legs placed**; on the **7 same-instance pairs: 0 of 5 control `cnp`s converted, 2 of 2 control placements destroyed** |
+| **P2** | `cnp` **−30 %**, placed **+8 points** | `cnp` 11 → 9 (−18 %), placed **59/80 → 54/80 (−6.2 points)**, Fisher p = 0.49; the survey's 2-seed `cnp ≤ 4` sub-clause passes (7 → 3) **only because 4 became never-grasped** |
+| **P3** | interval ≤ **+5 %** | **11.04 → 12.72 s (+15.3 %)**, worse at 4/4 seeds |
+
+**Why it cannot convert on this tree, measured**: the two-line session's own
+**P10-C carry monitor** is armed with `CONFIRM_MM = 8.0`, so an attempt whose
+lift leg reads `clean_slip_max >= 8.0 mm` is truncated at the leg boundary and
+never takes its place leg. The re-seat *did* hold the payload on 7 of 12 legs
+(5.7–22.7 mm, against the controls' 100–2372 mm) — **but only 1 stayed under 8 mm,
+and that one placed.** The reaction's ceiling here is **8 mm, not 100 mm**.
+
+**And acting on the false-positive class is harmful.** P102 priced `dc >= 2.12 mm`
+at "2 of 60 held legs, both placed" — measured *without acting*. With the action,
+seed 5 attempt 17 (identical fruit, identical slot) goes **PLACED → fail**:
+`clean_slip_max` 5.8 → 153.1 mm, `force_min` 6.17 → **0.00 N**, `sep_max` 41.9 →
+**98.4 mm** (the pads at their open stop) under `fmax` **117.87 N** on a 29.6 mm
+fruit. **The trigger's false-positive cost is its physics, not its clock** (which
+is zero).
+
+**Consequence for the purchase: a tactile is NOT justified by a reflex case.** A
+perfect detector was given for free and the reaction still lost placements, so a
+real pad can only do worse on the trigger. What survives from P102 is the
+**supervision** case — the slide is visible for 0.17–0.94 s, which is a
+labelling/fault-log use — and buying a GelSight or 9DTact for that is a separate,
+weaker decision. **No lever ships; `FRUIT_SLIP_REGRIP` stays opt-in.** The two
+named items for any future attempt are in `logs/p103/RESULTS.md` §8: the **8 mm
+monitor gate** is the binding term, and any reaction must first **separate the
+false-positive class** (a slide the pinch would survive) from the real one.
+
+
 
 ### 5.2 Stage (ii) — a dexterous hand, no tactile
 
@@ -585,12 +629,13 @@ data-collection instrument.
 
 ### 5.4 Why this order, in one line each
 
-* (i) is **$1k and reuses the entire policy** — it tests the *tactile* half of the
-  hypothesis before the *hand* half, and its failure mode is "we learned the
-  slip is unobservable in time", which is decision-grade on its own. **That half
-  is now measured and it is not the failure mode** (P102, `logs/p102/`): the
-  relative motion is observable for **0.17-0.94 s**, so what (i) now buys is the
-  *sensor* confirmation (§3.3 T2) plus the reaction the sim can price for free.
+* (i) has been **measured and closed** ($0 in hardware, P102 + P103,
+  `logs/p102/`, `logs/p103/`): the relative motion is observable for
+  **0.17-0.94 s** (so the timing is not the failure mode), and a **perfect**
+  detector's reaction converts **0 of 5** same-instance `cnp`s while destroying
+  **2 of 2** placements it touches, at **+15.3 %** interval. Buying the sensor
+  would buy a channel whose best-case action is already measured not to pay;
+  what survives is the *supervision* case only. **Do not start here.**
 * (ii) is **$0.3k-$2k** and tests the *geometry* half, which is the half the
   theory and `SIM_LIMIT` actually support.
 * (iii) is the only stage that needs **both** and it is the only one that cannot
@@ -598,6 +643,10 @@ data-collection instrument.
 
 ### 5.5 What would make me reverse the recommendation
 
+* **P2 negative on the free sim reaction — measured, P103** (`logs/p103/`): the
+  stage-(i) reflex case is now **closed**, so the order above starts at **(ii)**
+  and buying a pad needs the *supervision* case argued on its own. That is a
+  reversal of the *order*, not of the hand recommendation.
 * **T1 negative** (a hand does not beat the pinch by 1.5x axially in sim): the
   hypothesis is dead; spend the money on a **custom pad** (the `SIM_LIMIT`
   sanction) instead.
@@ -683,10 +732,11 @@ data-collection instrument.
 
 **Stay on OpenArm** — it is already the cheapest credible dual-arm cell
 ($6,500, Apache-2.0, Isaac Lab + LeRobot bimanual), and none of the families
-this repo has closed is an arm object. **Buy tactile first** (two GelSight Minis,
-$1,020, or 9DTact if the licence must be commercial), and test the *tactile*
-half of the hypothesis in sim with a contact-patch channel before the sensors
-land. **Then buy a hand** — ORCA (17 DoF, tactile integrated, <2,000 CHF) or
+this repo has closed is an arm object. **Do not buy tactile for a reflex**: the
+free sim half ran twice and closed (P102 the signal, P103 the reaction) — a
+perfect patch detector sees the slide 0.17-0.94 s early and a re-grip on it
+converts nothing and costs placements. Buy a pad only if a **supervision /
+fault-log** use is wanted on its own merits. **Then buy a hand** — ORCA (17 DoF, tactile integrated, <2,000 CHF) or
 Aero ($314) — but only after the free sim pull-test shows a hand beats the pinch
 by 1.5x in the axial direction, which is the direction the payload actually
 leaves (P61). **The policy becomes (a)**: the 9-D arm chunk stays, an 8-D hand
