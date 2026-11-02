@@ -1,0 +1,66 @@
+P97 - the clearance pre-pose ships as the two-line default
+================================================================================================================
+The invariant is the argument; the count is a draw. Delivered numbers are
+reports (P80/p86 endpoints), the identities and the census are the gates.
+
+================================================================================================================
+1. THE ACCEPTANCE TRIO (10 attempts; the shipped default, its =0 A/B, the
+   single arm). The rate floor is the two-line 0.60 / the single-arm 0.75.
+================================================================================================================
+  arm-set                  placed  s/att  div  gate
+  default (clearance)      6/10    9.60    1  fingerprint matches, gate PASS
+  =0 (pre-P96 path)        8/10    9.00    0  fingerprint matches, gate PASS
+  single (BIARM=0)         6/9    14.80    0  fingerprint matches, gate FAIL
+
+  G1: the =0 arm must be 8/10, `fingerprint: matches` 30fb99f8 and 419/419
+  physics lines identical to logs/p94/accept_final.log.
+  G2: the single arm must be 346/346 raw identical to
+  logs/p71/accept_rails_none.log with the single reference; its rate-only FAIL
+  is the standing 6/9 branch (P32), not this phase's.
+
+================================================================================================================
+2. THE IDENTITIES (P96's sealed `[fruit]` stream; diag/trace rows dropped)
+================================================================================================================
+  G3 default sanity cell vs P96's measured T5: IDENTICAL (924 vs 924 physics lines) (pre-pose row dropped)
+  G1 =0 acceptance vs P94's record: IDENTICAL (419 vs 419 physics lines)
+  G2 single arm vs the P71 record: IDENTICAL (346 vs 346 physics lines)
+
+================================================================================================================
+3. THE SANITY CELL (seed 5, 20 attempts, FRUIT_BIARM_PREPOSE_CLEAR unset -
+   the shipped default; report only, never a rate claim)
+================================================================================================================
+  placed 12/20 = 60.0 %   9.70 s/attempt   diverted 2
+  interval mean 16.02 s  p90 21.30 s   window 3.75 / batch 3.72 placed/min   wall 432.4 s   wall/pick 21.62 s   placed/min wall 1.66
+  per arm left 5/10  right 7/10
+  classes {'placed': 12, 'never-grasped': 4, 'carried-not-placed': 4}
+  reasons {'fruit did not follow the gripper': 4, 'grasped, not placed (no note)': 4}
+  span p50 14.70 s; blocks p50 prepose=0.71 hover=0.63 descent=3.68 close=1.22 grip=1.92 lift=1.73 place=3.21 release=1.71 return=0.67
+  landing: 12 payload-present releases, on_belt 12/12; off-belt/upstream-lost traces 0 (reported separately)
+  descent budgets: see logs/p97/S5.budgets (105, budgets only)
+
+================================================================================================================
+4. THE POSE (the `[biarm] pre-pose` rows: a log field, one row per station)
+================================================================================================================
+  default acceptance   left  jaw belt_top+0.160 pad belt_top+0.079 tilt 1.2deg margin +0.020@j7 res 6.0 mm -> CLEARS (jaw >= belt_top+0.155)
+  default acceptance   right jaw belt_top+0.155 pad belt_top+0.075 tilt 2.8deg margin +0.013@j7 res 6.2 mm -> CLEARS (jaw >= belt_top+0.155)
+  sanity cell S5       left  jaw belt_top+0.160 pad belt_top+0.079 tilt 1.2deg margin +0.020@j7 res 6.0 mm -> CLEARS (jaw >= belt_top+0.155)
+  sanity cell S5       right jaw belt_top+0.155 pad belt_top+0.075 tilt 2.8deg margin +0.013@j7 res 6.2 mm -> CLEARS (jaw >= belt_top+0.155)
+
+================================================================================================================
+5. THE CENSUS (logs/p97/census.txt, P95/P96's instrument and criterion)
+================================================================================================================
+  n=20  min gap +5.9 mm  median +165.1 mm  <= 6 mm 1/20  CONTACTS 0/20
+  n=20  min gap +5.9 mm  median +165.1 mm  <= 6 mm 1/20  CONTACTS 0/20
+  left  n=10 min +155.4 median +256.7 <=6mm 0 contacts 0
+  right n=10 min +5.9 median +29.0 <=6mm 1 contacts 0
+
+================================================================================================================
+6. REFERENCES, ARCHIVES AND PROVENANCE
+================================================================================================================
+  configs/motion_reference.json                              1490b63e6f06459e37f04f5b349a6eb6
+  configs/motion_reference_twoline.json                      1490b63e6f06459e37f04f5b349a6eb6
+  configs/motion_reference_single.json                       8952c320d798ef42e03ba815c9e96b23
+  logs/p97/motion_reference_pre_p97.json                     30fb99f8824aa4cea906e40ebf5dfa58
+  logs/p97/motion_reference_twoline_pre_p97.json             30fb99f8824aa4cea906e40ebf5dfa58
+  fresh shard: collection.prepose_clear=1 defaulted=True z=0.165 mode=two_line biarm_twoline=1
+  fresh shard also carries scene=True supply.band=True physics.release=True
