@@ -24305,3 +24305,120 @@ instrument `logs/p104/fixture_probe.py` **`3f18b908`**, record
 `logs/p104/fixture.txt` **`3fbb48f5`** (63 rows), analytic
 `logs/p104/analytic.txt` **`56a7e260`**, `logs/p104/{METHOD.md,RESULTS.md,
 p104_report.py,run_p104.sh}`. Evidence `logs/p104/`.
+
+### P105: the hand stage's design - the asset is a probe not a purchase, the observation is 34-D, and the action never widens (2026-11-03)
+
+**A plan, not a measurement.** `docs/HAND_STAGE_PLAN.md` (md5 **`2c3ef8cb`**) is
+the concrete plan for the dexterous-hand stage P104 licensed: the asset, the
+observation/action schema, the policy architecture, the data plan, and five
+milestones with kills. No simulator run, **no `src/` change, no `configs/`
+change**, no default moved; the three references stand
+(`30fb99f8` / `30fb99f8` / `8952c320`, verified by md5). `scripts/106_index_audit.py`
+is **OK** ("every index matches the files it describes").
+
+**The asset decision, and why it is a probe.** The first sim hand is the
+**Allegro 16-DoF** because its USD is the only 4-finger hand that is both
+**Isaac-native and direct-drive**: `…/Assets/Isaac/6.0/Isaac/Robots/
+WonikRobotics/AllegroHand/allegro.usd` (verified HTTP 200, 1 626 251 B, listed in
+the 6.0 bucket - the survey's "no LEAP, no ORCA USD" stands), and its 16 joints map
+1:1 to 16 PhysX drives with **no tendon**. LEAP and ORCA are tendon-driven, so
+their MJCF→USD conversion is a schedule risk that would be spent before the
+question M2 asks. **But the fixture that passed P104's bar was a radial 4 x 90 deg
+`quad` and no candidate hand is radial** (Allegro/LEAP are 3+1, ORCA/DexHand are
+anthropomorphic 5-finger) - so the Allegro is a **mount and topology probe**, and
+the form that licenses a purchase is a **4-pad surrogate** (the fixture's geometry,
+in-scene). The phase **pre-registers its own prediction**: the Allegro's sustainable
+axial capacity reads **1.2-1.6x** - at or below the 1.5x bar - because three
+finger normals point the same way and behave as one friction cluster, `n_eff ≈ 2`
+in P104's own arithmetic. If that holds, the hand's win is **form closure**, and
+the tree has already measured a form-closure aid as a **pipeline negative**
+(`FRUIT_FINGER_SCOOP`'s ledges bat the payload, no-contact 2 -> 9 of 15,
+`logs/r8/A_RESULTS.md` §3) - which is why M2 also runs an **approach-and-close**
+cell, not only a seated pull.
+
+**The mount is a defect the plan had to find first.** `openarm_left_hand` is a
+**PhysicsRevoluteJoint** (`axis=Z`, `stiffness=0`, `damping=0`, `maxForce=3.4e38`,
+`assets/openarm_flat/openarm_flat_deinst.usda:3845-3857`) and `openarm_left_ee_tcp_joint`
+is a second one (`:3869-3880`) - i.e. **the gripper hangs on two undriven revolute
+joints about the tool axis**, which is also why four of the 25 proprio channels are
+dead. Measured over 40 `datasets/demos_v12` episodes, `joint_positions` columns 16
+and 19 (`openarm_{side}_hand`) move **6.8e-4 / 8.7e-4 rad** and columns 20/21
+(`ee_tcp`) **2.2e-7 / 9.4e-7 rad**, against 0.43-3.12 rad on every arm channel. So
+a 1.1 kg hand must be **welded** (22 -> 46 DOF with both hands) and the two joints
+are not constants to keep.
+
+**The schema: 25 -> 34-D, not 40.** v2 = **14 arm + 16 active-hand + 4 tactile**;
+the two finger pairs go (the hand replaces them), the four dead channels go (2 hand
+joints welded, 2 TCP joints welded), the finger-opening scalar goes (the hand's
+joints *are* the opening) and one tactile channel per fingertip replaces the two.
+**The inactive hand is not carried** - P36's 2x2 measured the inactive arm's
+proprio to be null (park image **0/58 vs 35/57**, p = 8.8e-15; park-proprio
+**17/60 vs 18/55**, p = 0.687, `logs/p36/A_RESULTS.md:82-85`), so 16 more channels
+of the same kind is an untested bet at 16x the width. **The action vector never
+widens**: it stays 9-D and `action[7]` becomes the hand's **synergy scalar**, so
+the scripted primitive, the collector, the store and the hybrid evaluator all keep
+working; the 16 joints come from an **8-D supervised latent** off a second head on
+the same trunk. Vision becomes **two encoders summed** (head 5ch x 2, wrist
+3ch x 2), not ten stacked channels, because the mast view's global context and the
+wrist's 60 mm patch are different statistics.
+
+**The architecture is (a) hand-conditioned head, and the reason is measured.** (c)
+diffuses 16 more dimensions on top of chunks P52 measured to be **noise** (min p50
+2.44 rad/s, 0/60 below 0.30, `|2nd|/|1st|` 1.16) and emissions P53 measured to be
+**10.9 % out of range** with a clamp that is free but null - for a hand that is a
+hardware event, so the decoder is `tanh`-in-range **by construction**. (b)
+(two-stage at the close) is predicted to fail on P42/P75 (the seat is already
+centred 1.4-4.6 mm, the walk is 104-276 mm, and 4 of 6 escapes fire *inside* the
+place leg where (b) cannot reach), so it is the safety net. The inference budget is
+read on **two denominators**: a decision is 71 ms (model 47.4 + render 20.0 +
+camera 3.6, `logs/p43/P2_RESULTS.md:264`) but only **10.6 % of the episode wall**,
+so the wrist view's +24 ms is +34 % of a decision and **+3.6 % of an episode** -
+affordable, at a thinner RTC margin (h <= 7 -> h <= 11 of 16), not a new failure.
+
+**The data plan found a second defect: the collector cannot produce the store.**
+`dataset.py:147-152` discards every failed attempt (`if not success: ... return
+None`), so a hand store through `scripts/40_collect_demos.py` contains **zero `cnp`
+examples** - and `cnp` is **75-77 %** of this cell's failures (9 of 12 in P92's
+two-seed population, 17 of 22 in P93's four-seed one). That is exactly the
+successes-only limitation P33 phase 3 recorded. The plan therefore takes the
+**direct-rollout path** (`110_rl_rollout --record`, which keeps failures) for M4's
+first checkpoint and adds `--keep-failures` to the collector only before M5. Cost:
+**150-200 episodes, 2.5-3 h, ~15 GB** against the measured 158 episodes / 2 h 6 min
+anchor (`logs/w3/HANDOFF.md:10-11`), and the fine-tune is **30-40 min** (6 epochs x
+201 s at 38 990 windows, `logs/w3/50_finetune_v13s_dense.log:9-14`).
+
+**The baseline arithmetic is corrected, and it changes the gate.** P93's four
+control seeds read **58/80 = 72.5 % with 22 failures = 17 `cnp` + 5 never-held**
+(the counts close: 58 + 17 + 5 = 80). The survey's "25 failures, `cnp` 68 %" is
+three failures too many and the 68 % follows from the wrong denominator; `cnp` is
+**77 %**. On P102's attempt join, **6 of the 7 `cnp`** carried a seated escape
+(86 %) and the 4 no-grasp attempts all carried never-held legs whose discriminator
+is the catch-up residual (**8/8 no-grasp vs 3.6 %**, 220-481 mm - hand-over
+timing, `logs/p47`, `logs/p48`). So the hand's ceiling is **93.8 %** (all 17
+convert), the measured seated share puts it at **91.3 %**, and the survey's P4 bar
+of 82.5 % is only **8 of those 17** - one binomial sd on 80 attempts is **5.0
+points**, half the bar. **M5's primary is therefore the `cnp` rate (17/80 -> <=
+8/80) with placed as non-inferiority**, not the placed count.
+
+**The five milestones**, each with its kill: **M1** the asset in scene (close+lift,
+4.90 N per contact, 4 tactile channels, **station still reachable**; kill = the
+station or the TCP frame breaks; 24-40 h); **M2a** the in-scene pull test
+(`>= 1.5x` sustained axial and **creep <= 1.0 mm**; kill = both forms below the bar,
+which closes the hand path to the pad-face sanction; 16-24 h); **M2b** the
+approach-and-close cell (no-contact <= 1/15; 8-16 h); **M3** the scripted hand
+(acceptance not worse than 8/10, 0 clearance contacts, landing 100 %; kill = the
+station is too tight; 80-120 h, the largest item); **M4** the policy (+8 points over
+the scripted hand; kill = ship the scripted hand; 24-40 h); **M5** adoption
+(`cnp <= 8/80`, placed `>= 58/80`, all three references re-recorded; 16-24 h).
+Total **170-265 h labour, ~26 h simulator, ~17 GPU-hours**, and **no hardware
+before M3** - M2 licenses the geometry, M3 licenses the purchase.
+
+**What it does not price**, so nothing is implied: the flange bolt pattern and the
+tendon/cable routing (**[U]**, bench), the MJCF/URDF conversion (**40-80 h** [E],
+post-M5), a real jaw's clamp-force anchor, a visuotactile renderer (still the
+survey's T2 bench), and the wrist camera's optics (a new sensor model).
+
+Pins: `docs/HAND_STAGE_PLAN.md` **`2c3ef8cb`**; `tasks.py` `9e3e657b`, `rl_env.py`
+`acd50868`, `assets.py` `eb30c77a`, `scene.py` `472bfb6c`, `policy/model.py`
+`89000266`, `policy/data.py` `b4940d74`, `dataset.py` `03617c88`; references
+**`30fb99f8` / `30fb99f8` / `8952c320`** untouched; ckpt `moe_v13s` `61da390a`.
