@@ -73,13 +73,22 @@ else
     note "MISSING the single-arm acceptance artefacts (run_p91_extra.sh)"; fail=1
 fi
 
-note "P8b the shared-station pair (same clock; the origin label may differ)"
-if [ -s "$OUT/shared_unset.log" ] && [ -s "$OUT/shared_zero.log" ]; then
-    python3 "$OUT/p91_report.py" --same "$OUT/shared_zero.log" "$OUT/shared_unset.log" || fail=1
-    python3 "$OUT/p91_report.py" --profile "$OUT/shared_zero.log" "$OUT/shared_unset.log" || fail=1
-    python3 "$OUT/p91_report.py" --same-raw "$OUT/shared_zero.log" "$OUT/shared_unset.log" \
+note "P8b the shared station is NOT a two-line session (unset = the shipped 40, not the cell)"
+# The scope's proof is the *resolution*, not a pair: on the shared station unset
+# reads `FRUIT_DYNAMIC_PROBE_TICKS=40(single)`, i.e. the shipped single-arm probe,
+# and the cell (24) is unreachable without `session.twoline`. The `=40` arm is the
+# byte-identity pair; the `=60` arm is the diagnostic that an explicit value still
+# wins over the scope (the knob's pre-P91 meaning).
+if [ -s "$OUT/shared_unset.log" ] && [ -s "$OUT/shared_forty.log" ]; then
+    grep -m1 "take-off profile" "$OUT/shared_unset.log" | sed 's/^/[p91]   /'
+    python3 "$OUT/p91_report.py" --same "$OUT/shared_forty.log" "$OUT/shared_unset.log" || fail=1
+    python3 "$OUT/p91_report.py" --same-raw "$OUT/shared_forty.log" "$OUT/shared_unset.log" \
         > "$OUT/shared_raw_same.txt" 2>&1 || true
-    echo "[p91]   raw (no filter) comparison: the row's origin only -> $OUT/shared_raw_same.txt"
+    echo "[p91]   raw (no filter): the origin label only -> $OUT/shared_raw_same.txt"
+    grep -q "IDENTICAL" "$OUT/shared_raw_same.txt" || fail=1
+    grep -q "FRUIT_DYNAMIC_PROBE_TICKS=24" "$OUT/shared_unset.log" \
+        && { note "the cell leaked onto the shared station"; fail=1; }
+    [ -s "$OUT/shared_zero.log" ] && grep -m1 "take-off profile" "$OUT/shared_zero.log" | sed 's/^/[p91]   /'
 else
     note "MISSING the shared-station pair (run_p91_extra.sh)"; fail=1
 fi
