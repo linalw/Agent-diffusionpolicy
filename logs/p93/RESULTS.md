@@ -225,7 +225,14 @@ control's and the pooled count does not fall; (3) G1-G8 pass; (4) §1 returns
 **→ NOT ADOPTED.** `FRUIT_SUPPLY_X_MAX` stays **0.36**, `src/fruit_sorting/fruits.py`
 keeps `SUPPLY_X_MAX = 0.36`, `configs/` is untouched, **no motion reference was
 re-recorded and none is owed** (nothing moved), and the measured arm reproduces
-as `FRUIT_SUPPLY_X_MAX=0.33` (env only).
+as `FRUIT_SUPPLY_X_MAX=0.33` (env only). **PREREG §6's adoption package is
+therefore not executed either**: no reference archive, no acceptance/two-line
+re-base, no re-baseline note, and **no direct/policy cell** - the interface would
+inherit the band through the same `SupplyPlan.from_env` (`two_line=False`), and
+measuring it would only price a move the rule has already refused. The frozen
+decision ("the supply band's `x_max`") is recorded as **not taken**; the one
+thing that did ship is the provenance that would have been its precondition
+(§6).
 
 **Why the rule was right to stop it, said plainly.** The band is not a
 success-rate lever at four seeds. The two fresh controls read **15/20 twice**
