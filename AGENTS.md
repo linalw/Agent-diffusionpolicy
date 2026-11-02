@@ -4664,7 +4664,9 @@ writer). **No stream effect**: `scripts/selfcheck.sh` **PASS (0 failures, 1
 skipped)**, `scripts/accept.sh` **7/10, 9.4 s/attempt, `fingerprint: matches` + `190: PASS`**
 with its **449 `[fruit]` lines byte-identical (449/449)** to
 `logs/p91/accept_final.log` (`logs/p93/accept_noharm.log`), `211` **ok (115 checks)**,
-`106` OK, `107` **PASS (21 checks)**. **No motion reference was re-recorded and
+`106` OK, `107` **PASS (21 checks)**; the landing guard is **123/123**
+payload-present releases `on_belt=True` across the eight cells and G6 is 8/8 at
+20 attempts with **no lost slot**. **No motion reference was re-recorded and
 none is owed** (`423896f7` / `423896f7` / `8952c320` all stand). Pins: `tasks.py`
 `7ba4bb58` **untouched** (so `rl_env.TASKS_MD5` stands), `assets.py`, `rl_env.py`
 and `scripts/40_collect_demos.py` each carry only the new builder and its one
