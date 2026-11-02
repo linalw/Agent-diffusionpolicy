@@ -251,8 +251,11 @@ bash logs/p102/run_p102.sh                       # the two cells (~15 min)
 python3 logs/p102/census.py --check logs/p102/T5.log logs/p102/T6.log
 python3 logs/p102/census.py       logs/p102/T5.log logs/p102/T6.log \
     > logs/p102/census.txt
+python3 logs/p102/census.py --lead logs/p102/T5.log logs/p102/T6.log \
+    > logs/p102/lead_table.txt     # the lead-time table: every escape's walk
 python3 logs/p102/census.py --same logs/p102/T5.log logs/p91/C5.log   # neutrality
 python3 logs/p102/census.py --same logs/p102/T6.log logs/p91/C6.log
+bash logs/p102/gates.sh                          # G1/G2 neutrality, G3 relocation, G4 reader
 python3 scripts/255_p102_tactile_selftest.py     # the instrument's own leg
 scripts/selfcheck.sh
 ```

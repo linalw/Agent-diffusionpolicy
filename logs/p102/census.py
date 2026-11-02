@@ -313,7 +313,7 @@ def fmt(x, nd=1):
     return str(x)
 
 
-def report(paths):
+def report(paths, lead_only=False):
     all_legs, runs = [], []
     for p in paths:
         legs, r = parse(p)
@@ -448,12 +448,18 @@ def report(paths):
                   f"clean_max={a['clean_max']:7.1f} mm  "
                   f"{'ESCAPE-class clean but < 100' if a['clean_max'] > 20 else ''}")
 
-    print("\n## 6 the tick-by-tick window (escape with an in-leg notice, then a held control)")
-    cand = [a for a in esc if a["t_force"] is not None]
-    if cand:
-        _window(max(cand, key=lambda a: a["t_force"]), "escape")
-    if held:
-        _window(sorted(held, key=lambda a: -a["t_seat"])[0], "held")
+    if lead_only:
+        print("\n## 6 the walk window of every escape leg (the lead-time table)")
+        for a in esc:
+            _window(a, "escape")
+    else:
+        print("\n## 6 the tick-by-tick window (escape with an in-leg notice, "
+              "then a held control)")
+        cand = [a for a in esc if a["t_force"] is not None]
+        if cand:
+            _window(max(cand, key=lambda a: a["t_force"]), "escape")
+        if held:
+            _window(sorted(held, key=lambda a: -a["t_seat"])[0], "held")
 
     print("\n## 7 the walk profile: how slow is the slide before the pinch is lost?")
     print("  (the number that decides whether a 30 Hz pad - 33 ms/frame - can resolve it)")
@@ -484,6 +490,8 @@ def report(paths):
               f"{min(notices) / 120.0 * 30:.0f} at the minimum; a 60 Hz pad "
               f"{median(notices) / 120.0 * 60:.0f} / {min(notices) / 120.0 * 60:.0f}")
 
+    if lead_only:
+        return 0
     print("\n## 8 is the centroid channel independent of the shipped `clean_slip`?")
     print("  `dc` is the in-plane part of the same 3-D displacement the `[carry]` row\n"
           "  prints as `clean_slip`. If dc ~ clean the spatial channel adds no timing\n"
@@ -582,7 +590,7 @@ def main(argv):
     if not paths:
         print(__doc__)
         return 1
-    return report(paths)
+    return report(paths, lead_only="--lead" in argv)
 
 
 if __name__ == "__main__":

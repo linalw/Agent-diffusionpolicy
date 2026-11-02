@@ -307,12 +307,12 @@ close-out move is a relocation of the same block, proved inert by G3),
 `scene.py` `472bfb6c`
 (`_park_provenance`), `assets.py` `eb30c77a`, `control.py` `9384ff4f`,
 `bimanual.py` `9b7fc33f`, `scripts/20_pick_place.py` `3d34342b`,
-`logs/p102/census.py` **`697096ed`**, `scripts/255_p102_tactile_selftest.py`
+`logs/p102/census.py` **`1a14cf0cbc55939fb0e5779e870c8af5`**, `scripts/255_p102_tactile_selftest.py`
 **`21254f16`**, `scripts/selfcheck.sh` **`70b22e42`**, `logs/p102/gates.sh`;
 references
 `configs/motion_reference.json` = `..._twoline.json` = **`30fb99f8`**,
 `..._single.json` = **`8952c320`**, all **untouched**; ckpt `moe_v13s`
-`61da390a`. Evidence `logs/p102/{METHOD.md,RESULTS.md,census.py,census.txt,
+`61da390a`. Evidence `logs/p102/{METHOD.md,RESULTS.md,census.py,census.txt,lead_table.txt,
 run_p102.sh,run_p102_control.sh,header.txt,battery_driver.log,control_driver.log,N5_driver.log,
 T5,T6,C5,C6,N5}.{log,stamps,driver}`, `gates.sh`, `smoke.log`, `smoke2.log`,
 `selfcheck.log`.
