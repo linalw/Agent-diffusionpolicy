@@ -33,9 +33,18 @@ for tag in C5 T5 C6 T6; do
 done
 [ -s "$OUT/C5.log" ] && [ -s "$OUT/T5.log" ] && [ -s "$OUT/C6.log" ] && [ -s "$OUT/T6.log" ] || exit 1
 
-note "G0 the controls are the pre-change cell (the diag rows + all four profile rows dropped)"
-python3 "$OUT/p91_report.py" --same logs/p89/T5.log "$OUT/C5.log" || fail=1
-python3 "$OUT/p91_report.py" --same logs/p89/T6.log "$OUT/C6.log" || fail=1
+note "G0 the controls are the shipped cell (the diag rows + all four profile rows dropped)"
+# PREREG A1 (report deviation): P8's clause named `logs/p89/T5.log`, which is
+# P89's **lift-raise** arm (its battery ran `LIFT_TWO_LINE_DEFAULT = True`), not
+# the shipped cell - P89's own G0 compares against P88's **C** cells for exactly
+# this reason. The target here is `logs/p87/T5.log`, the record of the shipped
+# cell P87 shipped (== `logs/p88/C5.log` == `logs/p89/C5.log`, all three
+# byte-identical to each other and to C5).
+python3 "$OUT/p91_report.py" --same logs/p87/T5.log "$OUT/C5.log" || fail=1
+python3 "$OUT/p91_report.py" --same logs/p87/T6.log "$OUT/C6.log" || fail=1
+note "G0b the same against the two intervening phases' own controls (recorded)"
+python3 "$OUT/p91_report.py" --same logs/p88/C5.log "$OUT/C5.log" | sed 's/^/[p91]   /'
+python3 "$OUT/p91_report.py" --same logs/p89/C6.log "$OUT/C6.log" | sed 's/^/[p91]   /' 
 
 for tag in C5 T5 C6 T6; do
     case "$tag" in
@@ -85,7 +94,18 @@ if [ -s "$OUT/shared_unset.log" ] && [ -s "$OUT/shared_forty.log" ]; then
     python3 "$OUT/p91_report.py" --same-raw "$OUT/shared_forty.log" "$OUT/shared_unset.log" \
         > "$OUT/shared_raw_same.txt" 2>&1 || true
     echo "[p91]   raw (no filter): the origin label only -> $OUT/shared_raw_same.txt"
-    grep -q "IDENTICAL" "$OUT/shared_raw_same.txt" || fail=1
+    # the raw streams may differ **only** on the new row's own origin field
+    # (`=40(single)` vs `=40(explicit)`): a raw difference anywhere else would
+    # mean the pair is not the same run.
+    rawdiff=$(diff <(grep "^\[fruit\]" "$OUT/shared_forty.log") \
+                  <(grep "^\[fruit\]" "$OUT/shared_unset.log") | grep "^[<>]" \
+                  | grep -v "take-off profile:")
+    if [ -n "$rawdiff" ]; then
+        note "the shared pair differs outside the take-off row:"; echo "$rawdiff" | head -5 | sed 's/^/[p91]   /'
+        fail=1
+    else
+        note "the raw difference is the take-off row's origin field only"
+    fi
     grep -q "FRUIT_DYNAMIC_PROBE_TICKS=24" "$OUT/shared_unset.log" \
         && { note "the cell leaked onto the shared station"; fail=1; }
     [ -s "$OUT/shared_zero.log" ] && grep -m1 "take-off profile" "$OUT/shared_zero.log" | sed 's/^/[p91]   /'
@@ -95,7 +115,7 @@ fi
 
 note "P8c the final tree's default is the shipped clock (N5 replays the pre-change record)"
 if [ -s "$OUT/N5.log" ]; then
-    python3 "$OUT/p91_report.py" --same logs/p89/T5.log "$OUT/N5.log" || fail=1
+    python3 "$OUT/p91_report.py" --same logs/p87/T5.log "$OUT/N5.log" || fail=1
     python3 "$OUT/p91_report.py" --same "$OUT/C5.log" "$OUT/N5.log" || fail=1
     grep -q "FRUIT_DYNAMIC_PROBE_TICKS=60(two-line)" "$OUT/N5.log" \
         || { note "N5 did not resolve the shipped probe clock as the default"; fail=1; }

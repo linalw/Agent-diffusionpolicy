@@ -110,13 +110,40 @@ span column is read from the instrumentation.
   are the standing acquisition tail present in **both** arms (P47/P48's class).
 * **P6 the motion budgets** — all descents inside `105`'s per-leg budget in all
   four cells; nothing re-tuned (`gates.sh`).
-* **P8 the inertness** — the single arm is raw-byte-identical to
-  `logs/p71/accept_rails_none.log` with `fingerprint: matches`, no take-off row
-  printed; the shared-station pair is identical with the origin field dropped
-  and the same 60-tick clock; the final unset run replays the pre-change record
-  `logs/p89/T5.log` (see `logs/p91/gates.sh`).
+* **P8 the inertness — all three halves pass** (`logs/p91/gates.sh`, exit 0):
+  * **G0** the two controls replay the **shipped cell's** record byte for byte —
+    `C5` = `logs/p87/T5.log` **868/868** and `C6` = `logs/p87/T6.log`
+    **821/821** on the `[fruit]` stream with only the phase's own rows dropped,
+    and the same against `logs/p88/C5.log` and `logs/p89/C6.log` (all three
+    pre-P91 records of the shipped cell are identical to each other);
+  * **the single arm** is **raw 346/346** identical to
+    `logs/p71/accept_rails_none.log` with `fingerprint: matches
+    configs/motion_reference_single.json`, and **no take-off row printed**
+    (0 occurrences of all four profile rows);
+  * **the shared station is not a two-line session**: unset resolves
+    `FRUIT_DYNAMIC_PROBE_TICKS=40(single)` — the shipped single-arm probe, never
+    the cell — and is sealed-identical to an explicit `=40` (the raw difference
+    is the row's `origin` field only); the `=60` arm is the diagnostic that the
+    env still wins over the scope;
+  * **the final tree's default is the shipped clock**: `N5` (unset, 20 attempts,
+    after the revert) replays `logs/p87/T5.log` **and** `C5` identically.
 * **P9 the provenance** — `physics.takeoff` in both manifest writers, the
   `[biarm] take-off profile:` row naming the resolution, the `250` selfcheck leg.
+
+**PREREG A1 (report deviation).** P8's clause named `logs/p89/T5.log` as the
+"pre-change record". That file is P89's **lift-raise** arm (its battery ran
+`LIFT_TWO_LINE_DEFAULT = True`), so the clause named the wrong file — P89's own
+G0 compares against P88's **C** cells for exactly this reason. The target used is
+`logs/p87/T5.log`, the record of the shipped cell, and the three pre-P91
+equivalents (`p87/T5`, `p88/C5`, `p89/C5`) are byte-identical to each other and
+to `C5`, so the substance is unchanged. A second, smaller deviation: the raw
+shared-station pair cannot be IDENTICAL (the new row's `origin` field differs by
+construction), so the gate asserts the raw difference is **only** that row.<br>
+**The `190` fingerprints DIFFER on all four cells**, against the P80/P86
+20-attempt references: they are pre-P87-clock records, the registered
+"recorded, not gated" read (P87/P88/P89's own gates read the same way, and
+`C5`'s `190` output is line-for-line identical to
+`logs/p88/C5.gate`).
 
 ## 5. What this phase actually delivered
 
