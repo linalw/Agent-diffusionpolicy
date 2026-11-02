@@ -930,6 +930,66 @@ def parse_fail_fast(raw: str | None = None) -> float:
     return mm / 1000.0
 
 
+def parse_carry_offset_max(raw: str | None = None) -> float:
+    """P94: `FRUIT_CARRY_OFFSET_MAX=<m>` -> the largest tool offset the carry may apply.
+
+    Pure and total, so the parse can be pinned without a simulator
+    (`scripts/251_p94_offset_selftest.py`).
+
+    `_gripper_offset[side]` is written once per grasp as
+    `rot.T @ (payload - tcp_position())` (`_grasp_carry_place_impl`, the grasp
+    routine's entry). On a hand whose pads **are** the fingers that is a *tool*
+    offset only while the payload was at the hand when the reading was taken;
+    when the fruit was far out at the entry the same number is the payload's
+    **distance**, and `_carry`'s assisted branch would command the arm to a point
+    that far away from the pads. P93 measured one such leg at **1313 mm** (18.8x
+    the hand's own tool scale `_pad_standoff` = 70 mm) with a **419 N / 1.545 m/s
+    / 2361 mm-slip** arm flight (`logs/p93/RESULTS.md` §1b).
+
+    Rules (P94 PREREG §1, frozen before the phase's first run; the default is
+    **0.20 m since P94 shipped it** - the measured arm is the shipped tree):
+
+    * unset / empty -> **0.20**, the shipped bound. `0` -> `0.0`, i.e. **off =
+      the pre-P94 path bit for bit** (the guard's comparison is short-circuited
+      by the zero and costs one attribute read per carry leg).
+    * `0 < m <= 0.5` -> the bound, in metres. The shipped corpus's readings are
+      **11-117 mm** on the measured cells' legs (`logs/p94/census.txt`), so
+      `0.20` is 1.7x above every leg the guard must leave alone and 1.75x below
+      the smallest defective reading (350 mm). `0.20` is also the tree's own
+      pad/arm-relation threshold (`FRUIT_RELEASE_ARM_TRACK`).
+    * `m > 0.5` -> `ValueError`. A bound that admits the measured defective
+      readings (350 mm, 1313 mm) is not a bound; values above half a metre only
+      look configured.
+    * non-numeric / negative / `nan` / `inf` -> `ValueError`, raised at task
+      construction. A silently disabled knob is how a phase measures nothing.
+    """
+    text = os.environ.get("FRUIT_CARRY_OFFSET_MAX", "") if raw is None else raw
+    text = str(text).strip()
+    if not text:
+        # Unset (or empty) is the **shipped** bound; an explicit `0` is the
+        # pre-P94 path. One literal, so the default cannot drift from the table.
+        text = "0.20"
+    try:
+        metres = float(text)
+    except ValueError:
+        raise ValueError(
+            f"FRUIT_CARRY_OFFSET_MAX={text!r}: not a number (metres, 0 = off)"
+        ) from None
+    if not math.isfinite(metres):
+        raise ValueError(f"FRUIT_CARRY_OFFSET_MAX={text!r}: must be a finite number")
+    if metres == 0.0:
+        return 0.0
+    if metres < 0.0:
+        raise ValueError(f"FRUIT_CARRY_OFFSET_MAX={text!r}: must be >= 0 (0 = off)")
+    if metres > 0.5:
+        raise ValueError(
+            f"FRUIT_CARRY_OFFSET_MAX={text!r}: the ceiling is 0.5 m - the measured "
+            "defective readings are 350 mm and 1313 mm against 11-117 mm on the "
+            "shipped legs (logs/p94/PREREG.md §1), so a larger bound admits them"
+        )
+    return metres
+
+
 def carry_hold_override_for(overrides, side: str, name: str) -> np.ndarray | None:
     """P64: the pre-compensated hold for one carry leg, or `None` (shipped).
 
@@ -2367,6 +2427,32 @@ class PickAndPlaceTask:
         #: flag: the threshold with the `scripted` scope applied. Inert (`False`)
         #: at construction and on every direct/hybrid attempt.
         self._fail_fast_active = False
+        #: P94 (`FRUIT_CARRY_OFFSET_MAX=<m>`, **0.20 m since P94 shipped it**;
+        #: `=0` restores the pre-P94 path bit for bit): the largest
+        #: `_gripper_offset` that `_carry`'s assisted branch may apply as a
+        #: **tool** offset on the jaw hand. The value is written once per grasp
+        #: as `rot.T @ (payload - tcp)` (the grasp routine's entry) and is a tool
+        #: offset only while the pads are on the payload; when the fruit was far
+        #: out at the entry it is the payload's *distance*, and applying it
+        #: commands the arm that far from the pads - P93 measured a 1313 mm
+        #: reading and a 419 N / 1.545 m/s / 2361 mm-slip flight on one leg, with
+        #: the same-seed control carrying it at 116 mm. Past the bound the branch
+        #: falls back to the coherent command (`centre`), which is the same
+        #: `hand_is_jaw` guard the coherent branch and the `_carry` tail already
+        #: use. The kinematic-pad hand keeps its offset at every magnitude: for
+        #: it the number really is a tool offset.
+        #:
+        #: The bound is `FRUIT_RELEASE_ARM_TRACK`'s own 0.20 m - the tree's
+        #: existing pad/arm-relation threshold (`_release_lower`), i.e. the point
+        #: past which the code already refuses to command the arm.
+        #:
+        #: **Re-baseline:** every direct/policy number and every carry-touching
+        #: store recorded before P94 is a pre-P94 *carry-command* number, restored
+        #: with `FRUIT_CARRY_OFFSET_MAX=0`. The bound is inert on the four control
+        #: cells (one leg in 142 reads above it), and the three seeds without such
+        #: a leg replay their pre-P94 records line for line (`logs/p94/RESULTS.md`,
+        #: F2).
+        self.carry_offset_max_m = parse_carry_offset_max()
         #: P40 G0 (`FRUIT_GRIP_EFFORT=1`, **default off**): the finger drive's
         #: *applied effort* beside the tactile `N` the logs quote. The reported
         #: `N` is a contact-sensor sum, not a drive force, and this hand's drive
@@ -5363,9 +5449,32 @@ class PickAndPlaceTask:
                         dtype=float,
                     )
                     self._grip_centre[side] = centre
-                    _tcp_tgt_issued = arm.tcp_target_for_jaw(
-                        centre - rot @ offset_tool
+                    # P94: the offset is applied only while it is a plausible
+                    # *tool* offset. On the jaw hand it was read at the grasp
+                    # routine's entry (`rot.T @ (payload - tcp)`), so a fruit
+                    # that was far out then leaves the payload's *distance* in
+                    # it, and this branch would command the arm that far from the
+                    # pads (P93: 1313 mm -> 419 N / 1.545 m/s / 2361 mm slip).
+                    # Past `FRUIT_CARRY_OFFSET_MAX` command the pads instead -
+                    # the coherent branch's own command for this hand, and the
+                    # same `hand_is_jaw` guard the coherent branch and the
+                    # `_carry` tail already apply. `<= 0` is off (the pre-P94
+                    # path bit for bit: the comparison is short-circuited).
+                    _offset_used = bool(
+                        offset_tool is not None
+                        and not (
+                            hand_is_jaw
+                            and self.carry_offset_max_m > 0.0
+                            and float(np.linalg.norm(offset_tool))
+                            > self.carry_offset_max_m
+                        )
                     )
+                    _jaw_target = (
+                        centre - rot @ offset_tool
+                        if _offset_used
+                        else np.asarray(centre, dtype=float)
+                    )
+                    _tcp_tgt_issued = arm.tcp_target_for_jaw(_jaw_target)
                     arm.ik_step(_tcp_tgt_issued)
                     if os.environ.get("FRUIT_CARRY_DIAG", "0") == "1" and i < 3:
                         say(
@@ -5373,7 +5482,7 @@ class PickAndPlaceTask:
                             f"cmd_centre={np.round(centre, 4).tolist()} "
                             f"offset={np.round(offset_tool, 4).tolist()} "
                             f"|offset|={float(np.linalg.norm(offset_tool)) * 1000:.0f} mm "
-                            f"jaw_target={np.round(centre - rot @ offset_tool, 4).tolist()} "
+                            f"jaw_target={np.round(_jaw_target, 4).tolist()} "
                             f"jaw={np.round(arm.jaw_centre(), 4).tolist()} "
                             f"coherent={bool(self._coherent.get(side, False))} "
                             f"hand_is_jaw={hand_is_jaw}"

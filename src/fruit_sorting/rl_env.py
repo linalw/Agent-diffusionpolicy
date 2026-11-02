@@ -462,7 +462,7 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: env never satisfies) and the manifest builder passes `two_line=False`, so
 #: the direct path keeps its 40-tick probe / 10 mm ramp unless an explicit
 #: `FRUIT_DYNAMIC_PROBE_TICKS`/`FRUIT_DYNAMIC_PROBE` says otherwise.
-TASKS_MD5 = "7ba4bb585f402b8e7e40be340000ff5d"
+TASKS_MD5 = "19cd4028b466e0cb29b50110287d188d"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(

@@ -23162,3 +23162,99 @@ mixes pooled and per-seed verdicts and section 4 is the binding statement; D5 th
 §1c monotonicity route is unreachable by construction at one carrying seed.
 
 **Re-baseline: none** - nothing shipped.
+
+## P94 (2026-11-02): the `_gripper_offset` command jump is bounded - a carry-command fix, and the only legs it moves are the two that could not be a tool offset
+
+**The defect P93 named, fixed.** `_gripper_offset[side]` is written once per grasp
+at the grasp routine's entry as `rot.T @ (spawner.position(sample) -
+arm.tcp_position())` (`tasks.py:11047`) - a **tool** offset only while the pads are
+on the payload, and the payload's **distance** when the fruit was far out then.
+`_carry`'s **assisted** branch applied it unguarded
+(`arm.tcp_target_for_jaw(centre - rot @ offset_tool)`, `:5361-5366`) while the
+**coherent** branch (`:5326`), the **`_carry` tail** (`:6087`) and **`_place_low`**
+(`:14258-14287`) all guard it with `hand_is_jaw` - and `_release_lower` refuses
+past its own 0.20 m `FRUIT_RELEASE_ARM_TRACK`. Two facts make the site live rather
+than a corner case: the shipped OpenArm hand takes the **assisted** branch on
+**every** leg (`self._coherent[arm_name]` is only set `True` when the *pre-close*
+fingertip error is `<= 20 mm`, and the openarm fallback prints
+`openarm fingertips <N> mm from the fruit; closing anyway` and does not set it -
+measured 20/20 at `59.4-61.8 mm`, and 1638/1638 `carry-assist` rows across the P9x
+corpus read `coherent=False`), and the documented reset (`if not coherent:
+_gripper_offset[...] = [0, 0, wrist_back]`, `:11609`) is **dead code** - it sits
+inside `if coherent:` (`:11054`) - so the raw value is what the carry reads.
+
+**The fix is one ternary.** `FRUIT_CARRY_OFFSET_MAX` (metres; unset **0.20 m
+shipped**, `=0` restores the pre-P94 expression bit for bit) via
+`tasks.parse_carry_offset_max()`: past the bound the jaw hand is commanded the
+**pads** (`centre`) - the coherent branch's own command, i.e. the same
+`hand_is_jaw` guard the reference sites use - and inside it the command is
+unchanged. The bound is not a new constant: 0.20 m is `FRUIT_RELEASE_ARM_TRACK`'s
+own pad/arm-relation threshold. The guard is **jaw-hand only**, so the
+kinematic-pad hand keeps its offset at any magnitude (for it the number really is
+a tool offset).
+
+**Why a bound and not the unconditional guard.** The unconditional `hand_is_jaw`
+form would move all 142 legs by their own 11-117 mm reading - a re-calibration of
+the carry on every attempt, unattributable on a 20-attempt cell. P94 registered
+**F1** instead: *a leg below the bound must not move*. It did not (0 legs), which
+is what makes the fix shippable as "the defect's removal and nothing else". The
+unconditional form stays the named replacement (`logs/p94/RESULTS.md` section 9).
+
+**The measurement** (`ATTEMPTS=20`, the shipped two-line default, P92/P93's
+instrumentation, four seeds - 5/6 = P92's control records, 101/202 = P93's fresh
+pair - plus `N5` the tree check and `P5` the post-flip replay):
+
+* **Admissibility**: `N5` (unset, pre-flip tree) is **1033/1033** `[fruit]` lines
+  identical to `p92/C5`, and a second pre-flip unset cell (`P5_preflip`) is
+  **1033/1033** too; after the default flip, `P5` (unset) is **974/974** identical
+  to `T5` (explicit `0.20`) - the shipped default **is** the measured arm.
+* **The invariant**: the largest applied jump in any treatment cell is **117 mm**
+  (an unguarded leg's own reading, T6) and every leg whose reading is above the
+  bound reads **applied = 0**. **Two** legs are guarded: seed 5 attempt 1
+  `left grasp_lift` (kiwi, **350 mm**) and - on the branch that leg moved into -
+  attempt 10 `right grasp_lift` (kiwi, **1211 mm**, the second sighting of P93's
+  class). Their arm motion: `|v|max 1.108 -> 0.270`, `|a|max 9.47 -> 1.99`,
+  `a_win5 9.13 -> 1.42`, `tilt_max 58.3 -> 27.9 deg` on the first; `0.309 / 1.95`
+  on the second.
+* **F2, the prefix identity**: seed 5 is identical to its control for **111**
+  `[fruit]` lines and its first difference **is** the guarded leg's own
+  `carry-assist` row; seeds 6 / 101 / 202 have no leg above the bound and replay
+  **end to end** (970/970, 1001/1001, 986/986).
+* **Counts**: placed `16->17` (seed 5), `12->12`, `15->15`, `15->15`; `cnp`
+  `2->2 / 7->7 / 5->5 / 3->3`; `never_held` `2->1 / 1->1 / 0->0 / 2->2`; one reason
+  key in every cell. **No seed loses a placement, no class rises, no new reason.**
+  The +1 at seed 5 is **not** a conversion - the guarded leg stays `never_held`
+  and the acceptance shows the same - so **no rate gain is claimed**.
+* **The acceptance**: the gate of record **moved**, and its own A/B names why. With
+  `FRUIT_CARRY_DIAG=1` on both arms, `FRUIT_CARRY_OFFSET_MAX=0` reproduces
+  **7/10 + `fingerprint: matches 423896f7`** (the record) while unset reads
+  **8/10**; the two streams share **110** `[fruit]` lines and differ first at the
+  **350 mm** `left grasp_lift` row (applied 349.6 -> 0). The **single arm** is
+  inert: `FRUIT_BIARM=0 scripts/accept.sh` reads 6/9, `matches
+  configs/motion_reference_single.json`, **346/346** identical to
+  `logs/p71/accept_rails_none.log`.
+* **Budgets**: 0/0, 1/1, 1/1, 0/0 over-budget descents (control/treatment) - no
+  regression, no over-budget leg is a guarded leg, nothing re-tuned. T5's
+  **7.10x** cone is the guarded 1211 mm leg whose payload had already left the
+  line (the reading is 1.19 m in tool z; `res_end` 80 mm, `|a|max` at tick 0.09) -
+  reported on the dynamic line, never gated.
+
+**Shipped**: the default 0.20 m, a `251` selfcheck leg (the resolver table, the
+single site, the jaw-hand scope, the two branch expressions **executed**, the
+diag row's issued target), `236` re-pinned for the new `_jaw_target` operand (its
+meaning kept). Both two-line-side references re-recorded from this batch's
+shipped-scenario run: `configs/motion_reference.json` / `..._twoline.json`
+`423896f7` -> **`30fb99f8`** (pre-P94 pair archived in `logs/p94/`), the single-arm
+file `8952c320` untouched. Final tree: `accept.sh` **8/10, `fingerprint:
+matches`, `190: PASS`** with its **420** `[fruit]` lines identical to the
+reference-source run; `selfcheck.sh` PASS (0 failures, 1 skipped); `106` OK;
+`107` PASS (21 checks). Pins: `tasks.py` **`19cd4028`** (measured arm
+`de9abd5a`), `rl_env.py` `TASKS_MD5` follow.
+
+**Re-baseline: every direct/policy number and every carry-touching store recorded
+before P94 is a pre-P94 carry-command number; `FRUIT_CARRY_OFFSET_MAX=0` restores
+it** (compose with `FRUIT_ARM_PARK=ready` for pre-P43, `FRUIT_POLICY_TRIGGER_ACQ=0`
+for pre-P54, the P58 burst profile for pre-P58, `FRUIT_SPEED_RELEASE=0` for
+pre-P87). Named and **not run**: the unconditional guard (Form A), the dead-code
+reset, and the cause of the 1211 mm reading (a supply/depenetration event
+upstream of the carry, P93's own open item).

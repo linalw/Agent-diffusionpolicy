@@ -322,11 +322,10 @@ def main() -> int:
             "the coherent jaw branch records the exact array ik_step was handed",
         )
         check(
-            "_tcp_tgt_issued = arm.tcp_target_for_jaw(\n"
-            "                        centre - rot @ offset_tool\n"
-            "                    )\n"
+            "_tcp_tgt_issued = arm.tcp_target_for_jaw(_jaw_target)\n"
             "                    arm.ik_step(_tcp_tgt_issued)" in src,
-            "the assist branch records its own issued target",
+            "the assist branch records its own issued target (P94: the operand is"
+            " `_jaw_target`, the guarded ternary's result)",
         )
         check("_tcp_tgt_issued = None" in src,
               "the per-tick capture is initialised (a leg with no command reads None)")

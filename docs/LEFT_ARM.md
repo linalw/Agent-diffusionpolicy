@@ -219,6 +219,16 @@ lane is the physical one.
   **right**, 28 -> 5 cnp, and not the left, 20 -> 22, p = 1.0 - and, since P73/P74,
   the place **transfer's height**, the place-leg **rotation**, and the place
   **profile's speed / dwell** as well; see the place-leg section above).
+- **Not a carry-command artefact** (P94): the one place where the carry commanded
+  the arm from a number that was not a tool offset - `_gripper_offset` applied
+  unguarded in `_carry`'s assisted branch - is now **bounded**
+  (`FRUIT_CARRY_OFFSET_MAX`, 0.20 m). It was real and it destroyed one leg per
+  ~40 attempts (a **1313 mm** reading -> a 419 N / 1.545 m/s flight, P93; a
+  **350 mm** one -> `|v|max 1.108` on the arm, P94), but **removing it converts
+  nothing**: the two guarded legs stay `never_held` / `cnp`, no seed loses a
+  placement, and three of four seeds replay their records line for line. Read it
+  as *state integrity*, never as a grip lever (`logs/p94/RESULTS.md`).
+
 
 ## The two registered paths (P69)
 

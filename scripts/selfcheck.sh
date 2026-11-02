@@ -439,6 +439,24 @@ run_check "P89 lift scope" "$python" scripts/249_p89_lift_scope_selftest.py
 # writers.
 run_check "P91 probe scope" "$python" scripts/250_p91_probe_scope_selftest.py
 
+# P94 (`FRUIT_CARRY_OFFSET_MAX=<m>`, unset/0 = off = the pre-P94 path): the bound
+# on the `_gripper_offset` that `_carry`'s assisted branch may apply as a *tool*
+# offset on the jaw hand. The reading is `rot.T @ (payload - tcp)` taken at the
+# grasp routine's entry, so on a hand whose pads are the fingers it is a tool
+# offset only while the payload was there then; P93 measured a 1313 mm reading on
+# one leg (18.8x the hand's own 70 mm `_pad_standoff`) with a 419 N / 1.545 m/s /
+# 2361 mm-slip arm flight, and the same-seed control carrying the path at 116 mm.
+# Past the bound the branch commands the pads (`centre`) - the coherent branch's
+# own command for this hand, i.e. the same `hand_is_jaw` guard the coherent branch
+# and the `_carry` tail already apply. The leg runs the real resolver and the
+# shipped guard expressions: unset is the shipped 0.20 m bound (the measured arm),
+# `0` restores the pre-P94 path bit for bit, the command inside the bound is
+# `centre - rot @ offset` bit for bit, above it it is `centre`, the kinematic-pad
+# hand keeps its offset at any magnitude (the guard is jaw-hand only), and the diag
+# row prints the issued target so the census reads the applied jump with no new
+# field.
+run_check "P94 offset bound" "$python" scripts/251_p94_offset_selftest.py
+
 if [ -n "$run_log" ] && [ -f "$run_log" ]; then
     # P85: the log decides the scenario (and therefore the reference and the
     # floor), exactly as `scripts/accept.sh` does.
