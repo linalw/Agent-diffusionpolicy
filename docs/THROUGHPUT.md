@@ -387,7 +387,7 @@ worth **-1 and 0** placements and it **adds a `cnp` at both**. Pooled: placed
   endpoint and the count as a report. That is the priced re-entry
   (`logs/p93/RESULTS.md` §4), not another two-seed batch.
 
-## The scenario-structure lane (P95/P96): a hand inside another lane's fruit band
+## The scenario-structure lane (P95/P96/P97): a hand inside another lane's fruit band
 
 Not a throughput lever, and it is recorded here because it is the one
 **structural** defect the rate work kept stepping on: the two-line's pre-pose is
@@ -410,6 +410,22 @@ clause fails at seed 5, so it is the owner's decision, and the lane's own read
 rules apply - the contact census is the endpoint, the count is a branch draw, and
 a 5-point count difference needs P93's 364 attempts per arm
 (`logs/p96/RESULTS.md`).
+
+**P97 (2026-11-02) ships it as the two-line session's default** - the owner's
+decision is the **invariant** (a hand inside another lane's fruit band is a
+defect regardless of its rate), so the count is not claimed: P96's two-seed
+count is the draw **29/40 -> 27/40**. The measured arm is unchanged
+(`belt_top + 0.165`, `hold=calib`, achieved jaw **+0.160/+0.155**, pad points
+**+0.079/+0.075**, margins **+0.020/+0.013 rad**); `FRUIT_BIARM_PREPOSE_CLEAR=0`
+restores the pre-P96 path. The shipped acceptance now runs it and reads
+**6/10, 9.6 s/attempt** with `configs/motion_reference.json` = **`1490b63e`**
+(re-recorded from `logs/p97/accept_default.log`; the pre-P97 pair `30fb99f8`
+archived under `logs/p97/`), and its own `=0` A/B reproduces **8/10 +
+`fingerprint: matches 30fb99f8`** with **419/419** physics lines identical to
+`logs/p94/accept_final.log` - the flip is resolution-only. The cost stays zero
+and slightly negative (`prepose` 0.71 s in every cell, `hover` 0.78 -> 0.61 s),
+and **every two-line rate, interval, acceptance and store recorded before P97 is
+a pre-clearance-pre-pose number**.
 
 The transferable number: **`jaw_achieved = target - residual`**, so a clearance
 target set exactly at the invariant achieves *below* it (P95's `0.155` lands at

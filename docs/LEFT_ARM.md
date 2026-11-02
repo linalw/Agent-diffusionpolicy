@@ -207,7 +207,7 @@ flesh-compliance model**. A clean read at 60 N is a statement about **geometry a
 retention**, never about fruit quality - which is the other reason the geometry
 lane is the physical one.
 
-## The left hand as an *obstacle* (P95/P96)
+## The left hand as an *obstacle* (P95/P96/P97)
 
 One row belongs to the left that is not about its own grasp: the left hand **strikes
 the other lane's fruit**. The two-line's pre-pose is the calibrated grasp
@@ -220,12 +220,20 @@ from the fruit's surface, `21.6 rad/s` of spin) and P96 built the clearance pose
 `belt_top + 0.165` with the arm's own measured attitude, which lifts the shipped
 pose's **pad point from 46 mm below the tallest fruit's top to 20 mm above it**,
 takes the contact census **1/40 -> 0/40**, and costs no time (`prepose` 0.71 s
-unchanged, `hover` **0.78 -> 0.61 s**). It is **not shipped** - the delivered count
-came back a draw and the registered clause failed - so it stays an env value; what
-it changes for *this page* is that the left's station pose is now a **measured,
-parameterised object** (`_prepare_two_line_stations` solves it, the log names its
-jaw height/tilt/margin, the shard manifest carries `prepose_clear`), rather than a
-calibrated constant with no clearance story.
+unchanged, `hover` **0.78 -> 0.61 s**). **P97 (2026-11-02) ships it as the
+two-line session's default** - the owner's decision is the **invariant**, not the
+count: P96's two-seed count is the draw **29/40 -> 27/40** (seed 5 -5, seed 6
++3, per arm -1/-1) and is **not claimed**. `FRUIT_BIARM_PREPOSE_CLEAR=0` restores
+the pre-P96 path bit for bit, and the shipped acceptance's own `=0` A/B
+reproduces the pre-P97 record (8/10 + `fingerprint: matches 30fb99f8`, 419/419
+physics lines identical to `logs/p94/accept_final.log`), so **every two-line
+rate, interval, acceptance and store recorded before P97 is a
+pre-clearance-pre-pose number**. What it changes for *this page* is that the
+left's station pose is now a **measured, parameterised object**
+(`_prepare_two_line_stations` solves it, the log names its jaw height/tilt/margin,
+the shard manifest carries `prepose_clear`), rather than a calibrated constant
+with no clearance story - and the shipped default's own census reads **0
+contacts** (`logs/p97/RESULTS.md`).
 
 ## What is NOT the answer
 

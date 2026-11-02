@@ -27,6 +27,29 @@ also call `fruit_sorting.fdlimit.raise_fd_limit()` before creating `SimulationAp
 so invoking `$ISAAC_SIM_DIR/python.sh` directly no longer dies that way; the wrapper
 is still the supported path.
 
+**P97 (2026-11-02) ships P96's clearance pre-pose as the two-line session's
+default and re-baselines the acceptance a fourth time** (the owner's decision:
+the **invariant** ships, the count is not claimed - it removes an impossible
+geometry, a hand sweeping another lane's fruit band):
+`FRUIT_BIARM_PREPOSE_CLEAR` resolves **on for a two-line session** with the env
+unset, off on every other path, `=0` restores the pre-P96 path; the measured arm
+is unchanged (`belt_top + 0.165`, `hold=calib`, achieved jaw **+0.160 left /
++0.155 right**, pad points +0.079/+0.075, joint margins +0.020/+0.013 rad). The
+acceptance moves to **6/10, 9.6 s/attempt** with `configs/motion_reference.json`
+= **`1490b63e`** (re-recorded from `logs/p97/accept_default.log`; the pre-P97
+pair `30fb99f8` is archived at `logs/p97/motion_reference{,_twoline}_pre_p97.json`,
+and `configs/motion_reference_single.json` `8952c320` is **untouched**). Its own
+`=0` A/B reproduces **8/10 + `fingerprint: matches 30fb99f8`** with **419/419**
+physics lines identical to `logs/p94/accept_final.log`, and the single arm is
+**346/346** raw identical to `logs/p71/accept_rails_none.log` with the single
+reference - so the flip is resolution-only.
+**Re-baseline: every two-line rate, interval, acceptance and store recorded
+before P97 is a pre-clearance-pre-pose number; `FRUIT_BIARM_PREPOSE_CLEAR=0`
+restores it** (compose with the earlier restores: `FRUIT_ARM_PARK=ready` for
+pre-P43, `FRUIT_POLICY_TRIGGER_ACQ=0` for pre-P54, the P58 burst profile for
+pre-P58, `FRUIT_SPEED_RELEASE=0` for pre-P87, `FRUIT_CARRY_OFFSET_MAX=0` for
+pre-P94).
+
 **P94 (2026-11-02) fixes a state-integrity defect on the carry and re-baselines
 the acceptance a third time: the `_gripper_offset` command jump is bounded, the
 acceptance reads **8/10, `fingerprint: matches`** with
@@ -220,6 +243,56 @@ cell at `FRUIT_BIARM_PREPOSE_CLEAR=1` with the contact census as the endpoint
 `scripts/253_p96_prepose_selftest.py`, `logs/p96/{PREREG,PREREG_A1,PREREG_A2}.md`
 `bb057405`/`a2e63f60`/`724009a0`; refs `30fb99f8` / `30fb99f8` / `8952c320`;
 ckpt `moe_v13s` `61da390a`.
+
+**P97 (2026-11-02, `logs/p97/`; the owner's adoption of P96): the clearance
+pre-pose is the two-line session's default - the invariant ships, the count does
+not.** `PREPOSE_CLEAR_TWO_LINE_DEFAULT` flips to **True** (unset + two-line ->
+on `default`, no session -> `scope-off`, `=0` -> off `explicit`, `=1` -> on), at
+P96's measured arm unchanged (`belt_top + 0.165`, `hold=calib`, achieved jaw
+**+0.160/+0.155**, pad points **+0.079/+0.075**, margins **+0.020/+0.013 rad**,
+band `[0.155, 0.25]`), and the pose rows read
+`FRUIT_BIARM_PREPOSE_CLEAR=1(default) ... CLEARS` at both stations. **The
+inertness pass found a real integration defect**: `_prepare_two_line_stations`
+ran *before* `CoopSession` existed and resolved
+`prepose_clear_resolution(self.two_line_enabled())`, a **session** predicate that
+reads False on the first batch - so the first post-flip acceptance was
+**8/10 + `matches 30fb99f8` with 419/419 lines identical to P94**
+(`logs/p97/accept_inert_pre_fix.log`), i.e. the flip was inert, and P96 could not
+see it because an explicit `=1` bypasses the predicate. The fix passes
+`run_bimanual`'s resolved `two_line` into the solve
+(`_prepare_two_line_stations(two_line)`; one call site, pinned by the `253`
+leg). **The flip is resolution-only, three ways**: the `=0` acceptance is
+**8/10 + `matches 30fb99f8`** with **419/419** physics lines identical to
+`logs/p94/accept_final.log`; the single arm is **6/9, 14.8 s/attempt,
+`matches 8952c320`** with **346/346** raw lines identical to
+`logs/p71/accept_rails_none.log` (the exit=1 is the standing rate-only floor);
+and the default's own 20-attempt seed-5 cell is **924/924** identical to P96's
+`T5` once the two `[biarm] pre-pose` rows are dropped - their only changed text
+is the registered origin label (`1(explicit)` -> `1(default)`). **The shipped
+default's census is 0 contacts** (min **+5.9 mm**, `<= 6 mm` **1/20** - the
+proxy's own floor on the 6.9 cm pear, 0.1 mm span swing; left min +155.4, right
+min +5.9), so P96's pooled **1/40 -> 0/40** transfers. The sanity cell is
+**report only**: **12/20 (60 %), 9.70 s/attempt, interval 16.02 s mean / 21.30
+p90, window 3.75 / batch 3.72 placed/min, wall 432.4 s, placed/min wall 1.66**,
+left 5/10 right 7/10, classes 4 never-grasped + 4 carried-not-placed, **12/12**
+payload-present releases `on_belt`, **0/20** descents over budget, `[cycle]`
+`prepose` **0.71 s** and `hover` 0.78 -> **0.63 s**. **No rate is claimed**
+(P96's count is the draw 29/40 -> 27/40). Both two-line-side references were
+re-recorded from same-batch 10-attempt runs: `configs/motion_reference.json` and
+`..._twoline.json` `30fb99f8` -> **`1490b63e`** (archives
+`logs/p97/motion_reference{,_twoline}_pre_p97.json`); the single reference
+`8952c320` is untouched; the final `accept.sh` is **6/10, 9.6 s/attempt,
+`fingerprint: matches`, `190: PASS`** and byte-identical to the reference-source
+run (459/459). A fresh shard carries `collection.prepose_clear=1 /
+_defaulted=true / _z=0.165` (a manifest without `prepose_clear` predates P96);
+the `scene` block gains nothing - the pre-pose is a control pose owned by the
+`collection` block, not a collider. `selfcheck.sh` PASS (0 failures, 1 skipped;
+the `253` leg now reads the flipped table, 42 checks), `211` ok (115 checks),
+`106` OK, `107` PASS, `bash logs/p97/gates.sh` rc=0. Pins: `tasks.py`
+**`e5087263`**, `rl_env.py` **`eb545c86`** (`TASKS_MD5` follow),
+`scripts/253_p96_prepose_selftest.py` **`4c2ffcf2`**, `scripts/selfcheck.sh`
+**`bb1f5b53`**, `logs/p97/PREREG.md` **`fecf1a28`**; refs **`1490b63e`** /
+**`1490b63e`** / `8952c320`; ckpt `moe_v13s` `61da390a`.
 
 **P87 (2026-11-01) re-baselines the acceptance: the shipped two-line cell
 now runs the release trim** (P86's S2 cell, `FRUIT_SPEED_RELEASE`, as a

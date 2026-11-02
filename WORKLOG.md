@@ -23495,3 +23495,92 @@ P96**; the stations were already carried, the *pose* was not). Pins:
 prepose_rows.json,prepose_check.py,prepose_check_rows*.json,pg_census.py,
 pg_census.txt,p96_report.py,p96_report.txt,gates.sh,run_p96.sh,header.txt}` and
 the cells `{C5,T5,C6,T6}.{log,stamps,budgets}`.
+
+## P97 (2026-11-02): the clearance pre-pose ships as the two-line default - the invariant is the argument, the count is not
+
+P96 built the clearance pre-pose, measured the invariant restored, and left it
+opt-in because its "no lost placement" clause failed at seed 5. The owner has
+decided: ship it as an **invariant fix**. The argument is P95's geometry - the
+shipped pre-pose is the calibrated grasp configuration, its pad point sits **46
+mm below the tallest fruit's top** on the **j3 limit (+0.000 rad)**, and the
+stations are ordered so a right-arm fruit must cross the left station while that
+hand blends there: 1 pad contact in 40 attempts, 5/19 right-arm attempts inside
+6.4 mm. A hand inside another lane's fruit band is a defect regardless of its
+rate (P94's precedent), so the count - P96's two-seed draw **29/40 -> 27/40**
+(seed 5 -5, seed 6 +3, per arm -1/-1) - is published, not claimed.
+
+**The flip is one constant, and its inertness pass found a real defect.**
+`PREPOSE_CLEAR_TWO_LINE_DEFAULT = False -> True`; the resolver table is P96's
+(unset + two-line -> on `default`, no session -> `scope-off`, `=0` -> off
+`explicit`, `=1` -> on) at P96's measured arm unchanged (`belt_top + 0.165`,
+`hold=calib`, achieved jaw +0.160/+0.155, pad points +0.079/+0.075, margins
++0.020/+0.013 rad, band [0.155, 0.25]). The first post-flip acceptance was
+**byte-identical to the pre-P97 record** (8/10 + `matches 30fb99f8`, 419/419 vs
+`logs/p94/accept_final.log`) - because `_prepare_two_line_stations` runs
+*before* `CoopSession` is created and resolved
+`prepose_clear_resolution(self.two_line_enabled())`, a **session** predicate that
+reads False on the first batch. P96 could not see it: every treatment cell set
+`=1` explicitly, which bypasses the predicate. The fix passes `run_bimanual`'s
+resolved `two_line` into the solve (`_prepare_two_line_stations(two_line)`, one
+call site, pinned by the `253` leg). That run is kept as
+`logs/p97/accept_inert_pre_fix.log`, the evidence that the default had been
+silently off.
+
+**The flip is resolution-only, three ways.** (1) `=0` acceptance: **8/10,
+9.0 s/attempt, `fingerprint: matches 30fb99f8`**, **419/419** physics lines
+identical to `logs/p94/accept_final.log`. (2) Single arm: **6/9, 14.8
+s/attempt, `fingerprint: matches configs/motion_reference_single.json`
+(`8952c320`)**, **346/346** raw `[fruit]` lines identical to
+`logs/p71/accept_rails_none.log` (the exit=1 is the standing 6/9 rate floor, the
+P32 branch). (3) The default's own 20-attempt seed-5 cell (`S5`) is **924/924**
+identical to P96's treatment `T5` once the two `[biarm] pre-pose` rows are
+dropped - their only changed text is the registered origin label
+(`1(explicit)` -> `1(default)`); same target, achieved jaw/pad, tilt, margin and
+residual. So the shipped default **is** the measured arm, and P96's census,
+clock and landing transfer.
+
+**The census of the shipped default** (`logs/p97/census.py`, P95/P96's criterion
+verbatim): min gap **+5.9 mm**, median +165.1, `<= 6 mm` **1/20**, **CONTACTS
+0/20**; left min +155.4, right min +5.9. The one `<= 6 mm` row is the proxy's
+own floor (the 6.9 cm pear 36.9 mm above a fixed 31 mm radius, 0.1 mm span
+swing). P96's pooled register is **min 0.0 -> +5.9, 4/40 -> 1/40, 1 contact ->
+0**. **The sanity cell is report only**: **12/20 = 60 %, 9.70 s/attempt,
+interval 16.02 s mean / 21.30 p90, window 3.75 / batch 3.72 placed/min, wall
+432.4 s, wall/pick 21.62 s, placed/min wall 1.66**, left 5/10 / right 7/10,
+classes 4 never-grasped + 4 carried-not-placed, **12/12** payload-present
+releases `on_belt`, **0/20** descents over budget (worst held-grip cone 1.69x,
+reported), `[cycle]` p50 `prepose` **0.71 s** (unchanged) and `hover` 0.78 ->
+**0.63 s** (the lean-over no longer exists).
+
+**The re-baseline.** Both two-line-side references moved because every attempt
+moves: `configs/motion_reference.json` and `configs/motion_reference_twoline.json`
+`30fb99f8` -> **`1490b63e`**, each from its own same-batch 10-attempt run of the
+new default (`accept_default` / `twoline_ref`); the pre-P97 pair is archived at
+`logs/p97/motion_reference{,_twoline}_pre_p97.json`, and
+`configs/motion_reference_single.json` `8952c320` is untouched. The final
+`scripts/accept.sh` reads **6/10, 9.6 s/attempt, `fingerprint: matches`,
+`190: PASS`** and is byte-identical to the reference-source run (459/459). A
+fresh one-episode shard carries `collection.prepose_clear=1`,
+`prepose_clear_defaulted=true`, `prepose_clear_z=0.165` next to `mode=two_line`;
+the same builder without a collection run (`manifest_probe.py` under the
+simulator python) writes the same keys. The `scene` block gains nothing: it is
+the collider set and the lift rung, and the pre-pose is a control pose whose one
+owner is the `collection` block (P72/P93's one-builder rule). **Every two-line
+rate, interval, acceptance and store recorded before P97 is a
+pre-clearance-pre-pose number; `FRUIT_BIARM_PREPOSE_CLEAR=0` restores it**
+(compose with P43/P54/P58/P87/P94's restores).
+
+Gates: `190` **PASS** on both re-recorded runs; `accept.sh` **PASS**;
+`selfcheck.sh` **PASS, 0 failures, 1 skipped** (the `253` leg now reads the
+flipped table, 42 checks); `211` **ok (115 checks)**; `106` **OK**; `107`
+**PASS (21 checks)**; `bash logs/p97/gates.sh` **rc=0** (G1/G2/G3 identical,
+census 0, both references match, the fresh shard carries the keys). Pins:
+`tasks.py` **`e5087263`**, `rl_env.py` **`eb545c86`** (the `TASKS_MD5` follow),
+`scripts/253_p96_prepose_selftest.py` **`4c2ffcf2`**, `scripts/selfcheck.sh`
+**`bb1f5b53`**, `logs/p97/PREREG.md` **`fecf1a28`**; refs **`1490b63e`** /
+**`1490b63e`** / `8952c320`; ckpt `moe_v13s` `61da390a`. Evidence:
+`logs/p97/{RESULTS.md,PREREG.md,PREREG.md5,p97_report.py,p97_report.txt,
+census.py,census.txt,run_p97.sh,gates.sh,gates.out,manifest_probe.py,
+manifest_probe.log,shard_manifest.json,shard_index.json}` and the cells
+`accept_{inert_pre_fix,default,twoline_ref,pre97,single,final}.{log,out}`,
+`S5.{log,stamps,budgets,driver}`, `trS5/`.

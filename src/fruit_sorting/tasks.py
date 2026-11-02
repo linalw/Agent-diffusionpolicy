@@ -439,11 +439,17 @@ def release_speed_resolution(two_line: bool = False) -> dict[str, object]:
     }
 
 
-#: P96: the shipped value of the clearance pre-pose's **two-line-scoped default**.
-#: False = the knob is opt-in (`FRUIT_BIARM_PREPOSE_CLEAR=1`); a *ship* decision
-#: flips this to True and the resolver then resolves on for a two-line session and
-#: off on every other path (the P87/P88/P89/P91 pattern).
-PREPOSE_CLEAR_TWO_LINE_DEFAULT = False
+#: P96/P97: the shipped value of the clearance pre-pose's **two-line-scoped
+#: default**. P97's owner decision ships it (`logs/p97/RESULTS.md`): True = the
+#: resolver resolves **on for a two-line session** and off on every other path
+#: (the P87/P88/P89/P91 pattern), so a run with the env unset holds a pose whose
+#: pad point clears the fruit band; `FRUIT_BIARM_PREPOSE_CLEAR=0` restores the
+#: pre-P96 path bit for bit. P96 measured the arm this default names
+#: (`logs/p96/RESULTS.md`: contacts 1/40 -> 0/40, achieved jaw `belt_top+0.160`
+#: left / `+0.155` right, joint margins +0.020 / +0.013 rad); the count was a
+#: draw, and the invariant is what ships - a hand inside another lane's fruit
+#: band is a defect regardless of its rate (P94's precedent).
+PREPOSE_CLEAR_TWO_LINE_DEFAULT = True
 
 #: P96: the clearance pre-pose's solve height above the belt top [m], and its
 #: admissibility band. `0.165` is the phase-0 map's candidate: the position-only
@@ -496,7 +502,7 @@ def prepose_clear_resolution(two_line: bool = False) -> dict[str, object]:
 
     | `FRUIT_BIARM_PREPOSE_CLEAR` | two-line session | resolves |
     | --- | --- | --- |
-    | unset / empty | yes | `PREPOSE_CLEAR_TWO_LINE_DEFAULT` (`default`) |
+    | unset / empty | yes | `PREPOSE_CLEAR_TWO_LINE_DEFAULT` = **True** since P97 (`default`) |
     | unset / empty | no | off (`scope-off`) - no two-line station exists |
     | `0`/`off`/`false`/`no` | any | off (`explicit`) - the pre-P96 path, bit for bit |
     | `1`/`on`/`true`/`yes` | any | **on** (`explicit`) |
@@ -8878,7 +8884,7 @@ class PickAndPlaceTask:
         key = (self.station_y_for("left"), self.station_y_for("right"))
         return self._station_grasp.get(key, {}).get(arm)
 
-    def _prepare_two_line_stations(self) -> None:
+    def _prepare_two_line_stations(self, two_line: bool) -> None:
         """Pre-solve each arm's pre-pose configuration at its own station.
 
         The shipped pre-pose blends to the calibrated `grasp` joint config,
@@ -8891,8 +8897,9 @@ class PickAndPlaceTask:
         `grasp` seed (the same seed `scripts/174_station_reach.py` uses;
         measured residuals are printed and become part of the run log).
 
-        **P96 - the `clearance pre-pose`** (`FRUIT_BIARM_PREPOSE_CLEAR`, default
-        off = this docstring's shipped path, bit for bit). The shipped solve
+        **P96 - the `clearance pre-pose`** (`FRUIT_BIARM_PREPOSE_CLEAR`, the
+        two-line session's default since P97; `=0` restores this docstring's
+        pre-P96 path, bit for bit). The shipped solve
         targets `belt_top + grasp_clearance`, i.e. the **grasp plane**, and a
         station *on* the pick point skips its solve entirely - so the left arm
         pre-poses to the calibrated `grasp` configuration, whose pads end **29 mm
@@ -8913,9 +8920,17 @@ class PickAndPlaceTask:
         does not converge (`FRUIT_BIARM_STATION_TOL`, default 10 mm) it keeps
         the shared configuration and the pre-pose lock serializes the two
         approaches.
+
+        `two_line` is the caller's resolved decision (`run_bimanual`'s local,
+        which becomes `session.twoline` **after** this solve). P97: the session
+        object does not exist yet, so the defaulted clearance pre-pose must be
+        resolved from that decision - reading `two_line_enabled()` here (a
+        *session* predicate) reads False on the first batch, which would make
+        the shipped default inert. P96's explicit `=1` arm could not see this;
+        the flip's own inertness pass did.
         """
         key = (self.station_y_for("left"), self.station_y_for("right"))
-        clear = prepose_clear_resolution(self.two_line_enabled())
+        clear = prepose_clear_resolution(two_line)
         cache = (key, bool(clear["on"]), float(clear["z"]) if clear["on"] else None)
         if key in self._station_grasp and self._station_grasp_key == cache:
             return
@@ -9131,7 +9146,9 @@ class PickAndPlaceTask:
             )
             # One-time: solve each arm's station-specific pre-pose config (the
             # two approaches must not both sweep through the shared grasp pose).
-            self._prepare_two_line_stations()
+            # P97: pass the session's own decision - the `CoopSession` is built
+            # below, so the defaulted clearance pre-pose cannot read it yet.
+            self._prepare_two_line_stations(two_line)
         session = CoopSession(["left", "right"], trace=trace)
         session.twoline = two_line
         #: P87: the release clock this session runs, named the way the

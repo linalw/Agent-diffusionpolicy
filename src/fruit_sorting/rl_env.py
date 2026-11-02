@@ -472,7 +472,7 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: `_step_sim`; with the knob unset the hook is one attribute read per tick and
 #: nothing is read, written or measured, so the direct path is unchanged
 #: (`logs/p95/RESULTS.md` section 0 proves it with the scripted stream instead).
-TASKS_MD5 = "e1095446e671a688575c604650ec8b4e"
+TASKS_MD5 = "e50872637afa1c4e63646a2f99c8a759"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(

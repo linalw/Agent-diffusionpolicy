@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""P96 selftest: the **clearance pre-pose** is a two-line-scoped, default-off cell.
+"""P96/P97 selftest: the **clearance pre-pose** is a two-line-scoped shipped default.
 
     python3 scripts/253_p96_prepose_selftest.py
 
@@ -11,13 +11,16 @@ the **grasp plane** (the left station's pose is the calibrated `grasp` config, s
 its pads end 29 mm below a fruit's top) and the pre-pose blend therefore sweeps
 *through* the fruit band on every attempt, while the stations are ordered so a
 **right**-arm fruit must cross the **left** station: 1 pad contact in 40
-attempts, 5/19 right-arm attempts inside 6.4 mm. P96's fix is one solve height.
-This leg pins:
+attempts, 5/19 right-arm attempts inside 6.4 mm. P96 built one solve height and
+measured it; **P97 ships it as the two-line session's default** (the owner's
+invariant decision: the count was a draw, the geometry is the argument). This leg
+pins:
 
 1. **The resolver table.** Unset + no two-line session is `scope-off`; unset +
-   two-line is `PREPOSE_CLEAR_TWO_LINE_DEFAULT` (False while the ship decision is
-   open, i.e. the pre-P96 path bit for bit); `=0` is the pre-P96 path explicitly;
-   `=1` is on; the height band `[0.155, 0.25]` raises outside itself (a
+   two-line is `PREPOSE_CLEAR_TWO_LINE_DEFAULT` (**True since P97**, i.e. the
+   measured P96 clearance arm at the same z/hold); `=0` is the pre-P96 path
+   explicitly (bit for bit, and the shipped acceptance's own `=0` A/B); `=1` is
+   on explicitly; the height band `[0.155, 0.25]` raises outside itself (a
    "clearance" pose below the invariant only looks configured), and so does an
    unknown hold mode.
 2. **The height arithmetic.** The solve lands its residual **low**, so the
@@ -26,8 +29,12 @@ This leg pins:
    fails - which is exactly what the phase-0 map measured (achieved jaw
    149.1-151.7 mm at a 0.155 target, 159.1-160.2 mm at 0.165).
 3. **The solve site** (AST): one `prepose_clear_resolution` call, in
-   `_prepare_two_line_stations`; the station skip is bypassed when the cell is on
-   (the left station *is* the pick point - P39 - so this is the whole point); the
+   `_prepare_two_line_stations`, taking the caller's resolved `two_line`
+   decision - the `CoopSession` is created *after* the solve, so a defaulted cell
+   that read the session predicate would be inert on the first batch (P97 found
+   this; P96's explicit `=1` arm could not); the station skip is bypassed when
+   the cell is on (the left station *is* the pick point - P39 - so this is the
+   whole point); the
    hold is the measured calibrated attitude (`capture_hold_pose`) or free
    (`nat`); the target is `belt_top + clear["z"]`; the cache identity carries the
    resolution (a phase's A/B re-solves in one process).
@@ -167,29 +174,33 @@ def count_calls(src: str, attr: str) -> int:
 
 
 def main() -> int:
-    print("P96 - the clearance pre-pose is a two-line-scoped, default-off cell")
+    print("P96/P97 - the clearance pre-pose is the two-line session's default")
     print("=" * 78)
 
     # [1] the resolver table ------------------------------------------------ #
-    check(PREPOSE_CLEAR_TWO_LINE_DEFAULT is False,
-          "PREPOSE_CLEAR_TWO_LINE_DEFAULT is False - the cell is not shipped yet")
+    check(PREPOSE_CLEAR_TWO_LINE_DEFAULT is True,
+          "PREPOSE_CLEAR_TWO_LINE_DEFAULT is True - P97 ships the P96 arm")
     with cells() as c:
         plain = c.resolution(False)
         check(plain["on"] is False and plain["origin"] == "scope-off",
-              "unset + no two-line session is off with origin `scope-off`")
+              "unset + no two-line session is off with origin `scope-off` (no station)")
         check(plain["z"] == _PREPOSE_CLEAR_Z_SHIPPED and plain["z_defaulted"] is True,
               f"the height defaults to {_PREPOSE_CLEAR_Z_SHIPPED} m above the belt top")
         check(plain["hold"] == _PREPOSE_CLEAR_HOLD_SHIPPED,
               f"the attitude defaults to `{_PREPOSE_CLEAR_HOLD_SHIPPED}`")
         tl = c.resolution(True)
-        check(tl["on"] is False,
-              "unset inside a two-line session follows the (still False) scoped default")
-        check(tl["two_line"] is True and tl["origin"] == "explicit",
-              "… and says so in `two_line`/`origin`")
+        check(tl["on"] is True,
+              "unset inside a two-line session follows the (True) scoped default - P97")
+        check(tl["two_line"] is True and tl["origin"] == "default",
+              "… and says so in `two_line`/`origin` (`default`, not `explicit`)")
+        check(tl["z"] == 0.165 and tl["hold"] == "calib",
+              "… at P96's measured arm (z=0.165, hold=calib)")
+        check(tl["label"] == "FRUIT_BIARM_PREPOSE_CLEAR=1(default), z=+0.165, hold=calib",
+              f"the log's label names value, origin, height and hold ({tl['label']})")
     with cells(FRUIT_BIARM_PREPOSE_CLEAR="0") as c:
         r = c.resolution(True)
         check(r["on"] is False and r["origin"] == "explicit",
-              "an explicit =0 is the pre-P96 path, origin `explicit`")
+              "an explicit =0 is the pre-P96 path inside a two-line session, origin `explicit`")
         check("z=" not in r["label"], "… and the label carries no height")
     with cells(FRUIT_BIARM_PREPOSE_CLEAR="1") as c:
         r = c.resolution(True)
@@ -244,8 +255,11 @@ def main() -> int:
           "`prepose_clear_resolution` has exactly one call site in tasks.py")
     prep = node_at(TASKS_SRC, "_prepare_two_line_stations")
     body = ast.unparse(prep)
-    check('prepose_clear_resolution(self.two_line_enabled())' in body,
-          "the call site is the station solve and passes the session predicate")
+    check('prepose_clear_resolution(two_line)' in body,
+          "the call site is the station solve and takes the caller's resolved two-line decision")
+    check('_prepare_two_line_stations(two_line)' in TASKS_SRC,
+          "… because the session is created after the solve (P97: a session predicate "
+          "here reads False on the first batch and makes the default inert)")
     check("if on_pick_point and (not clear['on'])" in body,
           "the station-on-the-pick-point skip is bypassed when the cell is on "
           "(the left station had no solve at all - P39)")
@@ -291,7 +305,7 @@ def main() -> int:
           f"rl_env.TASKS_MD5 == tasks.py ({digest[:8]}) - the direct env can start")
 
     print()
-    print("P96 pre-pose selftest: PASS")
+    print("P96/P97 pre-pose selftest: PASS")
     return 0
 
 
