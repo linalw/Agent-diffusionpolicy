@@ -129,7 +129,11 @@ def main() -> int:
     )
 
     # ---- 2. containment (inertness) ------------------------------------
-    idx = src.index("_sep_now = float(arm.jaw_separation())")
+    # P107: the span reader is hand-aware (`_hand_separation`, which returns
+    # `arms[side].jaw_separation()` for every shipped hand) so a hand whose
+    # contacts are not the jaws reports its own faces. Same invariant: one
+    # accumulated read, inside `if guard_armed:`.
+    idx = src.index("_sep_now = float(self._hand_separation(arm.spec.side))")
     check(
         indented_body_contains(src, "if guard_armed:", idx),
         "the P76 accumulation is inside `if guard_armed:`",
@@ -150,9 +154,9 @@ def main() -> int:
 
     # ---- 3. the instrument is the stop's own instrument ----------------
     check(
-        "guard_onset_sep = float(arm.jaw_separation())" in src
-        and "guard_loss_sep = float(arm.jaw_separation())" in src,
-        "sep@onset / sep@loss read arm.jaw_separation() - the P76 field uses the same call",
+        "guard_onset_sep = float(self._hand_separation(arm.spec.side))" in src
+        and "guard_loss_sep = float(self._hand_separation(arm.spec.side))" in src,
+        "sep@onset / sep@loss read the same hand-aware span - the P76 field uses one call",
     )
     check(
         'f"dia={float(sample.diameter) * 1000.0:.1f} "' in src,
