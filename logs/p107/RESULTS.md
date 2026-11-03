@@ -8,9 +8,9 @@ seed 6** against the **same-tree, same-seed shipped-hand controls' 6/9 and 7/9**
 `clean_slip > 100 mm` on the same 29, median slip **407-614 mm**) where the
 shipped hand's failures are the closed loaded slide. **M2b's letter passes and its
 mechanism fails**: the no-contact rate is **1/15** (the plan's `<= 1/15`, so the
-kill does **not** fire and M3 was licensed), but the **enclosure is 3/15 at >= 3
+kill does **not** fire and M3 was licensed), but the **enclosure is 2/15 at >= 3
 pads** against the ">= 3 expected by construction", the payload is displaced
-**15-107 mm** relative to the belt on 7/15 closes, and the **cage-vs-fruit
+**15.1-106.9 mm** relative to the belt on 7/15 closes, and the **cage-vs-fruit
 clearance on the descent is negative on 7/15** (`-0.3` to **`-33.4 mm`**) - i.e.
 the face planes go **through** the fruit rather than around it. The asset itself
 is exact: **aperture 120.0 -> 26.0 mm measured = commanded, tool offset 70.00 mm
@@ -70,8 +70,8 @@ both about the *real* hand, not the sim:
 | endpoint | bar | measured |
 |---|---|---|
 | **no-contact** (no pad >= 0.5 N at the close's end) | **<= 1/15** | **1/15** - the kill does **not** fire |
-| **batting** (payload displacement relative to the belt over the close) | recorded | **0.0 mm on 8/15** (the fruit rode the belt untouched), **+15.1 to +106.9 mm on 7/15** |
-| **enclosure** (pads >= 0.5 N) | **>= 3 expected by construction** | **>= 3 on 3/15**; 1-2 on 9/15; 0 on 3/15 (a lower bound, `METHOD.md` §5) |
+| **batting** (payload displacement relative to the belt over the close) | recorded | **0.0 mm on 7/15** (the fruit rode the belt untouched) against **+15.1 to +106.9 mm on 7/15** |
+| **enclosure** (pads >= 0.5 N) | **>= 3 expected by construction** | **>= 3 on 2/15**; 2 on 4/15, 1 on 7/15, 0 on 1/15, and one attempt without a census row (a lower bound, `METHOD.md` §5) |
 | **cage-vs-fruit clearance on the descent** (surface to surface) | recorded | **-33.4 to +65.3 mm, median -0.3 mm**: the face planes go **through** the fruit's sphere on 7/15 descents |
 | placed | - | **2/15** |
 
@@ -79,7 +79,7 @@ both about the *real* hand, not the sim:
 attempt whose cage closes *through* the fruit still loads a pad, so it is not a
 "no contact" - and it still fails, because the pad arrives beside the fruit rather
 than around it. That is why M2b's letter passes at 1/15 while the enclosure is
-3/15 and the payload is displaced on 7/15: **the endpoint the plan registered
+2/15 and the payload is displaced on 7/15: **the endpoint the plan registered
 (count of completely unloaded closes) is satisfied by a cage that misses.**
 
 ## 2. M3 - the scripted pick-and-place (10 attempts, seeds 5 and 6)
@@ -207,12 +207,31 @@ hand.
   two-line scheduler refuses a non-`openarm` hand by construction
   (`tasks.py:9543`), so the shipped acceptance cannot reach it.
 
-## 6. Pins
+## 6. Pins and the two re-pinned guards
 
 `cage_hand.py` (new), `tasks.py` (the `RIGID_TOOL_HANDS` predicate, `_pad_standoff`,
 `_fingertip_offset`, `_hand_separation`, `pinch_width`'s radial branch, the
 `track_arm` hook and the `[cage]` census), `scene.py` (the build-time authoring),
-`tactile.py` (the four pad readers). `configs/*` untouched. Evidence:
+`tactile.py` (the four pad readers). `configs/*` untouched.
+
+**Four guards had to move, and only their text did** - `scripts/selfcheck.sh` was
+**PASS (0 failures, 1 skipped)** on the final tree:
+
+* `rl_env.TASKS_MD5` `9e3e657b` -> **`d341b0da`** (the metadata-only follow the
+  tree's convention requires; the block records why nothing on this env's path
+  moves);
+* `scripts/236_p66_lift_selftest.py` - the `jaw_target` clearance add is now
+  behind `rigid_tool_hand(...)` instead of a literal `== "openarm"`; the shipped
+  hand is a **subset** of that predicate, so "unset falls through to the shipped
+  add" is the same invariant;
+* `scripts/241_p75_place_trace_selftest.py` and `scripts/243_p76_sep_selftest.py`
+  - the span reader is `self._hand_separation(arm.spec.side)`, which returns
+  `arms[side].jaw_separation()` for **every shipped hand**, so both "the block
+  reads the measured span explicitly" and "sep@onset/sep@loss use the same call"
+  keep their meaning.
+
+`scripts/selfcheck.sh` on the final tree: **PASS (0 failures, 1 skipped)**.
+**Evidence**:
 `logs/p107/{METHOD.md,RESULTS.md,m1_cage.py,m1_cage.txt,p107_report.py,table.txt,
 m2b_s5.log,m3_s5.log,m3_s6.log,ctl_s5.log,ctl_s6.log,accept_noharm.log,
 accept_noharm.driver,smoke1..10.log}`.

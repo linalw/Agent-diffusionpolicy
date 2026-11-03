@@ -682,7 +682,7 @@ mm with a 0.00 mm spread** over nine apertures (the number P106 could not have o
 the Allegro: 100-216 mm), four pads on **one scalar** closure, the shipped lip
 (10.5 mm) and distal plane (80.5 mm) intact, the drive at its **4.90 N/pad** cap
 (delivered median 4.90 N). **And it fails the two milestones**: M2b's *letter*
-passes (no-contact **1/15**) while its *mechanism* fails (**enclosure 3/15** at
+passes (no-contact **1/15**) while its *mechanism* fails (**enclosure 2/15** at
 >= 3 pads, the payload displaced **15-107 mm** relative to the belt on 7/15
 closes, the descent clearance **-33.4..+65.3 mm** - the face planes go *through*
 the fruit), and M3 **kills**: **2/10** at seed 5 and **1/7** at seed 6 against the

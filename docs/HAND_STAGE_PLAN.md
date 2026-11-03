@@ -864,7 +864,7 @@ P106 was to build the **shape** the licence names (radial/enveloping) rather tha
 buy a product, so M2b ran on a **built** hand: `FRUIT_GRIPPER_KIND=cage4`, four
 pads at 4 x 90 deg on the OpenArm's tool point, one scalar closure, cap 4.90 N/pad.
 The **letter passes and the mechanism fails**: no-contact **1/15** (`<= 1/15`), but
-the **enclosure is 3/15 at >= 3 pads**, the payload is displaced **15-107 mm
+the **enclosure is 2/15 at >= 3 pads**, the payload is displaced **15-107 mm
 relative to the belt on 7/15 closes**, and the **cage-vs-payload clearance on the
 descent is negative on 7/15** (`-0.3..-33.4 mm`) - the face planes go *through* the
 fruit rather than around it. The measured reason: the open cage must swallow the
@@ -997,7 +997,7 @@ time). Any of those → **do not ship**; the measured residue goes into
 | **M2a** | does the mounted hand beat the pinch (P104 transferred) | **>= 1.5x** sustained axial, **creep <= 1.0 mm** | both forms < 1.5x → buy no hand | 16-24 h | 2 h | 2 |
 | **M2a measured (P106)** | surrogate **1.87-2.05x** sustained / creep **0.11-0.25 mm**; Allegro **not evaluable** (<= 3 of 4 tips reach one payload) | surrogate **PASS**; Allegro no result | **not fired** (the surrogate passes) | - | - | - |
 | **M2b** | does it *approach* without batting the fruit | no-contact **<= 1/15** | the hand is a pipeline negative | 8-16 h | 2 h | 2 |
-| **M2b measured (P107)** | the radial 4-pad cage: no-contact **1/15** (letter passes), enclosure **3/15** at >= 3 pads, payload displaced **15-107 mm** on 7/15 closes, descent clearance **-33.4..+65.3 mm** | **the letter passes and the mechanism fails** | **not fired** by its letter (1 <= 1) - M3 licensed | - | - | - |
+| **M2b measured (P107)** | the radial 4-pad cage: no-contact **1/15** (letter passes), enclosure **2/15** at >= 3 pads, payload displaced **15-107 mm** on 7/15 closes, descent clearance **-33.4..+65.3 mm** | **the letter passes and the mechanism fails** | **not fired** by its letter (1 <= 1) - M3 licensed | - | - | - |
 | **M3** | can the scripted line run it | acceptance **not worse than 8/10**, 0 clearance contacts, landing 100 % | cannot match 8/10, or 1+ contact | 80-120 h | 10 h | 10 |
 | **M3 measured (P107)** | the cage on the shipped scripted cell: **2/10** (seed 5), **1/7** (seed 6) against the **same-seed shipped-hand controls 6/9 and 7/9**; `force_min == 0` on **29/43** carry legs; landing **not measured** | **FAIL** | **FIRED** - cannot match 8/10, and cannot match its own scenario's control | - | - | - |
 | **M4** | does the policy add anything over the scripted hand | **+8 points** vs the scripted hand, no new reason, cycle <= +5 % | ship the scripted hand | 24-40 h | 9 h | 2 |

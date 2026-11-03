@@ -5465,7 +5465,7 @@ cap and the delivered per-pad force median is **4.90 N** (max 87.85 N, only wher
 the fruit does not fit the closed ring); the pad-pad corner gap is **+66.5 mm
 open -> +2.8 mm at a 30 mm aperture** (no self-intersection). **M2b** (15 attempts,
 seed 5, `FRUIT_CAGE_PROBE=1`): **no-contact 1/15** - the plan's `<= 1/15`, so the
-kill does **not** fire - but the **enclosure is 3/15 at >= 3 pads**, the payload is
+kill does **not** fire - but the **enclosure is 2/15 at >= 3 pads**, the payload is
 displaced **15-107 mm relative to the belt on 7/15 closes** and the
 **cage-vs-payload clearance on the descent is `-0.3..-33.4 mm` on 7/15** (the face
 planes go *through* the fruit). **The registered endpoint cannot see a cage that

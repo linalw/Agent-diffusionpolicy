@@ -187,6 +187,10 @@ M3, and it is the only question this phase registers.
   **placed** attempt reads `pads=0/4, F=0.00` (`m3_s6` attempt 2, lift +0.261 m) -
   a read that cannot be true. So `pads >= 3` is reported as "at least", never as
   an upper bound, and the *positive* rows are the trustworthy ones.
+* **Four selfcheck guards moved their text, not their meaning** (the
+  `TASKS_MD5` follow, `236`'s `rigid_tool_hand` branch, and `241`/`243`'s
+  hand-aware span reader); `RESULTS.md` §6 lists them and the final tree is
+  **PASS (0 failures, 1 skipped)**.
 * **`[cage]` phase B (the M1 probe's pinned-fruit force cell) is not evaluable**:
   at the *static* `grasp` pose the jaw is only 52 mm above the belt top, so the
   cage's grasp centre (70 mm below the jaw) is 18 mm *inside* the belt and the

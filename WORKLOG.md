@@ -24535,7 +24535,7 @@ ring.
 
 **M2b's letter passes and its mechanism fails.** 15 attempts, seed 5: **no-contact
 1/15** (the plan's `<= 1/15`, so the kill does **not** fire and M3 is licensed),
-yet the **enclosure is 3/15 at >= 3 pads**, the payload is displaced **15-107 mm
+yet the **enclosure is 2/15 at >= 3 pads**, the payload is displaced **15-107 mm
 relative to the belt on 7/15 closes**, and the **cage-vs-payload clearance on the
 descent is `-0.3..-33.4 mm` on 7/15** - the face planes go *through* the fruit.
 **The registered endpoint cannot see a cage that misses**: an approach that arrives
