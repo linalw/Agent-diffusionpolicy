@@ -1,63 +1,78 @@
 """A radial **four-pad cage** hand on the OpenArm flange - the P107 retrofit probe.
 
-**What this is.** The owner's decision after P104/P106 is to build the *shape*
-that passed the survey's bar, not to buy a product: four instances of the
-shipped pad plate at **4 x 90 deg** around the tool axis, closed by a **single
-closure synergy** (one scalar command moves all four pads radially inward), on
-the shipped drive profile (`finger_damp02`, k = 1e5 N/m, c = 2000 Ns/m) with a
-force cap. It is the P104 `quad` form carried into the pipeline: four contacts
-whose normals are perpendicular to the tool axis, plus the plate's own distal
-lip - the two things `docs/PLATFORM_SURVEY.md` section 3.3 says the loaded slide
-should be answered with ("win by envelopment, not force"; P76 measured that
-force alone does not convert the class).
+**What this is.** The owner's decision after P104/P106 was to build the *shape*
+that passed the survey's bar, not to buy a product: four pads at **4 x 90 deg**
+around the tool axis, closed by a **single closure synergy** (one scalar command
+moves all four pads radially inward), on force-capped prismatic drives
+(k = 1e5 N/m, c = 100 Ns/m, **4.90 N/pad**). It is the P104 `quad` form carried
+into the pipeline: four contacts whose normals are perpendicular to the tool
+axis, plus the plate's own distal lip - the two things
+`docs/PLATFORM_SURVEY.md` section 3.3 says the loaded slide should be answered
+with ("win by envelopment, not force"; P76 measured that force alone does not
+convert the class).
 
-**Geometry, all of it from the record and none of it invented.**
+**Geometry.** The *face* is the record's pad plate (`logs/p66/COLLIDER_READ.md`:
+61.000 x 84.902 mm, 10.000 mm thick, distal plane 80.500 mm below the jaw
+centre); the **width and the length are cut**, and both cuts were forced by
+measurement (`logs/p107/METHOD.md` section 2):
 
 | quantity | value | source |
 |---|---|---|
-| pad plate | **61.000 x 84.902 mm** face, 10.000 mm thick | `logs/p66/COLLIDER_READ.md` |
-| plate distal plane | **80.500 mm** below the jaw centre | `tasks.FINGER_TIP_BELOW_JAW` |
+| pad face | **26.000 x 60.000 mm**, 10.000 mm thick | the shipped plate, cut twice: `pad width <= aperture` (four 61 mm plates at 4 x 90 deg intersect below a 61 mm aperture and, being dynamic, jam), and the shipped 84.9 mm length puts its proximal end 4.4 mm **above** the jaw centre, inside the OpenArm's palm |
+| plate distal plane | **80.500 mm** below the jaw centre - *unchanged* | `tasks.FINGER_TIP_BELOW_JAW` |
+| lip below the payload's equator | **10.5 mm** - *unchanged* | the shipped pinch's own |
 | per-pad force cap | **4.90 N** | `logs/p41/P3_RESULTS.md` (9.75-9.9 N over two faces) |
+| drive | k **1e5** N/m, c **100** Ns/m | P104's own near-critical pair (`2*sqrt(k*m)` = 89 for this pad); the shipped fingers' 2000 is numerically unstable for a 0.020 kg pad on a standalone joint at 120 Hz |
 | pad material | mu **2.0**, restitution 0 | `scene`'s finger material; PhysX averages the pair (P104) |
-| aperture, open | **90.0 mm** (face radius 45.0 mm) | this module, `FRUIT_CAGE_OPEN_FACE_R` |
-| aperture, closed | down to **26 mm** (the smallest pool fruit with squeeze) | this module |
-| stroke | 42 mm radial per pad, one command | this module |
+| aperture, open | **120.0 mm** (face radius 60.0 mm) | this module, `FRUIT_CAGE_OPEN_FACE_R`: the open cage has to swallow the line's **~24 mm** pursuit error |
+| aperture, closed | down to **26.0 mm** (the smallest pool fruit with squeeze) | this module |
 | pad count | **4**, at 0/90/180/270 deg | the brief / P104 `quad` |
 
-**The tool offset** that replaces `_pad_standoff`'s 70 mm is derived, not copied:
-the plate's distal plane sits 80.5 mm below the jaw centre, and the lip that
-catches an axial slide is 10.5 mm below the payload's equator, so the payload's
-centre sits **70.0 mm** below the jaw centre - `PAD_STANDOFF = DISTAL_Z - LIP` -
-and it is **constant across the aperture** because the synergy is radial only
-(the plate's axial mid-plane does not move). That is the number P106 could not
-have on the Allegro (its fingertip centroid read 100-216 mm across a posture
-sweep) and this module measures it on the built prims (`cage_census`).
+**The tool offset** that replaces `_pad_standoff` is derived, not copied: the
+plate's distal plane sits 80.5 mm below the jaw centre, and the lip that catches
+an axial slide is 10.5 mm below the payload's equator, so the payload's centre
+sits **70.0 mm** below the jaw centre - `GRASP_STANDOFF = DISTAL_Z - LIP` - and it
+is **constant across the aperture** because the synergy is radial only (the
+plate's axial mid-plane does not move). **Measured spread: 0.00 mm over nine
+apertures** (`logs/p107/m1_cage.txt`). That is the number P106 could not have on
+the Allegro (its fingertip centroid read 100-216 mm across a posture sweep).
+Because 70.0 mm is also `FRUIT_FINGER_LEN` 60 + `PAD_LIFT` 10, the shipped aim
+expressions are unchanged for this hand - the coincidence is a *consequence* of
+the derivation, not a reuse of the jaws' number.
 
-**Two geometric facts this design has to live with, both measured and reported.**
+**Three facts this mount has to live with, all measured and reported.**
 
-1. **Four 61 mm plates cannot close below a 61 mm aperture without their corners
-   intersecting** (`pad_width <= aperture` is the constraint: adjacent faces
-   90 deg apart meet at a corner when the face radius equals the plate's half
-   width). At the pool's 30-59 mm fruit the plates therefore overlap *outside*
-   the fruit's contact zone. They are independent kinematic/dynamic bodies and
-   PhysX never resolves pad-pad contacts against the kinematic base, so this is
-   a **real-hand** item (a pad cut to the aperture), not a physics one: the
-   Coulomb capacity `n * mu * N` is area-independent (P104 section 2), so a
-   narrower plate has the same 4-contact capacity - it only loses lip area.
-2. **At the shipped equatorial standoff the plate's distal lip sits
-   `r - 10.5 mm` below the belt top** for a fruit of radius `r` (4.5-24.5 mm
-   over the pool). A real cage therefore needs a belt cut-out under the pick
-   point, or a shorter plate. The sim cannot punish it: the belt is a kinematic
-   body and so are the pads (P104/P107 `RESULTS.md`).
+1. **`pad width <= aperture`.** Four plates of half-width `w/2` meet at the
+   corners when the face radius equals `w/2`, so the shipped 61 mm plate is legal
+   only above a 61 mm aperture - i.e. for the pool's two largest classes. The
+   width is cut to 26 mm (the smallest aperture's own). The **capacity is
+   unaffected**: `F_crit = n * mu * N` is area-independent (P104 section 2), so
+   the licensed 4-contact number is about the count, not the plate.
+2. **The plate's axial length is bounded above by the hand it is bolted to**
+   (4.4 mm above the jaw centre is inside the palm; measured as `|a|max` 2421
+   m/s2 and the payload ejected).
+3. **The OpenArm's finger plates keep their _asset_ colliders** even with
+   `FRUIT_FINGER_COLLIDERS=0` (that flag only *adds* the flat faces), so
+   `author_cage` disables them - exactly what `KinematicGripper` does for its
+   pads. Without it the cage's pads jam against the fingers with the aperture
+   frozen at 89 mm.
 
 **Scope.** Default off: nothing here exists unless `FRUIT_GRIPPER_KIND=cage4`.
 The shipped `openarm` hand, its collider set, its materials and every default
-are untouched (`FRUIT_GRIPPER_KIND` unset -> `openarm`, byte-identical).
+are untouched (`FRUIT_GRIPPER_KIND` unset -> `openarm`, byte-identical; the
+acceptance's 421 `[fruit]` lines replay byte-for-byte).
+
+**What it does not answer, stated before any number** (`logs/p107/RESULTS.md`):
+a radial cage needs its axis on the fruit *before* the descent, and this cell's
+aim is a point hand's - so the retrofit measures the **integration**, not the
+pad. M2b's letter passes while its mechanism fails and M3 kills; the next spend
+is a centring step or a workstation, not a hand.
 
 Authoring happens at **build** time (`scene.build`, before `play()`) because the
 contact-tracking flags must be set before the physics views are built
-(`tactile.GripperTactile.attach`'s contract); the *driver* below only writes the
-base pose and the four drive targets each control tick.
+(`tactile.GripperTactile.attach`'s contract); the *driver* below writes the base
+pose and the four drive targets every control tick (`track_arm`), because a hand
+mounted on the tool has to be on the tool at all times.
 """
 
 from __future__ import annotations
