@@ -672,6 +672,44 @@ endpoint at the operating load** (the metric already exists, `clean_slip > 2 mm`
 and §3.2's **T2 bench** (~$1,020) - the only test that can *confirm* rather than
 falsify.
 
+#### Status: the **retrofit** is measured and it does **not** run the cell (P107, 2026-11-03, `logs/p107/`) — M3's kill fires
+
+The owner's decision after P106 was to build the *shape* rather than buy a product,
+so the 4-pad radial form was mounted on the OpenArm's tool point and run through
+the shipped scripted line (`FRUIT_GRIPPER_KIND=cage4`, default off). **The asset is
+exact** - aperture **120.0 -> 26.0 mm** measured = commanded, **tool offset 70.00
+mm with a 0.00 mm spread** over nine apertures (the number P106 could not have on
+the Allegro: 100-216 mm), four pads on **one scalar** closure, the shipped lip
+(10.5 mm) and distal plane (80.5 mm) intact, the drive at its **4.90 N/pad** cap
+(delivered median 4.90 N). **And it fails the two milestones**: M2b's *letter*
+passes (no-contact **1/15**) while its *mechanism* fails (**enclosure 3/15** at
+>= 3 pads, the payload displaced **15-107 mm** relative to the belt on 7/15
+closes, the descent clearance **-33.4..+65.3 mm** - the face planes go *through*
+the fruit), and M3 **kills**: **2/10** at seed 5 and **1/7** at seed 6 against the
+same-tree, same-seed shipped-hand controls' **6/9 and 7/9**, with the carry legs
+in the **no-contact/ejection** class (`force_min == 0` on **29 of 43**) rather
+than the closed loaded slide the shape was bought to answer.
+
+**The blocker is the aim, and it is quantified**: the fruit can enter the descent
+**24 mm** off the cage's axis (the shipped aim is a point hand's - its 98 mm jaws
+give ~14 mm of slack), so the open cage needs **>= 118 mm** of aperture to swallow
+it, and the supply's along-belt spacing is **85-120 mm**, so a wider cage fouls its
+neighbours. Four 61 mm plates at 4 x 90 deg additionally **cannot close below a
+61 mm aperture** (`pad width <= aperture`; with dynamic pads they jam and put
+69-100 N/pad through the payload), so the plate's width had to be cut to 26 mm -
+capacity-neutral (`F_crit = n mu N` is area-independent) but lip-narrowing.
+
+**So the survey's recommendation is unchanged in its *substance* and narrowed in
+its *form***: the axial-capacity claim of §5.2 stands (it was measured on a fixture
+with the payload free along the pull; P107 shows a cage that closes *onto* a
+payload is not that experiment, and its per-pad force runs 2-88 N), and **a
+radial hand is only worth buying together with a way to present a fruit to it** -
+a centring step before the descent or a station where the fruit is held - because
+this cell's aim cannot place a cage around a belt fruit. **What the phase does
+retrofit is the measurement**: three reusable instruments (a `[cage]` per-attempt
+census, a geometry probe, a per-attempt table) and seven measured design
+constraints for any future radial hand.
+
 ### 5.3 Stage (iii) — tactile on the hand
 
 Only after (ii) passes. **ORCA's integrated tactile** is the zero-integration

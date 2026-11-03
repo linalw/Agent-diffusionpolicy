@@ -198,7 +198,12 @@ def main() -> int:
     block = src[start:end]
     for forbidden in ("tcp_pose()", "joint_positions()", "jaw_centre()", "pad_centre()"):
         check(forbidden not in block, f"the P75 block calls no {forbidden}")
-    for documented in ("self.tactile.read()", "arm.jaw_separation()"):
+    # P107: the span reader is now hand-aware (`_hand_separation`, which returns
+    # `arms[side].jaw_separation()` for every shipped hand) so a hand whose
+    # contacts are not the jaws reports its own faces. The invariant is the same:
+    # the block reads the measured span explicitly, from the hand, and adds no
+    # articulation-link read.
+    for documented in ("self.tactile.read()", "self._hand_separation(arm.spec.side)"):
         check(documented in block, f"the block's reporting reader {documented} is explicit")
     check("_tcp_pos" in block and "_tcp_tgt_issued" in block,
           "the achieved/commanded TCP pair is the P66 block's own, reused")

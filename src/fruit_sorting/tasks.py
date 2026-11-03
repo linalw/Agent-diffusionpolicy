@@ -30,6 +30,7 @@ from .control import ArmController
 from .dataset import EpisodeMeta, EpisodeRecorder, camera_observation
 from .grasp import pads_mid
 from .actuated_gripper import ActuatedGripper
+from .cage_hand import CAGE_KIND, CageHand, pad_fruit_clearance
 from .kinematic_gripper import KinematicGripper, OpenArmHand, PAD_THICK
 from .motion import (
     MotionMonitor,
@@ -77,6 +78,19 @@ FINGER_JOINT_FACE_INDEX = (1, 0)
 #: input. `FRUIT_FINGER_TIP_DELTA` shifts it by the same amount, since the scene
 #: authors the plate's distal plane at `tip_coord + delta`.
 FINGER_TIP_BELOW_JAW = 0.0805
+
+#: P107: hand kinds whose contact bodies ride the arm's **own tool point**, so
+#: there is no separate assisted "pad frame" to fall back to. `openarm` is the
+#: robot's own jaws; `cage4` is the radial four-pad cage (`cage_hand.py`, default
+#: off - it only exists when `FRUIT_GRIPPER_KIND=cage4`). Every site that meant
+#: "the pads are the tool, not a body commanded through a gap frame" reads this,
+#: so the shipped `openarm` behaviour is a subset and cannot move.
+RIGID_TOOL_HANDS = ("openarm", CAGE_KIND)
+
+
+def rigid_tool_hand(hand) -> bool:
+    """Whether `hand`'s contact bodies are rigidly mounted on the arm's tool."""
+    return getattr(hand, "kind", "") in RIGID_TOOL_HANDS
 
 #: P43 L1: the **scripted** single-arm default for
 #: `FRUIT_SELECT_NEAREST_ABOVE_FLOOR` (`select_target`'s single-arm branch).
@@ -2109,6 +2123,14 @@ class PickAndPlaceTask:
             self.grippers = {
                 side: KinematicGripper(scene.stage, side) for side in ("left", "right")
             }
+        elif kind == CAGE_KIND:
+            # P107: the radial four-pad cage (default off; `cage_hand.py`). The
+            # bodies are authored by `scene.build` before `play()` so their
+            # tactile readers exist; this only drives them.
+            self.grippers = {
+                side: CageHand(scene.stage, side, self.arms[side])
+                for side in ("left", "right")
+            }
         else:
             self.grippers = {
                 side: OpenArmHand(scene.stage, side, self.arms[side])
@@ -2119,7 +2141,8 @@ class PickAndPlaceTask:
         #: upstream so the pre-pose/hover fit inside its travel time (see
         #: `_balance_arm`). The indexed and policy paths keep grade balancing.
         self._prefer_upstream = bool(
-            kind == "openarm" and self._dynamic_pick_mode(openarm=True, scripted=True)
+            kind in RIGID_TOOL_HANDS
+            and self._dynamic_pick_mode(openarm=True, scripted=True)
         )
         #: R10-A/R11-A: the reach-anywhere dynamic catch (**shipped default
         #: off** - the R11-A adoption attempt below measured the flip and its
@@ -2656,6 +2679,23 @@ class PickAndPlaceTask:
         #: Coherent-hand mode per arm: the pads are mounted at the fingertips of a
         #: top-down posed arm, so the arm itself presents the fingers on the fruit.
         self._coherent: dict[str, bool] = {"left": False, "right": False}
+        #: P107 M2b: the approach-and-enclose census (`FRUIT_CAGE_PROBE=1`,
+        #: default off, cage hand only). One row per attempt with the window's
+        #: no-contact verdict, the payload's displacement during the close (the
+        #: Allegro's "batting" failure, `logs/p106`), the number of pads loaded
+        #: (the enclosure) and the closest pad-to-fruit surface gap on the
+        #: approach. Per tick in the window it adds **one fruit-position read,
+        #: one base-pose read and one tactile set** - the same read class as
+        #: P102's `[tactile]` instrument, which replayed 3,334 `[fruit]` lines
+        #: unchanged (`logs/p102/RESULTS.md`). Off = one attribute read per tick.
+        self._cage_probe_on = (
+            os.environ.get("FRUIT_CAGE_PROBE", "0") == "1"
+            and os.environ.get("FRUIT_GRIPPER_KIND", "openarm") == CAGE_KIND
+        )
+        #: Contact threshold for "this pad is loaded" [N] - the same 0.5 N the
+        #: close's own contact criterion uses (`FRUIT_DYNAMIC_CONTACT_FORCE`).
+        self._cage_contact_n = float(os.environ.get("FRUIT_CAGE_CONTACT_N", "0.5"))
+        self._cage_book: dict | None = None
         #: True while a P2 moving catch is in flight: the lift that follows breaks
         #: the moving belt's contact straight up instead of dragging the payload
         #: sideways across it (`logs/p2_012_run2` first-10 carry accelerations).
@@ -3324,7 +3364,7 @@ class PickAndPlaceTask:
         #: OpenArm catch, off for the indexed opt-out (so `FRUIT_DYNAMIC_PICK=0`
         #: still reproduces the P1 line) and for the policy handover.
         dynamic_default = self._dynamic_pick_mode(
-            openarm=(kind == "openarm"), scripted=True
+            openarm=(kind in RIGID_TOOL_HANDS), scripted=True
         )
         self._force_servo = os.environ.get(
             "FRUIT_DYNAMIC_FORCE_SERVO", "1" if dynamic_default else "0"
@@ -3665,9 +3705,34 @@ class PickAndPlaceTask:
         The OpenArm fingers are long plates, so this varies with wrist
         orientation (about 6.1 cm at the pick pose, 8 cm hanging). Using a fixed
         number puts the fingers above small fruit and the jaws close on air.
+
+        **P107**: a hand that carries its own tool offset returns the *grasp*
+        point (the cage's 70.0 mm), which is the point the coherent tracker and
+        `_carry` compare with the payload. The shipped hand's live measurement is
+        unchanged when no such hand is active.
         """
+        hand = self.grippers.get(side)
+        own = getattr(hand, "grasp_standoff", None)
+        if own is not None:
+            return float(own)
         jaw_z = float(self.arms[side].jaw_centre()[2])
         return max(0.02, jaw_z - self._fingertip_lowest_z(side))
+
+    def _hand_separation(self, side: str) -> float:
+        """Measured grip span: the hand's own aperture if it has one, else the jaws.
+
+        `ArmController.jaw_separation()` is the *OpenArm fingers'* span (98 mm
+        open), which says nothing about a hand whose contacts are elsewhere. The
+        cage reports its own four faces (`CageHand.separation`), so `sep`,
+        `sep@onset`/`sep@loss`, `sep_end` and the R6-B relief cap keep meaning
+        "how far apart are the gripping faces" on both hands. No hand with the
+        method -> the shipped expression, bit for bit.
+        """
+        hand = self.grippers.get(side)
+        own = getattr(hand, "separation", None)
+        if own is not None:
+            return float(own())
+        return float(self.arms[side].jaw_separation())
 
     def seat_height(self) -> float:
         """How high the fruit is presented for the grasp.
@@ -4054,12 +4119,126 @@ class PickAndPlaceTask:
             _ftrace = self._fruit_trace
             if _ftrace is not None:
                 self._fruit_trace_tick(_ftrace)
+        # P107 M2b: the cage's approach-and-enclose census (one bool when off).
+        if self._cage_book is not None:
+            self._cage_probe_tick()
+        # P107: a hand mounted on the tool rides the arm every tick. Two attribute
+        # reads when no such hand is active (the shipped `openarm` hand has no
+        # `track_arm`), so the scripted line is unchanged.
+        for _side in ("left", "right"):
+            _track = getattr(self.grippers.get(_side), "track_arm", None)
+            if _track is not None:
+                _track()
         session = self._active_session
         if session is not None and session.after_step is not None:
             # Bimanual bookkeeping runs on the thread that just advanced the
             # clock: the station release check (payload clear of the station
             # box) and, with the opt-in clearance trace, the link readback.
             session.after_step()
+
+    # ------------------------------------------------------------------ #
+    # P107 M2b: the cage's approach-and-enclose census (`FRUIT_CAGE_PROBE=1`)
+    # ------------------------------------------------------------------ #
+    def _cage_probe_arm(self, side: str, sample) -> None:
+        """Open the census window (a no-op unless `FRUIT_CAGE_PROBE=1`)."""
+        if not self._cage_probe_on:
+            return
+        self._cage_book = {
+            "side": side,
+            "sample": sample,
+            "open": True,
+            "phase": "approach",
+            "ticks": 0,
+            "approach_ticks": 0,
+            "close_ticks": 0,
+            "clr_min": float("inf"),
+            "aper_min": float("inf"),
+            "aper_last": float("inf"),
+            "pads_last": (0.0, 0.0, 0.0, 0.0),
+            "close_start": None,
+            "t_close": None,
+            "fruit_last": None,
+        }
+
+    def _cage_probe_phase(self, phase: str) -> None:
+        book = self._cage_book
+        if book is None or not book.get("open"):
+            return
+        book["phase"] = phase
+        if phase == "close":
+            book["close_start"] = np.asarray(
+                self.spawner.position(book["sample"]), dtype=float
+            ).copy()
+            book["t_close"] = float(self._sim_time())
+
+    def _cage_probe_tick(self) -> None:
+        """One census sample. Called from `_step_sim`; inert when off."""
+        book = self._cage_book
+        if book is None or not book.get("open"):
+            return
+        side = book["side"]
+        hand = self.grippers.get(side)
+        if getattr(hand, "kind", "") != CAGE_KIND:
+            return
+        try:
+            sample = book["sample"]
+            fruit = np.asarray(self.spawner.position(sample), dtype=float)
+            base_pos, base_quat = hand.base_pose()
+            aperture = float(hand.last_gap)
+            reading = self.tactile.read().get(side, _EMPTY_TACTILE)
+        except Exception:  # noqa: BLE001 - a probe must never change an outcome
+            return
+        forces = tuple(
+            float(reading.fingertip_forces.get(f"{side}_{k}", 0.0)) for k in range(4)
+        )
+        book["ticks"] += 1
+        if book["phase"] == "close":
+            book["close_ticks"] += 1
+        else:
+            book["approach_ticks"] += 1
+            clearance, _ = pad_fruit_clearance(
+                base_pos, base_quat, aperture, fruit, 0.5 * float(sample.diameter)
+            )
+            book["clr_min"] = min(float(book["clr_min"]), clearance)
+            book["aper_min"] = min(float(book["aper_min"]), aperture)
+        book["pads_last"] = forces
+        book["aper_last"] = aperture
+        book["fruit_last"] = fruit.copy()
+
+    def _cage_probe_flush(self) -> None:
+        """Close the window and print the attempt's `[cage]` row."""
+        book = self._cage_book
+        if book is None or not book.get("open"):
+            return
+        book["open"] = False
+        sample = book["sample"]
+        forces = tuple(float(v) for v in book["pads_last"])
+        loaded = sum(1 for v in forces if v >= self._cage_contact_n)
+        start = book["close_start"]
+        end = book["fruit_last"]
+        bat = bat_rel = 0.0
+        if start is not None and end is not None and book["t_close"] is not None:
+            delta = np.asarray(end, dtype=float) - np.asarray(start, dtype=float)
+            dt = float(self._sim_time()) - float(book["t_close"])
+            belt = np.array([0.0, -abs(self._belt_speed_estimate()) * dt, 0.0])
+            bat = float(np.linalg.norm(delta))
+            bat_rel = float(np.linalg.norm(delta - belt))
+        book["loaded"] = loaded
+        book["bat_mm"] = bat * 1000.0
+        book["bat_rel_mm"] = bat_rel * 1000.0
+        say(
+            f"[cage] idx={int(sample.index)} arm={book['side']} "
+            f"species={sample.category} dia={float(sample.diameter) * 1000:.0f}mm "
+            f"approach={int(book['approach_ticks'])}t "
+            f"clr={float(book['clr_min']) * 1000:+.1f}mm "
+            f"aper_min={float(book['aper_min']) * 1000:.1f}mm "
+            f"close={int(book['close_ticks'])}t "
+            f"bat={bat * 1000:+.1f}mm bat_rel={bat_rel * 1000:+.1f}mm "
+            f"pads={loaded}/4 "
+            f"f=({','.join(f'{v:.2f}' for v in forces)}) "
+            f"F={sum(forces):.2f}N aper={float(book['aper_last']) * 1000:.1f}mm "
+            f"no_contact={0 if loaded > 0 else 1}"
+        )
 
     def _hold_with_gripper(self, side: str, sample) -> None:
         """Keep the kinematic fingers wrapped around a held fruit.
@@ -4721,7 +4900,7 @@ class PickAndPlaceTask:
             _lift_dz = lift_dz_for(self._lift_dz, side, name)
             if _lift_dz is not None:
                 z += _lift_dz
-            elif getattr(self.grippers.get(side), "kind", "") == "openarm":
+            elif rigid_tool_hand(self.grippers.get(side)):
                 # The jaws hang ~8 cm below the jaw centre; riding higher keeps
                 # the fingertips clear of the output line's side rail when the
                 # transfer crosses it (measured: the fingertips clipped the rail
@@ -4762,7 +4941,7 @@ class PickAndPlaceTask:
                 shift = min(inner_shift, half_width * 0.9)
                 py = py - math.copysign(shift, py)
             z = float(cfg.output_place_z)
-            if getattr(self.grippers.get(side), "kind", "") == "openarm":
+            if rigid_tool_hand(self.grippers.get(side)):
                 # Same fingertip clearance as `grasp_lift`: the transfer is a
                 # little higher so the long finger plates clear the output rail.
                 z += float(os.environ.get("FRUIT_OPENARM_TRANSFER_LIFT", "0.08"))
@@ -5307,7 +5486,7 @@ class PickAndPlaceTask:
         # coherent profile is already in jaw units and must not have the fingertip
         # offset added on top. Its slip "recovery" (which re-seats kinematic pads)
         # cannot move the arm either, so it is off for this hand.
-        hand_is_jaw = getattr(self.grippers[side], "kind", "") == "openarm"
+        hand_is_jaw = rigid_tool_hand(self.grippers[side])
         if (
             hand_is_jaw
             and name != "grasp_lift"
@@ -6075,7 +6254,7 @@ class PickAndPlaceTask:
                     # own cursor has to carry the relieved value, or its next
                     # tick returns the un-relieved gap and the opening never
                     # accumulates (`_force_servo_step` returns its own state).
-                    relief_cap = float(arm.jaw_separation()) - self._carry_relief
+                    relief_cap = float(self._hand_separation(arm.spec.side)) - self._carry_relief
                     gap_command = max(
                         gap_command,
                         min(relief_cap, gap_command + self._carry_relief_step),
@@ -6257,7 +6436,7 @@ class PickAndPlaceTask:
                     # inherited firing site (P75 2a) starts the *place* leg
                     # already at 85-98 mm, so a skip on the first tick would
                     # lose exactly the legs it is meant to catch.
-                    _sep_now = float(arm.jaw_separation())
+                    _sep_now = float(self._hand_separation(arm.spec.side))
                     if _sep_now > guard_sep_max:
                         guard_sep_max = _sep_now
                         guard_sep_max_i = i
@@ -6321,7 +6500,7 @@ class PickAndPlaceTask:
                         if guard_onset_i is None and guard_slip > guard_trigger:
                             guard_onset_i = i
                             guard_onset_force = force_now
-                            guard_onset_sep = float(arm.jaw_separation())
+                            guard_onset_sep = float(self._hand_separation(arm.spec.side))
                             guard_onset_contacts = contacts_now
                         if (
                             guard_loss_i is None
@@ -6334,7 +6513,7 @@ class PickAndPlaceTask:
                             #: pried to 98-99 mm on 17/31 escapes; this is the
                             #: same quantity read live at the loss, so a force
                             #: lever can be graded without a trace dump.
-                            guard_loss_sep = float(arm.jaw_separation())
+                            guard_loss_sep = float(self._hand_separation(arm.spec.side))
                         # ---- P83 fail-fast trip (default off) ----------------
                         # The knob's whole test: the payload's in-hand
                         # displacement (this block's own `clean_slip_max`, the
@@ -6576,7 +6755,7 @@ class PickAndPlaceTask:
                         # `jaw_separation()` the `[carry]` row's `sep_end` takes -
                         # two finger-prim world poses, already read this tick by
                         # the loop's own pad-midpoint call).
-                        _tr_sep = float(arm.jaw_separation()) * 1000.0
+                        _tr_sep = float(self._hand_separation(arm.spec.side)) * 1000.0
                         if _tcp_tgt_issued is None:
                             _tr_err = float("nan")
                         else:
@@ -6659,7 +6838,7 @@ class PickAndPlaceTask:
                     )
                     mon_leg.step(
                         i,
-                        arm.jaw_separation(),
+                        self._hand_separation(arm.spec.side),
                         gap_command,
                         ft_mon[0] if ft_mon else 0.0,
                         float(reading_mon.normal_force),
@@ -6791,7 +6970,7 @@ class PickAndPlaceTask:
                     "n/a" if guard_loss_sep is None
                     else f"{guard_loss_sep * 1000:.1f}"
                 )
-                sep_end = float(arm.jaw_separation()) * 1000.0
+                sep_end = float(self._hand_separation(arm.spec.side)) * 1000.0
                 fmin = guard_force_min if guard_force_min < float("inf") else -1.0
                 # P76: the pry/crush field group (see the init). `sep_max` with
                 # its tick and the gap the servo had commanded there is the
@@ -7344,7 +7523,7 @@ class PickAndPlaceTask:
                 "jaw": [round(float(v), 5) for v in jaw],
                 "tip": [round(float(v), 5) for v in tip],
                 "offset": [round(float(v), 5) for v in (tip - fruit)],
-                "sep": round(float(arm.jaw_separation()), 5),
+                "sep": round(float(self._hand_separation(arm.spec.side)), 5),
                 "gap_cmd": round(float(gap), 5),
                 "force": round(float(reading.normal_force), 3),
                 "contacts": int(reading.contact_count),
@@ -9412,7 +9591,19 @@ class PickAndPlaceTask:
         `FRUIT_GRIP_PLANE_DROP` (D2a, default 0.0) the moving catch's standoff
         is shortened by that many metres, seating the hand lower on the payload;
         the indexed path and the place transfer keep the shipped value.
+
+        **P107**: a hand that carries its own tool offset (`CageHand`,
+        `grasp_standoff`) uses *its* number - the radial cage's is derived from
+        the plate's distal plane and the shipped lip (`cage_hand.GRASP_STANDOFF`
+        = 70.0 mm, constant across the aperture), and it must not be silently
+        moved by `FRUIT_FINGER_LEN`/`PAD_LIFT`, which describe the jaws.
         """
+        hand = self.grippers.get(getattr(self, "current_arm", "") or "")
+        if hand is None:
+            hand = self.grippers.get("left")
+        own = getattr(hand, "grasp_standoff", None)
+        if own is not None:
+            return float(own)
         finger_len = float(os.environ.get("FRUIT_FINGER_LEN", "0.060"))
         lift = self._dynamic_pad_lift if dynamic else PAD_LIFT
         if dynamic and sample is not None and self._dynamic_pad_lift_frac > 0.0:
@@ -11321,7 +11512,7 @@ class PickAndPlaceTask:
         # fruit because the hover/descent targeted a stale point after a 1.5 s
         # track and a 3.5 s approach (~38 cm of fruit travel), so the arm ran to
         # its reach edge and the fruit left the belt (`logs/dynamic_trace_00`).
-        openarm = getattr(self.grippers[arm_name], "kind", "") == "openarm"
+        openarm = rigid_tool_hand(self.grippers[arm_name])
         dynamic_pick = self._dynamic_pick_mode(openarm, scripted=True)
         if belt is not None and not dynamic_pick:
             belt.stop()
@@ -11355,6 +11546,9 @@ class PickAndPlaceTask:
         if self._fruit_trace_on:
             self._fruit_trace = []
             self._fruit_trace_sample = sample
+        # P107 M2b: arm the cage census on the same boundary (a no-op unless
+        # `FRUIT_CAGE_PROBE=1`; flushed at the close's end, `_cage_probe_flush`).
+        self._cage_probe_arm(arm_name, sample)
         # Grasp height. The wrist cannot descend to the fruit's equator with the
         # jaws across the belt (measured minimum ~belt_top + 0.08, see
         # `SceneConfig.grasp_clearance`), so the arm is aimed at the reachable pick
@@ -11974,7 +12168,7 @@ class PickAndPlaceTask:
         #: The OpenArm hand *is* the robot's fingers, so the arm has to stay with
         #: the payload; its scripted catch is arrival-synchronised (P2), and a
         #: moving pick is only attempted when `_dynamic_pick_mode` says so.
-        openarm = getattr(self.grippers[arm_name], "kind", "") == "openarm"
+        openarm = rigid_tool_hand(self.grippers[arm_name])
         # Same flag as `_run_impl`: a dynamic line keeps running while the arm
         # carries and places (see the note at the end of the lift).
         dynamic_pick = self._dynamic_pick_mode(openarm, scripted=scripted)
@@ -12319,7 +12513,7 @@ class PickAndPlaceTask:
             # to teleport onto the fruit, so it always uses the coherent servo
             # (fingertips tracked onto the fruit's measured centre) and never falls
             # back to the assisted pad frame, which would close the jaws on air.
-            openarm = getattr(gripper, "kind", "") == "openarm"
+            openarm = rigid_tool_hand(gripper)
             _, quat = arm.tcp_pose()
             quat = np.asarray(quat, dtype=float)
             # The pads are the hand: remember where they sit relative to the tool
@@ -12580,6 +12774,12 @@ class PickAndPlaceTask:
                             f"[task]   openarm fingertips {pad_error * 1000:.0f} mm "
                             "from the fruit; closing anyway"
                         )
+                        if getattr(self.grippers[arm_name], "always_coherent", False):
+                            # P107: a hand whose pads ride the arm has no assisted
+                            # frame to fall back to - the coherent branch *is* its
+                            # command path (the cage). The shipped OpenArm hand
+                            # does not set this, so its behaviour is unchanged.
+                            self._coherent[arm_name] = True
                     else:
                         coherent = False
                         self._coherent[arm_name] = False
@@ -13291,6 +13491,8 @@ class PickAndPlaceTask:
             #: P17-B H2 (default off; see the knob block in `__init__`): the
             #: two-sided-load gate is only ever live on a dynamic capture.
             two_sided_gate = bool(self._freeze_twosided and dynamic_capture)
+            if self._cage_book is not None:
+                self._cage_probe_phase("close")
             for _close_attempt in range(close_attempts):
                 last_cmd = grip_gap
                 #: R11-B C1 delivered-command cursor: with the rate cap on, the
@@ -13400,7 +13602,7 @@ class PickAndPlaceTask:
                                         )
                                         acq_info["vx0"] = float(dynamic_v[0])
                                         acq_info["latch"] = bool(walk_latched)
-                                        acq_info["sep0"] = float(arm.jaw_separation())
+                                        acq_info["sep0"] = float(self._hand_separation(arm.spec.side))
                                         _q = np.asarray(arm.joint_positions(), dtype=float)
                                         _lo = np.asarray(arm.arm_lo, dtype=float)
                                         _hi = np.asarray(arm.arm_hi, dtype=float)
@@ -13691,6 +13893,8 @@ class PickAndPlaceTask:
                         # `pinch_width * 0.98` chord can be 2 mm inside the live
                         # extent once the fruit has turned).
                         grip_gap = max(grip_gap, last_cmd)
+                if self._cage_book is not None:
+                    self._cage_probe_flush()
                 fruit_end = np.asarray(self.spawner.position(sample), dtype=float)
                 delta = fruit_end - np.asarray(rest, dtype=float)
                 if dynamic_pick:
@@ -13825,7 +14029,7 @@ class PickAndPlaceTask:
                         contact_txt,
                         freeze_txt,
                         acq_info.get("sep0", 0.0) * 1000.0,
-                        float(arm.jaw_separation()) * 1000.0,
+                        float(self._hand_separation(arm.spec.side)) * 1000.0,
                         acq_info.get("fmax", 0.0),
                         acq_info.get("q2", 0.0),
                         acq_info.get("q2_hi", 0.0),
@@ -15461,7 +15665,7 @@ class PickAndPlaceTask:
         steps = max(4, int(os.environ.get("FRUIT_PLACE_LOW_STEPS", "40")))
         arm = self.arms[arm_name]
         gripper = self.grippers[arm_name]
-        hand_is_jaw = getattr(gripper, "kind", "") == "openarm"
+        hand_is_jaw = rigid_tool_hand(gripper)
         down = np.array([0.0, 0.0, -1.0])
         fruit = np.asarray(self.spawner.position(sample), dtype=float)
         bottom = float(fruit[2]) - self._shape_support(sample, down)
@@ -15746,9 +15950,25 @@ class PickAndPlaceTask:
         shape = FRUIT_SHAPES.get(sample.category)
         if shape is None:
             return float(sample.diameter)
-        axis_world = self._quat_matrix(hand_quat)[:, 1]  # the pads' closing axis
+        rot = self._quat_matrix(hand_quat)
         _, fruit_quat = self.spawner.fruit_pose(sample)
-        local_axis = self._quat_matrix(fruit_quat).T @ axis_world
+        rq = self._quat_matrix(fruit_quat)
+        hand = self.grippers.get("left")
+        if getattr(hand, "apertures", None) is not None:
+            # P107: a **radial** hand closes on four faces, so the aperture that
+            # clears the payload is its *widest horizontal* extent, not the
+            # two-jaw chord. With the chord the cage stops 2-4 mm wide on a
+            # non-round fruit, one or two pads load and the rest read zero
+            # (measured `[cage] pads=1/4`, `logs/p107/smoke7.log`).
+            widest = 0.0
+            for axis in (0, 1):
+                local = rq.T @ rot[:, axis]
+                widest = max(
+                    widest, float(axis_extent(shape, float(sample.diameter), local))
+                )
+            return widest
+        axis_world = rot[:, 1]  # the two pads' closing axis
+        local_axis = rq.T @ axis_world
         return float(axis_extent(shape, float(sample.diameter), local_axis))
 
     def closure_record(self, side: str, sample) -> str:

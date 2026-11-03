@@ -5450,6 +5450,61 @@ Pins: `docs/HAND_STAGE_PLAN.md` carries the measured M1/M2a rows;
 m2a_allegro.txt,m2a_control.txt,inspect_allegro.py,units_probe.py}`; ckpt
 `moe_v13s` `61da390a`. Evidence `logs/p106/`.
 
+**P107 (2026-11-03, `logs/p107/`; one **default-off** fifth hand kind
+(`FRUIT_GRIPPER_KIND=cage4`), no shipped default moved, `configs/` untouched):
+the owner's decision to build the radial shape rather than buy a product; the
+retrofit is built and measured, **M2b's letter passes and its mechanism fails, and
+M3's kill fires.** The asset is exact (`logs/p107/m1_cage.txt`): **4 pads** at
+0/90/180/270 deg, **one scalar closure**, **aperture 120.0 -> 26.0 mm measured =
+commanded** (0.0 mm error on both axes at every rung), the **tool offset that
+replaces `_pad_standoff` is 70.00 mm with a spread of 0.00 mm over nine
+apertures** - derived, not copied (`DISTAL_Z` 80.5 - `LIP` 10.5), and constant
+because the synergy is radial only; the shipped **lip 10.5 mm** and **distal plane
+80.5 mm** are unchanged; the drive is k 1e5 / c **100** Ns/m at a **4.90 N/pad**
+cap and the delivered per-pad force median is **4.90 N** (max 87.85 N, only where
+the fruit does not fit the closed ring); the pad-pad corner gap is **+66.5 mm
+open -> +2.8 mm at a 30 mm aperture** (no self-intersection). **M2b** (15 attempts,
+seed 5, `FRUIT_CAGE_PROBE=1`): **no-contact 1/15** - the plan's `<= 1/15`, so the
+kill does **not** fire - but the **enclosure is 3/15 at >= 3 pads**, the payload is
+displaced **15-107 mm relative to the belt on 7/15 closes** and the
+**cage-vs-payload clearance on the descent is `-0.3..-33.4 mm` on 7/15** (the face
+planes go *through* the fruit). **The registered endpoint cannot see a cage that
+misses**: a close that arrives beside the fruit still loads a pad; the endpoint to
+register next time is the enclosure + the relative displacement. **M3** (10
+attempts at the acceptance's two seeds): **2/10 at seed 5 and 1/7 at seed 6**
+against the **same-tree, same-seed shipped-hand controls' 6/9 and 7/9** (pooled
+**3/17 = 17.6 % vs 13/18 = 72.2 %**), the carry legs in the **no-contact/ejection**
+class (`force_min == 0` and `clean_slip > 100 mm` on **29 of 43**, median 407-614
+mm) rather than the closed loaded slide, budgets **4 of 43 descents at 1.1x** (P93's
+stochastic branch property, not re-tuned), `s/attempt` 15.3/15.9 vs 14.8/14.3, and
+the **landing guard not measured** (no `FRUIT_PLACE_TRACE` in those cells - a named
+gap, not a pass). **The blocker is the aim, quantified**: the fruit can enter the
+descent **24 mm** off the cage's axis (a point hand's aim; the shipped jaws' 98 mm
+gives ~14 mm of slack), so the open cage needs **>= 118 mm** of aperture, while the
+supply's along-belt spacing is **85-120 mm** - a wider cage fouls its neighbours;
+and four 61 mm plates at 4x90 deg **cannot close below a 61 mm aperture**
+(`pad width <= aperture`), so the plate's width was cut to 26 mm
+(capacity-neutral: `F_crit = n mu N` is area-independent) and its length to 60 mm
+(the shipped 84.9 mm puts its proximal end **4.4 mm above** the jaw centre, inside
+the OpenArm's palm). **Seven measured iterations** are in `logs/p107/METHOD.md` §2
+(the 61 mm plates jam, **69-100 N/pad**; the plate-inside-the-palm contact thrashes
+the arm, `|a|max` 2421 m/s2; the OpenArm's fingers keep their **asset** colliders
+even with `FRUIT_FINGER_COLLIDERS=0`, freezing the aperture at 89 mm - disabling
+them is the fix that first produced a hold; `c = 2000` is numerically unstable for
+a 0.020 kg pad on a standalone joint, `c = 100` is P104's own near-critical pair; a
+hand on the tool must ride the arm **every tick** or it parks in the supply's path;
+the open aperture must swallow the pursuit error; a radial close must use the
+fruit's widest horizontal extent). **The next spend is a centring step or a
+workstation, not a hand and not a policy.** No-harm: `scripts/accept.sh` reads
+**8/10, 9.0 s/attempt, `fingerprint: matches`** with its **421 `[fruit]` lines
+421/421 byte-identical** to `logs/p103/accept_final.log`; `scripts/selfcheck.sh`
+**PASS (0 failures, 1 skipped)**. Re-baseline: **none** - every number above is
+opt-in, `configs/motion_reference.json` = `..._twoline.json` = **`30fb99f8`** and
+`..._single.json` = **`8952c320`** stand. Pins: `cage_hand.py` (new), `tasks.py`
+(`RIGID_TOOL_HANDS`, `_pad_standoff`, `_fingertip_offset`, `_hand_separation`,
+`pinch_width`'s radial branch, `track_arm`, the `[cage]` census), `scene.py`,
+`tactile.py`; ckpt `moe_v13s` `61da390a`. Evidence `logs/p107/`.
+
 ## 3. What changed -> what to run
 
 | you changed | run |
@@ -5467,6 +5522,7 @@ m2a_allegro.txt,m2a_control.txt,inspect_allegro.py,units_probe.py}`; ckpt
 | simulator behaviour, scene, gripper, conveyor | `scripts/accept.sh`, then `scripts/demo_2min.sh` |
 | the supply schedule (`fruits.py`, `bed.py`) | `python3 scripts/211_bed_audit.py`, then `scripts/selfcheck.sh` |
 | a **supply-geometry** change (the lateral band `FRUIT_SUPPLY_X_MIN/MAX`, the release schedule, a station/column move) | the **census first**, offline: `python3 logs/p92/census.py` and `python3 logs/p92/chase.py` name the class you are trying to move and the servo's `closed > 0` signature (`logs/p92/CENSUS.md`); then the **manipulation check** - `x` is one `uniform(x_min, x_max)` draw and no code branches on it, so the *planned* band is proved by the `[supply] lateral x=` row and the *delivered* x is a **distribution** (plan + a per-instance offset: `0.36 -> 0.3908` at the top), never a bound; then 20 attempts x **>= 2 seeds, of which at least two must be FRESH** (P93: two seeds reuse the same two control branches and over-state the gain - the band's `28 -> 36` became `58/80 -> 65/80` at four, with the two fresh controls reading 15/20 twice against seed 6's 12/20) with the class counts (`cnp` / never-held / chase) as the primary, **both denominators + the wall** as the rest, `bash logs/p92/gates.sh` (**budgets only** - every 20-attempt two-line reference in the tree predates P87's release clock, so any post-P87 cell reads `fingerprint: DIFFERS` by construction; the control proof is the line-identity replay against `logs/p91/{C5,C6}.log`), `python3 scripts/211_bed_audit.py`, and `scripts/accept.sh` |
+| a **new hand kind** (`FRUIT_GRIPPER_KIND`, `src/fruit_sorting/*gripper*.py` or `cage_hand.py`, the `RIGID_TOOL_HANDS` predicate, `_pad_standoff`/`_fingertip_offset`/`_hand_separation`, the `track_arm` hook) | the **geometry probe first, with no attempt loop** (`logs/p107/m1_cage.py`: the aperture vs command, the tool offset across the range, the pad-pad corner gap, the distal plane and the lip - all off the **built** prims); then `scripts/selfcheck.sh`; then one 1-2 attempt smoke for the mount; then the **two-line-scoped** checks are unchanged because `tasks.py:9543` refuses a non-`openarm` hand in a `CoopSession` (if that refusal is ever lifted, the two-line gate is owed); then **the hand cells with their own same-seed controls on the same tree** (a hand moves the collider set - P71's rule - so compare **budgets + rate**, never a fingerprint) plus `scripts/accept.sh` with `FRUIT_GRIPPER_KIND` unset, which must read `fingerprint: matches` and a `[fruit]` stream byte-identical to the record (`logs/p107/RESULTS.md` §5). Read a mount defect in this order: plate width vs aperture, plate length vs the flange, the **asset's** finger colliders (`FRUIT_FINGER_COLLIDERS=0` does not remove them), the drive damping vs the pad mass (`c ~ 2*sqrt(k*m)` for a standalone joint tree), whether the hand **rides the arm every tick**, the open aperture vs the line's pursuit error, and the radial close law |
 | a **candidate-planning / selector** change on the two-line (`select_target`'s lane rules, `_dynamic_select_floor`, the `FRUIT_GRADE_ROUTING` fallback, a prefetch/prepared/reservation path) | **the census first, offline**: `python3 logs/p99/census.py <cell>.log` + `python3 logs/p99/p99_report.py` read the per-slot wait split (park-gate / park-motion / feed / starved polls), the per-decision candidate set and the **convertible seconds per mechanism** (`FRUIT_BED_DIAG=2` + `FRUIT_BIARM_PARK_TRACE=1` on the census cell; prove the instrument neutral by replaying the same-seed record with its rows dropped - `census.py --same`, P99's `974/974` / `970/970`). **A wait is not a throughput number**: quote the interval, both rates and the arm split before calling one convertible, and read the *mechanism* columns, which are branch-free - `window <= 1` (a forced choice), the delay-aware headroom (0.000 s on the shipped two-line, so "take the nearest" is already shipped), `own-lane-empty-while-cross-lane-present`, and the park-gate time (the overlap's price, not a fruit wait). **A cross-lane rule is a sort error on this cell** (left = lane 0 = grade A, right = lane 1 = grade B, `run(state, bin_index)` places on the arm's own lane), so price it with `FRUIT_GRADE_ROUTING=0` and report the **grade-purity ledger**, never as a free lever - P99: starvation 37 -> 0, arrival wait 1.62 -> 0.67 s, **interval +6.8 % / +5.3 % at the two seeds**, window rate worse at both, 17/40 mis-sorted |
 | the bimanual scheduler (`bimanual.py`, or the task loop under `FRUIT_BIARM=1`) | `scripts/selfcheck.sh` (the 152 leg), the rate batch (`scripts/153_biarm_rates.sh two-line 5`; `shared` and `single` are the other two modes), then `scripts/accept.sh` (it gates whatever session it ran) |
 | the **shipped scheduler default** (`bimanual.resolve_biarm`/`resolve_twoline`, `tasks.bimanual_enabled`/`two_line_enabled`, the supply package's `two_line=` scope, `scripts/accept.sh`'s gate branch) | `scripts/selfcheck.sh` (the `246` leg: the resolver table, the session scope, the entry wiring, the manifest keys, the accept branch), then **both restores** - `FRUIT_BIARM=0` at ten attempts against `configs/motion_reference_single.json` and a `FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=0` smoke - then a 20-attempt default rate run compared line-for-line with the pre-flip record (drop only `[fruit] [carry]`, `[fruit] [diag] carry-assist` and the `[biarm] scheduler:` banner; `logs/p85/p85_report.py --same-with-diag`, template `logs/p85/RESULTS.md`), then `scripts/accept.sh` and `scripts/demo_2min.sh` |

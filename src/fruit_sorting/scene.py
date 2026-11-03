@@ -875,6 +875,21 @@ class SortingScene:
         for name in parts:
             say(f"building part: {name}")
             builders[name]()
+        # P107: the radial four-pad cage hand (`FRUIT_GRIPPER_KIND=cage4`,
+        # default off). Authored at **build** time - before `play()` - because
+        # the contact-tracking flags its tactile readers need must be set before
+        # the physics views are built (`tactile.GripperTactile.attach`). With the
+        # kind unset nothing below runs and the shipped `openarm` hand is
+        # untouched. See `cage_hand.py` for the geometry, the tool offset and the
+        # two layout facts the design has to live with.
+        from .cage_hand import author_cage, cage_enabled
+
+        if cage_enabled():
+            if "robot" not in parts:
+                say("[cage] ignored: the cage needs the 'robot' part")
+            else:
+                for side in ("left", "right"):
+                    author_cage(self.stage, side)
         if os.environ.get("FRUIT_FINGER_PADS", "0") == "1":
             self._add_finger_pads()
         # The `openarm` hand grips with the robot's own finger meshes, so their

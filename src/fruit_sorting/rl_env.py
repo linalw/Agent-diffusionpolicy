@@ -476,7 +476,16 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: two-line default goes back to False, and this env never constructs a
 #: `CoopSession`, so the resolver reads `scope-off` here in both phases. No
 #: direct/policy behaviour moves.
-TASKS_MD5 = "9e3e657b46daf365b9dd6988630f36a5"
+#: P107 follow is **metadata-only**: `cage_hand.py` is a fifth hand kind behind
+#: `FRUIT_GRIPPER_KIND=cage4` (default off) and `tasks.py`'s changes are the
+#: `RIGID_TOOL_HANDS` predicate (the shipped `openarm` hand is a *subset*, so its
+#: behaviour cannot move), the hand-aware `_pad_standoff`/`_fingertip_offset`/
+#: `_hand_separation` (no shipped hand carries those attributes), `pinch_width`'s
+#: radial branch (same predicate) and one per-tick `track_arm` attribute lookup.
+#: This env never constructs a cage, so no direct/policy behaviour moves - proven
+#: on the scripted side by `scripts/accept.sh`'s 421/421 byte-identical `[fruit]`
+#: stream (`logs/p107/RESULTS.md` section 5).
+TASKS_MD5 = "d341b0dae1324ee3494ce942e935b6bb"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(

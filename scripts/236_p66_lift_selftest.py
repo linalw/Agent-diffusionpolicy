@@ -424,8 +424,15 @@ def main() -> int:
               "the branch resolves the caller-owned offset")
         check("if _lift_dz is not None:\n                z += _lift_dz" in body,
               "the armed offset replaces the hand's clearance add (the registered ladder)")
-        check("elif getattr(self.grippers.get(side), \"kind\", \"\") == \"openarm\":" in body,
-              "unset falls through to the shipped openarm add byte-for-byte")
+        # P107: the branch now asks `rigid_tool_hand` (the pads ride the arm) so a
+        # second such hand kind can share it. The shipped `openarm` hand is a
+        # *subset* of that predicate, so "unset falls through to the shipped add"
+        # is the same invariant, expressed once.
+        check(
+            "elif rigid_tool_hand(self.grippers.get(side)):" in body,
+            "unset falls through to the shipped rigid-tool add byte-for-byte "
+            "(P107: via rigid_tool_hand, whose openarm arm is the shipped one)",
+        )
         check("return np.array([cfg.pick_x, cfg.pick_y + sign * 0.05, z])" in body,
               "one return: the shipped x/y and the (possibly moved) z")
         dyn = src.index("goal = np.array([float(pad[0]), float(pad[1]), float(goal[2])])")

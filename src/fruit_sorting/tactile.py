@@ -86,6 +86,22 @@ class GripperTactile:
                     pad_path = f"/World/SoftPads/{side}_{which}"
                     if stage.GetPrimAtPath(pad_path).IsValid():
                         finger_paths.setdefault(side, []).append(pad_path)
+        # P107: the radial four-pad cage (`FRUIT_GRIPPER_KIND=cage4`, default
+        # off). Its pads are the loaded bodies, exactly like the soft pads above,
+        # and its own hand has no collider (the OpenArm's finger colliders are
+        # off in that build), so without these four readers the close's freeze
+        # criterion, `force_min` and the loaded-slide class would all read 0.
+        # `fingertip_forces` then carries **one entry per pad**, which is what
+        # the M2b enclosure census counts.
+        if stage is not None:
+            from .cage_hand import cage_enabled, pad_paths
+
+            if cage_enabled():
+                for side in ("left", "right"):
+                    finger_paths[side] = []
+                    for pad_path in pad_paths(side):
+                        if stage.GetPrimAtPath(pad_path).IsValid():
+                            finger_paths[side].append(pad_path)
 
         for side, links in finger_paths.items():
             for i, link_path in enumerate(links):

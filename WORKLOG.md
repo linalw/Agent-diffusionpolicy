@@ -24510,3 +24510,85 @@ re-recorded (the scripted line never runs this code); `configs/motion_reference.
 ckpt `moe_v13s` `61da390a`. Evidence `logs/p106/`
 (`METHOD.md`, `RESULTS.md`, `m1_mount_probe.py`, `run_p106.sh`, `mount_census.txt`,
 `m2a_allegro.txt`, `m2a_control.txt`, `inspect_allegro.py`, `units_probe.py`).
+
+### P107 - the radial four-pad cage: built, exact, and it does not enclose a belt fruit
+
+The owner's decision after P106 was to build the **shape** the licence names rather
+than buy a product, so this phase is **M2b + M3** on a built hand:
+`FRUIT_GRIPPER_KIND=cage4` - four pads at 4 x 90 deg on the OpenArm's tool point,
+one scalar closure, force-capped drives, driven through the same
+`follow_centre/pad_centre/pad_faces` interface the shipped hand uses, so the
+grasp/close/carry/release code is unchanged. Default off, its own hand kind, and
+the shipped `openarm` path is proven inert (below).
+
+**The asset is exact, and the tool offset is now a measured number.**
+`logs/p107/m1_cage.txt`: aperture **120.0 -> 26.0 mm**, measured = commanded to
+0.0 mm on both axes at every rung; **the tool offset that replaces `_pad_standoff`
+is 70.00 mm and its spread over nine apertures is 0.00 mm** - derived from the
+shipped plate's distal plane (80.5) and lip (10.5), and constant because the
+synergy is radial only. That is the number P106 could not have on the Allegro
+(100-216 mm across a posture sweep), and it is the reason no aim code changed: the
+cage's tool offset **is** the shipped expression, by derivation. Lip 10.5 mm and
+distal plane 80.5 mm are the shipped ones. Delivered per-pad force: median **4.90
+N** (the cap), max 87.85 N on the legs where the fruit does not fit the closed
+ring.
+
+**M2b's letter passes and its mechanism fails.** 15 attempts, seed 5: **no-contact
+1/15** (the plan's `<= 1/15`, so the kill does **not** fire and M3 is licensed),
+yet the **enclosure is 3/15 at >= 3 pads**, the payload is displaced **15-107 mm
+relative to the belt on 7/15 closes**, and the **cage-vs-payload clearance on the
+descent is `-0.3..-33.4 mm` on 7/15** - the face planes go *through* the fruit.
+**The registered endpoint cannot see a cage that misses**: an approach that arrives
+beside the fruit still loads a pad, so "no contact" passes while the enclose fails.
+The endpoint to register next time is the enclosure plus the relative displacement;
+both are printed per attempt now (`[cage] pads=n/4 bat_rel=..`).
+
+**M3's kill fires.** 10 attempts at the acceptance's two seeds: **2/10 (seed 5)**
+and **1/7 (seed 6)** against the **same-tree, same-seed shipped-hand controls'
+6/9 and 7/9** - pooled **3/17 = 17.6 % vs 13/18 = 72.2 %**. The carry legs are the
+**no-contact/ejection** class (`force_min == 0` and `clean_slip > 100 mm` on **29 of
+43**, median 407-614 mm) where the shipped hand's failures are the *closed* loaded
+slide; **the class the retrofit was supposed to answer is never reached**, because
+it cannot hold long enough to slide. Budgets: 4 of 43 descents at 1.1x (P93's
+stochastic branch property, not re-tuned); `s/attempt` 15.3/15.9 vs 14.8/14.3; and
+the **landing guard is not measured** (no `FRUIT_PLACE_TRACE` in those cells - a
+named gap, not a pass).
+
+**Why, with the number.** The blocker is the **aim**, not the pad: the fruit can
+enter the descent **24 mm** off the cage's axis (the shipped aim is a point hand's;
+its 98 mm jaws give ~14 mm of slack), so an open cage needs **>= 2 x (24 + 35) =
+118 mm** of aperture to swallow the error - and the supply's along-belt spacing is
+**85-120 mm**, so a wider cage fouls its own neighbours. A radial cage needs a
+**centring step before the descent** (the tree already has the machinery:
+`_dynamic_grip_target` / `FRUIT_DYNAMIC_X_TRACK_*` / the x-lock) or a workstation
+where the fruit is presented to it. **The next spend is one of those, not a hand
+and not a policy.**
+
+**Seven measured iterations, each a finding** (`logs/p107/METHOD.md` §2), and the
+list is the useful artifact: (1) four 61 mm plates at 4 x 90 deg **intersect below
+a 61 mm aperture** (`pad_width <= aperture`) and with dynamic pads they jam and put
+**69-100 N/pad** through the payload - width cut to 26 mm, which is
+capacity-neutral because `F_crit = n mu N` is area-independent; (2) the shipped
+84.9 mm plate puts its proximal end **4.4 mm above** the jaw centre, inside the
+OpenArm's palm, and the contact thrashes the arm (`|a|max` 2421 m/s2, `|v|max` 20
+m/s) - length cut to 60 mm with the distal plane kept, so the lip and the tool
+offset are untouched; (3) **the OpenArm's finger plates keep their _asset_
+colliders even with `FRUIT_FINGER_COLLIDERS=0`** - the pads jammed against them
+with the aperture **frozen at 89 mm**, and disabling them is the fix that first
+produced a hold (`smoke7`: `grasped=True placed=True lift=+0.304 m`); (4)
+`c = 2000 Ns/m` (the shipped fingers' value) is numerically unstable for a 0.020 kg
+pad on a standalone prismatic joint at 120 Hz - `c = 100` is P104's own
+near-critical pair and the one that produced the licensed 1.87-2.05x; (5) a hand
+mounted on the tool must **ride the arm every tick**, or it parks at the previous
+grip pose at belt height and in the supply's path (5 fruit knocked off, 2 starved
+slots); (6) the open aperture must swallow the pursuit error (90 mm -> `clr`
+-20.5 mm and a 546 mm bat); (7) a radial close must use the payload's **widest
+horizontal extent**, not the two-jaw chord (with the chord, 1-2 pads load and the
+rest read zero).
+
+**No-harm, proven.** `scripts/accept.sh` with the kind unset: **8/10, 9.0
+s/attempt, `fingerprint: matches`**, and its **421 `[fruit]` lines are 421/421
+byte-identical** to `logs/p103/accept_final.log`. `scripts/selfcheck.sh` **PASS (0
+failures, 1 skipped)**. No `configs/` change, no reference re-recorded, no re-base:
+`30fb99f8` / `30fb99f8` / `8952c320` stand, ckpt `moe_v13s` `61da390a`. Evidence
+`logs/p107/`.
