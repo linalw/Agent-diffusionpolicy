@@ -1,0 +1,82 @@
+[211] bed audit (P32 phase 1, offline): rows, corridor, density, bedrock
+[211] env probes (the [fruit] [supply] warnings below are the probes' own)
+[fruit] [supply] warning: FRUIT_SUPPLY_BED=1 requires FRUIT_SUPPLY_SCATTER=1; ignored
+[fruit] [supply] warning: FRUIT_SUPPLY_BED=1 with FRUIT_SUPPLY_PATCH=1; the BED schedule wins
+[fruit] [supply] warning: FRUIT_SUPPLY_BED=1 with FRUIT_SUPPLY_WAVE=1; the BED schedule wins
+[fruit] [supply] warning: FRUIT_SUPPLY_TARGET is not used by the bed schedule (it packs its own slots); ignored
+[211] plan: columns=0.20,0.28,0.36 rows=2 abreast (0.16 m) + mid, pitch=0.130-0.150 m (mid staggered 65-75 mm) margin=0.006 m shift<=0.04 m pool=40 corridor=+/-0.066 m floor=0.08 m
+[211]   banner | [fruit] [supply] scatter pool=40 seed=5 rows=2 abreast (0.16 m) + conditional mid at x=0.28 pitch=0.130-0.150 m lateral x=0.20-0.36 m stream=on target=0 wave=off grades=A:0.5,B:0.3,C:0.2 classes=strawberry:5,lychee:5,kiwi:5,tomato:5,apple:5,orange:5,peach:5,pear:5
+[211]   banner | [fruit] [supply] schedule: bed rows=2 abreast (edge pair 0.16 m) + conditional mid columns=0.20,0.28,0.36 pitch=0.130-0.150 m (mid half a pitch downstream, joins only when its diagonal clears the pair rule: <= 6.2-7.5 cm dia) margin=0.006 m shift=0.04 m pool=40 corridor=+/-0.066 m
+[211]   banner | [fruit] created 40 fruit rigid bodies
+[211] grade mix (pool 40, schedule=bed): A=20 B=12 C=8 (A:0.5,B:0.3,C:0.2)
+[211] grade mix (two-line balanced): A=15 B=15 C=10 (pool 40, A:0.375,B:0.375,C:0.25)
+[211] pure schedule (bed.py, seed=5, 80 due rows, pool model 40 fruit 2.9-6.9 cm, on-time: no shift room):
+[211]   rows: due 80, placed 80, skipped 0; fruit/row 2x29 3x51 (full rows with the middle 51); middle refused by the pair rule 29
+[211]   abreast clusters (same along <= 5 mm): 1x51 2x80 (a single-file zigzag reads 1x all)
+[211]   columns: x=0.20 80 slots  x=0.28 51 slots  x=0.36 80 slots  (rows shifted 0)
+[211]   per-column size histogram (the middle is a class filter by geometry, not a free column):
+[211]     x=0.20 n= 80 dia 2.9-6.9 cm (median 6.2) <4.0:16 4.0-5.0:4 5.0-5.8:12 5.8-6.4:24 >=6.4:24
+[211]     x=0.28 n= 51 dia 3.4-6.9 cm (median 6.2) <4.0:10 4.0-5.0:4 5.0-5.8:5 5.8-6.4:21 >=6.4:11
+[211]     x=0.36 n= 80 dia 2.9-6.9 cm (median 6.2) <4.0:16 4.0-5.0:4 5.0-5.8:12 5.8-6.4:24 >=6.4:24
+[211]   class filter read: middle median diameter 6.2 cm vs the edge pair's 6.2 cm; the diagonal admits 6.2-7.5 cm dia, so at the narrow pitch only the small classes join and at the wide pitch most do (which is why the delivered middle share is a pitch number)
+[211]   pitch: 7.2 rows/m, mean 139.8 mm over 11.04 m; density 19.1 fruit/m over 11.04 m (211 fruit)
+[211]   within-row separations: 182 pairs, min 103.2 / median 108.9 / max 160.0 mm; edge pair 160.0-160.0 mm; middle diagonal 103.2-109.4 mm
+[211]   stagger: 51 middles, median 71 mm, p90 74 mm, 100 % inside the drawn half-pitch (65-75 mm)
+[211]   pairwise (all pairs): 22155 pairs, min d=0.1032 m (p10 0.5921, median 3.3159), min d-0.066-r_other=0.0061 m vs the enforced 0.006 m margin, min slack +0.0001 m, violations 0
+[211]   layout (newest 4 rows, belt frame): y=0.260 x=0.20e,y=0.260 x=0.36e,y=0.189 x=0.28m | y=0.405 x=0.20e,y=0.405 x=0.36e,y=0.333 x=0.28m | y=0.536 x=0.20e,y=0.536 x=0.36e,y=0.471 x=0.28m | y=0.680 x=0.20e,y=0.680 x=0.36e,y=0.608 x=0.28m
+[211]   window: 1.10 m spawn window [-0.42, +0.68]: 24 fruit = 21.8/m (per column 8, 8, 8)
+[211]   corridor geometry: a 7.0 cm fruit needs 107 mm in its own column (row pitch 130-150 mm), and a 4.5 cm one 94 mm; the middle's diagonal 103.1-109.7 mm admits a max radius of 31.1-37.7 mm (6.2-7.5 cm diameter)
+[211]   shift probe: a 7 cm pair 5 cm downstream of a 6 cm middle -> refused with no room, placed at +30 mm with the 0.04 m bound (the delivered lattice needs none: 0 rows shifted)
+[211]   pool-order band (8 permutations): skipped 0-0 % of rows, density 18.2-19.5 fruit/m
+[211]   with the shift budget (0.04 m, the pump's backlog room): rows placed 80, skipped 0, 0 rows shifted, density 19.1 fruit/m (full rows 51)
+[211]   small-class probe (strawberry/lychee pool, the middle's designed classes, 60 rows): fruit/row 3x60, full rows 60, stagger median 70 mm (100 % inside the band), diagonal 103.1-109.4 mm, density 21.8 fruit/m (skipped 0)
+[211] pre-load (prime 4 rows): 10 fruit on the belt, min planar separation 0.1067 m, stats={'released': 12, 'reached_end': 0, 'fell_off': 0, 'discharged': 0, 'supply_skipped': 0, 'bed_draws': 12, 'bed_rows': 4, 'bed_placed': 10, 'bed_full_rows': 2}
+[211]   reset replay: 10 fruit, positions match=True
+[211] live-recycle counter probe (2-body pool, all 2 live): draw took a LIVE body -> bed_live_recycled=1/1
+[211] output-lane draw probe (raised output lane: 2 bodies at x=0.628, y=-0.583, z=1.377 vs the 1.270 m cut, nothing parked): draw skipped both -> bed_live_recycled=0 (draws +1)
+[211] output-lane draw probe (main belt: 2 bodies at x=0.628, y=-0.583, z=1.230 vs the 1.270 m cut, nothing parked): draw took a body -> bed_live_recycled=1 (draws +1)
+[211] belt-end despawn probe (one boundary pump, then 14 s of belt travel; belt end -0.800 m, despawn -0.700 m = 0.83 s of travel at 0.12 m/s; sweep 0.25 s):
+[211]   control: fell_off 11 reached_end 0 sweeps 0 swept 0; bodies on the floor 10 (min along -1.486 m); residual fell_off; belt-end kinds ['fell_off', 'fell_off', 'fell_off', 'fell_off']...
+[211]   fix    : fell_off 1 reached_end 10 sweeps 56 swept 11; bodies on the floor 0 (min along -0.725 m); residual fell_off; belt-end kinds ['reached_end', 'reached_end', 'reached_end', 'reached_end']...
+[211]   classification equivalence (the R2 refactor vs the pre-split code, 8 cases): main belt mid->None, main belt, past despawn->reached_end, floor mid-belt->fell_off, floor past despawn->fell_off, held, floor level->fell_off, chute band, z=0.88->None, chute band, held->fell_off, chute band, past despawn->reached_end
+[211] integrated (real FruitSpawner, fake belt, SEED=5, prime 4 rows, 90 s, one consumer / 5.6 s, 3 cadences x 2 queue depths):
+[211]   [q6 per-tick] placed 175 slots (1.94/s = 16.2 fruit/m of belt travel) from 201 draws (1.15x), transits 40 spawn-point (40 placed->despawn, 138 despawns), live 21 (peak 24, reserve 16 parked of pool 40)
+[211]   [q6 per-tick] window 1.1 m: mean 15.8 p10 14 max 20; at pick mean 16.7 | body gaps n=24003 p10=70 p50=73 p90=203 max=347 mm | row gaps n=13505 p10=133 p50=143 p90=280 max=548 mm
+[211]   [q6 per-tick] selector window (>=0.40 m): mean 4.0 min 0 max 7; at pick mean 4.7 min 3
+[211]   [q6 per-tick] live-recycled 0/201 (0.0 %), abreast max 2 (75 % paired), min live sep 0.1036 m, min corridor margin +0.0060 m, classes apple:20,kiwi:22,lychee:22,orange:23,peach:20,pear:21,strawberry:24,tomato:23 grades A:89,B:54,C:32
+[211]   [q6 3 s] placed 157 slots (1.74/s = 14.5 fruit/m of belt travel) from 180 draws (1.15x), transits 23 spawn-point (40 placed->despawn, 127 despawns), live 14 (peak 22, reserve 18 parked of pool 40)
+[211]   [q6 3 s] window 1.1 m: mean 13.3 p10 10 max 19; at pick mean 14.2 | body gaps n=20572 p10=68 p50=74 p90=216 max=492 mm | row gaps n=11186 p10=134 p50=148 p90=230 max=692 mm
+[211]   [q6 3 s] selector window (>=0.40 m): mean 2.4 min 0 max 6; at pick mean 2.4 min 0
+[211]   [q6 3 s] live-recycled 0/180 (0.0 %), abreast max 2 (74 % paired), min live sep 0.1032 m, min corridor margin +0.0063 m, classes apple:20,kiwi:17,lychee:20,orange:21,peach:20,pear:20,strawberry:18,tomato:21 grades A:76,B:49,C:32
+[211]   [q6 16 s (attempt boundary)] placed 36 slots (0.40/s = 3.3 fruit/m of belt travel) from 42 draws (1.17x), transits 3 spawn-point (21 placed->despawn, 21 despawns), live 3 (peak 10, reserve 30 parked of pool 40)
+[211]   [q6 16 s (attempt boundary)] window 1.1 m: mean 2.8 p10 0 max 10; at pick mean 4.1 | body gaps n=3198 p10=70 p50=71 p90=139 max=141 mm | row gaps n=1243 p10=132 p50=141 p90=142 max=146 mm
+[211]   [q6 16 s (attempt boundary)] selector window (>=0.40 m): mean 0.5 min 0 max 6; at pick mean 0.6 min 0
+[211]   [q6 16 s (attempt boundary)] live-recycled 0/42 (0.0 %), abreast max 2 (71 % paired), min live sep 0.1053 m, min corridor margin +0.0063 m, classes apple:4,kiwi:4,lychee:4,orange:5,peach:4,pear:5,strawberry:5,tomato:5 grades A:18,B:12,C:6
+[211]   [q18 per-tick] placed 175 slots (1.94/s = 16.2 fruit/m of belt travel) from 201 draws (1.15x), transits 40 spawn-point (40 placed->despawn, 138 despawns), live 21 (peak 24, reserve 16 parked of pool 40)
+[211]   [q18 per-tick] window 1.1 m: mean 15.8 p10 14 max 20; at pick mean 16.7 | body gaps n=24003 p10=70 p50=73 p90=203 max=347 mm | row gaps n=13505 p10=133 p50=143 p90=280 max=548 mm
+[211]   [q18 per-tick] selector window (>=0.40 m): mean 4.0 min 0 max 7; at pick mean 4.7 min 3
+[211]   [q18 per-tick] live-recycled 0/201 (0.0 %), abreast max 2 (75 % paired), min live sep 0.1036 m, min corridor margin +0.0060 m, classes apple:20,kiwi:22,lychee:22,orange:23,peach:20,pear:21,strawberry:24,tomato:23 grades A:89,B:54,C:32
+[211]   [q18 3 s] placed 157 slots (1.74/s = 14.5 fruit/m of belt travel) from 180 draws (1.15x), transits 23 spawn-point (40 placed->despawn, 127 despawns), live 14 (peak 22, reserve 18 parked of pool 40)
+[211]   [q18 3 s] window 1.1 m: mean 13.3 p10 10 max 19; at pick mean 14.2 | body gaps n=20572 p10=68 p50=74 p90=216 max=492 mm | row gaps n=11186 p10=134 p50=148 p90=230 max=692 mm
+[211]   [q18 3 s] selector window (>=0.40 m): mean 2.4 min 0 max 6; at pick mean 2.4 min 0
+[211]   [q18 3 s] live-recycled 0/180 (0.0 %), abreast max 2 (74 % paired), min live sep 0.1032 m, min corridor margin +0.0063 m, classes apple:20,kiwi:17,lychee:20,orange:21,peach:20,pear:20,strawberry:18,tomato:21 grades A:76,B:49,C:32
+[211]   [q18 16 s (attempt boundary)] placed 36 slots (0.40/s = 3.3 fruit/m of belt travel) from 42 draws (1.17x), transits 3 spawn-point (21 placed->despawn, 21 despawns), live 3 (peak 10, reserve 30 parked of pool 40)
+[211]   [q18 16 s (attempt boundary)] window 1.1 m: mean 2.8 p10 0 max 10; at pick mean 4.1 | body gaps n=3198 p10=70 p50=71 p90=139 max=141 mm | row gaps n=1243 p10=132 p50=141 p90=142 max=146 mm
+[211]   [q18 16 s (attempt boundary)] selector window (>=0.40 m): mean 0.5 min 0 max 6; at pick mean 0.6 min 0
+[211]   [q18 16 s (attempt boundary)] live-recycled 0/42 (0.0 %), abreast max 2 (71 % paired), min live sep 0.1053 m, min corridor margin +0.0063 m, classes apple:4,kiwi:4,lychee:4,orange:5,peach:4,pear:5,strawberry:5,tomato:5 grades A:18,B:12,C:6
+[211]   candidate table (mean fruit in the 1.1 m spawn window, all ticks / at pick):
+[211]     queue     per-tick                3 s                     16 s (attempt boundary) 
+[211]     q6                15.8 /     16.7         13.3 /     14.2          2.8 /      4.1
+[211]     q18               15.8 /     16.7         13.3 /     14.2          2.8 /      4.1
+[211]   selector-window table (mean fruit at/above the catch floor, all ticks / at pick):
+[211]     queue     per-tick                3 s                     16 s (attempt boundary) 
+[211]     q6                 4.0 /      4.7          2.4 /      2.4          0.5 /      0.6
+[211]     q18                4.0 /      4.7          2.4 /      2.4          0.5 /      0.6
+[211]   patch baseline (q6 per-tick, its own 16-fruit pool): window mean 8.1 p10 6 max 11, selector window mean 2.3, placed 92 draws | bed/patch window ratio 1.94x (selector window 1.76x) at the same cadence
+[211] bedrock: legacy slot streams with FRUIT_SUPPLY_BED unset
+[211]   scatter  122 lines sha256=a9f310a9ec1d4baa... ok
+[211]   wave     236 lines sha256=c67cbc5fb1b03839... ok
+[211]   patch    240 lines sha256=711b6f481dde0375... ok
+[211]   fixed     83 lines sha256=7f5f2cace85af43e... ok
+[211]   final [bed] stats row: [bed] stats draws=201 placed=175 live_recycled=0/201 (0.0 %) holds=12 refused=0 rebased=0 late_dropped=0.0s fell_off=0 reached_end=0 sweeps=0 swept=0 supply_skipped=0 live=21
+[211] ok (115 checks)

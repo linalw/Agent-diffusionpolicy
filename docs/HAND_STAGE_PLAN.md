@@ -93,6 +93,20 @@ The three things this plan must not re-derive, because they are settled:
     M4 policy → M5 adoption, each with a kill, in §5; total **170-265 h labour,
     ~26 h simulator wall, ~17 GPU-hours, **0 hardware before M3** [E] - M2 licenses
     the geometry, M3 licenses the purchase.
+11. **The presentation route is measured and closed (P110, 2026-11-03,
+    `logs/p110/`), and it changes one number this plan was built on.**  A metering
+    gate at the station **works** (16/16 pool fruits held at 8-45 mm, the belt never
+    stopping, 0.19-1.0 N of steady drag, a 1.8 mm hold) and **cannot make a radial
+    ring enclose**: the ring's single synergy needs the payload within
+    `0.01 d` = **0.6 mm** (its elastic allowance is `cap/k` = 0.049 mm) while the
+    line delivers **6 mm** (the catch tolerance) and the gate **1.8-17.5 mm**; the
+    gate also needs a selection rule, a different pick mode and a magazine (8.1
+    fruit per 15.1 s cycle into a 1.60 m belt).  **And the "enclosure at >= 3 pads"
+    figure is 11/74 raw but 2/74 clean** - five are blocked-descent jams (up to
+    2920 N) and four over-closures.  So the hand's own requirement list gains a
+    term the plan did not have: **a compliant closure** (per-pad compliance, so the
+    ring absorbs a 10 mm offset instead of launching the payload) is a precondition
+    for any radial hand, before the pad asset and the clamp-force anchor.
 
 ---
 

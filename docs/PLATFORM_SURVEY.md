@@ -710,6 +710,23 @@ retrofit is the measurement**: three reusable instruments (a `[cage]` per-attemp
 census, a geometry probe, a per-attempt table) and seven measured design
 constraints for any future radial hand.
 
+**Status: the "way to present a fruit" is now measured too, and it is not enough
+(P110, 2026-11-03, `logs/p110/`).**  A metering gate **works as a mechanism**
+(a kinematic kerb across the belt holds **16/16** pool fruits at **8-45 mm** of
+height, **the belt never stops**, steady drag **0.19-1.0 N**, hold **1.8 mm**
+within a fruit) - and it **cannot enclose the cage**, because the ring's single
+radial synergy needs the payload centred to `delta < 0.01 d` = **0.6 mm** (its
+elastic allowance is `cap/k` = 0.049 mm) while the line's positioning is the
+**6 mm** catch tolerance, the measured close offset **8.8 / 20.2 mm**, and the
+gate's own parking spread **17.5 mm** across the pool.  The gate's price is also
+now measured: a plain kerb **does not singulate** (the second fruit wedges at the
+same face) and the shipped cadence (**1.875 s** against a **15.1 s** pick, 8.1
+fruit = 1.81 m queued into a 1.60 m belt) **expels 1 of 16** parked fruits.  And
+the endpoint this section was rated on is corrected: **"`pads >= 3`" is 11/74 raw
+but 2/74 clean** - five of the eleven are blocked-descent jams (up to **2920 N**)
+and four are over-closures - so **a radial hand is only worth buying with a
+compliant closure** (per-pad compliance), not with a better presentation.
+
 ### 5.3 Stage (iii) — tactile on the hand
 
 Only after (ii) passes. **ORCA's integrated tactile** is the zero-integration

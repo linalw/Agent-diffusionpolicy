@@ -1,0 +1,167 @@
+P110 census - the presentation/centring term
+================================================================================================
+
+1. THE TERM'S IDENTITY  (dy_entry = belt speed x the descent's clock)
+================================================================================================
+  114 dynamic descents across 6 cell(s)
+  fruit dy (the start gap, printed)            n= 114 p50=   +83.0 p90=   +84.0 max=   +92.0 min=   +82.0 mm
+  deadline (the hover's exit distance)         n= 114 p50=  +101.0 p90=  +102.0 max=  +110.0 min=  +100.0 mm
+  t_desc (the leg's profiled duration)         n= 114 p50=    +0.7 p90=    +0.7 max=    +0.8 min=    +0.7 s
+  steps (the leg's tick count)                 n= 114 p50=   +89.0 p90=   +91.0 max=   +99.0 min=   +88.0 ticks
+
+  the arithmetic, per radius (the hover is `FRUIT_DYNAMIC_HOVER` 60 mm):
+      r   s_enter  t_enter  t_beside  dy_entry  A_y = 2(dy+r)
+     18     38.5mm   0.443s    0.247s     29.7mm         95.3mm
+     24     26.5mm   0.305s    0.385s     46.2mm        140.5mm
+     30     14.5mm   0.167s    0.523s     62.8mm        185.6mm
+     35      4.5mm   0.052s    0.638s     76.6mm        223.2mm
+  -> `fruit dy` / `deadline` / `t_desc` are the leg's own clock and the
+     margin cancels inside `dy` (P109 section 1): the term is
+     `speed x (the leg's time), i.e. a DESCENT property, not an error.
+     The arithmetic's upper bound for a 6 cm fruit is 63 mm; the measured
+     entry is ~56 mm (below), the difference being the payload's arrest by
+     the plates during the leg's first 14.5 mm (measured next).
+
+  the per-tick witness (logs/p108/tr_cage_s5, 11 executed arrivals):
+  dy at the band entry (along-belt)            n=  11 p50=   +49.8 p90=   +58.4 max=   +61.7 min=  -173.5 mm
+  dx at the band entry (lateral)               n=  11 p50=    +2.6 p90=    +4.1 max=    +5.0 min=   -48.2 mm
+  dy at the close                              n=  11 p50=    -4.7 p90=    +1.0 max=   +52.7 min=  -439.1 mm
+  dx at the close                              n=  11 p50=    -6.0 p90=    +1.3 max=    +2.3 min=   -61.2 mm
+  the window spent below half belt speed       n=  11 p50=   +25.1 p90=   +57.6 max=   +61.4 min=    +0.0 % of ticks
+  band entry -> close                          n=  11 p50=    +1.5 p90=    +2.7 max=    +3.1 min=    +0.6 s
+  along-belt share of |dy|+|dx| at entry       n=  11 p50=   +92.5 p90=   +95.5 max=   +95.9 min=   +74.2 %
+  -> the entry split is along-belt by ~93 %; the lateral term is a
+     *max over the window* (the arm's x-tracking lag), not the entry
+     (P108: |dx| p50 11.8 mm over the window against 2.6 mm at the entry).
+  -> and the payload is NOT carried at belt speed for the window: the
+     plates arrest it (25 % of the window's ticks are below
+     half the belt speed).  The belt slips under the payload, which is
+     exactly what a metering gate would do - the difference is *where* it
+     does it (at the station, by 0.12 m/s of belt drag, versus 50 mm
+     upstream, by the descending plates).
+
+2. A PERFECT LATERAL GUIDE  (dx -> 0)
+================================================================================================
+  the aperture need is per axis: a pad face at A/2 clears a sphere at
+  offset o by A/2 - (o + r), so A = 2 (o + r_margin).
+  hypothesis                              A_y (p50)      A_x  what it removes
+  shipped (dy 56, dx 12)                     182.0mm    94.0mm  -
+  perfect lateral guide (dx -> 0)            182.0mm    70.0mm  the lateral 12 mm only
+  perfect along-belt hold (dy -> 0)           70.0mm    94.0mm  the along-belt 56 mm
+
+  -> a guide cannot touch `A_y`: the 120 mm cage still fails 0/8 windows
+     and the 200 mm cage's pass rate is unchanged (P108 section 3).
+     It removes at most the *close-time* lateral (8.8 mm p50 on the cage
+     cell) out of a 22.7 mm radial offset - 39 %.
+
+  the guides the tree already has (`conveyor.containment_parts`):
+    a channel between the side fences at x = 0.130 / 0.430 m
+    -> 0.300 m wide against a delivered band of
+       0.200-0.360 m (0.160 m): the fences
+       never touch a fruit inside the band, so they cannot centre it.
+       A guide that DID centre the band would have to be narrower than
+       the band (0.16 m) - and the open hand (+-0.066 m at the band's
+       edges) needs 0.132 m of it.
+
+3. A PERFECT HOLD  (a metering gate: the fruit stops, the belt slips)
+================================================================================================
+  a stationary fruit at the station makes the entry offset the *parking*
+  offset: `y_park = y_gate_face + r`, so it spans one radius across the pool
+        r  y_park - pick_y
+       18mm            18mm
+       24mm            24mm
+       30mm            30mm
+       35mm            35mm
+  -> A_y need falls from 182 mm to 70 mm: the
+     120 mm cage (P107's own) clears, and the 200 mm hand is not needed.
+  -> the 17 mm spread across the pool is the parking tolerance; the catch
+     closes it at 1 mm/tick (the catch-up's own rate) - it is benign for a
+     *stationary* fruit, and only a race for a moving one (P109).
+
+  3a. THE SELECTOR CANNOT SEE A PARKED FRUIT (both pick modes)
+    moving catch: `floor = _dynamic_pick_lead() + speed*select_s + margin`
+      lead 179 mm + 180 mm + 30 mm
+      = 389 mm - a fruit at the station is 1/20 of it
+    indexed (station-first): `station` window = [0.10, 0.18] m
+      (the lower edge is `pick_y - 0.02 + prepose_lead`), so a fruit parked
+      at 0.00 is admitted only with `FRUIT_SMOOTH_TRANSIT_PREPOSE=0`
+  -> the gate is not a scene prop: it is a collider AND a selection rule
+     AND a different pick mode (`FRUIT_DYNAMIC_PICK=0`, the P1 primitive).
+
+  3b. THE RATE ARITHMETIC (the cadence cost)
+    delivered inter-arrival: 0.10-0.35 m / 0.12 m/s =
+      0.83-2.92 s (mean 1.87 s)
+    the pick's cycle: 15.1 s/attempt
+    -> one arm consumes 1 per 15 s while the belt delivers 1 per
+       1.9 s: a hold-and-release gate queues 8.1 fruit per cycle,
+       1.81 m of belt - the belt is 1.60 m long, so a
+       passive gate jams the line within one cycle.  A real cell answers
+       this with a *magazine* (a stopped or throttled infeed), i.e. the
+       belt's transport is replaced by the gate - which the tree's
+       directive (the belt never stops) forbids.
+    the load on the front fruit: the belt drags every queued fruit
+       (mu*m*g ~ 1.3 * 0.10 * 9.81 = 1.28 N each), so a queue
+       of 8 presses 10.3 N on the parked fruit - the
+       fixture measures the stack directly (`fixture_gate.py`).
+
+  3c. THE RELEASE
+    the belt presses the parked fruit into the wall with ~1.3 N, so the
+    lift sees mu_pair * 1.3 N of extra upward drag (~2 N at mu 1.6).  The
+    grip's own capacity is 2*mu*9.8 = 12.7 N, so the bite is ~16 % - a
+    real cost on the closed grip class, not a blocker.
+    the *height* is the blocker: the hand's lowest solid part at the grip
+    is belt_top + 80.5 mm - 14.5 mm at the
+    shipped jaw height - so a gate at the station is <= 14.5 mm tall.
+    Whether a kerb that short holds a 30-70 mm fruit is measured, not
+    argued: the climb condition is (r - h)/r <= mu_pair, which holds on
+    paper for the pool (0.19-0.59 <= 1.3) - so the fixture's job is the
+    *dynamic* answer (a 0.12 m/s impact, the fruit's spin, the belt slip).
+
+4. THE ENCLOSURE, RE-CENSUSED  (what '>= 3 pads' actually counts)
+================================================================================================
+  74 cage attempts across 4 cell(s)
+  raw '>= 3 pads' (P107/P108's endpoint): 11/74 = 14.9 %
+    - blocked descent (end > 15 mm, the plates jammed on the payload): 5
+    - over-closure / crush (aper < dia - 4 mm or F > 4*cap*1.5):        4
+    - CLEAN enclosure:                                                  2/74 = 2.7 %
+    jam  : end p50  79.8 mm, aper p50  88.1 mm, F p50  1074.56 N, clr p50  +32.9 mm
+    crush: end p50   9.4 mm, aper p50  32.5 mm, F p50   119.36 N, clr p50  +28.9 mm
+    clean: end p50  10.2 mm, aper p50  63.9 mm, F p50    12.96 N, clr p50   +3.4 mm
+
+  the modal grasp is 2 pads at the cap - a V-block, `n = 2`:
+    22/74 attempts, F p50 9.74 N (1.99 cap-pairs), bat_rel p50 +58.2 mm
+  -> a 2-contact V-block has `F_crit = n*mu*N` with n = 2: the SAME axial
+     capacity as the shipped two-jaw pinch (P104 section 2).  The cage's
+     licensed gain needs n >= 3, i.e. a centred close.
+
+  4a. THE RING'S CLOSURE ARITHMETIC  (why a centred close is mandatory)
+    one radial synergy, four force-capped position pads:
+      command  a = 0.49 d (the 2 % squeeze), cap 4.90 N/pad,
+      stiffness k = 1e+05 N/m -> the elastic allowance is
+      cap/k = 0.049 mm of interference before the drive saturates.
+    a payload offset by delta along an axis has its near pad commanded
+      delta + 0.01 d INSIDE its surface, and its far pad 0.01 d - delta
+      SHORT of contact.  At delta = 10 mm, d = 60 mm:
+      delta= 1.0 mm -> near pad    1.6 mm inside, far pad   -0.4 mm short
+      delta= 5.0 mm -> near pad    5.6 mm inside, far pad   -4.4 mm short
+      delta=10.0 mm -> near pad   10.6 mm inside, far pad   -9.4 mm short
+      delta=20.0 mm -> near pad   20.6 mm inside, far pad  -19.4 mm short
+  -> for the far pads to reach, delta must be < 0.01 d = 0.6 mm; the
+     near pads are then commanded 0.6 mm inside and push at the cap.  Any
+     delta above the 0.049 mm elastic allowance is a *launch*, and the
+     `bat`/`bat_rel` columns are that launch: 27-82 mm / 9-330 mm of
+     payload displacement during the close (section 4's rows).
+  -> so the presentation would have to centre the payload to < 1 mm,
+     which no passive element on a 0.12 m/s belt does.  The term is the
+     hand's closure architecture (no per-pad compliance), not the scene.
+
+5. WHAT EACH FORM CAN REMOVE (the summary the registration reads)
+================================================================================================
+  form                            band-entry dy   A_y need  close radial
+  none (shipped)                          56 mm     182 mm       22.7 mm
+  lateral guide (perfect)                 56 mm     182 mm       20.2 mm
+  metering gate (perfect)              <= 35 mm      70 mm      <= 17 mm
+  -> the guide removes 0 % of the aperture need and 11 % of the close
+     radial: dead.  The gate removes the term but needs a selection rule,
+     a different pick mode and a magazine (5-18x rate mismatch): it is a
+     workstation, and the enclosure still needs < 1 mm of centring.

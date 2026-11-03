@@ -1,0 +1,54 @@
+P110 gate fixture - the metering gate's contact mechanics
+====================================================================================================
+one fruit from the shipped pool, the shipped belt (kinematic body + surface
+velocity), the gate authored as a kinematic kerb across the belt.  `hold span`
+is the parked along-position's range over the trial (the tightness); `park
+spread` is the position across the pool (what a closure would have to absorb).
+
+cell          h mm   n held esc  peak p50   steady span p50    max park p50   spread   climb  clearance
+h8             8.0  16   16   0     1.27N    0.49N    0.85mm  5.00 +0.0024       13.1mm     +0.0mm  OK
+h10           10.0  16   16   0     1.44N    0.50N    0.91mm  6.57 +0.0044       14.0mm     +0.0mm  OK
+h12           12.0  16   16   0     1.50N    0.53N    1.33mm  6.14 +0.0060       15.3mm     +0.0mm  OK
+h14           14.0  16   16   0     1.79N    0.55N    1.82mm  5.62 +0.0078       17.5mm     +0.0mm  OK
+h20           20.0  16   16   0     1.86N    0.68N    1.82mm  4.06 +0.0096       19.6mm     +0.0mm  COLLIDES
+h30           30.0  16   16   0     2.19N    1.06N    1.23mm  3.72 +0.0115       21.5mm     +0.0mm  COLLIDES
+h45           45.0  16   16   0     2.52N    1.15N    1.02mm  3.76 +0.0115       21.7mm     +0.0mm  COLLIDES
+h14_nowake    14.0  16   16   0     1.79N    0.55N    1.82mm  5.62 +0.0078       17.5mm     +0.0mm  OK
+q2            14.0  16   16   0     1.93N    0.70N    4.25mm  7.98 +0.0078       17.5mm     +0.0mm  OK
+q4            14.0  16   15   1     1.88N    0.70N    4.87mm 30.78 +0.0078       17.5mm     +0.0mm  OK
+q8            14.0  16   15   1     1.88N    0.70N    4.87mm 30.78 +0.0078       17.5mm     +0.0mm  OK
+
+the gate's force *is* the belt's drag (physically: mu_pair_belt * m * g):
+  lychee     d= 29.6mm m=   9.5g mu=0.84 pair(belt)=0.87 -> mu*m*g= 0.08N measured steady  0.11N (peak  0.36N)  release drag mu_pair(gate)*F =  0.16N
+  strawberry d= 36.3mm m=  14.3g mu=0.57 pair(belt)=0.73 -> mu*m*g= 0.10N measured steady  0.15N (peak  0.19N)  release drag mu_pair(gate)*F =  0.19N
+  lychee     d= 34.4mm m=  14.8g mu=0.69 pair(belt)=0.79 -> mu*m*g= 0.12N measured steady  0.23N (peak  0.28N)  release drag mu_pair(gate)*F =  0.31N
+  strawberry d= 37.2mm m=  15.5g mu=0.81 pair(belt)=0.85 -> mu*m*g= 0.13N measured steady  0.26N (peak  0.32N)  release drag mu_pair(gate)*F =  0.37N
+  kiwi       d= 53.8mm m=  60.1g mu=0.92 pair(belt)=0.91 -> mu*m*g= 0.54N measured steady  0.51N (peak  1.17N)  release drag mu_pair(gate)*F =  0.74N
+  kiwi       d= 55.8mm m=  67.1g mu=0.85 pair(belt)=0.88 -> mu*m*g= 0.58N measured steady  0.57N (peak  1.03N)  release drag mu_pair(gate)*F =  0.81N
+  tomato     d= 61.8mm m=  79.0g mu=0.51 pair(belt)=0.71 -> mu*m*g= 0.55N measured steady  0.44N (peak  1.78N)  release drag mu_pair(gate)*F =  0.55N
+  pear       d= 60.6mm m=  83.9g mu=0.52 pair(belt)=0.71 -> mu*m*g= 0.58N measured steady  0.52N (peak  1.20N)  release drag mu_pair(gate)*F =  0.66N
+  tomato     d= 66.1mm m=  96.9g mu=0.59 pair(belt)=0.74 -> mu*m*g= 0.71N measured steady  0.54N (peak  1.94N)  release drag mu_pair(gate)*F =  0.70N
+  peach      d= 65.1mm m=  97.0g mu=0.59 pair(belt)=0.74 -> mu*m*g= 0.71N measured steady  0.58N (peak  2.51N)  release drag mu_pair(gate)*F =  0.75N
+  orange     d= 63.6mm m=  99.5g mu=0.87 pair(belt)=0.89 -> mu*m*g= 0.86N measured steady  0.83N (peak  2.05N)  release drag mu_pair(gate)*F =  1.19N
+  apple      d= 65.2mm m= 101.0g mu=0.64 pair(belt)=0.77 -> mu*m*g= 0.76N measured steady  0.66N (peak  1.81N)  release drag mu_pair(gate)*F =  0.87N
+  orange     d= 65.8mm m= 110.2g mu=0.79 pair(belt)=0.84 -> mu*m*g= 0.91N measured steady  0.88N (peak  2.11N)  release drag mu_pair(gate)*F =  1.23N
+  peach      d= 68.9mm m= 115.1g mu=0.57 pair(belt)=0.73 -> mu*m*g= 0.83N measured steady  0.99N (peak  2.16N)  release drag mu_pair(gate)*F =  1.27N
+  pear       d= 68.1mm m= 119.3g mu=0.51 pair(belt)=0.71 -> mu*m*g= 0.83N measured steady  1.05N (peak  3.18N)  release drag mu_pair(gate)*F =  1.32N
+  apple      d= 69.6mm m= 122.8g mu=0.62 pair(belt)=0.76 -> mu*m*g= 0.92N measured steady  0.96N (peak  2.93N)  release drag mu_pair(gate)*F =  1.26N
+  the pinch's own capacity is 2*mu*9.8 = 12.7 N, so the release costs 6 % of it at the median fruit.
+
+the queue (the stream releases at the shipped cadence, 0.225 m of belt):
+cell      n behind span p50 span max gateF p50 subject y  behind y
+q2        2    1.0    4.25mm    7.98     1.93N  +0.0039  -0.0058
+q4        4    3.0    4.87mm   30.78     1.88N  +0.0030  +0.0183
+q8        7    7.0    4.87mm   30.78     1.88N  +0.0030  +0.5439
+  -> the next fruit arrives inside the same attempt (the shipped 0.83-2.9 s
+     cadence against a 15.1 s pick), and it costs the hold 1.8 -> 4.3-4.9 mm
+     (max 30.8 at three behind) and expels one fruit in sixteen: a passive
+     gate does trip on the next fruit.  The `behind y` column is NOT a
+     queue geometry - it includes stream fruits that were never released
+     in that trial and stay at their park pose.
+
+(the fixture's own build row names the gate's height, its pair mu and whether
+ it clears the hand's 14.5 mm at the grip; `logs/p110/fixture.txt` is this file's
+ output.)

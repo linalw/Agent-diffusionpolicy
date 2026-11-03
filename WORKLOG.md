@@ -24817,3 +24817,121 @@ the cell's 259.0 mm exactly.  Evidence `logs/p109/` (`PREREG.md` `192a0c1b`,
 `RESULTS.md`, `cells.sh`, `run_p109.sh`, `p109_report.py`, `p109_report.txt`,
 `gates.out`, the twelve cells `{M0,M05,M1}_s{5,6,101,202}`, the acceptance pair
 `accept_{m0,m1}`, `accept_final`).
+
+### P110 - the presentation lane: a metering gate works (16/16 held, belt running) and still cannot centre the ring, whose enclosure is 2/74 clean not 11/74 (2026-11-03)
+
+**The question.**  P109 closed the descent margin and P108 the aperture and the
+spacing; both left the *presentation* named - the payload is **~56 mm upstream** of
+the tool axis when the cage's plates are beside it, an 83-95 % along-belt split.
+Two forms were registered (`logs/p110/PREREG.md`, md5 **`cce8838c`**, pinned before
+any run): (a) a passive lateral centring guide, (b) a **metering gate** that holds
+the fruit's along-belt position while the belt slips under it.  The owner's kill
+criterion was in the brief: **if the gate holds but the cage still fails to enclose,
+the term is not the presentation either.**
+
+**The census first, offline, and it kills (a) by arithmetic.**  `census.py` reads
+114 descents of this tree's own cells plus P108's per-tick traces.  The split at the
+band entry is **55.8 mm along-belt / 2.6 mm lateral** p50 - and the 11.8 mm the
+record quotes for the lateral is the **max over the window** (the arm's x-tracking
+lag), not the entry, so the entry split is **92.5 %** along-belt.  The term's
+identity: `fruit dy` (83.0 mm p50) **is** `speed * t_desc`, and the margin cancels
+inside it (P109); the entry offset is that clock minus the leg's first
+`s_enter = 0.095 + 0.060 - (0.0805 + 2r)` = 4.5-38.5 mm, i.e. **29.7-76.6 mm by
+radius**, `A_y = 2(dy + r)` **182 mm** p50 with the pool's `r_max`.  The measured
+55.8 sits **below** the 62.8 mm a 6 cm fruit predicts because **the plates arrest the
+payload**: **25 % of the band window's ticks run below half the belt speed** (p90
+58 %), so the belt is already slipping under the payload for part of the descent -
+the "moving fruit" half of the term is partly spent by the very plates that will
+grasp it.  **A lateral guide removes 0 % of `A_y`** (the aperture need is per axis
+and along-belt dominates): P108's screen (120 mm 0/8, 160 5/8, 210 7/8) cannot move,
+and the guide's only purchase is 39 % of the *close-time* radial.  The tree's own
+lateral guides make it geometric: `containment_parts`' side fences are a **0.300 m
+channel against a 0.160 m delivered band**, so they never touch a fruit; a guide that
+did would have to be narrower than the band, and the open hand already needs 0.132 m
+of it.  **Form (a) is not built and not measured.**
+
+**The gate, built as a fixture and surprisingly strong.**  `fixture_gate.py` is a
+`logs/` probe (no `src/`): the real kinematic belt + `PhysxSurfaceVelocityAPI`, the
+real 16-fruit pool (29.6-69.6 mm, 9.5-122.8 g, mu 0.51-0.92), and a kinematic kerb
+across the belt whose upstream face sits 20 mm downstream of the station.  Every cell
+runs the whole pool singly.  Result: **16/16 held at every height 8 / 10 / 12 / 14 /
+20 / 30 / 45 mm, 0 escaped, no climb**, the **belt at -0.120 m/s in every cell**
+(the directive holds - the belt never stops), the **steady drag 0.11-1.05 N** (the
+1.27-2.52 N peak p50 is the impact), the **hold's span 0.85-1.83 mm** p50 (max 3.7-6.6),
+and the **parking position 13.1-21.7 mm across the pool**.  So `K4` ("a <= 14.5 mm
+kerb cannot hold a 30-70 mm fruit") **does not fire**, and by a wide margin: an 8 mm
+kerb holds a 69.6 mm apple.  Two by-products: **a taller gate parks further upstream**
+(`y_park` +0.0024 at 8 mm -> +0.0115 at 45 mm, the contact latitude rising), so the
+cheapest height is also the most accurate; and the shipped line's own
+`enforce_transport` nudge (which forces -0.048 m/s on any fruit below 0.02 m/s) is
+**inert** against the gate (`wake=0` reads the `wake=1` cell exactly - a coupling the
+PREREG predicted would matter and does not).
+
+**The queue is where it breaks, and it breaks in two ways.**  The next fruit arrives
+**inside the same attempt** (the shipped 0.83-2.9 s cadence against a 15.1 s pick), so
+a passive gate *does* trip on it: with one behind the parked fruit's hold degrades
+**1.8 -> 4.3 mm**, with three **4.9 mm** (max 30.8), and **1 of 16 is expelled past
+the gate** (a 65.1 mm
+peach, mu 0.59, parked 501 ticks then pushed 62 mm through).  That is the rate
+arithmetic measured as a load: **8.1 fruit = 1.81 m** queued per 15.1 s cycle into a
+1.60 m belt.  **The release is not the gate's problem**: `mu_pair * steady drag` =
+0.16-1.32 N, **1.3-10.4 %** (median 6 %) of the pinch's 12.7 N - the height was, and
+8-14 mm clears the hand's 14.5 mm.
+
+**The phase's other half is a correction to the record, and it is the finding that
+transfers.**  P107/P108's endpoint "enclosure at >= 3 pads" is **11/74 = 14.9 %** raw.
+Joined to each attempt's own descent `end=` and its ring aperture, that bucket is
+**5 blocked-descent jams** (`end` p50 79.8 mm, `F` p50 **1074 N**, up to **2920 N**),
+**4 over-closures** (`aper` 32.5 mm on 31-37 mm fruit, `F` 119 N) and **2 clean
+enclosures = 2/74 = 2.7 %**.  The two clean rows read `clr` **-9.5** and **+31.7 mm**,
+so the approach clearance does **not** order them (the jams are the large-`clr` class,
+p50 +32.9 mm) - the enclosure is not an aperture datum at all.  The modal grasp is
+**2 pads at the cap** (22/74, `F` p50 9.74 N = 1.99 cap-pairs): a V-block with
+`n = 2`, i.e. the **same** axial capacity as the shipped two-jaw pinch (P104), so the
+cage's licensed 4-contact gain is not being collected on any of those attempts.
+
+**And the closure's algebra says why, which is why the presentation cannot fix it.**
+One radial synergy on four force-capped position pads (`a = 0.49 d`, cap 4.90 N,
+`k = 1e5 N/m`): the elastic allowance is `cap/k` = **0.049 mm**; a payload offset by
+`delta` has its near pad commanded `delta + 0.01 d` *inside* its surface and its far
+pad `0.01 d - delta` *short* of contact, so **the far pads reach only when
+`delta < 0.01 d = 0.6 mm`**.  Above that the payload sticks to the near faces and is
+**launched** - which is exactly the measured `bat` (27-82 mm of payload displacement
+during the close) and `bat_rel` (0-330 mm relative to the belt).  **The line cannot
+deliver 0.6 mm**: the catch-up's convergence tolerance is **6 mm**
+(`FRUIT_DYNAMIC_CATCH_TOL`), the measured close-time offset is **8.8 mm lateral /
+20.2 mm along** (P108), and the gate's own hold is **1.8 mm within a fruit** and
+**17.5 mm across the pool**.  So the ring asks for **3-29x** tighter positioning than
+anything on the line delivers, and the gate's best case still misses by 3x.  **The
+gate buys the arrival (a precondition P108 already pays for with the aperture) and
+not the centring.**  `K1`/`K2`/`K3` fire, `K4` does not: **the presentation lane
+closes - detected but not convertible.**
+
+**What the record now leaves standing**, in the order the phase prices it: a
+**compliant closure** (per-pad springs or four independent force targets - the only
+term the algebra leaves, a `cage_hand.py` change), a **sub-millimetre catch tolerance**
+(0.5 mm: one env knob, but only coherent with a *stationary* fruit, i.e. on the gate
+plus the magazine), and `docs/LEFT_ARM.md`'s two sanctions (**a new pad asset**, a
+**real-jaw clamp-force anchor**).  The arm battery was **not spent**, and the reason
+is the PREREG's own inequality, not convenience: no arrangement of a passive element
+changes `0.6 mm < 1.8 mm`, and the cage's clean enclosure is 2/74 without one.
+
+**No-harm, and it is the acceptance itself** because the phase changes no `src/` file:
+`scripts/accept.sh` **8/10, 9.0 s/attempt, `fingerprint: matches
+configs/motion_reference.json`, `190: PASS`**, its **`[fruit]` stream byte-identical** to
+`logs/p109/accept_final.log` (identical md5 over 420 lines); `scripts/selfcheck.sh` **PASS (0
+failures, 1 skipped)**; `python3 scripts/211_bed_audit.py` **ok (115 checks)**;
+`configs/motion_reference.json` = `..._twoline.json` = **`30fb99f8`** and
+`..._single.json` = **`8952c320`** untouched, no reference re-recorded and none owed.
+Deviations: **D1** the PREREG's "0-17 mm parking spread" is a *pool* number - the
+fixture separates it into **1.8 mm within a fruit** and **17.5 mm across**; **D2**
+the predicted `enforce_transport` coupling is measured inert; **D3** the `q8` cell
+reads `q4` (only three fruits reach the gate inside the 12.5 s run), so the load
+claim is carried by `q4` and the 8-fruit queue is an argument from the rate; **D4**
+the fixture measures contact mechanics only - no attempt, no placement.  Pins
+unchanged: `tasks.py` `d341b0da`, `rl_env.py` `bf4c56fa`, `bimanual.py` `9b7fc33f`,
+`fruits.py` `dcabe16b`, `conveyor.py` `fb2c58c6`, `assets.py` `eb30c77a`, `scene.py`
+`a0199097`; ckpt `moe_v13s` `61da390a`.  Evidence `logs/p110/` (`CENSUS.md`,
+`census.py`/`census.txt`, `PREREG.md` `cce8838c`, `RESULTS.md`, `fixture_gate.py`,
+`run_p110.sh`, `p110_report.py`, `fixture.txt`, the cells
+`fix_{h8,h10,h12,h14,h20,h30,h45,h14_nowake,q2,q4,q8}.log`).

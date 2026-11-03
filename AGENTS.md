@@ -915,6 +915,82 @@ the acceptance **419/419**, `selfcheck.sh` **PASS (0 failures, 1 skipped)**,
 **`30fb99f8`** / **`30fb99f8`** / `8952c320` untouched; ckpt `moe_v13s`
 `61da390a`; `logs/p109/PREREG.md` **`192a0c1b`**. Evidence `logs/p109/`.
 
+**P110 (2026-11-03, `logs/p110/`; a census + a fixture in `logs/` - **no `src/`
+or `configs/` change, nothing adopted, no commit, every reference untouched**):
+the presentation lane - P108's routes 1 and 2's gate, the last unspent term - is
+**measured and closed: a metering gate is a real, cheap, non-crushing mechanism
+and it cannot centre the cage's ring.** The **census** first (offline,
+`logs/p110/census.py`): the **split at the band entry** is **55.8 mm along-belt /
+2.6 mm lateral** p50 (the 11.8 mm the record quotes is the **max over the
+window**, the arm's x-tracking lag), a **92.5 %** along-belt share; the term is
+**`fruit dy = speed * t_desc` = 83.0 mm** (114 descents) - the belt travels 83 mm
+while the hand descends 56-60 mm - and the entry offset is that clock minus the
+leg's first `s_enter = 0.095 + 0.060 - (0.0805 + 2r)` = 4.5-38.5 mm, i.e.
+**29.7-76.6 mm by radius** with `A_y = 2(dy + r)` **182 mm** p50. The measured
+55.8 sits **below** the 62.8 mm a 6 cm fruit predicts **because the plates arrest
+the payload** - **25 % of the band window's ticks run below half the belt speed**
+(p90 58 %) - so the belt is already slipping under the payload for part of the
+descent. **Form (a), a lateral guide, is dropped by arithmetic**: `dx -> 0`
+leaves `A_y` **182 -> 182** (the aperture need is per axis and along-belt
+dominates), so P108's screen (120 mm 0/8, 160 5/8, 210 7/8) is unchanged, and its
+only purchase is 39 % of the *close-time* radial (8.8 of 22.7 mm). The tree's own
+lateral guides prove it geometrically: `conveyor.containment_parts`' side fences
+are a **0.300 m channel against a 0.160 m delivered band**, so they never touch a
+fruit; a guide that did would have to be narrower than the band, and the open
+hand already needs 0.132 m of it. **Not built, not measured.** **Form (b) is
+built as a fixture** (`logs/p110/fixture_gate.py`: the real kinematic belt +
+`PhysxSurfaceVelocityAPI`, the real 16-fruit pool 29.6-69.6 mm / 9.5-122.8 g /
+mu 0.51-0.92, a kinematic kerb across the belt 20 mm downstream of the station)
+and it **works**: **16/16 fruits held at every height 8 / 10 / 12 / 14 / 20 / 30 /
+45 mm**, **0 escaped**, **no climb**, the **belt at -0.120 m/s in every cell**
+(never stopped), the **steady drag 0.11-1.05 N** (the 1.27-2.52 N peak p50 is the impact),
+the **hold's span 0.85-1.83 mm** p50 (max 3.7-6.6) and the **parking position
+13.1-21.7 mm across the pool**; a **taller gate parks further upstream**
+(`y_park` +0.0024 at 8 mm -> +0.0115 at 45 mm), and the shipped line's own
+`enforce_transport` nudge is **inert** against it (`wake=0` == `wake=1`).
+**The queue is where it breaks**: the next fruit arrives **inside the same
+attempt** (the shipped 0.83-2.9 s cadence against a 15.1 s pick), which costs the
+hold **1.8 -> 4.3 mm** with one behind and **4.9 mm** (max 30.8) with three - and
+**1 of 16 is expelled past the gate** (a 65.1 mm peach, parked 501 ticks then pushed 62 mm
+through) - the 8.1-fruit-per-cycle rate arithmetic (1.81 m of queue into a 1.60 m
+belt) measured as a load. **The release is not the problem**:
+`mu_pair * steady` = **0.16-1.32 N = 1.3-10.4 %** (median 6 %) of the pinch's 12.7 N.
+**The phase's other half is a correction to the record**: P107/P108's "enclosure
+at >= 3 pads" is **11/74 raw** but joined to the descent's own `end=` and the
+ring's aperture it is **5 blocked-descent jams** (`end` p50 79.8 mm, `F` up to
+**2920 N**), **4 over-closures** (`aper` 32.5 mm on 31-37 mm fruit, `F` 119 N)
+and **2 clean enclosures = 2.7 %** - and the two clean rows read `clr` **-9.5**
+and **+31.7 mm**, so the approach clearance does **not** order them (the jams are
+the large-`clr` class, +32.9). The modal grasp is **2 pads at the cap** (22/74,
+`F` 9.74 N = 1.99 cap-pairs): a V-block, `n = 2`, the **same** axial capacity as
+the shipped pinch. **And the closure's algebra explains it**: one radial synergy,
+four force-capped position pads, `a = 0.49 d`, cap 4.90 N, `k = 1e5 N/m` -> the
+elastic allowance is **0.049 mm**, the near pad is commanded `delta + 0.01 d`
+inside the surface and the far pad `0.01 d - delta` short, so **the far pads
+reach only when `delta < 0.01 d = 0.6 mm`**; above that the payload sticks and is
+*launched* (`bat` 27-82 mm, `bat_rel` 9-330 mm). **The line cannot deliver
+0.6 mm**: the catch-up's tolerance is **6 mm** (`FRUIT_DYNAMIC_CATCH_TOL`), the
+measured close offset **8.8 / 20.2 mm** (P108), and the gate's own hold **1.8 mm
+within a fruit / 17.5 mm across the pool** - **3-29x** too coarse. **Verdict: the
+presentation lane closes - DETECTED BUT NOT CONVERTIBLE**; the levers the record
+now leaves are a **compliant closure** (per-pad compliance, the only term the
+algebra leaves standing, a `cage_hand.py` change), a **sub-mm catch tolerance**
+(0.5 mm; only coherent with a stationary fruit, i.e. on the gate + magazine), and
+`docs/LEFT_ARM.md`'s two sanctions (**a new pad asset**, **a real-jaw clamp-force
+anchor**). **Not a lever, and now measured as such**: a bigger aperture (P108), a
+lateral guide (0 % of `A_y`), a metering gate (3-29x too coarse), the descent
+margin (P109), the seat (P42), the force cap (P76/P77), the closure depth (P108),
+the profile blocks (P87/P88/P89/P91). No-harm is the acceptance itself (no `src/`
+file changed): **8/10, 9.0 s/attempt, `fingerprint: matches`, `190: PASS`**, its
+**`[fruit]` stream byte-identical** to `logs/p109/accept_final.log` (420 lines, same md5);
+`selfcheck.sh` **PASS (0 failures, 1 skipped)**; `211` **ok (115 checks)**;
+`configs/motion_reference.json` = `..._twoline.json` = **`30fb99f8`** and
+`..._single.json` = **`8952c320`** stand. Pins unchanged: `tasks.py` `d341b0da`,
+`rl_env.py` `bf4c56fa`, `bimanual.py` `9b7fc33f`, `fruits.py` `dcabe16b`,
+`conveyor.py` `fb2c58c6`, `assets.py` `eb30c77a`, `scene.py` `a0199097`;
+`logs/p110/PREREG.md` **`cce8838c`**; ckpt `moe_v13s` `61da390a`. Evidence
+`logs/p110/`.
+
 ## 2. Two constraints that decide how to measure
 
 **The outcome is quantized; do not compare success rates across configurations.**
@@ -5666,6 +5742,8 @@ and the traced `tr_cage_s5/`; ckpt `moe_v13s` `61da390a`.  Evidence `logs/p108/`
 | the supply schedule (`fruits.py`, `bed.py`) | `python3 scripts/211_bed_audit.py`, then `scripts/selfcheck.sh` |
 | a **supply-geometry** change (the lateral band `FRUIT_SUPPLY_X_MIN/MAX`, the release schedule, a station/column move) | the **census first**, offline: `python3 logs/p92/census.py` and `python3 logs/p92/chase.py` name the class you are trying to move and the servo's `closed > 0` signature (`logs/p92/CENSUS.md`); then the **manipulation check** - `x` is one `uniform(x_min, x_max)` draw and no code branches on it, so the *planned* band is proved by the `[supply] lateral x=` row and the *delivered* x is a **distribution** (plan + a per-instance offset: `0.36 -> 0.3908` at the top), never a bound; then 20 attempts x **>= 2 seeds, of which at least two must be FRESH** (P93: two seeds reuse the same two control branches and over-state the gain - the band's `28 -> 36` became `58/80 -> 65/80` at four, with the two fresh controls reading 15/20 twice against seed 6's 12/20) with the class counts (`cnp` / never-held / chase) as the primary, **both denominators + the wall** as the rest, `bash logs/p92/gates.sh` (**budgets only** - every 20-attempt two-line reference in the tree predates P87's release clock, so any post-P87 cell reads `fingerprint: DIFFERS` by construction; the control proof is the line-identity replay against `logs/p91/{C5,C6}.log`), `python3 scripts/211_bed_audit.py`, and `scripts/accept.sh` |
 | a **new hand kind** (`FRUIT_GRIPPER_KIND`, `src/fruit_sorting/*gripper*.py` or `cage_hand.py`, the `RIGID_TOOL_HANDS` predicate, `_pad_standoff`/`_fingertip_offset`/`_hand_separation`, the `track_arm` hook) | the **geometry probe first, with no attempt loop** (`logs/p107/m1_cage.py`: the aperture vs command, the tool offset across the range, the pad-pad corner gap, the distal plane and the lip - all off the **built** prims); then `scripts/selfcheck.sh`; then one 1-2 attempt smoke for the mount; then the **two-line-scoped** checks are unchanged because `tasks.py:9543` refuses a non-`openarm` hand in a `CoopSession` (if that refusal is ever lifted, the two-line gate is owed); then **the hand cells with their own same-seed controls on the same tree** (a hand moves the collider set - P71's rule - so compare **budgets + rate**, never a fingerprint) plus `scripts/accept.sh` with `FRUIT_GRIPPER_KIND` unset, which must read `fingerprint: matches` and a `[fruit]` stream byte-identical to the record (`logs/p107/RESULTS.md` §5). Read a mount defect in this order: plate width vs aperture, plate length vs the flange, the **asset's** finger colliders (`FRUIT_FINGER_COLLIDERS=0` does not remove them), the drive damping vs the pad mass (`c ~ 2*sqrt(k*m)` for a standalone joint tree), whether the hand **rides the arm every tick**, the open aperture vs the line's pursuit error, and the radial close law |
+| a **presentation / centring element** at the station (a passive guide, a metering gate, a station magazine, a "hold the fruit while the belt slips" element) | the **census first, offline** (`python3 logs/p110/census.py`): the split at the band entry is **55.8 mm along-belt / 2.6 mm lateral** and the term is `speed * t_desc` (a descent property, P109), so a **lateral** element can remove **0 %** of the binding axis (`A_y = 2(dy + r)` is unchanged) - that alone kills a guide; then the **gate's three couplings**, all read off the code before a build: the **selector cannot see a parked fruit** (the moving floor is 0.389 m, the indexed station window's lower edge 0.10 m), the **rate** (0.83-2.9 s delivered against a 15.1 s pick = **8.1 fruit = 1.81 m** queued into a 1.60 m belt), and the **height** (the hand's lowest solid part at the grip is **14.5 mm**, `tasks.FINGER_TIP_BELOW_JAW`). Then the fixture (`logs/p110/fixture_gate.py`, a `logs/` probe - the gate's contact mechanics only, no arm) with `P110_H` x the **whole pool** and the **stream cells** at the shipped cadence (`P110_N`, `P110_GAP`), reading the **hold's span** (not just "held"), the **parking spread across the pool**, the steady drag, and whether the stream **singulates** or wedges; then `logs/p110/p110_report.py`. **Judge it against the ring's own requirement, not against "does it hold"**: the cage's closure is one radial synergy on force-capped position pads, so it needs `delta < 0.01 d = 0.6 mm` (the elastic allowance is `cap/k` = 0.049 mm) while the line's positioning is the **6 mm** catch tolerance and the gate's hold is 1.8 mm within / 17.5 mm across - if that inequality stands, **no presentation element can enclose** and the lane closes to a **compliant closure** (a hand change) or a sub-mm tolerance (only with a stationary fruit). A gate is a **scenario** element: a flip owes both references, every store, and the `scene` manifest block (`assets.scene_provenance`) naming the collider set |
+| the **`[cage]` enclosure endpoint** ("`pads >= 3`" from `FRUIT_CAGE_PROBE=1`, any P107/P108 successor) | **do not read the pad count alone**: join each `[cage]` row to its attempt's `[motion] approach ... end=` and its own `aper`/`F`, and split it into **jam** (`end > 15 mm`), **over-closure** (`aper < dia - 4 mm` or `F > 4 cap 1.5`) and **clean** - P110's 74-attempt census reads **11/74 raw but 2/74 clean** (jams `F` up to 2920 N, over-closures 119 N), and the modal 2-pad grasp is a V-block with `n = 2`, i.e. the shipped pinch's own capacity (`logs/p110/RESULTS.md` §3) |
 | a **candidate-planning / selector** change on the two-line (`select_target`'s lane rules, `_dynamic_select_floor`, the `FRUIT_GRADE_ROUTING` fallback, a prefetch/prepared/reservation path) | **the census first, offline**: `python3 logs/p99/census.py <cell>.log` + `python3 logs/p99/p99_report.py` read the per-slot wait split (park-gate / park-motion / feed / starved polls), the per-decision candidate set and the **convertible seconds per mechanism** (`FRUIT_BED_DIAG=2` + `FRUIT_BIARM_PARK_TRACE=1` on the census cell; prove the instrument neutral by replaying the same-seed record with its rows dropped - `census.py --same`, P99's `974/974` / `970/970`). **A wait is not a throughput number**: quote the interval, both rates and the arm split before calling one convertible, and read the *mechanism* columns, which are branch-free - `window <= 1` (a forced choice), the delay-aware headroom (0.000 s on the shipped two-line, so "take the nearest" is already shipped), `own-lane-empty-while-cross-lane-present`, and the park-gate time (the overlap's price, not a fruit wait). **A cross-lane rule is a sort error on this cell** (left = lane 0 = grade A, right = lane 1 = grade B, `run(state, bin_index)` places on the arm's own lane), so price it with `FRUIT_GRADE_ROUTING=0` and report the **grade-purity ledger**, never as a free lever - P99: starvation 37 -> 0, arrival wait 1.62 -> 0.67 s, **interval +6.8 % / +5.3 % at the two seeds**, window rate worse at both, 17/40 mis-sorted |
 | the bimanual scheduler (`bimanual.py`, or the task loop under `FRUIT_BIARM=1`) | `scripts/selfcheck.sh` (the 152 leg), the rate batch (`scripts/153_biarm_rates.sh two-line 5`; `shared` and `single` are the other two modes), then `scripts/accept.sh` (it gates whatever session it ran) |
 | the **shipped scheduler default** (`bimanual.resolve_biarm`/`resolve_twoline`, `tasks.bimanual_enabled`/`two_line_enabled`, the supply package's `two_line=` scope, `scripts/accept.sh`'s gate branch) | `scripts/selfcheck.sh` (the `246` leg: the resolver table, the session scope, the entry wiring, the manifest keys, the accept branch), then **both restores** - `FRUIT_BIARM=0` at ten attempts against `configs/motion_reference_single.json` and a `FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=0` smoke - then a 20-attempt default rate run compared line-for-line with the pre-flip record (drop only `[fruit] [carry]`, `[fruit] [diag] carry-assist` and the `[biarm] scheduler:` banner; `logs/p85/p85_report.py --same-with-diag`, template `logs/p85/RESULTS.md`), then `scripts/accept.sh` and `scripts/demo_2min.sh` |
