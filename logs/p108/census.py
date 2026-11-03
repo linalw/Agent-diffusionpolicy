@@ -52,6 +52,8 @@ PLATE_LENGTH = 0.060
 PLATE_WIDTH = 0.026
 PLATE_THICK = 0.010
 MARGIN = 0.004  # +4 mm design margin on every clearance clause
+#: Attempts skipped because the trace carried no cycle marks (see `attempt`).
+SKIPPED: list = []
 
 
 @dataclass(frozen=True)
@@ -180,7 +182,14 @@ def attempt(d: dict) -> dict | None:
     if not ticks:
         return None
     close_at = next((i for i, t in enumerate(ticks) if t["phase"] == "close"), None)
-    end = close_at if close_at is not None else len(ticks)
+    if close_at is None:
+        # No cycle marks: `FRUIT_CYCLE_REPORT=1` was not set, so the trace has no
+        # phase labels and the close cannot be located.  Reading the window anyway
+        # would fold the carry/place legs (|dx| hundreds of mm) into the arrival
+        # census - refuse instead of lying (`--check` turns this into an error).
+        SKIPPED.append(d.get("attempt"))
+        return None
+    end = close_at
     start = descent_start(ticks, end)
     win = [t["off"] for t in ticks[start:end] if t["off"][2] >= band_lo]
     close = [t["off"] for t in ticks[end:] if t["phase"] == "close"]
@@ -273,8 +282,12 @@ def main() -> int:
             if t is not None:
                 rows.append(t)
             nbs.extend(neighbours(a))
+    if SKIPPED:
+        print(f"\n  WARNING: {len(SKIPPED)} attempt(s) skipped - no `close` phase row "
+              f"(run with FRUIT_CYCLE_REPORT=1): {SKIPPED}")
     if not rows:
-        raise SystemExit("no window rows: run with FRUIT_FRUIT_TRACE_ARM=1")
+        raise SystemExit("no window rows: run with FRUIT_FRUIT_TRACE_ARM=1 "
+                         "and FRUIT_CYCLE_REPORT=1")
 
     print(f"\nP108 aim census {args.label}".rstrip())
     print("=" * 96)

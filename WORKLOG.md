@@ -24592,3 +24592,122 @@ byte-identical** to `logs/p103/accept_final.log`. `scripts/selfcheck.sh` **PASS 
 failures, 1 skipped)**. No `configs/` change, no reference re-recorded, no re-base:
 `30fb99f8` / `30fb99f8` / `8952c320` stand, ckpt `moe_v13s` `61da390a`. Evidence
 `logs/p107/`.
+
+### P108 - option 2 (a wider cage + a wider supply spacing): the census rewrites the 24 mm, the aperture buys only the approach, the spacing starves, and the enclosure is a centring term
+
+P107 ended on a fork: a radial cage needs its axis on the fruit before the descent,
+so the next spend is a **centring step** (option 1) or a **workstation**.  The owner
+chose **option 2** instead - **widen the cage's aperture and the supply's along-belt
+spacing** - and P108 builds and measures exactly that, with the two knobs that
+already existed (`FRUIT_CAGE_OPEN_FACE_R`, `FRUIT_SUPPLY_GAP_MIN`), so **no `src/`
+or `configs/` change** and nothing to re-baseline.  Registration: `logs/p108/PREREG.md`
+(md5 **`7ea6662054fa2acdf490042c0737e662`**), pinned before any battery cell.
+
+*(Correction, recorded here rather than rewritten: an interim close-out at 14:16
+read this battery at **two seeds** (5, 6) and called the aperture "a measured
+actuator ... the placements double at both seeds".  The **fresh seed-101** cage
+cells were then re-run to completion - an earlier attempt's `.tmp` files had been
+dropped as aborted, and these are complete (`attempts=19` / `20`, `[stats]`
+present) - and they **reverse the placement read at that seed** (4/19 -> 3/20).
+The record below is the three-seed one, in which the placement movement is a
+**draw** (p = 0.37) and the enclosure doubling (+7.7 points, p = 0.28) is under
+the registered +30 point bar.)*
+
+**The census first, and it reframes the problem.**  P107's "24 mm off the cage's
+axis" is **not** a grasp-time figure and **not** a lateral one: over the **726**
+`FRUIT_DYNAMIC_TRACE` attempts already on disk the offset at the close's first tick
+is **`|dx|` 3.4 mm / `|dy|` 1.1 mm / radial 4.5 mm** (p50, `logs/p108/close_aim.py`).
+What is 83 mm is the **arrival**: `[task] dynamic descent: fruit dy` reads **p5 82 /
+p50 83 / p90 85 mm** over **3963** attempts, and **18 mm of it is
+`FRUIT_DYNAMIC_DESCEND_MARGIN`'s 0.15 s** at 0.12 m/s - the line's own lead, not an
+error.  The **binding window** is the descent because the plate (60 mm long,
+**20.5-80.5 mm below the jaw**) and a 60-70 mm payload's sphere overlap over **~130 mm
+of `dz`**, i.e. virtually the whole 55-60 mm leg; the pads enter the payload's band
+**14.5 mm in**, and per tick (15 traced cage attempts, `tr_cage_s5/`) the payload is
+then **55.8 mm upstream (p50, max 61.7) and 11.8 mm lateral** - an **83-89 %
+along-belt** split, with the lateral tail (60-70 mm) belonging to the attempts whose
+x-tracking lagged.  **So an oblong aperture is not the answer either**: its narrow
+86 mm lateral axis fails exactly that tail (`oblong 86x210` passes 5/8 windows
+against `round210`'s 7/8), so a genuinely narrow lateral needs a centring step first.
+The required aperture is `A = 2 (offset + r + 4 mm)`: **`A_y` 181.6 (p50) / 216.6
+(p90) mm** with the pool's 35 mm `r_max`, `A_x` 83.7 (p50); the offline per-tick
+screen reproduces P107's failure exactly - **120 mm passes 0/8 windows, 160 5/8,
+210 7/8** - and the registered **200 mm** (`OPEN_FACE_R=0.100`) sits at the census's
+p90.  **The spacing** it demands is `100 + 10 + 35 + 4 = **149 mm**` against the
+scatter's planned **0.10-0.35 m**; the delivered line met it in **every** census
+window (**0** neighbours inside the 0.15 m filter, 0/8), so the spacing was a margin
+purchase against a collision that was never observed.
+
+**The instrument is inert, again.**  The census cell is the P107 cage with
+`FRUIT_FRUIT_TRACE=2000 FRUIT_FRUIT_TRACE_ARM=1 FRUIT_CYCLE_REPORT=1`, and its **502
+`[fruit]` lines are 502/502 byte-identical** to P107's own `m2b_s5.log` (trace, cycle
+and `[cage]` rows dropped), `attempts=15 successes=2 sim=232.0s`.  Third time this
+tree has measured a 3-prim-per-arm read as branch-neutral (P95's 970/970 and
+974/974), and the reason the census's numbers can be quoted at all.
+
+**The battery** (scripted single arm, `ATTEMPTS=20`, seeds 5, 6 and a **fresh 101**
+for the cage arms, every arm carrying `FRUIT_CAGE_PROBE` + `MOTION_REPORT` +
+`CARRY_DIAG` + **`PLACE_TRACE`** - P107's M3 cells had no landing trace and could not
+report one): **S** shipped hand **25/38 = 65.8 %**, **B** cage120 **10/51 =
+19.6 %**, **E** cage200 **16/57 = 28.1 %**, **C** cage200 + `GAP_MIN=0.15`
+**6/35 = 17.1 %**.  **The aperture has exactly one robust effect and it is the
+class it targets**: **`clr < 0` (a pad face inside the payload during the approach)
+32/51 -> 4/57**, Fisher **p = 1.4e-8**.  **Everything the registration calls an
+outcome is a draw**: **enclosure at >= 3 pads 5/51 (9.8 %) -> 10/57 (17.5 %)**,
+p = 0.28 - it *doubles*, but the pre-registered **+30 point** bar is not met, so the
+registration's own "the aperture is not the actuator" fires - and the **placed count
+10/51 -> 16/57**, p = 0.37, better at seeds 5 and 6 (3/18 -> 7/19, 3/14 -> 6/18)
+and **worse at the fresh seed 101** (4/19 -> 3/20).  That reversal is exactly what
+P93's fresh-seed rule exists for: the two-seed reading ("better at both") is a
+branch draw, and the cage stays far below the shipped hand (**p = 0.0003**).  The
+descent's `end=` also turns out to be a **seed-5 branch property** rather than a
+general cost of 120 mm: **57.9 mm (p50) at B s5** against the shipped hand's 8.9-9.1,
+where the 120 mm pads **block the leg** on half the attempts, but **10.1/10.3 mm** at
+B s6/s101, and **9.3-10.5 mm** at E's three seeds.
+
+**The phase's primary does not move, and the mechanism is the closure's centring.**
+The enclosure histogram is **bimodal: 4 pads or 1-2, never 3** (`{0:2, 1:6, 2:8,
+4:3}` at 200 mm; `{0:7, 1:7, 2:5}` at 120 mm on the fresh seed) - the payload either
+is or is not centred when the ring closes.  And the closure *depth* is not its
+actuator either: a **post-hoc** cell at `FRUIT_GRIPPER_SQUEEZE=0.94` (a 6 %
+interference on the widest extent instead of 2 %) reads **1/17**.  The reason is the
+shipped target: `grip_gap = pinch_width * 0.98` and `pinch_width`'s radial branch is
+the payload's **widest horizontal extent** (P107's iteration 7), so the two pads on
+that axis touch at the 4.9 N cap while the two on the narrow axis stand off by
+`(widest - narrow)/2 + 2 %` - and a deeper command does not bring them in because the
+ring is **off-centre**, so the near pads simply push the payload further off.  The
+measured close-time lateral offset is **`|dx|` p50 8.8 mm** on the cage cell, the
+same order as the stand-off.
+
+**The spacing half fails its registered guard, and the prior was P1c's.**  On the
+200 mm cage, `GAP_MIN` 0.10 -> 0.15 costs **5 starved slots of 20 against 1** at seed
+5 (3 vs 2 at seed 6), the placements fall **16/57 -> 6/35**, and the seed-5 cell
+collapses to **1/15** (four lost slots and four `fruit did not follow the gripper`
+notes).  That is P1c's finding on the same axis - the **single arm** starves when the
+supply thins (the two-line hides it because its worker parks and waits, and the cage
+cannot run there).  G3 fires at seed 5, and the census had already said the spacing
+buys nothing measured.
+
+**Verdict: not adopted**, and the useful part is the split it leaves.  The aperture
+is a **precondition** (the approach, decisive) and not an outcome; the spacing is
+**not affordable**; and **the term that holds the placed count at 28 % is the
+centring**.  So **option 1 is the cheaper route for the term that actually blocks the
+placement** - but it is **not sufficient alone**, because a passive lateral guide
+cannot remove the **56 mm along-belt** arrival.  The cheapest *complete* pair the
+numbers license is **`FRUIT_DYNAMIC_DESCEND_MARGIN` 0.15 -> 0** (an existing knob; it
+is 18 of the 83 mm, so `A_y` p50 falls **181.6 -> 145.6 mm**, which the **160 mm**
+cage already half-passes) **+ a 160 mm cage + a centring guide** at the station,
+already scoped to the census's own instrument.  That is a registration of its own,
+and it is where the next spend goes.
+
+**No-harm, proven.**  `scripts/accept.sh` with every knob unset: **8/10, 9.0
+s/attempt, `fingerprint: matches`, `190: PASS`**, and its **421 `[fruit]` lines are
+421/421 byte-identical** to `logs/p107/accept_noharm.log`.  `scripts/selfcheck.sh`
+**PASS (0 failures, 1 skipped)**; `python3 scripts/211_bed_audit.py` **ok (115
+checks)**.  Landing: payload-present releases land `on_belt` on S 25/37, B 10/21,
+E 16/28, C 6/15 (the misses are the upstream-lost `-184 mm` class).  No `configs/`
+change, no reference re-recorded, ckpt `moe_v13s` `61da390a` - `30fb99f8` /
+`30fb99f8` / `8952c320` stand.  Evidence `logs/p108/` (`PREREG.md`, `CENSUS.md`,
+`RESULTS.md`, `census.py`, `close_aim.py`, `census.txt`, `p108_report.py`,
+`p108_report.txt`, `run_p108.sh`, `cells.sh`, the cells `{S,B,E}_{5,6,101}`,
+`{C}_{5,6}`, `E_sq94_s5`, the traced `tr_cage_s5/`, `accept_noharm.{log,driver}`).

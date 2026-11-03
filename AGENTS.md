@@ -5508,85 +5508,84 @@ opt-in, `configs/motion_reference.json` = `..._twoline.json` = **`30fb99f8`** an
 **P108 (2026-11-03, `logs/p108/`; the owner's **option 2** - widen the cage's
 aperture AND the supply's along-belt spacing - **built with the two knobs that
 already existed** (`FRUIT_CAGE_OPEN_FACE_R`, `FRUIT_SUPPLY_GAP_MIN`), so **no
-`src/` or `configs/` change, nothing adopted, no reference re-recorded**): the
-aperture is a **measured actuator for the class it targets and the enclosure does
-not move** - the phase's primary endpoint is a **draw**, the spacing half
-**fails its density guard**, and the class that actually keeps the cage at 35 %
-is the **centring**, i.e. P107's *other* fork (option 1). **The census rewrites
-P107's "24 mm".** It is **not** a grasp-time figure and **not** a lateral one:
-the **close-time** aim is `|dx|` **3.4 mm** / `|dy|` **1.1 mm** / radial
-**4.5 mm** (p50, **726** `FRUIT_DYNAMIC_TRACE` attempts already on disk,
-`logs/p108/close_aim.py`), while the payload sits **83 mm upstream** (p50; p5 82
-/ p90 85, **3963** `[task] dynamic descent: fruit dy` rows) when the descent
-starts - the line's own lead, of which **18 mm is
-`FRUIT_DYNAMIC_DESCEND_MARGIN`'s 0.15 s** at 0.12 m/s. The **binding window** is
-the descent, because the plate (60 mm long, **20.5-80.5 mm below the jaw**) and a
-60-70 mm payload's sphere overlap over **~130 mm of `dz`**, i.e. almost the whole
-55-60 mm leg: the pads enter the payload's band **14.5 mm in**, when the payload
-is still **55.8 mm upstream (p50, max 61.7) and only 11.8 mm lateral** - the
-split is **83-89 % along-belt** (the lateral tail, 60-70 mm, is the x-tracking
-lag on the attempts that fail). Measured per tick by **`FRUIT_FRUIT_TRACE=2000
-FRUIT_FRUIT_TRACE_ARM=1`** on the cage cell (`logs/p108/tr_cage_s5/`,
-`census.py`), and **the instrument is inert**: the cell's **502 `[fruit]` lines
-are 502/502 byte-identical** to P107's own `m2b_s5.log` with the trace/cycle/
-`[cage]` rows dropped. **The geometry**: `A = 2 (offset + r + 4 mm)` gives
-**`A_y` 181.6 (p50) / 216.6 (p90) mm** with the pool's 35 mm `r_max` and `A_x`
-83.7 (p50); the offline per-tick screen reproduces P107 exactly - **120 mm passes
-0/8 windows, 160 5/8, 210 7/8** - and **the oblong does not pay**: a narrow
+`src/` or `configs/` change, nothing adopted, no reference re-recorded**): **the
+phase is refuted as stated.**  The aperture is a **robust actuator for exactly one
+class - the approach collision - and a draw for every outcome the registration
+names**: the **enclosure at >= 3 pads** reads **5/51 = 9.8 % -> 10/57 = 17.5 %**
+(Fisher **p = 0.28**; it doubles, but the registered **+30 point** bar is not met)
+and the **placed count 10/51 = 19.6 % -> 16/57 = 28.1 %** (**p = 0.37** - better at
+seeds 5 and 6, **worse at the fresh seed 101**: 3/18 -> 7/19, 3/14 -> 6/18,
+**4/19 -> 3/20**, which is exactly why P93's fresh-seed rule exists).  Decisive is
+only **`clr < 0` 32/51 -> 4/57, Fisher p = 1.4e-8**.  **The spacing half fails its
+density guard** (`GAP_MIN` 0.10 -> 0.15 costs **5 starved slots of 20 against 1** at
+seed 5, 3 vs 2 at seed 6) and the placements fall to **6/35 = 17.1 %**.  **The
+census rewrites P107's "24 mm".**  It is **not** a grasp-time figure and **not** a
+lateral one: the **close-time** aim is `|dx|` **3.4 mm** / `|dy|` **1.1 mm** /
+radial **4.5 mm** (p50, **726** `FRUIT_DYNAMIC_TRACE` attempts already on disk,
+`logs/p108/close_aim.py`), while the payload sits **83 mm upstream** (p50; p5 82 /
+p90 85, **3963** `[task] dynamic descent: fruit dy` rows) when the descent starts -
+the line's own lead, of which **18 mm is `FRUIT_DYNAMIC_DESCEND_MARGIN`'s 0.15 s**
+at 0.12 m/s.  The **binding window** is the descent, because the plate (60 mm long,
+**20.5-80.5 mm below the jaw**) and a 60-70 mm payload's sphere overlap over
+**~130 mm of `dz`**, i.e. almost the whole 55-60 mm leg: the pads enter the
+payload's band **14.5 mm in**, when the payload is still **55.8 mm upstream** (p50,
+max 61.7) and only **11.8 mm lateral** - an **83-89 % along-belt** split (the
+lateral tail, 60-70 mm, belongs to the attempts whose x-tracking lagged).  Measured
+per tick by **`FRUIT_FRUIT_TRACE=2000 FRUIT_FRUIT_TRACE_ARM=1`** on the cage cell
+(`logs/p108/tr_cage_s5/`, `census.py`), and **the instrument is inert**: the cell's
+**502 `[fruit]` lines are 502/502 byte-identical** to P107's own `m2b_s5.log` with
+the trace/cycle/`[cage]` rows dropped.  **The geometry**: `A = 2 (offset + r +
+4 mm)` gives **`A_y` 181.6 (p50) / 216.6 (p90) mm** with the pool's 35 mm `r_max`
+and `A_x` 83.7 (p50); the offline per-tick screen reproduces P107 exactly - **120 mm
+passes 0/8 windows, 160 5/8, 210 7/8** - and **the oblong does not pay**: a narrow
 86 mm lateral axis fails the 60-70 mm tail (`oblong 86x210` 5/8 against
-`round210` 7/8), so a genuinely narrow lateral needs a centring step first. **The
+`round210` 7/8), so a genuinely narrow lateral needs a centring step first.  **The
 spacing** the 200 mm aperture demands is `A/2 + 10 (plate) + 35 (r_max) + 4 =
-**149 mm**` against the scatter's planned **0.10-0.35 m** - but the delivered
-line met it in **every** census window (**0 neighbours inside the 0.15 m filter,
-0/8**), so the spacing was a margin purchase against a collision never observed.
-**The battery** (scripted single arm, `ATTEMPTS=20`, seeds **5, 6**, every arm
-carrying `FRUIT_CAGE_PROBE`+`MOTION_REPORT`+`CARRY_DIAG`+**`PLACE_TRACE`** -
-P107's M3 cells had no landing trace): **S** (shipped hand) **25/38 = 65.8 %**,
-**B** (cage120) **6/32 = 18.8 %**, **E** (cage200) **13/37 = 35.1 %**, **C**
-(cage200 + `GAP_MIN=0.15`) **8/32 = 25.0 %**. **The aperture's three reads**:
-**`clr < 0` 21/32 -> 4/37** (Fisher **p = 3.9e-6**), the **descent executes**
-(`end=` p50 **57.9 -> 9.6 mm**; the shipped hand is 8.9-9.1 mm - so the 120 mm
-cage's pads *block the leg* on half the attempts, a class P107 could not see
-because it read `clr`/`bat`, not the leg's end), and the **placements double at
-both seeds** (3/18 -> 7/19, 3/14 -> 6/18; pooled Fisher **p = 0.178**, a
-direction, and still far below S, **p = 0.011**). **The enclosure at >= 3 pads -
-the phase's primary - is a draw: 5/32 -> 7/37, p = 0.76**, and it is **bimodal**
-(`{0:2, 1:6, 2:8, 4:3}` at 200 mm: **4 pads or 1-2, never 3**), i.e. the payload
-is or is not centred when the ring closes. **The closure depth is not its
-actuator**: after the battery, a **post-hoc** cell at `FRUIT_GRIPPER_SQUEEZE=0.94`
-(6 % of the widest extent instead of 2 %) reads **1/17** - the shipped target is
-`pinch_width * 0.98` and `pinch_width`'s radial branch is the payload's **widest
-horizontal extent** (P107 iteration 7), so the two pads on that axis touch at the
-cap and the other two stand off by `(widest - narrow)/2 + 2 %`; a deeper command
-does not bring them in because the ring is **off-centre**. **The spacing half
-fails G3**: on the 200 mm cage it costs **5 starved slots of 20 against 1** at
-seed 5 (3 vs 2 at seed 6) and the placements fall **13/37 -> 8/32**, the seed-5
-cell collapsing to **1/15** - **P1c's prior on the same axis** (the single arm
-starves when the supply thins; the two-line hides it and the cage cannot run
-there). **Verdict: not adopted.** The aperture is worth having for the approach
-and half the placements; the spacing is not affordable; **neither touches the
-enclosure**, so **option 1 (a passive centring guide) is the cheaper route for
-the term that blocks the placement but is not sufficient alone** (it cannot
-remove the 56 mm along-belt arrival) - **the cheapest complete pair is
-`FRUIT_DYNAMIC_DESCEND_MARGIN` 0.15 -> 0 (an existing knob; `A_y` p50 181.6 ->
-145.6 mm, which the 160 mm cage half-passes) + a 160 mm cage + a centring
-guide**, and that is a registration of its own. No-harm: `scripts/accept.sh`
-with every knob unset reads **8/10, 9.0 s/attempt, `fingerprint: matches`,
-`190: PASS`** with its **421 `[fruit]` lines 421/421 byte-identical** to
-`logs/p107/accept_noharm.log`; `scripts/selfcheck.sh` **PASS (0 failures, 1
-skipped)**; `python3 scripts/211_bed_audit.py` **ok (115 checks)**. Landing
-guards: payload-present releases land `on_belt` on **S 25/37, B 6/13, E 13/17,
-C 8/15** (the misses are the upstream-lost `release_bottom = -184 mm` class);
-descent budgets clean on S, and the cage arms carry P107's ~2.5 %-of-legs 1.1x
-plus the blocked-descent `end/len` 1.02-1.27, **not re-tuned** (AGENTS §2).
-Re-baseline: **none** - every number above is opt-in, `configs/motion_reference.json`
-= `..._twoline.json` = **`30fb99f8`** and `..._single.json` = **`8952c320`**
-stand. Pins: **`tasks.py` `9e3e657b`, `cage_hand.py`, `scene.py` `472bfb6c`,
-`assets.py` `540406fa`, `fruits.py` `dcabe16b` all unchanged by this phase**;
+**149 mm**` against the scatter's planned **0.10-0.35 m**, but the delivered line
+met it in **every** census window (**0 neighbours inside the 0.15 m filter, 0/8**):
+the spacing is a margin purchase against a collision never observed.  **The
+battery** (scripted single arm, `ATTEMPTS=20`, every arm carrying
+`FRUIT_CAGE_PROBE`+`MOTION_REPORT`+`CARRY_DIAG`+**`PLACE_TRACE`** - P107's M3 cells
+had no landing trace): **S** (shipped hand) **25/38 = 65.8 %**, **B** (cage120)
+**10/51 = 19.6 %**, **E** (cage200) **16/57 = 28.1 %**, **C** (cage200 +
+`GAP_MIN=0.15`) **6/35 = 17.1 %**, at seeds 5/6/101 (S and C at 5/6).  The cage's
+descent `end=` is **57.9 mm (p50) at B s5** against the shipped hand's 8.9-9.1 mm -
+the 120 mm pads **block the leg** on half of *that* seed - and **9.3-10.5 mm** at
+E's three seeds; B s6/s101 already read 10.1/10.3, so the blocked-descent class is
+a **seed-5 branch property**, not a general cost of 120 mm.  **The enclosure's
+histogram is bimodal - 4 pads or 1-2, never 3** (`{0:2, 1:6, 2:8, 4:3}` at 200 mm):
+the payload is or is not centred when the ring closes, and **the closure depth is
+not its actuator either** (a post-hoc `FRUIT_GRIPPER_SQUEEZE=0.94` cell, a 6 %
+interference instead of 2 %, reads **1/17**), because the shipped target is
+`pinch_width * 0.98` on the payload's **widest horizontal extent** (P107 iteration
+7) - the two pads on that axis touch at the 4.9 N cap while the two on the narrow
+axis stand off by `(widest - narrow)/2 + 2 %`, and a deeper command only pushes an
+off-centre payload further off.  **Verdict: not adopted.**  The aperture is worth
+having as a **precondition** (the approach clears, p = 1.4e-8); the spacing is not
+affordable; and **the term that holds the placed count at 28 % is the centring**,
+i.e. P107's other fork.  **Option 1 is therefore the cheaper route for the
+enclosure but not sufficient alone** (it cannot remove the 56 mm along-belt
+arrival): the cheapest *complete* package this phase prices is
+**`FRUIT_DYNAMIC_DESCEND_MARGIN` 0.15 -> 0** (an existing knob; it is 18 of the
+83 mm, so `A_y` p50 falls **181.6 -> 145.6 mm**, which the **160 mm** cage already
+half-passes) **+ a 160 mm cage + a centring guide at the station**, and that is a
+registration of its own.  No-harm: `scripts/accept.sh` with every knob unset reads
+**8/10, 9.0 s/attempt, `fingerprint: matches`, `190: PASS`** with its **421
+`[fruit]` lines 421/421 byte-identical** to `logs/p107/accept_noharm.log`;
+`scripts/selfcheck.sh` **PASS (0 failures, 1 skipped)**;
+`python3 scripts/211_bed_audit.py` **ok (115 checks)**.  Landing guards:
+payload-present releases land `on_belt` on **S 25/37, B 10/21, E 16/28, C 6/15**
+(the misses are the upstream-lost `release_bottom = -184 mm` class); descent
+budgets clean on S, and the cage arms carry P107's ~2.5 %-of-legs 1.1x plus the
+blocked-descent `end/len` 1.02-1.27, **not re-tuned** (AGENTS §2).  Re-baseline:
+**none** - every number above is opt-in, `configs/motion_reference.json` =
+`..._twoline.json` = **`30fb99f8`** and `..._single.json` = **`8952c320`** stand.
+Pins: **`tasks.py` `9e3e657b`, `cage_hand.py`, `scene.py` `472bfb6c`, `assets.py`
+`540406fa`, `fruits.py` `dcabe16b` all unchanged by this phase**;
 `logs/p108/{PREREG.md (md5 7ea6662054fa2acdf490042c0737e662),CENSUS.md,
-RESULTS.md,census.py,close_aim.py,census.txt,p108_report.py,run_p108.sh,
-cells.sh}`, the cells `{S,B,E,C}_{5,6}` (plus `E_sq94_s5` and the traced
-`tr_cage_s5/`); ckpt `moe_v13s` `61da390a`. Evidence `logs/p108/`.
+RESULTS.md,census.py,close_aim.py,census.txt,p108_report.py,p108_report.txt,
+run_p108.sh,cells.sh}`, the cells `{S,B,E}_{5,6,101}`, `{C}_{5,6}`, `E_sq94_s5`
+and the traced `tr_cage_s5/`; ckpt `moe_v13s` `61da390a`.  Evidence `logs/p108/`.
 
 ## 3. What changed -> what to run
 
