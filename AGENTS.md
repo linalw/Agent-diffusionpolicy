@@ -855,6 +855,66 @@ composition is a drought/variance lever with the mean ~1.8 eligible/lane
 unchanged, needing its own pre-registration, reference and clearance report).
 Evidence WORKLOG "P33 phase 1", `logs/p33/`.
 
+**P109 (2026-11-03, `logs/p109/`; default off, **nothing adopted**, no `configs/`
+change, no reference re-recorded): P108's ① is measured and **it reverses one term
+of P108's "cheapest complete package"** - the descent margin is **load-bearing,
+not a cushion**.`FRUIT_DYNAMIC_DESCEND_MARGIN` 0.15 -> 0 moves the descent-start
+gap to the aim **exactly 18 mm** and flips **every** attempt's end-of-descent
+arrival from upstream to past the aim (`past_aim` **0/76 -> 79/79**), which puts
+the catch-up on the wrong side of its own 30 mm feed-forward and opens a
+**bistable** failure (converge to the 6 mm tolerance, or run away to
+**233-269 mm**) that costs **5 of 79** battery attempts against **0 of 76** and
+the placed count at **4 of 4 seeds**. **The instrument correction comes first,
+because P108's 18 mm was measured on the wrong gap**: `[task] dynamic descent`'s
+**`fruit dy` is algebraically invariant** to the knob (`intercept = fruit -
+speed*t_desc`, so `dy == speed*t_desc`; measured p50 **83.0 / 82.0 / 83.0** at
+margins 0.15 / 0.075 / 0 across twelve cells), and the gap it sets is
+**`g0 = fruit dy + shift = deadline = speed*(t_desc + margin)`** - p50
+**99.9-100.4 -> 90.8-91.0 -> 82.1-82.3 mm**, i.e. **+17.6 / +18.3 / +17.6 /
++17.7 mm** M0->M1 at seeds 5/6/101/202 with the half rung exactly mid-ladder;
+the **selector floor** (`_dynamic_pick_lead() + speed*select_s + margin`) moves
+with it, so the **selected sequence differs at every seed** and a count delta
+across arms is partly a branch (E0). **The arrival** is `g0 - 0.12 m/s * steps`
+(steps 88-94 printed, belt measured 1.00x): **M0 +10.6 mm (0/76 past the aim),
+M0.5 +1.3 (9/75), M1 -7.3 (79/79)** - and the catch-up commands
+`fruit + v*0.25 s`, i.e. **30 mm further downstream**, so a fruit already 5-8 mm
+past the aim is a race the arm loses at 1 mm/tick. **The failure is bimodal, not
+graded**: the residual's p50 is 5.8-5.9 mm (the tolerance itself) in every arm
+and the runaways are 233.2-269.4 mm; **all five battery runaways are M1 at seed 5**
+(5/20 vs 0/19, Fisher **p = 0.047**; the other three seeds 0/60), pooled with the
+acceptance **8/89 = 9.0 % vs 1/86 = 1.2 %, p = 0.035** - the shipped arm draws
+the class too (1 of its 10 acceptance attempts), so the margin depresses the
+rate ~7x, it does not delete it. **The other no-grasp events are a different
+class** (M0's one and all three of M0.5's read a converged 5.8-6.0 mm residual
+then lose the payload at the close, `logs/p42/SIM_LIMIT.md`); only M1 produces
+the >200 mm timing runaways. **Counts**: M0 **49/76 = 64.5 %**, M0.5
+**49/75 = 65.3 %** (a draw, p = 1.0), M1 **41/79 = 51.9 %** (**down at 4/4
+seeds**, -2/-3/-2/-1, pooled p = 0.143). **The acceptance A/B** (ten attempts,
+the shipped two-line - so the two-line **does** read the knob, both stations'
+shifts go to ~0 and the runaways rise): unset **8/10, `fingerprint: matches
+30fb99f8`, `190: PASS`, 419/419 identical** to `logs/p108/accept_noharm.log`;
+M1 **4/10 = 40 %** (below the 0.60 floor), no-grasp 2 -> **5**, runaways 1 -> **3**,
+budgets clean, fingerprint DIFFERS by construction. **Verdict: not a lever** -
+E1b passes (+17.6..18.3 mm >= the registered 12) and **E3 / E4 / the acceptance
+gate all fail**; **the dose axis says it from the other side**: half the margin
+keeps the arrival on the correct side (+1.3 mm, 0 runaways in 75) and **buys
+nothing** (a count draw), so there is no throughput on the far side of the
+boundary. **Read rule: on this line the arrival offset is not an error to
+minimise** - a static descent under a moving belt *is* the lead, and the margin's
+job is to make the catch-up's residual **positive**; a shorter descent
+(jerk-bound, P91 §3) or a smaller margin both spend the catch. The remaining
+lever on that term is P108's **aperture precondition** (`clr < 0` 32/51 -> 4/57)
+or a **centring guide / workstation**, never another margin rung. No-harm:
+`M0` replays P108's S cells **860/860** and **853/853** (`[cycle]` dropped) and
+the acceptance **419/419**, `selfcheck.sh` **PASS (0 failures, 1 skipped)**,
+`106` OK, `107` PASS (21 checks), all twelve cells' descents inside budget (worst
+`|v|max` **0.1230** vs 0.160-0.162, lurch 0.039 vs 0.291), landing
+**49/51 / 49/49 / 41/44** payload-present `on_belt`. Pins: `tasks.py`
+**`d341b0da`**, `rl_env.py` **`bf4c56fa`**, `bimanual.py` `9b7fc33f`,
+`fruits.py` `dcabe16b`, `assets.py` `eb30c77a`, `scene.py` `a0199097`; refs
+**`30fb99f8`** / **`30fb99f8`** / `8952c320` untouched; ckpt `moe_v13s`
+`61da390a`; `logs/p109/PREREG.md` **`192a0c1b`**. Evidence `logs/p109/`.
+
 ## 2. Two constraints that decide how to measure
 
 **The outcome is quantized; do not compare success rates across configurations.**
@@ -5597,6 +5657,7 @@ and the traced `tr_cage_s5/`; ckpt `moe_v13s` `61da390a`.  Evidence `logs/p108/`
 | the **place cap's scoped cell** (`tasks.place_speed_resolution`, `PLACE_TWO_LINE_DEFAULT`, the `[biarm] place profile:` row, `scene._place_provenance`, the manifest's `physics.place`) | `scripts/selfcheck.sh` (the `248` leg: unset/no-scope **is** `_SPEED_SHIPPED` exactly, unset/two-line is **also** the shipped pair because the default is off, the explicit `=0.52` is the measured arm with its **362 -> 244-tick** clock at the named **0.55 m** reference, the override table, the profile clock reproducing `motion.jerk_limited` in **both** the speed- and acceleration/jerk-limited regimes, both consumers on the session predicate, the row printing only inside `run_bimanual`, and `physics.place` in both writers), then the same replay/inertness shape as the release row (`--same` against the pre-change record, `FRUIT_BIARM=0 scripts/accept.sh` **raw 346/346**, the shared-station `--profile` pair), and read the delivered side on **both denominators**: the interval **is** `window/(n-1)`, so the window rate and the interval are **one statistic** - a place cell that lengthens the placement window reads as a worse interval even with more placements (`logs/p88/RESULTS.md` §3) |
 | the **lift cap's scoped cell** (`tasks.lift_speed_resolution`, `LIFT_TWO_LINE_DEFAULT`, `_LIFT_SCOPED_VMAX` / `_LIFT_REFERENCE_DISTANCE`, the `[biarm] lift profile:` row, `scene._lift_provenance`, the manifest's `physics.lift`) | `scripts/selfcheck.sh` (the `249` leg: unset/no-scope **is** `_SPEED_SHIPPED` exactly, unset/two-line is **also** the shipped pair because the default is off, the explicit `=0.37` is P44's **S3-v** with its **162 -> 136-tick** clock at the named **0.21 m** reference, **`=1`/`FRUIT_SPEED_ALL` keep S3/S13's measured 0.36/1.9** while a `0.37` value means 1.0 however it is written, `..._AMAX` pins the acceleration, the profile clock reproducing `motion.jerk_limited` in both regimes **and the short-leg null below 0.225 m**, both consumers on the session predicate, the row printing only inside `run_bimanual`, and `physics.lift` in both writers), then the P88 shape - `--same` against the pre-change record, `FRUIT_BIARM=0 scripts/accept.sh` **raw 346/346**, the shared-station `--profile` pair, and a fresh unset `N5` replay - and read the block on the **mean plus the per-leg read**, never a median across legs of different lengths (`logs/p89/RESULTS.md` §1) |
 | **any `[cycle]` block** you are about to "speed" (the `descent`/`grip`/`close`/`hover`/`prepose` family, or a per-attempt **tick** constant such as `FRUIT_DYNAMIC_PROBE_TICKS`) | **the audit first, offline** (`python3 logs/p91/audit.py`, `--predict`, `--schedule`, `--grip`): a block is **wait + tax + motion**, and only the motion is a lever - the `descent`'s whole block is `lead/speed − margin` and **cannot move** (a faster leg waits longer; `logs/p91/AUDIT.md` §3), the `grip`'s mean carries P40's probe tax, the `close`'s direction is contested (R11-B), and the `hover`/`prepose` have no profile (an IK step cap and a tuned blend). Then the scoped-resolver shape (`probe_ticks_resolution` is the fourth; the `[biarm] take-off profile:` row + `physics.takeoff`) and the P91 battery: `--blocks` reads **P1b on the clean-mode instance** (the block's deterministic constant), **never the mean**, because a tick trim that makes a *validation* harder moves the **mode mix** against you (P91: clean −0.31 s exact, block mean **+0.23/+0.38**, first-probe success 14/20 → 5/20) - and read the **pinch** (`[carry] force_min`, the P41 9.7-9.9 N plateau) and the loaded-slide guard, because a tick cell can be coupled to a **force** (`logs/p91/RESULTS.md` §2) |
+| **the descent's timing** (the hover wait, `FRUIT_DYNAMIC_DESCEND_MARGIN` / `FRUIT_DYNAMIC_LEAD_MARGIN`, `_dynamic_pick_lead`, the selector floor it feeds) | **read the row's arithmetic before you read the row**: `[task] dynamic descent` prints `fruit dy`, and `intercept = fruit − speed*t_desc` makes it **algebraically invariant** to the margin (`dy == speed*t_desc`; P109 measured 83.0 / 82.0 / 83.0 mm at margins 0.15 / 0.075 / 0) - the gap a timing knob sets is **`g0 = fruit dy + shift = deadline = speed*(t_desc + margin)`**, so register `g0`, never `fruit dy`. Then the **arrival sign**: `g0 − 0.12 m/s * steps` must stay **positive** (the fruit upstream when the pads stop), because the catch-up commands `fruit + v*0.25 s` - 30 mm *downstream* - and the loop is bistable, not graded: it exits at the 6 mm tolerance or runs away to 200-270 mm, with **nothing in between** (P109: `past_aim` 0/76 at 0.15, 9/75 at 0.075, **79/79** at 0; runaways 0 / 0 / 5 of ~78). Read it as **`residual > 50 mm`** (`logs/p109/p109_report.py`), not `> tol`: the tol read is the tolerance itself in every arm. Watch the **branch** - the selector floor moves with the same term, so the selected sequence changes and a count delta across arms is partly a draw - then the acceptance A/B (the two-line reads this knob too, both stations) and `logs/p109/RESULTS.md` §5's clause table |
 | the **park return's clock** (`tasks.park_profile_resolution`, `PARK_TWO_LINE_DEFAULT`, `FRUIT_BIARM_PARK_BLEND`/`_SETTLE`, the `[ready]` row's `blend`/`settle`/`q_step`, the `[biarm] park profile:` row, `scene._park_provenance`, the manifest's `physics.park`) | `scripts/selfcheck.sh` (the `254` leg: unset/no-session **is** the shipped 90/120, the env is **not read** without a two-line session - the driver's pre-session prime transit keeps the shipped clock, unset/two-line is also the shipped pair because the default is **off**, the explicit `60/75` is the measured arm with its **135-of-210-tick** clock (`-0.625 s`), the halves are independent overrides with the read sites' clamps, the shipped pair **is** `READY_TRANSIT_BLEND_TICKS` and `_ready_settle`'s own default, `q_step` is arithmetic inside the diag block, `physics.park` in both writers), then the **control replay first** (`python3 logs/p100/p100_report.py --same logs/p100/C5.log logs/p99/C5.log`, dropping `[ready]`, the park row and `[bed-sel]`) - that one comparison proves the tree inert, the control valid and `FRUIT_READY_DIAG` neutral - then **>= 4 seeds**, the **park block** as the mechanism (`park moving -> park done`, and the `[ready]` decomposition), `q_step <= 0.15 rad/tick` and **`post_err` against its own same-seed control** (the shipped park sits ~5x inside `TRANSIT_TOL`, a trim spends that margin), then the **slot dead time split** (`logs/p99/census.py`): **the park is a motion inside the slot loop, and the slot loop is not the interval either** (-0.62 s/slot bought a pooled interval of +0.5 %; the gate and the starved polls take it back), then both denominators + the wall, then the trace-pair clearance census (`--clearance`, no rate from those cells; this tree reads 48 mm min, so the historical 1.9-2.6 mm must not be quoted) - `logs/p100/RESULTS.md` |
 | docs, or a number's provenance/data size | `python3 scripts/106_index_audit.py` and `python3 scripts/107_collect_merge_test.py` |
 | motion, control, `trajectory` limits, IK | `python3 scripts/96_motion_check.py`, then `scripts/accept.sh` |

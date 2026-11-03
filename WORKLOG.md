@@ -24711,3 +24711,109 @@ change, no reference re-recorded, ckpt `moe_v13s` `61da390a` - `30fb99f8` /
 `RESULTS.md`, `census.py`, `close_aim.py`, `census.txt`, `p108_report.py`,
 `p108_report.txt`, `run_p108.sh`, `cells.sh`, the cells `{S,B,E}_{5,6,101}`,
 `{C}_{5,6}`, `E_sq94_s5`, the traced `tr_cage_s5/`, `accept_noharm.{log,driver}`).
+
+### P109 - the descent margin is load-bearing: it sets the *sign* of the arrival, and spending it costs the catch (2026-11-03)
+
+**The question, the pre-registration, and the guard that came first.**  P108's option
+① was `FRUIT_DYNAMIC_DESCEND_MARGIN` **0.15 -> 0**, "the only cheap lever that touches
+the along-belt arrival" (its census: the payload sits **83 mm** upstream at the
+descent's start, 83-89 % along-belt, the pads entering the payload's band 14.5 mm in
+with the fruit still 55.8 mm upstream).  The guard was named before the phase ran:
+the margin is what lets the descent meet a slightly late fruit
+(`deadline = speed*(t_desc + margin)`), so **the catch's own success** is what can
+break.  `logs/p109/PREREG.md` (md5 **`192a0c1b`**) pinned three arms (M0 unset =
+0.15, **M0.5** 0.075 as the dose axis, M1 = 0), four seeds (5, 6 and P93's fresh
+101, 202), 20 attempts, the scripted single arm, one claim each, and this rule: **a
+win needs `g0` to fall AND the no-grasp class not to rise at any seed AND the placed
+count not to fall by more than one per seed**; anything else is a report.
+
+**The instrument correction, before any mechanism claim.**  `[task] dynamic descent`
+prints `fruit dy`, and the code makes it `fruit − intercept` with
+`intercept = fruit − speed*t_desc` - so **`fruit dy == speed*t_desc`, with no margin
+term at all**: the number P108 read as "the arrival offset" **cannot** respond to
+this knob.  The twelve cells confirm it: `fruit dy` p50 **83.0 / 82.0 / 83.0 mm** for
+0.15 / 0.075 / 0 across four seeds each.  The gap the margin sets is
+**`g0 = fruit dy + shift = deadline`**, the descent-start distance from the fruit to
+the aim, and it moves cleanly: p50 **99.9-100.4 -> 90.8-91.0 -> 82.1-82.3 mm**, i.e.
+**+17.6 / +18.3 / +17.6 / +17.7 mm** M0 -> M1 at the four seeds, with the half rung
+exactly mid-ladder.  It also moves the **selector floor**
+(`_dynamic_pick_lead() + speed*select_s + margin`) by the same 18 / 9 mm, so the
+**selected fruit sequence differs at every seed** from attempt 1-3 on - registered as
+E0, and the reason a count delta across arms is partly a branch.
+
+**What it does to the arrival.**  The descent is a static, open-loop profiled leg to
+the station (the aim is `station_y`), and the belt runs at a measured 1.00x, so the
+whole window shifts by the same 18 mm: the fruit's position **relative to the aim
+when the pads stop** is `g0 − 0.12 m/s × steps` (steps 88-94, printed) and it goes
+from **+10.6 mm p50 (past on 0 of 76 attempts) to −7.3 mm (past on 79 of 79)**, with
+0.075 at **+1.3 mm (9 of 75, p10 −0.1 - it sits on the boundary)**.  That sign is the
+phase's mechanism: the catch-up commands `fruit + v*0.25 s`, i.e. **30 mm further
+downstream**, so it wants the fruit **upstream** of the tip when the descent ends;
+with the fruit already 5-8 mm past the aim the command is 35-38 mm ahead of a tip
+that has to move downstream at the belt's own 1 mm/tick to hold station, and the loop
+is a race the arm can lose.
+
+**The guard fires, and the failure is bistable - not graded.**  The catch-up's
+residual p50 is **5.8-5.9 mm in every arm** (it is the tolerance itself: the loop
+exits at `catch_tol` 6 mm), so the honest read is the tail.  Runaways (residual
+**> 50 mm**): M0 **0/76**, M0.5 **0/75**, M1 **5/79** with values **233.2 / 254.7 /
+256.3 / 259.0 / 261.8 mm** - nothing between 6 and 233 mm in 240 attempts.  All five
+are **M1 at seed 5** (5/20 vs the control's 0/19, Fisher **p = 0.047**), spread
+through the run (attempts 0, 1, 6, 13, 17), and all five end `grasped=False` with
+`fruit did not follow the gripper`.  The other three battery seeds read **0/60**, and
+the shipped arm draws the class too - **1 of its 10 acceptance attempts** - so pooled
+with the acceptance the class is **8/89 = 9.0 % vs 1/86 = 1.2 %, p = 0.035**: the
+margin depresses the rate ~7x, it does not delete it.  **The other no-grasp events
+are a different class**: M0's single one (seed 6) and all three of M0.5's (seed 101)
+read a converged **5.8-6.0 mm** residual and then lose the payload at the close - the
+converged close/grip class `logs/p42/SIM_LIMIT.md` already documents - so only M1
+produces the timing runaways, which is what makes this guard specific to the knob.
+
+**The count and the branch.**  M0 **49/76 = 64.5 %**, M0.5 **49/75 = 65.3 %** (a
+**draw**, Fisher p = 1.0), M1 **41/79 = 51.9 %** - **down at 4 of 4 seeds**
+(-2 / -3 / -2 / -1, pooled p = 0.143, sign 4/4), and 3 of those 4 seeds break the
+registered "not by more than one" clause.  The selected sequences differ (E0), so the
+count is partly a branch draw; the class read is the one that transfers.
+
+**The acceptance A/B (the catch's own gate), and it is also the two-line's read.**
+Ten attempts, the shipped two-line session - and the two-line **does** read the knob
+(both stations' `shift` go to ~0 and the runaways rise), so a flip would move every
+dynamic catch on every path.  Unset: **8/10 = 80 %, `fingerprint: matches
+30fb99f8`, `190: PASS`**, and **419/419 byte-identical** to
+`logs/p108/accept_noharm.log`.  M1: **4/10 = 40 %** (below the 0.60 two-line floor),
+no-grasp **2 -> 5**, runaways **1 -> 3**, budgets clean in both arms (worst `|v|max`
+0.110-0.112 of 0.160, lurch 0.017 of 0.291), fingerprint DIFFERS by construction.
+
+**Verdict: not a lever - and the record's one correction.**  E1b passes and **E3, E4
+and the acceptance gate all fail**, so nothing ships: `configs/` untouched, `30fb99f8`
+/ `30fb99f8` / `8952c320` stand, no reference re-recorded and none owed.  **The
+correction is to P108's "cheapest complete package", which listed this knob as its
+first, free term**: the margin is **not** a cushion to be spent, it is the term that
+keeps the catch-up's residual **positive**, and the 18 mm it holds is not the
+`fruit dy` number the census quoted.  The **dose axis says it from the other side**:
+half the margin keeps the arrival on the correct side and **buys nothing** (a count
+draw, 0 runaways in 75), so there is no throughput on the far side of the boundary
+to walk toward.  **The remaining lever on the along-belt term** is P108's **aperture
+precondition** (`clr < 0` 32/51 -> 4/57, p = 1.4e-8) or a **centring guide /
+workstation presentation**; a shorter descent is not available either (jerk-bound on
+a 5.5 cm leg, 86 ticks at `a_max` 0.8 *and* 1.6, P91 §3, and its `|v|max` is the
+motion gate's) - so **not another margin rung**.
+
+**No-harm, proven four ways.**  `M0_s5`/`M0_s6` replay P108's `S_s5`/`S_s6`
+**860/860** and **853/853** on the `[fruit]` stream with the phase's only added row
+(`[cycle]`, 21 of them) and `[stats]` dropped - so the tree is inert, the P108 cells
+are admissible controls, and `FRUIT_CYCLE_REPORT` is run-neutral on this line; the
+unset acceptance replays P108's **419/419**; `scripts/selfcheck.sh` **PASS** (0
+failures, 1 skipped); `106` **OK**, `107` **PASS** (21 checks).  All twelve cells'
+descents are inside their budgets (worst `|v|max` **0.1230** m/s against 0.160-0.162,
+lurch 0.039 against 0.291), and every payload-present release lands `on_belt` except
+the recorded `cnp` rows (**49/51 / 49/49 / 41/44**).  Pins: `tasks.py`
+**`d341b0da`**, `rl_env.py` **`bf4c56fa`**, `bimanual.py` `9b7fc33f`, `fruits.py`
+`dcabe16b`, `assets.py` `eb30c77a`, `scene.py` `a0199097`; ckpt `moe_v13s`
+`61da390a`.  Deviations: **D1** a description error in `PREREG.md` §1 (the
+parenthetical calls +12.8 mm "past the aim"; it is upstream - the formula and the
+report's column are right), **D2** a 3-attempt build smoke whose attempt 0 reproduces
+the cell's 259.0 mm exactly.  Evidence `logs/p109/` (`PREREG.md` `192a0c1b`,
+`RESULTS.md`, `cells.sh`, `run_p109.sh`, `p109_report.py`, `p109_report.txt`,
+`gates.out`, the twelve cells `{M0,M05,M1}_s{5,6,101,202}`, the acceptance pair
+`accept_{m0,m1}`, `accept_final`).

@@ -941,6 +941,17 @@ allows). **The next spend is a centring step before the descent (the
 `_dynamic_grip_target` / x-track machinery) or a workstation where the fruit is
 presented to the hand - not a hand, and not a policy.**
 
+**Measured since (P109, `logs/p109/RESULTS.md`): the "cheap" first term of P108's
+complete package is not available.** `FRUIT_DYNAMIC_DESCEND_MARGIN` 0.15 -> 0 moves
+the descent-start gap exactly 18 mm but puts **every** attempt's fruit *past* the aim
+when the pads stop (`past_aim` 0/76 -> 79/79), the catch-up then enters its bistable
+runaway (5 of 79 battery attempts, 0 of 76 in the control; acceptance 8/10 -> 4/10),
+and the placed count falls at 4 of 4 seeds; half the margin is a count draw and buys
+nothing. So the along-belt arrival cannot be bought down from this side either - the
+aperture precondition and the **centring guide are now the only terms left** on the
+aim, and the guide's job is the term P108's census put second (`|dx|` p50 3.4-8.8 mm
+at the close) rather than the 83 mm lead, which is the line's own schedule.
+
 ### 5.4 M4 - the policy on the hand
 
 **Build**: the 34-D observation, the wrist camera, the 9-D + latent action, the
