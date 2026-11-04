@@ -57,7 +57,20 @@ the derivation, not a reuse of the jaws' number.
    pads. Without it the cage's pads jam against the fingers with the aperture
    frozen at 89 mm.
 
-**Scope.** Default off: nothing here exists unless `FRUIT_GRIPPER_KIND=cage4`.
+**P112 adds a third hand kind, `cage3`** - the owner's choice from P111's own
+list: a **three-pad ring at 3 x 120 deg**, because the algebra's lever is the
+*count of tangential contacts*, not the drive.  Its geometry is the same plate
+(20 x 60 mm, the distal plane and the lip unchanged, so the 70.0 mm tool offset
+is unchanged too) and the same single scalar closure; what differs is the
+azimuths, the **aperture law** (`aperture_extent`: the ring closes on the
+**narrowest** of its own three pad axes, which is what loads all three - the
+four-pad ring closes on the widest and can never load its opposed pair) and the
+stiffness (`FRUIT_CAGE_PAD_STIFFNESS` below the algebra's window so the pads
+yield and the payload slides: P112's `logs/p112/algebra.txt`).  Nothing of the
+four-pad geometry moves; `FRUIT_GRIPPER_KIND=cage4` is byte-identical.
+
+**Scope.** Default off: nothing here exists unless `FRUIT_GRIPPER_KIND` is
+`cage4` or `cage3`.
 The shipped `openarm` hand, its collider set, its materials and every default
 are untouched (`FRUIT_GRIPPER_KIND` unset -> `openarm`, byte-identical; the
 acceptance's 421 `[fruit]` lines replay byte-for-byte).
@@ -92,12 +105,26 @@ def _f(name: str, default: float) -> float:
         raise SystemExit(f"{name} must be a number, got {os.environ.get(name)!r}")
 
 
+def hand_kind() -> str:
+    """The hand `FRUIT_GRIPPER_KIND` selects (`openarm` when unset)."""
+    return os.environ.get("FRUIT_GRIPPER_KIND", "openarm")
+
+
 def cage_enabled() -> bool:
-    return os.environ.get("FRUIT_GRIPPER_KIND", "openarm") == CAGE_KIND
+    """True for either radial ring (`cage4` or P112's `cage3`)."""
+    return hand_kind() in CAGE_KINDS
 
 
-#: `FRUIT_GRIPPER_KIND` value that selects this hand.
+#: `FRUIT_GRIPPER_KIND` value that selects the four-pad ring (P107).
 CAGE_KIND = "cage4"
+#: P112: the **three-pad** ring - the owner's choice from P111's own list, and
+#: the algebra's answer: with pads at 3 x 120 deg every pad's normal is oblique
+#: to the radial offset, so every pad both restores and drags, and the ring
+#: centres (`delta_inf = 0.84-0.91 s < s` at the measured `mu` pair 1.25-1.46).
+CAGE3_KIND = "cage3"
+#: Every kind this module owns.  `tasks.RIGID_TOOL_HANDS` is built from this, so
+#: a new ring is one entry here plus its geometry - not a new predicate.
+CAGE_KINDS = (CAGE_KIND, CAGE3_KIND)
 
 #: The measured pad plate (`logs/p66/COLLIDER_READ.md`, `logs/p104/fixture_probe.py`).
 PLATE_WIDTH = 0.0610
@@ -203,6 +230,24 @@ PAD_MID_OFFSET = DISTAL_Z - CAGE_PLATE_LENGTH / 2.0
 
 #: Pad azimuths. 0 deg = the shipped jaw-open direction, +90 = across it.
 THETAS = (0.0, 90.0, 180.0, 270.0)
+#: P112: three pads at 120 deg.  The plate's **width** is bounded by the
+#: neighbour gap: adjacent faces meet at 60 deg at the axis, so a pad of
+#: half-width `w/2` at face radius `a/2` spans `2*asin(w/a)` and must stay under
+#: 120 deg -> `w <= 0.866 a`; at the 26 mm closed aperture that is 22.5 mm, and
+#: 20 mm is the legal value with a margin (the four-pad ring's own bound at
+#: 90 deg is `w <= 1.414 a`, which is why it could carry 26 mm).
+THETAS3 = (0.0, 120.0, 240.0)
+PAD_WIDTH3 = _f("FRUIT_CAGE_PAD_WIDTH3", 0.020)
+
+
+def pad_thetas(kind: str | None = None) -> tuple[float, ...]:
+    """The azimuths of the ring `FRUIT_GRIPPER_KIND` selects."""
+    return THETAS3 if (kind or hand_kind()) == CAGE3_KIND else THETAS
+
+
+def pad_width_of(kind: str | None = None) -> float:
+    """The authored plate width of the ring `FRUIT_GRIPPER_KIND` selects."""
+    return PAD_WIDTH3 if (kind or hand_kind()) == CAGE3_KIND else PAD_WIDTH
 
 
 def _material(stage, path: str):
@@ -224,7 +269,7 @@ def cage_root(side: str) -> str:
 
 
 def pad_paths(side: str) -> list[str]:
-    return [f"{cage_root(side)}/Pad{k}" for k in range(len(THETAS))]
+    return [f"{cage_root(side)}/Pad{k}" for k in range(len(pad_thetas()))]
 
 
 def author_cage(stage, side: str) -> None:
@@ -262,7 +307,9 @@ def author_cage(stage, side: str) -> None:
     )
     # NB: no `UsdPhysics.CollisionAPI` anywhere on the base - see the docstring.
 
-    for k, theta in enumerate(THETAS):
+    thetas = pad_thetas()
+    width = pad_width_of()
+    for k, theta in enumerate(thetas):
         th = np.deg2rad(theta)
         u = np.array([np.cos(th), np.sin(th), 0.0])
         roll = th + np.pi / 2.0  # the joint frame's +Y -> -u (inward)
@@ -282,7 +329,7 @@ def author_cage(stage, side: str) -> None:
         cube.GetSizeAttr().Set(1.0)
         cxf = UsdGeom.Xformable(cube)
         cxf.ClearXformOpOrder()
-        cxf.AddScaleOp().Set(Gf.Vec3f(PAD_WIDTH, PAD_THICK, CAGE_PLATE_LENGTH))
+        cxf.AddScaleOp().Set(Gf.Vec3f(width, PAD_THICK, CAGE_PLATE_LENGTH))
         UsdPhysics.CollisionAPI.Apply(cube.GetPrim())
         UsdShade.MaterialBindingAPI.Apply(cube.GetPrim()).Bind(
             _material(stage, f"{body_path}/Pad_mat")
@@ -325,10 +372,10 @@ def author_cage(stage, side: str) -> None:
                 UsdPhysics.CollisionAPI(prim).GetCollisionEnabledAttr().Set(False)
 
     say(
-        f"[cage] {side}: 4 pads at {len(THETAS)}x{360 // len(THETAS)} deg, plate "
-        f"{PAD_WIDTH * 1000:.3f} x {CAGE_PLATE_LENGTH * 1000:.3f} mm (shipped "
+        f"[cage] {side}: {len(thetas)} pads at {len(thetas)}x{360 // len(thetas)} deg, plate "
+        f"{width * 1000:.3f} x {CAGE_PLATE_LENGTH * 1000:.3f} mm (shipped "
         f"{PLATE_WIDTH * 1000:.3f} x {PLATE_LENGTH * 1000:.3f}, width cut to the "
-        f"legal {2 * MIN_FACE_R * 1000:.1f} and length to clear the flange), aperture "
+        f"legal {width * 1000:.1f} and length to clear the flange), aperture "
         f"{2 * HOME_FACE_R * 1000:.1f} -> {2 * (HOME_FACE_R - STROKE) * 1000:.1f} mm, "
         f"drive k={PAD_STIFFNESS:.0f} N/m c={PAD_DAMPING:.0f} Ns/m "
         f"cap={PAD_FORCE:.2f} N/pad, "
@@ -436,9 +483,11 @@ class CageHand:
       centroid (a real body read, not the arm's estimate).
     """
 
-    kind = CAGE_KIND
+    kind = CAGE_KIND  # the class default; `__init__` sets the *resolved* kind
 
     def __init__(self, stage, side: str, arm, mu: float | None = None):
+        self.kind = hand_kind() if hand_kind() in CAGE_KINDS else CAGE_KIND
+        self.thetas = pad_thetas(self.kind)
         self.stage = stage
         self.side = side
         self.arm = arm
@@ -472,7 +521,7 @@ class CageHand:
         self._pads = [RigidPrim(path) for path in pad_paths(side)]
         self._drives = [
             UsdPhysics.DriveAPI(stage.GetPrimAtPath(f"{self.root}/Pad{k}_joint"), "linear")
-            for k in range(len(THETAS))
+            for k in range(len(self.thetas))
         ]
         #: The base pose the pads' joints were last told about. A **jump** (an
         #: arm teleport, the attempt loop's `go_ready`, a park) is written as a
@@ -588,6 +637,41 @@ class CageHand:
             drive.CreateStiffnessAttr().Set(stiffness)
             drive.CreateDampingAttr().Set(damping)
         self._stiffened = stiffness != PAD_STIFFNESS
+
+    def aperture_extent(self, shape, diameter: float, rot, rq) -> float:
+        """The aperture this ring closes to, from the payload's own extents [m].
+
+        A **single scalar** synergy needs one width, and which one is the hand's
+        design decision:
+
+        * the four-pad ring has no such method - `tasks.pinch_width` keeps its own
+          `max over the two hand axes`, i.e. the payload's **widest** horizontal
+          extent (P107 measured that the chord stops 2-4 mm wide on a non-round
+          fruit and only one or two pads load);
+        * a three-pad ring must load **all three** to have the centring symmetry
+          the algebra prices, so it closes on the **narrowest** of its own three
+          pad axes: `min_k extent(u_k)`.  The pads along the payload's wide axis
+          then over-penetrate by `(wide - narrow)/2`, which the 4.90 N cap bounds
+          in force - a real chuck's jaws all reach their force limit and stop,
+          and this is the sim's single-scalar equivalent.
+
+        No new read: the extents come from the shape profile, exactly as
+        `pinch_width`'s own cage branch does.
+        """
+        from .meshes import FRUIT_SHAPES, axis_extent
+
+        if len(self.thetas) == 4:
+            widest = 0.0
+            for axis in (0, 1):
+                local = rq.T @ rot[:, axis]
+                widest = max(widest, float(axis_extent(shape, float(diameter), local)))
+            return widest
+        narrow = float("inf")
+        for theta in self.thetas:
+            th = np.deg2rad(theta)
+            local = rq.T @ (rot @ np.array([np.cos(th), np.sin(th), 0.0]))
+            narrow = min(narrow, float(axis_extent(shape, float(diameter), local)))
+        return narrow
 
     def close_begin(self) -> None:
         """The close starts: swap to the **close** profile if one is set (P111).
@@ -735,8 +819,21 @@ class CageHand:
         return inward, inward2
 
     def apertures(self) -> tuple[float, ...]:
-        """Measured face-to-face aperture on each of the two axes [m]."""
+        """Measured aperture [m] - two opposed spans (4 pads) or the inscribed one."""
         pts, rot = self._pad_world()
+        if len(pts) != 4:
+            # P112: three pads at 120 deg have no opposed pair, so the aperture is
+            # the inscribed diameter, 2 x the mean face radius - the same scalar
+            # `_command` drives, which keeps `sep` / `sep@loss` / `sep_end`
+            # meaning "how far apart are the gripping faces" on this hand too.
+            base_pos, _ = self.base_pose()
+            radii = [
+                float((p - base_pos) @ (rot @ np.array(
+                    [np.cos(np.deg2rad(t)), np.sin(np.deg2rad(t)), 0.0])))
+                - PAD_THICK / 2.0
+                for p, t in zip(pts, self.thetas)
+            ]
+            return tuple(2.0 * r for r in radii)
         out = []
         for axis, (i, j) in enumerate(((0, 2), (1, 3))):
             u = rot @ np.eye(3)[axis]
@@ -748,10 +845,11 @@ class CageHand:
         return float(np.mean(self.apertures()))
 
     def pad_dirs(self) -> np.ndarray:
-        """World radial direction of each pad (4x3)."""
+        """World radial direction of each pad (n x 3)."""
         _, rot = self._pad_world()
+        thetas = getattr(self, "thetas", THETAS)
         dirs = []
-        for theta in THETAS:
+        for theta in thetas:
             u = np.array([np.cos(np.deg2rad(theta)), np.sin(np.deg2rad(theta)), 0.0])
             dirs.append(rot @ u)
         return np.asarray(dirs, dtype=float)
@@ -766,16 +864,16 @@ class CageHand:
             else f"k={PAD_STIFFNESS:.0f} N/m"
         )
         return (
-            f"cage hand {self.side}: aperture_cmd={self.last_gap * 1000:.1f}mm "
-            f"measured=({a[0] * 1000:.1f},{a[1] * 1000:.1f})mm "
+            f"cage hand {self.side} [{self.kind}]: aperture_cmd={self.last_gap * 1000:.1f}mm "
+            f"measured=({','.join(f'{v * 1000:.1f}' for v in a)})mm "
             f"cap={PAD_FORCE:.2f}N/pad mu={self.mu:.2f} "
             f"drive={profile}{'(hold)' if self._stiffened else ''} "
             f"tool_offset={self.grasp_standoff * 1000:.1f}mm"
         )
 
 
-def pad_boxes(aperture: float) -> list[tuple[np.ndarray, np.ndarray]]:
-    """The four pads' (centre, rotation) in the **base frame** at an aperture.
+def pad_boxes(aperture: float, kind: str | None = None) -> list[tuple[np.ndarray, np.ndarray]]:
+    """The pads' (centre, rotation) in the **base frame** at an aperture.
 
     Pure arithmetic on the authored geometry (`HOME_FACE_R`, `PAD_THICK`,
     `PLATE_*`), so a diagnostic can read the cage's own commanded state from one
@@ -785,7 +883,7 @@ def pad_boxes(aperture: float) -> list[tuple[np.ndarray, np.ndarray]]:
     """
     half = float(np.clip(aperture, 2.0 * (HOME_FACE_R - STROKE), 2.0 * HOME_FACE_R)) / 2.0
     out = []
-    for theta in THETAS:
+    for theta in pad_thetas(kind):
         th = np.deg2rad(theta)
         roll = th + np.pi / 2.0
         u = np.array([np.cos(th), np.sin(th), 0.0])
@@ -805,7 +903,7 @@ def _box_distance(point_local: np.ndarray, half: np.ndarray) -> float:
 
 
 def pad_fruit_clearance(
-    base_pos, base_quat, aperture: float, fruit, radius: float
+    base_pos, base_quat, aperture: float, fruit, radius: float, kind: str | None = None
 ) -> tuple[float, int]:
     """Closest **pad surface to fruit surface** distance at an aperture [m].
 
@@ -816,9 +914,9 @@ def pad_fruit_clearance(
     """
     rot = _quat_matrix(base_quat)
     local = rot.T @ (np.asarray(fruit, dtype=float) - np.asarray(base_pos, dtype=float))
-    half = np.array([PAD_WIDTH / 2.0, PAD_THICK / 2.0, CAGE_PLATE_LENGTH / 2.0])
+    half = np.array([pad_width_of(kind) / 2.0, PAD_THICK / 2.0, CAGE_PLATE_LENGTH / 2.0])
     best, best_k = float("inf"), -1
-    for k, (centre, pad_rot) in enumerate(pad_boxes(aperture)):
+    for k, (centre, pad_rot) in enumerate(pad_boxes(aperture, kind)):
         point = pad_rot.T @ (local - centre)
         gap = _box_distance(point, half) - float(radius)
         if gap < best:

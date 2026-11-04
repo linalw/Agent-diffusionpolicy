@@ -558,6 +558,7 @@ run_check "P103 slip re-grip" "$python" scripts/256_p103_regrip_selftest.py
 # `off0`/`off` centring fields (the payload's radial distance to the ring's axis,
 # from reads the probe already takes), and `TASKS_MD5`. No simulator.
 run_check "P111 cage compliance" "$python" scripts/257_p111_cage_compliance_selftest.py
+run_check "P112 three-jaw ring" "$python" scripts/258_p112_cage3_selftest.py
 
 if [ -n "$run_log" ] && [ -f "$run_log" ]; then
     # P85: the log decides the scenario (and therefore the reference and the

@@ -1068,6 +1068,64 @@ element delivers it). Selfcheck **PASS (0 failures, 1 skipped)** with the new
 `scripts/selfcheck.sh`; references **`30fb99f8`** / **`30fb99f8`** / `8952c320`
 untouched; ckpt `moe_v13s` `61da390a`. Evidence `logs/p111/`.
 
+**P112 (2026-11-04, `logs/p112/`; the third hand kind `cage3` ships **default
+off**, nothing adopted, no `configs/` change, no reference re-recorded): the owner
+chose P111's item 2, the **three-jaw ring**, and the phase answers it in the
+algebra's own terms - the closure **does** centre and the 3-jaw **is** the only
+ring that loads its own pads, and **neither reaches the delivered count**.**  The
+**algebra** (`algebra.py`, 2-D, with the **tangential projection** P111's closed
+forms dropped): `delta_inf = sqrt(3) mu s/(1.5 + (sqrt(3)/2) mu)` = **0.84-0.92
+s** for three pads against **`mu s` = 1.00-1.46 s** for four at the measured pair
+friction 1.25-1.46 (thresholds `mu < sqrt(3) = 1.73` and `mu < 1`), so P111's
+`(2mu-1)s` / `2 mu s/(1.5+mu)` are 20-30 % pessimistic on the 4-jaw and ~9 %
+optimistic on the 3-jaw and **both verdicts survive**.  The registered **kill does
+not fire** (worst `delta_inf/s` 0.915), and `k` is a **window** - the cap
+saturates the near pad first - **[2.9e3, 3.8e3] N/m** over the pool, build 3300.
+**The build** is `CAGE_KINDS = (cage4, cage3)`, three azimuths at 120 deg, a
+**20 mm plate** (the 120 deg neighbour bound is 22.5 mm at the closed aperture;
+the length stays 60 mm, the tool offset 70 mm), and the phase's one structural
+change: a hand-owned **aperture law** (`CageHand.aperture_extent`, one `getattr`
+hook in `tasks.pinch_width`, no law = the shipped expression bit for bit).  A
+ring closes on one scalar and the *width* decides whether its pads can load: the
+four-pad ring takes the **widest** horizontal extent (which is why its opposed
+pair never loads - P111's V-block), a three-pad ring must take the **narrowest of
+its own three pad axes**.  **The fixture** (`fixture_cage3.py`, 390 closures) is
+the decisive test and the expensive lesson: **three passive supports failed at the
+scale of the measurement** - a static table, a kinematic table and the shipped
+belt at 0 m/s all let a 0.1 kg payload sink 2 mm and creep 4-5 mm **with zero pad
+force**, because `meshes.axis_extent` is the *undeformed* profile and the **mesh
+is 2-6 % bigger** - so the adopted form sets the scene's gravity to 0 (it drops
+the support's `mu_b m g`; stated).  Result: **both rings centre** a 0-20 mm
+arrival to 0.5-1.9 mm (P111's line read of +0.2 mm was about the *delivery*), and
+**only the 3-jaw loads its pads**: `pads == 3` on **18/30** cells against
+`pads == 4` on **2/30**; the min-extent law over-closes on the smallest fruit
+(`sep - dia` **-7.9 mm** against the 4-pad's -1.8).  **The battery**
+(`PREREG.md` `77720306e9328cf6e7853427cbe41f94`, 10 attempts, T at 4 seeds / C at
+2): **C 13/18 = 72.2 % vs T 7/38 = 18.4 %** (Fisher p = 0.000, every seed
+negative), **below even the rigid 4-pad ring's 25.0 %**, and the **clean enclosure
+is 0 of 38** - the three `pads == 3` rows are all **jams** (`end > 15 mm`), P110's
+split again.  The mechanism is separated: `[cage] off0` p50 3.2 mm with `off -
+off0` **+0.50 mm**, i.e. **the closure centres and the line does not** - the
+payload arrives *moving*, the close **freezes at its first contact** (holding an
+aperture `2 delta` too wide; seated legs' `force_min` p50 **0.00 N**), and the
+60 mm plates **block the descent** (`|v|max` **0.437** against 0.160, C 0.122).
+**Verdict: NOT ADOPTED** - the two rings differ exactly where the algebra said
+they would, and the difference does not reach the count; the hardware price is a
+**different assembly** (a scroll disc or three links driving three jaws on one
+scalar, a new plate, three 120 deg guides, the same 20 x 60 mm pads) and the
+battery prices it at a 4x deficit.  Guards: selfcheck **PASS** (the new `P112
+three-jaw ring` leg, 23 checks), acceptance **8/10, `fingerprint: matches`,
+`190: PASS`**, landing **7/7 T + 13/13 C** payload-present `on_belt`, budgets
+**fail on the treatment and were not re-tuned**.  **Read rules**: a ring's pad
+count is an endpoint *only* joined to the descent's `end` and the aperture (a
+jammed ring reads its count); a fixture must first prove its support (a sinking
+payload and a creeping one look identical in `off`); and `delta_inf` is a
+*tangential-contact* number - quote the projection with it.  Pins:
+`cage_hand.py`, `tasks.py`, `rl_env.py` (`TASKS_MD5` follow),
+`scripts/258_p112_cage3_selftest.py`, `scripts/selfcheck.sh`; references
+**`30fb99f8`** / **`30fb99f8`** / `8952c320` untouched; ckpt `moe_v13s`
+`61da390a`.  Evidence `logs/p112/`.
+
 ## 2. Two constraints that decide how to measure
 
 **The outcome is quantized; do not compare success rates across configurations.**

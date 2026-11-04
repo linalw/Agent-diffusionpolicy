@@ -30,7 +30,7 @@ from .control import ArmController
 from .dataset import EpisodeMeta, EpisodeRecorder, camera_observation
 from .grasp import pads_mid
 from .actuated_gripper import ActuatedGripper
-from .cage_hand import CAGE_KIND, CageHand, pad_fruit_clearance
+from .cage_hand import CAGE_KINDS, CageHand, pad_fruit_clearance
 from .kinematic_gripper import KinematicGripper, OpenArmHand, PAD_THICK
 from .motion import (
     MotionMonitor,
@@ -85,7 +85,7 @@ FINGER_TIP_BELOW_JAW = 0.0805
 #: off - it only exists when `FRUIT_GRIPPER_KIND=cage4`). Every site that meant
 #: "the pads are the tool, not a body commanded through a gap frame" reads this,
 #: so the shipped `openarm` behaviour is a subset and cannot move.
-RIGID_TOOL_HANDS = ("openarm", CAGE_KIND)
+RIGID_TOOL_HANDS = ("openarm", *CAGE_KINDS)
 
 
 def rigid_tool_hand(hand) -> bool:
@@ -2123,7 +2123,7 @@ class PickAndPlaceTask:
             self.grippers = {
                 side: KinematicGripper(scene.stage, side) for side in ("left", "right")
             }
-        elif kind == CAGE_KIND:
+        elif kind in CAGE_KINDS:
             # P107: the radial four-pad cage (default off; `cage_hand.py`). The
             # bodies are authored by `scene.build` before `play()` so their
             # tactile readers exist; this only drives them.
@@ -2690,7 +2690,7 @@ class PickAndPlaceTask:
         #: unchanged (`logs/p102/RESULTS.md`). Off = one attribute read per tick.
         self._cage_probe_on = (
             os.environ.get("FRUIT_CAGE_PROBE", "0") == "1"
-            and os.environ.get("FRUIT_GRIPPER_KIND", "openarm") == CAGE_KIND
+            and os.environ.get("FRUIT_GRIPPER_KIND", "openarm") in CAGE_KINDS
         )
         #: Contact threshold for "this pad is loaded" [N] - the same 0.5 N the
         #: close's own contact criterion uses (`FRUIT_DYNAMIC_CONTACT_FORCE`).
@@ -4197,7 +4197,7 @@ class PickAndPlaceTask:
             return
         side = book["side"]
         hand = self.grippers.get(side)
-        if getattr(hand, "kind", "") != CAGE_KIND:
+        if getattr(hand, "kind", "") not in CAGE_KINDS:
             return
         try:
             sample = book["sample"]
@@ -13531,7 +13531,7 @@ class PickAndPlaceTask:
             # it armed through the approach and the descent the plates are pushed
             # out of the ring's geometry by whatever they meet (measured 1/20
             # placed against the rigid ring's 7/19, `logs/p111/RESULTS.md`).
-            if getattr(self.grippers[arm_name], "kind", "") == CAGE_KIND:
+            if getattr(self.grippers[arm_name], "kind", "") in CAGE_KINDS:
                 self.grippers[arm_name].close_begin()
             if self._cage_book is not None:
                 self._cage_probe_phase("close")
@@ -13943,7 +13943,7 @@ class PickAndPlaceTask:
                 # it found and the soft close keeps the shipped grip.  Inert on
                 # every other hand and at `FRUIT_CAGE_HOLD_STIFFNESS` unset (the
                 # method is the cage's own; `close_done` reads the knob).
-                if getattr(self.grippers[arm_name], "kind", "") == CAGE_KIND:
+                if getattr(self.grippers[arm_name], "kind", "") in CAGE_KINDS:
                     self.grippers[arm_name].close_done()
                 if self._cage_book is not None:
                     self._cage_probe_flush()
@@ -16007,11 +16007,21 @@ class PickAndPlaceTask:
         rq = self._quat_matrix(fruit_quat)
         hand = self.grippers.get("left")
         if getattr(hand, "apertures", None) is not None:
-            # P107: a **radial** hand closes on four faces, so the aperture that
-            # clears the payload is its *widest horizontal* extent, not the
-            # two-jaw chord. With the chord the cage stops 2-4 mm wide on a
-            # non-round fruit, one or two pads load and the rest read zero
-            # (measured `[cage] pads=1/4`, `logs/p107/smoke7.log`).
+            # P107: a **radial** hand closes on several faces, so the aperture that
+            # clears the payload is a horizontal extent, not the two-jaw chord.
+            # With the chord the cage stops 2-4 mm wide on a non-round fruit, one
+            # or two pads load and the rest read zero (measured `[cage] pads=1/4`,
+            # `logs/p107/smoke7.log`).
+            #
+            # P112: the *law* belongs to the hand, because a ring's contact set
+            # does.  The four-pad ring closes on the payload's **widest** extent
+            # (its opposed pair can then never load, which P111 measured as the
+            # V-block); a three-pad ring closes on the **narrowest of its own pad
+            # axes**, which is what loads all three.  A hand that states no law is
+            # the shipped four-pad expression, bit for bit.
+            law = getattr(hand, "aperture_extent", None)
+            if law is not None:
+                return float(law(shape, float(sample.diameter), rot, rq))
             widest = 0.0
             for axis in (0, 1):
                 local = rq.T @ rot[:, axis]

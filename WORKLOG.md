@@ -25083,3 +25083,83 @@ untouched, none re-recorded; ckpt `moe_v13s` `61da390a`.  Evidence `logs/p111/`
 (`METHOD.md`, `PREREG.md` `e641d074`, `PREREG_A1.md` `c2d263e4`, `RESULTS.md`,
 `algebra.py`/`algebra.txt`, `census.py`/`census.txt`, `enclosure.txt`, `cells.sh`,
 `run_p111.sh`, `p111_report.py`, the cells `{C,R}_s5`, `R_s202`, `{T1,T2,T4,S1}_s*`).
+
+## P112 (2026-11-04): the three-jaw ring - the closure centres, the line does not, and the count does not convert
+
+The owner's item 2 from P111.  Its algebra said the lever is the **count of
+tangential contacts**, so the phase built a three-pad ring at 3 x 120 deg, wrote
+the algebra first, gated itself on a closure fixture, and measured the battery.
+**Nothing adopted; `cage3` is a third hand kind behind `FRUIT_GRIPPER_KIND` and
+the shipped `openarm` path is byte-identical.**
+
+**The algebra, and a correction to P111's.**  `logs/p112/algebra.py` solves the
+3-pad contact set in 2-D (`p_k = s + delta cos(theta_k)`, drive `-sum N_k u_k`,
+Coulomb resistance along the motion with the **tangential projection**
+`sqrt(1-(m.u_k)^2)`).  The fixed point is `delta_inf = sqrt(3) mu s/(1.5 +
+(sqrt(3)/2) mu)` = **0.84-0.92 s** at the measured pair friction 1.25-1.46,
+against the four-jaw's **`mu s` = 1.00-1.46 s** under the same solver; the
+thresholds are `mu < sqrt(3) = 1.73` and `mu < 1`.  P111's closed forms
+(`(2mu-1)s`, `2 mu s/(1.5+mu)`) both drop the projection, so they are 20-30 %
+pessimistic on the 4-jaw and ~9 % optimistic on the 3-jaw - **both verdicts
+survive, the 3-jaw's margin is just smaller than P111's paragraph implied**.
+The registered **kill** (`delta_inf >= s` at the measured mu) **does not fire**
+(0.915 worst), and the stiffness is a **window** because the cap saturates the
+near pad first: `k` in [2.9e3, 3.8e3] N/m over the pool, the build takes 3300.
+
+**The build** is one module change: `CAGE_KINDS = (cage4, cage3)`, three
+azimuths, a 20 mm plate (the 120 deg neighbour bound is 22.5 mm at the closed
+aperture), the same 60 mm length, the same 70 mm tool offset - and the **one
+structural change the phase needed**: a hand-owned **aperture law**
+(`CageHand.aperture_extent`).  A ring closes on one scalar, and which width it
+takes decides whether it can load its pads: the four-pad ring takes the
+**widest** horizontal extent (P107's own choice, and the reason its opposed pair
+never loads), a three-pad ring must take the **narrowest of its own three pad
+axes**.  The law is one `getattr` hook in `tasks.pinch_width`, and a hand that
+states none keeps the shipped expression bit for bit.
+
+**The fixture** (`logs/p112/fixture_cage3.py`, 390 closures in 18 sessions) is
+the phase's decisive test and the phase's most expensive lesson: **three passive
+supports failed**, each at the scale of the measurement itself - a static table, a
+kinematic table and the shipped belt at 0 m/s all let a 0.1 kg payload sink 2 mm
+and creep 4-5 mm **with zero pad force**, because `meshes.axis_extent` is the
+undeformed profile and the **mesh is 2-6 % bigger**.  The adopted form sets the
+scene's gravity to 0 and makes the closure a 2-D problem (it drops the support's
+own `mu_b m g` term; stated, not hidden).  The result, at the delivered
+configuration: **both rings centre** a 0-20 mm arrival to 0.5-1.9 mm (so P111's
+line read of +0.2 mm was about the *delivery*, not the closure), and **only the
+three-jaw loads its own pads**: `pads == 3` on **18/30** cells against
+`pads == 4` on **2/30**.  The cost is measured too: the min-extent law
+over-closes on the smallest fruit (`sep - dia` to **-7.9 mm** on a 29.6 mm
+lychee, against the 4-pad's -1.8).
+
+**The battery** (`PREREG.md` `77720306e9328cf6e7853427cbe41f94`; the scripted
+single arm, 10 attempts, seeds 5/6/101/202 for the treatment and 5/6 for the
+shipped control - D1/D2 in RESULTS section 7): **C 13/18 = 72.2 %, T 7/38 =
+18.4 %**, Fisher p = 0.000, every seed negative - i.e. the three-jaw is *below*
+even P111's rigid four-pad ring (19/76 = 25.0 %).  The **clean enclosure is 0 of
+38**: the three rows that read `pads == 3` are all **jams** (`end > 15 mm`), the
+same split P110 found at four pads.  The mechanism is now separated: `[cage]
+off0` p50 3.2 mm with `off - off0` **+0.50 mm** - the ring does **not** centre on
+the line, where the fixture says it does, because the payload arrives *moving*,
+the close **freezes at its first contact** (holding an aperture `2 x delta` too
+wide, and the seated legs' `force_min` p50 is **0.00 N**), and the 60 mm plates
+block the descent (**`|v|max` 0.437** against the 0.160 budget, C 0.122).
+
+**Verdict: NOT ADOPTED.**  The phase's honest sentence is that the two rings
+differ exactly where the algebra said they would - the pad count - and that the
+difference **does not reach the delivered count**, because the line never gives
+the closure the clean arrival the centring needs.  The hardware price is a
+**different assembly** (a scroll disc or three links driving three jaws on one
+scalar, a new plate, three guides at 120 deg, the same 20 x 60 mm pads), and the
+battery prices it at a 4x count deficit.  No `configs/` change, no reference
+re-recorded.
+
+Guards: selfcheck **PASS (0 failures, 1 skipped)** with the new `P112 three-jaw
+ring` leg (23 checks); acceptance with every knob unset **8/10,
+`fingerprint: matches`, `190: PASS`**; landing **7/7 T and 13/13 C**
+payload-present `on_belt`; the budgets **fail on the treatment** (0.437) and were
+not re-tuned.  Pins: `cage_hand.py` (the third kind, `CAGE_KINDS`,
+`aperture_extent`, the three-pad `apertures`), `tasks.py` (the `CAGE_KINDS`
+sites + the one `pinch_width` hook), `rl_env.py` (`TASKS_MD5` follow),
+`scripts/258_p112_cage3_selftest.py`, `scripts/selfcheck.sh`; references
+**`30fb99f8`** / **`30fb99f8`** / `8952c320` untouched.  Evidence `logs/p112/`.

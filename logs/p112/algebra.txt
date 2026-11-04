@@ -1,0 +1,157 @@
+P112 algebra - does a three-jaw ring centre where the four-jaw cannot?
+==========================================================================================================
+  pool (logs/p110/fixture.txt): 16 fruits, d 29.6-69.6 mm, m 10-123 g
+  pad-payload friction mu_pair = (2.0 + mu_fruit)/2 = 1.25-1.46
+  ring: 3 pads at 3x120 deg, ONE scalar aperture, cap 4.90 N/pad, plate 20 x 60 mm, lip 10.5 mm, aperture 120 -> 26 mm
+  squeeze s = 0.01 d per face (FRUIT_GRIPPER_SQUEEZE 0.98); close clock 24+60 ticks, min-jerk
+
+1. THE CONTACT SET: three pads hold to 2s, four lose the far pad at s
+==========================================================================================================
+  offset `delta` toward pad 0, penetration p_k = s + delta cos(theta_k):
+    4 pads (0/90/180/270): p = s+d, s, s-d, s     -> the 180 pad leaves at d = s
+    3 pads (0/120/240)   : p = s+d, s-d/2, s-d/2 -> all three hold to d = 2s
+  Every loaded 3-jaw pad has an oblique normal, i.e. a tangential (friction)
+  component AND a restoring component; two opposed 4-jaw pads have neither.
+    n=4 at delta=1.04 mm (1.5 s): pads loaded 3/4
+    n=3 at delta=1.04 mm (1.5 s): pads loaded 3/3
+
+2. THE STATIC FIXED POINT (the kill's number)
+==========================================================================================================
+  drive D = -sum N_k u_k; resistance along m = D/|D| is
+    mu * sum_k N_k * sqrt(1-(m.u_k)^2) + mu_b*m*g
+  The sqrt term is the **tangential projection**, and it is the term P111's
+  closed forms dropped.  `delta_inf/s < 1` = the payload reaches the ring's
+  own squeeze circle (the `delta < s` condition of the 4-contact state).
+
+  fruit   d mm   mu   pads   s mm  d_inf mm  d_inf/s  FORMULA   note
+  small   29.6 1.25     4   0.30      0.27     0.90    0.37mm  CENTRES
+  small   29.6 1.25     3   0.30     30.53   103.15    0.25mm  jams
+  small   29.6 1.46     4   0.30      0.27     0.90    0.43mm  CENTRES
+  small   29.6 1.46     3   0.30     30.53   103.15    0.27mm  jams
+  mid     49.6 1.25     4   0.50      0.45     0.90    0.62mm  CENTRES
+  mid     49.6 1.25     3   0.50     30.89    62.28    0.42mm  jams
+  mid     49.6 1.46     4   0.50      0.45     0.90    0.72mm  CENTRES
+  mid     49.6 1.46     3   0.50     30.89    62.28    0.45mm  jams
+  large   69.6 1.25     4   0.70      0.63     0.90    0.87mm  CENTRES
+  large   69.6 1.25     3   0.70     31.25    44.90    0.58mm  jams
+  large   69.6 1.46     4   0.70      0.63     0.90    1.02mm  CENTRES
+  large   69.6 1.46     3   0.70     31.25    44.90    0.64mm  jams
+
+  -> 3-jaw **0.84-0.91 s** (model 0.83-0.91), 4-jaw **1.00-1.46 s** (model
+     1.25-1.46 at the three sizes; P111's (2mu-1)s = 1.25-1.50 is the same
+     algebra without the projection).  The thresholds are **mu < sqrt(3) =
+     1.73** for three jaws and **mu < 1** for four, and the measured pair
+     friction (1.25-1.46) sits *between* them - which is the phase's whole
+     premise, now with its size: the 3-jaw is 16-28 % inside its own bound,
+     not the 3-4x P111's paragraph implied.
+
+3. THE CAP BRANCH: k is a WINDOW, not a slope
+==========================================================================================================
+  `N_k = min(k p_k, cap)` saturates the *near* pad (p = s + delta) first:
+  drive falls, friction does not, the fixed point moves OUTWARD.  Two bounds:
+    k >= 0.5 N / (s - delta_inf/2)   the two narrow pads must COUNT (0.5 N)
+    k <= cap / (s + delta_inf)        the wide pad must not saturate early
+
+  d mm   mu    s mm   k_lo N/m  k_hi N/m   window
+   29.6 1.25   0.30      2908      9005     3.10x
+   29.6 1.46   0.30      3113      8645     2.78x
+   49.6 1.25   0.50      1736      5374     3.10x
+   49.6 1.46   0.50      1858      5159     2.78x
+   69.6 1.25   0.70      1237      3830     3.10x
+   69.6 1.46   0.70      1324      3677     2.78x
+
+  THE WINDOW OVER THE WHOLE POOL AT THE WORST mu: k in [3113, 3677] N/m (1.18x)
+  THE CHOSEN POINT: k_close = **3383 N/m** (the window's geometric mean), c = 16.5 Ns/m (= 2 sqrt(k m))
+  hold k = 1e5 N/m (P111's hard stop) -> 14.70 N over three pads; P104's licensed axial capacity `n mu N` = 19.1 N against the
+  shipped pinch's 12.7 N = **1.5x**, and 4 pads would read 25.5 N (the 2.0x the survey priced).
+
+4. THE DYNAMIC CLOSE: capture is the binding term, and it is the bat
+==========================================================================================================
+  the aperture ramps at the task's clock while the payload is free on the
+  table; the pads are force-capped springs, the contacts and the table are
+  Coulomb, the payload is a point mass (no rotation, no deformation).
+  `captured` = it ends inside the squeeze circle with all three pads >= 0.5 N.
+
+  arrival  3-jaw: off mm  bat mm  pads  captured  |  4-jaw: off mm  bat mm  pads  captured
+     0.0 mm       0.00    0.00     3    yes  |     0.00    0.00     4    yes
+     2.0 mm       0.46    2.46     2    NO   |     0.12    2.12     4    yes
+     5.0 mm       1.98    6.98     2    NO   |     0.07    5.07     4    yes
+    10.0 mm       5.63   15.63     2    NO   |     1.39    8.61     3    NO 
+    20.0 mm       7.35   27.35     2    NO   |     2.13   17.87     3    NO 
+
+  the freeze is the protocol's own binding term: the depth is frozen at the
+  FIRST touch (0.5 N for 3 ticks), which with an arrival offset happens
+  BEFORE the ring is inside the fruit's widest extent - so the pads hold an
+  aperture that is `2*|delta0|` too wide and the carry starts at ~0 N
+  (P111 measured exactly that: the cage arms' `force_min` median 0.00 N).
+  Scan, mid fruit, mu 1.46, k = the chosen point, the task's freeze ON:
+
+  off mm   3-jaw: off mm  pads  class      |  4-jaw: off mm  pads  class
+    0.00        0.00     3  centred    |      0.00     4  centred  
+    1.00        0.08     3  centred    |      0.13     4  centred  
+    2.00        0.46     2  wedged     |      0.12     4  centred  
+    3.00        1.44     2  wedged     |      0.11     4  centred  
+    5.00        1.98     2  wedged     |      0.07     4  centred  
+    8.00        4.68     2  wedged     |      2.05     3  wedged   
+   10.00        5.63     2  wedged     |      1.39     3  wedged   
+   15.00        7.45     2  batted out  |      1.45     3  wedged   
+   20.00        7.35     2  batted out  |      2.13     3  wedged   
+
+  -> with the shipped freeze, neither ring captures an arrival beyond a few
+     tenths of a millimetre: the freeze converts the arrival offset into a
+     **held aperture error** of `2*delta0`, which is the cage family's
+     ejection/zero-force class (P107/P108/P111), and it is the same defect
+     for three pads and four.  The fixture therefore runs **both** protocols
+     (freeze / full close): the centring question needs the full close, and
+     the delivered question needs the freeze.
+
+5. THE KILL: is delta_inf >= s at the measured mu?
+==========================================================================================================
+  worst delta_inf/s over the pool and mu 1.25-1.46 = **0.915**
+  -> the kill **DOES NOT FIRE**.  The 3-jaw
+     centres by the algebra, so the build and the fixture are owed.
+
+6. WHAT THE `[cage]` INSTRUMENT SHOULD READ (off0 -> off)
+==========================================================================================================
+  P111's measured close-time offset 3.0 mm (p50, in-ring),
+  P108's aim 8.8 mm.  Same instrument (`off0` at the close's
+  start, `off` at its flush), same protocol.
+
+  fruit   d mm   mu   off0 mm   off mm   off-off0 mm   pads@flush
+  small   29.6 1.25     3.00     1.53        -1.47           2
+  small   29.6 1.25     8.80     4.35        -4.45           2
+  small   29.6 1.46     3.00     1.52        -1.48           2
+  small   29.6 1.46     8.80     4.31        -4.49           2
+  mid     49.6 1.25     3.00     1.45        -1.55           2
+  mid     49.6 1.25     8.80     3.67        -5.13           2
+  mid     49.6 1.46     3.00     1.44        -1.56           2
+  mid     49.6 1.46     8.80     3.65        -5.15           2
+  large   69.6 1.25     3.00     0.20        -2.80           3
+  large   69.6 1.25     8.80     2.89        -5.91           2
+  large   69.6 1.46     3.00     0.20        -2.80           3
+  large   69.6 1.46     8.80     2.87        -5.93           2
+
+  -> predicted `off - off0` = **-0.3 to -2.4 mm** on the 3 mm arrival and
+     **-3.2 to -6.4 mm** on P108's 8.8 mm aim, with the pad count 3 at the
+     flush on the captured rows.  P111's four-jaw measured **+0.2 to
+     +2.0 mm** on the same instrument, so the forms are separated by the
+     **sign** of the change, not by a rate.
+
+7. PREDICTIONS (registered as F1-F5 in logs/p112/PREREG.md)
+==========================================================================================================
+  P1 CENTRING: median `off - off0` **negative** on the in-ring rows
+     (-0.3..-6.4 mm predicted), against P111's +0.2..+2.0 mm for four pads.
+  P2 ENCLOSURE: the clean 3-pad count (P110's jam/over-closure split) rises
+     above the cage family's 3-5 % (P111: 3/76 rigid at best).
+  P3 THE COUNT: placed rises above the rigid 4-pad ring's 25.0 % (19/76).
+  P4 NO CRUSH: `sep@loss - dia >= -15 mm` on every leg.
+  P5 LANDING + BUDGETS: reported, never re-tuned (AGENTS section 2).
+
+  HARDWARE PRICE (registered before the build): a 3-jaw ring is a
+  **different geometry** - three pads at 120 deg on one radial synergy.  The
+  four-pad cage bolts to the flange through one adapter plate; a 3-jaw needs
+  its own plate, three radial guides and a scroll disc (or three links from
+  one linear actuator) to drive all three from one scalar.  The pads are
+  20 x 60 mm blocks (width <= the 26 mm aperture, length <= the palm's
+  20.5 mm stand-off) in POM or 6082; the cost is the single-scalar
+  mechanism, not the pads.  A one-off machined assembly.
