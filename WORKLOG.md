@@ -25163,3 +25163,110 @@ not re-tuned.  Pins: `cage_hand.py` (the third kind, `CAGE_KINDS`,
 sites + the one `pinch_width` hook), `rl_env.py` (`TASKS_MD5` follow),
 `scripts/258_p112_cage3_selftest.py`, `scripts/selfcheck.sh`; references
 **`30fb99f8`** / **`30fb99f8`** / `8952c320` untouched.  Evidence `logs/p112/`.
+
+### P113 - the end-effector decision book: the lane's close-out, written for a hardware partner (2026-11-04)
+
+Design/document only: **no simulator, no `src/` change, no `configs/` change, no
+commit into `src/`**. The deliverable is `docs/END_EFFECTOR_DECISION.md` - the
+P104-P112 lane condensed into what a mechanical engineer who has never read this
+repo can act on: the problem, the mechanism in two figures and their algebra, the
+nine routes with their verdicts and prices, the three nails that are left with a
+bench test and a kill each, and the recommendation with the decision tree. Every
+number carries its `logs/` source and section; every unpriced item is marked
+**unpriced**; no bench number is invented.
+
+**Why a book and not another phase.** The lane closed with nine verdicts spread
+over nine phase records, and a partner cannot read 60 phases. The book's job is
+to make the *two* things that explain all nine legible, and to hand over the
+three measurements that are actually left. Its spine is a single sentence: **the
+pad geometry has been solved on a bench and the fruit presentation has not**, so
+every purchase order placed today would buy the half that already works.
+
+**The problem, as the book states it.** The shipped cell reads the acceptance
+**8/10** and **28-29 of 40** placed per 40-attempt block (58/80 = 72.5 % at four
+seeds, interval 10.59-12.16 s, `s/attempt` 9.5/9.1, 2.37-2.91 placed/min;
+`[P92 CENSUS §3]`, `[P102 §2]`, `[P93]`). The 40-attempt census splits its **12
+failures** into **9 loaded slides (75 %) + 3 never-held (25 %)** (`[P92 CENSUS
+§3]`); the four-seed pool is 17 `cnp` of 22 (77 %) + 5 never-held
+(`HAND_STAGE_PLAN §5.0`). The grasp is the term because the class is
+**one-directional** (0 of 29 placed attempts carry a seated escape, P102), **not
+the force** (2.2x then 6x, P41/P76/P77), **not the seat** (1.36-4.65 mm on 20/20
+grips against a 104-276 mm walk, P42), and **is a creep at the operating load**
+(the pinch slides 3.20-3.84 mm on the pear under the payload's own weight, P104
+§5) - and it is bounded: 6 of P102's 11 failures are reachable, the 4 no-grasp
+ones are 220-481 mm hand-over timing failures (P47/P48), so a perfect contact
+fix is worth at most +15 points there, and every `cnp` converting is 75/80 =
+93.8 % with the +8-point bar at 8 of 17 conversions.
+
+**The two figures, and this is the phase's organising result.** *Figure 1, the
+contact algebra*: `F_crit = n mu N`, ratio `n/2` and mu-free, measured 1.87-2.05x
+for four contacts and 1.33-1.64x for three against the pinch's 11.03/14.21/12.69
+N (P104 §3); the centring fixed point is `delta_inf = mu s` (four) and
+`sqrt(3) mu s/(1.5 + (sqrt(3)/2) mu)` = 0.84-0.92 s (three) at the measured
+pair friction **1.25-1.46**, with thresholds `mu < 1` and `mu < 1.73` and a
+stiffness window `[2.9e3, 3.8e3]` N/m because the cap saturates the near pad
+first (P111 §1, P112 §1). *Figure 2, the arrival geometry*: the descent starts
+with the fruit **100.1 mm** upstream (`g0`; 83 mm of belt travel plus the 18 mm
+margin), the band entry catches it still **55.8 mm along-belt / 2.6 mm lateral**
+(92.5 % along-belt), the catch-up's tolerance is **6 mm**, the close-time offset
+**3.4-4.5 mm**, and the ring needs **0.6 mm** (`[P108 §5]`, `[P109 §1.2]`,
+`[P110 §1]`, `[P110 §3.2]`). **Both together explain every verdict**: a closure
+change is worth 2x but the delivery denies it; a delivery change is the binding
+term but no passive element reaches it.
+
+**The nine routes, one line each** (route 0 is the shipped pinch baseline,
+11.03/14.21/12.69 N and 3.20/0.85/2.68 mm creep): the **tactile** sees the slide
+0.17-0.94 s early and a perfect detector converts 0 of 5 same-instance `cnp`s and
+destroys 2 of 2 placements (detected, not convertible; $1,020); the
+**anthropomorphic 3+1** mounts but its fingertips span 116-123 mm, so at most 3
+of 4 touch a 37-66 mm payload, and its drive is a step function (wrong topology);
+the **radial 4-pad** is worth 1.87-2.05x static and 9-15x in creep and places
+3/17 on the line (the shape is right, the line cannot place it); the **wide
+aperture** is decisive for the approach (`clr < 0` 32/51 -> 4/57, p = 1.4e-8) and
+a draw for the count (p = 0.37, the fresh seed reversing it) - a precondition,
+not a rate; the **wider supply spacing** costs 1 -> 5 starved slots of 20 and the
+placements (unaffordable); the **descent margin** is load-bearing (`past_aim`
+0/76 -> 79/79, acceptance 8/10 -> 4/10); the **metering gate** holds 16/16 at
+every height 8-45 mm and is 3-29x too coarse for the ring, and the queue costs it
+(1.8 -> 4.9 mm, 1/16 expelled); the **compliant closure** is a gentler jam (force
+at the freeze 4.90 -> 0.6-1.8 N, no centring, count n.s.); the **three-jaw**
+centres a clean arrival to 0.5-1.9 mm and loads its own pads 18/30 against 2/30,
+and the battery is 18.4 % against 72.2 % because the delivery defeats it.
+
+**The three nails left, with the bench test and the kill each.** (i) **a pad with
+`mu_pair < 1`** - the only term the algebra leaves standing: measure the pair
+friction at the working normal force and the **creep at the operating load**
+(0.75 s settle - *not* a 5 N/s ramp), report the axial break beside it; kill on
+`mu >= 1` or creep > 1.0 mm; **a printed part** (the fingers are replaceable; the
+bench needs no sensor, unpriced). (ii) **the 3-jaw on a moving presentation** -
+static centring 0-20 mm then a **0.12 m/s** arrival; kill on `off - off0 > 0`, on
+fewer than 2 pads loaded at the freeze, or on a descent over `abs(v)max` 0.160;
+**a machined assembly**, unpriced. (iii) **a stationary presentation** - the
+gate's hold under a queue (1.8 -> 4.9 mm, 1/16 expelled) plus the magazine's
+re-handover residual against **0.6 mm**; kill on > 0.6 mm on more than 1 of 20;
+**a station change** (new collider set, selection rule, pick mode, a magazine,
+both references and every store re-baselined), unpriced.
+
+**The recommendation.** Buy nothing before nail (i); it is one reprinted pad and
+it has a hard kill. Then (ii) - the only test that separates the jaw from the
+delivery, which the record already names as the delivery (P112 §4.5). Then (iii)
+only if both pass, because it is a station change and a full re-baseline. No
+end-effector route measured ships a better rate alone; what would is the pair
+**ring + nest**, and the legitimate alternative is to keep the pinch and accept
+that 75-77 % of the failures sit in a class this line cannot let any hand reach.
+**The never-re-try list** (one line each, with the number) is the force family,
+the seat, the clearance pre-pose, the place-station move, the profile blocks, the
+candidate planning, the park return, the fail-fast, the tactile reflex, the
+closure depth and the aperture/spacing as a rate lever - plus, as "also closed",
+the pad face shapes, the scoop, the finger-tip shortening and the supply band's
+top.
+
+**Guards.** `python3 scripts/106_index_audit.py` -> **OK: every index matches the
+files it describes**; `scripts/selfcheck.sh` -> **PASS (0 failures, 1 skipped)**;
+`git status --short` on `src/` and `configs/` is empty. No motion reference was
+read or written; P113 touches only `docs/END_EFFECTOR_DECISION.md` and this
+entry. Pins: `scripts/selfcheck.sh` re-run on the final tree; the book's own
+sources are the P104-P112 records, `logs/p42/SIM_LIMIT.md`, `logs/p92/CENSUS.md`,
+`logs/p93/RESULTS.md`, `logs/p102`, `logs/p103` and `logs/r8/A_RESULTS.md`, with
+`docs/PLATFORM_SURVEY.md` and `docs/HAND_STAGE_PLAN.md` for the prices and the
+milestone arithmetic. Evidence `docs/END_EFFECTOR_DECISION.md`, this entry.
