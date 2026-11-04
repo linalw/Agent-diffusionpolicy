@@ -166,6 +166,32 @@ PAD_STIFFNESS = _f("FRUIT_CAGE_PAD_STIFFNESS", 100000.0)
 #: critically damped for the pad mass below, 2*sqrt(k*m) = 89"), i.e. the exact
 #: pair that produced the licensed 1.87-2.05x numbers.
 PAD_DAMPING = _f("FRUIT_CAGE_PAD_DAMPING", 100.0)
+#: **The hard stop** (P111, default off = the shipped single-profile drive).
+#: A compliant closure is only half a hand: at `k = 1e3` the delivered force at
+#: the shipped squeeze is `k*s` = 0.7 N per pad (a 4-7x weaker hold than the
+#: 4.90 N the rigid drive delivers), because the *cap* is never reached.  A real
+#: spring-loaded pad bottoms out, and that is what this authors: when the close's
+#: command settles, the four drives are re-written at `FRUIT_CAGE_HOLD_STIFFNESS`
+#: (default 0 = off) with the target unchanged, so the pad re-loads to
+#: `min(k_hold * penetration, cap)` = the cap, at the aperture it found.
+#: The soft pair is what the *close* runs; the firm pair is what the *carry*
+#: holds with.  `logs/p111/RESULTS.md` prices both halves.
+#: **The close window** (P111, default off = the shipped single-profile drive).
+#: P111 measured why the compliance has to be *scoped*: a `k = 1e3` pad is a weak
+#: **position source**, so during the approach and the descent - where the plates
+#: are pushed by whatever they meet - it is displaced instead of holding the
+#: ring's geometry, and the cell's jams and huge non-payload contacts multiply
+#: (`T1` 1/20 placed against the rigid ring's 7/19).  A real compliant pad is
+#: stiff until it is loaded; this authors that window: the drives are
+#: `FRUIT_CAGE_CLOSE_STIFFNESS` between the close's start and its freeze, and the
+#: approach/hover/descent keep the authored `FRUIT_CAGE_PAD_STIFFNESS`.
+CLOSE_STIFFNESS = _f("FRUIT_CAGE_CLOSE_STIFFNESS", 0.0)
+#: Damping of the close profile; 0 (the default) means `2*sqrt(k_close*m)`.
+CLOSE_DAMPING = _f("FRUIT_CAGE_CLOSE_DAMPING", 0.0)
+HOLD_STIFFNESS = _f("FRUIT_CAGE_HOLD_STIFFNESS", 0.0)
+#: Damping of the hold profile; 0 (the default) means `2*sqrt(k_hold*m)`, the
+#: same near-critical rule as `PAD_DAMPING`.
+HOLD_DAMPING = _f("FRUIT_CAGE_HOLD_DAMPING", 0.0)
 #: Pad contact friction; the shipped finger material's own value (P104: PhysX
 #: combines the pair by average, measured `mu_app` 1.05-1.45).
 PAD_MU = _f("FRUIT_CAGE_PAD_MU", 2.0)
@@ -307,6 +333,20 @@ def author_cage(stage, side: str) -> None:
         f"drive k={PAD_STIFFNESS:.0f} N/m c={PAD_DAMPING:.0f} Ns/m "
         f"cap={PAD_FORCE:.2f} N/pad, "
         f"tool offset={GRASP_STANDOFF * 1000:.1f} mm"
+        + (
+            f", close k={CLOSE_STIFFNESS:.0f} N/m "
+            f"c={(CLOSE_DAMPING if CLOSE_DAMPING > 0 else 2.0 * math.sqrt(CLOSE_STIFFNESS * PAD_MASS)):.1f} Ns/m "
+            f"(the closure window only)"
+            if CLOSE_STIFFNESS > 0
+            else ""
+        )
+        + (
+            f", hold k={HOLD_STIFFNESS:.0f} N/m "
+            f"c={(HOLD_DAMPING if HOLD_DAMPING > 0 else 2.0 * math.sqrt(HOLD_STIFFNESS * PAD_MASS)):.1f} Ns/m "
+            f"(the hard stop: soft close, firm carry)"
+            if HOLD_STIFFNESS > 0
+            else ""
+        )
     )
 
 
@@ -422,6 +462,8 @@ class CageHand:
         self.last_gap = self.open_gap
         self._placed = False
         self._correction = None
+        #: P111: True while the drives are on the *hold* profile (the hard stop).
+        self._stiffened = False
         if not self.enabled:
             return
         from isaacsim.core.experimental.prims import RigidPrim
@@ -507,16 +549,108 @@ class CageHand:
         `FRUIT_CAGE_PAD_FORCE`, so the delivered normal force is the cap and the
         *shape* (four contacts + the lip) is what varies against the shipped
         two-pad pinch (P104 section 2).
+
+        P111: an **open** command also releases the hard stop, so the next close
+        runs the soft profile again. The open command is `FRUIT_GRIPPER_OPEN`
+        (90 mm) or anything above it - exactly what the pre-pose, the hover and
+        `park()` send - so the release needs no extra call site.
         """
         gap = float(gap)
         if gap >= SHIPPED_OPEN - 1e-9:
             gap = self.open_gap
+            if self._stiffened:
+                self._profile(PAD_STIFFNESS, PAD_DAMPING)
         gap = float(np.clip(gap, 2.0 * (HOME_FACE_R - STROKE), self.open_gap))
         travel = float(np.clip(HOME_FACE_R - gap / 2.0, 0.0, STROKE))
         for drive in self._drives:
             drive.CreateTargetPositionAttr().Set(travel)
         self._aperture = gap
         self.last_gap = gap
+
+    def _profile(self, stiffness: float, damping: float) -> None:
+        """Re-write the four drives' stiffness/damping (the cap and target stay).
+
+        A write with the profile already in place is skipped, so the two window
+        calls (`close_begin`/`close_done`) are free when their knobs are unset -
+        the shipped cage issues no drive write at all.
+        """
+        stiffness, damping = float(stiffness), float(damping)
+        have = self._drives[0].CreateStiffnessAttr().Get()
+        have_c = self._drives[0].CreateDampingAttr().Get()
+        if (
+            have is not None
+            and have_c is not None
+            and abs(float(have) - stiffness) < 1e-9
+            and abs(float(have_c) - damping) < 1e-9
+        ):
+            return
+        for drive in self._drives:
+            drive.CreateStiffnessAttr().Set(stiffness)
+            drive.CreateDampingAttr().Set(damping)
+        self._stiffened = stiffness != PAD_STIFFNESS
+
+    def close_begin(self) -> None:
+        """The close starts: swap to the **close** profile if one is set (P111).
+
+        A no-op unless `FRUIT_CAGE_CLOSE_STIFFNESS` is set, so the shipped cage
+        and P111's always-soft arms are unchanged.  See the knob's note: the
+        compliance must be *scoped* to the closure, because a soft pad cannot
+        hold the ring's geometry while the approach pushes on it.
+        """
+        if not self.enabled:
+            return
+        if CLOSE_STIFFNESS <= 0.0:
+            return
+        damping = (
+            CLOSE_DAMPING
+            if CLOSE_DAMPING > 0.0
+            else 2.0 * math.sqrt(CLOSE_STIFFNESS * PAD_MASS)
+        )
+        self._profile(CLOSE_STIFFNESS, damping)
+
+    def close_done(self) -> None:
+        """The close's depth is settled: load the pad, or end the close window.
+
+        Called **once per attempt** by the task, right after the close decides
+        the gap the carry will hold.  Two forms, one knob each, both default off:
+
+        * `FRUIT_CAGE_HOLD_STIFFNESS` set -> the **hard stop**: the four drives
+          are re-written at the hold profile with their target unchanged, so a
+          soft close re-loads to `min(k_hold * penetration, cap)` = the cap **at
+          the aperture it found**.  The pad body cannot move (the payload is in
+          the way), so the stop loads the grip without shifting the aperture.
+        * only `FRUIT_CAGE_CLOSE_STIFFNESS` set -> the close window ends and the
+          drives go back to the authored approach profile (the compliance was
+          scoped to the closure).
+
+        Why the stop is not optional for an always-soft arm: the close's
+        delivered force is `min(k_close * penetration, cap)`, and at `k = 1e3`
+        the shipped 1 % squeeze gives **0.7 N** per pad - a 4-7x weaker hold than
+        the rigid ring's 4.90 N, so the arm would lose placements for a *grip*
+        reason and could not answer the centring question.
+        """
+        if not self.enabled:
+            return
+        if HOLD_STIFFNESS > 0.0:
+            damping = (
+                HOLD_DAMPING
+                if HOLD_DAMPING > 0.0
+                else 2.0 * math.sqrt(HOLD_STIFFNESS * PAD_MASS)
+            )
+            self._profile(HOLD_STIFFNESS, damping)
+            say(
+                f"[cage] {self.side}: hard stop at the close (k {PAD_STIFFNESS:.0f} -> "
+                f"{HOLD_STIFFNESS:.0f} N/m, c {PAD_DAMPING:.0f} -> {damping:.1f} Ns/m, "
+                f"aperture {self._aperture * 1000:.1f} mm, cap {PAD_FORCE:.2f} N/pad)"
+            )
+            return
+        if CLOSE_STIFFNESS > 0.0:
+            # the close window ends here: back to the authored approach profile
+            self._profile(PAD_STIFFNESS, PAD_DAMPING)
+            say(
+                f"[cage] {self.side}: close window end (k {CLOSE_STIFFNESS:.0f} -> "
+                f"{PAD_STIFFNESS:.0f} N/m, aperture {self._aperture * 1000:.1f} mm)"
+            )
 
     def command_gap(self, gap: float) -> None:
         self._command(gap)
@@ -626,10 +760,16 @@ class CageHand:
         if not self.enabled:
             return f"cage {self.side}: disabled"
         a = self.apertures()
+        profile = (
+            f"k={PAD_STIFFNESS:.0f}/{HOLD_STIFFNESS:.0f} N/m"
+            if HOLD_STIFFNESS > 0.0
+            else f"k={PAD_STIFFNESS:.0f} N/m"
+        )
         return (
             f"cage hand {self.side}: aperture_cmd={self.last_gap * 1000:.1f}mm "
             f"measured=({a[0] * 1000:.1f},{a[1] * 1000:.1f})mm "
             f"cap={PAD_FORCE:.2f}N/pad mu={self.mu:.2f} "
+            f"drive={profile}{'(hold)' if self._stiffened else ''} "
             f"tool_offset={self.grasp_standoff * 1000:.1f}mm"
         )
 

@@ -24935,3 +24935,151 @@ unchanged: `tasks.py` `d341b0da`, `rl_env.py` `bf4c56fa`, `bimanual.py` `9b7fc33
 `census.py`/`census.txt`, `PREREG.md` `cce8838c`, `RESULTS.md`, `fixture_gate.py`,
 `run_p110.sh`, `p110_report.py`, `fixture.txt`, the cells
 `fix_{h8,h10,h12,h14,h20,h30,h45,h14_nowake,q2,q4,q8}.log`).
+
+### P111 - the compliant closure: a gentler jam, not a self-centring chuck
+
+**The owner's item** was P110's 1: the ring's four pads are force-capped
+*position* drives, so a pad yields only `cap/k = 0.049 mm`, the far pad is
+`2*delta` short, and an off-centre payload is *launched* instead of pushed - make
+the pad a spring and the four pads should balance at the ring's centre.  The
+phase registers that (`logs/p111/PREREG.md` `e641d074`, before any cell;
+`PREREG_A1.md` `c2d263e4`, before any treatment cell), writes the algebra, builds
+the mechanism, and runs six arms at four seeds.  **Nothing adopted, no default
+changed, `configs/` untouched.**
+
+**The algebra first, and it decided the shape** (`logs/p111/algebra.py`).  The
+payload's motion is *normal* to the near/far faces (no friction there) and
+*tangential* to the perpendicular pair, so `drive = near - far` and
+`fric = 2 mu perp + mu_belt m g`, and the terminal offset is
+`delta_inf = (2 mu - 1) * min(s, cap/(2 mu k))`.  Two consequences:
+
+* **`mu > 1` is the term, not the stiffness.**  The residual is `(2mu - 2)s`, so a
+  four-jaw lands at 1.1-1.9 s where the 4-contact state needs `delta < s - 0.5/k`.
+  The measured pad-payload friction is `mu_pair = (2.0 + mu_fruit)/2` = **1.25-1.46**
+  (P104's `mu_app` averaged with the pad's 2.0), so the ratio is **k- and
+  cap-free**: no stiffness, no cap.  **A three-jaw would centre**
+  (`2 mu s/(1.5 + mu)` = 0.82 s < s) - the *number of tangential contacts* is the
+  lever.
+* **The ladder is a knee, not a slope**: at `k > k* = cap/(2 mu s)` ~ 2.2e3 N/m the
+  perpendicular pair is at the cap, `fric = 2 mu cap = 12.8 N > cap`, and the
+  payload does not move at all (the shipped ring); below it the payload slides to
+  `(2mu-1)s`.
+
+The 1-D integration of the close (the shipped profile + the task's 0.5 N/3-tick
+freeze) added the prediction the cells confirmed: the force *at the freeze* falls
+from 4.90 N to 0.6-1.8 N as `k` falls and the freeze fires earlier, so a compliant
+ring is a **gentler and shallower** close - and a shallower close is what the
+`off0` instrument then reads as the payload slipping.
+
+**What was built** (`cage_hand.py`, default off, three windows one knob each):
+`FRUIT_CAGE_PAD_STIFFNESS` is the **approach** profile (the shipped `k = 1e5`),
+**`FRUIT_CAGE_CLOSE_STIFFNESS`** the **close** window, **`FRUIT_CAGE_HOLD_STIFFNESS`**
+the **carry**'s hard stop.  `close_begin` (new, one call site) puts the drives on
+the close profile; `close_done` (new, one call site) re-writes them **with the
+target unchanged**, so a soft close re-loads to `min(k_hold * pen, cap)` **at the
+aperture it found** - a spring-loaded pad bottoming out, and the pad body cannot
+move because the payload is in the way.  An open command reverts, so the revert
+needs no third call site, and at the shipped defaults `_profile`'s own guard makes
+both calls dead writes (the selfcheck executes that).  The **instrument** is
+`[cage] off0= off=`: the payload's radial distance from the ring's **axis** (the
+cage base's xy - the four pads are symmetric about it) at the close's start and
+flush, two reads per attempt from poses the probe already takes.  It is what makes
+"centring" measurable, and it immediately corrected the phase's own premise: the
+close-time offset is **2.9-3.1 mm p50**, not P108's **8.8 mm** - which is the
+*aim* offset, already removed by the catch-up (`PREREG_A1` records the
+correction, keeps every rule, and notes the falsifier is therefore *stronger*
+than registered).
+
+**The cells** (`logs/p111/cells.sh`, scripted single arm, `ATTEMPTS=20`, P108's
+instrumentation verbatim on every arm): **C** the shipped hand, **R** the rigid
+cage (`k = 1e5`, 200 mm), **T1** always-soft `k = 1e3` + the stop, **T2**
+always-soft `k = 5e3` + the stop, **S1** pure-soft (no stop), and **T4** the
+*scoped* form (rigid approach, soft close, stop) - added because T1's first cell
+showed an always-soft pad is a poor **position source**: with the compliance armed
+through the approach and descent the plates are pushed out of the ring's geometry
+by whatever they meet, and T1 read **1/20** against the rigid ring's 7/19 with the
+arm-never-arrived class growing (off-ring 34 -> 37 %) and the jam class 6 -> 11.
+
+**The result, and it is a mechanism negative.**  **The clean enclosure does not
+rise**: P110's split of `pads >= 3` gives R **3/76 (3.9 %)**, T1 **0/73**, T2
+1/77, T4 2/75, S1 0/37 - and the **modal pad count is 2 in every arm**, the rigid
+one included (19-30 of 37-77 rows), so the ring is a **two-pad V-block at every
+stiffness** and a V-block has no centring symmetry to exploit.  **The centring
+does not happen**: over the rows that stayed in the ring (`off0 < 20 mm`) the
+median `off - off0` is **+0.2 mm** on the rigid ring and **+1.9 / +0.7 / +2.0 /
++1.3 mm** on T1/T2/T4/S1 - the payload is carried slightly *away* from the axis,
+and the compliant arms do it more.  **The count does not rise**: R **25.0 %**
+(19/76), T2 23.4, T4 17.3, T1 16.4, S1 13.5 - *monotone in compliance* but all
+**Fisher n.s.** at n = 73-77, and the **seed-5 pair alone** (R 7/19 vs T1 1/20,
+p = 0.020) would have over-stated the loss 5x: the fresh seeds read T1 **5/19
+twice**, the same branch class as the control.  P93's rule, again, and the reason
+the battery is four seeds.
+
+**The three measured reasons it cannot work** (the phase's transferable content):
+(1) the aperture is `0.98 x` the **widest** extent, so any roundness `> s` leaves
+the perpendicular pair 1-6 mm short - it *cannot load* at this squeeze, and the
+pool's roundness (0.02-0.20 d) is far above `s` (0.005-0.015 d); (2) without it
+the ring is a loaded pair plus a free side, so the near pad pushes and nothing
+opposes; (3) at `mu > 1` even a fully loaded pair jams at `(2mu-1)s`, so the far
+pad stays short by 0.2-0.6 mm forever.  **A clean enclosure needs `roundness < s`
+*and* `mu < 1`, and this pool/hand pair has neither.**
+
+**What compliance *does* buy is real and it is only the contact**: the force at
+the close's flush falls from R's **8.7-9.8 N** (the cap, two pads) to **3.5-6.6 N**
+on T1 and 3.9-7.3 N on T4 - the gentler activation the hypothesis wanted, which
+converts nothing because the contact is already a V-block.  The **hard stop also
+works** and is measurable: on the legs where the payload is seated the compliant
+arms' `fmax` reaches the cap (9.3-9.9 N) exactly as the rigid ring's does.
+
+**Read rules the phase adds.**  (a) `pads >= 3` is **force-thresholded**: a pad
+counts at 0.5 N, which a soft drive reaches at `0.5/k` of penetration, so the raw
+share *falls* with compliance (17.1 -> 5.2 %) at equal aperture - a bias *against*
+the compliant arm, stated and not read.  (b) `off` carries the task's own tracking
+lead (`FRUIT_DYNAMIC_TRACK_LEAD` 0.18 s -> 21 mm commanded downstream), so it is a
+**relative** read across arms under the same law; the `off - off0` change is the
+cleaner form.  (c) A **soft pad must be scoped** to the closure: armed through the
+approach it is a weak position source and the cage's own chaos grows.
+
+**Guards**: **no crush** on any arm (`sep@loss - dia >= -15 mm`, 0 legs; the cap
+bounds the force by construction), **no new failure key**, the landing misses are
+the `release_bottom = -184 mm` upstream-lost class (P86/P87), and the **descent
+budget fails on the cage arms including the rigid control** (0-4 legs per cell,
+`R_s202` the worst at 4) - P108's blocked-descent class, **not re-tuned**.
+
+**No-harm**: the acceptance with every knob unset reads **8/10, 9.0 s/attempt,
+`fingerprint: matches configs/motion_reference.json`, `190: PASS`** and its **421
+`[fruit]` lines are 421/421 byte-identical** to `logs/p110/accept_noharm.log`; the
+two controls are `[fruit]`-stream replays - **C_s5 = `logs/p108/S_s5.log` 621/621**
+and **R_s5 = `E_s5` 531/531**, with the 19 `[cage]` rows identical once
+`off0`/`off` are stripped - so the new fields and call sites are inert *and*
+P108's cells are admissible controls (P95's rule, which is what makes the
+four-seed pooling possible without six more cells).  `scripts/selfcheck.sh`
+**PASS (0 failures, 1 skipped)** with the new `P111 cage compliance` leg, `106`
+**OK**, `107` **PASS (21 checks)**.
+
+**Deviations** (`logs/p111/RESULTS.md` §7): **D1** the registered 8.8 mm is the
+*aim*, corrected to the phase's own `off0` (2.9-3.1 mm) by `PREREG_A1` before any
+treatment cell; **D2** `off` carries the tracking lead, so F5 (the model's absolute
+0.8-1.3 mm) is **not evaluable** on this instrument and is recorded as such, not
+passed; **D3** T2 ran `c = 14.1` where its registration's `2 sqrt(k m)` gives
+**20.0** (ζ = 0.70) - a dose arm, reported not gated; **D4** the clean-enclosure
+endpoint is force-thresholded and biased against the compliant arm; **D5** the
+descent budget fails on the cage arms including the control; **D6** the shipped
+hand's reference is 2 seeds (P108 has no `S` at 101/202) while the comparison arms
+are 4.
+
+**What shipping a compliant hand would owe, and why it is not worth it for this
+ring**: a **spring-loaded pad with a hard stop** (the form built here) or a
+**force-controlled finger** - the only form that can be stiff during the approach
+and compliant only inside the closure, which the always-soft arm's 1/20 shows is
+required.  The levers below the ring, priced by the algebra: a pad material with
+**`mu < 1`**, a **three-jaw ring**, or P110's **0.6 mm** positioning (no passive
+element on this line delivers it).
+
+Pins: `cage_hand.py` **`ac7c7c0f`**, `tasks.py` **`a587cd21`**, `rl_env.py`
+`TASKS_MD5` follow, `scripts/257_p111_cage_compliance_selftest.py`,
+`scripts/selfcheck.sh`; references **`30fb99f8`** / **`30fb99f8`** / `8952c320`
+untouched, none re-recorded; ckpt `moe_v13s` `61da390a`.  Evidence `logs/p111/`
+(`METHOD.md`, `PREREG.md` `e641d074`, `PREREG_A1.md` `c2d263e4`, `RESULTS.md`,
+`algebra.py`/`algebra.txt`, `census.py`/`census.txt`, `enclosure.txt`, `cells.sh`,
+`run_p111.sh`, `p111_report.py`, the cells `{C,R}_s5`, `R_s202`, `{T1,T2,T4,S1}_s*`).

@@ -991,6 +991,83 @@ file changed): **8/10, 9.0 s/attempt, `fingerprint: matches`, `190: PASS`**, its
 `logs/p110/PREREG.md` **`cce8838c`**; ckpt `moe_v13s` `61da390a`. Evidence
 `logs/p110/`.
 
+**P111 (2026-11-04, `logs/p111/`; default off, **nothing adopted**, no `configs/`
+change, no reference re-recorded): P110's item 1 - the **compliant closure** - is
+built and measured, and the answer is **a gentler jam, not a self-centring
+chuck**: the offset at the close's end *grows* (median `off - off0` **+0.2 mm**
+on the rigid ring and **+0.7 / +1.9 / +2.0 / +1.3 mm** on the compliant arms),
+the **clean enclosure stays 0-3 rows per arm** (0/73 at `k = 1e3` against the
+rigid ring's **3/76**) and the placed count does not rise (**T1 16.4 % / T2
+23.4 % / T4 17.3 % / S1 13.5 % against R 25.0 %**, all Fisher **n.s.** at
+n = 73-77; the shipped hand is **65.8 %**). **The algebra is why**:
+`drive = near - far`, `fric = 2 mu perp + mu_belt m g` (the payload's motion is
+*normal* to the near/far faces and *tangential* to the perpendicular pair), so
+`delta_inf = (2 mu - 1) * min(s, cap/(2 mu k))` and the 4-contact state needs
+`delta < s - 0.5/k` - **`mu > 1` denies the last millimetre at every `k` and
+every cap** (the measured `mu_pair` is **1.25-1.46**, P104's `mu_app` averaged
+with the pad's 2.0). The ladder has a **knee at `k* = cap/(2 mu s)` ~ 2.2e3 N/m**:
+above it the perpendicular pair is at the cap (`fric = 2 mu cap = 12.8 N > cap`)
+and nothing slides (the shipped ring); below it the payload slides to
+`(2mu-1)s` = 1.1-1.9 s. A **3-jaw** would close it (`2 mu s/(1.5+mu)` = **0.82 s
+< s**) - the *count of tangential contacts* is the lever, not the drive. **The
+build** is three windows, one knob each (`FRUIT_CAGE_PAD_STIFFNESS` = the
+approach, **`FRUIT_CAGE_CLOSE_STIFFNESS`** = the close, **`FRUIT_CAGE_HOLD_STIFFNESS`**
+= the carry's **hard stop**, both new and default off): `close_begin` puts the
+drives on the close profile, `close_done` re-writes them **with the target
+unchanged** so a soft close re-loads to `min(k_hold * pen, cap)` **at the
+aperture it found**, and an open command reverts - so the shipped cage issues no
+drive write at all. **The instrument** is `[cage] off0= off=`: the payload's
+radial distance from the ring's **axis** (the cage base's xy) at the close's
+start and flush, two reads per attempt and no control input - it is what makes
+"centring" measurable, and it shows the close-time offset is **2.9-3.1 mm p50**,
+not P108's **8.8 mm** *aim* (`PREREG_A1` records that correction), and it
+separates the cage's arm-never-arrived class (85-1336 mm, **19-37 %** of rows,
+identical in every arm) from the rows that can say anything. **Why it cannot
+centre, measured three ways**: the ring is a **two-pad V-block at every
+stiffness** (the modal `pads` count is **2** in all six arms, 19-30 rows of
+37-77, including the rigid one; the clean 4-contact set is 0-3 rows), the
+perpendicular pair **cannot load** at this squeeze (the aperture is
+`0.98 x` the *widest* extent, so any roundness `> s` leaves it 1-6 mm short - the
+pool is 0.02-0.20 d against `s` = 0.005-0.015 d), and at `mu > 1` even a loaded
+pair jams. **What compliance does buy** is the *force at the freeze*: **4.90 ->
+0.6-1.8 N** (T1's flush rows read 3.5-6.6 N over two pads against R's 8.7-9.8),
+i.e. a genuinely gentler contact that converts nothing. **The scoped form was
+added because the always-soft pad is a poor position *source***: T1's first cell
+read **1/20** (off-ring 37 %, jam 11/73) against the rigid ring's 7/19, so T4
+(rigid approach + soft close + stop) is the form a real spring-loaded pad has -
+it recovers nothing either (17.3 %, clean 2/75). **The count is a dose, not a
+rate claim**: R 25.0 % / T2 23.4 / T4 17.3 / T1 16.4 / S1 13.5, *monotone in
+compliance* but **not significant at n = 75**, and the **seed-5 pair alone**
+(R 7/19 vs T1 1/20, p = 0.020) would have over-stated it 5x - the fresh seeds
+read T1 **5/19 twice** (P93's rule again). **The endpoint itself is
+force-thresholded** (a pad counts at 0.5 N, which a soft drive reaches at `0.5/k`
+of penetration), so the raw `>=3` share *falls* with compliance
+(17.1 -> 5.2 %) - a bias **against** the compliant arm, stated and not read as a
+result; the clean subset is 0-3 rows either way. **Guards**: **no crush** on any
+arm (`sep@loss - dia >= -15 mm`, 0 legs; the cap bounds the force by
+construction), no new failure key, the landing misses are the
+`release_bottom = -184 mm` upstream-lost class (P86/P87), and the **descent
+budget fails on the cage arms *including the rigid control*** (0-4 legs per cell,
+`R_s202` the worst at 4 - P108's blocked-descent class, **not re-tuned**).
+**No-harm**: `scripts/accept.sh` with every knob unset is **8/10, 9.0 s/attempt,
+`fingerprint: matches`, `190: PASS`**, its **421 `[fruit]` lines 421/421
+byte-identical** to `logs/p110/accept_noharm.log`, and the two controls are
+[`[fruit]`-stream replays] **C_s5 = `logs/p108/S_s5.log` 621/621** and **R_s5 =
+`E_s5` 531/531** (the 19 `[cage]` rows identical with `off0`/`off` stripped), so
+the new fields and call sites are inert and P108's cells are admissible. **A
+compliant pad is a hardware change** and the phase prices it: a **spring-loaded
+pad with a hard stop** (the form built here - gentle close, shipped hold,
+converts nothing) or a **force-controlled finger** (the only form that can be
+stiff during the approach and compliant only inside the closure, which §4.4
+shows is required). The levers below the ring, priced: a pad material with
+**`mu < 1`**, a **3-jaw ring**, or P110's **0.6 mm** positioning (no passive
+element delivers it). Selfcheck **PASS (0 failures, 1 skipped)** with the new
+`P111 cage compliance` leg, `106` **OK**, `107` **PASS (21 checks)**. Pins:
+`cage_hand.py` **`ac7c7c0f`**, `tasks.py` **`a587cd21`**, `rl_env.py`
+`TASKS_MD5` follow, `scripts/257_p111_cage_compliance_selftest.py`,
+`scripts/selfcheck.sh`; references **`30fb99f8`** / **`30fb99f8`** / `8952c320`
+untouched; ckpt `moe_v13s` `61da390a`. Evidence `logs/p111/`.
+
 ## 2. Two constraints that decide how to measure
 
 **The outcome is quantized; do not compare success rates across configurations.**

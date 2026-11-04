@@ -1,0 +1,233 @@
+P111 algebra - does per-pad compliance centre the ring?
+====================================================================================================
+  the pool (logs/p110/fixture.txt): 16 fruits, d 29.6-69.6 mm, m 10-123 g
+  pad-payload friction: mu_pair = (2.0 + mu_fruit)/2 = 1.25-1.46 (P104 measured mu_app 1.05-1.45)
+  ring: 4 pads at 4x90 deg, one radial synergy, cap 4.90 N/pad, shipped k 1e+05
+  close: 24 ticks to `wide = 1.02 d`, then 60 to the live clamp; freeze at 0.5 N for 3 ticks
+
+1. THE CENTRING CONDITION
+====================================================================================================
+  Penetrations at an offset `delta` along one jaw axis:
+    near (0 deg)      p = s + delta
+    far  (180 deg)    p = s - delta   (contact only while delta < s)
+    perp (90/270 deg) p = s - roundness
+  Force = min(k*p, cap).  The payload's motion is NORMAL to the near/far
+  faces (no friction there) and TANGENTIAL to the perpendicular pair, so
+    drive  = near - far
+    fric   = 2*mu*perp + mu_belt*m*g        (the perpendicular pair + belt)
+  The payload slides while drive > fric and stops where they balance.
+
+  TWO saturations, and P110's arithmetic conflated them:
+    (i) the *near* pad saturates at cap/k of penetration - the drive yields;
+    (ii) the *perpendicular pair* saturates at the same cap/k - and THAT is
+         what sets the friction.  A low k helps twice: the drive is a spring
+         (so it does not launch) AND the perpendicular pair is a spring (so
+         its Coulomb resistance is small).
+
+  the closed form, per regime (s = 0.70 mm on a 70 mm fruit):
+    mu=1.05 k=  100000: no slide (perp pair at the cap)  (fric 11.21 N)
+    mu=1.05 k=   10000: no slide (perp pair at the cap)  (fric 11.21 N)
+    mu=1.05 k=    1000: slides to 1.68 mm                (fric  2.38 N)
+    mu=1.05 k=     500: slides to 2.60 mm                (fric  1.65 N)
+    mu=1.05 k=     200: slides to 5.34 mm                (fric  1.21 N)
+    mu=1.05 k=     100: slides to 9.92 mm                (fric  1.06 N)
+
+    mu=1.30 k=  100000: no slide (perp pair at the cap)  (fric 13.66 N)
+    mu=1.30 k=   10000: no slide (perp pair at the cap)  (fric 13.66 N)
+    mu=1.30 k=    1000: slides to 2.03 mm                (fric  2.73 N)
+    mu=1.30 k=     500: slides to 2.94 mm                (fric  1.82 N)
+    mu=1.30 k=     200: slides to 5.69 mm                (fric  1.28 N)
+    mu=1.30 k=     100: slides to 10.27 mm               (fric  1.10 N)
+
+    mu=1.45 k=  100000: no slide (perp pair at the cap)  (fric 15.13 N)
+    mu=1.45 k=   10000: no slide (perp pair at the cap)  (fric 15.13 N)
+    mu=1.45 k=    1000: slides to 2.24 mm                (fric  2.93 N)
+    mu=1.45 k=     500: slides to 3.15 mm                (fric  1.92 N)
+    mu=1.45 k=     200: slides to 5.90 mm                (fric  1.32 N)
+    mu=1.45 k=     100: slides to 10.48 mm               (fric  1.12 N)
+
+  -> the STATIC fixed point (given unlimited time) is
+       delta_inf = (2*mu - 1) * min(s, cap/(2*mu*k))
+     The first branch (the close finishes before the friction catches the
+     drive, `cap/(2 mu k) > s`) gives (2mu-1) s = 1.1-1.9 s: a 5-8x centring,
+     short of the 4-contact threshold `s - 0.5/k` by the residual (2mu-2)s.
+     The second branch (`cap/(2 mu k) < s`, i.e. k > 2.7e3 on this fruit)
+     stops the payload EARLY, at (2mu-1)cap/(2 mu k) - and that can be
+     BELOW s: the stiffness window for a static 4-contact state is
+       k > (2mu-1) cap/(2 mu s) = 1.7e3 N/m.
+     **So the static algebra actually favours a middling stiffness, not the
+     softest one** - and the shipped k = 1e5 has the perpendicular pair at
+     the cap (2*mu*cap = 12.8 N > cap = 4.9 N), so at that rung nothing
+     moves at all: the rigid ring grips where it sits (P110's measurement).
+     The dynamics below decides whether either branch is reachable in the
+     close's 84 ticks: the launch is the term the static model cannot see.
+
+  the same algebra for a THREE-jaw ring (120 deg), for contrast:
+    drive = 1.5 k delta, friction = 2 mu k s -> delta_inf = 0.82 s  ->  CENTRES (delta_inf < s)
+    so a 3-jaw chuck closes the last millimetre at this mu and a 4-jaw
+    does not: the count of tangential contacts is the lever, not k.
+
+2. THE STIFFNESS LADDER (cap 4.90 N, and the reduced 2.00 N)
+====================================================================================================
+  worst case: apple d=69.6 mm m=123 g mu_pair=1.31; arrival delta0 = 8.8 mm (P108)
+
+  k N/m    cap N   cap/k mm  static   dynamic   bat mm   s mm  4-pad  n   F/pad
+    100000   4.90       0.05     4.90      8.80     0.00   8.80   0.70 yes       4
+    100000   2.00       0.02     2.00      8.80     5.12   3.68   0.70 no       1
+     10000   4.90       0.49     4.90      8.80     0.00   8.80   0.70 yes       4
+     10000   2.00       0.20     2.00      8.80     5.12   3.68   0.70 no       1
+      5000   4.90       0.98     3.48      8.80     0.69   8.11   0.70 no       1
+      5000   2.00       0.40     2.00      8.80     5.12   3.68   0.70 no       1
+      2000   4.90       2.45     1.39      1.59     1.15   7.65   0.70 no       1
+      2000   2.00       1.00     1.39      8.80     5.12   3.68   0.70 no       1
+      1000   4.90       4.90     0.70      2.04     5.93   2.87   0.70 no       1
+      1000   2.00       2.00     0.70      8.80     6.40   2.40   0.70 no       1
+       500   4.90       9.80     0.35      2.96     7.06   1.74   0.70 no       1
+       500   2.00       4.00     0.35      2.96     7.06   1.74   0.70 no       1
+       200   4.90      24.50     0.14      5.71     8.69   0.11   0.70 no       1
+       200   2.00      10.00     0.14      5.71     8.69   0.11   0.70 no       1
+       100   4.90      49.00     0.07      8.80     8.80   0.00   0.70 no       1
+       100   2.00      20.00     0.07      8.80     8.80   0.00   0.70 no       1
+  -> the ladder has a KNEE, not a slope.  Above k* = (cap - mu_b*m*g) /
+     (2 mu s) ~ 2.2e3 N/m the perpendicular pair is at the cap, the friction
+     is 2*mu*cap and nothing slides; below it the payload slides to
+     (2mu-1)s + mu_b*m*g/k, i.e. 1.1-1.9 s.  So compliance converts a
+     *stuck* payload into a *nearly centred* one, and every rung below the
+     knee lands within 0.3-0.6 mm of the 4-contact threshold - never on it.
+  -> the cap column is the ladder's negative control: lowering the cap
+     lowers the friction (the perp pair leaves its cap) but also lowers the
+     grip.  With cap 2.0 the knee moves to ~0.9e3, so the caps agree in
+     *geometry* and differ in *capacity* (the 2-grip column halves).
+
+3. THE GEOMETRIC BRANCH: is the perpendicular pair loaded at all?
+====================================================================================================
+  The aperture is `0.98 x the WIDEST horizontal extent` (the live clamp
+  0.97), so a fruit whose narrow axis is `2*roundness` smaller leaves the
+  perpendicular pair short by `roundness - s`:
+    roundness > s  -> the pair is FREE -> the friction is the belt's alone
+                      -> the ring centres, and the `[cage]` count is <= 2;
+    roundness < s  -> the pair is LOADED -> section 1's friction applies
+                      -> the ring jams at (2mu-1)s, off-centre.
+  The pool's roundness is 0.02-0.20 d and s is 0.005-0.015 d, so most of
+  the pool is in the second branch: **the registered `pads >= 3` endpoint
+  and the centring mechanism are in tension** - a ring that centres on a
+  round fruit cannot also read 3 pads at this squeeze, and a ring that reads
+  3-4 pads is one whose perpendicular pair is jammed.
+
+  roundness/d  perp pen mm  perp N  friction N  d_inf mm   branch   count
+        0.005       +0.35    0.35        1.83      1.13      jams      2
+        0.010       +0.00    0.00        0.92      0.46      jams      2
+        0.015       -0.35    0.00        0.92      0.00   centres      2
+        0.050       -2.78    0.00        0.92      0.00   centres      2
+        0.100       -6.26    0.00        0.92      0.00   centres      2
+        0.200      -13.22    0.00        0.92      0.00   centres      2
+
+4. THE BAT AND THE DELIVERED FORCE (the close, integrated at 120 Hz)
+====================================================================================================
+  the shipped close profile + the task's freeze rule, the payload's own
+  mass, the belt's lateral friction.  `F@frz` is the near pad at the freeze,
+  `bat` the payload's displacement over the close, `n` the pad count the
+  `[cage]` row would print.  CAVEAT: a 1-D reduction, no ring exit - the
+  bat is an order of magnitude, the cells are the measurement
+  (`off0`/`off` in the `[cage]` row is the phase's own instrument).
+
+  k N/m    cap N   c Ns/m   fruit     F@frz  n   bat mm  d_end mm  ticks  aper mm
+    100000   4.90     89.4 lychee     3.71  2     8.80      0.00     62     29.5
+    100000   4.90     89.4 apple      4.90  2     8.80      0.00     62     69.4
+      5000   4.90     20.0 lychee     0.39  0     8.80      0.00     66     29.4
+      5000   4.90     20.0 apple      0.70  1     8.11      0.69     41     70.7
+      1000   4.90      8.9 lychee     0.16  0     8.80      0.00     84     29.3
+      1000   4.90      8.9 apple      1.89  1     2.87      5.93     18     76.1
+       500   4.90      6.3 lychee     0.08  0     8.80      0.00     84     29.3
+       500   4.90      6.3 apple      1.75  1     1.74      7.06     19     74.2
+       200   4.90      4.0 lychee     0.08  0     8.55      0.25     84     29.3
+       200   4.90      4.0 apple      1.11  1     0.11      8.69     20     72.7
+      1000   2.00      8.9 lychee     0.16  0     8.80      0.00     84     29.3
+      1000   2.00      8.9 apple      2.00  1     2.40      6.40     18     76.1
+       200   2.00      4.0 lychee     0.08  0     8.55      0.25     84     29.3
+       200   2.00      4.0 apple      1.11  1     0.11      8.69     20     72.7
+  -> the delivered force falls monotonically with k (4.90 -> 0.08-1.8 N) and
+     the freeze fires EARLIER (17-18 ticks at k <= 1e3 against 62 at the
+     shipped drive): the 0.5 N trigger is reached at a smaller penetration,
+     so a compliant ring is a *gentler and shallower* close.  The depth is
+     the thing to watch in the cells: `aper` at the freeze.
+
+5. THE GRIP (what compliance costs the hold)
+====================================================================================================
+  a compliant pad's delivered force is min(k*s, cap), so a soft ring is a
+  weaker hand.  The capacity that matters is P104's `n * mu * N`; the
+  shipped pinch is 2*1.3*9.8 = 12.7 N.
+
+  k N/m    fruit     F/pad  2-pad cap N  4-pad cap N   dia mm
+    100000 lychee      4.90        13.92        27.83     29.6
+    100000 apple       4.90        12.84        25.68     69.6
+     10000 lychee      2.96         8.41        16.81     29.6
+     10000 apple       4.90        12.84        25.68     69.6
+      1000 lychee      0.30         0.84         1.68     29.6
+      1000 apple       0.70         1.82         3.65     69.6
+       500 lychee      0.15         0.42         0.84     29.6
+       500 apple       0.35         0.91         1.82     69.6
+       200 lychee      0.06         0.17         0.34     29.6
+       200 apple       0.14         0.36         0.73     69.6
+       100 lychee      0.03         0.08         0.17     29.6
+       100 apple       0.07         0.18         0.36     69.6
+  -> at k = 1e3 the ring's own grip is 1.8-3.6 N, i.e. **4-7x weaker than
+     the shipped pinch** (12.7 N) and 4-3.5x weaker than the rigid ring.
+     A pure-soft arm therefore cannot answer the *delivered* question: it
+     would lose placements for a grip reason, not a centring one.  That is
+     why the registration ships the **hard stop** with the soft close.
+
+6. PREDICTIONS AND THE CHOSEN POINT
+====================================================================================================
+  s = 0.70 mm (1 % per face, a 70 mm fruit), delta0 = 8.8 mm
+  mu_pair = 1.31 -> delta_inf = (2mu-1)s = 1.13 mm
+  the 4-pad state needs delta < s - 0.5/k = 0.20 mm: MISSED by 0.93 mm
+
+  (a) the maximum offset each k can centre (from any d0 >= the knee):
+      the *terminal* offset is the bound, not the arrival - so every rung
+      below the knee centres an arbitrarily large arrival to 1.1-1.9 s.
+      That is the chuck behaviour, and it is what the cells' `off` measures.
+  (b) the centring force, and the crush question:
+      at delta = 8.8 mm, k = 1e3: drive 4.90 N vs friction 2.74 N -> it slides (the rigid ring's 4.90 N vs
+      12.8 N does not).  The force is bounded by the cap by construction;
+      a soft pad delivers k*s = 0.70 N at the squeeze,
+      i.e. a LIGHTER touch than the shipped 4.90 N - compliance cannot
+      crush, it under-grips.
+  (c) the time to centre: the slide is a spring against Coulomb friction,
+      i.e. a few ticks at the 120 Hz clock (the drive accelerates a 0.1 kg
+      payload at ~40 m/s^2); the close's 84 ticks are not the binding term
+      and the cells cannot resolve it.  What they CAN resolve is whether
+      the offset shrinks at all (`off0 -> off`).
+  (d) the bat, 1-D:
+      k=  100000 c= 89.4 -> F@freeze  4.90 N, n=2, bat  8.80 mm, d_end  0.00 mm, freeze at 69.4 mm
+      k=    1000 c=  8.9 -> F@freeze  1.89 N, n=1, bat  2.87 mm, d_end  5.93 mm, freeze at 76.1 mm
+      k=     200 c=  4.0 -> F@freeze  1.11 N, n=1, bat  0.11 mm, d_end  8.69 mm, freeze at 72.7 mm
+
+  THE CHOSEN POINT (pinned by the registration):
+    k_close = 1000 N/m  (cap/k = 4.90 mm, 100x the shipped 0.049 mm)
+    c_close = 8.9 Ns/m  (= 2 sqrt(k m), P104's own near-critical pair)
+    cap     = 4.90 N/pad  (NOT lowered: the ladder's geometry is
+              cap-free below the knee and a lower cap only lightens the grip)
+    k_hold  = 100000 N/m  (the hard stop: the drive stiffens when the
+              close freezes, so the carry keeps the shipped grip - a spring-
+              loaded pad bottoms out, which is what a real compliant finger is)
+
+  PREDICTIONS (each is a registered falsifier):
+    P1  CENTRING: yes.  `off` falls from ~8.8 mm at the close's
+        start to ~1.1 mm, i.e. the offset shrinks 7-8x.
+    P2  THE COUNTED ENCLOSURE: no rise.  The residual (2mu-2)s keeps the far
+        pad below the 0.5 N counting threshold, and the perpendicular pair is
+        short by the fruit's roundness anyway.  Predicted 0-10 % clean.
+    P3  THE BAT: falls (the force at the freeze is 0.1-1.8 N against 4.90),
+        so the no-contact/ejection class improves.
+    P4  THE PLACED COUNT: no rise.  With the hard stop the grip is the shipped
+        ring's, so the count is P108's E (16/57 = 28 %).
+    P5  NO CRUSH: the force is <= the cap by construction.
+
+  IF P1 holds and P2/P4 do not, the phase's answer is: **compliance is a
+  real self-centring mechanism, and the ring still cannot close the last
+  millimetre because mu > 1 at the pads.**  The levers below the ring, in
+  the order this algebra prices them: a pad material with mu < 1 (then the
+  4-jaw centres to mu*s < s), a 3-jaw ring (delta_inf = 0.82 s < s), and a
+  positioning change (P110's 0.6 mm, which no passive element delivers).
+

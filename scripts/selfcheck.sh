@@ -537,6 +537,28 @@ run_check "P102 tactile patch" "$python" scripts/255_p102_tactile_selftest.py
 # readers. No simulator.
 run_check "P103 slip re-grip" "$python" scripts/256_p103_regrip_selftest.py
 
+# --------------------------------------------------------------------------- #
+# P111: the cage's **compliant closure with a hard stop** (P110's item 1). P110
+# measured why the four-pad ring cannot enclose: one radial synergy on four
+# force-capped *position* pads gives the near pad `cap/k = 0.049 mm` of yield and
+# leaves the far pad `2*delta` short, so a 6-20 mm arrival is launched instead of
+# pushed. The owner's item is per-pad compliance - a soft drive yields `cap/k`
+# instead, so the four pads can balance toward the ring's centre. The leg pins:
+# the two regimes (`min(k*s, cap)`: the rigid drive is AT the cap at the shipped
+# 1 % squeeze and k=1e3 is at 0.6 N/pad on a 60 mm fruit, i.e. 4-7x weaker - which
+# is why the arm needs the **hard stop**), the freeze's shift (the 0.5 N trigger
+# is reached at 0.005 mm of penetration at k=1e5 and 0.5 mm at k=1e3, so the
+# compliant close is gentler AND shallower), the stop executed on the real
+# methods (off = a no-op; on = all four drives rewritten at the hold k with
+# `c = 2 sqrt(k m)`, the **target and the cap untouched** - a bottoming-out
+# spring loads the pad, it does not move it; idempotent inside one close; released
+# by an OPEN command so the next close is soft again), the **one** call site in
+# the dynamic close's tail gated on the hand's *kind* and **not** on
+# `FRUIT_CAGE_PROBE` (a diagnostic must not own a behaviour), the `[cage]` row's
+# `off0`/`off` centring fields (the payload's radial distance to the ring's axis,
+# from reads the probe already takes), and `TASKS_MD5`. No simulator.
+run_check "P111 cage compliance" "$python" scripts/257_p111_cage_compliance_selftest.py
+
 if [ -n "$run_log" ] && [ -f "$run_log" ]; then
     # P85: the log decides the scenario (and therefore the reference and the
     # floor), exactly as `scripts/accept.sh` does.

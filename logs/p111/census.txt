@@ -1,0 +1,63 @@
+P111 census - the compliant closure, arm by arm
+====================================================================================================
+
+1. THE RING ON THE PAYLOAD  (`off0`, the close-time offset [mm])
+====================================================================================================
+  arm   rows  in-ring  off-ring  off0 p50  off0 p90  off0 max
+  C        0        0         0       nan       nan       nan
+  R       76       25        13       2.9       3.7     933.2
+  T1      73       46        27       3.1       4.2    1336.2
+  T2      77       56        21       2.9       3.8     894.7
+  T4      75       50        25       3.0       3.9     770.4
+  S1      37       30         7       3.1       4.2     618.7
+  (`off-ring` rows are the arm-never-arrived class: the payload 85-820 mm
+   from the ring's axis when the close starts.  Only `in-ring` rows can
+   say anything about centring.)
+
+2. DID THE PAYLOAD STAY?  (`off - off0` over the in-ring rows [mm])
+====================================================================================================
+  arm     n     p50     p90  > 5 mm  < -2 mm
+  R      25    +0.2   +10.0       4        2
+  T1     46    +1.9    +5.6       8        2
+  T2     56    +0.7    +3.6       5        2
+  T4     50    +2.0   +12.1       7        1
+  S1     30    +1.3    +3.3       1        1
+  (positive = the payload was carried AWAY from the ring's axis during
+   the close, i.e. the ring did not hold it; negative = it moved in.)
+
+3. THE GRIP, BY CLASS  (`[carry] grasp_lift` rows)
+====================================================================================================
+  arm   legs  seated  never  fmin p50  fmax p50  fmax>cap
+  C       38      37      1      9.02     10.13        37
+  R       74      64     10      0.00    233.03        61
+  T1      71      61     10      0.00    315.60        58
+  T2      77      64     13      1.70    142.60        60
+  T4      75      59     16      0.00    240.11        57
+  S1      37      28      9      0.00    240.75        23
+
+4. THE COUNT, per seed and pooled
+====================================================================================================
+  arm        s5       s6     s101     s202     pooled   rate
+  C     12/19    13/19          -        -   25/38     65.8%
+  R      7/19     6/18     3/20     3/19     19/76     25.0%
+  T1     1/20     1/15     5/19     5/19     12/73     16.4%
+  T2     3/20     5/20     4/18     6/19     18/77     23.4%
+  T4     3/19     4/19     3/18     3/19     13/75     17.3%
+  S1     2/18     3/19          -        -    5/37     13.5%
+
+  the exact two-sided Fisher test on the arm pairs (pooled):
+    R 19/76 vs T1 12/73:  p = 0.229
+    R 19/76 vs T2 18/77:  p = 0.852
+    R 19/76 vs T4 13/75:  p = 0.320
+    C 25/38 vs R 19/76:  p = 0.000
+    T2 18/77 vs T4 13/75:  p = 0.423
+    T1 12/73 vs T4 13/75:  p = 1.000
+
+5. THE FAILURE NOTES (digit-normalised, per arm)
+====================================================================================================
+  C    'fruit did not follow the gripper'x1
+  R    'fruit did not follow the gripper'x38, 'fruit left the pick station during the close (N mm)'x2
+  T1   'fruit did not follow the gripper'x31, 'fruit left the pick station during the close (N mm)'x2
+  T2   'fruit did not follow the gripper'x38
+  T4   'fruit did not follow the gripper'x41
+  S1   'fruit did not follow the gripper'x25

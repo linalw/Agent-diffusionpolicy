@@ -4158,6 +4158,14 @@ class PickAndPlaceTask:
             "close_start": None,
             "t_close": None,
             "fruit_last": None,
+            #: P111: the payload's radial distance from the ring's **axis** (the
+            #: cage base's xy, which is the four pads' centroid) at the close's
+            #: start and at the flush.  `off0 -> off` is the phase's centring
+            #: measurement; both come from reads the probe already takes
+            #: (the fruit pose and the base pose), so no new read is added.
+            "off0": float("nan"),
+            "off": float("nan"),
+            "axis0": None,
         }
 
     def _cage_probe_phase(self, phase: str) -> None:
@@ -4170,6 +4178,17 @@ class PickAndPlaceTask:
                 self.spawner.position(book["sample"]), dtype=float
             ).copy()
             book["t_close"] = float(self._sim_time())
+            # P111: the offset at the close's *start*, measured to the ring's own
+            # axis (the cage base sits at the jaw centre and the four pads are
+            # symmetric about it, so its xy IS the ring's centre line).
+            try:
+                hand = self.grippers.get(book["side"])
+                axis = np.asarray(hand.base_pose()[0], dtype=float)
+                book["axis0"] = axis.copy()
+                delta = book["close_start"] - axis
+                book["off0"] = float(np.hypot(delta[0], delta[1]))
+            except Exception:  # noqa: BLE001 - a probe must never change an outcome
+                book["off0"] = float("nan")
 
     def _cage_probe_tick(self) -> None:
         """One census sample. Called from `_step_sim`; inert when off."""
@@ -4223,6 +4242,18 @@ class PickAndPlaceTask:
             belt = np.array([0.0, -abs(self._belt_speed_estimate()) * dt, 0.0])
             bat = float(np.linalg.norm(delta))
             bat_rel = float(np.linalg.norm(delta - belt))
+        if end is not None:
+            # the *current* ring axis: the cage rides the arm, so it has moved with
+            # the payload since `off0` was taken - the offset is measured to where
+            # the axis is now, not to where it was.
+            try:
+                axis = np.asarray(
+                    self.grippers.get(book["side"]).base_pose()[0], dtype=float
+                )
+                d_off = np.asarray(end, dtype=float) - axis
+                book["off"] = float(np.hypot(d_off[0], d_off[1]))
+            except Exception:  # noqa: BLE001 - a probe must never change an outcome
+                book["off"] = float("nan")
         book["loaded"] = loaded
         book["bat_mm"] = bat * 1000.0
         book["bat_rel_mm"] = bat_rel * 1000.0
@@ -4234,6 +4265,8 @@ class PickAndPlaceTask:
             f"aper_min={float(book['aper_min']) * 1000:.1f}mm "
             f"close={int(book['close_ticks'])}t "
             f"bat={bat * 1000:+.1f}mm bat_rel={bat_rel * 1000:+.1f}mm "
+            f"off0={float(book['off0']) * 1000:+.1f}mm "
+            f"off={float(book['off']) * 1000:+.1f}mm "
             f"pads={loaded}/4 "
             f"f=({','.join(f'{v:.2f}' for v in forces)}) "
             f"F={sum(forces):.2f}N aper={float(book['aper_last']) * 1000:.1f}mm "
@@ -13491,6 +13524,15 @@ class PickAndPlaceTask:
             #: P17-B H2 (default off; see the knob block in `__init__`): the
             #: two-sided-load gate is only ever live on a dynamic capture.
             two_sided_gate = bool(self._freeze_twosided and dynamic_capture)
+            # P111: the compliant cage's **close window**.  The drives go to the
+            # close profile here (a no-op unless `FRUIT_CAGE_CLOSE_STIFFNESS` is
+            # set) and back to the approach profile at `close_done` below.  The
+            # window is scoped because a soft pad is a weak *position source*: with
+            # it armed through the approach and the descent the plates are pushed
+            # out of the ring's geometry by whatever they meet (measured 1/20
+            # placed against the rigid ring's 7/19, `logs/p111/RESULTS.md`).
+            if getattr(self.grippers[arm_name], "kind", "") == CAGE_KIND:
+                self.grippers[arm_name].close_begin()
             if self._cage_book is not None:
                 self._cage_probe_phase("close")
             for _close_attempt in range(close_attempts):
@@ -13893,6 +13935,16 @@ class PickAndPlaceTask:
                         # `pinch_width * 0.98` chord can be 2 mm inside the live
                         # extent once the fruit has turned).
                         grip_gap = max(grip_gap, last_cmd)
+                # P111: the compliant cage's **hard stop**.  One call, once per
+                # attempt, after the close has decided the depth the carry will
+                # hold (`grip_gap` above).  A spring-loaded pad bottoms out here:
+                # the four drives are re-written at the hold profile with their
+                # target unchanged, so the pad re-loads to the cap at the aperture
+                # it found and the soft close keeps the shipped grip.  Inert on
+                # every other hand and at `FRUIT_CAGE_HOLD_STIFFNESS` unset (the
+                # method is the cage's own; `close_done` reads the knob).
+                if getattr(self.grippers[arm_name], "kind", "") == CAGE_KIND:
+                    self.grippers[arm_name].close_done()
                 if self._cage_book is not None:
                     self._cage_probe_flush()
                 fruit_end = np.asarray(self.spawner.position(sample), dtype=float)
