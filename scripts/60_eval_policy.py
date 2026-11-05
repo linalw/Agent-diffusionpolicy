@@ -132,6 +132,16 @@ def main() -> int:
         settings.set("/rtx/post/dlss/enabled", False)
         say("camera: TAA and DLSS disabled for a deterministic frame")
 
+    if os.environ.get("FRUIT_SORT_INSTRUCTION", "").strip():
+        # P114: the instruction dispatcher is the scripted cell's; the hybrid
+        # canary drives the place leg from the policy handover's own lane and
+        # has no dispatcher, so it refuses rather than silently sorting by
+        # grade.
+        say(
+            "ERROR: FRUIT_SORT_INSTRUCTION is scripted-only; the hybrid canary "
+            "has no instruction dispatcher (logs/p114/DESIGN.md)"
+        )
+        return 2
     cfg = SceneConfig()
     scene = SortingScene(cfg).build()
     tactile = GripperTactile()

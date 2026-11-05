@@ -496,6 +496,27 @@ class SceneConfig:
 
     def __post_init__(self) -> None:
         """Apply the optional size restriction to the fruit pool."""
+        # P114: the scenario descriptor's geometry, when armed. Unset
+        # (`FRUIT_SCENARIO` absent) is one environment lookup and nothing else,
+        # so every shipped/probe construction is byte-identical. The descriptor
+        # can only move the *data* fields a new pipeline would otherwise edit
+        # here (the station and the release point); the lane hardware (the two
+        # output belts, the tray, the camera) is still built by the scene code -
+        # that is the honest boundary and `logs/p114/COUPLING.md` names it.
+        from .scenario import resolve_scenario
+
+        scenario = resolve_scenario()
+        if scenario is not None:
+            if "x" in scenario.pick:
+                self.pick_x = float(scenario.pick["x"])
+            if "y" in scenario.pick:
+                self.pick_y = float(scenario.pick["y"])
+            if "speed_m_s" in scenario.belt:
+                self.belt_speed = -abs(float(scenario.belt["speed_m_s"]))
+            if "x" in scenario.place:
+                self.output_place_x = float(scenario.place["x"])
+            if "y" in scenario.place:
+                self.output_place_y = float(scenario.place["y"])
         if "FRUIT_OUTPUT_SPEED" not in os.environ:
             # The output line must keep up with the main belt: a slower raised
             # belt lets placed fruit queue at the release point (P2 plan).

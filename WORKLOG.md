@@ -25270,3 +25270,113 @@ sources are the P104-P112 records, `logs/p42/SIM_LIMIT.md`, `logs/p92/CENSUS.md`
 `logs/p93/RESULTS.md`, `logs/p102`, `logs/p103` and `logs/r8/A_RESULTS.md`, with
 `docs/PLATFORM_SURVEY.md` and `docs/HAND_STAGE_PLAN.md` for the prices and the
 milestone arithmetic. Evidence `docs/END_EFFECTOR_DECISION.md`, this entry.
+
+## P114 (2026-11-05) - the cell is portable as data: a scenario descriptor, an instruction resolver and a capability map; nothing ships
+
+**The requirement is a system one, not a physics one**: the two-finger-gripper
+cell must be portable to different pipeline scenarios, and it must decide where
+to put each fruit **from an instruction** ("它要可以根据指示自己判断把果蔬分拣放到什么
+位置"). The physics/end-effector lane is closed (`docs/END_EFFECTOR_DECISION.md`);
+this phase is the software architecture, and it ships **no default change, no
+`configs/` reference and no flip**. The one new `configs/` file is
+`configs/scenarios/shipped_twoline.json`, the shipped cell written as data - the
+reference descriptor the loader and the replay validation need.
+
+**The coupling audit first** (`logs/p114/COUPLING.md`, every site read with its
+file:line, four groups). (i) geometry: the pick station (`assets.py:251-253`),
+the two-line stations (`tasks.py:10499`, `0.0 / -0.10`) and their per-batch
+pre-pose solve (`:10240-10340`), the main belt (`assets.py:210-229`), the two
+output belts (`:315`, `:334`, `conveyor.OutputBelt:507-560`), the release points
+(`:412-416`, derived `:545-548`), the tray (`:438-450`, `:692`). (ii) the rule:
+`bin_index = 0 if grade == "A" else 1` in **four** drivers
+(`rl_env.py:3529`, `20_pick_place.py:270`, `40_collect_demos.py:755`,
+`60_eval_policy.py:219`), the arm from `bin_index` (`tasks.py:11947`), the
+grade-pure selector (`:9251-9290`, `_reach_anywhere_select :9852`), the worker
+passing its own lane (`:10871`, `:10995`), the cross-lane reselect
+(`:13097`). (iii) the supply: mixes (`fruits.py:261-269`), band
+(`:253-254`), gap schedule (`:225-250`, `SupplyPlan.from_env :436`), the pool
+and its drawn labels (`:1057`, `:1152`). (iv) the calibration: the waypoint
+seeds and `_grasp_quat` (`tasks.py:4082-4140`), `jaw_target` and `_place_low`
+(`:4987-5080`, `:16204`), the motion references. **The two hardest**:
+**arm = grade = lane** is one object written in four places, so the arm that can
+carry a fruit is decided before the fruit is seen; and **the place target is
+derived from the place leg's *name*** (`jaw_target`'s
+`index = 0 if "0" in name else 1`), so there is nowhere a "destination with its
+own target" can exist.
+
+**What was built, default off.** `src/fruit_sorting/scenario.py` (new, pure data,
+no simulator): a strict descriptor loader (`FRUIT_SCENARIO=<path>`; unknown keys,
+duplicate ids, a side/target y-sign contradiction, an unknown reach status or
+supply schedule all raise), an instruction parser/resolver
+(`FRUIT_SORT_INSTRUCTION=<path|inline>`; ordered `condition => destination`
+rules, `skip`, sizes in mm, first match wins, `default` last), and the capability
+map (`left` serves `+y`, `right` serves `-y`, and only if the destination's
+reach is not refused). In `tasks.py`: `_place_xy_for` replaces the name→lane
+read at the place leg; `_calibrate_sort_destinations` solves every `auto`
+destination with the place leg's own position-only IK and a 25 mm bar; the
+selectors admit a fruit only if `destination in capability[its arm]`
+(`_sort_admits`); the worker dispatches the fruit's own destination
+(`sort_destination(state)`); `_arm_for_destination` maps it back to the one arm
+that can serve it; `_sort_ledger_*` prints one `[sort]` row per attempt and a
+per-destination summary. `SceneConfig`/`SupplyPlan` apply the descriptor's
+geometry/supply as **defaults** (an explicit env knob wins). The single-arm
+driver and the collector consult `sort_destination`; the direct/policy env and
+the hybrid canary **refuse** the knob (no dispatcher - honest, not silent). The
+one structural bug the validation caught is recorded: the first draft kept the
+per-attempt destination in a shared task attribute, and the two-line's two
+workers let one arm's ledger read the other arm's value (a grade-B peach read
+`dest=0` on the right); the fix is an attempt-local `EpisodeResult` field plus a
+thread-local place target - a direct instance of this file's own
+"instrumentation is part of the measurement" rule.
+
+**The validation** (`logs/p114/RESULTS.md`, endpoint = the ledger's assignment
+accuracy, never a rate). **(i) Default off**: `scripts/accept.sh` is **8/10,
+9.0 s/attempt, `fingerprint: matches` `30fb99f8`, `190: PASS`**, and its **421
+`[fruit]` lines are 421/421 byte-identical** to `logs/p110/accept_noharm.log`
+(md5 `1ac8febe...`, no `[sort]`/`[scenario]` row at all). **(ii) Today's routing
+as an instruction** (`grade=A => 0`, `B => 1`, `C => skip`): 8/10, the **same
+`[fruit]` stream 421/421 with the `[sort]` rows dropped** (`compare_off_vs_
+today.txt`), `fingerprint: matches` - the compiled predicate *is* the shipped
+grade-pure predicate. **(iii-b) A size-class rule on the shipped geometry**
+(`size<40 => 1`, `default => 0`): coverage `mapped=16 (dest0=12, dest1=4)`, 7/10
+placed and **7/7 releases in the instructed destination, 0 mis-sorted**; a
+grade-C 3.6 cm strawberry goes to the **right** lane and a grade-A kiwi to the
+left, i.e. the destination is independent of the grade; the branch differs from
+the reference (fingerprint DIFFERS by construction) and the budgets pass
+(`|v|max` 0.114/0.160, lurch 0.018/0.291). **(iii-a) The 3-destination cell**:
+`three_dest.json` adds `dest 2 = (0.38, +0.55)` on the +Y belt with `reach:
+auto`; the startup solve reads **6.0 mm** and the map becomes `left=[0,2]
+right=[1]`; the instruction `grade=A => 2`, `grade=B => 1` (no default) leaves
+the 4 grade-C fruit **unassigned** (never selected) and 20 attempts split 10/10;
+**13 releases, 13/13 in the instructed destination** (dest 1 7/7, dest 2 6/6),
+0 mis-sorted, budgets pass (`|v|max` 0.110/0.160). The two targets are 71 mm
+apart and the measured release clouds ~78 mm apart, every payload 26-32 mm
+nearer its own target. **(iv) The refusal**: the tray destination
+`(1.65, +0.50)` solves to **1138.3 mm** against the 25 mm bar, prints
+`UNREACHABLE`, and the run aborts with `ScenarioError("[sort] REFUSED: ... no
+arm can deliver there")` **before the first attempt** - zero attempts, zero
+mis-sorts.
+
+**Verdict: portable as data, and the instruction layer works; nothing ships.**
+The price of a new pipeline is **a JSON + a solve + the gate** (previously 6-8
+code sites across four drivers and the task, plus a re-solve). Still not
+portable and named: a third **physical** lane/tray (a scene build - the
+descriptor can only add a target on an existing lane), a place destination at a
+different height (needs a per-destination z and its own descent), the
+tactile/force channels and the hand's own limits, and **perception**: colour is
+not a per-instance attribute in the sim and grade/ripeness/defective are drawn
+labels, so the instruction layer is exact for species/size and a *labelling
+interface* for the rest until a classifier feeds it. Named next steps: the vision
+attribute source, a per-destination height / third belt, the policy-side
+dispatcher, and an overlap station (P90 measured the shipped place point at the
+corner of the solvable box). No motion reference moved or was re-recorded
+(`30fb99f8` / `30fb99f8` / `8952c320` stand). Pins: `scenario.py` **`674194fe`**,
+`tasks.py` **`15d2348a`**, `assets.py` **`165328af`**, `fruits.py` **`e807216c`**,
+`rl_env.py` **`476d5782`** (`TASKS_MD5` follow), `20_pick_place.py`
+**`986d726d`**, `40_collect_demos.py` **`65683b8f`**, `60_eval_policy.py`
+**`22ca84f2`**, `selfcheck.sh` **`c833520f`**,
+`259_p114_scenario_selftest.py` **`fd6afd02`** (39 checks),
+`260_p114_instruction_selftest.py` **`a537cf09`** (19 checks),
+`configs/scenarios/shipped_twoline.json` **`290b8a0a`**, the two evidence
+descriptors **`35707bf3`** / **`2ebb722e`**; `scripts/selfcheck.sh` **PASS (0
+failures, 1 skipped)**, `106` OK, `107` PASS (21 checks). Evidence `logs/p114/`.

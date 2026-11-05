@@ -560,6 +560,38 @@ run_check "P103 slip re-grip" "$python" scripts/256_p103_regrip_selftest.py
 run_check "P111 cage compliance" "$python" scripts/257_p111_cage_compliance_selftest.py
 run_check "P112 three-jaw ring" "$python" scripts/258_p112_cage3_selftest.py
 
+# P114: the scenario descriptor + the sort instruction - the **data layer** that
+# makes a new pipeline a JSON plus a solve, and the **instruction layer** that
+# makes a fruit's destination independent of the arm that carries it. The leg is
+# offline: the strict descriptor schema (unknown keys, duplicate ids, a
+# side/target contradiction, an unknown reach status/schedule all raise), the
+# cached unset resolution (`FRUIT_SCENARIO` unset -> None, no file, no print),
+# the instruction grammar (precedence, `skip`, millimetre sizes, the inline `;`
+# separator) and every refusal (unknown/negative destination, a destination no
+# arm serves, an unknown attribute/operator/grade/species, a second `default`, a
+# rule after `default`, an empty file), the **capability model** (left = +y,
+# right = -y; `unreachable` refused; `auto` provisional until the solve), the
+# **shipped-path fallbacks** in `tasks.py` (`_arm_for_destination` keeps
+# `0 -> left`, `_place_xy_for` keeps `cfg.output_belt_drop_points`, the place leg
+# and both diagnostics read it, both selectors gate on the instruction, the
+# ledger runs only under it, only `auto` destinations are solved, the worker
+# dispatches the fruit's own destination), the descriptor's SceneConfig /
+# SupplyPlan application (armed moves the fields, unset restores them, an
+# explicit env knob wins), and the scope refusals (the direct env and the hybrid
+# canary have no dispatcher; both scripted drivers consult `sort_destination`).
+run_check "P114 scenario descriptor" "$python" scripts/259_p114_scenario_selftest.py
+# P114, the instruction half: a rule file is parsed into an ordered
+# `condition => destination` list, validated against the descriptor's
+# destinations and the pool's vocabulary, and resolved through the capability
+# map (left = +y, right = -y; `unreachable` refused, `auto` provisional until
+# its solve). The leg pins the grammar (`grade=`, `species=`, `size<` in
+# millimetres, `default`, `skip`, the inline `;` separator), precedence, the
+# unset resolver (one env read, None, no parse) and every refusal (unknown /
+# negative destination, a destination no arm serves, one declared unreachable,
+# an unknown attribute or operator, a grade/species the pool cannot produce, a
+# second default, a rule after default, an empty file).
+run_check "P114 sort instruction" "$python" scripts/260_p114_instruction_selftest.py
+
 if [ -n "$run_log" ] && [ -f "$run_log" ]; then
     # P85: the log decides the scenario (and therefore the reference and the
     # floor), exactly as `scripts/accept.sh` does.

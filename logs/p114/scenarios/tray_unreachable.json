@@ -1,0 +1,70 @@
+{
+  "schema": "fruit-sorting-scenario/1",
+  "name": "tray_unreachable",
+  "notes": "P114 refusal cell: the shipped two lanes plus a fourth destination on the output TRAY at (1.65, +0.50), reach=auto. The tray is 1.22 m from the robot's shoulder at the place height - far outside the measured reach - so the startup solve must mark it UNREACHABLE and an instruction that maps a fruit to it must be REFUSED before any attempt runs.",
+  "stations": {
+    "left": 0.0,
+    "right": -0.1
+  },
+  "pick": {
+    "x": 0.34,
+    "y": 0.0
+  },
+  "belt": {
+    "speed_m_s": 0.12
+  },
+  "place": {
+    "x": 0.43,
+    "y": 0.5
+  },
+  "destinations": [
+    {
+      "id": 0,
+      "name": "lane0_plus_y",
+      "side": "+y",
+      "kind": "belt",
+      "target": [0.43, 0.5],
+      "reach": {
+        "status": "verified",
+        "residual_mm": 14.9,
+        "source": "logs/p90/station_rows.json"
+      }
+    },
+    {
+      "id": 1,
+      "name": "lane1_minus_y",
+      "side": "-y",
+      "kind": "belt",
+      "target": [0.43, -0.5],
+      "reach": {
+        "status": "verified",
+        "residual_mm": 14.9,
+        "source": "logs/p90/station_rows.json"
+      }
+    },
+    {
+      "id": 3,
+      "name": "plus_y_tray",
+      "side": "+y",
+      "kind": "tray",
+      "target": [1.65, 0.5],
+      "reach": {
+        "status": "auto",
+        "source": "solved at startup; expected UNREACHABLE (the tray is outside the arm's place reach)"
+      }
+    }
+  ],
+  "supply": {
+    "x_min": 0.2,
+    "x_max": 0.36,
+    "grades": {
+      "A": 0.375,
+      "B": 0.375,
+      "C": 0.25
+    },
+    "schedule": "wave"
+  },
+  "calibration": {
+    "place_tolerance_mm": 25.0
+  }
+}

@@ -485,7 +485,7 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: This env never constructs a cage, so no direct/policy behaviour moves - proven
 #: on the scripted side by `scripts/accept.sh`'s 421/421 byte-identical `[fruit]`
 #: stream (`logs/p107/RESULTS.md` section 5).
-TASKS_MD5 = "e128979bcbfc1a26c9e5b98ed9fc9b79"
+TASKS_MD5 = "15d2348aa2c1904dba3c0996cb36ed81"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(
@@ -1705,6 +1705,15 @@ class SortingRLEnv:
             raise ValueError("ablate='none' needs --ckpt (the policy to roll out)")
         if dagger is not None and presentation != "direct":
             raise ValueError("the DAgger expert is only defined for presentation='direct'")
+        if os.environ.get("FRUIT_SORT_INSTRUCTION", "").strip():
+            # P114 scopes the instruction dispatcher to the scripted cell: the
+            # direct/policy loop selects through its own trigger and its own
+            # grade lane, so silently ignoring an instruction would be worse
+            # than refusing it.
+            raise ValueError(
+                "FRUIT_SORT_INSTRUCTION is scripted-only (the direct/policy "
+                "handover has no instruction dispatcher; see logs/p114/DESIGN.md)"
+            )
         self.presentation = presentation
         #: P58: the direct presentation's **supply profile** - the release clock
         #: on every tick of both loops (`FRUIT_FEED_CADENCE` in the task, the

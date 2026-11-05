@@ -1126,6 +1126,76 @@ payload and a creeping one look identical in `off`); and `delta_inf` is a
 **`30fb99f8`** / **`30fb99f8`** / `8952c320` untouched; ckpt `moe_v13s`
 `61da390a`.  Evidence `logs/p112/`.
 
+**P114 (2026-11-05, `logs/p114/`; default off, **nothing adopted**, no `configs/`
+reference moved, no commit): the owner's system requirement - the cell must be
+portable to other pipeline scenarios and must decide **where** to put each fruit
+from an instruction - is answered with a **scenario descriptor**, an
+**instruction resolver** and a **capability map**; the physics lane stays closed
+(`docs/END_EFFECTOR_DECISION.md`). The phase's audit
+(`logs/p114/COUPLING.md`, every site read with its file:line, four groups:
+geometry, the fruit->destination rule, the supply, the calibration) names the
+two hardest couplings: **arm = grade = lane** is one object written in four
+places (`rl_env.py:3529`, `tasks.py:11947`, the worker's `bin_index`, the
+grade-pure selector `:9251-9290`), so the arm is chosen before the fruit is
+seen; and **the place target is derived from the place leg's *name***
+(`tasks.py:5032-5033`, `index = 0 if "0" in name else 1`), so there is nowhere a
+"destination with its own target" can exist. The build: `scenario.py` (new,
+pure data) - a **strict descriptor loader** (`FRUIT_SCENARIO=<path>`; unknown
+keys, duplicate ids, a side/target contradiction, an unknown reach status or
+schedule raise) with stations/pick/place/belt/destinations/supply, and an
+**instruction parser/resolver** (`FRUIT_SORT_INSTRUCTION=<path|inline>`) of
+ordered `condition => destination` rules (`grade=A => 0`, `size<40 => 1`,
+`default => 0`, `skip`; sizes in mm; first match wins; `default` last) with
+every refusal naming file and line; `tasks.py` gains `_place_xy_for` (replaces
+the name->lane read), `_calibrate_sort_destinations` (an `auto` destination is
+solved with the place leg's own position-only IK, 25 mm bar), `_sort_admits`
+(destination in the carrying arm's capability set), the fruit's own destination
+at dispatch, `_arm_for_destination` (the map back to the one arm that can serve
+it) and the `[sort]` per-destination ledger; `SceneConfig`/`SupplyPlan` apply the
+descriptor as **defaults** (an explicit env knob wins). The capability map is
+the physics the audit found: **left serves +Y, right serves -Y**, so the
+instruction resolver **refuses** a mapping no arm can reach rather than placing
+it wrongly. **Validation** (endpoint = the ledger's assignment accuracy, never a
+rate): **(i) default off** is 8/10, 9.0 s/attempt, `fingerprint: matches
+30fb99f8`, `190: PASS`, and its **421 `[fruit]` lines are 421/421
+byte-identical** to `logs/p110/accept_noharm.log` with no `[sort]`/`[scenario]`
+row at all; **(ii) today's routing as an instruction** (A->0, B->1, C->skip)
+replays the **same 421/421 stream with the `[sort]` rows dropped**, same 8/10,
+`fingerprint: matches` - the compiled predicate *is* the shipped one; **(iii-b)
+a size-class rule** (`size<40 => 1`) routes 12 fruit left / 4 right, **7/7
+releases in the instructed destination**, 0 mis-sorted, a grade-C 3.6 cm
+strawberry on the right and a grade-A kiwi on the left (fingerprint DIFFERS by
+construction; budgets pass `|v|max` 0.114/0.160); **(iii-a) the 3-destination
+cell** adds `dest 2 = (0.38, +0.55)` on the +Y belt with `reach: auto`, the
+startup solve reads **6.0 mm**, the map is `left=[0,2] right=[1]`, the 4
+grade-C fruit are **unassigned and never selected** (no default), 20 attempts
+split 10/10 and **13/13 releases land in the instructed destination** (dest 1
+7/7, dest 2 6/6; targets 71 mm apart, release clouds ~78 mm apart); **(iv) the
+refusal**: the tray target `(1.65, +0.50)` solves to **1138.3 mm**, prints
+`UNREACHABLE`, and the run aborts with `ScenarioError("[sort] REFUSED: ... no
+arm can deliver there")` **before the first attempt** - zero attempts, zero
+mis-sorts. **Verdict: portable as data, the instruction layer works, nothing
+ships**; the price of a new pipeline is **a JSON + a solve + the gate** (before:
+6-8 code sites across four drivers and the task). **Still not portable** and
+named: a third **physical** lane/tray (a scene build; the descriptor can only
+add a target on an existing lane), a place destination at a different height,
+the tactile/force channels and the hand's limits, and **perception** - colour is
+not a per-instance attribute in the sim and grade/ripeness/defective are drawn
+labels, so the layer is exact for species/size and a *labelling interface* for
+the rest until a classifier feeds it. Named next: the vision attribute source,
+a per-destination height / third belt, the policy-side dispatcher, an overlap
+station. No motion reference moved or was re-recorded (`30fb99f8` / `30fb99f8` /
+`8952c320` stand). Pins: `scenario.py` **`674194fe`**, `tasks.py`
+**`15d2348a`**, `assets.py` **`165328af`**, `fruits.py` **`e807216c`**,
+`rl_env.py` **`476d5782`** (`TASKS_MD5` follow), `20_pick_place.py`
+**`986d726d`**, `40_collect_demos.py` **`65683b8f`**, `60_eval_policy.py`
+**`22ca84f2`**, `selfcheck.sh` **`c833520f`**, `259_p114_scenario_selftest.py`
+**`fd6afd02`** (39 checks), `260_p114_instruction_selftest.py` **`a537cf09`**
+(19 checks), `configs/scenarios/shipped_twoline.json`
+**`290b8a0a`**, evidence descriptors **`35707bf3`** / **`2ebb722e`**;
+`scripts/selfcheck.sh` **PASS (0 failures, 1 skipped)**, `106` OK, `107` PASS
+(21 checks). Evidence `logs/p114/`.
+
 ## 2. Two constraints that decide how to measure
 
 **The outcome is quantized; do not compare success rates across configurations.**
@@ -5880,6 +5950,7 @@ and the traced `tr_cage_s5/`; ckpt `moe_v13s` `61da390a`.  Evidence `logs/p108/`
 | a **presentation / centring element** at the station (a passive guide, a metering gate, a station magazine, a "hold the fruit while the belt slips" element) | the **census first, offline** (`python3 logs/p110/census.py`): the split at the band entry is **55.8 mm along-belt / 2.6 mm lateral** and the term is `speed * t_desc` (a descent property, P109), so a **lateral** element can remove **0 %** of the binding axis (`A_y = 2(dy + r)` is unchanged) - that alone kills a guide; then the **gate's three couplings**, all read off the code before a build: the **selector cannot see a parked fruit** (the moving floor is 0.389 m, the indexed station window's lower edge 0.10 m), the **rate** (0.83-2.9 s delivered against a 15.1 s pick = **8.1 fruit = 1.81 m** queued into a 1.60 m belt), and the **height** (the hand's lowest solid part at the grip is **14.5 mm**, `tasks.FINGER_TIP_BELOW_JAW`). Then the fixture (`logs/p110/fixture_gate.py`, a `logs/` probe - the gate's contact mechanics only, no arm) with `P110_H` x the **whole pool** and the **stream cells** at the shipped cadence (`P110_N`, `P110_GAP`), reading the **hold's span** (not just "held"), the **parking spread across the pool**, the steady drag, and whether the stream **singulates** or wedges; then `logs/p110/p110_report.py`. **Judge it against the ring's own requirement, not against "does it hold"**: the cage's closure is one radial synergy on force-capped position pads, so it needs `delta < 0.01 d = 0.6 mm` (the elastic allowance is `cap/k` = 0.049 mm) while the line's positioning is the **6 mm** catch tolerance and the gate's hold is 1.8 mm within / 17.5 mm across - if that inequality stands, **no presentation element can enclose** and the lane closes to a **compliant closure** (a hand change) or a sub-mm tolerance (only with a stationary fruit). A gate is a **scenario** element: a flip owes both references, every store, and the `scene` manifest block (`assets.scene_provenance`) naming the collider set |
 | the **`[cage]` enclosure endpoint** ("`pads >= 3`" from `FRUIT_CAGE_PROBE=1`, any P107/P108 successor) | **do not read the pad count alone**: join each `[cage]` row to its attempt's `[motion] approach ... end=` and its own `aper`/`F`, and split it into **jam** (`end > 15 mm`), **over-closure** (`aper < dia - 4 mm` or `F > 4 cap 1.5`) and **clean** - P110's 74-attempt census reads **11/74 raw but 2/74 clean** (jams `F` up to 2920 N, over-closures 119 N), and the modal 2-pad grasp is a V-block with `n = 2`, i.e. the shipped pinch's own capacity (`logs/p110/RESULTS.md` §3) |
 | a **candidate-planning / selector** change on the two-line (`select_target`'s lane rules, `_dynamic_select_floor`, the `FRUIT_GRADE_ROUTING` fallback, a prefetch/prepared/reservation path) | **the census first, offline**: `python3 logs/p99/census.py <cell>.log` + `python3 logs/p99/p99_report.py` read the per-slot wait split (park-gate / park-motion / feed / starved polls), the per-decision candidate set and the **convertible seconds per mechanism** (`FRUIT_BED_DIAG=2` + `FRUIT_BIARM_PARK_TRACE=1` on the census cell; prove the instrument neutral by replaying the same-seed record with its rows dropped - `census.py --same`, P99's `974/974` / `970/970`). **A wait is not a throughput number**: quote the interval, both rates and the arm split before calling one convertible, and read the *mechanism* columns, which are branch-free - `window <= 1` (a forced choice), the delay-aware headroom (0.000 s on the shipped two-line, so "take the nearest" is already shipped), `own-lane-empty-while-cross-lane-present`, and the park-gate time (the overlap's price, not a fruit wait). **A cross-lane rule is a sort error on this cell** (left = lane 0 = grade A, right = lane 1 = grade B, `run(state, bin_index)` places on the arm's own lane), so price it with `FRUIT_GRADE_ROUTING=0` and report the **grade-purity ledger**, never as a free lever - P99: starvation 37 -> 0, arrival wait 1.62 -> 0.67 s, **interval +6.8 % / +5.3 % at the two seeds**, window rate worse at both, 17/40 mis-sorted |
+| a **scenario descriptor or a sort instruction** (`FRUIT_SCENARIO`, `FRUIT_SORT_INSTRUCTION`, `src/fruit_sorting/scenario.py`, `tasks._sort_admits`/`_place_xy_for`/`_calibrate_sort_destinations`, the `[sort]` rows) | `scripts/selfcheck.sh` (the `259`/`260` legs: the strict descriptor schema and its cached unset resolution, the shipped-path fallbacks in `tasks.py`, the descriptor's `SceneConfig`/`SupplyPlan` application and the scope refusals; then the instruction leg's grammar, precedence, unset resolver, capability map and every refusal); then **the unset replay first** - `scripts/accept.sh` must be 8/10 + `fingerprint: matches` with its `[fruit]` stream **byte-identical** to `logs/p110/accept_noharm.log` (P114: 421/421, no `[sort]`/`[scenario]` row); then **an instruction that restates today's routing** must replay the same stream with the `[sort]` rows dropped (`python3 logs/p114/p114_report.py --same`); then the ledger (`--ledger`) on the cell - **assignment accuracy is the endpoint, never the placed count** - and for a new destination mark it `reach: auto` (the startup solve prints `reachable`/`UNREACHABLE` at the 25 mm bar) and prove an unreachable mapping is **refused before the first attempt**, not mis-sorted (P114's tray: 1138.3 mm -> `ScenarioError`). A new **physical** lane/hand/camera is still a scene build; the descriptor only moves a target on an existing lane |
 | the bimanual scheduler (`bimanual.py`, or the task loop under `FRUIT_BIARM=1`) | `scripts/selfcheck.sh` (the 152 leg), the rate batch (`scripts/153_biarm_rates.sh two-line 5`; `shared` and `single` are the other two modes), then `scripts/accept.sh` (it gates whatever session it ran) |
 | the **shipped scheduler default** (`bimanual.resolve_biarm`/`resolve_twoline`, `tasks.bimanual_enabled`/`two_line_enabled`, the supply package's `two_line=` scope, `scripts/accept.sh`'s gate branch) | `scripts/selfcheck.sh` (the `246` leg: the resolver table, the session scope, the entry wiring, the manifest keys, the accept branch), then **both restores** - `FRUIT_BIARM=0` at ten attempts against `configs/motion_reference_single.json` and a `FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=0` smoke - then a 20-attempt default rate run compared line-for-line with the pre-flip record (drop only `[fruit] [carry]`, `[fruit] [diag] carry-assist` and the `[biarm] scheduler:` banner; `logs/p85/p85_report.py --same-with-diag`, template `logs/p85/RESULTS.md`), then `scripts/accept.sh` and `scripts/demo_2min.sh` |
 | the arbiter / main-thread bridge (`bimanual.py` `TickRelay`, `MainBridge`, `CoopSession`), or anything that claims a **wall** speedup on the two-line | `scripts/selfcheck.sh` (the 152 leg), then **the same cell twice** (knob unset vs set) with `logs/p80/stamp.py` and require the `[fruit]` stream to be **byte-identical** (`python3 logs/p82/p82_report.py --same <control.log> <cell.log>`) - a scheduler change must not move the physics - plus `scripts/190_twoline_gate.sh` on the cell (its own reference for its own attempt count) and one `FRUIT_BIARM=1` pair for the shared-station consumer; read the wall with `logs/p82/p82_ab.py` and quote **wall/sim**, `wall/pick` and `placed/min wall` against the single arm at **>= 2 seeds** (`logs/p82/RESULTS.md` §4-§6). The arbiter's idle is measured by `logs/p82/timers.py`; do not add per-tick timers to `ik_step` (AGENTS §2) |

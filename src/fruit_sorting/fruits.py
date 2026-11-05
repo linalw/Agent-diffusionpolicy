@@ -455,6 +455,26 @@ class SupplyPlan:
                 say(f"[supply] warning: {name}={raw!r} is not a number; using {default}")
                 return float(default)
 
+        # P114: the scenario descriptor's supply block, when armed. It supplies
+        # **defaults** only - every explicit `FRUIT_SUPPLY_*` still wins, so a
+        # scenario run is reproducible by hand. Unset: an empty dict and no
+        # branch (byte-identical).
+        from .scenario import resolve_scenario
+
+        _scenario = resolve_scenario()
+        supply_block = dict(_scenario.supply) if _scenario is not None else {}
+        schedule = supply_block.get("schedule")
+        explicit_schedule = any(
+            os.environ.get(name) is not None
+            for name in (
+                "FRUIT_SUPPLY_WAVE",
+                "FRUIT_SUPPLY_PATCH",
+                "FRUIT_SUPPLY_BED",
+            )
+        )
+        if schedule and not explicit_schedule:
+            say(f"[supply] schedule from scenario: {schedule!r}")
+
         scatter = os.environ.get("FRUIT_SUPPLY_SCATTER", "1") == "1"
         # P85: `None` = the caller did not resolve the scheduler, so keep the
         # pre-P85 raw read (an explicit `FRUIT_BIARM_TWOLINE=1` opts into the
@@ -486,7 +506,10 @@ class SupplyPlan:
             lo = max(floor, lo)
             return lo, max(lo, hi)
 
-        wave_default = "1" if scatter and two_line else "0"
+        if schedule and not explicit_schedule:
+            wave_default = "1" if scatter and schedule == "wave" else "0"
+        else:
+            wave_default = "1" if scatter and two_line else "0"
         wave = scatter and os.environ.get("FRUIT_SUPPLY_WAVE", wave_default) == "1"
         wave_gap_min = max(
             0.085, number("FRUIT_SUPPLY_WAVE_GAP_MIN", SUPPLY_WAVE_GAP_MIN)
@@ -509,7 +532,10 @@ class SupplyPlan:
         # machinery (stream pump, recycle), so `FRUIT_SUPPLY_PATCH=1` without
         # `FRUIT_SUPPLY_SCATTER=1` is ignored with a warning rather than
         # silently changing the fixed line.
-        patch_env = os.environ.get("FRUIT_SUPPLY_PATCH", "0") == "1"
+        patch_default = (
+            "1" if schedule == "patch" and not explicit_schedule else "0"
+        )
+        patch_env = os.environ.get("FRUIT_SUPPLY_PATCH", patch_default) == "1"
         patch = bool(scatter and patch_env)
         if patch_env and not scatter:
             say(
@@ -594,7 +620,8 @@ class SupplyPlan:
         # `FRUIT_SUPPLY_SCATTER=1`; the schedule branch order below is
         # bed > patch > wave > scatter, and the create_pool banner names the one
         # that actually runs.
-        bed_env = os.environ.get("FRUIT_SUPPLY_BED", "0") == "1"
+        bed_default = "1" if schedule == "bed" and not explicit_schedule else "0"
+        bed_env = os.environ.get("FRUIT_SUPPLY_BED", bed_default) == "1"
         bed = bool(scatter and bed_env)
         if bed_env and not scatter:
             say(
@@ -658,8 +685,14 @@ class SupplyPlan:
         default_grades = tuple(
             (grade, _default_grade_weight(grade, balanced)) for grade in cfg.grades
         )
-        x_min = number("FRUIT_SUPPLY_X_MIN", SUPPLY_X_MIN)
-        x_max = max(x_min, number("FRUIT_SUPPLY_X_MAX", SUPPLY_X_MAX))
+        if supply_block.get("grades"):
+            default_grades = tuple(supply_block["grades"].items())
+        x_min = number(
+            "FRUIT_SUPPLY_X_MIN", supply_block.get("x_min", SUPPLY_X_MIN)
+        )
+        x_max = max(
+            x_min, number("FRUIT_SUPPLY_X_MAX", supply_block.get("x_max", SUPPLY_X_MAX))
+        )
         return cls(
             scatter=scatter,
             pool=max(1, int(number("FRUIT_SUPPLY_POOL", pool_default))),
@@ -686,8 +719,10 @@ class SupplyPlan:
                 # of the *default* species mix - an explicit `FRUIT_SUPPLY_CLASSES`
                 # still wins, exactly as before. Default off: unset behaves
                 # identically to the shipped all-species pool.
-                ((species_only, 1.0),) if species_only else tuple(
-                    (name, 1.0) for name in cfg.fruit_dimensions
+                ((species_only, 1.0),) if species_only else (
+                    tuple(supply_block["classes"].items())
+                    if supply_block.get("classes")
+                    else tuple((name, 1.0) for name in cfg.fruit_dimensions)
                 ),
             ),
             wave=bool(wave),

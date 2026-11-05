@@ -745,7 +745,14 @@ def main() -> int:
             target = task.select_target(spawner.state())
             if target is None:
                 continue
-            bin_index = 0 if target["grade"] == "A" else 1
+            # P114: the instruction's destination when one is armed, else the
+            # shipped grade lane (sort_destination returns None with no
+            # instruction).
+            instructed = task.sort_destination(target)
+            if isinstance(instructed, int):
+                bin_index = int(instructed)
+            else:
+                bin_index = 0 if target["grade"] == "A" else 1
             os.environ["FRUIT_EPISODE_INDEX"] = str(saved)
             guard.episode_started(f"single-arm attempt {attempts}")
             try:

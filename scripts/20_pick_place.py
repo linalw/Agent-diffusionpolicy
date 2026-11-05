@@ -164,8 +164,15 @@ def main() -> int:
         made = task.run_bimanual(ATTEMPTS)
         results.extend(made)
         for index, result in enumerate(made):
-            bin_index = 0 if result.arm == "left" else 1
-            lane_xy = cfg.output_belt_drop_points[bin_index]
+            # P114: name the instruction's destination when one is armed; the
+            # un-instructed run keeps the shipped arm -> lane expression.
+            destination = getattr(result, "destination", None)
+            if destination is None:
+                bin_index = 0 if result.arm == "left" else 1
+                lane_xy = cfg.output_belt_drop_points[bin_index]
+            else:
+                bin_index = int(destination)
+                lane_xy = task.destination_target(bin_index)
             say(
                 f"[run] attempt {index} ({result.arm}): picking {result.category} "
                 f"grade {result.grade} into output lane {bin_index} at {lane_xy} "
@@ -252,8 +259,16 @@ def main() -> int:
             say(f"[run] attempt {attempt}: no eligible fruit; active={summary} stats={spawner.stats}")
             continue
         grade = target["grade"]
-        bin_index = 0 if grade == "A" else 1
-        lane_xy = cfg.output_belt_drop_points[bin_index]
+        # P114: with a sort instruction armed the destination is a fruit
+        # attribute, not the grade; `sort_destination` returns None with no
+        # instruction, and the shipped grade expression is then untouched.
+        instructed = task.sort_destination(target)
+        if isinstance(instructed, int):
+            bin_index = int(instructed)
+            lane_xy = task.destination_target(bin_index)
+        else:
+            bin_index = 0 if grade == "A" else 1
+            lane_xy = cfg.output_belt_drop_points[bin_index]
         say(
             f"[run] attempt {attempt}: picking {target['category']} grade {grade} "
             f"into output lane {bin_index} at {lane_xy}"
@@ -355,6 +370,9 @@ def main() -> int:
     if results:
         successes = sum(1 for r in results if r.success)
         say(f"[run] summary: {successes}/{len(results)} successful")
+        # P114: the per-destination ledger (no-op - no print - without an
+        # instruction).
+        task.sort_ledger_report()
     for r in results:
         say(
             f"[run]   {r.category:10s} arm={r.arm:5s} grasped={r.grasped} placed={r.placed} "

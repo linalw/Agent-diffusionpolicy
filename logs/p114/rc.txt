@@ -1,0 +1,20 @@
+=== accept_off: env SKIP_SELFCHECK=1 ACCEPT_LOG=logs/p114/accept_off.log scripts/accept.sh
+rc=0 accept_off
+=== accept_today: env FRUIT_SORT_INSTRUCTION=logs/p114/instructions/today.txt SKIP_SELFCHECK=1 ACCEPT_LOG=logs/p114/accept_today.log scripts/accept.sh
+rc=0 accept_today
+=== accept_size40: env FRUIT_SORT_INSTRUCTION=logs/p114/instructions/size40.txt SKIP_SELFCHECK=1 ACCEPT_LOG=logs/p114/accept_size40.log scripts/accept.sh
+rc=1 accept_size40
+=== accept_three_dest: env FRUIT_SCENARIO=logs/p114/scenarios/three_dest.json FRUIT_SORT_INSTRUCTION=logs/p114/instructions/three_dest.txt SKIP_SELFCHECK=1 ATTEMPTS=20 ACCEPT_LOG=logs/p114/accept_three_dest.log scripts/accept.sh
+rc=0 accept_three_dest
+=== refuse_tray: env FRUIT_SCENARIO=logs/p114/scenarios/tray_unreachable.json FRUIT_SORT_INSTRUCTION=logs/p114/instructions/tray.txt SKIP_SELFCHECK=1 ATTEMPTS=1 ACCEPT_LOG=logs/p114/refuse_tray.log scripts/accept.sh
+rc=1 refuse_tray
+rc=0 accept_size40 budgets
+rc=0 accept_three_dest budgets
+rc=0 compare_off_vs_today
+rc=1 ledger_accept_off
+rc=0 ledger_accept_today
+rc=0 ledger_accept_size40
+rc=0 ledger_accept_three_dest
+rc=0 accept_off summary
+rc=0 refusal
+DONE

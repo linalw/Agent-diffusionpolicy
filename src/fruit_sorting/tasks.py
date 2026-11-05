@@ -41,6 +41,16 @@ from .motion import (
     mirror_across_xz,
     top_down_quaternion,
 )
+from .scenario import (
+    ARM_SIDE,
+    SKIP,
+    ScenarioError,
+    capability_map,
+    instruction_against,
+    resolve_instruction,
+    resolve_scenario,
+    shipped_descriptor,
+)
 from .tactile import TactileReading
 
 #: Small vertical offset of the coherent hand above the fruit's centre, so the pads'
@@ -1891,6 +1901,14 @@ class EpisodeResult:
     #: and is subtracted from the booked span; the `[cycle] return` segment and
     #: the `[prepared]` row still report it in full.
     prepose_return_s: float = 0.0
+    #: P114: the instruction's destination id for this attempt (`None` when no
+    #: instruction is armed), the release point it commanded, and the payload's
+    #: measured position at the release. Attempt-local, so the two-line's
+    #: concurrent workers cannot read each other's dispatch (a shared task
+    #: attribute did exactly that on the first validation run).
+    destination: int | None = None
+    place_xy: tuple[float, float] | None = None
+    release_pos: tuple[float, float, float] | None = None
 
     @property
     def success(self) -> bool:
@@ -2622,6 +2640,66 @@ class PickAndPlaceTask:
             "left": float(self.cfg.pick_y),
             "right": float(self.cfg.pick_y),
         }
+        # ------------------------------------------------------------------ #
+        # P114: scenario descriptor + sort instruction (both default off)
+        # ------------------------------------------------------------------ #
+        #: The armed descriptor (`FRUIT_SCENARIO=<path>`) or None. Its geometry
+        #: has already been applied by `SceneConfig.__post_init__` and
+        #: `SupplyPlan.from_env`; here it is the destination list and the
+        #: capability model the instruction is validated against. `None` is the
+        #: shipped code path: no destination read, no print, no branch.
+        self._scenario = resolve_scenario()
+        #: The armed `SortInstruction` (`FRUIT_SORT_INSTRUCTION=<path|inline>`)
+        #: or None. When None every selector keeps its shipped grade routing and
+        #: `_run_impl` keeps `bin_index == 0 -> left`.
+        self._instruction = None
+        #: The descriptor the instruction validates against: the armed scenario,
+        #: or the shipped two-lane cell expressed as data (so an instruction can
+        #: be used without a scenario file). None when neither is armed.
+        self._sort_descriptor = self._scenario
+        #: Startup reach verdicts, `(arm, destination id) -> bool`. Empty until
+        #: `_calibrate_sort_destinations` solves every `auto` destination; a
+        #: `verified` destination never needs an entry.
+        self._sort_reach: dict[tuple[str, int], bool] = {}
+        #: `destination id -> arm` (the capability map, resolved).
+        self._sort_arm_of: dict[int, str] = {}
+        #: `arm -> destination ids it may deliver to` (the selector's filter).
+        self._sort_capability: dict[str, frozenset[int]] = {
+            "left": frozenset(),
+            "right": frozenset(),
+        }
+        #: Per-attempt dispatch state. **Thread-local**: the two-line scheduler
+        #: runs two attempts concurrently (one worker thread each), so a shared
+        #: attribute would let one arm's ledger read the other arm's
+        #: destination - measured on the first validation run, where a grade-B
+        #: peach read `dest=0` on the right arm. Set in `_run_impl`, read by
+        #: `_place_xy_for` (the place leg's target) and `_sort_ledger_row`.
+        self._sort_ctx = threading.local()
+        #: The per-destination ledger (`FRUIT_SORT_INSTRUCTION` only).
+        self._sort_ledger: dict[str, int] = {
+            "attempts": 0,
+            "assigned": 0,
+            "released": 0,
+            "in_destination": 0,
+            "mis_sorted": 0,
+            "not_placed": 0,
+            "refused": 0,
+            "skipped": 0,
+            "unassigned": 0,
+        }
+        self._sort_ledger_by_dest: dict[int, dict[str, int]] = {}
+        self._instruction = resolve_instruction(self._scenario, self.cfg)
+        if self._instruction is not None:
+            self._sort_descriptor = self._scenario or shipped_descriptor(self.cfg)
+            self._refresh_sort_capability()
+            named = self._instruction.assigned_destinations()
+            say(
+                f"[sort] instruction: {len(self._instruction.rules)} rule(s), "
+                f"destination(s) {list(named)}, default="
+                f"{self._instruction.default} (from {self._instruction.source})"
+            )
+            self._print_sort_capability()
+        self._sort_coverage_done = False
         #: Station-specific pre-pose configurations (two-line scheduler), keyed
         #: by the resolved station pair -> {side: joint config}. Filled once per
         #: batch by `_prepare_two_line_stations`, before the workers start.
@@ -4952,7 +5030,10 @@ class PickAndPlaceTask:
             # the pads open here and the fruit free-drops the `output_place_clearance`
             # onto the belt.
             index = 0 if "0" in name else 1
-            px, py = cfg.output_belt_drop_points[index]
+            # P114: the attempt's own destination target when an instruction is
+            # armed (`_place_xy_for`), else the shipped lane drop point - the
+            # exact expression this leg used before P114.
+            px, py = self._place_xy_for(index)
             # P3 (2026-10-16) place-leg shortening, default OFF
             # (`FRUIT_PLACE_INNER_SHIFT=0`). The place block is the largest
             # single item in the per-attempt arm span (place+release 5.22 s of
@@ -8300,6 +8381,334 @@ class PickAndPlaceTask:
             f"at_hub={int(bool(result.at_hub))}"
         )
 
+    # ------------------------------------------------------------------ #
+    # P114: scenario descriptor + sort instruction (both default off)
+    # ------------------------------------------------------------------ #
+    def _sort_attrs(self, item) -> dict:
+        """The fruit attributes an instruction may read, from a state or sample.
+
+        `species` (the pool's category), `grade`, `size` (the measured diameter)
+        and the sim's two drawn labels (`ripeness`, `defective`). None of these
+        is perceived from the camera in this cell: grade/ripeness/defective are
+        drawn at spawn (`fruits._create_fruit`, `FruitSample`), and colour is
+        not an attribute at all (`FruitSpawner.CATEGORY_STYLE` is a per-category
+        constant, not a per-instance measurement) - see `logs/p114/DESIGN.md`
+        section 3.
+        """
+        if isinstance(item, dict):
+            category = str(item.get("category", ""))
+            return {
+                "species": category,
+                "category": category,
+                "grade": str(item.get("grade", "")),
+                "diameter": float(item.get("diameter", 0.0) or 0.0),
+                "ripeness": float(item.get("ripeness", 0.0) or 0.0),
+                "defective": float(bool(item.get("defective", False))),
+            }
+        category = str(getattr(item, "category", ""))
+        return {
+            "species": category,
+            "category": category,
+            "grade": str(getattr(item, "grade", "")),
+            "diameter": float(getattr(item, "diameter", 0.0) or 0.0),
+            "ripeness": float(getattr(item, "ripeness", 0.0) or 0.0),
+            "defective": float(bool(getattr(item, "defective", False))),
+        }
+
+    def sort_destination(self, item) -> int | str | None:
+        """The instruction's destination for one fruit (None when no instruction).
+
+        Public because the **single-arm driver** needs it: that loop used to
+        compute `0 if grade == "A" else 1` itself, and with an instruction the
+        destination is a fruit attribute, not a grade. Unset returns None and
+        the caller keeps the shipped expression.
+        """
+        if getattr(self, "_instruction", None) is None:
+            return None
+        return self._instruction.destination(self._sort_attrs(item))
+
+    def _sort_admits(self, item, lane: int | None) -> bool:
+        """Whether the instruction admits this fruit for the arm that owns `lane`.
+
+        `lane=None` is the single-arm selector: it may take any mapped
+        destination (the arm is chosen from the destination at dispatch), but
+        never a `skip` or an unmapped fruit.
+        """
+        if getattr(self, "_instruction", None) is None:
+            return True
+        destination = self.sort_destination(item)
+        if destination is None or destination == SKIP:
+            return False
+        if lane is None:
+            return True
+        arm = "left" if int(lane) == 0 else "right"
+        return int(destination) in self._sort_capability.get(arm, frozenset())
+
+    def _arm_for_destination(self, destination: int) -> str:
+        """The arm that delivers to `destination` (the capability map)."""
+        if self._instruction is None:
+            return "left" if int(destination) == 0 else "right"
+        arm = self._sort_arm_of.get(int(destination))
+        if arm is None:
+            raise ScenarioError(
+                f"[sort] REFUSED: destination {destination} has no arm "
+                f"(capability map {dict(self._sort_arm_of)})"
+            )
+        return arm
+
+    def destination_target(self, destination: int) -> tuple[float, float]:
+        """The `(x, y)` release target of one destination (drivers/reporting)."""
+        descriptor = self._sort_descriptor
+        if descriptor is not None:
+            for entry in descriptor.destinations:
+                if int(entry.id) == int(destination):
+                    return (float(entry.target[0]), float(entry.target[1]))
+        return self.cfg.output_belt_drop_points[int(destination)]
+
+    def _place_xy_for(self, index: int) -> tuple[float, float]:
+        """The release point this attempt commands.
+
+        The instruction's destination target when one is armed (`place2` can be
+        a target that is not lane 2), else the shipped lane drop point - the
+        exact expression the place leg used before P114. The override is
+        thread-local: two attempts run concurrently on the two-line.
+        """
+        override = getattr(self._sort_ctx, "place_xy", None)
+        if override is not None:
+            return override
+        return self.cfg.output_belt_drop_points[index]
+
+    def _refresh_sort_capability(self) -> None:
+        """Rebuild `destination -> arm` and `arm -> destinations` from the reach map."""
+        descriptor = self._sort_descriptor
+        if descriptor is None:
+            return
+        reach = self._sort_reach or None
+        self._sort_arm_of = instruction_against(descriptor, reach)
+        self._sort_capability = capability_map(descriptor, reach)
+        if self._instruction is None:
+            return
+        for destination in self._instruction.assigned_destinations():
+            if destination not in self._sort_arm_of:
+                target = descriptor.destination(destination)
+                raise ScenarioError(
+                    f"[sort] REFUSED: the instruction maps a fruit to destination "
+                    f"{destination} ({target.name}, side {target.side}, reach "
+                    f"{target.reach}) but no arm can deliver there"
+                )
+
+    def _print_sort_capability(self) -> None:
+        descriptor = self._sort_descriptor
+        if descriptor is None or self._instruction is None:
+            return
+        parts = []
+        for destination in descriptor.destinations:
+            arm = self._sort_arm_of.get(destination.id)
+            if destination.reach == "auto":
+                solved = self._sort_reach.get((arm, destination.id)) if arm else None
+                state = {
+                    None: "pending",
+                    True: "reachable",
+                    False: "UNREACHABLE",
+                }[solved]
+                parts.append(f"{destination.id}:auto->{state}")
+            else:
+                parts.append(f"{destination.id}:{destination.reach}")
+        say(
+            f"[sort] capability: left={sorted(self._sort_capability['left'])} "
+            f"right={sorted(self._sort_capability['right'])} "
+            f"({', '.join(parts)})"
+        )
+
+    def _calibrate_sort_destinations(self) -> None:
+        """Solve every `auto` destination at startup (the descriptor's calibration).
+
+        A destination the descriptor marks `verified` is trusted and costs no
+        solve - that is what keeps an instruction that reproduces today's
+        routing byte-identical to the un-instructed run. An `auto` destination
+        is solved here with the same position-only IK the place leg runs
+        (`ArmController.solve_to`, seeded from the `grasp_lift` waypoint, the
+        P90 probe's own seed) and marked reachable iff its residual is within
+        `calibration.place_tolerance_mm` (default 25 mm - the live place leg's
+        own 13-34 mm scale, not a precision claim).
+        """
+        descriptor = self._sort_descriptor
+        if descriptor is None:
+            return
+        pending = [d for d in descriptor.destinations if d.reach == "auto"]
+        if not pending:
+            self._refresh_sort_capability()
+            return
+        from isaacsim.core.simulation_manager import SimulationManager
+
+        tolerance_m = descriptor.reach_tolerance_m()
+        transfer = float(os.environ.get("FRUIT_OPENARM_TRANSFER_LIFT", "0.08"))
+        for destination in pending:
+            arm_name = next(
+                (a for a, side in ARM_SIDE.items() if side == destination.side), None
+            )
+            if arm_name is None:
+                self._sort_reach[("", destination.id)] = False
+                continue
+            arm = self.arms[arm_name]
+            arm.set_gripper(arm.OPEN)
+            arm.hold_quaternion = None
+            arm.teleport_joints(self._pose(arm_name, "grasp_lift"))
+            target = np.array(
+                [
+                    float(destination.target[0]),
+                    float(destination.target[1]),
+                    float(self.cfg.output_place_z),
+                ],
+                dtype=float,
+            )
+            if rigid_tool_hand(self.grippers[arm_name]):
+                target[2] += transfer
+            _config, residual = arm.solve_to(target, iterations=400, tolerance=0.006)
+            reachable = bool(residual <= tolerance_m)
+            self._sort_reach[(arm_name, destination.id)] = reachable
+            say(
+                f"[sort] reach arm={arm_name} dest={destination.id} "
+                f"({destination.name}) target=({target[0]:.2f},{target[1]:+.2f}) "
+                f"residual={residual * 1000:.1f}mm tol={tolerance_m * 1000:.0f}mm "
+                f"-> {'reachable' if reachable else 'UNREACHABLE'}"
+            )
+            self.go_ready(arm_name)
+            SimulationManager.step(steps=10)
+            app_utils.update_app(steps=0)
+        self._refresh_sort_capability()
+        self._print_sort_capability()
+
+    def _sort_ledger_coverage(self) -> None:
+        """One row: how the armed instruction maps the pool that was actually built."""
+        if self._instruction is None or self._sort_coverage_done:
+            return
+        self._sort_coverage_done = True
+        mapped = unassigned = skipped = 0
+        per: dict[int, int] = {}
+        for sample in self.spawner.samples:
+            destination = self.sort_destination(sample)
+            if destination is None:
+                unassigned += 1
+            elif destination == SKIP:
+                skipped += 1
+            else:
+                mapped += 1
+                per[int(destination)] = per.get(int(destination), 0) + 1
+        self._sort_ledger["unassigned"] += unassigned
+        self._sort_ledger["skipped"] += skipped
+        say(
+            f"[sort] coverage: pool={len(self.spawner.samples)} mapped={mapped} "
+            f"unassigned={unassigned} skip={skipped} ("
+            + ", ".join(f"dest{k}={v}" for k, v in sorted(per.items()))
+            + ")"
+        )
+
+    def _sort_ledger_row(self, result) -> None:
+        """One `[sort]` row per attempt + the per-destination counters."""
+        if self._instruction is None:
+            return
+        destination = getattr(result, "destination", None)
+        if destination is None:
+            return
+        sample = next(
+            (s for s in self.spawner.samples if s.index == result.sample_index), None
+        )
+        attrs = self._sort_attrs(sample) if sample is not None else {
+            "species": str(getattr(result, "category", "")),
+            "grade": str(getattr(result, "grade", "")),
+            "diameter": 0.0,
+            "ripeness": 0.0,
+            "defective": 0.0,
+        }
+        target = self._sort_descriptor.destination(int(destination))
+        ledger = self._sort_ledger
+        by_dest = self._sort_ledger_by_dest.setdefault(
+            int(destination),
+            {"attempts": 0, "released": 0, "in_destination": 0,
+             "mis_sorted": 0, "not_placed": 0},
+        )
+        ledger["attempts"] += 1
+        ledger["assigned"] += 1
+        by_dest["attempts"] += 1
+        placed = bool(getattr(result, "placed", False))
+        position = getattr(result, "release_pos", None)
+        if position is not None:
+            position = np.asarray(position, dtype=float)
+        fields = (
+            f"[sort] attempt {ledger['attempts']} "
+            f"idx={result.sample_index} {attrs['species']} "
+            f"d={attrs['diameter'] * 100:.1f}cm grade={attrs['grade']} "
+            f"ripeness={attrs['ripeness']:.2f} arm={result.arm} "
+            f"dest={destination} target=({target.target[0]:.2f},"
+            f"{target.target[1]:+.2f})"
+        )
+        if placed and position is not None:
+            on_belt = bool(self.cfg.on_output_belt(position))
+            side = "+y" if float(position[1]) >= 0.0 else "-y"
+            same_side = [
+                d for d in self._sort_descriptor.destinations if d.side == side
+            ]
+            nearest = None
+            distance = float("inf")
+            for candidate in same_side:
+                dx = float(candidate.target[0]) - float(position[0])
+                dy = float(candidate.target[1]) - float(position[1])
+                d = float(np.hypot(dx, dy))
+                if d < distance:
+                    distance, nearest = d, candidate
+            in_destination = bool(
+                on_belt
+                and nearest is not None
+                and int(nearest.id) == int(destination)
+                and target.side == side
+            )
+            ledger["released"] += 1
+            by_dest["released"] += 1
+            if in_destination:
+                ledger["in_destination"] += 1
+                by_dest["in_destination"] += 1
+            else:
+                ledger["mis_sorted"] += 1
+                by_dest["mis_sorted"] += 1
+            say(
+                fields + f" placed=1 release=({position[0]:.2f},"
+                f"{position[1]:+.2f},{position[2]:.2f}) on_belt={int(on_belt)} "
+                f"side={side} nearest="
+                f"{None if nearest is None else int(nearest.id)} "
+                f"dist={distance * 1000:.0f}mm in_dest={int(in_destination)}"
+            )
+        else:
+            ledger["not_placed"] += 1
+            by_dest["not_placed"] += 1
+            say(
+                fields + f" placed=0 grasped={int(bool(getattr(result, 'grasped', False)))} "
+                f"in_dest=0"
+            )
+
+    def sort_ledger_report(self) -> None:
+        """The batch's per-destination ledger (no-op unless an instruction ran)."""
+        if self._instruction is None:
+            return
+        ledger = self._sort_ledger
+        say(
+            f"[sort] ledger: attempts={ledger['attempts']} "
+            f"assigned={ledger['assigned']} released={ledger['released']} "
+            f"in_destination={ledger['in_destination']} "
+            f"mis_sorted={ledger['mis_sorted']} "
+            f"not_placed={ledger['not_placed']} "
+            f"refused={ledger['refused']} "
+            f"(pool unassigned={ledger['unassigned']} skip={ledger['skipped']})"
+        )
+        for destination in sorted(self._sort_ledger_by_dest):
+            row = self._sort_ledger_by_dest[destination]
+            say(
+                f"[sort] ledger dest={destination}: attempts={row['attempts']} "
+                f"released={row['released']} "
+                f"in_destination={row['in_destination']} "
+                f"mis_sorted={row['mis_sorted']} not_placed={row['not_placed']}"
+            )
+
     def station_y_for(self, arm: str) -> float:
         """The pick-station Y this arm catches at [m].
 
@@ -8831,7 +9240,14 @@ class PickAndPlaceTask:
 
         #: W3 pure routing: only meaningful together with `prefer_lane` (the
         #: two-line worker); the single-arm selectors keep every grade.
-        pure_grade = prefer_lane is not None and self._pure_grade_routing()
+        #: P114: with an instruction armed the *destination* is the eligibility
+        #: filter - `_sort_admits` replaces the grade predicate, and the arm is
+        #: the capability map's answer, not the grade's. The shipped branch is
+        #: untouched when `_instruction` is None (one attribute check).
+        sort_mode = getattr(self, "_instruction", None) is not None
+        pure_grade = (
+            not sort_mode and prefer_lane is not None and self._pure_grade_routing()
+        )
         wanted_grade = "A" if prefer_lane == 0 else "B"
         upstream: list[tuple[float, dict]] = []
         middle: list[tuple[float, dict]] = []
@@ -8840,7 +9256,20 @@ class PickAndPlaceTask:
             if exclude and int(state["index"]) in exclude:
                 _note(state, "excluded")
                 continue
-            if pure_grade and state.get("grade") != wanted_grade:
+            if sort_mode:
+                # P114: the instruction's destination decides both the arm and
+                # the lane. A fruit mapped to `skip`, to no rule, or to a
+                # destination this arm cannot deliver to is never selected -
+                # that is the refusal, and it is why the arm cannot mis-sort.
+                lane_index = prefer_lane if prefer_lane is not None else lane
+                if not self._sort_admits(state, lane_index):
+                    _note(
+                        state,
+                        f"sort: destination {self.sort_destination(state)} "
+                        f"not servable by lane {lane_index}",
+                    )
+                    continue
+            elif pure_grade and state.get("grade") != wanted_grade:
                 # W3 owner decision: each arm sorts exactly one grade, and
                 # grade C (neither arm's) is never selected - it rides past
                 # both stations to the end of the main belt, where `update`
@@ -8848,7 +9277,7 @@ class PickAndPlaceTask:
                 # end-of-line path; see `FruitSpawner.update`).
                 _note(state, f"grade {state.get('grade')} != {wanted_grade}")
                 continue
-            if lane is not None:
+            elif lane is not None:
                 # The lane is the arm (the left arm cannot cross the body to the
                 # -Y belt), and the lane is decided by the grade - see
                 # `20_pick_place.py` / `_run_impl`.
@@ -9001,10 +9430,11 @@ class PickAndPlaceTask:
             if lane is not None:
                 return _chosen(usable[0][1])
             if prefer_lane is not None:
-                if pure_grade:
-                    # W3 pure routing: every `usable` candidate already carries
-                    # the arm's own grade, so the nearest (shortest hover) is
-                    # returned directly - no cross-grade fallback.
+                if pure_grade or sort_mode:
+                    # W3 pure routing / P114 instruction: every `usable`
+                    # candidate already carries the arm's own grade or a
+                    # destination this arm can serve, so the nearest (shortest
+                    # hover) is returned directly - no cross-lane fallback.
                     return _chosen(usable[0][1])
                 for _along, state in usable:
                     grade_lane = 0 if state.get("grade") == "A" else 1
@@ -9415,7 +9845,10 @@ class PickAndPlaceTask:
         then runs the shipped station-fixed rule as the fallback.
         """
         exclude = exclude or ()
-        pure_grade = prefer_lane is not None and self._pure_grade_routing()
+        sort_mode = getattr(self, "_instruction", None) is not None
+        pure_grade = (
+            not sort_mode and prefer_lane is not None and self._pure_grade_routing()
+        )
         wanted_grade = "A" if prefer_lane == 0 else "B"
         best: dict | None = None
         best_key: tuple | None = None
@@ -9427,9 +9860,13 @@ class PickAndPlaceTask:
             if exclude and int(state["index"]) in exclude:
                 continue
             grade = state.get("grade")
-            if pure_grade and grade != wanted_grade:
+            if sort_mode:
+                lane_index = prefer_lane if prefer_lane is not None else lane
+                if not self._sort_admits(state, lane_index):
+                    continue
+            elif pure_grade and grade != wanted_grade:
                 continue
-            if lane is not None:
+            elif lane is not None:
                 grade_lane = 0 if grade == "A" else 1
                 if grade_lane != lane:
                     continue
@@ -9736,6 +10173,14 @@ class PickAndPlaceTask:
                     if candidate.index == index:
                         candidate.held = False
                         break
+        # P114: the per-destination ledger (no-op unless an instruction ran).
+        # It is a report only - no simulator read, no control-path write - and
+        # it runs after the attempt's own `finally` so a failed attempt is
+        # recorded too.
+        if self._instruction is not None:
+            self._sort_ledger_coverage()
+            self._sort_ledger_row(result)
+        self._sort_ctx.place_xy = None
         self.note_result(result)
         return result
 
@@ -10044,8 +10489,23 @@ class PickAndPlaceTask:
             # default-off - the best clearance state (38.9 mm, zero<30) cost
             # the rate (6/10, 9.8 s/attempt). `FRUIT_BIARM_STATION_L/R` still
             # override.
-            left_y = float(os.environ.get("FRUIT_BIARM_STATION_L", "0.0"))
-            right_y = float(os.environ.get("FRUIT_BIARM_STATION_R", "-0.10"))
+            # P114: a scenario descriptor's stations are the defaults; an
+            # explicit `FRUIT_BIARM_STATION_L/R` still wins. Without a scenario
+            # the defaults are the shipped 0.0/-0.10 literals, so the
+            # un-scenarioed two-line expression is unchanged.
+            scenario_stations = (
+                self._scenario.stations if self._scenario is not None else {}
+            )
+            left_y = float(
+                os.environ.get(
+                    "FRUIT_BIARM_STATION_L", str(scenario_stations.get("left", 0.0))
+                )
+            )
+            right_y = float(
+                os.environ.get(
+                    "FRUIT_BIARM_STATION_R", str(scenario_stations.get("right", -0.10))
+                )
+            )
             self.station_y = {"left": left_y, "right": right_y}
             # A mid-belt recycle (the feeder's least-preferred path) must not
             # steal a fruit the downstream station can still catch.
@@ -10060,6 +10520,13 @@ class PickAndPlaceTask:
             # P97: pass the session's own decision - the `CoopSession` is built
             # below, so the defaulted clearance pre-pose cannot read it yet.
             self._prepare_two_line_stations(two_line)
+            # P114: the descriptor's calibration hook. Only `auto` destinations
+            # are solved; a descriptor whose destinations are `verified` (the
+            # shipped lanes, and every instruction-only run) skips the solve
+            # entirely, which is what keeps the instruction-reproduces-today
+            # cell byte-identical to the un-instructed run.
+            if self._sort_descriptor is not None:
+                self._calibrate_sort_destinations()
         session = CoopSession(["left", "right"], trace=trace)
         session.twoline = two_line
         #: P87: the release clock this session runs, named the way the
@@ -10298,6 +10765,9 @@ class PickAndPlaceTask:
                 self.station_y = saved_stations
                 self.spawner.recycle_y = saved_recycle
         results.sort(key=lambda item: float(item.sim_start))
+        # P114: the per-destination ledger (one summary row + one per
+        # destination; a no-op - not even a print - without an instruction).
+        self.sort_ledger_report()
         timed_out = int(getattr(session, "timed_out", 0))
         if timed_out:
             say(
@@ -10608,7 +11078,22 @@ class PickAndPlaceTask:
                         say(f"[biarm] {arm}: no eligible fruit; station released")
                     else:
                         try:
-                            result = self.run(state, bin_index)
+                            # P114: the instruction's destination for *this*
+                            # fruit (the selector already admitted only
+                            # destinations this arm can serve), else the arm's
+                            # shipped lane index.
+                            if self._instruction is not None:
+                                dispatch = self.sort_destination(state)
+                                if not isinstance(dispatch, int):
+                                    raise ScenarioError(
+                                        f"[sort] REFUSED at dispatch: fruit "
+                                        f"{state.get('index')} maps to "
+                                        f"{dispatch!r} but the selector admitted "
+                                        "it - refusing instead of placing"
+                                    )
+                                result = self.run(state, int(dispatch))
+                            else:
+                                result = self.run(state, bin_index)
                         except AttemptTimeout as exc:
                             # Collector watchdog: skip this attempt, keep the
                             # line running (never stopped, never indexed), and
@@ -11456,8 +11941,22 @@ class PickAndPlaceTask:
         )
         # Each arm only reaches the conveyor on its own side (crossing the body
         # is outside the workspace), so the destination lane decides which arm
-        # picks.
-        arm_name = "left" if bin_index == 0 else "right"
+        # picks. P114: with an instruction armed the destination is the
+        # instruction's (not the arm's own lane), and the arm is the capability
+        # map's answer - `bin_index == 0 -> left` is the un-instructed path.
+        arm_name = self._arm_for_destination(bin_index)
+        if self._instruction is not None:
+            target = tuple(
+                self._sort_descriptor.destination(int(bin_index)).target
+            )
+            self._sort_ctx.place_xy = target
+            result.destination = int(bin_index)
+            result.place_xy = (float(target[0]), float(target[1]))
+        else:
+            self._sort_ctx.place_xy = None
+            result.destination = None
+            result.place_xy = None
+        result.release_pos = None
         arm = self.arms[arm_name]
         result.arm = arm_name
         if self._prepared_next and self._active_session is None:
@@ -15254,7 +15753,7 @@ class PickAndPlaceTask:
         if verbose:
             jaw = arm.jaw_centre()
             fr = self.spawner.position(sample)
-            px, py = self.cfg.output_belt_drop_points[bin_index]
+            px, py = self._place_xy_for(bin_index)
             say(
                 f"[task]   over the output belt: jaw={np.round(jaw, 3).tolist()} "
                 f"fruit={np.round(fr, 3).tolist()} target=({px:.2f},{py:+.2f}) "
@@ -15338,7 +15837,7 @@ class PickAndPlaceTask:
             place_low = os.environ.get("FRUIT_PLACE_LOW", "1") == "1"
             if os.environ.get("FRUIT_PLACE_TRACE", "0") == "1":
                 place_trace = self._place_trace_start(
-                    arm_name, sample, self.cfg.output_belt_drop_points[bin_index]
+                    arm_name, sample, self._place_xy_for(bin_index)
                 )
             if place_low:
                 centre, low_info = self._place_low(
@@ -15351,6 +15850,20 @@ class PickAndPlaceTask:
                 centre = self._release_lower(
                     arm_name, sample, centre, quat, gap, trace, release_debug,
                     floor=float(self.cfg.output_belt_top_z),
+                )
+            if self._instruction is not None:
+                # P114: the payload's own position at the release pose, for the
+                # per-destination ledger. One fruit-pose read (the reporting
+                # class AGENTS section 2 allows), only when an instruction is
+                # armed - the un-instructed run never enters this branch.
+                released_at = np.asarray(
+                    self.spawner.position(sample), dtype=float
+                ).copy()
+                self._sort_ctx.release_pos = released_at
+                result.release_pos = (
+                    float(released_at[0]),
+                    float(released_at[1]),
+                    float(released_at[2]),
                 )
             relax_gap = gap
             if os.environ.get("FRUIT_RELEASE_RELAX", "1") == "1":
