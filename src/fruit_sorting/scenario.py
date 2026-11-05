@@ -373,6 +373,12 @@ class Rule:
     op: str | None
     value: object | None
     dest: int | str
+    #: P115: every `and`-joined term of this rule, as ``(key, op, value)``.
+    #: Empty for ``default``. ``key``/``op``/``value`` above are the **first**
+    #: term, kept so a single-condition rule reads exactly as it did in P114
+    #: (the ledger and the selfcheck leg use them); a rule with three terms
+    #: carries all three here and ``_match`` requires every one.
+    terms: tuple[tuple[str, str | None, object], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -384,6 +390,21 @@ class SortInstruction:
     rules: tuple[Rule, ...]
     default: int | str | None
 
+    def match(self, attrs: dict) -> tuple[int | str | None, int | None]:
+        """``(destination, rule index)`` for one fruit.
+
+        The index is 1-based over the rules (``default`` included), and
+        ``None`` when no rule fired and the instruction has no default.
+        P115: the ledger prints it, so an operator can see *which* rule made a
+        decision (`and` rules make "why did this apple go right" ambiguous).
+        """
+        for index, rule in enumerate(self.rules, start=1):
+            if rule.key is None:
+                return rule.dest, index
+            if _match(rule, attrs):
+                return rule.dest, index
+        return self.default, None
+
     def destination(self, attrs: dict) -> int | str | None:
         """First matching rule's right-hand side, else the default, else None.
 
@@ -391,12 +412,7 @@ class SortInstruction:
         kept distinct in the ledger so a deliberate skip is not reported as a
         mapping gap.
         """
-        for rule in self.rules:
-            if rule.key is None:
-                return rule.dest
-            if _match(rule, attrs):
-                return rule.dest
-        return self.default
+        return self.match(attrs)[0]
 
     def assigned_destinations(self) -> tuple[int, ...]:
         out = []
@@ -410,6 +426,9 @@ class SortInstruction:
 
 _CONDITION = re.compile(r"^\s*([A-Za-z_]+)\s*(<=|>=|=|<|>)\s*([^\s]+)\s*$")
 _INT = re.compile(r"^-?\d+$")
+#: P115: a rule may conjoin up to three attribute terms with `and`
+#: (`species=apple and size>=66 => 1`). More than three is a table, not a rule.
+_MAX_TERMS = 3
 
 
 def _parse_rhs(source: str, line: int, raw: str) -> int | str:
@@ -570,18 +589,41 @@ def parse_instruction(
                 f"[sort] REFUSED: {source} line {line_number}: a rule after "
                 "'default' can never fire (default is last)"
             )
-        key, op, value = _parse_condition(source, line_number, lhs)
-        if key == "grade" and grades and str(value) not in tuple(grades):
+        if lhs.strip().lower().startswith("default"):
             raise ScenarioError(
-                f"[sort] REFUSED: {source} line {line_number}: grade {value!r} "
-                f"is not in the pool's grades {list(grades)}"
+                f"[sort] REFUSED: {source} line {line_number}: a 'default' rule "
+                "cannot carry a condition (write 'default => N' with no 'and')"
             )
-        if key == "species" and species and str(value) not in tuple(species):
+        parts = [
+            part.strip()
+            for part in re.split(r"\s+and\s+", lhs.strip(), flags=re.IGNORECASE)
+            if part.strip()
+        ]
+        if not parts:
             raise ScenarioError(
-                f"[sort] REFUSED: {source} line {line_number}: species {value!r} "
-                f"is not in the pool's classes {list(species)}"
+                f"[sort] REFUSED: {source} line {line_number}: the rule has an "
+                "empty condition"
             )
-        rules.append(Rule(line_number, line, key, op, value, dest))
+        if len(parts) > _MAX_TERMS:
+            raise ScenarioError(
+                f"[sort] REFUSED: {source} line {line_number}: {len(parts)} "
+                f"'and' terms; at most {_MAX_TERMS} are allowed (write another "
+                "rule instead)"
+            )
+        terms = tuple(_parse_condition(source, line_number, part) for part in parts)
+        for key, _op, value in terms:
+            if key == "grade" and grades and str(value) not in tuple(grades):
+                raise ScenarioError(
+                    f"[sort] REFUSED: {source} line {line_number}: grade {value!r} "
+                    f"is not in the pool's grades {list(grades)}"
+                )
+            if key == "species" and species and str(value) not in tuple(species):
+                raise ScenarioError(
+                    f"[sort] REFUSED: {source} line {line_number}: species {value!r} "
+                    f"is not in the pool's classes {list(species)}"
+                )
+        first = terms[0]
+        rules.append(Rule(line_number, line, first[0], first[1], first[2], dest, terms))
     if not rules:
         raise ScenarioError(f"[sort] REFUSED: {source}: the instruction is empty")
     return SortInstruction(source=source, text=text, rules=tuple(rules), default=default)
@@ -617,32 +659,45 @@ def resolve_instruction(
     )
 
 
-def _match(rule: Rule, attrs: dict) -> bool:
-    if rule.key == "size":
+def _term_match(key: str, op: str | None, value: object, attrs: dict) -> bool:
+    """One condition term against one fruit's attributes."""
+    if key == "size":
         diameter_mm = float(attrs.get("diameter", 0.0)) * 1000.0
-        value = float(rule.value)
+        limit = float(value)
         return {
-            "<": diameter_mm < value,
-            "<=": diameter_mm <= value,
-            ">": diameter_mm > value,
-            ">=": diameter_mm >= value,
-            "=": abs(diameter_mm - value) < 1e-6,
-        }[str(rule.op)]
-    if rule.key == "grade":
-        return str(attrs.get("grade", "")).strip().upper() == str(rule.value).strip().upper()
-    if rule.key == "species":
-        return str(attrs.get("species", attrs.get("category", ""))).strip().lower() == str(rule.value)
-    if rule.key in ("ripeness", "defective"):
-        actual = float(attrs.get(rule.key, 0.0))
-        value = float(rule.value)
+            "<": diameter_mm < limit,
+            "<=": diameter_mm <= limit,
+            ">": diameter_mm > limit,
+            ">=": diameter_mm >= limit,
+            "=": abs(diameter_mm - limit) < 1e-6,
+        }[str(op)]
+    if key == "grade":
+        return str(attrs.get("grade", "")).strip().upper() == str(value).strip().upper()
+    if key == "species":
+        return str(attrs.get("species", attrs.get("category", ""))).strip().lower() == str(value)
+    if key in ("ripeness", "defective"):
+        actual = float(attrs.get(key, 0.0))
+        limit = float(value)
         return {
-            "<": actual < value,
-            "<=": actual <= value,
-            ">": actual > value,
-            ">=": actual >= value,
-            "=": abs(actual - value) < 1e-6,
-        }[str(rule.op)]
+            "<": actual < limit,
+            "<=": actual <= limit,
+            ">": actual > limit,
+            ">=": actual >= limit,
+            "=": abs(actual - limit) < 1e-6,
+        }[str(op)]
     return False
+
+
+def _match(rule: Rule, attrs: dict) -> bool:
+    """A rule fires when **every** term matches (P115 `and`).
+
+    A single-condition rule (P114) is one term; `default` never reaches here.
+    """
+    terms = rule.terms or (
+        ((rule.key, rule.op, rule.value),) if rule.key is not None else ()
+    )
+    return all(_term_match(key, op, value, attrs) for key, op, value in terms)
+
 
 
 # --------------------------------------------------------------------------- #

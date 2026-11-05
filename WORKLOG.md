@@ -25380,3 +25380,61 @@ corner of the solvable box). No motion reference moved or was re-recorded
 `configs/scenarios/shipped_twoline.json` **`290b8a0a`**, the two evidence
 descriptors **`35707bf3`** / **`2ebb722e`**; `scripts/selfcheck.sh` **PASS (0
 failures, 1 skipped)**, `106` OK, `107` PASS (21 checks). Evidence `logs/p114/`.
+
+## P115 (2026-11-05) - the instruction becomes an operator tool: `and` terms, the firing rule in the ledger, and a strict coverage guard
+
+P114 left the instruction layer mechanically complete and operationally thin:
+one attribute per rule, and an instruction that forgot a case dropped fruit
+silently (the coverage count printed only after the first attempt). P115 closes
+both, default off, with the shipped cell unchanged.
+
+**What was built.** (1) `and` conjoins up to three attribute terms in one rule
+(`species=apple and size>=66 => 1`); every term must match, `or` stays written
+as more rules because the first match wins. `Rule` gains `terms` and keeps the
+P114 `key`/`op`/`value` as the first term, so the `260` leg's assertions are
+unchanged. (2) The decision is legible: an armed run prints one
+`[sort] rule N: <text> (arm X)` row per rule, and each `[sort] attempt` row gains
+`rule=<n>` - the 1-based firing rule, `default` included - which is what makes
+an `and` rule auditable; without it "why did this apple go right?" is a guess.
+(3) `FRUIT_SORT_STRICT=1` turns an **unmatched** fruit into a startup refusal
+before the first attempt, naming what it dropped; a deliberate `skip` stays
+allowed (a decision is not an oversight). Four canonical files now live in
+`configs/instructions/` (`shipped_grade`, `by_size`, `species_split`,
+`compound`), and the `261` selfcheck leg (54 checks) pins the grammar, the
+precedence, every refusal, the four files and the `tasks.py` shape of the table
+and the guard.
+
+**What was measured.** The shipped scripted two-line, one claim per run, the
+endpoint the ledger's assignment accuracy - never a rate. **Unset**: 8/10,
+`fingerprint: matches`, `190: PASS`, its **421 `[fruit]` lines 421/421
+byte-identical** to `logs/p110/accept_noharm.log`; every new print and read is
+inside `if self._instruction is not None`. **Compound** (`species=apple and
+size>=66 => 1`, `size<45 => 1`, `default => 0`, 20 attempts): coverage
+`pool=16 mapped=16 unassigned=0`, 12 releases, **12/12 = 100 % in the instructed
+destination, 0 mis-sorted**; the per-rule histogram reads **rule 1 1/1/1, rule 2
+8/6/6, rule 3 11/5/5**, and the witness is attempt 16 - `apple 7.0cm grade=C
+arm=right rule=1 dest=1 in_dest=1`, i.e. a **grade-C apple on the right belt**,
+which the shipped grade routing can never produce. **Strict** (`"grade=A => 0"`
++ `=1`): `ScenarioError("[sort] REFUSED: FRUIT_SORT_STRICT=1 but the instruction
+leaves 10 of 16 fruit unassigned (lychee 34mm grade C, strawberry 37mm grade B,
+apple 65mm grade B, pear 61mm grade B, ...)")` from
+`PickAndPlaceTask.__init__` before `go_ready` - zero attempts. **No rate is
+claimed**: 12/20 is a branch (the family's seed-6 controls read 12/20 in
+`logs/p92/C6.log` and 10/20 in `logs/p80/T6.log`), and the routing changes which
+arm sees which fruit, not a grasp parameter. The compound branch's motion
+budgets pass (worst descent `|v|max` 0.1210 vs 0.160-0.161, lurch 0.036 vs
+0.291; carry cones reported).
+
+**Read rule.** When a rule carries `and`, quote the **per-rule histogram**
+(`python3 logs/p115/p115_report.py --ledger <log>`), not just the destination
+totals - the destination is no longer one-to-one with a rule. And use
+`FRUIT_SORT_STRICT=1` whenever a dropped fruit would be a defect rather than a
+decision.
+
+Pins: `scenario.py` **`fb1bb9bc`**, `tasks.py` **`0a703d1b`**, `rl_env.py`
+**`df148d84`** (`TASKS_MD5` follow), `261_p115_instruction_selftest.py`
+**`5e8a5429`**, `selfcheck.sh` **`18d04455`**, `p114_report.py` **`6e2bf3af`**
+(optional `rule=` group; P114 logs still parse), the four instruction files
+**`71504e3d` / `b6367de8` / `2764500a` / `98d0bc49`**; references
+`30fb99f8` / `30fb99f8` / `8952c320` untouched; selfcheck PASS, `106` OK,
+`107` PASS.

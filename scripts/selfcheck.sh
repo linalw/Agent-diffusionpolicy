@@ -591,6 +591,16 @@ run_check "P114 scenario descriptor" "$python" scripts/259_p114_scenario_selftes
 # an unknown attribute or operator, a grade/species the pool cannot produce, a
 # second default, a rule after default, an empty file).
 run_check "P114 sort instruction" "$python" scripts/260_p114_instruction_selftest.py
+# P115: the instruction becomes writable as a sorting **spec**. `and` conjoins
+# up to three attribute terms in one rule (`species=apple and size>=66 => 1`,
+# every term must match; `or` stays written as more rules because the first
+# match wins), the four canonical files in `configs/instructions/` parse against
+# the shipped descriptor, and `FRUIT_SORT_STRICT=1` turns an instruction that
+# drops fruit into a startup refusal. The leg also pins the `tasks.py` shape:
+# one `[sort] rule N` row per rule, one environment read, the guard called at
+# construction (before the first attempt), and the guard tripping on an
+# unmatched fruit (None) rather than on a deliberate `skip`.
+run_check "P115 instruction and" "$python" scripts/261_p115_instruction_selftest.py
 
 if [ -n "$run_log" ] && [ -f "$run_log" ]; then
     # P85: the log decides the scenario (and therefore the reference and the

@@ -2699,6 +2699,18 @@ class PickAndPlaceTask:
                 f"{self._instruction.default} (from {self._instruction.source})"
             )
             self._print_sort_capability()
+            for index, rule in enumerate(self._instruction.rules, start=1):
+                arm = (
+                    self._sort_arm_of.get(int(rule.dest))
+                    if isinstance(rule.dest, int)
+                    else None
+                )
+                say(
+                    f"[sort] rule {index}: {rule.text}"
+                    + (f" (arm {arm})" if arm else "")
+                )
+            if os.environ.get("FRUIT_SORT_STRICT", "0").strip() == "1":
+                self._sort_require_coverage()
         self._sort_coverage_done = False
         #: Station-specific pre-pose configurations (two-line scheduler), keyed
         #: by the resolved station pair -> {side: joint config}. Filled once per
@@ -8427,6 +8439,17 @@ class PickAndPlaceTask:
             return None
         return self._instruction.destination(self._sort_attrs(item))
 
+    def _sort_rule_for(self, attrs: dict) -> str:
+        """Which rule made this decision: its 1-based index, or ``unmatched``.
+
+        P115 ledger field. With `and` rules a destination alone no longer says
+        *why* a fruit went where it did, so the row names the firing rule.
+        """
+        if self._instruction is None:
+            return "-"
+        _destination, index = self._instruction.match(attrs)
+        return str(index) if index is not None else "unmatched"
+
     def _sort_admits(self, item, lane: int | None) -> bool:
         """Whether the instruction admits this fruit for the arm that owns `lane`.
 
@@ -8579,6 +8602,41 @@ class PickAndPlaceTask:
         self._refresh_sort_capability()
         self._print_sort_capability()
 
+    def _sort_require_coverage(self) -> None:
+        """`FRUIT_SORT_STRICT=1`: refuse a start whose instruction drops fruit.
+
+        `skip` is deliberate and allowed; `None` (no rule matched) is the
+        operator's forgotten case. Without this guard an unmatched fruit is
+        silently never selected, which the run can only report after the fact
+        in the coverage row - so the strict form turns it into a startup
+        refusal, before the first attempt, naming what was dropped.
+        """
+        if self._instruction is None:
+            return
+        missing = [
+            sample
+            for sample in self.spawner.samples
+            if self.sort_destination(sample) is None
+        ]
+        if not missing:
+            return
+
+        def label(sample) -> str:
+            attrs = self._sort_attrs(sample)
+            return (
+                f"{attrs['species']} {float(attrs['diameter']) * 1000.0:.0f}mm "
+                f"grade {attrs['grade'] or '?'}"
+            )
+
+        listed = ", ".join(label(sample) for sample in missing[:5])
+        more = "" if len(missing) <= 5 else f", +{len(missing) - 5} more"
+        raise ScenarioError(
+            f"[sort] REFUSED: FRUIT_SORT_STRICT=1 but the instruction leaves "
+            f"{len(missing)} of {len(self.spawner.samples)} fruit unassigned "
+            f"({listed}{more}); add a rule (e.g. 'default => 0') or unset "
+            "FRUIT_SORT_STRICT"
+        )
+
     def _sort_ledger_coverage(self) -> None:
         """One row: how the armed instruction maps the pool that was actually built."""
         if self._instruction is None or self._sort_coverage_done:
@@ -8640,6 +8698,7 @@ class PickAndPlaceTask:
             f"idx={result.sample_index} {attrs['species']} "
             f"d={attrs['diameter'] * 100:.1f}cm grade={attrs['grade']} "
             f"ripeness={attrs['ripeness']:.2f} arm={result.arm} "
+            f"rule={self._sort_rule_for(attrs)} "
             f"dest={destination} target=({target.target[0]:.2f},"
             f"{target.target[1]:+.2f})"
         )

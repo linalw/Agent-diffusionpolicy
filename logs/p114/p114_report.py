@@ -31,7 +31,7 @@ from pathlib import Path
 SORT = "[fruit] [sort] "
 ATTEMPT = re.compile(
     r"\[sort\] attempt (\d+) idx=(\d+) (\S+) d=([\d.]+)cm grade=(\S+) "
-    r"ripeness=([\d.]+) arm=(\S+) dest=(\d+) target=\(([^)]+)\) "
+    r"ripeness=([\d.]+) arm=(\S+) (?:rule=(\S+) )?dest=(\d+) target=\(([^)]+)\) "
     r"placed=(\d+)(?: release=\(([^)]+)\) on_belt=(\d+) side=(\S+) nearest=(\S+) "
     r"dist=(\d+)mm in_dest=(\d+))?"
 )
