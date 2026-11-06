@@ -8467,6 +8467,10 @@ class PickAndPlaceTask:
         arm = "left" if int(lane) == 0 else "right"
         return int(destination) in self._sort_capability.get(arm, frozenset())
 
+    def instruction_armed(self) -> bool:
+        """Whether a sort instruction is armed (P121: the direct env's switch)."""
+        return self._instruction is not None
+
     def _arm_for_destination(self, destination: int) -> str:
         """The arm that delivers to `destination` (the capability map)."""
         if self._instruction is None:
@@ -8478,6 +8482,29 @@ class PickAndPlaceTask:
                 f"(capability map {dict(self._sort_arm_of)})"
             )
         return arm
+
+    def arm_for_destination(self, destination: int) -> str:
+        """Public capability-map lookup (P121: the direct env dispatches by it)."""
+        return self._arm_for_destination(int(destination))
+
+    def dispatch_destination(self, result, destination: int) -> tuple[float, float]:
+        """Point this attempt's place leg at the instruction's destination target.
+
+        The thread-local override `_place_xy_for` reads (`place_xy`), plus the
+        attempt-local `result.destination` / `result.place_xy` the ledger reads.
+        P114 sets the same three things inside `_run_impl` for the scripted line;
+        P121 needs it on the direct env's `grasp_carry_place` entry too, because
+        that path never calls `_run_impl`. Un-instructed callers never enter it.
+        """
+        target = tuple(self._sort_descriptor.destination(int(destination)).target)
+        self._sort_ctx.place_xy = target
+        result.destination = int(destination)
+        result.place_xy = (float(target[0]), float(target[1]))
+        return (float(target[0]), float(target[1]))
+
+    def clear_dispatch(self) -> None:
+        """Drop this thread's place-target override (end of an attempt)."""
+        self._sort_ctx.place_xy = None
 
     def destination_target(self, destination: int) -> tuple[float, float]:
         """The `(x, y)` release target of one destination (drivers/reporting)."""
@@ -8744,6 +8771,19 @@ class PickAndPlaceTask:
                 fields + f" placed=0 grasped={int(bool(getattr(result, 'grasped', False)))} "
                 f"in_dest=0"
             )
+
+    def sort_ledger_attempt(self, result) -> None:
+        """Record one attempt in the instruction ledger (public: the direct env).
+
+        The scripted loop calls the same two methods after its attempt's
+        `finally` (`run`); the direct env's `grasp_carry_place` entry does not go
+        through `run`, so P121 calls this from `_run_primitive` instead. No-op -
+        not even a counter - without an instruction.
+        """
+        if self._instruction is None:
+            return
+        self._sort_ledger_coverage()
+        self._sort_ledger_row(result)
 
     def sort_ledger_report(self) -> None:
         """The batch's per-destination ledger (no-op unless an instruction ran)."""
@@ -10235,11 +10275,10 @@ class PickAndPlaceTask:
         # P114: the per-destination ledger (no-op unless an instruction ran).
         # It is a report only - no simulator read, no control-path write - and
         # it runs after the attempt's own `finally` so a failed attempt is
-        # recorded too.
-        if self._instruction is not None:
-            self._sort_ledger_coverage()
-            self._sort_ledger_row(result)
-        self._sort_ctx.place_xy = None
+        # recorded too. P121 routes the same two calls through the public
+        # wrapper so the direct env's `grasp_carry_place` entry gets them too.
+        self.sort_ledger_attempt(result)
+        self.clear_dispatch()
         self.note_result(result)
         return result
 
@@ -13153,30 +13192,64 @@ class PickAndPlaceTask:
                         # The arm cannot change lanes mid-attempt, so the presented
                         # fruit is taken onto the *arm's own* lane and the sort
                         # error is recorded; a drop is never acceptable.
-                        presented_lane = 0 if presented.grade == "A" else 1
-                        if presented_lane == bin_index:
-                            say(
-                                f"[task]   reselecting: selected index {sample.index} is not "
-                                f"at the station; taking index {presented.index}"
-                            )
+                        # P121: with an instruction armed the lane is the
+                        # *destination*, so the arm is fixed by the capability
+                        # map: adopt only a presented fruit this arm can deliver
+                        # to, and re-point the place leg at its own destination.
+                        if self._instruction is not None:
+                            destination = self.sort_destination(presented)
+                            presented_arm = None
+                            if isinstance(destination, int):
+                                try:
+                                    presented_arm = self._arm_for_destination(
+                                        int(destination)
+                                    )
+                                except ScenarioError:
+                                    presented_arm = None
+                            if presented_arm != arm_name:
+                                say(
+                                    f"[task]   reselect refused: presented index "
+                                    f"{presented.index} (grade {presented.grade}) "
+                                    f"maps to destination {destination}, which the "
+                                    f"{arm_name} arm cannot deliver; keeping index "
+                                    f"{sample.index}"
+                                )
+                                presented = None
+                            else:
+                                bin_index = int(destination)
+                                px, py = self.dispatch_destination(result, bin_index)
+                                say(
+                                    f"[task]   reselecting: selected index "
+                                    f"{sample.index} is not at the station; taking "
+                                    f"index {presented.index} to destination "
+                                    f"{bin_index} ({px:.2f},{py:+.2f})"
+                                )
                         else:
-                            say(
-                                f"[task]   reselecting across lanes: presented index "
-                                f"{presented.index} (grade {presented.grade}) belongs to lane "
-                                f"{presented_lane}, but the {arm_name} arm serves lane "
-                                f"{bin_index}; placing it on the arm's own lane"
-                            )
-                            result.notes.append(
-                                f"cross-lane station fruit (index {presented.index}) placed "
-                                f"on lane {bin_index}"
-                            )
-                        sample.held = False  # release the fruit we are not picking
-                        sample = presented
-                        sample.held = True
-                        result.sample_index = int(presented.index)
-                        result.category = presented.category
-                        result.grade = presented.grade
-                        # `bin_index` stays the arm's lane - see above.
+                            presented_lane = 0 if presented.grade == "A" else 1
+                            if presented_lane == bin_index:
+                                say(
+                                    f"[task]   reselecting: selected index {sample.index} is not "
+                                    f"at the station; taking index {presented.index}"
+                                )
+                            else:
+                                say(
+                                    f"[task]   reselecting across lanes: presented index "
+                                    f"{presented.index} (grade {presented.grade}) belongs to lane "
+                                    f"{presented_lane}, but the {arm_name} arm serves lane "
+                                    f"{bin_index}; placing it on the arm's own lane"
+                                )
+                                result.notes.append(
+                                    f"cross-lane station fruit (index {presented.index}) placed "
+                                    f"on lane {bin_index}"
+                                )
+                        if presented is not None:
+                            sample.held = False  # release the fruit we are not picking
+                            sample = presented
+                            sample.held = True
+                            result.sample_index = int(presented.index)
+                            result.category = presented.category
+                            result.grade = presented.grade
+                            # `bin_index` stays the arm's lane - see above.
                 hold = top_down_quaternion(os.environ.get("FRUIT_HAND_AXIS", "x"))
                 if arm_name == "left":
                     # The arms are mirrored, so the left arm needs the mirrored

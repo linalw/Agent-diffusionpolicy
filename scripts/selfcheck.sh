@@ -607,6 +607,14 @@ run_check "P115 instruction and" "$python" scripts/261_p115_instruction_selftest
 # The precise form (`species=apple and grade!=A`) must report no overlap.
 run_check "P116 sort plan" bash -c \
     "'$python' scripts/262_sort_plan.py --instruction configs/instructions/owner_a_left_apples_right.txt | grep -q 'OVERLAP: 1 pair' && '$python' scripts/262_sort_plan.py --instruction configs/instructions/owner_precise.txt | grep -q 'OVERLAP: none' && '$python' scripts/262_sort_plan.py --instruction configs/instructions/owner_a_left_apples_right.txt --strict-overlap > /dev/null; test \$? -eq 1"
+# P121: the DIRECT/POLICY env uses the instruction (it used to refuse it). The
+# leg pins the offline dispatch table (un-instructed = shipped grade lane;
+# today's routing = the same table; a non-grade rule; skip/unmatched refused),
+# the goal channel's OOD gate (destination 2 needs FRUIT_SORT_THIRD_DEST=1),
+# the capability map (including the unreachable tray), and the source wiring:
+# `_begin_pick` dispatch, `_run_primitive`'s thread-local place target + ledger,
+# the 7+1 action, the reseed arm check and the manifest block.
+run_check "P121 direct env sort" "$python" scripts/263_p121_env_sort_selftest.py
 
 if [ -n "$run_log" ] && [ -f "$run_log" ]; then
     # P85: the log decides the scenario (and therefore the reference and the

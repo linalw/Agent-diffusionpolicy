@@ -25700,3 +25700,86 @@ at all - a clean 60 N sim is geometry and retention only.
 
 The remaining success levers are not force and not scene: P50's delivered-x
 compensation (the 25 % acquisition class) and the policy/interface lane.
+
+## P121 (2026-11-06) - the direct/policy line decides its destination from an instruction: exact on the two lanes, and a third destination is reachable but not separable at 71 mm
+
+The owner's second requirement - "它要可以根据指示自己判断把果蔬分拣放到什么位置" - had
+two halves. P114/P115/P116 built the scripted half (a scenario descriptor, `and`
+rules, an offline plan/lint, the capability map and a per-destination ledger).
+The direct/policy half was **refused**: `rl_env.__init__` raised on
+`FRUIT_SORT_INSTRUCTION` because the policy interface was `arm = grade = lane`
+(`bin_index = 0 if grade == "A" else 1`, chosen before the fruit is seen), the
+goal vector's last element was that lane, and the action is 7 joint targets + 1
+finger - no destination channel. The primitive side was already ready
+(`tasks.sort_destination`, `_sort_admits`, `_arm_for_destination`,
+`_place_xy_for`'s thread-local override, `[sort] attempt` / `ledger`), so this
+phase is the env, not a new layer.
+
+**The build** (default off; unset = the shipped path byte for byte). One pure
+dispatcher, `rl_env.direct_dispatch`: un-instructed it returns the shipped
+`(bin_index, arm)`; armed it reads the fruit's `task.sort_destination` and the
+capability map's `task.arm_for_destination`. The selector already refuses
+`skip`/unmatched fruit (`_sort_admits`), so the policy is never handed an
+unassigned fruit. The goal keeps `[xyz, velocity, diameter, bin_index]` -
+destination 0/1 produce the same values the grade lane did, so T1/T1b are the
+trained input; destination 2 writes `2.0`, declared OOD. `_run_primitive` sets
+the thread-local place target (`tasks.dispatch_destination` -> `_place_xy_for`),
+clears it in a `finally`, and calls `tasks.sort_ledger_attempt` (the same
+coverage + row the scripted `run()` calls; `in_dest` from the payload's measured
+release position). The reseed retry and the presented-fruit adoption check the
+capability **arm**, not the grade lane. A destination beyond the two shipped
+lanes raises before the first attempt unless `FRUIT_SORT_THIRD_DEST=1`; an
+unreachable destination is refused by P114's map; the handoff presentation still
+refuses. The manifest gains a `sort` block (rules, source, capability map, OOD
+flag) so a direct store under an instruction is identifiable.
+
+**Cells** (3 seeds 77/101/202 x 10 episodes, the shipped direct config; the
+direct loop is not reproducible, so every count is a branch draw and no rate is
+claimed). C unset **19/30** (cnp 6, fell_off 2, never_held 3); T1
+`today.txt` **18/30** (cnp 9, never_held 3 - its grade-C `skip` is the
+*scripted* pure routing, so C is never selected; `coverage ... skip=4`); T1b
+`grade=A => 0; default => 1` (today's *direct* routing) **22/30**; T2
+`size<40 => 1; default => 0` **20/30**; T3 `three_dest.txt` (A=>2, B=>1) +
+`logs/p114/scenarios/three_dest.json` + `FRUIT_SORT_THIRD_DEST=1` **23/30**.
+No new failure reason key in any cell.
+
+**The ledger is the endpoint, and on the two lanes it is exact**: T1 **18/18**,
+T1b **22/22**, T2 **20/20** `in_destination/released`, **0 mis-sorts**. T1b's
+attempt table is exactly `grade=A -> dest 0` (13), `grade=B -> dest 1` (8),
+`grade=C -> dest 1` (8) - the un-instructed rule. T2 is the discriminating
+non-grade cell: **7 grade-B + 4 grade-C decisions on the left** (and 6 B + 2 C on
+the right), a destination today's rule cannot produce; the detected witnesses
+are a grade-C kiwi placed on dest 0 and a 3.6 cm grade-B strawberry on dest 1.
+P3's pre-registered conjunction had a second witness (a grade-A fruit on dest 1)
+that the pool did not draw - **not evaluable**, recorded; the union is what the
+report checks.
+
+**The third destination**: the startup solve reproduces P114 to the digit
+(`reach arm=left dest=2 target=(0.38,+0.55) residual=6.0mm -> reachable`,
+capability left=[0,2] right=[1], leg `place2`, coverage dest1=6 dest2=6, grade C
+unassigned and never selected), and **8 of 9** dest-2 releases read
+`nearest=2` (52-64 mm). The ninth - attempt 13's orange - was **commanded** to
+`(0.38,+0.55)` and **released** at `(0.45,+0.53)`, 34 mm from lane 0. The
+targets are 71 mm apart and this line's release scatter on that leg is 40-70 mm
+(the other eight sit at `(0.41-0.42,+0.59-0.60)`), so the clause "a third
+destination lands at its own (x,y)" fails **by one release of 23**, and the
+honest read is **reachable and correctly commanded, not separable at 71 mm** -
+a separation problem (widen it, give dest 2 its own side/height, or P50's
+release-offset compensation), not a dispatcher problem. T3's 23/30 is not a
+rate.
+
+**No-harm**: `scripts/accept.sh` **8/10 = 80 %, `fingerprint: matches
+configs/motion_reference.json`, `190: PASS`**, and its **421 `[fruit]` lines are
+421/421 byte-identical** to `logs/p110/accept_noharm.log` (also to P114/P117) -
+the scripted path never reads `direct_dispatch`. C prints **zero**
+`[sort]`/`[scenario]` rows. `scripts/selfcheck.sh` PASS (0 failures, 1 skipped)
+with the new `263` leg (31 checks); `106` OK; `107` PASS (21 checks). The
+third-destination refusal raises before the first attempt
+(`refuse_third_off.log` + traceback). No motion budget touched, no `configs/`
+change, no reference re-recorded (`30fb99f8` / `30fb99f8` / `8952c320` stand);
+ckpt `moe_v13s` `61da390a`. Pins: `tasks.py` **`78cce1ef`**, `rl_env.py`
+**`91e0a4ad`**, `scenario.py` `662369aa`, `assets.py` `165328af`, `fruits.py`
+`e807216c`, `scene.py` `a0199097`, `control.py` `9384ff4f`, `conveyor.py`
+`fb2c58c6`, `scripts/263_p121_env_sort_selftest.py` **`ce290037`**,
+`scripts/selfcheck.sh` **`c071242f`**, `logs/p121/PREREG.md` **`c22e40fc`**,
+`logs/p121/p121_report.py` **`826ff730`**. Evidence `logs/p121/`.

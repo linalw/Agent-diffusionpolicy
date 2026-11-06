@@ -1,0 +1,71 @@
+== C  (logs/p121/direct/C.log)
+  episodes=30 placed=19 grasped=25 seeds=[('77', '5/10'), ('101', '7/10'), ('202', '7/10')]
+  classes: {'cnp': 6, 'fell_off': 2, 'never_held': 3, 'placed': 19}
+    failure note x6: (no failure note)
+    failure note x3: fruit did not follow the gripper
+    failure note x2: fruit fell off the line
+
+== T1  (logs/p121/direct/T1.log)
+  episodes=30 placed=18 grasped=27 seeds=[('77', '4/10'), ('101', '7/10'), ('202', '7/10')]
+  classes: {'cnp': 9, 'never_held': 3, 'placed': 18}
+    failure note x9: (no failure note)
+    failure note x3: fruit did not follow the gripper
+  ledger: attempts=30 released=18 in_destination=18 mis_sorted=0 not_placed=12 refused=0 -> assignment 18/18
+    dest=0: attempts=16 released=6 in_dest=6 mis_sorted=0 not_placed=10
+    dest=1: attempts=14 released=12 in_dest=12 mis_sorted=0 not_placed=2
+  grade/arm/dest (n, in_dest):
+    grade=A arm=left dest=0 -> [16, 6]
+    grade=B arm=right dest=1 -> [14, 12]
+  coverage: pool=16 mapped=12 unassigned=0 skip=4 (dest0=6, dest1=6)
+
+== T1b  (logs/p121/direct/T1b.log)
+  episodes=30 placed=22 grasped=28 seeds=[('77', '7/10'), ('101', '7/10'), ('202', '8/10')]
+  classes: {'cnp': 6, 'fell_off': 1, 'never_held': 1, 'placed': 22}
+    failure note x6: (no failure note)
+    failure note x1: fruit did not follow the gripper
+    failure note x1: fruit fell off the line
+  ledger: attempts=29 released=22 in_destination=22 mis_sorted=0 not_placed=7 refused=0 -> assignment 22/22
+    dest=0: attempts=13 released=7 in_dest=7 mis_sorted=0 not_placed=6
+    dest=1: attempts=16 released=15 in_dest=15 mis_sorted=0 not_placed=1
+  grade/arm/dest (n, in_dest):
+    grade=A arm=left dest=0 -> [13, 7]
+    grade=B arm=right dest=1 -> [8, 8]
+    grade=C arm=right dest=1 -> [8, 7]
+  coverage: pool=16 mapped=16 unassigned=0 skip=0 (dest0=6, dest1=10)
+
+== T2  (logs/p121/direct/T2.log)
+  episodes=30 placed=20 grasped=27 seeds=[('77', '8/10'), ('101', '6/10'), ('202', '6/10')]
+  classes: {'cnp': 7, 'fell_off': 1, 'never_held': 2, 'placed': 20}
+    failure note x7: (no failure note)
+    failure note x1: fruit did not follow the gripper
+    failure note x1: fruit fell off the line
+    failure note x1: fruit left the pick station during the close (# mm)
+  ledger: attempts=29 released=20 in_destination=20 mis_sorted=0 not_placed=9 refused=0 -> assignment 20/20
+    dest=0: attempts=21 released=13 in_dest=13 mis_sorted=0 not_placed=8
+    dest=1: attempts=8 released=7 in_dest=7 mis_sorted=0 not_placed=1
+  grade/arm/dest (n, in_dest):
+    grade=A arm=left dest=0 -> [10, 6]
+    grade=B arm=left dest=0 -> [7, 5]
+    grade=B arm=right dest=1 -> [6, 5]
+    grade=C arm=left dest=0 -> [4, 2]
+    grade=C arm=right dest=1 -> [2, 2]
+  coverage: pool=16 mapped=16 unassigned=0 skip=0 (dest0=13, dest1=3)
+
+== T3  (logs/p121/direct/T3.log)
+  episodes=30 placed=23 grasped=25 seeds=[('77', '10/10'), ('101', '7/10'), ('202', '6/10')]
+  classes: {'cnp': 2, 'never_held': 5, 'placed': 23}
+    failure note x2: (no failure note)
+    failure note x3: fruit did not follow the gripper
+    failure note x2: fruit left the pick station during the close (# mm)
+  ledger: attempts=30 released=23 in_destination=22 mis_sorted=1 not_placed=7 refused=0 -> assignment 22/23
+    dest=1: attempts=16 released=14 in_dest=14 mis_sorted=0 not_placed=2
+    dest=2: attempts=14 released=9 in_dest=8 mis_sorted=1 not_placed=5
+  grade/arm/dest (n, in_dest):
+    grade=A arm=left dest=2 -> [14, 8]
+    grade=B arm=right dest=1 -> [16, 14]
+  coverage: pool=16 mapped=12 unassigned=4 skip=0 (dest1=6, dest2=6)
+
+T2 witnesses: grade-B/C -> dest 0 = 11 attempt(s) (7 in_dest); grade-A -> dest 1 = 0 attempt(s) (not evaluable on this draw)
+P121 report: FAIL
+  - T3: 1 mis-sorted release(s)
+  - T3: 1 placed attempt(s) with in_dest=0 (attempt [13])

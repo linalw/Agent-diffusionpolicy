@@ -314,8 +314,13 @@ def main() -> int:
     # ------------------------------------------------------------------ 7
     rl_src = (ROOT / "src/fruit_sorting/rl_env.py").read_text(encoding="utf-8")
     check(
-        "FRUIT_SORT_INSTRUCTION is scripted-only" in rl_src,
-        "the direct/policy env refuses the instruction knob",
+        # P121 supersedes P114's blanket refusal: the direct env dispatches the
+        # instruction; only the handoff presentation (a different dispatcher)
+        # still refuses it.
+        "FRUIT_SORT_INSTRUCTION is direct-only" in rl_src
+        and "direct_dispatch(" in rl_src
+        and "unseen_destinations(" in rl_src,
+        "the direct env dispatches the instruction; handoff still refuses",
     )
     eval_src = (ROOT / "scripts/60_eval_policy.py").read_text(encoding="utf-8")
     check(

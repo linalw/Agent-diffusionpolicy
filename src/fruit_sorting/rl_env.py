@@ -485,7 +485,7 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: This env never constructs a cage, so no direct/policy behaviour moves - proven
 #: on the scripted side by `scripts/accept.sh`'s 421/421 byte-identical `[fruit]`
 #: stream (`logs/p107/RESULTS.md` section 5).
-TASKS_MD5 = "0a703d1b8d35d796c3d5b036cdf79573"
+TASKS_MD5 = "78cce1efb25db83c6f79082c0ce531f8"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(
@@ -1508,15 +1508,24 @@ class StepResult:
     info: dict = field(default_factory=dict)
 
 
-def carry_and_release(arm, cfg, bin_index: int, advance, steps: int = 220) -> None:
+def carry_and_release(arm, cfg, bin_index: int, advance, steps: int = 220,
+                      place_xy: tuple[float, float] | None = None) -> None:
     """Post-grasp primitive copied from ``scripts/60_eval_policy.py``.
 
     The same Cartesian path to the output-belt drop point, then the pads open
     over the moving belt. Only used by the ``direct`` path's fallback below: the
     task's own ``grasp_carry_place`` already carries and releases, so this is
     the harness helper re-run when a grasp did not end on the output belt.
+
+    ``place_xy`` (P121) is the armed instruction's destination target; with an
+    instruction the id is a destination, not an index into the shipped two-lane
+    drop points (a third destination would raise `IndexError` otherwise). Unset
+    is the shipped expression, byte for byte.
     """
-    px, py = cfg.output_belt_drop_points[bin_index]
+    if place_xy is None:
+        px, py = cfg.output_belt_drop_points[bin_index]
+    else:
+        px, py = place_xy
     goal = np.array([px, py, cfg.output_place_z])
     for _ in range(steps):
         arm.ik_step(arm.tcp_target_for_jaw(goal))
@@ -1529,6 +1538,48 @@ def carry_and_release(arm, cfg, bin_index: int, advance, steps: int = 220) -> No
             advance(1)
     for _ in range(60):
         advance(1)
+
+
+def direct_dispatch(target: dict, armed: bool, sort_destination, arm_for_destination):
+    """The direct env's ``(destination, arm)`` for one selected fruit (P121).
+
+    Un-instructed this is the shipped expression, byte for byte: **grade A ->
+    block 0 -> the left arm, everything else -> block 1 -> the right arm** - the
+    policy's trained interface, where the arm is the grade and the goal's
+    ``bin_index`` is that lane. Armed, the destination is the instruction's
+    decision and the arm is the capability map's answer, so a fruit can be
+    carried by the arm its *destination* needs rather than the arm its grade
+    named.
+
+    The instruction's selector has already refused `skip`/unmatched fruits
+    (`tasks.select_target`'s `_sort_admits`), so a non-int here is a caller bug:
+    raising is the P114 capability rule (refuse, never mis-sort).
+    """
+    if not armed:
+        bin_index = 0 if target.get("grade") == "A" else 1
+        return bin_index, "left" if bin_index == 0 else "right"
+    destination = sort_destination(target)
+    if not isinstance(destination, int):
+        raise ValueError(
+            f"[sort] REFUSED: the selected fruit {target.get('index')} has no "
+            f"servable destination ({destination!r}); the instructed selector "
+            "must not hand it to the policy"
+        )
+    return int(destination), arm_for_destination(int(destination))
+
+
+def unseen_destinations(assigned) -> list[int]:
+    """Destination ids an instruction maps that the two shipped lanes do not have.
+
+    P121: the goal vector's last element is ``bin_index``, a **policy input**.
+    For destinations 0/1 the value equals the lane the arm will use, so the
+    instructed run is the trained interface; a third destination is a value the
+    policy has never seen. It runs only with ``FRUIT_SORT_THIRD_DEST=1`` and is
+    reported as OOD, never assumed safe.
+    """
+    return sorted(
+        {int(d) for d in assigned if isinstance(d, int) and int(d) not in (0, 1)}
+    )
 
 
 class RolloutRecorder:
@@ -1706,14 +1757,20 @@ class SortingRLEnv:
         if dagger is not None and presentation != "direct":
             raise ValueError("the DAgger expert is only defined for presentation='direct'")
         if os.environ.get("FRUIT_SORT_INSTRUCTION", "").strip():
-            # P114 scopes the instruction dispatcher to the scripted cell: the
-            # direct/policy loop selects through its own trigger and its own
-            # grade lane, so silently ignoring an instruction would be worse
-            # than refusing it.
-            raise ValueError(
-                "FRUIT_SORT_INSTRUCTION is scripted-only (the direct/policy "
-                "handover has no instruction dispatcher; see logs/p114/DESIGN.md)"
-            )
+            # P121: the instruction is **direct-only**. The scripted cell (P114/
+            # P115) already dispatches by destination; the handoff presentation
+            # keeps its own grade lane (`60_eval_policy.py` computes the bin
+            # itself and never touches this env), so an instruction there would
+            # be silently ignored - refuse instead.
+            if presentation != "direct":
+                raise ValueError(
+                    "FRUIT_SORT_INSTRUCTION is direct-only in rl_env (the handoff "
+                    "presentation has no instruction dispatcher; P121 scopes the "
+                    "env routing to presentation='direct')"
+                )
+        self._sort_ood_dest = (
+            os.environ.get("FRUIT_SORT_THIRD_DEST", "0").strip() == "1"
+        )
         self.presentation = presentation
         #: P58: the direct presentation's **supply profile** - the release clock
         #: on every tick of both loops (`FRUIT_FEED_CADENCE` in the task, the
@@ -2553,6 +2610,31 @@ class SortingRLEnv:
             finger_cap_scope=self._finger_cap_scope,
         )
         self.task.recorder = None
+        #: P121: the instruction the direct loop dispatches by, resolved by the
+        #: task's own constructor (`FRUIT_SORT_INSTRUCTION`, P114). Unset this is
+        #: False and every branch below is skipped - the shipped direct path.
+        self._sort_armed = bool(self.task.instruction_armed())
+        if self._sort_armed:
+            #: The third-destination gate. A destination beyond the two shipped
+            #: lanes makes the goal channel's `bin_index` an unseen input value
+            #: (2.0), so it is an OOD cell, never a silent default.
+            unseen = unseen_destinations(
+                self.task._instruction.assigned_destinations()
+            )
+            if unseen and not self._sort_ood_dest:
+                raise ValueError(
+                    f"[sort] REFUSED: FRUIT_SORT_INSTRUCTION maps fruit to "
+                    f"destination(s) {unseen} beyond the two shipped lanes. The "
+                    "goal vector's bin_index is a trained policy input; an unseen "
+                    "value is out of distribution. Set FRUIT_SORT_THIRD_DEST=1 to "
+                    "run it as the declared OOD cell."
+                )
+            #: P114's `auto` destinations are solved by the task's startup
+            #: calibration, which only `run_bimanual` calls on the scripted path.
+            #: The direct env never builds a `CoopSession`, so it calls the same
+            #: hook here (verified destinations cost nothing - the pending list
+            #: is empty and this is one capability refresh).
+            self.task._calibrate_sort_destinations()
 
         with open("configs/waypoints.json", encoding="utf-8") as fh:
             self.waypoints = json.load(fh)
@@ -3023,7 +3105,35 @@ class SortingRLEnv:
                 #: block is the direct env's, and it is the same object).
                 "band": self._supply_band_provenance(),
             },
+            #: P121: the sort instruction the direct loop dispatched by (absent
+            #: = the shipped grade lane, so a pre-P121 store is identifiable).
+            "sort": self._sort_provenance(),
             "sources": sources,
+        }
+
+    def _sort_provenance(self) -> dict | None:
+        """The manifest's `sort` block (P121), or None without an instruction.
+
+        A direct store recorded under an instruction is otherwise
+        indistinguishable from an un-instructed one: the instruction moves which
+        fruit each arm takes and where it is released, while every motion
+        profile, physics block and supply band stays the same. The block names
+        the rules, their source and the capability map, and states the
+        third-destination OOD flag.
+        """
+        if not getattr(self, "_sort_armed", False):
+            return None
+        instruction = self.task._instruction
+        return {
+            "instruction": instruction.source,
+            "rules": [rule.text for rule in instruction.rules],
+            "default": instruction.default,
+            "destinations": sorted(int(d) for d in instruction.assigned_destinations()),
+            "arm_of": {
+                str(key): value for key, value in sorted(self.task._sort_arm_of.items())
+            },
+            "goal_bin_index": True,
+            "third_destination_ood": bool(self._sort_ood_dest),
         }
 
     def _supply_band_provenance(self) -> dict:
@@ -3526,8 +3636,15 @@ class SortingRLEnv:
         target = target_state
         sample = next(s for s in self.spawner.samples if s.index == target["index"])
         grade = target["grade"]
-        bin_index = 0 if grade == "A" else 1
-        active = "left" if bin_index == 0 else "right"
+        # P121: with an instruction armed the destination is the instruction's
+        # decision and the arm is the capability map's answer; unset this is the
+        # shipped `grade A -> block 0 -> left` expression, byte for byte.
+        bin_index, active = direct_dispatch(
+            target,
+            self._sort_armed,
+            self.task.sort_destination,
+            self.task.arm_for_destination,
+        )
 
         self._sample = sample
         self._active = active
@@ -5094,29 +5211,51 @@ class SortingRLEnv:
                             selected_dy = float(
                                 (intercept_info or {}).get("dy", float("nan"))
                             )
-                            self._sample = presented
-                            # Keep the observation coherent for any tick before
-                            # the primitive takes over; the arm's lane is kept
-                            # (`_bin_index`), like the task's station re-select.
-                            self._goal = np.array(
-                                [
-                                    *np.asarray(
-                                        self.spawner.position(presented), dtype=np.float32
-                                    ),
-                                    *np.asarray(
-                                        self.spawner.velocity(presented), dtype=np.float32
-                                    ),
-                                    float(presented.diameter),
-                                    float(self._bin_index),
-                                ],
-                                dtype=np.float32,
-                            )
-                            intercept, intercept_info = True, p_info
-                            presented_note = (
-                                f"presented intercept: adopted index "
-                                f"{presented.index} ({presented.category}) over the "
-                                f"selected sample (selected dy={selected_dy:+.3f} m)"
-                            )
+                            adopt = True
+                            if self._sort_armed:
+                                # P121: the presented fruit's *destination* must
+                                # be servable by the arm already tracking (the
+                                # arm cannot change mid-attempt); its own
+                                # destination - not the selected fruit's - is
+                                # then the attempt's bin.
+                                destination = self.task.sort_destination(presented)
+                                adopt = False
+                                if isinstance(destination, int):
+                                    try:
+                                        adopt = (
+                                            self.task.arm_for_destination(
+                                                int(destination)
+                                            )
+                                            == self._active
+                                        )
+                                    except Exception:  # noqa: BLE001 - refusal
+                                        adopt = False
+                                if adopt:
+                                    self._bin_index = int(destination)
+                            if adopt:
+                                self._sample = presented
+                                # Keep the observation coherent for any tick before
+                                # the primitive takes over; the arm's lane is kept
+                                # (`_bin_index`), like the task's station re-select.
+                                self._goal = np.array(
+                                    [
+                                        *np.asarray(
+                                            self.spawner.position(presented), dtype=np.float32
+                                        ),
+                                        *np.asarray(
+                                            self.spawner.velocity(presented), dtype=np.float32
+                                        ),
+                                        float(presented.diameter),
+                                        float(self._bin_index),
+                                    ],
+                                    dtype=np.float32,
+                                )
+                                intercept, intercept_info = True, p_info
+                                presented_note = (
+                                    f"presented intercept: adopted index "
+                                    f"{presented.index} ({presented.category}) over the "
+                                    f"selected sample (selected dy={selected_dy:+.3f} m)"
+                                )
             if self._refuse_knobs and not self._triggered:
                 # P38 phase 2: the lateral-refusal harness (default off). Runs
                 # after the P4b2 presentation adoption and before the fire
@@ -5355,7 +5494,9 @@ class SortingRLEnv:
         state = self.task.select_target(
             self.spawner.state(),
             reach_anywhere=False,
-            lane=int(self._bin_index),
+            # P121: with an instruction the selection is by destination, and the
+            # *arm* is the capability map's answer - the bin is not a lane.
+            lane=None if self._sort_armed else int(self._bin_index),
             exclude=set(self._reseed_seen),
         )
         if state is None:
@@ -5369,11 +5510,30 @@ class SortingRLEnv:
             self._reseed_off += 1
             self._reseed_note_exhausted()
             return
-        lane = 0 if state.get("grade") == "A" else 1
-        if lane != int(self._bin_index):
-            self._reseed_off += 1
-            self._reseed_note_exhausted()
-            return
+        if self._sort_armed:
+            # The same-arm check replaces the grade-lane check: an adoption must
+            # keep `_active` and may move `_bin_index` to the candidate's
+            # destination (a third destination on the same side included).
+            destination = self.task.sort_destination(state)
+            if not isinstance(destination, int):
+                self._reseed_off += 1
+                self._reseed_note_exhausted()
+                return
+            try:
+                candidate_arm = self.task.arm_for_destination(int(destination))
+            except Exception:  # noqa: BLE001 - an unservable destination is a refusal
+                candidate_arm = None
+            if candidate_arm != self._active:
+                self._reseed_off += 1
+                self._reseed_note_exhausted()
+                return
+            self._bin_index = int(destination)
+        else:
+            lane = 0 if state.get("grade") == "A" else 1
+            if lane != int(self._bin_index):
+                self._reseed_off += 1
+                self._reseed_note_exhausted()
+                return
         sample = next(
             (s for s in self.spawner.samples if int(s.index) == index), None
         )
@@ -5588,7 +5748,14 @@ class SortingRLEnv:
                 f"({primitive.last_note})"
             )
             if held and os.environ.get("FRUIT_PRIMITIVE_CARRY", "0") == "1":
-                carry_and_release(arm, self.cfg, self._bin_index, self.advance)
+                carry_and_release(
+                    arm, self.cfg, self._bin_index, self.advance,
+                    place_xy=(
+                        self.task.destination_target(self._bin_index)
+                        if self._sort_armed
+                        else None
+                    ),
+                )
                 self._say(
                     f"[rl]   carry primitive: released at "
                     f"{np.round(self.spawner.position(self._sample), 3).tolist()}"
@@ -5801,13 +5968,35 @@ class SortingRLEnv:
         # P30-B: publish this episode's model cost for the `[hub]` row. The
         # scripted primitive reads it only for reporting (None = no model).
         self.task.policy_inference_calls = self.inference_calls()
-        result = self.task.grasp_carry_place(
-            self._active, self._sample, self._bin_index, result, verbose=self.verbose
-        )
+        # P121: the place leg's thread-local target (`tasks._place_xy_for`) and
+        # the attempt's ledger fields. The direct entry never runs `run()`/
+        # `_run_impl`, so the dispatch the scripted line sets there is set here;
+        # un-instructed there is no call at all.
+        if self._sort_armed:
+            self.task.dispatch_destination(result, self._bin_index)
+        try:
+            result = self.task.grasp_carry_place(
+                self._active, self._sample, self._bin_index, result, verbose=self.verbose
+            )
+        finally:
+            if self._sort_armed:
+                self.task.clear_dispatch()
+        if self._sort_armed and getattr(result, "destination", None) is not None:
+            # The task's own station reselect (`FRUIT_STATION_RESELECT`, armed by
+            # default; it runs on the shipped non-dynamic direct config) may have
+            # re-dispatched the attempt to the presented fruit's destination
+            # mid-call. Adopt it so the outcome record and the failed-grasp
+            # fallback below use the destination the place leg actually ran.
+            self._bin_index = int(result.destination)
         self._grasped = bool(result.grasped)
         self._placed = bool(result.placed)
         self._lifted = bool(result.grasped)
         notes = list(self._notes) + list(result.notes)
+        if self._sort_armed:
+            # P114's ledger, one row per attempt (`in_dest` measured from the
+            # payload's release position exactly as the scripted path does);
+            # the same two calls `tasks.run()` makes after its `finally`.
+            self.task.sort_ledger_attempt(result)
         if (
             self.presentation == "direct"
             and result.grasped
@@ -5819,7 +6008,14 @@ class SortingRLEnv:
             # episode it would repeat the same arm motion with an empty hand.
             self._say("[rl]   grasp did not land on the belt; re-running carry_and_release")
             carry_and_release(
-                self.task.arms[self._active], self.cfg, self._bin_index, self.advance
+                self.task.arms[self._active], self.cfg, self._bin_index, self.advance,
+                # P121: the destination target, not a lane index into the
+                # shipped two-lane drop points (a third destination has none).
+                place_xy=(
+                    self.task.destination_target(self._bin_index)
+                    if self._sort_armed
+                    else None
+                ),
             )
         self._finalize(notes=notes)
 
@@ -5878,6 +6074,10 @@ class SortingRLEnv:
             #: the machine-readable copy for the report tools.
             "policy_inferences": int(self.inference_calls()),
         }
+        if self._sort_armed:
+            #: P121: the instruction's destination for this attempt (absent on
+            #: the un-instructed direct path, so its outcome dict is unchanged).
+            self._outcome["destination"] = int(self._bin_index)
         if self._refuse_knobs:
             #: P38 phase 2: the refuse harness's own record (absent when all
             #: four knobs are off, so the shipped outcome dict is unchanged).
@@ -6269,6 +6469,12 @@ class SortingRLEnv:
 
     def report_summary(self) -> str | None:
         """Run-level RTC timing/boundary summary; None when reporting is off."""
+        # P121: the instruction's per-destination ledger is a run-level report
+        # on the scripted path (`tasks.run_bimanual` / the single-arm driver
+        # print it at the end); the direct entry calls this summary last, so it
+        # prints there. No-op without an instruction.
+        if getattr(self, "_sort_armed", False):
+            self.task.sort_ledger_report()
         if not self._rtc_report:
             # P43 L2: the loop-timing instrument has its own summary and does
             # not need RTC's (the two are independent knobs).

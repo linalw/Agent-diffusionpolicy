@@ -1427,6 +1427,68 @@ has no bruise model at all). **Owner decision: stay at 10 N**; the remaining
 success levers are not force or scene - P50's delivered-x compensation (the 25 %
 acquisition class) and the policy/interface lane. Evidence `logs/p120/`.
 
+**P121 (2026-11-06, `logs/p121/`; the direct/policy env's instruction route
+ships **default off**, **nothing adopted**, no `configs/` change, no reference
+re-recorded): the owner's second half - the DIRECT/POLICY line must decide where
+a fruit goes from an instruction - is built and measured, and on the shipped two
+lanes the assignment is exact.** P114/P115/P116 had wired the scripted cell
+(descriptor, `and` rules, plan/lint, capability map, ledger); `rl_env.__init__`
+**refused** `FRUIT_SORT_INSTRUCTION` because the policy interface was
+`arm = grade = lane` (`bin_index = 0 if grade == "A" else 1`, fixed before the
+fruit is seen) and its action has no destination channel (7 joints + 1 finger).
+The build is one pure dispatcher plus the wiring around it: `direct_dispatch`
+(unset = the shipped expression byte for byte; armed = the fruit's
+`task.sort_destination` and the capability map's `task.arm_for_destination`),
+`_begin_pick`'s goal keeps `[xyz, velocity, diameter, bin_index]` (0/1 are the
+trained values, 2 is declared OOD), `_run_primitive` sets the thread-local
+`tasks.dispatch_destination` (the `place_xy` override `_place_xy_for` reads),
+clears it in a `finally`, and calls `sort_ledger_attempt` - P114's `[sort]
+attempt` row + per-destination table, `in_dest` from the payload's measured
+release position; the reseed retry and the presented-fruit adoption check the
+capability **arm**, not the grade lane. A destination beyond the two shipped
+lanes raises before the first attempt unless `FRUIT_SORT_THIRD_DEST=1`; an
+unreachable destination is refused by P114's map; the handoff presentation still
+refuses (no dispatcher). `scripts/263_p121_env_sort_selftest.py` is the offline
+leg (31 checks: the dispatch table, OOD gate, capability map incl. the tray, the
+goal channel, the place target/cleanup/ledger, the 7+1 action, the manifest
+`sort` block, `TASKS_MD5`). **Cells** (3 seeds 77/101/202 x 10 episodes, the
+shipped direct config, one session each; the direct loop is not reproducible, so
+every count is a branch draw and no rate is claimed): **C unset 19/30** (cnp 6,
+fell_off 2, never_held 3), **T1 `today.txt` 18/30** (cnp 9, never_held 3 - its
+grade-C `skip` is the *scripted* pure routing, so C is never selected), **T1b
+`grade=A => 0; default => 1` 22/30** (the true direct-routing reproduction: A->0
+13 attempts, B->1 8, C->1 8), **T2 `size<40 => 1; default => 0` 20/30** (7
+grade-B + 4 grade-C decisions on the **left**, 6 B + 2 C on the right - a
+destination today's grade rule cannot produce; P3a's grade-A-to-dest-1 witness
+was not evaluable on this draw, no A-grade small fruit, recorded), **T3
+three_dest 23/30** (A=>2, B=>1, `FRUIT_SORT_THIRD_DEST=1`, the startup solve
+reads **6.0 mm**, capability left=[0,2] right=[1], leg `place2`, coverage
+dest1=6 dest2=6). **The ledger is the endpoint**: **T1 18/18, T1b 22/22, T2
+20/20, T3 22/23** - **0 mis-sorts on the two lanes**, and **1 on dest 2**:
+attempt 13's orange was commanded to `(0.38,+0.55)` and released at
+`(0.45,+0.53)`, 34 mm from lane 0; the targets are **71 mm apart** and this
+line's release scatter on that leg is **40-70 mm** (the other eight dest-2
+releases sit at `(0.41-0.42, +0.59-0.60)`). So the third destination is
+**reachable and correctly commanded but not separable at 71 mm** - a separation
+limit (widen it, give dest 2 its own side/height, or P50's release-offset
+compensation), not an env limit. No new failure reason key appears in any cell;
+C prints **zero** `[sort]`/`[scenario]` rows (the unset path is untouched).
+No-harm: `scripts/accept.sh` reads **8/10 = 80 %, `fingerprint: matches
+configs/motion_reference.json`, `190: PASS`** and its **421 `[fruit]` lines are
+421/421 byte-identical** to `logs/p110/accept_noharm.log` (and the P114/P117
+records) - the scripted path never reads `direct_dispatch`; `selfcheck.sh` PASS
+(0 failures, 1 skipped) with the new `263` leg; `106` OK, `107` PASS (21
+checks). **Re-baseline: none** - nothing shipped, `configs/motion_reference.json`
+= `..._twoline.json` = **`30fb99f8`** and `..._single.json` = **`8952c320`**
+stand; the direct cells' counts are not rates (P37/P43/P54). Pins: `tasks.py`
+**`78cce1ef`**, `rl_env.py` **`91e0a4ad`**, `scenario.py` `662369aa`,
+`assets.py` `165328af`, `fruits.py` `e807216c`, `scene.py` `a0199097`,
+`control.py` `9384ff4f`, `conveyor.py` `fb2c58c6`,
+`scripts/263_p121_env_sort_selftest.py` **`ce290037`**, `scripts/selfcheck.sh`
+**`c071242f`**, `logs/p121/PREREG.md` **`c22e40fc`**,
+`logs/p121/p121_report.py` **`826ff730`**; ckpt `moe_v13s` `61da390a`. Evidence
+`logs/p121/`.
+
 ## 2. Two constraints that decide how to measure
 
 **The outcome is quantized; do not compare success rates across configurations.**
@@ -6183,6 +6245,7 @@ and the traced `tr_cage_s5/`; ckpt `moe_v13s` `61da390a`.  Evidence `logs/p108/`
 | the **`[cage]` enclosure endpoint** ("`pads >= 3`" from `FRUIT_CAGE_PROBE=1`, any P107/P108 successor) | **do not read the pad count alone**: join each `[cage]` row to its attempt's `[motion] approach ... end=` and its own `aper`/`F`, and split it into **jam** (`end > 15 mm`), **over-closure** (`aper < dia - 4 mm` or `F > 4 cap 1.5`) and **clean** - P110's 74-attempt census reads **11/74 raw but 2/74 clean** (jams `F` up to 2920 N, over-closures 119 N), and the modal 2-pad grasp is a V-block with `n = 2`, i.e. the shipped pinch's own capacity (`logs/p110/RESULTS.md` §3) |
 | a **candidate-planning / selector** change on the two-line (`select_target`'s lane rules, `_dynamic_select_floor`, the `FRUIT_GRADE_ROUTING` fallback, a prefetch/prepared/reservation path) | **the census first, offline**: `python3 logs/p99/census.py <cell>.log` + `python3 logs/p99/p99_report.py` read the per-slot wait split (park-gate / park-motion / feed / starved polls), the per-decision candidate set and the **convertible seconds per mechanism** (`FRUIT_BED_DIAG=2` + `FRUIT_BIARM_PARK_TRACE=1` on the census cell; prove the instrument neutral by replaying the same-seed record with its rows dropped - `census.py --same`, P99's `974/974` / `970/970`). **A wait is not a throughput number**: quote the interval, both rates and the arm split before calling one convertible, and read the *mechanism* columns, which are branch-free - `window <= 1` (a forced choice), the delay-aware headroom (0.000 s on the shipped two-line, so "take the nearest" is already shipped), `own-lane-empty-while-cross-lane-present`, and the park-gate time (the overlap's price, not a fruit wait). **A cross-lane rule is a sort error on this cell** (left = lane 0 = grade A, right = lane 1 = grade B, `run(state, bin_index)` places on the arm's own lane), so price it with `FRUIT_GRADE_ROUTING=0` and report the **grade-purity ledger**, never as a free lever - P99: starvation 37 -> 0, arrival wait 1.62 -> 0.67 s, **interval +6.8 % / +5.3 % at the two seeds**, window rate worse at both, 17/40 mis-sorted |
 | a **scenario descriptor or a sort instruction** (`FRUIT_SCENARIO`, `FRUIT_SORT_INSTRUCTION`, `src/fruit_sorting/scenario.py`, `tasks._sort_admits`/`_place_xy_for`/`_calibrate_sort_destinations`, the `[sort]` rows) | `scripts/selfcheck.sh` (the `259`/`260` legs: the strict descriptor schema and its cached unset resolution, the shipped-path fallbacks in `tasks.py`, the descriptor's `SceneConfig`/`SupplyPlan` application and the scope refusals; then the instruction leg's grammar, precedence, unset resolver, capability map and every refusal); then **the unset replay first** - `scripts/accept.sh` must be 8/10 + `fingerprint: matches` with its `[fruit]` stream **byte-identical** to `logs/p110/accept_noharm.log` (P114: 421/421, no `[sort]`/`[scenario]` row); then **an instruction that restates today's routing** must replay the same stream with the `[sort]` rows dropped (`python3 logs/p114/p114_report.py --same`); then the ledger (`--ledger`) on the cell - **assignment accuracy is the endpoint, never the placed count** - and for a new destination mark it `reach: auto` (the startup solve prints `reachable`/`UNREACHABLE` at the 25 mm bar) and prove an unreachable mapping is **refused before the first attempt**, not mis-sorted (P114's tray: 1138.3 mm -> `ScenarioError`). A new **physical** lane/hand/camera is still a scene build; the descriptor only moves a target on an existing lane. **P115** adds the `261` leg (`and` terms, `FRUIT_SORT_STRICT`, the rule table, the `rule=` field): when a rule carries `and`, read the **per-rule histogram** (`python3 logs/p115/p115_report.py --ledger <log>`) so the decision names the rule, and use **`FRUIT_SORT_STRICT=1`** when a dropped fruit must be a startup refusal rather than a silent skip. **P116** adds the **offline plan/lint** (`scripts/262_sort_plan.py --instruction <file> [--strict-overlap]`): rule table with arms, **overlap pairs with the winning rule and an example fruit**, the partition over the 120-cell attribute space, and the cells that match no rule - run it **before** a new instruction, quote the partition and the overlap, and keep `--strict-overlap` green when the instruction must be a true partition (use `grade!=A`, `species!=apple` to write "the rest of the apples" without relying on order) |
+| a **direct/policy instruction route** (`rl_env.direct_dispatch`, `_sort_armed`, the `_begin_pick`/`_run_primitive` wiring, `tasks.dispatch_destination`/`sort_ledger_attempt`/`arm_for_destination`, `FRUIT_SORT_THIRD_DEST`, the manifest's `sort` block) | `scripts/selfcheck.sh` (the `263` leg: the dispatch table - unset **is** the shipped `grade A -> 0/left, else 1/right` expression, today's routing, a non-grade rule, `skip`/unmatched refused - the goal-channel OOD gate, the capability map incl. the unreachable tray, `_begin_pick`'s goal channel, `_run_primitive`'s thread-local place target + `finally` cleanup + ledger, the 7+1 action, and the manifest block); then the **direct cells**: an un-instructed control and an instructed arm on the **same seeds**, `logs/p121/p121_report.py --check` on their logs (the endpoint is the ledger's `in_destination/released` and the per-destination table; the placed count is a branch draw, never a rate), and a third destination only with `FRUIT_SORT_THIRD_DEST=1` + its own descriptor - a third target 71 mm from lane 0 was **reachable but not separable** under the line's 40-70 mm release scatter (1/23 mis-sort), so check the separation before promising it; then `scripts/accept.sh` as the no-harm proof (the scripted path never reads `direct_dispatch`) |
 | the bimanual scheduler (`bimanual.py`, or the task loop under `FRUIT_BIARM=1`) | `scripts/selfcheck.sh` (the 152 leg), the rate batch (`scripts/153_biarm_rates.sh two-line 5`; `shared` and `single` are the other two modes), then `scripts/accept.sh` (it gates whatever session it ran) |
 | the **shipped scheduler default** (`bimanual.resolve_biarm`/`resolve_twoline`, `tasks.bimanual_enabled`/`two_line_enabled`, the supply package's `two_line=` scope, `scripts/accept.sh`'s gate branch) | `scripts/selfcheck.sh` (the `246` leg: the resolver table, the session scope, the entry wiring, the manifest keys, the accept branch), then **both restores** - `FRUIT_BIARM=0` at ten attempts against `configs/motion_reference_single.json` and a `FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=0` smoke - then a 20-attempt default rate run compared line-for-line with the pre-flip record (drop only `[fruit] [carry]`, `[fruit] [diag] carry-assist` and the `[biarm] scheduler:` banner; `logs/p85/p85_report.py --same-with-diag`, template `logs/p85/RESULTS.md`), then `scripts/accept.sh` and `scripts/demo_2min.sh` |
 | the arbiter / main-thread bridge (`bimanual.py` `TickRelay`, `MainBridge`, `CoopSession`), or anything that claims a **wall** speedup on the two-line | `scripts/selfcheck.sh` (the 152 leg), then **the same cell twice** (knob unset vs set) with `logs/p80/stamp.py` and require the `[fruit]` stream to be **byte-identical** (`python3 logs/p82/p82_report.py --same <control.log> <cell.log>`) - a scheduler change must not move the physics - plus `scripts/190_twoline_gate.sh` on the cell (its own reference for its own attempt count) and one `FRUIT_BIARM=1` pair for the shared-station consumer; read the wall with `logs/p82/p82_ab.py` and quote **wall/sim**, `wall/pick` and `placed/min wall` against the single arm at **>= 2 seeds** (`logs/p82/RESULTS.md` §4-§6). The arbiter's idle is measured by `logs/p82/timers.py`; do not add per-tick timers to `ik_step` (AGENTS §2) |
