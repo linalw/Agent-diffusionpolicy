@@ -1284,6 +1284,96 @@ leg, `106` OK, `107` PASS (21 checks). Pins: `scenario.py` **`662369aa`** (the
 references **`30fb99f8` / `30fb99f8` / `8952c320`** untouched. Evidence
 `logs/p116/`.
 
+**P117 (2026-11-06, `logs/p117/`; **nothing adopted**, no `src/` or `configs/` change,
+no default moved, no reference re-recorded, no commit): the owner's new
+authorisation - *change the scene* - is asked of the record's three unspent scene
+candidates with **fixtures** (P104's rig, P110's method), and **the pad face and the
+pad friction close while the station pocket promotes.**  `PREREG.md`
+**`5caae5d2`**, pinned before any cell.  **The record's contradiction, first**: the
+brief's "a concave/V face has never been tested" is **false** - `FRUIT_FINGER_FACE`
+(`v`/`h`/`x`/`c` additive, `v2`/`h2`/`x2` recessed, `p` plate) and `FRUIT_FINGER_MU`
+exist and the `logs/p3face` phase measured both; matched to its **own** flat control
+the recessed `h2` is a **draw** (6/10 vs 6/10) and `v2`/`x2` worse (3, 1), and the
+phase never measured the **creep** and ran at the **pre-P41 force** (4.42 N).  So
+this is a re-test with a different endpoint, not a first test.  **Fixture 1**
+(`fixture.py`, one session, 28 pad pairs on one bench, 84 cells, **182 s**): the
+shipped 61 x 84.9 mm plate, 4.90 N/face, k 1e5, the pool's own mesh/mass/friction,
+profiles `flat` (control), `arc06`/`arc09` (a semicircular groove of **0.6 r / 0.9 r
+of that fruit** - 2 rims/pad at 36.9 / 64.1 deg), `v90` (90 deg V, 45 deg), `cradle90`
+(the only face with an **axial** normal, 44.9 deg) and the mu cells; **A1 support**
+(uncompensated falls 613 mm; compensated + velocity-pinned reads **0.0000 mm** over
+200 ticks - a *free* compensated body drifts 27.25 mm/40 t from a 1-tick apply lag,
+`RESULTS` A1), **A2 manipulation** (2 pads at 4.54-4.99 N of the 4.90 cap in all 28
+pairs).  **The pad table** (medians of 3; `creep_op` = the total walk from the release
+through the 0.75 s `m(g+5.83)` hold, `Fexit` = the sustained break-away): flat
+**8.62 / 9.07 / 0.98 / 12.42 mm** and **9.78 / 13.33 / 13.24 / 11.06 N** (pear /
+orange / strawberry / lychee), and **no groove reduces the creep on the pear** - it
+is **1.58x (arc06) / 1.93x (arc09) / 2.89x (v90) / 1.56x (cradle90)** *worse*, and
+every groove is **0.62-0.76x worse on the pear's break-away** (the opposite of the
+`n mu N` prediction; the grooves do help the round fruit, 1.22-2.20x, so the effect
+is fruit-shape-dependent and the pear's lobes make a groove a wedge *out*); the one
+cell that beats flat anywhere is `cradle90` on the orange (**0.72x**) and it is
+1.56x worse on the pear, so **A3 fails**; the strawberry is unreadable as a ratio
+(its flat base is **0.98 mm**) and the small fruit's grooves are bistable
+(`cradle90` strawberry 4.72-16.81 mm).  **A groove is not a drop-in pad**: the pads
+must close `r - sqrt(r^2-R^2)` deeper per pad (6.1 mm at `arc06`, 17.1 mm at `arc09`
+on the pear) or the face never reaches the fruit - `contact_travel` computes it from
+the fixture's own polyline, so every profile is measured at the **same delivered
+normal force**, not the same span.  **The mu ladder raises the capacity and not the
+creep**: pear `Fexit` 9.78 -> **14.32** (mu3) -> **14.20** (mu4) = **1.45-1.46x**,
+orange 13.33 -> **17.96** -> **23.33** = **1.35-1.75x**, while the pear creep goes
+8.62 -> 8.38 -> **8.21 mm** (**-2.8 % / -4.8 %**) - so **A6 fires: the creep is not
+friction-limited and the friction lane is dead.**  **The phase's correction, and its
+most transferable sentence**: P104's "creep at the operating load" is **lateral** -
+its own row reads `settle 3.20mm (dx=-3.20 dy=-0.02 dz=+0.02)` and its pads close
+along x, so the 3.20 mm is a **seat shift along the jaw axis, not a slide along the
+load** - and this fixture reproduces the shape with the load axis `dz = -0.05..+0.28
+mm` in **all 28 cells**: **at 1.66 N the shipped pinch does not creep along the load,
+it re-seats across it**, so the `cnp` class is not a static-creep deficit and no face
+or mu can reach it (which is why P76/P78 bought 1.45-2x of capacity and 2x of creep
+*ratio* without converting one `cnp`).  **Fixture 2** (`fixture_station.py`): a
+**drop-out pocket under the line**, because the delivered x (0.188-0.397) and the
+top-down grip band (<= 0.320 clean, 0.398 fails at 32.8 mm/17.0 deg, P66's 150-cell
+sweep) have an **empty intersection** outside the line - a diverter-siding beside the
+belt is refuted by that arithmetic, not built.  Build: the shipped belt's own
+authoring split into two segments with a **0.148 m** gap, a **belt-like** shutter
+filling it (a static plate drags a fruit to a stop in 0.6 mm), and a **100 mm** deep
+pocket - the depth is **forced** (`>= shutter 0.020 + the 69.6 mm thickest fruit =
+89.6`), and it is also exactly the 40-90 mm the descent loses to the conveyor.  Three
+build lessons measured and kept: **`PhysxSurfaceVelocityAPI` is in the collider's
+scaled local frame** (an un-divided command carried a 0.726 m segment at 0.087 m/s
+and the 0.148 m shutter at 0.018 m/s; `speed / y_length` gives **0.120 = 1.00x**);
+**a flush shutter is not optional** (`z = bz` put its top 20 mm low and stopped the
+stream dead); and the close predicate must be geometric, not a radius (the occupant
+sits 70-90 mm down, *inside* a 0.09 m radius).  **B1's deviation**: the registered
+0.05 mm support bar is **below this sim's contact-jitter floor** - the pocket-floor
+drift is **0.364 / 0.261 / 0.518 / 0.635 mm at 200/400/800/1200 ticks** (non-monotone
+= jitter, not creep) while a fruit **riding the driven belt** deviates 0.018-0.382 mm
+from a straight line over the same window, so the pocket is judged against the belt
+it sits beside (P107/P112's failure was 2 mm + 4-5 mm *monotone*, 5-8x this floor).
+**The station table**: **16/16** in the pocket, **0/16 expelled**, hold
+**0.000-0.024 mm**; the closed shutter passes **4/4 at 1.875 s AND 4/4 at 0.833 s**
+at **1.00x** the belt; one drop + **3/3 followers** at both cadences with the
+occupant holding **0.019 / 0.008 mm**; the shutter's **open window 0.54-0.64 s**
+against the 0.833 s cadence (a 0.19-0.29 s margin); the landing x spans
+**-58.7..+29.5 mm (88 mm)** and the 0.352 m mouth **does not centre** it, so the
+pocket removes the moving handover and the descent's blocked boundary but **not**
+P48/P49's delivered-x tail.  **The pocket promotes to a station build** (a scenario
+change, not a knob) on two **named, unspent** gates: a **static IK probe at the
+100 mm-lower pick pose** (the jaw lands at ~`belt_top`, the pads' distal plane at
+`floor + 0.5 mm` - unmeasured), and the shutter's **actuation path** (the fixture
+teleports it; only its timing is measured).  **Nothing is adopted**: the shipped
+`FRUIT_FINGER_FACE`/`FRUIT_FINGER_MU` stay as they are and no `FRUIT_PAD_PROFILE`
+was added (the fixture says neither is the lever).  No-harm: `scripts/accept.sh`
+with every knob unset reads **8/10, 9.0 s/attempt, `fingerprint: matches`,
+`190: PASS`** (`logs/p117/accept_final.log`), its **421 `[fruit]` lines 421/421
+byte-identical** to `logs/p110/accept_noharm.log`, `scripts/selfcheck.sh` **PASS (0
+failures, 1 skipped)**, `106` **OK**, `107` **PASS (21 checks)**.  Pins unchanged:
+`tasks.py` `9e3e657b`, `rl_env.py` `bf4c56fa`, `bimanual.py` `9b7fc33f`, `fruits.py`
+`dcabe16b`, `scene.py` `a0199097`, `cage_hand.py` `ac7c7c0f`; references
+**`30fb99f8` / `30fb99f8` / `8952c320`**; ckpt `moe_v13s` `61da390a`.  Evidence
+`logs/p117/`.
+
 ## 2. Two constraints that decide how to measure
 
 **The outcome is quantized; do not compare success rates across configurations.**
@@ -6036,6 +6126,7 @@ and the traced `tr_cage_s5/`; ckpt `moe_v13s` `61da390a`.  Evidence `logs/p108/`
 | a **supply-geometry** change (the lateral band `FRUIT_SUPPLY_X_MIN/MAX`, the release schedule, a station/column move) | the **census first**, offline: `python3 logs/p92/census.py` and `python3 logs/p92/chase.py` name the class you are trying to move and the servo's `closed > 0` signature (`logs/p92/CENSUS.md`); then the **manipulation check** - `x` is one `uniform(x_min, x_max)` draw and no code branches on it, so the *planned* band is proved by the `[supply] lateral x=` row and the *delivered* x is a **distribution** (plan + a per-instance offset: `0.36 -> 0.3908` at the top), never a bound; then 20 attempts x **>= 2 seeds, of which at least two must be FRESH** (P93: two seeds reuse the same two control branches and over-state the gain - the band's `28 -> 36` became `58/80 -> 65/80` at four, with the two fresh controls reading 15/20 twice against seed 6's 12/20) with the class counts (`cnp` / never-held / chase) as the primary, **both denominators + the wall** as the rest, `bash logs/p92/gates.sh` (**budgets only** - every 20-attempt two-line reference in the tree predates P87's release clock, so any post-P87 cell reads `fingerprint: DIFFERS` by construction; the control proof is the line-identity replay against `logs/p91/{C5,C6}.log`), `python3 scripts/211_bed_audit.py`, and `scripts/accept.sh` |
 | a **new hand kind** (`FRUIT_GRIPPER_KIND`, `src/fruit_sorting/*gripper*.py` or `cage_hand.py`, the `RIGID_TOOL_HANDS` predicate, `_pad_standoff`/`_fingertip_offset`/`_hand_separation`, the `track_arm` hook) | the **geometry probe first, with no attempt loop** (`logs/p107/m1_cage.py`: the aperture vs command, the tool offset across the range, the pad-pad corner gap, the distal plane and the lip - all off the **built** prims); then `scripts/selfcheck.sh`; then one 1-2 attempt smoke for the mount; then the **two-line-scoped** checks are unchanged because `tasks.py:9543` refuses a non-`openarm` hand in a `CoopSession` (if that refusal is ever lifted, the two-line gate is owed); then **the hand cells with their own same-seed controls on the same tree** (a hand moves the collider set - P71's rule - so compare **budgets + rate**, never a fingerprint) plus `scripts/accept.sh` with `FRUIT_GRIPPER_KIND` unset, which must read `fingerprint: matches` and a `[fruit]` stream byte-identical to the record (`logs/p107/RESULTS.md` §5). Read a mount defect in this order: plate width vs aperture, plate length vs the flange, the **asset's** finger colliders (`FRUIT_FINGER_COLLIDERS=0` does not remove them), the drive damping vs the pad mass (`c ~ 2*sqrt(k*m)` for a standalone joint tree), whether the hand **rides the arm every tick**, the open aperture vs the line's pursuit error, and the radial close law |
 | a **presentation / centring element** at the station (a passive guide, a metering gate, a station magazine, a "hold the fruit while the belt slips" element) | the **census first, offline** (`python3 logs/p110/census.py`): the split at the band entry is **55.8 mm along-belt / 2.6 mm lateral** and the term is `speed * t_desc` (a descent property, P109), so a **lateral** element can remove **0 %** of the binding axis (`A_y = 2(dy + r)` is unchanged) - that alone kills a guide; then the **gate's three couplings**, all read off the code before a build: the **selector cannot see a parked fruit** (the moving floor is 0.389 m, the indexed station window's lower edge 0.10 m), the **rate** (0.83-2.9 s delivered against a 15.1 s pick = **8.1 fruit = 1.81 m** queued into a 1.60 m belt), and the **height** (the hand's lowest solid part at the grip is **14.5 mm**, `tasks.FINGER_TIP_BELOW_JAW`). Then the fixture (`logs/p110/fixture_gate.py`, a `logs/` probe - the gate's contact mechanics only, no arm) with `P110_H` x the **whole pool** and the **stream cells** at the shipped cadence (`P110_N`, `P110_GAP`), reading the **hold's span** (not just "held"), the **parking spread across the pool**, the steady drag, and whether the stream **singulates** or wedges; then `logs/p110/p110_report.py`. **Judge it against the ring's own requirement, not against "does it hold"**: the cage's closure is one radial synergy on force-capped position pads, so it needs `delta < 0.01 d = 0.6 mm` (the elastic allowance is `cap/k` = 0.049 mm) while the line's positioning is the **6 mm** catch tolerance and the gate's hold is 1.8 mm within / 17.5 mm across - if that inequality stands, **no presentation element can enclose** and the lane closes to a **compliant closure** (a hand change) or a sub-mm tolerance (only with a stationary fruit). A gate is a **scenario** element: a flip owes both references, every store, and the `scene` manifest block (`assets.scene_provenance`) naming the collider set |
+| a **scene change**, or a new fixture that prices one (a pad face, a friction coefficient, a presentation element, a station move) | **the fixture's own support proof first, and say which form it takes**: a *grasp* fixture has no passive support, so the admissible test is the inverse - zero pad force ⇒ the payload falls, the pads at their home ⇒ it falls, the pads closed ⇒ it is held (`logs/p117/fixture.py`'s A1: 613 mm of fall vs **0.0000 mm** with the weight compensated and the velocity pinned) - while a *support* fixture (a pocket, a table, a belt) must show the payload does not move, and the honest bar is **no worse than the belt the line already uses** (`logs/p117` B1: the pocket 0.364 mm/200 ticks against the belt's own 0.018-0.382 mm straight-line residual, because the 0.05 mm bar is under the sim's jitter floor - P107/P112's failure was 2 mm + 4-5 mm *monotone*). Then the endpoint: **a break-away is not a creep**, and the creep must be **split into its load-axis and lateral components** (`[p117] seat`'s `dz` - P104's 3.20 mm is `dx=-3.20, dz=+0.02`, a jaw-axis seat shift), and **a groove needs a different closure law** (`r - sqrt(r^2-R^2)` deeper per pad, `contact_travel`). Price a candidate against the shipped knobs that already exist (`FRUIT_FINGER_FACE`, `FRUIT_FINGER_MU`) before adding one, and read the *rate* only in a two-line battery at >= 2 seeds + 2 fresh |
 | the **`[cage]` enclosure endpoint** ("`pads >= 3`" from `FRUIT_CAGE_PROBE=1`, any P107/P108 successor) | **do not read the pad count alone**: join each `[cage]` row to its attempt's `[motion] approach ... end=` and its own `aper`/`F`, and split it into **jam** (`end > 15 mm`), **over-closure** (`aper < dia - 4 mm` or `F > 4 cap 1.5`) and **clean** - P110's 74-attempt census reads **11/74 raw but 2/74 clean** (jams `F` up to 2920 N, over-closures 119 N), and the modal 2-pad grasp is a V-block with `n = 2`, i.e. the shipped pinch's own capacity (`logs/p110/RESULTS.md` §3) |
 | a **candidate-planning / selector** change on the two-line (`select_target`'s lane rules, `_dynamic_select_floor`, the `FRUIT_GRADE_ROUTING` fallback, a prefetch/prepared/reservation path) | **the census first, offline**: `python3 logs/p99/census.py <cell>.log` + `python3 logs/p99/p99_report.py` read the per-slot wait split (park-gate / park-motion / feed / starved polls), the per-decision candidate set and the **convertible seconds per mechanism** (`FRUIT_BED_DIAG=2` + `FRUIT_BIARM_PARK_TRACE=1` on the census cell; prove the instrument neutral by replaying the same-seed record with its rows dropped - `census.py --same`, P99's `974/974` / `970/970`). **A wait is not a throughput number**: quote the interval, both rates and the arm split before calling one convertible, and read the *mechanism* columns, which are branch-free - `window <= 1` (a forced choice), the delay-aware headroom (0.000 s on the shipped two-line, so "take the nearest" is already shipped), `own-lane-empty-while-cross-lane-present`, and the park-gate time (the overlap's price, not a fruit wait). **A cross-lane rule is a sort error on this cell** (left = lane 0 = grade A, right = lane 1 = grade B, `run(state, bin_index)` places on the arm's own lane), so price it with `FRUIT_GRADE_ROUTING=0` and report the **grade-purity ledger**, never as a free lever - P99: starvation 37 -> 0, arrival wait 1.62 -> 0.67 s, **interval +6.8 % / +5.3 % at the two seeds**, window rate worse at both, 17/40 mis-sorted |
 | a **scenario descriptor or a sort instruction** (`FRUIT_SCENARIO`, `FRUIT_SORT_INSTRUCTION`, `src/fruit_sorting/scenario.py`, `tasks._sort_admits`/`_place_xy_for`/`_calibrate_sort_destinations`, the `[sort]` rows) | `scripts/selfcheck.sh` (the `259`/`260` legs: the strict descriptor schema and its cached unset resolution, the shipped-path fallbacks in `tasks.py`, the descriptor's `SceneConfig`/`SupplyPlan` application and the scope refusals; then the instruction leg's grammar, precedence, unset resolver, capability map and every refusal); then **the unset replay first** - `scripts/accept.sh` must be 8/10 + `fingerprint: matches` with its `[fruit]` stream **byte-identical** to `logs/p110/accept_noharm.log` (P114: 421/421, no `[sort]`/`[scenario]` row); then **an instruction that restates today's routing** must replay the same stream with the `[sort]` rows dropped (`python3 logs/p114/p114_report.py --same`); then the ledger (`--ledger`) on the cell - **assignment accuracy is the endpoint, never the placed count** - and for a new destination mark it `reach: auto` (the startup solve prints `reachable`/`UNREACHABLE` at the 25 mm bar) and prove an unreachable mapping is **refused before the first attempt**, not mis-sorted (P114's tray: 1138.3 mm -> `ScenarioError`). A new **physical** lane/hand/camera is still a scene build; the descriptor only moves a target on an existing lane. **P115** adds the `261` leg (`and` terms, `FRUIT_SORT_STRICT`, the rule table, the `rule=` field): when a rule carries `and`, read the **per-rule histogram** (`python3 logs/p115/p115_report.py --ledger <log>`) so the decision names the rule, and use **`FRUIT_SORT_STRICT=1`** when a dropped fruit must be a startup refusal rather than a silent skip. **P116** adds the **offline plan/lint** (`scripts/262_sort_plan.py --instruction <file> [--strict-overlap]`): rule table with arms, **overlap pairs with the winning rule and an example fruit**, the partition over the 120-cell attribute space, and the cells that match no rule - run it **before** a new instruction, quote the partition and the overlap, and keep `--strict-overlap` green when the instruction must be a true partition (use `grade!=A`, `species!=apple` to write "the rest of the apples" without relying on order) |

@@ -25484,3 +25484,147 @@ Pins: `scenario.py` **`662369aa`**, `262_sort_plan.py` **`d510cb1e`**,
 **`92e65259`**, the three instruction files **`1ad67958` / `5ffbfdb2` /
 `0d4df6a2`**; references `30fb99f8` / `30fb99f8` / `8952c320` untouched;
 selfcheck PASS, `106` OK, `107` PASS.
+
+## P117 - the scene, fixture-first: the pad face and the friction close, the station pocket promotes
+
+The owner's directive: *keep raising the sorting speed and success rate, and if the
+limit is the simulation scene, change or improve the scene.*  That is a new
+authorisation - every earlier phase treated the scene as fixed (a reference per
+scenario) - and this phase spends it on the record's three unspent scene candidates:
+the pad's face (the 75 % loaded-slide class), the pad's friction, and the
+presentation (the 25 % acquisition class + the descent).  Fixture-first, because this
+project's fixtures have lied twice (P107/P112: a passive support let a 0.1 kg
+payload sink 2 mm and creep 4-5 mm with zero pad force).  Registered in
+`logs/p117/PREREG.md` (md5 `5caae5d2`, pinned at 04:34:54Z before any cell).
+**Nothing adopted; no `src/`, `configs/` or default change; no reference re-recorded.**
+
+**First, the record's contradiction, because it changes what this phase is.** The
+brief says the concave/V face "has never been tested".  It has: `FRUIT_FINGER_FACE`
+(`v`/`h`/`x`/`c` additive, `v2`/`h2`/`x2` recessed, `p` plate; `scene._add_contact_faces`)
+and `FRUIT_FINGER_MU` both exist and the `logs/p3face` phase measured them.  Read
+against its **own** flat control the recessed `h2` is a **draw** (6/10 vs 6/10) and
+`v2`/`x2` are worse (3/10, 1/10); against the later `flat + k30` arm (7/10) all are
+worse; `FRUIT_FINGER_MU=8` "re-ejected A4" (a *close* event).  What that phase never
+measured is the **creep at the operating load**, and its rate was taken at the
+**pre-P41 force** (4.42 N delivered).  So P117 is a re-test at the shipped 9.75-9.9 N
+with a different endpoint - not a first test - and the report says so.
+
+**Fixture 1 - the pad face** (`logs/p117/fixture.py`): P104's rig, one app session,
+28 pad pairs on one bench, 84 cells, 182 s.  The profiles are `flat` (control),
+`arc06`/`arc09` (a semicircular groove of **0.6 r / 0.9 r of that fruit**, so the
+padding is per fruit by construction), `v90` (a 90 deg V) and `cradle90` (the same V
+with its valley across the pad - **the only face whose contact normal has an axial
+component**, i.e. the only "cup wall" the brief names), plus `flat_mu3`/`flat_mu4`.
+Each pad face is a polyline and each facet is one convex box (a concave profile
+cannot be one convex hull), and the **closure is computed**: `contact_travel` finds
+the first contact from the fixture's own polyline and each cell closes
+5 mm past it (P104's interference), so a groove closes **6.1 mm (`arc06`) / 17.1 mm
+(`arc09`) deeper** on the pear - without that it grips nothing, because the rim sits
+further from the jaw axis than the fruit's surface at that offset.  **A1's support
+proof** took three tries and the smoke log is the record: a *free* payload under a
+compensated weight drifts 27.25 mm in 40 ticks (`apply_forces` lands one tick late
+relative to the position integration), with the velocity pinned the same cell reads
+**0.0000 mm**, and the un-compensated cell falls **613 mm** - so the compensation is
+exact, the read is exact, and the cell is not a frozen world.  A2: all 28 pairs load
+**2 pads at 4.54-4.99 N** of the 4.90 cap, so every profile is measured at the same
+delivered normal force.
+
+**The result is a clean negative on both pad candidates.**  Flat's creep (the total
+walk from the release through the 0.75 s `m(g+5.83)` hold) is **8.62 / 9.07 / 0.98 /
+12.42 mm** and its sustained break-away **9.78 / 13.33 / 13.24 / 11.06 N** (pear /
+orange / strawberry / lychee; P104's pear 3.20 mm and 11.03 N reproduce in class).
+**No groove reduces the pear's creep** - `arc06` **1.58x**, `arc09` **1.93x**, `v90`
+**2.89x**, `cradle90` **1.56x** - and every groove is **0.62-0.76x worse on the
+pear's break-away**, the opposite of the `n mu N` prediction.  On the round fruits the
+grooves do help (orange/lychee 1.22-2.20x), so the effect is **fruit-shape
+dependent**: the pear's lobes turn a groove into a wedge *out*.  The one cell that
+beats flat anywhere is `cradle90` on the orange (**0.72x**) and it is 1.56x worse on
+the pear - a wash, and A3 requires both.  The strawberry is unreadable as a ratio
+(its flat base is **0.98 mm**) and the small fruit's grooves are bistable
+(`cradle90` strawberry 4.72-16.81 mm), the same seat-bistability P104 §3 found on the
+pear.  **The mu ladder raises the capacity and not the creep**: pear break-away 9.78
+-> **14.32** (mu3) -> **14.20** (mu4) = 1.45-1.46x and orange 13.33 -> **17.96** ->
+**23.33** = 1.35-1.75x, while the pear creep goes 8.62 -> 8.38 -> **8.21 mm**
+(-2.8 % / -4.8 %).  **A6 fires: the creep is not friction-limited, and the friction
+lane is dead.**
+
+**And the phase corrects P104's own endpoint.**  P104's "creep at the operating
+load" is **lateral**: its row reads `settle 3.20mm (dx=-3.20 dy=-0.02 dz=+0.02)` and
+its pads close along x, so the 3.20 mm is a **seat shift along the jaw axis, not a
+slide along the load** - and this fixture reproduces the shape with the **load-axis
+component `dz = -0.05..+0.28 mm` in all 28 cells**, the whole 3-25 mm walk being
+lateral.  **At 1.66 N the shipped pinch does not creep along the load; it re-seats
+across it.**  That is why the `cnp` class is not a static-creep deficit and why the
+force family (P76/P78: 1.45-2x capacity, 2x creep ratio) never converted one - and it
+means the class is the **dynamic** event P75 traced (the pads driven to their 98.1 mm
+stop while the payload walks out), not a static one.  No face and no mu can reach it.
+
+**Fixture 2 - the station pocket** (`logs/p117/fixture_station.py`).  The brief's
+form is "a diverter takes one fruit off the moving belt into a pocket beside it", and
+the record refutes that **by arithmetic before a build**: the delivered x is
+**0.188-0.397** (P49/P60) and the top-down grip band is **x <= 0.320 clean with
+x = 0.398 failing at 32.8 mm / 17.0 deg** (P66's 150-cell sweep), so a pocket outside
+the stream is outside the reach - an empty intersection.  The only pickable pocket is
+one **under** the line, which is also the only form that gives the descent back the
+**40-90 mm** it loses to the conveyor (`logs/166` 23 cm free vs `logs/167` 3.8 cm with
+the belt).  Built: the shipped belt's own authoring (kinematic body +
+`PhysxSurfaceVelocityAPI`, `belt_friction` 0.9, -0.120 m/s, never stopped) split into
+two segments with a **0.148 m** gap, a **belt-like shutter** filling it (a *static*
+plate drags a fruit to a stop in `v^2/(2 mu g)` = 0.6 mm, so the shutter must be
+driven), and a **100 mm** deep pocket.  The depth is **forced**: the shutter must
+close *over* the occupant, so `depth >= 0.020 + 69.6` = 89.6 mm -> 100 mm - and it is
+also the descent's missing 40-90 mm.
+
+**Three build lessons, each measured and kept as evidence.**  (1)
+`PhysxSurfaceVelocityAPI` is in the **collider's scaled local frame**
+(`conveyor._surface_attr_speed`): an un-divided command carried the 0.726 m upstream
+segment at **0.087 m/s** and the 0.148 m shutter at **0.018 m/s**; `speed / y_length`
+gives **0.120 m/s = 1.00x** (`st_plate.log` vs `st_plate3.log`).  (2) **A flush
+shutter is not optional**: `set_world_poses(z = bz)` (the *slab's* centre) put its top
+20 mm low, the fruit rested 19 mm down in the step and the stream stopped dead
+(`st_plate2.log`).  (3) The **door-clearance predicate must be geometric, not a
+radius**: the occupant sits 70-90 mm down, *inside* a 0.09 m radius, so
+`far_from_gap(<0.09)` refuses to close once the fruit is in the pocket; the predicate
+is now "no fruit whose top is above the shutter's underside and whose y is inside the
+mouth".
+
+**B1's deviation is the phase's honest limit.**  The registered 0.05 mm support bar
+is **below this sim's contact-jitter floor**: the pocket floor's drift is **0.364 /
+0.261 / 0.518 / 0.635 mm at 200/400/800/1200 ticks** - non-monotone, i.e. jitter,
+not creep - while a fruit **riding the driven belt** deviates **0.018-0.382 mm** from
+a straight line over the same window (same fruit, same session).  P107/P112's failure
+was a 2 mm sink plus 4-5 mm *monotone* creep, 5-8x this floor.  So the pocket is
+judged **against the belt it sits beside**, and the 0.05 mm bar is recorded as
+unattainable on this physics.  The 5.58 mm "settle" is the pear **rolling onto a
+flatter side** on the flat floor (a centre drop), not penetration.
+
+**The station table.**  **16/16** of the pool end in the pocket, **0/16 expelled**,
+hold **0.000-0.024 mm**; the **closed** shutter passes **4/4 at 1.875 s AND 4/4 at
+0.833 s** at **1.00x** the belt speed; one drop plus **3/3 followers pass at both
+cadences** with the occupant holding **0.019 / 0.008 mm**; the shutter's **open window
+is 0.54-0.64 s** against the 0.833 s fast cadence (a 0.19-0.29 s margin, measured).
+The landing x spans **-58.7..+29.5 mm (88 mm)** and its y -49.9..+41.0 mm, so the
+0.352 m mouth **does not centre** the fruit: the pocket removes the **moving
+handover** and the **descent's blocked boundary**, but **not** P48/P49's delivered-x
+tail.  A centring floor (a V) is the named next element and is not built.
+
+**Verdict.**  The pad face and the pad friction **do not promote** (A3 fails, A6
+fires) - and the shipped knobs already existed, so nothing is added.  The station
+pocket **promotes to a station build** (a scenario change, not a knob) on two
+**named, unspent gates**: a **static IK probe at the 100 mm-lower pick pose** (the
+jaw lands at ~`belt_top`, the pads' distal plane at `floor + 0.5 mm` - geometrically
+favourable, unmeasured), and the shutter's **actuation path** (the fixture teleports
+it; only its timing is measured).  A station build owes both motion references, every
+store and the acceptance re-baseline by this file's own rule, and is out of scope
+here.
+
+No-harm: `scripts/accept.sh` with every knob unset reads **8/10, 9.0 s/attempt,
+`fingerprint: matches configs/motion_reference.json`, `190: PASS`**, and its **421
+`[fruit]` lines are 421/421 byte-identical** to `logs/p110/accept_noharm.log`;
+`scripts/selfcheck.sh` **PASS (0 failures, 1 skipped)**, `106` **OK**, `107` **PASS
+(21 checks)**; `git status --short src configs` is empty.
+
+Pins (unchanged - this phase is `logs/`-only): `tasks.py` `9e3e657b`, `rl_env.py`
+`bf4c56fa`, `bimanual.py` `9b7fc33f`, `fruits.py` `dcabe16b`, `scene.py`
+`a0199097`, `cage_hand.py` `ac7c7c0f`; references `30fb99f8` / `30fb99f8` /
+`8952c320`; checkpoint `moe_v13s` `61da390a`.  Evidence `logs/p117/`.
