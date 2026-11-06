@@ -1,0 +1,179 @@
+# P123 reach solve - the candidate place cells, both arms, both heights.
+# logs/p123/probe.py section R (P90's `NAT` mode: hold_quaternion=None, the
+# position-only solve the shipped place leg runs; seed grasp_lift, restarts 1).
+# Gate (logs/p123/PREREG.md section 1): res <= 6 mm, margin >= 0.05 rad,
+# pad >= 2 mm over the surface actually under the pad (the new lane's slab
+# where the cell sits on it), tilt 60-110 deg. The `(new lane)` tag on the +Y
+# arm is *conservative*: the probe's surface switch is side-agnostic, so a +Y
+# cell in the new lane's |y| band is charged the 1.35 plane instead of the
+# main belt's 1.17 (180 mm tighter than reality); the runtime report
+# (`_payload_clearance`) is signed and does not have that bias.
+
+[p123] R0 gate: res <= 6 mm, margin >= 0.05 rad, pad >= 2 mm, tilt 60-110 deg; seed grasp_lift, restarts 1, tol 6.0 mm, 160 cells
+[p123] R0 left seed(grasp_lift) jaw=[+0.3444,+0.0479,1.4797] tilt=125.69deg
+[p123] R1 left  z=1.450 y=+0.300 x=0.480 res=  5.9mm margin=+0.457rad@j2 tilt= 92.68deg pad=  +52.4mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 left  z=1.450 y=+0.300 x=0.460 res=  6.0mm margin=+0.480rad@j6 tilt= 98.11deg pad=  +54.3mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 left  z=1.450 y=+0.300 x=0.440 res=  6.0mm margin=+0.467rad@j6 tilt=102.76deg pad=  +56.1mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 left  z=1.450 y=+0.300 x=0.430 res=  6.0mm margin=+0.461rad@j6 tilt=104.83deg pad=  +55.3mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 left  z=1.450 y=+0.300 x=0.380 res=  8.3mm margin=+0.423rad@j6 tilt=111.79deg pad=  +46.8mm(new lane) sep= 97.9mm PASS=0
+[p123] R1 left  z=1.450 y=+0.310 x=0.480 res=  6.0mm margin=+0.468rad@j2 tilt= 91.70deg pad=  +51.9mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 left  z=1.450 y=+0.310 x=0.460 res=  5.9mm margin=+0.476rad@j6 tilt= 97.19deg pad=  +53.7mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 left  z=1.450 y=+0.310 x=0.440 res=  6.0mm margin=+0.463rad@j6 tilt=101.93deg pad=  +55.7mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 left  z=1.450 y=+0.310 x=0.430 res=  6.0mm margin=+0.456rad@j6 tilt=104.05deg pad=  +55.2mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 left  z=1.450 y=+0.310 x=0.380 res=  8.5mm margin=+0.418rad@j6 tilt=111.07deg pad=  +46.2mm(new lane) sep= 97.9mm PASS=0
+[p123] R1 left  z=1.450 y=+0.320 x=0.480 res=  5.8mm margin=+0.481rad@j2 tilt= 90.56deg pad=  +51.2mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 left  z=1.450 y=+0.320 x=0.460 res=  5.9mm margin=+0.473rad@j6 tilt= 96.24deg pad=  +53.1mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 left  z=1.450 y=+0.320 x=0.440 res=  5.9mm margin=+0.459rad@j6 tilt=101.04deg pad=  +55.0mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 left  z=1.450 y=+0.320 x=0.430 res=  6.0mm margin=+0.452rad@j6 tilt=103.19deg pad=  +55.1mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 left  z=1.450 y=+0.320 x=0.380 res=  8.7mm margin=+0.414rad@j6 tilt=110.30deg pad=  +45.6mm(new lane) sep= 97.9mm PASS=0
+[p123] R1 left  z=1.450 y=+0.330 x=0.480 res=  5.8mm margin=+0.490rad@j6 tilt= 89.39deg pad=  +50.8mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 left  z=1.450 y=+0.330 x=0.460 res=  6.0mm margin=+0.469rad@j6 tilt= 95.22deg pad=  +52.6mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 left  z=1.450 y=+0.330 x=0.440 res=  6.0mm margin=+0.455rad@j6 tilt=100.11deg pad=  +54.4mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 left  z=1.450 y=+0.330 x=0.430 res=  6.0mm margin=+0.448rad@j6 tilt=102.27deg pad=  +55.1mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 left  z=1.450 y=+0.330 x=0.380 res=  8.9mm margin=+0.410rad@j6 tilt=109.47deg pad=  +44.9mm(new lane) sep= 97.9mm PASS=0
+[p123] R1 left  z=1.450 y=+0.350 x=0.480 res=  6.0mm margin=+0.488rad@j6 tilt= 86.82deg pad=  +50.2mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 left  z=1.450 y=+0.350 x=0.460 res=  5.8mm margin=+0.461rad@j6 tilt= 92.87deg pad=  +51.6mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 left  z=1.450 y=+0.350 x=0.440 res=  6.0mm margin=+0.443rad@j6 tilt= 98.01deg pad=  +53.3mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 left  z=1.450 y=+0.350 x=0.430 res=  9.0mm margin=+0.432rad@j6 tilt= 97.58deg pad=  +40.2mm(new lane) sep= 97.9mm PASS=0
+[p123] R1 left  z=1.450 y=+0.350 x=0.380 res=  9.4mm margin=+0.400rad@j6 tilt=107.66deg pad=  +43.4mm(new lane) sep= 97.9mm PASS=0
+[p123] R1 left  z=1.450 y=+0.400 x=0.480 res=  5.6mm margin=+0.462rad@j4 tilt= 78.78deg pad=  +48.5mm(output belt) sep= 98.0mm PASS=1
+[p123] R1 left  z=1.450 y=+0.400 x=0.460 res=  6.0mm margin=+0.471rad@j6 tilt= 85.54deg pad=  +50.4mm(output belt) sep= 98.0mm PASS=1
+[p123] R1 left  z=1.450 y=+0.400 x=0.440 res=  6.0mm margin=+0.436rad@j6 tilt= 91.48deg pad=  +51.7mm(output belt) sep= 97.9mm PASS=1
+[p123] R1 left  z=1.450 y=+0.400 x=0.430 res=  6.0mm margin=+0.424rad@j6 tilt= 93.96deg pad=  +52.0mm(output belt) sep= 97.9mm PASS=1
+[p123] R1 left  z=1.450 y=+0.400 x=0.380 res= 10.7mm margin=+0.379rad@j6 tilt=102.14deg pad=  +38.3mm(output belt) sep= 97.9mm PASS=0
+[p123] R1 left  z=1.450 y=+0.500 x=0.480 res= 46.1mm margin=-0.000rad@j4 tilt= 83.44deg pad=  +17.9mm(output belt) sep= 98.0mm PASS=0
+[p123] R1 left  z=1.450 y=+0.500 x=0.460 res= 31.8mm margin=-0.000rad@j4 tilt= 83.35deg pad=  +19.4mm(output belt) sep= 98.0mm PASS=0
+[p123] R1 left  z=1.450 y=+0.500 x=0.440 res= 20.4mm margin=-0.000rad@j4 tilt= 83.29deg pad=  +20.1mm(output belt) sep= 98.0mm PASS=0
+[p123] R1 left  z=1.450 y=+0.500 x=0.430 res=  5.9mm margin=+0.185rad@j4 tilt= 77.75deg pad=  +46.3mm(output belt) sep= 98.0mm PASS=1
+[p123] R1 left  z=1.450 y=+0.500 x=0.380 res=  6.0mm margin=+0.480rad@j6 tilt= 88.58deg pad=  +45.6mm(output belt) sep= 98.0mm PASS=1
+[p123] R1 left  z=1.450 y=+0.550 x=0.480 res= 75.1mm margin=+0.000rad@j4 tilt= 83.65deg pad=  +19.7mm(output belt) sep= 98.0mm PASS=0
+[p123] R1 left  z=1.450 y=+0.550 x=0.460 res= 60.5mm margin=+0.000rad@j4 tilt= 83.52deg pad=  +19.8mm(output belt) sep= 98.0mm PASS=0
+[p123] R1 left  z=1.450 y=+0.550 x=0.440 res= 46.4mm margin=-0.000rad@j4 tilt= 83.43deg pad=  +20.9mm(output belt) sep= 98.0mm PASS=0
+[p123] R1 left  z=1.450 y=+0.550 x=0.430 res= 39.8mm margin=-0.000rad@j4 tilt= 83.36deg pad=  +21.6mm(output belt) sep= 98.0mm PASS=0
+[p123] R1 left  z=1.450 y=+0.550 x=0.380 res=  5.9mm margin=+0.283rad@j4 tilt= 79.35deg pad=  +51.8mm(output belt) sep= 98.0mm PASS=1
+[p123] R1 left  z=1.530 y=+0.300 x=0.480 res=  5.8mm margin=+0.422rad@j2 tilt=100.43deg pad= +128.3mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 left  z=1.530 y=+0.300 x=0.460 res=  5.9mm margin=+0.444rad@j2 tilt=106.17deg pad= +130.6mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 left  z=1.530 y=+0.300 x=0.440 res=  5.9mm margin=+0.455rad@j6 tilt=111.22deg pad= +132.9mm(new lane) sep= 98.0mm PASS=0
+[p123] R1 left  z=1.530 y=+0.300 x=0.430 res=  5.9mm margin=+0.449rad@j6 tilt=113.56deg pad= +134.2mm(new lane) sep= 98.0mm PASS=0
+[p123] R1 left  z=1.530 y=+0.300 x=0.380 res=  7.3mm margin=+0.416rad@j6 tilt=122.21deg pad= +133.1mm(new lane) sep= 97.9mm PASS=0
+[p123] R1 left  z=1.530 y=+0.310 x=0.480 res=  5.8mm margin=+0.436rad@j2 tilt= 99.34deg pad= +127.7mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 left  z=1.530 y=+0.310 x=0.460 res=  5.9mm margin=+0.456rad@j2 tilt=105.17deg pad= +129.8mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 left  z=1.530 y=+0.310 x=0.440 res=  5.9mm margin=+0.451rad@j6 tilt=110.28deg pad= +132.1mm(new lane) sep= 98.0mm PASS=0
+[p123] R1 left  z=1.530 y=+0.310 x=0.430 res=  5.9mm margin=+0.445rad@j6 tilt=112.64deg pad= +133.4mm(new lane) sep= 98.0mm PASS=0
+[p123] R1 left  z=1.530 y=+0.310 x=0.380 res=  7.5mm margin=+0.410rad@j6 tilt=121.29deg pad= +131.9mm(new lane) sep= 97.9mm PASS=0
+[p123] R1 left  z=1.530 y=+0.320 x=0.480 res=  5.8mm margin=+0.452rad@j2 tilt= 98.17deg pad= +127.1mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 left  z=1.530 y=+0.320 x=0.460 res=  6.0mm margin=+0.455rad@j6 tilt=104.10deg pad= +129.2mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 left  z=1.530 y=+0.320 x=0.440 res=  5.9mm margin=+0.443rad@j6 tilt=109.28deg pad= +131.4mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 left  z=1.530 y=+0.320 x=0.430 res=  6.0mm margin=+0.438rad@j6 tilt=111.66deg pad= +132.6mm(new lane) sep= 98.0mm PASS=0
+[p123] R1 left  z=1.530 y=+0.320 x=0.380 res=  7.7mm margin=+0.405rad@j6 tilt=120.32deg pad= +130.7mm(new lane) sep= 97.9mm PASS=0
+[p123] R1 left  z=1.530 y=+0.330 x=0.480 res=  5.8mm margin=+0.468rad@j2 tilt= 96.91deg pad= +126.6mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 left  z=1.530 y=+0.330 x=0.460 res=  6.0mm margin=+0.449rad@j6 tilt=102.95deg pad= +128.6mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 left  z=1.530 y=+0.330 x=0.440 res=  5.9mm margin=+0.436rad@j6 tilt=108.20deg pad= +130.7mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 left  z=1.530 y=+0.330 x=0.430 res=  6.0mm margin=+0.430rad@j6 tilt=110.62deg pad= +131.9mm(new lane) sep= 98.0mm PASS=0
+[p123] R1 left  z=1.530 y=+0.330 x=0.380 res=  7.9mm margin=+0.398rad@j6 tilt=119.27deg pad= +129.4mm(new lane) sep= 97.9mm PASS=0
+[p123] R1 left  z=1.530 y=+0.350 x=0.480 res=  5.9mm margin=+0.468rad@j6 tilt= 94.17deg pad= +125.7mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 left  z=1.530 y=+0.350 x=0.460 res=  5.9mm margin=+0.440rad@j6 tilt=100.40deg pad= +127.4mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 left  z=1.530 y=+0.350 x=0.440 res=  5.9mm margin=+0.423rad@j6 tilt=105.84deg pad= +129.4mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 left  z=1.530 y=+0.350 x=0.430 res=  6.0mm margin=+0.417rad@j6 tilt=108.33deg pad= +130.4mm(new lane) sep= 97.9mm PASS=1
+[p123] R1 left  z=1.530 y=+0.350 x=0.380 res=  8.5mm margin=+0.381rad@j6 tilt=117.01deg pad= +126.8mm(new lane) sep= 97.9mm PASS=0
+[p123] R1 left  z=1.530 y=+0.400 x=0.480 res=  5.8mm margin=+0.460rad@j4 tilt= 86.13deg pad= +123.4mm(output belt) sep= 98.0mm PASS=1
+[p123] R1 left  z=1.530 y=+0.400 x=0.460 res=  5.8mm margin=+0.450rad@j6 tilt= 92.54deg pad= +125.1mm(output belt) sep= 98.0mm PASS=1
+[p123] R1 left  z=1.530 y=+0.400 x=0.440 res=  5.9mm margin=+0.414rad@j6 tilt= 98.68deg pad= +126.9mm(output belt) sep= 97.9mm PASS=1
+[p123] R1 left  z=1.530 y=+0.400 x=0.430 res=  6.0mm margin=+0.403rad@j6 tilt=101.44deg pad= +127.8mm(output belt) sep= 97.9mm PASS=1
+[p123] R1 left  z=1.530 y=+0.400 x=0.380 res=  9.7mm margin=+0.356rad@j6 tilt=110.42deg pad= +120.7mm(output belt) sep= 97.9mm PASS=0
+[p123] R1 left  z=1.530 y=+0.500 x=0.480 res= 46.4mm margin=-0.000rad@j4 tilt= 91.23deg pad=  +87.8mm(output belt) sep= 98.0mm PASS=0
+[p123] R1 left  z=1.530 y=+0.500 x=0.460 res= 32.2mm margin=-0.000rad@j4 tilt= 91.33deg pad=  +90.4mm(output belt) sep= 98.0mm PASS=0
+[p123] R1 left  z=1.530 y=+0.500 x=0.440 res= 20.9mm margin=-0.000rad@j4 tilt= 91.45deg pad=  +93.3mm(output belt) sep= 98.0mm PASS=0
+[p123] R1 left  z=1.530 y=+0.500 x=0.430 res= 14.9mm margin=-0.000rad@j4 tilt= 91.84deg pad=  +97.7mm(output belt) sep= 98.0mm PASS=0
+[p123] R1 left  z=1.530 y=+0.500 x=0.380 res=  5.8mm margin=+0.460rad@j6 tilt= 96.54deg pad= +133.4mm(output belt) sep= 98.0mm PASS=1
+[p123] R1 left  z=1.530 y=+0.550 x=0.480 res= 75.4mm margin=+0.000rad@j4 tilt= 91.04deg pad=  +86.5mm(output belt) sep= 98.0mm PASS=0
+[p123] R1 left  z=1.530 y=+0.550 x=0.460 res= 60.8mm margin=+0.000rad@j4 tilt= 91.07deg pad=  +88.6mm(output belt) sep= 98.0mm PASS=0
+[p123] R1 left  z=1.530 y=+0.550 x=0.440 res= 46.8mm margin=-0.000rad@j4 tilt= 91.16deg pad=  +90.9mm(output belt) sep= 98.0mm PASS=0
+[p123] R1 left  z=1.530 y=+0.550 x=0.430 res= 40.2mm margin=-0.000rad@j4 tilt= 91.17deg pad=  +92.1mm(output belt) sep= 98.0mm PASS=0
+[p123] R1 left  z=1.530 y=+0.550 x=0.380 res=  6.0mm margin=+0.292rad@j4 tilt= 87.19deg pad= +129.3mm(output belt) sep= 98.0mm PASS=1
+[p123] R0 left: parked at the ready waypoint before the next arm
+[p123] R0 right seed(grasp_lift) jaw=[+0.3444,-0.0479,1.4797] tilt=125.70deg
+[p123] R1 right z=1.450 y=-0.300 x=0.480 res=  6.0mm margin=+0.457rad@j2 tilt= 92.73deg pad=  +70.2mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 right z=1.450 y=-0.300 x=0.460 res=  6.0mm margin=+0.481rad@j6 tilt= 98.15deg pad=  +70.3mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 right z=1.450 y=-0.300 x=0.440 res=  5.9mm margin=+0.468rad@j6 tilt=102.80deg pad=  +70.0mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 right z=1.450 y=-0.300 x=0.430 res=  6.0mm margin=+0.461rad@j6 tilt=104.91deg pad=  +68.5mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 right z=1.450 y=-0.300 x=0.380 res=  8.2mm margin=+0.424rad@j6 tilt=111.88deg pad=  +57.0mm(new lane) sep= 98.0mm PASS=0
+[p123] R1 right z=1.450 y=-0.310 x=0.480 res=  6.0mm margin=+0.469rad@j2 tilt= 91.74deg pad=  +70.0mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 right z=1.450 y=-0.310 x=0.460 res=  5.9mm margin=+0.477rad@j6 tilt= 97.24deg pad=  +69.9mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 right z=1.450 y=-0.310 x=0.440 res=  5.9mm margin=+0.463rad@j6 tilt=101.98deg pad=  +70.2mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 right z=1.450 y=-0.310 x=0.430 res=  6.0mm margin=+0.457rad@j6 tilt=104.12deg pad=  +68.7mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 right z=1.450 y=-0.310 x=0.380 res=  8.4mm margin=+0.419rad@j6 tilt=111.16deg pad=  +56.7mm(new lane) sep= 98.0mm PASS=0
+[p123] R1 right z=1.450 y=-0.320 x=0.480 res=  5.8mm margin=+0.481rad@j2 tilt= 90.60deg pad=  +69.7mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 right z=1.450 y=-0.320 x=0.460 res=  5.9mm margin=+0.474rad@j6 tilt= 96.29deg pad=  +69.7mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 right z=1.450 y=-0.320 x=0.440 res=  6.0mm margin=+0.460rad@j6 tilt=101.12deg pad=  +70.0mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 right z=1.450 y=-0.320 x=0.430 res=  6.0mm margin=+0.453rad@j6 tilt=103.27deg pad=  +69.0mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 right z=1.450 y=-0.320 x=0.380 res=  8.6mm margin=+0.414rad@j6 tilt=110.39deg pad=  +56.4mm(new lane) sep= 98.0mm PASS=0
+[p123] R1 right z=1.450 y=-0.330 x=0.480 res=  5.8mm margin=+0.491rad@j6 tilt= 89.44deg pad=  +69.3mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 right z=1.450 y=-0.330 x=0.460 res=  5.9mm margin=+0.471rad@j6 tilt= 95.27deg pad=  +69.6mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 right z=1.450 y=-0.330 x=0.440 res=  6.0mm margin=+0.456rad@j6 tilt=100.20deg pad=  +69.8mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 right z=1.450 y=-0.330 x=0.430 res=  6.0mm margin=+0.449rad@j6 tilt=102.35deg pad=  +69.2mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 right z=1.450 y=-0.330 x=0.380 res=  8.8mm margin=+0.410rad@j6 tilt=109.57deg pad=  +56.1mm(new lane) sep= 98.0mm PASS=0
+[p123] R1 right z=1.450 y=-0.350 x=0.480 res=  5.7mm margin=+0.490rad@j6 tilt= 86.79deg pad=  +67.6mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 right z=1.450 y=-0.350 x=0.460 res=  5.8mm margin=+0.462rad@j6 tilt= 92.92deg pad=  +69.4mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 right z=1.450 y=-0.350 x=0.440 res=  5.9mm margin=+0.444rad@j6 tilt= 98.06deg pad=  +69.3mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 right z=1.450 y=-0.350 x=0.430 res=  6.0mm margin=+0.437rad@j6 tilt=100.29deg pad=  +69.2mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 right z=1.450 y=-0.350 x=0.380 res=  9.3mm margin=+0.401rad@j6 tilt=107.75deg pad=  +55.3mm(new lane) sep= 98.0mm PASS=0
+[p123] R1 right z=1.450 y=-0.400 x=0.480 res=  5.7mm margin=+0.462rad@j4 tilt= 78.83deg pad=  +63.1mm(output belt) sep= 98.0mm PASS=1
+[p123] R1 right z=1.450 y=-0.400 x=0.460 res=  6.0mm margin=+0.473rad@j6 tilt= 85.59deg pad=  +67.7mm(output belt) sep= 98.0mm PASS=1
+[p123] R1 right z=1.450 y=-0.400 x=0.440 res=  5.9mm margin=+0.437rad@j6 tilt= 91.53deg pad=  +70.0mm(output belt) sep= 98.0mm PASS=1
+[p123] R1 right z=1.450 y=-0.400 x=0.430 res=  6.0mm margin=+0.425rad@j6 tilt= 94.11deg pad=  +69.7mm(output belt) sep= 98.0mm PASS=1
+[p123] R1 right z=1.450 y=-0.400 x=0.380 res= 10.6mm margin=+0.380rad@j6 tilt=102.25deg pad=  +52.4mm(output belt) sep= 98.0mm PASS=0
+[p123] R1 right z=1.450 y=-0.500 x=0.480 res= 46.2mm margin=-0.000rad@j4 tilt= 83.42deg pad=  +34.5mm(output belt) sep= 98.0mm PASS=0
+[p123] R1 right z=1.450 y=-0.500 x=0.460 res= 31.8mm margin=-0.000rad@j4 tilt= 83.34deg pad=  +36.3mm(output belt) sep= 98.0mm PASS=0
+[p123] R1 right z=1.450 y=-0.500 x=0.440 res= 20.4mm margin=-0.000rad@j4 tilt= 83.28deg pad=  +37.2mm(output belt) sep= 98.0mm PASS=0
+[p123] R1 right z=1.450 y=-0.500 x=0.430 res=  5.9mm margin=+0.185rad@j4 tilt= 77.78deg pad=  +60.6mm(output belt) sep= 98.0mm PASS=1
+[p123] R1 right z=1.450 y=-0.500 x=0.380 res=  6.0mm margin=+0.481rad@j6 tilt= 88.73deg pad=  +63.7mm(output belt) sep= 98.0mm PASS=1
+[p123] R1 right z=1.450 y=-0.550 x=0.480 res= 75.1mm margin=-0.000rad@j4 tilt= 83.63deg pad=  +36.4mm(output belt) sep= 98.0mm PASS=0
+[p123] R1 right z=1.450 y=-0.550 x=0.460 res= 60.5mm margin=+0.000rad@j4 tilt= 83.50deg pad=  +36.6mm(output belt) sep= 98.0mm PASS=0
+[p123] R1 right z=1.450 y=-0.550 x=0.440 res= 46.5mm margin=-0.000rad@j4 tilt= 83.42deg pad=  +37.9mm(output belt) sep= 98.0mm PASS=0
+[p123] R1 right z=1.450 y=-0.550 x=0.430 res= 39.8mm margin=-0.000rad@j4 tilt= 83.36deg pad=  +38.7mm(output belt) sep= 98.0mm PASS=0
+[p123] R1 right z=1.450 y=-0.550 x=0.380 res=  5.9mm margin=+0.284rad@j4 tilt= 79.37deg pad=  +66.4mm(output belt) sep= 98.0mm PASS=1
+[p123] R1 right z=1.530 y=-0.300 x=0.480 res=  6.0mm margin=+0.422rad@j2 tilt=100.53deg pad= +143.2mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 right z=1.530 y=-0.300 x=0.460 res=  5.9mm margin=+0.444rad@j2 tilt=106.21deg pad= +143.1mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 right z=1.530 y=-0.300 x=0.440 res=  6.0mm margin=+0.456rad@j6 tilt=111.30deg pad= +143.6mm(new lane) sep= 98.0mm PASS=0
+[p123] R1 right z=1.530 y=-0.300 x=0.430 res=  6.0mm margin=+0.450rad@j6 tilt=113.63deg pad= +143.9mm(new lane) sep= 98.0mm PASS=0
+[p123] R1 right z=1.530 y=-0.300 x=0.380 res=  7.2mm margin=+0.416rad@j6 tilt=122.29deg pad= +139.2mm(new lane) sep= 98.0mm PASS=0
+[p123] R1 right z=1.530 y=-0.310 x=0.480 res=  5.8mm margin=+0.436rad@j2 tilt= 99.38deg pad= +142.8mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 right z=1.530 y=-0.310 x=0.460 res=  5.9mm margin=+0.456rad@j2 tilt=105.22deg pad= +142.8mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 right z=1.530 y=-0.310 x=0.440 res=  6.0mm margin=+0.451rad@j6 tilt=110.36deg pad= +143.2mm(new lane) sep= 98.0mm PASS=0
+[p123] R1 right z=1.530 y=-0.310 x=0.430 res=  6.0mm margin=+0.446rad@j6 tilt=112.72deg pad= +143.4mm(new lane) sep= 98.0mm PASS=0
+[p123] R1 right z=1.530 y=-0.310 x=0.380 res=  7.4mm margin=+0.410rad@j6 tilt=121.37deg pad= +138.3mm(new lane) sep= 98.0mm PASS=0
+[p123] R1 right z=1.530 y=-0.320 x=0.480 res=  5.8mm margin=+0.452rad@j2 tilt= 98.21deg pad= +142.6mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 right z=1.530 y=-0.320 x=0.460 res=  5.9mm margin=+0.456rad@j6 tilt=104.15deg pad= +142.5mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 right z=1.530 y=-0.320 x=0.440 res=  5.9mm margin=+0.444rad@j6 tilt=109.32deg pad= +142.8mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 right z=1.530 y=-0.320 x=0.430 res=  6.0mm margin=+0.439rad@j6 tilt=111.74deg pad= +143.1mm(new lane) sep= 98.0mm PASS=0
+[p123] R1 right z=1.530 y=-0.320 x=0.380 res=  7.6mm margin=+0.406rad@j6 tilt=120.40deg pad= +137.5mm(new lane) sep= 98.0mm PASS=0
+[p123] R1 right z=1.530 y=-0.330 x=0.480 res=  5.8mm margin=+0.468rad@j2 tilt= 96.95deg pad= +142.5mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 right z=1.530 y=-0.330 x=0.460 res=  5.9mm margin=+0.450rad@j6 tilt=103.00deg pad= +142.3mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 right z=1.530 y=-0.330 x=0.440 res=  5.9mm margin=+0.437rad@j6 tilt=108.25deg pad= +142.5mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 right z=1.530 y=-0.330 x=0.430 res=  5.9mm margin=+0.431rad@j6 tilt=110.67deg pad= +142.7mm(new lane) sep= 98.0mm PASS=0
+[p123] R1 right z=1.530 y=-0.330 x=0.380 res=  7.8mm margin=+0.399rad@j6 tilt=119.36deg pad= +136.7mm(new lane) sep= 98.0mm PASS=0
+[p123] R1 right z=1.530 y=-0.350 x=0.480 res=  6.0mm margin=+0.469rad@j6 tilt= 94.22deg pad= +142.5mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 right z=1.530 y=-0.350 x=0.460 res=  5.9mm margin=+0.441rad@j6 tilt=100.45deg pad= +142.0mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 right z=1.530 y=-0.350 x=0.440 res=  5.9mm margin=+0.424rad@j6 tilt=105.89deg pad= +142.0mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 right z=1.530 y=-0.350 x=0.430 res=  5.9mm margin=+0.418rad@j6 tilt=108.38deg pad= +142.1mm(new lane) sep= 98.0mm PASS=1
+[p123] R1 right z=1.530 y=-0.350 x=0.380 res=  8.4mm margin=+0.382rad@j6 tilt=117.10deg pad= +135.1mm(new lane) sep= 98.0mm PASS=0
+[p123] R1 right z=1.530 y=-0.400 x=0.480 res=  5.8mm margin=+0.460rad@j4 tilt= 86.18deg pad= +140.0mm(output belt) sep= 98.0mm PASS=1
+[p123] R1 right z=1.530 y=-0.400 x=0.460 res=  5.8mm margin=+0.452rad@j6 tilt= 92.59deg pad= +142.4mm(output belt) sep= 98.0mm PASS=1
+[p123] R1 right z=1.530 y=-0.400 x=0.440 res=  5.9mm margin=+0.416rad@j6 tilt= 98.73deg pad= +142.2mm(output belt) sep= 98.0mm PASS=1
+[p123] R1 right z=1.530 y=-0.400 x=0.430 res=  5.9mm margin=+0.404rad@j6 tilt=101.49deg pad= +142.1mm(output belt) sep= 98.0mm PASS=1
+[p123] R1 right z=1.530 y=-0.400 x=0.380 res=  9.5mm margin=+0.357rad@j6 tilt=110.53deg pad= +131.9mm(output belt) sep= 98.0mm PASS=0
+[p123] R1 right z=1.530 y=-0.500 x=0.480 res= 46.4mm margin=-0.000rad@j4 tilt= 91.22deg pad= +105.2mm(output belt) sep= 98.0mm PASS=0
+[p123] R1 right z=1.530 y=-0.500 x=0.460 res= 32.2mm margin=-0.000rad@j4 tilt= 91.31deg pad= +108.1mm(output belt) sep= 98.0mm PASS=0
+[p123] R1 right z=1.530 y=-0.500 x=0.440 res= 21.0mm margin=-0.000rad@j4 tilt= 91.43deg pad= +111.2mm(output belt) sep= 98.0mm PASS=0
+[p123] R1 right z=1.530 y=-0.500 x=0.430 res= 14.9mm margin=-0.000rad@j4 tilt= 91.83deg pad= +115.7mm(output belt) sep= 98.0mm PASS=0
+[p123] R1 right z=1.530 y=-0.500 x=0.380 res=  5.8mm margin=+0.462rad@j6 tilt= 96.60deg pad= +149.9mm(output belt) sep= 98.0mm PASS=1
+[p123] R1 right z=1.530 y=-0.550 x=0.480 res= 75.4mm margin=+0.000rad@j4 tilt= 91.02deg pad= +104.0mm(output belt) sep= 98.0mm PASS=0
+[p123] R1 right z=1.530 y=-0.550 x=0.460 res= 60.8mm margin=+0.000rad@j4 tilt= 91.05deg pad= +106.5mm(output belt) sep= 98.0mm PASS=0
+[p123] R1 right z=1.530 y=-0.550 x=0.440 res= 46.8mm margin=-0.000rad@j4 tilt= 91.14deg pad= +109.1mm(output belt) sep= 98.0mm PASS=0
+[p123] R1 right z=1.530 y=-0.550 x=0.430 res= 40.2mm margin=-0.000rad@j4 tilt= 91.16deg pad= +110.4mm(output belt) sep= 98.0mm PASS=0
+[p123] R1 right z=1.530 y=-0.550 x=0.380 res=  5.6mm margin=+0.285rad@j4 tilt= 87.17deg pad= +146.4mm(output belt) sep= 98.0mm PASS=1
+[p123] R0 right: parked at the ready waypoint before the next arm
+[p123] R2 93 of 160 cells pass the gate (389 s)
+[p123] R2 left: 41 inboard (|y| <= 0.40) passes: (x=0.48,|y|=0.30,z=1.450,res=5.9mm,pad=52mm,tilt=92.7), (x=0.46,|y|=0.30,z=1.450,res=6.0mm,pad=54mm,tilt=98.1), (x=0.44,|y|=0.30,z=1.450,res=6.0mm,pad=56mm,tilt=102.8), (x=0.43,|y|=0.30,z=1.450,res=6.0mm,pad=55mm,tilt=104.8), (x=0.48,|y|=0.31,z=1.450,res=6.0mm,pad=52mm,tilt=91.7), (x=0.46,|y|=0.31,z=1.450,res=5.9mm,pad=54mm,tilt=97.2), (x=0.44,|y|=0.31,z=1.450,res=6.0mm,pad=56mm,tilt=101.9), (x=0.43,|y|=0.31,z=1.450,res=6.0mm,pad=55mm,tilt=104.0), (x=0.48,|y|=0.32,z=1.450,res=5.8mm,pad=51mm,tilt=90.6), (x=0.46,|y|=0.32,z=1.450,res=5.9mm,pad=53mm,tilt=96.2), (x=0.44,|y|=0.32,z=1.450,res=5.9mm,pad=55mm,tilt=101.0), (x=0.43,|y|=0.32,z=1.450,res=6.0mm,pad=55mm,tilt=103.2), (x=0.48,|y|=0.33,z=1.450,res=5.8mm,pad=51mm,tilt=89.4), (x=0.46,|y|=0.33,z=1.450,res=6.0mm,pad=53mm,tilt=95.2), (x=0.44,|y|=0.33,z=1.450,res=6.0mm,pad=54mm,tilt=100.1), (x=0.43,|y|=0.33,z=1.450,res=6.0mm,pad=55mm,tilt=102.3), (x=0.48,|y|=0.35,z=1.450,res=6.0mm,pad=50mm,tilt=86.8), (x=0.46,|y|=0.35,z=1.450,res=5.8mm,pad=52mm,tilt=92.9), (x=0.44,|y|=0.35,z=1.450,res=6.0mm,pad=53mm,tilt=98.0), (x=0.48,|y|=0.40,z=1.450,res=5.6mm,pad=49mm,tilt=78.8), (x=0.46,|y|=0.40,z=1.450,res=6.0mm,pad=50mm,tilt=85.5), (x=0.44,|y|=0.40,z=1.450,res=6.0mm,pad=52mm,tilt=91.5), (x=0.43,|y|=0.40,z=1.450,res=6.0mm,pad=52mm,tilt=94.0), (x=0.48,|y|=0.30,z=1.530,res=5.8mm,pad=128mm,tilt=100.4), (x=0.46,|y|=0.30,z=1.530,res=5.9mm,pad=131mm,tilt=106.2), (x=0.48,|y|=0.31,z=1.530,res=5.8mm,pad=128mm,tilt=99.3), (x=0.46,|y|=0.31,z=1.530,res=5.9mm,pad=130mm,tilt=105.2), (x=0.48,|y|=0.32,z=1.530,res=5.8mm,pad=127mm,tilt=98.2), (x=0.46,|y|=0.32,z=1.530,res=6.0mm,pad=129mm,tilt=104.1), (x=0.44,|y|=0.32,z=1.530,res=5.9mm,pad=131mm,tilt=109.3), (x=0.48,|y|=0.33,z=1.530,res=5.8mm,pad=127mm,tilt=96.9), (x=0.46,|y|=0.33,z=1.530,res=6.0mm,pad=129mm,tilt=103.0), (x=0.44,|y|=0.33,z=1.530,res=5.9mm,pad=131mm,tilt=108.2), (x=0.48,|y|=0.35,z=1.530,res=5.9mm,pad=126mm,tilt=94.2), (x=0.46,|y|=0.35,z=1.530,res=5.9mm,pad=127mm,tilt=100.4), (x=0.44,|y|=0.35,z=1.530,res=5.9mm,pad=129mm,tilt=105.8), (x=0.43,|y|=0.35,z=1.530,res=6.0mm,pad=130mm,tilt=108.3), (x=0.48,|y|=0.40,z=1.530,res=5.8mm,pad=123mm,tilt=86.1), (x=0.46,|y|=0.40,z=1.530,res=5.8mm,pad=125mm,tilt=92.5), (x=0.44,|y|=0.40,z=1.530,res=5.9mm,pad=127mm,tilt=98.7), (x=0.43,|y|=0.40,z=1.530,res=6.0mm,pad=128mm,tilt=101.4)
+[p123] R2 right: 42 inboard (|y| <= 0.40) passes: (x=0.48,|y|=0.30,z=1.450,res=6.0mm,pad=70mm,tilt=92.7), (x=0.46,|y|=0.30,z=1.450,res=6.0mm,pad=70mm,tilt=98.2), (x=0.44,|y|=0.30,z=1.450,res=5.9mm,pad=70mm,tilt=102.8), (x=0.43,|y|=0.30,z=1.450,res=6.0mm,pad=68mm,tilt=104.9), (x=0.48,|y|=0.31,z=1.450,res=6.0mm,pad=70mm,tilt=91.7), (x=0.46,|y|=0.31,z=1.450,res=5.9mm,pad=70mm,tilt=97.2), (x=0.44,|y|=0.31,z=1.450,res=5.9mm,pad=70mm,tilt=102.0), (x=0.43,|y|=0.31,z=1.450,res=6.0mm,pad=69mm,tilt=104.1), (x=0.48,|y|=0.32,z=1.450,res=5.8mm,pad=70mm,tilt=90.6), (x=0.46,|y|=0.32,z=1.450,res=5.9mm,pad=70mm,tilt=96.3), (x=0.44,|y|=0.32,z=1.450,res=6.0mm,pad=70mm,tilt=101.1), (x=0.43,|y|=0.32,z=1.450,res=6.0mm,pad=69mm,tilt=103.3), (x=0.48,|y|=0.33,z=1.450,res=5.8mm,pad=69mm,tilt=89.4), (x=0.46,|y|=0.33,z=1.450,res=5.9mm,pad=70mm,tilt=95.3), (x=0.44,|y|=0.33,z=1.450,res=6.0mm,pad=70mm,tilt=100.2), (x=0.43,|y|=0.33,z=1.450,res=6.0mm,pad=69mm,tilt=102.4), (x=0.48,|y|=0.35,z=1.450,res=5.7mm,pad=68mm,tilt=86.8), (x=0.46,|y|=0.35,z=1.450,res=5.8mm,pad=69mm,tilt=92.9), (x=0.44,|y|=0.35,z=1.450,res=5.9mm,pad=69mm,tilt=98.1), (x=0.43,|y|=0.35,z=1.450,res=6.0mm,pad=69mm,tilt=100.3), (x=0.48,|y|=0.40,z=1.450,res=5.7mm,pad=63mm,tilt=78.8), (x=0.46,|y|=0.40,z=1.450,res=6.0mm,pad=68mm,tilt=85.6), (x=0.44,|y|=0.40,z=1.450,res=5.9mm,pad=70mm,tilt=91.5), (x=0.43,|y|=0.40,z=1.450,res=6.0mm,pad=70mm,tilt=94.1), (x=0.48,|y|=0.30,z=1.530,res=6.0mm,pad=143mm,tilt=100.5), (x=0.46,|y|=0.30,z=1.530,res=5.9mm,pad=143mm,tilt=106.2), (x=0.48,|y|=0.31,z=1.530,res=5.8mm,pad=143mm,tilt=99.4), (x=0.46,|y|=0.31,z=1.530,res=5.9mm,pad=143mm,tilt=105.2), (x=0.48,|y|=0.32,z=1.530,res=5.8mm,pad=143mm,tilt=98.2), (x=0.46,|y|=0.32,z=1.530,res=5.9mm,pad=143mm,tilt=104.1), (x=0.44,|y|=0.32,z=1.530,res=5.9mm,pad=143mm,tilt=109.3), (x=0.48,|y|=0.33,z=1.530,res=5.8mm,pad=142mm,tilt=96.9), (x=0.46,|y|=0.33,z=1.530,res=5.9mm,pad=142mm,tilt=103.0), (x=0.44,|y|=0.33,z=1.530,res=5.9mm,pad=142mm,tilt=108.2), (x=0.48,|y|=0.35,z=1.530,res=6.0mm,pad=142mm,tilt=94.2), (x=0.46,|y|=0.35,z=1.530,res=5.9mm,pad=142mm,tilt=100.5), (x=0.44,|y|=0.35,z=1.530,res=5.9mm,pad=142mm,tilt=105.9), (x=0.43,|y|=0.35,z=1.530,res=5.9mm,pad=142mm,tilt=108.4), (x=0.48,|y|=0.40,z=1.530,res=5.8mm,pad=140mm,tilt=86.2), (x=0.46,|y|=0.40,z=1.530,res=5.8mm,pad=142mm,tilt=92.6), (x=0.44,|y|=0.40,z=1.530,res=5.9mm,pad=142mm,tilt=98.7), (x=0.43,|y|=0.40,z=1.530,res=5.9mm,pad=142mm,tilt=101.5)

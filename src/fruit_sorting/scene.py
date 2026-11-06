@@ -2194,7 +2194,7 @@ class SortingScene:
         say(f"belt surface z={self.belt.belt_top:.3f}")
 
     def _add_output_belts(self) -> None:
-        """Two raised output conveyors, one per side, carrying along +X.
+        """The raised output conveyors, one per output body, carrying along +X.
 
         They replace the old output bins: instead of the arm lowering a fruit
         into a chute beside itself, it lifts the fruit over the main line and
@@ -2204,15 +2204,25 @@ class SortingScene:
         placed fruit has somewhere to end up instead of the floor). The
         geometry and the clearances are in `SceneConfig`; the builder reports
         them (`OutputBelt.build`).
+
+        P123: the bodies come from `SceneConfig.output_lane_layout()` - the
+        shipped two, or three when `FRUIT_OUTPUT_LANES=3` (the third is inboard
+        on -Y with its own belt, chute and tray). Unset authors exactly the two
+        shipped bodies and prints the same two build lines.
         """
         from .conveyor import OutputBelt
 
         self.output_belts = []
-        for index, sign in ((0, 1.0), (1, -1.0)):
-            belt = OutputBelt(self.stage, self.cfg, index, sign)
+        lanes = self.cfg.output_lane_layout()
+        for lane in lanes:
+            belt = OutputBelt(self.stage, self.cfg, lane["index"], lane["sign"], lane)
             belt.build()
             self.output_belts.append(belt)
-        say("output conveyors added (2 x raised belts along +X)")
+        say(
+            f"output conveyors added ({len(lanes)} x raised belts along +X"
+            + (", the third inboard on -Y (P123)" if len(lanes) > 2 else "")
+            + ")"
+        )
 
     def _add_head_camera(self) -> None:
         cfg = self.cfg

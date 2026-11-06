@@ -1571,9 +1571,11 @@ class FruitSpawner:
             pos = self.position(sample)
             if self.cfg.on_output_tray(pos):
                 self.stats["discharged"] += 1
+                self._count_tray(pos)
                 say(
                     f"[belt] {sample.category} (index {sample.index}) discharged to the tray "
                     f"at x={float(pos[0]):.2f} (recycled by the feeder schedule)"
+                    + self._tray_tag(pos)
                 )
         if place:
             self.respawn(sample)
@@ -1581,6 +1583,28 @@ class FruitSpawner:
             self.active.append(sample)
         self.stats["released"] += 1
         return sample
+
+    def _tray_lane(self, pos) -> int | None:
+        """Which output tray this position is in, or None (P123, three lanes only).
+
+        The shipped two-tray scene keeps its exact vocabulary: `None` means "no
+        third lane", and neither the counter nor the print suffix exists, so a
+        two-body run's `[belt] ... discharged ...` rows and its `stats` dict are
+        byte-identical. With three bodies the tray is the *destination*
+        (`logs/p122/SPEC.md` R0), so the census has to name it.
+        """
+        if int(self.cfg.output_lanes) < 3:
+            return None
+        return self.cfg.output_tray_of(pos)
+
+    def _count_tray(self, pos) -> None:
+        lane = self._tray_lane(pos)
+        if lane is not None:
+            self.stats[f"discharged_tray{lane}"] = self.stats.get(f"discharged_tray{lane}", 0) + 1
+
+    def _tray_tag(self, pos) -> str:
+        lane = self._tray_lane(pos)
+        return "" if lane is None else f" [tray {lane}]"
 
     def _pick_recyclable(self, count: int) -> FruitSample | None:
         """Choose the next sample to recycle, preferring a parked one.
@@ -1768,9 +1792,11 @@ class FruitSpawner:
                     self._tray_dwell[sample.index] = dwell
                     if dwell >= tray_dwell_s:
                         self.stats["discharged"] += 1
+                        self._count_tray(pos)
                         say(
                             f"[belt] {sample.category} (index {sample.index}) discharged to the "
                             f"tray at x={float(pos[0]):.2f} (settled {dwell:.1f}s)"
+                            + self._tray_tag(pos)
                         )
                         self.park(sample)
                         self.active.remove(sample)

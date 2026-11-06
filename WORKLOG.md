@@ -25816,3 +25816,80 @@ ledger (report `release - target - mean`, classify against `target + mean`) turn
 P121's 2 % into ~0 %.
 
 No `src/`, `configs/` or reference change; no store re-baselined.
+
+## P123 - the third output destination is built, and its payloads land in its own tray
+
+Owner's item 2 (P122's "a third destination needs a third output body"). Default off
+(`FRUIT_OUTPUT_LANES=3`), nothing adopted, no `configs/` reference moved.
+
+**The free space, from the stage's own bounds** (`logs/p123/survey.txt`): the pedestal
+is `x -0.300..+0.100, y +-0.350, top 0.790`; the main belt `x 0.085..0.595, y +-0.864,
+z..1.215`; each output body `x 0.025..1.950`, its **slab** `x 0.100..1.200,
+|y| 0.425..0.675, z 1.300..1.350`, legs `x 0.0255..0.0755 / 1.100..1.150`, chute
+`x 1.196..1.388, |y| 0.418..0.682`, tray `x 1.350..1.950, |y| 0.380..0.720, floor
+0.900..0.920, rim 1.060`. At the output deck the free bands are **|y| 0.000..0.425
+(inboard, in reach)** and **|y| > 0.675 (outboard, outside P90's box)** - and of the
+inboard band only `|y| 0.28-0.40 at x >= 0.48` is both reachable and clear of the place
+transits.
+
+**The candidates, priced offline before any body** (`layout.py` -> `layout.txt`):
+**A** inboard on -Y with the slab **x-offset downstream** (0.480..1.200) - **passes**
+(place in the reach box; delivered 48/59 mm inside the 0.115 m slab = 7-8 sd; **no
+transit crosses it** because the payload, radius included, is at x 0.469 when it passes
+the band; 0 cm^2 of new camera occlusion, the body being downstream of the fruit's
+x band 0.148..0.413); **B** split the -Y belt in two - the reach passes at both places
+but the transits cross (**-9 mm** predicted direct-low `clr`) -> kill; **C** outboard -
+`NAT` 41-108 mm at |y| 0.65, bodies overlap -> kill. The x-offset is what makes an
+inboard body free: inboard bodies lose **0.30 mm/mm** of direct-low-lift clearance
+(P90 `COST.md`), 44 mm for this band.
+
+**The reach is measured** (`probe.txt`/`probe_rows.json`, P90's `NAT`, 160 cells,
+93/160 pass): the band passes at **x 0.43-0.48** (res 5.6-6.0 mm, pads +49..+56 left /
++63..+70 right over the new slab, margins 0.42-0.49 rad) and **x = 0.38 fails**
+(8.2-8.4 mm) - a hard inboard-x edge. The chosen cell `(0.48, -0.30)`: **6.0 mm /
++0.457 rad / +70.2 mm / 92.7 deg** at the place height, **6.0 / +143 / 100.5** at the
+transfer; the live startup solve reads **11.5 mm** against the descriptor's 25 mm bar
+(the shipped lanes' `verified` is 14.9 mm).
+
+**The build** is one table (`output_lane_layout`) feeding the builder, the scene, the
+belt/tray/discharge tests, the drop points and the manifest. With 3 lanes: belt
+`x 0.480..1.200, |y| 0.280..0.395`, top 1.350 (same plate/speed/friction/surface
+velocity/discharge), **its own chute (0.10 m) and its own tray (0.60 x 0.14 m,
+|y| 0.260..0.400)**, and the shipped -Y tray narrows 0.34 -> 0.20 m (50 mm of air); 30 mm
+to the -Y belt, 16 mm between chutes. `scene.output_lanes` names 2 or 3 bodies in the
+manifest. Destination 2 is a P114 descriptor entry (`reach: auto`) and the capability
+map keeps its physical meaning: `-y` -> the **right** arm (`left=[0] right=[1,2]`).
+
+**The cell** (20 attempts, the shipped two-line, both seeds, P92's four instruments):
+**seed 5 17 -> 11, seed 6 12 -> 14** (pooled **29/40 -> 25/40**, Fisher **p = 0.19**, the
+sign flipping) - so the count is a branch and nothing is claimed for it. The endpoints:
+**25/25 payload-present releases landed in their instructed destination** across the two
+treatment cells (`in_destination=25, mis_sorted=0`), and the **tray census agrees 25/25**
+- **7 payloads physically ended in tray 2** (dest 0 -> tray 0 x13, dest 1 -> tray 1 x5,
+dest 2 -> tray 2 x7). The new lane's two seed-5 failures are **not** at its place point:
+they are truncated at the **lift** by the P10-C monitor (`lift=+0.088/+0.077`,
+`clean_slip >= 8 mm`), the closed loaded-slide class, and the two attempts that reached
+the place leg both landed in tray 2.
+
+**A measured correction to the release offset**: `release - commanded` is
+**(+50..60, +-30) mm on the shipped lanes but (+20..30, -10..-20) mm on the new lane** -
+the offset is `0.070 x tool_axis` and the new pose's attitude differs (tilt 90 vs
+78 deg). The slab was sized on the shipped (larger) offset, so the delivered point still
+lands 20-30 mm inside its upstream edge - but that is **2.5-4 sd, not 8**; the one
+number a future form should widen (belt upstream end to x 0.46), on n = 2 releases here.
+
+**Guards**: 11/11 and 14/14 payload-present releases on a belt; the descent budgets PASS
+(20 legs each, not re-tuned); **arm-to-body clearance on every held place leg `clr` min
++76 / +69 mm, `clr_edge` min +75 / +70 mm** (controls +57 / +73) - the new body is never
+the binding surface; **no new failure-reason key**; the crush proxy fails its -15 mm
+letter **in both arms** (-20.4 vs -28.4 mm), which is the pads closing past the fruit
+after the payload left (P76 A1/A3, P100 A4: recorded, not re-read). **No-harm**: the
+acceptance with the knob unset is **8/10, `fingerprint: matches`, `190: PASS`** with its
+**421 `[fruit]` lines 421/421 byte-identical** to `logs/p121/accept_final.log`.
+`selfcheck.sh` PASS (the new `P123 output lanes` leg), `106` OK, `107` PASS.
+
+**Read rules**: a destination is a **tray** - quote the tray census and the ledger, never
+a target proximity; the place reach is the gate and it is **per-side**; an x-offset body
+is only free while the payload's downstream offset **plus its radius** stays upstream of
+the body's edge (quote both numbers); a 20-attempt two-line count is a branch, and this
+phase's two seeds read -6 and +2.

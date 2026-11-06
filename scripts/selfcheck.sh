@@ -615,6 +615,15 @@ run_check "P116 sort plan" bash -c \
 # `_begin_pick` dispatch, `_run_primitive`'s thread-local place target + ledger,
 # the 7+1 action, the reseed arm check and the manifest block.
 run_check "P121 direct env sort" "$python" scripts/263_p121_env_sort_selftest.py
+# P123: the third output body (FRUIT_OUTPUT_LANES=3, default off). The leg pins
+# the unset path (the two shipped lanes reproduce every shipped scalar, and the
+# generalised belt/tray/discharge tests equal the pre-P123 expressions on a
+# dense grid), the third lane's measured geometry and the invariants it rests on
+# (no interpenetration, its own tray, the delivered point 7 sd inside its slab,
+# the body upstream-clear of every transit and downstream of the fruit's band),
+# the tray census (`output_tray_of` names the tray and agrees with the boolean),
+# and the source shape (one layout reader, the builder and the scene on it).
+run_check "P123 output lanes" "$python" scripts/264_p123_output_lanes_selftest.py
 
 if [ -n "$run_log" ] && [ -f "$run_log" ]; then
     # P85: the log decides the scenario (and therefore the reference and the

@@ -5090,30 +5090,66 @@ class PickAndPlaceTask:
 
         The P2-3 check. The pads carry the payload, so the fruit's lowest point
         is what has to clear the line. The surfaces are the main belt top, the
-        raised output belt top, and the output belt's side rail top near the
-        edge - the rail is what the payload crosses when it moves from the
-        pick station to the output line.
+        raised output belts' tops, and an authored side rail's top near an edge -
+        the rail is what the payload crosses when it moves from the pick station
+        to the output line.
+
+        P123: the output surfaces come from `SceneConfig.output_lane_layout()`,
+        so a **third** body is charged against its own slab. The plan is
+        **signed and x-gated** - a lane only charges a sample that is over *its*
+        x span and on *its* side - which is what keeps the shipped numbers
+        identical (the two shipped lanes span x 0.10..1.20 and the payload is
+        always inside it) and what keeps the third lane honest: it starts at
+        x = 0.48, so a payload crossing its |y| band upstream of that (every
+        place transit does, `logs/p123/METHOD.md` section 3) is over the *main
+        belt*, not under the new slab.
         """
+        cfg = self.cfg
+        # the two offsets from a lane's inboard edge [m], named because P123
+        # walks the lane list: P72's charge begins 25 mm *inboard* of the edge
+        # (the removed inner rail's inner face, 0.400 for the 0.425 edge) and a
+        # kept rail's own window ends 35 mm *outboard* of it (its 25 mm box's
+        # outer face is flush with the edge).
+        early, rail_window = 0.025, 0.035
         lowest = float(fruit[2]) - self._shape_support(
             sample, np.array([0.0, 0.0, -1.0])
         )
-        y = abs(float(fruit[1]))
-        if y < 0.40:
-            surface, where = self.belt_top, "main belt"
-        else:
-            surface, where = float(self.cfg.output_belt_top_z), "output belt"
-            if y <= 0.46 and self.cfg.output_rail_keep[0]:
-                # P70: the rail top is the *authored* one - `rail_height` above a
-                # bottom that sits `OUTPUT_RAIL_INSET` inside the slab - so the
-                # report tracks `FRUIT_OUTPUT_RAIL_HEIGHT` (0.035 m proud at the
-                # shipped 0.05, 0 at a flush 0.015) and, with the inner rail
-                # dropped (`FRUIT_OUTPUT_RAILS=outer`/`none`), falls through to
-                # this line's belt top: the slab's inboard top edge is then the
-                # binding surface at the crossing. The old literal 0.035 was
-                # blind to both, which is why a removed rail reported the
-                # shipped +33..+55 instead of its true +68..+90 (P69
-                # `B_PREREG.md` §2.3 named this as the cell's precondition).
-                rail = float(self.cfg.output_belt_top_z) + float(self.cfg.output_rail_proud)
+        x = float(fruit[0])
+        y = float(fruit[1])
+        surface, where = self.belt_top, "main belt"
+        rail_keep = cfg.output_rail_keep
+        for lane in cfg.output_lane_layout():
+            _cx, cy, _cz = (float(v) for v in lane["belt_center"])
+            sx, sy, _sz = (float(v) for v in lane["belt_size"])
+            if not (x >= _cx - sx / 2.0 and x <= _cx + sx / 2.0):
+                continue
+            half = sy / 2.0
+            # the shipped charge begins 25 mm inboard of the inboard edge (the
+            # removed inner rail's face: 0.400 for the 0.425 edge), and runs all
+            # the way outboard.
+            if cy > 0.0:
+                over = y >= cy - half - early
+                on_rail = (
+                    cy - half - early
+                    <= y
+                    <= cy - half + rail_window
+                )
+                inner_rail = rail_keep[0]
+            else:
+                over = y <= cy + half + early
+                on_rail = (
+                    cy + half - rail_window
+                    <= y
+                    <= cy + half + early
+                )
+                inner_rail = rail_keep[0]
+            if not over:
+                continue
+            top = float(cfg.output_belt_top_z)
+            if top > surface:
+                surface, where = top, "output belt"
+            if on_rail and inner_rail:
+                rail = top + float(cfg.output_rail_proud)
                 if rail > surface:
                     surface, where = rail, "output rail"
         return lowest - surface, where
@@ -5138,13 +5174,13 @@ class PickAndPlaceTask:
         )
         return centre - 0.0125, centre
 
-    def _output_belt_edge_y(self) -> float:
-        """The output belt slab's **inboard edge**, in |y| [m] (`clr_edge`'s y).
+    def _output_belt_edge_y(self, sign: float = 1.0) -> float:
+        """The innermost output body's **inboard edge** on that side [m].
 
         P72. With the side rails removed (`FRUIT_OUTPUT_RAILS=none`, the P71
-        default) the obstacle a place transit can clip is the slab's inboard
-        top **corner**, and the only surface under the payload there is the
-        slab's top plane from this |y| outboard. The rail's former footprint is
+        default) the obstacle a place transit can clip is a slab's inboard top
+        **corner**, and the only surface under the payload there is that slab's
+        top plane from this |y| outboard. The rail's former footprint is
         ``inner face .. slab edge`` (0.400..0.425 shipped: the 25 mm box's outer
         face was flush with the slab), so a sample taken at the rail's inner
         face (``clr_win``'s ``rail_inner``, 0.400) is 25 mm **inboard of the
@@ -5152,17 +5188,24 @@ class PickAndPlaceTask:
         plane were there (P71 section 3.2's conservative leg, the -6 mm
         `clr_win` that placed with 0.4 mm slip). This threshold is where the
         surface actually begins; ``clearance`` itself is the same plane gap, so
-        the only difference from ``clr_win`` is *when* the leg is sampled.
+        the only difference from `clr_win` is *when* the leg is sampled.
 
-        Derived, not hardcoded: `conveyor.OutputBelt.build` authors the slab
-        centred on ``output_belt_y`` with half-width ``output_belt_size[1]/2``,
-        so its inboard edge is ``|output_belt_y| - size[1]/2`` (0.425 at the
-        shipped 0.55 / 0.25). Note ``_payload_clearance``'s own surface switch
-        is the literal 0.40 (the removed rail's inner face), i.e. the plane
-        reading **charges 25 mm early**; that is reported, not changed.
+        Derived, not hardcoded: `conveyor.OutputBelt.build` authors each slab
+        centred on its lane's y with half-width ``size[1]/2``, so an edge is
+        ``|centre y| - size[1]/2`` (0.425 for the shipped 0.55 / 0.25).
+
+        P123: per **side** and over the lane list, so a third inboard body on
+        -Y moves that side's first corner to 0.295 and leaves +Y at 0.425.
         """
         cfg = self.cfg
-        return abs(float(cfg.output_belt_y)) - float(cfg.output_belt_size[1]) / 2.0
+        edges = [
+            abs(float(lane["belt_center"][1])) - float(lane["belt_size"][1]) / 2.0
+            for lane in cfg.output_lane_layout()
+            if float(lane["sign"]) * float(sign) > 0.0
+        ]
+        return min(edges) if edges else (
+            abs(float(cfg.output_belt_y)) - float(cfg.output_belt_size[1]) / 2.0
+        )
 
     def _carry_attitude(self, side: str, sample, name: str) -> None:
         """One line of tool attitude and pad-fruit offset at a carry leg's end.
@@ -5980,7 +6023,10 @@ class PickAndPlaceTask:
             #: obstacle that remains once the rails are gone.
             if name.startswith("place"):
                 rail_inner, rail_centre = self._output_rail_y()
-                edge_y = self._output_belt_edge_y()
+                # P123: the arm's own side - the capability map keeps arm = side
+                # (`ARM_SIDE`), so a third body on that side moves its first
+                # corner and the other side's stays put.
+                edge_y = self._output_belt_edge_y(1.0 if side == "left" else -1.0)
             else:
                 rail_inner = rail_centre = edge_y = float("inf")
             clr_x = float("inf")

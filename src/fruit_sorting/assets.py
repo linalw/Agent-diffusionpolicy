@@ -26,6 +26,26 @@ def isaac_asset(rel_path: str) -> str:
 #: was therefore blind to `FRUIT_OUTPUT_RAIL_HEIGHT` and to a removed rail (P70).
 OUTPUT_RAIL_INSET: float = 0.015
 
+# --------------------------------------------------------------------------- #
+# P123: the third output body (`FRUIT_OUTPUT_LANES=3`, default off)
+#
+# A destination is a physical output body - a belt + chute + tray - and the
+# shipped cell has two (`logs/p122/SPEC.md` R0/R2). These are the measured
+# numbers of the third, chosen by `logs/p123/METHOD.md` section 3 and pinned by
+# `logs/p123/PREREG.md`; the comment on `SceneConfig.output_lanes` says why each
+# one is load-bearing. `FRUIT_OUTPUT_LANES` unset authors no body at all.
+# --------------------------------------------------------------------------- #
+#: |y| band of the third slab (the inboard side of the -Y belt, 30 mm of air).
+OUTPUT_LANE3_BELT_Y: tuple[float, float] = (0.280, 0.395)
+#: Its x range: upstream end 0.480 keeps every place transit upstream of the body.
+OUTPUT_LANE3_BELT_X: tuple[float, float] = (0.480, 1.200)
+#: The commanded release point (the delivered point is +48 mm x, -35 mm y of it).
+OUTPUT_LANE3_PLACE: tuple[float, float] = (0.480, -0.300)
+#: Its own tray's |y| band (0.14 m wide, 50 mm clear of the narrowed -Y tray).
+OUTPUT_LANE3_TRAY_Y: tuple[float, float] = (0.260, 0.400)
+#: The -Y tray's half width when the third lane takes 50 mm of its 0.34 m.
+OUTPUT_LANE1_TRAY_HALF_WITH_THIRD: float = 0.100
+
 
 # --------------------------------------------------------------------------- #
 # OpenArm bimanual: an open-source humanoid upper-body dual-arm platform with
@@ -459,6 +479,37 @@ class SceneConfig:
     main_frame_rail_offset: float = 0.012
     main_frame_rail_width: float = 0.025
 
+    #: **The third output body** (`FRUIT_OUTPUT_LANES=3`, default 2 = the shipped
+    #: scene, byte for byte, no body authored). P123: a destination is a
+    #: *physical* output body - a belt + chute + tray (`logs/p122/SPEC.md` R0) - so
+    #: a third destination is a scene build. The measured winner of
+    #: `logs/p123/METHOD.md` section 3 is a third line **inboard on -Y** with its
+    #: slab **x-offset downstream**, and both terms are load-bearing:
+    #:
+    #: * `|y| 0.280..0.395` is the inboard band P90's `NAT` (position-only) solve
+    #:   covers at x 0.43-0.48 - the reach box's inner half; the shipped slab's
+    #:   inner edge is 0.425, so the two belts leave 30 mm of air, and a pool fruit
+    #:   (29.6 mm at the smallest) cannot pass between them.
+    #: * `x 0.480..1.200` puts every place transit **upstream** of the new body:
+    #:   the payload (which hangs `+48 mm` downstream of the jaw, `logs/p122`) is
+    #:   at x 0.436 at the worst moment it crosses the lane's y band, 44 mm
+    #:   upstream of the belt's edge. So the third body is never a transit
+    #:   obstacle - neither for the scripted transfer (horizontal at the transfer
+    #:   height) nor for the direct low lift (which loses `0.30 mm` of clearance
+    #:   per mm inboard, P90 `COST.md` section 1, and would have paid 44 mm) - and
+    #:   it is also downstream of the supplied fruit's x band (0.148..0.413), so
+    #:   it adds no camera occlusion of the arrival (the P35/P36 lever).
+    #: * place `(0.480, -0.300)`: the delivered point is `+0.048 x / -0.035 y`
+    #:   from it, i.e. (0.528, -0.336), 56/59 mm inside the 0.115 m slab - 7 sd of
+    #:   the measured spread - and 48 mm downstream of the slab's upstream edge.
+    #: * its own **tray** (0.14 m wide, x 1.35..1.95, |y| 0.260..0.400) sits 50 mm
+    #:   from the shipped -Y tray, which therefore narrows from 0.34 to 0.20 m
+    #:   (centred) when the third lane is on. A third *target* on an existing belt
+    #:   is the same destination (`logs/p122/SPEC.md` R2); a third *tray* is one.
+    output_lanes: int = field(
+        default_factory=lambda: int(os.environ.get("FRUIT_OUTPUT_LANES", "2"))
+    )
+
     # Head camera (single RGB-D camera mounted on a short mast above the torso,
     # standing in for a humanoid head). It looks across and slightly upstream of
     # the belt, so incoming fruit and the station are both in frame.
@@ -524,6 +575,9 @@ class SceneConfig:
         # P30-A: fail at construction (every entry script builds a SceneConfig)
         # rather than deep in `OutputBelt.build`.
         _ = self.output_rail_keep
+        # P123: the third output body is a scene build; only 2 (shipped) or 3
+        # lanes exist, so a typo fails here instead of authoring a half scene.
+        _ = self.output_lane_layout()
         if self.size_filter == "small":
             keep = ("strawberry", "lychee", "kiwi", "tomato")
             self.fruit_dimensions = {
@@ -541,13 +595,92 @@ class SceneConfig:
     # ------------------------------------------------------------------ #
     # Output-line geometry (derived)
     # ------------------------------------------------------------------ #
+    def output_lane_layout(self) -> tuple[dict, ...]:
+        """Every output body as data: belt, place point, tray, chute, prim root.
+
+        One reader for the builders (`conveyor.OutputBelt`, `scene`), the tests
+        (`on_output_belt` / `on_output_discharge` / `on_output_tray`), the drop
+        points the arms read and the store manifest (`scene_provenance`), so a
+        lane cannot be half-added. With `output_lanes <= 2` the two entries are
+        the shipped scalars **exactly** (same centre, size, place point, tray,
+        leg x), which is what keeps the shipped scene, its prints, its `[fruit]`
+        stream and its manifests byte-identical.
+
+        The third entry (P123, `FRUIT_OUTPUT_LANES=3`) is
+        :data:`OUTPUT_LANE3_*`: inboard on -Y, x-offset downstream, own tray.
+        """
+        lanes: list[dict] = []
+        third = int(self.output_lanes) >= 3
+        if int(self.output_lanes) not in (2, 3):
+            raise ValueError(
+                f"FRUIT_OUTPUT_LANES={self.output_lanes!r}: expected 2 (shipped) or 3"
+            )
+        for index, sign in ((0, 1.0), (1, -1.0)):
+            half_width = float(self.output_tray_size[1]) / 2.0
+            if third and index == 1:
+                # the third lane's own tray needs the room: 0.34 -> 0.20 m wide
+                half_width = OUTPUT_LANE1_TRAY_HALF_WITH_THIRD
+            lanes.append(
+                {
+                    "index": index,
+                    "side": "+y" if sign > 0 else "-y",
+                    "sign": sign,
+                    "root": f"/World/OutputBelt{'P' if sign > 0 else 'N'}",
+                    "belt_center": (
+                        float(self.output_belt_center_x),
+                        sign * float(self.output_belt_y),
+                        float(self.output_belt_top_z) - float(self.output_belt_size[2]) / 2.0,
+                    ),
+                    "belt_size": tuple(float(v) for v in self.output_belt_size),
+                    "place": (
+                        float(self.output_place_x),
+                        sign * float(self.output_place_y),
+                    ),
+                    "tray_center": (
+                        float(self.output_tray_center_x),
+                        sign * float(self.output_belt_y),
+                    ),
+                    "tray_size": (float(self.output_tray_size[0]), 2.0 * half_width),
+                    "leg_xs": (
+                        float(self.output_belt_inner_leg_x),
+                        float(self.output_belt_outer_leg_x),
+                    ),
+                }
+            )
+        if third:
+            x0, x1 = (float(v) for v in OUTPUT_LANE3_BELT_X)
+            y0, y1 = (float(v) for v in OUTPUT_LANE3_BELT_Y)
+            ty0, ty1 = (float(v) for v in OUTPUT_LANE3_TRAY_Y)
+            sx, _sy, sz = (float(v) for v in self.output_belt_size)
+            lanes.append(
+                {
+                    "index": 2,
+                    "side": "-y",
+                    "sign": -1.0,
+                    "root": "/World/OutputBelt2",
+                    "belt_center": (
+                        (x0 + x1) / 2.0,
+                        -(y0 + y1) / 2.0,
+                        float(self.output_belt_top_z) - sz / 2.0,
+                    ),
+                    "belt_size": (x1 - x0, y1 - y0, sz),
+                    "place": (float(OUTPUT_LANE3_PLACE[0]), float(OUTPUT_LANE3_PLACE[1])),
+                    "tray_center": (
+                        float(self.output_tray_center_x),
+                        -(ty0 + ty1) / 2.0,
+                    ),
+                    "tray_size": (float(self.output_tray_size[0]), ty1 - ty0),
+                    # the -X leg clears the main belt's x-span (ends at 0.570):
+                    # the new slab starts at 0.480, so the leg moves with it.
+                    "leg_xs": (x0 + 0.020, float(self.output_belt_outer_leg_x)),
+                }
+            )
+        return tuple(lanes)
+
     @property
     def output_belt_drop_points(self) -> tuple[tuple[float, float], ...]:
-        """Release points (x, y) of the two output belts: 0 = +Y, 1 = -Y."""
-        return (
-            (float(self.output_place_x), float(self.output_place_y)),
-            (float(self.output_place_x), -float(self.output_place_y)),
-        )
+        """Release points (x, y) of the output bodies: 0 = +Y, 1 = -Y, [2 inboard]."""
+        return tuple(tuple(float(v) for v in lane["place"]) for lane in self.output_lane_layout())
 
     @property
     def output_place_z(self) -> float:
@@ -562,18 +695,24 @@ class SceneConfig:
             float(self.output_belt_center_x) + half,
         )
 
-    def on_output_belt(self, position, margin: float = 0.06) -> bool:
-        """Is `position` on (or within `margin` of) either output belt?"""
+    def output_lane_of(self, position, margin: float = 0.06) -> int | None:
+        """Which output belt `position` is on (or within `margin` of), else None."""
         x = float(position[0])
-        y = abs(float(position[1]))
         z = float(position[2])
-        x0, x1 = self.output_belt_x_range
-        half_width = float(self.output_belt_size[1]) / 2.0
-        return (
-            x0 - margin <= x <= x1 + margin
-            and abs(y - float(self.output_belt_y)) <= half_width + margin
-            and z >= float(self.output_belt_top_z) - margin
-        )
+        for lane in self.output_lane_layout():
+            _cx, cy, _cz = (float(v) for v in lane["belt_center"])
+            _sx, sy, _sz = (float(v) for v in lane["belt_size"])
+            if (
+                self.output_belt_x_range[0] - margin <= x <= self.output_belt_x_range[1] + margin
+                and abs(float(position[1]) - cy) <= sy / 2.0 + margin
+                and z >= float(self.output_belt_top_z) - margin
+            ):
+                return int(lane["index"])
+        return None
+
+    def on_output_belt(self, position, margin: float = 0.06) -> bool:
+        """Is `position` on (or within `margin` of) an output belt?"""
+        return self.output_lane_of(position, margin) is not None
 
     # ------------------------------------------------------------------ #
     # Output-line discharge (derived)
@@ -670,7 +809,7 @@ class SceneConfig:
         return (self.output_chute_top[0] + run, float(self.output_chute_end_z))
 
     def on_output_discharge(self, position, margin: float = 0.05) -> bool:
-        """Is `position` on either output belt's discharge chute or tray?
+        """Is `position` on an output belt's discharge chute or tray?
 
         Used to suppress the `fell_off` classification: a fruit sliding down the
         chute or resting in the tray is on the line's end hardware, not on the
@@ -678,30 +817,48 @@ class SceneConfig:
         hardware and lands on the floor still counts as fallen.
         """
         x = float(position[0])
-        y = float(abs(position[1]) - float(self.output_belt_y))
         z = float(position[2])
-        x1 = float(self.output_tray_center_x) + float(self.output_tray_size[0]) / 2.0 + margin
-        half_y = float(self.output_tray_size[1]) / 2.0 + margin
-        return (
-            self.output_belt_end_x - 0.05 <= x <= x1
-            and abs(y) <= half_y
-            and float(self.output_tray_floor_top_z) - margin <= z
-            <= float(self.output_belt_top_z) + 0.05
-        )
+        for lane in self.output_lane_layout():
+            _tx, ty = (float(v) for v in lane["tray_center"])
+            _sx2, sy2 = (float(v) for v in lane["tray_size"])
+            x1 = float(self.output_tray_center_x) + float(self.output_tray_size[0]) / 2.0 + margin
+            half_y = sy2 / 2.0 + margin
+            if (
+                self.output_belt_end_x - 0.05 <= x <= x1
+                and abs(float(position[1]) - ty) <= half_y
+                and float(self.output_tray_floor_top_z) - margin <= z
+                <= float(self.output_belt_top_z) + 0.05
+            ):
+                return True
+        return False
+
+    def output_tray_of(self, position, margin: float = 0.04) -> int | None:
+        """Which discharge tray `position` is inside (between hull and rim), else None.
+
+        P123's tray census: with three bodies there are three trays, and "which
+        tray did it end in" is the destination (`logs/p122/SPEC.md` R0). The
+        shipped two-tray answer is identical to `on_output_tray`'s boolean.
+        """
+        x = float(position[0])
+        z = float(position[2])
+        wall = float(self.output_tray_wall_thickness)
+        rim = float(self.output_tray_floor_top_z) + float(self.output_tray_wall_height)
+        for lane in self.output_lane_layout():
+            _tx, ty = (float(v) for v in lane["tray_center"])
+            _sx2, sy2 = (float(v) for v in lane["tray_size"])
+            half_x = float(self.output_tray_size[0]) / 2.0 - wall
+            half_y = sy2 / 2.0 - wall
+            if (
+                abs(x - float(self.output_tray_center_x)) <= half_x + margin
+                and abs(float(position[1]) - ty) <= half_y + margin
+                and float(self.output_tray_floor_top_z) - margin <= z <= rim + margin
+            ):
+                return int(lane["index"])
+        return None
 
     def on_output_tray(self, position, margin: float = 0.04) -> bool:
-        """Is `position` inside either discharge tray (between hull and rim)?"""
-        x = float(position[0])
-        y = float(abs(position[1]) - float(self.output_belt_y))
-        z = float(position[2])
-        half_x = float(self.output_tray_size[0]) / 2.0 - float(self.output_tray_wall_thickness)
-        half_y = float(self.output_tray_size[1]) / 2.0 - float(self.output_tray_wall_thickness)
-        rim = float(self.output_tray_floor_top_z) + float(self.output_tray_wall_height)
-        return (
-            abs(x - float(self.output_tray_center_x)) <= half_x + margin
-            and abs(y) <= half_y + margin
-            and float(self.output_tray_floor_top_z) - margin <= z <= rim + margin
-        )
+        """Is `position` inside an output belt's discharge tray (hull to rim)?"""
+        return self.output_tray_of(position, margin) is not None
 
     #: Largest object the OpenArm 1-DoF parallel gripper can straddle. Measured
     #: at the pick pose (scripts/36_static_grasp.py): the link origins are
@@ -758,6 +915,10 @@ def scene_provenance(
       payload lands on and the **corner** it crosses: `inboard_edge_y =
       |y| - size[1]/2` (0.425 shipped) is the P72 `clr_edge` threshold. The
       belt height is a `FRUIT_OUTPUT_BELT_TOP_Z` knob (P70/P71 keeps 1.35).
+    * `output_lanes` - **every** output body (P123): belt centre/size, place
+      point, tray centre/size and prim root, one entry per lane. Two entries are
+      the shipped scene; `FRUIT_OUTPUT_LANES=3` adds the inboard -Y body and
+      narrows the -Y tray, and that store's collider set is a different scene.
     * `lift` - the **direct** rung, `{dz: {arm: m}, defaulted: bool}` the
       `[grasp] lift_dz:` row's own resolution, or `None` on a path that has no
       lift rung (every scripted collector shard: the knob is `SortingRLEnv`-
@@ -780,6 +941,23 @@ def scene_provenance(
             "size": size,
             "inboard_edge_y": abs(float(cfg.output_belt_y)) - size[1] / 2.0,
         },
+        #: P123: every output **body** (belt + chute + tray), so a store names
+        #: the collider set it was recorded in - a third lane moves the solver
+        #: ordering exactly as the rails did (P71). Two entries = the shipped
+        #: scene; a manifest without the key predates P123.
+        "output_lanes": [
+            {
+                "index": int(lane["index"]),
+                "side": str(lane["side"]),
+                "root": str(lane["root"]),
+                "belt_center": [float(v) for v in lane["belt_center"]],
+                "belt_size": [float(v) for v in lane["belt_size"]],
+                "place": [float(v) for v in lane["place"]],
+                "tray_center": [float(v) for v in lane["tray_center"]],
+                "tray_size": [float(v) for v in lane["tray_size"]],
+            }
+            for lane in cfg.output_lane_layout()
+        ],
         "lift": None,
     }
     if lift_dz is not None:

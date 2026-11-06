@@ -519,20 +519,41 @@ class OutputBelt:
     end-of-line destination.
     """
 
-    def __init__(self, stage: Usd.Stage, cfg: SceneConfig, index: int, sign: float):
+    def __init__(self, stage: Usd.Stage, cfg: SceneConfig, index: int, sign: float,
+                 lane: dict | None = None):
         self.stage = stage
         self.cfg = cfg
         self.index = int(index)
-        #: +1 = the +Y belt (left arm), -1 = the -Y belt (right arm).
+        #: +1 = a +Y belt (left arm), -1 = a -Y belt (right arm). Two bodies can
+        #: share a sign since P123 (the third lane is inboard on -Y).
         self.sign = float(sign)
-        self.root = f"/World/OutputBelt{'P' if self.sign > 0 else 'N'}"
+        #: P123: the lane's own geometry (`SceneConfig.output_lane_layout`). None
+        #: keeps the shipped expression below, byte for byte; the scene builder
+        #: always passes the layout, whose two shipped entries resolve to exactly
+        #: these numbers.
+        self.lane = lane
+        if lane is None:
+            self.root = f"/World/OutputBelt{'P' if self.sign > 0 else 'N'}"
+            cx, _, sz = (cfg.output_belt_center_x, 0.0, cfg.output_belt_size[2])
+            self.center = (
+                float(cx),
+                self.sign * float(cfg.output_belt_y),
+                float(cfg.output_belt_top_z) - float(sz) / 2.0,
+            )
+            self.size = tuple(float(v) for v in cfg.output_belt_size)
+            self.tray_center = (
+                float(cfg.output_tray_center_x), self.sign * float(cfg.output_belt_y)
+            )
+            self.tray_size = tuple(float(v) for v in cfg.output_tray_size)
+            self.leg_xs = (float(cfg.output_belt_inner_leg_x), float(cfg.output_belt_outer_leg_x))
+        else:
+            self.root = str(lane["root"])
+            self.center = tuple(float(v) for v in lane["belt_center"])
+            self.size = tuple(float(v) for v in lane["belt_size"])
+            self.tray_center = tuple(float(v) for v in lane["tray_center"])
+            self.tray_size = tuple(float(v) for v in lane["tray_size"])
+            self.leg_xs = tuple(float(v) for v in lane["leg_xs"])
         self.belt_path = f"{self.root}/Belt"
-        cx, _, sz = (cfg.output_belt_center_x, 0.0, cfg.output_belt_size[2])
-        self.center = (
-            float(cx),
-            self.sign * float(cfg.output_belt_y),
-            float(cfg.output_belt_top_z) - float(sz) / 2.0,
-        )
         self.speed = float(cfg.output_belt_speed)
 
     # ------------------------------------------------------------------ #
@@ -544,12 +565,14 @@ class OutputBelt:
         the surface velocity is interpreted in the scaled local frame, so the
         value has to be divided by the axis scale (here the X length).
         """
-        scale = float(self.cfg.output_belt_size[0]) or 1.0
+        # P123: the lane's own x length (the shipped lanes resolve to the config's).
+        scale = float(self.size[0]) or 1.0
         return float(speed) / scale
 
     def build(self) -> None:
         cfg = self.cfg
-        sx, sy, sz = cfg.output_belt_size
+        # P123: the lane's own size (the shipped lanes resolve to the config's).
+        sx, sy, sz = self.size
         bx, by, bz = self.center
 
         belt = _define_box(self.stage, self.belt_path, size=(sx, sy, sz), center=(bx, by, bz))
@@ -621,7 +644,7 @@ class OutputBelt:
         # belt so the discharge chute, which starts at the belt's end face, has it
         # clear. The audit line below prints the true face clearances.
         leg_half = float(cfg.output_belt_leg_size) / 2.0
-        leg_xs = (float(cfg.output_belt_inner_leg_x), float(cfg.output_belt_outer_leg_x))
+        leg_xs = self.leg_xs
         leg_ys = (by - (sy / 2.0 - 0.03), by + (sy / 2.0 - 0.03))
         leg_height = float(cfg.output_belt_top_z) - float(sz)
         for i, leg_x in enumerate(leg_xs):
@@ -686,7 +709,7 @@ class OutputBelt:
             f"{tallest_stem * 1000:.0f} mm stem bound by "
             f"{(cfg.output_belt_top_z - sz) - (main_top + tallest + tallest_stem):.3f} m; "
             f"inner edge clears the pedestal by "
-            f"{(cfg.output_belt_y - sy / 2.0) - pedal_y:.3f} m; "
+            f"{(abs(by) - sy / 2.0) - pedal_y:.3f} m; "
             f"legs: -X pair x=[{inner_x - leg_half:.4f},{inner_x + leg_half:.4f}] clear the main "
             f"belt frame rail's outer face (x={rail_outer_face:.4f}) by "
             f"{rail_outer_face - (inner_x + leg_half):+.4f} m and the slab edge "
@@ -713,7 +736,10 @@ class OutputBelt:
         angle = math.radians(float(cfg.output_chute_angle_deg))
         angle_deg = float(np.degrees(angle))
         thickness = 0.006
-        width = float(cfg.output_belt_size[1]) - 0.01
+        # P123: the chute matches its own belt's width (the shipped lanes resolve
+        # to `output_belt_size[1]`), so a third, narrower lane's sheet and lips
+        # stay inside its own band instead of reaching into its neighbour's.
+        width = float(self.size[1]) - 0.01
         length = math.hypot(x1 - x0, z0 - z1)
         # The slab is centred so that its *top surface* runs through the two edge
         # points (`centre = surface midpoint - normal * thickness/2`): the sheet
@@ -772,14 +798,17 @@ class OutputBelt:
             UsdPhysics.CollisionAPI.Apply(lip.GetPrim())
 
         # Tray: open shallow box on a stand, under the chute's discharge.
-        tx = float(cfg.output_tray_center_x)
-        tray_sx, tray_sy = (float(v) for v in cfg.output_tray_size)
+        # P123: the lane's own tray centre/size (`output_lane_layout`) - the
+        # third lane's tray is what makes it a *destination* rather than a
+        # second target on an existing body (`logs/p122/SPEC.md` R0).
+        tx, tray_y = (float(v) for v in self.tray_center)
+        tray_sx, tray_sy = (float(v) for v in self.tray_size)
         wall = float(cfg.output_tray_wall_thickness)
         floor_top = float(cfg.output_tray_floor_top_z)
         wall_h = float(cfg.output_tray_wall_height)
         floor = _define_box(
             self.stage, f"{self.root}/TrayFloor",
-            size=(tray_sx, tray_sy, 0.02), center=(tx, by, floor_top - 0.01),
+            size=(tray_sx, tray_sy, 0.02), center=(tx, tray_y, floor_top - 0.01),
         )
         _set_color(floor, (0.30, 0.32, 0.35))
         UsdPhysics.CollisionAPI.Apply(floor.GetPrim())
@@ -792,13 +821,13 @@ class OutputBelt:
                     self.stage,
                     f"{self.root}/TrayEnd{'P' if side_sign > 0 else 'N'}",
                     size=(wall, tray_sy, wall_h),
-                    center=(tx + side_sign * (tray_sx / 2.0 - wall / 2.0), by, floor_top + wall_h / 2.0),
+                    center=(tx + side_sign * (tray_sx / 2.0 - wall / 2.0), tray_y, floor_top + wall_h / 2.0),
                 ),
                 _define_box(
                     self.stage,
                     f"{self.root}/TraySide{'P' if side_sign > 0 else 'N'}",
                     size=(tray_sx, wall, wall_h),
-                    center=(tx, by + side_sign * (tray_sy / 2.0 - wall / 2.0), floor_top + wall_h / 2.0),
+                    center=(tx, tray_y + side_sign * (tray_sy / 2.0 - wall / 2.0), floor_top + wall_h / 2.0),
                 ),
             )
             for part in walls:
@@ -813,7 +842,7 @@ class OutputBelt:
         stand = _define_box(
             self.stage, f"{self.root}/TrayStand",
             size=(tray_sx - 0.14, tray_sy - 0.08, float(cfg.output_tray_stand_height)),
-            center=(tx, by, float(cfg.output_tray_stand_height) / 2.0),
+            center=(tx, tray_y, float(cfg.output_tray_stand_height) / 2.0),
         )
         _set_color(stand, (0.33, 0.34, 0.36))
         UsdPhysics.CollisionAPI.Apply(stand.GetPrim())

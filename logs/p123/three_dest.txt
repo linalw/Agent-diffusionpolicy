@@ -1,0 +1,14 @@
+# P123: three destinations, one of them a real third output body.
+# Destination 0 = the +Y belt (left arm), destination 1 = the -Y belt (right
+# arm) - the shipped routing - and destination 2 = the THIRD body, inboard on
+# -Y (FRUIT_OUTPUT_LANES=3), also served by the right arm because the
+# capability map is the physical side rule (left = +Y, right = -Y).
+#
+# The split is a size class inside grade B, so every destination gets traffic
+# on the shipped 8 A / 5 B / 3 C pool: A -> 0, small B -> the new lane, large
+# B -> the shipped -Y belt, C -> skip (the shipped pure routing never selects
+# it). `size` is millimetres in the instruction grammar.
+grade=A => 0
+grade=B and size<66 => 2
+grade=B => 1
+grade=C => skip

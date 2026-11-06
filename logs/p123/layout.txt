@@ -1,0 +1,123 @@
+== P123 layout: the shipped cell's numbers the candidates are built on ==
+   main belt   x 0.110..0.570 y -0.800..+0.800  top 1.170
+   pedestal    x -0.300..0.100 y -0.350..+0.350  top 0.790
+   output slab |y| 0.425..0.675  x 0.10..1.20  top 1.350 underside 1.300
+   place       (0.430, +-0.500)  z 1.450  transfer 1.530
+   chute       x 1.200..1.361  z 1.344->1.120, y ±0.132 around the belt centre
+   tray        x 1.35..1.95  |y| 0.38..0.72  floor 0.92
+   P90 `NAT` <= 6 mm cells (|y|, x): [(0.48, 0.35), (0.43, 0.4), (0.48, 0.4), (0.43, 0.45), (0.38, 0.5), (0.43, 0.5), (0.38, 0.55)]
+   release offset: +y (0.048, 0.008, 0.035, 0.006)  -y (0.048, 0.006, 0.036, 0.008)  (mean x, sd x, mean |y|, sd |y|)
+   measured shipped crossing clr: {'scripted': 35.0, 'direct-low': 32.0}
+
+==============================================================================
+== candidate A  third belt inboard on -Y, x-offset downstream
+   1. the place point (P90's `NAT` gate minus its `T0` tilt clause:
+      res <= 6 mm, margin >= 0.05 rad, pad >= 2 mm, tilt 60-110 deg)
+      lane 0 (+y) place (+0.43,+0.50): P90 map <= 6 mm
+      lane 1 (-y) place (+0.43,-0.50): P90 map <= 6 mm
+      lane 2 (-y) place (+0.48,-0.31): outside the 50 mm grid (nearest (0.48, 0.35) at 40 mm) -> the probe measures it
+        (pre-check only - the exact cell is solved by logs/p123/probe.py)
+   2. the release: delivered = place + the measured offset, vs the slab
+      lane 0: (+0.43,+0.50) -> (+0.478,+0.535)  margins x[+378,+722] |y|[+110,+140] mm, need 3 sd [24/18] -> ON (tightest 18.3 sd)
+      lane 1: (+0.43,-0.50) -> (+0.478,-0.536)  margins x[+378,+722] |y|[+111,+139] mm, need 3 sd [18/24] -> ON (tightest 13.9 sd)
+      lane 2: (+0.48,-0.31) -> (+0.528,-0.346)  margins x[+48,+672] |y|[+56,+59] mm, need 3 sd [18/24] -> ON (tightest 7.0 sd)
+   3. the crossing: each transit against every *other* lane's inboard
+      edge, as a delta from the shipped crossing (d clr = d z)
+      lane 0 transit vs lane 1 (|y|=0.425) CROSSES at x=+0.463: scripted +0 mm -> clr +35 mm; direct-low +0 mm -> clr +32 mm
+      lane 0 transit vs lane 2 (|y|=0.290, x 0.48..1.20): NO CROSSING - the payload is at x=+0.436 (radius included) there, upstream of the body
+      lane 1 transit vs lane 0 (|y|=0.425) CROSSES at x=+0.367: scripted +0 mm -> clr +35 mm; direct-low +0 mm -> clr +32 mm
+      lane 1 transit vs lane 2 (|y|=0.290, x 0.48..1.20): NO CROSSING - the payload is at x=+0.340 (radius included) there, upstream of the body
+      lane 2 transit vs lane 0 (|y|=0.425): no crossing - the leg ends inboard
+      lane 2 transit vs lane 1 (|y|=0.425): no crossing - the leg ends inboard
+   4. the bodies: AABB air between distinct lanes, the pedestal and
+      the main belt (negative = interpenetration)
+      lane 0/1 belts: +850 mm air; trays: +850 mm; chutes: +836 mm
+      lane 0/2 belts: +715 mm air; trays: +650 mm; chutes: +701 mm
+      lane 0 belt vs pedestal: clear; vs main belt: over it (underside 1.300 over top 1.170 = +130 mm)
+      lane 1/2 belts: +20 mm air; trays: +60 mm; chutes: +6 mm
+      lane 1 belt vs pedestal: clear; vs main belt: over it (underside 1.300 over top 1.170 = +130 mm)
+      lane 2 belt vs pedestal: clear; vs main belt: over it (underside 1.300 over top 1.170 = +130 mm)
+   5. the camera: does the new body cover the fruit's arrival footprint
+      (x 0.15..0.41, y -0.20..+0.68)
+      *outside* the shipped slabs' own footprint?
+      lane 2 belt footprint ∩ the band: no (outside it); new occlusion area 0 cm^2 (none)
+        projects to u 684..850 px, v 49..331 px, depth 0.64..0.90 m
+      pick stations: left (u 501, v 283, depth 0.86 m), right (u 539, v 310, depth 0.83 m)
+   -> PASS: no gate failed
+
+==============================================================================
+== candidate B  split the -Y belt into two (full x)
+   1. the place point (P90's `NAT` gate minus its `T0` tilt clause:
+      res <= 6 mm, margin >= 0.05 rad, pad >= 2 mm, tilt 60-110 deg)
+      lane 0 (+y) place (+0.43,+0.50): P90 map <= 6 mm
+      lane 1 (-y) place (+0.48,-0.35): P90 map <= 6 mm
+      lane 2 (-y) place (+0.38,-0.55): P90 map <= 6 mm
+   2. the release: delivered = place + the measured offset, vs the slab
+      lane 0: (+0.43,+0.50) -> (+0.478,+0.535)  margins x[+378,+722] |y|[+110,+140] mm, need 3 sd [24/18] -> ON (tightest 18.3 sd)
+      lane 1: (+0.48,-0.35) -> (+0.528,-0.386)  margins x[+428,+672] |y|[+46,+64] mm, need 3 sd [18/24] -> ON (tightest 5.7 sd)
+      lane 2: (+0.38,-0.55) -> (+0.428,-0.586)  margins x[+328,+772] |y|[+46,+64] mm, need 3 sd [18/24] -> ON (tightest 5.8 sd)
+   3. the crossing: each transit against every *other* lane's inboard
+      edge, as a delta from the shipped crossing (d clr = d z)
+      lane 0 transit vs lane 1 (|y|=0.340) CROSSES at x=+0.446: scripted +0 mm -> clr +35 mm; direct-low -30 mm -> clr +2 mm
+      lane 0 transit vs lane 2 (|y|=0.540): no crossing - the leg ends inboard
+      lane 1 transit vs lane 0 (|y|=0.425): no crossing - the leg ends inboard
+      lane 1 transit vs lane 2 (|y|=0.540): no crossing - the leg ends inboard
+      lane 2 transit vs lane 0 (|y|=0.425) CROSSES at x=+0.322: scripted +0 mm -> clr +35 mm; direct-low -13 mm -> clr +19 mm
+      lane 2 transit vs lane 1 (|y|=0.340) CROSSES at x=+0.315: scripted +0 mm -> clr +35 mm; direct-low -41 mm -> clr -9 mm
+   4. the bodies: AABB air between distinct lanes, the pedestal and
+      the main belt (negative = interpenetration)
+      lane 0/1 belts: +765 mm air; trays: +710 mm; chutes: +741 mm
+      lane 0/2 belts: +965 mm air; trays: +910 mm; chutes: +941 mm
+      lane 0 belt vs pedestal: clear; vs main belt: over it (underside 1.300 over top 1.170 = +130 mm)
+      lane 1/2 belts: +90 mm air; trays: +70 mm; chutes: +56 mm
+      lane 1 belt vs pedestal: clear; vs main belt: over it (underside 1.300 over top 1.170 = +130 mm)
+      lane 2 belt vs pedestal: clear; vs main belt: over it (underside 1.300 over top 1.170 = +130 mm)
+   5. the camera: does the new body cover the fruit's arrival footprint
+      (x 0.15..0.41, y -0.20..+0.68)
+      *outside* the shipped slabs' own footprint?
+      lane 2 belt footprint ∩ the band: no (outside it); new occlusion area 0 cm^2 (none)
+        projects to u 744..965 px, v 100..701 px, depth 0.47..0.85 m
+      pick stations: left (u 501, v 283, depth 0.86 m), right (u 539, v 310, depth 0.83 m)
+   -> KILL: lane 2's transit crosses lane 0 (-13 mm of clr); lane 2's transit crosses lane 1 (-41 mm of clr)
+
+==============================================================================
+== candidate C  third belt outboard (|y| ~0.70)
+   1. the place point (P90's `NAT` gate minus its `T0` tilt clause:
+      res <= 6 mm, margin >= 0.05 rad, pad >= 2 mm, tilt 60-110 deg)
+      lane 0 (+y) place (+0.43,+0.50): P90 map <= 6 mm
+      lane 1 (-y) place (+0.43,-0.50): P90 map <= 6 mm
+      lane 2 (-y) place (+0.43,-0.68): outside the 50 mm grid (nearest (0.38, 0.55) at 139 mm) -> the probe measures it
+        (pre-check only - the exact cell is solved by logs/p123/probe.py)
+   2. the release: delivered = place + the measured offset, vs the slab
+      lane 0: (+0.43,+0.50) -> (+0.478,+0.535)  margins x[+378,+722] |y|[+110,+140] mm, need 3 sd [24/18] -> ON (tightest 18.3 sd)
+      lane 1: (+0.43,-0.50) -> (+0.478,-0.536)  margins x[+378,+722] |y|[+111,+139] mm, need 3 sd [18/24] -> ON (tightest 13.9 sd)
+      lane 2: (+0.43,-0.68) -> (+0.478,-0.716)  margins x[+378,+722] |y|[+81,+49] mm, need 3 sd [18/24] -> ON (tightest 10.1 sd)
+   3. the crossing: each transit against every *other* lane's inboard
+      edge, as a delta from the shipped crossing (d clr = d z)
+      lane 0 transit vs lane 1 (|y|=0.425) CROSSES at x=+0.463: scripted +0 mm -> clr +35 mm; direct-low +0 mm -> clr +32 mm
+      lane 0 transit vs lane 2 (|y|=0.635): no crossing - the leg ends inboard
+      lane 1 transit vs lane 0 (|y|=0.425) CROSSES at x=+0.367: scripted +0 mm -> clr +35 mm; direct-low +0 mm -> clr +32 mm
+      lane 1 transit vs lane 2 (|y|=0.635): no crossing - the leg ends inboard
+      lane 2 transit vs lane 0 (|y|=0.425) CROSSES at x=+0.346: scripted +0 mm -> clr +35 mm; direct-low -38 mm -> clr -6 mm
+      lane 2 transit vs lane 1 (|y|=0.425) CROSSES at x=+0.346: scripted +0 mm -> clr +35 mm; direct-low -38 mm -> clr -6 mm
+   4. the bodies: AABB air between distinct lanes, the pedestal and
+      the main belt (negative = interpenetration)
+      lane 0/1 belts: +850 mm air; trays: +760 mm; chutes: +836 mm
+      lane 0/2 belts: +1060 mm air; trays: +980 mm; chutes: +1021 mm
+      lane 0 belt vs pedestal: clear; vs main belt: over it (underside 1.300 over top 1.170 = +130 mm)
+      lane 1/2 belts: -40 mm air; trays: -120 mm; chutes: -79 mm
+      lane 1 belt vs pedestal: clear; vs main belt: over it (underside 1.300 over top 1.170 = +130 mm)
+      lane 2 belt vs pedestal: clear; vs main belt: over it (underside 1.300 over top 1.170 = +130 mm)
+   5. the camera: does the new body cover the fruit's arrival footprint
+      (x 0.15..0.41, y -0.20..+0.68)
+      *outside* the shipped slabs' own footprint?
+      lane 2 belt footprint ∩ the band: no (outside it); new occlusion area 0 cm^2 (none)
+        projects to u 813..1024 px, v 122..783 px, depth 0.44..0.82 m
+      pick stations: left (u 501, v 283, depth 0.86 m), right (u 539, v 310, depth 0.83 m)
+   -> KILL: lane 2's transit crosses lane 0 (-38 mm of clr); lane 2's transit crosses lane 1 (-38 mm of clr); lane 1 belt overlaps lane 2; lane 1 tray overlaps lane 2
+
+==============================================================================
+== verdict (the exact place solve is measured by logs/p123/probe.py)
+   PASS  A  third belt inboard on -Y, x-offset downstream
+   KILL  B  split the -Y belt into two (full x)
+   KILL  C  third belt outboard (|y| ~0.70)

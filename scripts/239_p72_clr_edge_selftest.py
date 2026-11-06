@@ -182,9 +182,12 @@ def main() -> int:
         "rail_inner = rail_centre = edge_y = float(\"inf\")" in tasks_src,
         "off a place leg the threshold is +inf, so a grasp_lift leg prints n/a",
     )
+    # P123 re-pin: the edge is per **side** now (a third inboard body on -Y moves
+    # that side's first corner and leaves +Y alone), so the call names the arm's
+    # side; the meaning - a derived slab edge, never a literal - is unchanged.
     check(
-        "edge_y = self._output_belt_edge_y()" in tasks_src,
-        "the threshold is the derived slab edge, not a literal",
+        'edge_y = self._output_belt_edge_y(1.0 if side == "left" else -1.0)' in tasks_src,
+        "the threshold is the derived slab edge (per side since P123), not a literal",
     )
 
     # ------------------------------------------------------------------ #
@@ -218,8 +221,13 @@ def main() -> int:
     seg = ast.get_source_segment(tasks_src, next(
         n for n in ast.walk(ast.parse(tasks_src))
         if isinstance(n, ast.FunctionDef) and n.name == "_payload_clearance"))
-    check("if y < 0.40:" in seg,
-          "_payload_clearance switches surfaces at the literal 0.40 (the rail's inner face)")
+    # P123 re-pin: the surface plan now walks the lane list (a third body needs
+    # its own plane), so the literal `if y < 0.40` became the signed lane test;
+    # what P72 measured is that the charge begins 25 mm **inboard** of the slab
+    # (the rail's inner face), and that is what the `- 0.025` term is.
+    check("0.025" in seg and "output_lane_layout" in seg,
+          "_payload_clearance charges from 25 mm inboard of each lane's edge "
+          "(the rail's inner face), over the lane list")
     check(close(0.40 - edge, -0.025),
           "so the plane reading begins 25 mm INBOARD of the slab: it charges a void")
     check("float(cfg.output_belt_size[1]) / 2.0" in tasks_src,

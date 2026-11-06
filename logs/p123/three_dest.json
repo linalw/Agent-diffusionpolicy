@@ -1,0 +1,70 @@
+{
+  "schema": "fruit-sorting-scenario/1",
+  "name": "p123_three_dest",
+  "notes": "P123: the shipped two-line cell with a real THIRD output body (a third belt + chute + tray, inboard on -Y, built by FRUIT_OUTPUT_LANES=3), expressed as data. Everything except destination 2 is configs/scenarios/shipped_twoline.json verbatim, so the two shipped lanes keep their own targets and the new lane is the only new object. Destination 2 is reach:auto: the startup solve (tasks._calibrate_sort_destinations, the place leg's own position-only IK seeded from grasp_lift) either converges and the arm may serve it, or the run is refused - P114's rule, not a hand-verified number.",
+  "stations": {
+    "left": 0.0,
+    "right": -0.1
+  },
+  "pick": {
+    "x": 0.34,
+    "y": 0.0
+  },
+  "belt": {
+    "speed_m_s": 0.12
+  },
+  "place": {
+    "x": 0.43,
+    "y": 0.5
+  },
+  "destinations": [
+    {
+      "id": 0,
+      "name": "lane0_plus_y",
+      "side": "+y",
+      "kind": "belt",
+      "target": [0.43, 0.5],
+      "reach": {
+        "status": "verified",
+        "residual_mm": 14.9,
+        "source": "logs/p90/station_rows.json (NAT, transfer z=1.530, left, x=0.43 y=+0.50: res 14.9 mm; the live place leg's own res_end is 13-34 mm)"
+      }
+    },
+    {
+      "id": 1,
+      "name": "lane1_minus_y",
+      "side": "-y",
+      "kind": "belt",
+      "target": [0.43, -0.5],
+      "reach": {
+        "status": "verified",
+        "residual_mm": 14.9,
+        "source": "logs/p90/station_rows.json (right arm mirrors the left)"
+      }
+    },
+    {
+      "id": 2,
+      "name": "lane2_minus_y_inboard",
+      "side": "-y",
+      "kind": "belt",
+      "target": [0.48, -0.3],
+      "reach": {
+        "status": "auto",
+        "source": "P123: the third body (FRUIT_OUTPUT_LANES=3) - inboard on -Y, x 0.48..1.20, own tray |y| 0.260..0.400; the startup solve is the gate (logs/p123/probe_rows.json measured the cell)"
+      }
+    }
+  ],
+  "supply": {
+    "x_min": 0.2,
+    "x_max": 0.36,
+    "grades": {
+      "A": 0.375,
+      "B": 0.375,
+      "C": 0.25
+    },
+    "schedule": "wave"
+  },
+  "calibration": {
+    "place_tolerance_mm": 25.0
+  }
+}

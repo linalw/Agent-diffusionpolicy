@@ -217,7 +217,8 @@ for path in sorted(SRC.rglob("*.py")):
     Visitor().visit(tree)
 expected = {
     "assets.py:SceneConfig.output_place_z",
-    "assets.py:SceneConfig.on_output_belt",
+    # P123: `on_output_belt` now delegates to `output_lane_of` (the belt test is
+    # the lane table's), so the read moved there with it - one site, not two.
     "assets.py:SceneConfig.output_chute_top",
     "assets.py:SceneConfig.output_chute_bottom",
     "assets.py:SceneConfig.on_output_discharge",
@@ -225,6 +226,12 @@ expected = {
     # inboard edge) so a pre/post-P71 store is identifiable by its own metadata;
     # a read, not a consumer - it moves no pose and no collider.
     "assets.py:scene_provenance",
+    # P123: the lane table is now the single source of every output body's
+    # geometry, so the slab's top z is read there (and by the belt test built on
+    # it) instead of at two hardcoded lanes. Derivations, not consumers: they
+    # move no pose and author nothing the shipped scene did not have.
+    "assets.py:SceneConfig.output_lane_layout",
+    "assets.py:SceneConfig.output_lane_of",
     "conveyor.py:OutputBelt.__init__",
     "conveyor.py:OutputBelt.build",
     "tasks.py:PickAndPlaceTask._grasp_carry_place_impl",
