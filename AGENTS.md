@@ -6369,7 +6369,8 @@ sign flips, so quote the tray census and the ledger, never the count). Pins: `as
 `50fd799d`), `scripts/264_p123_output_lanes_selftest.py` **`8c400cc2`**,
 `scripts/selfcheck.sh` **`8bdca9f1`** (the new leg), `238` **`4f40d093`** / `239`
 **`9af1d6b5`** (re-pins),
-`logs/p123/PREREG.md` **`07ae3c90`**, `layout.py` **`6268881b`**, `probe.py`
+`logs/p123/METHOD.md` **`35188439`**, `logs/p123/PREREG.md` **`07ae3c90`**,
+`layout.py` **`6268881b`**, `probe.py`
 **`3ae023d8`**, `three_dest.json` **`763968cc`**, `three_dest.txt` **`510719a8`**,
 `p123_report.py` **`683e7a06`**; references **`30fb99f8` / `30fb99f8` / `8952c320`**
 untouched; ckpt `moe_v13s` `61da390a`. Evidence `logs/p123/`.

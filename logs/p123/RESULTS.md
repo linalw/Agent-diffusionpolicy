@@ -200,6 +200,16 @@ precedent - recorded, not re-read, and not attributable to this phase.
 * The two-lane scene manifests carry 2 lanes; `FRUIT_OUTPUT_LANES` unset authors no
   body, no new print, no new `stats` key and no `[tray N]` suffix.
 
+**Attribution, stated as reasoning and not as a measurement**: the treatment differs
+from its control in two ways - the **scene** (a third kinematic body, chute and tray,
+and a narrower -Y tray) and the **instruction** (destination 2 plus the size split). The
+instruction does not touch the lift (it selects the same per-arm set the shipped
+grade-pure rule does - A for the left, B for the right - and only chooses which +Y-free
+target the place leg is sent to), while a collider set is known to move the solver
+ordering (P30-A/P71). **Not run**: a 3-lane/no-instruction cell would have separated the
+two; the two seeds' sign flip already says the count is a branch, so the phase spent its
+runs on the endpoints instead.
+
 **Recorded deviation** (PREREG §3, second bullet): the clause "C5 replays
 `logs/p92/C5.log`" is not achievable - that record is 31 phases old and predates
 P100's park profile, P102's tactile and P115's `rule=` field, so the *stream* cannot be
@@ -233,5 +243,5 @@ the 3-lane `on_output_belt`/`on_output_tray` too).
 `scene.py` (the lane loop), `tasks.py` (`_payload_clearance` walks the lanes signed and
 x-gated; `_output_belt_edge_y` per side), `fruits.py` (the tray census, 3-lane only).
 `scripts/`: `264_p123_output_lanes_selftest.py` (new leg), `selfcheck.sh`, the re-pins
-in `238`/`239`. `configs/` untouched (`motion_reference.json` =
+in `238`/`239`; `rl_env.py`'s `TASKS_MD5` follows `tasks.py` (metadata only). `configs/` untouched (`motion_reference.json` =
 `..._twoline.json` = `30fb99f8`, `..._single.json` = `8952c320`).
