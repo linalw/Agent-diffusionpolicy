@@ -25667,3 +25667,36 @@ release-offset compensation (the delivered-x tail = the 25 % acquisition class,
 opt-in per-pool tables) and `docs/END_EFFECTOR_DECISION.md`'s hardware
 sanctions. Pins unchanged; references `30fb99f8` / `30fb99f8` / `8952c320`
 untouched.
+
+## P120 (2026-11-06) - the 60 N jaw on the shipped two-line: +10 points that do not replicate, so 10 N stays
+
+The owner opened the hardware ("可以动场景和硬件啊 只是不改那些基本要求"), so the
+one hardware lever with a *success* prior was tested on the shipped cell: the
+**clamp force**. P77 read the direct line's left 11/21 -> 17/20 at 60 N
+(p = 0.043); the scripted two-line had never been measured.
+
+**Four-seed screen** (5/6/101/202, 20 attempts each, same-seed controls):
+**66/80 = 82.5 % against 58/80 = 72.5 % (+10.0 pts, Fisher p = 0.1846, 3/4
+seeds)**, escapes **22 -> 12 legs**, interval **11.34 -> 10.63 s** (-6.3 %), the
+`[drive]` readback 60.00 N - and the class not deleted (one landing miss at seed
+101, `roll=-15 / skid=-215 mm`).
+
+**Replication** (pre-registered `logs/p120/PREREG.md` md5 `b9b7ec5c`, pinned
+before those cells finished; explicitly a replication, not a blind test): **303
+14/20 against 16/20 (-2), 404 17/20 against 16/20 (+1)** = **31/40 against
+32/40, p = 1.0**; the pooled **six-seed 97/120 = 80.8 % against 90/120 = 75.0 %,
+p = 0.3505**; the escapes stop moving the right way at 303 (6 against 3).
+
+**Verdict: a measured draw - the +10 points was one branch draw**, the same
+shape P93's four-seed rule exists to catch and the same shape the scoped 60 N
+arms already had (P78 p = 0.50, P79 p = 0.16). **Owner decision: keep the shipped
+10 N.** No src/config/reference change; no store re-baselined.
+
+Recorded for any future revisit: the release/landing block would need its own
+cell (the seed-101 off-belt release), the crush guard is unreadable in these
+cells (`sep@loss=n/a` when the payload never leaves; the precedent is P76's
+60 N strawberry at `sep@loss - dia = +0.5 mm`), and this sim has no bruise model
+at all - a clean 60 N sim is geometry and retention only.
+
+The remaining success levers are not force and not scene: P50's delivered-x
+compensation (the 25 % acquisition class) and the policy/interface lane.
