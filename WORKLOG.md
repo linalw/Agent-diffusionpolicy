@@ -25893,3 +25893,38 @@ a target proximity; the place reach is the gate and it is **per-side**; an x-off
 is only free while the payload's downstream offset **plus its radius** stays upstream of
 the body's edge (quote both numbers); a 20-attempt two-line count is a branch, and this
 phase's two seeds read -6 and +2.
+
+## P124 (2026-11-07) - adopting the third lane: the scripted line takes it, the policy interface does not - measured, reverted
+
+The owner said "要", so the flip was executed: default `FRUIT_OUTPUT_LANES=3`,
+the P114/P123 tests moved, both motion references re-recorded from the
+three-lane scene, and the acceptance plus the policy canary run.
+
+| cell | scene | result |
+|---|---|---|
+| `accept.sh` (two-line) | 3 lanes | **7/10**, `190: PASS` after re-recording; a repeat is bit-identical |
+| `accept.sh` (single arm) | 3 lanes | 6/10 (the standing rate-only branch) |
+| **hybrid canary** | **3 lanes** | **4/10**, sample 1 |
+| **hybrid canary** | **3 lanes** | **4/10**, sample 2 |
+| hybrid canary | 2 lanes (control) | **8/10 PASS** |
+
+The canary's failures are the **pick-station** grip class (5-6 grip losses, one
+"fruit left the pick station during the close", the P41 class) - upstream of the
+new lane. The mechanism is the **input**: the new body is in the head camera's
+view (x 0.48-1.20, |y| 0.28-0.40; the camera looks at (0.34, 0.22, 1.10)) and it
+changes the collider set - P36's image channel and P71's collider-ordering
+shift. A scene change is an input change for a policy trained on the old scene.
+
+**Verdict: not shipped.** The default is back at 2, the references restored to
+`30fb99f8` / `30fb99f8` / `8952c320`, and the restore's acceptance is **8/10 +
+`fingerprint: matches` + `190: PASS` with 421/421 `[fruit]` lines byte-identical**
+to `logs/p123/accept_final.log`. `FRUIT_OUTPUT_LANES=3` stays **opt-in**; the
+flip's precondition is a **policy recollection on the three-lane scene** and the
+same canary at or above the 2-lane control.
+
+**Read rule**: a scene flip is not proved by the scripted acceptance alone - the
+**canary is the second leg**, and it binds here; two samples of a
+non-reproducible loop are the minimum, and they were taken.
+
+Evidence: `logs/p124/` (the three-lane acceptance and references, the canaries,
+the restore).

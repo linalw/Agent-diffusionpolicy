@@ -33,7 +33,8 @@ OUTPUT_RAIL_INSET: float = 0.015
 # shipped cell has two (`logs/p122/SPEC.md` R0/R2). These are the measured
 # numbers of the third, chosen by `logs/p123/METHOD.md` section 3 and pinned by
 # `logs/p123/PREREG.md`; the comment on `SceneConfig.output_lanes` says why each
-# one is load-bearing. `FRUIT_OUTPUT_LANES` unset authors no body at all.
+# one is load-bearing. `FRUIT_OUTPUT_LANES` unset authors no body at all; P124
+# measured the flip and it **breaks the policy interface**, so 3 stays opt-in.
 # --------------------------------------------------------------------------- #
 #: |y| band of the third slab (the inboard side of the -Y belt, 30 mm of air).
 OUTPUT_LANE3_BELT_Y: tuple[float, float] = (0.280, 0.395)
@@ -479,8 +480,8 @@ class SceneConfig:
     main_frame_rail_offset: float = 0.012
     main_frame_rail_width: float = 0.025
 
-    #: **The third output body** (`FRUIT_OUTPUT_LANES=3`, default 2 = the shipped
-    #: scene, byte for byte, no body authored). P123: a destination is a
+    #: **The third output body** (`FRUIT_OUTPUT_LANES=3`; default 2 = the shipped
+    #: scene, byte for byte, no body authored - P124 kept it off). P123: a destination is a
     #: *physical* output body - a belt + chute + tray (`logs/p122/SPEC.md` R0) - so
     #: a third destination is a scene build. The measured winner of
     #: `logs/p123/METHOD.md` section 3 is a third line **inboard on -Y** with its

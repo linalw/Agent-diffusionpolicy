@@ -6375,6 +6375,29 @@ sign flips, so quote the tray census and the ledger, never the count). Pins: `as
 `p123_report.py` **`683e7a06`**; references **`30fb99f8` / `30fb99f8` / `8952c320`**
 untouched; ckpt `moe_v13s` `61da390a`. Evidence `logs/p123/`.
 
+**P124 (2026-11-07, `logs/p124/`; the owner asked to adopt the third lane, it was
+**measured and reverted** - the default stays **2**, the third lane is opt-in,
+and the references are restored to **`30fb99f8` / `30fb99f8` / `8952c320`**): the
+**scripted** line takes the flip - the three-lane acceptance reads **7/10 = 70 %**
+(bit-identical on a repeat), `190: PASS` after re-recording both references, the
+single arm 6/10 (its standing rate-only branch) - but the **hybrid policy canary
+collapses from 8/10 on two lanes to 4/10 twice on three**. The canary's failures
+are the **pick-station** grip class (5 and 6 grip losses, one "fruit left the
+pick station during the close", the P41 class), i.e. *upstream* of the new lane;
+the mechanism is that the new body is in the **head camera's view** and changes
+the stage's collider set - a scene change is an **input** change for a policy
+trained on the old scene (P36's image channel, P71's collider-ordering shift).
+A default that halves the interface of record cannot ship: the revert's
+acceptance is **8/10 + `fingerprint: matches` + `190: PASS` with its 421
+`[fruit]` lines 421/421 byte-identical** to `logs/p123/accept_final.log`.
+**`FRUIT_OUTPUT_LANES=3` stays opt-in**, and the precondition for the flip is a
+**policy recollection on the three-lane scene** (collect with `=3`, fine-tune,
+then the same canary must read at or above the 2-lane control). **Read rule: a
+scene flip is not proved by the scripted acceptance alone - the canary is the
+second leg and it is the one that binds here; two samples of the
+non-reproducible loop are the minimum, and they were taken.** Evidence
+`logs/p124/`.
+
 ## 3. What changed -> what to run
 
 | you changed | run |
