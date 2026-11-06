@@ -1,0 +1,1098 @@
+diff --git a/scripts/selfcheck.sh b/scripts/selfcheck.sh
+index f64d66b..7e54bc3 100755
+--- a/scripts/selfcheck.sh
++++ b/scripts/selfcheck.sh
+@@ -607,6 +607,14 @@ run_check "P115 instruction and" "$python" scripts/261_p115_instruction_selftest
+ # The precise form (`species=apple and grade!=A`) must report no overlap.
+ run_check "P116 sort plan" bash -c \
+     "'$python' scripts/262_sort_plan.py --instruction configs/instructions/owner_a_left_apples_right.txt | grep -q 'OVERLAP: 1 pair' && '$python' scripts/262_sort_plan.py --instruction configs/instructions/owner_precise.txt | grep -q 'OVERLAP: none' && '$python' scripts/262_sort_plan.py --instruction configs/instructions/owner_a_left_apples_right.txt --strict-overlap > /dev/null; test \$? -eq 1"
++# P118: the drop-out pocket station (`FRUIT_PICK_STATION=pocket`, default off).
++# The leg pins the unset path first (the scene adds no body, the task reads no
++# extra state) and then the build's shape: the split belt's per-segment surface
++# values, the kinematic belt-like shutter on a Y prismatic joint (0.148 m of
++# travel, a bounded trapezoid - the time is motion, not a teleport), the
++# trapdoor floor, the task's drop/pick/recovery sequencing, and the single-arm
++# refusal.
++run_check "P118 pocket station" "$python" scripts/263_p118_pocket_selftest.py
+ 
+ if [ -n "$run_log" ] && [ -f "$run_log" ]; then
+     # P85: the log decides the scenario (and therefore the reference and the
+diff --git a/src/fruit_sorting/assets.py b/src/fruit_sorting/assets.py
+index dafd39f..7027a97 100644
+--- a/src/fruit_sorting/assets.py
++++ b/src/fruit_sorting/assets.py
+@@ -385,6 +385,20 @@ class SceneConfig:
+     output_rails: str = field(
+         default_factory=lambda: os.environ.get("FRUIT_OUTPUT_RAILS", "none").strip().lower()
+     )
++    #: The pick station's form (P118). ``belt`` - **the shipped default** - the
++    #: continuous transport belt with the moving catch / indexed primitive.
++    #: ``pocket`` - a drop-out section: the belt is split into two segments with
++    #: a 0.148 m gap at ``pick_y``, a belt-like shutter fills the gap, and a
++    #: 0.100 m-deep pocket under it holds the fruit stationary for a static
++    #: pick. The scene adds **no body** at ``belt`` (the pocket's own geometry
++    #: and actuators are authored only when this reads ``pocket``), so the
++    #: shipped scene is byte-identical. ``FRUIT_PICK_STATION`` is validated at
++    #: build time (an unknown value raises instead of silently shipping the
++    #: belt). Single-arm only in P118: the two-line scheduler and its stations
++    #: are a follow-up, and `tasks.py` refuses the combination.
++    pick_station: str = field(
++        default_factory=lambda: os.environ.get("FRUIT_PICK_STATION", "belt").strip().lower()
++    )
+     #: Output-belt side-rail height above the rail box's bottom [m]. The box's
+     #: bottom sits 15 mm inside the slab, so the shipped 0.05 stands 35 mm proud
+     #: of the belt top. ``FRUIT_OUTPUT_RAIL_HEIGHT`` lowers the containment
+@@ -602,6 +616,21 @@ class SceneConfig:
+             )
+         return modes[mode]
+ 
++    @property
++    def pick_station_kind(self) -> str:
++        """The resolved pick station: ``belt`` (shipped) or ``pocket`` (P118).
++
++        Raises on an unknown value so a typo in ``FRUIT_PICK_STATION`` fails the
++        build instead of silently authoring the belt.
++        """
++        mode = str(self.pick_station).strip().lower()
++        if mode not in ("belt", "pocket"):
++            raise ValueError(
++                f"FRUIT_PICK_STATION={self.pick_station!r}: expected one of "
++                "['belt', 'pocket']"
++            )
++        return mode
++
+     @property
+     def output_rail_proud(self) -> float:
+         """Height of an authored rail's top above the belt surface [m].
+@@ -769,6 +798,7 @@ def scene_provenance(
+     keep = tuple(bool(v) for v in cfg.output_rail_keep)
+     size = [float(v) for v in cfg.output_belt_size]
+     block = {
++        "pick_station": str(cfg.pick_station_kind),
+         "output_rails": str(cfg.output_rails),
+         "rail_keep": {"inner": keep[0], "outer": keep[1]},
+         "rail_height": float(cfg.output_rail_height),
+diff --git a/src/fruit_sorting/conveyor.py b/src/fruit_sorting/conveyor.py
+index 5e8526b..4003f32 100644
+--- a/src/fruit_sorting/conveyor.py
++++ b/src/fruit_sorting/conveyor.py
+@@ -74,6 +74,363 @@ _CONTAINMENT_FENCE_X = (0.13, 0.43)
+ _CONTAINMENT_FENCE_END_MARGIN = 0.020
+ 
+ 
++# --------------------------------------------------------------------------- #
++# P118 - the drop-out pocket station (FRUIT_PICK_STATION=pocket, default off)
++# --------------------------------------------------------------------------- #
++#: The station gap along the belt [m]. P117 measured it: the shutter must fill a
++#: gap wide enough for the stream to pass over it closed and for a fruit to drop
++#: through it open (the fixture's 0.148 m).
++POCKET_GAP = 0.148
++#: The pocket's depth below the belt top [m]. Forced by the shutter's own
++#: thickness (0.020) plus the pool's thickest fruit (0.0696) = 0.0896 -> 0.100
++#: (`logs/p117/RESULTS.md` section 3, lesson 3).
++POCKET_DROP = 0.100
++#: The shutter plate's thickness [m]. Its top is authored flush with the belt top
++#: (`belt_top - thickness/2`); a 20 mm-low plate stopped the stream dead in P117.
++SHUTTER_THICK = 0.020
++#: The shutter's prismatic travel [m]: the gap length, from the closed slot to a
++#: park under the downstream belt (P117 teleported it 2.4 m; the build does not).
++SHUTTER_TRAVEL = POCKET_GAP
++#: The actuator's profile limits. The measured open/close time is the motion's,
++#: and the joint's own limits clamp it (gate 2, `logs/p118/PREREG.md`).
++SHUTTER_VMAX = float(os.environ.get("FRUIT_POCKET_SHUTTER_VMAX", "1.5"))
++SHUTTER_AMAX = float(os.environ.get("FRUIT_POCKET_SHUTTER_AMAX", "12.0"))
++#: The trapdoor floor's slide (the recovery actuator) and its bin depth [m].
++TRAP_TRAVEL = 0.220
++TRAP_VMAX = float(os.environ.get("FRUIT_POCKET_TRAP_VMAX", "0.8"))
++TRAP_AMAX = float(os.environ.get("FRUIT_POCKET_TRAP_AMAX", "6.0"))
++BIN_DEPTH = 0.160
++
++
++class PocketStation:
++    """The drop-out pocket under the pick station: shutter + trapdoor floor.
++
++    Authored only when ``SceneConfig.pick_station_kind == "pocket"``; the
++    continuous belt's build path is untouched at the shipped default, so the
++    scene adds no body when the knob is unset (`assets.scene_provenance` names
++    the resolved station).
++
++    **The shutter is kinematic and belt-like**, on a `UsdPhysics.PrismaticJoint`
++    to a fixed anchor (axis Y, limits ``[-0.148, 0]``, a position target). A
++    static plate drags a fruit to a stop in ``v^2/(2 mu g)`` = 0.6 mm (P117), so
++    the surface velocity is not optional; and a kinematic body does not contact
++    the (kinematic) belt slab, which is what lets the plate park **under the
++    downstream belt** without cutting a slot in it. The joint's position target
++    is integrated as a bounded trapezoid (``v_max`` 1.5 m/s, ``a_max`` 12 m/s^2)
++    into the body pose each control tick: the open/close **time is produced by
++    the travel**, and the joint's limits clamp it - the fixture's teleport is
++    gone.
++
++    **The floor is the recovery actuator**: a second prismatic joint (same form,
++    0.220 m along -Y) slides the floor out from under an un-picked occupant,
++    which falls ``BIN_DEPTH`` into a recycle bin below. The bin is shallower than
++    the spawner's ``fell_off`` line (0.25 m below the belt centre), so a dumped
++    fruit is not counted as a line loss; the task parks it explicitly
++    (`[pocket] dump`).
++
++    Both servos are idempotent per physics tick: `step()` stamps
++    `SimulationManager.get_simulation_time()` and advances by the *measured*
++    delta, so a tick that calls it twice (the wait loop's `enforce_transport` and
++    `_step_sim`) moves the actuator once.
++    """
++
++    def __init__(self, stage: Usd.Stage, cfg: SceneConfig):
++        self.stage = stage
++        self.cfg = cfg
++        bx, by, bz = (float(v) for v in cfg.belt_center)
++        sx, sy, sz = (float(v) for v in cfg.belt_size)
++        self.bx = bx
++        self.belt_top = bz + sz / 2.0
++        self.floor_top = self.belt_top - POCKET_DROP
++        self.mouth_y = float(cfg.pick_y)
++        self.width = sx
++        self.gap = POCKET_GAP
++        self.shutter_closed_z = self.belt_top - SHUTTER_THICK / 2.0
++        self.shutter_path = "/World/Conveyor/PocketShutter"
++        self.trapdoor_path = "/World/Conveyor/PocketTrapdoor"
++        self._shutter_target = 0.0
++        self._shutter_pos = 0.0
++        self._shutter_vel = 0.0
++        self._trap_target = 0.0
++        self._trap_pos = 0.0
++        self._trap_vel = 0.0
++        self._last_t: float | None = None
++        self._shutter_prim = None
++        self._trap_prim = None
++        #: Measurement accumulators (pure reporting): the last completed motion's
++        #: tick count, and the peak speed the profile produced.
++        self.metrics = {
++            "open_ticks": 0,
++            "close_ticks": 0,
++            "open_time_s": float("nan"),
++            "close_time_s": float("nan"),
++            "open_peak_v": 0.0,
++            "close_peak_v": 0.0,
++            "trap_ticks": 0,
++            "trap_time_s": float("nan"),
++        }
++
++    # ------------------------------------------------------------------ #
++    def build(self) -> None:
++        """Author the pocket, the two actuators and the bin (pocket mode only)."""
++        cfg = self.cfg
++        bx, by, bz = (float(v) for v in cfg.belt_center)
++        sx, sy, sz = (float(v) for v in cfg.belt_size)
++        belt_top = self.belt_top
++        floor_top = self.floor_top
++        gap = self.gap
++        say(
++            f"[pocket] station=pocket belt split at pick_y={self.mouth_y:+.4f} "
++            f"gap={gap * 1000:.1f}mm floor_z={floor_top:.4f} (belt_top-{POCKET_DROP * 1000:.0f}mm) "
++            f"belt x=[{bx - sx / 2:.3f},{bx + sx / 2:.3f}]"
++        )
++
++        # ---- the shutter: flush, belt-like, prismatic along -Y ------------ #
++        shutter = _define_box(
++            self.stage, self.shutter_path,
++            size=(sx, gap, SHUTTER_THICK),
++            center=(bx, self.mouth_y, self.shutter_closed_z),
++        )
++        _set_color(shutter, (0.20, 0.55, 0.75))
++        UsdPhysics.CollisionAPI.Apply(shutter.GetPrim())
++        _add_physics_material(shutter.GetPrim(), cfg.belt_friction, cfg.belt_friction, 0.0)
++        body = UsdPhysics.RigidBodyAPI.Apply(shutter.GetPrim())
++        body.CreateKinematicEnabledAttr().Set(True)
++        UsdPhysics.MassAPI.Apply(shutter.GetPrim()).CreateMassAttr().Set(20.0)
++        sv = PhysxSchema.PhysxSurfaceVelocityAPI.Apply(shutter.GetPrim())
++        sv.CreateSurfaceVelocityAttr().Set(
++            Gf.Vec3f(0.0, float(cfg.belt_speed) / max(gap, 1e-6), 0.0)
++        )
++        self._joint("PocketShutterSlide", self.shutter_path, -SHUTTER_TRAVEL,
++                    (bx, self.mouth_y, self.shutter_closed_z))
++
++        # ---- the trapdoor floor + the bin --------------------------------- #
++        floor = _define_box(
++            self.stage, self.trapdoor_path,
++            size=(sx, gap, 0.030),
++            center=(bx, self.mouth_y, floor_top - 0.015),
++        )
++        _set_color(floor, (0.35, 0.42, 0.35))
++        UsdPhysics.CollisionAPI.Apply(floor.GetPrim())
++        _add_physics_material(floor.GetPrim(), 0.6, 0.6, 0.0)
++        fbody = UsdPhysics.RigidBodyAPI.Apply(floor.GetPrim())
++        fbody.CreateKinematicEnabledAttr().Set(True)
++        UsdPhysics.MassAPI.Apply(floor.GetPrim()).CreateMassAttr().Set(10.0)
++        self._joint("PocketTrapSlide", self.trapdoor_path, -TRAP_TRAVEL,
++                    (bx, self.mouth_y, floor_top - 0.015))
++
++        # The pocket's x walls sit just outside the belt edges, so the open hand
++        # (98 mm jaw span) clears them at the delivered band's extremes: the
++        # hand's outer edge at x = 0.188 - 0.049 = 0.139, the wall's inner face
++        # at bx - sx/2 - 0.002 = 0.108.
++        wall_x = sx / 2.0 + 0.008
++        for sign in (-1.0, 1.0):
++            wall = _define_box(
++                self.stage,
++                f"/World/Conveyor/PocketWall{'P' if sign > 0 else 'N'}",
++                size=(0.012, gap, POCKET_DROP + 0.020),
++                center=(bx + sign * wall_x, self.mouth_y,
++                        floor_top + (POCKET_DROP + 0.020) / 2.0),
++            )
++            _set_color(wall, (0.55, 0.60, 0.55))
++            UsdPhysics.CollisionAPI.Apply(wall.GetPrim())
++            _add_physics_material(wall.GetPrim(), 0.6, 0.6, 0.0)
++
++        # The recycle bin: a shallow tray under the pocket floor, deep enough
++        # that a dumped fruit rests above the spawner's `fell_off` line
++        # (belt_center - 0.25); the task recycles it explicitly.
++        bin_top = floor_top - BIN_DEPTH
++        bin_floor = _define_box(
++            self.stage, "/World/Conveyor/PocketBinFloor",
++            size=(sx, 0.34, 0.020), center=(bx, self.mouth_y + 0.02, bin_top - 0.010),
++        )
++        _set_color(bin_floor, (0.30, 0.32, 0.35))
++        UsdPhysics.CollisionAPI.Apply(bin_floor.GetPrim())
++        _add_physics_material(bin_floor.GetPrim(), 0.5, 0.5, 0.0)
++        wall_h = 0.090
++        for dy, tag in ((-0.17, "N"), (0.17, "P")):
++            w = _define_box(
++                self.stage, f"/World/Conveyor/PocketBinWall{tag}",
++                size=(sx, 0.012, wall_h),
++                center=(bx, self.mouth_y + 0.02 + dy, bin_top + wall_h / 2.0),
++            )
++            _set_color(w, (0.40, 0.42, 0.45))
++            UsdPhysics.CollisionAPI.Apply(w.GetPrim())
++            _add_physics_material(w.GetPrim(), 0.5, 0.5, 0.0)
++        for dx, tag in ((-sx / 2 + 0.006, "N"), (sx / 2 - 0.006, "P")):
++            w = _define_box(
++                self.stage, f"/World/Conveyor/PocketBinSide{tag}",
++                size=(0.012, 0.34, wall_h),
++                center=(bx + dx, self.mouth_y + 0.02, bin_top + wall_h / 2.0),
++            )
++            _set_color(w, (0.40, 0.42, 0.45))
++            UsdPhysics.CollisionAPI.Apply(w.GetPrim())
++            _add_physics_material(w.GetPrim(), 0.5, 0.5, 0.0)
++
++        say(
++            f"[pocket] shutter {sx:.3f}x{gap:.3f}x{SHUTTER_THICK:.3f} m top={belt_top:.4f} "
++            f"(flush), prismatic axis Y travel {SHUTTER_TRAVEL:.3f} m -> park y="
++            f"{self.mouth_y - SHUTTER_TRAVEL:+.4f} under the downstream belt; kinematic "
++            f"belt-like surface {cfg.belt_speed:.3f} m/s; servo v_max={SHUTTER_VMAX:.1f} "
++            f"a_max={SHUTTER_AMAX:.1f}"
++        )
++        say(
++            f"[pocket] floor=trapdoor {sx:.3f}x{gap:.3f}x0.030 slides {TRAP_TRAVEL:.3f} m along -Y "
++            f"into the recycle bin (floor z={bin_top:.4f}, {BIN_DEPTH * 1000:.0f} mm below the "
++            f"pocket); x walls inner faces at {bx - wall_x + 0.006:+.4f}/{bx + wall_x - 0.006:+.4f} "
++            f"(hand span 0.098 clears at the band edges)"
++        )
++
++    def _joint(self, name: str, body_path: str, lower: float, closed_centre) -> None:
++        # body0 is **unset**: the joint anchors to the world. Two kinematic bodies
++        # cannot be jointed ("cannot create a joint between static bodies",
++        # measured on the first build), and the shutter must stay kinematic for
++        # its belt-like surface velocity - so the USD joint carries the axis, the
++        # limits and the position target, and the pose is written by the servo
++        # along that axis (the measured time is the body's).
++        joint = UsdPhysics.PrismaticJoint.Define(self.stage, f"/World/Conveyor/{name}")
++        joint.CreateBody1Rel().SetTargets([Sdf.Path(body_path)])
++        joint.CreateAxisAttr().Set("Y")
++        joint.CreateLowerLimitAttr().Set(float(lower))
++        joint.CreateUpperLimitAttr().Set(0.0)
++        joint.CreateLocalPos0Attr().Set(
++            Gf.Vec3f(float(closed_centre[0]), float(closed_centre[1]), float(closed_centre[2]))
++        )
++        joint.CreateLocalRot0Attr().Set(Gf.Quatf(1.0, 0.0, 0.0, 0.0))
++        joint.CreateLocalPos1Attr().Set(Gf.Vec3f(0.0, 0.0, 0.0))
++        joint.CreateLocalRot1Attr().Set(Gf.Quatf(1.0, 0.0, 0.0, 0.0))
++        drive = UsdPhysics.DriveAPI.Apply(joint.GetPrim(), "linear")
++        drive.CreateTypeAttr().Set("force")
++        drive.CreateStiffnessAttr().Set(1e6)
++        drive.CreateDampingAttr().Set(1e4)
++        drive.CreateMaxForceAttr().Set(1e6)
++        drive.CreateTargetPositionAttr().Set(0.0)
++
++    # ------------------------------------------------------------------ #
++    @staticmethod
++    def _advance(pos: float, vel: float, target: float, lo: float, hi: float,
++                 vmax: float, amax: float, dt: float) -> tuple[float, float]:
++        """One bounded trapezoid step along the joint's axis (kinematic servo)."""
++        delta = float(target) - float(pos)
++        if abs(delta) < 1e-7:
++            return float(target), 0.0
++        direction = 1.0 if delta > 0 else -1.0
++        if vel * direction < 0.0:
++            vel = 0.0  # reversing: brake first
++        speed = abs(vel)
++        remaining = abs(delta)
++        if speed * speed / (2.0 * amax) >= remaining:
++            speed = max(0.0, speed - amax * dt)
++        else:
++            speed = min(vmax, speed + amax * dt)
++        step = min(speed * dt, remaining)
++        new_pos = float(np.clip(pos + direction * step, lo, hi))
++        if step >= remaining:
++            speed = 0.0
++        return new_pos, direction * speed
++
++    def _write(self, prim, path: str, x: float, y: float, z: float) -> None:
++        prim.set_world_poses(
++            positions=[[float(x), float(y), float(z)]],
++            orientations=[[1.0, 0.0, 0.0, 0.0]],
++        )
++
++    def step(self) -> None:
++        """Advance both servos by the measured sim-time delta (idempotent/tick)."""
++        if self._shutter_prim is None:
++            self._shutter_prim = RigidPrim(self.shutter_path)
++            self._trap_prim = RigidPrim(self.trapdoor_path)
++        from isaacsim.core.simulation_manager import SimulationManager
++
++        now = float(SimulationManager.get_simulation_time())
++        if self._last_t is None:
++            dt = 1.0 / 120.0
++        else:
++            dt = min(max(now - self._last_t, 0.0), 0.05)
++        self._last_t = now
++        if dt <= 0.0:
++            return
++        tgt = float(np.clip(self._shutter_target, -SHUTTER_TRAVEL, 0.0))
++        pos, vel = self._advance(
++            self._shutter_pos, self._shutter_vel, tgt, -SHUTTER_TRAVEL, 0.0,
++            SHUTTER_VMAX, SHUTTER_AMAX, dt,
++        )
++        if abs(pos - self._shutter_pos) > 1e-9 or abs(vel) > 1e-9:
++            self._shutter_pos, self._shutter_vel = pos, vel
++            self._write(
++                self._shutter_prim, self.shutter_path, self.bx,
++                self.mouth_y + pos, self.shutter_closed_z,
++            )
++        ttgt = float(np.clip(self._trap_target, -TRAP_TRAVEL, 0.0))
++        tpos, tvel = self._advance(
++            self._trap_pos, self._trap_vel, ttgt, -TRAP_TRAVEL, 0.0,
++            TRAP_VMAX, TRAP_AMAX, dt,
++        )
++        if abs(tpos - self._trap_pos) > 1e-9 or abs(tvel) > 1e-9:
++            self._trap_pos, self._trap_vel = tpos, tvel
++            self._write(
++                self._trap_prim, self.trapdoor_path, self.bx,
++                self.mouth_y + tpos, self.floor_top - 0.015,
++            )
++
++    # ------------------------------------------------------------------ #
++    def open(self) -> None:
++        self._shutter_target = -SHUTTER_TRAVEL
++
++    def close(self) -> None:
++        self._shutter_target = 0.0
++
++    def open_trap(self) -> None:
++        self._trap_target = -TRAP_TRAVEL
++
++    def close_trap(self) -> None:
++        self._trap_target = 0.0
++
++    @property
++    def shutter_pos(self) -> float:
++        return float(self._shutter_pos)
++
++    @property
++    def shutter_open(self) -> bool:
++        return self._shutter_pos <= -SHUTTER_TRAVEL + 5e-4
++
++    @property
++    def shutter_closed(self) -> bool:
++        return abs(self._shutter_pos) <= 5e-4
++
++    @property
++    def trap_open(self) -> bool:
++        return self._trap_pos <= -TRAP_TRAVEL + 5e-4
++
++    @property
++    def trap_closed(self) -> bool:
++        return abs(self._trap_pos) <= 5e-4
++
++    @property
++    def shutter_underside(self) -> float:
++        return self.belt_top - SHUTTER_THICK
++
++    def mouth_clear(self, spawner, exclude: int | None = None,
++                    margin: float = 0.05) -> bool:
++        """True when no fruit is over the gap (the shutter can move)."""
++        for s in spawner.samples:
++            if s.parked or s.index == exclude:
++                continue
++            p = np.asarray(spawner.position(s), dtype=float)
++            if (
++                abs(float(p[0]) - self.bx) < 0.28
++                and abs(float(p[1]) - self.mouth_y) < self.gap / 2.0 + margin
++                and float(p[2]) < self.belt_top + 0.12
++                and float(p[2]) > self.belt_top - 0.30
++            ):
++                return False
++        return True
++
++    def dump_path_clear(self) -> float:
++        """The trapdoor's slide can open without a fruit in its travel box [m]."""
++        return float(TRAP_TRAVEL)
++
++
+ def containment_parts(cfg: SceneConfig) -> list[dict]:
+     """The opt-in containment bundle's parts as plain geometry.
+ 
+@@ -202,6 +559,22 @@ class CleatedBelt:
+         #: shipped build stays byte-inert with the env unset - no geometry, no
+         #: stage calls; `build()` only authors the parts when this is true.
+         self.containment = os.environ.get("FRUIT_BELT_CONTAINMENT", "0") == "1"
++        #: P118: the drop-out pocket station (`FRUIT_PICK_STATION=pocket`). The
++        #: belt is split into two segments with a 0.148 m gap at the station and
++        #: a `PocketStation` (shutter + trapdoor floor) is authored; at `belt`
++        #: none of it exists and `self.pocket` stays None. The cleats are off on
++        #: a split belt (a kinematic bar cannot cross the gap) and the pick-nest
++        #: platform is refused: both would cover the station.
++        self.pocket_mode = cfg.pick_station_kind == "pocket"
++        self.pocket: PocketStation | None = None
++        if self.pocket_mode:
++            self.cleat_count = 0
++            self.enabled = False
++            if float(cfg.nest_height) > 0.0:
++                raise ValueError(
++                    "FRUIT_PICK_STATION=pocket with FRUIT_NEST>0: the pick platform "
++                    "covers the station's gap"
++                )
+ 
+     # ------------------------------------------------------------------ #
+     def build(self) -> None:
+@@ -209,28 +582,31 @@ class CleatedBelt:
+         bx, by, bz = cfg.belt_center
+         sx, sy, sz = cfg.belt_size
+ 
+-        # Belt surface. A thin slab is enough: the cleats do the pushing and the
+-        # fruit sit on this surface, so it only needs to be stiff in Z.
+-        belt = _define_box(self.stage, "/World/Conveyor/Belt", size=(sx, sy, sz), center=(bx, by, bz))
+-        _set_color(belt, (0.045, 0.045, 0.05))
+-        UsdPhysics.CollisionAPI.Apply(belt.GetPrim())
+-        _add_physics_material(belt.GetPrim(), cfg.belt_friction, cfg.belt_friction, 0.0)
+-        # The belt slab must be a *kinematic rigid body*, not a static collider:
+-        # PhysX only applies `PhysxSurfaceVelocityAPI` to a collider that belongs
+-        # to a body. Measured (`logs/171`): with the slab static, a fruit resting
+-        # on it (z = belt_top + r) travels at **18 %** of the commanded surface
+-        # speed and spins - which is what the old `transport_efficiency = 0.40`
+-        # was papering over. With it kinematic the same fruit travels at
+-        # **0.97-1.23x** the surface speed. `FRUIT_BELT_KINEMATIC=0` restores the
+-        # static slab to reproduce the old crawl.
+-        if os.environ.get("FRUIT_BELT_KINEMATIC", "1") == "1":
+-            body = UsdPhysics.RigidBodyAPI.Apply(belt.GetPrim())
+-            body.CreateKinematicEnabledAttr().Set(True)
+-            UsdPhysics.MassAPI.Apply(belt.GetPrim()).CreateMassAttr().Set(50.0)
+-        surface_velocity = PhysxSchema.PhysxSurfaceVelocityAPI.Apply(belt.GetPrim())
+-        surface_velocity.CreateSurfaceVelocityAttr().Set(
+-            Gf.Vec3f(0.0, self._surface_attr_speed(cfg.belt_speed), 0.0)
+-        )
++        if self.pocket_mode:
++            self._build_split_belt()
++        else:
++            # Belt surface. A thin slab is enough: the cleats do the pushing and
++            # the fruit sit on this surface, so it only needs to be stiff in Z.
++            belt = _define_box(self.stage, "/World/Conveyor/Belt", size=(sx, sy, sz), center=(bx, by, bz))
++            _set_color(belt, (0.045, 0.045, 0.05))
++            UsdPhysics.CollisionAPI.Apply(belt.GetPrim())
++            _add_physics_material(belt.GetPrim(), cfg.belt_friction, cfg.belt_friction, 0.0)
++            # The belt slab must be a *kinematic rigid body*, not a static collider:
++            # PhysX only applies `PhysxSurfaceVelocityAPI` to a collider that belongs
++            # to a body. Measured (`logs/171`): with the slab static, a fruit resting
++            # on it (z = belt_top + r) travels at **18 %** of the commanded surface
++            # speed and spins - which is what the old `transport_efficiency = 0.40`
++            # was papering over. With it kinematic the same fruit travels at
++            # **0.97-1.23x** the surface speed. `FRUIT_BELT_KINEMATIC=0` restores the
++            # static slab to reproduce the old crawl.
++            if os.environ.get("FRUIT_BELT_KINEMATIC", "1") == "1":
++                body = UsdPhysics.RigidBodyAPI.Apply(belt.GetPrim())
++                body.CreateKinematicEnabledAttr().Set(True)
++                UsdPhysics.MassAPI.Apply(belt.GetPrim()).CreateMassAttr().Set(50.0)
++            surface_velocity = PhysxSchema.PhysxSurfaceVelocityAPI.Apply(belt.GetPrim())
++            surface_velocity.CreateSurfaceVelocityAttr().Set(
++                Gf.Vec3f(0.0, self._surface_attr_speed(cfg.belt_speed), 0.0)
++            )
+ 
+         if cfg.nest_height > 0.0:
+             self._build_pick_nest()
+@@ -313,6 +689,54 @@ class CleatedBelt:
+             f"surface velocity {cfg.belt_speed:+.2f} m/s, mu={cfg.belt_friction}"
+         )
+ 
++    # ------------------------------------------------------------------ #
++    def _build_split_belt(self) -> None:
++        """P118: two kinematic belt segments with the 0.148 m station gap.
++
++        The shipped slab is cut at ``pick_y +/- POCKET_GAP/2``; both halves use
++        the shipped authoring (kinematic body + `PhysxSurfaceVelocityAPI`) with
++        the surface value divided by **that segment's** y-length (the API is in
++        the collider's scaled local frame - P117's measured lesson 1: an
++        un-divided command carried the 0.726 m segment at 0.087 m/s and the
++        0.148 m shutter at 0.018 m/s).
++        """
++        cfg = self.cfg
++        bx, by, bz = (float(v) for v in cfg.belt_center)
++        sx, sy, sz = (float(v) for v in cfg.belt_size)
++        self.belt_paths: dict[str, str] = {}
++        self.belt_lengths: dict[str, float] = {}
++        y_up = float(cfg.pick_y) + POCKET_GAP / 2.0
++        y_dn = float(cfg.pick_y) - POCKET_GAP / 2.0
++        for tag, y0, y1 in (
++            ("Up", y_up, by + sy / 2.0),
++            ("Dn", by - sy / 2.0, y_dn),
++        ):
++            length = abs(y1 - y0)
++            centre = (bx, (y0 + y1) / 2.0, bz)
++            path = f"/World/Conveyor/Belt{tag}"
++            prim = _define_box(self.stage, path, size=(sx, length, sz), center=centre)
++            _set_color(prim, (0.045, 0.045, 0.05))
++            UsdPhysics.CollisionAPI.Apply(prim.GetPrim())
++            _add_physics_material(prim.GetPrim(), cfg.belt_friction, cfg.belt_friction, 0.0)
++            if os.environ.get("FRUIT_BELT_KINEMATIC", "1") == "1":
++                body = UsdPhysics.RigidBodyAPI.Apply(prim.GetPrim())
++                body.CreateKinematicEnabledAttr().Set(True)
++                UsdPhysics.MassAPI.Apply(prim.GetPrim()).CreateMassAttr().Set(50.0)
++            sv = PhysxSchema.PhysxSurfaceVelocityAPI.Apply(prim.GetPrim())
++            sv.CreateSurfaceVelocityAttr().Set(
++                Gf.Vec3f(0.0, float(cfg.belt_speed) / max(length, 1e-6), 0.0)
++            )
++            self.belt_paths[tag] = path
++            self.belt_lengths[tag] = length
++        self.pocket = PocketStation(self.stage, cfg)
++        self.pocket.build()
++        # The frame rails / legs / pulleys stay as shipped (they sit outside the
++        # belt's width or at its ends and do not enter the pocket).
++
++    def _surface_attr_speed_for(self, speed: float, length: float) -> float:
++        """The API value for a segment of `length` (P117 lesson 1)."""
++        return float(speed) / (float(length) or 1.0)
++
+     # ------------------------------------------------------------------ #
+     def _build_pick_nest(self) -> None:
+         """A flat pick platform that lifts fruit into the pad band.
+@@ -426,6 +850,19 @@ class CleatedBelt:
+ 
+     def _apply_speed(self, speed: float) -> None:
+         self.speed = float(speed)
++        if self.pocket_mode:
++            # Two segments, each with its own scaled-local surface value; the
++            # whole belt is held together at the station for the pick window
++            # (the shipped indexed behaviour), so both always get the same
++            # commanded speed.
++            for tag, path in self.belt_paths.items():
++                prim = self.stage.GetPrimAtPath(path)
++                if prim.IsValid():
++                    api = PhysxSchema.PhysxSurfaceVelocityAPI(prim)
++                    api.GetSurfaceVelocityAttr().Set(
++                        Gf.Vec3f(0.0, self._surface_attr_speed_for(self.speed, self.belt_lengths[tag]), 0.0)
++                    )
++            return
+         prim = self.stage.GetPrimAtPath("/World/Conveyor/Belt")
+         if prim.IsValid():
+             api = PhysxSchema.PhysxSurfaceVelocityAPI(prim)
+@@ -486,6 +923,13 @@ class CleatedBelt:
+             delta = self.target_speed - self.speed
+             limit = max(self.accel, 1e-3) * dt
+             self._apply_speed(self.speed + max(-limit, min(limit, delta)))
++        if self.pocket_mode:
++            # P118: the pocket's two servos are driven every control tick; the
++            # call is idempotent within a tick (it stamps the sim time), so a
++            # tick that also reaches `_step_sim` does not double-step them.
++            self.pocket.step()
++            self.encoder_speed = float(self.speed)
++            return
+         if not self.enabled:
+             return
+         self.pulley_angle += self.speed * dt / max(
+diff --git a/src/fruit_sorting/tasks.py b/src/fruit_sorting/tasks.py
+index a9631e6..bfdb883 100644
+--- a/src/fruit_sorting/tasks.py
++++ b/src/fruit_sorting/tasks.py
+@@ -2112,6 +2112,20 @@ class PickAndPlaceTask:
+             "right": ArmController(scene, "right"),
+         }
+         self.belt_top = cfg.belt_center[2] + cfg.belt_size[2] / 2.0
++        #: P118: the drop-out pocket station (`FRUIT_PICK_STATION=pocket`),
++        #: authored by the conveyor's split-belt build. `None` on the shipped
++        #: path; every pocket branch below is gated on it, so the continuous
++        #: line reads no extra state and takes no extra step.
++        self._pocket = getattr(getattr(self.spawner, "belt", None), "pocket", None)
++        #: The pocket attempt's own book (target index, drop/pick phase, settle
++        #: counter). All plain Python state; no simulator reads.
++        self._pocket_target: int | None = None
++        self._pocket_ticks = 0
++        self._pocket_open_tick = 0
++        self._pocket_drop_started = False
++        self._pocket_drop_done = False
++        self._pocket_settle = 0
++        self._pocket_pick_opened = False
+         self.waypoints = self._load_waypoints(waypoint_path)
+         self.recorder: EpisodeRecorder | None = None
+         #: Last joint configuration that produced a successful grasp, per arm. The
+@@ -4219,6 +4233,13 @@ class PickAndPlaceTask:
+             _track = getattr(self.grippers.get(_side), "track_arm", None)
+             if _track is not None:
+                 _track()
++        # P118: the pocket station's servos and drop/pick sequencing. One
++        # attribute read per tick when the knob is off (the shipped line);
++        # `PocketStation.step` is idempotent within a physics tick, so the wait
++        # loop's `enforce_transport` (which also steps the conveyor) cannot
++        # double-step the actuators.
++        if self._pocket is not None:
++            self._pocket_tick()
+         session = self._active_session
+         if session is not None and session.after_step is not None:
+             # Bimanual bookkeeping runs on the thread that just advanced the
+@@ -10087,6 +10108,10 @@ class PickAndPlaceTask:
+         caller and the next attempt get the shipped station aim.
+         """
+         fruit = np.asarray(self.spawner.position(sample), dtype=float)
++        if self._pocket is not None:
++            # P118: the pocket occupant is stationary; the aim is its *measured*
++            # position (no lead, no station line - P117's landing spread).
++            return fruit.copy()
+         if self._reach_anywhere_active() and self._reach_aim_point is not None:
+             key = (
+                 self.current_arm,
+@@ -10195,6 +10220,275 @@ class PickAndPlaceTask:
+                 return True
+         return abs(vx) < self._dynamic_x_track_vx_max
+ 
++    # ------------------------------------------------------------------ #
++    # P118 - the drop-out pocket station (FRUIT_PICK_STATION=pocket)
++    # ------------------------------------------------------------------ #
++    def _pocket_hover_point(self) -> np.ndarray:
++        """Jaw-centre hover above the pocket mouth [m] (the pre-drop wait)."""
++        return np.array(
++            [float(self.cfg.pick_x), float(self.cfg.pick_y), self.belt_top + 0.10]
++        )
++
++    def _pocket_rest_height(self, sample) -> float:
++        """The fruit's resting radius (its z extent / 2) - the floor contact."""
++        from .meshes import FRUIT_SHAPES, axis_extent
++
++        shape = FRUIT_SHAPES.get(sample.category)
++        if shape is None:
++            return float(sample.diameter) / 2.0
++        return float(
++            axis_extent(shape, float(sample.diameter), np.array([0.0, 0.0, 1.0]))
++        ) / 2.0
++
++    def _pocket_arm(self, sample) -> None:
++        """Arm this attempt's pocket drop (no-op off the pocket station)."""
++        if self._pocket is None:
++            return
++        self._pocket_target = int(sample.index)
++        self._pocket_ticks = 0
++        self._pocket_open_tick = 0
++        self._pocket_drop_started = False
++        self._pocket_drop_done = False
++        self._pocket_settle = 0
++        self._pocket_pick_opened = False
++        self._pocket_last_pos = None
++
++    def _pocket_tick(self) -> None:
++        """One control tick of the pocket: servo step + the drop trigger.
++
++        The drop trigger is P117's measured sequence, on the *selected* fruit:
++        open the shutter when the fruit is within `open_window` upstream of the
++        gap (the 0.22 s opening consumes 0.026 m of belt travel, so 0.12 m of
++        margin), let it fall, and close once its top is below the shutter's
++        underside (or after the 110-tick bound). The hand is not in the pocket
++        during this phase - the arm waits at the hover and the pick's own open
++        is issued by `_pocket_begin_pick` after the occupant settles.
++        """
++        p = self._pocket
++        p.step()
++        self._pocket_ticks = int(self._pocket_ticks) + 1
++        idx = self._pocket_target
++        if idx is None:
++            return
++        target = None
++        for candidate in self.spawner.samples:
++            if candidate.index == idx:
++                target = candidate
++                break
++        if target is None:
++            return
++        pos = np.asarray(self.spawner.position(target), dtype=float)
++        if not self._pocket_drop_started:
++            if pos[1] <= p.mouth_y + float(
++                os.environ.get("FRUIT_POCKET_OPEN_WINDOW", "0.12")
++            ) and p.mouth_clear(self.spawner, exclude=idx):
++                p.open()
++                self._pocket_drop_started = True
++                self._pocket_open_tick = int(self._pocket_ticks)
++                say(
++                    f"[pocket] open for drop idx={idx} y={float(pos[1]):+.4f} "
++                    f"z={float(pos[2]):.4f}"
++                )
++        elif not self._pocket_drop_done:
++            radius = self._pocket_rest_height(target)
++            below = float(pos[2]) + radius < p.shutter_underside - 0.004
++            if (below or self._pocket_ticks - self._pocket_open_tick > 110) and p.mouth_clear(
++                self.spawner, exclude=idx
++            ):
++                p.close()
++                self._pocket_drop_done = True
++                say(
++                    f"[pocket] close after drop idx={idx} z={float(pos[2]):.4f} "
++                    f"top={float(pos[2]) + radius:.4f} underside={p.shutter_underside:.4f} "
++                    f"ticks={self._pocket_ticks - self._pocket_open_tick}"
++                )
++        # The occupant's settle counter (used by the wait loop): in the mouth,
++        # on the floor, at rest. The 12-tick confirmation is the same order as
++        # the shipped indexed line's settle.
++        radius = self._pocket_rest_height(target)
++        in_mouth = (
++            abs(float(pos[0]) - p.bx) < p.width / 2.0
++            and abs(float(pos[1]) - p.mouth_y) < p.gap / 2.0 + 0.01
++        )
++        on_floor = abs(float(pos[2]) - (p.floor_top + radius)) < 0.008
++        speed = float(np.linalg.norm(np.asarray(self.spawner.velocity(target), dtype=float)))
++        # Position stability, not the velocity read: a body resting on the pocket
++        # floor can carry a stale/oscillating velocity read (measured: 0.55 m/s
++        # on a fruit whose pose is constant to 0.1 mm over 6 000 ticks), so the
++        # settle is 12 ticks of <0.2 mm movement.
++        last = self._pocket_last_pos
++        self._pocket_last_pos = (float(pos[1]), float(pos[2]))
++        stable = bool(
++            last is not None
++            and abs(float(pos[1]) - last[0]) < 2e-4
++            and abs(float(pos[2]) - last[1]) < 2e-4
++        )
++        if in_mouth and on_floor and stable and self._pocket_drop_done:
++            self._pocket_settle = int(self._pocket_settle) + 1
++        else:
++            self._pocket_settle = 0
++            if (
++                self._pocket_drop_done
++                and self._pocket_ticks % 240 == 0
++                and int(os.environ.get("FRUIT_POCKET_DIAG", "0")) == 1
++            ):
++                say(
++                    f"[pocket] settle-wait tick={self._pocket_ticks} "
++                    f"z={float(pos[2]):.4f} floor+r={p.floor_top + radius:.4f} "
++                    f"speed={speed:.4f} v={np.round(np.asarray(self.spawner.velocity(target), dtype=float), 3).tolist()} "
++                    f"in_mouth={int(in_mouth)} on_floor={int(on_floor)} stable={int(stable)} "
++                    f"y={float(pos[1]):+.4f}"
++                )
++
++    def _pocket_occupant_ready(self) -> bool:
++        """True when the selected fruit is settled on the pocket floor."""
++        return bool(self._pocket is not None and int(self._pocket_settle) >= 12)
++
++    def _pocket_begin_pick(self) -> bool:
++        """Hold the line, open the shutter and aim at the *measured* occupant.
++
++        A static pick is not a catch: the target is the fruit's measured centre
++        plus the pad standoff (`_pad_standoff(True)`, 70 mm), not the pocket's
++        centre line - P117 measured an 88 mm landing spread in x. The belt is
++        held for the pick window (the station indexes; the shutter is open while
++        the hand is in the pocket), so the follower fruit cannot fall in.
++        """
++        p = self._pocket
++        if p is None:
++            return False
++        belt = getattr(self.spawner, "belt", None)
++        # Let any follower that is already over the mouth clear it first; the
++        # belt is still running here, so a bounded loop is enough.
++        for _ in range(int(os.environ.get("FRUIT_POCKET_CLEAR_TICKS", "600"))):
++            if p.mouth_clear(self.spawner, exclude=self._pocket_target):
++                break
++            self._step_sim(1)
++        if belt is not None:
++            belt.hold()
++        p.open()
++        for _ in range(int(os.environ.get("FRUIT_POCKET_OPEN_TICKS", "240"))):
++            self._step_sim(1)
++            if p.shutter_open:
++                break
++        self._pocket_pick_opened = bool(p.shutter_open)
++        if not self._pocket_pick_opened:
++            say("[pocket] WARNING: shutter did not open for the pick")
++            return False
++        sample = None
++        for candidate in self.spawner.samples:
++            if candidate.index == self._pocket_target:
++                sample = candidate
++                break
++        if sample is None:
++            return False
++        measured = np.asarray(self.spawner.position(sample), dtype=float)
++        self._dynamic_grip_target = measured + np.array(
++            [0.0, 0.0, self._pad_standoff(True, sample)]
++        )
++        # The descent block backs up `FRUIT_DYNAMIC_HOVER` from the grip before
++        # the profiled leg (the shipped 0.06 m); keep that exact form.
++        self._dynamic_hover_target = self._dynamic_grip_target + np.array(
++            [0.0, 0.0, float(os.environ.get("FRUIT_DYNAMIC_HOVER", os.environ.get("FRUIT_HOVER", "0.06")))]
++        )
++        say(
++            f"[pocket] pick open: idx={int(sample.index)} measured="
++            f"[{measured[0]:+.4f},{measured[1]:+.4f},{measured[2]:.4f}] "
++            f"grip_z={float(self._dynamic_grip_target[2]):.4f} "
++            f"(floor+r+standoff), shutter=open, belt=held"
++        )
++        return True
++
++    def _pocket_after_lift(self) -> None:
++        """Close the shutter and restart the line once the payload is out."""
++        p = self._pocket
++        if p is None:
++            return
++        p.close()
++        self._pocket_pick_opened = False
++        say("[pocket] close after pick (payload clear of the mouth)")
++
++    def _pocket_recover(self, result) -> None:
++        """The no-block invariant: leave the station empty and closed.
++
++        A failed attempt can leave the occupant in the pocket; the trapdoor
++        floor dumps it `BIN_DEPTH` into the recycle bin below and the task parks
++        the body (the spawner's own despawn never sees it: the bin is above its
++        `fell_off` line and off the line's -Y end). Then the shutter closes, the
++        line restarts, and the next attempt's pocket starts empty.
++        """
++        p = self._pocket
++        if p is None:
++            return
++        idx = self._pocket_target
++        self._pocket_target = None
++        sample = None
++        if idx is not None:
++            for candidate in self.spawner.samples:
++                if candidate.index == idx:
++                    sample = candidate
++                    break
++        if sample is not None and not sample.parked:
++            pos = np.asarray(self.spawner.position(sample), dtype=float)
++            in_pocket = (
++                abs(float(pos[0]) - p.bx) < p.width / 2.0
++                and abs(float(pos[1]) - p.mouth_y) < p.gap / 2.0 + 0.02
++                and float(pos[2]) < self.belt_top - 0.02
++                and float(pos[2]) > p.floor_top - 0.05
++            )
++            if in_pocket:
++                # Retract the hand before the floor moves under it.
++                try:
++                    if float(self.arms[self.current_arm].jaw_centre()[2]) < self.belt_top + 0.06:
++                        self.arms[self.current_arm].move_to(
++                            self.arms[self.current_arm].tcp_target_for_jaw(
++                                self._pocket_hover_point()
++                            ),
++                            max_steps=400,
++                            tolerance=0.01,
++                        )
++                        self.arms[self.current_arm].set_gripper(
++                            self.arms[self.current_arm].OPEN
++                        )
++                except Exception as exc:  # noqa: BLE001
++                    say(f"[pocket] WARNING: retract before dump failed: {exc}")
++                p.open_trap()
++                for _ in range(int(os.environ.get("FRUIT_POCKET_DUMP_TICKS", "360"))):
++                    self._step_sim(1)
++                    if p.trap_open:
++                        break
++                for _ in range(360):
++                    self._step_sim(1)
++                    pos = np.asarray(self.spawner.position(sample), dtype=float)
++                    if float(pos[2]) < p.floor_top - 0.10:
++                        break
++                p.close_trap()
++                for _ in range(240):
++                    self._step_sim(1)
++                    if p.trap_closed:
++                        break
++                self.spawner.park(sample)
++                if sample in self.spawner.active:
++                    self.spawner.active.remove(sample)
++                self.spawner.stats["pocket_dumped"] = (
++                    int(self.spawner.stats.get("pocket_dumped", 0)) + 1
++                )
++                say(
++                    f"[pocket] dump: {sample.category} idx={int(sample.index)} "
++                    f"un-picked occupant recycled (trapdoor open/close)"
++                )
++        p.close()
++        for _ in range(int(os.environ.get("FRUIT_POCKET_CLOSE_TICKS", "240"))):
++            self._step_sim(1)
++            if p.shutter_closed:
++                break
++        belt = getattr(self.spawner, "belt", None)
++        if belt is not None:
++            belt.start()
++        self._pocket_drop_started = False
++        self._pocket_drop_done = False
++        self._pocket_settle = 0
++        self._pocket_pick_opened = False
++
+     # ------------------------------------------------------------------ #
+     # Main routine
+     # ------------------------------------------------------------------ #
+@@ -10213,6 +10507,7 @@ class PickAndPlaceTask:
+         """
+         index = int(state["index"]) if "index" in state else None
+         self.spawner.protect(index)
++        result = None
+         try:
+             result = self._run_impl(state, bin_index, lead_time, verbose)
+         finally:
+@@ -10232,6 +10527,15 @@ class PickAndPlaceTask:
+                     if candidate.index == index:
+                         candidate.held = False
+                         break
++            # P118: leave the pocket station ready - empty, trapdoor and
++            # shutter closed, line running - on every outcome (a no-op off the
++            # pocket station). This is the no-block invariant measured by the
++            # proof: the next attempt must start with an empty pocket.
++            if self._pocket is not None:
++                try:
++                    self._pocket_recover(result)
++                except Exception as exc:  # noqa: BLE001 - never mask the attempt
++                    say(f"[pocket] WARNING: recovery failed: {exc}")
+         # P114: the per-destination ledger (no-op unless an instruction ran).
+         # It is a report only - no simulator read, no control-path write - and
+         # it runs after the attempt's own `finally` so a failed attempt is
+@@ -12105,6 +12409,18 @@ class PickAndPlaceTask:
+         # its reach edge and the fruit left the belt (`logs/dynamic_trace_00`).
+         openarm = rigid_tool_hand(self.grippers[arm_name])
+         dynamic_pick = self._dynamic_pick_mode(openarm, scripted=True)
++        if self._pocket is not None:
++            # P118: the pocket pick is a static variant of the OpenArm dynamic
++            # capture (same close/probe/carry), so the hand and the line's mode
++            # are fixed: the fruit must reach the gap on a running belt and be
++            # measured in the pocket. A different hand would take the indexed
++            # seat/teleport path, which would lift the fruit back onto the belt.
++            if not openarm:
++                raise RuntimeError(
++                    "FRUIT_PICK_STATION=pocket needs the OpenArm hand "
++                    f"(FRUIT_GRIPPER_KIND=openarm), not {self.grippers[arm_name].kind!r}"
++                )
++            dynamic_pick = True
+         if belt is not None and not dynamic_pick:
+             belt.stop()
+ 
+@@ -12130,6 +12446,17 @@ class PickAndPlaceTask:
+             else None
+         )
+         self._cycle_begin()
++        # P118: arm this attempt's pocket drop (no-op on the continuous line).
++        # The selected fruit is dropped into the pocket while the arm travels to
++        # the hover; the wait loop below then waits for the occupant to settle.
++        if self._pocket is not None:
++            if self._active_session is not None:
++                raise RuntimeError(
++                    "FRUIT_PICK_STATION=pocket is single-arm only in P118: the "
++                    "two-line scheduler, its pre-poses and its stations are a "
++                    "follow-up (run FRUIT_BIARM=0)."
++                )
++            self._pocket_arm(sample)
+         # P95: arm the selected fruit's per-tick trace for this attempt (a no-op
+         # unless `FRUIT_FRUIT_TRACE` is set). Armed here - after the cycle marks
+         # start and before the pre-pose blend, which is itself inside the window
+@@ -12345,8 +12672,15 @@ class PickAndPlaceTask:
+             # when the prediction is below the band.
+             if self._reach_anywhere_active():
+                 self._reach_prepare_aim(sample)
+-            self._dynamic_grip_target = self._dynamic_grip_point(sample)
+-            self._dynamic_hover_target = self._dynamic_hover_point(sample)
++            if self._pocket is not None:
++                # P118: the hover is above the pocket mouth, and the grip target
++                # is *not* computed yet - the fruit is still on the belt here and
++                # will be measured again inside the pocket (`_pocket_begin_pick`).
++                self._dynamic_grip_target = None
++                self._dynamic_hover_target = self._pocket_hover_point()
++            else:
++                self._dynamic_grip_target = self._dynamic_grip_point(sample)
++                self._dynamic_hover_target = self._dynamic_hover_point(sample)
+             previous_hover_step = arm.max_step
+             arm.max_step = float(os.environ.get("FRUIT_HOVER_STEP", "0.04"))
+             hover_residual = arm.move_to(
+@@ -12424,10 +12758,25 @@ class PickAndPlaceTask:
+         stalled = 0
+         indexed = False
+         settled = 0
++        pocket_pick = self._pocket is not None
+         for step in range(8000):
+             pos = self.spawner.position(sample)
+             dy = float(pos[1]) - jaw_y
+-            if dynamic_pick:
++            if pocket_pick:
++                # P118: the arrival condition is the *pocket occupant*, not a
++                # dy window - the fruit is stationary on the pocket floor and
++                # any dy lead would break the wait before the drop has even
++                # happened.
++                if self._pocket_occupant_ready():
++                    arrived = True
++                    if verbose:
++                        say(
++                            f"[pocket] occupant settled: index {int(sample.index)} "
++                            f"at y={float(pos[1]):+.4f} z={float(pos[2]):.4f} "
++                            f"after {step} ticks"
++                        )
++                    break
++            elif dynamic_pick:
+                 if openarm:
+                     # Arrival-synchronised handover (P2). The openarm catch is a
+                     # *static* descent at the station - the only way the descent
+@@ -12584,11 +12933,19 @@ class PickAndPlaceTask:
+                             f"dy={dy * 1000:+.1f}mm arrived={arrived}"
+                         )
+                     break
+-            elif dy <= self.CLOSE_TOLERANCE:
++            elif not pocket_pick and dy <= self.CLOSE_TOLERANCE:
++                # P118: `dy` is a moving-line quantity. On the pocket station the
++                # occupant is stationary below the belt and the *settle* is the
++                # arrival (the drop can still be in flight when this would fire).
+                 arrived = True
+                 break
+             if float(pos[2]) < self.belt_top - 0.05:
+-                break
++                if pocket_pick:
++                    # A pocket occupant is below belt_top by construction; the
++                    # "fell off the line" test must not end the wait on it.
++                    pass
++                else:
++                    break
+             self.spawner.enforce_transport()
+             arm.robot.set_dof_position_targets([grasp_config], dof_indices=arm.arm_dofs)
+             self._step_sim(1)
+@@ -12617,6 +12974,15 @@ class PickAndPlaceTask:
+             result.notes.append(f"fruit never settled at the pick point (dy={dy:+.3f} m)")
+             return result
+ 
++        if self._pocket is not None:
++            # P118: hold the line and open the shutter for the static pick. The
++            # grip target is set from the occupant's *measured* position inside
++            # `_pocket_begin_pick` (P117: an 88 mm landing spread, so the pocket
++            # centre line is not the fruit).
++            if not self._pocket_begin_pick():
++                result.notes.append("pocket: the shutter did not open for the pick")
++                return result
++
+         # Everything from here on is the contact work: seat, grasp, carry, release.
+         # It lives in its own method so the hybrid evaluator can reuse exactly the
+         # same primitives after the policy has driven the approach.
+@@ -15493,7 +15859,7 @@ class PickAndPlaceTask:
+         if os.environ.get("FRUIT_LIFT_DEBUG") == "1":
+             say(f"[task]   lift start: fruit_z={z_before:.4f} jaw_z={arm.jaw_centre()[2]:.4f} "
+                 f"grip={arm.finger_opening():.4f}")
+-        if self._dynamic_capture_active:
++        if self._dynamic_capture_active and self._pocket is None:
+             # Velocity-matched belt-break (P3 take-off fix). A purely vertical
+             # lift deletes the belt's 0.12 m/s of relative motion in the pads in
+             # a few ticks - the same shear as the spawner's `stop`, already
+@@ -15682,6 +16048,10 @@ class PickAndPlaceTask:
+             hub_marks["grasp"] = self._sim_time()
+         self._carry(arm_name, sample, "grasp_lift")
+         self._cycle_mark("lift")
++        if self._pocket is not None:
++            # P118: the payload is out of the mouth at the lift pose; close the
++            # shutter so the line can be restarted below (`belt.start()`).
++            self._pocket_after_lift()
+         if self._prepared_on and not self._attempt_ended_early():
+             # P32 phase 2, stage 1 (the carry start): rank the next candidates
+             # while the arm carries. The supply has advanced one setup span, and

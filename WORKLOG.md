@@ -25628,3 +25628,42 @@ Pins (unchanged - this phase is `logs/`-only): `tasks.py` `9e3e657b`, `rl_env.py
 `bf4c56fa`, `bimanual.py` `9b7fc33f`, `fruits.py` `dcabe16b`, `scene.py`
 `a0199097`, `cage_hand.py` `ac7c7c0f`; references `30fb99f8` / `30fb99f8` /
 `8952c320`; checkpoint `moe_v13s` `61da390a`.  Evidence `logs/p117/`.
+
+## P117 amendment / P119 (2026-11-06) - the owner's constraint voids the pocket, and the belt 0.15 is a negative: the dynamic-only scene lane closes
+
+The owner constrained the scene: **the dynamic scattered fruit pipeline must be
+preserved - no diverter, stop gate, guide/limit or pause.** That is a hard
+constraint on the speed/success ask, and it voids the one thing P117 promoted:
+the **drop-out pocket** stops the fruit. The build begun as P118 was **reverted**
+(`src/` and `configs/` clean; the patch is archived at
+`logs/p118/pocket_build.patch` for the record) and only its reach probe is kept
+as evidence. The shutter/actuator measurements go with it.
+
+The only scene lever left with a measured prior was the **belt speed**: R3 §4
+read 0.12 -> 0.15 as 3.63 -> 4.69 window placed/min (+29 %) and 0.18 as
+starvation - but on the **single-arm patch battery, pre-P85**. Re-tested on the
+shipped two-line at seed 5 (`logs/p119/belt015_s5.log`, one 20-attempt cell, the
+same-seed control `logs/p92/C5.log`):
+
+| | 0.12 (control) | 0.15 |
+|---|---|---|
+| placed | **16/20** | **9/20** |
+| `did not follow` | **8** | **20** |
+| `no eligible` | 45 | 47 |
+| interval mean / p50 / p90 | **10.59 / 13.30 / 17.40 s** | **16.85 / 13.55 / 33.50 s** |
+| encoder | -0.120 | -0.150 |
+
+**The mechanism is the grip class, not the schedule**: `no eligible` is flat
+while the grip losses double. The lead is a *time*, so at 0.15 the same lead is
+**25 % more belt travel** and the pads close on a fruit further through the
+catch-up; and the descent wait the speed shortens is the slack the *other* arm
+uses (P99's sentence one level down). The single-arm +29 % does not transfer.
+
+**Verdict**: 0.15 **not adopted**; the scene lane under the owner's constraint is
+**closed by measurement** - pad face and friction closed (P117), pocket
+forbidden, belt negative, pick/output station and supply band already measured
+(P66, P90, P92/P93). The remaining success levers are **not scene**: P50's
+release-offset compensation (the delivered-x tail = the 25 % acquisition class,
+opt-in per-pool tables) and `docs/END_EFFECTOR_DECISION.md`'s hardware
+sanctions. Pins unchanged; references `30fb99f8` / `30fb99f8` / `8952c320`
+untouched.
