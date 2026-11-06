@@ -601,6 +601,12 @@ run_check "P114 sort instruction" "$python" scripts/260_p114_instruction_selftes
 # construction (before the first attempt), and the guard tripping on an
 # unmatched fruit (None) rather than on a deliberate `skip`.
 run_check "P115 instruction and" "$python" scripts/261_p115_instruction_selftest.py
+# P116: the plan/lint tool - the owner's two-rule example ("A-grade left,
+# apples right") contains a real overlap (an A-grade apple matches both), and
+# the tool must report it, plus the partition and the cells that match no rule.
+# The precise form (`species=apple and grade!=A`) must report no overlap.
+run_check "P116 sort plan" bash -c \
+    "'$python' scripts/262_sort_plan.py --instruction configs/instructions/owner_a_left_apples_right.txt | grep -q 'OVERLAP: 1 pair' && '$python' scripts/262_sort_plan.py --instruction configs/instructions/owner_precise.txt | grep -q 'OVERLAP: none' && '$python' scripts/262_sort_plan.py --instruction configs/instructions/owner_a_left_apples_right.txt --strict-overlap > /dev/null; test \$? -eq 1"
 
 if [ -n "$run_log" ] && [ -f "$run_log" ]; then
     # P85: the log decides the scenario (and therefore the reference and the

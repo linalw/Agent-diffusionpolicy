@@ -137,6 +137,25 @@ def main() -> int:
         "an unmatched fruit with no default reports (None, None)",
     )
 
+    # ---------------------------------------------------- `!=` (P116)
+    precise = scenario.parse_instruction(
+        "grade=A => 0\nspecies=apple and grade!=A => 1\ndefault => skip", shipped
+    )
+    check(
+        precise.destination({"species": "apple", "diameter": 0.068, "grade": "A"}) == 0,
+        "an A-grade apple satisfies `grade=A` first",
+    )
+    check(
+        precise.destination({"species": "apple", "diameter": 0.068, "grade": "B"}) == 1,
+        "`grade!=A` admits a B apple to the right",
+    )
+    check(
+        precise.destination({"species": "kiwi", "diameter": 0.055, "grade": "B"}) == "skip",
+        "`!=` does not widen the species term",
+    )
+    refuses("grade~A => 0", shipped, "cannot parse condition",
+            "an operator the language does not have")
+
     # ------------------------------------------- `or` = more rules; precedence
     either = scenario.parse_instruction(
         "species=apple => 0\nspecies=orange => 0\ndefault => 1", shipped
@@ -207,7 +226,42 @@ def main() -> int:
                     f"{name} names destination {rule.dest}, which the shipped cell has",
                 )
 
-    # ------------------------------- the tasks.py shape: table row + strict
+    # --------------------- the owner's two-rule example (P116): the overlap
+    owner = scenario.parse_instruction(
+        str(ROOT / "configs/instructions/owner_a_left_apples_right.txt"),
+        shipped,
+        grades=tuple(cfg.grades),
+        species=species,
+    )
+    a_apple = {"species": "apple", "diameter": 0.068, "grade": "A"}
+    both = [
+        rule.text
+        for rule in owner.rules
+        if rule.key is not None and scenario.rule_matches(rule, a_apple)
+    ]
+    check(
+        len(both) == 2,
+        f"an A-grade apple matches both owner rules (got {both})",
+    )
+    check(
+        owner.match(a_apple)[0] == 0,
+        "the earlier rule wins: an A-grade apple goes left",
+    )
+    check(
+        owner.destination({"species": "apple", "diameter": 0.068, "grade": "B"}) == 1,
+        "a non-A apple goes right",
+    )
+    check(
+        owner.destination({"species": "kiwi", "diameter": 0.055, "grade": "A"}) == 0,
+        "an A-grade kiwi still goes left",
+    )
+
+    # ------------------------------------------------ strict overlap (the tool)
+    plan_src = (ROOT / "scripts/262_sort_plan.py").read_text(encoding="utf-8")
+    check(
+        "--strict-overlap" in plan_src and "OVERLAP" in plan_src,
+        "the plan tool reports overlaps and can fail on them",
+    )
     tasks_src = (ROOT / "src/fruit_sorting/tasks.py").read_text(encoding="utf-8")
     check(
         '[sort] rule {index}: {rule.text}' in tasks_src,

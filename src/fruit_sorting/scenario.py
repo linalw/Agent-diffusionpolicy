@@ -424,7 +424,7 @@ class SortInstruction:
         return tuple(out)
 
 
-_CONDITION = re.compile(r"^\s*([A-Za-z_]+)\s*(<=|>=|=|<|>)\s*([^\s]+)\s*$")
+_CONDITION = re.compile(r"^\s*([A-Za-z_]+)\s*(<=|>=|!=|=|<|>)\s*([^\s]+)\s*$")
 _INT = re.compile(r"^-?\d+$")
 #: P115: a rule may conjoin up to three attribute terms with `and`
 #: (`species=apple and size>=66 => 1`). More than three is a table, not a rule.
@@ -474,17 +474,17 @@ def _parse_condition(source: str, line: int, text: str) -> tuple[str, str, objec
             ) from exc
         return "size", op, millimetres
     if key in ("grade",):
-        if op != "=":
+        if op not in ("=", "!="):
             raise ScenarioError(
-                f"[sort] REFUSED: {source} line {line}: grade only supports '=', "
-                f"got {op!r}"
+                f"[sort] REFUSED: {source} line {line}: grade supports '=' and "
+                f"'!='; got {op!r}"
             )
         return "grade", op, value
     if key in ("species", "class", "category"):
-        if op != "=":
+        if op not in ("=", "!="):
             raise ScenarioError(
-                f"[sort] REFUSED: {source} line {line}: species only supports "
-                f"'=', got {op!r}"
+                f"[sort] REFUSED: {source} line {line}: species supports '=' and "
+                f"'!='; got {op!r}"
             )
         return "species", op, value.lower()
     if key in ("ripeness", "defective"):
@@ -672,9 +672,14 @@ def _term_match(key: str, op: str | None, value: object, attrs: dict) -> bool:
             "=": abs(diameter_mm - limit) < 1e-6,
         }[str(op)]
     if key == "grade":
-        return str(attrs.get("grade", "")).strip().upper() == str(value).strip().upper()
+        equal = str(attrs.get("grade", "")).strip().upper() == str(value).strip().upper()
+        return not equal if op == "!=" else equal
     if key == "species":
-        return str(attrs.get("species", attrs.get("category", ""))).strip().lower() == str(value)
+        equal = (
+            str(attrs.get("species", attrs.get("category", ""))).strip().lower()
+            == str(value)
+        )
+        return not equal if op == "!=" else equal
     if key in ("ripeness", "defective"):
         actual = float(attrs.get(key, 0.0))
         limit = float(value)
@@ -697,6 +702,16 @@ def _match(rule: Rule, attrs: dict) -> bool:
         ((rule.key, rule.op, rule.value),) if rule.key is not None else ()
     )
     return all(_term_match(key, op, value, attrs) for key, op, value in terms)
+
+
+def rule_matches(rule: Rule, attrs: dict) -> bool:
+    """Public per-rule test (the plan/lint tool needs "does rule i match" alone).
+
+    ``SortInstruction.match`` short-circuits at the first hit, which is the
+    runtime question; the linter asks the different question "which rules match
+    this fruit at all", so it needs the single-rule form.
+    """
+    return _match(rule, attrs)
 
 
 

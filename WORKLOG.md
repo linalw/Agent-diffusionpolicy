@@ -25438,3 +25438,49 @@ Pins: `scenario.py` **`fb1bb9bc`**, `tasks.py` **`0a703d1b`**, `rl_env.py`
 **`71504e3d` / `b6367de8` / `2764500a` / `98d0bc49`**; references
 `30fb99f8` / `30fb99f8` / `8952c320` untouched; selfcheck PASS, `106` OK,
 `107` PASS.
+
+## P116 (2026-11-06) - "A-grade left, apples right": the overlap is real, the plan tool shows it, and the cell proves the precedence
+
+The owner's example is two rules with a **non-empty intersection**: an A-grade
+apple satisfies `grade=A => left` *and* `species=apple => right`. The runtime
+resolves that by **precedence** (first match wins) - correct, but until now
+invisible: the ledger said `dest=0`, never "rule 1 beat rule 2". P116 makes the
+conflict visible **before** a run and adds the operator that removes it.
+
+**The plan/lint tool** (`scripts/262_sort_plan.py`, offline, no simulator):
+evaluates an instruction over the cell's own attribute space (species x 5
+diameters x 3 grades = 120 cells from `SceneConfig`, ripeness/defective only
+when a rule names them) and prints the rule table with each destination's arm,
+every **overlap pair** (the earlier rule wins, with the count and an example
+fruit), the **partition** per destination and the cells that match no rule.
+`--strict-overlap` exits 1 on any overlap, so an instruction library can be
+linted in CI. Measured on the owner's sentence in its three readings: literal
+order **40/10/70** (dest0/dest1/skip, overlap 5 cells, rule 1 wins), apples
+first **35/15/70** (same pair, winner flipped), and the unambiguous form with
+the new **`!=`** operator (`species=apple and grade!=A`) **40/10/70 with
+OVERLAP: none**. `!=` is what lets an operator write "the rest of the apples"
+without depending on rule order.
+
+**Live cell** (the shipped scripted two-line, `FRUIT_SUPPLY_SPECIES=apple` so
+every attempt is an apple and the overlap actually occurs, the literal
+instruction, 10 attempts): **8/10 placed**, **8/8 released payloads in the
+instructed destination (100 %), 0 mis-sorted**; per rule **1 = 5/5/5**, **2 =
+5/3/3**; the witness is **five A-grade apples sent LEFT** (`rule=1 dest=0`) with
+non-A apples right (`rule=2 dest=1`) - exactly the precedence the linter
+printed. No rate claim: 8/10 is one branch of the apple-only cell (the mixed
+pool reads 28-29/40 at the same seeds).
+
+**Architecture note for "give it a sentence".** The instruction layer is a
+deterministic **rule compiler**, not a language model: an LLM (or a template)
+would emit the DSL; the **linter is the gate** (overlap, unreachable
+destination, unknown attribute/species/grade, uncovered fruit); the executor
+stays deterministic and replayable. That is the safe place to put a language
+front-end - it can propose, it cannot bypass refusal. The policy line still
+refuses `FRUIT_SORT_INSTRUCTION` (`rl_env.py:1708`); threading a destination
+through the policy handover is the named next phase.
+
+Pins: `scenario.py` **`662369aa`**, `262_sort_plan.py` **`d510cb1e`**,
+`261_p115_instruction_selftest.py` **`10bd9faa`** (63 checks), `selfcheck.sh`
+**`92e65259`**, the three instruction files **`1ad67958` / `5ffbfdb2` /
+`0d4df6a2`**; references `30fb99f8` / `30fb99f8` / `8952c320` untouched;
+selfcheck PASS, `106` OK, `107` PASS.
