@@ -25783,3 +25783,36 @@ ckpt `moe_v13s` `61da390a`. Pins: `tasks.py` **`78cce1ef`**, `rl_env.py`
 `fb2c58c6`, `scripts/263_p121_env_sort_selftest.py` **`ce290037`**,
 `scripts/selfcheck.sh` **`c071242f`**, `logs/p121/PREREG.md` **`c22e40fc`**,
 `logs/p121/p121_report.py` **`826ff730`**. Evidence `logs/p121/`.
+
+## P122 (2026-11-06) - the destination spacing, measured: 50 mm along x (calibrated), never a diagonal, and a destination is a physical body
+
+Owner's pick (1): the destination-separation spec, offline. Built from **133
+measured releases** across P114/P115/P116/P121 (`logs/p122/spacing.py`).
+
+**The offset**: `release - commanded jaw target` = **+48 mm in x, +-35..37 mm in
+y** systematic (the payload hanging from the jaw along the tool axis, P90's own
+geometry), plus random **sd 6-9 mm (x)** and **6-17 mm (y)**. The systematic is
+the same for two zones served by the same leg, so it **cancels only if the
+comparison is calibrated**; compared raw, a payload commanded 50 mm upstream
+lands 2 mm from the downstream neighbour's target.
+
+**The separation curve** (bootstrap, 20 000 draws): calibrated **x 50 mm =
+0/20 000** (30-40 mm 1.5 %); raw 50 mm = **33 %**; the **(50,50) diagonal =
+2.11 %**, which is P121's observed **1/23 = 4.3 %** on the same pools. The x axis
+is the good one; the y axis carries the 17 mm spread.
+
+**The correction**: `conveyor._build_discharge` builds **one tray per belt**
+(`center=(tx, by, ...)`), so P114/P121's `three_dest` target `(0.38, +0.55)` sits
+on the **same +y belt and the same tray** as lane 0 - an **attribution demo, not
+a third destination**. The cell physically has **two** destinations. A real third
+is bound by the **place reach** (P90: x 0.38-0.48, |y| 0.35-0.55; the slab is
+|y| 0.425-0.675), so it is a **station solve + scene build**, not a spacing
+number - and the owner's "dynamic only" constraint permits it (a third belt
+downstream stops nothing).
+
+**Named software half**: the ledger's `nearest` is **uncalibrated** (it compares
+the payload to the jaw target) - that *is* the three-dest mis-sort. A calibrated
+ledger (report `release - target - mean`, classify against `target + mean`) turns
+P121's 2 % into ~0 %.
+
+No `src/`, `configs/` or reference change; no store re-baselined.
