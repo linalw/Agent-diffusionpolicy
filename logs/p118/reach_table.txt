@@ -1,0 +1,24 @@
+P118 gate 1 - the pocket pick pose (jaw_z = floor + r + 0.070, floor = belt_top - 0.100)
+belt_top=1.170 floor=1.070 criterion: residual<=6mm AND margin>=0.05rad
+
+ r[mm]   arm  n pass  best_margin[rad]          @x,y res_best[mm] tip_nom[mm]   tip_ach[min,max]
+  14.7  left 15    3            +0.175 (0.274,+0.05)          6.0         4.2 [-8.2,+27.7]
+  18.0  left 15    3            +0.183 (0.274,+0.05)          6.0         7.5 [-4.9,+30.5]
+  21.5  left 15    4            +0.179 (0.274,+0.05)          5.8        11.0 [-1.3,+33.5]
+  25.0  left 15    4            +0.168 (0.274,+0.05)          5.8        14.5 [+2.3,+36.4]
+  30.0  left 15    3            +0.149 (0.274,+0.05)          5.9        19.5 [+7.6,+40.7]
+  34.8  left 15    3            +0.130 (0.274,+0.05)          5.9        24.3 [+12.8,+44.7]
+  14.7 right 15    3            +0.173 (0.274,-0.05)          5.8         4.2 [-8.2,+27.7]
+  18.0 right 15    4            +0.181 (0.274,-0.05)          5.8         7.5 [-4.9,+30.5]
+  21.5 right 15    4            +0.182 (0.274,-0.05)          5.9        11.0 [-1.3,+33.5]
+  25.0 right 15    4            +0.170 (0.274,-0.05)          5.9        14.5 [+2.4,+36.4]
+  30.0 right 15    3            +0.150 (0.274,-0.05)          5.9        19.5 [+7.7,+40.7]
+  34.8 right 15    3            +0.131 (0.274,-0.05)          6.0        24.3 [+12.8,+44.8]
+
+Kill clause: no pose passes the primary clause at any r, or the NOMINAL fingertip clearance
+(r - 10.5 mm) is negative at r >= 20 mm. Nominal at r>=20: +9.5..+24.3 mm -> the kill does NOT fire.
+Verdict: GATE1=PASS - 41/180 T0 poses pass (12 arm x r combinations).
+
+The achieved tip is reported, never gated: an unreachable cell (x=0.397) carries a 60-125 mm
+IK residual that lowers the jaw, so its achieved tip goes negative - a reach failure, not a
+fingertip-clearance failure. The full C0/NAT control grid (540 cells) is in reach_rows_full.json.
