@@ -6365,8 +6365,10 @@ move +Y); an x-offset body is not a carry obstacle only while the payload's
 both); and a 20-attempt two-line count is a branch (**17 -> 11 and 12 -> 14** here - the
 sign flips, so quote the tray census and the ledger, never the count). Pins: `assets.py` **`072a2f11`**, `conveyor.py` **`2f7e6710`**, `scene.py`
 **`b3bf8067`**, `tasks.py` **`50fd799d`**, `fruits.py` **`c8f19228`**,
-`scripts/264_p123_output_lanes_selftest.py` **`8c400cc2`**, `scripts/selfcheck.sh`
-**`8bdca9f1`** (the new leg), `238` **`4f40d093`** / `239` **`9af1d6b5`** (re-pins),
+`rl_env.py` **`3aed67b9`** (the metadata-only `TASKS_MD5` follow `78cce1ef` ->
+`50fd799d`), `scripts/264_p123_output_lanes_selftest.py` **`8c400cc2`**,
+`scripts/selfcheck.sh` **`8bdca9f1`** (the new leg), `238` **`4f40d093`** / `239`
+**`9af1d6b5`** (re-pins),
 `logs/p123/PREREG.md` **`07ae3c90`**, `layout.py` **`6268881b`**, `probe.py`
 **`3ae023d8`**, `three_dest.json` **`763968cc`**, `three_dest.txt` **`510719a8`**,
 `p123_report.py` **`683e7a06`**; references **`30fb99f8` / `30fb99f8` / `8952c320`**
