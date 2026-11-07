@@ -26061,3 +26061,38 @@ the default (`=2` restores every shipped scalar; the default capability map is
 No rate is claimed: P123/P124/P126 read 7/10 on this scene against the two-lane
 branch's 8/10 (one attempt, inside the spread). `FRUIT_OUTPUT_LANES=2` restores
 the scene and the old records.
+
+## P127 (2026-11-07) - the three-lane baseline catches the flip: 44/80 against 58/80, reverted a second time
+
+P126 shipped the third lane on the acceptance (7/10), the P123 tray census and
+the P125 canary. It never ran a **20-attempt battery**, and that is the
+instrument that decides a rate.
+
+Four seeds, the shipped two-line, no instruction, the third lane the only
+difference:
+
+| seed | two lanes (pre-P126) | three lanes | delta |
+|---|---|---|---|
+| 5 | 16/20 | 12/20 | -4 |
+| 6 | 12/20 | 8/20 | -4 |
+| 101 | 15/20 | 11/20 | -4 |
+| 202 | 15/20 | 13/20 | -2 |
+| pooled | **58/80 = 72.5 %** | **44/80 = 55.0 %** | **-17.5 pts** |
+
+The class moves with it (seed 6's grip losses 2 -> 10), and the `no eligible`
+count shifts because the scene re-times the supply. The three-destination cell
+still works on the same tree (**11/20, ledger 11/11, 0 mis-sorted**): **the
+destination is fine, the scene's physics is the cost** - P71's lesson (a
+collider-set change re-draws the release geometry and the solver order) applies
+to a body 140 mm from the pick station.
+
+**Verdict: reverted** (second time, right instrument). `FRUIT_OUTPUT_LANES`
+defaults to 2, the third lane is opt-in, the references are back at
+`30fb99f8` / `30fb99f8` / `8952c320`, and the restore's acceptance reads
+**8/10 + `fingerprint: matches` + `190: PASS`** (421 `[fruit]` lines).
+
+**Read rule corrected**: a scene flip is carried by a **20-attempt battery at
+>= 2 seeds with same-seed controls**; the **acceptance is a smoke** (7 vs 8 on
+ten attempts hid -17.5 points), the **tray census proves the destination**, and
+the **canary is an interface check** (flat here: 56.7 vs 55.0). P126's carrier
+was the wrong instrument. The P125 store stays the three-lane candidate.

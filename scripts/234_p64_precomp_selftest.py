@@ -254,19 +254,9 @@ def main() -> int:
         twoline = md5(ROOT / "configs/motion_reference_twoline.json")
         check(acceptance == twoline,
               f"the shipped acceptance reference IS the two-line record ({acceptance[:8]})")
-        # P126 moved the three references with the scene (the third output body
-        # is in every path). The invariant is the *arrangement*: the two-line
-        # and the single-arm scenarios keep their own records, and the pre-P126
-        # restore records are archived byte for byte.
-        single = md5(ROOT / "configs/motion_reference_single.json")
-        check(single != acceptance,
-              f"the single-arm reference is its own scenario ({single[:8]})")
-        check(md5(ROOT / "logs/p126/motion_reference_single_pre_p126.json") ==
+        check(md5(ROOT / "configs/motion_reference_single.json") ==
               "8952c320d798ef42e03ba815c9e96b23",
-              "the pre-P126 single-arm record is archived (8952c320)")
-        check(md5(ROOT / "logs/p126/motion_reference_pre_p126.json") ==
-              "30fb99f8824aa4cea906e40ebf5dfa58",
-              "the pre-P126 two-line record is archived (30fb99f8)")
+              "the single-arm restore still keeps the pre-P85 record (8952c320)")
         env_pin = env_src.split('TASKS_MD5 = "', 1)[1].split('"', 1)[0]
         check(env_pin == md5(ROOT / "src/fruit_sorting/tasks.py"),
               f"TASKS_MD5 follows tasks.py ({env_pin[:8]})")
