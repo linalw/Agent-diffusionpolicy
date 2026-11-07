@@ -72,7 +72,9 @@ def refuses(fn, needle: str, msg: str) -> None:
 
 
 def main() -> int:
-    cfg = SceneConfig()
+    # P126 flipped the default scene to three lanes; these legs are the
+    # P114 record's two-lane cell, so they build it explicitly.
+    cfg = SceneConfig(output_lanes=2)
     shipped = scenario.shipped_descriptor(cfg)
     three = scenario.load_scenario("logs/p114/scenarios/three_dest.json")
     tray = scenario.load_scenario("logs/p114/scenarios/tray_unreachable.json")
@@ -205,6 +207,16 @@ def main() -> int:
     check(
         scenario.capability_map(shipped)["right"] == frozenset({1}),
         "the left arm is never handed a -y destination",
+    )
+
+    # P126: the default scene is the three-lane one; the inboard lane is -y and
+    # therefore the right arm's, and the left still only has the +y lane.
+    default_caps = scenario.capability_map(
+        scenario.shipped_descriptor(SceneConfig())
+    )
+    check(
+        default_caps == {"left": frozenset({0}), "right": frozenset({1, 2})},
+        f"the default three-lane map is left->0, right->1,2 (got {default_caps})",
     )
 
 

@@ -26030,3 +26030,34 @@ Evidence: `logs/p125/` (`PREREG.md`, `PREREG_A1.md`, `PREREG_A2.md`,
 collector driver/logs, `shards_scene.txt`, `index_audit_final.txt`,
 `finetune_history.json` + `finetune_summary.txt`, `canary_{A,B,C}_*` + `.gate`,
 `accept_final.log` + `.driver`, `selfcheck.log`).
+
+## P126 (2026-11-07) - the third lane ships: the corrected evidence, the flip, and the re-baseline
+
+The owner's decision (要) was to adopt the third output lane. P124's revert
+rested on a canary draw; **P125 refuted it** (same checkpoint: three lanes
+56.7 %, two lanes 55.0 %). So the decision was **re-registered** on the corrected
+evidence (`logs/p126/PREREG.md` md5 `fba4b9d4`, pinned before the acceptance):
+the **scripted acceptance at or above the 0.60 floor with clean motion budgets**,
+the **P123 tray census (25/25)**, the single arm at its standing branch, and
+**the canary reported, not gated**.
+
+Measured: the three-lane acceptance **7/10 = 70 %**, budgets clean, `190: PASS`
+after re-recording (a repeat is **423/423 `[fruit]` lines identical**); the
+single arm **6/10** rate-only with its fingerprint matching; the canary
+**7/10 = 70 % PASS** (3 grip losses, no new reason) - the top of P125's 55-60 %
+band, so the interface is not degraded by the scene.
+
+**The re-baseline**: `configs/motion_reference.json` = `..._twoline.json` =
+**`d258db1a`**, `..._single.json` = **`d15972cc`**; the pre-P126 records are
+archived at `logs/p126/motion_reference*_pre_p126.json` (`30fb99f8` /
+`30fb99f8` / `8952c320`). **Every store recorded before P126 is a two-lane
+store** (`scene.output_lanes` 2 or absent; 3 = the shipped scene), and
+`datasets/p125_three_lane` (196 episodes, all eight shards at 3 lanes) is now the
+shipped cell's store - P125's spend converts from "the candidate for a flip" to
+"the store of the shipped scene". The `264`/`259`/`260`/`234` legs moved with
+the default (`=2` restores every shipped scalar; the default capability map is
+`left=[0], right=[1,2]`; the three scenarios keep their own references).
+
+No rate is claimed: P123/P124/P126 read 7/10 on this scene against the two-lane
+branch's 8/10 (one attempt, inside the spread). `FRUIT_OUTPUT_LANES=2` restores
+the scene and the old records.

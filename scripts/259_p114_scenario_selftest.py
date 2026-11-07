@@ -98,7 +98,9 @@ def grab_method(src: str, name: str) -> str:
 
 
 def main() -> int:
-    cfg = SceneConfig()
+    # P126 flipped the default scene to three lanes; these legs are the
+    # P114 record's two-lane cell, so they build it explicitly.
+    cfg = SceneConfig(output_lanes=2)
     shipped = scenario.shipped_descriptor(cfg)
     three = scenario.load_scenario("logs/p114/scenarios/three_dest.json")
     tray = scenario.load_scenario("logs/p114/scenarios/tray_unreachable.json")

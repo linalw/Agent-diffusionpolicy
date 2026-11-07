@@ -108,17 +108,18 @@ def main() -> int:
     cfg = SceneConfig()
 
     # ---- 1. the unset path is the shipped scene -------------------------- #
-    check("2 lane is the default", cfg.output_lanes == 2, f"lanes={cfg.output_lanes}")
-    lanes = cfg.output_lane_layout()
-    check("the shipped layout has two bodies", len(lanes) == 2)
+    check("3 lane is the default (P126)", cfg.output_lanes == 3, f"lanes={cfg.output_lanes}")
+    cfg2 = SceneConfig(output_lanes=2)
+    lanes = cfg2.output_lane_layout()
+    check("the =2 restore has two bodies", len(lanes) == 2)
     check(
-        "the shipped drop points are the shipped expression",
-        cfg.output_belt_drop_points
+        "the =2 drop points are the shipped expression",
+        cfg2.output_belt_drop_points
         == (
-            (float(cfg.output_place_x), float(cfg.output_place_y)),
-            (float(cfg.output_place_x), -float(cfg.output_place_y)),
+            (float(cfg2.output_place_x), float(cfg2.output_place_y)),
+            (float(cfg2.output_place_x), -float(cfg2.output_place_y)),
         ),
-        str(cfg.output_belt_drop_points),
+        str(cfg2.output_belt_drop_points),
     )
     for lane in lanes:
         sign = float(lane["sign"])
@@ -145,19 +146,23 @@ def main() -> int:
         for j in range(-45, 46):
             for k in range(0, 30):
                 p = (i * 0.02, j * 0.02, 0.85 + k * 0.02)
-                bad += int(old_on_belt(cfg, p) != cfg.on_output_belt(p))
-                bad += int(old_on_tray(cfg, p) != cfg.on_output_tray(p))
-                bad += int(old_on_discharge(cfg, p) != cfg.on_output_discharge(p))
+                bad += int(old_on_belt(cfg2, p) != cfg2.on_output_belt(p))
+                bad += int(old_on_tray(cfg2, p) != cfg2.on_output_tray(p))
+                bad += int(old_on_discharge(cfg2, p) != cfg2.on_output_discharge(p))
     check("the generalised tests equal the pre-P123 expressions", bad == 0,
           f"{bad} mismatches over 110 x 91 x 30 points x 3 tests")
 
     # the provenance block names the collider set
-    scene = scene_provenance(SceneConfig())
+    scene = scene_provenance(cfg2)
     check(
-        "scene_provenance records the two shipped lanes",
+        "the =2 manifest records the two shipped lanes",
         [lane["index"] for lane in scene["output_lanes"]] == [0, 1]
         and close(scene["output_lanes"][0]["place"][1], 0.5)
         and close(scene["output_lanes"][1]["place"][1], -0.5),
+    )
+    check(
+        "the default manifest records the three lanes (P126)",
+        [lane["index"] for lane in scene_provenance(SceneConfig())["output_lanes"]] == [0, 1, 2],
     )
     check(
         "the two-lane manifest keeps output_belt.inboard_edge_y (0.425)",
@@ -197,7 +202,7 @@ def main() -> int:
     )
     check(
         "the third lane gets its own drop point",
-        cfg3.output_belt_drop_points[:2] == cfg.output_belt_drop_points
+        cfg3.output_belt_drop_points[:2] == cfg2.output_belt_drop_points
         and cfg3.output_belt_drop_points[2] == (OUTPUT_LANE3_PLACE[0], OUTPUT_LANE3_PLACE[1]),
         str(cfg3.output_belt_drop_points),
     )
