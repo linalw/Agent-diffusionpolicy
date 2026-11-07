@@ -6468,7 +6468,7 @@ before P126 is a two-lane store** - `scene.output_lanes` 2 (or absent, pre-P123)
 `datasets/p125_three_lane` (196 episodes, all eight shards at 3 lanes) is now
 **the shipped cell's store**; any pre-P126 two-line rate, interval, acceptance or
 store is a **pre-three-lane number**, `FRUIT_OUTPUT_LANES=2` restores the scene,
-and the old records are archived rather than deleted. No rate is claimed in
+and the old records are archived rather than deleted. The **per-scenario** references of the non-shipped batteries (`motion_reference_patch*.json`, `..._twoline_bed.json`) are **pre-P126** too and are re-recorded from their own same-batch runs when those scenarios are next used - they were not owed by this flip because they are not the shipped path. No rate is claimed in
 either direction (P123/P124/P126 read 7/10 on this scene; the two-lane branch
 read 8/10). Pins: `assets.py` **`3c8d2513`** (the default), `264` **`80f6b14d`**,
 `259` **`5acefca6`**, `260` **`7f098ff6`**, `234` **`760be54b`**,
