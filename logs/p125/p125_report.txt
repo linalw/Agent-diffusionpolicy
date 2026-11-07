@@ -1,0 +1,47 @@
+=== the canary (three-lane scene, accept_policy.sh, 10 episodes/sample) ===
+  canary_A_1.log          6/10    60%  {'ok': 6, 'grip loss': 4}
+  canary_A_2.log          6/10    60%  {'ok': 6, 'grip loss': 3, 'unexpected': 1}
+  canary_A_3.log          5/10    50%  {'ok': 5, 'grip loss': 5}
+  arm A: pooled 17/30 = 56.7%, mean 56.7%, median 60.0%, range 50%-60%
+    UNEXPECTED canary_A_2.log #6 kiwi 5.1cm lane=0 notes=['fruit left the pick station during the close (957 mm)']
+  canary_B_1.log          7/10    70%  {'ok': 7, 'grip loss': 2, 'unexpected': 1}
+  canary_B_2.log          5/10    50%  {'ok': 5, 'grip loss': 4, 'unexpected': 1}
+  canary_B_3.log          6/10    60%  {'ok': 6, 'grip loss': 4}
+  arm B: pooled 18/30 = 60.0%, mean 60.0%, median 60.0%, range 50%-70%
+    UNEXPECTED canary_B_1.log #7 apple 6.8cm lane=0 notes=['fruit left the pick station during the close (105 mm)']
+    UNEXPECTED canary_B_2.log #8 orange 6.8cm lane=0 notes=['cross-lane station fruit (index 14) placed on lane 0', 'fruit left the pick station during the close (1184 mm)']
+
+=== the gate's own verdict per sample ===
+  canary_A_1.log: rate: 60% (floor 60%)
+failures: 4 grip loss, 0 grasped-not-placed
+PASS: policy closed loop at or above the floor, with only baseline failure reasons
+  canary_A_2.log: rate: 60% (floor 60%)
+failures: 3 grip loss, 0 grasped-not-placed
+FAIL: 1 problem(s)
+  canary_A_3.log: rate: 50% (floor 60%)
+failures: 5 grip loss, 0 grasped-not-placed
+FAIL: 1 problem(s)
+  canary_B_1.log: rate: 70% (floor 60%)
+failures: 2 grip loss, 0 grasped-not-placed
+FAIL: 1 problem(s)
+  canary_B_2.log: rate: 50% (floor 60%)
+failures: 4 grip loss, 0 grasped-not-placed
+FAIL: 2 problem(s)
+  canary_B_3.log: rate: 60% (floor 60%)
+failures: 4 grip loss, 0 grasped-not-placed
+PASS: policy closed loop at or above the floor, with only baseline failure reasons
+  canary_C_1.log: rate: 50% (floor 60%)
+failures: 4 grip loss, 1 grasped-not-placed
+FAIL: 1 problem(s)
+  canary_C_2.log: rate: 60% (floor 60%)
+failures: 4 grip loss, 0 grasped-not-placed
+PASS: policy closed loop at or above the floor, with only baseline failure reasons
+
+=== PREREG decision (logs/p125/PREREG.md section 4) ===
+  P1 rate: pooled B 18/30 = 60.0% >= 80.0% and > A 56.7% -> FAIL
+  P2 reasons: 2 unexpected failure(s) in B -> FAIL
+  N: A 3 sample(s), B 3 sample(s) -> complete
+  verdict: DO NOT FLIP
+
+=== report only (PREREG_A2): the same-batch TWO-lane control ===
+  C (2 lanes, moe_v12) pooled 11/20 = 55.0%; A (3 lanes, moe_v12) 56.7% -> scene effect +1.7 points (unresolvable at this N; the loop's recorded spread is 5-8/10)

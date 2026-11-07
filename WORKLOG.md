@@ -25928,3 +25928,105 @@ non-reproducible loop are the minimum, and they were taken.
 
 Evidence: `logs/p124/` (the three-lane acceptance and references, the canaries,
 the restore).
+
+## P125 (2026-11-07) - the three-lane recollection: a null, and a correction to P124's canary reading
+
+The owner's decision was to recollect the policy on the three-lane scene so the
+third destination could ship. The precondition P124 named was "collect with
+`FRUIT_OUTPUT_LANES=3`, fine-tune, then the same canary at or above the 2-lane
+control". The store and the checkpoint were built; **the canary does not reach
+the bar, the default stays 2, and the phase's product is that the three-lane
+"collapse" does not reproduce.**
+
+### The store
+
+`datasets/p125_three_lane` (local, gitignored): **196 episodes from 8 shard
+directories**, 288 attempts, collected by the shipped two-line collector with
+`FRUIT_OUTPUT_LANES=3` as the only scene change (camera 240,424, wave +
+balanced A:B:C, 17-success processes, sequential shards with a fresh directory
+per retry).
+
+| shard | seeds | episodes |
+|---|---|---|
+| `s0` / `_r2` / `_r3` | 501 / 502 / 503 | 19 / 30 / 28 |
+| `s1` / `_r2` | 601 / 602 | 20 / 35 |
+| `s2` / `_r2` / `_r3` | 701 / 702 / 703 | 28 / 17 / 19 |
+
+96 left / 100 right, grade A 96 / B 100 (C skipped by the pure routing),
+**36,414 windows**, `index_md5` **`38ec3a12`**. **Every shard's
+`scene.output_lanes` has 3 entries** (lane 2 `/World/OutputBelt2`, belt centre
+`(0.84,-0.3375,1.325)`, place `(0.48,-0.30)`, tray `(1.65,-0.33)`) - the
+provenance a pre-P123 store cannot carry. **No wedge and no soft-watchdog
+skip**: all 8 runs exit 0, `gate_open=0.0 s`. A 5-episode three-lane smoke
+(`datasets/p125_smoke`, seed 499) proved the manifest before the spend.
+
+### The fine-tune
+
+`moe_v12` (`3a9ccfc0`, the `accept_policy.sh` default) ->
+`checkpoints/p125_three_lane` (`69a468d0`): 6 epochs, lr 5e-5, `ones`, base
+`datasets/demos_v11` (50 episodes / 9,378 windows), batch 32, seed 0.
+Weighted loss 0.058005 -> **0.025210**, router accuracy 0.8234 -> **0.9833**,
+demo_val 0.018226. The candidate learned the store (P33's 180-episode store read
+0.0245), so the canary null below is not an undertrained checkpoint.
+
+### The canary A/B (pre-registered `6b236694`; amendment A1 `bf98b7d6` was moot)
+
+Same three-lane scene, `FRUIT_SUPPLY_SCATTER=0`, camera 240,424, `SEED=77`, 10
+episodes/sample, interleaved `A B A B A B`, A = `moe_v12`, B =
+`p125_three_lane`. Report-only C (amendment A2 `badeea48`) = the **same-batch
+two-lane control**, `FRUIT_OUTPUT_LANES=2`, `moe_v12`, 2 samples.
+
+| arm | samples | pooled | classes |
+|---|---|---|---|
+| **A** `moe_v12`, 3 lanes | 6 / 6 / 5 | **17/30 = 56.7 %** | 12 grip loss, 1 station escape |
+| **B** `p125_three_lane`, 3 lanes | 7 / 5 / 6 | **18/30 = 60.0 %** | 10 grip loss, 2 station escapes |
+| **C** `moe_v12`, **2 lanes** (report only) | 5 / 6 | **11/20 = 55.0 %** | 8 grip loss, 1 grasped-not-placed |
+
+**Verdict: DO NOT FLIP** - P1 fails (60.0 % < 80.0 %; +1 episode of 30 over A)
+and P2 fails its letter (2 `unexpected` station escapes in B). **Recorded, not
+re-read**: A carries the same station-escape class (A2, 957 mm), so P2's
+"outside the gate's baseline pair" is narrower than the brief's "same failure
+reasons as the control" - P1 fails independently, so the narrowing cannot move
+the verdict (the P100 A4 / P103 G5 precedent).
+
+### The correction
+
+P124 reverted the third lane on `4/10` twice (three lanes) against `8/10` (two
+lanes) and called it "not a draw". **This batch's two-lane control reads
+5/10 and 6/10 with the same checkpoint**, and three-lane A reads 56.7 % - a
+**+1.7-point scene effect**, inside the loop's recorded 5-8/10 spread
+(`accept_policy.sh`'s own header). So the 8/10 two-lane sample was a high draw
+and the 4/10 three-lane samples low draws of the same ~55-60 % loop; the
+three-lane collapse is **not** reproduced, and the recollection had no
+measurable scene cost to recover. All failures in all arms are the
+**pick-station grip class** (`fruit did not follow the gripper` / the P41
+station escape), upstream of the output line; none is at the third lane. That
+is consistent with the record's closed `SIM_LIMIT.md` loaded-slide class and
+with every prior recollection on this tree (W7-C, W8-A, P33, R9): behaviour
+cloning on the scene's appearance does not convert it.
+
+**Read rules**: (1) a non-reproducible loop at N=2 can call a scene "collapse"
+that a same-batch control shows to be a draw - a scene decision needs the
+scripted line + the P123 tray census as its carrier, with the canary reported
+(or a WS-4.2-scale N), never an 8/10 single sample; (2) the binding success
+term on this interface is the pick-station grip class, not the scene.
+
+### What was not shipped
+
+`SceneConfig.output_lanes` stays **2**; **no `src/` or `configs/` change**, no
+reference re-recorded (a reference is per scenario and nothing changed);
+`accept_policy.sh` keeps `moe_v12` (A1 becomes moot). The checkpoint is kept as
+the three-lane candidate for a future larger-N evaluation; it is not deployed.
+No motion budget was touched.
+
+**No harm**: `scripts/accept.sh` **8/10, `fingerprint: matches`, `190: PASS`**
+with its **421 `[fruit]` lines 421/421 byte-identical** to
+`logs/p124/accept_restored.log`; `selfcheck.sh` **PASS (0 failures, 1
+skipped)**; `106` OK (`entries=196 files=196 windows=36414 OK` for the new
+store); `107` PASS (21 checks); tree md5s unchanged before/after.
+
+Evidence: `logs/p125/` (`PREREG.md`, `PREREG_A1.md`, `PREREG_A2.md`,
+`METHOD.md`, `RESULTS.md`, `p125_report.py` + `.txt`, `store_report.txt`, the
+collector driver/logs, `shards_scene.txt`, `index_audit_final.txt`,
+`finetune_history.json` + `finetune_summary.txt`, `canary_{A,B,C}_*` + `.gate`,
+`accept_final.log` + `.driver`, `selfcheck.log`).

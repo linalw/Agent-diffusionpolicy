@@ -1,0 +1,40 @@
+== 1. collector restarted onto the same directory ==
+[fruit] saved /tmp/collect_merge_test_6s1cf30s/shard_a/episode_00000.npz (7 frames, success=True)
+[fruit] saved /tmp/collect_merge_test_6s1cf30s/shard_a/episode_00000.npz (5 frames, success=True)
+  [ok  ] one index row for the rewritten episode
+  [ok  ] its frames match the file on disk
+== 2. merge a shard that repeats an episode byte-for-byte ==
+[fruit] saved /tmp/collect_merge_test_6s1cf30s/shard_b/episode_00000.npz (6 frames, success=True)
+[fruit] saved /tmp/collect_merge_test_6s1cf30s/shard_b/episode_00001.npz (5 frames, success=True)
+  [ok  ] merge ran
+      merge: skip /tmp/collect_merge_test_6s1cf30s/shard_b:episode_00001.npz (byte-identical to episode_00000.npz from /tmp/collect_merge_test_6s1cf30s/shard_a)
+      merge: merged 2 successful episodes into /tmp/collect_merge_test_6s1cf30s/out/merged
+  [ok  ] no byte-identical episodes survive the merge
+  [ok  ] one index row per file
+  [ok  ] every frames value matches its file (stale 999 must not survive)
+== 3. the index audit detects the stale shard, and clears the merge ==
+  [ok  ] audit rejects the shard whose index was left stale
+  [ok  ] audit exits 0 on the merged output
+  [ok  ] audit reports OK
+== 4. two-line recording: concurrent threads, auto index, station label ==
+[fruit] saved /tmp/collect_merge_test_6s1cf30s/two_line/episode_00000.npz (4 frames, success=True)
+[fruit] saved /tmp/collect_merge_test_6s1cf30s/two_line/episode_00002.npz (4 frames, success=True)
+[fruit] saved /tmp/collect_merge_test_6s1cf30s/two_line/episode_00001.npz (4 frames, success=True)
+[fruit] saved /tmp/collect_merge_test_6s1cf30s/two_line/episode_00003.npz (4 frames, success=True)
+[fruit] saved /tmp/collect_merge_test_6s1cf30s/two_line/episode_00004.npz (4 frames, success=True)
+[fruit] saved /tmp/collect_merge_test_6s1cf30s/two_line/episode_00005.npz (4 frames, success=True)
+  [ok  ] concurrent saves raised no error
+  [ok  ] all six concurrent episodes landed
+  [ok  ] file names are unique
+  [ok  ] auto indices are unique
+  [ok  ] per-arm station labels survive
+  [ok  ] both arms labelled
+== 5. the provenance lists pin the supply modules (P32 Gate D C1) ==
+  [ok  ] collector manifest lists bed.py
+  [ok  ] collector manifest lists meshes.py
+  [ok  ] rl env manifest lists bed.py
+  [ok  ] rl env manifest lists meshes.py
+  [ok  ] bed manifest block has the resolved geometry keys
+  [ok  ] bed manifest block follows the along override
+
+PASS: all 21 checks

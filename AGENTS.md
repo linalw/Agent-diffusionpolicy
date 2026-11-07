@@ -6398,6 +6398,54 @@ second leg and it is the one that binds here; two samples of the
 non-reproducible loop are the minimum, and they were taken.** Evidence
 `logs/p124/`.
 
+**P125 (2026-11-07, `logs/p125/`; the owner's recollection - **built and
+measured, and it is a null with a correction**: the default stays **2**,
+`FRUIT_OUTPUT_LANES=3` stays opt-in, no `src/` or `configs/` change, no
+reference re-recorded): the three-lane recollection P124 named as the
+precondition was built (store + fine-tune) and **does not reach the bar** - B
+(`p125_three_lane`) **18/30 = 60.0 %** against A (`moe_v12`) **17/30 = 56.7 %**
+on the same three-lane scene (3 samples each, interleaved), P1 fails (needs
+>= 24/30) and P2 fails its letter (2 `unexpected` station escapes in B) - **and
+the phase's product is what the same-batch two-lane control (report-only,
+`PREREG_A2`) shows: C (`moe_v12`, **2 lanes**) reads 11/20 = 55.0 %, so
+P124's "8/10 -> 4/10 twice is not a draw" was the canary's own 5-8/10 spread,
+not a three-lane collapse** (A 56.7 % vs C 55.0 % = **+1.7 points**, inside
+that spread at N=3). **The store** (`datasets/p125_three_lane`, local):
+**196 episodes from 8 shard directories** (s0 19/30/28 seeds 501/502/503, s1
+20/35 seeds 601/602, s2 28/17/19 seeds 701/702/703; 288 attempts, 96 left / 100
+right, grades A 96 / B 100 - C skipped by the pure routing - **36,414 windows**,
+`index_md5` **`38ec3a12`**), collected by the shipped two-line collector with
+`FRUIT_OUTPUT_LANES=3` as the only scene change (`FRUIT_CAMERA_RES=240,424`,
+wave + balanced mix, 17-success processes); **every shard's `scene.output_lanes`
+has 3 entries** (lane 2 `/World/OutputBelt2`, place `(0.48,-0.30)`, tray
+`(1.65,-0.33)`), **no wedge and no soft-watchdog skip**, all 8 runs exit 0. **The
+fine-tune**: `moe_v12` (`3a9ccfc0`) -> **`checkpoints/p125_three_lane`**
+(`69a468d0`), 6 epochs, lr 5e-5, `ones`, base `demos_v11`, 196 + 50 episodes,
+**final weighted loss 0.025210, router 0.9833** (epoch 0 0.8234), demo_val
+0.018226 - the candidate learned the store, so the null is not undertraining.
+**The canary** (`accept_policy.sh`, same scene, `SEED=77`, 10 episodes/sample):
+A 6/6/5, B 7/5/6, C 5/6; classes A 12 grip loss + 1 station escape, B 10 + 2, C
+8 + 1 grasped-not-placed - **every failure is the pick-station grip class
+(P41/`SIM_LIMIT`), upstream of the third lane; no failure is at the lane**.
+**Read rules**: a non-reproducible loop at N=2 (P124) can call a scene
+"collapse" that a same-batch control shows to be a draw - **a scene decision
+needs the scripted line + the P123 tray census as its carrier, with the canary
+reported (or a WS-4.2-scale N), never a 8/10 single sample**; and the binding
+success term here is the closed pick-station grip class, not the scene. **No
+harm**: the acceptance is **8/10, `fingerprint: matches`, `190: PASS`** with its
+**421 `[fruit]` lines 421/421 byte-identical** to `logs/p124/accept_restored.log`;
+`selfcheck.sh` **PASS (0 failures, 1 skipped)**, `106` OK (the store audits
+`entries=196 files=196 windows=36414 OK`), `107` PASS (21 checks); the
+references are **`30fb99f8` / `30fb99f8` / `8952c320`** untouched and the tree's
+pinned md5s are unchanged before/after (`logs/p125/tree_md5_{before,after}.txt`).
+Pins: `logs/p125/PREREG.md` **`6b236694`**, `PREREG_A1.md` **`bf98b7d6`**,
+`PREREG_A2.md` **`badeea48`**, `p125_report.py` **`f20b99ae`**, the collector /
+fine-tune / canary / control drivers
+**`fab85b0e` / `007531a7` / `9a6f2cbb` / `2f35e7e1`**, `run_p125_flip.sh`
+**`4f00ecb1`** (the flip recipe, **not run**); store `38ec3a12`, checkpoint
+**`69a468d0`**, init `moe_v12` `3a9ccfc0`; ckpt `moe_v13s` `61da390a`
+untouched. Evidence `logs/p125/`.
+
 ## 3. What changed -> what to run
 
 | you changed | run |

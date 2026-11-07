@@ -1,0 +1,21 @@
+=== policy closed loop (hybrid): 10 episodes, checkpoints/p125_three_lane/policy_best.pt ===
+[fruit] loaded checkpoints/p125_three_lane/policy_best.pt (obs_horizon=2, action_horizon=16)
+[fruit] [eval] policy success 7/10 (attempts=10)
+
+=== policy gate ===
+   # fruit           d bin  result reason
+   0 lychee       3.1c   1  ok     
+   1 peach        6.8c   1  FAIL   grip loss
+   2 pear         6.5c   1  ok     
+   3 strawberry   4.4c   1  ok     
+   4 lychee       3.4c   1  ok     
+   5 kiwi         5.1c   0  FAIL   grip loss
+   6 tomato       6.5c   0  ok     
+   7 apple        6.8c   0  FAIL   unexpected reason
+   8 orange       6.8c   0  ok     
+   9 peach        6.5c   1  ok     
+  episodes: 10, successes 7
+  rate: 70% (floor 60%)
+  failures: 2 grip loss, 0 grasped-not-placed
+FAIL: 1 problem(s)
+  - failure reason not seen in the baseline: [fruit] [eval] episode 7: hybrid grasped=False placed=False lift=+0.0cm notes=['fruit left the pick station during the close (105 mm)']
