@@ -26096,3 +26096,32 @@ defaults to 2, the third lane is opt-in, the references are back at
 ten attempts hid -17.5 points), the **tray census proves the destination**, and
 the **canary is an interface check** (flat here: 56.7 vs 55.0). P126's carrier
 was the wrong instrument. The P125 store stays the three-lane candidate.
+
+## P128 (2026-11-07) - the portability/instruction arc closes out in one handover document
+
+`docs/PORTABILITY_AND_INSTRUCTIONS.md` (308 lines), design only - no `src/` or
+`configs/` change - answers the owner's two questions for a reader who has not
+followed the arc:
+
+* **a new pipeline is a JSON + a solve + one gate**: copy
+  `configs/scenarios/shipped_twoline.json`, edit stations/pick/place/belt/
+  destinations/supply, and the `auto` destinations solve at the 25 mm bar; the
+  reach solve is the gate (residual 6 mm, margin 0.05 rad, pad 2 mm) and a cell
+  that fails it is a kill before the build;
+* **an instruction is a text file**: `grade=A => 0`, `size<40 => 1`,
+  `species=apple and size>=66 => 2`, `default`, `skip`, `!=`; first match wins;
+  every refusal names file and line; `FRUIT_SORT_STRICT=1` refuses an unmatched
+  fruit; `scripts/262_sort_plan.py` shows the partition and the overlaps before
+  a run.
+
+It also records the capability map (left `+y`, right `-y`; unreachable refused),
+the ledger (`in_dest` from the payload's measured release; the assignment
+accuracy is the endpoint), the direct/policy dispatcher (P121), the third
+destination (a physical body; 25/25 tray agreements; **-17.5 points** on the
+shipped cell, so opt-in), the read rules that bite (a scene flip needs a
+**20-attempt battery**; the acceptance is a smoke; the canary is an interface
+check; an `and` rule is read by the per-rule histogram), what is **not**
+portable (colour/perception, tactile/force, the hand's limits, a third physical
+lane, a policy destination channel), and the five-step migration recipe.
+
+Every number traces to `logs/p114`-`logs/p127`; `106` OK.
