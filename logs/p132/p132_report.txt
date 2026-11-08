@@ -1,0 +1,55 @@
+== support proof (A1) ==
+  support_comp   ticks=200 drift=   0.000mm dz=   +0.000mm PASS
+  support_grav   ticks= 40 drift= 613.125mm dz= -613.125mm PASS
+
+== fixture table (medians of 3) ==
+profile  fruit       n   F2mm  Fexit  settle_dz    walk  creep_g  creep_op   crush pads
+flat     pear        3   3.07   9.20      -0.00   +0.03     3.35      6.70  -10.00    2
+flat     orange      3   3.75  14.12      -0.00   -0.00     4.38      8.76  -10.00    2
+flat     strawberry  3  12.15  13.03      -0.02   +0.00    11.48     12.22  -10.00    2
+flat     lychee      3   5.85  12.94      +0.00   -0.00    10.02     12.05  -10.00    2
+serr     pear        3   3.57  12.66      +0.01   +0.01     2.74      5.47  -10.05    2
+serr     orange      3  12.91  13.87      -0.01   +0.00     5.65      9.71  -10.10    2
+serr     strawberry  3   9.36  13.53      -0.00   +0.00    11.00     11.22  -10.03    2
+serr     lychee      3   2.06  13.02      +0.00   -0.00     3.92      7.86  -10.10    2
+serr45   pear        3   4.74  12.61      +0.01   +0.01     1.92      3.85  -10.03    2
+serr45   orange      3   3.75  13.91      -0.01   +0.00     3.77      7.55  -10.06    2
+serr45   strawberry  3   9.15  13.65      +0.02   +0.02    11.18     11.18  -10.02    2
+serr45   lychee      3   6.60  12.77      -0.01   +0.00    10.43     11.06  -10.06    2
+lip20    pear        3   1.53  12.57      -1.51   -2.82     4.41      7.12  -10.00    2
+lip20    orange      3   7.79  14.08      -0.01   +0.01     1.10      2.19  -10.00    2
+lip20    strawberry  3  13.11  13.57      -0.01   -0.00     5.77     11.53  -10.00    2
+lip20    lychee      3   5.98  13.44      -0.01   -0.00     6.20     11.86  -10.00    2
+
+== ratios to flat: walk / F2mm / Fexit (the promotion rule is the first column) ==
+serr     pear       walk floor (flat 0.03 / +0.01 mm)       F2mm  1.16x  Fexit  1.38x
+serr     orange     walk floor (flat 0.00 / +0.00 mm)       F2mm  3.44x  Fexit  0.98x
+serr     strawberry walk floor (flat 0.00 / +0.00 mm)       F2mm  0.77x  Fexit  1.04x
+serr     lychee     walk floor (flat 0.00 / -0.00 mm)       F2mm  0.35x  Fexit  1.01x
+serr45   pear       walk floor (flat 0.03 / +0.01 mm)       F2mm  1.54x  Fexit  1.37x
+serr45   orange     walk floor (flat 0.00 / +0.00 mm)       F2mm  1.00x  Fexit  0.99x
+serr45   strawberry walk floor (flat 0.00 / +0.02 mm)       F2mm  0.75x  Fexit  1.05x
+serr45   lychee     walk floor (flat 0.00 / +0.00 mm)       F2mm  1.13x  Fexit  0.99x
+lip20    pear       walk 94.00x (-2.82 vs +0.03 mm)         F2mm  0.50x  Fexit  1.37x
+lip20    orange     walk floor (flat 0.00 / +0.01 mm)       F2mm  2.08x  Fexit  1.00x
+lip20    strawberry walk floor (flat 0.00 / -0.00 mm)       F2mm  1.08x  Fexit  1.04x
+lip20    lychee     walk floor (flat 0.00 / -0.00 mm)       F2mm  1.02x  Fexit  1.04x
+
+== the promotion test (the brief's rule) ==
+  serr     walk=False break=False crush=True -> no
+      pear       walk=no break=ok crush=ok
+      orange     walk=no break=no crush=ok
+      strawberry walk=no break=no crush=ok
+      lychee     walk=no break=no crush=ok
+  serr45   walk=False break=False crush=True -> no
+      pear       walk=no break=ok crush=ok
+      orange     walk=no break=no crush=ok
+      strawberry walk=no break=no crush=ok
+      lychee     walk=no break=no crush=ok
+  lip20    walk=False break=False crush=True -> no
+      pear       walk=no break=no crush=ok
+      orange     walk=no break=no crush=ok
+      strawberry walk=no break=ok crush=ok
+      lychee     walk=no break=ok crush=ok
+
+support=PASS promoted=none

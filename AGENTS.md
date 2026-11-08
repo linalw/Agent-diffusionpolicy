@@ -6679,6 +6679,64 @@ and the over-closure was not the binding failure**; the remaining blocker is
 `scripts/selfcheck.sh` **`5dd45f91`**; ckpt `moe_v13s` `61da390a`.  Evidence
 `logs/p131/`.
 
+**P132 (2026-11-08, `logs/p132/`; a fixture in `logs/` - **no `src/` or
+`configs/` change, nothing adopted, no commit, every reference untouched**): the
+owner's last geometric route - a **new pad asset** for the loaded-slide class - is
+tested fixture-first and **no shape promotes**, so the **static pad-asset lane
+closes**.  The hypothesis the record had not tried is the one geometric form that
+acts on the direction the payload leaves in: **ridges perpendicular to the walk**
+(across the pad's width, spaced along the tool axis), a ratchet.  Four faces, the
+shipped 4.90 N/face, the pool's own mesh/mass/friction draw, 4 fruits x 3 repeats
+(48 cells, 112 s, one session): `flat`, **`serr`** (5 ridges, 1.0 mm, 8 mm pitch,
+60 deg flanks), **`serr45`** (the same at 45 deg flanks; the brief's "at 45 deg"
+is read as the flank angle, not a rotated ridge line), **`lip20`** (the flat face
+with a 20 mm lip - fixture-only; it extends 9.5 mm below the shipped distal plane,
+where the belt is).  **A1 support proof**: zero pad force + weight compensated,
+200 ticks -> **0.000 mm**; no compensation -> falls **613 mm**; 48/48 real cells
+load **2 pads** at 4.38-4.93 N (the serrated off-side pad is 4.38 N, a recorded A2 deviation).  **The result**: the **load-axis walk** (the
+displacement during the 0.75 s `m(g+5.83)` hold) is **at the rig's floor for the
+incumbent and both serrations** - pear +0.03, orange/strawberry/lychee +-0.00 mm,
+|walk| <= 0.03 everywhere - so the promotion rule's first clause
+(`<= 0.6 x flat`) has **no resolvable signal**; the **2 mm break-away** (the
+class's own trigger) is a draw to **worse on the small classes** (`serr` 0.77x
+strawberry / **0.35x** lychee; `serr45` 0.75x strawberry) with one large species
+positive (orange 3.44x) whose `Fexit` is 0.98x; the **one measurable walk** is
+`lip20`'s pear **-2.82 mm** (down) with a **0.50x** 2 mm break-away - the deep cup
+is a negative.  **A fixture defect was found and fixed, and it changes the flat
+control**: P117's `author_pad` built the facet frame `(tan, nf, w_axis)`, which is
+**left-handed for one pad of every pair**; the quaternion extraction rotated that
+box 90 deg, so **one pad carried 62.2 mm on the thickness axis** (measured
+`flat S00L (10.0/62.2/84.9)` vs `flat S00R (62.2/10.0/84.9)`), its face sat 30 mm
+behind its body and the small fruits fell on **every long-axle profile including
+the flat `lip20`** - the facet, not the serration.  The one-line fix
+(`w = cross(tan, nf)`) makes every facet 10 mm; the **corrected flat control**
+reads pear `creep_op` **6.70**, strawberry **12.22**, lychee **12.05** mm
+(P117/P129's 8.62 / 0.98 / 12.42 were that rig's, and the strawberry's 0.98 was
+the 62 mm block's cradle), so this phase's A/B is on the corrected rig for all
+profiles.  The teeth are anchored at the **fruit's widest row**, not the pad's
+face centre (the face centre sits 31.95 mm above the equator; P117's
+`asin(|u*|/r)` is corrected to `|u* - u0|/r`), and the geometry check shows the
+**downward** side has only the shipped 10.5 mm lip (the pear's widest is 2.5 mm
+above the distal plane), less than one 8 mm pitch - a 5-ridge **downward** ratchet
+is not buildable inside the lip, which is P39/P69's belt constraint from the other
+side.  **No shape promotes -> no build, no two-line cell** (the rule: the fixture
+first; a pad asset moves the collider set and would need same-seed controls).  The
+**dynamic residual** is named, not hidden: the class is a dynamic pry (P75) and
+this rig is a static pull, so the verdict closes the **static** pad-asset lane;
+the **workstation** is the decision book's only remaining geometric route and the
+owner's constraint (no stop/diverter/guide) excludes it.  **No-harm**: nothing
+built - `FRUIT_FINGER_FACE` still defaults to `flat`, no `serr` token in `src/`,
+the new `267` leg pins the unset path and the geometry; `scripts/accept.sh`
+**8/10 = 80 %, 9.0 s/attempt, `fingerprint: matches`, `190: PASS`** with its **421
+`[fruit]` lines 421/421 byte-identical** to `logs/p127/accept_restored.log`;
+`scripts/selfcheck.sh` **PASS (0 failures, 1 skipped)**; `106` **OK**, `107`
+**PASS (21 checks)**.  Pins: `tasks.py` `76dbfc6b`, `rl_env.py` `b11113fb`,
+`scene.py` `b3bf8067`, `assets.py` `24d29679`, `fruits.py` `c8f19228`,
+`cage_hand.py` `0f56b2ff`, `scripts/267_p132_serr_selftest.py` `9d3a8ddf`,
+`scripts/selfcheck.sh` `29958b29`; references **`30fb99f8` / `30fb99f8` /
+`8952c320`** untouched; ckpt `moe_v13s` `61da390a`; `logs/p132/PREREG.md`
+**`e31db91f`**.  Evidence `logs/p132/`.
+
 ## 3. What changed -> what to run
 
 | you changed | run |

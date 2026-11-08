@@ -272,6 +272,16 @@ run_check "P129 pad material" "$python" scripts/265_p129_material_selftest.py
 # (and the two-jaw 2.5 mm floor dropped) **only** for an armed radial hand, plus
 # the `[cage]` row's `law/ext/deep/sep` fields. No simulator.
 run_check "P131 cage aperture law" "$python" scripts/266_p131_cage_aperture_selftest.py
+# P132: the serrated pad face (fixture-first, **no shape promoted**). The leg
+# pins the shape's *unset* path - `FRUIT_FINGER_FACE` still defaults to `flat`,
+# the `_add_contact_faces` gate is unchanged and no `serr` token exists in
+# `src/` (nothing was built on the hand) - plus the fixture's four registered
+# profiles, the brief's tooth geometry (5 crests, 1.0 mm, 8 mm pitch, 60/45 deg),
+# the tooth's placement at the fruit's widest row (not the face centre), the
+# fixture-only lip's downward-only extension (the plate top is invariant) and the
+# corrected right-handed facet frame (P117's left-handed one made one pad 62 mm
+# thick). No simulator.
+run_check "P132 serrated face" "$python" scripts/267_p132_serr_selftest.py
 # P73: the `[carry]` row's **rotation schedule** (`tilt0=`, `tilt_end=`,
 # `tilt_max=`, `t45=`, `t75=`, `tilt_rate=`) - the instrument the place-leg
 # question needs, because the leg-end `[attitude]` tilt is saturated by the place

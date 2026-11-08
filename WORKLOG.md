@@ -26339,3 +26339,84 @@ re-recorded (`30fb99f8` / `30fb99f8` / `8952c320` stand).  Pins: `cage_hand.py`
 `76dbfc6b`), `scripts/266_p131_cage_aperture_selftest.py` `de1d28f6`,
 `scripts/selfcheck.sh` `5dd45f91`; ckpt `moe_v13s` `61da390a`.  Evidence
 `logs/p131/`.
+
+## P132 (2026-11-08) - the serrated pad face: the sustained walk is at the rig's floor, and the static pad-asset lane closes
+
+**The question.** The owner picked the last geometric route: a new pad asset for
+the loaded-slide class (`logs/p42/SIM_LIMIT.md`'s sanction; the decision book
+`docs/END_EFFECTOR_DECISION.md` §4). The class is 75 % of the shipped two-line's
+failures (`cnp`), the ceiling is 93.8 %, the shipped cell 58/80 = 72.5 % at four
+seeds. The record has measured force (10-60 N, a draw at six seeds), friction
+(1.45-1.84x capacity, creep -5 %), the concave/V/cradle face (1.56-2.89x worse on
+the pear), and the **creep is lateral** (a seat shift along the jaw axis, `dz`
+-0.03..+0.03 mm), while the class itself is a **dynamic pry** (P75: a 0.3 mm
+slide, the force collapses, the pads reach their 98.1 mm stop while the payload
+walks along the tool axis). The untried form is the one that acts on that walk:
+**ridges perpendicular to it** (across the pad's width, spaced along the tool
+axis), a ratchet. P117's grooves run the other way.
+
+**The fixture** (`logs/p132/fixture.py`, P117's rig: the pool's own mesh/mass/
+friction, the 61.0 x 84.9 mm plate, 4.90 N/face, k = 1e5, the 150-tick close, the
+90-tick settle, the 90-tick `m(g+5.83)` hold, the 5 N/s ramp; 48 cells, 112 s):
+`flat`; `serr` (5 ridges, 1.0 mm, 8 mm pitch, 60 deg flanks); `serr45` (the same
+at 45 deg flanks - the brief's "at 45 deg" is read as the flank angle); `lip20`
+(the flat face with a 20 mm lip - fixture-only, 9.5 mm below the shipped distal
+plane). **A1:** zero pad force + weight compensated, 200 ticks -> **0.000 mm**; no
+compensation -> falls **613 mm**. **A2:** 48/48 cells load 2 pads at 4.54-4.99 N.
+**A3:** every facet is 10.0 mm thick on x.
+
+**The result: no shape promotes.** The **load-axis walk** (the displacement during
+the 0.75 s hold, the phase's primary) is **at the floor for the incumbent and both
+serrations** - pear +0.03, orange -0.00, strawberry +0.00, lychee -0.00 mm, and
+the shapes +0.02..-0.04 - so the rule's first clause (`<= 0.6 x flat`) is not
+resolvable; a 0.01 mm against a 0.00 mm control is noise, not a reduction. The
+**2 mm break-away** (P104's escape threshold, P75's trigger) is a draw to worse on
+the small classes: `serr` 1.16x pear / 3.44x orange / **0.77x strawberry** /
+**0.35x lychee**, `Fexit` 0.98-1.38x; `serr45` 1.54x / 1.00x / 0.75x / 1.13x;
+`lip20` 0.50x / 2.08x / 1.08x / 1.02x. The **one measurable walk** is `lip20`'s
+pear **-2.82 mm** (down) with a **0.50x** 2 mm break-away: the deep lip gives the
+payload more room to seat, not less. The serration *does* reduce the **total/
+lateral** creep on pear/lychee (6.70 -> 5.47, 12.05 -> 7.86) but not on the orange
+(8.76 -> 9.71) - a lateral seat effect, the direction P117 already closed, and not
+monotone. **Crush** is `dia - 10 mm` (the 5 mm interference per side) for every
+profile, inside P76's -15 mm rule, and the delivered force is the 4.90 N cap.
+
+**A fixture defect found while building, and it changes the flat control.** P117's
+`author_pad` built the facet frame `(tan, nf, w_axis)`; that is **left-handed for
+one pad of every pair** (tan=+y, nf=+x, w=+z gives tan x nf = -z), and
+`_quat_from_columns` turned the box 90 deg. Measured world extents: `flat S00L
+(10.0/62.2/84.9)` vs `flat S00R (62.2/10.0/84.9)` - the right pad carried its
+**62 mm length on the thickness axis** and its face sat 30 mm behind its body. The
+first battery's small fruits fell on *every long-axle profile including `lip20`*,
+which is a flat face with no ridges: the facet, not the serration. The fix is one
+line, `w = cross(tan, nf)`; the corrected flat control reads pear `creep_op`
+**6.70**, strawberry **12.22**, lychee **12.05** mm (P117/P129's 8.62 / 0.98 /
+12.42 were that rig's; the strawberry's 0.98 was the 62 mm block's cradle). The
+A/B is on the corrected rig for all profiles. The teeth are anchored at the
+**fruit's widest row**, not the pad's face centre (the face centre is 31.95 mm
+above the equator; P117's `asin(|u*|/r)` is corrected to `|u* - u0|/r`); for the
+pear the widest is 2.5 mm above the distal plane, so the **downward** side has
+less than one 8 mm pitch - a 5-ridge downward ratchet is not buildable inside the
+shipped 10.5 mm lip (P39/P69's belt constraint from the other side). The four
+upper teeth are the ones an upward walk meets.
+
+**Verdict: no build, no cell, the static pad-asset lane closes.** The rule is the
+fixture first; a promoted shape would have been built on the OpenArm fingers,
+default off, at the shipped 10.5 mm lip / 80.5 mm distal plane, then the two-line at
+seeds 5/6 x 20 with same-seed controls. None of that is licensed. The **dynamic
+residual** is named: the class is a dynamic pry and this rig is a static pull, so
+the negative is about the *static* pad-asset lane; a blind dynamic cell is the only
+test that could overturn it, and it is not registered. The workstation, the decision
+book's only remaining geometric route, is excluded by the owner's constraint (no
+stop/diverter/guide/pause).
+
+**No-harm**: no `src/` or `configs/` change, `FRUIT_FINGER_FACE` still defaults to
+`flat`, no `serr` token in `src/`; the new `267` leg pins the unset path and the
+geometry. `scripts/accept.sh` **8/10, 9.0 s/attempt, `fingerprint: matches`,
+`190: PASS`**, its **421 `[fruit]` lines 421/421** identical to
+`logs/p127/accept_restored.log`; `selfcheck.sh` **PASS (0 failures, 1 skipped)**;
+`106` **OK**, `107` **PASS (21 checks)**. References `30fb99f8` / `30fb99f8` /
+`8952c320` untouched; no re-record. Pins: `tasks.py` `76dbfc6b`, `rl_env.py`
+`b11113fb`, `scene.py` `b3bf8067`, `assets.py` `24d29679`, `fruits.py` `c8f19228`,
+`cage_hand.py` `0f56b2ff`; `logs/p132/PREREG.md` `e31db91f`; ckpt `moe_v13s`
+`61da390a`. Evidence `logs/p132/`.
