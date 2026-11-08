@@ -6737,6 +6737,26 @@ the new `267` leg pins the unset path and the geometry; `scripts/accept.sh`
 `8952c320`** untouched; ckpt `moe_v13s` `61da390a`; `logs/p132/PREREG.md`
 **`e31db91f`**.  Evidence `logs/p132/`.
 
+**P133 (2026-11-08, `docs/END_EFFECTOR_DECISION.md` §7; design/handover only, no
+`src/` or `configs/` change): the end-effector decision book is updated with the
+bench that answered its two open nails.** `§4`/`§5` gain a STATUS note pointing
+at the new **§7**, which records: **nail (i) `mu < 1` is closed** - the four-pad
+residual is `mu s` (not the book's `(2mu-1) min(...)`), the pair is controllable
+(`pad_mu = 2t - mu_payload`, +0.02) but its price is the **small-fruit ejection**
+(12/12 cells at pair 0.6-0.8, break-away 0.48-0.49x), and the ring **centres and
+loads all four pads at the incumbent 1.35** (80/80 full-close cells); **the ring's
+real terms are the close freeze** (P130: +28.7 points, p = 0.0135, still 47.5 %)
+**and the centring** (P131: the aperture law ran to the two-jaw target; the fix
+removes the over-closure 7/40 -> 0/40 but exposes a 3.5-5.6 mm arrival against
+the ring's 0.6 mm); **a new pad asset is closed** (P132: the ratchet's walk is at
+the rig's floor, worse on the small classes, and the 10.5 mm lip cannot hold a
+0.45 mm pitch) with the **fixture defect correction** (P117's strawberry 0.98 mm
+was a left-handed facet frame, not the pinch). The revised recommendation: **no
+geometric purchase**; the one open measurement is the **real-jaw force anchor**
+(fidelity, not rate); the workstation is the only path to the ring's centring and
+is excluded by the owner's constraint. `106` OK. Evidence
+`docs/END_EFFECTOR_DECISION.md` §7.
+
 ## 3. What changed -> what to run
 
 | you changed | run |

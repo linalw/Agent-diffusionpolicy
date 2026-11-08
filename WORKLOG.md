@@ -26420,3 +26420,28 @@ geometry. `scripts/accept.sh` **8/10, 9.0 s/attempt, `fingerprint: matches`,
 `b11113fb`, `scene.py` `b3bf8067`, `assets.py` `24d29679`, `fruits.py` `c8f19228`,
 `cage_hand.py` `0f56b2ff`; `logs/p132/PREREG.md` `e31db91f`; ckpt `moe_v13s`
 `61da390a`. Evidence `logs/p132/`.
+
+## P133 (2026-11-08) - the end-effector decision book is closed with the bench that answered its nails
+
+`docs/END_EFFECTOR_DECISION.md` §7 (design/handover), plus a STATUS note in §4
+and §5 pointing at it. What the bench said:
+
+* **Nail (i), `mu < 1`: closed.** The four-pad residual is `mu s`, the four-contact
+  state a stiffness window empty above `mu` 0.815 per fruit / 0.613 pool-wide,
+  and capture needs `mu < cap/(2ks)` (a rigid close fails it at any mu). The pair
+  is controllable (`pad_mu = 2t - mu_payload`, +0.02) but its price is the
+  small-fruit ejection (12/12 cells at pair 0.6-0.8, break-away 0.48-0.49x). The
+  ring centres and loads all four pads at the **incumbent 1.35** (80/80
+  full-close cells) - friction is not its term.
+* **The ring's real terms**: the **close freeze** (P130: +28.7 points, p=0.0135,
+  47.5 %), and **centring** (P131: the aperture law ran to the two-jaw target; the
+  fix removes the over-closure 7/40 -> 0/40 but exposes a 3.5-5.6 mm arrival
+  against the ring's 0.6 mm). `FRUIT_CAGE_APERTURE` stays `shipped`.
+* **A new pad asset: closed** (P132): the ratchet's walk is at the rig's floor,
+  worse on the small classes, and the 10.5 mm lip cannot hold an 8 mm pitch. The
+  fixture defect is recorded: P117's strawberry 0.98 mm was a left-handed facet
+  frame (one pad 62 mm thick), corrected to 12.22 mm.
+
+Revised recommendation: **no geometric purchase**; the one open measurement is
+the **real-jaw force anchor** (fidelity, not rate); the workstation is the only
+path to the ring's centring and the owner's "dynamic only" constraint excludes it.

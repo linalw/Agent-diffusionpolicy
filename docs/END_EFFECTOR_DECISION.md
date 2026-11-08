@@ -524,6 +524,17 @@ half that already works.
 
 ## 4. The three nails that are left
 
+> **STATUS (2026-11-08, after P129-P132).** Nails (i) and (ii) have been measured
+> on this tree and **both are closed**: the four-pad ring already **centres and
+> loads all four pads at the measured pair 1.35** (P129), so `mu_pair < 1` is not
+> the term; a low-friction pad's price is the small-fruit ejection (P129), and the
+> ring's real term is the **first-contact freeze** (P130: +28.7 points, still
+> 47.5 %) and the **centring** (P131: the aperture law was the bug and is fixed,
+> which exposes a 3.5-5.6 mm arrival against the ring's 0.6 mm). A new pad asset
+> (serrated faces) is also closed (P132). **What is left is not a pad**: the
+> real-jaw force anchor (a fidelity question) and the workstation (excluded by the
+> owner's "dynamic only" constraint). Read §7 for the measured record.
+
 Each nail is a bench measurement that can be run **without this simulator and
 without a cell**. Each has a kill criterion, so a "no" costs an afternoon, not a
 purchase. Costs are the three classes the record supports: a **printed part**, a
@@ -669,6 +680,14 @@ ties them to the recommendation is §5.1.
 ## 5. The recommendation
 
 ### 5.1 What the partner should do first
+
+> **Measure first (2026-11-08).** Step 1 below has been **run** on the sim's own
+> pair (P129): `mu_pair < 1` is achievable and controllable (`pad_mu = 2t -
+> mu_payload` delivers the pair to +0.02) but its price is the **small-fruit
+> ejection at the 5 mm seat** (12/12 cells at pair 0.6-0.8), the break-away at
+> 0.48-0.49x, and the load-axis creep unchanged - so the tree did not build it.
+> Step 2's ring has been measured (P112, P130, P131): the **freeze** and the
+> **centring** are its terms, not friction. Read §7 before spending.
 
 ```
                     +------------------------------------------+
@@ -828,3 +847,75 @@ rail removal, P41's drive profile, and P43/P54/P58's direct-presentation default
 `..._single.json` = **`8952c320`** - untouched by this phase (P113 reads them, does
 not write them; `scripts/selfcheck.sh` is the authority). Every phase record above
 carries its own pins.
+
+---
+
+## 7. Postscript (2026-11-08): the bench answers on this tree
+
+The book was written at P113 with two nails open. They have since been measured
+on the tree itself (`logs/p129`-`logs/p132`). This section is the measured record;
+§4's and §5's text above stands as the plan it was written to.
+
+### 7.1 Nail (i), the `mu < 1` pad: closed, and it is not the ring's term
+
+* **The algebra first.** The four-pad residual is **`mu s`**, not
+  `(2 mu - 1) min(s, cap / (2 mu k))` - the threshold `mu = 1` is right, the
+  residual is 2x smaller at `mu = 0.6` (`logs/p129/algebra.py`). The four-*contact*
+  state is a **stiffness window** `[0.5/(s(1-mu)), cap/(s(1+mu))]`, empty above
+  `mu = 0.815` per fruit and `0.613` pool-wide; capture from an offset needs
+  `mu < cap/(2 k s)`, which a **rigid** close fails at any `mu`.
+* **The pair is controllable**: authoring `pad_mu = 2 t - mu_payload` delivers
+  `0.43 / 0.63 / 0.82 / 1.02 / 1.22 / 1.38` for targets 0.40-1.36 (+0.02).
+* **The price is retention**: at pair 0.6-0.8 the break-away is **0.48-0.49x**
+  and the **34-37 mm fruits are ejected at P117's 5 mm seat on 12/12 cells**
+  (12/12 held at pair 1.0+); the load-axis creep is unchanged (`-0.03..+0.03 mm`).
+* **The ring does not need it**: under a **full close** the four-pad ring is
+  **clean 8/8 at every pair 0.6-1.35 and both stiffnesses (80/80 cells)** - it
+  centres and loads all four pads at the **incumbent 1.35**.
+
+### 7.2 The ring's real terms: the freeze and the centring
+
+* **The freeze** is the term that denies the enclosure (`logs/p130`): with
+  `FRUIT_DYNAMIC_CLOSE_FREEZE=0` the `cage4` cell reads **19/40 = 47.5 %** against
+  the freeze-on controls' **6/32 = 18.8 %** (**+28.7 points, p = 0.0135**) - but
+  the **clean enclosure** only moves 2/32 -> 8/40 (p = 0.169) and the ring still
+  loses to the shipped hand (72.5 % at four seeds).
+* **The aperture law** was the over-closure's cause (`logs/p131`): the close ran
+  to the **two-jaw** `0.97 min(radial, axial)` (the fruit's height), not the
+  ring's own extent; `FRUIT_CAGE_APERTURE=pad_axes` removes the over-closure
+  (7/40 -> 0/40, p = 0.0117) but **exposes the V-block** (3/40 -> 13/40,
+  p = 0.0103) because the arrival is **3.5-5.6 mm** off-axis against the ring's
+  **0.6 mm** need. `max_extent` is a negative (9/20 close on air).
+* So the ring's binding term is **centring**, which is the stationary
+  presentation (§4.3) - excluded by the owner's "no stop/diverter/guide"
+  constraint - or a sub-millimetre positioning that the record has not found.
+
+### 7.3 A new pad asset: closed
+
+`logs/p132` tests the one geometric form the record had not: **ridges
+perpendicular to the walk** (a ratchet), plus a 20 mm lip, at the shipped
+4.90 N/face. The **load-axis walk is at the rig's floor for the incumbent and
+both serrations** (`|walk| <= 0.03 mm`), the 2 mm break-away is a **draw to worse
+on the small classes** (`serr` 0.77x strawberry, 0.35x lychee), and the 20 mm lip
+is a negative (the only measurable walk, -2.82 mm, with a 0.50x break-away). The
+downward ratchet is also **not buildable inside the shipped 10.5 mm lip** (less
+than one 8 mm pitch) - the belt constraint from the other side.
+
+**A fixture defect was found and fixed**: P117's facet frame was left-handed for
+one pad of every pair, so one pad carried 62 mm on its thickness axis and the
+small fruits fell. The corrected flat control reads pear 6.70 / strawberry 12.22
+/ lychee 12.05 mm; **P117's "the strawberry's flat creep is 0.98 mm" was that
+defect**, not a property of the pinch.
+
+### 7.4 What the partner should do now
+
+1. **Nothing geometric.** The pad face, the pad friction, the clamp force, the
+   serration and the deep lip are all measured on this tree; the ring's remaining
+   term is centring, which is a workstation change.
+2. **The one open measurement is fidelity, not performance**: a **real-jaw
+   clamp-force anchor** - does the sim's 9.8 N equal a real jaw's 9.8 N at the
+   same command? That gates any fidelity claim, not the rate.
+3. **If the workstation constraint is ever lifted**, the stationary presentation
+   is the only form the record has measured that reaches the ring's 0.6 mm
+   (`logs/p110`: 16/16 held, 0.85-1.83 mm within a fruit), and it owes both
+   references, every store and the acceptance re-baseline.
