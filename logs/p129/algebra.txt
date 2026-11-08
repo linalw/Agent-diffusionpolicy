@@ -1,0 +1,160 @@
+P129 algebra - the pad material below the 4-pad friction threshold
+========================================================================================================
+  pool (logs/p110/fixture.txt): 16 fruits, d 29.6-69.6 mm, m 9.5-122.8 g
+  ring: cap 4.90 N/pad, contact trigger 0.50 N, squeeze 0.98 (s = 1 % of d per face), close k 3300 N/m, hold k 100000 N/m
+  the ladder: pair mu (0.6, 0.8, 1.0, 1.2) ; the measured control 1.25-1.46
+
+1. THE STATIC FIXED POINT (2-D, tangential projection; three fruit sizes)
+========================================================================================================
+  4 pads: drive 2 k delta (both opposed pads), resistance 2 mu k s (the
+  perpendicular pair) -> delta_inf = mu s.  The far pad leaves at delta = s,
+  so `delta_inf < s` is exactly `mu < 1`.  P111's (2 mu - 1) s is a different
+  expression; both thresholds are 1, the residuals differ by 2x at mu 0.6.
+
+  fruit   d mm   s mm   mu   4-pad: solver  closed  d/s   |  3-pad: solver  closed  d/s
+  small   29.6  0.296 0.60     0.170   0.178  0.57  |     0.150   0.152  0.51
+  small   29.6  0.296 0.80     0.230   0.237  0.78  |     0.180   0.187  0.61
+  small   29.6  0.296 1.00     0.290   0.296  0.98  |     0.210   0.217  0.71
+  small   29.6  0.296 1.20     0.290   0.355  0.98  |     0.240   0.242  0.81
+  small   29.6  0.296 1.25     0.290   0.370  0.98  |     0.240   0.248  0.81
+  small   29.6  0.296 1.46     0.290   0.432  0.98  |     0.270   0.271  0.91
+  mid     49.6  0.496 0.60     0.296   0.298  0.60  |     0.252   0.255  0.51
+  mid     49.6  0.496 0.80     0.396   0.397  0.80  |     0.312   0.313  0.63
+  mid     49.6  0.496 1.00     0.486   0.496  0.98  |     0.362   0.363  0.73
+  mid     49.6  0.496 1.20     0.486   0.595  0.98  |     0.402   0.406  0.81
+  mid     49.6  0.496 1.25     0.486   0.620  0.98  |     0.412   0.416  0.83
+  mid     49.6  0.496 1.46     0.486   0.724  0.98  |     0.452   0.454  0.91
+  large   69.6  0.696 0.60     0.412   0.418  0.59  |     0.354   0.358  0.51
+  large   69.6  0.696 0.80     0.552   0.557  0.79  |     0.434   0.440  0.62
+  large   69.6  0.696 1.00     0.682   0.696  0.98  |     0.504   0.510  0.72
+  large   69.6  0.696 1.20     0.682   0.835  0.98  |     0.564   0.570  0.81
+  large   69.6  0.696 1.25     0.682   0.870  0.98  |     0.574   0.583  0.82
+  large   69.6  0.696 1.46     0.682   1.016  0.98  |     0.634   0.637  0.91
+  -> inside the linear regime (mu < 1, both opposed pads loaded) the solver
+     reproduces both closed forms to <= 2 %.  At mu >= 1 the 4-pad solver
+     stops at `delta = s` (the far pad reaches zero load and the model has no
+     two-contact fixed point beyond it), so its own `mu s` column is only
+     valid below the threshold; the 3-pad's is 0.51-0.91 s and never crosses.
+     **The 4-pad residual crosses `delta < s` at mu = 1; the 3-pad's never.**
+
+2. THE FOUR-CONTACT CONDITION IS NOT `delta < s`, IT IS `delta <= s - 0.5/k`
+========================================================================================================
+  A pad counts as loaded at 0.50 N.  At the fixed point the far pad's
+  penetration is `s - delta_inf`, so the four-pad state needs
+     k (s - mu s) >= 0.5      ->   k >= 0.5 / (s (1 - mu))
+  and the near pad must not saturate before that state is reached:
+     k (s + mu s) <= cap      ->   k <= cap / (s (1 + mu))
+  The two meet at **mu = (cap - 0.5)/(cap + 0.5)** - independent of s and k.
+
+  the ceiling at the shipped cap: 4-pad mu <= 0.815
+  (the 3-pad's bound is the analytic `mu < sqrt(3) = 1.732`; its two-pad
+   trigger bound never binds over this pool)
+
+  k window per fruit (N/m) - the intersection over the pool is the design answer
+    mu 0.60 n=4: [    4223,     4400] ( 1.04x) OK 
+    mu 0.60 n=3: [    2274,     4648] ( 2.04x) OK 
+    mu 0.80 n=4: [    8446,     3911] ( 0.46x) EMPTY
+    mu 0.80 n=3: [    2469,     4314] ( 1.75x) OK 
+    mu 1.00 n=4: [     inf,        0] ( 0.00x) EMPTY
+    mu 1.00 n=3: [    2664,     4065] ( 1.53x) OK 
+    mu 1.20 n=4: [     inf,        0] ( 0.00x) EMPTY
+    mu 1.20 n=3: [    2859,     3871] ( 1.35x) OK 
+    mu 1.25 n=4: [     inf,        0] ( 0.00x) EMPTY
+    mu 1.25 n=3: [    2908,     3830] ( 1.32x) OK 
+    mu 1.46 n=4: [     inf,        0] ( 0.00x) EMPTY
+    mu 1.46 n=3: [    3113,     3677] ( 1.18x) OK 
+  -> at the measured mu 1.25-1.46 the 4-pad window is EMPTY (the far
+     pad cannot load).  The 3-pad window at that mu is [3113, 3677] N/m, which contains
+     P111's measured [3e+03, 4e+03] - and P111's window is a
+     *three*-pad measurement.
+  THREE friction conditions, and they are not the same constant:
+    (i)   centres to `delta < s`                 mu < 1
+    (ii)  all four pads carry >= 0.5 N          mu <= 0.815  (per fruit, cap/trigger)
+    (iii) captures from an offset > s: the near pad's cap must beat the
+          perpendicular pair's friction         mu < cap / (2 k s)  = 1.067-2.508 at k 3300
+  and the POOL-WIDE window (one k for every size) closes earlier:
+    the largest fruit's cap bound meets the smallest fruit's trigger bound at
+    **mu = 0.613** (s_max/s_min = 2.35 tightens 0.815 -> 0.613)
+     Below mu 0.81 the four-pad window opens; at mu 0.6 it is
+     [4223, 4400] N/m over the pool (1.04x), and it **excludes**
+     the shipped hold stiffness 1e+05 - the ring must be *soft while it closes*
+     and firm only after (P111's hard stop, which is why that design ships the pair).
+
+3. WHAT IT PREDICTS FOR THE CLOSURE (the bench's registered prediction)
+========================================================================================================
+  A round payload, `law = d`, arrival offset delta0, the task's clock (24 + 60
+  ticks), the freeze OFF (a full close) - does the ring end centred with every
+  pad loaded?  `4/4` = P110's clean enclosure; `2/4` = the V-block.
+
+  arrival  mu   4-pad: off_end  pads  class        |  3-pad: off_end  pads  class
+     0.0 0.60       0.000    4/4  4/4 centred       |       0.000    3/3  3/3 centred     
+     0.0 0.80       0.000    4/4  4/4 centred       |       0.000    3/3  3/3 centred     
+     0.0 1.00       0.000    4/4  4/4 centred       |       0.000    3/3  3/3 centred     
+     0.0 1.20       0.000    4/4  4/4 centred       |       0.000    3/3  3/3 centred     
+     0.0 1.46       0.000    4/4  4/4 centred       |       0.000    3/3  3/3 centred     
+     5.0 0.60       0.350    4/4  4/4 centred       |       0.300    3/3  3/3 centred     
+     5.0 0.80       0.470    3/4  3/4 short of centre  |       0.370    3/3  3/3 centred     
+     5.0 1.00       0.590    3/4  3/4 short of centre  |       0.430    3/3  3/3 centred     
+     5.0 1.20       0.830    3/4  3/4 short of centre  |       0.490    3/3  3/3 centred     
+     5.0 1.46       5.000    3/4  JAM (no slide)    |       0.540    3/3  3/3 centred     
+    10.0 0.60       0.350    4/4  4/4 centred       |       0.300    3/3  3/3 centred     
+    10.0 0.80       0.470    3/4  3/4 short of centre  |       0.370    3/3  3/3 centred     
+    10.0 1.00       0.590    3/4  3/4 short of centre  |       0.430    3/3  3/3 centred     
+    10.0 1.20       0.830    3/4  3/4 short of centre  |       0.490    3/3  3/3 centred     
+    10.0 1.46      10.000    3/4  JAM (no slide)    |       0.540    3/3  3/3 centred     
+    20.0 0.60       0.350    4/4  4/4 centred       |       0.300    3/3  3/3 centred     
+    20.0 0.80       0.470    3/4  3/4 short of centre  |       0.370    3/3  3/3 centred     
+    20.0 1.00       0.590    3/4  3/4 short of centre  |       0.430    3/3  3/3 centred     
+    20.0 1.20       0.830    3/4  3/4 short of centre  |       0.490    3/3  3/3 centred     
+    20.0 1.46      20.000    3/4  JAM (no slide)    |       0.540    3/3  3/3 centred     
+  -> at mu 0.6 the four-pad ring reaches `centred AND 4/4 loaded` from every
+     arrival up to 20 mm; at mu 0.8 it centres to `mu s` but the far pad sits
+     0.2 s short (< 0.5 N) -> 3/4; at mu >= 1.0 it either jams at the arrival
+     (the near pad's cap cannot beat the perpendicular pair's friction) or
+     ends 3/4.  The three-pad ring centres at every mu and keeps 3/3 - it is
+     inside its own friction bound (mu < sqrt(3)) by construction.
+
+4. THE PRICE: static axial capacity against the cell's own demand
+========================================================================================================
+  the demand: the heaviest fruit apple 69.6 mm
+  m=122.8 g at m(g+5.83) = **1.92 N**
+
+  mu    pinch 2muN   xdemand | 4-pad 4muN   xdemand | 3-pad 3muN   xdemand
+  0.60       5.88       3.1 |       11.76       6.1 |        8.82       4.6
+  0.80       7.84       4.1 |       15.68       8.2 |       11.76       6.1
+  1.00       9.80       5.1 |       19.60      10.2 |       14.70       7.7
+  1.20      11.76       6.1 |       23.52      12.2 |       17.64       9.2
+  1.25      12.25       6.4 |       24.50      12.8 |       18.38       9.6
+  1.46      14.31       7.4 |       28.62      14.9 |       21.46      11.2
+  -> the pinch keeps 3.1x the demand at mu 0.6 (below the book's
+     10x reserve), and the ring keeps 6.1x.  Neither is a
+     force deficit - P104/P117's measured escape is a loaded slide at a 10-20x
+     static margin - so the capacity column prices the *trade*, not an escape.
+
+  the creep prediction (P117's correction): the *load-axis* component was
+  0.00-0.07 mm on every cell at pair 1.25-1.46 and is the friction term's
+  own; the total (8.62 mm on the pear) is a seat shift along the jaw axis,
+  invariant to mu 2.0 -> 4.0 (P117 A6: -4.8 %).  So the prediction is:
+     load-axis creep  : at mu 0.6 the capacity is still 3.1x -> stays <= 0.3 mm
+     total creep      : mu-invariant (a seat term), so ~8-12 mm at every mu
+  and the kill clause ('creep > 1.0 mm at the operating load') has to be read
+  on the load-axis component, because the total is already 8.62 mm at the
+  shipped mu - i.e. the letter of the clause fails every material including
+  the incumbent.  Recorded in PREREG.md section 4 as a registered reading.
+
+5. THE BENCH'S PREDICTIONS, IN ONE PLACE
+========================================================================================================
+  A0  pair friction: authoring `pad_mu = 2 mu_pair - mu_fruit` delivers the
+      requested pair to <= 0.1 (PhysX averages; P104 section 7a) - a *check*,
+      because the whole phase rests on the pair being controllable.
+  A1  the pinch: axial break falls as `2 mu N` (13.3 -> 5.9 N from 1.36 to
+      0.6), the load-axis creep stays <= 0.3 mm (3.1x the demand), and the
+      total creep does not move (P117 A6, re-tested on a 2.2x ladder).
+  B1  the ring, full close: mu <= 0.8 gives `centred + 4/4 loaded` from a
+      20 mm arrival; mu >= 1 does not (<= 3 pads).
+  B2  the ring, the task's first-contact freeze: the aperture freezes at
+      `2 (R + delta0)`, i.e. `2 delta0` too wide.  At mu < 1 the payload then
+      slides to the ring's centre and *unloads* (0 pads); at mu > 1 it jams
+      at delta0 with the near pad carrying ~the freeze force (1-2 pads).
+      Either way the line's closure does **not** enclose - the second leak
+      is the close protocol, not the material.

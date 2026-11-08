@@ -258,6 +258,11 @@ run_check "P70 belt top + rails" "$python" scripts/238_p70_belt_top_selftest.py
 # manifest writers call (rail mode/height/proud/inset, the slab's top z and edge,
 # the direct lift rung; the collector's `lift` is null by construction).
 run_check "P72 clr_edge + scene" "$python" scripts/239_p72_clr_edge_selftest.py
+# P129: the pad-material lane. No code ships, so the leg pins the *unset* path
+# (cage pad mu 2.0, no close window, no hard stop), the openarm finger material's
+# two default sites, the pair arithmetic the record rests on (1.25-1.46) and the
+# algebra's two thresholds (0.815 per fruit, 0.613 pool-wide).
+run_check "P129 pad material" "$python" scripts/265_p129_material_selftest.py
 # P73: the `[carry]` row's **rotation schedule** (`tilt0=`, `tilt_end=`,
 # `tilt_max=`, `t45=`, `t75=`, `tilt_rate=`) - the instrument the place-leg
 # question needs, because the leg-end `[attitude]` tilt is saturated by the place

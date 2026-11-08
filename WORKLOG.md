@@ -26125,3 +26125,87 @@ portable (colour/perception, tactile/force, the hand's limits, a third physical
 lane, a policy destination channel), and the five-step migration recipe.
 
 Every number traces to `logs/p114`-`logs/p127`; `106` OK.
+
+## P129 (2026-11-07) - the pad material is not the ring's lever: a four-jaw centres at the measured friction, and the freeze is what denies it
+
+The decision book's nail (i) (`docs/END_EFFECTOR_DECISION.md` section 4.1): a pad
+whose **pair** friction with the fruit is below 1, bench first.  Two fixtures in
+`logs/`, **no `src/` or `configs/` change**, no cell: the phase is killed on its
+own K2.
+
+**The algebra, re-derived** (`logs/p129/algebra.py`).  A round payload's four-pad
+residual is **`mu s`**: the perpendicular pair's penetration is `s` at any offset
+(the plane's distance from the centre does not depend on the tangential offset),
+so `drive = 2 k delta` against `2 mu k s`.  The decision book quotes
+`delta_inf = (2 mu - 1) min(s, cap/(2 mu k))` from P111, but that is neither what
+P111's `closed_form` computes (`mu s + mu_b m g/(2k)`) nor the geometry; the
+threshold `mu = 1` is the same in all three and the residual differs 2x at
+`mu = 0.6`.  With the 0.5 N contact trigger the **four-contact** state is a
+*stiffness window* `k in [0.5/(s(1-mu)), cap/(s(1+mu))]`, empty above
+**`mu = 0.815`** per fruit and **0.613** pool-wide (one stiffness, `s_max/s_min` =
+2.35); at `mu 0.6` it is `[4223, 4400] N/m`, a 1.04x sliver that excludes the
+shipped 1e5.  At the measured mu the four-pad window is EMPTY and the three-pad's
+is `[3113, 3677]`, containing P111's measured window (which was a three-pad
+number).  The condition the *line* actually meets is the third one: capture from
+an offset needs `mu < cap/(2 k s)` = 1.07-2.51 at `k = 3300` and **0.05-0.12 at the
+shipped 1e5**.  Also found: P112's `algebra.py` `fixed_point` subtracts the drive,
+so its trial runs *away* from the centre (its closed forms are fine).
+
+**Bench A** (P117's rig, `fixture_pinch.py`, 60 cells + an 18-cell friction sled).
+`flat` reproduces P117 to the digit (pear 8.47 vs 8.62, orange 9.07, strawberry
+0.98, lychee 12.42), so the instrument is P117's.  **A0** - a flat cube between
+two pads, pulled until it slides: the pair tracks the target with a constant
+**+0.02-0.03** (measured **0.43 / 0.63 / 0.82 / 1.02 / 1.22 / 1.38** at targets
+0.40-1.36, `sumN` 9.80 N), i.e. **`mu_pair < 1` is real and controllable** - the
+whole phase rests on it and it holds.  **A1** - the load-axis creep (`dz`, the
+direction the load acts) is **-0.03..+0.03 mm at every mu and fruit**, so the
+book's creep clause *passes* even at pair 0.6; the **total** creep is
+**mu-invariant** (pear 8.47 -> 8.68 -> 8.70 -> 8.55 -> 8.59), confirming P117's A6
+on a 2.2x ladder and showing why the total cannot be the verdict (it fails the
+incumbent).  The axial break falls as `2 mu N` (pear 9.45 -> 4.49 = 0.48x, orange
+0.49x).  **The trade is retention**: at pair 0.6 and 0.8 the two smallest fruits
+are **ejected during the seat** (0 pads, 1.2 m fall) on 12/12 cells, against 12/12
+held at pair 1.0+ - a squeeze-out at P117's **5 mm** interference (its
+constant-force design), harsher than the line's 1 % seat, so it is the price of a
+*shared* material rather than a prediction of the line.
+
+**Bench B** (P112's protocol, `fixture_ring.py`, 160 cells).  The support proof
+passes (pads home -> drift **0.0000 mm**; a frictionless payload centres 10.00 ->
+0.02 mm).  A **sphere cannot test this** and that is a finding: every sphere cell
+centred to 0.00 mm at both pair 0.6 and 1.35, because the sphere's surface leaves
+the 26 mm plate beyond `delta ~ 9 mm`, so the payload slides in **friction-free
+whatever the material**.  The payload is therefore a **square prism**, the
+algebra's own 2-D case.  Result: **the full close is clean on 8/8 cells at every
+pair 0.6-1.35 and both stiffnesses (80/80 cells, `off_end` 0.00-0.86 mm)** - a
+position-controlled close keeps pushing (the near pad at its 4.9 N cap) while the
+friction is `2 mu N_perp` (0.8-2.1 N), so the payload slides in and four pads
+load.  **The first-contact freeze is the term that denies the enclosure**: at the
+shipped close the clean count is **3/8 at the 1.35 control and 5/8 at pair
+0.6/0.8** (+2 cells, 0/5 mm arrivals only), **2/8 at every mu** at the soft close,
+and the 20 mm residual is 3.3-33 mm at every mu - against a line arrival of
+**55.8 mm**.  cage3 was not evaluable on a square payload (the support proof
+fails: a three-fold ring cannot centre a four-fold face set), recorded as D1; the
+three-pad algebra is P112's own measurement and is reproduced.
+
+**The kill**: K1 does not fire, **K2 fires** (the shipped pair already encloses
+under a full close, 4/4 control cells at 10-20 mm), K3 not uniform -> **no build,
+no cell**.  The transferable sentence: **the algebra's centring is a sub-millimetre
+residual and the line's problem is a 6-56 mm one**; a V-block on the line is the
+**widest-extent aperture law plus the first-contact freeze**, not friction.
+
+**Named next, priced**: the ring with `FRUIT_DYNAMIC_CLOSE_FREEZE=0` and the
+**shipped** material - the fixture says it envelopes a 0-20 mm arrival with all
+four pads - a single-arm `cage4` cell at 2 seeds x 20 attempts, endpoints P110's
+clean enclosure + the placed count; and if a low-mu pad is ever wanted elsewhere,
+A1 prices it (0.48-0.49x break-away, the 34-37 mm class ejected at a 5 mm seat,
+the load-axis creep unchanged), so scope it to the ring.
+
+**Guards**: `scripts/accept.sh` with every knob unset **8/10 = 80 %,
+`fingerprint: matches`, `190: PASS`**, its **421 `[fruit]` lines 421/421
+byte-identical** to `logs/p127/accept_restored.log`; `scripts/selfcheck.sh`
+**PASS (0 failures, 1 skipped)** with the new `P129 pad material` leg
+(`scripts/265_p129_material_selftest.py`, 18 checks: the four cage knobs' unset
+path, the openarm finger material's two default sites, the pair arithmetic
+1.25-1.46, the algebra's 0.815 / 0.613 / 4223-4400); `106` **OK**; `107` **PASS
+(21 checks)**.  No reference re-recorded (`30fb99f8` / `30fb99f8` / `8952c320`).
+Evidence `logs/p129/`.

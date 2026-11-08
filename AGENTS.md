@@ -6519,6 +6519,75 @@ the tactile/force channels, the hand's limits, a third physical lane, a policy
 destination channel), and the five-step migration recipe. Every number traces to
 `logs/p114`-`logs/p127`; `106` OK. Evidence `docs/PORTABILITY_AND_INSTRUCTIONS.md`.
 
+**P129 (2026-11-07, `logs/p129/`; two bench fixtures in `logs/` - **no `src/` or
+`configs/` change, nothing adopted, no reference re-recorded**): the decision
+book's nail (i) is measured and **killed on K2** - a four-pad ring **centres and
+loads all four pads at the measured pair friction 1.35**, so `mu_pair < 1` is not
+the term that decides the enclosure.  **The algebra first** (`algebra.py`): the
+four-pad residual is **`mu s`**, not the book's `(2 mu - 1) min(s, cap/(2 mu k))`
+- P111's headline formula is not what P111's own `closed_form` computes
+(`mu s + mu_b m g/(2k)`) nor the 2-D geometry; the threshold `mu = 1` is right and
+the residual is 2x smaller at `mu = 0.6`.  The **four-contact** state is a
+*window*: a pad counts at 0.5 N, so `k in [0.5/(s(1-mu)), cap/(s(1+mu))]`, empty
+above **`mu = (cap-0.5)/(cap+0.5) = 0.815`** per fruit and **0.613 pool-wide** with
+one stiffness (`s_max/s_min` = 2.35) - at `mu 0.6` the window is
+**`[4223, 4400] N/m`**, a 1.04x sliver that **excludes the shipped 1e5**; at the
+measured mu the four-pad window is **EMPTY** while the three-pad's is
+`[3113, 3677]`, containing P111's measured `[2.9e3, 3.8e3]`.  A third condition is
+the one the line meets: capture from an offset needs `mu < cap/(2 k s)` = 1.07-2.51
+at `k 3300` and **0.05-0.12 at the shipped 1e5**.  **Bench A** (P117's rig, 60
+cells + 18 sled): **A0** - authoring `pad_mu = 2t - mu_payload` delivers the pair
+to **+0.02-0.03** (measured **0.43 / 0.63 / 0.82 / 1.02 / 1.22 / 1.38** at targets
+0.40-1.36, `sumN` 9.80 N), so `mu < 1` is real and controllable; **A1** - the
+`flat` control reproduces P117 to the digit (8.47/9.07/0.98/12.42), the
+**load-axis** creep (`dz`) is **-0.03..+0.03 mm at every mu** (so the book's creep
+clause passes on the axis the load acts along), the **total** creep is
+**mu-invariant** (pear 8.47 -> 8.68 -> 8.70 -> 8.55 -> 8.59; P117's A6 confirmed on
+a 2.2x ladder, which is why the *total* cannot be the verdict - it fails the
+incumbent too), and the **trade is retention**: the break-away falls to
+**0.48-0.49x** at pair 0.6 and the **34-37 mm fruits are ejected during the seat on
+12/12 cells at pair 0.6 and 0.8** (0 pads, 1.2 m fall) against **12/12 held at pair
+1.0+** - a squeeze-out at P117's **5 mm** seat, harsher than the line's 1 %.
+**Bench B** (P112's protocol; payload = a **square prism**, the algebra's own 2-D
+case; 160 cells): the support proof passes (drift **0.0000 mm**, a frictionless
+payload centres 10.00 -> 0.02 mm), and a **sphere cannot test this** (every sphere
+cell centred at both mus because its surface leaves the 26 mm plate beyond
+`delta ~ 9 mm` - recorded, and why the payload is a prism).  **The full close is
+clean 8/8 at every pair 0.6-1.35 and both stiffnesses (80/80 cells**, `off_end`
+0.00-0.86 mm) - the algebra's threshold is not what a *position-controlled* close
+realises, because the near pad keeps pushing at its cap (4.9 N) while the friction
+is `2 mu N_perp` (0.8-2.1 N).  **The freeze is the term that denies the
+enclosure**: at the shipped close it is **3/8 clean at the 1.35 control and 5/8 at
+pair 0.6/0.8** (+2 cells, 0/5 mm arrivals only) and **2/8 at every mu** at the soft
+close; the 20 mm residual is 3.3-33 mm at every mu, and the line's arrival is
+**55.8 mm**.  **Kill**: K1 does not fire (pair < 1 achievable), **K2 fires**
+(control 4/4 clean from 10-20 mm under a full close), K3 not uniform -> **no
+build, no cell**.  **Read rules**: the algebra's centring is a *sub-mm* residual
+and the line's problem is a *6-56 mm* one; a V-block on the line is the
+**widest-extent law + the first-contact freeze**, not friction; a fixture's
+payload must be the algebra's 2-D case (a square prism) or its geometry silently
+removes the term; and a creep clause is read on the **load axis** (the total is a
+mu-invariant seat shift).  **Named next, priced**: the ring with
+`FRUIT_DYNAMIC_CLOSE_FREEZE=0` and the **shipped** material - the fixture says it
+envelopes 0-20 mm with all four pads (8/8 clean) - a single-arm `cage4` cell at 2
+seeds x 20 attempts, endpoints P110's clean enclosure + placed count; and, if a
+low-mu pad is ever wanted elsewhere, its price is A1 (0.48-0.49x break-away, the
+small class ejected at a 5 mm seat, the load-axis creep unchanged) - scope it to
+the ring.  **Guards**: selfcheck **PASS (0 failures, 1 skipped)** with the new
+`P129 pad material` leg (18 checks: the four cage knobs' unset path, the openarm
+finger material's two default sites, the pair arithmetic 1.25-1.46, and the
+algebra's 0.815 / 0.613 / 4223-4400 thresholds), `106` OK, `107` PASS, and
+`scripts/accept.sh` with every knob unset **8/10 + `fingerprint: matches`** with
+its `[fruit]` stream **identical** to `logs/p127/accept_restored.log`.  Pins
+unchanged: `tasks.py` `50fd799d`, `cage_hand.py` `42c4eb64`, `scene.py` `b3bf8067`,
+`assets.py` `24d29679`, `rl_env.py` `3aed67b9`; refs **`30fb99f8` / `30fb99f8` /
+`8952c320`**; ckpt `moe_v13s` `61da390a`.  New: `logs/p129/{algebra.py,
+algebra.txt, fixture_pinch.py, fixture_pinch.log, fixture_ring.py,
+fixture_ring_cage4.log, p129_report.py, p129_report.txt, run_p129_pinch.sh,
+run_p129_ring.sh, METHOD.md, PREREG.md, PREREG.md5, RESULTS.md}`,
+`scripts/265_p129_material_selftest.py` + the selfcheck leg.  Evidence
+`logs/p129/`.
+
 ## 3. What changed -> what to run
 
 | you changed | run |
@@ -6544,6 +6613,7 @@ destination channel), and the five-step migration recipe. Every number traces to
 | a **candidate-planning / selector** change on the two-line (`select_target`'s lane rules, `_dynamic_select_floor`, the `FRUIT_GRADE_ROUTING` fallback, a prefetch/prepared/reservation path) | **the census first, offline**: `python3 logs/p99/census.py <cell>.log` + `python3 logs/p99/p99_report.py` read the per-slot wait split (park-gate / park-motion / feed / starved polls), the per-decision candidate set and the **convertible seconds per mechanism** (`FRUIT_BED_DIAG=2` + `FRUIT_BIARM_PARK_TRACE=1` on the census cell; prove the instrument neutral by replaying the same-seed record with its rows dropped - `census.py --same`, P99's `974/974` / `970/970`). **A wait is not a throughput number**: quote the interval, both rates and the arm split before calling one convertible, and read the *mechanism* columns, which are branch-free - `window <= 1` (a forced choice), the delay-aware headroom (0.000 s on the shipped two-line, so "take the nearest" is already shipped), `own-lane-empty-while-cross-lane-present`, and the park-gate time (the overlap's price, not a fruit wait). **A cross-lane rule is a sort error on this cell** (left = lane 0 = grade A, right = lane 1 = grade B, `run(state, bin_index)` places on the arm's own lane), so price it with `FRUIT_GRADE_ROUTING=0` and report the **grade-purity ledger**, never as a free lever - P99: starvation 37 -> 0, arrival wait 1.62 -> 0.67 s, **interval +6.8 % / +5.3 % at the two seeds**, window rate worse at both, 17/40 mis-sorted |
 | a **scenario descriptor or a sort instruction** (`FRUIT_SCENARIO`, `FRUIT_SORT_INSTRUCTION`, `src/fruit_sorting/scenario.py`, `tasks._sort_admits`/`_place_xy_for`/`_calibrate_sort_destinations`, the `[sort]` rows) | `scripts/selfcheck.sh` (the `259`/`260` legs: the strict descriptor schema and its cached unset resolution, the shipped-path fallbacks in `tasks.py`, the descriptor's `SceneConfig`/`SupplyPlan` application and the scope refusals; then the instruction leg's grammar, precedence, unset resolver, capability map and every refusal); then **the unset replay first** - `scripts/accept.sh` must be 8/10 + `fingerprint: matches` with its `[fruit]` stream **byte-identical** to `logs/p110/accept_noharm.log` (P114: 421/421, no `[sort]`/`[scenario]` row); then **an instruction that restates today's routing** must replay the same stream with the `[sort]` rows dropped (`python3 logs/p114/p114_report.py --same`); then the ledger (`--ledger`) on the cell - **assignment accuracy is the endpoint, never the placed count** - and for a new destination mark it `reach: auto` (the startup solve prints `reachable`/`UNREACHABLE` at the 25 mm bar) and prove an unreachable mapping is **refused before the first attempt**, not mis-sorted (P114's tray: 1138.3 mm -> `ScenarioError`). A new **physical** lane/hand/camera is still a scene build; the descriptor only moves a target on an existing lane. **P115** adds the `261` leg (`and` terms, `FRUIT_SORT_STRICT`, the rule table, the `rule=` field): when a rule carries `and`, read the **per-rule histogram** (`python3 logs/p115/p115_report.py --ledger <log>`) so the decision names the rule, and use **`FRUIT_SORT_STRICT=1`** when a dropped fruit must be a startup refusal rather than a silent skip. **P116** adds the **offline plan/lint** (`scripts/262_sort_plan.py --instruction <file> [--strict-overlap]`): rule table with arms, **overlap pairs with the winning rule and an example fruit**, the partition over the 120-cell attribute space, and the cells that match no rule - run it **before** a new instruction, quote the partition and the overlap, and keep `--strict-overlap` green when the instruction must be a true partition (use `grade!=A`, `species!=apple` to write "the rest of the apples" without relying on order) |
 | a **third output body** (`FRUIT_OUTPUT_LANES=3`, `SceneConfig.output_lane_layout`, `conveyor.OutputBelt`'s lane argument, `scene._add_output_belts`, `assets.output_tray_of`, `tasks._payload_clearance`/`_output_belt_edge_y`, the `scene.output_lanes` manifest key) | the **scene survey first** (`scripts/run.sh logs/p123/probe.py` section S, or `logs/p123/survey.txt`): the output deck's free space is `\|y\| 0..0.425` inboard and `> 0.675` outboard, and only `\|y\| 0.28-0.40 at x >= 0.48` is both reachable and clear of the place transits. Then the **offline layout** (`python3 logs/p123/layout.py`): the place point against P90's `NAT` box, the delivered point against the slab in sd, the **crossing of every other lane's inboard edge as a delta from the shipped crossing** (`d clr = d z`; the direct low lift loses 0.30 mm/mm inboard, a body **x-offset downstream** loses nothing), the body/tray/chute air gaps and the camera footprint. Then the **exact reach solve** (`scripts/run.sh logs/p123/probe.py` section R, both arms, both heights, the gate in `logs/p123/PREREG.md`); a cell that does not pass is a kill **before** the build. Then the build's own tests: `scripts/selfcheck.sh` (the `264` leg - the unset path reproduces every shipped scalar and the generalised belt/tray/discharge tests equal the pre-P123 expressions on a dense grid, the third lane's geometry, the delivered point >= 3 sd inside its slab, the body upstream of every transit and downstream of the fruit band, the tray census), and the manifest (`assets.scene_provenance(...)["output_lanes"]`, 2 entries shipped / 3 with the body). Then the **cell with its own same-seed control on the same tree**: the endpoints are the **tray census** (`[belt] ... discharged ... [tray N]`, joined to the `[sort] attempt idx=`) and the **ledger** (`in_destination`), never a target proximity; read `python3 logs/p123/p123_report.py --cells C T --check` (the guards: every payload-present release on a belt, `clr`/`clr_edge` > 0 on every held place leg, the descent budgets via `105 --min-success-rate 0`). **A scene change moves the collider set**, so an unset acceptance must be the no-harm gate (P123: 8/10 + `fingerprint: matches` + 421/421) and a count is a branch - two seeds here read -6 and +2. A flip owes both references, a re-based acceptance, every store re-baselined and the direct/policy interface measured. **P126 flipped the default to 3 and P127 reverted it**: the 20-attempt battery reads **44/80 on three lanes against 58/80 on two, 4/4 seeds worse** - the scene's collider set re-draws every grasp (P71), so **a scene flip is carried by the 20-attempt battery with same-seed controls**, not by the acceptance (one attempt's 7 vs 8 hid -17.5 points), the tray census (it proves the destination) or the canary (an interface check). |
+| a **pad-material / friction** claim (`FRUIT_FINGER_MU`, `FRUIT_CAGE_PAD_MU`, a `mu_pair` target, a "slippery pad" or "no-slip pad" idea, a creep/break-away number) | **the algebra first** (`python3 logs/p129/algebra.py`): the four-pad residual is `mu s`, the four-*contact* state is a stiffness **window** `[0.5/(s(1-mu)), cap/(s(1+mu))]` which is empty above `mu = 0.815` per fruit and `0.613` pool-wide, and capture from an offset needs `mu < cap/(2 k s)` (the condition a **rigid** close fails at any mu) - so say which one you mean. Then **the pair itself** (`logs/p129/fixture_pinch.py` A0: a flat cube between two pads, `mu = F/(sum N)`; the authored `pad_mu = 2t - mu_payload` delivers the pair to +0.02) - never quote a pad's authored mu as the pair. Then the **creep on the load axis** (P117's `dz`), never the total (a mu-invariant seat shift: 8.5-12.4 mm at every mu), and the **retention** (at pair <= 0.8 the 34-37 mm fruits are ejected at P117's 5 mm seat, 12/12 cells). For a **ring's centring** use `logs/p129/fixture_ring.py`: the payload must be the algebra's 2-D case (a **square prism**; a sphere slides in friction-free because its surface leaves the 26 mm plate beyond `delta ~ 9 mm`), and the **protocol is a cell variable** - a full close is clean 8/8 at every pair 0.6-1.35, while the line's first-contact freeze is 3/8 at the control and does not improve with mu. **A `mu < 1` pad is not the ring's lever** (`logs/p129/RESULTS.md`); the freeze is, and its cell is named there. |
 | a **new destination or output lane** (a third tray, a zone on an existing belt, a "put it in box 3") | the **spacing spec first** (`logs/p122/SPEC.md`, `python3 logs/p122/spacing.py`): a destination is a **physical output body** (belt + chute + tray - the cell has two, one tray per belt), so a target on an existing belt is the **same** destination, not a third. If zones must share a body, attribution needs the **calibrated** offset (**+48 mm x, +-35..37 mm y**), then **x >= 50 mm** (0/20 000; 30-40 mm is 1.5 %) - **never uncalibrated** (50 mm reads 33 % wrong) and **never a (50,50) diagonal** (2.1 %; P121's 1/23). A real third needs the **place reach** (P90: x 0.38-0.48, |y| 0.35-0.55) and a **station solve**, and it owes both references + every store |
 | a **direct/policy instruction route** (`rl_env.direct_dispatch`, `_sort_armed`, the `_begin_pick`/`_run_primitive` wiring, `tasks.dispatch_destination`/`sort_ledger_attempt`/`arm_for_destination`, `FRUIT_SORT_THIRD_DEST`, the manifest's `sort` block) | `scripts/selfcheck.sh` (the `263` leg: the dispatch table - unset **is** the shipped `grade A -> 0/left, else 1/right` expression, today's routing, a non-grade rule, `skip`/unmatched refused - the goal-channel OOD gate, the capability map incl. the unreachable tray, `_begin_pick`'s goal channel, `_run_primitive`'s thread-local place target + `finally` cleanup + ledger, the 7+1 action, and the manifest block); then the **direct cells**: an un-instructed control and an instructed arm on the **same seeds**, `logs/p121/p121_report.py --check` on their logs (the endpoint is the ledger's `in_destination/released` and the per-destination table; the placed count is a branch draw, never a rate), and a third destination only with `FRUIT_SORT_THIRD_DEST=1` + its own descriptor - a third target 71 mm from lane 0 was **reachable but not separable** under the line's 40-70 mm release scatter (1/23 mis-sort), so check the separation before promising it; then `scripts/accept.sh` as the no-harm proof (the scripted path never reads `direct_dispatch`) |
 | the bimanual scheduler (`bimanual.py`, or the task loop under `FRUIT_BIARM=1`) | `scripts/selfcheck.sh` (the 152 leg), the rate batch (`scripts/153_biarm_rates.sh two-line 5`; `shared` and `single` are the other two modes), then `scripts/accept.sh` (it gates whatever session it ran) |
