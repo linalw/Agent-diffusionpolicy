@@ -26233,3 +26233,109 @@ was measured negative at 0.94 on the old aperture) plus the moving arrival
 (56 mm), which no closure law fixes.
 
 No `src/` or `configs/` change - the knob is shipped and the cage hand is opt-in.
+
+## P131 (2026-11-08) - the ring's over-closure is the law, not the drive; the fix removes it and exposes the V-block
+
+The owner's question after P130: `cage4` + `FRUIT_DYNAMIC_CLOSE_FREEZE=0`
+converts the rate (+28.7 points), but over-closure became the dominant failure
+(22/40, "the aperture below `dia - 4 mm`"). Is the ring driven inside the fruit
+by the force-capped drive, or is the aperture law wrong? The rule: fix the law
+if it is the law; publish the negative if it is the drive.
+
+**The census first** (`logs/p131/census.py`, offline, before any code edit): 72
+`[cage]` rows (P130's `F5`/`F6` freeze off + P108's `B_s5`/`B_s6` freeze on),
+each joined to its approach's `end=`, its `grasp_lift` `[carry]` row and its
+`[run] attempt` outcome, with the fruit's radial/axial extents recomputed from
+`meshes.axis_extent` (the `pxr` import stubbed; the profiles are arithmetic).
+On the 80 shipped-law freeze-off rows `aper / (0.97 min(radial, axial))` is in
+**[0.96, 1.02] on 75/80, p50 0.998** - the close runs to the **two-jaw**
+`deep = 0.97 x min(radial, axial)`, i.e. the fruit's **height** on an upright
+flat fruit, and never to the ring's `0.98 x widest`. The measured span is at or
+above the command on every row (`sep_end - aper` p10 **+0.0 mm**; P131's
+close-time `sep - aper` p10 **+0.00 / -0.01 mm**), so **the drive is not the
+term**.
+
+**Two metric artefacts inflate P130's 22/40.** (1) The strawberry's class `dia`
+is its **height**: `R/dia = 0.792`, so `aper < dia - 4` flags every strawberry
+grasp at `aper/R` 0.95-0.98. (2) A ring that **missed** the fruit
+(`off > 15 mm` at the close's end) also reads `aper < dia - 4` with no fruit
+between its pads. Corrected (seated `off <= 15 mm`; over = `aper < R - 4 mm` or
+`F > 29.4 N`), P130's split is **clean 11/40, over 7/40, miss 15/40, vblock
+4/40, jam 1/40**. The 7 over-closures are tomato 2 / peach 2 / apple 3 at
+`aper/R` p50 **0.874**, and **6 of the 7 placed** - the over-closure is a
+geometry defect, not the failure class; the **15 misses** are.
+
+**The build** (`FRUIT_CAGE_APERTURE`, default `shipped`, the P107 expression bit
+for bit): `max_extent` (the mesh's largest axis - a screen) and `pad_axes` (the
+max over the ring's **own four pad axes** in the cage base frame, the P112
+analogue; equal to the shipped axes for a top-down hand).  One task route makes
+it operative: for an armed radial hand `deep = pinch_width x
+FRUIT_GRIPPER_SQUEEZE` (0.98) and the two-jaw **2.5 mm interference floor is
+dropped** (the ring reaches its cap at `cap/k` = 0.049 mm; 2.5 mm is 8.5 % of a
+29 mm berry).  Unset keeps the shipped target and floor on every hand.  The
+`[cage]` row gains `law= ext= deep= sep=` (the measured span at the flush); the
+probe is default off and the acceptance stays 421/421.  New selfcheck leg
+`scripts/266_p131_cage_aperture_selftest.py` (the unset path recomputed bit for
+bit, the two laws, the tilted base case, the cage3 invariance, the two routing
+branches, the row fields).
+
+**The cells** (`cage4` + freeze off, the scripted single arm, the P130 scenario:
+`FRUIT_BIARM` left unset, so the refused cage scheduler still scopes the
+wave/balanced supply, 20 attempts, the P108/P110 instrumentation).  The
+pre-registered `U5 == F5` replay is **not available**: two identical unset runs
+diverge at attempt 0 (`at pick pose` 0.84 vs 0.86 s, the peach's `fruit_y`
+0.4832 vs 0.4812) - the cage cell is **not bit-reproducible** (the P39 `F1`
+precedent, on a new mode).  So the control is the fresh same-tree `U5`/`U6`.
+
+| cell | law | placed | clean | over | vblock | miss | jam | n/c |
+|---|---|---|---|---|---|---|---|---|
+| `U5`/`U6` (control) | shipped | **10/20, 10/20** | 7+6 | 3+4 | 2+1 | 6+8 | 1+0 | 0 |
+| `P5`/`P6` | `pad_axes` | **3/20, 9/20** | 4+7 | **0+0** | 7+6 | 8+5 | 0 | 1+1 |
+| `M5` | `max_extent` | 3/20 | 3 | 0 | 7 | 8 | 0 | 1 |
+
+* **The over-closure is removed**: 7/40 -> **0/40**, exact Fisher **p = 0.0117**.
+  The witness is a 62 mm tomato at **50.7 -> 59.8 mm** (`aper/R` 0.818 ->
+  0.965, drive at 61.3 mm) and the 69-70 mm apples **61.0-61.7 -> 68.0-68.2 mm**.
+* **The enclosure does not convert**: clean **13/40 -> 11/40** (p = 0.81) and the
+  **V-block rises 3/40 -> 13/40** (p = 0.0103), because the arrival is `off0`
+  p50 **3.6/3.5 mm** (control) / **4.3/5.6** (treatment) against P110's
+  `delta < 0.6 mm` for all four pads to reach.  The old 10-13 % over-closure was
+  **masking** the V-block by driving every pad deep - at the 4.9 N/pad cap, so
+  the ring enclosed violently and 6/7 of those attempts still placed.
+* **The placed count is a branch**: 20/40 -> 12/40 (p = 0.11; per seed 10 -> 3
+  and 10 -> 9), with the `P5` draw carrying one 2.0 m ejection.  Not a rate.
+* **`max_extent` is a measured negative**: 9/20 rows have `ext > R + 2 mm`
+  (pear 4, kiwi 2, **strawberry 3** - its height is its largest axis) and
+  **0/9 place**; the ring closes on air.  A blind "close wider" is not the fix.
+
+**Guards**: crush **0 legs**; landing payload-present **9/9, 10/10, 10/10, 10/10,
+3/4, 9/9, 3/3** - the one failure is `P5` attempt 4 (a 3.0 cm lychee held at
+9.97 N in a V-block, flung **2.0 m** during the place leg, the cage's closed
+loaded-slide class, not a release miss), so `logs/p131/gates.sh` **rc = 1** on
+that letter only; descent budgets **PASS on all five** (worst `|v|max`
+0.130-0.144 vs 0.160-0.162, lurch 0.039-0.065 vs 0.291, not re-tuned); no new
+reason key.  **No-harm**: `scripts/accept.sh` with every knob unset **8/10,
+9.0 s/attempt, `fingerprint: matches`, `190: PASS`**, its **421 `[fruit]` lines
+421/421 identical** to `logs/p127/accept_restored.log`; `scripts/selfcheck.sh`
+**PASS (0 failures, 1 skipped)** with the new `P131 cage aperture law` leg;
+`106` **OK**, `107` **PASS (21 checks)**.
+
+**Deviations, recorded**: **D1** the non-reproducible cage cell (above; the
+control is fresh, every count is one branch); **D2** the PREREG's D2 bar was the
+P130 control's 11/40, the fresh control is 13/40 and `pad_axes` is 11/40 (-2,
+inside the control's 5-7 per-cell spread; p = 0.81) - a draw; **D3** a P130
+by-product the logs expose: `F5`/`F6` ran the refused-default two-line
+**wave/balanced** supply while the P108 `B_s5`/`B_s6` "controls" are
+`FRUIT_BIARM=0` **scatter** cells, so P130's 19/40 vs 6/32 crosses two supplies
+and the freeze's same-supply effect is not in that record.
+
+**The answer**: the law was the bug; the fix is real; the over-closure was not
+the binding failure.  The remaining blocker is **centring** (P110's 0.6 mm, or a
+workstation that presents the fruit on the ring's axis), not the closure law.
+`FRUIT_CAGE_APERTURE` stays **default `shipped`**; `pad_axes` is the measured arm
+if it is ever paired with a centring step.  No `configs/` change, no reference
+re-recorded (`30fb99f8` / `30fb99f8` / `8952c320` stand).  Pins: `cage_hand.py`
+`0f56b2ff`, `tasks.py` `76dbfc6b`, `rl_env.py` `b11113fb` (`TASKS_MD5` =
+`76dbfc6b`), `scripts/266_p131_cage_aperture_selftest.py` `de1d28f6`,
+`scripts/selfcheck.sh` `5dd45f91`; ckpt `moe_v13s` `61da390a`.  Evidence
+`logs/p131/`.

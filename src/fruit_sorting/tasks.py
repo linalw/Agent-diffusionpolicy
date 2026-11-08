@@ -30,7 +30,7 @@ from .control import ArmController
 from .dataset import EpisodeMeta, EpisodeRecorder, camera_observation
 from .grasp import pads_mid
 from .actuated_gripper import ActuatedGripper
-from .cage_hand import CAGE_KINDS, CageHand, pad_fruit_clearance
+from .cage_hand import CAGE_KINDS, CageHand, aperture_mode, pad_fruit_clearance
 from .kinematic_gripper import KinematicGripper, OpenArmHand, PAD_THICK
 from .motion import (
     MotionMonitor,
@@ -4256,6 +4256,16 @@ class PickAndPlaceTask:
             "off0": float("nan"),
             "off": float("nan"),
             "axis0": None,
+            #: P131: what the close *chose* and what it *reached*.  `law` is
+            #: `FRUIT_CAGE_APERTURE`, `extent` the hand's stated extent (the
+            #: pre-close `pinch_width`), `deep` the two-phase load target the
+            #: close ran to; `sep` is the measured pad span at the flush, i.e.
+            #: the one number that separates "the law is wrong" (sep == aper)
+            #: from "the drive overshot its command" (sep < aper).
+            "law": "",
+            "extent": float("nan"),
+            "deep": float("nan"),
+            "sep": float("nan"),
         }
 
     def _cage_probe_phase(self, phase: str) -> None:
@@ -4347,6 +4357,10 @@ class PickAndPlaceTask:
         book["loaded"] = loaded
         book["bat_mm"] = bat * 1000.0
         book["bat_rel_mm"] = bat_rel * 1000.0
+        try:
+            book["sep"] = float(self.grippers.get(book["side"]).separation())
+        except Exception:  # noqa: BLE001 - a probe must never change an outcome
+            book["sep"] = float("nan")
         say(
             f"[cage] idx={int(sample.index)} arm={book['side']} "
             f"species={sample.category} dia={float(sample.diameter) * 1000:.0f}mm "
@@ -4360,6 +4374,9 @@ class PickAndPlaceTask:
             f"pads={loaded}/4 "
             f"f=({','.join(f'{v:.2f}' for v in forces)}) "
             f"F={sum(forces):.2f}N aper={float(book['aper_last']) * 1000:.1f}mm "
+            f"law={book['law'] or 'n/a'} ext={float(book['extent']) * 1000:.1f}mm "
+            f"deep={float(book['deep']) * 1000:.1f}mm "
+            f"sep={float(book['sep']) * 1000:.1f}mm "
             f"no_contact={0 if loaded > 0 else 1}"
         )
 
@@ -13927,6 +13944,29 @@ class PickAndPlaceTask:
                     min_extent = float(sample.diameter)
                 wide = max(pinch_width * 1.02, float(sample.diameter) * 1.02)
                 deep = min_extent * float(os.environ.get("FRUIT_DYNAMIC_CLOSE_DEEP", "0.97"))
+                # P131: a **radial** hand states its own aperture law, and the
+                # two-jaw `deep` above is the wrong law for it - it is the
+                # fruit's *minimum* extent, i.e. the **height** on an upright
+                # flat fruit, so the freeze-off close (P130) drives the pads
+                # 5-13 % inside the fruit's width.  When the hand's law is armed
+                # (`FRUIT_CAGE_APERTURE` other than `shipped`), the load target
+                # is the hand's stated extent instead; the live clamp below drops
+                # the two-jaw 2.5 mm interference floor for the same hand (the
+                # ring's drive reaches its cap at 0.05 mm, so the floor only
+                # over-closes small fruit).  Unset = the shipped expression, bit
+                # for bit, on every hand.
+                cage_law_armed = (
+                    getattr(self.grippers.get(arm_name), "kind", "") in CAGE_KINDS
+                    and aperture_mode() != "shipped"
+                )
+                if cage_law_armed:
+                    deep = float(pinch_width) * float(
+                        os.environ.get("FRUIT_GRIPPER_SQUEEZE", "0.98")
+                    )
+                if self._cage_book is not None and self._cage_book.get("open"):
+                    self._cage_book["law"] = aperture_mode()
+                    self._cage_book["extent"] = float(pinch_width)
+                    self._cage_book["deep"] = float(deep)
                 fast_ticks = int(os.environ.get("FRUIT_DYNAMIC_CLOSE_FAST", "24"))
                 load_ticks = int(os.environ.get("FRUIT_DYNAMIC_CLOSE_LOAD", "60"))
                 if self._close_load_rate > 0.0:
@@ -14402,6 +14442,12 @@ class PickAndPlaceTask:
                         min_interference = float(
                             os.environ.get("FRUIT_DYNAMIC_MIN_INTERFERENCE", "0.0025")
                         )
+                        if cage_law_armed:
+                            # P131: the ring closes on its own extent and its
+                            # drive reaches the cap at a fraction of a millimetre,
+                            # so the two-jaw absolute floor (2.5 mm, 8.5 % of a
+                            # 29 mm berry) is not needed and only over-closes.
+                            min_interference = 0.0
                         if self._dynamic_interference_frac > 0.0:
                             # Scale the floor with the fruit: 2.5 mm is 10 % of a
                             # 3 cm strawberry and the flat 2.5 mm floor crushed it

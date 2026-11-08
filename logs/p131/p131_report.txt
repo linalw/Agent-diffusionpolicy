@@ -1,0 +1,69 @@
+P131 - the aperture-law cells
+======================================================================================================================
+the corrected split: jam = end>15; miss = off>15; over = seated and (aper<R-4 or F>29.4);
+clean = pads>=3 and none of those; vblock = pads 1-2 and none of those.
+      cell        law  placed  div clean over vblk miss jam n/c | P110 c/j/cr | crush  land
+    F5.log    shipped   9/20     2     5    3    3    7   1   0 |   2/ 1/7   |  0/12  9/9 
+    F6.log    shipped  10/20     2     6    4    1    8   0   0 |   6/ 2/4   |  0/10 10/10
+  U_s5.log    shipped  10/20     1     7    3    2    6   1   0 |   4/ 2/8   |  0/10 10/10
+  U_s6.log    shipped  10/20     2     6    4    1    8   0   0 |   6/ 2/4   |  0/10 10/10
+  P_s5.log   pad_axes   3/20     6     4    0    7    8   0   1 |   3/ 0/2   |  0/18  3/4 
+  P_s6.log   pad_axes   9/20     4     7    0    6    5   0   1 |   7/ 2/1   |  0/11  9/9 
+  M_s5.log    max_ext   3/20     6     3    0    7    8   0   1 |   3/ 1/1   |  0/19  3/3 
+
+per-class placed (the count is a branch, reported not gated):
+      cell      clean       over     vblock       miss        jam no-contact
+    F5.log 4/5         3/3         0/3         0/7         1/1         0/0        
+    F6.log 5/6         3/4         1/1         0/8         0/0         0/0        
+  U_s5.log 4/7         2/3         1/2         1/6         1/1         0/0        
+  U_s6.log 5/6         3/4         1/1         0/8         0/0         0/0        
+  P_s5.log 2/4         0/0         1/7         0/8         0/0         0/1        
+  P_s6.log 6/7         0/0         2/6         0/5         0/0         0/1        
+  M_s5.log 1/3         0/0         2/7         0/8         0/0         0/1        
+
+the shrink of the over-closure (the law the census measures):
+      F5.log: over-closure 3/20 {'tomato': 1, 'peach': 1, 'apple': 1}  aper/R p50 0.874  aper/ramp p50 0.998
+      F6.log: over-closure 4/20 {'tomato': 1, 'peach': 1, 'apple': 2}  aper/R p50 0.874  aper/ramp p50 0.998
+    U_s5.log: over-closure 3/20 {'tomato': 1, 'apple': 1, 'peach': 1}  aper/R p50 0.871  aper/ramp p50 0.998
+    U_s6.log: over-closure 4/20 {'tomato': 1, 'peach': 1, 'apple': 2}  aper/R p50 0.874  aper/ramp p50 0.998
+    P_s5.log: over-closure 0/20
+    P_s6.log: over-closure 0/20
+    M_s5.log: over-closure 0/20
+
+the drive test (`sep` = the measured pad span at the close's flush):
+    U_s5.log: sep-aper p10  +0.99 p50  +3.90 p90 +16.23 mm  (negative = the pads reached inside the command)
+    U_s6.log: sep-aper p10  -0.01 p50  +3.45 p90  +9.30 mm  (negative = the pads reached inside the command)
+    P_s5.log: sep-aper p10  +0.00 p50  +0.30 p90  +7.30 mm  (negative = the pads reached inside the command)
+    P_s6.log: sep-aper p10  -0.01 p50  +2.00 p90  +6.56 mm  (negative = the pads reached inside the command)
+    M_s5.log: sep-aper p10  +0.00 p50  +0.05 p90  +3.83 mm  (negative = the pads reached inside the command)
+
+the V-block: the pads over the 0.5 N threshold, and the close-time offset
+      F5.log: pads 0:1:2:3:4 = 4:2:4:6:4  off0 p50   4.3 mm (seated rows only)
+      F6.log: pads 0:1:2:3:4 = 5:0:3:9:3  off0 p50   3.5 mm (seated rows only)
+    U_s5.log: pads 0:1:2:3:4 = 1:4:1:9:5  off0 p50   3.6 mm (seated rows only)
+    U_s6.log: pads 0:1:2:3:4 = 5:0:3:9:3  off0 p50   3.5 mm (seated rows only)
+    P_s5.log: pads 0:1:2:3:4 = 6:4:5:3:2  off0 p50   4.3 mm (seated rows only)
+    P_s6.log: pads 0:1:2:3:4 = 4:1:5:7:3  off0 p50   5.6 mm (seated rows only)
+    M_s5.log: pads 0:1:2:3:4 = 6:5:4:3:2  off0 p50   3.8 mm (seated rows only)
+
+the `max_extent` screen: rows whose stated extent is the fruit's height
+  M_s5.log: 9 rows with ext > R + 2 mm (pear/kiwi: the ring closes on air)
+    att  2 strawberry  d=  37 R= 29.3 ext= 36.1 aper= 35.0 pads=0 placed=False
+    att  5 strawberry  d=  37 R= 29.3 ext= 36.1 aper= 35.0 pads=1 placed=False
+    att  6 strawberry  d=  36 R= 28.5 ext= 35.2 aper= 34.1 pads=4 placed=False
+    att  9 pear        d=  61 R= 61.0 ext= 72.7 aper= 70.5 pads=0 placed=False
+    att 11 pear        d=  68 R= 68.0 ext= 81.7 aper= 79.3 pads=0 placed=False
+    att 13 kiwi        d=  56 R= 56.0 ext= 63.2 aper= 61.3 pads=2 placed=False
+    att 14 pear        d=  68 R= 68.0 ext= 81.7 aper= 79.3 pads=0 placed=False
+    att 16 kiwi        d=  56 R= 56.0 ext= 63.2 aper= 61.3 pads=2 placed=False
+    att 18 pear        d=  61 R= 61.0 ext= 72.7 aper= 70.5 pads=2 placed=False
+
+the shipped acceptance (the no-harm; run separately by accept.sh)
+
+the registered gates
+  G1/D1 the over-closure is the law: P cells over 0, U cells {'U_s5.log': 3, 'U_s6.log': 4}; sep-aper p10 +0.00 mm  [PASS]
+  G2/D2 the enclosure: pad_axes clean 11/40 vs the fresh same-tree control 13/40 (the PREREG's pinned bar is >= 11)  [PASS]
+  G3 landing (payload-present releases off the belt): {'P_s5.log': 1}  [FAIL]
+  G4 crush proxy (`sep@loss - dia < -15 mm`): 0 leg(s)  [PASS]
+  G5 no new failure-reason key: ['fruit did not follow the gripper']  [PASS]
+  gates rc=1

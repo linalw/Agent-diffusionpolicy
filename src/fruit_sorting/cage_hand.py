@@ -115,6 +115,37 @@ def cage_enabled() -> bool:
     return hand_kind() in CAGE_KINDS
 
 
+#: P131: the four-pad ring's **aperture law** (`FRUIT_CAGE_APERTURE`).  `shipped`
+#: is the existing `0.98 x widest horizontal extent` (P107) and keeps every
+#: expression below bit for bit; the two variants exist to answer P130's
+#: over-closure measurement.  On this line the fruit stands upright (a surface of
+#: revolution on the belt), so the *shipped* law already reads the width - what
+#: P130 measured is that the **dynamic close never reaches it**: the two-jaw
+#: two-phase ramp's load target is `0.97 x min(radial, axial)` (the fruit's
+#: **height**), and with `FRUIT_DYNAMIC_CLOSE_FREEZE=0` the ring runs that ramp
+#: to its end, i.e. it closes to the height on every flat fruit.  The variants
+#: change *which* extent the ring states, and the task routes the close's load
+#: target through the stated extent for a radial hand (`logs/p131/RESULTS.md`).
+APERTURE_MODES = ("shipped", "max_extent", "pad_axes")
+#: `max_extent` - the mesh's largest axis (the height on an elongated fruit,
+#: the width on a flat one): the control that shows a blind "close wider" is
+#: not the fix.
+#: `pad_axes` - the max over the ring's **own four pad axes** in the cage base
+#: frame (the P112 analogue: the law belongs to the hand, not to the TCP), which
+#: on an upright fruit is the horizontal width and on an elongated upright fruit
+#: stays the width (where `max_extent` would close on air).
+
+
+def aperture_mode() -> str:
+    """The resolved `FRUIT_CAGE_APERTURE` (`shipped` when unset)."""
+    value = os.environ.get("FRUIT_CAGE_APERTURE", "shipped")
+    if value not in APERTURE_MODES:
+        raise SystemExit(
+            f"FRUIT_CAGE_APERTURE must be one of {APERTURE_MODES}, got {value!r}"
+        )
+    return value
+
+
 #: `FRUIT_GRIPPER_KIND` value that selects the four-pad ring (P107).
 CAGE_KIND = "cage4"
 #: P112: the **three-pad** ring - the owner's choice from P111's own list, and
@@ -379,7 +410,8 @@ def author_cage(stage, side: str) -> None:
         f"{2 * HOME_FACE_R * 1000:.1f} -> {2 * (HOME_FACE_R - STROKE) * 1000:.1f} mm, "
         f"drive k={PAD_STIFFNESS:.0f} N/m c={PAD_DAMPING:.0f} Ns/m "
         f"cap={PAD_FORCE:.2f} N/pad, "
-        f"tool offset={GRASP_STANDOFF * 1000:.1f} mm"
+        f"tool offset={GRASP_STANDOFF * 1000:.1f} mm, "
+        f"aperture law={aperture_mode()}"
         + (
             f", close k={CLOSE_STIFFNESS:.0f} N/m "
             f"c={(CLOSE_DAMPING if CLOSE_DAMPING > 0 else 2.0 * math.sqrt(CLOSE_STIFFNESS * PAD_MASS)):.1f} Ns/m "
@@ -655,12 +687,46 @@ class CageHand:
           in force - a real chuck's jaws all reach their force limit and stop,
           and this is the sim's single-scalar equivalent.
 
+        P131 adds `FRUIT_CAGE_APERTURE` for the *four-pad* ring only:
+        `shipped` (the expression above, bit for bit), `max_extent` (the mesh's
+        largest axis) and `pad_axes` (the max over the ring's own four pad axes
+        in the cage **base** frame).  The variant is not a free-standing law:
+        the task routes the dynamic close's load target through it, because
+        P130 measured that the two-jaw ramp's `min_extent` target, not this
+        method, is what the freeze-off close actually runs to.
+
         No new read: the extents come from the shape profile, exactly as
         `pinch_width`'s own cage branch does.
         """
         from .meshes import FRUIT_SHAPES, axis_extent
 
         if len(self.thetas) == 4:
+            mode = aperture_mode()
+            if mode == "max_extent":
+                # The mesh's largest axis: the width on a flat fruit, the height
+                # on an elongated one.  A *screen*, not a candidate default - a
+                # blind "close wider" cannot know which of the two is the ring's
+                # closing direction (P131).
+                return max(
+                    float(axis_extent(shape, float(diameter), np.array([1.0, 0.0, 0.0]))),
+                    float(axis_extent(shape, float(diameter), np.array([0.0, 0.0, 1.0]))),
+                )
+            if mode == "pad_axes":
+                # The ring's **own** pad axes, in the cage base frame.  The base
+                # is the TCP rotated by the constant tool correction (local +Z
+                # onto the arm's approach axis), so a top-down hand reads the
+                # same width as the shipped law and a tilted one reads the axes
+                # the pads actually close along.  The correction is cached by
+                # `track_arm` every tick (one arm read, not a new one); a
+                # standalone call with no correction (the selfcheck) is the
+                # top-down case, i.e. the shipped axes.
+                correction = getattr(self, "_correction", None)
+                base = rot if correction is None else rot @ _quat_matrix(correction)
+                widest = 0.0
+                for axis in (0, 1):
+                    local = rq.T @ base[:, axis]
+                    widest = max(widest, float(axis_extent(shape, float(diameter), local)))
+                return widest
             widest = 0.0
             for axis in (0, 1):
                 local = rq.T @ rot[:, axis]
