@@ -26209,3 +26209,27 @@ path, the openarm finger material's two default sites, the pair arithmetic
 1.25-1.46, the algebra's 0.815 / 0.613 / 4223-4400); `106` **OK**; `107` **PASS
 (21 checks)**.  No reference re-recorded (`30fb99f8` / `30fb99f8` / `8952c320`).
 Evidence `logs/p129/`.
+
+## P130 (2026-11-07) - the ring with the close freeze off: the lead is real (+28.7 points) and the ring still loses
+
+P129's named cell: `cage4` + `FRUIT_DYNAMIC_CLOSE_FREEZE=0` + the shipped pad,
+single arm, 20 attempts x seeds 5/6, the P108 controls at the same seeds.
+
+| cell | freeze | placed | clean | jam | over | no contact |
+|---|---|---|---|---|---|---|
+| control (pooled) | on | **6/32 = 18.8 %** | 2/32 | 0 | 10 | 5 |
+| treatment (pooled) | off | **19/40 = 47.5 %** | 8/40 | 0 | 22 | 9 |
+
+**The rate converts**: +28.7 points, Fisher **p = 0.0135** - the first-contact
+freeze was costing the ring a quarter of its rate, exactly as P129's fixture
+predicted. **The enclosure does not**: the clean split is 8/40 against 2/32
+(p = 0.169), because the dominant failure becomes **over-closure** (22/40: the
+aperture below `dia - 4 mm`), the closure law's defect P108 measured.
+
+**The ring still loses to the shipped hand** (47.5 % against the two-line's
+72.5 % at four seeds), so the lane stays opt-in. The next named term is the
+**closure law** (the ring closes to 0.98 x the widest extent; the squeeze family
+was measured negative at 0.94 on the old aperture) plus the moving arrival
+(56 mm), which no closure law fixes.
+
+No `src/` or `configs/` change - the knob is shipped and the cage hand is opt-in.

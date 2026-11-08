@@ -6588,6 +6588,22 @@ run_p129_ring.sh, METHOD.md, PREREG.md, PREREG.md5, RESULTS.md}`,
 `scripts/265_p129_material_selftest.py` + the selfcheck leg.  Evidence
 `logs/p129/`.
 
+**P130 (2026-11-07, `logs/p130/`; P129's named cell, **the knob is shipped**:
+`FRUIT_DYNAMIC_CLOSE_FREEZE=0`, no `src/` or `configs/` change, the cage hand
+stays opt-in): the freeze-off ring **converts the rate** - `cage4`, single arm,
+20 attempts x seeds 5/6, **19/40 = 47.5 %** against the same seeds' freeze-on
+controls' **6/32 = 18.8 %**, **+28.7 points, Fisher p = 0.0135** - and **does not
+convert the enclosure**: the clean split (P110's jam/over-closure/clean, joined
+to the approach's `end=`) reads **8/40 against 2/32, p = 0.169**, because the
+dominant failure becomes **over-closure** (22/40: the measured aperture is below
+`dia - 4 mm`, the ring driving its pads inside the fruit - the closure-law defect
+P108 measured, not the freeze). **The ring still loses to the shipped hand**
+(47.5 % against the two-line's 58/80 = 72.5 % at four seeds), so the lane stays
+opt-in and the next named term is the **closure law** (`0.98 x` the widest
+extent; the `FRUIT_GRIPPER_SQUEEZE` family was already measured negative at 0.94
+on the old aperture) plus the moving arrival (56 mm, which no closure law
+fixes). Evidence `logs/p130/`.
+
 ## 3. What changed -> what to run
 
 | you changed | run |
