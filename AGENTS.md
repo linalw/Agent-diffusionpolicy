@@ -6757,6 +6757,17 @@ geometric purchase**; the one open measurement is the **real-jaw force anchor**
 is excluded by the owner's constraint. `106` OK. Evidence
 `docs/END_EFFECTOR_DECISION.md` §7.
 
+**P134 (2026-11-09, `docs/CLOSEOUT.md` §6; design/handover only, no `src/` or
+`configs/` change): the engagement closes out for the owner** - a one-page
+section appended to the project close-out: the shipped state (two lanes, 8/10,
+58/80 = 72.5 %, the instruction layer on both lines), what the engagement
+measured and closed (the descriptor/instruction/ledger arc, the third lane
+opt-in at -17.5 points, the loaded-slide families all negative or a draw, the
+μ<1 pad dead, the ring's freeze and centring, the acquisition tail), the
+owner's constraints as they stand, what the hardware partner should take away
+(the decision book and its §7), and the pointers. It is the owner-facing summary
+of `logs/p104`-`logs/p133`; `106` OK. Evidence `docs/CLOSEOUT.md` §6.
+
 ## 3. What changed -> what to run
 
 | you changed | run |

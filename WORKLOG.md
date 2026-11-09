@@ -26445,3 +26445,16 @@ and §5 pointing at it. What the bench said:
 Revised recommendation: **no geometric purchase**; the one open measurement is
 the **real-jaw force anchor** (fidelity, not rate); the workstation is the only
 path to the ring's centring and the owner's "dynamic only" constraint excludes it.
+
+## P134 (2026-11-09) - the engagement closes out
+
+`docs/CLOSEOUT.md` §6, a one-page owner-facing section: the shipped state (two
+lanes, 8/10, 58/80 = 72.5 %, interval 10.6-11.1 s; the instruction layer on the
+scripted and the direct/policy line), what the engagement measured and closed
+(the descriptor/instruction/ledger arc; the third lane opt-in at -17.5 points;
+the loaded-slide families - force, pad face, serration, deep lip, friction, μ<1 -
+all negative or a draw; the ring's real terms, the freeze and the centring; the
+acquisition tail and P50's compensation), the owner's constraints, the hardware
+partner's takeaway (the decision book + its §7 postscript), and the pointers.
+
+Design/handover only; no `src/` or `configs/` change; `106` OK.

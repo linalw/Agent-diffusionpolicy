@@ -171,3 +171,59 @@ census/read, the post-pear store/checkpoint, the close-out record).
 
 *One page, dense by design; every number carries its log pointer in the
 documents above.*
+
+---
+
+## 6. The 2026-11 engagement (P104-P133): the end-effector verdict, the portability layer, and the final state
+
+**One page for the owner.** The R11-C close-out above is the throughput/grasp
+campaign of 2026-10; this section is what the November engagement added.
+
+### 6.1 The shipped state (all defaults, this tree)
+
+| piece | default | state |
+| --- | --- | --- |
+| **Scripted cell** | the **bimanual two-line** (P85), P87 release trim, P71 geometry, P41 drive profile | **8/10** acceptance, `fingerprint: matches`, `190: PASS`; **58/80 = 72.5 %** at four seeds, interval **10.6-11.1 s**, window **5.66** / batch **5.05** placed/min |
+| **Output lanes** | **two** (one belt + chute + tray per side) | the third is built (`FRUIT_OUTPUT_LANES=3`) and **opt-in**: P123 25/25 tray agreements, P127 **-17.5 points** as the default |
+| **Instructions** | `FRUIT_SORT_INSTRUCTION` unset = the shipped grade routing | the scripted **and** the direct/policy line honour it, with a per-destination and per-rule ledger |
+| **Scenario** | `FRUIT_SCENARIO` unset = the shipped cell | a new pipeline is a JSON + a solve + one gate (`docs/PORTABILITY_AND_INSTRUCTIONS.md`) |
+| **Hand** | the shipped OpenArm two-finger, 10 N/joint | the cage rings (`cage4`/`cage3`) and the Allegro are measured, **opt-in**, and lose to it |
+
+### 6.2 What this engagement measured, and what it closed
+
+| question | answer | phase |
+| --- | --- | --- |
+| can the cell be moved to another pipeline? | **yes, as data**: descriptor + capability map + ledger; a new pipeline is a JSON + a reach solve + the gate | P114/P128 |
+| can it place by instruction? | **yes, both lines**: `grade/size/species/and/!=/skip`, a plan/lint before a run, a per-destination ledger (18/18, 22/22, 20/20 at two lanes) | P114-P116, P121 |
+| a third destination? | **a physical body** (belt+chute+tray); built, 25/25 tray agreements, **-17.5 points** if defaulted, so **opt-in** | P122/P123/P127 |
+| is the loaded slide (75 % of failures) a pad/friction/force problem? | **no**: the pad face, the pad friction, the clamp force (10-60 N), a serrated face and a deep lip are all measured **negative or a draw**; the μ<1 pad is dead (the ring centres at 1.35); the ring's real terms are the **freeze** and **centring** | P104-P112, P117, P120, P129-P132 |
+| is the acquisition class (25 %) fixable? | the delivered-x tail is the cause and P50's release-offset compensation removes it offline (0/96 outside the band); its count gate is underpowered at 10 attempts | P48-P50 |
+| what is left? | **the real-jaw force anchor** (fidelity, not rate); **perception** (colour is not a per-instance attribute); the **workstation** (excluded by the owner's "dynamic only" constraint) | - |
+
+### 6.3 The owner's constraints, as they stand
+
+* the **two-finger gripper** stays (the cage/3-jaw/Allegro are measured, not adopted);
+* the **dynamic scattered pipeline** stays: **no diverter, stop gate, guide/limit or pause** - this excludes the pocket/gate/rail forms and the workstation;
+* **no cross-configuration success-rate comparison**; the ledger/class is the endpoint;
+* a **scene flip is carried by a 20-attempt battery at >= 2 seeds** (P127: the acceptance's 7 vs 8 hid -17.5 points).
+
+### 6.4 What the hardware partner should take away
+
+`docs/END_EFFECTOR_DECISION.md` (P113) + its **§7 postscript** (P133): the nine
+routes, the two figures, the three nails - and now the measured answers: **μ<1 is
+not the ring's term**, the **freeze** and **centring** are, and **no geometric
+purchase** (pad face, serration, lip) converts the class. The one open
+measurement is a **real-jaw clamp-force anchor**: does the sim's 9.8 N equal a
+real jaw's at the same command?
+
+### 6.5 Pointers
+
+`docs/PORTABILITY_AND_INSTRUCTIONS.md` (the migration recipe, the instruction
+language, the ledger, the read rules) - `docs/END_EFFECTOR_DECISION.md` §7 (the
+bench) - `logs/p104`-`logs/p133` (every phase's evidence) - `logs/p127` (the
+shipped three-lane verdict) - `logs/p114`/`p121` (the instruction layer, both
+lines).
+
+*The shipped cell is unchanged from P127: two lanes, 8/10, 72.5 %, and an
+instruction layer that works on both lines. The remaining levers are not
+software.*
