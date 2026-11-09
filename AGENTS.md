@@ -6890,7 +6890,8 @@ the working loop, and with the knob unset **no camera is authored at all**. **No
 with every knob unset is **8/10 = 80 %, 9.0 s/attempt, `fingerprint: matches`,
 `190: PASS`**, and its **421 `[fruit]` lines are 421/421 byte-identical** to
 `logs/p127/accept_restored.log` (`logs/p135/accept_final.log`, re-measured on the
-wrist-camera tree at `logs/p135/accept_wrist.log`);
+wrist-camera tree at `logs/p135/accept_wrist.log` and again after the estimator's
+prior/gate/anchor at `logs/p135/accept_final2.log`);
 `scripts/selfcheck.sh` **PASS (0 failures, 1 skipped)** with the new `P135 tracker`
 leg (33 checks: the exactness, the step, the CA negative, the zero correction, the
 clamp, the calibration ratio, the synthetic sphere, every off default); `106` OK,
