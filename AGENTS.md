@@ -6878,7 +6878,7 @@ with every knob unset is **8/10 = 80 %, 9.0 s/attempt, `fingerprint: matches`,
 `logs/p127/accept_restored.log` (`logs/p135/accept_final.log`, re-measured on the
 wrist-camera tree at `logs/p135/accept_wrist.log`);
 `scripts/selfcheck.sh` **PASS (0 failures, 1 skipped)** with the new `P135 tracker`
-leg (30 checks: the exactness, the step, the CA negative, the zero correction, the
+leg (33 checks: the exactness, the step, the CA negative, the zero correction, the
 clamp, the calibration ratio, the synthetic sphere, every off default); `106` OK,
 `107` PASS (21 checks). **Re-baseline: none** - nothing shipped,
 `configs/motion_reference.json` = `..._twoline.json` = **`30fb99f8`** and
