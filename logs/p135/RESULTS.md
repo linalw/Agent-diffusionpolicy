@@ -1,0 +1,138 @@
+# P135 results - what the tracker converted, and what it did not
+
+All cells are the scripted single-arm line (the two-line's own checks are §5),
+seed 5, 3 attempts per cell unless stated, one `scripts/run.sh` invocation per
+cell. `C` = every P135 knob unset. `T` = `FRUIT_TRACK=est FRUIT_DESCENT_TRACK=1`.
+`W` = `T` + `FRUIT_TRACK_WAIT=1`. `A` = `T` with the constant-acceleration form.
+`F` = `T` + `FRUIT_TRACK_CATCH_SPEED=0.20`.
+
+A count on this loop is a branch draw, so the *mechanism* numbers are the ones
+read below: the catch-up's **residual** against its 6 mm tolerance and the
+**ticks** it took, both printed by the shipped code (`[catch]`, default-off
+`FRUIT_TRACK_DIAG=1`).
+
+## 1. The estimator is the shipped path when the model holds
+
+`scripts/268_p135_track_selftest.py` (30 checks): `predict(h)` equals
+`p + v*h` to **1.8e-15 m** over 120 frames; a 80 mm/s velocity step is followed
+by the **third tick** and its 0.7 s prediction is within **10 mm**; the
+constant-acceleration form is **-147 mm** one tick after the same step, which is
+the recorded reason it is not the default.
+
+## 2. A fruit-level impulse is damped by the belt - it is not a tracking test
+
+`FRUIT_PERTURB_DX/DY` at descent tick 20 (a scripted stand-in for P95's
+collision). The fruit slides a few millimetres and re-settles onto the belt
+within ~30 ms, so by the time the descent ends the fruit is back on the
+conveyor's line.
+
+| cell | grasp | placed | catch residual mm | catch ticks | corr asked |
+|---|---|---|---|---|---|
+| C dx 0.10 | 3/3 | 1 | 5.9 [5.8, 5.9] | 10/13/11 | - |
+| T dx 0.10 | 3/3 | 2 | 5.8 [5.5, 5.9] | 10/13/12 | 30 |
+| C dx 0.20 | 3/3 | 2 | 5.9 [5.2, 6.0] | 9/13/12 | - |
+| T dx 0.20 | 3/3 | 2 | 5.8 [5.4, 6.0] | 10/13/12 | 74 |
+| C dx 0.35 | 3/3 | 0 | 5.9 [5.6, 6.0] | 9/24 | - |
+| T dx 0.35 | 2/3 | 0 | 5.9 [5.8, 5.9] | 9/13/10 | 80 (clamped) |
+| C dy -0.10/-0.20/-0.30 | 9/9 | 0 | 5.8-5.9 | 9-24 | - |
+| T dy -0.10/-0.20/-0.30 | 9/9 | 3 | 5.8-5.9 | 9-13 | 30 / 74 / 80 |
+
+**The catch-up absorbs every impulse in <= 24 ticks.** The tracker asks for a
+30-80 mm correction (the clamp binds at `dy = -0.30`), but the fruit's excursion
+has already been damped, so the correction buys no ticks. What the impulse does
+cost is the **grasp quality**: at `dx = 0.35` the pads close on a fruit sliding
+at 0.35 m/s, all three attempts grasp, and none places - the closed loaded-slide
+class (`logs/p42/SIM_LIMIT.md`), which no tracker touches. So the impulse cell is
+a *negative for tracking* and a *confirmation of the class split*.
+
+## 3. The non-uniform conveyor: the handover gate is the term
+
+A belt whose speed varies is the transport itself being non-uniform; the fruit
+ride it (no slip), so their velocity is exactly the belt's and it is not
+constant. `FRUIT_BELT_WAVE_AMP` / `_HZ` drive the surface.
+
+| cell | wave | grasp | placed | catch residual mm | catch ticks |
+|---|---|---|---|---|---|
+| C | 0.04 / 0.5 Hz | 1/3 | 1 | **297.9, 338.7**, 5.9 | **200, 200**, 11 |
+| T | 0.04 / 0.5 Hz | 1/3 | 0 | 5.9, 5.8, **338.7** | 8, 12, **200** |
+| A | 0.04 / 0.5 Hz | 1/3 | 0 | 5.9, 5.8, 338.7 | 14, 19, 200 |
+| **W** | 0.04 / 0.5 Hz | **2/3** | 0 | **5.6, 5.4, 5.9** | **17, 16, 16** |
+| C | 0.08 / 0.3 Hz | 2/3 | 2 | **407.1**, 5.6, 5.8 | **200**, 14, 19 |
+| T | 0.08 / 0.3 Hz | 2/3 | 0 | 5.9, 5.9, **407.1** | 10, 13, **200** |
+| A | 0.08 / 0.3 Hz | 2/3 | 1 | **407.1**, 4.9, 5.7 | **200**, 14, 19 |
+| **W** | 0.08 / 0.3 Hz | 2/3 | 1 | 5.9, 5.6, 5.5 | 16, 15, 17 |
+
+**This is the phase's result.** Under a varying belt the shipped gate
+(`fruit_now - grip <= speed*(t_desc + margin)`, a *speed* formula) starts the
+descent at the wrong time: the fruit arrives **298-407 mm** from the hand, the
+catch-up spends its whole 200-tick budget (its reach is ~200 mm at 1-2 mm/tick)
+and the attempt is a `never_held`. The re-aim alone (`T`) cannot fix it - the
+correction is clamped at 80 mm and the miss is created *before* the descent
+starts. `W`'s gate asks the estimator where the fruit **will be when the leg
+ends** and starts the leg when that point is at the catch position: **every**
+catch then converges in 15-17 ticks at 5.4-5.9 mm, at both wave rungs, and the
+timeouts go 2 -> 0 and 1 -> 0.
+
+Under the nominal belt the same gate is the shipped one with the margin
+expressed in position rather than time - `predicted - grip = (fruit - grip) -
+v*t_desc <= 0.02` against the shipped `fruit - grip <= v*(t_desc + 0.15)` =
+`0.018` - so it is not a new tuning, it is the same margin re-derived from the
+estimate. The nominal cell is measured in §4.
+
+The `A` arm (constant acceleration) does **not** help: on a 0.3 Hz wave its
+prediction is better in principle, but the term that binds is the handover, not
+the descent, and its transient behaviour on a step is the recorded negative (§1).
+
+## 4. The nominal cell
+
+`nom_w` (3 attempts, no wave, `W`): see `logs/p135/close/nom_w.log`. The catch
+residuals and the placed count are the control's; the gate is the shipped gate
+re-expressed, so this is the expected result and the check is that it holds.
+
+## 5. Perception: the measurement is good enough to drive the tracker
+
+`FRUIT_TRACK_SOURCE=depth` + `FRUIT_TRACK_APPLY=0`: the estimate runs, the
+perception measures on every rendered frame, and **every control input stays on
+the shipped path**. The bench is 2 attempts, 44 frames, the shipped pool.
+
+| quantity | median | p90 | max | registered bar |
+|---|---|---|---|---|
+| position error | **4.70 mm** | **6.41 mm** | 233.8 mm (first frame, the fruit entering the frame) | median <= 5, p90 <= 10 |
+| diameter error (abs) | **3.42 mm** | **4.29 mm** | 6.68 mm | <= 5 mm |
+| sphere-fit rms | 0.11-0.23 mm | - | 0.62 mm | - |
+
+The fit is exact on a synthetic sphere (`268`: 7.8e-12 mm), so the residual
+error is the *fruit* being an ellipsoid, not the geometry: the fitted sphere is
+1.6-4.1 mm smaller than the nominal diameter, consistently.
+
+**A defect the bench found and the fix it forced**: with the truth source the
+filter's `sigma_z` is 0.2 mm, and telling it that a 5 mm measurement is that good
+makes it fit the noise - the velocity read **0.026 m/s on a 0.12 m/s fruit** over
+an attempt. `FRUIT_TRACK_SOURCE=depth` now defaults `sigma_z` to the bench's
+5 mm; the position/diameter table above is measured under that setting.
+
+**In the loop** (`perception/inloop7.log`, 2 attempts, every P135 knob on,
+`FRUIT_PERCEPTION_CLOSE=1`): **2/2 grasped**, 1 placed, the catch converged in
+**13 and 38 ticks at 5.9 mm**, the filter's error at its last update **5.3 and
+3.6 mm**, its velocity **0.116 and 0.118 m/s** against the belt's 0.120. 61
+accepted frames and 17 refused for occlusion over the two attempts - the
+estimator carried the descent through the refusals. The lost placement is the
+closed loaded-slide class, not a tracking miss. (A 2-attempt smoke: no rate.)
+
+Two integration defects this path needed, recorded because both are easy to
+re-introduce:
+
+* **The descent's start must force a frame.** The camera runs at 30 Hz and the
+  control at 120 Hz, so a single-tick anchor lands inside the camera period three
+  times out of four; with a rate-limited anchor the filter is **never created**
+  and every aim falls back to the station's nominal x - up to 140 mm from a fruit
+  at the band's edge. `measure(force=True)` at the anchor fixed it.
+* **A refused frame must return `None`, not the cached estimate.** A cached
+  position fed back as a measurement is a lie the filter cannot see, and inside
+  the camera period it is counted four times at 120 Hz.
+
+## 6. What the tree does when the knobs are unset
+
+`FRUIT_TRACK` unset: no estimator, no callback, no perception, the catch-up reads
+the rigid body exactly as before, and `_step_sim` carries one bool test for each
+of the two instruments. §7 of the phase's guard list is the acceptance.

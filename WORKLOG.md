@@ -26458,3 +26458,52 @@ acquisition tail and P50's compensation), the owner's constraints, the hardware
 partner's takeaway (the decision book + its §7 postscript), and the pointers.
 
 Design/handover only; no `src/` or `configs/` change; `106` OK.
+
+## P135 (2026-11-09) - a tracker, not a formula: the handover was the term
+
+The owner's brief: the target's motion is not guaranteed to be uniform, and its
+position and diameter must come from a model, not from the simulator. The
+record's own numbers said where to look - `logs/p95`'s other-arm strike displaced
+an incoming fruit 28 mm at 0.284 m/s and the attempt ended `never_held`.
+
+Four formulas were in the catch: the aim (`_dynamic_aim`, once at the pre-pose),
+the handover gate (`fruit - grip <= speed*(t_desc+0.15)`, `speed` = the belt
+scalar), the open-loop descent, and the catch-up's `fruit + velocity*0.25`.
+
+**Built.** `tracking.FruitTracker` (CV + adaptive process noise; exact on the
+model, a step followed by the third tick); the correction defined **against the
+conveyor** so it is zero when the belt is the belt; `_approach(track=...)`
+re-aiming every tick; the catch-up closing on `predict_at(lead)`; and
+`FRUIT_TRACK_WAIT=1`, the handover as a **prediction** test.
+
+**Measured, and the negative first.** A velocity impulse on the fruit is damped
+by the belt in ~30 ms: the catch-up absorbs 0.10-0.35 m/s lateral and 0.10-0.30
+downstream in <= 24 ticks, 24/24 grasped, and the cost lands in the *carry* class
+(0-2 of 3 placed at dx 0.35). So the impulse is not a tracking test - it is a
+confirmation of the class split.
+
+**The conveyor is.** A sine on the belt speed (`FRUIT_BELT_WAVE_AMP`), the fruit
+riding it with no slip. The shipped gate then starts the descent at the wrong
+time and the fruit arrives **298, 339, 407 mm** away: two/one of three attempts
+spend the catch-up's whole 200-tick budget and fail. The re-aim alone cannot fix
+it (80 mm clamp, the miss is upstream of the descent). The prediction gate fixes
+all of it: **17/16/16 and 16/15/17 ticks at 5.4-5.9 mm**, timeouts 2 -> 0 and
+1 -> 0, at both wave rungs. On the nominal belt the gate is algebraically the
+shipped one (0.02 vs 0.018 m), and the nominal cell is a tie (11/13/11 ticks vs
+10/13/11; 0/3 vs 0/3).
+
+**Perception.** `perception.py`: RGB-D + instance mask -> back-projection through
+the authored lens and the camera prim's pose -> trimmed sphere fit. Bench
+(`FRUIT_TRACK_APPLY=0`): **4.70 mm median / 6.41 p90** position, **3.42 / 4.29 mm**
+diameter - the registered bars pass. In the loop: **2/2 grasped**, catch 13/38
+ticks at 5.9 mm, the filter's velocity 0.116/0.118 against the belt's 0.120.
+Two integration rules: the descent's start must **force** a camera frame (else the
+30 Hz period eats the only anchor and no filter is ever created), and a refused
+frame must return `None` (a cached estimate fed back is a lie the filter cannot
+see). The camera's own limit is measured: the hand occludes the fruit exactly
+when it matters - the mask shrinks 48 -> 22 px and the fit's z drifts 11 -> 44 mm
+- so the module refuses a cap below 60 px and the estimator predicts through it.
+
+No-harm: acceptance 8/10 + fingerprint matches + 190 PASS with 421/421 `[fruit]`
+lines byte-identical to `logs/p127/accept_restored.log`; selfcheck PASS with the
+new `P135 tracker` leg; 106 OK, 107 PASS. Nothing ships; `configs/` untouched.

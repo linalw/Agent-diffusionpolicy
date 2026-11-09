@@ -52,6 +52,13 @@ from .scenario import (
     shipped_descriptor,
 )
 from .tactile import TactileReading
+from .tracking import (
+    FruitTracker,
+    TrackConfig,
+    conveyor_model,
+    correction as track_correction,
+    track_config_from_env,
+)
 
 #: Small vertical offset of the coherent hand above the fruit's centre, so the pads'
 #: lower edge clears the belt and the gate: with the pads centred exactly on a small
@@ -1964,6 +1971,28 @@ class PickAndPlaceTask:
     _dynamic_grip_target = _AttemptLocal("_dynamic_grip_target")
     _dynamic_hover_target = _AttemptLocal("_dynamic_hover_target")
     _attempt_sim_t0 = _AttemptLocal("_attempt_sim_t0")
+    #: P135: the estimator, its conveyor-model anchor and its diagnostics are
+    #: per attempt for the same reason the trace is - the two-line runs two
+    #: attempts on two threads and `current_sample`/`current_arm` are shared.
+    _tracker_state = _AttemptLocal("_tracker_state")
+    _track_p0 = _AttemptLocal("_track_p0", factory=lambda: np.zeros(3))
+    _track_belt_v = _AttemptLocal("_track_belt_v", factory=lambda: np.zeros(3))
+    _track_t0 = _AttemptLocal("_track_t0", 0.0)
+    _track_aim_rows = _AttemptLocal("_track_aim_rows", factory=list)
+    _track_rows = _AttemptLocal("_track_rows", factory=list)
+    _track_innov = _AttemptLocal("_track_innov", 0.0)
+    _track_err = _AttemptLocal("_track_err", 0.0)
+    _track_sample = _AttemptLocal("_track_sample")
+    #: P135 impulse cell: the fruit waiting for its impulse and the tick it is
+    #: due on, per attempt thread (the clock is decremented in `_step_sim`).
+    #: P135 non-uniform **conveyor** instrument: a sinusoidal belt speed,
+    #: `FRUIT_BELT_WAVE_AMP` m/s at `FRUIT_BELT_WAVE_HZ`. A fruit riding the belt
+    #: then has a genuinely non-constant velocity - unlike a velocity impulse,
+    #: which the belt's friction damps inside ~30 ms. Off by default; one bool
+    #: test per tick on the shipped path.
+    _perturb_sample = _AttemptLocal("_perturb_sample")
+    _perturb_pending = _AttemptLocal("_perturb_pending", 0)
+    _perturb_rows = _AttemptLocal("_perturb_rows", factory=list)
     _gate_open_step = _AttemptLocal("_gate_open_step", 0)
     _biarm_clear_streak = _AttemptLocal("_biarm_clear_streak", 0)
     #: Wall-clock deadline of the current attempt (`episode_timeout_s > 0`
@@ -2863,6 +2892,116 @@ class PickAndPlaceTask:
         self._grip_plane_drop = float(
             os.environ.get("FRUIT_GRIP_PLANE_DROP", "0.0")
         )
+        # ------------------------------------------------------------------ #
+        # P135: model-based fruit tracking (`src/fruit_sorting/tracking.py`).
+        #
+        # `FRUIT_TRACK=est` replaces the three places the catch consumes a
+        # *formula* with a state estimate:
+        #   * the descent's aim is re-derived every tick from the filter's
+        #     prediction at the hand's own time-to-go (`FRUIT_DESCENT_TRACK`);
+        #   * the catch-up commands the prediction at the closing lead instead of
+        #     `position + velocity * lead`;
+        #   * the descent's start is scheduled off the estimate, not the belt
+        #     scalar, when `FRUIT_TRACK_WAIT=1`.
+        # The correction is defined against the **conveyor model** (start
+        # position + belt velocity * elapsed), so under a constant-speed belt it
+        # is identically zero and the shipped path is untouched.
+        # ------------------------------------------------------------------ #
+        self._track_on = os.environ.get("FRUIT_TRACK", "off").strip().lower() in (
+            "est", "1", "on", "kalman",
+        )
+        #: `truth` = the rigid-body read the shipped path uses (the estimator is
+        #: then a predictor/smoother); `depth` = the rendered RGB-D + mask
+        #: (P135 phase 3; refuses at construction if the camera is not built).
+        self._track_source = os.environ.get("FRUIT_TRACK_SOURCE", "truth").strip().lower()
+        #: `FRUIT_TRACK_APPLY=0` runs the estimator and its measurement source
+        #: but leaves every control input on the shipped path - the measurement
+        #: bench (perception error with the cell unchanged).
+        self._track_apply = os.environ.get("FRUIT_TRACK_APPLY", "1") == "1"
+        self._track_descent = (
+            os.environ.get("FRUIT_DESCENT_TRACK", "0") == "1"
+            and self._track_on
+            and self._track_apply
+        )
+        #: Schedule the descent's start off the estimate (`FRUIT_TRACK_WAIT`).
+        #: Off by default: the shipped wait is calibrated and the encoder is the
+        #: right prior for a fruit riding the belt.
+        self._track_wait = os.environ.get("FRUIT_TRACK_WAIT", "0") == "1" and self._track_on
+        #: Bound on the aim correction inside one descent [m]. A correction the
+        #: leg cannot spend is the catch-up's job (it measures its own residual).
+        self._track_corr_max = max(
+            0.0, float(os.environ.get("FRUIT_TRACK_CORR_MAX", "0.08"))
+        )
+        #: Residual-proportional closing lead [m/s] (0 = the shipped fixed
+        #: 0.25 s lead). The catch-up's convergence is limited by how far ahead
+        #: of the target it commands the drive; a lead that scales with the
+        #: measured residual asks for the larger correction only when there is
+        #: one to make. The lead is `|residual| / speed`, clamped to
+        #: `[catch_lead, 0.6 s]`, so a settled hand reads the shipped lead.
+        self._track_close_speed = max(
+            0.0, float(os.environ.get("FRUIT_TRACK_CATCH_SPEED", "0.0"))
+        )
+        #: One `[track]` row per attempt (prediction error against the measured
+        #: centre, the manoeuvre count, the largest correction asked for) and
+        #: the `[catch]` row's tick count.
+        self._track_diag = os.environ.get("FRUIT_TRACK_DIAG", "0") == "1"
+        self._track_config = track_config_from_env(os.environ, self._track_source)
+        #: Let the close law read the measured diameter (default off; see
+        #: `_perceived_diameter`).
+        self._perception_close = (
+            os.environ.get("FRUIT_PERCEPTION_CLOSE", "0") == "1"
+            and self._track_source == "depth"
+        )
+        self._track_rows_all: list[dict] = []
+        if self._track_source == "depth" and not self._track_on:
+            raise ValueError(
+                "FRUIT_TRACK_SOURCE=depth requires FRUIT_TRACK=est "
+                "(the perception path is the estimator's measurement source)"
+            )
+        #: The model-based measurement source. Built here, on the main thread,
+        #: because it reads the stage (the camera prim's calibration); a
+        #: two-line attempt thread must not be the first to touch USD.
+        self._perception_state = None
+        if self._track_source == "depth":
+            from .perception import perception_from_env
+
+            self._perception_state = perception_from_env(self.scene, self.cfg)
+            say(
+                f"[perceive] camera {self._perception_state.camera.width}x"
+                f"{self._perception_state.camera.height} "
+                f"fx={self._perception_state.camera.intrinsics(self._perception_state.camera.height, self._perception_state.camera.width)[0]:.1f} "
+                f"m/unit={self._perception_state.camera.meters_per_unit:g} "
+                f"hz={self._perception_state.hz:g}"
+            )
+        # P135 test instrument: a scripted impulse on the *selected* fruit, so a
+        # non-uniform motion can be produced on demand instead of waiting for
+        # another arm to hit the line. Off (no reads, no writes) by default; the
+        # only cost on the shipped path is the `_perturb_on` bool test in
+        # `_step_sim`.
+        self._perturb_dv = np.array(
+            [
+                float(os.environ.get("FRUIT_PERTURB_DX", "0.0")),
+                float(os.environ.get("FRUIT_PERTURB_DY", "0.0")),
+                float(os.environ.get("FRUIT_PERTURB_DZ", "0.0")),
+            ]
+        )
+        self._perturb_dw = np.array(
+            [
+                float(os.environ.get("FRUIT_PERTURB_WX", "0.0")),
+                float(os.environ.get("FRUIT_PERTURB_WY", "0.0")),
+                float(os.environ.get("FRUIT_PERTURB_WZ", "0.0")),
+            ]
+        )
+        self._perturb_at = int(os.environ.get("FRUIT_PERTURB_AT", "0"))
+        self._perturb_arm = os.environ.get("FRUIT_PERTURB_ARM", "both").strip().lower()
+        self._perturb_on = bool(
+            np.any(self._perturb_dv) or np.any(self._perturb_dw)
+        ) and self._perturb_arm in ("both", "left", "right")
+        self._perturb_fired = 0
+        self._belt_wave_amp = abs(float(os.environ.get("FRUIT_BELT_WAVE_AMP", "0.0")))
+        self._belt_wave_hz = float(os.environ.get("FRUIT_BELT_WAVE_HZ", "0.5"))
+        self._belt_wave_on = self._belt_wave_amp > 0.0
+        self._belt_base_speed: float | None = None
         #: Fraction of the live extent used as the dynamic close's minimum
         #: interference; >0 also turns the live clamp from a floor into a cap and
         #: lets the hold relax to it (small-fruit crush). Measured and left
@@ -3671,6 +3810,11 @@ class PickAndPlaceTask:
         """
         self._dynamic_trace_flush(result)
         self._fruit_trace_flush(result)
+        if self._track_on and self._track_sample is not None:
+            # P135: one row per attempt, at the attempt's end (the filter has
+            # seen the whole attempt by then, so `err` is the tracking error at
+            # the last measurement, not at the catch).
+            self._track_row(self._track_sample)
         self._force_servo_report(result)
         self._lift_control_report(result)
         self.stats["attempts"] += 1
@@ -3766,6 +3910,21 @@ class PickAndPlaceTask:
             # The belt speed: what the belt actually did over the run, next to the
             # count of fruit that had to wait for it.
             f"{encoder_text}"
+        )
+
+    def perception_report(self) -> None:
+        """One `[perceive]` row per run when the model-based source ran."""
+        perception = getattr(self, "_perception_state", None)
+        if perception is None:
+            return
+        summary = perception.summary()
+        say(
+            f"[perceive] renders={summary['renders']} "
+            f"frames={summary['frames']} failures={summary['failures']} "
+            f"rejected={summary['rejected']} "
+            f"fx={summary['fx']:.1f} fy={summary['fy']:.1f} "
+            f"m/unit={summary['meters_per_unit']:g} "
+            f"last='{summary['last_error']}'"
         )
 
     def _fingertip_lowest_z(self, side: str) -> float:
@@ -4182,6 +4341,13 @@ class PickAndPlaceTask:
                 SimulationManager.step(steps=steps)
         else:
             SimulationManager.step(steps=steps)
+        if self._perturb_on:
+            # P135 test instrument (off by default): one attribute test per tick.
+            # Fired from here so the impulse lands on the control tick its cell
+            # names, whatever leg is running.
+            self._perturb_tick()
+        if self._belt_wave_on:
+            self._belt_wave_tick()
         if self._feed_on:
             # P32 phase 2 (`FRUIT_FEED_CADENCE=1`): pump the feeder on every
             # control tick of every attempt phase (wait, approach, catch,
@@ -9833,6 +9999,294 @@ class PickAndPlaceTask:
             speed = float(self.cfg.belt_speed)
         return speed
 
+    # ------------------------------------------------------------------ #
+    # P135: model-based fruit tracking.
+    # ------------------------------------------------------------------ #
+    def _track_now(self) -> float:
+        """The attempt clock the tracker runs on [s]."""
+        return float(self._sim_time())
+
+    def _track_measure(self, sample, force: bool = False):
+        """One measurement of the selected fruit: ``(position, velocity)`` or None.
+
+        `truth` reads the rigid body - the shipped path's own input, which makes
+        the estimator a predictor/smoother over exact samples.  `depth` runs the
+        model-based perception module (RGB-D + instance mask + camera
+        calibration) and returns its fitted centre; the velocity is then the
+        filter's own, because a camera does not measure one directly.
+
+        A dropped frame returns **None** (the filter predicts through it).  It
+        never falls back to the simulator's state: that would make a perception
+        run partly a ground-truth run and the measurement meaningless.
+        """
+        if self._track_source == "depth":
+            estimate = self._perceive(sample, force=force)
+            if estimate is None:
+                return None
+            return np.asarray(estimate["position"], dtype=float), None
+        position = np.asarray(self.spawner.position(sample), dtype=float)
+        return position, np.asarray(self.spawner.velocity(sample), dtype=float)
+
+    def _track_update(self, sample, *, anchor: bool = False) -> FruitTracker | None:
+        """Fold one measurement in; optionally (re)anchor the conveyor model."""
+        if not self._track_on:
+            return None
+        measurement = self._track_measure(sample, force=anchor)
+        now = self._track_now()
+        tracker = self._tracker_state
+        if measurement is None:
+            # A camera frame was skipped (or the target was not in it). Run the
+            # filter forward to `now` and keep its prediction - the whole point of
+            # having an estimator rather than a per-tick measurement.
+            if tracker is not None:
+                tracker.predict(max(0.0, now - tracker.t))
+                if anchor:
+                    # The anchor must not be lost to a skipped frame: the
+                    # conveyor model is the estimate at the descent start, and a
+                    # default (zero) anchor would make every correction a clamped
+                    # jump in a nonsense direction.
+                    self._track_p0 = tracker.position.copy()
+                    speed = abs(self._belt_speed_estimate())
+                    self._track_belt_v = np.array([0.0, -speed, 0.0])
+                    self._track_t0 = now
+                    self._track_aim_rows = []
+            return tracker
+        position, velocity = measurement
+        if tracker is None:
+            tracker = FruitTracker(self._track_config)
+            tracker.reset(position, now, velocity)
+            self._tracker_state = tracker
+        else:
+            # The one-step innovation: how far the new measurement is from the
+            # filter's last estimate. It is the number that says "the fruit is
+            # not where the model put it" before the update moves the estimate.
+            self._track_innov = float(
+                np.linalg.norm(tracker.position - np.asarray(position, dtype=float))
+            )
+            tracker.update(position, now)
+            if self._track_diag and self._track_source == "depth":
+                truth = np.asarray(self.spawner.position(sample), dtype=float)
+                self._track_err = float(np.linalg.norm(tracker.position - truth))
+                self._perceive_row(sample, truth)
+        if anchor:
+            # The conveyor model is anchored where the schedule began: the
+            # measured centre at the descent start and the belt's own velocity.
+            # The correction is then exactly the fruit's motion the conveyor does
+            # not explain, and it is zero under the model.
+            self._track_p0 = np.asarray(position, dtype=float).copy()
+            speed = abs(self._belt_speed_estimate())
+            self._track_belt_v = np.array([0.0, -speed, 0.0])
+            self._track_t0 = now
+            self._track_aim_rows = []
+        return tracker
+
+    def _track_velocity_now(self, sample) -> np.ndarray | None:
+        """The estimate's velocity, or None when tracking is off/never seeded."""
+        if not self._track_on:
+            return None
+        tracker = self._tracker_state
+        if tracker is None:
+            return None
+        return tracker.velocity
+
+    def _track_aim(self, grip, sample, t_remaining: float) -> np.ndarray:
+        """The tracked jaw aim at `t_remaining` seconds before the leg ends.
+
+        The correction is `prediction(t_remaining) - conveyor(t_remaining)`:
+        zero while the fruit rides the belt, the fruit's own manoeuvre otherwise.
+        The shipped `grip` stays the nominal, so the descent's geometry, its
+        motion budget and the two-line clearance are the shipped ones whenever
+        the model holds.
+        """
+        tracker = self._track_update(sample)
+        if tracker is None or not self._track_apply or self._track_t0 <= 0.0:
+            # No filter, or the descent never anchored the conveyor model (a
+            # skipped first frame): the shipped aim is the honest answer.
+            return np.asarray(grip, dtype=float)
+        elapsed = self._track_now() - self._track_t0
+        delta = track_correction(
+            tracker,
+            self._track_p0,
+            self._track_belt_v,
+            elapsed,
+            t_remaining,
+            self._track_corr_max,
+        )
+        self._track_aim_rows.append(float(np.linalg.norm(delta)))
+        return np.asarray(grip, dtype=float) + delta
+
+    def _track_late_grip(self, sample, grip) -> np.ndarray:
+        """The grasp aim decided **now**, from the measurement, not at the pre-pose.
+
+        The shipped aim is computed at the pre-pose and carried through the hover
+        and the wait; the x and z come from wherever the fruit happened to be
+        then. With a camera that is the wrong moment - the fruit is far upstream
+        and often outside the frame - so the tracked path keeps the *schedule's*
+        along-belt coordinate (the fruit has to arrive at the catch point) and
+        takes the lateral and height coordinates from the estimate at the moment
+        the leg starts. Under the truth source this is the same point the
+        pre-pose computed (the fruit does not move in x/z), so the nominal
+        geometry is unchanged.
+        """
+        if not self._track_on or self._track_source == "truth":
+            return np.asarray(grip, dtype=float)
+        # One update per tick: the caller has just anchored the filter.
+        tracker = self._tracker_state
+        if tracker is None:
+            tracker = self._track_update(sample)
+        if tracker is None:
+            return np.asarray(grip, dtype=float)
+        standoff = self._pad_standoff(True, sample)
+        position = tracker.position
+        return np.array(
+            [float(position[0]), float(grip[1]), float(position[2]) + standoff]
+        )
+
+    def _track_initial_velocity(self, sample) -> np.ndarray | None:
+        """A pre-descent velocity for the schedule, when tracking is armed.
+
+        The shipped wait runs on the belt scalar.  With `FRUIT_TRACK_WAIT=1` it
+        runs on the estimate instead - which is what a fruit that is *not* riding
+        the belt needs, and is the belt value when it is.
+        """
+        if not self._track_wait:
+            return None
+        tracker = self._track_update(sample)
+        return None if tracker is None else tracker.velocity
+
+    def _track_row(self, sample) -> None:
+        """One `[track]` row per attempt (default-off diagnostic)."""
+        if not self._track_diag or not self._track_on:
+            return
+        if self._tracker_state is None:
+            say(
+                f"[track] idx={int(sample.index)} arm={self.current_arm} "
+                f"no-filter (no measurement was ever accepted)"
+            )
+            return
+        tracker = self._tracker_state
+        speed = abs(float(tracker.velocity[1]))
+        say(
+            f"[track] idx={int(sample.index)} arm={self.current_arm} "
+            f"innov={self._track_innov * 1000:.2f}mm "
+            f"err={self._track_err * 1000:.1f}mm "
+            f"v={speed:.4f}m/s "
+            f"a={float(np.linalg.norm(tracker.acceleration)):.3f}m/s2 "
+            f"man={int(tracker.manoeuvres)} "
+            f"corr_max={max(self._track_aim_rows, default=0.0) * 1000:.1f}mm "
+            f"corr_n={len(self._track_aim_rows)}"
+        )
+
+    def _perceived_diameter(self, sample):
+        """The measured diameter for `sample`, when the close may use it.
+
+        `FRUIT_PERCEPTION_CLOSE=1` + `FRUIT_TRACK_SOURCE=depth`: the close's width
+        comes from the sphere fit rather than from the pool's nominal size. With
+        either unset this is `None` and the shipped profile is used bit for bit.
+        """
+        if not self._perception_close or self._track_source != "depth":
+            return None
+        perception = getattr(self, "_perception_state", None)
+        if perception is None or perception.last_estimate is None:
+            return None
+        if abs(float(perception.last_estimate.get("t", -1e9)) - self._track_now()) > 0.2:
+            return None
+        return float(perception.last_estimate["diameter"])
+
+    def _perceive_row(self, sample, truth) -> None:
+        """One bench row per *fresh* perception frame (default-off diag).
+
+        `err` is the perceive-then-filter error against the simulator's centre,
+        `dia`/`dia_err` the fitted diameter against the pool's, `rms` the sphere
+        fit's own residual and `px` the point count. Nothing here is an input.
+        """
+        perception = getattr(self, "_perception_state", None)
+        if perception is None:
+            return
+        estimate = perception.last_estimate
+        if estimate is None:
+            return
+        now = self._track_now()
+        if abs(float(estimate.get("t", -1e9)) - now) > 1e-9:
+            return  # a cached frame; the filter interpolated through it
+        diameter = float(estimate["diameter"])
+        delta = np.asarray(estimate["position"], dtype=float) - np.asarray(
+            truth, dtype=float
+        )
+        say(
+            f"[perceive] idx={int(sample.index)} px={int(estimate['pixels'])} "
+            f"err={self._track_err * 1000:.2f}mm "
+            f"d=({delta[0] * 1000:+.1f},{delta[1] * 1000:+.1f},"
+            f"{delta[2] * 1000:+.1f})mm "
+            f"dia={diameter * 1000:.1f}mm "
+            f"dia_err={(diameter - float(sample.diameter)) * 1000:+.2f}mm "
+            f"rms={float(estimate['rms']) * 1000:.2f}mm "
+            f"depth={float(estimate['depth_m']):.3f}m"
+        )
+
+    def _perceive(self, sample, force: bool = False):
+        """One model-based measurement of the selected fruit (P135 phase 3)."""
+        perception = getattr(self, "_perception_state", None)
+        if perception is None:
+            return None
+        return perception.measure(self, sample, force=force)
+
+    def _belt_wave_tick(self) -> None:
+        """Drive the belt along a sine (P135's non-uniform conveyor instrument)."""
+        belt = getattr(self.spawner, "belt", None)
+        if belt is None:
+            return
+        if self._belt_base_speed is None:
+            self._belt_base_speed = float(self.cfg.belt_speed)
+        t = float(self._sim_time())
+        speed = self._belt_base_speed + self._belt_wave_amp * math.sin(
+            2.0 * math.pi * self._belt_wave_hz * t
+        )
+        belt.set_speed(speed)
+
+    def _perturb_arm_now(self, sample) -> None:
+        """Arm the scripted impulse for this attempt (P135's test instrument)."""
+        if not self._perturb_on:
+            return
+        if self._perturb_arm != "both" and self._perturb_arm != self.current_arm:
+            return
+        self._perturb_sample = sample
+        self._perturb_pending = max(0, int(self._perturb_at)) + 1
+
+    def _perturb_tick(self) -> None:
+        """One tick of the impulse clock; fires once, then disarms."""
+        if self._perturb_sample is None:
+            return
+        self._perturb_pending -= 1
+        if self._perturb_pending > 0:
+            return
+        sample = self._perturb_sample
+        self._perturb_sample = None
+        try:
+            self.spawner.impulse(
+                sample,
+                self._perturb_dv,
+                None if not np.any(self._perturb_dw) else self._perturb_dw,
+            )
+        except Exception as exc:  # noqa: BLE001 - the cell must not die on a probe
+            say(f"[perturb] impulse failed: {exc}")
+            return
+        self._perturb_fired += 1
+        row = {
+            "index": int(sample.index),
+            "arm": self.current_arm,
+            "t": float(self._sim_time()),
+            "dv": self._perturb_dv.tolist(),
+            "dw": self._perturb_dw.tolist(),
+            "at": int(self._perturb_at),
+        }
+        self._perturb_rows.append(row)
+        say(
+            f"[perturb] idx={int(sample.index)} arm={self.current_arm} "
+            f"dv=({self._perturb_dv[0]:+.3f},{self._perturb_dv[1]:+.3f},"
+            f"{self._perturb_dv[2]:+.3f})m/s at={int(self._perturb_at)}"
+        )
+
     @staticmethod
     def _approach_duration(distance: float, v_max: float, a_max: float | None = None) -> float:
         """Ticks the jerk-limited approach profile for `distance` will take [s]."""
@@ -10189,7 +10643,45 @@ class PickAndPlaceTask:
         reachable band); the cache is keyed per attempt so every non-scripted
         caller and the next attempt get the shipped station aim.
         """
-        fruit = np.asarray(self.spawner.position(sample), dtype=float)
+        if getattr(self, "_track_on", False) and getattr(
+            self, "_track_source", "truth"
+        ) == "depth":
+            # P135: the aim's own position is the *measurement*, not the rigid
+            # body. This is the last truth read on the aim path - with the
+            # tracker's prediction supplying the correction and the close law
+            # reading the fitted diameter (`FRUIT_PERCEPTION_CLOSE`), the grasp
+            # is placed from rendered RGB-D alone. A frame that yields nothing
+            # is reported, never silently replaced by the simulator's state.
+            tracker = self._track_update(sample)
+            if tracker is not None:
+                fruit = tracker.position
+            else:
+                # The fruit is not in the camera's view at the pre-pose (it is
+                # still far upstream, sometimes at the band's edge). The *nominal*
+                # station pose is a legitimate fallback - it is the cell's own
+                # geometry, not the fruit's state - and the grasp aim is decided
+                # late, at the descent start, when the fruit is in view
+                # (`_track_late_grip`). Never the rigid body.
+                belt = getattr(self.spawner, "belt", None)
+                belt_top = float(
+                    getattr(belt, "belt_top", self.cfg.belt_center[2])
+                )
+                fruit = np.array(
+                    [
+                        float(self.cfg.pick_x),
+                        float(self.station_y_for(self.current_arm)),
+                        belt_top + 0.03,
+                    ]
+                )
+                if not getattr(self, "_track_nominal_note", False):
+                    self._track_nominal_note = True
+                    say(
+                        f"[perceive] idx={int(sample.index)}: no measurement at "
+                        f"the pre-pose -> the station's nominal aim "
+                        f"(the grasp aim is decided at the descent)"
+                    )
+        else:
+            fruit = np.asarray(self.spawner.position(sample), dtype=float)
         if self._reach_anywhere_active() and self._reach_aim_point is not None:
             key = (
                 self.current_arm,
@@ -12218,6 +12710,15 @@ class PickAndPlaceTask:
         # used as the seed and the IK solves the small lateral offset.
         t0 = self._sim_time()
         self._attempt_sim_t0 = t0
+        if self._track_on:
+            # P135: a new attempt starts with no filter; the first measurement
+            # seeds it. The previous attempt's estimate must not leak across
+            # fruits, and the diagnostics are per attempt.
+            self._tracker_state = None
+            self._track_aim_rows.clear()
+            self._track_sample = sample
+            self._perturb_sample = None
+            self._perturb_pending = 0
         # R10-A: the per-attempt reach-anywhere aim is (re)computed at the
         # pre-pose end below; clear the previous attempt's entry so a direct /
         # non-scripted `_dynamic_aim` call can never read a stale point.
@@ -13622,6 +14123,13 @@ class PickAndPlaceTask:
                             dyn_a_max,
                         )
                         speed_now = abs(self._belt_speed_estimate())
+                        # P135: schedule off the estimate when asked. The estimate
+                        # is seeded from the measured velocity, so on a fruit
+                        # riding the belt this is the encoder's number and the
+                        # leg is the shipped one.
+                        tracked_speed = self._track_initial_velocity(sample)
+                        if tracked_speed is not None:
+                            speed_now = abs(float(tracked_speed[1]))
                         deadline = speed_now * (
                             t_desc + float(os.environ.get("FRUIT_DYNAMIC_DESCEND_MARGIN", "0.15"))
                         )
@@ -13654,12 +14162,32 @@ class PickAndPlaceTask:
                             and self._reach_anywhere_active()
                         ):
                             hold_ticks = max(hold_ticks, self._reach_hover_settle_ticks)
+                        # P135 `FRUIT_TRACK_WAIT`: the shipped gate is a speed
+                        # formula (`fruit - grip <= speed*(t_desc+margin)`), which
+                        # is right only while the belt's speed is the fruit's and
+                        # constant. The tracked gate asks the estimator where the
+                        # fruit will **be when the leg ends** and starts the leg
+                        # when that point is at the catch position - the same
+                        # margin, without the constant-speed assumption. Under the
+                        # belt wave this is the term that was 340-400 mm wrong.
+                        wait_tol = float(
+                            os.environ.get("FRUIT_TRACK_WAIT_TOL", "0.02")
+                        )
                         while waited < max_wait:
                             fruit_now = np.asarray(self.spawner.position(sample), dtype=float)
-                            if (
-                                float(fruit_now[1]) - float(grip[1]) <= deadline
-                                and waited >= hold_ticks
-                            ):
+                            if self._track_wait:
+                                waiter = self._track_update(sample)
+                                if waiter is not None:
+                                    predicted = waiter.predict_at(t_desc)
+                                    ready = (
+                                        float(predicted[1]) - float(grip[1])
+                                        <= wait_tol
+                                    )
+                                else:
+                                    ready = float(fruit_now[1]) - float(grip[1]) <= deadline
+                            else:
+                                ready = float(fruit_now[1]) - float(grip[1]) <= deadline
+                            if ready and waited >= hold_ticks:
                                 break
                             arm.ik_step(arm.tcp_target_for_jaw(hover))
                             self._step_sim(1)
@@ -13734,6 +14262,26 @@ class PickAndPlaceTask:
                     )
                     end_gap_m = None
                     arrive_info = None
+                    track_cb = None
+                    if dynamic_capture:
+                        # P135: the tracked descent's baseline is anchored where
+                        # the schedule begins (one measurement, one belt velocity)
+                        # and the impulse cell arms here, so its tick offset is
+                        # measured in descent ticks on every path.
+                        self._perturb_arm_now(sample)
+                        if self._track_descent or (
+                            self._track_on and not self._track_apply
+                        ):
+                            # The measure-only bench follows the shipped grip but
+                            # still takes one measurement per tick (the filter is
+                            # the estimator; the correction is what is withheld).
+                            self._track_update(sample, anchor=True)
+                            grip = self._track_late_grip(sample, grip)
+                            track_cb = (
+                                lambda t_rem, _s=sample, _g=grip: self._track_aim(
+                                    _g, _s, t_rem
+                                )
+                            )
                     if not skip_approach:
                         arm.max_step = float(os.environ.get("FRUIT_APPROACH_STEP", "0.08"))
                         # P16 pick (a): the completed descent - a bounded arrival
@@ -13756,6 +14304,7 @@ class PickAndPlaceTask:
                             report_end=bool(
                                 self._dynamic_arrive_diag and dynamic_capture
                             ),
+                            track=track_cb,
                         )
                     arm.max_step = previous_max_step
                     if (
@@ -14094,6 +14643,10 @@ class PickAndPlaceTask:
                     else os.environ.get("FRUIT_DYNAMIC_CATCH_LEAD", "0.25")
                 )
                 catch_residual = float("inf")
+                #: P135: the last closing lead and the tick count, defined even
+                #: when the loop breaks on its first tick (the `[catch]` row).
+                lead_now = catch_lead_s
+                catch_used = 0
                 #: Per-tick IK trace of the catch-up only (diagnostic, off by
                 #: default): it carries `limit_clipped`, `limit_margin`, the
                 #: Jacobian `sigma_min` and the position/attitude split, which the
@@ -14102,8 +14655,23 @@ class PickAndPlaceTask:
                 if catch_trace:
                     arm.begin_trace()
                 for _ in range(catch_ticks):
-                    fruit_now = np.asarray(self.spawner.position(sample), dtype=float)
-                    dynamic_v = np.asarray(self.spawner.velocity(sample), dtype=float)
+                    catch_used = int(_) + 1
+                    tracker = (
+                        self._track_update(sample)
+                        if self._track_on and self._track_apply
+                        else None
+                    )
+                    if tracker is not None:
+                        # P135: the closing lead is the estimate's prediction at
+                        # the lead horizon, not `position + velocity * lead`. On a
+                        # belt-riding fruit the two agree to the filter's mean;
+                        # under a manoeuvre the prediction is the one that knows
+                        # about the acceleration.
+                        fruit_now = tracker.position
+                        dynamic_v = tracker.velocity
+                    else:
+                        fruit_now = np.asarray(self.spawner.position(sample), dtype=float)
+                        dynamic_v = np.asarray(self.spawner.velocity(sample), dtype=float)
                     rot_now = _quat_matrix(np.asarray(arm.tcp_pose()[1], dtype=float))
                     tip = np.asarray(arm.jaw_centre(), dtype=float) + rot_now @ np.array(
                         [0.0, 0.0, finger_len]
@@ -14120,10 +14688,27 @@ class PickAndPlaceTask:
                     # whose 200-tick run then ended 25.4 mm short. With the tip
                     # downstream, command the fruit itself and let it arrive
                     # through the 6 mm window.
-                    if float(tip[1]) - float(fruit_now[1]) > 0.0:
-                        catch_centre = fruit_now + np.array(
-                            [0.0, float(dynamic_v[1]) * catch_lead_s, 0.0]
+                    # P135: the closing lead. The shipped 0.25 s is a constant;
+                    # with `FRUIT_TRACK_CATCH_SPEED` it is the time the tip needs
+                    # to cross the measured residual, so a large error commands a
+                    # larger lead (the faster correction) and a settled one keeps
+                    # the shipped number.
+                    lead_now = catch_lead_s
+                    if self._track_close_speed > 0.0 and np.isfinite(catch_residual):
+                        lead_now = float(
+                            np.clip(
+                                catch_residual / self._track_close_speed,
+                                catch_lead_s,
+                                0.60,
+                            )
                         )
+                    if float(tip[1]) - float(fruit_now[1]) > 0.0:
+                        if tracker is not None:
+                            catch_centre = tracker.predict_at(lead_now)
+                        else:
+                            catch_centre = fruit_now + np.array(
+                                [0.0, float(dynamic_v[1]) * lead_now, 0.0]
+                            )
                     else:
                         catch_centre = fruit_now
                     catch_target = catch_centre + np.array(
@@ -14182,6 +14767,14 @@ class PickAndPlaceTask:
                     say(
                         f"[task] dynamic catch-up: residual={catch_residual * 1000:.1f} mm "
                         f"(tol {catch_tol * 1000:.0f} mm)"
+                    )
+                if self._track_diag:
+                    # P135: the convergence cost of the catch-up - the number a
+                    # "faster correction" claim has to move. Off by default.
+                    say(
+                        f"[catch] idx={int(sample.index)} arm={arm_name} "
+                        f"ticks={catch_used} residual={catch_residual * 1000:.1f}mm "
+                        f"lead={lead_now * 1000:.0f}ms"
                     )
                 if (
                     os.environ.get("FRUIT_HANDOVER_DIAG", "0") == "1"
@@ -16768,6 +17361,15 @@ class PickAndPlaceTask:
             return widest
         axis_world = rot[:, 1]  # the two pads' closing axis
         local_axis = rq.T @ axis_world
+        measured = self._perceived_diameter(sample)
+        if measured is not None:
+            # P135: the close law's width comes from the *measurement* - a sphere
+            # fit's equatorial diameter - instead of the pool's nominal size.
+            # Off by default (`FRUIT_PERCEPTION_CLOSE=1` arms it): the fitted
+            # diameter reads 1.6-4.1 mm smaller than the nominal on this pool, so
+            # the shipped profile stays the shipped path until its own cell says
+            # the tighter close is safe.
+            return float(axis_extent(shape, float(measured), local_axis))
         return float(axis_extent(shape, float(sample.diameter), local_axis))
 
     def closure_record(self, side: str, sample) -> str:
@@ -17193,7 +17795,8 @@ class PickAndPlaceTask:
     def _approach(self, arm, jaw_target, verbose: bool = False,
                   v_max: float | None = None, a_max: float | None = None,
                   arrive_tol: float = 0.0, arrive_max: int = 0,
-                  report_end: bool = False) -> tuple[float | None, tuple | None]:
+                  report_end: bool = False,
+                  track=None) -> tuple[float | None, tuple | None]:
         """Descend to the grasp pose; `FRUIT_APPROACH_MODE` picks how it is referenced.
 
         `v_max`/`a_max` override the profile limits for this leg (the moving
@@ -17207,6 +17810,15 @@ class PickAndPlaceTask:
         every other caller keeps the defaults and is byte-unchanged.
         `report_end` (diag only, default off) additionally computes the `end=`
         gap for callers that want it without the motion report - one pure read.
+
+        `track` (P135, default None = the shipped open-loop leg) is a callable
+        ``t_remaining -> jaw point``.  It is re-evaluated **every tick** of the
+        descent, and the leg's remaining min-jerk profile is re-aimed at the new
+        point.  The shipped caller passes the fixed `jaw_target`, so the leg is
+        the same straight line; the moving catch passes the tracker's prediction
+        at the hand's own time-to-go, which is what lets a fruit that manoeuvres
+        mid-descent be met where it *will* be instead of where the schedule
+        assumed it would be.
 
         Returns ``(end_gap_m, arrive_info)``: the end gap (None unless the
         arrival ran or `report_end` asked for it) and `_arrive_hold`'s tuple
@@ -17467,10 +18079,30 @@ class PickAndPlaceTask:
             positions, velocities, _ = jerk_limited(distance, limits)
             direction = delta / distance
             for i, value in enumerate(positions):
-                arm.ik_step(
-                    start + direction * float(value),
-                    target_velocity=direction * float(velocities[i]),
-                )
+                if track is not None:
+                    # Re-aim: the remaining profile is spent along the line to
+                    # the *current* aim. `value / distance` is the shipped
+                    # normalised min-jerk position, so the speed schedule and the
+                    # arrival-at-zero-velocity are the profile's own; only the
+                    # direction and the endpoint move.
+                    t_remaining = (len(positions) - i) * CONTROL_DT
+                    aim = arm.tcp_target_for_jaw(
+                        np.asarray(track(t_remaining), dtype=float)
+                    )
+                    alpha = float(value) / distance if distance > 1e-9 else 1.0
+                    point = start + (aim - start) * alpha
+                    span = aim - start
+                    span_norm = float(np.linalg.norm(span))
+                    velocity = (
+                        span / span_norm * float(velocities[i])
+                        if span_norm > 1e-9 else np.zeros(3)
+                    )
+                    arm.ik_step(point, target_velocity=velocity)
+                else:
+                    arm.ik_step(
+                        start + direction * float(value),
+                        target_velocity=direction * float(velocities[i]),
+                    )
                 self._step_sim(1)
                 self._tick_frame()  # pure render; no-op unless recording
                 if monitor is not None:

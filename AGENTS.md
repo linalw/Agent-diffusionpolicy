@@ -6757,6 +6757,96 @@ geometric purchase**; the one open measurement is the **real-jaw force anchor**
 is excluded by the owner's constraint. `106` OK. Evidence
 `docs/END_EFFECTOR_DECISION.md` §7.
 
+**P135 (2026-11-09, `logs/p135/`, `docs/TRACKING.md`; default off, **nothing
+adopted**, no `configs/` change, no reference re-recorded): the catch is a
+**tracker** now, and the phase's measured result is that under a **varying
+conveyor** the shipped scheduler misses the handover by **298-407 mm** while a
+prediction-gated one catches in **16-17 ticks at 5.4-5.9 mm**. The shipped catch
+is a formula in four places - the aim is `[fruit_x, station_y+lead, fruit_z]`
+computed once at the pre-pose, the descent's start is
+`fruit_y - grip_y <= speed*(t_desc+0.15)` with `speed` the **belt scalar**, the
+descent is an open-loop min-jerk leg to the fixed aim, and the catch-up commands
+`fruit_now + velocity*0.25` - and every one of them is exact only while the fruit
+rides a constant-speed belt. **The build** (`src/fruit_sorting/tracking.py`, new):
+`FruitTracker` is a Kalman filter over the centre, constant velocity with an
+**adaptive process noise** (a velocity step is followed by the third tick); the
+correction is defined **against the conveyor**,
+`correction(t_go) = predict(t_go) - (p_at_descent_start + belt_v*(elapsed+t_go))`,
+so it is **identically zero under the model** (1.8e-15 m over 120 frames, `268`)
+and the shipped geometry, motion budget and two-line clearance are untouched
+whenever the belt is the belt. `_approach` gains `track=t_remaining -> jaw point`,
+re-evaluated **every tick** (same min-jerk schedule, moved endpoint); the catch-up
+closes on `predict_at(lead)`; and **`FRUIT_TRACK_WAIT=1` replaces the speed gate
+with a prediction gate** - start the descent when the estimate says the fruit will
+be at the catch position when the leg ends (the shipped margin re-derived:
+`predicted-grip <= 0.02` vs `fruit-grip <= v*(t_desc+0.15)` = `0.018`, which is why
+the nominal cell does not move). Knobs: `FRUIT_TRACK=est`, `FRUIT_DESCENT_TRACK`,
+`FRUIT_TRACK_WAIT` (+`_TOL`), `FRUIT_TRACK_CORR_MAX` 0.08 m,
+`FRUIT_TRACK_CATCH_SPEED` (residual-proportional closing lead, measured **null**),
+`FRUIT_TRACK_ACCEL` (CA form, **not** the default: one tick after an 80 mm/s step
+its correction is **-147 mm** and the sign flips 40 ms later, while CV reads 16 mm
+then < 3 mm), `FRUIT_TRACK_SOURCE=truth|depth`, `FRUIT_TRACK_APPLY` (the
+measure-only bench), `FRUIT_TRACK_DIAG` (the `[track]`/`[catch]`/`[perceive]` rows).
+**The belt-wave instrument** (`FRUIT_BELT_WAVE_AMP/_HZ`, a sine on the surface
+speed; **the fruit ride it with no slip**): C **298/339 mm timeouts** at 0.04/0.5 Hz
+and **407 mm** at 0.08/0.3 Hz; T (re-aim only) keeps them (the clamp is 80 mm and
+the miss is created *before* the descent); A (CA) no better; **W (prediction gate)
+converts every one: 5.6/5.4/5.9 and 5.9/5.6/5.5 mm in 17/16/16 and 16/15/17
+ticks**, timeouts 2->0 and 1->0, `corr_max` 25-46 mm. **The nominal cell is a
+measured tie**: `nom_w` 11/13/11 ticks at 5.5-5.9 mm against the control's
+10/13/11, 0/3 placed against 0/3. **The impulse instrument**
+(`FRUIT_PERTURB_DX/DY/DZ/_AT`, one velocity write on the **selected** fruit,
+`FruitSpawner.impulse`) is a **negative for tracking and a confirmation of the
+class split**: the belt's friction damps an impulse in ~30 ms, so the catch-up
+absorbs every rung (lateral 0.10-0.35 m/s, downstream 0.10-0.30 m/s) in **<= 24
+ticks**, 24/24 grasped, and what the impulse costs is the **grasp quality** (at
+dx 0.35 all three grasp and none place; the closed loaded-slide class,
+`logs/p42/SIM_LIMIT.md`) - no tracker touches that. **Perception**
+(`src/fruit_sorting/perception.py`, new): `FRUIT_TRACK_SOURCE=depth` renders
+RGB + `distance_to_image_plane` + the target's instance mask, back-projects through
+the **calibration** (the authored focal length/aperture - a ratio, so the stage's
+units cancel - and the `/World/HeadCamera` prim's world pose; the frame's own shape
+sets the intrinsics, so a `FRUIT_CAMERA_RES` override cannot desynchronise them)
+and fits a **trimmed sphere**: bench (`FRUIT_TRACK_APPLY=0`, 44 frames, the shipped
+pool) **position 4.70 mm median / 6.41 p90, diameter 3.42 / 4.29** - the registered
+bars 5/10/5 pass; the fit is exact on a synthetic sphere (7.8e-12 mm), so the
+residual is the *fruit* being an ellipsoid (the fitted sphere is 1.6-4.1 mm small,
+and the error is a systematic **+y bias** of 3.5-6.3 mm - a reference-sphere
+calibration, not a modelling error). **In the loop** (2 attempts, every knob on,
+`FRUIT_PERCEPTION_CLOSE=1`): **2/2 grasped**, 1 placed, catch 13 and 38 ticks at
+5.9 mm, the filter's error 5.3/3.6 mm and its velocity 0.116/0.118 m/s against the
+belt's 0.120, 61 accepted frames and 17 refused for **occlusion** - the estimator
+carries the descent through them. Two integration rules the path needed and that
+are easy to re-introduce: **the descent's start must force a camera frame**
+(30 Hz camera vs 120 Hz control: a single-tick anchor lands inside the period 3
+times in 4, the filter is never created, and every aim falls back to the station's
+nominal x - up to 140 mm off; `measure(force=True)`), and **a refused frame must
+return `None`, not the cached estimate** (a cached position fed back is a lie the
+filter cannot see, and inside the period it is counted 4x). **The camera's own
+limit, measured**: the hand occludes the fruit exactly when it matters - the mask
+shrinks 48 -> 22 px and the fit's z drifts 11 -> 44 mm - so `_perceive` refuses a
+cap below `FRUIT_PERCEPTION_MIN_PX` (60) and the filter predicts through it; a
+wrist camera or a second view is the next spend. **The aim is decided late** on
+the depth path (`_track_late_grip`: the estimate's x/z at the descent start, the
+schedule's y), because the fruit is far upstream and often out of frame at the
+pre-pose - the fallback there is the **station's nominal pose**, never the rigid
+body, and a run that cannot measure says so. **No-harm**: `scripts/accept.sh`
+with every knob unset is **8/10 = 80 %, 9.0 s/attempt, `fingerprint: matches`,
+`190: PASS`**, and its **421 `[fruit]` lines are 421/421 byte-identical** to
+`logs/p127/accept_restored.log` (`logs/p135/accept_final.log`);
+`scripts/selfcheck.sh` **PASS (0 failures, 1 skipped)** with the new `P135 tracker`
+leg (30 checks: the exactness, the step, the CA negative, the zero correction, the
+clamp, the calibration ratio, the synthetic sphere, every off default); `106` OK,
+`107` PASS (21 checks). **Re-baseline: none** - nothing shipped,
+`configs/motion_reference.json` = `..._twoline.json` = **`30fb99f8`** and
+`..._single.json` = **`8952c320`** stand. Pins: `tracking.py`
+**`f6870bcc`** (new), `perception.py` **`57b3f142`** (new), `tasks.py`
+**`931a721e`**, `fruits.py` **`ad490ff0`** (`FruitSpawner.impulse`), `rl_env.py`
+**`1c934199`** (the `TASKS_MD5` follow), `scripts/268_p135_track_selftest.py`
+**`b4ce4373`**, `scripts/selfcheck.sh` **`d57ef4ab`**; ckpt `moe_v13s`
+`61da390a`; `logs/p135/PREREG.md` **`0250fdc7`**. Evidence `logs/p135/`,
+`docs/TRACKING.md`.
+
 **P134 (2026-11-09, `docs/CLOSEOUT.md` §6; design/handover only, no `src/` or
 `configs/` change): the engagement closes out for the owner** - a one-page
 section appended to the project close-out: the shipped state (two lanes, 8/10,

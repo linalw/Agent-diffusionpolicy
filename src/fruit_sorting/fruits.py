@@ -2847,6 +2847,26 @@ class FruitSpawner:
         vel = self._rigids[sample.index].get_velocities()[0]
         return np.asarray(vel.numpy() if hasattr(vel, "numpy") else vel)[0]
 
+    def impulse(self, sample: FruitSample, linear, angular=None) -> None:
+        """Add a velocity impulse to one fruit's body [m/s, rad/s].
+
+        P135's non-uniform-motion test instrument: a scripted stand-in for the
+        collision the record measured by accident (`logs/p95`: the other arm's
+        hand displacing a fruit 2 mm from its surface). One write to the rigid
+        body's velocity; the belt keeps running and nothing else in the line is
+        touched, so the cell is the shipped cell with one fruit's motion
+        perturbed.
+        """
+        body = self._rigids[sample.index]
+        current = self.velocity(sample)
+        target = np.asarray(current, dtype=float) + np.asarray(linear, dtype=float)
+        if angular is None:
+            angular = self.angular(sample)
+        body.set_velocities(
+            linear_velocities=[target.tolist()],
+            angular_velocities=[np.asarray(angular, dtype=float).tolist()],
+        )
+
     def angular(self, sample: FruitSample) -> np.ndarray:
         """World angular velocity of one fruit [rad/s].
 

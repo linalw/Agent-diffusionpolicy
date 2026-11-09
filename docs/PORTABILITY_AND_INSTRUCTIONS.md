@@ -267,6 +267,7 @@ the references.
 
 | gap | why | where it lands |
 | --- | --- | --- |
+| **the fruit's state** | **closed as a module (P135)**: `FRUIT_TRACK_SOURCE=depth` measures the centre (4.7 mm median) and the diameter (3.4 mm) from the rendered RGB-D + instance mask through the camera's authored lens and prim pose; the grasp aim and the close can read it (`FRUIT_PERCEPTION_CLOSE`) | the remaining limits are measured: the hand **occludes** the fruit as it descends (the fit's z drifts 11 -> 44 mm as the mask shrinks), so a wrist camera or a second view is the next spend; the error is a systematic +y bias (a sphere fit through an ellipsoid's cap), which is a reference-sphere calibration. `docs/TRACKING.md` |
 | **colour / appearance** | no per-instance colour in the sim; `grade`/`ripeness`/`defective` are **drawn labels** | a classifier that emits the same attribute dict; the parser already refuses a missing attribute |
 | **tactile / force channels** | hand-specific (`tactile.py`, per-pad readers) | a hand-specific extension of the descriptor, not built |
 | **the hand's own limits** | `docs/END_EFFECTOR_DECISION.md` (nine routes, two sanctions left) | a new pad asset or a real-jaw force anchor |

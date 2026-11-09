@@ -336,6 +336,10 @@ def main() -> int:
             say(f"saved {path}")
 
     say(task.stats_line())
+    if hasattr(task, "perception_report"):
+        # P135: one `[perceive]` row when the model-based source ran (a no-op
+        # otherwise - the module is only built on that path).
+        task.perception_report()
     bed_stats = (
         task.spawner.bed_stats_line()
         if hasattr(task.spawner, "bed_stats_line")

@@ -282,6 +282,13 @@ run_check "P131 cage aperture law" "$python" scripts/266_p131_cage_aperture_self
 # corrected right-handed facet frame (P117's left-handed one made one pad 62 mm
 # thick). No simulator.
 run_check "P132 serrated face" "$python" scripts/267_p132_serr_selftest.py
+# P135: the model-based tracker. The leg pins the estimator (exact on the model,
+# a velocity step followed by the third tick, the CA form's recorded overshoot),
+# the correction's definition (zero under the conveyor, the off-conveyor
+# displacement after a step, the clamp), the camera calibration (a ratio, so the
+# stage's units cancel; a synthetic sphere re-fitted to 1e-12 m) and every knob's
+# off default. No simulator.
+run_check "P135 tracker" "$python" scripts/268_p135_track_selftest.py
 # P73: the `[carry]` row's **rotation schedule** (`tilt0=`, `tilt_end=`,
 # `tilt_max=`, `t45=`, `t75=`, `tilt_rate=`) - the instrument the place-leg
 # question needs, because the leg-end `[attitude]` tilt is saturated by the place
