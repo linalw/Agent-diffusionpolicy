@@ -6849,7 +6849,7 @@ clamp, the calibration ratio, the synthetic sphere, every off default); `106` OK
 `107` PASS (21 checks). **Re-baseline: none** - nothing shipped,
 `configs/motion_reference.json` = `..._twoline.json` = **`30fb99f8`** and
 `..._single.json` = **`8952c320`** stand. Pins: `tracking.py`
-**`f6870bcc`** (new), `perception.py` **`57b3f142`** (new), `tasks.py`
+**`f6870bcc`** (new), `perception.py` **`a9383527`** (new), `tasks.py`
 **`931a721e`**, `fruits.py` **`ad490ff0`** (`FruitSpawner.impulse`), `rl_env.py`
 **`1c934199`** (the `TASKS_MD5` follow), `scripts/268_p135_track_selftest.py`
 **`b4ce4373`**, `scripts/selfcheck.sh` **`d57ef4ab`**; ckpt `moe_v13s`
