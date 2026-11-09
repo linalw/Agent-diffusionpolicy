@@ -105,8 +105,8 @@ Two limits, measured, that a real installation has to design around:
 A velocity impulse on the fruit (the scripted form of the collision `logs/p95`
 measured) is **damped by the belt in ~30 ms**: the fruit slides a few
 millimetres and re-settles. The catch-up absorbs every rung of the ladder
-(0.10-0.35 m/s lateral, 0.10-0.30 m/s downstream) in **<= 24 ticks**, and all 15
-grasps in the lateral ladder succeed. What the impulse costs is the **grasp
+(0.10-0.35 m/s lateral, 0.10-0.30 m/s downstream) in **<= 24 ticks**, and 17 of 18
+lateral grasps succeed. What the impulse costs is the **grasp
 quality** - the pads close on a sliding fruit and the payload escapes during the
 carry (0-2 of 3 placed) - and that is the closed loaded-slide class
 (`logs/p42/SIM_LIMIT.md`), which no tracker touches. The impulse is a *negative*

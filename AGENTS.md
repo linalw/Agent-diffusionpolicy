@@ -6799,7 +6799,7 @@ measured tie**: `nom_w` 11/13/11 ticks at 5.5-5.9 mm against the control's
 `FruitSpawner.impulse`) is a **negative for tracking and a confirmation of the
 class split**: the belt's friction damps an impulse in ~30 ms, so the catch-up
 absorbs every rung (lateral 0.10-0.35 m/s, downstream 0.10-0.30 m/s) in **<= 24
-ticks**, 24/24 grasped, and what the impulse costs is the **grasp quality** (at
+ticks**, 35 of 36 attempts grasped, and what the impulse costs is the **grasp quality** (at
 dx 0.35 all three grasp and none place; the closed loaded-slide class,
 `logs/p42/SIM_LIMIT.md`) - no tracker touches that. **Perception**
 (`src/fruit_sorting/perception.py`, new): `FRUIT_TRACK_SOURCE=depth` renders
