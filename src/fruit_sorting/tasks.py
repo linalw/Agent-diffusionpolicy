@@ -2952,6 +2952,21 @@ class PickAndPlaceTask:
             os.environ.get("FRUIT_PERCEPTION_CLOSE", "0") == "1"
             and self._track_source == "depth"
         )
+        #: P135 eye-in-hand camera (`FRUIT_WRIST_CAMERA=1`, default off). The
+        #: mount is 6 cm behind the jaw centre and 4 cm to the hand's +x, looking
+        #: 3 cm past the jaw along the approach axis - clear of the finger plates
+        #: and outside the palm, which is where a real wrist camera sits.
+        self._wrist_camera = (
+            os.environ.get("FRUIT_WRIST_CAMERA", "0") == "1"
+            and self._track_source == "depth"
+        )
+        self._wrist_back = float(os.environ.get("FRUIT_WRIST_BACK", "0.06"))
+        self._wrist_side = float(os.environ.get("FRUIT_WRIST_SIDE", "0.045"))
+        #: Aim 12 cm past the jaw along the approach axis, not *at* it: the fruit
+        #: is 10 cm upstream at the descent's start, and a camera aimed at the
+        #: grasp point loses it (measured: 94-402 px, 729 refusals; aimed ahead
+        #: 1684-3241 px, 2-3 refusals and a 0.9 mm diameter error).
+        self._wrist_look = float(os.environ.get("FRUIT_WRIST_LOOK", "0.12"))
         self._track_rows_all: list[dict] = []
         if self._track_source == "depth" and not self._track_on:
             raise ValueError(
@@ -10225,11 +10240,48 @@ class PickAndPlaceTask:
         )
 
     def _perceive(self, sample, force: bool = False):
-        """One model-based measurement of the selected fruit (P135 phase 3)."""
+        """One model-based measurement of the selected fruit (P135 phase 3).
+
+        `FRUIT_WRIST_CAMERA=1` reads the **eye-in-hand** camera instead of the
+        head one: the head loses the fruit to the arm exactly when the grasp
+        happens (the mask shrinks 48 -> 22 px and the fit's z drifts 11 -> 44 mm),
+        while a camera on the wrist looks past the fingers at the same point from
+        ~12 cm. The pose is driven from the arm's own jaw centre and approach axis
+        on the same ticks that render, so it follows the hand exactly.
+        """
         perception = getattr(self, "_perception_state", None)
         if perception is None:
             return None
-        return perception.measure(self, sample, force=force)
+        if not getattr(self, "_wrist_camera", False):
+            return perception.measure(self, sample, force=force)
+        arm = self.arms.get(getattr(self, "current_arm", "") or "left")
+        if arm is None:
+            return perception.measure(self, sample, force=force)
+        axis = np.asarray(arm.approach_axis(), dtype=float)
+        jaw = np.asarray(arm.jaw_centre(), dtype=float)
+        rot = self._quat_matrix(np.asarray(arm.tcp_pose()[1], dtype=float))
+        side = np.asarray(rot[:, 0], dtype=float)
+        position = (
+            jaw
+            - float(self._wrist_back) * axis
+            + float(self._wrist_side) * side
+        )
+        target = jaw + float(self._wrist_look) * axis
+        entry = getattr(self.scene, "wrist_cameras", {}).get(
+            getattr(self, "current_arm", "") or "left"
+        )
+        if entry is None:
+            return perception.measure(self, sample, force=force)
+        self.scene.set_wrist_pose(
+            getattr(self, "current_arm", "") or "left", position, target
+        )
+        return perception.measure(
+            self,
+            sample,
+            force=force,
+            sensor=entry[1],
+            camera_path=f"/World/WristCamera_{getattr(self, 'current_arm', 'left')}",
+        )
 
     def _belt_wave_tick(self) -> None:
         """Drive the belt along a sine (P135's non-uniform conveyor instrument)."""
@@ -12717,6 +12769,11 @@ class PickAndPlaceTask:
             self._tracker_state = None
             self._track_aim_rows.clear()
             self._track_sample = sample
+            perception = getattr(self, "_perception_state", None)
+            if perception is not None:
+                # The measurement's per-fruit state (radius, centre) must not
+                # cross attempts; see `FruitPerception.reset`.
+                perception.reset()
             self._perturb_sample = None
             self._perturb_pending = 0
         # R10-A: the per-attempt reach-anywhere aim is (re)computed at the

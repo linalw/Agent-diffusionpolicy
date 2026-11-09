@@ -197,3 +197,47 @@ downstream band and the catch-up saturated at 247 mm), not a tracker effect; the
 shipped cell's own left deficit is the record's (`logs/p60`, `logs/p79`). A
 2-attempt smoke is not a rate: the acceptance with the knobs unset is the shipped
 control (§6).
+
+## 8. The eye-in-hand camera (added at the owner's request)
+
+Two RGB-D cameras (`FRUIT_WRIST_CAMERA=1`, `240x424`, the head's three
+annotators) are authored at build time and **driven from the arm's own jaw centre
+and approach axis** on every rendered frame. The head camera's problem is
+geometric - it is 0.8 m away and the arm passes between it and the fruit - so a
+camera 0.1-0.2 m from the grasp point should not have it.
+
+**Where it looks decides everything.** A camera aimed *at* the grasp point (3 cm
+past the jaw) loses the fruit during the descent, because the fruit is 10 cm
+upstream when the leg starts:
+
+| aim | mask | refusals (1 attempt) | position err | diameter err |
+|---|---|---|---|---|
+| 3 cm past the jaw | 94-402 px | **729** | 7.7 mm | 5.8 mm |
+| **12 cm past the jaw** | **1684-3241 px** | **2-3** | **3.54 mm** (p90 4.80) | **0.90 mm** (p90 2.63) |
+
+Aimed forward it is the **best sensor in the project**: twice the head camera's
+position accuracy and **2.6x its diameter accuracy**, and the mask *grows* as the
+hand closes instead of shrinking - the occlusion problem the head camera has is
+gone. Its mount offset is its own (+0.75, +2.60, -0.25 mm) and lives beside the
+head's in `configs/perception_calibration.json`.
+
+**But it is not yet a closed-loop sensor.** In the loop (`FRUIT_TRACK_SOURCE=depth
+FRUIT_WRIST_CAMERA=1`, 2 attempts) one attempt of **two runs** diverges: the hand
+drives through the fruit (`125.9 N`), the filter then sees a 6.4 m/s object and
+the catch ends 0.4-11 m away. Attempt 0 is clean (17-18 ticks, 6.0 mm). Attempt 1
+is the one that fails in both runs, and the two candidate causes measured so far
+are not it: the per-fruit radius carry-over was real and is fixed
+(`FruitPerception.reset()` at every attempt, which is correct on its own), and the
+instance mask cannot pick the wrong fruit (the prim names are zero-padded). The
+remaining hypothesis is a **mount/aim that cannot serve both phases**: the
+approach needs the camera looking down the corridor, the contact needs it looking
+at the jaw, and a single fixed aim is a compromise that one of them loses.
+
+So: **the wrist camera is the right sensor and the wrong bracket**. The next
+steps, in order: (a) tilt the mount (or use a wider lens) so the corridor and the
+jaw are both inside one frame; (b) switch the aim by phase if the bracket cannot
+be tilted; (c) a lens-distortion calibration - the 96-degree lens is used
+off-centre, and while the forward aim happens to centre the fruit, a real
+installation needs the coefficients. The head camera plus the estimator remains
+the working in-loop combination (§5-§6) and the shipped path is untouched: with
+`FRUIT_WRIST_CAMERA` unset no camera is authored at all.

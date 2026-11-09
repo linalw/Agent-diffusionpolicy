@@ -53,9 +53,24 @@ class CameraModel:
         self.translation = np.asarray(translation, dtype=float)
         self.meters_per_unit = float(meters_per_unit)
 
+    def update_pose(self, scene, path: str) -> None:
+        """Re-read a camera's world pose (an eye-in-hand camera moves)."""
+        from pxr import Usd, UsdGeom
+
+        prim = scene.stage.GetPrimAtPath(path)
+        if not prim.IsValid():
+            return
+        matrix = UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(
+            Usd.TimeCode.Default()
+        )
+        self.translation = np.array(matrix.ExtractTranslation(), dtype=float)
+        self.rotation = np.array(
+            [[matrix[i][j] for j in range(3)] for i in range(3)], dtype=float
+        ).T
+
     # ------------------------------------------------------------------ #
     @classmethod
-    def from_scene(cls, scene, cfg, resolution=None) -> "CameraModel":
+    def from_scene(cls, scene, cfg, resolution=None, path="/World/HeadCamera") -> "CameraModel":
         """Build the calibration from the authored lens and the camera's prim."""
         from pxr import Usd, UsdGeom
 
@@ -67,7 +82,7 @@ class CameraModel:
         width, height = int(resolution[0]), int(resolution[1])
         focal = float(cfg.camera_focal_length)
         aperture_x, aperture_y = (float(v) for v in cfg.camera_aperture)
-        prim = scene.stage.GetPrimAtPath("/World/HeadCamera")
+        prim = scene.stage.GetPrimAtPath(path)
         if not prim.IsValid():
             raise RuntimeError("the head camera prim is not in the stage")
         matrix = UsdGeom.Xformable(prim).ComputeLocalToWorldTransform(
@@ -224,7 +239,7 @@ class FruitPerception:
     def __init__(self, scene, cfg, hz: float = 30.0, stride: int = 2,
                  trim: float = 2.5, min_pixels: int = 60,
                  full_pixels: int = 120, shape: str = "sphere",
-                 bias=(0.0, 0.0, 0.0)):
+                 bias=(0.0, 0.0, 0.0), bias_wrist=(0.0, 0.0, 0.0)):
         self.scene = scene
         self.camera = CameraModel.from_scene(scene, cfg)
         self.hz = max(1.0, float(hz))
@@ -248,7 +263,10 @@ class FruitPerception:
         #: sign is stable across the pool). A *calibration*: a different mount or
         #: lens needs its own number, and it does not remove the shape-dependent
         #: part (a 30 mm fruit reads 7.6 mm, a 65 mm one 6.3).
-        self.bias = np.asarray(bias, dtype=float)
+        self.bias = {
+            "head": np.asarray(bias, dtype=float),
+            "wrist": np.asarray(bias_wrist, dtype=float),
+        }
         self.last_radius = None
         self.last_centre = None
         self.fixed_fits = 0
@@ -261,6 +279,21 @@ class FruitPerception:
         self.last_error = ""
 
     # ------------------------------------------------------------------ #
+    def reset(self) -> None:
+        """Forget the previous fruit (call at every attempt's start).
+
+        `last_radius`/`last_centre` seed the fixed-radius fit and the radius-jump
+        guard. They are properties of **one fruit**: carrying them into the next
+        attempt makes the new fruit's first small caps fit the old radius, which
+        biases the centre by centimetres - measured, that is what made the second
+        attempt of a wrist-camera cell aim 50 mm wrong and drive the hand through
+        the fruit (`112 N`).
+        """
+        self.last_radius = None
+        self.last_centre = None
+        self.last_estimate = None
+        self.last_t = -1e9
+
     def _render(self, task) -> None:
         """One render, on whichever thread owns the stage (two-line bridge)."""
         from isaacsim.core.rendering_manager import RenderingManager
@@ -276,8 +309,9 @@ class FruitPerception:
         else:
             RenderingManager.render()
 
-    def _mask(self, prim_path: str):
-        raw = self.scene.camera_sensor.get_data("instance_id_segmentation")
+    def _mask(self, prim_path: str, camera_sensor=None):
+        sensor = self.scene.camera_sensor if camera_sensor is None else camera_sensor
+        raw = sensor.get_data("instance_id_segmentation")
         if raw is None:
             return None
         seg = np.asarray(raw[0].numpy())
@@ -294,7 +328,8 @@ class FruitPerception:
             return None
         return seg == target
 
-    def measure(self, task, sample, force: bool = False):
+    def measure(self, task, sample, force: bool = False, sensor=None,
+                camera_path: str | None = None):
         """One model-based measurement, or **None** when there is no fresh one.
 
         The contract is deliberate: `None` means "the filter must predict", not
@@ -311,10 +346,14 @@ class FruitPerception:
         if not force and now - self.last_t < 1.0 / self.hz - 1e-9:
             return None
         self.last_t = now
+        camera_sensor = self.scene.camera_sensor if sensor is None else sensor
+        if camera_path is not None:
+            # Eye-in-hand: the camera moved with the arm since the last frame.
+            self.camera.update_pose(self.scene, camera_path)
         try:
             self._render(task)
-            raw_rgb = self.scene.camera_sensor.get_data("rgb")
-            raw_depth = self.scene.camera_sensor.get_data(
+            raw_rgb = camera_sensor.get_data("rgb")
+            raw_depth = camera_sensor.get_data(
                 "distance_to_image_plane"
             )
             if raw_rgb is None or raw_depth is None:
@@ -329,7 +368,7 @@ class FruitPerception:
                 self.failures += 1
                 self.last_error = f"depth shape {depth.shape}"
                 return None
-            mask = self._mask(sample.prim_path)
+            mask = self._mask(sample.prim_path, camera_sensor)
             if mask is None:
                 self.failures += 1
                 self.last_error = "target not in frame"
@@ -397,7 +436,9 @@ class FruitPerception:
                 self.failures += 1
                 self.last_error = "degenerate fit"
                 return None
-            centre = np.asarray(centre, dtype=float) - self.bias
+            centre = np.asarray(centre, dtype=float) - self.bias[
+                "wrist" if camera_path and "Wrist" in camera_path else "head"
+            ]
             self.last_centre = np.asarray(centre, dtype=float).copy()
             self.frames += 1
             self.last_estimate = {
@@ -435,13 +476,15 @@ class FruitPerception:
         }
 
 
-def _calibration_bias():
+def _calibration_bias(kind: str = "head"):
     """The installation's offset: `FRUIT_PERCEPTION_BIAS` or the config file.
 
     Format `"x,y,z"` in metres. With neither, zeros - the module is then an
     uncalibrated measurement, which is what the first bench measured.
     """
-    raw = os.environ.get("FRUIT_PERCEPTION_BIAS")
+    raw = os.environ.get(
+        "FRUIT_PERCEPTION_BIAS_WRIST" if kind == "wrist" else "FRUIT_PERCEPTION_BIAS"
+    )
     if raw:
         try:
             values = [float(v) for v in raw.replace(";", ",").split(",")]
@@ -456,7 +499,9 @@ def _calibration_bias():
     try:
         with open(path, encoding="utf-8") as handle:
             payload = json.load(handle)
-        offset = payload.get("offset_m")
+        offset = payload.get(
+            "offset_wrist_m" if kind == "wrist" else "offset_m"
+        )
         if offset is not None and len(offset) == 3:
             return tuple(float(v) for v in offset)
     except (OSError, ValueError, TypeError):
@@ -475,5 +520,6 @@ def perception_from_env(scene, cfg) -> FruitPerception:
         min_pixels=int(os.environ.get("FRUIT_PERCEPTION_MIN_PX", "60")),
         full_pixels=int(os.environ.get("FRUIT_PERCEPTION_FULL_PX", "120")),
         shape=os.environ.get("FRUIT_PERCEPTION_SHAPE", "sphere"),
-        bias=_calibration_bias(),
+        bias=_calibration_bias("head"),
+        bias_wrist=_calibration_bias("wrist"),
     )

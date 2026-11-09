@@ -875,6 +875,19 @@ class SortingScene:
         for name in parts:
             say(f"building part: {name}")
             builders[name]()
+        # P135: eye-in-hand cameras (`FRUIT_WRIST_CAMERA=1`, default off). The
+        # head camera loses the fruit to the arm exactly when the grasp happens
+        # (measured: the mask shrinks 48 -> 22 px and the fit's z drifts 11 -> 44
+        # mm); a camera on the wrist looks past the fingers at the same point from
+        # 12 cm, which is the view a real cell uses. One per arm, authored at a
+        # fixed world pose here and *driven* every measurement by `set_wrist_pose`
+        # (the hand's own pose is the only thing that has to be right).
+        if os.environ.get("FRUIT_WRIST_CAMERA", "0") == "1":
+            if "robot" not in parts:
+                say("[wrist] ignored: the wrist camera needs the 'robot' part")
+            else:
+                self._add_wrist_cameras()
+
         # P107: the radial four-pad cage hand (`FRUIT_GRIPPER_KIND=cage4`,
         # default off). Authored at **build** time - before `play()` - because
         # the contact-tracking flags its tactile readers need must be set before
@@ -1056,6 +1069,95 @@ class SortingScene:
             self._add_finger_scoops()
         say(f"scene built (parts={list(parts)})")
         return self
+
+    def _add_wrist_cameras(self) -> None:
+        """Two eye-in-hand RGB-D cameras, one per arm (P135, default off)."""
+        cfg = self.cfg
+        annotators = [
+            a.strip()
+            for a in os.environ.get(
+                "FRUIT_CAMERA_ANNOTATORS",
+                "rgb,distance_to_image_plane,instance_id_segmentation",
+            ).split(",")
+            if a.strip()
+        ]
+        resolution = tuple(
+            int(v)
+            for v in os.environ.get(
+                "FRUIT_WRIST_RES", "240,424"
+            ).split(",")
+        )
+        self.wrist_cameras = {}
+        self._wrist_ops = {}
+        for side in ("left", "right"):
+            path = f"/World/WristCamera_{side}"
+            # Any non-degenerate pose: `set_wrist_pose` runs before the first
+            # render. (A camera looking straight down its own up-axis makes
+            # `look_at_quat` degenerate - measured, it authors a zero-norm
+            # quaternion and the RtxCamera constructor raises.)
+            camera = RtxCamera(
+                path,
+                tick_rate=30.0,
+                positions=[(0.0, 0.0, 3.0)],
+                orientations=[look_at_quat((0.0, 0.0, 3.0), (0.0, 0.2, 2.9))],
+            )
+            camera.camera.set_focal_lengths(
+                float(os.environ.get("FRUIT_WRIST_FOCAL", str(cfg.camera_focal_length)))
+            )
+            # Wider than the head: at 12 cm the grasp point is 6-8 cm wide.
+            aperture = os.environ.get("FRUIT_WRIST_APERTURE", "0.036,0.02025")
+            ax, ay = (float(v) for v in aperture.split(","))
+            camera.camera.set_apertures((ax, ay))
+            camera.camera.set_focus_distances(0.2)
+            camera.camera.set_clipping_ranges(
+                float(os.environ.get("FRUIT_WRIST_NEAR", "0.03")), 10.0
+            )
+            # Own the xform ops explicitly. `RtxCamera` authors its own pair and
+            # their precision varies with the build; writing a `Quatf` into a
+            # `Quatd` op raises at the first pose update (measured). Double ops
+            # are what the stage is in and what `look_at_quat` returns.
+            prim = self.stage.GetPrimAtPath(path)
+            xform = UsdGeom.Xformable(prim)
+            xform.ClearXformOpOrder()
+            translate_op = xform.AddTranslateOp(UsdGeom.XformOp.PrecisionDouble)
+            orient_op = xform.AddOrientOp(UsdGeom.XformOp.PrecisionDouble)
+            sensor = CameraSensor(camera, resolution=resolution, annotators=annotators)
+            self.wrist_cameras[side] = (camera, sensor)
+            self._wrist_ops[side] = (translate_op, orient_op)
+        say(
+            f"wrist cameras: {len(self.wrist_cameras)} at {resolution}, "
+            f"annotators={annotators}"
+        )
+
+    def set_wrist_pose(self, side: str, position, target) -> None:
+        """Aim one wrist camera at `target` from `position` (world, metres).
+
+        Called once per perception measurement - not per control tick - so the
+        cost is two USD attribute writes on the frames that are rendered anyway.
+        """
+        entry = getattr(self, "wrist_cameras", {}).get(side)
+        if entry is None:
+            return
+        camera, _sensor = entry
+        prim = self.stage.GetPrimAtPath(f"/World/WristCamera_{side}")
+        if not prim.IsValid():
+            return
+        from pxr import Gf as _Gf
+
+        from .common import look_at_quat as _look_at
+
+        quat = _look_at(position, target)
+        ops = getattr(self, "_wrist_ops", {}).get(side)
+        if ops is None:
+            return
+        translate_op, orient_op = ops
+        translate_op.Set(_Gf.Vec3d(*[float(v) for v in position]))
+        orient_op.Set(
+            _Gf.Quatd(
+                float(quat[0]),
+                _Gf.Vec3d(*[float(v) for v in quat[1:]]),
+            )
+        )
 
     # ------------------------------------------------------------------ #
     def _add_finger_colliders(self) -> FingerColliderVerdict:

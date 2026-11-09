@@ -6847,21 +6847,48 @@ wrist camera or a second view is the next spend for the occlusion window itself.
 the depth path (`_track_late_grip`: the estimate's x/z at the descent start, the
 schedule's y), because the fruit is far upstream and often out of frame at the
 pre-pose - the fallback there is the **station's nominal pose**, never the rigid
-body, and a run that cannot measure says so. **No-harm**: `scripts/accept.sh`
+body, and a run that cannot measure says so. **An eye-in-hand camera is added
+and measured** (`FRUIT_WRIST_CAMERA=1`, default off; two RGB-D cameras at
+`FRUIT_WRIST_RES` 240x424 with the head's annotators, authored at build time and
+**driven from the jaw centre and approach axis on every rendered frame**,
+`scene.set_wrist_pose`): the head's weakness is geometric (0.8 m away with the arm
+between it and the fruit). **The aim decides everything** - aimed *at* the grasp
+point (3 cm past the jaw) the fruit is 10 cm upstream when the leg starts and
+leaves the frame (**94-402 px, 729 refusals**, 7.7 mm position, 5.8 mm diameter);
+aimed **12 cm past the jaw** the mask *grows* as the hand closes (**1684-3241 px,
+2-3 refusals**) and it is the **best sensor in the project**: position **3.54 mm**
+median / 4.80 p90, diameter **0.90 mm** / 2.63 - 2x the head's position accuracy
+and **2.6x its diameter**, with the occlusion gone. Its mount offset is its own
+(+0.75, +2.60, -0.25 mm) beside the head's in `configs/perception_calibration.json`
+(and it **must be re-measured when the aim changes** - the 3 cm mount read
+-1.5/+3.3/-6.2 mm). **It is not yet a closed-loop sensor**: in the loop one
+attempt of two diverges in **both** runs (the hand drives through the fruit,
+`125.9 N`, the filter then tracks a 6.4 m/s object, the catch ends 0.4-11 m away),
+while attempt 0 is clean (17-18 ticks, 6.0 mm). Two candidate causes are measured
+out - the per-fruit radius carry-over is real and **fixed**
+(`FruitPerception.reset()` at every attempt), and the instance mask cannot select
+the wrong fruit (zero-padded `Fruit_%02d` names) - so the remaining hypothesis is
+the **bracket**: the approach needs the camera down the corridor, the contact
+needs it at the jaw, and one fixed aim loses one of them. Next: a tilted mount or
+a wider lens, then the 96-degree lens's distortion coefficients. The head camera
+plus the estimator stays the working loop, and with the knob unset **no camera is
+authored at all**. **No-harm**: `scripts/accept.sh`
 with every knob unset is **8/10 = 80 %, 9.0 s/attempt, `fingerprint: matches`,
 `190: PASS`**, and its **421 `[fruit]` lines are 421/421 byte-identical** to
-`logs/p127/accept_restored.log` (`logs/p135/accept_final.log`);
+`logs/p127/accept_restored.log` (`logs/p135/accept_final.log`, re-measured on the
+wrist-camera tree at `logs/p135/accept_wrist.log`);
 `scripts/selfcheck.sh` **PASS (0 failures, 1 skipped)** with the new `P135 tracker`
 leg (30 checks: the exactness, the step, the CA negative, the zero correction, the
 clamp, the calibration ratio, the synthetic sphere, every off default); `106` OK,
 `107` PASS (21 checks). **Re-baseline: none** - nothing shipped,
 `configs/motion_reference.json` = `..._twoline.json` = **`30fb99f8`** and
 `..._single.json` = **`8952c320`** stand. Pins: `tracking.py`
-**`f6870bcc`** (new), `perception.py` **`4ebb6bcf`** (new), `tasks.py`
-**`931a721e`**, `fruits.py` **`ad490ff0`** (`FruitSpawner.impulse`), `rl_env.py`
+**`f6870bcc`** (new), `perception.py` **`72dff00e`** (new), `tasks.py`
+**`2836faad`**, `fruits.py` **`ad490ff0`** (`FruitSpawner.impulse`), `rl_env.py`
 **`1c934199`** (the `TASKS_MD5` follow), `scripts/268_p135_track_selftest.py`
-**`b4ce4373`**, `scripts/selfcheck.sh` **`d57ef4ab`**, `configs/perception_calibration.json`
-**`958a8db3`** (new; the depth path only - the scripted line never reads it); ckpt `moe_v13s`
+**`aa26a529`** (33 checks), `scripts/selfcheck.sh` **`d57ef4ab`**, `configs/perception_calibration.json`
+**`963b5522`** (new; the depth path only - the scripted line never reads it),
+`scene.py` **`5ba275ff`** (the wrist-camera author + `set_wrist_pose`), ckpt `moe_v13s`
 `61da390a`; `logs/p135/PREREG.md` **`0250fdc7`**. Evidence `logs/p135/`,
 `docs/TRACKING.md`.
 

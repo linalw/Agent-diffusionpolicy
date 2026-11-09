@@ -109,6 +109,32 @@ Two limits, measured, that a real installation has to design around:
   (`FRUIT_PERCEPTION_BIAS=x,y,z`); the diameter's 2.4 mm is the fruit being an
   ellipsoid and is not removed by an offset.
 
+## 3b. The eye-in-hand camera
+
+`FRUIT_WRIST_CAMERA=1` authors a second RGB-D camera per arm and drives it from
+the jaw centre and approach axis on every rendered frame. The head camera's
+weakness is geometric - 0.8 m away, with the arm between it and the fruit - so
+the wrist should not have it, and **aimed forward it does not**:
+
+| aim | mask | refusals | position | diameter |
+|---|---|---|---|---|
+| at the grasp point (3 cm past the jaw) | 94-402 px | 729 | 7.7 mm | 5.8 mm |
+| **12 cm past the jaw** | 1684-3241 px | 2-3 | **3.54 mm** | **0.90 mm** |
+
+Aimed at the grasp point the fruit - 10 cm upstream when the leg starts - leaves
+the frame; aimed forward the mask *grows* as the hand closes. That is the best
+measurement in the project (2.6x the head's diameter accuracy).
+
+It is **not yet a closed-loop sensor**: one attempt of two diverges in both runs
+(the hand drives through the fruit at 125.9 N and the filter then tracks a 6.4
+m/s object). The two candidate causes measured out - the per-fruit radius
+carry-over is real and fixed (`FruitPerception.reset()` per attempt), and the
+instance mask cannot select the wrong fruit (zero-padded prim names). The
+remaining hypothesis is the bracket: the approach needs the camera looking down
+the corridor, the contact needs it looking at the jaw, and one fixed aim loses
+one of them. Next: a tilted mount or a wider lens, then the lens-distortion
+calibration. The head camera plus the estimator stays the working loop.
+
 ## 4. What is a tracker *not* for
 
 A velocity impulse on the fruit (the scripted form of the collision `logs/p95`

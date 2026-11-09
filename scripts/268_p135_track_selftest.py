@@ -195,6 +195,13 @@ def test_off_path():
     check(default("FRUIT_TRACK_CATCH_SPEED", "0.0"), "FRUIT_TRACK_CATCH_SPEED defaults off")
     check(default("FRUIT_PERTURB_AT", "0"), "the impulse cell's tick defaults to 0 (inert: dx/dy are 0)")
     check(default("FRUIT_BELT_WAVE_AMP", "0.0"), "the belt wave defaults to zero")
+    check(default("FRUIT_WRIST_CAMERA", "0"), "the eye-in-hand camera defaults off")
+    check(default("FRUIT_WRIST_LOOK", "0.12"),
+          "the wrist camera aims 12 cm past the jaw (at the jaw it loses the fruit)")
+    check('offset_wrist_m' in open(
+        os.path.join(ROOT, "configs", "perception_calibration.json"),
+        encoding="utf-8",
+    ).read(), "the wrist camera carries its own mount offset")
     check('FRUIT_PERTURB_DX", "0.0"' in source and 'FRUIT_PERTURB_DY", "0.0"' in source,
           "the impulse defaults to zero on every axis")
     # the two per-tick guards are attribute tests on pre-resolved booleans

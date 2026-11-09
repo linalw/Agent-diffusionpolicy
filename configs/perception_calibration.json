@@ -1,7 +1,26 @@
 {
   "_why": "The head camera's installation offset, subtracted from the fitted fruit centre. Measured on the reference bench (logs/p135/perception_bench.py) as the fitted centre's world offset from the rigid body's origin: +6.5 mm in +y, stable across the pool on this mount and lens. A different camera, mount or lens needs its own number; `FRUIT_PERCEPTION_BIAS=x,y,z` overrides it per run.",
-  "offset_m": [0.0, 0.0065, 0.0],
+  "offset_m": [
+    0.0,
+    0.0065,
+    0.0
+  ],
   "measured": "2026-11-09",
-  "evidence": "logs/p135/perception/{shape_sphere,shape_calib,shape_calib2}.log",
-  "residual_mm": {"median": 1.98, "p90": 5.63, "before_mm": 6.79}
+  "evidence": "logs/p135/perception/{shape_sphere,shape_calib,shape_calib2,wrist_smoke4}.log",
+  "residual_mm": {
+    "median": 1.98,
+    "p90": 5.63,
+    "before_mm": 6.79
+  },
+  "offset_wrist_m": [
+    0.00075,
+    0.0026,
+    -0.00025
+  ],
+  "_why_wrist": "The eye-in-hand camera's own mount offset. It must be re-measured when the mount's *aim* changes: at the first aim (3 cm past the jaw) the fruit left the frame during the descent (94 -> 402 px, 729 refusals) and the offset was (-1.5,+3.3,-6.2) mm; aimed 10-16 cm ahead along the approach axis the fruit fills the frame (1684-3241 px, 2-3 refusals) and the offset is (+0.8,+2.6,-0.3) mm, with a 0.9 mm diameter error. The same camera, a different bracket.",
+  "residual_wrist_mm": {
+    "median": 3.54,
+    "p90": 4.8,
+    "diameter_median": 0.9
+  }
 }
