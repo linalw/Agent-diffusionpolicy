@@ -141,6 +141,28 @@ let the z drift. Re-run of the same in-loop cell
 residual error is now almost entirely the systematic **+y bias (median +6.0 mm,
 dx -0.15, dz +0.70)**, i.e. the ellipsoid's cap, not the fit's conditioning.
 
+**Calibration closes it.** `configs/perception_calibration.json` carries the
+installation's offset (measured on the bench: the fitted centre is **+6.5 mm** in
+`+y` of the rigid body's origin on this mount, stable across the pool) and
+`perception` subtracts it. Same bench, same frames:
+
+| cell | err median | err p90 | dx | dy | dz | dia median |
+|---|---|---|---|---|---|---|
+| uncalibrated | 6.79 | 10.01 | +0.80 | **+6.55** | +0.10 | 2.37 |
+| **+6.5 mm bias** | **1.98** | **5.63** | +0.80 | **+0.05** | +0.10 | 2.37 |
+| -6.5 mm bias (the control) | 13.16 | 15.56 | +0.80 | +13.05 | +0.10 | 2.37 |
+
+The wrong-sign row is the proof that the term is a real constant, not a fitted
+curve: shifting by -6.5 mm moves the error by exactly +6.5 mm. In the loop
+(`perception/inloop9.log`, 2 attempts) the filter's error at its last update is
+then **3.4 and 1.3 mm**, the bench over the cell **2.65 median / 4.30 p90**, and
+the catch converges in **14 and 22 ticks at 6.0/5.8 mm**.
+
+**A shape model is a measured negative.** `FRUIT_PERCEPTION_SHAPE=spheroid`
+(two radii, the long one along the belt - the fruit rolls) reads err 6.85 vs 6.79
+and a *worse* diameter (3.52 vs 2.37 median, p90 7.21 vs 3.98), so the sphere
+stays the default: the +y term is the mount, not the fruit's shape.
+
 **The remaining perception item is calibration, not modelling.** The offset is
 systematic and depends on the fruit's shape (a 65 mm peach +3.5..+6.3 mm, a 30 mm
 strawberry +7.4..+7.9), so a single constant is not the fix: the bench that would

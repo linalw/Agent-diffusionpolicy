@@ -98,11 +98,16 @@ Two limits, measured, that a real installation has to design around:
   predicting through the occlusion. A wrist camera or a second view is still the
   fix for the window itself - the remaining error is 6 mm, half of it the
   systematic `+y` bias below.
-* **The error is a systematic +y bias** (3.5-6.3 mm upstream) on a large fruit,
-  and grows for a 30 mm fruit (9 mm): a sphere fit through an *ellipsoid's*
-  visible cap displaces the centre along the long axis. That is a **calibration**
-  item (a reference sphere at the station measures the offset once), not a
-  modelling error - and it is why the registered bar was 5 mm rather than 1.
+* **The error is a systematic mounting offset**: the fitted centre sits
+  **+6.5 mm** in `+y` of the rigid body's origin on this camera, stable across the
+  pool and independent of the fruit's shape (a spheroid fit is a measured
+  negative). `configs/perception_calibration.json` carries it and the module
+  subtracts it, which takes the bench from **6.79 mm median to 1.98 mm** (p90
+  10.01 -> 5.63) at an unchanged 2.4 mm diameter error. The wrong-sign control
+  (subtract -6.5 mm) moves the error to 13.16 mm, which is what proves it is a
+  constant and not a fitted curve. A different mount or lens needs its own number
+  (`FRUIT_PERCEPTION_BIAS=x,y,z`); the diameter's 2.4 mm is the fruit being an
+  ellipsoid and is not removed by an offset.
 
 ## 4. What is a tracker *not* for
 

@@ -25,10 +25,13 @@ lens.  The ground truth is used **only** by the bench (`FRUIT_TRACK_DIAG`'s
 
 from __future__ import annotations
 
+import json
 import math
 import os
 
 import numpy as np
+
+_REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 class CameraModel:
@@ -135,6 +138,51 @@ def _fit_sphere_known_radius(points: np.ndarray, radius: float, centre0,
     return c, rms
 
 
+def _fit_spheroid(points: np.ndarray, axis: int = 1, iterations: int = 12):
+    """A spheroid whose *long* axis is the belt's [centre, a, b].
+
+    The payloads are surfaces of revolution, and a fruit riding a conveyor rolls
+    with its long axis along the belt. A sphere through the visible cap is then
+    displaced **along that axis** - measured, the offset is +-6 mm and is almost
+    the whole residual error of the sphere fit. Modelling the shape (two radii,
+    the long one along `axis`) removes the bias and reports the *equatorial*
+    radius, which is the one the jaws close on.
+
+    Geometric residual `sqrt(perp^2/b^2 + par^2/a^2) - 1`, finite-difference
+    Jacobian (4 parameters, a few hundred points), initialised from a sphere fit.
+    """
+    centre, radius, _ = _fit_sphere(points, trim=2.5)
+    if centre is None or not math.isfinite(radius) or radius <= 0.005:
+        return centre, radius, radius, float("nan")
+    params = np.array([centre[0], centre[1], centre[2], radius, radius])
+    other = [i for i in (0, 1, 2) if i != axis]
+
+    def residual(p):
+        delta = points - p[0:3]
+        perp = np.sqrt(delta[:, other[0]] ** 2 + delta[:, other[1]] ** 2)
+        par = delta[:, axis]
+        return np.sqrt((perp / max(p[4], 1e-6)) ** 2 + (par / max(p[3], 1e-6)) ** 2) - 1.0
+
+    rms = float("nan")
+    for _ in range(max(1, int(iterations))):
+        base = residual(params)
+        jac = np.zeros((len(points), 5))
+        for k in range(5):
+            step = max(1e-5, abs(float(params[k])) * 1e-4)
+            bumped = params.copy()
+            bumped[k] += step
+            jac[:, k] = (residual(bumped) - base) / step
+        normal = jac.T @ jac + 1e-6 * np.eye(5)
+        update = np.linalg.solve(normal, -jac.T @ base)
+        params = params + update
+        params[3] = max(params[3], 2e-3)
+        params[4] = max(params[4], 2e-3)
+        rms = float(np.sqrt(np.mean(base ** 2)))
+        if float(np.linalg.norm(update)) < 1e-10:
+            break
+    return params[0:3], float(params[3]), float(params[4]), rms
+
+
 def _fit_sphere(points: np.ndarray, iterations: int = 3, trim: float = 2.5):
     """Least-squares sphere through `points`, with a trimmed refit.
 
@@ -175,7 +223,8 @@ class FruitPerception:
 
     def __init__(self, scene, cfg, hz: float = 30.0, stride: int = 2,
                  trim: float = 2.5, min_pixels: int = 60,
-                 full_pixels: int = 120):
+                 full_pixels: int = 120, shape: str = "sphere",
+                 bias=(0.0, 0.0, 0.0)):
         self.scene = scene
         self.camera = CameraModel.from_scene(scene, cfg)
         self.hz = max(1.0, float(hz))
@@ -190,6 +239,16 @@ class FruitPerception:
         #: A cap at least this big is trusted to set the *radius*; smaller caps
         #: only locate the centre, with the radius held (see the fit below).
         self.full_pixels = max(self.min_pixels, int(full_pixels))
+        #: `sphere` = one radius; `spheroid` = two, the long one along the belt
+        #: (a rolled fruit; see `_fit_spheroid`).
+        self.shape = str(shape).lower()
+        #: The installation's systematic offset, subtracted from the fitted
+        #: centre [m]. Measured against the reference bench (the fitted centre is
+        #: +6.5 mm upstream of the rigid body's origin on this camera, and the
+        #: sign is stable across the pool). A *calibration*: a different mount or
+        #: lens needs its own number, and it does not remove the shape-dependent
+        #: part (a 30 mm fruit reads 7.6 mm, a 65 mm one 6.3).
+        self.bias = np.asarray(bias, dtype=float)
         self.last_radius = None
         self.last_centre = None
         self.fixed_fits = 0
@@ -311,6 +370,13 @@ class FruitPerception:
                 )
                 radius = float(self.last_radius)
                 self.fixed_fits += 1
+            elif self.shape == "spheroid":
+                centre, long_r, radius, rms = _fit_spheroid(points, axis=1)
+                if centre is None or not math.isfinite(radius) or radius <= 0.005:
+                    self.failures += 1
+                    self.last_error = "degenerate spheroid"
+                    return None
+                self.last_radius = float(radius)
             else:
                 centre, radius, rms = _fit_sphere(points, trim=self.trim)
                 if self.last_radius is not None and abs(
@@ -331,6 +397,7 @@ class FruitPerception:
                 self.failures += 1
                 self.last_error = "degenerate fit"
                 return None
+            centre = np.asarray(centre, dtype=float) - self.bias
             self.last_centre = np.asarray(centre, dtype=float).copy()
             self.frames += 1
             self.last_estimate = {
@@ -368,6 +435,35 @@ class FruitPerception:
         }
 
 
+def _calibration_bias():
+    """The installation's offset: `FRUIT_PERCEPTION_BIAS` or the config file.
+
+    Format `"x,y,z"` in metres. With neither, zeros - the module is then an
+    uncalibrated measurement, which is what the first bench measured.
+    """
+    raw = os.environ.get("FRUIT_PERCEPTION_BIAS")
+    if raw:
+        try:
+            values = [float(v) for v in raw.replace(";", ",").split(",")]
+            if len(values) == 3:
+                return tuple(values)
+        except ValueError:
+            pass
+    path = os.environ.get(
+        "FRUIT_PERCEPTION_CALIBRATION",
+        os.path.join(_REPO_ROOT, "configs", "perception_calibration.json"),
+    )
+    try:
+        with open(path, encoding="utf-8") as handle:
+            payload = json.load(handle)
+        offset = payload.get("offset_m")
+        if offset is not None and len(offset) == 3:
+            return tuple(float(v) for v in offset)
+    except (OSError, ValueError, TypeError):
+        pass
+    return (0.0, 0.0, 0.0)
+
+
 def perception_from_env(scene, cfg) -> FruitPerception:
     """Build the module once per run (the camera does not move)."""
     return FruitPerception(
@@ -378,4 +474,6 @@ def perception_from_env(scene, cfg) -> FruitPerception:
         trim=float(os.environ.get("FRUIT_PERCEPTION_TRIM", "2.5")),
         min_pixels=int(os.environ.get("FRUIT_PERCEPTION_MIN_PX", "60")),
         full_pixels=int(os.environ.get("FRUIT_PERCEPTION_FULL_PX", "120")),
+        shape=os.environ.get("FRUIT_PERCEPTION_SHAPE", "sphere"),
+        bias=_calibration_bias(),
     )

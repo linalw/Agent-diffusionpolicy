@@ -6831,11 +6831,19 @@ smaller cap fits only the centre with the radius held**
 (`_fit_sphere_known_radius`) - the radius is a property of the fruit, not of the
 frame, and freeing it on a 20-40 px sliver is what let z drift. The re-run reads
 **2/2 grasped, 1 placed**, catch 13/37 ticks at 5.7-6.0 mm, 64 accepted and 17
-refused frames, and the residual error is almost entirely a systematic **+y bias
-(median +6.0 mm, dx -0.15, dz +0.70)** whose magnitude depends on the fruit's
-shape (a 65 mm peach +3.5..+6.3, a 30 mm strawberry +7.4..+7.9) - so the closing
-item is a **reference-sphere calibration**, not a model change. A wrist camera
-or a second view is the next spend for the occlusion window itself. **The aim is decided late** on
+refused frames. **The residual is a mounting offset, and it is calibrated**:
+the fitted centre sits **+6.5 mm in `+y`** of the rigid body's origin on this
+camera, stable across the pool and **not** a shape effect (`FRUIT_PERCEPTION_SHAPE=
+spheroid` - two radii, the long one along the belt - reads 6.85 vs 6.79 mm and a
+*worse* diameter, 3.52 vs 2.37 mm, so the sphere stays the default);
+`configs/perception_calibration.json` carries the offset and the module subtracts
+it, taking the bench **6.79 -> 1.98 mm median** (p90 10.01 -> 5.63) at an
+unchanged 2.37 mm diameter, with the **wrong-sign control reading 13.16 mm** -
+which is what proves it is a constant and not a fitted curve. In the loop with the
+calibration (`perception/inloop9.log`): the filter's error at its last update is
+**3.4 and 1.3 mm**, the catch **14 and 22 ticks at 6.0/5.8 mm**, 2/2 grasped.
+A different mount or lens needs its own number (`FRUIT_PERCEPTION_BIAS=x,y,z`). A
+wrist camera or a second view is the next spend for the occlusion window itself. **The aim is decided late** on
 the depth path (`_track_late_grip`: the estimate's x/z at the descent start, the
 schedule's y), because the fruit is far upstream and often out of frame at the
 pre-pose - the fallback there is the **station's nominal pose**, never the rigid
@@ -6849,10 +6857,11 @@ clamp, the calibration ratio, the synthetic sphere, every off default); `106` OK
 `107` PASS (21 checks). **Re-baseline: none** - nothing shipped,
 `configs/motion_reference.json` = `..._twoline.json` = **`30fb99f8`** and
 `..._single.json` = **`8952c320`** stand. Pins: `tracking.py`
-**`f6870bcc`** (new), `perception.py` **`a9383527`** (new), `tasks.py`
+**`f6870bcc`** (new), `perception.py` **`4ebb6bcf`** (new), `tasks.py`
 **`931a721e`**, `fruits.py` **`ad490ff0`** (`FruitSpawner.impulse`), `rl_env.py`
 **`1c934199`** (the `TASKS_MD5` follow), `scripts/268_p135_track_selftest.py`
-**`b4ce4373`**, `scripts/selfcheck.sh` **`d57ef4ab`**; ckpt `moe_v13s`
+**`b4ce4373`**, `scripts/selfcheck.sh` **`d57ef4ab`**, `configs/perception_calibration.json`
+**`958a8db3`** (new; the depth path only - the scripted line never reads it); ckpt `moe_v13s`
 `61da390a`; `logs/p135/PREREG.md` **`0250fdc7`**. Evidence `logs/p135/`,
 `docs/TRACKING.md`.
 
