@@ -134,12 +134,19 @@ belt-velocity prior, a measurement gate and a relative anchor. The last three ar
 **real estimator improvements and are kept** (they also make the head loop faster:
 5 ticks on its second attempt), but they do not convert the wrist.
 
-What remains is geometric: a **tilted mount** that puts the approach corridor and
-the jaw in one frame at a useful magnification, then the lens's distortion
-coefficients. A phase-switched aim is **not** the fix - the failure is in the
-descent's aim, which the corridor aim already serves, and the catch-up never
-consults the camera for its break test. The head camera plus the estimator stays
-the working loop.
+**The mount model was wrong, and that is the phase's last finding**: `look*axis`
+is the *tool* axis, so "12 cm past the jaw" is 12 cm **below the hand**, not up the
+conveyor - and the fruit arrives from the belt, 10-30 cm upstream and 7 cm lower.
+That is why the 12 cm mount measures beautifully when it sees anything and why it
+only sees the fruit when it is close: **the wrist is a contact-phase sensor, not an
+approach one**. Two consequences, both kept: a mask that touches the image border
+is **refused** (`FRUIT_PERCEPTION_CLIP_PX`) because a truncated cap reads a perfect
+rms and diameter with a 24-32 mm centre error; and tilting upstream
+(`FRUIT_WRIST_UPSTREAM`) is a measured negative (1-6 frames per attempt - the aim
+then sits above the belt). A fixed mount cannot be both far upstream and low
+without a real tilt, which is what a bracket would buy. The head camera keeps the
+approach and the wrist the contact; the handover-by-distance knob exists but is
+not adopted. The head camera plus the estimator stays the working loop.
 
 ## 4. What is a tracker *not* for
 

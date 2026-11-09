@@ -288,3 +288,37 @@ opt-in; the head camera plus the estimator is the working loop.
 The wave's zero timeouts stand and the placement count improves; the head loop
 gets faster on its second attempt. The three terms are in the *tracker* (default
 off), so the shipped path is untouched.
+
+## 11. The wrist camera, second pass: the mount model was wrong
+
+§9's eight variants all used `jaw + look*axis` as the aim, and `axis` is the
+**tool axis**, which points *down the fingers*. So "12 cm past the jaw" is 12 cm
+**below the hand**, not up the conveyor. The fruit does not come from below: it
+rides the belt, so at the descent's start it is 10-30 cm **upstream (+y)** and
+7 cm lower than the jaw.
+
+That single sentence explains the whole pattern:
+
+* the 3 cm and 12 cm aims look at the belt **under the hand**, so the fruit is
+  invisible until it is close - which is why the 12 cm mount measures beautifully
+  (3.54 mm / 0.90 mm) *when it sees anything* and why the contact frames are the
+  ones it gets;
+* the frames it does get at 10-11 cm were the outliers in §9: at that range a
+  0.11 m fruit **touches the image border** (3309 px, a 0.21 mm rms, a correct
+  diameter, a 24-32 mm centre error) - a *truncated* cap cannot give an unbiased
+  centre. `FRUIT_PERCEPTION_CLIP_PX` (2) now refuses a mask that touches a border;
+* aiming **upstream** (`FRUIT_WRIST_UPSTREAM=0.16`) fixes the direction but loses
+  the height - the aim sits above the belt - and reads **1-6 frames per attempt**.
+  A fixed mount cannot be both 16 cm upstream and 7 cm low without a real tilt.
+
+So the wrist camera is a **contact-phase sensor**, not an approach one, and the
+honest mount is the one that looks at the belt under the hand. The head camera
+keeps the approach (it sees the whole belt); the handover-by-distance knob
+(`FRUIT_WRIST_SWITCH`, 0 = wrist only) exists for the two-camera experiment, which
+is not adopted: on its one cell it read attempt 0 **11 ticks at 5.9 mm** (the best
+catch in the project) and attempt 1 diverged.
+
+**What is kept from this pass**: `FRUIT_PERCEPTION_CLIP_PX` (a truncated view is
+refused - it would otherwise feed a 24-32 mm bias with a perfect rms), the
+upstream term with its measured negative, and the handover knob. The wrist stays
+opt-in and is **not** a working loop; the head camera plus the estimator is.

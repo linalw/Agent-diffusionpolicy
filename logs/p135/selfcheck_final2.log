@@ -1,0 +1,2928 @@
+### offline motion checks: PASS (0.10s)
+$ python3 scripts/96_motion_check.py
+    == jerk-limited profiles ==
+      d=+0.012 m ->   39 steps (0.33 s), |v|=0.071 (limit 0.300), |a|=0.691 (limit 2.000), |j|=20.9 (limit 25.0)
+    [ok  ]   endpoint d=+0.012
+    [ok  ]   starts/ends at rest d=+0.012
+    [ok  ]   |v| <= v_max d=+0.012
+    [ok  ]   |a| <= a_max d=+0.012
+    [ok  ]   |j| <= j_max d=+0.012
+      d=+0.050 m ->   62 steps (0.52 s), |v|=0.184 (limit 0.300), |a|=1.117 (limit 2.000), |j|=21.7 (limit 25.0)
+    [ok  ]   endpoint d=+0.050
+    [ok  ]   starts/ends at rest d=+0.050
+    [ok  ]   |v| <= v_max d=+0.050
+    [ok  ]   |a| <= a_max d=+0.050
+    [ok  ]   |j| <= j_max d=+0.050
+      d=+0.250 m ->  193 steps (1.61 s), |v|=0.293 (limit 0.300), |a|=0.564 (limit 2.000), |j|=3.6 (limit 25.0)
+    [ok  ]   endpoint d=+0.250
+    [ok  ]   starts/ends at rest d=+0.250
+    [ok  ]   |v| <= v_max d=+0.250
+    [ok  ]   |a| <= a_max d=+0.250
+    [ok  ]   |j| <= j_max d=+0.250
+      d=+0.780 m ->  598 steps (4.98 s), |v|=0.294 (limit 0.300), |a|=0.182 (limit 2.000), |j|=0.4 (limit 25.0)
+    [ok  ]   endpoint d=+0.780
+    [ok  ]   starts/ends at rest d=+0.780
+    [ok  ]   |v| <= v_max d=+0.780
+    [ok  ]   |a| <= a_max d=+0.780
+    [ok  ]   |j| <= j_max d=+0.780
+      d=-0.400 m ->  307 steps (2.56 s), |v|=0.294 (limit 0.300), |a|=0.355 (limit 2.000), |j|=1.4 (limit 25.0)
+    [ok  ]   endpoint d=-0.400
+    [ok  ]   starts/ends at rest d=-0.400
+    [ok  ]   |v| <= v_max d=-0.400
+    [ok  ]   |a| <= a_max d=-0.400
+    [ok  ]   |j| <= j_max d=-0.400
+    
+    == friction-cone acceleration budget ==
+          horizontal: a_max =   6.51 m/s^2
+         straight up: a_max =   1.96 m/s^2
+       straight down: a_max =  21.58 m/s^2
+         diagonal up: a_max =   2.57 m/s^2
+    [ok  ] horizontal budget = g*sqrt(mu^2-1)
+    [ok  ] upward budget = g*(mu-1)
+    [ok  ] cone_scale zeroes an over-budget accel
+    [ok  ] cone_scale leaves a safe accel alone
+    
+    == cone-limited move (the lift leg) ==
+      requested v=0.30 a=2.00 j=25.0 -> carrying v=0.30 a=1.96 j=19.6
+      d=+0.250 m ->  193 steps (1.61 s), |v|=0.293 (limit 0.300), |a|=0.564 (limit 1.962), |j|=3.6 (limit 19.6)
+    [ok  ]   endpoint d=+0.250
+    [ok  ]   starts/ends at rest d=+0.250
+    [ok  ]   |v| <= v_max d=+0.250
+    [ok  ]   |a| <= a_max d=+0.250
+    [ok  ]   |j| <= j_max d=+0.250
+    
+    == grasp attitude helpers (top-down / mirrored) ==
+      right closes along [1.0, 0.0, 0.0], fingers [0.0, 0.0, -1.0]
+      left  closes along [-1.0, 0.0, 0.0], fingers [0.0, 0.0, -1.0]
+    [ok  ] top-down x closes the jaws along X
+    [ok  ] top-down x points the fingers straight down
+    [ok  ] the mirror stays a rotation (det = +1)
+    [ok  ] the mirror swaps the closing axis to -X on the left arm
+    [ok  ] mirroring twice is the identity
+    
+    == min-jerk jaw blend ==
+      jaw 0.090 -> 0.0314 m in 60 ticks: |v|max=0.220 m/s, |a|max=1.35 m/s^2
+      first-tick jaw speed: quintic 0.0022 m/s vs linear ramp 0.1172 m/s
+    [ok  ] jaw blend starts far more gently than a linear ramp
+    
+    == monitor on a synthetic carry ==
+      [motion] synthetic lift: steps=193, |v|max=0.293 m/s, |a|max=0.564 m/s^2, |j|max=3.5 m/s^3, cone=0.88x budget (0 pct over), ends |v|=0.000/0.000 m/s (a_step=0.01), a_med=0.41 peak@0.21 (first10=0.42 last10=0.42) m/s^2, a_win5=0.56 m/s^2, slip=0.0 mm
+    
+    == motion gate profile defaults ==
+      tasks.py approach v_max=0.15 a_max=0.8; gate defaults v_max=0.15 a_max=0.8
+    [ok  ] gate dynamic v_max default equals the task's
+    [ok  ] gate a_max default equals the task's
+    
+    all motion checks passed
+
+### dataset index audit: PASS (1.08s)
+$ python3 scripts/106_index_audit.py --root datasets
+    datasets/*: 66 dataset(s) with data or index
+      demos_v10            entries=154 files=154 index_frames= 72837 file_frames= 72837 windows= 70219 unique_content=154 OK
+      demos_v10_vlash      entries= 80 files= 80 index_frames= 37654 file_frames= 37654 windows= 36294 unique_content= 80 OK
+      demos_v11            entries= 50 files= 50 index_frames= 10228 file_frames= 10228 windows=  9378 unique_content= 50 OK
+      demos_v12            entries=158 files=158 index_frames= 32298 file_frames= 32298 windows= 29612 unique_content=158 OK
+      demos_v12_015        entries= 25 files= 25 index_frames=  4293 file_frames=  4293 windows=  3868 unique_content= 25 OK
+      demos_v12_spaced     entries=157 files=157 index_frames= 34163 file_frames= 34163 windows= 31494 unique_content=157 OK
+      demos_v13p           entries=173 files=173 index_frames= 35225 file_frames= 35225 windows= 32284 unique_content=173 OK
+      demos_v7             entries= 42 files= 42 index_frames= 20966 file_frames= 20966 windows= 20252 unique_content= 42 OK
+      demos_v8             entries= 42 files= 42 index_frames= 20966 file_frames= 20966 windows= 20252 unique_content= 42 OK
+      demos_v9             entries= 63 files= 63 index_frames= 29121 file_frames= 29121 windows= 28050 unique_content= 63 OK
+      p125_smoke           entries=  5 files=  5 index_frames=  1091 file_frames=  1091 windows=  1006 unique_content=  5 OK
+      p125_three_lane      entries=196 files=196 index_frames= 39746 file_frames= 39746 windows= 36414 unique_content=196 OK
+      p125_three_lane_s0   entries= 19 files= 19 index_frames=  3863 file_frames=  3863 windows=  3540 unique_content= 19 OK
+      p125_three_lane_s0_r2 entries= 30 files= 30 index_frames=  6177 file_frames=  6177 windows=  5667 unique_content= 30 OK
+      p125_three_lane_s0_r3 entries= 28 files= 28 index_frames=  5523 file_frames=  5523 windows=  5047 unique_content= 28 OK
+      p125_three_lane_s1   entries= 20 files= 20 index_frames=  4190 file_frames=  4190 windows=  3850 unique_content= 20 OK
+      p125_three_lane_s1_r2 entries= 35 files= 35 index_frames=  6999 file_frames=  6999 windows=  6404 unique_content= 35 OK
+      p125_three_lane_s2   entries= 28 files= 28 index_frames=  5671 file_frames=  5671 windows=  5195 unique_content= 28 OK
+      p125_three_lane_s2_r2 entries= 17 files= 17 index_frames=  3227 file_frames=  3227 windows=  2938 unique_content= 17 OK
+      p125_three_lane_s2_r3 entries= 19 files= 19 index_frames=  4096 file_frames=  4096 windows=  3773 unique_content= 19 OK
+      p33_pear             entries=180 files=180 index_frames= 35730 file_frames= 35730 windows= 32670 unique_content=180 OK
+      p33_pear_s0          entries= 25 files= 25 index_frames=  5200 file_frames=  5200 windows=  4775 unique_content= 25 OK
+      p33_pear_s0_r2       entries= 32 files= 32 index_frames=  6464 file_frames=  6464 windows=  5920 unique_content= 32 OK
+      p33_pear_s1          entries= 34 files= 34 index_frames=  6761 file_frames=  6761 windows=  6183 unique_content= 34 OK
+      p33_pear_s1_r2       entries= 33 files= 33 index_frames=  6683 file_frames=  6683 windows=  6122 unique_content= 33 OK
+      p33_pear_s2          entries= 26 files= 26 index_frames=  4615 file_frames=  4615 windows=  4173 unique_content= 26 OK
+      p33_pear_s2_r2       entries= 30 files= 30 index_frames=  6007 file_frames=  6007 windows=  5497 unique_content= 30 OK
+      p33_pear_smoke       entries=  1 files=  1 index_frames=   235 file_frames=   235 windows=   218 unique_content=  1 OK
+      ss008                entries= 25 files= 25 index_frames=  6490 file_frames=  6490 windows=  6065 unique_content= 25 OK
+      ss012                entries= 25 files= 25 index_frames=  4668 file_frames=  4668 windows=  4243 unique_content= 25 OK
+      ss015                entries= 17 files= 17 index_frames=  2857 file_frames=  2857 windows=  2568 unique_content= 17 OK
+      ss_multi             entries= 67 files= 67 index_frames= 14015 file_frames= 14015 windows= 12876 unique_content= 67 OK
+      v10_s0               entries= 50 files= 50 index_frames= 24110 file_frames= 24110 windows= 23260 unique_content= 50 OK
+      v10_s1               entries= 50 files= 50 index_frames= 23271 file_frames= 23271 windows= 22421 unique_content= 50 OK
+      v10_s2               entries= 35 files= 35 index_frames= 16153 file_frames= 16153 windows= 15558 unique_content= 35 OK
+      v10_s2x_1            entries= 10 files= 10 index_frames=  4548 file_frames=  4548 windows=  4378 unique_content= 10 OK
+      v10_s2x_2            entries=  5 files=  5 index_frames=  2128 file_frames=  2128 windows=  2043 unique_content=  5 OK
+      v10_s3               entries= 19 files= 19 index_frames=  9303 file_frames=  9303 windows=  8980 unique_content= 19 OK
+      v10_s3x_1            entries= 10 files= 10 index_frames=  4861 file_frames=  4861 windows=  4691 unique_content= 10 OK
+      v10_s3x_2            entries= 10 files= 10 index_frames=  4861 file_frames=  4861 windows=  4691 unique_content= 10 OK
+      v10_s3x_3            entries= 10 files= 10 index_frames=  4861 file_frames=  4861 windows=  4691 unique_content= 10 OK
+      v10_s3x_4            entries=  1 files=  1 index_frames=   470 file_frames=   470 windows=   453 unique_content=  1 OK
+      v11_s0               entries= 25 files= 25 index_frames=  5150 file_frames=  5150 windows=  4725 unique_content= 25 OK
+      v11_s1               entries= 25 files= 25 index_frames=  5078 file_frames=  5078 windows=  4653 unique_content= 25 OK
+      v12_s0_015           entries= 25 files= 25 index_frames=  4293 file_frames=  4293 windows=  3868 unique_content= 25 OK
+      v12d_s02             entries=158 files=158 index_frames= 32298 file_frames= 32298 windows= 29612 unique_content=158 OK
+      v12w_s0              entries= 48 files= 48 index_frames= 10308 file_frames= 10308 windows=  9492 unique_content= 48 OK
+      v12w_s02             entries= 48 files= 48 index_frames= 10460 file_frames= 10460 windows=  9644 unique_content= 48 OK
+      v12w_s03             entries=  2 files=  2 index_frames=   444 file_frames=   444 windows=   410 unique_content=  2 OK
+      v12w_s04             entries=  2 files=  2 index_frames=   465 file_frames=   465 windows=   431 unique_content=  2 OK
+      v12w_s05             entries= 33 files= 33 index_frames=  7250 file_frames=  7250 windows=  6689 unique_content= 33 OK
+      v12w_s06             entries= 12 files= 12 index_frames=  2632 file_frames=  2632 windows=  2428 unique_content= 12 OK
+      v12w_s1              entries= 12 files= 12 index_frames=  2604 file_frames=  2604 windows=  2400 unique_content= 12 OK
+      v12w_smoke           entries=  4 files=  4 index_frames=   869 file_frames=   869 windows=   801 unique_content=  4 OK
+      v13p_probe           entries= 32 files= 32 index_frames=  6507 file_frames=  6507 windows=  5963 unique_content= 32 OK
+      v13p_s0              entries= 33 files= 33 index_frames=  6672 file_frames=  6672 windows=  6111 unique_content= 33 OK
+      v13p_s0_r1           entries=  1 files=  1 index_frames=    98 file_frames=    98 windows=    81 unique_content=  1 OK
+      v13p_s1              entries= 33 files= 33 index_frames=  6869 file_frames=  6869 windows=  6308 unique_content= 33 OK
+      v13p_s1_r1           entries=  2 files=  2 index_frames=   450 file_frames=   450 windows=   416 unique_content=  2 OK
+      v13p_s1_r2           entries=  3 files=  3 index_frames=   520 file_frames=   520 windows=   469 unique_content=  3 OK
+      v13p_s2              entries= 37 files= 37 index_frames=  7621 file_frames=  7621 windows=  6992 unique_content= 37 OK
+      v13p_s2_r1           entries=  2 files=  2 index_frames=   405 file_frames=   405 windows=   371 unique_content=  2 OK
+      v13p_s2_r2           entries= 30 files= 30 index_frames=  6083 file_frames=  6083 windows=  5573 unique_content= 30 OK
+      v9_s0                entries= 21 files= 21 index_frames= 10039 file_frames= 10039 windows=  9682 unique_content= 21 OK
+      v9_s1                entries= 21 files= 21 index_frames=  9179 file_frames=  9179 windows=  8822 unique_content= 21 OK
+      v9_s2                entries= 21 files= 21 index_frames=  9903 file_frames=  9903 windows=  9546 unique_content= 21 OK
+    OK: every index matches the files it describes
+
+### collect/merge regression: PASS (0.37s)
+$ python3 scripts/107_collect_merge_test.py
+    == 1. collector restarted onto the same directory ==
+    [fruit] saved /tmp/collect_merge_test_d5yiow2j/shard_a/episode_00000.npz (7 frames, success=True)
+    [fruit] saved /tmp/collect_merge_test_d5yiow2j/shard_a/episode_00000.npz (5 frames, success=True)
+      [ok  ] one index row for the rewritten episode
+      [ok  ] its frames match the file on disk
+    == 2. merge a shard that repeats an episode byte-for-byte ==
+    [fruit] saved /tmp/collect_merge_test_d5yiow2j/shard_b/episode_00000.npz (6 frames, success=True)
+    [fruit] saved /tmp/collect_merge_test_d5yiow2j/shard_b/episode_00001.npz (5 frames, success=True)
+      [ok  ] merge ran
+          merge: skip /tmp/collect_merge_test_d5yiow2j/shard_b:episode_00001.npz (byte-identical to episode_00000.npz from /tmp/collect_merge_test_d5yiow2j/shard_a)
+          merge: merged 2 successful episodes into /tmp/collect_merge_test_d5yiow2j/out/merged
+      [ok  ] no byte-identical episodes survive the merge
+      [ok  ] one index row per file
+      [ok  ] every frames value matches its file (stale 999 must not survive)
+    == 3. the index audit detects the stale shard, and clears the merge ==
+      [ok  ] audit rejects the shard whose index was left stale
+      [ok  ] audit exits 0 on the merged output
+      [ok  ] audit reports OK
+    == 4. two-line recording: concurrent threads, auto index, station label ==
+    [fruit] saved /tmp/collect_merge_test_d5yiow2j/two_line/episode_00000.npz (4 frames, success=True)
+    [fruit] saved /tmp/collect_merge_test_d5yiow2j/two_line/episode_00001.npz (4 frames, success=True)
+    [fruit] saved /tmp/collect_merge_test_d5yiow2j/two_line/episode_00002.npz (4 frames, success=True)
+    [fruit] saved /tmp/collect_merge_test_d5yiow2j/two_line/episode_00003.npz (4 frames, success=True)
+    [fruit] saved /tmp/collect_merge_test_d5yiow2j/two_line/episode_00004.npz (4 frames, success=True)
+    [fruit] saved /tmp/collect_merge_test_d5yiow2j/two_line/episode_00005.npz (4 frames, success=True)
+      [ok  ] concurrent saves raised no error
+      [ok  ] all six concurrent episodes landed
+      [ok  ] file names are unique
+      [ok  ] auto indices are unique
+      [ok  ] per-arm station labels survive
+      [ok  ] both arms labelled
+    == 5. the provenance lists pin the supply modules (P32 Gate D C1) ==
+      [ok  ] collector manifest lists bed.py
+      [ok  ] collector manifest lists meshes.py
+      [ok  ] rl env manifest lists bed.py
+      [ok  ] rl env manifest lists meshes.py
+      [ok  ] bed manifest block has the resolved geometry keys
+      [ok  ] bed manifest block follows the along override
+    
+    PASS: all 21 checks
+
+### finger collider guard: PASS (0.03s)
+$ python3 scripts/432_finger_collider_guard_test.py
+    finger collider guard: PASS (3 failing verdicts raise, 1 valid passes)
+    sample fail-fast message:
+    FRUIT_GRIPPER_KIND=openarm needs the de-instanced robot asset: the hand holds the payload only through UsdPhysics.CollisionAPI on the robot's own finger meshes, and none could be authored here (the fruit would float).
+      asset in use:                 https://example.invalid/Robots/OpenArm/openarm_bimanual.usd
+      expected de-instanced asset:  /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/assets/openarm_flat/openarm_flat_deinst.usda
+      authoring verdict:            0 collider(s) enabled, 4 skipped, 4 finger visual root(s)
+    Fix one of these and re-run:
+      * make the de-instanced asset available at the expected path, or
+      * point FRUIT_ROBOT_USD at a de-instanced copy, or
+      * run the pad hand deliberately: FRUIT_GRIPPER_KIND=kinematic.
+
+### rl env smoke: PASS (0.09s)
+$ python3 -c import sys; sys.path.insert(0, 'src'); from fruit_sorting.rl_env import RewardConfig, RolloutRecorder, TASKS_MD5; r = RewardConfig(); assert abs(r.compute(True, 0) - 1.0) < 1e-9; assert abs(r.compute(True, 750) - 0.9) < 1e-9; assert abs(r.compute(True, 1500) - 0.8) < 1e-9; assert abs(r.compute(True, 99999) - 0.8) < 1e-9; assert r.compute(False, 100) == 0.0; assert len(TASKS_MD5) == 32; print('rl_env smoke ok')
+    rl_env smoke ok
+
+### tasks.py pin: PASS (0.07s)
+$ python3 -c import hashlib, sys; sys.path.insert(0, 'src'); from fruit_sorting.rl_env import TASKS_MD5; actual = hashlib.md5(open('src/fruit_sorting/tasks.py', 'rb').read()).hexdigest(); assert TASKS_MD5 == actual, f'TASKS_MD5={TASKS_MD5} tasks.py={actual}'; print('TASKS_MD5 pin ok')
+    TASKS_MD5 pin ok
+
+### proprio spoof check: PASS (0.10s)
+$ python3 scripts/218_proprio_spoof_check.py
+    P36 phase 1 - the proprio spoof's offline observation diff
+    ==============================================================================
+    generated by scripts/218_proprio_spoof_check.py (no simulator)
+        src/fruit_sorting/rl_env.py            md5 9ed624f6c2c2a609ff806e556fe0f114
+        configs/proprio_spoof.json             md5 374b88a7bbbee4947cedcbb0225c2a9b
+        configs/arm_parks.json                 md5 42ab4fb78a91ea9d85554e6d90e1da80
+    
+    [1] THE VECTORS: configs/proprio_spoof.json vs the P35 `[park] q_settled=`
+    
+        pose       active   n_vals file == measured  values
+        ready      right        1 yes               [-1.464, -0.375, 1.488, 1.315, -1.496, -0.588, 1.559]
+      PASS  vector ready/left == the measured settled pose (1 rows)
+        ready      left         1 yes               [1.52, 0.33, -1.57, 1.269, 1.56, 0.62, -1.566]
+      PASS  vector ready/right == the measured settled pose (1 rows)
+        back       right        1 yes               [-1.912, -0.978, 1.503, 0.818, -1.498, -0.586, 1.559]
+      PASS  vector back/left == the measured settled pose (1 rows)
+    
+    [2] THE LAYOUT: the 7 indices must be the arm's own arm_dofs
+    
+        measured (logs/33_dof.log): left=[0, 2, 4, 6, 8, 10, 12] right=[1, 3, 5, 7, 9, 11, 13]
+      PASS  left arm indices  [[0, 2, 4, 6, 8, 10, 12]]
+      PASS  right arm indices  [[1, 3, 5, 7, 9, 11, 13]]
+      PASS  arms disjoint  [False]
+    
+    [3] THE DIFF: one call of the shipped apply_proprio_spoof
+    
+      PASS  applied  [1]
+      PASS  side  ['left']
+      PASS  written indices  [[0, 2, 4, 6, 8, 10, 12]]
+      PASS  n changed  [6]
+      PASS  changed indices  [[0, 2, 4, 6, 8, 10]]
+      PASS  changed values  [[-1.912, -0.978, 1.503, 0.818, -1.498, -0.586]]
+      PASS  caller's array untouched  ['cd7c748731985ecd02253472d4f1a846']
+      PASS  caller's array equals its copy  [True]
+      PASS  the other 15 bit-identical  [True]
+      PASS  written values  [[-1.912, -0.978, 1.503, 0.818, -1.498, -0.586, 1.559]]
+      PASS  25-D: n changed  [6]
+        (6 not 7: j7 is 1.559 in both poses, so it is written and reads equal)
+      PASS  25-D: changed inside the joint block  [True]
+      PASS  25-D: the finger channel unchanged  [0.0]
+      PASS  25-D: the tactile channels unchanged  [[0.0, 0.0]]
+      PASS  25-D: hash with the 7 zeroed is equal (only those changed)  [True]
+      PASS  right-side written indices  [[1, 3, 5, 7, 9, 11, 13]]
+      PASS  right-side applied  [1]
+      PASS  right-side: the left arm unchanged  [True]
+      PASS  no right vector -> applied  [0]
+      PASS  no right vector -> no-op  [True]
+      PASS  off -> applied  [0]
+      PASS  off -> no-op  [True]
+        ready->back |dq| = [0.448, 0.603, 0.015, 0.497, 0.002, 0.002, 0.0] rad (max 0.603, sum 1.567)
+      PASS  the substitution is not a numerical no-op  [True]
+    
+    [4] THE PARK FILE (the image channel) - unchanged by this phase
+    
+      PASS  park names  [['back', 'ready', 'side_deep']]
+      PASS  the parks are left-arm only  [['left']]
+    
+    [5] THE RECORD GUARD (`record` + `FRUIT_PROPRIO_SPOOF` is refused)
+    
+        the spoof rewrites 7 observation channels *before* the recorder sees
+        them, so a store collected under it would carry a pose the arm never
+        held; the guard is the env's predicate, read here without a simulator.
+      PASS  record + spoof -> refused  [True]
+      PASS  the refusal names the pose  [True]
+      PASS  record + no spoof -> allowed  ['']
+      PASS  no record + spoof -> allowed (the evaluation interface)  ['']
+      PASS  the park is NOT refused with a store (a real post-park dataset)  ['']
+    
+    [6] VERDICT
+    
+        failures=0 skipped=0
+        the proprio cell changes exactly the inactive arm's 7 joints; the
+        active arm, the finger, the tactile channels and the image are untouched;
+        the default (empty vector dict) is a no-op and `proprio()` skips the call;
+        a recording rollout under the spoof is refused.
+    
+    wrote logs/p36/offline_obs_diff.txt
+
+### rl report parser: PASS (0.03s)
+$ python3 scripts/113_rl_report.py --self-test
+    rl report self-test PASS (parser, pairing, sign test, verdict branches)
+
+### r9 endpoint report: PASS (0.03s)
+$ python3 scripts/196_r9_report.py --self-test
+    === arm A
+      run 1: 1/8  0:peac/6.0/ok  1:kiwi/6.0/carried  2:appl/6.0/carried  3:peac/6.0/carried  4:grap/6.0/carried  5:pear/6.0/carried  6:oran/6.0/carried  7:toma/6.0/carried
+    === arm B
+      run 1: 7/8  0:peac/6.0/ok  1:kiwi/6.0/ok  2:appl/6.0/ok  3:peac/6.0/ok  4:grap/6.0/ok  5:pear/6.0/ok  6:oran/6.0/ok  7:toma/6.0/carried
+    
+      pooled A: 1/8 (12%)  median ticks 1800 (successes 1800)
+      pooled B: 7/8 (88%)  median ticks 1800 (successes 1800)
+      classes A: ok=1 no-contact=0 carried-not-placed=7 other=0 | left n=8 {'ok': 1, 'no-contact': 0, 'carried': 7, 'other': 0} | right n=0 {'ok': 0, 'no-contact': 0, 'carried': 0, 'other': 0}
+      classes B: ok=7 no-contact=0 carried-not-placed=1 other=0 | left n=8 {'ok': 7, 'no-contact': 0, 'carried': 1, 'other': 0} | right n=0 {'ok': 0, 'no-contact': 0, 'carried': 0, 'other': 0}
+    
+      paired same-fruit: both ok 1, both fail 1, B-only ok 6, A-only ok 0 (excluded fruit-class differs 0)
+      sign test (B better): p = 0.0156 (discordant 6)
+    
+      [r9] carried-class pair transitions (same-fruit):
+        carried     -> carried       1
+        carried     -> ok            6  <== candidate conversion
+        ok          -> ok            1
+      [r9] carried-class conversion: B-only 6 / A-only 0; one-sided sign p = 0.0156 (6-0 is the p<=0.05 edge at N=5)
+      [r9] candidate-conversion pairs:
+      run1 ep 1 kiwi       A=carried     -> B=ok         
+      run1 ep 2 apple      A=carried     -> B=ok         
+      run1 ep 3 peach      A=carried     -> B=ok         
+      run1 ep 4 grape      A=carried     -> B=ok         
+      run1 ep 5 pear       A=carried     -> B=ok         
+      run1 ep 6 orange     A=carried     -> B=ok         
+    
+      [r9] pooled rate B 88% vs A 12% [above]
+      [r9] strawberry B 0/0 vs A 0/0 [ok]
+      [r9] new failure reasons: none
+      [r9] cycle B 1800 vs A 1800 ticks (+0.0%)
+    
+      [r9] primary endpoint (pooled rate above baseline AND carried-class conversion significant): PASS
+      [r9] secondary (P4 rule: cycle >=5% faster with success non-inferior, or rate+sign p<=0.05): PASS
+      [r9] adoption: never implied by this readout - the pre-registration requires the owner gate, a fresh pinned canary and (on an interface change) a new reference set.
+    
+    == [carry] mechanism readout (FRUIT_CARRY_DIAG live lines; the live onset is contact-agnostic, so zero-force onsets are split out):
+      [A] carry legs: 8
+        grasp_lift n=  8 clean(<2mm)=  1 slip_event=  7 contact_loss=  7 | clean_slip mm min=0.04 med=250.00 p90=250.00 max=250.00
+          pre-onset facet: onset_row med=90 (range 90-90); force@onset med=4.90N over 7 contact legs (0 zero-force/no-contact); contacts@onset==1 7/7; onset->loss med=50 ticks (7 lost); sep@onset>=97mm 0/7
+      [B] carry legs: 8
+        grasp_lift n=  8 clean(<2mm)=  7 slip_event=  1 contact_loss=  0 | clean_slip mm min=0.03 med=0.03 p90=0.03 max=0.03
+          pre-onset facet: onset_row med=150 (range 150-150); force@onset med=nanN over 0 contact legs (1 zero-force/no-contact); contacts@onset==1 0/1; onset->loss med=nan ticks (0 lost); sep@onset>=97mm 0/1
+    === arm A
+      run 1: 1/8  0:peac/6.0/ok  1:kiwi/6.0/carried  2:appl/6.0/carried  3:peac/6.0/carried  4:grap/6.0/carried  5:pear/6.0/carried  6:oran/6.0/carried  7:toma/6.0/carried
+    === arm B
+      run 1: 1/8  0:peac/6.0/ok  1:kiwi/6.0/carried  2:appl/6.0/carried  3:peac/6.0/carried  4:grap/6.0/carried  5:pear/6.0/carried  6:oran/6.0/carried  7:toma/6.0/carried
+    
+      pooled A: 1/8 (12%)  median ticks 1800 (successes 1800)
+      pooled B: 1/8 (12%)  median ticks 1800 (successes 1800)
+      classes A: ok=1 no-contact=0 carried-not-placed=7 other=0 | left n=8 {'ok': 1, 'no-contact': 0, 'carried': 7, 'other': 0} | right n=0 {'ok': 0, 'no-contact': 0, 'carried': 0, 'other': 0}
+      classes B: ok=1 no-contact=0 carried-not-placed=7 other=0 | left n=8 {'ok': 1, 'no-contact': 0, 'carried': 7, 'other': 0} | right n=0 {'ok': 0, 'no-contact': 0, 'carried': 0, 'other': 0}
+    
+      paired same-fruit: both ok 1, both fail 7, B-only ok 0, A-only ok 0 (excluded fruit-class differs 0)
+      sign test (B better): p = 1.0000 (discordant 0)
+    
+      [r9] carried-class pair transitions (same-fruit):
+        carried     -> carried       7
+        ok          -> ok            1
+      [r9] carried-class conversion: B-only 0 / A-only 0; one-sided sign p = 1.0000 (6-0 is the p<=0.05 edge at N=5)
+    
+      [r9] pooled rate B 12% vs A 12% [not above]
+      [r9] strawberry B 0/0 vs A 0/0 [ok]
+      [r9] new failure reasons: none
+      [r9] cycle B 1800 vs A 1800 ticks (+0.0%)
+    
+      [r9] primary endpoint (pooled rate above baseline AND carried-class conversion significant): FAIL
+      [r9] secondary (P4 rule: cycle >=5% faster with success non-inferior, or rate+sign p<=0.05): FAIL
+      [r9] adoption: never implied by this readout - the pre-registration requires the owner gate, a fresh pinned canary and (on an interface change) a new reference set.
+      [r9] kill criterion: the N=5 paired carried-class split is not candidate-positive -> close the lane negative and publish.
+    
+    == [carry] mechanism readout (FRUIT_CARRY_DIAG live lines; the live onset is contact-agnostic, so zero-force onsets are split out):
+      [A] carry legs: 8
+        grasp_lift n=  8 clean(<2mm)=  1 slip_event=  7 contact_loss=  7 | clean_slip mm min=0.04 med=250.00 p90=250.00 max=250.00
+          pre-onset facet: onset_row med=90 (range 90-90); force@onset med=4.90N over 7 contact legs (0 zero-force/no-contact); contacts@onset==1 7/7; onset->loss med=50 ticks (7 lost); sep@onset>=97mm 0/7
+      [B] carry legs: 0
+    196 self-test PASS (parse, pairing, carried endpoint, verdict)
+
+### r9 rollout merge: PASS (0.07s)
+$ python3 scripts/197_r9_merge_rollouts.py --self-test
+    197 self-test PASS (merge, renumber, provenance, overwrite refusal, merged-npz readability)
+
+### rtc runtime selftest: PASS (1.88s)
+$ python3 scripts/128_rtc_selftest.py
+    rtc selftest: PASS (weights, split, bit-exact base, frozen prefix, queue, nan-guard)
+
+### trigger intercept test: PASS (0.11s)
+$ python3 scripts/811_trigger_test.py
+      [PASS] off never fires
+      [PASS] off still reports the geometry
+      [PASS] arrival fires at 6 cm / 1.0 s with lead 1.0 - t_arrive=1.000
+      [PASS] encoder is preferred over the slow measurement
+      [PASS] arrival is independent of the finger
+      [PASS] a shorter lead waits one tick longer
+      [PASS] does not fire early - t_arrive=3.333
+      [PASS] lateral gate rejects a misaligned fruit
+      [PASS] default lateral admits the outer band (dx=0.107)
+      [PASS] explicit lateral=0.06 still refuses dx=0.107
+      [PASS] stationary fruit does not fire
+      [PASS] assist holds while the policy is open
+      [PASS] assist fires once the policy is near closed
+      [PASS] acquisition lead off keeps the fixed gate
+      [PASS] acquisition lead fires earlier for a far jaw - lead=3.02s reach=0.23
+      [PASS] acquisition lead grows with the distance
+      [PASS] acquisition off is byte-neutral (lead/reach unchanged)
+      [PASS] acquisition lead is capped - lead=1.50
+      [PASS] x_max off fires the edge fruit
+      [PASS] x_max refuses a fruit past the reach edge
+      [PASS] the refusal reports the fruit's x - x_refuse=0.4
+      [PASS] x_max admits a fruit inside the band
+      [PASS] x_edge_refusal off returns None
+      [PASS] x_edge_refusal past the edge returns the fruit x
+      [PASS] x_edge_refusal inside the band returns None
+      [PASS] policy gate fires when the guard is off
+      [PASS] the x refusal binds the policy-gate path
+      [PASS] the pre-filtered intercept path still fires
+      [PASS] neither path fires
+      [PASS] lateral_refuse absent on a firable tick
+      [PASS] lateral_refuse marks a would-fire tick - lateral_refuse=0.16699999999999998
+      [PASS] the lateral refusal still reports the geometry
+      [PASS] no lateral_refuse while still upstream
+      [PASS] no lateral_refuse downstream of the station
+      [PASS] both refusals mark both keys
+      [PASS] END needs the latch
+      [PASS] END needs the close to have never fired
+      [PASS] END waits for the departure
+      [PASS] END fires on a latched refusal at the departure
+      [PASS] from_env parses mode/lead/encoder/frame/present
+      [PASS] acquisition lead defaults off
+      [PASS] from_env parses the acquisition knob
+      [PASS] x_max defaults off
+      [PASS] from_env parses the reach-cliff guard
+      [PASS] x_max unset is None again
+      [PASS] present defaults off
+      [PASS] from_env rejects a bogus mode
+      [PASS] from_env rejects a bogus frame
+    [trigger test] OK
+
+### distill selftest: PASS (3.51s)
+$ python3 scripts/131_distill_selftest.py
+    /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/scripts/../src/fruit_sorting/policy/model.py:161: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+    Consider using tensor.detach() first. (Triggered internally at /pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:836.)
+      if float(wk.abs().max()) < 1e-6:
+    distill selftest: PASS (implied x0, DDIM-1 identity, EMA, CD step, deploy step, probe)
+
+### loop metrics selftest: PASS (0.81s)
+$ python3 scripts/125_loop_metrics.py --self-test
+    loop metrics self-test PASS (step, jerk, boundary split, decision rate)
+
+### path3 event selftest: PASS (0.13s)
+$ python3 scripts/149_path3_selftest.py
+    path3 event selftest PASS (median rule, bounds, alignment bookkeeping)
+
+### a2c2 correction selftest: PASS (1.48s)
+$ python3 scripts/146_train_correction.py --self-test
+    correction selftest PASS (train, save/load, correct, clamp, finger untouched)
+
+### path3 report selftest: PASS (0.03s)
+$ python3 scripts/148_path3_report.py --self-test
+    path3 report self-test PASS (pairing, criteria, verdicts)
+
+### bimanual scheduler test: PASS (0.56s)
+$ python3 scripts/152_biarm_selftest.py
+    pair: 100 requests -> 50 shared ticks, exclusive, alternating
+    pair: deterministic segment order
+    contested station: park/release/resume without deadlock (30 ticks for 50 requests)
+    solo attempt: 5 requests -> 5 ticks
+    feed pump: 50 shared ticks -> 50 pump calls, main thread only
+    biarm selftest PASS
+
+### supply scatter selftest: PASS (5.44s)
+$ python3 scripts/172_supply_selftest.py
+    [fruit] [supply] wave density x1.5: gap 0.085-0.107 m, boundary 0.085-0.085 m
+    [fruit] [supply] patch density x2: slice 0.085-0.110 m, pair 1.00
+    [fruit] [supply] species lock: apple only
+    [fruit] [supply] warning: FRUIT_SUPPLY_SPECIES='durian' is not a known species (['apple', 'kiwi', 'lychee', 'orange', 'peach', 'pear', 'strawberry', 'tomato']); ignored
+    [fruit] [supply] warning: cannot use FRUIT_SUPPLY_GRADES='apple:1' (expected all of ['A', 'B', 'C'] as NAME:WEIGHT); using default
+    [fruit] [supply] warning: FRUIT_SUPPLY_PATCH=1 requires FRUIT_SUPPLY_SCATTER=1; ignored
+    [fruit] [supply] patch density x1.6: slice 0.088-0.137 m, pair 0.84
+    [fruit] [supply] patch density x1.6: slice 0.088-0.137 m, pair 0.84
+    patch sheet (offline run): 32 pair slices, separations 0.085-0.120 m, x 0.200-0.359 m, min live planar separation 0.085 m, approach gaps >0.40 m 79/10800 frames
+    supply selftest ok (74 checks)
+
+### speed channel test: PASS (1.29s)
+$ python3 logs/p28i/check_speed_channel.py
+    section 0: the gate
+      [PASS] gate unset -> the channel is off
+      [PASS] the fixed normaliser pair is (0.12, 0.05)
+      [PASS] the shipped gate default is 0 (opt-in only)
+      [PASS] no silent pin default exists (P28 Gate A B2)
+      [PASS] the legacy provenance table covers the anchor and refuses the 0.15 lineage
+    
+    section 1: source checks (the 13 design sites this lane owns)
+      [PASS] rl_env.proprio: the speed append sits under `if self._speed_channel:`
+      [PASS] rl_env.__init__ reads the gate once into `_speed_channel`
+      [PASS] rl_env refuses a checkpoint whose proprio_dim disagrees with the gate
+      [PASS] _MANIFEST_SOURCES pins policy/data.py and policy/finetune.py (design 2.5.2)
+      [PASS] the run manifest records belt_speed and the channel gate (design 6.1)
+      [PASS] 60_eval_policy is in lockstep: same helper, gated, one append site
+      [PASS] 60_eval_policy reads the same gate
+      [PASS] neither builder inherits the trigger's encoder knob (Gate A sec. 1)
+      [PASS] both builders pass the configured belt speed as the no-belt fallback
+      [PASS] policy/data.py: the column is appended only under `if self.speed_channel:`
+      [PASS] policy/data.py: compute_normalizer WRITES the fixed pair (design C2)
+      [PASS] policy/data.py: the pin chain reads supply.belt_speed from a manifest
+      [PASS] correction.py slices with the head's config, not the module constants
+      [PASS] CorrectionController takes its widths from the payload (Gate A)
+      [PASS] 119_rl_fidelity has a two-width feed + --data-speed (Gate A B3) - no equality assertion for B0
+    
+    section 2: B0 - the widened 26-D artifact is the 25-D anchor at step 0
+      [PASS] the anchor checkpoint exists - /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/checkpoints/moe_v13s/policy_best.pt
+             anchor md5 61da390a85fa209496b54477a8255d23
+      [PASS] the anchor is 25-D
+      [PASS] widen_proprio reports a widening
+      [PASS] config proprio_dim 25 -> 26
+      [PASS] the first Linear is (128, 25) -> (128, 26) - (128, 25) -> (128, 26)
+      [PASS] the new column is EXACTLY 0
+      [PASS] the 25 old columns are bitwise the artifact's
+      [PASS] the bias and every other tensor are bitwise unchanged
+      [PASS] the normaliser grows by exactly the fixed (0.12, 0.05) entry
+      [PASS] widen_proprio is idempotent (a second call is a no-op)
+      [PASS]  ... and it does not re-append a second entry
+      [PASS] the channel value has zero influence (0.0/0.08/0.12/0.15 bit-identical) - max|delta| = 0.000e+00
+             batch  1: conditioning max|delta| 0.000e+00, denoiser output max|delta| 0.000e+00
+             batch  3: conditioning max|delta| 2.384e-07, denoiser output max|delta| 2.861e-06
+             batch 32: conditioning max|delta| 1.192e-07, denoiser output max|delta| 2.384e-06
+      [PASS] batch 1 (the deployed inference shape) is BIT-IDENTICAL - cond 0.0e+00 / out 0.0e+00
+      [PASS] batched forwards differ only by float32 reduction order (<= 5e-6) - b1: 0.0e+00, b3: 2.9e-06, b32: 2.4e-06
+      [PASS] float64 reference: no algorithmic difference (<= 1e-14, the fp64 floor) - max|delta| = 2.220e-16
+    
+    section 2b: B0 through the shipped runtime (`PolicyRunner.act`)
+      [PASS] the runtime reads 25-D from the anchor and 26-D from the widened artifact
+      [PASS] the deployed action chunk is BYTE-IDENTICAL (25-D vs 26-D artifact) - max|delta| = 0.000e+00
+      [PASS] the channel's value has zero influence on the deployed chunk - max|delta| = 0.000e+00
+    
+    section 3: the pin chain (`shard` -> manifest -> supply.belt_speed)
+    [data] speed channel: 1 episodes, proprio_dim=26, pins=[0.15], declared=None, sources={'manifest': 1} (unpinned stores raise; see SPEED_PIN_KNOWN)
+      [PASS] a manifest's supply.belt_speed pins the episode (0.15) - [0.15] ['manifest:/home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p28i/_tmp/stores/s_manifest/manifest.json']
+      [PASS] an unpinned store with no manifest value RAISES (no silent 0.12) - B2 - no belt-speed pin for /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p28i/_tmp/stores/unknown_store (episode episode_00000.npz): its manifest records no supply.belt_speed and no pin was declared. The speed channel trains on a constant, so pin the store explicitly - --store-speed /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p28i/_tmp/stores/unknown_store=<m/s> (or --base-speed) - using the table in logs/p28/SPEED_CHANNEL_DESIGN.md 4.3; a store collected since P28-A carries its speed in its own manifest.
+    [data] speed channel: 1 episodes, proprio_dim=26, pins=[0.12], declared=None, sources={'known': 1} (unpinned stores raise; see SPEED_PIN_KNOWN)
+      [PASS] the documented legacy lineage resolves without a manifest (v11_s0 -> 0.12) - [0.12] ['known:v11_s0']
+      [PASS] the 0.15 legacy shard is NOT in the table, so it must be pinned - B2 - no belt-speed pin for /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p28i/_tmp/stores/v12_s0_015 (episode episode_00000.npz): its manifest records no supply.belt_speed and no pin was declared. The speed channel trains on a constant, so pin the store explicitly - --store-speed /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p28i/_tmp/stores/v12_s0_015=<m/s> (or --base-speed) - using the table in logs/p28/SPEED_CHANNEL_DESIGN.md 4.3; a store collected since P28-A carries its speed in its own manifest.
+    [data] speed channel: 1 episodes, proprio_dim=26, pins=[0.15], declared=0.15, sources={'declared': 1} (unpinned stores raise; see SPEED_PIN_KNOWN)
+      [PASS] the legacy pin resolves an unpinned/unknown store (declared 0.15) - [0.15] ['declared']
+    [data] speed channel: 2 episodes, proprio_dim=26, pins=[0.08, 0.15], declared=None, sources={'manifest': 2} (unpinned stores raise; see SPEED_PIN_KNOWN)
+      [PASS] a merged store resolves PER EPISODE through its shard stamp ([0.08, 0.15]) - [0.08, 0.15] ['manifest:/home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p28i/_tmp/stores/shards/a/manifest.json', 'manifest:/home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p28i/_tmp/stores/shards/b/manifest.json']
+    [data] speed channel: 1 episodes, proprio_dim=26, pins=[0.15], declared=0.15, sources={'manifest': 1} (unpinned stores raise; see SPEED_PIN_KNOWN)
+      [PASS] a declaration that AGREES with the manifest is accepted (manifest wins) - [0.15] ['manifest:/home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p28i/_tmp/stores/s_manifest/manifest.json']
+      [PASS] a declared pin that contradicts the manifest RAISES (design 2.2 risk 2) - belt-speed pin conflict for /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p28i/_tmp/stores/s_manifest: declared pins 0.1200 m/s but /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/logs/p28i/_tmp/stores/s_manifest/manifest.json records 0.1500 m/s. The speed channel trains on a constant, so a wrong pin is a silent scenario change; fix the pin (see the table in logs/p28/SPEED_CHANNEL_DESIGN.md 4.3) or the manifest.
+      [PASS] no belt and no fallback raises (0.0 is not a valid channel value)
+      [PASS] no belt with the configured speed reports it (abs, not 0.0) - 0.12
+      [PASS] the synthesised column is the episode's pin, last dim
+      [PASS] the second episode carries its own pin (0.15)
+      [PASS] the live P28-C shard (datasets/ss008, the P28-A field) reads 0.08 - 0.08
+    
+    section 4: the gate-off (25-D) path is byte-inert
+      [PASS] gate off: the store is 25-D
+      [PASS] gate off: one frame is bitwise the shipped expression
+      [PASS] gate off: `proprio(t=None)` is bitwise the shipped all-frames expression
+      [PASS] gate off: compute_normalizer is bitwise the shipped computation
+    [data] speed channel: 1 episodes, proprio_dim=26, pins=[0.15], declared=None, sources={'manifest': 1} (unpinned stores raise; see SPEED_PIN_KNOWN)
+      [PASS] the gate is read per store, not cached module-side
+      [PASS] gate off: the model sees 25 dims and the shipped 5-channel image stack
+    
+    section 5: the 26-D training path
+    [data] speed channel: 2 episodes, proprio_dim=26, pins=[0.08, 0.15], declared=None, sources={'manifest': 2} (unpinned stores raise; see SPEED_PIN_KNOWN)
+      [PASS] compute_normalizer yields 26 entries with the FIXED pair at the last dim
+      [PASS] the 26-D normalised channel is on the documented z grid (0.08 -> -0.80)
+      [PASS] the store's sample width matches its declared proprio_dim
+      [PASS] train.py needs no change: dims come from the sample (26)
+      [PASS] a 26-D Normalizer normalises a 26-D sample (loud on a width mismatch)
+      [PASS] a 26-D sample through the 25-D normaliser raises
+      [PASS] the VLASH state offset keeps the 26th dim on every draw - shapes seen = [26]
+      [PASS] 119 two-width feed: the 25-D arm gets the store prefix, bitwise
+      [PASS] 119 two-width feed: the 26-D arm gets the whole vector
+      [PASS] 119 two-width feed: an unsupported width refuses
+    
+    ==============================================================================
+    note: anchor md5 61da390a85fa209496b54477a8255d23
+    note: batch  1: conditioning max|delta| 0.000e+00, denoiser output max|delta| 0.000e+00
+    note: batch  3: conditioning max|delta| 2.384e-07, denoiser output max|delta| 2.861e-06
+    note: batch 32: conditioning max|delta| 1.192e-07, denoiser output max|delta| 2.384e-06
+    ==============================================================================
+    PASS: all checks (4 notes)
+
+### two-line selector test: PASS (0.07s)
+$ python3 scripts/176_twoline_selftest.py
+    selector floor above the station: 0.399 m
+    ok: fruit under the downstream station's floor is refused
+    ok: fruit above the downstream station's floor is selectable
+    ok: lane 0 prefers grade A over a nearer grade B
+    ok: lane 1 prefers grade B over a farther grade A
+    ok: no preference keeps the single-arm farthest-upstream rule
+    ok: lane 0 falls back to a cross-lane fruit instead of starving
+    ok: the fallback still respects the catch floor
+    ok: the nearest preferred fruit is taken (shortest hover)
+    ok: an excluded (protected) fruit is skipped
+    ok: exclusion can empty the window
+    ok: lane=0 is still grade-filtered (V1 semantics preserved)
+    ok: lane=1 takes the B fruit
+    ok: pure routing is the default when the knob is unset
+    ok: pure lane 0 selects the grade-A fruit
+    ok: pure lane 1 selects the grade-B fruit
+    ok: grade C is refused by lane 0 (unsorted, passes the line)
+    ok: grade C is refused by lane 1
+    ok: pure lane 0 does not fall back to a cross-grade fruit
+    ok: pure lane 1 does not fall back to a cross-grade fruit
+    ok: pure routing still respects the catch floor
+    ok: single-arm selection (no prefer_lane) still sees grade C
+    ok: FRUIT_GRADE_ROUTING=0 restores the V2 fallback
+    ok: an explicit non-fallback value keeps purity
+    ok: the shipped min_lead_s (1.4) stays inert under the 1.5 s floor
+    ok: an explicit lead override (1.0 s) binds below the shipped floor
+    ok: off-centre station without its own pre-pose -> lock required
+    ok: solved off-centre stations -> lock not needed
+    ok: shared station (single arm) -> lock not needed
+    two-line selftest PASS
+
+### reach-anywhere selftest: PASS (0.08s)
+$ python3 scripts/198_r10_selftest.py
+    ok: the shipped default keeps the reach catch off (FRUIT_REACH_ANYWHERE default 0)
+    ok: the shipped default keeps the hover settle off (FRUIT_REACH_HOVER_SETTLE default 0)
+    ok: the R11-A.1 floored variant is the reach selector's default (FRUIT_REACH_SHIPPED_FLOOR default 1)
+    ok: the direct/policy selection opts out of the reach rule (rl_env.py)
+    ok: the knob off is a no-op (the pre-adoption line byte-for-byte)
+    ok: the knob enables the reach-anywhere path on the moving-catch line
+    shipped floor above the station: 0.399 m
+    ok: knob off: the farthest-upstream usable fruit is selected (shipped rule)
+    ok: knob off: a fruit below the shipped floor is refused
+    inside candidate: y=+0.349 -> intercept +0.030 (eq +0.050, feasible True)
+    ok: the inside-floor fruit has a feasible intercept
+    ok: FRUIT_REACH_SHIPPED_FLOOR=0: a fruit inside the shipped floor is selected (the R10-A.1 coverage gain, reproduced)
+    ok: the floored default refuses a fruit inside the shipped floor (the v9 pre-fix collapse condition)
+    ok: the floored default still selects above the shipped floor (the reach aim remains)
+    ok: among floored fruit the earliest reachable intercept wins, not the farthest-upstream pick (the selection moved off the shipped rule)
+    ok: the diag prints one select row per selection
+    ok: the select row carries the eligible field (199's contract)
+    ok: diag: feasible=2, shipped_floor_ok=1, eligible=1 (the floored set)
+    ok: diag: the floored (above-floor) fruit is the chosen one
+    ok: reach_anywhere=False keeps the shipped floor (the direct/policy pin)
+    ok: reach_anywhere=False still selects above the floor (shipped rule)
+    ok: the default (scripted) call is unaffected by the opt-out
+    right arm: the feasibility edge sits at y = +0.220 (band dn -0.080, stall setup 1.5s)
+    ok: the right band's feasibility edge is a real boundary (fruit below it refused)
+    ok: the R10-A.1 rule refuses a fruit past the band edge (floor=0)
+    ok: the floored default refuses it as well (inside the shipped floor)
+    ok: the earliest reachable intercept wins (nearest catchable fruit)
+    ok: among immediately catchable fruit the nearest is taken
+    ok: a far fruit's intercept is clipped to the upstream band edge (0.0300 ~ 0.0300)
+    ok: a far fruit's intercept is feasible (the wait absorbs)
+    ok: the travel time to the clipped intercept is positive
+    ok: a flattened per-arm band is honoured (the env-override form)
+    ok: the x column picks the outer band (left x=0.36; the inset sign is +)
+    ok: x at/below the first measured column gets the inner band
+    ok: x between measured columns takes the next (nested, narrower) column's band
+    ok: the bounded fixed point converges to the solution (0.0948 ~ 0.0948)
+    ok: 60 settle ticks shift the intercept by vy*S/(1-vy/v_hover) (downstream) (-0.0522 ~ -0.0522)
+    ok: the settle shift is toward the belt flow (a later, downstream catch)
+    ok: with the settle on, a far fruit still clips to the band edge (0.0300 ~ 0.0300)
+    ok: a feasible aim is cached
+    ok: the cached intercept is returned as the aim's along-belt coordinate (0.0300 ~ 0.0300)
+    ok: the aim's x is the fruit's measured x (0.2800 ~ 0.2800)
+    ok: a stale key falls back to the station aim (the shipped path) (0.0000 ~ 0.0000)
+    ok: an infeasible interception point leaves the shipped aim in place
+    ok: fallback stub: the reach aim is cached
+    ok: a capped hover move drops the reach aim (the fallback fires)
+    ok: the rebuilt grip target is the station aim (0.0000 ~ 0.0000)
+    ok: the rebuilt hover target is the station hover (0.0000 ~ 0.0000)
+    ok: a converged hover move keeps the reach aim
+    ok: the fallback knob off is a no-op (the aim is kept)
+    ok: the deliverability margin admits a near-cap residual (tol + margin)
+    ok: a residual past tol + margin still fires with the margin on
+    ok: the two-line session is excluded (its stations are its clearance)
+    ok: a non-two-line session keeps the reach rule (the shared-station scope note)
+    r10 reach-anywhere selftest PASS
+
+### claim slot harness: PASS (13.15s)
+$ bash scripts/181_claim_slot_selftest.sh
+    [claim_slot] slot 0/0 claimed (b.log) at 19:08:35
+    [claim_slot] exit=0 19:08:37 log=/tmp/tmp.u36iaWLtkt/b.log
+    [claim_slot] slot 0/0 claimed (a.log) at 19:08:38
+    [claim_slot] exit=0 19:08:40 log=/tmp/tmp.u36iaWLtkt/a.log
+    ok: SLOTS=1 serializes two holders (5.0s >= 3.5s, no interleave)
+    [claim_slot] slot 0/1 claimed (c.log) at 19:08:40
+    [claim_slot] slot 1/1 claimed (d.log) at 19:08:40
+    [claim_slot] exit=0 19:08:42 log=/tmp/tmp.u36iaWLtkt/c.log
+    [claim_slot] exit=0 19:08:42 log=/tmp/tmp.u36iaWLtkt/d.log
+    ok: SLOTS=2 overlaps two holders (2.0s < 3.5s)
+    [claim_slot] slot 0/0 claimed (s.log) at 19:08:42
+    [claim_slot] exit=0 19:08:42 log=/tmp/tmp.u36iaWLtkt/s.log
+    ok: a SIGKILLed holder's slot is reclaimed (0.0s)
+    [claim_slot] TIMEOUT: no free slot in 2s (slots=1)
+    slot 0: locked (holder has no owner file)
+    ok: wait times out with exit 2 (2.0s)
+    [claim_slot] slot 0/1 claimed (dup) at 19:08:45
+    [claim_slot] refusing: log '/tmp/tmp.u36iaWLtkt/dup.log' is already owned by live pid 1861089
+    [claim_slot] exit=0 19:08:48 log=/tmp/tmp.u36iaWLtkt/dup.log
+    ok: duplicate log path refused (exit 2) while the owner completes
+    ok: owner files removed on exit
+    PASS: claim slot selftest
+
+### ops selfcheck selftest: PASS (1.65s)
+$ bash scripts/191_ops_selfcheck.sh --selftest
+    ops selfcheck selftest (temp dir /tmp/tmp.42ITXtOygk, no simulator, no GPU, no DB)
+    ok: OK case (fresh sim log)
+    ok: STALLED-SIM fires (frozen sim log, no corroboration)
+    ok: ACTION fires on a wedge marker
+    ok: ACTION verdict on a wedged sim
+    ok: ACTION on a separately grouped sim (kill line printed)
+    ok: STALLED-CHAIN fires (no sim, stale chain log)
+    ok: widened glob: a stale logs/r5/ chain log fires STALLED-CHAIN
+    ok: widened glob: the chain hint names the logs/r5/ log
+    ok: ACTION fires on a stale claim (dead owner pid)
+    ok: ACTION [wrap] fires (done marker + dirty tree)
+    ok: wrap action suppressed while a wrapper is alive
+    PASS: ops selfcheck selftest
+
+### bed supply audit: PASS (6.82s)
+$ python3 scripts/211_bed_audit.py --fast
+    [211] bed audit (P32 phase 1, offline): rows, corridor, density, bedrock
+    [211] env probes (the [fruit] [supply] warnings below are the probes' own)
+    [fruit] [supply] warning: FRUIT_SUPPLY_BED=1 requires FRUIT_SUPPLY_SCATTER=1; ignored
+    [fruit] [supply] warning: FRUIT_SUPPLY_BED=1 with FRUIT_SUPPLY_PATCH=1; the BED schedule wins
+    [fruit] [supply] warning: FRUIT_SUPPLY_BED=1 with FRUIT_SUPPLY_WAVE=1; the BED schedule wins
+    [fruit] [supply] warning: FRUIT_SUPPLY_TARGET is not used by the bed schedule (it packs its own slots); ignored
+    [211] plan: columns=0.20,0.28,0.36 rows=2 abreast (0.16 m) + mid, pitch=0.130-0.150 m (mid staggered 65-75 mm) margin=0.006 m shift<=0.04 m pool=40 corridor=+/-0.066 m floor=0.08 m
+    [211]   banner | [fruit] [supply] scatter pool=40 seed=5 rows=2 abreast (0.16 m) + conditional mid at x=0.28 pitch=0.130-0.150 m lateral x=0.20-0.36 m stream=on target=0 wave=off grades=A:0.5,B:0.3,C:0.2 classes=strawberry:5,lychee:5,kiwi:5,tomato:5,apple:5,orange:5,peach:5,pear:5
+    [211]   banner | [fruit] [supply] schedule: bed rows=2 abreast (edge pair 0.16 m) + conditional mid columns=0.20,0.28,0.36 pitch=0.130-0.150 m (mid half a pitch downstream, joins only when its diagonal clears the pair rule: <= 6.2-7.5 cm dia) margin=0.006 m shift=0.04 m pool=40 corridor=+/-0.066 m
+    [211]   banner | [fruit] created 40 fruit rigid bodies
+    [211] grade mix (pool 40, schedule=bed): A=20 B=12 C=8 (A:0.5,B:0.3,C:0.2)
+    [211] grade mix (two-line balanced): A=15 B=15 C=10 (pool 40, A:0.375,B:0.375,C:0.25)
+    [211] pure schedule (bed.py, seed=5, 80 due rows, pool model 40 fruit 2.9-6.9 cm, on-time: no shift room):
+    [211]   rows: due 80, placed 80, skipped 0; fruit/row 2x29 3x51 (full rows with the middle 51); middle refused by the pair rule 29
+    [211]   abreast clusters (same along <= 5 mm): 1x51 2x80 (a single-file zigzag reads 1x all)
+    [211]   columns: x=0.20 80 slots  x=0.28 51 slots  x=0.36 80 slots  (rows shifted 0)
+    [211]   per-column size histogram (the middle is a class filter by geometry, not a free column):
+    [211]     x=0.20 n= 80 dia 2.9-6.9 cm (median 6.2) <4.0:16 4.0-5.0:4 5.0-5.8:12 5.8-6.4:24 >=6.4:24
+    [211]     x=0.28 n= 51 dia 3.4-6.9 cm (median 6.2) <4.0:10 4.0-5.0:4 5.0-5.8:5 5.8-6.4:21 >=6.4:11
+    [211]     x=0.36 n= 80 dia 2.9-6.9 cm (median 6.2) <4.0:16 4.0-5.0:4 5.0-5.8:12 5.8-6.4:24 >=6.4:24
+    [211]   class filter read: middle median diameter 6.2 cm vs the edge pair's 6.2 cm; the diagonal admits 6.2-7.5 cm dia, so at the narrow pitch only the small classes join and at the wide pitch most do (which is why the delivered middle share is a pitch number)
+    [211]   pitch: 7.2 rows/m, mean 139.8 mm over 11.04 m; density 19.1 fruit/m over 11.04 m (211 fruit)
+    [211]   within-row separations: 182 pairs, min 103.2 / median 108.9 / max 160.0 mm; edge pair 160.0-160.0 mm; middle diagonal 103.2-109.4 mm
+    [211]   stagger: 51 middles, median 71 mm, p90 74 mm, 100 % inside the drawn half-pitch (65-75 mm)
+    [211]   pairwise (all pairs): 22155 pairs, min d=0.1032 m (p10 0.5921, median 3.3159), min d-0.066-r_other=0.0061 m vs the enforced 0.006 m margin, min slack +0.0001 m, violations 0
+    [211]   layout (newest 4 rows, belt frame): y=0.260 x=0.20e,y=0.260 x=0.36e,y=0.189 x=0.28m | y=0.405 x=0.20e,y=0.405 x=0.36e,y=0.333 x=0.28m | y=0.536 x=0.20e,y=0.536 x=0.36e,y=0.471 x=0.28m | y=0.680 x=0.20e,y=0.680 x=0.36e,y=0.608 x=0.28m
+    [211]   window: 1.10 m spawn window [-0.42, +0.68]: 24 fruit = 21.8/m (per column 8, 8, 8)
+    [211]   corridor geometry: a 7.0 cm fruit needs 107 mm in its own column (row pitch 130-150 mm), and a 4.5 cm one 94 mm; the middle's diagonal 103.1-109.7 mm admits a max radius of 31.1-37.7 mm (6.2-7.5 cm diameter)
+    [211]   shift probe: a 7 cm pair 5 cm downstream of a 6 cm middle -> refused with no room, placed at +30 mm with the 0.04 m bound (the delivered lattice needs none: 0 rows shifted)
+    [211]   pool-order band (8 permutations): skipped 0-0 % of rows, density 18.2-19.5 fruit/m
+    [211]   with the shift budget (0.04 m, the pump's backlog room): rows placed 80, skipped 0, 0 rows shifted, density 19.1 fruit/m (full rows 51)
+    [211]   small-class probe (strawberry/lychee pool, the middle's designed classes, 60 rows): fruit/row 3x60, full rows 60, stagger median 70 mm (100 % inside the band), diagonal 103.1-109.4 mm, density 21.8 fruit/m (skipped 0)
+    [211] pre-load (prime 4 rows): 10 fruit on the belt, min planar separation 0.1067 m, stats={'released': 12, 'reached_end': 0, 'fell_off': 0, 'discharged': 0, 'supply_skipped': 0, 'bed_draws': 12, 'bed_rows': 4, 'bed_placed': 10, 'bed_full_rows': 2}
+    [211]   reset replay: 10 fruit, positions match=True
+    [211] live-recycle counter probe (2-body pool, all 2 live): draw took a LIVE body -> bed_live_recycled=1/1
+    [211] output-lane draw probe (raised output lane: 2 bodies at x=0.628, y=-0.583, z=1.377 vs the 1.270 m cut, nothing parked): draw skipped both -> bed_live_recycled=0 (draws +1)
+    [211] output-lane draw probe (main belt: 2 bodies at x=0.628, y=-0.583, z=1.230 vs the 1.270 m cut, nothing parked): draw took a body -> bed_live_recycled=1 (draws +1)
+    [211] belt-end despawn probe (one boundary pump, then 14 s of belt travel; belt end -0.800 m, despawn -0.700 m = 0.83 s of travel at 0.12 m/s; sweep 0.25 s):
+    [211]   control: fell_off 11 reached_end 0 sweeps 0 swept 0; bodies on the floor 10 (min along -1.486 m); residual fell_off; belt-end kinds ['fell_off', 'fell_off', 'fell_off', 'fell_off']...
+    [211]   fix    : fell_off 1 reached_end 10 sweeps 56 swept 11; bodies on the floor 0 (min along -0.725 m); residual fell_off; belt-end kinds ['reached_end', 'reached_end', 'reached_end', 'reached_end']...
+    [211]   classification equivalence (the R2 refactor vs the pre-split code, 8 cases): main belt mid->None, main belt, past despawn->reached_end, floor mid-belt->fell_off, floor past despawn->fell_off, held, floor level->fell_off, chute band, z=0.88->None, chute band, held->fell_off, chute band, past despawn->reached_end
+    [211] integrated (real FruitSpawner, fake belt, SEED=5, prime 4 rows, 45 s, one consumer / 5.6 s, 2 cadences x 2 queue depths, --fast)
+    [211]   [q6 per-tick] placed 89 slots (1.98/s = 16.5 fruit/m of belt travel) from 102 draws (1.15x), transits 40 spawn-point (40 placed->despawn, 64 despawns), live 17 (peak 24, reserve 16 parked of pool 40)
+    [211]   [q6 per-tick] window 1.1 m: mean 15.3 p10 12 max 19; at pick mean 16.1 | body gaps n=11465 p10=70 p50=73 p90=201 max=347 mm | row gaps n=6484 p10=132 p50=143 p90=273 max=548 mm
+    [211]   [q6 per-tick] selector window (>=0.40 m): mean 3.9 min 0 max 7; at pick mean 4.6 min 3
+    [211]   [q6 per-tick] live-recycled 0/102 (0.0 %), abreast max 2 (75 % paired), min live sep 0.1036 m, min corridor margin +0.0063 m, classes apple:10,kiwi:9,lychee:13,orange:12,peach:11,pear:11,strawberry:10,tomato:13 grades A:43,B:31,C:15
+    [211]   [q6 16 s (attempt boundary)] placed 21 slots (0.47/s = 3.9 fruit/m of belt travel) from 24 draws (1.14x), transits 1 spawn-point (15 placed->despawn, 15 despawns), live 0 (peak 10, reserve 30 parked of pool 40)
+    [211]   [q6 16 s (attempt boundary)] window 1.1 m: mean 3.1 p10 0 max 10; at pick mean 4.8 | body gaps n=1856 p10=71 p50=71 p90=141 max=141 mm | row gaps n=877 p10=132 p50=141 p90=142 max=142 mm
+    [211]   [q6 16 s (attempt boundary)] selector window (>=0.40 m): mean 0.5 min 0 max 6; at pick mean 1.2 min 0
+    [211]   [q6 16 s (attempt boundary)] live-recycled 0/24 (0.0 %), abreast max 2 (75 % paired), min live sep 0.1053 m, min corridor margin +0.0069 m, classes apple:3,kiwi:2,lychee:3,orange:4,peach:3,pear:2,strawberry:1,tomato:3 grades A:10,B:9,C:2
+    [211]   [q18 per-tick] placed 89 slots (1.98/s = 16.5 fruit/m of belt travel) from 102 draws (1.15x), transits 40 spawn-point (40 placed->despawn, 64 despawns), live 17 (peak 24, reserve 16 parked of pool 40)
+    [211]   [q18 per-tick] window 1.1 m: mean 15.3 p10 12 max 19; at pick mean 16.1 | body gaps n=11465 p10=70 p50=73 p90=201 max=347 mm | row gaps n=6484 p10=132 p50=143 p90=273 max=548 mm
+    [211]   [q18 per-tick] selector window (>=0.40 m): mean 3.9 min 0 max 7; at pick mean 4.6 min 3
+    [211]   [q18 per-tick] live-recycled 0/102 (0.0 %), abreast max 2 (75 % paired), min live sep 0.1036 m, min corridor margin +0.0063 m, classes apple:10,kiwi:9,lychee:13,orange:12,peach:11,pear:11,strawberry:10,tomato:13 grades A:43,B:31,C:15
+    [211]   [q18 16 s (attempt boundary)] placed 21 slots (0.47/s = 3.9 fruit/m of belt travel) from 24 draws (1.14x), transits 1 spawn-point (15 placed->despawn, 15 despawns), live 0 (peak 10, reserve 30 parked of pool 40)
+    [211]   [q18 16 s (attempt boundary)] window 1.1 m: mean 3.1 p10 0 max 10; at pick mean 4.8 | body gaps n=1856 p10=71 p50=71 p90=141 max=141 mm | row gaps n=877 p10=132 p50=141 p90=142 max=142 mm
+    [211]   [q18 16 s (attempt boundary)] selector window (>=0.40 m): mean 0.5 min 0 max 6; at pick mean 1.2 min 0
+    [211]   [q18 16 s (attempt boundary)] live-recycled 0/24 (0.0 %), abreast max 2 (75 % paired), min live sep 0.1053 m, min corridor margin +0.0069 m, classes apple:3,kiwi:2,lychee:3,orange:4,peach:3,pear:2,strawberry:1,tomato:3 grades A:10,B:9,C:2
+    [211]   candidate table (mean fruit in the 1.1 m spawn window, all ticks / at pick):
+    [211]     queue     per-tick                16 s (attempt boundary) 
+    [211]     q6                15.3 /     16.1          3.1 /      4.8
+    [211]     q18               15.3 /     16.1          3.1 /      4.8
+    [211]   selector-window table (mean fruit at/above the catch floor, all ticks / at pick):
+    [211]     queue     per-tick                16 s (attempt boundary) 
+    [211]     q6                 3.9 /      4.6          0.5 /      1.2
+    [211]     q18                3.9 /      4.6          0.5 /      1.2
+    [211]   patch baseline (q6 per-tick, its own 16-fruit pool): window mean 8.2 p10 7 max 11, selector window mean 2.3, placed 48 draws | bed/patch window ratio 1.87x (selector window 1.67x) at the same cadence
+    [211] bedrock: legacy slot streams with FRUIT_SUPPLY_BED unset
+    [211]   scatter  122 lines sha256=a9f310a9ec1d4baa... ok
+    [211]   wave     236 lines sha256=c67cbc5fb1b03839... ok
+    [211]   patch    240 lines sha256=711b6f481dde0375... ok
+    [211]   fixed     83 lines sha256=7f5f2cace85af43e... ok
+    [211]   final [bed] stats row: [bed] stats draws=102 placed=89 live_recycled=0/102 (0.0 %) holds=6 refused=0 rebased=0 late_dropped=0.0s fell_off=0 reached_end=0 sweeps=0 swept=0 supply_skipped=0 live=17
+    [211] ok (99 checks)
+
+### prepared-next selftest: PASS (0.10s)
+$ python3 scripts/213_prepared_next_selftest.py
+    [1] the prepared ranking (the shipped selector, applied repeatedly)
+    ok: single-arm rule: farthest upstream first, then downstream (the shipped default; `FRUIT_SELECT_NEAREST_ABOVE_FLOOR=1` reverses it)
+    ok: `FRUIT_SELECT_NEAREST_ABOVE_FLOOR=1` (the P43 measured treatment): nearest above the floor first
+    ok: no candidate appears twice in the prepared set
+    ok: every prepared row is above the catch floor (0.399 m)
+    ok: a fruit inside the catch floor is not prepared
+    ok: starved line -> empty set
+    ok: the set size is the requested limit, in rule order
+    ok: the protected/current fruit is excluded from the ranking
+    ok: two-line right lane: grade B only, nearest of its lane first (C never)
+    ok: two-line left lane: grade A only
+    ok: the prepared target's lane is the driver's grade rule (A -> left)
+    [2] the refresh policy (release supersedes carry, no downgrade, empty keeps)
+    ok: carry-stage store accepted
+    ok: carry stage recorded
+    ok: release-stage store accepted
+    ok: the release read supersedes the carry read
+    ok: a later carry-stage store cannot downgrade the release set
+    ok: the release set is kept
+    ok: an empty read is counted
+    ok: an empty read keeps the previous set (a transient empty state is not a loss)
+    ok: clear drops set and stage
+    [3] the consume (one-item re-check on the live state)
+    ok: the first row that still passes wins
+    ok: the consume age is quoted (selection -> dispatch) (10.0000 ~ 10.0000)
+    ok: the row inside the floor is counted as dropped
+    ok: the set is consumed once
+    ok: a row the feeder recycled away is refused
+    ok: the missing row is counted as dropped
+    ok: a whole set that dropped inside the floor returns None (select fresh)
+    ok: the failed set is emptied
+    ok: nothing pending -> None
+    ok: knob off -> None
+    [4] the scope and the default-off pins
+    ok: single-arm scripted attempt: the pipeline is in scope
+    ok: direct/policy handover: out of scope
+    ok: a CoopSession (two-line / shared station): out of scope
+    ok: teleport pre-pose (smooth transit off): out of scope
+    ok: FRUIT_PREPARED_NEXT defaults to 0 (off)
+    ok: FRUIT_FEED_CADENCE defaults to 0 (off)
+    ok: FRUIT_FEED_STRIDE defaults to 4 ticks
+    ok: FRUIT_PREPARED_SET defaults to 4 rows
+    ok: the return uses the measured convergence pair 140+80 (W8-R3 hot hold)
+    ok: an empty set does not run the return by default (the A/B control knob)
+    ok: fruits.update keeps advance_furniture=True as its default (byte-identical callers)
+    ok: the driver consumes the prepared set and honours at_prepose
+    ok: the carry hook is a single gated call (`if self._feed_on:`)
+    [4b] the two-line prepared set (built at the other arm's carry start)
+    [fruit] [biarm] right: prepared n=2 (for left's clear) top=index 1 ? along=+0.350m at t=100.0s
+    ok: the idle arm's set is built once
+    ok: the set is the worker's own rule: grade B, nearest of its station lane
+    ok: only the top entry is reserved (the alternates cannot starve the lane)
+    ok: the preparing arm's own set is not touched by the other arm's build
+    [fruit] [biarm] right: prepared consumed index=1 ? along=+0.350m age=0.0s at t=100.0s
+    ok: the slot start consumes the prepared top entry
+    ok: the reservation is released at the consume
+    ok: the consumed set is empty and counted
+    [fruit] [biarm] right: prepared n=2 (for left's clear) top=index 1 ? along=+0.350m at t=100.0s
+    ok: a fresh build reserves again
+    [fruit] [biarm] right: prepared set dropped (n=2, age=0.0s)
+    ok: a set that dropped inside the floor is refused (the slot selects fresh)
+    ok: the reservation is released even when the whole set is refused
+    ok: the refused set is counted in the batch-end report
+    [fruit] [biarm] right: prepared n=2 (for left's clear) top=index 1 ? along=+0.350m at t=100.0s
+    [fruit] [biarm] right: prepared consumed index=2 ? along=+0.450m age=0.0s at t=100.0s
+    ok: a recycled-away top row falls through to the next-ranked alternate
+    ok: the missing row is counted as stale
+    [fruit] [biarm] right: prepared n=2 (for left's clear) top=index 1 ? along=+0.350m at t=100.0s
+    [fruit] [biarm] right: prepared set dropped (n=2, age=0.0s)
+    ok: a set whose rows are all gone is refused
+    ok: every missing row is counted as stale
+    ok: the reservation is released by the take
+    [fruit] [biarm] right: prepared n=2 (for left's clear) top=index 1 ? along=+0.350m at t=100.0s
+    ok: abandoning the set (the worker's finally) releases the reservation
+    ok: the prepare latch is reset at every slot start
+    ok: the build is triggered from the payload-clear tick (the park-gate instant)
+    [5] the feeder cadence (stride arithmetic, furniture flag)
+    ok: stride 1 over 10 ticks -> 10 pump calls
+    ok: stride 1: every tick is counted
+    ok: stride 1: every pump keeps the conveyor furniture on the shipped cadence
+    ok: stride 4 over 10 ticks -> 2 pump calls
+    ok: stride 4: every tick is counted
+    ok: stride 4: every pump keeps the conveyor furniture on the shipped cadence
+    ok: stride 4 over 12 ticks -> 3 pump calls
+    ok: stride 4: every tick is counted
+    ok: stride 4: every pump keeps the conveyor furniture on the shipped cadence
+    ok: stride 2 over 7 ticks -> 3 pump calls
+    ok: stride 2: every tick is counted
+    ok: stride 2: every pump keeps the conveyor furniture on the shipped cadence
+    ok: stride 4 over 1 ticks -> 0 pump calls
+    ok: stride 4: every tick is counted
+    ok: stride 4: every pump keeps the conveyor furniture on the shipped cadence
+    ok: the arming site resets the cadence counters per attempt
+    [6] fruits.update's furniture split (the real spawner)
+    ok: update() with the default steps the conveyor (unchanged)
+    ok: advance_furniture=False keeps the cleat phase where it is (the cadence lever only)
+    ok: the transport wake loop still runs without the furniture step
+    PASS: prepared-next pipeline selftest
+
+### P43 selector + park: PASS (0.25s)
+$ python3 scripts/224_p43_selftest.py
+    [1] the direct/policy path and the scripted default (env unset)
+    ok: direct/policy call (direct=True) keeps the shipped FARTHEST-upstream pick (3 == 3) whatever the scripted default is
+    ok: scripted default OFF: shipped pick (3 == 3)
+    ok: the shipped scripted default is OFF (the P43 flip measured and not adopted, logs/p43/P2_RESULTS.md)
+    ok: a candidate below the catch floor is still refused (0.20 m < the ~0.40 m floor)
+    [2] an explicit env value wins on both paths
+    ok: =0 keeps the shipped pick on the scripted path (3 == 3)
+    ok: =0 keeps the shipped pick on the direct path (3 == 3)
+    ok: =1 arms the near rule on the scripted path (0 == 0)
+    ok: =1 arms it on the direct path too (0 == 0) - so the measured treatment arm (unset-with-the-default-on) = `=1` on the shipped tree
+    [3] lane / prefer_lane calls are structurally above the rule
+    ok: lane=0 (shared-station worker, left): the same fruit with the env unset/0/1 ([0])
+    ok: lane=0 (shared-station worker, left): nearest of its own lane ([0] == [0])
+    ok: lane=1 (shared-station worker, right): the same fruit with the env unset/0/1 ([1])
+    ok: lane=1 (shared-station worker, right): nearest of its own lane ([1] == [1])
+    ok: prefer_lane=0 (two-line, left): the same fruit with the env unset/0/1 ([0])
+    ok: prefer_lane=0 (two-line, left): nearest of its own lane ([0] == [0])
+    ok: prefer_lane=1 (two-line, right): the same fruit with the env unset/0/1 ([1])
+    ok: prefer_lane=1 (two-line, right): nearest of its own lane ([1] == [1])
+    [4] the call sites (AST)
+    ok: tasks.py has 8 select_target call sites
+    ok: every unlaned in-module select_target call is a **-pass-through or a one-item re-check; offending lines: []
+    ok: the prepared-next ranking forwards its caller's kwargs ([9161])
+    ok: the prepared-next consume re-checks one item at a time ([9309])
+    ok: rl_env.py has 3 select_target call sites
+    ok: every unlaned select_target call in rl_env.py passes direct=True; offending lines: []
+    ok: the default is resolved per path (`"0" if direct else NEAREST_ABOVE_FLOOR_SCRIPTED`)
+    ok: a one-item re-check is invariant under the rule ([2])
+    [5] provenance
+    ok: rl_env.py declares TASKS_MD5
+    ok: TASKS_MD5 follows tasks.py (5e8c7cd6bf1ba76400024629bb2a1e26 == 5e8c7cd6bf1ba76400024629bb2a1e26)
+    [6] the arm park's default and scope (P43 phase 4)
+    ok: direct + unset -> park=back, defaulted=true
+    ok: handoff + unset -> no park (the shipped ready pose), defaulted=false
+    ok: direct + =ready -> the shipped pose, defaulted=false (the escape hatch)
+    ok: handoff + =ready -> no raise, no park
+    ok: direct + =back -> the pre-P43 opt-in arm, defaulted=false
+    ok: direct + ='' -> the shipped pose, defaulted=false
+    ok: handoff + =back still resolves the name (the guard raises on it)
+    ok: the non-direct guard is unchanged (a named park still raises there)
+    ok: the applied park is recorded in the manifest
+    ok: the manifest distinguishes a defaulted park from an explicit one
+    ok: `[rl] env ready` prints the resolved park state
+    ok: the `[park]` row prints the name AND the per-arm resolution
+    
+    ALL P43 CHECKS PASSED (the L1 selector scope + the phase-4 park default)
+
+### P44 speed cells: PASS (0.28s)
+$ python3 scripts/225_p44_speed_selftest.py
+    P44 phase 2 - the speed cells' offline contract
+    ==============================================================================
+    ok: unset resolves to the shipped dict {'place_vmax': '0.35', 'place_amax': '1.089', 'lift_vmax': '0.30', 'lift_amax': '1.0', 'release_dwell': '20', 'release_pad_hold': '3', 'release_finger_hold': '3'}
+    ok: every shipped default is a string (no float round-trip)
+    ok: the place pair is the shipped 0.35 / 1.089
+    ok: the lift pair is the shipped 0.30 / 1.0
+    ok: the three release holds are the shipped 20 / 3 / 3
+    ok: an explicit 0 on every cell is off (shipped dict)
+    ok: S1: place v_max -> 0.52
+    ok: S1 keeps a_max at the shipped 1.089 (0.52 < the census's 0.61 m/s ceiling)
+    ok: S1 does not touch the lift or the release
+    ok: S3: lift 0.36 / 1.9 (the 1.962 m/s^2 vertical cone ceiling)
+    ok: S3 does not touch the place or the release
+    ok: S2: dwell 20 -> 0, pad/finger settle 3 -> 2
+    ok: S2 does not touch the profiles
+    ok: the resolver is the *default*; an explicit FRUIT_DYNAMIC_* wins at the read site
+    ok: the 3 -> 1 form is one value (FRUIT_SPEED_RELEASE_SETTLE=1)
+    ok: the settle alone is overridable (the dwell is the cell's other half)
+    ok: S13: the place and the lift cells are on
+    ok: S13: the release cell is on
+    ok: an explicit single cell overrides S13
+    ok: a numeric place value is that speed
+    ok: a caller's own place speed scales a_max on a = 0.20*(v/0.15)^2 (3.3076)
+    ok: a numeric lift value is that speed
+    ok: the lift acceleration pin is the grip-risk control
+    [fruit] [speed] ignoring FRUIT_SPEED_PLACE='nonsense' (not a speed); cell stays off
+    ok: a non-numeric value leaves the cell off
+    ok: all seven read sites default to the resolver (10 reads)
+    ok: every one of those reads takes `_speed[...]`, not a literal
+    ok: the place cap is assigned (`limits.v_max = place_v`), not min()'d
+    ok: both consumers call `speed_cell_defaults` (2)
+    ok: both scoped consumers pass the session scope (release P87 / place P88)
+    ok: the scope argument is the session predicate (['self.two_line_enabled()', 'self.two_line_enabled()'])
+    ==============================================================================
+    PASS: the speed cells are default-off, one knob each, and the shipped strings win when unset
+
+### P45 mass scale: PASS (0.13s)
+$ python3 scripts/227_p45_mass_selftest.py
+    P45 phase 2 - the mass-scale knob's offline contract
+    ==============================================================================
+    ok: unset resolves to 1.0 (the shipped mass)
+    ok: the import-time constant is 1.0 when unset
+    ok: unset prints no banner (byte-identical stream)
+    ok: unset/blank/whitespace all resolve to 1.0
+    ok: 0.5 parses to half mass
+    ok: 0.25 parses to quarter mass
+    ok: 1 and 1.0 are the shipped value (the explicit control form)
+    ok: surrounding whitespace is tolerated
+    ok: '0' is a hard error (FRUIT_MASS_SCALE='0' must be finite and > 0; a...)
+    ok: '-1' is a hard error (FRUIT_MASS_SCALE='-1' must be finite and > 0; ...)
+    ok: '-0.25' is a hard error (FRUIT_MASS_SCALE='-0.25' must be finite and > ...)
+    ok: 'inf' is a hard error (FRUIT_MASS_SCALE='inf' must be finite and > 0;...)
+    ok: 'nan' is a hard error (FRUIT_MASS_SCALE='nan' must be finite and > 0;...)
+    ok: a non-number is a hard error (FRUIT_MASS_SCALE='half' is not a number; it ta...)
+    ok: exactly two mass sites in fruits.py (found 2)
+    ok: mass: still the shipped density*volume*0.82 formula
+    ok: sample.mass: still the shipped density*volume*0.82 formula
+    ok: exactly two `if scale != 1.0:` guards in fruits.py (found 2)
+    ok: both guards multiply in place (`mass *= scale` / `sample.mass *= scale`)
+    ok: rescale is a method on the spawner (no stray copy)
+    ok: rescale (the recycled fruit) applies the scale - the easy-to-miss site
+    ok: the knob is read from the environment exactly once, in meshes.py: {'meshes.py': 1}
+    ok: the resolver is `meshes.mass_scale()`, parsed once at import
+    ok: assets.py does not read the mass scale (sizes/pinch spans untouched)
+    ok: scene.py does not read the mass scale (sizes/pinch spans untouched)
+    ok: tasks.py does not read the mass scale (sizes/pinch spans untouched)
+    ok: fruits.py authors no inertia (call or attribute), so PhysX derives it: []
+    ok: the one-shot mass/inertia read-back exists (census §9's open item)
+    ok: refresh_rigids calls the read-back (it runs before the attempt loop)
+    ok: the read-back is gated on the knob (no extra tensor call when shipped)
+    ok: the read-back reads BOTH mass and inertia from the tensor API
+    ok: the build banner carries `mass_scale=<x>`
+    ok: the build banner says it is a physics experiment, not a fidelity claim
+    ok: the named-file note says the same and names what 0.25x means physically
+    ==============================================================================
+    PASS: the mass knob is default-off, harsher-than-silent on a bad value, applied at both mass sites only, and the size cannot move
+
+### P52 retime scale: PASS (0.15s)
+$ python3 scripts/228_p52_retime_selftest.py
+    P52 phase 2: the contact-gated action time-scale (offline)
+    [1] retime_action at s=1.0 is chunk[index] exactly
+      ok   identity trial 0 index 0: [-0. -0.] vs [-0. -0.]
+      ok   identity trial 0 index 0 is arr[index]
+      ok   identity trial 0 index 1: [0.28802714 0.20588209] vs [0.28802714 0.20588209]
+      ok   identity trial 0 index 1 is arr[index]
+      ok   identity trial 0 index 2: [0.28802714 0.20588209] vs [0.28802714 0.20588209]
+      ok   identity trial 0 index 2 is arr[index]
+      ok   identity trial 0 index 3: [-0.49200511  0.06999105] vs [-0.4920051   0.06999105]
+      ok   identity trial 0 index 3 is arr[index]
+      ok   identity trial 1 index 0: [-0. -0.] vs [-0. -0.]
+      ok   identity trial 1 index 0 is arr[index]
+      ok   identity trial 1 index 1: [-0.37679628  1.0654161 ] vs [-0.37679628  1.0654161 ]
+      ok   identity trial 1 index 1 is arr[index]
+      ok   identity trial 1 index 2: [-0.37679628  1.0654161 ] vs [-0.37679628  1.0654161 ]
+      ok   identity trial 1 index 2 is arr[index]
+      ok   identity trial 1 index 3: [0.25308365 0.42796552] vs [0.25308365 0.42796552]
+      ok   identity trial 1 index 3 is arr[index]
+      ok   identity trial 2 index 0: [-0. -0.] vs [-0. -0.]
+      ok   identity trial 2 index 0 is arr[index]
+      ok   identity trial 2 index 1: [0.25455335 0.0421608 ] vs [0.25455335 0.0421608 ]
+      ok   identity trial 2 index 1 is arr[index]
+      ok   identity trial 2 index 2: [0.25455335 0.0421608 ] vs [0.25455335 0.0421608 ]
+      ok   identity trial 2 index 2 is arr[index]
+      ok   identity trial 2 index 3: [-0.29156509 -0.28875321] vs [-0.2915651 -0.2887532]
+      ok   identity trial 2 index 3 is arr[index]
+      ok   identity trial 3 index 0: [-0. -0.] vs [-0. -0.]
+      ok   identity trial 3 index 0 is arr[index]
+      ok   identity trial 3 index 1: [ 0.60935795 -0.13570261] vs [ 0.60935795 -0.13570261]
+      ok   identity trial 3 index 1 is arr[index]
+      ok   identity trial 3 index 2: [ 0.60935795 -0.13570261] vs [ 0.60935795 -0.13570261]
+      ok   identity trial 3 index 2 is arr[index]
+      ok   identity trial 3 index 3: [-0.26049438  0.1133047 ] vs [-0.26049438  0.1133047 ]
+      ok   identity trial 3 index 3 is arr[index]
+      ok   identity trial 4 index 0: [-0. -0.] vs [-0. -0.]
+      ok   identity trial 4 index 0 is arr[index]
+      ok   identity trial 4 index 1: [0.03487312 0.34894785] vs [0.03487312 0.34894785]
+      ok   identity trial 4 index 1 is arr[index]
+      ok   identity trial 4 index 2: [-0.43431664 -0.07101484] vs [-0.43431664 -0.07101484]
+      ok   identity trial 4 index 2 is arr[index]
+      ok   identity trial 5 index 0: [-0. -0.] vs [-0. -0.]
+      ok   identity trial 5 index 0 is arr[index]
+      ok   identity trial 5 index 1: [-0.13113779 -0.09086313] vs [-0.13113779 -0.09086313]
+      ok   identity trial 5 index 1 is arr[index]
+      ok   identity trial 5 index 2: [-0.13113779 -0.09086313] vs [-0.13113779 -0.09086313]
+      ok   identity trial 5 index 2 is arr[index]
+      ok   identity trial 5 index 3: [-0.29249853  0.1070857 ] vs [-0.29249853  0.1070857 ]
+      ok   identity trial 5 index 3 is arr[index]
+      ok   identity trial 6 index 0: [-0. -0.] vs [-0. -0.]
+      ok   identity trial 6 index 0 is arr[index]
+      ok   identity trial 6 index 1: [-0.56937635  0.06794555] vs [-0.56937635  0.06794555]
+      ok   identity trial 6 index 1 is arr[index]
+      ok   identity trial 7 index 0: [-0. -0.] vs [-0. -0.]
+      ok   identity trial 7 index 0 is arr[index]
+      ok   identity trial 7 index 1: [0.25773892 0.5890252 ] vs [0.25773892 0.5890252 ]
+      ok   identity trial 7 index 1 is arr[index]
+      ok   identity trial 7 index 2: [0.25773892 0.5890252 ] vs [0.25773892 0.5890252 ]
+      ok   identity trial 7 index 2 is arr[index]
+      ok   identity trial 7 index 3: [-0.43970597  0.16887213] vs [-0.43970597  0.16887213]
+      ok   identity trial 7 index 3 is arr[index]
+      ok   identity trial 8 index 0: [-0. -0.] vs [-0. -0.]
+      ok   identity trial 8 index 0 is arr[index]
+      ok   identity trial 8 index 1: [0.81997955 0.12421317] vs [0.81997955 0.12421317]
+      ok   identity trial 8 index 1 is arr[index]
+      ok   identity trial 8 index 2: [0.81997955 0.12421317] vs [0.81997955 0.12421317]
+      ok   identity trial 8 index 2 is arr[index]
+      ok   identity trial 8 index 3: [-0.22539948  0.00828647] vs [-0.22539948  0.00828647]
+      ok   identity trial 8 index 3 is arr[index]
+      ok   identity trial 9 index 0: [-0. -0.] vs [-0. -0.]
+      ok   identity trial 9 index 0 is arr[index]
+      ok   identity trial 9 index 1: [ 0.52335149 -0.62697142] vs [ 0.5233515 -0.6269714]
+      ok   identity trial 9 index 1 is arr[index]
+      ok   identity trial 9 index 2: [ 0.52335149 -0.62697142] vs [ 0.5233515 -0.6269714]
+      ok   identity trial 9 index 2 is arr[index]
+      ok   identity trial 9 index 3: [0.76037145 0.20251895] vs [0.76037145 0.20251895]
+      ok   identity trial 9 index 3 is arr[index]
+      ok   identity trial 10 index 0: [-0. -0.] vs [-0. -0.]
+      ok   identity trial 10 index 0 is arr[index]
+      ok   identity trial 10 index 1: [-0.03063224 -0.36884442] vs [-0.03063224 -0.36884442]
+      ok   identity trial 10 index 1 is arr[index]
+      ok   identity trial 10 index 2: [-0.03063224 -0.36884442] vs [-0.03063224 -0.36884442]
+      ok   identity trial 10 index 2 is arr[index]
+      ok   identity trial 10 index 3: [-0.0881767   0.12115112] vs [-0.0881767   0.12115112]
+      ok   identity trial 10 index 3 is arr[index]
+      ok   identity trial 11 index 0: [-0. -0.] vs [-0. -0.]
+      ok   identity trial 11 index 0 is arr[index]
+      ok   identity trial 11 index 1: [-0.08987504 -0.06151049] vs [-0.08987504 -0.06151049]
+      ok   identity trial 11 index 1 is arr[index]
+      ok   identity trial 11 index 2: [-0.08987504 -0.06151049] vs [-0.08987504 -0.06151049]
+      ok   identity trial 11 index 2 is arr[index]
+      ok   identity trial 11 index 3: [-0.094387   -0.00092389] vs [-0.094387   -0.00092389]
+      ok   identity trial 11 index 3 is arr[index]
+      ok   identity trial 12 index 0: [-0. -0.] vs [-0. -0.]
+      ok   identity trial 12 index 0 is arr[index]
+      ok   identity trial 12 index 1: [ 0.17795786 -0.62298328] vs [ 0.17795786 -0.6229833 ]
+      ok   identity trial 12 index 1 is arr[index]
+      ok   identity trial 12 index 2: [ 0.86413807 -0.55469471] vs [ 0.86413807 -0.5546947 ]
+      ok   identity trial 12 index 2 is arr[index]
+      ok   identity trial 13 index 0: [-0. -0.] vs [-0. -0.]
+      ok   identity trial 13 index 0 is arr[index]
+      ok   identity trial 13 index 1: [ 0.17912275 -0.04370777] vs [ 0.17912275 -0.04370777]
+      ok   identity trial 13 index 1 is arr[index]
+      ok   identity trial 13 index 2: [ 0.17912275 -0.04370777] vs [ 0.17912275 -0.04370777]
+      ok   identity trial 13 index 2 is arr[index]
+      ok   identity trial 13 index 3: [0.59677398 0.60488421] vs [0.596774  0.6048842]
+      ok   identity trial 13 index 3 is arr[index]
+      ok   identity trial 14 index 0: [-0. -0.] vs [-0. -0.]
+      ok   identity trial 14 index 0 is arr[index]
+      ok   identity trial 14 index 1: [-0.13621537 -0.34089059] vs [-0.13621537 -0.3408906 ]
+      ok   identity trial 14 index 1 is arr[index]
+      ok   identity trial 14 index 2: [-0.13621537 -0.34089059] vs [-0.13621537 -0.3408906 ]
+      ok   identity trial 14 index 2 is arr[index]
+      ok   identity trial 14 index 3: [0.57805794 0.18161719] vs [0.57805794 0.18161719]
+      ok   identity trial 14 index 3 is arr[index]
+      ok   identity trial 15 index 0: [-0. -0.] vs [-0. -0.]
+      ok   identity trial 15 index 0 is arr[index]
+      ok   identity trial 15 index 1: [-1.03656423 -0.41016862] vs [-1.0365642  -0.41016862]
+      ok   identity trial 15 index 1 is arr[index]
+      ok   identity trial 15 index 2: [-1.03656423 -0.41016862] vs [-1.0365642  -0.41016862]
+      ok   identity trial 15 index 2 is arr[index]
+      ok   identity trial 15 index 3: [-0.18128371  0.14075004] vs [-0.18128371  0.14075004]
+      ok   identity trial 15 index 3 is arr[index]
+      ok   identity trial 16 index 0: [-0. -0.] vs [-0. -0.]
+      ok   identity trial 16 index 0 is arr[index]
+      ok   identity trial 16 index 1: [0.04004147 0.18566661] vs [0.04004147 0.1856666 ]
+      ok   identity trial 16 index 1 is arr[index]
+      ok   identity trial 16 index 2: [0.04004147 0.18566661] vs [0.04004147 0.1856666 ]
+      ok   identity trial 16 index 2 is arr[index]
+      ok   identity trial 16 index 3: [-0.44817889 -0.08979367] vs [-0.4481789  -0.08979367]
+      ok   identity trial 16 index 3 is arr[index]
+      ok   identity trial 17 index 0: [-0. -0.] vs [-0. -0.]
+      ok   identity trial 17 index 0 is arr[index]
+      ok   identity trial 17 index 1: [-0.27313006 -0.04193643] vs [-0.27313006 -0.04193643]
+      ok   identity trial 17 index 1 is arr[index]
+      ok   identity trial 17 index 2: [-0.27313006 -0.04193643] vs [-0.27313006 -0.04193643]
+      ok   identity trial 17 index 2 is arr[index]
+      ok   identity trial 17 index 3: [-0.62371761 -0.31217286] vs [-0.6237176  -0.31217286]
+      ok   identity trial 17 index 3 is arr[index]
+      ok   identity trial 18 index 0: [-0. -0.] vs [-0. -0.]
+      ok   identity trial 18 index 0 is arr[index]
+      ok   identity trial 18 index 1: [-0.36180362  0.2209917 ] vs [-0.36180362  0.2209917 ]
+      ok   identity trial 18 index 1 is arr[index]
+      ok   identity trial 18 index 2: [-0.36180362  0.2209917 ] vs [-0.36180362  0.2209917 ]
+      ok   identity trial 18 index 2 is arr[index]
+      ok   identity trial 18 index 3: [ 0.26919073 -0.01318953] vs [ 0.26919073 -0.01318953]
+      ok   identity trial 18 index 3 is arr[index]
+      ok   identity trial 19 index 0: [-0. -0.] vs [-0. -0.]
+      ok   identity trial 19 index 0 is arr[index]
+      ok   identity trial 19 index 1: [-0.14002754 -0.2275221 ] vs [-0.14002754 -0.2275221 ]
+      ok   identity trial 19 index 1 is arr[index]
+      ok   identity trial 19 index 2: [-0.14002754 -0.2275221 ] vs [-0.14002754 -0.2275221 ]
+      ok   identity trial 19 index 2 is arr[index]
+      ok   identity trial 19 index 3: [-0.21916024  0.13397448] vs [-0.21916024  0.13397448]
+      ok   identity trial 19 index 3 is arr[index]
+      ok   identity trial 20 index 0: [-0. -0.] vs [-0. -0.]
+      ok   identity trial 20 index 0 is arr[index]
+      ok   identity trial 20 index 1: [ 0.31982869 -0.43443304] vs [ 0.3198287  -0.43443304]
+      ok   identity trial 20 index 1 is arr[index]
+      ok   identity trial 20 index 2: [ 0.31982869 -0.43443304] vs [ 0.3198287  -0.43443304]
+      ok   identity trial 20 index 2 is arr[index]
+      ok   identity trial 20 index 3: [-0.66348803 -0.36703834] vs [-0.66348803 -0.36703834]
+      ok   identity trial 20 index 3 is arr[index]
+      ok   identity trial 21 index 0: [-0. -0.] vs [-0. -0.]
+      ok   identity trial 21 index 0 is arr[index]
+      ok   identity trial 21 index 1: [-0.54158008  0.23713063] vs [-0.5415801   0.23713063]
+      ok   identity trial 21 index 1 is arr[index]
+      ok   identity trial 21 index 2: [-0.54158008  0.23713063] vs [-0.5415801   0.23713063]
+      ok   identity trial 21 index 2 is arr[index]
+      ok   identity trial 21 index 3: [ 0.27922913 -0.37547275] vs [ 0.27922913 -0.37547275]
+      ok   identity trial 21 index 3 is arr[index]
+      ok   identity trial 22 index 0: [-0. -0.] vs [-0. -0.]
+      ok   identity trial 22 index 0 is arr[index]
+      ok   identity trial 22 index 1: [-0.16401485 -0.17438492] vs [-0.16401485 -0.17438492]
+      ok   identity trial 22 index 1 is arr[index]
+      ok   identity trial 22 index 2: [-0.16401485 -0.17438492] vs [-0.16401485 -0.17438492]
+      ok   identity trial 22 index 2 is arr[index]
+      ok   identity trial 22 index 3: [ 0.36262327 -0.04686448] vs [ 0.36262327 -0.04686448]
+      ok   identity trial 22 index 3 is arr[index]
+      ok   identity trial 23 index 0: [-0. -0.] vs [-0. -0.]
+      ok   identity trial 23 index 0 is arr[index]
+      ok   identity trial 23 index 1: [0.07623287 0.22738858] vs [0.07623287 0.22738858]
+      ok   identity trial 23 index 1 is arr[index]
+      ok   identity trial 23 index 2: [0.07623287 0.22738858] vs [0.07623287 0.22738858]
+      ok   identity trial 23 index 2 is arr[index]
+      ok   identity trial 23 index 3: [-0.44723606 -0.68145615] vs [-0.44723606 -0.68145615]
+      ok   identity trial 23 index 3 is arr[index]
+    [2] the executed path advances s waypoints per tick
+      ok   s=1.0: sampled path positions: [0.0, 1.0, 2.0, 3.0] vs [0.0, 1.0, 2.0, 3.0]
+      ok   s=1.0: arc length is s*(steps-1) waypoints: 3.000000
+      ok   s=1.25: sampled path positions: [0.0, 1.25, 2.5, 3.75] vs [0.0, 1.25, 2.5, 3.75]
+      ok   s=1.25: arc length is s*(steps-1) waypoints: 3.750000
+      ok   s=1.5: sampled path positions: [0.0, 1.5, 3.0, 4.5] vs [0.0, 1.5, 3.0, 4.5]
+      ok   s=1.5: arc length is s*(steps-1) waypoints: 4.500000
+      ok   s=2.0: sampled path positions: [0.0, 2.0, 4.0, 6.0] vs [0.0, 2.0, 4.0, 6.0]
+      ok   s=2.0: arc length is s*(steps-1) waypoints: 6.000000
+    [3] past the last waypoint the chunk holds its final value
+      ok   index=1 s=4.0 holds the last waypoint: 4.0
+      ok   index=3 s=1.5 holds the last waypoint: 4.0
+      ok   index=10 s=1.0 holds the last waypoint: 4.0
+      ok   a single-waypoint chunk returns that waypoint
+      ok   an empty chunk raises
+    [4] the finger channels (7 and 8) are interpolated by the same i
+      ok   finger at i=1.5: 0.0044
+      ok   the record channel mirrors it
+      ok   the arm channels are untouched by the finger value
+    [5] retime_contact: the conservative union of force and finger state
+      ok   force=0.0 finger=0.044 -> False: got False
+      ok   force=0.0 finger=0.03 -> False: got False
+      ok   force=0.0 finger=0.029 -> True: got True
+      ok   force=1.0 finger=0.044 -> False: got False
+      ok   force=1.01 finger=0.044 -> True: got True
+      ok   force=12.0 finger=0.044 -> True: got True
+      ok   force=12.0 finger=0.0 -> True: got True
+    [6] resolve_time_scale: only s >= 1 is registered
+      ok   unset -> 1.0
+      ok   empty -> 1.0
+      ok   whitespace -> 1.0
+      ok   '1' -> 1.0
+      ok   '1.25' -> 1.25
+      ok   '1.5' -> 1.5
+      ok   '2.0' -> 2.0
+      ok   a slow-down '0.5' raises
+      ok   a slow-down '0' raises
+      ok   a slow-down '0.0' raises
+      ok   a slow-down '-1' raises
+      ok   a slow-down '-1.5' raises
+      ok   a non-finite 'inf' raises
+      ok   a non-finite '-inf' raises
+      ok   a non-finite 'nan' raises
+      ok   a non-number raises
+    [7] the env wiring (AST + the shipped anchors)
+      ok   act keeps `action = arr[index]`
+      ok   act routes through the gate helper
+      ok   the chunk lookup is the only retime site in act
+      ok   _apply is retime-free
+      ok   _apply still writes the 7 arm targets + the clipped finger
+      ok   proprio caches the force and the finger opening
+      ok   the cache sits behind the knob
+      ok   the gate reads no sensor itself
+      ok   _finalize prints the [retime] summary behind the knob
+      ok   the manifest records the retime block
+      ok   the scope guard refuses every other presentation
+      ok   RTC is refused
+      ok   the horizon guard exists
+      ok   the env banner names the armed state
+      ok   the knob is resolved once
+      ok   the gate flag is read once
+    
+    PASS: 239 checks
+
+### P53 emission cells: PASS (0.16s)
+$ python3 scripts/229_p53_emit_selftest.py
+    P53: the emission cells - C1 the joint clamp, C2 the action hold
+    [1] both cells are off when unset (the shipped emission)
+      ok   clamp unset -> False
+      ok   clamp empty -> False
+      ok   clamp '0' -> False
+      ok   hold unset -> 1 tick
+      ok   hold empty -> 1 tick
+      ok   hold '1' -> 1 tick
+    [2] clamp_joint_targets: a copy, and the identity inside the range
+      ok   trial 0: in-range action is element-identical
+      ok   trial 0: the input array is untouched
+      ok   trial 0: it is a new array (not the input)
+      ok   trial 1: in-range action is element-identical
+      ok   trial 1: the input array is untouched
+      ok   trial 1: it is a new array (not the input)
+      ok   trial 2: in-range action is element-identical
+      ok   trial 2: the input array is untouched
+      ok   trial 2: it is a new array (not the input)
+      ok   trial 3: in-range action is element-identical
+      ok   trial 3: the input array is untouched
+      ok   trial 3: it is a new array (not the input)
+      ok   trial 4: in-range action is element-identical
+      ok   trial 4: the input array is untouched
+      ok   trial 4: it is a new array (not the input)
+      ok   trial 5: in-range action is element-identical
+      ok   trial 5: the input array is untouched
+      ok   trial 5: it is a new array (not the input)
+      ok   trial 6: in-range action is element-identical
+      ok   trial 6: the input array is untouched
+      ok   trial 6: it is a new array (not the input)
+      ok   trial 7: in-range action is element-identical
+      ok   trial 7: the input array is untouched
+      ok   trial 7: it is a new array (not the input)
+      ok   trial 8: in-range action is element-identical
+      ok   trial 8: the input array is untouched
+      ok   trial 8: it is a new array (not the input)
+      ok   trial 9: in-range action is element-identical
+      ok   trial 9: the input array is untouched
+      ok   trial 9: it is a new array (not the input)
+      ok   trial 10: in-range action is element-identical
+      ok   trial 10: the input array is untouched
+      ok   trial 10: it is a new array (not the input)
+      ok   trial 11: in-range action is element-identical
+      ok   trial 11: the input array is untouched
+      ok   trial 11: it is a new array (not the input)
+      ok   signed zeros survive (no arithmetic touches them)
+      ok   a float32 row stays inside its own range
+    [3] the clip lands exactly on the arm's own limit, fingers untouched
+      ok   j1 low -> arm_lo: -3.4907
+      ok   j2 high -> arm_hi: 0.1745
+      ok   j4 below its 0 rad stop -> 0: 0.0
+      ok   the finger channels are untouched
+      ok   the input is unchanged (no in-place edit of the chunk row)
+    [4] emit_out_of_range: the census's joint-step count
+      ok   all inside -> (0, 0.0)
+      ok   two joints out -> count 2: 2
+      ok   the largest excursion is reported: 0.2292 rad
+      ok   exactly on the stop is not out of range
+      ok   the 9-D action's finger channels are not counted
+      ok   after the clamp the same command reads 0
+    [5] hold_index: two control ticks per waypoint at hold=2
+      ok   hold=1 is the shipped mapping
+      ok   hold=2 repeats each waypoint
+      ok   hold=4 repeats each waypoint four times
+      ok   a hold of 0 or a negative is treated as 1 (never a stall)
+      ok   np.repeat(hold) maps tick i to waypoint hold_index(i, hold)
+      ok   the expanded chunk covers execute_steps*hold = 8 ticks
+    [6] the resolvers refuse a typo instead of reading it as 'off'
+      ok   clamp '1' -> True
+      ok   clamp 'on' -> True
+      ok   clamp 'TRUE' -> True
+      ok   clamp ' yes ' -> True
+      ok   clamp '0' -> False
+      ok   clamp 'off' -> False
+      ok   clamp 'FALSE' -> False
+      ok   clamp ' no ' -> False
+      ok   clamp '2' raises
+      ok   clamp 'enable' raises
+      ok   clamp 'clamp' raises
+      ok   clamp '0.0' raises
+      ok   hold '2' -> 2
+      ok   hold ' 4 ' -> 4
+      ok   hold '1.5' raises
+      ok   hold '0' raises
+      ok   hold '-1' raises
+      ok   hold '0.0' raises
+      ok   hold 'inf' raises
+      ok   hold '-inf' raises
+      ok   hold 'nan' raises
+      ok   hold 'two' raises
+    [7] the env wiring (AST + the shipped anchors)
+      ok   act scales the tick count behind `_action_hold > 1`
+      ok   act still routes the time-scale through its own helper
+      ok   act keeps the shipped `action = arr[index]`
+      ok   the hold expands the chunk instead of re-indexing the lookup
+      ok   the expansion is behind the knob
+      ok   _apply clips behind `_joint_clamp`
+      ok   the clip is the last shaping before the drives
+      ok   the clip sits after the A2C2 / tracking shapers
+      ok   the range is the arm's own read-back, not a table
+      ok   _finalize prints the [emit] row behind the diag
+      ok   the [emit] row carries the pre/post counts
+      ok   the manifest records the emit block
+      ok   the banner names both resolved knobs
+      ok   the scope guard refuses every other presentation
+      ok   RTC is refused
+      ok   the time-scale is refused as a composition
+      ok   the event horizon is refused as a composition
+      ok   the horizon guard exists
+      ok   the clamp knob is resolved once
+      ok   the hold knob is resolved once
+      ok   the diag flag is read once
+    
+    PASS: 104 checks
+
+### P58 supply profile: PASS (0.11s)
+$ python3 scripts/230_p58_supply_selftest.py
+    ok: direct: cadence on by default
+    ok: direct: band interlock on by default
+    ok: direct: band_max is 4 (cap 3 is a regression)
+    ok: direct: live feeder on by default
+    ok: direct: every member reports defaulted=True
+    ok: explicit values win (the pre-P58 re-baseline recipe)
+    ok: explicit values clear every defaulted flag
+    ok: non-direct: the resolver is inert (shipped kwargs, None)
+    ok: shipped row prints band=on(4)(default)
+    ok: pre-P58 row drops the cap (no misleading (4))
+    ok: a cap override names itself (on(5(explicit))(default))
+    ok: the row and manifest carry target_from provenance
+    ok: FruitSpawner accepts band_interlock / band_max (None = env read)
+    ok: PickAndPlaceTask accepts feed_cadence (None = env read)
+    ok: the task keeps the shipped FRUIT_FEED_CADENCE="0" env read
+    ok: the feed gate is the cadence x scope pair, not the episode knob
+    ok: rl_env passes both kwargs at the construction sites
+    ok: the manifest carries the supply block
+    PASS: P58 supply profile
+
+### P61 slip direction: PASS (0.02s)
+$ python3 scripts/231_p61_slip_selftest.py
+    ok: the [carry] row prints slip_xyz=(x,y,z)mm
+    ok: the vector is captured when the running maximum grows
+    ok: the vector is the same framed quantity clean_slip_max norms
+    ok: the vector is initialised (a leg with no slip prints zeros)
+    ok: |slip_xyz| == clean_slip_max to 0.1 mm for (0.171, 0.0, 0.0)
+    ok: |slip_xyz| == clean_slip_max to 0.1 mm for (0.0, -0.121, 0.0)
+    ok: |slip_xyz| == clean_slip_max to 0.1 mm for (0.03, -0.16, 0.05)
+    ok: the capture is inside the guard_armed (diag/guard) branch
+    ok: FRUIT_CARRY_DIAG still defaults to "0" (off)
+    PASS: P61 slip direction
+
+### P63 attitude drift: PASS (0.02s)
+$ python3 scripts/233_p63_attitude_selftest.py
+    ok: the [carry] row prints hold_drift=<deg>
+    ok: the drift is 2*acos(|dot|) in degrees
+    ok: a leg without a hold prints (no-hold)
+    ok: the hold's presence is tracked
+    ok: 0 deg round-trips (0.000)
+    ok: 10 deg round-trips (10.000)
+    ok: 27 deg round-trips (27.000)
+    ok: 90 deg round-trips (90.000)
+    ok: the read is inside the guard_armed (diag/guard) branch
+    PASS: P63 attitude drift
+
+### P65 lift drift: PASS (0.13s)
+$ python3 scripts/235_p65_lift_selftest.py
+    ok: the [carry] row prints f"q_margin
+    ok: the [carry] row prints f"q_step_max
+    ok: the [carry] row prints f"jaw_z
+    ok: the [carry] row prints f"hold_drift
+    ok: the new fields sit next to hold_drift= (before in-hand_vmax)
+    ok: guard_armed is gated on _carry_guard_active or _carry_diag
+    ok: FRUIT_CARRY_DIAG defaults to off
+    ok: the P65 reads are inside `if guard_armed:`
+    ok: the print is inside the `guard_armed or relief_acts` block
+    ok: the tracker inits: guard_q_margin
+    ok: the tracker inits: guard_q_margin_i
+    ok: the tracker inits: guard_qc_margin
+    ok: the tracker inits: guard_q_step_max
+    ok: the tracker inits: guard_jaw_first
+    ok: the tracker inits: guard_drift_on_i
+    ok: margin = min(q-lo, hi-q) over the arm's joints
+    ok: the binding joint is the argmin (j2, 0-based 1)
+    ok: a joint near its limit reads a small margin
+    ok: the leg keeps the MINIMUM over its ticks
+    ok: beyond a limit the margin is negative (printed, not clamped)
+    ok: the shipped expressions are the ones tested
+    ok: the measured margin uses arm.joint_positions() and prints 1-based @jN/tI
+    ok: the command margin reads the controller's own post-clip vector (no extra read)
+    ok: the jaw axis is column 1 of the wrist rotation
+    ok: the rotation is the existing `rot = _quat_matrix(quat)`
+    ok: rot[:,1] is the jaw axis and rot[2,1] = sin(+0 deg)
+    ok: rot[:,1] is the jaw axis and rot[2,1] = sin(+10 deg)
+    ok: rot[:,1] is the jaw axis and rot[2,1] = sin(+27 deg)
+    ok: rot[:,1] is the jaw axis and rot[2,1] = sin(-45 deg)
+    ok: |jaw_z| * jaw_sep is the pad height difference (P64)
+    ok: the onset threshold is 10 deg
+    ok: drift_on is the FIRST tick strictly above 10 deg (10.0 itself does not fire)
+    ok: never crossing -> None
+    ok: a printed q_margin= parses back
+    ok: a printed q_cmd_margin= parses back
+    ok: a printed q_step_max= parses back
+    ok: a printed jaw_z= parses back
+    ok: a printed drift_on= parses back
+    ok: the parsed margin round-trips
+    ok: the parsed onset round-trips
+    PASS: P65 lift drift instrument
+
+### P66 lift end + dz: PASS (0.43s)
+$ python3 scripts/236_p66_lift_selftest.py
+    ok: the [carry] row prints drift_end
+    ok: the [carry] row prints res_end
+    ok: the [carry] row prints clr
+    ok: drift_end/res_end/dz_end/clr* sit next to hold_drift= (before q_margin=)
+    ok: the clearance is the existing per-tick `_payload_clearance` read
+    ok: the rail's footprint inner face 0.400 m / centreline 0.4125 m (the crossing of record, logs/p30a/RAILS_DESIGN.md)
+    ok: the crossing is derived from output_belt_y/size (+0.0125), not hardcoded
+    ok: the crossing field spells '+3mm@rail/t302'
+    ok: an unmeasured tracker prints n/a (a lift leg)
+    ok: the leg-min spelling is the pre-phase-4 `clr` (no tick)
+    ok: a negative crossing keeps its sign
+    ok: the surface code comes from the table
+    ok: the formatter adds no read (position()
+    ok: the formatter adds no read (tcp_pose()
+    ok: the formatter adds no read (_shape_support()
+    ok: the formatter adds no read (pad_centre()
+    ok: the formatter adds no read (jaw_centre()
+    ok: the formatter adds no read (tactile)
+    ok: the leg min and the surface it was taken against are still tracked
+    ok: clr_min is the leg minimum, unchanged (the second field)
+    ok: the crossing tracker inits: rail_inner
+    ok: the crossing tracker inits: clr_x
+    ok: the crossing tracker inits: clr_win
+    ok: the crossing tracker inits: clr_x_i
+    ok: the crossing tracker inits: clr_win_i
+    ok: the thresholds are armed on the place leg only (a lift leg -> +inf)
+    ok: off a place leg the thresholds are unreachable (the fields print n/a)
+    ok: the crossing is the FIRST tick past the centreline (latched)
+    ok: the window field is the minimum inside the rail footprint
+    ok: the crossing reduction runs inside `if guard_armed:` (no diag-off work)
+    ok: the crossing reduction is in the per-tick loop
+    ok: the crossing reuses the payload read the slip bookkeeping took (no second spawner read)
+    ok: the surface code table maps 'main belt' -> @belt
+    ok: the surface code table maps 'output belt' -> @obelt
+    ok: the surface code table maps 'output rail' -> @rail
+    ok: clr/clr_win/clr_min print inside the `guard_armed or relief_acts` block
+    ok: guard_armed is gated on _carry_guard_active or _carry_diag
+    ok: FRUIT_CARRY_DIAG defaults to off
+    ok: `guard_drift_end = _drift_now` is inside `if guard_armed:`
+    ok: `guard_tcp_end = _tcp_pos` is inside `if guard_armed:`
+    ok: `guard_tcp_target = _tcp_tgt_issued` is inside `if guard_armed:`
+    ok: the fields print inside the `guard_armed or relief_acts` block
+    ok: the tracker inits: guard_drift_end
+    ok: the tracker inits: guard_tcp_end
+    ok: the tracker inits: guard_tcp_target
+    ok: drift_end is written only on a tick with a live hold
+    ok: drift_end is not an extreme of the leg
+    ok: the sequence's last tick differs from its max (the field's reason)
+    ok: res_end = |achieved - target| in mm (z-dominated worked example)
+    ok: dz_end = the error's world-z component, signed (negative = short)
+    ok: the shipped expression is the one tested: float(np.linalg.norm(_err_end)) * 1000.0
+    ok: the shipped expression is the one tested: float(_err_end[2]) * 1000.0
+    ok: the error is achieved TCP minus the issued target
+    ok: the guard reads tcp_pose() once and keeps the position too
+    ok: the guarded branch's quaternion-only form is gone (no second read)
+    ok: the coherent jaw branch records the exact array ik_step was handed
+    ok: the assist branch records its own issued target (P94: the operand is `_jaw_target`, the guarded ternary's result)
+    ok: the per-tick capture is initialised (a leg with no command reads None)
+    ok: None -> no arithmetic (the shipped lift height)
+    ok: an empty dict -> no arithmetic
+    ok: a side not named by the offset is untouched (per-arm)
+    ok: `place0` is out of scope (grasp_lift only)
+    ok: `place1` is out of scope (grasp_lift only)
+    ok: `grasp` is out of scope (grasp_lift only)
+    ok: `approach` is out of scope (grasp_lift only)
+    ok: `empty` is out of scope (grasp_lift only)
+    ok: the armed side resolves to the offset in metres (a float)
+    ok: =0.00 is an armed rung (and adds exactly zero)
+    ok: lift_dz_for is the only resolver (its def + the one call site)
+    ok: the direct default is the 0.20 m rung (dz=-0.08, the P71 flip) and it says so
+    ok: the default is the rung; the hand's add (+0.08 = the shipped 0.36 m) is the documented restore's value
+    ok: `handoff` is inert even with the default (direct-scoped)
+    ok: `handoff` is inert even with a value (direct-scoped)
+    ok: `scripted` is inert even with the default (direct-scoped)
+    ok: `scripted` is inert even with a value (direct-scoped)
+    ok: `two_line` is inert even with the default (direct-scoped)
+    ok: `two_line` is inert even with a value (direct-scoped)
+    ok: `empty` is inert even with the default (direct-scoped)
+    ok: `empty` is inert even with a value (direct-scoped)
+    ok: an empty value is the explicit restore of the shipped height
+    ok: = +0.08 is the documented restore, and it is `explicit`
+    ok: = -0.04 arms the 0.24 m rung explicitly
+    ok: = -0.08 on `direct` arms the LEFT arm at the default's value
+    ok: = 0.00 arms the middle rung (a distinct arm, 0.28 m)
+    ok: surrounding whitespace is stripped
+    ok: 'abc' is a hard error (not a silent shipped run)
+    ok: '1,0' is a hard error (not a silent shipped run)
+    ok: 'nan' is a hard error (not a silent shipped run)
+    ok: 'inf' is a hard error (not a silent shipped run)
+    ok: '-inf' is a hard error (not a silent shipped run)
+    ok: the env resolves both the offset and its origin once in __init__
+    ok: the env constructs the task at exactly one site
+    ok: it is passed to PickAndPlaceTask at the one construction site
+    ok: the env var is read exactly once (the resolver call site)
+    ok: the manifest records the run's rung (a lifted arm is a scenario)
+    ok: the manifest carries "defaulted"
+    ok: the manifest carries "target_m_above_belt"
+    ok: the manifest carries "default_dz_m_above_0p28"
+    ok: the manifest carries "default_target_m_above_belt"
+    ok: the manifest carries "hand_target_m_above_belt"
+    ok: the manifest carries "left"
+    ok: the manifest carries "right"
+    ok: the P43 defect is closed: no field claims the shipped height is the run's
+    ok: the site is jaw_target's grasp_lift branch
+    ok: the branch resolves the caller-owned offset
+    ok: the armed offset replaces the hand's clearance add (the registered ladder)
+    ok: unset falls through to the shipped rigid-tool add byte-for-byte (P107: via rigid_tool_hand, whose openarm arm is the shipped one)
+    ok: one return: the shipped x/y and the (possibly moved) z
+    ok: the dynamic catch's goal keeps the yaw_target z (so it inherits the rung)
+    ok: no second application site (one knob, one pose builder)
+    ok: the row names the resolved offset and that it is the default
+    ok: the row prints the height the lift ends at (belt_top + 0.20)
+    ok: the row names the presentation's default (the 0.20 m rung, -0.08)
+    ok: the row names the documented restore and its height
+    ok: the row names the scope (left lift only)
+    ok: the explicit restore reads (explicit) at the shipped height
+    ok: the middle rung is belt_top + 0.28 (the phase-2 L1)
+    ok: the phase-3 candidate rung is belt_top + 0.24
+    ok: the row prints for every direct run (the flip) and never elsewhere
+    ok: scripts/20_pick_place.py never constructs SortingRLEnv (the knob's scope)
+    ok: scripts/40_collect_demos.py never constructs SortingRLEnv (the knob's scope)
+    ok: scripts/60_eval_policy.py never constructs SortingRLEnv (the knob's scope)
+    ok: the collector constructs the task without the kwarg (default None)
+    PASS: P66 lift-end instrument + lift-height knob
+
+### P70 belt top + rails: PASS (0.60s)
+$ python3 scripts/238_p70_belt_top_selftest.py
+    ok: the belt top is a `field(default_factory=...)`, not a literal
+    ok: the field reads FRUIT_OUTPUT_BELT_TOP_Z
+    ok: unset -> the shipped 1.35 m
+    ok: =1.31 resolves to 1.31 m
+    ok: =1.40 resolves to 1.40 m
+    ok: a non-number raises at construction
+    ok: unset -> FRUIT_OUTPUT_RAILS=none (the P71 default)
+    ok: the P71 default authors no rail at all
+    ok: =both restores the pre-P71 shipped rail pair
+    ok: the rails default is the env-read default_factory, and it reads `none`
+    ok: the test's dose is -40 mm
+    ok: shipped output_place_z = 1.45 m
+    ok: output_place_z (the place transfer -> the release) moves 1:1
+    ok: the place target z (output_place_z + the hand's 0.08) moves 1:1
+    ok: the chute top is belt top - 6 mm (the seam)
+    ok: the chute top moves 1:1
+    ok: the chute's lower edge (and the tray) does not move - only the run shortens
+    ok: the chute's run gets shorter by the same 40 mm / tan(angle)
+    ok: the discharge envelope's top follows the belt (one absolute point crosses out)
+    ok: on_output_belt's z test follows the belt (the `placed` classifier's surface)
+    ok: the tray floor and the chute's end z are absolute - they do not move
+    ok: the release clearance and the rail inset stay at 0.10 / 0.015
+    ok: the read-site census is the declared one (13 scopes)
+    ok: rl_env.py reaches the belt top only through a property
+    ok: fruits.py reaches the belt top only through a property
+    ok: scene.py reaches the belt top only through a property
+    ok: bed.py reaches the belt top only through a property
+    ok: bimanual.py reaches the belt top only through a property
+    ok: grasp.py reaches the belt top only through a property
+    ok: rl_env sees the height through output_place_z (the transfer / lift-climb row)
+    ok: the unset config authored no rail at all (the P71 default)
+    ok: the default reads exactly like an explicit `none`
+    ok: rails both: reported against the rail top (1.385)
+    ok: output_rail_proud = 0.05 - 0.015 = 0.035 at the shipped rail
+    ok: the shipped rail's surface is belt_top + 0.035 to 1e-12 (the row's mm is unchanged)
+    ok: rails none: reported against the slab's inboard top edge (the belt top)
+    ok: removing the inner rail is 1:1 with its proud height (+35 mm)
+    ok: `outer` (inner rail dropped) reads the belt top too
+    ok: a flush rail (0.015) reads the same as none at the crossing
+    ok: the G0 dose (h = 0.039) buys +11 mm, as measured
+    ok: the y brackets are unchanged (0.40 main / 0.46 rail window)
+    ok: the hard-coded `belt_top + 0.035` is gone from the report
+    ok: the instrument reads the rail's keep flag and its derived proud height
+    ok: rail faces 0.400 / 0.4125 m
+    ok: crossing fraction f = 0.825 of the |y| span
+    ok: main belt top 1.170
+    ok: the scripted lift end is 1.530 m (independent of the output height)
+    ok: z_crossing at the shipped 1.35 is the transfer itself (1.530)
+    ok: z_crossing at 1.31 is 1.4970 m (-33.0 mm)
+    ok: the crossing follows the transfer pose at f = 0.825
+    ok: d clr / d(belt top) = f - 1 = -0.175 (the obstacle moves 1:1, the payload 0.825)
+    ok: 40 mm of lowering buys +7.0 mm of crossing clearance - the SIGN is positive
+    ok: removing the rails (+35 mm, 1:1) is 5x the biggest admissible lowering (+7 mm)
+    ok: cell B (no rails at 1.31) nets +42 mm against the shipped rail case
+    ok: the shipped underside clears the tallest main-belt fruit by 40 mm at the instance scale
+    ok: 40 mm of lowering spends that whole budget - it is the lever's endpoint, not a free parameter
+    ok: a 20 mm lowering keeps ~20 mm of it (the conservative pick)
+    ok: the bed's placed-fruit exclusion still clears at 1.31 (>= 30 mm)
+    
+    all P70 pins pass
+
+### P72 clr_edge + scene: PASS (0.51s)
+$ python3 scripts/239_p72_clr_edge_selftest.py
+    ok: the [carry] row still prints the rail-frame trio unchanged
+    ok: the [carry] row prints clr_edge= and clr_edge_min=
+    ok: clr_edge sits between the rail trio and q_margin
+    ok: the crossing sample goes through the shared formatter
+    ok: the band minimum does too (same `+Nmm@surface/tT` form, never a raw float)
+    ok: FRUIT_CARRY_DIAG defaults to off
+    ok: guard_armed is gated on _carry_guard_active or _carry_diag
+    ok: the clr_edge tracker update is inside `if guard_armed:`
+    ok: the tracker body takes no new read (_payload_clearance()
+    ok: the tracker body takes no new read (pad_centre()
+    ok: the tracker body takes no new read (tcp_pose()
+    ok: the tracker body takes no new read (position()
+    ok: it consumes the existing (clearance, where, i) pair and min-tracks the band
+    ok: the tracker init: clr_edge
+    ok: the tracker init: clr_edge_where
+    ok: the tracker init: clr_edge_i
+    ok: the tracker init: clr_edge_min
+    ok: the tracker init: clr_edge_min_i
+    ok: off a place leg the threshold is +inf, so a grasp_lift leg prints n/a
+    ok: the threshold is the derived slab edge (per side since P123), not a literal
+    ok: the slab's inboard edge is 0.425 m at the shipped geometry
+    ok: it is |output_belt_y| - output_belt_size[1]/2 (derived, not a constant)
+    ok: the rail frame is unchanged (inner face 0.400 / centreline 0.4125)
+    ok: the corner is 25 mm OUTBOARD of rail_inner - the band clr_win charged as a void
+    ok: the slab edge is the removed rail's OUTER face (inner + 25 mm = centre + 12.5 mm)
+    ok: clr_edge samples a different, later tick than clr/clr_win (not a duplicate)
+    ok: _payload_clearance charges from 25 mm inboard of each lane's edge (the rail's inner face), over the lane list
+    ok: so the plane reading begins 25 mm INBOARD of the slab: it charges a void
+    ok: the edge derivation divides the slab width, never the rail's 0.0125
+    ok: the edge method contains no rail constant
+    ok: a wider slab moves the edge 1:1 (0.40 on a 0.30 m width)
+    ok: a further-out belt moves the edge 1:1
+    ok: a printed clr_edge= parses back (mm, surface, tick)
+    ok: a printed clr_edge_min= parses back
+    ok: an unmeasured leg prints n/a (the leg minimum carries no tick)
+    ok: the shared formatter is what emits n/a
+    ok: scene_provenance(cfg, lift_dz=None, lift_dz_defaulted=False)
+    ok: the shipped scene block records the P71 rail default (none)
+    ok: rail_keep resolves both boxes dropped
+    ok: rail height / proud / inset are recorded (the clearance row's operands)
+    ok: the output belt top z is recorded (1.35, P70/P71)
+    ok: the block's inboard_edge_y equals the instrument's own threshold
+    ok: a scripted shard writes lift=None (no rung; not 'the 0.36 m rung')
+    ok: =both records the pre-P71 rail pair
+    ok: the direct env records its resolved lift rung and its origin
+    ok: the collector's shard manifest uses the shared builder, no lift arg
+    ok: the direct rollout manifest passes its own resolved rung
+    ok: the collector writes the key
+    ok: the env writes the same key
+    ok: the collector's call is the 1-arg form (lift stays None)
+    ok: _scene_provenance cannot stop a run (a reported state, not a crash)
+    ok: _physics_provenance cannot stop a run (a reported state, not a crash)
+    ok: assets.supply_provenance exists (P93)
+    ok: supply_provenance(plan) - one argument, the resolved SupplyPlan
+    ok: fruits.SupplyPlan is a class in fruits.py
+    ok: SupplyPlan still carries `x_min` (the builder reads it)
+    ok: SupplyPlan still carries `x_max` (the builder reads it)
+    ok: SupplyPlan still carries `gap_min` (the builder reads it)
+    ok: SupplyPlan still carries `gap_max` (the builder reads it)
+    ok: SupplyPlan still carries `grades` (the builder reads it)
+    ok: SupplyPlan still carries `classes` (the builder reads it)
+    ok: SupplyPlan still carries `bed` (the builder reads it)
+    ok: SupplyPlan still carries `patch` (the builder reads it)
+    ok: SupplyPlan still carries `wave` (the builder reads it)
+    ok: SupplyPlan still carries `scatter` (the builder reads it)
+    ok: the band is recorded as resolved (0.20 / 0.33 on the P92 treatment)
+    ok: the grade mix is recorded as {name: weight} (a dict, sortable)
+    ok: the species mix is recorded the same way
+    ok: the RESOLVED schedule name is recorded (bed > patch > wave > scatter)
+    ok: the branch order resolves bed (bed > patch > wave > scatter)
+    ok: the branch order resolves patch (bed > patch > wave > scatter)
+    ok: the branch order resolves wave (bed > patch > wave > scatter)
+    ok: the branch order resolves scatter (bed > patch > wave > scatter)
+    ok: a plan with no schedule flag reads `fixed` (never a silent lie)
+    ok: the along-schedule draws are recorded too (two densities are distinguishable)
+    ok: the collector has one `_supply_band_provenance`
+    ok: the collector's shard manifest uses the shared builder
+    ok: the collector writes supply.band
+    ok: the direct rollout manifest writes the same key from the same builder
+    ok: one call site in the env (no second, drifting copy)
+    ok: the env's supply block cannot stop a run (a reported state, not a crash)
+    ok: it reads the spawner's resolved plan, not the env strings
+    PASS: P72 clr_edge + scene provenance
+
+### P129 pad material: PASS (0.06s)
+$ python3 scripts/265_p129_material_selftest.py
+    P129 pad material: the unset path
+      ok  cage pad mu unset -> 2.0 (got 2.0)
+      ok  close stiffness unset -> 0, the single-profile drive (got 0.0)
+      ok  hold stiffness unset -> 0, no hard stop (got 0.0)
+      ok  the shipped pad drive is 1e5 N/m (got 100000.0)
+      ok  FRUIT_CAGE_PAD_MU=0.5 -> 0.5
+      ok  FRUIT_CAGE_CLOSE_STIFFNESS=4300 -> 4300.0
+      ok  FRUIT_CAGE_HOLD_STIFFNESS=100000 -> 100000.0
+      ok  the pad drive itself does not move with the material
+      ok  and it goes back to 2.0 when the knobs are unset again
+    P129 pad material: the openarm finger material's default
+      ok  both finger-material sites default openarm to 2.0 (found 2)
+      ok  the combine-mode override exists (the sim's default is the average, P104)
+    P129 pad material: the pair arithmetic
+      ok  the pool table reads 16 fruits (got 16)
+      ok  the shipped pair is 1.25-1.46 (P104's measured 1.25-1.46)
+    P129 pad material: the algebra's thresholds
+      ok  the four-pad friction ceiling is 0.815 (got 0.815)
+      ok  the pool-wide window closes at mu = 0.613
+      ok  the mu 0.6 window is [4223, 4400] N/m
+      ok  the four-pad residual is `mu s` (1.36 s at the shipped pair)
+      ok  the three-pad residual is 0.84-0.91 s over the shipped pair band (P112's 0.84-0.91)
+    
+    P129 pad material: 18 checks, all ok
+
+### P131 cage aperture law: PASS (0.20s)
+$ python3 scripts/266_p131_cage_aperture_selftest.py
+    1. the resolver: unset is the shipped law, the two variants parse, junk raises
+      ok   `APERTURE_MODES` = ('shipped', 'max_extent', 'pad_axes')
+      ok   unset `FRUIT_CAGE_APERTURE` resolves `shipped`
+      ok   explicit `shipped` resolves itself
+      ok   explicit `max_extent` resolves itself
+      ok   explicit `pad_axes` resolves itself
+      ok   an unknown mode raises
+    
+    2. `shipped` is the P107 expression bit for bit; the variants are the laws
+      ok   apple       unset == the shipped widest-horizontal loop (64.49 mm)
+      ok   apple       explicit `shipped` is the same expression
+      ok   apple       `max_extent` = max(radial, axial) (64.49 mm)
+      ok   apple       `pad_axes` == the shipped axes for a top-down hand
+      ok   pear        unset == the shipped widest-horizontal loop (64.00 mm)
+      ok   pear        explicit `shipped` is the same expression
+      ok   pear        `max_extent` = max(radial, axial) (76.80 mm)
+      ok   pear        `pad_axes` == the shipped axes for a top-down hand
+      ok   tomato      unset == the shipped widest-horizontal loop (64.00 mm)
+      ok   tomato      explicit `shipped` is the same expression
+      ok   tomato      `max_extent` = max(radial, axial) (64.00 mm)
+      ok   tomato      `pad_axes` == the shipped axes for a top-down hand
+      ok   strawberry  unset == the shipped widest-horizontal loop (50.68 mm)
+      ok   strawberry  explicit `shipped` is the same expression
+      ok   strawberry  `max_extent` = max(radial, axial) (62.08 mm)
+      ok   strawberry  `pad_axes` == the shipped axes for a top-down hand
+      ok   kiwi        unset == the shipped widest-horizontal loop (64.00 mm)
+      ok   kiwi        explicit `shipped` is the same expression
+      ok   kiwi        `max_extent` = max(radial, axial) (72.45 mm)
+      ok   kiwi        `pad_axes` == the shipped axes for a top-down hand
+      ok   a tilted hand reads the pads' own base axes (76.80 mm)
+      ok   and that is not the TCP axes (76.80 != 64.00 mm)
+    
+    3. the three-pad law is untouched by every mode
+      ok   cage3 `shipped` is still the min over its own three axes
+      ok   cage3 `max_extent` is still the min over its own three axes
+      ok   cage3 `pad_axes` is still the min over its own three axes
+    
+    4. the task wiring: the load target is the law only for an armed radial hand
+      ok   two `aperture_mode()` reads in `tasks.py` (the close route + the probe row)
+      ok   the shipped `deep` expression is still there, unmodified
+      ok   the close has one `cage_law_armed` resolver
+      ok   the law raises `deep`, then drops the two-jaw interference floor
+      ok   the armed load target is the hand's extent at the shipped squeeze
+      ok   exactly two branches depend on the resolver (deep and the floor)
+      ok   and the unset path keeps the two-jaw `min_extent` target
+      ok   the `[cage]` row carries `law`
+      ok   the `[cage]` row carries `ext`
+      ok   the `[cage]` row carries `deep`
+      ok   the `[cage]` row carries `sep`
+      ok   `sep` is the measured pad span (not the command)
+      ok   the build row names the resolved law
+    
+    5. the phase's record
+      ok   the PREREG exists
+      ok   the PREREG is at its pinned md5 (21ec02ed)
+      ok   the census exists (the phase's offline decision)
+    
+    PASS: P131 cage aperture law (the modes, the bits, the route)
+
+### P132 serrated face: PASS (0.12s)
+$ python3 scripts/267_p132_serr_selftest.py
+    1. the shipped hand is untouched (the shape's unset path)
+      ok   `FRUIT_FINGER_FACE` still defaults to `flat` in scene.py
+      ok   `_add_contact_faces` is still gated on a non-flat face
+      ok   no `serr` token in src/fruit_sorting/*.py (hits: [])
+    2. the fixture's default is the four registered faces
+      ok   default profiles = ('flat', 'serr', 'serr45', 'lip20')
+      ok   SERR_TEETH = 5
+      ok   SERR_PITCH = 8.0 mm
+      ok   SERR_HEIGHT = 1.0 mm
+      ok   LIP_EXTRA = 9.5 mm
+      ok   `P132_WALK_ROLL` defaults off
+    3. the tooth geometry (the brief's, at the wallet)
+      ok   60 deg flank run = 0.5774 mm
+      ok   45 deg flank run = 1.0000 mm
+      ok   5 crests in the authored polyline (5)
+      ok   every crest is 1.0 mm toward the payload
+      ok   crest pitch = [8.0, 8.0, 8.0, 8.0] mm
+      ok   no tooth depth outside [-1, 0] mm
+      ok   the polyline is monotone in u
+      ok   serr45 has the same 5 crests
+    4. the tooth sits on the fruit's widest row, not the face centre
+      ok   pear widest row -8.0 mm below the pose origin
+      ok   strawberry widest row +2.8 mm above it
+      ok   pear: contact at u*=-39.9 mm vs the widest -39.9 mm
+      ok   strawberry: contact at u*=-29.1 mm vs the widest -29.2 mm
+    5. the lip is fixture-only and only extends downward
+      ok   flat plate 84.9 mm
+      ok   lip20 plate 94.4 mm
+      ok   the plate top is unchanged (-4.40 mm)
+      ok   the distal plane moves down by exactly 9.5 mm
+    6. the fixture's facet frame is the corrected right-handed one
+      ok   the per-segment frame is `cross(tan, nf)`
+      ok   the box is oriented by that frame
+      ok   the old flat `PAD_Z_CENTRE` is gone
+    
+    PASS: the serrated face's unset path and geometry are pinned
+
+### P135 tracker: PASS (0.25s)
+$ python3 scripts/268_p135_track_selftest.py
+    P135 tracker self-test
+    [1] the estimator is exact on the model
+      ok: the default model is constant velocity
+      ok: truth's default sigma_z is 0.2 mm
+      ok: depth's default sigma_z is the bench's 5 mm, not the truth's 0.2 mm
+      ok: CV: predict(0.25) equals p + v*h for 120 frames (worst 1.83e-15 m)
+      ok: CV: the velocity step is followed by the third tick (-0.1999 m/s)
+      ok: CV: the 0.7 s prediction is within 10 mm after the step (0.0 mm)
+      ok: CA: one tick after the step the correction is > 100 mm (-146.8 mm) - the recorded negative
+    [2] the correction is defined against the conveyor
+      ok: under the conveyor model the correction is identically zero
+      ok: after a step the correction is the off-conveyor displacement (-20.0 vs -20.0 mm)
+      ok: FRUIT_TRACK_CORR_MAX clamps the correction's norm
+    [3] the calibration and the sphere fit
+      ok: square pixels: fx 376.89 / fy 379.26
+      ok: fx = width * focal / aperture (the stage's units cancel)
+      ok: a 60 mm sphere at 0.8 m covers 693 pixels
+      ok: the sphere fit recovers the centre (err 7.83e-12 mm)
+      ok: and the diameter, with a zero residual
+    [4] every knob is off by default
+      ok: FRUIT_TRACK defaults to off
+      ok: FRUIT_TRACK_APPLY defaults on (it only scopes the probe)
+      ok: FRUIT_DESCENT_TRACK defaults off
+      ok: FRUIT_TRACK_WAIT defaults off
+      ok: FRUIT_TRACK_CATCH_SPEED defaults off
+      ok: the impulse cell's tick defaults to 0 (inert: dx/dy are 0)
+      ok: the belt wave defaults to zero
+      ok: the eye-in-hand camera defaults off
+      ok: the wrist camera aims 12 cm down the tool axis (the measured-best mount)
+      ok: the upstream tilt is 0 (at 0.16 m it reads 1-6 frames per attempt)
+      ok: the head/wrist handover is off by default (wrist only)
+      ok: the wrist camera carries its own mount offset
+      ok: the impulse defaults to zero on every axis
+      ok: the per-tick instruments are one bool test each
+      ok: `_approach` keeps (self, arm, jaw_target)
+      ok: `track` is the last positional argument, defaulted to None
+      ok: the descent re-evaluates the aim every tick
+      ok: the tracked aim is converted to the TCP frame (the leg's own frame)
+      ok: the camera calibration is built once, at construction
+      ok: a dropped perception frame predicts through; it does not read the state
+    
+    PASS: 35 checks, 0 failed
+
+### P73 rotation schedule: PASS (0.02s)
+$ python3 scripts/240_p73_tilt_selftest.py
+    ok: the row prints {_tilt_sched} between jaw_z= and drift_on=
+    ok: the schedule line prints tilt0
+    ok: the schedule line prints tilt_max
+    ok: the schedule line prints tilt_rate
+    ok: an unarmed leg prints the n/a form (the block never ran)
+    ok: the P73 accumulation is inside `if guard_armed:`
+    ok: the print is inside the `guard_armed or relief_acts` block
+    ok: guard_armed is gated on _carry_guard_active or _carry_diag
+    ok: FRUIT_CARRY_DIAG defaults to off
+    ok: the tilt is acos(-rot_now[2,2]) on the guarded block's own rotation
+    ok: [attitude] reads the tool axis as rot[:,2] and acos(-tool[2]) - the same number
+    ok: a 0 deg tool axis reads back as 0 deg
+    ok: a 45 deg tool axis reads back as 45 deg
+    ok: a 90 deg tool axis reads back as 90 deg
+    ok: a 135 deg tool axis reads back as 135 deg
+    ok: the P73 init adds no pose read
+    ok: the accumulation calls no tcp_pose() - pure arithmetic
+    ok: the accumulation calls no joint_positions() - pure arithmetic
+    ok: the accumulation calls no jaw_centre() - pure arithmetic
+    ok: the accumulation calls no tactile.read() - pure arithmetic
+    ok: the first tick is the reference (tilt0)
+    ok: tilt_end is the LAST tick, not the max
+    ok: tilt_max is the max over the leg
+    ok: t45 latches the FIRST tick at/above 45 deg (44.9 does not fire)
+    ok: t75 latches the FIRST tick at/above 75 deg (74.9 does not fire)
+    ok: the rate is the signed max per-tick step (0 -> 5 -> 20 -> 44.9: +24.9 at tick 3)
+    ok: a leg that starts past the thresholds latches tick 0
+    ok: a falling tilt gives a negative rate
+    ok: never crossing -> '-' on the row
+    ok: tilt_max and tilt_end are different fields (a transient does not fool tilt_end)
+    ok: a printed tilt0= parses back
+    ok: a printed tilt_end= parses back
+    ok: a printed tilt_max= parses back
+    ok: a printed t45= parses back
+    ok: a printed t75= parses back
+    ok: a printed tilt_rate= parses back
+    ok: the parsed rate round-trips
+    ok: the parsed t45 round-trips
+    PASS: P73 rotation schedule instrument
+
+### P75 place-onset trace: PASS (0.02s)
+$ python3 scripts/241_p75_place_trace_selftest.py
+    ok: the resolver carries os.environ.get("FRUIT_PLACE_ONSET_TRACE", "")
+    ok: the resolver carries self._place_onset_trace = 0
+    ok: the resolver carries self._place_onset_trace = max(0, int(_place_trace_raw))
+    ok: unset -> off
+    ok: blank -> off
+    ok: 60 -> 60
+    ok: 0 -> off
+    ok: a negative value clamps to off
+    ok: an unparseable value is off, not a crash
+    ok: the row is printed inside `if guard_armed:`
+    ok: the row is inside the per-tick carry loop
+    ok: guard_armed gains the trace term (self-sufficient when traced)
+    ok: the pre-P75 two-term gate is kept as one operand (the four legs that pin it stay valid)
+    ok: FRUIT_CARRY_DIAG still defaults to off
+    ok: trace_ticks is the knob on place* legs and 0 elsewhere
+    ok: the row is gated on a positive, bounded tick budget
+    ok: the row prints |d|= after the previous field
+    ok: the row prints d=( after the previous field
+    ok: the row prints sep= after the previous field
+    ok: the row prints gap= after the previous field
+    ok: the row prints f=( after the previous field
+    ok: the row prints n= after the previous field
+    ok: the row prints tcp_err= after the previous field
+    ok: the row prints v_cmd= after the previous field
+    ok: the row prints v_ach= after the previous field
+    ok: the row prints q_margin= after the previous field
+    ok: a printed row parses back
+    ok: the parse round-trips t/side
+    ok: the parse round-trips sep
+    ok: the parse round-trips the +z component
+    ok: the parse round-trips |d|
+    ok: the parse round-trips v_ach
+    ok: the parse round-trips the binding joint index
+    ok: a non-trace row does not parse as a trace row
+    ok: the P75 block calls no tcp_pose()
+    ok: the P75 block calls no joint_positions()
+    ok: the P75 block calls no jaw_centre()
+    ok: the P75 block calls no pad_centre()
+    ok: the block's reporting reader self.tactile.read() is explicit
+    ok: the block's reporting reader self._hand_separation(arm.spec.side) is explicit
+    ok: the achieved/commanded TCP pair is the P66 block's own, reused
+    ok: |v|cmd is clamped to the profile's own length
+    ok: the first traced tick reports |v|ach = 0 (no predecessor, not a stale pose)
+    ok: |v|ach is a finite difference of the block's two post-step TCP reads
+    ok: a slide at constant sep/force classifies b (got b)
+    ok: b's geometry onset is AFTER the displacement onset
+    ok: an early sep/force collapse classifies a (got a)
+    ok: a's geometry onset is at or before the displacement onset
+    ok: a boundary transient classifies c (got c)
+    ok: c's command symptom precedes the displacement by at least the lead
+    ok: a flat 45 mm tracking error is not read as a transient
+    ok: the flat-error leg is not (c) (got b)
+    ok: a leg that never slips inside the window is `none`
+    ok: a same-tick command step does not own the leg (the lead is required)
+    PASS: P75 place-onset trace instrument
+
+### P76 pry/crush fields: PASS (0.02s)
+$ python3 scripts/243_p76_sep_selftest.py
+    ok: the row prints sep_end= then dia=
+    ok: the row prints sep_max= then gap@sep_max=
+    ok: the row prints sep_min= then fmax=
+    ok: the field group sits between sep_end= and guard= (one contiguous block)
+    ok: an unarmed leg prints sep_max=n/a
+    ok: an unarmed leg prints sep_min=n/a (the inf sentinel, not 0.0)
+    ok: sep_min is the LOADED span only (a post-release closure cannot read as a crush)
+    ok: the P76 accumulation is inside `if guard_armed:`
+    ok: the print is inside the `guard_armed or relief_acts` block
+    ok: guard_armed is gated on _carry_guard_active or _carry_diag
+    ok: FRUIT_CARRY_DIAG defaults to off
+    ok: sep@onset / sep@loss read the same hand-aware span - the P76 field uses one call
+    ok: dia is the fruit's own class width (sample.diameter), per leg
+    ok: gap_command is assigned in the same per-tick body before the accumulation
+    ok: the stored gap is the per-tick command, not the leg-end cursor
+    ok: sep_max is the leg's EXTREME, not the loss-tick sample
+    ok: the tick of the max is the first tick it is reached
+    ok: gap@sep_max is the command at that tick (67.4), not 68.7
+    ok: the pads are at the stop while the command CLOSES - P75's ordering, per leg
+    ok: sep_min over the pry leg is its LOADED span
+    ok: the unloaded post-release span (51.9) is NOT sep_min - the loaded-only rule
+    ok: a leg that starts at the stop latches tick 0 (the inherited site)
+    ok: a closing span never sets sep_max above its leg start
+    ok: sep_min catches the 10 mm crush span (dia 37 mm -> -27 mm)
+    ok: an unloaded leg has no sep_min (n/a, not a crush)
+    ok: the printed dia= parses back
+    ok: the printed sep_max= parses back
+    ok: the printed gap= parses back
+    ok: the printed sep_min= parses back
+    ok: the printed fmax= parses back
+    ok: sep_max=98.1@t121 parses as (value, tick)
+    ok: the fmax n/a form parses as a non-number, not as 0
+    ok: the 95 mm 'at the stop' threshold lies below the 98.1 mm stop
+    ok: the still-gripping band [40, 70] mm brackets the 70 mm standoff
+    
+    P76 pry/crush fields: PASS
+
+### P78/P79 scoped finger force: PASS (0.13s)
+$ python3 scripts/244_p78_scope_selftest.py
+    P78/P79 selftest OK: 72 checks (the two-token resolution table, disjoint leg classes, the try/finally wrapper, the live-view write, one site)
+
+### P83 fail fast: PASS (0.03s)
+$ python3 scripts/245_p83_failfast_selftest.py
+    [p83-selftest] PASS 65 checks
+
+### P67 place-leg climb: PASS (0.43s)
+$ python3 scripts/237_p67_climb_selftest.py
+    ok: an unset FRUIT_LIFT_CLIMB is None (the shipped place leg)
+    ok: an empty value is the same shipped path (the explicit restore)
+    ok: whitespace only is the shipped path too
+    ok: `handoff` is inert even with a value (direct-scoped)
+    ok: `scripted` is inert even with a value (direct-scoped)
+    ok: `two_line` is inert even with a value (direct-scoped)
+    ok: `empty` is inert even with a value (direct-scoped)
+    ok: the armed value resolves to the left arm in metres
+    ok: surrounding whitespace is stripped
+    ok: an explicit + sign parses
+    ok: 'abc' is a hard error (not a silent shipped run)
+    ok: '1,0' is a hard error (not a silent shipped run)
+    ok: 'nan' is a hard error (not a silent shipped run)
+    ok: 'inf' is a hard error (not a silent shipped run)
+    ok: '-inf' is a hard error (not a silent shipped run)
+    ok: '0' raises (the off state is unset, not 0)
+    ok: '0.0' raises (the off state is unset, not 0)
+    ok: '-0.08' raises (the off state is unset, not 0)
+    ok: None -> no arithmetic (the shipped command list)
+    ok: an empty dict -> no arithmetic
+    ok: a side not named by the dict is untouched (per-arm)
+    ok: `grasp_lift` is out of scope (place legs only)
+    ok: `grasp` is out of scope (place legs only)
+    ok: `approach` is out of scope (place legs only)
+    ok: `hub_place` is out of scope (place legs only)
+    ok: `empty` is out of scope (place legs only)
+    ok: `place0` resolves to the climb in metres (a float)
+    ok: `place1` resolves to the climb in metres (a float)
+    ok: lift_climb_for is the only resolver (its def + the one call site)
+    ok: the 0.16 m climb is a real segment (114 ticks)
+    ok: the climb starts at the leg's start (the pads' position)
+    ok: the climb's LAST sample is exactly the waypoint start + climb*z
+    ok: the climb moves z only (x/y of the lift's end untouched)
+    ok: the climb's z is monotone
+    ok: the climb respects the place profile's v/a caps
+    ok: the 0.18 m climb is a real segment (121 ticks)
+    ok: the climb starts at the leg's start (the pads' position)
+    ok: the climb's LAST sample is exactly the waypoint start + climb*z
+    ok: the climb moves z only (x/y of the lift's end untouched)
+    ok: the climb's z is monotone
+    ok: the climb respects the place profile's v/a caps
+    ok: the tick cost grows with the climb
+    ok: _carry resolves the caller-owned climb (the only application site)
+    ok: None becomes 0.0, which is the no-climb gate's own value
+    ok: the shipped path starts from `start` (byte-identical expression)
+    ok: only an armed climb rebinds the transit's start (z only)
+    ok: the transit is built from transit_start (is `start` when off)
+    ok: the climb segment is the pinned pure `lift_climb_commands`
+    ok: the climb is PREPENDED to the shipped transit commands
+    ok: the leg's target (`finish`) is untouched by the climb
+    ok: one concatenate site for commands/velocities/accelerations
+    ok: the pad-hand slip rebase declines a two-segment command list
+    ok: the motion label's climb note is empty when the knob is off
+    ok: the prepend is gated (no concatenate on the shipped path)
+    ok: belt_top is 1.170 m (the P66 rows)
+    ok: the transfer pose is 1.530 m (output_place_z 1.45 + the hand's 0.08)
+    ok: the crossing is 0.4125 m of a 0.50 m place span
+    ok: f = 0.825 (the P66 phase-4 crossing fraction)
+    ok: P66's L2 arm crosses at 1.502 m (its own derived number)
+    ok: a 0.16 m climb makes the transit level at the transfer (1.530 m)
+    ok: the climb is the SAME crossing height as the shipped lift (that is the re-shape's whole point)
+    ok: the climb buys (1 - f) = 0.175 m per metre at the crossing
+    ok: the solved climb for +33 mm is 0.1792 m -> the cell's 0.18
+    ok: 0.18 m puts the crossing at 1.5335 m (+31.5 mm over no climb)
+    ok: the cell's 0.18 is the solved value rounded up (not tuned)
+    ok: the row names the resolved climb
+    ok: the row names the scope (left place legs only)
+    ok: the row prints the lift's end and the transit's start (1:1)
+    ok: the row prints the transfer pose
+    ok: the row derives the crossing fraction from the scene config
+    ok: the row's crossing is the formula's own value
+    ok: the row names the restore (unset = the shipped place leg)
+    ok: the row prints only when the knob is armed (no default to report)
+    ok: the env var is read exactly once (the resolver call site)
+    ok: the env resolves it once in __init__
+    ok: it is passed to PickAndPlaceTask at the one construction site
+    ok: the manifest records the run's climb (a climbed leg is a scenario)
+    ok: the manifest carries "legs"
+    ok: the manifest carries "climb_m"
+    ok: scripts/20_pick_place.py never constructs SortingRLEnv (the knob's scope)
+    ok: scripts/40_collect_demos.py never constructs SortingRLEnv (the knob's scope)
+    ok: scripts/60_eval_policy.py never constructs SortingRLEnv (the knob's scope)
+    ok: the collector constructs the task without the kwarg (default None)
+    PASS: P67 place-leg climb (the re-shape of P66's rail-crossing gate)
+
+### P62 grasp attitude: PASS (0.25s)
+$ python3 scripts/232_p62_grasp_selftest.py
+    ok: the knob is off by default (unset -> None, the shipped path)
+    ok: an explicit =0 is the shipped path
+    ok: =1 on `direct` arms the LEFT arm only
+    ok: the armed override is the registered T0 quaternion
+    ok: =1 on `handoff` is inert (direct-scoped, so the canary keeps the file)
+    ok: T0 is a unit quaternion
+    ok: T0's tool axis is (0,0,-1): the belt's -y drag has projection 0.000
+    ok: empty override -> the file's left value, exactly (None = shipped)
+    ok: empty override -> the file's right value, exactly
+    ok: the overridden arm returns the override
+    ok: the un-named arm still returns the file (per-arm, not global)
+    ok: an override wins even when the file has no entry
+    ok: an arm with neither override nor file entry is still None
+    ok: the returned array is a copy (a caller cannot corrupt the override)
+    ok: PickAndPlaceTask takes grasp_quat_override (None = the file)
+    ok: the override is the only new branch in _grasp_quat
+    ok: the shipped file branch survives under it
+    ok: the env var is read once, in the resolver (no default read elsewhere)
+    ok: rl_env passes it at the construction site (the only channel)
+    ok: exactly one construction site carries the kwarg
+    ok: the env is never written (no process-wide attitude switch)
+    ok: the scripted entry point never constructs the RL env
+    ok: configs/waypoints_oriented.json is byte-untouched (0ea08ebb)
+    ok: TASKS_MD5 follows tasks.py (5e8c7cd6)
+    ok: the dynamic catch's left hold IS configs/waypoints.json's left value
+    ok: the dynamic catch's right hold IS configs/waypoints.json's right value
+    ok: configs/waypoints.json's left value IS T0 (so the override equals it)
+    ok: the file the direct env loads already has belt_proj 0.000 on the left
+    ok: configs/waypoints_oriented.json's left is the +0.513 file (NOT loaded by this env: FRUIT_WAYPOINTS is unset everywhere)
+    ok: the task's default waypoint path is configs/waypoints.json
+    ok: the armed row starts with the `[grasp]` tag F2 greps for
+    ok: the row reports file_same=1 and hold_same=1 on this tree
+    ok: the row prints the override's belt projection
+    ok: the row prints the right arm (unchanged) too
+    ok: the row's equality flags actually discriminate (the oriented attitude)
+    ok: the row is printed only when the knob is armed (knob-off logs unchanged)
+    PASS: P62 grasp attitude override
+
+### P64 left precomp: PASS (0.19s)
+$ python3 scripts/234_p64_precomp_selftest.py
+    ok: the knob is off by default (unset -> None, the shipped path)
+    ok: an explicit =0 is the shipped path
+    ok: =1 on `direct` arms the LEFT arm only
+    ok: the armed override is the constant q_cmd
+    ok: =1 on `handoff` is inert (direct-scoped)
+    ok: =1 on `scripted` is inert (direct-scoped)
+    ok: =1 on `two_line` is inert (direct-scoped)
+    ok: =1 on `empty` is inert (direct-scoped)
+    ok: only the literal `1` arms it
+    ok: q_cmd is a unit quaternion
+    ok: q_drift is a unit quaternion (axis-angle)
+    ok: the constant is left_precomp_quat(axis, angle, T0)
+    ok: q_cmd == q_drift^-1 (x) q_T0 (left-multiplied, [w,x,y,z])
+    ok: the tool-frame alternative q_T0 (x) q_drift^-1 is a different command
+    ok: q_drift (x) q_cmd == q_T0: the predicted achieved attitude is T0
+    ok: the predicted achieved belt projection is 0.000
+    ok: the command is tilted ~26.80 deg the other way (proj -0.3410)
+    ok: q_drift maps the command's tool axis back to (0,0,-1)
+    ok: the drift constant sits inside the measured per-leg range 25.1..28.7
+    ok: the drift axis is unit and in the belt plane (z = 0)
+    ok: None -> no hold written (the shipped default)
+    ok: an empty override -> no hold written
+    ok: a side not named by the override gets no hold (per-arm)
+    ok: `place0` is out of scope (grasp_lift only)
+    ok: `place1` is out of scope (grasp_lift only)
+    ok: `approach` is out of scope (grasp_lift only)
+    ok: `empty` is out of scope (grasp_lift only)
+    ok: the armed left `grasp_lift` leg gets the pre-compensated hold
+    ok: the returned hold is a copy (a caller cannot corrupt the override)
+    ok: PickAndPlaceTask takes carry_hold_override (None = shipped)
+    ok: the resolver is defined once and called once (the `_carry` site)
+    ok: `_carry` resolves the override for its own side/leg
+    ok: the hold is written only when the override is not None
+    ok: the carry hold is a separate channel from `grasp_quat_override`
+    ok: the env var is read once, in the resolver (no default read elsewhere)
+    ok: rl_env passes it at its single construction site
+    ok: the env is never written (no process-wide attitude switch)
+    ok: the row is printed only when the knob is armed
+    ok: the scripted entry point never constructs the RL env
+    ok: the manifest names the armed scenario (null = off)
+    ok: configs/waypoints.json is byte-untouched (d81c6f1c)
+    ok: configs/waypoints_oriented.json is byte-untouched (0ea08ebb)
+    ok: the shipped acceptance reference IS the two-line record (30fb99f8)
+    ok: the single-arm restore still keeps the pre-P85 record (8952c320)
+    ok: TASKS_MD5 follows tasks.py (5e8c7cd6)
+    ok: the armed row starts with the `[grasp] left precomp:` tag
+    ok: the row prints q_cmd in [w,x,y,z]
+    ok: the row prints the measured drift axis and angle
+    ok: the row prints the command's (upstream) belt projection
+    ok: the row prints the computed predicted achieved projection (0.0000)
+    ok: the row names the scope (left `grasp_lift`, right shipped)
+    ok: an unarmed env has an empty override (nothing printed, nothing written)
+    PASS: P64 left carry pre-compensation
+
+### P85 two-line default: PASS (0.56s)
+$ python3 scripts/246_p85_selftest.py
+    P85 - the shipped cell is the bimanual two-line
+    ==============================================================================
+    ok: the shipped defaults are 1/1
+    ok: FRUIT_BIARM unset -> on, defaulted
+    ok: FRUIT_BIARM=1 -> on, explicit
+    ok: FRUIT_BIARM=0 -> the pre-P85 single arm
+    ok: FRUIT_BIARM_TWOLINE unset (biarm on) -> two-line, defaulted
+    ok: FRUIT_BIARM=1 FRUIT_BIARM_TWOLINE=0 -> the shared-station pipeline
+    ok: biarm off -> FRUIT_BIARM_TWOLINE is inert (single arm unchanged)
+    ok: unset env resolves to the two-line
+    ok: the P43-style label names both origins
+    ok: FRUIT_BIARM=0 resolves the single arm
+    ok: the label distinguishes the biarm-off twoline from an explicit one
+    ok: the shared-station pair resolves as before P85
+    ok: explicit values are not flagged as defaulted
+    ok: two-line plan: the dense wave sheet is on by default
+    ok: single-arm plan: wave off (pre-P85)
+    ok: two-line plan: the balanced A:B:C mix ({'A': 0.375, 'B': 0.375, 'C': 0.25})
+    ok: single-arm plan: the shipped 50/30/20 mix ({'A': 0.5, 'B': 0.3, 'C': 0.2})
+    ok: an explicit FRUIT_SUPPLY_WAVE=0 still wins over the package
+    ok: two_line=None + unset env -> wave off
+    ok: two_line=None + FRUIT_BIARM_TWOLINE=1 -> wave on (the pre-P85 opt-in)
+    ok: FruitSpawner forwards two_line to the supply plan
+    ok: two_line_enabled() is False outside a session (single arm unchanged)
+    ok: two_line_enabled() follows session.twoline=True
+    ok: two_line_enabled() follows session.twoline=False (shared station)
+    ok: two_line_resolved() is the ambient resolution (defaulted on)
+    ok: two_line_enabled() reads no environment variable
+    ok: bimanual_enabled() resolves through biarm_resolution()
+    ok: bimanual_enabled() reads no scheduler env var directly
+    ok: run_bimanual() takes the ambient resolution
+    ok: scripts/20_pick_place.py: exactly one FruitSpawner two_line= kwarg
+    ok: scripts/40_collect_demos.py: exactly one FruitSpawner two_line= kwarg
+    ok: scripts/70_record_video.py: exactly one FruitSpawner two_line= kwarg
+    ok: src/fruit_sorting/rl_env.py: the spawner pins a two_line= value
+    ok: src/fruit_sorting/rl_env.py: pins two_line=False (not the scripted cell)
+    ok: scripts/60_eval_policy.py: the spawner pins a two_line= value
+    ok: scripts/60_eval_policy.py: pins two_line=False (not the scripted cell)
+    ok: the collector resolves the scheduler through the shared resolver
+    ok: the shard manifest records collection.biarm_resolved
+    ok: the shard manifest records collection.biarm_twoline_resolved
+    ok: the shard manifest records collection.biarm_defaulted
+    ok: the shard manifest records collection.biarm_twoline_defaulted
+    ok: accept.sh gates a two-line session through 190 (its own floor)
+    ok: accept.sh keeps the single-arm reference for the restore path
+    P85 selftest PASS
+
+### P87 release scope: PASS (0.35s)
+$ python3 scripts/247_p87_release_scope_selftest.py
+    P87 - the release trim is a two-line-scoped default
+    ==============================================================================
+    ok: unset/no-scope resolves to the shipped dict exactly (('20', '3', '3'))
+    ok: every shipped default is still a string (no float round-trip)
+    ok: the shipped release clock is 20/3/3
+    ok: unset/no-scope is off with origin `scope-off`
+    ok: the shipped clock is 188 ticks (20 + 40*3 + 16*3) and saves nothing
+    ok: unset inside a two-line session resolves P86's trim (0/2/2)
+    ok: the two-line default is on with origin `default`
+    ok: the profile reads `trim`
+    ok: the trim clock is 112 ticks (0 + 40*2 + 16*2)
+    ok: the trim saves 76 ticks (0.633 s at 120 Hz)
+    ok: the label is the P43 form (FRUIT_SPEED_RELEASE=1(default))
+    ok: only the three release keys move with the scope (['release_dwell', 'release_finger_hold', 'release_pad_hold'])
+    ok: an explicit =0 restores the shipped release clock on the two-line line
+    ok: an explicit 0 is labelled `explicit` (not the scope default)
+    ok: an explicit =1 wins globally (the single-arm line too)
+    ok: an explicit =1 also wins on the two-line line
+    ok: the single-arm resolution is on
+    ok: FRUIT_SPEED_ALL=1 (the S13 union) still turns the cell on globally
+    ok: the union's origin is `speed-all`
+    ok: an explicit =0 beats the union (225's own precedence rule)
+    ok: FRUIT_SPEED_RELEASE_SETTLE still moves the settle (the 3 -> 1 form)
+    ok: the 3 -> 1 form is 56 ticks
+    ok: the settle is read only when the cell is on (the shipped clock is 20/3/3)
+    ok: … and it applies to the scoped two-line default too
+    ok: the 188-tick clock is the read sites' own clamps (two_line=0)
+    ok: the 112-tick clock is the read sites' own clamps (two_line=1)
+    ok: two consumers build the resolver dict (2)
+    ok: both consumers pass the session scope (release P87 / place P88)
+    ok: the scope argument is the session predicate (`self.two_line_enabled()`)
+    ok: `two_line_enabled` exists
+    ok: `two_line_enabled` is session-scoped (None outside a CoopSession)
+    ok: the row prints in the `[biarm] ...` form
+    ok: the row is inside `run_bimanual` (so only a bimanual session prints it)
+    ok: only `run_bimanual` prints the row (['run_bimanual']) - the single-arm path stays silent and therefore byte-identical
+    ok: the row reads the one resolver, not a re-derived clock
+    ok: the block has one builder in `scene.py`
+    ok: `finger_physics_provenance` writes it under `physics`
+    ok: the builder reads the same resolver the run does
+    ok: the collector passes its own scheduler mode
+    ok: the direct env passes False (it never runs a CoopSession)
+    ok: both blocks carry `dwell`/`pad_hold`/`finger_hold`
+    ok: a non-two-line store records the shipped 20/3/3
+    ok: a two-line store records the trim 0/2/2
+    ok: the block names the origin (a pre-P87 manifest has no key at all)
+    ok: the block's clock matches the resolver (188 / 112 / saved 76)
+    ok: the block names its scope
+    ok: TASKS_MD5 follows tasks.py (5e8c7cd6)
+    ==============================================================================
+    PASS: the release trim is on for a two-line session and inert everywhere else
+
+### P88 place scope: PASS (0.31s)
+$ python3 scripts/248_p88_place_scope_selftest.py
+    P88 - the place raise is a two-line-scoped default
+    ==============================================================================
+    ok: unset/no-scope resolves to the shipped dict exactly (('0.35', '1.089'))
+    ok: every shipped default is still a string (no float round-trip)
+    ok: the shipped place pair is 0.35 / 1.089
+    ok: unset/no-scope is off with origin `scope-off`
+    ok: the shipped clock at the reference distance is 362 ticks and saves nothing
+    ok: PLACE_TWO_LINE_DEFAULT is False - the measured cell is not shipped
+    ok: unset inside a two-line session resolves the shipped pair (0.35/1.089)
+    ok: the two-line scope alone does not turn the cell on (`scope-off`)
+    ok: the profile reads `shipped`
+    ok: the measured arm is the explicit FRUIT_SPEED_PLACE=0.52
+    ok: … with origin `explicit`
+    ok: the raised clock is 244 ticks at 0.55 m (saved 118 = -0.98 s)
+    ok: … i.e. -0.98 s per place leg at the reference distance
+    ok: the reference distance is named and 0.55 m
+    ok: the label is the P43 form (FRUIT_SPEED_PLACE=0.52(explicit))
+    ok: an explicit =0 is the shipped cap on the two-line line
+    ok: an explicit 0 is labelled `explicit`
+    [fruit] [speed] ignoring FRUIT_SPEED_PLACE='off' (not a speed); cell stays off
+    ok: an explicit `off`/`false`/`no` also restores the shipped cap
+    ok: an explicit speed wins globally (the single-arm line too)
+    ok: … and on the two-line line
+    ok: the `1`/`on` form means the registered speed
+    ok: FRUIT_SPEED_ALL=1 (the S13 union) turns the cell on globally
+    ok: the union's origin is `speed-all`
+    ok: an explicit =0 beats the union (225's own precedence rule)
+    ok: a caller's own speed scales `a_max` on the shipped shape
+    ok: FRUIT_SPEED_PLACE_AMAX pins the acceleration
+    ok: the place cell is global when explicit (the scope moves nothing)
+    ok: … and the explicit value wins on the two-line line too
+    ok: the two-line scope moves the release keys only (the place default is off)
+    ok: the release cell still moves the three release keys only
+    ok: the release clock is unaffected by the place cell (188 / 112)
+    ok: the resolver reuses `motion.jerk_limited` (the leg's own generator)
+    ok: 0.55 m (speed-limited) reproduces the shipped generator
+    ok: 0.55 m (speed-limited) is strictly shorter when raised
+    ok: 0.30 m (acceleration-limited at 0.52) reproduces the shipped generator
+    ok: 0.30 m (acceleration-limited at 0.52) is strictly shorter when raised
+    ok: a long leg saves more than a short one (-118 vs -42 ticks) - the acceleration term binds on the short one
+    ok: an unparsable cap yields no clock (None), never a wrong one
+    ok: two consumers build the resolver dict (2)
+    ok: both consumers pass the session predicate (`self.two_line_enabled()`)
+    ok: `two_line_enabled` exists
+    ok: `two_line_enabled` is session-scoped (None outside a CoopSession)
+    ok: the place-carrying leg (`_carry_leg`) is the consumer that reads the pair
+    ok: the place branch reads the resolver's pair
+    ok: the row prints in the `[biarm] ...` form
+    ok: the row is inside `run_bimanual` (so only a bimanual session prints it)
+    ok: only `run_bimanual` prints the row (['run_bimanual']) - the single-arm path stays silent and therefore byte-identical
+    ok: the row reads the one resolver, not a re-derived cap
+    ok: the block has one builder in `scene.py`
+    ok: `finger_physics_provenance` writes it under `physics`
+    ok: the builder reads the same resolver the run does
+    ok: the collector passes its own scheduler mode
+    ok: the direct env passes False (it never runs a CoopSession)
+    ok: the shipped tree records 0.35 on both paths (the default is off)
+    ok: the block names the origin (a pre-P88 manifest has no key at all)
+    ok: the measured arm's block carries the required keys (v_max, a_max, ticks, shipped_ticks, saved_ticks, origin, two_line, reference_distance_m)
+    ok: … records the measured cap and its `explicit` origin
+    ok: the block's clock matches the resolver (362 / 244 / saved 118)
+    ok: the block names the distance its clock is priced at
+    ok: the block names its scope (the two-line flag is the caller's)
+    ok: TASKS_MD5 follows tasks.py (5e8c7cd6)
+    ==============================================================================
+    PASS: the place cell is scoped, its default is OFF, and the measured arm is explicit
+
+### P89 lift scope: PASS (0.34s)
+$ python3 scripts/249_p89_lift_scope_selftest.py
+    P89 - the lift raise is a two-line-scoped cell whose default is OFF
+    ==============================================================================
+    ok: unset/no-scope resolves to the shipped dict exactly (('0.30', '1.0'))
+    ok: every shipped default is still a string (no float round-trip)
+    ok: the shipped lift pair is 0.30 / 1.0
+    ok: unset/no-scope is off with origin `scope-off`
+    ok: the shipped clock at the reference distance is 162 ticks and saves nothing
+    ok: LIFT_TWO_LINE_DEFAULT is False - the measured cell is not shipped
+    ok: the scoped cell's value is P44's S3-v (0.37)
+    ok: unset inside a two-line session resolves the shipped pair (0.30/1.0)
+    ok: the two-line scope alone does not turn the cell on (`scope-off`)
+    ok: the profile reads `shipped`
+    ok: the measured arm is FRUIT_SPEED_LIFT=0.37 -> 0.37 / 1.0 (S3-v: the acceleration is NOT raised)
+    ok: … with origin `explicit`
+    ok: the raised clock is 136 ticks at 0.21 m (saved 26 = -0.217 s)
+    ok: … i.e. -0.22 s per lift leg at the reference distance
+    ok: the reference distance is named and 0.21 m
+    ok: the label is the P43 form (FRUIT_SPEED_LIFT=0.37(explicit))
+    ok: an explicit =0 is the shipped cap on the two-line line
+    ok: an explicit 0 is labelled `explicit`
+    [fruit] [speed] ignoring FRUIT_SPEED_LIFT='off' (not a speed); cell stays off
+    ok: an explicit `off`/`false`/`no` also restores the shipped cap
+    ok: the `1`/`on` form is still S3's measured 0.36 / 1.9 (not moved)
+    ok: … labelled `explicit`
+    ok: FRUIT_SPEED_ALL=1 (the S13 union) keeps its measured 0.36 / 1.9
+    ok: the union's origin is `speed-all`
+    ok: an explicit =0 beats the union (225's own precedence rule)
+    ok: a non-0.37 explicit speed keeps P44's acceleration default (1.9) - the recorded S3/S13 semantics
+    ok: 0.3700 resolves the same pair as 0.37 (numeric, not string, match)
+    ok: FRUIT_SPEED_LIFT_AMAX pins the acceleration
+    ok: an explicit speed wins globally (the single-arm line too)
+    ok: an explicit lift cell is global (the scope moves the release keys only, never the lift's)
+    ok: and it moves `lift_vmax` only (`a_max` stays the shipped 1.0, which is the S3-v point)
+    ok: the two-line scope moves the release keys only (place and lift defaults are off)
+    ok: the release clock is unaffected by the lift cell (188 / 112)
+    ok: the place cell is still off (P88)
+    ok: 0.21 m (the reference) reproduces the shipped generator
+    ok: 0.05 m (a short leg (jerk-limited)) reproduces the shipped generator
+    ok: 0.50 m (a long leg (speed-limited at 0.30)) reproduces the shipped generator
+    ok: below the raised cell's switch distance (0.225 m) the short leg saves nothing - the acceleration term binds, not the cap
+    ok: 0.20 m is strictly shorter when raised (154 -> 133 ticks)
+    ok: 0.21 m is strictly shorter when raised (162 -> 136 ticks)
+    ok: 0.22 m is strictly shorter when raised (170 -> 139 ticks)
+    ok: 0.50 m is strictly shorter when raised (384 -> 312 ticks)
+    ok: a long leg saves more than the reference one (the cap, not the jerk term, is what binds there)
+    ok: an unparsable cap yields no clock (None), never a wrong one
+    ok: two consumers build the resolver dict (2)
+    ok: both consumers pass the session predicate (`self.two_line_enabled()`)
+    ok: the lift-carrying leg (`_carry_leg`) is the consumer that reads the pair
+    ok: the lift branch reads the resolver's pair
+    ok: an explicit FRUIT_DYNAMIC_LIFT_VMAX still wins over the cell
+    ok: the row prints in the `[biarm] ...` form
+    ok: the row is inside `run_bimanual` (so only a bimanual session prints it)
+    ok: the row reads the one resolver, not a re-derived cap
+    ok: only `run_bimanual` prints the row (['run_bimanual']) - the single-arm path stays silent and therefore byte-identical
+    ok: the block has one builder in `scene.py`
+    ok: `finger_physics_provenance` writes it under `physics`
+    ok: the builder reads the same resolver the run does
+    ok: the collector passes its own scheduler mode
+    ok: the direct env passes False (it never runs a CoopSession)
+    ok: the shipped tree records 0.30 on both paths (the default is off)
+    ok: the block names the origin (a pre-P89 manifest has no key at all)
+    ok: the measured arm's block carries the required keys (v_max, a_max, ticks, shipped_ticks, saved_ticks, origin, two_line, reference_distance_m)
+    ok: … records the S3-v pair (0.37 / 1.0) and its `explicit` origin
+    ok: the block's clock matches the resolver (162 / 136 / saved 26)
+    ok: the block names the distance its clock is priced at
+    ok: the block names its scope (the two-line flag is the caller's)
+    ok: TASKS_MD5 follows tasks.py (5e8c7cd6)
+    ==============================================================================
+    PASS: the lift cell is scoped, its default is OFF, and the measured arm is explicit
+
+### P91 probe scope: PASS (0.29s)
+$ python3 scripts/250_p91_probe_scope_selftest.py
+    P91 - the take-off validation ramp is a two-line-scoped tick cell
+    ==============================================================================
+    ok: unset/no-scope resolves the shipped single-arm 40 ticks (40)
+    ok: … with `origin=single` and the cell off (single)
+    ok: … and its own shipped clock is the same 40, so saved = 0
+    ok: the P91 default is OFF (the gate's verdict is `logs/p91/RESULTS.md`)
+    ok: unset + two-line resolves the shipped 60 ticks (60)
+    ok: … with `origin=two-line` and the cell off (two-line)
+    ok: the cell resolves 24 ticks (24)
+    ok: … as `origin=default` (default)
+    ok: … saving 36 ticks against the session's own 60 (36)
+    ok: … = 0.300 s at 120 Hz (the registered delta)
+    ok: … while the single arm still resolves 40 (40) - the scope, not a global default
+    ok: an explicit 40 on the single arm is the shipped string
+    ok: … and an explicit value on the two-line names its own origin
+    ok: … and still overrides the scoped cell (saved 20 vs its 60)
+    ok: the ramp height keeps its two-line 6 mm / single-arm 10 mm values
+    ok: `FRUIT_DYNAMIC_PROBE` still overrides the height on its own
+    ok: the probe is a 1:1 lever on the grip block: 60 -> 24 removes 36 ticks, which is exactly the single-arm/two-line clean-grip difference (190 vs 210 ticks at probes 40 vs 60)
+    ok: one resolver call in `grasp_carry_place` + one in the row (2)
+    ok: the consumer passes the session predicate (`self.two_line_enabled()`)
+    ok: the two-line literal is no longer resolved at the site - one authority
+    ok: the probe loop reads the resolver's tick count
+    ok: the row prints in the `[biarm] ...` form
+    ok: the row is inside `run_bimanual` (so only a bimanual session prints it)
+    ok: the row reads the one resolver, not a re-derived tick count
+    ok: only `run_bimanual` prints the row (['run_bimanual']) - the single-arm path stays silent and therefore byte-identical
+    ok: the block has one builder in `scene.py`
+    ok: `finger_physics_provenance` writes it under `physics`
+    ok: … and it reads the one resolver
+    ok: the block carries the required keys, scope two_line=False
+    ok: … and matches the resolver for two_line=False
+    ok: the block carries the required keys, scope two_line=True
+    ok: … and matches the resolver for two_line=True
+    ok: both manifest writers call the one builder (3 call sites)
+    ok: TASKS_MD5 follows tasks.py (5e8c7cd6)
+    ==============================================================================
+    PASS: the take-off cell is scoped, its default is OFF, and the measured arm is explicit
+
+### P94 offset bound: PASS (0.07s)
+$ python3 scripts/251_p94_offset_selftest.py
+    ok p94 offset bound (50 checks)
+
+### P95 fruit trace: PASS (0.07s)
+$ python3 scripts/252_p95_ftrace_selftest.py
+    PASS: 67 checks (FRUIT_FRUIT_TRACE instrument shape)
+
+### P96/P97/P98 pre-pose clearance: PASS (0.37s)
+$ python3 scripts/253_p96_prepose_selftest.py
+    P96/P97/P98 - the clearance pre-pose is a two-line-scoped opt-in (P98 reverted P97)
+    ==============================================================================
+    ok: PREPOSE_CLEAR_TWO_LINE_DEFAULT is False - P98 reverted the P97 flip
+    ok: unset + no two-line session is off with origin `scope-off` (no station)
+    ok: the height defaults to 0.165 m above the belt top
+    ok: the attitude defaults to `calib`
+    ok: unset inside a two-line session is OFF - the pre-P96 path is the shipped default again (P98)
+    ok: … and says so in `two_line`/`origin` (the pre-P96 label)
+    ok: … and the label names the off state (FRUIT_BIARM_PREPOSE_CLEAR=0(explicit))
+    ok: … while the armed cell keeps P96's measured arm (z=0.165, hold=calib)
+    ok: an explicit =0 is the pre-P96 path inside a two-line session, origin `explicit`
+    ok: … and the label carries no height
+    ok: =1 is on at the default height (0.165)
+    ok: the label names value, origin, height and hold (FRUIT_BIARM_PREPOSE_CLEAR=1(explicit), z=+0.165, hold=calib)
+    ok: … an explicit =1 also applies outside a two-line session (the override rule)
+    ok: a 0.165 target with the solve's 6 mm residual lands at 0.159
+    ok: … which clears the invariant's floor (jaw >= belt_top + 0.155)
+    ok: … while a 0.155 target would land at 0.149, i.e. BELOW the floor (the phase-0 map's 149.1-151.7 mm rows)
+    ok: the band is [0.155, 0.25] - the invariant's floor and the map's ceiling
+    ok: a height of 0.12 m raises
+    ok: a height of 0.30 m raises
+    ok: a height of 0.0 m raises
+    ok: a height of -0.1 m raises
+    ok: a registered override moves the height and clears `z_defaulted`
+    ok: hold=nat is the free-attitude form
+    ok: an unknown hold mode raises
+    ok: the band is enforced even with no two-line session (an explicit =1)
+    ok: `prepose_clear_resolution` has exactly one call site in tasks.py
+    ok: `_prepare_two_line_stations` is defined once in tasks.py
+    ok: the call site is the station solve and takes the caller's resolved two-line decision
+    ok: … because the session is created after the solve (P97: a session predicate here reads False on the first batch and makes the default inert)
+    ok: the station-on-the-pick-point skip is bypassed when the cell is on (the left station had no solve at all - P39)
+    ok: hold=calib freezes the arm's own **measured** calibrated attitude
+    ok: hold=nat leaves the attitude free (the position-only form)
+    ok: the target height is the cell's when on and the grasp plane when off
+    ok: the solve cache carries the resolution (one process, two cells)
+    ok: the per-side verdict is recorded, not inferred from the residual
+    ok: the achieved tilt and joint margin are read at the solve
+    ok: the `[biarm] pre-pose` row is printed **only** when the cell is on, so the pre-P96 path adds no line (byte-identity, not 'modulo a row')
+    ok: the collector resolves the same function, per shard
+    ok: the shard manifest writes "prepose_clear"
+    ok: the shard manifest writes "prepose_clear_defaulted"
+    ok: the shard manifest writes "prepose_clear_z"
+    ok: rl_env.TASKS_MD5 == tasks.py (5e8c7cd6) - the direct env can start
+    
+    P96/P97/P98 pre-pose selftest: PASS
+
+### P100 park scope: PASS (0.30s)
+$ python3 scripts/254_p100_park_selftest.py
+    P100 - the park return's fixed clock is a two-line-scoped tick cell
+    ==============================================================================
+    ok: unset/no-scope resolves the shipped 90/120 (90/120)
+    ok: … with `origin=scope-off` and the cell off (scope-off)
+    ok: … and its own shipped clock is the same 210 ticks, so saved = 0
+    ok: an explicit pair is not read without a two-line session - the driver's pre-session prime transit keeps the shipped clock
+    ok: the P100 default is OFF (the gate's verdict is `logs/p100/RESULTS.md`)
+    ok: unset + two-line resolves the shipped 90/120 (90/120)
+    ok: the cell resolves 60/75 (60/75)
+    ok: … as `origin=explicit` (explicit)
+    ok: … 135 of the shipped 210 ticks, saved 75 (135)
+    ok: … = 0.625 s at 120 Hz (the registered delta)
+    ok: … and the profile names itself `trim`
+    ok: setting only the settle keeps the shipped ramp (90/75, saved 45)
+    ok: the read sites' own clamps hold (blend 1, settle 0)
+    ok: the flip resolves 45/45 (45/45)
+    ok: … as `origin=default` (default)
+    ok: … while every non-two-line path still resolves the shipped 210
+    ok: the shipped ramp IS `READY_TRANSIT_BLEND_TICKS` (90) - the constant the transit's own tick accounting reads
+    ok: the shipped settle IS `_ready_settle`'s own default (120)
+    ok: the two fixed tails are 210 ticks
+    ok: `_ready_move` is the consumer
+    ok: … and it passes the session predicate (`self.two_line_enabled()`)
+    ok: … taking both halves from the one resolver
+    ok: the hardcoded `else 120` is gone from the transit call - one authority
+    ok: one resolver call in `_ready_move` + one in the row (2)
+    ok: `_blend_to` holds the ramp
+    ok: `q_step` is computed inside `if stats is not None:` (the diag block)
+    ok: … from the min-jerk peak derivative (1.875), i.e. arithmetic on the two configurations the ramp already holds
+    ok: … and that assignment adds no articulation read (the block's other read is P9-A's own `ramp_err`)
+    ok: the row is inside `run_bimanual` (so only a bimanual session prints it)
+    ok: only `run_bimanual` prints the row (['run_bimanual']) - the single-arm path stays silent and therefore byte-identical
+    ok: the block has one builder in `scene.py`
+    ok: `finger_physics_provenance` writes it under `physics`
+    ok: … and it reads the one resolver
+    ok: the block carries the required keys, scope two_line=False
+    ok: … and matches the resolver for two_line=False
+    ok: the block carries the required keys, scope two_line=True
+    ok: … and matches the resolver for two_line=True
+    ok: both manifest writers call the one builder (3 call sites)
+    ok: TASKS_MD5 follows tasks.py (5e8c7cd6)
+    ==============================================================================
+    PASS: the park cell is two-line-scoped, its default is OFF, and the measured arm is explicit
+
+### P102 tactile patch: PASS (0.08s)
+$ python3 scripts/255_p102_tactile_selftest.py
+    P102 - the contact-patch tactile statistic (reporting only)
+    ==============================================================================
+    ok: unset -> 0 (the shipped path)
+    ok: empty -> 0
+    ok: blank -> 0
+    ok: '800' -> 800 ticks
+    ok: '800.0' -> 800
+    ok: '0' -> 0
+    ok: '-5' -> 0 (clamped)
+    ok: a typo -> 0, never a raise (a reporting knob must not refuse a run)
+    ok: the env is read when no argument is given
+    ok: the attribute is initialised from the resolver at construction
+    ok: `guard_armed` gains exactly the `self._tactile_patch > 0` term
+    ok: that term appears once
+    ok: the row block is guarded by the tick cap
+    ok: the block adds no `ik_step(`
+    ok: the block adds no `tcp_pose(`
+    ok: the block adds no `joint_positions(`
+    ok: the block adds no `jaw_centre(`
+    ok: the block adds no `pad_centre(`
+    ok: the block adds no `hold_quaternion`
+    ok: the block's reads are the one it names: `self.tactile.read()`
+    ok: the block's reads are the one it names: `arm.jaw_positions()`
+    ok: the block's reads are the one it names: `tactile_patch_state(`
+    ok: the block has a body
+    ok: the block sits inside the W8-B carry block (never on the shipped path)
+    ok: one dict per pad
+    ok: a payload on the pad centre reads u = v = 0
+    ok: h is the signed distance to each pad's link-origin plane (39 mm)
+    ok: the two pads' h sum to the measured span
+    ok: the parallel-plane degeneracy is real: the centroids are identical
+    ok: a wrist rotation about the jaw axis leaves the pad-frame centroid fixed
+    ok: a payload moved along the closing axis leaves the centroid fixed
+    ok: a patch well inside the pad is fully on it (frac = 1)
+    ok: a patch centred outside the pad is fully off it (frac = 0)
+    ok: a zero-radius patch is 0
+    ok: frac is monotone non-increasing as the centroid walks off the pad
+    ok: the census pins the same pad half-length the module uses
+    ok: the pad half extents are the measured plate's (61.0 / 84.902 mm)
+    ok: TACTILE_PAD_LONG_ORIGIN = finger_length - half_long
+    ok: the measured seat reads edge = +9.8 mm (logs/p102/smoke.log's datum)
+    ok: the pre-constant rectangle reads frac 0.062 on a good seat (the measured logs/p102/smoke.log datum)
+    ok: the face-centre rectangle reads 0.65 on that same seat
+    ok: the emitted row matches the census's regex
+    ok: the census reads pad and dc back
+    ok: a dropped field fails the reader (a rename cannot pass silently)
+    ok: an off-centre payload reads a different h per pad (the one-sided read)
+
+### P103 slip re-grip: PASS (0.10s)
+$ python3 scripts/256_p103_regrip_selftest.py
+    -- 1 the resolver
+    ok: unset/blank is off (0.0)
+    ok: `0` is off (0.0)
+    ok: `2.12` is 0.00212 m
+    ok: whitespace and an int-like value parse
+    ok: the floor itself is accepted
+    ok: '-1' (negative) raises
+    ok: '0.5' (below the floor) raises
+    ok: 'nan' (nan) raises
+    ok: 'inf' (inf) raises
+    ok: 'x' (non-numeric) raises
+    ok: the floor is 1.0 mm (P102's held-leg p90 is 0.10)
+    -- 2 the shipped path is inert
+    ok: the attribute is built by the resolver
+    ok: the resolved flag starts False
+    ok: no cooldown / per-leg cap in the code (the registered per-tick shape)
+    ok: no cooldown counter at all
+    -- 3 guard_armed
+    ok: the trigger arms the W8-B block
+    ok: exactly five disjuncts (diag/guard, place trace, tactile, fail fast, regrip)
+    ok: and keeps the jaw-hand / dynamic-capture scope
+    -- 4 the trigger
+    ok: the trigger reads the P102 patch state
+    ok: from the measured pad origins
+    ok: the loaded-pinch half of P102's seat test
+    ok: the patch-on-the-pad half of P102's seat test
+    ok: the threshold
+    ok: the shipped abort ceiling
+    ok: no cooldown
+    ok: the half-length is read from the constant, not re-typed
+    -- 5 the action
+    ok: the shipped target expression
+    ok: the shipped correction
+    ok: the shipped command re-base
+    ok: the shipped gap write
+    ok: the shipped trigger is unchanged (it still gates on the 25 mm slip)
+    ok: the [regrip] branch uses the shipped `target`
+    ok: the [regrip] branch uses the shipped `correction`
+    ok: the [regrip] branch uses the shipped `reseated`
+    ok: the [regrip] branch uses the shipped `commands[i + 1 :]`
+    ok: the [regrip] branch uses the shipped `self._grip_centre[side]`
+    ok: the [regrip] branch uses the shipped `self._closed_gap[side]`
+    ok: no new IK step in the action
+    ok: the action costs no extra tick
+    -- 6 the scope
+    ok: the threshold gates it
+    ok: and the two-line session predicate
+    ok: no ambient (env) read
+    -- 7 the row grammar
+    ok: the first-fire row parses
+    ok: with its arm and leg
+    ok: and its dc
+    ok: the per-leg done row parses
+    ok: with its fire count
+    ok: the `[carry]` row the ledger joins on parses
+    ok: with the arm/leg the fire is matched to
+    ok: and its clean_slip_max
+    ok: `sep_min=n/a` parses (a never-held leg)
+    
+    P103 slip re-grip: every pin holds
+
+### P111 cage compliance: PASS (0.36s)
+$ python3 scripts/257_p111_cage_compliance_selftest.py
+    P111 cage compliance selftest
+    ==============================================================================
+    1. the two regimes - delivered force, the freeze, and the stop
+      ok   the tool offset is 70.0 mm (DISTAL_Z 80.5 - LIP 10.5) - unchanged by P111
+      ok   FRUIT_CAGE_HOLD_STIFFNESS defaults to 0 (off: the shipped cage is unchanged)
+      ok   the shipped drive (k=1e5, cap 4.90) is still the module default
+           k=  100000: delivered  4.90 N/pad, elastic yield   0.05 mm, 2-pad capacity 12.74 N
+           k=    1000: delivered  0.60 N/pad, elastic yield   4.90 mm, 2-pad capacity  1.56 N
+           k=     200: delivered  0.12 N/pad, elastic yield  24.50 mm, 2-pad capacity  0.31 N
+      ok   at the shipped squeeze the rigid drive is AT the cap and k=1e3 is not - the two arms are different regimes
+      ok   k=1e3 delivers 0.60 N/pad on a 60 mm fruit (got 0.600) - the cap is not reached, so the close is a spring, not a force source
+      ok   the shipped elastic allowance is 0.049 mm - P110's number, unchanged
+      ok   k=1e3's allowance is 4.90 mm - 100x the shipped one (the phase's lever)
+           the 0.5 N freeze trigger is reached at  0.005 mm of penetration at k=100000
+           the 0.5 N freeze trigger is reached at  0.500 mm of penetration at k=1000
+      ok   a soft drive trips the same force trigger at a much smaller penetration, so the compliant close is gentler AND shallower (the cells' `aper` reads it)
+    
+    2. the hard stop: what it writes, and what it must not move
+      ok   with the knob unset `close_done` changes nothing (off = shipped)
+      ok   and does not flag the profile as stiffened
+    [fruit] [cage] left: hard stop at the close (k 1000 -> 100000 N/m, c 9 -> 89.4 Ns/m, aperture 120.0 mm, cap 4.90 N/pad)
+      ok   the four drives are all rewritten at the hold k (got {100000.0})
+      ok   their damping is 2 sqrt(k_hold m) = 89.44 Ns/m (got {89.442719})
+      ok   the four TARGETS are unchanged - the stop loads the pad, it does not move it
+      ok   the force cap is unchanged
+      ok   and the profile is flagged for the revert
+    [fruit] [cage] left: hard stop at the close (k 1000 -> 100000 N/m, c 9 -> 89.4 Ns/m, aperture 120.0 mm, cap 4.90 N/pad)
+      ok   a second call in the same close is a no-op
+      ok   an OPEN command reverts the drives to the close profile ({1000.0})
+      ok   and clears the flag, so the next close is soft
+    
+    3. the call site (one) and the probe's independence
+      ok   exactly one `close_done()` call site (got 1)
+      ok   exactly one `close_begin()` call site (got 1)
+      ok   the window opens before the close loop and closes after it
+      ok   the call site exists in tasks.py
+      ok   it is gated on the hand's kind (`CAGE_KIND`), so the shipped hand is inert
+      ok   and NOT on `FRUIT_CAGE_PROBE` - a diagnostic must not own a behaviour
+      ok   it runs after the close has settled the depth the carry will hold
+      ok   the `[cage]` row carries `off0=` and `off=` (the centring instrument)
+      ok   the census book declares "off0"
+      ok   the census book declares "off"
+      ok   the census book declares "axis0"
+      ok   `off0` is the radial distance to the ring's axis at the close's start
+      ok   `off` is the same distance at the flush (to the axis where it is NOW)
+      ok   `off` reads the cage's base pose (the ring's axis), not a new per-tick read
+    
+    3b. the close window: soft only between `close_begin` and `close_done`
+      ok   the approach profile stays the shipped rigid one (the scope's whole point)
+      ok   `close_begin` puts the drives on the close profile ({1000.0})
+      ok   the cap and the target are untouched by the window
+    [fruit] [cage] left: close window end (k 1000 -> 100000 N/m, aperture 120.0 mm)
+      ok   `close_done` returns to the approach profile when no hold is set ({100000.0})
+      ok   with both window knobs unset the two calls write nothing (the shipped cage)
+    
+    4. the metadata pin
+      ok   rl_env.TASKS_MD5 == tasks.py (5e8c7cd6) - the direct env can start
+    
+    P111 cage compliance selftest: PASS
+
+### P112 three-jaw ring: PASS (0.19s)
+$ python3 scripts/258_p112_cage3_selftest.py
+    1. two kinds, one module: the geometry of each, and the default off
+      ok   `CAGE_KINDS` is (cage4, cage3) (('cage4', 'cage3'))
+      ok   unset `FRUIT_GRIPPER_KIND` resolves `openarm`
+      ok   and `cage_enabled()` is False (the shipped path)
+      ok   cage3's pads are at 3 x 120 deg
+      ok   cage4's pads are unchanged at 4 x 90 deg
+      ok   cage3's plate is 20.0 mm wide (20.0)
+      ok   cage4's plate width is the module's own constant (bit-for-bit)
+      ok   20.0 mm <= the 120 deg neighbour bound at the closed aperture (22.5 mm) -> the plates cannot collide
+      ok   the plate length stays the measured 60.0 mm (the palm bound, P107)
+      ok   the tool offset is still DISTAL_Z - LIP = 70.0 mm
+    
+    2. the aperture law: widest for four pads, the narrowest OWN axis for three
+      ok   cage4 returns the widest horizontal extent (60.00 mm)
+      ok   cage3 returns the min over its own three pad axes (60.00 mm)
+      ok   and that is <= the widest (60.00 <= 60.00 mm): the ring can load all three
+      ok   laid on its side the kiwi reads 62.3-67.9 mm across three axes (anisotropic)
+      ok   cage3 takes the narrow axis (62.33 mm)
+      ok   and it is *below* cage4's widest (62.33 < 67.93 mm): only the three-pad ring can close onto all its pads
+    
+    3. the wiring: one law hook, and the ring predicate is a *set*
+      ok   exactly one `aperture_extent` hook in `tasks.py`
+      ok   the hook precedes the shipped widest-extent loop (it can only override)
+      ok   `RIGID_TOOL_HANDS` is built from `CAGE_KINDS`
+      ok   every ring predicate reads `CAGE_KINDS` (6 sites)
+      ok   no site still compares against the single `CAGE_KIND`
+      ok   `apertures()` has the three-pad branch (the inscribed diameter)
+    
+    4. the probe and the phase's own record
+      ok   the PREREG is at its pinned md5 (77720306)
+      ok   the fixture's report exists (the phase's decisive test)
+    
+    PASS: P112 three-jaw ring (the kind, the aperture law, the wiring)
+
+### P114 scenario descriptor: PASS (0.08s)
+$ python3 scripts/259_p114_scenario_selftest.py
+    [fruit] [scenario] shipped_twoline: 2 destination(s) [0, 1], stations {'left': 0.0, 'right': -0.1}, source /home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/configs/scenarios/shipped_twoline.json
+    [fruit] [scenario] shipped_twoline: 2 destination(s) [0, 1], stations {'left': 0.0, 'right': -0.1}, source /tmp/p114_m1j3p3m_/moved.json
+    P114 scenario/instruction selftest: PASS (39 checks)
+
+### P114 sort instruction: PASS (0.07s)
+$ python3 scripts/260_p114_instruction_selftest.py
+    P114 instruction selftest: PASS (19 checks)
+
+### P115 instruction and: PASS (0.07s)
+$ python3 scripts/261_p115_instruction_selftest.py
+    P115 instruction selftest: PASS (63 checks)
+
+### P116 sort plan: PASS (0.23s)
+$ bash -c 'python3' scripts/262_sort_plan.py --instruction configs/instructions/owner_a_left_apples_right.txt | grep -q 'OVERLAP: 1 pair' && 'python3' scripts/262_sort_plan.py --instruction configs/instructions/owner_precise.txt | grep -q 'OVERLAP: none' && 'python3' scripts/262_sort_plan.py --instruction configs/instructions/owner_a_left_apples_right.txt --strict-overlap > /dev/null; test $? -eq 1
+
+### P121 direct env sort: PASS (0.08s)
+$ python3 scripts/263_p121_env_sort_selftest.py
+    P121 direct-env sort selftest: PASS (31 checks)
+
+### P123 output lanes: PASS (3.37s)
+$ python3 scripts/264_p123_output_lanes_selftest.py
+    == P123 output lanes: the unset path, the third body, the census ==
+      PASS  2 lane is the default: lanes=2
+      PASS  the shipped layout has two bodies
+      PASS  the shipped drop points are the shipped expression: ((0.43, 0.5), (0.43, -0.5))
+      PASS  lane 0 centre/size/place/tray are the shipped scalars
+      PASS  lane 0 leg x are the shipped derived pair
+      PASS  lane 1 centre/size/place/tray are the shipped scalars
+      PASS  lane 1 leg x are the shipped derived pair
+      PASS  the generalised tests equal the pre-P123 expressions: 0 mismatches over 110 x 91 x 30 points x 3 tests
+      PASS  scene_provenance records the two shipped lanes
+      PASS  the two-lane manifest keeps output_belt.inboard_edge_y (0.425)
+      PASS  3 lane layout has three bodies
+      PASS  the third lane is the measured geometry: (0.84, -0.3375, 1.3250000000000002) size (0.72, 0.11499999999999999, 0.05) place (0.48, -0.3)
+      PASS  the third lane's side is -y
+      PASS  the third lane's belt is downstream of the first place transit: upstream end 0.480
+      PASS  the -Y tray narrows to 0.20 m for the third body
+      PASS  the second lane's own tray and place point do not move
+      PASS  the third lane gets its own drop point: ((0.43, 0.5), (0.43, -0.5), (0.48, -0.3))
+      PASS  lanes 0/1 belt have air between them: +850 mm
+      PASS  lanes 0/1 tray have air between them: +830 mm
+      PASS  lanes 0/2 belt have air between them: +705 mm
+      PASS  lanes 0/2 tray have air between them: +640 mm
+      PASS  lanes 1/2 belt have air between them: +30 mm
+      PASS  lanes 1/2 tray have air between them: +50 mm
+      PASS  the 1/2 chutes do not touch: +16 mm
+      PASS  the delivered point is on the third slab with >= 3 sd on every axis: delivered (+0.528,-0.336) margins [48, 672, 59, 56] mm = [8.0, 112.0, 7.4, 7.0] sd
+      PASS  the payload is upstream of the third body where it crosses its band: x 0.469 (the shipped transit, radius included) vs belt start 0.480
+      PASS  the third belt is downstream of the supplied fruit's x band: 0.480 >= 0.413
+      PASS  on_output_belt names the lane and agrees with the boolean
+      PASS  output_tray_of names the tray and agrees with on_output_tray: the 3rd tray, the narrowed -Y tray, the +Y tray and the 70 mm gap
+      PASS  the two-lane census is the shipped boolean
+      PASS  the narrowed -Y tray still holds the shipped lane's delivered point
+      PASS  the layout is one method
+      PASS  the builder takes a lane and the scene iterates the layout
+      PASS  the tray census is the lane list, not a scalar
+    
+    34/34 checks passed
+
+### motion budgets: SKIP
+    no run log given; pass one to judge a pick-and-place run:
+      scripts/accept.sh            # produces logs/accept.log
+      scripts/selfcheck.sh logs/accept.log
+    this is not a failure: the run it judges is a separate ten-attempt command
+
+### summary
+    failed=0 skipped=1 total=51.07s

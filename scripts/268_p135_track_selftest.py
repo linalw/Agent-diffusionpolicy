@@ -197,7 +197,11 @@ def test_off_path():
     check(default("FRUIT_BELT_WAVE_AMP", "0.0"), "the belt wave defaults to zero")
     check(default("FRUIT_WRIST_CAMERA", "0"), "the eye-in-hand camera defaults off")
     check(default("FRUIT_WRIST_LOOK", "0.12"),
-          "the wrist camera aims 12 cm past the jaw (at the jaw it loses the fruit)")
+          "the wrist camera aims 12 cm down the tool axis (the measured-best mount)")
+    check(default("FRUIT_WRIST_UPSTREAM", "0.0"),
+          "the upstream tilt is 0 (at 0.16 m it reads 1-6 frames per attempt)")
+    check(default("FRUIT_WRIST_SWITCH", "0.0"),
+          "the head/wrist handover is off by default (wrist only)")
     check('offset_wrist_m' in open(
         os.path.join(ROOT, "configs", "perception_calibration.json"),
         encoding="utf-8",

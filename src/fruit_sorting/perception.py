@@ -239,7 +239,8 @@ class FruitPerception:
     def __init__(self, scene, cfg, hz: float = 30.0, stride: int = 2,
                  trim: float = 2.5, min_pixels: int = 60,
                  full_pixels: int = 120, shape: str = "sphere",
-                 bias=(0.0, 0.0, 0.0), bias_wrist=(0.0, 0.0, 0.0)):
+                 bias=(0.0, 0.0, 0.0), bias_wrist=(0.0, 0.0, 0.0),
+                 clip_margin: int = 2):
         self.scene = scene
         self.camera = CameraModel.from_scene(scene, cfg)
         self.hz = max(1.0, float(hz))
@@ -251,6 +252,8 @@ class FruitPerception:
         #: frame and letting the filter predict is strictly better than feeding
         #: it a sliver - see `measure`'s contract.
         self.min_pixels = max(8, int(min_pixels))
+        #: A mask this close to any border is truncated (see `measure`).
+        self.clip_margin = max(0, int(clip_margin))
         #: A cap at least this big is trusted to set the *radius*; smaller caps
         #: only locate the centre, with the radius held (see the fit below).
         self.full_pixels = max(self.min_pixels, int(full_pixels))
@@ -373,6 +376,25 @@ class FruitPerception:
                 self.failures += 1
                 self.last_error = "target not in frame"
                 return None
+            if self.clip_margin > 0:
+                # A mask that touches the image border is a *truncated* view: the
+                # points still lie on the fruit, so the fit's rms and radius look
+                # perfect, but its centre is biased toward the visible part - at
+                # 0.11 m a clipped wrist frame reads 3309 px with a 0.21 mm rms
+                # and a 24-32 mm centre error. Refuse it and let the filter
+                # predict; that is exactly the window the catch-up covers.
+                margin = int(self.clip_margin)
+                clipped = bool(
+                    mask[:margin].any()
+                    or mask[-margin:].any()
+                    or mask[:, :margin].any()
+                    or mask[:, -margin:].any()
+                )
+                if clipped:
+                    self.failures += 1
+                    self.rejected += 1
+                    self.last_error = "clipped by the frame border"
+                    return None
             pixels = np.argwhere(mask)[:, ::-1]  # (u, v)
             if len(pixels) < self.min_pixels:
                 self.failures += 1
@@ -519,6 +541,7 @@ def perception_from_env(scene, cfg) -> FruitPerception:
         trim=float(os.environ.get("FRUIT_PERCEPTION_TRIM", "2.5")),
         min_pixels=int(os.environ.get("FRUIT_PERCEPTION_MIN_PX", "60")),
         full_pixels=int(os.environ.get("FRUIT_PERCEPTION_FULL_PX", "120")),
+        clip_margin=int(os.environ.get("FRUIT_PERCEPTION_CLIP_PX", "2")),
         shape=os.environ.get("FRUIT_PERCEPTION_SHAPE", "sphere"),
         bias=_calibration_bias("head"),
         bias_wrist=_calibration_bias("wrist"),

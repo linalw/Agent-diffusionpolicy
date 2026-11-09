@@ -6880,13 +6880,22 @@ anchor** (correct against `p_now`, not the descent's first frame). **The last
 three are real estimator improvements and are kept**, and the phase's working
 results **re-check on them** (`logs/p135/recheck/`): the belt-wave `W` cell reads
 **12/13/11 ticks at 5.4/5.8/6.0 mm and 2/3 placed** (was 17/16/16 and 0/3) and the
-head loop **16/5 ticks** (was 14/22), both with the zero timeouts standing. What
-remains for the wrist is geometric: a **tilted mount** that puts the corridor and
-the jaw in one frame at a useful magnification, then the lens's distortion
-coefficients; a phase-switched aim is **not** the fix (the failure is in the
-descent's aim, which the corridor aim already serves, and the catch-up never
-consults the camera for its break test). The head camera plus the estimator stays
-the working loop, and with the knob unset **no camera is authored at all**. **No-harm**: `scripts/accept.sh`
+head loop **16/5 ticks** (was 14/22), both with the zero timeouts standing. **A second pass found that the mount model itself was wrong**: `look*axis` is the
+**tool** axis, so "12 cm past the jaw" is 12 cm **below the hand**, not up the
+conveyor - and the fruit arrives from the belt, 10-30 cm upstream and 7 cm lower.
+That is why the 12 cm mount measures beautifully when it sees anything and only
+sees the fruit when it is close: **the wrist is a contact-phase sensor, not an
+approach one**. Two consequences, both kept: a mask that touches the image border
+is **refused** (`FRUIT_PERCEPTION_CLIP_PX` 2) because a *truncated* cap reads a
+0.21 mm rms, a correct diameter and a **24-32 mm** centre error (3309 px at
+0.11 m); and tilting upstream (`FRUIT_WRIST_UPSTREAM`) is a **measured negative**
+(0.16 m reads **1-6 frames per attempt** - the aim then sits above the belt). A
+fixed mount cannot be both far upstream and low without a real tilt, which is what
+a bracket buys. The head keeps the approach (it sees the whole belt) and the wrist
+the contact; the handover-by-distance knob (`FRUIT_WRIST_SWITCH`) exists and its
+one cell read attempt 0 **11 ticks at 5.9 mm** (the best catch in the project) with
+attempt 1 diverging - **not adopted**. The head camera plus the estimator stays the
+working loop, and with the knob unset **no camera is authored at all**. **No-harm**: `scripts/accept.sh`
 with every knob unset is **8/10 = 80 %, 9.0 s/attempt, `fingerprint: matches`,
 `190: PASS`**, and its **421 `[fruit]` lines are 421/421 byte-identical** to
 `logs/p127/accept_restored.log` (`logs/p135/accept_final.log`, re-measured on the
@@ -6899,9 +6908,9 @@ clamp, the calibration ratio, the synthetic sphere, every off default); `106` OK
 `configs/motion_reference.json` = `..._twoline.json` = **`30fb99f8`** and
 `..._single.json` = **`8952c320`** stand. Pins: `tracking.py`
 **`970e2139`** (new: the estimator, the belt prior, the measurement gate), `perception.py` **`72dff00e`** (new), `tasks.py`
-**`7040fa2e`**, `fruits.py` **`ad490ff0`** (`FruitSpawner.impulse`), `rl_env.py`
+**`5e8c7cd6`**, `fruits.py` **`ad490ff0`** (`FruitSpawner.impulse`), `rl_env.py`
 **`1c934199`** (the `TASKS_MD5` follow), `scripts/268_p135_track_selftest.py`
-**`aa26a529`** (33 checks), `scripts/selfcheck.sh` **`d57ef4ab`**, `configs/perception_calibration.json`
+**`aa26a529`** (35 checks), `scripts/selfcheck.sh` **`d57ef4ab`**, `configs/perception_calibration.json`
 **`963b5522`** (new; the depth path only - the scripted line never reads it),
 `scene.py` **`5ba275ff`** (the wrist-camera author + `set_wrist_pose`), ckpt `moe_v13s`
 `61da390a`; `logs/p135/PREREG.md` **`0250fdc7`**. Evidence `logs/p135/`,

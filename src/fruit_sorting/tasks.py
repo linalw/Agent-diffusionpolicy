@@ -2978,7 +2978,22 @@ class PickAndPlaceTask:
         #: is 10 cm upstream at the descent's start, and a camera aimed at the
         #: grasp point loses it (measured: 94-402 px, 729 refusals; aimed ahead
         #: 1684-3241 px, 2-3 refusals and a 0.9 mm diameter error).
+        #: Aim 12 cm down the tool axis - at the belt under the hand. That is the
+        #: measured-best mount (2-3 refusals, 3.54 mm / 0.90 mm), and it makes the
+        #: wrist a **contact-phase** sensor: the fruit becomes visible when it is
+        #: within ~15 cm of the jaw. Tilting further upstream (0.16 m) was tried
+        #: and reads 1-6 frames per attempt - the aim then sits *above* the belt
+        #: while the fruit rides 7 cm lower.
         self._wrist_look = float(os.environ.get("FRUIT_WRIST_LOOK", "0.12"))
+        #: How far **upstream** (+y) the eye is tilted [m]. Measured: 0.16 m
+        #: reads 1-6 frames per attempt (the aim sits above the belt), so 0 is the
+        #: default; the term stays for the tilted-bracket experiment.
+        self._wrist_upstream = float(os.environ.get("FRUIT_WRIST_UPSTREAM", "0.0"))
+        #: Head -> wrist handover radius [m]: 0 = wrist only, else the head camera
+        #: measures until the fruit is this close to the jaw.
+        self._wrist_switch = max(
+            0.0, float(os.environ.get("FRUIT_WRIST_SWITCH", "0.0"))
+        )
         #: `estimate` = point the eye at the fruit's estimated centre (one aim for
         #: the whole attempt); `fixed` = the old fixed point along the axis.
         #: `fixed` is the default: aiming at the *estimate* closes a feedback loop
@@ -10296,6 +10311,26 @@ class PickAndPlaceTask:
         arm = self.arms.get(getattr(self, "current_arm", "") or "left")
         if arm is None:
             return perception.measure(self, sample, force=force)
+        # Two cameras, two jobs. The head sees the whole belt - it is the sensor
+        # that can *find* the fruit 20-30 cm upstream - and the wrist sees the
+        # grasp point at 10-18 cm with the best accuracy in the project. So the
+        # handover is by distance: a switch radius of 0 means "wrist only" (the
+        # phase-1 cells), anything larger keeps the head until the fruit is that
+        # close to the jaw.
+        if self._wrist_switch > 0.0:
+            tracker = self._tracker_state
+            near = (
+                tracker is not None
+                and float(
+                    np.linalg.norm(
+                        np.asarray(tracker.position, dtype=float)
+                        - np.asarray(arm.jaw_centre(), dtype=float)
+                    )
+                )
+                <= self._wrist_switch
+            )
+            if not near:
+                return perception.measure(self, sample, force=force)
         axis = np.asarray(arm.approach_axis(), dtype=float)
         jaw = np.asarray(arm.jaw_centre(), dtype=float)
         rot = self._quat_matrix(np.asarray(arm.tcp_pose()[1], dtype=float))
@@ -10311,13 +10346,24 @@ class PickAndPlaceTask:
         # when the pads close, so a *fixed* aim loses one of them (measured: aimed
         # at the grasp point 729 refusals, aimed 12 cm ahead the contact leaves the
         # frame). `fixed` keeps the old behaviour for the A/B.
+        # The approach axis points *down* the fingers. The fruit does not arrive
+        # from below - it comes along the belt, and at the descent's start it is
+        # 10-30 cm **upstream** (+y). Aiming `look` metres along the tool axis
+        # therefore looks at the belt under the hand, which is why the wrist saw
+        # the fruit only when it was already close (and then clipped). The mount
+        # has to tilt upstream: `jaw + look*axis + upstream*+y`.
+        upstream = np.array([0.0, 1.0, 0.0])
         target = None
         if self._wrist_aim == "estimate":
             tracker = self._tracker_state
             if tracker is not None:
                 target = np.asarray(tracker.position, dtype=float)
         if target is None:
-            target = jaw + float(self._wrist_look) * axis
+            target = (
+                jaw
+                + float(self._wrist_look) * axis
+                + float(self._wrist_upstream) * upstream
+            )
         entry = getattr(self.scene, "wrist_cameras", {}).get(
             getattr(self, "current_arm", "") or "left"
         )
