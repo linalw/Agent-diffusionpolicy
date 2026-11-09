@@ -89,11 +89,15 @@ simulator's state** on the aim path.
 Two limits, measured, that a real installation has to design around:
 
 * **The hand occludes the target exactly when it matters.** As the descent
-  proceeds the mask shrinks 48 -> 22 px and the fit's z drifts 11 -> 44 mm; the
-  cap is too small to constrain the centre along the view axis. The perception
-  therefore **refuses** a frame below `FRUIT_PERCEPTION_MIN_PX` (60) and lets the
-  filter predict through the occlusion. A wrist camera or a second view is the
-  fix for the window itself.
+  proceeds the mask shrinks 48 -> 22 px; a *free* sphere fit then has no curvature
+  to work with and its centre drifts along the view axis (z error 11 -> 44 mm).
+  Two things fix it: the radius is a property of the fruit, not of the frame, so
+  once a full cap (`FRUIT_PERCEPTION_FULL_PX` 120) has measured it, a smaller cap
+  fits **only the centre with the radius held**; and a cap below
+  `FRUIT_PERCEPTION_MIN_PX` (60) is **refused** outright, with the estimator
+  predicting through the occlusion. A wrist camera or a second view is still the
+  fix for the window itself - the remaining error is 6 mm, half of it the
+  systematic `+y` bias below.
 * **The error is a systematic +y bias** (3.5-6.3 mm upstream) on a large fruit,
   and grows for a 30 mm fruit (9 mm): a sphere fit through an *ellipsoid's*
   visible cap displaces the centre along the long axis. That is a **calibration**

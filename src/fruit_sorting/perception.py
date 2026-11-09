@@ -109,6 +109,32 @@ class CameraModel:
         return cam @ self.rotation.T + self.translation
 
 
+def _fit_sphere_known_radius(points: np.ndarray, radius: float, centre0,
+                             iterations: int = 8):
+    """Least-squares centre with the radius **fixed** [m].
+
+    During the descent the hand occludes the fruit and the visible cap shrinks;
+    a free fit then has almost no curvature to work with and its centre drifts
+    *along the view axis* (measured: the z error grows 11 -> 44 mm as the mask
+    goes 48 -> 22 px). The radius does not change, so fixing it removes that
+    degree of freedom and the cap only has to locate the centre.
+    """
+    c = np.asarray(centre0, dtype=float).copy()
+    rms = float("nan")
+    for _ in range(max(1, int(iterations))):
+        delta = points - c
+        distance = np.maximum(np.linalg.norm(delta, axis=1), 1e-9)
+        residual = distance - float(radius)
+        jacobian = -delta / distance[:, None]
+        normal = jacobian.T @ jacobian + 1e-9 * np.eye(3)
+        step = np.linalg.solve(normal, -jacobian.T @ residual)
+        c = c + step
+        rms = float(np.sqrt(np.mean(residual ** 2)))
+        if float(np.linalg.norm(step)) < 1e-9:
+            break
+    return c, rms
+
+
 def _fit_sphere(points: np.ndarray, iterations: int = 3, trim: float = 2.5):
     """Least-squares sphere through `points`, with a trimmed refit.
 
@@ -148,7 +174,8 @@ class FruitPerception:
     """
 
     def __init__(self, scene, cfg, hz: float = 30.0, stride: int = 2,
-                 trim: float = 2.5, min_pixels: int = 60):
+                 trim: float = 2.5, min_pixels: int = 60,
+                 full_pixels: int = 120):
         self.scene = scene
         self.camera = CameraModel.from_scene(scene, cfg)
         self.hz = max(1.0, float(hz))
@@ -160,7 +187,12 @@ class FruitPerception:
         #: frame and letting the filter predict is strictly better than feeding
         #: it a sliver - see `measure`'s contract.
         self.min_pixels = max(8, int(min_pixels))
+        #: A cap at least this big is trusted to set the *radius*; smaller caps
+        #: only locate the centre, with the radius held (see the fit below).
+        self.full_pixels = max(self.min_pixels, int(full_pixels))
         self.last_radius = None
+        self.last_centre = None
+        self.fixed_fits = 0
         self.rejected = 0
         self.last_t = -1e9
         self.last_estimate = None
@@ -267,25 +299,39 @@ class FruitPerception:
                 self.failures += 1
                 self.last_error = "too few depth points"
                 return None
-            centre, radius, rms = _fit_sphere(points, trim=self.trim)
+            if (
+                self.last_radius is not None
+                and self.last_centre is not None
+                and len(points) < self.full_pixels
+            ):
+                # Partial view: the radius is a property of the fruit, not of the
+                # frame. Hold it and let the cap locate the centre only.
+                centre, rms = _fit_sphere_known_radius(
+                    points, self.last_radius, self.last_centre
+                )
+                radius = float(self.last_radius)
+                self.fixed_fits += 1
+            else:
+                centre, radius, rms = _fit_sphere(points, trim=self.trim)
+                if self.last_radius is not None and abs(
+                    radius - self.last_radius
+                ) > 0.25 * self.last_radius:
+                    # A *full* cap that fits a very different sphere is a
+                    # different object (or a badly segmented one): refuse it and
+                    # let the filter carry the state.
+                    self.failures += 1
+                    self.rejected += 1
+                    self.last_error = (
+                        f"radius jump {2 * radius * 1000:.1f} vs "
+                        f"{2 * self.last_radius * 1000:.1f} mm"
+                    )
+                    return None
+                self.last_radius = float(radius)
             if centre is None or not math.isfinite(radius) or radius <= 0.005:
                 self.failures += 1
                 self.last_error = "degenerate fit"
                 return None
-            if self.last_radius is not None and abs(radius - self.last_radius) > (
-                0.25 * self.last_radius
-            ):
-                # A cap that fits a very different sphere is a partial view, not
-                # a different fruit: refuse it and let the filter carry the state
-                # through the occlusion.
-                self.failures += 1
-                self.rejected += 1
-                self.last_error = (
-                    f"radius jump {2 * radius * 1000:.1f} vs "
-                    f"{2 * self.last_radius * 1000:.1f} mm"
-                )
-                return None
-            self.last_radius = float(radius)
+            self.last_centre = np.asarray(centre, dtype=float).copy()
             self.frames += 1
             self.last_estimate = {
                 "position": np.asarray(centre, dtype=float),
@@ -310,6 +356,7 @@ class FruitPerception:
             "frames": int(self.frames),
             "failures": int(self.failures),
             "rejected": int(self.rejected),
+            "fixed_fits": int(self.fixed_fits),
             "last_error": self.last_error,
             "fx": self.camera.intrinsics(
                 self.camera.height, self.camera.width
@@ -330,4 +377,5 @@ def perception_from_env(scene, cfg) -> FruitPerception:
         stride=int(os.environ.get("FRUIT_PERCEPTION_STRIDE", "2")),
         trim=float(os.environ.get("FRUIT_PERCEPTION_TRIM", "2.5")),
         min_pixels=int(os.environ.get("FRUIT_PERCEPTION_MIN_PX", "60")),
+        full_pixels=int(os.environ.get("FRUIT_PERCEPTION_FULL_PX", "120")),
     )

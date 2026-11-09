@@ -6825,8 +6825,17 @@ return `None`, not the cached estimate** (a cached position fed back is a lie th
 filter cannot see, and inside the period it is counted 4x). **The camera's own
 limit, measured**: the hand occludes the fruit exactly when it matters - the mask
 shrinks 48 -> 22 px and the fit's z drifts 11 -> 44 mm - so `_perceive` refuses a
-cap below `FRUIT_PERCEPTION_MIN_PX` (60) and the filter predicts through it; a
-wrist camera or a second view is the next spend. **The aim is decided late** on
+cap below `FRUIT_PERCEPTION_MIN_PX` (60) and the filter predicts through it;
+**and once a full cap (`FRUIT_PERCEPTION_FULL_PX` 120) has set the radius, a
+smaller cap fits only the centre with the radius held**
+(`_fit_sphere_known_radius`) - the radius is a property of the fruit, not of the
+frame, and freeing it on a 20-40 px sliver is what let z drift. The re-run reads
+**2/2 grasped, 1 placed**, catch 13/37 ticks at 5.7-6.0 mm, 64 accepted and 17
+refused frames, and the residual error is almost entirely a systematic **+y bias
+(median +6.0 mm, dx -0.15, dz +0.70)** whose magnitude depends on the fruit's
+shape (a 65 mm peach +3.5..+6.3, a 30 mm strawberry +7.4..+7.9) - so the closing
+item is a **reference-sphere calibration**, not a model change. A wrist camera
+or a second view is the next spend for the occlusion window itself. **The aim is decided late** on
 the depth path (`_track_late_grip`: the estimate's x/z at the descent start, the
 schedule's y), because the fruit is far upstream and often out of frame at the
 pre-pose - the fallback there is the **station's nominal pose**, never the rigid

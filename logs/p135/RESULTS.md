@@ -131,8 +131,47 @@ re-introduce:
   position fed back as a measurement is a lie the filter cannot see, and inside
   the camera period it is counted four times at 120 Hz.
 
+**The occlusion fix, measured.** Once a full cap (`FRUIT_PERCEPTION_FULL_PX` 120)
+has set the fruit's radius, a smaller cap fits **only the centre with the radius
+held** (`_fit_sphere_known_radius`: Gauss-Newton on `|p-c| = r`). The radius is a
+property of the fruit, not of the frame; freeing it on a 20-40 px sliver is what
+let the z drift. Re-run of the same in-loop cell
+(`perception/inloop8.log`): **2/2 grasped, 1 placed**, catch 13 and 37 ticks at
+5.7-6.0 mm, 64 accepted frames and 17 refused, filter error 5.5/6.6 mm - the
+residual error is now almost entirely the systematic **+y bias (median +6.0 mm,
+dx -0.15, dz +0.70)**, i.e. the ellipsoid's cap, not the fit's conditioning.
+
+**The remaining perception item is calibration, not modelling.** The offset is
+systematic and depends on the fruit's shape (a 65 mm peach +3.5..+6.3 mm, a 30 mm
+strawberry +7.4..+7.9), so a single constant is not the fix: the bench that would
+close it is a **reference sphere at the station** (a known ball, the way a real
+cell calibrates a wrist camera), which the record does not yet have. Until then
+the module is a *measurement*, not a metrology instrument, and its 5-6 mm is the
+same order as the 6 mm catch tolerance - which is why the in-loop cells lean on
+the estimator (the velocity is exact, 0.117 vs 0.120).
+
 ## 6. What the tree does when the knobs are unset
 
 `FRUIT_TRACK` unset: no estimator, no callback, no perception, the catch-up reads
 the rigid body exactly as before, and `_step_sim` carries one bool test for each
 of the two instruments. §7 of the phase's guard list is the acceptance.
+
+## 7. The shipped two-line session runs it
+
+One 2-attempt smoke on the shipped cell (`FRUIT_BIARM`/`FRUIT_BIARM_TWOLINE`
+unset = both on, `logs/p135/twoline_try.log`), every tracking knob on, truth
+source:
+
+| attempt | arm | catch | outcome |
+|---|---|---|---|
+| 0 | right | 15 ticks, 5.8 mm, corr 1.4 mm | placed |
+| 1 | left | 200 ticks, 247.1 mm, corr 4.3 mm | never-held |
+
+The scheduler runs both arms' attempts through the tracker (the `[catch]` and
+`[track]` rows appear per arm), and under the nominal belt the correction is
+**1.4 and 4.3 mm** - the tracked path *is* the shipped path, as designed. The
+left attempt is the **left arm's known reach class** (the fruit ran past its
+downstream band and the catch-up saturated at 247 mm), not a tracker effect; the
+shipped cell's own left deficit is the record's (`logs/p60`, `logs/p79`). A
+2-attempt smoke is not a rate: the acceptance with the knobs unset is the shipped
+control (§6).
