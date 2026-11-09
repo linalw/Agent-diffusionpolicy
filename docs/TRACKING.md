@@ -125,15 +125,21 @@ Aimed at the grasp point the fruit - 10 cm upstream when the leg starts - leaves
 the frame; aimed forward the mask *grows* as the hand closes. That is the best
 measurement in the project (2.6x the head's diameter accuracy).
 
-It is **not yet a closed-loop sensor**: one attempt of two diverges in both runs
-(the hand drives through the fruit at 125.9 N and the filter then tracks a 6.4
-m/s object). The two candidate causes measured out - the per-fruit radius
-carry-over is real and fixed (`FruitPerception.reset()` per attempt), and the
-instance mask cannot select the wrong fruit (zero-padded prim names). The
-remaining hypothesis is the bracket: the approach needs the camera looking down
-the corridor, the contact needs it looking at the jaw, and one fixed aim loses
-one of them. Next: a tilted mount or a wider lens, then the lens-distortion
-calibration. The head camera plus the estimator stays the working loop.
+It is **not yet a closed-loop sensor**: attempt 0 is clean and attempt 1 diverges
+in every configuration tried - the hand drives through the fruit and the catch
+ends 0.3-3 m away. Eight variants are recorded in `logs/p135/RESULTS.md` §9:
+three aims (3 cm, 6 cm, 12 cm past the jaw), a wider lens, an aim that tracks the
+estimate (which is *worse* - the view and the estimate form a feedback loop), a
+belt-velocity prior, a measurement gate and a relative anchor. The last three are
+**real estimator improvements and are kept** (they also make the head loop faster:
+5 ticks on its second attempt), but they do not convert the wrist.
+
+What remains is geometric: a **tilted mount** that puts the approach corridor and
+the jaw in one frame at a useful magnification, then the lens's distortion
+coefficients. A phase-switched aim is **not** the fix - the failure is in the
+descent's aim, which the corridor aim already serves, and the catch-up never
+consults the camera for its break test. The head camera plus the estimator stays
+the working loop.
 
 ## 4. What is a tracker *not* for
 

@@ -2946,6 +2946,18 @@ class PickAndPlaceTask:
         #: the `[catch]` row's tick count.
         self._track_diag = os.environ.get("FRUIT_TRACK_DIAG", "0") == "1"
         self._track_config = track_config_from_env(os.environ, self._track_source)
+        #: Velocity relaxation time constant toward the belt's own speed [s];
+        #: 0 disables the prior. 0.3 s follows a real manoeuvre inside a third of
+        #: a second while damping the velocity a sparse camera would invent.
+        self._track_belt_prior = max(
+            0.0, float(os.environ.get("FRUIT_TRACK_BELT_TAU", "0.3"))
+        )
+        #: Measurement gate [m] (`FRUIT_TRACK_GATE`, 0 disables). At 120 Hz the
+        #: predictor is good to millimetres, so a 40 mm innovation is not the
+        #: fruit: it is another object in the mask. Three consecutive rejects
+        #: re-open the gate (`FruitTracker.GATE_MISSES`), so a real strike is
+        #: followed after three frames.
+        self._track_gate = max(0.0, float(os.environ.get("FRUIT_TRACK_GATE", "0.04")))
         #: Let the close law read the measured diameter (default off; see
         #: `_perceived_diameter`).
         self._perception_close = (
@@ -2967,6 +2979,13 @@ class PickAndPlaceTask:
         #: grasp point loses it (measured: 94-402 px, 729 refusals; aimed ahead
         #: 1684-3241 px, 2-3 refusals and a 0.9 mm diameter error).
         self._wrist_look = float(os.environ.get("FRUIT_WRIST_LOOK", "0.12"))
+        #: `estimate` = point the eye at the fruit's estimated centre (one aim for
+        #: the whole attempt); `fixed` = the old fixed point along the axis.
+        #: `fixed` is the default: aiming at the *estimate* closes a feedback loop
+        #: (the view decides the estimate, the estimate decides the view) and was
+        #: measured worse - 165 refusals, a 1.35 m/s phantom and no tracked
+        #: descent at all (`logs/p135/perception/wrist_aim1.log`).
+        self._wrist_aim = os.environ.get("FRUIT_WRIST_AIM", "fixed").strip().lower()
         self._track_rows_all: list[dict] = []
         if self._track_source == "depth" and not self._track_on:
             raise ValueError(
@@ -10049,6 +10068,12 @@ class PickAndPlaceTask:
         measurement = self._track_measure(sample, force=anchor)
         now = self._track_now()
         tracker = self._tracker_state
+        if tracker is not None and self._track_belt_prior > 0.0:
+            # The prior is the *live* belt: under a varying conveyor the speed
+            # the filter relaxes to has to vary with it (a frozen prior would
+            # fight the very motion the prediction gate is there to follow).
+            speed = abs(self._belt_speed_estimate())
+            tracker.belt_velocity = np.array([0.0, -speed, 0.0])
         if measurement is None:
             # A camera frame was skipped (or the target was not in it). Run the
             # filter forward to `now` and keep its prediction - the whole point of
@@ -10068,7 +10093,16 @@ class PickAndPlaceTask:
             return tracker
         position, velocity = measurement
         if tracker is None:
-            tracker = FruitTracker(self._track_config)
+            speed = abs(self._belt_speed_estimate())
+            belt_prior = (
+                np.array([0.0, -speed, 0.0]) if self._track_belt_prior > 0.0 else None
+            )
+            tracker = FruitTracker(
+                self._track_config,
+                belt_velocity=belt_prior,
+                tau=self._track_belt_prior,
+                gate=self._track_gate,
+            )
             tracker.reset(position, now, velocity)
             self._tracker_state = tracker
         else:
@@ -10118,12 +10152,17 @@ class PickAndPlaceTask:
             # No filter, or the descent never anchored the conveyor model (a
             # skipped first frame): the shipped aim is the honest answer.
             return np.asarray(grip, dtype=float)
-        elapsed = self._track_now() - self._track_t0
+        # Anchor on the **current estimate**, not on the descent's first frame:
+        # the correction is `prediction(t_go) - (p_now + belt_v*t_go)`, which is
+        # exactly zero under the conveyor model for any anchor, and a bad first
+        # frame (a camera's first look is ungated) then washes out as the filter
+        # converges instead of becoming a constant offset that the 80 mm clamp
+        # hides (`logs/p135/perception/wrist_prior.log`).
         delta = track_correction(
             tracker,
-            self._track_p0,
+            tracker.position,
             self._track_belt_v,
-            elapsed,
+            0.0,
             t_remaining,
             self._track_corr_max,
         )
@@ -10187,7 +10226,7 @@ class PickAndPlaceTask:
             f"err={self._track_err * 1000:.1f}mm "
             f"v={speed:.4f}m/s "
             f"a={float(np.linalg.norm(tracker.acceleration)):.3f}m/s2 "
-            f"man={int(tracker.manoeuvres)} "
+            f"man={int(tracker.manoeuvres)} gate={int(tracker.gated)} "
             f"corr_max={max(self._track_aim_rows, default=0.0) * 1000:.1f}mm "
             f"corr_n={len(self._track_aim_rows)}"
         )
@@ -10266,7 +10305,19 @@ class PickAndPlaceTask:
             - float(self._wrist_back) * axis
             + float(self._wrist_side) * side
         )
-        target = jaw + float(self._wrist_look) * axis
+        # Where the eye points. `estimate` (the default) aims the camera at the
+        # fruit's own estimated centre, which is the one aim that serves both
+        # phases: the fruit is 10 cm upstream when the leg starts and at the jaw
+        # when the pads close, so a *fixed* aim loses one of them (measured: aimed
+        # at the grasp point 729 refusals, aimed 12 cm ahead the contact leaves the
+        # frame). `fixed` keeps the old behaviour for the A/B.
+        target = None
+        if self._wrist_aim == "estimate":
+            tracker = self._tracker_state
+            if tracker is not None:
+                target = np.asarray(tracker.position, dtype=float)
+        if target is None:
+            target = jaw + float(self._wrist_look) * axis
         entry = getattr(self.scene, "wrist_cameras", {}).get(
             getattr(self, "current_arm", "") or "left"
         )

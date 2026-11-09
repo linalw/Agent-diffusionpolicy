@@ -48,6 +48,7 @@ precision, which is what keeps the no-harm replays clean.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 import numpy as np
@@ -87,8 +88,31 @@ class FruitTracker:
     from truth or from a rendered point cloud without changing the caller.
     """
 
-    def __init__(self, config: TrackConfig | None = None) -> None:
+    def __init__(self, config: TrackConfig | None = None, belt_velocity=None,
+                 tau: float = 0.0, gate: float = 0.0) -> None:
         self.cfg = config or TrackConfig()
+        #: The conveyor **prior**: the fruit's velocity relaxes to the belt's with
+        #: time constant `tau` unless the measurements say otherwise. This is what
+        #: keeps a sparse measurement stream (a camera that refuses 40 % of its
+        #: frames) from inventing a velocity: measured without it, the wrist
+        #: camera's 45 % refusals drove the estimate to 0.17-0.24 m/s against the
+        #: belt's 0.12, and a 0.12 m/s error over the 0.7 s descent is the whole
+        #: 80 mm correction clamp - the hand then aims 80 mm off and drives
+        #: through the fruit (125.9 N). With it the estimate stays on the belt
+        #: and a real manoeuvre is still followed in ~tau.
+        self.belt_velocity = (
+            None if belt_velocity is None else np.asarray(belt_velocity, dtype=float)
+        )
+        self.tau = float(tau)
+        #: Measurement gate [m]: an innovation larger than this is not a
+        #: measurement, it is an outlier (another object in the mask, a sticker,
+        #: the fingers). A *runner* of `GATE_MISSES` consecutive rejects means the
+        #: fruit really did move - the gate then opens and the filter re-acquires,
+        #: so a strike is followed after three frames instead of never.
+        self.gate = float(gate)
+        self.gate_misses = 0
+        self.gated = 0
+        self.GATE_MISSES = 3
         self.x = np.zeros(9, dtype=float)
         self.P = np.eye(9, dtype=float) * 1.0
         self.t = 0.0
@@ -156,6 +180,11 @@ class FruitTracker:
         dt = float(dt)
         if dt <= 0.0:
             return self.x[0:3].copy()
+        if self.belt_velocity is not None and self.tau > 0.0:
+            # Mean-reverting velocity: the belt is the model, a departure from it
+            # is a manoeuvre that has to keep being measured to survive.
+            alpha = 1.0 - math.exp(-dt / self.tau)
+            self.x[3:6] = self.x[3:6] + (self.belt_velocity - self.x[3:6]) * alpha
         F = self._transition(dt)
         self.x = F @ self.x
         self.P = F @ self.P @ F.T + self._process(dt)
@@ -177,6 +206,15 @@ class FruitTracker:
         H[0:3, 0:3] = np.eye(3)
         R = _eye3(self.cfg.sigma_z ** 2)
         innovation = z - H @ self.x
+        if self.gate > 0.0 and float(np.linalg.norm(innovation)) > self.gate:
+            self.gate_misses += 1
+            if self.gate_misses < self.GATE_MISSES:
+                self.gated += 1
+                return float(np.linalg.norm(innovation))
+            # Three in a row: the fruit moved, not the mask. Re-acquire.
+            self.gate_misses = 0
+        else:
+            self.gate_misses = 0
         S = H @ self.P @ H.T + R
         # NIS: how many measurement sigmas the innovation is, in 3-D.
         nis = float(innovation @ np.linalg.solve(S, innovation))

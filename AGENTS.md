@@ -6869,10 +6869,24 @@ out - the per-fruit radius carry-over is real and **fixed**
 (`FruitPerception.reset()` at every attempt), and the instance mask cannot select
 the wrong fruit (zero-padded `Fruit_%02d` names) - so the remaining hypothesis is
 the **bracket**: the approach needs the camera down the corridor, the contact
-needs it at the jaw, and one fixed aim loses one of them. Next: a tilted mount or
-a wider lens, then the 96-degree lens's distortion coefficients. The head camera
-plus the estimator stays the working loop, and with the knob unset **no camera is
-authored at all**. **No-harm**: `scripts/accept.sh`
+needs it at the jaw, and one fixed aim loses one of them. **Eight variants are recorded** (`logs/p135/RESULTS.md` §9): three aims (3 cm,
+6 cm, 12 cm past the jaw), the 114-degree lens, an aim that tracks the estimate
+(**worse** - the view and the estimate form a feedback loop: 165 refusals, a 1.35
+m/s phantom, `corr_n=0`), a **belt-velocity prior** (`FRUIT_TRACK_BELT_TAU`,
+0.3 s mean-reverting velocity: the wrist refuses ~45 % of frames, so a free
+velocity drifted 0.24 -> **0.137** m/s), a **measurement gate** (`FRUIT_TRACK_GATE`
+40 mm with a 3-strike re-open: tracker error 78 -> **27 mm**) and a **relative
+anchor** (correct against `p_now`, not the descent's first frame). **The last
+three are real estimator improvements and are kept**, and the phase's working
+results **re-check on them** (`logs/p135/recheck/`): the belt-wave `W` cell reads
+**12/13/11 ticks at 5.4/5.8/6.0 mm and 2/3 placed** (was 17/16/16 and 0/3) and the
+head loop **16/5 ticks** (was 14/22), both with the zero timeouts standing. What
+remains for the wrist is geometric: a **tilted mount** that puts the corridor and
+the jaw in one frame at a useful magnification, then the lens's distortion
+coefficients; a phase-switched aim is **not** the fix (the failure is in the
+descent's aim, which the corridor aim already serves, and the catch-up never
+consults the camera for its break test). The head camera plus the estimator stays
+the working loop, and with the knob unset **no camera is authored at all**. **No-harm**: `scripts/accept.sh`
 with every knob unset is **8/10 = 80 %, 9.0 s/attempt, `fingerprint: matches`,
 `190: PASS`**, and its **421 `[fruit]` lines are 421/421 byte-identical** to
 `logs/p127/accept_restored.log` (`logs/p135/accept_final.log`, re-measured on the
@@ -6883,8 +6897,8 @@ clamp, the calibration ratio, the synthetic sphere, every off default); `106` OK
 `107` PASS (21 checks). **Re-baseline: none** - nothing shipped,
 `configs/motion_reference.json` = `..._twoline.json` = **`30fb99f8`** and
 `..._single.json` = **`8952c320`** stand. Pins: `tracking.py`
-**`f6870bcc`** (new), `perception.py` **`72dff00e`** (new), `tasks.py`
-**`2836faad`**, `fruits.py` **`ad490ff0`** (`FruitSpawner.impulse`), `rl_env.py`
+**`970e2139`** (new: the estimator, the belt prior, the measurement gate), `perception.py` **`72dff00e`** (new), `tasks.py`
+**`7040fa2e`**, `fruits.py` **`ad490ff0`** (`FruitSpawner.impulse`), `rl_env.py`
 **`1c934199`** (the `TASKS_MD5` follow), `scripts/268_p135_track_selftest.py`
 **`aa26a529`** (33 checks), `scripts/selfcheck.sh` **`d57ef4ab`**, `configs/perception_calibration.json`
 **`963b5522`** (new; the depth path only - the scripted line never reads it),

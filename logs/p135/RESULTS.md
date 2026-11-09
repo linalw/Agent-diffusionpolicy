@@ -241,3 +241,50 @@ off-centre, and while the forward aim happens to centre the fruit, a real
 installation needs the coefficients. The head camera plus the estimator remains
 the working in-loop combination (§5-§6) and the shipped path is untouched: with
 `FRUIT_WRIST_CAMERA` unset no camera is authored at all.
+
+## 9. The wrist camera, tried in the owner's order
+
+Everything below is the wrist camera in the loop (`FRUIT_TRACK_SOURCE=depth
+FRUIT_WRIST_CAMERA=1 FRUIT_DESCENT_TRACK=1 FRUIT_TRACK_WAIT=1`), 2 attempts, seed
+5, unless it says otherwise. **Attempt 0 is clean every time; attempt 1 diverges
+every time** - so the endpoint is "does attempt 1 survive", and it is a
+`safety`-style binary, not a rate.
+
+| # | what was tried | result | what it taught |
+|---|---|---|---|
+| 1 | aim 3 cm past the jaw (at the grasp point) | 94-402 px, **729 refusals**, 7.7 mm / 5.8 mm | the fruit is 10 cm upstream when the leg starts: a camera aimed at the jaw loses the approach |
+| 2 | **aim 12 cm past the jaw** | **1684-3241 px, 2-3 refusals, 3.54 mm / 0.90 mm** | the best sensor in the project - and still 1/2 in the loop |
+| 3 | **wider lens** (114 deg, aperture 0.050) | 1/2; attempt 0 28 ticks, attempt 1 200 ticks / 301 mm | framing is not the binding term |
+| 4 | **aim at the estimate** (eye tracks its own target) | **worse**: 165 refusals, a 1.35 m/s phantom, `corr_n=0` | a closed feedback loop: the view decides the estimate and the estimate decides the view |
+| 5 | **mid aim** (6 cm past the jaw) | 1/2; attempt 0 18 ticks, attempt 1 200 ticks / 323 mm | no single fixed aim serves both phases |
+| 6 | **belt-velocity prior** (`FRUIT_TRACK_BELT_TAU` 0.3 s) | velocity 0.24 -> **0.137** m/s; still 1/2 | the wrist refuses ~45 % of frames, so a free velocity drifts |
+| 7 | **measurement gate** (`FRUIT_TRACK_GATE` 40 mm, 3-strike re-open) | tracker error 78 -> **27 mm**; still 1/2 | the bad frames are outliers (median error 1.5 mm, p90 31.7) |
+| 8 | **relative anchor** (correct against `p_now`, not the descent's first frame) | still 1/2 (320 mm) | a bad first frame no longer poisons the leg, but it was not the whole story |
+
+**Steps 6-8 are real improvements to the estimator itself, not wrist patches, and
+they are kept** (the phase's working results re-check on them, section 10).
+
+**What the wrist still needs** (named, measured, not built): the residual failure
+is an *aim* error on one attempt, and the fixes that remain are geometric - a
+tilted mount that puts the corridor and the jaw in one frame at a useful
+magnification, then the lens's distortion coefficients (the 96-degree lens used
+off-centre reads a 5 mm diameter error at the 3 cm aim). The phase-switched aim
+(item 2 of the owner's list) is **not** the fix: the failure is in the descent's
+aim, which the corridor aim already serves; the catch-up does not consult the
+camera for its break test.
+
+**Verdict: the wrist camera is the right sensor and the wrong bracket.** It stays
+opt-in; the head camera plus the estimator is the working loop.
+
+## 10. The estimator improvements re-check the working results
+
+`logs/p135/recheck/`, seed 5, one run per cell:
+
+| cell | before | after the prior/gate/relative anchor |
+|---|---|---|
+| belt wave 0.04/0.5 Hz, `W` (3 attempts) | 17/16/16 ticks, 0/3 placed | **12/13/11 ticks at 5.4/5.8/6.0 mm, 2/3 placed** |
+| head camera in the loop (2 attempts) | 14/22 ticks, err 3.4/1.3 mm | **16/5 ticks at 5.8/5.6 mm, err 3.4/2.3 mm** |
+
+The wave's zero timeouts stand and the placement count improves; the head loop
+gets faster on its second attempt. The three terms are in the *tracker* (default
+off), so the shipped path is untouched.
