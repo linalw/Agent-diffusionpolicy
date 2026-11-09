@@ -322,3 +322,40 @@ catch in the project) and attempt 1 diverged.
 refused - it would otherwise feed a 24-32 mm bias with a perfect rms), the
 upstream term with its measured negative, and the handover knob. The wrist stays
 opt-in and is **not** a working loop; the head camera plus the estimator is.
+
+## 12. The two-camera handover (option A): built, hardened, not validated
+
+Four hardenings were added to make a two-camera runner safe. All four are real and
+kept:
+
+1. **Workcell ROI** (`workcell_roi`, `FRUIT_PERCEPTION_ROI`): a fitted centre
+   outside the belt's own volume is refused. In the first handover cell a wrong
+   lock **0.8 m** from the fruit passed the innovation gate - the filter believed
+   it - and put the aim a metre away (`corr_n=1312`, `dx +574`). With the ROI the
+   lock is gone and the accepted frames read **4.83 mm**.
+2. **No blind descent** (`FRUIT_TRACK_MEAS_WAIT`, 240 ticks): the handover holds
+   for a first measurement instead of committing on the station's nominal x.
+3. **Band-centre fallback** instead of the station's x: the station sits at the
+   band's edge (0.34 of 0.20-0.36), so an unseen fruit is 140 mm away from it and
+   80 mm from the centre.
+4. **Border-clipped masks refused** (section 11).
+
+**The blocker is the simulator's multi-camera annotator, not the tracker.** With
+the wrist camera present and the head/wrist alternation armed, the second attempt
+of every cell accepts **zero** frames (`two_cam2/3/4`: 9-10 accepted on attempt 0,
+**0** on attempt 1, ~70 renders each), with and without a double `render()` call.
+The same second attempt accepts **51** frames when only the head camera exists,
+and the **wrist-only** cells accept 13 and 28-75 frames on their two attempts. So
+the sensor and its calibration are sound; what breaks is reading two render
+products' `instance_id_segmentation` in one attempt - the annotator this build
+already documents as fragile ("`instance_segmentation` segfaults headless; use
+`instance_id_segmentation`").
+
+**Verdict on A**: the handover is built and hardened, and it is **not validated**.
+Two exits, both cheap: (i) choose the camera **per attempt** rather than per frame
+(the wrist-only cells work; the head keeps the approach in its own cells), or
+(ii) give the wrist its own render product with an independent annotator graph.
+Neither is a tracking change.
+
+**What the cells did show**: attempt 0 of the handover reads **12-16 ticks at
+5.5 mm** - the best catch in the project - and the accepted frames are 4.8-5.0 mm.

@@ -145,8 +145,16 @@ rms and diameter with a 24-32 mm centre error; and tilting upstream
 (`FRUIT_WRIST_UPSTREAM`) is a measured negative (1-6 frames per attempt - the aim
 then sits above the belt). A fixed mount cannot be both far upstream and low
 without a real tilt, which is what a bracket would buy. The head camera keeps the
-approach and the wrist the contact; the handover-by-distance knob exists but is
-not adopted. The head camera plus the estimator stays the working loop.
+approach and the wrist the contact. The handover is **built and hardened** - a
+**workcell ROI** (a wrong lock 0.8 m from the fruit passed the innovation gate and
+put the aim a metre away), a **bounded wait for a first measurement** instead of a
+blind descent, the **band-centre fallback** and the **border-clip gate** - and it
+is **not validated**: with two render products alive the second attempt accepts
+**zero** frames, while the same attempt on the head-only tree accepts 51 and the
+wrist-only cells accept 13 and 28-75. The sensor is sound; this build's per-sensor
+`instance_id_segmentation` is not. Exit: choose the camera **per attempt**, or
+give the wrist its own render product. The head camera plus the estimator stays
+the working loop.
 
 ## 4. What is a tracker *not* for
 

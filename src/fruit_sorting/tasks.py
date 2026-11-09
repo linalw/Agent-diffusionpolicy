@@ -2958,6 +2958,11 @@ class PickAndPlaceTask:
         #: re-open the gate (`FruitTracker.GATE_MISSES`), so a real strike is
         #: followed after three frames.
         self._track_gate = max(0.0, float(os.environ.get("FRUIT_TRACK_GATE", "0.04")))
+        #: Ticks the handover may hold for a *first* measurement before falling
+        #: back to the speed gate [ticks]. 240 = 2 s at 120 Hz.
+        self._track_meas_wait = max(
+            0, int(os.environ.get("FRUIT_TRACK_MEAS_WAIT", "240"))
+        )
         #: Let the close law read the measured diameter (default off; see
         #: `_perceived_diameter`).
         self._perception_close = (
@@ -10815,9 +10820,15 @@ class PickAndPlaceTask:
                 belt_top = float(
                     getattr(belt, "belt_top", self.cfg.belt_center[2])
                 )
+                # The band's *centre*, not the station's x: the station sits at
+                # the band's edge (0.34 of 0.20-0.36), so an unseen fruit is 140
+                # mm away from it in the worst case and only 80 mm from the
+                # centre.
+                band_lo = float(getattr(self.cfg, "supply_x_min", self.cfg.pick_x))
+                band_hi = float(getattr(self.cfg, "supply_x_max", self.cfg.pick_x))
                 fruit = np.array(
                     [
-                        float(self.cfg.pick_x),
+                        0.5 * (band_lo + band_hi),
                         float(self.station_y_for(self.current_arm)),
                         belt_top + 0.03,
                     ]
@@ -14327,18 +14338,34 @@ class PickAndPlaceTask:
                         wait_tol = float(
                             os.environ.get("FRUIT_TRACK_WAIT_TOL", "0.02")
                         )
+                        meas_waited = 0
                         while waited < max_wait:
                             fruit_now = np.asarray(self.spawner.position(sample), dtype=float)
                             if self._track_wait:
                                 waiter = self._track_update(sample)
                                 if waiter is not None:
+                                    meas_waited = 0
                                     predicted = waiter.predict_at(t_desc)
                                     ready = (
                                         float(predicted[1]) - float(grip[1])
                                         <= wait_tol
                                     )
                                 else:
-                                    ready = float(fruit_now[1]) - float(grip[1]) <= deadline
+                                    # No measurement yet: do **not** commit the
+                                    # descent blind. The fruit is still
+                                    # approaching, so the camera will see it; a
+                                    # blind descent uses the station's nominal x,
+                                    # which is the band's *edge* (140 mm from a
+                                    # fruit at 0.20) and put the aim 140 mm off on
+                                    # the attempt that had no measurement
+                                    # (`logs/p135/perception/two_cam1.log`).
+                                    meas_waited += 1
+                                    ready = False
+                                    if meas_waited > self._track_meas_wait:
+                                        ready = (
+                                            float(fruit_now[1]) - float(grip[1])
+                                            <= deadline
+                                        )
                             else:
                                 ready = float(fruit_now[1]) - float(grip[1]) <= deadline
                             if ready and waited >= hold_ticks:

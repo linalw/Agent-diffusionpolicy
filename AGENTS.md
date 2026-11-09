@@ -6892,9 +6892,22 @@ is **refused** (`FRUIT_PERCEPTION_CLIP_PX` 2) because a *truncated* cap reads a
 (0.16 m reads **1-6 frames per attempt** - the aim then sits above the belt). A
 fixed mount cannot be both far upstream and low without a real tilt, which is what
 a bracket buys. The head keeps the approach (it sees the whole belt) and the wrist
-the contact; the handover-by-distance knob (`FRUIT_WRIST_SWITCH`) exists and its
-one cell read attempt 0 **11 ticks at 5.9 mm** (the best catch in the project) with
-attempt 1 diverging - **not adopted**. The head camera plus the estimator stays the
+the contact. **The two-camera handover is built and hardened** - a **workcell ROI**
+(`workcell_roi`, `FRUIT_PERCEPTION_ROI`: a fit outside the belt's own volume is
+refused, because a wrong lock **0.8 m** from the fruit had *passed* the innovation
+gate and put the aim a metre away, `corr_n=1312`), a **bounded wait for a first
+measurement** (`FRUIT_TRACK_MEAS_WAIT` 240 ticks) instead of a blind descent, the
+**band-centre fallback** (the station is the band's edge: 140 mm from a fruit at
+0.20, 80 mm from the centre) and the border-clip gate - and it is **not
+validated**: with two render products alive the second attempt accepts **zero**
+frames (9-10 on the first, ~70 renders each, with and without a double `render()`)
+while the same attempt on the **head-only** tree accepts **51** and the
+**wrist-only** cells accept **13 and 28-75**. The sensor and its calibration are
+sound; this build's per-sensor `instance_id_segmentation` is not (the annotator the
+record already notes as fragile). Its cells do read attempt 0 at **12-16 ticks,
+5.5 mm** (the best catch in the project) with accepted frames at **4.8-5.0 mm**.
+Two exits, neither a tracking change: choose the camera **per attempt**, or give
+the wrist its own render product. **Not adopted.** The head camera plus the estimator stays the
 working loop, and with the knob unset **no camera is authored at all**. **No-harm**: `scripts/accept.sh`
 with every knob unset is **8/10 = 80 %, 9.0 s/attempt, `fingerprint: matches`,
 `190: PASS`**, and its **421 `[fruit]` lines are 421/421 byte-identical** to
@@ -6907,8 +6920,8 @@ clamp, the calibration ratio, the synthetic sphere, every off default); `106` OK
 `107` PASS (21 checks). **Re-baseline: none** - nothing shipped,
 `configs/motion_reference.json` = `..._twoline.json` = **`30fb99f8`** and
 `..._single.json` = **`8952c320`** stand. Pins: `tracking.py`
-**`970e2139`** (new: the estimator, the belt prior, the measurement gate), `perception.py` **`72dff00e`** (new), `tasks.py`
-**`5e8c7cd6`**, `fruits.py` **`ad490ff0`** (`FruitSpawner.impulse`), `rl_env.py`
+**`970e2139`** (new: the estimator, the belt prior, the measurement gate), `perception.py` **`7557d461`** (new), `tasks.py`
+**`fc83b39e`**, `fruits.py` **`ad490ff0`** (`FruitSpawner.impulse`), `rl_env.py`
 **`1c934199`** (the `TASKS_MD5` follow), `scripts/268_p135_track_selftest.py`
 **`aa26a529`** (35 checks), `scripts/selfcheck.sh` **`d57ef4ab`**, `configs/perception_calibration.json`
 **`963b5522`** (new; the depth path only - the scripted line never reads it),

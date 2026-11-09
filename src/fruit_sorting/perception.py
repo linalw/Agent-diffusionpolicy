@@ -240,7 +240,7 @@ class FruitPerception:
                  trim: float = 2.5, min_pixels: int = 60,
                  full_pixels: int = 120, shape: str = "sphere",
                  bias=(0.0, 0.0, 0.0), bias_wrist=(0.0, 0.0, 0.0),
-                 clip_margin: int = 2):
+                 clip_margin: int = 2, roi=None, renders_per_frame: int = 1):
         self.scene = scene
         self.camera = CameraModel.from_scene(scene, cfg)
         self.hz = max(1.0, float(hz))
@@ -254,6 +254,14 @@ class FruitPerception:
         self.min_pixels = max(8, int(min_pixels))
         #: A mask this close to any border is truncated (see `measure`).
         self.clip_margin = max(0, int(clip_margin))
+        #: The **workcell volume** a fruit can be in [m], `(x_lo, x_hi, y_lo,
+        #: y_hi, z_lo, z_hi)` or None. A fitted centre outside it is not a fruit -
+        #: it is the belt, the arm or the floor - and is refused. This is the one
+        #: check that does not depend on the filter: in the two-camera cell a
+        #: wrong lock 0.8 m from the fruit passed the innovation gate (the filter
+        #: believed it) and put the aim a metre away (`corr_n=1312`).
+        self.roi = None if roi is None else tuple(float(v) for v in roi)
+        self.renders_per_frame = max(1, int(renders_per_frame))
         #: A cap at least this big is trusted to set the *radius*; smaller caps
         #: only locate the centre, with the radius held (see the fit below).
         self.full_pixels = max(self.min_pixels, int(full_pixels))
@@ -307,10 +315,17 @@ class FruitPerception:
             and session.relay.participant()
             and session.bridge.serving
         )
-        if bridged:
-            session.bridge.call(RenderingManager.render)
-        else:
-            RenderingManager.render()
+        # A scene with more than one camera has more than one render product, and
+        # one `render()` call does not reliably refresh all of them: with the
+        # eye-in-hand pair the second attempt of a cell read **0** accepted frames
+        # while the same attempt on the head-only tree read 51
+        # (`logs/p135/perception/two_cam3.log`). `FRUIT_PERCEPTION_RENDERS=2` calls
+        # it twice on the frames that are rendered anyway.
+        for _ in range(max(1, int(self.renders_per_frame))):
+            if bridged:
+                session.bridge.call(RenderingManager.render)
+            else:
+                RenderingManager.render()
 
     def _mask(self, prim_path: str, camera_sensor=None):
         sensor = self.scene.camera_sensor if camera_sensor is None else camera_sensor
@@ -458,6 +473,21 @@ class FruitPerception:
                 self.failures += 1
                 self.last_error = "degenerate fit"
                 return None
+            centre = np.asarray(centre, dtype=float)
+            if self.roi is not None:
+                x_lo, x_hi, y_lo, y_hi, z_lo, z_hi = self.roi
+                if not (
+                    x_lo <= centre[0] <= x_hi
+                    and y_lo <= centre[1] <= y_hi
+                    and z_lo <= centre[2] <= z_hi
+                ):
+                    self.failures += 1
+                    self.rejected += 1
+                    self.last_error = (
+                        f"outside the workcell "
+                        f"({centre[0]:+.3f},{centre[1]:+.3f},{centre[2]:+.3f})"
+                    )
+                    return None
             centre = np.asarray(centre, dtype=float) - self.bias[
                 "wrist" if camera_path and "Wrist" in camera_path else "head"
             ]
@@ -531,8 +561,35 @@ def _calibration_bias(kind: str = "head"):
     return (0.0, 0.0, 0.0)
 
 
+def workcell_roi(cfg, margin: float = 0.05):
+    """The volume a fruit can be in, from the scene's own belt geometry [m].
+
+    `(x_lo, x_hi, y_lo, y_hi, z_lo, z_hi)`. The belt is `belt_size` centred on
+    `belt_center`; a fruit's centre sits between the belt top and roughly a
+    radius above it, or up to ~0.3 m above while it is carried. Nothing else in
+    the cell is a fruit, so a fit outside this box is the belt, the arm or the
+    floor.
+    """
+    cx, cy, _cz = (float(v) for v in cfg.belt_center)
+    sx, sy, sz = (float(v) for v in cfg.belt_size)
+    top = float(cfg.belt_center[2]) + sz / 2.0
+    return (
+        cx - sx / 2.0 - margin,
+        cx + sx / 2.0 + margin,
+        cy - sy / 2.0 - margin,
+        cy + sy / 2.0 + margin,
+        top - 0.05,
+        top + 0.35,
+    )
+
+
 def perception_from_env(scene, cfg) -> FruitPerception:
     """Build the module once per run (the camera does not move)."""
+    roi = (
+        workcell_roi(cfg)
+        if os.environ.get("FRUIT_PERCEPTION_ROI", "1") == "1"
+        else None
+    )
     return FruitPerception(
         scene,
         cfg,
@@ -545,4 +602,6 @@ def perception_from_env(scene, cfg) -> FruitPerception:
         shape=os.environ.get("FRUIT_PERCEPTION_SHAPE", "sphere"),
         bias=_calibration_bias("head"),
         bias_wrist=_calibration_bias("wrist"),
+        roi=roi,
+        renders_per_frame=int(os.environ.get("FRUIT_PERCEPTION_RENDERS", "1")),
     )
