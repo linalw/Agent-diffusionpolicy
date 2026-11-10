@@ -5941,6 +5941,31 @@ class SortingRLEnv:
         pos = np.asarray(self.spawner.position(sample), dtype=float)
         z = float(pos[2])
         if z < self.belt_top - 0.25:
+            if getattr(sample, "parked", False) and os.environ.get(
+                "FRUIT_FALL_PARKED", "0"
+            ) == "1":
+                # P139: a **recycled** fruit is not a fallen one. `park` puts it
+                # at `(60 + 3*i, 0, -50)` (`fruits.FruitSpawner.park`), so the
+                # shipped test below reads that as "fell off the line" - the
+                # direct loop's dominant failure key is, measured, mostly this
+                # (three episodes, three parked poses). With the knob armed the
+                # episode is left to its own horizon instead of ending on a note
+                # that names the wrong event. Default off: this changes the
+                # failure-reason ledger, so it is its own cell.
+                return False
+            if os.environ.get("FRUIT_FALL_DIAG", "0") == "1":
+                # P139, reporting only (default off): the class is a *fruit* below
+                # `belt_top - 0.25`, so this names where it left - the one thing
+                # the note itself cannot say. One row per episode, at the event.
+                from .common import say as _say
+
+                _say(
+                    f"[fall] idx={int(sample.index)} pos="
+                    f"({float(pos[0]):+.3f},{float(pos[1]):+.3f},{float(pos[2]):+.3f}) "
+                    f"belt_top={self.belt_top:.3f} held={bool(getattr(sample, 'held', False))} "
+                    f"attached={bool(getattr(sample, 'attached', False))} "
+                    f"t={self._sim_time():.2f}"
+                )
             self._notes.append("fruit fell off the line")
             self._finalize(notes=self._notes)
             return True

@@ -26593,3 +26593,20 @@ So the direct loop is at ~0/15 where the record has 57.8 %, while the hybrid
 canary (a different loop, no park) still passes 2/3. Any checkpoint comparison on
 the direct interface measures that drift. The blocker is a phase of its own; the
 store, the checkpoint and the fidelity (0.57x) stand as P138's deliverables.
+
+## P139 (2026-11-10) - "fruit fell off the line" is the park slot
+
+The direct loop's dominant failure key names the wrong event. `_episode_events`
+ends an episode when the selected fruit is 0.25 m below the belt top; a one-row
+instrument (FRUIT_FALL_DIAG=1) printed the position at the event on three
+episodes: (+63,0,-50), (+96,0,-50), (+81,0,-50) - (60 + 3*index, 0, -50) is
+FruitSpawner.park's own slot, held=False attached=False. So the feeder recycled
+the fruit because the attempt outlived the belt, and the note says "fell off".
+
+Discriminating cells (trained camera 240,424): shipped 0/15, P136/P137 off 0/15,
+patch supply 0 at 9, pre-P58 0/3, park=ready 1/3 - so the drift is not ours and
+not any documented restore, and the direct loop reads ~0/15 where P54 has 75 %.
+
+The fix shipped is opt-in: FRUIT_FALL_PARKED=1 keeps a parked sample from ending
+the episode on that note. The direct interface's regression diagnosis is owed and
+has its instrument (the [fall] row + the per-episode decision/ticks).

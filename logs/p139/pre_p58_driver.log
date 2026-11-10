@@ -1,0 +1,32 @@
+direct RL A/B: 3 episodes x 1 runs per arm, policy seed=11
+  seeds: 77
+  arm A (baseline): --ckpt checkpoints/moe_v13s/policy_best.pt
+  arm B (candidate): --ckpt checkpoints/rl_iter1/policy_best.pt
+  extra env: both='FRUIT_FEED_CADENCE=0 FRUIT_SUPPLY_BAND_INTERLOCK=0 FRUIT_DIRECT_FEED=0 FRUIT_TRACK=0' A='' B=''
+  A run 1 (seed 77): [rl] rollout success 0/3
+  B run 1 (seed 77): 
+=== arm A
+  run 1: 0/3  0:lych/3.4/FAIL  1:kiwi/6.4/FAIL  2:appl/6.3/FAIL
+=== arm B
+  run 1: 0/0  
+
+  pooled A: 0/3 (0%)  median ticks 1500
+  pooled B: no episodes
+
+  paired: 0 both ok, 0 both fail, 0 B-only ok, 0 A-only ok
+  sign test (B better): p = 1.0000 (discordant 0)
+  class                 A          B  delta
+  apple           0/1        0/0      +0%
+  kiwi            0/1        0/0      +0%
+  lychee          0/1        0/0      +0%
+Traceback (most recent call last):
+  File "/home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/scripts/113_rl_report.py", line 300, in <module>
+    raise SystemExit(main())
+                     ~~~~^^
+  File "/home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/scripts/113_rl_report.py", line 296, in main
+    return report(args.directory, args.a, args.b)
+  File "/home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/scripts/113_rl_report.py", line 161, in report
+    tb = statistics.median([r["ticks"] for r in pooled[b_label]])
+  File "/home/ubuntu/linalw/App/minconda3/lib/python3.14/statistics.py", line 343, in median
+    raise StatisticsError("no median for empty data")
+statistics.StatisticsError: no median for empty data

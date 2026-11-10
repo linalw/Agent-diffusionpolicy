@@ -6939,6 +6939,32 @@ clamp, the calibration ratio, the synthetic sphere, every off default); `106` OK
 `61da390a`; `logs/p135/PREREG.md` **`0250fdc7`**. Evidence `logs/p135/`,
 `docs/TRACKING.md`.
 
+**P139 (2026-11-10, `logs/p139/`; **one opt-in reporting fix, default off** -
+nothing adopted): the direct loop's dominant failure key, `fruit fell off the
+line`, names the **wrong event** - the fruit is in the spawner's *park* slot.**
+`_episode_events` ends an episode when the selected fruit is 0.25 m below the belt
+top; a one-row instrument (`FRUIT_FALL_DIAG=1`, default off) printed the position
+at the event on three episodes: **`(+63, 0, -50)`, `(+96, 0, -50)`, `(+81, 0,
+-50)`** - `(60 + 3*index, 0, -50)` is `fruits.FruitSpawner.park`'s own slot, with
+`held=False attached=False`. So the episode ended because the **feeder recycled the
+fruit** (the attempt outlived the belt: 1500 ticks = 12.5 s carries a fruit ~1.5 m),
+not because anything fell. **Load-bearing**: the record's direct ledgers, the
+"no new reason" gates and P38's `fell off` census all read that string. The
+**discriminating cells** (all at the trained camera 240,424) say the drift is not
+ours and not any documented restore: shipped **0/15**, `FRUIT_TRACK=0
+FRUIT_SELECT_LIVE_SPEED=0` **0/15**, `FRUIT_SUPPLY_PATCH=1` 0 at 9,
+pre-P58 restores 0/3, `FRUIT_ARM_PARK=ready` 1/3 (one episode, not evidence) -
+against P54's 75 % and P59-p3's 57.8 %. **The cause is not identified**; what is
+identified is that the policy never closes and the key is a recycle. **The fix
+shipped is opt-in**: `FRUIT_FALL_PARKED=1` makes a **parked** sample not end the
+episode on that note (it is left to its horizon); it changes the failure-reason
+ledger, so it is its own cell and was armed in no measurement here. The **owed**
+work is the direct interface's regression diagnosis, with the `[fall]` row plus
+the per-episode `decision=`/`ticks=` as the instrument. `scripts/selfcheck.sh`
+**PASS (0 failures, 1 skipped)**, `106` OK, `107` PASS (21 checks); references
+**`61fb5202` / `61fb5202` / `18b101bf`** untouched; ckpt `moe_v13s` `61da390a`.
+Pins: `rl_env.py` **`8cbba5a4`**. Evidence `logs/p139/`.
+
 **P138 (2026-11-10, `logs/p138/`; **a recollection + a fine-tune, nothing
 adopted** - no `src/` change, no `configs/` change, no reference moved): the store
 that P136's branch change owes is recorded, learned, and its behaviour is
