@@ -6960,7 +6960,9 @@ acceptance is **7/10 = 70 %**, 9.5 s/attempt, **budgets pass** (worst `|v|max`
 0.126 against 0.161, lurch 0.059 against 0.291) with the fingerprint moved - so
 **both references were re-recorded from same-batch flipped runs**:
 `configs/motion_reference.json` = `..._twoline.json` = **`61fb5202`** (from
-`logs/p136/accept_flip.log`, `190: PASS` against it) and
+`logs/p136/accept_flip.log`, `190: PASS` against it; the **final** acceptance on
+the committed tree reads **7/10, `fingerprint: matches`, `190: PASS`** with its
+**459 `[fruit]` lines 459/459 identical** to that run, `logs/p136/accept_final.log`) and
 `configs/motion_reference_single.json` = **`18b101bf`** (from the `FRUIT_BIARM=0`
 run, 5/9, 15.4 s/attempt; the pre-flip `8952c320` archived at
 `logs/p136/motion_reference_single_pre_flip.json`); the two pre-flip two-line-side

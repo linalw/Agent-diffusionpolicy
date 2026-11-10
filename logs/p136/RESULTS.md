@@ -9,6 +9,7 @@ the scripted line** (`default`), **off for the two policy interfaces**
 |---|---|
 | shipped acceptance (two-line, 10 attempts) | **7/10 = 70 %**, 9.5 s/attempt, **budgets pass** (worst `|v|max` 0.126 against 0.161, lurch 0.059 against 0.291) |
 | its fingerprint | moved (the gate shifts the descent's start) -> **`configs/motion_reference.json` = `configs/motion_reference_twoline.json` = `61fb5202`**, re-recorded from that same run; `190: PASS` against it |
+| the **final** acceptance on the committed tree (`accept_final.log`) | **7/10**, **`fingerprint: matches`**, **`190: PASS`**, and its **459 `[fruit]` lines are 459/459 identical** to the reference-source run |
 | single arm (`FRUIT_BIARM=0`, flip on, 10 attempts) | **5/9 = 56 %**, 15.4 s/attempt -> **`configs/motion_reference_single.json` = `18b101bf`** (pre-flip `8952c320` archived) |
 | policy canary smoke (2 episodes) | **2/2**, and it resolves **`track=0(scope-off)`** - the interface of record keeps the pre-P136 catch |
 | collector probe (1 episode) | its `manifest.json` carries **`physics.tracking`**: `{on: true, origin: default, mode: cv, gate: 0.04, tau: 0.3, corr_max: 0.08, source: truth, scripted: true}` |
