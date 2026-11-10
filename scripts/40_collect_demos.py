@@ -186,7 +186,7 @@ def _physics_provenance() -> dict:
     """
     from fruit_sorting.scene import finger_physics_provenance
 
-    return finger_physics_provenance(control_dt=DT, two_line=TWO_LINE)
+    return finger_physics_provenance(control_dt=DT, two_line=TWO_LINE, scripted=True)
 
 
 def _scene_provenance(cfg) -> dict:
@@ -242,7 +242,7 @@ def update_manifest_physics(out_dir: str, task) -> None:
     except (OSError, ValueError):
         say(f"[collect] physics read-back skipped: no manifest at {path}")
         return
-    block = finger_physics_provenance(arms=task.arms, control_dt=DT, two_line=TWO_LINE)
+    block = finger_physics_provenance(arms=task.arms, control_dt=DT, two_line=TWO_LINE, scripted=True)
     physics = manifest.setdefault("physics", {})
     physics.update(block)
     with open(path, "w", encoding="utf-8") as handle:

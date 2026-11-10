@@ -58,6 +58,7 @@ from .tracking import (
     conveyor_model,
     correction as track_correction,
     track_config_from_env,
+    tracking_resolution,
 )
 
 #: Small vertical offset of the coherent hand above the fruit's centre, so the pads'
@@ -2046,7 +2047,8 @@ class PickAndPlaceTask:
                  carry_hold_override: dict | None = None,
                  lift_dz: dict | None = None,
                  lift_climb: dict | None = None,
-                 finger_cap_scope: dict | None = None):
+                 finger_cap_scope: dict | None = None,
+                 scripted: bool = True):
         # The v1 file reproduces the recorded datasets. Physical grasping uses the
         # orientation-constrained poses: FRUIT_WAYPOINTS=configs/waypoints_oriented.json
         waypoint_path = waypoint_path or os.environ.get(
@@ -2911,9 +2913,13 @@ class PickAndPlaceTask:
         # position + belt velocity * elapsed), so under a constant-speed belt it
         # is identically zero and the shipped path is untouched.
         # ------------------------------------------------------------------ #
-        self._track_on = os.environ.get("FRUIT_TRACK", "off").strip().lower() in (
-            "est", "1", "on", "kalman",
-        )
+        #: P136: the tracker's resolution (one table, `tracking_resolution`).
+        #: Unset -> on for the scripted line, off for the policy interfaces; `=0`
+        #: restores the pre-P136 path.
+        self._track_profile = tracking_resolution(scripted)
+        self._scripted = bool(scripted)
+        self._track_on = bool(self._track_profile["on"])
+        say(f"[track] profile: {self._track_profile['label']}")
         #: `truth` = the rigid-body read the shipped path uses (the estimator is
         #: then a predictor/smoother); `depth` = the rendered RGB-D + mask
         #: (P135 phase 3; refuses at construction if the camera is not built).
@@ -2923,14 +2929,12 @@ class PickAndPlaceTask:
         #: bench (perception error with the cell unchanged).
         self._track_apply = os.environ.get("FRUIT_TRACK_APPLY", "1") == "1"
         self._track_descent = (
-            os.environ.get("FRUIT_DESCENT_TRACK", "0") == "1"
-            and self._track_on
-            and self._track_apply
+            bool(self._track_profile["descent"]) and self._track_apply
         )
         #: Schedule the descent's start off the estimate (`FRUIT_TRACK_WAIT`).
         #: Off by default: the shipped wait is calibrated and the encoder is the
         #: right prior for a fruit riding the belt.
-        self._track_wait = os.environ.get("FRUIT_TRACK_WAIT", "0") == "1" and self._track_on
+        self._track_wait = bool(self._track_profile["wait"])
         #: Bound on the aim correction inside one descent [m]. A correction the
         #: leg cannot spend is the catch-up's job (it measures its own residual).
         self._track_corr_max = max(

@@ -254,9 +254,14 @@ def main() -> int:
         twoline = md5(ROOT / "configs/motion_reference_twoline.json")
         check(acceptance == twoline,
               f"the shipped acceptance reference IS the two-line record ({acceptance[:8]})")
+        # P136 re-recorded the single-arm reference: the tracker's default is
+        # scoped to the *scripted* line, and the single arm is scripted, so its
+        # record moved with the flip. The pre-P136 file is archived at
+        # `logs/p136/motion_reference_single_pre_flip.json` and
+        # `FRUIT_TRACK=0` reproduces it.
         check(md5(ROOT / "configs/motion_reference_single.json") ==
-              "8952c320d798ef42e03ba815c9e96b23",
-              "the single-arm restore still keeps the pre-P85 record (8952c320)")
+              "18b101bfb00083c51e7a8444698cc1b3",
+              "the single-arm reference is the post-P136 record (18b101bf)")
         env_pin = env_src.split('TASKS_MD5 = "', 1)[1].split('"', 1)[0]
         check(env_pin == md5(ROOT / "src/fruit_sorting/tasks.py"),
               f"TASKS_MD5 follows tasks.py ({env_pin[:8]})")

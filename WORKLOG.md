@@ -26507,3 +26507,29 @@ when it matters - the mask shrinks 48 -> 22 px and the fit's z drifts 11 -> 44 m
 No-harm: acceptance 8/10 + fingerprint matches + 190 PASS with 421/421 `[fruit]`
 lines byte-identical to `logs/p127/accept_restored.log`; selfcheck PASS with the
 new `P135 tracker` leg; 106 OK, 107 PASS. Nothing ships; `configs/` untouched.
+
+## P136 (2026-11-10) - the prediction-gated handover becomes the scripted default
+
+P135 measured the lever (a varying conveyor: the shipped *speed* gate misses the
+handover by 298-407 mm; the prediction gate converts every one). The owner chose
+the flip.
+
+**Scope, enforced at the constructor.** One resolver
+(`tracking.tracking_resolution`): `FRUIT_TRACK` unset resolves **on for the
+scripted line** and **off for the two policy interfaces**, because the direct
+action loop and the trigger were never measured with it and a flip there would
+move the interface of record and every policy store at once. `rl_env` and
+`60_eval_policy.py` pass `scripted=False`; the canary's smoke prints
+`track=0(scope-off)`. The scope is the task, not the session - P97's lesson that a
+two-line session predicate cannot be read at construction.
+
+**What moved.** The acceptance is 7/10 at 9.5 s/attempt with clean budgets (worst
+|v|max 0.126 against 0.161) and a moved fingerprint, so both references were
+re-recorded from same-batch flipped runs - 61fb5202 two-line (190 PASS against it)
+and 18b101bf single arm - with the pre-flip files archived in logs/p136/.
+
+**What did not.** No rate claim: on the nominal belt the tracker is a measured tie
+(P135 §4), so 7/10 against 8/10 is a branch draw. The argument is the wave.
+
+**Provenance.** `physics.tracking` in both manifest writers (one builder,
+`scene._tracking_provenance`), verified in a 1-episode collector probe.

@@ -6939,6 +6939,56 @@ clamp, the calibration ratio, the synthetic sphere, every off default); `106` OK
 `61da390a`; `logs/p135/PREREG.md` **`0250fdc7`**. Evidence `logs/p135/`,
 `docs/TRACKING.md`.
 
+**P136 (2026-11-10, `logs/p136/`; **one shipped change - the prediction-gated
+handover is the scripted line's default** - and both motion references
+re-recorded): the moving catch's aim, descent and catch-up now run on the
+estimator for the **scripted** line, and the two policy interfaces are scoped out
+by construction.** The owner chose the flip after P135's measurement (a varying
+conveyor: the shipped *speed* gate misses the handover by **298-407 mm**, the
+prediction gate converts every one at 12/13/11 and 16/15/17 ticks, timeouts
+2->0 / 1->0). **One resolver** (`tracking.tracking_resolution`, in `tracking.py`
+so it is offline-testable): `FRUIT_TRACK` unset -> **on for the scripted line**
+(`default`), **off for the policy interfaces** (`scope-off`); `=0` restores the
+pre-P136 path; `FRUIT_DESCENT_TRACK` / `FRUIT_TRACK_WAIT` unset **follow**
+`FRUIT_TRACK` and an explicit value wins; the scope is the **task**
+(`PickAndPlaceTask(scripted=True/False)`), not the session - `release_speed_resolution`'s
+two-line predicate cannot be read at construction (the P97 defect). **The scope is
+enforced at the constructor**: `rl_env` and `scripts/60_eval_policy.py` pass
+`scripted=False`, so the direct/policy env and the **hybrid canary** keep the
+pre-P136 catch (their rows print `track=0(scope-off)`). **Measured**: the shipped
+acceptance is **7/10 = 70 %**, 9.5 s/attempt, **budgets pass** (worst `|v|max`
+0.126 against 0.161, lurch 0.059 against 0.291) with the fingerprint moved - so
+**both references were re-recorded from same-batch flipped runs**:
+`configs/motion_reference.json` = `..._twoline.json` = **`61fb5202`** (from
+`logs/p136/accept_flip.log`, `190: PASS` against it) and
+`configs/motion_reference_single.json` = **`18b101bf`** (from the `FRUIT_BIARM=0`
+run, 5/9, 15.4 s/attempt; the pre-flip `8952c320` archived at
+`logs/p136/motion_reference_single_pre_flip.json`); the two pre-flip two-line-side
+files are archived beside it. **The canary smoke reads 2/2 and `track=0(scope-off)`**,
+so the interface of record is comparable; `scripts/234`'s reference-arrangement
+pin now asserts the post-P136 single-arm record. **Provenance**: the store manifest
+gains **`physics.tracking`** (`scene._tracking_provenance`, one builder, both
+writers via `finger_physics_provenance`): `{on, descent, wait, mode: cv, gate,
+tau, corr_max, source, scripted, origin, label}` - a manifest without the key
+predates P136, and a policy store reads `origin: scope-off`. Verified in a
+1-episode collector probe (`logs/p136/demo_probe/manifest.json`). **No rate is
+claimed**: on the nominal belt the tracker is a measured **tie** (P135 §4),
+so 7/10 against 8/10 is a branch draw; the argument is the wave mechanism.
+**Re-baseline: every scripted acceptance/rate recorded before P136 is a
+pre-tracker number; `FRUIT_TRACK=0` restores it** (compose with the earlier
+restores: `FRUIT_BIARM=0` for the single arm, `FRUIT_SPEED_RELEASE=0`,
+`FRUIT_ARM_PARK=ready`, `FRUIT_POLICY_TRIGGER_ACQ=0`, `FRUIT_BIARM_PREPOSE_CLEAR=0`
+per their own notes). `scripts/selfcheck.sh` **PASS (0 failures, 1 skipped)** with
+the P135 leg extended to **40 checks** (the resolver table), `106` OK, `107` PASS
+(21 checks). Pins: `tracking.py` **`559203e8`** (the resolver + the estimator), `tasks.py`
+**`55053493`**,
+`rl_env.py` **`1c6e5ebd`** (`TASKS_MD5` follow + `scripted=False`), `scene.py`
+**`e614f06d`** (`_tracking_provenance`), `scripts/60_eval_policy.py` (`scripted=False`),
+`scripts/40_collect_demos.py`, `scripts/268_p135_track_selftest.py`,
+`scripts/234_p64_precomp_selftest.py`; references **`61fb5202` / `61fb5202` /
+`18b101bf`**; ckpt `moe_v13s` `61da390a`; `logs/p136/PREREG.md` **`bcdc6eba`**.
+Evidence `logs/p136/`.
+
 **P134 (2026-11-09, `docs/CLOSEOUT.md` §6; design/handover only, no `src/` or
 `configs/` change): the engagement closes out for the owner** - a one-page
 section appended to the project close-out: the shipped state (two lanes, 8/10,

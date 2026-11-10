@@ -254,7 +254,9 @@ def main() -> int:
         grasp_done = False
         hybrid_task = None
         if HYBRID:
-            hybrid_task = PickAndPlaceTask(scene, spawner, tactile, cfg)
+            # P136: the hybrid interface of record keeps the pre-P136 catch (the
+            # tracker's default is scoped to the scripted line).
+            hybrid_task = PickAndPlaceTask(scene, spawner, tactile, cfg, scripted=False)
             hybrid_task.recorder = None
         hybrid_scored = False
         lifted = False

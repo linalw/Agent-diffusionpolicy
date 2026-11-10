@@ -393,6 +393,42 @@ def _finger_drive_readback(arms: dict) -> tuple[dict, bool, str]:
     return rows, not wrong, "; ".join(wrong)
 
 
+def _float_env(name: str, default: float) -> float:
+    try:
+        value = float(os.environ.get(name, default))
+    except (TypeError, ValueError):
+        return float(default)
+    return value if value == value and abs(value) != float("inf") else float(default)
+
+
+def _tracking_provenance(scripted: bool = True) -> dict:
+    """The `physics.tracking` block (P136): the catch's tracker and its origin.
+
+    Pure (`tracking.tracking_resolution`, an env read with no simulator), so it
+    is written before the first episode and cannot fail a build. `mode` is the
+    estimator's model (`cv`), `gate` the measurement gate [m], `tau` the belt
+    prior's relaxation time [s] and `corr_max` the descent's correction bound
+    [m]; `origin` says *why* it resolved that way. A manifest without the key
+    predates P136.
+    """
+    from .tasks import tracking_resolution
+
+    profile = tracking_resolution(scripted)
+    return {
+        "mode": "cv",
+        "on": bool(profile["on"]),
+        "descent": bool(profile["descent"]),
+        "wait": bool(profile["wait"]),
+        "gate": _float_env("FRUIT_TRACK_GATE", 0.04),
+        "tau": _float_env("FRUIT_TRACK_BELT_TAU", 0.3),
+        "corr_max": _float_env("FRUIT_TRACK_CORR_MAX", 0.08),
+        "source": os.environ.get("FRUIT_TRACK_SOURCE", "truth"),
+        "scripted": bool(scripted),
+        "origin": profile["origin"],
+        "label": profile["label"],
+    }
+
+
 def _release_provenance(two_line: bool = False) -> dict:
     """The `physics.release` block (P87): the release clock and its origin.
 
@@ -556,7 +592,8 @@ def _park_provenance(two_line: bool = False) -> dict:
 def finger_physics_provenance(arms: dict | None = None,
                               control_dt: float = 1.0 / 120.0,
                               scope: dict | None = None,
-                              two_line: bool = False) -> dict:
+                              two_line: bool = False,
+                              scripted: bool = True) -> dict:
     """The physics that sets the grip, as a store manifest's `physics` block.
 
     P41 phase 2: a store is reusable only if its *contact forces* are
@@ -683,6 +720,14 @@ def finger_physics_provenance(arms: dict | None = None,
         #: `_catch_up_drive` and `_lift_clear` stages are seed-dependent and are
         #: not part of the cell. A manifest without the key predates P100.
         "park": _park_provenance(two_line),
+        #: P136: the **moving catch's tracker**. Same one resolver the task's
+        #: knob set and the `[track] profile:` row read
+        #: (`tracking.tracking_resolution`), so a store, a log and a run cannot
+        #: disagree. Unset resolves **on for the scripted line** (`default`) and
+        #: off for the two policy interfaces (`scope-off`), so a policy store
+        #: written after P136 reads `on: false, origin: scope-off` and a scripted
+        #: one reads `on: true, origin: default`; `=0` reads `explicit`.
+        "tracking": _tracking_provenance(bool(scripted)),
     }
     if scope:
         #: P78/P79: the **runtime, per-leg** clamp

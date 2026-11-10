@@ -49,6 +49,7 @@ precision, which is what keeps the no-harm replays clean.
 from __future__ import annotations
 
 import math
+import os
 from dataclasses import dataclass
 
 import numpy as np
@@ -288,6 +289,57 @@ def correction(
         delta = delta * (float(limit) / float(np.linalg.norm(delta)))
     tracker.last_correction = delta
     return delta
+
+
+def tracking_resolution(scripted: bool = True, environ=None) -> dict:
+    """How the moving catch resolves its tracker (P136): one place, one table.
+
+    `FRUIT_TRACK` unset -> **on for the scripted line only** (`default`), off for
+    the direct/policy and hybrid interfaces (`scope-off`); an explicit value wins
+    everywhere and `=0` restores the pre-P136 path bit for bit. The descent's
+    re-aim and the prediction-gated handover follow the same rule: unset means
+    "whatever `FRUIT_TRACK` resolved", so a single knob turns the package on and a
+    single `=0` takes it off.
+
+    The scope is the *task*, not the session (`release_speed_resolution`'s
+    two-line predicate cannot be read at construction - the OpenArm integration
+    defect P97 found), and the two policy interfaces pass `scripted=False` so the
+    canary and the direct env keep the interface of record.
+
+    Pure: an env read, no simulator, no state.
+    """
+    env = os.environ if environ is None else environ
+    raw = env.get("FRUIT_TRACK", "").strip().lower()
+    if raw in ("", "auto"):
+        on = bool(scripted)
+        origin = "default" if scripted else "scope-off"
+    else:
+        on = raw not in ("0", "off", "no", "false")
+        origin = "explicit"
+
+    def _sub(name: str, default: bool):
+        value = env.get(name, "").strip().lower()
+        if value in ("", "auto"):
+            return bool(default), "follows-track"
+        return value not in ("0", "off", "no", "false"), "explicit"
+
+    descent, descent_origin = _sub("FRUIT_DESCENT_TRACK", on)
+    wait, wait_origin = _sub("FRUIT_TRACK_WAIT", on)
+    return {
+        "on": on,
+        "descent": descent and on,
+        "wait": wait and on,
+        "origin": origin,
+        "descent_origin": descent_origin,
+        "wait_origin": wait_origin,
+        "scripted": bool(scripted),
+        "label": (
+            f"track={int(on)}({origin}) descent={int(descent and on)}"
+            f"({descent_origin}) wait={int(wait and on)}({wait_origin})"
+            f" scripted={int(bool(scripted))}"
+        ),
+    }
+
 
 
 def track_config_from_env(environ, source: str = "truth") -> TrackConfig:

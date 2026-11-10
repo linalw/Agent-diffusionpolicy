@@ -485,7 +485,7 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: This env never constructs a cage, so no direct/policy behaviour moves - proven
 #: on the scripted side by `scripts/accept.sh`'s 421/421 byte-identical `[fruit]`
 #: stream (`logs/p107/RESULTS.md` section 5).
-TASKS_MD5 = "5b3a8ee64c61724c97162cd2bb7c31fb"
+TASKS_MD5 = "55053493150d2990fa0c6895ac4c34b3"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(
@@ -2608,6 +2608,10 @@ class SortingRLEnv:
             lift_dz=self._lift_dz,
             lift_climb=self._lift_climb,
             finger_cap_scope=self._finger_cap_scope,
+            # P136: the direct/policy interface keeps the pre-P136 catch. The
+            # tracker's default is scoped to the scripted line; the action loop
+            # and the trigger were never measured with it.
+            scripted=False,
         )
         self.task.recorder = None
         #: P121: the instruction the direct loop dispatches by, resolved by the
@@ -3169,7 +3173,12 @@ class SortingRLEnv:
             from .scene import finger_physics_provenance
 
             return finger_physics_provenance(
-                arms=self.task.arms, scope=self._finger_cap_scope, two_line=False
+                arms=self.task.arms,
+                scope=self._finger_cap_scope,
+                two_line=False,
+                # P136: the direct/policy task is built with `scripted=False`, so
+                # its store names the tracker's scope-off resolution.
+                scripted=False,
             )
         except Exception as exc:  # noqa: BLE001 - provenance must not stop a run
             return {"finger_drive": {"source": "error", "why": str(exc)}}

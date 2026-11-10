@@ -35,6 +35,7 @@ from fruit_sorting.tracking import (  # noqa: E402
     TrackConfig,
     correction,
     track_config_from_env,
+    tracking_resolution,
 )
 
 CHECKS = {"passed": 0, "failed": 0}
@@ -188,10 +189,28 @@ def test_off_path():
         # one `os.environ.get("<name>", "<literal>")` occurrence for the knob
         return f'os.environ.get("{env_name}", "{literal}")' in source
 
-    check(default("FRUIT_TRACK", "off"), "FRUIT_TRACK defaults to off")
+    # P136: the defaults are one table, `tracking.tracking_resolution`.
+    for scripted, expect_on, expect_origin in (
+        (True, True, "default"),
+        (False, False, "scope-off"),
+    ):
+        resolved = tracking_resolution(scripted, {})
+        label = "scripted" if scripted else "policy"
+        check(resolved["on"] is expect_on and resolved["origin"] == expect_origin,
+              f"{label}: unset resolves {'on' if expect_on else 'off'} ({expect_origin})")
+        check(resolved["descent"] is expect_on and resolved["wait"] is expect_on,
+              f"{label}: the re-aim and the gate follow it")
+    off = tracking_resolution(True, {"FRUIT_TRACK": "0"})
+    check(off["on"] is False and off["origin"] == "explicit",
+          "FRUIT_TRACK=0 restores the pre-P136 path")
+    check(off["descent"] is False and off["wait"] is False,
+          "and takes the re-aim and the gate with it")
+    gate_off = tracking_resolution(True, {"FRUIT_TRACK_WAIT": "0"})
+    check(gate_off["on"] is True and gate_off["wait"] is False,
+          "FRUIT_TRACK_WAIT=0 keeps the tracker and drops only the gate")
+    check(tracking_resolution(True, {"FRUIT_TRACK": "1", "FRUIT_DESCENT_TRACK": "0"})["descent"] is False,
+          "FRUIT_DESCENT_TRACK=0 keeps the tracker and drops only the re-aim")
     check(default("FRUIT_TRACK_APPLY", "1"), "FRUIT_TRACK_APPLY defaults on (it only scopes the probe)")
-    check(default("FRUIT_DESCENT_TRACK", "0"), "FRUIT_DESCENT_TRACK defaults off")
-    check(default("FRUIT_TRACK_WAIT", "0"), "FRUIT_TRACK_WAIT defaults off")
     check(default("FRUIT_TRACK_CATCH_SPEED", "0.0"), "FRUIT_TRACK_CATCH_SPEED defaults off")
     check(default("FRUIT_PERTURB_AT", "0"), "the impulse cell's tick defaults to 0 (inert: dx/dy are 0)")
     check(default("FRUIT_BELT_WAVE_AMP", "0.0"), "the belt wave defaults to zero")
