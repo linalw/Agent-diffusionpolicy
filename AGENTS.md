@@ -6906,8 +6906,18 @@ while the same attempt on the **head-only** tree accepts **51** and the
 sound; this build's per-sensor `instance_id_segmentation` is not (the annotator the
 record already notes as fragile). Its cells do read attempt 0 at **12-16 ticks,
 5.5 mm** (the best catch in the project) with accepted frames at **4.8-5.0 mm**.
-Two exits, neither a tracking change: choose the camera **per attempt**, or give
-the wrist its own render product. **Not adopted.** The head camera plus the estimator stays the
+**The per-attempt choice is implemented and does not help** (`FRUIT_WRIST_MODE`
+= `pick` / `only` / `switch`; `pick` gives the wrist the first look at the
+descent's start and whichever camera sees the fruit is that attempt's *only*
+sensor): the cell reads attempt 0 at **11 ticks / 5.6 mm** from its one accepted
+frame, then **1 and 0** accepted frames (`frames=4` of **210** renders). The
+decisive control: author the wrist cameras and **never read them** - the head
+camera then reads **27 frames (19 on attempt 0, 0 on attempt 1)** against **75
+(27/51)** on the head-only tree. **Mere authorship of a second annotated camera
+takes the first one's instance mask away**, attempt-dependently. **This build
+supports one annotated camera per run**, not two; the remaining step is a scene
+pipeline one (a second render product with an independent annotator graph), not a
+tracking one. **Option A closes here: not adopted.** The head camera plus the estimator stays the
 working loop, and with the knob unset **no camera is authored at all**. **No-harm**: `scripts/accept.sh`
 with every knob unset is **8/10 = 80 %, 9.0 s/attempt, `fingerprint: matches`,
 `190: PASS`**, and its **421 `[fruit]` lines are 421/421 byte-identical** to
@@ -6921,7 +6931,7 @@ clamp, the calibration ratio, the synthetic sphere, every off default); `106` OK
 `configs/motion_reference.json` = `..._twoline.json` = **`30fb99f8`** and
 `..._single.json` = **`8952c320`** stand. Pins: `tracking.py`
 **`970e2139`** (new: the estimator, the belt prior, the measurement gate), `perception.py` **`7557d461`** (new), `tasks.py`
-**`fc83b39e`**, `fruits.py` **`ad490ff0`** (`FruitSpawner.impulse`), `rl_env.py`
+**`5b3a8ee6`**, `fruits.py` **`ad490ff0`** (`FruitSpawner.impulse`), `rl_env.py`
 **`1c934199`** (the `TASKS_MD5` follow), `scripts/268_p135_track_selftest.py`
 **`aa26a529`** (35 checks), `scripts/selfcheck.sh` **`d57ef4ab`**, `configs/perception_calibration.json`
 **`963b5522`** (new; the depth path only - the scripted line never reads it),

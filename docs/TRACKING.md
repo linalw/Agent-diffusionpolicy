@@ -152,9 +152,16 @@ blind descent, the **band-centre fallback** and the **border-clip gate** - and i
 is **not validated**: with two render products alive the second attempt accepts
 **zero** frames, while the same attempt on the head-only tree accepts 51 and the
 wrist-only cells accept 13 and 28-75. The sensor is sound; this build's per-sensor
-`instance_id_segmentation` is not. Exit: choose the camera **per attempt**, or
-give the wrist its own render product. The head camera plus the estimator stays
-the working loop.
+`instance_id_segmentation` is not. A **per-attempt choice** is implemented
+(`FRUIT_WRIST_MODE=pick`: the wrist gets the first look at the descent's start and
+whichever camera sees the fruit is that attempt's only sensor) and the cell reads
+**11 ticks at 5.6 mm on attempt 0, then 1 and 0 accepted frames**. The decisive
+control is that authoring the wrist cameras and **never reading them** drops the
+head camera from 75 accepted frames (27/51) to **27 (19/0)** - *mere authorship*
+of a second annotated camera takes the first one's mask away. **This build
+supports one annotated camera per run.** The remaining step is a scene-pipeline
+one (a second render product with an independent annotator graph), not a tracking
+one. The head camera plus the estimator stays the working loop.
 
 ## 4. What is a tracker *not* for
 

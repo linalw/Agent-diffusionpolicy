@@ -1983,6 +1983,10 @@ class PickAndPlaceTask:
     _track_innov = _AttemptLocal("_track_innov", 0.0)
     _track_err = _AttemptLocal("_track_err", 0.0)
     _track_sample = _AttemptLocal("_track_sample")
+    #: Which camera this attempt reads (`pick` mode): "head", "wrist" or None
+    #: before the descent's start. Attempt-local because the two-line runs two
+    #: attempts on two threads.
+    _attempt_camera = _AttemptLocal("_attempt_camera")
     #: P135 impulse cell: the fruit waiting for its impulse and the tick it is
     #: due on, per attempt thread (the clock is decremented in `_step_sim`).
     #: P135 non-uniform **conveyor** instrument: a sinusoidal belt speed,
@@ -2999,6 +3003,9 @@ class PickAndPlaceTask:
         self._wrist_switch = max(
             0.0, float(os.environ.get("FRUIT_WRIST_SWITCH", "0.0"))
         )
+        #: `pick` (one camera per attempt, chosen at the descent's start),
+        #: `only` (wrist always), `switch` (per-frame distance handover).
+        self._wrist_mode = os.environ.get("FRUIT_WRIST_MODE", "pick").strip().lower()
         #: `estimate` = point the eye at the fruit's estimated centre (one aim for
         #: the whole attempt); `fixed` = the old fixed point along the axis.
         #: `fixed` is the default: aiming at the *estimate* closes a feedback loop
@@ -10316,13 +10323,22 @@ class PickAndPlaceTask:
         arm = self.arms.get(getattr(self, "current_arm", "") or "left")
         if arm is None:
             return perception.measure(self, sample, force=force)
-        # Two cameras, two jobs. The head sees the whole belt - it is the sensor
-        # that can *find* the fruit 20-30 cm upstream - and the wrist sees the
-        # grasp point at 10-18 cm with the best accuracy in the project. So the
-        # handover is by distance: a switch radius of 0 means "wrist only" (the
-        # phase-1 cells), anything larger keeps the head until the fruit is that
-        # close to the jaw.
-        if self._wrist_switch > 0.0:
+        # Two cameras, two jobs. The head sees the whole belt - it can *find* the
+        # fruit 20-30 cm upstream - and the wrist sees the grasp point at 10-18 cm
+        # with the best accuracy in the project. Reading **both** in one attempt
+        # does not work in this build (the per-sensor instance mask returns 0 px:
+        # `logs/p135/perception/two_cam3.log`), so the camera is chosen **once per
+        # attempt**:
+        #   `pick` (default) - at the descent's start, the wrist gets the first
+        #                      look; whichever sees the fruit is that attempt's
+        #                      only sensor. One render product is read per attempt,
+        #                      which is the configuration both single-camera cells
+        #                      proved works.
+        #   `only`          - the wrist for every attempt (the phase-1 cells).
+        #   `switch`        - the old per-frame distance handover (kept, and the
+        #                      one the annotator breaks).
+        mode = self._wrist_mode
+        if mode == "switch" and self._wrist_switch > 0.0:
             tracker = self._tracker_state
             near = (
                 tracker is not None
@@ -10336,6 +10352,24 @@ class PickAndPlaceTask:
             )
             if not near:
                 return perception.measure(self, sample, force=force)
+        if mode == "pick":
+            if self._attempt_camera is None:
+                # Before the anchor the head is the generalist (it can find the
+                # fruit upstream); the pick happens on the forced anchor frame.
+                if not force:
+                    return perception.measure(self, sample, force=force)
+                estimate = self._wrist_perceive(perception, sample, arm, force=True)
+                if estimate is not None:
+                    self._attempt_camera = "wrist"
+                    return estimate
+                self._attempt_camera = "head"
+                return perception.measure(self, sample, force=force)
+            if self._attempt_camera == "head":
+                return perception.measure(self, sample, force=force)
+        return self._wrist_perceive(perception, sample, arm, force=force)
+
+    def _wrist_perceive(self, perception, sample, arm, force: bool = False):
+        """One read from the eye-in-hand camera, with its pose driven from the arm."""
         axis = np.asarray(arm.approach_axis(), dtype=float)
         jaw = np.asarray(arm.jaw_centre(), dtype=float)
         rot = self._quat_matrix(np.asarray(arm.tcp_pose()[1], dtype=float))
@@ -12877,6 +12911,7 @@ class PickAndPlaceTask:
             self._tracker_state = None
             self._track_aim_rows.clear()
             self._track_sample = sample
+            self._attempt_camera = None
             perception = getattr(self, "_perception_state", None)
             if perception is not None:
                 # The measurement's per-fruit state (radius, centre) must not

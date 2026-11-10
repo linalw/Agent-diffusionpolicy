@@ -359,3 +359,35 @@ Neither is a tracking change.
 
 **What the cells did show**: attempt 0 of the handover reads **12-16 ticks at
 5.5 mm** - the best catch in the project - and the accepted frames are 4.8-5.0 mm.
+
+## 13. Per-attempt camera choice: correct in code, impossible in this build
+
+`FRUIT_WRIST_MODE=pick` is implemented as asked: at the descent's start the wrist
+gets the first look and whichever camera sees the fruit is that attempt's **only**
+sensor, so exactly one render product is read per attempt. The cell (3 attempts,
+seed 5):
+
+| attempt | catch | notes |
+|---|---|---|
+| 0 | **11 ticks, 5.6 mm** | its one accepted frame came from the wrist; the aim was right |
+| 1 | 200 ticks, 432.7 mm | 1 accepted frame |
+| 2 | 200 ticks, 369.7 mm | **0** accepted frames |
+
+`frames=4` over **210 renders**. So the problem is not the alternation.
+
+**The decisive control**: author the wrist cameras but never read them
+(`FRUIT_WRIST_MODE=off`, the depth path on the head). The head camera then reads
+**27 frames: 19 on attempt 0 and 0 on attempt 1** - against **75 frames (27/51)**
+on the head-only tree. *Mere authorship of a second annotated camera* takes the
+first one's instance mask away, and the damage is attempt-dependent.
+
+**So this build supports one annotated camera per run, not two.** The per-attempt
+choice is as far as the code can go; the remaining step is a scene-pipeline one -
+a second render product with an independent annotator graph - or the per-run
+choice the tree already has (`FRUIT_WRIST_CAMERA`). The wrist-only cells (13 and
+28-75 frames) and the head-only cells (27/51) are both sound; only the pair is not.
+
+**Verdict: option A closes here.** The handover is implemented (`FRUIT_WRIST_MODE`
+= `pick` / `only` / `switch`), hardened (ROI, no blind descent, band-centre
+fallback, clip gate) and **blocked by the build's annotator**, with the control
+that proves it.
