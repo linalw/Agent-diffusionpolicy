@@ -6939,6 +6939,37 @@ clamp, the calibration ratio, the synthetic sphere, every off default); `106` OK
 `61da390a`; `logs/p135/PREREG.md` **`0250fdc7`**. Evidence `logs/p135/`,
 `docs/TRACKING.md`.
 
+**P138 (2026-11-10, `logs/p138/`; **a recollection + a fine-tune, nothing
+adopted** - no `src/` change, no `configs/` change, no reference moved): the store
+that P136's branch change owes is recorded, learned, and its behaviour is
+unmeasured at the required N.** The shipped two-line with the tracker on
+(`track=1(default)`, the P136 catch) collected **45 episodes / 8,847 windows**
+(seed 901, left 23 / right 22; `106`: `entries=45 files=45 index_frames=9612
+file_frames=9612 unique_content=45 OK`); its `manifest.json` carries
+**`physics.tracking`** (`origin: default`), which is what makes a post-P136 store
+identifiable (a pre-flip one reads `scope-off` or has no key). Fine-tune with the
+lineage recipe (`111_rl_finetune`, `moe_v13s` `61da390a` init, `demos_v11` base, 6
+epochs, lr 5e-5, `ones`, base-weight 1.0) -> **`checkpoints/p138_track`**
+(`policy_best.pt` **`316f8dd3`**), final weighted loss **0.0205**, router 0.992,
+demo_val 0.0121. **Fidelity** (offline, `119`, 192 windows, a *diagnostic*): the
+candidate is **0.57x** the init's paired action error - **0.240 -> 0.138 rad**,
+fing 0.0016 -> 0.0008, **155 improved / 37 worse, sign p < 0.0001**, and it
+improves on every skill slice (approach 0.135->0.083, grasp 0.335->0.165, lift
+0.275->0.179, place 0.297->0.173) - it learned the store. **Behaviour, a smoke**:
+the hybrid canary (the interface P136 leaves on the pre-tracker catch), init vs
+candidate, seed 77, 3 episodes each: **2/3 vs 2/3**, baseline reasons only, both
+PASS - **no discrimination at n = 3** against the canary's recorded 5-8/10 spread,
+which is the only honest reading. **No rate is claimed**: the direct A/B
+(`112_rl_ab.sh`, N = 5 x 15, the WS-4.2 protocol) is **1.5-2 h** and named, not
+run, and the tree already carries three nulls on this interface (W7-C/W8-A, R9,
+P37); a 45-episode store is also below the 150-200 the lineage recollections used.
+`accept_policy.sh`'s default checkpoint is **unchanged** (`moe_v12`) - the
+candidate is an artefact, not a default. `scripts/selfcheck.sh` **PASS (0
+failures, 1 skipped)**, `106` OK, `107` PASS (21 checks); references
+**`61fb5202` / `61fb5202` / `18b101bf`** untouched; ckpt `moe_v13s` `61da390a`;
+`logs/p138/PREREG.md` **`48c8dbc7`**, `logs/p138/RESULTS.md` **`d86157f4`**.
+Evidence `logs/p138/`.
+
 **P137 (2026-11-10, `logs/p137/`; **one shipped change - the selector sizes its
 window with the belt's own speed** - no reference re-recorded): the last place
 the catch read a speed that is not the belt's is gone.** `select_target` sizes its

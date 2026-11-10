@@ -26552,3 +26552,25 @@ The term does not bind: the belt-wave cell reads 12/13/11 ticks at 5.4/5.8/6.0 m
 and 2/3 placed, identical to the pre-change cell. That matches the record from the
 other side (P99: the interval is the sequencing of two overlapped arms, not the
 arrival). A correctness fix, not a lever.
+
+## P138 (2026-11-10) - the recollection on the flipped tree
+
+P136 moved the scripted branch, so the store that change owes was recorded: the
+shipped two-line with the tracker on, 45 episodes / 8,847 windows (seed 901,
+left 23 / right 22), index audit OK, and its manifest carries
+`physics.tracking` (`origin: default`) - which is what makes a post-P136 store
+identifiable.
+
+Fine-tune with the lineage recipe (moe_v13s + demos_v11, 6 epochs, lr 5e-5,
+ones) -> checkpoints/p138_track, weighted loss 0.0205, router 0.992.
+
+Fidelity (offline, a diagnostic): the candidate is 0.57x the init's paired action
+error - 0.240 -> 0.138 rad, 155 improved / 37 worse, p < 0.0001 - and it improves
+on every skill slice. It learned the store.
+
+Behaviour, a smoke: the hybrid canary (on the pre-tracker catch, by P136's scope),
+init vs candidate, 3 episodes each -> 2/3 vs 2/3, baseline reasons only. No
+discrimination at n = 3 against a 5-8/10 spread.
+
+No rate is claimed: the direct A/B (N=5x15) is 1.5-2 h and named, not run, and
+the interface already carries three nulls. The default checkpoint is unchanged.
