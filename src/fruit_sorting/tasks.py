@@ -1927,6 +1927,29 @@ class EpisodeResult:
         return max(0.0, self.sim_end - self.sim_start)
 
 
+def _selector_speed(task) -> float:
+    """The speed the selector's station windows are sized with [m/s].
+
+    The windows are *time x speed* (`FRUIT_PREPOSE_LEAD_S` and the pre-pose lead),
+    and P137 found the time multiplied by the **authored** speed
+    (`cfg.belt_speed`) rather than the belt's own. On a constant belt the two are
+    the same number, so this is byte-identical there; on a conveyor whose speed
+    varies they differ by `FRUIT_PREPOSE_LEAD_S * |v - v_nominal|` - up to 36 mm
+    at +-0.04 m/s - and the window is then sized for a belt that is not running.
+    `FRUIT_SELECT_LIVE_SPEED=0` restores the config read.
+
+    Module-level and `getattr`-tolerant so the offline selector selftests'
+    `SimpleNamespace` stubs keep working: a stub falls back to the configured
+    speed, which is exactly what it was written against.
+    """
+    if os.environ.get("FRUIT_SELECT_LIVE_SPEED", "1") == "0":
+        return abs(float(task.cfg.belt_speed))
+    estimator = getattr(task, "_belt_speed_estimate", None)
+    if estimator is None:
+        return abs(float(task.cfg.belt_speed))
+    return abs(float(estimator()))
+
+
 class PickAndPlaceTask:
     """State-machine picker used for scripted demonstrations."""
 
@@ -9733,7 +9756,7 @@ class PickAndPlaceTask:
             # fruit that is already past the point the arm can meet.
             prepose_lead = max(
                 prepose_lead,
-                abs(float(self.cfg.belt_speed))
+                _selector_speed(self)
                 * float(os.environ.get("FRUIT_PREPOSE_LEAD_S", "0.9")),
             )
             # W8-R3 L2: `lead_override_s` is the two-line replacement (the
@@ -9744,7 +9767,7 @@ class PickAndPlaceTask:
                     lead_override_s if lead_override_s is not None else min_lead_s
                 )
                 prepose_lead = max(
-                    prepose_lead, abs(float(self.cfg.belt_speed)) * float(lead_s)
+                    prepose_lead, _selector_speed(self) * float(lead_s)
                 )
             station_floor = pick_y - 0.02 + prepose_lead
             upstream_floor = max(pick_y + 0.18, station_floor)
@@ -10738,7 +10761,7 @@ class PickAndPlaceTask:
         )
         return max(
             prepose_lead,
-            abs(float(self.cfg.belt_speed))
+            _selector_speed(self)
             * float(os.environ.get("FRUIT_PREPOSE_LEAD_S", "0.9")),
         )
 

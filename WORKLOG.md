@@ -26533,3 +26533,22 @@ and 18b101bf single arm - with the pre-flip files archived in logs/p136/.
 
 **Provenance.** `physics.tracking` in both manifest writers (one builder,
 `scene._tracking_provenance`), verified in a 1-episode collector probe.
+
+## P137 (2026-11-10) - the selector's last constant-speed term, removed
+
+`select_target` sizes its station window in metres from a time (0.9 s pre-pose
+lead + the 1.5 s setup) and multiplied it by the **authored** `cfg.belt_speed`.
+On a conveyor whose speed varies that is a window for a belt that is not running
+(up to 36 mm off at +-0.04 m/s). `_selector_speed` now reads the belt's own speed,
+with the config value as the fallback for encoder-less stubs and
+`FRUIT_SELECT_LIVE_SPEED=0` to restore.
+
+The gate was inertness, and it passed: the acceptance is 7/10, `fingerprint:
+matches`, `190: PASS`, with **459/459 `[fruit]` lines byte-identical** to the P136
+record - on a constant belt the encoder is the authored speed, so no reference
+re-record was owed.
+
+The term does not bind: the belt-wave cell reads 12/13/11 ticks at 5.4/5.8/6.0 mm
+and 2/3 placed, identical to the pre-change cell. That matches the record from the
+other side (P99: the interval is the sequencing of two overlapped arms, not the
+arrival). A correctness fix, not a lever.

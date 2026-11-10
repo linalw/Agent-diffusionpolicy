@@ -6939,6 +6939,35 @@ clamp, the calibration ratio, the synthetic sphere, every off default); `106` OK
 `61da390a`; `logs/p135/PREREG.md` **`0250fdc7`**. Evidence `logs/p135/`,
 `docs/TRACKING.md`.
 
+**P137 (2026-11-10, `logs/p137/`; **one shipped change - the selector sizes its
+window with the belt's own speed** - no reference re-recorded): the last place
+the catch read a speed that is not the belt's is gone.** `select_target` sizes its
+station window in *metres* from a *time* (`FRUIT_PREPOSE_LEAD_S` 0.9 s + the
+0.12 m pre-pose lead, plus `_dynamic_select_floor`'s 1.5 s setup) and multiplied
+it by the **authored** `cfg.belt_speed`; `_selector_speed(task)` now returns the
+**live** `_belt_speed_estimate()` (config fallback for an encoder-less stub,
+`FRUIT_SELECT_LIVE_SPEED=0` restores the old read), at `_prepose_lead_value` (the
+selector's edge and the reach path) and `select_target`'s two pre-pose terms. **The
+gate is inertness, and it passes**: the shipped acceptance reads **7/10 = 70 %,
+`fingerprint: matches`, `190: PASS`**, and its **459 `[fruit]` lines are 459/459
+byte-identical** to `logs/p136/accept_final.log` - on a constant belt the encoder
+*is* the authored speed, so no reference re-record is owed and none was made. **The
+term does not bind**: the belt-wave cell (0.04 m/s at 0.5 Hz, P135's scenario, 3
+attempts) reads **12/13/11 ticks at 5.4/5.8/6.0 mm and 2/3 placed, identical to
+the pre-change cell** (`logs/p135/recheck/wave_w.log`) - the window's error (<= 36
+mm) is inside the selector's slack here, which is what the record said from the
+other side (P99: the interval is the sequencing of two overlapped arms, not the
+arrival; P58/P59: the depth means do not rank the arms). **Not a lever**: a
+correctness fix whose measured behaviour is identical in both scenarios the
+project has; it ships because it is inert on the acceptance and wrong without it.
+Every speed the catch consults (the descent's schedule, the gate, the catch-up's
+lead, the selector's window) now reads the belt's own. `scripts/selfcheck.sh`
+**PASS (0 failures, 1 skipped)** with three new checks in `176` (stub -> config,
+live encoder -> follows, `=0` -> config), `106` OK, `107` PASS (21 checks). Pins:
+`tasks.py` **`e3d3331c`**, `scripts/176_twoline_selftest.py`; references
+**`61fb5202` / `61fb5202` / `18b101bf`** untouched; ckpt `moe_v13s` `61da390a`;
+`logs/p137/PREREG.md` **`828f7048`**. Evidence `logs/p137/`.
+
 **P136 (2026-11-10, `logs/p136/`; **one shipped change - the prediction-gated
 handover is the scripted line's default** - and both motion references
 re-recorded): the moving catch's aim, descent and catch-up now run on the

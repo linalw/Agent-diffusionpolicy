@@ -135,6 +135,29 @@ def main() -> int:
     floor = task._dynamic_pick_lead() + 0.12 * 1.5 + 0.03
     print(f"selector floor above the station: {floor:.3f} m")
 
+    # P137: the selector's station window is *time x speed*, and the speed is the
+    # belt's own, not the authored one. On this stub (no `_belt_speed_estimate`)
+    # both resolve to `cfg.belt_speed`, so the window is unchanged - which is the
+    # property that keeps the shipped cell byte-identical. With an estimator that
+    # reads a different speed the window follows it, and `=0` restores the old
+    # read.
+    from fruit_sorting.tasks import _selector_speed
+
+    check(abs(_selector_speed(task) - abs(float(task.cfg.belt_speed))) < 1e-12,
+          "P137: a stub without an encoder sizes the window with cfg.belt_speed")
+    class _Live:
+        cfg = task.cfg
+        def _belt_speed_estimate(self):
+            return -0.20
+    check(abs(_selector_speed(_Live()) - 0.20) < 1e-12,
+          "P137: the selector follows the belt's own speed (0.20)")
+    os.environ["FRUIT_SELECT_LIVE_SPEED"] = "0"
+    try:
+        check(abs(_selector_speed(_Live()) - abs(float(task.cfg.belt_speed))) < 1e-12,
+              "P137: FRUIT_SELECT_LIVE_SPEED=0 restores the authored speed")
+    finally:
+        os.environ.pop("FRUIT_SELECT_LIVE_SPEED", None)
+
     # 1. The floor is measured from the arm's own station.
     below_right_floor = fruit(0, "A", 0.20 - floor + 0.02)  # 0.02 above right floor? no
     above_right_floor = fruit(1, "A", -0.20 + floor + 0.01)
