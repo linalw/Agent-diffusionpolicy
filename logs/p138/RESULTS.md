@@ -62,3 +62,39 @@ episodes cannot separate the arms, and a tie is the only honest reading.
   learn (the fidelity says so) and not enough to call a rate.
 * `accept_policy.sh`'s default checkpoint is **unchanged** (`moe_v12`): the
   candidate is an artefact, not a default.
+
+## 6. The direct A/B is blocked: this tree's direct interface is not the record's
+
+The A/B was launched (N = 5 x 15, `112_rl_ab.sh`, init vs candidate) and its
+**first cell read 0/15** with **all 15 episodes `fruit fell off the line`**. That
+is not the record's direct baseline (P59-p3: 26/45 = 57.8 %), so the cell was
+stopped before spending the other nine runs. Three discriminating cells followed:
+
+| cell | n | result | dominant class |
+|---|---|---|---|
+| init, shipped direct config | 15 | **0/15** | 14 `fruit fell off the line` |
+| init, `FRUIT_TRACK=0 FRUIT_SELECT_LIVE_SPEED=0` (P136/P137 neutralised) | 15 | **0/15** | 14 `fruit fell off the line` |
+| init, `FRUIT_SUPPLY_PATCH=1` | 15 (killed at 9) | 0 successes to that point | 9 `fruit fell off the line` |
+| init, `FRUIT_ARM_PARK=ready FRUIT_TRACK=0` | 3 | 1/3 | - |
+| init, `FRUIT_TRACK=0` (park default) | 3 | 0/3 | - |
+
+**So the drift is not P136's or P137's** (neutralising both leaves 0/15), and it
+is not the patch supply. The log names the mechanism for at least one episode in
+the 15-episode cells: `openarm fingertips 107626 mm from the fruit; closing
+anyway` - the direct handover's hand-to-fruit state is **107 m** out, and
+`[belt] recirculating ... waited 60 s at the gate` on four fruits in the same
+window. At n = 3 that row does **not** appear (0 of 3 with the park default, 0 of
+3 parked at `ready`), so the 107 m is a **late-episode** symptom, not the park's
+own state - the park arms differ by **one episode at n = 3** and that is not
+evidence.
+
+**Verdict: the A/B is blocked, and the blocker is a phase of its own.** Two of the
+record's interfaces now disagree: the **hybrid canary** (a different loop, no
+park) reads 2/3 vs 2/3 and PASSes, while the **direct loop** reads ~0/15 on the
+shipped config at seed 77. Until that is diagnosed, any checkpoint comparison on
+the direct interface measures the drift, not the checkpoint - and the record's
+direct numbers (P54/P59/P121) are not reproducible here.
+
+**What is not claimed from these cells**: that the park broke the loop (one
+episode at n = 3), that P136/P137 caused it (the control is identical), or that
+the candidate is worse (both arms fail before the checkpoint matters).

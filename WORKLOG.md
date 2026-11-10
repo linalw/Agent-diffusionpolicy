@@ -26574,3 +26574,22 @@ discrimination at n = 3 against a 5-8/10 spread.
 
 No rate is claimed: the direct A/B (N=5x15) is 1.5-2 h and named, not run, and
 the interface already carries three nulls. The default checkpoint is unchanged.
+
+## P138 addendum (2026-11-10) - the direct A/B is blocked by the interface, not the checkpoint
+
+The A/B's first cell read 0/15 with all 15 episodes "fruit fell off the line",
+against the record's P59-p3 26/45. Stopping to discriminate:
+
+- init with FRUIT_TRACK=0 + FRUIT_SELECT_LIVE_SPEED=0 (P136/P137 neutralised):
+  also 0/15 -> the drift is not ours;
+- FRUIT_SUPPLY_PATCH=1: 0 successes at 9 episodes -> not the supply;
+- FRUIT_ARM_PARK=ready at n=3: 1/3 vs 0/3 with the park default -> one episode,
+  not evidence;
+- the log names a 107 m hand-to-fruit state ("fingertips 107626 mm") and four
+  fruits recirculating at the gate, and the 107 m row is absent from every
+  3-episode cell -> a late-episode symptom.
+
+So the direct loop is at ~0/15 where the record has 57.8 %, while the hybrid
+canary (a different loop, no park) still passes 2/3. Any checkpoint comparison on
+the direct interface measures that drift. The blocker is a phase of its own; the
+store, the checkpoint and the fidelity (0.57x) stand as P138's deliverables.

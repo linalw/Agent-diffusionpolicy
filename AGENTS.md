@@ -6964,7 +6964,20 @@ which is the only honest reading. **No rate is claimed**: the direct A/B
 run, and the tree already carries three nulls on this interface (W7-C/W8-A, R9,
 P37); a 45-episode store is also below the 150-200 the lineage recollections used.
 `accept_policy.sh`'s default checkpoint is **unchanged** (`moe_v12`) - the
-candidate is an artefact, not a default. `scripts/selfcheck.sh` **PASS (0
+candidate is an artefact, not a default. **The A/B itself is BLOCKED**: its first
+cell read **0/15** with all 15 episodes `fruit fell off the line`, and the
+discriminating cells say the drift is not ours - **init with
+`FRUIT_TRACK=0 FRUIT_SELECT_LIVE_SPEED=0` (P136/P137 neutralised) is also
+0/15**, `FRUIT_SUPPLY_PATCH=1` is 0 successes at 9 episodes, and the log names a
+**107 m** hand-to-fruit state (`openarm fingertips 107626 mm from the fruit;
+closing anyway`) plus `[belt] recirculating ... waited 60 s` on four fruits, while
+the **park arms differ by one episode at n = 3** (0/3 default vs 1/3 `ready`) and
+that is not evidence. So the **direct loop reads ~0/15 where P59-p3 read 26/45 =
+57.8 %**, the **hybrid canary still PASSes (2/3)**, and a checkpoint comparison
+here would measure the drift, not the candidate. The 107 m row is a
+**late-episode** symptom (absent in every 3-episode cell), not the park's own
+state. **The blocker is a phase of its own** - the record's direct numbers are not
+reproducible on this tree, and nothing in this phase claims otherwise. `scripts/selfcheck.sh` **PASS (0
 failures, 1 skipped)**, `106` OK, `107` PASS (21 checks); references
 **`61fb5202` / `61fb5202` / `18b101bf`** untouched; ckpt `moe_v13s` `61da390a`;
 `logs/p138/PREREG.md` **`48c8dbc7`**, `logs/p138/RESULTS.md` **`d86157f4`**.
