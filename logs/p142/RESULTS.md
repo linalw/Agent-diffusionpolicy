@@ -296,3 +296,32 @@ A flip is therefore one expression, and its blast radius is bounded but not smal
 
 Items 1-4 are why 15 paired episodes are not enough, and item 5 is why the flip is
 cheap to *test*: the acceptance is not in the blast radius.
+
+## 11. The adoption batch (N = 5 x 15): the 15-episode lead shrinks, and lands on the record's own number
+
+`logs/p142/ab5/`, `OUT=logs/p142/ab5 ARM=dynamic SEEDS="77 101 202 303 404"
+EPISODES=15`, same checkpoint / wave / declared endpoint:
+
+| seed | placed |
+|---|---|
+| 77 | 12/15 |
+| 101 | 10/15 |
+| 202 | 12/15 |
+| 303 | 9/15 |
+| 404 | 10/15 |
+| **pooled** | **53/75 = 70.7 %** |
+
+**The 15-episode batch's 13/15 = 86.7 % does not survive the larger n** - the
+drop is 16 points, which is exactly the failure mode P93's fresh-seed rule exists
+to catch. The 75-episode number is the one to quote.
+
+**And it is the record's number**: the same combination measured **32/45 = 71.1 %**
+on the pre-P41 tree (`logs/p2b/ab012`) and **27/45 = 60 %** with `moe_v12` pinned
+(P54). So `FRUIT_DYNAMIC_PICK=1` **restores** the direct lane to its historical
+level on the current tree - it does not raise it. That is the honest framing: the
+phase's gain was removing fabricated failures (P139/P142's bookkeeping), not
+making the primitive better.
+
+Two classes appear at this n that the 15-episode batch did not show:
+**3x `fruit did not follow the gripper`** (the pre-contact acquisition class,
+2.7-4 % of attempts - the record's own rate), and the loaded slide (section 8.1).
