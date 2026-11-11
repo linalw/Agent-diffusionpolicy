@@ -364,3 +364,35 @@ the dormant guard (P142), the despawn teleport (P142), the score endpoint (P142)
 all removed; the primitive/intercept mismatch (P142) - measured, opt-in removed
 costs 13 points and 35 mis-sorts; and the loaded slide (`SIM_LIMIT`) - closed, and
 the only class left in the dynamic arm at 3/75.
+
+## 13. The cheap alternative to the flip: never adopt across lanes
+
+The indexed arm's 35 mis-deliveries come from one rule - the reselect's
+`else: ... placing it on the arm's own lane`, which **knowingly** takes a lane-1
+fruit onto lane 0 and records `cross-lane station fruit`. `FRUIT_RESELECT_SAME_LANE=1`
+(default off) refuses it instead and keeps the arm on its own fruit.
+
+Same seed (77), the **indexed** primitive, 15 episodes, everything else unchanged:
+
+| | baseline | `FRUIT_RESELECT_SAME_LANE=1` |
+|---|---|---|
+| placed | 4/15 | **5/15** |
+| `cross-lane station fruit` | **8** | **0** |
+| refusals logged | 0 | 10 |
+
+The ledger term is structural - refusing an adoption **cannot** create a mis-sort -
+and the count did not pay for it (4 -> 5 of 15, one seed: a direction).
+
+**Blast radius, measured**: `scripts/accept.sh` with the knob armed is
+**7/10, `fingerprint: matches`, 459/459 `[fruit]` lines byte-identical** to
+`logs/p136/accept_final.log`, and the `reselect refused` row fires **0 times** on
+the scripted two-line line (those stations never present a cross-lane fruit). So
+the knob is **inert on the shipped scripted cell** and effective on the direct
+lane.
+
+**Still not adopted as a default**, for the same reason as the primitive flip:
+the only evidence is one seed of the direct arm, and a default moves the
+direct/policy interface (and the canary, which is `scripted=False`). It is
+recorded as the **cheapest** of the two flips - one `elif`, no primitive change, no
+store re-baseline, the scripted acceptance provably untouched - with the price
+being a 3-5 seed direct arm at `FRUIT_RESELECT_SAME_LANE=1`.
