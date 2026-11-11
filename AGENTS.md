@@ -6995,7 +6995,12 @@ by construction, so the arm never adopts a lane-1 fruit onto lane 0 - a **sort
 error** in the ledger either way). **Not adopted**: the flip re-baselines every
 direct/policy number, the canary's primitive and the stores' provenance, and the
 adoption price is the WS-4.2 shape (N=5 x 15 per arm, ~4-5 h) plus the canary
-re-measure. Read rule: a direct count is only comparable with
+re-measure. **Both of the dynamic arm's two failures are the closed class**: each log reads
+`carry grasp_lift -> carry place0 -> (no release row)`, i.e. grasped and **lost
+before the release block** (`logs/p42/SIM_LIMIT.md`'s loaded slide), while every
+one of the indexed arm's five failures carries a bookkeeping/acquisition note - so
+the catch removes the terms this phase can remove and leaves the one the record
+cannot. Read rule: a direct count is only comparable with
 `FRUIT_SCORE_ENDPOINT` **and** `FRUIT_DYNAMIC_PICK` named. **No-harm**:
 `scripts/accept.sh` **7/10 = 70 %, `fingerprint: matches`**, its **459 `[fruit]`
 lines 459/459 byte-identical** to `logs/p136/accept_final.log`;

@@ -223,3 +223,28 @@ inherit the flip.
 **Read rule from here**: the direct lane's count is only comparable with
 `FRUIT_SCORE_ENDPOINT` named and `FRUIT_DYNAMIC_PICK` named; the two arms differ by
 the primitive, so their ticks are not a speed comparison either.
+
+### 8.1 The dynamic arm's two failures are the closed class, not the lane
+
+Episode 2 and 3 of seed 101 are the arm's only failures, and the log says where
+they stop:
+
+```
+ep 0: carry grasp_lift -> carry place0 -> place low: bottom 1470 -> 46 mm   PLACED
+ep 1: carry grasp_lift -> carry place0 -> place low: bottom 1471 -> 47 mm   PLACED
+ep 2: carry grasp_lift -> carry place0 -> (no release row)                  LOST
+ep 3: carry grasp_lift -> carry place0 -> (no release row)                  LOST
+ep 4: carry grasp_lift -> carry place0 -> place low: bottom 1465 -> 45 mm   PLACED
+```
+
+Both failures were **grasped and lost before the release block** - the loaded
+slide of `logs/p42/SIM_LIMIT.md`, the class the record has closed from every
+direction (force, pad face, friction, seat, attitude, lift height, speed, wrist).
+No bookkeeping term is involved: the sample was the attempt's own
+(`[sample] protected == idx`), the guard never fired, and the attempt was scored
+on the declared endpoint.
+
+So the dynamic arm reads **13/15 with both failures inside the closed class**,
+while the indexed arm reads 10/15 with **five** failures - and every one of them
+carries a bookkeeping or acquisition note. **The moving catch removes the terms
+this phase can remove; what is left is the one the record cannot.**
