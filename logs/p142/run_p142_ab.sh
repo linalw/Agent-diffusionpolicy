@@ -17,7 +17,7 @@ ARM=${ARM:-dynamic}
 SEEDS=${SEEDS:-"77 101 202 303 404"}
 EPISODES=${EPISODES:-5}
 CKPT=${CKPT:-checkpoints/p141_wave/policy_best.pt}
-OUT=logs/p142/ab
+OUT=${OUT:-logs/p142/ab}
 mkdir -p "$OUT"
 if [ "$ARM" = "dynamic" ]; then DYN=1; else DYN=0; fi
 for seed in $SEEDS; do

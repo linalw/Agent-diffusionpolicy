@@ -7000,8 +7000,13 @@ re-measure. **Both of the dynamic arm's two failures are the closed class**: eac
 before the release block** (`logs/p42/SIM_LIMIT.md`'s loaded slide), while every
 one of the indexed arm's five failures carries a bookkeeping/acquisition note - so
 the catch removes the terms this phase can remove and leaves the one the record
-cannot. Read rule: a direct count is only comparable with
-`FRUIT_SCORE_ENDPOINT` **and** `FRUIT_DYNAMIC_PICK` named. **No-harm**:
+cannot. **The quality cost is separate and the metric is blind to it**
+(`logs/p142/grade_ledger.py`): the indexed arm's reselect delivers **8 cross-lane
+fruits in 15 episodes, 5 of them on attempts that placed** (`cross-lane station
+fruit (index 10) placed on lane 0`), against **0/15** on the dynamic arm - i.e.
+~0.5 mis-delivered fruit per episode that the success count does not see. Read
+rule: a direct count is only comparable with `FRUIT_SCORE_ENDPOINT` **and**
+`FRUIT_DYNAMIC_PICK` named. **No-harm**:
 `scripts/accept.sh` **7/10 = 70 %, `fingerprint: matches`**, its **459 `[fruit]`
 lines 459/459 byte-identical** to `logs/p136/accept_final.log`;
 `scripts/selfcheck.sh` **PASS (0 failures, 1 skipped)** with the new **`P142

@@ -248,3 +248,33 @@ So the dynamic arm reads **13/15 with both failures inside the closed class**,
 while the indexed arm reads 10/15 with **five** failures - and every one of them
 carries a bookkeeping or acquisition note. **The moving catch removes the terms
 this phase can remove; what is left is the one the record cannot.**
+
+## 9. The quality cost, from the logs alone
+
+`logs/p142/grade_ledger.py` reads the commanded bin and the `cross-lane station
+fruit` note out of the same logs. Both arms command the grade's own lane on 15/15
+episodes (`0` disagreements), so the commanded ledger is clean in both; the
+difference is what the **reselect** delivers.
+
+| arm | cross-lane deliveries | of which on an attempt that placed |
+|---|---|---|
+| **dynamic** | **0 / 15** | 0 |
+| **indexed** | **8 / 15** | **5** |
+
+The note names the fruit, not the episode:
+
+```
+cross-lane station fruit (index 10) placed on lane 0
+cross-lane station fruit (index 7)  placed on lane 0
+cross-lane station fruit (index 8)  placed on lane 0
+```
+
+So the indexed arm mis-delivers **~0.5 fruit per episode** - a lane-1 fruit
+carried to lane 0 - and it does so on attempts that *placed*, i.e. the success
+count of section 8 does not see this cost at all. That is the strongest argument
+this phase has for the moving catch beyond the count: it removes a **sort error**
+that the metric is blind to.
+
+Caveat the record requires: the two arms drew different fruit (dynamic A 8 / B 6 /
+C 1, indexed A 14 / B 1), so their counts are different draws; the cross-lane
+ledger is not - it is an event count on each arm's own attempts.
