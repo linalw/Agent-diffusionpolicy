@@ -6974,10 +6974,19 @@ the reselect **on**, both cells read 0/2 and the mechanism is in the log:
 `reselecting across lanes: presented index 9 ... openarm fingertips 1144 mm` - the
 presented fruit **was** at the station when adopted (`station_sample` filters
 `along` and `|x-belt_center| <= 0.30`) and by the close it is 1.14 m away or on the
-floor, i.e. **the descending hand knocks it off** (the P95 class, inside one
-attempt). So the lane's remaining term is the **reselect's timing** - it is decided
-during the close, after the descent has aimed at another fruit - and the named fix
-is a reselect decided **before** the descent, not built here. **No-harm**:
+floor. **That reading is a symptom, and the cause is structural**: the reselect is
+gated `and not dynamic_capture` and it **ran**, so the direct handover was running
+the **P1 indexed** primitive - whose descent aims at a **frozen**
+`position(sample)` read once (`tasks.py:14159`) - against a trigger that computes a
+**predicted intercept**. On a 0.12 m/s belt that is 0.06-0.36 m of travel between
+the aim and the close. `FRUIT_DYNAMIC_PICK=1` (the moving catch, the v8/P1
+directive) closes it: the same cell reads **2/2 (`success=True grasped=True
+placed=True`, reward 0.9715 / 0.9595)** with the `[sample]` rows healthy
+(`protected == idx`, `is_protected=True`, `pos=(+0.225,+0.173,+1.200)` = belt top +
+radius, not the slot and not 1.1 m away). **One cell of two episodes - not a
+rate**; the recorded numbers for that combination are pre-P41 (32/45 = 71.1 %,
+`logs/p2b/ab012`; 27/45 = 60 % with `moe_v12`, P54), so the named next spend is an
+**N=5 direct A/B** (WS-4.2) with `FRUIT_DYNAMIC_PICK=1`, not another smoke. **No-harm**:
 `scripts/accept.sh` **7/10 = 70 %, `fingerprint: matches`**, its **459 `[fruit]`
 lines 459/459 byte-identical** to `logs/p136/accept_final.log`;
 `scripts/selfcheck.sh` **PASS (0 failures, 1 skipped)** with the new **`P142

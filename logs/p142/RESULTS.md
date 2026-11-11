@@ -92,11 +92,8 @@ presented fruit **was** at the station when it was adopted; by the close it is
 descending hand knocks it off the line - the P95 class (a hand sweeping a fruit
 band) inside one attempt.
 
-**So the direct lane's remaining term is the station reselect's timing, not the
-park slot and not the metric.** The recorded sidestep is
-`FRUIT_STATION_RESELECT=0` (close on the fruit the descent aimed at); the fix, if
-it is wanted, is a reselect that is *decided before the descent* rather than
-during the close. Neither is built here.
+So the fruit was at the station when it was adopted and had left by the close.
+That reading is consistent but **it is a symptom**, and section 7 finds the cause.
 
 ### 6.1 The cell that closes it
 
@@ -125,3 +122,55 @@ three terms this phase touched are the ones that were in the way:
 and the one term this phase did **not** touch is named in section 6: the station
 reselect adopts a presented fruit during the close, after the descent has already
 aimed at another one.
+
+## 7. The cause: the direct handover ran the **indexed** primitive against a **predicted** intercept
+
+The trigger computes an intercept (`intercept trigger ... t_arrive=1.93s`), and the
+reselect is gated `and not dynamic_capture`. The reselect **ran**, so
+`dynamic_capture` was False: the direct handover was running the **P1 indexed**
+primitive, whose descent aims at a **frozen** `position(sample)` read once
+(`tasks.py:14159`) and then spends a premove plus a track window getting there.
+On a belt moving 0.12 m/s that is 0.06-0.36 m of travel between the aim and the
+close - the 1.14 m row is the tail of it.
+
+`FRUIT_DYNAMIC_PICK=1` is the moving catch (`_dynamic_pick_mode`, the v8/P1
+directive). Same cell, only that knob added:
+
+```
+[sample] arm=left  idx=1 parked=False held=True protected=1 is_protected=True
+         pos=(+0.225,+0.173,+1.200)
+[sample] arm=right idx=3 parked=False held=True protected=3 is_protected=True
+         pos=(+0.357,+0.186,+1.185)
+episode 0: pear       success=True grasped=True placed=True ticks=1751 reward=0.9715
+episode 1: strawberry success=True grasped=True placed=True ticks=1859 reward=0.9595
+[run] summary: 2/2
+```
+
+**2/2** - and the rows are the healthy state: the sample is the attempt's own
+(`protected == idx`, `is_protected=True`) at a real belt position (`z = 1.185-1.200`
+= belt top + radius), not the park slot and not 1.1 m away.
+
+**That is one cell of two episodes: not a rate.** What it establishes is narrower
+and firmer: the three bookkeeping terms of sections 1-4 are gone, the metric is
+declared, and the acquisition mismatch has a name - **the direct handover must run
+the catch its trigger assumes**. The recorded numbers for that combination are
+pre-P41 (32/45 = 71.1 %, `logs/p2b/ab012`; 27/45 = 60 % with `moe_v12`, P54), so
+the next spend is an **N=5 direct A/B** (the WS-4.2 protocol) with
+`FRUIT_DYNAMIC_PICK=1`, not another 2-episode smoke.
+
+### 7.1 The cell, verbatim
+
+```bash
+FRUIT_CAMERA_RES=240,424 FRUIT_OBS_SPEED=1 FRUIT_OBS_GOAL_AUX=1 \
+FRUIT_POLICY_TRIGGER=arrival FRUIT_DYNAMIC_PICK=1 \
+FRUIT_SCORE_ENDPOINT=release FRUIT_SAMPLE_DIAG=1 \
+FRUIT_BELT_WAVE_AMP=0.04 FRUIT_BELT_WAVE_HZ=0.5 \
+SKIP_SELFCHECK=1 scripts/run.sh scripts/110_rl_rollout.py \
+  --ckpt checkpoints/p141_wave/policy_best.pt --presentation direct \
+  --episodes 2 --seeds 77 --out logs/p142/rollout4
+```
+
+`logs/p142/rollout{2,3,4}.log` are the three cells of this section: reselect on
+(0/2), reselect off (1/2), dynamic catch (2/2). Only the first is the shipped
+direct configuration; the other two are `FRUIT_STATION_RESELECT=0` and
+`FRUIT_DYNAMIC_PICK=1` respectively.
