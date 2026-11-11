@@ -93,3 +93,37 @@ wholesale.
 FRUIT_STATION_RESELECT=0` (no adoption): if the close then lands on the selected
 fruit, the reselect is the path; if not, the recycle happens under the attempt and
 `protect`/`held` is the term.
+
+## 6. With the trigger armed and the reselect off, the direct lane names its own blocker
+
+One cell, 2 episodes, seed 77, `FRUIT_POLICY_TRIGGER=arrival
+FRUIT_STATION_RESELECT=0 FRUIT_FALL_DIAG=1`:
+
+| episode | ticks | notes |
+|---|---|---|
+| 0 | 1746 | `intercept trigger (dy=26.3cm, dx=-11.6cm, t_arrive=...)` |
+| 1 | 3628 | `intercept trigger (dy=30.6cm, dx=-8.2cm, t_arrive=...)` |
+
+and, for the first time in this phase, the primitive **runs with a sane pose**:
+`[task] openarm fingertips 59 mm from the fruit; closing anyway`.
+
+So with the trigger armed the park-slot rows disappear and the failure becomes a
+**named trigger refusal**: at the last evaluated tick the fruit is **8-12 cm
+laterally** off the station (`dx`) and 26-31 cm upstream (`dy`) - i.e. **the
+acquisition geometry**, the class the record already names (P32/P48/P49: the
+delivered-x tail; `|dx|` at the fire 0.06-0.12 m against the 0.16 m gate). The
+record's own lever for it is **P50's release-offset compensation** (opt-in,
+per-pool tables), which took the isolated tail 8/96 -> 0/96 cells and was blocked
+only by an underpowered count gate.
+
+**So the direct lane's chain is now:**
+1. harness: the trigger must be armed (`FRUIT_POLICY_TRIGGER=arrival`) - **fixed in
+   this phase's understanding; P138's "blocked" withdrawn**;
+2. the station reselect can adopt a **parked** fruit (body at the pad slot while
+   `parked` is False) - the reselect now refuses a `parked` sample, which does not
+   catch the desync, and `FRUIT_STATION_RESELECT=0` sidesteps it;
+3. the remaining refusal is **acquisition geometry** (`dx` 8-12 cm at the fire),
+   whose record lever is P50.
+
+**No rate is claimed** (2 episodes, one seed), and the A/B remains unrun - but it
+now has a stated precondition (1) and a candidate for (3).

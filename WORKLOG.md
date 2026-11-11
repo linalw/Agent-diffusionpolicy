@@ -26628,3 +26628,13 @@ The armed run exposes a second defect: FRUIT_STATION_RESELECT adopts the present
 fruit, and by the close its body is at the park slot (fingertips 103 m) while
 sample.parked is False - a flag/body desync. A parked guard at the reselect is
 added; the next instrument is one episode with FRUIT_STATION_RESELECT=0.
+
+## P139 addendum (2026-11-11) - the direct lane's real blocker is the acquisition geometry
+
+With FRUIT_POLICY_TRIGGER=arrival and FRUIT_STATION_RESELECT=0 the primitive runs
+with a sane pose (fingertips 59 mm) and the failure becomes a named trigger
+refusal: intercept trigger (dy=26.3/30.6 cm, dx=-11.6/-8.2 cm). So the chain is
+(1) arm the trigger [done in understanding], (2) the reselect can adopt a parked
+fruit [=0 sidesteps], (3) the remaining refusal is the acquisition geometry - the
+record's P32/P48/P49 delivered-x tail, whose lever is P50's release-offset
+compensation.

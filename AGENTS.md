@@ -6965,7 +6965,13 @@ interface is blocked / 0/15 against P59's 57.8 %" is WITHDRAWN.** With
 the **park slot** (`openarm fingertips 102976 mm`) while `sample.parked` reads
 **False** - a `parked`/body desync; the reselect now refuses a parked sample, which
 does not catch this one. **The A/B itself remains unrun** (one line: the trigger
-in `AB_EXTRA_ENV`). **The fix
+in `AB_EXTRA_ENV`), and with `FRUIT_POLICY_TRIGGER=arrival FRUIT_STATION_RESELECT=0`
+the primitive runs with a **sane pose** (`fingertips 59 mm`) and the failure becomes
+a **named trigger refusal** - `intercept trigger (dy=26.3/30.6 cm, dx=-11.6/-8.2 cm)`
+- i.e. the **acquisition geometry** the record already names (P32/P48/P49's
+delivered-x tail; the record's lever is P50's release-offset compensation). So the
+direct lane's chain is: (1) arm the trigger, (2) the reselect can adopt a parked
+fruit (`=0` sidesteps it), (3) the remaining refusal is acquisition geometry. **The fix
 shipped is opt-in**: `FRUIT_FALL_PARKED=1` makes a **parked** sample not end the
 episode on that note (it is left to its horizon); it changes the failure-reason
 ledger, so it is its own cell and was armed in no measurement here. The **owed**
