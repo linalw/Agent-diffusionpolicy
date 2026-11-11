@@ -26665,3 +26665,18 @@ only park() caller that can take a held=True sample is spawner.reset(), which pa
 everything unconditionally - so the next read is a reset interleaving with an
 in-flight attempt. The guard the row justifies: abort when sample.parked, or when
 not is_protected(sample) while the attempt's protected is another index.
+
+## P139 guard (2026-11-11) - reset cleared, the chase gone, and the lane places
+
+[reset] parking 16 sample(s): held=[] protected=[] - the reset is not the thief.
+
+The handover guard fires: episode 0 ends at 684 ticks (was 1746) with "abort: the
+sample handed to the close is not the attempt's (idx=9 parked=True protected=1)"
+and the note "sample swapped or recycled before the close".
+
+Episode 1 grasped AND placed (place low: bottom 1462 -> 48 mm) - the first
+placement in this investigation - and is still success=False because success =
+_lifted and on_output_belt(final), and with FRUIT_OUTPUT_RAILS=none the fruit is not
+within the 6 cm lane margin at finalize (it rolls off the slab). So the 0 rate is
+four terms: trigger default (harness), parked-fruit reselect (guard), the 100 m
+chase (guard), the scoring term (open).

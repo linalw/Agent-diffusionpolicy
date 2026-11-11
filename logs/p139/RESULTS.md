@@ -210,3 +210,44 @@ whether any was `held`/`protected`.
 a different index - **abort the attempt** instead of closing. A close on the park
 slot costs the whole episode and yields a 100 m chase that the drift check then
 labels as a station escape.
+
+## 10. The reset is cleared, the guard works, and the direct lane **places** - the rate is a scoring term
+
+One cell, 2 episodes, seed 77, `FRUIT_POLICY_TRIGGER=arrival FRUIT_SAMPLE_DIAG=1
+FRUIT_FALL_DIAG=1`, with the two new terms (the `[reset]` row and the handover
+guard):
+
+**`[reset] parking 16 sample(s): held=[] protected=[]`** - at the reset no sample
+was `held` or `protected`, so `spawner.reset()` is **not** the thief; the swap+park
+happens inside the attempt (the reselect adopts the presented fruit and that fruit
+is parked before the close).
+
+**The guard fires and the chase is gone**: episode 0 ends at **684 ticks** (against
+1746) with `abort: the sample handed to the close is not the attempt's (idx=9
+parked=True protected=1)` and the note `sample swapped or recycled before the
+close` - a truthful end instead of a 100 m close.
+
+**Episode 1 grasped AND placed** - the first placement in this whole
+investigation: `grasped=True placed=True`, `place low: bottom 1462 -> 48 mm`, 2858
+ticks. And it is still scored `success=False`, because
+
+```
+success = bool(self._lifted) and bool(self.cfg.on_output_belt(final))
+```
+
+with `_lifted = True` (the task grasped) and **`on_output_belt(final)` false**: the
+fruit is placed (the task's own release says so, and `placed=True`) but at
+`_finalize` it is not within `margin=0.06` of a lane - with `FRUIT_OUTPUT_RAILS=none`
+(P71) nothing keeps it from rolling off the slab after the release.
+
+So the direct lane's 0 rate decomposes into **four** terms, in the order they were
+found: (1) the trigger default (harness), (2) the reselect adopting a parked
+fruit (guard added), (3) the 100 m chase (same guard), (4) **the scoring term** -
+`on_output_belt(final)` after a successful place. Only (4) is still open, and it is
+a *scoring/geometry* term, not the policy.
+
+**Note on the ledger**: the guard's `sample swapped or recycled before the close`
+is a **new key** in the direct lane's failure-reason set (declared here; no rate is
+claimed on it), and `intercept trigger (...)` is a **diagnostic note** that is
+appended to every episode - it does not enter `success` (which is the `_lifted`
+and `on_output_belt` pair) but it does enter the *reason* set.

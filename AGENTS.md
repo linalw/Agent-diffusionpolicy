@@ -6990,9 +6990,20 @@ presented fruit) followed by a **park**, with the body at `60 + 3*9` fallen to
 `z = -78.7` (the slot is in mid-air). The only remaining `park()` caller that can
 take a `held=True` sample is **`spawner.reset()`**, which parks *every* sample
 unconditionally, so the next read is a reset/episode-boundary interleaving with an
-in-flight attempt. **The guard the row justifies** (not built): abort the attempt
-when `sample.parked`, or when `not is_protected(sample)` while the attempt's
-`protected` is another index. **The fix
+in-flight attempt. **The guard the row justifies is built** (abort when `sample.parked`, or when
+`not is_protected(sample)` while the attempt's `protected` is another index) and it
+works: episode 0 ends at **684 ticks** instead of 1746 with a truthful note. **The
+reset is cleared** (`[reset] parking 16 sample(s): held=[] protected=[]`), so the
+swap+park happens inside the attempt, not at the boundary. **And the lane places**:
+episode 1 is `grasped=True placed=True` (`place low: bottom 1462 -> 48 mm`) - the
+first placement in this investigation - yet still `success=False`, because
+`success = _lifted and on_output_belt(final)` and the fruit is **not within the
+6 cm margin of a lane at `_finalize`** with `FRUIT_OUTPUT_RAILS=none` (P71): it
+rolls off the slab after the release. So the direct lane's 0 rate decomposes into
+four terms - the trigger default (harness), the reselect adopting a parked fruit
+(guard), the 100 m chase (same guard), and **the scoring term** - and only the last
+is open. The guard's `sample swapped or recycled before the close` is a **new key**
+in the direct lane's reason set (declared; no rate claimed on it). **The fix
 shipped is opt-in**: `FRUIT_FALL_PARKED=1` makes a **parked** sample not end the
 episode on that note (it is left to its horizon); it changes the failure-reason
 ledger, so it is its own cell and was armed in no measurement here. The **owed**

@@ -14255,6 +14255,34 @@ class PickAndPlaceTask:
                                 )
                             except Exception:  # noqa: BLE001 - reporting only
                                 body = np.array([float("nan")] * 3)
+                            _owned = getattr(self.spawner, "protected", None)
+                            _foreign = (
+                                _owned is not None
+                                and int(_owned) != int(sample.index)
+                                and not bool(self.spawner.is_protected(sample))
+                            )
+                            if bool(getattr(sample, "parked", False)) or _foreign:
+                                # P139 guard: the handover's own numbers are in
+                                # range (`t_arrive <= lead`, `dx` inside the
+                                # lateral gate) and the close is still lost because
+                                # the *sample* is not the attempt's - measured,
+                                # `idx=9 parked=True protected=1`. Closing on a park
+                                # slot costs the episode and yields a 100 m chase
+                                # that the drift check labels a station escape; end
+                                # the attempt here instead. The key is new to the
+                                # direct lane's ledger and is declared as such.
+                                say(
+                                    f"[task]   abort: the sample handed to the "
+                                    f"close is not the attempt's "
+                                    f"(idx={int(sample.index)} "
+                                    f"parked={bool(getattr(sample, 'parked', False))} "
+                                    f"protected={_owned})"
+                                )
+                                result.notes.append(
+                                    "sample swapped or recycled before the close"
+                                )
+                                sample.held = False
+                                return result
                             say(
                                 f"[sample] arm={arm_name} "
                                 f"idx={int(sample.index)} "

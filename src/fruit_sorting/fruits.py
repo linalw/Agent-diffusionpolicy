@@ -1518,6 +1518,20 @@ class FruitSpawner:
 
     def reset(self) -> None:
         """Park every fruit and restart the release schedule."""
+        diag = os.environ.get("FRUIT_SAMPLE_DIAG", "0") == "1"
+        if diag:
+            # P139: this is the only `park()` caller that can take a `held` or
+            # `protected` sample (`_pick_recyclable` and `scan_despawn` both
+            # exclude them), so it is the suspect when a close is handed a body in
+            # the park slot. One row per reset names what it took.
+            held = [int(s.index) for s in self.samples if s.held]
+            owned = sorted(int(i) for i in self.protected_indices)
+            if self.protected is not None:
+                owned = sorted(set(owned) | {int(self.protected)})
+            say(
+                f"[reset] parking {len(self.samples)} sample(s): "
+                f"held={held} protected={owned}"
+            )
         for sample in self.samples:
             self.park(sample)
         self.active = []
