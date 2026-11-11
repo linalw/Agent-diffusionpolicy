@@ -278,3 +278,21 @@ that the metric is blind to.
 Caveat the record requires: the two arms drew different fruit (dynamic A 8 / B 6 /
 C 1, indexed A 14 / B 1), so their counts are different draws; the cross-lane
 ledger is not - it is an event count on each arm's own attempts.
+
+## 10. What a flip would owe, itemised
+
+`_dynamic_pick_mode`'s shipped default is `(openarm and scripted) or not openarm`,
+so for the **direct/policy** presentation (`scripted=False`, OpenArm) it resolves
+**False** - the indexed primitive - and `FRUIT_DYNAMIC_PICK` is the only override.
+A flip is therefore one expression, and its blast radius is bounded but not small:
+
+| # | what moves | why |
+|---|---|---|
+| 1 | every direct/policy rate and cycle | the primitive changes on every attempt |
+| 2 | the **hybrid canary** (`accept_policy.sh`) | `60_eval_policy.py` builds `PickAndPlaceTask(..., scripted=False)` (`:259`), so it resolves the same default; its recorded 5-8/10 spread is an indexed-primitive number and must be re-measured |
+| 3 | the stores' provenance | a rollout store's actions come from a different primitive; `physics.tracking` does not name the catch mode, so the manifest would need the term before any recollection |
+| 4 | P54's ACQ interface | `FRUIT_POLICY_TRIGGER_ACQ` was measured against the **indexed** handover (35.6 % -> 75.6 %); the moving catch has its own `_dynamic_pick_lead`, so the two leads must not be composed blindly |
+| 5 | **nothing on the scripted line** | it is already dynamic (`(openarm and scripted)`); `scripts/accept.sh`'s 459 `[fruit]` lines cannot move |
+
+Items 1-4 are why 15 paired episodes are not enough, and item 5 is why the flip is
+cheap to *test*: the acceptance is not in the blast radius.
