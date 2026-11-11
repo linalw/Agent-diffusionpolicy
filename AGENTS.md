@@ -6971,7 +6971,18 @@ a **named trigger refusal** - `intercept trigger (dy=26.3/30.6 cm, dx=-11.6/-8.2
 - i.e. the **acquisition geometry** the record already names (P32/P48/P49's
 delivered-x tail; the record's lever is P50's release-offset compensation). So the
 direct lane's chain is: (1) arm the trigger, (2) the reselect can adopt a parked
-fruit (`=0` sidesteps it), (3) the remaining refusal is acquisition geometry. **The fix
+fruit (`=0` sidesteps it), (3) **the remaining refusal is NOT acquisition
+geometry** - the full note carries every term and they all pass (`t_arrive 2.19 s
+<= lead 2.20`, `dy 26.3 <= reach 31 cm`, `dx -11.6 <= lateral 16 cm`, `finger
+0.020 <= 0.030`), so `dx` is the band itself and **P50's compensation is not
+indicated**; the blocker is the second note, `fruit left the pick station during
+the close (85392 mm)`, i.e. the sample's body in the **park slot**. **A real defect
+is added to the chain**: `FruitSpawner.scan_despawn` skipped `parked`/`held` and
+**not `is_protected`** while `_pick_recyclable` says "held, protected, or
+output-line fruit are never taken", so an in-flight sample crossing `despawn_y` is
+parked mid-attempt; the term is added (`211` ok 115 checks, selfcheck PASS) but is
+**not sufficient** - the same cell still reads `fingertips 101584 mm` and a gate
+recirculation, so at least one more path moves a body to the slot. **The fix
 shipped is opt-in**: `FRUIT_FALL_PARKED=1` makes a **parked** sample not end the
 episode on that note (it is left to its horizon); it changes the failure-reason
 ledger, so it is its own cell and was armed in no measurement here. The **owed**

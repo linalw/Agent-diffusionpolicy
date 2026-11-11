@@ -26638,3 +26638,18 @@ refusal: intercept trigger (dy=26.3/30.6 cm, dx=-11.6/-8.2 cm). So the chain is
 fruit [=0 sidesteps], (3) the remaining refusal is the acquisition geometry - the
 record's P32/P48/P49 delivered-x tail, whose lever is P50's release-offset
 compensation.
+
+## P139 quantification (2026-11-11) - dx is in range; the sample is recycled
+
+The full trigger note carries every term and they all pass: t_arrive 2.19 s <=
+lead 2.20, dy 26.3 <= reach 31 cm, dx -11.6 <= lateral 16 cm, finger 0.020 <=
+0.030. So dx is the band (0.20-0.36 against the station 0.34), not a refusal, and
+P50's release-offset compensation is not indicated.
+
+The blocker is the second note - fruit left the pick station during the close
+(85392 mm): the sample's body is in the park slot. scan_despawn skipped
+parked/held but not is_protected while _pick_recyclable says protected fruit are
+never taken; the term is added, 211 ok and selfcheck PASS, but it is not
+sufficient: the same cell still reads fingertips 101584 mm and a gate
+recirculation, so another path moves a body to the slot. Next instrument: one
+[sample] row at the close entry (index, parked, protected, is_protected, position).

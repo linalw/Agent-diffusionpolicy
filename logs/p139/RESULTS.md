@@ -127,3 +127,47 @@ only by an underpowered count gate.
 
 **No rate is claimed** (2 episodes, one seed), and the A/B remains unrun - but it
 now has a stated precondition (1) and a candidate for (3).
+
+## 7. The `dx` quantified: it is not the blocker
+
+The full refusal note carries every term, and it settles the question:
+
+```
+intercept trigger (dy=26.3cm, dx=-11.6cm, t_arrive=2.19s, speed=0.120m/s/encoder,
+                   frame=station, finger=0.0202, lead=2.20s/reach=0.31)
+fruit left the pick station during the close (85392 mm)
+```
+
+| term | value | gate | verdict |
+|---|---|---|---|
+| `t_arrive` | **2.19 s** | `lead 2.20 s` | **passes** (by 10 ms) |
+| `dy` | 26.3 cm | `reach 31 cm` | passes |
+| `dx` | **-11.6 cm** | `lateral 16 cm` | passes |
+| `finger` | 0.020 | 0.030 | passes |
+
+So **`dx` is in range and is not the refusal**: it is the *band* (x 0.20-0.36
+against the station's 0.34), i.e. the record's delivered-x, and the trigger's
+lateral gate was calibrated to admit exactly that. **P50's release-offset
+compensation is therefore not indicated** - the trigger is not refusing on the
+lateral term.
+
+The blocker is the **second note**: `fruit left the pick station during the close
+(85392 mm)` - the sample's body is in the **park slot** while the close runs, so
+the attempt was already lost before the drift check.
+
+## 8. One more real defect: the despawn sweep ignores `protected`
+
+`FruitSpawner.scan_despawn` skipped `sample.parked or sample.held` and **not**
+`is_protected(sample)`, while `_pick_recyclable`'s own docstring says "held,
+protected, or output-line fruit are never taken". So an in-flight sample that
+crosses `despawn_y` **is parked mid-attempt**, and every reader downstream sees
+the park slot. The term is added (`fruits.py`); `211` stays **ok (115 checks)**
+and `selfcheck` **PASS**.
+
+**It is not sufficient on its own**: with the term the same 2-episode cell still
+reports `fingertips 101584 mm` and `[belt] recirculating lychee (index 13):
+waited 60s at the gate`, so at least one more path moves a body to the slot (or the
+sample handed to the close is not the protected one). The instrument for the next
+step is a one-row `[sample]` print at the close entry: `sample.index`,
+`sample.parked`, `spawner.protected`, `is_protected(sample)`, and the body's
+position.

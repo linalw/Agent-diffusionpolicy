@@ -1896,7 +1896,14 @@ class FruitSpawner:
         # `reached_end` came from it rather than from the pump's own scan.
         self.stats["bed_sweeps"] = self.stats.get("bed_sweeps", 0) + 1
         for sample in list(self.active):
-            if sample.parked or sample.held:
+            # P139: **protected** as well as held. A sample an attempt owns is
+            # never recycled (`_pick_recyclable` already says so), and this sweep
+            # is the other place a body leaves the line: without the term an
+            # in-flight fruit that crosses `despawn_y` is parked mid-attempt and
+            # the close then runs on the park slot - measured, `fruit left the
+            # pick station during the close (85392 mm)` with the trigger's own
+            # numbers in range (`dy 26 cm, t_arrive 2.19 <= lead 2.20`).
+            if sample.parked or sample.held or self.is_protected(sample):
                 continue
             pos = self.position(sample)
             if self.cfg.on_output_tray(pos):
