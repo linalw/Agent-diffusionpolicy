@@ -6983,10 +6983,20 @@ the aim and the close. `FRUIT_DYNAMIC_PICK=1` (the moving catch, the v8/P1
 directive) closes it: the same cell reads **2/2 (`success=True grasped=True
 placed=True`, reward 0.9715 / 0.9595)** with the `[sample]` rows healthy
 (`protected == idx`, `is_protected=True`, `pos=(+0.225,+0.173,+1.200)` = belt top +
-radius, not the slot and not 1.1 m away). **One cell of two episodes - not a
-rate**; the recorded numbers for that combination are pre-P41 (32/45 = 71.1 %,
-`logs/p2b/ab012`; 27/45 = 60 % with `moe_v12`, P54), so the named next spend is an
-**N=5 direct A/B** (WS-4.2) with `FRUIT_DYNAMIC_PICK=1`, not another smoke. **No-harm**:
+radius, not the slot and not 1.1 m away). **The 2-arm A/B** (`logs/p142/run_p142_ab.sh`,
+seeds 77/101/202 x 5, same checkpoint, same wave, same declared endpoint, only
+`FRUIT_DYNAMIC_PICK` differs): **dynamic 13/15 = 86.7 % against indexed 10/15 =
+66.7 %**, paired 4 dynamic-only / 1 indexed-only, sign **p = 0.375** - a
+**direction, not a rate** (P93's rule); what is stronger is the class ledger: the
+indexed arm's failures carry **8x `cross-lane station fruit`**, 3x
+`fruit did not follow the gripper` and 2x `sample swapped or recycled before the
+close`, and the dynamic arm carries **none** (the moving catch skips the reselect
+by construction, so the arm never adopts a lane-1 fruit onto lane 0 - a **sort
+error** in the ledger either way). **Not adopted**: the flip re-baselines every
+direct/policy number, the canary's primitive and the stores' provenance, and the
+adoption price is the WS-4.2 shape (N=5 x 15 per arm, ~4-5 h) plus the canary
+re-measure. Read rule: a direct count is only comparable with
+`FRUIT_SCORE_ENDPOINT` **and** `FRUIT_DYNAMIC_PICK` named. **No-harm**:
 `scripts/accept.sh` **7/10 = 70 %, `fingerprint: matches`**, its **459 `[fruit]`
 lines 459/459 byte-identical** to `logs/p136/accept_final.log`;
 `scripts/selfcheck.sh` **PASS (0 failures, 1 skipped)** with the new **`P142

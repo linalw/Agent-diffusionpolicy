@@ -174,3 +174,52 @@ SKIP_SELFCHECK=1 scripts/run.sh scripts/110_rl_rollout.py \
 (0/2), reselect off (1/2), dynamic catch (2/2). Only the first is the shipped
 direct configuration; the other two are `FRUIT_STATION_RESELECT=0` and
 `FRUIT_DYNAMIC_PICK=1` respectively.
+
+## 8. The A/B: the moving catch against the shipped direct primitive
+
+`logs/p142/run_p142_ab.sh`, both arms on seeds **77 / 101 / 202** x 5 episodes,
+the same checkpoint (`p141_wave`), the same wave (0.04 m/s x 0.5 Hz), the same
+declared endpoint (`FRUIT_SCORE_ENDPOINT=release`); **only `FRUIT_DYNAMIC_PICK`
+differs**. `logs/p142/ab_report.py`:
+
+| arm | n | placed | % | success |
+|---|---|---|---|---|
+| **dynamic** (`=1`, the moving catch) | 15 | **13** | **86.7 %** | 13 |
+| **indexed** (`=0`, the shipped direct primitive) | 15 | **10** | 66.7 % | 10 |
+
+Per seed: dynamic 5/5, 3/5, 5/5 - indexed 4/5, 3/5, 3/5.
+Paired on `(seed, episode)`: **4 dynamic-only, 1 indexed-only, sign test
+p = 0.3750** (n = 15). So the count is a **direction, not a rate** - the record's
+own rule (P93) puts a 20-point difference at n = 15 inside the noise.
+
+**What is stronger than the count is the class ledger.** The indexed arm's five
+failures carry exactly the events this phase named:
+
+```
+note  8x cross-lane station fruit        <- the reselect adopting a lane-1 fruit
+note  3x fruit did not follow the gripper
+note  2x sample swapped or recycled before the close
+```
+
+and the dynamic arm carries **none of them** (its only note is the trigger's own
+diagnostic row, which is appended to every attempt).
+
+Two consequences, one measured and one structural:
+
+1. **The 8 cross-lane events disappear** because the moving catch skips the
+   station reselect by construction (`and not dynamic_capture`) - so the arm never
+   adopts a lane-1 fruit onto lane 0. Those events are **sort errors** in the
+   ledger regardless of whether the attempt placed.
+2. The 2 `sample swapped or recycled` notes are the same class, seen at the close
+   after the reselect.
+
+**Not adopted.** Flipping the direct default is a re-baseline (every direct/policy
+number, the hybrid canary's primitive, and the stores' provenance), and 15 paired
+episodes cannot carry it. The adoption price is the recorded WS-4.2 shape: N = 5
+runs x 15 episodes per arm (~4x this batch, ~4-5 h at this wall), plus the canary
+re-measure - because `accept_policy.sh` builds the direct presentation and would
+inherit the flip.
+
+**Read rule from here**: the direct lane's count is only comparable with
+`FRUIT_SCORE_ENDPOINT` named and `FRUIT_DYNAMIC_PICK` named; the two arms differ by
+the primitive, so their ticks are not a speed comparison either.
