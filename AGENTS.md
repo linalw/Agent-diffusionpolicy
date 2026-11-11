@@ -7019,7 +7019,17 @@ handover has been deliberately opt-in since P54 (it measured 32/45 = 71.1 % agai
 16/45 = 35.6 % and still kept the indexed default, because the canary was measured
 on it); this phase's rate is inside the noise, so the one decisive term is a
 quality argument a flip would pay for with a canary re-measure and a full
-direct/policy re-baseline (section 10 of the results). Read
+direct/policy re-baseline (section 10 of the results). **The corrected metric is
+the phase's cleanest number** (a `cross-lane station fruit ... placed on lane M`
+note **is** a mis-sorted placement, because the episode's `placed=True` describes
+the adopted fruit): on seeds 77/101/202 (45 each) the indexed arm's 27 "placements"
+decompose into the **same 15 correct** deliveries as the refusal arm plus **12
+wrong-box** ones - so `FRUIT_RESELECT_SAME_LANE=1` (refuse the cross-lane adoption)
+is **not a throughput trade**, it is the same correct output with 12 fewer mistakes
+(12/45 vs 0/45, Fisher **p = 1.05e-04**), and its scripted acceptance is **provably
+inert** (459/459, 0 fires). On the full 75-episode arms the primitive is what
+doubles the correct rate: indexed **25/75 = 33.3 %** (43 placed, 18 mis-sorted)
+against dynamic **53/75 = 70.7 %** (0 mis-sorted). Read
 rule: a direct count is only comparable with `FRUIT_SCORE_ENDPOINT` **and**
 `FRUIT_DYNAMIC_PICK` named. **No-harm**:
 `scripts/accept.sh` **7/10 = 70 %, `fingerprint: matches`**, its **459 `[fruit]`

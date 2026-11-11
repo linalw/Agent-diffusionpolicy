@@ -396,3 +396,40 @@ direct/policy interface (and the canary, which is `scripted=False`). It is
 recorded as the **cheapest** of the two flips - one `elif`, no primitive change, no
 store re-baseline, the scripted acceptance provably untouched - with the price
 being a 3-5 seed direct arm at `FRUIT_RESELECT_SAME_LANE=1`.
+
+## 14. The corrected metric: what the cell actually delivers
+
+A `cross-lane station fruit ... placed on lane M` note is a **mis-sorted
+placement** - the reselect adopted a lane-1 fruit and released it into lane 0, so
+that episode's `placed=True` *is* the wrong-box delivery. Subtracting those from
+`placed` gives the number a sorting cell is actually paid for.
+
+Three arms, seeds 77 / 101 / 202 (45 episodes each; the first two arms are the
+`logs/p142/ab5/` cells, the third is `logs/p142/sam/`):
+
+| arm | placed | of which mis-sorted | **correct** |
+|---|---|---|---|
+| indexed (shipped direct) | 27 | **12** | **15 (33.3 %)** |
+| indexed + `FRUIT_RESELECT_SAME_LANE=1` | 15 | **0** | **15 (33.3 %)** |
+| **dynamic** (`FRUIT_DYNAMIC_PICK=1`) | **33** | **0** | **33 (73.3 %)** |
+
+Two facts, and the first one is the phase's cleanest:
+
+1. **The cross-lane adoption buys exactly the placements it gets wrong.** The
+   indexed arm's 27 "placements" decompose into the **same 15 correct** deliveries
+   as the refusal arm plus **12 wrong-box** ones. Refusing the cross-lane fruit is
+   therefore not a throughput trade at all - it is the same correct output with
+   12 fewer mistakes (12/45 vs 0/45, Fisher **p = 1.05e-04**).
+2. **The primitive is the lever that doubles the correct rate.** On the full
+   75-episode arms: indexed **25/75 = 33.3 %** correct (43 placed, 18 mis-sorted)
+   against dynamic **53/75 = 70.7 %** correct (53 placed, 0 mis-sorted).
+
+So the two candidate changes are not the same kind of thing:
+
+| change | correct rate | mis-sorts | cost to adopt |
+|---|---|---|---|
+| `FRUIT_RESELECT_SAME_LANE=1` | **unchanged** (15/45 = 15/45) | 12 -> 0 | one `elif`, scripted acceptance **provably inert** (459/459, 0 fires) |
+| `FRUIT_DYNAMIC_PICK=1` | **2.1x** (33.3 -> 70.7 %) | 18 -> 0 (on 75) | every direct/policy number + the canary + the stores |
+
+**The refusal is a strict improvement and is the recommendation**; the primitive
+flip is the larger lever and prices at a re-baseline. Neither is a default here.

@@ -75,9 +75,11 @@ def parse(path: str) -> list[dict]:
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dir", default="logs/p142/ab")
+    parser.add_argument("--arms", default="dynamic,indexed",
+                        help="comma-separated log prefixes in --dir")
     args = parser.parse_args()
 
-    for arm in ("dynamic", "indexed"):
+    for arm in [a.strip() for a in args.arms.split(",") if a.strip()]:
         rows = []
         for path in sorted(glob.glob(os.path.join(ROOT, args.dir, f"{arm}_s*.log"))):
             rows.extend(parse(path))
