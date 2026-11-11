@@ -7004,7 +7004,22 @@ cannot. **The quality cost is separate and the metric is blind to it**
 (`logs/p142/grade_ledger.py`): the indexed arm's reselect delivers **8 cross-lane
 fruits in 15 episodes, 5 of them on attempts that placed** (`cross-lane station
 fruit (index 10) placed on lane 0`), against **0/15** on the dynamic arm - i.e.
-~0.5 mis-delivered fruit per episode that the success count does not see. Read
+~0.5 mis-delivered fruit per episode that the success count does not see.
+**The finished adoption batch** (5 seeds x 15 = 75 per arm, `logs/p142/ab5/`):
+**dynamic 53/75 = 70.7 % against indexed 43/75 = 57.3 %**, per seed 12/10/12/9/10
+against 4/11/12/9/7, paired **25 dynamic-only / 15 indexed-only, sign p = 0.1539**,
+pooled **+13.3 points, 95 % CI [-15.2, +15.2]** - a **direction, not a result**
+(three of five seeds are a draw; 77 and 404 carry the gap; P93's power note puts
+13 points at ~364 attempts per arm). **The ledger is not a direction**: **35
+cross-lane deliveries against 0**, Fisher **p = 1.6e-13**, i.e. the indexed
+reselect delivers a lane-1 fruit to lane 0 about **once every two episodes** and
+the count is blind to it (5 of the first 8 happened on attempts that placed).
+**Not adopted, and the reason is a recorded decision**: the policy's dynamic
+handover has been deliberately opt-in since P54 (it measured 32/45 = 71.1 % against
+16/45 = 35.6 % and still kept the indexed default, because the canary was measured
+on it); this phase's rate is inside the noise, so the one decisive term is a
+quality argument a flip would pay for with a canary re-measure and a full
+direct/policy re-baseline (section 10 of the results). Read
 rule: a direct count is only comparable with `FRUIT_SCORE_ENDPOINT` **and**
 `FRUIT_DYNAMIC_PICK` named. **No-harm**:
 `scripts/accept.sh` **7/10 = 70 %, `fingerprint: matches`**, its **459 `[fruit]`

@@ -325,3 +325,42 @@ making the primitive better.
 Two classes appear at this n that the 15-episode batch did not show:
 **3x `fruit did not follow the gripper`** (the pre-contact acquisition class,
 2.7-4 % of attempts - the record's own rate), and the loaded slide (section 8.1).
+
+## 12. The finished adoption batch, and the verdict
+
+| arm | n | placed | % | cross-lane deliveries |
+|---|---|---|---|---|
+| **dynamic** (`FRUIT_DYNAMIC_PICK=1`) | 75 | **53** | **70.7 %** | **0** |
+| **indexed** (the shipped direct primitive) | 75 | 43 | 57.3 % | **35** |
+
+Per seed (placed / 15): dynamic **12, 10, 12, 9, 10** - indexed **4, 11, 12, 9, 7**.
+Paired on `(seed, episode)`: **25 dynamic-only, 15 indexed-only, sign p = 0.1539**;
+pooled difference **+13.3 points, 95 % CI [-15.2, +15.2]**.
+
+**So the rate is a direction, not a result.** Three of the five seeds are a draw
+(101, 202, 303: 10 vs 11, 12 vs 12, 9 vs 9) and the pooled gap is carried by 77
+(12 vs 4) and 404 (10 vs 7). A 75-episode arm at this base cannot certify 13
+points; the record's own power note (P93) puts it at ~364 attempts per arm.
+
+**The ledger is not a direction.** 35 cross-lane deliveries in 75 episodes against
+**0**: Fisher one-sided **p = 1.6e-13**. That is the phase's decisive finding - the
+indexed reselect delivers a lane-1 fruit to lane 0 roughly **once every two
+episodes**, and the success count cannot see it, because 5 of the first 8 such
+events happened on attempts that *placed*.
+
+**Verdict: not adopted, and the reason is a recorded decision, not the number.**
+The policy's dynamic handover has been **deliberately opt-in since P54** - it
+measured dynamic 32/45 = 71.1 % against indexed 16/45 = 35.6 % and still kept the
+indexed primitive as the default, because the hybrid canary (the interface of
+record) had been measured on it. This phase's evidence does not overturn that: the
+rate is inside the noise, and the one decisive term (the ledger) is a
+**quality** argument that a flip would have to pay for with a canary re-measure
+and a full direct/policy re-baseline (§10). It is recorded as the reason a future
+flip is worth that price.
+
+**What the direct lane's account looks like now**, in the order the phases found
+it: the trigger default (harness, P139), the parked-sample reselect (guard, P139),
+the dormant guard (P142), the despawn teleport (P142), the score endpoint (P142) -
+all removed; the primitive/intercept mismatch (P142) - measured, opt-in removed
+costs 13 points and 35 mis-sorts; and the loaded slide (`SIM_LIMIT`) - closed, and
+the only class left in the dynamic arm at 3/75.
