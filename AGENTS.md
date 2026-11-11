@@ -6982,7 +6982,17 @@ is added to the chain**: `FruitSpawner.scan_despawn` skipped `parked`/`held` and
 output-line fruit are never taken", so an in-flight sample crossing `despawn_y` is
 parked mid-attempt; the term is added (`211` ok 115 checks, selfcheck PASS) but is
 **not sufficient** - the same cell still reads `fingertips 101584 mm` and a gate
-recirculation, so at least one more path moves a body to the slot. **The fix
+recirculation, so at least one more path moves a body to the slot. **The `[sample]` row answers it** (`FRUIT_SAMPLE_DIAG=1`, default off; printed where
+the handover is decided): `idx=9 parked=True held=True protected=1
+is_protected=False pos=(+87,0,-78.7)` - the task closes on a **parked** fruit while
+the attempt protects **index 1**, i.e. a **swap** (the station reselect adopts the
+presented fruit) followed by a **park**, with the body at `60 + 3*9` fallen to
+`z = -78.7` (the slot is in mid-air). The only remaining `park()` caller that can
+take a `held=True` sample is **`spawner.reset()`**, which parks *every* sample
+unconditionally, so the next read is a reset/episode-boundary interleaving with an
+in-flight attempt. **The guard the row justifies** (not built): abort the attempt
+when `sample.parked`, or when `not is_protected(sample)` while the attempt's
+`protected` is another index. **The fix
 shipped is opt-in**: `FRUIT_FALL_PARKED=1` makes a **parked** sample not end the
 episode on that note (it is left to its horizon); it changes the failure-reason
 ledger, so it is its own cell and was armed in no measurement here. The **owed**

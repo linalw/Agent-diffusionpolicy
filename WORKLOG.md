@@ -26653,3 +26653,15 @@ never taken; the term is added, 211 ok and selfcheck PASS, but it is not
 sufficient: the same cell still reads fingertips 101584 mm and a gate
 recirculation, so another path moves a body to the slot. Next instrument: one
 [sample] row at the close entry (index, parked, protected, is_protected, position).
+
+## P139 sample row (2026-11-11) - the close is handed a parked fruit
+
+FRUIT_SAMPLE_DIAG=1 printed, at the handover:
+idx=9 parked=True held=True protected=1 is_protected=False pos=(+87,0,-78.7).
+So the task closes on a parked fruit while the attempt protects index 1: the
+station reselect swapped to the presented fruit (index 9) and then that fruit was
+parked, with the body at 60+3*9 fallen to z=-78.7 (the slot is in mid-air). The
+only park() caller that can take a held=True sample is spawner.reset(), which parks
+everything unconditionally - so the next read is a reset interleaving with an
+in-flight attempt. The guard the row justifies: abort when sample.parked, or when
+not is_protected(sample) while the attempt's protected is another index.

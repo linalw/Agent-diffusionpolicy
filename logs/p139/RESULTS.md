@@ -171,3 +171,42 @@ sample handed to the close is not the protected one). The instrument for the nex
 step is a one-row `[sample]` print at the close entry: `sample.index`,
 `sample.parked`, `spawner.protected`, `is_protected(sample)`, and the body's
 position.
+
+## 9. The `[sample]` row: the close is handed a **parked** sample while the attempt protects another
+
+One row, printed where the handover is decided (`FRUIT_SAMPLE_DIAG=1`, default off):
+
+```
+[sample] arm=left idx=9 parked=True held=True attached=False
+         protected=1 is_protected=False pos=(+87.000,+0.000,-78.745) task_sample=None
+```
+
+Read it term by term:
+
+* **`idx=9` but `protected=1`** - the attempt owns index 1 and the task is closing
+  on index **9**: the sample was **swapped** (the station reselect adopts the
+  presented fruit; `held=True` is the reselect's own write).
+* **`parked=True`** and the body at **x = 87 = 60 + 3*9** - the park slot - with
+  `z = -78.7` instead of `-50`: the body was **parked and then fell freely** (the
+  slot is in mid-air, nothing supports it). So the park happened some time before.
+* **`is_protected=False`**, `attached=False`, `task_sample=None` (the env does not
+  set `current_sample` on this path).
+
+So the chain is: the trigger hands over -> the reselect adopts the **presented**
+fruit (index 9) -> that fruit is **parked** before the close -> the close runs on
+the park slot -> the drift check reports 85 m and the episode ends.
+
+**The remaining `park()` caller that can take a `held=True` sample is
+`spawner.reset()`**, which parks *every* sample unconditionally. The feeder's other
+two routes are excluded by the code itself (`_pick_recyclable`: "held, protected,
+or output-line fruit are never taken"; `scan_despawn`: skips `parked`/`held`/now
+`protected`). That points at a **reset interleaving with an in-flight attempt**
+(the direct env's episode boundary versus the primitive), which is the next thing
+to read - one row in `spawner.reset()` naming how many samples it parked and
+whether any was `held`/`protected`.
+
+**The guard this row justifies** (not built here): at the handover, if
+`sample.parked` - or `not is_protected(sample)` while the attempt's `protected` is
+a different index - **abort the attempt** instead of closing. A close on the park
+slot costs the whole episode and yields a 100 m chase that the drift check then
+labels as a station escape.

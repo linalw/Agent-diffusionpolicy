@@ -14242,6 +14242,31 @@ class PickAndPlaceTask:
                             f"[task]   openarm fingertips {pad_error * 1000:.0f} mm "
                             "from the fruit; closing anyway"
                         )
+                        if os.environ.get("FRUIT_SAMPLE_DIAG", "0") == "1":
+                            # P139: one row where the handover is decided - who
+                            # was handed in, what its flags say, where its body
+                            # is, and whether the attempt's own protection is on
+                            # it. A `parked` flag disagreeing with a body at
+                            # `(60 + 3*i, 0, -50)` is a flag/body desync; an index
+                            # that differs from `spawner.protected` is a swap.
+                            try:
+                                body = np.asarray(
+                                    self.spawner.position(sample), dtype=float
+                                )
+                            except Exception:  # noqa: BLE001 - reporting only
+                                body = np.array([float("nan")] * 3)
+                            say(
+                                f"[sample] arm={arm_name} "
+                                f"idx={int(sample.index)} "
+                                f"parked={bool(getattr(sample, 'parked', False))} "
+                                f"held={bool(getattr(sample, 'held', False))} "
+                                f"attached={bool(getattr(sample, 'attached', False))} "
+                                f"protected={getattr(self.spawner, 'protected', None)} "
+                                f"is_protected={bool(self.spawner.is_protected(sample))} "
+                                f"pos=({body[0]:+.3f},{body[1]:+.3f},{body[2]:+.3f}) "
+                                f"task_sample="
+                                f"{getattr(getattr(self, 'current_sample', None), 'index', None)}"
+                            )
                         if getattr(self.grippers[arm_name], "always_coherent", False):
                             # P107: a hand whose pads ride the arm has no assisted
                             # frame to fall back to - the coherent branch *is* its

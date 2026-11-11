@@ -1,0 +1,370 @@
+{
+  "a2c2": null,
+  "ablate": "none",
+  "approach_steps": 400,
+  "arm_park": {
+    "defaulted": true,
+    "file": "configs/arm_parks.json",
+    "name": "back",
+    "sides": [
+      "left"
+    ],
+    "source": "logs/p35/park_sweep.json"
+  },
+  "belt_speed": 0.12,
+  "camera_res": "240,424",
+  "carry_hold_precomp": null,
+  "checkpoint": "checkpoints/moe_v13s/policy_best.pt",
+  "checkpoint_md5": "61da390a85fa209496b54477a8255d23",
+  "created": "2026-11-11T10:44:44+0800",
+  "dagger": null,
+  "ddim_steps": 16,
+  "dynamic_force": {
+    "backoff": "0.003",
+    "drop": "0.8",
+    "max": "12.0",
+    "min": "2.0",
+    "range": "0.015",
+    "ref_max": "4.0",
+    "ref_ticks": "48",
+    "servo": "0",
+    "step": "0.0004",
+    "ticks": "3"
+  },
+  "dynamic_lift": {
+    "lift_peak": "1",
+    "ramp": "0",
+    "ramp_pause_ticks": "24",
+    "ramp_rest_ticks": "72",
+    "ramp_step": "0.0025",
+    "ramp_step_ticks": "24",
+    "verify_dwell": "0",
+    "verify_force": "2.0",
+    "verify_max_ticks": "240",
+    "verify_ticks": "24"
+  },
+  "emit": null,
+  "event_replan": {
+    "default": 4,
+    "enabled": false,
+    "max": 6,
+    "min": 2
+  },
+  "execute_steps": 4,
+  "fixed_stepping": true,
+  "handoff_max": "10.0",
+  "handoff_mode": "contact",
+  "lift_climb": null,
+  "lift_dz": {
+    "arms": {
+      "left": -0.08,
+      "right": "shipped"
+    },
+    "default_dz_m_above_0p28": -0.08,
+    "default_target_m_above_belt": 0.2,
+    "defaulted": true,
+    "dz_m_above_0p28": -0.08,
+    "hand_target_m_above_belt": 0.36000000000000004,
+    "leg": "grasp_lift",
+    "target_m_above_belt": 0.2
+  },
+  "loop_timing": false,
+  "no_attach": "",
+  "no_sleep": "",
+  "numpy": "2.3.1",
+  "physics": {
+    "c_over_k": 0.02,
+    "control_dt": 0.008333333333333333,
+    "dt": 0.008333333333333333,
+    "finger_contact": {
+      "combine": null,
+      "compliance": 30000.0,
+      "contact_damping": 80.0,
+      "fruit": {
+        "compliance": 0.0,
+        "contact_damping": null,
+        "mu": "per-class draw",
+        "mu_band": [
+          0.45,
+          1.05
+        ]
+      },
+      "mu": 2.0
+    },
+    "finger_drive": {
+      "joints": {
+        "openarm_left_finger_joint1": {
+          "c": 2000.0,
+          "k": 100000.0,
+          "maxForce": 10.0
+        },
+        "openarm_left_finger_joint2": {
+          "c": 2000.0,
+          "k": 100000.0,
+          "maxForce": 0.0
+        },
+        "openarm_right_finger_joint1": {
+          "c": 2000.0,
+          "k": 100000.0,
+          "maxForce": 10.0
+        },
+        "openarm_right_finger_joint2": {
+          "c": 2000.0,
+          "k": 100000.0,
+          "maxForce": 0.0
+        }
+      },
+      "readback_matches": true,
+      "source": "runtime"
+    },
+    "finger_maxforce": null,
+    "lift": {
+      "a_max": "1.0",
+      "label": "FRUIT_SPEED_LIFT=0.30(scope-off)",
+      "origin": "scope-off",
+      "profile": "shipped",
+      "reference_distance_m": 0.21,
+      "saved_ticks": 0,
+      "shipped_ticks": 162,
+      "ticks": 162,
+      "two_line": false,
+      "v_max": "0.30"
+    },
+    "park": {
+      "blend": 90,
+      "label": "FRUIT_BIARM_PARK=(0)(scope-off)",
+      "origin": "scope-off",
+      "profile": "shipped",
+      "saved_ticks": 0,
+      "settle": 120,
+      "shipped_ticks": 210,
+      "ticks": 210,
+      "two_line": false
+    },
+    "place": {
+      "a_max": "1.089",
+      "label": "FRUIT_SPEED_PLACE=0.35(scope-off)",
+      "origin": "scope-off",
+      "profile": "shipped",
+      "reference_distance_m": 0.55,
+      "saved_ticks": 0,
+      "shipped_ticks": 362,
+      "ticks": 362,
+      "two_line": false,
+      "v_max": "0.35"
+    },
+    "profile": "finger_damp02",
+    "release": {
+      "dwell": 20,
+      "finger_hold": 3,
+      "label": "FRUIT_SPEED_RELEASE=0(scope-off)",
+      "origin": "scope-off",
+      "pad_hold": 3,
+      "profile": "shipped",
+      "saved_ticks": 0,
+      "shipped_ticks": 188,
+      "ticks": 188,
+      "two_line": false
+    },
+    "substeps": 1,
+    "takeoff": {
+      "label": "FRUIT_DYNAMIC_PROBE_TICKS=40(single)",
+      "origin": "single",
+      "probe_lift": "0.010",
+      "saved_ticks": 0,
+      "shipped_ticks": 40,
+      "ticks": 40,
+      "two_line": false
+    },
+    "tracking": {
+      "corr_max": 0.08,
+      "descent": false,
+      "gate": 0.04,
+      "label": "track=0(scope-off) descent=0(follows-track) wait=0(follows-track) scripted=0",
+      "mode": "cv",
+      "on": false,
+      "origin": "scope-off",
+      "scripted": false,
+      "source": "truth",
+      "tau": 0.3,
+      "wait": false
+    }
+  },
+  "policy_seed": "",
+  "policy_track": false,
+  "presentation": "direct",
+  "proprio_spoof": null,
+  "python": "3.12.13",
+  "refuse": null,
+  "reset_align": null,
+  "retime": null,
+  "reward": {
+    "horizon": 1500,
+    "success_value": 1.0,
+    "time_penalty": 0.2
+  },
+  "rtc": null,
+  "rtc_report": false,
+  "scene": {
+    "lift": {
+      "defaulted": true,
+      "dz": {
+        "left": -0.08
+      }
+    },
+    "output_belt": {
+      "inboard_edge_y": 0.42500000000000004,
+      "size": [
+        1.1,
+        0.25,
+        0.05
+      ],
+      "top_z": 1.35,
+      "y": 0.55
+    },
+    "output_lanes": [
+      {
+        "belt_center": [
+          0.65,
+          0.55,
+          1.3250000000000002
+        ],
+        "belt_size": [
+          1.1,
+          0.25,
+          0.05
+        ],
+        "index": 0,
+        "place": [
+          0.43,
+          0.5
+        ],
+        "root": "/World/OutputBeltP",
+        "side": "+y",
+        "tray_center": [
+          1.65,
+          0.55
+        ],
+        "tray_size": [
+          0.6,
+          0.34
+        ]
+      },
+      {
+        "belt_center": [
+          0.65,
+          -0.55,
+          1.3250000000000002
+        ],
+        "belt_size": [
+          1.1,
+          0.25,
+          0.05
+        ],
+        "index": 1,
+        "place": [
+          0.43,
+          -0.5
+        ],
+        "root": "/World/OutputBeltN",
+        "side": "-y",
+        "tray_center": [
+          1.65,
+          -0.55
+        ],
+        "tray_size": [
+          0.6,
+          0.34
+        ]
+      }
+    ],
+    "output_rails": "none",
+    "rail_height": 0.05,
+    "rail_inset": 0.015,
+    "rail_keep": {
+      "inner": false,
+      "outer": false
+    },
+    "rail_proud": 0.035
+  },
+  "seed": 77,
+  "size_filter": "",
+  "sort": null,
+  "sources": {
+    "configs/motion_reference.json": "61fb520262b5307b09db7201f8b6a4e4",
+    "configs/proprio_spoof.json": "374b88a7bbbee4947cedcbb0225c2a9b",
+    "configs/waypoints.json": "d81c6f1ccad96254264b62331968716b",
+    "src/fruit_sorting/assets.py": "24d29679fe3080036a54bc142d4c522b",
+    "src/fruit_sorting/bed.py": "089acea147868d6800c727e580e3396c",
+    "src/fruit_sorting/common.py": "2b1c1b71f618380d6f75ba2e52466ccf",
+    "src/fruit_sorting/control.py": "9384ff4fa3e62b359bf10d2123ef41fa",
+    "src/fruit_sorting/conveyor.py": "2f7e6710c1ab71bfb719af4f868ce691",
+    "src/fruit_sorting/fruits.py": "fe3ed30129a36e21b44a201109487006",
+    "src/fruit_sorting/meshes.py": "1ad5af0e63cfc93ffbd58b2f206978f6",
+    "src/fruit_sorting/policy/data.py": "b4940d74a1961df0c09179eb74b30652",
+    "src/fruit_sorting/policy/diffusion.py": "855e18cedbca2446815f13a5430b1862",
+    "src/fruit_sorting/policy/finetune.py": "7a619a4b7b523da8d67ffbf7bbabcb75",
+    "src/fruit_sorting/policy/runtime.py": "379ac7064fd49df8417e94dbf6ed2616",
+    "src/fruit_sorting/policy/trigger.py": "b09d3cb2389a9f4884a748dbb3461b24",
+    "src/fruit_sorting/rl_env.py": "eb84df78f218c0ee20addab4ea397515",
+    "src/fruit_sorting/scene.py": "e614f06dae957a2e89e4b3616d137b6a",
+    "src/fruit_sorting/tasks.py": "be96a7fdbf61d505ee5c819ca8b708e7"
+  },
+  "speed_channel": false,
+  "supply": {
+    "band": {
+      "classes": {
+        "apple": 1.0,
+        "kiwi": 1.0,
+        "lychee": 1.0,
+        "orange": 1.0,
+        "peach": 1.0,
+        "pear": 1.0,
+        "strawberry": 1.0,
+        "tomato": 1.0
+      },
+      "gap_max": 0.35,
+      "gap_min": 0.1,
+      "grades": {
+        "A": 0.5,
+        "B": 0.3,
+        "C": 0.2
+      },
+      "schedule": "scatter",
+      "x_max": 0.36,
+      "x_min": 0.2
+    },
+    "band_interlock": true,
+    "band_max": 4,
+    "cadence": true,
+    "continuous": 0,
+    "defaulted": {
+      "band_interlock": true,
+      "band_max": true,
+      "cadence": true,
+      "feed": true,
+      "target_from": true
+    },
+    "direct_feed": true,
+    "target_from": 0.35
+  },
+  "tasks_md5": "be96a7fdbf61d505ee5c819ca8b708e7",
+  "trigger": {
+    "acq": true,
+    "acq_cap": 4.5,
+    "acq_margin": 0.6,
+    "acq_reach_margin": 0.05,
+    "acq_speed": 0.2,
+    "finger": 0.04,
+    "frame": "station",
+    "lateral": 0.16,
+    "lead": 0.9,
+    "mode": "arrival",
+    "present": false,
+    "reach": 0.2,
+    "use_encoder": true,
+    "x_max": null
+  },
+  "trigger_x_max": null,
+  "wait_gate": null
+}
