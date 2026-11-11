@@ -6939,6 +6939,56 @@ clamp, the calibration ratio, the synthetic sphere, every off default); `106` OK
 `61da390a`; `logs/p135/PREREG.md` **`0250fdc7`**. Evidence `logs/p135/`,
 `docs/TRACKING.md`.
 
+**P142 (2026-11-11, `logs/p142/`; two defect fixes + a declared metric,
+**nothing adopted, no reference moved**): the direct lane's two *bookkeeping*
+failures are removed and its zero is shown to be the station reselect's timing.
+**(1) The P139 handover guard was dormant**: it was written inside
+`if FRUIT_SAMPLE_DIAG == "1"`, so the shipped loop never ran it - measured on the
+live rollout, `openarm fingertips 103342 mm from the fruit; closing anyway` with the
+guard present. It now runs on every close, outside the diag gate, and its abort is
+**physical**: `sample.parked` or `pad_error > FRUIT_HANDOVER_PAD_ERROR_MAX` (default
+**1.0 m**). The flag term (`_foreign`: the attempt's `protected` index names another
+fruit) is **reported, not gated** - the station reselect legitimately adopts the
+presented fruit and re-protects it, so the flags lag by a call, measured twice
+(`idx=9 protected=1` at **349 mm**, `idx=15 protected=6` at **77 mm**) against the
+defect's **101-103 m** and the largest legitimate row in the record (415 mm).
+**(2) `FruitSpawner.update`'s despawn loop skipped only `parked`**, so
+`_recycle_end` parked a `held`/`protected` body **while the attempt still read
+`position(sample)`** - a teleport to `(60 + 3i, 0, -50)`. The recycle is now
+**deferred** (`_pending_recycle`): the body leaves the line and is parked by the
+next `update()` after the attempt releases it, so the reads see the truth - the
+`[sample]` row now reads `pos=(-0.185,-0.221,+0.820)`, a real position 0.4 m below
+the belt, instead of the slot. **(3) The score endpoint is declared**:
+`success = lifted and on_output_belt(final)` is reachable-False after a successful
+place because with `FRUIT_OUTPUT_RAILS=none` (P71) a payload released **onto** the
+line can roll off in the ~1 s between the release's own 60-tick settle and the
+finalize (`logs/p139/guard2.log` episode 1). `FRUIT_SCORE_ENDPOINT=release` scores
+the task's own `placed` - `on_output_belt` sampled **0.5 s after the release**
+(`tasks.py:17194`) - and the episode row prints `endpoint=release` **only** when
+armed, so the shipped row is byte-identical. **Measured**: with
+`FRUIT_POLICY_TRIGGER=arrival`, the P141 checkpoint, the wave and
+`FRUIT_STATION_RESELECT=0`, 2 episodes read **1/2 with `success=True
+grasped=True placed=True`** - the **first `success=True`** of the whole
+investigation, and scored by the declared endpoint (one episode: not a rate). With
+the reselect **on**, both cells read 0/2 and the mechanism is in the log:
+`reselecting across lanes: presented index 9 ... openarm fingertips 1144 mm` - the
+presented fruit **was** at the station when adopted (`station_sample` filters
+`along` and `|x-belt_center| <= 0.30`) and by the close it is 1.14 m away or on the
+floor, i.e. **the descending hand knocks it off** (the P95 class, inside one
+attempt). So the lane's remaining term is the **reselect's timing** - it is decided
+during the close, after the descent has aimed at another fruit - and the named fix
+is a reselect decided **before** the descent, not built here. **No-harm**:
+`scripts/accept.sh` **7/10 = 70 %, `fingerprint: matches`**, its **459 `[fruit]`
+lines 459/459 byte-identical** to `logs/p136/accept_final.log`;
+`scripts/selfcheck.sh` **PASS (0 failures, 1 skipped)** with the new **`P142
+endpoint + handover`** leg (**26 checks**: the endpoint table + refusal, the guard's
+source order inside `if openarm:`, the pad-error knob, the deferred-recycle branch
+**executed both ways** on a stub, and the drain keeping a still-owned body);
+`211` **ok (115 checks)**. References **`61fb5202` / `61fb5202` / `18b101bf`**
+untouched. Pins: `tasks.py` **`50138850`**, `fruits.py` **`41e2e0de`**,
+`rl_env.py` **`8feb1016`**, `scripts/270_p142_endpoint_selftest.py`
+**`d144bc05`**, `scripts/selfcheck.sh` **`e9fb2a60`**; evidence `logs/p142/`.
+
 **P141 (2026-11-11, `logs/p141/`; three gated inputs + one defect fix, **nothing
 adopted, no default moved, no reference re-recorded**): the belt's state becomes an
 observation, because it cannot be seen - on the record's 0.04 m/s x 0.5 Hz wave two

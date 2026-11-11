@@ -14276,6 +14276,52 @@ class PickAndPlaceTask:
                             f"[task]   openarm fingertips {pad_error * 1000:.0f} mm "
                             "from the fruit; closing anyway"
                         )
+                        # P142: the handover guard runs on **every** close.
+                        # P139 wrote it inside the `FRUIT_SAMPLE_DIAG` gate below,
+                        # so the shipped loop never executed it - measured on the
+                        # live rollout (`logs/p141/rollout.log`): `openarm
+                        # fingertips 103342 mm from the fruit; closing anyway` with
+                        # the guard present but dormant. Three terms, any one of
+                        # which ends the attempt instead of chasing a pose 100 m
+                        # away:
+                        _owned = getattr(self.spawner, "protected", None)
+                        _parked = bool(getattr(sample, "parked", False))
+                        _foreign = (
+                            _owned is not None
+                            and int(_owned) != int(sample.index)
+                            and not bool(self.spawner.is_protected(sample))
+                        )
+                        # The physical term: the pads live 70 mm from the tool
+                        # origin, so a pad error past a metre cannot be a fruit.
+                        # The largest legitimate value the record carries is
+                        # 0.415 m (R11-A's acquisition row); the park slot is
+                        # 100 m. Flag/body desyncs are invisible to the two flag
+                        # terms, and this is what catches them.
+                        _pad_limit = float(
+                            os.environ.get("FRUIT_HANDOVER_PAD_ERROR_MAX", "1.0")
+                        )
+                        # Only the **physical** terms abort. `_foreign` (the
+                        # attempt's `protected` index is another fruit) is *not*
+                        # a fault on this path: the station reselect adopts the
+                        # presented fruit and re-protects it, and the two flags
+                        # lag by a call - measured, `idx=9 protected=1 pad_error
+                        # 349 mm` and `idx=15 protected=6, 77 mm` are live fruits
+                        # at the station, while the real defect (P139/P141) is
+                        # `pad_error` 101-103 **m**. Kept as a reported term.
+                        if _parked or pad_error > _pad_limit:
+                            say(
+                                f"[task]   abort: the sample handed to the close "
+                                f"is not at the station (idx={int(sample.index)} "
+                                f"parked={_parked} protected={_owned} "
+                                f"foreign={_foreign} "
+                                f"pad_error={pad_error * 1000:.0f} mm, limit "
+                                f"{_pad_limit * 1000:.0f})"
+                            )
+                            result.notes.append(
+                                "sample swapped or recycled before the close"
+                            )
+                            sample.held = False
+                            return result
                         if os.environ.get("FRUIT_SAMPLE_DIAG", "0") == "1":
                             # P139: one row where the handover is decided - who
                             # was handed in, what its flags say, where its body
@@ -14289,34 +14335,6 @@ class PickAndPlaceTask:
                                 )
                             except Exception:  # noqa: BLE001 - reporting only
                                 body = np.array([float("nan")] * 3)
-                            _owned = getattr(self.spawner, "protected", None)
-                            _foreign = (
-                                _owned is not None
-                                and int(_owned) != int(sample.index)
-                                and not bool(self.spawner.is_protected(sample))
-                            )
-                            if bool(getattr(sample, "parked", False)) or _foreign:
-                                # P139 guard: the handover's own numbers are in
-                                # range (`t_arrive <= lead`, `dx` inside the
-                                # lateral gate) and the close is still lost because
-                                # the *sample* is not the attempt's - measured,
-                                # `idx=9 parked=True protected=1`. Closing on a park
-                                # slot costs the episode and yields a 100 m chase
-                                # that the drift check labels a station escape; end
-                                # the attempt here instead. The key is new to the
-                                # direct lane's ledger and is declared as such.
-                                say(
-                                    f"[task]   abort: the sample handed to the "
-                                    f"close is not the attempt's "
-                                    f"(idx={int(sample.index)} "
-                                    f"parked={bool(getattr(sample, 'parked', False))} "
-                                    f"protected={_owned})"
-                                )
-                                result.notes.append(
-                                    "sample swapped or recycled before the close"
-                                )
-                                sample.held = False
-                                return result
                             say(
                                 f"[sample] arm={arm_name} "
                                 f"idx={int(sample.index)} "

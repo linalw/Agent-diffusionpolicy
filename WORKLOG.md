@@ -26717,3 +26717,38 @@ P139's park slot and the on_output_belt(final) scorer), no task-time gain, and
 the two-line wave store is unbuilt (the collector wedged on its first attempt).
 The live integration loads and steps the 10/26/4 checkpoint; the episode then
 hits P139's defect, which is that lane's standing item.
+
+## P142 (2026-11-11) - the guard was dormant, and the despawn scan parked owned bodies
+
+Two bookkeeping failures fabricated the direct lane's zero.
+
+1. The P139 handover guard was written **inside** `if FRUIT_SAMPLE_DIAG == "1"`,
+   so the shipped loop never ran it: the live rollout printed "openarm fingertips
+   103342 mm from the fruit; closing anyway" with the guard present. It now runs
+   outside the gate, and the abort is physical: `sample.parked` or
+   `pad_error > FRUIT_HANDOVER_PAD_ERROR_MAX` (1.0 m). The flag term (`_foreign`)
+   is reported, not gated - the station reselect legitimately re-protects the
+   presented fruit, measured at 349 mm and 77 mm against the defect's 101-103 m.
+
+2. `FruitSpawner.update`'s despawn loop skipped only `parked`, so `_recycle_end`
+   parked a held/protected body while the attempt still read
+   `position(sample)` - a teleport to the park slot. The recycle is deferred now
+   (`_pending_recycle`), drained by the next update after the attempt releases
+   the body; the [sample] row reads a real floor position instead of the slot.
+
+3. The score endpoint is declared: `FRUIT_SCORE_ENDPOINT=release` scores the
+   task's own `placed` (on_output_belt 0.5 s after the release) instead of the
+   finalize-time position, because with the rails removed a placed payload can
+   roll off in the last second. Default `final`; the row names it only when armed.
+
+Measured: with the reselect off (close on the fruit the descent aimed at), 2
+episodes read 1/2 with `success=True grasped=True placed=True` - the first
+success=True in this investigation. With the reselect on, both cells read 0/2 and
+the log shows why: the presented fruit was at the station when adopted and is 1.14
+m away (or on the floor) by the close, i.e. the descending hand knocks it off.
+That is the P95 class, inside one attempt, and the remaining term is the
+reselect's timing - it is decided during the close, after the descent aimed at
+another fruit. Named, not built.
+
+No-harm: acceptance 7/10 + fingerprint matches + 459/459 [fruit] lines identical;
+selfcheck PASS with the 26-check P142 leg; 211 ok (115 checks).

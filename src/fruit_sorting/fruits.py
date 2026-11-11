@@ -930,6 +930,14 @@ class FruitSpawner:
         #: Seconds each fruit has been sitting still in a discharge tray; the
         #: spawner recycles it once the dwell passes `cfg.output_tray_dwell_s`.
         self._tray_dwell: dict[int, float] = {}
+        #: P142: bodies that reached the end of the line **while an attempt owned
+        #: them**. Parking one teleports it to `(60 + 3i, 0, -50)` and every later
+        #: read of `position(sample)` is the park slot - measured, the close then
+        #: chases a pose 102-103 m away and the episode is lost to a "station
+        #: escape" that never happened. The recycle is deferred to the next
+        #: `update()` after the attempt releases the body (`held`/`protected`
+        #: clear), which is the same point every other recycle happens.
+        self._pending_recycle: list[FruitSample] = []
         self.stats = {"released": 0, "reached_end": 0, "fell_off": 0, "discharged": 0}
         #: Release slots the scattered feeder skipped: either the slot's virtual
         #: position was already past the station (the feeder was not called
@@ -1737,6 +1745,18 @@ class FruitSpawner:
         offline audits) - byte-identical.
         """
         released = []
+        # P142: drain the deferred recycles. A body that left the line while the
+        # attempt owned it waits here until the attempt releases it, so the
+        # attempt's reads never see the park slot. `update` runs between attempts
+        # on every path (the drivers, the collector, the rl env's feed loop).
+        if self._pending_recycle:
+            keep: list[FruitSample] = []
+            for pending in self._pending_recycle:
+                if pending.held or self.is_protected(pending):
+                    keep.append(pending)
+                    continue
+                self.park(pending)
+            self._pending_recycle = keep
         # Recirculation. A fruit that waits in the queue window without being
         # picked for FRUIT_MAX_WAIT_S seconds of simulated time goes back to the
         # feeder (park -> released again later), which is what a return line does
@@ -1870,6 +1890,17 @@ class FruitSpawner:
                 f"x={float(pos[0]):.3f} y={along:.3f} z={float(pos[2]):.3f} "
                 f"held={sample.held}"
             )
+        if sample.held or self.is_protected(sample):
+            # P142: the attempt owns this body. Take it off the line and defer
+            # the `park` - teleporting it now is what makes the close read
+            # `(60 + 3i, 0, -50)`, i.e. `openarm fingertips 102807 mm from the
+            # fruit; closing anyway` and a 100 m chase the drift check then
+            # reports as a station escape. The body stays where it fell, so the
+            # env's own `fruit fell off the line` test sees the truth.
+            if sample in self.active:
+                self.active.remove(sample)
+            self._pending_recycle.append(sample)
+            return
         self.park(sample)
         self.active.remove(sample)
 

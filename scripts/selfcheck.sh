@@ -290,6 +290,7 @@ run_check "P132 serrated face" "$python" scripts/267_p132_serr_selftest.py
 # off default. No simulator.
 run_check "P135 tracker" "$python" scripts/268_p135_track_selftest.py
 run_check "P141 observation aux" "$python" scripts/269_p141_obs_aux_selftest.py
+run_check "P142 endpoint + handover" "$python" scripts/270_p142_endpoint_selftest.py
 # P73: the `[carry]` row's **rotation schedule** (`tilt0=`, `tilt_end=`,
 # `tilt_max=`, `t45=`, `t75=`, `tilt_rate=`) - the instrument the place-leg
 # question needs, because the leg-end `[attitude]` tilt is saturated by the place

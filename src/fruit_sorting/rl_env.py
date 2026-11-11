@@ -491,7 +491,7 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: This env never constructs a cage, so no direct/policy behaviour moves - proven
 #: on the scripted side by `scripts/accept.sh`'s 421/421 byte-identical `[fruit]`
 #: stream (`logs/p107/RESULTS.md` section 5).
-TASKS_MD5 = "c83fd7c59ad1cc2e26edb2b672ac0902"
+TASKS_MD5 = "50138850b9bda539e1388a118c42244f"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(
@@ -1331,6 +1331,24 @@ def no_firable_ready(
     `scripts/811_trigger_test.py` pins the truth table offline.
     """
     return bool(latched and not policy_close_seen and float(dy) <= -0.05)
+
+
+def score_endpoint() -> str:
+    """Which event the direct episode scores (`FRUIT_SCORE_ENDPOINT`).
+
+    P142. ``final`` (the shipped default) is "the payload is on an output line
+    when the episode ends"; ``release`` is "the task released it onto the line"
+    (``lifted and placed``). They differ only when a placed payload leaves the
+    slab before the finalize - which `FRUIT_OUTPUT_RAILS=none` (P71) makes
+    possible, and which is why a direct run can read `placed=True success=False`.
+    Strict, so a typo is an error instead of a silently different metric.
+    """
+    endpoint = os.environ.get("FRUIT_SCORE_ENDPOINT", "final").strip().lower()
+    if endpoint not in ("final", "release"):
+        raise ValueError(
+            f"FRUIT_SCORE_ENDPOINT={endpoint!r} is not 'final' or 'release'"
+        )
+    return endpoint
 
 
 @dataclass
@@ -6178,11 +6196,27 @@ class SortingRLEnv:
             else min(int(self._step), int(self.reward.horizon))
         )
         final = np.asarray(self.spawner.position(self._sample), dtype=float)
-        success = bool(self._lifted) and bool(self.cfg.on_output_belt(final))
+        # P142: **which event is scored**. `final` (the shipped default) reads the
+        # payload's position at finalize time, i.e. "the fruit is still on an
+        # output line when the episode ends". With `FRUIT_OUTPUT_RAILS=none`
+        # (P71) a released payload can roll off the slab in the ~0.3 s between the
+        # release and the finalize, so a successful place (`placed=True`, the
+        # task's own release onto the line) can still score False - measured in
+        # `logs/p139/guard2.log` episode 1 and in P120's seed-101 landing miss.
+        # `release` scores the release instead: `success = lifted and placed`,
+        # which is the definition the scripted line's ledgers use. It is opt-in,
+        # declared, and the row names it - the two are different metrics and a
+        # rate is only comparable within one of them.
+        endpoint = score_endpoint()
+        if endpoint == "release":
+            success = bool(self._lifted) and bool(self._placed)
+        else:
+            success = bool(self._lifted) and bool(self.cfg.on_output_belt(final))
         reward = self.reward.compute(success, decision)
         notes = list(self._notes if notes is None else notes)
         self._outcome = {
             "episode": self._episode,
+            "score_endpoint": endpoint,
             "category": self._sample.category,
             "grade": self._sample.grade,
             "diameter": float(self._sample.diameter),
@@ -6287,6 +6321,9 @@ class SortingRLEnv:
             f"placed={bool(self._placed)} ticks={self._ticks} decision={decision} "
             f"reward={reward:.4f} notes={notes} presentation={self.presentation} "
             f"ablate={self.ablate}"
+            # P142: only printed when it is not the shipped metric, so the
+            # default row stays byte-identical (the acceptance's 459 lines).
+            + ("" if endpoint == "final" else f" endpoint={endpoint}")
         )
         if cont:
             self._begin_next_pick(notes)
