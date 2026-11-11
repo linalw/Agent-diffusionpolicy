@@ -26610,3 +26610,21 @@ not any documented restore, and the direct loop reads ~0/15 where P54 has 75 %.
 The fix shipped is opt-in: FRUIT_FALL_PARKED=1 keeps a parked sample from ending
 the episode on that note. The direct interface's regression diagnosis is owed and
 has its instrument (the [fall] row + the per-episode decision/ticks).
+
+## P139 correction (2026-11-11) - the direct 0/15 was my harness, not the tree
+
+FRUIT_POLICY_TRIGGER defaults to "off" (policy/trigger.py:146). Every direct cell
+in P138/P139 ran without it, so should_fire returned False on every tick, the
+primitive was never entered, the arm never left ready, and the fruit rode out to
+the recycle. The tell was the missing [rl] trigger= row (printed only when
+enabled) and the complete absence of [motion] legs - I read the fall note and
+stopped one step early.
+
+With FRUIT_POLICY_TRIGGER=arrival the primitive runs. P138's "the direct interface
+is blocked / 0/15 vs P59's 57.8 %" is withdrawn. The A/B still needs the trigger in
+AB_EXTRA_ENV.
+
+The armed run exposes a second defect: FRUIT_STATION_RESELECT adopts the presented
+fruit, and by the close its body is at the park slot (fingertips 103 m) while
+sample.parked is False - a flag/body desync. A parked guard at the reselect is
+added; the next instrument is one episode with FRUIT_STATION_RESELECT=0.

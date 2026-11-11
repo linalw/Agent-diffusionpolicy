@@ -57,3 +57,39 @@ measurement here.
 above plus the `[rl] episode N: ... decision= ticks=` line; the next thing to
 read is *where* the close stops - the trigger's fire tick, the close's span and
 the pad-to-fruit distance at the close, on one episode at 240,424.
+
+## 5. Correction: the A/B was invalid, and it is *my* harness error
+
+The cells in section 3 were run **without `FRUIT_POLICY_TRIGGER`**, which
+`TriggerSettings.from_env` defaults to **`off`** (`policy/trigger.py:146`). With
+the trigger off, `should_fire` returns False on every tick, so `_run_primitive`
+is never entered, the arm never leaves `ready`, and the episode burns to its
+horizon while the belt carries the fruit to the recycle. The evidence is in the
+rows: **no `[motion]` legs at all**, `refusals=0 policy_close_seen=0`, and - the
+tell I missed - **no `[rl] trigger=...` row**, which `rl_env` prints only when the
+trigger is enabled (`rl_env.py:2698`).
+
+With `FRUIT_POLICY_TRIGGER=arrival` the row appears
+(`trigger=arrival ... acq=on`) and the primitive **does** run. So:
+
+* **P138's "the direct interface is blocked / reads 0/15 against P59's 57.8 %" is
+  withdrawn** - the 0/15 was a loop that never fired. `112_rl_ab.sh` mentions the
+  trigger only in a comment (`:34`), and the demo (`130_policy_demo.sh:92`) is the
+  only script that sets it.
+* The direct A/B still needs the trigger in `AB_EXTRA_ENV`; that is a one-line
+  change to the driver, and the A/B itself remains unrun.
+
+**What the armed run then showed** is a second, real defect: the trigger fires,
+`FRUIT_STATION_RESELECT` adopts the *presented* fruit, and by the close that
+sample's body is at the **park slot** (`openarm fingertips 102976 mm from the
+fruit; closing anyway`) while `sample.parked` reads **False** - so a `parked`
+guard at the reselect (added here) does not catch it. The desync is between
+`FruitSample.parked` and the rigid body: `release` writes the pose and clears the
+flag together, so the body moved to the slot *without* the flag being set, i.e.
+through `park()` - which does set it - or through a path that moves bodies
+wholesale.
+
+**The next instrument** is one episode with `FRUIT_POLICY_TRIGGER=arrival
+FRUIT_STATION_RESELECT=0` (no adoption): if the close then lands on the selected
+fruit, the reselect is the path; if not, the recycle happens under the attempt and
+`protect`/`held` is the term.

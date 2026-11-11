@@ -6954,8 +6954,18 @@ not because anything fell. **Load-bearing**: the record's direct ledgers, the
 ours and not any documented restore: shipped **0/15**, `FRUIT_TRACK=0
 FRUIT_SELECT_LIVE_SPEED=0` **0/15**, `FRUIT_SUPPLY_PATCH=1` 0 at 9,
 pre-P58 restores 0/3, `FRUIT_ARM_PARK=ready` 1/3 (one episode, not evidence) -
-against P54's 75 % and P59-p3's 57.8 %. **The cause is not identified**; what is
-identified is that the policy never closes and the key is a recycle. **The fix
+against P54's 75 % and P59-p3's 57.8 %. **CORRECTION (same day, section 5 of the RESULTS): the 0/15 was the *harness*, not
+the tree** - `TriggerSettings.from_env` defaults `FRUIT_POLICY_TRIGGER` to **`off`**
+(`policy/trigger.py:146`), so `should_fire` returned False on every tick and
+`_run_primitive` was never entered (the tell: **no `[motion]` legs** and **no
+`[rl] trigger=` row**, which prints only when enabled). **P138's "the direct
+interface is blocked / 0/15 against P59's 57.8 %" is WITHDRAWN.** With
+`FRUIT_POLICY_TRIGGER=arrival` the primitive runs; the remaining defect is that
+`FRUIT_STATION_RESELECT` adopts the presented fruit and by the close its body is at
+the **park slot** (`openarm fingertips 102976 mm`) while `sample.parked` reads
+**False** - a `parked`/body desync; the reselect now refuses a parked sample, which
+does not catch this one. **The A/B itself remains unrun** (one line: the trigger
+in `AB_EXTRA_ENV`). **The fix
 shipped is opt-in**: `FRUIT_FALL_PARKED=1` makes a **parked** sample not end the
 episode on that note (it is left to its horizon); it changes the failure-reason
 ledger, so it is its own cell and was armed in no measurement here. The **owed**

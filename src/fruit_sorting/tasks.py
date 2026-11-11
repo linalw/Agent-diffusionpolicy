@@ -13974,6 +13974,19 @@ class PickAndPlaceTask:
                     # schedule; it is skipped there and kept for the indexed path
                     # (policy handover), now lane-safely.
                     presented = self.station_sample()
+                    if presented is not None and getattr(presented, "parked", False):
+                        # P139: a **recycled** fruit is not at the station. The
+                        # feeder parks it at `(60 + 3*i, 0, -50)`
+                        # (`fruits.FruitSpawner.park`), so adopting it hands the
+                        # close a pose 100 m away - measured, `openarm fingertips
+                        # 102807 mm from the fruit; closing anyway`, and every
+                        # episode ends on the parked fruit. `station_sample()`
+                        # reads the presented queue, which can outlive the recycle.
+                        say(
+                            f"[task]   reselect refused: presented index "
+                            f"{int(presented.index)} is parked (recycled)"
+                        )
+                        presented = None
                     if presented is not None and int(presented.index) != int(sample.index):
                         # P1 item 4: this used to recompute `bin_index` from the
                         # presented fruit's grade while the *arm* had already been
