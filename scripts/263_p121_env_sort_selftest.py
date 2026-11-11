@@ -247,9 +247,14 @@ def main() -> int:
         and "self._sort_armed" in begin,
         "_begin_pick dispatches through direct_dispatch",
     )
+    # P141 moved the assembly into `_goal_vector`, so the assertion follows the
+    # argument list rather than the literal: the four fields are still the goal
+    # and the belt pair is appended by the one helper, not here.
     check(
-        "float(bin_index)," in begin
-        and "self._goal = np.array(" in begin,
+        "self._goal = self._goal_vector(" in begin
+        and "self._goal_vector(" in rl_src
+        and "float(diameter)," in rl_src
+        and "float(bin_index)," in rl_src,
         "the goal channel keeps [xyz, velocity, diameter, bin_index]",
     )
     primitive = grab_method(rl_src, "_run_primitive")

@@ -97,7 +97,13 @@ from dataclasses import asdict, dataclass, field
 import numpy as np
 
 from .motion import min_jerk_ramp, mirror_across_xz, top_down_quaternion
-from .policy.data import belt_speed_scalar, speed_channel_enabled
+from .policy.data import (
+    BELT_TAU_DEFAULT,
+    BELT_TAU_ENV,
+    belt_speed_scalar,
+    goal_aux_enabled,
+    speed_channel_enabled,
+)
 from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 
 #: md5 of `src/fruit_sorting/tasks.py` this environment was validated against.
@@ -485,7 +491,7 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: This env never constructs a cage, so no direct/policy behaviour moves - proven
 #: on the scripted side by `scripts/accept.sh`'s 421/421 byte-identical `[fruit]`
 #: stream (`logs/p107/RESULTS.md` section 5).
-TASKS_MD5 = "31b9b57547cf38d49f6df1ae1a096189"
+TASKS_MD5 = "c83fd7c59ad1cc2e26edb2b672ac0902"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(
@@ -1920,8 +1926,23 @@ class SortingRLEnv:
         self.dagger = dagger
         self.seed = int(seed)
         self._active_seed = int(seed)
-        self.execute_steps = int(execute_steps)
-        self.ddim_steps = int(ddim_steps)
+        # P141 (P2 of the plan): both are latency knobs, so they are readable
+        # from the environment for an A/B without editing the entry scripts.
+        # `execute_steps` is how many of the chunk's actions are applied per
+        # inference (4 = one replan per 33 ms of sim time); `ddim_steps` is the
+        # denoising budget. Defaults are the shipped values, so an unset
+        # environment is byte-identical.
+        self.execute_steps = int(
+            os.environ.get("FRUIT_POLICY_EXEC_STEPS", str(execute_steps))
+        )
+        self.ddim_steps = int(
+            os.environ.get("FRUIT_POLICY_DDIM", str(ddim_steps))
+        )
+        if self.execute_steps < 1 or self.ddim_steps < 1:
+            raise ValueError(
+                f"execute_steps={self.execute_steps} and ddim_steps="
+                f"{self.ddim_steps} must both be >= 1"
+            )
         #: P30-B: model inference calls (action-chunk samples) this episode.
         #: One call = one `PolicyRunner.act` = one DDIM chain of `ddim_steps`
         #: denoising steps (16 by default); with `execute_steps=4` it is one
@@ -1972,6 +1993,17 @@ class SortingRLEnv:
         #: 26-D artifact (the guard below refuses a mismatch instead of feeding
         #: the model a vector it was not trained on).
         self._speed_channel = speed_channel_enabled()
+        #: P141 goal auxiliary pair: `(v_belt, a_belt)` appended to the 8-D goal
+        #: when `FRUIT_OBS_GOAL_AUX=1`. The goal is otherwise a selection-time
+        #: snapshot; these two dims are **refreshed every tick** from the same
+        #: encoder the trigger reads, because the quantity they carry is the
+        #: belt's *state*, not the fruit's. `a_belt` runs the same low-passed
+        #: derivative the store's loader runs (`data.belt_accel_trace`), so a
+        #: collection store and this loop assemble the same function.
+        self._goal_aux = goal_aux_enabled()
+        self._belt_t: float | None = None
+        self._belt_v = 0.0
+        self._belt_a = 0.0
 
         # --- P31-A wait gate, default off ----------------------------------- #
         #: Deterministic WAIT GATE (`WaitGateSettings`): while the target fruit
@@ -2447,6 +2479,19 @@ class SortingRLEnv:
                     "Set FRUIT_OBS_SPEED=1 to run a 26-D (belt-speed channel) "
                     "checkpoint, or unset it for a 25-D one."
                 )
+            # P141: same contract for the goal's belt pair. A 10-D artifact fed
+            # an 8-D goal fails loudly here rather than conditioning on garbage.
+            want_goal = 8 + (2 if self._goal_aux else 0)
+            got_goal = int(self.policy.config.get("goal_dim", 8))
+            if got_goal != want_goal:
+                raise RuntimeError(
+                    f"checkpoint {checkpoint} has goal_dim={got_goal} but this "
+                    f"environment builds {want_goal}-D goals "
+                    f"(FRUIT_OBS_GOAL_AUX="
+                    f"{'1' if self._goal_aux else 'unset'}). Set "
+                    "FRUIT_OBS_GOAL_AUX=1 for a (v_belt, a_belt) artifact, or "
+                    "unset it for the 8-D goal."
+                )
             if self.rtc_settings.enabled:
                 self.rtc = RealtimeChunker(
                     self.policy,
@@ -2674,7 +2719,7 @@ class SortingRLEnv:
         self._sample = None
         self._active = "left"
         self._bin_index = 0
-        self._goal = np.zeros(8, dtype=np.float32)
+        self._goal = np.zeros(8 + (2 if self._goal_aux else 0), dtype=np.float32)
         self._tick = 0
         self._step = 0
         self._observed_step = -1
@@ -3658,14 +3703,8 @@ class SortingRLEnv:
         self._sample = sample
         self._active = active
         self._bin_index = bin_index
-        self._goal = np.array(
-            [
-                *np.asarray(target["position"], dtype=np.float32),
-                *np.asarray(target["velocity"], dtype=np.float32),
-                float(target["diameter"]),
-                float(bin_index),
-            ],
-            dtype=np.float32,
+        self._goal = self._goal_vector(
+            target["position"], target["velocity"], target["diameter"], bin_index
         )
         self._belt_rest = self.belt_top + float(target["diameter"]) / 2.0
 
@@ -4039,6 +4078,77 @@ class SortingRLEnv:
         if self.policy is not None and rgb is not None and depth is not None:
             self.policy.push_frame(rgb, depth, mask)
 
+    # ------------------------------------------------------------------ #
+    # P141: the belt-state channel
+    # ------------------------------------------------------------------ #
+    def _belt_state(self) -> tuple[float, float]:
+        """``(v_belt, a_belt)``: the belt's surface speed and its derivative.
+
+        Positive downstream. The speed is :func:`data.belt_speed_scalar` - the
+        *same* assembly site the 26th proprio column uses, so the two channels
+        cannot disagree - and the acceleration is a first-order low-passed
+        difference with the store loader's own time constant
+        (:func:`data.belt_accel_trace`), so a recorded `a_belt` and this one are
+        the same function of the same signal.
+
+        Called once per observation tick while the gate is armed; with the gate
+        off nothing calls it and the encoder is not read.
+        """
+        try:
+            speed = float(
+                belt_speed_scalar(
+                    self.spawner, self._sample, fallback=self.cfg.belt_speed
+                )
+            )
+        except Exception:  # noqa: BLE001 - a missing belt must not stop the loop
+            speed = abs(float(self.cfg.belt_speed))
+        now = float(self._sim_time())
+        prev_t, prev_v = self._belt_t, self._belt_v
+        self._belt_t, self._belt_v = now, speed
+        if prev_t is None:
+            return speed, 0.0
+        dt = now - prev_t
+        if not math.isfinite(dt) or dt <= 0.0 or dt > 0.5:
+            # No usable interval (a reset or a stalled loop) reads as "steady".
+            return speed, 0.0
+        tau = float(os.environ.get(BELT_TAU_ENV, str(BELT_TAU_DEFAULT)))
+        alpha = dt / (tau + dt)
+        self._belt_a = (1.0 - alpha) * self._belt_a + alpha * (
+            (speed - prev_v) / dt
+        )
+        return speed, float(self._belt_a)
+
+    def _goal_vector(self, position, velocity, diameter, bin_index) -> np.ndarray:
+        """The goal conditioning vector - the single assembly site.
+
+        The shipped 8-D form is ``[xyz, v(3), diameter, bin_index]``. P141
+        appends ``(v_belt, a_belt)`` when the gate is armed; those two are the
+        belt's state, so unlike dims 0-7 they are refreshed **every tick**
+        (`_refresh_goal_aux`).
+        """
+        values = [
+            *np.asarray(position, dtype=np.float32).reshape(-1)[:3],
+            *np.asarray(velocity, dtype=np.float32).reshape(-1)[:3],
+            float(diameter),
+            float(bin_index),
+        ]
+        if self._goal_aux:
+            speed, accel = self._belt_state()
+            values.extend([speed, accel])
+        return np.array(values, dtype=np.float32)
+
+    def _goal_snapshot(self) -> np.ndarray:
+        """The goal as the recorder/observation sees it (belt dims refreshed)."""
+        self._refresh_goal_aux()
+        return self._goal.copy()
+
+    def _refresh_goal_aux(self) -> None:
+        """Rewrite the belt dims of the goal in place (no-op with the gate off)."""
+        if self._goal_aux and self._goal.size >= 10:
+            speed, accel = self._belt_state()
+            self._goal[-2] = speed
+            self._goal[-1] = accel
+
     def proprio(self) -> np.ndarray:
         """The proprioception vector the training data recorded (25-D, or 26-D).
 
@@ -4226,7 +4336,7 @@ class SortingRLEnv:
             "tick": self._tick,
             "step": self._step,
             "policy_ready": bool(self.policy.ready) if self.policy is not None else False,
-            "goal": self._goal.copy(),
+            "goal": self._goal_snapshot(),
             "fruit_position": (
                 np.asarray(self.spawner.position(sample), dtype=float).copy()
                 if sample is not None else None
@@ -4275,6 +4385,7 @@ class SortingRLEnv:
             # read plus a bbox census on the band call only).
             self._park_note_call()
         _loop_start = time.perf_counter() if self._loop_timing else 0.0
+        self._refresh_goal_aux()
         chunk = self.policy.act(
             self.proprio(), self._goal, num_steps=self.ddim_steps if num_steps is None
             else int(num_steps)
@@ -4886,6 +4997,7 @@ class SortingRLEnv:
                 if self.policy.ready:
                     if self._rtc_report:
                         start = time.perf_counter()
+                    self._refresh_goal_aux()
                     action = self.rtc.next_action(
                         self.proprio, self._goal, self.ddim_steps,
                         roll=self._roll_proprio if self.rtc_settings.vlash else None,
@@ -5246,18 +5358,11 @@ class SortingRLEnv:
                                 # Keep the observation coherent for any tick before
                                 # the primitive takes over; the arm's lane is kept
                                 # (`_bin_index`), like the task's station re-select.
-                                self._goal = np.array(
-                                    [
-                                        *np.asarray(
-                                            self.spawner.position(presented), dtype=np.float32
-                                        ),
-                                        *np.asarray(
-                                            self.spawner.velocity(presented), dtype=np.float32
-                                        ),
-                                        float(presented.diameter),
-                                        float(self._bin_index),
-                                    ],
-                                    dtype=np.float32,
+                                self._goal = self._goal_vector(
+                                    self.spawner.position(presented),
+                                    self.spawner.velocity(presented),
+                                    presented.diameter,
+                                    self._bin_index,
                                 )
                                 intercept, intercept_info = True, p_info
                                 presented_note = (
@@ -5559,14 +5664,8 @@ class SortingRLEnv:
         ) == int(old.index):
             self.spawner.protected = None
         self._sample = sample
-        self._goal = np.array(
-            [
-                *position,
-                *velocity,
-                float(sample.diameter),
-                float(self._bin_index),
-            ],
-            dtype=np.float32,
+        self._goal = self._goal_vector(
+            position, velocity, sample.diameter, self._bin_index
         )
         self._belt_rest = self.belt_top + float(sample.diameter) / 2.0
         self.spawner.protect(index)
@@ -5888,7 +5987,7 @@ class SortingRLEnv:
             "finger_opening": np.array(
                 [float(np.mean(dof[list(arm.finger_dofs)]))], dtype=np.float32
             ),
-            "goal": self._goal.copy(),
+            "goal": self._goal_snapshot(),
             "tactile": np.array(
                 [
                     float(left.normal_force) if left else 0.0,

@@ -1,0 +1,25 @@
+[p141] fine-tune checkpoints/moe_v13s/policy_best.pt + datasets/p141_wave + datasets/demos_v11 -> checkpoints/p141_wave (15:37:36)
+[finetune] P28-B speed channel: widened the checkpoint's proprio 25 -> 26 (zero column, normaliser entry (0.12, 0.05))
+[finetune] P141 goal: widened 8 -> 10 with (v_belt, a_belt), zero columns, normaliser (0.12, 0.0) / (0.05, 0.15)
+[finetune] P141 horizon: visual encoder 2 -> 4 frames (kernel repeated, halved)
+[data] speed channel: 10 episodes, proprio_dim=26, pins=[0.12], declared=None, sources={'manifest': 10} (unpinned stores raise; see SPEED_PIN_KNOWN)
+[data] speed channel: 50 episodes, proprio_dim=26, pins=[0.12], declared=None, sources={'known': 50} (unpinned stores raise; see SPEED_PIN_KNOWN)
+/home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/scripts/../src/fruit_sorting/policy/model.py:161: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at /pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:835.)
+  if float(wk.abs().max()) < 1e-6:
+[finetune] rollouts=datasets/p141_wave (10 episodes, success 10)
+[finetune] base=datasets/demos_v11 (50 episodes)
+[finetune] windows=11011 weight_mode=ones vbar=0.0000 beta=4.0 failure_weight=0.05 base_weight=1.0 vlash_offset_max=0
+[finetune] speed channel: proprio_dim=26 normaliser=(0.12, 0.05)
+[finetune]   rollouts pins: {'channel': True, 'proprio_dim': 26, 'declared': None, 'values': [0.12], 'sources': {'manifest': 10}, 'manifests': ['datasets/p141_wave/manifest.json']}
+[finetune]   base pins: {'channel': True, 'proprio_dim': 26, 'declared': None, 'values': [0.12], 'sources': {'known': 50}, 'manifests': []}
+[finetune]   rollout: {'episodes': 10, 'windows': 1733, 'weight_values': [1.0], 'mean_weight': 1.0}
+[finetune]   base: {'episodes': 50, 'windows': 9278, 'weight_values': [1.0], 'mean_weight': 1.0}
+[finetune] epoch 1/6 SOFT mse=0.0184 weighted=0.0184 router_ce=0.034 router_acc=0.988 demo_val=0.0202 (112.5s)
+[finetune] epoch 2/6 SOFT mse=0.0172 weighted=0.0172 router_ce=0.024 router_acc=0.991 demo_val=0.0133 (112.0s)
+[finetune] epoch 3/6 SOFT mse=0.0169 weighted=0.0169 router_ce=0.020 router_acc=0.993 demo_val=0.0138 (113.6s)
+[finetune] epoch 4/6 SOFT mse=0.0155 weighted=0.0155 router_ce=0.019 router_acc=0.994 demo_val=0.0203 (112.4s)
+[finetune] epoch 5/6 SOFT mse=0.0159 weighted=0.0159 router_ce=0.017 router_acc=0.993 demo_val=0.0212 (112.1s)
+[finetune] epoch 6/6 SOFT mse=0.0149 weighted=0.0149 router_ce=0.016 router_acc=0.993 demo_val=0.0155 (113.4s)
+[finetune] saved checkpoints/p141_wave/policy_best.pt (last epoch, weighted loss 0.0149)
+[finetune] done -> checkpoints/p141_wave/policy_best.pt

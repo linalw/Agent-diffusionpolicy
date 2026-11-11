@@ -84,6 +84,12 @@ def main() -> int:
     parser.add_argument("--base-speed", type=float, default=None,
                         help="P28-B belt-speed pin [m/s] for the --base store "
                              "(overrides --store-speed for it)")
+    parser.add_argument("--goal-aux", action="store_true", default=None,
+                        help="P141: append the belt's (v_belt, a_belt) to the "
+                             "goal (8 -> 10 dims, zero columns) and train on it")
+    parser.add_argument("--obs-horizon", type=int, default=None,
+                        help="P141: widen the observation horizon (2 -> 4); the "
+                             "visual encoder's first kernel is repeated and halved")
     args = parser.parse_args()
     if not args.rollouts:
         parser.error("--rollouts is required (a directory written by scripts/110_rl_rollout.py --record)")
@@ -116,6 +122,8 @@ def main() -> int:
         close_tail=args.close_tail,
         rollout_speed=rollout_speed,
         base_speed=base_speed,
+        goal_aux=args.goal_aux,
+        obs_horizon=args.obs_horizon,
         seed=args.seed,
         device=args.device or None,
     )

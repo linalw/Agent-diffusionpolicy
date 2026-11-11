@@ -405,6 +405,29 @@ class CleatedBelt:
         )
 
     # ------------------------------------------------------------------ #
+    @property
+    def surface_speed(self) -> float:
+        """The belt's **applied** surface speed [m/s], signed like ``cfg.belt_speed``.
+
+        `encoder_speed` is derived from the cleat phase, and the cleats are off
+        by default (P43/P71-era), so that attribute is only the *setpoint echo*
+        it was initialised with: with a speed that changes (`FRUIT_BELT_WAVE`,
+        P135) the encoder keeps reporting the initial value while the surface
+        actually moves. Measured: a 3-episode collection under a 0.04 m/s x
+        0.5 Hz wave recorded a **constant** 0.1200 in every frame's
+        `belt_speed` (ptp 0.0000) because `_apply_speed` writes `self.speed` and
+        `step()` only recomputes `encoder_speed` when the furniture exists.
+
+        This accessor is the value the collider is actually driven with, so the
+        trigger, the 26th proprio column and the goal's `a_belt` all read the
+        belt that is moving. On the shipped constant belt it equals the encoder
+        exactly, which is why the acceptance is byte-identical.
+        """
+        speed = float(getattr(self, "speed", self.cfg.belt_speed))
+        if not speed == speed or speed in (float("inf"), float("-inf")):  # NaN/inf
+            return float(self.encoder_speed)
+        return speed
+
     def set_speed(self, speed: float) -> None:
         """Request a new belt surface velocity; `step()` ramps towards it."""
         self.target_speed = float(speed)

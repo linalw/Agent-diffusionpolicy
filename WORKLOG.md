@@ -26680,3 +26680,40 @@ _lifted and on_output_belt(final), and with FRUIT_OUTPUT_RAILS=none the fruit is
 within the 6 cm lane margin at finalize (it rolls off the slab). So the 0 rate is
 four terms: trigger default (harness), parked-fruit reselect (guard), the 100 m
 chase (guard), the scoring term (open).
+
+## P141 (2026-11-11) - the belt state becomes an observation, and the encoder was an echo
+
+The owner's plan: the belt is not uniform, so the policy must see its state. Two
+things came out of it.
+
+**The defect.** The first 3-episode wave collection recorded `belt_speed` with
+ptp 0.0000 - every frame exactly 0.1200. The channel read
+`Conveyor.encoder_speed`, which `step()` recomputes **only when the cleats
+exist**, and the cleats have been off by default since P43/P71. It is the
+setpoint echo the P27 note always said it was, so with a belt that changes speed
+the trigger, the descent's schedule and the 26th channel all read 0.12 while the
+belt ran 0.08-0.16. `Conveyor.surface_speed` returns the value `_apply_speed`
+writes into PhysxSurfaceVelocityAPI, and both readers now use it. Constant belt:
+the same number, acceptance 459/459.
+
+**The inputs** (all gated, default off): the goal gains (v_belt, a_belt) 8 -> 10,
+refreshed every tick; the 26th proprio column becomes per frame when the store
+carries the trace; the horizon is a config (4). a_belt has one implementation and
+the loader and the live loop share it. Warm starts preserve the function at step
+0: zero columns for the goal, 0.5*[w,w] for the visual kernel (a static window
+reproduces the 2-frame embedding to 4.8e-07).
+
+**Measured.** 10 episodes / 1733 windows under the wave, belt_speed 0.08-0.16,
+median ptp 0.08. Fine-tune: 11011 windows, 6 epochs, loss 0.0149, router 0.993,
+demo_val 0.0133, artifact 10/26/4, 4.603 M params. The channels are **used and
+measurable**: replacing them with the constant-belt belief moves the chunk 1.18
+mrad (goal pair 0.84, proprio column 0.43), and the calibration says that is
+worth ~2 mm of fruit position (goal x +1 mm = 0.54 mrad). Latency: 26.4 ms p50 at
+DDIM 16 vs 13.4 at 8, so EXEC_STEPS=2 (16.7 ms of sim) is inference-bound at 16
+and fits at 8 - the coherent pair is EXEC_STEPS=2 DDIM=8, not adopted.
+
+**Not claimed**: no rate (10 single-arm episodes; the direct A/B is blocked by
+P139's park slot and the on_output_belt(final) scorer), no task-time gain, and
+the two-line wave store is unbuilt (the collector wedged on its first attempt).
+The live integration loads and steps the 10/26/4 checkpoint; the episode then
+hits P139's defect, which is that lane's standing item.

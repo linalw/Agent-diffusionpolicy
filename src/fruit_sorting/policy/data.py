@@ -47,6 +47,63 @@ SPEED_CHANNEL_ENV = "FRUIT_OBS_SPEED"
 SPEED_CHANNEL_MEAN = 0.12
 SPEED_CHANNEL_STD = 0.05
 
+#: P141: the **goal** vector's auxiliary pair and the **per-frame** belt trace.
+#:
+#: The shipped goal is ``[xyz, v(3), diameter, bin_index]`` - 8 numbers, all
+#: snapshotted when the fruit is selected. That is enough for a constant belt and
+#: blind to a belt that changes speed: the record's ``FRUIT_BELT_WAVE`` cells
+#: move the surface by 0.04 m/s at 0.5 Hz, and two frames 33 ms apart differ by
+#: ~1.3 mm, which is inside the camera's own 2 mm position error - so the wave
+#: is **not** observable from the image horizon at any horizon length that fits
+#: the encoder's receptive field. It has to be an input.
+#:
+#: Two terms, both gated by :data:`GOAL_AUX_ENV`, default off (the 8-D goal and
+#: every existing store stay byte-identical):
+#:
+#: * ``v_belt``  - the belt's own surface speed [m/s], **positive downstream**,
+#:   from the encoder (`tasks._belt_speed_estimate`), the same estimator the
+#:   trigger and the 26th proprio channel read;
+#: * ``a_belt``  - its low-passed derivative [m/s^2], ~0.05 s time constant.
+#:
+#: The store derives both from the recorded per-frame ``belt_speed`` array
+#: (written by the collector when ``FRUIT_OBS_SPEED=1``), so a wave-capable
+#: store and the live loop assemble the same numbers.
+GOAL_DIM = 8
+GOAL_AUX_ENV = "FRUIT_OBS_GOAL_AUX"
+GOAL_AUX_MEAN = (0.12, 0.0)
+GOAL_AUX_STD = (0.05, 0.15)
+BELT_TAU_ENV = "FRUIT_OBS_BELT_TAU"
+BELT_TAU_DEFAULT = 0.05
+
+
+def goal_aux_enabled() -> bool:
+    """Is the goal's ``(v_belt, a_belt)`` pair armed?"""
+    return os.environ.get(GOAL_AUX_ENV, "0").strip() == "1"
+
+
+def belt_accel_trace(
+    speed: np.ndarray, dt: float = 1.0 / 120.0, tau: float | None = None
+) -> np.ndarray:
+    """Low-passed derivative of a per-frame belt-speed trace [m/s^2].
+
+    The same first-order filter the live loop runs, so a store's ``a_belt`` and
+    the deployed one are the same function of the same signal (the record's
+    rule: the model and the schedule must not disagree). ``tau`` is the EMA time
+    constant; the per-tick weight is ``dt / (tau + dt)``.
+    """
+    values = np.asarray(speed, dtype=np.float64).reshape(-1)
+    if tau is None:
+        tau = float(os.environ.get(BELT_TAU_ENV, str(BELT_TAU_DEFAULT)))
+    alpha = float(dt) / (float(tau) + float(dt))
+    out = np.zeros_like(values)
+    accel = 0.0
+    for i in range(1, values.size):
+        accel = (1.0 - alpha) * accel + alpha * (
+            (values[i] - values[i - 1]) / float(dt)
+        )
+        out[i] = accel
+    return out.astype(np.float32)
+
 #: Fallback pin when neither the store's manifest nor the caller declares one.
 #: P28 Gate A (B2): there is **no silent 0.12 default any more** - a store whose
 #: speed is neither in its artifact nor declared **raises**, because a wrong pin
@@ -127,7 +184,16 @@ def belt_speed_scalar(
                 "valid value - it reads as 'the belt is stopped'"
             )
         return float(abs(fallback))
-    encoder = getattr(belt, "encoder_speed", None)
+    # P141: the belt's **applied** surface speed, not the cleat-phase echo.
+    # `encoder_speed` is only recomputed inside `Conveyor.step` while the cleats
+    # exist, and they are off by default, so it reports the value it was
+    # initialised with - measured: a wave collection recorded a constant 0.1200
+    # in every frame. `surface_speed` is the number `_apply_speed` writes into
+    # `PhysxSurfaceVelocityAPI`, i.e. the belt the fruit ride. On the shipped
+    # constant belt the two are equal, which is why this is inert there.
+    encoder = getattr(belt, "surface_speed", None)
+    if encoder is None:
+        encoder = getattr(belt, "encoder_speed", None)
     # `transport_speed`'s fruit/jaw arguments are unused by its body (the value
     # is the encoder-or-measured scalar); pass None rather than add a pose read
     # to the control loop.
@@ -264,6 +330,7 @@ class EpisodeStore:
         only_successful: bool = True,
         belt_speed: float | None = None,
         speed_channel: bool | None = None,
+        goal_aux: bool | None = None,
     ):
         self.root = root
         self.obs_horizon = obs_horizon
@@ -282,6 +349,13 @@ class EpisodeStore:
         #: The width `__getitem__` returns - `finetune` cross-checks it against
         #: the checkpoint's `config["proprio_dim"]`.
         self.proprio_dim = PROPRIO_DIM + (1 if self.speed_channel else 0)
+        #: P141: the goal's auxiliary pair. Like the speed channel this is a
+        #: property of the artifact, and the fine-tune cross-checks it against
+        #: the checkpoint's ``config["goal_dim"]``.
+        if goal_aux is None:
+            goal_aux = goal_aux_enabled()
+        self.goal_aux = bool(goal_aux)
+        self.goal_dim = GOAL_DIM + (2 if self.goal_aux else 0)
         self._speed_cache: dict[str, float | None] = {}
 
         index_path = os.path.join(root, "index.json")
@@ -299,6 +373,12 @@ class EpisodeStore:
         #: so the value is per episode, not per store.
         self.belt_speeds: list[float] = []
         self.speed_sources: list[str] = []
+        #: P141: per-episode **per-frame** speed trace when the store carries one
+        #: (``belt_speed`` array; written by the collector under
+        #: ``FRUIT_OBS_SPEED=1``). ``None`` = a pre-P141 store, whose channel is
+        #: the constant pin it always was.
+        self.speed_traces: list[np.ndarray | None] = []
+        self.belt_accels: list[np.ndarray | None] = []
         self.episodes: list[dict] = []
         for entry in entries:
             data = np.load(os.path.join(root, entry["file"]))
@@ -321,6 +401,12 @@ class EpisodeStore:
                     "finger": data["finger_opening"],
                     "tactile": data["tactile"],
                     "goal": data["goal"],
+                    # P141: one float per recorded tick, present only when the
+                    # channel was armed at collection time.
+                    "belt_speed": (
+                        np.asarray(data["belt_speed"], dtype=np.float32).reshape(-1)
+                        if "belt_speed" in data.files else None
+                    ),
                     "action": data["action"],
                     "meta": entry,
                 }
@@ -329,6 +415,18 @@ class EpisodeStore:
                 pin, source = self._resolve_speed(entry)
                 self.belt_speeds.append(pin)
                 self.speed_sources.append(source)
+                trace = self.episodes[-1]["belt_speed"]
+                if trace is not None and trace.size != int(
+                    self.episodes[-1]["joint"].shape[0]
+                ):
+                    raise ValueError(
+                        f"{entry.get('file')}: belt_speed has {trace.size} frames "
+                        f"but the episode has {self.episodes[-1]['joint'].shape[0]}"
+                    )
+                self.speed_traces.append(trace)
+                self.belt_accels.append(
+                    None if trace is None else belt_accel_trace(trace)
+                )
 
         # Windows must fit inside each episode.
         self.windows: list[tuple[int, int]] = []
@@ -497,9 +595,21 @@ class EpisodeStore:
                 episode["tactile"][t].astype(np.float32),
             ]
         if self.speed_channel:
-            if t is None:
-                # One constant column for the whole episode (the channel is a
-                # per-episode constant in this build).
+            trace = self.speed_traces[ep_index]
+            if trace is not None:
+                # P141: the recorded trace. This is the difference between a
+                # constant-belt channel and one that can carry a wave - and the
+                # deployed loop already reads the encoder per tick, so a pinned
+                # constant while the belt moved would be a train/inference
+                # mismatch, not a simplification.
+                if t is None:
+                    parts.append(trace.reshape(-1, 1).astype(np.float32))
+                else:
+                    parts.append(np.array([trace[t]], dtype=np.float32))
+            elif t is None:
+                # One constant column for the whole episode (a pre-P141 store:
+                # the channel is a per-episode constant, byte-identical to what
+                # it always was).
                 frames = int(episode["joint"].shape[0])
                 parts.append(
                     np.full(
@@ -511,6 +621,31 @@ class EpisodeStore:
         # axis=-1: one frame -> the shipped 1-D concatenation (a no-op change);
         # all frames -> the pin joins as a column.
         return np.concatenate(parts, axis=-1)
+
+    def goal_at(self, ep_index: int, t: int) -> np.ndarray:
+        """The goal vector for one frame - the single assembly site.
+
+        ``[xyz, v(3), diameter, bin_index]``, plus P141's ``(v_belt, a_belt)``
+        when the pair is armed. The pair is read from the same per-frame trace
+        the 26th proprio column reads, so a store's two channels cannot
+        disagree; a pre-P141 store falls back to the constant pin and ``a = 0``.
+        """
+        episode = self.episodes[ep_index]
+        goal = episode["goal"][t].astype(np.float32)
+        if not self.goal_aux:
+            return goal
+        trace = self.speed_traces[ep_index]
+        accel = self.belt_accels[ep_index]
+        speed = float(self.belt_speeds[ep_index]) if trace is None else float(trace[t])
+        a = 0.0 if accel is None else float(accel[t])
+        return np.concatenate([goal, np.array([speed, a], dtype=np.float32)])
+
+    def goal_frames(self, ep_index: int) -> np.ndarray:
+        """Every frame's goal for one episode, ``(frames, goal_dim)``."""
+        if not self.goal_aux:
+            return self.episodes[ep_index]["goal"].astype(np.float32)
+        frames = int(self.episodes[ep_index]["goal"].shape[0])
+        return np.stack([self.goal_at(ep_index, t) for t in range(frames)], axis=0)
 
     def __getitem__(self, index: int) -> dict:
         ep_index, t = self.windows[index]
@@ -533,7 +668,7 @@ class EpisodeStore:
         image = np.transpose(image, (0, 3, 1, 2))  # (obs_horizon, C, H, W)
 
         proprio = self.proprio(ep_index, t)
-        goal = episode["goal"][t].astype(np.float32)
+        goal = self.goal_at(ep_index, t)
         action = episode["action"][t : t + self.action_horizon].astype(np.float32)
         skills = episode["skills"]
         skill = int(skills[t]) if skills is not None else 0
@@ -551,12 +686,14 @@ class EpisodeStore:
         for ep_index, episode in enumerate(self.episodes):
             actions.append(episode["action"])
             obs.append(self.proprio(ep_index))
-            goals.append(episode["goal"])
+            goals.append(self.goal_frames(ep_index))
         actions = np.concatenate(actions, axis=0)
         obs = np.concatenate(obs, axis=0)
         goals = np.concatenate(goals, axis=0)
         obs_mean = obs.mean(0).astype(np.float32)
         obs_std = (obs.std(0) + 1e-6).astype(np.float32)
+        goal_mean = goals.mean(0).astype(np.float32)
+        goal_std = (goals.std(0) + 1e-6).astype(np.float32)
         if self.speed_channel:
             # P28-B, design C2: the channel's units are FIXED, not a store
             # statistic. A fine-tune inherits the checkpoint's normaliser
@@ -564,13 +701,18 @@ class EpisodeStore:
             # silently redefine the channel for every later checkpoint.
             obs_mean[-1] = SPEED_CHANNEL_MEAN
             obs_std[-1] = SPEED_CHANNEL_STD
+        if self.goal_aux:
+            # Same rule for the goal pair: a constant belt gives ``a = 0`` for
+            # every training frame, so a store statistic would divide by ~0.
+            goal_mean[-2:] = GOAL_AUX_MEAN
+            goal_std[-2:] = GOAL_AUX_STD
         return Normalizer(
             action_mean=actions.mean(0).astype(np.float32),
             action_std=(actions.std(0) + 1e-6).astype(np.float32),
             obs_mean=obs_mean,
             obs_std=obs_std,
-            goal_mean=goals.mean(0).astype(np.float32),
-            goal_std=(goals.std(0) + 1e-6).astype(np.float32),
+            goal_mean=goal_mean,
+            goal_std=goal_std,
         )
 
     def skill_histogram(self) -> dict[str, int]:
@@ -593,7 +735,10 @@ class EpisodeStore:
                 categories.get(episode["meta"]["category"], 0) + 1
             )
             arms[episode["meta"]["arm"]] = arms.get(episode["meta"]["arm"], 0) + 1
+        traced = sum(1 for trace in self.speed_traces if trace is not None)
         return (
             f"{len(self.episodes)} episodes, {len(self.windows)} windows; "
-            f"categories={categories}; arms={arms}"
+            f"categories={categories}; arms={arms}; "
+            f"proprio_dim={self.proprio_dim} goal_dim={self.goal_dim} "
+            f"speed_trace={traced}/{len(self.episodes)}"
         )

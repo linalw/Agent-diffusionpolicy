@@ -3089,6 +3089,13 @@ class PickAndPlaceTask:
         self._belt_wave_amp = abs(float(os.environ.get("FRUIT_BELT_WAVE_AMP", "0.0")))
         self._belt_wave_hz = float(os.environ.get("FRUIT_BELT_WAVE_HZ", "0.5"))
         self._belt_wave_on = self._belt_wave_amp > 0.0
+        #: P141: `policy.data.SPEED_CHANNEL_ENV`'s value, read here so the
+        #: recorder can write the per-frame trace. The simulator does not import
+        #: the policy package; the string is the contract between them and the
+        #: `269` selfcheck leg pins that they agree.
+        self._speed_channel = (
+            os.environ.get("FRUIT_OBS_SPEED", "0").strip() == "1"
+        )
         self._belt_base_speed: float | None = None
         #: Fraction of the live extent used as the dynamic close's minimum
         #: interference; >0 also turns the live clamp from a floor into a cap and
@@ -7848,6 +7855,19 @@ class PickAndPlaceTask:
             "finger_opening": np.array([arm.finger_opening()], dtype=np.float32),
             "goal": self.current_goal,
         }
+        if self._speed_channel:
+            # P141: the belt's own surface speed, one float per recorded tick.
+            # The 26th proprio column used to be the per-episode pin, which is a
+            # constant - so a store collected under `FRUIT_BELT_WAVE` could not
+            # teach the channel anything about the wave while the *deployed*
+            # loop read the encoder every tick (a train/inference mismatch).
+            # Written only when the channel is armed, so the shipped 25-D path
+            # and every pre-P141 store are byte-identical by construction.
+            # Sign: positive downstream, matching `data.belt_speed_scalar` (the
+            # live value is `trigger.transport_speed`, i.e. `max(-encoder, 0)`).
+            observation["belt_speed"] = np.float32(
+                max(-float(self._belt_speed_estimate()), 0.0)
+            )
         tactile = self.tactile.read()
         observation["tactile"] = np.array(
             [
@@ -10080,9 +10100,23 @@ class PickAndPlaceTask:
         return min(speed * (overhead + t_desc + descend_margin_s) + margin, 0.80)
 
     def _belt_speed_estimate(self) -> float:
-        """Signed belt surface speed [m/s] - the encoder when it is meaningful."""
+        """Signed belt surface speed [m/s] - the belt's **applied** speed.
+
+        P141: `surface_speed` (the value the collider is driven with) rather than
+        `encoder_speed` (the cleat-phase echo, frozen when the cleats are off -
+        the shipped default). On a constant belt the two are the same number, so
+        nothing moves; under `FRUIT_BELT_WAVE` only this one is the belt that is
+        moving. Falls back to the encoder and then to the configured speed for a
+        stub or a belt built without the attribute.
+        """
         belt = getattr(self.spawner, "belt", None)
-        speed = float(getattr(belt, "encoder_speed", 0.0) or 0.0)
+        speed = getattr(belt, "surface_speed", None)
+        if speed is None:
+            speed = getattr(belt, "encoder_speed", 0.0)
+        try:
+            speed = float(speed)
+        except (TypeError, ValueError):
+            speed = float("nan")
         if not np.isfinite(speed) or abs(speed) < 1e-6:
             speed = float(self.cfg.belt_speed)
         return speed

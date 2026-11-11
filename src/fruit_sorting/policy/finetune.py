@@ -65,11 +65,15 @@ from torch.utils.data import ConcatDataset, DataLoader, Dataset
 
 from ..rl_env import TASKS_MD5
 from .data import (
+    GOAL_AUX_MEAN,
+    GOAL_AUX_STD,
+    GOAL_DIM,
     PROPRIO_DIM,
     SPEED_CHANNEL_MEAN,
     SPEED_CHANNEL_STD,
     EpisodeStore,
     Normalizer,
+    goal_aux_enabled,
     speed_channel_enabled,
 )
 from .diffusion import DiffusionSchedule
@@ -144,6 +148,96 @@ def widen_proprio(
         ]
     ).tolist()
     config["proprio_dim"] = int(new_dim)
+    return True
+
+
+def widen_goal(
+    model_state: dict,
+    normalizer: dict,
+    config: dict,
+    *,
+    new_dim: int = GOAL_DIM + 2,
+) -> bool:
+    """Splice P141's ``(v_belt, a_belt)`` pair into an 8-D checkpoint payload.
+
+    Appends **two zero columns** to ``condition.goal.0.weight`` and the fixed
+    ``(GOAL_AUX_MEAN, GOAL_AUX_STD)`` pair to the checkpoint's
+    ``goal_mean``/``goal_std``, then sets ``config["goal_dim"]``. The zero
+    columns mean the pair has exactly zero influence at step 0 - the same B0
+    identity `widen_proprio` uses - so a difference in the fine-tuned A/B is
+    what the training learned, not the interface.
+
+    The units are **fixed**, never a store statistic: on a constant belt every
+    training frame has ``a = 0``, so a derived std would divide by ~1e-6.
+
+    Returns True when it widened; idempotent like `widen_proprio`.
+    """
+    old_dim = int(config.get("goal_dim", GOAL_DIM))
+    if old_dim >= int(new_dim):
+        return False
+    key = "condition.goal.0.weight"
+    if key not in model_state:  # pragma: no cover - malformed checkpoint
+        raise KeyError(f"{key} not in the checkpoint's model state")
+    weight = model_state[key]
+    if int(weight.shape[-1]) != old_dim:
+        raise ValueError(
+            f"{key} is {tuple(weight.shape)} but config goal_dim={old_dim}"
+        )
+    if int(new_dim) - old_dim != 2:  # pragma: no cover - only the 8 -> 10 rung
+        raise NotImplementedError("widen_goal only knows the 8 -> 10 rung")
+    grown = torch.zeros(
+        (int(weight.shape[0]), int(new_dim)), dtype=weight.dtype, device=weight.device
+    )
+    grown[:, :old_dim] = weight
+    model_state[key] = grown
+    normalizer["goal_mean"] = np.concatenate(
+        [
+            np.asarray(normalizer["goal_mean"], dtype=np.float32),
+            np.asarray(GOAL_AUX_MEAN, dtype=np.float32),
+        ]
+    ).tolist()
+    normalizer["goal_std"] = np.concatenate(
+        [
+            np.asarray(normalizer["goal_std"], dtype=np.float32),
+            np.asarray(GOAL_AUX_STD, dtype=np.float32),
+        ]
+    ).tolist()
+    config["goal_dim"] = int(new_dim)
+    return True
+
+
+def widen_horizon(model_state: dict, config: dict, *, new_horizon: int) -> bool:
+    """Lengthen the observation horizon of a trained visual encoder.
+
+    The visual encoder folds the horizon into its input channels, so its first
+    convolution is ``(32, image_channels * obs_horizon, 5, 5)``. Widening
+    ``H -> 2H`` repeats the kernel across both halves and **halves** it, i.e.
+    ``new_w = 0.5 * [old_w, old_w]``: on a static scene (where the last H frames
+    repeat the first H) the conv output is *identical*, and under motion it is
+    the temporal average of two H-frame windows - the natural warm start for a
+    slower, longer window. The bias is untouched.
+
+    Returns True when it widened; idempotent.
+    """
+    old_horizon = int(config.get("obs_horizon", 2))
+    if old_horizon >= int(new_horizon):
+        return False
+    if int(new_horizon) != 2 * old_horizon:  # pragma: no cover - the 2 -> 4 rung
+        raise NotImplementedError(
+            f"widen_horizon only doubles (2 -> 4), got {old_horizon} -> {new_horizon}"
+        )
+    key = "visual.net.0.weight"
+    if key not in model_state:  # pragma: no cover - malformed checkpoint
+        raise KeyError(f"{key} not in the checkpoint's model state")
+    weight = model_state[key]
+    channels = int(config.get("image_channels", 5))
+    if int(weight.shape[1]) != channels * old_horizon:
+        raise ValueError(
+            f"{key} is {tuple(weight.shape)} but the config says "
+            f"{channels} channels x horizon {old_horizon}"
+        )
+    model_state[key] = torch.cat([weight, weight], dim=1) * 0.5
+    config["obs_horizon"] = int(new_horizon)
     return True
 
 
@@ -350,6 +444,8 @@ def finetune(
     vlash_offset_max: int = 0,
     rollout_speed: float | None = None,
     base_speed: float | None = None,
+    goal_aux: bool | None = None,
+    obs_horizon: int | None = None,
     verbose: bool = True,
 ) -> str:
     """Continue-train `checkpoint` on `rollouts` (+ `base` demos). Returns the path.
@@ -399,6 +495,21 @@ def finetune(
                 f"({SPEED_CHANNEL_MEAN}, {SPEED_CHANNEL_STD}))",
                 flush=True,
             )
+    # P141: the goal's belt pair. Armed by the gate or by the artifact (a 10-D
+    # checkpoint must be trained on 10-D goals, exactly like proprio).
+    if goal_aux is None:
+        goal_aux = bool(
+            int(config.get("goal_dim", GOAL_DIM)) > GOAL_DIM or goal_aux_enabled()
+        )
+    if goal_aux:
+        widened_goal = widen_goal(ckpt["model"], ckpt["normalizer"], config)
+        if verbose and widened_goal:
+            print(
+                f"[finetune] P141 goal: widened {GOAL_DIM} -> "
+                f"{int(config['goal_dim'])} with (v_belt, a_belt), zero columns, "
+                f"normaliser {GOAL_AUX_MEAN} / {GOAL_AUX_STD}",
+                flush=True,
+            )
     normalizer = Normalizer(
         action_mean=np.asarray(ckpt["normalizer"]["action_mean"], dtype=np.float32),
         action_std=np.asarray(ckpt["normalizer"]["action_std"], dtype=np.float32),
@@ -407,6 +518,18 @@ def finetune(
         goal_mean=np.asarray(ckpt["normalizer"]["goal_mean"], dtype=np.float32),
         goal_std=np.asarray(ckpt["normalizer"]["goal_std"], dtype=np.float32),
     )
+    # P141: the horizon is a *window* property, not a weights property, so it is
+    # an explicit widening rung (2 -> 4) with a warm start rather than a new
+    # architecture. Unset keeps the checkpoint's own value.
+    if obs_horizon is not None and int(obs_horizon) != int(config["obs_horizon"]):
+        if widen_horizon(ckpt["model"], config, new_horizon=int(obs_horizon)):
+            if verbose:
+                print(
+                    f"[finetune] P141 horizon: visual encoder "
+                    f"{int(config['obs_horizon']) // 2} -> {int(config['obs_horizon'])} "
+                    "frames (kernel repeated, halved)",
+                    flush=True,
+                )
     obs_horizon = int(config["obs_horizon"])
     action_horizon = int(config["action_horizon"])
     image_size = int(config["image_size"])
@@ -418,6 +541,7 @@ def finetune(
             rollouts, obs_horizon=obs_horizon, action_horizon=action_horizon,
             image_size=image_size, only_successful=False,
             belt_speed=rollout_speed, speed_channel=speed_channel,
+            goal_aux=goal_aux,
         )
     base_store = None
     if base and os.path.exists(os.path.join(base, "index.json")):
@@ -425,6 +549,7 @@ def finetune(
             base, obs_horizon=obs_horizon, action_horizon=action_horizon,
             image_size=image_size, only_successful=True,
             belt_speed=base_speed, speed_channel=speed_channel,
+            goal_aux=goal_aux,
         )
     # The training input and the deployed input must be the same width; this is
     # the only place both sides are known.
@@ -435,6 +560,12 @@ def finetune(
                 f"{label} store proprio_dim={store.proprio_dim} but the "
                 f"checkpoint expects {want_dim}: arm the channel on both sides "
                 f"(--store-speed/FRUIT_OBS_SPEED) or on neither"
+            )
+        if store is not None and int(store.goal_dim) != int(config["goal_dim"]):
+            raise ValueError(
+                f"{label} store goal_dim={store.goal_dim} but the checkpoint "
+                f"expects {int(config['goal_dim'])}: arm the goal pair on both "
+                f"sides (FRUIT_OBS_GOAL_AUX=1) or on neither"
             )
 
     rewards = (

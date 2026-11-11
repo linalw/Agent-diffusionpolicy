@@ -6939,6 +6939,72 @@ clamp, the calibration ratio, the synthetic sphere, every off default); `106` OK
 `61da390a`; `logs/p135/PREREG.md` **`0250fdc7`**. Evidence `logs/p135/`,
 `docs/TRACKING.md`.
 
+**P141 (2026-11-11, `logs/p141/`; three gated inputs + one defect fix, **nothing
+adopted, no default moved, no reference re-recorded**): the belt's state becomes an
+observation, because it cannot be seen - on the record's 0.04 m/s x 0.5 Hz wave two
+frames 33 ms apart differ by ~1.3 mm, inside the camera's own 1.98 mm error, so the
+wave is unobservable from the image horizon at any length. **The defect the first
+wave collection exposed is the phase's real find**: a 3-episode cell recorded
+`belt_speed` with **ptp 0.0000** because the channel read `Conveyor.encoder_speed`,
+which is computed inside `step()` **only while the cleats exist** and the cleats
+have been off by default since P43/P71 - it is a setpoint echo of the value it was
+initialised with. **`Conveyor.surface_speed`** now returns the value `_apply_speed`
+writes into `PhysxSurfaceVelocityAPI`, and **both** readers use it
+(`tasks._belt_speed_estimate` and `data.belt_speed_scalar`); on the shipped constant
+belt the two are the same number, which is why the acceptance is byte-identical,
+and under a wave only the new one is the belt that is moving - before the fix the
+trigger, the descent's schedule and the 26th channel all saw 0.12 while the belt
+ran 0.08-0.16. **The three inputs**: the goal gains **`(v_belt, a_belt)`** (8 -> 10,
+`FRUIT_OBS_GOAL_AUX=1`), refreshed **every tick** from the belt (dims 0-7 stay the
+selection snapshot); the 26th proprio column becomes **per frame** when the store
+carries the trace (the collector writes `belt_speed` under `FRUIT_OBS_SPEED=1`; a
+pre-P141 store still reads its pin, byte for byte); the visual horizon is a
+config (`--obs-horizon 4`). `a_belt` has **one** implementation
+(`data.belt_accel_trace`, tau 0.05 s) used by the loader, and the live loop runs the
+same filter. Units are **fixed**, not store statistics (the P28-B rule): `v_belt`
+reuses the channel's `(0.12, 0.05)`, `a_belt` is `(0.0, 0.15)` - on a constant belt
+every frame has `a = 0`, so a derived std would divide by ~1e-6. **Every widening is
+a warm start that preserves the function at step 0**: the goal's two columns are
+zeros (the `widen_proprio` identity), and the horizon is `new_w = 0.5*[old_w, old_w]`
+on `visual.net.0.weight`, which reproduces the 2-frame embedding to **4.8e-07** on a
+static window. **Measured**: the wave store is **10 episodes / 1733 windows**, 1923
+frames, `belt_speed` **0.0800-0.1600** with median per-episode **ptp 0.0800**; the
+fine-tune (`moe_v13s` + the store + `demos_v11`, 11011 windows, 6 epochs) reads loss
+**0.0149**, router 0.993, `demo_val` **0.0133**, and the artifact carries
+`goal_dim=10 proprio_dim=26 obs_horizon=4`, **4.603 M** params, first conv
+`(32, 20, 5, 5)`. **The model uses the channels, and at a measurable size**: the
+deterministic sampler is exact (a repeat is **0.00000 rad**, and a 1e-6 goal nudge is
+below float32), and replacing the belt channels with the **constant-belt belief**
+moves the chunk **0.00084 rad** through the goal pair, **0.00043** through the 26th
+proprio column, **0.00094** together - calibrated against the input the policy already
+had (**goal x +1 mm = 0.00054 rad**, +5 mm = 0.00231, `diameter +1 mm = 0.00091`), so
+the belt state is worth about **2 mm of fruit position**: the same order as the
+camera's error and a third of the 6 mm catch tolerance. **Latency** (the budget the
+roll trades against): one `act` is **26.4 ms p50 / 27.3 p95** at DDIM 16 and
+**13.4 / 14.2 ms** at 8 (**1.96x**), so `FRUIT_POLICY_EXEC_STEPS=2`'s 16.7 ms budget
+is **inference-bound at 16 steps and fits at 8** - the coherent pair is
+`EXEC_STEPS=2 DDIM=8`, implemented and env-resolved, **not** adopted. **No-harm**:
+`scripts/accept.sh` with every knob unset is **7/10 = 70 %, 9.5 s/attempt,
+`fingerprint: matches`, `190: PASS`**, and its **459 `[fruit]` lines are 459/459
+byte-identical** to `logs/p136/accept_final.log` - twice, after the plumbing and
+again after `surface_speed`; `scripts/selfcheck.sh` **PASS (0 failures, 1 skipped)**
+with the new **`P141 observation aux`** leg (**53 checks**: the gate table, the
+per-frame column vs the pin, the 10-D goal, the fixed normaliser, all three wideners,
+the static-window identity, a real `moe_v13s` loading and forwarding at 10/26/4, the
+single-sited wiring, and the env's assembly + filter **executed** on a stub). **The
+live integration passes the width guards** (`[rl] loaded ... obs_horizon=4`,
+`env ready`, the episode steps) and then hits **P139's park-slot defect** - the direct
+lane's standing item, not this phase's. **Not claimed**: no rate (the wave store is 10
+single-arm episodes; the direct A/B is blocked by P139 and the
+`on_output_belt(final)` scorer), no task-time gain from the latency knobs, and the
+two-line wave store is unbuilt (the collector wedged on its first attempt - the known
+renderer-bridge class). **References untouched**: `configs/motion_reference.json` /
+`..._twoline.json` **`61fb5202`**, `..._single.json` **`18b101bf`**. Pins: `tasks.py` **`c83fd7c5`**, `conveyor.py`
+**`85b3a7b9`**, `rl_env.py` **`937103a5`**, `policy/data.py` **`70befd71`**,
+`policy/finetune.py` **`717ca56c`**, `scripts/111_rl_finetune.py` **`a916c7e4`**,
+`scripts/269_p141_obs_aux_selftest.py` **`94c105a2`**, `scripts/selfcheck.sh`
+**`d53765bf`**, ckpt `p141_wave` **`44ee38e1`**; evidence `logs/p141/`.
+
 **P139 (2026-11-10, `logs/p139/`; **one opt-in reporting fix, default off** -
 nothing adopted): the direct loop's dominant failure key, `fruit fell off the
 line`, names the **wrong event** - the fruit is in the spawner's *park* slot.**
