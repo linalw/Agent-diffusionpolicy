@@ -1,0 +1,17 @@
+[p143] fine-tune checkpoints/moe_v13s/policy_best.pt + datasets/p143_dagger/direct_none_seed77 + demos_v11 -> checkpoints/p143_dagger (18:22:28)
+/home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/scripts/../src/fruit_sorting/policy/model.py:161: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at /pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:835.)
+  if float(wk.abs().max()) < 1e-6:
+[finetune] rollouts=datasets/p143_dagger/direct_none_seed77 (24 episodes, success 2)
+[finetune] base=datasets/demos_v11 (50 episodes)
+[finetune] windows=12852 weight_mode=ones vbar=0.0784 beta=4.0 failure_weight=0.05 base_weight=1.0 vlash_offset_max=0
+[finetune]   rollout: {'episodes': 24, 'windows': 3474, 'weight_values': [1.0], 'mean_weight': 1.0}
+[finetune]   base: {'episodes': 50, 'windows': 9378, 'weight_values': [1.0], 'mean_weight': 1.0}
+[finetune] epoch 1/6 SOFT mse=0.0245 weighted=0.0245 router_ce=0.110 router_acc=0.971 demo_val=0.0177 (67.3s)
+[finetune] epoch 2/6 SOFT mse=0.0197 weighted=0.0197 router_ce=0.038 router_acc=0.985 demo_val=0.0143 (67.5s)
+[finetune] epoch 3/6 SOFT mse=0.0178 weighted=0.0178 router_ce=0.033 router_acc=0.986 demo_val=0.0206 (66.8s)
+[finetune] epoch 4/6 SOFT mse=0.0172 weighted=0.0172 router_ce=0.028 router_acc=0.989 demo_val=0.0152 (67.0s)
+[finetune] epoch 5/6 SOFT mse=0.0167 weighted=0.0167 router_ce=0.024 router_acc=0.991 demo_val=0.0191 (66.0s)
+[finetune] epoch 6/6 SOFT mse=0.0166 weighted=0.0166 router_ce=0.023 router_acc=0.991 demo_val=0.0143 (67.2s)
+[finetune] saved checkpoints/p143_dagger/policy_best.pt (last epoch, weighted loss 0.0166)
+[finetune] done -> checkpoints/p143_dagger/policy_best.pt

@@ -26912,3 +26912,24 @@ second behind a moving fruit" is out of distribution.
 
 What works: the hybrid (8/10 canary; 3/4 direct+arrival). What could close the gap:
 DAgger on the hybrid's own episodes, with gap_min as the scoring number.
+
+## P143 / A (2026-11-12) - the DAgger round: acquisition halves, success does not
+
+The lane already existed (`--dagger`: the env runs the scripted pick-phase expert,
+records its command as the label and the policy's as policy_action). 24 episodes
+(seeds 77/101, direct, 240x424, 2/24 success), fine-tuned from moe_v13s + demos_v11
+(6 epochs, loss 0.0166).
+
+gap_min, the number that did not exist before:
+  moe_v13s        140 mm median (155, 75, 153, 140, 128)
+  p143_dagger      63 mm median (1, 5, 26, 48, 60, 60, 66, 71, 81, 99, 102, 103,
+                                 139) - 6 of 12 reach the 60 mm gate
+  p143_dagger_cw   86 mm median (close-weight 4x) - worse, not adopted
+
+Success is still 0/12 because the gate is a conjunction on one tick: the episodes
+either arrive and hold the finger open (1-23 mm, finger_min 0.030-0.041) or close
+far out (0.0-0.02 at 86-139 mm). One episode met both and grasped (then lost the
+payload to the loaded slide).
+
+Next: a 60-100 episode store at the same recipe, then teach the conjunction
+(close when gap < 0.05) rather than the expert's ramp.

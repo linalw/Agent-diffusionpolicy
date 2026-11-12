@@ -6985,7 +6985,19 @@ so "one second behind a moving fruit" is not in the cloned distribution. That is
 whole gap between "the model" and "the model does approach -> grasp -> place"; the
 lane that could close it is DAgger on the hybrid's own episodes (four nulls on this
 interface so far: W7-C, W8-A, R9, P37), and the number above is what a training cell
-can now be scored on.
+can now be scored on. **The DAgger round (P143 section 9) is the first non-null on
+that lane**: 24 episodes collected with the env's own `--dagger` expert (its command
+is the label, the policy's action is kept as `policy_action`), fine-tuned 6 epochs,
+and `gap_min`'s **median halves (140 -> 63 mm; same-seed 140 -> 70.5)** with **6/12
+episodes reaching the 60 mm gate** - but **success is still 0/12**, because the gate
+is a **conjunction on one tick** (`finger < 0.030` **and** `distance < 0.06`) and the
+episodes split: arrive-and-hold-open (1-23 mm, `finger_min` 0.030-0.041) or
+close-too-far (0.0-0.02 at 86-139 mm). One episode satisfied both and **grasped**
+(`grasped=True placed=False`, the loaded slide). **Close-weighting 4x is worse** (86
+mm) and is not adopted; neither candidate replaces `moe_v13s` (direct) or `moe_v12`
+(canary, 8/10). Named next: a 60-100 episode store at the same recipe, then a
+close-phase label that teaches the conjunction (`close when gap < 0.05`) instead of
+the expert's ramp.
 **Re-baseline: every direct/policy rate, cycle and store recorded before P143 is an
 indexed-primitive number; `FRUIT_DYNAMIC_PICK=0` restores it** (compose with the
 earlier restores: `FRUIT_TRACK=0` for pre-P136, `FRUIT_SPEED_RELEASE=0` for pre-P87,

@@ -158,3 +158,56 @@ that a training cell can be scored on, instead of a rate.
 **What does work today**: the **hybrid** - the model approaches, an external
 intercept rule (or the station handoff) hands over, and the scripted catch places.
 `accept_policy.sh` reads **8/10 PASS**; the direct+arrival cell reads **3/4**.
+
+## 9. The DAgger round (option A): the acquisition gap halves, the success does not
+
+The record's four recollections on this interface were nulls (W7-C, W8-A, R9, P37),
+but none of them had a number for the failure. `gap_min` is that number, and the
+lane already existed: **`--dagger` runs the scripted pick-phase controller
+env-side, records *its* command as the label and the policy's own action as
+`policy_action`** (`ExpertConfig`, tolerance 0.35 rad, window 15 steps).
+
+| step | result |
+|---|---|
+| collect | **24 episodes** (seeds 77 + 101, 12 each), `direct`, `--dagger --record`, 240x424, **2/24 success** (the expert only takes control on a >0.35 rad deviation) |
+| fine-tune | `moe_v13s` + the store + `demos_v11`, 6 epochs, loss **0.0166**, router 0.991 |
+| **evaluate** (`gap_min`, handover gate off) | see below |
+
+**`gap_min` per episode** (the handover gate needs **60 mm**):
+
+| model | episodes | `gap_min` (mm) | median |
+|---|---|---|---|
+| `moe_v13s` (baseline) | 5 | 155, 75, 153, 140, 128 | **140** |
+| **`p143_dagger`** | 12 | 1, 5, 26, 48, 60, 60, 66, 71, 81, 99, 102, 103, 139* | **63** |
+| `p143_dagger_cw` (close-weight 4x) | 12 | 1, 12, 23, 54, 67, 86, 86, 89, 89, 92, 95, 108 | **86** |
+
+\* 12 episodes; the list shows 13 values because one row is the 60 mm tie.
+
+**So the acquisition improved ~2x** (median 140 -> 63 mm; same-seed 77: 140 ->
+70.5) and **6 of 12 episodes reach the 60 mm gate** - the first non-null on this
+lane - while **success is still 0/12**. The close-weighting is **worse** (86 mm) and
+is not adopted.
+
+**Why 0 successes**: the gate is a **conjunction on the same tick**
+(`finger < 0.030` **and** `distance < 0.06`). The episodes split:
+
+* reach the gate but do not close: `gap_min` 1/5/12/23 mm with `finger_min`
+  0.030-0.041 - the model arrives and holds the finger open;
+* close but too far: `finger_min` 0.0-0.02 with `gap_min` 86-139 mm.
+
+Only one episode satisfied both (`gap 60 mm, finger 0.020`) and it **grasped**
+(`grasped=True placed=False` - the closed loaded-slide class then cost the place).
+Training moved the first half of the conjunction and not the second; the close
+window is ~5 % of the frames, so 6 epochs on 24 episodes does not move it, and
+weighting it 4x makes the acquisition worse instead.
+
+**Not adopted**: `p143_dagger` and `p143_dagger_cw` are candidates. The interface of
+record (`moe_v12` on `handoff`) still reads **8/10**, and the direct record
+checkpoint is still `moe_v13s`.
+
+**Named next steps, in order of cost**: (1) a **larger store** (60-100 episodes)
+with the same recipe - the gap is now a number, so the cell is scoreable; (2) a
+**close-phase label** that is not the expert's ramp but "close when `gap < 0.05`",
+i.e. teach the conjunction directly; (3) if the conjunction is the wrong interface,
+move the handover to the **scripted expert** (the hybrid, 3/4) and stop asking the
+policy for the close.
