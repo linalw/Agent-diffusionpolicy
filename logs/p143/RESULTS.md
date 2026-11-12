@@ -211,3 +211,39 @@ with the same recipe - the gap is now a number, so the cell is scoreable; (2) a
 i.e. teach the conjunction directly; (3) if the conjunction is the wrong interface,
 move the handover to the **scripted expert** (the hybrid, 3/4) and stop asking the
 policy for the close.
+
+## 10. Step 2 first: the label was already the conjunction - the lever is the fitting balance
+
+The owner asked for step 2 (teach "close when `gap < 0.05`") before step 1 (a bigger
+store). **The label already says that**: the expert's close opens at
+`dy in [-0.02, +0.05]` relative to the pick-station jaw line, and the collected
+store proves it - the first label frame with `finger < 0.030` sits at
+`fruit_y` **0.011 / 0.016 / 0.025 / 0.042 m** across episodes. So changing the label
+would be a no-op; the model simply does not fit it.
+
+The fitting hypothesis that *did* matter: the fine-tune mixes `demos_v11` (50
+episodes of the scripted single arm, which all **start at the grasp pose**) at
+`--base-weight 1.0`. That store teaches "stand at the grasp pose", which fights
+"chase the fruit". Dropping the anchor to **0.3** and training **8 epochs**:
+
+| model | n | `gap_min` median | grasped | **success** |
+|---|---|---|---|---|
+| `moe_v13s` | 5 | 140 mm | 0 | 0 |
+| `p143_dagger` (base 1.0) | 12 | **63 mm** | 1 | 0 |
+| `p143_dagger_cw` (close-weight 4x) | 12 | 86 mm | 0 | 0 |
+| **`p143_dagger_bw`** (base 0.3, 8 ep) | 12 | 73.5 mm | 1 | **1** |
+
+**The last row is a milestone, not a rate**: one episode of twelve completed
+**approach -> grasp -> place** with the **pure policy** - no handover trigger, no
+station teleport, no scripted primitive in the grasp (`success=True grasped=True
+placed=True`, orange, right arm, `gap_min` 50 mm, reward 0.9621). It is the first
+time on this interface that the model's own close both fired and finished.
+
+**Read it as**: the label, the gate and the primitive were never the blocker; the
+**anchor store** was pulling the policy back to the demonstration pose. 1/12 is a
+single draw - the cell now needs the larger store (step 1) to see whether the rate
+follows.
+
+**Caveat that stays on the record**: `gap_min`'s median is *worse* than the base-1.0
+model (73.5 against 63 mm) while the count is better - the two metrics rank the two
+checkpoints differently, and neither is a rate at n = 12.

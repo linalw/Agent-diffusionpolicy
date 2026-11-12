@@ -26933,3 +26933,26 @@ payload to the loaded slide).
 
 Next: a 60-100 episode store at the same recipe, then teach the conjunction
 (close when gap < 0.05) rather than the expert's ramp.
+
+## P143 / step 2 (2026-11-12) - the label was already the conjunction; the anchor was the problem
+
+Checking the collected store: the expert's close window is dy in [-0.02, +0.05] and
+the first label frame with finger < 0.030 sits at fruit_y 0.011 / 0.016 / 0.025 /
+0.042 m. So "teach close when gap < 0.05" is a no-op - the label already says it.
+
+What did move things: the anchor. demos_v11 (50 scripted episodes) all start at the
+grasp pose, and at base-weight 1.0 they pull the policy back there. At base-weight
+0.3 and 8 epochs:
+
+  moe_v13s                  gap median 140 mm, 0 grasped, 0 success
+  p143_dagger  (base 1.0)   gap median  63 mm, 1 grasped, 0 success
+  p143_dagger_cw (close 4x) gap median  86 mm, 0 grasped, 0 success
+  p143_dagger_bw (base 0.3) gap median  73.5 mm, 1 grasped, 1 SUCCESS
+
+The bw row is the first pure-policy approach -> grasp -> place on this interface
+(no trigger, no teleport): orange, right arm, gap_min 50 mm, reward 0.9621. One of
+twelve, so a draw; the median is worse than the base-1.0 model, so the two metrics
+rank the candidates differently.
+
+Step 1 (36 episodes, seeds 77/101/202) is collecting now; 893 MB / 24 episodes at
+240x424, so ~1.3 GB for 36.

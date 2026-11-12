@@ -6995,9 +6995,18 @@ episodes split: arrive-and-hold-open (1-23 mm, `finger_min` 0.030-0.041) or
 close-too-far (0.0-0.02 at 86-139 mm). One episode satisfied both and **grasped**
 (`grasped=True placed=False`, the loaded slide). **Close-weighting 4x is worse** (86
 mm) and is not adopted; neither candidate replaces `moe_v13s` (direct) or `moe_v12`
-(canary, 8/10). Named next: a 60-100 episode store at the same recipe, then a
-close-phase label that teaches the conjunction (`close when gap < 0.05`) instead of
-the expert's ramp.
+(canary, 8/10). Named next was a close-phase label, but **the label already is the conjunction**
+(the expert's window is `dy in [-0.02, +0.05]`; the collected store's first
+`finger < 0.030` frame sits at `fruit_y` 0.011-0.042 m), so step 2 became the
+**fitting balance** instead: the fine-tune mixes `demos_v11` (50 scripted episodes
+that all start at the grasp pose) at `--base-weight 1.0`, which fights "chase the
+fruit". At **`--base-weight 0.3`, 8 epochs**: `gap_min` median 73.5 mm and
+**1/12 `success=True grasped=True placed=True`** - the **first pure-policy
+approach -> grasp -> place on this interface** (orange, right arm, `gap_min` 50 mm,
+reward 0.9621). One of twelve is a draw, not a rate, and the median is *worse* than
+the base-1.0 model (73.5 against 63 mm) while the count is better - the two metrics
+rank them differently at n = 12. Step 1 (a 36-100 episode store at this recipe) is
+running; `p143_dagger_bw` is a candidate, not adopted.
 **Re-baseline: every direct/policy rate, cycle and store recorded before P143 is an
 indexed-primitive number; `FRUIT_DYNAMIC_PICK=0` restores it** (compose with the
 earlier restores: `FRUIT_TRACK=0` for pre-P136, `FRUIT_SPEED_RELEASE=0` for pre-P87,
