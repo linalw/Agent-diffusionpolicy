@@ -6960,14 +6960,19 @@ its recorded 5-8/10 spread, and the interface of record is `handoff`, which the 
 does reach); `selfcheck.sh` **PASS (0 failures, 1 skipped)** with the P142 leg grown
 to **35 checks** (the resolver table over `openarm x scripted`, `=0` restoring, `=1`
 forcing, the adoption in the docstring, and the recorder's new view).
-**The interface question the videos exposed**: the direct presentation's trigger is
-**`off` by default**, so the *shipped* direct cell is the **pure policy** and reads
-**0/4** (it never enters the primitive and the episodes end on P139's
-`fruit fell off the line` label); with `FRUIT_POLICY_TRIGGER=arrival` the same
-checkpoint reads **3/4**, and the handoff canary **8/10**. So "the model's effect"
-is only meaningful with the interface named - the deployed pipeline is hybrid, the
-pure policy is a research mode - and whether the trigger should default on for
-direct is a **separate** flip with its own re-baseline, **not** made here.
+**The interface question the videos exposed**: with `FRUIT_POLICY_TRIGGER=off` (the
+shipped default) the handover fires only when **the policy itself commands a close
+within 6 cm** (`finger < 0.030`), and **`moe_v13s` never does** - **0/7 episodes
+across two clips, with no `policy closed on the fruit` row at all**; `moe_v12`
+closes in 2 of 6 (one placed). With `=arrival` an **external** intercept rule fires
+the primitive (the policy then only gets the arm there) and the same checkpoint
+reads **3/4**, while the handoff canary - which teleports the fruit to the jaw and
+always runs the primitive - reads **8/10**. So the three numbers measure three
+different things: the model's own close (0/7), the model as an approach controller
+under an external trigger (3/4), and the station handoff (8/10). **What P143 settles
+is the primitive, not the trigger**: whenever the handover fires it is the moving
+catch, and whether the trigger should default on for direct is a **separate** flip
+with its own re-baseline, **not** made here.
 **Re-baseline: every direct/policy rate, cycle and store recorded before P143 is an
 indexed-primitive number; `FRUIT_DYNAMIC_PICK=0` restores it** (compose with the
 earlier restores: `FRUIT_TRACK=0` for pre-P136, `FRUIT_SPEED_RELEASE=0` for pre-P87,

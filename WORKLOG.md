@@ -26867,3 +26867,24 @@ Validation videos: 121_policy_video.py gains a raised `overhead.mp4` (960x540, z
 2.35 with the shipped aim, 0 black rows, both lanes) - the policy's head stays
 424x240 and keeps its aim because it is the model's input. Clips for moe_v12 and
 moe_v13s (the two adopted checkpoints) live on the external disk with a README.
+
+## P143 addendum (2026-11-12) - what the three numbers actually measure
+
+A correction to the first write-up: with `FRUIT_POLICY_TRIGGER=off` (the shipped
+default) the handover is not "off" - it fires when the **policy itself** commands a
+close within 6 cm (`finger < 0.030`). What the 0/4 clip shows is that moe_v13s
+**never closes**: 0 closes in 7 episodes across two clips (no `policy closed on the
+fruit` row), while moe_v12 closes in 2 of 6 and places 1.
+
+So the three interfaces measure three different things:
+  self-close (trigger off)  -> the model's own acquisition: v13s 0/7, v12 2/6 (1 placed)
+  arrival (external rule)   -> the model as an approach controller: 3/4
+  handoff (canary)          -> station teleport + primitive: 8/10 PASS
+
+P143 settles the primitive (whenever the handover fires it is the moving catch);
+arming the trigger by default for direct is a separate flip.
+
+The clip directories are renamed to the mode they measure -
+mode_selfclose_*, mode_arrival_*, mode_selfclose_indexed_* - with a README that
+defines the three axes (presentation / fire rule / primitive), because the old
+names (`..._direct_...`, `..._dyn_...`) conflated them.
