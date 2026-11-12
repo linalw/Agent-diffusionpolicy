@@ -18,6 +18,8 @@ Four outputs per run, the same set `70_record_video.py` writes, H.264/yuv420p:
   episode outcome over the last 1.5 s;
 * ``head.mp4`` - the policy's own head camera (clean);
 * ``gripper.mp4`` - the pick-station close-up (clean);
+* ``overhead.mp4`` - the **raised** view (z 2.35, the shipped aim): both output
+  lanes, no black band, the one to watch for the placement (P143);
 * ``side_by_side.mp4`` - observer + head, stacked (the observer half carries the
   annotation).
 
@@ -206,6 +208,25 @@ def main() -> int:
     observer.camera.set_clipping_ranges(0.01, 50.0)
     observer_sensor = CameraSensor(observer, resolution=(540, 960), annotators=["rgb"])
 
+    # P143: a raised **overhead** view. The policy's own `head.mp4` is 424x240 and
+    # is the model's input - it cannot be re-aimed without changing what the model
+    # sees - so a validation clip needs a second, raised camera to show both output
+    # lanes. This is the same band-free pose the scripted recorder uses (raise z,
+    # keep the shipped aim): aiming at the centre line instead puts the pedestal's
+    # unlit cavity across the bottom of the frame (80 black rows, measured).
+    over_eye = (0.05, 0.0, float(os.environ.get("FRUIT_VIDEO_OVERHEAD_Z", "2.35")))
+    over_target = (0.34, 0.22, 1.10)
+    overhead = RtxCamera(
+        "/World/PolicyOverheadCamera",
+        tick_rate=0.0,
+        positions=[over_eye],
+        orientations=[look_at_quat(over_eye, over_target)],
+    )
+    overhead.camera.set_focal_lengths(0.016)
+    overhead.camera.set_apertures((0.036, 0.02025))
+    overhead.camera.set_clipping_ranges(0.01, 50.0)
+    overhead_sensor = CameraSensor(overhead, resolution=(540, 960), annotators=["rgb"])
+
     close_eye = (0.93, 0.62, 1.42)
     close = RtxCamera(
         "/World/PolicyGripperCamera",
@@ -227,6 +248,7 @@ def main() -> int:
         ("observer", observer_sensor),
         ("gripper", close_sensor),
         ("head", env.scene.camera_sensor),
+        ("overhead", overhead_sensor),
     ):
         frame = None
         for _ in range(20):
@@ -240,7 +262,7 @@ def main() -> int:
         else:
             say(f"[video] {name} camera ready ({frame.shape[1]}x{frame.shape[0]})")
 
-    frames = {"observer": [], "head": [], "close": []}
+    frames = {"observer": [], "head": [], "close": [], "overhead": []}
     labels: list[dict] = []
     episodes: list[dict] = []
     state = {"episode": 0, "phase": "reset"}
@@ -262,6 +284,7 @@ def main() -> int:
         obs = frame_of(observer_sensor)
         head = frame_of(env.scene.camera_sensor)
         close_up = frame_of(close_sensor)
+        over = frame_of(overhead_sensor)
         if obs is None or head is None or close_up is None:
             return
         finger = None
@@ -280,6 +303,8 @@ def main() -> int:
         frames["observer"].append(obs)
         frames["head"].append(head)
         frames["close"].append(close_up)
+        if over is not None:
+            frames["overhead"].append(over)
         labels.append(
             {
                 "episode": state["episode"],
@@ -479,6 +504,8 @@ def main() -> int:
     write(os.path.join(args.out_dir, "observer.mp4"), observer_annotated)
     write(os.path.join(args.out_dir, "head.mp4"), frames["head"])
     write(os.path.join(args.out_dir, "gripper.mp4"), frames["close"])
+    if frames["overhead"]:
+        write(os.path.join(args.out_dir, "overhead.mp4"), frames["overhead"])
 
     # Side-by-side: observer + head at a common height.
     height = 480

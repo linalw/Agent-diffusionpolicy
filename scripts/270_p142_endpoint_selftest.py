@@ -181,11 +181,65 @@ def test_recycle_defer():
     check(stub3.parked == [5], "and parks it once the attempt releases it")
 
 
+def test_dynamic_default():
+    """P143: every path catches; the indexed line is opt-in."""
+    print("[4] the catch is the default on every path (P143)")
+    # `tasks.py` pulls the whole Isaac stack at import time, so the one function
+    # under test is lifted out of the source and executed in a class wrapper (it
+    # reads only `os.environ`).
+    tasks_source = source("src", "fruit_sorting", "tasks.py")
+    start = tasks_source.index("    def _dynamic_pick_mode(")
+    end = tasks_source.index("    def _dynamic_pick_lead(")
+    wrapper = "class _T:\n" + "".join(
+        ("    " + line + "\n") if line.strip() else "\n"
+        for line in tasks_source[start:end].rstrip().splitlines()
+    )
+    namespace: dict = {"os": os}
+    exec(wrapper, namespace)
+    mode = namespace["_T"]._dynamic_pick_mode
+    old = os.environ.pop("FRUIT_DYNAMIC_PICK", None)
+    try:
+        for openarm, scripted in ((True, True), (True, False), (False, True), (False, False)):
+            check(
+                mode(None, openarm=openarm, scripted=scripted) is True,
+                f"openarm={openarm} scripted={scripted} -> the moving catch",
+            )
+        os.environ["FRUIT_DYNAMIC_PICK"] = "0"
+        check(
+            mode(None, openarm=True, scripted=False) is False,
+            "=0 restores the P1 indexed line on the policy path",
+        )
+        os.environ["FRUIT_DYNAMIC_PICK"] = "1"
+        check(
+            mode(None, openarm=True, scripted=True) is True,
+            "=1 forces it",
+        )
+    finally:
+        os.environ.pop("FRUIT_DYNAMIC_PICK", None)
+        if old is not None:
+            os.environ["FRUIT_DYNAMIC_PICK"] = old
+    tasks = source("src", "fruit_sorting", "tasks.py")
+    check(
+        "P143 (adopted, owner decision 2026-11-12)" in tasks,
+        "the docstring carries the adoption and its measurement",
+    )
+    policy_video = source("scripts", "121_policy_video.py")
+    check(
+        'os.path.join(args.out_dir, "overhead.mp4")' in policy_video,
+        "the policy recorder writes the raised overhead view",
+    )
+    check(
+        '"overhead", overhead_sensor' in policy_video,
+        "and warms it up with the other render products",
+    )
+
+
 def main():
     print("P142 endpoint / handover self-test")
     test_endpoint()
     test_guard_order()
     test_recycle_defer()
+    test_dynamic_default()
     print(
         f"\n{'PASS' if CHECKS['failed'] == 0 else 'FAIL'}: "
         f"{CHECKS['passed']} checks, {CHECKS['failed']} failed"

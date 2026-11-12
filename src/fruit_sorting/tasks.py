@@ -10062,19 +10062,40 @@ class PickAndPlaceTask:
         documented, and it is why the speed sweep reports per-leg cone/slip
         rather than a success delta.
 
-        The environment overrides both ways: `FRUIT_DYNAMIC_PICK=1` forces the
-        moving catch for either hand and either path; `FRUIT_DYNAMIC_PICK=0`
-        restores the P1 indexed line (belt stopped at the station). The pad hand
-        keeps its dynamic line. The OpenArm *policy* handover (`scripted=False`)
-        follows `FRUIT_DYNAMIC_PICK`: with the env unset it keeps the P1 indexed
-        primitive (the policy drives its own close; the hybrid canary was
-        measured on that primitive), and with `FRUIT_DYNAMIC_PICK=1` it runs the
-        same moving catch as the scripted line.
+        **P143 (adopted, owner decision 2026-11-12): the OpenArm *policy*
+        handover (`scripted=False`) also takes the fruit on the fly.** The two
+        lines now agree, and the indexed primitive is the opt-in comparison arm
+        (`FRUIT_DYNAMIC_PICK=0`), not a default anywhere.
+
+        Why the flip, in the order the measurement supports it:
+
+        * **the trigger already assumes it** - the policy path fires on a
+          *predicted intercept*, and the indexed primitive aims at a frozen
+          `position(sample)` read once, so the hand leaves 0.06-0.36 m behind a
+          fruit on a 0.12 m/s belt (`logs/p142/RESULTS.md` section 7);
+        * **the correct-output rate doubles** - 5 seeds x 15 episodes per arm on
+          the same tree: dynamic **53/75 = 70.7 %** correct against shipped
+          **25/75 = 33.3 %** once the mis-sorted placements are subtracted
+          (`logs/p142/ab5/`, `grade_ledger.py`);
+        * **the ledger goes to zero** - the station reselect's cross-lane
+          adoption delivers a lane-1 fruit to lane 0 **35 times in 75 episodes**
+          on the indexed arm and **0** on the dynamic one (Fisher p = 1.6e-13),
+          because the moving catch skips the reselect by construction.
+
+        The counts alone are a direction, not a rate (**+13.3 points, 95 % CI
+        [-15.2, +15.2]**, paired sign p = 0.154): what carries the flip is the
+        *quality* term, which a sorting cell is paid for.
+
+        `FRUIT_DYNAMIC_PICK=0` restores the P1 indexed line (belt stopped at the
+        station) on every path; `=1` forces the catch. The pad hand keeps its
+        dynamic line either way.
         """
         env = os.environ.get("FRUIT_DYNAMIC_PICK")
         if env is not None:
             return env == "1"
-        return (openarm and scripted) or not openarm
+        # Every path catches now; the expression is kept as a literal so the
+        # selfcheck leg can pin "no arm or path falls back to the indexed line".
+        return True
 
     def _dynamic_pick_lead(self) -> float:
         """Upstream distance at which the moving pick is handed over [m].
@@ -14069,6 +14090,27 @@ class PickAndPlaceTask:
                                     f"[task]   reselecting: selected index {sample.index} is not "
                                     f"at the station; taking index {presented.index}"
                                 )
+                            elif os.environ.get(
+                                "FRUIT_RESELECT_SAME_LANE", "0"
+                            ) == "1":
+                                # P142: a presented fruit from the **other** lane is a
+                                # fruit this arm cannot deliver to its own box. The
+                                # shipped answer takes it anyway and records
+                                # `cross-lane station fruit ... placed on lane M` -
+                                # measured, 35 such deliveries in 75 indexed
+                                # episodes, 5 of the first 8 on attempts that
+                                # *placed* (Fisher p = 1.6e-13 against 0 on the
+                                # moving catch). Refusing keeps the arm on its own
+                                # fruit; the attempt may then fail on distance, which
+                                # the handover guard already bounds.
+                                say(
+                                    f"[task]   reselect refused: presented index "
+                                    f"{presented.index} (grade {presented.grade}) is lane "
+                                    f"{presented_lane}, but the {arm_name} arm serves lane "
+                                    f"{bin_index} (FRUIT_RESELECT_SAME_LANE=1); keeping "
+                                    f"index {sample.index}"
+                                )
+                                presented = None
                             else:
                                 say(
                                     f"[task]   reselecting across lanes: presented index "

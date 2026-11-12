@@ -26838,3 +26838,32 @@ Reads `classes=strawberry:0,lychee:16`, `cycle 0/1/2: lychee grade=B lane=1`,
 `target lychee (grade B, 3.4 cm) with right arm`, 3/3 `grasped=True placed=True`,
 1798 frames / 59.9 s - the old clip's script (1725 / 57.5 s, same fruit, same arm,
 same lane), on today's tree and with the raised, band-free head pose.
+
+## P143 (2026-11-12) - the moving catch is the default on every path
+
+`_dynamic_pick_mode` now returns True with `FRUIT_DYNAMIC_PICK` unset, on every
+hand and every path; `=0` restores the P1 indexed line. This is the owner's
+adoption of P142's corrected metric: the trigger already fires on a predicted
+intercept while the indexed primitive aimed at a frozen position (0.06-0.36 m of
+drift at 0.12 m/s), the correct-output rate doubles (53/75 = 70.7 % against 25/75 =
+33.3 % after subtracting the mis-sorted placements) and the cross-lane ledger goes
+0 against 35 (p = 1.6e-13). The counts alone are a direction (+13.3 points, CI
+[-15.2, +15.2], p = 0.154) - the quality term carries it.
+
+No-harm and gates: accept.sh 7/10, fingerprint matches, 459/459 [fruit] lines
+identical (the scripted path already resolved True, so the flip is inert there);
+the hybrid canary reads 8/10 PASS (top of its 5-8/10 spread, and handoff is a path
+the flip does reach); selfcheck PASS with the P142 leg at 35 checks.
+
+The videos exposed something the numbers hid: the direct presentation's trigger is
+`off` by default, so the shipped direct cell is the **pure policy** and reads 0/4 -
+it never enters the primitive, and the episodes end on P139's park-slot label. With
+`FRUIT_POLICY_TRIGGER=arrival` the same checkpoint reads 3/4, and handoff (the
+canary) 8/10. So "the model's effect" only means something with the interface
+named; arming the trigger by default for direct is a separate flip with its own
+re-baseline, not made here.
+
+Validation videos: 121_policy_video.py gains a raised `overhead.mp4` (960x540, z
+2.35 with the shipped aim, 0 black rows, both lanes) - the policy's head stays
+424x240 and keeps its aim because it is the model's input. Clips for moe_v12 and
+moe_v13s (the two adopted checkpoints) live on the external disk with a README.

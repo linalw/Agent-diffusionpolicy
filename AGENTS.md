@@ -6939,6 +6939,52 @@ clamp, the calibration ratio, the synthetic sphere, every off default); `106` OK
 `61da390a`; `logs/p135/PREREG.md` **`0250fdc7`**. Evidence `logs/p135/`,
 `docs/TRACKING.md`.
 
+**P143 (2026-11-12, `logs/p143/`; **the owner's adoption: the moving catch is the
+direct/policy default**): `PickAndPlaceTask._dynamic_pick_mode` returns **True on
+every hand and every path** with `FRUIT_DYNAMIC_PICK` unset (`=0` restores the P1
+indexed line, `=1` forces the catch), so the policy handover now takes the fruit on
+the fly exactly as the scripted line already did. The reason is P142's corrected
+metric, in this order: the trigger already fires on a **predicted intercept** while
+the indexed primitive aimed at a frozen `position(sample)` (0.06-0.36 m of drift at
+0.12 m/s); the **correct-output rate doubles** (5 seeds x 15 per arm: **53/75 =
+70.7 %** dynamic against **25/75 = 33.3 %** indexed once the mis-sorted placements
+are subtracted); and the **cross-lane ledger goes to zero** (35 deliveries to the
+wrong lane in 75 indexed episodes against **0**, Fisher p = 1.6e-13). The counts
+alone are a direction, not a rate (**+13.3 points, 95 % CI [-15.2, +15.2]**, paired
+sign p = 0.154) - the quality term carries it. **No-harm**: `scripts/accept.sh` is
+**7/10 = 70 %, `fingerprint: matches`**, its **459 `[fruit]` lines 459/459
+byte-identical** to `logs/p136/accept_final.log` (the scripted line already resolved
+True, so the flip is inert there by construction); the **hybrid canary** reads
+**8/10 = 80 % PASS** (2 grip losses, no reason outside the baseline set - the top of
+its recorded 5-8/10 spread, and the interface of record is `handoff`, which the flip
+does reach); `selfcheck.sh` **PASS (0 failures, 1 skipped)** with the P142 leg grown
+to **35 checks** (the resolver table over `openarm x scripted`, `=0` restoring, `=1`
+forcing, the adoption in the docstring, and the recorder's new view).
+**The interface question the videos exposed**: the direct presentation's trigger is
+**`off` by default**, so the *shipped* direct cell is the **pure policy** and reads
+**0/4** (it never enters the primitive and the episodes end on P139's
+`fruit fell off the line` label); with `FRUIT_POLICY_TRIGGER=arrival` the same
+checkpoint reads **3/4**, and the handoff canary **8/10**. So "the model's effect"
+is only meaningful with the interface named - the deployed pipeline is hybrid, the
+pure policy is a research mode - and whether the trigger should default on for
+direct is a **separate** flip with its own re-baseline, **not** made here.
+**Re-baseline: every direct/policy rate, cycle and store recorded before P143 is an
+indexed-primitive number; `FRUIT_DYNAMIC_PICK=0` restores it** (compose with the
+earlier restores: `FRUIT_TRACK=0` for pre-P136, `FRUIT_SPEED_RELEASE=0` for pre-P87,
+`FRUIT_ARM_PARK=ready` for pre-P43, `FRUIT_POLICY_TRIGGER_ACQ=0` for pre-P54, the P58
+burst profile for pre-P58, `FRUIT_OUTPUT_LANES=2` for pre-P126). **Validation videos
+(the owner's standing rule)**: `scripts/121_policy_video.py` gains a fourth camera,
+**`overhead.mp4`** (960x540, eye z **2.35** with the shipped aim, **0 fully-black
+rows**, both output lanes) - the policy's own `head.mp4` stays 424x240 and keeps its
+aim because it *is* the model's input, so the raised view is a separate camera, not a
+moved one. Clips for both adopted checkpoints are on
+`/media/ubuntu/66A27065A2703B9D/project/Agent-diffusionpolicy/log/video/` (116 MB,
+with a README naming each clip's checkpoint/md5/interface/outcome). Pins: `tasks.py`
+**`4acf2d27`**, `rl_env.py` (`TASKS_MD5` follow), `scripts/121_policy_video.py`,
+`scripts/270_p142_endpoint_selftest.py`; references **`61fb5202` / `61fb5202` /
+`18b101bf`** untouched; ckpt `moe_v13s` `61da390a`, `moe_v12` `3a9ccfc0`; evidence
+`logs/p143/`.
+
 **P142 (2026-11-11, `logs/p142/`; two defect fixes + a declared metric,
 **nothing adopted, no reference moved**): the direct lane's two *bookkeeping*
 failures are removed and its zero is shown to be the station reselect's timing.

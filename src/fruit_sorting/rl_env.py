@@ -491,7 +491,7 @@ from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
 #: This env never constructs a cage, so no direct/policy behaviour moves - proven
 #: on the scripted side by `scripts/accept.sh`'s 421/421 byte-identical `[fruit]`
 #: stream (`logs/p107/RESULTS.md` section 5).
-TASKS_MD5 = "50138850b9bda539e1388a118c42244f"
+TASKS_MD5 = "4acf2d27fef18e9360c8aa4d570a75f5"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(
