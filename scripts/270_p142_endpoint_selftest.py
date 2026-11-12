@@ -223,6 +223,16 @@ def test_dynamic_default():
         "P143 (adopted, owner decision 2026-11-12)" in tasks,
         "the docstring carries the adoption and its measurement",
     )
+    # P143 R4: the learned-close distance gate and its restore.
+    env_src = source("src", "fruit_sorting", "rl_env.py")
+    check(
+        'os.environ.get("FRUIT_POLICY_CLOSE_DIST", "0.15")' in env_src,
+        "the learned-close gate defaults to 0.15 m (P143 R4)",
+    )
+    check(
+        "|jaw-fruit|xy=15.0cm" in env_src,
+        "and its docstring carries the witness it was measured on",
+    )
     policy_video = source("scripts", "121_policy_video.py")
     check(
         'os.path.join(args.out_dir, "overhead.mp4")' in policy_video,

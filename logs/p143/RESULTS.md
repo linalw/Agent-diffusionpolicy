@@ -287,3 +287,63 @@ never sees today.
 **Verdict for step 1 as run**: not adopted, and the number that condemns it is the
 **expert-tick share**, not the episode count. The next cell is 24 episodes at
 tolerance 99 (20 min) + the same fine-tune (10 min) + the same eval (20 min).
+
+## 12. R3 (the decisive cell): the 6 cm gate was blocking the model's own close
+
+The model closes at 128-155 mm (section 8). The gate required **60 mm**. The
+primitive, once handed over, catches from **260 mm** (`arrival` fires at
+`t_arrive <= lead`) with a **200 mm** catch-up budget (P48). So the 60 mm was the
+**hybrid evaluator's modelled-attach constant**, not a constraint of this line - and
+it was silently discarding every close the model made.
+
+`FRUIT_POLICY_CLOSE_DIST=0.15` on the **untouched `moe_v13s`**, direct, no trigger,
+no teleport:
+
+| ep | arm | fruit | `gap_min` | note | result |
+|---|---|---|---|---|---|
+| 0 | left | pear | **150 mm** | `policy closed on the fruit (finger=0.0259, \|jaw-fruit\|xy=15.0cm)` | **success** |
+| 1 | right | peach | 243 mm | - (never inside the gate) | fail |
+| 2 | left | pear | **149 mm** | `policy closed on the fruit` | **success** |
+| 3 | left | peach | **148 mm** | `policy closed on the fruit` | `grasped=True placed=False` (loaded slide) |
+
+**2/4 success, 1 more grasped, from a checkpoint that reads 0/7 at the old gate** -
+no training, no trigger, no teleport. (The run died after episode 4 with no summary
+line; the four rows above are its whole output.)
+
+**Adopted**: the default is now **0.15 m** (`FRUIT_POLICY_CLOSE_DIST=0.06` restores).
+It is a **direct-presentation** constant only - `policy_close` is computed inside the
+`presentation == "direct"` branch, so the scripted line and the `handoff` canary
+cannot read it, and `scripts/accept.sh` is untouched by construction.
+
+**What it does not fix**: the right-arm peach at 243 mm still never enters the gate -
+the model has to get within ~15 cm, and it does not always. So the remaining work is
+still acquisition (sections 8-11), but the *conversion* of a close that already
+happens is now 2/4 instead of 0.
+
+**Read rule**: this is a **4-episode cell**, not a rate. It is adopted because the
+mechanism is exact (the gate is the only difference between the 0/7 and the 2/4
+cells, and the success rows name the 15 cm close in their own note), and because it
+costs nothing on the paths that cannot read it.
+
+### 12.1 The default cell confirms it
+
+Same checkpoint, **no environment at all** (the new default is 0.15), 4 episodes,
+seed 77:
+
+| ep | fruit | `gap_min` | result |
+|---|---|---|---|
+| 0 | pear | 158 mm | fail (outside the 150 mm gate) |
+| 1 | tomato | **149 mm** | **success** |
+| 2 | pear | **150 mm** | **success** |
+| 3 | peach | **147 mm** | `grasped=True placed=False` (loaded slide) |
+
+**2/4 = 50 % from the shipped baseline checkpoint with the policy's own close** - no
+trigger, no teleport, no training. The earlier cell at the 0.06 gate read 0/7.
+
+**No-harm re-proved on the same tree**: `scripts/accept.sh` is **7/10,
+`fingerprint: matches`**, and its 459 `[fruit]` lines are **459/459 byte-identical**
+to `logs/p136/accept_final.log` - the scripted line cannot read the knob.
+
+**The residual is exactly two known classes**: the fruit the arm never gets inside
+150 mm of (ep 0, and the right-arm 243 mm case in the cell above), and the loaded
+slide on the ones that are grasped (ep 3). Neither is the gate.

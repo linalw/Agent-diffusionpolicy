@@ -5299,7 +5299,24 @@ class SortingRLEnv:
                     f"fruit=({fruit[0]:.3f},{fruit[1]:+.3f},{fruit[2]:.3f}) "
                     f"jaw=({jaw[0]:.3f},{jaw[1]:+.3f},{jaw[2]:.3f})"
                 )
-            policy_close = bool(finger < 0.030 and distance < 0.06)
+            # P143 R3: the learned close's distance gate. The shipped 0.06 m is the
+            # same 2-D proximity test the hybrid evaluator uses, but the *primitive*
+            # catches from up to 0.26 m (`arrival` fires at `t_arrive <= lead`), so
+            # a model that closes at 0.10-0.15 m has a valid close that the gate
+            # silently drops - measured: the baseline closes at 128-155 mm. The knob
+            # is the interface's, not the model's: unset is the shipped 0.06.
+            #: **P143 R4 (adopted): the gate is 0.15 m, not 0.06.** Measured on the
+            #: untouched `moe_v13s` with no trigger and no teleport: at 0.06 the
+            #: model's own close (128-155 mm, P143 section 8) never counts and the
+            #: lane reads **0/7**; at 0.15 the same checkpoint reads **2/4 success**
+            #: with the note `policy closed on the fruit (... |jaw-fruit|xy=15.0cm)`
+            #: and one more `grasped=True` lost at the place. The primitive can catch
+            #: from **0.26 m** (`arrival` fires at `t_arrive <= lead`) and its
+            #: catch-up budget is 200 mm (P48), so 0.15 is inside the physics; the
+            #: 0.06 was the *hybrid evaluator's* modelled-attach constant, not a
+            #: constraint of this line. `FRUIT_POLICY_CLOSE_DIST=0.06` restores.
+            close_dist = float(os.environ.get("FRUIT_POLICY_CLOSE_DIST", "0.15"))
+            policy_close = bool(finger < 0.030 and distance < close_dist)
             # R7-A (WS-4.6): the reach-cliff refusal binds the learned gate too.
             # `policy_close` is the shipped fire path and is evaluated
             # independently of the trigger, so before this change the x-band

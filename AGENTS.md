@@ -7014,8 +7014,19 @@ not DAgger. **The fix is one flag**: `--expert-tolerance 99 --expert-window 0`
 makes the expert never take over while the label is still recorded every decision,
 so the store becomes the policy's own distribution (the 13 cm state included). The
 number that condemns the 36-episode store is the **expert-tick share**, not the
-episode count. `p143_dagger_bw` (24 ep, 1/12) stays the candidate; `p143_dagger2`
-(36 ep) is not adopted.
+episode count. **R3 then found the actual blocker and it was the interface**: the
+learned close's gate was **0.06 m**, the model closes at **128-155 mm**, and the
+primitive catches from **0.26 m** with a 200 mm catch-up budget (P48) - so every
+close the model made was discarded. With **`FRUIT_POLICY_CLOSE_DIST=0.15`** (now the
+**default**, `=0.06` restores) the **untouched `moe_v13s`** reads **2/4 success**
+plus one `grasped=True` lost at the place, against **0/7** at the old gate - no
+training, no trigger, no teleport; the witness is the model's own note,
+`policy closed on the fruit (... |jaw-fruit|xy=15.0cm)`. The knob is
+**direct-presentation only** (`policy_close` lives inside that branch), so the
+scripted line and the `handoff` canary cannot read it. It does **not** fix the
+right-arm case that never gets inside 243 mm - acquisition remains the open term.
+`p143_dagger_bw` (24 ep, 1/12) stays the training candidate; `p143_dagger2` (36 ep)
+is not adopted.
 **Re-baseline: every direct/policy rate, cycle and store recorded before P143 is an
 indexed-primitive number; `FRUIT_DYNAMIC_PICK=0` restores it** (compose with the
 earlier restores: `FRUIT_TRACK=0` for pre-P136, `FRUIT_SPEED_RELEASE=0` for pre-P87,
