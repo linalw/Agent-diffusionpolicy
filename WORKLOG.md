@@ -26795,3 +26795,24 @@ the copies plus a GIF of the right-arm placement and a 4x3 contact sheet for
 anything that will not play video at all. `ffplay` and VLC both work on the MP4s;
 `gst-discoverer-1.0` reads the WebM as VP9 848x480 71.6 s and `decodebin !
 videoconvert ! fakesink` decodes it with zero errors.
+
+## Video poses, second pass (2026-11-12) - the black band was the aim, not the height
+
+The raised head pose that shipped in `logs/video_final` (z=2.35, **target y=0.00**)
+left an **80-row pure-black band** across the bottom of every 848x480 frame
+(measured: rows 400-479 exactly zero, 0 in the previous recording). Aiming at the
+centre line puts the pedestal's unlit cavity across the bottom of the view; raising
+the camera is not what did it. Keeping the **shipped aim** (0.34, +0.22) and only
+raising z to 2.35 gives **0 fully-black rows over 8 sampled frames** in both
+recordings, with both output lanes still in frame and the -Y placement visible.
+
+Re-recorded both lines with that pose, frame sizes unchanged so the clips compose:
+
+| clip | line | frames | head / observer / side_by_side |
+|---|---|---|---|
+| `logs/video_final/` | two-line (shipped) | 2148 / 71.6 s | 848x480 / 960x540 / 1702x480 |
+| `logs/video_single_raised/` | **single arm** (`FRUIT_BIARM=0`, the old line) | 2058 / 68.6 s | 848x480 / 960x540 / 1702x480 |
+
+`video_final`'s banded version is archived at `logs/video_final_banded/`, the
+previous (un-raised) pair at `logs/video_final_prev/`. Both directories also carry
+the VP9 `.webm` copies, a placement GIF and a contact sheet.
