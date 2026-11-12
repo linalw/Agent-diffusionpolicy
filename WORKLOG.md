@@ -26752,3 +26752,24 @@ another fruit. Named, not built.
 
 No-harm: acceptance 7/10 + fingerprint matches + 459/459 [fruit] lines identical;
 selfcheck PASS with the 26-check P142 leg; 211 ok (115 checks).
+
+## Video re-record (2026-11-12) - the head view now shows the -Y placement
+
+The recording's `head.mp4` aimed at (0.34, +0.22, 1.10) from z=2.00, which puts
+the **-Y (right) output lane** at the far edge of the frame: the right placement
+was outside the picture. The video entry script now overrides the head pose
+**for the recording only** - z 2.00 -> 2.35, target (0.34, +0.22, 1.10) ->
+(0.55, 0.00, 1.10), i.e. lifted and turned toward the output deck - through
+`FRUIT_VIDEO_HEAD_Z` / `FRUIT_VIDEO_HEAD_TARGET_{X,Y,Z}`, and says so in the log:
+
+    [video] head camera z=2.35 target=(0.55, 0.0, 1.1) (shipped 2.00 / (0.34, 0.22, 1.1))
+
+This is a **video-only** override: `SceneConfig`'s head camera is the policy's
+input, so its pose is a scene contract and no measured path changes. A raised
+*observer* was tried first and rejected on the frame (a steeper pitch made the
+whole-cell composition worse - `logs/video_final_raised/observer.mp4`).
+
+Re-recorded `logs/video_final/` (3 two-line cycles = 6 placements, all
+`grasped=True placed=True`, 71.6 s each, 2148 frames): `head.mp4`,
+`observer.mp4`, `gripper.mp4`, `side_by_side.mp4`, `preview.png` (a frame at the
+right arm's place). The previous files are kept in `logs/video_final_prev/`.

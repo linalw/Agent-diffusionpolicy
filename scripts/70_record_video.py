@@ -87,10 +87,34 @@ def frame_of(sensor, annotator: str = "rgb"):
 def main() -> int:
     os.makedirs(OUT_DIR, exist_ok=True)
     cfg = SceneConfig()
+    # P142 (video only): the head camera is the *policy's* eye, so its pose is a
+    # scene contract and is never changed on a measured path. The recording needs
+    # a view that shows the **-Y (right) output lane**, which the shipped aim
+    # (target x=0.34, y=+0.22) puts at the far edge of the frame. These overrides
+    # live here, in the video entry script, and change nothing else.
+    head_z = float(os.environ.get("FRUIT_VIDEO_HEAD_Z", "2.35"))
+    head_target = (
+        float(os.environ.get("FRUIT_VIDEO_HEAD_TARGET_X", "0.55")),
+        float(os.environ.get("FRUIT_VIDEO_HEAD_TARGET_Y", "0.00")),
+        float(os.environ.get("FRUIT_VIDEO_HEAD_TARGET_Z", "1.10")),
+    )
+    cfg.head_camera_z = head_z
+    cfg.head_camera_target = head_target
+    say(
+        f"[video] head camera z={head_z:.2f} target={head_target} "
+        f"(shipped {SceneConfig().head_camera_z:.2f} / "
+        f"{SceneConfig().head_camera_target})"
+    )
     scene = SortingScene(cfg).build()
 
-    # Fixed external view of the whole cell.
-    eye = (1.75, 1.55, 2.35)
+    # Fixed external view of the whole cell (unchanged: the raised *head* view is
+    # the one that shows the -Y placement, and a steeper observer pitch made the
+    # composition worse - measured, `logs/video_final_raised/observer.mp4`).
+    eye = (
+        float(os.environ.get("FRUIT_VIDEO_EYE_X", "1.75")),
+        float(os.environ.get("FRUIT_VIDEO_EYE_Y", "1.55")),
+        float(os.environ.get("FRUIT_VIDEO_EYE_Z", "2.35")),
+    )
     observer = RtxCamera(
         "/World/ObserverCamera",
         tick_rate=0.0,
