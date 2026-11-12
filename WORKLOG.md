@@ -26773,3 +26773,25 @@ Re-recorded `logs/video_final/` (3 two-line cycles = 6 placements, all
 `grasped=True placed=True`, 71.6 s each, 2148 frames): `head.mp4`,
 `observer.mp4`, `gripper.mp4`, `side_by_side.mp4`, `preview.png` (a frame at the
 right arm's place). The previous files are kept in `logs/video_final_prev/`.
+
+## Video playback (2026-11-12) - this machine has no H.264 decoder
+
+"Why won't the video open?" The files are fine: `ffmpeg -f null` decodes all 2148
+frames of every one, they are H.264 High / yuv420p / level 3.1 with `+faststart`
+(moov before mdat). The **player** is the problem - this box's GStreamer has no
+H.264 decoder at all:
+
+    gst-inspect-1.0 avdec_h264     -> no such element
+    gst-inspect-1.0 openh264dec    -> no such element
+    gst-inspect-1.0 vah264dec      -> no such element
+
+`totem` (GNOME Videos, the double-click default) is a GStreamer front end, so it
+refuses every MP4 the recorder writes. `gst-inspect-1.0 vp9dec` / `vp8dec` /
+`jpegdec` DO exist, so a VP9 WebM plays there.
+
+Fixed two ways: `70_record_video.py` now writes a **VP9 `.webm` beside every
+MP4** (`FRUIT_VIDEO_WEBM=0` disables; best effort), and `logs/video_final/` has
+the copies plus a GIF of the right-arm placement and a 4x3 contact sheet for
+anything that will not play video at all. `ffplay` and VLC both work on the MP4s;
+`gst-discoverer-1.0` reads the WebM as VP9 848x480 71.6 s and `decodebin !
+videoconvert ! fakesink` decodes it with zero errors.

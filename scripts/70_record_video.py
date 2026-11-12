@@ -538,6 +538,37 @@ def main() -> int:
             paired.append(np.hstack([left, right]))
         write(os.path.join(OUT_DIR, "side_by_side.mp4"), paired)
 
+    # P142b: a **VP9/WebM** copy beside every MP4. This machine's GStreamer has
+    # no H.264 decoder at all (`avdec_h264` / `openh264dec` / `vah264dec` are all
+    # missing), so `totem` - the default double-click player - cannot open any of
+    # the MP4s; `vp9dec` IS installed, so the WebM plays everywhere the MP4 does
+    # not. Best effort: no ffmpeg or a failed encode leaves the MP4 alone.
+    if os.environ.get("FRUIT_VIDEO_WEBM", "1") == "1":
+        for name in ("observer", "head", "gripper", "side_by_side"):
+            source = os.path.join(OUT_DIR, f"{name}.mp4")
+            if not os.path.exists(source):
+                continue
+            target = os.path.join(OUT_DIR, f"{name}.webm")
+            env = {
+                key: value
+                for key, value in os.environ.items()
+                if key not in ("LD_PRELOAD", "LD_LIBRARY_PATH")
+            }
+            try:
+                subprocess.run(
+                    [
+                        os.environ.get("FRUIT_FFMPEG", "ffmpeg"), "-v", "error", "-y",
+                        "-i", source, "-c:v", "libvpx-vp9", "-crf", "34",
+                        "-b:v", "0", "-row-mt", "1", "-cpu-used", "2",
+                        "-pix_fmt", "yuv420p", target,
+                    ],
+                    check=True, env=env,
+                )
+                say(f"wrote {target} (VP9, plays without an H.264 decoder)")
+            except (OSError, subprocess.CalledProcessError) as exc:  # noqa: BLE001
+                say(f"warning: no WebM copy for {source} ({exc})")
+
+
     app_utils.pause()
     say("DONE")
     return 0
