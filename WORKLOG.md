@@ -26816,3 +26816,25 @@ Re-recorded both lines with that pose, frame sizes unchanged so the clips compos
 `video_final`'s banded version is archived at `logs/video_final_banded/`, the
 previous (un-raised) pair at `logs/video_final_prev/`. Both directories also carry
 the VP9 `.webm` copies, a placement GIF and a contact sheet.
+
+## Reproducing the old clip's content on the current tree (2026-11-12)
+
+The old `video_final` (10-07) shows three B-grade lychees taken by the **right**
+arm to the **-Y** lane. A plain `FRUIT_BIARM=0` re-record picks an A-grade lychee
+instead (the shipped scatter mix is A:0.5/B:0.3/C:0.2, and lane 0 = grade A), so
+the clip looked different for a reason that has nothing to do with the camera.
+
+`FRUIT_SUPPLY_GRADES` needs **all three** keys with a positive weight (`_mix_env`
+refuses a partial or zero mix), so the reproduction is `A:0.01,B:0.99,C:0.01` -
+largest-remainder allocation gives 16/16 B - plus `FRUIT_SUPPLY_SPECIES=lychee`:
+
+    FRUIT_BIARM=0 FRUIT_SUPPLY_GRADES=A:0.01,B:0.99,C:0.01 \
+    FRUIT_SUPPLY_SPECIES=lychee FRUIT_VIDEO_DIR=logs/video_single_lychee \
+    FRUIT_VIDEO_HEAD_Z=2.35 FRUIT_VIDEO_HEAD_TARGET_X=0.34 \
+    FRUIT_VIDEO_HEAD_TARGET_Y=0.22 FRUIT_CYCLES=3 \
+    scripts/run.sh scripts/70_record_video.py
+
+Reads `classes=strawberry:0,lychee:16`, `cycle 0/1/2: lychee grade=B lane=1`,
+`target lychee (grade B, 3.4 cm) with right arm`, 3/3 `grasped=True placed=True`,
+1798 frames / 59.9 s - the old clip's script (1725 / 57.5 s, same fruit, same arm,
+same lane), on today's tree and with the raised, band-free head pose.
