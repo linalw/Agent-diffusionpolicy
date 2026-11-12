@@ -2019,6 +2019,14 @@ class SortingRLEnv:
         #: derivative the store's loader runs (`data.belt_accel_trace`), so a
         #: collection store and this loop assemble the same function.
         self._goal_aux = goal_aux_enabled()
+        #: P143 diag (default off): the closest the jaws ever came to the target
+        #: fruit and the smallest finger command the policy emitted. Both are the
+        #: numbers `should_fire` already has on every tick it runs, so this adds a
+        #: `min()` and no read - and it answers "did the model even try to grasp"
+        #: without a per-tick trace.
+        self._handover_diag = os.environ.get("FRUIT_HANDOVER_DIAG", "0") == "1"
+        self._diag_min_gap = float("inf")
+        self._diag_min_finger = float("inf")
         self._belt_t: float | None = None
         self._belt_v = 0.0
         self._belt_a = 0.0
@@ -3883,6 +3891,8 @@ class SortingRLEnv:
         self._no_firable = False
         self._last_action = np.zeros(self.action_dim, dtype=np.float32)
         self._episode_t0 = self._sim_time()
+        self._diag_min_gap = float("inf")
+        self._diag_min_finger = float("inf")
         self._decision_step: int | None = None
         self.spawner.protected = int(target["index"])
         # P30-B: no model has run for this episode yet (a scripted-ablation
@@ -4144,9 +4154,24 @@ class SortingRLEnv:
         belt's state, so unlike dims 0-7 they are refreshed **every tick**
         (`_refresh_goal_aux`).
         """
+        position = np.asarray(position, dtype=np.float32).reshape(-1)[:3]
+        velocity = np.asarray(velocity, dtype=np.float32).reshape(-1)[:3]
+        # P143: **the goal can be the intercept, not the current position**.
+        # Measured on the shipped direct loop: the policy closes the finger
+        # (min 0.005-0.016) while the jaws are still **128-155 mm** from the
+        # fruit - both arms - and the handover gate needs 60 mm, so the primitive
+        # never fires. 13 cm at 0.12 m/s is ~1.1 s of belt travel: the model aims
+        # where the fruit *is* and arrives a second late. The scripted line fixed
+        # exactly this with the tracker (`FRUIT_TRACK`, P136) but that is scoped to
+        # `scripted=True`, so it never reaches the policy. `FRUIT_GOAL_LEAD=<s>`
+        # moves the goal forward by the fruit's own velocity, which is already in
+        # the observation - a zero-shot change, no retraining.
+        lead = float(os.environ.get("FRUIT_GOAL_LEAD", "0.0"))
+        if lead > 0.0 and np.all(np.isfinite(velocity)):
+            position = position + velocity * lead
         values = [
-            *np.asarray(position, dtype=np.float32).reshape(-1)[:3],
-            *np.asarray(velocity, dtype=np.float32).reshape(-1)[:3],
+            *position,
+            *velocity,
             float(diameter),
             float(bin_index),
         ]
@@ -5260,6 +5285,13 @@ class SortingRLEnv:
             distance = float(
                 np.linalg.norm(fruit[:2] - np.asarray(jaw[:2], dtype=float))
             )
+            if self._handover_diag:
+                # P143 diag: the closest the jaws came and the smallest finger the
+                # policy asked for, tracked here because this block runs with the
+                # trigger **off** as well (with `off`, `should_fire` is never
+                # called at all - `trigger_settings.enabled` is False).
+                self._diag_min_gap = min(self._diag_min_gap, float(distance))
+                self._diag_min_finger = min(self._diag_min_finger, float(finger))
             if self._debug and (self._step % 25 == 0 or finger < 0.030):
                 self._say(
                     f"[rl]   step={self._step} finger={finger:.4f} "
@@ -6324,6 +6356,14 @@ class SortingRLEnv:
             # P142: only printed when it is not the shipped metric, so the
             # default row stays byte-identical (the acceptance's 459 lines).
             + ("" if endpoint == "final" else f" endpoint={endpoint}")
+            + (
+                ""
+                if not self._handover_diag
+                else (
+                    f" gap_min={self._diag_min_gap * 1000:.0f}mm"
+                    f" finger_min={self._diag_min_finger:.4f}"
+                )
+            )
         )
         if cont:
             self._begin_next_pick(notes)

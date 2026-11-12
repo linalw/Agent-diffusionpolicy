@@ -26888,3 +26888,27 @@ The clip directories are renamed to the mode they measure -
 mode_selfclose_*, mode_arrival_*, mode_selfclose_indexed_* - with a README that
 defines the three axes (presentation / fire rule / primitive), because the old
 names (`..._direct_...`, `..._dyn_...`) conflated them.
+
+## P143 diag (2026-11-12) - the model closes ~13 cm short, and a goal lead does not fix it
+
+FRUIT_HANDOVER_DIAG=1 adds gap_min / finger_min to the episode row, tracked where
+the policy's own close is evaluated (no extra read). Measured on moe_v13s, direct,
+trigger off:
+
+  left  arm: gap_min 155 mm, finger_min 0.0140
+  left  arm: gap_min  75 mm, finger_min 0.0131
+  right arm: gap_min 153 mm, finger_min 0.0046
+  right arm: gap_min 140 mm, finger_min 0.0157
+  right arm: gap_min 128 mm, finger_min 0.0066
+
+So the model DOES close the finger (fully), but at 128-155 mm from the fruit, and
+the handover gate needs 60 mm - the primitive never fires, the fruit is recycled,
+and the episode ends on P139's label. 13 cm at 0.12 m/s is ~1.1 s of travel.
+
+FRUIT_GOAL_LEAD=1.0 (goal shifted by v*lead, zero-shot) is a NEGATIVE: 155 -> 158
+and 75 -> 83 mm. The goal is conditioning; the arm position is the learned mapping,
+and every demonstration starts with the arm already at the grasp pose, so "one
+second behind a moving fruit" is out of distribution.
+
+What works: the hybrid (8/10 canary; 3/4 direct+arrival). What could close the gap:
+DAgger on the hybrid's own episodes, with gap_min as the scoring number.

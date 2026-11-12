@@ -112,3 +112,49 @@ clip's checkpoint, md5, interface and per-episode outcome. The raised
 `overhead.mp4` (960x540, 0 black rows, both lanes) is the view the owner asked
 for; the policy's own `head.mp4` stays at 424x240 and keeps its aim, because
 re-aiming it would change the model's input and void the clip as a validation.
+
+## 8. Why the model cannot grasp on its own (measured, not inferred)
+
+The owner's expectation is "give it a fruit and it approaches, grasps and places
+by itself". The shipped direct loop does not do that, and the new
+`FRUIT_HANDOVER_DIAG` row names the reason in two numbers per episode
+(`gap_min`, `finger_min`; tracked where the policy's own close is evaluated, so it
+costs no extra read):
+
+| cell | arm | `gap_min` | `finger_min` |
+|---|---|---|---|
+| `moe_v13s`, direct, trigger off, seed 77 | left | **155 mm** | 0.0140 |
+| same | left | **75 mm** | 0.0131 |
+| all-B supply (right arm) | right | **153 mm** | 0.0046 |
+| same | right | **140 mm** | 0.0157 |
+| same | right | **128 mm** | 0.0066 |
+
+**The model does close the finger** - 0.005-0.016, i.e. fully - but it closes while
+the jaws are still **128-155 mm** from the fruit on **both** arms. The handover gate
+requires `finger < 0.030` **and** `distance < 60 mm` on the same tick, so it never
+fires; the episode runs to the policy horizon and ends on P139's
+`fruit fell off the line` label.
+
+13 cm at 0.12 m/s is ~1.1 s of belt travel, which is why the first hypothesis was
+"it aims where the fruit is and arrives a second late". **`FRUIT_GOAL_LEAD=1.0`
+(the goal moved forward by the fruit's own velocity - zero-shot) does not fix it**:
+155 -> 158 mm and 75 -> 83 mm. The goal is only conditioning; the arm's position is
+the policy's learned mapping, and that mapping was cloned from demonstrations in
+which the arm **already sat at the grasp pose** when the close ramped. The state
+"one second behind a moving fruit" is not in the demonstration distribution, so the
+policy has never been shown the action that belongs there.
+
+**What this is not**: it is not the primitive (P143's flip is inert here - the
+handover never fires), not the perception (P135 measured 1.98 mm), not the supply,
+and not the trigger's geometry (the trigger is off in these cells by definition).
+
+**What it would take**: training on the states the loop actually visits - the
+hybrid's own episodes, where the primitive catches the fruit and the policy sees the
+gap close - i.e. the DAgger/rollout lane. The record has run that lane four times
+(W7-C, W8-A, R9, P37) and every one was a null on this interface; the difference
+now is that the failure has a number (`gap_min` 128-155 mm against a 60 mm gate)
+that a training cell can be scored on, instead of a rate.
+
+**What does work today**: the **hybrid** - the model approaches, an external
+intercept rule (or the station handoff) hands over, and the scripted catch places.
+`accept_policy.sh` reads **8/10 PASS**; the direct+arrival cell reads **3/4**.

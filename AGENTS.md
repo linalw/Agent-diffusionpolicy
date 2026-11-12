@@ -6973,6 +6973,19 @@ under an external trigger (3/4), and the station handoff (8/10). **What P143 set
 is the primitive, not the trigger**: whenever the handover fires it is the moving
 catch, and whether the trigger should default on for direct is a **separate** flip
 with its own re-baseline, **not** made here.
+**Why the model cannot grasp unaided, in two numbers** (`FRUIT_HANDOVER_DIAG=1`,
+one row per episode, tracked where the policy's own close is evaluated so it costs
+no extra read): `gap_min` **128-155 mm** on **both** arms against a **60 mm** gate,
+with `finger_min` **0.005-0.016** - i.e. the model **does** close, it closes ~13 cm
+short (13 cm is ~1.1 s of belt travel at 0.12 m/s). `FRUIT_GOAL_LEAD=1.0` (the goal
+moved forward by the fruit's own velocity, zero-shot) does **not** fix it (155 -> 158,
+75 -> 83 mm): the goal is conditioning, the arm's position is the policy's learned
+mapping, and the demonstrations all start with the arm **already at the grasp pose**,
+so "one second behind a moving fruit" is not in the cloned distribution. That is the
+whole gap between "the model" and "the model does approach -> grasp -> place"; the
+lane that could close it is DAgger on the hybrid's own episodes (four nulls on this
+interface so far: W7-C, W8-A, R9, P37), and the number above is what a training cell
+can now be scored on.
 **Re-baseline: every direct/policy rate, cycle and store recorded before P143 is an
 indexed-primitive number; `FRUIT_DYNAMIC_PICK=0` restores it** (compose with the
 earlier restores: `FRUIT_TRACK=0` for pre-P136, `FRUIT_SPEED_RELEASE=0` for pre-P87,
