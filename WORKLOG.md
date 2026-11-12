@@ -26956,3 +26956,15 @@ rank the candidates differently.
 
 Step 1 (36 episodes, seeds 77/101/202) is collecting now; 893 MB / 24 episodes at
 240x424, so ~1.3 GB for 36.
+
+## P143 / step 1 (2026-11-12) - the bigger store is worse, and the expert-tick share says why
+
+36 episodes (8/36 success, 1.2 GB), same recipe: gap_min median ~107 mm, 0/12.
+The takeover counters are the diagnosis: 24-ep store 95.0 % expert ticks, 36-ep
+store 91.7 %. With --expert-tolerance 0.35 the expert drives the episode, so the
+states are expert states - behaviour cloning again, and 12 more episodes of it
+pulled the model back toward the anchor.
+
+Fix: --expert-tolerance 99 --expert-window 0 so the expert never takes over while
+the label is still recorded at every decision; the episodes then fail, which is the
+point (the store becomes the policy's distribution).

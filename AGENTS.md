@@ -7005,8 +7005,17 @@ fruit". At **`--base-weight 0.3`, 8 epochs**: `gap_min` median 73.5 mm and
 approach -> grasp -> place on this interface** (orange, right arm, `gap_min` 50 mm,
 reward 0.9621). One of twelve is a draw, not a rate, and the median is *worse* than
 the base-1.0 model (73.5 against 63 mm) while the count is better - the two metrics
-rank them differently at n = 12. Step 1 (a 36-100 episode store at this recipe) is
-running; `p143_dagger_bw` is a candidate, not adopted.
+rank them differently at n = 12. **Step 1 (a bigger store) made it worse**: 36 episodes (8/36 success, 1.2 GB) at
+the same recipe read `gap_min` median **~107 mm** and **0/12** - and the takeover
+counters say why: `expert_ticks 14804/15591 (95.0 %)` on the 24-episode store and
+`18479/20156 (91.7 %)` on the 36 - with `--expert-tolerance 0.35` the **expert
+drives the episode**, so the states are expert states, which is behaviour cloning,
+not DAgger. **The fix is one flag**: `--expert-tolerance 99 --expert-window 0`
+makes the expert never take over while the label is still recorded every decision,
+so the store becomes the policy's own distribution (the 13 cm state included). The
+number that condemns the 36-episode store is the **expert-tick share**, not the
+episode count. `p143_dagger_bw` (24 ep, 1/12) stays the candidate; `p143_dagger2`
+(36 ep) is not adopted.
 **Re-baseline: every direct/policy rate, cycle and store recorded before P143 is an
 indexed-primitive number; `FRUIT_DYNAMIC_PICK=0` restores it** (compose with the
 earlier restores: `FRUIT_TRACK=0` for pre-P136, `FRUIT_SPEED_RELEASE=0` for pre-P87,

@@ -247,3 +247,43 @@ follows.
 **Caveat that stays on the record**: `gap_min`'s median is *worse* than the base-1.0
 model (73.5 against 63 mm) while the count is better - the two metrics rank the two
 checkpoints differently, and neither is a rate at n = 12.
+
+## 11. Step 1 (a bigger store) made it worse, and the reason is in the takeover count
+
+36 episodes (seeds 77/101/202 x 12, `direct --dagger --record`, 240x424, **8/36
+success**, 1.2 GB), same recipe (`--base-weight 0.3`, 8 epochs, 4404 rollout windows
++ 9378 base at 0.3):
+
+| model | store | n | `gap_min` median | success |
+|---|---|---|---|---|
+| `moe_v13s` | - | 5 | 140 mm | 0 |
+| `p143_dagger` | 24 ep | 12 | **63 mm** | 0 |
+| `p143_dagger_bw` | 24 ep | 12 | 73.5 mm | **1** |
+| **`p143_dagger2`** | **36 ep** | 12 | **~107 mm** | **0** |
+
+`gap_min`: 120, 13, 98, 57, 166, 114, 217, 111, 60, 137, 101, 80 mm.
+
+**Why more episodes made it worse** - the takeover counters say it:
+
+```
+24-ep store: 257 interventions, expert_ticks 14804/15591 (95.0 % of policy ticks)
+36-ep store: 327 interventions, expert_ticks 18479/20156 (91.7 %)
+```
+
+With `--expert-tolerance 0.35` rad the **expert drives ~92-95 % of the ticks**, so
+the states in the store are **expert** states. That is not DAgger: DAgger needs the
+**policy's** states with the expert's labels. The store is therefore ~"more scripted
+episodes with a different capture window", which is exactly the behaviour cloning the
+record has nulled four times - and adding 12 more episodes of it moved the model
+**back toward the anchor**, not toward the 13 cm state.
+
+**The fix is one flag**: `--expert-tolerance 99 --expert-window 0` makes the expert
+**never take over** while the label is still recorded at every decision
+(`_record_tick` writes `_expert_action()` either way). The episodes will then fail
+almost always - that is the point: the store becomes the policy's own distribution,
+label = "hold the station pose, close inside 5 cm", which is the state the model
+never sees today.
+
+**Verdict for step 1 as run**: not adopted, and the number that condemns it is the
+**expert-tick share**, not the episode count. The next cell is 24 episodes at
+tolerance 99 (20 min) + the same fine-tune (10 min) + the same eval (20 min).
