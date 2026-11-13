@@ -521,3 +521,39 @@ scripted cycle, and run this identical z-test on its depth. The **visual** evide
 already points the same way: at frame 600 of `logs/video_final/`, the top-down view
 has the wrist **over** the grasped fruit while `gripper.mp4` (the +x/+y oblique) shows
 it beside the pads.
+
+## 18. The side-view probe: one solid number, one instrument that is not ready
+
+`logs/p143/side_probe.py` builds the shipped scene, seats a 3.4 cm lychee at the pick
+station, drives the arm to the grasp pose with the primitive's own per-tick `ik_step`
+(**jaw error 7 mm**), and renders four cameras with **depth** at that instant.
+
+**What is solid**: at the grasp pose the **head camera's depth at the fruit's centre
+pixel is 31 mm** - the arm's own link is in front of the lens, i.e. the policy's
+camera is **fully occluded at the exact moment that matters**, while the fruit is
+778 mm away. At the ready pose the same pixel reads 756 mm, so the 31 mm is the hand
+arriving, not a static occluder.
+
+**What is not ready**: the side cameras' numbers are inconsistent, and the instrument
+is at fault, not the geometry:
+
+* `look_at_quat` returns a **degenerate** orientation for the `side_y` pose
+  (`(0.34, 1.35, 1.55) -> (0.34, 0, 1.18)`): its forward comes back `(0,0,-1)` for a
+  target direction of `(0,-0.96,-0.26)`, `dot = +0.264` instead of +1. The head,
+  `side_x` and `oblique` poses all read `dot = +1.000`, so the helper is right except
+  in that case.
+* `side_x` reads `depth = inf` at the fruit's pixel at the grasp pose (it read 1080 mm
+  at ready), so that column cannot be compared yet.
+
+**So the honest answer to "would a side view be better" is: the visual evidence says
+yes and the top-down is *fully* blocked at the grasp (31 mm), but the side-view
+number is not measured yet** - the probe needs its projection fixed for the horizontal
+poses (a look-at that does not degenerate, and a depth read that lands on the fruit)
+before any "2x better" claim can be made.
+
+**What this does not change**: the policy's condition is `goal` (truth position,
+velocity, diameter) **+ image**, so the occlusion costs **appearance**, and the model
+already closes at a uniform 147-155 mm regardless of it (section 15). A camera change
+is therefore an **appearance-channel** project - a scene field, a recollection and a
+retrain - and it should be priced against the residuals that actually bind
+(small-fruit grasp, the loaded slide), not against the occlusion on its own.
