@@ -7151,6 +7151,43 @@ change of its own. The touch ablation instruments are in place
 `selfcheck.sh` PASS (0 failures, 1 skipped), `106` OK. References
 **`61fb5202` / `61fb5202` / `18b101bf`** untouched. Evidence `logs/p145/`.
 
+**P145b (2026-11-13, `logs/p145/` section 11; two **default-inert** interface
+fixes, nothing adopted): scaling the DAgger store to >=150 episodes surfaced the
+two defects that dominate the data volume.** (a) **The direct episode started at
+the close pose.** `configs/waypoints.json`'s `grasp` is the scripted line's close
+pose; the demonstrations' frame 0 is a wait pose **0.33-0.35 rad** away (measured
+from `demos_v11`'s first action, left and right). The policy's first observation
+was therefore a state the demos only reach at the close, with the fruit 0.4 m
+upstream, and the DAgger expert's wait label was that close pose too - the demos
+and the store taught **two different wait poses**, which is the stay-vs-descend
+average the earlier arms measured. The `wait` waypoints are added (`+18` lines,
+no existing value moved; P64's config pin re-pinned to **`6d2843a3`**), and
+**`FRUIT_DIRECT_START=wait`** starts the direct episode there (default `grasp`,
+byte-inert; a bad value raises; the DAgger expert's wait label follows it). (b)
+**The 30 Hz demonstration stream was replayed at 120 Hz.** `act` executes one
+chunk waypoint per control tick, so the trajectory the model was trained on is
+compressed **4x** (P53's census read this as a 10x command dither and a 19.3 mm
+same-tick residual; its C2 cell took the half-step `hold=2`). **`FRUIT_POLICY_ACTION_HOLD=4`**
+holds each waypoint 4 ticks - the exact 30 Hz cadence. **Measured with both** (a
+horizon-4 fine-tune on `demos_v11` alone, `FRUIT_TRAIN_GOAL=moving`, close weight
+10, 40 epochs, loss 0.0145, `checkpoints/p145_demo_h4` `bcff04e6`, evaluated at
+the wait start with `--execute-steps 4 FRUIT_POLICY_ACTION_HOLD=4`): the closest
+xy gap is **9 mm** on the probe and **32-41 mm (left) / 64-94 mm (right)** over 12
+episodes against the **69-149 mm** baseline; the catch-up does not convert - the
+jaw tracks in xy, **stops at the grasp waypoint (z = 1.29)**, never makes the last
+**8-9 cm** to the fruit (1.20), closes **0.4 s early** and lifts nothing
+(**0/12**). The offline fit floor is **0.065 rad** (~3 cm at the TCP) and it is
+**unchanged** between the 10k-window demonstrations and the 600-window DAgger arm
+at 200 epochs - a **representation** limit, not a data-count limit, so more of the
+same collection is not indicated. **The named next step is a phase-gated policy
+(the 5-skill router already exists) or a cartesian-delta action with an exact IK**,
+plus the touch ablation (`FRUIT_TACTILE_ZERO=1`, `FRUIT_IMAGE_FREEZE=1`, built).
+Collection shape: 8/8 episodes in 5 min at `--horizon 520`; the 760-tick episode
+wedges in the post-close phase (2/8, CPU busy / GPU 2 %), so a **timeout-guarded
+chunked runner** is the supported form (`logs/p145/collect_chunks2.sh`). No shipped
+default moved; `selfcheck.sh` PASS (0 failures, 1 skipped) after the P64 re-pin;
+references **`61fb5202` / `61fb5202` / `18b101bf`** untouched.
+
 **P142 (2026-11-11, `logs/p142/`; two defect fixes + a declared metric,
 **nothing adopted, no reference moved**): the direct lane's two *bookkeeping*
 failures are removed and its zero is shown to be the station reselect's timing.
