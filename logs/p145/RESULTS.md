@@ -422,3 +422,15 @@ FK->IK pre-check.
 **Stopped**: `checkpoints/p145_close500` (500 epochs) was cancelled when the
 100-epoch close-only run had already plateaued (0.0362 rad); its log is
 `logs/p145_close500.log` (epoch 58, loss 0.0177).
+
+### 12.8 Pooled close data (140 single-arm episodes) does not rescue the direct regressor
+
+Pooling the close windows of `demos_v11` + `p144_up` + `p144_down` (140 episodes,
+2,236 windows, episode-level 80/20 split, 64x64 MLP, weight decay 1e-3, early
+stopping): **train |err| median 0.335 rad, held-out 2.44 rad**. The fit is worse
+than the 50-episode run's 0.015 (which was itself an overfit), so the pooled
+stores are **not** interchangeable for this feature set - the three collections
+differ in the goal's semantics (p144's goal is the static snapshot) and the
+policies' reference frames, and this experiment is **inconclusive about the
+mapping's noise floor**. Recorded, not built on. The clean version would need one
+collection, one schema (the moving goal) and a held-out **arm-balanced** split.

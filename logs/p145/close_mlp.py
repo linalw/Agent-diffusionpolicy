@@ -57,34 +57,46 @@ def normalise(x, mean=None, std=None):
 
 
 def main() -> int:
-    store = sys.argv[1] if len(sys.argv) > 1 else "datasets/demos_v11"
-    eps = load(store)
-    # Random **window** split: the by-episode split is confounded by the last ten
-    # episodes all being right-arm. The question here is only whether the mapping
-    # is fittable at all, so a within-distribution holdout answers it.
+    stores = sys.argv[1].split(",") if len(sys.argv) > 1 else ["datasets/demos_v11"]
+    eps = []
+    for store in stores:
+        got = load(store)
+        print(f"[mlp] {store}: {len(got)} episodes")
+        eps.extend(got)
+    # Split **by episode** (a window split leaks: adjacent close frames are nearly
+    # identical). Random over episodes, not the tail (the tail is one arm).
     rng = np.random.RandomState(0)
-    X = np.concatenate([e[0] for e in eps]); Y = np.concatenate([e[1] for e in eps])
-    idx = rng.permutation(len(X))
-    cut = int(0.8 * len(idx))
-    tr, va = idx[:cut], idx[cut:]
-    Xv, Yv = X[va], Y[va]
-    X, Y = X[tr], Y[tr]
+    order = rng.permutation(len(eps))
+    n_val = max(1, len(eps) // 5)
+    va_eps = [eps[i] for i in order[:n_val]]
+    tr_eps = [eps[i] for i in order[n_val:]]
+    X = np.concatenate([e[0] for e in tr_eps]); Y = np.concatenate([e[1] for e in tr_eps])
+    Xv = np.concatenate([e[0] for e in va_eps]); Yv = np.concatenate([e[1] for e in va_eps])
     X, mean, std = normalise(X)
     Xv = (Xv - mean) / std
     print(f"[mlp] train {len(X)} val {len(Xv)} features {X.shape[1]}")
 
     net = torch.nn.Sequential(
-        torch.nn.Linear(X.shape[1], 128), torch.nn.SiLU(),
-        torch.nn.Linear(128, 128), torch.nn.SiLU(),
-        torch.nn.Linear(128, 7),
+        torch.nn.Linear(X.shape[1], 64), torch.nn.SiLU(),
+        torch.nn.Linear(64, 64), torch.nn.SiLU(),
+        torch.nn.Linear(64, 7),
     )
-    opt = torch.optim.AdamW(net.parameters(), lr=3e-3, weight_decay=1e-5)
+    opt = torch.optim.AdamW(net.parameters(), lr=1e-3, weight_decay=1e-3)
     Xt, Yt = torch.from_numpy(X), torch.from_numpy(Y)
     Xvt, Yvt = torch.from_numpy(Xv), torch.from_numpy(Yv)
+    best = (float("inf"), None)
     for epoch in range(3000):
         net.train(); opt.zero_grad()
         loss = torch.nn.functional.mse_loss(net(Xt), Yt)
         loss.backward(); opt.step()
+        if (epoch + 1) % 50 == 0:
+            net.eval()
+            with torch.no_grad():
+                v = float((net(Xvt) - Yvt).norm(dim=1).median())
+            if v < best[0]:
+                best = (v, {k: t.detach().clone() for k, t in net.state_dict().items()})
+    if best[1] is not None:
+        net.load_state_dict(best[1])
     net.eval()
     with torch.no_grad():
         pred = net(Xvt)
