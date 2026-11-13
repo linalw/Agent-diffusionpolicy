@@ -142,3 +142,39 @@ truth goal) - i.e. the perception lane of P135 - where the occlusion that P135 m
 (48 -> 22 px at the grasp) and the 31 mm depth at the fruit's pixel become binding.
 That is a different interface, and its instrument (the tracker at 1.98 mm) already
 exists.
+
+## 9. The recipe test: the anchor is what decides, and the view still does not
+
+Same two 45-episode stores, retrained with **`demos_v11` as the anchor at weight 1.0**
+- the recipe `moe_v13s` was built with - and evaluated on **its own camera**:
+
+| arm | camera | recipe | n | **success** | grasped |
+|---|---|---|---|---|---|
+| shipped `moe_v13s` | top-down | the shipped lineage | 24 | **9/24 = 37.5 %** | 13/24 |
+| `p144_up_anchor` | top-down | 45 ep + **anchor** | 12 | **4/12 = 33.3 %** | 5/12 |
+| `p144_down_anchor` | **down_x_160** | 45 ep + **anchor** | 12 | **2/12 = 16.7 %** | 4/12 |
+| `p144_up` | top-down | 45 ep, **no anchor** | 12 | 0/12 | 0/12 |
+| `p144_down` | down_x_160 | 45 ep, **no anchor** | 12 | 0/12 | 2/12 |
+
+**Two conclusions, in order of strength:**
+
+1. **The anchor decides.** Without it both cameras collapse to 0/12 and the top-down
+   arm does not grasp at all; with it both recover (4/12 and 2/12). Fine-tuning
+   `moe_v13s` on 45 episodes at `--base ""` **overwrites** the policy - so the 0/12 in
+   section 6 was the recipe, exactly as the control predicted.
+2. **The view does not.** Through the trained camera 4/12, through the new one 2/12
+   (n=12 each, overlapping); the **zero-shot** cell (section 8) says the same from the
+   other side - the shipped checkpoint reads 4/12 through a camera it never saw. Both
+   point at one mechanism: **the condition's `goal` is the truth**, so the image is an
+   appearance channel and its occlusion is not what limits this interface.
+
+**So the camera work closes** with a measured **placement** (14.6 % -> 81.4 % of the
+cycle visible, place 0 % -> 79.5 %), a **zero-cost option** (`FRUIT_HEAD_CAMERA` plus
+the manifest's `scene.head_camera`), and a **null on the task**. It is worth adopting
+for watching and for the video artifacts - the acceptance clips already benefit - and
+it is **not** a success-rate lever until the policy is conditioned on the image alone
+(the perception lane, whose 1.98 mm tracker exists).
+
+**The transferable recipe rule from this phase**: a fine-tune of `moe_v13s` needs
+`demos_v11` as the anchor; `--base ""` on 45 episodes destroys the grasp on either
+camera. That is the number to carry into every future recollection.
