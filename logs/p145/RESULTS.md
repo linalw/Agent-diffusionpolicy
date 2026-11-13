@@ -403,3 +403,22 @@ The remaining hypotheses, in order:
 No shipped default moved; all P145c knobs are default-off (`FRUIT_POLICY_PHASE`,
 `FRUIT_PERCEPTION_COAST_S`, `FRUIT_GOAL_SOURCE=truth_moving` is bench-only,
 `FRUIT_CLOSE_ONLY`). References `61fb5202` / `61fb5202` / `18b101bf`.
+
+### 12.7 A direct MLP on the close windows: fittable, but not with 800 samples
+
+A 33-D input (`[fruit xyz, vel, diameter, bin, 22 joints, finger, tactile]`) and a
+7-joint target, trained on the close windows (640 train / 160 held out, random
+split, 3000 epochs): **train |err| median 0.015 rad**, but **held-out 2.9 rad**.
+The MLP memorises 640 windows and does not generalise across them - 800 close
+windows is too few for a 20k-parameter regressor, and the same small-sample
+regime is what the diffusion model's 0.036 on its own training windows reflects.
+This experiment is **inconclusive about the mapping's noise floor** and is
+recorded as such; it is not evidence for a deterministic close head at this data
+size. The remaining honest option on this lane is **more close-phase data**
+(the scripted collector is wedge-free at ~45 episodes/35 min; ~300 episodes would
+give ~4,800 close windows), or the cartesian-delta representation with the
+FK->IK pre-check.
+
+**Stopped**: `checkpoints/p145_close500` (500 epochs) was cancelled when the
+100-epoch close-only run had already plateaued (0.0362 rad); its log is
+`logs/p145_close500.log` (epoch 58, loss 0.0177).
