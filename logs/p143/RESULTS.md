@@ -404,3 +404,49 @@ retraining) completes approach -> grasp -> place on **4 of 12** episodes with th
 shipped checkpoint; the residuals are (a) the place's loaded slide on the ones it
 grasps and (b) the occasional fruit it never gets inside the gate of. Both are
 recorded closed classes, not interface or training terms.
+
+## 15. The formal `gap_close` table (12 episodes, seeds 77/101/202, the adopted default)
+
+`gap_close` = the minimum jaw-fruit distance **over the ticks where the policy is
+already closing** (`finger < 0.030`) - the number the gate reads. This is the table
+item 1 asked for.
+
+| ep | fruit | arm | `gap_min` | **`gap_close`** | `finger_min` | outcome |
+|---|---|---|---|---|---|---|
+| 0 | pear 6.1 | left | 150 | **150** | 0.0168 | **SUCCESS** |
+| 1 | peach 6.0 | right | 150 | **150** | 0.0134 | **SUCCESS** |
+| 2 | lychee 3.0 | right | 149 | **149** | 0.0000 | no grasp |
+| 3 | tomato 5.3 | left | 148 | **148** | 0.0141 | **SUCCESS** |
+| 4 | lychee 3.0 | left | 180 | **180** | 0.0000 | no grasp |
+| 5 | tomato 5.3 | left | 148 | **148** | 0.0141 | grasped, not placed |
+| 6 | lychee 3.1 | left | 155 | **155** | 0.0000 | no grasp |
+| 7 | strawberry 3.6 | left | 179 | **179** | 0.0000 | no grasp |
+| 8 | tomato 5.4 | right | 150 | **150** | 0.0118 | no grasp |
+| 9 | tomato 5.3 | left | 149 | **149** | 0.0124 | **SUCCESS** |
+| 10 | apple 7.0 | right | 112 | **112** | 0.0242 | no grasp |
+| 11 | orange 6.8 | right | 132 | **147** | 0.0167 | **SUCCESS** |
+
+**5/12 = 41.7 %.** Distribution of `gap_close` (all twelve episodes close, so the
+column is complete): **min 112, p25 148, median 150, p75 155, max 180 mm**.
+
+**The finding is what it does *not* separate.** The five successes sit at
+**147-150 mm** and the failures at **112-180 mm** - the bands overlap completely, and
+at the *same* 148-150 mm there are both successes and failures (episodes 3/9 succeed
+at 148/149; episodes 2/5/8 do not). So the close distance is now **uniform and is no
+longer the discriminator**; the outcome varies by **fruit**:
+
+| fruit | size | success |
+|---|---|---|
+| pear / peach / orange | 6.0-6.8 cm | **3/3** |
+| tomato | 5.3-5.4 cm | 2/4 |
+| apple | 7.0 cm | 0/1 (closed at 112 mm) |
+| **lychee** | **3.0-3.1 cm** | **0/3** |
+| **strawberry** | 3.6 cm | **0/1** |
+
+**Small fruit does not grasp (0/4 at 3.0-3.6 cm)** - the same small-fruit grip class
+the record carries from the beginning (`logs/p42/SIM_LIMIT.md`, the strawberry in
+P41/P77), not a gate or a training term. The apple is the one outlier (7.0 cm, closed
+at 112 mm, no grasp) and is named rather than smoothed.
+
+**So the lane's remaining term has moved**: gate and acquisition are no longer the
+binding terms at this n; **the grip on small fruit** is, and that is the closed class.
