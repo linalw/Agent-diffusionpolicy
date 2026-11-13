@@ -77,3 +77,34 @@ was not run (~2 h) and is the next cell.
 * the policy's condition is `goal` (truth) + image, so the occlusion costs
   **appearance**; a camera that sees the fruit is worth having only if the appearance
   channel is what limits the task, which the control above decides.
+
+## 6. The control: the same recipe on the **shipped** camera is also 0/12
+
+`logs/p144/run_control.sh`: 45 single-arm episodes through the **top-down** pose
+(same seed 3, same **103 attempts**, 44 % success), fine-tune from `moe_v13s` with
+`--base ""`, 8 epochs, 12 episodes.
+
+| arm | camera | n | success | `grasped` | `gap_min` |
+|---|---|---|---|---|---|
+| shipped `moe_v13s` (no retrain) | top-down | 24 | **9/24 = 37.5 %** | 13/24 | 147-155 mm |
+| `p144_down` (retrained) | **down_x_160** | 12 | **0/12** | 2/12 | 147-228 mm |
+| **`p144_up` (retrained, control)** | **top-down** | 12 | **0/12** | **0/12** | 141-228 mm |
+
+**Both retrained arms are 0/12 and the control does not even grasp** - so the cell
+measured the **recipe**, not the camera: fine-tuning from `moe_v13s` on 45
+single-arm episodes with **no anchor** overwrites the policy that made the shipped
+checkpoint work (it grasps 13/24), and it does so identically through either view.
+
+**This is the answer to "does the camera matter at this recipe": no measurable
+effect, because neither retrained arm can grasp.** The camera question is therefore
+still open, and the cheapest way to close it needs **no training at all** (section 7).
+
+## 7. Zero-shot: the shipped checkpoint through a camera it never saw
+
+`moe_v13s` was trained on the top-down view. Running it **unchanged** through
+`down_x_160` isolates "does this model use the image at all":
+
+* if it reads near 9/24, the view is irrelevant to the policy (the goal carries the
+  truth position) and a camera project has no lever;
+* if it collapses, the view matters and a **proper** recollection - same distribution
+  as the shipped store (two-line), **with** the anchor - is the price.
