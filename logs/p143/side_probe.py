@@ -62,6 +62,51 @@ CAMS = {
 }
 
 
+def look_quat(eye, target, up=(0.0, 0.0, 1.0)) -> list[float]:
+    """Camera quaternion with the view along **-z** and +y up, built explicitly.
+
+    `look_at_quat` degenerates for a horizontal pose (measured: it returns forward
+    `(0,0,-1)` for a target direction of `(0,-0.96,-0.26)`), so the probe builds its
+    own basis and converts the matrix to a quaternion.
+    """
+    eye = np.asarray(eye, dtype=float)
+    target = np.asarray(target, dtype=float)
+    up = np.asarray(up, dtype=float)
+    f = target - eye
+    f /= np.linalg.norm(f)
+    z = -f
+    x = np.cross(up, z)
+    x /= np.linalg.norm(x)
+    y = np.cross(z, x)
+    m = np.stack([x, y, z], axis=1)
+    trace = float(m[0, 0] + m[1, 1] + m[2, 2])
+    if trace > 0.0:
+        s_ = np.sqrt(trace + 1.0) * 2.0
+        w = 0.25 * s_
+        qx = (m[2, 1] - m[1, 2]) / s_
+        qy = (m[0, 2] - m[2, 0]) / s_
+        qz = (m[1, 0] - m[0, 1]) / s_
+    elif m[0, 0] > m[1, 1] and m[0, 0] > m[2, 2]:
+        s_ = np.sqrt(1.0 + m[0, 0] - m[1, 1] - m[2, 2]) * 2.0
+        w = (m[2, 1] - m[1, 2]) / s_
+        qx = 0.25 * s_
+        qy = (m[0, 1] + m[1, 0]) / s_
+        qz = (m[0, 2] + m[2, 0]) / s_
+    elif m[1, 1] > m[2, 2]:
+        s_ = np.sqrt(1.0 + m[1, 1] - m[0, 0] - m[2, 2]) * 2.0
+        w = (m[0, 2] - m[2, 0]) / s_
+        qx = (m[0, 1] + m[1, 0]) / s_
+        qy = 0.25 * s_
+        qz = (m[1, 2] + m[2, 1]) / s_
+    else:
+        s_ = np.sqrt(1.0 + m[2, 2] - m[0, 0] - m[1, 1]) * 2.0
+        w = (m[1, 0] - m[0, 1]) / s_
+        qx = (m[0, 2] + m[2, 0]) / s_
+        qy = (m[1, 2] + m[2, 1]) / s_
+        qz = 0.25 * s_
+    return [float(w), float(qx), float(qy), float(qz)]
+
+
 def quat_matrix(q) -> np.ndarray:
     w, x, y, z = [float(v) for v in q]
     return np.array(
@@ -108,7 +153,7 @@ def main() -> int:
             f"/World/Probe_{name}",
             tick_rate=0.0,
             positions=[eye],
-            orientations=[look_at_quat(eye, target)],
+            orientations=[look_quat(eye, target)],
         )
         cam.camera.set_focal_lengths(FOCAL)
         cam.camera.set_apertures(APERTURE)
@@ -139,7 +184,7 @@ def main() -> int:
                 say(f"[probe] {tag} {name}: depth shape {depth.shape} != {(H, W)}")
                 continue
             eye = np.asarray(eye, dtype=float)
-            rot = quat_matrix(look_at_quat(eye, np.asarray(target, dtype=float)))
+            rot = quat_matrix(look_quat(eye, np.asarray(target, dtype=float)))
             forward, right, up = -rot[:, 2], rot[:, 0], rot[:, 1]
             d = fruit - eye
             z = float(d @ forward)
@@ -147,7 +192,11 @@ def main() -> int:
             u = int(round(W / 2 + (float(d @ right) / z) * f_px))
             v = int(round(H / 2 - (float(d @ up) / z) * f_px))
             inside = 1 <= u < W - 1 and 1 <= v < H - 1
-            near = float(np.nanmin(depth[v - 1 : v + 2, u - 1 : u + 2])) if inside else float("nan")
+            near = float("nan")
+            if inside:
+                win = depth[max(0, v - 4) : v + 5, max(0, u - 4) : u + 5]
+                finite = win[np.isfinite(win) & (win > 0.0)]
+                near = float(finite.min()) if finite.size else float("nan")
             short = (z - near) * 1000.0 if np.isfinite(near) else float("nan")
             occluded = bool(np.isfinite(short) and short > radius_mm + 20.0)
             say(

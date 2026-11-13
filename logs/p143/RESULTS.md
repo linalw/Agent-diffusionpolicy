@@ -557,3 +557,38 @@ already closes at a uniform 147-155 mm regardless of it (section 15). A camera c
 is therefore an **appearance-channel** project - a scene field, a recollection and a
 retrain - and it should be priced against the residuals that actually bind
 (small-fruit grasp, the loaded slide), not against the occlusion on its own.
+
+## 19. The side-view table: **only the downstream side sees the fruit at the grasp**
+
+The probe now builds its own look-at basis (the helper degenerated for a horizontal
+pose) and samples the nearest finite depth in a 9x9 window around the fruit's centre
+pixel. Same 3.4 cm lychee, arm driven to the grasp pose (`jaw err 7 mm`):
+
+| view | eye -> target | `z` (fruit) | depth at the pixel | shortfall | verdict |
+|---|---|---|---|---|---|
+| **head (policy)** | `(0.05,0,2.00) -> (0.34,+0.22,1.10)` | 777 mm | **31 mm** | **+746** | **fully blocked** |
+| **side_x** (downstream, looking back) | `(1.45,0.10,1.55) -> (0.30,0.02,1.18)` | 1185 mm | 1360 mm | **-175** | **visible** |
+| side_y (+Y side) | `(0.34,1.35,1.55) -> (0.34,0,1.18)` | 1683 mm | 704 mm | +979 | blocked |
+| oblique (`gripper.mp4`'s pose) | `(0.93,0.62,1.42) -> (0.34,0,1.19)` | 1089 mm | 811 mm | +279 | blocked |
+
+**Read it as**: at the instant that decides the grasp, the top-down camera is looking
+at the **arm's own link 3 cm from the lens**; the downstream view (`side_x`) sees the
+fruit (the pixel's surface is **behind** it, so the fruit is in front); the +Y and
+oblique views are blocked by the **output-belt hardware** they look across, not by the
+arm.
+
+The `ready` rows (all four "blocked") are the arm sitting over the station at the
+ready pose - expected, and the reason the comparison above is read at the **grasp**
+row.
+
+**So the owner's intuition is right, and the geometry says which side**: a camera
+**downstream of the station looking back along -x** is the one that keeps the fruit
+visible; a camera on the +Y side or the oblique `gripper` pose trades the arm for the
+output-belt frame.
+
+**The price is unchanged** (it is the policy's input): a `SceneConfig` field for the
+eye's y/x, a **recollection** (45 episodes, ~20 min), a fine-tune (~10 min) and an
+evaluation (~1 h) - and the recollected store would carry the new view in its
+manifest. The occlusion is an **appearance-channel** cost (the goal carries the truth
+position), so the case for it must be judged against the residuals that bind
+(small-fruit grasp 11/24, loaded slide 4/24), not against the 31 mm alone.
