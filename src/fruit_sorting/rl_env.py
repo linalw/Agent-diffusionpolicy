@@ -2027,6 +2027,7 @@ class SortingRLEnv:
         self._handover_diag = os.environ.get("FRUIT_HANDOVER_DIAG", "0") == "1"
         self._diag_min_gap = float("inf")
         self._diag_min_finger = float("inf")
+        self._diag_gap_close = float("inf")
         self._belt_t: float | None = None
         self._belt_v = 0.0
         self._belt_a = 0.0
@@ -3893,6 +3894,7 @@ class SortingRLEnv:
         self._episode_t0 = self._sim_time()
         self._diag_min_gap = float("inf")
         self._diag_min_finger = float("inf")
+        self._diag_gap_close = float("inf")
         self._decision_step: int | None = None
         self.spawner.protected = int(target["index"])
         # P30-B: no model has run for this episode yet (a scripted-ablation
@@ -5292,6 +5294,14 @@ class SortingRLEnv:
                 # called at all - `trigger_settings.enabled` is False).
                 self._diag_min_gap = min(self._diag_min_gap, float(distance))
                 self._diag_min_finger = min(self._diag_min_finger, float(finger))
+                # P143: the number the gate actually reads - **where the jaws
+                # were on the ticks the policy was already closing**. `gap_min`
+                # and `finger_min` are independent minima and cannot say whether
+                # they coincided (measured: a candidate with gap 36 mm and
+                # finger 0.0196 never fired because at 36 mm the finger was still
+                # open). This one is the conjunction's own distance.
+                if float(finger) < 0.030:
+                    self._diag_gap_close = min(self._diag_gap_close, float(distance))
             if self._debug and (self._step % 25 == 0 or finger < 0.030):
                 self._say(
                     f"[rl]   step={self._step} finger={finger:.4f} "
@@ -6379,6 +6389,7 @@ class SortingRLEnv:
                 else (
                     f" gap_min={self._diag_min_gap * 1000:.0f}mm"
                     f" finger_min={self._diag_min_finger:.4f}"
+                    f" gap_close={self._diag_gap_close * 1000:.0f}mm"
                 )
             )
         )

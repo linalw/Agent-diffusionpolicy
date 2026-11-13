@@ -7026,7 +7026,13 @@ training, no trigger, no teleport; the witness is the model's own note,
 scripted line and the `handoff` canary cannot read it. It does **not** fix the
 right-arm case that never gets inside 243 mm - acquisition remains the open term.
 `p143_dagger_bw` (24 ep, 1/12) stays the training candidate; `p143_dagger2` (36 ep)
-is not adopted.
+is not adopted. **On the fixed interface the training loses to the baseline**:
+`p143_dagger_bw` reads **0/4** against `moe_v13s`'s **2/4** in the same 4-episode cell,
+because its near approaches (36/41 mm) happen while the **finger is still open** and
+it closes later, farther out - so the DAgger lane is **not** the next spend. The
+instrument was blind to that ( `gap_min` and `finger_min` are independent minima):
+**`gap_close`** (the minimum distance over ticks with `finger < 0.030`) is now on the
+row and is the number the gate actually reads.
 **Re-baseline: every direct/policy rate, cycle and store recorded before P143 is an
 indexed-primitive number; `FRUIT_DYNAMIC_PICK=0` restores it** (compose with the
 earlier restores: `FRUIT_TRACK=0` for pre-P136, `FRUIT_SPEED_RELEASE=0` for pre-P87,

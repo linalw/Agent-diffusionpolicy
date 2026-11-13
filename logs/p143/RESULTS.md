@@ -347,3 +347,31 @@ to `logs/p136/accept_final.log` - the scripted line cannot read the knob.
 **The residual is exactly two known classes**: the fruit the arm never gets inside
 150 mm of (ep 0, and the right-arm 243 mm case in the cell above), and the loaded
 slide on the ones that are grasped (ep 3). Neither is the gate.
+
+## 13. R5: on the fixed interface the DAgger candidate loses to the baseline (0/4 against 2/4)
+
+The DAgger candidate `p143_dagger_bw` on the **new default** (0.15 m gate), same cell
+as section 12.1:
+
+| ep | `gap_min` | `finger_min` | result |
+|---|---|---|---|
+| 0 | 112 mm | 0.0392 | fail (never closed) |
+| 1 | **36 mm** | 0.0196 | fail |
+| 2 | 122 mm | 0.0298 | `grasped=True placed=False` |
+| 3 | **41 mm** | 0.0259 | fail |
+
+**0/4 against the baseline's 2/4** - so the training that halved `gap_min` does not
+help once the gate accepts a 15 cm close; it actually **hurts**, because the
+candidate's near approaches (36/41 mm) happen while the **finger is still open**,
+and it closes later, farther out.
+
+**The instrument was blind to exactly this**, and that is fixed here: `gap_min` and
+`finger_min` are **independent minima** and cannot say whether they coincided. The
+new field **`gap_close`** is the minimum distance over the ticks where
+`finger < 0.030` - the conjunction's own number, i.e. what the gate reads. Every
+future cell carries it.
+
+**What this changes on the roadmap**: the DAgger lane is **not** the next spend. The
+interface fix (0.15 m) converts the baseline's own close at 2/4; the residuals are
+(a) the fruit the arm never gets inside the gate of and (b) the loaded slide. The
+training moved (a) at the cost of the close timing, which is a net negative here.
