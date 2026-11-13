@@ -434,3 +434,31 @@ differ in the goal's semantics (p144's goal is the static snapshot) and the
 policies' reference frames, and this experiment is **inconclusive about the
 mapping's noise floor**. Recorded, not built on. The clean version would need one
 collection, one schema (the moving goal) and a held-out **arm-balanced** split.
+
+### 12.9 The cartesian precondition passes (5.1 mm systematic, 0.2 mm repeatability)
+
+`logs/p145/ik_precheck.py`: 20 real (close-start pose, fruit close position) pairs
+from `demos_v11`, the arm teleported to the demo's start, the **same
+position-only `ik_step` the scripted close uses** run for 120 ticks to
+`fruit + [0, 0, 0.080]`:
+
+| metric | value |
+|---|---|
+| achieved jaw vs commanded point | **median 5.1 mm, p90 5.2, max 5.2** |
+| spread across the 20 pairs | **0.2 mm** |
+| `<= 20 mm` (the catch tolerance band) | **20/20** |
+| `<= 2 mm` | 0/20 |
+
+The 5.1 mm is **systematic**, not a tracking error: the effective pad standoff is
+~75 mm, not the 80 mm the probe commanded, and every pair lands on the same
+offset. The IK's *repeatability* is 0.2 mm, and its absolute placement is 5 mm -
+inside the 6 mm catch tolerance. **A cartesian action head is viable**: the
+servo, not the representation, is the part that already works.
+
+The build it licenses (its own phase): (i) one simulator pass to convert the
+demos' joint commands to TCP targets (`jaw_centre` at the commanded joints, or
+the arm's own FK), (ii) a new `action_dim` (3-D absolute TCP + finger, held
+attitude) and a from-scratch training on the demonstrations (the 9-D checkpoint's
+input layer does not fit), (iii) the env applies the TCP target with `ik_step`
+at the decision rate, (iv) the same 12-episode honest cell. Expected mechanism:
+the 0.04 rad joint average becomes a 5 mm task-space servo.
