@@ -108,3 +108,37 @@ still open, and the cheapest way to close it needs **no training at all** (secti
   truth position) and a camera project has no lever;
 * if it collapses, the view matters and a **proper** recollection - same distribution
   as the shipped store (two-line), **with** the anchor - is the price.
+
+## 8. Zero-shot through the new camera: 4/12 - the same as the old view
+
+`moe_v13s` **unchanged** through a camera it never trained on (`down_x_160`), 12
+episodes, seeds 77/101/202:
+
+| arm | camera | training | n | success | `grasped` | `gap_close` behaviour |
+|---|---|---|---|---|---|---|
+| **`moe_v13s`** | **top-down (trained)** | - | 24 | **9/24 = 37.5 %** | 13/24 | 147-155 mm |
+| **`moe_v13s`** | **down_x_160 (unseen)** | - | 12 | **4/12 = 33.3 %** | **7/12** | 149-150 mm |
+| `p144_down` | down_x_160 | 45 ep, no anchor | 12 | 0/12 | 2/12 | 147-228 mm |
+| `p144_up` | top-down | 45 ep, no anchor | 12 | 0/12 | 0/12 | 141-228 mm |
+
+**The shipped checkpoint works through a view it has never seen**, at the same rate
+within noise (33 % against 37.5 %), still closes at 149-150 mm, and grasps 7 of 12.
+So **the policy's behaviour is not limited by the camera** - which is what its
+conditioning implies: the `goal` is the **truth** position, velocity and diameter, and
+the image only contributes appearance.
+
+**The camera question is therefore closed as a policy lever**:
+
+* the **placement** is measured and much better (14.6 % -> **81.4 %** of the cycle
+  visible, the place phase 0 % -> 79.5 %);
+* it **does not move the task** (4/12 unseen against 9/24 trained), and it is worth
+  having for **watching and for the video artifacts**, not for the success rate;
+* the 0/12 arms were **destroyed by the recipe** (45 single-arm episodes, no anchor),
+  on either camera - so no conclusion about the view can come from them, and none is
+  drawn.
+
+**What would make the view matter**: a policy conditioned on the image *only* (no
+truth goal) - i.e. the perception lane of P135 - where the occlusion that P135 measured
+(48 -> 22 px at the grasp) and the 31 mm depth at the fruit's pixel become binding.
+That is a different interface, and its instrument (the tracker at 1.98 mm) already
+exists.
