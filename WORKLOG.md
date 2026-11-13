@@ -26981,3 +26981,19 @@ and it is 2/8 again, with 5 grasping and losing the payload at the place.
 
 So the gate's contribution is the 0 -> 2 jump; past it the binding term is the closed
 loaded slide. Default stays 0.15.
+
+## P143 / items 1-2 (2026-11-13) - the close is uniform, the fruit is the discriminator
+
+12 episodes (seeds 77/101/202) with gap_close on the row: 5/12 = 41.7 %. All twelve
+episodes close (gap_close complete): min 112, p25 148, median 150, p75 155, max
+180 mm. Successes 147-150, failures 112-180 - overlapping, both outcomes at the same
+148-150. So the close distance is uniform and no longer discriminates.
+
+What separates is the fruit: pear/peach/orange 3/3, tomato 2/4, apple 0/1 (closed at
+112), lychee 0/3, strawberry 0/1. Small fruit does not grasp.
+
+Pooled over every 0.15 m cell (24 episodes): 9/24 = 37.5 % success, 4/24 grasped and
+lost, 11/24 no grasp. The primitive runs on every episode, so those are its catch
+outcomes at a ~15 cm handover. The loaded slide is 4/24, no longer dominant; the
+small-fruit catch is. That is the closed class - no interface or training term
+remains.

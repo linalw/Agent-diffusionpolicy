@@ -450,3 +450,34 @@ at 112 mm, no grasp) and is named rather than smoothed.
 
 **So the lane's remaining term has moved**: gate and acquisition are no longer the
 binding terms at this n; **the grip on small fruit** is, and that is the closed class.
+
+## 16. Item 2: the loaded slide is *not* the dominant residual any more - the small-fruit catch is
+
+Pooling every cell at the adopted 0.15 m gate (24 episodes: 4 + 8 + 12, seeds
+77/101/202):
+
+| | count | share |
+|---|---|---|
+| **success** | **9/24** | **37.5 %** |
+| grasped, lost at the place (the loaded slide) | 4/24 | 17 % |
+| no grasp (the primitive ran, the catch failed) | 11/24 | 46 % |
+
+**The primitive runs on every episode** (all twelve in section 15 close), so these
+are the *primitive's* catch outcomes at a ~15 cm handover, not the model's:
+
+* the **loaded slide is 4 of 24** - real, but no longer the dominant term;
+* the **catch itself fails on 11 of 24**, and it is **fruit-shaped**: lychee 0/3,
+  strawberry 0/1, apple 0/1 in section 15, against pear/peach/orange 3/3 and tomato
+  2/4.
+
+**So the lane's ceiling at this interface is the primitive's catch on small fruit**,
+which is the class `logs/p42/SIM_LIMIT.md` closed from force, pad face, friction,
+seat, attitude, lift height and speed. **No interface or training term remains in the
+model lane**: the gate is fixed (0->2 jump, section 14), the close distance is uniform
+and no longer discriminates (section 15), the DAgger lane is a net negative on the
+fixed interface (section 13), and what is left is the one class the record cannot
+move.
+
+**The readable sentence for the owner**: *the shipped policy, driving alone, completes
+approach -> grasp -> place on **9 of 24 episodes (37.5 %)**, and 4 more are grasped and
+lost; the 11 that never grasp are small fruit, the closed class.*

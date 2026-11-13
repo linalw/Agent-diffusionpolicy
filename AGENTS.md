@@ -7038,9 +7038,17 @@ row and is the number the gate actually reads. **The gate ladder is measured**: 
 1-2 mm decided it; **0.20 -> all eight fire** (197-200 mm) and **2/8 again**, with 5
 grasping and losing the payload at the place. So the gate's whole contribution is the
 **0 -> 2** jump and the default stays **0.15**; past it the binding term is the
-closed loaded slide, not acquisition or training. The model lane's standing result:
-**4/12 = 33 %** for the pure policy (no trigger, no teleport, no retraining) with the
-shipped `moe_v13s`.
+closed loaded slide, not acquisition or training. The model lane's standing result, **pooled over every 0.15 m cell (24 episodes,
+seeds 77/101/202)**: **9/24 = 37.5 % success**, 4/24 grasped-and-lost (the loaded
+slide), **11/24 no grasp** - and the primitive runs on every episode (all twelve in
+the formal table close), so those are the *primitive's* catch outcomes at a ~15 cm
+handover. **`gap_close` is complete and uniform (min 112, p25 148, median 150, p75
+155, max 180 mm) and no longer discriminates**: the five successes sit at 147-150 and
+the failures at 112-180, with both at the same 148-150. What separates is the
+**fruit**: pear/peach/orange 3/3, tomato 2/4, apple 0/1, **lychee 0/3, strawberry
+0/1** - the small-fruit grip class of `logs/p42/SIM_LIMIT.md`, which the record has
+closed from force, pad face, friction, seat, attitude, lift height and speed. **So no
+interface or training term remains in the model lane**; the ceiling is that class.
 **Re-baseline: every direct/policy rate, cycle and store recorded before P143 is an
 indexed-primitive number; `FRUIT_DYNAMIC_PICK=0` restores it** (compose with the
 earlier restores: `FRUIT_TRACK=0` for pre-P136, `FRUIT_SPEED_RELEASE=0` for pre-P87,
