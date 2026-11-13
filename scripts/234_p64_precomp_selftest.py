@@ -232,9 +232,13 @@ def main() -> int:
         check('"carry_hold_precomp"' in env_src,
               "the manifest names the armed scenario (null = off)")
         # the constants and the config files this phase must not move
+        # P145b: the file gained the demonstrations' frame-0 pose (`wait`) for
+        # `FRUIT_DIRECT_START=wait` - +18 lines, no existing value moved. The P64
+        # conclusion (the pre-compensated command is inadmissible) is unaffected;
+        # the pin follows the file.
         check(md5(ROOT / "configs/waypoints.json") ==
-              "d81c6f1ccad96254264b62331968716b",
-              "configs/waypoints.json is byte-untouched (d81c6f1c)")
+              "6d2843a3a839c74669d1cc8e2b31129f",
+              "configs/waypoints.json is byte-untouched (6d2843a3)")
         check(md5(ROOT / "configs/waypoints_oriented.json") ==
               "0ea08ebb6bdbd1e78a2402ca263ded01",
               "configs/waypoints_oriented.json is byte-untouched (0ea08ebb)")

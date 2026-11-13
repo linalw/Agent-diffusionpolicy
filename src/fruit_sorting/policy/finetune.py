@@ -442,6 +442,7 @@ def finetune(
     close_lead: int = 10,
     close_tail: int = 10,
     first_steps: int = 0,
+    action_horizon: int | None = None,
     vlash_offset_max: int = 0,
     rollout_speed: float | None = None,
     base_speed: float | None = None,
@@ -532,6 +533,20 @@ def finetune(
                     flush=True,
                 )
     obs_horizon = int(config["obs_horizon"])
+    # P145: the denoiser is fully convolutional over the action axis, so the
+    # **action horizon** is a window property like `obs_horizon` - no weights
+    # change. A feedback-shaped policy (execute one chunk of `h` steps and
+    # re-plan) is therefore a fine-tune flag, not a new architecture.
+    if action_horizon is not None and int(action_horizon) != int(
+        config["action_horizon"]
+    ):
+        if verbose:
+            print(
+                f"[finetune] P145 action horizon: "
+                f"{int(config['action_horizon'])} -> {int(action_horizon)} steps",
+                flush=True,
+            )
+        config["action_horizon"] = int(action_horizon)
     action_horizon = int(config["action_horizon"])
     image_size = int(config["image_size"])
 

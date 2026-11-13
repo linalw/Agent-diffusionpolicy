@@ -2037,6 +2037,17 @@ class SortingRLEnv:
         #: P145: no handover -> the primitive never runs, so `grasped`/`placed` come
         #: from the **fruit's own motion** instead of the primitive's result.
         self._no_handover = os.environ.get("FRUIT_POLICY_HANDOVER", "1").strip() == "0"
+        #: P145b: where the direct episode **starts**. `grasp` is the shipped
+        #: waypoint; `wait` is the demonstrations' frame-0 pose (measured from
+        #: `demos_v11`, `configs/waypoints.json`'s `wait`). The two differ by ~0.35
+        #: rad: the shipped start is the scripted line's *close* pose, so the
+        #: policy's first observation was a state the demos only reach at the
+        #: close, with the fruit still far upstream.
+        self._direct_start = os.environ.get("FRUIT_DIRECT_START", "grasp").strip().lower()
+        if self._direct_start not in ("grasp", "wait"):
+            raise ValueError(
+                f"FRUIT_DIRECT_START={self._direct_start!r} is not 'grasp' or 'wait'"
+            )
         self._max_lift = 0.0
         # P145: **the goal can be measured**. With `FRUIT_GOAL_SOURCE=perception`
         # the goal's position, velocity and diameter come from the depth camera's
@@ -3839,6 +3850,9 @@ class SortingRLEnv:
             start = np.asarray(self.waypoints["arms"][active]["grasp"], dtype=float)
         else:
             start = np.asarray(self.waypoints["arms"][active]["ready"], dtype=float)
+        if self._direct_start == "wait" and self.presentation == "direct":
+            entry = self.waypoints["arms"][active]
+            start = np.asarray(entry.get("wait", entry["grasp"]), dtype=float)
         arm.teleport_joints(start)
         # `teleport_joints` writes the *measured* dof state back through the
         # drive, and Isaac re-targets from it, so the `set_gripper(OPEN)` in the
@@ -4013,8 +4027,9 @@ class SortingRLEnv:
         self._expert_until = -1
         self._expert_close_start = None
         self._expert_label = None
+        _entry = self.waypoints["arms"][active]
         self._expert_grasp = np.asarray(
-            self.waypoints["arms"][active]["grasp"], dtype=np.float32
+            _entry.get(self._direct_start, _entry["grasp"]), dtype=np.float32
         ).copy()
         self._policy_proposal = None
         self._ep_interventions = 0

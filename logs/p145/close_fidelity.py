@@ -31,8 +31,14 @@ def main() -> int:
     data = sys.argv[2] if len(sys.argv) > 2 else "datasets/p145_dagger_all"
     limit = int(os.environ.get("P145_WINDOWS", "120"))
     ddim = int(os.environ.get("P145_DDIM", "16"))
+    _ckpt = torch.load(ckpt, map_location="cpu", weights_only=False)
+    _cfg = _ckpt["config"]
     store = EpisodeStore(
-        data, obs_horizon=2, action_horizon=16, image_size=128, only_successful=False
+        data,
+        obs_horizon=int(_cfg.get("obs_horizon", 2)),
+        action_horizon=int(_cfg.get("action_horizon", 16)),
+        image_size=int(_cfg.get("image_size", 128)),
+        only_successful=False,
     )
     policy = PolicyRunner(ckpt, device="cuda" if torch.cuda.is_available() else "cpu")
     rng = np.random.RandomState(7)

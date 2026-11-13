@@ -71,6 +71,10 @@ def main() -> int:
     parser.add_argument("--close-lead", type=int,
                         default=int(os.environ.get("CLOSE_LEAD", "10")),
                         help="frames before the close start included in the boost")
+    parser.add_argument("--action-horizon", type=int, default=None,
+                        help="P145: override the checkpoint's action horizon "
+                             "(a window property; no weights change). Pair it "
+                             "with --execute-steps equal to it.")
     parser.add_argument("--first-steps", type=int,
                         default=int(os.environ.get("FIRST_STEPS", "0")),
                         help="P145: train only the first N actions of each chunk "
@@ -125,6 +129,7 @@ def main() -> int:
         close_lead=args.close_lead,
         close_tail=args.close_tail,
         first_steps=args.first_steps,
+        action_horizon=args.action_horizon,
         rollout_speed=rollout_speed,
         base_speed=base_speed,
         goal_aux=args.goal_aux,

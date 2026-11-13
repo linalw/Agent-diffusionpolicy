@@ -243,3 +243,93 @@ FRUIT_DAGGER_FOCUS=20 P145_WINDOWS=60 \
   /home/ubuntu/linalw/App/minconda3/envs/lingbot/bin/python logs/p145/close_fidelity.py \
   checkpoints/p145_dagger_f/policy_best.pt datasets/p145_dagger_all
 ```
+
+## 11. P145b - scaling the store found two interface defects that dominate the data volume
+
+The planned >=150-episode DAgger store was started three ways; the useful result
+is that the **interface**, not the data count, was the binding term. The
+collection itself is fine: 8/8 episodes in 5 min with `--horizon 520`, while the
+760-tick episode wedges in the post-close phase (2/8, CPU busy, GPU 2 %), so the
+chunked runner (`logs/p145/collect_chunks2.sh`, 16 episodes per timeout-guarded
+chunk) is the supported shape.
+
+### 11.1 Defect (a): the direct episode started at the **close** pose
+
+`configs/waypoints.json`'s `grasp` is the scripted line's *close* pose. The
+demonstrations' frame 0 is a different pose - the wait/pre-pose - measured from
+`demos_v11/episode_00000.npz` (left) and `episode_00001.npz` (right):
+
+| arm | demo frame-0 action (`wait`) | config `grasp` | difference |
+|---|---|---|---|
+| left | `[-1.390,-0.143,1.536,1.168,-1.379,-0.542,1.506]` | `[-1.270,-0.062,1.571,0.928,-1.185,-0.667,1.324]` | 0.35 rad |
+| right | `[1.406,0.122,-1.540,1.104,1.392,0.586,-1.503]` | `[1.235,0.082,-1.566,0.969,1.163,0.640,-1.325]` | 0.33 rad |
+
+So the policy's first observation was a state the demonstrations only reach at
+the close, with the fruit 0.4 m upstream - and the DAgger expert's wait label was
+that same close pose. **The demos and the DAgger store taught two different wait
+poses**, which is the "stay vs descend" average the earlier arms measured.
+
+Fix: the two `wait` poses are added to `configs/waypoints.json` (+18 lines, no
+existing value moved; P64's config pin re-pinned to `6d2843a3`), and
+**`FRUIT_DIRECT_START=wait`** starts the direct episode there (default `grasp`,
+byte-inert; a bad value raises). The DAgger expert's wait label follows the same
+pose.
+
+### 11.2 Defect (b): a 30 Hz demonstration stream played at 120 Hz
+
+The demonstrations are recorded at **30 Hz** (one waypoint per 4 control ticks).
+`act` executes one chunk waypoint per control tick, so the 16-waypoint chunk is
+replayed at **120 Hz** - a 4x compression of the trajectory the model was trained
+on (the P53 census already read this mismatch as a 10x command dither and a
+19.3 mm same-tick residual; its C2 cell took the first half-step, `hold=2`).
+
+**`FRUIT_POLICY_ACTION_HOLD=4`** holds each waypoint for 4 ticks - the exact
+training cadence (a decision covers `execute_steps * hold` ticks).
+
+### 11.3 With both fixed: the xy tracking converts, the catch-up does not
+
+A horizon-4 fine-tune on `demos_v11` alone (`FRUIT_TRAIN_GOAL=moving`,
+`--close-weight 10`, 40 epochs, loss **0.0145**, checkpoint
+`checkpoints/p145_demo_h4`, md5 `bcff04e6`), evaluated at the wait start with
+`--execute-steps 4 FRUIT_POLICY_ACTION_HOLD=4`:
+
+| cell | gap_min | gap_close | lift |
+|---|---|---|---|
+| 2-episode probe, episode 0 (pear, left) | **9 mm** | **9 mm** | no |
+| 12 episodes (seeds 77/101/202) | **32-41 mm** left, **64-94 mm** right | = gap_min | **0/12** |
+
+The trace says what remains: the jaw tracks the fruit in x/y to 9-41 mm, then
+**stops at the config's grasp waypoint (z = 1.29)** and never makes the last
+**8-9 cm** to the fruit's centre (z = 1.20); it also closes early (fruit
+`y ≈ +0.055` against the demonstrations' `+0.003`), lifts, and lifts nothing.
+
+The offline instrument puts the fit at the same floor as every earlier arm: on
+the demonstrations' close windows the horizon-4 model reads **0.065 rad** joint
+error at the first step and **0.059 rad** at the last (finger 0.0008), i.e.
+**~3 cm at the TCP**. The missing catch-up is 8-9 cm (0.1-0.15 rad). The fit
+floor is unchanged between the 10k-window demonstrations (0.065) and the
+600-window DAgger arm at 200 epochs (0.068) - a **representation** limit, not a
+data-count limit.
+
+### 11.4 Verdict and the named next step
+
+The sensors and the honest interface are solved: the goal is the depth camera's
+measurement (1.9-9.5 mm), no handover/trigger/encoder, and the policy's own arm
+now tracks the fruit to **9-41 mm** in the grasp plane. The remaining two terms
+are **phase timing** (it closes ~0.4 s early and descends during the wait) and
+the **final approach's precision** (3 cm fit floor against a 2 cm catch), and
+they are coupled: the policy averages the "hold" and "dive" modes.
+
+**The next step is therefore a phase-gated policy or a cartesian-delta action**,
+not another collection of the same shape:
+
+* the model already has a 5-skill router (`label_episode`); pin its phase at the
+  demonstration's own boundary and let each phase own its chunk, or
+* predict a **cartesian delta** and solve the IK exactly, so the 3 cm behaviour-
+  cloning error does not sit on top of a 0.1 rad joint average, and
+* the tactile channel is live but not yet ablated: `FRUIT_TACTILE_ZERO=1` and
+  `FRUIT_IMAGE_FREEZE=1` are built for the cell that decides whether touch is
+  load-bearing.
+
+No shipped default moved. `selfcheck.sh` PASS (0 failures, 1 skipped) after the
+P64 config re-pin; the references are `61fb5202` / `61fb5202` / `18b101bf`.
