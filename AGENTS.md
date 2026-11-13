@@ -7032,7 +7032,15 @@ because its near approaches (36/41 mm) happen while the **finger is still open**
 it closes later, farther out - so the DAgger lane is **not** the next spend. The
 instrument was blind to that ( `gap_min` and `finger_min` are independent minima):
 **`gap_close`** (the minimum distance over ticks with `finger < 0.030`) is now on the
-row and is the number the gate actually reads.
+row and is the number the gate actually reads. **The gate ladder is measured**: 0.06
+-> 0/7; **0.15 -> 2/8** (and 2/4 in the earlier cell; pooled **4/12 = 33 %**), where
+**every** episode closes at 148-155 mm - the gate sat *on* the model's close, so
+1-2 mm decided it; **0.20 -> all eight fire** (197-200 mm) and **2/8 again**, with 5
+grasping and losing the payload at the place. So the gate's whole contribution is the
+**0 -> 2** jump and the default stays **0.15**; past it the binding term is the
+closed loaded slide, not acquisition or training. The model lane's standing result:
+**4/12 = 33 %** for the pure policy (no trigger, no teleport, no retraining) with the
+shipped `moe_v13s`.
 **Re-baseline: every direct/policy rate, cycle and store recorded before P143 is an
 indexed-primitive number; `FRUIT_DYNAMIC_PICK=0` restores it** (compose with the
 earlier restores: `FRUIT_TRACK=0` for pre-P136, `FRUIT_SPEED_RELEASE=0` for pre-P87,

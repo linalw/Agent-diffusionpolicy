@@ -26968,3 +26968,16 @@ pulled the model back toward the anchor.
 Fix: --expert-tolerance 99 --expert-window 0 so the expert never takes over while
 the label is still recorded at every decision; the episodes then fail, which is the
 point (the store becomes the policy's distribution).
+
+## P143 / the gate ladder (2026-11-13) - 0.06 -> 0.15 is the whole gain
+
+8 episodes at 0.15: 2/8, and EVERY episode closes at 148-155 mm - the gate sat on the
+model's own close, so 1-2 mm decided the outcome. At 0.20 all eight fire (197-200 mm)
+and it is 2/8 again, with 5 grasping and losing the payload at the place.
+
+  gate 0.06 -> 0/7, 0 grasped
+  gate 0.15 -> 2/8 + 2/4 earlier cell, 4/8 grasped (pooled 4/12 = 33 %)
+  gate 0.20 -> 8/8 fire, 2/8, 5/8 grasped
+
+So the gate's contribution is the 0 -> 2 jump; past it the binding term is the closed
+loaded slide. Default stays 0.15.

@@ -375,3 +375,32 @@ future cell carries it.
 interface fix (0.15 m) converts the baseline's own close at 2/4; the residuals are
 (a) the fruit the arm never gets inside the gate of and (b) the loaded slide. The
 training moved (a) at the cost of the close timing, which is a net negative here.
+
+## 14. The gate ladder: 0.06 -> 0.15 is the whole gain; 0.20 converts nothing more
+
+The 8-episode cell at 0.15 read **2/8 = 25 %**, and **every episode closed at
+148-155 mm** - the gate was sitting *on* the model's close distance, so a 1-2 mm
+difference decided the outcome. Widening to **0.20** makes **all eight episodes
+fire** (gap 197-200 mm) and reads **2/8 again**:
+
+| gate | episodes that hand over | success | `grasped=True` |
+|---|---|---|---|
+| 0.06 (shipped) | ~0 of 7 | **0** | 0 |
+| **0.15 (adopted)** | ~half (148-155 mm closes) | **2/8**, and **2/4** in the earlier cell | 4/8 |
+| 0.20 | **8/8** (197-200 mm) | 2/8 | 5/8 |
+
+Pooled at 0.15 over the two cells: **4/12 = 33 %** (seeds 77/101).
+
+**So the gate's whole contribution is the 0 -> 2 jump**; past 0.15 the extra
+handovers do grasp (5 of 8) and then **lose the payload at the place** - the closed
+loaded-slide class of `logs/p42/SIM_LIMIT.md`, which the record has closed from
+force, pad face, friction, seat, attitude, lift height and speed.
+
+**The default stays 0.15** (equal success, fewer handovers, and it is the model's own
+close distance rather than 50 mm past it).
+
+**Where the model lane now stands**: the pure policy (no trigger, no teleport, no
+retraining) completes approach -> grasp -> place on **4 of 12** episodes with the
+shipped checkpoint; the residuals are (a) the place's loaded slide on the ones it
+grasps and (b) the occasional fruit it never gets inside the gate of. Both are
+recorded closed classes, not interface or training terms.
