@@ -7909,6 +7909,15 @@ class PickAndPlaceTask:
                 pass
         if self.current_sample is not None:
             observation["fruit_position"] = self.spawner.position(self.current_sample).astype(np.float32)
+            # P145d: the achieved TCP / jaw per frame - the target for a cartesian
+            # action head. Two link reads per recorded frame; the collector's data
+            # only (the direct/policy paths do not read these keys).
+            try:
+                arm = self.arms[self.current_arm] if isinstance(self.current_arm, str) else self.current_arm
+                observation["tcp"] = np.asarray(arm.tcp_pose()[0], dtype=np.float32)
+                observation["jaw"] = np.asarray(arm.jaw_centre(), dtype=np.float32)
+            except Exception:  # noqa: BLE001 - a missing TCP must not stop a recording
+                pass
         self.recorder.add(observation, action)
 
     def _tick_frame(self) -> None:
