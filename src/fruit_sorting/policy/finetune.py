@@ -441,6 +441,7 @@ def finetune(
     close_weight: float = 1.0,
     close_lead: int = 10,
     close_tail: int = 10,
+    first_steps: int = 0,
     vlash_offset_max: int = 0,
     rollout_speed: float | None = None,
     base_speed: float | None = None,
@@ -675,9 +676,24 @@ def finetune(
             predicted = model.denoise(
                 noisy, condition, timesteps, skill_labels=skill if hard else None
             )
-            per_window = torch.nn.functional.mse_loss(
+            raw = torch.nn.functional.mse_loss(
                 predicted, noise, reduction="none"
-            ).flatten(1).mean(1)
+            )
+            if first_steps > 0 and raw.shape[1] > first_steps:
+                # P145: the env executes only the first `execute_steps` actions of
+                # a chunk before it re-plans, and a DAgger label is a *feedback*
+                # command for the state it was recorded at - the later steps of
+                # the chunk are conditioned on states the policy may never visit.
+                # Train the part that is executed.
+                # The denoiser works in (batch, action_dim, horizon) - a Conv1d
+                # over the horizon - so the *executed steps* are the last axis.
+                mask = torch.zeros_like(raw)
+                mask[:, :, : int(first_steps)] = 1.0
+                per_window = (raw * mask).flatten(1).sum(1) / mask.flatten(1).sum(
+                    1
+                ).clamp_min(1.0)
+            else:
+                per_window = raw.flatten(1).mean(1)
             loss = (weight * per_window).sum() / weight.sum().clamp_min(1e-8)
             logits = model.last_router_logits
             router_loss = torch.nn.functional.cross_entropy(logits, skill)

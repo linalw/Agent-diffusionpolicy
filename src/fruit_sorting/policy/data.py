@@ -393,6 +393,12 @@ class EpisodeStore:
         #: this set, windows starting more than N frames before the ramp's first
         #: frame are dropped (0 = keep every valid window).
         self.dagger_focus = max(0, int(os.environ.get("FRUIT_DAGGER_FOCUS", "0")))
+        #: P145: keep only the **carry/place** half of a plain demonstration
+        #: episode (post close). The pick is taught by the DAgger store, the
+        #: carry by the demonstrations; mixing the demonstrations' pick windows
+        #: back in fights the correction the DAgger store exists to make.
+        self.base_carry_only = os.environ.get("FRUIT_BASE_CARRY_ONLY", "0") == "1"
+        self.base_kept = 0
         self.speed_traces: list[np.ndarray | None] = []
         self.belt_accels: list[np.ndarray | None] = []
         self.episodes: list[dict] = []
@@ -464,6 +470,12 @@ class EpisodeStore:
                 focus_lo = max(
                     0, (int(closed[0]) if closed.size else length) - self.dagger_focus
                 )
+            elif valid is None and self.base_carry_only:
+                finger = np.asarray(episode["action"], dtype=np.float32)[:, 7]
+                closed = np.nonzero(finger < 0.0439)[0]
+                # +15 frames = past the close ramp, i.e. the lift/carry/place.
+                focus_lo = (int(closed[0]) + 15) if closed.size else length
+                self.base_kept += 1
             for start in range(self.obs_horizon - 1, last):
                 if valid is not None:
                     lo = max(0, start - self.obs_horizon + 1)
@@ -472,6 +484,12 @@ class EpisodeStore:
                 if start < focus_lo:
                     continue
                 self.windows.append((ep_index, start))
+        if self.base_kept:
+            print(
+                f"[data] base: kept only the post-close windows of "
+                f"{self.base_kept} episode(s) (FRUIT_BASE_CARRY_ONLY=1)",
+                flush=True,
+            )
         if self.goal_rebuilt:
             print(
                 f"[data] goal: rebuilt {self.goal_rebuilt} episode(s) as the "

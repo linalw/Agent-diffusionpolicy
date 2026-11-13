@@ -71,6 +71,10 @@ def main() -> int:
     parser.add_argument("--close-lead", type=int,
                         default=int(os.environ.get("CLOSE_LEAD", "10")),
                         help="frames before the close start included in the boost")
+    parser.add_argument("--first-steps", type=int,
+                        default=int(os.environ.get("FIRST_STEPS", "0")),
+                        help="P145: train only the first N actions of each chunk "
+                             "(what the env executes before re-planning; 0 = all)")
     parser.add_argument("--close-tail", type=int,
                         default=int(os.environ.get("CLOSE_TAIL", "10")),
                         help="frames after the close start included in the boost")
@@ -120,6 +124,7 @@ def main() -> int:
         close_weight=args.close_weight,
         close_lead=args.close_lead,
         close_tail=args.close_tail,
+        first_steps=args.first_steps,
         rollout_speed=rollout_speed,
         base_speed=base_speed,
         goal_aux=args.goal_aux,

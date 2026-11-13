@@ -2060,6 +2060,16 @@ class SortingRLEnv:
         #: Bench-only error samples (truth is read for the column, never used).
         self._percept_errs: list[float] = []
         self._percept_errs_close: list[float] = []
+        # P145 ablation instruments (default off): zero the tactile channels, or
+        # freeze the policy's image at the first frame. Both are *ablations* of a
+        # channel the honest interface keeps live - they are never shipped on, and
+        # the shipped path does not read them.
+        self._tactile_zero = os.environ.get("FRUIT_TACTILE_ZERO", "0") == "1"
+        #: P145 mechanism trace (default off): one row per observation tick with the
+        #: gap, the finger, the jaw line and the fruit/goal positions.
+        self._policy_trace = os.environ.get("FRUIT_POLICY_TRACE", "0") == "1"
+        self._image_freeze = os.environ.get("FRUIT_IMAGE_FREEZE", "0") == "1"
+        self._frozen_frames = None
         self._handover_diag = os.environ.get("FRUIT_HANDOVER_DIAG", "0") == "1"
         self._diag_min_gap = float("inf")
         self._diag_min_finger = float("inf")
@@ -4169,6 +4179,17 @@ class SortingRLEnv:
             if self._percept_dia is not None:
                 self._goal[6] = float(self._percept_dia)
         if self.policy is not None and rgb is not None and depth is not None:
+            if self._image_freeze:
+                # P145 ablation: one frame for the whole run - the information is
+                # removed, the tensor statistics (and the model's shapes) are not.
+                if self._frozen_frames is None:
+                    self._frozen_frames = (
+                        np.array(rgb, copy=True),
+                        np.array(depth, copy=True),
+                        None if mask is None else np.array(mask, copy=True),
+                    )
+                else:
+                    rgb, depth, mask = self._frozen_frames
             self.policy.push_frame(rgb, depth, mask)
 
     # ------------------------------------------------------------------ #
@@ -4419,7 +4440,8 @@ class SortingRLEnv:
             f"err_p90={_pct(self._percept_errs, 90)}mm "
             f"err_n={len(self._percept_errs)} "
             f"err_close_p50={_pct(self._percept_errs_close, 50)}mm "
-            f"err_close_n={len(self._percept_errs_close)}"
+            f"err_close_n={len(self._percept_errs_close)} "
+            f"jaw_y={float(getattr(self, '_expert_jaw_y', float('nan'))):+.3f}"
         )
 
     def _goal_snapshot(self) -> np.ndarray:
@@ -4487,6 +4509,9 @@ class SortingRLEnv:
             float(reading.get("left").normal_force) if reading.get("left") else zero,
             float(reading.get("right").normal_force) if reading.get("right") else zero,
         ]
+        if self._tactile_zero:
+            # P145 ablation: the channel is present but carries no contact.
+            forces = [0.0, 0.0]
         if self._retime_on:
             # P52 phase 2: the contact gate's two channels, cached from the read
             # that just happened. The gate itself never reads a sensor (AGENTS.md
@@ -5536,6 +5561,13 @@ class SortingRLEnv:
                     self._max_lift = max(self._max_lift, _fz - float(self._belt_rest))
                 except Exception:  # noqa: BLE001 - reporting must not stop the loop
                     pass
+            if self._policy_trace and self._step % 4 == 0:
+                self._say(
+                    f"[policy-trace] t={self._step} gap={distance * 1000:.0f}mm "
+                    f"finger={float(finger):.4f} jaw_y={float(jaw[1]):+.3f} "
+                    f"fruit_y={float(fruit[1]):+.3f} goal_y={float(self._goal[1]):+.3f} "
+                    f"fruit_z={float(fruit[2]):.3f} jaw_z={float(jaw[2]):.3f}"
+                )
             if self._handover_diag:
                 # P143 diag: the closest the jaws came and the smallest finger the
                 # policy asked for, tracked here because this block runs with the

@@ -134,3 +134,112 @@ FRUIT_CAMERA_RES=240,424 FRUIT_HANDOVER_DIAG=1 \
   --presentation direct --episodes 10 --seeds 77,101,202 \
   --dagger --expert-tolerance 99 --expert-window 0 --record --out datasets/p145_dagger
 ```
+
+## 6. The DAgger store, as collected
+
+`datasets/p145_dagger`: **30 episodes** (10 x seeds 77/101/202), 9,791 frames,
+**0/30 lifts**, `interventions=0`, `expert_ticks=0` on every episode (the arm is
+100 % the policy's; only the labels are the expert's). With
+`FRUIT_DAGGER_FOCUS=20` the 9,791 frames reduce to **600 training windows**, of
+which **263 contain the close ramp** - the store is the correction, not a replay
+of the wait.
+
+Why the focus: a pick episode is ~100 frames of "hold the grasp pose" plus a
+15-frame close ramp. The hold is already in the anchor (and the policy starts
+there); the ramp is the only thing the policy cannot do.
+
+## 7. The fine-tuning matrix, and what each arm measured
+
+All arms start from `moe_v13s` (`61da390a`); the metric in the "close fidelity"
+column is the offline **joint error on the DAgger close windows**
+(`logs/p145/close_fidelity.py`, 60 windows, DDIM-16, fixed seeds).
+
+| arm | data / base | close weight | epochs | close joint err (1st step) | closed loop |
+|---|---|---|---|---|---|
+| A | DAgger + demos_v11 | 1 | 8 | - | `gap_min` 5-70 mm but `gap_close` **124-398 mm**: tracks, closes late |
+| B | A + close weight | 10 | 12 | 0.276 rad | `gap_min` 1-43 mm, `gap_close == gap_min` (timing fixed); **jaw 9 cm above the fruit**; 0 lifts |
+| C | DAgger + base **carry-only** | 10 | 10 | 0.190 rad | tracking worse (jaw drifts to y=-0.10), finger oscillates |
+| D | first-N mask (wrong axis) | 10 | 10 | 0.736 rad | discarded (the mask hit the action dimension, not the horizon) |
+| E | DAgger only | 10 | 10 | 0.324 rad | underfit (600 windows, 190 steps) |
+| **F** | **DAgger only** | **10** | **200** | **0.068 rad** | **offline fits the ramp** (chunk min 0.0277 vs label 0.0276, 54/60 close); closed loop still 0 lifts |
+
+**Two things are now separated, and they are different problems.**
+
+1. **The tracking and the close timing convert.** A/B move the closest xy gap from
+   the baseline's **69-149 mm** to **1-43 mm**, and `gap_close` becomes equal to
+   `gap_min` on 4 of 5 episodes - the policy closes *at* the closest approach, not
+   13 cm late. The measured goal is what it follows: `goal_y` equals the truth
+   `fruit_y` to 1-2 mm on every traced tick (sections 3 and the `[policy-trace]`
+   rows).
+2. **The grasp does not**, and the mechanism is **action precision**, not the
+   sensor. The best offline fit is **0.068 rad** (arm F) against the base's
+   **0.084 rad**; 0.07 rad is ~3-5 cm at the TCP, and the catch needs ~2 cm. The
+   closed loop shows it directly: the jaw holds **x = 0.28** (the station line)
+   while the fruit is at **x = 0.20-0.36**, and the jaw **z = 1.29** while the
+   fruit's centre is **1.20** (the pads' distal plane 1.21). The pads close
+   **2-12 cm** from the fruit - air.
+
+A third term is execution, not learning: with the shipped `execute_steps=4` the
+chunk's early ramp values are re-sampled before the finger advances
+(`finger_min` 0.034-0.040, the ramp never completes). Applying the whole chunk
+(`--execute-steps 16`) closes the finger (0.013-0.019) at the closest approach,
+but the hand is still 22-116 mm from the fruit, because the chunk's arm plan was
+computed from a different state. **A chunked policy trained on per-state feedback
+labels has to be executed as feedback (one step at a time), and the current
+chunks are 16 steps long** - the named representation problem.
+
+## 8. What the interface now is, against the owner's requirement
+
+| requirement | state |
+|---|---|
+| no external trigger | `FRUIT_POLICY_TRIGGER=off`; `should_fire` is never called |
+| no handover to the scripted primitive | `FRUIT_POLICY_HANDOVER=0`; the primitive never runs |
+| no truth goal | `FRUIT_GOAL_SOURCE=perception`; position/velocity/diameter measured (1.9-9.5 mm) |
+| no belt encoder | the tracker is not given a belt prior; velocity converges to 0.124-0.135 m/s from the camera |
+| camera genuinely matters | the goal **is** the camera's measurement; the policy tracks it (goal = truth to 1-2 mm) |
+| touch matters | the tactile is in the observation; the ablation knobs exist (`FRUIT_TACTILE_ZERO=1`, `FRUIT_IMAGE_FREEZE=1`) and are the next cell |
+| approach + grasp + place by the policy | **approach yes** (gap 1-43 mm), **grasp no** (precision), **place not reached** |
+
+## 9. The next lever, priced
+
+The sensor, the trigger and the goal are no longer the limiting terms. The
+limiting term is the policy's **action precision on the corrective phase**:
+
+1. **A larger DAgger store** (>= 150 episodes, ~2 h at 1 min/episode) with the same
+   recipe. The endpoint is the offline joint error on the close windows
+   (`logs/p145/close_fidelity.py`): the target is **< 0.03 rad**, which is ~1-2 cm
+   at the TCP. This is the cheapest next spend and it attacks the measured term.
+2. **A feedback-shaped action representation** (one executed step per decision, or
+   a cartesian delta), which is a training-schema change and its own phase.
+3. **A tactile close refinement** (the pad force says a grasp is empty; re-open and
+   re-approach) - a policy-level reflex, named and not built.
+
+No shipped default changed, no reference re-recorded: the acceptance is
+**7/10, `fingerprint: matches`, `190: PASS`**, and its **459 `[fruit]` lines are
+459/459 byte-identical** to `logs/p136/accept_final.log`; `selfcheck.sh` PASS
+(0 failures, 1 skipped); `106` OK.
+
+## 10. Reproduce the training cells
+
+```bash
+# the store
+FRUIT_GOAL_SOURCE=perception FRUIT_POLICY_HANDOVER=0 FRUIT_DAGGER_NO_TAKEOVER=1 \
+FRUIT_CAMERA_RES=240,424 FRUIT_HANDOVER_DIAG=1 \
+  scripts/run.sh scripts/110_rl_rollout.py --ckpt checkpoints/moe_v13s/policy_best.pt \
+  --presentation direct --episodes 10 --seeds 77,101,202 \
+  --dagger --expert-tolerance 99 --expert-window 0 --record --out datasets/p145_dagger
+python3 logs/p145/merge_shards.py datasets/p145_dagger datasets/p145_dagger_all
+
+# the arms (A is base 1.0/no close weight; B adds --close-weight; F is DAgger-only 200 epochs)
+FRUIT_TRAIN_GOAL=moving FRUIT_DAGGER_FOCUS=20 \
+  /home/ubuntu/linalw/App/minconda3/envs/lingbot/bin/python scripts/111_rl_finetune.py \
+  --ckpt checkpoints/moe_v13s/policy_best.pt --rollouts datasets/p145_dagger_all \
+  --base "" --close-weight 10 --close-lead 12 --close-tail 15 \
+  --out checkpoints/p145_dagger_f --epochs 200 --lr 5e-5 --weight-mode ones \
+  --batch-size 32 --seed 0
+
+# the offline precision endpoint
+FRUIT_DAGGER_FOCUS=20 P145_WINDOWS=60 \
+  /home/ubuntu/linalw/App/minconda3/envs/lingbot/bin/python logs/p145/close_fidelity.py \
+  checkpoints/p145_dagger_f/policy_best.pt datasets/p145_dagger_all
+```

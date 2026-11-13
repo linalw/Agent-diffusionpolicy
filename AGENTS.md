@@ -7066,6 +7066,91 @@ with a README naming each clip's checkpoint/md5/interface/outcome). Pins: `tasks
 `18b101bf`** untouched; ckpt `moe_v13s` `61da390a`, `moe_v12` `3a9ccfc0`; evidence
 `logs/p143/`.
 
+**P144 (2026-11-13, `logs/p144/`; default off, nothing adopted, no reference
+re-recorded): the head camera was searched over the **whole cycle** and the new
+pose is a measured option, but it is a **null on the task**.** The search
+(`logs/p143/camera_search.py`, 155 samples, the scripted line) projects the target
+fruit into ten candidate cameras every 8th tick and reads the depth at its pixel
+(`visible` = the fruit is the nearest surface). The shipped top-down camera sees
+the fruit **14.6 %** of the cycle and **0 %** of the place - the arm is between the
+lens and the fruit (a standalone probe: the fruit at 777 mm, the depth at its pixel
+31 mm). A downstream camera at **(1.60, 0, 2.00) -> (0.34, 0, 1.15)** sees
+**81.4 %** (approach 83.0, place 79.5) and is the only candidate good in both
+halves; `down_high` 78.8, `down_x_140` 68.1. `assets.head_camera_override` +
+`FRUIT_HEAD_CAMERA` make it selectable (unset is byte-identical: acceptance 7/10,
+`fingerprint: matches`, **459/459**; an unknown name raises) and the store
+manifest gains `scene.head_camera = {name, eye, target}` (a manifest without the
+key predates P144). **The retrain was confounded and the control says so**: 45
+single-arm episodes on the new camera, fine-tuned with `--base ""` ->
+**0/12**, and the same recipe on the **old** camera is also **0/12 with zero
+grasps**, so the 0/12 is the recipe (fine-tuning `moe_v13s` on 45 episodes without
+the anchor overwrites it), not the view. **The zero-shot cell closes the
+question**: the shipped checkpoint through the camera it never saw reads **4/12 =
+33.3 %** against its **9/24 = 37.5 %** through the trained view, closing at the
+same 149-150 mm - the policy's `goal` is the truth, so the image is an appearance
+channel and its occlusion is not the limiter. **The camera is worth adopting for
+watching and for the validation clips, not for the rate**; for the view to matter
+the policy must be conditioned on the image alone (P145's measured goal).
+**The transferable recipe rule**: a `moe_v13s` fine-tune needs `demos_v11` as the
+anchor - `--base ""` on 45 episodes destroys the grasp on either camera. Pins:
+`assets.py`, `scene.py`; references **`61fb5202` / `61fb5202` / `18b101bf`**
+untouched. Evidence `logs/p144/`.
+
+**P145 (2026-11-13, `logs/p145/`; the honest interface ships **default off**,
+nothing adopted, no reference re-recorded): no handover, no trigger, no truth
+goal and no encoder - the camera is now the only source of the goal, and the
+policy's own 7 joints + finger must do the cycle.** Two switches, both
+default-inert: **`FRUIT_POLICY_HANDOVER=0`** (the primitive never runs;
+`grasped`/`placed` are read from the payload - lifted = rose 50 mm above its belt
+rest, placed = on an output line at finalize) and
+**`FRUIT_GOAL_SOURCE=perception`** (the goal is measured on the frame `_observe`
+already rendered: depth + `instance_id_segmentation` -> trimmed sphere fit ->
+`tracking.FruitTracker`, rewritten **every observation tick** with the measured
+position, velocity and diameter; unset is the shipped truth goal, byte for byte).
+**The measured goal is accurate**: position `err` p50 **1.9-9.5 mm**, p90 3.1-10.6
+(the shipped head camera, 240x424), velocity **0.124-0.135 m/s** against the
+belt's 0.120 with **no belt prior**, diameter 4-13 % small (the known sphere-fit
+bias). **The no-handover baseline is 0/7 with zero lifts**: `gap_close` 69-149 mm
+on every episode - the model closes **7-15 cm short**, and with the measured goal
+it still closes at 172 mm, so **the sensor is not the bottleneck; the policy was a
+timed replay of the static goal**. **The training interface** is the existing
+DAgger expert as a **teacher only**: `FRUIT_DAGGER_NO_TAKEOVER=1` keeps the arm
+100 % the policy's (the shipped early-close term otherwise hands over for one tick
+at exactly the close; measured `interventions=0`, `expert_ticks=0`), and
+`dagger_valid` marks the post-ramp frames the expert holds an already-grasped
+fruit in (the loader drops them). `FRUIT_TRAIN_GOAL=moving` rebuilds every
+demonstration's snapshot goal from its own per-frame `fruit_position` trace, so
+the anchor and the measured store share one goal semantics (a store recorded with
+`goal_source=perception` is left alone). Store `datasets/p145_dagger`: **30
+episodes, 9,791 frames, 0/30 lifts, 600 focused windows (263 close)**
+(`FRUIT_DAGGER_FOCUS=20`, `logs/p145/merge_shards.py`).
+**What converts and what does not** (six fine-tuning arms, every one from
+`moe_v13s` `61da390a`): the **tracking and the close timing convert** - the closest
+xy gap falls **69-149 mm -> 1-43 mm** and `gap_close` becomes equal to `gap_min`
+on 4 of 5 episodes - but **the grasp does not**: the jaw holds x = 0.28 (the
+station line) while the fruit is at x = 0.20-0.36 and z = 1.29 while the fruit's
+centre is 1.20, so the pads close **2-12 cm** from the fruit. **The mechanism is
+action precision, and the offline instrument names it** (`logs/p145/close_fidelity.py`,
+60 close windows, DDIM-16): the best fit is **0.068 rad** joint error on the close
+windows (200 epochs on the DAgger store alone; the base's close fits to 0.084),
+which is **~3-5 cm at the TCP** while the catch needs ~2 cm; under-trained arms
+read 0.19-0.32 rad and the base-1.0 arms 0.276. A second, execution term: with
+`execute_steps=4` the chunk's early ramp values re-sample before the finger
+advances (`finger_min` 0.034-0.040); `--execute-steps 16` closes the finger
+(0.013-0.019) at the closest approach but leaves the hand 22-116 mm away - **a
+chunked policy trained on per-state feedback labels must be executed as
+feedback**. The interface is honest and complete; the sensor, trigger and goal are
+no longer the limiting terms. **The named next lever is the action precision**: a
+**>= 150-episode DAgger store** with the same recipe, scored **offline** on the
+close-window joint error (target **< 0.03 rad** ~ 1-2 cm), or a **feedback-shaped
+action** (one executed step per decision / a cartesian delta) - a training-schema
+change of its own. The touch ablation instruments are in place
+(`FRUIT_TACTILE_ZERO=1`, `FRUIT_IMAGE_FREEZE=1`) and are the next cell.
+**No-harm**: the acceptance is **7/10, `fingerprint: matches`, `190: PASS`**, its
+**459 `[fruit]` lines 459/459 byte-identical** to `logs/p136/accept_final.log`;
+`selfcheck.sh` PASS (0 failures, 1 skipped), `106` OK. References
+**`61fb5202` / `61fb5202` / `18b101bf`** untouched. Evidence `logs/p145/`.
+
 **P142 (2026-11-11, `logs/p142/`; two defect fixes + a declared metric,
 **nothing adopted, no reference moved**): the direct lane's two *bookkeeping*
 failures are removed and its zero is shown to be the station reselect's timing.
