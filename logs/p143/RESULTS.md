@@ -481,3 +481,43 @@ move.
 **The readable sentence for the owner**: *the shipped policy, driving alone, completes
 approach -> grasp -> place on **9 of 24 episodes (37.5 %)**, and 4 more are grasped and
 lost; the 11 that never grasp are small fruit, the closed class.*
+
+## 17. How often is the fruit actually hidden from the policy's camera?
+
+`logs/p143/occlusion.py` answers it offline from the recorded rollouts: project the
+**measured** fruit (`fruit_position`) into the head camera, read the **depth** at that
+pixel, and compare it with the fruit's own distance along the optical axis. The depth
+at the fruit's centre pixel is the fruit's own **surface**, so the occluder threshold
+is `radius + 20 mm` (a 20 mm threshold flags every fruit, measured: 100 % "occluded"
+with a 22-38 mm shortfall, i.e. exactly the radius).
+
+Over the 24-episode DAgger store (3408 frames, 240x424, the shipped head pose
+`(0.05, 0, 2.00)` -> `(0.34, +0.22, 1.10)`):
+
+| | |
+|---|---|
+| episodes occluded at some point | 24/24 |
+| **per-episode occluded fraction** | **median 30.1 %**, p90 59.1 %, max 90.1 % |
+| depth shortfall where occluded | p50 **31 mm**, p90 284 mm, max 890 mm |
+| per-episode range | 2.6 % (ep4) ... **90.1 % (ep5)** |
+
+So **the target fruit is behind the arm in about a third of the frames**, and in the
+worst episodes in **nine of ten**. The shortfall is hundreds of millimetres where the
+links are in the way, i.e. it is the arm, not depth noise.
+
+**Caveat, stated**: this is a z-test at the fruit's **centre** pixel. A link covering
+half the fruit without touching the centre reads as visible, so **30 % is a lower
+bound** on "some part of the fruit is hidden".
+
+**What it does to the policy**: the model's condition is `goal` (truth position,
+velocity, diameter) **+ image**. The occlusion therefore costs **appearance**, not
+position - which matches the measurement that the model closes at a uniform
+**147-155 mm** regardless of visibility (section 15). And P36 already established
+that the image channel carries a real signal (the park's 45 -> 94 % conversion).
+
+**Would a side view be better?** The same test needs that camera's depth, which the
+store does not carry - it is one render probe away: place a free side camera, run one
+scripted cycle, and run this identical z-test on its depth. The **visual** evidence
+already points the same way: at frame 600 of `logs/video_final/`, the top-down view
+has the wrist **over** the grasped fruit while `gripper.mp4` (the +x/+y oblique) shows
+it beside the pads.
