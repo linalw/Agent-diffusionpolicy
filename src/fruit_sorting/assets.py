@@ -515,6 +515,10 @@ class SceneConfig:
     # Head camera (single RGB-D camera mounted on a short mast above the torso,
     # standing in for a humanoid head). It looks across and slightly upstream of
     # the belt, so incoming fruit and the station are both in frame.
+    #: P144: an optional **explicit** head-camera eye. ``None`` keeps the shipped
+    #: `(head_camera_forward, 0, head_camera_z)`; `FRUIT_HEAD_CAMERA` can pick a
+    #: measured alternative (see `head_camera_override`).
+    head_camera_eye: tuple[float, float, float] | None = None
     head_camera_z: float = 2.00
     head_camera_forward: float = 0.05
     head_camera_target: tuple[float, float, float] = (0.34, 0.22, 1.10)
@@ -877,6 +881,47 @@ class SceneConfig:
 # --------------------------------------------------------------------------- #
 # Store provenance: the scene's collider set (P72)
 # --------------------------------------------------------------------------- #
+#: P144: measured head-camera alternatives. `coverage` is the fraction of a whole
+#: scripted cycle (approach + grasp + place) in which the target fruit is the nearest
+#: surface at its own pixel, from `logs/p143/camera_search.py` over 155 samples:
+#:
+#:   head_now    14.6 %   (approach 27.8, place  0.0)   <- the shipped pose
+#:   down_x_160  81.4 %   (approach 83.0, place 79.5)
+#:   down_high   78.8 %   (approach 85.2, place 71.1)
+#:   down_x_140  68.1 %   (approach 56.8, place 75.4)
+HEAD_CAMERA_POSES: dict[str, tuple[tuple[float, float, float], tuple[float, float, float]]] = {
+    "head_now": ((0.05, 0.00, 2.00), (0.34, 0.22, 1.10)),
+    "down_x_160": ((1.60, 0.00, 2.00), (0.34, 0.00, 1.15)),
+    "down_high": ((1.20, 0.00, 2.30), (0.40, 0.00, 1.15)),
+    "down_x_140": ((1.40, 0.00, 1.75), (0.34, 0.00, 1.20)),
+}
+
+
+def head_camera_override(cfg) -> tuple[tuple[float, ...], tuple[float, ...]]:
+    """The head camera's ``(eye, target)``, honouring `FRUIT_HEAD_CAMERA`.
+
+    Unset resolves to the configuration's own pose, byte-identical to the shipped
+    camera; an unknown name raises (a silent fallback would make a recollection
+    indistinguishable from a shipped one).
+    """
+    explicit = getattr(cfg, "head_camera_eye", None)
+    default_eye = (
+        tuple(float(v) for v in explicit)
+        if explicit is not None
+        else (float(cfg.head_camera_forward), 0.0, float(cfg.head_camera_z))
+    )
+    target = tuple(float(v) for v in cfg.head_camera_target)
+    name = os.environ.get("FRUIT_HEAD_CAMERA", "").strip()
+    if not name:
+        return default_eye, target
+    if name not in HEAD_CAMERA_POSES:
+        raise ValueError(
+            f"FRUIT_HEAD_CAMERA={name!r} is not one of {sorted(HEAD_CAMERA_POSES)}"
+        )
+    eye, aim = HEAD_CAMERA_POSES[name]
+    return tuple(float(v) for v in eye), tuple(float(v) for v in aim)
+
+
 def scene_provenance(
     cfg,
     lift_dz: dict | None = None,
@@ -947,6 +992,15 @@ def scene_provenance(
         #: the collider set it was recorded in - a third lane moves the solver
         #: ordering exactly as the rails did (P71). Two entries = the shipped
         #: scene; a manifest without the key predates P123.
+        #: P144: **which camera the store was recorded through**. A policy trained
+        #: on one view is out of distribution on another, so a store (or a
+        #: checkpoint) that does not name its camera cannot be mixed. Unset is the
+        #: shipped pose and the block then reads `name: "shipped"`.
+        "head_camera": {
+            "name": os.environ.get("FRUIT_HEAD_CAMERA", "").strip() or "shipped",
+            "eye": list(head_camera_override(cfg)[0]),
+            "target": list(head_camera_override(cfg)[1]),
+        },
         "output_lanes": [
             {
                 "index": int(lane["index"]),

@@ -32,6 +32,7 @@ from isaacsim.sensors.experimental.rtx import CameraSensor, RtxCamera
 
 from .assets import (
     OPENARM_BIMANUAL_USD,
+    head_camera_override,
     OPENARM_TCP_LINKS,
     FingerColliderError,
     FingerColliderVerdict,
@@ -2400,8 +2401,9 @@ class SortingScene:
                 f"{cfg.camera_resolution[0]},{cfg.camera_resolution[1]}",
             ).split(",")
         )
-        eye = (cfg.head_camera_forward, 0.0, cfg.head_camera_z)
-        target = cfg.head_camera_target
+        # P144: `FRUIT_HEAD_CAMERA` may pick a measured alternative pose; unset is
+        # the configuration's own camera, byte-identical.
+        eye, target = head_camera_override(cfg)
 
         # Head mast + housing: a physical-looking mount for the camera. They sit
         # *behind* the lens (a mast in front of it is a black column over half the
