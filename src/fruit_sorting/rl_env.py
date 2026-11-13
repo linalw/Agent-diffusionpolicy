@@ -2030,7 +2030,7 @@ class SortingRLEnv:
         #: `min()` and no read - and it answers "did the model even try to grasp"
         #: without a per-tick trace.
         self._goal_source = os.environ.get("FRUIT_GOAL_SOURCE", "truth").strip().lower()
-        if self._goal_source not in ("truth", "perception"):
+        if self._goal_source not in ("truth", "perception", "truth_moving"):
             raise ValueError(
                 f"FRUIT_GOAL_SOURCE={self._goal_source!r} is not 'truth' or 'perception'"
             )
@@ -2068,6 +2068,10 @@ class SortingRLEnv:
         self._percept_missing = 0
         self._percept_last_rms = float("nan")
         self._percept_diag = os.environ.get("FRUIT_PERCEPTION_DIAG", "0") == "1"
+        #: P145c: how long the goal may coast on the filter's velocity while the
+        #: fruit is occluded (the hand hides it for ~0.5 s at the close). Beyond
+        #: this the prediction is held at the cap, not extrapolated further.
+        self._percept_coast_s = float(os.environ.get("FRUIT_PERCEPTION_COAST_S", "1.0"))
         #: Bench-only error samples (truth is read for the column, never used).
         self._percept_errs: list[float] = []
         self._percept_errs_close: list[float] = []
@@ -2081,6 +2085,25 @@ class SortingRLEnv:
         self._policy_trace = os.environ.get("FRUIT_POLICY_TRACE", "0") == "1"
         self._image_freeze = os.environ.get("FRUIT_IMAGE_FREEZE", "0") == "1"
         self._frozen_frames = None
+        #: P145c diag (default off): the router's phase at each decision. The
+        #: policy is a mixture of five expert residuals; if the mixture's argmax
+        #: changes phase before the fruit is at the station, the early close is
+        #: the router, not the action head.
+        self._route_diag = os.environ.get("FRUIT_ROUTE_DIAG", "0") == "1"
+        self._last_proprio = None
+        #: P145c: **phase scheduling** for the honest interface.
+        #:   ``perception`` - the learned classifier on (perceived fruit, finger),
+        #:   ``dy``         - the classifier, but the *approach -> grasp* boundary
+        #:                    is the scripted line's tracking window on the
+        #:                    **measured** along-distance (`FRUIT_PHASE_DY`, 0.05 m).
+        #: The phase is a function of the cell's own sensing (depth goal + the
+        #: jaw's proprioception + the finger); the action inside it is learned.
+        self._phase_mode = os.environ.get("FRUIT_POLICY_PHASE", "").strip().lower()
+        if self._phase_mode not in ("", "perception", "dy"):
+            raise ValueError(
+                f"FRUIT_POLICY_PHASE={self._phase_mode!r} is not '', 'perception' or 'dy'"
+            )
+        self._phase_dy = float(os.environ.get("FRUIT_PHASE_DY", "0.05"))
         self._handover_diag = os.environ.get("FRUIT_HANDOVER_DIAG", "0") == "1"
         self._diag_min_gap = float("inf")
         self._diag_min_finger = float("inf")
@@ -4182,15 +4205,43 @@ class SortingRLEnv:
             # below is the observation *assembly* and lands in "other".
             self._loop_t["camera_ms"] += (time.perf_counter() - self._t_camera) * 1e3
             self._loop_counts["observations"] += 1
+        if self.policy is not None:
+            try:
+                self._last_proprio = self.proprio()
+            except Exception:  # noqa: BLE001 - reporting only
+                self._last_proprio = None
         self._last_rgb, self._last_depth, self._last_mask = rgb, depth, mask
+        if (self._goal_source == "truth_moving" and self._sample is not None
+                and self._goal.size >= 7):
+            # P145c **bench only**: the demonstrations' moving goal rebuilt from
+            # the simulator's own fruit state. It is the training distribution's
+            # goal (FRUIT_TRAIN_GOAL=moving) with zero measurement error, so a
+            # cell with it separates "the perception is the residual" from "the
+            # policy is". Never a shipped mode.
+            try:
+                pos = np.asarray(self.spawner.position(self._sample), dtype=float)
+                vel = np.asarray(self.spawner.velocity(self._sample), dtype=float)
+                self._goal[0:3] = pos.astype(np.float32)
+                self._goal[3:6] = vel.astype(np.float32)
+                self._goal[6] = float(self._sample.diameter)
+            except Exception:  # noqa: BLE001 - bench column only
+                pass
         if (getattr(self, "_goal_perception", False)
-                and self._percept_pos is not None and self._goal.size >= 7):
-            # P145: the goal moves with the fruit, every observation tick. This is
-            # what makes the camera load-bearing: with `truth` the goal is the
-            # selection snapshot (a timer), with `perception` it is the measured
-            # centre and the filter's velocity.
-            self._goal[0:3] = np.asarray(self._percept_pos, dtype=np.float32)[:3]
-            self._goal[3:6] = np.asarray(self._percept_vel, dtype=np.float32)[:3]
+                and self._percept_tracker is not None and self._goal.size >= 7):
+            # P145c: the goal moves with the fruit **every** observation tick, and
+            # through an occlusion with the filter's prediction. Publishing the
+            # last *measurement* instead froze the goal at +0.065 m for 0.53 s
+            # while the hand hid the fruit (measured, `[route]`), and the policy
+            # closed on the frozen value. `predict_at` is non-mutating; the cap is
+            # the longest coast a 30 Hz filter is trusted for.
+            horizon = float(self._sim_time()) - float(self._percept_tracker.t)
+            horizon = min(max(horizon, 0.0), float(self._percept_coast_s))
+            self._percept_pos = np.asarray(
+                self._percept_tracker.predict_at(horizon), dtype=float
+            )
+            self._percept_vel = np.asarray(self._percept_tracker.velocity, dtype=float)
+            self._goal[0:3] = self._percept_pos.astype(np.float32)
+            self._goal[3:6] = self._percept_vel.astype(np.float32)
             if self._percept_dia is not None:
                 self._goal[6] = float(self._percept_dia)
         if self.policy is not None and rgb is not None and depth is not None:
@@ -4459,6 +4510,37 @@ class SortingRLEnv:
             f"jaw_y={float(getattr(self, '_expert_jaw_y', float('nan'))):+.3f}"
         )
 
+    def _phase_for_decision(self) -> int | None:
+        """P145c: the action phase, from the perceived fruit + the jaw + the finger.
+
+        ``None`` lets the policy's own router decide (the shipped path, and the
+        ``perception`` mode's inside-phase choice). ``dy`` replaces the
+        **approach -> grasp** boundary with the scripted line's tracking window on
+        the measured along-distance: the demos close when the fruit is within
+        ``FRUIT_TRACK_START`` (0.05 m) of the jaw line, and the policy's learned
+        router was firing ``grasp`` ~0.4 s earlier because it reads the arm's
+        pose. The phase is not an external trigger: both inputs are the cell's
+        own depth goal and the robot's measured jaw.
+        """
+        if self._phase_mode not in ("perception", "dy"):
+            return None
+        if self._sample is None:
+            return None
+        finger = float(getattr(self, "_last_finger", 0.044))
+        gate = getattr(self.policy, "phase_gate", None)
+        base = gate.predict(self._goal, np.asarray(self._last_proprio, dtype=np.float32)) \
+            if (gate is not None and self._last_proprio is not None) else 0
+        if self._phase_mode == "perception":
+            return int(base)
+        if finger > 0.030:
+            try:
+                jaw = self.task.arms[self._active].jaw_centre()
+                dy = float(self._goal[1]) - float(np.asarray(jaw, dtype=float)[1])
+            except Exception:  # noqa: BLE001 - a missing jaw must not stop the loop
+                return int(base)
+            return 0 if dy > self._phase_dy else 1
+        return int(base)
+
     def _goal_snapshot(self) -> np.ndarray:
         """The goal as the recorder/observation sees it (belt dims refreshed)."""
         self._refresh_goal_aux()
@@ -4711,14 +4793,28 @@ class SortingRLEnv:
             self._park_note_call()
         _loop_start = time.perf_counter() if self._loop_timing else 0.0
         self._refresh_goal_aux()
+        phase = self._phase_for_decision()
         chunk = self.policy.act(
             self.proprio(), self._goal, num_steps=self.ddim_steps if num_steps is None
-            else int(num_steps)
+            else int(num_steps), phase=phase
         )
         if self._loop_timing:
             # P43 L2: the model-inference stage of the decision period.
             self._loop_t["policy_ms"] += (time.perf_counter() - _loop_start) * 1e3
             self._loop_counts["decisions"] += 1
+        if self._route_diag and self.policy is not None:
+            try:
+                w = getattr(self.policy.model, "last_router_weights", None)
+                if w is not None:
+                    w = np.asarray(w.detach().float().cpu()).reshape(-1)
+                    k = int(w.argmax())
+                    self._say(
+                        f"[route] t={self._step} skill={k}"
+                        f"({('approach', 'grasp', 'lift', 'place', 'recovery')[k]})"
+                        f" max={w[k]:.2f} goal_y={float(self._goal[1]):+.3f}"
+                    )
+            except Exception:  # noqa: BLE001 - reporting only
+                pass
         # P30-B: one model inference = one action chunk (a `ddim_steps`-step
         # denoising chain). Counted here, the only synchronous sampling site.
         self._infer_calls += 1

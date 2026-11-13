@@ -333,3 +333,73 @@ not another collection of the same shape:
 
 No shipped default moved. `selfcheck.sh` PASS (0 failures, 1 skipped) after the
 P64 config re-pin; the references are `61fb5202` / `61fb5202` / `18b101bf`.
+
+## 12. P145c - the phase gate, the perfect goal, and the close-only model: the residual is the policy's fit
+
+Three separating measurements, all on `p145_demo_h4` + `FRUIT_DIRECT_START=wait` +
+`FRUIT_POLICY_ACTION_HOLD=4`, and one literature review (DynamicVLA, arXiv:2601.22153).
+
+### 12.1 The router is not the site: the mean is in the shared backbone
+
+`FRUIT_POLICY_PHASE=dy` forces the phase from the perceived fruit's along-distance
+and the jaw (the demos close at `|dy| <= 0.05`), instead of the learned router. The
+`[route]` row shows `approach` all the way to `goal_y = -0.065`, and the finger
+**still closes to 0.000**. The MoE experts are *residual adapters* on a shared
+denoiser (`policy/model.py`), so hard-routing the phase changes the residual, not
+the base action: the "hold vs dive" mean lives in the backbone. **The phase-gate
+lane is closed by this measurement.**
+
+### 12.2 A perfect goal does not fix it: the perception is not the residual
+
+`FRUIT_GOAL_SOURCE=truth_moving` (bench only: the goal rebuilt every tick from the
+simulator's own fruit state - the exact training distribution, zero measurement
+error) reads **0/2, gap 16-47 mm, finger 0.0-0.024**, i.e. the same failure as the
+perception goal (0/12, 32-94 mm). **The 1.9-9.5 mm sensor is not the limiting term
+by a factor of two.**
+
+### 12.3 A close-only model does not fit the close better: not the phase mixture
+
+The close-start windows (`[close-5, close+10]`, 16 per episode, 800 total) are the
+task. A model trained on **only** those windows for 100 epochs fits its own
+training set to **0.0362 rad** first step, against the phase-mixed model's
+**0.0406** on the same instrument. Removing the wait phase from the loss does not
+move the fit. The close-start joint error is therefore **~2 cm at the TCP** in
+every model measured, and the catch needs ~2 cm - the closed loop then compounds
+it (16-47 mm).
+
+### 12.4 The ambiguity filter is not evaluable here
+
+The "Curse of Precision" lever (unambiguous demonstrations lower the limit
+precision) needs re-open/re-seat ambiguity in the close. Measured on `demos_v11`:
+**0 of 50 episodes** re-open the finger after the close (the store is
+successes-only; failed probes were discarded). The lever has nothing to filter.
+
+### 12.5 DynamicVLA (arXiv:2601.22153) - the mechanism is two orders too small here
+
+The paper's LAAS discards the stale prefix of an action chunk; its own ablation is
+30.27 -> 36.11 (LAAS) -> 39.72 (continuous inference) -> 47.06 (both) on a
+25 Hz / 0.226 s-latency cell, where the object moves 34-170 mm during inference.
+This cell's inference is 26 ms and the fruit moves **3.2 mm**; the misalignment to
+fix is **0.4 s (48 mm) of *phase*, 15x the inference latency**. The same family is
+already in the tree and measured negative: RTC -20 pt, VLASH -31 pt, A2C2 -20 pt.
+**Not implemented; the transferable principle (re-index to execution time) is
+already what `FruitTracker` does for the object.**
+
+### 12.6 What is left
+
+The fit floor (~0.036 rad) is invariant to phase, goal and (measured) data count.
+The remaining hypotheses, in order:
+
+1. **Optimization/capacity**: a 500-epoch run on the same 800 close windows
+   (`checkpoints/p145_close500`) decides whether 0.036 is underfitting or the
+   mapping's own noise.
+2. **Action representation**: the 0.036 rad is a *joint* metric on a redundant
+   7-DoF arm; a cartesian-delta head with the exact IK is the task-space test
+   (the pre-check is an FK->IK->FK round trip < 1 mm on 20 demo poses).
+3. **A final-approach servo** (learned or the scripted IK) is the only remaining
+   mechanism if both above fail; it is the "combine joint + Cartesian" result
+   (Implicit Kinematic Policies, arXiv:2203.01983) applied to the last 2 cm.
+
+No shipped default moved; all P145c knobs are default-off (`FRUIT_POLICY_PHASE`,
+`FRUIT_PERCEPTION_COAST_S`, `FRUIT_GOAL_SOURCE=truth_moving` is bench-only,
+`FRUIT_CLOSE_ONLY`). References `61fb5202` / `61fb5202` / `18b101bf`.

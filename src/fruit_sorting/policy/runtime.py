@@ -541,6 +541,7 @@ def ddim_sample_scored(
     num_steps: int = 16,
     dtype: torch.dtype = torch.float32,
     generator: torch.Generator | None = None,
+    skill_labels: torch.Tensor | None = None,
 ) -> tuple[torch.Tensor, list[float]]:
     """One DDIM chain (eta=0) that also returns the per-step Stein OoD scores.
 
@@ -566,7 +567,9 @@ def ddim_sample_scored(
     step_scores: list[torch.Tensor] = []
     for i, t in enumerate(times):
         t_batch = t.expand(shape[0])
-        predicted_noise = model.denoise(sample, condition, t_batch)
+        predicted_noise = model.denoise(
+            sample, condition, t_batch, skill_labels=skill_labels
+        )
         # GDP eq. (4), Stein family (T=1, f=identity). Accumulate on-device and
         # sync once below: a per-step .item() would add 16 GPU syncs per
         # candidate to the control loop.
@@ -688,6 +691,21 @@ class PolicyRunner:
         self.action_horizon = int(config["action_horizon"])
         self.image_size = int(config["image_size"])
         self._frames: list[np.ndarray] = []
+        #: P145c: `FRUIT_POLICY_PHASE=goal` replaces the MoE router's phase with
+        #: a classifier on the perceived fruit + finger (no arm pose, no image).
+        #: Unset leaves the shipped soft routing byte for byte.
+        self.phase_gate = None
+        if os.environ.get("FRUIT_POLICY_PHASE", "").strip().lower() == "goal":
+            from .phase import PhaseGate
+
+            root = os.path.dirname(os.path.dirname(os.path.dirname(
+                os.path.dirname(os.path.abspath(__file__))
+            )))
+            path = os.environ.get(
+                "FRUIT_POLICY_PHASE_PATH",
+                os.path.join(root, "checkpoints", "p145_phase", "phase.pt"),
+            )
+            self.phase_gate = PhaseGate.load(path)
 
     def set_precision(self, use_half: bool) -> None:
         """Switch between fp32 and fp16 inference."""
@@ -697,6 +715,8 @@ class PolicyRunner:
     # ------------------------------------------------------------------ #
     def reset(self) -> None:
         self._frames = []
+        if getattr(self, "phase_gate", None) is not None:
+            self.phase_gate.reset()
 
     def _downsample(self, image: np.ndarray) -> np.ndarray:
         return downsample_frame(image, self.image_size)
@@ -747,14 +767,29 @@ class PolicyRunner:
         return (image_t, goal_t, proprio_t)
 
     @torch.no_grad()
-    def act(self, proprio: np.ndarray, goal: np.ndarray, num_steps: int | None = None) -> np.ndarray:
-        """Sample an action chunk. Returns (action_horizon, action_dim) in raw units."""
+    def act(self, proprio: np.ndarray, goal: np.ndarray, num_steps: int | None = None,
+            phase: int | None = None) -> np.ndarray:
+        """Sample an action chunk. Returns (action_horizon, action_dim) in raw units.
+
+        ``phase`` (P145c) is an optional hard skill index from the caller - the
+        environment's phase scheduler on its own sensing. ``None`` keeps the
+        shipment: the learned router, or the loaded `PhaseGate` when
+        `FRUIT_POLICY_PHASE=perception`.
+        """
         num_steps = self.default_steps if num_steps is None else num_steps
         dtype = torch.float16 if self.use_half else torch.float32
         condition = self._condition(proprio, goal)
+        skill_labels = None
+        index = None
+        if phase is not None:
+            index = int(phase)
+        elif getattr(self, "phase_gate", None) is not None:
+            index = self.phase_gate.predict(goal, proprio)
+        if index is not None:
+            skill_labels = torch.tensor([index], device=self.device, dtype=torch.long)
 
         if self.gdp.enabled and self.gdp.k > 1:
-            sample = self._gdp_sample(condition, num_steps, dtype)
+            sample = self._gdp_sample(condition, num_steps, dtype, skill_labels)
         else:
             # The shipped path: one DDIM chain from one noise draw. Untouched -
             # with the GDP knob off (or K=1) this branch is byte-for-byte the
@@ -766,11 +801,13 @@ class PolicyRunner:
                 num_steps=num_steps,
                 dtype=dtype,
                 generator=self.generator,
+                skill_labels=skill_labels,
             )
         action = sample[0].float().transpose(0, 1).cpu().numpy()  # (horizon, action_dim)
         return self.normalizer.denormalize_action(action)
 
-    def _gdp_sample(self, condition, num_steps: int, dtype) -> torch.Tensor:
+    def _gdp_sample(self, condition, num_steps: int, dtype,
+                    skill_labels: torch.Tensor | None = None) -> torch.Tensor:
         """K candidates from different noise draws; the min OoD score wins.
 
         The candidates draw sequentially from the runner's noise source (the
@@ -789,6 +826,7 @@ class PolicyRunner:
             sample, step_scores = ddim_sample_scored(
                 self.schedule, self.model, condition, shape,
                 num_steps=num_steps, dtype=dtype, generator=self.generator,
+                skill_labels=skill_labels,
             )
             if self.gdp.diag:
                 costs.append((time.perf_counter() - start) * 1e3)

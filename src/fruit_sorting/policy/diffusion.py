@@ -69,7 +69,8 @@ class DiffusionSchedule:
     def ddim_sample(self, model, condition, shape: tuple[int, ...],
                     num_steps: int = 16, eta: float = 0.0,
                     dtype: torch.dtype = torch.float32,
-                    generator: torch.Generator | None = None) -> torch.Tensor:
+                    generator: torch.Generator | None = None,
+                    skill_labels: torch.Tensor | None = None) -> torch.Tensor:
         """Deterministic DDIM sampling; 8 steps is plenty for smooth actions.
 
         `generator` seeds the initial noise. Without it every inference draws fresh
@@ -86,7 +87,9 @@ class DiffusionSchedule:
         )
         for i, t in enumerate(times):
             t_batch = t.expand(shape[0])
-            predicted_noise = model.denoise(sample, condition, t_batch)
+            predicted_noise = model.denoise(
+                sample, condition, t_batch, skill_labels=skill_labels
+            )
             alpha = self.alphas_cumprod[t]
             alpha_prev = (
                 self.alphas_cumprod[times[i + 1]] if i + 1 < num_steps else torch.tensor(1.0, device=device)

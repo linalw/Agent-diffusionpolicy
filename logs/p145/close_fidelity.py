@@ -42,23 +42,33 @@ def main() -> int:
     )
     policy = PolicyRunner(ckpt, device="cuda" if torch.cuda.is_available() else "cpu")
     rng = np.random.RandomState(7)
-    # Close windows first: the label's first action is already ramping.
-    closes, opens = [], []
-    for i in range(len(store)):
-        obs = store[int(i)]
-        # A window is a "close window" when the label's 16-step chunk contains the
-        # ramp, not when its first step is already below the open value (the ramp's
-        # first frame is exactly 0.044).
-        finger = float(np.min(obs["action"][:, 7]))
-        (closes if finger < 0.035 else opens).append(i)
+    # P145c: the **close-start** windows only. Selecting by "the chunk contains a
+    # closed finger" also selects every carry/place frame (the finger stays at
+    # ~0.025 from the close to the end), which is what made the earlier 0.065 rad
+    # number a mixture. The close start is the first frame the label's finger
+    # drops below the open value; the window range is that frame -5..+10.
+    closes = []
+    for ep, start in store.windows:
+        episode = store.episodes[ep]
+        finger = np.asarray(episode["action"], dtype=np.float32)[:, 7]
+        index = np.flatnonzero(finger < 0.0439)
+        if not index.size:
+            continue
+        c = int(index[0])
+        if c - 5 <= start <= c + 10:
+            closes.append((ep, start))
     if not closes:
-        print("[close] no closing windows in this store")
+        print("[close] no close-start windows in this store")
         return 1
-    pick = closes if len(closes) <= limit else list(rng.choice(closes, limit, replace=False))
-    print(f"[close] windows={len(store)} closing={len(closes)} sampled={len(pick)}")
+    pick = closes if len(closes) <= limit else list(
+        rng.choice(len(closes), limit, replace=False)
+    )
+    print(f"[close] windows={len(store)} close_start={len(closes)} sampled={len(pick)}")
 
     rows = []
-    for i in pick:
+    for j in pick:
+        ep, start = closes[int(j)]
+        i = next(k for k, w in enumerate(store.windows) if w == (ep, start))
         obs = store[int(i)]
         policy.reset()
         policy.generator = torch.Generator(device=policy.device).manual_seed(int(i) + 11)

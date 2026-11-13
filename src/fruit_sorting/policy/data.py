@@ -393,6 +393,14 @@ class EpisodeStore:
         #: this set, windows starting more than N frames before the ramp's first
         #: frame are dropped (0 = keep every valid window).
         self.dagger_focus = max(0, int(os.environ.get("FRUIT_DAGGER_FOCUS", "0")))
+        #: P145c: keep **only the close window** of each episode - the frames
+        #: around the first closed-finger command. A close-only model has one mode
+        #: (descend + close), so it is the test of whether the phase mixture is
+        #: what holds the fit at 0.04 rad. `FRUIT_CLOSE_ONLY=1`, off by default.
+        self.close_only = os.environ.get("FRUIT_CLOSE_ONLY", "0") == "1"
+        self.close_lead = max(0, int(os.environ.get("FRUIT_CLOSE_LEAD", "5")))
+        self.close_tail = max(0, int(os.environ.get("FRUIT_CLOSE_TAIL", "10")))
+        self.close_kept = 0
         #: P145: keep only the **carry/place** half of a plain demonstration
         #: episode (post close). The pick is taught by the DAgger store, the
         #: carry by the demonstrations; mixing the demonstrations' pick windows
@@ -464,12 +472,22 @@ class EpisodeStore:
             last = length - self.action_horizon
             valid = episode.get("valid")
             focus_lo = 0
+            focus_hi = None
             if valid is not None and self.dagger_focus:
                 finger = np.asarray(episode["action"], dtype=np.float32)[:, 7]
                 closed = np.nonzero(finger < 0.0439)[0]
                 focus_lo = max(
                     0, (int(closed[0]) if closed.size else length) - self.dagger_focus
                 )
+            elif self.close_only:
+                finger = np.asarray(episode["action"], dtype=np.float32)[:, 7]
+                closed = np.nonzero(finger < 0.0439)[0]
+                if closed.size:
+                    focus_lo = max(0, int(closed[0]) - self.close_lead)
+                    focus_hi = int(closed[0]) + self.close_tail
+                    self.close_kept += 1
+                else:
+                    focus_lo, focus_hi = 0, -1
             elif valid is None and self.base_carry_only:
                 finger = np.asarray(episode["action"], dtype=np.float32)[:, 7]
                 closed = np.nonzero(finger < 0.0439)[0]
@@ -482,6 +500,8 @@ class EpisodeStore:
                     if not valid[lo : start + self.action_horizon].all():
                         continue
                 if start < focus_lo:
+                    continue
+                if focus_hi is not None and start > focus_hi:
                     continue
                 self.windows.append((ep_index, start))
         if self.base_kept:
