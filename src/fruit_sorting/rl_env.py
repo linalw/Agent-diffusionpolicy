@@ -105,6 +105,8 @@ from .policy.data import (
     speed_channel_enabled,
 )
 from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
+from .perception import CameraModel, _calibration_bias, _fit_sphere, workcell_roi
+from .tracking import FruitTracker, track_config_from_env
 
 #: md5 of `src/fruit_sorting/tasks.py` this environment was validated against.
 #: History: `0bc3253a` was the P2/P3 frozen revision; `e553b34e` is that
@@ -1697,6 +1699,9 @@ class RolloutRecorder:
             "frames": int(len(frames)),
             "presentation": str(meta.get("presentation", "")),
             "ablate": str(meta.get("ablate", "")),
+            # P145: `truth` or `perception` - a store must not be mixed with one
+            # whose goal is a different function of time.
+            "goal_source": str(meta.get("goal_source", "")),
             "seed": int(meta.get("seed", -1)),
         }
         if extra:
@@ -2024,10 +2029,42 @@ class SortingRLEnv:
         #: numbers `should_fire` already has on every tick it runs, so this adds a
         #: `min()` and no read - and it answers "did the model even try to grasp"
         #: without a per-tick trace.
+        self._goal_source = os.environ.get("FRUIT_GOAL_SOURCE", "truth").strip().lower()
+        if self._goal_source not in ("truth", "perception"):
+            raise ValueError(
+                f"FRUIT_GOAL_SOURCE={self._goal_source!r} is not 'truth' or 'perception'"
+            )
+        #: P145: no handover -> the primitive never runs, so `grasped`/`placed` come
+        #: from the **fruit's own motion** instead of the primitive's result.
+        self._no_handover = os.environ.get("FRUIT_POLICY_HANDOVER", "1").strip() == "0"
+        self._max_lift = 0.0
+        # P145: **the goal can be measured**. With `FRUIT_GOAL_SOURCE=perception`
+        # the goal's position, velocity and diameter come from the depth camera's
+        # instance mask plus the tracker - no `spawner.position`, no encoder. The
+        # fit is the same `perception._fit_sphere` the scripted depth path uses
+        # (P135), on the frame `_observe` has already rendered.
+        self._goal_perception = self._goal_source == "perception"
+        self._percept_camera = None
+        self._percept_tracker = None
+        self._percept_cfg = None
+        self._percept_bias = None
+        self._percept_roi = None
+        self._percept_pos = None
+        self._percept_vel = None
+        self._percept_dia = None
+        self._percept_frames = 0
+        self._percept_rejected = 0
+        self._percept_missing = 0
+        self._percept_last_rms = float("nan")
+        self._percept_diag = os.environ.get("FRUIT_PERCEPTION_DIAG", "0") == "1"
+        #: Bench-only error samples (truth is read for the column, never used).
+        self._percept_errs: list[float] = []
+        self._percept_errs_close: list[float] = []
         self._handover_diag = os.environ.get("FRUIT_HANDOVER_DIAG", "0") == "1"
         self._diag_min_gap = float("inf")
         self._diag_min_finger = float("inf")
         self._diag_gap_close = float("inf")
+        self._max_lift = 0.0
         self._belt_t: float | None = None
         self._belt_v = 0.0
         self._belt_a = 0.0
@@ -2909,6 +2946,8 @@ class SortingRLEnv:
             "created": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
             "presentation": self.presentation,
             "ablate": self.ablate,
+            "goal_source": self._goal_source,
+            "goal_measured": bool(self._goal_perception),
             "seed": self.seed,
             "size_filter": self.cfg.size_filter,
             "camera_res": self._camera_res_text(),
@@ -3730,6 +3769,16 @@ class SortingRLEnv:
         self._sample = sample
         self._active = active
         self._bin_index = bin_index
+        # P145: a new fruit is a new track. The perception estimate and its
+        # filter are per attempt (`FruitPerception.reset`'s rule, P135): a
+        # carried radius would fit the next fruit at the old one's size.
+        self._percept_tracker = None
+        self._percept_pos = None
+        self._percept_vel = None
+        self._percept_dia = None
+        self._percept_frames = self._percept_rejected = self._percept_missing = 0
+        self._percept_errs = []
+        self._percept_errs_close = []
         self._goal = self._goal_vector(
             target["position"], target["velocity"], target["diameter"], bin_index
         )
@@ -3895,6 +3944,7 @@ class SortingRLEnv:
         self._diag_min_gap = float("inf")
         self._diag_min_finger = float("inf")
         self._diag_gap_close = float("inf")
+        self._max_lift = 0.0
         self._decision_step: int | None = None
         self.spawner.protected = int(target["index"])
         # P30-B: no model has run for this episode yet (a scripted-ablation
@@ -4043,6 +4093,7 @@ class SortingRLEnv:
                     "presentation": self.presentation,
                     "ablate": self.ablate,
                     "seed": self._active_seed,
+                    "goal_source": self._goal_source,
                 }
             )
         # Frame 0, so `policy.ready` becomes true after the first window fills.
@@ -4078,7 +4129,7 @@ class SortingRLEnv:
             # observation the diag *does* read the segmentation (reporting
             # only - `push_frame` still gets the same `None`).
             if (self._image_channels == 5 or self._recorder is not None
-                    or self._park_diag):
+                    or self._park_diag or getattr(self, "_goal_perception", False)):
                 raw = self.scene.camera_sensor.get_data("instance_id_segmentation")
                 seg = np.asarray(raw[0].numpy()) if raw is not None else None
                 labels: dict = {}
@@ -4089,6 +4140,8 @@ class SortingRLEnv:
                     labels = info.get("idToLabels", {}) if isinstance(info, dict) else {}
                 if self._park_diag:
                     self._last_seg, self._last_seg_labels = seg, labels
+                if getattr(self, "_goal_perception", False) and seg is not None:
+                    self._perceive_tick(np.asarray(depth), seg, labels)
                 if seg is not None and (self._image_channels == 5
                                         or self._recorder is not None):
                     target_id = 0
@@ -4105,6 +4158,16 @@ class SortingRLEnv:
             self._loop_t["camera_ms"] += (time.perf_counter() - self._t_camera) * 1e3
             self._loop_counts["observations"] += 1
         self._last_rgb, self._last_depth, self._last_mask = rgb, depth, mask
+        if (getattr(self, "_goal_perception", False)
+                and self._percept_pos is not None and self._goal.size >= 7):
+            # P145: the goal moves with the fruit, every observation tick. This is
+            # what makes the camera load-bearing: with `truth` the goal is the
+            # selection snapshot (a timer), with `perception` it is the measured
+            # centre and the filter's velocity.
+            self._goal[0:3] = np.asarray(self._percept_pos, dtype=np.float32)[:3]
+            self._goal[3:6] = np.asarray(self._percept_vel, dtype=np.float32)[:3]
+            if self._percept_dia is not None:
+                self._goal[6] = float(self._percept_dia)
         if self.policy is not None and rgb is not None and depth is not None:
             self.policy.push_frame(rgb, depth, mask)
 
@@ -4158,6 +4221,28 @@ class SortingRLEnv:
         """
         position = np.asarray(position, dtype=np.float32).reshape(-1)[:3]
         velocity = np.asarray(velocity, dtype=np.float32).reshape(-1)[:3]
+        # P145: **the goal can come from perception** (`FRUIT_GOAL_SOURCE=perception`),
+        # which is what a real cell has: the tracker's own estimate of where the
+        # fruit is and how fast it moves, measured from the camera, instead of the
+        # simulator's `spawner.position`/`velocity`. The diameter stays the measured
+        # value for now - `perception.measure` does not hand its radius back yet, and
+        # a truth diameter in a perception cell must be named rather than assumed.
+        if getattr(self, "_goal_perception", False):
+            if self._percept_pos is not None:
+                position = np.asarray(self._percept_pos, dtype=np.float32)[:3]
+                velocity = np.asarray(self._percept_vel, dtype=np.float32)[:3]
+                if self._percept_dia is not None:
+                    diameter = float(self._percept_dia)
+            else:
+                # No frame yet: the cell's own geometry (the belt's pick point and
+                # a nominal upstream lead), never the simulator's fruit state. The
+                # first observation replaces all three with measurements.
+                position = np.array(
+                    [float(self.cfg.pick_x), float(self.cfg.pick_y) + 0.45,
+                     float(self.belt_top) + 0.05], dtype=np.float32
+                )
+                velocity = np.zeros(3, dtype=np.float32)
+                diameter = 0.060
         # P143: **the goal can be the intercept, not the current position**.
         # Measured on the shipped direct loop: the policy closes the finger
         # (min 0.005-0.016) while the jaws are still **128-155 mm** from the
@@ -4181,6 +4266,161 @@ class SortingRLEnv:
             speed, accel = self._belt_state()
             values.extend([speed, accel])
         return np.array(values, dtype=np.float32)
+
+    # ------------------------------------------------------------------ #
+    # P145: the measured goal
+    # ------------------------------------------------------------------ #
+    def _perceive_tick(self, depth, seg, labels) -> None:
+        """One depth+mask measurement -> the tracker -> the goal.
+
+        No simulator fruit state is read here. The only inputs are the rendered
+        depth, the instance mask, the fitted sphere and the camera's calibration -
+        the same pipeline P135 validated at 1.98 mm (bench) and which the scripted
+        line uses as `FRUIT_TRACK_SOURCE=depth`. Doesn't render: `_observe`
+        already did that.
+        """
+        sample = self._sample
+        if sample is None or depth is None or seg is None:
+            return
+        if self._percept_cfg is None:
+            # Lazy: `__init__` resolves the knob before the scene config exists.
+            self._percept_cfg = track_config_from_env(os.environ, "depth")
+            self._percept_bias = np.asarray(_calibration_bias("head"), dtype=float)
+            self._percept_roi = (
+                workcell_roi(self.cfg)
+                if os.environ.get("FRUIT_PERCEPTION_ROI", "1") == "1"
+                else None
+            )
+        depth = np.asarray(depth, dtype=np.float32)
+        if depth.ndim == 3:
+            depth = depth[..., 0]
+        seg = np.asarray(seg)
+        if seg.ndim == 3:
+            seg = seg[..., 0]
+        if depth.shape[:2] != seg.shape[:2]:
+            self._percept_rejected += 1
+            return
+        # The instance id of *this* fruit. A missing id is "not in frame", not
+        # "the background": the shipped mask channel maps a miss to id 0 and the
+        # policy was trained on that, so this path must not reuse it.
+        want = getattr(sample, "prim_path", None)
+        target_id = None
+        for key, value in (labels or {}).items():
+            if want and want in str(value):
+                target_id = int(key)
+                break
+        if target_id is None:
+            self._percept_missing += 1
+            return
+        mask = seg == target_id
+        margin = int(os.environ.get("FRUIT_PERCEPTION_CLIP_PX", "2"))
+        if margin > 0 and (
+            mask[:margin].any() or mask[-margin:].any()
+            or mask[:, :margin].any() or mask[:, -margin:].any()
+        ):
+            # A truncated view fits a *smaller* sphere: the centre is biased
+            # toward the visible part (P135: 24-32 mm at 0.11 m). Predict instead.
+            self._percept_rejected += 1
+            return
+        pixels = np.argwhere(mask)[:, ::-1]
+        min_px = int(os.environ.get("FRUIT_PERCEPTION_MIN_PX", "60"))
+        if len(pixels) < max(8, min_px):
+            self._percept_rejected += 1
+            return
+        stride = max(1, int(os.environ.get("FRUIT_PERCEPTION_STRIDE", "2")))
+        pixels = pixels[::stride]
+        if self._percept_camera is None:
+            try:
+                self._percept_camera = CameraModel.from_scene(self.scene, self.cfg)
+            except Exception as exc:  # noqa: BLE001 - a missing calibration is fatal to this path
+                self._notes.append(f"perception: no camera model ({exc})")
+                self._goal_perception = False
+                return
+        points = self._percept_camera.backproject(depth, pixels)
+        z = depth[pixels[:, 1], pixels[:, 0]].astype(float)
+        finite = np.isfinite(z) & (z > 0.05)
+        if not np.any(finite):
+            self._percept_rejected += 1
+            return
+        band = np.abs(z - np.median(z[finite])) <= 0.05
+        keep = finite & band
+        points = points[keep]
+        if len(points) < 12:
+            self._percept_rejected += 1
+            return
+        centre, radius, rms = _fit_sphere(
+            points, trim=float(os.environ.get("FRUIT_PERCEPTION_TRIM", "2.5"))
+        )
+        if centre is None or not math.isfinite(radius) or not 0.005 < radius < 0.15:
+            self._percept_rejected += 1
+            return
+        centre = np.asarray(centre, dtype=float) - self._percept_bias
+        if self._percept_roi is not None:
+            lo = self._percept_roi
+            if not (
+                lo[0] <= centre[0] <= lo[1]
+                and lo[2] <= centre[1] <= lo[3]
+                and lo[4] <= centre[2] <= lo[5]
+            ):
+                self._percept_rejected += 1
+                return
+        now = float(self._sim_time())
+        if self._percept_tracker is None:
+            self._percept_tracker = FruitTracker(
+                self._percept_cfg, belt_velocity=None, tau=0.0
+            )
+            self._percept_tracker.reset(centre, now)
+        else:
+            self._percept_tracker.update(centre, now)
+        self._percept_pos = np.asarray(self._percept_tracker.position, dtype=float)
+        self._percept_vel = np.asarray(self._percept_tracker.velocity, dtype=float)
+        self._percept_dia = float(2.0 * radius)
+        self._percept_last_rms = float(rms)
+        self._percept_frames += 1
+        if self._percept_diag:
+            try:
+                truth = np.asarray(self.spawner.position(sample), dtype=float)
+                err = float(np.linalg.norm(self._percept_pos - truth))
+                self._percept_errs.append(err)
+                if float(getattr(self, "_last_finger", 1.0)) < 0.030:
+                    self._percept_errs_close.append(err)
+            except Exception:  # noqa: BLE001 - bench column only
+                pass
+
+    def _percept_report(self) -> str:
+        """The `[percept]` row: what the camera measured, and the bench error."""
+        if not getattr(self, "_goal_perception", False):
+            return ""
+        err = float("nan")
+        if self._percept_diag and self._percept_pos is not None and self._sample is not None:
+            # Bench-only column (P135's convention): the truth read is never an
+            # input to the estimate or the policy.
+            truth = np.asarray(self.spawner.position(self._sample), dtype=float)
+            err = float(np.linalg.norm(self._percept_pos - truth)) * 1000.0
+        def _pct(values, q):
+            if not values:
+                return "-"
+            return format(float(np.percentile(values, q)) * 1000.0, ".1f")
+
+        pos = "-"
+        if self._percept_pos is not None:
+            pos = ",".join(format(float(v), "+.3f") for v in self._percept_pos)
+        vel = "-"
+        if self._percept_vel is not None:
+            vel = ",".join(format(float(v), "+.3f") for v in self._percept_vel)
+        return (
+            f"[percept] episode {self._episode} frames={self._percept_frames} "
+            f"rejected={self._percept_rejected} missing={self._percept_missing} "
+            f"pos={pos} vel={vel} "
+            f"dia={format(self._percept_dia * 1000.0, '.1f') if self._percept_dia else '-'}mm "
+            f"rms={format(self._percept_last_rms * 1000.0, '.2f')}mm "
+            f"err={format(err, '.1f') if err == err else '-'}mm "
+            f"err_p50={_pct(self._percept_errs, 50)}mm "
+            f"err_p90={_pct(self._percept_errs, 90)}mm "
+            f"err_n={len(self._percept_errs)} "
+            f"err_close_p50={_pct(self._percept_errs_close, 50)}mm "
+            f"err_close_n={len(self._percept_errs_close)}"
+        )
 
     def _goal_snapshot(self) -> np.ndarray:
         """The goal as the recorder/observation sees it (belt dims refreshed)."""
@@ -5287,6 +5527,15 @@ class SortingRLEnv:
             distance = float(
                 np.linalg.norm(fruit[:2] - np.asarray(jaw[:2], dtype=float))
             )
+            if getattr(self, "_no_handover", False) and self._sample is not None:
+                # P145: with the primitive off, `result.grasped` never exists, so the
+                # outcome has to be read from the **fruit**: the highest it has been
+                # carried above the belt rest. One max per tick, no new read.
+                try:
+                    _fz = float(self.spawner.position(self._sample)[2])
+                    self._max_lift = max(self._max_lift, _fz - float(self._belt_rest))
+                except Exception:  # noqa: BLE001 - reporting must not stop the loop
+                    pass
             if self._handover_diag:
                 # P143 diag: the closest the jaws came and the smallest finger the
                 # policy asked for, tracked here because this block runs with the
@@ -5456,7 +5705,13 @@ class SortingRLEnv:
                 self._track_refuse(distance, policy_close, intercept_info)
                 if self._done:
                     return
-            if direct_fire(
+            # P145: **no handover** (`FRUIT_POLICY_HANDOVER=0`). The primitive is
+            # the scripted controller; handing the grasp to it means the policy
+            # never has to close on the fruit, and no encoder/aim assist survives
+            # the move to a real cell. With this off the policy's own 7 joints and
+            # finger do the whole cycle and nothing else touches the arm.
+            handover = os.environ.get("FRUIT_POLICY_HANDOVER", "1").strip() != "0"
+            if handover and direct_fire(
                 intercept=intercept,
                 policy_close=policy_close,
                 gate_refuse=gate_refuse,
@@ -5969,6 +6224,11 @@ class SortingRLEnv:
             return label
         if policy_action is None or label is None:
             return policy_action
+        if os.environ.get("FRUIT_DAGGER_NO_TAKEOVER", "0") == "1":
+            # P145: labels only. The early-close term would otherwise hand the
+            # arm to the expert for one tick at exactly the close, which is the
+            # state the store is for; with this on every state is the policy's.
+            return policy_action
         self._policy_proposal = np.asarray(policy_action, dtype=np.float32)
         if self._expert_deviation(policy_action, label):
             self._expert_until = self._step + self.dagger.window_steps * 4
@@ -6088,6 +6348,17 @@ class SortingRLEnv:
             self.spawner.position(self._sample), dtype=np.float32
         )
         label = self._last_action
+        if self.dagger is not None:
+            # P145: **which frames are a usable label**. The pick expert's command
+            # is only the controller's behaviour up to the close: after the ramp
+            # it holds the (already grasped) fruit where it is, which is not the
+            # carry the demos teach. Mark those frames so the window loader drops
+            # them instead of training the policy to freeze mid-carry.
+            valid = 1.0
+            if self._expert_close_start is not None:
+                if self._step - self._expert_close_start >= 60:
+                    valid = 0.0
+            observation["dagger_valid"] = np.array([valid], dtype=np.float32)
         if self.dagger is not None and self._expert_label is not None:
             # Standard DAgger aggregation: the frame's label is the expert
             # command for the state the policy visited; the policy's own
@@ -6267,6 +6538,14 @@ class SortingRLEnv:
         # declared, and the row names it - the two are different metrics and a
         # rate is only comparable within one of them.
         endpoint = score_endpoint()
+        if getattr(self, "_no_handover", False):
+            # The policy carried the fruit if it rose off the belt with the hand;
+            # `grasped`/`placed` are reported from that and from the payload's own
+            # position at finalize, because the primitive - the only other source
+            # of those two flags - never runs here.
+            self._lifted = bool(self._lifted) or self._max_lift > 0.05
+            self._grasped = bool(self._grasped) or self._lifted
+            self._placed = bool(self._placed) or bool(self.cfg.on_output_belt(final))
         if endpoint == "release":
             success = bool(self._lifted) and bool(self._placed)
         else:
@@ -6393,6 +6672,9 @@ class SortingRLEnv:
                 )
             )
         )
+        percept = self._percept_report()
+        if percept:
+            self._say(percept)
         if cont:
             self._begin_next_pick(notes)
             return

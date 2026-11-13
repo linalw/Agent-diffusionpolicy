@@ -377,6 +377,22 @@ class EpisodeStore:
         #: (``belt_speed`` array; written by the collector under
         #: ``FRUIT_OBS_SPEED=1``). ``None`` = a pre-P141 store, whose channel is
         #: the constant pin it always was.
+        #: P145: rebuild the goal as the fruit's **current** state from the
+        #: store's own `fruit_position` trace. The demonstrations' goal is a
+        #: selection-time snapshot (the fruit's release point), i.e. a timer; a
+        #: measured goal moves. Training on both without this would teach the
+        #: policy two meanings for one channel. A store recorded with
+        #: `goal_source=perception` already moves and is left alone.
+        self.moving_goal = os.environ.get("FRUIT_TRAIN_GOAL", "stored").strip().lower() in (
+            "moving", "dynamic", "perception"
+        )
+        self.goal_rebuilt = 0
+        #: P145: focus a DAgger store on the frames that carry the correction.
+        #: A pick episode is ~100 frames of "hold the grasp pose" plus a 15-frame
+        #: close ramp; the hold is already in the anchor, the ramp is not. With
+        #: this set, windows starting more than N frames before the ramp's first
+        #: frame are dropped (0 = keep every valid window).
+        self.dagger_focus = max(0, int(os.environ.get("FRUIT_DAGGER_FOCUS", "0")))
         self.speed_traces: list[np.ndarray | None] = []
         self.belt_accels: list[np.ndarray | None] = []
         self.episodes: list[dict] = []
@@ -400,7 +416,7 @@ class EpisodeStore:
                     "joint": data["joint_positions"],
                     "finger": data["finger_opening"],
                     "tactile": data["tactile"],
-                    "goal": data["goal"],
+                    "goal": self._goal_trace(data, entry),
                     # P141: one float per recorded tick, present only when the
                     # channel was armed at collection time.
                     "belt_speed": (
@@ -408,6 +424,13 @@ class EpisodeStore:
                         if "belt_speed" in data.files else None
                     ),
                     "action": data["action"],
+                    # P145: a DAgger store may flag frames whose label is not the
+                    # behaviour to clone (the expert's post-close hold). Absent =
+                    # every frame valid, i.e. every pre-P145 store is unchanged.
+                    "valid": (
+                        np.asarray(data["dagger_valid"], dtype=np.float32).reshape(-1) > 0.5
+                        if "dagger_valid" in data.files else None
+                    ),
                     "meta": entry,
                 }
             )
@@ -433,8 +456,29 @@ class EpisodeStore:
         for ep_index, episode in enumerate(self.episodes):
             length = episode["action"].shape[0]
             last = length - self.action_horizon
+            valid = episode.get("valid")
+            focus_lo = 0
+            if valid is not None and self.dagger_focus:
+                finger = np.asarray(episode["action"], dtype=np.float32)[:, 7]
+                closed = np.nonzero(finger < 0.0439)[0]
+                focus_lo = max(
+                    0, (int(closed[0]) if closed.size else length) - self.dagger_focus
+                )
             for start in range(self.obs_horizon - 1, last):
+                if valid is not None:
+                    lo = max(0, start - self.obs_horizon + 1)
+                    if not valid[lo : start + self.action_horizon].all():
+                        continue
+                if start < focus_lo:
+                    continue
                 self.windows.append((ep_index, start))
+        if self.goal_rebuilt:
+            print(
+                f"[data] goal: rebuilt {self.goal_rebuilt} episode(s) as the "
+                f"fruit's current state (FRUIT_TRAIN_GOAL=moving); "
+                f"{len(self.episodes) - self.goal_rebuilt} stored",
+                flush=True,
+            )
         if not self.windows:
             raise ValueError(
                 f"episodes are shorter than obs_horizon + action_horizon "
@@ -453,6 +497,23 @@ class EpisodeStore:
                 f"(unpinned stores raise; see SPEED_PIN_KNOWN)",
                 flush=True,
             )
+
+    def _goal_trace(self, data, entry: dict) -> np.ndarray:
+        """The goal per frame: stored, or rebuilt as the fruit's current state."""
+        goal = np.asarray(data["goal"], dtype=np.float32)
+        if not self.moving_goal or entry.get("goal_source") == "perception":
+            return goal
+        fp = np.asarray(data["fruit_position"], dtype=np.float32)
+        if fp.ndim != 2 or fp.shape[0] != goal.shape[0] or fp.shape[1] < 3:
+            return goal
+        trace = goal.copy()
+        trace[:, 0:3] = fp[:, :3]
+        # 30 Hz demo cadence (the recorder's own contract).
+        trace[:, 3:6] = np.gradient(fp[:, :3].astype(np.float64), axis=0)[
+            :, :3
+        ].astype(np.float32) * 30.0
+        self.goal_rebuilt += 1
+        return trace
 
     # ------------------------------------------------------------------ #
     def _shard_manifest(self, entry: dict) -> str | None:
