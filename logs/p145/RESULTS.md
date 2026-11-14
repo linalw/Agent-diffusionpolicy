@@ -687,3 +687,98 @@ expert's close command as the label, or (ii) a phase feature that carries the
 fruit's along-distance relative to the jaw (the scripted window as a *learned*
 phase boundary). Both are training-side changes; the sensor, the goal, the action
 space and the data count are no longer the limit.
+
+## 19. P145d.6/d.7: the binding term is the **lateral aim**, and the observation is not the problem
+
+Twelve-episode cells (3 seeds x 4, three parallel sims, ~5 min) with the phase
+trigger + committed ramp, `[close]` rows on every latch (3-D certificate) and
+`[cmd]` rows (the applied joint target vs the measured, with the joint margin):
+
+* **`dz` at the latch is the seat, not an error**: +46..+101 mm, median +67 mm,
+  against the 70 mm the pads' geometry defines (`_pad_standoff` + the distal
+  plane). The vertical aim is right on every episode.
+* **`dx` at the latch is the failure**: -10..-95 mm lateral. Every episode whose
+  `|dx| <= 10 mm` **grasped** (peach 6 mm gap, kiwi 6 mm, orange 3 mm); every
+  larger offset closed on air. `gap_min` and `gap_close` agree when the ramp
+  latches before the closest approach, so the earlier "geometry 1-3 mm" was the
+  **xy** minimum, not the grasp.
+* **The goal is right**: `goal_x` tracks `fruit_x` to 1-3 mm on every trace row
+  (`[policy-trace]` gained `jaw_x`/`fruit_x`/`goal_x`). The perception is not the
+  term.
+* **The arm holds the station x**: `jaw_x` sits at 0.321-0.324 for 300+ ticks
+  while `fruit_x` is 0.225, makes one 35 mm excursion at the descent, and
+  **returns**. The demos' descent is a 100 mm lateral leg; the loop reproduces
+  35 % of it and then goes back.
+* **The commands are consistent but the endpoint is the band mean**: the applied
+  joint targets step p50 0.006-0.011 rad, p90 0.047-0.100, with healthy joint
+  margins (+0.05..+0.25 rad, no saturation); `[cmd]` shows the arm tracking the
+  target to p50 0.004-0.011 rad. The descent's *endpoint* is 0.27, i.e. the mean
+  of the demos' aims (0.20-0.36) - the absolute-target action predicts the
+  averaged endpoint and the closed loop cannot correct it.
+* **Three inference-side fixes are nulls**: `--execute-steps 4/8` (0 latches /
+  1 latch), `FRUIT_POLICY_GDP=1 K=4` (1 latch, 50 mm off), and
+  `FRUIT_POLICY_FIXED_NOISE=1` (deterministic chunks, command p90 step
+  0.100 -> 0.047, target-measured gap p50 0.011 -> 0.004 - **consistency
+  improves, the aim does not**). So it is not noise, not the re-plan rate and not
+  a joint limit.
+* **Offline, at the demo's close state the policy is fine**: the lift is commanded
+  (+20.4 mm over its first 16-step chunk against the demo's +2.3 mm immediate
+  command; the +5 cm rise is at 1.03 s, which is 2 chunks, and the episode has
+  200+ ticks after the close), and its reach amplitude is 1.13x the demo's. What
+  it does not command is the grip gap (0.0345, the channel mean, against the
+  demo's 0.026-0.027) - which the committed ramp supplies.
+
+**So the pyramid is now: aim (open) -> close actuation (solved) -> grasp (works
+when aimed) -> lift (commanded) -> place (untested).** The fix this phase
+implements is the **joint-delta action** (`FRUIT_ACTION=dq`): the policy's 7 arm
+channels become a per-waypoint step from the *measured* joints
+(`q_target = q_meas + dq`), so the aim error is a residual the next observation
+corrects instead of an absolute endpoint that averages over the band. The finger
+stays absolute; the phase gate, the ramp, the goal and the data are unchanged.
+
+## 20. P145d.8: the delta action is not the fix either - the aim needs the **state**, not another representation
+
+Three more measured cells (8-12 episodes per arm, three parallel sims, one claim
+per run).
+
+* **`FRUIT_ACTION=dq`** (the joint-delta servo, trained 30 epochs from `moe_v13s`
+  on the aligned store + `demos_v11`, weighted 0.0150 / demo_val 0.0069): the aim
+  does **not** improve (12 episodes, gaps 5-115 mm, 5/12 <= 20 mm, **0 grasps**)
+  and the **timing breaks** - the delta model's finger sits at the channel mean
+  early, so the learned phase gate (goal + finger) fires `grasp` at t = 104-300
+  with the fruit **0.2-0.47 m** away (12/12 latches, dz +95..+114). So a delta
+  action changes the finger's phase behaviour without fixing the aim: the aim is
+  not an action-representation artefact.
+* **`FRUIT_POLICY_PHASE=dy`** (the action routing and the ramp latch on the
+  measured along-window 0.05 m instead of the learned classifier): the absolute
+  model reads **2/8 grasped** (pear 76 mm, peach 50 mm / dz +112), gaps 5-60 mm;
+  the dq model **0/8**. No rate change from the routing.
+* **The causal goal-x test** (`FRUIT_GOAL_X_OFFSET=0.10`, a diagnostic only): the
+  gaps move to 25-74 mm (from 25-76 at the same seeds) - i.e. the +100 mm goal
+  shift does **not** propagate to the jaw; the policy's aim is only weakly
+  conditioned on the goal's lateral position in the closed loop, even though
+  offline a +-50 mm nudge moves its chunk by 0.12-0.15 rad.
+* **Offline the same policy is fine** at the store's descent windows: the reach
+  direction agrees with the demo (cos p50 0.99) and the amplitude is 1.13x; the
+  endpoint differs by 0.122 rad p50 (0.356 p90), which is ~3.5 cm at the TCP -
+  the record's representation floor. So the residual is not "the model cannot
+  move"; it is that its *aim error* is not corrected by the closed loop.
+
+**What is settled**: geometry is a **lateral aim** problem (the jaw holds the
+station x 0.32 while the fruit is at 0.20-0.36; the z/seat is right, the goal is
+right), the close actuation and the ramp are right, and the lift is commanded
+offline. **What is not**: the aim does not respond to representation (absolute
+vs delta), inference (noise, GDP, re-plan rate) or routing (`dy` vs learned).
+The remaining term is **state coverage of the aim**: the demonstrations reach the
+lateral aim in the last ~0.5 s (a 10 cm leg), and the policy's own descent states
+are labelled by an expert whose pre-window label is the **fixed grasp pose** - so
+neither source teaches an early lateral alignment. The named next spend is
+therefore a **pre-aligned approach**: either a demonstration set whose wait pose
+tracks the selected fruit's x (a scripted-side change, both references
+re-recorded), or a relative-aim observation channel (goal - jaw, requiring the
+FK that `logs/p145` validated to 0.001 mm) with a focused recollection.
+
+No shipped default moved: `FRUIT_ACTION` unset = the absolute path bit for bit,
+`FRUIT_POLICY_FIXED_NOISE` off, the `[cmd]`/`[close]` rows only under
+`FRUIT_POLICY_TRACE=1`, `FRUIT_GOAL_X_OFFSET` 0. selfcheck PASS (0 failures,
+1 skipped).

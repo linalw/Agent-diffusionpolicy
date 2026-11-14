@@ -480,6 +480,12 @@ def finetune(
 
     ckpt = torch.load(checkpoint, map_location="cpu", weights_only=False)
     config = dict(ckpt["config"])
+    # P145d.8: the action representation is part of the artifact. A store built
+    # under `FRUIT_ACTION=dq` carries deltas; a checkpoint trained on them must
+    # be loaded by an env in the same mode (the env refuses a mismatch).
+    from .data import action_mode_from_env as _mode_from_env
+
+    config["action_mode"] = _mode_from_env()
     # P28-B: the channel is on when the gate is, or when the checkpoint already
     # carries it (a 26-D artifact must be trained on 26-D windows - a mismatch
     # is a loud shape error, not a silent one).

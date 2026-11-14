@@ -36,6 +36,25 @@ from .trigger import transport_speed
 #: The shipped observation width: 22 joint positions + finger + 2 tactile.
 PROPRIO_DIM = 25
 
+
+def action_mode_from_env() -> str:
+    """P145d.8: the action **representation** (`FRUIT_ACTION`).
+
+    ``""`` (default) = the absolute 7 joint targets + finger (the shipment).
+    ``"dq"`` = the per-step **joint delta** + finger: the arm servo integrates
+    ``q_target = q_measured + dq`` once per executed waypoint. The measured
+    direct loop commits to the *band-mean* aim with absolute targets (the jaw
+    stops at x 0.27 for a fruit at 0.225, on every episode), which is the
+    classic absolute-endpoint bias; a delta action turns the same policy into a
+    residual servo whose error the next observation corrects.
+    """
+    raw = os.environ.get("FRUIT_ACTION", "").strip().lower()
+    if raw not in ("", "dq", "jaw", "tcp"):
+        raise ValueError(
+            f"FRUIT_ACTION={raw!r} is not one of '', 'dq', 'jaw', 'tcp'"
+        )
+    return raw
+
 #: The P28-B gate. ``1`` arms the 26th scalar; unset/anything else keeps the
 #: shipped 25-D observation (and every store's 25-D assembly) byte-identical.
 SPEED_CHANNEL_ENV = "FRUIT_OBS_SPEED"
@@ -354,6 +373,8 @@ class EpisodeStore:
         #: so the same observation means "early ramp" or "loaded hold"; the
         #: previous command disambiguates them. Training reads it from the
         #: recorded action stream; deployment from the env's `_last_finger`.
+        #: P145d.8: the action representation ("": absolute joints, "dq": deltas)
+        self.action_mode = action_mode_from_env()
         self.cmd_channel = (
             os.environ.get("FRUIT_OBS_CMD", "0") == "1"
             if cmd_channel is None else bool(cmd_channel)
@@ -835,6 +856,13 @@ class EpisodeStore:
         proprio = self.proprio(ep_index, t)
         goal = self.goal_at(ep_index, t)
         action = episode["action"][t : t + self.action_horizon].astype(np.float32)
+        if self.action_mode == "dq":
+            # the per-step joint delta (the first frame has no predecessor)
+            full = np.asarray(episode["action"], dtype=np.float32)
+            delta = np.zeros_like(full)
+            delta[1:, :7] = full[1:, :7] - full[:-1, :7]
+            action = delta[t : t + self.action_horizon].copy()
+            action[:, 7:] = full[t : t + self.action_horizon, 7:]
         skills = episode["skills"]
         skill = int(skills[t]) if skills is not None else 0
         return {
@@ -849,7 +877,14 @@ class EpisodeStore:
     def compute_normalizer(self) -> Normalizer:
         actions, obs, goals = [], [], []
         for ep_index, episode in enumerate(self.episodes):
-            actions.append(episode["action"])
+            full = np.asarray(episode["action"], dtype=np.float32)
+            if self.action_mode == "dq":
+                delta = np.zeros_like(full)
+                delta[1:, :7] = full[1:, :7] - full[:-1, :7]
+                delta[:, 7:] = full[:, 7:]
+                actions.append(delta)
+            else:
+                actions.append(full)
             obs.append(self.proprio(ep_index))
             goals.append(self.goal_frames(ep_index))
         actions = np.concatenate(actions, axis=0)

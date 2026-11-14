@@ -55,7 +55,15 @@ def load(store: str):
         if "fruit_position" not in data.files:
             continue
         pos = np.asarray(data["fruit_position"], dtype=np.float32)
-        finger = np.asarray(data["finger_opening"], dtype=np.float32).reshape(-1)
+        # P145d.6: label on the **commanded** finger (the action stream), the
+        # same convention as the loader's P145d.3 skills - the measured finger
+        # aliases the loaded close.
+        _a = np.asarray(data["action"], dtype=np.float32)
+        finger = (
+            _a[:, 7]
+            if _a.ndim == 2 and _a.shape[1] > 7
+            else np.asarray(data["finger_opening"], dtype=np.float32).reshape(-1)
+        )
         goal = np.asarray(data["goal"], dtype=np.float32)
         vel = np.gradient(pos.astype(np.float64), axis=0)[:, :3] * HZ
         dia = goal[:, 6].reshape(-1)

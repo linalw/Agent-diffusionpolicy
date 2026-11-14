@@ -672,6 +672,16 @@ class PolicyRunner:
         #: but not bit-reproducible; set `FRUIT_POLICY_SEED` to make runs comparable
         #: (see the note in `diffusion.ddim_sample` and the WORKLOG).
         seed = os.environ.get("FRUIT_POLICY_SEED", "").strip()
+        #: P145d.7: `FRUIT_POLICY_FIXED_NOISE=1` re-seeds the diffusion noise to
+        #: the same value for every inference, so the policy becomes a
+        #: **deterministic function of its observation**. Measured on the direct
+        #: loop: with fresh noise per chunk the 7-D joint target jumps 0.5-0.7 rad
+        #: between consecutive chunks at a nearly-constant observation, and the
+        #: arm (<= 0.045 rad/tick) cannot follow either mode - it lags both and
+        #: the lateral descent never completes. Fixed noise removes the sampling
+        #: as a source of the mode switch; it is inference-side only.
+        self._fixed_noise = os.environ.get("FRUIT_POLICY_FIXED_NOISE", "0") == "1"
+        self._noise_seed = int(seed) if seed else 0
         self.generator = None
         if seed:
             self.generator = torch.Generator(device=device).manual_seed(int(seed))
@@ -778,6 +788,10 @@ class PolicyRunner:
         """
         num_steps = self.default_steps if num_steps is None else num_steps
         dtype = torch.float16 if self.use_half else torch.float32
+        if getattr(self, "_fixed_noise", False):
+            if self.generator is None:
+                self.generator = torch.Generator(device=self.device)
+            self.generator.manual_seed(self._noise_seed)
         condition = self._condition(proprio, goal)
         skill_labels = None
         index = None

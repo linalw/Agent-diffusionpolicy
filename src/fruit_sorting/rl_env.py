@@ -2061,6 +2061,14 @@ class SortingRLEnv:
         #: action through `tcp_target_for_jaw` adds the ~78 mm tool offset twice
         #: (P145d.1, found by the review agent).
         self._action_tcp = os.environ.get("FRUIT_ACTION", "").strip().lower() == "tcp"
+        #: P145d.8: the joint-**delta** action. `FRUIT_ACTION=dq` makes the
+        #: policy's 7 arm channels a per-waypoint step from the *measured*
+        #: joints (`q_target = q_meas + dq`), i.e. a residual servo. The
+        #: measured failure this answers: with absolute targets the direct loop
+        #: commands the band-mean aim (jaw x 0.27 for a fruit at 0.225) on
+        #: every episode, because the absolute endpoint is what the demos average.
+        self._dq_action = os.environ.get("FRUIT_ACTION", "").strip().lower() == "dq"
+        self._dq_index: int | None = None
         self._cart_hold: dict[str, np.ndarray] = {}
         self._direct_start = os.environ.get("FRUIT_DIRECT_START", "grasp").strip().lower()
         if self._direct_start not in ("grasp", "wait"):
@@ -2118,6 +2126,20 @@ class SortingRLEnv:
         #: and ACT prescribe. Default off, byte-inert.
         self._close_ramp = os.environ.get("FRUIT_CLOSE_RAMP", "0") == "1"
         self._close_ramp_ticks = max(1, int(os.environ.get("FRUIT_CLOSE_RAMP_TICKS", "60")))
+        #: P145d.6: what starts the ramp. `finger` = the policy's own finger
+        #: crossing 0.035 (measured: early by ~0.3 m - the policy closes during
+        #: the wait); `phase` = the learned phase gate's `grasp` class, which is
+        #: trained on the demonstrations' close labels and reads the perceived
+        #: fruit. The phase trigger is a learned classifier, not a harness trigger.
+        self._close_ramp_trigger = os.environ.get(
+            "FRUIT_CLOSE_RAMP_TRIGGER", "finger"
+        ).strip().lower()
+        if self._close_ramp_trigger not in ("finger", "phase"):
+            raise ValueError(
+                "FRUIT_CLOSE_RAMP_TRIGGER must be 'finger' or 'phase', got "
+                f"{self._close_ramp_trigger!r}"
+            )
+        self._last_phase: int | None = None
         self._close_t0: int | None = None
         self._close_grip_finger: float | None = None
         self._last_proprio = None
@@ -2618,6 +2640,14 @@ class SortingRLEnv:
             # (or the other way round) fails at construction, loudly, instead of
             # conditioning the policy on a vector it never saw.
             want_proprio = 25 + (1 if self._speed_channel else 0) + (1 if self._cmd_channel else 0)
+            want_mode = str(self.policy.config.get("action_mode", "") or "")
+            got_mode = "dq" if self._dq_action else ""
+            if want_mode != got_mode:
+                raise ValueError(
+                    f"checkpoint {checkpoint} was trained with action_mode="
+                    f"{want_mode!r} but FRUIT_ACTION resolves to {got_mode!r}; "
+                    "a delta-action artifact cannot be run with absolute targets"
+                )
             got_proprio = int(self.policy.config.get("proprio_dim", 25))
             if got_proprio != want_proprio:
                 raise RuntimeError(
@@ -3936,6 +3966,12 @@ class SortingRLEnv:
         self.advance(self._reset_settle)
         self._close_t0 = None
         self._close_grip_finger = None
+        self._last_phase = None
+        self._dq_index = None
+        # P145d.6: the command channel's t=0 value is the training stream's
+        # `command[0]` (the wait hold); without this reset the first decision of
+        # an episode carries the previous episode's finger.
+        self._last_finger = float(arm.OPEN)
         if self._action_jaw:
             # P145d: the cartesian servo holds the attitude the episode starts
             # at; the position is the policy's, the orientation is not its output.
@@ -4403,6 +4439,13 @@ class SortingRLEnv:
         if self._goal_aux:
             speed, accel = self._belt_state()
             values.extend([speed, accel])
+        # P145d.8 diagnostic: a constant offset on the goal's x, so the *causal*
+        # use of the fruit's lateral position can be read in the closed loop
+        # (the aim is measured against the truth; a policy that ignores the goal's
+        # x returns the same jaw x under a +100 mm offset). Not a control knob.
+        _dx = float(os.environ.get("FRUIT_GOAL_X_OFFSET", "0.0") or 0.0)
+        if _dx:
+            values[0] = float(values[0]) + _dx
         return np.array(values, dtype=np.float32)
 
     # ------------------------------------------------------------------ #
@@ -4565,7 +4608,13 @@ class SortingRLEnv:
         """P145d.5: the committed 60-tick close ramp, then hold the grip gap."""
         prev = float(getattr(self, "_last_finger", 0.044))
         if self._close_t0 is None:
-            if not (prev > 0.035 and action_finger <= 0.035):
+            finger_trigger = bool(prev > 0.035 and action_finger <= 0.035)
+            phase_trigger = bool(
+                self._close_ramp_trigger == "phase"
+                and self._last_phase == 1
+                and prev > 0.035
+            )
+            if not (finger_trigger or phase_trigger):
                 return action_finger
             self._close_t0 = int(self._step)
             try:
@@ -4574,12 +4623,34 @@ class SortingRLEnv:
                 self._close_grip_finger = float(arm.gripper_value_for_separation(gap))
             except Exception:  # noqa: BLE001 - a missing sample must not stop the close
                 self._close_grip_finger = 0.027
+            # P145d.6: the latch's own 3-D certificate. The xy gap is the
+            # proximity the phase gate reads; the **dz** is what the earlier
+            # cells could not see (a hand 12 cm above the fruit closes on air and
+            # still reports a 1-2 cm xy gap). One row per attempt.
+            if self._policy_trace:
+                try:
+                    _jaw = np.asarray(arm.jaw_centre(), dtype=float)
+                    _fruit = np.asarray(self.spawner.position(self._sample), dtype=float)
+                    self._say(
+                        f"[close] t={self._step} trigger="
+                        f"{'phase' if phase_trigger else 'finger'} "
+                        f"xy={float(np.linalg.norm(_fruit[:2]-_jaw[:2]))*1000:.0f}mm "
+                        f"dz={float(_jaw[2]-_fruit[2])*1000:+.0f}mm "
+                        f"dx={float(_fruit[0]-_jaw[0])*1000:+.0f}mm "
+                        f"jaw_z={float(_jaw[2]):.3f} fruit_z={float(_fruit[2]):.3f} "
+                        f"grip={self._close_grip_finger:.4f}"
+                    )
+                except Exception:  # noqa: BLE001
+                    pass
         if self._close_grip_finger is None:
             self._close_grip_finger = 0.027
         elapsed = int(self._step) - int(self._close_t0)
         if elapsed >= self._close_ramp_ticks:
-            if action_finger > 0.040:
-                # the policy asks to open (a release or a retry): hand it back
+            # Hold the grip gap through the lift/carry. A re-close request from
+            # the policy (its finger re-opens at the next chunk) is NOT a release;
+            # only the place phase hands the finger back. (Measured: releasing on
+            # any >0.040 command re-opened at the lift and defeated the ramp.)
+            if getattr(self, "_last_phase", None) == 3:
                 self._close_t0 = None
                 self._close_grip_finger = None
                 return action_finger
@@ -4878,6 +4949,7 @@ class SortingRLEnv:
         _loop_start = time.perf_counter() if self._loop_timing else 0.0
         self._refresh_goal_aux()
         phase = self._phase_for_decision()
+        self._last_phase = phase
         chunk = self.policy.act(
             self.proprio(), self._goal, num_steps=self.ddim_steps if num_steps is None
             else int(num_steps), phase=phase
@@ -5722,9 +5794,56 @@ class SortingRLEnv:
                 [[finger, finger]], dof_indices=list(arm.finger_dofs)
             )
         else:
+            target7 = action[:7]
+            if self._dq_action:
+                # one servo step per executed **waypoint**, not per tick: the
+                # same waypoint is held for `_action_hold` ticks, so integrating
+                # per tick would multiply the delta by the hold.
+                _wp = index // max(1, int(getattr(self, "_action_hold", 1)))
+                if self._dq_index != _wp:
+                    try:
+                        _meas = np.asarray(
+                            self.scene.robot.get_dof_positions().numpy()
+                        ).reshape(-1)[list(arm.arm_dofs)]
+                        target7 = _meas + np.asarray(action[:7], dtype=float)
+                    except Exception:  # noqa: BLE001 - a read failure keeps the last target
+                        target7 = np.asarray(action[:7], dtype=float)
+                    self._dq_index = _wp
+                else:
+                    target7 = np.asarray(getattr(self, "_dq_target", action[:7]), dtype=float)
+                self._dq_target = target7
             self.scene.robot.set_dof_position_targets(
-                [action[:7].tolist()], dof_indices=list(arm.arm_dofs)
+                [np.asarray(target7, dtype=float).tolist()], dof_indices=list(arm.arm_dofs)
             )
+            if self._policy_trace and self._step % 4 == 0:
+                # P145d.7: does the *command* aim at the fruit, and can the arm
+                # follow it? The 7 targets, the measured joints and the smallest
+                # distance to the arm's own stops (a saturated joint explains a
+                # partial descent that the jaw trace alone cannot).
+                try:
+                    _all = np.asarray(
+                        self.scene.robot.get_dof_positions().numpy()
+                    ).reshape(-1)
+                    _idx = list(arm.arm_dofs)
+                    _meas = _all[_idx]
+                    _lo = np.asarray(arm.arm_lo, dtype=float)[: len(_idx)]
+                    _hi = np.asarray(arm.arm_hi, dtype=float)[: len(_idx)]
+                    _marg = float(
+                        np.min(np.minimum(_meas - _lo, _hi - _meas))
+                        if len(_idx) else 0.0
+                    )
+                    _worst = int(
+                        np.argmin(np.minimum(_meas - _lo, _hi - _meas))
+                        if len(_idx) else 0
+                    )
+                    self._say(
+                        f"[cmd] t={self._step} "
+                        f"tgt={np.array2string(np.asarray(action[:7], dtype=float), precision=3, suppress_small=True)} "
+                        f"meas={np.array2string(_meas, precision=3, suppress_small=True)} "
+                        f"marg={_marg:+.3f}@j{_worst + 1}"
+                    )
+                except Exception:  # noqa: BLE001
+                    pass
             finger = float(np.clip(action[7], 0.0, 0.044))
             if self._close_ramp:
                 finger = self._close_ramp_command(arm, finger)
@@ -5782,7 +5901,9 @@ class SortingRLEnv:
                     f"[policy-trace] t={self._step} gap={distance * 1000:.0f}mm "
                     f"finger={float(finger):.4f} jaw_y={float(jaw[1]):+.3f} "
                     f"fruit_y={float(fruit[1]):+.3f} goal_y={float(self._goal[1]):+.3f} "
-                    f"fruit_z={float(fruit[2]):.3f} jaw_z={float(jaw[2]):.3f}"
+                    f"fruit_z={float(fruit[2]):.3f} jaw_z={float(jaw[2]):.3f} "
+                    f"jaw_x={float(jaw[0]):+.3f} fruit_x={float(fruit[0]):+.3f} "
+                    f"goal_x={float(self._goal[0]):+.3f}"
                 )
             if self._handover_diag:
                 # P143 diag: the closest the jaws came and the smallest finger the
