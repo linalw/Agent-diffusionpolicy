@@ -2109,6 +2109,17 @@ class SortingRLEnv:
         #: changes phase before the fruit is at the station, the early close is
         #: the router, not the action head.
         self._route_diag = os.environ.get("FRUIT_ROUTE_DIAG", "0") == "1"
+        #: P145d.5: **commit the close ramp**. Once the policy's own finger
+        #: command crosses the close threshold, execute the demonstrations' 60-tick
+        #: min-jerk ramp to the grip gap and hold it (the arm, the approach and the
+        #: lift stay the policy's). The measured close is multimodal at the re-plan
+        #: (0.023 <-> 0.043), and the open-loop ramp is the demonstrated actuation
+        #: profile - the "commit then gate" pattern the open-loop-execution study
+        #: and ACT prescribe. Default off, byte-inert.
+        self._close_ramp = os.environ.get("FRUIT_CLOSE_RAMP", "0") == "1"
+        self._close_ramp_ticks = max(1, int(os.environ.get("FRUIT_CLOSE_RAMP_TICKS", "60")))
+        self._close_t0: int | None = None
+        self._close_grip_finger: float | None = None
         self._last_proprio = None
         #: P145c: **phase scheduling** for the honest interface.
         #:   ``perception`` - the learned classifier on (perceived fruit, finger),
@@ -3923,6 +3934,8 @@ class SortingRLEnv:
         for other in self.task.arms.values():
             other.set_gripper(gripper_open)
         self.advance(self._reset_settle)
+        self._close_t0 = None
+        self._close_grip_finger = None
         if self._action_jaw:
             # P145d: the cartesian servo holds the attitude the episode starts
             # at; the position is the policy's, the orientation is not its output.
@@ -4547,6 +4560,34 @@ class SortingRLEnv:
             f"err_close_n={len(self._percept_errs_close)} "
             f"jaw_y={float(getattr(self, '_expert_jaw_y', float('nan'))):+.3f}"
         )
+
+    def _close_ramp_command(self, arm, action_finger: float) -> float:
+        """P145d.5: the committed 60-tick close ramp, then hold the grip gap."""
+        prev = float(getattr(self, "_last_finger", 0.044))
+        if self._close_t0 is None:
+            if not (prev > 0.035 and action_finger <= 0.035):
+                return action_finger
+            self._close_t0 = int(self._step)
+            try:
+                quat = np.asarray(arm.tcp_pose()[1], dtype=float)
+                gap = float(self.task.pinch_width(self._sample, quat)) * 0.98
+                self._close_grip_finger = float(arm.gripper_value_for_separation(gap))
+            except Exception:  # noqa: BLE001 - a missing sample must not stop the close
+                self._close_grip_finger = 0.027
+        if self._close_grip_finger is None:
+            self._close_grip_finger = 0.027
+        elapsed = int(self._step) - int(self._close_t0)
+        if elapsed >= self._close_ramp_ticks:
+            if action_finger > 0.040:
+                # the policy asks to open (a release or a retry): hand it back
+                self._close_t0 = None
+                self._close_grip_finger = None
+                return action_finger
+            return float(self._close_grip_finger)
+        ramp = min_jerk_ramp(
+            float(arm.OPEN), float(self._close_grip_finger), self._close_ramp_ticks
+        )
+        return float(ramp[min(elapsed, len(ramp) - 1)])
 
     def _phase_for_decision(self) -> int | None:
         """P145c: the action phase, from the perceived fruit + the jaw + the finger.
@@ -5685,6 +5726,8 @@ class SortingRLEnv:
                 [action[:7].tolist()], dof_indices=list(arm.arm_dofs)
             )
             finger = float(np.clip(action[7], 0.0, 0.044))
+            if self._close_ramp:
+                finger = self._close_ramp_command(arm, finger)
             self.scene.robot.set_dof_position_targets(
                 [[finger, finger]], dof_indices=list(arm.finger_dofs)
             )

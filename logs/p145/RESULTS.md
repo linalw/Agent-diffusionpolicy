@@ -651,3 +651,39 @@ the seat, the grip gap); the **close/lift transition** - the finger's 0.025 ->
 0.040 re-open and the missing lift - is the one unconverted term, and it is now
 attributable to the phase/label aliasing and the open-loop ramp, not to the
 sensor, the goal, the action space or the data count.
+
+## 18. P145d.5: the closed-loop terms are now geometry, timing and actuation - and only the last two are open
+
+The command channel (P145d.4) and the committed close ramp (P145d.5) were added:
+
+* **`FRUIT_OBS_CMD=1`**: one proprio column = the commanded finger (the previous
+  action; the demos' action stream at training, `_last_finger` at deployment).
+  The 3-seed cell (12 episodes, 3 parallel sims, 5 min): gaps **1-75 mm**, **8/12
+  <= 18 mm**, best 1-3 mm - the geometry is stable. **0 lifts.**
+* **`FRUIT_CLOSE_RAMP=1`** (default off): when the policy's own finger command
+  crosses 0.035, execute the demonstrations' **60-tick min-jerk ramp** to the grip
+  gap and hold it; the arm/approach/lift stay the policy's. The finger now holds
+  0.025 (no 0.023<->0.043 oscillation) in the pear cell - the actuation is fixed.
+
+**What the two ramp cells expose is the timing, not the actuation**: the pear
+(gap 68-69 mm) is the aim tail, and the apple episode has `gap_min = 17 mm` but
+**`gap_close = 139 mm`** - the hand was 17 mm from the fruit at its closest, and
+the policy's finger only crossed the close threshold **139 mm** away, i.e. after
+the fruit had gone. The ramp latches on the policy's closing command, so it
+actuates at the wrong moment.
+
+So the three closed-loop terms are now separable and measured:
+
+| term | state |
+|---|---|
+| geometry (approach aim) | solved on most draws (1-3 mm; 8/12 <= 18 mm) |
+| actuation (the close ramp) | solved by the committed ramp (holds 0.025) |
+| **close timing** | **open**: the policy's close command is late/off (139 mm on the apple), and the lift never starts |
+
+The next cell is therefore **close-timing supervision**: the demos close when the
+fruit is within the tracking window; the policy's own command is not that. The
+honest options are (i) a DAgger store focused on the arrival states with the
+expert's close command as the label, or (ii) a phase feature that carries the
+fruit's along-distance relative to the jaw (the scripted window as a *learned*
+phase boundary). Both are training-side changes; the sensor, the goal, the action
+space and the data count are no longer the limit.
