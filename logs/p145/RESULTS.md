@@ -855,3 +855,54 @@ Fixes, ranked by cost and by the literature (three parallel reviews):
    the labels-only store cannot contain.
 Not indicated: temporal ensembling (averages modes), longer chunks, a classical
 visual servo (violates the brief), or more same-distribution DAgger episodes.
+
+## 23. The precise classic problem: the **initial state** was out of the demonstrations' support
+
+The store survey's last piece: **the demonstrations' frame 0 is not a fixed
+pose.** In `demos_v11` (45 right-arm episodes) the first action's j4 and j6 are a
+**1-D family in the selected fruit's x**: j4 = 3.036 - 5.741 x, j6 = -0.857 +
+4.299 x, **r = -0.994 / -0.997**, and at x = 0.34 it reproduces the `wait`
+waypoint to 0.007-0.020 rad on all seven joints. The same family is in
+`p145_tcp` (r -0.994) and in a fresh collection (`p146_anchor`, r -0.998): **the
+scripted line's hover pre-aligns the wait pose to the fruit's x**. The direct
+env's `FRUIT_DIRECT_START=wait` teleported to the **fixed** `wait` (j4 1.104),
+i.e. to x = 0.33 - so at a fruit x = 0.225 the policy's first observation was
+**0.66 rad out of the demonstrations' support**, and the 10 cm lateral descent it
+was asked for **does not exist in the demonstrations at that state** (they start
+already aligned and only make the residual). That is the classic *initial-state
+distribution mismatch* (the data-coverage/covariate-shift family), and it is a
+precise mechanism for the "35 % then return" measurement: the policy is
+extrapolating its start pose, not failing to see the goal.
+
+Two code fixes, both default off:
+
+* **`FRUIT_DIRECT_START_ALIGN=1`**: at reset, one position-only IK solve of the
+  wait pose at the selected fruit's x, then a teleport (the demonstrations'
+  frame 0). Measured (seed 77, 4 episodes, the h16c checkpoint): the closest
+  lateral gap **25-76 mm -> 1-55 mm, 3/4 <= 12 mm**; the start's jaw x 0.254 for
+  a fruit at 0.225 (a 29 mm residual is the IK's own convergence).
+* **`FRUIT_CLOSE_RAMP_DY`** (default 0.05 = the old behaviour): the ramp's
+  **own** along-distance, separate from `FRUIT_PHASE_DY` (the descent's start).
+  The demos close at fruit y +0.014 (the timing census), so a 0.05 ramp latches
+  ~0.3 s early with the hand still descending. `=0.014`: the latch moves to
+  xy **14-30 mm** and `[close] dz` **+100 -> +59 mm** (median; range
+  +46..+110). Also fixed: in `phase` trigger mode the policy's own finger no
+  longer latches the ramp (its channel sits on the action mean 0.0345 and
+  crossed the 0.035 threshold at arbitrary times - one apple latched at t=104
+  with the fruit 167 mm away).
+
+**The in-band pre-aligned anchor** (`datasets/p146_anchor_all`: 51 scripted
+single-arm episodes, fruit x p10-p90 0.212-0.346, j4 0.97-1.82, 50/50 success)
+and a 30-epoch fine-tune from it (`checkpoints/p146_anchor`, weighted 0.0182):
+with the aligned start it reads gaps 97/24/**8**/89, 59/34/14/35, 63/74/**5**,
+**0 grasps** - i.e. the anchor alone does not move the aggregate; the remaining
+term is the **descent's vertical completion and the lift transition** (the
+latches read dz +94..+124, and a near-perfect close - xy 14 mm, dx -6 mm - still
+ends with the fruit on the belt and the jaw at 1.254: no lift).
+
+**So the decomposition stands, one level deeper**: aim -> (initial-state
+mismatch, fixed by the aligned start) -> vertical descent + close timing (the
+two windows separated; partly fixed) -> **lift transition (open)**: the policy's
+`grasp` expert holds at the deployed close state instead of emitting the
+demonstrated test lift, and the `dy` routing keeps the skill at `grasp` after the
+close (a design defect of that mode; the learned classifier is used instead).

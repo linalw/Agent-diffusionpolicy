@@ -2139,6 +2139,12 @@ class SortingRLEnv:
                 "FRUIT_CLOSE_RAMP_TRIGGER must be 'finger' or 'phase', got "
                 f"{self._close_ramp_trigger!r}"
             )
+        #: P145d.11: the **ramp's own** along-distance. The demos close at fruit
+        #: y +0.014 (the timing census), while `FRUIT_PHASE_DY` 0.05 is the
+        #: *descent's* start (the scripted tracking window). Conflating them
+        #: latches the ramp ~0.3 s early, with the hand still descending -
+        #: measured `[close] dz` +55..+128 mm against the 70 mm seat.
+        self._close_ramp_dy = float(os.environ.get("FRUIT_CLOSE_RAMP_DY", "0.05"))
         self._last_phase: int | None = None
         self._close_t0: int | None = None
         self._close_grip_finger: float | None = None
@@ -3947,6 +3953,34 @@ class SortingRLEnv:
             entry = self.waypoints["arms"][active]
             start = np.asarray(entry.get("wait", entry["grasp"]), dtype=float)
         arm.teleport_joints(start)
+        # P145d.11: **the demonstrations' frame 0 is the wait pose solved at the
+        # selected fruit's x** (measured on `demos_v11`: j4 = 3.036 - 5.741 x,
+        # r = -0.994; the same family in `p145_tcp` and the new anchor shards).
+        # The scripted line's hover pre-aligns, so the demos never show a 10 cm
+        # lateral descent from a fixed station pose - which is exactly what the
+        # direct episode was asking for (`[close] dx` -10..-95 mm). With this on,
+        # the episode starts where the demonstrations start: one position-only
+        # IK solve of the wait pose at the fruit's x, then a teleport.
+        if (
+            os.environ.get("FRUIT_DIRECT_START_ALIGN", "0") == "1"
+            and self.presentation == "direct"
+            and self._sample is not None
+        ):
+            try:
+                _fx = float(self.spawner.position(self._sample)[0])
+                arm.capture_hold_pose()
+                _jaw = np.asarray(arm.jaw_centre(), dtype=float)
+                _target = np.array([_fx, float(_jaw[1]), float(_jaw[2])])
+                _q = None
+                for _ in range(120):
+                    arm.sync_command_to_measured()
+                    if arm.ik_step(_target) < 1e-3:
+                        break
+                    _q = np.array(arm._q_cmd, dtype=float) if arm._q_cmd is not None else _q
+                if _q is not None:
+                    arm.teleport_joints(_q)
+            except Exception:  # noqa: BLE001 - the fixed wait pose is the fallback
+                pass
         # `teleport_joints` writes the *measured* dof state back through the
         # drive, and Isaac re-targets from it, so the `set_gripper(OPEN)` in the
         # parking loop does not survive: the first observation then carried all
@@ -4609,12 +4643,22 @@ class SortingRLEnv:
         prev = float(getattr(self, "_last_finger", 0.044))
         if self._close_t0 is None:
             finger_trigger = bool(prev > 0.035 and action_finger <= 0.035)
-            phase_trigger = bool(
-                self._close_ramp_trigger == "phase"
-                and self._last_phase == 1
-                and prev > 0.035
-            )
-            if not (finger_trigger or phase_trigger):
+            phase_trigger = False
+            if self._close_ramp_trigger == "phase" and prev > 0.035:
+                try:
+                    _jaw = np.asarray(arm.jaw_centre(), dtype=float)
+                    _dy = float(self._goal[1]) - float(_jaw[1])
+                    phase_trigger = bool(_dy <= self._close_ramp_dy)
+                except Exception:  # noqa: BLE001
+                    phase_trigger = False
+            # P145d.11: the trigger **modes are exclusive**. In `phase` mode the
+            # policy's own finger must not latch the ramp: its finger channel sits
+            # on the action mean (0.0345, the P145d.8 measurement), which crosses
+            # the 0.035 threshold at arbitrary times - measured, the apple episode
+            # latched at t=104 with the fruit 167 mm away while the phase gate
+            # itself had not fired. `finger` mode keeps the pre-P145d.6 behaviour.
+            _trigger = phase_trigger if self._close_ramp_trigger == "phase" else finger_trigger
+            if not _trigger:
                 return action_finger
             self._close_t0 = int(self._step)
             try:
