@@ -462,3 +462,45 @@ attitude) and a from-scratch training on the demonstrations (the 9-D checkpoint'
 input layer does not fit), (iii) the env applies the TCP target with `ik_step`
 at the decision rate, (iv) the same 12-episode honest cell. Expected mechanism:
 the 0.04 rad joint average becomes a 5 mm task-space servo.
+
+## 13. P145d: the cartesian head, as labelled by the achieved pose, is a negative
+
+The pre-check (section 12.9) licensed the representation: the IK servo reaches the
+demonstrations' close targets to 5.1 mm systematic with 0.2 mm spread. The build:
+
+* `tasks._record` now writes `tcp` and `jaw` per frame (collector only);
+  `datasets/p145_tcp`, **50 single-arm episodes**, `success=True`;
+* `FRUIT_ACTION=jaw` makes the store's action `[jaw xyz, finger]` of the **next
+  30 Hz sample** (`policy/data.py`), 9,423 windows at horizon 4;
+* a 4-D seed from `moe_v13s` (`logs/p145/make_cart_seed.py`): 119 of 122 tensors
+  copied, only `action_in` and the 4-D output head fresh, the normalizer's action
+  statistics from the TCP store;
+* training: 40 epochs, loss 0.0203, `checkpoints/p145_cart`;
+* the env applies the 4-D action with `ik_step(tcp_target_for_jaw(jaw))` + the
+  finger, the episode's captured attitude held (`rl_env._apply`, `FRUIT_ACTION=jaw`,
+  default off).
+
+Closed loop (2 episodes, wait start, perception goal, no handover, hold 4):
+
+| policy | `gap_min` | jaw z at the close | lift |
+|---|---|---|---|
+| joint 9-D (`p145_demo_h4`) | 9-47 mm | 1.25-1.29 | 0 |
+| **cartesian 4-D (`p145_cart`)** | **70-128 mm** | **1.36-1.41 (rising)** | **0** |
+
+The trace shows the jaw **rising** during the approach while the fruit descends
+to the belt: the policy is not tracking. **The label is the achieved pose, not
+the expert's command** - the recorded `jaw` is the servo's response (a one-sample
+lag), so a policy trained to predict it learns to reproduce the *response*, and
+the IK then chases that, one step behind. The 5.1 mm servo was never the problem;
+the **target** is.
+
+**The next iteration must record the commanded TCP**, not the achieved one: the
+scripted close's aim (`tasks._run_impl`'s `_dynamic_grip_target` / the DAgger
+expert's `fruit + [0,0,pad_lift]`) evaluated through the arm's forward
+kinematics, or a collector that records the IK target it just issued. Until then
+the cartesian lane is **not a lever** - the joint policy's 9-47 mm remains the
+best closed-loop result on the honest interface.
+
+No shipped default moved: `FRUIT_ACTION` is default-off, the loader's jaw mode is
+default-off, and the 9-D guard keeps a 4-D checkpoint from being run on the
+shipped path. `selfcheck.sh` PASS (0 failures, 1 skipped) after the changes.

@@ -2043,6 +2043,14 @@ class SortingRLEnv:
         #: rad: the shipped start is the scripted line's *close* pose, so the
         #: policy's first observation was a state the demos only reach at the
         #: close, with the fruit still far upstream.
+        #: P145d: `FRUIT_ACTION=jaw` makes the policy's action the **task-space**
+        #: target `[jaw xyz, finger]`, applied by the same position-only `ik_step`
+        #: the scripted close uses (the P145d pre-check: 5.1 mm systematic, 0.2 mm
+        #: spread). Default off: the shipped 9-D joint action, byte for byte.
+        self._action_jaw = os.environ.get("FRUIT_ACTION", "").strip().lower() in (
+            "jaw", "cartesian"
+        )
+        self._cart_hold: dict[str, np.ndarray] = {}
         self._direct_start = os.environ.get("FRUIT_DIRECT_START", "grasp").strip().lower()
         if self._direct_start not in ("grasp", "wait"):
             raise ValueError(
@@ -2571,6 +2579,16 @@ class SortingRLEnv:
                     f"(gain={self._a2c2.gain}, clamp={self._a2c2.clamp})"
                 )
             self.action_dim = int(self.policy.config["action_dim"])
+            if self._action_jaw and self.action_dim != 4:
+                raise RuntimeError(
+                    f"FRUIT_ACTION=jaw needs a 4-D checkpoint (jaw xyz + finger), "
+                    f"got action_dim={self.action_dim}"
+                )
+            if not self._action_jaw and self.action_dim != 9:
+                raise RuntimeError(
+                    f"a 9-D joint checkpoint is required unless FRUIT_ACTION=jaw "
+                    f"(got action_dim={self.action_dim})"
+                )
             self.action_horizon = int(self.policy.config["action_horizon"])
             self._image_channels = int(self.policy.config["image_channels"])
             # P28-B: the observation width is a property of the artifact, and
@@ -3894,6 +3912,11 @@ class SortingRLEnv:
         for other in self.task.arms.values():
             other.set_gripper(gripper_open)
         self.advance(self._reset_settle)
+        if self._action_jaw:
+            # P145d: the cartesian servo holds the attitude the episode starts
+            # at; the position is the policy's, the orientation is not its output.
+            arm.capture_hold_pose()
+            self._cart_hold[active] = np.asarray(arm.hold_quaternion, dtype=float).copy()
         #: Pick-station jaw line the scripted tracking window is measured against
         #: (`_run_impl` reads it after its pre-pose, at the same pose).
         self._expert_jaw_y = float(arm.jaw_centre()[1])
@@ -5589,14 +5612,15 @@ class SortingRLEnv:
             self._notes.append("non-finite policy action")
             return
         arm = self.task.arms[self._active]
-        if self._a2c2 is not None and not self._triggered:
+        if self._a2c2 is not None and not self._triggered and not self._action_jaw:
             # A2C2-style per-step correction on the frozen base policy, before
             # the primitive owns the arm. The head only shifts the 7 arm
             # channels; the finger command (and so the trigger) is unchanged.
             action = self._a2c2.correct(action, self.proprio(), self._goal, index)
-        if self._policy_track and self._sample is not None and not self._sample.attached:
+        if (self._policy_track and self._sample is not None
+                and not self._sample.attached and not self._action_jaw):
             action = self._tracking_action(action, arm)
-        if self._emit_diag:
+        if self._emit_diag and not self._action_jaw:
             # P53: the out-of-range count of the command as the policy emits it
             # (T0's whole stream, C1's input) - pure array work on the action in
             # hand, no simulator read.
@@ -5614,24 +5638,39 @@ class SortingRLEnv:
             # range before the drives see them. The census measured the shipped
             # emissions out of range on 74.3 % of ticks with no clamp on this
             # path (`logs/p52/P2B_FEASIBILITY.md` 1.6), so the drive pushes into
-            # the stop; this is the zero-time-cost cell that removes that.
-            action = clamp_joint_targets(action, arm.arm_lo, arm.arm_hi)
-            if self._emit_diag:
-                count, over = emit_out_of_range(action, arm.arm_lo, arm.arm_hi)
-                self._emit_post_out += count
-        self.scene.robot.set_dof_position_targets(
-            [action[:7].tolist()], dof_indices=list(arm.arm_dofs)
-        )
-        finger = float(np.clip(action[7], 0.0, 0.044))
-        self.scene.robot.set_dof_position_targets(
-            [[finger, finger]], dof_indices=list(arm.finger_dofs)
-        )
-        if action.shape[0] > 8:
-            # Recorded channel: the two finger joints mirror `action[7]`, the
-            # same convention the demonstrations use.
-            action = action.copy()
-            action[7] = finger
-            action[8] = finger
+            # the stop; this is the zero-time-cost cell that removes that. A
+            # cartesian action (P145d) is not a joint vector and is not clamped.
+            if not self._action_jaw:
+                action = clamp_joint_targets(action, arm.arm_lo, arm.arm_hi)
+                if self._emit_diag:
+                    count, over = emit_out_of_range(action, arm.arm_lo, arm.arm_hi)
+                    self._emit_post_out += count
+        if self._action_jaw:
+            # P145d: the task-space action. `ik_step` writes the arm's targets
+            # itself; the orientation is the episode's captured hold.
+            finger = float(np.clip(action[3], 0.0, 0.044))
+            hold = self._cart_hold.get(self._active)
+            if hold is not None:
+                arm.hold_quaternion = np.asarray(hold, dtype=float)
+            arm.sync_command_to_measured()
+            arm.ik_step(arm.tcp_target_for_jaw(np.asarray(action[:3], dtype=float)))
+            self.scene.robot.set_dof_position_targets(
+                [[finger, finger]], dof_indices=list(arm.finger_dofs)
+            )
+        else:
+            self.scene.robot.set_dof_position_targets(
+                [action[:7].tolist()], dof_indices=list(arm.arm_dofs)
+            )
+            finger = float(np.clip(action[7], 0.0, 0.044))
+            self.scene.robot.set_dof_position_targets(
+                [[finger, finger]], dof_indices=list(arm.finger_dofs)
+            )
+            if action.shape[0] > 8:
+                # Recorded channel: the two finger joints mirror `action[7]`, the
+                # same convention the demonstrations use.
+                action = action.copy()
+                action[7] = finger
+                action[8] = finger
         if self._rtc_report:
             # Executed-stream diagnostics (off for rate runs): the 7-D arm command
             # jump between consecutive applied actions, split into switch

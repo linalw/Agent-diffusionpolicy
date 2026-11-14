@@ -397,6 +397,13 @@ class EpisodeStore:
         #: around the first closed-finger command. A close-only model has one mode
         #: (descend + close), so it is the test of whether the phase mixture is
         #: what holds the fit at 0.04 rad. `FRUIT_CLOSE_ONLY=1`, off by default.
+        #: P145d: `FRUIT_ACTION=jaw` makes the store's action the **task-space
+        #: target** `[jaw xyz, finger]` of the next 30 Hz sample, from the `jaw`
+        #: key the P145d collector records. Default off: every store's action is
+        #: the recorded 9-D joint command, byte for byte.
+        self.action_jaw = os.environ.get("FRUIT_ACTION", "").strip().lower() in (
+            "jaw", "cartesian"
+        )
         self.close_only = os.environ.get("FRUIT_CLOSE_ONLY", "0") == "1"
         self.close_lead = max(0, int(os.environ.get("FRUIT_CLOSE_LEAD", "5")))
         self.close_tail = max(0, int(os.environ.get("FRUIT_CLOSE_TAIL", "10")))
@@ -412,6 +419,14 @@ class EpisodeStore:
         self.episodes: list[dict] = []
         for entry in entries:
             data = np.load(os.path.join(root, entry["file"]))
+            action_array = data["action"]
+            if self.action_jaw and "jaw" in data.files:
+                # (T,3) jaw + (T,1) finger, shifted by one 30 Hz sample: the
+                # action is the pose the *next* tick should reach.
+                _jaw = np.asarray(data["jaw"], dtype=np.float32)
+                _finger = np.asarray(data["finger_opening"], dtype=np.float32).reshape(-1, 1)
+                _cart = np.concatenate([_jaw, _finger], axis=1)
+                action_array = np.concatenate([_cart[1:], _cart[-1:]], axis=0)
             has_mask = "target_mask" in data.files
             skills = None
             if all(k in data.files for k in ("fruit_position", "finger_opening", "goal")):
@@ -437,7 +452,7 @@ class EpisodeStore:
                         np.asarray(data["belt_speed"], dtype=np.float32).reshape(-1)
                         if "belt_speed" in data.files else None
                     ),
-                    "action": data["action"],
+                    "action": action_array,
                     # P145: a DAgger store may flag frames whose label is not the
                     # behaviour to clone (the expert's post-close hold). Absent =
                     # every frame valid, i.e. every pre-P145 store is unchanged.
@@ -473,13 +488,13 @@ class EpisodeStore:
             valid = episode.get("valid")
             focus_lo = 0
             focus_hi = None
-            if valid is not None and self.dagger_focus:
+            if valid is not None and self.dagger_focus and not self.action_jaw:
                 finger = np.asarray(episode["action"], dtype=np.float32)[:, 7]
                 closed = np.nonzero(finger < 0.0439)[0]
                 focus_lo = max(
                     0, (int(closed[0]) if closed.size else length) - self.dagger_focus
                 )
-            elif self.close_only:
+            elif self.close_only and not self.action_jaw:
                 finger = np.asarray(episode["action"], dtype=np.float32)[:, 7]
                 closed = np.nonzero(finger < 0.0439)[0]
                 if closed.size:
@@ -488,7 +503,7 @@ class EpisodeStore:
                     self.close_kept += 1
                 else:
                     focus_lo, focus_hi = 0, -1
-            elif valid is None and self.base_carry_only:
+            elif valid is None and self.base_carry_only and not self.action_jaw:
                 finger = np.asarray(episode["action"], dtype=np.float32)[:, 7]
                 closed = np.nonzero(finger < 0.0439)[0]
                 # +15 frames = past the close ramp, i.e. the lift/carry/place.
