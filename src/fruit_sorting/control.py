@@ -168,6 +168,11 @@ class ArmController:
         #: than re-deriving from the lagging measured position every step) is
         #: what makes the servo converge instead of oscillating.
         self._q_cmd: np.ndarray | None = None
+        #: P145d.1: the **commanded** TCP of the last `ik_step` (the setpoint the
+        #: scripted close asked the servo for) and a call counter, so the
+        #: collector can record the command rather than the lagging response.
+        self.ik_calls = 0
+        self.last_ik_target: np.ndarray | None = None
 
         names = list(self.robot.dof_names)
         self.arm_dofs = [names.index(n) for n in self.spec.arm_joint_names]
@@ -335,6 +340,8 @@ class ArmController:
         freely - the arm only has 7 DoF and position alone does not pin the
         wrist - which moves the jaw centre away from the commanded point.
         """
+        self.ik_calls += 1
+        self.last_ik_target = np.asarray(target, dtype=float).copy()
         tcp = self.tcp_position()
         error = np.asarray(target, dtype=float) - tcp
         distance = float(np.linalg.norm(error))

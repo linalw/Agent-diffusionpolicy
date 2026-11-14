@@ -8,7 +8,7 @@ normalizer's action statistics with the ones measured on `datasets/p145_tcp`
 (`[jaw xyz, finger]`, the next 30 Hz sample). `111_rl_finetune.py` then trains it
 like any other checkpoint.
 
-    python3 logs/p145/make_cart_seed.py
+    P145_STORE=datasets/p145_tcp2 python3 logs/p145/make_cart_seed.py
 """
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ import torch  # noqa: E402
 from fruit_sorting.policy.model import ConditionalUNet1D  # noqa: E402
 
 SOURCE = "checkpoints/moe_v13s/policy_best.pt"
-STORE = "datasets/p145_tcp"
+STORE = os.environ.get("P145_STORE", "datasets/p145_tcp")
 OUT = "checkpoints/p145_cart_seed"
 
 
@@ -35,10 +35,19 @@ def main() -> int:
     acts = []
     for path in sorted(glob.glob(os.path.join(STORE, "**", "*.npz"), recursive=True)):
         data = np.load(path)
-        jaw = np.asarray(data["jaw"], dtype=np.float32)
         finger = np.asarray(data["finger_opening"], dtype=np.float32).reshape(-1, 1)
-        cart = np.concatenate([jaw, finger], axis=1)
-        acts.append(np.concatenate([cart[1:], cart[-1:]], axis=0))
+        if "cmd_tcp" in data.files:
+            cmd = np.asarray(data["cmd_tcp"], dtype=np.float32)
+            fresh = (
+                np.asarray(data["cmd_fresh"], dtype=np.float32).reshape(-1) > 0.5
+                if "cmd_fresh" in data.files
+                else np.ones(len(cmd), dtype=bool)
+            )
+            achieved = np.asarray(data["tcp"], dtype=np.float32)
+            target = np.where(fresh[:, None], cmd, achieved)
+        else:
+            target = np.asarray(data["jaw"], dtype=np.float32)
+        acts.append(np.concatenate([target, finger], axis=1))
     A = np.concatenate(acts, axis=0)
     mean = A.mean(axis=0)
     std = A.std(axis=0) + 1e-6

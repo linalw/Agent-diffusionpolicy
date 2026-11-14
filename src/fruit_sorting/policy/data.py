@@ -402,7 +402,7 @@ class EpisodeStore:
         #: key the P145d collector records. Default off: every store's action is
         #: the recorded 9-D joint command, byte for byte.
         self.action_jaw = os.environ.get("FRUIT_ACTION", "").strip().lower() in (
-            "jaw", "cartesian"
+            "jaw", "cartesian", "tcp"
         )
         self.close_only = os.environ.get("FRUIT_CLOSE_ONLY", "0") == "1"
         self.close_lead = max(0, int(os.environ.get("FRUIT_CLOSE_LEAD", "5")))
@@ -421,12 +421,25 @@ class EpisodeStore:
             data = np.load(os.path.join(root, entry["file"]))
             action_array = data["action"]
             if self.action_jaw and "jaw" in data.files:
-                # (T,3) jaw + (T,1) finger, shifted by one 30 Hz sample: the
-                # action is the pose the *next* tick should reach.
-                _jaw = np.asarray(data["jaw"], dtype=np.float32)
+                # (T,3) task-space target + (T,1) finger. P145d.1: prefer the
+                # **commanded** IK target (`cmd_tcp`, the setpoint the scripted
+                # close asked the servo for) when it is fresh; during the wait the
+                # scripted line holds with joint targets and the achieved `tcp` is
+                # the right label (a static hold). The first attempt used the
+                # achieved jaw of the *next* sample, i.e. the servo's lagging
+                # response, and the policy learned to reproduce the lag.
                 _finger = np.asarray(data["finger_opening"], dtype=np.float32).reshape(-1, 1)
-                _cart = np.concatenate([_jaw, _finger], axis=1)
-                action_array = np.concatenate([_cart[1:], _cart[-1:]], axis=0)
+                if "cmd_tcp" in data.files:
+                    _cmd = np.asarray(data["cmd_tcp"], dtype=np.float32)
+                    if "cmd_fresh" in data.files:
+                        _fresh = np.asarray(data["cmd_fresh"], dtype=np.float32).reshape(-1) > 0.5
+                    else:
+                        _fresh = np.ones(len(_cmd), dtype=bool)
+                    _achieved = np.asarray(data["tcp"], dtype=np.float32)
+                    _target = np.where(_fresh[:, None], _cmd, _achieved)
+                else:
+                    _target = np.asarray(data["jaw"], dtype=np.float32)
+                action_array = np.concatenate([_target, _finger], axis=1)
             has_mask = "target_mask" in data.files
             skills = None
             if all(k in data.files for k in ("fruit_position", "finger_opening", "goal")):

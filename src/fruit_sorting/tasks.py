@@ -7916,6 +7916,19 @@ class PickAndPlaceTask:
                 arm = self.arms[self.current_arm] if isinstance(self.current_arm, str) else self.current_arm
                 observation["tcp"] = np.asarray(arm.tcp_pose()[0], dtype=np.float32)
                 observation["jaw"] = np.asarray(arm.jaw_centre(), dtype=np.float32)
+                # P145d.1: the commanded IK setpoint of this frame, with a
+                # freshness flag. The wait loop holds with joint targets and never
+                # calls the IK, so there the achieved `tcp` is the label; the
+                # close calls it every tick, so `cmd_tcp` is the command.
+                fresh = bool(getattr(arm, "ik_calls", 0) != getattr(arm, "_ik_calls_at_record", -1))
+                arm._ik_calls_at_record = int(getattr(arm, "ik_calls", 0))
+                cmd = getattr(arm, "last_ik_target", None)
+                observation["cmd_tcp"] = (
+                    np.asarray(cmd, dtype=np.float32)
+                    if fresh and cmd is not None
+                    else observation["tcp"]
+                )
+                observation["cmd_fresh"] = np.float32(1.0 if fresh and cmd is not None else 0.0)
             except Exception:  # noqa: BLE001 - a missing TCP must not stop a recording
                 pass
         self.recorder.add(observation, action)

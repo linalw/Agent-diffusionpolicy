@@ -493,7 +493,7 @@ from .tracking import FruitTracker, track_config_from_env
 #: This env never constructs a cage, so no direct/policy behaviour moves - proven
 #: on the scripted side by `scripts/accept.sh`'s 421/421 byte-identical `[fruit]`
 #: stream (`logs/p107/RESULTS.md` section 5).
-TASKS_MD5 = "9357c237756879e5e688245e9515617b"
+TASKS_MD5 = "d391947cdfde9de35c2ae926b1bcb2a4"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(
@@ -2048,8 +2048,14 @@ class SortingRLEnv:
         #: the scripted close uses (the P145d pre-check: 5.1 mm systematic, 0.2 mm
         #: spread). Default off: the shipped 9-D joint action, byte for byte.
         self._action_jaw = os.environ.get("FRUIT_ACTION", "").strip().lower() in (
-            "jaw", "cartesian"
+            "jaw", "cartesian", "tcp"
         )
+        #: `FRUIT_ACTION=tcp` is the **TCP** command (the recorded `cmd_tcp`):
+        #: the env applies it with `ik_step(target)` directly. `jaw` is the older
+        #: jaw-point action, which needs `tcp_target_for_jaw`. Applying a TCP
+        #: action through `tcp_target_for_jaw` adds the ~78 mm tool offset twice
+        #: (P145d.1, found by the review agent).
+        self._action_tcp = os.environ.get("FRUIT_ACTION", "").strip().lower() == "tcp"
         self._cart_hold: dict[str, np.ndarray] = {}
         self._direct_start = os.environ.get("FRUIT_DIRECT_START", "grasp").strip().lower()
         if self._direct_start not in ("grasp", "wait"):
@@ -3917,6 +3923,10 @@ class SortingRLEnv:
             # at; the position is the policy's, the orientation is not its output.
             arm.capture_hold_pose()
             self._cart_hold[active] = np.asarray(arm.hold_quaternion, dtype=float).copy()
+            # Seed the IK integrator once (the scripted close carries `_q_cmd`
+            # across ticks; resetting it per deploy tick was the train/deploy gap
+            # the review agent found).
+            arm.sync_command_to_measured()
         #: Pick-station jaw line the scripted tracking window is measured against
         #: (`_run_impl` reads it after its pre-pose, at the same pose).
         self._expert_jaw_y = float(arm.jaw_centre()[1])
@@ -5652,8 +5662,11 @@ class SortingRLEnv:
             hold = self._cart_hold.get(self._active)
             if hold is not None:
                 arm.hold_quaternion = np.asarray(hold, dtype=float)
-            arm.sync_command_to_measured()
-            arm.ik_step(arm.tcp_target_for_jaw(np.asarray(action[:3], dtype=float)))
+            target = np.asarray(action[:3], dtype=float)
+            if not self._action_tcp:
+                # jaw-point action: the TCP target carries the tool offset.
+                target = arm.tcp_target_for_jaw(target)
+            arm.ik_step(target)
             self.scene.robot.set_dof_position_targets(
                 [[finger, finger]], dof_indices=list(arm.finger_dofs)
             )
