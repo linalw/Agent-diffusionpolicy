@@ -443,8 +443,23 @@ class EpisodeStore:
             has_mask = "target_mask" in data.files
             skills = None
             if all(k in data.files for k in ("fruit_position", "finger_opening", "goal")):
+                # P145d.3: label the skill on the **commanded** finger, not the
+                # measured one. The measured finger sits +6 mm above the command
+                # at the loaded close (p50: command 0.0269, measured 0.0304-0.0328)
+                # and `label_episode`'s 0.030 threshold then labels the whole
+                # loaded close `approach` (24/50 episodes have zero `grasp`
+                # frames). The approach expert therefore contains the close and
+                # re-opens the fingers at the re-plan; the measured value means
+                # "free ramp" or "loaded squeeze" depending only on the fruit's
+                # width. The action's finger channel is the command.
+                _raw_action = np.asarray(data["action"], dtype=np.float32)
+                _label_finger = (
+                    _raw_action[:, 7]
+                    if _raw_action.ndim == 2 and _raw_action.shape[1] > 7
+                    else data["finger_opening"]
+                )
                 skills = label_episode(
-                    data["fruit_position"], data["finger_opening"], data["goal"]
+                    data["fruit_position"], _label_finger, data["goal"]
                 )
             self.episodes.append(
                 {
