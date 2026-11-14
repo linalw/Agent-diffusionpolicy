@@ -504,3 +504,43 @@ best closed-loop result on the honest interface.
 No shipped default moved: `FRUIT_ACTION` is default-off, the loader's jaw mode is
 default-off, and the 9-D guard keeps a 4-D checkpoint from being run on the
 shipped path. `selfcheck.sh` PASS (0 failures, 1 skipped) after the changes.
+
+## 14. P145d.1 - the enforced command, two implementation defects, and the fresh head
+
+The review agents (oracle/explorer) read the P145d path and found two defects that
+the "achieved pose" diagnosis had hidden:
+
+1. **The tool offset was applied twice.** `cmd_tcp` is a **TCP** command, and the
+   env applied it through `tcp_target_for_jaw()`, which adds the ~78 mm lever
+   offset - so the arm was commanded 7.8 cm high. `FRUIT_ACTION=tcp` now calls
+   `ik_step(target)` directly; `FRUIT_ACTION=jaw` keeps the old path.
+2. **The IK integrator was reset every deploy tick.** The scripted close carries
+   `_q_cmd` across ticks (an incremental servo); the env called
+   `sync_command_to_measured()` every tick. The integrator is now seeded once at
+   the episode start and carried, matching the demonstrations.
+
+The collector now records the **enforced command** (`cmd_tcp` = the exact
+`ik_step` argument, `cmd_fresh`); the loader and the 4-D seed prefer it when the
+IK ran and fall back to the achieved `tcp` during the static wait hold.
+`dataset/p145_tcp2`, 50 episodes, 140/189 fresh frames (the IK is live through
+the close/carry, not during the hold).
+
+**The first TCP cell is still negative, and the cause is now visible at frame 0.**
+With the 40-epoch model (`p145_cart2`, loss 0.0239) the first trace row has the
+jaw at z 1.315 (a TCP of 1.393) while the demonstrations' wait TCP is **1.241**:
+the policy starts **15 cm high**, then drifts up. The 4-D seed's action head is
+**freshly initialised** (only `action_in` and `head.2` are new; 119/122 tensors
+warm-start), and 40 epochs on 9,423 windows is not enough for it to learn the new
+action space - the model outputs near the action mean (1.364) instead of the
+conditional wait target. Gap 98-131 mm.
+
+**The cell that decides it**: the same seed and data, 100 epochs at lr 1e-4
+(`checkpoints/p145_cart3`, running). The endpoint is the **first-frame action**
+(the wait-state TCP against 1.241) before any closed-loop claim; if it converges,
+the closed-loop cell follows. This is the librarian's R1/R3 (label the enforced
+command; decompose policy error from the 5 mm servo), not a new mechanism.
+
+The wait-phase label remains the achieved `tcp` (a static hold); the oracle flags
+that as a label-definition switch, and the clean form is the FK of the hold's
+joint targets. That is a collector/kinematics change of its own and is deferred
+until the first-frame check says the head can fit the space at all.
