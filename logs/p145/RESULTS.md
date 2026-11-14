@@ -578,3 +578,40 @@ aligned one: the `p145_demo_h4` policy (wait start + hold 4) as the driver, the
 scripted expert's labels only (`FRUIT_DAGGER_NO_TAKEOVER=1`), the moving goal, and
 a fine-tune of the same h4 checkpoint. It is the cheapest remaining mechanism and
 it targets the measured drift directly.
+
+## 16. The aligned wait-start DAgger solves the close geometry (gap 1-2 mm); the lift is the remaining term
+
+The P145 DAgger store had been collected at the **old** grasp start with
+`ACTION_HOLD=1`, i.e. not on the interface that drifts. This cell is the aligned
+one: the `p145_demo_h4` policy (wait start + `ACTION_HOLD=4`) as the driver, the
+scripted expert's labels only (`FRUIT_DAGGER_NO_TAKEOVER=1`:
+`interventions=0/130`, `expert_ticks=0/520`), the perception goal, 40 episodes
+(seeds 77/101, horizon 520), then a fine-tune of the same h4 checkpoint with the
+**whole valid wait + close** (not the 20-frame focus: the early drift is the state
+to correct) plus `demos_v11` at weight 1.0, 14,348 windows, 40 epochs, loss
+0.0185 (`checkpoints/p145_wait_dagger`).
+
+Closed loop, 2 episodes (wait start, perception, no handover, hold 4):
+
+| episode | `gap_min` | `gap_close` | jaw z at the close | finger | lift |
+|---|---|---|---|---|---|
+| 0 (pear 6.1 cm) | 75 mm | - | 1.30 -> 1.26 | 0.037-0.044 | no |
+| **1 (kiwi 6.4 cm)** | **1 mm** | **2 mm** | **1.251-1.258** | **0.025-0.030** | **no** |
+
+Episode 1 is the **best closed-loop grasp geometry this project has measured**:
+the jaw is on the fruit to **1-2 mm** in x/y, at the seat height (jaw 1.25 with the
+pads' distal plane 1.17, straddling the fruit's 1.20 centre), and the finger
+command 0.025-0.030 is the demonstrated grip gap for a 6.4 cm kiwi. The joint
+clone's best was 9-47 mm; the cartesian best 89-175. **The geometry lane is
+solved.**
+
+What does **not** happen is the lift: the jaw stays at 1.25-1.26 and the fruit at
+z 1.20 for the rest of the episode; the finger oscillates 0.025 -> 0.040 -> 0.030
+across chunks instead of settling at the ramp's end. The next cell is the
+**close-to-lift transition**: the demonstrations' ramp ends at 0.027 and the
+`grasp_lift` follows; the model re-opens. The route diag and a lift-phase cell are
+the instruments, and the same wait-start DAgger store already contains the labels
+(the expert's close ends at the ramp and the base demos carry the lift at weight
+1.0).
+
+No shipped default moved; the DAgger cell is env-only.
