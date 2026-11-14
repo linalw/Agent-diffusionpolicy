@@ -615,3 +615,39 @@ the instruments, and the same wait-start DAgger store already contains the label
 1.0).
 
 No shipped default moved; the DAgger cell is env-only.
+
+## 17. The commanded-finger labels restore the grasp class; the close/lift transition is still the term
+
+The oracle's census found the label defect behind the re-open: the **measured**
+finger at the loaded close sits **+6.0 mm** above the command (p50: command
+0.0269, measured 0.0304-0.0328), and `label_episode`'s 0.030 threshold labels the
+whole loaded close `approach` - **24/50 demos_v11 episodes have zero `grasp`
+frames**. The approach expert therefore contains the close, and the 4/16-waypoint
+re-plan re-establishes the ramp from an aliased, lagged state (the measured value
+means "free ramp" or "loaded squeeze" depending only on the fruit's width).
+
+**Fix**: label the skill on the **commanded** finger (the action's channel). The
+class is restored (demos_v11: **grasp 0 -> 1581 frames**, approach 3455, lift 3000,
+place 2192) and the horizon-16 retrain fits better (loss 0.0119 -> 0.0093 at
+epoch 20, weighted 0.0129 final).
+
+**The first closed-loop cell after the fix is a draw, not a conversion** (2
+episodes, wait start, perception, hold 4, execute 16): pear gap 56 mm, kiwi gap
+**33 mm**, both no lift and no re-open seen at the sampled ticks. The previous h16
+cell (same data, old labels) reached **1 mm** on the same kiwi and then re-opened
+at the re-plan. The two cells differ by the class labels alone; at n=2 this is a
+branch, not a verdict, and the honest reading is that **the label fix is correct
+by construction (the measured finger cannot separate free ramp from loaded
+squeeze) and its closed-loop effect needs a larger cell**.
+
+**A second early-episode term surfaced**: the kiwi's first perception measurement
+arrived **~1.5 s late** (frames 107, rejected 43; the small fruit at the camera's
+far range is under `FRUIT_PERCEPTION_MIN_PX`), so the goal stayed at the nominal
+`pick_y + 0.45` until the fruit was close. The wait phase tolerates it, but the
+nominal is 3.6 cm off the kiwi's actual selection y, and the tracking starts late.
+
+**Where this leaves the honest interface**: the close geometry is solved (1-2 mm,
+the seat, the grip gap); the **close/lift transition** - the finger's 0.025 ->
+0.040 re-open and the missing lift - is the one unconverted term, and it is now
+attributable to the phase/label aliasing and the open-loop ramp, not to the
+sensor, the goal, the action space or the data count.
