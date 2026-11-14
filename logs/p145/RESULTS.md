@@ -782,3 +782,29 @@ No shipped default moved: `FRUIT_ACTION` unset = the absolute path bit for bit,
 `FRUIT_POLICY_FIXED_NOISE` off, the `[cmd]`/`[close]` rows only under
 `FRUIT_POLICY_TRACE=1`, `FRUIT_GOAL_X_OFFSET` 0. selfcheck PASS (0 failures,
 1 skipped).
+
+## 21. P145d.9: a pre-aligned expert cannot be taught with labels-only DAgger
+
+The aim's named fix - pre-align the lateral offset during the wait instead of in
+the last 0.5 s - was implemented as an expert *label*
+(`FRUIT_EXPERT_PREALIGN=1`, x-only IK toward the fruit at the pose's height,
+lead 0.25 m) and collected (18 episodes, three parallel sims, seeds 77/101/202,
+`FRUIT_DAGGER_NO_TAKEOVER=1`).
+
+**The store cannot carry it, and the reason is structural**: the expert's label
+is **one `ik_step` from the measured joints**, and with labels-only DAgger the
+arm never executes that step, so the measured pose stays where the policy put it.
+The recorded label therefore moves **once** (measured: j1 -1.390 -> -1.508 at the
+fruit's y = 0.205 and flat for the next 1.2 s) instead of integrating the 0.35 rad
+the 0.10 m lateral needs. The same applies to the shipped post-window chase - it
+is a per-tick increment, not a trajectory, so a policy cloning it reproduces a
+fraction of the leg whenever its own state lags.
+
+**So the pre-align is a demonstration-side change, not a label-side one**: the
+scripted collector's wait has to hold the selected fruit's x (a `tasks.py` change
+that moves the scripted line, owes both references and a re-record), and the
+demos then show the lateral move as a slow integrated motion. That is the next
+phase's first item, with the relative-aim observation channel (goal - jaw) as its
+companion if the demos alone are not enough.
+
+`FRUIT_EXPERT_PREALIGN` stays default off; no shipped path reads it.

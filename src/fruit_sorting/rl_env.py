@@ -6642,11 +6642,35 @@ class SortingRLEnv:
         if self._expert_close_start is None and track_end <= dy <= track_start:
             self._expert_close_start = int(self._step)
 
+        # P145d.9: **pre-align the lateral aim**. The scripted wait holds the
+        # calibrated grasp pose (a fixed x) until the fruit reaches the tracking
+        # window, so the lateral 10 cm leg is compressed into the last ~0.5 s and
+        # the cloned policy reproduces ~35 % of it (measured, `[close] dx`
+        # -10..-95 mm). The expert's *label* is ours to choose: the scripted
+        # primitive's own descent already aims at the fruit's x, so a wait that
+        # tracks that x early is the same controller with a lead. The pads stay
+        # open; only x is pre-aligned, at the pose's own height.
+        _prealign = os.environ.get("FRUIT_EXPERT_PREALIGN", "0") == "1"
+        _lead = float(os.environ.get("FRUIT_EXPERT_PREALIGN_LEAD", "0.25"))
         if self._expert_close_start is None:
             # Wait loop of the scripted line: hold the calibrated grasp pose
             # with the pads open (the recorded wait-phase action).
             label[:7] = self._expert_grasp
             finger = float(arm.OPEN)
+            if _prealign and _lead > 0.0 and dy < _lead:
+                # a lateral-only servo at the pose's height; the y/z descent
+                # stays the scripted window's job
+                try:
+                    _jaw = np.asarray(arm.jaw_centre(), dtype=float)
+                    arm.hold_quaternion = None
+                    arm.sync_command_to_measured()
+                    arm.ik_step(
+                        np.array([float(fruit[0]), float(_jaw[1]), float(_jaw[2])])
+                    )
+                    if arm._q_cmd is not None:
+                        label[:7] = np.asarray(arm._q_cmd, dtype=np.float32)[:7]
+                except Exception:  # noqa: BLE001 - the pose stays the fallback
+                    pass
         else:
             quat = np.asarray(arm.tcp_pose()[1], dtype=float)
             width = float(sample.diameter)
