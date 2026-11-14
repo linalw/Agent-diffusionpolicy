@@ -544,3 +544,37 @@ The wait-phase label remains the achieved `tcp` (a static hold); the oracle flag
 that as a label-definition switch, and the clean form is the FK of the hold's
 joint targets. That is a collector/kinematics change of its own and is deferred
 until the first-frame check says the head can fit the space at all.
+
+## 15. The 100-epoch cartesian head fits the wait state (4.3 mm) and still drifts in the loop
+
+`checkpoints/p145_cart3` (100 epochs, lr 1e-4, loss 0.0158) on the enforced-command
+store, scored offline on the **first observation of every demonstration**
+(`logs/p145/first_frame.py`, 50 episodes):
+
+| metric | value |
+|---|---|
+| recorded TCP mean | (0.270, -0.002, 1.236) |
+| predicted TCP mean | (0.270, -0.005, 1.238) |
+| per-axis median | x -0.1 mm, y -2.2 mm, z **+1.6 mm** |
+| `|xyz|` | **median 4.3 mm, p90 8.3, 50/50 <= 20 mm** |
+| finger | 0.0440 recorded / 0.0441 predicted |
+
+So the 40-epoch failure was **training length, not the representation**: the fresh
+4-D head needed ~100 epochs to fit the new space. The closed loop is still a
+negative, and the trace says where: the first frame is correct (jaw z 1.315), then
+the policy drifts to the **ready/high pose** (jaw z 1.48-1.78, `gap` 89-201 mm)
+while the fruit passes. The `dy` phase gate does not change it (gap 93-201 mm,
+jaw 1.48-1.49): the drift is in the shared backbone again, not the router.
+
+**The common failure across joint and cartesian clones is now singular**: the
+policy fits the demonstration states (joint: 0.036-0.041 rad; cartesian: 4.3 mm at
+frame 0) and, once its own output moves it off that narrow manifold, it commits to
+another mode (the ready pose / the close), and the phase gate cannot bring it back.
+
+**The standard fix for exactly this is DAgger on the interface's own drift
+states** - and the daemon store collected in P145 was at the *old* grasp start
+with `ACTION_HOLD=1`, i.e. not the interface that drifts. The next cell is the
+aligned one: the `p145_demo_h4` policy (wait start + hold 4) as the driver, the
+scripted expert's labels only (`FRUIT_DAGGER_NO_TAKEOVER=1`), the moving goal, and
+a fine-tune of the same h4 checkpoint. It is the cheapest remaining mechanism and
+it targets the measured drift directly.
