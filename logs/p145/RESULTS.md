@@ -808,3 +808,50 @@ phase's first item, with the relative-aim observation channel (goal - jaw) as it
 companion if the demos alone are not enough.
 
 `FRUIT_EXPERT_PREALIGN` stays default off; no shipped path reads it.
+
+## 22. The aim's root cause: the anchor's **support**, not the policy
+
+A store survey (`logs/p145` script, median fruit x per episode) put the whole arc
+in one table:
+
+| store | episodes | fruit x mean | p10-p90 | range |
+|---|---|---|---|---|
+| `demos_v11` (the anchor) | 50 | **0.337** | **0.325-0.353** | 0.295-0.391 |
+| `demos_v7`/`v8`/`v9`/`v10` | 42-80 | 0.337-0.340 | 0.324-0.354 | 0.295-0.381 |
+| `demos_v12`/`v13p` (two-line) | 80 | 0.353 | 0.28-0.449 | 0.064-0.477 |
+| `p145_dagger_wait` (direct) | 40 | 0.287 | 0.224-0.349 | 0.197-0.428 |
+| `p145_tcp` (scripted, single arm) | 50 | **0.300** | **0.220-0.363** | 0.174-0.451 |
+| the cell's supply (`FRUIT_SUPPLY_X_MIN/MAX`) | - | - | **0.20-0.36** | - |
+
+**The anchor is the pre-v9 fixed line** (a 28 mm lateral band), and the cell
+supplies the v9 scatter (a 160 mm band): about **12 cm of the deployment band is
+outside the demonstrations' support**. The policy is not aiming "wrong"; it
+returns the anchor's mean behaviour and extrapolates ~35 % of the offset - which
+is the classic *out-of-support* failure of behaviour cloning, and matches the
+literature's named signature for absolute-target BC ("moves toward one of the
+demonstrated configurations once the plant comes into view", arXiv 2602.23408).
+
+**The causal test** (the same checkpoint, `FRUIT_SUPPLY_X_MIN=0.315
+X_MAX=0.355` = the anchor's support, 3 seeds x 4, the shipped band as the
+control): the lateral gap at the closest approach goes **25-76 mm -> 2-13 mm**
+(8/12 <= 5 mm, 10/12 <= 13 mm against 0/4 <= 20 mm on the full band) and the
+grasps **2/12 -> 4/12**. The aim is a *support* problem, not a capacity, sensor,
+noise or action-space problem (all of those were measured null in §19-§21).
+
+**The next term is visible in the same cell**: with the aim at 2-5 mm, only 4 of
+the 8 aimed episodes grasped, and the latch's `dz` reads +79..+131 mm against the
+70 mm seat - the vertical aim/close timing becomes co-binding.
+
+Fixes, ranked by cost and by the literature (three parallel reviews):
+1. **an in-band anchor** (`p145_tcp`: 50 scripted episodes at 0.22-0.363, with
+   `tcp`/`jaw`) or a recollection on the shipped band - the direct data-coverage
+   fix; training now.
+2. **chunk-wise delta actions** (the 13k-rollout study's strongest representation
+   result; our step-wise `dq` was the weaker form, `O(k)` error growth).
+3. **a relative-error observation** (goal - jaw) and a **goal-swap probe** (same
+   proprio, two goals 10 cm apart) to separate trajectory replay from feedback.
+4. **DART-style perturbed expert labels** (query the IK expert at 20-100 mm
+   offsets) or **expert-in-control corrective segments** - the corrective states
+   the labels-only store cannot contain.
+Not indicated: temporal ensembling (averages modes), longer chunks, a classical
+visual servo (violates the brief), or more same-distribution DAgger episodes.
