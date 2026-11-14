@@ -2016,6 +2016,11 @@ class SortingRLEnv:
         #: 26-D artifact (the guard below refuses a mismatch instead of feeding
         #: the model a vector it was not trained on).
         self._speed_channel = speed_channel_enabled()
+        #: P145d.4: the **commanded** finger as an observation channel (the
+        #: measured finger aliases the loaded close: command 0.027 vs 0.034 both
+        #: read ~0.033). Deployment uses its own last command, which is what the
+        #: training stream records as the action's finger channel. Off by default.
+        self._cmd_channel = os.environ.get("FRUIT_OBS_CMD", "0") == "1"
         #: P141 goal auxiliary pair: `(v_belt, a_belt)` appended to the 8-D goal
         #: when `FRUIT_OBS_GOAL_AUX=1`. The goal is otherwise a selection-time
         #: snapshot; these two dims are **refreshed every tick** from the same
@@ -2601,7 +2606,7 @@ class SortingRLEnv:
             # the gate decides it here - so a 26-D checkpoint without the gate
             # (or the other way round) fails at construction, loudly, instead of
             # conditioning the policy on a vector it never saw.
-            want_proprio = 25 + (1 if self._speed_channel else 0)
+            want_proprio = 25 + (1 if self._speed_channel else 0) + (1 if self._cmd_channel else 0)
             got_proprio = int(self.policy.config.get("proprio_dim", 25))
             if got_proprio != want_proprio:
                 raise RuntimeError(
@@ -4676,6 +4681,11 @@ class SortingRLEnv:
                     ],
                     dtype=np.float32,
                 )
+            )
+        if self._cmd_channel:
+            # the previous command (0.044 before the first action of an episode)
+            parts.append(
+                np.array([float(getattr(self, "_last_finger", 0.044))], dtype=np.float32)
             )
         out = np.concatenate(parts).astype(np.float32)
         if self._spoof_diag:

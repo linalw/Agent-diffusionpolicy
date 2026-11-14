@@ -90,6 +90,10 @@ def _md5(path: str) -> str:
 
 #: The belt-speed-channel width (P28-B): 25 shipped + one dedicated scalar.
 SPEED_PROPRIO_DIM = PROPRIO_DIM + 1
+#: P145d.4: the commanded-finger channel's normalisation, measured on
+#: `demos_v11`'s action stream (mean 0.028643, std 0.012109, 0.0060-0.0440).
+CMD_CHANNEL_MEAN = 0.028643
+CMD_CHANNEL_STD = 0.012109
 
 
 def widen_proprio(
@@ -98,6 +102,8 @@ def widen_proprio(
     config: dict,
     *,
     new_dim: int = SPEED_PROPRIO_DIM,
+    mean: float = SPEED_CHANNEL_MEAN,
+    std: float = SPEED_CHANNEL_STD,
 ) -> bool:
     """Splice the belt-speed column into a 25-D checkpoint payload, in place.
 
@@ -138,13 +144,13 @@ def widen_proprio(
     normalizer["obs_mean"] = np.concatenate(
         [
             np.asarray(normalizer["obs_mean"], dtype=np.float32),
-            np.full(pad, SPEED_CHANNEL_MEAN, dtype=np.float32),
+            np.full(pad, float(mean), dtype=np.float32),
         ]
     ).tolist()
     normalizer["obs_std"] = np.concatenate(
         [
             np.asarray(normalizer["obs_std"], dtype=np.float32),
-            np.full(pad, SPEED_CHANNEL_STD, dtype=np.float32),
+            np.full(pad, float(std), dtype=np.float32),
         ]
     ).tolist()
     config["proprio_dim"] = int(new_dim)
@@ -447,6 +453,7 @@ def finetune(
     rollout_speed: float | None = None,
     base_speed: float | None = None,
     goal_aux: bool | None = None,
+    cmd_channel: bool | None = None,
     obs_horizon: int | None = None,
     verbose: bool = True,
 ) -> str:
@@ -497,6 +504,29 @@ def finetune(
                 f"({SPEED_CHANNEL_MEAN}, {SPEED_CHANNEL_STD}))",
                 flush=True,
             )
+    # P145d.4: the commanded-finger column (the measured finger aliases the
+    # loaded close). Spliced after the speed column; the store and the
+    # checkpoint must agree on the width.
+    _cmd = (
+        bool(cmd_channel)
+        if cmd_channel is not None
+        else os.environ.get("FRUIT_OBS_CMD", "0") == "1"
+    )
+    if _cmd:
+        _target = PROPRIO_DIM + (1 if speed_channel else 0) + 1
+        if int(config.get("proprio_dim", PROPRIO_DIM)) < _target:
+            widen_proprio(
+                ckpt["model"], ckpt["normalizer"], config,
+                new_dim=_target, mean=CMD_CHANNEL_MEAN, std=CMD_CHANNEL_STD,
+            )
+            if verbose:
+                print(
+                    f"[finetune] P145d.4 command-finger channel: proprio "
+                    f"-> {int(config['proprio_dim'])} (zero column, "
+                    f"normaliser ({CMD_CHANNEL_MEAN}, {CMD_CHANNEL_STD}))",
+                    flush=True,
+                )
+    cmd_channel = _cmd
     # P141: the goal's belt pair. Armed by the gate or by the artifact (a 10-D
     # checkpoint must be trained on 10-D goals, exactly like proprio).
     if goal_aux is None:
@@ -557,6 +587,7 @@ def finetune(
             rollouts, obs_horizon=obs_horizon, action_horizon=action_horizon,
             image_size=image_size, only_successful=False,
             belt_speed=rollout_speed, speed_channel=speed_channel,
+            cmd_channel=cmd_channel,
             goal_aux=goal_aux,
         )
     base_store = None
@@ -565,6 +596,7 @@ def finetune(
             base, obs_horizon=obs_horizon, action_horizon=action_horizon,
             image_size=image_size, only_successful=True,
             belt_speed=base_speed, speed_channel=speed_channel,
+            cmd_channel=cmd_channel,
             goal_aux=goal_aux,
         )
     # The training input and the deployed input must be the same width; this is

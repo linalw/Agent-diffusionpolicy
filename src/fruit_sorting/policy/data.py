@@ -331,6 +331,7 @@ class EpisodeStore:
         belt_speed: float | None = None,
         speed_channel: bool | None = None,
         goal_aux: bool | None = None,
+        cmd_channel: bool | None = None,
     ):
         self.root = root
         self.obs_horizon = obs_horizon
@@ -348,7 +349,18 @@ class EpisodeStore:
         self.belt_speed = None if belt_speed is None else float(belt_speed)
         #: The width `__getitem__` returns - `finetune` cross-checks it against
         #: the checkpoint's `config["proprio_dim"]`.
-        self.proprio_dim = PROPRIO_DIM + (1 if self.speed_channel else 0)
+        #: P145d.4: the **commanded** finger as an observation channel. The
+        #: measured finger is aliased at the loaded close (the drive's +6 mm),
+        #: so the same observation means "early ramp" or "loaded hold"; the
+        #: previous command disambiguates them. Training reads it from the
+        #: recorded action stream; deployment from the env's `_last_finger`.
+        self.cmd_channel = (
+            os.environ.get("FRUIT_OBS_CMD", "0") == "1"
+            if cmd_channel is None else bool(cmd_channel)
+        )
+        self.proprio_dim = (
+            PROPRIO_DIM + (1 if self.speed_channel else 0) + (1 if self.cmd_channel else 0)
+        )
         #: P141: the goal's auxiliary pair. Like the speed channel this is a
         #: property of the artifact, and the fine-tune cross-checks it against
         #: the checkpoint's ``config["goal_dim"]``.
@@ -736,6 +748,17 @@ class EpisodeStore:
                 episode["finger"][t].astype(np.float32),
                 episode["tactile"][t].astype(np.float32),
             ]
+        if self.cmd_channel:
+            # the command applied at t-1 (the recorded action stream); at t=0
+            # the wait hold, which is what the demos start with.
+            action = np.asarray(episode["action"], dtype=np.float32)
+            col = 7 if action.ndim == 2 and action.shape[1] > 7 else 3
+            command = action[:, col]
+            if t is None:
+                parts.append(np.concatenate([[command[0]], command[:-1]])[:, None])
+            else:
+                prev = command[t - 1] if t > 0 else command[0]
+                parts.append(np.array([prev], dtype=np.float32))
         if self.speed_channel:
             trace = self.speed_traces[ep_index]
             if trace is not None:

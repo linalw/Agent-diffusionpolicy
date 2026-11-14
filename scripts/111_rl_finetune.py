@@ -71,6 +71,9 @@ def main() -> int:
     parser.add_argument("--close-lead", type=int,
                         default=int(os.environ.get("CLOSE_LEAD", "10")),
                         help="frames before the close start included in the boost")
+    parser.add_argument("--obs-cmd", action="store_true",
+                        default=os.environ.get("FRUIT_OBS_CMD", "0") == "1",
+                        help="P145d.4: append the commanded finger to the proprio")
     parser.add_argument("--action-horizon", type=int, default=None,
                         help="P145: override the checkpoint's action horizon "
                              "(a window property; no weights change). Pair it "
@@ -130,6 +133,7 @@ def main() -> int:
         close_tail=args.close_tail,
         first_steps=args.first_steps,
         action_horizon=args.action_horizon,
+        cmd_channel=args.obs_cmd,
         rollout_speed=rollout_speed,
         base_speed=base_speed,
         goal_aux=args.goal_aux,
