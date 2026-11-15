@@ -1078,3 +1078,30 @@ the hold/carry only; (4) a **belt-frame hold target** (or lift clear of the belt
 the industrial move); and **before any of these, measure the drive saturation** -
 the 47 mm/s ceiling may be a torque/velocity limit that a feed-forward cannot
 exceed.
+
+## 29. Velocity feed-forward on the chunk is a null - because the chunk's velocity is ~0
+
+`FRUIT_POLICY_FF=<ticks>` leads the applied joint command by that many ticks of
+the chunk's own per-tick velocity (no retraining, no action-space change). The A/B
+(2 seeds x 4, the aligned start, the ramp dy 0.014, the gate, the lift label,
+`p145_wait_h16c`), read with the loop's own post-close tracking regression
+(`logs/p145/loop_track.py`: the slope of `jaw_y - fruit_y` over the 17 frames
+after the `[close]` latch, from the existing `[policy-trace]` rows):
+
+| arm | slope (mm/frame) | jaw travel (17 frames) | fruit travel |
+|---|---|---|---|
+| FF off, seed 77 / 101 | **+2.91 / +4.25** | +8.0 / -5.5 mm | -34.5 / -64.0 mm |
+| FF 2 ticks, seed 77 / 101 | +3.54 / +3.10 | -2.5 / -1.5 mm | -62.5 / -51.5 mm |
+| demos (reference) | **-0.095** | +57 mm | -59 mm |
+
+**A positive slope is the world-static hold** (the fruit moves, the jaw does not);
+the demos track at -0.095. The feed-forward cannot help because the *chunk the
+policy predicts* at the hold travels only ~8 mm over 17 frames - 0.5 mm/frame
+against the demos' 3.4 - i.e. the command itself carries ~1/7 of the velocity, so
+leading it by a few ticks moves nothing. The policy's contact-phase prediction,
+not the drive's following error, is the binding term.
+
+This closes the "it is a servo/feed-forward problem" hypothesis (it is the
+oracle's/agent's #1) and leaves the two larger builds: the **achieved-state
+relabel** (RACE: label the state the plant reaches, not the command it is given -
+the exceed-share family) and a **velocity action** scoped to the hold/carry.

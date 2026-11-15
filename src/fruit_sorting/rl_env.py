@@ -2075,6 +2075,15 @@ class SortingRLEnv:
         #: by anchoring at its own absolute bias (measured 35 % on the lateral
         #: aim, 42 % on the post-close tracking hold).
         self._rel_action = os.environ.get("FRUIT_ACTION", "").strip().lower() == "rel"
+        #: P153: **velocity feed-forward** on the applied joint command
+        #: (`FRUIT_POLICY_FF=<ticks>`). The policy's 16 waypoints are positions;
+        #: a position loop driving a *moving* target lags it by `e ~ v/K`
+        #: (measured on the expert's per-tick IK chase: the labels track at 1.00,
+        #: the achieved states at 0.61). Leading the command by `alpha` ticks of
+        #: the chunk's own velocity removes that lag without changing the policy,
+        #: the data or the action space. 0 = off (the shipped path).
+        self._ff_ticks = float(os.environ.get("FRUIT_POLICY_FF", "0") or 0.0)
+        self._ff_arr: np.ndarray | None = None
         self._rel_base: np.ndarray | None = None
         self._rel_first: np.ndarray | None = None
         self._dq_index: int | None = None
@@ -5684,6 +5693,8 @@ class SortingRLEnv:
                     # the hold is a property of the *path*, not of the index
                     # arithmetic. Once per decision, 16x9 -> 32x9 floats.
                     arr = np.repeat(arr, self._action_hold, axis=0)
+                if self._ff_ticks > 0.0:
+                    self._ff_arr = arr
                 if index < arr.shape[0]:
                     if self._retime_on:
                         # P52 phase 2: apply the contact-gated time-scale. With
@@ -5890,6 +5901,12 @@ class SortingRLEnv:
             )
         else:
             target7 = action[:7]
+            if self._ff_ticks > 0.0 and self._ff_arr is not None:
+                # the chunk's own per-tick velocity, one hold-step ahead
+                _j = min(int(index) + max(1, int(self._action_hold)), self._ff_arr.shape[0] - 1)
+                _v = (np.asarray(self._ff_arr[_j][:7], dtype=float)
+                      - np.asarray(action[:7], dtype=float)) / max(1, int(self._action_hold))
+                target7 = np.asarray(action[:7], dtype=float) + self._ff_ticks * _v
             if self._rel_action and self._rel_base is not None and self._rel_first is not None:
                 target7 = self._rel_base + (np.asarray(action[:7], dtype=float) - self._rel_first)
             if self._dq_action:
