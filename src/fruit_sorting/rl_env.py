@@ -2075,6 +2075,15 @@ class SortingRLEnv:
         #: by anchoring at its own absolute bias (measured 35 % on the lateral
         #: aim, 42 % on the post-close tracking hold).
         self._rel_action = os.environ.get("FRUIT_ACTION", "").strip().lower() == "rel"
+        #: P157: the **position+velocity** action (`FRUIT_ACTION=posvel`). The
+        #: action is `[pos(7), fing, fing, delta(7)]`; the delta is the demos'
+        #: per-frame command velocity, and the env leads the position command by
+        #: `FRUIT_ACTION_DELTA_LEAD` frames of it (default 1.0). The contact
+        #: phase's hold is a velocity task (the demos track the belt at 0.97 of
+        #: its speed while a position action under-executes to 35-42 %), and a
+        #: feed-forward of the position's *own* velocity is a null because that
+        #: velocity is already ~0 - the supervised delta is not.
+        self._posvel_action = os.environ.get("FRUIT_ACTION", "").strip().lower() == "posvel"
         #: P153: **velocity feed-forward** on the applied joint command
         #: (`FRUIT_POLICY_FF=<ticks>`). The policy's 16 waypoints are positions;
         #: a position loop driving a *moving* target lags it by `e ~ v/K`
@@ -2660,7 +2669,7 @@ class SortingRLEnv:
                     f"FRUIT_ACTION=jaw needs a 4-D checkpoint (jaw xyz + finger), "
                     f"got action_dim={self.action_dim}"
                 )
-            if not self._action_jaw and self.action_dim != 9:
+            if not self._action_jaw and self.action_dim not in (9, 16):
                 raise RuntimeError(
                     f"a 9-D joint checkpoint is required unless FRUIT_ACTION=jaw "
                     f"(got action_dim={self.action_dim})"
@@ -2673,7 +2682,11 @@ class SortingRLEnv:
             # conditioning the policy on a vector it never saw.
             want_proprio = 25 + (1 if self._speed_channel else 0) + (1 if self._cmd_channel else 0)
             want_mode = str(self.policy.config.get("action_mode", "") or "")
-            got_mode = "dq" if self._dq_action else ("rel" if self._rel_action else "")
+            got_mode = (
+                "dq" if self._dq_action
+                else ("rel" if self._rel_action
+                      else ("posvel" if self._posvel_action else ""))
+            )
             if want_mode != got_mode:
                 raise ValueError(
                     f"checkpoint {checkpoint} was trained with action_mode="
@@ -5907,6 +5920,12 @@ class SortingRLEnv:
                 _v = (np.asarray(self._ff_arr[_j][:7], dtype=float)
                       - np.asarray(action[:7], dtype=float)) / max(1, int(self._action_hold))
                 target7 = np.asarray(action[:7], dtype=float) + self._ff_ticks * _v
+            if self._posvel_action and action.shape[0] >= 16:
+                _lead = float(os.environ.get("FRUIT_ACTION_DELTA_LEAD", "1.0"))
+                if _lead:
+                    target7 = np.asarray(target7, dtype=float) + _lead * np.asarray(
+                        action[9:16], dtype=float
+                    )
             if self._rel_action and self._rel_base is not None and self._rel_first is not None:
                 target7 = self._rel_base + (np.asarray(action[:7], dtype=float) - self._rel_first)
             if self._dq_action:

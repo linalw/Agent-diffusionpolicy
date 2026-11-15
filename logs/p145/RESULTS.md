@@ -1140,3 +1140,34 @@ the approach wants position and the hold wants velocity; (b) a **state-matched
 contact store**, i.e. the expert in control from the pre-aligned start through the
 transient with the tracking ratio verified (the P153 store reaches 0.613 against
 the demos' 0.965; a velocity-profiled teacher would reach higher).
+
+## 31. The 16-D position+velocity action works mechanically and moves the hold 2-3x - but 30 epochs is not enough
+
+`FRUIT_ACTION=posvel` implements the regime split the literature names: the action
+is `[pos(7), finger, finger, delta(7)]`, where the delta is the demonstrations'
+**per-frame command velocity** (a *supervised* velocity, not a feed-forward of the
+position's own ~0 velocity), and the env leads the applied joint command by
+`FRUIT_ACTION_DELTA_LEAD` frames of it (default 1.0). The layout keeps `action[7]`
+/`action[8]` as the finger, so every existing consumer (`skills`, the cmd channel,
+the recorder, the close ramp) is unchanged.
+
+Mechanics: `widen_action` pads the input conv's channels **and** the output
+conv's rows with zeros (the artifact starts exactly as its parent; the head is
+`action_in` + `head.2`), the normaliser gains `(0, 0.05)` for the 7 new dims, the
+checkpoint records `action_mode="posvel"`, and the env refuses a mismatch. Store
+smoke: `action.shape == (16, 16)`, the delta mean |0.0082| rad/frame, std 0.0228.
+
+The first cell (2 seeds x 4, everything else as the h16 arm):
+
+| | tracking slope (mm/frame) | jaw travel | `[close] dz` | grasp |
+|---|---|---|---|---|
+| position-only (h16) | +2.9 / +4.3 | +8.0 / -5.5 mm | +55..+128 | 1-2/12 |
+| **posvel, 30 epochs** | **+1.62 / +1.25** | +3.5 / -19.0 mm | +45..+104 | 0/8 |
+
+The hold moves **2-3x closer to tracking**, so the channel carries signal - but
+the training loss only fell 0.46 -> 0.34 (the 7 delta channels' normalised
+residual is still ~0.8, i.e. the head predicts mostly the mean) and the grasp is
+still 0/8. The delta head is **undertrained**: the position head is pre-trained
+while the 7 new output rows start at zero, which is the same shape as the P145d
+cartesian head (100 epochs to fit). The next cell is a 100-epoch run (or a
+separate, higher lr for the new rows), with the same readout.

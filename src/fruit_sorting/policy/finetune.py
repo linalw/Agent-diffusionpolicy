@@ -96,6 +96,52 @@ CMD_CHANNEL_MEAN = 0.028643
 CMD_CHANNEL_STD = 0.012109
 
 
+def widen_action(
+    model_state: dict,
+    normalizer: dict,
+    config: dict,
+    *,
+    new_dim: int = 16,
+    delta_std: float = 0.05,
+) -> bool:
+    """P157: widen the 9-D action into 9 + 7 (a supervised joint velocity).
+
+    The 7 appended channels are `action[t+1] - action[t]` (the demos' per-frame
+    command velocity), laid out after the finger pair: `[pos(7), fing, fing,
+    delta(7)]`, so every existing index (`action[7]`/`action[8]` = the finger)
+    stays valid. The input conv gains padded channels and the output conv padded
+    rows, both **zero**, so at step 0 the new channels are a no-op and the
+    function is unchanged.
+    """
+    w = model_state.get("action_in.weight")
+    hw = model_state.get("head.2.weight")
+    hb = model_state.get("head.2.bias")
+    if w is None or hw is None or hb is None:
+        return False
+    pad = int(new_dim) - int(w.shape[1])
+    if pad <= 0:
+        return False
+    import torch as _torch
+
+    model_state["action_in.weight"] = _torch.cat(
+        [w, _torch.zeros(w.shape[0], pad, w.shape[2], dtype=w.dtype)], dim=1
+    )
+    model_state["head.2.weight"] = _torch.cat(
+        [hw, _torch.zeros(pad, hw.shape[1], hw.shape[2], dtype=hw.dtype)], dim=0
+    )
+    model_state["head.2.bias"] = _torch.cat([hb, _torch.zeros(pad, dtype=hb.dtype)])
+    normalizer["action_mean"] = np.concatenate(
+        [np.asarray(normalizer["action_mean"], dtype=np.float32),
+         np.zeros(pad, dtype=np.float32)]
+    )
+    normalizer["action_std"] = np.concatenate(
+        [np.asarray(normalizer["action_std"], dtype=np.float32),
+         np.full(pad, float(delta_std), dtype=np.float32)]
+    )
+    config["action_dim"] = int(new_dim)
+    return True
+
+
 def widen_proprio(
     model_state: dict,
     normalizer: dict,
@@ -547,6 +593,16 @@ def finetune(
                     flush=True,
                 )
     cmd_channel = _cmd
+    # P157: the position+velocity action (16-D). The new channels are zero at
+    # step 0, so the artifact starts exactly as its parent.
+    if str(config.get("action_mode", "")) == "posvel" and int(config.get("action_dim", 9)) < 16:
+        widened = widen_action(ckpt["model"], ckpt["normalizer"], config)
+        if verbose and widened:
+            print(
+                "[finetune] P157 position+velocity action: action_dim 9 -> 16 "
+                "(7 delta channels, zero-init)",
+                flush=True,
+            )
     # P141: the goal's belt pair. Armed by the gate or by the artifact (a 10-D
     # checkpoint must be trained on 10-D goals, exactly like proprio).
     if goal_aux is None:

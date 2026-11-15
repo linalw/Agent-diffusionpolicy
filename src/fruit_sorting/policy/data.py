@@ -55,9 +55,9 @@ def action_mode_from_env() -> str:
     residual servo whose error the next observation corrects.
     """
     raw = os.environ.get("FRUIT_ACTION", "").strip().lower()
-    if raw not in ("", "dq", "rel", "jaw", "tcp"):
+    if raw not in ("", "dq", "rel", "posvel", "jaw", "tcp"):
         raise ValueError(
-            f"FRUIT_ACTION={raw!r} is not one of '', 'dq', 'rel', 'jaw', 'tcp'"
+            f"FRUIT_ACTION={raw!r} is not one of '', 'dq', 'rel', 'posvel', 'jaw', 'tcp'"
         )
     return raw
 
@@ -886,6 +886,19 @@ class EpisodeStore:
             delta[1:, :7] = full[1:, :7] - full[:-1, :7]
             action = delta[t : t + self.action_horizon].copy()
             action[:, 7:] = full[t : t + self.action_horizon, 7:]
+        elif self.action_mode == "posvel":
+            # P157: [pos(7), finger, finger, delta(7)] - the joint position the
+            # demos command **plus their own per-frame velocity**. The position
+            # half keeps the approach; the delta half is a *supervised* velocity
+            # the env can lead with (the contact phase's hold is a velocity task,
+            # and a position action under-executes it at 35-42 %; a feed-forward
+            # of the position's own velocity is a null because the position's
+            # velocity is already ~0).
+            _pos = action[:, :7].copy()
+            _fing = action[:, 7:8].copy()
+            _delta = np.zeros_like(_pos)
+            _delta[:-1] = _pos[1:] - _pos[:-1]
+            action = np.concatenate([_pos, _fing, _fing, _delta], axis=1).astype(np.float32)
         elif self.action_mode == "rel":
             # the chunk-relative form: offsets from the window's own first frame
             action = action.copy()
@@ -905,6 +918,20 @@ class EpisodeStore:
         actions, obs, goals = [], [], []
         for ep_index, episode in enumerate(self.episodes):
             full = np.asarray(episode["action"], dtype=np.float32)
+            if self.action_mode == "posvel":
+                H = self.action_horizon
+                chunks = []
+                for t0 in range(0, max(1, len(full) - H), 4):
+                    win = full[t0 : t0 + H].copy()
+                    _pos = win[:, :7].copy()
+                    _fing = win[:, 7:8].copy()
+                    _delta = np.zeros_like(_pos)
+                    _delta[:-1] = _pos[1:] - _pos[:-1]
+                    chunks.append(
+                        np.concatenate([_pos, _fing, _fing, _delta], axis=1)
+                    )
+                actions.append(np.concatenate(chunks, axis=0) if chunks else np.zeros((1, 16), np.float32))
+                continue
             if self.action_mode == "rel":
                 # per-window relative offsets, sampled every 4 frames
                 H = self.action_horizon
