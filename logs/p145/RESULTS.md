@@ -906,3 +906,39 @@ two windows separated; partly fixed) -> **lift transition (open)**: the policy's
 `grasp` expert holds at the deployed close state instead of emitting the
 demonstrated test lift, and the `dy` routing keeps the skill at `grasp` after the
 close (a design defect of that mode; the learned classifier is used instead).
+
+## 24. The "no lift" is really a **world-static hold** - the demos track the belt
+
+Two offline instruments (FK validated to 0.00000 m against `p146_anchor`'s
+recorded `tcp`/`jaw`) and an oracle review settle the lift term:
+
+* **The demos' 17-frame post-close hold is a tracking hold**: the jaw travels
+  **37-67 mm downstream** (p50 49 mm, ~0.086 m/s) while the hand-frame drift is
+  only **2.5-5.2 mm**. The deployed policy holds the **world** pose, so at
+  0.12 m/s the fruit leaves the pads in ~0.1 s (measured: the gap grows 14 mm ->
+  360 mm while the jaw stays at 1.254). The distinguisher is hand-frame drift
+  (demo 2.5-5.2 mm, P102 held legs 0.02 mm, this failure ~360 mm) - a
+  world-static hold on a moving belt is a loaded slide, not a hold.
+* **The "pop" is a command transient**: the achieved jaw moves only 1.5-4.1 mm on
+  that frame, and the scripted test lift is 6-10 mm (`tasks.py:16330`) while the
+  outcome needs 50 mm - so cloning the pop cannot convert by itself.
+* **No expert ever sees "closed at the belt -> track -> lift"**: the `carried`
+  rule (`skills.py:46`, z > rest + 0.06) puts the `lift` class's first frame at
+  **close+32 (close+16..+34), z +58 mm**, i.e. ~15 frames *after* the pop; the pop
+  itself is labelled `grasp` on 26/50 episodes and `approach` on 22/50 (the
+  measured finger at the close is 0.0307, above the 0.030 threshold).
+
+**The fix (default off, labels only - a retrain is the whole change)**:
+`FRUIT_SKILL_LIFT_RAMP=1` makes the `lift` class start at the **committed ramp's
+settle** (`close + 5` frames) instead of the 6 cm rule, so one expert owns the
+tracking hold, the pop and the ramp. The gate retrains with the same rule
+(`checkpoints/p146_phase`, val 98.3 %, `grasp->lift` 15/50 at the boundary) and
+the policy retrain is from `p145_wait_h16c` at lr 3e-5 (`p146_liftlabel`).
+
+**The runtime switch alone does not convert**: `FRUIT_CLOSE_RAMP_LIFT=1` (route to
+the `lift` expert once the ramp completes) reads **1/12** with the learned gate
+and **0/8** with `FRUIT_PHASE_DY=0.10` - consistent with the expert being out of
+distribution at the close state. The decisive measurement is the oracle's:
+replay one failing close state with skill 1 vs 2 and read the chunk's cross-belt
+displacement over 17 waypoints against the demos' 37-67 mm; if both are ~0, the
+lift must come from a supervisor or from the relabelled expert (this retrain).

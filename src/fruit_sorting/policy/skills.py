@@ -28,6 +28,7 @@ def label_episode(
     lift_height: float = 0.06,
     bin_radius: float = 0.30,
     closed_threshold: float = 0.030,
+    close_ramp_frames: int = 5,
 ) -> np.ndarray:
     """Return an int array of skill indices, one per frame."""
     positions = np.asarray(fruit_positions, dtype=np.float64)
@@ -37,6 +38,24 @@ def label_episode(
     # The belt rest height is the lowest the fruit ever sits in this episode.
     rest_z = float(np.percentile(positions[:, 2], 5))
     labels = np.zeros(len(positions), dtype=np.int64)
+
+    # P145d.12: the **lift** class starts when the committed close ramp settles
+    # (the demos' plateau is ~5 frames after the command first crosses the close
+    # threshold), not when the fruit is 6 cm up. Measured on the demos: the
+    # `carried` rule leaves the whole post-close hold and the test lift ("pop" at
+    # close+17) inside the `grasp` class, so no expert ever sees "closed at the
+    # belt -> track -> lift", which is exactly the segment the deployed policy
+    # must act in. `FRUIT_SKILL_LIFT_RAMP=1` opts in; the labels are computed at
+    # load, so a retrain is the whole change (no recollection).
+    import os as _os
+
+    _lift_ramp = _os.environ.get("FRUIT_SKILL_LIFT_RAMP", "0") == "1"
+    _close_idx = None
+    if _lift_ramp:
+        _below = np.flatnonzero(fingers < closed_threshold)
+        if _below.size:
+            _close_idx = int(_below[0])
+    _lift_from = None if _close_idx is None else _close_idx + int(close_ramp_frames)
 
     for i in range(len(positions)):
         x, y, z = positions[i]
@@ -48,7 +67,7 @@ def label_episode(
 
         if over_bin and carried:
             labels[i] = SKILL_TO_INDEX["place"]
-        elif carried:
+        elif carried or (_lift_from is not None and i >= _lift_from):
             labels[i] = SKILL_TO_INDEX["lift"]
         elif closing:
             labels[i] = SKILL_TO_INDEX["grasp"]
