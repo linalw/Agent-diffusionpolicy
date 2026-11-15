@@ -4030,6 +4030,30 @@ class SortingRLEnv:
             # regressed to +100..+167.
             try:
                 _fx = float(self.spawner.position(self._sample)[0])
+                _mode = os.environ.get("FRUIT_DIRECT_START_ALIGN", "1").strip().lower()
+                if _mode in ("family", "demo"):
+                    # P160: the demonstrations' **frame 0** is a linear family in
+                    # the selected fruit's x (j4 = 3.036 - 5.741 x, r = -0.994).
+                    # The IK alignment reproduced x but sat 5-8 cm high (measured:
+                    # jaw_z 1.373-1.385 against every store's frame-0 1.300-1.326),
+                    # which is out of support - so use the demos' own family
+                    # (`configs/start_pose_family.json`, a least-squares fit over
+                    # `p146_anchor_all`, rms 0.014-0.017 rad).
+                    _path = os.environ.get(
+                        "FRUIT_START_FAMILY", "configs/start_pose_family.json"
+                    )
+                    if not hasattr(self, "_start_family"):
+                        import json as _json
+
+                        self._start_family = _json.load(open(_path))
+                    _fam = getattr(self, "_start_family", {}).get(self._active)
+                    if _fam is not None:
+                        _q = np.asarray(_fam["a"], dtype=float) + np.asarray(
+                            _fam["b"], dtype=float
+                        ) * _fx
+                        arm.teleport_joints(_q)
+                        self.advance(self._reset_settle)
+                        raise StopIteration
                 arm.capture_hold_pose()
                 _jaw = np.asarray(arm.jaw_centre(), dtype=float)
                 _target = np.array([_fx, float(_jaw[1]), float(_jaw[2])])
@@ -4041,6 +4065,8 @@ class SortingRLEnv:
                     _q = np.array(arm._q_cmd, dtype=float) if arm._q_cmd is not None else _q
                 if _q is not None:
                     arm.teleport_joints(_q)
+            except StopIteration:
+                pass
             except Exception:  # noqa: BLE001 - the fixed wait pose is the fallback
                 pass
         self.advance(self._reset_settle)

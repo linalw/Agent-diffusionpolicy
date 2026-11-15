@@ -1202,3 +1202,51 @@ measured, §19-§32). What is left is structural: a phase-split policy whose
 contact model is conditioned on a **state-matched handoff** (the approach model's
 own end state, not the demos'), or the record's hardware/workstation sanctions
 (`docs/LEFT_ARM.md`, `logs/p42/SIM_LIMIT.md`, P90's place-station map).
+
+## 33. The start pose, fixed properly: the demos' own linear family (the IK alignment was 5-8 cm high)
+
+A support check (jaw-centre FK, frame 0 of every episode) found the alignment's
+defect: the deployment's aligned start read **jaw_z 1.373-1.385**, while *every*
+store's frame-0 jaw_z is **1.300-1.326** - the IK alignment reproduced x but sat
+5-8 cm high, so the episode still began out of support. `0/9` of the deployment's
+start points fell within 1 cm of any frame-0 point in `demos_v11` **or**
+`p146_anchor_all`.
+
+`FRUIT_DIRECT_START_ALIGN=family` replaces the IK with the demonstrations' own
+**frame-0 family**: a least-squares linear map per arm
+(`configs/start_pose_family.json`, fitted on `p146_anchor_all`: right n=38,
+x 0.210-0.354, **rms 0.0168 rad**; left n=13, rms 0.0138), `q0 = a + b*fruit_x`.
+Verified in the loop: the start now reads **jaw_z 1.314** (inside the stores'
+band) on every arm.
+
+The cell (h16c, 2 seeds x 4): the aim 67/21/21/12 and 31/19/11, **1 grasp**
+(orange, 11 mm), the tracking slope +1.70 / +3.30 - the start is in support and
+the aim is good on the near draws, but the hold is still static and the close's dz
+still +100. The in-band anchor + the pre-close DAgger + the lift labels together
+with the family start (`p159_inbandmix`, 30 epochs) reads **0/8** with dz +126 and
+the slope +3.56.
+
+## 34. The oracle's review, and the end of the supervision search
+
+Three findings from the review that the measurements support:
+
+1. **The model is a replay from the start pose, not a goal-conditioned aim.** §20's
+   causal test (a +100 mm goal-x offset) did not propagate to the jaw, while the
+   offline probe moves 0.12-0.15 rad per 50 mm - so the loop's own state, not the
+   goal, decides the action.
+2. **The mix's two wait labels disagree**: the anchor's aligned hold against the
+   expert's fixed `_expert_grasp`; `p146`'s first applied command is that blend
+   (the target j4 1.266 against the measured 1.668).
+3. **`FRUIT_DAGGER_STOP_BEFORE_CLOSE` has a real cost**: it deletes the
+   policy-distribution states nearest contact (the oracle's recommendation is to
+   keep them and down-weight or relabel the close), and the cut is exact only
+   when the stop >= the horizon (16 = H is fine; 32 would not be).
+
+**Phase verdict, final for this session**: the contact phase is not reachable by
+any supervision, representation, routing, inference, chunk-length, start-pose or
+velocity-channel change measured in §19-§34. The one causal chain that survives
+all of them is: the descent under-executes (35-42 %) -> the close happens 4-14 cm
+high -> the model, at that out-of-support state, holds the world frame instead of
+tracking the belt. Offline the same model reproduces the demos' hold (+43.5 of
++41.4 mm) at the demos' own close states, and the demos' own close state is the
+one its descent never reaches.
