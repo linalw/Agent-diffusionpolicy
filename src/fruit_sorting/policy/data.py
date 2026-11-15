@@ -388,6 +388,12 @@ class EpisodeStore:
         #: (0-1 px at 128), so the visual encoder cannot see it; the crop makes it
         #: 15-40 px. 0 = the shipped full frame.
         self.fovea = int(float(os.environ.get("FRUIT_IMAGE_FOVEA", "0") or 0))
+        #: P164: crop **augmentation** for the loader only (training). Measured in
+        #: the literature: a standard policy scores 0 % at a 0.7x image scale and
+        #: 0.725 with 0.7-1.3 random scale augmentation; a crop's centre/size is
+        #: exactly such a scale/translation shift, so the loader jitters both.
+        #: `FRUIT_IMAGE_AUG=<0..0.5>`: size x (1 +- a), centre +- a*crop/4.
+        self.aug = float(os.environ.get("FRUIT_IMAGE_AUG", "0") or 0.0)
         self._cam_eye = self._cam_target = None
         if self.fovea > 0:
             _name = os.environ.get("FRUIT_HEAD_CAMERA", "").strip()
@@ -886,8 +892,18 @@ class EpisodeStore:
                         width=episode["rgb"].shape[2],
                         height=episode["rgb"].shape[1],
                     )
+                _size_px = self.fovea
+                if self.aug > 0.0:
+                    _rng = np.random.default_rng()
+                    _size_px = int(max(16, round(self.fovea * (1.0 + _rng.uniform(-self.aug, self.aug)))))
+                    if _uv is not None:
+                        _jit = self.aug * self.fovea * 0.25
+                        _uv = (
+                            _uv[0] + float(_rng.uniform(-_jit, _jit)),
+                            _uv[1] + float(_rng.uniform(-_jit, _jit)),
+                        )
                 _win = foveal_window(
-                    _uv, episode["rgb"].shape[2], episode["rgb"].shape[1], self.fovea
+                    _uv, episode["rgb"].shape[2], episode["rgb"].shape[1], _size_px
                 )
                 _size = self.image_size
                 rgb = crop_and_resize(episode["rgb"][idx], _win, _size).astype(np.float32) / 255.0

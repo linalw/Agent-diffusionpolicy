@@ -1321,3 +1321,42 @@ close (the interaction crop must hold the gripper + the fruit - ours does), crop
 alone measured +35.4 points (31.3 -> 66.7) and a full view without a crop 6.3 % vs
 70.8 % with it (FoveaVLA), a second view adds +6.3 at ~2x latency (last), and a
 camera change is a scale/FOV shift that needs a fine-tuned stem and tens of episodes.
+
+## 37. The single-camera trade-off: `down_x_160` buys visibility and loses the approach
+
+The 150-episode data rung landed at **112 demos + 36 same-camera DAgger
+episodes** (the shards stopped at 37/38/37 when their seeds exhausted), trained
+with `FRUIT_IMAGE_FOVEA=128` and a **crop augmentation** (`FRUIT_IMAGE_AUG=0.2`,
+the literature's scale/translation remedy: 0.7x scale reads 0 -> 0.725 with
+0.7-1.3 augmentation), 30 epochs, weighted 0.0165. Cell, **10 episodes x 3 seeds**
+(the WS-4.2 scale rather than the 12-episode draws):
+
+| arm | aim (gap_min) | latch | grasp |
+|---|---|---|---|
+| 35 ep, base-only, no aug | 10-137 | none | 0/12 |
+| 72 ep + 18 DAgger | 1-92 | none | 0/12 |
+| **112 ep + 36 DAgger + aug** | **1-172 (many 100-170)** | none | **0/30** |
+
+The aim **degraded** with the larger data: the cells' typical gap is 100-170 mm
+against the old camera's 1-70. The reason is geometric, not statistical:
+`down_x_160` looks along the belt from downstream, so it sees the fruit at the
+close (81.4 % visible, the hand no longer on the ray) but **foreshortens the
+approach band** - and the foveal crop follows the *fruit's* projection, which
+early in the approach is at the frame's edge or in the void, so the early crop
+carries nothing. The shipped top-down camera has the opposite trade (a good
+approach view, the hand occluding the close at 4 px).
+
+**That is a single-camera impossibility for this cell**, and it is the one
+structural conclusion the whole camera arc (P144, P161-P164) supports: the
+approach needs a wide/top-down view of the band, the close needs a view off the
+hand-fruit ray. The literature's fix is exactly this pair - a second view adds
++6.3 points at ~2x latency with late fusion, and it is the *last* spend in the
+ranking only because a single good cropped view normally suffices; here it does
+not (one view cannot be both).
+
+Next build (the only remaining camera route): **two views, separate encoders,
+late fusion** - the shipped head camera (or the top-down) for the approach and
+`down_x_160` for the close, each with its own crop; the 5-channel image stack
+becomes two stacks; the model's visual encoders are independent (the literature
+is explicit that early/pixel-concat fusion underperforms late fusion), and the
+latency doubles (~26 -> 50 ms per chunk, still inside the 0.53 s decision).
