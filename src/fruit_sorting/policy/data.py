@@ -42,16 +42,22 @@ def action_mode_from_env() -> str:
 
     ``""`` (default) = the absolute 7 joint targets + finger (the shipment).
     ``"dq"`` = the per-step **joint delta** + finger: the arm servo integrates
-    ``q_target = q_measured + dq`` once per executed waypoint. The measured
+    ``q_target = q_measured + dq`` once per executed waypoint.
+    ``"rel"`` = the **chunk-relative** joint action: the 16 waypoints are
+    offsets from the window's first frame, so the model predicts the *shape* of
+    the motion and the env re-anchors it to the measured joints at the chunk's
+    start (the 13k-rollout study's chunk-wise relative form; absolute targets
+    are what under-execute the demos' motions - measured 35 % on the lateral aim
+    and 42 % on the tracking hold). The measured
     direct loop commits to the *band-mean* aim with absolute targets (the jaw
     stops at x 0.27 for a fruit at 0.225, on every episode), which is the
     classic absolute-endpoint bias; a delta action turns the same policy into a
     residual servo whose error the next observation corrects.
     """
     raw = os.environ.get("FRUIT_ACTION", "").strip().lower()
-    if raw not in ("", "dq", "jaw", "tcp"):
+    if raw not in ("", "dq", "rel", "jaw", "tcp"):
         raise ValueError(
-            f"FRUIT_ACTION={raw!r} is not one of '', 'dq', 'jaw', 'tcp'"
+            f"FRUIT_ACTION={raw!r} is not one of '', 'dq', 'rel', 'jaw', 'tcp'"
         )
     return raw
 
@@ -863,6 +869,10 @@ class EpisodeStore:
             delta[1:, :7] = full[1:, :7] - full[:-1, :7]
             action = delta[t : t + self.action_horizon].copy()
             action[:, 7:] = full[t : t + self.action_horizon, 7:]
+        elif self.action_mode == "rel":
+            # the chunk-relative form: offsets from the window's own first frame
+            action = action.copy()
+            action[:, :7] = action[:, :7] - action[:1, :7]
         skills = episode["skills"]
         skill = int(skills[t]) if skills is not None else 0
         return {
@@ -878,6 +888,16 @@ class EpisodeStore:
         actions, obs, goals = [], [], []
         for ep_index, episode in enumerate(self.episodes):
             full = np.asarray(episode["action"], dtype=np.float32)
+            if self.action_mode == "rel":
+                # per-window relative offsets, sampled every 4 frames
+                H = self.action_horizon
+                rel = []
+                for t0 in range(0, max(1, len(full) - H), 4):
+                    win = full[t0 : t0 + H].copy()
+                    win[:, :7] = win[:, :7] - win[:1, :7]
+                    rel.append(win)
+                actions.append(np.concatenate(rel, axis=0) if rel else full)
+                continue
             if self.action_mode == "dq":
                 delta = np.zeros_like(full)
                 delta[1:, :7] = full[1:, :7] - full[:-1, :7]

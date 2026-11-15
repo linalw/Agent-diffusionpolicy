@@ -977,3 +977,24 @@ widened it again to 27-D and the env refused the artifact at construction
 inference now prefers the recorded `speed_channel`/`cmd_channel` flags, then the
 env's own `FRUIT_OBS_CMD` gate, then the legacy width rule; the new artifacts
 record both flags.
+
+## 26. The under-execution is systematic - the chunk-relative action (in progress)
+
+Two independent measurements of the *same* behaviour at contact states: the
+lateral aim executes **35 %** of the demonstrated offset (§22) and the post-close
+tracking hold **42 %** (17.5 of the demos' 41.4 mm downstream, §25). The FK
+replay also shows the direction can be right while the magnitude is not
+(`+0.8 -> +17.5 mm` after the label fix). The demos' own hold is a tight
+distribution (+41.4 p50 / +52.7 p90 downstream, dz +0.6), so the target is
+learnable; what is wrong is the **absolute anchor** the policy predicts and the
+env applies.
+
+`FRUIT_ACTION=rel` (default off) implements the 13k-rollout study's chunk-wise
+relative form: the 16 waypoints are **offsets from the window's first frame**
+(`data.py`, the per-window transform + a sampled relative normaliser), and the
+env re-anchors each chunk to the **measured joints at the chunk's start**
+(`q_target = base + (waypoint - waypoint[0])`, `rl_env.act`/`_apply`). The
+checkpoint records `action_mode` and the env refuses a mismatch. Verified
+offline: `action[0, :7] == 0` exactly, the offsets span 0.59 rad at a sampled
+window, the 26-D width is unchanged, and `selfcheck.sh` is PASS with the mode off
+(the default path is untouched).

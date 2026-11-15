@@ -2068,6 +2068,15 @@ class SortingRLEnv:
         #: commands the band-mean aim (jaw x 0.27 for a fruit at 0.225) on
         #: every episode, because the absolute endpoint is what the demos average.
         self._dq_action = os.environ.get("FRUIT_ACTION", "").strip().lower() == "dq"
+        #: P145d.13: the **chunk-relative** joint action (`FRUIT_ACTION=rel`).
+        #: The chunk's 16 waypoints are offsets from the window's first frame;
+        #: the env re-anchors them to the measured joints at the chunk's start,
+        #: so the model predicts the motion's shape and cannot under-execute it
+        #: by anchoring at its own absolute bias (measured 35 % on the lateral
+        #: aim, 42 % on the post-close tracking hold).
+        self._rel_action = os.environ.get("FRUIT_ACTION", "").strip().lower() == "rel"
+        self._rel_base: np.ndarray | None = None
+        self._rel_first: np.ndarray | None = None
         self._dq_index: int | None = None
         self._cart_hold: dict[str, np.ndarray] = {}
         self._direct_start = os.environ.get("FRUIT_DIRECT_START", "grasp").strip().lower()
@@ -2647,7 +2656,7 @@ class SortingRLEnv:
             # conditioning the policy on a vector it never saw.
             want_proprio = 25 + (1 if self._speed_channel else 0) + (1 if self._cmd_channel else 0)
             want_mode = str(self.policy.config.get("action_mode", "") or "")
-            got_mode = "dq" if self._dq_action else ""
+            got_mode = "dq" if self._dq_action else ("rel" if self._rel_action else "")
             if want_mode != got_mode:
                 raise ValueError(
                     f"checkpoint {checkpoint} was trained with action_mode="
@@ -4002,6 +4011,8 @@ class SortingRLEnv:
         self._close_grip_finger = None
         self._last_phase = None
         self._dq_index = None
+        self._rel_base = None
+        self._rel_first = None
         # P145d.6: the command channel's t=0 value is the training stream's
         # `command[0]` (the wait hold); without this reset the first decision of
         # an episode carries the previous episode's finger.
@@ -4718,6 +4729,20 @@ class SortingRLEnv:
         """
         if self._phase_mode not in ("perception", "dy"):
             return None
+        # P145d.12: **the lift transition**. The demos hold 0.53 s after the
+        # close and then emit the coarse test lift ("pop"); the cloned `grasp`
+        # expert holds through the deployed state instead (measured: a near
+        # perfect close - xy 14 mm, dx -6 mm - ends with the jaw at 1.254 and the
+        # fruit on the belt). The committed ramp already owns the finger, so the
+        # skill manager can own the *transition*: once the ramp has completed,
+        # route the action to the `lift` expert. Default off.
+        if (
+            os.environ.get("FRUIT_CLOSE_RAMP_LIFT", "0") == "1"
+            and self._close_t0 is not None
+            and int(self._step) - int(self._close_t0) >= int(self._close_ramp_ticks)
+            and float(getattr(self, "_last_finger", 0.044)) < 0.030
+        ):
+            return 2
         if self._sample is None:
             return None
         finger = float(getattr(self, "_last_finger", 0.044))
@@ -5575,6 +5600,17 @@ class SortingRLEnv:
         ``execute_steps``; the argument is then the reference/default only.
         """
         steps = self.execute_steps if execute_steps is None else max(1, int(execute_steps))
+        if self._rel_action and chunk is not None:
+            # the chunk's own first frame is the anchor; the measured joints at
+            # the chunk's start are the base the offsets are applied to
+            try:
+                self._rel_first = np.asarray(chunk[0][:7], dtype=float).copy()
+                self._rel_base = np.asarray(
+                    self.scene.robot.get_dof_positions().numpy()
+                ).reshape(-1)[list(self.task.arms[self._active].arm_dofs)].astype(float)
+            except Exception:  # noqa: BLE001 - a read failure falls back to absolute
+                self._rel_base = None
+                self._rel_first = None
         if self._action_hold > 1:
             # P53 C2: one chunk waypoint per `_action_hold` control ticks, so a
             # decision covers `execute_steps * hold` ticks and the chunk's
@@ -5839,6 +5875,8 @@ class SortingRLEnv:
             )
         else:
             target7 = action[:7]
+            if self._rel_action and self._rel_base is not None and self._rel_first is not None:
+                target7 = self._rel_base + (np.asarray(action[:7], dtype=float) - self._rel_first)
             if self._dq_action:
                 # one servo step per executed **waypoint**, not per tick: the
                 # same waypoint is held for `_action_hold` ticks, so integrating
