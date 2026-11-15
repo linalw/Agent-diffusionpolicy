@@ -1105,3 +1105,38 @@ This closes the "it is a servo/feed-forward problem" hypothesis (it is the
 oracle's/agent's #1) and leaves the two larger builds: the **achieved-state
 relabel** (RACE: label the state the plant reaches, not the command it is given -
 the exceed-share family) and a **velocity action** scoped to the hold/carry.
+
+## 30. A 32-waypoint chunk (1.07 s) is also a null: the transient under-executes at every horizon
+
+`--action-horizon 32` (the denoiser is fully convolutional over the action axis,
+so the pre-trained head is reused; the store's 32-step windows are half beyond
+what the 16-step base saw) with `--execute-steps 32` x hold 4 = **128 ticks per
+decision**, so the descent + close (30 frames) fit inside one chunk. Cell, 3 x 4:
+
+| | aim (gap_min) | `[close] dz` | tracking slope | grasp |
+|---|---|---|---|---|
+| h16 (`p145_wait_h16c`) | 1-68 | +55..+128 | +2.9..+4.3 | 1-2/12 |
+| **h32 (`p156_h32`)** | 2-88 | **+74..+213** | **+2.8..+5.1** | **0/12** |
+
+No improvement: the close is still 4-14 cm high and the post-close hold is still
+world-static (a positive slope = the fruit moves, the jaw does not). With §25-§29
+this closes the "one more chunk can cover it" hypothesis as well.
+
+**The cumulative picture** (every arm measured, one cell each): the contact phase
+- the descent's completion, the close's height, the hold's velocity - is
+reproduced at 35-42 % of the demonstrations by the monolithic 30 Hz joint-position
+policy, and the under-execution is invariant to the label mix (§27), the action
+representation (§26 rel, §19 dq), the store (§25 base-only, §28 contact), the
+skill routing (§24), the inference (GDP/noise/re-plan rate, §19) and the chunk
+length (§30). Offline, the same model reproduces the hold at the **demos'** states
+(+43.5 mm of the demos' +41.4, §26) but not at the states its own descent
+produces - so the residual is the *state* the under-executed descent creates, and
+the descent itself is under-executed at every horizon.
+
+**What that leaves** (both larger than one phase): (a) a **velocity/impedance
+action scoped to the contact phase** (a 14-D position+delta head, or a
+joint-velocity action integrated by the env) - the literature's regime split says
+the approach wants position and the hold wants velocity; (b) a **state-matched
+contact store**, i.e. the expert in control from the pre-aligned start through the
+transient with the tracking ratio verified (the P153 store reaches 0.613 against
+the demos' 0.965; a velocity-profiled teacher would reach higher).
