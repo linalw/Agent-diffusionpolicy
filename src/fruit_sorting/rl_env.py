@@ -3962,34 +3962,6 @@ class SortingRLEnv:
             entry = self.waypoints["arms"][active]
             start = np.asarray(entry.get("wait", entry["grasp"]), dtype=float)
         arm.teleport_joints(start)
-        # P145d.11: **the demonstrations' frame 0 is the wait pose solved at the
-        # selected fruit's x** (measured on `demos_v11`: j4 = 3.036 - 5.741 x,
-        # r = -0.994; the same family in `p145_tcp` and the new anchor shards).
-        # The scripted line's hover pre-aligns, so the demos never show a 10 cm
-        # lateral descent from a fixed station pose - which is exactly what the
-        # direct episode was asking for (`[close] dx` -10..-95 mm). With this on,
-        # the episode starts where the demonstrations start: one position-only
-        # IK solve of the wait pose at the fruit's x, then a teleport.
-        if (
-            os.environ.get("FRUIT_DIRECT_START_ALIGN", "0") == "1"
-            and self.presentation == "direct"
-            and self._sample is not None
-        ):
-            try:
-                _fx = float(self.spawner.position(self._sample)[0])
-                arm.capture_hold_pose()
-                _jaw = np.asarray(arm.jaw_centre(), dtype=float)
-                _target = np.array([_fx, float(_jaw[1]), float(_jaw[2])])
-                _q = None
-                for _ in range(120):
-                    arm.sync_command_to_measured()
-                    if arm.ik_step(_target) < 1e-3:
-                        break
-                    _q = np.array(arm._q_cmd, dtype=float) if arm._q_cmd is not None else _q
-                if _q is not None:
-                    arm.teleport_joints(_q)
-            except Exception:  # noqa: BLE001 - the fixed wait pose is the fallback
-                pass
         # `teleport_joints` writes the *measured* dof state back through the
         # drive, and Isaac re-targets from it, so the `set_gripper(OPEN)` in the
         # parking loop does not survive: the first observation then carried all
@@ -4006,6 +3978,41 @@ class SortingRLEnv:
         self.scene.robot.set_dof_positions(dof)
         for other in self.task.arms.values():
             other.set_gripper(gripper_open)
+        self.advance(self._reset_settle)
+        # P145d.11: **the demonstrations' frame 0 is the wait pose solved at the
+        # selected fruit's x** (measured on `demos_v11`: j4 = 3.036 - 5.741 x,
+        # r = -0.994; the same family in `p145_tcp` and the new anchor shards).
+        # The scripted line's hover pre-aligns, so the demos never show a 10 cm
+        # lateral descent from a fixed station pose - which is exactly what the
+        # direct episode was asking for (`[close] dx` -10..-95 mm). With this on,
+        # the episode starts where the demonstrations start: one position-only
+        # IK solve of the wait pose at the fruit's x, then a teleport.
+        if (
+            os.environ.get("FRUIT_DIRECT_START_ALIGN", "0") == "1"
+            and self.presentation == "direct"
+            and self._sample is not None
+        ):
+            # P145d.11a: the solve must read the **settled** wait pose. Reading
+            # the jaw before the reset's settle returns the previous pose (the
+            # ready pose, z 1.373 against the wait's 1.314 - measured), so the
+            # "aligned" start sat 6 cm above the demonstrations' frame 0 and was
+            # out of support, which is why every aligned cell's `[close] dz`
+            # regressed to +100..+167.
+            try:
+                _fx = float(self.spawner.position(self._sample)[0])
+                arm.capture_hold_pose()
+                _jaw = np.asarray(arm.jaw_centre(), dtype=float)
+                _target = np.array([_fx, float(_jaw[1]), float(_jaw[2])])
+                _q = None
+                for _ in range(120):
+                    arm.sync_command_to_measured()
+                    if arm.ik_step(_target) < 1e-3:
+                        break
+                    _q = np.array(arm._q_cmd, dtype=float) if arm._q_cmd is not None else _q
+                if _q is not None:
+                    arm.teleport_joints(_q)
+            except Exception:  # noqa: BLE001 - the fixed wait pose is the fallback
+                pass
         self.advance(self._reset_settle)
         self._close_t0 = None
         self._close_grip_finger = None

@@ -102,8 +102,16 @@ def main() -> int:
                         help="P141: widen the observation horizon (2 -> 4); the "
                              "visual encoder's first kernel is repeated and halved")
     args = parser.parse_args()
-    if not args.rollouts:
-        parser.error("--rollouts is required (a directory written by scripts/110_rl_rollout.py --record)")
+    if not args.rollouts and not args.base:
+        # P148: a **base-only** fine-tune is a valid mode (`run_finetune` skips the
+        # rollout store when it is empty) and is the control for the DAgger
+        # store's close-state labels, which are one IK step from the measured
+        # joints (0.199 rad over 16 frames) against the demos' tracking hold
+        # (0.734 rad) - with `close_weight` they dominate the close-state fit.
+        parser.error(
+            "--rollouts or --base is required (a store written by "
+            "scripts/110_rl_rollout.py --record, or the demonstrations)"
+        )
 
     pins = _parse_store_speeds(args.store_speed)
     rollout_speed = pins.get(os.path.normpath(args.rollouts))

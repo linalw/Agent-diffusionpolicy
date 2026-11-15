@@ -381,6 +381,17 @@ class EpisodeStore:
         #: recorded action stream; deployment from the env's `_last_finger`.
         #: P145d.8: the action representation ("": absolute joints, "dq": deltas)
         self.action_mode = action_mode_from_env()
+        #: P149: drop a **rollout store's** windows whose *action* reaches the
+        #: close (`start + H > close`). Measured: the labels-only DAgger store's
+        #: close-state action is one IK step from the measured joints (0.199 rad
+        #: over 16 frames) while the demonstrations' is the tracking hold
+        #: (0.734 rad); with `close_weight` the rollout store dominates the
+        #: close-state fit and the deployed hold under-tracks by 2.4x, so the
+        #: fruit slides out of the pads. The demos own the close/hold/lift; the
+        #: rollout store keeps the approach states it was collected for.
+        self.dagger_stop_before_close = int(
+            float(os.environ.get("FRUIT_DAGGER_STOP_BEFORE_CLOSE", "0") or 0)
+        )
         self.cmd_channel = (
             os.environ.get("FRUIT_OBS_CMD", "0") == "1"
             if cmd_channel is None else bool(cmd_channel)
@@ -576,6 +587,12 @@ class EpisodeStore:
                 # +15 frames = past the close ramp, i.e. the lift/carry/place.
                 focus_lo = (int(closed[0]) + 15) if closed.size else length
                 self.base_kept += 1
+            if valid is not None and self.dagger_stop_before_close > 0:
+                finger = np.asarray(episode["action"], dtype=np.float32)[:, 7]
+                closed = np.nonzero(finger < 0.0439)[0]
+                if closed.size:
+                    _stop = max(0, int(closed[0]) - self.dagger_stop_before_close)
+                    focus_hi = _stop if focus_hi is None else min(focus_hi, _stop)
             for start in range(self.obs_horizon - 1, last):
                 if valid is not None:
                     lo = max(0, start - self.obs_horizon + 1)

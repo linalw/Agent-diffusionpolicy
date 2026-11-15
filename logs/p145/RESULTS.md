@@ -998,3 +998,33 @@ checkpoint records `action_mode` and the env refuses a mismatch. Verified
 offline: `action[0, :7] == 0` exactly, the offsets span 0.59 rad at a sampled
 window, the 26-D width is unchanged, and `selfcheck.sh` is PASS with the mode off
 (the default path is untouched).
+
+## 27. The label mix is the close-state mechanism; the descent is still short
+
+The 16-frame joint offset at close+6 separates the two stores by **3.7x**:
+`demos_v11` **0.734 rad** (the tracking hold + pop) against
+`p145_dagger_wait` **0.199 rad** (the labels-only expert's one IK step). With
+`close_weight=10` on both, the rollout store dominates the close-state fit -
+which is the measured 42 % hold and 35 % aim in one number.
+
+Three controls, all with the aligned start, the ramp dy 0.014, the retrained
+gate (`p146_phase`) and `FRUIT_SKILL_LIFT_RAMP=1`:
+
+| arm | aim (gap_min) | `[close] dz` | grasp |
+|---|---|---|---|
+| absolute, full DAgger + demos (`p145_wait_h16c`) | 1-68 mm | +55..+128 | 1-2/12 |
+| **chunk-relative** (`FRUIT_ACTION=rel`, `p147_rel`) | **6-50, 8/12 <= 19** | +136 | 0/12 |
+| demos-only (`p148_baseonly`) | 6-84 | +147 | 0/12 |
+| DAgger pre-close + demos close (`FRUIT_DAGGER_STOP_BEFORE_CLOSE=16`, `p149_mix`) | 8-110 | +123 | 0/12 |
+
+**The relative action's aim is the best measured (8/12 <= 19 mm) and its FK hold
+is the best of the learned arms, but every non-DAgger arm loses the vertical
+descent** (`[close] dz` +123..+147 against the 70 mm seat): the descent's
+completion is the same under-execution one axis over, and the DAgger store is
+what teaches it (its pre-close label is the fixed grasp pose *at* the seat).
+
+So the remaining failure is a single class - **the contact-phase motions are
+executed at 35-42 % of the demonstration** - and the store mix trades one axis
+for another. The record's next spend is therefore a **contact-phase store with
+the expert in control** (HG-DAgger/IWR: the labels-only store cannot contain the
+corrected states, measured in §21/§24), not another weighting.
