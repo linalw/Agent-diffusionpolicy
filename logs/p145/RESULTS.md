@@ -1028,3 +1028,53 @@ executed at 35-42 % of the demonstration** - and the store mix trades one axis
 for another. The record's next spend is therefore a **contact-phase store with
 the expert in control** (HG-DAgger/IWR: the labels-only store cannot contain the
 corrected states, measured in §21/§24), not another weighting.
+
+## 28. The contact store, and the research synthesis: the hold is a **velocity** task
+
+The expert-in-control contact collection (`FRUIT_DAGGER_CONTACT_TAKEOVER=1`) was
+fixed per the oracle's code review (the takeover from the tracking window 0.05,
+the expert **carrying** `_q_cmd` and aiming at `fruit + v*lead` instead of a
+per-tick `sync_command_to_measured`), and the store quality was measured with the
+oracle's regression, `d(jaw_y - fruit_y)/dframe` over the 17 post-close frames
+(FK validated on the asset):
+
+| store | slope p50 | jaw/fruit travel | tracking / escape |
+|---|---|---|---|
+| P151 (frozen pose + lagging chase) | -1.84 mm/frame | 0.174 | 3/18 / 4/18 |
+| P152 (carry + lead 0.18 s) | -1.06 | 0.465 | 8/18 / 1/18 |
+| **P153 (carry + lead 0.38 s)** | **-0.60** | **0.613** | **15/18 / 0/18** |
+| demos `demos_v11` | -0.095 | **0.965** | 50/50 / 0/50 |
+
+The **label** tracks at 1.00; the achieved states do not. The lead is a
+proportional-control feed-forward: 0.18 -> 0.38 s (2.1x) bought only 1.32x
+(K ~ 2.6 /s, saturating near 47 mm/s against the demos' ~100 mm/s).
+
+Three learned arms (the same 3x4 cell, the aligned start, the ramp dy 0.014):
+`p149_mix` (the DAgger pre-close + the demos) **0/12, dz +123**; `p153_contact`
+(the P153 store + the demos) **0/12, dz +192**; the full-DAgger arms `1-2/12, dz
++55..+128`. The DAgger store's **pre-close** label is the fixed grasp pose *at the
+seat* - the only supervision that puts the hand down; its **post-close** label is
+one IK step (0.199 rad) against the demos' tracking hold (0.734 rad). The two
+stores therefore teach the descent and the hold respectively, and every weighting
+trades one for the other.
+
+**The literature (two parallel reviews) names the class**: absolute position
+actions for quasi-static contact vs **velocity/feed-forward for tracking a moving
+reference** (the split is regime, not a universal winner); a **stiff position
+loop converts a tracking error into contact force** (Hogan), and the belt's drag
+on a held 100 g fruit is only `mu_b m g` = 0.05-0.5 N - i.e. a world-static hold
+should *stick within 1-2 mm or never stick* (a sustained 100 mm/s slide is a
+torque/wedge or a relative-motion effect, not a squeeze deficit); and the
+**teacher's actuation lag corrupts the labels** (HG-DAgger's own argument) with
+the *exceed share* as the predictor (RACE/merge-cap).
+
+Ranked fixes: (1) **velocity feed-forward through the existing chunks** -
+differentiate the predicted waypoints and lead the drive command (the measured
+precedent is a 205 -> 47 ms lag reduction; no action-space change, the metric is
+the hold's `|v|/100 mm/s` ratio >= 0.8 and a hand-frame drift < 1 mm); (2)
+**relabel to the achieved states + an exceed-share filter** (the teacher promises
+a ramp the plant delivers at 0.61x); (3) a **phase-scoped velocity action** for
+the hold/carry only; (4) a **belt-frame hold target** (or lift clear of the belt,
+the industrial move); and **before any of these, measure the drive saturation** -
+the 47 mm/s ceiling may be a torque/velocity limit that a feed-forward cannot
+exceed.

@@ -2153,6 +2153,14 @@ class SortingRLEnv:
         #: *descent's* start (the scripted tracking window). Conflating them
         #: latches the ramp ~0.3 s early, with the hand still descending -
         #: measured `[close] dz` +55..+128 mm against the 70 mm seat.
+        #: P151: `FRUIT_DAGGER_CONTACT_TAKEOVER=1` lets the DAgger expert *drive*
+        #: the contact phase (the descent through the close and the tracking hold)
+        #: instead of only labelling it, so the rollout store contains the
+        #: corrected states. Off by default; it needs `--dagger` and no
+        #: `FRUIT_DAGGER_NO_TAKEOVER`.
+        self._dagger_contact = (
+            os.environ.get("FRUIT_DAGGER_CONTACT_TAKEOVER", "0") == "1"
+        )
         self._close_ramp_dy = float(os.environ.get("FRUIT_CLOSE_RAMP_DY", "0.05"))
         self._last_phase: int | None = None
         self._close_t0: int | None = None
@@ -6674,6 +6682,29 @@ class SortingRLEnv:
         if self._done or self._sample is None:
             return policy_action
         label = None
+        # P151: **expert-in-control contact phase** (HG-DAgger). The labels-only
+        # store cannot contain the corrected states (P145d.9/P149): the deployed
+        # policy reaches the close 3.5 cm high and then holds in the world frame
+        # instead of tracking the belt. With this on the expert *executes* from
+        # the tracking window (fruit dy <= 0.10 m) through the close ramp and the
+        # 60-tick tracking hold, so the store gains those states and their
+        # commands; the policy drives the approach and (later) the lift/place.
+        if self._dagger_contact and self._sample is not None:
+            try:
+                _fruit = np.asarray(self.spawner.position(self._sample), dtype=float)
+                _dy = float(_fruit[1]) - float(self._expert_jaw_y)
+                _in = _dy <= float(os.environ.get("FRUIT_DAGGER_CONTACT_DY", "0.05"))
+                if self._expert_close_start is not None and int(self._step) - int(
+                    self._expert_close_start
+                ) > int(os.environ.get("FRUIT_DAGGER_CONTACT_AFTER", "60")):
+                    _in = False
+                if _in:
+                    _label = self._expert_action()
+                    self._expert_label = _label
+                    self._ep_expert_ticks += 1
+                    return _label
+            except Exception:  # noqa: BLE001 - fall through to the shipped path
+                pass
         if self._step % 4 == 0 or self._step < self._expert_until:
             label = self._expert_action()
             self._expert_label = label
@@ -6777,12 +6808,25 @@ class SortingRLEnv:
             # one step per tick (the same call the scripted close makes). The
             # command is written to the robot here and immediately overwritten by
             # whatever action the caller applies, so this only decides the label.
+            # P152 (oracle review): the scripted close **carries** `_q_cmd`
+            # across ticks (a per-tick `sync_command_to_measured` makes the
+            # label a proportional pursuit that lags the belt by ~2 mm/frame),
+            # and it aims at the fruit plus a **velocity lead** (0.18 s, 21.6 mm
+            # at 0.12 m/s), not at the fruit's current centre. Both are what the
+            # demos' tracking hold is made of; `FRUIT_EXPERT_CARRY=0` restores
+            # the pre-P152 label.
             arm.hold_quaternion = None
-            arm.sync_command_to_measured()
+            _carry = os.environ.get("FRUIT_EXPERT_CARRY", "1") == "1"
+            if not _carry:
+                arm.sync_command_to_measured()
             pad_lift = float(os.environ.get("FRUIT_PAD_LIFT", "0.010"))
-            arm.ik_step(
-                arm.tcp_target_for_jaw(fruit + np.array([0.0, 0.0, pad_lift]))
-            )
+            _lead = float(os.environ.get("FRUIT_EXPERT_LEAD_S", "0.18"))
+            try:
+                _v = np.asarray(self.spawner.velocity(sample), dtype=float)
+            except Exception:  # noqa: BLE001
+                _v = np.zeros(3)
+            _aim = fruit + np.array([0.0, float(_v[1]) * _lead if _lead > 0 else 0.0, pad_lift])
+            arm.ik_step(arm.tcp_target_for_jaw(_aim))
             if arm._q_cmd is not None:
                 label[:7] = np.asarray(arm._q_cmd, dtype=np.float32)[:7]
         label[7] = label[8] = np.float32(finger)
