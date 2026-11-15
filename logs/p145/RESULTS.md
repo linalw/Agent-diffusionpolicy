@@ -1250,3 +1250,40 @@ high -> the model, at that out-of-support state, holds the world frame instead o
 tracking the belt. Offline the same model reproduces the demos' hold (+43.5 of
 +41.4 mm) at the demos' own close states, and the demos' own close state is the
 one its descent never reaches.
+
+## 35. What the policy actually sees: the fruit is 1-4 px, the RGB is nearly grey, the mask is empty
+
+Dumped the model's image input (the first frame, a pre-close frame, and a demo's
+first frame) with the exact loader transforms:
+
+| channel | content | fruit share |
+|---|---|---|
+| RGB 240x424 | the robot's own gripper fills the centre; the belt is dark grey; the fruit is a 2-4 px coloured dot | **4 px** (0.004 %) pre-close; 138 px (0.14 %) at frame 0; **0 px** at a demo's frame 0 |
+| depth | the belt plane + the gripper; the fruit is a shallow step (0.79-0.87 m) | no separate structure |
+| `target_mask` | that same 4 px dot, often 0 | 0-0.14 % |
+| **the model's 128x128** | the above, downsampled (x0.30 linear, x0.09 area) | **0-1 px, sub-token** |
+
+The scene's RGB is also **nearly grey**: the whole-image per-pixel channel spread
+is **2.05/255** (the fruits are the only saturated pixels), and the palette makes
+the fruit a tiny coloured dot on a dark belt. At 128x128 a 1-4 px target is below
+every measured regime in the camera literature - which is exactly why the goal
+vector and proprio do the work, and why the policy behaves as a replay from its
+own pose (§20, §34).
+
+**The `down_x_160` camera override renders black in the collector**: a 12-episode
+x 3-shard recollection at `FRUIT_HEAD_CAMERA=down_x_160` produced `image_rgb` all
+zero on every frame (mean 0, spread 0) - the override's eye/target is applied to
+the prim but the render product does not follow, so that collection is void (the
+mask is empty for the same reason). The override needs its own fix before it can
+be used for a recollection.
+
+**The literature's ranking for this exact regime** (a 128x128 budget, the policy
+must grasp): (1) a **fixed wide view + goal/EE-centred crops** - the measured
+"fisheye + EE crops" cell reads 72/84/82 % against 42/30/28 % for random crops, and
+FoveaVLA's external + foveal crop 70.8 % against 25.0 % external-only; (2) a
+**wrist camera** (+18-30 pp over external-only, the standard in pi0/ALOHA/DROID,
+but a raw 128x128 wrist view is a contact-phase sensor); (3) the shipped top-down
++ a crop only (pixel density only - the hand still occludes). A 1-4 px target at
+128 is sub-token, so the camera swap must come with the crop and a same-batch
+retrain; the zero-shot camera tests (P144 4/12 vs 9/24) are distribution shifts
+and cannot decide.
