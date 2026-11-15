@@ -1171,3 +1171,34 @@ still 0/8. The delta head is **undertrained**: the position head is pre-trained
 while the 7 new output rows start at zero, which is the same shape as the P145d
 cartesian head (100 epochs to fit). The next cell is a 100-epoch run (or a
 separate, higher lr for the new rows), with the same readout.
+
+## 32. The 16-D action is fit offline and **inert in the loop** - the closing null
+
+With the delta head actually converged (60 epochs at lr 1e-4: the weighted loss
+0.46 -> 0.0257, `demo_val` 0.0147 - the 7 delta channels are fit), the cell reads:
+
+| posvel arm | tracking slope | jaw travel | `[close] dz` | grasp |
+|---|---|---|---|---|
+| 30 epochs (undertrained) | +1.62 / +1.25 | +3.5 / -19.0 | +45..+104 | 0/8 |
+| 60 epochs (converged) | +3.44 / +4.31 | -4.5 / +3.5 | +72..+155 | 0/12 |
+| 60 epochs, **lead 0** (control) | +3.37 / +3.87 | -8.5 / -3.5 | - | 0/8 |
+| position-only (h16) | +2.9 / +4.3 | +8.0 / -5.5 | +55..+128 | 1-2/12 |
+
+**Two things**: the 30-epoch "2-3x closer to tracking" was the *undertrained*
+head's noise (the converged head is back at the position-only level), and the
+lead-0 control is the same as lead 1.0 - **the delta channel does not change the
+closed loop at all**, although it is fit to 0.0257 offline.
+
+That is the same signature as §19/§26/§29/§30: **the closed-loop behaviour is
+insensitive to supervision and representation changes that the offline fit
+clearly sees.** The policy's action in the loop is dominated by a component that
+none of these channels reach - the loop's own state trajectory (an under-executed
+descent feeding an out-of-distribution close), which reproduces at 35-42 % of the
+demos no matter what the head is trained on.
+
+**Verdict for this phase**: the contact phase is **not reachable by supervision,
+representation, routing, inference or chunk-length changes on this data** (all
+measured, §19-§32). What is left is structural: a phase-split policy whose
+contact model is conditioned on a **state-matched handoff** (the approach model's
+own end state, not the demos'), or the record's hardware/workstation sanctions
+(`docs/LEFT_ARM.md`, `logs/p42/SIM_LIMIT.md`, P90's place-station map).
