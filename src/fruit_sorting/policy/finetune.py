@@ -489,9 +489,21 @@ def finetune(
     # P28-B: the channel is on when the gate is, or when the checkpoint already
     # carries it (a 26-D artifact must be trained on 26-D windows - a mismatch
     # is a loud shape error, not a silent one).
+    # P145d.12: the width is not enough to infer *which* extra channel an
+    # artifact carries. A 26-D artifact built with `FRUIT_OBS_CMD=1` carries the
+    # commanded finger, not the belt speed - reading it as the speed channel
+    # widened it again to 27-D and the env refused it (measured: the first
+    # p146_liftlabel run died at construction). Prefer the recorded flags, then
+    # the env's own cmd gate, then the legacy `proprio_dim > 25` inference.
+    _cmd_env = os.environ.get("FRUIT_OBS_CMD", "0") == "1"
     speed_channel = bool(
-        int(config.get("proprio_dim", PROPRIO_DIM)) > PROPRIO_DIM
+        bool(config.get("speed_channel", False))
         or speed_channel_enabled()
+        or (
+            int(config.get("proprio_dim", PROPRIO_DIM)) > PROPRIO_DIM
+            and not bool(config.get("cmd_channel", False))
+            and not _cmd_env
+        )
     )
     if not speed_channel and (rollout_speed is not None or base_speed is not None):
         # A declared pin with the channel off would be silently dropped - the
@@ -502,6 +514,7 @@ def finetune(
         )
     if speed_channel:
         widened = widen_proprio(ckpt["model"], ckpt["normalizer"], config)
+        config["speed_channel"] = True
         if verbose and widened:
             print(
                 f"[finetune] P28-B speed channel: widened the checkpoint's "
@@ -519,6 +532,7 @@ def finetune(
         else os.environ.get("FRUIT_OBS_CMD", "0") == "1"
     )
     if _cmd:
+        config["cmd_channel"] = True
         _target = PROPRIO_DIM + (1 if speed_channel else 0) + 1
         if int(config.get("proprio_dim", PROPRIO_DIM)) < _target:
             widen_proprio(

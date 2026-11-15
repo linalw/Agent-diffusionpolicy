@@ -942,3 +942,38 @@ distribution at the close state. The decisive measurement is the oracle's:
 replay one failing close state with skill 1 vs 2 and read the chunk's cross-belt
 displacement over 17 waypoints against the demos' 37-67 mm; if both are ~0, the
 lift must come from a supervisor or from the relabelled expert (this retrain).
+
+## 25. The lift label retrain: direction fixed, magnitude still 42 %
+
+`FRUIT_SKILL_LIFT_RAMP=1` (the `lift` class starts at the committed ramp's
+settle, so one expert owns the tracking hold + the pop + the ramp) retrained from
+`p145_wait_h16c` at lr 3e-5 (`checkpoints/p146_liftlabel`, weighted 0.0099,
+`proprio_dim 26`, `cmd_channel true`). The FK replay at the closed states (n=26,
+jaw-centre FK accurate to 0.0004 mm):
+
+| skill at a **closed** state | dy (downstream) | dz (up) |
+|---|---|---|
+| demos' tracking hold (close+6 -> +22) | **+41.4 mm** | +0.6 |
+| old `lift` expert | +0.8 mm | +28.0 |
+| **retrained `lift` expert** | **+17.5 mm** (p90 +38.9) | +10.0 |
+| `grasp` expert | +25.1 mm | -19.0 |
+
+So the relabel moved the expert from *upstream* to *downstream* (the direction is
+fixed) but it executes **42 %** of the demonstrated hold speed. The same
+under-execution is the lateral aim's measured 35 % - i.e. **the model
+systematically under-executes the demonstrations' motions at the contact
+states**, which is the conditional-mean behaviour the 13k-rollout study fixes
+with *chunk-wise delta* actions (our `dq` was the weaker step-wise form).
+
+The cell (3 seeds x 4, aligned start, ramp dy 0.014, the retrained gate
+`p146_phase`, the retrained model): gaps **68/22/13/6, 62/1/7/63, 53/62/16/70**,
+**1/12 grasped** - the aim is good on half the draws and the lift still does not
+convert, consistent with the 42 % hold.
+
+**A real bug was found and fixed on the way**: a fine-tune started from a 26-D
+*command-channel* artifact inferred `speed_channel` from `proprio_dim > 25`,
+widened it again to 27-D and the env refused the artifact at construction
+(`RuntimeError: ... proprio_dim=27 but this environment builds 26-D`). The
+inference now prefers the recorded `speed_channel`/`cmd_channel` flags, then the
+env's own `FRUIT_OBS_CMD` gate, then the legacy width rule; the new artifacts
+record both flags.
