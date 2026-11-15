@@ -4451,7 +4451,26 @@ class SortingRLEnv:
                     )
                 else:
                     rgb, depth, mask = self._frozen_frames
-            self.policy.push_frame(rgb, depth, mask)
+            _uv = None
+            if int(os.environ.get("FRUIT_IMAGE_FOVEA", "0") or 0) > 0:
+                try:
+                    from .policy.vision import project
+
+                    if not hasattr(self, "_fovea_cam"):
+                        from .assets import head_camera_override
+
+                        self._fovea_cam = head_camera_override(self.cfg)
+                    _eye, _tgt = self._fovea_cam
+                    _uv = project(
+                        np.asarray(self._goal, dtype=float)[:3],
+                        eye=_eye,
+                        target=_tgt,
+                        width=np.asarray(rgb).shape[1],
+                        height=np.asarray(rgb).shape[0],
+                    )
+                except Exception:  # noqa: BLE001 - the full frame is the fallback
+                    _uv = None
+            self.policy.push_frame(rgb, depth, mask, uv=_uv)
 
     # ------------------------------------------------------------------ #
     # P141: the belt-state channel

@@ -30,6 +30,7 @@ from dataclasses import dataclass
 
 import numpy as np
 
+from .vision import camera_pose, crop_and_resize, foveal_window, project
 from .skills import label_episode
 from .trigger import transport_speed
 
@@ -381,6 +382,16 @@ class EpisodeStore:
         #: recorded action stream; deployment from the env's `_last_finger`.
         #: P145d.8: the action representation ("": absolute joints, "dq": deltas)
         self.action_mode = action_mode_from_env()
+        #: P163: the **foveal crop** - `FRUIT_IMAGE_FOVEA=<crop px>` cuts a square
+        #: window around the target fruit's projected position and resizes it to
+        #: `image_size`. Measured (P161): the fruit is 1-4 px in the full frame
+        #: (0-1 px at 128), so the visual encoder cannot see it; the crop makes it
+        #: 15-40 px. 0 = the shipped full frame.
+        self.fovea = int(float(os.environ.get("FRUIT_IMAGE_FOVEA", "0") or 0))
+        self._cam_eye = self._cam_target = None
+        if self.fovea > 0:
+            _name = os.environ.get("FRUIT_HEAD_CAMERA", "").strip()
+            self._cam_eye, self._cam_target = camera_pose()
         #: P149: drop a **rollout store's** windows whose *action* reaches the
         #: close (`start + H > close`). Measured: the labels-only DAgger store's
         #: close-state action is one IK step from the measured joints (0.199 rad
@@ -863,6 +874,31 @@ class EpisodeStore:
         # Image stack over the observation horizon, oldest first.
         frames = []
         for k in range(self.obs_horizon - 1, -1, -1):
+            if self.fovea > 0:
+                idx = max(0, t - k)
+                _pos = episode.get("fruit_position")
+                _uv = None
+                if _pos is not None:
+                    _uv = project(
+                        _pos[idx],
+                        eye=self._cam_eye,
+                        target=self._cam_target,
+                        width=episode["rgb"].shape[2],
+                        height=episode["rgb"].shape[1],
+                    )
+                _win = foveal_window(
+                    _uv, episode["rgb"].shape[2], episode["rgb"].shape[1], self.fovea
+                )
+                _size = self.image_size
+                rgb = crop_and_resize(episode["rgb"][idx], _win, _size).astype(np.float32) / 255.0
+                depth = crop_and_resize(episode["depth"][idx][..., 0], _win, _size).astype(np.float32)
+                depth = np.clip(depth, 0.0, 3.0) / 3.0
+                _ch = [rgb, depth[..., None]]
+                if episode["mask"] is not None:
+                    _m = crop_and_resize(episode["mask"][idx], _win, _size).astype(np.float32)
+                    _ch.append(_m[..., None])
+                frames.append(np.concatenate(_ch, axis=-1))
+                continue
             rgb = self._downsample(episode["rgb"][t - k]).astype(np.float32) / 255.0
             depth = self._downsample(episode["depth"][t - k][..., 0]).astype(np.float32)
             # Depth is metres; clip and normalise into a sane range for the CNN.

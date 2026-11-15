@@ -894,6 +894,13 @@ HEAD_CAMERA_POSES: dict[str, tuple[tuple[float, float, float], tuple[float, floa
     "down_x_160": ((1.60, 0.00, 2.00), (0.34, 0.00, 1.15)),
     "down_high": ((1.20, 0.00, 2.30), (0.40, 0.00, 1.15)),
     "down_x_140": ((1.40, 0.00, 1.75), (0.34, 0.00, 1.20)),
+    # P162: a **close oblique station view**. The measured limit of every pose
+    # above is the fruit's pixel size: 0.9-1.5 m away it is 4-15 px in a 240x424
+    # frame (and 1-4 px in the 128x128 the policy sees). At 0.55 m it is 20-40 px
+    # natively - the same order as the wrist camera P135 measured at contact
+    # (1684-3241 px masks), but with the whole station (fruit + both fingers +
+    # the belt) in frame.
+    "near_x_80": ((0.80, 0.30, 1.50), (0.33, 0.00, 1.20)),
 }
 
 

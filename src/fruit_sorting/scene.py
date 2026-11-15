@@ -2409,18 +2409,29 @@ class SortingScene:
         # *behind* the lens (a mast in front of it is a black column over half the
         # image - measured, logs/pick_head.png), and both are visual-only so the
         # arms cannot collide with the robot's own head.
+        # P162: the mast and housing sit **behind the lens along the view
+        # direction**. The shipped offsets were `eye[0] - 0.12` / `eye[0] - 0.05`,
+        # i.e. behind only while the camera looks toward +x; a `FRUIT_HEAD_CAMERA`
+        # pose that looks the other way (down_x_160: eye 1.60 -> target 0.34) put
+        # the 10 x 13 x 8 cm housing 5 cm in front of the lens and every frame
+        # rendered **black** (measured: a 12-episode recollection with
+        # image_rgb mean 0 and channel spread 0).
+        _dir = np.asarray(target, dtype=float) - np.asarray(eye, dtype=float)
+        _n = float(np.linalg.norm(_dir))
+        _dir = _dir / _n if _n > 1e-9 else np.array([1.0, 0.0, 0.0])
+        _behind = np.asarray(eye, dtype=float)
         mast = _define_box(
             self.stage,
             "/World/HeadMast",
             size=(0.03, 0.03, 0.22),
-            center=(eye[0] - 0.12, 0.0, cfg.head_camera_z - 0.11),
+            center=tuple(_behind - _dir * 0.12 + np.array([0.0, 0.0, -0.11])),
         )
         _set_color(mast, (0.20, 0.21, 0.23))
         housing = _define_box(
             self.stage,
             "/World/HeadHousing",
             size=(0.10, 0.13, 0.08),
-            center=(eye[0] - 0.05, 0.0, eye[2]),
+            center=tuple(_behind - _dir * 0.05),
         )
         _set_color(housing, (0.16, 0.17, 0.19))
 

@@ -688,6 +688,8 @@ class PolicyRunner:
         #: GDP population selection (P10-D1), read once here like the seed.
         #: Default off: `act` stays on the shipped single-sample path.
         self.gdp = GDPSettings.from_env()
+        #: P163: `FRUIT_IMAGE_FOVEA=<crop px>` - the foveal crop (see push_frame).
+        self._fovea = int(float(os.environ.get("FRUIT_IMAGE_FOVEA", "0") or 0))
         norm = checkpoint["normalizer"]
         self.normalizer = Normalizer(
             action_mean=np.array(norm["action_mean"], dtype=np.float32),
@@ -731,14 +733,40 @@ class PolicyRunner:
     def _downsample(self, image: np.ndarray) -> np.ndarray:
         return downsample_frame(image, self.image_size)
 
-    def push_frame(self, rgb: np.ndarray, depth: np.ndarray, mask: np.ndarray | None = None) -> None:
-        """Append a head-camera frame to the observation horizon buffer."""
+    def push_frame(self, rgb: np.ndarray, depth: np.ndarray, mask: np.ndarray | None = None,
+                   uv: tuple[float, float] | None = None) -> None:
+        """Append a head-camera frame to the observation horizon buffer.
+
+        ``uv`` (P163) is the target's projected pixel; with `FRUIT_IMAGE_FOVEA`
+        set the frame is a square crop around it instead of a full-frame
+        downsample (the fruit is 1-4 px in the full frame, 0-1 px at 128; the
+        crop makes it 15-40 px). The loader applies the same crop offline.
+        """
         rgb = np.asarray(rgb)
         depth = np.asarray(depth)
         if depth.ndim == 3 and depth.shape[-1] == 1:
             depth = depth[..., 0]
         if rgb.ndim == 3 and rgb.shape[-1] == 4:
             rgb = rgb[..., :3]
+        _fovea = int(getattr(self, "_fovea", 0) or 0)
+        if _fovea > 0 and rgb.ndim == 3:
+            from .vision import crop_and_resize, foveal_window
+
+            _win = foveal_window(uv, rgb.shape[1], rgb.shape[0], _fovea)
+            _size = int(self.image_size)
+            rgb_f = crop_and_resize(rgb, _win, _size).astype(np.float32) / 255.0
+            depth_f = crop_and_resize(depth, _win, _size).astype(np.float32)
+            depth_f = np.clip(depth_f, 0.0, 3.0) / 3.0
+            channels = [rgb_f, depth_f[..., None]]
+            if self.config["image_channels"] == 5:
+                if mask is None:
+                    mask = np.zeros_like(depth_f, dtype=np.float32)
+                mask_f = crop_and_resize(np.asarray(mask), _win, _size).astype(np.float32)
+                channels.append(mask_f[..., None])
+            self._frames.append(np.concatenate(channels, axis=-1))
+            if len(self._frames) > self.obs_horizon:
+                self._frames.pop(0)
+            return
         rgb_f = self._downsample(np.asarray(rgb)).astype(np.float32) / 255.0
         depth_f = self._downsample(np.asarray(depth)).astype(np.float32)
         depth_f = np.clip(depth_f, 0.0, 3.0) / 3.0
