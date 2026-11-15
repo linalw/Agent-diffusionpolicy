@@ -1287,3 +1287,37 @@ but a raw 128x128 wrist view is a contact-phase sensor); (3) the shipped top-dow
 128 is sub-token, so the camera swap must come with the crop and a same-batch
 retrain; the zero-shot camera tests (P144 4/12 vs 9/24) are distribution shifts
 and cannot decide.
+
+## 36. The camera path: the mechanics are in place; the new camera's own stores are the missing piece
+
+Built and validated this round: the head-camera housing/mast fix (black render when
+the camera does not look toward +x), `down_x_160` (81.4 % visible; the fruit 14-46 px
+against the shipped 4 px / 0 px at a demo's frame 0), the **foveal crop**
+(`FRUIT_IMAGE_FOVEA`, a `crop_and_resize` around the target with the projection
+validated to **1.3 px median / 2.1 p90** against the instance mask; the loader and
+the env share the same code), and a `near_x_80` close pose that **wedges the
+renderer** (measured: "sim clock advanced 0.49 s in 600 s wall" in
+`RenderingManager.render()`, while a same-batch shipped-camera control reads 2/2
+episodes - the pose is retired).
+
+Two new-camera arms, one cell each (3 x 4, the family start, the ramp dy 0.014, the
+gate, the lift labels, the interaction crop at 128):
+
+| arm | aim (gap_min) | `[close]` latch | grasp |
+|---|---|---|---|
+| 35 episodes, base-only | 10-137 | none | 0/12 |
+| 72 episodes, base-only | 11-162 | none | 0/12 |
+| 72 + an 18-episode new-camera DAgger store | **1-92 (8/12 <= 30)** | none (the ramp never reaches dy 0.014) | 0/12 |
+
+The crop's mechanics are visible in the numbers (the aim returns once the DAgger
+store exists), but the ramp never latches: the approach is still too coarse for the
+0.014 m trigger. The old camera's recipe (the anchor + the DAgger store **of the
+same camera**) is what the new camera now has too - so the next read needs the
+larger data the literature puts on the steep part of the curve (35 -> 75 ->
+150 episodes: +10-25 then +0-10 points), not another 12-episode draw.
+
+The literature's confirmation of the design: a fruit-only crop can suppress the
+close (the interaction crop must hold the gripper + the fruit - ours does), crops
+alone measured +35.4 points (31.3 -> 66.7) and a full view without a crop 6.3 % vs
+70.8 % with it (FoveaVLA), a second view adds +6.3 at ~2x latency (last), and a
+camera change is a scale/FOV shift that needs a fine-tuned stem and tens of episodes.
