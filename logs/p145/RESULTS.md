@@ -1544,3 +1544,69 @@ which the two-model hybrid only half-approximates. The remaining build that coul
 still be argued is a **single 12-D head** trained jointly on both action groups
 (the joint 7-D + the jaw 4-D) on one state distribution; everything cheaper has
 been measured.
+
+## 44. The per-tick contact servo: the alignment term converts (2/8 -> 5/8), and the place becomes the frontier
+
+The P172 probe put numbers on the contact phase: the sampler's own spread at a
+fixed close-start state is **18.4 mm** TCP-equivalent (p90 31.3), the mean's error
+against the label is **24.4 mm**, and the belt travels **32 mm** per 16-tick
+decision. So half the error is variance. Two variance levers were measured and are
+**nulls**: `FRUIT_POLICY_GDP=1 GDP_K=4` (min-OoD selection of 4 candidates) reads
+1/8 and `FRUIT_POLICY_ENSEMBLE_K=4` (mean of 4 draws) reads 1/8, both against 1/8
+for the same-batch control, with `dz` unmoved (+100..+111). Averaging cannot fix a
+**bias**.
+
+**The bias has a location, and it is not the last centimetre.** The `[servo]` row's
+own geometry (`d = tcp - aim`) decomposes the latch state: the vertical was already
+within 13 mm of the seat while the **lateral was 75-86 mm** - the shipped ramp
+latches on a *one-dimensional* criterion (the jaw's y within `FRUIT_CLOSE_RAMP_DY`
+= 14 mm of the fruit's y) so the fingers close while the hand is 8 cm to the side of
+the fruit. That is why the model's approach held the station's x (P145 §40's "the
+jaw holds x = 0.28 while the fruit is at 0.20-0.36") and still latched.
+
+**The build** (`FRUIT_CONTACT_SERVO=1`, default off): inside the contact window the
+arm's command is re-derived **every tick** from the *perceived* fruit (the P135/P145
+tracker's `predict_at`, the same estimator that feeds the goal) and applied with one
+position-only differential-IK step (`hold_quaternion = None`, the scripted catch-up's
+form); the committed ramp still owns the finger and is **gated on the aim being
+reached** (so it cannot close on air); the servo **arms 0.20 m upstream** because a
+~1 mm/tick wrist needs the correction to start before the fruit is at the station.
+The aim is **frozen** when the tracker is older than `FRUIT_PERCEPTION_COAST_S` -
+without that guard the aim locked onto the hand and ran to x = 0.05 (off the belt),
+carrying the payload out of the lane (`fruit fell off the line`).
+
+| measure | control (3 cells) | **servo** |
+|---|---|---|
+| `[close] xy` | 83 / 86 / 104 mm median | **17 / 20 mm median, max 21-24** |
+| `[close] dz` | +99..+122 (median +111) | **+70..+81** (seed 101 median **+70** = the seat) |
+| grasp, seed 77 / 8 | **2/8** | **5/8** |
+| grasp, seed 101 / 8 | (not run) | 1/8 |
+
+So the term the record called "the contact-phase feedback" is worth **+3 grasps of
+8 at seed 77** and the latch geometry is fixed by a 4-5x reduction in the lateral
+error. **Honest scope**: this is a *hierarchical* composition, not a pure
+end-to-end policy - the model's phase gate decides *when* the contact phase begins
+and the ramp decides the close, while a geometric servo on the *perceived* target
+serves the aim. It contains no handover, no external trigger and no truth read, but
+it also does not pretend that a 7-15 Hz chunk owns the last centimetres.
+
+**Two harness defects were found by it, and both were suppressing the lane's
+numbers.** (a) `--horizon 900` (7.5 s) is **shorter than the scripted pick+place**
+(12-15 s), so every episode ended mid-carry: the session's "0 placed" was partly a
+budget artefact, not a policy failure. (b) The horizon note read
+`timeout: no grasp within 900 ticks` on episodes with `grasped=True`; it now reads
+`timeout: horizon reached while carrying (...)` when the payload rose off the belt,
+and keeps the shipped key otherwise (so no ledger's class set moves on the old
+behaviour).
+
+**The frontier has therefore moved to the place.** At `--horizon 2000` a grasped
+payload is held and **never placed**: 2 of 8 attempts ran 1700 ticks while carrying
+and the `[cmd]` trace shows the arm oscillating in the pick area (j1 -0.98..-1.56
+with the measured pose lagging) or collapsing, never transiting to a bin. Two
+structural candidates are named, both measured in the design rather than assumed:
+the **64-px foveal crop** (which is what fixed the approach) removes the output bins
+from the view; and the **goal is the fruit's position**, which is degenerate once
+the fruit is in the hand (the demos' `FRUIT_TRAIN_GOAL=moving` rebuild follows the
+fruit, so the place phase is conditioned on "the fruit is here"). The next cell is a
+phase-dependent view (`crop` for the approach/contact, the wide frame for the place)
+with the goal's destination channel or the bin's own visual cue.

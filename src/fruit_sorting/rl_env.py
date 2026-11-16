@@ -2084,6 +2084,47 @@ class SortingRLEnv:
         #: feed-forward of the position's *own* velocity is a null because that
         #: velocity is already ~0 - the supervised delta is not.
         self._posvel_action = os.environ.get("FRUIT_ACTION", "").strip().lower() == "posvel"
+        #: P171: the **hybrid 12-D** action `[pos(7), fing, fing, jaw(3)]`: the
+        #: joint form for the approach and the latch (it times the catch), the
+        #: free-wrist jaw form for the descent's last 2-5 cm (it reconfigures).
+        #: The phase is the committed ramp's clock (`_jaw_now`), so one model owns
+        #: both forms on one state distribution.
+        self._hybrid_action = os.environ.get("FRUIT_ACTION", "").strip().lower() == "hybrid"
+        #: P172: the sample-averaging ensemble (`FRUIT_POLICY_ENSEMBLE_K`, default
+        #: 1 = the shipped single draw, byte-identical). `..._DIAG=1` prints one
+        #: `[ens]` row per decision.
+        #: P173: the **per-tick contact servo**. The chunked policy decides *when*
+        #: to take the catch (its phase gate and the committed ramp own the
+        #: finger); the last 60 ticks of the aim are served by a position-only
+        #: differential-IK update at the control rate, aimed at the **perceived**
+        #: fruit (the P135/P145 tracker) - the scripted catch-up's form, driven by
+        #: vision instead of truth. Default off: unset is the shipped path.
+        self._contact_servo = os.environ.get("FRUIT_CONTACT_SERVO", "0").strip() == "1"
+        self._servo_lead = float(os.environ.get("FRUIT_CONTACT_SERVO_LEAD", "0.10") or 0.10)
+        self._servo_seat = float(os.environ.get("FRUIT_CONTACT_SERVO_SEAT", "0.070") or 0.070)
+        self._servo_diag = os.environ.get("FRUIT_CONTACT_SERVO_DIAG", "0").strip() == "1"
+        #: The servo's own window, independent of the finger ramp's: the shipped
+        #: catch-up has a **200-tick reach budget at ~1 mm/tick** (`P48`), and the
+        #: measured lateral offset at the latch is 75-86 mm, so a 60-tick window
+        #: cannot close it (P173's first cell: the aim was converging at 0.8-2.5
+        #: mm/tick when the ramp's clock expired).
+        self._servo_ticks = int(os.environ.get("FRUIT_CONTACT_SERVO_TICKS", "160") or 160)
+        #: The **alignment gate**: the committed ramp (and so the close) may not
+        #: start until the aim is actually reached. The shipped ramp latches on a
+        #: *one-dimensional* criterion (the jaw's y within `FRUIT_CLOSE_RAMP_DY` of
+        #: the fruit's y) while the lateral offset at the latch is measured at
+        #: 75-86 mm - so the fingers closed on air 8 cm to the side. With the
+        #: gate the hand swings in first and closes where the fruit is.
+        self._servo_gate = float(os.environ.get("FRUIT_CONTACT_SERVO_GATE", "0.030") or 0.030)
+        #: How far upstream (metres of along-belt distance) the servo takes the
+        #: arm. The measured lateral offset at the latch is 75-86 mm and the wrist
+        #: moves ~1 mm/tick, so the correction must start before the fruit is at
+        #: the station: the shipped catch-up's own lead is ~1.5-2 s of belt travel.
+        self._servo_arm_dy = float(os.environ.get("FRUIT_CONTACT_SERVO_ARM_DY", "0.20") or 0.20)
+        self._servo_on = False
+        self._servo_last_aim = None
+        self._ensemble_k = max(1, int(os.environ.get("FRUIT_POLICY_ENSEMBLE_K", "1") or 1))
+        self._ensemble_diag = os.environ.get("FRUIT_POLICY_ENSEMBLE_DIAG", "0").strip() == "1"
         #: P153: **velocity feed-forward** on the applied joint command
         #: (`FRUIT_POLICY_FF=<ticks>`). The policy's 16 waypoints are positions;
         #: a position loop driving a *moving* target lags it by `e ~ v/K`
@@ -2684,7 +2725,7 @@ class SortingRLEnv:
                     f"FRUIT_ACTION=jaw needs a 4-D checkpoint (jaw xyz + finger), "
                     f"got action_dim={self.action_dim}"
                 )
-            if not self._action_jaw and self.action_dim not in (9, 16):
+            if not self._action_jaw and self.action_dim not in (9, 12, 16):
                 raise RuntimeError(
                     f"a 9-D joint checkpoint is required unless FRUIT_ACTION=jaw "
                     f"(got action_dim={self.action_dim})"
@@ -2699,10 +2740,11 @@ class SortingRLEnv:
             want_mode = str(self.policy.config.get("action_mode", "") or "")
             got_mode = (
                 "dq" if self._dq_action
-                else ("rel" if self._rel_action
+                else ("hybrid" if self._hybrid_action
+                      else ("rel" if self._rel_action
                       else ("posvel" if self._posvel_action
                             else ("jaw" if (self._action_jaw and not self._action_tcp)
-                                  else ("tcp" if self._action_tcp else ""))))
+                                  else ("tcp" if self._action_tcp else "")))))
             )
             if want_mode != got_mode:
                 raise ValueError(
@@ -4088,6 +4130,8 @@ class SortingRLEnv:
                 pass
         self.advance(self._reset_settle)
         self._close_t0 = None
+        self._servo_on = False
+        self._servo_last_aim = None
         self._close_grip_finger = None
         self._seat_q = None
         self._last_phase = None
@@ -4754,6 +4798,76 @@ class SortingRLEnv:
             f"jaw_y={float(getattr(self, '_expert_jaw_y', float('nan'))):+.3f}"
         )
 
+    def _apply_contact_servo(self, arm, action: np.ndarray) -> bool:
+        """P173: the contact phase's per-tick aim servo. Returns True if it acted.
+
+        The measured boundary this addresses: a 7-15 Hz chunk has to predict the
+        belt's 32 mm of travel per decision and its own error is 30 mm (18 mm
+        sampler spread + 24 mm bias, `logs/p145/sampler_var.py`), and at the latch
+        the hand sits **75-86 mm** lateral of the fruit because the shipped ramp
+        latches on a one-dimensional (along-belt) criterion. So the arm's command
+        for the contact window is re-derived **every tick** from the perceived
+        fruit and applied with one position-only IK step (the scripted catch-up's
+        form); the committed ramp still owns the finger, gated on the aim being
+        reached so it cannot close on air.
+
+        Default off (`FRUIT_CONTACT_SERVO`), and it decides no endpoint: the
+        model's phase gate still decides *when* the contact phase begins.
+        """
+        if getattr(self, "_percept_tracker", None) is None:
+            return False
+        try:
+            _jaw0 = np.asarray(arm.jaw_centre(), dtype=float)
+            _dy0 = float(self._goal[1]) - float(_jaw0[1])
+        except Exception:  # noqa: BLE001 - no geometry read, no servo
+            return False
+        if not getattr(self, "_servo_on", False) and _dy0 <= float(self._servo_arm_dy):
+            self._servo_on = True
+        if not getattr(self, "_servo_on", False):
+            return False
+        if (self._close_t0 is not None
+                and int(self._step) - int(self._close_t0) > int(self._servo_ticks)):
+            return False
+        _now = float(self._sim_time())
+        _age = _now - float(self._percept_tracker.t)
+        _coast = float(getattr(self, "_percept_coast_s", 1.0))
+        if _age > _coast and getattr(self, "_servo_last_aim", None) is not None:
+            # The tracker has not been updated for longer than a 30 Hz filter is
+            # trusted for (the hand occludes the fruit exactly at the close). Do
+            # **not** extrapolate: freeze the last aim. Measured without this,
+            # the aim locked onto the hand and ran to x = 0.05 (off the belt),
+            # carrying the payload out of the lane (`fruit fell off the line`).
+            _aim = np.asarray(self._servo_last_aim, dtype=float)
+        else:
+            _h = min(_age + float(self._servo_lead), _coast + float(self._servo_lead))
+            _aim = np.asarray(self._percept_tracker.predict_at(_h), dtype=float)
+            _aim = _aim + np.array([0.0, 0.0, float(self._servo_seat)])
+            self._servo_last_aim = _aim.copy()
+        arm.hold_quaternion = None
+        _err = arm.ik_step(arm.tcp_target_for_jaw(_aim))
+        if self._close_t0 is not None or abs(float(_err)) <= float(self._servo_gate):
+            finger = float(np.clip(action[7], 0.0, 0.044))
+            if self._close_ramp:
+                finger = self._close_ramp_command(arm, finger)
+        else:
+            finger = float(arm.OPEN)
+        self._last_finger = finger
+        self.scene.robot.set_dof_position_targets(
+            [[finger, finger]], dof_indices=list(arm.finger_dofs)
+        )
+        if self._servo_diag and self._step % 4 == 0:
+            _tcp = np.asarray(arm.tcp_position(), dtype=float)
+            _jawm = np.asarray(arm.jaw_centre(), dtype=float)
+            _d = _tcp - arm.tcp_target_for_jaw(_aim)
+            self._say(
+                f"[servo] t={self._step} err={float(_err) * 1e3:+.1f}mm "
+                f"d={np.array2string(_d * 1e3, precision=0)}mm "
+                f"aim={np.array2string(_aim, precision=3)} "
+                f"jaw={np.array2string(_jawm, precision=3)} "
+                f"finger={finger:.4f} latched={int(self._close_t0 is not None)}"
+            )
+        return True
+
     def _close_ramp_command(self, arm, action_finger: float) -> float:
         """P145d.5: the committed 60-tick close ramp, then hold the grip gap."""
         prev = float(getattr(self, "_last_finger", 0.044))
@@ -4838,6 +4952,8 @@ class SortingRLEnv:
             # any >0.040 command re-opened at the lift and defeated the ramp.)
             if getattr(self, "_last_phase", None) == 3:
                 self._close_t0 = None
+                self._servo_on = False
+                self._servo_last_aim = None
                 self._close_grip_finger = None
                 return action_finger
             return float(self._close_grip_finger)
@@ -5160,12 +5276,40 @@ class SortingRLEnv:
             and self._close_t0 is not None
             and int(self._step) - int(self._close_t0) <= int(self._close_ramp_ticks)
         )
-        self._jaw_now = _use2
-        chunk = (self._policy2 if _use2 else self.policy).act(
-            self.proprio(), self._goal, num_steps=self.ddim_steps if num_steps is None
-            else int(num_steps),
+        if self._hybrid_action:
+            # P171: one model, two action forms. The joint form owns the approach
+            # and the latch (it times the catch); the free-wrist jaw form owns the
+            # 60 ticks after the latch (it reconfigures the descent's last 2-5 cm).
+            self._jaw_now = bool(
+                self._close_t0 is not None
+                and int(self._step) - int(self._close_t0) <= int(self._close_ramp_ticks)
+            )
+        else:
+            self._jaw_now = _use2
+        _runner = self._policy2 if _use2 else self.policy
+        _kw = dict(
+            num_steps=self.ddim_steps if num_steps is None else int(num_steps),
             phase=(None if _use2 else phase),
         )
+        chunk = _runner.act(self.proprio(), self._goal, **_kw)
+        if self._ensemble_k > 1:
+            # P172: **sample averaging**. The P172 probe measured the sampler's
+            # own spread at a fixed close-start state as 18.4 mm TCP-equivalent
+            # (p90 31.3) against a 24.4 mm mean-vs-label error and a 32 mm belt
+            # travel per 16-tick decision - so half the contact-phase error is
+            # *variance*, and the mean of K draws cuts it by sqrt(K). Costs K
+            # inferences per decision (the loop is not real time).
+            _acc = np.asarray(chunk, dtype=np.float64)
+            for _ in range(self._ensemble_k - 1):
+                _acc = _acc + np.asarray(
+                    _runner.act(self.proprio(), self._goal, **_kw), dtype=np.float64
+                )
+            chunk = (_acc / float(self._ensemble_k)).astype(np.float32)
+            if self._ensemble_diag and self._step % 4 == 0:
+                self._say(
+                    f"[ens] t={self._step} k={self._ensemble_k} "
+                    f"first={np.array2string(np.asarray(chunk[0])[:3], precision=4)}"
+                )
         if self._loop_timing:
             # P43 L2: the model-inference stage of the decision period.
             self._loop_t["policy_ms"] += (time.perf_counter() - _loop_start) * 1e3
@@ -5851,11 +5995,21 @@ class SortingRLEnv:
                     break
                 continue
             if self._tick >= int(self.reward.horizon):
-                self._finalize(
-                    notes=self._notes + [
-                        f"timeout: no grasp within {int(self.reward.horizon)} ticks"
-                    ]
+                # P173: the note must not claim "no grasp" on an episode that did
+                # grasp and ran out of budget before the place - with the session's
+                # `--horizon 900` (7.5 s) every completed grasp landed in exactly
+                # that state, and the note read like an acquisition failure. The
+                # shipped key is kept when nothing was grasped (that is the class
+                # the record's ledgers count), so no rate or reason key moves on
+                # the old behaviour.
+                _tn = (
+                    f"timeout: no grasp within {int(self.reward.horizon)} ticks"
+                    if not (getattr(self, "_lifted", False)
+                            or float(getattr(self, "_max_lift", 0.0)) > 0.05)
+                    else f"timeout: horizon reached while carrying "
+                    f"({int(self.reward.horizon)} ticks)"
                 )
+                self._finalize(notes=self._notes + [_tn])
                 break
         if self._event:
             # The next chunk is sampled at the state after these `executed`
@@ -5970,6 +6124,8 @@ class SortingRLEnv:
             self._notes.append("non-finite policy action")
             return
         arm = self.task.arms[self._active]
+        if self._contact_servo and self._apply_contact_servo(arm, action):
+            return
         if self._a2c2 is not None and not self._triggered and not self._action_jaw:
             # A2C2-style per-step correction on the frozen base policy, before
             # the primitive owns the arm. The head only shifts the 7 arm
@@ -6006,7 +6162,15 @@ class SortingRLEnv:
         if self._action_jaw or getattr(self, "_jaw_now", False):
             # P145d: the task-space action (P170: also the hybrid's jaw phase). `ik_step` writes the arm's targets
             # itself; the orientation is the episode's captured hold.
-            finger = float(np.clip(action[3], 0.0, 0.044))
+            if getattr(self, "_hybrid_action", False) and not self._action_jaw:
+                # P171: the hybrid's jaw phase - the finger at 7/8 (the shared
+                # layout) and the jaw target at 9:12. The committed ramp still
+                # owns the finger (below), so only the *arm's* action form changes.
+                finger = float(np.clip(action[7], 0.0, 0.044))
+                if self._close_ramp:
+                    finger = self._close_ramp_command(arm, finger)
+            else:
+                finger = float(np.clip(action[3], 0.0, 0.044))
             hold = self._cart_hold.get(self._active)
             # P169: the **free wrist**. The scripted line's post-descent solver
             # is position-only (`hold_quaternion = None`), which is what lets it
@@ -6017,8 +6181,14 @@ class SortingRLEnv:
                 arm.hold_quaternion = None
             elif hold is not None:
                 arm.hold_quaternion = np.asarray(hold, dtype=float)
-            target = np.asarray(action[:3], dtype=float)
-            if not self._action_tcp:
+            if getattr(self, "_hybrid_action", False) and not self._action_jaw:
+                target = np.asarray(action[9:12], dtype=float)
+                target = arm.tcp_target_for_jaw(target)
+            else:
+                target = np.asarray(action[:3], dtype=float)
+            if not self._action_tcp and not (
+                getattr(self, "_hybrid_action", False) and not self._action_jaw
+            ):
                 # jaw-point action: the TCP target carries the tool offset.
                 target = arm.tcp_target_for_jaw(target)
             arm.ik_step(target)
