@@ -1848,3 +1848,58 @@ and the middle of its recorded **5-8/10** spread; the canary builds its own
 it - the 50 % sample is the loop's own draw, and the pair is the honest statement.
 `configs/motion_reference.json` / `..._twoline.json` = **`30fb99f8`** and
 `..._single.json` = **`8952c320`** stand; every new knob defaults off.
+
+## 50. The hardware answer: the end-to-end cell needs a ~60 N clamp
+
+The owner authorised the hardware route. The record's own ranking puts the clamp
+force first: P41 measured that the delivered pinch **follows the cap** (4.4 -> 9.75-9.9
+N when the profile was fixed), and P76's ladder measured the mechanism - the pads are
+**back-driven to their open stop** below ~30 N and the pry is **deleted at 60 N**
+(0/26 pried, 0/26 escaped on that cell). P120's null was the **global cap on the
+scripted two-line**, where the count is dominated by classes the cap cannot touch;
+this phase asks the same question on the **direct end-to-end cell**, where the
+carry's hold *is* the binding term.
+
+**The build** (`FRUIT_FINGER_MAXFORCE_DIRECT=<N>`, default 0 = the shipped build
+cap): a runtime write of the active arm's `joint1` drive cap for the whole attempt,
+**written by the task** (`attempt_finger_cap` / `..._restore`, the scoped carry caps'
+own live-view path) so the environment never touches a drive - the P78/P79
+architectural pin holds. Direct presentation only, so the scripted acceptance, the
+collector and the hybrid canary cannot read it and no reference is owed. The
+`[drive]` row proves it per attempt: **`left attempt finger cap 10.00 -> 60.00 N`**
+and the restore at finalize.
+
+**The cell** (the best stack of this round: `p177_full`, the contact servo, the place
+servo, `FRUIT_SCORE_ENDPOINT=release` - which is the honest scorer here, because a
+placed payload is carried off the belt before `_finalize`), 8 episodes x **4 seeds**
+(77/101/202/404), cap 10 N against 60 N, same batch, same knobs:
+
+| seed | 10 N | **60 N** |
+|---|---|---|
+| 77 | 1/8 | **5/8** |
+| 101 | 1/8 | 1/8 |
+| 202 | 0/8 | 1/8 |
+| 404 | 0/8 | 1/8 |
+| **pooled** | **2/32 = 6.3 %** | **8/32 = 25.0 %** |
+
+and the grasp **survives the carry** on **6/32 (19 %)** at 10 N against **14/32
+(44 %)** at 60 N. **3 of 4 seeds better, 1 tied, none worse**; Fisher two-sided
+**p = 0.082** on the count and **p = 0.058** on the survival; the sign test's ceiling
+at N=4 is 0.0625, so the direction is as consistent as four seeds can show without a
+larger one.
+
+**What it means as a hardware requirement**: a real jaw must deliver **~55-60 N at
+the contact** (the delivered pinch, not the cap - P41's law puts ~53-56 N at a 60 N
+cap) for this payload class to survive the carry. At the shipped 10 N the end-to-end
+cell places **6 %** of attempts; at 60 N, **25 %**, with the best seed at 5/8.
+
+**Caveats, stated rather than implied**: (1) the **crush guard is not readable on
+this interface** - the direct path has no `[carry]` rows without the primitive, the
+same gap P120 recorded; the bound on the risk is P76's own 60 N row (the binding
+3.6 cm strawberry at `sep@loss - dia` **+0.5 mm**, i.e. not crushed) and this sim has
+no bruise model at all; (2) **8/32 against 2/32 is a direction, not a certificate** -
+P93's power note puts 8.75 points at ~364 attempts/arm, and P120's replication after a
+similar screen (66/80 vs 58/80) went null, which is exactly why this read is pooled
+over four seeds with the mechanism named; (3) the 60 N write is a **specification
+applied at runtime**, so it is not the same object as re-authoring the drive at build
+time (that would owe both references and every store).
