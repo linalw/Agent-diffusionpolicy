@@ -4072,6 +4072,7 @@ class SortingRLEnv:
         self.advance(self._reset_settle)
         self._close_t0 = None
         self._close_grip_finger = None
+        self._seat_q = None
         self._last_phase = None
         self._dq_index = None
         self._rel_base = None
@@ -4754,6 +4755,31 @@ class SortingRLEnv:
             if not _trigger:
                 return action_finger
             self._close_t0 = int(self._step)
+            # P166: the **one-shot seat commit** (oracle-reviewed form of B). At
+            # the latch the arm is measured 2.6-5 cm above the 70 mm seat; the
+            # scripted line closes exactly that gap with its post-descent solver.
+            # This is a *commit*, not a servo: one position-only IK to
+            # `[jaw_x, jaw_y, fruit_z + 0.070]` at the latch, held for the ramp's
+            # ticks, then the policy resumes. It decides no endpoint and adds no
+            # feedback - the same class as the finger's committed ramp.
+            self._seat_q = None
+            if os.environ.get("FRUIT_CLOSE_RAMP_SEAT", "0") == "1":
+                try:
+                    _j = np.asarray(arm.jaw_centre(), dtype=float)
+                    _f = np.asarray(self.spawner.position(self._sample), dtype=float)
+                    _aim = np.array([_j[0], _j[1], float(_f[2]) + 0.070])
+                    arm.hold_quaternion = None
+                    arm.sync_command_to_measured()
+                    _res = None
+                    for _ in range(80):
+                        _res = arm.ik_step(_aim)
+                        if _res < 1e-3:
+                            break
+                    self._seat_resid = float(_res) if _res is not None else float("nan")
+                    if arm._q_cmd is not None:
+                        self._seat_q = np.asarray(arm._q_cmd, dtype=float)[:7].copy()
+                except Exception:  # noqa: BLE001
+                    self._seat_q = None
             try:
                 quat = np.asarray(arm.tcp_pose()[1], dtype=float)
                 gap = float(self.task.pinch_width(self._sample, quat)) * 0.98
@@ -4775,7 +4801,8 @@ class SortingRLEnv:
                         f"dz={float(_jaw[2]-_fruit[2])*1000:+.0f}mm "
                         f"dx={float(_fruit[0]-_jaw[0])*1000:+.0f}mm "
                         f"jaw_z={float(_jaw[2]):.3f} fruit_z={float(_fruit[2]):.3f} "
-                        f"grip={self._close_grip_finger:.4f}"
+                        f"grip={self._close_grip_finger:.4f} "
+                        f"seat_res={getattr(self, '_seat_resid', float('nan'))*1000:.0f}mm"
                     )
                 except Exception:  # noqa: BLE001
                     pass
@@ -5965,6 +5992,13 @@ class SortingRLEnv:
                 _v = (np.asarray(self._ff_arr[_j][:7], dtype=float)
                       - np.asarray(action[:7], dtype=float)) / max(1, int(self._action_hold))
                 target7 = np.asarray(action[:7], dtype=float) + self._ff_ticks * _v
+            _seat = getattr(self, "_seat_q", None)
+            if (
+                _seat is not None
+                and self._close_t0 is not None
+                and int(self._step) - int(self._close_t0) <= int(self._close_ramp_ticks)
+            ):
+                target7 = _seat
             if self._posvel_action and action.shape[0] >= 16:
                 _lead = float(os.environ.get("FRUIT_ACTION_DELTA_LEAD", "1.0"))
                 if _lead:

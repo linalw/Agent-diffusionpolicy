@@ -1389,3 +1389,35 @@ centre cannot descend below `belt_top + 0.05` (assets.py:299), the seat is
 so the belt is not blocking the seat; the arm simply stops 2-5 cm short of the
 commanded descent, exactly the profile-boundary shortfall the scripted line's
 post-descent solver corrects and the policy does not reproduce.
+
+## 39. The descent's shortfall is (mostly) the arm's reach envelope - measured
+
+Two arms and one probe settle it:
+
+| arm | latch | `dz` at the latch | grasp |
+|---|---|---|---|
+| tail weighting (`--close-lead 25 --close-tail 20 --close-weight 20`, 40 ep) | 24/30 | **+103** (p50) | 0/30 |
+| + **one-shot seat commit** (`FRUIT_CLOSE_RAMP_SEAT=1`: one position-only IK to `[jaw_x, jaw_y, fruit_z+0.070]` at the latch, held for the ramp) | 20/30 | **+141** (worse) | 1/30 |
+
+**The probe**: the seat commit's own IK residual, at the latch, reads **13-38 mm**
+(one 92) - and the oracle's calibration was "<= 6 mm = policy, 20-50 mm =
+geometric". The record's static station sweep (`logs/p66/STATION_SWEEP.md`, 150
+cells) agrees from the other side: at the **grip depth** the reach is 5.8-6.0 mm
+across x 0.188-0.320 for y >= -0.05 - **with `j3` at its limit everywhere it
+works** - and at the **lift's end** (z = 0.360) *no* cell solves within 6 mm (the
+best is 45.8-81.8 mm). So the station is at the arm's reach edge: the grip can be
+solved but not from every pose (the position-only IK from the latched, j3-limit
+pose leaves 13-38 mm), and the lift's end is outside the envelope at every tested
+cell.
+
+**That is the record's "Known limit" measured on this tree**, and it reframes
+§19-§34: the "under-execution" that was invariant to every supervision and
+representation change has a geometric floor at the descent's end and the lift's
+end. The seat commit (B) made it *worse*, because committing to an unreachable
+point drives the arm into its own boundary (dz +141 against +103).
+
+The one scene lever that could move it - the pick station - was swept in P66 and
+does not rescue the lift's end (no cell at z = 0.360), so a station shift buys the
+grip's margin (j3) at most. The remaining levers are the record's two hardware
+sanctions (a new pad asset, a real-jaw clamp-force anchor) or a workstation that
+shortens the lift/transfer - not another policy or camera change.
