@@ -17256,6 +17256,11 @@ class PickAndPlaceTask:
         else:
             for _ in range(60):
                 self._step_sim(1)
+                # P173c: sample the post-release **settle** too, so a recorded
+                # episode covers the whole attempt (the open hand at the bin) and
+                # not just up to the finger ramp. Inert without a recorder.
+                if self.recorder is not None and self.recorder.recording:
+                    self._record(self._action9(self._commanded_arm(arm), arm, float(arm.OPEN)))
                 if os.environ.get("FRUIT_RELEASE_DEBUG", "0") == "1":
                     self._release_probe(arm_name, sample, trace, "settle", 0, 0.0)
                 self._place_probe(place_trace, sample, "settle", 0, 0.0)
