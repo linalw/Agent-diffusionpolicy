@@ -1421,3 +1421,33 @@ does not rescue the lift's end (no cell at z = 0.360), so a station shift buys t
 grip's margin (j3) at most. The remaining levers are the record's two hardware
 sanctions (a new pad asset, a real-jaw clamp-force anchor) or a workstation that
 shortens the lift/transfer - not another policy or camera change.
+
+## 40. CORRECTION of §39, and the answer to "why does the scripted line work": the feedback form
+
+The scripted line's descent also ends 40-90 mm short, and it still places 7-8/10
+because of its **post-descent solver**: a 120 Hz position-only IK that re-aims at
+the fruit's *measured* centre plus a velocity lead (`centre_now + v*lead`) and lets
+the wrist rotate, so it **reconfigures out of the j3-limit pose over several
+ticks**. §39's "geometric floor" was too strong: the grip is reachable at 5.8-6.0
+mm (P66's grid) - just not from the latched boundary pose with a *single* solve
+(the seat commit's 13-38 mm). The obstruction is the **form of the controller**
+(open-loop chunk vs re-aiming feedback), not an unreachable point.
+
+Measured on this tree (the crop model, 10 episodes x 2 seeds per arm):
+
+| arm | decisions | grasp | `dz` | tracking slope |
+|---|---|---|---|---|
+| control (execute_steps 16) | 7.5 Hz | **0/30** | +103 | +3.2..+3.9 |
+| execute_steps 8 | 15 Hz | **2/20** | +119 | +1.5..+5.1 |
+| execute_steps 4 | 30 Hz | **1/20** | +104 | +2.0..+2.9 |
+| + goal lead 0.12 s | 30 Hz | 0/20 | +114 | +2.3..+3.0 |
+| + goal lead 0.25 s | 30 Hz | 1/20 | +93 | +2.0..+2.8 |
+
+**The re-plan rate is the first lever since the crop with a direction** (3/20 pooled
+against 0/30 at the trained cadence), and the goal lead is a null at both rungs.
+The `dz` does not move with the rate (~100-120 in every arm) - the vertical
+reconfiguration needs the *wrist-freedom + measured re-aim* the scripted solver
+has, which a 16-waypoint joint chunk does not express. The named next form is a
+**contact-phase head**: a short action horizon (4 waypoints) trained on the
+contact windows and executed at 30 Hz, i.e. the learned analogue of the scripted
+catch-up (the RDP/PACE direction, not a faster replay of the same chunk).
