@@ -1661,3 +1661,43 @@ names the one remaining *learned* build: a **per-tick controller** trained on 12
 demonstration states (an architecture change - the demos are recorded at 30 Hz, so it
 also needs a 120 Hz store), rather than another chunk, knob or store. The alternative
 is the two hardware sanctions in `logs/p42/SIM_LIMIT.md`.
+
+## 46. The defect behind the place: no demonstration in the project contains a release
+
+The loop's last readout was the finger **0.025-0.030 at finalize on every episode**
+(P173b): the model never opens. `logs/p145/release_fit.py` was written to ask whether
+that is a fit problem or a labelling one, and it returned the sharper answer - **there
+are no release windows to fit**:
+
+| store | episodes | frames p50 | last-frame finger | episodes ending open |
+|---|---|---|---|---|
+| `demos_v11` | 50 | 200 (7.9 s) | 0.0246 | **0** |
+| `demos_v12` | 158 | 209 (8.5 s) | 0.0221 | **0** |
+| `v12d_s02` | 158 | 209 (8.5 s) | 0.0221 | **0** |
+| `p146_anchor_all` | 51 | 195 (6.5 s) | 0.0238 | **0** |
+| `p169_demo_all` | 112 | 196 (6.5 s) | 0.0238 | **0** |
+| `p145_dagger_wait` | 40 | 126 (4.2 s) | 0.0279 | 4 (failed attempts) |
+
+Every stored episode ends with the finger **closed**; the finger's maximum (0.044) is
+the *start* of the episode. **366 demonstrations, zero releases.**
+
+**The mechanism is one missing call.** `_record` samples the recorder at the 30 Hz
+decimation and is wired into the approach, the close and the place; the release's
+finger ramp - `min_jerk_ramp(fingers, arm.OPEN, 16)` at the end of the place - runs
+`_step_sim(1)` in a loop **without** it. The stores end 0.9-1.0 s before the attempt
+does (7.9-8.5 s stored against 9.0-9.4 s per attempt), which is exactly the release
+block (the 16-step finger ramp x2-3 ticks per step, the pad ramp, the dwell).
+
+**Consequence, and it is the honest explanation of the whole place series**: no
+checkpoint in this project - including `moe_v13s` - has ever seen a release, so the
+place could not be learned from these stores, and that is why the recollections,
+DAgger rounds, action forms and stores never moved the place.
+
+**The fix** is one guarded call inside the release's finger ramp
+(`_record(self._action9(self._commanded_arm(arm), arm, float(value)))`, behind
+`if self.recorder is not None and self.recorder.recording`), so a run without a
+recorder is untouched - the scripted acceptance does not attach one. Verified on a
+2-episode smoke store: the last-frame finger now reads **0.0439 / 0.0440** with an
+open tail (against 0/366 before). A top-up store (`datasets/p173_release`) and a
+fine-tune are the next cell; every store recorded before this fix is a
+no-release store.

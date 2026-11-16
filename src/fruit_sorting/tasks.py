@@ -17169,6 +17169,16 @@ class PickAndPlaceTask:
             arm.set_gripper(float(value))
             for _ in range(finger_hold):
                 self._step_sim(1)
+                # P173c: **sample the release**. Until this line the recorder was
+                # never called while the finger opens, so no demonstration in the
+                # project contains a release: 0 of 366 stored episodes (`demos_v11`
+                # 50, `demos_v12` 158, `v12d_s02` 158, `p169_demo_all` 112) ends
+                # with the finger open, and every checkpoint therefore holds the
+                # payload to the end of the episode (`fing` 0.025-0.030 at
+                # finalize). `_record` returns immediately with no recorder
+                # attached, so the scripted acceptance stays byte-identical.
+                if self.recorder is not None and self.recorder.recording:
+                    self._record(self._action9(self._commanded_arm(arm), arm, float(value)))
                 if os.environ.get("FRUIT_RELEASE_DEBUG", "0") == "1":
                     self._release_probe(arm_name, sample, trace, "arm", _index, float(value))
                 self._place_probe(place_trace, sample, "arm", _index, float(value))
