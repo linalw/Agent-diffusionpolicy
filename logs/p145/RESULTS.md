@@ -1610,3 +1610,54 @@ the fruit is in the hand (the demos' `FRUIT_TRAIN_GOAL=moving` rebuild follows t
 fruit, so the place phase is conditioned on "the fruit is here"). The next cell is a
 phase-dependent view (`crop` for the approach/contact, the wide frame for the place)
 with the goal's destination channel or the bin's own visual cue.
+
+## 45. The place, measured in pieces: the transit is predicted, the carry and the release are not
+
+With the contact servo converting the grasp (P173), the place became the frontier. It
+was instrumented two ways - offline (`logs/p145/place_fit.py`: the model's chunk
+against the label at *carrying/transiting* windows) and in the loop (two new
+reporting fields on the episode row, `final=` and `fing=`).
+
+**Offline, the model does predict the transit.** At 20 carrying/transit windows the
+first-step error is **48.4 mm** TCP-equivalent (p90 138) and the predicted travel over
+the chunk is **0.91x** the label's, with **0 %** of windows predicting "hold". So the
+failure is per-step *pose accuracy*, not a missing place motion.
+
+**The phase-dependent view is a measured negative.** The hypothesis was that the
+64-px crop (which fixed the approach) removes the output bins from the place's view.
+`FRUIT_IMAGE_FOVEA_PHASE=1` crops the pre-close frames and feeds the wide frame once
+the label's finger is closed (the env switches on its own latch; the phase is already
+in the router's conditioning). Retrained on the same recipe: the offline place error
+**rises 48.4 -> 68.7 mm** (the travel ratio goes 0.91 -> 0.99, i.e. it moves *more*
+and further off), and in the loop the payloads end **on the floor** (z 0.90-0.92 at
+x 0.04-0.40) against the control's place-side positions. **Not adopted**, default off.
+The build did expose a real defect: the wide frame's depth carries `inf` where the
+raycast missed (**26 %** of `p169_demo_all`'s pixels), and the wide path resampled
+before clipping, so `inf - inf` produced **NaN** in the encoder input. Sanitised
+before the resample **on the phase path only**, so the shipped wide path stays
+byte-identical for the models trained on it.
+
+**In the loop, with the servo, the arm reaches the place's neighbourhood and never
+releases.** Four of eight attempts carried the payload to `(0.51, -0.30..-0.72,
+1.19)` - the -Y output belt's own x and low place height - but `on_out=0` on all
+eight, and the **finger at finalize is 0.025-0.030 (closed) on every episode**: the
+model never emits the release. What it holds, it either keeps in the pinch or loses
+to the closed loaded-slide class (`logs/p42/SIM_LIMIT.md`).
+
+**So the end-to-end loop decomposes, each term with its own instrument:**
+
+| term | state | instrument |
+|---|---|---|
+| approach / acquisition | **fixed** (crop + family start + band anchor) | `gap_min`, the close latch's xy |
+| contact (the latch + the seat) | **fixed** (P173 servo) | `[close] xy 17 mm`, `dz +70..+81` |
+| place transit | **reached within ~±20 cm** of a 25 cm belt | `final=`, the offline place fit |
+| carry (holding the payload) | **open** - the closed loaded slide | the payload leaves the closed pinch |
+| release | **open** - never emitted | `fing` at finalize 0.025-0.030 |
+
+The two open terms are both **tick-level** (a slip grows over tens of ticks; a release
+is a commanded ramp), and a 7.5 Hz chunk that must predict 32 mm of motion per decision
+with a 30 mm error (P172) cannot own them. That is the lane's honest boundary, and it
+names the one remaining *learned* build: a **per-tick controller** trained on 120 Hz
+demonstration states (an architecture change - the demos are recorded at 30 Hz, so it
+also needs a 120 Hz store), rather than another chunk, knob or store. The alternative
+is the two hardware sanctions in `logs/p42/SIM_LIMIT.md`.

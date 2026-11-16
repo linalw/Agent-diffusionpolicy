@@ -7528,6 +7528,12 @@ class SortingRLEnv:
                     f" gap_min={self._diag_min_gap * 1000:.0f}mm"
                     f" finger_min={self._diag_min_finger:.4f}"
                     f" gap_close={self._diag_gap_close * 1000:.0f}mm"
+                    # P173b: where the payload ended, so "grasped but not placed"
+                    # is a *position* read (still at the pick station vs at a bin)
+                    # instead of an inference. Reporting only.
+                    f" final=({final[0]:+.2f},{final[1]:+.2f},{final[2]:+.2f})"
+                    f" on_out={int(bool(self.cfg.on_output_belt(final)))}"
+                    f" fing={float(getattr(self, '_last_finger', 0.0)):.4f}"
                 )
             )
         )
