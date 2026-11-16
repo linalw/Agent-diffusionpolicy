@@ -1507,3 +1507,40 @@ the joint action times the catch (the latch), the jaw action reconfigures (the
 descent). The named composition is a **hybrid action** (the joint 7-D for the
 approach and the latch, the free-wrist jaw 4-D for the descent's last 2-5 cm),
 which is a model head change (9-D + 4-D channels) rather than a runtime switch.
+
+## 43. The two-model hybrid: mechanically sound, the dz improves, the count does not
+
+`FRUIT_POLICY_CKPT2=<jaw head>` selects the free-wrist jaw head for the 60 ticks
+after the latch and the joint head everywhere else (the two checkpoints share the
+26-D proprio; the second runner gets its own frame buffer and reset - two
+integration defects found and fixed: the second runner's `_frames` was never
+pushed and its `phase_gate` was not inherited).
+
+Cell (8 episodes, seed 77, the joint head `p171_tail`, the jaw head
+`p169_freewrist`, the 4-waypoint horizon, the crop):
+
+| measure | joint only | **hybrid** |
+|---|---|---|
+| `dz` at the latch | +92..+119 | **+58..+136 (p50 +114, two at +58/+72)** |
+| tracking slope | +3.1..+3.7 | +3.8 |
+| grasp | 2/20 | **0/8** |
+
+So the jaw phase does move the hand toward the seat (two latches within 12 mm of
+the 70 mm seat, the closest of the session), but the **post-close hold stays
+world-static** and no attempt places. The reason is the one the record has measured
+repeatedly: the jaw head was trained on `p145_tcp`'s *scripted* states, and the
+joint head's latch state is out of its distribution - the switch changes the
+action's *form* but not the model's *state coverage*.
+
+**The honest end-point of the pure-learning lane on this tree**: the best direct
+configuration (the shipped camera + the 64-px crop + the in-band anchor + the
+same-camera DAgger + the lift labels + the family start + the ramp dy 0.014 + the
+4-waypoint contact head) reads **2/20 = 10 %** against the scripted line's 8/10;
+the measured separators are, in order, the **initial-state/band coverage** (fixed
+by the crop + the anchor + the family start), the **close timing** (fixed by the
+ramp's own dy), and the **contact-phase feedback** - the scripted line's 120 Hz
+free-wrist position-only catch-up, which no 8-15 Hz chunked model reproduces and
+which the two-model hybrid only half-approximates. The remaining build that could
+still be argued is a **single 12-D head** trained jointly on both action groups
+(the joint 7-D + the jaw 4-D) on one state distribution; everything cheaper has
+been measured.

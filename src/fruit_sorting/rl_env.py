@@ -2664,6 +2664,21 @@ class SortingRLEnv:
                     f"(gain={self._a2c2.gain}, clamp={self._a2c2.clamp})"
                 )
             self.action_dim = int(self.policy.config["action_dim"])
+            self._policy2 = None
+            self._jaw_now = False
+            _ck2 = os.environ.get("FRUIT_POLICY_CKPT2", "").strip()
+            if _ck2:
+                from .policy.runtime import PolicyRunner as _PR
+
+                self._policy2 = _PR(_ck2, device=self.policy.device)
+                if getattr(self.policy, "phase_gate", None) is not None:
+                    self._policy2.phase_gate = self.policy.phase_gate
+                _w1 = int(self.policy.config.get("proprio_dim", 25))
+                _w2 = int(self._policy2.config.get("proprio_dim", 25))
+                if _w1 != _w2:
+                    raise ValueError(
+                        f"FRUIT_POLICY_CKPT2 proprio_dim={_w2} != the primary's {_w1}"
+                    )
             if self._action_jaw and self.action_dim != 4:
                 raise RuntimeError(
                     f"FRUIT_ACTION=jaw needs a 4-D checkpoint (jaw xyz + finger), "
@@ -4140,6 +4155,8 @@ class SortingRLEnv:
 
         if self.policy is not None:
             self.policy.reset()
+            if getattr(self, '_policy2', None) is not None:
+                self._policy2.reset()
         if self.rtc is not None:
             self.rtc.reset()
 
@@ -4474,6 +4491,9 @@ class SortingRLEnv:
                 except Exception:  # noqa: BLE001 - the full frame is the fallback
                     _uv = None
             self.policy.push_frame(rgb, depth, mask, uv=_uv)
+            if getattr(self, "_policy2", None) is not None:
+                # the hybrid's jaw head has its own observation horizon buffer
+                self._policy2.push_frame(rgb, depth, mask, uv=_uv)
 
     # ------------------------------------------------------------------ #
     # P141: the belt-state channel
@@ -5130,9 +5150,21 @@ class SortingRLEnv:
         self._refresh_goal_aux()
         phase = self._phase_for_decision()
         self._last_phase = phase
-        chunk = self.policy.act(
+        # P170: the **two-model hybrid** - the joint head times the catch (it
+        # latches 24-28 of 30), the free-wrist jaw head reconfigures the descent's
+        # last 2-5 cm (the scripted catch-up's form). `FRUIT_POLICY_CKPT2=<path>`
+        # selects the jaw head for the 60 ticks after the latch; the joint head
+        # owns everything else. The two checkpoints must share the proprio width.
+        _use2 = bool(
+            getattr(self, "_policy2", None) is not None
+            and self._close_t0 is not None
+            and int(self._step) - int(self._close_t0) <= int(self._close_ramp_ticks)
+        )
+        self._jaw_now = _use2
+        chunk = (self._policy2 if _use2 else self.policy).act(
             self.proprio(), self._goal, num_steps=self.ddim_steps if num_steps is None
-            else int(num_steps), phase=phase
+            else int(num_steps),
+            phase=(None if _use2 else phase),
         )
         if self._loop_timing:
             # P43 L2: the model-inference stage of the decision period.
@@ -5971,8 +6003,8 @@ class SortingRLEnv:
                 if self._emit_diag:
                     count, over = emit_out_of_range(action, arm.arm_lo, arm.arm_hi)
                     self._emit_post_out += count
-        if self._action_jaw:
-            # P145d: the task-space action. `ik_step` writes the arm's targets
+        if self._action_jaw or getattr(self, "_jaw_now", False):
+            # P145d: the task-space action (P170: also the hybrid's jaw phase). `ik_step` writes the arm's targets
             # itself; the orientation is the episode's captured hold.
             finger = float(np.clip(action[3], 0.0, 0.044))
             hold = self._cart_hold.get(self._active)
