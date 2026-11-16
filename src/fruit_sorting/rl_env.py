@@ -2132,6 +2132,21 @@ class SortingRLEnv:
         self._place_servo = os.environ.get("FRUIT_PLACE_SERVO", "0").strip() == "1"
         self._place_drop = float(os.environ.get("FRUIT_PLACE_SERVO_DROP", "0.10") or 0.10)
         self._place_diag = os.environ.get("FRUIT_PLACE_SERVO_DIAG", "0").strip() == "1"
+        #: P176: the **real-jaw clamp-force spec** on this interface
+        #: (`FRUIT_FINGER_MAXFORCE_DIRECT=<N>`, default 0 = the shipped build
+        #: cap). A runtime write of the active arm's `joint1` drive cap for the
+        #: whole attempt, restored at the end - the direct path only, so the
+        #: scripted acceptance, the collector and the hybrid canary never read it
+        #: and owe no reference. It is the hardware question in its own units:
+        #: *what force must a real jaw deliver at the cycle's contact for this
+        #: payload class to survive the carry?* The measured backdrop is P76's
+        #: ladder (the pads are back-driven to their open stop below 30 N and the
+        #: pry is deleted at 60 N) and P120's null of the *global* cap on the
+        #: scripted line, where the count is dominated by other classes.
+        self._finger_cap_direct = float(
+            os.environ.get("FRUIT_FINGER_MAXFORCE_DIRECT", "0") or 0.0
+        )
+        self._finger_cap_saved: dict[str, float] = {}
         self._servo_on = False
         self._servo_last_aim = None
         self._place_phase = 0
@@ -3956,6 +3971,42 @@ class SortingRLEnv:
             )
         return self._begin_pick(target_state, diag=diag)
 
+    def _apply_direct_finger_cap(self) -> None:
+        """P176: raise the active arm's finger drive cap for this attempt.
+
+        A **hardware spec** applied at runtime (`FRUIT_FINGER_MAXFORCE_DIRECT`):
+        the same live `set_dof_max_efforts` path the scoped carry caps use, on
+        the direct presentation only. Zero/unset does nothing at all.
+        """
+        if self._finger_cap_direct <= 0.0:
+            return
+        side = self._active
+        if side in self._finger_cap_saved:
+            return
+        task = self.task
+        base = task._finger_cap_read(side)
+        if base is None:
+            return
+        back = task._finger_cap_write(side, float(self._finger_cap_direct))
+        self._finger_cap_saved[side] = float(base)
+        self._say(
+            f"[drive] {side} direct finger cap {base:.2f} -> "
+            f"{'n/a' if back is None else f'{back:.2f}'} N "
+            f"(FRUIT_FINGER_MAXFORCE_DIRECT={self._finger_cap_direct:g})"
+        )
+
+    def _restore_direct_finger_cap(self) -> None:
+        """Put back every cap this attempt raised (idempotent)."""
+        if not self._finger_cap_saved:
+            return
+        for side, base in list(self._finger_cap_saved.items()):
+            back = self.task._finger_cap_write(side, float(base))
+            self._say(
+                f"[drive] {side} direct finger cap restore -> "
+                f"{'n/a' if back is None else f'{back:.2f}'} N"
+            )
+        self._finger_cap_saved.clear()
+
     def _begin_pick(self, target_state: dict, diag: list | None = None,
                     continuation: bool = False, prev_active: str | None = None) -> dict:
         """Start one pick from an already-selected target (P56).
@@ -4002,6 +4053,8 @@ class SortingRLEnv:
         self._sample = sample
         self._active = active
         self._bin_index = bin_index
+        # P176: the hardware clamp spec for this attempt (no-op when unset)
+        self._apply_direct_finger_cap()
         # P145: a new fruit is a new track. The perception estimate and its
         # filter are per attempt (`FruitPerception.reset`'s rule, P135): a
         # carried radius would fit the next fruit at the old one's size.
@@ -7510,6 +7563,8 @@ class SortingRLEnv:
         # declared, and the row names it - the two are different metrics and a
         # rate is only comparable within one of them.
         endpoint = score_endpoint()
+        # P176: put the drive back before anything reads the outcome
+        self._restore_direct_finger_cap()
         if getattr(self, "_no_handover", False):
             # The policy carried the fruit if it rose off the belt with the hand;
             # `grasped`/`placed` are reported from that and from the payload's own
