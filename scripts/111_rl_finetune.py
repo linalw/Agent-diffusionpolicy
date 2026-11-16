@@ -82,6 +82,16 @@ def main() -> int:
                         default=int(os.environ.get("FIRST_STEPS", "0")),
                         help="P145: train only the first N actions of each chunk "
                              "(what the env executes before re-planning; 0 = all)")
+    parser.add_argument("--release-weight", type=float,
+                        default=float(os.environ.get("FRUIT_RELEASE_WEIGHT", "1.0") or 1.0),
+                        help="P173c: upweight the windows around the recorded release "
+                             "(the open tail at the end of the place); 1.0 = off")
+    parser.add_argument("--release-lead", type=int,
+                        default=int(os.environ.get("FRUIT_RELEASE_LEAD", "40") or 40),
+                        help="frames before the release start to weight")
+    parser.add_argument("--release-tail", type=int,
+                        default=int(os.environ.get("FRUIT_RELEASE_TAIL", "20") or 20),
+                        help="frames after the release start to weight")
     parser.add_argument("--close-tail", type=int,
                         default=int(os.environ.get("CLOSE_TAIL", "10")),
                         help="frames after the close start included in the boost")
@@ -137,6 +147,9 @@ def main() -> int:
         base_weight=args.base_weight,
         hard_epochs=args.hard_epochs,
         close_weight=args.close_weight,
+        release_weight=args.release_weight,
+        release_lead=args.release_lead,
+        release_tail=args.release_tail,
         close_lead=args.close_lead,
         close_tail=args.close_tail,
         first_steps=args.first_steps,

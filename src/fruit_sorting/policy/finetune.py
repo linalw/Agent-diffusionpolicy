@@ -103,6 +103,8 @@ def widen_action(
     *,
     new_dim: int = 16,
     delta_std: float = 0.05,
+    means: list[float] | None = None,
+    stds: list[float] | None = None,
 ) -> bool:
     """P157: widen the 9-D action into 9 + 7 (a supervised joint velocity).
 
@@ -130,13 +132,17 @@ def widen_action(
         [hw, _torch.zeros(pad, hw.shape[1], hw.shape[2], dtype=hw.dtype)], dim=0
     )
     model_state["head.2.bias"] = _torch.cat([hb, _torch.zeros(pad, dtype=hb.dtype)])
+    _m = list(means) if means else [0.0] * pad
+    _sd = list(stds) if stds else [float(delta_std)] * pad
+    _m = (_m + [0.0] * pad)[:pad]
+    _sd = (_sd + [float(delta_std)] * pad)[:pad]
     normalizer["action_mean"] = np.concatenate(
         [np.asarray(normalizer["action_mean"], dtype=np.float32),
-         np.zeros(pad, dtype=np.float32)]
+         np.asarray(_m, dtype=np.float32)]
     )
     normalizer["action_std"] = np.concatenate(
         [np.asarray(normalizer["action_std"], dtype=np.float32),
-         np.full(pad, float(delta_std), dtype=np.float32)]
+         np.asarray(_sd, dtype=np.float32)]
     )
     config["action_dim"] = int(new_dim)
     return True
@@ -312,6 +318,8 @@ def _weight_for_meta(meta: dict, *, mode: str, beta: float, vbar: float,
 #: of the scripted close ramp (the demos hold 0.044 until the ramp's first step
 #: is 0.040). Used by the timing-aware fine-tune to locate the close window.
 CLOSE_FINGER = 0.0435
+#: P173c: "open" for the release's tail (the open command is 0.044).
+RELEASE_FINGER = 0.040
 
 
 def close_start_frames(store: EpisodeStore) -> list[int | None]:
@@ -329,6 +337,33 @@ def close_start_frames(store: EpisodeStore) -> list[int | None]:
             continue
         index = np.flatnonzero(action[:, 7] < CLOSE_FINGER)
         starts.append(int(index[0]) if index.size else None)
+    return starts
+
+
+def release_start_frames(store: EpisodeStore) -> list[int | None]:
+    """Per-episode frame where the recorded **release** begins, or None.
+
+    P173c: the first frame of the **open tail** - the finger rises back to open at
+    the end of the place and stays open to the last frame. Reading the tail (not
+    the first reopen) matters because the scripted re-grasp opens the pads between
+    probe lifts, which is not a release. A store recorded before the P173c
+    recorder fix has no open tail (0 of 366 episodes), so every weight stays at
+    the episode's own value and an old store trains exactly as before.
+    """
+    starts: list[int | None] = []
+    for episode in store.episodes:
+        action = np.asarray(episode["action"], dtype=np.float32)
+        if action.ndim != 2 or action.shape[1] < 8:
+            starts.append(None)
+            continue
+        finger = action[:, 7]
+        if float(finger[-1]) < RELEASE_FINGER:
+            starts.append(None)
+            continue
+        index = len(finger) - 1
+        while index > 0 and float(finger[index - 1]) >= RELEASE_FINGER:
+            index -= 1
+        starts.append(int(index))
     return starts
 
 
@@ -420,7 +455,9 @@ class _OffsetWindows(Dataset):
 def _window_weights(store: EpisodeStore, *, mode: str, beta: float, vbar: float,
                     failure_weight: float, base_weight: float,
                     close_weight: float = 1.0, close_lead: int = 10,
-                    close_tail: int = 10) -> list[float]:
+                    close_tail: int = 10,
+                    release_weight: float = 1.0, release_lead: int = 40,
+                    release_tail: int = 20) -> list[float]:
     """One weight per training window, from the window's episode metadata.
 
     ``close_weight`` > 1 upweights the windows *starting* within
@@ -434,6 +471,10 @@ def _window_weights(store: EpisodeStore, *, mode: str, beta: float, vbar: float,
         for ep in store.episodes
     ]
     starts = close_start_frames(store) if close_weight != 1.0 else []
+    #: P173c: the **release** windows - the ramp that opens the pads at the end of
+    #: the place (plus the descent into the bin before it). Without this the
+    #: release is ~0.4 % of a store's windows and is fitted away.
+    rel = release_start_frames(store) if release_weight != 1.0 else []
     weights: list[float] = []
     for ep, start in store.windows:
         weight = episode_weight[ep]
@@ -441,6 +482,10 @@ def _window_weights(store: EpisodeStore, *, mode: str, beta: float, vbar: float,
             close = starts[ep]
             if close is not None and (close - close_lead) <= start <= (close + close_tail):
                 weight *= float(close_weight)
+        if rel:
+            r = rel[ep]
+            if r is not None and (r - release_lead) <= start <= (r + release_tail):
+                weight *= float(release_weight)
         weights.append(weight)
     return weights
 
@@ -491,6 +536,9 @@ def finetune(
     router_loss_weight: float = 0.1,
     balance_loss_weight: float = 0.01,
     close_weight: float = 1.0,
+    release_weight: float = 1.0,
+    release_lead: int = 40,
+    release_tail: int = 20,
     close_lead: int = 10,
     close_tail: int = 10,
     first_steps: int = 0,
@@ -595,6 +643,15 @@ def finetune(
     cmd_channel = _cmd
     # P157: the position+velocity action (16-D). The new channels are zero at
     # step 0, so the artifact starts exactly as its parent.
+    if str(os.environ.get("FRUIT_ACTION", "")).strip().lower() == "hybrid" and int(config.get("action_dim", 9)) < 12:
+        # P171: the 12-D joint head (7 joints + finger + finger + jaw xyz).
+        _jm = [0.3034, -0.1536, 1.4243]
+        _js = [0.0757, 0.1727, 0.1253]
+        if widen_action(ckpt["model"], ckpt["normalizer"], config, new_dim=12,
+                        means=_jm, stds=_js):
+            config["action_mode"] = "hybrid"
+            if verbose:
+                print("[finetune] P171 hybrid action: 9 -> 12 (3 jaw channels)", flush=True)
     if str(config.get("action_mode", "")) == "posvel" and int(config.get("action_dim", 9)) < 16:
         widened = widen_action(ckpt["model"], ckpt["normalizer"], config)
         if verbose and widened:
@@ -706,6 +763,8 @@ def finetune(
             store, mode=weight_mode, beta=beta, vbar=vbar,
             failure_weight=failure_weight, base_weight=base_weight,
             close_weight=close_weight, close_lead=close_lead,
+            release_weight=release_weight, release_lead=release_lead,
+            release_tail=release_tail,
             close_tail=close_tail,
         )
         stats = np.asarray(sorted(set(round(w, 6) for w in weights)))

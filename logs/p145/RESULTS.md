@@ -1701,3 +1701,41 @@ recorder is untouched - the scripted acceptance does not attach one. Verified on
 open tail (against 0/366 before). A top-up store (`datasets/p173_release`) and a
 fine-tune are the next cell; every store recorded before this fix is a
 no-release store.
+
+## 47. A release top-up store and a release-weighted objective: the signal exists, the loop still does not release
+
+The P173c fix was verified end to end. A top-up collection (`FRUIT_EPISODES=16`,
+over-run to **24 successful episodes** of 48 attempts, `datasets/p173_release`) now
+ends with the finger **open** on every episode, and merged with `p146_anchor_all` it
+gives `datasets/p173_all` (**75 episodes**). A release objective was added to the
+fine-tune - `--release-weight / --release-lead 40 / --release-tail 20`, weighting the
+windows around the recorded release's **open tail** (read from the end, so a
+mid-episode re-grasp reopen is not mistaken for a release):
+`release_start_frames` finds **24 of 75** episodes with a tail, and the band holds
+**947 of 14 968** base windows (**6.3 %**).
+
+Fine-tune `p174_fasthead` -> **`p176_release`** (30 epochs, weighted 0.0245, router
+0.989, `demo_val` 0.0177). Cell (8 episodes x seeds 77/101, the servo, horizon 2000):
+
+- **0/16 placed**;
+- the finger at finalize is **0.019-0.044**, mostly **0.024-0.030** (closed);
+- the payloads end at the belt's far end on the floor (`y -0.87..-0.91`, `z
+  0.90-0.92`) - either the un-grasped fruit's own resting place or a payload lost in
+  the carry, never a bin.
+
+**Read it as two terms, not one.** The release signal is now in the data but 24
+episodes of a 2-4-frame tail is **6 % of the windows**, and the loop's place transit
+carries **+-20 cm** of scatter (P173b: x 0.51, y -0.30..-0.72 against a 25 cm belt) -
+a payload released 20 cm beside the belt still misses it. So the two are
+**simultaneously** required, and neither is a knob:
+
+1. a **full recollection with the recorder fix** - every store recorded before P173c
+   is a no-release store (0 of 366 episodes ended open), so the project's
+   demonstration corpus has to be re-recorded before the place can be learned at all;
+2. the place's **transit accuracy** (48 mm per decision offline), which is the same
+   class as the contact phase's and has the same answer - a measured-target servo or
+   a per-tick learned controller (P173's boundary).
+
+**Durable outcomes of this round**: the recorder samples the release; the
+release-weighted objective exists and is opt-in; and a store's *finger tail* is now a
+provenance read - an episode that ends closed is a pre-P173c store.
