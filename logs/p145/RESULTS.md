@@ -1834,3 +1834,17 @@ which is the class `logs/p42/SIM_LIMIT.md` closes - not a place, goal, phase, vi
 horizon, re-plan-rate or store problem. That is where the end-to-end cell now
 stands: an approach, a contact and a place that all work, gated by a carry that
 holds 1-2 attempts in 8.
+
+**Gates on the final tree of the round** (`d9a7f48`): `scripts/selfcheck.sh`
+**PASS (0 failures, 1 skipped)**; `scripts/accept.sh` **fingerprint: matches
+`configs/motion_reference.json`** with **`190: PASS`** (the shipped two-line
+scenario untouched); `scripts/accept_policy.sh` twice - **5/10 (50 %, FAIL on the
+rate only, 5 grip losses)** and **7/10 (70 %, PASS)** - two samples of the
+non-reproducible hybrid loop, `moe_v12` on the fixed pre-v9 supply, i.e. the bottom
+and the middle of its recorded **5-8/10** spread; the canary builds its own
+`FruitSpawner`/`PickAndPlaceTask` (`scripts/60_eval_policy.py`) and never constructs
+`SortingRLEnv`, and the round's `tasks.py` change is behind
+`if self.recorder is not None and self.recorder.recording`, so it cannot read any of
+it - the 50 % sample is the loop's own draw, and the pair is the honest statement.
+`configs/motion_reference.json` / `..._twoline.json` = **`30fb99f8`** and
+`..._single.json` = **`8952c320`** stand; every new knob defaults off.
