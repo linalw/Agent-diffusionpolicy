@@ -5743,6 +5743,25 @@ class PickAndPlaceTask:
     # ------------------------------------------------------------------ #
     # P78: the runtime finger-drive force cap (`FRUIT_FINGER_MAXFORCE_SCOPE`)
     # ------------------------------------------------------------------ #
+    def attempt_finger_cap(self, side: str, new_cap: float) -> float | None:
+        """P176: raise one arm's finger drive cap for a **whole direct attempt**.
+
+        The env asks, the task writes - the same division the scoped carry caps
+        keep (`_carry`'s wrapper is the only leg-window writer), so no caller
+        outside this module touches a drive. Returns the cap that was there, to
+        be handed back to `attempt_finger_cap_restore`; `None` means the read
+        failed and nothing was written.
+        """
+        base = self._finger_cap_read(side)
+        if base is None:
+            return None
+        self._finger_cap_write(side, float(new_cap))
+        return float(base)
+
+    def attempt_finger_cap_restore(self, side: str, base: float) -> None:
+        """Put back the cap `attempt_finger_cap` found (idempotent by value)."""
+        self._finger_cap_write(side, float(base))
+
     def _finger_cap_read(self, side: str) -> float | None:
         """The live `joint1` drive cap of one arm, or `None` if unreadable.
 

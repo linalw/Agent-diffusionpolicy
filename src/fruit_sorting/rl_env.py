@@ -493,7 +493,7 @@ from .tracking import FruitTracker, track_config_from_env
 #: This env never constructs a cage, so no direct/policy behaviour moves - proven
 #: on the scripted side by `scripts/accept.sh`'s 421/421 byte-identical `[fruit]`
 #: stream (`logs/p107/RESULTS.md` section 5).
-TASKS_MD5 = "b7452c88fe7e15874964c867af6bf03d"
+TASKS_MD5 = "7a4ae2bf27298450bfa492341349b9c0"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(
@@ -3974,25 +3974,23 @@ class SortingRLEnv:
     def _apply_direct_finger_cap(self) -> None:
         """P176: raise the active arm's finger drive cap for this attempt.
 
-        A **hardware spec** applied at runtime (`FRUIT_FINGER_MAXFORCE_DIRECT`):
-        the same live `set_dof_max_efforts` path the scoped carry caps use, on
-        the direct presentation only. Zero/unset does nothing at all.
+        A **hardware spec** applied at runtime (`FRUIT_FINGER_MAXFORCE_DIRECT`)
+        through the task's own writer (`attempt_finger_cap`), on the direct
+        presentation only - the env never touches a drive. Zero/unset does
+        nothing at all.
         """
         if self._finger_cap_direct <= 0.0:
             return
         side = self._active
         if side in self._finger_cap_saved:
             return
-        task = self.task
-        base = task._finger_cap_read(side)
+        base = self.task.attempt_finger_cap(side, float(self._finger_cap_direct))
         if base is None:
             return
-        back = task._finger_cap_write(side, float(self._finger_cap_direct))
         self._finger_cap_saved[side] = float(base)
         self._say(
-            f"[drive] {side} direct finger cap {base:.2f} -> "
-            f"{'n/a' if back is None else f'{back:.2f}'} N "
-            f"(FRUIT_FINGER_MAXFORCE_DIRECT={self._finger_cap_direct:g})"
+            f"[drive] {side} attempt finger cap {base:.2f} -> "
+            f"{self._finger_cap_direct:.2f} N (FRUIT_FINGER_MAXFORCE_DIRECT)"
         )
 
     def _restore_direct_finger_cap(self) -> None:
@@ -4000,11 +3998,8 @@ class SortingRLEnv:
         if not self._finger_cap_saved:
             return
         for side, base in list(self._finger_cap_saved.items()):
-            back = self.task._finger_cap_write(side, float(base))
-            self._say(
-                f"[drive] {side} direct finger cap restore -> "
-                f"{'n/a' if back is None else f'{back:.2f}'} N"
-            )
+            self.task.attempt_finger_cap_restore(side, float(base))
+            self._say(f"[drive] {side} attempt finger cap restore -> {base:.2f} N")
         self._finger_cap_saved.clear()
 
     def _begin_pick(self, target_state: dict, diag: list | None = None,
