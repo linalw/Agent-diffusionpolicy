@@ -1482,3 +1482,28 @@ wrist too, so it cannot. The one action-space form not yet tried is the learned
 analogue: a **free-wrist Cartesian target** (`FRUIT_ACTION=jaw` with
 `hold_quaternion=None` - the current jaw path *holds* the captured attitude, which
 removes exactly the freedom the scripted solver uses).
+
+## 42. The free-wrist Cartesian action: implemented, first read 1/8, and the latch does not fire
+
+Built the action form the scripted catch-up actually uses: a **4-D jaw target**
+`[x, y, z, finger]` applied through a **position-only IK with the wrist free**
+(`FRUIT_ACTION=jaw` + `FRUIT_ACTION_FREE_WRIST=1`; the jaw path otherwise holds the
+captured attitude, which removes exactly the freedom the solver uses). The 4-D
+seed is `logs/p145/make_cart_seed.py` on `p145_tcp` (50 episodes, the jaw
+recorded, the shipped camera, in-band 0.22-0.363, the wait-at-x start) - a
+same-camera, same-start store; trained 60 epochs (weighted 0.0148).
+
+A real integration defect surfaced and was fixed: the env's `action_mode` guard
+knew `dq`/`rel`/`posvel` but **not `jaw`/`tcp`**, so a jaw artifact was refused at
+construction (`action_mode='jaw' but FRUIT_ACTION resolves to ''`).
+
+First cell (8 episodes, seed 77, the 4-waypoint head, the crop, the family start):
+**1 grasp** (orange, 24 mm), gaps 11/55/59/24/107/6/103/51 - and **no `[close]`
+latch at all**, i.e. the jaw action's along-belt error never reaches the 0.014 m
+trigger (the joint arms latch 24-28 of 30). So the free wrist buys the vertical
+reconfiguration the catch-up has, but the position-action approach is coarser
+along the belt - the two forms are complementary, not one replacing the other:
+the joint action times the catch (the latch), the jaw action reconfigures (the
+descent). The named composition is a **hybrid action** (the joint 7-D for the
+approach and the latch, the free-wrist jaw 4-D for the descent's last 2-5 cm),
+which is a model head change (9-D + 4-D channels) rather than a runtime switch.

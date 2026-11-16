@@ -2685,7 +2685,9 @@ class SortingRLEnv:
             got_mode = (
                 "dq" if self._dq_action
                 else ("rel" if self._rel_action
-                      else ("posvel" if self._posvel_action else ""))
+                      else ("posvel" if self._posvel_action
+                            else ("jaw" if (self._action_jaw and not self._action_tcp)
+                                  else ("tcp" if self._action_tcp else ""))))
             )
             if want_mode != got_mode:
                 raise ValueError(
@@ -5974,7 +5976,14 @@ class SortingRLEnv:
             # itself; the orientation is the episode's captured hold.
             finger = float(np.clip(action[3], 0.0, 0.044))
             hold = self._cart_hold.get(self._active)
-            if hold is not None:
+            # P169: the **free wrist**. The scripted line's post-descent solver
+            # is position-only (`hold_quaternion = None`), which is what lets it
+            # reconfigure out of the j3-limit pose over several ticks; the jaw
+            # action path otherwise holds the captured attitude, removing exactly
+            # that freedom. `FRUIT_ACTION_FREE_WRIST=1` restores it.
+            if os.environ.get("FRUIT_ACTION_FREE_WRIST", "0") == "1":
+                arm.hold_quaternion = None
+            elif hold is not None:
                 arm.hold_quaternion = np.asarray(hold, dtype=float)
             target = np.asarray(action[:3], dtype=float)
             if not self._action_tcp:
