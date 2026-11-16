@@ -1451,3 +1451,34 @@ has, which a 16-waypoint joint chunk does not express. The named next form is a
 **contact-phase head**: a short action horizon (4 waypoints) trained on the
 contact windows and executed at 30 Hz, i.e. the learned analogue of the scripted
 catch-up (the RDP/PACE direction, not a faster replay of the same chunk).
+
+## 41. The 4-waypoint contact head: the best `dz` of the session, the same count
+
+A contact head with `--action-horizon 4` (the short chunk = a 0.13 s prediction),
+trained on the same anchor + DAgger + crop with the close weight 20/lead 25/tail
+20, 40 epochs (weighted 0.0174), 10 episodes x 2 seeds per arm:
+
+| arm | decisions | grasp | `dz` at the latch | tracking slope |
+|---|---|---|---|---|
+| 16-waypoint head, es8 | 15 Hz | 2/20 | +119 | +1.5..+5.1 |
+| **4-waypoint head, es4 (whole chunk)** | 8 Hz | **2/20** | **+92 (the session's lowest)** | +3.1..+3.7 |
+| 4-waypoint head, es2 | 15 Hz | 0/20 | +107 | +2.7..+3.7 |
+
+The short chunk buys the **vertical**: `dz` +92 against +103..+119 for the
+16-waypoint head (an 11-27 mm improvement, the closest to the 70 mm seat the
+session has measured), but the count is the same 2/20 and the post-close hold is
+still world-static (+3.1..+3.7 mm/frame against the demos' -0.095).
+
+**The session's best direct-loop configuration** (all measured, all default-off):
+the shipped camera + the 64-px foveal crop + the in-band pre-aligned anchor (51) +
+the same-camera DAgger store (40) + the lift labels + the phase gate + the family
+start + the ramp dy 0.014 + the 4-waypoint head executed whole - **2/20 = 10 %**
+(a direction; the WS-4.2 scale is ~40 per arm), against the scripted line's 8/10.
+
+**What separates the two, measured**: the scripted line's 120 Hz **position-only**
+catch-up re-aims at the measured fruit plus a lead **with a free wrist** and
+reconfigures out of the j3-limit pose; the policy's 7-joint chunk commands the
+wrist too, so it cannot. The one action-space form not yet tried is the learned
+analogue: a **free-wrist Cartesian target** (`FRUIT_ACTION=jaw` with
+`hold_quaternion=None` - the current jaw path *holds* the captured attitude, which
+removes exactly the freedom the scripted solver uses).
