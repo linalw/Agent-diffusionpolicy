@@ -1739,3 +1739,45 @@ a payload released 20 cm beside the belt still misses it. So the two are
 **Durable outcomes of this round**: the recorder samples the release; the
 release-weighted objective exists and is opt-in; and a store's *finger tail* is now a
 provenance read - an episode that ends closed is a pre-P173c store.
+
+## 48. The full recollection with the recorder fix: 60 episodes, all ending open - and the loop still does not release
+
+The P173c fix was taken to a full collection: two shards, 48 attempts each, **60
+successful episodes** (24 + 36) into `datasets/p174_s1` / `p174_s2`, merged as
+`p174_all`. Every episode now **ends with the finger open** (24/24 and 36/36 of the
+open-tail read) and is **8.5-8.6 s** long against the 7.9-8.5 s of the pre-fix
+stores - the extra half second is the release ramp plus the settle, both newly
+sampled.
+
+Fine-tune `p174_fasthead` -> **`p177_full`** on `p174_all` with the release objective
+(`--release-weight 20 --release-lead 40 --release-tail 20`, 40 epochs, weighted
+0.0293, router 0.992, `demo_val` 0.0355). **Offline the model now emits the
+release**: at the release window it predicts **0.0393** against the label's 0.0400
+(`p176`: 0.0357).
+
+**In the loop it still does not.** Cell (8 episodes x seeds 77/101, the contact
+servo, horizon 2000): **0/16 placed**; `fing` at finalize **0.012-0.044**, mostly
+**0.021-0.030** (closed); the grasped payloads end at `z 1.19-1.32` (still in the
+hand) or on the floor, never on a belt. The contact phase is unaffected and stays
+good: `[close] xy` **12-22 mm**, `dz +59..+84` on all six latches.
+
+**The phase gate is not the blocker.** Re-run with `FRUIT_POLICY_PHASE` unset (the
+model's own router decides the skill) reads **3 grasped / 0 placed** with the finger
+still closed at finalize - so neither the perception gate nor the router is holding
+the finger shut.
+
+**Verdict.** The release is now *in the data*, *in the model's offline output*, and
+*not in its closed-loop output*, because the loop's carry/place states never match
+the demonstrations': the transit carries **48 mm of error per decision** over a
+~0.9 m move (P173b's `final` scatter: x 0.51, y -0.30..-0.72 against a 25 cm belt),
+so the hand never occupies the state the release label belongs to. The place is a
+**closed-loop accuracy** term of exactly the class the contact phase had before
+P173's servo - and the same two answers apply to it: a measured-target loop (the
+destination is the task's own `output_place_xy`, not truth about the fruit) or a
+per-tick learned controller trained on 120 Hz states. Both reduce the *policy* to
+the decision layer for the place, which is why this is stated as a decision for the
+owner rather than slipped in as another knob.
+
+**Durable results of the round**: the recorder samples the release (and the settle),
+the stores now carry it, a store's finger tail is a provenance read, and the
+release-weighted objective exists.
