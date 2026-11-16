@@ -1781,3 +1781,56 @@ owner rather than slipped in as another knob.
 **Durable results of the round**: the recorder samples the release (and the settle),
 the stores now carry it, a store's finger tail is a provenance read, and the
 release-weighted objective exists.
+
+## 49. The place as a measured-target loop: the trajectory and the release work; the cells do not place because the grasp does not hold
+
+Step 3 of the P174 plan. Two candidates were on the table - a measured-target loop to
+the destination, or a per-tick learned controller. The cheapest learned variant was
+measured first and is **not** it: a **horizon-1** model (`p178_h1`, one 30 Hz
+waypoint per decision, `--execute-steps 1 --action-hold 4`) removes the 32 mm
+prediction requirement entirely and still reads **2/8 grasped, 0/8 placed** with
+`fing` closed - the contact is unaffected (`[close] dz` median **+70**, xy 18 mm).
+
+So the place was built as a measured-target loop (`FRUIT_PLACE_SERVO=1`, default
+off), the same form as the contact servo: lift clear (`belt_top + 0.30`), transit
+over the destination's own pose (`task.jaw_target("place{bin}")` - a pose the cell
+knows, not truth about the fruit), lower by `FRUIT_PLACE_SERVO_DROP` (0.10), and
+open the pads on a 40-tick ramp. Each phase advances on a **measured** error, not a
+clock.
+
+**Mechanically it works, and this is the session's first working place trajectory**
+(`[pservo]` rows, seed 77):
+
+| tick | phase | aim | jaw | error |
+|---|---|---|---|---|
+| 444 | 0 lift | current xy, z 1.470 | z 1.321 | 149 mm |
+| 492 | 0 lift | current xy, z 1.470 | z 1.433 | 37 mm |
+| 540 | 1 transit | (0.430, 0.500, 1.470) | (0.263, 0.412, 1.424) | far 188 mm |
+| 588 | 1 transit | as above | (0.399, 0.493, 1.439) | far **32 mm** |
+| 636 | 1 at place | (0.430, 0.500, 1.430) | (0.429, 0.491, 1.439) | far **9 mm** |
+
+and the release ramp runs **0.0250 -> 0.0421 -> 0.0440** on the last two samples -
+i.e. the hand arrives **within 9 mm** of the +Y bin's place point and opens.
+
+**The cells still do not place**: 0/4, 0/8 and 0/4 at seed 77/101, because the grasp
+yields first - 1-2 of 8 grasp and the payload leaves the pads during the carry (the
+`logs/p42/SIM_LIMIT.md` closed loaded-slide class), so the servo transits an empty or
+half-held hand. Two further defects the cell exposed were fixed:
+
+- the servo must not run on a **miss** (it drove an empty hand through the pick
+  station and knocked the fruit off: `final=(-0.03, +0.09, 0.92)`, x outside the
+  belt); it now requires the payload to be **within 12 cm of the jaw** before it
+  takes the arm;
+- the place was **scored at the wrong moment**: a payload put on an output belt is
+  carried away and despawned before `_finalize`, so `on_output_belt(final)` reads
+  False on a good place (`final=(+63.0, 0.0, -50.0)` is the spawner's park slot).
+  The **release event** (the finger's closed -> open transition) is now a sticky
+  score sampled from the position `_episode_events` already reads. Built but not yet
+  exercised by a cell, because no cell has yet placed a payload.
+
+**Verdict on step 3**: the place's *control* is solved (9 mm and a release ramp), and
+its *score* is now read at the right moment; what remains is the **grasp's hold**,
+which is the class `logs/p42/SIM_LIMIT.md` closes - not a place, goal, phase, view,
+horizon, re-plan-rate or store problem. That is where the end-to-end cell now
+stands: an approach, a contact and a place that all work, gated by a carry that
+holds 1-2 attempts in 8.

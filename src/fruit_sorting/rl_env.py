@@ -2121,8 +2121,23 @@ class SortingRLEnv:
         #: moves ~1 mm/tick, so the correction must start before the fruit is at
         #: the station: the shipped catch-up's own lead is ~1.5-2 s of belt travel.
         self._servo_arm_dy = float(os.environ.get("FRUIT_CONTACT_SERVO_ARM_DY", "0.20") or 0.20)
+        #: P175: the **place as a measured-target loop** (opt-in). The destination
+        #: is the task's own `jaw_target("place{bin}")` - a pose the cell knows, not
+        #: truth about the fruit - and the loop is the same form as the contact
+        #: servo: lift clear, transit over the place point, lower, release. The
+        #: measured reason it exists: the chunked policy carries ~48 mm of error per
+        #: decision over a ~0.9 m transit (P173b) and never emits the release in the
+        #: loop (P174), so the learned policy owns the *decisions* and this owns the
+        #: centimetres. Default off.
+        self._place_servo = os.environ.get("FRUIT_PLACE_SERVO", "0").strip() == "1"
+        self._place_drop = float(os.environ.get("FRUIT_PLACE_SERVO_DROP", "0.10") or 0.10)
+        self._place_diag = os.environ.get("FRUIT_PLACE_SERVO_DIAG", "0").strip() == "1"
         self._servo_on = False
         self._servo_last_aim = None
+        self._place_phase = 0
+        self._place_open = 0.0
+        self._finger_was_closed = False
+        self._scored_release = False
         self._ensemble_k = max(1, int(os.environ.get("FRUIT_POLICY_ENSEMBLE_K", "1") or 1))
         self._ensemble_diag = os.environ.get("FRUIT_POLICY_ENSEMBLE_DIAG", "0").strip() == "1"
         #: P153: **velocity feed-forward** on the applied joint command
@@ -4132,6 +4147,10 @@ class SortingRLEnv:
         self._close_t0 = None
         self._servo_on = False
         self._servo_last_aim = None
+        self._place_phase = 0
+        self._place_open = 0.0
+        self._finger_was_closed = False
+        self._scored_release = False
         self._close_grip_finger = None
         self._seat_q = None
         self._last_phase = None
@@ -4875,6 +4894,77 @@ class SortingRLEnv:
             )
         return True
 
+    def _apply_place_servo(self, arm, action: np.ndarray) -> bool:
+        """P175: the place as a measured-target loop. Returns True if it acted.
+
+        Lift clear of the pick station, transit over the destination's own place
+        point (``task.jaw_target("place{bin}")``), lower, and open the pads - each
+        step advanced by one position-only IK update per tick, so the phase changes
+        on a **measured** error, not on a clock. The learned policy still chooses
+        the fruit, the arm and the bin (``_bin_index``); this only serves the pose.
+        """
+        side = self._active
+        try:
+            place = np.asarray(
+                self.task.jaw_target(side, f"place{int(self._bin_index)}"), dtype=float
+            )
+            belt_top = float(self.task.belt_top)
+        except Exception:  # noqa: BLE001 - no pose, no servo
+            return False
+        try:
+            jaw = np.asarray(arm.jaw_centre(), dtype=float)
+        except Exception:  # noqa: BLE001
+            return False
+        # Only serve a place when the **hand is actually holding the fruit**: the
+        # latch fires on the ramp's window, not on a successful seat, and driving
+        # an empty hand through the pick station knocked the fruit off the belt
+        # (measured: `final=(-0.07, +0.09, 0.92)`, x outside the belt).
+        try:
+            payload = np.asarray(self.spawner.position(self._sample), dtype=float)
+            if float(np.linalg.norm(payload - jaw)) > 0.12:
+                return False
+        except Exception:  # noqa: BLE001
+            return False
+        lift_z = belt_top + 0.30
+        down_z = float(place[2]) - float(self._place_drop)
+        far_xy = float(np.linalg.norm(jaw[:2] - place[:2]))
+        if getattr(self, "_place_phase", 0) == 0 and jaw[2] < lift_z - 0.02:
+            aim = np.array([jaw[0], jaw[1], lift_z])
+        else:
+            self._place_phase = 1
+            if far_xy > 0.02:
+                aim = np.array([place[0], place[1], lift_z])
+            else:
+                aim = np.array([place[0], place[1], down_z])
+        arm.hold_quaternion = None
+        _err = arm.ik_step(arm.tcp_target_for_jaw(aim))
+        over_ok = far_xy <= 0.025
+        low_ok = jaw[2] <= down_z + 0.015
+        at_place = bool(over_ok and low_ok)
+        if at_place:
+            # the release's own ramp, from the ramp's held gap to the open stop
+            grip = float(getattr(self, "_close_grip_finger", 0.025))
+            t = min(1.0, float(getattr(self, "_place_open", 0.0)) + 1.0 / 40.0)
+            self._place_open = t
+            finger = grip + (float(arm.OPEN) - grip) * t
+        else:
+            finger = float(np.clip(action[7], 0.0, 0.044))
+            if self._close_ramp:
+                finger = self._close_ramp_command(arm, finger)
+        self._last_finger = finger
+        self.scene.robot.set_dof_position_targets(
+            [[finger, finger]], dof_indices=list(arm.finger_dofs)
+        )
+        if self._place_diag and self._step % 4 == 0:
+            self._say(
+                f"[pservo] t={self._step} err={float(_err) * 1e3:+.0f}mm "
+                f"aim={np.array2string(aim, precision=3)} "
+                f"jaw={np.array2string(jaw, precision=3)} "
+                f"far={far_xy * 1e3:.0f}mm ph={int(getattr(self, '_place_phase', 0))} "
+                f"at={int(at_place)} fing={finger:.4f}"
+            )
+        return True
+
     def _close_ramp_command(self, arm, action_finger: float) -> float:
         """P145d.5: the committed 60-tick close ramp, then hold the grip gap."""
         prev = float(getattr(self, "_last_finger", 0.044))
@@ -4961,6 +5051,10 @@ class SortingRLEnv:
                 self._close_t0 = None
                 self._servo_on = False
                 self._servo_last_aim = None
+                self._place_phase = 0
+                self._place_open = 0.0
+                self._finger_was_closed = False
+                self._scored_release = False
                 self._close_grip_finger = None
                 return action_finger
             return float(self._close_grip_finger)
@@ -6133,6 +6227,10 @@ class SortingRLEnv:
         arm = self.task.arms[self._active]
         if self._contact_servo and self._apply_contact_servo(arm, action):
             return
+        if (self._place_servo and self._close_t0 is not None
+                and int(self._step) - int(self._close_t0) > int(self._servo_ticks)
+                and self._apply_place_servo(arm, action)):
+            return
         if self._a2c2 is not None and not self._triggered and not self._action_jaw:
             # A2C2-style per-step correction on the frozen base policy, before
             # the primitive owns the arm. The head only shifts the 7 arm
@@ -7246,6 +7344,21 @@ class SortingRLEnv:
         sample = self._sample
         pos = np.asarray(self.spawner.position(sample), dtype=float)
         z = float(pos[2])
+        # P175: **score the place at the release**, not at finalize. A payload put
+        # on an output belt is carried away and despawned before the episode ends,
+        # so `on_output_belt(final)` reads False on a good place - measured as
+        # `final=(+63.0, 0.0, -50.0)`, the spawner's own park slot. The finger's
+        # closed -> open transition is the release; one sticky flag, sampled from
+        # the position this function already reads (no extra read).
+        _fing = float(getattr(self, "_last_finger", 0.0))
+        if _fing < 0.035:
+            self._finger_was_closed = True
+        elif getattr(self, "_finger_was_closed", False) and not getattr(
+            self, "_scored_release", False
+        ):
+            self._scored_release = True
+            if bool(self.cfg.on_output_belt(pos)):
+                self._placed = True
         if z < self.belt_top - 0.25:
             if getattr(sample, "parked", False) and os.environ.get(
                 "FRUIT_FALL_PARKED", "0"
