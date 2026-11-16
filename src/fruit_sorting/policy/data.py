@@ -56,7 +56,7 @@ def action_mode_from_env() -> str:
     residual servo whose error the next observation corrects.
     """
     raw = os.environ.get("FRUIT_ACTION", "").strip().lower()
-    if raw not in ("", "dq", "rel", "posvel", "jaw", "tcp"):
+    if raw not in ("", "dq", "rel", "posvel", "hybrid", "jaw", "tcp"):
         raise ValueError(
             f"FRUIT_ACTION={raw!r} is not one of '', 'dq', 'rel', 'posvel', 'jaw', 'tcp'"
         )
@@ -388,6 +388,16 @@ class EpisodeStore:
         #: (0-1 px at 128), so the visual encoder cannot see it; the crop makes it
         #: 15-40 px. 0 = the shipped full frame.
         self.fovea = int(float(os.environ.get("FRUIT_IMAGE_FOVEA", "0") or 0))
+        #: P173b: the **phase-dependent view**. The crop is what made the approach
+        #: visible (the fruit is 1-4 px in the full frame), but it also removes the
+        #: output bins, and the place phase's measured error at demonstration
+        #: states is 48 mm TCP-equivalent (`logs/p145/place_fit.py`) - the largest
+        #: of any phase. With `FRUIT_IMAGE_FOVEA_PHASE=1` the loader crops the
+        #: *pre-close* frames (the label's finger open) and feeds the **wide**
+        #: frame once the label's finger is closed; the environment does the same,
+        #: switching on its own latch. The phase is also in the router's skill
+        #: conditioning, so one encoder can hold both statistics.
+        self.fovea_phase = os.environ.get("FRUIT_IMAGE_FOVEA_PHASE", "0").strip() == "1"
         #: P164: crop **augmentation** for the loader only (training). Measured in
         #: the literature: a standard policy scores 0 % at a 0.7x image scale and
         #: 0.725 with 0.7-1.3 random scale augmentation; a crop's centre/size is
@@ -487,7 +497,8 @@ class EpisodeStore:
         for entry in entries:
             data = np.load(os.path.join(root, entry["file"]))
             action_array = data["action"]
-            if self.action_jaw and "jaw" in data.files:
+            _hybrid_now = action_mode_from_env() == "hybrid"
+            if (self.action_jaw or _hybrid_now) and "jaw" in data.files:
                 # (T,3) task-space target + (T,1) finger. P145d.1: prefer the
                 # **commanded** IK target (`cmd_tcp`, the setpoint the scripted
                 # close asked the servo for) when it is fresh; during the wait the
@@ -506,7 +517,16 @@ class EpisodeStore:
                     _target = np.where(_fresh[:, None], _cmd, _achieved)
                 else:
                     _target = np.asarray(data["jaw"], dtype=np.float32)
-                action_array = np.concatenate([_target, _finger], axis=1)
+                if _hybrid_now:
+                    # P171: the **12-D joint head** - the joints the scripted arm
+                    # commanded plus the jaw target it asked for, in one action:
+                    # `[pos(7), finger, finger, jaw(3)]`. One state distribution,
+                    # two action forms the policy can switch between by phase.
+                    _joints = np.asarray(data["action"], dtype=np.float32)[:, :7]
+                    _f2 = np.asarray(data["action"], dtype=np.float32)[:, 7:8]
+                    action_array = np.concatenate([_joints, _f2, _f2, _target], axis=1)
+                else:
+                    action_array = np.concatenate([_target, _finger], axis=1)
             has_mask = "target_mask" in data.files
             skills = None
             if all(k in data.files for k in ("fruit_position", "finger_opening", "goal")):
@@ -879,9 +899,19 @@ class EpisodeStore:
 
         # Image stack over the observation horizon, oldest first.
         frames = []
+        _act = episode["action"] if "action" in episode else None
         for k in range(self.obs_horizon - 1, -1, -1):
-            if self.fovea > 0:
-                idx = max(0, t - k)
+            idx = max(0, t - k)
+            _crop_now = self.fovea > 0
+            if _crop_now and self.fovea_phase and _act is not None:
+                # pre-close = the label's finger open: the approach and the contact
+                # need the fruit (1-4 px wide otherwise); the carry and the place
+                # need the bins.
+                try:
+                    _crop_now = float(np.asarray(_act)[idx][7]) > 0.035
+                except Exception:  # noqa: BLE001 - no label, keep the shipped crop
+                    _crop_now = True
+            if _crop_now:
                 _pos = episode.get("fruit_position")
                 _uv = None
                 if _pos is not None:
@@ -916,7 +946,18 @@ class EpisodeStore:
                 frames.append(np.concatenate(_ch, axis=-1))
                 continue
             rgb = self._downsample(episode["rgb"][t - k]).astype(np.float32) / 255.0
-            depth = self._downsample(episode["depth"][t - k][..., 0]).astype(np.float32)
+            _d = episode["depth"][t - k][..., 0]
+            if self.fovea_phase:
+                # The wide frame's depth carries `inf` where the raycast missed
+                # (26 % of the pixels in `p169_demo_all`). The crop path clips
+                # *after* resampling, which turns inf into 3.0; the wide path
+                # resamples first, and `inf - inf` is NaN - measured, that NaN
+                # reached the encoder. Sanitise before the resample, and only on
+                # this path: the shipped wide path must stay byte-identical for
+                # the models trained on it.
+                _d = np.nan_to_num(np.asarray(_d, dtype=np.float32),
+                                   nan=0.0, posinf=3.0, neginf=0.0)
+            depth = self._downsample(_d).astype(np.float32)
             # Depth is metres; clip and normalise into a sane range for the CNN.
             depth = np.clip(depth, 0.0, 3.0) / 3.0
             channels = [rgb, depth[..., None]]

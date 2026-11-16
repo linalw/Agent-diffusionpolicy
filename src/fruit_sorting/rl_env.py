@@ -4516,7 +4516,14 @@ class SortingRLEnv:
                 else:
                     rgb, depth, mask = self._frozen_frames
             _uv = None
-            if int(os.environ.get("FRUIT_IMAGE_FOVEA", "0") or 0) > 0:
+            _fov = int(os.environ.get("FRUIT_IMAGE_FOVEA", "0") or 0)
+            if _fov > 0 and os.environ.get(
+                "FRUIT_IMAGE_FOVEA_PHASE", "0"
+            ).strip() == "1" and self._close_t0 is not None:
+                # P173b: after the latch the view is the **wide** frame (the bins),
+                # matching the loader's per-frame choice.
+                _fov = 0
+            if _fov > 0:
                 try:
                     from .policy.vision import project
 
