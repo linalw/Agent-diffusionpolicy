@@ -1360,3 +1360,32 @@ late fusion** - the shipped head camera (or the top-down) for the approach and
 becomes two stacks; the model's visual encoders are independent (the literature
 is explicit that early/pixel-concat fusion underperforms late fusion), and the
 latency doubles (~26 -> 50 ms per chunk, still inside the 0.53 s decision).
+
+## 38. The shipped camera + a 64-px crop restores the close latch - the descent's completion is still the term
+
+The best single-view configuration is the **shipped camera with a 64-px foveal
+crop** (the fruit 0-760 px in the crop against 0-4 px in the full frame, and the
+approach geometry intact - `down_x_160` loses it, §37). Trained on the in-band
+pre-aligned anchor (51 episodes) + the same-camera DAgger store (40) + the crop
+augmentation (0.2), 30 epochs (weighted 0.021):
+
+| arm | latch (`[close]` rows) | `dz` at the latch | tracking slope | grasp |
+|---|---|---|---|---|
+| old camera, full frame (h16) | 1-2/12 | +55..+128 | +2.9..+4.3 | 1-2/12 |
+| old camera, **crop 64** | **28/30 episodes** | **+49..+137 (p50 +96..+119)** | +3.2..+3.9 | **0/30** |
+
+The crop's effect is on the *latch* (the ramp now fires on 28 of 30 episodes
+against 1-2 of 12), i.e. the policy's along-belt tracking is good enough to reach
+the 0.014 m trigger; what remains is the **vertical completion**: the jaw closes
+**2.6-5 cm above the 70 mm seat**, so the pads straddle the fruit off-centre and
+the post-close hold is world-static (the fruit leaves). This is the same
+under-execution measured in §19-§34, now with the latch firing on almost every
+attempt - i.e. the failure has been isolated from the approach and the timing to
+the **descent's last 2-5 cm**.
+
+The record's own limit note is consistent but not the cause at the seat: the jaw
+centre cannot descend below `belt_top + 0.05` (assets.py:299), the seat is
+`belt_top + 0.10`, and the pads' lower end at the seat sits 62 mm above the belt -
+so the belt is not blocking the seat; the arm simply stops 2-5 cm short of the
+commanded descent, exactly the profile-boundary shortfall the scripted line's
+post-descent solver corrects and the policy does not reproduce.
