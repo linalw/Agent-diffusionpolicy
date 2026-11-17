@@ -2187,6 +2187,15 @@ class SortingRLEnv:
         #: P177: one `[close-hold]` row per attempt with the **measured** pad span
         #: at the end of the committed close ramp (reporting only, default off).
         self._close_ramp_diag = os.environ.get("FRUIT_CLOSE_RAMP_DIAG", "0").strip() == "1"
+        #: P192: the close's **force target** [N] (0 = off, the shipped position
+        #: ramp). The force-controlled form keeps closing until the measured pinch
+        #: reaches it - the form `docs/END_EFFECTOR_DECISION.md` names.
+        self._close_force = float(os.environ.get("FRUIT_CLOSE_FORCE", "0") or 0.0)
+        self._close_force_rate = float(
+            os.environ.get("FRUIT_CLOSE_FORCE_RATE", "0.0001") or 0.0001
+        )
+        self._close_force_ticks = int(os.environ.get("FRUIT_CLOSE_FORCE_TICKS", "180") or 180)
+        self._force_closed_gap = None
         #: P153: **velocity feed-forward** on the applied joint command
         #: (`FRUIT_POLICY_FF=<ticks>`). The policy's 16 waypoints are positions;
         #: a position loop driving a *moving* target lags it by `e ~ v/K`
@@ -4233,6 +4242,7 @@ class SortingRLEnv:
         self._scored_release = False
         self._close_ramp_reported = False
         self._close_ramp_last = -1
+        self._force_closed_gap = None
         self._close_grip_finger = None
         self._seat_q = None
         self._last_phase = None
@@ -5221,6 +5231,7 @@ class SortingRLEnv:
                 self._scored_release = False
                 self._close_ramp_reported = False
                 self._close_ramp_last = -1
+                self._force_closed_gap = None
                 self._close_grip_finger = None
                 return action_finger
             return float(self._close_grip_finger)
@@ -5289,7 +5300,38 @@ class SortingRLEnv:
                 )
             except Exception:  # noqa: BLE001 - reporting only
                 pass
-        return float(ramp[min(elapsed, len(ramp) - 1)])
+        _value = float(ramp[min(elapsed, len(ramp) - 1)])
+        if self._close_force > 0.0:
+            # P192: the **force-controlled finger** (P111's named form: stiff in the
+            # approach, compliant only inside the closure). The position ramp above
+            # follows a *geometric* target (`pinch_width * squeeze`), which is wrong
+            # whenever the payload is offset (`dlat` 19-26 mm on the right) or
+            # narrower than that estimate - the pads then reach their command with
+            # nothing between them (`sep` = the command exactly, `F = 0.00 N`). This
+            # keeps closing, at a bounded rate, until the *measured* pinch force
+            # reaches the target, with a tick cap so it cannot squeeze forever.
+            # Finger-value space: `d(value)/d(span) = 0.5`, so the default rate is
+            # 24 mm/s of span.
+            try:
+                _tac = self.task.tactile.read().get(self._active)
+                _F = float(getattr(_tac, "normal_force", 0.0))
+            except Exception:  # noqa: BLE001 - no tactile, keep the position ramp
+                _F = float("nan")
+            if self._force_closed_gap is None:
+                self._force_closed_gap = _value
+            _over = int(self._step) - int(self._close_t0) - len(ramp)
+            if _F < self._close_force and _over <= self._close_force_ticks:
+                self._force_closed_gap = max(
+                    0.004, float(self._force_closed_gap) - float(self._close_force_rate)
+                )
+            _value = float(self._force_closed_gap)
+            if self._close_ramp_diag and int(elapsed) % 8 == 0:
+                self._say(
+                    f"[close-force] t={self._step} arm={self._active} "
+                    f"over={_over:3d} F={_F:6.2f}N target={self._close_force:5.1f} "
+                    f"sep={float(arm.jaw_separation()) * 1000:6.1f}mm val={_value:.4f}"
+                )
+        return _value
 
     def _phase_for_decision(self) -> int | None:
         """P145c: the action phase, from the perceived fruit + the jaw + the finger.

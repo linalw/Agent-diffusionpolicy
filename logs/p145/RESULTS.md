@@ -2493,3 +2493,34 @@ on `checkpoints/p177_full` with the shipped crop / start family / ramp / phase g
 | + place transit 0.15 m/s | 25/40 = 62.5 % |
 | **+ place transit 0.20 m/s** | **22/32 = 68.8 %** (4 seeds) |
 | *(the scripted two-line, for scale)* | *58/80 = 72.5 %* |
+
+## 65. The force-controlled close: a force-*triggered* position loop is a wash, and the reading says why
+
+`FRUIT_CLOSE_FORCE=<N>` (default 0 = off) keeps the committed close going past its
+geometric target - at a bounded rate (24 mm/s of span) and with a tick cap - until the
+**measured** tactile pinch reaches the target. This is the cheap approximation of the form
+`docs/END_EFFECTOR_DECISION.md` names (stiff in the approach, compliant inside the
+closure); the drive stays a position drive with a force cap, so it is a *force-triggered*
+loop, not a force-controlled joint.
+
+All-right (the arm whose pads reached their command with nothing between them), target
+45 N, 4 episodes per seed:
+
+| cell | placed | grasped | `[close-force]` F p50 / max |
+|---|---|---|---|
+| seed 202 | **3/4** | 3/4 | **0.00 N / 24.8 N** |
+| seed 404 | 1/4 | 1/4 | **0.00 N / 28.4 N** |
+| pooled | **4/8** | 4/8 | |
+
+against the position ramp's 4/8 (mesh 61) and 5/8 (box 61) at the same seeds - a **wash**.
+
+**The force read is the finding**: the closing **never reached 45 N** (p50 0.00 N, max
+24.8-28.4 N even at the cap's end), i.e. the extra ~20 mm of travel did not find the
+payload either. So the right arm's term is **not the closure depth**: the pads are
+**beside** the payload (`dlat` 19-26 mm) and no amount of closing grips a fruit that is
+not between them. That is the same reading as the pad width's (a wash at 78 mm) and it
+closes the closure-form family for this arm: what remains is a **different pad shape** or a
+**true force-controlled joint** (a drive that holds a force while the gap varies), neither
+of which is a knob.
+
+**Not adopted**; `FRUIT_CLOSE_FORCE` defaults to 0.
