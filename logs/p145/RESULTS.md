@@ -1983,3 +1983,37 @@ and the discriminating cell is a `dz` ladder on the right arm alone.
 **Shipped**: the `[close-hold]` row now also carries `F=`, `n=` and `jax=` (default
 off, `FRUIT_CLOSE_RAMP_DIAG=1`), and `[close]` carries the measured `sep=`. Both are
 reporting only.
+
+## 53. The right arm's close is not perception, and the pads stop 20 mm short of their own command
+
+The P178 bench switch `FRUIT_CONTACT_SERVO_SOURCE=truth` aims the contact servo at
+the **rigid body** instead of the estimator (never shipped; default `percept`). On the
+all-right instruction, three episodes at `truth`: `sep=69.1 mm`, **`F=0.00 N, n=0`**,
+`jax=(-0.93,-0.25,+0.25)` - **identical to the perception arm**. So the right arm's
+failure is **not** the tracker, the camera or the goal.
+
+With perception, the mapping and the station all ruled out, the remaining read is the
+close's *own* numbers, and they disagree with each other:
+
+- the command is `grip = 0.0295`, i.e. a **49 mm** target span
+  (`gripper_value_for_separation`'s inverse: `2*0.0295 + 0.010`), derived from
+  `pinch_width(sample, quat) * 0.98` at the latch;
+- at the ramp's end (60 ticks = 0.5 s) the measured span is **69.1 mm** - **20 mm
+  short of the target** - with **no force and no contacts**;
+- the **left** arm, the same command, is **blocked at 76.9-77.6 mm** with **F = 50-57 N
+  over 2 contacts**.
+
+Two readings fit, and the single `[close-hold]` row cannot separate them: either (a)
+the right's ramp **stalls part-way** (a 49 mm travel in 60 ticks = 98 mm/s under load,
+which the drive may not deliver) and the tactile reads zero because the pads are still
+a couple of millimetres short; or (b) `pinch_width` returns a *smaller* chord on the
+right because its jaw axis is tilted **+16 deg up** against the left's **-23 deg down**
+(the P178 axis read), so the commanded gap is wrong in the other direction and the
+pads meet at 69 mm with the fruit elsewhere.
+
+The discriminating instrument is one time series, not one row: `[close-hold]` printed
+every 4 ticks through the ramp on each arm (the row exists, it is printed once). If the
+right's span is still moving at the ramp's end, it is (a) - and the fix is the close's
+own clock or a contact dwell after the ramp (the scripted line's 200-tick catch-up is
+the measured precedent). If it is flat at 69 mm, it is (b) - and the fix is
+`pinch_width`'s attitude term.

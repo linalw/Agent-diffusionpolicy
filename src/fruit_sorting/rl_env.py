@@ -2103,6 +2103,13 @@ class SortingRLEnv:
         self._servo_lead = float(os.environ.get("FRUIT_CONTACT_SERVO_LEAD", "0.10") or 0.10)
         self._servo_seat = float(os.environ.get("FRUIT_CONTACT_SERVO_SEAT", "0.070") or 0.070)
         self._servo_diag = os.environ.get("FRUIT_CONTACT_SERVO_DIAG", "0").strip() == "1"
+        #: P178 bench only: `truth` aims the contact servo at the rigid body
+        #: instead of the estimator, to separate a perception defect from a
+        #: geometry one on one arm. Never shipped (default `percept`).
+        self._servo_truth = (
+            os.environ.get("FRUIT_CONTACT_SERVO_SOURCE", "percept").strip().lower()
+            == "truth"
+        )
         #: The servo's own window, independent of the finger ramp's: the shipped
         #: catch-up has a **200-tick reach budget at ~1 mm/tick** (`P48`), and the
         #: measured lateral offset at the latch is 75-86 mm, so a 60-tick window
@@ -4918,7 +4925,12 @@ class SortingRLEnv:
             _aim = np.asarray(self._servo_last_aim, dtype=float)
         else:
             _h = min(_age + float(self._servo_lead), _coast + float(self._servo_lead))
-            _aim = np.asarray(self._percept_tracker.predict_at(_h), dtype=float)
+            if self._servo_truth:
+                # P178 bench: the aim from the **rigid body** instead of the
+                # estimator - decides perception vs geometry, never shipped.
+                _aim = np.asarray(self.spawner.position(self._sample), dtype=float)
+            else:
+                _aim = np.asarray(self._percept_tracker.predict_at(_h), dtype=float)
             _aim = _aim + np.array([0.0, 0.0, float(self._servo_seat)])
             self._servo_last_aim = _aim.copy()
         arm.hold_quaternion = None
