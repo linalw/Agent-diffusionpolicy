@@ -291,6 +291,14 @@ implementation: the simulation cell, the data pipeline, and the policy training 
 
 ## Current status
 
+**The direct policy lane (vision + touch, end to end, no truth goal / no trigger / no
+primitive handover) now reaches 68.8 % placed** (22/32 over four seeds) against the
+shipped 6.3 % baseline, with the scripted two-line at 72.5 % as the scale -
+`docs/DIRECT_POLICY.md` is its authoritative record (the recipe, each term's mechanism and
+instrument, everything measured and not adopted, and the two data/harness defects it
+found: **no demonstration store before P173c contains a release**, and the direct episode's
+budget was shorter than a pick-and-place).
+
 | Piece | State |
 | --- | --- |
 | Isaac Sim headless bring-up on this machine | working (`scripts/smoke_test_isaacsim.py`) |

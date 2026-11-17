@@ -1515,6 +1515,65 @@ the payload to the jaw target), which *is* the three-dest mis-sort; the named
 software half is a **calibrated ledger** (report `release - target - mean`, classify
 against `target + mean`), which turns P121's 2 % into ~0 %. Evidence `logs/p122/`.
 
+**P173-P190 (2026-11-16/17, `logs/p145/` sections 51-64; the direct policy lane, every
+knob opt-in, no default flipped, `configs/` and the references untouched): one learned
+diffusion policy on the moving-belt cell with no truth goal, no external trigger and no
+scripted primitive handover goes from **6.3 % to 68.8 % placed** (22/32, four seeds, two
+of them fresh) against the scripted two-line's 58/80 (72.5 %) - and it is a **hierarchical**
+policy, stated as such: the model owns the approach, *when* the contact phase begins, the
+finger's close and the bin; two **measured-target servos** own the last centimetres of the
+two contact events (`FRUIT_CONTACT_SERVO`: the aim re-derived every tick from the perceived
+fruit; `FRUIT_PLACE_SERVO`: lift clear, transit to `task.jaw_target("place{bin}")`, lower,
+release), each advancing on measured error rather than a clock. **The order of what each
+phase cost, one number per fix**: 2/32 = 6.3 % (shipped 10 N, single lead, direct aim) ->
+8/32 = 25.0 % with the **real-jaw clamp 60 N** (`FRUIT_FINGER_MAXFORCE_DIRECT`, a runtime
+spec written by the *task*, not the env - the P78/P79 pin holds) -> 8/16 = 50 % with the
+**per-arm contact lead** (left 0.10 s, right 0.20 s) -> 25/40 = 62.5 % with the place
+transit at 0.15 m/s -> **22/32 = 68.8 % at 0.20 m/s**, a **measured peak** (the same two
+seeds read 8/16 at 0.15, **14/16 at 0.20**, 7/16 at 0.25 - both neighbours at half, which
+is what an optimum looks like and a branch draw does not). **The right arm's mystery is
+solved and it was the servo's lead**: R10-A's map puts the right's usable band at
+y in [-0.10, 0.00] and the left's at [0.00, +0.10], so the right meets every fruit later;
+a new row resolved the payload's offset **in the tool axis** against the plate's 61 mm
+width - right `dlat` **33.5 mm** (past the trailing edge, F = 0.00 N, n = 0) against the
+left's **1.8 mm** (57 N, n = 2) - and the lead moves `dlat` monotonically (0.10 -> 33.5,
+0.15 -> 19.1, 0.20 -> 6.6), so the all-right arm reads 0/4 -> **10/12** at three seeds and
+the *global* lead is a wash (6/16 either way) precisely because the two arms need different
+values. **Two harness/data defects the lane found, both project-wide**: (a) **no
+demonstration store in the project contains a release** - 0 of **366** stored episodes end
+with the finger open, and 0 of them cover the whole attempt, because `_record` is never
+sampled inside the release block (the stores end 0.9-1.0 s before the attempt does); one
+guarded `_record` fixes it and `datasets/p174_all` (60 episodes) now ends open on every
+episode, so **every store recorded before P173c is a no-release store**; (b) the direct
+episode's budget was shorter than a pick-and-place (`--horizon 900` = 7.5 s against
+12-15 s), so every grasp timed out mid-carry and the timeout note claimed "no grasp" on
+episodes that had grasped - the note now says `timeout: horizon reached while carrying`
+and the recipe runs 2600 ticks; and (c) the place was **scored at the wrong moment** (a
+released payload is carried off and despawned before `_finalize`, so `on_output_belt(final)`
+read the spawner's park slot `(+63, 0, -50)`) - `FRUIT_SCORE_ENDPOINT=release` scores the
+finger's closed -> open transition from a read the loop already takes. **Everything
+measured and NOT adopted, so it is not re-derived**: the action forms `posvel`/`rel`/`dq`/
+`jaw`/`tcp`/`hybrid` and the two-model hybrid; GDP selection and K-sample averaging (nulls);
+a horizon-1 policy; the phase-dependent view (the place error rose 48.4 -> 68.7 mm); the
+900-tick horizon; the demos' right station (y = -0.10 against the env's 0.00: 0/6 either
+way); the squeeze scale 0.90/0.92 and the latch window 0.03/0.05 (directions at 1/4); the
+45-tick close ramp (a wash, worse for the left); the transit clearance 0.20 m (0/8); the
+**pad width 78 mm** (4/8 against the 61 mm box control's 5/8 - the second negative hardware
+item after P132's shapes, and it is authored **at build time** so the USD asset is never
+edited, with `assets.scene_provenance`'s new `finger = {pad_wide, tip_delta}` naming it);
+and the pad *face*/friction family (P117/P129/P132). `docs/DIRECT_POLICY.md` is the lane's
+authoritative page (recipe, per-term mechanism and instrument, the read rules - `grasped`
+is a *lift* test on the policy path, `final` is a park slot after a despawn,
+`jaw_separation()` is the finger link origins which `OpenArmHand` declares to be the pad
+faces - and the open items: the right arm at 48 % whose remaining directions are a new pad
+**shape** or a **force-controlled finger**, the throughput price of the transit limit
+(~2.1-2.4 k ticks/attempt), and a rate certificate beyond n = 32 needing P93's ~364
+attempts/arm). Gates on the final tree: `selfcheck.sh` **PASS (0 failures, 1 skipped)**,
+`accept.sh` **7/10 = 70 % + `fingerprint: matches` + `190: PASS`**, `106` **OK**, `107`
+**PASS (21 checks)**. References `61fb5202` / `61fb5202` / `18b101bf` stand; ckpt
+`moe_v13s` `61da390a`, adopted `checkpoints/p177_full`. Evidence `logs/p145/` sections
+51-64, `docs/DIRECT_POLICY.md`.
+
 ## 2. Two constraints that decide how to measure
 
 **The outcome is quantized; do not compare success rates across configurations.**
