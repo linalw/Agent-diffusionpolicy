@@ -2373,3 +2373,34 @@ episodes: **3/3 grasps at `dlat` 17.0 / 18.6 / 18.6** (F 30.7-49.9 N) against th
 60-tick arm's 5/6 with a tail to 26. A direction at n=3-4, **not adopted** - P91's
 warning is about the *probe* ramp's validation margin, not this one, but the same
 caution applies until it is measured at four seeds.
+
+## 62. The close ramp's length, paired at two fresh seeds: a wash on the right, a possible negative on the left - not adopted
+
+P61's 45-tick ramp was a direction at n=3-4. Paired against the shipped 60 ticks,
+all-right, two fresh seeds, 4 episodes each (and one all-left guard):
+
+| cell | latches | grasps | `dlat` at the latch |
+|---|---|---|---|
+| right, 202, **45** | 4 | **3/4** | 16.1, 18.7, 20.1, 102.3 |
+| right, 202, 60 | 4 | 1/4 | 11.9, 16.0, 18.3, 23.3 |
+| right, 404, **45** | 3 | 3/3 | 11.5, 13.1, 16.8 |
+| right, 404, 60 | 3 | 3/3 | 9.3, 14.1, 21.2 |
+| **left, 202, 45** | 4 | **2/4** | 2.4, 5.6, 8.3, 21.2 |
+
+Pooled all-right: **45 -> 6/7, 60 -> 4/7** - an edge inside the noise at n=7, and the
+`dlat` distributions are **not** systematically lower at 45. The left guard reads 2/4,
+below its usual ~89 % grasp, i.e. the shorter ramp may cost the arm that did not need
+it (a shorter ramp is a smaller validation window, which is exactly P91's mechanism for
+the probe).
+
+**Not adopted**; the shipped 60 ticks stand. So the software lane for the right arm is
+exhausted: the lead is at its optimum (0.18/0.20/0.22 = 2/4, 4/4, 0/4), the squeeze
+scale and the latch window are directions at best, the ramp is a wash, and the station,
+the perception, the finger law and the clamp are ruled out. **The right arm's remaining
+term is the pad's 61 mm width along the belt** - a new asset (~78 mm by P61's arithmetic),
+which is the round's second hardware item after the 60 N clamp.
+
+**Where the lane closes this round**: **25/40 = 62.5 %** end-to-end on the adopted stack
+(five seeds, every seed at or above 50 %), left 19/24 (79 %), right 6/16 (38 %), against
+the scripted two-line's 58/80 (72.5 %) - with every lever that moved it measured, and
+every lever that did not recorded.
