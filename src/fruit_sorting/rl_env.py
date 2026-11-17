@@ -2122,6 +2122,19 @@ class SortingRLEnv:
         #: the fruit's y) while the lateral offset at the latch is measured at
         #: 75-86 mm - so the fingers closed on air 8 cm to the side. With the
         #: gate the hand swings in first and closes where the fruit is.
+        #: P182b: the lead is **per arm**, because the two arms' reach bands sit on
+        #: opposite sides of the fruit's path (R10-A's intercept map: left
+        #: y in [0.00, +0.10], right [-0.10, 0.00]), so the same lead leaves the
+        #: right arriving later in the close. Measured at the latch through
+        #: `dlat` (the payload's distance from the tool axis, against the plate's
+        #: 30.5 mm half-width): right **33.5 mm at lead 0.10** (no contact, F=0) and
+        #: **19.1 mm at 0.20** (53.7 N, n=2). The all-right arm reads 0/4 -> 4/4 at
+        #: seed 202 and 2/4 at 404; on the mixed supply the right goes 0/6 -> 3/5
+        #: and the left falls 6/10 -> 3/11, i.e. one global number cannot serve
+        #: both. Defaults to `..._LEAD`, so unset is the shipped single value.
+        self._servo_lead_right = float(
+            os.environ.get("FRUIT_CONTACT_SERVO_LEAD_RIGHT", "") or self._servo_lead
+        )
         self._servo_gate = float(os.environ.get("FRUIT_CONTACT_SERVO_GATE", "0.030") or 0.030)
         #: How far upstream (metres of along-belt distance) the servo takes the
         #: arm. The measured lateral offset at the latch is 75-86 mm and the wrist
@@ -4925,7 +4938,9 @@ class SortingRLEnv:
             # carrying the payload out of the lane (`fruit fell off the line`).
             _aim = np.asarray(self._servo_last_aim, dtype=float)
         else:
-            _h = min(_age + float(self._servo_lead), _coast + float(self._servo_lead))
+            _lead_now = (self._servo_lead_right if self._active == "right"
+                         else float(self._servo_lead))
+            _h = min(_age + _lead_now, _coast + _lead_now)
             if self._servo_truth:
                 # P178 bench: the aim from the **rigid body** instead of the
                 # estimator - decides perception vs geometry, never shipped.
@@ -4958,6 +4973,27 @@ class SortingRLEnv:
                 f"finger={finger:.4f} latched={int(self._close_t0 is not None)}"
             )
         return True
+
+    def _pad_axis_row(self, arm, _tac=None) -> str:
+        """P182: the payload's offset resolved in the **tool axis** [mm].
+
+        The plate is 84.902 mm long from the finger link origin along the tool axis
+        (`logs/p66/COLLIDER_READ.md`), so a payload whose axial distance is close to
+        that length is covered only by its own top edge - which no centre-distance
+        measure can see. Reporting only (one row per attempt, diag-gated).
+        """
+        try:
+            tax = np.asarray(arm.approach_axis(), dtype=float)
+            tax = tax / max(float(np.linalg.norm(tax)), 1e-9)
+            rel = (np.asarray(self.spawner.position(self._sample), dtype=float)
+                   - np.asarray(arm.jaw_centre(), dtype=float))
+            d_ax = float(np.dot(rel, tax))
+            d_lat = float(np.linalg.norm(rel - d_ax * tax))
+            tilt = float(np.degrees(np.arccos(np.clip(-tax[2], -1.0, 1.0))))
+            return (f"tax={np.array2string(tax, precision=2)} tilt={tilt:.1f}deg "
+                    f"dax={d_ax * 1000:+.1f}mm dlat={d_lat * 1000:.1f}mm")
+        except Exception:  # noqa: BLE001 - reporting only
+            return "tax=n/a"
 
     def _apply_place_servo(self, arm, action: np.ndarray) -> bool:
         """P175: the place as a measured-target loop. Returns True if it acted.
@@ -5194,7 +5230,14 @@ class SortingRLEnv:
                     # of it, which is the one state the centre cannot see.
                     f"pL={np.array2string(np.asarray(arm.jaw_positions()[0], dtype=float), precision=3)} "
                     f"pR={np.array2string(np.asarray(arm.jaw_positions()[1], dtype=float), precision=3)} "
-                    f"fruit={np.array2string(np.asarray(self.spawner.position(self._sample), dtype=float), precision=3)}"
+                    f"fruit={np.array2string(np.asarray(self.spawner.position(self._sample), dtype=float), precision=3)} "
+                    # P182: the **tool axis** at the close, and the payload's offset
+                    # resolved in it. The plate spans [0, 84.902] mm along the tool
+                    # axis from the finger link origin (`logs/p66/COLLIDER_READ.md`:
+                    # the box's proximal plane *is* the origin), so `d_ax` decides
+                    # whether the plate covers the payload at all - the one quantity
+                    # a per-arm attitude difference can change.
+                    f"{self._pad_axis_row(arm, _tac)}"
                 )
             except Exception:  # noqa: BLE001 - reporting only
                 pass

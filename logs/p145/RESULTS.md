@@ -2154,3 +2154,51 @@ size - and the end-to-end cell as a whole **8/32 = 25 %** at 60 N against 2/32 =
 at the shipped 10 N (P176). The right arm is the single largest unspent term (44 % of
 the attempts) and the next instrument is the one named in 55a: the plate's vertical
 overlap per arm from the plate collider's own size and the face centre, at the latch.
+
+## 57. The right arm's answer: the contact servo's lead, measured against the pad plate's width
+
+The instrument P55a asked for - the payload's offset resolved **in the tool axis** -
+found it in one row. `[close-hold]` now prints `tax=` (the approach/tool axis),
+`tilt=`, `dax=` (the payload's distance along that axis, against the plate's
+**84.902 mm** length from the finger link origin) and `dlat=` (its lateral distance,
+against the plate's **61.000 mm** width, half **30.5 mm**):
+
+| arm | tilt | `dax` | **`dlat`** | contact |
+|---|---|---|---|---|
+| **right** | 24.7 deg | +60.8 mm | **33.5 mm** | **F = 0.00 N, n = 0** |
+| **left** | 24.2 deg | +71.4 mm | **1.8 mm** | F = 57.3 N, n = 2 |
+
+The tilt and the axial coverage are the **same** on both arms; the lateral offset is
+**33.5 mm on the right against 1.8 mm on the left**, and the plate is 61 mm wide - so
+the right's payload sits **3 mm past the plate's trailing edge** when the pads finish
+closing. Decomposed, that offset is almost purely **-y** (`perp = (+10.2, -30.1,
+-11.7) mm`): the right meets every fruit **late**, exactly as R10-A's band map says
+(right `y in [-0.10, 0.00]`, left `[0.00, +0.10]`).
+
+**The lever is the servo's own lead, and it moves `dlat` monotonically.** All-right
+arm, 4 episodes per cell, 60 N:
+
+| lead | `dlat` at the close | contact | grasped | success |
+|---|---|---|---|---|
+| 0.10 s (the shipped single value) | 33.5 mm | 0.00 N, n=0 | **0/4** (seed 202) | 0/4 |
+| 0.15 s | 19.1 mm | 53.7 N, n=2 | **4/4** (seed 101) | 4/4 |
+| 0.20 s | 6.6 mm | 60.0 N, n=2 | 4/4 (202), 2/4 (404) | 4/4, 2/4 |
+
+Pooled **all-right at 0.20 s: 10/12 (83 %)** against **0-1/14 at 0.10 s** - the arm
+that read 2/68 in the census, at three seeds including a fresh one.
+
+**But one global lead cannot serve both arms**, and that is the confirmation rather
+than a complication - on the *mixed* supply (same seeds 77/101):
+
+| lead | left | right | pooled |
+|---|---|---|---|
+| 0.10 (shipped) | **6/10** | 0/6 | 6/16 |
+| 0.20 | 3/11 | **3/5** | 6/16 |
+| **per arm: left 0.10, right 0.20** | **5/11** (grasped **10/11**) | **3/5** | **8/16 = 50 %** |
+
+So the lead is now a **per-arm** knob (`FRUIT_CONTACT_SERVO_LEAD_RIGHT`, default = the
+single value, so unset is the shipped path): the left's reach band is upstream and
+0.10 s already centres it (`dlat` 1.8 mm), the right's is downstream and needs 0.20 s.
+The cell reads **8/16 = 50 %** on the two shared seeds, against 6/16 at either global
+value and 6/16 at P176's 10 N - and with the right converted, the *left* is now the
+term that fails at the **place** (grasped 10/11, placed 5/11), not at the grasp.
