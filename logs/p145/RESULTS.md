@@ -1939,3 +1939,47 @@ worth **44 % of the cell** (14 of the 32 episodes at 60 N are right-arm attempts
 read per attempt - a commanded grip that does not close the pads was otherwise
 invisible) and the `[close-hold]` row (default off). Both are reporting only and the
 direct path is the only one that prints them.
+
+## 52. The right arm closes on air: measured, and the finger law is identical on both arms
+
+Two probes settle what P177 could only bound.
+
+**1. The finger command -> pad span law is the same on both arms** (`logs/p145/
+finger_probe.py`, no attempt loop: both arms built from the scene, one ladder of
+commands, each held 40 ticks). Every rung reads `sep = 2*cmd + 0.010` to **0.00 mm**
+on *both* arms - 98.00 / 90.00 / 80.00 / 70.00 / 60.00 / 50.00 / 40.00 / 30.00 mm - and
+the two measured joint positions follow the command exactly (`j1 = j2 = cmd`). At the
+direct cell's own `cmd=0.0295`: **left 69.00 mm, right 69.00 mm, delta 0.00**. So the
+P177 "69.1 vs 77.4 mm" difference is **not** a mapping or mirroring defect: 69 mm is
+the command's own span (nothing between the pads) and 77 mm is *blocked*.
+
+**2. In the loop, the right closes on air each time** (`[close-hold]`, the tick the
+ramp completes, with the tactile read the project already owns):
+
+| arm | `sep` at the ramp's end | tactile | spans |
+|---|---|---|---|
+| **left** | 76.9-77.6 mm (blocked > the 69 mm command) | **F = 50.5-57.3 N, n = 2** | 4/4, 2/2 grasped |
+| **right** | 69.1 mm (exactly the command) | **F = 0.00 N, n = 0** | 0/4, 1/2 grasped |
+
+So on the right the fruit is **not between the pads** at the close, while the latch
+row reads the same geometry on both arms (`xy 14-16 mm`, `dz +66..+77`, `dx -10..+5`
+against the left's `xy 16-20`, `dz +68..+72`, `dx -13..-15`).
+
+**What is left, and it is per-arm**: the **jaw (closing) axis** at the close. Read on
+the same row: right `(-0.91, -0.31, +0.27)`, left `(+0.91, -0.09, -0.39)`. Both are
+"across the belt" in the x sense (the shipped attitude), but the right's axis is
+tilted **+16 deg up** and **-18 deg along the belt** against the left's **-23 deg
+down** and **-5 deg** - i.e. the pads' *faces* are rolled in opposite directions, and
+with a 15 mm centre offset and a 67-87 mm fruit only 12-40 % of the payload's height
+sits inside the 80.5 mm plate. That is the same class as P63's finding (an
+arm-common ~25 deg attitude residual with an **arm-specific azimuth**), now read at
+the close on the direct interface.
+
+**Named next check** (one probe, no attempt loop): the plates' overlap with the
+payload along the tool axis at the latch, per arm - the `[close]` row's `dz` and the
+plate's distal plane (80.5 mm below the jaw centre) already give it arithmetically,
+and the discriminating cell is a `dz` ladder on the right arm alone.
+
+**Shipped**: the `[close-hold]` row now also carries `F=`, `n=` and `jax=` (default
+off, `FRUIT_CLOSE_RAMP_DIAG=1`), and `[close]` carries the measured `sep=`. Both are
+reporting only.

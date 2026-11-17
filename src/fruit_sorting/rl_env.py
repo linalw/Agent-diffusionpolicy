@@ -5127,11 +5127,25 @@ class SortingRLEnv:
                 and elapsed >= len(ramp) - 1):
             self._close_ramp_reported = True
             try:
+                # P178: the **contact** at the ramp's end, from the existing tactile
+                # read. The mapping probe proved both arms' finger command -> span
+                # law is identical (2*cmd + 0.010, 0.00 mm error, delta 0), so a
+                # span that differs in the loop means something is between the pads
+                # on one arm and nothing on the other.
+                _tac = self.task.tactile.read().get(self._active)
+                _f = getattr(_tac, "normal_force", float("nan"))
+                _n = getattr(_tac, "contact_count", -1)
                 self._say(
                     f"[close-hold] t={self._step} arm={self._active} "
                     f"sep={float(arm.jaw_separation()) * 1000:.1f}mm "
                     f"fing={float(ramp[-1]):.4f} "
-                    f"grip={float(self._close_grip_finger):.4f}"
+                    f"grip={float(self._close_grip_finger):.4f} "
+                    f"F={float(_f):.2f}N n={int(_n)} "
+                    # P178: the **jaw (closing) axis** against the belt's -y. The
+                    # pads are 10 mm thick plates: if the axis is parallel to the
+                    # belt the fruit sits between their *edges*, not their faces,
+                    # and a 14-16 mm centre offset is enough to miss it entirely.
+                    f"jax={np.array2string(np.asarray(arm.jaw_axis(), dtype=float), precision=2)}"
                 )
             except Exception:  # noqa: BLE001 - reporting only
                 pass
