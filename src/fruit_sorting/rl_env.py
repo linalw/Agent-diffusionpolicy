@@ -2152,6 +2152,12 @@ class SortingRLEnv:
         self._place_servo = os.environ.get("FRUIT_PLACE_SERVO", "0").strip() == "1"
         self._place_drop = float(os.environ.get("FRUIT_PLACE_SERVO_DROP", "0.10") or 0.10)
         self._place_diag = os.environ.get("FRUIT_PLACE_SERVO_DIAG", "0").strip() == "1"
+        #: P184: the place transit's own speed limit [m/s] (0 = the shipped direct
+        #: aim, i.e. the IK's own clip). The measured motive: a soft fruit's hold
+        #: grows 72 -> 96 mm inside the ~300-tick transit at 60 N.
+        self._place_vmax = float(os.environ.get("FRUIT_PLACE_SERVO_VMAX", "0") or 0.0)
+        #: P184: the transit's clearance above the belt top [m] (0.30 shipped).
+        self._place_lift = float(os.environ.get("FRUIT_PLACE_SERVO_LIFT", "0.30") or 0.30)
         #: P176: the **real-jaw clamp-force spec** on this interface
         #: (`FRUIT_FINGER_MAXFORCE_DIRECT=<N>`, default 0 = the shipped build
         #: cap). A runtime write of the active arm's `joint1` drive cap for the
@@ -2171,6 +2177,7 @@ class SortingRLEnv:
         self._servo_last_aim = None
         self._place_phase = 0
         self._place_open = 0.0
+        self._place_aim = None
         self._finger_was_closed = False
         self._scored_release = False
         self._close_ramp_reported = False
@@ -5041,7 +5048,13 @@ class SortingRLEnv:
                 return False
         except Exception:  # noqa: BLE001
             return False
-        lift_z = belt_top + 0.30
+        # P184: the transit's clearance. P66 measured the LEFT arm's carry rotation
+        # collapsing with the lift's *height* (drift_end 23.8-25.7 deg at
+        # belt+0.36, 9.7 at +0.28, 0.7 at +0.20) and P71 shipped the low lift for
+        # the direct interface - so a 0.30 m servo clearance re-creates the very
+        # attitude that the record's loaded slide depends on. The knob is in metres
+        # above the belt top; 0.30 is the value this servo shipped with.
+        lift_z = belt_top + float(self._place_lift)
         down_z = float(place[2]) - float(self._place_drop)
         far_xy = float(np.linalg.norm(jaw[:2] - place[:2]))
         if getattr(self, "_place_phase", 0) == 0 and jaw[2] < lift_z - 0.02:
@@ -5052,6 +5065,21 @@ class SortingRLEnv:
                 aim = np.array([place[0], place[1], lift_z])
             else:
                 aim = np.array([place[0], place[1], down_z])
+        if self._place_vmax > 0.0:
+            # P184: the **transit's own speed limit**. The direct aim lets the
+            # position-only IK step at its own clip, which carries the payload
+            # through the ~0.6 m move in ~300 ticks (0.24 m/s at the jaw) - and a
+            # soft fruit's hold was measured growing 72 -> 96 mm inside that
+            # move. A bounded reference moves the aim, not the arm: the IK still
+            # does one step per tick, so nothing else about the loop changes.
+            _prev = getattr(self, "_place_aim", None)
+            if _prev is None:
+                _prev = np.asarray(jaw, dtype=float)
+            _step = float(self._place_vmax) * (1.0 / 120.0)
+            _d = aim - np.asarray(_prev, dtype=float)
+            _n = float(np.linalg.norm(_d))
+            aim = (np.asarray(_prev, dtype=float) + _d * (_step / _n)) if _n > _step else aim
+            self._place_aim = np.asarray(aim, dtype=float).copy()
         arm.hold_quaternion = None
         _err = arm.ik_step(arm.tcp_target_for_jaw(aim))
         over_ok = far_xy <= 0.025

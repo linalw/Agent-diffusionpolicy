@@ -2230,3 +2230,43 @@ line - the soft-fruit class survives it here).
 
 **Not claimed**: n = 4, one seed. The instrument is the result: `hold=` turns "grasped
 but not placed" into a timestamp and a leg.
+
+## 59. The place transit's speed limit: the left's residual converts, 8/16 -> 12/16
+
+The `hold=` trace (P183) put the left's loss inside the place transit, and the transit
+was the direct aim: the position-only IK step at its own clip carries the payload
+~0.6 m in ~300 ticks (0.24 m/s at the jaw). `FRUIT_PLACE_SERVO_VMAX=<m/s>` bounds the
+**reference** the arm follows (the aim advances at most `v*dt` per tick; the IK still
+does one step per tick, so nothing else in the loop changes). Default 0 = the shipped
+direct aim.
+
+All-left, 8 episodes, 60 N, the per-arm lead:
+
+| place transit | grasped | placed | pservo ticks |
+|---|---|---|---|
+| shipped direct aim | 6/8 | **5/8** | 591 |
+| `VMAX=0.15` m/s | 8/8 | **8/8** | 1478 |
+
+and on the shipped **mixed** supply, the same two seeds as P182's 50 %:
+
+| config | left | right | **pooled placed** |
+|---|---|---|---|
+| per-arm lead, shipped aim | s5/11 (g10/11) | s3/5 (g3/5) | **8/16 = 50 %** |
+| **+ `VMAX=0.15`** | **s9/11 (g10/11)** | s3/5 (g3/5) | **12/16 = 75 %** |
+
+The left converts (**5/11 -> 9/11**) and the right is unchanged (3/5), exactly as the
+per-arm diagnosis predicts - the right's place already worked, so the speed limit can
+only help the arm that was sliding.
+
+**The cell as a whole, in order of what each phase cost**: 6.3 % at the shipped 10 N
+(P176's 10 N arm) -> 25 % at 60 N (P176) -> 50 % with the per-arm servo lead (P182) ->
+**75 % with the place transit's speed limit** (n = 16, two seeds, the same stack:
+`p177_full` + the contact servo + the place servo + the release endpoint).
+
+**Caveats**: n = 16 over two seeds; the throughput price is real and measured (the
+transit takes 2.5x the ticks, 1478 vs 591 rows, so the attempt is longer and the
+horizon has to be raised to 2600); and `FRUIT_PLACE_SERVO_LIFT` (0.30 m, P66's height
+ladder's motivation) is built but **not yet measured**.
+
+**Not claimed**: a rate - two seeds at n=8 per arm; the next confirmation is the same
+cell at two fresh seeds.
