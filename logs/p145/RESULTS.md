@@ -2202,3 +2202,31 @@ single value, so unset is the shipped path): the left's reach band is upstream a
 The cell reads **8/16 = 50 %** on the two shared seeds, against 6/16 at either global
 value and 6/16 at P176's 10 N - and with the right converted, the *left* is now the
 term that fails at the **place** (grasped 10/11, placed 5/11), not at the grasp.
+
+## 58. The left arm's residual is the meas place transit: the hold grows mid-flight (72 -> 96 mm)
+
+The `hold=` read (how far the payload is from the jaw centre; a seat is 70-80 mm, a
+lost payload grows without bound) is now on both servo rows. All-left, 60 N, the
+per-arm lead, 4 episodes (2 placed, 2 not):
+
+| ep | fruit | seat phase (`hold`) | place transit (`hold`) | outcome |
+|---|---|---|---|---|
+| 0 | apple | 250 -> 86 -> **70-71** | 71 flat to t=708, then **87** (release) | **placed** |
+| 1 | tomato | 123 -> 70 -> **68** | 68 flat to the end of the trace | not placed |
+| 2 | apple | 246 -> 82 -> **69** | 69 flat to t=688, then **89** (release) | **placed** |
+| 3 | tomato | 223 -> 108 -> **73-72** | 72 at t=560, **96** at t=600 | not placed |
+
+So the left's grasp is solid (**10/11** in the per-arm cell) and the loss happens in
+the **place transit**, on the two tomatoes: one keeps the payload to the end of the
+servo trace and fails later, the other's hold **grows 72 -> 96 mm at t=600** - a
+loaded slide inside the transit, at a 60 N clamp and a 50-57 N measured pinch.
+
+That is `logs/p42/SIM_LIMIT.md`'s class on the *place* leg again, now with a per-tick
+handle on it: the same row that says where the payload is also says that the transit
+is where it goes. The two named levers, both already in the tree: the place servo's
+own speed (the transit runs ~300 ticks at the jerk-limited IK step) and the clamp
+(already at 60 N, and P76's ladder put the pry's deletion at that cap on the *scripted*
+line - the soft-fruit class survives it here).
+
+**Not claimed**: n = 4, one seed. The instrument is the result: `hold=` turns "grasped
+but not placed" into a timestamp and a leg.

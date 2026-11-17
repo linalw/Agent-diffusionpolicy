@@ -4970,9 +4970,24 @@ class SortingRLEnv:
                 f"d={np.array2string(_d * 1e3, precision=0)}mm "
                 f"aim={np.array2string(_aim, precision=3)} "
                 f"jaw={np.array2string(_jawm, precision=3)} "
+                f"hold={self._hold_mm(arm):.0f}mm "
                 f"finger={finger:.4f} latched={int(self._close_t0 is not None)}"
             )
         return True
+
+    def _hold_mm(self, arm) -> float:
+        """P183: how far the payload is from the jaw centre [mm] (reporting only).
+
+        The one number that says whether the pinch still holds the payload: a seat
+        is 70-80 mm, a lost payload grows without bound. Not a control input.
+        """
+        try:
+            return float(np.linalg.norm(
+                np.asarray(self.spawner.position(self._sample), dtype=float)
+                - np.asarray(arm.jaw_centre(), dtype=float)
+            )) * 1e3
+        except Exception:  # noqa: BLE001
+            return float("nan")
 
     def _pad_axis_row(self, arm, _tac=None) -> str:
         """P182: the payload's offset resolved in the **tool axis** [mm].
@@ -5062,6 +5077,7 @@ class SortingRLEnv:
                 f"aim={np.array2string(aim, precision=3)} "
                 f"jaw={np.array2string(jaw, precision=3)} "
                 f"far={far_xy * 1e3:.0f}mm ph={int(getattr(self, '_place_phase', 0))} "
+                f"hold={self._hold_mm(arm):.0f}mm "
                 f"at={int(at_place)} fing={finger:.4f}"
             )
         return True
