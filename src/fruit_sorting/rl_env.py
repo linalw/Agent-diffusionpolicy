@@ -2153,8 +2153,12 @@ class SortingRLEnv:
         self._place_open = 0.0
         self._finger_was_closed = False
         self._scored_release = False
+        self._close_ramp_reported = False
         self._ensemble_k = max(1, int(os.environ.get("FRUIT_POLICY_ENSEMBLE_K", "1") or 1))
         self._ensemble_diag = os.environ.get("FRUIT_POLICY_ENSEMBLE_DIAG", "0").strip() == "1"
+        #: P177: one `[close-hold]` row per attempt with the **measured** pad span
+        #: at the end of the committed close ramp (reporting only, default off).
+        self._close_ramp_diag = os.environ.get("FRUIT_CLOSE_RAMP_DIAG", "0").strip() == "1"
         #: P153: **velocity feed-forward** on the applied joint command
         #: (`FRUIT_POLICY_FF=<ticks>`). The policy's 16 waypoints are positions;
         #: a position loop driving a *moving* target lags it by `e ~ v/K`
@@ -5083,6 +5087,12 @@ class SortingRLEnv:
                         f"dx={float(_fruit[0]-_jaw[0])*1000:+.0f}mm "
                         f"jaw_z={float(_jaw[2]):.3f} fruit_z={float(_fruit[2]):.3f} "
                         f"grip={self._close_grip_finger:.4f} "
+                        # P177: the **measured** pad span at the latch (one read,
+                        # once per attempt). A commanded grip that does not close
+                        # the pads is otherwise invisible: the right arm latches at
+                        # xy 14-16 mm and never holds, and `grip` alone cannot say
+                        # whether the pads moved.
+                        f"sep={float(arm.jaw_separation())*1000:.1f}mm "
                         f"seat_res={getattr(self, '_seat_resid', float('nan'))*1000:.0f}mm"
                     )
                 except Exception:  # noqa: BLE001
@@ -5109,6 +5119,22 @@ class SortingRLEnv:
         ramp = min_jerk_ramp(
             float(arm.OPEN), float(self._close_grip_finger), self._close_ramp_ticks
         )
+        # P177: one row the tick the ramp **completes** - the measured pad span
+        # and the command that produced it. The latch's span is 98 mm (the open
+        # stop) on both arms, so only this row can say whether a commanded close
+        # actually brought the pads together (`_close_ramp_diag` once per attempt).
+        if (self._close_ramp_diag and not getattr(self, "_close_ramp_reported", False)
+                and elapsed >= len(ramp) - 1):
+            self._close_ramp_reported = True
+            try:
+                self._say(
+                    f"[close-hold] t={self._step} arm={self._active} "
+                    f"sep={float(arm.jaw_separation()) * 1000:.1f}mm "
+                    f"fing={float(ramp[-1]):.4f} "
+                    f"grip={float(self._close_grip_finger):.4f}"
+                )
+            except Exception:  # noqa: BLE001 - reporting only
+                pass
         return float(ramp[min(elapsed, len(ramp) - 1)])
 
     def _phase_for_decision(self) -> int | None:

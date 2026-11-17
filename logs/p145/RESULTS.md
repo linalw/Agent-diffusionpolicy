@@ -1903,3 +1903,39 @@ similar screen (66/80 vs 58/80) went null, which is exactly why this read is poo
 over four seeds with the mechanism named; (3) the 60 N write is a **specification
 applied at runtime**, so it is not the same object as re-authoring the drive at build
 time (that would owe both references and every store).
+
+## 51. The new binding term is the right arm: 0 grasps in 31, and it is not the station
+
+With the clamp fixed (P176: 8/32 placed, 14/32 grasped), the per-arm split of the
+same cells names the next term: **right 0/31 grasps, left 21/35**. Every placement in
+the round is the left arm. Four measurements narrow it:
+
+1. **The latch is geometrically the same on both arms** (`[close]` rows): right
+   `xy 14-16 mm`, `dz +66..+77`; left `xy 16-20`, `dz +68..+72`. So the acquisition
+   timing and the seat are not it.
+2. **The grasp station is not it.** The demonstrations the policy is trained on put
+   the right station at **y = -0.10** while the direct environment grasps both arms
+   at `cfg.pick_y` (0.00) - a 10 cm difference, five times the pads' slack for a 6 cm
+   fruit (`datasets/p174_all` index: `right: -0.10` 31 episodes, `left: 0.0` 29).
+   Tested with a caller-owned `grasp_station_dy` kwarg and an all-right instruction
+   (`default => 1`): **0/6 at 0.00 and 0/6 at -0.10**. The kwarg was reverted
+   (measured, not adopted).
+3. **The same close command produces a different pad span on the two arms.** The new
+   `[close-hold]` row (`FRUIT_CLOSE_RAMP_DIAG=1`, one row per attempt, the tick the
+   ramp completes) reads `fing=0.0295` -> **`sep=69.1 mm` on the right** and
+   **`77.4 mm` on the left**. Both are wider than the command's own 49 mm (the fruit
+   blocks them), but the 8 mm disagreement is systematic: 69.1 mm is a 7.0 cm apple's
+   own diameter (pads on the fruit), 77.4 mm is 9 mm clear of a 6.5-6.8 cm fruit.
+4. **Same batch, same knobs, 3/3 against 0/3** (all-left vs all-right instruction, 60
+   N, seed 101): left `g=3/3`, right `g=0/3`.
+
+The finger mapping constants are **class-level** (`JAW_SEPARATION_OFFSET 0.010`,
+`JAW_SEPARATION_PER_JOINT 2.0`, `FINGER_FACE_OFFSET 0.0`), so the arms cannot differ
+in arithmetic - the difference must be in the finger bodies, the mimic joint, or the
+`jaw_separation()` measure on a mirrored arm. That is the named next item, and it is
+worth **44 % of the cell** (14 of the 32 episodes at 60 N are right-arm attempts).
+
+**Shipped this phase**: the `[close] sep=` field (the measured span at the latch, one
+read per attempt - a commanded grip that does not close the pads was otherwise
+invisible) and the `[close-hold]` row (default off). Both are reporting only and the
+direct path is the only one that prints them.
