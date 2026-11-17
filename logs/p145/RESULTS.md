@@ -2603,3 +2603,47 @@ is the non-reproducible loop's own noise and the reason the pooled read is the s
 latch at a 30 mm gate; widening the gate trades them for early latches on large fruit).
 The instrument is in place; what it needs is a *size-dependent* seat or gate, which is a
 registration of its own.
+
+## 68. The small-fruit class is a *late* acquisition, and the latch's `dy` is not the fruit's
+
+The servo trace of the un-latched 3.1 cm lychee (`FRUIT_CONTACT_SERVO_DIAG=1`, seed 808)
+is the finding:
+
+```
+[servo] t=676  err=+268mm d=[105, 240,  53]mm aim=(0.227,-0.242,1.255) jaw=(0.332,-0.002,1.308) hold=290mm
+[servo] t=980  err=+542mm d=[191, 506, -35]mm aim=(0.231,-0.558,1.250) jaw=(0.422,-0.052,1.215) hold=536mm
+```
+
+The aim's **y runs away downstream at 1 mm/tick (the belt's own speed)** while the jaw is
+**500 mm behind**, for the servo's whole 149-tick window, and it never latches. So the
+attempt was armed **after the fruit had passed** (`dy0 = -0.24 m`), and the servo spent its
+window chasing a fruit it cannot catch.
+
+**The arming condition has the wrong shape**: `dy0 <= arm_dy (0.20)` is satisfied by any
+*negative* `dy` too. P198 required the fruit to be upstream (`-0.02 <= dy0 <= 0.20`):
+
+| cell | placed | latched |
+|---|---|---|
+| seed 808, upstream-only arming | **4/8** | 8/8 |
+| seed 303, upstream-only arming | **5/8** | 8/8 |
+| the same seeds, arming as shipped (P194) | 6/8 + 6/8 = **12/16** | 12/16 |
+
+**Negative, not adopted.** But it is informative twice over: with the chase suppressed
+**every** attempt latches (16/16) - so the "0 latch" class was the *chase* masking it -
+and the small fruit then fails **after** the latch (three 3.1 cm lychees at seed 808, two
+at 303), i.e. **the small-fruit residual is a late acquisition that no downstream action
+fixes**, exactly as the pad-width and closure-depth washes said from the other side.
+
+**The instrument insight that explains why the latch looks arbitrary**: `[fire]`'s `dy
+(fruit - jaw)` at the twelve successful latches is **+84 .. +144 mm** (fruit upstream),
+while the ramp's own latch condition is `goal[1] - jaw[1] <= 0.014` - the **goal**
+(perception), which sits ~0.1 m downstream of the true fruit. So the latch is not gated on
+where the fruit is; it is gated on where the estimator says it is, and the two differ by
+the estimator's own lead. That is the quantity a size-dependent gate or seat would have to
+be written against, and it is now measured.
+
+**Named next, precise**: the acquisition needs an **earlier** decision, not a wider one -
+the successes latch with the fruit 84-144 mm upstream, so the ramp's condition should be
+expressed in the **fruit's** frame (or the goal's lead compensated) rather than the
+estimator's. That is a registration of its own; the three cells above say widening and
+chasing both lose.

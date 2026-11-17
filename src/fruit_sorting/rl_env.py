@@ -2141,6 +2141,12 @@ class SortingRLEnv:
         #: moves ~1 mm/tick, so the correction must start before the fruit is at
         #: the station: the shipped catch-up's own lead is ~1.5-2 s of belt travel.
         self._servo_arm_dy = float(os.environ.get("FRUIT_CONTACT_SERVO_ARM_DY", "0.20") or 0.20)
+        #: P198: how far **downstream** the fruit may already be when the servo
+        #: arms [m]. The measured failure armed at `dy` = -0.24 m and chased; 0.02
+        #: keeps a fruit level with the jaw, refuses one that has gone by.
+        self._servo_behind_tol = float(
+            os.environ.get("FRUIT_CONTACT_SERVO_BEHIND_TOL", "0.02") or 0.02
+        )
         #: P175: the **place as a measured-target loop** (opt-in). The destination
         #: is the task's own `jaw_target("place{bin}")` - a pose the cell knows, not
         #: truth about the fruit - and the loop is the same form as the contact
@@ -4953,7 +4959,17 @@ class SortingRLEnv:
             _dy0 = float(self._goal[1]) - float(_jaw0[1])
         except Exception:  # noqa: BLE001 - no geometry read, no servo
             return False
-        if not getattr(self, "_servo_on", False) and _dy0 <= float(self._servo_arm_dy):
+        # P198: arm only while the fruit is **upstream** (or level) of the jaw.
+        # Measured defect: `<= arm_dy` is satisfied by any *negative* `dy` too, so
+        # an attempt whose fruit had already passed armed the servo and the servo
+        # then chased it downstream for its whole window - the `[servo]` trace of a
+        # 3.1 cm lychee reads the aim running `y -0.242 -> -0.562` (1 mm/tick, the
+        # belt's own speed) with the jaw 500 mm behind and `hold` growing to 536 mm,
+        # never latching. A fruit already downstream cannot be caught at 1 mm/tick,
+        # so the servo now declines and the model keeps the hand (its own approach),
+        # which is at worst no worse than a chase.
+        if (not getattr(self, "_servo_on", False)
+                and -float(self._servo_behind_tol) <= _dy0 <= float(self._servo_arm_dy)):
             self._servo_on = True
         if not getattr(self, "_servo_on", False):
             return False
