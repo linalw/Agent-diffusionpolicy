@@ -2098,3 +2098,28 @@ named next step, and it is cheap: one row with the two plate centres and the pay
 
 **Shipped**: `pL=`, `pR=`, `fruit=` on the `[close-hold]` row (default off,
 `FRUIT_CLOSE_RAMP_DIAG=1`), reporting only.
+
+### 55a. Correction (same day): the pad points *are* the face centres, so the observation stands but the mechanism is withdrawn
+
+`kinematic_gripper.OpenArmHand` is explicit: `pad_centre()` **is** `arm.jaw_centre()`,
+`pad_faces()` **is** `arm.jaw_positions()`, and the class carries
+`pad_face_offset = 0.0` with the comment *"the OpenArm pads are at the finger link
+origins; no thickness offset"*. So §55's "the measure traces the links, not the pad
+faces" is **wrong as a mechanism and withdrawn**: the two reported points are the
+centres of the two 61 x 84.9 mm plate faces.
+
+The *observation* that made me doubt it stands and is explained by the plates being
+**planes, not points**: a payload's centre can sit outside the segment between two face
+centres in x and still be in contact with a plate (the left pinches at 56.8 N with its
+centre 5 mm outside the 0.162-0.232 span), and it can sit *between* them and touch
+nothing (the right misses with the centre at 0.226 inside 0.205-0.268). What decides
+contact is the plate's **own extent** along the tool axis, and that is the read the
+lane does not yet have: at the latch both arms put the face centres **65-67 mm above
+the payload's centre** with the plate 84.9 mm long, so the overlap depends on the
+pads' tilt - and the two arms' jaw axes are mirrored differently (`jax` z **-0.40**
+left against **+0.27** right).
+
+**Named next read** (one probe, no attempt loop): the plates' vertical extent and the
+payload's overlap per arm, from the plate collider's own size and the face centre -
+`p66/COLLIDER_READ.md` already holds the plate's dimensions, so this is arithmetic plus
+one pose read.
