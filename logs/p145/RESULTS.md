@@ -2301,3 +2301,41 @@ is now the weaker arm on the *grasp* (5/13), not on the place.
 | + per-arm contact lead (P182) | **8/16 = 50 %** |
 | + place transit's speed limit (P184) | **20/32 = 62.5 %** |
 | *(the scripted two-line, for scale)* | *58/80 = 72.5 %* |
+
+## 60. Five seeds on the adopted stack: 25/40 = 62.5 %; the transit clearance is a measured negative at 0.20; the right's lead peaks at 0.20
+
+Three cells close the round's open items.
+
+**1. A fresh mixed seed reproduces the rate.** Seed 303 (never used in this lane):
+left **4/5**, right **1/3** -> **5/8**. Pooled over five seeds (77, 101, 202, 303,
+404): **25/40 = 62.5 % placed**, **left 19/24 (79 %)**, **right 6/16 (38 %)**, every
+seed at or above 50 %.
+
+**2. The place transit's clearance is a measured negative.** `FRUIT_PLACE_SERVO_LIFT`
+0.30 -> **0.20 m** (P66's height ladder's low rung, the value the *scripted* direct
+interface ships) reads **0/8** on the same seed - left 0/5 and right 0/3, and not one
+grasp either, so the payload does not survive the servo's own lift at that clearance.
+**Not adopted**; the servo keeps 0.30. (The two heights serve different purposes: the
+model's own lift is the scripted 0.20 m rung, while this servo's *transit* needs the
+0.30 m clearance to clear the pick station and the output rail.)
+
+**3. The right arm's lead peaks at 0.20.** All-right, seed 202, 4 episodes each:
+lead 0.18 -> **2/4**, 0.20 -> **4/4** (P182), 0.22 -> 0/4 (1 grasp). The `dlat`
+arithmetic says why there is an optimum: too short and the payload is past the plate's
+trailing edge, too long and the pads wait downstream of where the fruit's own tracking
+puts it.
+
+**Where the lane stands (all of it measured, every negative kept)**:
+
+| configuration | placed |
+|---|---|
+| shipped 10 N, single lead, direct aim | 2/32 = 6.3 % |
+| + real-jaw clamp 60 N | 8/32 = 25 % |
+| + per-arm contact lead (0.10 left / 0.20 right) | 8/16 = 50 % |
+| **+ place transit's speed limit 0.15 m/s** | **25/40 = 62.5 %** (5 seeds) |
+| *(the scripted two-line, for scale)* | *58/80 = 72.5 %* |
+
+Negatives recorded this round and not adopted: the global 60 N alone (a draw at four
+seeds), the squeeze scale (0.90/0.92 -> 1/4 of 4), the latch window (0.03/0.05 -> 1/4),
+the phase view (P173b), the transit clearance 0.20 (0/8), lead 0.18 and 0.22, and the
+station offset (0/6 at both values).
