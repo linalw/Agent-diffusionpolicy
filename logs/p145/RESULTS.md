@@ -2524,3 +2524,43 @@ closes the closure-form family for this arm: what remains is a **different pad s
 of which is a knob.
 
 **Not adopted**; `FRUIT_CLOSE_FORCE` defaults to 0.
+
+## 66. P193 verification: **not reproduced at fresh seeds**, and the residual is the acquisition class, not the two servos
+
+The pre-registered rule (`logs/p193/PREREG.md`) asked for pooled >= 10/16 at seeds 808/909
+with neither seed below 3/8. What came back:
+
+| seed | placed | notes |
+|---|---|---|
+| 808 | **4/8** | **8/8** failures `fruit fell off the line` |
+| 909 | **1/4 readable** | 4 of 8 episodes produced no outcome (two runs stalled; the first wedged 72 min, the second hit its own 66-min budget) |
+| pooled (readable) | **5/12 = 42 %** | |
+
+So the **falsifier's letter fires**: at fresh seeds the recipe reads **42-50 %**, not
+68.8 %. The number in §64 stands as the *best measured* four-seed cell; it is **not a
+verified rate**, and the record must say so.
+
+**What the failures are, and it changes the diagnosis.** Across every adopted-stack cell,
+`fruit fell off the line` is **15 of 16** failures (P190's cells) and **11 of 12** in P193.
+That string means *the selected fruit reached the belt's end before the attempt grasped it*
+(the payload's `final` is on the floor at `y -0.86..-0.89`, past `despawn_y`) - i.e. the
+**acquisition/handover class**, not the contact or place classes that the clamp, the leads
+and the transit limit were tuned on. The recipe converts the attempts it takes; the
+residual is **taking them**.
+
+**The gap window was the first guess and it is a wash.** A per-attempt census of
+`[policy-trace] gap` shows every success with a **minimum gap of 106-116 mm** and the
+failures at 1 / 8 / 53 / 60 / 69 / 213 mm, which reads like a close-time window at
+~110 mm. `FRUIT_CLOSE_GAP_MIN/MAX` (the model's close honoured only inside a window, the
+hand otherwise held open for the servo's own latch) then reads **808 4/8 -> 5/8** and
+**303 8/8 -> 7/8**: a wash of one each way, and 28-40 `[acq]` rows per cell confirm the
+model's close does arrive outside the window. **The reason it cannot work is the
+instrument**: `gap` is the *handover diag*'s distance, and its *minimum* over an attempt is
+106-116 mm even on successes - it is not the gap at the fire tick, so the correlation was a
+misread (a success's minimum cannot be larger than a failure's if it is measuring the same
+approach).
+
+**Not adopted** (`FRUIT_CLOSE_GAP_MIN` defaults to 0 = off). **The named next instrument**:
+one row at the *fire tick* - the trigger's `dy`, `dx`, the gap and the finger value at the
+moment the model's close is first evaluated - because the acquisition class is now the
+binding term and *nothing in the tree logs its decision state*.

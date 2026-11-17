@@ -2190,6 +2190,13 @@ class SortingRLEnv:
         #: P192: the close's **force target** [N] (0 = off, the shipped position
         #: ramp). The force-controlled form keeps closing until the measured pinch
         #: reaches it - the form `docs/END_EFFECTOR_DECISION.md` names.
+        #: P193b: the **acquisition window** [m]: the model's own finger close is
+        #: honoured only while the jaw-fruit gap is inside it. `0` = off (the
+        #: shipped path). The census's successes fire at 106-116 mm; the failures
+        #: at 1-69 mm (late) or not at all.
+        self._close_gap_lo = float(os.environ.get("FRUIT_CLOSE_GAP_MIN", "0") or 0.0)
+        self._close_gap_hi = float(os.environ.get("FRUIT_CLOSE_GAP_MAX", "0.16") or 0.16)
+        self._close_gap_diag = os.environ.get("FRUIT_CLOSE_GAP_DIAG", "0").strip() == "1"
         self._close_force = float(os.environ.get("FRUIT_CLOSE_FORCE", "0") or 0.0)
         self._close_force_rate = float(
             os.environ.get("FRUIT_CLOSE_FORCE_RATE", "0.0001") or 0.0001
@@ -6643,6 +6650,33 @@ class SortingRLEnv:
                 except Exception:  # noqa: BLE001
                     pass
             finger = float(np.clip(action[7], 0.0, 0.044))
+            if (self._close_gap_lo > 0.0 and self._close_t0 is None
+                    and finger <= 0.035):
+                # P193b: the **acquisition window**. The census over the recipe's
+                # own cells (`logs/p193`) shows every success firing the policy's
+                # close with the jaw-fruit gap at **106-116 mm**, while the failures
+                # fire at 1 / 8 / 53 / 60 / 69 mm (late - the fruit is already at
+                # the pads) or never fire at all (213 mm). So the model's finger is
+                # honoured only inside a gap window; outside it the hand stays open
+                # and the committed ramp's own gated latch (the contact servo) does
+                # the closing. One jaw read, and only on a tick the finger would
+                # close: no per-tick cost.
+                try:
+                    _gap = float(np.linalg.norm(
+                        np.asarray(self._goal[:3], dtype=float)
+                        - np.asarray(arm.jaw_centre(), dtype=float)
+                    ))
+                except Exception:  # noqa: BLE001
+                    _gap = float("nan")
+                if not (self._close_gap_lo <= _gap <= self._close_gap_hi):
+                    finger = float(arm.OPEN)
+                    if self._close_gap_diag:
+                        self._say(
+                            f"[acq] t={self._step} arm={self._active} "
+                            f"gap={_gap * 1000:.0f}mm outside "
+                            f"[{self._close_gap_lo * 1000:.0f},{self._close_gap_hi * 1000:.0f}]"
+                            " - the model's close is held open"
+                        )
             if self._close_ramp:
                 finger = self._close_ramp_command(arm, finger)
             self.scene.robot.set_dof_position_targets(
