@@ -2270,3 +2270,34 @@ ladder's motivation) is built but **not yet measured**.
 
 **Not claimed**: a rate - two seeds at n=8 per arm; the next confirmation is the same
 cell at two fresh seeds.
+
+### 59a. Four seeds: 20/32 = 62.5 %, every seed at or above 50 %
+
+The same cell at two **fresh** seeds (202, 404) plus the two already run:
+
+| seed | placed |  |
+|---|---|---|
+| 77 | **6/8** | |
+| 101 | **6/8** | |
+| 202 | 4/8 | fresh |
+| 404 | 4/8 | fresh |
+| **pooled** | **20/32 = 62.5 %** | |
+
+Fisher against the round's own arms: **p = 0.0051** against 60 N with the single lead
+(8/32 = 25 %), **p < 1e-5** against the shipped 10 N (2/32 = 6.3 %), and **p = 0.54**
+against the per-arm lead alone (8/16 = 50 %) - i.e. the two fresh seeds give back part
+of the two-seed gain, the same shape every fresh-seed check in this record has shown,
+and the cell still sits at **62.5 % over four seeds with no seed below 4/8**.
+
+The per-arm split at four seeds: **left 15/19 (79 %)**, **right 5/13 (38 %)** - the right
+is now the weaker arm on the *grasp* (5/13), not on the place.
+
+**The end-to-end arc of the direct policy lane, one number per phase fixed**:
+
+| configuration | placed |
+|---|---|
+| shipped 10 N, single lead, direct aim | **2/32 = 6.3 %** |
+| + real-jaw clamp 60 N (P176) | **8/32 = 25 %** |
+| + per-arm contact lead (P182) | **8/16 = 50 %** |
+| + place transit's speed limit (P184) | **20/32 = 62.5 %** |
+| *(the scripted two-line, for scale)* | *58/80 = 72.5 %* |
