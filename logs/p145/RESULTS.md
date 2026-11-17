@@ -2404,3 +2404,40 @@ which is the round's second hardware item after the 60 N clamp.
 (five seeds, every seed at or above 50 %), left 19/24 (79 %), right 6/16 (38 %), against
 the scripted two-line's 58/80 (72.5 %) - with every lever that moved it measured, and
 every lever that did not recorded.
+
+## 63. The pad's width: built non-destructively, measured a wash - and the certificate reads 39/64 = 60.9 %
+
+**The hardware item, authored without touching the asset.** `FRUIT_FINGER_PAD_WIDE=<m>`
+widens the **build-time authored** finger plate (`scene._author_finger_tip_delta`'s
+`tip_delta` box, which `FRUIT_FINGER_TIP_DELTA=0` already re-authors at the shipped
+dimensions) - the USD asset is **never edited**, so the change is reversible, and
+`assets.scene_provenance` gained a `finger = {pad_wide, tip_delta}` block so a store or a
+checkpoint names the pad it was recorded with. Verified statically (P66's instrument, no
+physics): `box face/mid/long = 33.3 / **78.0** / 84.9 mm (mid authored: shipped 61.0,
+FRUIT_FINGER_PAD_WIDE=0.078)`.
+
+**The paired read, all-right, seeds 202 + 404, 8 episodes each:**
+
+| plate | grasped | 
+|---|---|
+| shipped **mesh**, 61 mm | **4/8** |
+| box control, **61 mm** (`TIP_DELTA=0`) | **5/8** |
+| box, **78 mm** (`PAD_WIDE=0.078`) | **4/8** |
+
+So P186's `dlat` arithmetic - cover the tail, the arm converts - **does not hold**: the
+width is a wash, and the box-for-mesh substitution is a wash too. The `dlat` correlation
+was confounded (the low-`dlat` attempts are also the ones where the servo converged for
+its own reasons). **Not adopted**; `FRUIT_FINGER_PAD_WIDE` defaults to 0 (the shipped
+extent) and it is recorded as the second **negative** hardware item after P132's pad
+shapes.
+
+**The certificate run** (the adopted stack, shipped mixed supply, three fresh seeds):
+
+| seeds | placed |
+|---|---|
+| 505 / 606 / 707 | 3/8, 5/8, 6/8 = **14/24** |
+| **pooled with P185's 40** | **39/64 = 60.9 %** over **8 seeds** |
+| per arm (all 64) | left 19/24 + 7/13 -> **26/37 = 70 %**; right 6/16 + 7/11 -> **13/27 = 48 %** |
+
+So the lane's end-to-end number at n=64 over eight seeds is **60.9 %**, with the left at
+70 % and the right at 48 % - against the scripted two-line's 58/80 (72.5 %).

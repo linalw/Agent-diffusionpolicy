@@ -1021,6 +1021,15 @@ def scene_provenance(
             }
             for lane in cfg.output_lane_layout()
         ],
+        #: P188: the **authored finger plate** - the pad's width and the distal
+        #: plane's offset. Both are build-time collider re-authorings (the USD
+        #: asset is never edited), so a store must name them to be reproducible:
+        #: the plate's width sets the pads' lateral coverage, which is the
+        #: right arm's binding term (`dlat` 19-26 mm against 61 mm).
+        "finger": {
+            "pad_wide": float(os.environ.get("FRUIT_FINGER_PAD_WIDE", "0") or 0.0),
+            "tip_delta": os.environ.get("FRUIT_FINGER_TIP_DELTA", ""),
+        },
         "lift": None,
     }
     if lift_dz is not None:

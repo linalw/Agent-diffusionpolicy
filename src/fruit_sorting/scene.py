@@ -1851,9 +1851,25 @@ class SortingScene:
                     + e_mid * float(mid_coord)
                     + e_long * long_lo
                 )
+                # P188: the **pad's width** (P186's hardware item). The shipped
+                # plate is the finger link's own box, whose mid extent is 61 mm;
+                # the right arm's latch leaves the payload at `dlat` 19-26 mm and
+                # the effective coverage is ~0.72 of the half-width, so the tail
+                # misses. Widening is **authored here at build time** - the USD
+                # asset is never edited, so the change is reversible and the
+                # manifest names it (`assets.scene_provenance`'s `finger` block).
+                # `FRUIT_FINGER_PAD_WIDE=<m>`, 0 = the shipped extent.
+                _pad_wide = float(os.environ.get("FRUIT_FINGER_PAD_WIDE", "0") or 0.0)
+                if not math.isfinite(_pad_wide) or _pad_wide < 0.0 or _pad_wide > 0.20:
+                    say(
+                        f"FATAL: FRUIT_FINGER_PAD_WIDE={_pad_wide!r} must be a finite "
+                        "width in [0, 0.20] m"
+                    )
+                    os._exit(1)
+                width = max(float(extents[1]), _pad_wide) if _pad_wide > 0.0 else float(extents[1])
                 self._author_flat_face(
                     link, "tip_delta", origin, e_face, e_mid, e_long,
-                    length, float(extents[1]), float(extents[0]),
+                    length, width, float(extents[0]),
                     mu, stiffness, damping,
                 )
                 _total, enabled_after = self._link_collider_counts(link)
@@ -1862,6 +1878,7 @@ class SortingScene:
                         "path": path,
                         "face": float(extents[0]),
                         "mid": float(extents[1]),
+                        "mid_authored": float(width),
                         "long": length,
                         "face_plane": float(face_coord),
                         "distal": distal,
@@ -1911,7 +1928,9 @@ class SortingScene:
             f"{len(kept_all)}"
             + (f" ({', '.join(kept_all)})" if kept_all else "")
             + f"; box face/mid/long={_span([r['face'] for r in rows])}/"
-            f"{_span([r['mid'] for r in rows])}/{_span([r['long'] for r in rows])} mm "
+            f"{_span([r['mid_authored'] for r in rows])}/{_span([r['long'] for r in rows])} mm "
+            f"(mid authored: shipped {_span([r['mid'] for r in rows])} mm, "
+            f"FRUIT_FINGER_PAD_WIDE={os.environ.get('FRUIT_FINGER_PAD_WIDE', '0')}) "
             f"(closing x across x down the finger), face plane="
             f"{_span([r['face_plane'] for r in rows])} mm, distal plane="
             f"{_span([r['distal'] for r in rows])} mm (shipped tip "
