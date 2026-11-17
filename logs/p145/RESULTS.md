@@ -2339,3 +2339,37 @@ Negatives recorded this round and not adopted: the global 60 N alone (a draw at 
 seeds), the squeeze scale (0.90/0.92 -> 1/4 of 4), the latch window (0.03/0.05 -> 1/4),
 the phase view (P173b), the transit clearance 0.20 (0/8), lead 0.18 and 0.22, and the
 station offset (0/6 at both values).
+
+## 61. The right arm's `dlat` distribution: a knee at ~22 mm, and the pad's 61 mm width is the binding hardware term
+
+With `[close-hold]` now printing once per attempt (the diag's latch was not reset at the
+second site), the all-right arm at the adopted stack (seed 202, 8 episodes, 6 latches):
+
+| `dlat` | tactile | grasped |
+|---|---|---|
+| **14.2 mm** | 52.3 N, n=2 | yes |
+| **17.9** | 47.6 N, n=2 | yes |
+| **19.3** | 45.2 N, n=2 | yes |
+| **20.3** | 49.8 N, n=2 | yes |
+| 25.3 | **8.1 N, n=1** | no |
+| 26.2 | **0.0 N, n=0** | (scored later) |
+
+**`dlat <= 20.3 mm` gives a solid two-sided pinch at 45-52 N on 4/4; `dlat >= 25.3` is
+marginal or empty.** The knee is **~22 mm**, against the plate's geometric half-width of
+**30.5 mm** - i.e. the effective coverage is ~0.72 of the half-width, which is what a
+sphere meeting a plane's edge does (only its equator touches). The current lead's
+`dlat` p50 is ~19 with a tail to 26, so the arm is **right at the boundary**.
+
+**Consequence, in hardware units**: covering the observed tail (p90 ~28 mm) needs a pad
+**~2 x 28 / 0.72 = 78 mm** wide along the belt against the shipped **61 mm**. The
+shipped pad is the **finger link's own box** (`FRUIT_FINGER_TIP_DELTA` re-authors the
+*length*; `FRUIT_FINGER_FACE=plate` adds a raised patch whose width is capped at
+`0.9 * extents[1]` = 54.9 mm, i.e. narrower), so **a wider pad is a new asset, not a
+knob** - this is the right arm's hardware answer, the same shape as the clamp's.
+
+**A software lever in the same direction**: the close ramp's own length sets how long
+the pads take to arrive. `FRUIT_CLOSE_RAMP_TICKS = 45` (shipped 60), all-right, 4
+episodes: **3/3 grasps at `dlat` 17.0 / 18.6 / 18.6** (F 30.7-49.9 N) against the
+60-tick arm's 5/6 with a tail to 26. A direction at n=3-4, **not adopted** - P91's
+warning is about the *probe* ramp's validation margin, not this one, but the same
+caution applies until it is measured at four seeds.

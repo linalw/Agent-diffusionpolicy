@@ -4231,6 +4231,8 @@ class SortingRLEnv:
         self._place_open = 0.0
         self._finger_was_closed = False
         self._scored_release = False
+        self._close_ramp_reported = False
+        self._close_ramp_last = -1
         self._close_grip_finger = None
         self._seat_q = None
         self._last_phase = None
@@ -5217,6 +5219,8 @@ class SortingRLEnv:
                 self._place_open = 0.0
                 self._finger_was_closed = False
                 self._scored_release = False
+                self._close_ramp_reported = False
+                self._close_ramp_last = -1
                 self._close_grip_finger = None
                 return action_finger
             return float(self._close_grip_finger)
