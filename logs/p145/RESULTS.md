@@ -2441,3 +2441,55 @@ shapes.
 
 So the lane's end-to-end number at n=64 over eight seeds is **60.9 %**, with the left at
 70 % and the right at 48 % - against the scripted two-line's 58/80 (72.5 %).
+
+## 64. The place transit's speed is a peak, not a floor: 0.15 -> 0.20 -> 0.25 reads 8 / 14 / 7 of 16, and the certificate at 0.20 is 22/32 = 68.8 %
+
+The user's item 3 (test the throughput trade, then decide) turned into the round's best
+number. The same two seeds (303, 505) at three transit speeds - the *only* change is
+`FRUIT_PLACE_SERVO_VMAX`:
+
+| transit limit | seed 303 | seed 505 | pooled |
+|---|---|---|---|
+| 0.15 m/s (P184's adopted value) | 5/8 | 3/8 | **8/16** |
+| **0.20 m/s** | **8/8** | **6/8** | **14/16 = 87.5 %** |
+| 0.25 m/s | 2/8 | 5/8 | **7/16** |
+
+A **peak with both neighbours at half** - the shape a real optimum makes and a branch
+draw does not. 0.15 was too slow (the payload hangs in the transit longer than it needs
+to) and 0.25 is too close to the direct aim's own ~0.24 m/s (which had read 5/11 on the
+left). **0.20 is the adopted value.**
+
+**The certificate at 0.20**, four seeds (two of them fresh for this setting):
+
+| seed | placed | attempt p50 |
+|---|---|---|
+| 303 | 8/8 | 2322 ticks |
+| 505 | 6/8 | 2374 |
+| 606 (fresh) | 4/8 | 2064 |
+| 707 (fresh) | 4/8 | 1812 |
+| **pooled** | **22/32 = 68.8 %** | |
+
+against **19/32 = 59.4 %** for the same four seeds at 0.15. The fresh pair again gives
+back part of the gain (4/8 each), the same shape every fresh-seed check in this record
+has shown; the pooled number at four seeds is **68.8 %**.
+
+**The adopted direct-policy recipe** (every knob opt-in, no default flipped, `configs/`
+and the references untouched):
+
+```
+FRUIT_CONTACT_SERVO=1 FRUIT_CONTACT_SERVO_LEAD=0.10 FRUIT_CONTACT_SERVO_LEAD_RIGHT=0.20
+FRUIT_PLACE_SERVO=1 FRUIT_PLACE_SERVO_VMAX=0.20 FRUIT_FINGER_MAXFORCE_DIRECT=60
+FRUIT_SCORE_ENDPOINT=release
+```
+on `checkpoints/p177_full` with the shipped crop / start family / ramp / phase gate.
+
+**The lane, in order of what each phase cost** (each number from its own cell):
+
+| configuration | placed |
+|---|---|
+| shipped 10 N, single lead, direct aim | 2/32 = 6.3 % |
+| + real-jaw clamp 60 N | 8/32 = 25 % |
+| + per-arm contact lead | 8/16 = 50 % |
+| + place transit 0.15 m/s | 25/40 = 62.5 % |
+| **+ place transit 0.20 m/s** | **22/32 = 68.8 %** (4 seeds) |
+| *(the scripted two-line, for scale)* | *58/80 = 72.5 %* |
