@@ -2123,3 +2123,34 @@ left against **+0.27** right).
 payload's overlap per arm, from the plate collider's own size and the face centre -
 `p66/COLLIDER_READ.md` already holds the plate's dimensions, so this is arithmetic plus
 one pose read.
+
+## 56. The latch window is not the right arm's answer either (0.014 -> 0/4, 0.03 -> 1/4, 0.05 -> 1/4)
+
+The mechanism the reach map suggests: R10-A's intercept map puts the right arm's usable
+band at **y in [-0.10, 0.00]** and the left's at **[0.00, +0.10]**, so every fruit
+crosses the left's band first and the right meets it **late** - and the committed ramp
+latches at `FRUIT_CLOSE_RAMP_DY = 0.014`, **3.5x tighter than the demonstrations' own
+`FRUIT_TRACK_START = 0.05`** ("the demos close when the fruit is within 0.05 m of the
+jaw line"). If that were the term, a wider window would close the pads *before* the
+fruit arrives on the right.
+
+All-right instruction, 4 episodes each, 60 N, everything else shipped:
+
+| `FRUIT_CLOSE_RAMP_DY` | grasped | success |
+|---|---|---|
+| 0.014 (shipped) | 0/4 | 0/4 |
+| 0.030 | 1/4 | 0/4 |
+| 0.050 (the demos' window) | 1/4 | 1/4 |
+
+**Not adopted** (the shipped 0.014 stands). A direction of the same size as the squeeze
+scale's, not a mechanism - so the right arm's 3 % has now had **six** candidates ruled
+out: the clamp (60 N), the station (-0.10), the perception (truth-aim), the finger law
+(identical), the squeeze scale (0.90/0.92), and the latch window (0.03/0.05). Each
+moves at most 0 -> 1 of 4, which is the branch noise this project has measured
+repeatedly at n=4.
+
+**Where that leaves the cell**: left 34/52 (65 %), right 2/68 (3 %) at the same fruit
+size - and the end-to-end cell as a whole **8/32 = 25 %** at 60 N against 2/32 = 6.3 %
+at the shipped 10 N (P176). The right arm is the single largest unspent term (44 % of
+the attempts) and the next instrument is the one named in 55a: the plate's vertical
+overlap per arm from the plate collider's own size and the face centre, at the latch.
