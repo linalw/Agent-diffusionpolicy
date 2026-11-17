@@ -2161,6 +2161,7 @@ class SortingRLEnv:
         self._finger_was_closed = False
         self._scored_release = False
         self._close_ramp_reported = False
+        self._close_ramp_last = -1
         self._ensemble_k = max(1, int(os.environ.get("FRUIT_POLICY_ENSEMBLE_K", "1") or 1))
         self._ensemble_diag = os.environ.get("FRUIT_POLICY_ENSEMBLE_DIAG", "0").strip() == "1"
         #: P177: one `[close-hold]` row per attempt with the **measured** pad span
@@ -5079,7 +5080,18 @@ class SortingRLEnv:
                     self._seat_q = None
             try:
                 quat = np.asarray(arm.tcp_pose()[1], dtype=float)
-                gap = float(self.task.pinch_width(self._sample, quat)) * 0.98
+                # P178: the committed close's **squeeze scale**, the same knob the
+                # DAgger expert already reads (`FRUIT_GRIPPER_SQUEEZE`, default
+                # 0.98 = the shipped expression). The mechanism it sets: pads at
+                # +-s with the fruit offset `dy` along the belt touch a sphere of
+                # radius r only while `s <= sqrt(r^2 - dy^2)`; at `s = 0.98 r`
+                # that is `dy <= 0.199 r` = 6.8 mm for a 34 mm-radius fruit, and
+                # the measured latch `dy` is 10-13 mm - which is why the smaller
+                # fruits (the right arm's grade B/C stream) close on air while the
+                # larger ones jam.
+                gap = float(self.task.pinch_width(self._sample, quat)) * float(
+                    os.environ.get("FRUIT_GRIPPER_SQUEEZE", "0.98")
+                )
                 self._close_grip_finger = float(arm.gripper_value_for_separation(gap))
             except Exception:  # noqa: BLE001 - a missing sample must not stop the close
                 self._close_grip_finger = 0.027
@@ -5131,6 +5143,24 @@ class SortingRLEnv:
         ramp = min_jerk_ramp(
             float(arm.OPEN), float(self._close_grip_finger), self._close_ramp_ticks
         )
+        # P178: the ramp's own **time series** (every 4 ticks while the diag is on)
+        # - one row cannot separate "still closing at the end" from "flat short of
+        # the command", and those have opposite fixes.
+        if (self._close_ramp_diag and int(elapsed) % 4 == 0
+                and int(elapsed) > int(getattr(self, "_close_ramp_last", -1))):
+            self._close_ramp_last = int(elapsed)
+            try:
+                _tac = self.task.tactile.read().get(self._active)
+                self._say(
+                    f"[close-ramp] t={self._step} arm={self._active} "
+                    f"i={int(elapsed):3d} hit={self._step - int(self._close_t0):3d} "
+                    f"cmd={float(ramp[min(int(elapsed), len(ramp) - 1)]):.4f} "
+                    f"sep={float(arm.jaw_separation()) * 1000:6.1f}mm "
+                    f"F={float(getattr(_tac, 'normal_force', float('nan'))):6.2f}N "
+                    f"n={int(getattr(_tac, 'contact_count', -1))}"
+                )
+            except Exception:  # noqa: BLE001 - reporting only
+                pass
         # P177: one row the tick the ramp **completes** - the measured pad span
         # and the command that produced it. The latch's span is 98 mm (the open
         # stop) on both arms, so only this row can say whether a commanded close

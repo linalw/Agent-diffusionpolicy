@@ -2017,3 +2017,41 @@ right's span is still moving at the ramp's end, it is (a) - and the fix is the c
 own clock or a contact dwell after the ramp (the scripted line's 200-tick catch-up is
 the measured precedent). If it is flat at 69 mm, it is (b) - and the fix is
 `pinch_width`'s attitude term.
+
+## 54. The close's squeeze scale: the geometry says it should matter, the cell says 1/4
+
+`[close-ramp]` (the per-4-tick series P178 asked for) settles the (a)/(b) question in
+one cell each arm (all-right and all-left instruction, 60 N, seed 101):
+
+| tick | right `sep` (F) | left `sep` (F) |
+|---|---|---|
+| i=4 | 98.0 mm (0.00 N) | 97.8 mm (1.75 N, n=1) |
+| i=20 | 93.1 (0.00) | 93.1 (0.22) |
+| i=36 | 79.9 (0.00) | 80.0 (0.90) |
+| i=40 | 76.6 (0.00) | **77.5 (38.4 N, n=2)** |
+| i=56 | **69.3 (0.00)** | **77.7 (49.8 N, n=2)** |
+
+So the right's pads **follow their command exactly** (98 -> 69 mm, no force, no
+contacts) and the left's **jam at 77.6 mm** with 50 N. Reading (a) - a stalled ramp -
+is **refuted**; the pads on the right are not blocked, they simply have **nothing
+between them**. The left's fruit is ~77.6 mm across at the contact height; the right's
+67-70 mm apple is *not* between pads whose centre is 15 mm from its centre.
+
+**The geometry that explains it, and the knob it implies.** Pads at `+-s` with the
+payload offset `dy` along the belt touch a sphere of radius `r` only while
+`s <= sqrt(r^2 - dy^2)`. The shipped close is `s = 0.98 r`, i.e. `dy <= 0.199 r` =
+**6.8 mm** for a 34 mm radius - while the latch's measured `dy` is **8-18 mm** on both
+arms. The larger fruits (the left's, r = 38.8) therefore touch (their `dy <= 0.239 r`)
+and the smaller ones (the right's grade B/C stream, r = 34) do not, which is the whole
+left/right asymmetry without any per-arm defect.
+
+The knob existed but only the DAgger expert read it: the policy path's committed close
+had `* 0.98` hardcoded (`rl_env.py:5083`). It now reads **`FRUIT_GRIPPER_SQUEEZE`**
+(default 0.98 = the shipped expression byte for byte). Cell, all-right, 4 episodes
+each: **0.98 -> 0/4, 0.90 -> 1/4, 0.92 -> 1/4**. A direction, not a fix - the
+arithmetic predicts contact for `dy <= 0.436 r` (14.8 mm) at 0.90 and the measured
+`dy` reaches 18.3 mm, so the scale cannot cover the tail on its own. **Not adopted**
+for the default (the shipped 0.98 stands); the named next read is `dy` **conditioned on
+the fruit's radius** (one census over the cells already on disk: `[close]` prints `xy`
+and `dx`, so `dy` is `sqrt(xy^2 - dx^2)` and the radius is the episode's own diameter),
+which says whether a *scale* is the right lever or the latch's `dy` window is.
