@@ -5187,7 +5187,14 @@ class SortingRLEnv:
                     # pads are 10 mm thick plates: if the axis is parallel to the
                     # belt the fruit sits between their *edges*, not their faces,
                     # and a 14-16 mm centre offset is enough to miss it entirely.
-                    f"jax={np.array2string(np.asarray(arm.jaw_axis(), dtype=float), precision=2)}"
+                    f"jax={np.array2string(np.asarray(arm.jaw_axis(), dtype=float), precision=2)} "
+                    # P178c: the **two pad points** and the fruit, so the row says
+                    # whether the pads straddle the payload at all - a jaw_centre
+                    # can be 15 mm from the fruit with both pads on the same side
+                    # of it, which is the one state the centre cannot see.
+                    f"pL={np.array2string(np.asarray(arm.jaw_positions()[0], dtype=float), precision=3)} "
+                    f"pR={np.array2string(np.asarray(arm.jaw_positions()[1], dtype=float), precision=3)} "
+                    f"fruit={np.array2string(np.asarray(self.spawner.position(self._sample), dtype=float), precision=3)}"
                 )
             except Exception:  # noqa: BLE001 - reporting only
                 pass

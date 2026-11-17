@@ -2055,3 +2055,46 @@ for the default (the shipped 0.98 stands); the named next read is `dy` **conditi
 the fruit's radius** (one census over the cells already on disk: `[close]` prints `xy`
 and `dx`, so `dy` is `sqrt(xy^2 - dx^2)` and the radius is the episode's own diameter),
 which says whether a *scale* is the right lever or the latch's `dy` window is.
+
+## 55. The right arm is 3 % against the left's 61 % at the same fruit size - and the span measure itself is now suspect
+
+A census over every cell on disk with both an outcome and a latch (`logs/p176`,
+`p177`, `p179`; 120 outcomes, 110 latched) settles the arm question and, in doing
+so, indicts the instrument:
+
+| comparison | result |
+|---|---|
+| by arm | left **34/52 (65 %)**, right **2/68 (3 %)** |
+| diameter, by arm | left p50 **6.1 cm**, right p50 **6.3 cm** (same class) |
+| **size-matched, 6.0-7.0 cm** | left **14/23 (61 %)**, right **1/38 (3 %)** |
+| by size band (both arms) | 0-4.5 cm 3/21, 4.5-5.5 4/6, 5.5-6.5 16/46, 6.5-9 13/47 |
+| `dy/r` at the latch (the pads' geometric reach) | nothing below 0.199; 11 rows in (0.199, 0.30] at 36 %, 99 above at 32 % |
+
+So it is **the arm, not the fruit class** - and the `dy/r` model, which P179 proposed,
+is **flat** (36 % against 32 % across its two bands) and never predicts contact at the
+shipped 0.98 scale, i.e. it explains why contact is hard but not why one arm converts.
+
+**The two pad points say the measure is not the pad faces.** One row each, same
+episode index (`[close-hold]`, now printing `pL=`, `pR=`, `fruit=`):
+
+| arm | pL | pR | fruit centre | pinched |
+|---|---|---|---|---|
+| **left** | (0.162, 0.115, 1.285) | (0.232, 0.108, 1.254) | (0.167, 0.105, 1.205) | **56.8 N, n = 2** |
+| **right** | (0.268, 0.085, 1.260) | (0.205, 0.064, 1.278) | (0.226, 0.059, 1.202) | 0.00 N, n = 0 |
+
+The **left** holds the fruit with its centre **outside** the two reported points in x
+(0.167 vs the 0.162-0.232 span), and the **right** misses with the fruit's centre
+**between** them (0.226 in 0.205-0.268). That is only possible if
+`jaw_positions()`/`jaw_separation()` trace the **finger link origins**, not the 61 x
+84.9 mm pad plates - which the record has in fact suspected before (P64: "the jaw axis
+was never printed, `tasks.py`'s `rot[:,1]` is free").
+
+Consequence for the lane: every span-based inference taken through this measure -
+including P178's "identical finger law" (self-consistent, but of the link origins) and
+the `dy/r` reach model - describes the links, not the faces. **The next instrument must
+read the pad plates** (the colliders, `tasks.pad_centre()` / the tactile pads) and
+re-derive both the reach condition and the per-arm comparison from them. That is the
+named next step, and it is cheap: one row with the two plate centres and the payload.
+
+**Shipped**: `pL=`, `pR=`, `fruit=` on the `[close-hold]` row (default off,
+`FRUIT_CLOSE_RAMP_DIAG=1`), reporting only.
