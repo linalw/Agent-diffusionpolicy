@@ -2564,3 +2564,42 @@ approach).
 one row at the *fire tick* - the trigger's `dy`, `dx`, the gap and the finger value at the
 moment the model's close is first evaluated - because the acquisition class is now the
 binding term and *nothing in the tree logs its decision state*.
+
+## 67. The acquisition census: every latched attempt places, and the residual is the small-fruit class
+
+The `[fire]` row P193 asked for landed twice, and the first version was wrong in an
+instructive way. **The model's finger is not the close decision**: that channel hovers at
+the action mean (0.0345, P145d.11) and crosses 0.035 at random - measured, it "fires" at
+t = 124 with the fruit **335 mm** away. The decision is the **committed ramp's latch**, so
+the row now logs there (and at the attempt's end when it never latches), one row per
+attempt.
+
+**The census** (the adopted recipe, seeds 808 and 303, 8 episodes each, paired row-to-
+outcome):
+
+| seed | episodes | placed | latched | un-latched |
+|---|---|---|---|---|
+| 808 | 8 | **6/8** | 6 | **2: lychee 3.1 cm, strawberry 3.3 cm** |
+| 303 | 8 | **6/8** | 6 | **2: strawberry 3.1, 3.4 cm** |
+
+**Every latched attempt placed - 12 of 12** - and **every failure is a small fruit
+(3.1-3.4 cm) that never latched**. The latched rows are tight: `gap` **120-122 mm** at the
+latch on all twelve, `[close] xy` in the usual 12-22 mm band.
+
+So the recipe's residual at these seeds is not the carry, the place, the clamp or the
+leads: it is **the small-fruit acquisition**, a class at the latch.
+
+**Widening the latch's alignment gate is the wrong fix**: `FRUIT_CONTACT_SERVO_GATE` 30 ->
+**50 mm** reads **3/8** (808) and **4/8** (303) against the 30 mm arm's 6/8 and 6/8 - and
+the failures move to *large* fruit (peach 6.8, orange 7.0), i.e. the wider gate lets the
+latch fire too early. **Not adopted**; 30 mm stands.
+
+**The honest current estimate**, pooling every cell at the adopted recipe (P190's 32,
+P193's 12 readable, P194's 16): **39/60 = 65 %** over 7-9 seeds, with a per-seed spread of
+**4-8 of 8** - two runs of *the same seed and configuration* read 6/8 and 4/8 (808), which
+is the non-reproducible loop's own noise and the reason the pooled read is the statement.
+
+**Named next lever, now specific**: the **small-fruit latch** (fruits <= 3.4 cm never
+latch at a 30 mm gate; widening the gate trades them for early latches on large fruit).
+The instrument is in place; what it needs is a *size-dependent* seat or gate, which is a
+registration of its own.

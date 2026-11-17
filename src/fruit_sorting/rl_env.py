@@ -2194,14 +2194,20 @@ class SortingRLEnv:
         #: honoured only while the jaw-fruit gap is inside it. `0` = off (the
         #: shipped path). The census's successes fire at 106-116 mm; the failures
         #: at 1-69 mm (late) or not at all.
+        self._fire_logged = False
         self._close_gap_lo = float(os.environ.get("FRUIT_CLOSE_GAP_MIN", "0") or 0.0)
         self._close_gap_hi = float(os.environ.get("FRUIT_CLOSE_GAP_MAX", "0.16") or 0.16)
         self._close_gap_diag = os.environ.get("FRUIT_CLOSE_GAP_DIAG", "0").strip() == "1"
+        #: P194: one `[fire]` row per attempt at the model's close decision (or at
+        #: the attempt's end when it never asked) - the acquisition class's own
+        #: instrument. Reporting only, default off.
+        self._fire_diag = os.environ.get("FRUIT_FIRE_DIAG", "0").strip() == "1"
         self._close_force = float(os.environ.get("FRUIT_CLOSE_FORCE", "0") or 0.0)
         self._close_force_rate = float(
             os.environ.get("FRUIT_CLOSE_FORCE_RATE", "0.0001") or 0.0001
         )
         self._close_force_ticks = int(os.environ.get("FRUIT_CLOSE_FORCE_TICKS", "180") or 180)
+        self._fire_logged = False
         self._force_closed_gap = None
         #: P153: **velocity feed-forward** on the applied joint command
         #: (`FRUIT_POLICY_FF=<ticks>`). The policy's 16 waypoints are positions;
@@ -4249,6 +4255,7 @@ class SortingRLEnv:
         self._scored_release = False
         self._close_ramp_reported = False
         self._close_ramp_last = -1
+        self._fire_logged = False
         self._force_closed_gap = None
         self._close_grip_finger = None
         self._seat_q = None
@@ -5001,6 +5008,29 @@ class SortingRLEnv:
             )
         return True
 
+    def _fire_row(self, arm, finger: float, fired: bool) -> None:
+        """P194: one `[fire]` row - the state at the model's close decision.
+
+        The trigger's own inputs at the tick the finger first asks to close (or at
+        the attempt's end, `fired=0`): the jaw-fruit cycle in the trigger's frame
+        (`dy` along the belt, `dx` lateral), the plain gap, the fruit's x, the
+        finger value and the phase. Reporting only, one row per attempt.
+        """
+        try:
+            jaw = np.asarray(arm.jaw_centre(), dtype=float)
+            fruit = np.asarray(self.spawner.position(self._sample), dtype=float)
+            gap = float(np.linalg.norm(fruit - jaw)) * 1e3
+            dy = float(fruit[1] - jaw[1]) * 1e3
+            dx = float(fruit[0] - jaw[0]) * 1e3
+            self._say(
+                f"[fire] t={self._step} arm={self._active} fired={int(fired)} "
+                f"gap={gap:5.0f}mm dy={dy:+6.0f}mm dx={dx:+6.0f}mm "
+                f"fruit_x={float(fruit[0]):.3f} fing={float(finger):.4f} "
+                f"phase={self._last_phase}"
+            )
+        except Exception:  # noqa: BLE001 - reporting only
+            pass
+
     def _hold_mm(self, arm) -> float:
         """P183: how far the payload is from the jaw centre [mm] (reporting only).
 
@@ -5238,6 +5268,7 @@ class SortingRLEnv:
                 self._scored_release = False
                 self._close_ramp_reported = False
                 self._close_ramp_last = -1
+                self._fire_logged = False
                 self._force_closed_gap = None
                 self._close_grip_finger = None
                 return action_finger
@@ -6679,6 +6710,15 @@ class SortingRLEnv:
                         )
             if self._close_ramp:
                 finger = self._close_ramp_command(arm, finger)
+            if (self._fire_diag and not getattr(self, "_fire_logged", False)
+                    and self._close_t0 is not None):
+                # P194: the **decision tick** is the committed ramp's latch, not the
+                # model's finger: that channel hovers at the action mean (0.0345,
+                # P145d.11) and crosses 0.035 at random - measured, it fires at t=124
+                # with the fruit 335 mm away. The no-latch case is logged at the
+                # attempt's end, so every attempt has exactly one row.
+                self._fire_logged = True
+                self._fire_row(arm, finger, fired=True)
             self.scene.robot.set_dof_position_targets(
                 [[finger, finger]], dof_indices=list(arm.finger_dofs)
             )
@@ -7814,6 +7854,13 @@ class SortingRLEnv:
         # declared, and the row names it - the two are different metrics and a
         # rate is only comparable within one of them.
         endpoint = score_endpoint()
+        if (self._fire_diag and not getattr(self, "_fire_logged", False)
+                and getattr(self, "_close_t0", None) is None):
+            # No close was ever asked for: log where the fruit was at the end.
+            try:
+                self._fire_row(self.task.arms[self._active], float("nan"), fired=False)
+            except Exception:  # noqa: BLE001
+                pass
         # P176: put the drive back before anything reads the outcome
         self._restore_direct_finger_cap()
         if getattr(self, "_no_handover", False):
