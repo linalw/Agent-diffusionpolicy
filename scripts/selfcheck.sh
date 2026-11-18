@@ -321,6 +321,9 @@ run_check "P212 place vmax" "$python" scripts/275_p212_place_vmax_selftest.py
 # P213 probe: `FRUIT_WRIST_ANNOTATORS` is the wrist camera's own list, with the
 # head's P135 list as the default; the wrist cameras stay default-off.
 run_check "P213 wrist annotators" "$python" scripts/276_p213_wrist_annotators_selftest.py
+# P214 probe: the mask-free wrist depth window is reporting-only, default-off,
+# direct-only, and cannot write the goal/percept/control targets.
+run_check "P214 wrist depth" "$python" scripts/277_p214_wrist_depth_selftest.py
 # P73: the `[carry]` row's **rotation schedule** (`tilt0=`, `tilt_end=`,
 # `tilt_max=`, `t45=`, `t75=`, `tilt_rate=`) - the instrument the place-leg
 # question needs, because the leg-end `[attitude]` tilt is saturated by the place

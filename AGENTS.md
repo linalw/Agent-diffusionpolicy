@@ -1599,7 +1599,11 @@ the ship. **P211** closed the size-conditioned selector floor: `FRUIT_SELECT_SMA
 is default-off and not adopted. **P212** closed the right-only place transit speed: 0.15
 reads 2/6 against 0.20's 2/6 on a B-heavy cell and doubles the place-servo ticks while
 `hold=` is already 115-120 mm before the place - the right residual is the lift/carry
-grip, not the transit. New legs `271`/`272`/`273`/`274`/`275`; references `30fb99f8` /
+grip, not the transit. **P213** found the two-camera blocker is the second **instance
+annotator**, not the camera (an RGB+depth wrist leaves the head's mask alive); **P214**
+then measured that a mask-free wrist depth window fits the hand (44-62 mm centre error
+against the head's 1.7-2.1 mm), so the second view needs a colour segmenter or a learned
+detector. New legs `271`/`272`/`273`/`274`/`275`/`276`/`277`; references `30fb99f8` /
 `30fb99f8` / `8952c320` stand.
 
 ## 2. Two constraints that decide how to measure

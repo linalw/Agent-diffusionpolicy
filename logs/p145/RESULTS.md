@@ -2948,3 +2948,17 @@ goal-guided depth window (project the head estimate, fit the local depth patch) 
 colour segmenter. No default change: `FRUIT_WRIST_ANNOTATORS` defaults to the head's list.
 **Pins.** `scene.py` **`a766b770`**, `scripts/276_p213_wrist_annotators_selftest.py`
 **`4bcabbbd`**, `selfcheck.sh` **`cd9e728d`**; evidence `logs/p213/`.
+
+## 78. P214: the mask-free wrist depth window is not usable
+
+P213 removed the annotator blocker, so the next question was whether the wrist depth is
+usable without an instance mask. The probe projects the head estimate into the wrist
+frame, samples a 35-px depth disk and fits a sphere. Seed 808, one episode (the result is
+categorical): the head `[percept] err` is **1.74-2.13 mm**, the wrist `[wrist-depth] err`
+is **44.3-61.8 mm**, `fit_r` 55.5-73.2 mm (a 6.5 cm fruit's radius is 32.5 mm), `rms`
+10.2-12.0 mm. The disk is the **hand/fingers**, not the fruit; the P135 wrist-only
+3.54 mm used the instance mask. **The mask-free depth window fails**; the remaining
+second-view options are a colour segmenter or a learned mask-free detector. The probe is
+default-off, direct-only, reporting-only. **Pins.** `rl_env.py` **`9c41fd7a`**,
+`scripts/277_p214_wrist_depth_selftest.py` **`8cf07989`**, `selfcheck.sh`
+**`798761bf`**; evidence `logs/p214/`.

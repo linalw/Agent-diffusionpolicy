@@ -192,3 +192,13 @@ the wrist) the head's `[percept]` counters are unchanged (ep0 18/300 both arms; 
 render product, not the camera. The wrist RGB+depth is therefore available as a second
 sensor; the direct env does not read it yet (a goal-guided depth window is the next
 step). Evidence `logs/p213/`.
+
+## P214 update - the mask-free wrist depth window is not usable
+
+With the P213 RGB+depth wrist (no instance mask), a 35-px depth disk around the head
+estimate's projection fits the **hand**, not the fruit: fitted radius 55-73 mm and rms
+10-12 mm against a 6.5 cm fruit (32.5 mm radius), centre error **44-62 mm** while the
+head estimate on the same ticks is **1.7-2.1 mm**. P135's 3.54 mm wrist result used the
+instance mask; without one, the depth window cannot separate the fruit from the fingers.
+The remaining second-view options are a **colour segmenter** or a learned mask-free
+detector; the probe is default-off and reporting-only. Evidence `logs/p214/`.

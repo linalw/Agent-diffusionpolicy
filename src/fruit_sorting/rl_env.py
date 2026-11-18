@@ -2388,6 +2388,13 @@ class SortingRLEnv:
         # (P135), on the frame `_observe` has already rendered.
         self._goal_perception = self._goal_source == "perception"
         self._percept_camera = None
+        #: P214 bench: a mask-free wrist depth read, projected through the head's
+        #: estimate. It only prints `[wrist-depth]`; it does not feed the goal.
+        self._wrist_depth_probe = (
+            os.environ.get("FRUIT_WRIST_DEPTH_PROBE", "0").strip() == "1"
+        )
+        self._wrist_depth_model = None
+        self._wrist_depth_rows = 0
         self._percept_tracker = None
         self._percept_cfg = None
         self._percept_bias = None
@@ -2407,6 +2414,7 @@ class SortingRLEnv:
         #: Bench-only error samples (truth is read for the column, never used).
         self._percept_errs: list[float] = []
         self._percept_errs_close: list[float] = []
+        self._percept_last_err = float("nan")
         # P145 ablation instruments (default off): zero the tactile channels, or
         # freeze the policy's image at the first frame. Both are *ablations* of a
         # channel the honest interface keeps live - they are never shipped on, and
@@ -3157,6 +3165,11 @@ class SortingRLEnv:
                 "FRUIT_POLICY_ENSEMBLE operates on plain absolute 7-D joint "
                 "chunks; the cartesian/hybrid, dq, rel, posvel and feed-forward "
                 "forms are not composed with it"
+            )
+        if self._wrist_depth_probe and presentation != "direct":
+            raise ValueError(
+                "FRUIT_WRIST_DEPTH_PROBE is only defined for presentation='direct', "
+                f"got {presentation!r}"
             )
         #: P208: when a servo hands the hand back (the contact window closes, or
         #: the place servo declines), the policy chunk that was generated *before*
@@ -4418,6 +4431,7 @@ class SortingRLEnv:
         self._percept_frames = self._percept_rejected = self._percept_missing = 0
         self._percept_errs = []
         self._percept_errs_close = []
+        self._percept_last_err = float("nan")
         self._goal = self._goal_vector(
             target["position"], target["velocity"], target["diameter"], bin_index
         )
@@ -4945,6 +4959,8 @@ class SortingRLEnv:
             self._goal[3:6] = self._percept_vel.astype(np.float32)
             if self._percept_dia is not None:
                 self._goal[6] = float(self._percept_dia)
+        if self._wrist_depth_probe:
+            self._wrist_depth_tick()
         if self.policy is not None and rgb is not None and depth is not None:
             if self._image_freeze:
                 # P145 ablation: one frame for the whole run - the information is
@@ -5094,6 +5110,106 @@ class SortingRLEnv:
     # ------------------------------------------------------------------ #
     # P145: the measured goal
     # ------------------------------------------------------------------ #
+    def _wrist_depth_tick(self) -> None:
+        """P214 bench: one mask-free wrist depth read, guided by the head estimate.
+
+        The wrist pair is authored with `FRUIT_WRIST_ANNOTATORS` (P213 can leave
+        it RGB+depth only). There is no instance mask to segment, so the head's
+        own estimate (`self._percept_pos`) is projected into the wrist frame and
+        a small disk of depth pixels around it is fitted as a sphere. Reporting
+        only: the goal, the policy and the control loop do not read this result.
+        It exists to answer whether the second view is usable before building a
+        mask-free tracker.
+        """
+        if not self._wrist_depth_probe or self._sample is None:
+            return
+        if getattr(self, "_percept_pos", None) is None:
+            return
+        side = self._active
+        entry = getattr(self.scene, "wrist_cameras", {}).get(side)
+        if entry is None:
+            return
+        task = self.task
+        arm = task.arms[side]
+        try:
+            jaw = np.asarray(arm.jaw_centre(), dtype=float)
+            axis = np.asarray(arm.approach_axis(), dtype=float)
+            axis = axis / max(float(np.linalg.norm(axis)), 1e-9)
+            rot = task._quat_matrix(np.asarray(arm.tcp_pose()[1], dtype=float))
+            side_vec = np.asarray(rot[:, 0], dtype=float)
+            position = (
+                jaw
+                - float(getattr(task, "_wrist_back", 0.06)) * axis
+                + float(getattr(task, "_wrist_side", 0.045)) * side_vec
+            )
+            target = np.asarray(self._percept_pos, dtype=float)
+            self.scene.set_wrist_pose(side, position, target)
+            self._RenderingManager.render()
+            raw = entry[1].get_data("distance_to_image_plane")
+            if raw is None:
+                return
+            depth = np.asarray(raw[0].numpy(), dtype=np.float32)
+            if depth.ndim == 3:
+                depth = depth[..., 0]
+            if depth.ndim != 2:
+                return
+            if self._wrist_depth_model is None:
+                focal = float(os.environ.get(
+                    "FRUIT_WRIST_FOCAL", str(self.cfg.camera_focal_length)))
+                ax, ay = (
+                    float(v) for v in os.environ.get(
+                        "FRUIT_WRIST_APERTURE", "0.036,0.02025").split(",")
+                )
+                self._wrist_depth_model = CameraModel(
+                    depth.shape[1], depth.shape[0], focal, ax, ay,
+                    np.eye(3), np.zeros(3),
+                )
+            model = self._wrist_depth_model
+            model.update_pose(self.scene, f"/World/WristCamera_{side}")
+            p_cam = (target - model.translation) @ model.rotation
+            if float(p_cam[2]) >= -0.03:
+                return
+            h, w = depth.shape[:2]
+            fx, fy, cx, cy = model.intrinsics(h, w)
+            u = float(cx - fx * p_cam[0] / p_cam[2])
+            v = float(cy + fy * p_cam[1] / p_cam[2])
+            radius = int(os.environ.get("FRUIT_WRIST_PROBE_R", "35"))
+            vv, uu = np.mgrid[0:h, 0:w]
+            disk = (uu - u) ** 2 + (vv - v) ** 2 <= radius * radius
+            py, px = np.nonzero(disk)
+            if len(px) == 0:
+                return
+            pix = np.stack([px, py], axis=1)
+            z = depth[py, px].astype(float)
+            finite = np.isfinite(z) & (z > 0.03)
+            if int(finite.sum()) < 12:
+                return
+            z_med = float(np.median(z[finite]))
+            band = np.abs(z - z_med) <= float(
+                os.environ.get("FRUIT_WRIST_PROBE_BAND", "0.05")
+            )
+            keep = finite & band
+            if int(keep.sum()) < 12:
+                return
+            points = model.backproject(
+                depth, pix[keep][:: max(1, int(os.environ.get(
+                    "FRUIT_PERCEPTION_STRIDE", "2")))]
+            )
+            centre, fit_r, rms = _fit_sphere(points, trim=2.5)
+            if centre is None or not math.isfinite(fit_r):
+                return
+            truth = np.asarray(self.spawner.position(self._sample), dtype=float)
+            err = float(np.linalg.norm(centre - truth)) * 1e3
+            self._wrist_depth_rows += 1
+            self._say(
+                f"[wrist-depth] t={self._step} side={side} u={u:.0f} v={v:.0f} "
+                f"px={int(keep.sum())} fit_r={fit_r * 1e3:.1f}mm "
+                f"rms={rms * 1e3:.2f}mm err={err:.2f}mm "
+                f"head_err={float(getattr(self, '_percept_last_err', float('nan'))):.2f}mm"
+            )
+        except Exception as exc:  # noqa: BLE001 - a bench probe must not stop the run
+            self._say(f"[wrist-depth] failed: {exc}")
+
     def _perceive_tick(self, depth, seg, labels) -> None:
         """One depth+mask measurement -> the tracker -> the goal.
 
@@ -5205,6 +5321,7 @@ class SortingRLEnv:
             try:
                 truth = np.asarray(self.spawner.position(sample), dtype=float)
                 err = float(np.linalg.norm(self._percept_pos - truth))
+                self._percept_last_err = err * 1e3
                 self._percept_errs.append(err)
                 if float(getattr(self, "_last_finger", 1.0)) < 0.030:
                     self._percept_errs_close.append(err)
