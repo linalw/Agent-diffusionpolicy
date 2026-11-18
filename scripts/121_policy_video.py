@@ -151,6 +151,14 @@ def main() -> int:
         default=os.environ.get("FRUIT_VIDEO_DIR", "logs/video_policy"),
         help="where the four mp4s, the manifest and video.json are written",
     )
+    parser.add_argument(
+        "--horizon",
+        type=int,
+        default=int(os.environ.get("FRUIT_VIDEO_HORIZON", "1500")),
+        help="episode tick budget (the reward horizon; 1500 = the shipped default, "
+             "2600 covers a full policy pick-and-place - P193's finding that 900 "
+             "truncated every grasp mid-carry)",
+    )
     parser.add_argument("--size-filter", choices=["", "small", "large"], default="")
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
@@ -180,7 +188,10 @@ def main() -> int:
         f"capture_every={stride} fps={fps:g} out={args.out_dir}"
     )
 
+    from fruit_sorting.rl_env import RewardConfig
+
     env = SortingRLEnv(
+        reward=RewardConfig(horizon=int(args.horizon)),
         presentation="direct",
         seed=int(args.seed),
         size_filter=args.size_filter or None,

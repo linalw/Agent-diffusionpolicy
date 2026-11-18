@@ -2208,6 +2208,13 @@ class SortingRLEnv:
         #: the attempt's end when it never asked) - the acquisition class's own
         #: instrument. Reporting only, default off.
         self._fire_diag = os.environ.get("FRUIT_FIRE_DIAG", "0").strip() == "1"
+        #: P202: `FRUIT_EPISODE_END=release` ends the episode on the release event
+        #: (the moment the score is taken under `FRUIT_SCORE_ENDPOINT=release`), so
+        #: the policy does not idle-and-twitch for the rest of the horizon.
+        #: Default `horizon` = the shipped behaviour.
+        self._episode_end_release = (
+            os.environ.get("FRUIT_EPISODE_END", "").strip().lower() == "release"
+        )
         self._close_force = float(os.environ.get("FRUIT_CLOSE_FORCE", "0") or 0.0)
         self._close_force_rate = float(
             os.environ.get("FRUIT_CLOSE_FORCE_RATE", "0.0001") or 0.0001
@@ -7713,12 +7720,30 @@ class SortingRLEnv:
         _fing = float(getattr(self, "_last_finger", 0.0))
         if _fing < 0.035:
             self._finger_was_closed = True
-        elif getattr(self, "_finger_was_closed", False) and not getattr(
-            self, "_scored_release", False
-        ):
+        elif (getattr(self, "_finger_was_closed", False)
+              and not getattr(self, "_scored_release", False)
+              # P202: the **payload must have been lifted**. The model's finger
+              # channel hovers at the action mean (0.0345, P145d.11) and crosses
+              # 0.035 at random - measured, with only the crossing as the test the
+              # "release" fired at t=292 (0.6 s) on three episodes out of three and
+              # `FRUIT_EPISODE_END=release` then ended them there. `_max_lift` is
+              # the same test `grasped` uses.
+              and float(getattr(self, "_max_lift", 0.0)) > 0.05):
             self._scored_release = True
             if bool(self.cfg.on_output_belt(pos)):
                 self._placed = True
+        if (self._episode_end_release
+                and float(getattr(self, "_place_open", 0.0)) >= 1.0):
+            # P202: **end the episode at the release** when the task is scored
+            # there. The measured defect this removes: after a completed place the
+            # episode ran to the horizon - 1192 ticks (9.9 s) in the P201 video -
+            # deciding with a stale goal and an empty hand, and its emitted joint
+            # jitter is **3.4x the median and 3.7x the p95** of the in-task value
+            # (|dtgt|/4 ticks: pre p50 0.0180 / p95 0.0595 rad against post 0.0620
+            # / 0.2200). That is the "it stops and twitches" a viewer sees. The
+            # shipped behaviour is the horizon (`FRUIT_EPISODE_END` unset).
+            self._finalize(notes=self._notes + ["release: task complete"])
+            return True
         if z < self.belt_top - 0.25:
             if getattr(sample, "parked", False) and os.environ.get(
                 "FRUIT_FALL_PARKED", "0"

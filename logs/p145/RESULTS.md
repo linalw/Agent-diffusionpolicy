@@ -2715,3 +2715,44 @@ at its measured rate), not another decision rule.
 **Where the lane closes this arc**: **39/60 = 65 %** pooled over the adopted-stack cells
 (7-9 seeds, a 4-8 of 8 per-seed spread), with **12/12 latched attempts placed**, and the
 acquisition's variance attributed to the estimator.
+
+## 71. The "it stops and twitches": 9.9 s of post-task idling, and the emission jitter triples there
+
+The owner's report from the video: occasional very distorted actions, and after a completed
+sort the arm stays put and twitches. Both are measured in the P201 clip's own log.
+
+**The idling.** The direct episode ends on the fruit (a despawn) or the horizon, not on the
+task. In the P201 clip episode 1's release is at **t = 1208** and the episode runs to
+**t = 2400** - **1192 ticks (9.9 s)** of deciding with an empty hand and a stale goal.
+
+**The twitch is that idling, in numbers.** The emitted joint targets' per-decision step
+(`|dtgt|` per printed 4 ticks, max over the seven joints):
+
+| window | p50 | p95 |
+|---|---|---|
+| before the release (in-task) | **0.0180 rad** | 0.0595 rad |
+| after the release (idle) | **0.0620 rad** | **0.2200 rad** |
+
+**3.4x the median and 3.7x the p95** - at p95 that is 0.22 rad in 4 ticks = 6.6 rad/s at a
+joint, which is exactly what a viewer calls twitching. And the *same* channel is the
+"distorted action" source in-task: its p95 there is 0.06-0.31 rad per decision, and P52/P53
+measured **10.9-11 % of emitted joint steps outside the arm's own limits** with **no clamp**
+on this path (`FRUIT_JOINT_CLAMP` default 0) - so a single out-of-distribution sample can
+command the arm into a stop and make it flail.
+
+**The two hygiene fixes, and the one that mis-fires.**
+`FRUIT_JOINT_CLAMP=1` is P53's C1: out-of-range 11 % -> **0**, **zero time cost**, and a
+null on the success class - safe hygiene, default off.
+`FRUIT_EPISODE_END=release` (end the episode on the release) **mis-fires twice and is not
+adopted**: with the P175 scoring's finger-crossing as the detector it ended three episodes
+at **t = 292** (0.6 s, `0/3`), and with `_max_lift > 0.05` added it read `0/3` again with one
+episode reporting **`placed=True, grasped=False`** - i.e. the finger channel, which hovers at
+the action mean (0.0345, P145d.11), is **not a release detector**, and a false positive in it
+poisons both the score and the episode boundary. The physical detectors are the place servo's
+own `at_place` + its 40-tick open ramp (both geometric), or the payload's measured clearance
+from the pads; neither is wired to the episode boundary yet.
+
+**Named next**: a **physical release event** (the place servo's `_place_open >= 1`, or the
+payload's drop) feeding *both* the score (P175) and the episode end - one detector, two
+consumers - which removes the twitch from every clip and closes the false-positive path in
+the score.
