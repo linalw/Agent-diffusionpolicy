@@ -114,7 +114,18 @@ way); the squeeze scale 0.90/0.92; the latch window 0.03/0.05; the close ramp 45
 
 ## 8. What is left: the acquisition's selection timing, throughput, a certificate
 
-**The acquisition is the residual, and it is a *late* selection, not a close or a servo.**
+**The acquisition is the residual, and it is the *estimator*, not a close, a servo or a
+selector.** A pre-registered floor cell (`FRUIT_DYNAMIC_SELECT_S` 1.5 -> 3.0 s, +0.18 m of
+selection lead, `logs/p200/PREREG.md`) **failed both of its endpoints** - placed 6/12 against
+8/12 and the upstream-at-latch fraction 5/11 against 7/12 - and under the larger floor the
+latch's true `dy` still spans **-853 .. +109 mm**, i.e. selecting earlier only makes the hand
+wait. The latch fires when the *goal* comes within 14 mm of the jaw, and the goal is the
+estimator's output, so a wrong or coasting lock moves the landing; every decision-side knob
+(the floor, the 50 mm gate, the upstream-only arming, the 0.2 s coast, the latch window, the
+gap window) does nothing or hurts. The next spend is the **estimator** (a second view, a
+tighter fit) or an honest acceptance of the lane at its measured rate.
+
+**The older reading, kept because it is what the census measured:**
 The `[fire]` census (one row per attempt at the committed ramp's latch) reads **12/12
 latched attempts placed** at seeds 808 and 303, with every failure a small fruit (3.1-3.4 cm)
 whose fruit was already level with or behind the hand when the attempt began - the servo

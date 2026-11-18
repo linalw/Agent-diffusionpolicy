@@ -2679,3 +2679,39 @@ latch window, the squeeze scale, the 45-tick ramp, the transit clearance, the st
 phase view, the short coast). The next spend is the **selector/supply timing** (P58's
 profile, the band, or a "don't offer a fruit already level with the hand" condition), which
 is a registration of its own.
+
+## 70. The selector's floor fails its pre-registered rule: selecting earlier does not make the latch land better
+
+P200's registration (`logs/p200/PREREG.md`, pinned before the runs) bet that the acquisition
+fails because the *selector* offers fruit too late for the model's approach, and that
+raising `FRUIT_DYNAMIC_SELECT_S` from 1.5 s (floor ~0.40 m) to 3.0 s (floor ~0.58 m) would
+put the fruit 0.18 m further upstream at selection. One batch, two seeds, 6 episodes each:
+
+| cell | placed | latched | **upstream-at-latch** | `dy` (true) at the latch |
+|---|---|---|---|---|
+| control 1.5 s, 808 | 3/6 | 6 | 4/6 | -240, -61, **19, 74, 106, 109** |
+| treat 3.0 s, 808 | 3/6 | 5 | **1/5** | **-853**, -92, -74, -62, 95 |
+| control 1.5 s, 303 | 5/6 | 6 | 3/6 | -103, -65, -57, **81, 93, 106** |
+| treat 3.0 s, 303 | 3/6 | 6 | 4/6 | **-405**, -29, 54, 66, 101, 101 |
+| **pooled** | **8/12 vs 6/12** | | **7/12 vs 5/11** | |
+
+**Both endpoints fall: the primary (6/12 against 8/12) and the mechanism (the
+upstream-at-latch fraction, 5/11 against 7/12).** Per its own rule the registration
+**FAILS** and the knob is **not adopted**.
+
+**Why, and it is the arc's conclusion**: under a floor 0.18 m larger the latch's true `dy`
+still spans **-853 .. +109 mm** - i.e. selecting earlier does not make the arming land
+better, it only makes the hand **wait** longer. The latch fires when the *goal* comes within
+14 mm of the jaw, and the goal is the estimator's output: its per-attempt error (a
+wrong/stale lock, up to the 1.0 s coast) is what moves the true `dy` about. Every
+*decision-side* knob - the floor (this cell), the alignment gate (50 mm), the upstream-only
+arming, the coast (0.2 s), the latch window (0.03/0.05), the gap window - either does nothing
+or hurts.
+
+So the acquisition's residual is **estimator-driven per-attempt noise**, and the next spend
+is the estimator itself (a second view, a tighter fit, or the honest acceptance of the lane
+at its measured rate), not another decision rule.
+
+**Where the lane closes this arc**: **39/60 = 65 %** pooled over the adopted-stack cells
+(7-9 seeds, a 4-8 of 8 per-seed spread), with **12/12 latched attempts placed**, and the
+acquisition's variance attributed to the estimator.
