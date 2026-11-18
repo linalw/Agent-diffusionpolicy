@@ -3035,3 +3035,20 @@ attempts cost 1700-1900 ticks against the learned 1100-1300 (~10-15 % on the bra
 `FRUIT_SMALL_HANDOVER` is default-off; the recipe setting is opt-in.
 **Pins.** `rl_env.py` **`bd1bf141`**, `scripts/280_p218_small_handover_selftest.py`
 **`24c8bfad`**, `selfcheck.sh` **`a9314fe9`**; evidence `logs/p218/`, `logs/p219/`.
+
+## 83. P220: the small-fruit handover is continuous-ready
+
+The continuous loop's `_finalize` starts the next pick; the question was whether the
+scripted skill's finalize does the same. **It does.** Lychee-only, one continuous episode,
+6 picks, seed 808, `FRUIT_SMALL_HANDOVER=1`: pick 1 fails, picks 2-6 place, every small
+attempt `decision=0` (the learned policy is not used). `[cont] episode 5: picks=6/6
+placed=5 ... ticks=10290 gap_ticks=76.0 gaps=[100,70,70,70,70]` - **5/6**, 15.3 s/pick,
+against the learned continuous P204's **2/6**. The `[cont] pick k/6` rows 2..6 prove the
+scripted finalize returns to the next pick.
+
+The mixed continuous run (seed 505) started pick 2/6 and **wedged** in the learned
+large-fruit post-close phase after 12+ min; the lychee-only all-scripted episode
+completes. The handover is not the cause; the learned large path is the known
+continuous-mode wedge (P145b). The mixed per-episode cell is 5/6 at seed 303 (P219).
+**The small-fruit handover is continuous-ready; the mixed continuous loop needs the
+timeout-guarded/chunked runner or the post-close fix before it is a stable demo.**

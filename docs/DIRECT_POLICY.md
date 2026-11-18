@@ -164,7 +164,10 @@ mixed seed-303 cell reads **5/6** (learned large 4/4 + scripted small 1/1; the o
 is the right-arm large class), against the learned control's 3/6 (C303) / 4/6 (R5); at
 seed 808 the hybrid is 4/6, equal to its control, and the small class is 2/2 (P219). It
 is a **hybrid**, not a learned small-fruit policy; the mixed count is a branch, the class
-mechanism is the result.
+mechanism is the result. **Continuous**: the handover's finalize returns to the next pick,
+so a lychee-only 6-pick continuous episode places **5/6** (`[cont] picks=6/6 placed=5`,
+10,290 ticks, 15.3 s/pick) against the learned continuous P204's 2/6; the mixed
+continuous run still wedges in the learned large-fruit post-close path (P220).
 
 ## 8. What is left: the acquisition's selection timing, throughput, a certificate
 

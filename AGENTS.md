@@ -1616,8 +1616,11 @@ is the bottleneck. **P218/P219** deliver the class fix: `FRUIT_SMALL_HANDOVER=1`
 <= 4 cm fruit to the scripted `task.run` skill (5/6 lychees; mixed seed 303 **5/6** with
 the learned large path 4/4 and the scripted small 1/1, against the learned control's
 3/6/4/6; seed 808 4/6, equal, small 2/2). It is a **hybrid**, not a learned small-fruit
-policy; the mixed count is a branch, the class is the result. New legs `271`-`280`;
-references `30fb99f8` / `30fb99f8` / `8952c320` stand.
+policy; the mixed count is a branch, the class is the result. **P220**: the handover is
+continuous-ready - a lychee-only 6-pick continuous episode places **5/6** (10,290 ticks,
+15.3 s/pick) against the learned continuous 2/6; the mixed continuous run still wedges in
+the learned large-fruit post-close path. New legs `271`-`280`; references `30fb99f8` /
+`30fb99f8` / `8952c320` stand.
 
 ## 2. Two constraints that decide how to measure
 
