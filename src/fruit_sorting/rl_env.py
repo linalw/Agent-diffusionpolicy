@@ -2215,6 +2215,15 @@ class SortingRLEnv:
         self._episode_end_release = (
             os.environ.get("FRUIT_EPISODE_END", "").strip().lower() == "release"
         )
+        #: P203: the `release` **score endpoint defines the attempt as finished at
+        #: the release** (the owner's semantics: after a place there is nothing
+        #: left to do with that fruit). The endpoint is opt-in, so the shipped
+        #: path is unchanged; `FRUIT_EPISODE_END=release` forces the boundary even
+        #: when the endpoint is `final`.
+        try:
+            self._endpoint_release = score_endpoint() == "release"
+        except Exception:  # noqa: BLE001
+            self._endpoint_release = False
         self._close_force = float(os.environ.get("FRUIT_CLOSE_FORCE", "0") or 0.0)
         self._close_force_rate = float(
             os.environ.get("FRUIT_CLOSE_FORCE_RATE", "0.0001") or 0.0001
@@ -7717,23 +7726,33 @@ class SortingRLEnv:
         # `final=(+63.0, 0.0, -50.0)`, the spawner's own park slot. The finger's
         # closed -> open transition is the release; one sticky flag, sampled from
         # the position this function already reads (no extra read).
-        _fing = float(getattr(self, "_last_finger", 0.0))
-        if _fing < 0.035:
-            self._finger_was_closed = True
-        elif (getattr(self, "_finger_was_closed", False)
-              and not getattr(self, "_scored_release", False)
-              # P202: the **payload must have been lifted**. The model's finger
-              # channel hovers at the action mean (0.0345, P145d.11) and crosses
-              # 0.035 at random - measured, with only the crossing as the test the
-              # "release" fired at t=292 (0.6 s) on three episodes out of three and
-              # `FRUIT_EPISODE_END=release` then ended them there. `_max_lift` is
-              # the same test `grasped` uses.
-              and float(getattr(self, "_max_lift", 0.0)) > 0.05):
-            self._scored_release = True
-            if bool(self.cfg.on_output_belt(pos)):
-                self._placed = True
-        if (self._episode_end_release
-                and float(getattr(self, "_place_open", 0.0)) >= 1.0):
+        # P203: the **physical release event** - one detector, two consumers (the
+        # score and the episode boundary). The finger *command* is not one: it
+        # hovers at the action mean (0.0345, P145d.11) and crosses 0.035 at random
+        # (measured: a "release" at t = 292 / 0.6 s on three episodes, and a
+        # `placed=True, grasped=False` false positive). The two physical tests:
+        #   * the place servo's own commit - `_place_open >= 1` means its 40-tick
+        #     open ramp finished at the destination it drove to; or
+        #   * the payload **left the hand**: it had been lifted (`_max_lift`) and
+        #     is now further from the jaw than any seat (0.25 m) with the fingers
+        #     open - the model's own place path.
+        if not getattr(self, "_scored_release", False):
+            _lifted = float(getattr(self, "_max_lift", 0.0)) > 0.05
+            _opened = float(getattr(self, "_place_open", 0.0)) >= 1.0
+            if _lifted and not _opened:
+                try:
+                    _far = float(np.linalg.norm(
+                        pos - np.asarray(self.task.arms[self._active].jaw_centre(),
+                                         dtype=float))) > 0.25
+                except Exception:  # noqa: BLE001
+                    _far = False
+                _opened = bool(_far and float(getattr(self, "_last_finger", 0.0)) > 0.035)
+            if _lifted and _opened:
+                self._scored_release = True
+                if bool(self.cfg.on_output_belt(pos)):
+                    self._placed = True
+        if (self._episode_end_release or getattr(self, "_endpoint_release", False)) \
+                and getattr(self, "_scored_release", False):
             # P202: **end the episode at the release** when the task is scored
             # there. The measured defect this removes: after a completed place the
             # episode ran to the horizon - 1192 ticks (9.9 s) in the P201 video -

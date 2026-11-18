@@ -2756,3 +2756,42 @@ from the pads; neither is wired to the episode boundary yet.
 payload's drop) feeding *both* the score (P175) and the episode end - one detector, two
 consumers - which removes the twitch from every clip and closes the false-positive path in
 the score.
+
+## 72. One sort = one episode: the physical release event ends the attempt, and the 9.9 s idle is gone
+
+The owner's semantics: after a place there is nothing left to do with that fruit, so the
+attempt is over. P202's two misfires had already shown what *not* to use as the detector
+(the model's finger command hovers at the action mean and crosses its thresholds at
+random). **The detector is now physical, and one detector feeds two consumers**:
+
+* **the place servo's own commit** - `_place_open >= 1` means its 40-tick open ramp finished
+  at the destination it drove to; or
+* **the payload left the hand** - it had been lifted (`_max_lift > 0.05`, the same test
+  `grasped` uses) and is now further from the jaw than any seat (0.25 m) with the fingers
+  open; that is the model's own place path.
+
+Both consumers read it: the **score** (`on_output_belt(pos)` at that moment, so
+`FRUIT_SCORE_ENDPOINT=release` no longer depends on a channel crossing) and the **episode
+boundary** (implied by the `release` endpoint, since that endpoint *defines* the attempt as
+finished; `FRUIT_EPISODE_END=release` forces it under the `final` endpoint too).
+
+**Measured, same seed (303) and the same recipe, one change**:
+
+| | episodes' `ticks` | outcome |
+|---|---|---|
+| before (P201 clip) | **2371 / 2402 / 506** | 2/3 |
+| **with the release boundary** | **1290 / 1316 / 957** | **3/3** |
+
+The 1192-tick (9.9 s) post-task idle is gone from every episode, and the clip is 30.6 s
+instead of 44.9 s. (The 2/3 -> 3/3 is a branch, not the boundary's doing - the boundary
+changes *when* the episode stops, not what it scored.)
+
+**The remaining visible defect is the in-task outlier, not the idle**: the emitted-joint
+step is p50 0.018-0.021 / p95 0.055-0.100 rad per decision, with one episode carrying a
+**0.275 rad** step - the "distorted action". `FRUIT_JOINT_CLAMP=1` (P53's C1, zero time
+cost) is in the clip's recipe as hygiene; a *rate* limit on the command is the named next
+(it changes the achieved rate, so it is its own cell).
+
+**No-harm**: the endpoint is opt-in, so the shipped default (`final`) keeps its success
+definition (`on_output_belt(final)`); the only change on that path is that the printed
+`placed=` now reflects the physical release instead of a channel crossing.
