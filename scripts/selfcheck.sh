@@ -318,6 +318,9 @@ run_check "P211 small select" "$python" scripts/274_p211_small_select_selftest.p
 # P212: the place transit's per-arm speed (FRUIT_PLACE_SERVO_VMAX_LEFT/RIGHT,
 # fallback to the global, one side selection, banner/manifest only when armed).
 run_check "P212 place vmax" "$python" scripts/275_p212_place_vmax_selftest.py
+# P213 probe: `FRUIT_WRIST_ANNOTATORS` is the wrist camera's own list, with the
+# head's P135 list as the default; the wrist cameras stay default-off.
+run_check "P213 wrist annotators" "$python" scripts/276_p213_wrist_annotators_selftest.py
 # P73: the `[carry]` row's **rotation schedule** (`tilt0=`, `tilt_end=`,
 # `tilt_max=`, `t45=`, `t75=`, `tilt_rate=`) - the instrument the place-leg
 # question needs, because the leg-end `[attitude]` tilt is saturated by the place

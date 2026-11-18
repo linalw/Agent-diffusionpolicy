@@ -181,3 +181,14 @@ for tracking, and a confirmation of the class split.
 the rigid body exactly as before; `_step_sim` carries one bool test for each of
 the two test instruments (the impulse and the belt wave). The no-harm gate is
 `scripts/accept.sh` with a byte-identical `[fruit]` stream.
+
+
+## P213 update - the two-camera blocker was the annotator
+
+P135's "authoring a second annotated camera takes the head's instance mask away" is
+narrowed: with `FRUIT_WRIST_ANNOTATORS=rgb,distance_to_image_plane` (no instance mask on
+the wrist) the head's `[percept]` counters are unchanged (ep0 18/300 both arms; ep1
+255/271 within the branch). The conflict is the second **instance_id_segmentation**
+render product, not the camera. The wrist RGB+depth is therefore available as a second
+sensor; the direct env does not read it yet (a goal-guided depth window is the next
+step). Evidence `logs/p213/`.

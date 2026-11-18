@@ -1119,11 +1119,19 @@ class SortingScene:
     def _add_wrist_cameras(self) -> None:
         """Two eye-in-hand RGB-D cameras, one per arm (P135, default off)."""
         cfg = self.cfg
+        # P213: the wrist annotator list is **its own** (`FRUIT_WRIST_ANNOTATORS`,
+        # default = the head's). P135's two-camera build failed because a second
+        # *instance_id_segmentation* annotator took the head's mask away; an
+        # RGB+depth wrist is the probe that separates the annotator conflict from
+        # the camera itself. Unset is the P135 list byte for byte.
         annotators = [
             a.strip()
             for a in os.environ.get(
-                "FRUIT_CAMERA_ANNOTATORS",
-                "rgb,distance_to_image_plane,instance_id_segmentation",
+                "FRUIT_WRIST_ANNOTATORS",
+                os.environ.get(
+                    "FRUIT_CAMERA_ANNOTATORS",
+                    "rgb,distance_to_image_plane,instance_id_segmentation",
+                ),
             ).split(",")
             if a.strip()
         ]

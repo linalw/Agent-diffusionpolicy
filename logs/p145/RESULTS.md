@@ -2933,3 +2933,18 @@ transit cannot be the cause. F1 and F3 fire; **not adopted**. The per-arm knob
 **Pins.** `rl_env.py` **`b7a2698a`**, `tasks.py` **`d1b18e2a`** (unchanged),
 `scripts/275_p212_place_vmax_selftest.py` **`409c56e6`**, `selfcheck.sh` **`82dda3df`**;
 evidence `logs/p212/{PREREG,RESULTS}.md`, `R020_s808`, `R015_s808`. No default flipped.
+
+## 77. P213 probe: the two-camera conflict is the second instance annotator, not the camera
+
+P135 left the second view blocked on a scene-pipeline fix ("mere authorship of a second
+annotated camera takes the head's instance mask away"). The probe authors the wrist pair
+with `FRUIT_WRIST_ANNOTATORS=rgb,distance_to_image_plane` and leaves the head's own
+instance mask. Two episodes, seed 808: the head's `[percept]` counters are **18/300 in
+episode 0 in both arms** and **255 vs 271 accepted in episode 1** (the branch's own
+timing), so the head mask survives. The conflict is the second
+`instance_id_segmentation` render product, not the camera. The direct env does not read
+the wrist sensor yet and there is no mask-free segmenter; the named next step is a
+goal-guided depth window (project the head estimate, fit the local depth patch) or a
+colour segmenter. No default change: `FRUIT_WRIST_ANNOTATORS` defaults to the head's list.
+**Pins.** `scene.py` **`a766b770`**, `scripts/276_p213_wrist_annotators_selftest.py`
+**`4bcabbbd`**, `selfcheck.sh` **`cd9e728d`**; evidence `logs/p213/`.
