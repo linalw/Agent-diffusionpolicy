@@ -303,6 +303,13 @@ run_check "P207 target rate" "$python" scripts/271_p207_target_rate_selftest.py
 # hand-back return in `_apply` before A2C2/tracking/joint shaping, the `act`
 # break, and that the P207 rate knob stays independent.
 run_check "P208 replan" "$python" scripts/272_p208_replan_selftest.py
+# P210: ACT-style temporal ensembling of overlapping chunks. P209 measured that
+# executing half a *stochastic* chunk doubles the boundary noise; the classical
+# remedy is to average the overlapping predictions. The leg pins the strict
+# alpha resolver, the alpha-0 identity, the alpha*new+(1-alpha)*prev arithmetic,
+# the shape/steps edges, and the env wiring (one resolver, per-attempt reset, the
+# blend before the rel anchor, the banner and the manifest block).
+run_check "P210 ensemble" "$python" scripts/273_p210_ensemble_selftest.py
 # P73: the `[carry]` row's **rotation schedule** (`tilt0=`, `tilt_end=`,
 # `tilt_max=`, `t45=`, `t75=`, `tilt_rate=`) - the instrument the place-leg
 # question needs, because the leg-end `[attitude]` tilt is saturated by the place

@@ -2858,3 +2858,33 @@ constructs `SortingRLEnv`, so it is an import guard, as P203's release boundary 
 **`978a311c`**; evidence `logs/p207/{PREREG.md,RESULTS.md,analyze.py,run_p207.sh}` and the
 cells `C_s303`, `R2_s303`, `R4_s303`, `C_s808`, `R4_s808`, `R4P_s808`, `R5_s303`,
 `R5_s808`; clip `logs/video_p207/`.
+
+## 74. P209/P210: the chunk-length lane is closed - execute half is negative, and ensembling only rescues it
+
+The action-chunk literature's "predict long, execute about half" does **not** transfer to
+this policy unchanged, because each chunk is a fresh DDIM sample. Seed 808, 6 episodes,
+P207 R5 recipe, the only difference `--execute-steps` and (for the third arm)
+`FRUIT_POLICY_ENSEMBLE=0.5`:
+
+| arm | placed | emitted p95 / max | >0.10 | residual p95 / max | binding |
+|---|---|---|---|---|---|
+| E4 (execute 4) | **4/6** | **0.101 / 0.182** | **5.2 %** | **0.110 / 0.626** | 25.2 % |
+| E2 (execute 2) | 2/6 | 0.182 / 0.182 | 15.5 % | 0.409 / 2.021 | 45.4 % |
+| E2T (execute 2 + TE 0.5) | **4/6** | 0.122 / 0.182 | 6.5 % | 0.153 / 1.533 | 24.7 % |
+
+**P209** measured the negative: doubling the re-plan rate doubles the chunk boundaries,
+and every boundary is a new stochastic sample, so the emitted p95 rises 0.101 -> 0.182
+and the cap binds 45 % instead of 25 %. **P210** implemented ACT-style temporal
+ensembling (`ensemble_action_chunk`: the new chunk's first `steps` waypoints and the
+previous chunk's unexecuted `prev[steps:]` are averaged; `FRUIT_POLICY_ENSEMBLE=alpha`,
+default 0). It recovers the count (2/6 -> 4/6) and the residual (0.409 -> 0.153), but it
+does **not** beat execute 4: the full chunk is already coherent, and the extra 15 Hz
+decisions cost the tail (0.122 against 0.101) and wall. **F3 fires: keep E4.** The
+chunk-length lane is closed; the remaining success residual is the small-fruit/right-arm
+class, not the execution horizon.
+
+**Pins (P209/P210).** `rl_env.py` **`8ec7c03e`**,
+`scripts/273_p210_ensemble_selftest.py` **`b30c3660`**, `selfcheck.sh`
+**`2b88c0d2`**; evidence `logs/p209/{PREREG,RESULTS}.md` + the E4/E2 cells, and
+`logs/p210/{PREREG,RESULTS}.md` + the E2T cell. No default flipped, no reference
+re-recorded; the P207 R5 recipe stands.

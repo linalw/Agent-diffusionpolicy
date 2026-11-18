@@ -134,9 +134,12 @@ view (crop pre-close, wide after: the place error rose 48.4 -> 68.7 mm); the 900
 horizon; the station offset (demos say y = -0.10 for the right, the env 0.00: 0/6 either
 way); the squeeze scale 0.90/0.92; the latch window 0.03/0.05; the close ramp 45 ticks
 (a wash, and worse for the left); the transit clearance 0.20 m (0/8); the transit speed
-0.15 and 0.25 (8/16, 7/16 against 14/16); and the **pad width 78 mm** (4/8 against the
+0.15 and 0.25 (8/16, 7/16 against 14/16); the **pad width 78 mm** (4/8 against the
 61 mm control's 5/8) - the second negative hardware item after the pad *shapes* of
-`logs/p132/`.
+`logs/p132/`; **executing half the chunk** (`--execute-steps 2`: 2/6 against 4/6, p95
+0.182 against 0.101); and **execute-2 + temporal ensembling 0.5** (4/6, but p95 0.122
+against 0.101 and equal count - it rescues E2, it does not beat E4). The full 4-waypoint
+chunk is the ship.
 
 ## 8. What is left: the acquisition's selection timing, throughput, a certificate
 

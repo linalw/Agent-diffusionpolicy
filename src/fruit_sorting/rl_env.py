@@ -1315,6 +1315,61 @@ def rate_limit_target(prev, request, rate: float, dt: float = 1.0 / 120.0):
     return base + np.clip(req - base, -limit, limit)
 
 
+def resolve_ensemble_alpha(raw: str | None) -> float:
+    """P210: ``FRUIT_POLICY_ENSEMBLE`` -> the new chunk's weight in the overlap.
+
+    ``0``/unset is the shipped path: the chunk is executed as sampled. A value in
+    ``(0, 1]`` blends the new chunk's overlapping waypoints with the previous
+    chunk's remaining ones (ACT-style temporal ensembling), so a stochastic
+    re-plan does not replace the old prediction at every boundary. Strict, so a
+    typo cannot read as the shipped path.
+    """
+    text = "" if raw is None else str(raw).strip()
+    if not text:
+        return 0.0
+    try:
+        value = float(text)
+    except ValueError:
+        raise ValueError(
+            f"FRUIT_POLICY_ENSEMBLE={raw!r} is not a number"
+        ) from None
+    if not math.isfinite(value) or value < 0.0 or value > 1.0:
+        raise ValueError(
+            f"FRUIT_POLICY_ENSEMBLE={raw!r} must be in [0, 1] "
+            "(0 = the shipped un-averaged chunk)"
+        )
+    return value
+
+
+def ensemble_action_chunk(prev, new, steps: int, alpha: float):
+    """P210: average the overlapping part of two consecutive chunks.
+
+    The first ``steps`` waypoints of ``new`` describe the same future control
+    steps as ``prev[steps:steps+overlap]`` (the part of the previous chunk that
+    was **not** executed). The output keeps ``new`` outside the overlap and uses
+    ``alpha * new + (1-alpha) * prev`` inside it. Pure arithmetic, no simulator
+    read; ``alpha <= 0``, ``prev is None`` or a shape mismatch returns ``new``
+    unchanged (the shipped path).
+    """
+    new_arr = np.asarray(new, dtype=np.float64)
+    if alpha <= 0.0 or prev is None:
+        return new_arr
+    prev_arr = np.asarray(prev, dtype=np.float64)
+    if prev_arr.shape != new_arr.shape:
+        return new_arr
+    horizon = int(new_arr.shape[0])
+    steps = int(steps)
+    overlap = min(steps, horizon - steps)
+    if overlap <= 0:
+        return new_arr
+    out = new_arr.copy()
+    out[:overlap] = (
+        float(alpha) * new_arr[:overlap]
+        + (1.0 - float(alpha)) * prev_arr[steps:steps + overlap]
+    )
+    return out
+
+
 def clamp_joint_targets(action: np.ndarray, lo, hi) -> np.ndarray:
     """P53 C1: the 9-D action with its 7 arm targets inside ``[lo, hi]``.
 
@@ -3064,6 +3119,33 @@ class SortingRLEnv:
             os.environ.get("FRUIT_POLICY_TARGET_RATE")
         )
         self._rate_prev: dict[str, np.ndarray] = {}
+        #: P210: ACT-style temporal ensembling of overlapping chunks. `0` is the
+        #: shipped path; the measured cell uses `0.5` with `--execute-steps 2`.
+        self._ensemble_alpha = resolve_ensemble_alpha(
+            os.environ.get("FRUIT_POLICY_ENSEMBLE")
+        )
+        self._ensemble_prev: np.ndarray | None = None
+        if self._ensemble_alpha > 0.0 and presentation != "direct":
+            raise ValueError(
+                "FRUIT_POLICY_ENSEMBLE is only defined for presentation='direct', "
+                f"got {presentation!r}"
+            )
+        if self._ensemble_alpha > 0.0 and self.execute_steps >= self.action_horizon:
+            raise ValueError(
+                "FRUIT_POLICY_ENSEMBLE needs execute_steps < action_horizon to "
+                f"have an overlap (got execute_steps={self.execute_steps}, "
+                f"action_horizon={self.action_horizon})"
+            )
+        if self._ensemble_alpha > 0.0 and (
+            self._action_jaw or getattr(self, "_hybrid_action", False)
+            or self._dq_action or self._rel_action or self._posvel_action
+            or float(getattr(self, "_ff_ticks", 0.0)) > 0.0
+        ):
+            raise ValueError(
+                "FRUIT_POLICY_ENSEMBLE operates on plain absolute 7-D joint "
+                "chunks; the cartesian/hybrid, dq, rel, posvel and feed-forward "
+                "forms are not composed with it"
+            )
         #: P208: when a servo hands the hand back (the contact window closes, or
         #: the place servo declines), the policy chunk that was generated *before*
         #: the servo is stale by the whole servo displacement. Measured on
@@ -3078,6 +3160,7 @@ class SortingRLEnv:
         self._servo_contact_active = False
         self._servo_place_active = False
         self._servo_handback = False
+        self._ensemble_prev = None
         #: P208: the hand-back can land between two 4-tick observation phases.
         #: `sample_chunk` observes on `_step % 4 == 0`; this forces one on the
         #: next chunk so the re-plan is conditioned on the post-servo state, not
@@ -3343,6 +3426,13 @@ class SortingRLEnv:
                 f"execute_steps={self.execute_steps} "
                 f"horizon={self.action_horizon}"
             )
+        if self._ensemble_alpha > 0.0:
+            say(
+                f"[rl] ensemble: alpha={self._ensemble_alpha:.2f} "
+                f"execute_steps={self.execute_steps} "
+                f"action_horizon={self.action_horizon} "
+                f"overlap={min(self.execute_steps, self.action_horizon - self.execute_steps)}"
+            )
         if self._joint_clamp or self._action_hold > 1 or self._target_rate > 0.0:
             # P53: the emission cells' own banner - the resolved knobs plus the
             # joint ranges the clamp actually uses (read from the arm, so the
@@ -3559,6 +3649,19 @@ class SortingRLEnv:
                 }
                 if (self._joint_clamp or self._action_hold > 1
                     or self._target_rate > 0.0)
+                else None
+            ),
+            "ensemble": (
+                {
+                    "alpha": float(self._ensemble_alpha),
+                    "execute_steps": int(self.execute_steps),
+                    "action_horizon": int(self.action_horizon),
+                    "overlap": int(
+                        min(self.execute_steps,
+                            self.action_horizon - self.execute_steps)
+                    ),
+                }
+                if self._ensemble_alpha > 0.0
                 else None
             ),
             "a2c2": (
@@ -6481,6 +6584,17 @@ class SortingRLEnv:
         ``execute_steps``; the argument is then the reference/default only.
         """
         steps = self.execute_steps if execute_steps is None else max(1, int(execute_steps))
+        if self._ensemble_alpha > 0.0 and chunk is not None:
+            _raw_chunk = np.asarray(chunk, dtype=np.float64)
+            if steps >= _raw_chunk.shape[0]:
+                raise ValueError(
+                    "FRUIT_POLICY_ENSEMBLE needs execute_steps < the chunk's "
+                    f"horizon (got {steps} against {_raw_chunk.shape[0]})"
+                )
+            chunk = ensemble_action_chunk(
+                self._ensemble_prev, _raw_chunk, steps, self._ensemble_alpha
+            )
+            self._ensemble_prev = _raw_chunk.copy()
         if self._rel_action and chunk is not None:
             # the chunk's own first frame is the anchor; the measured joints at
             # the chunk's start are the base the offsets are applied to

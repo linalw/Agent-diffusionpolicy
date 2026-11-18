@@ -1589,7 +1589,12 @@ fresh observation; the residual p95 falls 1.289 -> 0.344 rad but the count is 3/
 instrumentation defect that matters for every earlier clip**: the recipes exported
 `FRUIT_JOINT_CLAMP=1`, but the canonical knob is `FRUIT_POLICY_JOINT_CLAMP`; the short
 spelling was silently inert, so P202/P204 ran **unclamped**. It is now a direct-only
-alias. New legs `271`/`272`; references `30fb99f8` / `30fb99f8` / `8952c320` stand.
+alias. **P209/P210 closed the chunk-length lane**: executing 2 of the 4 waypoints is
+negative on a stochastic policy (2/6 against 4/6, p95 0.182 against 0.101, residual 0.409
+against 0.110), and ACT-style temporal ensembling 0.5 rescues it (4/6, residual 0.153)
+but does not beat the full chunk (p95 0.122 against 0.101, equal count). The full chunk is
+the ship. New legs `271`/`272`/`273`; references `30fb99f8` / `30fb99f8` / `8952c320`
+stand.
 
 ## 2. Two constraints that decide how to measure
 
