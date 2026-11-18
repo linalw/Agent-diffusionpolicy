@@ -37,10 +37,36 @@ FRUIT_PLACE_SERVO=1
 FRUIT_PLACE_SERVO_VMAX=0.20            # the transit's reference speed (a measured peak)
 FRUIT_FINGER_MAXFORCE_DIRECT=60        # the real-jaw clamp spec
 FRUIT_SCORE_ENDPOINT=release           # score the place where the payload is released
+FRUIT_POLICY_JOINT_CLAMP=1             # clip the 7 targets into the arm's own limits
+FRUIT_POLICY_TARGET_RATE=5.45          # rad/s: the arm's own 312 deg/s joint limit
 ```
 
 Every knob is opt-in; **no shipped default was flipped**, `configs/` is untouched and the
 motion references (`30fb99f8 / 30fb99f8 / 8952c320`) were never re-recorded.
+
+### 2b. Smoothness: the command tail is capped at the arm's own joint speed
+
+The visible "weird pose" was a single emitted waypoint step of **0.66-2.63 rad** in the
+control cells (p95 0.136-0.198 rad per 4 ticks), which the arm physically cannot follow.
+P207 adds `FRUIT_POLICY_TARGET_RATE` (rad/s, default 0 = untouched): the emitted 7-joint
+target is ramped from its last value at no more than `rate/120` per control tick, with the
+state per arm re-seeded from the measured joints at every attempt and after a servo. At
+**5.45 rad/s** - the arm's own `maxJointVelocity` - the pooled count is **7/12 against the
+control's 7/12**, the emitted p95 falls 0.198 -> 0.181 / 0.136 -> 0.093 and the **max falls
+2.633 -> 0.182 / 0.660 -> 0.182 rad**; the cap binds only 16-24 % of waypoints (the
+requests above the physical joint speed). R4 (4.0 rad/s) smooths harder but is a measured
+speed limit on some branches (count 6/12), and R2 (2.0 rad/s) binds 76.6 % and is measured
+out.
+
+The second half is a **state bug** the cap exposed: after a servo the policy chunk
+generated before it is stale by the servo's displacement (measured 1.75 rad), so the arm
+is sent back to its pre-place pose. `FRUIT_REPLAN_ON_SERVO_END=1` drops the remaining
+chunk, forces one fresh observation and re-plans. It is smoothness-only: the residual p95
+falls 1.289 -> 0.344 rad but the count is 3/6 against 4/6 on a different branch, so it is
+not in the ship recipe. **The instrumentation defect matters for every earlier clip**:
+they exported `FRUIT_JOINT_CLAMP=1`, but the canonical name is
+`FRUIT_POLICY_JOINT_CLAMP`; the short spelling is now a direct-only alias, and the P202/
+P204 clips therefore ran **unclamped** (corrected in their READMEs).
 
 ## 3. The numbers
 

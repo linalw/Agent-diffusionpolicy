@@ -1,0 +1,23 @@
+#!/bin/bash
+# P202: the same video with (a) the episode ending at the release and (b) the
+# emitted joints clamped into the arm's own limits (P53's C1: out-of-range 11 % -> 0,
+# zero time cost, a null on the class) - the two hygiene fixes for the "twitch" and
+# the "distorted action" a viewer sees.
+set -u
+cd "$(dirname "$0")/.."
+export FRUIT_IMAGE_FOVEA=64 FRUIT_DIRECT_START_ALIGN=family FRUIT_SKILL_LIFT_RAMP=1
+export FRUIT_CLOSE_RAMP_DY=0.014 FRUIT_POLICY_PHASE=perception
+export FRUIT_POLICY_PHASE_PATH=checkpoints/p146_phase/phase.pt FRUIT_CLOSE_RAMP=1
+export FRUIT_CLOSE_RAMP_TRIGGER=phase FRUIT_OBS_CMD=1 FRUIT_DIRECT_START=wait
+export FRUIT_GOAL_SOURCE=perception FRUIT_POLICY_HANDOVER=0 FRUIT_POLICY_ACTION_HOLD=4
+export FRUIT_POLICY_TRACE=1 FRUIT_CAMERA_RES=240,424 FRUIT_HANDOVER_DIAG=1
+export FRUIT_CONTACT_SERVO=1 FRUIT_CONTACT_SERVO_LEAD=0.10
+export FRUIT_CONTACT_SERVO_LEAD_RIGHT=0.20 FRUIT_PLACE_SERVO=1
+export FRUIT_PLACE_SERVO_VMAX=0.20 FRUIT_SCORE_ENDPOINT=release
+export FRUIT_FINGER_MAXFORCE_DIRECT=60 FRUIT_EPISODE_END=release FRUIT_POLICY_JOINT_CLAMP=1 FRUIT_POLICY_TARGET_RATE=5.45
+export SKIP_SELFCHECK=1
+rm -rf logs/video_p202
+scripts/run.sh scripts/121_policy_video.py --ckpt checkpoints/p177_full/policy_best.pt \
+  --episodes 3 --seed 303 --execute-steps 4 --horizon 2600 \
+  --out-dir logs/video_p202 > logs/p202_video.log 2>&1
+echo "done video202"

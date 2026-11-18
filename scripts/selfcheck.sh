@@ -291,6 +291,18 @@ run_check "P132 serrated face" "$python" scripts/267_p132_serr_selftest.py
 run_check "P135 tracker" "$python" scripts/268_p135_track_selftest.py
 run_check "P141 observation aux" "$python" scripts/269_p141_obs_aux_selftest.py
 run_check "P142 endpoint + handover" "$python" scripts/270_p142_endpoint_selftest.py
+# P207: the emitted joint target's rate cap (`FRUIT_POLICY_TARGET_RATE` rad/s,
+# default 0 = the shipped untouched target). The leg pins the strict resolver,
+# the rate-0 identity (element for element, signed zeros, a new float64 array),
+# the one-tick bound, the 0.275 rad step's tick count, and the source shape: one
+# resolver, the per-attempt measured re-seed, one call site in `_apply` before the
+# joint drive write, the servo hand-back, and the banner/manifest.
+run_check "P207 target rate" "$python" scripts/271_p207_target_rate_selftest.py
+# P208: a servo hand-back drops the stale policy chunk. The source-shape leg pins
+# the default-off direct-only knob, the per-attempt ownership flags, the
+# hand-back return in `_apply` before A2C2/tracking/joint shaping, the `act`
+# break, and that the P207 rate knob stays independent.
+run_check "P208 replan" "$python" scripts/272_p208_replan_selftest.py
 # P73: the `[carry]` row's **rotation schedule** (`tilt0=`, `tilt_end=`,
 # `tilt_max=`, `t45=`, `t75=`, `tilt_rate=`) - the instrument the place-leg
 # question needs, because the leg-end `[attitude]` tilt is saturated by the place

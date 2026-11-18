@@ -1251,6 +1251,70 @@ def resolve_action_hold(raw: str | None) -> int:
     return value
 
 
+def resolve_target_rate(raw: str | None) -> float:
+    """P207: ``FRUIT_POLICY_TARGET_RATE`` -> the emitted joint target's rate cap.
+
+    Units are **radians per second of commanded joint travel**, the same unit a
+    drive's velocity limit uses. ``0``/unset is the shipped path: the policy's
+    7 absolute joint targets reach `set_dof_position_targets` untouched.
+
+    The measured defect this is for (`logs/p202_video.log`, `logs/p204_video.log`):
+    the emitted target's per-waypoint step is p50 0.018-0.021 rad but its p95 is
+    0.055-0.19 and its **maximum 0.275-3.37 rad**, while the arm only achieves a
+    p95 of 0.27-1.98 rad/s. A target step that large is a command transient no
+    servo can follow smoothly; the arm's visible response is the "weird pose".
+    A rate cap spreads the step over successive ticks, so the drive sees a ramp
+    rather than a step. It is not a filter: a request inside the cap is emitted
+    unchanged, so the slow trajectory the demonstrations teach is not delayed.
+
+    Strict parsing (the C1/C2 precedent): a non-number, a negative, or a
+    non-finite value is a hard error - a typo must not read as the shipped path
+    and be published as a null result. ``0`` is the explicit off token.
+    """
+    text = "" if raw is None else str(raw).strip()
+    if not text:
+        return 0.0
+    try:
+        value = float(text)
+    except ValueError:
+        raise ValueError(
+            f"FRUIT_POLICY_TARGET_RATE={raw!r} is not a number"
+        ) from None
+    if not math.isfinite(value):
+        raise ValueError(
+            f"FRUIT_POLICY_TARGET_RATE={raw!r} must be finite"
+        )
+    if value < 0.0:
+        raise ValueError(
+            f"FRUIT_POLICY_TARGET_RATE={raw!r} must be >= 0 rad/s "
+            "(0 is the shipped uncapped path)"
+        )
+    return value
+
+
+def rate_limit_target(prev, request, rate: float, dt: float = 1.0 / 120.0):
+    """P207: one step of a per-joint rate limiter (rad/s), pure arithmetic.
+
+    ``rate <= 0`` returns ``request`` **unchanged** - the shipped path, element
+    for element, so an unarmed run is not "the same arithmetic". With a positive
+    rate each joint moves from ``prev`` toward ``request`` by at most
+    ``rate * dt``, and a request already inside that ball is emitted exactly.
+    The return is a new float64 array; neither argument is written.
+    """
+    req = np.asarray(request, dtype=np.float64)
+    if rate <= 0.0:
+        return req
+    if prev is None:
+        return req
+    base = np.asarray(prev, dtype=np.float64)
+    if base.shape != req.shape:
+        raise ValueError(
+            f"rate_limit_target: shape mismatch {base.shape} against {req.shape}"
+        )
+    limit = float(rate) * float(dt)
+    return base + np.clip(req - base, -limit, limit)
+
+
 def clamp_joint_targets(action: np.ndarray, lo, hi) -> np.ndarray:
     """P53 C1: the 9-D action with its 7 arm targets inside ``[lo, hi]``.
 
@@ -2977,16 +3041,78 @@ class SortingRLEnv:
         # NOT copied here: `_apply` reads the arm's own `arm_lo`/`arm_hi`
         # (`control.py:197-202`, one `get_dof_limits()` read at construction),
         # so the clip uses the drive's own limits on the arm it commands.
-        self._joint_clamp = resolve_joint_clamp(
-            os.environ.get("FRUIT_POLICY_JOINT_CLAMP")
-        )
+        #: P53's documented name is `FRUIT_POLICY_JOINT_CLAMP`; every recipe in
+        #: the record (and the P202/P204 clips) wrote `FRUIT_JOINT_CLAMP`, so the
+        #: shorter spelling was silently inert. It is now an alias: the canonical
+        #: name wins when both are set, and an explicit short spelling is honoured
+        #: (including `=0`). The canonical read stays the one `229` pins.
+        _joint_clamp_raw = os.environ.get("FRUIT_POLICY_JOINT_CLAMP")
+        if _joint_clamp_raw is None and presentation == "direct":
+            # The short spelling is honoured only where the knob is defined; on
+            # another presentation it stays the inert string it always was,
+            # instead of turning every wrapper that exports it into an abort.
+            _joint_clamp_raw = os.environ.get("FRUIT_JOINT_CLAMP")
+        self._joint_clamp = resolve_joint_clamp(_joint_clamp_raw)
         self._action_hold = resolve_action_hold(
             os.environ.get("FRUIT_POLICY_ACTION_HOLD")
         )
-        if (self._joint_clamp or self._action_hold > 1) and presentation != "direct":
+        #: P207: the emitted target's rate cap (rad/s, 0 = off). The command is
+        #: ramped at this speed instead of stepping; the state is per arm and is
+        #: re-seeded from the measured joints at every attempt (and after a servo
+        #: owns the hand), so it cannot integrate a stale pre-servo pose.
+        self._target_rate = resolve_target_rate(
+            os.environ.get("FRUIT_POLICY_TARGET_RATE")
+        )
+        self._rate_prev: dict[str, np.ndarray] = {}
+        #: P208: when a servo hands the hand back (the contact window closes, or
+        #: the place servo declines), the policy chunk that was generated *before*
+        #: the servo is stale by the whole servo displacement. Measured on
+        #: `logs/p207/C_s303.log` t=996: the command j1 -1.066 against measured
+        #: +0.684 (1.75 rad) - the arm is sent back to its pre-place pose. The
+        #: rate cap smooths that into a ~1 s sweep but cannot remove it. With this
+        #: on, the hand-back drops the remaining chunk and lets `act` re-plan from
+        #: a fresh observation; the applied target is not written on that tick.
+        self._replan_on_servo_end = (
+            os.environ.get("FRUIT_REPLAN_ON_SERVO_END", "0").strip() == "1"
+        )
+        self._servo_contact_active = False
+        self._servo_place_active = False
+        self._servo_handback = False
+        #: P208: the hand-back can land between two 4-tick observation phases.
+        #: `sample_chunk` observes on `_step % 4 == 0`; this forces one on the
+        #: next chunk so the re-plan is conditioned on the post-servo state, not
+        #: the pre-servo frame that generated the stale chunk.
+        self._force_observe = False
+        if self._replan_on_servo_end and presentation != "direct":
             raise ValueError(
-                "FRUIT_POLICY_JOINT_CLAMP / FRUIT_POLICY_ACTION_HOLD are only "
-                f"defined for presentation='direct', got {presentation!r}"
+                "FRUIT_REPLAN_ON_SERVO_END is only defined for "
+                f"presentation='direct', got {presentation!r}"
+            )
+        if (self._joint_clamp or self._action_hold > 1 or self._target_rate > 0.0) \
+                and presentation != "direct":
+            raise ValueError(
+                "FRUIT_POLICY_JOINT_CLAMP / FRUIT_POLICY_ACTION_HOLD / "
+                "FRUIT_POLICY_TARGET_RATE are only defined for "
+                f"presentation='direct', got {presentation!r}"
+            )
+        if self._target_rate > 0.0 and (
+            self._action_jaw or getattr(self, "_hybrid_action", False)
+            or self._dq_action or self._rel_action or self._posvel_action
+            or float(getattr(self, "_ff_ticks", 0.0)) > 0.0
+        ):
+            raise ValueError(
+                "FRUIT_POLICY_TARGET_RATE operates on the plain absolute 7-D "
+                "joint action; the cartesian/hybrid, dq, rel, posvel and "
+                "feed-forward action forms write or lead their own targets and "
+                "must not be composed with it"
+            )
+        if self._target_rate > 0.0 and os.environ.get(
+            "FRUIT_CLOSE_RAMP_SEAT", "0"
+        ) == "1":
+            raise ValueError(
+                "FRUIT_POLICY_TARGET_RATE must not be composed with the "
+                "FRUIT_CLOSE_RAMP_SEAT commit (a one-shot IK that is meant to "
+                "arrive inside the ramp window)"
             )
         if self._action_hold > 1:
             if self.rtc_settings.enabled:
@@ -3217,19 +3343,26 @@ class SortingRLEnv:
                 f"execute_steps={self.execute_steps} "
                 f"horizon={self.action_horizon}"
             )
-        if self._joint_clamp or self._action_hold > 1:
+        if self._joint_clamp or self._action_hold > 1 or self._target_rate > 0.0:
             # P53: the emission cells' own banner - the resolved knobs plus the
             # joint ranges the clamp actually uses (read from the arm, so the
             # log proves which limits were applied rather than which were
-            # intended).
+            # intended). P207 adds the target rate only when it is armed, so a
+            # clamp/hold-only log keeps its P53 row byte for byte.
             right = self.task.arms["right"]
             ranges = " ".join(
                 f"j{i + 1}[{float(lo):+.3f},{float(hi):+.3f}]"
                 for i, (lo, hi) in enumerate(zip(right.arm_lo, right.arm_hi))
             )
+            rate = (
+                f"target_rate={self._target_rate:.3f}rad/s "
+                if self._target_rate > 0.0
+                else ""
+            )
             say(
                 f"[rl] emit: joint_clamp={int(self._joint_clamp)} "
                 f"action_hold={self._action_hold} "
+                f"{rate}"
                 f"execute_steps={self.execute_steps} "
                 f"ticks_per_decision={self.execute_steps * self._action_hold} "
                 f"hz={120.0 / self._action_hold:.1f} range(right)={ranges}"
@@ -3418,8 +3551,14 @@ class SortingRLEnv:
                     "ticks_per_decision": int(
                         self.execute_steps * self._action_hold
                     ),
+                    **(
+                        {"target_rate": float(self._target_rate)}
+                        if self._target_rate > 0.0
+                        else {}
+                    ),
                 }
-                if (self._joint_clamp or self._action_hold > 1)
+                if (self._joint_clamp or self._action_hold > 1
+                    or self._target_rate > 0.0)
                 else None
             ),
             "a2c2": (
@@ -4268,6 +4407,16 @@ class SortingRLEnv:
             except Exception:  # noqa: BLE001 - the fixed wait pose is the fallback
                 pass
         self.advance(self._reset_settle)
+        if self._target_rate > 0.0:
+            # P207: the rate limiter's own state is per arm and per attempt. Seed
+            # it from the **measured** joints after the start pose has settled, so
+            # the first policy target ramps from where the arm actually is (a
+            # stale previous attempt's command would make it lead the measured
+            # pose by an unbounded amount).
+            self._rate_prev = {
+                name: np.asarray(a.joint_positions(), dtype=np.float64)
+                for name, a in self.task.arms.items()
+            }
         self._close_t0 = None
         self._servo_on = False
         self._servo_last_aim = None
@@ -4280,6 +4429,9 @@ class SortingRLEnv:
         self._fire_logged = False
         self._force_closed_gap = None
         self._close_grip_finger = None
+        self._servo_contact_active = False
+        self._servo_place_active = False
+        self._servo_handback = False
         self._seat_q = None
         self._last_phase = None
         self._dq_index = None
@@ -5677,8 +5829,9 @@ class SortingRLEnv:
         """
         if self._done:
             return None
-        if self._step % 4 == 0:
+        if self._step % 4 == 0 or getattr(self, "_force_observe", False):
             self._observe()
+            self._force_observe = False
         if self.ablate == "zero":
             return np.zeros((self.action_horizon, self.action_dim), dtype=np.float32)
         if self.policy is None or not self.policy.ready:
@@ -6414,7 +6567,14 @@ class SortingRLEnv:
                 action = self._dagger_action(action)
             if action is not None:
                 self._apply(action, index)
-                if self._done or self._pick_boundary:
+                if (self._done or self._pick_boundary
+                        or (self._replan_on_servo_end
+                            and self._servo_handback)):
+                    # P208: a servo hand-back discards the remaining chunk. The
+                    # next `act` observes the state the servo left and plans from
+                    # it, instead of playing a pre-servo pose.
+                    self._servo_handback = False
+                    self._force_observe = True
                     executed = index + 1
                     break
                 self._record_tick()
@@ -6565,11 +6725,38 @@ class SortingRLEnv:
             self._notes.append("non-finite policy action")
             return
         arm = self.task.arms[self._active]
-        if self._contact_servo and self._apply_contact_servo(arm, action):
-            return
+        if self._contact_servo:
+            if self._apply_contact_servo(arm, action):
+                self._servo_contact_active = True
+                # P207: a servo owns the hand for this tick; its target is not
+                # the policy's emitted reference, so the rate limiter must re-seed
+                # from the measured joints when the policy takes the hand back.
+                self._rate_prev.pop(self._active, None)
+                return
+            if self._servo_contact_active:
+                self._servo_contact_active = False
+                if self._replan_on_servo_end:
+                    self._servo_handback = True
+                    self._say(
+                        f"[replan] t={self._step} arm={self._active} source=contact"
+                    )
         if (self._place_servo and self._close_t0 is not None
-                and int(self._step) - int(self._close_t0) > int(self._servo_ticks)
-                and self._apply_place_servo(arm, action)):
+                and int(self._step) - int(self._close_t0) > int(self._servo_ticks)):
+            if self._apply_place_servo(arm, action):
+                self._servo_place_active = True
+                self._rate_prev.pop(self._active, None)
+                return
+            if self._servo_place_active:
+                self._servo_place_active = False
+                if self._replan_on_servo_end:
+                    self._servo_handback = True
+                    self._say(
+                        f"[replan] t={self._step} arm={self._active} source=place"
+                    )
+        if self._servo_handback:
+            # P208: do not write the stale chunk's target; `act` breaks out and
+            # re-plans from the next observation. The servo's own last target
+            # stays on the drives for this tick.
             return
         if self._a2c2 is not None and not self._triggered and not self._action_jaw:
             # A2C2-style per-step correction on the frozen base policy, before
@@ -6680,6 +6867,21 @@ class SortingRLEnv:
                 else:
                     target7 = np.asarray(getattr(self, "_dq_target", action[:7]), dtype=float)
                 self._dq_target = target7
+            _req7 = np.asarray(target7, dtype=np.float64)
+            if self._target_rate > 0.0:
+                # P207: ramp the reference at <= rate rad/s (120 Hz control).
+                # `_rate_prev` is the last *emitted* target for this arm, so the
+                # emitted command is continuous in time; a request already inside
+                # the cap is emitted unchanged (no phase lag on the slow path).
+                _prev = self._rate_prev.get(self._active)
+                if _prev is None:
+                    _prev = np.asarray(arm.joint_positions(), dtype=np.float64)
+                target7 = rate_limit_target(
+                    _prev, _req7, float(self._target_rate), 1.0 / 120.0
+                )
+                self._rate_prev[self._active] = np.asarray(
+                    target7, dtype=np.float64
+                ).copy()
             self.scene.robot.set_dof_position_targets(
                 [np.asarray(target7, dtype=float).tolist()], dof_indices=list(arm.arm_dofs)
             )
@@ -6704,9 +6906,14 @@ class SortingRLEnv:
                         np.argmin(np.minimum(_meas - _lo, _hi - _meas))
                         if len(_idx) else 0
                     )
+                    _req = (
+                        f" req={np.array2string(_req7, precision=3, suppress_small=True)} "
+                        if self._target_rate > 0.0 else ""
+                    )
                     self._say(
                         f"[cmd] t={self._step} "
-                        f"tgt={np.array2string(np.asarray(action[:7], dtype=float), precision=3, suppress_small=True)} "
+                        f"tgt={np.array2string(np.asarray(target7, dtype=float), precision=3, suppress_small=True)} "
+                        f"{_req}"
                         f"meas={np.array2string(_meas, precision=3, suppress_small=True)} "
                         f"marg={_marg:+.3f}@j{_worst + 1}"
                     )

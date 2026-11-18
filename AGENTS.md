@@ -1574,6 +1574,23 @@ attempts/arm). Gates on the final tree: `selfcheck.sh` **PASS (0 failures, 1 ski
 `moe_v13s` `61da390a`, adopted `checkpoints/p177_full`. Evidence `logs/p145/` sections
 51-64, `docs/DIRECT_POLICY.md`.
 
+**P207/P208 (2026-11-18, `logs/p207/`; recipe settings only, no default flip): the
+direct policy's visible "weird pose" is a single emitted waypoint step of 0.66-2.63 rad
+(p95 0.136-0.198), which the arm cannot follow. `FRUIT_POLICY_TARGET_RATE=5.45` (rad/s,
+default 0) ramps the emitted 7-joint target at the arm's own `maxJointVelocity`; pooled
+over seeds 303/808 (6 episodes each) it is **7/12 placed against the control's 7/12**,
+the emitted max **2.633 -> 0.182** / **0.660 -> 0.182 rad**, p95 **0.198 -> 0.181** /
+**0.136 -> 0.093**, and it binds only 16-24 % of waypoints. R4 (4.0) smooths harder but
+is a speed limit on some branches (6/12); R2 (2.0) binds 76.6 % and is out. The cap
+exposed a **state bug**: after a servo the chunk generated before it is stale by the
+servo's displacement (1.75 rad), so `FRUIT_REPLAN_ON_SERVO_END=1` drops it and forces one
+fresh observation; the residual p95 falls 1.289 -> 0.344 rad but the count is 3/6 against
+4/6 on a different branch, so it is **smoothness-only, not in the ship recipe**. **The
+instrumentation defect that matters for every earlier clip**: the recipes exported
+`FRUIT_JOINT_CLAMP=1`, but the canonical knob is `FRUIT_POLICY_JOINT_CLAMP`; the short
+spelling was silently inert, so P202/P204 ran **unclamped**. It is now a direct-only
+alias. New legs `271`/`272`; references `30fb99f8` / `30fb99f8` / `8952c320` stand.
+
 ## 2. Two constraints that decide how to measure
 
 **The outcome is quantized; do not compare success rates across configurations.**

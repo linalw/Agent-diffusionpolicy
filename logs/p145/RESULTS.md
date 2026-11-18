@@ -2795,3 +2795,66 @@ cost) is in the clip's recipe as hygiene; a *rate* limit on the command is the n
 **No-harm**: the endpoint is opt-in, so the shipped default (`final`) keeps its success
 definition (`on_output_belt(final)`); the only change on that path is that the printed
 `placed=` now reflects the physical release instead of a channel crossing.
+
+**Correction (P207)**: the `FRUIT_JOINT_CLAMP=1` named above is P53's canonical
+`FRUIT_POLICY_JOINT_CLAMP`; the short spelling was silently inert, so this clip ran
+**unclamped**. P207 adds the short name as a direct-only alias and records the correction
+in the clip README.
+
+## 73. P207/P208: the command tail is capped at the arm's joint speed, and the clamp knob that was never on
+
+The owner's second report on the video was the occasional **distorted pose**. P202 had
+removed the post-sort idle; this phase is the in-task command. The instrument is the
+`[cmd]` row (`FRUIT_POLICY_TRACE=1`, one row per 4-tick waypoint). In the control cells the
+**per-waypoint target step (max over the seven joints)** is p50 0.021-0.028 rad, p95
+0.136-0.198, and **max 0.660-2.633 rad** - a step the arm cannot follow (its own joint
+limit is 5.45 rad/s = 0.182 rad per 4 ticks). That outlier is the visible pose.
+
+**The cap.** `FRUIT_POLICY_TARGET_RATE=<rad/s>` (default 0 = untouched) ramps each joint
+from the last emitted target by at most `rate/120` per control tick; the state is per arm
+and re-seeded from the measured joints at every attempt and after a servo. A request
+inside the cap is emitted exactly, so it is not a filter. At **5.45 rad/s** (the arm's own
+`maxJointVelocity`, 312 deg/s): pooled seeds 303/808 (6 episodes each) **7/12 placed
+against the control's 7/12**, emitted **max 2.633 -> 0.182 / 0.660 -> 0.182 rad**, p95
+**0.198 -> 0.181 / 0.136 -> 0.093**, binding only **16-24 %** of waypoints. R4 (4.0) is a
+stronger smoother but a speed limit on some branches (6/12); R2 (2.0) binds **76.6 %** and
+is measured out. The count is a branch draw (see below), but the mechanism is exact.
+
+**The clamp that was never on.** Every recipe (including the P202/P204 clips) exported
+`FRUIT_JOINT_CLAMP=1`, but P53's canonical knob is **`FRUIT_POLICY_JOINT_CLAMP`**. The
+short spelling was silently inert, so those clips ran **unclamped**. P207 makes it a
+direct-only alias (the canonical name wins when both are set; a non-direct wrapper stays
+inert instead of aborting). The C cells here are the first direct cells with the clamp
+actually on: `[emit]` out_pre 4.9 % -> out_post 0.0 % on the episode that had overshoot.
+
+**The state bug the cap exposed.** At `logs/p207/C_s303.log` t=996, after the place servo
+declined, the chunk generated *before* the servo commands j1 -1.066 against measured
++0.684 (1.75 rad) - the arm is sent back to its pre-place pose. The cap smooths that into
+a ~1 s sweep but cannot remove it. `FRUIT_REPLAN_ON_SERVO_END=1` drops the remaining chunk,
+forces one fresh observation (the hand-back can land between 4-tick observation phases) and
+re-plans: residual p95 **1.289 -> 0.344 rad**, achieved step p95 0.091 -> 0.049, but the
+count is 3/6 against 4/6 on a different branch and the residual max *rises* to 2.431 (a
+new request after the replan, not a stale one). **Smoothness-only; not in the ship recipe.**
+
+**The counts are branch draws, stated so they are not overread.** Same seed does not
+select the same fruit after the first attempt: the attempt's duration changes which fruit
+is at the station. At seed 303 C and R4 both start with the same failing orange; C's next
+is a kiwi, R4's a 3.1 cm strawberry. At seed 808 the first 3.1 cm lychee fails in every
+arm and the later sequences diverge. The 6-episode counts are reports; the pooled 12 is
+the only count quoted.
+
+**The clip.** `p207_smooth_4of6_s303/` (4/6, 56.6 s) is the same line with the cap and the
+real clamp: emitted p95 **0.046 rad**, max **0.182**, > 0.10 rad **1.7 %**, cap binding
+12.1 %. It is in the media index beside the earlier clips.
+
+**Gates**: `selfcheck.sh` **PASS (0 failures, 1 skipped)** with the new `271`/`272` legs;
+`accept.sh` **7/10 + `fingerprint: matches` + `190: PASS`** (the scripted line never
+constructs `SortingRLEnv`, so it is an import guard, as P203's release boundary was);
+`106` OK, `107` PASS (21 checks). References **`30fb99f8` / `30fb99f8` / `8952c320`** and
+`configs/` untouched. No default was flipped; the recipe settings are opt-in.
+
+**Pins.** `rl_env.py` **`906021c1`**, `scripts/271_p207_target_rate_selftest.py`
+**`a4e2bfae`**, `scripts/272_p208_replan_selftest.py` **`41b87613`**, `selfcheck.sh`
+**`978a311c`**; evidence `logs/p207/{PREREG.md,RESULTS.md,analyze.py,run_p207.sh}` and the
+cells `C_s303`, `R2_s303`, `R4_s303`, `C_s808`, `R4_s808`, `R4P_s808`, `R5_s303`,
+`R5_s808`; clip `logs/video_p207/`.

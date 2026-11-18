@@ -287,7 +287,8 @@ def test_wiring() -> None:
 
     # the constructor's guards
     ok("the scope guard refuses every other presentation",
-       "are only \"\n                f\"defined for presentation='direct'" in text)
+       "FRUIT_POLICY_TARGET_RATE are only " in text
+       and "presentation='direct', got {presentation!r}" in text)
     ok("RTC is refused", "the action hold needs a chunk from `act`" in text)
     ok("the time-scale is refused as a composition",
        "are opposite re-parameterisations of the same chunk" in text)
