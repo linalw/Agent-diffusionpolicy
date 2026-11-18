@@ -112,7 +112,22 @@ way); the squeeze scale 0.90/0.92; the latch window 0.03/0.05; the close ramp 45
 61 mm control's 5/8) - the second negative hardware item after the pad *shapes* of
 `logs/p132/`.
 
-## 8. What is left, and it is hardware or throughput
+## 8. What is left: the acquisition's selection timing, throughput, a certificate
+
+**The acquisition is the residual, and it is a *late* selection, not a close or a servo.**
+The `[fire]` census (one row per attempt at the committed ramp's latch) reads **12/12
+latched attempts placed** at seeds 808 and 303, with every failure a small fruit (3.1-3.4 cm)
+whose fruit was already level with or behind the hand when the attempt began - the servo
+then chased it downstream for its whole window (`aim y -0.242 -> -0.562` at the belt's own
+speed, jaw 500 mm behind, `hold` 536 mm) and never latched. The successful latches happen
+with the **true** fruit **84-144 mm upstream**, because the goal (`predict_at`, coast 1.0 s)
+**leads** it - the intercept the latch needs. Shortening that coast is negative (0.2 s reads
+3/8 and 2/8 against 6/8 and 6/8), as are the upstream-only arming (9/16 against 12/16), the
+50 mm alignment gate (3/8, 4/8) and the force-triggered close (a wash, with the pinch never
+reaching its target). So the remaining lever is the **selector/supply timing** - do not
+offer a fruit that is already level with the hand - which is a registration of its own.
+
+## 8b. Also open: hardware or throughput
 
 * **The right arm (48 %)**. Six software candidates and the pad width are ruled out. The
   two remaining directions are the ones `docs/END_EFFECTOR_DECISION.md` names: a **new pad

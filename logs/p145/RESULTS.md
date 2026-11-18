@@ -2647,3 +2647,35 @@ the successes latch with the fruit 84-144 mm upstream, so the ramp's condition s
 expressed in the **fruit's** frame (or the goal's lead compensated) rather than the
 estimator's. That is a registration of its own; the three cells above say widening and
 chasing both lose.
+
+## 69. The goal's coast is load-bearing: the acquisition's timing device is the estimator's lead
+
+P68 showed the successful latches happen with the **true** fruit 84-144 mm upstream while
+the ramp latches on `goal - jaw <= 14 mm`, and the goal is `predict_at(age)` capped by
+`FRUIT_PERCEPTION_COAST_S` (1.0 s = 120 mm of travel). The obvious reading was "the goal
+leads by the coast, so shorten it". Measured, on the same two seeds (8 episodes each):
+
+| coast | seed 808 | seed 303 | `dy` (true fruit - jaw) at the latch |
+|---|---|---|---|
+| **1.0 s (shipped)** | **6/8** | **6/8** | +84 .. +144 (P194's twelve) |
+| 0.2 s | **3/8** | **2/8** | **-848 .. +96** |
+
+So the long coast is **load-bearing**, and the reason is now unambiguous: it makes the goal
+**lead** the fruit, which is exactly the *intercept* the latch needs - the pads start
+closing while the fruit is still 8-14 cm away and arrive as it does. A tight goal makes the
+latch fire on stale measurements at random times (the `dy` range to **-0.85 m**) and the
+placements collapse.
+
+**Not adopted**; the shipped 1.0 s stands. (And `[fire]`'s range is the proof that the
+latch is *not* gated on the fruit: it is gated on the estimator, by design.)
+
+**What that leaves.** The acquisition's window on this interface is "**the goal ahead of the
+fruit by ~0.1 m**", and the failures are the attempts whose fruit is already at or behind
+the hand when the attempt begins - a **selection-timing** condition, not a close, servo,
+perception or geometry one. Every knob in those four families has now been measured on this
+lane (adopted: the clamp, the per-arm lead, the transit speed; refused: the pad width, the
+closure depth and the force-triggered close, the 50 mm gate, the upstream-only arming, the
+latch window, the squeeze scale, the 45-tick ramp, the transit clearance, the station, the
+phase view, the short coast). The next spend is the **selector/supply timing** (P58's
+profile, the band, or a "don't offer a fruit already level with the hand" condition), which
+is a registration of its own.
