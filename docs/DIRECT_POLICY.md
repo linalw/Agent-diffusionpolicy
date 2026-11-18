@@ -141,8 +141,10 @@ way); the squeeze scale 0.90/0.92; the latch window 0.03/0.05; the close ramp 45
 against 0.101 and equal count - it rescues E2, it does not beat E4); and the
 **size-conditioned small-fruit selector floor** (`FRUIT_SELECT_SMALL_EXTRA`: 5/6 at seed
 808 but 3/6 at 303 with 0.15, 3/6 with 0.25; the small fruit admitted at +0.673 still
-fails, so the class is not selection timing). The full 4-waypoint chunk is the ship, and
-the small-fruit residual is the hardware/perception class.
+fails, so the class is not selection timing); and the **right-only place transit speed**
+(0.15: 2/6 against 0.20's 2/6, with `hold=` already 115-120 mm before the place, so the
+slip is in the lift/carry, not the transit). The full 4-waypoint chunk is the ship, and
+the small-fruit/right-arm residual is the hardware/perception class.
 
 ## 8. What is left: the acquisition's selection timing, throughput, a certificate
 

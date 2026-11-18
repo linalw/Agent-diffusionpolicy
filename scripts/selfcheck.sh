@@ -315,6 +315,9 @@ run_check "P210 ensemble" "$python" scripts/273_p210_ensemble_selftest.py
 # gate and the per-candidate filter, the diag row's same floor, the manifest
 # block, and the TASKS_MD5 pin against the file on disk.
 run_check "P211 small select" "$python" scripts/274_p211_small_select_selftest.py
+# P212: the place transit's per-arm speed (FRUIT_PLACE_SERVO_VMAX_LEFT/RIGHT,
+# fallback to the global, one side selection, banner/manifest only when armed).
+run_check "P212 place vmax" "$python" scripts/275_p212_place_vmax_selftest.py
 # P73: the `[carry]` row's **rotation schedule** (`tilt0=`, `tilt_end=`,
 # `tilt_max=`, `t45=`, `t75=`, `tilt_rate=`) - the instrument the place-leg
 # question needs, because the leg-end `[attitude]` tilt is saturated by the place

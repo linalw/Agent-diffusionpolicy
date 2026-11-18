@@ -2919,3 +2919,17 @@ tree was `8ec7c03e`), `scripts/274_p211_small_select_selftest.py` **`56f12c8e`**
 `selfcheck.sh` **`a3d85726`**; evidence
 `logs/p211/{PREREG,RESULTS}.md` and the S/S25 cells. No default flipped, no reference
 moved.
+
+## 76. P212: the right arm's place transit speed is not the lever
+
+A B-heavy pool (`A:0.10,B:0.80,C:0.10`) makes almost every episode the right arm; seed
+808, 6 episodes per arm, only `FRUIT_PLACE_SERVO_VMAX_RIGHT` differs. **Control 0.20 2/6,
+treatment 0.15 2/6**; the slower transit doubles the `[pservo]` rows (428 -> 887) and the
+`hold=` (the payload's distance from the jaw) is already **115-120 mm** in both arms
+before the place point. The payload is out of the pinch in the lift/carry, so the place
+transit cannot be the cause. F1 and F3 fire; **not adopted**. The per-arm knob
+(`FRUIT_PLACE_SERVO_VMAX_LEFT/RIGHT`, default-inert) stays as a measurement capability.
+
+**Pins.** `rl_env.py` **`b7a2698a`**, `tasks.py` **`d1b18e2a`** (unchanged),
+`scripts/275_p212_place_vmax_selftest.py` **`409c56e6`**, `selfcheck.sh` **`82dda3df`**;
+evidence `logs/p212/{PREREG,RESULTS}.md`, `R020_s808`, `R015_s808`. No default flipped.

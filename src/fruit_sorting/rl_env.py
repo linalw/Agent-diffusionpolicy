@@ -2281,6 +2281,18 @@ class SortingRLEnv:
         #: aim, i.e. the IK's own clip). The measured motive: a soft fruit's hold
         #: grows 72 -> 96 mm inside the ~300-tick transit at 60 N.
         self._place_vmax = float(os.environ.get("FRUIT_PLACE_SERVO_VMAX", "0") or 0.0)
+        #: P212: the place transit's speed is **per arm**. The adopted 0.20 m/s
+        #: is a global measured peak (P173: 0.15 -> 8/16, 0.20 -> 14/16, 0.25 ->
+        #: 7/16), but the two arms' paths and failure classes differ (right ~48 %,
+        #: left ~70 %). An arm that places a payload through a longer transit can
+        #: be slowed without touching the other arm; unset falls back to the
+        #: global value, so every shipped run is unchanged.
+        self._place_vmax_left = float(
+            os.environ.get("FRUIT_PLACE_SERVO_VMAX_LEFT", "") or self._place_vmax
+        )
+        self._place_vmax_right = float(
+            os.environ.get("FRUIT_PLACE_SERVO_VMAX_RIGHT", "") or self._place_vmax
+        )
         #: P184: the transit's clearance above the belt top [m] (0.30 shipped).
         self._place_lift = float(os.environ.get("FRUIT_PLACE_SERVO_LIFT", "0.30") or 0.30)
         #: P176: the **real-jaw clamp-force spec** on this interface
@@ -3426,6 +3438,13 @@ class SortingRLEnv:
                 f"execute_steps={self.execute_steps} "
                 f"horizon={self.action_horizon}"
             )
+        if (self._place_vmax_left != self._place_vmax
+                or self._place_vmax_right != self._place_vmax):
+            say(
+                f"[rl] place servo: vmax={self._place_vmax:.3f} "
+                f"left={self._place_vmax_left:.3f} "
+                f"right={self._place_vmax_right:.3f} m/s"
+            )
         if self._ensemble_alpha > 0.0:
             say(
                 f"[rl] ensemble: alpha={self._ensemble_alpha:.2f} "
@@ -3660,6 +3679,16 @@ class SortingRLEnv:
                 }
                 if float(os.environ.get(
                     "FRUIT_SELECT_SMALL_EXTRA", "0") or 0.0) > 0.0
+                else None
+            ),
+            "place_servo": (
+                {
+                    "vmax": float(self._place_vmax),
+                    "vmax_left": float(self._place_vmax_left),
+                    "vmax_right": float(self._place_vmax_right),
+                }
+                if (self._place_vmax_left != self._place_vmax
+                    or self._place_vmax_right != self._place_vmax)
                 else None
             ),
             "ensemble": (
@@ -5412,7 +5441,10 @@ class SortingRLEnv:
                 aim = np.array([place[0], place[1], lift_z])
             else:
                 aim = np.array([place[0], place[1], down_z])
-        if self._place_vmax > 0.0:
+        _place_vmax = (
+            self._place_vmax_right if side == "right" else self._place_vmax_left
+        )
+        if _place_vmax > 0.0:
             # P184: the **transit's own speed limit**. The direct aim lets the
             # position-only IK step at its own clip, which carries the payload
             # through the ~0.6 m move in ~300 ticks (0.24 m/s at the jaw) - and a
@@ -5422,7 +5454,7 @@ class SortingRLEnv:
             _prev = getattr(self, "_place_aim", None)
             if _prev is None:
                 _prev = np.asarray(jaw, dtype=float)
-            _step = float(self._place_vmax) * (1.0 / 120.0)
+            _step = float(_place_vmax) * (1.0 / 120.0)
             _d = aim - np.asarray(_prev, dtype=float)
             _n = float(np.linalg.norm(_d))
             aim = (np.asarray(_prev, dtype=float) + _d * (_step / _n)) if _n > _step else aim
