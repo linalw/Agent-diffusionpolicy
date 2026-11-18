@@ -1,0 +1,763 @@
+[run.sh] soft nofile=1048576 -> /home/ubuntu/linalw/App/isaacsim/_build/linux-x86_64/release/python.sh scripts/110_rl_rollout.py --ckpt checkpoints/p177_full/policy_best.pt --presentation direct --episodes 6 --seeds 808 --out datasets/rl_rollouts/p219_MIX_s808 --execute-steps 4 --ddim 16 --horizon 2600
+Warning: running in conda env, please deactivate before executing this script
+WARNING: All log messages before absl::InitializeLog() is called are written to STDERR
+E0000 00:00:1795016332.216393 3858625 descriptor_database.cc:633] File already exists in database: grpc/health/v1/health.proto
+W0000 00:00:1795016332.216427 3858625 message.cc:301] Protobuf GeneratedMessageFactory: File is already registered: grpc/health/v1/health.proto
+2026-11-18T15:38:51Z [Info] [carb] Logging to file: /home/ubuntu/.cache/packman/chk/kit-kernel/110.1.2+production.manylinux_2_35_x86_64.release/logs/Kit/Isaac-Sim Python/6.0/kit_20261118_233851.log
+[0.085s] [ext: omni.assets.plugins-0.0.0] startup
+[0.086s] [ext: omni.blobkey-1.1.2] startup
+[0.087s] [ext: omni.kit.async_engine-0.0.3] startup
+[0.750s] [ext: omni.client.lib-1.1.1] startup
+[0.760s] [ext: omni.client-1.3.0] startup
+[0.763s] [ext: omni.protobuf.lib-1.0.0] startup
+[0.763s] [ext: omni.grpc.lib-1.0.0] startup
+[0.767s] [ext: omni.metrics.core-0.0.3] startup
+[0.767s] [ext: omni.datastore-0.0.0] startup
+[0.768s] [ext: omni.gpu_foundation.shadercache.vulkan-1.0.0] startup
+[0.772s] [ext: omni.hsscclient-1.1.4] startup
+[0.772s] [ext: omni.stats-1.0.1] startup
+[0.773s] [ext: omni.ujitso.default-1.0.0] startup
+[0.949s] [ext: omni.gpu_foundation-0.0.0] startup
+[1.159s] [ext: carb.windowing.plugins-1.0.1] startup
+[1.159s] [ext: omni.kit.renderer.init-1.0.1] startup
+
+|---------------------------------------------------------------------------------------------|
+| Driver Version: 580.105.08    | Graphics API: Vulkan
+|=============================================================================================|
+| GPU | Name                             | Active | LDA | GPU Memory | Vendor-ID | LUID       |
+|     |                                  |        |     |            | Device-ID | UUID       |
+|     |                                  |        |     |            | Bus-ID    |            |
+|---------------------------------------------------------------------------------------------|
+| 0   | NVIDIA GeForce RTX 5090          | Yes: 0 |     | 32853   MB | 10de      | 0          |
+|     |                                  |        |     |            | 2b85      | 493bfb57.. |
+|     |                                  |        |     |            | 1         |            |
+|=============================================================================================|
+| OS: 22.04.5 LTS (Jammy Jellyfish) ubuntu, Version: 22.04.5, Kernel: 6.8.0-138-generic
+| XServer Vendor: The X.Org Foundation, XServer Version: 12101004 (1.21.1.4)
+| Processor: Intel(R) Core(TM) i9-14900KF
+| Cores: 24 | Logical Cores: 32
+|---------------------------------------------------------------------------------------------|
+| Total Memory (MB): 128641 | Free Memory: 59708
+| Total Page/Swap (MB): 2047 | Free Page/Swap: 1
+|---------------------------------------------------------------------------------------------|
+2026-11-18T15:38:53Z [1,889ms] [Warning] [omni.rtx] CPU performance profile is set to powersave. This profile sets the CPU to the lowest frequency reducing performance.
+2026-11-18T15:38:53Z [1,903ms] [Warning] [omni.rtx] IOMMU is enabled.
+[2.134s] [ext: omni.kit.pipapi-0.0.0] startup
+[2.135s] [ext: omni.kit.pip_archive-0.0.0] startup
+[2.135s] [ext: isaacsim.pip.newton-0.6.1] startup
+[2.135s] [ext: omni.pip.compute-1.9.2] startup
+[2.136s] [ext: omni.isaac.core_archive-5.3.1] startup
+[2.136s] [ext: omni.kit.telemetry-0.5.2] startup
+[2.175s] [ext: omni.kit.loop-isaac-1.6.0] startup
+[2.177s] [ext: omni.kit.test-2.0.7] startup
+[2.246s] [ext: omni.materialx.libs-1.0.9] startup
+[2.253s] [ext: omni.gpucompute.plugins-0.0.0] startup
+[2.254s] [ext: omni.usd.config-1.0.7] startup
+[2.258s] [ext: omni.usd.libs-1.0.3] startup
+[2.333s] [ext: omni.iray.libs-0.0.1] startup
+[2.338s] [ext: omni.mdl-57.0.3] startup
+[2.420s] [ext: omni.mdl.neuraylib-0.2.20] startup
+[2.422s] [ext: omni.kit.usd.mdl-1.1.9] startup
+[2.529s] [ext: omni.appwindow-1.2.2] startup
+[2.531s] [ext: omni.kit.renderer.core-1.2.2] startup
+[2.579s] [ext: omni.kit.renderer.capture-2.0.1] startup
+[2.581s] [ext: omni.kit.renderer.imgui-2.0.6] startup
+[2.645s] [ext: omni.ui-3.2.0] startup
+[2.655s] [ext: omni.kit.mainwindow-1.0.3] startup
+[2.656s] [ext: carb.audio-0.1.0] startup
+[2.659s] [ext: omni.uiaudio-1.0.0] startup
+[2.660s] [ext: omni.kit.uiapp-0.0.0] startup
+[2.660s] [ext: omni.usd.schema.metrics.assembler-110.1.0] startup
+[2.662s] [ext: omni.usd.schema.audio-0.0.1] startup
+[2.665s] [ext: omni.usd_resolver-1.0.0] startup
+[2.669s] [ext: omni.usd.core-1.8.3] startup
+[2.672s] [ext: omni.metropolis.schema-0.0.3] startup
+[2.672s] [ext: isaacsim.anim.robot.schema-0.1.1] startup
+[2.673s] [ext: omni.usd.schema.anim-0.0.1] startup
+[2.693s] [ext: omni.usd.schema.geospatial-0.0.1] startup
+[2.696s] [ext: omni.usd.schema.omnigraph-1.0.1] startup
+[2.701s] [ext: omni.usd.schema.semantics-0.0.0] startup
+[2.704s] [ext: omni.activity.core-1.0.3] startup
+[2.705s] [ext: omni.cubric-0.1.0] startup
+[2.705s] [ext: omni.graph.exec-0.9.6] startup
+[2.705s] [ext: omni.hydra.scene_delegate-0.3.5] startup
+[2.708s] [ext: usdrt.scenegraph-7.6.3] startup
+[2.735s] [ext: omni.hydra.usdrt_delegate-7.5.2] startup
+[2.741s] [ext: omni.inspect-1.0.2] startup
+[2.742s] [ext: omni.kit.actions.core-1.0.0] startup
+[2.744s] [ext: omni.kit.audiodeviceenum-1.0.2] startup
+[2.745s] [ext: omni.kit.commands-1.5.0] startup
+[2.748s] [ext: omni.kit.exec.core-0.13.5] startup
+[2.750s] [ext: omni.kit.usd_undo-0.1.8] startup
+[2.750s] [ext: omni.kit.window.popup_dialog-2.0.25] startup
+[2.754s] [ext: omni.kit.widget.nucleus_connector-2.3.1] startup
+[2.757s] [ext: omni.timeline-1.1.0] startup
+[2.759s] [ext: omni.usd-1.16.0] startup
+[2.799s] [ext: omni.graph.core-3.1.2] startup
+[2.801s] [ext: omni.kit.notification_manager-1.0.11] startup
+[2.803s] [ext: isaacsim.core.deprecation_manager-0.4.2] startup
+[2.803s] [ext: isaacsim.replicator.agent.schema-0.1.1] startup
+[2.804s] [ext: isaacsim.robot.schema-6.3.7] startup
+[2.808s] [ext: isaacsim.robot_motion.schema-0.2.1] startup
+[2.809s] [ext: omni.anim.behavior.schema-110.1.0] startup
+[2.813s] [ext: omni.anim.graph.schema-110.1.1] startup
+[2.819s] [ext: omni.anim.navigation.schema-110.1.0] startup
+[2.822s] [ext: omni.behavior.tree.schema-110.1.0] startup
+[2.823s] [ext: omni.isaac.ml_archive-3.3.0] startup
+[2.823s] [ext: omni.kit.asset_converter-6.0.1] startup
+[2.838s] [ext: omni.pip.cloud-1.5.4] startup
+[2.842s] [ext: omni.usd.schema.flow-110.0.0] startup
+[2.843s] [ext: omni.usd.schema.mujoco-1.1.1] startup
+[2.844s] [ext: omni.usd.schema.newton-1.2.1] startup
+[2.845s] [ext: omni.usd.schema.omni_lens_distortion-1.0.0] startup
+[2.845s] [ext: omni.usd.schema.omni_projectors-1.0.0] startup
+[2.846s] [ext: omni.usd.schema.omni_sensors-0.0.0] startup
+[2.860s] [ext: omni.usd.schema.omniscripting-1.0.1] startup
+[2.867s] [ext: omni.usd.schema.physical_lighting-0.1.0] startup
+[2.874s] [ext: omni.usd.schema.physx-110.1.13] startup
+[2.929s] [ext: omni.usd.schema.render_settings.rtx-1.0.2] startup
+[2.936s] [ext: omni.usd.schema.usd_particle_field-1.0.0] startup
+[2.936s] [ext: isaacsim.core.version-2.1.1] startup
+[2.937s] [ext: omni.kit.menu.core-1.2.0] startup
+[2.938s] [ext: omni.kit.menu.utils-2.2.4] startup
+[2.949s] [ext: isaacsim.app.about-2.3.1] startup
+[2.957s] [ext: isaacsim.asset.transformer-1.2.5] startup
+[2.962s] [ext: omni.scene.optimizer.core-110.1.0] startup
+[3.031s] [ext: isaacsim.asset.importer.utils-1.8.1] startup
+[3.035s] [ext: omni.convexdecomposition-110.1.13] startup
+[3.039s] [ext: omni.physics-110.1.13] startup
+[3.045s] [ext: omni.physx.gpu-110.1.13] startup
+[3.045s] [ext: omni.physx.foundation-110.1.13] startup
+[3.048s] [ext: omni.usdphysics-110.1.13] startup
+[3.051s] [ext: omni.physx.cooking-110.1.13] startup
+[3.054s] [ext: omni.physx-110.1.13] startup
+[3.067s] [ext: omni.physics.physx-110.1.13] startup
+[3.069s] [ext: isaacsim.asset.exporter.urdf-2.0.5] startup
+[3.077s] [ext: omni.kit.clipboard-1.1.1] startup
+[3.078s] [ext: omni.kit.usd.layers-2.6.1] startup
+[3.086s] [ext: omni.kit.widget.context_menu-1.4.0] startup
+[3.088s] [ext: omni.kit.context_menu-1.9.0] startup
+[3.089s] [ext: omni.kit.helper.file_utils-0.1.10] startup
+[3.091s] [ext: omni.kit.widget.nucleus_info-2.0.2] startup
+[3.092s] [ext: omni.kit.search_core-1.0.8] startup
+[3.092s] [ext: omni.kit.widget.path_field-2.0.13] startup
+[3.093s] [ext: omni.kit.widget.browser_bar-2.0.10] startup
+[3.094s] [ext: omni.kit.widget.filebrowser-2.13.4] startup
+[3.099s] [ext: omni.kit.widget.options_menu-1.1.6] startup
+[3.102s] [ext: omni.kit.widget.options_button-1.0.3] startup
+[3.102s] [ext: omni.kit.widget.search_delegate-1.0.9] startup
+[3.103s] [ext: omni.ui.scene-2.0.3] startup
+[3.108s] [ext: omni.kit.window.filepicker-2.15.5] startup
+[3.123s] [ext: omni.kit.window.file_importer-1.1.21] startup
+[3.125s] [ext: omni.kit.material.library-3.1.2] startup
+[3.131s] [ext: isaacsim.asset.transformer.rules-1.7.10] startup
+[3.142s] [ext: omni.usdex.libs-2.2.2] startup
+[3.151s] [ext: isaacsim.asset.importer.mjcf-3.10.1] startup
+[3.153s] [ext: isaacsim.asset.importer.urdf-3.11.2] startup
+[3.158s] [ext: omni.kit.primitive.mesh-1.1.0] startup
+[3.161s] [ext: omni.kit.stage_template.core-1.1.22] startup
+[3.162s] [ext: omni.kit.stage_templates-2.0.2] startup
+[3.163s] [ext: omni.usd.metrics.assembler-110.1.2] startup
+[3.167s] [ext: omni.warp.core-1.13.0] startup
+[3.396s] [ext: isaacsim.core.experimental.utils-0.17.2] startup
+[3.397s] [ext: omni.physics.stageupdate-110.1.13] startup
+[3.399s] [ext: omni.physics.tensors-110.1.13] startup
+[3.404s] [ext: omni.physx.tensors-110.1.13] startup
+[3.411s] [ext: isaacsim.core.simulation_manager-1.15.6] startup
+[3.425s] [ext: isaacsim.storage.native-1.9.3] startup
+[3.426s] [ext: omni.usd.metrics.assembler.physics-110.1.13] startup
+[3.428s] [ext: isaacsim.core.utils-4.1.7] startup
+[3.430s] [ext: isaacsim.core.prims-0.11.7] startup
+[4.896s] [ext: isaacsim.core.api-5.2.13] startup
+[4.904s] [ext: isaacsim.core.cloner-1.7.3] startup
+[4.905s] [ext: isaacsim.test.docstring-1.3.2] startup
+[4.908s] [ext: isaacsim.core.experimental.prims-1.8.9] startup
+[4.932s] [ext: isaacsim.core.experimental.primdata-0.3.2] startup
+[4.935s] [ext: omni.graph.tools-1.81.0] startup
+[4.960s] [ext: omni.graph-1.142.5] startup
+[5.003s] [ext: isaacsim.core.experimental.actuators-0.1.2] startup
+[5.023s] [ext: isaacsim.core.experimental.materials-0.7.1] startup
+[5.027s] [ext: isaacsim.core.experimental.objects-0.8.1] startup
+[5.098s] [ext: omni.hydra.engine.stats-1.0.5] startup
+[5.101s] [ext: omni.hydra.rtx.shadercache.vulkan-1.0.0] startup
+[5.103s] [ext: omni.index.libs-387500.4413.0] startup
+[5.103s] [ext: omni.index-1.0.1] startup
+[5.103s] [ext: omni.ujitso.client-0.0.0] startup
+[5.104s] [ext: omni.usd.schema.playback-1.0.0] startup
+[5.107s] [ext: omni.volume-0.5.2] startup
+[5.112s] [ext: omni.hydra.rtx-1.0.4] startup
+2026-11-18T15:38:56Z [5,087ms] [Warning] [omni.log] Source: omni.hydra was already registered.
+[5.142s] [ext: omni.kit.hydra_texture-1.6.0] startup
+[5.147s] [ext: omni.kit.raycast.query-1.2.0] startup
+[5.152s] [ext: omni.kit.viewport.legacy_gizmos-1.0.24] startup
+[5.155s] [ext: omni.kit.viewport.registry-104.0.6] startup
+[5.156s] [ext: omni.kit.viewport.scene_camera_model-1.0.7] startup
+[5.160s] [ext: omni.kit.widget.viewport-109.2.0] startup
+[5.165s] [ext: omni.kit.window.drop_support-1.0.8] startup
+[5.166s] [ext: omni.kit.viewport.window-109.0.2] startup
+[5.186s] [ext: omni.kit.viewport.utility-2.0.1] startup
+[5.188s] [ext: isaacsim.core.rendering_manager-0.4.3] startup
+[5.215s] [ext: omni.graph.action_core-1.1.9] startup
+[5.217s] [ext: omni.graph.action_nodes_core-2.11.0] startup
+[5.220s] [ext: omni.graph.action_nodes-2.11.0] startup
+[5.249s] [ext: omni.graph.action-2.10.2] startup
+[5.251s] [ext: omni.graph.image.core-0.6.1] startup
+[5.252s] [ext: omni.graph.image.nodes-1.3.1] startup
+[5.252s] [ext: omni.graph.nodes_core-2.11.0] startup
+[5.260s] [ext: omni.graph.nodes-2.12.0] startup
+[5.267s] [ext: omni.kit.hotkeys.core-1.3.12] startup
+[5.269s] [ext: omni.kit.property.adapter.core-1.1.1] startup
+[5.272s] [ext: omni.kit.property.adapter.usd-1.0.5] startup
+[5.273s] [ext: omni.kit.widget.filter-1.1.5] startup
+[5.275s] [ext: omni.kit.widget.highlight_label-1.0.3] startup
+[5.277s] [ext: omni.kit.widget.searchfield-1.1.8] startup
+[5.280s] [ext: omni.kit.window.file_exporter-1.0.36] startup
+[5.282s] [ext: omni.kit.widget.stage-4.4.0] startup
+[5.298s] [ext: omni.kit.window.content_browser_registry-0.0.6] startup
+[5.300s] [ext: omni.kit.window.file-2.0.10] startup
+[5.306s] [ext: omni.kit.window.content_browser-3.1.8] startup
+[5.323s] [ext: omni.kit.window.property-1.15.1] startup
+[5.343s] [ext: omni.kit.property.usd-4.9.4] startup
+[5.362s] [ext: omni.graph.scriptnode-2.10.2] startup
+[5.375s] [ext: omni.kit.widget.searchable_combobox-1.0.7] startup
+[5.376s] [ext: omni.kit.widget.settings-2.0.0] startup
+[5.379s] [ext: omni.kit.window.preferences-1.8.3] startup
+[5.385s] [ext: omni.kit.viewport.menubar.core-107.2.2] startup
+[5.399s] [ext: omni.syntheticdata-0.6.15] startup
+[5.433s] [ext: omni.replicator.nv-1.1.1] startup
+[5.442s] [ext: omni.videoencoding-0.2.1] startup
+[5.446s] [ext: omni.replicator.core-1.13.27] startup
+2026-11-18T15:38:56Z [5,422ms] [Warning] [pxr.Semantics] pxr.Semantics is deprecated - please use Semantics instead
+2026-11-18T15:38:57Z [5,571ms] [Warning] [omni.replicator.core.scripts.extension] No material configuration file, adding configuration to material settings directly.
+[5.805s] [ext: isaacsim.core.nodes-5.10.5] startup
+[5.850s] [ext: isaacsim.core.throttling-2.3.5] startup
+[5.853s] [ext: omni.kit.manipulator.viewport-107.0.1] startup
+[5.856s] [ext: omni.graph.visualization.nodes-2.1.4] startup
+[5.878s] [ext: omni.kit.window.extensions-1.5.10] startup
+[5.884s] [ext: isaacsim.gui.components-1.8.5] startup
+[5.890s] [ext: isaacsim.robot.surface_gripper-3.6.2] startup
+[5.903s] [ext: isaacsim.robot.manipulators-3.4.4] startup
+[5.916s] [ext: isaacsim.robot_motion.lula-4.1.3] startup
+[5.925s] [ext: isaacsim.robot_motion.motion_generation-8.2.9] startup
+[5.933s] [ext: isaacsim.cortex.framework-1.0.18] startup
+[5.935s] [ext: isaacsim.cortex.behaviors-2.0.17] startup
+[5.937s] [ext: isaacsim.examples.base-1.3.2] startup
+[5.939s] [ext: omni.kit.widget.zoombar-1.0.7] startup
+[5.941s] [ext: omni.kit.browser.core-2.3.18] startup
+[5.945s] [ext: omni.kit.browser.folder.core-2.0.2] startup
+[5.949s] [ext: omni.kit.widget.stage_icons-1.0.8] startup
+[5.951s] [ext: omni.kit.window.stage-2.6.1] startup
+[5.957s] [ext: omni.kit.menu.stage-1.2.7] startup
+[5.959s] [ext: omni.kit.usd.collect-3.0.6] startup
+[5.964s] [ext: omni.kit.widget.prompt-1.0.7] startup
+[5.965s] [ext: omni.kit.tool.collect-2.2.19] startup
+[5.969s] [ext: isaacsim.examples.browser-0.3.2] startup
+[5.973s] [ext: omni.kit.search.files-1.0.4] startup
+[5.974s] [ext: omni.kit.widget.calendar-1.0.9] startup
+[5.976s] [ext: omni.kit.widget.extended_searchfield-1.0.31] startup
+[5.990s] [ext: omni.simready.content.browser-0.3.7] startup
+[6.120s] [ext: isaacsim.gui.content_browser-0.4.3] startup
+[6.123s] [ext: omni.kit.selection-0.1.6] startup
+[6.124s] [ext: isaacsim.gui.menu-2.10.5] startup
+[6.133s] [ext: isaacsim.gui.property-1.6.4] startup
+[6.141s] [ext: omni.kit.viewport.actions-110.0.0] startup
+[6.146s] [ext: omni.kit.viewport.menubar.display-107.1.3] startup
+[6.148s] [ext: isaacsim.gui.sensors.icon-2.2.1] startup
+[6.151s] [ext: omni.behavior.scripting.core-110.1.0] startup
+[6.155s] [ext: isaacsim.replicator.behavior-1.5.4] startup
+[6.156s] [ext: isaacsim.replicator.experimental.domain_randomization-1.2.5] startup
+[6.181s] [ext: isaacsim.replicator.domain_randomization-1.2.2] startup
+[6.276s] [ext: isaacsim.replicator.writers-1.5.4] startup
+[6.321s] [ext: isaacsim.robot.experimental.wheeled_robots-0.2.11] startup
+[6.367s] [ext: isaacsim.robot.policy.examples-5.2.12] startup
+[6.406s] [ext: isaacsim.robot.wheeled_robots-5.2.4] startup
+[6.413s] [ext: isaacsim.robot.wheeled_robots.nodes-0.1.5] startup
+[6.450s] [ext: isaacsim.robot_motion.experimental.motion_generation-6.1.3] startup
+[6.471s] [ext: isaacsim.robot_motion.cumotion-1.3.1] startup
+[6.496s] [ext: omni.kit.numpy.common-0.1.3] startup
+[6.499s] [ext: isaacsim.sensors.camera-1.7.9] startup
+[6.559s] [ext: isaacsim.sensors.experimental.physics-3.0.2] startup
+[6.572s] [ext: omni.sensors.net-1.0.1] startup
+[6.577s] [ext: omni.sensors.nv.common-3.0.0] startup
+[6.597s] [ext: omni.sensors.nv.materials-2.0.0] startup
+[6.604s] [ext: omni.sensors.nv.acoustic-3.0.0] startup
+[6.609s] [ext: omni.sensors.nv.ids-2.0.1] startup
+[6.613s] [ext: omni.sensors.nv.lidar-3.0.0] startup
+[6.620s] [ext: omni.sensors.nv.radar-3.0.0] startup
+[6.641s] [ext: isaacsim.sensors.experimental.rtx-1.4.6] startup
+[7.110s] [ext: isaacsim.sensors.physics.nodes-1.5.3] startup
+[7.123s] [ext: isaacsim.util.debug_draw-3.2.3] startup
+[7.134s] [ext: isaacsim.sensors.physx-2.5.5] startup
+[7.147s] [ext: isaacsim.sensors.rtx-15.17.1] startup
+[7.166s] [ext: isaacsim.simulation_app-2.18.4] startup
+[7.166s] [ext: omni.anim.curve.core-1.6.0] startup
+[7.185s] [ext: omni.graph.ui_nodes-2.11.1] startup
+[7.222s] [ext: omni.hydra.scene_api-0.1.3] startup
+[7.227s] [ext: omni.kit.manipulator.camera-110.0.0] startup
+[7.232s] [ext: omni.kit.manipulator.selector-1.1.4] startup
+[7.233s] [ext: omni.kit.manipulator.transform-107.0.0] startup
+[7.238s] [ext: omni.kit.widget.toolbar-2.1.0] startup
+[7.245s] [ext: omni.kit.manipulator.tool.snap-1.5.14] startup
+[7.250s] [ext: omni.kit.viewport.manipulator.transform-107.0.4] startup
+[7.252s] [ext: omni.kit.manipulator.prim.core-108.0.2] startup
+[7.259s] [ext: omni.kit.manipulator.prim.usd-107.0.3] startup
+[7.261s] [ext: omni.kit.manipulator.prim-108.0.0] startup
+[7.261s] [ext: omni.kit.manipulator.selection-109.0.1] startup
+[7.262s] [ext: omni.kit.menu.create-2.0.2] startup
+[7.264s] [ext: omni.kit.property.audio-1.0.16] startup
+[7.267s] [ext: omni.kit.property.camera-1.0.14] startup
+[7.269s] [ext: omni.kit.property.geometry-2.1.2] startup
+[7.273s] [ext: omni.kit.property.light-1.0.14] startup
+2026-11-18T15:38:58Z [7,282ms] [Warning] [omni.usd] Encountered USD Warnings but USD Diagnostics are currently muted. To view USD Warnings, please set the '/persistent/app/usd/muteUsdDiagnostics' setting to false in Preferences page.
+[7.328s] [ext: omni.kit.property.material-1.14.6] startup
+[7.334s] [ext: omni.kit.property.render-1.2.2] startup
+[7.336s] [ext: omni.kit.property.transform-1.6.9] startup
+[7.340s] [ext: omni.kit.property.bundle-1.5.1] startup
+[7.341s] [ext: omni.kit.usdz_export-1.1.0] startup
+[7.344s] [ext: omni.kit.tool.asset_importer-6.0.1] startup
+[7.350s] [ext: omni.kit.ui.actions-1.0.5] startup
+[7.352s] [ext: omni.kit.viewport.menubar.camera-107.0.10] startup
+[7.358s] [ext: omni.kit.viewport.menubar.lighting-107.3.2] startup
+[7.363s] [ext: omni.kit.viewport.menubar.render-110.0.0] startup
+[7.367s] [ext: omni.kit.viewport.menubar.settings-110.0.1] startup
+[7.373s] [ext: omni.kit.window.console-1.1.9] startup
+[7.380s] [ext: omni.kit.window.status_bar-0.1.11] startup
+[7.384s] [ext: omni.kit.window.toolbar-3.0.3] startup
+[7.388s] [ext: omni.ocio-0.1.1] startup
+[7.390s] [ext: omni.physx.commands-110.1.13] startup
+[7.397s] [ext: omni.replicator.replicator_yaml-2.0.12] startup
+[7.420s] [ext: omni.rtx.window.settings-0.8.0] startup
+[7.430s] [ext: omni.rtx.settings.core-0.7.1] startup
+[7.435s] [ext: omni.usd.metrics.assembler.ui-110.1.1] startup
+[7.448s] [ext: semantics.schema.editor-2.0.2] startup
+[7.453s] [ext: semantics.schema.property-2.0.2] startup
+[7.456s] [ext: omni.kit.menu.common-2.0.2] startup
+[7.458s] [ext: isaacsim.exp.base-6.0.1] startup
+[7.459s] [ext: isaacsim.exp.base.python-6.0.1] startup
+[7.462s] Simulation App Starting
+2026-11-18T15:39:00Z [8,972ms] [Warning] [omni.rtx] DLSS increasing input dimensions: Render resolution of (320, 240) is below minimal input resolution of 300.
+[9.127s] Simulation App Startup Complete
+[9.138s] app ready
+Starting kit application with the following args:  ['/home/ubuntu/linalw/App/isaacsim/_build/linux-x86_64/release/exts/isaacsim.simulation_app/isaacsim/simulation_app/simulation_app.py', '/home/ubuntu/linalw/App/isaacsim/_build/linux-x86_64/release/apps/isaacsim.exp.base.python.kit', '--/app/tokens/exe-path=/home/ubuntu/linalw/App/isaacsim/_build/linux-x86_64/release/kit', '--/persistent/app/viewport/displayOptions=3094', '--/rtx/materialDb/syncLoads=True', '--/rtx/hydra/materialSyncLoads=True', '--/omni/kit/plugin/syncUsdLoads=True', '--/app/renderer/resolution/width=640', '--/app/renderer/resolution/height=480', '--/app/window/width=1440', '--/app/window/height=900', '--/renderer/multiGpu/enabled=True', '--/app/fastShutdown=True', '--/app/installSignalHandlers=0', '--ext-folder', '/home/ubuntu/linalw/App/isaacsim/_build/linux-x86_64/release/exts', '--ext-folder', '/home/ubuntu/linalw/App/isaacsim/_build/linux-x86_64/release/apps', '--/physics/cudaDevice=0', '--/plugins/carb.tasking.plugin/threadCount=32', '--/plugins/omni.tbb.globalcontrol/maxThreadCount=32', '--portable', '--no-window', '--/app/window/hideUi=1']
+Passing the following args to the base kit application:  ['--ckpt', 'checkpoints/p177_full/policy_best.pt', '--presentation', 'direct', '--episodes', '6', '--seeds', '808', '--out', 'datasets/rl_rollouts/p219_MIX_s808', '--execute-steps', '4', '--ddim', '16', '--horizon', '2600']
+Warp 1.13.0 initialized:
+   CUDA Toolkit 12.9, Driver 13.0
+   Devices:
+     "cpu"      : "x86_64"
+     "cuda:0"   : "NVIDIA GeForce RTX 5090" (31 GiB, sm_120, mempool enabled)
+   Kernel cache:
+     /home/ubuntu/.cache/warp/1.13.0
+[fruit] [rl] rollout: presentation=direct ablate=none episodes=6 seeds=[808] ckpt=checkpoints/p177_full/policy_best.pt execute_steps=4 ddim=16 dagger=None reward=RewardConfig(success_value=1.0, time_penalty=0.2, horizon=2600) rtc=off schedule=EXP delay=0 horizon=10 guidance=1 vlash=off track=off event=off a2c2=off trigger=off trigger_present=off
+[fruit] stage created (meters, Z-up)
+[fruit] building part: environment
+[fruit] studio lighting + floor + backdrop added
+[fruit] building part: pedestal
+[fruit] pedestal top at z=0.79 m
+[fruit] building part: robot
+[fruit] robot referenced -> local flattened asset (/home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/assets/openarm_flat/openarm_flat_deinst.usda)
+[fruit] building part: conveyor
+[fruit] cleated belt built: 0 cleats, spacing 0.18 m, surface velocity -0.12 m/s, mu=0.9
+[fruit] belt surface z=1.170
+[fruit] building part: output_belts
+[fruit] output belt rails P: FRUIT_OUTPUT_RAILS=none authors 0/2 (inner y=+0.4125 REMOVED), height 0.050 m (top +1.3850, shipped); payload transit needs the top below the payload's lowest point
+[fruit] discharge P: chute 55 deg from (1.200,1.344) to (1.361,1.120) m (sheet 0.28 m long, 0.24 m wide); tray 0.60x0.34 m centre x=1.65 on the 0.90 m stand, floor z=0.92, rim z=1.06, 3.0 s settle dwell
+[fruit] output belt P (0): 1.10x0.25x0.05 m at (0.65,+0.55), top 1.35, surface +0.12 m/s along +X | underside clears main belt top by 0.130 m, the tallest fruit (pear body, 84 mm) by 0.046 m (nominal; 0.040 m at the 1.07 instance scale, 90 mm) and its 32 mm stem bound by 0.014 m; inner edge clears the pedestal by 0.075 m; legs: -X pair x=[0.0255,0.0755] clear the main belt frame rail's outer face (x=0.0855) by +0.0100 m and the slab edge (x=0.110) by +0.0345 m; +X pair x=[1.1000,1.1500] leaves the discharge chute (x>=1.200) +0.0500 m clear
+[fruit] output belt rails N: FRUIT_OUTPUT_RAILS=none authors 0/2 (inner y=-0.4125 REMOVED), height 0.050 m (top +1.3850, shipped); payload transit needs the top below the payload's lowest point
+[fruit] discharge N: chute 55 deg from (1.200,1.344) to (1.361,1.120) m (sheet 0.28 m long, 0.24 m wide); tray 0.60x0.34 m centre x=1.65 on the 0.90 m stand, floor z=0.92, rim z=1.06, 3.0 s settle dwell
+[fruit] output belt N (1): 1.10x0.25x0.05 m at (0.65,-0.55), top 1.35, surface +0.12 m/s along +X | underside clears main belt top by 0.130 m, the tallest fruit (pear body, 84 mm) by 0.046 m (nominal; 0.040 m at the 1.07 instance scale, 90 mm) and its 32 mm stem bound by 0.014 m; inner edge clears the pedestal by 0.075 m; legs: -X pair x=[0.0255,0.0755] clear the main belt frame rail's outer face (x=0.0855) by +0.0100 m and the slab edge (x=0.110) by +0.0345 m; +X pair x=[1.1000,1.1500] leaves the discharge chute (x>=1.200) +0.0500 m clear
+[fruit] output conveyors added (2 x raised belts along +X)
+[fruit] building part: camera
+[fruit] head camera at (0.05, 0.0, 2.0) looking at (0.34, 0.22, 1.1), res=(240, 424), annotators=['rgb', 'distance_to_image_plane', 'instance_id_segmentation']
+[fruit] finger colliders: 4 mesh prims enabled
+[fruit] finger links bound with mu=2.0, compliant k=30000 N/m c=80 Ns/m (friction combine override) | finger drive profile=finger_damp02 k=100000 N/m c=2000 Ns/m maxForce=10.0/0.0N (joint1/joint2; joint2 is a drive-less mimic)
+[fruit] scene built (parts=['environment', 'pedestal', 'robot', 'conveyor', 'output_belts', 'camera'])
+[fruit] attached 4 tactile contact sensors and 4 per-finger force readers
+[fruit] physics substeps = 1 (dt = 0.00833s)
+[fruit] setting tensor backend = torch
+[fruit] switching physics engine = physx
+[fruit] setting physics dt = 0.00833s
+[fruit] play(commit=True)
+2026-11-18T15:39:14Z [23,224ms] [Error] [omni.physx.plugin] PhysicsUSD: Parse collision - triangle mesh collision (approximation None/MeshSimplification) cannot be a part of a dynamic body, falling back to convexHull approximation: /World/OpenArm/openarm_left_right_finger/visuals/openarm_left_right_finger_visual/mesh.For dynamic collision please use approximations : convex hull, convex decomposition, box, sphere or SDF approximation.
+2026-11-18T15:39:14Z [23,241ms] [Error] [omni.physx.plugin] PhysicsUSD: Parse collision - triangle mesh collision (approximation None/MeshSimplification) cannot be a part of a dynamic body, falling back to convexHull approximation: /World/OpenArm/openarm_left_left_finger/visuals/openarm_left_left_finger_visual/mesh.For dynamic collision please use approximations : convex hull, convex decomposition, box, sphere or SDF approximation.
+2026-11-18T15:39:14Z [23,262ms] [Error] [omni.physx.plugin] PhysicsUSD: Parse collision - triangle mesh collision (approximation None/MeshSimplification) cannot be a part of a dynamic body, falling back to convexHull approximation: /World/OpenArm/openarm_right_right_finger/visuals/openarm_right_right_finger_visual/mesh.For dynamic collision please use approximations : convex hull, convex decomposition, box, sphere or SDF approximation.
+2026-11-18T15:39:14Z [23,280ms] [Error] [omni.physx.plugin] PhysicsUSD: Parse collision - triangle mesh collision (approximation None/MeshSimplification) cannot be a part of a dynamic body, falling back to convexHull approximation: /World/OpenArm/openarm_right_left_finger/visuals/openarm_right_left_finger_visual/mesh.For dynamic collision please use approximations : convex hull, convex decomposition, box, sphere or SDF approximation.
+[fruit] warm-up 60 steps
+[fruit] simulation running, dt=0.00833s, joints=22
+[fruit] refreshed 4 contact-force readers
+[fruit] [supply] scatter pool=16 seed=808 gaps=0.10-0.35 m lateral x=0.20-0.36 m stream=on target=0 wave=off grades=A:0.5,B:0.3,C:0.2 classes=strawberry:2,lychee:2,kiwi:2,tomato:2,apple:2,orange:2,peach:2,pear:2
+[fruit] created 16 fruit rigid bodies
+[fruit] [rl] loaded checkpoints/p177_full/policy_best.pt (obs_horizon=2, action_horizon=4)
+[fruit] [track] profile: track=0(scope-off) descent=0(follows-track) wait=0(follows-track) scripted=0
+[fruit] [rl] manifest -> datasets/rl_rollouts/p219_MIX_s808/direct_none_seed808/manifest.json (reward={"success_value": 1.0, "time_penalty": 0.2, "horizon": 2600})
+[fruit] [rl] env ready: presentation=direct ablate=none dagger=off park=back(default) camera=240,424 tasks_md5=d1b18e2a
+[fruit] [supply] direct profile: cadence=on(default) band=on(4)(default) feed=on(default) target_from=0.35(default)
+[fruit] [grasp] lift_dz: dz=-0.0800(default) m above the 0.28 base -> 1.3700 m above floor (belt_top 1.1700 + 0.2000) | arm=left leg=grasp_lift (right=shipped, place legs=shipped) | default dz=-0.0800 = 0.2000 m; restore the shipped 1.5300 m with FRUIT_LIFT_DZ=+0.0800 (the hand's own add)
+[fruit] [rl] emit: joint_clamp=1 action_hold=4 target_rate=5.450rad/s execute_steps=4 ticks_per_decision=16 hz=30.0 range(right)=j1[-1.396,+3.491] j2[-0.175,+3.316] j3[-1.571,+1.571] j4[+0.000,+2.443] j5[-1.571,+1.571] j6[-0.785,+0.785] j7[-1.571,+1.571]
+[fruit] [rl] manifest: datasets/rl_rollouts/p219_MIX_s808/direct_none_seed808/manifest.json
+[fruit] [rl] run wall start 1795016359.012
+[fruit] [drive] left attempt finger cap 10.00 -> 60.00 N (FRUIT_FINGER_MAXFORCE_DIRECT)
+[fruit] [rl] episode 0: lychee grade=A d=3.1cm bin=0 arm=left y=+0.565 presentation=direct
+[fruit] [diag] premove left: err=8 mm jaw=[0.2287, 0.0025, 1.3066] target=[0.2261, 0.0, 1.314]
+[fruit] [task]   openarm fingertips 63 mm from the fruit; closing anyway
+[fruit] [diag] hover left: err=8 mm jaw=[0.2282, 0.0024, 1.307] target=[0.2261, 0.0, 1.314]
+[fruit] [diag] wait left: waited=87 deadline=0.1010 fruit_y=+0.1006 jaw=[0.2238, 0.0004, 1.3116] jaw_to_grip=58 mm
+[fruit] [diag] catchup left: residual=6.0 mm jaw=[0.2233, -0.0013, 1.2589] fruit=[0.2261, -0.0014, 1.184] tip_y-fruit_y=+0.0001
+[fruit] [task]   carry grasp_lift: stored pad centre 481 mm from the measured pads; re-anchoring
+[fruit] [task]   carry place0: stored pad centre 70 mm from the measured pads; re-anchoring
+[fruit] [task] place low: bottom 1517 -> 37 mm (target 25), drop 137/142 mm, FINGER FLOOR budget 137 mm, residual 0.0 mm, 106 ticks
+[fruit] [feed] left: updates=340 ticks=1362 stride=4 released=+8 placed=+0 skipped=+0 (attempt start -> release)
+[fruit] [task] force servo: left: ref=4.00N F[36.02,59.61]N gap=32.0mm sep=41.1mm closed=0.00mm opened=3.00mm trips=8
+[fruit] [fire] t=0 arm=left fired=0 gap=  265mm dy=   +55mm dx=  +252mm fruit_x=0.675 fing=nan phase=None
+[fruit] [drive] left attempt finger cap restore -> 10.00 N
+[fruit] [rl] episode 0: lychee d=3.1cm bin=0 arm=left success=True grasped=True placed=True ticks=1709 decision=0 reward=1.0000 notes=[] presentation=direct ablate=none endpoint=release gap_min=infmm finger_min=inf gap_close=infmm final=(+0.67,+0.55,+1.36) on_out=1 fing=0.0440
+[fruit] [percept] episode 0 frames=0 rejected=1 missing=0 pos=- vel=- dia=-mm rms=nanmm err=-mm err_p50=-mm err_p90=-mm err_n=0 err_close_p50=-mm err_close_n=0 jaw_y=+0.001
+[fruit] [emit] episode 0: hold=4 clamp=1 ticks=0 decisions=0 out_pre=0/0 (0.0%) out_post=0/0 (0.0%) ticks_with_overshoot=0 overshoot_max=0.0mrad
+[fruit] [drive] right attempt finger cap 10.00 -> 60.00 N (FRUIT_FINGER_MAXFORCE_DIRECT)
+[fruit] [rl] episode 1: tomato grade=B d=6.8cm bin=1 arm=right y=+0.551 presentation=direct
+[fruit] [cmd] t=16 tgt=[ 1.37   0.148 -1.522  1.117  1.401  0.58  -1.508]  req=[ 1.37   0.148 -1.522  1.117  1.401  0.58  -1.508] meas=[ 1.387  0.123 -1.541  1.104  1.392  0.586 -1.503] marg=+0.030@j3
+[fruit] [policy-trace] t=16 gap=420mm finger=0.0440 jaw_y=-0.001 fruit_y=+0.405 goal_y=+0.405 fruit_z=1.196 jaw_z=1.317 jaw_x=+0.330 fruit_x=+0.225 goal_x=+0.225
+[fruit] [cmd] t=20 tgt=[ 1.369  0.147 -1.525  1.116  1.401  0.573 -1.509]  req=[ 1.369  0.147 -1.525  1.116  1.401  0.573 -1.509] meas=[ 1.383  0.127 -1.538  1.106  1.393  0.585 -1.504] marg=+0.033@j3
+[fruit] [policy-trace] t=20 gap=417mm finger=0.0439 jaw_y=-0.002 fruit_y=+0.401 goal_y=+0.401 fruit_z=1.196 jaw_z=1.316 jaw_x=+0.330 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=24 tgt=[ 1.374  0.15  -1.535  1.119  1.4    0.577 -1.495]  req=[ 1.374  0.15  -1.535  1.119  1.4    0.577 -1.495] meas=[ 1.379  0.13  -1.536  1.107  1.395  0.583 -1.505] marg=+0.035@j3
+[fruit] [policy-trace] t=24 gap=413mm finger=0.0440 jaw_y=-0.003 fruit_y=+0.397 goal_y=+0.397 fruit_z=1.196 jaw_z=1.315 jaw_x=+0.329 fruit_x=+0.225 goal_x=+0.225
+[fruit] [cmd] t=28 tgt=[ 1.392  0.153 -1.547  1.122  1.399  0.582 -1.505]  req=[ 1.392  0.153 -1.547  1.122  1.399  0.582 -1.505] meas=[ 1.376  0.133 -1.536  1.109  1.395  0.582 -1.503] marg=+0.035@j3
+[fruit] [policy-trace] t=28 gap=410mm finger=0.0440 jaw_y=-0.003 fruit_y=+0.393 goal_y=+0.393 fruit_z=1.196 jaw_z=1.314 jaw_x=+0.329 fruit_x=+0.225 goal_x=+0.225
+[fruit] [cmd] t=32 tgt=[ 1.438  0.163 -1.571  1.11   1.444  0.599 -1.531]  req=[ 1.453  0.163 -1.571  1.11   1.445  0.599 -1.531] meas=[ 1.377  0.136 -1.538  1.111  1.396  0.582 -1.503] marg=+0.033@j3
+[fruit] [policy-trace] t=32 gap=407mm finger=0.0440 jaw_y=-0.004 fruit_y=+0.389 goal_y=+0.389 fruit_z=1.196 jaw_z=1.314 jaw_x=+0.329 fruit_x=+0.225 goal_x=+0.225
+[fruit] [cmd] t=36 tgt=[ 1.42   0.16  -1.55   1.11   1.431  0.596 -1.532]  req=[ 1.42   0.16  -1.55   1.11   1.431  0.596 -1.532] meas=[ 1.386  0.14  -1.543  1.111  1.403  0.585 -1.508] marg=+0.028@j3
+[fruit] [policy-trace] t=36 gap=405mm finger=0.0440 jaw_y=-0.006 fruit_y=+0.385 goal_y=+0.385 fruit_z=1.196 jaw_z=1.316 jaw_x=+0.330 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=40 tgt=[ 1.446  0.166 -1.571  1.111  1.457  0.597 -1.523]  req=[ 1.446  0.166 -1.571  1.111  1.457  0.597 -1.523] meas=[ 1.39   0.143 -1.544  1.111  1.408  0.586 -1.511] marg=+0.027@j3
+[fruit] [policy-trace] t=40 gap=403mm finger=0.0440 jaw_y=-0.008 fruit_y=+0.381 goal_y=+0.381 fruit_z=1.196 jaw_z=1.317 jaw_x=+0.331 fruit_x=+0.225 goal_x=+0.225
+[fruit] [cmd] t=44 tgt=[ 1.455  0.171 -1.555  1.12   1.434  0.605 -1.527]  req=[ 1.455  0.171 -1.555  1.12   1.434  0.605 -1.527] meas=[ 1.396  0.147 -1.548  1.111  1.415  0.588 -1.513] marg=+0.023@j3
+[fruit] [policy-trace] t=44 gap=401mm finger=0.0440 jaw_y=-0.009 fruit_y=+0.377 goal_y=+0.377 fruit_z=1.196 jaw_z=1.318 jaw_x=+0.332 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=48 tgt=[ 1.409  0.191 -1.543  1.128  1.404  0.587 -1.55 ]  req=[ 1.405  0.191 -1.543  1.128  1.404  0.587 -1.55 ] meas=[ 1.403  0.151 -1.549  1.112  1.418  0.591 -1.515] marg=+0.021@j3
+[fruit] [policy-trace] t=48 gap=399mm finger=0.0440 jaw_y=-0.011 fruit_y=+0.373 goal_y=+0.373 fruit_z=1.196 jaw_z=1.320 jaw_x=+0.333 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=52 tgt=[ 1.398  0.187 -1.571  1.125  1.435  0.583 -1.555]  req=[ 1.398  0.187 -1.571  1.125  1.435  0.583 -1.555] meas=[ 1.402  0.157 -1.548  1.115  1.416  0.59  -1.521] marg=+0.023@j3
+[fruit] [policy-trace] t=52 gap=397mm finger=0.0440 jaw_y=-0.013 fruit_y=+0.369 goal_y=+0.368 fruit_z=1.196 jaw_z=1.320 jaw_x=+0.333 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=56 tgt=[ 1.399  0.184 -1.571  1.128  1.455  0.586 -1.546]  req=[ 1.399  0.184 -1.571  1.128  1.455  0.586 -1.546] meas=[ 1.4    0.162 -1.552  1.116  1.419  0.589 -1.526] marg=+0.019@j3
+[fruit] [policy-trace] t=56 gap=396mm finger=0.0440 jaw_y=-0.015 fruit_y=+0.365 goal_y=+0.365 fruit_z=1.196 jaw_z=1.319 jaw_x=+0.333 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=60 tgt=[ 1.406  0.189 -1.571  1.131  1.445  0.589 -1.526]  req=[ 1.406  0.189 -1.571  1.131  1.445  0.589 -1.526] meas=[ 1.398  0.165 -1.555  1.118  1.424  0.589 -1.529] marg=+0.016@j3
+[fruit] [policy-trace] t=60 gap=393mm finger=0.0440 jaw_y=-0.017 fruit_y=+0.361 goal_y=+0.361 fruit_z=1.196 jaw_z=1.317 jaw_x=+0.332 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=64 tgt=[ 1.405  0.183 -1.541  1.176  1.428  0.568 -1.546]  req=[ 1.405  0.183 -1.541  1.177  1.428  0.568 -1.546] meas=[ 1.397  0.169 -1.557  1.12   1.428  0.589 -1.528] marg=+0.013@j3
+[fruit] [policy-trace] t=64 gap=390mm finger=0.0440 jaw_y=-0.018 fruit_y=+0.357 goal_y=+0.357 fruit_z=1.196 jaw_z=1.317 jaw_x=+0.331 fruit_x=+0.225 goal_x=+0.225
+[fruit] [cmd] t=68 tgt=[ 1.391  0.183 -1.532  1.172  1.423  0.56  -1.527]  req=[ 1.391  0.183 -1.532  1.172  1.423  0.56  -1.527] meas=[ 1.396  0.171 -1.555  1.129  1.428  0.586 -1.531] marg=+0.016@j3
+[fruit] [policy-trace] t=68 gap=385mm finger=0.0440 jaw_y=-0.018 fruit_y=+0.353 goal_y=+0.353 fruit_z=1.196 jaw_z=1.317 jaw_x=+0.330 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=72 tgt=[ 1.388  0.179 -1.543  1.174  1.426  0.562 -1.507]  req=[ 1.388  0.179 -1.543  1.174  1.426  0.562 -1.507] meas=[ 1.394  0.173 -1.552  1.135  1.427  0.582 -1.531] marg=+0.019@j3
+[fruit] [policy-trace] t=72 gap=381mm finger=0.0440 jaw_y=-0.017 fruit_y=+0.349 goal_y=+0.349 fruit_z=1.196 jaw_z=1.317 jaw_x=+0.329 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=76 tgt=[ 1.388  0.181 -1.547  1.173  1.414  0.567 -1.508]  req=[ 1.388  0.181 -1.547  1.173  1.414  0.567 -1.508] meas=[ 1.391  0.174 -1.551  1.141  1.427  0.579 -1.527] marg=+0.020@j3
+[fruit] [policy-trace] t=76 gap=376mm finger=0.0440 jaw_y=-0.016 fruit_y=+0.345 goal_y=+0.345 fruit_z=1.196 jaw_z=1.316 jaw_x=+0.328 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=80 tgt=[ 1.401  0.146 -1.536  1.128  1.413  0.591 -1.52 ]  req=[ 1.401  0.146 -1.536  1.108  1.413  0.591 -1.52 ] meas=[ 1.389  0.175 -1.55   1.146  1.425  0.577 -1.524] marg=+0.021@j3
+[fruit] [policy-trace] t=80 gap=371mm finger=0.0440 jaw_y=-0.015 fruit_y=+0.341 goal_y=+0.341 fruit_z=1.196 jaw_z=1.316 jaw_x=+0.327 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=84 tgt=[ 1.396  0.148 -1.534  1.109  1.416  0.582 -1.517]  req=[ 1.396  0.148 -1.534  1.109  1.416  0.582 -1.517] meas=[ 1.389  0.171 -1.548  1.141  1.423  0.579 -1.523] marg=+0.023@j3
+[fruit] [policy-trace] t=84 gap=366mm finger=0.0440 jaw_y=-0.014 fruit_y=+0.337 goal_y=+0.337 fruit_z=1.196 jaw_z=1.316 jaw_x=+0.328 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=88 tgt=[ 1.381  0.151 -1.541  1.111  1.408  0.583 -1.506]  req=[ 1.381  0.151 -1.541  1.111  1.408  0.583 -1.506] meas=[ 1.388  0.167 -1.546  1.136  1.422  0.58  -1.522] marg=+0.025@j3
+[fruit] [policy-trace] t=88 gap=362mm finger=0.0440 jaw_y=-0.013 fruit_y=+0.333 goal_y=+0.333 fruit_z=1.196 jaw_z=1.316 jaw_x=+0.328 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=92 tgt=[ 1.395  0.153 -1.548  1.114  1.41   0.583 -1.512]  req=[ 1.395  0.153 -1.548  1.114  1.41   0.583 -1.512] meas=[ 1.385  0.165 -1.545  1.132  1.42   0.58  -1.52 ] marg=+0.026@j3
+[fruit] [policy-trace] t=92 gap=357mm finger=0.0440 jaw_y=-0.013 fruit_y=+0.329 goal_y=+0.329 fruit_z=1.196 jaw_z=1.315 jaw_x=+0.328 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=96 tgt=[ 1.387  0.138 -1.535  1.097  1.42   0.585 -1.505]  req=[ 1.387  0.138 -1.535  1.097  1.42   0.585 -1.505] meas=[ 1.385  0.163 -1.545  1.129  1.418  0.58  -1.519] marg=+0.025@j3
+[fruit] [policy-trace] t=96 gap=353mm finger=0.0440 jaw_y=-0.013 fruit_y=+0.325 goal_y=+0.324 fruit_z=1.196 jaw_z=1.315 jaw_x=+0.329 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=100 tgt=[ 1.379  0.14  -1.531  1.099  1.421  0.578 -1.504]  req=[ 1.379  0.14  -1.531  1.099  1.421  0.578 -1.504] meas=[ 1.384  0.159 -1.544  1.124  1.419  0.581 -1.517] marg=+0.027@j3
+[fruit] [policy-trace] t=100 gap=349mm finger=0.0440 jaw_y=-0.012 fruit_y=+0.321 goal_y=+0.321 fruit_z=1.196 jaw_z=1.315 jaw_x=+0.329 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=104 tgt=[ 1.371  0.139 -1.541  1.099  1.415  0.579 -1.495]  req=[ 1.371  0.139 -1.541  1.099  1.415  0.579 -1.495] meas=[ 1.381  0.156 -1.542  1.12   1.419  0.581 -1.515] marg=+0.029@j3
+[fruit] [policy-trace] t=104 gap=344mm finger=0.0440 jaw_y=-0.011 fruit_y=+0.317 goal_y=+0.317 fruit_z=1.196 jaw_z=1.314 jaw_x=+0.329 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=108 tgt=[ 1.376  0.14  -1.549  1.101  1.413  0.583 -1.492]  req=[ 1.376  0.14  -1.549  1.101  1.413  0.583 -1.492] meas=[ 1.378  0.154 -1.542  1.117  1.418  0.58  -1.512] marg=+0.029@j3
+[fruit] [policy-trace] t=108 gap=339mm finger=0.0440 jaw_y=-0.010 fruit_y=+0.313 goal_y=+0.313 fruit_z=1.196 jaw_z=1.313 jaw_x=+0.328 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=112 tgt=[ 1.376  0.185 -1.539  1.147  1.383  0.571 -1.489]  req=[ 1.376  0.224 -1.539  1.155  1.383  0.571 -1.489] meas=[ 1.376  0.152 -1.543  1.115  1.418  0.581 -1.509] marg=+0.028@j3
+[fruit] [policy-trace] t=112 gap=335mm finger=0.0440 jaw_y=-0.009 fruit_y=+0.309 goal_y=+0.309 fruit_z=1.196 jaw_z=1.312 jaw_x=+0.328 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=116 tgt=[ 1.354  0.222 -1.533  1.157  1.401  0.562 -1.498]  req=[ 1.354  0.222 -1.533  1.157  1.401  0.562 -1.498] meas=[ 1.374  0.161 -1.542  1.121  1.412  0.579 -1.506] marg=+0.029@j3
+[fruit] [policy-trace] t=116 gap=333mm finger=0.0439 jaw_y=-0.012 fruit_y=+0.305 goal_y=+0.305 fruit_z=1.196 jaw_z=1.312 jaw_x=+0.329 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=120 tgt=[ 1.354  0.22  -1.565  1.16   1.401  0.564 -1.478]  req=[ 1.354  0.22  -1.565  1.16   1.401  0.564 -1.478] meas=[ 1.369  0.171 -1.541  1.126  1.411  0.576 -1.504] marg=+0.030@j3
+[fruit] [policy-trace] t=120 gap=332mm finger=0.0440 jaw_y=-0.014 fruit_y=+0.301 goal_y=+0.301 fruit_z=1.196 jaw_z=1.310 jaw_x=+0.328 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=124 tgt=[ 1.366  0.211 -1.571  1.157  1.414  0.572 -1.484]  req=[ 1.366  0.211 -1.571  1.157  1.414  0.572 -1.484] meas=[ 1.365  0.178 -1.545  1.131  1.409  0.574 -1.5  ] marg=+0.026@j3
+[fruit] [policy-trace] t=124 gap=330mm finger=0.0440 jaw_y=-0.016 fruit_y=+0.297 goal_y=+0.297 fruit_z=1.196 jaw_z=1.308 jaw_x=+0.328 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=128 tgt=[ 1.407  0.165 -1.525  1.113  1.433  0.595 -1.52 ]  req=[ 1.407  0.146 -1.525  1.113  1.433  0.595 -1.52 ] meas=[ 1.363  0.184 -1.549  1.135  1.41   0.574 -1.498] marg=+0.022@j3
+[fruit] [policy-trace] t=128 gap=327mm finger=0.0440 jaw_y=-0.018 fruit_y=+0.293 goal_y=+0.293 fruit_z=1.196 jaw_z=1.307 jaw_x=+0.327 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=132 tgt=[ 1.389  0.142 -1.518  1.103  1.428  0.59  -1.523]  req=[ 1.389  0.142 -1.518  1.103  1.428  0.59  -1.523] meas=[ 1.368  0.179 -1.546  1.132  1.413  0.578 -1.501] marg=+0.025@j3
+[fruit] [policy-trace] t=132 gap=322mm finger=0.0440 jaw_y=-0.016 fruit_y=+0.289 goal_y=+0.289 fruit_z=1.196 jaw_z=1.309 jaw_x=+0.328 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=136 tgt=[ 1.398  0.143 -1.534  1.105  1.439  0.595 -1.513]  req=[ 1.398  0.143 -1.534  1.105  1.439  0.595 -1.513] meas=[ 1.369  0.173 -1.542  1.127  1.415  0.58  -1.505] marg=+0.029@j3
+[fruit] [policy-trace] t=136 gap=317mm finger=0.0440 jaw_y=-0.015 fruit_y=+0.285 goal_y=+0.285 fruit_z=1.196 jaw_z=1.310 jaw_x=+0.328 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=140 tgt=[ 1.402  0.147 -1.537  1.107  1.444  0.604 -1.526]  req=[ 1.402  0.147 -1.537  1.107  1.444  0.604 -1.526] meas=[ 1.372  0.169 -1.541  1.124  1.419  0.582 -1.506] marg=+0.030@j3
+[fruit] [policy-trace] t=140 gap=312mm finger=0.0440 jaw_y=-0.013 fruit_y=+0.281 goal_y=+0.281 fruit_z=1.196 jaw_z=1.311 jaw_x=+0.328 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=144 tgt=[ 1.387  0.14  -1.522  1.12   1.399  0.576 -1.485]  req=[ 1.387  0.14  -1.522  1.12   1.395  0.576 -1.485] meas=[ 1.375  0.165 -1.54   1.121  1.423  0.585 -1.509] marg=+0.031@j3
+[fruit] [policy-trace] t=144 gap=308mm finger=0.0440 jaw_y=-0.013 fruit_y=+0.277 goal_y=+0.277 fruit_z=1.196 jaw_z=1.312 jaw_x=+0.328 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=148 tgt=[ 1.379  0.14  -1.519  1.118  1.39   0.573 -1.482]  req=[ 1.379  0.14  -1.519  1.118  1.39   0.573 -1.482] meas=[ 1.375  0.162 -1.538  1.121  1.419  0.584 -1.505] marg=+0.033@j3
+[fruit] [policy-trace] t=148 gap=302mm finger=0.0440 jaw_y=-0.011 fruit_y=+0.273 goal_y=+0.273 fruit_z=1.196 jaw_z=1.313 jaw_x=+0.328 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=152 tgt=[ 1.372  0.141 -1.534  1.119  1.394  0.572 -1.473]  req=[ 1.372  0.141 -1.534  1.119  1.394  0.572 -1.473] meas=[ 1.374  0.158 -1.535  1.12   1.414  0.582 -1.502] marg=+0.036@j3
+[fruit] [policy-trace] t=152 gap=297mm finger=0.0440 jaw_y=-0.009 fruit_y=+0.269 goal_y=+0.269 fruit_z=1.196 jaw_z=1.313 jaw_x=+0.328 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=156 tgt=[ 1.373  0.142 -1.537  1.121  1.39   0.577 -1.479]  req=[ 1.373  0.142 -1.537  1.121  1.39   0.577 -1.479] meas=[ 1.372  0.156 -1.535  1.12   1.411  0.581 -1.497] marg=+0.036@j3
+[fruit] [policy-trace] t=156 gap=292mm finger=0.0440 jaw_y=-0.008 fruit_y=+0.265 goal_y=+0.265 fruit_z=1.196 jaw_z=1.313 jaw_x=+0.328 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=160 tgt=[ 1.358  0.144 -1.492  1.129  1.409  0.552 -1.489]  req=[ 1.358  0.144 -1.483  1.129  1.409  0.552 -1.489] meas=[ 1.37   0.154 -1.535  1.12   1.408  0.58  -1.495] marg=+0.036@j3
+[fruit] [policy-trace] t=160 gap=288mm finger=0.0440 jaw_y=-0.007 fruit_y=+0.261 goal_y=+0.261 fruit_z=1.196 jaw_z=1.312 jaw_x=+0.328 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=164 tgt=[ 1.343  0.145 -1.498  1.122  1.407  0.558 -1.499]  req=[ 1.343  0.145 -1.498  1.122  1.407  0.558 -1.499] meas=[ 1.366  0.152 -1.528  1.122  1.408  0.576 -1.494] marg=+0.043@j3
+[fruit] [policy-trace] t=164 gap=282mm finger=0.0440 jaw_y=-0.006 fruit_y=+0.257 goal_y=+0.257 fruit_z=1.196 jaw_z=1.312 jaw_x=+0.327 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=168 tgt=[ 1.32   0.145 -1.522  1.127  1.419  0.561 -1.502]  req=[ 1.32   0.145 -1.522  1.127  1.419  0.561 -1.502] meas=[ 1.361  0.151 -1.523  1.122  1.408  0.573 -1.495] marg=+0.048@j3
+[fruit] [policy-trace] t=168 gap=277mm finger=0.0440 jaw_y=-0.005 fruit_y=+0.253 goal_y=+0.253 fruit_z=1.196 jaw_z=1.312 jaw_x=+0.326 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=172 tgt=[ 1.363  0.145 -1.545  1.123  1.41   0.558 -1.484]  req=[ 1.363  0.145 -1.545  1.123  1.41   0.558 -1.484] meas=[ 1.353  0.15  -1.523  1.122  1.41   0.571 -1.496] marg=+0.048@j3
+[fruit] [policy-trace] t=172 gap=273mm finger=0.0440 jaw_y=-0.005 fruit_y=+0.249 goal_y=+0.249 fruit_z=1.196 jaw_z=1.309 jaw_x=+0.325 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=176 tgt=[ 1.406  0.148 -1.523  1.123  1.426  0.576 -1.527]  req=[ 1.406  0.148 -1.523  1.123  1.426  0.576 -1.527] meas=[ 1.353  0.149 -1.526  1.123  1.41   0.569 -1.494] marg=+0.044@j3
+[fruit] [policy-trace] t=176 gap=269mm finger=0.0440 jaw_y=-0.004 fruit_y=+0.245 goal_y=+0.245 fruit_z=1.196 jaw_z=1.308 jaw_x=+0.324 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=180 tgt=[ 1.39   0.149 -1.531  1.123  1.42   0.574 -1.524]  req=[ 1.39   0.149 -1.531  1.123  1.42   0.574 -1.524] meas=[ 1.359  0.149 -1.526  1.123  1.412  0.57  -1.499] marg=+0.045@j3
+[fruit] [policy-trace] t=180 gap=265mm finger=0.0440 jaw_y=-0.005 fruit_y=+0.241 goal_y=+0.241 fruit_z=1.196 jaw_z=1.310 jaw_x=+0.325 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=184 tgt=[ 1.386  0.15  -1.539  1.127  1.413  0.571 -1.508]  req=[ 1.386  0.15  -1.539  1.127  1.413  0.571 -1.508] meas=[ 1.362  0.149 -1.527  1.123  1.413  0.571 -1.503] marg=+0.044@j3
+[fruit] [policy-trace] t=184 gap=262mm finger=0.0440 jaw_y=-0.005 fruit_y=+0.237 goal_y=+0.237 fruit_z=1.196 jaw_z=1.311 jaw_x=+0.325 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=188 tgt=[ 1.396  0.151 -1.549  1.13   1.411  0.575 -1.505]  req=[ 1.396  0.151 -1.549  1.13   1.411  0.575 -1.505] meas=[ 1.364  0.149 -1.529  1.123  1.413  0.571 -1.504] marg=+0.042@j3
+[fruit] [policy-trace] t=188 gap=259mm finger=0.0440 jaw_y=-0.006 fruit_y=+0.233 goal_y=+0.233 fruit_z=1.196 jaw_z=1.312 jaw_x=+0.325 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=192 tgt=[ 1.393  0.147 -1.511  1.14   1.424  0.577 -1.521]  req=[ 1.393  0.147 -1.511  1.14   1.424  0.577 -1.521] meas=[ 1.367  0.15  -1.532  1.124  1.413  0.571 -1.504] marg=+0.039@j3
+[fruit] [policy-trace] t=192 gap=256mm finger=0.0440 jaw_y=-0.006 fruit_y=+0.229 goal_y=+0.229 fruit_z=1.196 jaw_z=1.312 jaw_x=+0.326 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=196 tgt=[ 1.361  0.142 -1.524  1.124  1.409  0.574 -1.5  ]  req=[ 1.361  0.142 -1.524  1.124  1.409  0.574 -1.5  ] meas=[ 1.369  0.149 -1.529  1.127  1.415  0.572 -1.506] marg=+0.042@j3
+[fruit] [policy-trace] t=196 gap=251mm finger=0.0438 jaw_y=-0.005 fruit_y=+0.225 goal_y=+0.225 fruit_z=1.196 jaw_z=1.313 jaw_x=+0.326 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=200 tgt=[ 1.315  0.143 -1.551  1.118  1.364  0.573 -1.48 ]  req=[ 1.314  0.143 -1.551  1.118  1.356  0.573 -1.48 ] meas=[ 1.366  0.148 -1.528  1.126  1.414  0.573 -1.505] marg=+0.042@j3
+[fruit] [policy-trace] t=200 gap=247mm finger=0.0434 jaw_y=-0.005 fruit_y=+0.221 goal_y=+0.221 fruit_z=1.196 jaw_z=1.313 jaw_x=+0.325 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=204 tgt=[ 1.325  0.143 -1.558  1.116  1.355  0.583 -1.465]  req=[ 1.325  0.143 -1.558  1.116  1.355  0.583 -1.465] meas=[ 1.357  0.147 -1.532  1.125  1.405  0.573 -1.502] marg=+0.039@j3
+[fruit] [policy-trace] t=204 gap=244mm finger=0.0433 jaw_y=-0.005 fruit_y=+0.217 goal_y=+0.217 fruit_z=1.196 jaw_z=1.309 jaw_x=+0.324 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=208 tgt=[ 1.37   0.159 -1.537  1.131  1.401  0.582 -1.51 ]  req=[ 1.426  0.159 -1.537  1.131  1.445  0.582 -1.533] meas=[ 1.35   0.147 -1.536  1.123  1.398  0.574 -1.496] marg=+0.035@j3
+[fruit] [policy-trace] t=208 gap=240mm finger=0.0440 jaw_y=-0.005 fruit_y=+0.213 goal_y=+0.213 fruit_z=1.196 jaw_z=1.306 jaw_x=+0.324 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=212 tgt=[ 1.422  0.159 -1.541  1.127  1.455  0.58  -1.542]  req=[ 1.422  0.159 -1.541  1.127  1.455  0.58  -1.542] meas=[ 1.356  0.149 -1.536  1.124  1.403  0.575 -1.501] marg=+0.035@j3
+[fruit] [policy-trace] t=212 gap=237mm finger=0.0440 jaw_y=-0.006 fruit_y=+0.209 goal_y=+0.209 fruit_z=1.196 jaw_z=1.308 jaw_x=+0.324 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=216 tgt=[ 1.41   0.159 -1.548  1.13   1.446  0.58  -1.526]  req=[ 1.41   0.159 -1.548  1.13   1.446  0.58  -1.526] meas=[ 1.365  0.15  -1.537  1.125  1.411  0.576 -1.507] marg=+0.034@j3
+[fruit] [policy-trace] t=216 gap=235mm finger=0.0440 jaw_y=-0.007 fruit_y=+0.205 goal_y=+0.205 fruit_z=1.196 jaw_z=1.310 jaw_x=+0.325 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=220 tgt=[ 1.424  0.161 -1.565  1.133  1.449  0.58  -1.527]  req=[ 1.424  0.161 -1.565  1.133  1.449  0.58  -1.527] meas=[ 1.37   0.152 -1.539  1.125  1.416  0.577 -1.51 ] marg=+0.032@j3
+[fruit] [policy-trace] t=220 gap=232mm finger=0.0440 jaw_y=-0.008 fruit_y=+0.201 goal_y=+0.201 fruit_z=1.196 jaw_z=1.312 jaw_x=+0.326 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=224 tgt=[ 1.408  0.206 -1.525  1.178  1.41   0.577 -1.51 ]  req=[ 1.408  0.221 -1.525  1.212  1.41   0.577 -1.51 ] meas=[ 1.377  0.153 -1.543  1.127  1.422  0.577 -1.513] marg=+0.028@j3
+[fruit] [policy-trace] t=224 gap=229mm finger=0.0440 jaw_y=-0.008 fruit_y=+0.197 goal_y=+0.197 fruit_z=1.196 jaw_z=1.313 jaw_x=+0.326 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=228 tgt=[ 1.399  0.215 -1.516  1.205  1.416  0.57  -1.506]  req=[ 1.399  0.215 -1.516  1.205  1.416  0.57  -1.506] meas=[ 1.38   0.163 -1.54   1.138  1.42   0.577 -1.512] marg=+0.031@j3
+[fruit] [policy-trace] t=228 gap=227mm finger=0.0440 jaw_y=-0.010 fruit_y=+0.193 goal_y=+0.193 fruit_z=1.196 jaw_z=1.315 jaw_x=+0.326 fruit_x=+0.225 goal_x=+0.226
+[fruit] [cmd] t=232 tgt=[ 1.399  0.213 -1.532  1.208  1.421  0.571 -1.501]  req=[ 1.399  0.213 -1.532  1.208  1.421  0.571 -1.501] meas=[ 1.381  0.171 -1.537  1.149  1.419  0.576 -1.511] marg=+0.034@j3
+[fruit] [policy-trace] t=232 gap=224mm finger=0.0440 jaw_y=-0.011 fruit_y=+0.189 goal_y=+0.189 fruit_z=1.196 jaw_z=1.316 jaw_x=+0.326 fruit_x=+0.225 goal_x=+0.226
+[fruit] [close] t=308 trigger=phase xy=16mm dz=+63mm dx=-9mm jaw_z=1.259 fruit_z=1.196 grip=0.0275 sep=98.0mm seat_res=nanmm
+[fruit] [belt] lychee (index 8) discharged to the tray at x=1.49 (settled 3.0s)
+[fruit] [drive] right attempt finger cap restore -> 10.00 N
+[fruit] [rl] episode 1: tomato d=6.8cm bin=1 arm=right success=False grasped=False placed=True ticks=2600 decision=2600 reward=0.0000 notes=['timeout: no grasp within 2600 ticks'] presentation=direct ablate=none endpoint=release gap_min=222mm finger_min=0.0433 gap_close=infmm final=(+0.46,-0.54,+1.47) on_out=1 fing=0.0275
+[fruit] [percept] episode 1 frames=110 rejected=540 missing=0 pos=+0.538,-0.572,+1.451 vel=+0.176,-0.131,+0.019 dia=62.7mm rms=0.53mm err=86.4mm err_p50=5.2mm err_p90=5.6mm err_n=110 err_close_p50=4.5mm err_close_n=24 jaw_y=-0.001
+[fruit] [emit] episode 1: hold=4 clamp=1 ticks=220 decisions=14 out_pre=24/1540 (1.6%) out_post=0/1540 (0.0%) ticks_with_overshoot=24 overshoot_max=35.9mrad
+[fruit] [drive] right attempt finger cap 10.00 -> 60.00 N (FRUIT_FINGER_MAXFORCE_DIRECT)
+[fruit] [rl] episode 2: strawberry grade=B d=3.1cm bin=1 arm=right y=+0.639 presentation=direct
+[fruit] [diag] premove right: err=12 mm jaw=[0.3032, -0.0014, 1.3015] target=[0.3066, 0.0, 1.3125]
+[fruit] [task]   openarm fingertips 59 mm from the fruit; closing anyway
+[fruit] [diag] hover right: err=8 mm jaw=[0.303, -0.0009, 1.3053] target=[0.3066, 0.0, 1.3125]
+[fruit] [diag] wait right: waited=69 deadline=0.1010 fruit_y=+0.1004 jaw=[0.3036, -0.0003, 1.3087] jaw_to_grip=56 mm
+[fruit] [diag] catchup right: residual=5.9 mm jaw=[0.3029, 0.0021, 1.2565] fruit=[0.3066, 0.0024, 1.1825] tip_y-fruit_y=-0.0003
+[fruit] [task]   carry grasp_lift: stored pad centre 221 mm from the measured pads; re-anchoring
+[fruit] [task]   carry place1: stored pad centre 23 mm from the measured pads; re-anchoring
+[fruit] [belt] tomato (index 14) discharged to the tray at x=1.53 (settled 3.0s)
+[fruit] [task] place low: bottom 1518 -> 44 mm (target 25), drop 133/143 mm, FINGER FLOOR budget 133 mm, residual 0.0 mm, 103 ticks
+[fruit] [feed] right: updates=335 ticks=1343 stride=4 released=+6 placed=+0 skipped=+0 (attempt start -> release)
+[fruit] [task] force servo: right: ref=4.00N F[37.63,45.09]N gap=26.6mm sep=33.6mm closed=0.00mm opened=3.00mm trips=8
+[fruit] [fire] t=0 arm=right fired=0 gap=  325mm dy=   -53mm dx=  +306mm fruit_x=0.734 fing=nan phase=None
+[fruit] [drive] right attempt finger cap restore -> 10.00 N
+[fruit] [rl] episode 2: strawberry d=3.1cm bin=1 arm=right success=True grasped=True placed=True ticks=1802 decision=0 reward=1.0000 notes=[] presentation=direct ablate=none endpoint=release gap_min=infmm finger_min=inf gap_close=infmm final=(+0.73,-0.55,+1.36) on_out=1 fing=0.0440
+[fruit] [percept] episode 2 frames=0 rejected=1 missing=0 pos=- vel=- dia=-mm rms=0.53mm err=-mm err_p50=-mm err_p90=-mm err_n=0 err_close_p50=-mm err_close_n=0 jaw_y=-0.001
+[fruit] [emit] episode 2: hold=4 clamp=1 ticks=0 decisions=0 out_pre=0/0 (0.0%) out_post=0/0 (0.0%) ticks_with_overshoot=0 overshoot_max=0.0mrad
+[fruit] [drive] left attempt finger cap 10.00 -> 60.00 N (FRUIT_FINGER_MAXFORCE_DIRECT)
+[fruit] [rl] episode 3: pear grade=A d=5.9cm bin=0 arm=left y=+0.576 presentation=direct
+[fruit] [cmd] t=16 tgt=[-1.394 -0.128  1.528  1.142 -1.359 -0.545  1.483]  req=[-1.394 -0.128  1.528  1.142 -1.359 -0.545  1.483] meas=[-1.371 -0.144  1.537  1.168 -1.379 -0.542  1.506] marg=+0.034@j3
+[fruit] [policy-trace] t=16 gap=430mm finger=0.0440 jaw_y=+0.001 fruit_y=+0.430 goal_y=+0.428 fruit_z=1.199 jaw_z=1.314 jaw_x=+0.321 fruit_x=+0.348 goal_x=+0.344
+[fruit] [cmd] t=20 tgt=[-1.407 -0.127  1.525  1.141 -1.351 -0.546  1.492]  req=[-1.407 -0.127  1.525  1.141 -1.351 -0.546  1.492] meas=[-1.373 -0.141  1.536  1.164 -1.376 -0.542  1.502] marg=+0.035@j3
+[fruit] [policy-trace] t=20 gap=426mm finger=0.0440 jaw_y=+0.000 fruit_y=+0.426 goal_y=+0.423 fruit_z=1.199 jaw_z=1.315 jaw_x=+0.322 fruit_x=+0.348 goal_x=+0.346
+[fruit] [cmd] t=24 tgt=[-1.414 -0.13   1.522  1.137 -1.359 -0.554  1.488]  req=[-1.414 -0.13   1.522  1.137 -1.359 -0.554  1.488] meas=[-1.376 -0.139  1.534  1.16  -1.372 -0.543  1.501] marg=+0.037@j3
+[fruit] [policy-trace] t=24 gap=423mm finger=0.0440 jaw_y=-0.000 fruit_y=+0.422 goal_y=+0.419 fruit_z=1.199 jaw_z=1.316 jaw_x=+0.324 fruit_x=+0.348 goal_x=+0.345
+[fruit] [cmd] t=28 tgt=[-1.407 -0.128  1.507  1.13  -1.363 -0.553  1.483]  req=[-1.407 -0.128  1.507  1.13  -1.363 -0.553  1.483] meas=[-1.38  -0.138  1.532  1.157 -1.37  -0.545  1.499] marg=+0.039@j3
+[fruit] [policy-trace] t=28 gap=419mm finger=0.0438 jaw_y=-0.001 fruit_y=+0.418 goal_y=+0.416 fruit_z=1.199 jaw_z=1.318 jaw_x=+0.325 fruit_x=+0.348 goal_x=+0.345
+[fruit] [cmd] t=32 tgt=[-1.376 -0.128  1.526  1.124 -1.351 -0.569  1.493]  req=[-1.376 -0.128  1.526  1.124 -1.351 -0.569  1.493] meas=[-1.382 -0.136  1.528  1.153 -1.369 -0.546  1.496] marg=+0.042@j3
+[fruit] [policy-trace] t=32 gap=415mm finger=0.0440 jaw_y=-0.001 fruit_y=+0.414 goal_y=+0.412 fruit_z=1.199 jaw_z=1.319 jaw_x=+0.326 fruit_x=+0.348 goal_x=+0.346
+[fruit] [cmd] t=36 tgt=[-1.384 -0.127  1.52   1.124 -1.341 -0.569  1.5  ]  req=[-1.384 -0.127  1.52   1.124 -1.341 -0.569  1.5  ] meas=[-1.38  -0.135  1.528  1.148 -1.366 -0.549  1.496] marg=+0.043@j3
+[fruit] [policy-trace] t=36 gap=411mm finger=0.0440 jaw_y=-0.001 fruit_y=+0.410 goal_y=+0.407 fruit_z=1.199 jaw_z=1.318 jaw_x=+0.327 fruit_x=+0.348 goal_x=+0.345
+[fruit] [cmd] t=40 tgt=[-1.386 -0.129  1.511  1.122 -1.342 -0.567  1.485]  req=[-1.386 -0.129  1.511  1.122 -1.342 -0.567  1.485] meas=[-1.379 -0.134  1.527  1.144 -1.362 -0.552  1.496] marg=+0.044@j3
+[fruit] [policy-trace] t=40 gap=407mm finger=0.0439 jaw_y=-0.001 fruit_y=+0.406 goal_y=+0.403 fruit_z=1.199 jaw_z=1.318 jaw_x=+0.327 fruit_x=+0.348 goal_x=+0.346
+[fruit] [cmd] t=44 tgt=[-1.37  -0.131  1.511  1.123 -1.34  -0.558  1.479]  req=[-1.37  -0.131  1.511  1.123 -1.34  -0.558  1.479] meas=[-1.378 -0.133  1.525  1.141 -1.359 -0.555  1.495] marg=+0.046@j3
+[fruit] [policy-trace] t=44 gap=403mm finger=0.0437 jaw_y=-0.001 fruit_y=+0.402 goal_y=+0.400 fruit_z=1.199 jaw_z=1.318 jaw_x=+0.328 fruit_x=+0.348 goal_x=+0.344
+[fruit] [cmd] t=48 tgt=[-1.38  -0.133  1.531  1.134 -1.36  -0.564  1.496]  req=[-1.38  -0.133  1.531  1.134 -1.36  -0.564  1.496] meas=[-1.375 -0.133  1.523  1.138 -1.356 -0.555  1.492] marg=+0.048@j3
+[fruit] [policy-trace] t=48 gap=399mm finger=0.0439 jaw_y=-0.001 fruit_y=+0.398 goal_y=+0.396 fruit_z=1.199 jaw_z=1.317 jaw_x=+0.328 fruit_x=+0.348 goal_x=+0.344
+[fruit] [cmd] t=52 tgt=[-1.394 -0.128  1.514  1.13  -1.352 -0.565  1.489]  req=[-1.394 -0.128  1.514  1.13  -1.352 -0.565  1.489] meas=[-1.374 -0.133  1.524  1.138 -1.357 -0.557  1.493] marg=+0.047@j3
+[fruit] [policy-trace] t=52 gap=395mm finger=0.0439 jaw_y=-0.000 fruit_y=+0.394 goal_y=+0.391 fruit_z=1.199 jaw_z=1.317 jaw_x=+0.328 fruit_x=+0.348 goal_x=+0.346
+[fruit] [cmd] t=56 tgt=[-1.402 -0.126  1.497  1.125 -1.349 -0.567  1.475]  req=[-1.402 -0.126  1.497  1.125 -1.349 -0.567  1.475] meas=[-1.375 -0.132  1.523  1.137 -1.356 -0.558  1.492] marg=+0.048@j3
+[fruit] [policy-trace] t=56 gap=391mm finger=0.0437 jaw_y=-0.001 fruit_y=+0.390 goal_y=+0.387 fruit_z=1.199 jaw_z=1.317 jaw_x=+0.329 fruit_x=+0.348 goal_x=+0.346
+[fruit] [cmd] t=60 tgt=[-1.39  -0.126  1.504  1.121 -1.346 -0.566  1.47 ]  req=[-1.39  -0.126  1.504  1.121 -1.346 -0.566  1.47 ] meas=[-1.377 -0.132  1.519  1.135 -1.355 -0.559  1.49 ] marg=+0.052@j3
+[fruit] [policy-trace] t=60 gap=387mm finger=0.0436 jaw_y=-0.001 fruit_y=+0.386 goal_y=+0.384 fruit_z=1.199 jaw_z=1.319 jaw_x=+0.329 fruit_x=+0.348 goal_x=+0.345
+[fruit] [cmd] t=64 tgt=[-1.386 -0.133  1.526  1.148 -1.334 -0.544  1.478]  req=[-1.386 -0.133  1.526  1.148 -1.334 -0.544  1.478] meas=[-1.378 -0.131  1.517  1.133 -1.354 -0.56   1.487] marg=+0.054@j3
+[fruit] [policy-trace] t=64 gap=384mm finger=0.0440 jaw_y=-0.002 fruit_y=+0.382 goal_y=+0.379 fruit_z=1.199 jaw_z=1.319 jaw_x=+0.330 fruit_x=+0.348 goal_x=+0.345
+[fruit] [cmd] t=68 tgt=[-1.4   -0.131  1.528  1.149 -1.335 -0.542  1.483]  req=[-1.4   -0.131  1.528  1.149 -1.335 -0.542  1.483] meas=[-1.377 -0.131  1.518  1.135 -1.351 -0.558  1.485] marg=+0.053@j3
+[fruit] [policy-trace] t=68 gap=380mm finger=0.0440 jaw_y=-0.002 fruit_y=+0.378 goal_y=+0.374 fruit_z=1.199 jaw_z=1.319 jaw_x=+0.330 fruit_x=+0.348 goal_x=+0.345
+[fruit] [cmd] t=72 tgt=[-1.402 -0.134  1.507  1.15  -1.337 -0.545  1.487]  req=[-1.402 -0.134  1.507  1.15  -1.337 -0.545  1.487] meas=[-1.379 -0.131  1.52   1.137 -1.348 -0.556  1.485] marg=+0.051@j3
+[fruit] [policy-trace] t=72 gap=376mm finger=0.0440 jaw_y=-0.002 fruit_y=+0.374 goal_y=+0.372 fruit_z=1.199 jaw_z=1.319 jaw_x=+0.330 fruit_x=+0.348 goal_x=+0.345
+[fruit] [cmd] t=76 tgt=[-1.398 -0.136  1.519  1.149 -1.336 -0.542  1.489]  req=[-1.398 -0.136  1.519  1.149 -1.336 -0.542  1.489] meas=[-1.38  -0.132  1.518  1.139 -1.346 -0.554  1.485] marg=+0.053@j3
+[fruit] [policy-trace] t=76 gap=372mm finger=0.0440 jaw_y=-0.002 fruit_y=+0.370 goal_y=+0.367 fruit_z=1.199 jaw_z=1.320 jaw_x=+0.330 fruit_x=+0.348 goal_x=+0.345
+[fruit] [cmd] t=80 tgt=[-1.384 -0.127  1.539  1.126 -1.358 -0.573  1.494]  req=[-1.384 -0.127  1.539  1.126 -1.358 -0.573  1.494] meas=[-1.381 -0.132  1.518  1.141 -1.345 -0.552  1.486] marg=+0.053@j3
+[fruit] [policy-trace] t=80 gap=368mm finger=0.0439 jaw_y=-0.002 fruit_y=+0.366 goal_y=+0.364 fruit_z=1.199 jaw_z=1.320 jaw_x=+0.330 fruit_x=+0.348 goal_x=+0.345
+[fruit] [cmd] t=84 tgt=[-1.393 -0.128  1.532  1.125 -1.358 -0.575  1.505]  req=[-1.393 -0.128  1.532  1.125 -1.358 -0.575  1.505] meas=[-1.38  -0.132  1.521  1.138 -1.347 -0.555  1.487] marg=+0.049@j3
+[fruit] [policy-trace] t=84 gap=363mm finger=0.0439 jaw_y=-0.001 fruit_y=+0.362 goal_y=+0.359 fruit_z=1.199 jaw_z=1.319 jaw_x=+0.330 fruit_x=+0.348 goal_x=+0.346
+[fruit] [cmd] t=88 tgt=[-1.395 -0.129  1.517  1.122 -1.349 -0.578  1.493]  req=[-1.395 -0.129  1.517  1.122 -1.349 -0.578  1.493] meas=[-1.38  -0.131  1.523  1.136 -1.349 -0.558  1.49 ] marg=+0.048@j3
+[fruit] [policy-trace] t=88 gap=359mm finger=0.0438 jaw_y=-0.001 fruit_y=+0.358 goal_y=+0.355 fruit_z=1.199 jaw_z=1.319 jaw_x=+0.330 fruit_x=+0.348 goal_x=+0.345
+[fruit] [cmd] t=92 tgt=[-1.378 -0.117  1.531  1.104 -1.342 -0.583  1.479]  req=[-1.378 -0.117  1.531  1.104 -1.342 -0.583  1.479] meas=[-1.381 -0.131  1.522  1.134 -1.349 -0.561  1.49 ] marg=+0.048@j3
+[fruit] [policy-trace] t=92 gap=355mm finger=0.0434 jaw_y=-0.001 fruit_y=+0.354 goal_y=+0.351 fruit_z=1.199 jaw_z=1.319 jaw_x=+0.330 fruit_x=+0.348 goal_x=+0.345
+[fruit] [cmd] t=96 tgt=[-1.383 -0.146  1.538  1.141 -1.323 -0.546  1.463]  req=[-1.383 -0.146  1.538  1.141 -1.323 -0.546  1.463] meas=[-1.379 -0.129  1.524  1.13  -1.348 -0.565  1.489] marg=+0.047@j3
+[fruit] [policy-trace] t=96 gap=351mm finger=0.0440 jaw_y=-0.001 fruit_y=+0.350 goal_y=+0.348 fruit_z=1.199 jaw_z=1.318 jaw_x=+0.331 fruit_x=+0.348 goal_x=+0.345
+[fruit] [cmd] t=100 tgt=[-1.377 -0.147  1.537  1.138 -1.307 -0.539  1.459]  req=[-1.377 -0.147  1.537  1.138 -1.307 -0.539  1.459] meas=[-1.377 -0.131  1.526  1.131 -1.344 -0.562  1.485] marg=+0.045@j3
+[fruit] [policy-trace] t=100 gap=346mm finger=0.0440 jaw_y=-0.000 fruit_y=+0.346 goal_y=+0.345 fruit_z=1.199 jaw_z=1.317 jaw_x=+0.331 fruit_x=+0.348 goal_x=+0.345
+[fruit] [cmd] t=104 tgt=[-1.383 -0.144  1.497  1.135 -1.319 -0.551  1.47 ]  req=[-1.383 -0.144  1.497  1.135 -1.319 -0.551  1.47 ] meas=[-1.376 -0.134  1.528  1.132 -1.338 -0.558  1.481] marg=+0.043@j3
+[fruit] [policy-trace] t=104 gap=341mm finger=0.0440 jaw_y=+0.001 fruit_y=+0.342 goal_y=+0.341 fruit_z=1.199 jaw_z=1.316 jaw_x=+0.331 fruit_x=+0.348 goal_x=+0.346
+[fruit] [cmd] t=108 tgt=[-1.376 -0.141  1.494  1.132 -1.316 -0.559  1.48 ]  req=[-1.376 -0.141  1.494  1.132 -1.316 -0.559  1.48 ] meas=[-1.375 -0.136  1.523  1.133 -1.335 -0.557  1.479] marg=+0.048@j3
+[fruit] [policy-trace] t=108 gap=337mm finger=0.0440 jaw_y=+0.001 fruit_y=+0.338 goal_y=+0.338 fruit_z=1.199 jaw_z=1.317 jaw_x=+0.332 fruit_x=+0.348 goal_x=+0.347
+[fruit] [cmd] t=112 tgt=[-1.33  -0.132  1.464  1.167 -1.289 -0.513  1.449]  req=[-1.314 -0.132  1.464  1.167 -1.289 -0.498  1.449] meas=[-1.373 -0.136  1.519  1.133 -1.332 -0.557  1.479] marg=+0.052@j3
+[fruit] [policy-trace] t=112 gap=333mm finger=0.0440 jaw_y=+0.001 fruit_y=+0.334 goal_y=+0.335 fruit_z=1.199 jaw_z=1.317 jaw_x=+0.332 fruit_x=+0.348 goal_x=+0.346
+[fruit] [cmd] t=116 tgt=[-1.324 -0.128  1.47   1.168 -1.285 -0.497  1.439]  req=[-1.324 -0.128  1.47   1.168 -1.285 -0.497  1.439] meas=[-1.363 -0.136  1.511  1.138 -1.326 -0.549  1.475] marg=+0.060@j3
+[fruit] [policy-trace] t=116 gap=331mm finger=0.0440 jaw_y=-0.001 fruit_y=+0.330 goal_y=+0.330 fruit_z=1.199 jaw_z=1.316 jaw_x=+0.331 fruit_x=+0.348 goal_x=+0.349
+[fruit] [cmd] t=120 tgt=[-1.331 -0.128  1.425  1.177 -1.254 -0.504  1.442]  req=[-1.331 -0.128  1.424  1.177 -1.254 -0.504  1.442] meas=[-1.355 -0.135  1.505  1.143 -1.319 -0.541  1.469] marg=+0.066@j3
+[fruit] [policy-trace] t=120 gap=329mm finger=0.0440 jaw_y=-0.003 fruit_y=+0.326 goal_y=+0.326 fruit_z=1.199 jaw_z=1.314 jaw_x=+0.329 fruit_x=+0.348 goal_x=+0.349
+[fruit] [cmd] t=124 tgt=[-1.332 -0.124  1.439  1.167 -1.259 -0.505  1.441]  req=[-1.332 -0.124  1.439  1.167 -1.259 -0.505  1.441] meas=[-1.349 -0.134  1.492  1.148 -1.309 -0.536  1.465] marg=+0.078@j3
+[fruit] [policy-trace] t=124 gap=327mm finger=0.0440 jaw_y=-0.005 fruit_y=+0.322 goal_y=+0.324 fruit_z=1.199 jaw_z=1.315 jaw_x=+0.329 fruit_x=+0.348 goal_x=+0.345
+[fruit] [cmd] t=128 tgt=[-1.356 -0.137  1.484  1.154 -1.304 -0.542  1.476]  req=[-1.356 -0.137  1.535  1.154 -1.334 -0.542  1.476] meas=[-1.345 -0.132  1.484  1.151 -1.302 -0.531  1.461] marg=+0.086@j3
+[fruit] [policy-trace] t=128 gap=325mm finger=0.0440 jaw_y=-0.007 fruit_y=+0.318 goal_y=+0.317 fruit_z=1.199 jaw_z=1.315 jaw_x=+0.329 fruit_x=+0.348 goal_x=+0.347
+[fruit] [cmd] t=132 tgt=[-1.374 -0.133  1.507  1.153 -1.337 -0.533  1.472]  req=[-1.374 -0.133  1.507  1.153 -1.337 -0.533  1.472] meas=[-1.345 -0.133  1.49   1.151 -1.306 -0.532  1.464] marg=+0.081@j3
+[fruit] [policy-trace] t=132 gap=320mm finger=0.0440 jaw_y=-0.006 fruit_y=+0.314 goal_y=+0.316 fruit_z=1.199 jaw_z=1.314 jaw_x=+0.328 fruit_x=+0.348 goal_x=+0.347
+[fruit] [cmd] t=136 tgt=[-1.363 -0.132  1.491  1.148 -1.334 -0.542  1.466]  req=[-1.363 -0.132  1.491  1.148 -1.334 -0.542  1.466] meas=[-1.348 -0.133  1.493  1.152 -1.31  -0.533  1.465] marg=+0.078@j3
+[fruit] [policy-trace] t=136 gap=316mm finger=0.0440 jaw_y=-0.006 fruit_y=+0.310 goal_y=+0.311 fruit_z=1.199 jaw_z=1.315 jaw_x=+0.328 fruit_x=+0.348 goal_x=+0.348
+[fruit] [cmd] t=140 tgt=[-1.374 -0.132  1.517  1.146 -1.325 -0.548  1.465]  req=[-1.374 -0.132  1.517  1.146 -1.325 -0.548  1.465] meas=[-1.348 -0.133  1.493  1.151 -1.314 -0.534  1.465] marg=+0.078@j3
+[fruit] [policy-trace] t=140 gap=312mm finger=0.0440 jaw_y=-0.006 fruit_y=+0.306 goal_y=+0.308 fruit_z=1.199 jaw_z=1.315 jaw_x=+0.328 fruit_x=+0.348 goal_x=+0.348
+[fruit] [cmd] t=144 tgt=[-1.387 -0.128  1.544  1.139 -1.347 -0.545  1.466]  req=[-1.387 -0.128  1.544  1.139 -1.347 -0.545  1.466] meas=[-1.35  -0.133  1.496  1.15  -1.316 -0.536  1.465] marg=+0.074@j3
+[fruit] [policy-trace] t=144 gap=308mm finger=0.0437 jaw_y=-0.006 fruit_y=+0.302 goal_y=+0.302 fruit_z=1.199 jaw_z=1.315 jaw_x=+0.328 fruit_x=+0.348 goal_x=+0.349
+[fruit] [cmd] t=148 tgt=[-1.391 -0.122  1.569  1.141 -1.346 -0.547  1.472]  req=[-1.391 -0.122  1.569  1.141 -1.346 -0.547  1.472] meas=[-1.354 -0.132  1.504  1.148 -1.321 -0.537  1.465] marg=+0.067@j3
+[fruit] [policy-trace] t=148 gap=304mm finger=0.0439 jaw_y=-0.005 fruit_y=+0.298 goal_y=+0.298 fruit_z=1.199 jaw_z=1.315 jaw_x=+0.328 fruit_x=+0.348 goal_x=+0.350
+[fruit] [cmd] t=152 tgt=[-1.408 -0.119  1.524  1.132 -1.341 -0.555  1.47 ]  req=[-1.408 -0.119  1.52   1.132 -1.341 -0.555  1.47 ] meas=[-1.358 -0.131  1.514  1.147 -1.324 -0.539  1.466] marg=+0.057@j3
+[fruit] [policy-trace] t=152 gap=299mm finger=0.0440 jaw_y=-0.005 fruit_y=+0.294 goal_y=+0.293 fruit_z=1.199 jaw_z=1.314 jaw_x=+0.327 fruit_x=+0.348 goal_x=+0.351
+[fruit] [cmd] t=156 tgt=[-1.409 -0.123  1.513  1.128 -1.332 -0.55   1.479]  req=[-1.409 -0.123  1.513  1.128 -1.332 -0.55   1.479] meas=[-1.364 -0.129  1.515  1.145 -1.327 -0.542  1.467] marg=+0.055@j3
+[fruit] [policy-trace] t=156 gap=295mm finger=0.0440 jaw_y=-0.005 fruit_y=+0.290 goal_y=+0.289 fruit_z=1.199 jaw_z=1.315 jaw_x=+0.328 fruit_x=+0.348 goal_x=+0.352
+[fruit] [cmd] t=160 tgt=[-1.364 -0.121  1.505  1.14  -1.311 -0.533  1.467]  req=[-1.348 -0.121  1.505  1.14  -1.311 -0.533  1.467] meas=[-1.369 -0.128  1.515  1.142 -1.328 -0.543  1.469] marg=+0.056@j3
+[fruit] [policy-trace] t=160 gap=291mm finger=0.0440 jaw_y=-0.005 fruit_y=+0.286 goal_y=+0.284 fruit_z=1.199 jaw_z=1.317 jaw_x=+0.329 fruit_x=+0.348 goal_x=+0.354
+[fruit] [cmd] t=164 tgt=[-1.349 -0.118  1.497  1.137 -1.302 -0.535  1.457]  req=[-1.349 -0.118  1.497  1.137 -1.302 -0.535  1.457] meas=[-1.365 -0.127  1.514  1.142 -1.325 -0.542  1.468] marg=+0.057@j3
+[fruit] [policy-trace] t=164 gap=287mm finger=0.0440 jaw_y=-0.005 fruit_y=+0.282 goal_y=+0.279 fruit_z=1.199 jaw_z=1.316 jaw_x=+0.329 fruit_x=+0.348 goal_x=+0.355
+[fruit] [cmd] t=168 tgt=[-1.356 -0.119  1.477  1.137 -1.293 -0.531  1.455]  req=[-1.356 -0.119  1.477  1.137 -1.293 -0.531  1.455] meas=[-1.361 -0.126  1.511  1.141 -1.322 -0.541  1.467] marg=+0.059@j3
+[fruit] [policy-trace] t=168 gap=284mm finger=0.0440 jaw_y=-0.006 fruit_y=+0.278 goal_y=+0.275 fruit_z=1.199 jaw_z=1.315 jaw_x=+0.328 fruit_x=+0.348 goal_x=+0.356
+[fruit] [cmd] t=172 tgt=[-1.335 -0.121  1.479  1.134 -1.288 -0.535  1.452]  req=[-1.335 -0.121  1.479  1.134 -1.288 -0.535  1.452] meas=[-1.358 -0.125  1.506  1.141 -1.317 -0.539  1.465] marg=+0.065@j3
+[fruit] [policy-trace] t=172 gap=281mm finger=0.0440 jaw_y=-0.006 fruit_y=+0.274 goal_y=+0.270 fruit_z=1.199 jaw_z=1.315 jaw_x=+0.329 fruit_x=+0.348 goal_x=+0.357
+[fruit] [cmd] t=176 tgt=[-1.369 -0.131  1.524  1.115 -1.333 -0.559  1.497]  req=[-1.369 -0.131  1.541  1.115 -1.366 -0.559  1.498] meas=[-1.353 -0.124  1.502  1.14  -1.313 -0.539  1.463] marg=+0.069@j3
+[fruit] [policy-trace] t=176 gap=277mm finger=0.0438 jaw_y=-0.007 fruit_y=+0.270 goal_y=+0.266 fruit_z=1.199 jaw_z=1.314 jaw_x=+0.329 fruit_x=+0.348 goal_x=+0.358
+[fruit] [cmd] t=180 tgt=[-1.373 -0.131  1.523  1.119 -1.353 -0.566  1.507]  req=[-1.373 -0.131  1.523  1.119 -1.353 -0.566  1.507] meas=[-1.353 -0.125  1.507  1.136 -1.32  -0.542  1.468] marg=+0.063@j3
+[fruit] [policy-trace] t=180 gap=272mm finger=0.0439 jaw_y=-0.005 fruit_y=+0.266 goal_y=+0.261 fruit_z=1.199 jaw_z=1.313 jaw_x=+0.328 fruit_x=+0.348 goal_x=+0.360
+[fruit] [cmd] t=184 tgt=[-1.373 -0.139  1.478  1.125 -1.311 -0.565  1.462]  req=[-1.373 -0.139  1.46   1.125 -1.311 -0.565  1.458] meas=[-1.355 -0.126  1.51   1.133 -1.325 -0.545  1.474] marg=+0.061@j3
+[fruit] [policy-trace] t=184 gap=266mm finger=0.0440 jaw_y=-0.004 fruit_y=+0.262 goal_y=+0.256 fruit_z=1.199 jaw_z=1.313 jaw_x=+0.328 fruit_x=+0.348 goal_x=+0.361
+[fruit] [cmd] t=188 tgt=[-1.327 -0.093  1.505  1.08  -1.319 -0.609  1.413]  req=[-1.259 -0.042  1.556  0.957 -1.319 -0.609  1.355] meas=[-1.355 -0.128  1.503  1.132 -1.323 -0.549  1.472] marg=+0.068@j3
+[fruit] [policy-trace] t=188 gap=262mm finger=0.0405 jaw_y=-0.004 fruit_y=+0.258 goal_y=+0.252 fruit_z=1.199 jaw_z=1.314 jaw_x=+0.330 fruit_x=+0.348 goal_x=+0.362
+[fruit] [cmd] t=192 tgt=[-1.222 -0.056  1.516  0.912 -1.274 -0.564  1.345]  req=[-1.222 -0.056  1.516  0.889 -1.223 -0.564  1.345] meas=[-1.344 -0.117  1.51   1.114 -1.322 -0.558  1.457] marg=+0.061@j3
+[fruit] [policy-trace] t=192 gap=261mm finger=0.0408 jaw_y=-0.006 fruit_y=+0.254 goal_y=+0.247 fruit_z=1.199 jaw_z=1.309 jaw_x=+0.329 fruit_x=+0.348 goal_x=+0.363
+[fruit] [cmd] t=196 tgt=[-1.204 -0.041  1.514  0.879 -1.212 -0.566  1.307]  req=[-1.204 -0.041  1.514  0.879 -1.212 -0.566  1.307] meas=[-1.323 -0.108  1.51   1.08  -1.309 -0.559  1.439] marg=+0.061@j3
+[fruit] [policy-trace] t=196 gap=256mm finger=0.0393 jaw_y=-0.006 fruit_y=+0.250 goal_y=+0.243 fruit_z=1.199 jaw_z=1.301 jaw_x=+0.330 fruit_x=+0.348 goal_x=+0.364
+[fruit] [cmd] t=200 tgt=[-1.185 -0.033  1.507  0.874 -1.187 -0.571  1.289]  req=[-1.185 -0.033  1.507  0.874 -1.187 -0.571  1.289] meas=[-1.303 -0.098  1.511  1.049 -1.294 -0.56   1.419] marg=+0.060@j3
+[fruit] [policy-trace] t=200 gap=253mm finger=0.0363 jaw_y=-0.006 fruit_y=+0.246 goal_y=+0.238 fruit_z=1.199 jaw_z=1.293 jaw_x=+0.332 fruit_x=+0.348 goal_x=+0.366
+[fruit] [cmd] t=204 tgt=[-1.186 -0.025  1.507  0.869 -1.19  -0.572  1.281]  req=[-1.186 -0.025  1.507  0.869 -1.19  -0.572  1.281] meas=[-1.283 -0.088  1.511  1.022 -1.277 -0.562  1.399] marg=+0.060@j3
+[fruit] [policy-trace] t=204 gap=249mm finger=0.0328 jaw_y=-0.007 fruit_y=+0.242 goal_y=+0.233 fruit_z=1.199 jaw_z=1.285 jaw_x=+0.332 fruit_x=+0.348 goal_x=+0.367
+[fruit] [cmd] t=208 tgt=[-1.193  0.007  1.552  0.823 -1.202 -0.618  1.314]  req=[-1.193  0.007  1.566  0.776 -1.202 -0.619  1.314] meas=[-1.266 -0.078  1.511  0.999 -1.264 -0.564  1.381] marg=+0.060@j3
+[fruit] [policy-trace] t=208 gap=246mm finger=0.0324 jaw_y=-0.008 fruit_y=+0.238 goal_y=+0.229 fruit_z=1.199 jaw_z=1.279 jaw_x=+0.333 fruit_x=+0.348 goal_x=+0.368
+[fruit] [cmd] t=212 tgt=[-1.186  0.026  1.563  0.763 -1.199 -0.622  1.295]  req=[-1.186  0.026  1.563  0.763 -1.199 -0.622  1.295] meas=[-1.253 -0.065  1.518  0.966 -1.255 -0.572  1.371] marg=+0.052@j3
+[fruit] [policy-trace] t=212 gap=242mm finger=0.0278 jaw_y=-0.008 fruit_y=+0.234 goal_y=+0.224 fruit_z=1.199 jaw_z=1.272 jaw_x=+0.333 fruit_x=+0.348 goal_x=+0.369
+[fruit] [cmd] t=216 tgt=[-1.194  0.04   1.544  0.752 -1.189 -0.64   1.278]  req=[-1.194  0.04   1.544  0.752 -1.189 -0.64   1.278] meas=[-1.241 -0.051  1.526  0.935 -1.246 -0.58   1.359] marg=+0.045@j3
+[fruit] [policy-trace] t=216 gap=238mm finger=0.0233 jaw_y=-0.008 fruit_y=+0.230 goal_y=+0.220 fruit_z=1.199 jaw_z=1.265 jaw_x=+0.334 fruit_x=+0.348 goal_x=+0.371
+[fruit] [cmd] t=220 tgt=[-1.197  0.066  1.526  0.743 -1.195 -0.637  1.272]  req=[-1.197  0.066  1.526  0.743 -1.195 -0.637  1.272] meas=[-1.232 -0.038  1.529  0.907 -1.237 -0.59   1.347] marg=+0.042@j3
+[fruit] [policy-trace] t=220 gap=235mm finger=0.0198 jaw_y=-0.009 fruit_y=+0.226 goal_y=+0.215 fruit_z=1.199 jaw_z=1.261 jaw_x=+0.334 fruit_x=+0.348 goal_x=+0.372
+[fruit] [cmd] t=224 tgt=[-1.237  0.021  1.571  0.697 -1.238 -0.591  1.249]  req=[-1.237 -0.005  1.571  0.634 -1.238 -0.551  1.249] meas=[-1.225 -0.022  1.529  0.882 -1.23  -0.598  1.335] marg=+0.041@j3
+[fruit] [policy-trace] t=224 gap=233mm finger=0.0245 jaw_y=-0.011 fruit_y=+0.222 goal_y=+0.210 fruit_z=1.199 jaw_z=1.257 jaw_x=+0.335 fruit_x=+0.348 goal_x=+0.373
+[fruit] [cmd] t=228 tgt=[-1.224  0.005  1.563  0.639 -1.224 -0.563  1.243]  req=[-1.224  0.005  1.563  0.639 -1.224 -0.563  1.243] meas=[-1.224 -0.018  1.534  0.847 -1.233 -0.589  1.322] marg=+0.037@j3
+[fruit] [policy-trace] t=228 gap=226mm finger=0.0220 jaw_y=-0.008 fruit_y=+0.218 goal_y=+0.206 fruit_z=1.199 jaw_z=1.255 jaw_x=+0.339 fruit_x=+0.348 goal_x=+0.374
+[fruit] [cmd] t=232 tgt=[-1.229  0.012  1.547  0.634 -1.197 -0.586  1.237]  req=[-1.229  0.012  1.547  0.634 -1.197 -0.586  1.237] meas=[-1.223 -0.014  1.537  0.815 -1.233 -0.586  1.309] marg=+0.034@j3
+[fruit] [policy-trace] t=232 gap=219mm finger=0.0200 jaw_y=-0.005 fruit_y=+0.214 goal_y=+0.201 fruit_z=1.199 jaw_z=1.252 jaw_x=+0.343 fruit_x=+0.348 goal_x=+0.375
+[fruit] [cmd] t=236 tgt=[-1.235  0.025  1.547  0.628 -1.195 -0.599  1.234]  req=[-1.235  0.025  1.547  0.628 -1.195 -0.599  1.234] meas=[-1.223 -0.009  1.532  0.789 -1.233 -0.585  1.297] marg=+0.039@j3
+[fruit] [policy-trace] t=236 gap=214mm finger=0.0186 jaw_y=-0.004 fruit_y=+0.210 goal_y=+0.197 fruit_z=1.199 jaw_z=1.252 jaw_x=+0.347 fruit_x=+0.348 goal_x=+0.377
+[fruit] [close] t=304 trigger=phase xy=12mm dz=+82mm dx=-7mm jaw_z=1.281 fruit_z=1.199 grip=0.0239 sep=97.1mm seat_res=nanmm
+[fruit] [belt] strawberry (index 2) discharged to the tray at x=1.43 (settled 3.0s)
+[fruit] [cmd] t=1184 tgt=[-1.478 -0.628  1.571  0.071 -0.928 -0.024  0.051]  req=[-1.563 -0.563  1.571  0.276 -0.933 -0.094  0.271] meas=[-1.432 -0.673  1.568  0.026 -0.883  0.022  0.006] marg=+0.003@j3
+[fruit] [fire] t=1184 arm=left fired=1 gap=  121mm dy=   +76mm dx=   +82mm fruit_x=0.512 fing=0.0239 phase=0
+[fruit] [policy-trace] t=1184 gap=112mm finger=0.0239 jaw_y=+0.492 fruit_y=+0.568 goal_y=+0.557 fruit_z=1.383 jaw_z=1.429 jaw_x=+0.431 fruit_x=+0.512 goal_x=+0.500
+[fruit] [drive] left attempt finger cap restore -> 10.00 N
+[fruit] [rl] episode 3: pear d=5.9cm bin=0 arm=left success=True grasped=True placed=True ticks=1185 decision=1185 reward=0.9088 notes=['release: task complete'] presentation=direct ablate=none endpoint=release gap_min=112mm finger_min=0.0186 gap_close=112mm final=(+0.51,+0.57,+1.38) on_out=1 fing=0.0239
+[fruit] [percept] episode 3 frames=221 rejected=76 missing=0 pos=+0.500,+0.557,+1.385 vel=+0.125,+0.143,-0.002 dia=58.7mm rms=4.32mm err=17.6mm err_p50=15.1mm err_p90=25.2mm err_n=221 err_close_p50=17.5mm err_close_n=166 jaw_y=+0.001
+[fruit] [emit] episode 3: hold=4 clamp=1 ticks=225 decisions=15 out_pre=5/1575 (0.3%) out_post=0/1575 (0.0%) ticks_with_overshoot=5 overshoot_max=41.1mrad
+[fruit] [drive] right attempt finger cap 10.00 -> 60.00 N (FRUIT_FINGER_MAXFORCE_DIRECT)
+[fruit] [rl] episode 4: orange grade=B d=7.0cm bin=1 arm=right y=+0.507 presentation=direct
+[fruit] [cmd] t=16 tgt=[ 1.41   0.141 -1.54   1.122  1.434  0.583 -1.536]  req=[ 1.41   0.141 -1.54   1.122  1.434  0.583 -1.536] meas=[ 1.387  0.123 -1.541  1.104  1.392  0.586 -1.503] marg=+0.030@j3
+[fruit] [policy-trace] t=16 gap=377mm finger=0.0440 jaw_y=-0.001 fruit_y=+0.361 goal_y=+0.358 fruit_z=1.202 jaw_z=1.317 jaw_x=+0.330 fruit_x=+0.224 goal_x=+0.225
+[fruit] [cmd] t=20 tgt=[ 1.404  0.143 -1.539  1.112  1.438  0.586 -1.527]  req=[ 1.404  0.143 -1.539  1.112  1.438  0.586 -1.527] meas=[ 1.389  0.125 -1.541  1.107  1.399  0.585 -1.508] marg=+0.030@j3
+[fruit] [policy-trace] t=20 gap=374mm finger=0.0440 jaw_y=-0.002 fruit_y=+0.357 goal_y=+0.354 fruit_z=1.202 jaw_z=1.317 jaw_x=+0.330 fruit_x=+0.224 goal_x=+0.225
+[fruit] [cmd] t=24 tgt=[ 1.428  0.144 -1.54   1.117  1.445  0.588 -1.519]  req=[ 1.428  0.144 -1.54   1.117  1.445  0.588 -1.519] meas=[ 1.389  0.128 -1.54   1.107  1.405  0.585 -1.511] marg=+0.030@j3
+[fruit] [policy-trace] t=24 gap=371mm finger=0.0440 jaw_y=-0.003 fruit_y=+0.353 goal_y=+0.350 fruit_z=1.202 jaw_z=1.318 jaw_x=+0.330 fruit_x=+0.224 goal_x=+0.225
+[fruit] [cmd] t=28 tgt=[ 1.457  0.143 -1.559  1.12   1.448  0.594 -1.531]  req=[ 1.457  0.143 -1.559  1.12   1.448  0.594 -1.531] meas=[ 1.393  0.131 -1.541  1.109  1.411  0.586 -1.512] marg=+0.030@j3
+[fruit] [policy-trace] t=28 gap=368mm finger=0.0440 jaw_y=-0.003 fruit_y=+0.349 goal_y=+0.346 fruit_z=1.202 jaw_z=1.319 jaw_x=+0.330 fruit_x=+0.224 goal_x=+0.225
+[fruit] [cmd] t=32 tgt=[ 1.411  0.137 -1.523  1.115  1.434  0.585 -1.52 ]  req=[ 1.403  0.137 -1.523  1.115  1.434  0.585 -1.52 ] meas=[ 1.401  0.132 -1.543  1.111  1.416  0.587 -1.515] marg=+0.027@j3
+[fruit] [policy-trace] t=32 gap=365mm finger=0.0440 jaw_y=-0.004 fruit_y=+0.345 goal_y=+0.342 fruit_z=1.202 jaw_z=1.321 jaw_x=+0.330 fruit_x=+0.224 goal_x=+0.225
+[fruit] [cmd] t=36 tgt=[ 1.403  0.138 -1.519  1.118  1.434  0.581 -1.527]  req=[ 1.403  0.138 -1.519  1.118  1.434  0.581 -1.527] meas=[ 1.4    0.133 -1.541  1.111  1.419  0.587 -1.516] marg=+0.030@j3
+[fruit] [policy-trace] t=36 gap=361mm finger=0.0440 jaw_y=-0.004 fruit_y=+0.341 goal_y=+0.338 fruit_z=1.202 jaw_z=1.321 jaw_x=+0.330 fruit_x=+0.224 goal_x=+0.225
+[fruit] [cmd] t=40 tgt=[ 1.399  0.14  -1.538  1.121  1.433  0.581 -1.514]  req=[ 1.399  0.14  -1.538  1.121  1.433  0.581 -1.514] meas=[ 1.399  0.134 -1.537  1.112  1.421  0.586 -1.517] marg=+0.033@j3
+[fruit] [policy-trace] t=40 gap=357mm finger=0.0440 jaw_y=-0.003 fruit_y=+0.337 goal_y=+0.334 fruit_z=1.202 jaw_z=1.321 jaw_x=+0.330 fruit_x=+0.224 goal_x=+0.225
+[fruit] [cmd] t=44 tgt=[ 1.41   0.143 -1.55   1.128  1.434  0.583 -1.516]  req=[ 1.41   0.143 -1.55   1.128  1.434  0.583 -1.516] meas=[ 1.397  0.135 -1.537  1.113  1.423  0.585 -1.517] marg=+0.033@j3
+[fruit] [policy-trace] t=44 gap=353mm finger=0.0440 jaw_y=-0.003 fruit_y=+0.333 goal_y=+0.330 fruit_z=1.202 jaw_z=1.321 jaw_x=+0.329 fruit_x=+0.224 goal_x=+0.225
+[fruit] [cmd] t=48 tgt=[ 1.407  0.143 -1.517  1.119  1.418  0.587 -1.504]  req=[ 1.407  0.143 -1.517  1.119  1.418  0.587 -1.504] meas=[ 1.397  0.136 -1.539  1.116  1.425  0.585 -1.517] marg=+0.031@j3
+[fruit] [policy-trace] t=48 gap=349mm finger=0.0440 jaw_y=-0.004 fruit_y=+0.329 goal_y=+0.326 fruit_z=1.202 jaw_z=1.321 jaw_x=+0.329 fruit_x=+0.224 goal_x=+0.225
+[fruit] [cmd] t=52 tgt=[ 1.406  0.129 -1.519  1.102  1.426  0.585 -1.518]  req=[ 1.406  0.129 -1.519  1.102  1.426  0.585 -1.518] meas=[ 1.397  0.137 -1.536  1.116  1.424  0.585 -1.515] marg=+0.035@j3
+[fruit] [policy-trace] t=52 gap=345mm finger=0.0440 jaw_y=-0.003 fruit_y=+0.325 goal_y=+0.322 fruit_z=1.202 jaw_z=1.321 jaw_x=+0.329 fruit_x=+0.224 goal_x=+0.225
+[fruit] [cmd] t=56 tgt=[ 1.38   0.135 -1.555  1.106  1.43   0.596 -1.501]  req=[ 1.38   0.135 -1.555  1.106  1.43   0.596 -1.501] meas=[ 1.396  0.136 -1.534  1.114  1.424  0.585 -1.515] marg=+0.037@j3
+[fruit] [policy-trace] t=56 gap=341mm finger=0.0440 jaw_y=-0.003 fruit_y=+0.321 goal_y=+0.318 fruit_z=1.202 jaw_z=1.321 jaw_x=+0.329 fruit_x=+0.224 goal_x=+0.225
+[fruit] [cmd] t=60 tgt=[ 1.399  0.136 -1.553  1.108  1.423  0.6   -1.498]  req=[ 1.399  0.136 -1.553  1.108  1.423  0.6   -1.498] meas=[ 1.392  0.136 -1.537  1.113  1.425  0.587 -1.513] marg=+0.034@j3
+[fruit] [policy-trace] t=60 gap=337mm finger=0.0440 jaw_y=-0.003 fruit_y=+0.317 goal_y=+0.314 fruit_z=1.202 jaw_z=1.319 jaw_x=+0.329 fruit_x=+0.224 goal_x=+0.225
+[fruit] [cmd] t=64 tgt=[ 1.421  0.149 -1.522  1.121  1.438  0.591 -1.524]  req=[ 1.421  0.149 -1.522  1.121  1.438  0.591 -1.524] meas=[ 1.391  0.136 -1.54   1.112  1.425  0.589 -1.511] marg=+0.031@j3
+[fruit] [policy-trace] t=64 gap=333mm finger=0.0440 jaw_y=-0.003 fruit_y=+0.313 goal_y=+0.310 fruit_z=1.202 jaw_z=1.319 jaw_x=+0.328 fruit_x=+0.224 goal_x=+0.225
+[fruit] [cmd] t=68 tgt=[ 1.406  0.148 -1.528  1.119  1.44   0.583 -1.533]  req=[ 1.406  0.148 -1.528  1.119  1.44   0.583 -1.533] meas=[ 1.394  0.138 -1.537  1.113  1.427  0.589 -1.513] marg=+0.034@j3
+[fruit] [policy-trace] t=68 gap=330mm finger=0.0440 jaw_y=-0.004 fruit_y=+0.309 goal_y=+0.306 fruit_z=1.202 jaw_z=1.320 jaw_x=+0.329 fruit_x=+0.224 goal_x=+0.225
+[fruit] [cmd] t=72 tgt=[ 1.398  0.15  -1.541  1.122  1.44   0.582 -1.518]  req=[ 1.398  0.15  -1.541  1.122  1.44   0.582 -1.518] meas=[ 1.394  0.139 -1.536  1.114  1.429  0.588 -1.516] marg=+0.035@j3
+[fruit] [policy-trace] t=72 gap=327mm finger=0.0440 jaw_y=-0.004 fruit_y=+0.305 goal_y=+0.302 fruit_z=1.202 jaw_z=1.320 jaw_x=+0.329 fruit_x=+0.224 goal_x=+0.225
+[fruit] [cmd] t=76 tgt=[ 1.4    0.153 -1.55   1.126  1.437  0.586 -1.524]  req=[ 1.4    0.153 -1.55   1.126  1.437  0.586 -1.524] meas=[ 1.393  0.141 -1.536  1.115  1.43   0.587 -1.516] marg=+0.034@j3
+[fruit] [policy-trace] t=76 gap=323mm finger=0.0440 jaw_y=-0.005 fruit_y=+0.301 goal_y=+0.298 fruit_z=1.202 jaw_z=1.320 jaw_x=+0.329 fruit_x=+0.224 goal_x=+0.225
+[fruit] [cmd] t=80 tgt=[ 1.415  0.152 -1.548  1.125  1.435  0.583 -1.541]  req=[ 1.415  0.152 -1.548  1.125  1.435  0.583 -1.541] meas=[ 1.392  0.143 -1.539  1.117  1.431  0.587 -1.517] marg=+0.032@j3
+[fruit] [policy-trace] t=80 gap=320mm finger=0.0440 jaw_y=-0.006 fruit_y=+0.297 goal_y=+0.294 fruit_z=1.202 jaw_z=1.319 jaw_x=+0.328 fruit_x=+0.224 goal_x=+0.225
+[fruit] [cmd] t=84 tgt=[ 1.415  0.153 -1.548  1.122  1.432  0.576 -1.531]  req=[ 1.415  0.153 -1.548  1.122  1.432  0.576 -1.531] meas=[ 1.394  0.144 -1.54   1.118  1.432  0.587 -1.521] marg=+0.031@j3
+[fruit] [policy-trace] t=84 gap=317mm finger=0.0440 jaw_y=-0.006 fruit_y=+0.293 goal_y=+0.290 fruit_z=1.202 jaw_z=1.319 jaw_x=+0.328 fruit_x=+0.224 goal_x=+0.225
+[fruit] [cmd] t=88 tgt=[ 1.403  0.153 -1.552  1.125  1.431  0.58  -1.52 ]  req=[ 1.403  0.153 -1.552  1.125  1.431  0.58  -1.52 ] meas=[ 1.395  0.146 -1.541  1.119  1.432  0.585 -1.523] marg=+0.029@j3
+[fruit] [policy-trace] t=88 gap=314mm finger=0.0440 jaw_y=-0.007 fruit_y=+0.289 goal_y=+0.286 fruit_z=1.202 jaw_z=1.319 jaw_x=+0.329 fruit_x=+0.224 goal_x=+0.225
+[fruit] [cmd] t=92 tgt=[ 1.413  0.155 -1.562  1.13   1.427  0.58  -1.516]  req=[ 1.413  0.155 -1.562  1.13   1.427  0.58  -1.516] meas=[ 1.395  0.147 -1.543  1.12   1.432  0.584 -1.522] marg=+0.028@j3
+[fruit] [policy-trace] t=92 gap=311mm finger=0.0440 jaw_y=-0.008 fruit_y=+0.285 goal_y=+0.282 fruit_z=1.202 jaw_z=1.319 jaw_x=+0.328 fruit_x=+0.224 goal_x=+0.225
+[fruit] [cmd] t=96 tgt=[ 1.413  0.156 -1.521  1.121  1.422  0.577 -1.52 ]  req=[ 1.413  0.156 -1.521  1.121  1.422  0.577 -1.52 ] meas=[ 1.396  0.148 -1.546  1.121  1.431  0.583 -1.521] marg=+0.025@j3
+[fruit] [policy-trace] t=96 gap=307mm finger=0.0440 jaw_y=-0.008 fruit_y=+0.281 goal_y=+0.278 fruit_z=1.202 jaw_z=1.319 jaw_x=+0.328 fruit_x=+0.224 goal_x=+0.225
+[fruit] [cmd] t=100 tgt=[ 1.403  0.155 -1.522  1.121  1.427  0.575 -1.514]  req=[ 1.403  0.155 -1.522  1.121  1.427  0.575 -1.514] meas=[ 1.396  0.149 -1.542  1.121  1.43   0.582 -1.521] marg=+0.028@j3
+[fruit] [policy-trace] t=100 gap=304mm finger=0.0440 jaw_y=-0.008 fruit_y=+0.277 goal_y=+0.274 fruit_z=1.202 jaw_z=1.320 jaw_x=+0.329 fruit_x=+0.224 goal_x=+0.225
+[fruit] [cmd] t=104 tgt=[ 1.391  0.155 -1.541  1.125  1.42   0.575 -1.504]  req=[ 1.391  0.155 -1.541  1.125  1.42   0.575 -1.504] meas=[ 1.396  0.15  -1.539  1.121  1.429  0.581 -1.52 ] marg=+0.031@j3
+[fruit] [policy-trace] t=104 gap=300mm finger=0.0440 jaw_y=-0.008 fruit_y=+0.273 goal_y=+0.270 fruit_z=1.202 jaw_z=1.320 jaw_x=+0.329 fruit_x=+0.224 goal_x=+0.225
+[fruit] [cmd] t=108 tgt=[ 1.394  0.156 -1.553  1.128  1.411  0.583 -1.499]  req=[ 1.394  0.156 -1.553  1.128  1.411  0.583 -1.499] meas=[ 1.393  0.151 -1.54   1.122  1.428  0.58  -1.517] marg=+0.031@j3
+[fruit] [policy-trace] t=108 gap=296mm finger=0.0440 jaw_y=-0.008 fruit_y=+0.269 goal_y=+0.267 fruit_z=1.202 jaw_z=1.319 jaw_x=+0.329 fruit_x=+0.224 goal_x=+0.225
+[fruit] [cmd] t=112 tgt=[ 1.417  0.136 -1.545  1.092  1.433  0.601 -1.512]  req=[ 1.417  0.136 -1.545  1.092  1.433  0.601 -1.512] meas=[ 1.392  0.152 -1.542  1.122  1.425  0.581 -1.515] marg=+0.029@j3
+[fruit] [policy-trace] t=112 gap=293mm finger=0.0440 jaw_y=-0.008 fruit_y=+0.265 goal_y=+0.263 fruit_z=1.202 jaw_z=1.318 jaw_x=+0.329 fruit_x=+0.224 goal_x=+0.225
+[fruit] [cmd] t=116 tgt=[ 1.413  0.14  -1.539  1.098  1.429  0.597 -1.503]  req=[ 1.413  0.14  -1.539  1.098  1.429  0.597 -1.503] meas=[ 1.393  0.15  -1.542  1.118  1.426  0.584 -1.514] marg=+0.028@j3
+[fruit] [policy-trace] t=116 gap=289mm finger=0.0440 jaw_y=-0.008 fruit_y=+0.261 goal_y=+0.258 fruit_z=1.202 jaw_z=1.319 jaw_x=+0.329 fruit_x=+0.224 goal_x=+0.225
+[fruit] [cmd] t=120 tgt=[ 1.399  0.14  -1.552  1.102  1.428  0.601 -1.49 ]  req=[ 1.399  0.14  -1.552  1.102  1.428  0.601 -1.49 ] meas=[ 1.395  0.148 -1.542  1.115  1.427  0.586 -1.513] marg=+0.029@j3
+[fruit] [policy-trace] t=120 gap=285mm finger=0.0440 jaw_y=-0.008 fruit_y=+0.257 goal_y=+0.254 fruit_z=1.202 jaw_z=1.319 jaw_x=+0.330 fruit_x=+0.224 goal_x=+0.225
+[fruit] [cmd] t=124 tgt=[ 1.403  0.141 -1.557  1.104  1.422  0.601 -1.48 ]  req=[ 1.403  0.141 -1.557  1.104  1.422  0.601 -1.48 ] meas=[ 1.394  0.147 -1.544  1.113  1.427  0.588 -1.509] marg=+0.027@j3
+[fruit] [policy-trace] t=124 gap=281mm finger=0.0440 jaw_y=-0.007 fruit_y=+0.253 goal_y=+0.250 fruit_z=1.202 jaw_z=1.318 jaw_x=+0.330 fruit_x=+0.224 goal_x=+0.225
+[fruit] [cmd] t=128 tgt=[ 1.424  0.175 -1.542  1.149  1.442  0.561 -1.525]  req=[ 1.424  0.175 -1.542  1.174  1.442  0.561 -1.549] meas=[ 1.393  0.146 -1.546  1.111  1.426  0.59  -1.505] marg=+0.025@j3
+[fruit] [policy-trace] t=128 gap=277mm finger=0.0440 jaw_y=-0.007 fruit_y=+0.249 goal_y=+0.246 fruit_z=1.202 jaw_z=1.318 jaw_x=+0.330 fruit_x=+0.224 goal_x=+0.225
+[fruit] [cmd] t=132 tgt=[ 1.429  0.174 -1.531  1.173  1.441  0.558 -1.548]  req=[ 1.429  0.174 -1.531  1.173  1.441  0.558 -1.548] meas=[ 1.396  0.151 -1.545  1.12   1.429  0.586 -1.511] marg=+0.026@j3
+[fruit] [policy-trace] t=132 gap=274mm finger=0.0440 jaw_y=-0.008 fruit_y=+0.245 goal_y=+0.242 fruit_z=1.202 jaw_z=1.319 jaw_x=+0.329 fruit_x=+0.224 goal_x=+0.225
+[fruit] [cmd] t=136 tgt=[ 1.42   0.177 -1.542  1.176  1.447  0.561 -1.535]  req=[ 1.42   0.177 -1.542  1.176  1.447  0.561 -1.535] meas=[ 1.399  0.154 -1.543  1.128  1.43   0.581 -1.516] marg=+0.028@j3
+[fruit] [policy-trace] t=136 gap=271mm finger=0.0440 jaw_y=-0.008 fruit_y=+0.241 goal_y=+0.238 fruit_z=1.202 jaw_z=1.321 jaw_x=+0.329 fruit_x=+0.224 goal_x=+0.225
+[fruit] [cmd] t=140 tgt=[ 1.423  0.177 -1.566  1.184  1.448  0.556 -1.546]  req=[ 1.423  0.177 -1.566  1.184  1.448  0.556 -1.546] meas=[ 1.401  0.158 -1.543  1.135  1.433  0.578 -1.519] marg=+0.028@j3
+[fruit] [policy-trace] t=140 gap=267mm finger=0.0440 jaw_y=-0.009 fruit_y=+0.237 goal_y=+0.234 fruit_z=1.202 jaw_z=1.321 jaw_x=+0.328 fruit_x=+0.224 goal_x=+0.225
+[fruit] [cmd] t=144 tgt=[ 1.414  0.159 -1.521  1.138  1.435  0.576 -1.537]  req=[ 1.414  0.159 -1.517  1.137  1.435  0.576 -1.537] meas=[ 1.402  0.161 -1.547  1.143  1.435  0.575 -1.523] marg=+0.024@j3
+[fruit] [policy-trace] t=144 gap=264mm finger=0.0440 jaw_y=-0.010 fruit_y=+0.233 goal_y=+0.230 fruit_z=1.202 jaw_z=1.321 jaw_x=+0.327 fruit_x=+0.224 goal_x=+0.225
+[fruit] [cmd] t=148 tgt=[ 1.421  0.155 -1.531  1.133  1.44   0.573 -1.531]  req=[ 1.421  0.155 -1.531  1.133  1.44   0.573 -1.531] meas=[ 1.402  0.161 -1.542  1.142  1.435  0.575 -1.525] marg=+0.028@j3
+[fruit] [policy-trace] t=148 gap=260mm finger=0.0440 jaw_y=-0.009 fruit_y=+0.229 goal_y=+0.226 fruit_z=1.202 jaw_z=1.322 jaw_x=+0.328 fruit_x=+0.224 goal_x=+0.225
+[fruit] [cmd] t=152 tgt=[ 1.408  0.157 -1.542  1.136  1.443  0.58  -1.522]  req=[ 1.408  0.157 -1.542  1.136  1.443  0.58  -1.522] meas=[ 1.403  0.16  -1.541  1.141  1.436  0.575 -1.526] marg=+0.030@j3
+[fruit] [policy-trace] t=152 gap=256mm finger=0.0440 jaw_y=-0.009 fruit_y=+0.225 goal_y=+0.222 fruit_z=1.202 jaw_z=1.323 jaw_x=+0.328 fruit_x=+0.224 goal_x=+0.225
+[fruit] [cmd] t=156 tgt=[ 1.413  0.158 -1.559  1.138  1.439  0.583 -1.521]  req=[ 1.413  0.158 -1.559  1.138  1.439  0.583 -1.521] meas=[ 1.402  0.16  -1.541  1.14   1.437  0.575 -1.526] marg=+0.030@j3
+[fruit] [policy-trace] t=156 gap=252mm finger=0.0440 jaw_y=-0.009 fruit_y=+0.221 goal_y=+0.218 fruit_z=1.202 jaw_z=1.322 jaw_x=+0.328 fruit_x=+0.224 goal_x=+0.225
+[fruit] [cmd] t=160 tgt=[ 1.431  0.183 -1.523  1.151  1.439  0.591 -1.523]  req=[ 1.431  0.183 -1.523  1.151  1.439  0.591 -1.523] meas=[ 1.402  0.159 -1.544  1.14   1.437  0.577 -1.525] marg=+0.027@j3
+[fruit] [policy-trace] t=160 gap=249mm finger=0.0440 jaw_y=-0.009 fruit_y=+0.217 goal_y=+0.215 fruit_z=1.202 jaw_z=1.322 jaw_x=+0.328 fruit_x=+0.224 goal_x=+0.225
+[fruit] [cmd] t=164 tgt=[ 1.408  0.183 -1.504  1.148  1.44   0.587 -1.526]  req=[ 1.408  0.183 -1.504  1.148  1.44   0.587 -1.526] meas=[ 1.405  0.163 -1.541  1.141  1.438  0.579 -1.525] marg=+0.030@j3
+[fruit] [policy-trace] t=164 gap=246mm finger=0.0440 jaw_y=-0.010 fruit_y=+0.213 goal_y=+0.211 fruit_z=1.202 jaw_z=1.323 jaw_x=+0.328 fruit_x=+0.224 goal_x=+0.225
+[fruit] [cmd] t=168 tgt=[ 1.415  0.182 -1.534  1.15   1.448  0.585 -1.525]  req=[ 1.415  0.182 -1.534  1.15   1.448  0.585 -1.525] meas=[ 1.403  0.166 -1.535  1.142  1.438  0.58  -1.525] marg=+0.036@j3
+[fruit] [policy-trace] t=168 gap=243mm finger=0.0440 jaw_y=-0.010 fruit_y=+0.209 goal_y=+0.207 fruit_z=1.202 jaw_z=1.324 jaw_x=+0.329 fruit_x=+0.224 goal_x=+0.225
+[fruit] [cmd] t=172 tgt=[ 1.425  0.187 -1.545  1.156  1.448  0.585 -1.539]  req=[ 1.425  0.187 -1.545  1.156  1.448  0.585 -1.539] meas=[ 1.403  0.168 -1.535  1.143  1.44   0.581 -1.525] marg=+0.036@j3
+[fruit] [policy-trace] t=172 gap=240mm finger=0.0440 jaw_y=-0.011 fruit_y=+0.205 goal_y=+0.203 fruit_z=1.202 jaw_z=1.324 jaw_x=+0.329 fruit_x=+0.224 goal_x=+0.225
+[fruit] [cmd] t=176 tgt=[ 1.417  0.152 -1.536  1.115  1.449  0.597 -1.552]  req=[ 1.417  0.152 -1.536  1.115  1.449  0.597 -1.552] meas=[ 1.405  0.171 -1.536  1.145  1.441  0.581 -1.527] marg=+0.034@j3
+[fruit] [policy-trace] t=176 gap=237mm finger=0.0440 jaw_y=-0.012 fruit_y=+0.201 goal_y=+0.199 fruit_z=1.202 jaw_z=1.324 jaw_x=+0.329 fruit_x=+0.224 goal_x=+0.225
+[fruit] [cmd] t=180 tgt=[ 1.417  0.153 -1.539  1.117  1.452  0.592 -1.547]  req=[ 1.417  0.153 -1.539  1.117  1.452  0.592 -1.547] meas=[ 1.405  0.168 -1.537  1.141  1.442  0.584 -1.531] marg=+0.034@j3
+[fruit] [policy-trace] t=180 gap=234mm finger=0.0440 jaw_y=-0.012 fruit_y=+0.197 goal_y=+0.194 fruit_z=1.202 jaw_z=1.324 jaw_x=+0.329 fruit_x=+0.224 goal_x=+0.226
+[fruit] [cmd] t=184 tgt=[ 1.418  0.154 -1.548  1.12   1.451  0.594 -1.54 ]  req=[ 1.418  0.154 -1.548  1.12   1.451  0.594 -1.54 ] meas=[ 1.405  0.166 -1.537  1.137  1.444  0.585 -1.533] marg=+0.034@j3
+[fruit] [policy-trace] t=184 gap=230mm finger=0.0440 jaw_y=-0.012 fruit_y=+0.193 goal_y=+0.191 fruit_z=1.202 jaw_z=1.324 jaw_x=+0.329 fruit_x=+0.224 goal_x=+0.225
+[fruit] [close] t=260 trigger=phase xy=21mm dz=+65mm dx=-14mm jaw_z=1.267 fruit_z=1.202 grip=0.0291 sep=98.0mm seat_res=nanmm
+[fruit] [belt] pear (index 9) discharged to the tray at x=1.46 (settled 3.0s)

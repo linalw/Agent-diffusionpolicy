@@ -40,6 +40,8 @@ FRUIT_SCORE_ENDPOINT=release           # score the place where the payload is re
 FRUIT_POLICY_JOINT_CLAMP=1             # clip the 7 targets into the arm's own limits
 FRUIT_POLICY_TARGET_RATE=5.45          # rad/s: the arm's own 312 deg/s joint limit
 FRUIT_CLOSE_RAMP_DY_LO=-0.02           # phase close: level or just behind, never 0.44 m
+# optional hybrid skill for the small-fruit class (<= 0.040 m):
+FRUIT_SMALL_HANDOVER=1                 # small -> the scripted task.run skill; large -> the policy
 ```
 
 Every knob is opt-in; **no shipped default was flipped**, `configs/` is untouched and the
@@ -156,7 +158,13 @@ shipped dynamic catch, while the learned direct line places 1/6 (60 N), 1/6 (20 
 0/4 (two-sided close, `fired=0`). The hand is fine; the **policy approach** is the
 bottleneck. The full 4-waypoint chunk is the ship; the next spend is a size-aware phase
 gate/retrain, a cartesian action, or a size-conditioned handover to the scripted
-primitive (5/6) while the learned policy keeps the large fruit.
+primitive (5/6) while the learned policy keeps the large fruit. The **small handover
+itself is delivered**: `FRUIT_SMALL_HANDOVER=1` places **5/6 lychees** (P218) and the
+mixed seed-303 cell reads **5/6** (learned large 4/4 + scripted small 1/1; the one failure
+is the right-arm large class), against the learned control's 3/6 (C303) / 4/6 (R5); at
+seed 808 the hybrid is 4/6, equal to its control, and the small class is 2/2 (P219). It
+is a **hybrid**, not a learned small-fruit policy; the mixed count is a branch, the class
+mechanism is the result.
 
 ## 8. What is left: the acquisition's selection timing, throughput, a certificate
 

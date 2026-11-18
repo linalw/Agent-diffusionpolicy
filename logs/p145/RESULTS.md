@@ -3011,3 +3011,27 @@ approach/phase**, not force, pad geometry or the second view. The next spend is 
 size-aware phase gate/retrain, a cartesian action, or a size-conditioned handover to the
 scripted primitive (5/6) while the learned policy keeps the large fruit. Evidence
 `logs/p216/scripted_lychee.log`.
+
+## 82. P218/P219: a size-conditioned scripted skill places the small fruit
+
+P216/P217 showed the learned policy never approaches a 3.1-3.4 cm fruit, while the shipped
+scripted catch places 5/6 lychees at 10 N. P218 adds `FRUIT_SMALL_HANDOVER=1`: a fruit at
+or below 0.040 m runs `_run_scripted()` (the same `task.run` as `--ablate scripted`); the
+learned policy keeps every larger fruit.
+
+* **Lychee-only, seed 808, 6 episodes**: small handover **5/6**, `decision=0` on every
+  scripted attempt, matching the scripted control 5/6 against the learned 1/6.
+* **Mixed pool, seed 303, 6 episodes**: **5/6** - learned large 4/4 (orange, kiwi, peach,
+  peach), scripted small 1/1 (3.0 cm lychee), one 7.0 cm right apple failure on the
+  learned path. The learned control at the same seed was 3/6 (C303) / 4/6 (R5 303).
+* **Mixed pool, seed 808, 6 episodes**: **4/6**, equal to its control; the small class is
+  2/2 (3.1 lychee, 3.1 strawberry), the learned large 2/4 (a tomato and a 6.9 cm pear
+  fail). The earlier 808 attempt wedged at 3/4 after the renderer; the rerun is complete.
+
+The hybrid is **not a learned small-fruit policy**; it is a skill route. The class
+mechanism is strong and the seed-303 cell is positive, but the mixed count is a branch
+(+1 at 303, equal at 808) and the right-arm large class is untouched. The scripted small
+attempts cost 1700-1900 ticks against the learned 1100-1300 (~10-15 % on the branch).
+`FRUIT_SMALL_HANDOVER` is default-off; the recipe setting is opt-in.
+**Pins.** `rl_env.py` **`bd1bf141`**, `scripts/280_p218_small_handover_selftest.py`
+**`24c8bfad`**, `selfcheck.sh` **`a9314fe9`**; evidence `logs/p218/`, `logs/p219/`.

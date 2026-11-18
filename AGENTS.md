@@ -1612,8 +1612,12 @@ small-fruit residual is the **policy approach/phase**, not force and not the han
 P215 geometry sentence is withdrawn. **P217's control is decisive**: the shipped scripted
 dynamic catch places **5/6 lychees at 9.65-10.61 N** on the same hand/pool, against the
 learned 1/6 (60 N), 1/6 (20 N) and 0/4 (`fired=0`). The hand is fine; the policy approach
-is the bottleneck. New legs `271`-`279`; references `30fb99f8` / `30fb99f8` / `8952c320`
-stand.
+is the bottleneck. **P218/P219** deliver the class fix: `FRUIT_SMALL_HANDOVER=1` routes
+<= 4 cm fruit to the scripted `task.run` skill (5/6 lychees; mixed seed 303 **5/6** with
+the learned large path 4/4 and the scripted small 1/1, against the learned control's
+3/6/4/6; seed 808 4/6, equal, small 2/2). It is a **hybrid**, not a learned small-fruit
+policy; the mixed count is a branch, the class is the result. New legs `271`-`280`;
+references `30fb99f8` / `30fb99f8` / `8952c320` stand.
 
 ## 2. Two constraints that decide how to measure
 

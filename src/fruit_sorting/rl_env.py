@@ -3177,6 +3177,24 @@ class SortingRLEnv:
             os.environ.get("FRUIT_POLICY_ENSEMBLE")
         )
         self._ensemble_prev: np.ndarray | None = None
+        #: P218: a **size-conditioned scripted skill**. The learned policy never
+        #: approaches a 3.1-3.4 cm fruit (`[fire] fired=0` at 0.65-1.18 m, P216),
+        #: while the shipped scripted catch places 5/6 lychees at 10 N (P217).
+        #: `FRUIT_SMALL_HANDOVER=1` routes a fruit at/below `_DIA` to the scripted
+        #: `task.run` skill; the learned policy keeps every larger fruit. Off by
+        #: default; the learned small-fruit approach is still an open problem.
+        self._small_handover = (
+            os.environ.get("FRUIT_SMALL_HANDOVER", "0").strip() == "1"
+        )
+        self._small_handover_dia = float(
+            os.environ.get("FRUIT_SMALL_HANDOVER_DIA", "0.040") or 0.040
+        )
+        if self._small_handover and (presentation != "direct" or ablate != "none"):
+            raise ValueError(
+                "FRUIT_SMALL_HANDOVER is only defined for presentation='direct' "
+                f"with ablate='none' (got presentation={presentation!r}, "
+                f"ablate={ablate!r})"
+            )
         if self._ensemble_alpha > 0.0 and presentation != "direct":
             raise ValueError(
                 "FRUIT_POLICY_ENSEMBLE is only defined for presentation='direct', "
@@ -3713,6 +3731,14 @@ class SortingRLEnv:
                 }
                 if (self._joint_clamp or self._action_hold > 1
                     or self._target_rate > 0.0)
+                else None
+            ),
+            "small_handover": (
+                {
+                    "enabled": True,
+                    "dia": float(self._small_handover_dia),
+                }
+                if self._small_handover
                 else None
             ),
             "close_ramp": (
@@ -6841,6 +6867,13 @@ class SortingRLEnv:
         # only read inside this loop (it is set by `_finalize` when a continuous
         # episode moved on to the next pick mid-call).
         self._pick_boundary = False
+        if (self._small_handover and self._sample is not None
+                and float(self._sample.diameter) <= self._small_handover_dia):
+            # P218: the scripted skill owns this attempt end to end. It is the
+            # same `task.run` the `--ablate scripted` path uses and the 5/6
+            # lychee control measured; the learned policy keeps the large fruit.
+            self._run_scripted()
+            return self._step_result()
         if self.ablate == "scripted":
             self._run_scripted()
             return self._step_result()
