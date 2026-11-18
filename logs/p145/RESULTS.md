@@ -3052,3 +3052,10 @@ completes. The handover is not the cause; the learned large path is the known
 continuous-mode wedge (P145b). The mixed per-episode cell is 5/6 at seed 303 (P219).
 **The small-fruit handover is continuous-ready; the mixed continuous loop needs the
 timeout-guarded/chunked runner or the post-close fix before it is a stable demo.**
+
+**P220 mixed continuous.** Seed 303 completes **4/6** (orange, kiwi, orange, tomato; a
+5.9 cm pear and a 7.0 cm right apple fail) in 6,991 ticks, 88-tick gaps - equal to the
+learned per-episode control (4/6), below the per-episode hybrid (5/6); the six-pick
+sequence contains no small fruit, so the handover is not exercised. Seed 505 started
+2/6 and wedged in the learned post-close path. The lychee-only 5/6 continuous cell is the
+small-class result; the mixed continuous total is not a gain.

@@ -20,11 +20,13 @@ set. The question was whether the scripted skill's finalize does the same. **It 
   the next pick; every small attempt is `decision=0` (no policy).
 - 10,290 ticks = 85.8 s sim for 6 picks = **15.3 s/pick**; the gaps are 70-100 ticks.
 
-**Mixed continuous is not delivered.** A mixed 6-pick run at seed 505 started pick 2/6
+**Mixed continuous**: seed 303 completes **4/6** (orange, kiwi, orange, tomato; a 5.9 cm
+pear and a 7.0 cm right apple fail) in 6,991 ticks, 88-tick gaps - equal to the learned
+per-episode control (4/6), below the per-episode hybrid (5/6), and the 6-pick sequence
+contains no small fruit, so the handover is not exercised there. Seed 505 started pick 2/6
 (orange placed, kiwi learned) and then **wedged** in the learned post-close phase after
 12+ min, the known continuous-mode renderer/learned-path wedge (the lychee-only all-scripted
-episode completes). The handover is not the cause; the learned large path is. The mixed
-**per-episode** cell is 5/6 at seed 303 (P219).
+episode completes). The handover is not the cause; the learned large path is.
 
 **Verdict: the small-fruit handover is continuous-ready; the mixed continuous loop still
 inherits the learned path's wedge.** The scripted small skill is the 5/6 carrier; the
