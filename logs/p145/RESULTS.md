@@ -2975,3 +2975,39 @@ object** - the hardware/new-pad class, not a software knob. **Not adopted**; the
 size-dependent cap stays default-off. **Pins.** `rl_env.py` **`f7ebb7cb`**,
 `scripts/278_p215_small_clamp_selftest.py` **`ef36266f`**, `selfcheck.sh`
 **`1b51e26b`**; evidence `logs/p215/`.
+
+## 80. P216: the phase close was one-sided; fixing it exposes the small-fruit policy failure
+
+The P215 small-fruit `[close]` rows read `xy=442 mm` and `[fire] dy=-442 mm`: the phase
+gate closed the pads with the fruit **behind** the hand. The trigger was `dy <= 0.014`,
+true for any negative dy. P216 adds `FRUIT_CLOSE_RAMP_DY_LO` (default `-inf`, the shipped
+one-sided path) and measures `-0.02` (the contact servo's own "level or just behind"
+window). Lychee-only, seed 808:
+
+| arm | placed | close | `[fire]` on 3.1-3.4 cm |
+|---|---:|---|---|
+| control (P215, `-inf`) | 1/6 | one at `xy=442 mm` | `fired=1`, gap 459 mm, dy -442 |
+| `-0.02` | 0/4 partial | one at `xy=25 mm` (3.4-3.7 cm) | **`fired=0`, gap 647-1180 mm, dy -554..-1145** |
+
+The bug is gone (no close with dy < -20 mm), and the real state is exposed: the policy
+**never approaches** the 3.1-3.4 cm fruit; at the attempt's end the fruit is 0.65-1.18 m
+behind the hand. The P215 force comparison is **confounded** - the small fruit never
+reached the pads - and its "pad/hand geometry" sentence is **withdrawn**. The 3.7 cm
+lychee closes at 25 mm and places at both caps. The next spend is the **policy**: a
+size-aware phase gate/retrain or a cartesian action that actually approaches a 3 cm
+fruit. `FRUIT_CLOSE_RAMP_DY_LO=-0.02` is a correctness setting; the default stays `-inf`.
+**Pins.** `rl_env.py` **`8f3c350f`**, `scripts/279_p216_close_lo_selftest.py`
+**`281521ec`**, `selfcheck.sh` **`69c566b2`**; evidence `logs/p216/`, `logs/p217/`.
+
+## 81. P217: the scripted line grasps 5/6 lychees - the small-fruit failure is the policy
+
+The decisive control for P215/P216. Same hand, same 3.1-3.4 cm lychee-only pool, seed 808,
+the shipped **scripted** dynamic catch (single arm, 6 attempts): **5/6 = 83 %**, placed at
+9.65-10.61 N, lifts 0.312-0.382 m. The one failure is a carry/place escape at 29 N, not
+acquisition. The learned direct line on the same class is 1/6 (60 N), 1/6 (20 N) and 0/4
+(two-sided close, `fired=0` at 0.65-1.18 m). **The hand can hold a 3 cm lychee at 10 N;
+the policy never approaches it.** The small-fruit residual is the **policy
+approach/phase**, not force, pad geometry or the second view. The next spend is a
+size-aware phase gate/retrain, a cartesian action, or a size-conditioned handover to the
+scripted primitive (5/6) while the learned policy keeps the large fruit. Evidence
+`logs/p216/scripted_lychee.log`.

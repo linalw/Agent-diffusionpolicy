@@ -1603,11 +1603,17 @@ grip, not the transit. **P213** found the two-camera blocker is the second **ins
 annotator**, not the camera (an RGB+depth wrist leaves the head's mask alive); **P214**
 then measured that a mask-free wrist depth window fits the hand (44-62 mm centre error
 against the head's 1.7-2.1 mm), so the second view needs a colour segmenter or a learned
-detector. **P215** closed the small-fruit force lane: 20 N and 60 N both read 1/6 on a
-lychee-only pool (the same 3.7 cm fruit; the 3.1-3.6 cm class fails at both), and the head
-estimate on a 3.1 cm fruit is 1.7 mm - so the class is **not force and not perception**;
-it is the pad/hand geometry. New legs `271`-`278`; references `30fb99f8` / `30fb99f8` /
-`8952c320` stand.
+detector. **P215** measured 20 N and 60 N both 1/6 on a lychee-only pool, but **P216
+corrected the cause**: the phase close's one-sided `dy <= hi` trigger fired with the fruit
+**behind** the hand (`[close] xy=442 mm`, `[fire] dy=-442 mm`). With a two-sided
+`FRUIT_CLOSE_RAMP_DY_LO=-0.02` the small fruit read **`fired=0` at 0.65-1.18 m behind** -
+the policy never approaches them; the 3.7 cm lychee closes at 25 mm and places. The
+small-fruit residual is the **policy approach/phase**, not force and not the hand; the
+P215 geometry sentence is withdrawn. **P217's control is decisive**: the shipped scripted
+dynamic catch places **5/6 lychees at 9.65-10.61 N** on the same hand/pool, against the
+learned 1/6 (60 N), 1/6 (20 N) and 0/4 (`fired=0`). The hand is fine; the policy approach
+is the bottleneck. New legs `271`-`279`; references `30fb99f8` / `30fb99f8` / `8952c320`
+stand.
 
 ## 2. Two constraints that decide how to measure
 

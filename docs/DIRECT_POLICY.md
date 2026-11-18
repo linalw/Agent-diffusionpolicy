@@ -39,6 +39,7 @@ FRUIT_FINGER_MAXFORCE_DIRECT=60        # the real-jaw clamp spec
 FRUIT_SCORE_ENDPOINT=release           # score the place where the payload is released
 FRUIT_POLICY_JOINT_CLAMP=1             # clip the 7 targets into the arm's own limits
 FRUIT_POLICY_TARGET_RATE=5.45          # rad/s: the arm's own 312 deg/s joint limit
+FRUIT_CLOSE_RAMP_DY_LO=-0.02           # phase close: level or just behind, never 0.44 m
 ```
 
 Every knob is opt-in; **no shipped default was flipped**, `configs/` is untouched and the
@@ -144,10 +145,18 @@ against 0.101 and equal count - it rescues E2, it does not beat E4); and the
 fails, so the class is not selection timing); and the **right-only place transit speed**
 (0.15: 2/6 against 0.20's 2/6, with `hold=` already 115-120 mm before the place, so the
 slip is in the lift/carry, not the transit); and the **size-dependent direct clamp**
-(20 N on <= 4 cm fruit: 1/6, identical to 60 N; the head is 1.7 mm on the same fruit, so
-the class is neither force nor perception - it is the pad/hand geometry). The full
-4-waypoint chunk is the ship, and the small-fruit/right-arm residual is the hardware
-class.
+(20 N on <= 4 cm fruit: 1/6, identical to 60 N). **P216 then corrected the cause**: the
+phase close's one-sided `dy <= hi` trigger was firing with the fruit **behind** the hand
+(`[close] xy=442 mm`, `[fire] dy=-442 mm`); with a two-sided `FRUIT_CLOSE_RAMP_DY_LO=-0.02`
+the small fruit read **`fired=0` at 0.65-1.18 m behind**, i.e. the policy never approaches
+them. The small-fruit residual is the **policy approach/phase**, not force and not the
+hand; the 3.7 cm lychee closes at 25 mm and places. **P217's scripted control is
+decisive**: the same hand and lychee-only pool place **5/6 at 9.65-10.61 N** on the
+shipped dynamic catch, while the learned direct line places 1/6 (60 N), 1/6 (20 N) or
+0/4 (two-sided close, `fired=0`). The hand is fine; the **policy approach** is the
+bottleneck. The full 4-waypoint chunk is the ship; the next spend is a size-aware phase
+gate/retrain, a cartesian action, or a size-conditioned handover to the scripted
+primitive (5/6) while the learned policy keeps the large fruit.
 
 ## 8. What is left: the acquisition's selection timing, throughput, a certificate
 

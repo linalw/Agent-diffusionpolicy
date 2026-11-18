@@ -1370,6 +1370,19 @@ def ensemble_action_chunk(prev, new, steps: int, alpha: float):
     return out
 
 
+def close_phase_trigger(dy: float, hi: float, lo: float) -> bool:
+    """P216: the phase close's along-belt window, **two-sided**.
+
+    The shipped trigger was ``dy <= hi``. A fruit that has gone **behind** the hand
+    has a negative ``dy``, so the condition was true at -0.44 m as well - measured
+    on the small-fruit cells (`[close] xy=442 mm`, `[fire] dy=-442 mm`): the phase
+    gate closed the pads when the fruit was half a metre away. ``lo=-inf`` is the
+    shipped path exactly; a finite ``lo`` requires the fruit to be within
+    ``[lo, hi]`` of the jaw.
+    """
+    return bool(float(lo) <= float(dy) <= float(hi))
+
+
 def clamp_joint_targets(action: np.ndarray, lo, hi) -> np.ndarray:
     """P53 C1: the 9-D action with its 7 arm targets inside ``[lo, hi]``.
 
@@ -2477,6 +2490,14 @@ class SortingRLEnv:
             os.environ.get("FRUIT_DAGGER_CONTACT_TAKEOVER", "0") == "1"
         )
         self._close_ramp_dy = float(os.environ.get("FRUIT_CLOSE_RAMP_DY", "0.05"))
+        #: P216: the phase close's **lower** along-belt bound. The shipped form is
+        #: one-sided (`dy <= hi`), so a fruit behind the hand (negative dy) also
+        #: satisfied it - measured at `dy=-442 mm` on a small fruit. `-inf` keeps
+        #: the shipped path; `-0.02` is the measured "level or just behind" window
+        #: (the contact servo's own `FRUIT_CONTACT_SERVO_BEHIND_TOL`).
+        self._close_ramp_dy_lo = float(
+            os.environ.get("FRUIT_CLOSE_RAMP_DY_LO", "-inf")
+        )
         self._last_phase: int | None = None
         self._close_t0: int | None = None
         self._close_grip_finger: float | None = None
@@ -3692,6 +3713,16 @@ class SortingRLEnv:
                 }
                 if (self._joint_clamp or self._action_hold > 1
                     or self._target_rate > 0.0)
+                else None
+            ),
+            "close_ramp": (
+                {
+                    "trigger": self._close_ramp_trigger,
+                    "dy_hi": float(self._close_ramp_dy),
+                    "dy_lo": float(self._close_ramp_dy_lo),
+                    "ticks": int(self._close_ramp_ticks),
+                }
+                if self._close_ramp
                 else None
             ),
             "small_select": (
@@ -5642,7 +5673,9 @@ class SortingRLEnv:
                 try:
                     _jaw = np.asarray(arm.jaw_centre(), dtype=float)
                     _dy = float(self._goal[1]) - float(_jaw[1])
-                    phase_trigger = bool(_dy <= self._close_ramp_dy)
+                    phase_trigger = close_phase_trigger(
+                        _dy, self._close_ramp_dy, self._close_ramp_dy_lo
+                    )
                 except Exception:  # noqa: BLE001
                     phase_trigger = False
             # P145d.11: the trigger **modes are exclusive**. In `phase` mode the

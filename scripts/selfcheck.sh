@@ -327,6 +327,9 @@ run_check "P214 wrist depth" "$python" scripts/277_p214_wrist_depth_selftest.py
 # P215: the size-dependent direct finger cap (`..._DIRECT_SMALL` / `_DIA`,
 # default 0 = the global cap; one per-sample selection; manifest block).
 run_check "P215 small clamp" "$python" scripts/278_p215_small_clamp_selftest.py
+# P216: the phase close's along-belt window gets a lower bound
+# (`FRUIT_CLOSE_RAMP_DY_LO`, default -inf = the shipped one-sided path).
+run_check "P216 close lo" "$python" scripts/279_p216_close_lo_selftest.py
 # P73: the `[carry]` row's **rotation schedule** (`tilt0=`, `tilt_end=`,
 # `tilt_max=`, `t45=`, `t75=`, `tilt_rate=`) - the instrument the place-leg
 # question needs, because the leg-end `[attitude]` tilt is saturated by the place
