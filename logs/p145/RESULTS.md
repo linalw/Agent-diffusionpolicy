@@ -2962,3 +2962,16 @@ second-view options are a colour segmenter or a learned mask-free detector. The 
 default-off, direct-only, reporting-only. **Pins.** `rl_env.py` **`9c41fd7a`**,
 `scripts/277_p214_wrist_depth_selftest.py` **`8cf07989`**, `selfcheck.sh`
 **`798761bf`**; evidence `logs/p214/`.
+
+## 79. P215: the small-fruit class is not force-limited
+
+Lychee-only supply (3.1-3.7 cm), seed 808, 6 episodes per arm, P207 R5 recipe; the global
+direct cap is 60 N and only the <= 4 cm branch differs. **60 N: 1/6; 20 N: 1/6**; both
+successes are the same 3.7 cm lychee, and the 3.1/3.1/3.1/3.4/3.6 cm fruit fail at both.
+The `[drive]` rows prove the 20 N cap (`10.00 -> 20.00 N (..._SMALL)`). The head estimate
+on the 3.1 cm fruit is 1.74-2.13 mm (P214), so it is not perception; with 20-60 N both
+failing, it is not force. The remaining term is the **pad/finger geometry on a 3 cm
+object** - the hardware/new-pad class, not a software knob. **Not adopted**; the
+size-dependent cap stays default-off. **Pins.** `rl_env.py` **`f7ebb7cb`**,
+`scripts/278_p215_small_clamp_selftest.py` **`ef36266f`**, `selfcheck.sh`
+**`1b51e26b`**; evidence `logs/p215/`.

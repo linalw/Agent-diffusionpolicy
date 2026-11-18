@@ -143,8 +143,11 @@ against 0.101 and equal count - it rescues E2, it does not beat E4); and the
 808 but 3/6 at 303 with 0.15, 3/6 with 0.25; the small fruit admitted at +0.673 still
 fails, so the class is not selection timing); and the **right-only place transit speed**
 (0.15: 2/6 against 0.20's 2/6, with `hold=` already 115-120 mm before the place, so the
-slip is in the lift/carry, not the transit). The full 4-waypoint chunk is the ship, and
-the small-fruit/right-arm residual is the hardware/perception class.
+slip is in the lift/carry, not the transit); and the **size-dependent direct clamp**
+(20 N on <= 4 cm fruit: 1/6, identical to 60 N; the head is 1.7 mm on the same fruit, so
+the class is neither force nor perception - it is the pad/hand geometry). The full
+4-waypoint chunk is the ship, and the small-fruit/right-arm residual is the hardware
+class.
 
 ## 8. What is left: the acquisition's selection timing, throughput, a certificate
 

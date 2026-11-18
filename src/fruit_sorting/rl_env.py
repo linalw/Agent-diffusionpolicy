@@ -2309,6 +2309,17 @@ class SortingRLEnv:
         self._finger_cap_direct = float(
             os.environ.get("FRUIT_FINGER_MAXFORCE_DIRECT", "0") or 0.0
         )
+        #: P215: a **size-dependent** direct clamp. The 60 N real-jaw spec is
+        #: the large-fruit setting; the small-fruit class (3.0-3.4 cm) may be
+        #: squeezed out at that force. `..._SMALL` overrides the cap only for a
+        #: fruit at/below `..._SMALL_DIA` (default 0.040 m); 0/unset keeps the
+        #: global cap on every fruit, so the shipped path is unchanged.
+        self._finger_cap_small = float(
+            os.environ.get("FRUIT_FINGER_MAXFORCE_DIRECT_SMALL", "0") or 0.0
+        )
+        self._finger_cap_small_dia = float(
+            os.environ.get("FRUIT_FINGER_MAXFORCE_DIRECT_SMALL_DIA", "0.040") or 0.040
+        )
         self._finger_cap_saved: dict[str, float] = {}
         self._servo_on = False
         self._servo_last_aim = None
@@ -3694,6 +3705,15 @@ class SortingRLEnv:
                     "FRUIT_SELECT_SMALL_EXTRA", "0") or 0.0) > 0.0
                 else None
             ),
+            "finger_maxforce": (
+                {
+                    "global": float(self._finger_cap_direct),
+                    "small": float(self._finger_cap_small),
+                    "small_dia": float(self._finger_cap_small_dia),
+                }
+                if self._finger_cap_small > 0.0
+                else None
+            ),
             "place_servo": (
                 {
                     "vmax": float(self._place_vmax),
@@ -4350,18 +4370,24 @@ class SortingRLEnv:
         presentation only - the env never touches a drive. Zero/unset does
         nothing at all.
         """
-        if self._finger_cap_direct <= 0.0:
+        cap = float(self._finger_cap_direct)
+        tag = "FRUIT_FINGER_MAXFORCE_DIRECT"
+        if (self._finger_cap_small > 0.0 and self._sample is not None
+                and float(self._sample.diameter) <= self._finger_cap_small_dia):
+            cap = float(self._finger_cap_small)
+            tag = "FRUIT_FINGER_MAXFORCE_DIRECT_SMALL"
+        if cap <= 0.0:
             return
         side = self._active
         if side in self._finger_cap_saved:
             return
-        base = self.task.attempt_finger_cap(side, float(self._finger_cap_direct))
+        base = self.task.attempt_finger_cap(side, float(cap))
         if base is None:
             return
         self._finger_cap_saved[side] = float(base)
         self._say(
             f"[drive] {side} attempt finger cap {base:.2f} -> "
-            f"{self._finger_cap_direct:.2f} N (FRUIT_FINGER_MAXFORCE_DIRECT)"
+            f"{cap:.2f} N ({tag})"
         )
 
     def _restore_direct_finger_cap(self) -> None:

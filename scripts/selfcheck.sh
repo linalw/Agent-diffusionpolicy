@@ -324,6 +324,9 @@ run_check "P213 wrist annotators" "$python" scripts/276_p213_wrist_annotators_se
 # P214 probe: the mask-free wrist depth window is reporting-only, default-off,
 # direct-only, and cannot write the goal/percept/control targets.
 run_check "P214 wrist depth" "$python" scripts/277_p214_wrist_depth_selftest.py
+# P215: the size-dependent direct finger cap (`..._DIRECT_SMALL` / `_DIA`,
+# default 0 = the global cap; one per-sample selection; manifest block).
+run_check "P215 small clamp" "$python" scripts/278_p215_small_clamp_selftest.py
 # P73: the `[carry]` row's **rotation schedule** (`tilt0=`, `tilt_end=`,
 # `tilt_max=`, `t45=`, `t75=`, `tilt_rate=`) - the instrument the place-leg
 # question needs, because the leg-end `[attitude]` tilt is saturated by the place
