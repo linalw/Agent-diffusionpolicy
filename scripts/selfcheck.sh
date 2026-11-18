@@ -310,6 +310,11 @@ run_check "P208 replan" "$python" scripts/272_p208_replan_selftest.py
 # the shape/steps edges, and the env wiring (one resolver, per-attempt reset, the
 # blend before the rel anchor, the banner and the manifest block).
 run_check "P210 ensemble" "$python" scripts/273_p210_ensemble_selftest.py
+# P211: the size-conditioned selector floor (`FRUIT_SELECT_SMALL_EXTRA` /
+# `_DIA`, direct/policy only). The leg pins the two strict parsers, the direct
+# gate and the per-candidate filter, the diag row's same floor, the manifest
+# block, and the TASKS_MD5 pin against the file on disk.
+run_check "P211 small select" "$python" scripts/274_p211_small_select_selftest.py
 # P73: the `[carry]` row's **rotation schedule** (`tilt0=`, `tilt_end=`,
 # `tilt_max=`, `t45=`, `t75=`, `tilt_rate=`) - the instrument the place-leg
 # question needs, because the leg-end `[attitude]` tilt is saturated by the place

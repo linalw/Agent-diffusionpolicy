@@ -2888,3 +2888,34 @@ class, not the execution horizon.
 **`2b88c0d2`**; evidence `logs/p209/{PREREG,RESULTS}.md` + the E4/E2 cells, and
 `logs/p210/{PREREG,RESULTS}.md` + the E2T cell. No default flipped, no reference
 re-recorded; the P207 R5 recipe stands.
+
+## 75. P211: the small-fruit selector floor binds but does not convert the small class
+
+The last software lever for the 3.0-3.4 cm class is selection timing. `FRUIT_SELECT_SMALL_EXTRA`
+(direct-only, default 0) adds a size-conditioned floor to the moving catch: a fruit at or
+below `FRUIT_SELECT_SMALL_DIA` (default 0.040 m) must be that much further upstream, else
+the selector refuses it and waits for/chooses another. The `[bed-sel]` rows prove it binds
+(0.184/0.255/0.403 < 0.549 at extra 0.15). It does **not** convert:
+
+| cell | seed | placed | small attempted / placed |
+|---|---|---:|---|
+| control E4 | 808 | 4/6 | 1/0 |
+| extra 0.15 | 808 | **5/6** | 1/0 |
+| extra 0.25 | 808 | 3/6 | 1/0 |
+| control E4 | 303 | 3/6 | 0/0 |
+| extra 0.15 | 303 | 3/6 | 1/0 |
+
+The 0.15 seed-808 5/6 is a **selection effect**: one small attempt, five large ones, all
+five place. The admitted small fruit still fail - including a **3.3 cm strawberry at
++0.673**, 0.27 m above the normal floor - so the class is not "too close"; it is the
+hand/perception limit on a small object. A floor high enough to skip the class entirely
+(> 0.45 m) would discard 3-5 of the 16-fruit pool, a yield trade. Pooled 0.15 is **8/12
+against 7/12** (+1, one attempt), 0.25 is **3/6** (-1): a draw. **Not adopted.** The
+`TASKS_MD5` pin moves because the selector carries the two parsers; the scripted path's
+`direct=False` branch keeps the shipped expression.
+
+**Pins.** `tasks.py` **`d1b18e2a`**, `rl_env.py` **`d6198b9a`** (the P211 tree; the P210
+tree was `8ec7c03e`), `scripts/274_p211_small_select_selftest.py` **`56f12c8e`**,
+`selfcheck.sh` **`a3d85726`**; evidence
+`logs/p211/{PREREG,RESULTS}.md` and the S/S25 cells. No default flipped, no reference
+moved.

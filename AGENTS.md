@@ -1593,8 +1593,11 @@ alias. **P209/P210 closed the chunk-length lane**: executing 2 of the 4 waypoint
 negative on a stochastic policy (2/6 against 4/6, p95 0.182 against 0.101, residual 0.409
 against 0.110), and ACT-style temporal ensembling 0.5 rescues it (4/6, residual 0.153)
 but does not beat the full chunk (p95 0.122 against 0.101, equal count). The full chunk is
-the ship. New legs `271`/`272`/`273`; references `30fb99f8` / `30fb99f8` / `8952c320`
-stand.
+the ship. **P211** closed the size-conditioned selector floor: `FRUIT_SELECT_SMALL_EXTRA`
+0.15 reads 5/6 at seed 808 but 3/6 at 303, 0.25 reads 3/6, and a 3.3 cm strawberry at
++0.673 m above the normal floor still fails - the small class is not selection timing. It
+is default-off and not adopted. New legs `271`/`272`/`273`/`274`; references `30fb99f8` /
+`30fb99f8` / `8952c320` stand.
 
 ## 2. Two constraints that decide how to measure
 

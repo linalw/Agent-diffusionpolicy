@@ -493,7 +493,7 @@ from .tracking import FruitTracker, track_config_from_env
 #: This env never constructs a cage, so no direct/policy behaviour moves - proven
 #: on the scripted side by `scripts/accept.sh`'s 421/421 byte-identical `[fruit]`
 #: stream (`logs/p107/RESULTS.md` section 5).
-TASKS_MD5 = "7a4ae2bf27298450bfa492341349b9c0"
+TASKS_MD5 = "d1b18e2a9143cfe4af96865b6affd371"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(
@@ -3649,6 +3649,17 @@ class SortingRLEnv:
                 }
                 if (self._joint_clamp or self._action_hold > 1
                     or self._target_rate > 0.0)
+                else None
+            ),
+            "small_select": (
+                {
+                    "extra_m": float(os.environ.get(
+                        "FRUIT_SELECT_SMALL_EXTRA", "0") or 0.0),
+                    "dia_m": float(os.environ.get(
+                        "FRUIT_SELECT_SMALL_DIA", "0.040") or 0.040),
+                }
+                if float(os.environ.get(
+                    "FRUIT_SELECT_SMALL_EXTRA", "0") or 0.0) > 0.0
                 else None
             ),
             "ensemble": (

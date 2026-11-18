@@ -1225,6 +1225,62 @@ def parse_fail_fast(raw: str | None = None) -> float:
     return mm / 1000.0
 
 
+def parse_small_select_extra(raw: str | None = None) -> float:
+    """P211: `FRUIT_SELECT_SMALL_EXTRA=<m>` -> the small fruit's extra floor.
+
+    ``0``/unset is the shipped path. The extra is added to the moving catch's
+    selector floor **only for fruit at or below `FRUIT_SELECT_SMALL_DIA`**, and
+    only on the direct/policy path (`select_target(..., direct=True)`). The
+    measured reason: the P207/P209/P210 cells' small-fruit failures (3.0-3.4 cm)
+    begin with the fruit already level with or behind the hand, and every global
+    selector-timing knob was negative (P200's uniform +0.18 m floor: 6/12 against
+    8/12). A size-conditioned refusal is the narrower form: skip a small fruit
+    that is inside the extra, let the feeder present a further-upstream one.
+    Strict, so a typo cannot read as the shipped path.
+    """
+    text = os.environ.get(
+        "FRUIT_SELECT_SMALL_EXTRA", ""
+    ) if raw is None else raw
+    text = str(text).strip()
+    if not text:
+        return 0.0
+    try:
+        value = float(text)
+    except ValueError:
+        raise ValueError(
+            f"FRUIT_SELECT_SMALL_EXTRA={text!r}: not a number (metres, 0 = off)"
+        ) from None
+    if not math.isfinite(value) or value < 0.0:
+        raise ValueError(
+            f"FRUIT_SELECT_SMALL_EXTRA={text!r}: must be finite and >= 0"
+        )
+    return value
+
+
+def parse_small_select_dia(raw: str | None = None) -> float:
+    """P211: `FRUIT_SELECT_SMALL_DIA=<m>` -> the small-fruit diameter cut.
+
+    0.040 m (unset) is the census's small class: the failed instances in the
+    direct cells are 3.0-3.4 cm. Strict: a non-positive, non-finite or non-numeric
+    value raises.
+    """
+    text = os.environ.get("FRUIT_SELECT_SMALL_DIA", "") if raw is None else raw
+    text = str(text).strip()
+    if not text:
+        return 0.040
+    try:
+        value = float(text)
+    except ValueError:
+        raise ValueError(
+            f"FRUIT_SELECT_SMALL_DIA={text!r}: not a number (metres)"
+        ) from None
+    if not math.isfinite(value) or value <= 0.0:
+        raise ValueError(
+            f"FRUIT_SELECT_SMALL_DIA={text!r}: must be finite and > 0"
+        )
+    return value
+
+
 #: P103: the slip re-grip's floor [mm]. P102's census reads `dc_max` **median
 #: 0.02 mm / p90 0.10 mm on 60 held legs** (`logs/p102/census.txt`, §1) - a
 #: stationary payload's patch does not move at all - and the only held legs that
@@ -9885,7 +9941,26 @@ class PickAndPlaceTask:
             # fruit of the arm's own lane wins when one is in the window, and a
             # cross-lane fruit is taken only when the arm's own lane has none.
             floor = pick_y + self._dynamic_select_floor(min_lead_s, lead_override_s)
-            usable = [item for item in station + upstream if item[0] >= floor]
+            # P211: a size-conditioned extra floor, direct/policy only. On the
+            # scripted path `direct` is False and the read is skipped, so the
+            # shipped expression below is the same line it always was.
+            small_extra = 0.0
+            small_dia = 0.0
+            if direct:
+                small_extra = parse_small_select_extra()
+                if small_extra > 0.0:
+                    small_dia = parse_small_select_dia()
+            if small_extra > 0.0:
+                usable = [
+                    item for item in station + upstream
+                    if item[0] >= floor + (
+                        small_extra
+                        if float(item[1].get("diameter", 0.0)) <= small_dia
+                        else 0.0
+                    )
+                ]
+            else:
+                usable = [item for item in station + upstream if item[0] >= floor]
             if diag is not None:
                 # The moving-catch floor is a *second* pass over the candidates
                 # the windows admitted; note every admitted one, with the floor
@@ -9893,11 +9968,17 @@ class PickAndPlaceTask:
                 # exactly this number). The chosen one's row is rewritten by
                 # `_chosen`, so the census carries one row per state.
                 for _along, state in station + upstream:
+                    _floor_i = floor + (
+                        small_extra
+                        if small_extra > 0.0
+                        and float(state.get("diameter", 0.0)) <= small_dia
+                        else 0.0
+                    )
                     _note(
                         state,
                         "usable"
-                        if _along >= floor
-                        else f"below catch floor {_along:.3f} < {floor:.3f}",
+                        if _along >= _floor_i
+                        else f"below catch floor {_along:.3f} < {_floor_i:.3f}",
                     )
             if not usable:
                 if diag is not None:
