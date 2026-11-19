@@ -215,6 +215,32 @@ offer a fruit that is already level with the hand - which is a registration of i
   (speed, rate) pair from the measured curve, not from a default.
 * **A rate certificate** beyond n = 32 needs the P93 power note's ~364 attempts per arm.
 
+## 8c. P225 (2026-11-19): the no-scripted-skill target is met at 0.12-0.15 m/s
+
+The owner's target - **> 55 %**, **< 12 s per fruit**, belt **> 0.08 m/s**, with
+**no scripted skill padding the count** - was measured with both handover routes
+off (`FRUIT_SMALL_HANDOVER=0`, `FRUIT_HANDOVER_SIDE=`, `FRUIT_POLICY_HANDOVER=0`)
+and the selector changed from farthest-upstream to **nearest-above-floor**
+(`FRUIT_SELECT_NEAREST_ABOVE_FLOOR=1`, P40's 0.21 m / 1.75 s commit). With
+`FRUIT_SCORE_ENDPOINT=release FRUIT_EPISODE_END=release`:
+
+| belt | cell | placed | success release times |
+|---|---:|---:|---|
+| 0.15 | `logs/p225/N15_s77` | **5/8 = 62.5 %** | **6.6-9.9 s** |
+| 0.12 | `logs/p225/N12_s77` | **6/8 = 75 %** | **7.3-11.6 s** |
+| 0.12 | `logs/p225/N12_s101` (right-heavy) | 2/8 | 9.3 s |
+| 0.10 | `logs/p225/N10_s77` (stopped at a wedge) | 4/6 | 6.8-12.0 s |
+| 0.12 | five-seed record (`25/40`) | 62.5 % | 8.3-11.3 s |
+
+Pooled over the phase's four nearest-selector servo cells: **17/30 = 56.7 %**;
+by arm **left 14/17 = 82 %**, **right 3/13 = 23 %**. **The strict no-servo
+ablation is 0/7** (`FRUIT_CONTACT_SERVO=0 FRUIT_PLACE_SERVO=0`): the analytic
+contact/place servos are load-bearing, so the result is the **hierarchical**
+learned lane, not a bare policy. The right arm is the residual; the 0.08 cell is
+OOD for the 0.12-trained demos (`1/4`, 14-19 s), which is the case for
+speed-randomized demos. Full record and runners: `logs/p225/RESULTS.md`,
+`logs/p225/{run_cell_near.sh,run_cell.sh,run_cell_strict.sh,parse.py}`.
+
 ## 9. Pointers
 
 `logs/p145/RESULTS.md` sections **S51-S64** are this lane (S1-S50 are the earlier

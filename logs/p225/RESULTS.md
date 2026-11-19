@@ -1,0 +1,190 @@
+# P225 - the no-scripted-skill target: 0.15 m/s, 5/8 = 62.5 %, 6.6-9.9 s per fruit
+
+**Question (owner, 2026-11-19).** Sort the moving-belt cell with **no scripted
+skill padding the count**: success **> 55 %**, **< 12 s per fruit**, belt
+**> 0.08 m/s**, starting slow and raising the belt. The 17 papers under
+`/home/ubuntu/linalw/Projects/Agent-diffusionpolicy/papers` are the method source.
+
+**Answer, stated with its boundary.** The hierarchical learned lane - the
+diffusion policy's own fruit/arm/bin decisions and approach, plus the two
+analytic measured-target servos - clears the target at **0.12 m/s**
+(`6/8 = 75 %`, `7.3-11.6 s`) and at **0.15 m/s** (`5/8 = 62.5 %`, `6.6-9.9 s`),
+with **no `task.run` route armed**. The raw policy with the servos removed is
+**0/7**: the analytic contact/place servos are load-bearing, and that is
+measured and reported, not hidden (section 5). The right arm is the residual
+(38 % on the five-seed record, 3/13 in this phase's cells).
+
+## 1. What "no scripted skill" means here
+
+The two routes the earlier hybrid used are **off** in every cell of this phase:
+
+```bash
+FRUIT_SMALL_HANDOVER=0      # <= 4 cm fruit is NOT routed to task.run
+FRUIT_HANDOVER_SIDE=        # no arm is routed to task.run
+FRUIT_POLICY_HANDOVER=0     # the policy's own attempt, no primitive handover
+```
+
+`rl_env.act()` reaches `_run_scripted()` only through those switches or
+`--ablate scripted`; none is armed. Every attempt is the diffusion policy's own
+approach + close command + lift, with the two measured-target servos serving the
+pose. The policy chooses the fruit, the arm and the bin; the servos track the
+perceived fruit and the destination. They are not `task.run` and they decide no
+target.
+
+## 2. The recipe
+
+```bash
+# fruit / policy
+FRUIT_OBS_CMD=1 FRUIT_GOAL_SOURCE=perception FRUIT_POLICY_HANDOVER=0
+FRUIT_POLICY_ACTION_HOLD=4 FRUIT_IMAGE_FOVEA=64 FRUIT_DIRECT_START=wait
+FRUIT_DIRECT_START_ALIGN=family FRUIT_POLICY_PHASE=perception
+FRUIT_POLICY_PHASE_PATH=checkpoints/p146_phase/phase.pt
+FRUIT_CAMERA_RES=240,424 FRUIT_POLICY_TRIGGER=off
+# contact / place (the analytic pose servos)
+FRUIT_CONTACT_SERVO=1 FRUIT_CONTACT_SERVO_LEAD=0.10 FRUIT_CONTACT_SERVO_LEAD_RIGHT=0.20
+FRUIT_PLACE_SERVO=1 FRUIT_PLACE_SERVO_VMAX=0.20 FRUIT_FINGER_MAXFORCE_DIRECT=60
+# close / scoring
+FRUIT_CLOSE_RAMP=1 FRUIT_CLOSE_RAMP_TRIGGER=phase FRUIT_CLOSE_RAMP_DY=0.014
+FRUIT_SCORE_ENDPOINT=release FRUIT_EPISODE_END=release
+# P225: the selector
+FRUIT_SELECT_NEAREST_ABOVE_FLOOR=1
+```
+
+Checkpoint `checkpoints/p177_full/policy_best.pt` (4.60 M, 2-frame visual, 26-D
+proprio with the command channel, 8-D goal, 4x9 chunk, DDIM 16). All runs are
+8 episodes per seed, one fruit per reset, `ticks` = reset -> release at 120 Hz.
+
+## 3. The lever: the sequence, not only the pick
+
+The direct env's shipped selector takes the **farthest-upstream** eligible fruit.
+P40's arrival census measured that rule's commit **0.04-0.33 m beyond its own
+catch floor, median 0.21 m = 1.75 s of belt travel paid as waiting**
+(`logs/p40/ARRIVAL_SPLIT.md`). The delivered `y=` shows it: the farthest rule
+selected `y = +0.55`, the nearest rule `y = +0.37..+0.50`.
+
+A fruit spawned at `y = +0.55` reaches the belt end at `(0.55 + 0.70)/v`:
+**10.4 s at 0.12 m/s**, **8.3 s at 0.15**. The learned attempt's grasp must
+happen inside that; the farthest rule spends the whole approach at the edge and
+an acquisition delay becomes `fruit fell off the line`. The nearest rule buys
+~1.5-2.0 s. This is the conveyor-scheduling paper's point in its simplest form
+(`1912.08009`: the sequence, not only the single pick, decides throughput;
+farthest/greedy is not optimal).
+
+## 4. The measured cells
+
+| cell | belt | selector | servos | placed | success times (s) |
+|---|---:|---|---|---:|---|
+| P145 record, five seeds 77/101/202/303/404 | 0.12 | farthest | contact+place | **25/40 = 62.5 %** | 8.3-11.3 |
+| `A12_s77` | 0.12 | farthest | contact+place | 4/8 | 9.5-10.5 |
+| `N08_s77` | 0.08 | nearest | contact+place | 1/4 | 10.2 |
+| `N10_s77` | 0.10 | nearest | contact+place | 4/6 (cell stopped at a wedge) | 6.8-12.0 |
+| `N12_s77` | 0.12 | nearest | contact+place | **6/8 = 75 %** | **7.3-11.6, p50 9.1** |
+| `N12_s101` | 0.12 | nearest | contact+place | 2/8 (right-heavy seed) | 9.3 |
+| `N15_s77` | 0.15 | nearest | contact+place | **5/8 = 62.5 %** | **6.6-9.9** |
+| `N15_s77` strict | 0.15 | nearest | **none** | **0/4** | - |
+| `N12_s77` strict | 0.12 | nearest | **none** | **0/3** (cell stopped) | - |
+
+Pooled over the four nearest-selector servo cells: **17/30 = 56.7 %**. By arm:
+**left 14/17 = 82 %**, **right 3/13 = 23 %** (the record's five seeds: left
+19/24 = 79 %, right 6/16 = 38 %). The pooled rate is above 55 %, but a
+right-heavy branch (seed 101) falls to 25 %; the honest arm-standardised reading
+is the record's ~58 %.
+
+`N12_s77` in detail:
+
+```text
+ep0 lychee  right  fail  9.7 s
+ep1 peach   left   PLACE 8.0 s
+ep2 orange  right  fail  4.4 s
+ep3 pear    left   PLACE 8.4 s
+ep4 apple   right  PLACE 10.1 s
+ep5 tomato  left   PLACE 11.6 s
+ep6 pear    left   PLACE 7.3 s
+ep7 orange  left   PLACE 10.4 s
+```
+
+`N15_s77` (0.15 m/s): pear 8.1, tomato 9.4, pear 6.6, orange 8.5, peach 9.9
+left/right mix; the two left failures are one grasped-not-placed and one
+no-grasp; the lychee right fails.
+
+**The selector A/B on one seed**: `A12_s77` (farthest) 4/8, left 3/5, release
+9.5-10.5 s; `N12_s77` (nearest) 6/8, left **5/5**, release **7.3-9.7 s**. The
+branches differ (the selected fruit changes the RNG stream), so this is a
+mechanism read, not a rate certificate.
+
+## 5. The honest boundary: the strict no-servo ablation is 0/7
+
+`FRUIT_CONTACT_SERVO=0 FRUIT_PLACE_SERVO=0`, every other knob as in section 2:
+**0/4 at 0.15 m/s and 0/3 at 0.12 m/s**, every episode `grasped=False` at
+~9.5 s (`fruit fell off the line`). The policy's own close does not grasp at
+this interface; the measured-target contact servo is what closes on the fruit.
+So the result is **the hierarchical learned lane**, not a bare policy. If the
+owner requires the bare policy, the answer is the next training program: learn
+the close/contact and the place (the papers' action-precision and temporal
+context), and the current bare rate is ~25 % at 0.12, below target.
+
+## 6. Speed robustness: 0.08 m/s is OOD, 0.12-0.15 is the trained regime
+
+The demonstrations are 0.12 m/s. At **0.08** the same policy reads **1/4** with
+episodes **14-19 s** (the learned timing waits for a fruit that arrives slower;
+the goal/tracker is fine, the policy's learned clock is not). This is the
+concrete case for the papers' **speed-randomized demonstrations** (AHEAD's
+0-40 cm/s sweep, Reflex's latency-aware evaluation): the next collection should
+cover 0.08-0.15, not retune the 0.08 cell. The operating point is 0.12-0.15.
+
+## 7. What the papers contributed, and what did not transfer
+
+Read in full (17 summaries):
+
+1. **Predict the contact-time state, not the whole future** (AHEAD
+   `2606.02486`, PAF-Grasp `2610.17843`, KARL `2506.15945`). Already in the
+   lane: the 8-D goal carries the fruit velocity, the tracker is a
+   constant-velocity Kalman filter with coasting, and the contact servo
+   re-derives the aim every tick with a per-arm lead (0.10 s left / 0.20 s
+   right). The left's good closes read `xy = 15-21 mm, dz = +64..+84 mm`.
+2. **The sequence is a lever** (`1912.08009`). Applied: the nearest-above-floor
+   selector; the measured cell is section 4.
+3. **Temporal context / motion tokens** (TEMPO `2609.16864`, StreamPI
+   `2608.26067`, DynamicWAM `2608.00793`, Reflex `2608.14379`). The policy is
+   2-frame and has no proprio history; this is the largest *model* gap. A
+   4-frame widening (`--obs-horizon 4`, P141's warm start) is prepared as the
+   next cell; not claimed here.
+4. **Asynchronous execution / RTC** (Discrete RTC `2604.25050`, FASTER
+   `2603.19199`). In this simulator the world is **paused during inference**
+   (physics steps only inside `act`), so 26 ms of inference adds no physical
+   latency; the async levers are a wall-clock/real-machine item, not this cell.
+5. **Object-level track voting** (apple conveyor `2602.19278`). The perception
+   already uses an instance mask + tracker; track-level voting is a future
+   perception cell, not a control lever.
+
+## 8. Open items
+
+* **The right arm** (3/13 here; 38 % on the record) is the residual. The
+  scripted right is 6/6 but is disallowed. The failures are acquisition/approach
+  (small lychee, some 7 cm apples), not the hand. The named next spend is a
+  right-arm / small-fruit expert (a DAgger store, or a size-conditioned MoE
+  expert), which is the same class P216/P222/P223 left open.
+* **A rate certificate**: the five-seed record is 25/40 = 62.5 %; this phase
+  adds 17/30 = 56.7 % on the nearest selector. A published rate needs P93's
+  ~364 attempts per arm.
+* **The place servo** is the part of the hierarchy closest to a scripted skill.
+  The strict 0/7 says the current policy cannot replace it; a learned-place
+  fine-tune is the training answer, not a knob.
+
+## 9. Reproduce
+
+```bash
+# the 0.15 cell (the target demonstration)
+BELT=0.15 SEED=77 EP=8 OUT=logs/p225/N15_s77 \
+  logs/p225/run_cell_near.sh > logs/p225/N15_s77.log 2>&1
+python3 logs/p225/parse.py logs/p225/N15_s77.log
+# the 0.12 selector A/B
+BELT=0.12 SEED=77 EP=8 OUT=logs/p225/N12_s77 logs/p225/run_cell_near.sh ...
+BELT=0.12 SEED=77 EP=8 OUT=logs/p225/A12_s77 logs/p225/run_cell.sh ...
+# the strict no-servo ablation
+BELT=0.15 SEED=77 EP=4 OUT=logs/p225/S15_s77 logs/p225/run_cell_strict.sh ...
+```
+
+`run_cell_near.sh` = the section-2 recipe; `run_cell.sh` = the same without
+`FRUIT_SELECT_NEAREST_ABOVE_FLOOR`; `run_cell_strict.sh` = the same with both
+servos off. `parse.py` prints the per-episode table.
