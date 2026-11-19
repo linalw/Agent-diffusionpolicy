@@ -210,6 +210,39 @@ field). The right's remaining failures are the small lychee/strawberry and the
 place/wedge; the low lift is a real +2 episodes on the right-only cell, not a
 complete fix.
 
+### 4e. The carry force servo (the force-controlled finger past the close) and the videos
+
+The "hardware" item 2, implemented as its measured-force form: P192's close
+force loop extended past the close. `FRUIT_CARRY_FORCE=45` keeps closing at the
+same 24 mm/s span rate while the measured pinch is below 45 N, until the release
+or the tick cap; the drive stays the shipped position drive. The floor is the
+8 mm mechanical value; the size-aware `FRUIT_CARRY_FORCE_FLOOR_MARGIN=0.002`
+(`close_grip - 2 mm`) is opt-in.
+
+| cell | model / knob | placed | note |
+|---|---|---:|---|
+| `R12_s77` right-only | p177 | 2/8 = 25 % | baseline |
+| `R12F45_s77` right-only | p177 + `FRUIT_CARRY_FORCE=45` | **4/8 = 50 %** | the measured arm; the `[carry-force]` rows hold F 43-44 N (then 30-55 N at the floor) |
+| `R12F45m_s77` right-only | + floor margin 0.002 | 3/8 | a tie/negative; the small fruit is the approach class, not the carry |
+| `N12F45_s77` mixed | p177 + force 45 | 3/8 | a right-heavy branch (7 right / 1 left); not comparable to `N12_s77`'s 6/8 left-heavy |
+
+The force servo **doubles the right-only rate on the untouched p177** (2/8 ->
+4/8 = 50 %), with no new data and no retrain. The small lychee/strawberry remain
+`grasped=False`/approach failures, so the size-aware floor does not convert
+them. The 50/50 arm-standardised stays `0.5 x 0.82 + 0.5 x 0.50 = 66 %`.
+
+**Videos** (the user's request): the current no-scripted-skill recipe was
+recorded:
+
+* `/media/ubuntu/66A27065A2703B9D/project/Agent-diffusionpolicy/log/video/p225_p177_continuous`
+  - one continuous episode, **6 picks, 5 placed, 62.6 s** (seed 303, 0.12 m/s),
+  the 5 clips + `video.json`; per-pick **9.9 s**.
+* `.../p225_p177_demo` - 6 separate picks, **2/6** (seed 77); `..._s303` -
+  **1/6**. The video render (three extra cameras) moves the head frames and the
+  perception branch; the direct loop is not bit-reproducible, so these are the
+  clip's own outcomes. The existing `.../p177_adopted` (4/6, the pre-P225
+  recipe) is the better demo clip.
+
 ## 5. The honest boundary: the strict no-servo ablation is 0/7
 
 `FRUIT_CONTACT_SERVO=0 FRUIT_PLACE_SERVO=0`, every other knob as in section 2:

@@ -265,9 +265,16 @@ is 0/4 on the small lychee/strawberry/kiwi). The p177 single's 0.15 **5/8** and
 right-only **2/8 -> 4/8**; the right's small fruit and the place remain the
 residual. The active-only frame push (the right buffer only on right episodes)
 halves the per-frame crop/resize and let the 0.15 router cell run all 8 without
-the wedge. The hardware form is `docs/END_EFFECTOR_DECISION.md`'s
-force-controlled finger / new pad. Full record and runners:
-`logs/p225/RESULTS.md`,
+the wedge. The **carry force servo** (`FRUIT_CARRY_FORCE=45`, default off) -
+P192's force-controlled finger extended past the close - doubles the right-only
+rate **2/8 -> 4/8 = 50 %** on the untouched p177 with no new data; the
+size-aware floor margin 0.002 is a 3/8 tie/negative, and the mixed `N12F45` 3/8
+is a right-heavy branch. The 50/50 arm-standardised stays **66 %** (left 82 %,
+right 50 %); the small lychee/strawberry remain the approach class. **Videos**:
+`/media/.../video/p225_p177_continuous` is the continuous clip (6 picks, 5
+placed, 62.6 s, seed 303); `p225_p177_demo` 2/6 and `..._s303` 1/6 are the
+video-render branch; the existing `p177_adopted` 4/6 is the better demo. Full
+record and runners: `logs/p225/RESULTS.md`,
 `logs/p225/{run_cell_near.sh,run_cell.sh,run_cell_strict.sh,parse.py}`.
 
 ## 9. Pointers

@@ -2384,6 +2384,30 @@ class SortingRLEnv:
             os.environ.get("FRUIT_CLOSE_FORCE_RATE", "0.0001") or 0.0001
         )
         self._close_force_ticks = int(os.environ.get("FRUIT_CLOSE_FORCE_TICKS", "180") or 180)
+        #: P225f: the **carry force servo** - P192's force-controlled finger
+        #: extended past the close. The close's P192 loop ends with the ramp; the
+        #: loaded slide happens in the lift/place, where the position drive holds
+        #: its target while the pinch falls as the payload walks. With
+        #: `FRUIT_CARRY_FORCE=<N>` the finger keeps closing at the same bounded
+        #: rate while the measured pinch is below N, until the release or the tick
+        #: cap - the "stiff in the approach, compliant only inside the closure"
+        #: form of `docs/END_EFFECTOR_DECISION.md`, implemented as a measured-force
+        #: position loop (the drive stays the shipped position drive). Default 0 =
+        #: byte-inert: no read, no arithmetic, no row.
+        self._carry_force = float(os.environ.get("FRUIT_CARRY_FORCE", "0") or 0.0)
+        self._carry_force_rate = float(
+            os.environ.get("FRUIT_CARRY_FORCE_RATE", "0.0001") or 0.0001
+        )
+        self._carry_force_ticks = int(
+            os.environ.get("FRUIT_CARRY_FORCE_TICKS", "600") or 600
+        )
+        self._carry_force_diag = os.environ.get("FRUIT_CARRY_FORCE_DIAG", "0") == "1"
+        #: P225f: 0 = the 8 mm mechanical floor (the measured 4/8 arm);
+        #: >0 = the fruit-relative floor `close_grip - margin` (the
+        #: size-aware 3/8 arm, a recorded tie/negative at 0.002).
+        self._carry_force_floor_margin = float(
+            os.environ.get("FRUIT_CARRY_FORCE_FLOOR_MARGIN", "0") or 0.0
+        )
         self._fire_logged = False
         self._force_closed_gap = None
         #: P153: **velocity feed-forward** on the applied joint command
@@ -3646,6 +3670,9 @@ class SortingRLEnv:
             #: touches a command.
             "loop_timing": bool(self._loop_timing),
             "policy_track": bool(self._policy_track),
+            #: P225f: the carry force servo's target (0 = the shipped position
+            #: drive). The drive stays the shipped one; the knob moves its target.
+            "carry_force": float(self._carry_force),
             #: P31-A: the wait gate's provenance (absent = off). An A/B arm must
             #: be identified by this block, not by the printed count alone.
             "wait_gate": asdict(self.wait_gate) if self.wait_gate.enabled else None,
@@ -4740,6 +4767,9 @@ class SortingRLEnv:
         self._fire_logged = False
         self._force_closed_gap = None
         self._close_grip_finger = None
+        #: P225f: the carry force servo's own state (None = not started this pick)
+        self._carry_force_value = None
+        self._carry_force_t0 = None
         self._servo_contact_active = False
         self._servo_place_active = False
         self._servo_handback = False
@@ -5599,6 +5629,8 @@ class SortingRLEnv:
             finger = float(np.clip(action[7], 0.0, 0.044))
             if self._close_ramp:
                 finger = self._close_ramp_command(arm, finger)
+            # P225f: the carry force servo (default 0 = a no-op)
+            finger = self._carry_force_adjust(arm, finger)
         else:
             finger = float(arm.OPEN)
         self._last_finger = finger
@@ -5758,6 +5790,8 @@ class SortingRLEnv:
             finger = float(np.clip(action[7], 0.0, 0.044))
             if self._close_ramp:
                 finger = self._close_ramp_command(arm, finger)
+            # P225f: the carry force servo during the place transit (default 0)
+            finger = self._carry_force_adjust(arm, finger)
         self._last_finger = finger
         self.scene.robot.set_dof_position_targets(
             [[finger, finger]], dof_indices=list(arm.finger_dofs)
@@ -5986,6 +6020,62 @@ class SortingRLEnv:
                     f"sep={float(arm.jaw_separation()) * 1000:6.1f}mm val={_value:.4f}"
                 )
         return _value
+
+    def _carry_force_adjust(self, arm, finger: float) -> float:
+        """P225f: the carry force servo - the force-controlled finger past the close.
+
+        The same measured-force position loop as P192's close force
+        (`_close_ramp_command`), but scoped to the **lift/place carry**: after the
+        close ramp, while the hand is closed and the payload has not been
+        released, if the measured pinch is below `FRUIT_CARRY_FORCE`, the finger
+        command keeps closing at `FRUIT_CARRY_FORCE_RATE` (finger-value space,
+        `d(value)/d(span) = 0.5`, so the default 0.0001/tick is 24 mm/s of span)
+        until the target, the `FRUIT_CARRY_FORCE_TICKS` cap or the release. The
+        drive stays the shipped position drive; this only moves its target.
+        Default 0 = no read, no arithmetic, byte-inert.
+        """
+        if self._carry_force <= 0.0 or self._close_t0 is None:
+            return finger
+        if int(self._step) - int(self._close_t0) < int(self._close_ramp_ticks):
+            return finger
+        if self._scored_release:
+            return finger
+        if float(finger) > 0.035:
+            # the hand is opening (the release ramp or the policy's own open);
+            # the servo must not fight a release
+            return finger
+        if self._carry_force_value is None or self._carry_force_t0 is None:
+            self._carry_force_value = float(finger)
+            self._carry_force_t0 = int(self._step)
+        try:
+            _tac = self.task.tactile.read().get(self._active)
+            _F = float(getattr(_tac, "normal_force", float("nan")))
+        except Exception:  # noqa: BLE001 - no tactile, keep the position command
+            _F = float("nan")
+        _over = int(self._step) - int(self._carry_force_t0)
+        #: P225f: the close floor is the **fruit's** own grip minus 4 mm of span
+        #: (2 mm per side), not the 8 mm mechanical floor. The 8 mm floor on a
+        #: 34 mm lychee is a 26 mm over-closure (the P111/P112 over-closure
+        #: class); the measured close grip is the safe reference.
+        _grip = getattr(self, "_close_grip_finger", None)
+        _floor = 0.004
+        if _grip is not None and self._carry_force_floor_margin > 0.0:
+            _floor = max(
+                0.004, float(_grip) - float(self._carry_force_floor_margin)
+            )
+        if _F < self._carry_force and _over <= self._carry_force_ticks:
+            self._carry_force_value = max(
+                _floor,
+                float(self._carry_force_value) - float(self._carry_force_rate),
+            )
+        finger = min(float(finger), float(self._carry_force_value))
+        if self._carry_force_diag and int(self._step) % 8 == 0:
+            self._say(
+                f"[carry-force] t={self._step} arm={self._active} "
+                f"F={_F:6.2f}N target={self._carry_force:5.1f} "
+                f"val={float(finger):.4f} over={_over:3d}"
+            )
+        return finger
 
     def _phase_for_decision(self) -> int | None:
         """P145c: the action phase, from the perceived fruit + the jaw + the finger.
