@@ -256,13 +256,18 @@ recollection** (`FRUIT_COLLECT_LIFT_DZ_RIGHT=-0.08`, 10 right episodes) plus a
 right-only rate **2/8 -> 4/8 = 50 %**; the single lowmix model costs the left
 (3/4 vs 5/5), so the adoption is the **arm router**
 `FRUIT_POLICY_CKPT_RIGHT=checkpoints/p225_lowmix` with p177 on the left. At the
-observed left 82 % / right 50 % the **50/50 arm-standardised rate is 66 %**,
-above the target; the router's mixed cell is partial (the right orange
-converted, then a left pear wedge), so quote the arm-standardised number and
-the right-only cell, not a new mixed count. The right's remaining failures are
-the small lychee/strawberry and the place/wedge; the hardware form is
-`docs/END_EFFECTOR_DECISION.md`'s force-controlled finger / new pad. Full
-record and runners: `logs/p225/RESULTS.md`,
+observed left 82 % / right 50 % the **50/50 arm-standardised estimate is
+66 %**, but the router's mixed cells **do not confirm it at the cell level**:
+`RT12_s77` is 2/3 then a wedge, and the completed 0.15 `RT15_s77` is **2/8**
+(the p177 left's two tomatoes are `grasped=True placed=False`, the lowmix right
+is 0/4 on the small lychee/strawberry/kiwi). The p177 single's 0.15 **5/8** and
+0.12 **6/8** remain the target samples; the clean low-lift gain is the
+right-only **2/8 -> 4/8**; the right's small fruit and the place remain the
+residual. The active-only frame push (the right buffer only on right episodes)
+halves the per-frame crop/resize and let the 0.15 router cell run all 8 without
+the wedge. The hardware form is `docs/END_EFFECTOR_DECISION.md`'s
+force-controlled finger / new pad. Full record and runners:
+`logs/p225/RESULTS.md`,
 `logs/p225/{run_cell_near.sh,run_cell.sh,run_cell_strict.sh,parse.py}`.
 
 ## 9. Pointers

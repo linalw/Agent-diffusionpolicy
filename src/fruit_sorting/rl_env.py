@@ -5155,13 +5155,21 @@ class SortingRLEnv:
                     )
                 except Exception:  # noqa: BLE001 - the full frame is the fallback
                     _uv = None
-            self.policy.push_frame(rgb, depth, mask, uv=_uv)
+            _right = getattr(self, "_right_policy", None)
+            _right_active = _right is not None and self._active == "right"
+            if _right_active:
+                # P225d: the arm router's **active-only** push - the right
+                # checkpoint's buffer is filled on right episodes only, so the
+                # per-frame crop/resize is paid once, not twice (the two-buffer
+                # form added enough wall to feed the P145b/P220 wedge class).
+                _right.push_frame(rgb, depth, mask, uv=_uv)
+            if not _right_active or getattr(self, "_policy2", None) is not None:
+                # the primary owns the left; the hybrid's jaw head (`_policy2`)
+                # still needs the primary's frames on either arm.
+                self.policy.push_frame(rgb, depth, mask, uv=_uv)
             if getattr(self, "_policy2", None) is not None:
                 # the hybrid's jaw head has its own observation horizon buffer
                 self._policy2.push_frame(rgb, depth, mask, uv=_uv)
-            if getattr(self, "_right_policy", None) is not None:
-                # P225d: the arm router's right checkpoint has its own buffer
-                self._right_policy.push_frame(rgb, depth, mask, uv=_uv)
 
     # ------------------------------------------------------------------ #
     # P141: the belt-state channel
@@ -6258,12 +6266,12 @@ class SortingRLEnv:
             self._force_observe = False
         if self.ablate == "zero":
             return np.zeros((self.action_horizon, self.action_dim), dtype=np.float32)
-        if self.policy is None or not self.policy.ready:
-            return None
-        if (getattr(self, "_right_policy", None) is not None
-                and not self._right_policy.ready):
-            # P225d: the arm router's right buffer fills on the same pushes as
-            # the primary; a premature decision would sample an empty window.
+        _right = getattr(self, "_right_policy", None)
+        _right_active = _right is not None and self._active == "right"
+        _active_policy = _right if _right_active else self.policy
+        if _active_policy is None or not _active_policy.ready:
+            # P225d: the router's active-only push means only the active arm's
+            # buffer is filled; the inactive one is intentionally unready.
             return None
         if self.rtc is not None:
             return None

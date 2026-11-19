@@ -177,6 +177,7 @@ default).
 | `LR12_s77` right-only | **p225_lowmix** | **4/8 = 50 %** | peach, pear, apple, pear; one `grasped=True placed=False` |
 | `LM12_s77` mixed | p225_lowmix single | 4/8 | **left 3/4** (a left lychee failed) against p177's 5/5 - the single model loses the left |
 | `RT12_s77` mixed | **arm router** (left p177, right lowmix) | 2/3 then wedge | lychee right fail, peach left place 7.9 s, **orange right place 11.4 s** - the p177 mixed cell's orange right failed at 4.4 s; then the left pear wedge |
+| `RT15_s77` mixed | arm router, **active-only push** | **2/8** | left p177 2/4 (both tomatoes `grasped=True placed=False` at 15.1/16.6 s), right lowmix 0/4 (lychee, strawberry, kiwi, lychee) |
 
 The right-only rate **doubles (2/8 -> 4/8 = 50 %)** with the low lift, and the
 **single** lowmix model is not adoptable because it costs the left
@@ -184,9 +185,21 @@ The right-only rate **doubles (2/8 -> 4/8 = 50 %)** with the low lift, and the
 `FRUIT_POLICY_CKPT_RIGHT=checkpoints/p225_lowmix` with `p177_full` on the left -
 the left keeps its 82 %, the right gets the 50 % right-only model. At those
 rates the **50/50 arm-standardised pooled is 0.5 x 0.82 + 0.5 x 0.50 = 66 %**,
-above the 55 % target. The router's mixed cell is **not a completed rate** (a
-wedge on the left pear after the right orange converted), so quote the
-arm-standardised number and the right-only cell, not a new mixed count.
+above the 55 % target. The router's mixed cells **do not confirm the arm-standardised 66 % at the
+cell level**: `RT12_s77` is 2/3 then a wedge, and the completed 0.15 cell
+`RT15_s77` is **2/8** - the p177 left's two tomatoes are `grasped=True
+placed=False` (15.1/16.6 s) and the lowmix right is 0/4 (the small
+lychee/strawberry/kiwi). The p177 single's 0.15 cell is **5/8** and its 0.12
+cell **6/8**; the router's 2/8 is a branch draw of the non-reproducible loop,
+so **the 66 % is an arm-standardised estimate, not a measured mixed rate**.
+The clean low-lift gain is the right-only **2/8 -> 4/8**.
+
+The two-buffer frame push was replaced by an **active-only** push (the right
+buffer only on right episodes), which halves the per-frame crop/resize; the
+`RT15_s77` cell ran all 8 episodes without the wedge that killed the earlier
+`RT12`/first-`RT15` runs, so the wedge was at least partly the extra frame
+work. The right's small fruit (lychee 3.4 cm, strawberry) and the place remain
+the residual.
 
 The code change is default-inert: `FRUIT_POLICY_CKPT_RIGHT` (a second
 `PolicyRunner`, the frame push in `_observe`, the ready gate, the runner select
