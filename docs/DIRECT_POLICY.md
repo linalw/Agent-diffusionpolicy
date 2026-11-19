@@ -288,8 +288,14 @@ the lychee-only cell from **0/5 to 3/4** (`err_close_p50` 1.5-4.9 mm; the
 scoped to > 4 cm (`FRUIT_CARRY_FORCE_SMALL_DIA=0.040`; the force on the small
 is 2/4, a measured negative). The 0.15 cell is 4/8 on its branch (the left's
 place failures); the 0.12 is the strong speed. The remaining small class is
-the **strawberry** (3.1 cm, conical - the next is
-`FRUIT_PERCEPTION_SHAPE=spheroid`, P135). Full record and runners:
+the **strawberry** (3.1 cm, conical). The spheroid was then measured: the
+strawberry-only cell reads **sphere 3/6 vs spheroid 2/6** (the spheroid's `rms`
+14-56 mm at the 12 px; the sphere's 0.1-0.3), so the sphere stays the default
+and `FRUIT_PERCEPTION_SHAPE_SPECIES` is an opt-in negative. The mixed cells
+with the min-px 12 + the carry force scoped > 4 cm are **0.12 6/8 = 75 %** and
+**0.15 5/8 = 62.5 %**, every success 7.7-10.6 s - the target is met at both
+speeds. The remaining classes are the 0.15's tomato place (the left), the
+6 cm orange, and the strawberry's 3/6. Full record and runners:
 `logs/p225/RESULTS.md`,
 `logs/p225/{run_cell_near.sh,run_cell.sh,run_cell_strict.sh,parse.py}`.
 

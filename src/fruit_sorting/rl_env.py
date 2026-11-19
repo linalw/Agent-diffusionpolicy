@@ -105,7 +105,13 @@ from .policy.data import (
     speed_channel_enabled,
 )
 from .policy.trigger import TriggerSettings, should_fire, x_edge_refusal
-from .perception import CameraModel, _calibration_bias, _fit_sphere, workcell_roi
+from .perception import (
+    CameraModel,
+    _calibration_bias,
+    _fit_sphere,
+    _fit_spheroid,
+    workcell_roi,
+)
 from .tracking import FruitTracker, track_config_from_env
 
 #: md5 of `src/fruit_sorting/tasks.py` this environment was validated against.
@@ -3662,6 +3668,13 @@ class SortingRLEnv:
             "perception_small_dia": float(
                 os.environ.get("FRUIT_PERCEPTION_SMALL_DIA", "0.040") or 0.040
             ),
+            "perception_shape": os.environ.get("FRUIT_PERCEPTION_SHAPE", "") or None,
+            "perception_shape_small": (
+                os.environ.get("FRUIT_PERCEPTION_SHAPE_SMALL", "") or None
+            ),
+            "perception_shape_species": (
+                os.environ.get("FRUIT_PERCEPTION_SHAPE_SPECIES", "") or None
+            ),
             "seed": self.seed,
             "size_filter": self.cfg.size_filter,
             "camera_res": self._camera_res_text(),
@@ -5517,9 +5530,40 @@ class SortingRLEnv:
         if len(points) < 12:
             self._percept_rejected += 1
             return
-        centre, radius, rms = _fit_sphere(
-            points, trim=float(os.environ.get("FRUIT_PERCEPTION_TRIM", "2.5"))
-        )
+        # P225i: the **spheroid** fit for the small fruit (P135's shape knob,
+        # previously only in `FruitPerception`). A strawberry is conical, not a
+        # sphere; the equatorial disc the close consumes is the short axis.
+        # Scoped to the small by `FRUIT_PERCEPTION_SHAPE_SMALL`; the 5-7 cm pool
+        # keeps the sphere unless `FRUIT_PERCEPTION_SHAPE=spheroid` is explicit.
+        _shape = os.environ.get("FRUIT_PERCEPTION_SHAPE", "").strip().lower()
+        _shape_small = os.environ.get(
+            "FRUIT_PERCEPTION_SHAPE_SMALL", ""
+        ).strip().lower()
+        if _shape_small and float(getattr(sample, "diameter", 1.0)) <= float(
+            os.environ.get("FRUIT_PERCEPTION_SMALL_DIA", "0.040") or 0.040
+        ):
+            _shape = _shape_small
+        # The spheroid is the **conical** fruit's shape; the round lychee's
+        # spheroid fit read rms 14.88 mm (the sphere 0.1-0.3) and cost the
+        # `N12P12FSs` lychee, so the species list is the correct scope.
+        _shape_species = os.environ.get(
+            "FRUIT_PERCEPTION_SHAPE_SPECIES", ""
+        ).strip().lower()
+        _spheroid_cats = {
+            item.strip().lower()
+            for item in _shape_species.split(",")
+            if item.strip()
+        }
+        if _spheroid_cats and str(
+            getattr(sample, "category", "")
+        ).lower() in _spheroid_cats:
+            _shape = "spheroid"
+        if _shape == "spheroid":
+            centre, _long_r, radius, rms = _fit_spheroid(points, axis=1)
+        else:
+            centre, radius, rms = _fit_sphere(
+                points, trim=float(os.environ.get("FRUIT_PERCEPTION_TRIM", "2.5"))
+            )
         if centre is None or not math.isfinite(radius) or not 0.005 < radius < 0.15:
             self._percept_rejected += 1
             return

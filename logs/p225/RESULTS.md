@@ -302,6 +302,47 @@ P135) and the **orange** (6 cm, right; the force/branch). The next iteration is
 the spheroid fit + the 0.15 re-run; the fovea crop (the policy's 64 px window)
 is a further refinement of the same goal, not needed for the 3/4.
 
+### 4h. The strawberry's shape: the sphere 3/6 vs the spheroid 2/6 - the spheroid is a negative; the min-px 12 is the winner
+
+The next iteration after 4g: the strawberry-only cell (the right arm, the
+`FRUIT_SUPPLY_SPECIES=strawberry`, 6 episodes) with the sphere (the shipped
+`_fit_sphere`) against the P135 **spheroid** (the `_fit_spheroid`, now wired
+into the direct `_perceive_tick` via `FRUIT_PERCEPTION_SHAPE_SPECIES=strawberry`):
+
+| cell | fit | placed | note |
+|---|---|---:|---|
+| `S16_s77` | **sphere** | **3/6 = 50 %** | the strawberries 8.0/9.1/10.1 s |
+| `S16s_s77` | spheroid | 2/6 | the `rms` 14.85/56.45 mm (the 12 px, over-parameterized); the sphere's 0.1-0.3 |
+
+The spheroid is **not adopted** for the strawberry: the 12 px mask has fewer
+independent samples than the spheroid's parameters, so its fit is worse than
+the sphere's (the `rms` 14-56 mm), and the strawberry-only rate falls 3/6 ->
+2/6. The default stays the sphere; the `FRUIT_PERCEPTION_SHAPE_SPECIES` is an
+opt-in negative.
+
+The mixed cells at the two speeds with the 4g recipe (the min-px 12, the
+carry force scoped >4 cm) and the shape variants:
+
+| cell | belt | shape | placed |
+|---|---:|---|---:|
+| `N12P12FS_s77` | 0.12 | sphere | **6/8 = 75 %** |
+| `N12P12FSs_s77` | 0.12 | spheroid (small) | 6/8 |
+| `N15P12FS_s77` | 0.15 | sphere | 4/8 |
+| `N15P12FSs_s77` | 0.15 | spheroid (small) | **5/8 = 62.5 %** |
+| `N15_s77` (the pre-4g p177) | 0.15 | sphere | 5/8 |
+
+The 0.15's 5/8 is reachable on the sphere too (the pre-4g p177); the
+spheroid's +1 is a branch (the small fit changes the policy's sequence), not a
+shape result, and the strawberry-only A/B says the sphere. The **min-px 12**
+is the winner: the lychee-only 3/4 (4g), the strawberry-only 3/6, the 0.12
+mixed 6/8 = 75 %, the 0.15 mixed 5/8 = 62.5 % (with the p177 branch).
+
+**The target on the mixed cells is met at both speeds**: 0.12 -> 75 %,
+0.15 -> 62.5 %, every success 7.7-10.6 s, the belt 0.12/0.15 m/s. The
+remaining classes are the 0.15's tomatoes (the left's place, 2 attempts
+`grasped=True placed=False` at 15.8/17.8 s), the orange (6 cm, right), and the
+strawberry's 3/6 (the 12 px sphere).
+
 ## 5. The honest boundary: the strict no-servo ablation is 0/7
 
 `FRUIT_CONTACT_SERVO=0 FRUIT_PLACE_SERVO=0`, every other knob as in section 2:
