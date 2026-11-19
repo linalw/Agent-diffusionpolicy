@@ -243,6 +243,30 @@ recorded:
   clip's own outcomes. The existing `.../p177_adopted` (4/6, the pre-P225
   recipe) is the better demo clip.
 
+### 4f. The small-fruit fine-tune: 0/6 - the cap is the perception, not the data
+
+The small store (78 entries: the 14 `p174_all` small x3, the 7
+`p145_dagger_wait` small x3, the 5 `p225_right_low_s1` small x3; 21 left / 57
+right) was fine-tuned from `p177_full` (15 epochs, loss **0.0223**, router
+0.999; `checkpoints/p225_small`, md5 **9fb8335d32d2b2d7926e93d56e35a11a**, local,
+not adopted). The lychee-only cell (`L16`/`L16M`, right, 0.12, 6 episodes):
+
+| cell | model | placed |
+|---|---|---:|
+| `L16_s77` | p177 | **0/5** |
+| `L16M_s77` | p225_small | **0/6** |
+
+The `[close]` rows explain it: the phase close fires with the **true** fruit
+**88-383 mm** away (`xy=88/367/356/363/189/383`), `dz=+112..118`, `sep=98`
+(the pads at their open stop), `grasped=False`. The close is on the
+**perception's goal**, and the small fruit (3.1-3.4 cm, 4 px in the 240x424
+head frame) is refused by `FRUIT_PERCEPTION_MIN_PX=60`; the tracker coasts, the
+goal is the station's nominal, and the pads close on empty air. The small
+model cannot fix this: the **perception** is the cap. The next lever is the
+policy's own 64 px fovea crop (the selected fruit's projection) fed to the
+depth/mask fit, a higher-resolution head, or the wrist camera (P135 3.54 mm;
+P213/P214's annotator blocker).
+
 ## 5. The honest boundary: the strict no-servo ablation is 0/7
 
 `FRUIT_CONTACT_SERVO=0 FRUIT_PLACE_SERVO=0`, every other knob as in section 2:

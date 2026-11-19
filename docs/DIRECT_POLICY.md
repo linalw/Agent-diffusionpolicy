@@ -273,8 +273,16 @@ is a right-heavy branch. The 50/50 arm-standardised stays **66 %** (left 82 %,
 right 50 %); the small lychee/strawberry remain the approach class. **Videos**:
 `/media/.../video/p225_p177_continuous` is the continuous clip (6 picks, 5
 placed, 62.6 s, seed 303); `p225_p177_demo` 2/6 and `..._s303` 1/6 are the
-video-render branch; the existing `p177_adopted` 4/6 is the better demo. Full
-record and runners: `logs/p225/RESULTS.md`,
+video-render branch; the existing `p177_adopted` 4/6 is the better demo. The
+**small-fruit fine-tune** (78 small episodes, 15 epochs, loss 0.0223,
+`p225_small` md5 `9fb8335d`) is **0/6** on the lychee-only cell against p177's
+0/5: the `[close]` rows fire with the **true** fruit 88-383 mm away and
+`sep=98` (the pads at their open stop), so the close is on the **perception's
+goal** and the small fruit (4 px at 240x424) is refused by
+`FRUIT_PERCEPTION_MIN_PX=60`; the cap is the perception, not the data. The next
+lever is the policy's own 64 px fovea crop fed to the depth/mask fit, a
+higher-resolution head, or the wrist camera. Full record and runners:
+`logs/p225/RESULTS.md`,
 `logs/p225/{run_cell_near.sh,run_cell.sh,run_cell_strict.sh,parse.py}`.
 
 ## 9. Pointers
