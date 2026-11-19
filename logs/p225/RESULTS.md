@@ -131,6 +131,33 @@ spend is the right's lift (a right-arm fine-tune) or the hardware
 (`docs/DIRECT_POLICY.md` §8b: a force-controlled finger / a new pad asset), not
 another selector or speed knob.
 
+### 4c. The right-only fine-tune: a null/wedge - the right's cap is the lift physics, not the data
+
+The follow-up requested after 4b: a **right-only training store** (31 right
+episodes / 6,452 frames from `p174_all`, 15 right episodes / 1,890 frames from
+`p145_dagger_wait`) and a fine-tune from `p177_full` on it (10 epochs, lr 5e-5,
+the p177 close weights; final `demo_val` **0.0178**, router 0.996, weighted
+loss 0.0262 - it fits the right demos **better** than p177's 0.0293).
+`checkpoints/p225_right` (md5 **9dbdc43dba019eeebaace0117bd554d6**, not adopted); the history is
+`logs/p225/finetune/right.log`.
+
+The right-only cell (`RR12_s77`, 0.12 m/s, the same pool/seed as `R12_s77`):
+**1/4 on the first four episodes with the same fruit and the same outcomes as
+p177** (lychee fail, peach place 8.1 s, orange fail 4.8 s, pear fail 9.9 s),
+then **wedge** on ep4 (orange: the `[close]` is on the fruit at `xy = 18 mm`,
+then no episode row). A model that fits the right demos better than p177
+reproduces the same right-arm outcomes and adds a wedge, so **more right data /
+a right-only model does not convert the right**: the cap is the **lift/hold
+physics** (the `grasped=False` class in 4b), not the policy's data volume.
+
+The remaining levers, in the record's order: (i) the **lift height/attitude**
+- the P66/P71 low-lift story is **left-only** (`resolve_lift_dz` returns
+`{"left": dz}`), and the right still runs the `belt_top + 0.28` target; a
+right low-lift recollection is the one untested geometry knob; (ii) the
+**hardware** form of `docs/END_EFFECTOR_DECISION.md` (a force-controlled finger
+or a new pad asset). Another right-data fine-tune is not indicated by this
+cell.
+
 ## 5. The honest boundary: the strict no-servo ablation is 0/7
 
 `FRUIT_CONTACT_SERVO=0 FRUIT_PLACE_SERVO=0`, every other knob as in section 2:
