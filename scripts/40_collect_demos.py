@@ -396,6 +396,12 @@ def write_manifest(out_dir: str, cfg: SceneConfig) -> None:
             "min_progress_s": GUARD_MIN_PROGRESS_S,
             "episode_timeout_s": EPISODE_TIMEOUT_S,
             "hard_episode_s": HARD_EPISODE_S,
+            # P225d: the collector's right-arm lift target (metres above
+            # `jaw_target("grasp_lift")`'s `belt_top + 0.28` base). Empty = the
+            # shipped 0.28 m; "-0.08" = the 0.20 m rung. A manifest without this
+            # key predates the phase; the direct env's left-only `FRUIT_LIFT_DZ`
+            # never reached the collector (`resolve_lift_dz` is `direct`-scoped).
+            "lift_dz_right": os.environ.get("FRUIT_COLLECT_LIFT_DZ_RIGHT", ""),
         },
         "supply": {
             #: P27/P28 provenance fix: the belt speed the shard ran at. The P27 audit found no
@@ -673,7 +679,13 @@ def main() -> int:
     spawner.reset()
     spawner.prime(count=6)
 
-    task = PickAndPlaceTask(scene, spawner, tactile, cfg)
+    # P225d: the collector-only right low-lift rung. `resolve_lift_dz` is
+    # `direct`-scoped (the direct env's left-only `FRUIT_LIFT_DZ`), so the
+    # collector never read it; a right low-lift recollection needs this task
+    # kwarg. Unset = `None` = the shipped `belt_top + 0.28` m, byte-inert.
+    _right_lift = os.environ.get("FRUIT_COLLECT_LIFT_DZ_RIGHT", "").strip()
+    _collect_lift_dz = {"right": float(_right_lift)} if _right_lift else None
+    task = PickAndPlaceTask(scene, spawner, tactile, cfg, lift_dz=_collect_lift_dz)
     # P41 phase 2: the finger drive now exists on both articulations - replace
     # the manifest's env-resolved pair with the runtime read-back.
     update_manifest_physics(OUT_DIR, task)

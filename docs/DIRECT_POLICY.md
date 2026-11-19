@@ -250,9 +250,17 @@ wedges on the right apple/pear; not adopted (`logs/p225/finetune/`). The
 **right-only fine-tune** (31 right demos + 15 right dagger, 10 epochs,
 `demo_val` 0.0178) is also a **null/wedge**: the same first-four right outcomes
 as p177 and a wedge on the right orange, so more right data does not convert
-the right - the cap is the lift/hold physics. The one untested geometry knob is
-a **right low-lift** recollection (P66/P71's low lift is left-only;
-`resolve_lift_dz` returns `{"left": dz}`), and the hardware form is
+the right - the cap is the lift/hold physics. The **right low-lift
+recollection** (`FRUIT_COLLECT_LIFT_DZ_RIGHT=-0.08`, 10 right episodes) plus a
+39-episode mixed fine-tune (`p225_lowmix`, md5 `9a2786f4`) doubles the
+right-only rate **2/8 -> 4/8 = 50 %**; the single lowmix model costs the left
+(3/4 vs 5/5), so the adoption is the **arm router**
+`FRUIT_POLICY_CKPT_RIGHT=checkpoints/p225_lowmix` with p177 on the left. At the
+observed left 82 % / right 50 % the **50/50 arm-standardised rate is 66 %**,
+above the target; the router's mixed cell is partial (the right orange
+converted, then a left pear wedge), so quote the arm-standardised number and
+the right-only cell, not a new mixed count. The right's remaining failures are
+the small lychee/strawberry and the place/wedge; the hardware form is
 `docs/END_EFFECTOR_DECISION.md`'s force-controlled finger / new pad. Full
 record and runners: `logs/p225/RESULTS.md`,
 `logs/p225/{run_cell_near.sh,run_cell.sh,run_cell_strict.sh,parse.py}`.

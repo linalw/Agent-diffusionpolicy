@@ -158,6 +158,45 @@ right low-lift recollection is the one untested geometry knob; (ii) the
 or a new pad asset). Another right-data fine-tune is not indicated by this
 cell.
 
+### 4d. The right low-lift recollection and the arm router: 2/8 -> 4/8 right-only, 50/50 arm-standardised 66 %
+
+The lever 4c named as untested: the P66/P71 low lift is **left-only**
+(`resolve_lift_dz` returns `{"left": dz}`), so the right still ran the shipped
+`belt_top + 0.28` lift. A **collector-only** rung `FRUIT_COLLECT_LIFT_DZ_RIGHT=-0.08`
+(the 0.20 m rung) plus a right-only pool collected **10 successful right
+episodes** (`datasets/p225_right_low_s1`; the manifest records
+`collection.lift_dz_right: "-0.08"`). The fine-tune from `p177_full` uses a
+**mixed base** of the 29 left `p174_all` episodes (shipped lift) and the 10
+right low-lift episodes (39 total, 7,998 windows; 15 epochs, loss **0.0234**,
+router 0.995; `checkpoints/p225_lowmix`, md5 **9a2786f4**, not a shipped
+default).
+
+| cell | model | placed | note |
+|---|---|---:|---|
+| `R12_s77` right-only | p177 | 2/8 = 25 % | baseline |
+| `LR12_s77` right-only | **p225_lowmix** | **4/8 = 50 %** | peach, pear, apple, pear; one `grasped=True placed=False` |
+| `LM12_s77` mixed | p225_lowmix single | 4/8 | **left 3/4** (a left lychee failed) against p177's 5/5 - the single model loses the left |
+| `RT12_s77` mixed | **arm router** (left p177, right lowmix) | 2/3 then wedge | lychee right fail, peach left place 7.9 s, **orange right place 11.4 s** - the p177 mixed cell's orange right failed at 4.4 s; then the left pear wedge |
+
+The right-only rate **doubles (2/8 -> 4/8 = 50 %)** with the low lift, and the
+**single** lowmix model is not adoptable because it costs the left
+(3/4 vs 5/5). The adoption is the **arm router**:
+`FRUIT_POLICY_CKPT_RIGHT=checkpoints/p225_lowmix` with `p177_full` on the left -
+the left keeps its 82 %, the right gets the 50 % right-only model. At those
+rates the **50/50 arm-standardised pooled is 0.5 x 0.82 + 0.5 x 0.50 = 66 %**,
+above the 55 % target. The router's mixed cell is **not a completed rate** (a
+wedge on the left pear after the right orange converted), so quote the
+arm-standardised number and the right-only cell, not a new mixed count.
+
+The code change is default-inert: `FRUIT_POLICY_CKPT_RIGHT` (a second
+`PolicyRunner`, the frame push in `_observe`, the ready gate, the runner select
+by `_active`, the reset, and the manifest's `right_checkpoint*` fields);
+`FRUIT_COLLECT_LIFT_DZ_RIGHT` is collector-only (the direct env's `FRUIT_LIFT_DZ`
+is untouched, pinned by the updated `236` leg and the `collection.lift_dz_right`
+field). The right's remaining failures are the small lychee/strawberry and the
+place/wedge; the low lift is a real +2 episodes on the right-only cell, not a
+complete fix.
+
 ## 5. The honest boundary: the strict no-servo ablation is 0/7
 
 `FRUIT_CONTACT_SERVO=0 FRUIT_PLACE_SERVO=0`, every other knob as in section 2:

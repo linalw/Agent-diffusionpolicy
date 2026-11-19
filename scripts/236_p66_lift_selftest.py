@@ -479,10 +479,25 @@ def main() -> int:
             text = (ROOT / rel).read_text(encoding="utf-8")
             check("SortingRLEnv" not in text,
                   f"{rel} never constructs SortingRLEnv (the knob's scope)")
-        check("PickAndPlaceTask(" in (ROOT / "scripts/40_collect_demos.py").read_text(
-            encoding="utf-8") and "lift_dz" not in (ROOT / "scripts/40_collect_demos.py").read_text(
-            encoding="utf-8"),
-            "the collector constructs the task without the kwarg (default None)")
+        # P225d: the collector gained a **collector-only** right low-lift rung
+        # (`FRUIT_COLLECT_LIFT_DZ_RIGHT`), not the direct env's left-only
+        # `FRUIT_LIFT_DZ`. The unset path is still `lift_dz=None` (the shipped
+        # 0.28 m), and the dict is right-only, so the direct env's knob and the
+        # collector's recollection cannot alias each other.
+        _collector = (ROOT / "scripts/40_collect_demos.py").read_text(encoding="utf-8")
+        check(
+            "_right_lift = os.environ.get(\"FRUIT_COLLECT_LIFT_DZ_RIGHT\""
+            in _collector
+            and "{\"right\": float(_right_lift)} if _right_lift else None"
+            in _collector
+            and "lift_dz=_collect_lift_dz" in _collector,
+            "the collector's lift_dz is the right-only "
+            "FRUIT_COLLECT_LIFT_DZ_RIGHT (None when unset)",
+        )
+        check(
+            "os.environ.get(\"FRUIT_LIFT_DZ" not in _collector,
+            "the collector does not read the direct env's FRUIT_LIFT_DZ",
+        )
     finally:
         os.environ.clear()
         os.environ.update(saved)

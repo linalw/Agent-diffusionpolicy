@@ -2997,6 +2997,40 @@ class SortingRLEnv:
                     raise ValueError(
                         f"FRUIT_POLICY_CKPT2 proprio_dim={_w2} != the primary's {_w1}"
                     )
+            # P225d: the **arm router** - a right-arm checkpoint for the right
+            # episodes, the primary for the left. The low-lift recollection
+            # (`checkpoints/p225_lowmix`) doubles the right-only rate (2/8 ->
+            # 4/8) but its mixed cell loses the left's branch; routing by the
+            # measured arm keeps each arm on the model measured for it. Unset
+            # (`""`) = byte-inert: no second runner, no extra frame push.
+            self._right_policy = None
+            _ckr = os.environ.get("FRUIT_POLICY_CKPT_RIGHT", "").strip()
+            if _ckr:
+                if self.rtc_settings.enabled:
+                    raise ValueError(
+                        "FRUIT_POLICY_CKPT_RIGHT is the synchronous arm router; "
+                        "it is not wired into the RTC sampler"
+                    )
+                from .policy.runtime import PolicyRunner as _PRR
+
+                self._right_policy = _PRR(_ckr, device=self.policy.device)
+                if getattr(self.policy, "phase_gate", None) is not None:
+                    self._right_policy.phase_gate = self.policy.phase_gate
+                _wr = int(self._right_policy.config.get("proprio_dim", 25))
+                _w1 = int(self.policy.config.get("proprio_dim", 25))
+                if _wr != _w1:
+                    raise ValueError(
+                        f"FRUIT_POLICY_CKPT_RIGHT proprio_dim={_wr} != the "
+                        f"primary's {_w1}"
+                    )
+                _ar = int(self._right_policy.config.get("action_dim", 9))
+                _a1 = int(self.policy.config.get("action_dim", 9))
+                if _ar != _a1:
+                    raise ValueError(
+                        f"FRUIT_POLICY_CKPT_RIGHT action_dim={_ar} != the "
+                        f"primary's {_a1}"
+                    )
+                say(f"[rl] right-arm policy {_ckr} (arm router)")
             if self._action_jaw and self.action_dim != 4:
                 raise RuntimeError(
                     f"FRUIT_ACTION=jaw needs a 4-D checkpoint (jaw xyz + finger), "
@@ -3880,6 +3914,23 @@ class SortingRLEnv:
             "tasks_md5": self.tasks_md5,
             "checkpoint": checkpoint or "",
             "checkpoint_md5": checkpoint_md5,
+            #: P225d: the arm router's right checkpoint (empty = the single
+            #: model). The right episodes are a different artifact from the
+            #: left's, so a store/run without this key ran one model on both.
+            "right_checkpoint": (
+                os.environ.get("FRUIT_POLICY_CKPT_RIGHT", "").strip() or None
+            ),
+            "right_checkpoint_md5": (
+                _md5(
+                    os.environ["FRUIT_POLICY_CKPT_RIGHT"].strip()
+                    if os.path.isabs(os.environ["FRUIT_POLICY_CKPT_RIGHT"].strip())
+                    else os.path.join(
+                        _REPO_ROOT, os.environ["FRUIT_POLICY_CKPT_RIGHT"].strip()
+                    )
+                )
+                if os.environ.get("FRUIT_POLICY_CKPT_RIGHT", "").strip()
+                else ""
+            ),
             "handoff_mode": os.environ.get("FRUIT_HANDOFF", ""),
             "handoff_max": os.environ.get("FRUIT_HANDOFF_MAX", ""),
             "no_attach": os.environ.get("FRUIT_NO_ATTACH", ""),
@@ -4760,6 +4811,8 @@ class SortingRLEnv:
             self.policy.reset()
             if getattr(self, '_policy2', None) is not None:
                 self._policy2.reset()
+            if getattr(self, '_right_policy', None) is not None:
+                self._right_policy.reset()
         if self.rtc is not None:
             self.rtc.reset()
 
@@ -5106,6 +5159,9 @@ class SortingRLEnv:
             if getattr(self, "_policy2", None) is not None:
                 # the hybrid's jaw head has its own observation horizon buffer
                 self._policy2.push_frame(rgb, depth, mask, uv=_uv)
+            if getattr(self, "_right_policy", None) is not None:
+                # P225d: the arm router's right checkpoint has its own buffer
+                self._right_policy.push_frame(rgb, depth, mask, uv=_uv)
 
     # ------------------------------------------------------------------ #
     # P141: the belt-state channel
@@ -6204,6 +6260,11 @@ class SortingRLEnv:
             return np.zeros((self.action_horizon, self.action_dim), dtype=np.float32)
         if self.policy is None or not self.policy.ready:
             return None
+        if (getattr(self, "_right_policy", None) is not None
+                and not self._right_policy.ready):
+            # P225d: the arm router's right buffer fills on the same pushes as
+            # the primary; a premature decision would sample an empty window.
+            return None
         if self.rtc is not None:
             return None
         if self._wait_gate_on:
@@ -6248,7 +6309,14 @@ class SortingRLEnv:
             )
         else:
             self._jaw_now = _use2
-        _runner = self._policy2 if _use2 else self.policy
+        if _use2:
+            _runner = self._policy2
+        elif (getattr(self, "_right_policy", None) is not None
+                and self._active == "right"):
+            # P225d: the arm router - the right checkpoint on the right episodes
+            _runner = self._right_policy
+        else:
+            _runner = self.policy
         _kw = dict(
             num_steps=self.ddim_steps if num_steps is None else int(num_steps),
             phase=(None if _use2 else phase),
