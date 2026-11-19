@@ -172,7 +172,11 @@ sequence); seed 505 still wedges in the learned large-fruit post-close path (P22
 **P222's right-side route** is a mechanism, not a mixed gain: the scripted B-heavy control
 places **6/6** right-arm fruit, `FRUIT_HANDOVER_SIDE=right` places the right **3/3** at seed
 303, but the learned left is **1/3** (loaded slide), so the mixed cell is 3/6 against
-P219's 5/6. The learned left large fruit is the residual.
+P219's 5/6. The learned left large fruit is the residual, and **P223 shows it is the hand,
+not the policy**: the scripted dynamic catch is **6/6 on a B-heavy (right) pool** but
+**1/6 on an A-heavy (left) pool** (kiwi/peach/lychee grasped-not-placed, 0.106-0.246 m
+lifts), while the learned left is ~70 %. The best per-arm route is **right -> scripted,
+left -> learned**; the left 70 % / left pad is the system cap.
 
 ## 8. What is left: the acquisition's selection timing, throughput, a certificate
 

@@ -3073,3 +3073,15 @@ The right hand/primitive is fine; the learned left large fruit is the residual. 
 route is a mechanism, not a mixed success lever; the knob stays default-off.
 **Pins.** `rl_env.py` **`223c8172`**, `scripts/281_p222_side_handover_selftest.py`
 **`997e91c5`**, `selfcheck.sh` **`809af770`**; evidence `logs/p222/`.
+
+## 85. P223: the left arm is the weak one, in the scripted line too
+
+Same scripted dynamic catch, seed 808, 6 attempts, only the grade mix changes: **B-heavy
+(right) 6/6**, **A-heavy (left) 1/6**. The A-heavy failures are left large fruit
+(kiwi/peach/lychee grasped-not-placed, 0.106-0.246 m lifts; one strawberry 28.33 N
+no-grasp; one orange 0 N). The one success is a right strawberry from the 0.10 B share.
+The learned left is ~70 %, the **scripted left 17 %** - so the left is the hand/primitive,
+not a learned-policy deficit. The right is the opposite: learned 2/6, scripted 6/6. The
+best per-arm route is **right -> scripted, left -> learned**; the left 70 %/left pad is
+the system cap. P219's 5/6 and P222's 3/6 are its favourable/unfavourable branches. The
+residual is the left pad/hand (hardware class); no software knob is indicated on the left.

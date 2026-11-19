@@ -1624,8 +1624,10 @@ still wedges in the learned large-fruit post-close path. **P222**: the scripted 
 right control places **6/6**; `FRUIT_HANDOVER_SIDE=right` places the right 3/3 at seed 303
 but the learned left is 1/3 (loaded slide), so the mixed cell is 3/6 against P219's 5/6 -
 the learned left large fruit is the residual, and the side route is a mechanism, not a
-mixed success. New legs `271`-`281`; references `30fb99f8` / `30fb99f8` / `8952c320`
-stand.
+mixed success. **P223**: the scripted A-heavy (left) control is **1/6** against the
+B-heavy (right) **6/6** - the left is weak in the scripted line too, so it is the left
+pad/hand, not a learned-policy deficit; the learned left ~70 % is the best left and the
+system cap. New legs `271`-`281`; references `30fb99f8` / `30fb99f8` / `8952c320` stand.
 
 ## 2. Two constraints that decide how to measure
 
