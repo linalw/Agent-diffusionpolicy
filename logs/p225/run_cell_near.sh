@@ -21,5 +21,5 @@ env FRUIT_BELT_SPEED="$BELT" \
     FRUIT_SMALL_HANDOVER=0 FRUIT_HANDOVER_SIDE= \
     FRUIT_POLICY_TRIGGER=off SKIP_SELFCHECK=1 \
     scripts/run.sh scripts/110_rl_rollout.py \
-    --ckpt checkpoints/p177_full/policy_best.pt --presentation direct \
+    --ckpt "${CKPT:-checkpoints/p177_full/policy_best.pt}" --presentation direct \
     --episodes "$EP" --seeds "$SEED" --horizon 2600 --out "$OUT" 2>&1

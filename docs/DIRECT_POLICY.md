@@ -238,7 +238,16 @@ ablation is 0/7** (`FRUIT_CONTACT_SERVO=0 FRUIT_PLACE_SERVO=0`): the analytic
 contact/place servos are load-bearing, so the result is the **hierarchical**
 learned lane, not a bare policy. The right arm is the residual; the 0.08 cell is
 OOD for the 0.12-trained demos (`1/4`, 14-19 s), which is the case for
-speed-randomized demos. Full record and runners: `logs/p225/RESULTS.md`,
+speed-randomized demos. **The right-only control**
+(`FRUIT_SUPPLY_GRADES=A:0.01,B:0.98,C:0.01`) is **2/8 = 25 %**, with every
+`[close]` on the fruit (`xy 13-19 mm`) and the failures in the lift/hold
+(`grasped=False`) - the cap is the right's lift class, not the mix. At a 50/50
+arm mix the arm-standardised pooled is **53.5 %**, so the target is met on the
+left-heavy cells (and the record's 60/40 split), not robustly at 50/50. The
+**4-frame temporal-context fine-tune** (`--obs-horizon 4`, StreamPI/TEMPO) is a
+measured negative: it matches the 2-frame model on the first mixed episodes and
+wedges on the right apple/pear; not adopted (`logs/p225/finetune/`). Full
+record and runners: `logs/p225/RESULTS.md`,
 `logs/p225/{run_cell_near.sh,run_cell.sh,run_cell_strict.sh,parse.py}`.
 
 ## 9. Pointers

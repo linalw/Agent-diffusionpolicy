@@ -112,6 +112,25 @@ no-grasp; the lychee right fails.
 branches differ (the selected fruit changes the RNG stream), so this is a
 mechanism read, not a rate certificate.
 
+### 4b. The right-only control: the right is ~25 %, and it is the lift, not the mix
+
+The phase's right cells (3/13) could have been a mix artefact, so the pool was
+forced to grade B (`FRUIT_SUPPLY_GRADES=A:0.01,B:0.98,C:0.01`, every attempt
+right; `logs/p225/R12_s77`): **2/8 = 25 %**, successes at 7.5 s (peach) and
+8.6 s (apple); five `grasped=False` and one `grasped=True placed=False`, with
+**every `[close]` on the fruit** (`xy = 13-19 mm, dz = +62..+84 mm`). So the
+right's close is good and the failure is the **lift/hold** (`grasped=False` is
+the `_max_lift > 0.05` test), i.e. the right's loaded-slide/grip class, not the
+acquisition and not the supply mix.
+
+Consequence for the target: at a 50/50 arm mix the arm-standardised pooled rate
+is `0.5 * 0.82 + 0.5 * 0.25 = 53.5 %`, i.e. **the target is met on the
+left-heavy cells (0.15: 5/8; 0.12 seed 77: 6/8) but is not robust at a 50/50
+mix**; the five-seed record's 62.5 % sits on a 60/40 left/right split. The next
+spend is the right's lift (a right-arm fine-tune) or the hardware
+(`docs/DIRECT_POLICY.md` §8b: a force-controlled finger / a new pad asset), not
+another selector or speed knob.
+
 ## 5. The honest boundary: the strict no-servo ablation is 0/7
 
 `FRUIT_CONTACT_SERVO=0 FRUIT_PLACE_SERVO=0`, every other knob as in section 2:
@@ -131,6 +150,31 @@ the goal/tracker is fine, the policy's learned clock is not). This is the
 concrete case for the papers' **speed-randomized demonstrations** (AHEAD's
 0-40 cm/s sweep, Reflex's latency-aware evaluation): the next collection should
 cover 0.08-0.15, not retune the 0.08 cell. The operating point is 0.12-0.15.
+
+### 6b. The 4-frame temporal context (StreamPI/TEMPO): a measured negative
+
+The papers' largest model gap is temporal context (TEMPO/StreamPI/Reflex), so
+the prepared P141 widening was run: fine-tune `checkpoints/p177_full` with
+`--obs-horizon 4` (the first conv is the 2-frame kernel repeated and halved),
+10 epochs, lr 5e-5, the p177 recipe (`--close-weight 20 --close-lead 25
+--close-tail 20`, base `datasets/p174_all` + `datasets/p145_dagger_wait`,
+batch 32). Final weighted loss **0.0217**, router 0.995, `demo_val` **0.0250**
+(history `logs/p225/finetune/h4_history.json`; the 18 MB checkpoint is local as
+`checkpoints/p225_h4`, md5 **3e27d684**, **not adopted**).
+
+It loads (`obs_horizon=4`) and the first mixed 0.12 cell (`H12_s77`) reads
+**2/4** on the same first four episodes as the 2-frame `N12_s77` (lychee fail,
+peach place, orange fail, pear place), then **wedges** on the right apple
+(t = 252 held for > 9 min, CPU busy / GPU idle - the P145b/P220 post-close
+wedge class). The right-only h4 cell (`HR12_s77`) reads lychee fail, peach
+place (the row printed twice - a double-finalize reporting anomaly), then
+**wedges** on the right pear.
+
+So the 4-frame horizon is **not a drop-in** on this interface: it does not move
+the first mixed episodes and it exposes the right-side wedge. The 2-frame
+`p177_full` stands. A next temporal-context attempt should change the **data**
+(StreamPI's random frame intervals/stride, TEMPO's bucket history) and validate
+on the right-only cell first, not just widen the visual stack.
 
 ## 7. What the papers contributed, and what did not transfer
 
