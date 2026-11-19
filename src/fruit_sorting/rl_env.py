@@ -3654,6 +3654,14 @@ class SortingRLEnv:
             "ablate": self.ablate,
             "goal_source": self._goal_source,
             "goal_measured": bool(self._goal_perception),
+            #: P225h: the small-fruit perception floor (0 = the shipped 60 px on
+            #: every size). A store/run without these keys ran the 60 px floor.
+            "perception_min_px_small": int(
+                os.environ.get("FRUIT_PERCEPTION_MIN_PX_SMALL", "12") or 0
+            ),
+            "perception_small_dia": float(
+                os.environ.get("FRUIT_PERCEPTION_SMALL_DIA", "0.040") or 0.040
+            ),
             "seed": self.seed,
             "size_filter": self.cfg.size_filter,
             "camera_res": self._camera_res_text(),
@@ -3673,6 +3681,9 @@ class SortingRLEnv:
             #: P225f: the carry force servo's target (0 = the shipped position
             #: drive). The drive stays the shipped one; the knob moves its target.
             "carry_force": float(self._carry_force),
+            "carry_force_small_dia": float(
+                os.environ.get("FRUIT_CARRY_FORCE_SMALL_DIA", "0.040") or 0.0
+            ),
             #: P31-A: the wait gate's provenance (absent = off). An A/B arm must
             #: be identified by this block, not by the printed count alone.
             "wait_gate": asdict(self.wait_gate) if self.wait_gate.enabled else None,
@@ -5461,6 +5472,27 @@ class SortingRLEnv:
             return
         pixels = np.argwhere(mask)[:, ::-1]
         min_px = int(os.environ.get("FRUIT_PERCEPTION_MIN_PX", "60"))
+        # P225h: the **small-fruit** perception floor. The shipped 60 px is the
+        # P135 reliability bar for the 5-7 cm pool; a 3.1-3.9 cm lychee/
+        # strawberry is ~12 px even at the head's 240x424, so the 60 px floor
+        # refused every small frame and the filter coasted to the station's
+        # nominal - the measured `[close]` fired 88-383 mm from the fruit. The
+        # small mask at 12 px is enough for the fit (`err_close_p50` 1.5-4.9 mm,
+        # the `L16P12` cell 0/5 -> 3/4). Scoped by the presented fruit's
+        # diameter (the env's size class, the same field the small handover
+        # uses); the 5-7 cm pool keeps 60. `FRUIT_PERCEPTION_MIN_PX_SMALL=0`
+        # restores the pre-P225h behaviour on every size.
+        _small_dia = float(
+            os.environ.get("FRUIT_PERCEPTION_SMALL_DIA", "0.040") or 0.040
+        )
+        _min_small = int(
+            os.environ.get("FRUIT_PERCEPTION_MIN_PX_SMALL", "12") or 0
+        )
+        if (
+            _min_small > 0
+            and float(getattr(sample, "diameter", 1.0)) <= _small_dia
+        ):
+            min_px = min(min_px, _min_small)
         if len(pixels) < max(8, min_px):
             self._percept_rejected += 1
             return
@@ -6035,6 +6067,20 @@ class SortingRLEnv:
         Default 0 = no read, no arithmetic, byte-inert.
         """
         if self._carry_force <= 0.0 or self._close_t0 is None:
+            return finger
+        # P225h: the small fruit is **excluded** by default. The carry force loop
+        # is the medium/large fruit's loaded-slide fix (right-only 2/8 -> 4/8);
+        # on a 3.1-3.9 cm lychee/strawberry the same loop drives the pads to the
+        # 8 mm floor and over-closes (the `L16P12F` cell 2/4 against the
+        # min-px-only `L16P12` 3/4). `FRUIT_CARRY_FORCE_SMALL_DIA=0` runs it on
+        # every size (the measured negative).
+        _force_skip = float(
+            os.environ.get("FRUIT_CARRY_FORCE_SMALL_DIA", "0.040") or 0.0
+        )
+        if (
+            _force_skip > 0.0
+            and float(getattr(self._sample, "diameter", 1.0)) <= _force_skip
+        ):
             return finger
         if int(self._step) - int(self._close_t0) < int(self._close_ramp_ticks):
             return finger

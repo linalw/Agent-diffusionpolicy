@@ -278,10 +278,18 @@ video-render branch; the existing `p177_adopted` 4/6 is the better demo. The
 `p225_small` md5 `9fb8335d`) is **0/6** on the lychee-only cell against p177's
 0/5: the `[close]` rows fire with the **true** fruit 88-383 mm away and
 `sep=98` (the pads at their open stop), so the close is on the **perception's
-goal** and the small fruit (4 px at 240x424) is refused by
-`FRUIT_PERCEPTION_MIN_PX=60`; the cap is the perception, not the data. The next
-lever is the policy's own 64 px fovea crop fed to the depth/mask fit, a
-higher-resolution head, or the wrist camera. Full record and runners:
+goal** and the small fruit (~12 px at 240x424) is refused by
+`FRUIT_PERCEPTION_MIN_PX=60`; the cap is the perception, not the data.
+The feedback's fix is the **size-scoped floor**:
+`FRUIT_PERCEPTION_MIN_PX_SMALL=12` for <= 4 cm (the 5-7 cm pool keeps 60) turns
+the lychee-only cell from **0/5 to 3/4** (`err_close_p50` 1.5-4.9 mm; the
+`[close]` on the fruit at `xy 14-18 mm`), and the mixed `N12P12FS` reads
+**6/8 = 75 %** (lychee **3/3**, right 4/6, left 2/2) with the carry force
+scoped to > 4 cm (`FRUIT_CARRY_FORCE_SMALL_DIA=0.040`; the force on the small
+is 2/4, a measured negative). The 0.15 cell is 4/8 on its branch (the left's
+place failures); the 0.12 is the strong speed. The remaining small class is
+the **strawberry** (3.1 cm, conical - the next is
+`FRUIT_PERCEPTION_SHAPE=spheroid`, P135). Full record and runners:
 `logs/p225/RESULTS.md`,
 `logs/p225/{run_cell_near.sh,run_cell.sh,run_cell_strict.sh,parse.py}`.
 

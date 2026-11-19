@@ -267,6 +267,41 @@ policy's own 64 px fovea crop (the selected fruit's projection) fed to the
 depth/mask fit, a higher-resolution head, or the wrist camera (P135 3.54 mm;
 P213/P214's annotator blocker).
 
+### 4g. The small-fruit perception fix: the size-scoped MIN_PX 12 (0/5 -> 3/4), the mixed lychee 3/3, the carry force's small skip
+
+The feedback on 4f: the small fruit's mask is **~12 px**, not 4, at the
+240x424 head; the shipped `FRUIT_PERCEPTION_MIN_PX=60` (P135's 5-7 cm
+reliability bar) refused every small frame, the filter coasted, and the phase
+close fired 88-383 mm from the fruit. The fix is a **size-scoped floor**:
+`FRUIT_PERCEPTION_MIN_PX_SMALL=12` for the presented diameter <= 0.040 m, the
+5-7 cm pool keeps 60 (`FRUIT_PERCEPTION_MIN_PX_SMALL=0` restores the old
+behaviour on every size).
+
+| cell | configuration | placed | note |
+|---|---|---:|---|
+| `L16_s77` | p177, MIN_PX 60 | 0/5 | the 4f baseline |
+| `L16P12_s77` | p177, MIN_PX 12 | **3/4** | `err_close_p50` **1.5-4.9 mm**; `[close] xy 14-18 mm, dz +63..+71` |
+| `L16P12F_s77` | + carry force 45 (on the small) | 2/4 | the force's over-close **hurts** the 3.1-3.9 cm fruit |
+| `N12P12F_s77` | mixed, MIN_PX 12, force on all | 6/8 | ep0 lychee `grasped=True placed=False` (the force's over-close) |
+| `N12P12FS_s77` | mixed, MIN_PX 12, **force scoped >4 cm** | **6/8 = 75 %** | **lychee 3/3** (left+right), right 4/6, left 2/2; orange + strawberry fail |
+| `N15P12FS_s77` | 0.15, MIN_PX 12, force scoped | 4/8 | the left's tomatoes/peaches place failures; a branch against the p177 0.15 5/8 |
+
+The `[percept]` rows with the fix: the mixed ep0 lychee `err_close_p50=3.2 mm`
+(8 close samples), the `L16P12` 1.5-4.9 mm; the close is now **on the fruit**.
+The carry force loop is the **medium/large** fruit's fix (4e: right-only 2/8 ->
+4/8); on the small it over-closes (`L16P12F` 2/4 against `L16P12` 3/4), so it is
+scoped by `FRUIT_CARRY_FORCE_SMALL_DIA=0.040` (the small keeps only the
+perception fix). The 0.12 mixed is **6/8 = 75 %** (right 4/6, left 2/2, the
+lychee 3/3); the 0.15 cell is 4/8 on its branch (the left's place failures, the
+right's), below the p177 0.15 5/8, so the 0.12 remains the strong speed and the
+0.15 needs its own re-run.
+
+The remaining small classes: the **strawberry** (3.1 cm, conical; the sphere
+fit is the wrong shape - the next knob is `FRUIT_PERCEPTION_SHAPE=spheroid`,
+P135) and the **orange** (6 cm, right; the force/branch). The next iteration is
+the spheroid fit + the 0.15 re-run; the fovea crop (the policy's 64 px window)
+is a further refinement of the same goal, not needed for the 3/4.
+
 ## 5. The honest boundary: the strict no-servo ablation is 0/7
 
 `FRUIT_CONTACT_SERVO=0 FRUIT_PLACE_SERVO=0`, every other knob as in section 2:
