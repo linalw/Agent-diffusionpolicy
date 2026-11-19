@@ -1620,8 +1620,12 @@ policy; the mixed count is a branch, the class is the result. **P220**: the hand
 continuous-ready - a lychee-only 6-pick continuous episode places **5/6** (10,290 ticks,
 15.3 s/pick) against the learned continuous 2/6; the mixed continuous seed-303 cell
 completes **4/6** (equal to its learned control, no small fruit in the sequence), seed 505
-still wedges in the learned large-fruit post-close path. New legs `271`-`280`; references `30fb99f8` /
-`30fb99f8` / `8952c320` stand.
+still wedges in the learned large-fruit post-close path. **P222**: the scripted B-heavy
+right control places **6/6**; `FRUIT_HANDOVER_SIDE=right` places the right 3/3 at seed 303
+but the learned left is 1/3 (loaded slide), so the mixed cell is 3/6 against P219's 5/6 -
+the learned left large fruit is the residual, and the side route is a mechanism, not a
+mixed success. New legs `271`-`281`; references `30fb99f8` / `30fb99f8` / `8952c320`
+stand.
 
 ## 2. Two constraints that decide how to measure
 

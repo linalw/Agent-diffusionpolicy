@@ -3059,3 +3059,17 @@ learned per-episode control (4/6), below the per-episode hybrid (5/6); the six-p
 sequence contains no small fruit, so the handover is not exercised. Seed 505 started
 2/6 and wedged in the learned post-close path. The lychee-only 5/6 continuous cell is the
 small-class result; the mixed continuous total is not a gain.
+
+## 84. P222: the right side is fine with the scripted skill; the learned left is the residual
+
+The scripted dynamic catch on a B-heavy pool (right arm), seed 808, 6 attempts: **6/6**,
+forces 9.96-15.58 N, lifts 0.298-0.497 m. The learned right on the same cell was 2/6
+(P212). `FRUIT_HANDOVER_SIDE=right` (default off) sends every right sample to
+`_run_scripted`; mixed seed 303, 6 episodes, with `FRUIT_SMALL_HANDOVER=1`: right scripted
+**3/3**, left learned **1/3** (apple; orange and 5.9 cm pear fail), mixed **3/6** against
+P219's 5/6. The P219 5/6 had a favourable left branch (left 1/1); P222 has left 1/3. The
+left failures are the loaded-slide class (`[close]` at 19 mm; `[fire]` at `dx=-84 mm`).
+The right hand/primitive is fine; the learned left large fruit is the residual. The side
+route is a mechanism, not a mixed success lever; the knob stays default-off.
+**Pins.** `rl_env.py` **`223c8172`**, `scripts/281_p222_side_handover_selftest.py`
+**`997e91c5`**, `selfcheck.sh` **`809af770`**; evidence `logs/p222/`.

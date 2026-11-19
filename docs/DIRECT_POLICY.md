@@ -169,6 +169,10 @@ so a lychee-only 6-pick continuous episode places **5/6** (`[cont] picks=6/6 pla
 10,290 ticks, 15.3 s/pick) against the learned continuous P204's 2/6. The mixed continuous
 seed-303 cell completes **4/6** (equal to its learned control, no small fruit in the
 sequence); seed 505 still wedges in the learned large-fruit post-close path (P220).
+**P222's right-side route** is a mechanism, not a mixed gain: the scripted B-heavy control
+places **6/6** right-arm fruit, `FRUIT_HANDOVER_SIDE=right` places the right **3/3** at seed
+303, but the learned left is **1/3** (loaded slide), so the mixed cell is 3/6 against
+P219's 5/6. The learned left large fruit is the residual.
 
 ## 8. What is left: the acquisition's selection timing, throughput, a certificate
 

@@ -333,6 +333,9 @@ run_check "P216 close lo" "$python" scripts/279_p216_close_lo_selftest.py
 # P218: the size-conditioned scripted skill (`FRUIT_SMALL_HANDOVER`, default off,
 # direct + ablate none; a fruit <= the diameter cut runs `_run_scripted`).
 run_check "P218 small handover" "$python" scripts/280_p218_small_handover_selftest.py
+# P222: the side-conditioned scripted skill (`FRUIT_HANDOVER_SIDE` = right/left/
+# both, default off; the active arm runs `_run_scripted`).
+run_check "P222 side handover" "$python" scripts/281_p222_side_handover_selftest.py
 # P73: the `[carry]` row's **rotation schedule** (`tilt0=`, `tilt_end=`,
 # `tilt_max=`, `t45=`, `t75=`, `tilt_rate=`) - the instrument the place-leg
 # question needs, because the leg-end `[attitude]` tilt is saturated by the place

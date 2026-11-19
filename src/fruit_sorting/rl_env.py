@@ -3189,6 +3189,25 @@ class SortingRLEnv:
         self._small_handover_dia = float(
             os.environ.get("FRUIT_SMALL_HANDOVER_DIA", "0.040") or 0.040
         )
+        #: P222: a **side-conditioned scripted skill**. The scripted B-heavy
+        #: control places 6/6 right-arm fruit (10-15.6 N), while the learned
+        #: right is 2/6 (P212) - the right class is the learned policy's, not
+        #: the hand's. `FRUIT_HANDOVER_SIDE=right` routes every right-arm sample
+        #: to `_run_scripted`; the left stays learned. Off by default.
+        self._handover_side = os.environ.get(
+            "FRUIT_HANDOVER_SIDE", ""
+        ).strip().lower()
+        if self._handover_side not in ("", "right", "left", "both"):
+            raise ValueError(
+                "FRUIT_HANDOVER_SIDE must be '', 'right', 'left' or 'both', got "
+                f"{self._handover_side!r}"
+            )
+        if self._handover_side and (presentation != "direct" or ablate != "none"):
+            raise ValueError(
+                "FRUIT_HANDOVER_SIDE is only defined for presentation='direct' "
+                f"with ablate='none' (got presentation={presentation!r}, "
+                f"ablate={ablate!r})"
+            )
         if self._small_handover and (presentation != "direct" or ablate != "none"):
             raise ValueError(
                 "FRUIT_SMALL_HANDOVER is only defined for presentation='direct' "
@@ -3733,6 +3752,7 @@ class SortingRLEnv:
                     or self._target_rate > 0.0)
                 else None
             ),
+            "handover_side": self._handover_side or None,
             "small_handover": (
                 {
                     "enabled": True,
@@ -6872,6 +6892,13 @@ class SortingRLEnv:
             # P218: the scripted skill owns this attempt end to end. It is the
             # same `task.run` the `--ablate scripted` path uses and the 5/6
             # lychee control measured; the learned policy keeps the large fruit.
+            self._run_scripted()
+            return self._step_result()
+        if (self._handover_side
+                and (self._handover_side == "both"
+                     or self._handover_side == self._active)):
+            # P222: the scripted skill owns a whole arm. The scripted B-heavy
+            # control places 6/6 right-arm fruit; the learned right is 2/6.
             self._run_scripted()
             return self._step_result()
         if self.ablate == "scripted":
