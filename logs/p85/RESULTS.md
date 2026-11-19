@@ -182,3 +182,13 @@ profile). The two references still name the scenario they were recorded from:
 `configs/motion_reference_single.json` = the single-arm restore,
 `configs/motion_reference_twoline.json` = the same two-line scenario's own file
 (identical bytes to the shipped acceptance reference).
+
+**Sync note (2026-11-19).** The two collector-probe episodes
+(`logs/p85/collect_probe/episode_00003.npz`, 171 MB; `episode_00005.npz`, 160 MB) exceed
+GitHub's 100 MB per-file limit. They are archived outside the repository at
+`/media/ubuntu/66A27065A2703B9D/project/Agent-diffusionpolicy/log/p85/collect_probe/`
+together with `index.json` and `manifest.json`. The committed tree keeps the small
+index/manifest and `collect_probe.log`; the two blobs were removed from the local
+`p-supply` history before the first push of this branch (the pre-rewrite tip is local as
+`backup/p-supply-pre-sync` and the tag `backup-p-supply-pre-sync`). Replay the probe by
+copying the two NPZ back into `logs/p85/collect_probe/`.
