@@ -6235,6 +6235,7 @@ class SortingRLEnv:
                         # xy 14-16 mm and never holds, and `grip` alone cannot say
                         # whether the pads moved.
                         f"sep={float(arm.jaw_separation())*1000:.1f}mm "
+                        f"pads=[{','.join(format(float(v), '.2f') for v in self._pad_forces(self.task.tactile.read().get(self._active)))}] "
                         f"seat_res={getattr(self, '_seat_resid', float('nan'))*1000:.0f}mm"
                     )
                 except Exception:  # noqa: BLE001
@@ -6360,6 +6361,23 @@ class SortingRLEnv:
                 )
         return _value
 
+    @staticmethod
+    def _pad_forces(reading) -> list[float]:
+        """Per-pad forces of one hand's reading [N] (`[]` when unavailable).
+
+        `TactileReading.normal_force` is the **sum** over the hand's contact
+        readers; `fingertip_forces` keeps them separate (`left_0`, `left_1` for
+        the OpenArm fingers; one entry per pad on the `cage4` hand). The
+        asymmetry is the only geometric information two scalar pads preserve
+        (GraspTune/CoorGrasp), and a one-sided pinch is P75's measured signature
+        of the loaded slide - so the servo can read it, not just the sum.
+        """
+        try:
+            vals = [float(v) for v in getattr(reading, "fingertip_forces", {}).values()]
+        except Exception:  # noqa: BLE001 - a missing field is "no signal"
+            return []
+        return [v for v in vals if math.isfinite(v)]
+
     def _carry_force_adjust(self, arm, finger: float) -> float:
         """P225f: the carry force servo - the force-controlled finger past the close.
 
@@ -6405,6 +6423,18 @@ class SortingRLEnv:
             _F = float(getattr(_tac, "normal_force", float("nan")))
         except Exception:  # noqa: BLE001 - no tactile, keep the position command
             _F = float("nan")
+        _pads = self._pad_forces(_tac) if _tac is not None else []
+        # P225o: **bilateral** criterion (default off). The shipped loop stops at
+        # the target *sum*, which a one-sided pinch reaches with the other pad at
+        # 0 N - P75's measured escape signature (one face at 8-10 N while the
+        # other reads 0.00 N and the payload walks out). With this on the loop's
+        # error is the **weakest pad's share** (`n * min(f)`, so the target stays
+        # "mean per pad"), i.e. it keeps closing while any pad is unloaded.
+        if (
+            os.environ.get("FRUIT_CARRY_BILATERAL", "0").strip() == "1"
+            and len(_pads) >= 2
+        ):
+            _F = float(len(_pads)) * float(min(_pads))
         _over = int(self._step) - int(self._carry_force_t0)
         #: P225f: the close floor is the **fruit's** own grip minus 4 mm of span
         #: (2 mm per side), not the 8 mm mechanical floor. The 8 mm floor on a
@@ -6423,10 +6453,12 @@ class SortingRLEnv:
             )
         finger = min(float(finger), float(self._carry_force_value))
         if self._carry_force_diag and int(self._step) % 8 == 0:
+            _ptxt = ",".join(format(float(v), ".2f") for v in _pads) or "-"
             self._say(
                 f"[carry-force] t={self._step} arm={self._active} "
-                f"F={_F:6.2f}N target={self._carry_force:5.1f} "
-                f"val={float(finger):.4f} over={_over:3d}"
+                f"F={_F:6.2f}N pads=[{_ptxt}] target={self._carry_force:5.1f} "
+                f"val={float(finger):.4f} over={_over:3d} "
+                f"bilat={os.environ.get('FRUIT_CARRY_BILATERAL', '0')}"
             )
         return finger
 

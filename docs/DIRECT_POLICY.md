@@ -319,6 +319,20 @@ the floor starves the line)**, and the nearest/farthest rule is a draw too (0.12
 5/8 vs 4/8, 0.15 7/8 vs 7/8). **Both speeds meet the target (> 55 %, < 12 s per
 fruit, belt > 0.08 m/s) with no scripted skill route.**
 
+**The tactile set (2026-11-20, `logs/p225/TACTILE_LIT.md`) reduces, on a
+two-scalar sensor, to one mechanism the cell can host: a grasp is not formed
+until both pads carry force.** `FRUIT_CARRY_BILATERAL=1` (default off) replaces
+the carry force loop's error with the weakest pad's share (`n * min(f)`), so a
+one-sided pinch cannot satisfy the target. Measured: the placed legs'
+one-sided fraction goes to **0.00**, the payload-loss class falls **3 -> 1** in
+16 attempts at 0.12, and the count reads **11/16 vs 10/16** (0.15/202 5 -> 6) -
+a draw-to-plus, so it stays opt-in. The residual is `grasped=False`
+(acquisition, no contact to sense), which is the same boundary P102 found; the
+carry's tactile lane is closed, the open class is acquisition. The papers'
+image-based mechanisms (GraspTune, TacRefineNet, LeTac-MPC, T-Rex), the vibration
+band (above the 120 Hz Nyquist) and any wrench/contact-geometry allocation are
+out of reach of this sensor.
+
 **P225n, the continuous clip's return**: the per-pick reset teleports the arm
 from the output line back over the belt in one tick (the one impossible frame
 in a continuous clip). `FRUIT_CONTINUOUS_TRANSIT=1` (default off) replaces it on

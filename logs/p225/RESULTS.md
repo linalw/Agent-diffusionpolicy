@@ -537,6 +537,55 @@ is a **mixture of two classes** - end-of-line runway and the closed loaded slide
 upstream belt (a scene change: 1.38 m = 11.5 s at 0.12 against 7-11 s attempts)
 or a faster approach (a policy term), not another floor rung.
 
+### 4m. The tactile set's transferable mechanism, measured: the bilateral preload makes the carry two-sided (payload-loss class 3 -> 1), and the residue is acquisition
+
+The 2026-11-20 tactile set (eleven papers, `logs/p225/TACTILE_LIT.md`) reduces
+to one mechanism this cell can host with **two summed normal forces per hand**
+and no tactile image: a grasp is not formed until **both pads carry force**
+(CoorGrasp's force ceiling, GraspTune's pause-on-unilateral rule,
+High-Bandwidth's "no judgement below a minimum normal force"). The shipped
+carry-force loop regulated the **sum**, which a one-sided pinch reaches with the
+other pad at 0.00 N - P75's measured escape signature (one face at 8-10 N, the
+other 0.00, the payload walking out).
+
+**The build**: `FRUIT_CARRY_BILATERAL=1` (default off) makes the loop's error the
+**weakest pad's share**, `n * min(f)`, so the target still means "mean per pad"
+and the loop keeps closing while any pad is unloaded. The `[carry-force]` row
+gained `pads=[f0,f1,...]` (one row per 8 ticks) and the `[close]` row gained the
+per-pad forces at the latch; both are diag-only and inert when off. The per-pad
+values come from `TactileReading.fingertip_forces`, which was already read but
+never used.
+
+| cell | belt | seed | baseline | bilateral | note |
+|---|---:|---:|---:|---:|---|
+| `N12BIL_s101` | 0.12 | 101 | 4/8 | **6/8** | failures are `g=0` (never grasped) |
+| `N12BIL_s202` | 0.12 | 202 | 5/8 | 5/8 | 1 payload loss + 2 `g=0` |
+| `N15BIL_s202` | 0.15 | 202 | 5/8 | **6/8** | 1 payload loss + 1 `g=0` |
+| **pooled 0.12** | | | **10/16** | **11/16** | payload-loss class **3 -> 1** |
+
+**The mechanism is visible in the rows, not only in the count**: on the placed
+legs the one-sided fraction (`min(pads) < 0.5 N` while `max(pads) > 2 N`) reads
+**0.00** in all five groups of `N15BIL_s202` and in most of the 0.12 cell; the
+baseline's carried legs are the one-sided state P75 measured. The payload-loss
+class over the 16 attempts at 0.12 falls **3 -> 1**; the total is a draw-to-plus
+(11/16 against 10/16) because the residual is now almost entirely
+`grasped=False` - **the pads closed on air, so there is no tactile signal to act
+on**. That is the boundary P102 measured from the other side (4 of 11 failures
+unreachable by any pad), now confirmed on the current recipe: **the tactile lane
+is closed for the carry; the open class is acquisition.**
+
+**Not adopted as a default**: the count is a branch draw at n = 8 per cell
+(one seed up, one neutral, one up), so the knob stays opt-in (`CARRY_BILATERAL=1`
+in the runner) and the record carries the mechanism read. The papers' other
+transferable items are priced but not built: the asymmetry rule
+(`sign(f_L-f_R)` -> a bounded centring shift, GraspTune's +12-20 pp) has nothing
+left to fix while the carries are two-sided; the force-triggered cap raise
+(Reactive Slip Control's actuator, Secure-and-Gentle's lambda-ratio detector) is
+the last carry lever, and the sum's collapse arrives **0-3 ticks** before the
+payload is out (W5-C), while the one-sided signal carries **40 ticks** of lead in
+the one leg that has both - a 0.33 s window that the 8 mm P10-C monitor
+truncates anyway.
+
 ## 5. The honest boundary: the strict no-servo ablation is 0/7
 
 `FRUIT_CONTACT_SERVO=0 FRUIT_PLACE_SERVO=0`, every other knob as in section 2:
