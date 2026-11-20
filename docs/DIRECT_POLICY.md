@@ -344,9 +344,15 @@ approach that leads the fruit), not another close-side knob: the **goal clamp**
 (`FRUIT_GOAL_Y_CLAMP`, default off) does stop the chase - failures fall from
 18-20 s to 8.5-10.5 s - and **costs the placements** (0/3 in the clean cells),
 because a clamped goal is out of the policy's training distribution. So the
-acquisition class is closed for interface knobs and open only for a training
-change (a DAgger round on the approach states or a moving-goal demonstration
-set - the same class that already has four nulls on this interface). The papers'
+acquisition class is closed for interface knobs. **The training route was then
+measured, not assumed**: the new `[dagger]` fidelity row (`FRUIT_DAGGER_DIAG=1`)
+under labels-only DAgger reads the policy-to-expert joint error **0.061 rad
+median on the approach (586 frames, fruit ahead)** - the demonstrations' own
+0.065 fit floor - so a round has nothing to learn there; only the chase states
+differ (0.169 rad, 91 frames) and the expert's action there is "hold at the
+station", the clamp that cost the placements. The residual is closed-loop
+timing against the belt, not data or capacity; the remaining route is a
+scenario change (a longer upstream belt or a stationary presentation). The papers'
 image-based mechanisms (GraspTune, TacRefineNet, LeTac-MPC, T-Rex), the vibration
 band (above the 120 Hz Nyquist) and any wrench/contact-geometry allocation are
 out of reach of this sensor.

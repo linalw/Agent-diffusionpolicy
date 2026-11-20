@@ -664,6 +664,45 @@ What remains is the **policy's approach against the belt** - a training change
 with the belt), which is the same class the record already has four nulls on
 (W7-C, W8-A, R9, P37) and is an owner decision, not another knob.
 
+### 4p. The diagnostic the acquisition closure owed: the approach is already cloned to the fit floor (0.06 rad) - training is **not** indicated
+
+Before spending on a training round, the `[dagger]` fidelity row was built
+(`FRUIT_DAGGER_DIAG=1`, default off): under `--dagger` +
+`FRUIT_DAGGER_NO_TAKEOVER=1` the policy drives every state and the expert label
+is computed for it, so the row prints the joint-space error
+`||policy[:7] - expert[:7]||`, the finger difference, `dy` and the gap **once per
+decision**. Cell: 0.12, seed 101, eight episodes, the shipped recipe
+(`logs/p225/chase_probe.log`, 2434 rows). The `--dagger` overhead makes the
+cell's own count 5/8 (the recipe reads 6/8 on this seed); the row, not the
+count, is the measurement.
+
+| segment | n | median (rad) | p90 | above the 0.065 floor |
+|---|---:|---:|---:|---:|
+| **approach, fruit ahead** | 586 | **0.061** | 0.159 | 45 % |
+| approach, fruit **behind** (the chase) | 91 | **0.169** | 0.463 | 99 % |
+| close ramp | 102 | 0.782 | 1.292 | 100 % |
+| post-close hold | 1655 | 1.038 | 1.745 | 100 % |
+
+**The approach is already at the fit floor**: 586 of the 677 approach frames
+sit at 0.061 rad median - the same 0.065 the demonstrations fit to
+(`logs/p145/close_fidelity.py`), i.e. the model already represents the expert's
+approach and more of the same data cannot buy it. The chase states are the only
+ones with a real gap (0.169 rad), and the expert's own action there is the
+scripted **hold at the station** - which is exactly what the goal clamp
+approximated in 4o and what **cost the placements** (0/3). The close-ramp and
+post-close rows are the expert's post-close hold, which the store already flags
+invalid (P145d.9) and which is not the behaviour to clone.
+
+**Verdict: a DAgger round on the approach has nothing to learn** (the label gap
+is the fitting floor), and the only states where the expert differs - the chase
+- have an expert action whose interface approximation was measured negative.
+This is consistent with the interface's four prior nulls (W7-C, W8-A, R9, P37)
+and closes the acquisition question with a measurement rather than another
+spend: **the residual is the policy's closed-loop timing against the belt, not
+a data or capacity gap.** What remains for the class is a scenario/interface
+change (a longer upstream belt, or a station that presents the fruit
+stationary) - the same conclusion 4l reached from the selector side.
+
 ## 5. The honest boundary: the strict no-servo ablation is 0/7
 
 `FRUIT_CONTACT_SERVO=0 FRUIT_PLACE_SERVO=0`, every other knob as in section 2:

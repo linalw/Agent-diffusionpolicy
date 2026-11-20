@@ -2517,6 +2517,12 @@ class SortingRLEnv:
         #: instead of only labelling it, so the rollout store contains the
         #: corrected states. Off by default; it needs `--dagger` and no
         #: `FRUIT_DAGGER_NO_TAKEOVER`.
+        #: P225s: the DAgger-label fidelity row (`[dagger]`), default off. Under
+        #: `--dagger` + `FRUIT_DAGGER_NO_TAKEOVER=1` the policy drives every state
+        #: and the expert label is computed for it; this row prints the joint-space
+        #: error between the two once per decision - the number that decides
+        #: whether a training round has anything to learn.
+        self._dagger_diag = os.environ.get("FRUIT_DAGGER_DIAG", "0") == "1"
         self._dagger_contact = (
             os.environ.get("FRUIT_DAGGER_CONTACT_TAKEOVER", "0") == "1"
         )
@@ -8768,6 +8774,23 @@ class SortingRLEnv:
         if self._step % 4 == 0 or self._step < self._expert_until:
             label = self._expert_action()
             self._expert_label = label
+            if self._dagger_diag and policy_action is not None:
+                try:
+                    _p = np.asarray(policy_action, dtype=np.float64).reshape(-1)
+                    _l = np.asarray(label, dtype=np.float64).reshape(-1)
+                    _err = float(np.linalg.norm(_p[:7] - _l[:7]))
+                    _df = float(_p[7] - _l[7])
+                    _jaw = np.asarray(
+                        self.task.arms[self._active].jaw_centre(), dtype=float
+                    )
+                    self._say(
+                        f"[dagger] t={self._step} e={_err:.3f} df={_df:+.4f} "
+                        f"fing={float(_l[7]):.4f} "
+                        f"dy={float(self._goal[1]) - float(_jaw[1]):+.3f} "
+                        f"gap={float(np.linalg.norm(self._goal[:2] - _jaw[:2])) * 1e3:.0f}"
+                    )
+                except Exception:  # noqa: BLE001 - diag only
+                    pass
         if self._step < self._expert_until:
             self._ep_expert_ticks += 1
             return label
