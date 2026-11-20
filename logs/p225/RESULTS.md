@@ -586,6 +586,53 @@ payload is out (W5-C), while the one-sided signal carries **40 ticks** of lead i
 the one leg that has both - a 0.33 s window that the 8 mm P10-C monitor
 truncates anyway.
 
+### 4n. The acquisition class, measured to its mechanism: a **joint-limit chase**, not a close beside the fruit - the tactile re-close is a null and the height gate cannot reach it
+
+The tactile set's last cheap item was the **close/adjust/re-close latch**
+(High-Bandwidth's "close, judge, resume", CoorGrasp's ceiling): at the end of the
+committed ramp, if no pad carries force and the fruit is still within 60 mm,
+hold the pads open for 12 ticks and re-close once
+(`FRUIT_TAC_RECLOSE=1`, default off; `[reclose]` row, one per fire). It fires
+exactly where it is designed to - `pads=[0.00,0.00] xy=7mm` - and **converts
+nothing**:
+
+| cell | belt | seed | baseline (bilateral) | + re-close |
+|---|---:|---:|---:|---:|
+| `N12RC_s101` | 0.12 | 101 | 6/8 | **4/6** (2 fires) |
+| `N12RC_s202` | 0.12 | 202 | 5/8 | **4/8** (4 fires) |
+
+The `[policy-trace]` rows say why the re-close cannot work: at the failing legs
+the **gap grows while the finger is already closed** - `t=432 gap=43mm
+finger=0.0267`, `t=468 gap=75mm`, `t=720 gap=299mm` with `fruit_y=-0.489`
+against `jaw_y=-0.207`. The hand is not beside the fruit with the pads closed;
+it is **behind a fruit that is leaving**, at the same 1 mm/tick.
+
+**The chase is a joint-limit stall.** The `[cmd]` rows (policy trace) carry the
+minimum joint-limit margin: at 0.12 seed 101 **331 of 852 decision rows (39 %)
+sit at a limit** (`marg <= 2 mrad`, worst -0.001 rad), against 150/1067 (14 %) at
+0.12 seed 202 and 25/767 (3 %) at 0.15 seed 202. The arm is pinned while the
+policy commands a fruit 0.3-0.5 m downstream, and the contact servo correctly
+declines once the fruit is more than `FRUIT_CONTACT_SERVO_BEHIND_TOL` (20 mm)
+behind (P198's rule) - a fruit moving at 1 mm/tick cannot be caught from behind
+at the servo's 1 mm/tick either.
+
+**The height class is real but secondary**: the worst `grasped=False` legs latch
+with `dz = jaw_z - fruit_z` at **110 and 118 mm** against 47-105 mm on the
+placed legs, and `FRUIT_CLOSE_RAMP_DZ_MAX` (default off, 0.10 m measured arm) is
+built and unit-checked. Its cell was started and **not concluded**: with the
+gate the chase episodes run to the 2600-tick horizon (a 40-minute cell), so the
+gate is recorded as *built, not read* - and it cannot fix a chase anyway, since
+the hand never gets near enough for the height to matter.
+
+**Verdict: the acquisition residual is the policy's approach lag against the
+belt, expressed as a joint-limit stall.** Every close-side and tactile knob is
+now closed by measurement: the bilateral preload (4m) fixed the carry, the
+re-close (4n) has no object, the height gate is secondary, and the selector
+floor is a pooled draw (4l). What is left is a **policy/training** term - an
+approach that leads the fruit (P143 measured the model closing 128-155 mm
+behind) or a goal clamp to the reachable band so the arm cannot chase out of
+reach - not another servo.
+
 ## 5. The honest boundary: the strict no-servo ablation is 0/7
 
 `FRUIT_CONTACT_SERVO=0 FRUIT_PLACE_SERVO=0`, every other knob as in section 2:

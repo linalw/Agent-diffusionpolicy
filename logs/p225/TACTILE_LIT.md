@@ -53,3 +53,11 @@ failures are `grasped=False` - the pads closed on air, so **no tactile signal
 exists to act on**. That is the same boundary P102 measured from the other side
 (4 of 11 failures unreachable by any pad): the tactile lane is now closed for
 the **carry**, and the open class is **acquisition**.
+
+The set's last cheap item - High-Bandwidth's close/judge/re-close latch - was
+then built as `FRUIT_TAC_RECLOSE=1` and is a **null with a mechanism**: it fires
+(`pads=[0,0] xy=7mm`) and converts nothing, because the failing legs are a
+**chase** (the gap grows while the finger is closed), not pads closed beside the
+fruit. The `[cmd]` margin rows put **39 % of the 0.12/seed-101 decisions at a
+joint limit**, so the arm is pinned following a fruit downstream. See RESULTS
+4n.

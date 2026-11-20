@@ -2520,6 +2520,35 @@ class SortingRLEnv:
         self._dagger_contact = (
             os.environ.get("FRUIT_DAGGER_CONTACT_TAKEOVER", "0") == "1"
         )
+        # P225p: the **tactile re-close latch** (default off). At the end of the
+        # committed ramp, if no pad carries force and the perceived fruit is
+        # still within `..._XY`, hold the pads **open** for `..._OPEN` ticks and
+        # restart the ramp once. The measured class: `grasped=False` with the
+        # ramp having fired at `xy` 11-30 mm and the pads at 0.00 N for the whole
+        # carry - the pads closed beside the fruit (or above it) and the servo
+        # then carried a closed hand to it. Re-opening lets the fruit enter the
+        # jaw before the second close. One retry per attempt; every knob is read
+        # once here so the control loop adds no env lookups.
+        # P225q: the **height gate** on the phase latch (default off). The close
+        # row measures `dz = jaw_z - fruit_z`; the placed legs latch at 47-105 mm
+        # and the worst `grasped=False` legs at **110-118 mm** - a hand 11 cm above
+        # the fruit closes the pads above it and the servo then carries a closed
+        # hand down onto it. With `FRUIT_CLOSE_RAMP_DZ_MAX` set the ramp refuses to
+        # latch while `dz` is above it (the servo keeps descending; the latch fires
+        # on a later tick).
+        self._close_ramp_dz_max = float(
+            os.environ.get("FRUIT_CLOSE_RAMP_DZ_MAX", "0") or 0.0
+        )
+        self._tac_reclose = os.environ.get("FRUIT_TAC_RECLOSE", "0").strip() == "1"
+        self._tac_reclose_min = float(
+            os.environ.get("FRUIT_TAC_RECLOSE_MIN", "0.5") or 0.5
+        )
+        self._tac_reclose_open = int(
+            os.environ.get("FRUIT_TAC_RECLOSE_OPEN", "12") or 12
+        )
+        self._tac_reclose_xy = float(
+            os.environ.get("FRUIT_TAC_RECLOSE_XY", "0.060") or 0.060
+        )
         self._close_ramp_dy = float(os.environ.get("FRUIT_CLOSE_RAMP_DY", "0.05"))
         #: P216: the phase close's **lower** along-belt bound. The shipped form is
         #: one-sided (`dy <= hi`), so a fruit behind the hand (negative dy) also
@@ -4887,6 +4916,8 @@ class SortingRLEnv:
                 for name, a in self.task.arms.items()
             }
         self._close_t0 = None
+        self._reclose_until = None
+        self._reclosed = False
         self._servo_on = False
         self._servo_last_aim = None
         self._place_phase = 0
@@ -6168,6 +6199,18 @@ class SortingRLEnv:
             # latched at t=104 with the fruit 167 mm away while the phase gate
             # itself had not fired. `finger` mode keeps the pre-P145d.6 behaviour.
             _trigger = phase_trigger if self._close_ramp_trigger == "phase" else finger_trigger
+            if _trigger and self._close_ramp_dz_max > 0.0:
+                # P225q: a height gate on the latch (default off). `dz` is the
+                # measured jaw-above-fruit distance; above the gate the hand is
+                # still descending and a close here lands above the fruit (the
+                # 110-118 mm `grasped=False` rows). The servo keeps aiming, so the
+                # latch simply fires on a later tick.
+                try:
+                    _dz = float(arm.jaw_centre()[2]) - float(self._goal[2])
+                except Exception:  # noqa: BLE001 - no geometry, no gate
+                    _dz = 0.0
+                if _dz > self._close_ramp_dz_max:
+                    _trigger = False
             if not _trigger:
                 return action_finger
             self._close_t0 = int(self._step)
@@ -6243,6 +6286,48 @@ class SortingRLEnv:
         if self._close_grip_finger is None:
             self._close_grip_finger = 0.027
         elapsed = int(self._step) - int(self._close_t0)
+        # P225p: the tactile re-close latch (default off). The ramp completed with
+        # no pad loaded and the fruit still near the jaws -> hold open, then
+        # re-close once, so the second ramp can close on the fruit instead of on
+        # air. `_goal` is the perceived position (never the simulator's), and the
+        # distance gate keeps it off an attempt whose fruit has already left.
+        if (
+            self._tac_reclose
+            and self._reclose_until is None
+            and not self._reclosed
+            and elapsed >= self._close_ramp_ticks
+        ):
+            try:
+                _tac = self.task.tactile.read().get(self._active)
+                _pads = self._pad_forces(_tac) if _tac is not None else []
+                _psum = float(sum(_pads)) if _pads else 0.0
+                _xy = float(
+                    np.linalg.norm(
+                        np.asarray(self._goal[:2], dtype=float)
+                        - np.asarray(arm.jaw_centre(), dtype=float)[:2]
+                    )
+                )
+            except Exception:  # noqa: BLE001 - no signal, no action
+                _psum, _xy, _pads = float("inf"), float("inf"), []
+            if _psum < self._tac_reclose_min and _xy <= self._tac_reclose_xy:
+                self._reclose_until = int(self._step) + max(
+                    1, self._tac_reclose_open
+                )
+                self._reclosed = True
+                if self._carry_force_diag or os.environ.get(
+                    "FRUIT_TAC_RECLOSE_DIAG", "0"
+                ) == "1":
+                    self._say(
+                        f"[reclose] t={self._step} arm={self._active} "
+                        f"pads=[{','.join(format(float(v), '.2f') for v in _pads)}] "
+                        f"xy={_xy * 1e3:.0f}mm open={self._tac_reclose_open}"
+                    )
+        if self._reclose_until is not None:
+            if int(self._step) < int(self._reclose_until):
+                return float(arm.OPEN)
+            self._reclose_until = None
+            self._close_t0 = int(self._step)
+            elapsed = 0
         if elapsed >= self._close_ramp_ticks:
             # Hold the grip gap through the lift/carry. A re-close request from
             # the policy (its finger re-opens at the next chunk) is NOT a release;

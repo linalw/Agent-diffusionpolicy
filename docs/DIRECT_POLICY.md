@@ -328,7 +328,20 @@ one-sided fraction goes to **0.00**, the payload-loss class falls **3 -> 1** in
 16 attempts at 0.12, and the count reads **11/16 vs 10/16** (0.15/202 5 -> 6) -
 a draw-to-plus, so it stays opt-in. The residual is `grasped=False`
 (acquisition, no contact to sense), which is the same boundary P102 found; the
-carry's tactile lane is closed, the open class is acquisition. The papers'
+carry's tactile lane is closed, the open class is acquisition.
+
+**The acquisition class is now measured to its mechanism**: the tactile re-close
+latch (`FRUIT_TAC_RECLOSE=1`) fires where designed (`pads=[0,0] xy=7mm`) and
+converts none (6/8 -> 4/6 at seed 101, 5/8 -> 4/8 at 202) because the failing
+legs are **not** pads-closed-beside-the-fruit: the `[policy-trace]` gap grows
+while the finger is already closed (`43 -> 75 -> 299 mm`), i.e. a chase. The
+`[cmd]` rows name the cause: **39 % of decisions at 0.12/seed 101 sit at a joint
+limit** (margin <= 2 mrad; 3 % at 0.15), so the arm is pinned while it follows a
+fruit 0.3-0.5 m downstream, and the contact servo declines once the fruit is >20
+mm behind. The height gate (`FRUIT_CLOSE_RAMP_DZ_MAX`, default off) is built but
+secondary and its cell was not concluded. The next lever is training-side (an
+approach that leads the fruit, or a goal clamp to the reachable band), not
+another close-side knob. The papers'
 image-based mechanisms (GraspTune, TacRefineNet, LeTac-MPC, T-Rex), the vibration
 band (above the 120 Hz Nyquist) and any wrench/contact-geometry allocation are
 out of reach of this sensor.
