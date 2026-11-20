@@ -372,6 +372,131 @@ diagnosis is `[pservo]` + the `[carry-force]` row, not the scripted `[carry]`.
 (the kiwi/orange at 0.20), the 0.15's slower place (not adopted), and the
 small's 3/4 lychee / 3/6 strawberry.
 
+### 4j. The foveal goal is a measured null; the signed error names the real term (a wild close, not the sensor)
+
+The user's option 1 (the policy's fovea) was built and measured. It **engages**
+(near every frame after the acquisition) and it **does not reduce the goal's
+error**, so it stays default off:
+
+| cell | fovea | `err_p50` | `err_close_p50` | placed |
+|---|---:|---:|---:|---:|
+| `N12P12FS_s77` (the 4g baseline) | off | 2.4 / 9.1 mm (small / large) | 2.9 / 13.3 mm | 6/8 |
+| `F64_smoke4` (3 ep) | 64 px | 3.0 / 10.8 mm | 3.6 / 14.6 mm | 2/3 |
+
+**The design that is admissible, and the two that are not.** The shipped form
+crops around the **mask's own centroid** (the instance mask *is* the fruit's
+pixels, so no camera extrinsics are needed), seeds the fit with the crop's
+median surface depth, **holds the radius** from the first image-only fit
+(P135's known-radius rule - the hand occludes the cap and a free fit drifts
+along the view axis), and solves only the centre. It reads **no truth**.
+Two variants were measured out: centring the crop on the presented fruit's
+**truth position** (a truth goal - rejected by design, never measured) and
+centring it on the **scene camera model + the tracker's prediction** - that one
+put the projected point behind the camera model or off the mask on
+**96-228 frames/attempt** (`fskip={'z':35..72,'px':96..228}`), i.e. this rig's
+`CameraModel.from_scene` pose is not the render camera's; it was removed.
+
+**Why the null is readable**: the fit's own `rms` is **0.09-0.34 mm**, so the
+residual is a **bias**, not a degree of freedom the crop could add. The new
+signed instrument (`err_vec` / `err_vec_close`, the median of
+`estimate - truth` per axis, bench-only) reads on the four 0.12 episodes:
+
+| episode | fruit | `err_vec_close` (mm) | `err_close_p50` |
+|---|---|---|---:|
+| 0 | lychee (small) | (-3.0, +0.4, +0.2) | 3.9 |
+| 1 | pear (large, left) | (-1.1, **-8.2**, -2.2) | 12.5 |
+| 2 | kiwi (large, right) | (-1.8, -1.5, -1.0) | 4.7 |
+| 3 | kiwi (large, left) | (**+10.1**, +5.0, -4.7) | 12.5 |
+
+i.e. it is **not a constant calibration bias** (it moves axis and sign between
+attempts), so it cannot be zeroed by a constant: `FRUIT_PERCEPTION_BIAS_ADJUST`
+is built (direct-only, mm, default inert) and was **not** adopted, because a
+constant fitted on one attempt would be wrong on the next two.
+
+**What the bias does, and what the real term is.** `[close] dx = fruit_x - jaw_x`
+reads **-9..-16 mm** on the failing attempts and **+5** on a placed one: the
+jaw latches *outboard* and the close pushes the fruit *inboard*. The measured
+`[fall]` of that class is `pos=(+0.079, -0.070, +0.906)` (the belt's inboard
+edge is x=0.085) - a 10-16 mm bat is enough to drop it off the line. But the
+**wild close is larger than the bias**: the same cell carries
+`[close] xy=339mm dx=+21mm sep=98.0mm`, i.e. the phase ramp latched with the
+fruit **338 mm behind the hand** and the pads clamped air. That is P216's
+one-sided-trigger defect: `FRUIT_CLOSE_RAMP_DY` has a high bound (0.014) and,
+in this runner, **no low bound** (`-inf`), so `dy <= hi` is satisfied by any
+fruit that has already passed. The fix is one env: `FRUIT_CLOSE_RAMP_DY_LO=-0.02`
+(the P216 value), measured next.
+
+**The presentation margin is a draw, not a win.** `FRUIT_SUPPLY_X_MIN`
+0.20 -> 0.24 (40 mm of inboard margin against the bat) reads **6/8** at 0.12
+(against 6/8) and **5/8** at 0.15 (against 6/8), and the class only **moves**:
+the inboard falls are replaced by **end-of-line** falls (`[fall]
+pos=(+0.231,-0.895)`, `(+0.336,-0.865)`) and one **park-slot** row
+(`(+84.000,+0.000,-50.000)`, the P139 recycled class). At 0.15 the belt's whole
+transit is **9.2 s** against 7-10 s attempts, so the runway, not the lateral
+margin, is what a slow attempt spends.
+
+### 4k. The two-sided close gate (P216's `DY_LO`) is the recipe fix: 0.15 goes 8/8 + 7/8, and the 0.12 residual is a runway, not a grasp
+
+`FRUIT_CLOSE_RAMP_DY_LO=-0.02` is the P216 fix for a **one-sided** phase trigger.
+The runner set `FRUIT_CLOSE_RAMP_DY=0.014` (a high bound) and left the low bound
+at `-inf`, so the ramp latched whenever `dy <= 14 mm` - including a fruit that
+had already **passed the hand**. The 0.12 baseline cell carries the witness:
+`[close] xy=339mm dx=+21mm sep=98.0mm`, i.e. the pads closed on air 338 mm
+behind the fruit. With the two-sided gate the same cells read:
+
+| cell | belt | seed | placed | per-fruit | failures |
+|---|---:|---:|---:|---|---|
+| `N12LO_s77` | 0.12 | 77 | **6/8** | 7.3-9.9 s | 2 payload losses (`g=1 p=0`, 17.3/18.4 s) |
+| `N15LO_s77` | 0.15 | 77 | **8/8** | 8.4-11.1 s | none (`[fall]` rows 0) |
+| `N12LO_s101` | 0.12 | 101 | 4/8 | 7.0-10.3 s | 3 end-of-line (`y=-0.865..-0.888`), 1 park slot |
+| `N15LO_s101` | 0.15 | 101 | **7/8** | 6.8-10.6 s | 1 payload loss (18.4 s) |
+
+**0.15 is 15/16 = 94 %** across the two seeds with every success 6.8-11.1 s;
+**0.12 is 10/16 = 62.5 %** and both of its 0.12 cells' residual is **not the
+grasp**: seed 101's three failures are **end-of-line** falls
+(`[fall] pos=(+0.160,-0.888,+0.912)`, x inside the band) - the fruit rode past
+the belt's end before the attempt finished - and seed 77's two are payload
+losses after a grasp. The no-wild-close read is direct: the closes in these
+cells are `xy` 4-21 mm and **no row exceeds 21 mm**, against the baseline's
+339 mm.
+
+**Why 0.12 has an end-of-line class and 0.15 does not**: the belt's transit is
+1.38 m, i.e. **11.5 s at 0.12** and 9.2 s at 0.15, while an attempt is 7-11 s.
+A fruit selected by the **nearest-above-floor** rule sits closest to the
+station, so it has the **least** runway - the rule that buys 0.44 s of arrival
+wait (P40) spends exactly the margin an end-of-line attempt needs. The A/B was
+`FRUIT_SELECT_NEAREST_ABOVE_FLOOR=0` (the shipped farthest-upstream pick) on the
+failing seed:
+
+| cell | belt | seed | near rule | far rule |
+|---|---:|---:|---:|---:|
+| `N12*_s101` | 0.12 | 101 | 4/8 | **5/8** |
+| `N15*_s101` | 0.15 | 101 | 7/8 | **7/8** |
+
+**The selector rule is a draw** (one episode at 0.12, none at 0.15), so the
+recipe keeps the near rule it was measured with, and the 0.12 residual is
+recorded as a **runway** constraint rather than a grasp defect: three of its
+five seed-101 failures are end-of-line (`y=-0.864..-0.888`, x inside the band)
+or the P139 park slot. A longer upstream belt or a faster approach is what would
+convert them - both are scenario/policy terms, not knobs of this recipe.
+
+**The recipe after 4g-4k** (the shipped `p177_full` checkpoint, no scripted
+skill route anywhere):
+
+| condition | result | per-fruit |
+|---|---:|---|
+| 0.15, seed 77 | **8/8 = 100 %** | 8.4-11.1 s |
+| 0.15, seed 101 | **7/8 = 87.5 %** | 6.8-10.6 s |
+| **0.15 pooled** | **15/16 = 93.8 %** | **6.8-11.1 s** |
+| 0.12, seed 77 | 6/8 = 75 % | 7.3-9.9 s |
+| 0.12, seed 101 | 4/8 = 50 % | 7.0-10.3 s |
+| **0.12 pooled** | **10/16 = 62.5 %** | **7.0-10.3 s** |
+
+with `FRUIT_CLOSE_RAMP_DY_LO=-0.02` now the runner's default (`DY_LO=0`
+restores the pre-4k one-sided gate), the size-scoped min-px 12, the carry force
+scoped > 4 cm and the sphere fit. Every success is **< 12 s** at a belt of
+**0.12 / 0.15 m/s**.
+
 ## 5. The honest boundary: the strict no-servo ablation is 0/7
 
 `FRUIT_CONTACT_SERVO=0 FRUIT_PLACE_SERVO=0`, every other knob as in section 2:

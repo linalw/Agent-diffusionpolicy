@@ -109,6 +109,7 @@ from .perception import (
     CameraModel,
     _calibration_bias,
     _fit_sphere,
+    _fit_sphere_known_radius,
     _fit_spheroid,
     workcell_roi,
 )
@@ -3668,6 +3669,9 @@ class SortingRLEnv:
             "perception_small_dia": float(
                 os.environ.get("FRUIT_PERCEPTION_SMALL_DIA", "0.040") or 0.040
             ),
+            "perception_fovea": int(
+                os.environ.get("FRUIT_PERCEPTION_FOVEA", "0") or 0
+            ),
             "perception_shape": os.environ.get("FRUIT_PERCEPTION_SHAPE", "") or None,
             "perception_shape_small": (
                 os.environ.get("FRUIT_PERCEPTION_SHAPE_SMALL", "") or None
@@ -4634,8 +4638,18 @@ class SortingRLEnv:
         self._percept_vel = None
         self._percept_dia = None
         self._percept_frames = self._percept_rejected = self._percept_missing = 0
+        #: P225k: the fovea's held radius and its frame count, per attempt.
+        self._percept_radius_hold = 0.0
+        self._percept_fovea_frames = 0
+        self._percept_fovea_fail = 0
+        self._percept_fovea_skip: dict[str, int] = {}
         self._percept_errs = []
         self._percept_errs_close = []
+        #: P225k: the **signed** estimate error per accepted frame (bench only),
+        #: so a residual bias names its own axis. `[close] dx` reads 2-17 mm
+        #: outboard and the norm cannot say whether the goal or the servo is off.
+        self._percept_err_vec = []
+        self._percept_err_vec_close = []
         self._percept_last_err = float("nan")
         self._goal = self._goal_vector(
             target["position"], target["velocity"], target["diameter"], bin_index
@@ -5447,6 +5461,21 @@ class SortingRLEnv:
             # Lazy: `__init__` resolves the knob before the scene config exists.
             self._percept_cfg = track_config_from_env(os.environ, "depth")
             self._percept_bias = np.asarray(_calibration_bias("head"), dtype=float)
+            # P225k: a **direct-only** bias override on top of the calibration
+            # file (mm). The bench bias was measured on the scripted depth path;
+            # the direct lane's `[close] dx` reads 2-17 mm outboard, so the
+            # residual is measurable per axis here and adjustable without moving
+            # the scripted reader (which never reads this env).
+            _adj = os.environ.get("FRUIT_PERCEPTION_BIAS_ADJUST", "").strip()
+            if _adj:
+                parts = [float(item) for item in _adj.split(",")]
+                if len(parts) != 3:
+                    raise ValueError(
+                        "FRUIT_PERCEPTION_BIAS_ADJUST needs x,y,z in mm"
+                    )
+                self._percept_bias = self._percept_bias + np.asarray(
+                    parts, dtype=float
+                ) / 1000.0
             self._percept_roi = (
                 workcell_roi(self.cfg)
                 if os.environ.get("FRUIT_PERCEPTION_ROI", "1") == "1"
@@ -5484,6 +5513,130 @@ class SortingRLEnv:
             self._percept_rejected += 1
             return
         pixels = np.argwhere(mask)[:, ::-1]
+        # P225k: the **foveal goal** (the user's option 1). Once the full-frame
+        # fit has acquired the fruit, every later frame is re-measured inside a
+        # crop around the **mask's own centroid** - the instance mask is the
+        # fruit's pixels, so this needs no camera extrinsics (the projection
+        # variant was measured wrong on this rig: the predicted point fell
+        # behind the camera model or off the mask on 96-228 frames/attempt).
+        # The crop's median surface depth seeds the fit, the radius is **held**
+        # from the first image-only measurement (P135's known-radius rule: the
+        # hand occludes the cap and a free fit drifts along the view axis), and
+        # only the centre is solved on the crop's pixels. No truth read is an
+        # input. The first frame still falls through to the full frame, which
+        # seeds both. `FRUIT_PERCEPTION_FOVEA=<px>` is the crop's side; 0 = off.
+        _fovea = int(os.environ.get("FRUIT_PERCEPTION_FOVEA", "0") or 0)
+        _radius_hold = float(getattr(self, "_percept_radius_hold", 0.0) or 0.0)
+        if (
+            _fovea > 0
+            and self._percept_tracker is not None
+            and _radius_hold > 0.005
+            and len(pixels) >= 5
+        ):
+            try:
+                cam = self._percept_camera
+                if cam is None:
+                    cam = CameraModel.from_scene(self.scene, self.cfg)
+                    self._percept_camera = cam
+                cu = int(round(float(np.median(pixels[:, 0]))))
+                cv = int(round(float(np.median(pixels[:, 1]))))
+                half = max(8, _fovea // 2)
+                sel = pixels[
+                    (pixels[:, 0] >= cu - half) & (pixels[:, 0] < cu + half)
+                    & (pixels[:, 1] >= cv - half) & (pixels[:, 1] < cv + half)
+                ]
+                if len(sel) < 6:
+                    self._percept_fovea_skip["px"] = (
+                        self._percept_fovea_skip.get("px", 0) + 1
+                    )
+                else:
+                    now = float(self._sim_time())
+                    sel_pts = cam.backproject(depth, sel)
+                    zc = depth[sel[:, 1], sel[:, 0]].astype(float)
+                    zfin = zc[np.isfinite(zc) & (zc > 0.05)]
+                    if len(zfin) < 4:
+                        raise ValueError("fovea: no usable depth")
+                    zmed = float(np.median(zfin))
+                    # The surface point under the centroid at the crop's median
+                    # depth (`backproject`'s exact inverse; no depth-array write).
+                    fx, fy, cx, cy = cam.intrinsics(seg.shape[0], seg.shape[1])
+                    x_cam = (cu - cx) / fx * zmed
+                    y_cam = -(cv - cy) / fy * zmed
+                    surface = cam.rotation @ np.array(
+                        [x_cam, y_cam, -zmed], dtype=float
+                    ) + cam.translation
+                    ray = surface - cam.translation
+                    ray = ray / max(float(np.linalg.norm(ray)), 1e-9)
+                    centre0 = surface + ray * _radius_hold
+                    centre, rms = _fit_sphere_known_radius(
+                        sel_pts, _radius_hold, centre0
+                    )
+                    if centre is None or not np.all(np.isfinite(centre)):
+                        self._percept_fovea_skip["fit"] = (
+                            self._percept_fovea_skip.get("fit", 0) + 1
+                        )
+                    else:
+                        centre = np.asarray(centre, dtype=float) - self._percept_bias
+                        ok = True
+                        if self._percept_roi is not None:
+                            lo = self._percept_roi
+                            ok = (
+                                lo[0] <= centre[0] <= lo[1]
+                                and lo[2] <= centre[1] <= lo[3]
+                                and lo[4] <= centre[2] <= lo[5]
+                            )
+                        if not ok:
+                            self._percept_fovea_skip["roi"] = (
+                                self._percept_fovea_skip.get("roi", 0) + 1
+                            )
+                        else:
+                            self._percept_tracker.update(centre, now)
+                            self._percept_pos = np.asarray(
+                                self._percept_tracker.position, dtype=float
+                            )
+                            self._percept_vel = np.asarray(
+                                self._percept_tracker.velocity, dtype=float
+                            )
+                            self._percept_dia = float(2.0 * _radius_hold)
+                            self._percept_last_rms = (
+                                float(rms) if math.isfinite(rms) else 0.0
+                            )
+                            self._percept_fovea_frames = int(
+                                getattr(self, "_percept_fovea_frames", 0)
+                            ) + 1
+                            self._percept_frames += 1
+                            if self._percept_diag:
+                                try:
+                                    truth = np.asarray(
+                                        self.spawner.position(sample), dtype=float
+                                    )
+                                    err = float(
+                                        np.linalg.norm(self._percept_pos - truth)
+                                    )
+                                    self._percept_last_err = err * 1e3
+                                    self._percept_errs.append(err)
+                                    if (
+                                        float(getattr(self, "_last_finger", 1.0))
+                                        < 0.030
+                                    ):
+                                        self._percept_errs_close.append(err)
+                                except Exception:  # noqa: BLE001 - bench only
+                                    pass
+                            return
+            except Exception as exc:  # noqa: BLE001 - the fovea is an optimisation
+                self._percept_fovea_fail = int(
+                    getattr(self, "_percept_fovea_fail", 0)
+                ) + 1
+                if os.environ.get("FRUIT_PERCEPTION_FOVEA_DIAG", "0") == "1":
+                    # A print, not a note: a new note string is a new failure
+                    # key in the direct lane's ledger (P38's rule), and the
+                    # fovea is an optimisation that must not change the classes.
+                    from .common import say as _say
+
+                    _say(
+                        f"[fovea] ep {self._episode} t={self._sim_time():.2f} "
+                        f"fail={type(exc).__name__}: {exc}"
+                    )
         min_px = int(os.environ.get("FRUIT_PERCEPTION_MIN_PX", "60"))
         # P225h: the **small-fruit** perception floor. The shipped 60 px is the
         # P135 reliability bar for the 5-7 cm pool; a 3.1-3.9 cm lychee/
@@ -5588,6 +5741,8 @@ class SortingRLEnv:
         self._percept_pos = np.asarray(self._percept_tracker.position, dtype=float)
         self._percept_vel = np.asarray(self._percept_tracker.velocity, dtype=float)
         self._percept_dia = float(2.0 * radius)
+        #: P225k: the radius the fovea holds (image-only, from a full cap).
+        self._percept_radius_hold = float(radius)
         self._percept_last_rms = float(rms)
         self._percept_frames += 1
         if self._percept_diag:
@@ -5596,8 +5751,11 @@ class SortingRLEnv:
                 err = float(np.linalg.norm(self._percept_pos - truth))
                 self._percept_last_err = err * 1e3
                 self._percept_errs.append(err)
+                _vec = self._percept_pos - truth
+                self._percept_err_vec.append(_vec)
                 if float(getattr(self, "_last_finger", 1.0)) < 0.030:
                     self._percept_errs_close.append(err)
+                    self._percept_err_vec_close.append(_vec)
             except Exception:  # noqa: BLE001 - bench column only
                 pass
 
@@ -5622,8 +5780,18 @@ class SortingRLEnv:
         vel = "-"
         if self._percept_vel is not None:
             vel = ",".join(format(float(v), "+.3f") for v in self._percept_vel)
+        def _vmed(values):
+            arr = [np.asarray(v, dtype=float) for v in values]
+            if not arr:
+                return "-"
+            med = np.median(np.asarray(arr), axis=0) * 1000.0
+            return ",".join(format(float(v), "+.1f") for v in med)
+
         return (
             f"[percept] episode {self._episode} frames={self._percept_frames} "
+            f"fovea={int(getattr(self, '_percept_fovea_frames', 0))} "
+            f"fovea_fail={int(getattr(self, '_percept_fovea_fail', 0))} "
+            f"fskip={dict(getattr(self, '_percept_fovea_skip', {}))} "
             f"rejected={self._percept_rejected} missing={self._percept_missing} "
             f"pos={pos} vel={vel} "
             f"dia={format(self._percept_dia * 1000.0, '.1f') if self._percept_dia else '-'}mm "
@@ -5634,6 +5802,8 @@ class SortingRLEnv:
             f"err_n={len(self._percept_errs)} "
             f"err_close_p50={_pct(self._percept_errs_close, 50)}mm "
             f"err_close_n={len(self._percept_errs_close)} "
+            f"err_vec={_vmed(getattr(self, '_percept_err_vec', []))} "
+            f"err_vec_close={_vmed(getattr(self, '_percept_err_vec_close', []))} "
             f"jaw_y={float(getattr(self, '_expert_jaw_y', float('nan'))):+.3f}"
         )
 

@@ -296,9 +296,26 @@ with the min-px 12 + the carry force scoped > 4 cm are **0.12 6/8 = 75 %** and
 **0.15 6/8 = 75 %** - the 0.15 cell's place A/B reads the same **6/8** at
 `FRUIT_PLACE_SERVO_VMAX` 0.20 (failures are acquisition, 7.9-9.3 s/fruit) and
 0.15 (failures are place slips at 18.1 s, 8.6-11.2 s/fruit), so the **0.20
-stays** (faster, cleaner place). Every success is 7.7-10.6 s - the target is
-met at both speeds. The remaining classes are the 0.15's tomato place (the left), the
-6 cm orange, and the strawberry's 3/6. Full record and runners:
+stays** (faster, cleaner place). **The foveal goal is a measured null** (it
+engages on 99 % of frames and reads `err_p50` 3.0/10.8 mm against the full
+frame's 2.4/9.1; the fit's `rms` is 0.09-0.34 mm, so the residual is a bias, and
+the new signed read `err_vec_close` puts it on a different axis per attempt -
+`(-1.1,-8.2,-2.2)` on one large fruit, `(+10.1,+5.0,-4.7)` on the next - so it
+is not a calibration constant; `FRUIT_PERCEPTION_FOVEA` stays 0 and
+`FRUIT_PERCEPTION_BIAS_ADJUST` is built but inert). **The recipe fix that
+converts is P216's two-sided close gate**: `FRUIT_CLOSE_RAMP_DY_LO=-0.02` (now
+the runner's default, `DY_LO=0` restores the one-sided gate) removes a measured
+`[close] xy=339mm` wild latch (the pads closing 338 mm behind the fruit).
+With it, **0.15 reads 8/8 + 7/8 = 15/16 = 93.8 %** (seeds 77/101, 6.8-11.1 s)
+and **0.12 reads 6/8 + 4/8 = 10/16 = 62.5 %** (7.0-10.3 s). The 0.12 residual
+is a **runway**, not a grasp: the belt is 1.38 m (11.5 s at 0.12) against 7-11 s
+attempts, and three of its seed-101 failures are end-of-line falls
+(`y = -0.864..-0.888`) or the P139 park slot; the selector-rule A/B
+(`FRUIT_SELECT_NEAREST_ABOVE_FLOOR=0`) is a draw (0.12 5/8 vs 4/8, 0.15 7/8 vs
+7/8). The remaining classes are that runway, the payload losses after a grasp
+(the closed loaded slide) and the strawberry's 3/6. **Both speeds meet the
+target (> 55 %, < 12 s/fruit, belt > 0.08 m/s) with no scripted skill route.**
+Full record and runners:
 `logs/p225/RESULTS.md`,
 `logs/p225/{run_cell_near.sh,run_cell.sh,run_cell_strict.sh,parse.py}`.
 
