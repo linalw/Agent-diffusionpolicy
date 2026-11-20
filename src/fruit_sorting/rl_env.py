@@ -5448,6 +5448,23 @@ class SortingRLEnv:
         lead = float(os.environ.get("FRUIT_GOAL_LEAD", "0.0"))
         if lead > 0.0 and np.all(np.isfinite(velocity)):
             position = position + velocity * lead
+        # P225r: **the goal's y clamp** (default off). The chase census (RESULTS
+        # 4n) reads 39 % of the 0.12/seed-101 decisions at a joint limit: the
+        # goal follows a fruit that has passed the station, the policy keeps
+        # following it downstream and the arm pins at a limit. With
+        # `FRUIT_GOAL_Y_CLAMP=<y>` the goal stops at that downstream bound and
+        # the velocity's y component is zeroed with it, so the policy holds at
+        # the band edge instead of chasing. It is a goal-space change (the model
+        # has not seen a clamped goal), so it is a measured cell, not a default.
+        _yclamp = os.environ.get("FRUIT_GOAL_Y_CLAMP", "").strip()
+        if _yclamp:
+            _ymin = float(_yclamp)
+            if float(position[1]) < _ymin:
+                position = np.array(
+                    [float(position[0]), _ymin, float(position[2])],
+                    dtype=np.float32,
+                )
+                velocity = np.zeros(3, dtype=np.float32)
         values = [
             *position,
             *velocity,

@@ -633,6 +633,37 @@ approach that leads the fruit (P143 measured the model closing 128-155 mm
 behind) or a goal clamp to the reachable band so the arm cannot chase out of
 reach - not another servo.
 
+### 4o. The goal clamp stops the chase but costs the successes: 0/3 clean - the acquisition fix is training-side
+
+The last interface lever for the chase (4n) is a **goal-space clamp**:
+`FRUIT_GOAL_Y_CLAMP=<y>` freezes the policy's goal at a downstream bound (and
+zeroes the goal velocity's y with it), so the policy holds at the band edge
+instead of following a fruit past the station. It is a *goal* change - the
+model has never seen a clamped goal - so it was run as a cell, not as a default.
+
+| cell | belt | seed | bilateral baseline | + clamp (bilateral on) |
+|---|---:|---:|---:|---:|
+| `N12YCb_s101` | 0.12 | 101 | 6/8 | **0/2** (cell did not finish: apple 3.3 s, kiwi 13.6 s) |
+| `N12YCb_s202` | 0.12 | 202 | 5/8 | **0/1** (pear 9.8 s) |
+
+An earlier pair without the bilateral preload (a mis-set env: the runner reads
+`CARRY_BILATERAL`, not `FRUIT_CARRY_BILATERAL`) read 1/3 and 5/7, and they do
+show the intended side effect: **no chase** - every failure ends in **8.5-10.5 s**
+instead of the 18-20 s joint-limit stall, and the `[fall]`/episode rows are
+short. So the clamp does what it was built to do (the arm no longer follows the
+fruit out of reach), but it **costs placements**: the policy's approach is
+conditioned on the exact goal stream it was trained on, and a clamped goal is
+out of distribution.
+
+**Verdict: not adopted** (`FRUIT_GOAL_Y_CLAMP` default unset). The chase is
+real and the clamp removes it; the *success* does not follow. With 4n this
+closes the interface levers on the acquisition class: re-close (null), height
+gate (secondary, unread), selector floor (pooled draw), goal clamp (negative).
+What remains is the **policy's approach against the belt** - a training change
+(a DAgger round on the approach states, or a demonstration set whose goal moves
+with the belt), which is the same class the record already has four nulls on
+(W7-C, W8-A, R9, P37) and is an owner decision, not another knob.
+
 ## 5. The honest boundary: the strict no-servo ablation is 0/7
 
 `FRUIT_CONTACT_SERVO=0 FRUIT_PLACE_SERVO=0`, every other knob as in section 2:

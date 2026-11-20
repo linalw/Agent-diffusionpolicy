@@ -340,8 +340,13 @@ limit** (margin <= 2 mrad; 3 % at 0.15), so the arm is pinned while it follows a
 fruit 0.3-0.5 m downstream, and the contact servo declines once the fruit is >20
 mm behind. The height gate (`FRUIT_CLOSE_RAMP_DZ_MAX`, default off) is built but
 secondary and its cell was not concluded. The next lever is training-side (an
-approach that leads the fruit, or a goal clamp to the reachable band), not
-another close-side knob. The papers'
+approach that leads the fruit), not another close-side knob: the **goal clamp**
+(`FRUIT_GOAL_Y_CLAMP`, default off) does stop the chase - failures fall from
+18-20 s to 8.5-10.5 s - and **costs the placements** (0/3 in the clean cells),
+because a clamped goal is out of the policy's training distribution. So the
+acquisition class is closed for interface knobs and open only for a training
+change (a DAgger round on the approach states or a moving-goal demonstration
+set - the same class that already has four nulls on this interface). The papers'
 image-based mechanisms (GraspTune, TacRefineNet, LeTac-MPC, T-Rex), the vibration
 band (above the 120 Hz Nyquist) and any wrench/contact-geometry allocation are
 out of reach of this sensor.
