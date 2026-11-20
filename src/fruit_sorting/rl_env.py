@@ -4582,6 +4582,78 @@ class SortingRLEnv:
             self._say(f"[drive] {side} attempt finger cap restore -> {base:.2f} N")
         self._finger_cap_saved.clear()
 
+    def _aligned_start(self) -> np.ndarray | None:
+        """The demonstrations' frame-0 start pose for this fruit, or None.
+
+        P160's family (`configs/start_pose_family.json`, `j4 = a + b x`): the
+        per-x wait pose the demos actually start at. `_begin_pick` teleports to
+        it after the fixed wait pose; the continuous transit (P225n) needs it
+        *before* the motion so the blend can end there instead of snapping.
+        """
+        if (
+            os.environ.get("FRUIT_DIRECT_START_ALIGN", "0") != "1"
+            or self.presentation != "direct"
+            or self._sample is None
+        ):
+            return None
+        mode = os.environ.get("FRUIT_DIRECT_START_ALIGN", "1").strip().lower()
+        if mode not in ("family", "demo"):
+            return None
+        try:
+            fx = float(self.spawner.position(self._sample)[0])
+            path = os.environ.get(
+                "FRUIT_START_FAMILY", "configs/start_pose_family.json"
+            )
+            if not hasattr(self, "_start_family"):
+                import json as _json
+
+                self._start_family = _json.load(open(path))
+            fam = getattr(self, "_start_family", {}).get(self._active)
+            if fam is None:
+                return None
+            return np.asarray(fam["a"], dtype=float) + np.asarray(
+                fam["b"], dtype=float
+            ) * fx
+        except Exception:  # noqa: BLE001 - the fixed wait pose is the fallback
+            return None
+
+    def _continuous_return(self, side: str, goal) -> None:
+        """Drive an arm to `goal` along the scripted transit (P225n, opt-in).
+
+        The per-pick reset teleports the arm; in a continuous episode that is a
+        ~1 m snap from the output line back over the belt in one tick, the one
+        frame a viewer reads as impossible. This runs the scripted transit
+        instead: `_lift_clear` (up and inboard, at least `belt_top + 0.30`),
+        `_catch_up_drive` (the drive target onto the measured pose), then a
+        min-jerk joint blend to the target with a settle. Same code the scripted
+        line uses for `_ready_transit`, so the clearance routing is the measured
+        one; the joint steps stay under the posture bound because the blend is
+        the same quintic. Frames are captured by the video hook on `_step_sim`.
+        """
+        task = self.task
+        t0 = int(self._step)
+        task._catch_up_drive(side)
+        cap = int(os.environ.get("FRUIT_CONTINUOUS_TRANSIT_LIFT_CAP", "150") or 150)
+        task._lift_clear(side, cap=cap)
+        task._catch_up_drive(side)
+        ticks = int(os.environ.get("FRUIT_CONTINUOUS_TRANSIT_TICKS", "90") or 90)
+        settle = int(
+            os.environ.get("FRUIT_CONTINUOUS_TRANSIT_SETTLE", "60") or 60
+        )
+        task._blend_to(side, goal, ticks=ticks, settle=settle)
+        if os.environ.get("FRUIT_CONTINUOUS_TRANSIT_DIAG", "0") == "1":
+            #: one row per return: the blend's end residual (the same number the
+            #: scripted `_blend_to` reports as `settle_err`). The return's clock
+            #: is the sim time, which advances inside `_step_sim` while the
+            #: env's own `_step` does not.
+            arm = task.arms[side]
+            err = float(
+                np.max(np.abs(arm.joint_positions() - np.asarray(goal, dtype=float)))
+            )
+            self._say(
+                f"[transit] side={side} err={err:.4f} blend={ticks} settle={settle}"
+            )
+
     def _begin_pick(self, target_state: dict, diag: list | None = None,
                     continuation: bool = False, prev_active: str | None = None) -> dict:
         """Start one pick from an already-selected target (P56).
@@ -4668,6 +4740,16 @@ class SortingRLEnv:
         # `go_ready()` does before every collected episode, so the inactive arm is
         # not left wherever the previous carry dropped it.
         arm = self.task.arms[active]
+        # P225n: **continuous return**, opt-in. With `FRUIT_CONTINUOUS_TRANSIT=1`
+        # a continued pick drives the arm to its start pose along the scripted
+        # transit instead of teleporting it, so a continuous episode reads as
+        # approach -> grasp -> carry -> place -> return -> approach with no cut.
+        # Default off: every per-episode reset and every measured cell keeps the
+        # teleport, byte for byte.
+        _transit = (
+            continuation
+            and os.environ.get("FRUIT_CONTINUOUS_TRANSIT", "0").strip() == "1"
+        )
         if self.presentation == "direct":
             # P56 continuation: the per-pick setup is reduced to what the demos'
             # frame 0 actually needs (DESIGN section 1 A.1 row 7, "partly").
@@ -4693,18 +4775,28 @@ class SortingRLEnv:
                 # `FRUIT_ARM_PARK` leaves the shipped `ready` call unchanged
                 # (`_arm_park_poses` is empty).
                 park = None if name == active else self._arm_park_poses.get(name)
-                other.teleport_joints(
+                _goal = (
                     np.asarray(self.waypoints["arms"][name]["ready"], dtype=float)
                     if park is None
                     else park
                 )
+                if _transit and name == prev_active:
+                    # the arm that just placed: return along the transit, not a snap
+                    self._continuous_return(name, _goal)
+                else:
+                    other.teleport_joints(_goal)
             start = np.asarray(self.waypoints["arms"][active]["grasp"], dtype=float)
         else:
             start = np.asarray(self.waypoints["arms"][active]["ready"], dtype=float)
         if self._direct_start == "wait" and self.presentation == "direct":
             entry = self.waypoints["arms"][active]
             start = np.asarray(entry.get("wait", entry["grasp"]), dtype=float)
-        arm.teleport_joints(start)
+        if _transit:
+            # the blend ends at the demos' frame-0 pose, so the align teleport
+            # below is skipped (it would snap the few cm the family moves)
+            self._continuous_return(active, self._aligned_start() or start)
+        else:
+            arm.teleport_joints(start)
         # `teleport_joints` writes the *measured* dof state back through the
         # drive, and Isaac re-targets from it, so the `set_gripper(OPEN)` in the
         # parking loop does not survive: the first observation then carried all
@@ -4734,6 +4826,7 @@ class SortingRLEnv:
             os.environ.get("FRUIT_DIRECT_START_ALIGN", "0") == "1"
             and self.presentation == "direct"
             and self._sample is not None
+            and not _transit
         ):
             # P145d.11a: the solve must read the **settled** wait pose. Reading
             # the jaw before the reset's settle returns the previous pose (the

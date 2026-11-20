@@ -318,6 +318,17 @@ higher catch floor) reads **0.12 15/24 (a pooled draw) and 0.15 16/24 (harmful,
 the floor starves the line)**, and the nearest/farthest rule is a draw too (0.12
 5/8 vs 4/8, 0.15 7/8 vs 7/8). **Both speeds meet the target (> 55 %, < 12 s per
 fruit, belt > 0.08 m/s) with no scripted skill route.**
+
+**P225n, the continuous clip's return**: the per-pick reset teleports the arm
+from the output line back over the belt in one tick (the one impossible frame
+in a continuous clip). `FRUIT_CONTINUOUS_TRANSIT=1` (default off) replaces it on
+a continued pick with the scripted transit - `_lift_clear` -> `_catch_up_drive`
+-> a min-jerk joint blend to the demos' frame-0 family pose -> settle - and the
+video hook captures every tick. Measured cost: the inter-pick gap goes
+**70-100 ticks (teleport) -> 228-464 ticks** (1.9-3.9 s) at 0.12 m/s, so the
+four-pick full-cycle clip reads **3/4** (seed 77, 12.7 s/pick) against the
+teleport clip's 5/6 at **9.5 s/pick** - the earlier continuous rate was bought
+with an impossible 1-tick return.
 Full record and runners:
 `logs/p225/RESULTS.md`,
 `logs/p225/{run_cell_near.sh,run_cell.sh,run_cell_strict.sh,parse.py}`.

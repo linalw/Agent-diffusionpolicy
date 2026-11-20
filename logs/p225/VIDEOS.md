@@ -66,3 +66,47 @@ Reproduce:
 OUT_DIR=.../p225_final_cont_s303 BELT=0.15 SEED=303 PICKS=6 logs/p225/video_cont.sh
 OUT_DIR=.../p225_final_demo_s77  BELT=0.15 SEED=77  EP=6    logs/p225/video_demo.sh
 ```
+
+## Full-cycle continuous clips (P225n, 2026-11-20): the return is a motion, not a cut
+
+The first continuous clip (`p225_final_cont_s303`, 5/6) has one visible defect:
+after the release the per-pick reset **teleports** the arm from the output line
+back over the belt (the `FRUIT_DIRECT_CONTINUOUS` setup reduces the reset but
+keeps `_begin_pick`'s `teleport_joints(start)`), so the clip reads as
+approach → grasp → place → **snap** → approach.
+
+`FRUIT_CONTINUOUS_TRANSIT=1` (default **off**, so no measured cell moves)
+replaces that teleport on a continued pick with the **scripted transit**:
+`_lift_clear` (up and inboard, at least `belt_top + 0.30`) → `_catch_up_drive`
+(the drive target onto the measured pose) → a **min-jerk joint blend** to the
+demos' frame-0 family pose → a settle. The same code the scripted line uses for
+`_ready_transit`, and the video's `_step_sim` hook captures every tick of it.
+`FRUIT_CONTINUOUS_TRANSIT_TICKS` / `..._SETTLE` / `..._LIFT_CAP` bound it;
+`..._DIAG=1` prints one `[transit]` row per return (the blend's end residual).
+
+| clip | seed | picks | placed | inter-pick gaps | transit residual | duration |
+|---|---:|---:|---:|---|---:|---:|
+| **`p225_cont_fullcycle_s77`** | 77 | 4 | **3/4** | 242 / 464 / 422 ticks (2.0 / 3.9 / 3.5 s) | 0.03-0.07 rad | 51.3 s |
+| `p225_cont_fullcycle2_s303` | 303 | 4 | 2/4 | 209 / 369 / 370 ticks | 0.07-0.11 rad | (stride 2) |
+| `p225_cont_fullcycle_2p_s303` | 303 | 2 | 1/2 | 228 ticks | 0.02 rad | 20.3 s |
+
+Path: `/media/ubuntu/66A27065A2703B9D/project/Agent-diffusionpolicy/log/video/<clip>`.
+
+**The cost of an honest return is measured, and it is large**: the teleport
+clip's gaps are **70-100 ticks (0.6-0.8 s)**; a real return is **228-464 ticks
+(1.9-3.9 s)** at 0.12 m/s - the lift, the blend, the settle and the wait for
+the next fruit that the instant teleport was hiding. That belt time is why the
+teleport clip reads 5/6 and the full-cycle clips read 3/4, 2/4 and 1/2 in the
+video branch: **the earlier continuous rate was bought with an impossible
+1-tick return**. The learned lane still places 3 of 4 with no cut; the
+per-pick span (approach → carry → place → return) is **12.7 s** in the seed-77
+clip (5064 ticks / 4 picks), against the 9.5 s/pick of the teleport clip.
+
+Reproduce:
+
+```bash
+OUT_DIR=.../p225_cont_fullcycle_s77 BELT=0.12 SEED=77 PICKS=4 \
+  FRUIT_CONTINUOUS_TRANSIT_DIAG=1 logs/p225/video_cont.sh
+```
+
+`TRANSIT=0` restores the teleport (the pre-P225n clip).
