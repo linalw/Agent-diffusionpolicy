@@ -306,15 +306,18 @@ is not a calibration constant; `FRUIT_PERCEPTION_FOVEA` stays 0 and
 converts is P216's two-sided close gate**: `FRUIT_CLOSE_RAMP_DY_LO=-0.02` (now
 the runner's default, `DY_LO=0` restores the one-sided gate) removes a measured
 `[close] xy=339mm` wild latch (the pads closing 338 mm behind the fruit).
-With it, **0.15 reads 8/8 + 7/8 = 15/16 = 93.8 %** (seeds 77/101, 6.8-11.1 s)
-and **0.12 reads 6/8 + 4/8 = 10/16 = 62.5 %** (7.0-10.3 s). The 0.12 residual
-is a **runway**, not a grasp: the belt is 1.38 m (11.5 s at 0.12) against 7-11 s
-attempts, and three of its seed-101 failures are end-of-line falls
-(`y = -0.864..-0.888`) or the P139 park slot; the selector-rule A/B
-(`FRUIT_SELECT_NEAREST_ABOVE_FLOOR=0`) is a draw (0.12 5/8 vs 4/8, 0.15 7/8 vs
-7/8). The remaining classes are that runway, the payload losses after a grasp
-(the closed loaded slide) and the strawberry's 3/6. **Both speeds meet the
-target (> 55 %, < 12 s/fruit, belt > 0.08 m/s) with no scripted skill route.**
+With it, on **three seeds (77/101/202, 8 episodes each)**: **0.15 = 20/24 =
+83.3 %** and **0.12 = 15/24 = 62.5 %**, every success **6.8-11.4 s**. The first
+two seeds read 15/16 at 0.15; the fresh third reads 5/8, so the two-seed 94 %
+was a branch draw (P93's rule). The residual is a **mixture of two classes**:
+end-of-line runway (the belt is 1.38 m = 11.5 s at 0.12 against 7-11 s attempts;
+three of seed 101's 0.12 failures and three of seed 202's 0.15 failures are
+`[fall] y = -0.86..-0.90`) and the payload losses after a grasp (the closed
+loaded slide). Neither is a selector term: `FRUIT_DYNAMIC_SELECT_S` 2.5 (a
+higher catch floor) reads **0.12 15/24 (a pooled draw) and 0.15 16/24 (harmful,
+the floor starves the line)**, and the nearest/farthest rule is a draw too (0.12
+5/8 vs 4/8, 0.15 7/8 vs 7/8). **Both speeds meet the target (> 55 %, < 12 s per
+fruit, belt > 0.08 m/s) with no scripted skill route.**
 Full record and runners:
 `logs/p225/RESULTS.md`,
 `logs/p225/{run_cell_near.sh,run_cell.sh,run_cell_strict.sh,parse.py}`.

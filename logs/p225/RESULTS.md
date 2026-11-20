@@ -451,14 +451,16 @@ behind the fruit. With the two-sided gate the same cells read:
 | `N12LO_s101` | 0.12 | 101 | 4/8 | 7.0-10.3 s | 3 end-of-line (`y=-0.865..-0.888`), 1 park slot |
 | `N15LO_s101` | 0.15 | 101 | **7/8** | 6.8-10.6 s | 1 payload loss (18.4 s) |
 
-**0.15 is 15/16 = 94 %** across the two seeds with every success 6.8-11.1 s;
+**0.15 is 15/16 = 94 % on the first two seeds** with every success 6.8-11.1 s;
 **0.12 is 10/16 = 62.5 %** and both of its 0.12 cells' residual is **not the
 grasp**: seed 101's three failures are **end-of-line** falls
 (`[fall] pos=(+0.160,-0.888,+0.912)`, x inside the band) - the fruit rode past
 the belt's end before the attempt finished - and seed 77's two are payload
 losses after a grasp. The no-wild-close read is direct: the closes in these
 cells are `xy` 4-21 mm and **no row exceeds 21 mm**, against the baseline's
-339 mm.
+339 mm. **A third, fresh seed (202) is the correction**: 0.15 reads **5/8**
+(three end-of-line falls) and 0.12 **5/8**, so the two-seed 94 % was the draw
+P93's rule exists to catch - the three-seed recipe numbers are in 4l.
 
 **Why 0.12 has an end-of-line class and 0.15 does not**: the belt's transit is
 1.38 m, i.e. **11.5 s at 0.12** and 9.2 s at 0.15, while an attempt is 7-11 s.
@@ -496,6 +498,44 @@ with `FRUIT_CLOSE_RAMP_DY_LO=-0.02` now the runner's default (`DY_LO=0`
 restores the pre-4k one-sided gate), the size-scoped min-px 12, the carry force
 scoped > 4 cm and the sphere fit. Every success is **< 12 s** at a belt of
 **0.12 / 0.15 m/s**.
+
+### 4l. Three seeds: 0.15 = 20/24 = 83.3 %, 0.12 = 15/24 = 62.5 %; the runway lever (`SELECT_S` 2.5) is a pooled draw at 0.12 and harmful at 0.15
+
+The two-seed 4k numbers were re-read on a **fresh third seed (202)**, and the
+runway hypothesis was priced with the selector's own setup term
+(`FRUIT_DYNAMIC_SELECT_S` 1.5 -> 2.5, which raises the catch floor by 0.12 /
+0.15 m and so makes the nearest-above-floor rule take a fruit farther upstream).
+
+**The recipe (the shipped `p177_full`, the min-px 12, the carry force > 4 cm,
+the sphere, `FRUIT_CLOSE_RAMP_DY_LO=-0.02`):**
+
+| speed | seed 77 | seed 101 | seed 202 | pooled | per-fruit (successes) |
+|---|---:|---:|---:|---:|---|
+| **0.15** | 8/8 | 7/8 | 5/8 | **20/24 = 83.3 %** | 6.8-11.1 s |
+| **0.12** | 6/8 | 4/8 | 5/8 | **15/24 = 62.5 %** | 7.0-11.4 s |
+
+Both speeds clear the target (**> 55 %**, every success **< 12 s**, belt
+**0.12 / 0.15 m/s** = > 0.08) with the learned lane only - no `task.run`, no
+scripted skill route. The third seed is what keeps the 0.15 claim honest: the
+first two seeds read 15/16 and the fresh one 5/8, so the 94 % was a draw.
+
+**The runway lever is not a lever.** `SELECT_S=2.5` converts exactly the seeds
+whose failures were end-of-line (0.15 s202 5 -> 7, 0.12 s101 4 -> 6) and costs
+at least as much where the floor starves the line:
+
+| speed | SELECT_S 1.5 (pooled) | SELECT_S 2.5 (pooled) | per seed (2.5) |
+|---|---:|---:|---|
+| 0.12 | **15/24** | **15/24** | 6 / 6 / 3 |
+| 0.15 | **20/24** | 16/24 | 4 / 5 / 7 |
+
+At 0.15 the tightened floor loses 4 placements at the two seeds that read 8/8
+and 7/8 (the class moves to `timeout: no grasp` and small-fruit no-grasps), so
+it is **not adopted**; at 0.12 the pooled count is **identical** and only the
+per-seed distribution changes. The honest statement is that the 12-20 % residual
+is a **mixture of two classes** - end-of-line runway and the closed loaded slide
+- and neither is a selector-floor term. What would move them is a longer
+upstream belt (a scene change: 1.38 m = 11.5 s at 0.12 against 7-11 s attempts)
+or a faster approach (a policy term), not another floor rung.
 
 ## 5. The honest boundary: the strict no-servo ablation is 0/7
 
