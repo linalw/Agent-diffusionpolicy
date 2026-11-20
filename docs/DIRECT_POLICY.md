@@ -351,8 +351,16 @@ median on the approach (586 frames, fruit ahead)** - the demonstrations' own
 0.065 fit floor - so a round has nothing to learn there; only the chase states
 differ (0.169 rad, 91 frames) and the expert's action there is "hold at the
 station", the clamp that cost the placements. The residual is closed-loop
-timing against the belt, not data or capacity; the remaining route is a
-scenario change (a longer upstream belt or a stationary presentation). The papers'
+timing against the belt, not data or capacity. **The belt extension was then
+measured and closes the last route**: `FRUIT_BELT_UPSTREAM=0.30` (default 0, the
+shipped scene) is a **draw** with the recipe's nearest-above-floor selector
+(2/3 and 4/6 - the selector never takes the far fruit) and **negative with the
+farthest-upstream rule that does use it** (3/6 and 2/6; the goal at ~1.0 m is
+outside the approach the demos cloned). Also a record correction: the earlier
+"far rule" column of the selector A/B was the near rule (the runner hard-coded
+`FRUIT_SELECT_NEAREST_ABOVE_FLOOR=1`); it is measured properly here
+(`NEAREST=0`). Acquisition is closed for this tree at **0.15 = 83.3 %** and
+**0.12 = 62.5 %**. The papers'
 image-based mechanisms (GraspTune, TacRefineNet, LeTac-MPC, T-Rex), the vibration
 band (above the 120 Hz Nyquist) and any wrench/contact-geometry allocation are
 out of reach of this sensor.

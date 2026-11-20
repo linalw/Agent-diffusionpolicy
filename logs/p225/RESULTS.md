@@ -703,6 +703,49 @@ a data or capacity gap.** What remains for the class is a scenario/interface
 change (a longer upstream belt, or a station that presents the fruit
 stationary) - the same conclusion 4l reached from the selector side.
 
+### 4q. The belt extension is not a lever either: the near rule never uses it, the far rule cannot approach it - and a record correction
+
+The last named acquisition route was a **longer upstream belt**
+(`FRUIT_BELT_UPSTREAM=<m>`, default 0 = the shipped scene byte for byte; the
+field factories shift `belt_center`/`belt_size` and `spawn_y` together while the
+downstream end and the station are fixed, so every window/floor/reach term is
+unchanged). At 0.30 m the belt is 1.90 m and the spawn 0.98 m from the station -
+13.3 s of transit at 0.12 against the 1.60 m/0.12 = 13.3 s... the extra 2.5 s.
+
+| cell | selector | belt | seed | placed | failures |
+|---|---|---|---:|---:|---|
+| `N12UP30_s101` (partial, 3 ep) | near (recipe) | 1.90 m | 101 | 2/3 | 1 payload loss |
+| `N12UP30_s202` (partial, 6 ep) | near | 1.90 m | 202 | 4/6 | 1 `g=0`, 1 payload loss |
+| `N12UP30F_s101` | **far** | 1.90 m | 101 | **3/6** | 5 `g=0`/payload |
+| `N12UP30F_s202` | **far** | 1.90 m | 202 | **2/6** | 4 `g=0` |
+| baseline (bilateral) | near | 1.60 m | 101/202 | 6/8, 5/8 | |
+
+**Why it cannot work at this interface**: the recipe's selector is
+**nearest-above-floor** - it takes the *closest* eligible fruit, so the extra
+0.30 m upstream is never selected and the cell is a draw (the end-of-line rows
+move to the new top but the class count does not). The **farthest-upstream**
+rule does use it, and the policy then fails to approach a fruit ~1.0 m upstream
+(5 of 7 failures are `grasped=False`, the attempts 11-14 s): the demonstrations
+start at ~0.4 m, so a goal at 1.0 m is outside what the approach was cloned on.
+So the belt length is not the lever; the policy's usable approach window is.
+
+**Record correction (important)**: the `N12FAR_s101` / `N15FAR_s101` cells of
+4k were **not** far-rule cells - `run_cell_near.sh` hard-coded
+`FRUIT_SELECT_NEAREST_ABOVE_FLOOR=1`, so the outer value was ignored and both
+columns of 4k's selector table ran the **near** rule (i.e. two draws on
+different branches). The selector-rule A/B was therefore **never measured**
+until this section, where the runner gained `NEAREST=0`. The correction does not
+change any other number: the 4k table's "far" column is the near rule.
+
+**Acquisition closes here for this tree**: re-close (null), height gate
+(secondary), goal clamp (negative), DAgger fidelity (already at the fit floor),
+selector rule (draw), belt extension (draw with the recipe's selector; negative
+with the one that uses it). The class is the policy's usable approach window
+against a moving belt, and every interface/scene knob that could widen it has
+now been measured. The shipped deliverable stands at **0.15 = 20/24 = 83.3 %**
+and **0.12 = 15/24 = 62.5 %**, 6.8-11.4 s per placed fruit, no scripted skill
+route.
+
 ## 5. The honest boundary: the strict no-servo ablation is 0/7
 
 `FRUIT_CONTACT_SERVO=0 FRUIT_PLACE_SERVO=0`, every other knob as in section 2:

@@ -185,6 +185,26 @@ OPENARM_TCP_LINKS = {"left": "openarm_left_ee_tcp", "right": "openarm_right_ee_t
 OPENARM_FINGER_JOINT_MAX = 0.044
 
 
+def _belt_upstream_extension() -> float:
+    """P225t: the belt's **upstream** extension [m] (`FRUIT_BELT_UPSTREAM`).
+
+    Measured boundary this prices: the belt's transit is 1.60 m / 0.12 m·s^-1 =
+    **13.3 s** (the fruit's spawn-to-despawn window), while a direct episode is
+    7-11 s, and the acquisition failures are end-of-line (`[fall]
+    y = -0.86..-0.90`) or a joint-limit chase. Extending the belt on its
+    **upstream** side keeps the downstream end (the despawn line at -0.70) and
+    the station fixed, so every window, floor and reach term is unchanged; the
+    fruit simply spawns `d` metres farther back and the selector has `d` metres
+    more runway. It is a scene change (the belt's collider grows), so the default
+    is 0 (the shipped scene, byte for byte) and a nonzero value is a measured
+    cell - it owes both motion references and a store re-baseline if shipped.
+    """
+    try:
+        return max(0.0, float(os.environ.get("FRUIT_BELT_UPSTREAM", "0") or 0.0))
+    except Exception:  # noqa: BLE001 - a malformed value is the shipped scene
+        return 0.0
+
+
 @dataclass
 class SceneConfig:
     """Geometry of the sorting cell, in meters, with the robot at the origin.
@@ -229,11 +249,15 @@ class SceneConfig:
     # The belt surface sits at z = 1.17 m: the jaw centre cannot descend much
     # below belt_top + 0.05, so fruit must sit high enough for the fingers to
     # straddle them.
-    belt_center: tuple[float, float, float] = (0.34, 0.0, 1.14)
+    belt_center: tuple[float, float, float] = field(
+        default_factory=lambda: (0.34, 0.5 * _belt_upstream_extension(), 1.14)
+    )
     #: (width across the line [X], length along the line [Y], thickness [Z]).
     #: Wider than v1's 0.34 m and with the guide rails off: a smooth belt wide
     #: enough that no rail is needed to keep 5-7 cm fruit on it.
-    belt_size: tuple[float, float, float] = (0.46, 1.60, 0.06)
+    belt_size: tuple[float, float, float] = field(
+        default_factory=lambda: (0.46, 1.60 + _belt_upstream_extension(), 0.06)
+    )
     # Commanded surface velocity, along the belt (-Y).
     #
     # The shipped default (v7 directive) is the dynamic line's measured band,
@@ -264,7 +288,9 @@ class SceneConfig:
     #: Spawn *inside* the upstream end: at 0.80 a fruit starts on the belt's very
     #: edge and half of them fall off before the line carries them (measured,
     #: logs/362: 4 of 6 released).
-    spawn_y: float = 0.68
+    spawn_y: float = field(
+        default_factory=lambda: 0.68 + _belt_upstream_extension()
+    )
     #: Recycle *inside* the downstream end: at -0.80 a fruit reaches the very end
     #: of the belt and drops off before the recycle check catches it, which the
     #: spawner counts as `fell_off` (measured, logs/363: 4 of 6 released).
