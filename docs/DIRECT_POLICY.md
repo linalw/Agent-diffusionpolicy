@@ -293,8 +293,11 @@ strawberry-only cell reads **sphere 3/6 vs spheroid 2/6** (the spheroid's `rms`
 14-56 mm at the 12 px; the sphere's 0.1-0.3), so the sphere stays the default
 and `FRUIT_PERCEPTION_SHAPE_SPECIES` is an opt-in negative. The mixed cells
 with the min-px 12 + the carry force scoped > 4 cm are **0.12 6/8 = 75 %** and
-**0.15 5/8 = 62.5 %**, every success 7.7-10.6 s - the target is met at both
-speeds. The remaining classes are the 0.15's tomato place (the left), the
+**0.15 6/8 = 75 %** - the 0.15 cell's place A/B reads the same **6/8** at
+`FRUIT_PLACE_SERVO_VMAX` 0.20 (failures are acquisition, 7.9-9.3 s/fruit) and
+0.15 (failures are place slips at 18.1 s, 8.6-11.2 s/fruit), so the **0.20
+stays** (faster, cleaner place). Every success is 7.7-10.6 s - the target is
+met at both speeds. The remaining classes are the 0.15's tomato place (the left), the
 6 cm orange, and the strawberry's 3/6. Full record and runners:
 `logs/p225/RESULTS.md`,
 `logs/p225/{run_cell_near.sh,run_cell.sh,run_cell_strict.sh,parse.py}`.

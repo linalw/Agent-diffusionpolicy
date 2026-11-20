@@ -343,6 +343,35 @@ remaining classes are the 0.15's tomatoes (the left's place, 2 attempts
 `grasped=True placed=False` at 15.8/17.8 s), the orange (6 cm, right), and the
 strawberry's 3/6 (the 12 px sphere).
 
+### 4i. The 0.15 place A/B: 0.20 vs 0.15 both 6/8; the 0.20 is faster and the cleaner place
+
+The 4h report left the 0.15's `grasped=True placed=False` as the next item. The
+place transit's speed limit was A/B'd at 0.15 m/s with the full diagnostics
+(`FRUIT_CARRY_DIAG`, `FRUIT_PLACE_SERVO_DIAG`, `FRUIT_PERCEPTION_DIAG`), the
+min-px 12, the force scoped > 4 cm and the sphere (the 4g/4h winners):
+
+| cell | place VMAX | placed | failures | per-fruit |
+|---|---:|---:|---|---|
+| `N15PL20_s77` | **0.20** | **6/8 = 75 %** | kiwi left 3.7 s (acquisition), orange left 7.5 s (no-grasp) | **7.9-9.3 s** |
+| `N15PL15_s77` | 0.15 | 6/8 = 75 % | strawberry left 18.1 s, tomato right 18.1 s (place, `grasped=True placed=False`) | 8.6-11.2 s |
+
+Both arms place at 6/8; the **0.20** is the adopted one: it is **faster**
+(ticks p50 977 against 1320; per-fruit 7.9-9.3 against 8.6-11.2 s) and its
+failures are the **acquisition** (a kiwi 3.7 s, an orange no-grasp), not the
+place. The 0.15's two failures are the slower transit's place slips
+(18.1 s), so the 0.15 is not the place fix.
+
+The `[pservo]` rows show the 0.20's place landing: `at=1, far=4-5 mm,
+hold=116-120 mm`, the release. The `[carry]` rows are absent on the direct
+path (the direct's carry is the policy; the `FRUIT_CARRY_DIAG` reads the
+scripted `_carry`), which is itself the menu note: the direct line's place
+diagnosis is `[pservo]` + the `[carry-force]` row, not the scripted `[carry]`.
+
+**The 0.15 target is now 6/8 = 75 %** (the 0.20 cell), matching the 0.12's
+6/8; the successes 7.9-9.3 s. The remaining classes are the **acquisition**
+(the kiwi/orange at 0.20), the 0.15's slower place (not adopted), and the
+small's 3/4 lychee / 3/6 strawberry.
+
 ## 5. The honest boundary: the strict no-servo ablation is 0/7
 
 `FRUIT_CONTACT_SERVO=0 FRUIT_PLACE_SERVO=0`, every other knob as in section 2:
