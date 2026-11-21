@@ -18,6 +18,26 @@ def isaac_asset(rel_path: str) -> str:
     return f"{ASSET_ROOT}/Isaac/{rel_path.lstrip('/')}"
 
 
+#: P227: the **single gripper arm** option (`FRUIT_ARM_KIND=franka`). The
+#: Franka Emika Panda ships with the public Isaac asset pack (a 7-DoF arm + the
+#: 2-finger `panda_hand`, reach 0.855 m) and is the arm most of the tactile /
+#: diffusion-grasping papers use; the measured asset read is
+#: `logs/p226/franka_probe.log` (9 DOFs: `panda_joint1..7` + `panda_finger_joint1/2`;
+#: links `panda_link0..7`, `panda_hand`, `panda_leftfinger`, `panda_rightfinger`).
+FRANKA_USD = os.environ.get(
+    "FRANKA_USD",
+    isaac_asset("Robots/FrankaRobotics/FrankaPanda/franka.usd"),
+)
+
+
+def robot_kind() -> str:
+    """Which arm the scene authors: `openarm` (shipped) or `franka`."""
+    kind = os.environ.get("FRUIT_ARM_KIND", "openarm").strip().lower()
+    if kind not in ("openarm", "franka"):
+        raise ValueError(f"FRUIT_ARM_KIND={kind!r}: expected 'openarm' or 'franka'")
+    return kind
+
+
 #: How far the output-belt side rails' box bottom sits *inside* the slab [m]
 #: (`conveyor.OutputBelt.build` authors the bottom at `belt_top - this`), so the
 #: shipped 0.05 m rail stands 3.5 cm proud of the belt surface. One number, two

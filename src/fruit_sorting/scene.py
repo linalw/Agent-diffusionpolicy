@@ -955,7 +955,11 @@ class SortingScene:
         # colliders and friction are part of that hand, not an experiment: on by
         # default in that mode, off for the kinematic pads (which bring their own
         # contact bodies).
-        openarm_hand = os.environ.get("FRUIT_GRIPPER_KIND", "openarm") == "openarm"
+        openarm_hand = (
+            os.environ.get("FRUIT_GRIPPER_KIND", "openarm") == "openarm"
+            and os.environ.get("FRUIT_ARM_KIND", "openarm").strip().lower()
+            != "franka"
+        )
         finger_colliders = os.environ.get(
             "FRUIT_FINGER_COLLIDERS", "1" if openarm_hand else "0"
         ) == "1"
@@ -2348,16 +2352,23 @@ class SortingScene:
         say(f"pedestal top at z={height:.2f} m")
 
     def _add_robot(self) -> None:
-        prim = self.stage.DefinePrim("/World/OpenArm", "Xform")
-        prim.GetReferences().AddReference(OPENARM_BIMANUAL_USD)
-        UsdGeom.Xformable(prim).ClearXformOpOrder()
-        UsdGeom.Xformable(prim).AddTranslateOp().Set(Gf.Vec3d(0.0, 0.0, self.cfg.robot_base_z))
-        local = not str(OPENARM_BIMANUAL_USD).startswith("http") and os.path.exists(
-            str(OPENARM_BIMANUAL_USD)
+        from .assets import FRANKA_USD, robot_kind
+
+        kind = robot_kind()
+        usd = FRANKA_USD if kind == "franka" else OPENARM_BIMANUAL_USD
+        base_z = (
+            float(os.environ.get("FRUIT_FRANKA_BASE_Z", self.cfg.robot_base_z))
+            if kind == "franka"
+            else float(self.cfg.robot_base_z)
         )
+        prim = self.stage.DefinePrim("/World/OpenArm", "Xform")
+        prim.GetReferences().AddReference(usd)
+        UsdGeom.Xformable(prim).ClearXformOpOrder()
+        UsdGeom.Xformable(prim).AddTranslateOp().Set(Gf.Vec3d(0.0, 0.0, base_z))
+        local = not str(usd).startswith("http") and os.path.exists(str(usd))
         say(
             f"robot referenced -> {'local flattened asset' if local else 'remote asset'} "
-            f"({OPENARM_BIMANUAL_USD})"
+            f"({usd}) kind={kind} base_z={base_z:.3f}"
         )
 
     def _add_conveyor(self) -> None:
@@ -2623,6 +2634,17 @@ class SortingScene:
     # Introspection
     # ------------------------------------------------------------------ #
     def report_robot(self) -> None:
+        from .assets import robot_kind
+
+        if robot_kind() != "openarm":
+            # P227: the OpenArm report reads `openarm_*` links by name; a
+            # different arm (Franka) prints its own asset read instead.
+            say(
+                f"[scene] robot kind={robot_kind()}: "
+                f"{len(self.robot.link_names)} links, "
+                f"{len(self.robot.dof_names)} dofs (OpenArm report skipped)"
+            )
+            return
         for side, link in OPENARM_TCP_LINKS.items():
             pose, _ = self.link_pose(link)
             say(f"TCP {side:5s} at {np.round(pose, 4).tolist()}")
