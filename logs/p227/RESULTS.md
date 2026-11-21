@@ -497,9 +497,13 @@ clock (100/25 with a 0.07 clear) reads `place 4.0 -> 2.8-3.2 s` and the mixed
 cell **5/5 placed** (`clean_slip` 0.0-4.4 mm) - but the **pear cell goes 5/6 ->
 3/6** with **two place-leg payload losses** (`pear_6_s5_r2.log`), i.e. exactly
 the class the cell is already marginal on. Same tree with the safe clock
-(150/40/0.10): the pear cell is **4/5** with one place loss. **Not adopted** -
-the -1.1 s is bought with the largest fruit's place leg (the P88/P89 rule: a
-speed cell whose count falls does not ship).
+(150/40/0.10): the pear cell is **4/5** with one place loss. A **middle** clock
+(125/32/0.09) reads `place 3.71-3.77 s`, seed 6 **6/6** but seed 5 **5/6** - and
+that one loss is a pear **grasp** failure (`N=3.22`), i.e. the pear's own
+variance, not a place cost (`attempt_6_s5_mid.log`). So the ladder is **not
+resolvable at n=5-6**, and the only *mechanistic* signal (two place-leg payload
+losses at 100/25) says do not go faster: **the safe clock stays** (P88/P89's
+rule: a speed cell ships only with a demonstrated non-inferior count).
 
 ### 15.4 The cell on the final tree
 
