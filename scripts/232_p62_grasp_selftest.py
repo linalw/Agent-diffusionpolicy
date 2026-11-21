@@ -198,8 +198,16 @@ def main() -> int:
             oriented["grasp_quaternion"]["left"], dtype=float))[1]) - 0.513236) < 1e-4,
               "configs/waypoints_oriented.json's left is the +0.513 file (NOT loaded "
               "by this env: FRUIT_WAYPOINTS is unset everywhere)")
-        check('"FRUIT_WAYPOINTS", "configs/waypoints.json"' in tasks_src,
-              "the task's default waypoint path is configs/waypoints.json")
+        # P227m: the default follows the arm asset - the OpenArm's file when the
+        # knob is unset on the OpenArm (the shipped path, byte for byte), and the
+        # Panda's own calibrated file on `FRUIT_ARM_KIND=franka` (an OpenArm joint
+        # vector teleported onto the Panda is a nonsense configuration).
+        check('"FRUIT_WAYPOINTS", ""' in tasks_src
+              and '"configs/waypoints_franka.json"' in tasks_src
+              and 'if robot_kind() == "franka"' in tasks_src
+              and '"configs/waypoints.json"' in tasks_src,
+              "the task's default waypoint file follows the arm (OpenArm file when "
+              "unset, waypoints_franka.json on the Panda)")
 
         # ---------------------------------------------------------------- 5
         row = SortingRLEnv._grasp_override_row(

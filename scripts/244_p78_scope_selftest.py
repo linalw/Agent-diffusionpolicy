@@ -234,9 +234,12 @@ def main() -> int:
     # ------------------------------------------------------------------ 4
     # the build-time global writer is untouched in meaning
     scene_src = (ROOT / "src/fruit_sorting/scene.py").read_text(encoding="utf-8")
+    writer = grab(scene_src, "apply_finger_maxforce")
     check("def apply_finger_maxforce(" in scene_src
-          and 'for side in ("left", "right"):' in grab(scene_src, "apply_finger_maxforce"),
-          "the global writer still writes BOTH arms at build time")
+          and "for spec in arm_specs():" in writer
+          and "spec.finger_joint_names" in writer,
+          "the global writer every arm's own finger joints at build time "
+          "(two OpenArms, or the Panda's pair - P227i)")
     prov = grab(scene_src, "finger_physics_provenance")
     check("scope: dict | None = None" in prov, "the provenance builder takes the scope")
     check('block["finger_cap_scope"]' in prov and "if scope:" in prov,

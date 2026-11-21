@@ -7302,6 +7302,102 @@ chunked runner** is the supported form (`logs/p145/collect_chunks2.sh`). No ship
 default moved; `selfcheck.sh` PASS (0 failures, 1 skipped) after the P64 re-pin;
 references **`61fb5202` / `61fb5202` / `18b101bf`** untouched.
 
+**P227i (2026-11-21, `logs/p227/`; default off, **nothing adopted**, no `configs/`
+change, no reference re-recorded): the owner's single-arm cell (a real gripper arm +
+two side bins) named "the Panda's finger drive is weak or absent" as its blocker,
+and **that diagnosis is overturned** - the drive tracks in one tick and the grasp
+holds 12/12 once two measured constants are right.** The probe (`finger_probe.py`)
+reads the asset's drive (k 400 N/m, c 80 Ns/m, **maxForce 7.2 N**; `joint2` a
+`PhysxMimicJointAPI`, gearing -1, cap 0) and the repo's profile applied live
+(k = 1e5, c = 2000): `set_gripper(0 .. 0.040)` gives **q 0 -> 0.040 and a jaw
+0 -> 80.0 mm**, in **one tick**, with caps 60/300 N, the asset's gains and no
+gain call all identical - so P227h's 0.0164-0.0195 m row was the **probe's end
+pose** (the gripper test ran after the reach servo, pads inside the bin rim), not
+the drive. **The defect that did exist is the pad faces**: with
+`Usd.TraverseInstanceProxies` (`pad_geometry.py`; the finger links are a
+*reference* and report no mesh bound without them - the OpenArm's instance-proxy
+trap) each finger is a 76 mm plate whose **faces are 3 mm either side of the jaw
+centre when the joints are closed**, i.e. a **6 mm gap at `q = 0`**, so every
+close was commanded 6 mm too wide (sep == command, nothing held, 12/12 cells).
+`ArmSpec` now carries `finger_face_offset` (OpenArm 0.0, Panda **-0.006**),
+`joint_root` (`/World/OpenArm/panda_hand`) and `link_root`, and `arm_specs()`
+(two OpenArms / one Panda) - and the build's finger **material**, **drive-cap
+writer**, **cap readback** and **header** walk those instead of hard-coded
+`openarm_*` prims (the first Franka build authored **no** material and **no**
+cap); a real hand of either arm defaults to the measured pair `mu = 2.0`.
+**The frame transfers**: the closed fingers separate along the hand's **-Y** and
+the jaw is +58.4 mm along hand +Z, so `top_down_quaternion("x")` - the OpenArm's
+pick attitude - closes **across the belt with the fingers down at 0.8 mm /
+0.11 deg**, while the `"y"` form is 154 mm / 29 deg out of reach (`hand_frame.py`).
+**The reach floor is the attitude, not the gains** (`ik_probe.py`): the servo
+holds **0.9 mm** down to jaw z **1.240** and breaks at **1.22** (49.8 deg,
+stalls 1.223, 23.6 mm xy at 1.20); the repo's tuned Cartesian drive adds a
+constant -7.6 mm lag and does not help - P227f's "15.6 mm high" is this
+function of the target. **The static grasp gate is 12/12**: belt surface velocity
+written to 0 (`SortingScene.step` is `update_app`, so a probe never runs the
+belt's own `step()` and the fruit would ride 0.12 m during the close), 4 fruits x
+dz 0.035/0.042/0.050 above the fruit's **own** centre, lift **99.1-99.5 mm**,
+slip **0.5-2.1 mm** at 0.042; the contact census reads the close **two-sided**
+(4.04 + 4.06 N) and the payload +95 mm. **Two things it does not settle**: a
+**fixed** jaw height is not equivalent (1/4 at z 1.240 - the Panda's aim must be
+`jaw = fruit_centre + 0.042`, which the task's fixed `jaw_target("grasp")` is
+not), and on the **moving** belt the close lags ~30 mm, loads one pad first,
+drags the fruit 110 mm and loses it - the catch/lead problem, not the hand.
+**No default moved**: `grasp_clearance` stays 0.095 and nothing in `configs/` was
+re-recorded. No-harm: `accept.sh` **7/10 = 70 %, 9.5 s/attempt, `fingerprint:
+matches`, `190: PASS`** with **458/458 `[fruit]` lines identical** to
+`logs/p136/accept_final.log` (one pre-existing P227 build print dropped),
+`selfcheck.sh` **PASS (0 failures, 1 skipped)** with the new `282` leg (the jaw
+laws, `arm_specs`, the spec-driven authoring, the OpenArm set/order, the profile),
+`106` OK, `107` PASS. Pins: `control.py`, `scene.py`, `scripts/selfcheck.sh`,
+`scripts/282_p227i_arm_spec_selftest.py`; references **`61fb5202` / `61fb5202` /
+`18b101bf`** untouched. **Named next**: the Panda's per-fruit pick aim, its own
+`waypoints_franka.json` (`_pose()` is still the OpenArm's joint vectors), then the
+moving catch's lead and one scripted attempt on the bins. Evidence
+`logs/p227/`.
+
+**P227m (2026-11-21, `logs/p227/`; default off, **nothing adopted**, no
+reference moved): the single-arm cell **runs and places** - 4/12 over two seeds,
+with **every success on the `right` label and every failure on `left`** - and the
+failures are one measured catch class, not the hand.** The enabling wiring, each
+scoped to its own cell: `tasks` reads the arm's own waypoint file
+(`configs/waypoints_franka.json`, written by `logs/p227/franka_waypoints.py` -
+the repo's calibration flow for one arm: `ready`/`wait`/`grasp`/`grasp_lift` +
+each bin's above-pose, all six at **2.3-3.2 mm / 0.64-1.33 rad**; both arm labels
+carry the same configurations because the task always builds two controllers and
+the Panda resolves both to its one arm); `_place_xy_for` returns the **bin** when
+`cfg.output_bins` (it returned the *belts'* lane point, so a bin attempt released
+over the belt); `_pad_standoff` returns the Panda's **measured 42 mm** tool offset
+(`FRUIT_FRANKA_GRASP_STANDOFF`) rather than `finger_len + PAD_LIFT`'s 70 mm; and
+`tactile.default_finger_links()` follows the arm spec (with the OpenArm names the
+`Contact(...)` constructor **raises** before the first attempt) with a single
+sensor set answering for both labels. **Measured** (`FRUIT_ARM_KIND=franka
+FRUIT_OUTPUT_BINS=1 FRUIT_BIARM=0`, the scripted dynamic catch, `run_attempt.sh`):
+seed 5 **3/6**, seed 6 **1/6**, pooled **4/12 = 33 %**, `right 4/8 / left 0/7`;
+the place is **in a bin** (`released at (-0.004, -0.606, 1.129)` inside bin N) and
+`_place_xy_for` reports `lane 1 at (-0.1, -0.55)`. **The 8 failures are one
+class**: the handover fires with the fruit already inside the lead
+(`dy=+0.122..0.131 m` against `lead=0.189`), so the settle loop runs **0 steps**,
+`coherent axis 1-cos=0.0107-0.0138` reports FAILED ("closing anyway"), the
+fingertips are **130-137 mm** from the fruit at the close's start and the catch-up
+ends **1329-1550 mm** out with the payload dragged **1170 mm**; the successes are
+the attempts whose wait loop ran (131-206 steps), `1-cos = 0.0000`, fingertips
+**34-40 mm**. `FRUIT_DYNAMIC_SELECT_S=3.5` (the "commit earlier" lever) is a
+**measured negative**: the larger floor **starves the line** (attempts 1-5 `no
+eligible fruit`, the candidates at 0.05-0.39 m) - the P56/P58 aperture class, so
+the lever is the **pre-pose's length**, not a wider commitment window, and a
+bigger `FRUIT_DYNAMIC_OVERHEAD_S` cannot help because the handover is evaluated
+*after* the pre-pose. **No rate is claimed** (12 attempts is a direction, P93's
+rule). No-harm: `accept.sh` **7/10 = 70 %, 9.5 s/attempt, `fingerprint:
+matches`, `190: PASS`**, stream **458/458 identical** to
+`logs/p136/accept_final.log` (the P227 build print dropped), `selfcheck.sh`
+**PASS (0 failures, 1 skipped)**, `106` OK, `107` PASS. Pins:
+`tasks.py`/`rl_env.py` (`TASKS_MD5` follow), `tactile.py`, `232`/`262`... see
+`logs/p227/`; references **`61fb5202` / `61fb5202` / `18b101bf`** untouched.
+**Named next**: the pre-pose length / in-place settle for this arm (the graph's
+one arm cannot serve both fruit phases with a fixed lead), then the per-fruit aim
+in the indexed path (the fixed pose holds 1/4). Evidence `logs/p227/`.
+
 **P142 (2026-11-11, `logs/p142/`; two defect fixes + a declared metric,
 **nothing adopted, no reference moved**): the direct lane's two *bookkeeping*
 failures are removed and its zero is shown to be the station reselect's timing.

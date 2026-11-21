@@ -21,6 +21,25 @@ FINGER_LINK_NAMES = {
 }
 
 
+def default_finger_links() -> dict[str, list[str]]:
+    """The active arm asset's finger **link** names, per arm label.
+
+    P227m: the shipped mapping is the OpenArm's four links; a different arm
+    (the Franka Panda's `panda_leftfinger`/`panda_rightfinger`) has its own two,
+    and with the shipped names `Contact(...)` raises *"Contact Sensor needs to be
+    created under an enabled rigid-body prim"* before the first attempt. The
+    OpenArm mapping this returns is identical to `FINGER_LINK_NAMES`, so the
+    shipped path is unchanged.
+    """
+    from .control import arm_specs
+
+    links = {}
+    for spec in arm_specs():
+        if spec.finger_link_names:
+            links[spec.side] = list(spec.finger_link_names)
+    return links or dict(FINGER_LINK_NAMES)
+
+
 @dataclass
 class TactileReading:
     """Aggregated tactile state for one gripper."""
@@ -59,7 +78,7 @@ class GripperTactile:
         or the USD `stage` (before `play()`, which is what makes the contact
         views valid).
         """
-        finger_links = finger_links or FINGER_LINK_NAMES
+        finger_links = finger_links or default_finger_links()
         finger_paths: dict[str, list[str]] = {}
         if robot is not None:
             link_paths = list(robot.link_paths)
@@ -153,6 +172,15 @@ class GripperTactile:
             reading.normal_force += magnitude
             reading.contact_count += int(in_contact)
             reading.fingertip_forces[key] = magnitude
+        if len(readings) == 1:
+            # P227m: one physical arm, two **labels**. The task picks its active
+            # arm from the fruit's grade (`left` for A, `right` otherwise), and a
+            # single-arm cell resolves both labels to the same hand, so a
+            # sensor set for one label must answer for the other too. The
+            # bimanual and the cage both attach two sets, so they never take
+            # this branch.
+            only = next(iter(readings.values()))
+            readings = {"left": only, "right": only}
         return readings
 
     def summary(self) -> str:

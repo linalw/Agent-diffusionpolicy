@@ -2130,9 +2130,19 @@ class PickAndPlaceTask:
                  scripted: bool = True):
         # The v1 file reproduces the recorded datasets. Physical grasping uses the
         # orientation-constrained poses: FRUIT_WAYPOINTS=configs/waypoints_oriented.json
-        waypoint_path = waypoint_path or os.environ.get(
-            "FRUIT_WAYPOINTS", "configs/waypoints.json"
-        )
+        waypoint_path = waypoint_path or os.environ.get("FRUIT_WAYPOINTS", "")
+        if not waypoint_path:
+            # P227m: `configs/waypoints.json` is the **OpenArm's** joint space.
+            # A different arm needs its own calibrated file or `_pose` would
+            # teleport it to another robot's joint vectors. Unset + OpenArm is
+            # the shipped path, byte for byte.
+            from .assets import robot_kind
+
+            waypoint_path = (
+                "configs/waypoints_franka.json"
+                if robot_kind() == "franka"
+                else "configs/waypoints.json"
+            )
         self.scene = scene
         self.spawner = spawner
         self.tactile = tactile
@@ -8960,6 +8970,14 @@ class PickAndPlaceTask:
         override = getattr(self._sort_ctx, "place_xy", None)
         if override is not None:
             return override
+        if getattr(self.cfg, "output_bins", False):
+            # P227m: the single-arm cell's output bodies are the two side bins
+            # (`FRUIT_OUTPUT_BINS=1`), whose place point is
+            # `output_place_x` / `+-output_place_y` at `output_place_z`. The
+            # belt drop points are the *other* cell's lanes and are what this
+            # returned before, so a bin attempt released over the belt.
+            sign = 1.0 if index == 0 else -1.0
+            return (float(self.cfg.output_place_x), sign * float(self.cfg.output_place_y))
         return self.cfg.output_belt_drop_points[index]
 
     def _refresh_sort_capability(self) -> None:
@@ -11126,6 +11144,17 @@ class PickAndPlaceTask:
         own = getattr(hand, "grasp_standoff", None)
         if own is not None:
             return float(own)
+        #: P227m: the Panda's own tool offset, **measured** on the static gate
+        #: (`logs/p227/hand_frame.log`): its pad faces span 11 mm above to 65 mm
+        #: below the jaw centre, and 12/12 cells held at the jaw 42 mm above the
+        #: fruit's *centre* (slip 0.5-2.1 mm), while a fixed height holds 1/4 and
+        #: the OpenArm's 70 mm (finger_len + PAD_LIFT) puts the pads on the
+        #: fruit's top third and every close slipped out (12/12). Same
+        #: per-attempt fruit, so `dynamic` and the indexed path both use it.
+        from .assets import robot_kind
+
+        if robot_kind() == "franka":
+            return float(os.environ.get("FRUIT_FRANKA_GRASP_STANDOFF", "0.042"))
         finger_len = float(os.environ.get("FRUIT_FINGER_LEN", "0.060"))
         lift = self._dynamic_pad_lift if dynamic else PAD_LIFT
         if dynamic and sample is not None and self._dynamic_pad_lift_frac > 0.0:

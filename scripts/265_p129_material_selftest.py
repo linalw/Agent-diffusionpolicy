@@ -90,12 +90,15 @@ ok(low[2] == 100000.0, f"FRUIT_CAGE_HOLD_STIFFNESS=100000 -> {low[2]}")
 ok(low[3] == 1.0e5, "the pad drive itself does not move with the material")
 ok(cage_with({})[0] == 2.0, "and it goes back to 2.0 when the knobs are unset again")
 
-print("P129 pad material: the openarm finger material's default")
+print("P129 pad material: the real hand's finger material default")
 src = open(os.path.join(ROOT, "src", "fruit_sorting", "scene.py"), errors="replace").read()
 hits = re.findall(
-    r'FRUIT_FINGER_MU", "2\.0" if (?:kind == "openarm"|openarm_hand) else "0\.0"', src
+    r'FRUIT_FINGER_MU", "2\.0" if (?:kind == "openarm"|openarm_hand|real_hand) else "0\.0"', src
 )
-ok(len(hits) == 2, f"both finger-material sites default openarm to 2.0 (found {len(hits)})")
+ok(len(hits) == 2,
+   f"both finger-material sites default a real hand to 2.0 (found {len(hits)}; "
+   "P227i made the build site read the *hand*, not the arm, so the Panda gets "
+   "the same pads)")
 ok("FRUIT_FINGER_FRICTION_COMBINE" in src,
    "the combine-mode override exists (the sim's default is the average, P104)")
 

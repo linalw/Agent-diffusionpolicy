@@ -208,21 +208,26 @@ def _drive_maxforce_cap(prim) -> float | None:
 
 
 def _finger_drive_caps(stage, side: str = "left") -> str:
-    """The asset's own finger-drive force caps, `joint1/joint2`, from the USD.
+    """The active arm's finger-drive force caps, `joint1/joint2`, from the USD.
 
-    `joint2` is a drive-less `PhysxMimicJointAPI` mimic: it has no drive block
-    at all, so its cap reads `0.0` - the second jaw face is nominally driven
-    and cannot push (P41 phase 1: authoring gains on it is byte-inert). This is
-    the cap the runtime gain call does not move, so it belongs in the build
-    header beside the programmed k/c. Read through `_drive_maxforce_cap`, i.e.
-    **without** `DriveAPI.Get`, so this header cannot apply a drive schema to
+    `joint2` is a drive-less `PhysxMimicJointAPI` mimic on both assets: it has no
+    drive block at all, so its cap reads `0.0` - the second jaw face is nominally
+    driven and cannot push (P41 phase 1: authoring gains on it is byte-inert).
+    This is the cap the runtime gain call does not move, so it belongs in the
+    build header beside the programmed k/c. Read through `_drive_maxforce_cap`,
+    i.e. **without** `DriveAPI.Get`, so this header cannot apply a drive schema to
     the mimic it is describing.
+
+    P227i: the prim paths come from the arm spec (`ArmSpec.joint_root`), so the
+    header describes the arm that is actually built - the OpenArm's two finger
+    joints per arm, or the Panda's `panda_finger_joint1/2` under its hand.
     """
+    from .control import arm_specs
+
+    spec = arm_specs()[0]
     caps = []
-    for index in (1, 2):
-        prim = stage.GetPrimAtPath(
-            f"/World/OpenArm/joints/openarm_{side}_finger_joint{index}"
-        )
+    for name in spec.finger_joint_names:
+        prim = stage.GetPrimAtPath(f"{spec.joint_root}/{name}")
         if not prim.IsValid():
             return "n/a"
         cap = _drive_maxforce_cap(prim)
@@ -261,21 +266,25 @@ def resolve_finger_maxforce() -> float | None:
 
 
 def _finger_drive_rows(stage) -> list[dict]:
-    """The four finger joints' drive caps, read back off the stage per joint.
+    """Every finger joint's drive cap, read back off the stage per joint.
 
-    `joint1` is the arm's only finger actuator (k = 1e6 N/m, `maxForce` 10 N in
-    `assets/openarm_flat/openarm_flat_deinst.usda:3798-3820`); `joint2` is a
-    `PhysxMimicJointAPI` mimic with **no drive block at all** (usda:3822-3843),
-    so its cap is physically 0 and a cap written there would make it fight its
-    own reference joint. The readback uses `HasAPI` and the raw attribute name
-    (never `DriveAPI.Get`, which applies the schema) so asking a question
-    cannot change the asset.
+    `joint1` is the arm's only finger actuator; `joint2` is a
+    `PhysxMimicJointAPI` mimic with **no drive block at all**, so its cap is
+    physically 0 and a cap written there would make it fight its own reference
+    joint. The readback uses `HasAPI` and the raw attribute name (never
+    `DriveAPI.Get`, which applies the schema) so asking a question cannot change
+    the asset.
+
+    P227i: the prim set is the active arm set (`arm_specs()`), so the OpenArm
+    reads its four finger joints exactly as before and the Panda reads its two
+    under the hand.
     """
+    from .control import arm_specs
+
     rows = []
-    for side in ("left", "right"):
-        for index in (1, 2):
-            name = f"openarm_{side}_finger_joint{index}"
-            prim = stage.GetPrimAtPath(f"/World/OpenArm/joints/{name}")
+    for spec in arm_specs():
+        for name in spec.finger_joint_names:
+            prim = stage.GetPrimAtPath(f"{spec.joint_root}/{name}")
             row = {"joint": name, "drive": False, "maxForce": None}
             if prim.IsValid():
                 row["drive"] = prim.HasAPI(UsdPhysics.DriveAPI, "linear")
@@ -293,26 +302,31 @@ def apply_finger_maxforce(stage, value: float) -> str:
     articulation view exists would be inert (only `set_dof_gains` /
     `set_dof_max_efforts` act on a live view), which is why this is a build-time
     authoring step and the print is a *stage* readback, not a physics claim.
+
+    P227i: the writer walks the **active arm's** finger joints (`arm_specs()` +
+    `ArmSpec.joint_root`), so the OpenArm's two arms are written exactly as
+    before and the Panda's `panda_finger_joint1` is written instead of nothing.
     """
-    for side in ("left", "right"):
-        prim = stage.GetPrimAtPath(
-            f"/World/OpenArm/joints/openarm_{side}_finger_joint1"
-        )
-        if not prim.IsValid() or not prim.HasAPI(UsdPhysics.DriveAPI, "linear"):
-            say(
-                f"FRUIT_FINGER_MAXFORCE={value:g} N: {side} joint1 has no linear "
-                "drive on this asset - nothing written for that arm"
-            )
-            continue
-        # `Get` (not the raw attribute) is correct *here*: this is the writer,
-        # it is reached only for a prim that already has the schema (the
-        # `HasAPI` guard above), and it must be able to `CreateMaxForceAttr`.
-        # The readers never use it (`_drive_maxforce_cap`).
-        drive = UsdPhysics.DriveAPI.Get(prim, "linear")
-        attr = drive.GetMaxForceAttr()
-        if attr is None:
-            attr = drive.CreateMaxForceAttr()
-        attr.Set(float(value))
+    from .control import arm_specs
+
+    for spec in arm_specs():
+        for name in spec.finger_joint_names:
+            prim = stage.GetPrimAtPath(f"{spec.joint_root}/{name}")
+            if not prim.IsValid() or not prim.HasAPI(UsdPhysics.DriveAPI, "linear"):
+                say(
+                    f"FRUIT_FINGER_MAXFORCE={value:g} N: {name} has no linear "
+                    "drive on this asset - nothing written for that joint"
+                )
+                continue
+            # `Get` (not the raw attribute) is correct *here*: this is the writer,
+            # it is reached only for a prim that already has the schema (the
+            # `HasAPI` guard above), and it must be able to `CreateMaxForceAttr`.
+            # The readers never use it (`_drive_maxforce_cap`).
+            drive = UsdPhysics.DriveAPI.Get(prim, "linear")
+            attr = drive.GetMaxForceAttr()
+            if attr is None:
+                attr = drive.CreateMaxForceAttr()
+            attr.Set(float(value))
     rows = _finger_drive_rows(stage)
     parts = []
     for row in rows:
@@ -986,8 +1000,14 @@ class SortingScene:
                 "the visible jaws have no colliders and cannot hold fruit; only "
                 "valid for probes that author them after build (e.g. scripts/431)"
             )
+        #: P227i: a **real** hand is present on either arm asset (`openarm` is
+        #: the shipped gripper kind; the Panda has its own two-finger hand).
+        #: The pads' contact model follows the hand, not the arm - so the Panda
+        #: gets the same authored pair the record measured on the OpenArm's pads
+        #: (`mu_app` 1.25-1.46, P104/P117) instead of the asset's own material.
+        real_hand = os.environ.get("FRUIT_GRIPPER_KIND", "openarm") == "openarm"
         finger_mu = float(
-            os.environ.get("FRUIT_FINGER_MU", "2.0" if openarm_hand else "0.0")
+            os.environ.get("FRUIT_FINGER_MU", "2.0" if real_hand else "0.0")
         )
         #: Compliant contact knobs for the P3 contact-face phase. Off by default:
         #: 0 authors exactly the shipped rigid material (bit-identical build).
@@ -998,11 +1018,18 @@ class SortingScene:
             # may be frictionless, and PhysX's default combine mode takes the
             # *minimum* of the two coefficients - which would make a firm pinch
             # unable to carry anything, however hard it squeezes.
-            for side in ("left", "right"):
-                for which in ("left", "right"):
-                    prim = self.stage.GetPrimAtPath(
-                        f"/World/OpenArm/openarm_{side}_{which}_finger"
-                    )
+            #
+            # P227i: the links are the **active arm's** (`ArmSpec.link_root` +
+            # `finger_link_names`), not the OpenArm's paths - the first Franka
+            # build authored no finger material at all for that reason. The
+            # OpenArm's default stays exactly `mu = 2.0`, `FRUIT_FINGER_MU=0`
+            # restores the asset's own material, and the Panda gets the same
+            # pads' contact pair the record measured (`mu_app` 1.25-1.46).
+            from .control import arm_specs
+
+            for spec in arm_specs():
+                for name in spec.finger_link_names:
+                    prim = self.stage.GetPrimAtPath(f"{spec.link_root}/{name}")
                     if prim.IsValid():
                         _add_physics_material(
                             prim,

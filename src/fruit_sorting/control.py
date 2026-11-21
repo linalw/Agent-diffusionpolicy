@@ -49,6 +49,24 @@ class ArmSpec:
     #: at q=0 and each finger moves q, so 0.0 / 2.0).
     jaw_offset: float = 0.010
     jaw_per_joint: float = 2.0
+    #: P227i: the **pad-face** offset, i.e. how much wider the two pad faces are
+    #: than the finger link origins at `q = 0` [m]. The OpenArm's jaw law already
+    #: carries its 10 mm in `jaw_offset` (origins), and its faces sit on the
+    #: origins (0.0 - the shipped value). The Panda's finger meshes leave a
+    #: **6 mm** gap when the joints are closed (`logs/p227/pad_geometry.log`,
+    #: both fingers' inner faces at -/+3 mm with `q = 0`), so commanding
+    #: `q = span/2` closes the *origins* to `span` while the faces stay 6 mm
+    #: wider - which is exactly the "pads close to the commanded span, fruit not
+    #: held" failure P227i's grasp probe measured on 12/12 cells.
+    finger_face_offset: float = 0.0
+    #: P227i: **where this arm's joint and link prims live** in the stage. The
+    #: OpenArm keeps its joints under `/World/OpenArm/joints`; the Panda's two
+    #: finger joints live under its hand (`/World/OpenArm/panda_hand`). The
+    #: build-time finger material and drive-cap authoring reads these, so a new
+    #: arm cannot silently lose its contact material or its force cap (which is
+    #: exactly what the first Franka build did).
+    joint_root: str = "/World/OpenArm/joints"
+    link_root: str = "/World/OpenArm"
 
 
 def arm_spec(side: str) -> ArmSpec:
@@ -67,8 +85,19 @@ def arm_spec(side: str) -> ArmSpec:
             tcp_link="panda_hand",
             finger_link_names=("panda_leftfinger", "panda_rightfinger"),
             open_value=0.040,
+            # measured (`logs/p227/finger_probe.log`): the joint value is half the
+            # link-origin span, so the origins read 0 mm at q=0 and 80 mm at 0.040
             jaw_offset=0.0,
             jaw_per_joint=2.0,
+            # measured (`logs/p227/pad_geometry.log`): the pad *faces* are 6 mm
+            # apart with the joints closed (each finger's inner face at 3 mm),
+            # so a face-commanded close must subtract that 6 mm
+            finger_face_offset=-0.006,
+            # measured (`logs/p227/finger_probe.log`): both `panda_*_finger_joint`
+            # prims are siblings under the hand; the finger links are direct
+            # children of the robot root.
+            joint_root="/World/OpenArm/panda_hand",
+            link_root="/World/OpenArm",
         )
     return ArmSpec(
         side=side,
@@ -80,6 +109,23 @@ def arm_spec(side: str) -> ArmSpec:
             f"openarm_{side}_right_finger",
         ),
     )
+
+
+def arm_specs() -> list[ArmSpec]:
+    """**Every arm the stage holds** for the active `FRUIT_ARM_KIND`.
+
+    The bimanual OpenArm authors two; the single-arm Franka authors one (at the
+    robot root). The build-time finger material / drive-cap authoring and the
+    build header iterate this, so the shipped OpenArm path covers both arms
+    exactly as before and the Panda path covers its own two finger joints
+    instead of silently authoring nothing (`logs/p227/finger_probe.log`).
+    """
+    import os
+
+    kind = os.environ.get("FRUIT_ARM_KIND", "openarm").strip().lower()
+    if kind == "franka":
+        return [arm_spec("left")]
+    return [arm_spec("left"), arm_spec("right")]
 
 
 #: P41 phase 2: the shipped finger-drive fidelity profile. The asset's own
@@ -163,6 +209,9 @@ class ArmController:
     #: essentially at the link origins. Commanding a wider gap leaves the pads
     #: short of the fruit and every grasp reads zero contact force - which is
     #: exactly what the 2.22 cm and 1.15 cm constants did.
+    #: P227i: this is the *OpenArm's* value; each `ArmSpec` may override it
+    #: (`finger_face_offset` - the Panda's pads leave a measured 6 mm gap at
+    #: `q = 0`), and `ArmController.__init__` reads the spec's value.
     FINGER_FACE_OFFSET = 0.0
 
     def __init__(
@@ -187,6 +236,10 @@ class ArmController:
         self.OPEN = float(self.spec.open_value)
         self.JAW_SEPARATION_OFFSET = float(self.spec.jaw_offset)
         self.JAW_SEPARATION_PER_JOINT = float(self.spec.jaw_per_joint)
+        #: P227i: the pad faces' extra span at `q = 0` (OpenArm 0, Panda -6 mm);
+        #: `gripper_value_for_separation` adds it so a face-commanded close lands
+        #: on the requested face span on either asset.
+        self.FINGER_FACE_OFFSET = float(self.spec.finger_face_offset)
         self.damping = damping
         self.gain = gain
         self.max_step = max_step

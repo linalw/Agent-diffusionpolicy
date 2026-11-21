@@ -336,6 +336,11 @@ run_check "P218 small handover" "$python" scripts/280_p218_small_handover_selfte
 # P222: the side-conditioned scripted skill (`FRUIT_HANDOVER_SIDE` = right/left/
 # both, default off; the active arm runs `_run_scripted`).
 run_check "P222 side handover" "$python" scripts/281_p222_side_handover_selftest.py
+# P227i: the single-arm (Franka) jaw law - the Panda's pad faces are 6 mm apart
+# at q=0 (measured), its joint/link roots live under `panda_hand`, and the build's
+# finger material / drive-cap authoring is spec-driven (the first Franka build
+# authored neither). The OpenArm's set, order and offsets are unchanged.
+run_check "P227i arm spec" "$python" scripts/282_p227i_arm_spec_selftest.py
 # P73: the `[carry]` row's **rotation schedule** (`tilt0=`, `tilt_end=`,
 # `tilt_max=`, `t45=`, `t75=`, `tilt_rate=`) - the instrument the place-leg
 # question needs, because the leg-end `[attitude]` tilt is saturated by the place
