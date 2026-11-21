@@ -7398,6 +7398,44 @@ matches`, `190: PASS`**, stream **458/458 identical** to
 one arm cannot serve both fruit phases with a fixed lead), then the per-fruit aim
 in the indexed path (the fixed pose holds 1/4). Evidence `logs/p227/`.
 
+**P227n (2026-11-21, `logs/p227/`; default off, **nothing adopted**, no
+reference moved): the single-arm cell's left/right split was an **arm-asset
+assumption leaking through the arm *label***, and with it fixed the cell places
+**15/17 = 88 %** against **4/12 = 33 %**.** The P227m diagnosis (pre-pose length /
+settle) was the wrong lever. **The mirror**: the moving catch sets
+`hold = top_down_quaternion("x")` and mirrors it for the `left` arm - correct for
+the bimanual OpenArm (two mirrored arms, `scripts/97_reach_probe.py`: 2.1 mm with
+against 28 mm without) and **wrong for the single-arm Panda**, which authors one
+arm serving both labels: the mirror asks for the pads to close *along the belt*,
+the P227j pose that is 154 mm / 29 deg out of reach. Measured
+(`logs/p227/acq_diag_3_s6.log`): the `left` premove stalls **144 mm** out
+(jaw y +0.111 m) against the `right`'s **8 mm**; `premove_probe.py` rules out the
+target's x and a stale `_q_cmd` (18-19 mm at x 0.249/0.316/0.34, with and without
+a sync, after either label drove the shared arm). `mirrored_arms()` gates all
+three hold sites (`_run_impl`'s indexed hold, the catch's wait-at-hover hold, the
+coherent block); the left premove reads **144 -> 7 mm** and its first grasp holds
+(`lift +0.384 m`, `slip 2.5 mm`, 7.46 N). **The place prims**: `_fingertip_lowest_z`
+hard-coded `/World/OpenArm/openarm_<side>_{left,right}_finger`, a null prim on the
+Panda, and `UsdGeom.BBoxCache.ComputeWorldBound` **raised** after a good carry
+(`attempt_6_s6_fix.log`); it now walks `arm_spec(side).finger_link_names` and skips
+an invalid prim (OpenArm set/order unchanged). **The +Y bin needs a calibrated
+start**: the carry's own `move_to` from the lift pose ends **181-223 mm** from
+every +Y cell (x -0.10..0.06, z 1.38/1.30) and still **148 mm** through a routed
+waypoint, while the -Y bin reads 18-31 mm; from the waypoint file's own
+`bin0_above` configuration (solved at 3.2 mm) the same servo reaches **9.1-10.0
+mm** (`place_reach_probe/staged/routes.log`). So a place leg on the single-arm
+asset now **blends the joints** to that calibrated configuration (min-jerk, the
+pre-poses' primitive, payload in the pads) and then runs the shipped Cartesian
+transit - the OpenArm's place legs keep their measured Cartesian-only path. **The
+cell** (`run_attempt.sh`, the scripted dynamic catch, one arm, `FRUIT_BIARM=0`):
+seed 5 **6/6**, seed 6 **3/5** (one renderer wedge after 5; its strawberry at
+31.13 N is the closed small-fruit class), fresh seed 101 **6/6**, pooled **15/17
+= 88 %** placed and **16/17** grasped against P227m's 4/12. **No rate is claimed**
+beyond these samples (P93); the mechanisms are: the `left` acquisition class and
+the +Y place class are gone, and the residual is the closed small-fruit grip.
+Pins: `tasks.py`/`rl_env.py` (`TASKS_MD5` follow), `logs/p227/`; references
+**`61fb5202` / `61fb5202` / `18b101bf`** untouched. Evidence `logs/p227/`.
+
 **P142 (2026-11-11, `logs/p142/`; two defect fixes + a declared metric,
 **nothing adopted, no reference moved**): the direct lane's two *bookkeeping*
 failures are removed and its zero is shown to be the station reselect's timing.

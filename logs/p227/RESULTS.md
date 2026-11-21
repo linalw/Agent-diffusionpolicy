@@ -229,3 +229,84 @@ therefore needs to shorten the **pre-pose** (or settle in place), not widen the
 commitment window; a bigger `FRUIT_DYNAMIC_OVERHEAD_S` alone cannot help either,
 because the handover is evaluated *after* the pre-pose and the fruit is already
 inside the lead by then.
+
+## 11. P227n: the left label's mirrored attitude, the place prim paths, and the calibrated place transit
+
+The P227m cell failed on the **left** label (0/7) and placed on the right (4/8).
+Three measurement-led fixes convert it - the pre-pose/settle question P227m
+named was the wrong lever; the real defect is an **arm-asset assumption leaking
+through the arm *label***.
+
+### 11.1 The left label got the OpenArm's mirrored pick attitude
+
+`logs/p227/acq_diag_3_s6.log` (3 attempts, `FRUIT_ACQ_DIAG=1
+FRUIT_HANDOVER_DIAG=1`):
+
+```
+attempt 0 (right)  premove err =   8 mm  jaw=[0.323, 0.0004, 1.280]
+attempt 1 (left)   premove err = 144 mm  jaw=[0.157, 0.1109, 1.301]
+```
+
+The premove (the catch's first move to the hover) *stalls* 144 mm out on the
+left, with a 111 mm lateral error, and the attempt then closes 137 mm behind the
+fruit. The cause is the attitude: the moving catch sets
+`hold = top_down_quaternion("x")` and then **mirrors it for the `left` arm**
+(`if arm_name == "left": hold = mirror_across_xz(hold)`) - correct for the
+bimanual OpenArm (two mirrored arms; `scripts/97_reach_probe.py`: 2.1 mm with
+the mirror against 28 mm without), **wrong for the single-arm Panda**, which
+authors one arm serving both labels: the mirrored quaternion asks for the pads to
+close *along the belt*, the pose that P227j measured at 154 mm / 29 deg out of
+reach. `mirrored_arms()` now gates all three sites (`_run_impl`'s indexed hold,
+the catch's wait-at-hover hold, the coherent block), so the OpenArm is unchanged
+and the Panda gets `td-x` on both labels. Measured: the left premove **144 ->
+7 mm**, and the left's first grasp holds (`lift +0.384 m`, `slip 2.5 mm`,
+`force 7.46 N`).
+
+Probe that rules out the two obvious alternatives (`premove_probe.py`): the same
+target converges to **18-19 mm** from the calibrated `grasp` pose at x = 0.249 /
+0.316 / 0.34, with and without an IK-integrator sync, and after the *other*
+label drove the shared arm - so it is neither the target's x nor a stale
+`_q_cmd`; it is the attitude.
+
+### 11.2 The place leg crashed on the OpenArm's finger prims
+
+`_fingertip_lowest_z` hard-coded `/World/OpenArm/openarm_<side>_{left,right}_finger`.
+On the Panda that is a null prim and `UsdGeom.BBoxCache.ComputeWorldBound`
+raises - the attempt dies **after** a good carry
+(`logs/p227/attempt_6_s6_fix.log`). It now walks `arm_spec(side).finger_link_names`
+at `link_root` (the OpenArm's four prims, same order, so its stream is
+unchanged) and skips an invalid prim instead of raising.
+
+### 11.3 The +Y bin is unreachable by the Cartesian servo, reachable from the calibrated pose
+
+`logs/p227/place_reach_probe.log` drives the carry's own primitive
+(`move_to`, 900 steps, 10 mm tolerance) from the calibrated `grasp_lift`:
+
+| bin | x | z | final distance |
+|---|---|---|---|
+| +Y | -0.10 / -0.02 / +0.06 | 1.38 / 1.30 | **181-223 mm** (every cell) |
+| -Y | same cells | same | 18-31 mm |
+
+and two routed waypoints only bring +Y to **148 mm**
+(`place_reach_routes.log`). From the waypoint file's own `bin0_above`
+configuration (already solved at 3.2 mm) the same servo reaches **9.1-10.0 mm**
+(`place_reach_staged.log`). So the place leg now **blends the joints** to that
+calibrated configuration (min-jerk, the pre-poses' own primitive, payload in the
+pads) and then runs the shipped Cartesian transit - scoped to the single-arm
+asset, so the OpenArm's place legs keep their Cartesian-only path.
+
+### 11.4 The cell
+
+`run_attempt.sh 6 <seed>` (the scripted dynamic catch, one arm, `FRUIT_BIARM=0`):
+
+| seed | placed | grasped | note |
+|---|---|---|---|
+| 5 | **6/6 = 100 %** | 6/6 | both labels, both bins |
+| 6 | **3/5** | 4/5 | one wedge (RTX) after 5; the strawberry at 31.13 N is the closed small-fruit class |
+| 101 (fresh) | **6/6 = 100 %** | 6/6 | both labels, both bins |
+| pooled | **15/17 = 88 %** | 16/17 | vs **4/12 = 33 %** before the three fixes |
+
+`logs/p227/attempt_6_s5_fix2.log`, `attempt_6_s6_fix3.log`,
+`attempt_6_s101_fix.log`. No rate is claimed beyond these samples (P93's rule);
+what is claimed is the mechanism: the acquisition class (left attitude) and the
++Y place class are gone, and the residual is the closed small-fruit grip.

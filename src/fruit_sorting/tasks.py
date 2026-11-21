@@ -110,6 +110,24 @@ def rigid_tool_hand(hand) -> bool:
     """Whether `hand`'s contact bodies are rigidly mounted on the arm's tool."""
     return getattr(hand, "kind", "") in RIGID_TOOL_HANDS
 
+def mirrored_arms() -> bool:
+    """Whether the stage holds **two mirrored arms** (the bimanual OpenArm).
+
+    P227n: the OpenArm asset is mounted twice, mirrored, so the *left* arm's
+    top-down pick attitude is the mirror of the right's - measured, feeding both
+    the same quaternion makes the left solver drift to a near-horizontal tool
+    (`scripts/97_reach_probe.py`: 2.1 mm against 28 mm). A **single-arm** asset
+    (the Franka Panda) authors one arm that serves both *labels*, so mirroring
+    for `left` asks for the wrong closing direction (pads along the belt) and
+    the IK stalls: `logs/p227/acq_diag_3_s6.log` reads every `left` premove
+    144 mm out (jaw y +0.111 m) against every `right` premove at 8 mm. The
+    shipped OpenArm answer is unchanged.
+    """
+    from .assets import robot_kind
+
+    return robot_kind() != "franka"
+
+
 #: P43 L1: the **scripted** single-arm default for
 #: `FRUIT_SELECT_NEAREST_ABOVE_FLOOR` (`select_target`'s single-arm branch).
 #: **Off**, and it stays off: the flip was measured on the current tree
@@ -4099,10 +4117,22 @@ class PickAndPlaceTask:
         from pxr import Usd, UsdGeom
 
         cache = UsdGeom.BBoxCache(Usd.TimeCode.Default(), [UsdGeom.Tokens.default_])
+        # P227n: the finger **links** come from the arm spec (the OpenArm's four
+        # `openarm_<side>_{left,right}_finger` prims are what this used to
+        # hard-code; the Panda's are `panda_leftfinger`/`panda_rightfinger` at the
+        # robot root). With the OpenArm names on the Panda the bound query raises
+        # `Invalid prim: null prim` and the place leg dies after a good carry
+        # (`logs/p227/attempt_6_s6_fix.log`). The OpenArm set and order are
+        # unchanged, so its stream is byte-identical.
+        from .control import arm_spec
+
+        spec = arm_spec(side)
         lowest = None
-        for which in ("left", "right"):
-            path = f"/World/OpenArm/openarm_{side}_{which}_finger"
-            rng = cache.ComputeWorldBound(self.scene.stage.GetPrimAtPath(path)).ComputeAlignedRange()
+        for name in spec.finger_link_names:
+            prim = self.scene.stage.GetPrimAtPath(f"{spec.link_root}/{name}")
+            if not prim.IsValid():
+                continue
+            rng = cache.ComputeWorldBound(prim).ComputeAlignedRange()
             lo = float(rng.GetMin()[2])
             lowest = lo if lowest is None else min(lowest, lo)
         if lowest is None:
@@ -5989,6 +6019,35 @@ class PickAndPlaceTask:
         if _hold_override is not None:
             arm.hold_quaternion = _hold_override
         goal = self.jaw_target(side, name)
+        #: P227n: the single-arm cell's **calibrated place transit**. The Panda's
+        #: incremental Cartesian servo cannot reach the +Y bin from the lift pose
+        #: (`logs/p227/place_reach_probe.log`: 182-223 mm at every bin x and both
+        #: z, and still 148 mm through a routed waypoint), while it reaches it to
+        #: **9-10 mm** when it starts from the calibrated above-pose configuration
+        #: the waypoint file already holds (`logs/p227/place_reach_staged.log`).
+        #: So a place leg first *blends the joints* to that configuration - a
+        #: min-jerk move with the payload in the pads, the same primitive the
+        #: pre-poses use - and then runs the shipped Cartesian transit, which from
+        #: there converges. Scoped to the single-arm asset: the OpenArm's place
+        #: legs keep the measured Cartesian-only path (`_carry_leg`'s docstring)
+        #: byte for byte.
+        if name.startswith("place"):
+            from .assets import robot_kind
+
+            if robot_kind() == "franka":
+                index = 0 if "0" in name else 1
+                above = (
+                    (self.waypoints.get("arms", {}).get(side, {}) or {}).get(
+                        f"bin{index}_above"
+                    )
+                )
+                if above is not None:
+                    self._blend_to(
+                        side,
+                        np.asarray(above, dtype=float),
+                        ticks=int(os.environ.get("FRUIT_PLACE_BLEND_TICKS", "150")),
+                        settle=int(os.environ.get("FRUIT_PLACE_BLEND_SETTLE", "40")),
+                    )
         # P39 attitude readout (`FRUIT_CARRY_ATTITUDE=1`, default off): read once
         # per leg and printed at the leg's end, on both exits of this method.
         # Reporting only - with the knob unset nothing below runs.
@@ -11404,7 +11463,7 @@ class PickAndPlaceTask:
                 arm.hold_quaternion = top_down_quaternion(
                     os.environ.get("FRUIT_HAND_AXIS", "x")
                 )
-                if side == "left":
+                if side == "left" and mirrored_arms():
                     arm.hold_quaternion = mirror_across_xz(arm.hold_quaternion)
                 z_above_belt = float(self.cfg.grasp_clearance)
             target = np.array(
@@ -13370,7 +13429,7 @@ class PickAndPlaceTask:
             # the fruit (`logs/p2_smoke5`). The gripper is empty, so this is a
             # positioning move exactly like the pre-pose.
             hold = top_down_quaternion(os.environ.get("FRUIT_HAND_AXIS", "x"))
-            if arm_name == "left":
+            if arm_name == "left" and mirrored_arms():
                 hold = mirror_across_xz(hold)
             arm.hold_quaternion = hold
             # R10-A: compute this attempt's interception point (the predicted
@@ -14282,7 +14341,7 @@ class PickAndPlaceTask:
                             result.grade = presented.grade
                             # `bin_index` stays the arm's lane - see above.
                 hold = top_down_quaternion(os.environ.get("FRUIT_HAND_AXIS", "x"))
-                if arm_name == "left":
+                if arm_name == "left" and mirrored_arms():
                     # The arms are mirrored, so the left arm needs the mirrored
                     # attitude: feeding both arms the right arm's quaternion makes
                     # the left solver drift to a near-horizontal tool (probe: 28 mm

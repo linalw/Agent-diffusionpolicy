@@ -193,6 +193,30 @@ def main() -> int:
     check(standoff.index("own = getattr(hand") < standoff.index("if robot_kind()"),
           "the per-hand hook (the cage) still wins over the arm's constant")
 
+    # ------------------------------------------------------------------ 6
+    print("[6] P227n: the arm-asset assumptions that leaked through a label")
+    mirrored = grab(tasks_src, "mirrored_arms")
+    check('robot_kind() != "franka"' in mirrored,
+          "one arm asset -> the left label must NOT mirror the pick attitude")
+    # all three hold sites are gated, and the OpenArm keeps its mirror
+    sites = tasks_src.count("mirror_across_xz(")
+    check(tasks_src.count("if side == \"left\" and mirrored_arms():") == 1
+          and tasks_src.count("if arm_name == \"left\" and mirrored_arms():") == 2,
+          f"every pick-attitude mirror site is gated by mirrored_arms() "
+          f"(3 sites; {sites} mirror calls in the file)")
+    fingertip = grab(tasks_src, "_fingertip_lowest_z")
+    check("arm_spec" in fingertip and "spec.finger_link_names" in fingertip
+          and "if not prim.IsValid():" in fingertip,
+          "the place leg's fingertip bound reads the arm spec and skips a null prim")
+    carry = grab(tasks_src, "_carry_leg")
+    check('name.startswith("place")' in carry
+          and 'if robot_kind() == "franka":' in carry
+          and 'f"bin{index}_above"' in carry
+          and "self._blend_to(" in carry,
+          "the single-arm place transit is seeded from bin{index}_above (scoped)")
+    check(carry.index('if robot_kind() == "franka":') < carry.index("self._blend_to("),
+          "the blend runs only on the arm that needs it")
+
     print()
     if failures:
         print(f"FAIL: {failures} check(s)")
