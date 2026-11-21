@@ -44,6 +44,11 @@ class ArmSpec:
     finger_link_names: tuple[str, str] = ()
     #: Finger command for a fully open gripper (metres per finger joint).
     open_value: float = 0.044
+    #: `jaw_separation = jaw_offset + jaw_per_joint * q` (the OpenArm's measured
+    #: 10 mm pad gap and 2 mm of span per 1 mm of joint; the Panda's pads touch
+    #: at q=0 and each finger moves q, so 0.0 / 2.0).
+    jaw_offset: float = 0.010
+    jaw_per_joint: float = 2.0
 
 
 def arm_spec(side: str) -> ArmSpec:
@@ -62,6 +67,8 @@ def arm_spec(side: str) -> ArmSpec:
             tcp_link="panda_hand",
             finger_link_names=("panda_leftfinger", "panda_rightfinger"),
             open_value=0.040,
+            jaw_offset=0.0,
+            jaw_per_joint=2.0,
         )
     return ArmSpec(
         side=side,
@@ -174,9 +181,12 @@ class ArmController:
         self.scene = scene
         self.robot = scene.robot
         self.spec = arm_spec(side)
-        #: P227: the open finger command is the arm's own (OpenArm 0.044,
-        #: Franka 0.040); the class constant stays the shipped default.
+        #: P227: the open finger command and the jaw law are the arm's own
+        #: (OpenArm 0.044 / 10 mm + 2 mm-per-mm; Franka 0.040 / 0 + 2); the
+        #: class constants stay the shipped default for every other caller.
         self.OPEN = float(self.spec.open_value)
+        self.JAW_SEPARATION_OFFSET = float(self.spec.jaw_offset)
+        self.JAW_SEPARATION_PER_JOINT = float(self.spec.jaw_per_joint)
         self.damping = damping
         self.gain = gain
         self.max_step = max_step

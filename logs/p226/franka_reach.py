@@ -103,6 +103,16 @@ def main() -> int:
             f"tcp_res={err_step * 1e3:6.1f} mm  margin={margin:+.3f} rad  "
             f"{'PASS' if err_jaw <= 0.006 and margin >= 0.05 else 'fail'}"
         )
+    # P227: the jaw law on this arm - command -> measured separation.
+    say(f"[reach] gripper law: offset={arm.JAW_SEPARATION_OFFSET:.4f} "
+        f"per_joint={arm.JAW_SEPARATION_PER_JOINT:.2f} OPEN={arm.OPEN:.3f}")
+    for q in (0.010, 0.020, 0.030, 0.040):
+        arm.set_gripper(float(q))
+        app_utils.update_app(steps=20)
+        say(
+            f"[reach]   set_gripper({q:.3f}) -> jaw_separation="
+            f"{float(arm.jaw_separation()) * 1000:.1f} mm"
+        )
     simulation_app.close()
     return 0
 
