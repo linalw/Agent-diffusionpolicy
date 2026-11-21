@@ -7505,6 +7505,34 @@ identical** to `logs/p136/accept_final.log`; `selfcheck.sh` **PASS (0 failures,
 `tasks.py`/`rl_env.py` (`TASKS_MD5` follow), `logs/p227/`; references
 **`61fb5202` / `61fb5202` / `18b101bf`** untouched.
 
+**P227q (2026-11-21, `logs/p227/`; measurement only - **no `src/` change**,
+nothing adopted, no reference moved): the 6.9 cm pear is **size + closing-axis
+offset**, three levers are negative, and the scripted path's dynamic trace is
+**broken** (it writes 0 rows).** Pear-only with the handover/carry diagonals
+(`pear_6_s6_hd.log`): the single success is the **60.0 mm** pear; the five
+failures are the **65-70 mm** ones with a closing-axis (x) offset of **4.3-6.1
+mm** against a 76 mm plate (+-3.5 mm centring), and their `[carry] grasp_lift`
+rows read `force@onset=0`, `contacts@onset=0`, `sep@onset=54.7 mm` on a 66.7 mm
+fruit - the pads are inside its width with no contact (the payload is no longer
+between them) - while the 60 mm success reads `force_min=7.47 N` at
+`sep_min=56.8 mm`. **Negative levers**: `FRUIT_DYNAMIC_CATCH_TOL=0.003` (3/6 at
+seed 6 against 1/6, but the residual never converges - 2.9-7.7 mm, the loop burns
+its budget - and seed 5's default is already 5/6); `FRUIT_DYNAMIC_MIN_INTERFERENCE=0.005`
+(1/5, same class: a deeper squeeze cannot centre an off-centre fruit - the near
+pad presses 5.5 mm in while the far one stays 4.5 mm out); and P227o's margin
+(5/6, residuals unchanged). The regrasp already re-aims at the fruit's live
+centre and does not convert it, so this is `logs/p42/SIM_LIMIT.md`'s closed class
+at the pool's largest fruit (a new pad asset, a force-controlled finger, or a
+sub-3 mm presentation; a wider plate is the only lever on the +-3.5 mm and the
+OpenArm's +17 mm width cell was a measured negative). **Instrument gap**: on the
+scripted path `FRUIT_DYNAMIC_TRACE=1` writes **0 rows** (`logs/dynamic_trace_0*.json`)
+because its `_AttemptLocal` buffer is in the attempt thread while
+`_dynamic_trace_flush` runs in `run()` on the driver thread; the tracer works on
+the direct env only. Evidence `logs/p227/RESULTS.md` §14; `src/` is unchanged from
+the accepted P227p tree (`accept.sh` 7/10, `fingerprint: matches`, 458/458 to
+`logs/p136/accept_final.log` by construction), references **`61fb5202` /
+`61fb5202` / `18b101bf`** untouched.
+
 **P142 (2026-11-11, `logs/p142/`; two defect fixes + a declared metric,
 **nothing adopted, no reference moved**): the direct lane's two *bookkeeping*
 failures are removed and its zero is shown to be the station reselect's timing.

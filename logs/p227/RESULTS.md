@@ -402,3 +402,52 @@ P93 instrument) to separate "the pads missed along the belt" from "the pear
 squeezed out", then the hand-geometry price (a wider plate along the belt is the
 only lever that changes the +-3.5 mm, and the OpenArm's +17 mm width cell was a
 measured negative, `logs/p190`).
+
+## 14. P227q: the pear class is *size + closing-axis offset*, and three levers are negative
+
+Pear-only (`FRUIT_SUPPLY_SPECIES=pear`, 6 attempts), with the handover and carry
+diagonals (`pear_6_s6_hd.log`), the catch-up's own numbers separate the class:
+
+| # | outcome | catch residual | jaw - fruit (x, y, z) mm | fruit |
+|---|---|---|---|---|
+| 0 | FAIL | 5.0 | (+0.1, -4.8, +49.5) | 65-70 mm |
+| 1 | FAIL | 17.1 | (+6.1, -8.1, +56.1) | 65-70 mm |
+| 2 | FAIL | 11.7 | (+4.9, -0.5, +50.8) | 65-70 mm |
+| 3 | FAIL | 10.2 | (+4.0, -3.6, +50.8) | 65-70 mm |
+| 4 | FAIL | 10.3 | (+4.3, +0.3, +51.3) | 65-70 mm |
+| 5 | **PASS** | 5.8 | (+0.1, -5.6, +49.4) | **60.0 mm** |
+
+The success is the **60 mm** pear; the failures are the **65-70 mm** ones, and
+their closing-axis (x) offsets are **4.3-6.1 mm** against a 76 mm plate on a
+69.9 mm fruit (+-3.5 mm of centring). The `[carry] grasp_lift` rows show the
+consequence: `force@onset=0`, `contacts@onset=0`, `sep@onset=54.7 mm` on a
+66.7 mm fruit (the pads are 12 mm inside the fruit's width with **no** contact -
+the payload is not between them), while the 60 mm success reads
+`force_min=7.47 N`, `sep_min=56.8 mm` on a 60.0 mm fruit.
+
+**Three levers, all measured negative**:
+
+* `FRUIT_DYNAMIC_CATCH_TOL=0.003` (aim tighter): 3/6 at seed 6 against 1/6, but the
+  residual never converges (2.9-7.7 mm) and the loop burns its budget; at seed 5
+  the default already reads 5/6 (a seed flip).
+* `FRUIT_DYNAMIC_MIN_INTERFERENCE=0.005` (close deeper): **1/5**, the same class -
+  a deeper squeeze cannot fix an off-centre fruit (the near pad presses 5.5 mm
+  in while the far pad stays 4.5 mm out).
+* `FRUIT_DYNAMIC_DESCEND_MARGIN=0.25` (start earlier): 5/6 with residuals
+  unchanged (P227o §12).
+
+The regrasp path already re-aims at the fruit's live centre (`ik_step` with the
+fruit's x/y/z, no frozen x) and still does not convert the class, and the close
+*does* track y/z per tick. **So this is the record's closed class at the pool's
+largest fruit**: `logs/p42/SIM_LIMIT.md`'s loaded slide needs a new pad asset, a
+force-controlled finger, or a sub-3 mm presentation - and the only lever on the
++-3.5 mm is a **wider plate along the belt**, which the OpenArm's +17 mm width
+cell measured as a negative (`logs/p190`).
+
+**The instrument gap this phase found**: `FRUIT_DYNAMIC_TRACE` writes **0 rows**
+on the scripted path (`logs/dynamic_trace_0*.json`, all empty) - its
+`_AttemptLocal` buffer lives in the attempt thread while `_dynamic_trace_flush`
+runs in `run()` on the driver thread, so the flush sees a different (empty)
+thread-local. The tracer works on the direct env (one thread). On the scripted
+path use `FRUIT_HANDOVER_DIAG`/`FRUIT_CARRY_DIAG`, or fix the buffer's lifetime
+(a phase of its own).
