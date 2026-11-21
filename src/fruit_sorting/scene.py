@@ -2385,6 +2385,14 @@ class SortingScene:
         on -Y with its own belt, chute and tray). Unset authors exactly the two
         shipped bodies and prints the same two build lines.
         """
+        if getattr(self.cfg, "output_bins", False):
+            # P226: the owner's cell - one gripper arm, a static bin on each
+            # side of the robot instead of the two raised output belts. The
+            # bins are at the reachable side pose (`x -0.10`, `|y| 0.58`,
+            # jaw 1.20: P90 NAT 6.0 mm / +0.405 rad) and behind the head
+            # camera's x, so they add no shadow over the belt.
+            self._add_output_bins()
+            return
         from .conveyor import OutputBelt
 
         self.output_belts = []
@@ -2398,6 +2406,62 @@ class SortingScene:
             + (", the third inboard on -Y (P123)" if len(lanes) > 2 else "")
             + ")"
         )
+
+    def _add_output_bins(self) -> None:
+        """P226: two static side bins (`FRUIT_OUTPUT_BINS=1`).
+
+        Geometry from `SceneConfig` (`bin_center_*`, `bin_size`,
+        `bin_floor_top_z`, `bin_wall_height`): an open box on a stand, floor
+        0.95, rim 1.15 (below the belt's fruit top, so it never shades the
+        approach), at `x -0.10, |y| 0.58` - the cell P90's NAT probe solves to
+        **6.0 mm** with **+0.405 rad** margin on the OpenArm.
+        """
+        from .conveyor import _add_physics_material
+
+        cfg = self.cfg
+        cx = float(cfg.bin_center_x)
+        sx, sy = (float(v) for v in cfg.bin_size)
+        floor_top = float(cfg.bin_floor_top_z)
+        wall_h = float(cfg.bin_wall_height)
+        wall = 0.012
+        for index, sign in ((0, 1.0), (1, -1.0)):
+            cy = sign * float(cfg.bin_center_y)
+            root = f"/World/OutputBin{'P' if sign > 0 else 'N'}"
+            floor = _define_box(
+                self.stage, f"{root}/Floor",
+                size=(sx, sy, 0.02), center=(cx, cy, floor_top - 0.01),
+            )
+            _set_color(floor, (0.30, 0.32, 0.35))
+            UsdPhysics.CollisionAPI.Apply(floor.GetPrim())
+            _add_physics_material(floor.GetPrim(), 0.8, 0.8, 0.0)
+            for s2 in (-1.0, 1.0):
+                pockets = (
+                    ("WallX", (wall, sy, wall_h),
+                     (cx + s2 * (sx / 2.0 - wall / 2.0), cy, floor_top + wall_h / 2.0)),
+                    ("WallY", (sx, wall, wall_h),
+                     (cx, cy + s2 * (sy / 2.0 - wall / 2.0), floor_top + wall_h / 2.0)),
+                )
+                for name, size, centre in pockets:
+                    part = _define_box(
+                        self.stage,
+                        f"{root}/{name}{'P' if s2 > 0 else 'N'}",
+                        size=size, center=centre,
+                    )
+                    _set_color(part, (0.40, 0.42, 0.45))
+                    UsdPhysics.CollisionAPI.Apply(part.GetPrim())
+                    _add_physics_material(part.GetPrim(), 0.8, 0.8, 0.0)
+            stand = _define_box(
+                self.stage, f"{root}/Stand",
+                size=(sx - 0.06, sy - 0.06, floor_top),
+                center=(cx, cy, floor_top / 2.0),
+            )
+            _set_color(stand, (0.33, 0.34, 0.36))
+            UsdPhysics.CollisionAPI.Apply(stand.GetPrim())
+            say(
+                f"output bin {'P' if sign > 0 else 'N'}: {sx:.2f}x{sy:.2f} m at "
+                f"x={cx:+.2f}, y={cy:+.2f}, floor z={floor_top:.2f}, "
+                f"rim z={floor_top + wall_h:.2f}"
+            )
 
     def _add_head_camera(self) -> None:
         cfg = self.cfg

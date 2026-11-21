@@ -780,6 +780,36 @@ knob. This also corrects 4q's phrasing: the far-rule extension failures are not
 "the approach distribution" - the fruit is **unseen**, and the goal never leaves
 the station nominal.
 
+### 4s. The side-bin layout is reachable on the current arm (I was testing the wrong place) and the bins are built
+
+The owner's correction is right: the bins go at the **robot's sides**, not over
+the belt. P90's own `NAT` probe at the side stations (x -0.10..0.05,
+|y| 0.40..0.65, z 1.05/1.20, both arms) reads:
+
+| z | best cell | residual | margin |
+|---:|---|---:|---:|
+| 1.05 | x -0.05, \|y\| 0.40-0.50 | 9.8-10.6 mm | 0.00-0.395 rad |
+| **1.20** | **x -0.10, \|y\| 0.60** | **6.0 mm** | **+0.405 rad** |
+
+i.e. the side-bin place pose **is** reachable (the 6 mm bar of the P90 map), and
+the earlier 105-225 mm cells were the *over-belt* positions - the wrong place to
+put a bin. The two output bodies are now authored as **static side bins**
+(`FRUIT_OUTPUT_BINS=1`, default off): 0.34 x 0.30 m, floor z 0.95, rim z 1.15
+(below the belt's fruit top, so they add no shadow), at `x -0.10, |y| 0.58`, and
+`output_place_x/y/z` follow them (-0.10, 0.58, 1.20); the score's
+`output_lane_of` and the fell-off suppression read the bin volume. The old scene
+is backed up (`logs/p225/scene_belts_backup/`) and the default path is
+byte-identical (`selfcheck` PASS).
+
+**The first cell is a wiring result, not a rate**: `N12BIN_s101` (0.12, 6 ep)
+reads 0/6, but three attempts are `placed=True, grasped=False` (the payload is
+scored **inside the bin volume** - the bins and the place reach work) with
+`gap_min` 33-75 mm and the finger at 0.0246-0.0272, and the other three are the
+acquisition class; the failures run to the 2600-tick horizon
+(`timeout: no grasp`). So the geometry is solved; the bin cell still needs its
+own scoring/boundary pass (the `grasped` predicate and the episode end under the
+release endpoint) before it can be compared with the belt cell.
+
 ## 5. The honest boundary: the strict no-servo ablation is 0/7
 
 `FRUIT_CONTACT_SERVO=0 FRUIT_PLACE_SERVO=0`, every other knob as in section 2:

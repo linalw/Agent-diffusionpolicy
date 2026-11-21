@@ -458,12 +458,46 @@ class SceneConfig:
     #: therefore pulled towards the robot, and the belt carries the fruit the
     #: rest of the way.
     output_place_x: float = field(
-        default_factory=lambda: float(os.environ.get("FRUIT_OUTPUT_PLACE_X", "0.43"))
+        default_factory=lambda: float(
+            os.environ.get(
+                "FRUIT_OUTPUT_PLACE_X",
+                "-0.10" if os.environ.get("FRUIT_OUTPUT_BINS", "0").strip() == "1" else "0.43",
+            )
+        )
     )
     output_place_y: float = field(
-        default_factory=lambda: float(os.environ.get("FRUIT_OUTPUT_PLACE_Y", "0.50"))
+        default_factory=lambda: float(
+            os.environ.get(
+                "FRUIT_OUTPUT_PLACE_Y",
+                "0.58" if os.environ.get("FRUIT_OUTPUT_BINS", "0").strip() == "1" else "0.50",
+            )
+        )
     )
     output_place_clearance: float = 0.10
+
+    # ------------------------------------------------------------------ #
+    # P226: the **side-bin** layout (`FRUIT_OUTPUT_BINS=1`, default off).
+    #
+    # The owner's cell: one gripper arm, a bin on each side of the robot
+    # instead of the two raised output belts - which is also what removes the
+    # belts' shadow over the approach. The pose is **measured**, not guessed:
+    # P90's own NAT probe over x -0.10..0.05, |y| 0.40..0.65, z 1.05/1.20 puts
+    # the best cell at `x = -0.10, |y| = 0.60, z = 1.20` with **6.0 mm** residual
+    # and **+0.405 rad** joint margin (all four over-belt cells at that height
+    # were 105-225 mm; the side of the robot is where this arm has workspace).
+    # The bins sit behind the head camera's x (=0.05), so they do not shade the
+    # belt at all. Floor 0.95, rim 1.15 (below the belt's fruit top, 1.20);
+    # the release is at `output_place_z` 1.20 (the jaw), so the payload drops
+    # 0.05 m past the rim onto the bin floor.
+    # ------------------------------------------------------------------ #
+    output_bins: bool = field(
+        default_factory=lambda: os.environ.get("FRUIT_OUTPUT_BINS", "0").strip() == "1"
+    )
+    bin_center_x: float = -0.10
+    bin_center_y: float = 0.58
+    bin_size: tuple[float, float] = (0.34, 0.30)
+    bin_floor_top_z: float = 0.95
+    bin_wall_height: float = 0.20
 
     # Discharge at the +X end of each output belt. A placed fruit is carried to
     # the end of the belt; without anything there it fell to the floor and the
@@ -716,7 +750,17 @@ class SceneConfig:
 
     @property
     def output_place_z(self) -> float:
-        """Pad-centre height the fruit is released from [m]."""
+        """Pad-centre height the fruit is released from [m].
+
+        P226: with `FRUIT_OUTPUT_BINS=1` the release is at the **bin's** jaw
+        height (1.20, the measured reachable cell), not above the belt; an
+        explicit `FRUIT_OUTPUT_PLACE_Z` always wins.
+        """
+        _z = os.environ.get("FRUIT_OUTPUT_PLACE_Z", "").strip()
+        if _z:
+            return float(_z)
+        if os.environ.get("FRUIT_OUTPUT_BINS", "0").strip() == "1":
+            return 1.20
         return float(self.output_belt_top_z) + float(self.output_place_clearance)
 
     @property
@@ -728,9 +772,27 @@ class SceneConfig:
         )
 
     def output_lane_of(self, position, margin: float = 0.06) -> int | None:
-        """Which output belt `position` is on (or within `margin` of), else None."""
+        """Which output belt `position` is on (or within `margin` of), else None.
+
+        P226: with the side bins the body is the **bin's volume** (floor to rim,
+        footprint + margin), so the release score and the fell_off suppression
+        read the same way they do on a belt.
+        """
         x = float(position[0])
         z = float(position[2])
+        if os.environ.get("FRUIT_OUTPUT_BINS", "0").strip() == "1":
+            hx = float(self.bin_size[0]) / 2.0 + margin
+            hy = float(self.bin_size[1]) / 2.0 + margin
+            for index, sign in ((0, 1.0), (1, -1.0)):
+                if (
+                    abs(x - float(self.bin_center_x)) <= hx
+                    and abs(float(position[1]) - sign * float(self.bin_center_y)) <= hy
+                    and float(self.bin_floor_top_z) - margin
+                    <= z
+                    <= float(self.bin_floor_top_z) + float(self.bin_wall_height) + margin
+                ):
+                    return index
+            return None
         for lane in self.output_lane_layout():
             _cx, cy, _cz = (float(v) for v in lane["belt_center"])
             _sx, sy, _sz = (float(v) for v in lane["belt_size"])
