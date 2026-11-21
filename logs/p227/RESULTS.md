@@ -559,3 +559,39 @@ No-harm: the ledger only runs with an instruction armed, and belt destinations
 take the old anchor, so P114/P121's cells are unchanged; `accept.sh` **7/10,
 `fingerprint: matches`, `458/458`** identical; `selfcheck.sh` **PASS** with the
 new pins in `282`; `106` OK, `107` PASS.
+
+## 17. P227s (ii): a routing the shipped grade rule cannot produce
+
+The instruction layer is only *demonstrated* on this cell if it can drive a
+delivery the cell could not make otherwise. With the same bins descriptor and
+
+```
+size<55 => 1
+default => 0
+```
+
+(`logs/p227/size_rule.txt`; `262_sort_plan`: **OVERLAP none**, dest 0 78 cells /
+dest 1 42; the pool covers dest0=11 / dest1=5) the cell reads:
+
+```
+[sort] attempt 1 idx=4  apple  d=6.5cm grade=B arm=left  rule=2 dest=0 (+Y) in_dest=1 dist= 32mm
+[sort] attempt 2 idx=14 orange d=6.6cm grade=C arm=left  rule=2 dest=0 (+Y) in_dest=1 dist= 88mm
+[sort] attempt 3 idx=12 peach  d=6.9cm grade=A arm=left  rule=2 dest=0 (+Y) in_dest=1 dist= 42mm
+[sort] attempt 4 idx=13 kiwi   d=5.4cm grade=A arm=right rule=1 dest=1 (-Y) in_dest=1 dist= 55mm
+[sort] attempt 5 idx=6  tomato d=6.6cm grade=A arm=left  rule=2 dest=0 (+Y) in_dest=1 dist= 80mm
+[sort] attempt 6 idx=1  lychee d=3.4cm grade=B arm=right rule=1 dest=1 (-Y) in_dest=1 dist=126mm
+[sort] ledger: attempts=6 assigned=6 released=6 in_destination=6 mis_sorted=0
+```
+
+**6/6 placed, 6/6 in the instructed destination, 0 mis-sorted**, and the
+witnesses are exactly what the grade rule cannot do: a **grade-A kiwi (5.4 cm)
+into the -Y bin** (grade A goes +Y) and a **grade-B apple / grade-C orange
+(6.5/6.6 cm) into the +Y bin** (B/C go -Y). The arm label follows the
+destination (`_arm_for_destination`), which on this cell is one physical Panda -
+the capability map's bookkeeping, not a second arm. Settled distances 32-126 mm
+inside the correct bin.
+
+So the cell's **decision layer** is functional and its **endpoint is
+measurable**: the model sorts to where the instruction says, including routings
+the shipped rule cannot express, with the ledger's assignment accuracy as the
+number.
