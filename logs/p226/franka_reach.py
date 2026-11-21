@@ -73,11 +73,16 @@ def main() -> int:
             app_utils.update_app(steps=1)
             if err_step <= 0.003:
                 break
+        # The number that matters is the **jaw** error: `ik_step`/`solve_to`
+        # return the TCP residual, and the TCP<->jaw offset rotates with the
+        # wrist, so a TCP residual is not a jaw error.
+        jaw = np.asarray(arm.jaw_centre(), dtype=float)
+        err_jaw = float(np.linalg.norm(jaw - target))
         say(
             f"[reach] {name:4s} target=({target[0]:+.3f},{target[1]:+.3f},{target[2]:.3f}) "
-            f"solve_res={err_solve * 1e3:7.1f} mm ({len(q_sol)} q)  "
-            f"step_res={err_step * 1e3:7.1f} mm  margin={margin:+.3f} rad  "
-            f"{'PASS' if min(err_solve, err_step) <= 0.006 and margin >= 0.05 else 'fail'}"
+            f"jaw_err={err_jaw * 1e3:7.1f} mm at ({jaw[0]:+.3f},{jaw[1]:+.3f},{jaw[2]:.3f})  "
+            f"tcp_res={err_step * 1e3:6.1f} mm  margin={margin:+.3f} rad  "
+            f"{'PASS' if err_jaw <= 0.006 and margin >= 0.05 else 'fail'}"
         )
     simulation_app.close()
     return 0
