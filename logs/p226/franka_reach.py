@@ -44,11 +44,23 @@ def main() -> int:
     arm.set_gripper(arm.OPEN)
     q0 = np.asarray(arm.joint_positions(), dtype=float)
     say(f"[reach] kind={os.environ.get('FRUIT_ARM_KIND')} q0={np.array2string(q0, precision=3)}")
-    targets = {
-        "pick": (float(cfg.pick_x), float(cfg.pick_y), belt_top + 0.03),
-        "binP": (float(cfg.bin_center_x), float(cfg.bin_center_y), float(cfg.bin_floor_top_z) + 0.10),
-        "binN": (float(cfg.bin_center_x), -float(cfg.bin_center_y), float(cfg.bin_floor_top_z) + 0.10),
-    }
+    # A grid when the env gives one (the bin-height question), else the three
+    # layout points.
+    xs = [float(v) for v in os.environ.get("REACH_X", "").split(",") if v.strip()]
+    ys = [float(v) for v in os.environ.get("REACH_Y", "").split(",") if v.strip()]
+    zs = [float(v) for v in os.environ.get("REACH_Z", "").split(",") if v.strip()]
+    targets = {}
+    if xs and ys and zs:
+        for zi, z in enumerate(zs):
+            for yi, y in enumerate(ys):
+                for xi, x in enumerate(xs):
+                    targets[f"z{z:.2f}_y{y:.2f}_x{x:.2f}"] = (x, y, z)
+    else:
+        targets = {
+            "pick": (float(cfg.pick_x), float(cfg.pick_y), belt_top + 0.03),
+            "binP": (float(cfg.bin_center_x), float(cfg.bin_center_y), float(cfg.bin_floor_top_z) + 0.10),
+            "binN": (float(cfg.bin_center_x), -float(cfg.bin_center_y), float(cfg.bin_floor_top_z) + 0.10),
+        }
     for name, target in targets.items():
         target = np.asarray(target, dtype=float)
         # The repo's calibration solver (multi-restart, position-only) is the

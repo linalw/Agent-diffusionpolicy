@@ -489,7 +489,7 @@ class SceneConfig:
         default_factory=lambda: float(
             os.environ.get(
                 "FRUIT_OUTPUT_PLACE_Y",
-                "0.58" if os.environ.get("FRUIT_OUTPUT_BINS", "0").strip() == "1" else "0.50",
+                "0.55" if os.environ.get("FRUIT_OUTPUT_BINS", "0").strip() == "1" else "0.50",
             )
         )
     )
@@ -513,11 +513,18 @@ class SceneConfig:
     output_bins: bool = field(
         default_factory=lambda: os.environ.get("FRUIT_OUTPUT_BINS", "0").strip() == "1"
     )
+    #: P227: the side-bin geometry **at the height the Panda can reach**. The
+    #: first pass put the floor at 0.95 / rim 1.15 and the place jaw at 1.20, but
+    #: the arm's jaw stays 130-200 mm high there (the position-only IK cannot
+    #: descend at those poses; `logs/p226/bin_height_grid.log`). The grid at
+    #: z 1.25/1.32 passes **every** cell at 2.6-2.9 mm with 0.46-1.27 rad
+    #: margin, so the bins move up: floor 1.10, rim 1.26 (a shallow tray, the
+    #: hand's pads sit inside its mouth at the release), place jaw 1.30.
     bin_center_x: float = -0.10
-    bin_center_y: float = 0.58
+    bin_center_y: float = 0.55
     bin_size: tuple[float, float] = (0.34, 0.30)
-    bin_floor_top_z: float = 0.95
-    bin_wall_height: float = 0.20
+    bin_floor_top_z: float = 1.10
+    bin_wall_height: float = 0.16
 
     # Discharge at the +X end of each output belt. A placed fruit is carried to
     # the end of the belt; without anything there it fell to the floor and the
@@ -780,7 +787,7 @@ class SceneConfig:
         if _z:
             return float(_z)
         if os.environ.get("FRUIT_OUTPUT_BINS", "0").strip() == "1":
-            return 1.20
+            return 1.30
         return float(self.output_belt_top_z) + float(self.output_place_clearance)
 
     @property
