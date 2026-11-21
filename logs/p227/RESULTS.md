@@ -435,6 +435,11 @@ the payload is not between them), while the 60 mm success reads
   in while the far pad stays 4.5 mm out).
 * `FRUIT_DYNAMIC_DESCEND_MARGIN=0.25` (start earlier): 5/6 with residuals
   unchanged (P227o §12).
+* `FRUIT_DYNAMIC_CLOSE_LOCK_X=0` (let the close re-centre x instead of pinning
+  it at the first close tick - the pin is the term that leaves the fruit
+  off-centre): **2/6** at seed 6 against the pinned 1/6 (`pear_6_s6_nolock.log`),
+  i.e. one attempt more on one cell - a wash, not adopted; the pin itself is a
+  measured OpenArm property (P2b).
 
 The regrasp path already re-aims at the fruit's live centre (`ik_step` with the
 fruit's x/y/z, no frozen x) and still does not convert the class, and the close

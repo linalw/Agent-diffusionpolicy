@@ -7519,8 +7519,9 @@ between them) - while the 60 mm success reads `force_min=7.47 N` at
 seed 6 against 1/6, but the residual never converges - 2.9-7.7 mm, the loop burns
 its budget - and seed 5's default is already 5/6); `FRUIT_DYNAMIC_MIN_INTERFERENCE=0.005`
 (1/5, same class: a deeper squeeze cannot centre an off-centre fruit - the near
-pad presses 5.5 mm in while the far one stays 4.5 mm out); and P227o's margin
-(5/6, residuals unchanged). The regrasp already re-aims at the fruit's live
+pad presses 5.5 mm in while the far one stays 4.5 mm out); P227o's margin
+(5/6, residuals unchanged); and `FRUIT_DYNAMIC_CLOSE_LOCK_X=0` (2/6 against the
+pinned 1/6 - a wash; the pin is a measured OpenArm property). The regrasp already re-aims at the fruit's live
 centre and does not convert it, so this is `logs/p42/SIM_LIMIT.md`'s closed class
 at the pool's largest fruit (a new pad asset, a force-controlled finger, or a
 sub-3 mm presentation; a wider plate is the only lever on the +-3.5 mm and the
