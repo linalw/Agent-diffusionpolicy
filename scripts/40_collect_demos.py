@@ -249,7 +249,12 @@ def update_manifest_physics(out_dir: str, task) -> None:
         json.dump(manifest, handle, indent=2, sort_keys=True)
     drive = physics.get("finger_drive", {})
     rows = drive.get("joints") or {}
-    first = rows.get("openarm_left_finger_joint1")
+    #: P227t: the read-back's own first row - the joint *names* are the arm's
+    #: (the OpenArm's `openarm_left_finger_joint1`, the Panda's
+    #: `panda_finger_joint1`), so looking up the OpenArm key made every other
+    #: arm's shard print "no finger joints found" while its manifest carried the
+    #: rows.
+    first = next(iter(rows.values()), None)
     if first is None:
         say(
             "[collect] physics read-back: no finger joints found "

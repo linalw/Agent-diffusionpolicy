@@ -244,6 +244,19 @@ def main() -> int:
     check("if self._instruction is not None:" in capture[:400]
           and "result.settled_pos = (" in capture[:600],
           "the settle sample is captured only when an instruction is armed")
+    # P227t: the store manifest names the arm asset (the action space's owner).
+    arm_prov = grab(assets_src, "_arm_provenance")
+    scene_prov = grab(assets_src, "scene_provenance")
+    check("from .control import arm_specs" in arm_prov
+          and "list(spec.arm_joint_names)" in arm_prov
+          and "list(spec.finger_joint_names)" in arm_prov
+          and "float(spec.finger_face_offset)" in arm_prov,
+          "the manifest's arm block is built from the resolved ArmSpec")
+    check('"arm": _arm_provenance()' in scene_prov,
+          "the scene provenance block carries the arm")
+    check("except Exception:" in arm_prov and "\"resolved\": False" in arm_prov,
+          "an offline manifest probe (no simulator) degrades instead of raising")
+
     ledger = grab(tasks_src, "_sort_ledger_row")
     check('if target.kind == "bin" and settled is not None:' in ledger
           and "anchor = np.asarray(settled, dtype=float)" in ledger

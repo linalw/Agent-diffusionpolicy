@@ -607,3 +607,60 @@ in those rows is a **pool-position** one, not a defect - the active list at the
 starved slot holds fruit at 0.549/0.394 m (the selector floor is ~0.399) with the
 rest past the station or on the output side. It is not reproducible on demand, so
 the refusal reason stays unmeasured and the class is recorded, not fixed.
+
+## 18. P227t: the first demonstration store for this arm - and the provenance it needed
+
+Option (b) of the owner's choice - put the learned lane on this cell - starts with
+the artifact every policy needs: a **demonstration store in this arm's joint
+space**. Collected with the shipped collector in its single-arm mode
+(`FRUIT_EPISODES=12 FRUIT_DEMO_DIR=datasets/p227_panda FRUIT_ARM_KIND=franka
+FRUIT_OUTPUT_BINS=1 FRUIT_BIARM=0 FRUIT_CAMERA_RES=240,424`):
+
+```
+[collect] mode=single_arm scheduler[FRUIT_BIARM=0(explicit) FRUIT_BIARM_TWOLINE=0(biarm-off)] episodes=12 dynamic=True
+collected 12 successful episodes into datasets/p227_panda (attempts=13) gate_open=0.00s total
+```
+
+**`106`: entries=12 files=12 index_frames=2137 file_frames=2137 windows=1933
+unique_content=12 OK.** Each episode is `191 x {joint_positions (9), action (9),
+goal (8), image_rgb 240x424, depth, target mask, fruit_position, tcp, jaw,
+cmd_tcp}`, and the action's arm columns are plainly the Panda's
+(`[0.441, -1.038, -0.260, -2.545, -0.225, 1.521, -0.489]`, min/max -2.72/1.88) -
+not the OpenArm's.
+
+### The provenance this needed (two arm-specific labels, both fixed)
+
+1. **The store did not name its arm.** `assets.scene_provenance` carried the
+   collider set, the camera, the lanes and the finger plate, but **not the arm
+   asset**: a Panda store and an OpenArm store differed only by an `assets.py` md5
+   that moves for every unrelated edit. It now carries
+   `scene.arm = {kind, usd, resolved, labels, arm_joints, finger_joints,
+   finger_links, tcp_link, open_value, jaw{offset, per_joint, face_offset}}`,
+   built from the resolved `ArmSpec` - one builder, both manifest writers - and it
+   degrades to `{kind, usd, resolved: false}` on the CPU manifest probes that have
+   no simulator. A manifest without the key predates P227t.
+2. **The drive read-back compared against the OpenArm's cap.**
+   `_finger_drive_readback` compared every joint's read-back against
+   `finger_maxforce_intent()`, whose "asset's own" value is the OpenArm's
+   **10 N** - so this arm's manifest read `profile: custom` and
+   `readback_matches: false` while its joints read the shipped pair
+   (k = 1e5, c = 2000, cap **7.2 N**). A cap is only *intended* when the build
+   wrote one (`FRUIT_FINGER_MAXFORCE` set); with it unset the drives keep the
+   asset's own caps, so the cap check now runs only then and the k/c check still
+   proves the programmed pair. Re-collected store:
+   **`profile: finger_damp02`, `readback_matches: true`**, joints
+   `panda_finger_joint1 {k 1e5, c 2000, maxForce 7.2}`, `panda_finger_joint2`
+   the drive-less mimic (0). The collector's log line now names the read-back's
+   own first row, so another arm no longer prints "no finger joints found".
+
+### What this implies for the policy (measured, not assumed)
+
+The action space is **structurally the same** as the OpenArm's (7 arm joints + a
+finger scalar) but the **joint values are a different arm's**, so the existing
+checkpoints and their anchor store cannot be reused: the lineage fine-tune uses
+`demos_v11` as the anchor, and those demonstrations are OpenArm joint
+trajectories. P144 measured that dropping the anchor (`--base ""`) on 45 episodes
+**destroys the grasp** (0/12 on either camera), so a Panda policy needs either a
+much larger from-scratch store than 12 episodes or a different recipe - the
+next decision this lane owes, and the reason this phase stops at the artifact
+plus its provenance rather than a fine-tune that would be a coin flip.

@@ -395,11 +395,22 @@ def _finger_drive_readback(arms: dict) -> tuple[dict, bool, str]:
         for name, joint_k, joint_c, cap in zip(names, ks, cs, caps):
             rows[name] = {"k": joint_k, "c": joint_c, "maxForce": cap}
     resolved_k, resolved_c, _ = finger_drive_profile()
+    #: P227t: a cap is only *intended* when the build wrote one. With
+    #: `FRUIT_FINGER_MAXFORCE` unset the drives keep the **asset's own** caps -
+    #: 10 N on the OpenArm's `joint1`, **7.2 N** on the Panda's - so comparing the
+    #: read-back against the OpenArm constant made every other arm's store read
+    #: `profile: custom` and `readback_matches: False`
+    #: (`datasets/p227_panda/manifest.json` before this fix). The k/c check
+    #: below is what proves the *programmed* pair; the cap check runs only when
+    #: the run asked for one.
+    cap_intended = resolve_finger_maxforce() is not None
     wrong = []
     for name, row in rows.items():
         want_cap = intent.get(name.rsplit("_", 1)[-1])
         cap = row["maxForce"]
-        if want_cap is None or not math.isfinite(cap) or abs(cap - want_cap) > 1e-3:
+        if cap_intended and (
+            want_cap is None or not math.isfinite(cap) or abs(cap - want_cap) > 1e-3
+        ):
             wrong.append(f"{name} maxForce={cap}")
         if resolved_k > 0.0 and (
             abs(row["k"] - resolved_k) > 1e-6 or abs(row["c"] - resolved_c) > 1e-6

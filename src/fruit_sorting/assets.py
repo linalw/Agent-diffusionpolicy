@@ -1044,6 +1044,46 @@ def head_camera_override(cfg) -> tuple[tuple[float, ...], tuple[float, ...]]:
     return tuple(float(v) for v in eye), tuple(float(v) for v in aim)
 
 
+def _arm_provenance() -> dict:
+    """The arm asset a store or checkpoint belongs to (P227t).
+
+    `scene_provenance`'s `arm` block: the **kind**, the USD, the arm's own
+    joint names (the action space's order), its finger joints/links, the TCP
+    link and the jaw law. Written by the same one builder both manifest writers
+    call, so a shard and a rollout manifest cannot disagree. The **shipped**
+    OpenArm keeps its usual shape; a `FRUIT_ARM_KIND=franka` store names the
+    Panda. A manifest **without** this key predates P227t and is an OpenArm
+    store on every tree that had no other arm.
+    """
+    kind = robot_kind()
+    usd = str(FRANKA_USD if kind == "franka" else OPENARM_BIMANUAL_USD)
+    try:
+        from .control import arm_specs
+    except Exception:  # noqa: BLE001 - the offline manifest path has no simulator
+        # `control` imports `isaacsim`; the CPU selfcheck's manifest probes run
+        # without it. A *real* writer (the collector, the direct env) always has
+        # it, so this branch only ever appears in an offline probe.
+        return {"kind": kind, "usd": usd, "resolved": False}
+    specs = arm_specs()
+    spec = specs[0]
+    return {
+        "kind": kind,
+        "usd": usd,
+        "resolved": True,
+        "labels": [s.side for s in specs],
+        "arm_joints": list(spec.arm_joint_names),
+        "finger_joints": list(spec.finger_joint_names),
+        "finger_links": list(spec.finger_link_names),
+        "tcp_link": str(spec.tcp_link),
+        "open_value": float(spec.open_value),
+        "jaw": {
+            "offset": float(spec.jaw_offset),
+            "per_joint": float(spec.jaw_per_joint),
+            "face_offset": float(spec.finger_face_offset),
+        },
+    }
+
+
 def scene_provenance(
     cfg,
     lift_dz: dict | None = None,
@@ -1145,6 +1185,13 @@ def scene_provenance(
             "pad_wide": float(os.environ.get("FRUIT_FINGER_PAD_WIDE", "0") or 0.0),
             "tip_delta": os.environ.get("FRUIT_FINGER_TIP_DELTA", ""),
         },
+        #: P227t: **which arm asset** the store was recorded with. A Panda store
+        #: and an OpenArm store are otherwise distinguishable only by an
+        #: `assets.py` md5 that moves for every unrelated edit: the joints a
+        #: policy's action space is expressed in are the arm's, so the two
+        #: cannot be mixed (`FRUIT_ARM_KIND`). Everything here is the resolved
+        #: `ArmSpec` plus the USD path - no simulator read.
+        "arm": _arm_provenance(),
         "lift": None,
     }
     if lift_dz is not None:

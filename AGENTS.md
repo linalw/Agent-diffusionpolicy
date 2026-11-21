@@ -7597,6 +7597,40 @@ mis-sorted** with the witnesses a **grade-A kiwi (5.4 cm) in the -Y bin** and a
 follows the destination (one physical Panda; the capability map's bookkeeping) -
 settled distances 32-126 mm inside the correct bin (`attempt_6_s5_size.log`).
 
+**P227t (2026-11-22, `logs/p227/`; the **first demonstration store for this arm**
+plus two provenance fixes; nothing shipped moved): option (b) of the owner's
+choice - the learned lane on this cell - starts with the artifact any policy
+needs, and it exists: `datasets/p227_panda`, **12 episodes / 2137 frames / 1933
+windows, `106` OK**, collected by the shipped collector in its single-arm mode
+(`FRUIT_EPISODES=12 FRUIT_DEMO_DIR=datasets/p227_panda FRUIT_ARM_KIND=franka
+FRUIT_OUTPUT_BINS=1 FRUIT_BIARM=0 FRUIT_CAMERA_RES=240,424`, 13 attempts,
+`gate_open=0.00 s`), with the action's arm columns plainly the Panda's
+(`[0.441,-1.038,-0.260,-2.545,-0.225,1.521,-0.489]`, min/max -2.72/1.88). **Two
+arm-specific provenance labels were wrong and are fixed**: (1) the store did
+**not name its arm** - a Panda store and an OpenArm one differed only by an
+`assets.py` md5 that moves for every edit - so `assets.scene_provenance` now
+carries `scene.arm = {kind, usd, resolved, labels, arm_joints, finger_joints,
+finger_links, tcp_link, open_value, jaw{offset,per_joint,face_offset}}` from the
+resolved `ArmSpec` (one builder, both manifest writers; degrades to
+`{kind, usd, resolved: false}` on the CPU probes); (2) `_finger_drive_readback`
+compared every joint against `finger_maxforce_intent()`'s "asset's own" cap,
+which is the **OpenArm's 10 N**, so this arm's manifest read `profile: custom` +
+`readback_matches: false` while its joints carried the shipped pair - a cap is
+only *intended* when the build wrote one, so the cap check now runs only then
+(re-collected store: **`profile: finger_damp02`, `readback_matches: true`**,
+`panda_finger_joint1 {k 1e5, c 2000, maxForce 7.2}`, joint2 the mimic 0), and the
+collector's log names the read-back's own first row. **What this implies for the
+policy, measured**: the action space is structurally the same (7 joints + a
+finger scalar) but the values are a different arm's, so the existing checkpoints
+and their `demos_v11` anchor cannot be reused (P144: `--base ""` on 45 episodes
+destroys the grasp, 0/12) - a Panda policy needs a much larger from-scratch store
+or a different recipe, which is the lane's next decision. No-harm: `accept.sh`
+**7/10, `fingerprint: matches`**, stream **458/458 identical** to
+`logs/p136/accept_final.log`; `selfcheck.sh` **PASS** with three new pins in
+`282`; `106` OK (the new store audits clean), `107` PASS. Pins: `assets.py`,
+`scene.py`, `scripts/40_collect_demos.py`, `scripts/282_p227i_arm_spec_selftest.py`;
+references **`61fb5202` / `61fb5202` / `18b101bf`** untouched.
+
 **P142 (2026-11-11, `logs/p142/`; two defect fixes + a declared metric,
 **nothing adopted, no reference moved**): the direct lane's two *bookkeeping*
 failures are removed and its zero is shown to be the station reselect's timing.
