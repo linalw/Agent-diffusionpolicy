@@ -66,10 +66,17 @@ def main() -> int:
         # The repo's calibration solver (multi-restart, position-only) is the
         # right instrument for a *layout* question: it answers "does a
         # configuration exist", which is what the waypoints need.
+        # P227: **staged** - first above the target, then the target. A
+        # position-only solve from the folded zero pose lands in a local minimum
+        # for the pick (the jaw stops 15.6 mm high); approaching from above
+        # gives the wrist the configuration it needs.
+        above = np.array([target[0], target[1], target[2] + 0.12], dtype=float)
         arm.teleport_joints(np.asarray(q0, dtype=float))
         arm.hold_quaternion = None
+        arm.solve_to(above, iterations=600, tolerance=0.006, restarts=1, move_on_fail=True)
+        app_utils.update_app(steps=5)
         q_sol, err_solve = arm.solve_to(
-            target, iterations=1500, tolerance=0.004, restarts=3, move_on_fail=True
+            target, iterations=1500, tolerance=0.004, restarts=2, move_on_fail=True
         )
         app_utils.update_app(steps=5)
         qa = np.asarray(arm.joint_positions(), dtype=float)

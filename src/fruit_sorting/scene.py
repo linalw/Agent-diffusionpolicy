@@ -2364,7 +2364,17 @@ class SortingScene:
         prim = self.stage.DefinePrim("/World/OpenArm", "Xform")
         prim.GetReferences().AddReference(usd)
         UsdGeom.Xformable(prim).ClearXformOpOrder()
-        UsdGeom.Xformable(prim).AddTranslateOp().Set(Gf.Vec3d(0.0, 0.0, base_z))
+        base_x = (
+            float(os.environ.get("FRUIT_FRANKA_BASE_X", "0.0"))
+            if kind == "franka"
+            else 0.0
+        )
+        base_y = (
+            float(os.environ.get("FRUIT_FRANKA_BASE_Y", "0.0"))
+            if kind == "franka"
+            else 0.0
+        )
+        UsdGeom.Xformable(prim).AddTranslateOp().Set(Gf.Vec3d(base_x, base_y, base_z))
         local = not str(usd).startswith("http") and os.path.exists(str(usd))
         say(
             f"robot referenced -> {'local flattened asset' if local else 'remote asset'} "
