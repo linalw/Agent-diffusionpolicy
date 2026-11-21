@@ -595,3 +595,15 @@ So the cell's **decision layer** is functional and its **endpoint is
 measurable**: the model sorts to where the instruction says, including routings
 the shipped rule cannot express, with the ledger's assignment accuracy as the
 number.
+
+### 15.5 The starved slots are intermittent, and P99's diagnostic could not catch one
+
+`FRUIT_BED_DIAG=2` (P99's selector instrument: the floor plus one row per live
+fruit with its first refusing predicate) was run at seeds 5, 6 and 101 - and
+**no cell starved** (`attempt_6_s{6,101}_bed.log`; seed 5's earlier diag cell
+also read 0). The class is therefore **intermittent**: it appeared once each at
+seeds 5, 6 and 101 in the P227r/P227s runs (1 slot of 6-7), and the state recorded
+in those rows is a **pool-position** one, not a defect - the active list at the
+starved slot holds fruit at 0.549/0.394 m (the selector floor is ~0.399) with the
+rest past the station or on the output side. It is not reproducible on demand, so
+the refusal reason stays unmeasured and the class is recorded, not fixed.
