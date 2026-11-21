@@ -106,12 +106,18 @@ def main() -> int:
     # P227: the jaw law on this arm - command -> measured separation.
     say(f"[reach] gripper law: offset={arm.JAW_SEPARATION_OFFSET:.4f} "
         f"per_joint={arm.JAW_SEPARATION_PER_JOINT:.2f} OPEN={arm.OPEN:.3f}")
-    for q in (0.010, 0.020, 0.030, 0.040):
+    say(
+        f"[reach] finger dofs={arm.finger_dofs} lo={np.array2string(arm.finger_lo, precision=4)} "
+        f"hi={np.array2string(arm.finger_hi, precision=4)}"
+    )
+    for q in (0.0, 0.010, 0.020, 0.030, 0.040):
         arm.set_gripper(float(q))
-        app_utils.update_app(steps=20)
+        app_utils.update_app(steps=30)
+        dof = np.asarray(arm.robot.get_dof_positions().numpy())[0]
         say(
-            f"[reach]   set_gripper({q:.3f}) -> jaw_separation="
-            f"{float(arm.jaw_separation()) * 1000:.1f} mm"
+            f"[reach]   set_gripper({q:.3f}) -> joints="
+            f"{np.array2string(dof[arm.finger_dofs], precision=4)} "
+            f"jaw_sep={float(arm.jaw_separation()) * 1000:.1f} mm"
         )
     simulation_app.close()
     return 0
