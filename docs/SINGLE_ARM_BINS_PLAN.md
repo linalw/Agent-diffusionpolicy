@@ -14,6 +14,10 @@ re-recorded.
 ```bash
 scripts/run.sh logs/p227/franka_waypoints.py     # writes configs/waypoints_franka.json
 SKIP_SELFCHECK=1 bash logs/p227/run_attempt.sh 6 5
+# or the gate (floor 0.80, the per-attempt table, and the ledger when instructed):
+SKIP_SELFCHECK=1 scripts/283_single_arm_gate.sh 6 5
+FRUIT_SCENARIO=logs/p227/bins_two_dest.json FRUIT_SORT_INSTRUCTION=logs/p227/size_rule.txt \
+  SKIP_SELFCHECK=1 scripts/283_single_arm_gate.sh 5 202
 ```
 
 The recipe is the scripted dynamic catch with the **per-fruit** standoff
