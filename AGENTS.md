@@ -7472,6 +7472,39 @@ beyond these samples (P93). No-harm: `accept.sh` **7/10, 9.5 s/attempt,
 `tasks.py`/`rl_env.py` (`TASKS_MD5` follow), `logs/p227/`; references
 **`61fb5202` / `61fb5202` / `18b101bf`** untouched.
 
+**P227p (2026-11-21, `logs/p227/`; default off, **nothing adopted**, no
+reference moved): the place blend must **lift clear** of the line first (a
+joint-space sweep can dip the payload under the belt), and the 6.9 cm pear is
+measured to be a **hand-vs-fruit geometry** question, not a criterion one.** A
+pear-only supply (`FRUIT_SUPPLY_SPECIES=pear`, `pear_6_s5.log`) reads **3/6** with
+three *different* mechanisms: one catch flail (`tilt0=106.7 deg`,
+`q_margin=-0.724 @j7`, `res_end=311 mm`), one empty-hand close (`force@onset=0`,
+`contacts@onset=0`, `sep_min=0.2 mm`, `fmax=213 N` - the pads met each other),
+and one **clean lift lost in the place leg** (`clean_slip 0.8 mm` on the lift,
+then `place0` `clean_slip_max=318 mm`, `onset_row=1`, `clr_win=-74 mm@belt`): the
+P227n joint blend sweeps the hand through the main belt. The park's own transit
+already has the shape this needs, so the place leg now makes a short vertical
+**clear move** (`+0.10 m`, `FRUIT_PLACE_CLEAR`) before the blend - measured, the
+pear cell **3/6 -> 5/6**, and the general cell **23/24 across seeds 5/6/101/202
+at 15.1-15.6 s/attempt** (the clear costs ~0.4 s). **The pear is the marginal
+fruit and it is seed-dependent**: pear-only 5/6 (s5) and 1/6 (s6); the finger
+plate is **76 mm** wide along the belt against its 69.9 mm, i.e. **+-3.5 mm** of
+centring, while the catch-up converges to the 6 mm tolerance (4.8-5.9 mm); the
+failures carry contact (0.96-7.36 N) and no lift. **Tested and not adopted**: a
+tighter catch tolerance (`FRUIT_DYNAMIC_CATCH_TOL=0.003`, 3/6 at seed 6 against
+1/6 but never converging - residuals 2.9-7.7 mm and the loop burns its budget -
+and seed 5's default already reads 5/6: a seed flip, not a mechanism); the close
+*does* track the fruit per tick (`ik_step` with `frozen_x` and the live y/z), so
+the miss is not a stale aim. **Named next**: `FRUIT_DYNAMIC_TRACE=1` on a pear
+close to separate "the pads missed along the belt" from "the pear squeezed out",
+then the hand-geometry price (a wider plate is the only lever on the +-3.5 mm,
+and the OpenArm's +17 mm width cell was a measured negative). No-harm:
+`accept.sh` **7/10, `fingerprint: matches`, `190: PASS`**, stream **458/458
+identical** to `logs/p136/accept_final.log`; `selfcheck.sh` **PASS (0 failures,
+1 skipped)** (`282` grown to pin the clear move); `106` OK, `107` PASS. Pins:
+`tasks.py`/`rl_env.py` (`TASKS_MD5` follow), `logs/p227/`; references
+**`61fb5202` / `61fb5202` / `18b101bf`** untouched.
+
 **P142 (2026-11-11, `logs/p142/`; two defect fixes + a declared metric,
 **nothing adopted, no reference moved**): the direct lane's two *bookkeeping*
 failures are removed and its zero is shown to be the station reselect's timing.

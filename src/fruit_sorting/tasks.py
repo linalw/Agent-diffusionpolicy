@@ -6042,6 +6042,22 @@ class PickAndPlaceTask:
                     )
                 )
                 if above is not None:
+                    # P227p: **lift clear first**, then blend. A joint-space line
+                    # from the lift pose to the bin's above-pose can dip the hand
+                    # through the main belt: the pear cell read `clr_win=-74 mm
+                    # @belt` and lost a cleanly-lifted payload in the place leg
+                    # (`logs/p227/pear_6_s5.log`, attempt 3). The park's own
+                    # transit has the same shape (`_ready_transit`: lift clear,
+                    # then blend), so a short vertical move first costs ~30 ticks
+                    # and keeps the payload above the line for the whole sweep.
+                    _clear = np.asarray(arm.jaw_centre(), dtype=float) + np.array(
+                        [0.0, 0.0, float(os.environ.get("FRUIT_PLACE_CLEAR", "0.10"))]
+                    )
+                    arm.move_to(
+                        arm.tcp_target_for_jaw(_clear),
+                        max_steps=int(os.environ.get("FRUIT_PLACE_CLEAR_STEPS", "120")),
+                        tolerance=0.012,
+                    )
                     self._blend_to(
                         side,
                         np.asarray(above, dtype=float),

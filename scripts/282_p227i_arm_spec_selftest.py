@@ -230,6 +230,11 @@ def main() -> int:
           and "self._pad_standoff(True, sample)" in freeze
           and "self._fingertip_offset(arm_name)" in freeze,
           "the catch-up's stop point uses the arm's own pad geometry")
+    # P227p: the place blend lifts clear first (a joint line can dip the payload
+    # through the belt), and the clear move precedes the blend.
+    check('FRUIT_PLACE_CLEAR", "0.10"' in carry
+          and carry.index("arm.move_to(") < carry.index("self._blend_to("),
+          "the single-arm place blend lifts clear of the line before sweeping")
 
     print()
     if failures:

@@ -354,3 +354,51 @@ the diag shows the catch was already accurate, so neither was the lever.
 seed 101 attempt 2: `grasped=False`, contact 7.32 N, `lift +0.000`): the hand
 reaches it, closes on its extent, and the payload does not follow the lift -
 the record's loaded-slide class at the pool's largest, tapered fruit.
+
+## 13. P227p: the place blend must lift clear, and the pear class is a hand-vs-fruit geometry question
+
+### 13.1 The place blend could dip the payload below the line
+
+A pear-only supply (`FRUIT_SUPPLY_SPECIES=pear`, seed 5, 6 attempts,
+`pear_6_s5.log`) reads **3/6**, and the three failures are three *different*
+mechanisms:
+
+* attempt 2: the catch left the wrist at `tilt0=106.7 deg` with `q_margin=-0.724
+  @j7` (a joint beyond its limit) -> `res_end=311 mm`, `force_min=0.00` (the
+  catch class);
+* attempt 4: `force@onset=0.00`, `contacts@onset=0`, `sep_min=0.2 mm`,
+  `fmax=213 N` - the pads met **each other** (the fruit was not between them);
+* attempt 3: a **clean lift** (`clean_slip 0.8 mm`, `force_min 6.48 N`,
+  `sep_end 64.0 mm`) and then `place0` loses it: `clean_slip_max=318 mm`,
+  `onset_row=1`, `clr_win=-74 mm@belt` - the payload went **74 mm below the belt
+  top** during the place leg.
+
+The third is the joint blend added in P227n: a joint-space line from the lift
+pose to `bin0_above` can sweep the hand through the main belt. The park's own
+transit already has the shape this needs (`_ready_transit`: lift clear, then
+blend), so the place leg now makes a short **vertical clear move** (`+0.10 m`,
+`FRUIT_PLACE_CLEAR`) before the blend. Measured: the pear cell **3/6 -> 5/6**
+(`pear_6_s5_clear.log`), and the general cell **23/24** across seeds 5/6/101/202
+at **15.1-15.6 s/attempt** (the clear move costs ~0.4 s).
+
+### 13.2 The pear is the pool's marginal fruit, and it is seed-dependent
+
+Pear-only, the class reads **5/6 (seed 5)** and **1/6 (seed 6)** - the largest
+fruit (69.9 mm) is the one the hand is marginal on: the finger plate is **76 mm**
+wide along the belt (`pad_geometry.log`), i.e. **+-3.5 mm** of centring against
+its 69.9 mm, while the catch-up converges to the 6 mm tolerance (4.8-5.9 mm).
+The failures carry contact (N 0.96-7.36 N) and no lift (`+0.000..+0.006 m`),
+i.e. the payload is contacted and not carried.
+
+**Two levers tested and not adopted**: a tighter catch tolerance
+(`FRUIT_DYNAMIC_CATCH_TOL=0.003`) reads **3/6** at seed 6 against the default's
+**1/6** but never converges (residuals 2.9-7.7 mm; the loop burns its budget),
+and at seed 5 the default already reads 5/6 - a seed flip, not a mechanism.
+The close *does* track the fruit per tick (`ik_step` with `frozen_x` and the
+fruit's live y/z), so the miss is not a stale aim.
+
+**Named next**: the `FRUIT_DYNAMIC_TRACE=1` per-tick record of a pear close (the
+P93 instrument) to separate "the pads missed along the belt" from "the pear
+squeezed out", then the hand-geometry price (a wider plate along the belt is the
+only lever that changes the +-3.5 mm, and the OpenArm's +17 mm width cell was a
+measured negative, `logs/p190`).
