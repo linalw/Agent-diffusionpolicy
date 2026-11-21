@@ -360,7 +360,17 @@ outside the approach the demos cloned). Also a record correction: the earlier
 "far rule" column of the selector A/B was the near rule (the runner hard-coded
 `FRUIT_SELECT_NEAREST_ABOVE_FLOOR=1`); it is measured properly here
 (`NEAREST=0`). Acquisition is closed for this tree at **0.15 = 83.3 %** and
-**0.12 = 62.5 %**. The papers'
+**0.12 = 62.5 %**.
+
+**The owner's occlusion objection is confirmed and decisive**: the output belts
+(`|y| 0.425-0.675`, `z 1.30-1.35`) shadow the staging area over the main belt,
+and the top-down head camera sees the fruit only **14.6 %** of the cycle (P144).
+The combination that could use the extension (+0.30 m, farthest-upstream rule,
+`FRUIT_HEAD_CAMERA=down_x_160`) reads **0/6** with `[percept] frames=0
+rejected=355-390`: at 2.2 m a 6 cm fruit subtends **5.1 px** (3.6 cm: 3.1 px)
+against the 60/12 px fit floors, so the camera that sees under the belts cannot
+resolve the fruit. The extension needs a camera + calibration rework (a closer,
+longer-lens or higher-resolution upstream view), not a belt change. The papers'
 image-based mechanisms (GraspTune, TacRefineNet, LeTac-MPC, T-Rex), the vibration
 band (above the 120 Hz Nyquist) and any wrench/contact-geometry allocation are
 out of reach of this sensor.

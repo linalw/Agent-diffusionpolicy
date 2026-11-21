@@ -746,6 +746,40 @@ now been measured. The shipped deliverable stands at **0.15 = 20/24 = 83.3 %**
 and **0.12 = 15/24 = 62.5 %**, 6.8-11.4 s per placed fruit, no scripted skill
 route.
 
+### 4r. The owner's occlusion objection, measured: the output belts do shadow the staging area, and no camera in this build both sees it and resolves it - the extension is not usable
+
+The question was whether the extended belt is even observable: the two output
+belts sit at `|y| 0.425..0.675`, `z 1.30..1.35`, i.e. **above and over the main
+belt** for that band, and the shipped head camera is top-down at `x = 0.05`.
+Measured, P144's probe: the shipped camera sees the target fruit **14.6 %** of
+the cycle (0 % of the place); the raised downstream camera
+(`FRUIT_HEAD_CAMERA=down_x_160`, `(1.60, 0, 2.00) -> (0.34, 0, 1.15)`) sees
+**81.4 %**. So the owner is right - the top-down camera cannot see the staging
+area upstream of the station.
+
+The combination that could use the extension was therefore run: **belt +0.30 m,
+farthest-upstream rule, `down_x_160`** (0.12, seed 101, six episodes).
+
+| cell | configuration | placed | `[percept]` |
+|---|---|---:|---|
+| `N12UP30C_s101` | +0.30 m, far rule, `down_x_160` | **0/6** | **frames=0, rejected=355-390** every episode |
+
+**No frame was ever accepted**, so the goal stayed at the station's nominal and
+every approach failed (11.4-13.0 s, `grasped=False` all six). The reason is
+resolution, and it is arithmetic: with the shipped lens (`focal 0.016`,
+`aperture 0.036`, 424 px wide) the focal length is **188 px**, so a fruit at
+2.2 m subtends `188 * d / z` = **5.1 px** at 6 cm and **3.1 px** at 3.6 cm -
+below the fit floors (60 px for the 5-7 cm pool, 12 px for <= 4 cm). The camera
+that can see under the output belts is too far to resolve a fruit at this
+resolution.
+
+**Verdict: the belt extension is not usable without a perception rework** (a
+closer, longer-lens or higher-resolution camera for the upstream band), which is
+a camera + calibration change with its own fit-floor measurement - not a belt
+knob. This also corrects 4q's phrasing: the far-rule extension failures are not
+"the approach distribution" - the fruit is **unseen**, and the goal never leaves
+the station nominal.
+
 ## 5. The honest boundary: the strict no-servo ablation is 0/7
 
 `FRUIT_CONTACT_SERVO=0 FRUIT_PLACE_SERVO=0`, every other knob as in section 2:
