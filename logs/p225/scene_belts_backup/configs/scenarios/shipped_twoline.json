@@ -1,0 +1,59 @@
+{
+  "schema": "fruit-sorting-scenario/1",
+  "name": "shipped_twoline",
+  "notes": "The shipped cell (P85 two-line, P87 release clock, P71 geometry) expressed as data. Reference descriptor for P114: it reproduces configs/waypoints.json + assets.SceneConfig + the two-line station defaults byte for byte, and validation (ii) proves it by replaying the un-instructed run. A new pipeline copies this file and changes the destinations/stations, not the code.",
+  "stations": {
+    "left": 0.0,
+    "right": -0.1
+  },
+  "pick": {
+    "x": 0.34,
+    "y": 0.0
+  },
+  "belt": {
+    "speed_m_s": 0.12
+  },
+  "place": {
+    "x": 0.43,
+    "y": 0.5
+  },
+  "destinations": [
+    {
+      "id": 0,
+      "name": "lane0_plus_y",
+      "side": "+y",
+      "kind": "belt",
+      "target": [0.43, 0.5],
+      "reach": {
+        "status": "verified",
+        "residual_mm": 14.9,
+        "source": "logs/p90/station_rows.json (NAT, transfer z=1.530, left, x=0.43 y=+0.50: res 14.9 mm; the live place leg's own res_end is 13-34 mm)"
+      }
+    },
+    {
+      "id": 1,
+      "name": "lane1_minus_y",
+      "side": "-y",
+      "kind": "belt",
+      "target": [0.43, -0.5],
+      "reach": {
+        "status": "verified",
+        "residual_mm": 14.9,
+        "source": "logs/p90/station_rows.json (right arm mirrors the left)"
+      }
+    }
+  ],
+  "supply": {
+    "x_min": 0.2,
+    "x_max": 0.36,
+    "grades": {
+      "A": 0.375,
+      "B": 0.375,
+      "C": 0.25
+    },
+    "schedule": "wave"
+  },
+  "calibration": {
+    "place_tolerance_mm": 25.0
+  }
+}

@@ -1,0 +1,13 @@
+# Compound rule (P115): `and` joins attribute terms, all of which must hold.
+#
+#   large apples (>= 66 mm)      -> right belt
+#   anything smaller than 45 mm  -> right belt
+#   everything else              -> left belt
+#
+# `or` is written as more rules, because the first match wins:
+#     species=apple  => 1
+#     species=orange => 1
+# is "apple or orange". At most three terms may be joined with `and`.
+species=apple and size>=66 => 1
+size<45 => 1
+default => 0

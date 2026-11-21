@@ -1,0 +1,14 @@
+{
+ "note": "P36 phase 1: the proprio-spoof vectors - the pose the direct env's reset *achieved* for the inactive arm, which `FRUIT_PROPRIO_SPOOF=<pose>` writes into the 7 inactive-arm joint values of the 25-D observation. These are measured values, not the commanded vectors: `ArmController.teleport_joints` re-bases onto the measured state, so `back`'s command is 0.088 rad from what the arm actually holds (the shipped `ready` is 0.037 from its own). Source = the `q_settled=` field of the `[park]` rows in logs/p35/C_ab/, where each value string repeats identically across every episode of its population (left at ready n=51, left at back n=50, right at ready n=24) - the reset settle is deterministic on the tree that batch pinned (rl_env.py fd18bb1b, tasks.py cdde6bd2, identical to this tree). 3-decimal precision is what the row prints; the live pose drifts <= 0.01 rad inside an episode (the P35 `drift` field), so the substitution reproduces the other cell's proprio to that margin, not bit-for-bit.",
+ "source": "logs/p35/C_ab/ `[park] ... q_settled=`",
+ "scope": "direct presentation, the *inactive* arm only; the active arm, the fingers, the hand/TCP joints and the image are untouched. `back` has no right-arm vector because configs/arm_parks.json has no right-arm park (the P35 lever is left-only by measurement), so a left-active episode is a no-op in this channel - the within-batch negative control.",
+ "poses": {
+  "ready": {
+   "left": [-1.464, -0.375, 1.488, 1.315, -1.496, -0.588, 1.559],
+   "right": [1.520, 0.330, -1.570, 1.269, 1.560, 0.620, -1.566]
+  },
+  "back": {
+   "left": [-1.912, -0.978, 1.503, 0.818, -1.498, -0.586, 1.559]
+  }
+ }
+}
