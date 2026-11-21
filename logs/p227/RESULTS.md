@@ -310,3 +310,47 @@ asset, so the OpenArm's place legs keep their Cartesian-only path.
 `attempt_6_s101_fix.log`. No rate is claimed beyond these samples (P93's rule);
 what is claimed is the mechanism: the acquisition class (left attitude) and the
 +Y place class are gone, and the residual is the closed small-fruit grip.
+
+## 12. P227o: two closed-loop criteria calibrated for the other hand
+
+With §11's fixes the cell read 15/17 and the residual was the **3.1 cm
+strawberry** (seed 6, `attempt_6_s6_fix3.log`): `dynamic close: sustained
+contact after 4 ticks (force=29.88 N, span=85.9 mm); freezing the closing
+command at 87.9 mm` on a **31.4 mm** fruit - i.e. the close was frozen *wide
+open*. Two shipped criteria assume the OpenArm's pad geometry:
+
+1. **The freeze** (`freeze_close`): force + a stalled span. The docstring already
+   records that force alone false-fires on a 3 cm berry at an 89 mm span
+   (`logs/p2b_diag_before_1` A4); the single-arm hand adds the second term - its
+   76 mm plates and the drive's breakaway hold the span for the first ticks - so
+   both are true before the pads are near the fruit. A freeze **wider than the
+   fruit** is not a loaded pinch: the criterion now also requires
+   `sep <= pinch_width + 10 mm` on the single-arm asset (`mirrored_arms()` gates
+   it; the OpenArm keeps the shipped test). Measured: the strawberry then freezes
+   at **58.3 mm / 7.37 N / span 63.2 mm** and places (31.26 N spike, real grip).
+
+2. **The catch-up's stop point** (`desired_tip = fruit + _dynamic_pad_lift`):
+   the shipped 10 mm is the OpenArm's pad lift under its jaw offset. The
+   single-arm hand puts the pads 0-65 mm below the jaw centre and the grasp aim
+   42 mm above the fruit's centre, so the loop was asked for a point **33 mm**
+   away from any correctly-aimed hand and chased a phantom: the row printed
+   **27-29 mm on every attempt, successes included** (`attempt_6_s6_cs05.log`),
+   and the diag shows the hand was actually within **~1 mm** in x/y. Using the
+   arm's own pair (`_pad_standoff(True) - _fingertip_offset`) makes the residual
+   the real error: **27 -> 4.8-5.9 mm** (inside the 6 mm tolerance) and the
+   attempt falls **17.0 -> 14.2-14.8 s** (the phantom chase was ~2 s/attempt).
+
+**The cell on the final tree** (`run_attempt.sh 6 <seed>`): seed 5 **6/6**,
+seed 6 **6/6**, seed 101 **4/5**, seed 202 **6/6** - **22/23 = 96 % placed**,
+14.2-14.8 s/attempt, against **4/12 = 33 %** at the start of the P227i arc.
+
+**Two knobs tested and not adopted** (env only, no code): the descent margin
+`FRUIT_DYNAMIC_DESCEND_MARGIN=0.25` reads 5/6 with residuals unchanged
+(21-29 mm), and `FRUIT_TRACK_CATCH_SPEED=0.05` reads 6/6 on one seed with the
+residuals identical to the digit - a branch draw, not a mechanism (P93's rule);
+the diag shows the catch was already accurate, so neither was the lever.
+
+**The residual class is the 6.9 cm pear** (3 instances in 23 attempts, e.g.
+seed 101 attempt 2: `grasped=False`, contact 7.32 N, `lift +0.000`): the hand
+reaches it, closes on its extent, and the payload does not follow the lift -
+the record's loaded-slide class at the pool's largest, tapered fruit.

@@ -7436,6 +7436,42 @@ the +Y place class are gone, and the residual is the closed small-fruit grip.
 Pins: `tasks.py`/`rl_env.py` (`TASKS_MD5` follow), `logs/p227/`; references
 **`61fb5202` / `61fb5202` / `18b101bf`** untouched. Evidence `logs/p227/`.
 
+**P227o (2026-11-21, `logs/p227/`; default off, **nothing adopted**, no
+reference moved): two closed-loop criteria calibrated for the **other hand** are
+made arm-aware, and the single-arm cell reaches **22/23 = 96 % placed**
+(14.2-14.8 s/attempt) against **4/12 = 33 %** at the start of the arc.** (1) **The
+close freeze**: `force + a stalled span` is the shipped criterion; force alone was
+already known to false-fire (a 3 cm strawberry reads 30 N with the jaws 89 mm
+open, `logs/p2b_diag_before_1` A4) and the single-arm hand's 76 mm plates plus its
+drive breakaway make **both** true before the pads are near the fruit - the close
+froze at **87.9 mm around a 31.4 mm strawberry** (4 ticks, 29.88 N, span 85.9 mm;
+`logs/p227/attempt_6_s6_fix3.log`) and the lift followed nothing. A freeze wider
+than the fruit is not a loaded pinch, so the criterion now also requires
+`sep <= pinch_width + 10 mm` on the single-arm asset (`mirrored_arms()` gates it,
+the OpenArm keeps the shipped test); the strawberry then freezes at **58.3 mm /
+7.37 N / span 63.2 mm** and places. (2) **The catch-up's stop point**
+(`desired_tip = fruit + _dynamic_pad_lift`): the 10 mm is the OpenArm's pad lift
+under its jaw offset, while the single-arm hand's pads run 0-65 mm below the jaw
+centre with the grasp aim 42 mm above the fruit's centre - so the loop chased a
+point **33 mm** from any correctly-aimed hand and printed **27-29 mm on every
+attempt, successes included** (`attempt_6_s6_cs05.log`), while the handover diag
+showed the hand within **~1 mm** in x/y. Using the arm's own pair
+(`_pad_standoff(True) - _fingertip_offset`) makes the residual the real error:
+**27 -> 4.8-5.9 mm** (inside the 6 mm tolerance) and the attempt **17.0 -> 14.2-14.8 s**.
+**The cell** (final tree, `run_attempt.sh 6 <seed>`): seed 5 **6/6**, seed 6
+**6/6**, seed 101 **4/5**, seed 202 **6/6** - **22/23 = 96 %**. **Not adopted**:
+`FRUIT_DYNAMIC_DESCEND_MARGIN=0.25` (5/6, residuals unchanged) and
+`FRUIT_TRACK_CATCH_SPEED=0.05` (6/6 on one seed, residuals identical to the digit
+- a branch draw, and the diag says the catch was already accurate). **The residual
+class is the 6.9 cm pear** (3 of 23: contact made, 7.3 N, `lift +0.000`) - the
+loaded-slide class at the pool's largest, tapered fruit. No rate is claimed
+beyond these samples (P93). No-harm: `accept.sh` **7/10, 9.5 s/attempt,
+`fingerprint: matches`, `190: PASS`**, stream **458/458 identical** to
+`logs/p136/accept_final.log`; `selfcheck.sh` **PASS (0 failures, 1 skipped)**
+(`282` grown to pin both criteria); `106` OK, `107` PASS. Pins:
+`tasks.py`/`rl_env.py` (`TASKS_MD5` follow), `logs/p227/`; references
+**`61fb5202` / `61fb5202` / `18b101bf`** untouched.
+
 **P142 (2026-11-11, `logs/p142/`; two defect fixes + a declared metric,
 **nothing adopted, no reference moved**): the direct lane's two *bookkeeping*
 failures are removed and its zero is shown to be the station reselect's timing.

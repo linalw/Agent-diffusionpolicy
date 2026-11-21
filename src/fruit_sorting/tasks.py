@@ -15289,7 +15289,31 @@ class PickAndPlaceTask:
                     tip = np.asarray(arm.jaw_centre(), dtype=float) + rot_now @ np.array(
                         [0.0, 0.0, finger_len]
                     )
-                    desired_tip = fruit_now + np.array([0.0, 0.0, self._dynamic_pad_lift])
+                    #: P227o: the catch-up's **stop criterion** must be where the
+                    #: arm's own hand puts the pads when the jaw sits at the grasp
+                    #: aim. The shipped form is `fruit + _dynamic_pad_lift` (10 mm),
+                    #: which is the OpenArm's pad lift below the jaw offset by its
+                    #: finger length; on the single-arm hand (a 0-65 mm pad block,
+                    #: grasp aim 42 mm above the fruit's centre) it asks for a
+                    #: point 33 mm away from any correctly-aimed hand, so the
+                    #: loop chases a phantom and the row prints 27-29 mm on
+                    #: **every** attempt - successes included - burning the
+                    #: budget and re-seating (`logs/p227/attempt_6_s6_cs05.log`).
+                    #: The arm's own pair makes the residual the real error; the
+                    #: bimanual OpenArm keeps the shipped 10 mm exactly.
+                    if mirrored_arms():
+                        desired_tip = fruit_now + np.array(
+                            [0.0, 0.0, self._dynamic_pad_lift]
+                        )
+                    else:
+                        desired_tip = fruit_now + np.array(
+                            [
+                                0.0,
+                                0.0,
+                                self._pad_standoff(True, sample)
+                                - self._fingertip_offset(arm_name),
+                            ]
+                        )
                     catch_residual = float(np.linalg.norm(tip - desired_tip))
                     if catch_residual < catch_tol:
                         break
@@ -15712,7 +15736,26 @@ class PickAndPlaceTask:
                             sep_prev is not None and abs(sep_meas - sep_prev) <= contact_stall
                         )
                         sep_prev = sep_meas
-                        if force_now >= contact_force and stalled:
+                        #: P227o: a freeze **wider than the fruit** is not a
+                        #: loaded pinch. The shipped criterion already needs a
+                        #: force *and* a stalled span because force alone
+                        #: false-fires (a 3 cm strawberry read 30 N with the jaws
+                        #: 89 mm open, `logs/p2b_diag_before_1` A4) - but the
+                        #: single-arm hand's 76 mm plates and its drive breakaway
+                        #: make both terms true *before* the pads are near the
+                        #: fruit, so the close froze at **87.9 mm around a 31.4 mm
+                        #: strawberry** (`logs/p227/attempt_6_s6_fix3.log`,
+                        #: attempt 0) and the lift followed nothing. Requiring the
+                        #: measured span to be within the fruit's own extent plus
+                        #: 10 mm is the physical statement of "the pads are on the
+                        #: fruit"; the bimanual OpenArm keeps the shipped test
+                        #: (`mirrored_arms()`), so its stream is unchanged.
+                        loaded_pinch = True
+                        if not mirrored_arms():
+                            loaded_pinch = sep_meas <= (
+                                float(self.pinch_width(sample, close_quat)) + 0.010
+                            )
+                        if force_now >= contact_force and stalled and loaded_pinch:
                             contact_run += 1
                         else:
                             contact_run = 0

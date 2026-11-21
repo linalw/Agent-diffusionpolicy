@@ -217,6 +217,20 @@ def main() -> int:
     check(carry.index('if robot_kind() == "franka":') < carry.index("self._blend_to("),
           "the blend runs only on the arm that needs it")
 
+    # ------------------------------------------------------------------ 7
+    print("[7] P227o: the close freeze and the catch-up stop criterion")
+    freeze = grab(tasks_src, "_grasp_carry_place_impl")
+    check("loaded_pinch = True" in freeze
+          and "if not mirrored_arms():" in freeze
+          and "pinch_width(sample, close_quat)) + 0.010" in freeze
+          and "and stalled and loaded_pinch" in freeze,
+          "a freeze wider than the fruit is not a loaded pinch (single-arm only)")
+    check("if mirrored_arms():" in freeze
+          and "self._dynamic_pad_lift" in freeze
+          and "self._pad_standoff(True, sample)" in freeze
+          and "self._fingertip_offset(arm_name)" in freeze,
+          "the catch-up's stop point uses the arm's own pad geometry")
+
     print()
     if failures:
         print(f"FAIL: {failures} check(s)")
