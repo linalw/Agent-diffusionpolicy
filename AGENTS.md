@@ -7589,7 +7589,13 @@ anchor (P114/P121's cells unchanged); `accept.sh` **7/10, `fingerprint: matches`
 `selfcheck.sh` **PASS (0 failures, 1 skipped)** with three new pins in `282`;
 `106` OK, `107` PASS. Pins: `tasks.py`/`rl_env.py` (`TASKS_MD5` follow),
 `logs/p227/{bins_two_dest.json,grade_ab.txt}`; references **`61fb5202` /
-`61fb5202` / `18b101bf`** untouched.
+`61fb5202` / `18b101bf`** untouched. **(ii) a routing the shipped rule cannot
+produce**: with `size<55 => 1` + `default => 0` (OVERLAP none, 78/42 cells,
+pool dest0=11/dest1=5) the cell reads **6/6 placed, 6/6 `in_destination`, 0
+mis-sorted** with the witnesses a **grade-A kiwi (5.4 cm) in the -Y bin** and a
+**grade-B apple / grade-C orange (6.5/6.6 cm) in the +Y bin** - the arm label
+follows the destination (one physical Panda; the capability map's bookkeeping) -
+settled distances 32-126 mm inside the correct bin (`attempt_6_s5_size.log`).
 
 **P142 (2026-11-11, `logs/p142/`; two defect fixes + a declared metric,
 **nothing adopted, no reference moved**): the direct lane's two *bookkeeping*
