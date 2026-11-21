@@ -50,27 +50,34 @@ def main() -> int:
         "binN": (float(cfg.bin_center_x), -float(cfg.bin_center_y), float(cfg.bin_floor_top_z) + 0.10),
     }
     for name, target in targets.items():
-        best = None
-        for seed in (q0, np.zeros_like(q0), 0.5 * (q0 + 0.0)):
-            arm.teleport_joints(np.asarray(seed, dtype=float))
-            arm.hold_quaternion = None
-            arm.sync_command_to_measured()
-            err = float("inf")
-            for _ in range(700):
-                err = arm.ik_step(arm.tcp_target_for_jaw(np.asarray(target, dtype=float)))
-                app_utils.update_app(steps=1)
-                if err <= 0.003:
-                    break
-            margin = float(np.min(np.minimum(q0 - arm.arm_lo, arm.arm_hi - q0)))
-            # margin at the *achieved* configuration
-            qa = np.asarray(arm.joint_positions(), dtype=float)
-            margin = float(np.min(np.minimum(qa - arm.arm_lo, arm.arm_hi - qa)))
-            if best is None or err < best[0]:
-                best = (err, margin)
+        target = np.asarray(target, dtype=float)
+        # The repo's calibration solver (multi-restart, position-only) is the
+        # right instrument for a *layout* question: it answers "does a
+        # configuration exist", which is what the waypoints need.
+        arm.teleport_joints(np.asarray(q0, dtype=float))
+        arm.hold_quaternion = None
+        q_sol, err_solve = arm.solve_to(
+            target, iterations=1500, tolerance=0.004, restarts=3, move_on_fail=True
+        )
+        app_utils.update_app(steps=5)
+        qa = np.asarray(arm.joint_positions(), dtype=float)
+        margin = float(np.min(np.minimum(qa - arm.arm_lo, arm.arm_hi - qa)))
+        # and the incremental servo from the current configuration, for the
+        # loop the place leg actually runs
+        arm.teleport_joints(np.asarray(q0, dtype=float))
+        arm.hold_quaternion = None
+        arm.sync_command_to_measured()
+        err_step = float("inf")
+        for _ in range(900):
+            err_step = arm.ik_step(arm.tcp_target_for_jaw(target))
+            app_utils.update_app(steps=1)
+            if err_step <= 0.003:
+                break
         say(
             f"[reach] {name:4s} target=({target[0]:+.3f},{target[1]:+.3f},{target[2]:.3f}) "
-            f"best_res={best[0] * 1e3:7.1f} mm  margin={best[1]:+.3f} rad  "
-            f"{'PASS' if best[0] <= 0.006 and best[1] >= 0.05 else 'fail'}"
+            f"solve_res={err_solve * 1e3:7.1f} mm ({len(q_sol)} q)  "
+            f"step_res={err_step * 1e3:7.1f} mm  margin={margin:+.3f} rad  "
+            f"{'PASS' if min(err_solve, err_step) <= 0.006 and margin >= 0.05 else 'fail'}"
         )
     simulation_app.close()
     return 0
