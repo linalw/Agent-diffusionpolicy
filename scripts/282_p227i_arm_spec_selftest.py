@@ -236,6 +236,21 @@ def main() -> int:
           and carry.index("arm.move_to(") < carry.index("self._blend_to("),
           "the single-arm place blend lifts clear of the line before sweeping")
 
+    # ------------------------------------------------------------------ 8
+    print("[8] P227s: the instruction ledger scores a bin at the settle sample")
+    check("settled_pos: tuple[float, float, float] | None = None" in tasks_src,
+          "the attempt result carries the settle-sample position")
+    capture = tasks_src[tasks_src.index("result.placed = bool(self.cfg.on_output_belt(pos))"):]
+    check("if self._instruction is not None:" in capture[:400]
+          and "result.settled_pos = (" in capture[:600],
+          "the settle sample is captured only when an instruction is armed")
+    ledger = grab(tasks_src, "_sort_ledger_row")
+    check('if target.kind == "bin" and settled is not None:' in ledger
+          and "anchor = np.asarray(settled, dtype=float)" in ledger
+          and "on_output_belt(anchor)" in ledger,
+          "a bin destination is scored where the payload rests, a belt at the "
+          "release (the belt carries it away)")
+
     print()
     if failures:
         print(f"FAIL: {failures} check(s)")

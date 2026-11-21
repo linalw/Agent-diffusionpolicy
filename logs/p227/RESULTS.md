@@ -513,3 +513,49 @@ seed 202 **6/6** - **23/24 = 96 % placed**, **14.4-14.9 s/attempt** (was
 class P227q closed). Two slots starved in seeds 5/6 (the P56/P58 aperture class,
 one `no eligible fruit` each); none in 101/202. No rate is claimed beyond these
 samples (P93).
+
+## 16. P227s: the instruction layer drives the bins cell - and its ledger scored the wrong pose
+
+The model's *decision* layer (P114-P116's instruction DSL) was never exercised on
+this cell. With a descriptor for the two bins (`logs/p227/bins_two_dest.json`:
+dest 0 `bin_plus_y` at `(-0.10, +0.55)`, dest 1 `bin_minus_y` at
+`(-0.10, -0.55)`, `reach: auto`) and the instruction the cell *is*
+
+```
+grade=A => 0
+default => 1
+```
+
+(`logs/p227/grade_ab.txt`; `262_sort_plan.py` reads it: **OVERLAP none**, dest 0
+40 cells / dest 1 80) the run:
+
+```
+[scenario] bins_two_dest: 2 destination(s) [0, 1]
+[sort] instruction: 2 rule(s), default=1
+[sort] capability: left=[0] right=[1]
+[sort] rule 1: grade=A => 0 (arm left)   rule 2: default => 1 (arm right)
+[sort] coverage: pool=16 mapped=16 unassigned=0 skip=0 (dest0=8, dest1=8)
+```
+
+and **6/6 placed** with every fruit dispatched by the rule it should be: 3
+grade-A to dest 0 (+Y bin, `arm=left`), 3 grade-B/C to dest 1 (-Y,
+`arm=right`) - i.e. the instruction **reproduces the cell's grade routing**, and
+the releases land **6-16 mm** from the instructed target.
+
+**But the ledger read `in_destination=0 mis_sorted=6`** - a scoring defect, not a
+delivery defect: `_sort_ledger_row` tested `cfg.on_output_belt(release_pos)`, and
+a bin release must be **above the rim** (1.36 m vs a 1.26 m rim, the bin's volume
+ending at 1.32), so every bin delivery failed the "over the output body" test
+while its nearest destination was right (6-16 mm). Fixed by scoring a
+**bin** destination at the **settle sample** - the very read `placed` is scored
+on, 0.5 s after the release - carried on the result as `settled_pos` (a copy of a
+read that already happens, only when an instruction is armed). A **belt**
+destination keeps the release pose: the belt carries the payload away, so its
+settle sample is 6+ cm downstream. Re-run: **`in_destination=6 mis_sorted=0`**,
+measured settled distances 29-146 mm inside the correct bin, **6/6 placed**
+(`attempt_6_s5_instr2.log`).
+
+No-harm: the ledger only runs with an instruction armed, and belt destinations
+take the old anchor, so P114/P121's cells are unchanged; `accept.sh` **7/10,
+`fingerprint: matches`, `458/458`** identical; `selfcheck.sh` **PASS** with the
+new pins in `282`; `106` OK, `107` PASS.

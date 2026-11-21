@@ -2014,6 +2014,15 @@ class EpisodeResult:
     destination: int | None = None
     place_xy: tuple[float, float] | None = None
     release_pos: tuple[float, float, float] | None = None
+    #: P227s: the payload's position at the **settle** sample - the same read
+    #: `placed` is scored on, 0.5 s after the release. An instruction's ledger
+    #: scores a **bin** destination here, not at the release pose: the release
+    #: must be above the rim (1.36 m vs a 1.26 m rim), so the release pose is
+    #: outside the bin volume and every bin delivery read `mis_sorted`
+    #: (`logs/p227/attempt_6_s5_instr.log`). A belt destination keeps the release
+    #: pose: the belt carries the payload away, so the settle sample is 6+ cm
+    #: downstream. `None` unless an instruction is armed.
+    settled_pos: tuple[float, float, float] | None = None
 
     @property
     def success(self) -> bool:
@@ -9280,16 +9289,23 @@ class PickAndPlaceTask:
             f"{target.target[1]:+.2f})"
         )
         if placed and position is not None:
-            on_belt = bool(self.cfg.on_output_belt(position))
-            side = "+y" if float(position[1]) >= 0.0 else "-y"
+            #: P227s: a **bin** destination is scored where the payload comes to
+            #: rest, not at the release pose (which must be above the rim); a
+            #: belt destination keeps the release pose (the belt carries it away).
+            anchor = position
+            settled = getattr(result, "settled_pos", None)
+            if target.kind == "bin" and settled is not None:
+                anchor = np.asarray(settled, dtype=float)
+            on_belt = bool(self.cfg.on_output_belt(anchor))
+            side = "+y" if float(anchor[1]) >= 0.0 else "-y"
             same_side = [
                 d for d in self._sort_descriptor.destinations if d.side == side
             ]
             nearest = None
             distance = float("inf")
             for candidate in same_side:
-                dx = float(candidate.target[0]) - float(position[0])
-                dy = float(candidate.target[1]) - float(position[1])
+                dx = float(candidate.target[0]) - float(anchor[0])
+                dy = float(candidate.target[1]) - float(anchor[1])
                 d = float(np.hypot(dx, dy))
                 if d < distance:
                     distance, nearest = d, candidate
@@ -17541,6 +17557,10 @@ class PickAndPlaceTask:
             self._place_trace_report(place_trace, low_info)
         pos = self.spawner.position(sample)
         result.placed = bool(self.cfg.on_output_belt(pos))
+        if self._instruction is not None:
+            # P227s: the settle-sample position, for the ledger's **bin**
+            # scoring (one copy of a read `placed` already takes).
+            result.settled_pos = (float(pos[0]), float(pos[1]), float(pos[2]))
         if verbose:
             say(
                 f"[task] released at {np.round(pos, 3).tolist()}, placed={result.placed} "

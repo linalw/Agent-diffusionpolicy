@@ -7562,6 +7562,35 @@ failures, 1 skipped)**; `106` OK, `107` PASS. Pins: `tasks.py`/`rl_env.py`
 (`TASKS_MD5` follow), `logs/p227/`; references **`61fb5202` / `61fb5202` /
 `18b101bf`** untouched.
 
+**P227s (2026-11-21, `logs/p227/`; one defect fixed in the instruction ledger,
+default off): the model's **decision layer** now drives the single-arm bins cell,
+and its ledger was scoring the **release** pose - which for a bin must be above
+the rim.** With a descriptor for the two bins (`logs/p227/bins_two_dest.json`,
+dest 0 at `(-0.10, +0.55)`, dest 1 at `(-0.10, -0.55)`, `reach: auto`) and the
+instruction the cell *is* (`grade=A => 0` + `default => 1`, `262_sort_plan` reads
+**OVERLAP none**, 40/80 cells), the run resolves the scenario and the capability
+map (`left=[0] right=[1]`), covers the pool 16/16, and **places 6/6** with every
+fruit dispatched by its rule - **3 grade-A to the +Y bin, 3 B/C to the -Y bin** -
+releases **6-16 mm** from the instructed target: the instruction reproduces the
+cell's grade routing. **The ledger read `in_destination=0 mis_sorted=6`**: it
+tested `on_output_belt(release_pos)`, and a bin release sits **above the rim**
+(1.36 m against a 1.26 m rim; the bin volume ends at 1.32), so every bin delivery
+failed the "over the output body" test while its nearest destination was right.
+A **bin** destination is now scored at the **settle sample** - the read `placed`
+is already scored on, 0.5 s after the release - carried as
+`EpisodeResult.settled_pos` (a copy of an existing read, only when an instruction
+is armed); a **belt** destination keeps the release pose, because the belt
+carries the payload away (its settle sample is 6+ cm downstream). Re-run:
+**`in_destination=6 mis_sorted=0`**, settled distances 29-146 mm inside the
+correct bin, **6/6 placed** (`logs/p227/attempt_6_s5_instr2.log`). No-harm: the
+ledger only runs with an instruction armed and belt destinations keep the old
+anchor (P114/P121's cells unchanged); `accept.sh` **7/10, `fingerprint: matches`,
+`190: PASS`**, stream **458/458 identical** to `logs/p136/accept_final.log`;
+`selfcheck.sh` **PASS (0 failures, 1 skipped)** with three new pins in `282`;
+`106` OK, `107` PASS. Pins: `tasks.py`/`rl_env.py` (`TASKS_MD5` follow),
+`logs/p227/{bins_two_dest.json,grade_ab.txt}`; references **`61fb5202` /
+`61fb5202` / `18b101bf`** untouched.
+
 **P142 (2026-11-11, `logs/p142/`; two defect fixes + a declared metric,
 **nothing adopted, no reference moved**): the direct lane's two *bookkeeping*
 failures are removed and its zero is shown to be the station reselect's timing.

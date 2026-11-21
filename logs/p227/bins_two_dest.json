@@ -1,0 +1,48 @@
+{
+  "schema": "fruit-sorting-scenario/1",
+  "name": "bins_two_dest",
+  "notes": "P227s: the single-arm (Panda + two side bins) cell as data. Destinations are the two bins (FRUIT_OUTPUT_BINS geometry: x -0.10, |y| 0.55, jaw 1.30); reach auto solves at startup. Used to drive the cell from an instruction: `grade=A => 0` + `default => 1` must reproduce the shipped grade routing (left arm -> +Y bin, right -> -Y bin).",
+  "stations": {
+    "left": 0.0,
+    "right": 0.0
+  },
+  "pick": {
+    "x": 0.34,
+    "y": 0.0
+  },
+  "belt": {
+    "speed_m_s": 0.12
+  },
+  "place": {
+    "x": -0.1,
+    "y": 0.55
+  },
+  "destinations": [
+    {
+      "id": 0,
+      "name": "bin_plus_y",
+      "side": "+y",
+      "kind": "bin",
+      "target": [
+        -0.1,
+        0.55
+      ],
+      "reach": {
+        "status": "auto"
+      }
+    },
+    {
+      "id": 1,
+      "name": "bin_minus_y",
+      "side": "-y",
+      "kind": "bin",
+      "target": [
+        -0.1,
+        -0.55
+      ],
+      "reach": {
+        "status": "auto"
+      }
+    }
+  ]
+}
