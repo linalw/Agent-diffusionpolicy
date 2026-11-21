@@ -38,14 +38,40 @@ class ArmSpec:
     arm_joint_names: list[str]
     finger_joint_names: list[str]
     tcp_link: str
+    #: P227: the two finger **link** names (the `RigidPrim`s the jaw geometry is
+    #: read from). The OpenArm's are `openarm_<side>_{left,right}_finger`; the
+    #: Franka's are `panda_leftfinger`/`panda_rightfinger`.
+    finger_link_names: tuple[str, str] = ()
+    #: Finger command for a fully open gripper (metres per finger joint).
+    open_value: float = 0.044
 
 
 def arm_spec(side: str) -> ArmSpec:
+    """The arm's joint/link names; `FRUIT_ARM_KIND=franka` picks the Panda."""
+    import os
+
+    kind = os.environ.get("FRUIT_ARM_KIND", "openarm").strip().lower()
+    if kind == "franka":
+        # 9 DOFs measured on the asset (`logs/p226/franka_probe.log`): the seven
+        # `panda_joint*` plus the two prismatic `panda_finger_joint*` (0..0.04 m
+        # each, i.e. ~0.08 m opening); the TCP link is the hand.
+        return ArmSpec(
+            side=side,
+            arm_joint_names=[f"panda_joint{i}" for i in range(1, 8)],
+            finger_joint_names=["panda_finger_joint1", "panda_finger_joint2"],
+            tcp_link="panda_hand",
+            finger_link_names=("panda_leftfinger", "panda_rightfinger"),
+            open_value=0.040,
+        )
     return ArmSpec(
         side=side,
         arm_joint_names=[f"openarm_{side}_joint{i}" for i in range(1, 8)],
         finger_joint_names=[f"openarm_{side}_finger_joint{i}" for i in (1, 2)],
         tcp_link=f"openarm_{side}_ee_tcp",
+        finger_link_names=(
+            f"openarm_{side}_left_finger",
+            f"openarm_{side}_right_finger",
+        ),
     )
 
 
@@ -148,6 +174,9 @@ class ArmController:
         self.scene = scene
         self.robot = scene.robot
         self.spec = arm_spec(side)
+        #: P227: the open finger command is the arm's own (OpenArm 0.044,
+        #: Franka 0.040); the class constant stays the shipped default.
+        self.OPEN = float(self.spec.open_value)
         self.damping = damping
         self.gain = gain
         self.max_step = max_step
@@ -193,7 +222,7 @@ class ArmController:
         self._tcp_prim = RigidPrim(str(path))
 
         self._finger_prims = []
-        for link_name in (f"openarm_{side}_left_finger", f"openarm_{side}_right_finger"):
+        for link_name in self.spec.finger_link_names:
             path = paths[links.index(link_name)]
             if isinstance(path, (list, tuple)):
                 path = path[0]
