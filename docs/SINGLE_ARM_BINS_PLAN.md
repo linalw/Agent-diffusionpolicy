@@ -1,10 +1,69 @@
-# Single gripper arm + two side bins: what this cell allows (measured)
+# Single gripper arm + two side bins: the delivered cell (measured)
+
+**Status: DELIVERED (2026-11-21, `logs/p227/`).** The cell exists and sorts:
+a Franka Panda (one arm) with a bin on each side of the belt, scripted moving
+catch, **23/24 = 96 % placed across seeds 5/6/101/202 at 14.4-14.9 s/attempt**,
+the single remaining loss the 6.9 cm pear. It is **opt-in** and nothing shipped
+moved: `FRUIT_ARM_KIND=franka FRUIT_OUTPUT_BINS=1 FRUIT_BIARM=0`
+(`logs/p227/run_attempt.sh 6 <seed>`), the OpenArm acceptance byte-identical
+(458/458 `[fruit]` lines to `logs/p136/accept_final.log`), no motion reference
+re-recorded.
+
+## How to run it
+
+```bash
+scripts/run.sh logs/p227/franka_waypoints.py     # writes configs/waypoints_franka.json
+SKIP_SELFCHECK=1 bash logs/p227/run_attempt.sh 6 5
+```
+
+The recipe is the scripted dynamic catch with the **per-fruit** standoff
+(`tasks._pad_standoff` -> 42 mm measured), the bins as the places
+(`tasks._place_xy_for` under `output_bins`), the calibrated place transit
+(`_carry_leg`: vertical clear -> joint blend to `bin{index}_above` -> the
+Cartesian leg), the release trim defaulted on for the single-arm asset, and the
+two close/catch criteria made arm-aware. Each mechanism, its number and its
+negative controls are in AGENTS.md's P227i-P227r paragraphs and
+`logs/p227/RESULTS.md`.
+
+## What the cell measured, in one table
+
+| item | number | evidence |
+|---|---|---|
+| static grasp gate (4 fruits x 3 standoffs) | **12/12 held**, 99.0-99.5 mm lift, slip 0.5-2.1 mm | `logs/p227/hand_frame.log` |
+| the pad faces at q=0 | **6 mm apart** (the first closes missed by exactly that) | `logs/p227/pad_geometry.log` |
+| the hand frame | closing = hand -Y; `td-x` = 0.8 mm / 0.11 deg; `td-y` 154 mm / 29 deg out | `logs/p227/hand_frame.log` |
+| the reach floor | jaw z **1.240** at 0.9 mm, attitude breaks at **1.22** | `logs/p227/ik_probe.log` |
+| the +Y bin by the Cartesian servo | **181-223 mm** (148 mm routed); **9-10 mm** from the calibrated above-pose | `logs/p227/place_reach_*.log` |
+| the cell | **23/24 = 96 %**, 14.4-14.9 s/attempt | `logs/p227/attempt_6_s*_rel.log` |
+| the pear (6.9 cm, the pool's largest) | **the only class**: 60 mm holds, 65-70 mm fails at a 4.3-6.1 mm closing-axis offset | `logs/p227/pear_6_s6_hd.log` |
+
+## The limits, named
+
+* **The pear** (65-70 mm in a 76 mm plate, +-3.5 mm centring against a 4.8-5.9 mm
+  servo residual) is `logs/p42/SIM_LIMIT.md`'s loaded-slide class; four software
+  levers are measured negative (catch tolerance, interference, descent margin,
+  close x-lock). The levers are hardware: a wider plate, a force-controlled
+  finger, or a sub-3 mm presentation.
+* **Two slots starve in 3 of 4 cells** (one `no eligible fruit` each): the
+  P56/P58 aperture class, not a cell defect.
+* The **learned lane is not on this cell**: the policy lane runs the OpenArm's
+  joint space, so a Panda policy needs its own collection (a phase of its own).
+
+---
 
 The owner's request: replace the two output conveyors with a bin on each side of
 the robot, run a gripper-type single arm, and use the reduced occlusion to
 improve the learned lane. The old scene is backed up at
 `logs/p225/scene_belts_backup/` (assets/conveyor/scene + configs; the code
 stays the shipped default, nothing deleted).
+
+## Background: the pre-integration analysis (OpenArm, 2026-11-21)
+
+The sections below are the **original plan's analysis on the OpenArm** - the
+reason the arm was changed rather than the bins moved: the side-bin place pose is
+outside that arm's workspace at any reachable bin height, so the cell needed a
+longer-reach arm. They are kept as the decision record; the delivered cell and
+its numbers are the status section above.
 
 ## 1. The direct lane is already a single arm
 
