@@ -456,3 +456,56 @@ runs in `run()` on the driver thread, so the flush sees a different (empty)
 thread-local. The tracer works on the direct env (one thread). On the scripted
 path use `FRUIT_HANDOVER_DIAG`/`FRUIT_CARRY_DIAG`, or fix the buffer's lifetime
 (a phase of its own).
+
+## 15. P227r: a throughput pass - the release trim was never on this path, the place clock is the wrong spend
+
+### 15.1 The cycle split
+
+The cell's `[cycle]` rows (23 attempts, seeds 5/6/101/202) are stable to the
+hundredth:
+
+| block | s | note |
+|---|---|---|
+| prepose | **0.71** | fixed blend |
+| hover | 0.32-0.80 | `move_to` to the hover |
+| descent | 1.86-4.32 | the fruit-arrival wait + the leg (P99: not compressible) |
+| close | 1.13-1.18 | the ramp + the freeze commit |
+| grip | 1.57-1.59 | the validation ramp |
+| lift | 1.82-2.01 | the profile block |
+| **place** | **4.00-4.13** | the largest |
+| **release** | **1.63** | the **shipped, untrimmed** open-loop holds |
+| return | 0.50 | |
+| total | 14.2-16.6 | |
+
+### 15.2 The release trim: -0.63 s, exact, and it was never enabled here
+
+P86 measured the S2 trim (`FRUIT_SPEED_RELEASE`: dwell 20 -> 0, the pad/finger
+ramps 3 -> 2 = **-76 ticks = -0.633 s**) and P87 shipped it **two-line-scoped**.
+The single-arm cell is not a two-line session, so its `[cycle] release=` stayed
+**1.63 s**. Measured here (`attempt_6_s5_rel1.log`): **1.63 -> 1.00 s**
+(-0.63, exact), **6/6 placed**, and the place-trace landings are **6/6
+`on_belt=True`** with `release_bottom` -7..-24 mm (the bin's floor is 70 mm below
+the belt top, so a negative bottom is *inside* the bin), impact -1.8..-2.1 m/s.
+It now resolves **on** for the single arm (`tasks._single_arm_asset()` ->
+`release_speed_resolution`), with the OpenArm and two-line scopes unchanged:
+`247`/`248`/`249` pass, and the acceptance is **458/458** identical.
+
+### 15.3 The place clock is the wrong spend
+
+The place block is `clear + blend(150 ticks) + settle(40) + transit`. A faster
+clock (100/25 with a 0.07 clear) reads `place 4.0 -> 2.8-3.2 s` and the mixed
+cell **5/5 placed** (`clean_slip` 0.0-4.4 mm) - but the **pear cell goes 5/6 ->
+3/6** with **two place-leg payload losses** (`pear_6_s5_r2.log`), i.e. exactly
+the class the cell is already marginal on. Same tree with the safe clock
+(150/40/0.10): the pear cell is **4/5** with one place loss. **Not adopted** -
+the -1.1 s is bought with the largest fruit's place leg (the P88/P89 rule: a
+speed cell whose count falls does not ship).
+
+### 15.4 The cell on the final tree
+
+`run_attempt.sh 6 <seed>`: seed 5 **6/6**, seed 6 **6/6**, seed 101 **5/6**,
+seed 202 **6/6** - **23/24 = 96 % placed**, **14.4-14.9 s/attempt** (was
+15.1-15.6 before the release trim), and the single loss is the **pear** (the
+class P227q closed). Two slots starved in seeds 5/6 (the P56/P58 aperture class,
+one `no eligible fruit` each); none in 101/202. No rate is claimed beyond these
+samples (P93).

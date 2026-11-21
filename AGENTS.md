@@ -7534,6 +7534,34 @@ the accepted P227p tree (`accept.sh` 7/10, `fingerprint: matches`, 458/458 to
 `logs/p136/accept_final.log` by construction), references **`61fb5202` /
 `61fb5202` / `18b101bf`** untouched.
 
+**P227r (2026-11-21, `logs/p227/`; **one scoped default ships** - the release
+trim now resolves on for the single-arm asset - and the place-speed cell is
+measured and rejected): the cell's cycle is **14.2-16.6 s** with two dominant
+blocks, `place` **4.00-4.13 s** and `release` **1.63 s**, and only the release
+is free.** The trim is P86's S2 cell (`FRUIT_SPEED_RELEASE`: dwell 20 -> 0 and
+the pad/finger ramps 3 -> 2 = **-76 ticks = -0.633 s**), which P87 shipped
+two-line-scoped; a single-arm cell is not a two-line session, so its
+`[cycle] release=` was still 1.63 s. Measured here: **1.63 -> 1.00 s (-0.63,
+exact), 6/6 placed**, and **6/6 payload-present releases `on_belt=True`** with
+`release_bottom -7..-24 mm` (the bin's floor is 70 mm below the belt top, so a
+negative bottom is *inside* the bin) and impact -1.8..-2.1 m/s. It now resolves
+on through `tasks._single_arm_asset()` while the OpenArm and two-line scopes are
+unchanged (`247`/`248`/`249` pass; acceptance **458/458**). **The place is the
+larger block and the wrong spend**: a faster clock (100/25 ticks with a 0.07
+clear) reads `place 4.0 -> 2.8-3.2 s` and the mixed cell **5/5**, but the
+**pear cell 5/6 -> 3/6 with two place-leg payload losses** - the class the cell
+is already marginal on - while the safe clock (150/40/0.10) reads the pear cell
+**4/5** with one place loss. **Not adopted** (the P88/P89 rule). **The cell on
+the final tree**: seed 5 **6/6**, seed 6 **6/6**, seed 101 **5/6**, seed 202
+**6/6** - **23/24 = 96 % placed at 14.4-14.9 s/attempt** (was 15.1-15.6); the
+single loss is the pear (P227q's closed class) and two slots starved in seeds
+5/6 (P56/P58's aperture class). No rate is claimed beyond these samples (P93).
+No-harm: `accept.sh` **7/10, `fingerprint: matches`, `190: PASS`**, stream
+**458/458 identical** to `logs/p136/accept_final.log`; `selfcheck.sh` **PASS (0
+failures, 1 skipped)**; `106` OK, `107` PASS. Pins: `tasks.py`/`rl_env.py`
+(`TASKS_MD5` follow), `logs/p227/`; references **`61fb5202` / `61fb5202` /
+`18b101bf`** untouched.
+
 **P142 (2026-11-11, `logs/p142/`; two defect fixes + a declared metric,
 **nothing adopted, no reference moved**): the direct lane's two *bookkeeping*
 failures are removed and its zero is shown to be the station reselect's timing.

@@ -529,6 +529,24 @@ def _speed_cell_flag(env_name: str, two_line_default: bool = False) -> bool:
     return bool(two_line_default)
 
 
+def _single_arm_asset() -> bool:
+    """Whether the stage authors **one arm asset** (the single-arm cell).
+
+    P227r: the release trim (`FRUIT_SPEED_RELEASE`, P86's S2 cell) was scoped to
+    a two-line session because the knob is read at a *shared* site - a global
+    default would move the single-arm OpenArm, the hybrid canary and the
+    collector. The single-arm **cell** (`FRUIT_ARM_KIND=franka`, one Panda, two
+    bins) is a different path with the same defect the trim fixes (1.63 s of
+    open-loop holds): measured there it is **-0.63 s/attempt exactly**
+    (1.63 -> 1.00 s), **6/6 placed** and **6/6 payload-present releases in the
+    bin** (`logs/p227/attempt_6_s5_rel1.log`), so it resolves on for this arm
+    too. The OpenArm's paths are untouched (`robot_kind()` is `openarm`).
+    """
+    from .assets import robot_kind
+
+    return robot_kind() == "franka"
+
+
 def release_speed_resolution(two_line: bool = False) -> dict[str, object]:
     """The resolved **release clock** for this session, with its origin (P87).
 
@@ -563,12 +581,16 @@ def release_speed_resolution(two_line: bool = False) -> dict[str, object]:
     """
     raw = os.environ.get("FRUIT_SPEED_RELEASE")
     union = os.environ.get("FRUIT_SPEED_ALL", "0") == "1"
-    on = _speed_cell_flag("FRUIT_SPEED_RELEASE", two_line)
+    #: P227r: the single-arm cell resolves the trim on too (see
+    #: `_single_arm_asset`); the two-line keeps its own scope and every OpenArm
+    #: path stays `scope-off`.
+    single_arm = _single_arm_asset()
+    on = _speed_cell_flag("FRUIT_SPEED_RELEASE", two_line or single_arm)
     if raw is not None and raw.strip():
         origin = "explicit"
     elif union:
         origin = "speed-all"
-    elif two_line:
+    elif two_line or single_arm:
         origin = "default"
     else:
         origin = "scope-off"
@@ -599,6 +621,7 @@ def release_speed_resolution(two_line: bool = False) -> dict[str, object]:
         "on": on,
         "origin": origin,
         "two_line": bool(two_line),
+        "single_arm": bool(single_arm),
         "dwell": dwell_i,
         "pad_hold": pad_i,
         "finger_hold": finger_i,
