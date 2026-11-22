@@ -806,3 +806,40 @@ property of this episode shape (the labeller's `place` band is narrow), not a
 missing phase: the episodes do reach the bin (fruit y 0.50 -> -0.55, z settles
 1.11). A place-weighted cell (or a wider label band) is the training-side lever
 if the place phase is what the next checkpoint must own.
+
+## 21. P227y: the deployment's start pose - three hard-coded sources, one fixed by measurement
+
+An **offline** check of the store showed the demonstrations are right (the finger
+command drops below 0.030 at **`|jaw-fruit|xy` 1.4 mm** p50 over 156 episodes), so
+the deployment's close at **14.8-15.0 cm** had to be an interface mismatch. The
+first recorded episode compared against a demo settled it: the rollout's frame-0
+joints were **~4 rad** from the demos' (`[-0.804,-0.078,1.329,...]` against
+`[0.441,-1.037,-0.261,...]`). Three sources are hard-coded for the OpenArm:
+
+1. **`rl_env` loaded `configs/waypoints.json`** for its own start/park poses
+   (3497) instead of the task's file, so the reset teleported the Panda to the
+   **OpenArm's joint values**. Fixed: `self.waypoints = self.task.waypoints`
+   (the task already resolved `FRUIT_WAYPOINTS`/the arm's default; on the OpenArm
+   both are the same file). Measured: the residual start-pose distance fell
+   **~4 rad -> 0.456 rad** (left/bin-0, similar fruit x).
+2. **The demos' frame 0 is a linear family in the fruit's x** (P160's
+   `configs/start_pose_family.json`, fitted on the OpenArm). Fitted **this arm's**
+   family on the 156 episodes - `q_j(x) = a_j + b_j x`, **rms 0.006-0.018 rad**
+   (mean 0.011, the OpenArm's own is 0.014-0.017) - into
+   `configs/start_pose_family_panda.json`, used with
+   `FRUIT_DIRECT_START_ALIGN=1 FRUIT_START_FAMILY=...`.
+3. **`119_rl_fidelity.py`'s width feed** only accepted 25/26, refusing this arm's
+   12-D artifact; it now feeds the checkpoint's own width from the store (a width
+   the store cannot supply still refuses). The readout then measures the model:
+   **0.100 rad / finger 0.0010 / phase 95 %** (approach 100 %, grasp 100 %,
+   lift 90 %) - the model *is* usable on its demonstrations.
+
+**What is still misaligned, measured**: the residual 0.456 rad sits on j4/j6/j7
+(the aligned teleport lands where the family says, then the reset's settle and the
+first action move it), and the deployment still closes at the gate distance
+(`policy closed on the fruit (finger=0.0046, |jaw-fruit|xy=14.9cm)`), now with
+`fruit left the pick station during the close (494 mm)` instead of the earlier
+"did not follow". The instrument for the next pass is the recorded pair
+(`logs/p227/obs_cmp2/` against `datasets/p227_panda_all/`): per-channel diffs at
+frame 0 and after the first action, which is exactly how the two fixed sources
+above were found.
