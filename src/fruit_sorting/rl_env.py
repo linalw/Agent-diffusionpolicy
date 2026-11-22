@@ -3493,8 +3493,17 @@ class SortingRLEnv:
             #: is empty and this is one capability refresh).
             self.task._calibrate_sort_destinations()
 
-        with open("configs/waypoints.json", encoding="utf-8") as fh:
-            self.waypoints = json.load(fh)
+        #: P227y: the **task's** waypoint file, not a hard-coded
+        #: `configs/waypoints.json`. The task already resolved `FRUIT_WAYPOINTS`
+        #: or the arm's own default (`configs/waypoints_franka.json` on the
+        #: Panda), and this env's reset teleports the active arm to
+        #: `arms[active]["grasp"/"ready"/"wait"]` - with the OpenArm's file on this
+        #: arm that teleport put it ~4 rad away from the demonstrations' frame 0
+        #: (`logs/p227/obs_cmp`: rollout `[-0.804,-0.078,1.329,...]` against the
+        #: demo's `[0.441,-1.037,-0.261,...]`), so every episode started out of
+        #: distribution and the policy closed the finger immediately. On the
+        #: OpenArm both sources are the same file, so its stream is unchanged.
+        self.waypoints = self.task.waypoints
 
         # Harness warm-up (60_eval_policy.py does this once): both arms parked at
         # the calibrated ready pose before the first episode - the initial

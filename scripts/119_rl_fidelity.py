@@ -68,7 +68,14 @@ def proprio_for(policy: PolicyRunner, proprio: np.ndarray) -> tuple[np.ndarray, 
     """
     width = int(policy.config.get("proprio_dim", PROPRIO_DIM))
     vector = np.asarray(proprio, dtype=np.float32)
-    if width not in (PROPRIO_DIM, PROPRIO_DIM + 1):
+    #: P227y: the width is the **checkpoint's**, and the store's vector is fed
+    #: as-is when they agree - the single-arm artifact is 12-D (its
+    #: articulation's 9 joints + finger + 2 tactile), so the OpenArm's 25/26
+    #: whitelist refused it (`logs/p227/fidelity_panda156.log`). A store wider
+    #: than the checkpoint keeps the prefix rule above (the extra channels are
+    #: appended last); a store narrower than the checkpoint is still a loud
+    #: error.
+    if width < 3:
         raise ValueError(f"unsupported checkpoint proprio_dim={width}")
     if vector.shape[0] < width:
         raise ValueError(

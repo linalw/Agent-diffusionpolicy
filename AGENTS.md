@@ -7724,6 +7724,36 @@ place-weighted cell is the training-side lever if the next checkpoint must own i
 No-harm: `selfcheck.sh` **PASS**, `107` **PASS (21 checks)**, `106` OK; references
 **`61fb5202` / `61fb5202` / `18b101bf`** untouched.
 
+**P227y (2026-11-22, `logs/p227/`; three **hard-coded start-pose sources** made
+arm-correct, and the deployment's start measured): the demonstrations are right
+(finger closes at `|jaw-fruit|xy` **1.4 mm** p50 over 156 episodes) and the
+deployment's 15 cm close was an interface mismatch, localised by recording one
+episode and diffing it against a demo.** (1) `rl_env` loaded
+**`configs/waypoints.json`** for its own start/park poses instead of the task's
+file, so the reset teleported the Panda to the **OpenArm's joints** - the
+recorded frame 0 was **~4 rad** from the demos'; fixed to
+`self.waypoints = self.task.waypoints` (same file on the OpenArm), and the
+residual start-pose distance falls **~4 -> 0.456 rad**. (2) The demos' frame 0 is
+a **linear family in the fruit's x** (P160's `configs/start_pose_family.json`,
+fitted on the OpenArm); **this arm's** family is now fitted on the 156 episodes
+(`q_j(x) = a_j + b_j x`, **rms 0.006-0.018 rad**, mean 0.011 against the OpenArm's
+0.014-0.017) into `configs/start_pose_family_panda.json`, used with
+`FRUIT_DIRECT_START_ALIGN=1 FRUIT_START_FAMILY=...`. (3)
+`119_rl_fidelity.py`'s width feed refused a 12-D artifact; it now feeds the
+checkpoint's own width from the store (a width the store cannot supply still
+refuses), and the readout measures the model at **0.100 rad / finger 0.0010 /
+phase 95 %** (approach 100 %, grasp 100 %, lift 90 %) - the model is usable on its
+own demonstrations. **What remains misaligned, measured**: the residual 0.456 rad
+sits on j4/j6/j7 (the family pose lands, then the reset's settle and the first
+action move it), and the episode still closes at the gate distance
+(`finger=0.0046, |jaw-fruit|xy=14.9 cm`) with `fruit left the pick station during
+the close (494 mm)`. The instrument for the next pass is the recorded pair
+(`logs/p227/obs_cmp2/` vs the store) - the same diff that found these three.
+No-harm: `selfcheck.sh` **PASS**; `106` OK. Pins: `rl_env.py`,
+`configs/start_pose_family_panda.json`, `scripts/119_rl_fidelity.py`,
+`logs/p28i/check_speed_channel.py`; references **`61fb5202` / `61fb5202` /
+`18b101bf`** untouched.
+
 **P142 (2026-11-11, `logs/p142/`; two defect fixes + a declared metric,
 **nothing adopted, no reference moved**): the direct lane's two *bookkeeping*
 failures are removed and its zero is shown to be the station reselect's timing.

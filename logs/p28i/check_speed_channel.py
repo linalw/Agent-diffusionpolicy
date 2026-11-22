@@ -895,12 +895,24 @@ check(
     "119 two-width feed: the 26-D arm gets the whole vector",
     _w26 == 26 and np.array_equal(_v26, _vector26),
 )
+#: P227y: the feed's own rule is "the checkpoint's width, taken from the store's
+#: vector when the store is wider" - so the refusal is a width the store **cannot**
+#: supply (wider than the vector). The old case used 24 against a 26-D store,
+#: which is a legal prefix; the single-arm artifact is 12-D and must be accepted
+#: from its own 12-D store.
 try:
-    _fid.proprio_for(_PolicyWidth(24), _vector26)
+    _fid.proprio_for(_PolicyWidth(27), _vector26)
     _bad_width = False
 except ValueError:
     _bad_width = True
-check("119 two-width feed: an unsupported width refuses", _bad_width)
+check("119 two-width feed: a width the store cannot supply refuses", _bad_width)
+_v12, _w12 = _fid.proprio_for(
+    _PolicyWidth(12), np.asarray(np.arange(12), dtype=np.float32)
+)
+check(
+    "119 two-width feed: the single-arm 12-D width is accepted from its own store",
+    _w12 == 12 and np.array_equal(_v12, np.arange(12, dtype=np.float32)),
+)
 
 # --------------------------------------------------------------------------- #
 print("\n" + "=" * 78)
