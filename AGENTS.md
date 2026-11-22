@@ -7631,6 +7631,31 @@ or a different recipe, which is the lane's next decision. No-harm: `accept.sh`
 `scene.py`, `scripts/40_collect_demos.py`, `scripts/282_p227i_arm_spec_selftest.py`;
 references **`61fb5202` / `61fb5202` / `18b101bf`** untouched.
 
+**P227u (2026-11-22, `logs/p227/`; one **scenario defect fixed in `fruits.py`**,
+scoped to the bins cell; nothing shipped moved): a bins cell **never recycled a
+placed payload**, so the 16-fruit pool drained and a long collection starved.** A
+48-episode shard read **17 successes in 144 attempts** against the gate's 6/6 -
+and the log carried only 17 `episode N:` rows, the other 127 being the
+collector's **silent `select_target -> None`**. `FruitSpawner.update`'s
+end-of-line sweep recognised only a belt's **discharge tray**
+(`cfg.on_output_tray`), so a payload left in a bin stayed there forever. Fixed:
+with `output_bins`, a payload inside a bin's volume (`output_lane_of`), nearly
+still, is discharged after the tray's own dwell (`output_tray_dwell_s`) with the
+same `discharged` counter and a `[bin N]` tag; the shipped belt/tray tests are
+untouched (the gate never sees the defect - six attempts). Same shard re-run:
+**48 successes in 49 attempts**, rows reading `discharged to the bin at
+(-0.10,-0.57) (settled 17.6s) [bin 1]` (the dwell is the collector's
+between-attempt update cadence, i.e. the payload is recycled at the next attempt
+boundary). **The shard**: `datasets/p227_panda_c1`, **48 episodes / 7912 frames /
+7096 windows, `106` OK**, `profile: finger_damp02`, `readback_matches: true`,
+`scene.arm.kind: franka` - with `datasets/p227_panda` (12) the arm's first **60
+episodes**, the precondition for the policy work and the reason a longer
+collection could not have been made before this fix. No-harm: `accept.sh`
+**7/10, `fingerprint: matches`**, stream **458/458 identical** to
+`logs/p136/accept_final.log`; `selfcheck.sh` **PASS**; `211` **ok (115 checks)**;
+`106` OK, `107` PASS. Pins: `fruits.py`; references **`61fb5202` / `61fb5202` /
+`18b101bf`** untouched.
+
 **P142 (2026-11-11, `logs/p142/`; two defect fixes + a declared metric,
 **nothing adopted, no reference moved**): the direct lane's two *bookkeeping*
 failures are removed and its zero is shown to be the station reselect's timing.

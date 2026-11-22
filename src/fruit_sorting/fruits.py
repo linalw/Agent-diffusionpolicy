@@ -930,6 +930,10 @@ class FruitSpawner:
         #: Seconds each fruit has been sitting still in a discharge tray; the
         #: spawner recycles it once the dwell passes `cfg.output_tray_dwell_s`.
         self._tray_dwell: dict[int, float] = {}
+        #: P227u: whether this cell's output bodies are the side bins
+        #: (`FRUIT_OUTPUT_BINS=1`). Read once: the geometry does not change
+        #: mid-run.
+        self._output_bins = bool(getattr(self.cfg, "output_bins", False))
         #: P142: bodies that reached the end of the line **while an attempt owned
         #: them**. Parking one teleports it to `(60 + 3i, 0, -50)` and every later
         #: read of `position(sample)` is the park slot - measured, the close then
@@ -1819,6 +1823,37 @@ class FruitSpawner:
             # (`conveyor.OutputBelt._build_discharge`), so this is counted as
             # `discharged`, not as a fruit that fell off. The dwell is for the
             # clip and for the tray to actually hold the fruit for a moment.
+            #: P227u: the single-arm cell's output bodies are the **bins**
+            #: (`FRUIT_OUTPUT_BINS=1`), which are end-of-line hardware exactly
+            #: like a belt's tray - and without this branch a placed payload stays
+            #: in the bin forever, so the 16-fruit pool drains after ~16
+            #: placements and every later selection finds nothing: the first
+            #: Panda collection read **17 successes in 144 attempts**, the other
+            #: 127 selections silently finding no fruit
+            #: (`logs/p227/collect_panda_c1.log`). The dwell is the tray's own
+            #: (`output_tray_dwell_s`), the counter is the same `discharged`, and
+            #: the tag names the bin. Scoped to the bins cell: the shipped belt
+            #: and tray tests are untouched.
+            bin_index = None
+            if self._output_bins and not sample.held:
+                bin_index = self.cfg.output_lane_of(pos)
+            if bin_index is not None:
+                speed = float(np.linalg.norm(self.velocity(sample)))
+                if speed < 0.05:
+                    dwell = self._tray_dwell.get(sample.index, 0.0) + dt
+                    self._tray_dwell[sample.index] = dwell
+                    if dwell >= tray_dwell_s:
+                        self.stats["discharged"] += 1
+                        say(
+                            f"[belt] {sample.category} (index {sample.index}) discharged to the "
+                            f"bin at ({float(pos[0]):+.2f},{float(pos[1]):+.2f}) "
+                            f"(settled {dwell:.1f}s) [bin {bin_index}]"
+                        )
+                        self.park(sample)
+                        self.active.remove(sample)
+                else:
+                    self._tray_dwell[sample.index] = 0.0
+                continue
             if not sample.held and self.cfg.on_output_tray(pos):
                 speed = float(np.linalg.norm(self.velocity(sample)))
                 if speed < 0.05:

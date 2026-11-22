@@ -664,3 +664,30 @@ trajectories. P144 measured that dropping the anchor (`--base ""`) on 45 episode
 much larger from-scratch store than 12 episodes or a different recipe - the
 next decision this lane owes, and the reason this phase stops at the artifact
 plus its provenance rather than a fine-tune that would be a coin flip.
+
+### 18.1 The long run found a scenario defect: a bins cell never recycles a placed payload
+
+The first 48-episode shard read **17 successes in 144 attempts**
+(`collect_panda_c1.log`) - against the gate's 6/6 on the same tree - and the log
+carried only **17 `episode N:` rows**: the other 127 iterations were the
+collector's **silent `select_target -> None`** (`continue` with no print). The
+cause is not the arm: `FruitSpawner.update`'s end-of-line sweep only recognises a
+belt's **discharge tray** (`cfg.on_output_tray`), so in a bins cell a placed
+payload stays in the bin forever and the **16-fruit pool drains after ~16
+placements**. (The gate never sees it: six attempts.)
+
+Fixed in `fruits.py`, scoped to `output_bins`: a payload inside a bin's volume
+(`output_lane_of`), nearly still, is discharged after the tray's own dwell
+(`output_tray_dwell_s`) with the same `discharged` counter and a
+`[bin N]` tag; the shipped belt/tray tests are untouched. Re-run of the same
+shard: **48 successes in 49 attempts**, the recycling rows reading
+`discharged to the bin at (-0.10,-0.57) (settled 17.6s) [bin 1]` - the dwell is
+the collector's update cadence (it pumps the feeder between attempts), so the
+payload is recycled at the next attempt boundary, which is what the bin is for.
+
+**The shard**: `datasets/p227_panda_c1`, **48 episodes / 7912 frames / 7096
+windows, `106` OK**, `profile: finger_damp02`, `readback_matches: true`,
+`scene.arm.kind: franka`, `collection.mode: single_arm`. With
+`datasets/p227_panda` (12 episodes) this is the arm's first **60 episodes** of
+demonstrations - the precondition for any policy work, and the defect above was
+the reason a longer collection could not have been made before.
