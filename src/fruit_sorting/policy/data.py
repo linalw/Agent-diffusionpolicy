@@ -423,6 +423,15 @@ class EpisodeStore:
             os.environ.get("FRUIT_OBS_CMD", "0") == "1"
             if cmd_channel is None else bool(cmd_channel)
         )
+        #: P227v: the width is the **store's own**, not the OpenArm constant. The
+        #: proprio is the whole articulation's DOF vector + the finger + the two
+        #: tactile forces - 25 on the bimanual OpenArm (22 joints) and **12 on
+        #: the single Panda** (9 joints) - so a store recorded on another arm
+        #: would otherwise *declare* 25 while its windows are 12, and a model
+        #: built from a 25/26-D checkpoint rejects it (the direct env's own
+        #: assembly is arm-sized too: `rl_env.proprio` returned 13 against the
+        #: checkpoint's 26). Resolved from the first episode below; the constant
+        #: stays as the fallback for an empty store.
         self.proprio_dim = (
             PROPRIO_DIM + (1 if self.speed_channel else 0) + (1 if self.cmd_channel else 0)
         )
@@ -595,6 +604,21 @@ class EpisodeStore:
                     None if trace is None else belt_accel_trace(trace)
                 )
 
+        # P227v: one width, the store's own (see the attribute's note). Every
+        # episode of a store is written by one arm, so they must agree.
+        widths = {int(np.asarray(ep["joint"]).shape[1]) for ep in self.episodes}
+        if len(widths) > 1:
+            raise ValueError(
+                f"{root}: episodes disagree on the joint width {sorted(widths)}"
+            )
+        if widths:
+            self.proprio_dim = (
+                widths.pop()
+                + 1
+                + 2
+                + (1 if self.speed_channel else 0)
+                + (1 if self.cmd_channel else 0)
+            )
         # Windows must fit inside each episode.
         self.windows: list[tuple[int, int]] = []
         for ep_index, episode in enumerate(self.episodes):

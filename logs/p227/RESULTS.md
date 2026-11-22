@@ -691,3 +691,34 @@ windows, `106` OK**, `profile: finger_damp02`, `readback_matches: true`,
 `datasets/p227_panda` (12 episodes) this is the arm's first **60 episodes** of
 demonstrations - the precondition for any policy work, and the defect above was
 the reason a longer collection could not have been made before.
+
+### 18.2 The learned lane's structural blocker, found by a one-episode smoke
+
+With 60 episodes on disk the next question was whether the **direct env** can run
+this arm at all. It starts
+(`FRUIT_ARM_KIND=franka FRUIT_OUTPUT_BINS=1 FRUIT_OBS_SPEED=1
+scripts/run.sh scripts/110_rl_rollout.py --presentation direct --episodes 1
+--seeds 901 --ckpt checkpoints/p177_full/policy_best.pt`): the checkpoint loads,
+`[rl] env ready`, the episode picks a lychee - and then the policy's normaliser
+rejects the observation: **shapes (13,) against (26,)**.
+
+The proprio is the **whole articulation's DOF vector** + the finger + the two
+tactile forces (`rl_env.proprio`), i.e. **25 on the bimanual OpenArm** (22 joints)
+and **13 on the single Panda** (9 joints + 1 + 2 + the speed channel). But the
+**store** declared `PROPRIO_DIM = 25` as a module constant
+(`policy/data.py`), while its own windows concatenate the *actual* arrays
+(`joint_positions` 9 + finger + tactile = **12**). So a store from this arm
+declared 25 and produced 12, and no checkpoint of either width can train on it.
+
+Fixed: `EpisodeStore.proprio_dim` is now the **store's own** width - derived from
+its first episode (`joint_positions.shape[1] + 1 + 2 [+ speed] [+ cmd]`), with a
+raise if the episodes disagree, and the constant keeps serving as the empty-store
+fallback. Measured: `datasets/p227_panda_c1` -> **12** (9 + 3; 13 with the speed
+channel), `datasets/demos_v11` -> **25** (22 + 3) unchanged. `selfcheck` PASS (the
+P28/P141 width legs hold).
+
+**What remains for the lane** is a training run whose model is built for 12/13-D
+*and* whose recipe does not use the OpenArm anchor (`demos_v11` is another arm's
+joint space; P144: `--base ""` on 45 episodes destroys the grasp, 0/12) - with 60
+episodes the honest form is a small **from-scratch** cell whose endpoint is the
+interface end to end (train -> deploy -> episodes), not a rate.

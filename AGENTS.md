@@ -7656,6 +7656,27 @@ collection could not have been made before this fix. No-harm: `accept.sh`
 `106` OK, `107` PASS. Pins: `fruits.py`; references **`61fb5202` / `61fb5202` /
 `18b101bf`** untouched.
 
+**P227v (2026-11-22, `logs/p227/`; one **width** defect fixed in the policy
+store; nothing shipped moved): the learned lane on this arm is blocked by an
+observation width that was a module constant, not the store's property.** A
+one-episode direct smoke with the Panda *starts* (the checkpoint loads, `[rl] env
+ready`, an episode begins) and then the normaliser rejects the observation:
+**shapes (13,) against (26,)**. The proprio is the **whole articulation's** DOF
+vector + finger + 2 tactile forces - **25 on the bimanual OpenArm** (22 joints),
+**13 on the single Panda** (9 joints + 1 + 2 + the speed channel) - while
+`policy/data.py` declared `PROPRIO_DIM = 25` for every store although its windows
+concatenate the *actual* arrays (9 + 3 = **12**). Fixed: `EpisodeStore.proprio_dim`
+derives from the store's own first episode (`joint_positions.shape[1] + 1 + 2
+[+ speed] [+ cmd]`), raising if episodes disagree; the constant remains the
+empty-store fallback. Measured: `datasets/p227_panda_c1` -> **12** (13 with the
+speed channel), `datasets/demos_v11` -> **25** unchanged; `selfcheck.sh` PASS. **The
+lane's remaining requirement** is a training run built for 12/13-D that does not
+use the OpenArm anchor (`demos_v11` is another arm's joint space; P144: `--base ""`
+on 45 episodes destroys the grasp) - with 60 episodes the honest form is a small
+**from-scratch** cell whose endpoint is the interface end to end, not a rate.
+Pins: `policy/data.py`; references **`61fb5202` / `61fb5202` / `18b101bf`**
+untouched.
+
 **P142 (2026-11-11, `logs/p142/`; two defect fixes + a declared metric,
 **nothing adopted, no reference moved**): the direct lane's two *bookkeeping*
 failures are removed and its zero is shown to be the station reselect's timing.
