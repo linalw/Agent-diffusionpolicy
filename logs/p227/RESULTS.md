@@ -722,3 +722,49 @@ P28/P141 width legs hold).
 joint space; P144: `--base ""` on 45 episodes destroys the grasp, 0/12) - with 60
 episodes the honest form is a small **from-scratch** cell whose endpoint is the
 interface end to end (train -> deploy -> episodes), not a rate.
+
+## 19. P227v/w: the model is trained *for this arm* - recollect, retrain, deploy
+
+The owner's instruction for this draft was explicit: **recollect with the new
+arm, and change the model to fit the single arm**. That is now the measured
+pipeline, end to end.
+
+**1. Recollect (P227u fixed the blocker; P227t the provenance).** The arm's store
+is `datasets/p227_panda` (12) + `datasets/p227_panda_c1` (**48**, 7912 frames,
+7096 windows, `106` OK) = **60 episodes**, collected at **48 successes in 49
+attempts** once the bins cell recycled its payloads.
+
+**2. Change the model (two width defects, both arm-constant).**
+
+* the **store** declared `PROPRIO_DIM = 25` (the OpenArm's 22 joints + 3) while
+  its windows concatenate the store's own arrays: the Panda's 9 + 3 = **12**
+  (P227v);
+* the **env's** checkpoint guard compared against the same constant, so the
+  arm's own 12-D artifact was refused ("this environment builds 25-D proprio",
+  P227w) - it now derives the width from its own articulation (`len(dof_names) +
+  1 + 2 [+ speed] [+ cmd]`).
+
+With those, `scripts/50_train_policy.py` - the **from-scratch** trainer that
+sizes the network from the store - is the arm's own recipe:
+
+```
+[train] 48 episodes, 7096 windows; proprio_dim=12 goal_dim=8 speed_trace=0/48
+[train] skill label histogram: {'approach': 2980, 'grasp': 707, 'lift': 4215, 'place': 10}
+[train] device=cuda parameters=4.59M
+epoch 20/20 train=0.0341 val=0.0386 router_acc=0.994
+[train] best val loss 0.0325; checkpoint in checkpoints/p227_panda1
+```
+
+**3. Deploy (the interface, end to end).** `110_rl_rollout.py --presentation
+direct --episodes 2 --seeds 901 --ckpt checkpoints/p227_panda1/policy_best.pt`
+loads the 12-D artifact, `[rl] env ready`, and both episodes run to their horizon
+(1266 / 1386 ticks, `[rl] episode` rows with outcomes). Both fail
+(`fruit fell off the line`) - a 20-epoch model on 48 episodes is not a policy;
+what this cell proves is the **lane**: recollect -> train in the arm's own space
+-> deploy -> episodes, with no OpenArm anchor anywhere.
+
+**What the next unit owes**: more data (the lineage's from-scratch runs used
+150-200+ episodes; 60 is a first cell), then the learning curve on this arm - and
+note the skill histogram the trainer printed: `place` has **10** labelled windows
+against 4215 `lift`, so the place phase is under-represented in 60 episodes and
+the next collection should be sized for it (or the label weighting revisited).
