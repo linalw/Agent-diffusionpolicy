@@ -248,7 +248,13 @@ check(
 )
 check(
     "rl_env refuses a checkpoint whose proprio_dim disagrees with the gate",
-    "want_proprio = 25 + (1 if self._speed_channel else 0)" in rl_text
+    # P227w: the width the env *builds* is the arm's own (its articulation's DOF
+    # count + finger + 2 tactile + the gated channels: 25 on the bimanual
+    # OpenArm, 12 on the single Panda), not the OpenArm's constant - the refusal
+    # is the same comparison.
+    "want_proprio = (" in rl_text
+    and "_own_dof" in rl_text
+    and "(1 if self._speed_channel else 0)" in rl_text
     and "got_proprio != want_proprio" in rl_text,
 )
 sources = ast.literal_eval(

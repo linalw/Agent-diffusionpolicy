@@ -7677,6 +7677,26 @@ on 45 episodes destroys the grasp) - with 60 episodes the honest form is a small
 Pins: `policy/data.py`; references **`61fb5202` / `61fb5202` / `18b101bf`**
 untouched.
 
+**P227w (2026-11-22, `logs/p227/`; the **lanes's width guard** in the env made
+arm-correct; nothing shipped moved): the arm's own 12-D checkpoint was refused by
+`rl_env`.** `__init__`'s checkpoint guard compared the artifact against
+`25 + speed + cmd` - the bimanual OpenArm's constant - while `proprio()` assembles
+the **whole articulation's** DOF vector + finger + 2 tactile forces (25 on the
+bimanual OpenArm, **12 on the single Panda**). The guard now derives the width it
+will build (`len(robot.dof_names) + 1 + 2 [+ speed] [+ cmd]`) and its message says
+which arm it is, so a checkpoint is refused on the *arm it was not trained on*
+rather than on a constant. Measured: `checkpoints/p227_panda1` (12-D, trained
+from scratch by `scripts/50_train_policy.py` on the 60 episodes - 4.59 M
+parameters, val 0.0325, router 0.994) loads, `[rl] env ready`, and **both
+episodes run to their horizon** (1266 / 1386 ticks) with `[rl] episode` rows;
+they fail (`fruit fell off the line`) - a 20-epoch model on 48 episodes is not a
+policy, the cell proves the lane. The P28 leg's "refuses a disagreeing
+proprio_dim" pin was re-phrased onto the derived form (same comparison). No-harm:
+`accept.sh` **7/10, `fingerprint: matches`**, stream **458/458 identical** to
+`logs/p136/accept_final.log`; `selfcheck.sh` **PASS**; `106` OK, `107` PASS. Pins:
+`rl_env.py`, `logs/p28i/check_speed_channel.py`; references **`61fb5202` /
+`61fb5202` / `18b101bf`** untouched.
+
 **P142 (2026-11-11, `logs/p142/`; two defect fixes + a declared metric,
 **nothing adopted, no reference moved**): the direct lane's two *bookkeeping*
 failures are removed and its zero is shown to be the station reselect's timing.

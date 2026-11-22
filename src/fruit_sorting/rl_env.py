@@ -3113,7 +3113,21 @@ class SortingRLEnv:
             # the gate decides it here - so a 26-D checkpoint without the gate
             # (or the other way round) fails at construction, loudly, instead of
             # conditioning the policy on a vector it never saw.
-            want_proprio = 25 + (1 if self._speed_channel else 0) + (1 if self._cmd_channel else 0)
+            #: P227w: the width this environment **actually** assembles, not the
+            #: bimanual OpenArm's 25. `proprio()` is the whole articulation's DOF
+            #: vector + the finger + the two tactile forces, so the bimanual
+            #: OpenArm gives 25 (22 joints) and the single Panda **12** (9 joints)
+            #: - a checkpoint trained for one arm must be refused on the other,
+            #: and the arm's own width must be accepted (the store declares it the
+            #: same way, `EpisodeStore.proprio_dim`, P227v).
+            _own_dof = len(self.scene.robot.dof_names)
+            want_proprio = (
+                _own_dof
+                + 1
+                + 2
+                + (1 if self._speed_channel else 0)
+                + (1 if self._cmd_channel else 0)
+            )
             want_mode = str(self.policy.config.get("action_mode", "") or "")
             got_mode = (
                 "dq" if self._dq_action
@@ -3134,9 +3148,12 @@ class SortingRLEnv:
                 raise RuntimeError(
                     f"checkpoint {checkpoint} has proprio_dim={got_proprio} but "
                     f"this environment builds {want_proprio}-D proprio "
-                    f"(FRUIT_OBS_SPEED={'1' if self._speed_channel else 'unset'}). "
-                    "Set FRUIT_OBS_SPEED=1 to run a 26-D (belt-speed channel) "
-                    "checkpoint, or unset it for a 25-D one."
+                    f"({_own_dof} joints + finger + 2 tactile"
+                    f"{' + speed' if self._speed_channel else ''}"
+                    f"{' + cmd' if self._cmd_channel else ''}). "
+                    "A checkpoint must match the arm it was trained on (25 on the "
+                    "bimanual OpenArm, 12 on the single Panda); FRUIT_OBS_SPEED=1 "
+                    "adds the belt-speed channel."
                 )
             # P141: same contract for the goal's belt pair. A 10-D artifact fed
             # an 8-D goal fails loudly here rather than conditioning on garbage.
