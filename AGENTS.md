@@ -7697,6 +7697,33 @@ proprio_dim" pin was re-phrased onto the derived form (same comparison). No-harm
 `rl_env.py`, `logs/p28i/check_speed_channel.py`; references **`61fb5202` /
 `61fb5202` / `18b101bf`** untouched.
 
+**P227x (2026-11-22, `logs/p227/`; a **merge provenance fix** and the lane's two
+measured blockers): 156 episodes, a 12-D model trained from scratch, and the
+deployment closes 15 cm short for a reason the record already knows.** The store:
+`datasets/p227_panda_all` (12 + 48 + **96 in 100 attempts**), **156 episodes /
+25775 frames / 23123 windows, `106` OK**; the merge had **lost the provenance**
+(it read `scene.arm: null` while every shard carried `kind: franka`) so
+`41_merge_demos.py` now carries the shards' descriptive blocks when they agree and
+**reports** the ones that disagree (`episodes_target` 12/48/96 here) - the merged
+store reads `arm: franka`, `panda_joint1/2`, `profile: finger_damp02`. The model:
+from scratch sized by the store (`50_train_policy.py`), `proprio_dim=12
+goal_dim=8`, **4.59 M params**, 12 epochs batch 64 -> `train 0.0286 val 0.0276
+router 0.990` (vs 0.0325 on 48 episodes; the OpenArm lineage sits at 0.013-0.026),
+`checkpoints/p227_panda156`. **The deployment** (3 episodes): the interface is
+complete - the artifact loads, `env ready`, and every episode **closes on the
+fruit** (`|jaw-fruit|xy` 14.8-15.0 cm) - but **at the 0.15 m gate**, then "fruit
+did not follow the gripper": P143's finding, and here its cause is that the
+**demonstrations start at the pick pose** (the collector records from the
+pre-pose), so the policy has no approach to clone. P145b's fix is the one this arm
+needs: collect and deploy from the **wait** pose (`FRUIT_DIRECT_START=wait` + this
+arm's calibrated `wait` waypoint). **Also measured**: the trainer's skill
+histogram over 156 episodes is `approach 9662 / grasp 2336 / lift 13735 / place
+42` - the place phase is 0.18 % of the windows, a labelling/window property (the
+episodes do reach the bin: fruit y 0.50 -> -0.55, z settles 1.11), so a
+place-weighted cell is the training-side lever if the next checkpoint must own it.
+No-harm: `selfcheck.sh` **PASS**, `107` **PASS (21 checks)**, `106` OK; references
+**`61fb5202` / `61fb5202` / `18b101bf`** untouched.
+
 **P142 (2026-11-11, `logs/p142/`; two defect fixes + a declared metric,
 **nothing adopted, no reference moved**): the direct lane's two *bookkeeping*
 failures are removed and its zero is shown to be the station reselect's timing.

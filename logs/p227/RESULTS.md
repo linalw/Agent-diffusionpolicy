@@ -768,3 +768,41 @@ what this cell proves is the **lane**: recollect -> train in the arm's own space
 note the skill histogram the trainer printed: `place` has **10** labelled windows
 against 4215 `lift`, so the place phase is under-represented in 60 episodes and
 the next collection should be sized for it (or the label weighting revisited).
+
+## 20. P227x: 156 episodes, a trained model, and the two measured blockers of the lane
+
+**The store.** `datasets/p227_panda` (12) + `_c1` (48) + `_c2` (**96 in 100
+attempts**, seed 902) merged into `datasets/p227_panda_all`: **156 episodes /
+25775 frames / 23123 windows, `106` OK**. The merge first **lost the provenance**
+(the merged manifest read `scene.arm: null` while every shard carried
+`kind: franka`); `41_merge_demos.py` now carries the shards' descriptive blocks
+(`scene`, `physics`, `supply`, `camera_res`, `fixed_stepping`, `episodes_target`,
+`seed`) when they agree and **reports the ones that disagree** - here only
+`episodes_target` (12/48/96, by design). The merged store reads
+`arm: franka`, `panda_joint1/2`, `profile: finger_damp02`.
+
+**The model.** From scratch, sized by the store (`50_train_policy.py`):
+`proprio_dim=12 goal_dim=8`, **4.59 M parameters**, 12 epochs at batch 64 -
+`epoch 12/12 train=0.0286 val=0.0276 router_acc=0.990`, best val **0.0276**
+(against 0.0325 for the 48-episode model; the OpenArm lineage's fine-tunes sit at
+0.013-0.026). Checkpoint `checkpoints/p227_panda156`.
+
+**The deployment** (3 episodes, seed 901): the interface is complete - the 12-D
+artifact loads, `env ready`, and every episode closes on the fruit
+(`policy closed on the fruit (finger=0.0075..0.0267, |jaw-fruit|xy=14.8..15.0
+cm)`) - but **at 148-150 mm**, i.e. exactly at the `FRUIT_POLICY_CLOSE_DIST=0.15`
+gate and then "fruit did not follow the gripper". That is P143's finding on the
+other arm, and its cause is here too: **the demonstrations start at the pick
+pose** (the collector records from the pre-pose), so the policy's first
+observation is a state the demos only hold - it has no approach to clone, and the
+episode starts where the demos start. P145b's fix is the one this arm needs:
+collect and deploy from the **wait** pose (`FRUIT_DIRECT_START=wait` + the
+`wait` waypoint this arm already calibrated) so the approach exists in the data.
+
+**One more property the trainer reports**: the skill histogram over 156 episodes
+is `approach 9662 / grasp 2336 / lift 13735 / place 42` - the place phase is
+**0.18 %** of the windows even after 2.6x the data, so it is a labelling/window
+property of this episode shape (the labeller's `place` band is narrow), not a
+missing phase: the episodes do reach the bin (fruit y 0.50 -> -0.55, z settles
+1.11). A place-weighted cell (or a wider label band) is the training-side lever
+if the place phase is what the next checkpoint must own.

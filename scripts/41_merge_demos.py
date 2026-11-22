@@ -83,6 +83,38 @@ def main() -> int:
                 shard_manifests[os.path.basename(os.path.normpath(src))] = hashlib.md5(
                     fh.read()
                 ).hexdigest()
+    #: P227x: carry the shards' **descriptive** blocks over when every shard that
+    #: has them agrees. A merged store otherwise loses what a shard names - the
+    #: arm asset (`scene.arm`), the drive (`physics.*`), the supply band - and the
+    #: first merge of this arm's shards read `scene.arm: null` even though every
+    #: input carried `kind: franka`. A disagreement is **reported and dropped**
+    #: (the merge already records each shard's manifest md5), never silently
+    #: picked from the first input.
+    carried: dict[str, object] = {}
+    disagreed: dict[str, list[str]] = {}
+    _CARRIED = (
+        "scene", "physics", "supply", "camera_res", "fixed_stepping",
+        "episodes_target", "seed",
+    )
+    shard_blocks: list[dict] = []
+    for src in args.inputs:
+        path = os.path.join(src, "manifest.json")
+        if not os.path.exists(path):
+            continue
+        with open(path, encoding="utf-8") as fh:
+            body = json.load(fh)
+        shard_blocks.append({k: body[k] for k in _CARRIED if k in body})
+    for key in _CARRIED:
+        values = [b[key] for b in shard_blocks if key in b]
+        if not values:
+            continue
+        if all(json.dumps(v, sort_keys=True) == json.dumps(values[0], sort_keys=True)
+               for v in values):
+            carried[key] = values[0]
+        else:
+            disagreed[key] = sorted({
+                json.dumps(v, sort_keys=True) for v in values
+            })
     manifest = {
         "created": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         "inputs": [os.path.normpath(p) for p in args.inputs],
@@ -91,7 +123,16 @@ def main() -> int:
             json.dumps(merged, indent=2).encode("utf-8")
         ).hexdigest(),
         "shard_manifests": shard_manifests,
+        **carried,
     }
+    if disagreed:
+        manifest["shards_disagree"] = disagreed
+        print(
+            "[merge] the shards disagree on "
+            + ", ".join(sorted(disagreed))
+            + " - dropped from the merged manifest (each shard's own md5 is in "
+            "shard_manifests)"
+        )
     with open(os.path.join(args.out, "manifest.json"), "w", encoding="utf-8") as fh:
         json.dump(manifest, fh, indent=2, sort_keys=True)
     print(f"merged {len(merged)} successful episodes into {args.out}")

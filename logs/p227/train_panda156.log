@@ -1,0 +1,21 @@
+[run.sh] soft nofile=1048576 -> /home/ubuntu/linalw/App/isaacsim/_build/linux-x86_64/release/python.sh scripts/50_train_policy.py --data datasets/p227_panda_all --out checkpoints/p227_panda156 --epochs 12 --batch-size 64 --action-horizon 16
+Warning: running in conda env, please deactivate before executing this script
+[train] 156 episodes, 23123 windows; categories={'lychee': 26, 'apple': 25, 'kiwi': 18, 'peach': 19, 'orange': 16, 'pear': 11, 'strawberry': 25, 'tomato': 16}; arms={'right': 84, 'left': 72}; proprio_dim=12 goal_dim=8 speed_trace=0/156
+[train] skill label histogram: {'approach': 9662, 'grasp': 2336, 'lift': 13735, 'place': 42}
+[train] device=cuda parameters=4.59M
+[train] epoch 1/12 HARD routing train=0.1880 val=0.0931 router_ce=0.580 router_acc=0.814 balance=2.237 (123.4s)
+[train] epoch 2/12 HARD routing train=0.0794 val=0.0721 router_ce=0.164 router_acc=0.944 balance=2.236 (122.3s)
+/home/ubuntu/linalw/Projects/opencode/Agent-diffusionpolicy/scripts/../src/fruit_sorting/policy/model.py:161: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at /pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:836.)
+  if float(wk.abs().max()) < 1e-6:
+[train] epoch 3/12 SOFT routing train=0.0634 val=0.0576 router_ce=0.089 router_acc=0.975 balance=2.223 (124.0s)
+[train] epoch 4/12 SOFT routing train=0.0523 val=0.0482 router_ce=0.067 router_acc=0.980 balance=2.229 (128.4s)
+[train] epoch 5/12 SOFT routing train=0.0477 val=0.0448 router_ce=0.056 router_acc=0.983 balance=2.232 (130.7s)
+[train] epoch 6/12 SOFT routing train=0.0428 val=0.0412 router_ce=0.051 router_acc=0.984 balance=2.231 (250.1s)
+[train] epoch 7/12 SOFT routing train=0.0391 val=0.0416 router_ce=0.045 router_acc=0.986 balance=2.230 (416.2s)
+[train] epoch 8/12 SOFT routing train=0.0369 val=0.0363 router_ce=0.042 router_acc=0.987 balance=2.230 (384.3s)
+[train] epoch 9/12 SOFT routing train=0.0348 val=0.0327 router_ce=0.040 router_acc=0.988 balance=2.238 (394.8s)
+[train] epoch 10/12 SOFT routing train=0.0318 val=0.0330 router_ce=0.037 router_acc=0.989 balance=2.234 (345.6s)
+[train] epoch 11/12 SOFT routing train=0.0312 val=0.0290 router_ce=0.035 router_acc=0.990 balance=2.231 (343.4s)
+[train] epoch 12/12 SOFT routing train=0.0286 val=0.0276 router_ce=0.033 router_acc=0.990 balance=2.239 (443.0s)
+[train] best val loss 0.0276; checkpoint in checkpoints/p227_panda156
