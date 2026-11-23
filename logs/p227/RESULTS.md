@@ -1238,3 +1238,18 @@ and `scripts/284_single_arm_policy_gate.sh` runs it that way. `FRUIT_SKIP_LATE`'
 resolver is pinned by the selfcheck leg `P227aa skip rule` (unset/`""` -> 0.0,
 `0.5` -> 0.5, and `-1`/`abc`/`nan`/`inf` all refused, the `resolve_target_rate`
 precedent).
+
+### 22.11 The five-minute clip with the rules on
+
+Re-recorded on the final recipe (six interface settings + the three rules),
+`--continuous 26 --capture-every 2 --views observer,overhead`, seed 902:
+**5 min 27 s** (327.40 s, 4911 frames at 15 fps, 960x540), **25/26 placed**,
+**0 skips**, and **zero** scene-change frames above 0.10 over the whole clip.
+Archived with a README at
+`.../log/video/p227z_panda_policy/continuous_5min_safe/`, beside the "before"
+clip (`continuous_5min/`, the same recipe without the rules).
+
+The motion numbers quoted in 22.10 come from the `--record` cell of the same
+recipe (`logs/p227/skip26`), not from the clip - the clip has no per-tick joint
+trace (`121_policy_video.py` records video, not rollouts). Two different draws,
+same recipe: both read **25/26**.
