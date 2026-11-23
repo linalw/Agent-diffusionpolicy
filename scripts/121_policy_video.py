@@ -455,6 +455,11 @@ def main() -> int:
         ]
         banner = banner_for(record) if index >= record["end"] - BANNER_FRAMES else None
         observer_annotated.append(annotate(image, lines, banner))
+    # P227aa: the raw observer frames are dead once they are annotated - dropping
+    # them halves this view's buffer, which is what lets a 30 fps multi-minute
+    # clip fit in RAM (nothing below reads this list; the encode uses
+    # `observer_annotated`).
+    frames["observer"] = []
 
     # ------------------------------------------------------------------ #
     # Encoders (helpers from 70_record_video.py)

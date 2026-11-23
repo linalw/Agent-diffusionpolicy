@@ -1253,3 +1253,40 @@ The motion numbers quoted in 22.10 come from the `--record` cell of the same
 recipe (`logs/p227/skip26`), not from the clip - the clip has no per-tick joint
 trace (`121_policy_video.py` records video, not rollouts). Two different draws,
 same recipe: both read **25/26**.
+
+### 22.12 A negative worth keeping: slowing the return does not smooth the clip, it starves the line
+
+The owner reported a "position jump" in the continuous clip around 2:30-2:45. Two
+measurements first: **the image does not jump there.** Frame-to-frame mean
+absolute difference (0-255 scale, whole frame) peaks at **1.05** in that window
+in the 15 fps clip and **0.86** in the 30 fps one, against a whole-clip p99 of
+0.78 and a maximum of 2.95 that sits at the clip's end (313 s); a real teleport
+(the arm sweeping ~1 m) scores 20-60. On the joint side the same recipe's
+recorded cell (`logs/p227/skip26`) has a largest single-tick step of **0.058 rad**
+against the arm's own 0.0454 rad/tick limit. So the "jump" is not a discontinuity
+in the trajectory as this build produces it; the most likely reading is the
+**sampling rate** (0.36 rad of joint travel per frame at 15 fps) and the "twisted"
+look is the arm's genuine lateral place posture.
+
+The obvious hypothesis - the per-pick **return transit** is fast (a 90-tick
+min-jerk blend plus an IK lift) - was tested and **fails**, in the informative
+direction:
+
+| arm | clip | placed | 145-170 s frame diff p99 / max |
+|---|---|---|---|
+| standard return (90 ticks) | 5 min 15 s | **25/26** | 0.77 / 0.86 |
+| slow return (180 ticks, settle 90) | 4 min 46 s | **9/26** | 0.76 / 0.85 |
+
+**Slowing the return did not make the clip smoother at all (identical frame
+differences) and cost 16 of 26 placements.** A slower return means the arm is
+still travelling when the next fruit arrives, so the arrival trigger has no lead
+and the catch is lost - the same starvation mechanism the sign-off paragraph of
+22.8 describes from the other side. **Do not slow `FRUIT_CONTINUOUS_TRANSIT_TICKS`
+as a smoothness measure**; the 90-tick default is load-bearing for throughput.
+
+What *did* change is the capture rate: the deliverable clip is **30 fps**
+(`--capture-every 1`, 9442 frames, 5 min 15 s, 25/26 placed), which halves the
+per-frame joint travel and is the only lever here that costs nothing.
+`121_policy_video.py` also drops the raw observer buffer once the frames are
+annotated (nothing below reads it), which is what lets a 30 fps multi-minute clip
+fit in RAM.
