@@ -4651,13 +4651,14 @@ class SortingRLEnv:
         it after the fixed wait pose; the continuous transit (P225n) needs it
         *before* the motion so the blend can end there instead of snapping.
         """
+        align = os.environ.get("FRUIT_DIRECT_START_ALIGN", "0").strip().lower()
         if (
-            os.environ.get("FRUIT_DIRECT_START_ALIGN", "0") != "1"
+            align in ("", "0", "off", "no", "false")
             or self.presentation != "direct"
             or self._sample is None
         ):
             return None
-        mode = os.environ.get("FRUIT_DIRECT_START_ALIGN", "1").strip().lower()
+        mode = align
         if mode not in ("family", "demo"):
             return None
         try:
@@ -4855,7 +4856,16 @@ class SortingRLEnv:
         if _transit:
             # the blend ends at the demos' frame-0 pose, so the align teleport
             # below is skipped (it would snap the few cm the family moves)
-            self._continuous_return(active, self._aligned_start() or start)
+            #: P227z: `_aligned_start()` returns an **ndarray** (or None), so
+            #: `... or start` raised `ValueError: The truth value of an array
+            #: with more than one element is ambiguous` the first time this
+            #: opt-in transit ran with a start alignment armed - measured, it
+            #: aborted the clip after pick 1 (`logs/121_policy_video_traceback.txt`).
+            #: The shipped per-episode reset never reaches here (`_transit` is
+            #: `FRUIT_CONTINUOUS_TRANSIT=1` and a continuation), so this is a
+            #: latent defect of the continuous path only.
+            _aligned = self._aligned_start()
+            self._continuous_return(active, start if _aligned is None else _aligned)
         else:
             arm.teleport_joints(start)
         # `teleport_joints` writes the *measured* dof state back through the
@@ -4883,8 +4893,15 @@ class SortingRLEnv:
         # direct episode was asking for (`[close] dx` -10..-95 mm). With this on,
         # the episode starts where the demonstrations start: one position-only
         # IK solve of the wait pose at the fruit's x, then a teleport.
+        #: P227z: the gate accepted only the literal `"1"` while the dispatch
+        #: below wants `family`/`demo` - so **the family mode was unreachable**
+        #: (`FRUIT_DIRECT_START_ALIGN=family` skipped the whole block and the arm
+        #: stayed at the fixed `grasp` pose, 0.43-0.46 rad from the
+        #: demonstrations' frame 0). The gate now accepts any non-off value and
+        #: the dispatch decides; `"1"` keeps the IK form.
+        _align = os.environ.get("FRUIT_DIRECT_START_ALIGN", "0").strip().lower()
         if (
-            os.environ.get("FRUIT_DIRECT_START_ALIGN", "0") == "1"
+            _align not in ("", "0", "off", "no", "false")
             and self.presentation == "direct"
             and self._sample is not None
             and not _transit
@@ -4897,7 +4914,7 @@ class SortingRLEnv:
             # regressed to +100..+167.
             try:
                 _fx = float(self.spawner.position(self._sample)[0])
-                _mode = os.environ.get("FRUIT_DIRECT_START_ALIGN", "1").strip().lower()
+                _mode = _align
                 if _mode in ("family", "demo"):
                     # P160: the demonstrations' **frame 0** is a linear family in
                     # the selected fruit's x (j4 = 3.036 - 5.741 x, r = -0.994).
@@ -4919,7 +4936,24 @@ class SortingRLEnv:
                             _fam["b"], dtype=float
                         ) * _fx
                         arm.teleport_joints(_q)
+                        if os.environ.get("FRUIT_DIRECT_START_DIAG", "0") == "1":
+                            _m = np.asarray(arm.joint_positions(), dtype=float)
+                            print(
+                                f"[start] family q={np.round(_q, 3).tolist()} "
+                                f"-> measured {np.round(_m, 3).tolist()} "
+                                f"(res {float(np.max(np.abs(_m - _q))):.3f} rad, "
+                                f"settle {self._reset_settle})",
+                                flush=True,
+                            )
                         self.advance(self._reset_settle)
+                        if os.environ.get("FRUIT_DIRECT_START_DIAG", "0") == "1":
+                            _m2 = np.asarray(arm.joint_positions(), dtype=float)
+                            print(
+                                f"[start] after settle {self._reset_settle} ticks: "
+                                f"{np.round(_m2, 3).tolist()} "
+                                f"(drift {float(np.max(np.abs(_m2 - _q))):.3f} rad)",
+                                flush=True,
+                            )
                         raise StopIteration
                 arm.capture_hold_pose()
                 _jaw = np.asarray(arm.jaw_centre(), dtype=float)

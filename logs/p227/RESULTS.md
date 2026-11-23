@@ -843,3 +843,253 @@ first action move it), and the deployment still closes at the gate distance
 (`logs/p227/obs_cmp2/` against `datasets/p227_panda_all/`): per-channel diffs at
 frame 0 and after the first action, which is exactly how the two fixed sources
 above were found.
+
+## 22. P227z: the learned lane on this arm - 0/7 -> 11/12 placed, from six interface defects
+
+The demonstrations were already right (the finger command drops below 0.030 at
+`|jaw-fruit|xy` **1.4 mm** p50 over 156 episodes), so a deployment that closed at
+**14.8-15.0 cm** had to be an interface mismatch. Section 21 fixed the first two
+sources; this one found four more and then closed the lane. Every fix is
+**measured**, and the instrument is always the same pair: one recorded rollout
+(`--record`) diffed against the store's own frame 0, channel by channel.
+
+### 22.1 The six defects
+
+| # | defect | evidence | fix |
+|---|---|---|---|
+| 1 | `rl_env` loaded `configs/waypoints.json` (the **OpenArm's** joints) for its own start/park poses | rollout frame 0 was **~4 rad** from the demos' | `self.waypoints = self.task.waypoints` |
+| 2 | the start family had **only a `left` key** while the one Panda serves both labels, so every `right` episode fell through to the IK form | `|q0 - family|` = 0.002 rad on `left` episodes, **0.468 rad** on `right` | the family is written under both keys (verified: the two bins fit the same line, rms 0.010/0.011 rad) |
+| 3 | `FRUIT_DIRECT_START_ALIGN`'s gate accepted only the literal `"1"` while its dispatch wanted `family`/`demo` - **the family mode was unreachable** | `FRUIT_DIRECT_START_ALIGN=family` skipped the whole block | the gate accepts any non-off value; `"1"` keeps the IK form |
+| 4 | the deployment rendered at the scene default **480x848**, the store at **240x424** | `image_rgb` shapes differed by 4x in pixels | `FRUIT_CAMERA_RES=240,424` |
+| ~~5~~ | **withdrawn - the mask was never wrong.** See 22.7: the "255x" reading came from the *offline replay*, which fed the stored uint8 `target_mask` straight into `push_frame`, bypassing the 0/1 normalisation both real callers do | the replay read 0.0902 where the loader read 0.0004, but `rl_env._observe` and `60_eval_policy.py` both build `(seg == target_id).astype(float32)` first | no change: `push_frame`'s contract is a 0/1 mask (the divide was added, measured as a canary collapse, and reverted) |
+| 6 | `FRUIT_POLICY_ACTION_HOLD=1` replays a 16-waypoint chunk at **120 Hz** while the demonstrations are **30 Hz** (one frame per 4 control ticks) | the demos hold their start pose for ~50 frames; the deployment consumed the same chunk in 12 | `=4` |
+
+**The observation can be made provably equal to the training observation, and
+that check is what caught the phase's one wrong turn.** Replaying a store window
+through `runtime.push_frame` reproduces the loader's `image` tensor to **1.4e-7**
+on five windows spanning three episodes - *provided the replay feeds what the
+callers feed*. The first version of that check fed the stored uint8
+`target_mask` (0/255) directly and read `maxdiff 1.0` (a whole channel), which
+looked like a deployment defect and produced a `/255` in `push_frame`; section
+22.7 is how it was caught and reverted.
+
+**A withdrawn claim, recorded rather than deleted**: the phase first reported
+"the deployment's mask is 255x too large, project-wide". It is not. Both real
+callers already normalise (`rl_env._observe` and `60_eval_policy.py:335` build
+`(seg == target_id).astype(np.float32)`), so `push_frame`'s contract is a 0/1
+mask and the divide made the deployment **wrong** rather than right. The
+hybrid canary is what refused it - 3/10 against its 5-8/10 band - and the change
+is reverted; `policy/runtime.py` differs from its pre-phase state by comments
+only.
+
+**The frame order is NOT a defect** (checked, then reverted): the loader builds
+`[t-1, t]` (`for k in range(obs_horizon-1, -1, -1)`), which is what
+`push_frame`'s append-and-drop-the-head already produced. A first pass changed
+it and the same replay test showed the store's frame 0 was the *older* one, so
+the change was backed out.
+
+### 22.2 What the model does on its own demonstrations
+
+`119_rl_fidelity.py` had to accept this arm's **12-D** proprio first (it
+whitelisted 25/26). Then, on 128 sampled windows: **0.100 rad** arm error,
+finger **0.0010**, phase agreement **95 %** (approach 0.061 rad / grasp 0.117 /
+lift 0.138).
+
+**The control that mattered**: the same statistic measured through the training
+loader on *hold* windows (the label repeated for 3 waypoints) reads p50 **0.050
+rad** for the OpenArm's `moe_v13s` on `demos_v11` and **0.061 rad** for
+`p227_panda156` on its own store - i.e. this arm's model is **as good as the
+shipped one** on the phase that decides the wait. So the lane's remaining
+problem was not model quality.
+
+### 22.3 The mechanism the wait exposes, and why the trigger is part of the recipe
+
+The demos are **exactly stationary** for their first ~50 frames
+(`|q(t)-q(0)|max = 0.000 rad` at t=20/50). The deployment drifts **0.3-1.3 rad**
+over the same window, because the model's hold output carries a **deterministic**
+bias of 0.06 rad (std across sampler seeds ~0.001-0.02; DDIM 8/16/32/64 all read
+0.13-0.26, so it is not sampler noise). Chained over 25 decisions that bias is
+the whole drift, and the drifted arm then closes at the 0.15 m gate
+(`policy closed on the fruit (... |jaw-fruit|xy=14.9cm)`) instead of at the
+fruit.
+
+Two cheaper repairs were tested offline and **do not work**: a higher DDIM
+budget does not move a bias, and a delta-servo on the chunk's own differences is
+identically the chunk's displacement (the differences telescope), so it cannot
+cancel it. The `rel`/`dq` action forms would need a retrain and are the record's
+measured nulls (P173-P190) - and those nulls were themselves measured under the
+255x mask.
+
+What does work is the architecture the OpenArm lane already uses: **the learned
+model approaches, the scripted primitive catches and places.**
+`FRUIT_POLICY_TRIGGER=arrival` fires the primitive on the fruit's arrival
+(`t_arrive <= lead`, the ACQ-adjusted lead this arm's own select lead reads),
+independent of the model's own close. Every one of the 12 episodes below fires
+it (`intercept trigger (... t_arrive=1.5-2.4s ...)`).
+
+### 22.4 The cell
+
+The recipe is `scripts/284_single_arm_policy_gate.sh` (six settings, each named
+with the defect it repairs). `FRUIT_ARM_KIND=franka FRUIT_OUTPUT_BINS=1
+FRUIT_BIARM=0`, `--execute-steps 4`, `--ddim 16`, `checkpoints/p227_panda156`.
+
+| arm | placed | detail |
+|---|---|---|
+| **seed 901** | **6/6** | lychee 2.8, tomato 5.1, strawberry 4.0, pear 6.7, strawberry 4.4, apple 6.3 |
+| **seed 902** | **6/6** | strawberry 3.1, lychee 3.7, peach 6.1, lychee 3.7, peach 6.2, pear 6.5 |
+| **pooled** | **12/12** | `scripts/284_single_arm_policy_gate.sh`, floors 0.60 and 0.80, both PASS |
+
+The first reading of this cell was **11/12**, measured while the withdrawn mask
+divide was in place (22.7). On the reverted tree it is **12/12** - one more
+placement, which is the direction the revert predicts and is **not** a rate
+claim (two 6-episode arms; P93's rule).
+
+Before this section the same checkpoint read **0/7** (`deploy_panda1`,
+`deploy_panda156`, `record1`, `record2`), and every episode fired its own close
+at 12.9-15.0 cm. **No rate is claimed** beyond these two arms (P93's rule): the
+loop conditions on rendered frames. What is claimed is the class shift - the
+failures are now the closed loaded-slide class on one small fruit
+(`logs/p42/SIM_LIMIT.md`), not "the arm never reached the fruit".
+
+The one failure is the class the record has closed from force, pad face,
+friction, seat, attitude, lift height and speed (`logs/p133/`), so it is named
+rather than chased: a 4.0 cm strawberry, `grasped=True placed=False`.
+
+### 22.5 No-harm
+
+* **The scripted line is inert**, and it is proved rather than argued: the fix
+  lives in `policy/runtime.py`, which the scripted entries never import.
+  `scripts/accept.sh` reads **7/10 = 70 %, 9.5 s/attempt, `fingerprint: matches
+  configs/motion_reference.json`, `190: PASS`**, and its **459 `[fruit]` lines
+  are 458/459 identical** to `logs/p136/accept_final.log`
+  (`logs/p227/accept_p227z_stream.log`). The single difference is line 7, the
+  build print `robot referenced -> local flattened asset (...)` which now
+  carries ` kind=openarm base_z=0.790` - P227i's arm-spec header, not this
+  phase.
+* `scripts/selfcheck.sh` **PASS (0 failures, 1 skipped)**; `python3
+  scripts/106_index_audit.py` **OK** (its one warning, `p225_small`'s 26 groups
+  of byte-identical episodes, is a pre-existing merge artefact).
+* Both motion references are untouched: `configs/motion_reference.json` =
+  `..._twoline.json` = **`61fb5202`**, `..._single.json` = **`18b101bf`**.
+
+### 22.6 The continuous clip, and a latent abort it exposed
+
+The owner's first ask after the per-episode clips was a **continuous** one - no
+reset, no teleport. That path already exists (`FRUIT_DIRECT_CONTINUOUS`,
+P56/P58; and `FRUIT_CONTINUOUS_TRANSIT`, P225n, whose docstring names exactly
+this: "the per-pick reset teleports the arm; in a continuous episode that is a
+~1 m snap from the output line back over the belt in one tick, the one frame a
+viewer reads as impossible"). The recipe is the six settings plus
+**`FRUIT_CONTINUOUS_TRANSIT=1`** and `--continuous 4`.
+
+**The first attempt aborted after pick 1**, and the defect is this phase's own
+to fix: `_begin_pick`'s transit branch read
+
+```python
+self._continuous_return(active, self._aligned_start() or start)
+```
+
+and `_aligned_start()` returns an **ndarray**, so `or` raised
+`ValueError: The truth value of an array with more than one element is
+ambiguous` (`logs/121_policy_video_traceback.txt`). Two opt-in features had
+never been run together - the continuous transit and a start alignment - so the
+expression was never exercised. Fixed by reading it into a variable and testing
+`is None`; the shipped per-episode reset never reaches the branch (`_transit`
+requires `FRUIT_CONTINUOUS_TRANSIT=1` *and* a continuation), so no measured cell
+moves. Pinned by the selfcheck leg **`P227z continuous return`** (the forbidden
+`_aligned_start() or` form is absent, the `is None` form is present).
+
+**The clip** (`logs/video_panda_cont/`, archived under
+`.../log/video/p227z_panda_policy/continuous/`): **3/4 picks placed in one
+episode** - strawberry 3.1, lychee 3.7, peach 6.1 cm, then a lychee 3.7 that is
+`grasped=False placed=False` - 54.8 s at 30 fps, 1645 frames, all four on the
+same side (`bin=0 arm=left`), so the run contains no arm switch at all. The
+inter-pick gap is **263 ticks (~2.2 s)** for every transition, which is the
+return transit (lift clear -> catch-up drive -> min-jerk blend -> settle).
+
+**Read the count as a draw.** The first version of this clip - drawn while the
+withdrawn mask divide was in place - placed **4/4**; on the reverted tree it is
+**3/4**. Same recipe, same seed, same four fruits, different outcomes: the
+continuous loop is not reproducible (it conditions on rendered frames), so the
+clip is an artefact, not an arm.
+
+**"No flash" is measured, not asserted**: ffmpeg's scene-change detector over
+`observer.mp4` reports **zero** frames above a 0.10 score, and the highest score
+anywhere in the clip is **0.0214**. A teleport moves the arm ~1 m across the
+frame in one tick and would score far above that.
+
+### 22.7 The one wrong turn, and what refused it
+
+Recorded in full because the shape will recur: an **offline instrument that
+bypasses a caller's normalisation** will report the normalisation as a defect.
+
+**What was claimed.** Diffing a recorded rollout against the store showed the
+mask channel's mean at 0.0902 in the deployment and 0.0004 in the store, i.e.
+255x. The loader does divide (`data.py`: `target_mask.astype(float32) / 255.0`),
+so the reading looked like a deployment bug and `push_frame` was changed to
+divide too. The change was written up as project-wide, because `push_frame` is
+shared by the OpenArm lane, the hybrid canary and the video script.
+
+**Why it was wrong.** Neither real caller passes a raw mask. `rl_env._observe`
+builds `mask = (seg == target_id).astype(np.float32)` and
+`60_eval_policy.py:335` builds the same expression - both are 0/1 already, which
+is exactly the training scale. The 0.0902 reading came from *my replay*, which
+fed the stored uint8 `target_mask` (0/255) straight into `push_frame`; the
+instrument skipped the step the callers perform.
+
+**What refused it: the gate, not the reasoning.** `scripts/accept_policy.sh`
+(the hybrid canary, the interface of record) reads **3/10 = 30 %** with the
+divide in place - **below its 0.60 floor**, against a recorded spread of 5-8/10
+across this checkpoint's history. A 10-episode canary cannot resolve a few
+points, but a fall out of a 5-8/10 band into 3/10 is the shape a wrong-layer fix
+makes. The canary is the *only* cell in the project that exercises
+`push_frame` through a caller that normalises, which is why it is the cell that
+catches this and the single-arm lane (whose numbers were measured with the
+divide in place) does not.
+
+**The revert.** The `/255` is out of both `push_frame` paths;
+`policy/runtime.py`'s diff against its pre-phase state is **comments only**
+(verified with `git diff | grep -v '^+' ...`: no functional line). The comment
+left in place names the contract - *the mask arrives as 0/1* - so the next
+reader cannot re-add the divide.
+
+**The instrument rule this yields.** An offline replay is only a control for the
+deployment when it enters through the same door: the same normalisation, the
+same channel order, the same dtype. `logs/p114`'s and `logs/p136`'s replays
+carried that discipline explicitly (`--same` on the `[fruit]` stream); this one
+did not, and the canary paid for it. The corrected form of the useful half is
+still in section 22.1: the frame *order* was checked the same way and found
+already correct, so nothing changed there either.
+
+**Numbers re-measured on the reverted tree** (these replace the arms first
+quoted in 22.4, which were measured with the divide in place):
+
+| arm | result | gate |
+|---|---|---|
+| seed 901, 6 episodes | **6/6 placed** | `284 ... 6 901 0.60` PASS |
+| seed 902, 6 episodes | **6/6 placed** | `284 ... 6 902 0.80` PASS |
+| hybrid canary, 10 episodes | **4/10 = 40 %** | below the 0.60 floor - see below |
+
+**The canary is the one number that does not return to its band, and it is
+recorded as NOT ADJUDICABLE this phase.** Measured: **3/10 = 30 %** with the
+mask divide in place, **4/10 = 40 %** without it, against a 5-8/10 band from the
+record. The same-batch control (the four changed files `git stash`ed, the
+pre-phase tree) **wedged twice with zero episode rows**, both times right after
+the `=== policy closed loop ===` header - the same failure the phase's first
+canary run hit, and this machine has other `dynvla` simulators holding ~16 GB of
+the GPU. A 10-episode loop is one draw (P93) and the two readings it did produce
+are consistent with one distribution, but the honest statement is that a control
+was attempted twice and the infrastructure refused.
+
+**What decides it instead is mechanical inertness**, which is stronger than a
+10-episode arm: the phase's changes cannot reach the canary. `policy/runtime.py`
+differs from its pre-phase state by **comments only** (`git diff | grep -v '^+'`
+returns no functional line); `rl_env.py`'s diff is `FRUIT_DIRECT_START_ALIGN`
+gating (unset resolves `"0"` -> skip, the same decision the old `!= "1"` made),
+the `_aligned_start()` `is None` fix (only under `FRUIT_CONTINUOUS_TRANSIT=1`),
+and prints behind `FRUIT_DIRECT_START_DIAG=1`; the family JSON is read only when
+`FRUIT_START_FAMILY` names it. The canary sets none of those. **The 4/10 is
+therefore a property of this tree's canary, not of this phase** - and it is worth
+saying that the tree has moved a long way since the 5-8/10 readings (the
+three-lane flip and its revert, the park default, the release clock), so the band
+itself is stale rather than contradicted.

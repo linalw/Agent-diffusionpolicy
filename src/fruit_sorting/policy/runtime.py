@@ -762,6 +762,13 @@ class PolicyRunner:
                 if mask is None:
                     mask = np.zeros_like(depth_f, dtype=np.float32)
                 mask_f = crop_and_resize(np.asarray(mask), _win, _size).astype(np.float32)
+                #: P227z: **the mask arrives as 0/1, not 0/255** - every caller
+                #: normalises it before pushing (`rl_env._observe` and
+                #: `60_eval_policy.py` both build `(seg == target_id).astype(
+                #: float32)`), which is the scale the training loader produces
+                #: (`data.py` divides the stored uint8 by 255). Dividing again
+                #: here is a 255x error and was measured as a canary collapse,
+                #: 3/10 against the 5-8/10 band (`logs/p227/RESULTS.md` 22.7).
                 channels.append(mask_f[..., None])
             self._frames.append(np.concatenate(channels, axis=-1))
             if len(self._frames) > self.obs_horizon:
@@ -776,6 +783,11 @@ class PolicyRunner:
                 mask = np.zeros_like(depth_f)
             mask_f = self._downsample(np.asarray(mask)).astype(np.float32)
             channels.append(mask_f[..., None])
+        #: P227z: the buffer is **oldest-first** (`[t-1, t]`), which is what the
+        #: loader builds (`data.py`: `for k in range(obs_horizon-1, -1, -1)`),
+        #: so the append-and-drop-the-head below is the shipped and correct
+        #: order. Verified by replaying a store window through this method: the
+        #: image matches the loader's to 0.0.
         self._frames.append(np.concatenate(channels, axis=-1))
         if len(self._frames) > self.obs_horizon:
             self._frames.pop(0)

@@ -341,6 +341,13 @@ run_check "P222 side handover" "$python" scripts/281_p222_side_handover_selftest
 # finger material / drive-cap authoring is spec-driven (the first Franka build
 # authored neither). The OpenArm's set, order and offsets are unchanged.
 run_check "P227i arm spec" "$python" scripts/282_p227i_arm_spec_selftest.py
+# P227z: the continuous pickup's return must not write `_aligned_start() or start`
+# - that returns an ndarray, so `or` raises "The truth value of an array with
+# more than one element is ambiguous" and the first continuous clip aborted after
+# pick 1 (`logs/121_policy_video_traceback.txt`). The fix reads it into a
+# variable and tests `is None`; both halves are pinned here, and the shipped
+# per-episode reset never reaches the branch (`FRUIT_CONTINUOUS_TRANSIT=1` only).
+run_check "P227z continuous return" "$python" -c "import sys; src = open('src/fruit_sorting/rl_env.py', encoding='utf-8').read(); bad = '_aligned_start() or'; good = 'start if _aligned is None else _aligned'; assert bad not in src, f'rl_env.py still contains {bad!r} (an ndarray under `or` raises)'; assert good in src, f'the continuous return lost its None test: {good!r} missing'; assert 'FRUIT_CONTINUOUS_TRANSIT' in src; print('continuous-return form ok')"
 # P73: the `[carry]` row's **rotation schedule** (`tilt0=`, `tilt_end=`,
 # `tilt_max=`, `t45=`, `t75=`, `tilt_rate=`) - the instrument the place-leg
 # question needs, because the leg-end `[attitude]` tilt is saturated by the place
