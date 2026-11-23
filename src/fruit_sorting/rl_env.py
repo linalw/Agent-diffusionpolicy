@@ -1258,6 +1258,37 @@ def resolve_action_hold(raw: str | None) -> int:
     return value
 
 
+def resolve_skip_late(raw: str | None) -> float:
+    """P227aa: ``FRUIT_SKIP_LATE`` -> refuse a catch that has no lead left [s].
+
+    The owner's cell semantics: on a real line **several arms share one belt, and
+    each takes the fruit it can serve** - nothing is obliged to catch every
+    passing fruit. This is the software form of that rule. When the arrival
+    trigger fires with `t_arrive` below this many seconds the fruit is already
+    inside the window a descent can meet, so the attempt is ended **on this tick**
+    instead of chasing it: the arm does not run the doomed catch-up (measured:
+    failed attempts carry a 1.18 rad joint range and 44 direction reversals p50
+    against 0.10 and 9 on placements - the only "weird" motion this cell shows),
+    and in a continuous episode the loop moves straight to the next pick.
+
+    ``0``/unset is the shipped path (every fruit is attempted, byte for byte).
+    Strict parsing, the `resolve_target_rate` precedent: a non-number, a negative
+    or a non-finite value is a hard error so a typo cannot read as "off".
+    """
+    text = "" if raw is None else str(raw).strip()
+    if not text:
+        return 0.0
+    try:
+        value = float(text)
+    except ValueError:
+        raise ValueError(f"FRUIT_SKIP_LATE={raw!r} is not a number") from None
+    if not math.isfinite(value) or value < 0.0:
+        raise ValueError(
+            f"FRUIT_SKIP_LATE={raw!r} must be a finite number >= 0 (0 = off)"
+        )
+    return value
+
+
 def resolve_target_rate(raw: str | None) -> float:
     """P207: ``FRUIT_POLICY_TARGET_RATE`` -> the emitted joint target's rate cap.
 
@@ -3284,6 +3315,8 @@ class SortingRLEnv:
         #: ramped at this speed instead of stepping; the state is per arm and is
         #: re-seeded from the measured joints at every attempt (and after a servo
         #: owns the hand), so it cannot integrate a stale pre-servo pose.
+        #: P227aa: the "not mine" rule (see `resolve_skip_late`).
+        self._skip_late = resolve_skip_late(os.environ.get("FRUIT_SKIP_LATE"))
         self._target_rate = resolve_target_rate(
             os.environ.get("FRUIT_POLICY_TARGET_RATE")
         )
@@ -3660,7 +3693,8 @@ class SortingRLEnv:
                 f"action_horizon={self.action_horizon} "
                 f"overlap={min(self.execute_steps, self.action_horizon - self.execute_steps)}"
             )
-        if self._joint_clamp or self._action_hold > 1 or self._target_rate > 0.0:
+        if (self._joint_clamp or self._action_hold > 1 or self._target_rate > 0.0
+                or self._skip_late > 0.0):
             # P53: the emission cells' own banner - the resolved knobs plus the
             # joint ranges the clamp actually uses (read from the arm, so the
             # log proves which limits were applied rather than which were
@@ -3676,10 +3710,17 @@ class SortingRLEnv:
                 if self._target_rate > 0.0
                 else ""
             )
+            #: P227aa: printed independently of the rate cell, because the skip
+            #: rule is a safety/ownership setting and not an emission one.
+            skip = (
+                f"skip_late={self._skip_late:.2f}s "
+                if self._skip_late > 0.0
+                else ""
+            )
             say(
                 f"[rl] emit: joint_clamp={int(self._joint_clamp)} "
                 f"action_hold={self._action_hold} "
-                f"{rate}"
+                f"{skip}{rate}"
                 f"execute_steps={self.execute_steps} "
                 f"ticks_per_decision={self.execute_steps * self._action_hold} "
                 f"hz={120.0 / self._action_hold:.1f} range(right)={ranges}"
@@ -8303,6 +8344,28 @@ class SortingRLEnv:
             # the move to a real cell. With this off the policy's own 7 joints and
             # finger do the whole cycle and nothing else touches the arm.
             handover = os.environ.get("FRUIT_POLICY_HANDOVER", "1").strip() != "0"
+            #: P227aa: **the "not mine" rule**. If the trigger fires with less
+            #: lead than `FRUIT_SKIP_LATE` seconds, the fruit is already inside the
+            #: window a descent can meet - on a line with several arms it is
+            #: another arm's (or the end of the line's), so this attempt ends on
+            #: this tick instead of chasing. That is the whole point: the chase is
+            #: the only "weird" motion this cell produces (measured on 22 recorded
+            #: episodes, failed attempts carry **1.18 rad** of joint range and
+            #: **44** direction reversals p50 against **0.10** and **9** on
+            #: placements, and the worst one oscillates 604 times while the fruit
+            #: is already gone). Unset/0 keeps the shipped path byte for byte.
+            if self._skip_late > 0.0 and intercept:
+                _ta = (intercept_info or {}).get("t_arrive")
+                if _ta is not None and float(_ta) < self._skip_late:
+                    self._note_skip(float(_ta))
+                    self._finalize(
+                        notes=[
+                            "skipped: no lead (the fruit is already inside the "
+                            f"catch window, t_arrive={float(_ta):.2f}s < "
+                            f"{self._skip_late:.2f}s) - not this arm's"
+                        ]
+                    )
+                    return
             if handover and direct_fire(
                 intercept=intercept,
                 policy_close=policy_close,
@@ -8352,6 +8415,16 @@ class SortingRLEnv:
                 self._note_gate_refuse(
                     self._sample.index, gate_refuse, finger, distance
                 )
+
+    def _note_skip(self, t_arrive: float) -> None:
+        """P227aa: one row per skipped attempt (reporting only, zero reads)."""
+        self._skipped_attempts = int(getattr(self, "_skipped_attempts", 0)) + 1
+        self._say(
+            f"[skip] attempt {self._episode}: t_arrive={t_arrive:.2f}s below "
+            f"FRUIT_SKIP_LATE={self._skip_late:.2f}s - the fruit is another "
+            f"arm's; ending this attempt (skips so far "
+            f"{self._skipped_attempts})"
+        )
 
     def _note_x_refuse(self, index: int, info: dict | None) -> None:
         """R2.3: record one x-edge refusal per fruit (the reach-cliff guard).

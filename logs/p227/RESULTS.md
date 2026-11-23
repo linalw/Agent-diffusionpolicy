@@ -1126,14 +1126,115 @@ no lead means no catch-up room - so this is a mechanism read rather than a
 search. The 3 remaining failures are the `fruit fell off the line` upstream-lost
 class and 2 are the model's own close at 8.4-11.3 cm.
 
-**Why a long run produces it**: the belt keeps delivering while the arm places,
-so a long placement leaves the next fruit already in the station. The inter-pick
-gap is **263 ticks (~2.2 s)** on **7** transitions - the return transit and
-nothing more, i.e. the next fruit was already waiting - against **489-644** ticks
-on the starved ones. A station-side queue or hold would fix it and is excluded by
-the owner's "preserve the dynamic pipeline" constraint; the software levers are a
-longer lead or an earlier close, and the model's own close (8-11 cm) is already
-in the failing set.
+**The first reading of the gap was wrong, and the same-recipe control says so.**
+The 26-pick clip has **263 ticks** on 7 transitions and 489-644 on the starved
+ones, which reads as "a short gap means the next fruit was already waiting". A
+second cell on the same recipe with a **10**-pick episode refutes it: gaps
+**120-150 ticks** (shorter than any of the 26-pick ones) and **9/10 placed**,
+with every `t_arrive` at **1.56-2.81 s** - no late fire at all. So the gap is
+**not** the mechanism; the late fire is the *approach's own timing*, i.e. how
+long the model's chunks take before the primitive gets the fruit (a 26-pick run
+gives it 26 chances to be slow, a 10-pick run few). Recorded as a correction
+rather than deleted, because the correlation was real in that sample and the
+inference from it was not.
+
+What is *not* in doubt is the class: 5 picks fired with `t_arrive < 0.5 s` and
+placed 1/5 against 15/21 with a lead. A station-side queue or hold would remove
+the class and is excluded by the owner's "preserve the dynamic pipeline"
+constraint; the software lever is the **skip rule** (22.9), which is also the
+owner's own cell semantics - several arms share a line, and a fruit already
+inside this arm's window belongs to another one.
 
 **No cut**: ffmpeg's scene-change detector reports **zero** frames above 0.10 over
 the whole 350 s; the highest score anywhere is **0.0204**.
+
+### 22.9 The arm's "weird" motion: it is the doomed attempt, and two rules remove it
+
+The owner's first question was a safety one: the arm occasionally makes a
+strange, twisted motion, which on real hardware is dangerous. Measured on the 22
+recorded episodes of this phase (per-tick joint traces), the answer is
+unambiguous: **the motion exists only on failed attempts.**
+
+| class | n | single-joint range p50 | worst | direction reversals p50 | worst |
+|---|---|---|---|---|---|
+| placed | 17 | **0.10 rad** | 0.61 | **9** | 19 |
+| failed | 5 | **1.18 rad** | **1.77** | **44** | **604** |
+
+The worst episode is the kiwi whose fruit left the line: the fruit was gone, the
+loop kept the policy's commands running to the horizon, and the arm oscillated
+**604 times** over 288 frames - 12x the joint excursion and up to 60x the
+reversal count of a placed attempt.
+
+**Where the command comes from.** The policy emits absolute 7-joint targets, and
+its per-tick step is p50 0.16 rad with a **maximum 0.89 rad** in this corpus -
+i.e. up to **20x the arm's own 0.0454 rad/tick** (5.45 rad/s) joint-speed limit.
+`resolve_target_rate`'s docstring already names the consequence ("a command
+transient no servo can follow smoothly; the arm's visible response is the 'weird
+pose'"), and P207 built the fix; this phase measured *when* it happens and put
+the fix in the recipe.
+
+**Three rules, in order of effect.**
+
+1. **Don't run a doomed attempt** (the owner's own cell semantics). On a line with
+   several arms nothing has to catch every passing fruit: a fruit already inside
+   the window a descent can meet belongs to another arm. `FRUIT_SKIP_LATE=<s>`
+   (P227aa, **default off**) ends the attempt on the tick the arrival trigger
+   fires with `t_arrive` below the threshold, with the note
+   `skipped: no lead (the fruit is already inside the catch window, ...) - not
+   this arm's`. It is the class 22.8 identified (5 picks, 1/5 placed) turned from
+   a chase into a hand-off.
+2. **Bound the command** (defence in depth, and the only rule that helps when an
+   attempt goes wrong for a reason nobody predicted):
+   `FRUIT_POLICY_TARGET_RATE=5.45` (the arm's own `maxJointVelocity`, P207) ramps
+   the emitted target so no tick can demand more than the joint can deliver -
+   measured on this cell at **6/6 placed**, so the cap costs nothing in count.
+3. **Never command outside the joint limits**: `FRUIT_POLICY_JOINT_CLAMP=1`
+   (P53 C1) clips the 7 targets to the arm's own `get_dof_limits()` (measured
+   free, and it removes the 11 % out-of-range emissions P53 censused).
+
+**The single-arm recipe is now the six interface settings (22.1) plus these
+three**, and `scripts/284_single_arm_policy_gate.sh` should be run with them:
+`FRUIT_SKIP_LATE=0.5 FRUIT_POLICY_TARGET_RATE=5.45 FRUIT_POLICY_JOINT_CLAMP=1`.
+A related bookkeeping warning that is **not** the motion: the `[task] carry ...
+stored pad centre N mm from the measured pads; re-anchoring` rows (38 in the
+26-pick run, 470-941 mm) are a stale cross-pick `_grip_centre` being corrected
+before the leg runs - the correction is what keeps the leg sane, and the drift is
+one carry leg's length, i.e. the previous pick's centre.
+
+### 22.10 The three rules measured: 25/26 placed and the flail gone
+
+The 26-pick continuous cell re-run with the safety envelope and the skip rule
+(`FRUIT_SKIP_LATE=0.5 FRUIT_POLICY_TARGET_RATE=5.45 FRUIT_POLICY_JOINT_CLAMP=1`,
+seed 902, one reset, `--record`):
+
+| metric | 22.8 (no rules) | 22.10 (three rules) |
+|---|---|---|
+| placed | 16/26 = 61.5 % | **25/26 = 96.2 %** |
+| joint range, p50 / worst | 1.18 / **1.77 rad** | **0.12 / 0.85 rad** |
+| direction reversals, p50 / worst | 44 / **604** | **12 / 27** |
+| `[skip]` fires | - | **0** |
+| worst episode | 288 frames, 604 reversals | 43 frames, 7 reversals |
+
+**Read the count as a branch, and the motion as the result.** The two runs are
+different draws (a 26-pick episode re-times every presentation), so 16 -> 25 is
+not the rules' count: what the rules changed is the **shape** - the failure set's
+1.18 rad / 44-reversal signature is gone from the whole run (worst 0.85 / 27,
+which is the *placed* class's own tail), and the worst episode is 43 frames long
+instead of 288, i.e. nothing runs to the horizon with the fruit gone any more.
+The one remaining failure is a normal-lead catch (`t_arrive=1.99 s`), not the
+late class.
+
+**The skip rule was not exercised by that cell** (0 fires - this branch never put
+a fruit inside the window), so its mechanism is proved separately: with
+`FRUIT_SKIP_LATE=3.0` - above every arrival lead this cell produces - **all 3
+attempts of a 3-pick continuous cell skip** (`0/3 placed`, three `[skip]` rows,
+`picks placed 0/3`), the loop advances to the next pick each time, and nothing
+raises. So the rule is a real hand-off, not a silent no-op: at a threshold the
+cell can meet it does nothing, at a threshold it cannot it hands every fruit on.
+
+**The recipe is therefore** the six interface settings of 22.1 plus
+`FRUIT_SKIP_LATE=0.5 FRUIT_POLICY_TARGET_RATE=5.45 FRUIT_POLICY_JOINT_CLAMP=1`,
+and `scripts/284_single_arm_policy_gate.sh` runs it that way. `FRUIT_SKIP_LATE`'s
+resolver is pinned by the selfcheck leg `P227aa skip rule` (unset/`""` -> 0.0,
+`0.5` -> 0.5, and `-1`/`abc`/`nan`/`inf` all refused, the `resolve_target_rate`
+precedent).

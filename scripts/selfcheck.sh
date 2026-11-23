@@ -354,6 +354,18 @@ run_check "P227z continuous return" "$python" -c "import sys; src = open('src/fr
 # before any simulator, so this is a cheap structural pin. A run that asks for
 # `--views observer,overhead` writes exactly those two mp4s
 # (`logs/p227/video_smoke_views.log`: 2 clips, no gripper/head/side_by_side).
+# P227aa: the owner's cell semantics - several arms share a line and each takes
+# the fruit it can serve, so a fruit already inside the catch window is not this
+# arm's. `FRUIT_SKIP_LATE` ends that attempt on the tick the trigger fires with
+# too little lead instead of chasing it (the chase is the only "weird" motion the
+# cell shows). The resolver is exercised here; unset/0 must be the shipped path.
+run_check "P227aa skip rule" "$python" -c "import sys; sys.path.insert(0, 'src'); from fruit_sorting.rl_env import resolve_skip_late as r; assert r(None) == 0.0 and r('') == 0.0, 'unset must resolve off'; assert abs(r('0.5') - 0.5) < 1e-9, 'the threshold must parse'; bad = 0
+for tok in ('-1', 'abc', 'nan', 'inf'):
+    try:
+        r(tok)
+    except ValueError:
+        bad += 1
+assert bad == 4, f'{bad}/4 bad tokens refused (a typo must not read as off)'; src = open('src/fruit_sorting/rl_env.py', encoding='utf-8').read(); assert 'self._skip_late > 0.0 and intercept' in src, 'the guard site is missing'; assert 'not this arm' in src, 'the skip note is missing'; print('skip rule ok')"
 run_check "P227z video views" "$python" -c "src = open('scripts/121_policy_video.py', encoding='utf-8').read(); assert '--views' in src, 'the capture-set flag is missing'; assert '\"observer\" not in _views' in src, 'the observer guard is missing'; assert 'if \"close\" in _views:' in src and 'if \"overhead\" in _views:' in src, 'the cameras are authored unconditionally again (a 5-minute clip then pays 4 buffers)'; assert 'is simply absent' in src, 'the view-aware capture comment is missing'; assert 'if frames.get(\"head\")' in src, 'the side_by_side guard is missing'; print('video --views shape ok')"
 # P73: the `[carry]` row's **rotation schedule** (`tilt0=`, `tilt_end=`,
 # `tilt_max=`, `t45=`, `t75=`, `tilt_rate=`) - the instrument the place-leg

@@ -7860,13 +7860,18 @@ grow a capture-set flag, because `121_policy_video.py` buffers every frame and
 5 min x 4 views is ~60 GB of RAM): **26 picks in one episode, 350.07 s, 16/26
 placed = 61.5 %**, one reset, two views, **zero** scene-change frames above 0.10
 (max 0.0204). The deficit is **one transition class**: **5 picks fired the
-arrival trigger with `t_arrive < 0.5 s`** - the belt delivered the next fruit
-while the arm was still placing - and they placed **1/5**, against **15/21 =
+arrival trigger with `t_arrive < 0.5 s`** - the fruit was already at or inside
+the station when the approach finally reached its fire tick - and they placed
+**1/5**, against **15/21 =
 71 %** with a real lead (Fisher two-sided **p = 0.055**); the inter-pick gap is
-**263 ticks** (the return transit and nothing more) on 7 transitions. The
-mechanism is a priori (no lead, no catch-up room); a station-side queue would fix
-it and is excluded by the owner's dynamic-pipeline constraint, so the software
-levers are a longer lead or an earlier close (`logs/p227/RESULTS.md` 22.8).
+**263 ticks** (the return transit and nothing more) on 7 transitions - but a
+**10-pick cell on the same recipe reads 120-150 tick gaps and 9/10 placed with
+every `t_arrive` at 1.56-2.81 s**, so the gap is **not** the mechanism (that
+inference was over-read and is corrected in `logs/p227/RESULTS.md` 22.8); the
+late fire is the *approach's* own timing. The class itself stands (no lead, no
+catch-up room) and the software lever is the **skip rule** (`FRUIT_SKIP_LATE`,
+22.9) - the owner's own cell semantics: several arms share a line, so a fruit
+already inside this arm's window is another arm's.
 No-harm:
 `scripts/accept.sh` reads **7/10 = 70 %,
 `fingerprint: matches`, `190: PASS`** and its **459 `[fruit]` lines are 458/459
@@ -7879,6 +7884,52 @@ scripted line is inert (it never imports the policy runtime). `selfcheck.sh`
 `18b101bf`** untouched; ckpt `moe_v13s` `61da390a`, `p227_panda156`. Evidence
 `logs/p227/{RESULTS.md section 22,record_trig_901.log,record_trig_902.log,
 video_panda.log,fidelity_panda156.log}`, `logs/video_panda/`.
+
+**P227aa (2026-11-22, `logs/p227/`; the owner's two safety/ownership questions -
+`FRUIT_SKIP_LATE` and the emission envelope ship **default off**, no reference
+moved): the arm's "weird twisted motion" is the **doomed attempt**, and it is
+removed by not running one.** Measured on the phase's 22 recorded episodes:
+placed attempts carry a **0.10 rad** single-joint range and **9** direction
+reversals p50, failed ones **1.18 rad** and **44** (worst **1.77 / 604**, the kiwi
+whose fruit had left the line and whose loop ran the policy to the horizon). The
+command-side cause is the policy's absolute 7-joint target: its per-tick step is
+p50 0.16 rad with a **maximum 0.89 rad**, i.e. **20x** the arm's own
+**0.0454 rad/tick** (5.45 rad/s) - `resolve_target_rate`'s docstring already
+named the consequence, P207 built the fix, and this phase measured *when* it
+happens. **Three rules, and the recipe now carries all three**: (1) **the
+ownership rule the owner asked for** - `FRUIT_SKIP_LATE=<s>` (new,
+`resolve_skip_late`, strict parsing, unset/`0` = the shipped path) ends the
+attempt **on the tick the arrival trigger fires with `t_arrive` below the
+threshold**, with the note `skipped: no lead (...) - not this arm's`; on a line
+with several arms a fruit already inside this arm's window belongs to another
+one, so it is handed off instead of chased. (2) `FRUIT_POLICY_TARGET_RATE=5.45`
+ramps the emitted target at the arm's own `maxJointVelocity` (measured **6/6**
+placed, so the cap is free in count). (3) `FRUIT_POLICY_JOINT_CLAMP=1` clips the
+targets to `get_dof_limits()` (P53 C1, free). **Measured on the 26-pick
+continuous cell** (seed 902, one reset, `--record`, the three rules on): **25/26
+placed = 96.2 %**, joint range p50 **0.12** / worst **0.85**, reversals p50 **12**
+/ worst **27**, and the worst episode is **43 frames** instead of 288 - the
+failures' 1.18/44 signature is gone. **Read the count as a branch** (a 26-pick
+episode re-times every presentation; 16 -> 25 is not the rules' count) - what
+the rules changed is the **shape**. **The skip rule was not exercised by that
+cell** (0 fires, that branch never put a fruit inside the window), so it is
+proved separately: with `FRUIT_SKIP_LATE=3.0` - above every lead this cell
+produces - **all 3 attempts of a 3-pick cell skip** (`picks placed 0/3`, three
+`[skip]` rows, the loop advancing each time, nothing raising), so the rule is a
+real hand-off and not a silent no-op. **Corrected in the same pass**: 22.8's
+"a short inter-pick gap means the next fruit was already waiting" is **wrong** -
+a 10-pick cell on the same recipe reads **120-150 tick** gaps and **9/10** placed
+with every `t_arrive` at 1.56-2.81 s; the late fire is the **approach's** own
+timing, and only the class (5 picks at `t_arrive<0.5 s`, 1/5 placed against
+15/21) stands. Also recorded, and **not** the motion: the 38 `carry ...
+re-anchoring` rows (470-941 mm) are a stale cross-pick `_grip_centre` corrected
+before the leg runs. Pins: `rl_env.py` (`resolve_skip_late`, the guard site, the
+`[skip]` row, `skip_late=` in the emit banner),
+`scripts/284_single_arm_policy_gate.sh` (the three settings are in the recipe),
+`scripts/selfcheck.sh` (`P227aa skip rule`: unset/`""` -> 0.0, `0.5` -> 0.5,
+`-1`/`abc`/`nan`/`inf` refused); references **61fb5202 / 61fb5202 / 18b101bf**
+untouched. Evidence `logs/p227/{RESULTS.md 22.9-22.10,skip26.log,skip26/,
+skipforce.log,bedsel_cont10.log}`.
 
 **P142 (2026-11-11, `logs/p142/`; two defect fixes + a declared metric,
 **nothing adopted, no reference moved**): the direct lane's two *bookkeeping*

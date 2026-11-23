@@ -26,6 +26,23 @@
 #                                     With the trigger off the model's own close
 #                                     fires at the 0.15 m gate (P143) and the
 #                                     catch-up loses the fruit.
+#   FRUIT_POLICY_TARGET_RATE=5.45     the emitted joint target is ramped at the
+#                                     arm's own maxJointVelocity. The policy's
+#                                     per-tick step reaches 0.89 rad, i.e. 20x
+#                                     what the joints can deliver, and on real
+#                                     hardware an unfollowable step is the
+#                                     dangerous motion. Measured 6/6 at the cap.
+#   FRUIT_POLICY_JOINT_CLAMP=1       the 7 targets are clipped to the arm's own
+#                                     get_dof_limits() (P53 C1: free).
+#   FRUIT_SKIP_LATE=0.5              **the cell's ownership rule.** Several arms
+#                                     share a line; a fruit already inside the
+#                                     window a descent can meet is another arm's,
+#                                     so the attempt ends on the tick the trigger
+#                                     fires with too little lead instead of
+#                                     chasing it (the chase is the only "weird"
+#                                     motion the cell shows: failures carry a
+#                                     1.18 rad joint range and 44 reversals
+#                                     against 0.10 / 9 on placements).
 #
 # `FRUIT_ARM_KIND=franka`/`FRUIT_OUTPUT_BINS=1` are the cell itself;
 # `FRUIT_BIARM=0` keeps the scripted two-line scheduler out of it.
@@ -66,6 +83,9 @@ FRUIT_DIRECT_START_ALIGN=family \
 FRUIT_START_FAMILY=configs/start_pose_family_panda.json \
 FRUIT_POLICY_ACTION_HOLD=4 \
 FRUIT_POLICY_TRIGGER=arrival \
+FRUIT_POLICY_TARGET_RATE=5.45 \
+FRUIT_POLICY_JOINT_CLAMP=1 \
+FRUIT_SKIP_LATE="${FRUIT_SKIP_LATE:-0.5}" \
     scripts/run.sh scripts/110_rl_rollout.py \
         --presentation direct --episodes "$episodes" --seeds "$seed" --ckpt "$ckpt" \
         > "$log" 2>&1
