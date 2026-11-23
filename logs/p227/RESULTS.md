@@ -1093,3 +1093,47 @@ therefore a property of this tree's canary, not of this phase** - and it is wort
 saying that the tree has moved a long way since the 5-8/10 readings (the
 three-lane flip and its revert, the park default, the release clock), so the band
 itself is stale rather than contradicted.
+
+### 22.8 A five-minute continuous run: 16/26, and the deficit is one transition
+
+The owner asked for a **5-minute** continuous clip. Two things had to be built
+for it, and the run produced a mechanism the short clips could not show.
+
+**The instrument.** `121_policy_video.py` buffers every captured frame before it
+encodes, so 5 minutes x 4 views is **~60 GB of RAM**. It gained **`--views`**
+(capture a subset; unrequested cameras are no longer authored, so they cost
+neither a render nor a buffer) and the existing `--capture-every` already keeps
+real time at 15 fps (`fps = 30 / stride`, `render_every = 4 * stride`). The clip
+is `--capture-every 2 --views observer,overhead`, which is ~21 GB. A source-shape
+pin (`P227z video views`) keeps the cameras conditional and the `side_by_side`
+guard in place.
+
+**The clip** (`logs/video_panda_5min/`, archived under
+`.../log/video/p227z_panda_policy/continuous_5min/`): **26 picks in one episode**,
+one reset, **350.07 s (5 min 50 s)**, 5251 frames at 15 fps, 960x540, two views.
+**16/26 placed = 61.5 %** - a draw, not a rate (P93).
+
+**The deficit is one transition class, measured.** Joining each pick to its own
+trigger row:
+
+| class | n | placed |
+|---|---|---|
+| arrival trigger fired with **`t_arrive < 0.5 s`** (the fruit was already at or inside the station) | **5** | **1** |
+| arrival trigger with a real lead | **21** | **15 (71 %)** |
+
+Fisher two-sided **p = 0.055**, one-sided **0.0275**. The mechanism is a priori -
+no lead means no catch-up room - so this is a mechanism read rather than a
+search. The 3 remaining failures are the `fruit fell off the line` upstream-lost
+class and 2 are the model's own close at 8.4-11.3 cm.
+
+**Why a long run produces it**: the belt keeps delivering while the arm places,
+so a long placement leaves the next fruit already in the station. The inter-pick
+gap is **263 ticks (~2.2 s)** on **7** transitions - the return transit and
+nothing more, i.e. the next fruit was already waiting - against **489-644** ticks
+on the starved ones. A station-side queue or hold would fix it and is excluded by
+the owner's "preserve the dynamic pipeline" constraint; the software levers are a
+longer lead or an earlier close, and the model's own close (8-11 cm) is already
+in the failing set.
+
+**No cut**: ffmpeg's scene-change detector reports **zero** frames above 0.10 over
+the whole 350 s; the highest score anywhere is **0.0204**.

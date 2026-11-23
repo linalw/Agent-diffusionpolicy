@@ -160,8 +160,24 @@ def main() -> int:
              "truncated every grasp mid-carry)",
     )
     parser.add_argument("--size-filter", choices=["", "small", "large"], default="")
+    parser.add_argument(
+        "--views",
+        default=os.environ.get("FRUIT_VIDEO_VIEWS", "observer,head,close,overhead"),
+        help="comma-separated capture set (observer/head/close/overhead). Each view "
+             "costs one render per captured frame and one buffer of the whole clip, "
+             "so a multi-minute clip should ask only for the views it needs; "
+             "'observer' is required (it is the annotated base view). P227z.",
+    )
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
+    _views = [v.strip().lower() for v in str(args.views).split(",") if v.strip()]
+    for _v in _views:
+        if _v not in ("observer", "head", "close", "overhead"):
+            raise SystemExit(
+                f"--views: {_v!r} is not one of observer/head/close/overhead"
+            )
+    if "observer" not in _views:
+        raise SystemExit("--views must include 'observer' (the annotated base view)")
     if args.continuous:
         # P58: the multi-pick episode is an explicit run-length mode, never a
         # default (it rescales --episodes and the summary becomes pick-level).
@@ -225,30 +241,36 @@ def main() -> int:
     # lanes. This is the same band-free pose the scripted recorder uses (raise z,
     # keep the shipped aim): aiming at the centre line instead puts the pedestal's
     # unlit cavity across the bottom of the frame (80 black rows, measured).
-    over_eye = (0.05, 0.0, float(os.environ.get("FRUIT_VIDEO_OVERHEAD_Z", "2.35")))
-    over_target = (0.34, 0.22, 1.10)
-    overhead = RtxCamera(
-        "/World/PolicyOverheadCamera",
-        tick_rate=0.0,
-        positions=[over_eye],
-        orientations=[look_at_quat(over_eye, over_target)],
-    )
-    overhead.camera.set_focal_lengths(0.016)
-    overhead.camera.set_apertures((0.036, 0.02025))
-    overhead.camera.set_clipping_ranges(0.01, 50.0)
-    overhead_sensor = CameraSensor(overhead, resolution=(540, 960), annotators=["rgb"])
+    overhead_sensor = None
+    if "overhead" in _views:
+        over_eye = (0.05, 0.0, float(os.environ.get("FRUIT_VIDEO_OVERHEAD_Z", "2.35")))
+        over_target = (0.34, 0.22, 1.10)
+        overhead = RtxCamera(
+            "/World/PolicyOverheadCamera",
+            tick_rate=0.0,
+            positions=[over_eye],
+            orientations=[look_at_quat(over_eye, over_target)],
+        )
+        overhead.camera.set_focal_lengths(0.016)
+        overhead.camera.set_apertures((0.036, 0.02025))
+        overhead.camera.set_clipping_ranges(0.01, 50.0)
+        overhead_sensor = CameraSensor(
+            overhead, resolution=(540, 960), annotators=["rgb"]
+        )
 
-    close_eye = (0.93, 0.62, 1.42)
-    close = RtxCamera(
-        "/World/PolicyGripperCamera",
-        tick_rate=0.0,
-        positions=[close_eye],
-        orientations=[look_at_quat(close_eye, (0.34, 0.0, 1.19))],
-    )
-    close.camera.set_focal_lengths(0.035)
-    close.camera.set_apertures((0.036, 0.02025))
-    close.camera.set_clipping_ranges(0.01, 50.0)
-    close_sensor = CameraSensor(close, resolution=(540, 960), annotators=["rgb"])
+    close_sensor = None
+    if "close" in _views:
+        close_eye = (0.93, 0.62, 1.42)
+        close = RtxCamera(
+            "/World/PolicyGripperCamera",
+            tick_rate=0.0,
+            positions=[close_eye],
+            orientations=[look_at_quat(close_eye, (0.34, 0.0, 1.19))],
+        )
+        close.camera.set_focal_lengths(0.035)
+        close.camera.set_apertures((0.036, 0.02025))
+        close.camera.set_clipping_ranges(0.01, 50.0)
+        close_sensor = CameraSensor(close, resolution=(540, 960), annotators=["rgb"])
 
     # The extra render products need one render before their first read: a freshly
     # created sensor can return a 0-d placeholder until then. A few warm-up steps
@@ -258,9 +280,11 @@ def main() -> int:
     for name, sensor in (
         ("observer", observer_sensor),
         ("gripper", close_sensor),
-        ("head", env.scene.camera_sensor),
+        ("head", env.scene.camera_sensor if "head" in _views else None),
         ("overhead", overhead_sensor),
     ):
+        if sensor is None:
+            continue
         frame = None
         for _ in range(20):
             RenderingManager.render()
@@ -273,7 +297,7 @@ def main() -> int:
         else:
             say(f"[video] {name} camera ready ({frame.shape[1]}x{frame.shape[0]})")
 
-    frames = {"observer": [], "head": [], "close": [], "overhead": []}
+    frames = {view: [] for view in ("observer", "head", "close", "overhead") if view in _views}
     labels: list[dict] = []
     episodes: list[dict] = []
     state = {"episode": 0, "phase": "reset"}
@@ -293,10 +317,10 @@ def main() -> int:
         last_tick[0] = tick
         RenderingManager.render()
         obs = frame_of(observer_sensor)
-        head = frame_of(env.scene.camera_sensor)
-        close_up = frame_of(close_sensor)
-        over = frame_of(overhead_sensor)
-        if obs is None or head is None or close_up is None:
+        head = frame_of(env.scene.camera_sensor) if "head" in frames else None
+        close_up = frame_of(close_sensor) if "close" in frames else None
+        over = frame_of(overhead_sensor) if "overhead" in frames else None
+        if obs is None:
             return
         finger = None
         if hasattr(env, "_last_finger"):
@@ -311,11 +335,14 @@ def main() -> int:
             fruit = np.asarray(env.spawner.position(env._sample), dtype=float)
             distance = float(np.linalg.norm(fruit[:2] - jaw[:2]))
         phase = "primitive" if getattr(env, "_triggered", False) else state["phase"]
-        frames["observer"].append(obs)
-        frames["head"].append(head)
-        frames["close"].append(close_up)
-        if over is not None:
-            frames["overhead"].append(over)
+        # P227z: a view that was not captured is simply absent - the consumers
+        # below all test for the key, so `--views observer,overhead` writes those
+        # two mp4s and no others (a 5-minute clip cannot afford four buffers).
+        for _name, _frame in (
+            ("observer", obs), ("head", head), ("close", close_up), ("overhead", over)
+        ):
+            if _name in frames and _frame is not None:
+                frames[_name].append(_frame)
         labels.append(
             {
                 "episode": state["episode"],
@@ -513,23 +540,27 @@ def main() -> int:
         }
 
     write(os.path.join(args.out_dir, "observer.mp4"), observer_annotated)
-    write(os.path.join(args.out_dir, "head.mp4"), frames["head"])
-    write(os.path.join(args.out_dir, "gripper.mp4"), frames["close"])
-    if frames["overhead"]:
+    if frames.get("head"):
+        write(os.path.join(args.out_dir, "head.mp4"), frames["head"])
+    if frames.get("close"):
+        write(os.path.join(args.out_dir, "gripper.mp4"), frames["close"])
+    if frames.get("overhead"):
         write(os.path.join(args.out_dir, "overhead.mp4"), frames["overhead"])
 
-    # Side-by-side: observer + head at a common height.
-    height = 480
-    paired = []
-    for index in range(min(len(observer_annotated), len(frames["head"]))):
-        left = cv2.resize(
-            observer_annotated[index], (int(observer_annotated[index].shape[1] * height / observer_annotated[index].shape[0]), height)
-        )
-        right = cv2.resize(
-            frames["head"][index], (int(frames["head"][index].shape[1] * height / frames["head"][index].shape[0]), height)
-        )
-        paired.append(np.hstack([left, right]))
-    write(os.path.join(args.out_dir, "side_by_side.mp4"), paired)
+    # Side-by-side: observer + head at a common height (only when both were
+    # captured; `--views observer,overhead` has no head buffer).
+    if frames.get("head"):
+        height = 480
+        paired = []
+        for index in range(min(len(observer_annotated), len(frames["head"]))):
+            left = cv2.resize(
+                observer_annotated[index], (int(observer_annotated[index].shape[1] * height / observer_annotated[index].shape[0]), height)
+            )
+            right = cv2.resize(
+                frames["head"][index], (int(frames["head"][index].shape[1] * height / frames["head"][index].shape[0]), height)
+            )
+            paired.append(np.hstack([left, right]))
+        write(os.path.join(args.out_dir, "side_by_side.mp4"), paired)
 
     # Provenance beside the clips: manifest (written by the env) + per-episode rows.
     summary = {
@@ -544,6 +575,9 @@ def main() -> int:
         "episodes_requested": int(args.episodes),
         "capture_every_control_steps": stride,
         "fps": fps,
+        # P227z: which views this clip actually captured (a long clip records a
+        # subset; the key is what tells two clips apart).
+        "views": list(_views),
         "manifest": env.manifest_path or "",
         "episodes": episodes,
         "videos": written,

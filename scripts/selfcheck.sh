@@ -348,6 +348,13 @@ run_check "P227i arm spec" "$python" scripts/282_p227i_arm_spec_selftest.py
 # variable and tests `is None`; both halves are pinned here, and the shipped
 # per-episode reset never reaches the branch (`FRUIT_CONTINUOUS_TRANSIT=1` only).
 run_check "P227z continuous return" "$python" -c "import sys; src = open('src/fruit_sorting/rl_env.py', encoding='utf-8').read(); bad = '_aligned_start() or'; good = 'start if _aligned is None else _aligned'; assert bad not in src, f'rl_env.py still contains {bad!r} (an ndarray under `or` raises)'; assert good in src, f'the continuous return lost its None test: {good!r} missing'; assert 'FRUIT_CONTINUOUS_TRANSIT' in src; print('continuous-return form ok')"
+# P227z: a multi-minute clip cannot buffer every view (5 min x 4 views is ~60 GB),
+# so `121_policy_video.py` grew `--views` (capture a subset) and
+# `--capture-every` already keeps real time at 15 fps. `--help` exits at parse,
+# before any simulator, so this is a cheap structural pin. A run that asks for
+# `--views observer,overhead` writes exactly those two mp4s
+# (`logs/p227/video_smoke_views.log`: 2 clips, no gripper/head/side_by_side).
+run_check "P227z video views" "$python" -c "src = open('scripts/121_policy_video.py', encoding='utf-8').read(); assert '--views' in src, 'the capture-set flag is missing'; assert '\"observer\" not in _views' in src, 'the observer guard is missing'; assert 'if \"close\" in _views:' in src and 'if \"overhead\" in _views:' in src, 'the cameras are authored unconditionally again (a 5-minute clip then pays 4 buffers)'; assert 'is simply absent' in src, 'the view-aware capture comment is missing'; assert 'if frames.get(\"head\")' in src, 'the side_by_side guard is missing'; print('video --views shape ok')"
 # P73: the `[carry]` row's **rotation schedule** (`tilt0=`, `tilt_end=`,
 # `tilt_max=`, `t45=`, `t75=`, `tilt_rate=`) - the instrument the place-leg
 # question needs, because the leg-end `[attitude]` tilt is saturated by the place

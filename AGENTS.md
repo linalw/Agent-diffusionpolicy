@@ -7854,7 +7854,20 @@ is measured**: ffmpeg's scene-change detector reports **zero** frames above a 0.
 score over `observer.mp4` (the clip's highest score is 0.0214), whereas a
 teleport would move the arm ~1 m in one tick. The clip drew **4/4** while the
 withdrawn divide was in place and **3/4** on the reverted tree - a draw, not an
-arm (the loop conditions on rendered frames). No-harm:
+arm (the loop conditions on rendered frames). **The five-minute continuous run**
+(`--continuous 26 --capture-every 2 --views observer,overhead` - the sensor had to
+grow a capture-set flag, because `121_policy_video.py` buffers every frame and
+5 min x 4 views is ~60 GB of RAM): **26 picks in one episode, 350.07 s, 16/26
+placed = 61.5 %**, one reset, two views, **zero** scene-change frames above 0.10
+(max 0.0204). The deficit is **one transition class**: **5 picks fired the
+arrival trigger with `t_arrive < 0.5 s`** - the belt delivered the next fruit
+while the arm was still placing - and they placed **1/5**, against **15/21 =
+71 %** with a real lead (Fisher two-sided **p = 0.055**); the inter-pick gap is
+**263 ticks** (the return transit and nothing more) on 7 transitions. The
+mechanism is a priori (no lead, no catch-up room); a station-side queue would fix
+it and is excluded by the owner's dynamic-pipeline constraint, so the software
+levers are a longer lead or an earlier close (`logs/p227/RESULTS.md` 22.8).
+No-harm:
 `scripts/accept.sh` reads **7/10 = 70 %,
 `fingerprint: matches`, `190: PASS`** and its **459 `[fruit]` lines are 458/459
 identical** to `logs/p136/accept_final.log` - the single difference is P227i's
