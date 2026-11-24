@@ -1384,3 +1384,70 @@ here - not because they raise the rate.
 is the deliverable; `video_panda_5min_safe/` and `video_panda_30fps/` are kept as
 the **error reference** - both recorded without `FRUIT_CONTINUOUS_TRANSIT=1` - and
 their READMEs now say so.
+
+### 22.15 "The arm reaches under the bin": measured, and it does not
+
+The owner reported the arm reaching below the side bins, and a posture a normal
+sort should never show. Both were traced to one failed attempt in the delivered
+clip (pick 4, `T` 43.8-59.8 s) and then measured across the cell.
+
+**The hand never enters the bin zone.** With `RL_ENV_DEBUG=1` on 8 episodes of
+the bins cell (177 sampled decisions):
+
+| jaw axis | measured | the bins |
+|---|---|---|
+| `y` | **-0.108 .. +0.011** | at `|y| = 0.55`, inner face **0.40** |
+| `z` | **1.259 .. 1.335** | floor **1.10**, rim **1.26** |
+| `x` | 0.212 .. 0.381 | the belt band |
+
+**Zero** samples below the bin floor, **zero** with `|y| > 0.40`, and 8/177 within
+1 mm of the rim (that is the release, which sits above the rim on purpose). The
+nearest bin wall is **0.29 m** away. What reads as "under the bin" is the camera:
+the bins sit **behind** the robot (`x = -0.10`, `|y| = 0.55`) while the arm works
+at `x` 0.21-0.38 and `|y| <= 0.11`, so in a side or overhead view the arm's
+silhouette overlaps the bin at a depth 0.3-0.4 m away.
+
+**The posture is the chase, and the chase had no bound.** Pick 4's record:
+
+```
+[task] close: fruit drifted 380 mm off the pick centre (cross-belt); re-closing on it where it is
+[task] carry grasp_lift: stored pad centre 131 mm from the measured pads; re-anchoring
+episode 3: lychee ... success=False grasped=False placed=False ticks=1931
+```
+
+The re-close follows the fruit to wherever it drifted (`gripper.follow_centre(
+fruit_now)`) and only the **last** attempt aborted; the earlier ones reached as far
+as the fruit had moved. On that attempt the arm's **j4 extended 0.85 rad** where
+placements span **0.42-0.46**, so the "posture a normal sort never shows" is a
+recovery reach, not a sorting motion.
+
+**`FRUIT_CLOSE_DRIFT_MAX=<m>`** (new, **default off** = the shipped path bit for
+bit) caps that reach: a re-close whose drift exceeds the threshold takes the
+**existing abort path** (`... aborting the attempt instead of chasing it`) with its
+own note `fruit drifted N mm during the close (chase cap M mm)`, so the attempt
+ends cleanly instead of reaching.
+
+**A separate defect found on the way, and deliberately not changed**:
+`_place_low`'s floor is `cfg.output_belt_top_z` **unconditionally** (1.35), while
+the bins are a 1.10 m floor with a 1.26 m rim. On a bins cell `need = bottom -
+1.35 - 0.025` is **-0.057 .. -0.073**, so the accompanied descent is **skipped**
+and the payload is released ~5 cm above the rim and **falls 0.20 m** to the bin
+floor (measured `fingertip_z` 1.312-1.317, `below_rim` +0.052 .. +0.057, `low_drop`
+0.000). Honouring the bin floor would drive the pads **into** the box (floor+25 mm
+= 1.125, i.e. 0.19 m lower) - the opposite of the owner's complaint - so the
+release stays above the rim and the free fall is recorded as a named trade, not
+fixed. `FRUIT_PLACE_HEIGHT_DIAG=1` prints the row that measured it
+(`[place] bin=... floor=... rim=... jaw_z=... payload_bottom=... fingertip_z=...
+low_need=... low_drop=... below_floor=... below_rim=...`).
+
+**The cap's own status, stated honestly**: it is implemented, strict-parsed and
+pinned by shape, but **not exercised end to end**. The re-close path is rare -
+`close: fruit drifted ... re-closing` fired **once in the delivered clip's 26
+picks** and **not at all** in 8+8 episodes at seed 5 (0 fires at 0.10 m) or in 3
+episodes at a forced 1 mm threshold, because the first close succeeded in every
+one of them. What *is* measured is the body it reuses: the abort in the same `if`
+is the shipped "fruit left the pick station ... aborting the attempt instead of
+chasing it" path, which the 22.9-22.14 cells run. So the cap converts that
+abnormal reach into the already-measured clean abort; its effect on a cell that
+actually draws a disturbed close is the open item, and the delivered clip's pick 4
+is the case to replay when one is available.

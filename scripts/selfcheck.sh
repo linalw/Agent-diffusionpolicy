@@ -371,6 +371,14 @@ assert bad == 4, f'{bad}/4 bad tokens refused (a typo must not read as off)'; sr
 # 16 h before it was killed. `--frames-dir` writes JPEGs and holds paths, and the
 # encoder normalises one frame at a time (no `prepared` list). Source-shape pin -
 # the flag is exercised end to end by the clips themselves.
+# P227ac: the close's chase cap. A re-close follows the fruit to wherever it
+# drifted, and until this knob there was no bound: measured, one attempt reached
+# 380 mm and the arm's j4 extended 0.85 rad where placements span 0.42-0.46. The
+# knob reuses the *existing* abort body (the measured "fruit left the pick station"
+# path), so the pin is the branch's shape plus the strict parse - the path itself
+# is rare (0 fires at 0.10 m in 16 episodes, 0 at 1 mm in 3, one in the delivered
+# clip's 26 picks) and is recorded as not-exercised, not as measured.
+run_check "P227ac close chase cap" "$python" -c "src = open('src/fruit_sorting/tasks.py', encoding='utf-8').read(); assert 'FRUIT_CLOSE_DRIFT_MAX' in src, 'the knob is missing'; assert '_capped = _drift_cap > 0.0 and drift > _drift_cap' in src, 'the cap term is missing'; assert 'if _close_attempt + 1 >= close_attempts or _capped:' in src, 'the cap does not share the abort body (that body is the measured one)'; assert 'chase cap {_drift_cap * 1000' in src, 'the note does not name the cap'; assert 'is not a number' in src and 'finite number >= 0' in src, 'the parse is not strict'; print('close chase cap ok')"
 run_check "P227ab disk frame buffer" "$python" -c "src = open('scripts/121_policy_video.py', encoding='utf-8').read(); assert '--frames-dir' in src, 'the flag is missing'; assert 'def _save(view: str, frame' in src, 'the store helper is missing'; assert 'def _load(item):' in src, 'the loader is missing'; assert 'prepared = [normalise(' not in src, 'the encoder still materialises the clip (that is the 46 GB path)'; assert 'write_with_ffmpeg(path, images, width, height)' in src; assert 'frame buffer on disk' in src; print('disk frame buffer ok')"
 run_check "P227z video views" "$python" -c "src = open('scripts/121_policy_video.py', encoding='utf-8').read(); assert '--views' in src, 'the capture-set flag is missing'; assert '\"observer\" not in _views' in src, 'the observer guard is missing'; assert 'if \"close\" in _views:' in src and 'if \"overhead\" in _views:' in src, 'the cameras are authored unconditionally again (a 5-minute clip then pays 4 buffers)'; assert 'is simply absent' in src, 'the view-aware capture comment is missing'; assert 'if frames.get(\"head\")' in src, 'the side_by_side guard is missing'; print('video --views shape ok')"
 # P73: the `[carry]` row's **rotation schedule** (`tilt0=`, `tilt_end=`,

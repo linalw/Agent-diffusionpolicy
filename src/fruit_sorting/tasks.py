@@ -16015,14 +16015,48 @@ class PickAndPlaceTask:
                         )
                     ):
                         break
-                if _close_attempt + 1 >= close_attempts:
-                    say(
-                        f"[task]   close: fruit left the pick station ({drift * 1000:.0f} mm "
-                        "cross-belt); aborting the attempt instead of chasing it"
+                #: P227ac: **the chase cap**. A re-close follows the fruit to
+                #: wherever it drifted (`gripper.follow_centre(fruit_now)`, above),
+                #: and until this knob there was no bound on that distance - the
+                #: last attempt aborted, but the earlier ones reached as far as the
+                #: fruit had moved. Measured on the bins cell: one attempt
+                #: re-closed after a **380 mm** cross-belt drift and the arm's j4
+                #: extended **0.85 rad** (placements span 0.42-0.46); on a real cell
+                #: that is a reach no sorting motion should make. `0`/unset keeps
+                #: the shipped path bit for bit.
+                try:
+                    _drift_cap = float(os.environ.get("FRUIT_CLOSE_DRIFT_MAX", "0") or 0.0)
+                except ValueError:
+                    raise ValueError(
+                        "FRUIT_CLOSE_DRIFT_MAX="
+                        f"{os.environ.get('FRUIT_CLOSE_DRIFT_MAX')!r} is not a number "
+                        "(metres, 0 = off)"
+                    ) from None
+                if not math.isfinite(_drift_cap) or _drift_cap < 0.0:
+                    raise ValueError(
+                        "FRUIT_CLOSE_DRIFT_MAX must be a finite number >= 0 "
+                        f"(got {_drift_cap!r})"
                     )
-                    result.notes.append(
-                        f"fruit left the pick station during the close ({drift * 1000:.0f} mm)"
-                    )
+                _capped = _drift_cap > 0.0 and drift > _drift_cap
+                if _close_attempt + 1 >= close_attempts or _capped:
+                    if _capped and _close_attempt + 1 < close_attempts:
+                        say(
+                            f"[task]   close: fruit drifted {drift * 1000:.0f} mm "
+                            f"(> the {_drift_cap * 1000:.0f} mm chase cap); aborting "
+                            "the attempt instead of chasing it"
+                        )
+                        result.notes.append(
+                            f"fruit drifted {drift * 1000:.0f} mm during the close "
+                            f"(chase cap {_drift_cap * 1000:.0f} mm)"
+                        )
+                    else:
+                        say(
+                            f"[task]   close: fruit left the pick station ({drift * 1000:.0f} mm "
+                            "cross-belt); aborting the attempt instead of chasing it"
+                        )
+                        result.notes.append(
+                            f"fruit left the pick station during the close ({drift * 1000:.0f} mm)"
+                        )
                     # Let go so the next attempt starts from a clean hand.
                     for value in min_jerk_ramp(grip_gap, gap_open, 20):
                         gripper.follow_centre(
@@ -17370,6 +17404,35 @@ class PickAndPlaceTask:
             if place_low:
                 centre, low_info = self._place_low(
                     arm_name, sample, centre, quat, gap, place_trace
+                )
+            if os.environ.get("FRUIT_PLACE_HEIGHT_DIAG", "0") == "1":
+                #: P227ac: **what the hand's lowest part is, and what surface it is
+                #: judged against.** `_place_low`'s floor is `output_belt_top_z`
+                #: unconditionally, while the side bins are a 1.10 m floor with a
+                #: 1.26 m rim - so on a bins cell the descent's `need` is negative
+                #: and the whole low-place leg is skipped, and the payload is
+                #: released at the jaw height and drops. One row per place leg,
+                #: four reads already taken by the caller (jaw, payload, fingertip,
+                #: and the bin fields are config arithmetic).
+                _bins = bool(getattr(self.cfg, "output_bins", False))
+                _floor = (
+                    float(self.cfg.bin_floor_top_z) if _bins
+                    else float(self.cfg.output_belt_top_z)
+                )
+                _rim = _floor + float(self.cfg.bin_wall_height) if _bins else None
+                _jaw_z = float(np.asarray(self.arms[arm_name].jaw_centre(), dtype=float)[2])
+                _pay = np.asarray(self.spawner.position(sample), dtype=float)
+                _tip = float(self._fingertip_lowest_z(arm_name))
+                say(
+                    f"[place] bin={bin_index} floor={_floor:.3f} "
+                    f"rim={'%.3f' % _rim if _rim is not None else 'n/a'} "
+                    f"jaw_z={_jaw_z:.3f} payload_z={float(_pay[2]):.3f} "
+                    f"payload_bottom={float(_pay[2]) - self._shape_support(sample, np.array([0.0, 0.0, -1.0])):.3f} "
+                    f"fingertip_z={_tip:.3f} "
+                    f"low_need={float(low_info.get('need', float('nan'))):+.3f} "
+                    f"low_drop={float(low_info.get('drop', 0.0)):.3f} "
+                    f"below_floor={float(_tip) - _floor:+.3f} "
+                    f"below_rim={'%.3f' % (_rim and float(_tip) - _rim) if _rim is not None else 'n/a'}"
                 )
             if (
                 os.environ.get("FRUIT_RELEASE_SUPPORT", "0") == "1"
