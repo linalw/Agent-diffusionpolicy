@@ -8146,6 +8146,34 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P244 (2026-11-25, `logs/p244/`; measurement only, no `src/` change): the
+"7 % x excursion" is **instrument-suspect and WITHDRAWN** - P243's class claim does
+not survive the audit.** The four gross catch-up excursions are **41.6 / 97.2 /
+419.1 / 1079.4 mm**, they are **not one direction** (`x` once, `z` three times,
+`z = +1076 mm` in the worst), and **all four are the first catch of their run**.
+**The control exists and it is clean**: P236-P240 ran the same cell **30 times with
+the same instrumentation minus the component field and produced zero excursions**,
+and the field added in P241 is subtracted **unconditionally on every tick** - which
+is exactly the per-tick work AGENTS section 2 warns about. So `shipped 0/30` against
+`field-on 4/42` is consistent with a cell property **and** with the instrument
+perturbing the first catch, and **the data cannot separate them** because every
+cell that shows an excursion also carries the field. **Withdrawn**: "the class is
+`x`, 3/42 = 7 %". **Two instrument defects recorded, not fixed (deliberately - the
+next cell's first step)**: (a) the catch trace is `catch_{seq}_{arm}.json` with a
+per-task sequence and a shared directory, so a second process **overwrites** the
+first run's files (7 survived 12 catches, and the outlier's trace is gone); (b) the
+component subtraction is **not gated**, so "the row is a diagnostic" is not true of
+its cost. **What stands**: the catch-up's exit is a **6.6 mm vertical steady-state
+error** (P241), the shipped loop exits on its **200-tick budget** (P239), and the
+**axis-aware exit recovers 1.44 s on 11 of 12 with the command untouched** (P243) -
+that holds because the 50 non-excursion attempts all show the same 21-42 ticks, and
+it is independent of the excursions. **The next cell**: `FRUIT_CATCH_COMP_DIAG`
+(default 0) gating the subtraction plus a **per-run** trace directory, then one cell
+answering shipped-vs-field-on; **until it runs, no rate is quoted for the
+excursions**. Pins unchanged: `tasks.py` **`58460874`**, `rl_env.py` untouched;
+references **`61fb5202` / `61fb5202` / `18b101bf`**; ckpt `p227_panda156`. Evidence
+`logs/p244/`.
+
 **P243 (2026-11-25, `logs/p243/`; one **default-off knob**, nothing adopted, no
 reference moved): the axis-aware exit recovers the 1.44 s with **no quality price** -
 and the runaways are an **x** excursion, so P242's association was wrong.**
@@ -8166,8 +8194,9 @@ direction is already **5.2-5.8 mm inside 6 mm** - the loop was only ever blocked
 `z` - so it is a **speed-dependent** recovery and will revert to the budget when the
 belt speeds up. **Ranking**: the axis exit **dominates** P242's command offset (same
 -1.44 s, command untouched, and the offset has no advantage now that the runaway is
-not its); it stays **default off** until a powered cell, and **the x excursion is the
-open object** on this axis (instrument exists, mechanism does not). Selfcheck
+not its); it stays **default off** until a powered cell. **Its "x excursion, 7 %"
+reading is WITHDRAWN by P244** (the control is clean at 0/30 and the excursions
+appear only in cells carrying the unconditionally-computed component field). Selfcheck
 **PASS**; `accept.sh` **fingerprint: matches**, its **459 `[fruit]` lines 459/459
 identical** to `logs/p227/accept_final.log`. Pins: `tasks.py` **`58460874`** (+ the
 `TASKS_MD5` follow); references **`61fb5202` / `61fb5202` / `18b101bf`** untouched;
