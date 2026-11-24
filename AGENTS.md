@@ -8146,6 +8146,28 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P235 (2026-11-24, `logs/p235/`; measurement only - **no `src/`/`configs/` change**):
+the throughput cell is **not readable on this lane** - the leg the place knob moves
+is not the cycle's block.** `FRUIT_SPEED_PLACE=0.52` at 0.08 (the P227r S1 cell
+that was negative at 0.12), seeds 901/902 x 6: **12/12 vs 11/12** (a tie in the
+draw) and the episode **grew +46 ticks (+0.38 s)** - the P86/P88/P89 shape. **The
+registered falsifier fired**: `FRUIT_CYCLE_REPORT=1` prints **no `[cycle]` rows at
+all** on the direct single-arm lane (the block report is the scripted two-line's),
+and `FRUIT_MOTION_REPORT=1` shows why - `carry place0` is **6 cm / 84 ticks** in
+the control and **83** in the treatment, i.e. **acceleration-bound and unchanged**
+(P89's ~0.225 m regime switch; 6 cm is far below it). So the "place block ~4.0 s"
+that P227r shortened at 0.12 is the **transit** (the joint blend to
+`bin{i}_above` + the Cartesian run), which no per-leg 6 cm row can show - and
+**this lane has no block-level instrument**, so a place-speed cell cannot be read
+here. **The +46 ticks is branch noise on a cell whose block did not move**, quoted
+only to show what a re-drawn acquisition does at n=12. **What this leaves for
+分拣速度**: the lever's target is the transit, and any further cell needs a
+direct-lane block report first; the two readable profile cells are both negative
+(P88 place at 0.12, P89 lift), and the only measured shortening in the record is
+P227r's **release trim** (a dwell, shipped). No `src/`/`configs/` change;
+`tasks.py` **`c16c8291`**, references **`61fb5202` / `61fb5202` / `18b101bf`**
+untouched; ckpt `p227_panda156`. Evidence `logs/p235/`.
+
 **P234 (2026-11-24, `logs/p234/`; measurement only - **no `src/`/`configs/` change**):
 the **spatial** disturbance rung - a **0.22 m** lateral band costs nothing at 0.08,
 so the lateral axis is **not** the binding disturbance.** `FRUIT_SUPPLY_X_MIN=0.17
