@@ -8148,8 +8148,9 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 
 **P229 (2026-11-24, `logs/p229/`; measurement only - **no `src/`/`configs/` change,
 nothing adopted, no reference moved**): the single-arm bins cell's **belt-speed
-envelope**, measured for the first time, and it is the **runway**, not the time
-budget.** The ladder is `FRUIT_BELT_SPEED ∈ {0.06, 0.12, 0.18, 0.24, 0.30}` x
+envelope**, measured for the first time - two ceilings, and the **usable** one is
+the contact phase, not the time budget or the runway (the addendum at the end of
+this paragraph is what separated them).** The ladder is `FRUIT_BELT_SPEED ∈ {0.06, 0.12, 0.18, 0.24, 0.30}` x
 seeds 901/902 x 6 episodes plus a `{0.20, 0.22, 0.23}` bisect, **48 episodes**,
 every cell at **`FRUIT_EVAL_LATENCY=auto`** (P228's conclusion), `PREREG.md`
 pinned before any cell. **Inside the envelope**: 0.06 **11/12**, 0.12 **10/12**,
@@ -8191,7 +8192,26 @@ but non-binding. **Both levers are priced options, not free knobs**:
 `+0.15 -> 0.255 m/s` and is a **scene change** (belt collider grows, owes both
 references and a store re-baseline); halving the poll to 15 ticks gives **0.220**
 and is **not made** (at 0.24 the band is already negative, so no cadence helps).
-**Harness gap named, not fixed**: `reset` **raises** instead of idling when no
+**The addendum (`PREREG_UPSTREAM.md`, 2x2 `ext` x `v`) separated two ceilings that
+this paragraph's first draft ran together**: the equation predicts **engagement**
+and does (3/4, the miss *conservative*: `ext=0.10` engages at 0.24 where it
+predicts 0.2387, and `+0.10 m` of belt moved the ceiling by the predicted +0.03),
+**but the belt extension bought zero placements** - at 0.24 both extensions fire
+3/3 and place **0/3**, and the delivered scene places 0/6. **The usable ceiling
+is the contact phase, not the runway**: 0.18 **11/12**, **0.20 7/12 (58 %, 5/6 vs
+2/6)**, 0.22 1/3, 0.24 **0/6**, i.e. the cell runs out of *grasp* before it runs
+out of *runway* (which is why the runway lever is worth nothing here). **Traced**
+(`FRUIT_CARRY_DIAG=1`, ext 0.10, v 0.24): the failure reads
+`contacts@onset=0`, `force@onset=0.00 N`, `sep_end=0.0 mm` on a 40.0 mm fruit with
+`gap_start=14.1 mm` - **the pads closed on air** - against the placed attempt's
+`contacts@onset=2`, `force_min=7.88 N` at a 34.4 mm span on 44.0 mm; and
+`clean_slip_max = 1769 mm` on the failure is the **hand's own travel**, not a
+hold, so **`grasped=False` alone cannot separate "never touched" from "touched and
+lost" - `contacts@onset`/`force@onset` is the separator** (any future speed cell
+must run `FRUIT_CARRY_DIAG=1`). So the shipped 0.12 sits at **67 %** of the usable
+ceiling, and **the lever is the contact phase** (descent duration `v x t_desc` =
+172 mm at 0.24 against a 6 mm tolerance, the close's duration, the catch-up
+budget), which is Stage 2/3 of the architecture doc. **Harness gap named, not fixed**: `reset` **raises** instead of idling when no
 fruit can be selected - in a real cell this is a starvation alarm and a hand-off,
 and the direct env has no graceful form. Pins: `tasks.py` **`3f9ef6ea`** and
 `rl_env.py` **`41e006a6`** **unchanged**, `scripts/288_speed_ladder.sh`,

@@ -168,3 +168,95 @@ and the abort did its job: it made the boundary impossible to miss).
 `scripts/288_speed_ladder.sh`, `scripts/289_speed_report.py`; references
 **`61fb5202` / `61fb5202` / `18b101bf`** untouched; checkpoint
 `p227_panda156` used as-is. Evidence `logs/p229/{PREREG.md, RESULTS.md, speed/}`.
+
+---
+
+## 9. Addendum: the equation predicts **engagement**, and engagement is the wrong ceiling
+
+`PREREG_UPSTREAM.md` tested the equation's **slope** with a 2x2
+(`ext` x `v`), 3 episodes each, seed 901.
+
+| cell | `ext` | `v` | equation | measured | verdict |
+|---|---|---|---|---|---|
+| A | 0.10 | 0.22 | engage | **engage**, 1/3 | PASS |
+| B | 0.10 | 0.24 | **no** | **engage**, 0/3 | **FAIL (conservative)** |
+| C | 0.15 | 0.24 | engage | **engage**, 0/3 | PASS |
+| D | 0.15 | 0.30 | no | **no engage** | PASS |
+
+**3/4, and the one miss is conservative**: at `ext=0.10` the ceiling is
+`>= 0.24`, not the `0.2387` the equation computes - an error of `>= 0.0013 m/s`
+(and the slope matched: `+0.10 m` of belt moved the ceiling by **+0.03** against
+the predicted **+0.0332**). So the equation is a **conservative lower bound on the
+engagement ceiling**, good to `~0.01 m/s`.
+
+**But the extension bought zero placements.** At `v=0.24` both extensions fire
+3/3 and place **0/3**; the delivered scene also places 0/6 at 0.24 across the two
+cells. The ceiling that matters is a different one.
+
+### 9.1 The usable ceiling, measured
+
+| `v` | placed | 95 % CI | classes |
+|---|---|---|---|
+| 0.06 | **11/12** | [65, 99] | 1 grip |
+| 0.12 | 10/12 | [55, 95] | 2 grip |
+| 0.18 | **11/12** | [65, 99] | 1 grip |
+| **0.20** | **7/12 = 58 %** (5/6 and 2/6) | [32, 81] | 5 grip |
+| 0.22 | 1/3 | [6, 79] | 2 grip |
+| 0.24 | **0/6**, two extensions | [0, 39] | 6 grip |
+
+The drop is **between 0.18 and 0.20** (92 % -> 58 %), and it is **not** where the
+engagement equation says the cell stops (0.2055). **The cell runs out of *grasp*
+before it runs out of *runway*** - which is exactly why the runway lever was worth
+nothing.
+
+### 9.2 The mechanism at 0.24, traced (`FRUIT_CARRY_DIAG=1`, `ext=0.10`, `v=0.24`)
+
+One failed attempt and one placed attempt, the same cell:
+
+| field | failed | placed |
+|---|---|---|
+| `contacts@onset` | **0** | 2 |
+| `force@onset` | **0.00 N** | (held) |
+| `min_contacts` | 0 | 2 |
+| `force_min` | **0.00 N** | **7.88 N** |
+| `sep_end` / `gap_start` | **0.0 / 14.1 mm** | 34.4 / 34.6 mm |
+| fruit diameter | 40.0 mm | 44.0 mm |
+| `clean_slip_max` | 1769 mm | 0.2 mm |
+
+**`sep_end = 0.0 mm` with `gap_start = 14.1 mm` on a 40 mm fruit and zero
+contacts means the pads closed completely on air** - the hand was not at the fruit
+when the close finished. (`clean_slip_max = 1769 mm` is *not* evidence of a hold:
+on a leg with nothing in the jaws it is the hand's own travel relative to a
+stationary payload.) The placed attempt is a proper two-sided pinch
+(`force_min 7.88 N` at a 34.4 mm span). `res_end` was 241 mm on the failure and
+162 mm on the success, so it is **not** a clean "chasing" indicator on this cell
+and is reported, not used.
+
+So the 0.22-0.24 class is **acquisition** - the classic "grasp where the object
+*was*" - and its trigger is `v x (t_desc + close)` outrunning the catch-up, not the
+selector.
+
+### 9.3 What this changes
+
+1. **The cell's usable speed is ~0.18 m/s** (11/12), with 0.20 **marginal**
+   (7/12, and seed-dependent: 5/6 vs 2/6). The shipped 0.12 sits at **67 %** of
+   that, not at 58 % of the engagement ceiling.
+2. **`FRUIT_BELT_UPSTREAM` is the wrong lever for throughput**: it lifts the
+   *engagement* ceiling, which the cell does not reach before the grip fails. It
+   stays a priced scene option for the *starvation* class only.
+3. **The lever is the contact phase** - the descent's duration against the belt
+   (`v x t_desc` = 172 mm at 0.24 against a 6 mm tolerance), the close's duration,
+   and the catch-up's budget. That is Stage 2/3 of
+   `docs/ARCHITECTURE_4T.md`, now with a measured reason to go there instead of
+   to the scene.
+4. **A second instrument lesson**: `grasped=False` alone does **not** separate
+   "never touched" from "touched and lost" (a 1769 mm `clean_slip_max` is
+   consistent with both). The separator is **`contacts@onset` / `force@onset`**,
+   and any future speed cell must run with `FRUIT_CARRY_DIAG=1` or it cannot name
+   its own failure.
+
+### 9.4 Pins for the addendum
+
+No `src/`/`configs/` change; the cells are scene options (`FRUIT_BELT_UPSTREAM`),
+the addendum's registration is `logs/p229/PREREG_UPSTREAM.md`. Cells:
+`logs/p229/{up10,up15,ceiling,diag024}/`.
