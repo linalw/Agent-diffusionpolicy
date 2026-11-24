@@ -424,6 +424,25 @@ print(f'primitive estimate ok (pre-grasp {n_pre} reads)')"
 # table, the control period against tasks.py's own literal, the injector's
 # executed semantics (advance, no observe, no record), the no-inference case and
 # the RTC refusal.
+# P230: the close-phase trace (`FRUIT_CLOSE_TRACE=1`, default off). It exists to
+# separate "the pads closed on air beside the aim" from "the fruit walked out
+# during the ramp" - the two readings P229 could not tell apart. The pin is the
+# default-off path, the row's site (inside the close tick loop, AFTER the step so
+# it is post-step), its fields, and that it adds no articulation read.
+run_check "P230 close trace" "$python" -c "
+src = open('src/fruit_sorting/tasks.py', encoding='utf-8').read()
+assert 'FRUIT_CLOSE_TRACE' in src
+assert 'self._close_trace = os.environ.get(\"FRUIT_CLOSE_TRACE\", \"0\") == \"1\"' in src
+lines = src.splitlines()
+i0 = next(i for i, l in enumerate(lines) if 'for _close_step, gap in enumerate(close_ramp)' in l)
+i1 = next(i for i in range(i0, len(lines)) if 'if self._close_trace:' in lines[i])
+assert any('self._step_sim(close_substeps)' in lines[i1 - k] for k in (1, 2, 3)), 'the row must be post-step'
+row = '\n'.join(lines[i1:i1 + 20])
+for field in ('cmd=', 'aim_minus_fruit=', 'x_off=', 'n=', 'f='):
+    assert field in row, field
+assert 'tactile.read()' in row and 'define_dof' not in row
+print('close trace ok (default off, post-step, one tactile read)')"
+
 run_check "P228 eval latency" "$python" scripts/287_p228_latency_selftest.py
 
 run_check "P227ad trigger source" "$python" -c "src = open('src/fruit_sorting/rl_env.py', encoding='utf-8').read(); assert 'def _fruit_for_trigger' in src, 'the helper is missing'; assert src.count('self._fruit_for_trigger(') >= 2, 'a fire site does not use it'; assert '[fire] source=' in src, 'the source tag is missing'; tail = src.split('intercept, intercept_info = should_fire(')[1][:400]; assert 'measured_velocity=_fire_vel' in tail, 'the selected-fruit fire still reads the simulator'; tail2 = src.split('p_fire, p_info = should_fire(')[1][:400]; assert 'measured_velocity=p_vel' in tail2, 'the presented-fruit fire still reads the simulator'; print('trigger source ok')"

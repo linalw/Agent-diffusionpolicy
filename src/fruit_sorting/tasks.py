@@ -3603,6 +3603,16 @@ class PickAndPlaceTask:
         #: With the knob unset `_seat_arm` returns None and the loops take one
         #: false branch per leg, so the default tree is byte-identical.
         self._seat_diag = os.environ.get("FRUIT_SEAT_DIAG", "0") == "1"
+        #: P230 (`FRUIT_CLOSE_TRACE=1`, default off): one `[close-trace]` row per
+        #: close tick - the commanded gap, the aim the pads were sent to, the
+        #: fruit's own position and this pad's load. It exists because P229 traced
+        #: the 0.24 m/s failure to `contacts@onset = 0` / `sep_end = 0.0 mm` (the
+        #: pads closed on air) but could not say **why**: the close's aim is
+        #: `fruit + v*lead`, so at speed the aim can sit outside the pad's span
+        #: before the fruit ever arrives, and nothing in the log distinguished that
+        #: from "the fruit walked out during the ramp". Costs one tactile read per
+        #: close tick; no rate is ever quoted from an armed cell (AGENTS section 2).
+        self._close_trace = os.environ.get("FRUIT_CLOSE_TRACE", "0") == "1"
         self._seat_book: dict[str, dict] = {}
         #: P42 phase 2 (`FRUIT_SEAT_CENTRE=<m>`, **default off**): the bounded
         #: pre-close centring registered in `logs/p42/PREREG.md` section 2. The
@@ -15934,6 +15944,21 @@ class PickAndPlaceTask:
                     last_cmd = cmd
                     gripper.follow_centre(centre, close_quat, cmd)
                     self._step_sim(close_substeps)
+                    if self._close_trace:
+                        #: P230 mechanism cell: is the aim *beside* the fruit
+                        #: (`aim_y - fruit_y` = the lead, in mm) and is the pad
+                        #: loaded? A close that finishes with `n = 0` while the
+                        #: aim was outside `cmd/2` of the fruit is an aim/timing
+                        #: failure; one that loads and then loses the load is the
+                        #: hold. One read per tick, armed only.
+                        _ct = self.tactile.read().get(arm.spec.side, _EMPTY_TACTILE)
+                        say(
+                            f"[close-trace] t={self._sim_time():.3f} step={int(_close_step)} "
+                            f"cmd={cmd * 1000:.1f} "
+                            f"aim_minus_fruit={(centre[1] - fruit_now[1]) * 1000:+.1f} "
+                            f"x_off={(centre[0] - fruit_now[0]) * 1000:+.1f} "
+                            f"n={int(_ct.contact_count)} f={float(_ct.normal_force):.2f}"
+                        )
                     self._tick_frame()  # pure render; no-op unless recording
                     self._dynamic_trace_sample(
                         "close", sample, arm, gripper, cmd, fruit=fruit_now

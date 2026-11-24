@@ -8146,6 +8146,48 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P230 (2026-11-24, `logs/p230/`; one **default-off diagnostic**, nothing adopted,
+no `configs/` change): the objective's starting speed is confirmed and the 0.24
+failure is moved one phase later - **the close grips; the loss is after it.**
+`FRUIT_BELT_SPEED=0.08` reads **11/12 = 91.7 %** (5/6 + 6/6, `t_arrive` 1.71 s,
+`lead` 1.83 s, `dy` 0.136 m, one grip failure), the same plateau as 0.06 / 0.12 /
+0.18 - the slow belt is **inside** the envelope, not at its edge. **The
+instrument** is `FRUIT_CLOSE_TRACE=1` (default off): one `[close-trace]` row per
+close tick, after the step - `cmd`, `aim_minus_fruit` (= `v x lead` in mm),
+`x_off`, this pad's `n`/`f`. **It failed twice before it ran and only the
+control caught it**: `self._say` and `self._step` are the *env's*, not the task's,
+and either raise **inside the close loop**, killing the attempt before any
+episode row - at 0.24 that is indistinguishable from the known 0/3, so **a
+mechanism cell needs a cell that is known to work** or a broken instrument reads
+as a broken line. **The control (0.12)**: contact at close **tick 22** at
+`cmd 28.9 mm`, holding **8.46 N** to the end, with `aim - fruit = -21.7 mm` =
+`0.12 x 0.181 s` (the shipped `FRUIT_DYNAMIC_TRACK_LEAD`). **At 0.24 all three
+closes grip** (`n_end = 2`, **5.7-9.4 N**, first contact ticks 24/50/48, aim lead
+43.2 mm growing to 21.4 / 63.1 / 75.8) - **including the two episodes that end
+`grasped=False`**. **So two of the phase's own readings are falsified, and the fix
+they implied is NOT built**: (a) the aim-lead criterion `L - d/2 <= cmd/2`
+predicts no contact at `L = 43.2 mm` and the measurement contacts at tick 24 -
+the pads are **26-61 mm wide plates**, not fingertips meeting at `cmd`, so the
+criterion must be stated on the plate's footprint; (b) P229's
+`contacts@onset = 0` / `force@onset = 0.00 N` / `sep_end = 0.0 mm` row is measured
+on the **lift** leg, by which time the payload is already gone - **it says nothing
+about the close**, so `FRUIT_CLOSE_LEAD_CAP` was a fix for a mechanism that is
+working and was not built. **What the failure is**: the payload is held at
+5.7-9.4 N when the close ends and is gone by the lift - the record's loaded slide
+(`logs/p42/SIM_LIMIT.md`), whose force / face / friction / seat levers are all
+measured out, and the one term **not** in that closed set is the **relative
+velocity**: at 0.24 the belt drags twice as fast while the hand is nearly
+stationary in y through the lift. **Registered, not built**: `FRUIT_LIFT_TRACK_BELT`
+- translate the hand **with the belt** through `grasp_lift` (add `v x t` to the
+lift's y target) so the pads do not drag the payload; prediction: `clean_slip`
+through the lift falls and `grasped` rises at 0.20-0.24 with the close untouched.
+**Caveat carried**: the trace adds one tactile read per close tick, so the
+untraced 0.24 cell (0/6) and the traced one (1/3) are **different branches** - no
+rate is quoted from a traced cell. Selfcheck **PASS** with the new leg
+`P230 close trace`; references **`61fb5202` / `61fb5202` / `18b101bf`** untouched;
+ckpt `p227_panda156`. Pins: `tasks.py` **`1434f4b2`** (+ the `TASKS_MD5` follow),
+`scripts/selfcheck.sh`. Evidence `logs/p230/`.
+
 **P229 (2026-11-24, `logs/p229/`; measurement only - **no `src/`/`configs/` change,
 nothing adopted, no reference moved**): the single-arm bins cell's **belt-speed
 envelope**, measured for the first time - two ceilings, and the **usable** one is
