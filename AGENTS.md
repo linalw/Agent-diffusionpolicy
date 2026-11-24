@@ -8146,6 +8146,38 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P241/P242 (2026-11-25, `logs/p241/`, `logs/p242/`; one **default-off knob** plus
+the field that found it; **nothing adopted**, no reference moved): the 1.44 s
+catch-up tax is a **6.6 mm steady-state VERTICAL error**, and a constant command
+offset recovers it - at a **~11 % runaway price**. P241 first added the residual's
+**components** to the `[catch]` row: at 0.08 the shipped exit is
+`(x=-0.1 y=+0.5 z=-6.6) mm`, i.e. **the belt direction is already tracked** and the
+hand sits **6.6 mm below** the commanded standoff, 0.6 mm outside the 6 mm
+tolerance - which is why the loop always exits on its 200-tick budget (P239). That
+retires P240's question (the y-lead could not move it because it was never y).
+**`FRUIT_CATCH_Z_FF=<mm>`** then raises the catch-up's **command** (the residual's
+reference stays put). Measured: `z` moves to **-2.1..-2.8**, the norm to
+**5.4-5.9 mm**, and `catch ticks` collapses **200 -> 22** (10 of 12 in P242, 22-29
+in P241) so **`seat` 1.67 -> 0.17-0.23 s** - **-1.44 s of a 13.3 s cycle (-11 %)**,
+reproducible at both seeds. **The price is a runaway class**: **2 of 18 attempts**
+end with the pad point **100-420 mm above** its command and burn the full budget;
+the shipped cells show **0/30** in P236-P240, so the class is at least strongly
+associated with the offset (two readings - the offset steers the command into a
+vertical region where this arm's solve diverges, or a pre-existing rare flail is no
+longer masked by a 200-tick crawl - and **n = 18 cannot separate them**). The
+arithmetic: **saved 1.44 x 0.89 = 1.28 s**, **paid 1.67 x 0.11 = 0.18 s**, **net
+~+1.1 s/attempt**, with **1 lost placement in 18** - a time win with a quality cost,
+so **not a default** (a lever that can lose a placement needs P93's powered cell,
+then the two-line gate, both references and a store re-baseline). **The principled
+version is named, not built**: the 6.6 mm is a *steady-state* error, so the fix is a
+**vertical integral term or a gravity feed-forward on the axis**, not a constant
+offset on the command (which is what pushes into the runaway region). The offset
+stays a default-off measurement lever. Selfcheck **PASS**; `accept.sh`
+**fingerprint: matches**, its **459 `[fruit]` lines 459/459 identical** to
+`logs/p227/accept_final.log`. Pins: `tasks.py` **`e3795cf4`** (+ the `TASKS_MD5`
+follow); references **`61fb5202` / `61fb5202` / `18b101bf`** untouched; ckpt
+`p227_panda156`. Evidence `logs/p241/`, `logs/p242/`.
+
 **P240 (2026-11-24, `logs/p240/`; measurement only, no `src/` change): the
 catch-up's residual is **not** a following lag - the belt-direction lead does not
 move it, and a larger lead runs away.** `FRUIT_DIRECT_CATCH_LEAD` 0.25 -> **0.33**

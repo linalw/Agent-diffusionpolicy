@@ -3092,6 +3092,15 @@ class PickAndPlaceTask:
         #: centre, the manoeuvre count, the largest correction asked for) and
         #: the `[catch]` row's tick count.
         self._track_diag = os.environ.get("FRUIT_TRACK_DIAG", "0") == "1"
+        #: P241 (`FRUIT_CATCH_Z_FF=<mm>`, default 0): the catch-up's command is
+        #: raised by this much. P241 measured the catch-up's residual components and
+        #: it is **z-dominated**: at 0.08 m/s the exit residual is
+        #: `(x=-0.1, y=+0.5, z=-6.6) mm` - the belt direction is already tracked, and
+        #: the hand sits **6.6 mm below** the commanded standoff as a steady-state
+        #: error, which is 0.6 mm outside the 6 mm tolerance, so the loop always
+        #: exits on its 200-tick budget (1.67 s) rather than on convergence. This is
+        #: the vertical feed-forward that term implies. Zero is the shipped path.
+        self._catch_z_ff = float(os.environ.get("FRUIT_CATCH_Z_FF", "0.0")) / 1000.0
         self._track_config = track_config_from_env(os.environ, self._track_source)
         #: Velocity relaxation time constant toward the belt's own speed [s];
         #: 0 disables the prior. 0.3 s follows a real manoeuvre inside a third of
@@ -15413,6 +15422,9 @@ class PickAndPlaceTask:
                     else os.environ.get("FRUIT_DYNAMIC_CATCH_LEAD", "0.25")
                 )
                 catch_residual = float("inf")
+                #: P241: initialised with the scalar so the `[catch]` row cannot
+                #: NameError on a zero-budget loop.
+                catch_residual_vec = np.zeros(3)
                 #: P135: the last closing lead and the tick count, defined even
                 #: when the loop breaks on its first tick (the `[catch]` row).
                 lead_now = catch_lead_s
@@ -15472,6 +15484,15 @@ class PickAndPlaceTask:
                             ]
                         )
                     catch_residual = float(np.linalg.norm(tip - desired_tip))
+                    #: P241: the residual's **components**. P240 extended the
+                    #: belt-direction lead by exactly the measured lag and the
+                    #: norm did not move (and one attempt ran away), so the norm
+                    #: cannot say whether the floor is `y` (still chasing the belt)
+                    #: or `z` (the hand cannot reach the commanded standoff). One
+                    #: subtraction on arrays this line already has.
+                    catch_residual_vec = np.asarray(tip, dtype=float) - np.asarray(
+                        desired_tip, dtype=float
+                    )
                     if catch_residual < catch_tol:
                         break
                     # Direction-aware lead: only catch *up* when the tip is
@@ -15506,7 +15527,7 @@ class PickAndPlaceTask:
                     else:
                         catch_centre = fruit_now
                     catch_target = catch_centre + np.array(
-                        [0.0, 0.0, self._pad_standoff(True, sample)]
+                        [0.0, 0.0, self._pad_standoff(True, sample) + self._catch_z_ff]
                     )
                     if direct_capture:
                         # Never command more than `direct_catch_max` downstream of
@@ -15568,6 +15589,9 @@ class PickAndPlaceTask:
                     say(
                         f"[catch] idx={int(sample.index)} arm={arm_name} "
                         f"ticks={catch_used} residual={catch_residual * 1000:.1f}mm "
+                        f"(x={float(catch_residual_vec[0]) * 1000:+.1f} "
+                        f"y={float(catch_residual_vec[1]) * 1000:+.1f} "
+                        f"z={float(catch_residual_vec[2]) * 1000:+.1f}) "
                         f"lead={lead_now * 1000:.0f}ms"
                     )
                 if (
