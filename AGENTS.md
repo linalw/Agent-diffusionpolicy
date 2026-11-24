@@ -8146,6 +8146,58 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P229 (2026-11-24, `logs/p229/`; measurement only - **no `src/`/`configs/` change,
+nothing adopted, no reference moved**): the single-arm bins cell's **belt-speed
+envelope**, measured for the first time, and it is the **runway**, not the time
+budget.** The ladder is `FRUIT_BELT_SPEED ∈ {0.06, 0.12, 0.18, 0.24, 0.30}` x
+seeds 901/902 x 6 episodes plus a `{0.20, 0.22, 0.23}` bisect, **48 episodes**,
+every cell at **`FRUIT_EVAL_LATENCY=auto`** (P228's conclusion), `PREREG.md`
+pinned before any cell. **Inside the envelope**: 0.06 **11/12**, 0.12 **10/12**,
+0.18 **11/12**, 0.20 **1/2** (a bisect point, not an arm) - pooled **33/38 =
+86.8 %** - and the failures are **4 x `fruit did not follow the gripper`**, the
+record's grip class; **no catch-up class and no new key**. **Above it the cell does
+not degrade, it does not engage**: `v >= 0.22` raises
+`RuntimeError: no graspable fruit reached the selection window in 40 feed rounds`
+(zero fires, zero episodes - a 0/0 cell is not a rate). **The arithmetic** (read
+off the code, `tasks.py:10248` + `assets.py:311` + `reset`'s feed loop): a fruit is
+selectable only while `floor(v) <= distance <= depth`, with
+`floor(v) = min(v*(0.40 + t_desc + 0.15) + 0.03, 0.80) + 1.5*v + 0.03`,
+`depth = spawn_y - pick_y = 0.68 m`, `t_desc = 86 ticks = 0.717 s`, and the
+selector polls every **P = 30 ticks = 0.25 s** - so the **eligible band**
+`depth - floor(v)` must be alive long enough to be *seen*: **30.3 polls at 0.06,
+9.6 at 0.12, 2.7 at 0.18, 1.3 at 0.20, 0.2 at 0.22, negative at 0.24**, and
+`v_max = 0.62/(1.267 + 1.5 + 0.25) = 0.2055 m/s`, **validated by the bisect**
+(0.20 engages, 0.22 does not). The phase's own first estimate used the floor
+crossing alone (`0.224`) and was **one poll period optimistic** - the band has to
+be *wide enough to be seen*, not merely positive. **So the shipped 0.12 sits at
+58 % of the envelope with 9.6 polls of margin against the ceiling's 1.** **The
+pre-registered verdicts**: **P1 PASS** (`speed=` is the cell's speed;
+`dy = t_arrive x v`); **P2 FALSIFIED as written** - `lead` is **not** flat
+(2.63 / 1.56 / 1.54 s) because the acquisition window's `|jaw-station|/0.20` term
+moves with the arm's position (at 0.06 the arm is still far when the fire
+condition first holds), which is the mechanism working, while the *distance* was
+as predicted (`dy` 0.157 / 0.186 / 0.274 with `v`); **P3 FALSIFIED both halves** -
+the break is at **0.20 < v <= 0.22**, not 0.24, and the class is **not** the
+catch-up: the cell stops engaging before any chase; **P4 NOT RUN** (its
+conditional never fired - 0.30 does not engage at any latency); **P5 APPLIES to
+the time budget** - 0.06-0.18 hold at 11/10/11 of 12, so **no arithmetic change
+is justified and none was made**. **Two corrections carried in**: the
+architecture doc's "the lead is a constant distance `0.19 m`" was **wrong**
+(`_dynamic_pick_lead` is `v x time budget`; the 317 attempts read 0.189 m because
+they all ran at 0.12), and what *is* hard-coded is the **time terms** - and none
+carries P228's 66 ms, which at 0.12 is 8 mm = **2.7 % of the 0.29 m band**, real
+but non-binding. **Both levers are priced options, not free knobs**:
+`FRUIT_BELT_UPSTREAM` (P225t, default 0) gives `+0.05 -> 0.222`, `+0.10 -> 0.239`,
+`+0.15 -> 0.255 m/s` and is a **scene change** (belt collider grows, owes both
+references and a store re-baseline); halving the poll to 15 ticks gives **0.220**
+and is **not made** (at 0.24 the band is already negative, so no cadence helps).
+**Harness gap named, not fixed**: `reset` **raises** instead of idling when no
+fruit can be selected - in a real cell this is a starvation alarm and a hand-off,
+and the direct env has no graceful form. Pins: `tasks.py` **`3f9ef6ea`** and
+`rl_env.py` **`41e006a6`** **unchanged**, `scripts/288_speed_ladder.sh`,
+`scripts/289_speed_report.py`; references **`61fb5202` / `61fb5202` / `18b101bf`**
+untouched; ckpt `p227_panda156` used as-is. Evidence `logs/p229/`.
+
 **P228 (2026-11-24, `logs/p228/`; one **default-off evaluation** lever, nothing
 shipped, no `configs/` reference moved): the shipped direct loop evaluates on a
 **paused world** - `sample_chunk` runs the model while `SimulationManager` is
@@ -8167,11 +8219,20 @@ pinned before any non-zero cell. **P1 PASS**: `[lat]` resolves `d` to 4.0 / 8.0 
 does not fire**: 11 / 10 / 9 / 11 / 11 of 12 (pooled **52/60 = 86.7 %**, 95 % CI
 [75.8, 93.1]; every arm's CI spans a third of the range), not monotone, and
 `d=16` is 11 vs 11 with per-seed **+1 / -1**. **The mechanism is the phase's
-content**: `t_arrive` at the fire is **flat** (means 1.672 / 1.723 / 1.729 /
-1.562 s; rank correlation over the 48 fixed-`d` attempts **rho = -0.252**), where
-a trigger delayed by the injection would read ~**-0.7** with `d=16` at 1.54 - so
-**the injection delays the chunk, not the fire**, which is the intended
-semantics and is now measured; the catch-up's own loss rows are flat too
+content, and its first instrument was wrong** (`RESULTS.md` 4b): `t_arrive` at
+the fire is **confounded** - the trigger fires on the first tick `t_arrive <=
+lead`, and `lead` is `1.50 + |jaw-station|/0.20`, so `t_arrive` inherits the arm's
+own distance to the station (**sd 0.18 s**, larger than the 0.13 s effect a
+`d=16` delay would make; means 1.672 / 1.723 / 1.729 / 1.562, rho -0.252 - read
+as suggestive only). The clean read is **`lead - t_arrive` at the fire**, whose
+baseline is one tick by construction: medians **5 / 10 / 10 / 10 ms** at
+`d = 0/4/8/16` (**no typical fire delay**) while the tail grows - `> 33 ms` on
+**0/12, 0/12, 1/12, 4/12** and 3/12 (auto). The cause is the injector's own
+fidelity, a property of `sync-hold` and not of the cell: the pause is a bare
+`advance(1)` loop, so the **whole control loop including the trigger** is
+suspended, and a crossing inside it waits. So the sentence is **the chunk is
+always delayed, the fire only sometimes** (4/12 at `d=16`), and **the cell
+absorbed both**. The catch-up's own loss rows are flat too
 (`close: fruit drifted` 1/1/0/1/0). **`auto` is the arm that matters** because
 its latency is a distribution, not a constant: p50 **8 ticks**, mean **9.7-10.0**,
 range 6-16, plus **one cold-start decision per episode at 55 and 70 ticks**
@@ -8598,6 +8659,7 @@ of `logs/p104`-`logs/p133`; `106` OK. Evidence `docs/CLOSEOUT.md` §6.
 
 | you changed | run |
 | --- | --- |
+| a **belt-speed** or **scene-runway** change (a faster line, `FRUIT_BELT_UPSTREAM`, a selector-floor or poll-cadence change) | `scripts/288_speed_ladder.sh` - it prints the envelope, not a rate: read **`does not engage`** (the `no graspable fruit ... 40 feed rounds` abort) as a boundary and never as 0 %. Compute the band `depth - floor(v)` per speed and require **>= 1 poll** (`P = 30 ticks = 0.25 s`): `v_max = 0.62/(1.267 + 1.5 + 0.25) = 0.2055 m/s` on this cell, and the shipped 0.12 sits at 58 % of it (P229) |
 | **any claim that a cell is "real-time"**, or a policy/episode number quoted as a deployable rate | `FRUIT_EVAL_LATENCY=auto scripts/285_latency_bench.sh` (or `D_LIST="0 8"` for a same-machine pair), then `scripts/286_latency_report.py` - **report the resolved `d`**: the shipped loop never steps the world while the model runs, so a `d=0` cell reports a latency the machine does not have. Read the `d_meas`/`infer_ms` columns **first** (the manipulation check: a cell with no `[lat]` rows measured nothing), then the mechanism (`t_arrive` at the fire stays flat when only the chunk is delayed; a fire delayed by the injection would fall by `d/120` s), then the count as a branch. At 0.12 m/s **1 tick = 1 mm**, and the in-loop latency is **66 ms = 8 mm p50** against the offline bench's 26.4 ms (P228) |
 | a **throughput or rate** claim (a speed profile, a scheduler/supply change, a wall number) | `scripts/186_w6_report.py` on **>= 2 seeds** with **both denominators** (placement window and batch span) **and the wall column** (`logs/p80/p80_report.py` is the template: wall from per-line stamps, never inferred), that scenario's own motion gate (single arm: `105 --fingerprint configs/motion_reference.json`; two-line: `scripts/190_twoline_gate.sh` against a reference of the **same attempt count**), then `scripts/accept.sh` |
 | a **per-leg profile or dwell** change (`FRUIT_SPEED_RELEASE/PLACE/LIFT`, a `[cycle]` block that moves) | `FRUIT_CYCLE_REPORT=1 FRUIT_PLACE_TRACE=1` on **both** arms, **>= 2 seeds**, then the `[cycle]` per-leg block table **by median** (`logs/p86/p86_report.py --blocks`): the **block** is the mechanism, **never the attempt span** - the span carries the supply-phase acquisition legs and re-draws with the shifted attempt boundary (`logs/p86/RESULTS.md` §3, P44 §3). Delivered: the interval (pooled **and** per arm), both denominators, the wall and `placed/min wall`. Landing: `FRUIT_PLACE_TRACE`'s `on_belt` on **every payload present at the release** (`release_bottom >= 0`; the -184 mm rows are the upstream-lost class, reported separately). Then the scenario's own motion gate - a profile change **moves the fingerprint by construction**, so budgets-only for the treatment and a same-seed reference for its control |

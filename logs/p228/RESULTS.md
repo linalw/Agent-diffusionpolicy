@@ -91,6 +91,41 @@ it is now measured, not assumed.
 The catch-up's own loss rows are flat as well: `close: fruit drifted` fires
 **1 / 1 / 0 / 1 / 0** times (d = 0 / 4 / 8 / 16 / auto) over 60 episodes.
 
+### 4b. Instrument correction (same day, same logs): the clean read is `lead - t_arrive`
+
+§4's `t_arrive` is **confounded**, and the correction is recorded rather than
+quietly dropped: the trigger fires on the **first tick** where `t_arrive <= lead`,
+and `lead` is `1.50 + |jaw-station|/0.20` - so `t_arrive` inherits the arm's own
+distance to the station (sd **0.18 s** across the 60 fires), which is larger than
+the 0.13 s effect a `d=16` fire delay would produce.
+
+The clean instrument is **`lead - t_arrive` at the fire**: by construction the
+fire lands within one tick of the crossing, so the baseline is `[0, v*dt)` =
+**0-8.3 ms**, and a fire pushed later by the pause reads more.
+
+| `d` | n | median | mean | `> 17 ms` (2 ticks) | `> 33 ms` (4 ticks) |
+|---|---|---|---|---|---|
+| 0 | 12 | **5.0 ms** | 5.0 | 0/12 | 0/12 |
+| 4 | 12 | **10.0 ms** | 10.8 | 4/12 | 0/12 |
+| 8 | 12 | **10.0 ms** | 11.7 | 2/12 | 1/12 |
+| 16 | 12 | **10.0 ms** | 39.2 | 4/12 | **4/12** |
+| auto | 12 | **10.0 ms** | 30.8 | 5/12 | **3/12** |
+
+**So the fire is not delayed typically** (the median sits at one tick at every
+`d`), but the **tail** grows: 0/12 cells with a `> 33 ms` fire at `d <= 4`, **4/12
+at `d=16`** and 3/12 at `auto`.
+
+**The mechanism is the injector's own fidelity, and it is a property of
+`sync-hold`, not of the cell**: the pause is a bare `advance(1)` loop, so the
+**whole control loop** - including the trigger's evaluation - is suspended for
+`d` ticks. A threshold crossing that lands inside the pause therefore waits until
+it ends; a crossing outside it is unaffected. That is exactly the 4/12 tail.
+
+**The verdict does not change and is if anything strengthened**: a handful of
+fires were up to ~100 ms late and the cell still read **11/12** at `d=16`. The
+sentence to quote is the corrected one: **the chunk is always delayed, the fire
+only sometimes.**
+
 **Why the cell absorbs it** (mechanism, from the code and consistent with the
 flat `t_arrive`): a late chunk costs a *constant lag* - the arm is `d` mm behind
 the fruit for the rest of the approach - rather than an accumulating error,
@@ -156,7 +191,8 @@ it is **not** registered here.
 
 ## 8. Verdict
 
-* **P1 PASS**, **P3 does not fire**, **P2 = the "fire on true time" branch**,
+* **P1 PASS**, **P3 does not fire**, **P2 = the "chunk always, fire sometimes"
+  branch** (median fire delay one tick; 4/12 fires > 33 ms late at `d=16`, §4b),
   **P4 = the two known keys**, **P5 applies**.
 * The decision-latency claim of this cell changes: **66 ms / 8 mm p50**, and the
   cell still places **11/12** with a *distribution* of that latency - i.e. the
