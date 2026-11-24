@@ -7931,6 +7931,59 @@ before the leg runs. Pins: `rl_env.py` (`resolve_skip_late`, the guard site, the
 untouched. Evidence `logs/p227/{RESULTS.md 22.9-22.10,skip26.log,skip26/,
 skipforce.log,bedsel_cont10.log}`.
 
+**P227ab (2026-11-24, `logs/p227/`; one warning and one disk-backed buffer, no
+default moved, no reference moved): the "missing return motion" in the continuous
+clips was a **dropped env var in my own recording command**, and the instrument
+that had to catch it is `gap_ticks`, not the image.** The owner reported that from
+`video_panda_5min_safe` onward the arm **no longer travels from the output bin
+back to the belt** - it appears beside the belt. Root cause: when the three safety
+rules were added to the recording command, `FRUIT_CONTINUOUS_TRANSIT=1` was
+dropped, so `_begin_pick`'s `_transit` was False and every pick boundary fell back
+to `teleport_joints`. **The discriminator is one log number**: `[cont] pick N`
+prints `gap_ticks`, the simulated time between picks, and the return transit is
+**150 ticks** (90 blend + 60 settle) plus a settle, so a continuous clip reads
+**>= 263** - the good run `video_panda_5min` reads 245-644 and `video_panda_final`
+263-647, while the two bad ones read **120 / 139 / 150**. **Two of this phase's
+own readings are withdrawn with it**: (a) "the image does not jump there" - a
+whole-frame mean dilutes a localized snap; (b) the block-max metric that replaced
+it **does not separate the two cases either** (67 events above 20 grey levels in
+the clip with the return against 79 in the one that teleports, 242 vs 165 frames
+over threshold - a closing gripper, a catch and a snap look alike). **Read rule:
+a continuous clip's continuity is proved by `gap_ticks` or by a joint trace, never
+by an image metric.** **The un-confounded counts** (26 picks, seed 902, one reset,
+the only variables being the transit and the three rules): transit **on**/rules
+off **16/26**, transit **on**/rules **on 13/26** (Fisher **p = 0.58**), transit
+**off**/rules on **25/26** - so **the three rules are a safety envelope with no
+count benefit, and the teleport is what inflates a count** (25 vs 13, **p =
+0.0003**; 25 vs 16, **p = 0.0048**) because it returns the arm in one tick. 22.10's
+16 -> 25 is therefore **confounded and is marked so in `logs/p227/RESULTS.md`**;
+the honest sentence is 22.12's, one level up: **the return is a throughput
+object** (2.2 s per pick, 13 vs 25 placements at n = 26), not a cosmetic one.
+**Two guards ship**: `121_policy_video.py` prints `[video] WARNING: --continuous
+without FRUIT_CONTINUOUS_TRANSIT=1 - every pick boundary will TELEPORT the arm
+back to the wait pose ...` at the one call site a demo uses (the knob stays opt-in
+in the env - P225n's scope is unchanged), and every clip's overlay now carries a
+**monotonic `T=`** beside the per-pick `t(pick)=` (the per-pick clock restarts at
+every pick by construction - `start_tick` is taken when that pick begins - and
+read as a cut to the owner; no frames were ever dropped: `nb_frames` 9442 at
+30 fps = 314.733 s against a 314.734 s container). **The buffer fix is the other
+half**: a 26-pick clip at 30 fps x 2 views is **~46 GB of arrays**, which thrashed
+this machine's 2 GB swap and left a run **crawling for 16 h at pick 19 of 26
+before it was killed** - `--frames-dir` now writes JPEGs and buffers paths, and
+the encoders normalise **one frame at a time** (`prepared = [normalise(...)]` is
+gone, so a disk-backed clip is never materialised twice). Measured in both modes
+on a 2-pick cell: RAM 2/2 placed, 360 frames; disk 2/2, 358 frames, 716 JPEGs
+(the difference is the loop's non-reproducibility, not the buffer). Pins:
+`scripts/121_policy_video.py`, `scripts/selfcheck.sh` (`P227z video views`,
+`P227aa skip rule`, `P227ab disk frame buffer`), `src/fruit_sorting/rl_env.py`
+(the return's phase diag: `lift_moved`, `lift_ticks`, `lift_step`,
+`blend_cmd_step`, `blend_err`, all under `FRUIT_CONTINUOUS_TRANSIT_DIAG=1` and
+`if _diag else None`, so the shipped path is byte-identical). The correct clip is
+`logs/video_panda_final/` (**4 min 24 s**, 15 fps, 3965 frames, 13/26 placed,
+`gap_ticks` 263-647); `video_panda_5min_safe/` and `video_panda_30fps/` are kept as
+**error references** with a banner in their READMEs. References
+**61fb5202 / 61fb5202 / 18b101bf** untouched.
+
 **P142 (2026-11-11, `logs/p142/`; two defect fixes + a declared metric,
 **nothing adopted, no reference moved**): the direct lane's two *bookkeeping*
 failures are removed and its zero is shown to be the station reselect's timing.

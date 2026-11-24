@@ -4735,15 +4735,41 @@ class SortingRLEnv:
         """
         task = self.task
         t0 = int(self._step)
+        _diag = os.environ.get("FRUIT_CONTINUOUS_TRANSIT_DIAG", "0") == "1"
+        _q0 = np.asarray(task.arms[side].joint_positions(), dtype=float) if _diag else None
         task._catch_up_drive(side)
         cap = int(os.environ.get("FRUIT_CONTINUOUS_TRANSIT_LIFT_CAP", "150") or 150)
+        _t_lift0 = self._sim_time() if _diag else 0.0
         task._lift_clear(side, cap=cap)
         task._catch_up_drive(side)
+        _q1 = np.asarray(task.arms[side].joint_positions(), dtype=float) if _diag else None
+        _lift_ticks = (
+            int(round((self._sim_time() - _t_lift0) * 120.0)) if _diag else 0
+        )
         ticks = int(os.environ.get("FRUIT_CONTINUOUS_TRANSIT_TICKS", "90") or 90)
         settle = int(
             os.environ.get("FRUIT_CONTINUOUS_TRANSIT_SETTLE", "60") or 60
         )
-        task._blend_to(side, goal, ticks=ticks, settle=settle)
+        _stats = {} if _diag else None
+        task._blend_to(side, goal, ticks=ticks, settle=settle, stats=_stats)
+        if _diag and _q0 is not None:
+            #: P227ab: **where the return's motion actually is**. `_blend_to`
+            #: starts from the measured pose (`start = joint_positions()`), so a
+            #: visible snap at a pick boundary can only come from the phase before
+            #: it - the IK lift - or from a commanded step the servo cannot track.
+            #: These two numbers separate them: the lift's own displacement, and
+            #: the blend's commanded peak per tick (`stats["q_step"]`, the P100
+            #: arithmetic). Diag only; nothing is read when it is off.
+            _q2 = np.asarray(task.arms[side].joint_positions(), dtype=float)
+            self._say(
+                f"[transit] side={side} lift_moved={float(np.max(np.abs(_q1 - _q0))):.3f} "
+                f"lift_ticks={_lift_ticks} "
+                f"lift_step={float(np.max(np.abs(_q1 - _q0))) / max(1, _lift_ticks):.4f} "
+                f"blend_cmd_step={float(_stats.get('q_step', 0.0)):.3f} rad/tick "
+                f"blend_err={float(_stats.get('ramp_err', 0.0)):.3f} "
+                f"total_moved={float(np.max(np.abs(_q2 - _q0))):.3f} "
+                f"ticks={ticks}+{settle}"
+            )
         if os.environ.get("FRUIT_CONTINUOUS_TRANSIT_DIAG", "0") == "1":
             #: one row per return: the blend's end residual (the same number the
             #: scripted `_blend_to` reports as `settle_err`). The return's clock

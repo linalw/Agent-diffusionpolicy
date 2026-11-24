@@ -168,6 +168,15 @@ def main() -> int:
              "so a multi-minute clip should ask only for the views it needs; "
              "'observer' is required (it is the annotated base view). P227z.",
     )
+    parser.add_argument(
+        "--frames-dir",
+        default=os.environ.get("FRUIT_VIDEO_FRAMES_DIR", ""),
+        help="buffer captured frames as JPEGs in this directory instead of in RAM. "
+             "A multi-minute clip at 30 fps is 40-60 GB of arrays (measured: it "
+             "thrashed swap and a 26-pick run crawled for 16 h before it was "
+             "killed), so anything longer than ~5 min at 15 fps wants this. "
+             "P227ab.",
+    )
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
     _views = [v.strip().lower() for v in str(args.views).split(",") if v.strip()]
@@ -182,6 +191,20 @@ def main() -> int:
         # P58: the multi-pick episode is an explicit run-length mode, never a
         # default (it rescales --episodes and the summary becomes pick-level).
         os.environ["FRUIT_DIRECT_CONTINUOUS"] = str(int(args.continuous))
+        # P227ab: **a continuous clip without the return transit is not
+        # continuous** - `_begin_pick` falls back to `teleport_joints` at every
+        # pick boundary, so the arm snaps from the output bin back beside the belt
+        # and the return motion is absent from the clip. Measured: the
+        # inter-pick gap reads 120-150 ticks instead of the transit's own 150+20
+        # (`logs/p227/RESULTS.md` 22.13). The knob stays opt-in in the env - this
+        # is a warning at the one call site a demo uses, not a default change.
+        if os.environ.get("FRUIT_CONTINUOUS_TRANSIT", "0").strip() != "1":
+            say(
+                "[video] WARNING: --continuous without FRUIT_CONTINUOUS_TRANSIT=1 - "
+                "every pick boundary will TELEPORT the arm back to the wait pose "
+                "and the return motion will be missing. Set it to 1 for a "
+                "continuous-looking clip."
+            )
     install_failure_handler("121_policy_video")
 
     stride = max(1, int(args.capture_every))
@@ -298,6 +321,34 @@ def main() -> int:
             say(f"[video] {name} camera ready ({frame.shape[1]}x{frame.shape[0]})")
 
     frames = {view: [] for view in ("observer", "head", "close", "overhead") if view in _views}
+
+    #: P227ab: with `--frames-dir` a captured frame is written as a JPEG and the
+    #: buffer holds its **path**, so memory is O(1) in the clip's length. The
+    #: default (no directory) keeps the shipped behaviour: arrays in a list.
+    _frames_dir = str(args.frames_dir or "").strip()
+    if _frames_dir:
+        os.makedirs(_frames_dir, exist_ok=True)
+        say(f"[video] frame buffer on disk: {_frames_dir} (JPEG, second pass annotates)")
+
+    def _save(view: str, frame: np.ndarray) -> None:
+        if not _frames_dir:
+            frames[view].append(frame)
+            return
+        folder = os.path.join(_frames_dir, view)
+        os.makedirs(folder, exist_ok=True)
+        path = os.path.join(folder, f"{len(frames[view]):06d}.jpg")
+        cv2.imwrite(path, cv2.cvtColor(frame, cv2.COLOR_RGB2BGR),
+                    [int(cv2.IMWRITE_JPEG_QUALITY), 95])
+        frames[view].append(path)
+
+    def _load(item):
+        """The RGB frame for a buffered item - an array, or a JPEG path."""
+        if isinstance(item, str):
+            img = cv2.imread(item, cv2.IMREAD_COLOR)
+            if img is None:
+                raise RuntimeError(f"missing buffered frame {item}")
+            return cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        return item
     labels: list[dict] = []
     episodes: list[dict] = []
     state = {"episode": 0, "phase": "reset"}
@@ -342,7 +393,7 @@ def main() -> int:
             ("observer", obs), ("head", head), ("close", close_up), ("overhead", over)
         ):
             if _name in frames and _frame is not None:
-                frames[_name].append(_frame)
+                _save(_name, _frame)
         labels.append(
             {
                 "episode": state["episode"],
@@ -443,13 +494,20 @@ def main() -> int:
 
     observer_annotated: list[np.ndarray] = []
     for index, image in enumerate(frames["observer"]):
+        image = _load(image)
         label = labels[index]
         record = episode_notes[label["episode"]]
         elapsed = (label["tick"] - record["start_tick"]) / 120.0
         finger = "  -   " if label["finger"] is None else f"{label['finger']:.4f}"
         distance = " -  " if label["distance"] is None else f"{label['distance'] * 100:.1f}"
         lines = [
-            f"episode {label['episode'] + 1}/{len(episodes)}   t={elapsed:5.1f}s   "
+            # P227ab: **two clocks**. `t=` is the *pick's* own elapsed simulated
+            # time (the label's `start_tick` is taken when that pick begins), so
+            # in `--continuous` mode it restarts at every pick and reads like a
+            # cut. `T=` is the clip's monotonic time, which is what a viewer
+            # should use to locate anything.
+            f"episode {label['episode'] + 1}/{len(episodes)}   T={index / fps:6.1f}s   "
+            f"t(pick)={elapsed:5.1f}s   "
             f"policy_step={label['step']}   tick={label['tick']}   [{label['phase']}]",
             f"finger_cmd {finger} m     |jaw-fruit|xy {distance} cm",
         ]
@@ -474,11 +532,10 @@ def main() -> int:
             )
         return np.ascontiguousarray(image)
 
-    def write_with_ffmpeg(path: str, images: list[np.ndarray]) -> bool:
+    def write_with_ffmpeg(path, images, width: int, height: int) -> bool:
         exe = os.environ.get("FRUIT_FFMPEG", "ffmpeg")
         if shutil.which(exe) is None:
             return False
-        height, width = images[0].shape[:2]
         # Isaac's python.sh exports LD_PRELOAD=libcarb.so and a kit-only
         # LD_LIBRARY_PATH; both break the system ffmpeg, so drop them.
         env_vars = {
@@ -496,7 +553,9 @@ def main() -> int:
         process = subprocess.Popen(command, stdin=subprocess.PIPE, env=env_vars)
         try:
             for image in images:
-                process.stdin.write(cv2.cvtColor(image, cv2.COLOR_RGB2BGR).tobytes())
+                # P227ab: one frame in memory at a time - `images` may be paths.
+                frame = normalise(_load(image), width, height)
+                process.stdin.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR).tobytes())
         except BrokenPipeError:
             process.wait()
             return False
@@ -505,8 +564,7 @@ def main() -> int:
                 process.stdin.close()
         return process.wait() == 0
 
-    def write_with_opencv(path: str, images: list[np.ndarray]) -> None:
-        height, width = images[0].shape[:2]
+    def write_with_opencv(path, images, width: int, height: int) -> None:
         for fourcc in ("avc1", "mp4v"):
             writer = cv2.VideoWriter(
                 path, cv2.VideoWriter_fourcc(*fourcc), fps, (width, height)
@@ -514,7 +572,8 @@ def main() -> int:
             if not writer.isOpened():
                 continue
             for image in images:
-                writer.write(cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
+                writer.write(cv2.cvtColor(normalise(_load(image), width, height),
+                                          cv2.COLOR_RGB2BGR))
             writer.release()
             if os.path.getsize(path) > 0:
                 say(f"[video] ffmpeg unavailable; wrote {path} with OpenCV/{fourcc}")
@@ -523,21 +582,22 @@ def main() -> int:
 
     written: dict[str, dict] = {}
 
-    def write(path: str, images: list[np.ndarray]) -> None:
+    def write(path: str, images) -> None:
         if not images:
             return
-        height, width = images[0].shape[:2]
+        height, width = _load(images[0]).shape[:2]
         if width % 2 or height % 2:
             width += width % 2
             height += height % 2
-        prepared = [normalise(image, width, height) for image in images]
-        if write_with_ffmpeg(path, prepared):
+        #: P227ab: the frames are normalised **inside** the encoder loop, so a
+        #: disk-backed buffer never materialises the clip twice.
+        if write_with_ffmpeg(path, images, width, height):
             say(
                 f"[video] wrote {path} ({len(images)} frames, {len(images) / fps:.1f}s, "
                 f"H.264 {width}x{height})"
             )
         else:
-            write_with_opencv(path, prepared)
+            write_with_opencv(path, images, width, height)
         written[os.path.basename(path)] = {
             "frames": len(images),
             "seconds": len(images) / fps,
@@ -558,11 +618,13 @@ def main() -> int:
         height = 480
         paired = []
         for index in range(min(len(observer_annotated), len(frames["head"]))):
+            _left = _load(observer_annotated[index])
+            _right = _load(frames["head"][index])
             left = cv2.resize(
-                observer_annotated[index], (int(observer_annotated[index].shape[1] * height / observer_annotated[index].shape[0]), height)
+                _left, (int(_left.shape[1] * height / _left.shape[0]), height)
             )
             right = cv2.resize(
-                frames["head"][index], (int(frames["head"][index].shape[1] * height / frames["head"][index].shape[0]), height)
+                _right, (int(_right.shape[1] * height / _right.shape[0]), height)
             )
             paired.append(np.hstack([left, right]))
         write(os.path.join(args.out_dir, "side_by_side.mp4"), paired)

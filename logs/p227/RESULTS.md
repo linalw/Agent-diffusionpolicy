@@ -1215,6 +1215,13 @@ seed 902, one reset, `--record`):
 | `[skip]` fires | - | **0** |
 | worst episode | 288 frames, 604 reversals | 43 frames, 7 reversals |
 
+**CONFOUNDED, and corrected in 22.14**: this cell (`skip26`) was recorded
+**without `FRUIT_CONTINUOUS_TRANSIT=1`** - the same dropped variable that 22.13
+finds behind the missing return - so its pick boundaries **teleported**, and a
+teleport returns the arm instantly, which is exactly what a starving line does
+not have. The 16 -> 25 delta therefore mixes the three rules with the teleport
+and **cannot be attributed**; 22.14 re-measures with the transit on.
+
 **Read the count as a branch, and the motion as the result.** The two runs are
 different draws (a 26-pick episode re-times every presentation), so 16 -> 25 is
 not the rules' count: what the rules changed is the **shape** - the failure set's
@@ -1256,17 +1263,22 @@ same recipe: both read **25/26**.
 
 ### 22.12 A negative worth keeping: slowing the return does not smooth the clip, it starves the line
 
-The owner reported a "position jump" in the continuous clip around 2:30-2:45. Two
-measurements first: **the image does not jump there.** Frame-to-frame mean
-absolute difference (0-255 scale, whole frame) peaks at **1.05** in that window
-in the 15 fps clip and **0.86** in the 30 fps one, against a whole-clip p99 of
-0.78 and a maximum of 2.95 that sits at the clip's end (313 s); a real teleport
-(the arm sweeping ~1 m) scores 20-60. On the joint side the same recipe's
-recorded cell (`logs/p227/skip26`) has a largest single-tick step of **0.058 rad**
-against the arm's own 0.0454 rad/tick limit. So the "jump" is not a discontinuity
-in the trajectory as this build produces it; the most likely reading is the
-**sampling rate** (0.36 rad of joint travel per frame at 15 fps) and the "twisted"
-look is the arm's genuine lateral place posture.
+The owner reported a "position jump" in the continuous clip. **My first reading of
+it was wrong, in the direction that matters**: I measured the frame-to-frame mean
+absolute difference over the whole frame, saw **1.05** in the window (and 0.86 at
+30 fps) against a whole-clip p99 of 0.78, and concluded the image did not jump. A
+fixed-size mean dilutes a localized change, and the arm is a small part of the
+frame. The **block-max** metric (the worst 16x16 block) raises peaks of 45-49 in
+that window, and I then read the top ones as "one block at a fixed spot", i.e. a
+cosmetic artefact. **The metric does not separate the two cases at all** - measured
+on the two 26-pick clips: **67 events above 20 grey levels** in the clip that has
+the return transit and **79** in the one that teleports, with 242 and 165 frames
+over the threshold. A closing gripper, a catch and a snap all look alike to it. So
+the image was never the instrument; the question that settles it is **was the
+per-pick return transit running at all?** Section 22.13 answers that from
+`gap_ticks`, and the answer is no: those 30 fps and 5-minute "safe" clips were
+recorded **without `FRUIT_CONTINUOUS_TRANSIT=1`**, so each pick boundary teleported
+the arm.
 
 The obvious hypothesis - the per-pick **return transit** is fast (a 90-tick
 min-jerk blend plus an IK lift) - was tested and **fails**, in the informative
@@ -1290,3 +1302,85 @@ per-frame joint travel and is the only lever here that costs nothing.
 `121_policy_video.py` also drops the raw observer buffer once the frames are
 annotated (nothing below reads it), which is what lets a 30 fps multi-minute clip
 fit in RAM.
+
+### 22.13 The missing return motion: a dropped env var in the recording command
+
+The owner's report was exact: from `video_panda_5min_safe` onward the arm **no
+longer travels from the output bin back to the belt** - it appears beside the belt.
+The cause is not in the code, it is in the command I used to record those clips:
+when I added the three safety rules I dropped `FRUIT_CONTINUOUS_TRANSIT=1`, so
+`_begin_pick`'s `_transit` was False and every pick boundary fell back to
+`teleport_joints` - a joint-space snap from the bin to the wait pose.
+
+**The discriminator is one number, and it is already in the log.** `[cont] pick N`
+prints `gap_ticks`, the simulated time between the end of one pick and the start
+of the next - it contains the selection round and `_begin_pick`, whose transit is
+**150 ticks** (90 blend + 60 settle) plus a 20-tick settle:
+
+| clip | `gap_ticks` |
+|---|---|
+| `video_panda_cont` (4 picks) | 263 on all of them |
+| `video_panda_5min` (26 picks) | 245-644 |
+| **`video_panda_5min_safe`** (26) | **120 / 139 / 150** |
+| **`video_panda_30fps`** (26) | **120 / 135 / 150** |
+
+A gap below the transit's own 150 ticks is only possible if the transit did not
+run. So the arm really was snapping, the block-max events in 22.12 **were** those
+snaps, and the earlier "the image does not jump" reading is withdrawn.
+
+**A guard, at the one call site a demo uses**: `121_policy_video.py` now warns
+when `--continuous` is used without `FRUIT_CONTINUOUS_TRANSIT=1`
+(`[video] WARNING: --continuous without FRUIT_CONTINUOUS_TRANSIT=1 - every pick
+boundary will TELEPORT the arm back to the wait pose ...`). The knob stays opt-in
+in the environment (P225n's scope is unchanged, and a default flip would move
+every measured continuous cell); the warning is a usability guard, not a
+behaviour change.
+
+**The clip that replaces the bad ones** (`logs/video_panda_final/`, 30 fps, 26
+picks, one reset, the six interface settings + the three safety rules +
+`FRUIT_CONTINUOUS_TRANSIT=1`) reads `gap_ticks` **245-642** on every transition -
+the return is there.
+
+**Read rule for this family, and it is the phase's least obvious lesson**: a
+continuous clip's continuity is proved by **`gap_ticks` in the log** (150 ticks is
+the transit's own floor) or by a **joint trace**, and **never by an image
+metric** - whole-frame means dilute a localized snap, and block-maxima cannot tell
+a teleport from a closing gripper (67 vs 79 events above threshold in the two
+clips, i.e. no separation). The image is for a human to judge; the log is for the
+claim.
+
+### 22.14 Un-confounded: the return transit costs the count, the rules do not buy it
+
+Three 26-pick continuous cells, seed 902, one reset each, **the only variables
+being the return transit and the three rules**:
+
+| cell | return transit | three rules | placed | `gap_ticks` |
+|---|---|---|---|---|
+| 22.8 (`video_panda_5min`) | **on** | off | **16/26** | 245-644 |
+| 22.10 (`skip26`, **confounded**) | **off** (teleport) | on | 25/26 | 120-150 |
+| 22.14 (`video_panda_final`) | **on** | **on** | **13/26** | 263-647 |
+
+**The three rules are a safety envelope with no count benefit, and that is now
+measured without a confound**: transit on, rules off 16/26 against transit on,
+rules on **13/26**, Fisher **p = 0.577**. They bound the command and refuse
+doomed attempts; they do not place more fruit.
+
+**What the teleport was worth is the phase's other correction**: 25/26 against
+13/26 is Fisher **p = 0.0003**, and 25/26 against 16/26 is **p = 0.0048**. A
+teleport returns the arm to the wait pose in one tick, so the next fruit is never
+missed while the arm travels - i.e. **the continuous cell's count is dominated by
+the return's cost**, and any cell that teleports is not a continuous cell. This is
+the same mechanism 22.12 found from the other side (slowing the return 90 -> 180
+ticks cost 16 of 26 placements).
+
+So the honest summary of the whole `P227aa` family: **the return is a throughput
+object, not a cosmetic one** (2.2 s per pick, and the difference between 13 and 25
+placements at n=26), and the safety rules are worth shipping because they bound
+what the arm can be commanded to do - measured 6/6 in the 6-pick arm and neutral
+here - not because they raise the rate.
+
+**The clip that carries the return** (`logs/video_panda_final/`, 3965 frames,
+**4 min 24 s** at 15 fps, `gap_ticks` 263-647 on every transition, 13/26 placed)
+is the deliverable; `video_panda_5min_safe/` and `video_panda_30fps/` are kept as
+the **error reference** - both recorded without `FRUIT_CONTINUOUS_TRANSIT=1` - and
+their READMEs now say so.

@@ -366,6 +366,12 @@ for tok in ('-1', 'abc', 'nan', 'inf'):
     except ValueError:
         bad += 1
 assert bad == 4, f'{bad}/4 bad tokens refused (a typo must not read as off)'; src = open('src/fruit_sorting/rl_env.py', encoding='utf-8').read(); assert 'self._skip_late > 0.0 and intercept' in src, 'the guard site is missing'; assert 'not this arm' in src, 'the skip note is missing'; print('skip rule ok')"
+# P227ab: a long clip must not buffer its frames in RAM. Measured: 26 picks at
+# 30 fps x 2 views is ~46 GB, which thrashed the 2 GB swap and a run crawled for
+# 16 h before it was killed. `--frames-dir` writes JPEGs and holds paths, and the
+# encoder normalises one frame at a time (no `prepared` list). Source-shape pin -
+# the flag is exercised end to end by the clips themselves.
+run_check "P227ab disk frame buffer" "$python" -c "src = open('scripts/121_policy_video.py', encoding='utf-8').read(); assert '--frames-dir' in src, 'the flag is missing'; assert 'def _save(view: str, frame' in src, 'the store helper is missing'; assert 'def _load(item):' in src, 'the loader is missing'; assert 'prepared = [normalise(' not in src, 'the encoder still materialises the clip (that is the 46 GB path)'; assert 'write_with_ffmpeg(path, images, width, height)' in src; assert 'frame buffer on disk' in src; print('disk frame buffer ok')"
 run_check "P227z video views" "$python" -c "src = open('scripts/121_policy_video.py', encoding='utf-8').read(); assert '--views' in src, 'the capture-set flag is missing'; assert '\"observer\" not in _views' in src, 'the observer guard is missing'; assert 'if \"close\" in _views:' in src and 'if \"overhead\" in _views:' in src, 'the cameras are authored unconditionally again (a 5-minute clip then pays 4 buffers)'; assert 'is simply absent' in src, 'the view-aware capture comment is missing'; assert 'if frames.get(\"head\")' in src, 'the side_by_side guard is missing'; print('video --views shape ok')"
 # P73: the `[carry]` row's **rotation schedule** (`tilt0=`, `tilt_end=`,
 # `tilt_max=`, `t45=`, `t75=`, `tilt_rate=`) - the instrument the place-leg
