@@ -15592,7 +15592,14 @@ class PickAndPlaceTask:
                     )
                     os.makedirs(_dir, exist_ok=True)
                     _path = os.path.join(
-                        _dir, f"catch_{self._catch_trace_seq:02d}_{arm_name}.json"
+                        # P250: the **process id** is part of the name. P244 found
+                        # that the sequence restarts in every process and the
+                        # directory is shared, so a second run overwrote the first
+                        # run's traces - and the failing attempt's trace was gone.
+                        # No live consumer parses the name; the analysis globs.
+                        _dir,
+                        f"catch_{os.getpid()}_{self._catch_trace_seq:02d}_"
+                        f"{arm_name}.json",
                     )
                     _count = arm.end_trace(_path)
                     say(

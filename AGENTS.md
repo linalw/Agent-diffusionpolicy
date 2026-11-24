@@ -8146,6 +8146,54 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P250 (2026-11-25, `logs/p250/`; one **instrument fix** - the catch-up trace's name is
+per-process - plus a census and four traced runs; no behaviour change, no default
+moved): the "first-attempt" class is **one instance**, and its mechanism is a
+**drive-tracking stall**.** The census (312 episodes, 39 runs already on disk) first
+looks like an episode-position defect - **ep 0 38/55 = 69.1 %** against **ep >= 1
+95.5 %** - and it is **composition**: ep 0's median diameter is **2.80 cm** against
+**6.10 cm**, because the shuffle's first draw is a small grade-A fruit. Split by
+species the separation is complete: **lychee ep 0 13/30 = 43.3 % against ep >= 1
+29/29 = 100 %**, while the *other* small class drawn at ep 0 (strawberry) passes
+**23/23**. **Every lychee failure is the same body** (`d=2.8 cm, arm=left`, seed 901's
+first draw), so the class is **"the pool's smallest instance"** - not "episode 0",
+not "a small fruit", not a cold start (the first decision's `[lat] d` is 51-171 on
+**every** run and does not order the outcome: 171 passes, 130 fails). **The failure
+budget in one table**: 0-4 cm **72/90 = 80.0 %**, 4-5 **18/20 = 90.0 %**, 5-6
+**59/63 = 93.7 %**, 6-7 **132/139 = 95.0 %**, with lychee the worst species (**42/59 =
+71.2 %**) and the 2.8 cm instance carrying **17 of 31 failures**. **Four one-episode
+traced runs** (2/4 = the census rate) give the mechanism and falsify three hypotheses:
+**the start offset does not separate** (a pass starts at 50.8 mm, a failure at 44.9)
+and **a pass also runs the full 200 ticks and places** - what separates is the
+**persistent joint-space lag**, failures **0.18-0.27 rad** (one still growing) against
+passes **0.11**; **no joint-limit clipping on any of the 200 samples of every run**
+(`limit_margin` **+0.43..+1.42**, the failing runs having *more* margin), and
+**no singularity** (`sigma_min` 0.153-0.214). So the arm stops following its own
+commanded target, the catch-up's residual plateaus at **39-46 mm**, and the close then
+finds the fruit outside the pads (`close: fruit drifted ... ; re-closing` ->
+`fruit did not follow the gripper`). **Why it lags on this instance is not identified**
+(candidates: a torque/gravity limit at that extension, or a commanded target that
+outruns the drive - one lag is still growing); the instruments exist (`dq`/`lag` per
+tick in this trace plus the drive readback). **This narrows P246's open item rather
+than closing it**: the 1 m runaways of P241-P244 are inside this instance class (same
+body, 200 ticks, residuals 41-1113 mm), not a separate object. **The instrument fix**
+is the phase's only shipped change: `FRUIT_CATCH_TRACE` wrote
+`catch_{seq:02d}_{arm}.json` with the sequence restarting per process in a **shared**
+directory, so a second run overwrote the first - the name now carries the **process
+id** (`catch_{pid}_{seq:02d}_{arm}.json`, no live consumer parses it), which is what
+made the failing traces readable at all. **No-harm**: `selfcheck.sh` **PASS (0
+failures, 1 skipped)**, `accept.sh` **fingerprint: matches**, its **459 `[fruit]`
+lines 459/459 identical** to `logs/p227/accept_final.log` (the trace path is gated on
+`FRUIT_CATCH_TRACE=1`, which the scripted line never sets). **Named next, priced, not
+built**: a **feed-forward/integral term on the arm's own joint error** (P246's open
+item 2) - now with a magnitude (**0.18-0.27 rad** against 0.11) and an endpoint (the
+2.8 cm class **43 % -> 80 %** would put the cell at **97 %**) - and it moves every leg
+on every cell, so it owes its own pre-registration, the acceptance, **both** references
+and a store re-baseline (P248's price for a default flip). Pins: `tasks.py`
+**`b68ac8d1`** (the trace name only), `rl_env.py` `TASKS_MD5` follow; references
+**`61fb5202` / `61fb5202` / `18b101bf`** untouched; ckpt `p227_panda156`. Evidence
+`logs/p250/`.
+
 **P249 (2026-11-25, `logs/p249/`; **the axis-aware exit ships as the direct lane's
 default** - scoped, and the scripted/two-line paths are byte-identical): P248's
 powered cell passed (40/40 against 38/40, catch-up 200 -> 21 ticks, cycle -1.42 s),
