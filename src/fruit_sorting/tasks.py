@@ -3613,6 +3613,17 @@ class PickAndPlaceTask:
         #: from "the fruit walked out during the ramp". Costs one tactile read per
         #: close tick; no rate is ever quoted from an armed cell (AGENTS section 2).
         self._close_trace = os.environ.get("FRUIT_CLOSE_TRACE", "0") == "1"
+        #: P231 (`FRUIT_LIFT_TRACK_BELT=1`, default off): **the lift travels with
+        #: the belt.** P230 measured the 0.24 m/s failure precisely: the close
+        #: grips (2 contacts, 5.7-9.4 N at the close's end) and the payload is
+        #: gone by the lift - the record's loaded slide, whose force / pad-face /
+        #: friction / seat levers are all measured out. The one term not in that
+        #: closed set is the **relative velocity**: the hand is nearly stationary
+        #: in y through `grasp_lift` while the belt drags the payload at v, so the
+        #: pinch carries `v x t_lift` of drag (0.24 m/s x 0.25 s = 60 mm). This
+        #: translates the leg's whole command with the belt so that term is ~0 -
+        #: what a human does - and is inert at v = 0.
+        self._lift_track_belt = os.environ.get("FRUIT_LIFT_TRACK_BELT", "0") == "1"
         self._seat_book: dict[str, dict] = {}
         #: P42 phase 2 (`FRUIT_SEAT_CENTRE=<m>`, **default off**): the bounded
         #: pre-close centring registered in `logs/p42/PREREG.md` section 2. The
@@ -6376,6 +6387,24 @@ class PickAndPlaceTask:
             # object, and continue on the same trajectory (the remaining profile
             # is rebased, so the motion stays jerk-limited).
             commands = np.asarray(commands, dtype=float)
+            # P231: translate the **lift** with the belt (see the knob block).
+            # Bounded by `FRUIT_LIFT_TRACK_MAX` so the hand cannot leave the
+            # reachable band; the offset is in the belt's own y direction and the
+            # whole leg moves with it, so the profile shape (and its friction
+            # cone) is unchanged - only the frame it is expressed in.
+            if name == "grasp_lift" and self._lift_track_belt:
+                _belt_v = float(self._belt_speed_estimate())
+                if abs(_belt_v) > 1e-3:
+                    _cap = float(os.environ.get("FRUIT_LIFT_TRACK_MAX", "0.12"))
+                    _raw = _belt_v * CONTROL_DT * np.arange(1, len(commands) + 1)
+                    _dy = np.clip(_raw, -_cap, _cap)
+                    commands = commands.copy()
+                    commands[:, 1] += _dy
+                    say(
+                        f"[lift-track] v={_belt_v:+.3f} m/s over {len(commands)} ticks "
+                        f"-> dy={_dy[-1] * 1000:+.1f} mm"
+                        + (" (capped)" if abs(_raw[-1]) > _cap else "")
+                    )
             # Start the leg's IK from where the arm actually is: the previous leg
             # may have ended with the drive target *ahead* of the measured joints
             # (the close and the test lifts), and the first `ik_step` would then

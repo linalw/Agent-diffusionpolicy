@@ -429,6 +429,22 @@ print(f'primitive estimate ok (pre-grasp {n_pre} reads)')"
 # during the ramp" - the two readings P229 could not tell apart. The pin is the
 # default-off path, the row's site (inside the close tick loop, AFTER the step so
 # it is post-step), its fields, and that it adds no articulation read.
+# P231: the lift travels with the belt (`FRUIT_LIFT_TRACK_BELT=1`, default off).
+# The pin is the default-off path, the lift-only scope, the bound, and that the
+# offset is applied to the belt's own axis only.
+run_check "P231 lift track" "$python" -c "
+src = open('src/fruit_sorting/tasks.py', encoding='utf-8').read()
+assert 'FRUIT_LIFT_TRACK_BELT' in src
+assert 'self._lift_track_belt = os.environ.get(\"FRUIT_LIFT_TRACK_BELT\", \"0\") == \"1\"' in src
+i = src.index('if name == \"grasp_lift\" and self._lift_track_belt:')
+blk = src[i:i + 900]
+assert 'FRUIT_LIFT_TRACK_MAX' in blk and 'np.clip' in blk, 'the offset must be bounded'
+assert 'commands[:, 1] +=' in blk, 'only the belt axis may move'
+assert '_belt_speed_estimate()' in blk, 'the offset must use the measured belt speed'
+j = src.index('if name == \"grasp_lift\" and self._lift_track_belt:')
+assert 'place' not in src[j:j + 120].split('grasp_lift')[0]
+print('lift track ok (default off, lift-only, bounded, belt axis)')"
+
 run_check "P230 close trace" "$python" -c "
 src = open('src/fruit_sorting/tasks.py', encoding='utf-8').read()
 assert 'FRUIT_CLOSE_TRACE' in src

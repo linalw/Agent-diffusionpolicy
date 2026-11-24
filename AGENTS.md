@@ -8146,6 +8146,37 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P231 (2026-11-24, `logs/p231/`; one **default-off lever**, **not adopted**, no
+`configs/` change): "the lift travels with the belt" fails, and the failure is
+**geometric** - the lift is longer than the hand's travel.** `FRUIT_LIFT_TRACK_BELT=1`
+adds `v x t` to the `grasp_lift` command's y for the whole leg (bounded by
+`FRUIT_LIFT_TRACK_MAX`, default 0.12 m), so the pads would ride with the belt and
+the drag the pinch resists would go to ~0 - the term P230 named as the only one
+not already closed in `logs/p42/SIM_LIMIT.md`. **A/B at 0.24** (`ext=0.10`, 3
+episodes each, both arms with `FRUIT_CARRY_DIAG=1`): **1/3 in both**, and
+`clean_slip_max` on the two failing lift legs **rises** (1141 -> 2039, 1275 ->
+1724 mm) - **P1 falsified**; the *successful* leg is **byte-identical** (191 ticks,
+0.0 mm in both arms), so the lever only touched the failures and made them worse.
+**The reason is arithmetic**, printed by the lever itself: the lift is
+**1.6-4.0 s** at 0.24, so the belt travels **382-964 mm** while the hand is
+capped at 120 mm - **262-844 mm of drag left** - and the cell's usable y band from
+the pick pose is a few hundred millimetres (the R10-A/P123 reach maps), so
+**matching the belt through this lift is physically infeasible**; the 0.12 lift
+needs only **90-100 mm**, which is why the same lever is clean there (**2/2
+placed**, `clean_slip` 0.0-0.1 mm - **P3 inertness PASSES**). **Partial tracking
+is worse than none**, which is what the larger slip says. **Closed**: velocity
+matching as a software lever on this cell - it needs a lift short enough that
+`v x t_lift` fits the travel (P89 already measured the lift's speed cap
+negative, so the two levers fight), or a hand/axis that rides the belt
+(hardware), or the ~0.18 m/s band the objective's "success first" already sits in
+(0.06-0.18: **11 / 10 / 11 / 11 of 12**). **So the remaining lever for 分拣速度 is
+the cycle time at the reliable speeds, not the belt speed** (place ~4.0 s of
+~14.5 s/attempt; release ~1.0 s after P227r's trim). Pins: `tasks.py`
+**`c16c8291`** (+ `TASKS_MD5` follow), `scripts/selfcheck.sh` (leg
+`P231 lift track`: default off, lift-only, bounded, belt axis only); references
+**`61fb5202` / `61fb5202` / `18b101bf`** untouched; ckpt `p227_panda156`.
+Evidence `logs/p231/`.
+
 **P230 (2026-11-24, `logs/p230/`; one **default-off diagnostic**, nothing adopted,
 no `configs/` change): the objective's starting speed is confirmed and the 0.24
 failure is moved one phase later - **the close grips; the loss is after it.**
