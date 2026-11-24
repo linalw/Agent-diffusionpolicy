@@ -4645,6 +4645,17 @@ class SortingRLEnv:
         """
         self._SimulationManager.step(steps=int(steps))
         self._app_utils.update_app(steps=0)
+        # P232: the belt-wave instrument (P135) is ticked inside the task's
+        # `_step_sim`, i.e. only while the **primitive** runs. The env advances the
+        # physics on its own path, so an armed wave reached the contact phase but
+        # not the approach - and the approach is exactly where a varying speed
+        # matters (the trigger's `t_arrive`). Tick it here too; the flag is False
+        # unless `FRUIT_BELT_WAVE_AMP > 0`, so every shipped path is unchanged.
+        _wave_task = getattr(self, "task", None)
+        if _wave_task is not None and getattr(_wave_task, "_belt_wave_on", False):
+            # `advance` also runs in `__init__` (the scene prime), before the task
+            # exists - `getattr(self, "task", None)` is that case.
+            _wave_task._belt_wave_tick()
         if self._direct_feed:
             # P55: the live feeder. The direct interface's supply used to be
             # built once per `reset` and then frozen for the whole episode (the

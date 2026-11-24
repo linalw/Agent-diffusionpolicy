@@ -432,6 +432,22 @@ print(f'primitive estimate ok (pre-grasp {n_pre} reads)')"
 # P231: the lift travels with the belt (`FRUIT_LIFT_TRACK_BELT=1`, default off).
 # The pin is the default-off path, the lift-only scope, the bound, and that the
 # offset is applied to the belt's own axis only.
+# P232: the belt-wave instrument must reach **both** tick paths. P135 ticked it
+# inside `_step_sim` (the primitive) only, so an armed wave disturbed the contact
+# phase and not the approach. The pin is: the env's `advance` ticks it too, the
+# call is guarded for the `__init__` prime (no task yet), it is inert unless the
+# wave is armed, and `advance`'s stepping rule is unchanged.
+run_check "P232 belt wave" "$python" -c "
+src = open('src/fruit_sorting/rl_env.py', encoding='utf-8').read()
+i = src.index('    def advance(self, steps: int) -> None:')
+blk = src[i:i + 1400]
+assert 'self._SimulationManager.step(steps=int(steps))' in blk
+assert 'self._app_utils.update_app(steps=0)' in blk, 'the stepping rule must not change'
+assert 'getattr(self, \"task\", None)' in blk, 'the __init__ prime has no task yet'
+assert '_belt_wave_on' in blk and '_belt_wave_tick()' in blk
+assert 'update_app(steps=' in blk and 'update_app(steps=steps)' not in blk
+print('belt wave ok (both tick paths, guarded, inert unless armed)')"
+
 run_check "P231 lift track" "$python" -c "
 src = open('src/fruit_sorting/tasks.py', encoding='utf-8').read()
 assert 'FRUIT_LIFT_TRACK_BELT' in src

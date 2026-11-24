@@ -8146,6 +8146,46 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P232 (2026-11-24, `logs/p232/`; one **instrument fix** in `rl_env.advance`,
+nothing adopted, no reference moved): the objective's first disturbance rung -
+**a real line's speed varies - costs zero placements, and the trigger is blind to
+it.** `FRUIT_BELT_SPEED=0.08` with `FRUIT_BELT_WAVE_AMP=0.04`,
+`FRUIT_BELT_WAVE_HZ=0.5` (surface speed sweeps **0.04-0.12 m/s**, a **±50 %**
+disturbance) reads **11/12 = 91.7 %** - the same count as the constant-speed
+baseline (P230's 11/12) and as the same wave applied to the primitive only - at
+both seeds (5/6, 6/6); the fire's `dy` moves 0.136 -> 0.154 m and `t_arrive`
+1.71 -> 1.93 s. **Two instrument defects, both found only by running it**:
+(a) P135 ticked the wave inside the task's `_step_sim`, so an armed wave disturbed
+the **contact phase and not the approach** - exactly the phase a varying speed
+matters in; `rl_env.advance` now ticks it too, gated on the task's own flag (False
+unless the amp is set, so every shipped path is unchanged, and the acceptance is
+**459/459**); (b) that fix then killed two runs at startup (`0/0`, no episode
+rows) because `advance(30)` also runs in `__init__`'s scene prime **before
+`self.task` exists** - guarded with `getattr(self, "task", None)`. With P230's
+two (`self._say`, `self._step`) the pattern is explicit: **an instrument on this
+tree fails at construction or edge sites, and only a run - ideally with a cell
+known to work - finds it**; both P232 runs that died would have read as "the cell
+cannot do 0.08 under a wave". **The finding**: every fire row in **all three**
+cells prints `speed=0.080m/s/encoder` - P141's finding again, `encoder_speed` is a
+**setpoint echo** (computed only while the cleats exist; they are off), while the
+belt that moves is `surface_speed`. So on a varying line the trigger computes
+`t_arrive = dy / 0.080` against a fruit moving **0.04-0.12** - an error of up to
+**2x** in the one number the handover is scheduled on - and **the cell still reads
+91.7 %** because the layer below compensates: the primitive's hover/descent use
+`_belt_speed_estimate()` (the surface speed) and the hover wait absorbs the
+mismatch. That is the 4T layering paying off **and** a named latent defect: the
+compensation is a **wait**, and a wait spends the lead. **Verdicts**: P1 partial
+(the wave is armed and reaches both paths, but the *log* cannot show it in the
+trigger row - the missing instrument is a **surface-speed print at the fire**),
+**P2 PASSES** (11/12 >= 9/12), P3 does not apply (the one W2 failure is
+`fruit left the pick station during the close`, P41's station class), **P4 does
+not fire**. **Next rung, named not run**: a wider or faster wave, where the
+hover's absorption runs out. Pins: `rl_env.py` (the wave tick in `advance`,
+guarded), `scripts/selfcheck.sh` (leg `P232 belt wave`: both tick paths, guarded,
+inert unless armed, `advance`'s stepping rule unchanged); `tasks.py`
+**`c16c8291`** unchanged; references **`61fb5202` / `61fb5202` / `18b101bf`**
+untouched; ckpt `p227_panda156`. Evidence `logs/p232/`.
+
 **P231 (2026-11-24, `logs/p231/`; one **default-off lever**, **not adopted**, no
 `configs/` change): "the lift travels with the belt" fails, and the failure is
 **geometric** - the lift is longer than the hand's travel.** `FRUIT_LIFT_TRACK_BELT=1`
