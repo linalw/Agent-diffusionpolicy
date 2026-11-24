@@ -6160,7 +6160,17 @@ class PickAndPlaceTask:
                     self._blend_to(
                         side,
                         np.asarray(above, dtype=float),
-                        ticks=int(os.environ.get("FRUIT_PLACE_BLEND_TICKS", "150")),
+                        #: P259: **90 since the cell that measured it**. The blend
+                        #: runs 150+40 ticks whatever the distance (a 0.36-2.3 rad
+                        #: move needs 15-95 at the arm's 5.445 rad/s, P254's
+                        #: arithmetic), and the measured 0.08 continuous cell reads
+                        #: `place` **3.48 -> 2.99 s** and the attempt **11.43 ->
+                        #: 10.96/10.73 s** at **39/40 placed**, the single loss being
+                        #: the known 2.8 cm grasp class (`grasped=False`, no place-side
+                        #: loss - every one of the 39 placements landed). This block is
+                        #: **Panda-only** (`robot_kind() == "franka"`), so the OpenArm
+                        #: scripted and two-line paths cannot read it. `=150` restores.
+                        ticks=int(os.environ.get("FRUIT_PLACE_BLEND_TICKS", "90")),
                         settle=int(os.environ.get("FRUIT_PLACE_BLEND_SETTLE", "40")),
                     )
         # P39 attitude readout (`FRUIT_CARRY_ATTITUDE=1`, default off): read once

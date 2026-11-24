@@ -8146,6 +8146,33 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P259 (2026-11-25, `logs/p259/`; one measurement cell + one adopted default,
+**Panda-only by construction**): the place blend was **2-4x over-timed** - `place`
+**3.48 -> 2.99 s**, the attempt **-0.47 / -0.70 s** at **39/40**.** The `place` block
+decomposes by its own knobs: `FRUIT_PLACE_CLEAR=0` reads `place` **3.05 s** (so the
+`_place_clear` move is **0.43 s** - **not touched**, P227p measured it as the pear's
+protection, `clr_win=-74 mm@belt` and a lost payload without it), and
+`FRUIT_PLACE_BLEND_TICKS=90` reads **2.99 s** - so the split is **clear 0.43 + blend
+~1.58 + transit/low ~1.47**. **The blend is 150+40 ticks whatever the distance** while
+P254's arithmetic needs **15-95** for a 0.36-2.3 rad move, i.e. it was over-timed; at
+**90**: `place` **3.48 -> 2.99 s at both seeds** (a deterministic clock), the attempt
+**11.43 -> 10.96 / 10.73 s**, and **39/40 placed** with **the one loss the known 2.8 cm
+grasp class** (`grasped=False`, `grasp_lift` stored pad centre 101 mm off) - **no
+place-side loss: all 39 placements landed**. **Adopted**: the default is now **90**
+(`=150` restores), and it **cannot reach the scripted lines** - the block sits inside
+`if robot_kind() == "franka"` (P227n's scope) - proved by `accept.sh`
+**`fingerprint: matches`** with its **459 `[fruit]` lines 459/459 identical** to
+`logs/p227/accept_final.log`, `selfcheck.sh` **PASS (0 failures, 1 skipped)**. **Where
+the throughput now is**: attempt cycle **13.55 -> 12.13** (P249) **-> 11.43** (P258)
+**-> 10.85 s** (P259) = **-20 %** over the arc at unchanged success (98.6 % pooled at
+0.08). **And the honest caveat**: `s/pick` must **not** be quoted from one cell - the
+`gap` is **bimodal per cell** (median 267-270 usually, **432** in two of the five cells
+measured here, i.e. the arm waited for fruit), so `s/pick` swings **13.6-15.0 s** on the
+same cycle; the **cycle** is the stable number and throughput belongs as a **range**
+(**~4.4-4.6 picks/min** at 0.08), not a point. Pins: `tasks.py` **`05457705`**,
+`rl_env.py` (`TASKS_MD5` follow); references **`61fb5202` / `61fb5202` / `18b101bf`**
+untouched; ckpt `p227_panda156`. Evidence `logs/p259/`.
+
 **P258 (2026-11-25, `logs/p258/`; one **scoped** change, measured then adopted for the
 continuous lane only): the continuous lane did **two clearance motions per pick** -
 removing one is **-0.43 s at 60/60**.** A lowered place ends with its pads near the belt,
