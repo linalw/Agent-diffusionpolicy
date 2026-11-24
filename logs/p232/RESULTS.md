@@ -98,3 +98,42 @@ spends the lead.**
 references **`61fb5202` / `61fb5202` / `18b101bf`** untouched; checkpoint
 `p227_panda156` used as-is. Evidence
 `logs/p232/{PREREG.md, wave08/, wave08c/}`.
+
+---
+
+## 7. Addendum: the ladder's second rung - ±75 % also costs nothing
+
+Same cell, `FRUIT_BELT_WAVE_AMP=0.06` at 0.5 Hz - the surface speed sweeps
+**0.02-0.14 m/s**, i.e. a **6x** range with the belt nearly stopping at the
+trough. The wave reaches both tick paths (section 2's fix).
+
+| amplitude | surface range | placed | `dy` at fire | `t_arrive` |
+|---|---|---|---|---|
+| 0 (constant) | 0.08 | **11/12** | 0.136 m | 1.71 s |
+| 0.04 (±50 %) | 0.04-0.12 | **11/12** | 0.154 m | 1.93 s |
+| **0.06 (±75 %)** | **0.02-0.14** | **11/12** | 0.169 m | 2.11 s |
+
+All three at both seeds (5/6 + 6/6); the one failure moves class between cells
+(grip, then the P41 station escape, then grip again), which is the branch.
+
+**The fire distance grows monotonically with the amplitude** (0.136 -> 0.154 ->
+0.169 m): the trigger keeps assuming 0.08 and pushes the handover further out as
+the line slows. That is the blindness showing up in a measurable quantity rather
+than inferred.
+
+**Why the count does not move, and where it would**: the trigger's error is
+**asymmetric**. A trough (0.02) makes the real time-to-arrival up to **4x** the
+budget, so the primitive just **hovers longer** - a wait, harmless. A crest (0.14)
+makes it **0.57x**, so the hover is **shorter** than the schedule assumed, and
+that is the direction that can hurt. At 0.08 the lead is 1.7-2.1 s, so a 0.57x
+shrink still leaves ~1 s - enough. **Prediction for the next cell**: the same wave
+at **0.18 m/s**, where the lead is ~1.5 s and the hover has less slack, is where
+the trigger's blindness should start to cost placements - and the fix (feed
+`t_arrive` the **surface** speed, which P141 already exposes) is then worth
+measuring.
+
+## 8. Pins for the addendum
+
+No code change beyond §2's; `logs/p232/wave08w/`. The registered `PREREG.md`
+covered rung 1; this rung is reported as a **declared extension** before it was
+read, on the same instrument and cell.
