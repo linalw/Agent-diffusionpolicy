@@ -8146,6 +8146,42 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P251 (2026-11-25, `logs/p251/`; two knob ladders on the hard instance, **no `src/`
+change** - every knob already existed): the residual class is a **failed grasp
+probe**, the IK gain is **not** its actuator, and the record's "1 m excursions" are a
+**lost payload**.** **Gain ladder** (`FRUIT_IK_GAIN` 0.5/1.0/2.0, 6 one-episode runs
+each on seed 901's 2.8 cm lychee): **3/6, 2/6, 2/6** - a draw, so the persistent
+0.18-0.27 rad lag is not the thing to fix by gain (the controller integrates on the
+**commanded** joint vector, so `lag = _q_cmd - measured` *is* the following error;
+slowing the command does not help). **What separates is the `grip` block**: over 18
+runs **`grip` 1.58 s on 10 of 11 passes and 4.53 s on 10 of 11 failures** (= 1.58 +
+2.95, i.e. **two failed re-grasp probes**), while **`seat` is not the discriminator** -
+a *passing* attempt also ran the full 200-tick catch-up (`g1.0/r5`, seat 1.67, grip
+1.58, placed), the same correction P250 made from the start-offset side. **So the
+chain is: the catch-up ends 39-46 mm off -> `close` 1.10 s of ramp onto a fruit that
+is not between the pads -> the probe fails -> two re-grasps fail -> lost** (the one
+note a failing node prints: `carry grasp_lift: stored pad centre 102 mm from the
+measured pads; re-anchoring`). **A longer budget is worse and it corrects the
+record**: `FRUIT_DYNAMIC_CATCH_TICKS=400` reads **1/6** with residuals **1182-1362
+mm**, and the worst decomposes to `(x=-8.2 y=-391.7 z=+1274.5)` - **z = +1274 mm is
+the payload 1.27 m BELOW the tip**: the fruit has left the belt and the loop keeps
+chasing it, the arm moving nowhere. **That is what the record's "runaway excursions"
+are**: P241's 41.6 mm (x=+34.8) is a genuine arm stall, **P242's 419 mm (z=+410.8)
+and P244's 1079 mm (z=+1075.9) are lost payloads read as the loop's target** - same
+shape, same magnitude, now with a mechanism; P243's 97 mm (x=-96.9) sits between and
+is not settled. **So the excursions are a consequence of the catch failing, not a
+cause** - which is why P243/P244/P246 could not attribute them: they were explaining
+the *arm*, and the number was the *fruit*. **The honest position for the objective**:
+per-size success is **80 % (0-4 cm) / 90-95 % (4-7 cm)** and the residual class's
+software actuators are now **measured out** (exit, budget, gain, limits, singularity,
+start offset, seat); what remains is `logs/p42/SIM_LIMIT.md`'s hardware list (a new
+pad asset or a real-jaw clamp-force anchor) or a station/aim change for the smallest
+class - **neither is a knob**. **No rate is claimed** for the class (11 attempts per
+arm at 33-50 % cannot separate these rungs). Pins unchanged: `tasks.py`
+**`b68ac8d1`**, `rl_env.py` `TASKS_MD5` follow, references **`61fb5202` / `61fb5202` /
+`18b101bf`**, ckpt `p227_panda156` - so `accept.sh` stands at P250's **459/459 +
+`fingerprint: matches`**. Evidence `logs/p251/`.
+
 **P250 (2026-11-25, `logs/p250/`; one **instrument fix** - the catch-up trace's name is
 per-process - plus a census and four traced runs; no behaviour change, no default
 moved): the "first-attempt" class is **one instance**, and its mechanism is a
