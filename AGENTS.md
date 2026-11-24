@@ -8153,14 +8153,17 @@ close (`seat` before the `_close_attempt` loop, one `attempt` per try; no-ops
 unless `FRUIT_CYCLE_REPORT=1`) decompose P236's 2.77 s over 8 attempts at 0.08:
 **`ramp` is a constant 1.10 s** (6/6 placed attempts, four fruits, both seeds - the
 profile, not the fruit) and **`seat` is bimodal: 1.67 s on 4 of 6, 0.23 / 0.67 on
-the other two**. `1.67 s = 200 ticks`, and the only loop that can run that long is
-the **attitude servo** (`FRUIT_AXIS_SERVO`, default **180** iterations, one
-`ik_step` + `_step_sim(1)` each) plus the coherent track - so **when the approach
-leaves the wrist near vertical the servo exits in ~28 ticks (0.23 s); otherwise it
-runs to its cap**. **That is 4T's interface cost made visible**: the approach owns
-the attitude, the primitive owns the pads' squareness, and **neither layer is
-charged for the 1.44 s the primitive spends re-establishing the attitude the
-approach did not arrive with.** The cycle is now decomposed: **place 3.48, release
+the other two**. `1.67 s = 200 ticks`, **first attributed to the attitude servo and then
+FALSIFIED (P238)**: a `[seat] init` row reads the wrist at the servo's entry at
+**0.0-0.6 deg** against the 8.1 deg tolerance on six attempts, so the servo exits
+on its first check; the 200-tick loop in that segment is
+**`FRUIT_DYNAMIC_CATCH_TICKS` (default 200)** - the primitive's **pursuit**. So
+`seat` is bimodal because **the catch-up converges in ~26 ticks when the fruit is
+where the aim expected it, and runs its full budget when it is not**, and the lever
+is **"arrive closer", not "arrive more vertical"**. **That is 4T's interface cost made visible**: the approach owns
+where the pads arrive, the primitive owns the pursuit, and **neither layer is
+charged for the 1.44 s the primitive spends closing the aim residual the approach
+left** (the attitude, measured, is already square). The cycle is now decomposed: **place 3.48, release
 2.16-2.27 (incl. the 0.5 s settle), grip 1.58, seat 0.23-or-1.67, descent 1.5-4.9
 (incl. the wait), lift ~1.2, ramp 1.10, return 0.50** - **~10 s fixed of ~13.5
 (75 %)**, and `seat` is the only *bimodal* block, i.e. the only one where the same

@@ -82,3 +82,31 @@ P64/P65 measured the attitude as load-bearing.
 `scripts/selfcheck.sh` (leg `P236 direct cycle report` still passes - the marks are
 inside its ownership path); references **`61fb5202` / `61fb5202` / `18b101bf`**
 untouched; checkpoint `p227_panda156`. Evidence `logs/p237/{smoke/, seat/}`.
+
+---
+
+## 6. CORRECTION (P238, same day): the 1.67 s is the **catch-up**, not the attitude servo
+
+§2(b) attributed the bimodal `seat` to the attitude servo's 180-iteration cap.
+**That is falsified by measurement.** A `[seat] init` row (one TCP-pose read before
+the servo, gated on `FRUIT_CYCLE_REPORT=1`) reads the wrist's error at the servo's
+entry on six attempts:
+
+```
+init 1-cos = 0.0001 / 0.0000 / 0.0000 / 0.0000 / 0.0000 / 0.0000   -> 0.6 / 0.1 / 0.1 / 0.0 / 0.1 / 0.1 deg
+```
+
+against `FRUIT_AXIS_TOL = 0.01` (**8.1 deg**). **The servo exits on its first
+check on every attempt** and costs ~1 tick.
+
+`1.67 s = 200 ticks`, and the loop in that segment that has a 200-tick budget is
+`FRUIT_DYNAMIC_CATCH_TICKS` (default **200**, `tasks.py:15395`, the loop at
+`:15427`) - the primitive's **pursuit** of the fruit. So `seat` is bimodal for a
+different reason: **the catch-up converges in ~26 ticks (0.22 s) when the fruit is
+where the aim expected it, and runs its full 200-tick budget (1.67 s) when it is
+not.**
+
+The *shape* of §2(b)'s conclusion survives - the primitive pays **1.44 s** for a
+gap the approach left - but the **object is the aim residual, not the attitude**,
+and the lever is therefore "arrive closer", not "arrive more vertical". See
+`logs/p238/`.

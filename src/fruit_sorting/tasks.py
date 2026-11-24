@@ -14623,6 +14623,21 @@ class PickAndPlaceTask:
                 # position (jaw 19 cm off in y, logs/318). Drive the attitude until
                 # the fingers really point down, or give up on coherent mode.
                 axis_error = 0.0
+                if self._cycle_marks is not None:
+                    #: P238: the attitude the **approach** left the wrist in, taken
+                    #: once before the servo runs. P237 measured `seat` as bimodal
+                    #: (0.23 s when the wrist arrives near vertical, 1.67 s - the
+                    #: servo's 180-iteration cap - when it does not); this row is
+                    #: the measurement that decides whether that is the cause. One
+                    #: TCP-pose read per attempt, only with `FRUIT_CYCLE_REPORT=1`.
+                    rot0 = _quat_matrix(np.asarray(arm.tcp_pose()[1], dtype=float))
+                    _tz0 = rot0 @ np.array([0.0, 0.0, 1.0])
+                    _e0 = 1.0 - float(np.dot(_tz0, np.array([0.0, 0.0, -1.0])))
+                    say(
+                        f"[seat] init 1-cos={_e0:.4f} "
+                        f"tol={float(os.environ.get('FRUIT_AXIS_TOL', '0.01')):.4f} "
+                        f"deg={math.degrees(math.acos(max(-1.0, min(1.0, 1.0 - _e0)))):.1f}"
+                    )
                 for _ in range(int(os.environ.get("FRUIT_AXIS_SERVO", "180"))):
                     rot_now = _quat_matrix(np.asarray(arm.tcp_pose()[1], dtype=float))
                     tool_z = rot_now @ np.array([0.0, 0.0, 1.0])
