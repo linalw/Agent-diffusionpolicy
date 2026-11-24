@@ -5551,6 +5551,18 @@ class SortingRLEnv:
             f"d={target['diameter'] * 100:.1f}cm bin={bin_index} arm={active} "
             f"y={float(target['position'][1]):+.3f} presentation={self.presentation}"
         )
+        if os.environ.get("FRUIT_INSTANCE_DIAG", "0") == "1":
+            #: P256: the **physics of the instance**, printed for the attempt that
+            #: is about to run. `FruitSample` already carries `mass` and
+            #: `friction` (no new simulator read), so this is the row that answers
+            #: "is the tail a size, a species, or a draw?" - P255 placed a 2.8 cm
+            #: lychee 2/2 in a different pool, which leaves the per-instance draw
+            #: as the candidate. Off by default; one print per pick.
+            self._say(
+                f"[inst] idx={int(sample.index)} sp={sample.category} "
+                f"d={sample.diameter * 100:.1f}cm mass={sample.mass * 1000:.1f}g "
+                f"mu={float(sample.friction):.2f} grade={sample.grade}"
+            )
         if self._recorder is not None:
             self._recorder.begin(
                 {

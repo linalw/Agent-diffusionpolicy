@@ -468,6 +468,16 @@ print('direct cycle report ok (owned by the env, scripted path unchanged)')"
 # make (default off; the shipped fixed 90+60 is byte-identical). The pin is the
 # arithmetic (min-jerk peak 1.875x, the arm's 5.445 rad/s), the clamps, and that the
 # knob is read only inside the continuous return.
+# P256: the per-instance physics row (mass + friction from `FruitSample`, no new
+# simulator read), default off, one print per pick.
+run_check "P256 instance diag" "$python" -c "
+src = open('src/fruit_sorting/rl_env.py', encoding='utf-8').read()
+assert 'FRUIT_INSTANCE_DIAG' in src
+assert 'sample.mass * 1000' in src and 'float(sample.friction)' in src, 'both fields'
+assert src.index('FRUIT_INSTANCE_DIAG') < src.index('[inst] idx='), 'the gate precedes the row'
+assert 'if os.environ.get(\"FRUIT_INSTANCE_DIAG\", \"0\") == \"1\":' in src, 'default off'
+print('instance diag ok (mass + friction, default off)')"
+
 run_check "P254 blend adapt" "$python" -c "
 import math
 src = open('src/fruit_sorting/rl_env.py', encoding='utf-8').read()

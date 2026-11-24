@@ -8146,6 +8146,37 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P256 (2026-11-25, `logs/p256/`; one **default-off instrument** and two cells,
+nothing adopted): the instance's **mass and friction do not separate** the outcome, and
+the tail is **broader than one body** - which corrects P255's scope.** The instrument
+(`FRUIT_INSTANCE_DIAG=1`) prints one `[inst] idx= sp= d= mass= mu= grade=` row per pick
+from `FruitSample`'s own `mass` and `friction` (**no new simulator read**), gated and
+pinned by the `P256 instance diag` leg. **Cells** (0.08, continuous 6 picks, diag on, so
+**no rate is claimed**): **seed 901 4/6** - fails **lychee 2.8 cm / 8.3 g / mu 0.62** and
+**tomato 5.1 cm / 44.2 g / mu 0.53**, passes strawberry 4.0 / 19.2 / 0.69, apple 6.3 /
+90.7 / **0.49**, orange 6.6 / 109.4 / 0.81, peach 5.8 / 69.7 / 0.79; **seed 903 6/6** -
+strawberry 3.2 / 9.9 / 0.84, pear 6.5 / 102.9 / 0.67, peach 5.9 / 72.4 / 0.72, peach 6.7
+/ 105.0 / 0.61, lychee 3.8 / 19.9 / 0.84, tomato 6.5 / 93.9 / 0.60, all placed. **So
+neither parameter separates**: mass fails at **8.3 and 44.2 g** while passes span
+**9.9-109.4 g** (a **9.9 g** strawberry placed - lighter than a failure), and friction
+fails at **0.62 and 0.53** while passes span **0.49-0.84** (a **0.49** apple placed -
+slipperier than a failure). **And the 5.1 cm tomato corrects P255's scope**: that phase
+called the residual "a per-instance tail" from the lychee census, but the corpus's 31
+failures split **17 on the 2.8 cm lychee draw** and **14 across kiwi (6), strawberry
+(3), peach (2), orange/tomato/apple (1 each)** - the lychee is a **concentration, not
+the class**. **The honest statement**: the tail is **not** predicted by any parameter
+this project can read off a fruit (size, species, mass, friction); P250's mechanism
+stands (a drive-tracking stall ending the catch-up 39-46 mm off and burning two
+re-grasps), but **which** attempts enter it is not a property of the fruit's published
+numbers. **Reading rule added**: a per-instance physical parameter is only a mechanism
+if failures and passes **do not overlap** on it - here both do, so "low mass" or "low
+friction" must not be written as the tail's cause. **No-harm**: the row is gated and
+reads only dataclass fields, `accept.sh` **`fingerprint: matches`** with its **459
+`[fruit]` lines 459/459 identical**, `selfcheck.sh` **PASS (0 failures, 1 skipped)**.
+Pins: `rl_env.py` (the gate + the row; `TASKS_MD5` unchanged, `tasks.py` `b68ac8d1`),
+`scripts/selfcheck.sh`; references **`61fb5202` / `61fb5202` / `18b101bf`** untouched;
+ckpt `p227_panda156`. Evidence `logs/p256/`.
+
 **P255 (2026-11-25, `logs/p255/`; a one-species continuous cell, **no `src/` change**):
 the tail is **one instance, not the smallest size class** - and this **corrects**
 P250/P251's own causal claim.** `FRUIT_SUPPLY_SPECIES=lychee`, `v=0.08`, continuous, 10
