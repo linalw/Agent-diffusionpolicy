@@ -140,7 +140,7 @@ SKIP_SELFCHECK=1 FRUIT_BELT_SPEED=0.08 FRUIT_ARM_KIND=franka FRUIT_OUTPUT_BINS=1
   FRUIT_BIARM=0 FRUIT_CAMERA_RES=240,424 FRUIT_DIRECT_START_ALIGN=family \
   FRUIT_START_FAMILY=configs/start_pose_family_panda.json FRUIT_POLICY_ACTION_HOLD=4 \
   FRUIT_POLICY_TRIGGER=arrival FRUIT_POLICY_TARGET_RATE=5.45 FRUIT_POLICY_JOINT_CLAMP=1 \
-  FRUIT_SKIP_LATE=0.5 FRUIT_EVAL_LATENCY=auto FRUIT_CONTINUOUS_TRANSIT=1 \
+  FRUIT_SKIP_LATE=0 FRUIT_EVAL_LATENCY=auto FRUIT_CONTINUOUS_TRANSIT=1 \
   scripts/run.sh scripts/110_rl_rollout.py --presentation direct --episodes 1 \
   --continuous 10 --seeds 901 --ckpt checkpoints/p227_panda156/policy_best.pt
 
@@ -152,6 +152,10 @@ FRUIT_CATCH_TOL_AXIS=1 FRUIT_CYCLE_REPORT=1 FRUIT_TRACK_DIAG=1 scripts/288_speed
 # 门禁
 scripts/selfcheck.sh; scripts/accept.sh
 ```
+
+**`FRUIT_SKIP_LATE` 是拓扑相关的**（P252 §6）：**多臂线**用 `0.5`（真的移交给另一条臂）；
+**单臂单元**在 0.12 以上必须用 `0`——单臂没有"别的手臂"可移交，一次移交就是一次**丢弃**。
+实测 0.12 连续：开 55%（4 次移交），关 **75%**。0.08 下它 20 次里从不开火，所以基线不受影响。
 
 **读法**（这几条比数字重要）：
 

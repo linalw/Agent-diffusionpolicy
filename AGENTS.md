@@ -8171,7 +8171,24 @@ claimed** (20 attempts each; the per-episode 0.12 cell is 10/12 - a draw at this
 mechanism named, not measured). Pins unchanged: `tasks.py` **`b68ac8d1`**, `rl_env.py`
 `TASKS_MD5` follow, references **`61fb5202` / `61fb5202` / `18b101bf`**, ckpt
 `p227_panda156` - `accept.sh` stands at P250's **459/459 + `fingerprint: matches`**.
-Evidence `logs/p252/`.
+Evidence `logs/p252/`. **Addendum (§6): the ownership rule is
+**topology-dependent**.** `FRUIT_SKIP_LATE=0.5` ends an attempt when the arrival
+trigger fires with `t_arrive < 0.5 s` ("another arm's fruit") - and **in a
+single-arm cell there is no other arm, so a hand-off is a discard**. Measured at
+**0.12 continuous, everything else identical**: skip **0.5** reads **11/20 = 55 %**
+(s901 4/10, s902 7/10, **4 skips**) against skip **0** **15/20 = 75 %** (8/10 + 7/10,
+**0 skips**). **The mechanism is arithmetic** - a discarded pick cannot be placed, so
+the rule's cost is a ceiling; **the per-seed split is a branch** (s901 +4, s902 0) and
+at n=20 the pooled difference is p = 0.20, a direction. **At 0.08 the rule is inert**
+(0 hand-offs in 20 picks), so the target-speed number is unaffected; the cost appears
+where the arm's 263-tick return is slow against the fruit's arrival, i.e. exactly what
+raising the belt does. **So the recipe is speed- and topology-dependent in one line**:
+`0.5` for a multi-arm line, **`0` for a single-arm cell at 0.12 and above**; the
+rule's original rationale (the doomed attempt's 1.18 rad / 44 reversals) is now
+bounded by `FRUIT_POLICY_TARGET_RATE=5.45` + `FRUIT_POLICY_JOINT_CLAMP=1`, and **the
+no-skip arm's motion quality is not measured here** (named next instrument). The 0.12
+step therefore reads **55 % -> 75 %** by turning off a rule written for a different
+topology; the **0.08 deployment number is unchanged (19/20 = 95 %)**.
 
 **P251 (2026-11-25, `logs/p251/`; two knob ladders on the hard instance, **no `src/`
 change** - every knob already existed): the residual class is a **failed grasp

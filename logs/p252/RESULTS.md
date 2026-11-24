@@ -74,3 +74,39 @@ No `src/`/`configs/` change (the tree is P250's: `tasks.py` `b68ac8d1`, `rl_env.
 `TASKS_MD5` follow, references **`61fb5202` / `61fb5202` / `18b101bf`**, ckpt
 `p227_panda156`); `accept.sh` therefore stands at P250's **459/459 +
 `fingerprint: matches`**. Evidence `logs/p252/`.
+
+---
+
+## 6. Addendum: the ownership rule **discards** in a single-arm cell
+
+`FRUIT_SKIP_LATE=0.5` (the P227z recipe) ends an attempt when the arrival trigger
+fires with `t_arrive < 0.5 s` - "a fruit already inside this arm's window is another
+arm's". **In a single-arm cell there is no other arm**, so a hand-off is a **discard**.
+
+Measured at **0.12 m/s continuous**, everything else identical:
+
+| `FRUIT_SKIP_LATE` | s901 | s902 | pooled | skips |
+|---|---|---|---|---|
+| **0.5** (recipe) | 4/10 | 7/10 | **11/20 = 55 %** | 4 |
+| **0** | **8/10** | 7/10 | **15/20 = 75 %** | 0 |
+
+**Mechanism: arithmetic** - a discarded pick cannot be placed, so the rule's cost is a
+ceiling, not a probability. **The per-seed split is a branch** (s901 +4, s902 0: the
+timing shift re-draws the whole fruit sequence), and at n = 20 the pooled difference is
+p = 0.20 - a direction, not a rate.
+
+**At 0.08 the rule is inert**: **0 hand-offs in 20 picks** (§2), so the target-speed
+cell does not care. **The cost appears where the arm's return (263 ticks) is slow
+relative to the fruit's arrival**, which is what raising the belt does.
+
+**So the recipe is speed-dependent in one line**: `FRUIT_SKIP_LATE=0.5` for a
+**multi-arm** line (it hands off to a real second arm); `FRUIT_SKIP_LATE=0` for a
+**single-arm** cell at 0.12 and above. The rule's original rationale - the doomed
+attempt's "weird motion" (1.18 rad range, 44 reversals, p227aa) - is now bounded by
+`FRUIT_POLICY_TARGET_RATE=5.45` + `FRUIT_POLICY_JOINT_CLAMP=1`, which are in the same
+recipe; **the motion quality of the no-skip arm is not measured in this phase** and is
+the named next instrument.
+
+**Status for the objective**: the deployment number at **0.08 is unchanged (19/20 =
+95 %)**; what changes is the **0.12 step**: **55 % -> 75 %** by turning off a rule that
+was written for a different topology.
