@@ -8188,7 +8188,13 @@ rule's original rationale (the doomed attempt's 1.18 rad / 44 reversals) is now
 bounded by `FRUIT_POLICY_TARGET_RATE=5.45` + `FRUIT_POLICY_JOINT_CLAMP=1`, and **the
 no-skip arm's motion quality is not measured here** (named next instrument). The 0.12
 step therefore reads **55 % -> 75 %** by turning off a rule written for a different
-topology; the **0.08 deployment number is unchanged (19/20 = 95 %)**.
+topology; the **0.08 deployment number is unchanged (19/20 = 95 %)**. **The
+recipe's default now follows the measurement**: `scripts/284_single_arm_policy_gate.sh`
+is the **single-arm** gate and it defaulted `0.5` (the multi-arm value) - it now
+defaults **0**, with the topology rule in its header, and a multi-arm caller exports
+`0.5`; **confirmed at 0.08 with the new default** (seed 901, 10 continuous picks, the
+knob not exported): **10/10, 0 hand-offs**, so the deployment number does not depend
+on the rule at the target speed.
 
 **P251 (2026-11-25, `logs/p251/`; two knob ladders on the hard instance, **no `src/`
 change** - every knob already existed): the residual class is a **failed grasp

@@ -110,3 +110,19 @@ the named next instrument.
 **Status for the objective**: the deployment number at **0.08 is unchanged (19/20 =
 95 %)**; what changes is the **0.12 step**: **55 % -> 75 %** by turning off a rule that
 was written for a different topology.
+
+---
+
+## 7. The recipe's default follows the measurement
+
+`scripts/284_single_arm_policy_gate.sh` is the **single-arm** gate and it defaulted
+`FRUIT_SKIP_LATE=0.5` - the **multi-arm** value. The default is now **0**, with the
+topology rule in the header; a caller running a multi-arm line exports `0.5`.
+
+**Confirmed at the target speed with the new default** (seed 901, 10 continuous picks,
+`FRUIT_SKIP_LATE` not exported): **10/10, 0 hand-offs** - so the deployment number does
+not depend on the rule at 0.08 (it never fires), and the change is confined to the
+speeds where the return lags the arrival.
+
+**Deployment cells at 0.08 now on disk**: 9/10 (s901), 10/10 (s902), 10/10 (s901, new
+default) - three cells, one repeat per seed, **no cell below 9/10**.
