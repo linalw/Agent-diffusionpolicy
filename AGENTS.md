@@ -8146,6 +8146,33 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P252 (2026-11-25, `logs/p252/`; the **deployment shape** measured, no `src/` change -
+`--continuous` and `FRUIT_CONTINUOUS_TRANSIT` already existed): continuous, no per-pick
+reset, **19/20 = 95 % at 0.08 m/s and ~12.0 s/cycle**.** Every number this engagement
+has quoted came from the **per-episode** harness (each pick ends, the arm teleports to
+the aligned start, the belt is re-primed) and **a real cell never does that**, so the
+question was whether the reset is doing part of the work. It is not. Cells: `v=0.08`,
+one continuous episode of 10 picks per seed, the P227z/P249 recipe verbatim:
+**s901 9/10, s902 10/10, pooled 19/20 = 95.0 %**, with **0 hand-offs** (`skip`),
+**`gap_ticks` median 268-269 against the 263-tick pure return transit** (5-6 ticks of
+waiting is the whole inter-pick cost, i.e. **no starvation**) and cycle
+**11.85-12.21 s** - the same **~12.0 s** the per-episode cells read after P249
+(13.55 -> 12.13), so the 263-tick transit is **not** more expensive than the
+teleport + settle it replaces. **So the deployment shape is at least as good as the
+harness (95 % against 11/12 = 91.7 %, P230), the ownership rule costs nothing at the
+target speed (0 fires), and the line keeps the arm fed.** **The same recipe at 0.12
+reads 11/20 = 55 %** (the first pass did not pin the belt and took the shipped
+0.12): **3 `fruit fell off the line`** (s901), **4 hand-offs** ("the fruit is already
+inside the catch window, `t_arrive` 0.00-0.11 s < 0.50 s") and one
+`fruit did not follow the gripper` - so continuity at 0.12 is **not** a wash, the two
+terms that move are the **hand-off rule** (it fires when the arm is slower to return
+than the fruit is to arrive) and the **lost payload**, and **no cross-speed rate is
+claimed** (20 attempts each; the per-episode 0.12 cell is 10/12 - a draw at this n,
+mechanism named, not measured). Pins unchanged: `tasks.py` **`b68ac8d1`**, `rl_env.py`
+`TASKS_MD5` follow, references **`61fb5202` / `61fb5202` / `18b101bf`**, ckpt
+`p227_panda156` - `accept.sh` stands at P250's **459/459 + `fingerprint: matches`**.
+Evidence `logs/p252/`.
+
 **P251 (2026-11-25, `logs/p251/`; two knob ladders on the hard instance, **no `src/`
 change** - every knob already existed): the residual class is a **failed grasp
 probe**, the IK gain is **not** its actuator, and the record's "1 m excursions" are a

@@ -20,7 +20,8 @@
 | 维度 | 实测 | 出处 |
 |---|---|---|
 | **带速 0.06** | 11/12 | P229 |
-| **带速 0.08（目标起点）** | **11/12 = 91.7%** | P230 |
+| **带速 0.08（目标起点，按集）** | **11/12 = 91.7%** | P230 |
+| **带速 0.08（连续，部署形态）** | **19/20 = 95.0%，~12.0 s/次，0 次移交** | P252 |
 | 0.12 / 0.18 | 10/12 / 11/12 | P229 |
 | 0.20 | 7/12 = 58%（种子 5/6 与 2/6） | P229 |
 | ≥ 0.22 | **不接合**（选择器的地板超过皮带存量） | P229 |
@@ -131,8 +132,17 @@ IK 增益（0.5/1.0/2.0 = 3/2/2 of 6，平局）、关节限位（`limit_margin`
 # 单臂脚本单元（96%）
 SKIP_SELFCHECK=1 scripts/283_single_arm_gate.sh 6 5
 
-# 单臂学习车道（91.7%）
+# 单臂学习车道（91.7%，按集）
 SKIP_SELFCHECK=1 scripts/284_single_arm_policy_gate.sh 6 901 0.60
+
+# 部署形态（连续 10 次取放，无按集重置；实测 19/20）
+SKIP_SELFCHECK=1 FRUIT_BELT_SPEED=0.08 FRUIT_ARM_KIND=franka FRUIT_OUTPUT_BINS=1 \
+  FRUIT_BIARM=0 FRUIT_CAMERA_RES=240,424 FRUIT_DIRECT_START_ALIGN=family \
+  FRUIT_START_FAMILY=configs/start_pose_family_panda.json FRUIT_POLICY_ACTION_HOLD=4 \
+  FRUIT_POLICY_TRIGGER=arrival FRUIT_POLICY_TARGET_RATE=5.45 FRUIT_POLICY_JOINT_CLAMP=1 \
+  FRUIT_SKIP_LATE=0.5 FRUIT_EVAL_LATENCY=auto FRUIT_CONTINUOUS_TRANSIT=1 \
+  scripts/run.sh scripts/110_rl_rollout.py --presentation direct --episodes 1 \
+  --continuous 10 --seeds 901 --ckpt checkpoints/p227_panda156/policy_best.pt
 
 # 带速阶梯 / 扰动 / 分轴退出
 scripts/288_speed_ladder.sh                      # SPEEDS / SEEDS / EPISODES / OUT
