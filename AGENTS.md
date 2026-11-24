@@ -8146,6 +8146,32 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P239 (2026-11-24, `logs/p239/`; measurement only, no `src/` change): the catch-up
+exits on its **budget**, not on convergence - the exit tolerance sits below the
+controller's own steady-state lag.** `FRUIT_CYCLE_REPORT=1` + `FRUIT_TRACK_DIAG=1`
+on 6 attempts at 0.08 pair the `[catch] ticks= residual=` row with the `seat=`
+block: **27 ticks -> 5.7 mm -> 0.22 s**, **98 -> 5.8 -> 0.81**, and **four of six
+at 200 ticks -> 6.6/6.7 mm -> 1.67 s**. So P238's identification is **confirmed**
+(`seat` is the pursuit to the hundredth, `200 x 8.33 ms = 1.667`), and the
+mechanism is sharper than "the approach is off": **`FRUIT_DYNAMIC_CATCH_TOL` is
+6 mm while the pursuit's steady-state following error at 0.08 m/s is 6.6-6.7 mm
+(82 ms of lag)**, so the loop's exit condition is essentially **unsatisfiable at
+this speed** and it stops on `FRUIT_DYNAMIC_CATCH_TICKS` (200) - **0.6 mm short of
+the line it is waiting to cross**. The two fast attempts are the ones whose error
+happened to cross 5.7-5.8 mm. **The 1.44 s is therefore a fixed tax for a 0.6 mm
+miss**, and it also re-reads P48: the "8/8 no-grasp above 6 mm" boundary was
+measured while the loop mostly ran at 6.6-6.7 mm anyway, i.e. **the tolerance and
+the achievable error are the same number**, which is why the block's cost is
+bimodal rather than graded. **Levers named, not built**: **(a) reduce the
+following error** (a lead/feed-forward on the pursuit - the principled one, since
+it makes the exit satisfiable; P233 showed the same class of error on the trigger's
+speed source), **(b) raise the tolerance to 8 mm** (-1.4 s, but P48 measured 6 mm
+as the class boundary, so it is a catch-quality trade needing a powered cell), and
+**(c) the budget** (truncates a pursuit that is 0.6 mm from its goal). Pins
+unchanged: `tasks.py` **`e72b2c7c`**, `rl_env.py` untouched by this phase;
+references **`61fb5202` / `61fb5202` / `18b101bf`**; ckpt `p227_panda156`.
+Evidence `logs/p239/`.
+
 **P237 (2026-11-24, `logs/p237/`; two **default-off sub-marks**, no behaviour change,
 nothing adopted): the `close` block is `seat + ramp`, and **`seat` is a cross-layer
 attitude cost the primitive pays for the approach.** Two `_cycle_mark`s inside the
