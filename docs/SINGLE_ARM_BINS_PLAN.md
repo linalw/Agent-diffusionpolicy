@@ -9,6 +9,13 @@ moved: `FRUIT_ARM_KIND=franka FRUIT_OUTPUT_BINS=1 FRUIT_BIARM=0`
 (458/458 `[fruit]` lines to `logs/p136/accept_final.log`), no motion reference
 re-recorded.
 
+> **The architecture proposal for this cell is `docs/ARCHITECTURE_4T.md`**
+> (Track / Time / Task / Touch, 2026-11-24): the four clocks, the `T_lead`
+> arithmetic that replaces the fixed 0.19 m lead, and the anti-gaming
+> acceptance protocol (latency-injected SR, TTFA, underflow, three-way
+> outcome). Nothing in it is adopted; it is the plan the stages below are
+> ordered by.
+
 ## How to run it
 
 ```bash

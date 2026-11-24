@@ -68,7 +68,9 @@ floor="${3:-0.60}"
 ckpt="${FRUIT_POLICY_CKPT:-checkpoints/p227_panda156/policy_best.pt}"
 log_dir="${SINGLE_ARM_POLICY_DIR:-logs/p227}"
 mkdir -p "$log_dir"
-log="$log_dir/policy_cell_$(date +%Y%m%d_%H%M%S)_s${seed}.log"
+# P228: a caller driving a sweep names its own log; the default is the
+# timestamped per-run name this gate has always used.
+log="${SINGLE_ARM_POLICY_LOG:-$log_dir/policy_cell_$(date +%Y%m%d_%H%M%S)_s${seed}.log}"
 
 if [ "${SKIP_SELFCHECK:-0}" != "1" ]; then
     scripts/selfcheck.sh > /dev/null

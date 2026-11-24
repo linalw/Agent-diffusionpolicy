@@ -416,6 +416,16 @@ assert 'FRUIT_PRIMITIVE_ESTIMATE=1 needs FRUIT_GOAL_SOURCE=perception' in env, '
 assert 'def _estimate_now' in env and 'predict_at(horizon)' in env, 'the live estimator is missing'
 assert 'self.task.fruit_estimate = _est' in env and 'self.task.fruit_estimate = None' in env, 'the injection is not cleared'
 print(f'primitive estimate ok (pre-grasp {n_pre} reads)')"
+# P228 (Stage 0, docs/ARCHITECTURE_4T.md): the latency the WORLD pays. The
+# shipped direct loop never steps the simulator while the model runs, so its
+# 26 ms costs zero belt travel - the metric inflation ReflexBench/LIBERO-Dynamic
+# name. `FRUIT_EVAL_LATENCY=<d>` advances `d` control ticks after each decision's
+# inference and before the chunk executes (sync-hold). The leg pins the resolver
+# table, the control period against tasks.py's own literal, the injector's
+# executed semantics (advance, no observe, no record), the no-inference case and
+# the RTC refusal.
+run_check "P228 eval latency" "$python" scripts/287_p228_latency_selftest.py
+
 run_check "P227ad trigger source" "$python" -c "src = open('src/fruit_sorting/rl_env.py', encoding='utf-8').read(); assert 'def _fruit_for_trigger' in src, 'the helper is missing'; assert src.count('self._fruit_for_trigger(') >= 2, 'a fire site does not use it'; assert '[fire] source=' in src, 'the source tag is missing'; tail = src.split('intercept, intercept_info = should_fire(')[1][:400]; assert 'measured_velocity=_fire_vel' in tail, 'the selected-fruit fire still reads the simulator'; tail2 = src.split('p_fire, p_info = should_fire(')[1][:400]; assert 'measured_velocity=p_vel' in tail2, 'the presented-fruit fire still reads the simulator'; print('trigger source ok')"
 run_check "P227ac shallow rim" "$python" -c "import os, sys; sys.path.insert(0, 'src'); from fruit_sorting.assets import SceneConfig; c = SceneConfig(); assert abs(float(c.bin_wall_height) - 0.030) < 1e-9, f'default rim {c.bin_wall_height} is not shallow (0.030)'; assert abs((float(c.bin_floor_top_z) + float(c.bin_wall_height)) - 1.130) < 1e-6; os.environ['FRUIT_BIN_WALL_HEIGHT'] = '0.16'; c2 = SceneConfig(); assert abs(float(c2.bin_wall_height) - 0.16) < 1e-9, 'the deep form is not reachable'; del os.environ['FRUIT_BIN_WALL_HEIGHT']; print('shallow rim ok')"
 run_check "P227ac place floor (bin)" "$python" -c "src = open('src/fruit_sorting/tasks.py', encoding='utf-8').read(); assert 'decision B' in src, 'the decision is not recorded in the code'; assert 'floor = float(self.cfg.bin_floor_top_z)' in src, 'the bin floor is not used'; assert 'bin_index=None' in src, 'the destination is not threaded into _place_low'; assert 'bin_index=bin_index,' in src, 'the call site does not pass the destination'; assert 'floor=float(self.cfg.output_belt_top_z)' not in src.split('def _place_low')[1].split('def ')[0].split('clearance =')[0], 'the floor is still the belt'; print('place floor ok')"

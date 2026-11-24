@@ -8146,6 +8146,74 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P228 (2026-11-24, `logs/p228/`; one **default-off evaluation** lever, nothing
+shipped, no `configs/` reference moved): the shipped direct loop evaluates on a
+**paused world** - `sample_chunk` runs the model while `SimulationManager` is
+never stepped - so its inference latency costs **zero belt travel**, the metric
+inflation ReflexBench (arXiv 2608.14379) and LIBERO-Dynamic (arXiv 2610.24579)
+name. `FRUIT_EVAL_LATENCY=<d>` advances **`d` control ticks with the arm holding
+still** after a decision's inference returns and before its chunk executes
+(`sync-hold`, LIBERO-Dynamic's protocol), **without observing or recording**
+during the pause; `auto` divides this machine's measured `act()` wall by the
+control period, an integer is the controlled sweep, and unset/`0` is the shipped
+path byte for byte. It is refused with `FRUIT_RTC`/`FRUIT_VLASH` (the chunker
+models the same delay by interleaving, and both would double-count) and with
+`--record` (the paused ticks would not enter `ticks_total`, breaking P173's store
+invariant). **At the shipped 0.12 m/s one control tick is exactly 1.0 mm**, so
+`d` reads as millimetres. The sweep (`scripts/285_latency_bench.sh`) is 5 `d` x
+seeds 901/902 x 6 episodes, the `284` recipe verbatim, `PREREG.md` **`b677897e`**
+pinned before any non-zero cell. **P1 PASS**: `[lat]` resolves `d` to 4.0 / 8.0 /
+16.0 / 8.0(auto p50) and `d=0` carries no row. **The count does not move and P3
+does not fire**: 11 / 10 / 9 / 11 / 11 of 12 (pooled **52/60 = 86.7 %**, 95 % CI
+[75.8, 93.1]; every arm's CI spans a third of the range), not monotone, and
+`d=16` is 11 vs 11 with per-seed **+1 / -1**. **The mechanism is the phase's
+content**: `t_arrive` at the fire is **flat** (means 1.672 / 1.723 / 1.729 /
+1.562 s; rank correlation over the 48 fixed-`d` attempts **rho = -0.252**), where
+a trigger delayed by the injection would read ~**-0.7** with `d=16` at 1.54 - so
+**the injection delays the chunk, not the fire**, which is the intended
+semantics and is now measured; the catch-up's own loss rows are flat too
+(`close: fruit drifted` 1/1/0/1/0). **`auto` is the arm that matters** because
+its latency is a distribution, not a constant: p50 **8 ticks**, mean **9.7-10.0**,
+range 6-16, plus **one cold-start decision per episode at 55 and 70 ticks**
+(620 ms first call) - and it reads **11/12**, the same as `d=0`. **The number the
+phase delivers is the latency itself**: in-loop **66 ms p50** (per-cell medians
+57-86) against the offline bench's **26.4 ms** (P141), i.e. **8 mm = 1.3x the
+6 mm catch tolerance**, not the 0.4x the bench suggests; the gap is **not
+diagnosed** (candidates: `_observe` renders immediately before the sample, so the
+model competes with a just-issued render; and a different checkpoint). So **from
+here a cell is evaluated at `FRUIT_EVAL_LATENCY=auto` (or `8`) and reports the
+resolved `d`** - a `d=0` cell reports a latency the machine does not have.
+**Classes**: only the record's two known keys (6 x `fruit did not follow the
+gripper`, 1 x `fruit left the pick station during the close`), but unevenly -
+**0/12 at `d=0` against 6/48 armed (Fisher p = 0.333)**, a direction, not a
+result, and a powered cell is not registered. **Verdict = the PREREG's P5 null
+branch, which is a positive result about the architecture**: a late chunk costs a
+**constant lag** (every decision re-observes) rather than an accumulating error,
+and the scripted catch-up re-aims every tick with a **200-tick / 200 mm** budget
+against a **6 mm** tolerance, so **<= 133 ms is absorbed** - the L4-approach /
+L5-contact split is what buys that, and the real 30 Hz deployment's ~33 ms
+(1 tick) is four times tighter than the worst cell here. **Instrument deviations
+recorded**: the report's first pass read `t_arrive = nan` (the `[rl] episode`
+row *carries* the notes, so an `elif` chain stopped at the episode match; fixed
+and the cells re-read from the same logs, no re-simulation), and the `[lat]`
+row's `belt_mm` was a literal `0.12` before reading `cfg.belt_speed` (same number
+here, so no cell moved, but the cells span two `rl_env` revisions; `tasks.py`
+unchanged throughout). Selfcheck **PASS (0 failures, 1 skipped)** with the new leg
+`P228 eval latency` (the resolver table, the control period pinned against
+`tasks.py`'s literal, and the injector **executed** on a stub: `d` ticks advanced,
+**no observe, no record**, `_tick`/`_step` moved with the physics, a
+no-inference decision pays nothing, `auto` 26.4 ms -> 3 ticks, the call site
+before the execution loop, and both refusals). **No-harm**: `scripts/accept.sh`
+reads **7/10 = 70 %, 9.5 s/attempt, `fingerprint: matches`, `190: PASS`** and its
+**459 `[fruit]` lines are 459/459 identical** to `logs/p227/accept_final.log`
+(the scripted line never constructs `SortingRLEnv`, so this is an import guard).
+Pins: `rl_env.py` **`41e006a6`**, `tasks.py` **`3f9ef6ea`** (unchanged),
+`scripts/285_latency_bench.sh`, `scripts/286_latency_report.py`,
+`scripts/287_p228_latency_selftest.py`, `scripts/selfcheck.sh`,
+`scripts/284_single_arm_policy_gate.sh` (the log name is now overridable);
+references **`61fb5202` / `61fb5202` / `18b101bf`** untouched; ckpt
+`moe_v13s` `61da390a`, `p227_panda156` used as-is. Evidence `logs/p228/`.
+
 **P142 (2026-11-11, `logs/p142/`; two defect fixes + a declared metric,
 **nothing adopted, no reference moved**): the direct lane's two *bookkeeping*
 failures are removed and its zero is shown to be the station reselect's timing.
@@ -8530,6 +8598,7 @@ of `logs/p104`-`logs/p133`; `106` OK. Evidence `docs/CLOSEOUT.md` §6.
 
 | you changed | run |
 | --- | --- |
+| **any claim that a cell is "real-time"**, or a policy/episode number quoted as a deployable rate | `FRUIT_EVAL_LATENCY=auto scripts/285_latency_bench.sh` (or `D_LIST="0 8"` for a same-machine pair), then `scripts/286_latency_report.py` - **report the resolved `d`**: the shipped loop never steps the world while the model runs, so a `d=0` cell reports a latency the machine does not have. Read the `d_meas`/`infer_ms` columns **first** (the manipulation check: a cell with no `[lat]` rows measured nothing), then the mechanism (`t_arrive` at the fire stays flat when only the chunk is delayed; a fire delayed by the injection would fall by `d/120` s), then the count as a branch. At 0.12 m/s **1 tick = 1 mm**, and the in-loop latency is **66 ms = 8 mm p50** against the offline bench's 26.4 ms (P228) |
 | a **throughput or rate** claim (a speed profile, a scheduler/supply change, a wall number) | `scripts/186_w6_report.py` on **>= 2 seeds** with **both denominators** (placement window and batch span) **and the wall column** (`logs/p80/p80_report.py` is the template: wall from per-line stamps, never inferred), that scenario's own motion gate (single arm: `105 --fingerprint configs/motion_reference.json`; two-line: `scripts/190_twoline_gate.sh` against a reference of the **same attempt count**), then `scripts/accept.sh` |
 | a **per-leg profile or dwell** change (`FRUIT_SPEED_RELEASE/PLACE/LIFT`, a `[cycle]` block that moves) | `FRUIT_CYCLE_REPORT=1 FRUIT_PLACE_TRACE=1` on **both** arms, **>= 2 seeds**, then the `[cycle]` per-leg block table **by median** (`logs/p86/p86_report.py --blocks`): the **block** is the mechanism, **never the attempt span** - the span carries the supply-phase acquisition legs and re-draws with the shifted attempt boundary (`logs/p86/RESULTS.md` §3, P44 §3). Delivered: the interval (pooled **and** per arm), both denominators, the wall and `placed/min wall`. Landing: `FRUIT_PLACE_TRACE`'s `on_belt` on **every payload present at the release** (`release_bottom >= 0`; the -184 mm rows are the upstream-lost class, reported separately). Then the scenario's own motion gate - a profile change **moves the fingerprint by construction**, so budgets-only for the treatment and a same-seed reference for its control |
 | the **release clock's scoped default** (`tasks.release_speed_resolution`, `speed_cell_defaults(two_line)`, the `[biarm] release profile:` row, `scene._release_provenance`, the manifest's `physics.release`) | `scripts/selfcheck.sh` (the `247` leg: the resolver table - unset/no-scope **is** `_SPEED_SHIPPED` exactly, unset/two-line is the trim, `=0` restores, `=1`/`FRUIT_SPEED_ALL` win globally, `=0` beats the union, the settle is read only when on - the clock arithmetic, the single scoped call site, the row printing only inside `run_bimanual`, and `physics.release` in both writers), then **the replay first**: the same-seed cells must be **byte-identical to the pre-flip record** on the `[fruit]` stream with the phase's rows dropped (`logs/p87/p87_report.py --same`; P87's four cells are 865/865 / 868/868 / 814/814 / 821/821 against P86's), then **the inertness pair** - `FRUIT_BIARM=0 scripts/accept.sh` **raw 346/346** against `logs/p71/accept_rails_none.log` (+ `fingerprint: matches configs/motion_reference_single.json`) and a shared-station `=1 FRUIT_BIARM_TWOLINE=0` pair unset-vs-`=0` compared with `--same` **and** `--profile` (the row's `origin` field legitimately differs; the **clock** must not) - then a 10-attempt shipped acceptance to re-record the two-line references, then `scripts/accept.sh` |

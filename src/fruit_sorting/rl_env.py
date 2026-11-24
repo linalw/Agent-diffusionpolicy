@@ -54,6 +54,15 @@ Two presentations:
     synchronous path is unchanged. ``--execute-steps`` is the chunk turnover
     period in both paths, so ``1/2/4`` is the same tight-loop knob.
 
+``FRUIT_EVAL_LATENCY`` (P228, default off) is the **evaluation** knob, not a
+policy one: it advances the world `d` control ticks after each decision's
+inference returns and before the chunk executes (`sync-hold`, the
+LIBERO-Dynamic/ReflexBench protocol), so the latency the shipped loop gets for
+free - it never steps the simulator while the model runs - becomes visible.
+`auto` uses this machine's measured `act()` wall, an integer is the controlled
+sweep, and `0`/unset is byte-identical to the shipped path. It is refused with
+`FRUIT_RTC`/`FRUIT_VLASH`, which model the same delay by interleaving.
+
 Observation interface (identical to training): the head-camera frame is rendered
 and read every 4 physics ticks (30 Hz), downsampled and buffered by
 ``PolicyRunner.push_frame``; proprioception is all 22 joint positions + the finger
@@ -97,6 +106,13 @@ from dataclasses import asdict, dataclass, field
 import numpy as np
 
 from .motion import min_jerk_ramp, mirror_across_xz, top_down_quaternion
+
+#: The control period (120 Hz) the env, the scripted primitive and the latency
+#: accounting all run at. `tasks.CONTROL_DT` is the same number, but this module
+#: cannot import `tasks` at module scope (it pulls Isaac Sim in) and the
+#: offline selfcheck executes the latency injector on a stub - the leg pins the
+#: equality against `tasks.py`'s own literal instead.
+CONTROL_DT = 1.0 / 120.0
 from .policy.data import (
     BELT_TAU_DEFAULT,
     BELT_TAU_ENV,
@@ -1256,6 +1272,50 @@ def resolve_action_hold(raw: str | None) -> int:
             "(1 is the shipped one-waypoint-per-tick execution)"
         )
     return value
+
+
+def resolve_eval_latency(raw: str | None) -> tuple[str, int]:
+    """P228 (Stage 0): ``FRUIT_EVAL_LATENCY`` -> the latency the **world** pays.
+
+    The shipped direct loop is synchronous and **free**: `sample_chunk` runs the
+    model while `SimulationManager` is never stepped, so the 26 ms of wall time
+    costs zero belt travel. A real cell pays it (at 0.12 m/s, 26 ms is 3.2 mm),
+    and the benchmark critique in the record's paper pass (ReflexBench;
+    LIBERO-Dynamic) is exactly that a paused world inflates the metric.
+
+    This knob makes the pause visible: after a decision's inference returns, the
+    environment advances that many control ticks with the arm **holding still**
+    (`sync-hold`, LIBERO-Dynamic's protocol) before the chunk is executed - so
+    the chunk is applied to a world it was not computed for.
+
+    * unset / ``""`` / ``0`` - off, the shipped path byte for byte;
+    * ``auto`` - ``round(measured act() wall / (1/120 s))``, i.e. this machine's
+      real latency (26.4 ms at DDIM-16 is 3 ticks);
+    * a positive integer - that many control ticks (the controlled sweep);
+    * anything else (negative, non-numeric, non-finite) is a hard error, so a
+      typo cannot read as "off".
+
+    Refused together with ``FRUIT_RTC``/``FRUIT_VLASH``: the chunker models the
+    same delay by interleaving denoising with execution, and counting both would
+    double it.
+    """
+    text = "" if raw is None else str(raw).strip()
+    if not text or text == "0":
+        return ("off", 0)
+    if text.lower() == "auto":
+        return ("auto", 0)
+    try:
+        ticks = int(text)
+    except ValueError:
+        raise ValueError(
+            f"FRUIT_EVAL_LATENCY={raw!r} is not 'auto', '0' or a whole number of "
+            "control ticks"
+        ) from None
+    if ticks < 0:
+        raise ValueError(
+            f"FRUIT_EVAL_LATENCY={raw!r}: a negative latency is not a thing"
+        )
+    return ("fixed", ticks)
 
 
 def resolve_skip_late(raw: str | None) -> float:
@@ -3317,6 +3377,31 @@ class SortingRLEnv:
         #: owns the hand), so it cannot integrate a stale pre-servo pose.
         #: P227aa: the "not mine" rule (see `resolve_skip_late`).
         self._skip_late = resolve_skip_late(os.environ.get("FRUIT_SKIP_LATE"))
+        # --- P228 (Stage 0): the latency the world pays, not just the wall --- #
+        self._eval_latency_mode, self._eval_latency_ticks = resolve_eval_latency(
+            os.environ.get("FRUIT_EVAL_LATENCY")
+        )
+        if self._eval_latency_mode != "off" and self.rtc_settings.enabled:
+            raise ValueError(
+                "FRUIT_EVAL_LATENCY cannot be combined with FRUIT_RTC/FRUIT_VLASH: "
+                "the interleaved chunker already models the delay, and counting "
+                "both would double it"
+            )
+        if self._eval_latency_mode != "off":
+            say(
+                f"[rl] eval latency: mode={self._eval_latency_mode} "
+                f"ticks={self._eval_latency_ticks} (sync-hold: the belt moves "
+                "while the policy computes; 'auto' uses this machine's measured "
+                "act() wall)"
+            )
+        #: the last decision's measured inference wall [ms] (`auto` divides it)
+        self._last_infer_ms = 0.0
+        #: True on a decision that actually called the model (a held/gated chunk
+        #: does not, and must not pay the delay)
+        self._infer_this_decision = False
+        self._lat_decisions = 0
+        self._lat_ticks = 0
+        self._lat_max = 0
         #: P227ad: **the primitive's pre-grasp reads take the estimate.**
         #: `grasp_carry_place` reads the simulator 117 times; only the pre-grasp
         #: ones are perception in a real cell (after the grasp the payload follows
@@ -3592,6 +3677,17 @@ class SortingRLEnv:
             self._manifest_base = self._build_manifest(checkpoint)
             self._write_manifest()
 
+        if record and self._eval_latency_mode != "off":
+            # P228: the injector advances the world without applying an action, so
+            # a recorded episode's `ticks_total` would be short of the simulated
+            # time it actually covers - the store invariant P173 established
+            # (`ticks_total == sum`) would be silently broken by an *evaluation*
+            # lever. Refuse rather than write a corrupt store.
+            raise ValueError(
+                "FRUIT_EVAL_LATENCY is an evaluation lever and cannot be combined "
+                "with --record: the paused ticks would not appear in the store's "
+                "tick accounting"
+            )
         self._recorder = RolloutRecorder(self.run_dir) if (record and self.run_dir) else None
 
         self.belt_top = float(self.cfg.belt_center[2]) + float(self.cfg.belt_size[2]) / 2.0
@@ -7010,6 +7106,7 @@ class SortingRLEnv:
         """
         if self._done:
             return None
+        self._infer_this_decision = False
         if self._step % 4 == 0 or getattr(self, "_force_observe", False):
             self._observe()
             self._force_observe = False
@@ -7078,7 +7175,14 @@ class SortingRLEnv:
             num_steps=self.ddim_steps if num_steps is None else int(num_steps),
             phase=(None if _use2 else phase),
         )
+        if self._eval_latency_mode != "off":
+            _t_lat = time.perf_counter()
         chunk = _runner.act(self.proprio(), self._goal, **_kw)
+        if self._eval_latency_mode != "off":
+            # P228: what this machine actually spent on the decision. `auto`
+            # divides it by the control period; the sweep uses an explicit d.
+            self._last_infer_ms = (time.perf_counter() - _t_lat) * 1e3
+            self._infer_this_decision = True
         if self._ensemble_k > 1:
             # P172: **sample averaging**. The P172 probe measured the sampler's
             # own spread at a fixed close-start state as 18.4 mm TCP-equivalent
@@ -7666,6 +7770,50 @@ class SortingRLEnv:
             calls += int(getattr(self.rtc, "chunks_sampled", 0))
         return calls
 
+    def _latency_ticks_for_decision(self) -> int:
+        """P228: the control ticks this decision's inference costs the world."""
+        if self._eval_latency_mode == "off" or not self._infer_this_decision:
+            return 0
+        if self._eval_latency_mode == "auto":
+            return max(0, int(round(self._last_infer_ms / 1e3 / CONTROL_DT)))
+        return int(self._eval_latency_ticks)
+
+    def _inject_latency(self) -> None:
+        """Advance the world `d` control ticks with the arm **holding still**.
+
+        `sync-hold` (LIBERO-Dynamic's protocol; Reflex calls the async form the
+        alternative): the chunk was computed from the observation at `t`, the
+        world moves `d` ticks, and then the chunk is applied. The observation is
+        deliberately **not** refreshed here - a real deployment cannot see the
+        frames it did not wait for - and nothing is recorded, because no action
+        is applied during the pause.
+
+        `_tick`/`_step` advance with the physics so the observation grid, the
+        horizon and the close-phase clocks all stay on simulated time.
+        """
+        d = self._latency_ticks_for_decision()
+        if d <= 0 or self._done:
+            return
+        for _ in range(d):
+            self.advance(1)
+            self.spawner.enforce_transport()
+            self._tick += 1
+            self._step += 1
+        self._lat_decisions += 1
+        self._lat_ticks += int(d)
+        self._lat_max = max(self._lat_max, int(d))
+        # The displacement field is the point of the row: at the shipped 0.12 m/s
+        # one control tick is exactly 1.0 mm, so `d` reads as millimetres. It is
+        # computed from the **configured** speed, not a literal, so a cell on a
+        # different belt cannot carry a wrong number.
+        _v = abs(float(self.cfg.belt_speed))
+        self._say(
+            f"[lat] d={d} mode={self._eval_latency_mode} "
+            f"infer_ms={self._last_infer_ms:.1f} "
+            f"sim_ms={d * CONTROL_DT * 1e3:.1f} "
+            f"belt_mm={_v * d * CONTROL_DT * 1e3:.1f}"
+        )
+
     def act(self, chunk: np.ndarray | None, execute_steps: int | None = None) -> StepResult:
         """Execute up to ``execute_steps`` actions; returns the step result.
 
@@ -7731,6 +7879,14 @@ class SortingRLEnv:
             return self._step_result()
         if self._event:
             steps = self._event_horizon(chunk)
+
+        # P228: the world moves while the policy computes. Placed **after** the
+        # observation and **before** the first action, so the chunk is executed
+        # late by exactly the latency - the measured harm - and `d == 0` (unset)
+        # is the shipped path unchanged.
+        self._inject_latency()
+        if self._done:
+            return self._step_result()
 
         executed = 0
         for index in range(steps):
