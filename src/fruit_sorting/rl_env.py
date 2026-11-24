@@ -500,7 +500,7 @@ from .tracking import FruitTracker, track_config_from_env
 #: This env never constructs a cage, so no direct/policy behaviour moves - proven
 #: on the scripted side by `scripts/accept.sh`'s 421/421 byte-identical `[fruit]`
 #: stream (`logs/p107/RESULTS.md` section 5).
-TASKS_MD5 = "38661979ef20efe53f18b0d05d025aa3"
+TASKS_MD5 = "3f9ef6ea8679381ff55262b9942c68c2"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(
@@ -3317,6 +3317,37 @@ class SortingRLEnv:
         #: owns the hand), so it cannot integrate a stale pre-servo pose.
         #: P227aa: the "not mine" rule (see `resolve_skip_late`).
         self._skip_late = resolve_skip_late(os.environ.get("FRUIT_SKIP_LATE"))
+        #: P227ad: **the primitive's pre-grasp reads take the estimate.**
+        #: `grasp_carry_place` reads the simulator 117 times; only the pre-grasp
+        #: ones are perception in a real cell (after the grasp the payload follows
+        #: the hand, which the code dead-reckons). Arming this requires the
+        #: perception goal - there is no estimate otherwise.
+        self._primitive_estimate = (
+            os.environ.get("FRUIT_PRIMITIVE_ESTIMATE", "0").strip() == "1"
+        )
+        #: P227ad: **keep the camera running inside the primitive.** Measured: with
+        #: the pre-grasp reads on the estimate but no measurement during the contact
+        #: phase, the tracker's last update is ~10 s old by the time the pads close
+        #: (the implement is 2226-2519 ticks), the coast cap correctly refuses to
+        #: extrapolate that far, and every attempt reports
+        #: `close: fruit drifted 1171 mm` - a metre of belt travel, i.e. the stale
+        #: point. A real cell's camera runs at 30-60 Hz throughout, so this renders
+        #: and measures on the primitive's own tick hook, every 4 ticks.
+        self._primitive_percept = (
+            os.environ.get("FRUIT_PRIMITIVE_PERCEPT", "0").strip() == "1"
+        )
+        self._prim_t = -1.0e9
+        if self._primitive_percept and not self._primitive_estimate:
+            raise ValueError(
+                "FRUIT_PRIMITIVE_PERCEPT=1 needs FRUIT_PRIMITIVE_ESTIMATE=1 "
+                "(it exists to keep the estimate fresh, not to arm it)"
+            )
+        if self._primitive_estimate and not getattr(self, "_goal_perception", False):
+            raise ValueError(
+                "FRUIT_PRIMITIVE_ESTIMATE=1 needs FRUIT_GOAL_SOURCE=perception - "
+                "there is no fruit estimate to feed the primitive without the "
+                "tracker"
+            )
         self._target_rate = resolve_target_rate(
             os.environ.get("FRUIT_POLICY_TARGET_RATE")
         )
@@ -5348,9 +5379,16 @@ class SortingRLEnv:
     # ------------------------------------------------------------------ #
     # Observation
     # ------------------------------------------------------------------ #
-    def _observe(self) -> None:
-        """Render and read the head camera once per observation tick."""
-        if self._observed_step == self._step:
+    def _observe(self, force: bool = False) -> None:
+        """Render and read the head camera once per observation tick.
+
+        `force=True` (P227ad) bypasses the one-per-`_step` guard: `_step` is the
+        **policy** tick, which does not advance while the scripted primitive runs, so
+        a perception-driven primitive's hook was calling straight into the early
+        return (measured: the frame count stayed at 20-54 while the contact phase
+        lasted 2000+ ticks).
+        """
+        if not force and self._observed_step == self._step:
             return
         self._observed_step = self._step
         if self.policy is None and self._recorder is None:
@@ -8454,6 +8492,39 @@ class SortingRLEnv:
                     self._sample.index, gate_refuse, finger, distance
                 )
 
+    def _primitive_frame(self) -> None:
+        """One observation inside the primitive, every 4 ticks (P227ad, opt-in).
+
+        Installed as `task.frame_callback` for the contact phase only, so the
+        tracker keeps receiving measurements at 30 Hz - which is what a real cell's
+        camera does. Costs one render per 4 ticks; the shipped path installs
+        nothing and is unchanged.
+        """
+        now = float(self._sim_time())
+        if now - float(self._prim_t) < 4.0 / 120.0:
+            return
+        self._prim_t = now
+        self._observe(force=True)
+
+    def _estimate_now(self):
+        """`(position, velocity)` from the tracker **at this tick**, or None.
+
+        P227ad: the primitive's catch-up reads the fruit every tick, so a frozen
+        estimate (published once per *observation*, i.e. every 4 ticks) would have
+        it chase a stale point for the whole contact phase. This extrapolates with
+        the tracker's own velocity - the same `predict_at` the goal uses - capped by
+        the coast budget, so a per-tick read costs one array op and no camera.
+        """
+        tr = getattr(self, "_percept_tracker", None)
+        if tr is None or self._percept_pos is None:
+            return None
+        horizon = float(self._sim_time()) - float(tr.t)
+        horizon = min(max(horizon, 0.0), float(self._percept_coast_s))
+        return (
+            np.asarray(tr.predict_at(horizon), dtype=float),
+            np.asarray(tr.velocity, dtype=float),
+        )
+
     def _fruit_for_trigger(self, sample):
         """`(position, velocity, source)` for the fire decision.
 
@@ -9305,11 +9376,30 @@ class SortingRLEnv:
         # un-instructed there is no call at all.
         if self._sort_armed:
             self.task.dispatch_destination(result, self._bin_index)
+        _est = self._estimate_now if self._primitive_estimate else None
+        self.task.fruit_estimate = _est
+        if self._primitive_estimate:
+            #: P227ad: the row prints only when the lever is armed, so the shipped
+            #: direct path keeps its log line for line.
+            self._say(
+                f"[prim] source={'percept' if _est is not None else 'truth'} "
+                f"(pre-grasp reads; post-grasp follows the hand)"
+            )
+        _prev_hook = getattr(self.task, "primitive_tick_hook", None)
+        if self._primitive_percept:
+            self._prim_t = -1.0e9
+            #: `_step_sim` is the primitive's own tick path (the `_tick_frame` sites
+            #: are only 15 named legs, which is why a `frame_callback` hook never
+            #: fired here: measured, the frame count stayed at 20-54 per attempt).
+            self.task.primitive_tick_hook = self._primitive_frame
         try:
             result = self.task.grasp_carry_place(
                 self._active, self._sample, self._bin_index, result, verbose=self.verbose
             )
         finally:
+            if self._primitive_percept:
+                self.task.primitive_tick_hook = _prev_hook
+            self.task.fruit_estimate = None
             if self._sort_armed:
                 self.task.clear_dispatch()
         if self._sort_armed and getattr(result, "destination", None) is not None:

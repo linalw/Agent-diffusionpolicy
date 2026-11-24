@@ -4564,6 +4564,15 @@ class PickAndPlaceTask:
                 SimulationManager.step(steps=steps)
         else:
             SimulationManager.step(steps=steps)
+        #: P227ad: **the primitive's own measurement hook.** `_step_sim` is where
+        #: every contact-phase tick goes, and it deliberately does not render;
+        #: `_tick_frame` fires at only 15 named sites. A perception-driven primitive
+        #: needs the camera at control rate *throughout* the contact phase, so the
+        #: environment installs a callable here (opt-in, `FRUIT_PRIMITIVE_PERCEPT`);
+        #: it is None on every shipped path (one attribute test per tick).
+        _prim_hook = getattr(self, "primitive_tick_hook", None)
+        if _prim_hook is not None:
+            _prim_hook()
         if self._perturb_on:
             # P135 test instrument (off by default): one attribute test per tick.
             # Fired from here so the impulse lands on the control tick its cell
@@ -13867,6 +13876,32 @@ class PickAndPlaceTask:
             self._dynamic_trace_dump(arm_name, scripted, outcome)
         return result
 
+    def _fruit_state(self, sample) -> tuple[np.ndarray, np.ndarray]:
+        """`(position, velocity)` for the fruit **on the belt**, from the injected
+        estimate when one is armed.
+
+        P227ad: `grasp_carry_place` reads the simulator 117 times, but only the
+        **pre-grasp** reads are perception in a real cell - once the pads hold the
+        payload its pose follows the hand, which this code already dead-reckons
+        (`_gripper_offset`, measured at the grasp as `rot.T @ (payload - tcp)`).
+        `self.fruit_estimate` is set per attempt by the environment
+        (`FRUIT_PRIMITIVE_ESTIMATE=1`, which itself requires
+        `FRUIT_GOAL_SOURCE=perception`), and `None` - the shipped default - returns
+        the simulator's state bit for bit.
+        """
+        est = getattr(self, "fruit_estimate", None)
+        if est is not None:
+            #: A **callable**, not a tuple: the catch-up reads this every tick and
+            #: the estimate is published once per observation, so the env hands in
+            #: a function that extrapolates at call time (`rl_env._estimate_now`).
+            now = est() if callable(est) else est
+            if now is not None:
+                return np.asarray(now[0], dtype=float), np.asarray(now[1], dtype=float)
+        return (
+            np.asarray(self.spawner.position(sample), dtype=float),
+            np.asarray(self.spawner.velocity(sample), dtype=float),
+        )
+
     def _grasp_carry_place_impl(self, arm_name: str, sample, bin_index: int,
                                 result, verbose: bool = False, scripted: bool = False):
         """Seat, grasp, carry and release a fruit that is already at the pick point.
@@ -14083,7 +14118,7 @@ class PickAndPlaceTask:
                 _jaw = np.asarray(arm.jaw_centre(), dtype=float)
                 say(
                     f"[diag] handover {arm_name}: fruit="
-                    f"{np.round(np.asarray(self.spawner.position(sample), dtype=float), 4).tolist()} "
+                    f"{np.round(self._fruit_state(sample)[0], 4).tolist()} "
                     f"jaw={np.round(_jaw, 4).tolist()} grip="
                     f"{np.round(self._dynamic_grip_target, 4).tolist()} hover="
                     f"{np.round(self._dynamic_hover_target, 4).tolist()} "
@@ -14165,7 +14200,7 @@ class PickAndPlaceTask:
         # where it stands - the pads are placed on the fruit's *measured* position
         # anyway - so the default is now contact seating, with the teleport kept
         # as a logged fallback for fruit that stopped short.
-        measured = np.asarray(self.spawner.position(sample), dtype=float)
+        measured = self._fruit_state(sample)[0]
         jump = float(np.linalg.norm(measured - rest))
         # Only a fruit that stopped absurdly far away, or one that is not even at
         # seat height (e.g. a raised nest with `FRUIT_NEST`), is teleported. The
@@ -14264,7 +14299,7 @@ class PickAndPlaceTask:
             _pos, _quat = arm.tcp_pose()
             _rot = _quat_matrix(_quat)
             self._gripper_offset[arm_name] = _rot.T @ (
-                np.asarray(self.spawner.position(sample), dtype=float)
+                self._fruit_state(sample)[0]
                 - np.asarray(_pos, dtype=float)
             )
             gap_open = float(os.environ.get("FRUIT_GRIPPER_OPEN", "0.09"))
@@ -14463,7 +14498,7 @@ class PickAndPlaceTask:
                     aim = self._dynamic_aim(sample)
                     fruit = aim
                 else:
-                    fruit = np.asarray(self.spawner.position(sample), dtype=float)
+                    fruit = self._fruit_state(sample)[0]
                 if openarm:
                     # Coarse first move to the fruit. The policy evaluator hands
                     # over with the arm wherever the policy's last actions left it
@@ -14508,7 +14543,7 @@ class PickAndPlaceTask:
                     if dynamic_capture:
                         fruit = aim  # hold the station; see the note above
                     else:
-                        fruit = np.asarray(self.spawner.position(sample), dtype=float)
+                        fruit = self._fruit_state(sample)[0]
                     arm.ik_step(
                         arm.tcp_target_for_jaw(
                             fruit + np.array([0.0, 0.0, self._pad_standoff(dynamic_capture, sample)])
@@ -14545,7 +14580,7 @@ class PickAndPlaceTask:
                     arm.ik_step(
                         arm.tcp_target_for_jaw(
                             (aim if dynamic_capture else np.asarray(
-                                self.spawner.position(sample), dtype=float
+                                self._fruit_state(sample)[0], dtype=float
                             ))
                             + np.array([0.0, 0.0, self._pad_standoff(dynamic_capture, sample)])
                         )
@@ -14638,7 +14673,7 @@ class PickAndPlaceTask:
                             # that differs from `spawner.protected` is a swap.
                             try:
                                 body = np.asarray(
-                                    self.spawner.position(sample), dtype=float
+                                    self._fruit_state(sample)[0], dtype=float
                                 )
                             except Exception:  # noqa: BLE001 - reporting only
                                 body = np.array([float("nan")] * 3)
@@ -14691,7 +14726,7 @@ class PickAndPlaceTask:
                         hover = np.asarray(self._dynamic_hover_target, dtype=float).copy()
                     else:
                         grip = np.asarray(
-                            self.spawner.position(sample), dtype=float
+                            self._fruit_state(sample)[0], dtype=float
                         ) + np.array([0.0, 0.0, finger_len + PAD_LIFT])
                         hover = grip.copy()
                         hover[2] += float(os.environ.get("FRUIT_HOVER", "0.06"))
@@ -14827,7 +14862,7 @@ class PickAndPlaceTask:
                         )
                         meas_waited = 0
                         while waited < max_wait:
-                            fruit_now = np.asarray(self.spawner.position(sample), dtype=float)
+                            fruit_now = self._fruit_state(sample)[0]
                             if self._track_wait:
                                 waiter = self._track_update(sample)
                                 if waiter is not None:
@@ -14905,7 +14940,7 @@ class PickAndPlaceTask:
                         if os.environ.get("FRUIT_HANDOVER_DIAG", "0") == "1":
                             _jaw = np.asarray(arm.jaw_centre(), dtype=float)
                             _fruit = np.asarray(
-                                self.spawner.position(sample), dtype=float
+                                self._fruit_state(sample)[0], dtype=float
                             )
                             say(
                                 f"[diag] wait {arm_name}: waited={waited} "
@@ -15000,7 +15035,7 @@ class PickAndPlaceTask:
                                 f"dz={float(_a_res[2]) * 1000:+.1f}mm"
                             )
                         _fruit_now = np.asarray(
-                            self.spawner.position(sample), dtype=float
+                            self._fruit_state(sample)[0], dtype=float
                         )
                         _band_dn, _band_up = self._reach_band_for(
                             arm_name, float(_fruit_now[0])
@@ -15025,7 +15060,7 @@ class PickAndPlaceTask:
                         # R10-A mechanism row: the realized intercept (where the
                         # fruit actually was as the descent ended) against the
                         # aim and the station. Fruit-pose reads only.
-                        _fruit = np.asarray(self.spawner.position(sample), dtype=float)
+                        _fruit = self._fruit_state(sample)[0]
                         say(
                             f"[reach] met {arm_name} idx={int(sample.index)} "
                             f"aim_y={float(grip[1]):+.4f} station={station_y:+.4f} "
@@ -15056,7 +15091,7 @@ class PickAndPlaceTask:
                 # jaw span before the close even starts.
                 settle_ticks = int(os.environ.get("FRUIT_DYNAMIC_SETTLE", "0"))
             for _ in range(settle_ticks):
-                centre = self.spawner.position(sample)
+                centre = self._fruit_state(sample)[0]
                 if coherent:
                     # Rigid: the pads sit a finger length down the tool axis from
                     # the wrist, exactly where the real fingertips are.
@@ -15269,7 +15304,7 @@ class PickAndPlaceTask:
             dynamic_lead_s = float(os.environ.get("FRUIT_DYNAMIC_TRACK_LEAD", "0.18"))
             dynamic_v = np.zeros(3)
             if dynamic_capture:
-                dynamic_v = np.asarray(self.spawner.velocity(sample), dtype=float)
+                dynamic_v = self._fruit_state(sample)[1]
                 # Catch-up before the jaws start closing. The arrival-synchronised
                 # descent can end a few centimetres upstream or downstream of the
                 # fruit when the selector handed over inside the lead (measured
@@ -15338,8 +15373,8 @@ class PickAndPlaceTask:
                         fruit_now = tracker.position
                         dynamic_v = tracker.velocity
                     else:
-                        fruit_now = np.asarray(self.spawner.position(sample), dtype=float)
-                        dynamic_v = np.asarray(self.spawner.velocity(sample), dtype=float)
+                        fruit_now = self._fruit_state(sample)[0]
+                        dynamic_v = self._fruit_state(sample)[1]
                     rot_now = _quat_matrix(np.asarray(arm.tcp_pose()[1], dtype=float))
                     tip = np.asarray(arm.jaw_centre(), dtype=float) + rot_now @ np.array(
                         [0.0, 0.0, finger_len]
@@ -15473,7 +15508,7 @@ class PickAndPlaceTask:
                     and dynamic_capture
                 ):
                     _jaw = np.asarray(arm.jaw_centre(), dtype=float)
-                    _fruit = np.asarray(self.spawner.position(sample), dtype=float)
+                    _fruit = self._fruit_state(sample)[0]
                     say(
                         f"[diag] catchup {arm_name}: residual={catch_residual * 1000:.1f} mm "
                         f"jaw={np.round(_jaw, 4).tolist()} "

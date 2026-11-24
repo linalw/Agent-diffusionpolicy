@@ -8104,6 +8104,48 @@ the `SIM_LIMIT.md` work and the named next step, not a claim. Pins: `train.py`,
 (`P227ad trigger source`); checkpoint `checkpoints/p227_panda1e` (3.80 M, val
 0.0266). References **61fb5202 / 61fb5202 / 18b101bf** untouched.
 
+**P227ae (2026-11-24, `logs/p227/`; three default-off levers, **nothing adopted,
+no reference moved**): the primitive's pre-grasp reads can be driven by the tracker,
+and the ladder prices what "no simulator truth in the contact phase" costs - the
+bottleneck is **measurement availability**, not the estimator.**
+`FRUIT_PRIMITIVE_ESTIMATE=1` routes the **pre-grasp** reads (17 of the 22 in the
+attempt's first phase) through a new `tasks._fruit_state()`; the **post-grasp** reads
+(36) stay on the simulator **on purpose**, because after the grasp the payload
+follows the hand and the code already dead-reckons it (`_gripper_offset`) - replacing
+all 117 would be wrong, and the selfcheck leg asserts the split. **The ladder**
+(6 episodes per arm): truth goal + truth primitive **12/12**; tracker goal/fire +
+truth primitive **10/12**; tracker everywhere **with the camera running through the
+contact phase 2/6**; tracker everywhere with **no camera in the contact phase
+0/12**. **The zero has a named cause**: the primitive runs **2226-2519 ticks
+(18.6-21.0 s)**, `_observe` fired only in the policy loop, so the tracker's last
+update was **~10 s old** and every attempt read `close: fruit drifted **1170-1210
+mm**` - 1.17 m is exactly 9.7 s of belt travel, i.e. staleness rather than error;
+the coast cap was right to refuse. **Making the camera run inside the contact phase
+took two wiring discoveries**, both recorded: `task.frame_callback` fires at only
+**15 named legs** (a capture-style hook stayed silent - the frame count did not
+move), and `_step_sim` - the primitive's own tick path - **deliberately does not
+render**; the hook therefore lives in `_step_sim` (`primitive_tick_hook`, opt-in)
+and `_observe(force=True)` bypasses the `_observed_step == _step` guard, because
+`_step` is the **policy** tick and does not advance inside the primitive. With that
+the drift rows disappear and the cell moves **0/6 -> 2/6**. **Why it is still 2/6,
+as a census**: per attempt the camera gave **rejected 242-322** frames against
+**accepted 45-61** (**~15-18 % usable**, `missing = 0`, so the refusals are the fit
+gates - hand occlusion of the pad region, small fruit, clipping), so the tracker
+coasts **0.1-0.2 s** into the contact instant = **12-24 mm** of belt travel against
+a **6 mm** catch tolerance; the residual failures are all `fruit did not follow the
+gripper` (the hold, not the aim). **So the decision layer runs truth-free (10/12,
+the same code path the shipped lane uses with the lever unset) and the contact layer
+does not**: it needs a usable in-contact measurement in 1 of 6 frames today, which is
+the **wrist view the build cannot annotate** (P135: a second annotated camera takes
+the first one's mask) or a **force-first close** (`logs/p42/SIM_LIMIT.md`'s lane) -
+not a better estimator, which already reads **4.70 mm** when it can see the fruit.
+Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
+(`_estimate_now`, `_primitive_frame`, `_observe(force=True)`, the
+`FRUIT_PRIMITIVE_ESTIMATE`/`_PERCEPT` resolvers and their guards),
+`scripts/selfcheck.sh` (`P227ad primitive estimate`); references
+**61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
+`logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
+
 **P142 (2026-11-11, `logs/p142/`; two defect fixes + a declared metric,
 **nothing adopted, no reference moved**): the direct lane's two *bookkeeping*
 failures are removed and its zero is shown to be the station reselect's timing.

@@ -1638,3 +1638,56 @@ The split that now holds is *decision* (goal + fire, model-derived) versus *cont
 (scripted, truth-fed). Closing the second half means giving the primitive its own
 hand-state + force path rather than a fruit position - which is the `SIM_LIMIT.md`
 work, and is the named next step, not something this cell claims.
+
+### 22.20 The contact layer without truth: a three-tier ladder, and the bottleneck is measurement availability
+
+The owner's directive was that the fruit's position and velocity must come from the
+model, and then that the primitive must stop reading the simulator too. Both were
+built and measured; the ladder is now complete.
+
+| tier | goal / trigger | primitive's pre-grasp reads | camera during contact | placed |
+|---|---|---|---|---|
+| **A** (shipped) | truth | truth | - | **12/12** |
+| **C** | tracker | truth | - | **10/12** |
+| **G** | tracker | **tracker** | **on, 30 Hz** | **2/6** |
+| **D/E/F** | tracker | tracker | **off** | **0/12** |
+
+**D/E/F's zero has a named cause, and it is not the estimator**: the primitive runs
+**2226-2519 ticks (18.6-21.0 s)** and `_observe` fired only in the policy loop, so
+the tracker's last update was **~10 s old**; the coast cap correctly refuses to
+extrapolate that far and every attempt reported `close: fruit drifted **1170-1210
+mm**` - 1.17 m is exactly 9.7 s of belt travel, i.e. the staleness, not an error.
+
+**G fixes the staleness and pays elsewhere.** Two wiring defects had to be found
+first, both worth recording: `task.frame_callback` fires at only **15 named legs**
+(so a capture-style hook stayed silent - the frame count did not move), and
+`_step_sim` - the primitive's own tick path - deliberately does not render. The
+hook therefore lives in **`_step_sim`** (`primitive_tick_hook`, opt-in), and
+`_observe(force=True)` bypasses the `_observed_step == _step` guard, because `_step`
+is the *policy* tick and does not advance inside the primitive. With that, the drift
+rows **disappear** and the cell moves **0/6 -> 2/6**.
+
+**The mechanism of the remaining loss is a census, not an opinion**: per attempt the
+camera produced **rejected = 242-322** frames against **accepted frames = 45-61**,
+i.e. **~15-18 % usable**, with `missing = 0` (the instance id is always in frame, so
+the refusals are the fit gates: the hand occluding the pad region, a small fruit, a
+clip). The tracker therefore coasts **0.1-0.2 s** into the contact instant - 12-24 mm
+of belt travel at 0.12 m/s - against a **6 mm** catch tolerance. The remaining
+failures are all `fruit did not follow the gripper`, i.e. the hold, not the aim.
+
+**Verdict**: the *decision* layer runs with no simulator truth (tier C, 10/12, and
+it is the same code path the shipped lane uses with the lever unset). The *contact*
+layer can be made truth-free only at a cost the record can now price: **a usable
+measurement in ~1 of 6 in-contact frames**, which needs the wrist view the build
+cannot annotate (P135: authoring a second annotated camera takes the first one's
+mask) or a force-first close (`SIM_LIMIT.md`'s lane) - not a better estimator, since
+the estimator already reads 4.70 mm when it can see the fruit.
+
+**Levers** (all default off, unset = the shipped path bit for bit):
+`FRUIT_GOAL_SOURCE=perception` (goal + fire from the tracker),
+`FRUIT_PRIMITIVE_ESTIMATE=1` (pre-grasp reads from it; **requires** the perception
+goal and raises otherwise), `FRUIT_PRIMITIVE_PERCEPT=1` (keep the camera running
+inside the primitive, 30 Hz, installed on `_step_sim`). Pinned by
+`P227ad trigger source` and `P227ad primitive estimate` (the second asserts the
+**pre/post-grasp split**: 17 pre-grasp reads routed, 36 post-grasp reads still on the
+simulator, because after the grasp the payload follows the hand).
