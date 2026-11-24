@@ -3112,7 +3112,13 @@ class PickAndPlaceTask:
         #: tolerance and the vertical one at `FRUIT_CATCH_TOL_Z` (default 10 mm,
         #: which contains the measured 6.6). The command is unchanged, so the
         #: runaway region is never entered.
-        self._catch_tol_axis = os.environ.get("FRUIT_CATCH_TOL_AXIS", "0").strip() == "1"
+        #: P249: **caller-owned** since the powered cell (P248) passed: the env
+        #: read is the base (so the scripted driver can still arm it explicitly)
+        #: and `rl_env` overrides it for the direct presentation (`default`), the
+        #: `fruit_estimate` pattern. The scoped form keeps the **scripted
+        #: acceptance**, the **hybrid canary** and the **two-line** session on the
+        #: shipped 3-D-norm exit, so no reference moves.
+        self.catch_tol_axis = os.environ.get("FRUIT_CATCH_TOL_AXIS", "0").strip() == "1"
         self._catch_tol_z = float(os.environ.get("FRUIT_CATCH_TOL_Z", "0.010"))
         self._track_config = track_config_from_env(os.environ, self._track_source)
         #: Velocity relaxation time constant toward the belt's own speed [s];
@@ -15496,7 +15502,7 @@ class PickAndPlaceTask:
                     catch_residual = float(np.linalg.norm(tip - desired_tip))
                     if catch_residual < catch_tol:
                         break
-                    if self._catch_tol_axis:
+                    if self.catch_tol_axis:
                         #: P243's axis-aware exit. `y` is the direction the catch
                         #: must win (the belt); `z` carries a steady-state error the
                         #: arm cannot remove, so it is held to its own bound instead

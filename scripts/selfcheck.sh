@@ -460,6 +460,28 @@ assert 'if _cycle_owned:' in blk and 'self._cycle_report()' in blk
 assert src.count('self._cycle_report()') == 2, 'note_result keeps its own report'
 print('direct cycle report ok (owned by the env, scripted path unchanged)')"
 
+# P249: the axis-aware catch-up exit is **scoped to the direct presentation**
+# (P248's powered cell: 40/40 vs 38/40, catch 200 -> 21 ticks, cycle -1.42 s). The
+# pin is the resolver table, the caller-owned attribute, and that the row is
+# suppressed on a scope-off path (so the scripted acceptance's stream is unchanged).
+run_check "P249 catch tol scope" "$python" -c "
+src = open('src/fruit_sorting/rl_env.py', encoding='utf-8').read()
+assert 'FRUIT_CATCH_TOL_AXIS' in src
+assert 'self._catch_tol_axis = presentation == \"direct\"' in src
+assert 'scope-off' in src and 'explicit' in src
+assert 'self.task.catch_tol_axis = bool(self._catch_tol_axis)' in src
+# P249's own defect: the first attempt applied it **before** `self.task` existed,
+# the getattr guard swallowed it and the lever was silently inert. Pin the order.
+assert src.index('self.task = PickAndPlaceTask(') < src.index(
+    'self.task.catch_tol_axis = bool(self._catch_tol_axis)'
+), 'the apply must be after task construction'
+assert 'must be ' in src and 'got {_cta_raw' in src, 'strict parsing'
+assert 'if self._catch_tol_axis_origin != \"scope-off\":' in src, 'the row is gated'
+t = open('src/fruit_sorting/tasks.py', encoding='utf-8').read()
+assert 'self.catch_tol_axis = os.environ.get' in t, 'the task attribute is caller-owned'
+assert 'if self.catch_tol_axis:' in t
+print('catch tol scope ok (direct default, explicit wins, row gated)')"
+
 run_check "P233 trigger speed" "$python" -c "
 src = open('src/fruit_sorting/rl_env.py', encoding='utf-8').read()
 assert 'FRUIT_TRIGGER_SURFACE_SPEED' in src

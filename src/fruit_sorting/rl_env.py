@@ -516,7 +516,7 @@ from .tracking import FruitTracker, track_config_from_env
 #: This env never constructs a cage, so no direct/policy behaviour moves - proven
 #: on the scripted side by `scripts/accept.sh`'s 421/421 byte-identical `[fruit]`
 #: stream (`logs/p107/RESULTS.md` section 5).
-TASKS_MD5 = "9ce348454850b6e3118e0b80f90cb86e"
+TASKS_MD5 = "0f580754754cb373c625c9884ba497fd"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(
@@ -3415,6 +3415,26 @@ class SortingRLEnv:
         #: in the one number the handover is scheduled on. `Conveyor.surface_speed`
         #: is the value the collider is driven with (P141); this routes it to the
         #: trigger. Off = the shipped `encoder_speed` read, byte for byte.
+        # --- P249: the direct lane's catch-up exit (P248's powered cell) ------ #
+        #: P248 measured `FRUIT_CATCH_TOL_AXIS=1` at 0.08 on 40 attempts/arm:
+        #: **40/40 placed against 38/40**, the catch-up **200 -> 21 ticks** (median,
+        #: 0/40 over 100 against 35/40), **`seat` 1.67 -> 0.17 s** and the cycle
+        #: **-1.42 s**, with the command untouched and no excursion in the treatment.
+        #: The knob is read at task construction, so a *global* default would move the
+        #: scripted acceptance, the two-line session and the collector - so this is
+        #: **scoped**: unset resolves **on for the direct presentation** and off
+        #: everywhere else, an explicit `0`/`1` wins, and the row says which.
+        _cta_raw = os.environ.get("FRUIT_CATCH_TOL_AXIS", "").strip()
+        if _cta_raw == "":
+            self._catch_tol_axis = presentation == "direct"
+            self._catch_tol_axis_origin = "default" if presentation == "direct" else "scope-off"
+        elif _cta_raw in ("0", "1"):
+            self._catch_tol_axis = _cta_raw == "1"
+            self._catch_tol_axis_origin = "explicit"
+        else:
+            raise ValueError(
+                f"FRUIT_CATCH_TOL_AXIS must be '0', '1' or unset, got {_cta_raw!r}"
+            )
         self._trigger_surface_speed = (
             os.environ.get("FRUIT_TRIGGER_SURFACE_SPEED", "0").strip() == "1"
         )
@@ -3627,6 +3647,15 @@ class SortingRLEnv:
             scripted=False,
         )
         self.task.recorder = None
+        #: P249: hand the scoped catch-up exit to the task. **After** construction -
+        #: the first attempt put this before `self.task` existed, the `getattr`
+        #: guard swallowed it and the lever was silently inert (P97's defect class).
+        self.task.catch_tol_axis = bool(self._catch_tol_axis)
+        if self._catch_tol_axis_origin != "scope-off":
+            say(
+                f"[rl] catch tol axis: {'on' if self._catch_tol_axis else 'off'} "
+                f"({self._catch_tol_axis_origin}) presentation={self.presentation}"
+            )
         #: P121: the instruction the direct loop dispatches by, resolved by the
         #: task's own constructor (`FRUIT_SORT_INSTRUCTION`, P114). Unset this is
         #: False and every branch below is skipped - the shipped direct path.

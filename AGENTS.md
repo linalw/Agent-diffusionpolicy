@@ -8146,6 +8146,42 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P249 (2026-11-25, `logs/p249/`; **the axis-aware exit ships as the direct lane's
+default** - scoped, and the scripted/two-line paths are byte-identical): P248's
+powered cell passed (40/40 against 38/40, catch-up 200 -> 21 ticks, cycle -1.42 s),
+so `FRUIT_CATCH_TOL_AXIS` now resolves **on for `presentation == "direct"`** with the
+env unset, `scope-off` everywhere else, an explicit `0`/`1` winning and anything
+else raising. **The scoped form is the point**: the knob is read at task
+construction, so a global default would move the scripted acceptance, the two-line
+session, the collector and the canary and would owe the two-line gate + **both**
+references + every store; the `_dynamic_profile` scope (P87/P88/P89's pattern) owes
+none of it. **A defect was found and fixed before the flip worked**: the first
+attempt applied the flag **before `self.task` existed** (the apply sat beside
+`self.spawner.belt`, the task is constructed ~500 lines later), so the `getattr`
+guard swallowed it and the lever was **silently inert** - the direct cell read
+`catch ticks 200 200 200 200 200`, `seat=1.67s` five times and **zero** `[rl] catch
+tol axis:` rows. That is **P97's defect class** (a predicate read before its object
+exists) in a new place; the apply moved to directly after `PickAndPlaceTask(...)`
+and the selfcheck leg now pins the **order** (`index('self.task =
+PickAndPlaceTask(') < index('self.task.catch_tol_axis = ...')`), so the guard cannot
+swallow it again. **The direct cell after the fix**: row `on (default)
+presentation=direct`, catch ticks **200/21/80/21/21**, `seat`
+**1.67/0.17/0.66/0.17/0.17 s**, cycle **16.68/12.31/12.37/11.93/12.03 s**, placed
+**4/5** with the one loss **episode 0** (the 44.4 mm first-attempt row - the class
+P246 bounded, x-dominated, no new class). **No-harm, measured**: `scripts/accept.sh`
+is **7/10 = 70 %, 9.5 s/attempt, `fingerprint: matches configs/motion_reference.json`**
+and its **459 `[fruit]` lines are 459/459 identical** to `logs/p227/accept_final.log`,
+with **0** `[rl] catch tol axis:` rows in the scripted log (the row is gated on
+`scope-off`) - and since the shipped acceptance **is** the two-line cell, that run
+covers the two-line gate too. **So the flip is resolution-only on the direct lane,
+no reference was re-recorded and none is owed.** Delivered: the direct lane's cycle
+**~13.55 -> ~12.13 s (-10.5 %)** at no measured quality cost. Pins: `tasks.py`
+**`0f580754`** (the exit's flag is caller-owned, the env read stays the base),
+`rl_env.py` (the resolver table, the apply after construction, the gated row),
+`scripts/selfcheck.sh` (the `P249 catch tol scope` leg + the ordering pin);
+references **`61fb5202` / `61fb5202` / `18b101bf`** untouched; ckpt `p227_panda156`.
+Evidence `logs/p249/`.
+
 **P248 (2026-11-25, `logs/p248/`; measurement only, no `src/`/`configs/` change; the
 **powered cell** the axis exit owed): **P1/P2/P3 all PASS - the axis-aware exit is
 a candidate default on 40 attempts per arm.** 2 arms x 2 seeds x **20 episodes =
