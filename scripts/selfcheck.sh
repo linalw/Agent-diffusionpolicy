@@ -464,6 +464,27 @@ print('direct cycle report ok (owned by the env, scripted path unchanged)')"
 # (P248's powered cell: 40/40 vs 38/40, catch 200 -> 21 ticks, cycle -1.42 s). The
 # pin is the resolver table, the caller-owned attribute, and that the row is
 # suppressed on a scope-off path (so the scripted acceptance's stream is unchanged).
+# P254: the continuous return's blend clock can be sized from the motion it has to
+# make (default off; the shipped fixed 90+60 is byte-identical). The pin is the
+# arithmetic (min-jerk peak 1.875x, the arm's 5.445 rad/s), the clamps, and that the
+# knob is read only inside the continuous return.
+run_check "P254 blend adapt" "$python" -c "
+import math
+src = open('src/fruit_sorting/rl_env.py', encoding='utf-8').read()
+assert 'FRUIT_CONTINUOUS_BLEND_ADAPT' in src
+assert 'if self._blend_adapt:' in src
+assert '1.875 * _delta_q / _step' in src, 'the min-jerk peak factor'
+assert 'self._blend_vmax / 120.0' in src, 'the control rate'
+assert 'max(self._blend_min, min(self._blend_max, _need))' in src, 'clamped'
+assert 'ticks = int(os.environ.get(' in src and \
+    'FRUIT_CONTINUOUS_TRANSIT_TICKS' in src, 'the shipped fixed clock still exists'
+# the arithmetic, executed: the arm's own numbers
+step = 5.445 / 120.0
+for delta, want_lo, want_hi in ((0.36, 14, 16), (2.30, 94, 96)):
+    need = math.ceil(1.875 * delta / step)
+    assert want_lo <= need <= want_hi, (delta, need)
+print('blend adapt ok (1.875 peak, 5.445 rad/s, clamped, off by default)')"
+
 run_check "P249 catch tol scope" "$python" -c "
 src = open('src/fruit_sorting/rl_env.py', encoding='utf-8').read()
 assert 'FRUIT_CATCH_TOL_AXIS' in src

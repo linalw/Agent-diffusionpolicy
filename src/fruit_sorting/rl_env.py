@@ -2138,6 +2138,41 @@ class SortingRLEnv:
         #: contains (PREREG F2). `self._episode` still increments **per pick**: it
         #: is the recorder's npz name, and two picks under one index would
         #: silently overwrite the first file.
+        #: P254: the continuous return's **blend clock**. The shipped form is a
+        #: fixed 90 ticks + a 60-tick settle whatever the distance, and the
+        #: measured `total_moved` spans **0.36-2.30 rad**: on the long returns the
+        #: min-jerk peak then exceeds the arm's own velocity limit
+        #: (`blend_cmd_step` 0.051 rad/tick against 0.0454) and the arm ends
+        #: **1.25 rad** from the goal (`blend_err`), while on the short ones 90
+        #: ticks is 6x the arithmetic. `FRUIT_CONTINUOUS_BLEND_ADAPT=1` sizes the
+        #: blend from the measured joint delta and the arm's authored **5.445
+        #: rad/s** (`maxJointVelocity` 312 deg/s, P44's census; 0.0454 rad/tick at
+        #: 120 Hz) with the min-jerk peak/average factor **1.875**, clamped to
+        #: [`_MIN`, `_MAX`]. Unset is the shipped fixed clock, byte for byte.
+        self._blend_adapt = os.environ.get("FRUIT_CONTINUOUS_BLEND_ADAPT", "0") == "1"
+        try:
+            self._blend_vmax = float(
+                os.environ.get("FRUIT_CONTINUOUS_BLEND_VMAX", "5.445")
+            )
+            self._blend_min = int(os.environ.get("FRUIT_CONTINUOUS_BLEND_MIN", "20"))
+            self._blend_max = int(os.environ.get("FRUIT_CONTINUOUS_BLEND_MAX", "200"))
+        except ValueError:
+            raise ValueError(
+                "FRUIT_CONTINUOUS_BLEND_VMAX/_MIN/_MAX must be numbers "
+                f"(got {os.environ.get('FRUIT_CONTINUOUS_BLEND_VMAX')!r} / "
+                f"{os.environ.get('FRUIT_CONTINUOUS_BLEND_MIN')!r} / "
+                f"{os.environ.get('FRUIT_CONTINUOUS_BLEND_MAX')!r})"
+            ) from None
+        if self._blend_adapt and not (
+            math.isfinite(self._blend_vmax)
+            and self._blend_vmax > 0.0
+            and 1 <= self._blend_min <= self._blend_max
+        ):
+            raise ValueError(
+                "FRUIT_CONTINUOUS_BLEND_* needs a finite VMAX > 0 and "
+                f"1 <= MIN <= MAX (got {self._blend_vmax!r}, "
+                f"{self._blend_min}, {self._blend_max})"
+            )
         self._continuous_picks = int(os.environ.get("FRUIT_DIRECT_CONTINUOUS", "0"))
         if self._continuous_picks < 0:
             raise ValueError(
@@ -4925,6 +4960,18 @@ class SortingRLEnv:
             int(round((self._sim_time() - _t_lift0) * 120.0)) if _diag else 0
         )
         ticks = int(os.environ.get("FRUIT_CONTINUOUS_TRANSIT_TICKS", "90") or 90)
+        if self._blend_adapt:
+            #: P254: size the blend from the motion it has to make. One measured
+            #: joint read per pick boundary (the same read `_blend_to` makes for
+            #: its own start), then the min-jerk arithmetic: a quintic's peak
+            #: velocity is 1.875x its average, so `ticks = 1.875 * delta / step`.
+            _start_q = np.asarray(task.arms[side].joint_positions(), dtype=float)
+            _delta_q = float(
+                np.max(np.abs(np.asarray(goal, dtype=float) - _start_q))
+            )
+            _step = self._blend_vmax / 120.0
+            _need = int(math.ceil(1.875 * _delta_q / _step))
+            ticks = max(self._blend_min, min(self._blend_max, _need))
         settle = int(
             os.environ.get("FRUIT_CONTINUOUS_TRANSIT_SETTLE", "60") or 60
         )

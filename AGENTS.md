@@ -8146,6 +8146,43 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P254 (2026-11-25, `logs/p254/`; one **default-off knob**, nothing adopted): the
+continuous return's blend clock is a **time/accuracy dial**, and the shipped fixed clock
+is near the sweet spot.** `_continuous_return` = `_lift_clear` (cap 150) + a **fixed 90**
+blend + a **fixed 60** settle; measured on one 0.12 cell (seed 903, 10 picks,
+`FRUIT_CONTINUOUS_TRANSIT_DIAG=1`): **`lift_ticks` 55-60 (one 172)**, blend 90, settle
+60, and `gap_ticks` **265-270** (the remaining ~60 is the next pick's setup). **The fixed
+clock is wrong in both directions**: `total_moved` spans **0.36-2.30 rad**, so 90 ticks
+is ~6x the arithmetic on the small returns and under-timed on the large ones -
+`blend_cmd_step` reaches **0.051 rad/tick** against the arm's **0.0454** (5.445 rad/s at
+120 Hz) and the arm ends up to **1.25 rad** from its own goal (`blend_err`). **The
+knob** (`FRUIT_CONTINUOUS_BLEND_ADAPT=1`, default **off** = the shipped clock byte for
+byte) sizes the blend from **one measured joint read per pick boundary** (the same read
+`_blend_to` takes for its own start): `ticks = clamp(1.875 * delta_q / (VMAX/120), MIN,
+MAX)` with the min-jerk peak factor **1.875** and the authored **5.445 rad/s**
+(`VMAX`/`MIN`/`MAX` env-overridable, strict parsing), pinned by the `P254 blend adapt`
+leg (the arithmetic executed at 0.36 and 2.30 rad). **The A/B at 0.12 on the seeds the
+control already had**: placed **16/20 -> 18/20** (a draw), `gap_ticks` **268/296 ->
+237/245 (-31 ticks)**, `blend_cmd_step` **0.045 on every row** as designed - **but
+`blend_err` got worse, 0.36-1.19 against 0.11-0.41 typical**. **That is the
+mechanism**: `blend_err` is a **travel-time deficit, not a tracking error** (the settle
+is the same 60 ticks, so fewer blend ticks means less time for the same distance), which
+means **5.445 rad/s over-estimates what the arm delivers at these poses** - the correct
+direction for the long returns is **more** time, the opposite trade. **Verdict: not
+adopted** - the count is a draw, the saving is **31 ticks of a 3 200-tick pick (~1 %)**,
+it is bought with **+0.2-0.3 rad** of start-pose error, and the accuracy side has **no
+endpoint** (the 0.08 deployment cell already reads **49/50 with 0.22-0.41 rad
+residuals**). **The lever is a dial, not a win**: `VMAX=5.445` trades accuracy for ~30
+ticks, a smaller `VMAX` (2x the ticks) restores the residual at a time cost, and
+**neither direction is indicated by the data** - so nothing ships and the knob stays a
+measurement instrument. **No-harm**: `selfcheck.sh` **PASS (0 failures, 1 skipped)**;
+`accept.sh` with every knob unset is **`fingerprint: matches`** with its **459 `[fruit]`
+lines 459/459 identical** to `logs/p227/accept_final.log` (the knob is read only inside
+`_continuous_return`, which the scripted acceptance never enters). Pins: `rl_env.py`
+(the resolver + the one consumer; `TASKS_MD5` unchanged, `tasks.py` **`b68ac8d1`**),
+`scripts/selfcheck.sh`; references **`61fb5202` / `61fb5202` / `18b101bf`** untouched;
+ckpt `p227_panda156`. Evidence `logs/p254/`.
+
 **P253 (2026-11-25, `logs/p253/`; four fresh-seed continuous cells, **no `src/` change**):
 **0.08 deployment = 49/50 = 98 %** on four seeds, and the 0.12 step is a **cadence**
 limit, not the grasp.** One continuous episode of 10 picks per cell, the P227z/P249
