@@ -8029,6 +8029,27 @@ Pins: `tasks.py`, `rl_env.py` (`TASKS_MD5` follow), `scripts/selfcheck.sh`;
 references **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.15,jaw_space.log,bin_hold.log,cap_0.10.log,cap_forced.log}`.
 
+**P227ac addendum (2026-11-24, owner decision C): the bins are **shallow-rim**
+now** (`bin_wall_height` **0.16 -> 0.030**, rim 1.26 -> **1.13**, overridable with
+`FRUIT_BIN_WALL_HEIGHT`). Decision B (the place height is the bin's own floor) had a
+consequence the owner would not accept: the accompanied descent put the fingertips
+**10.5-12.0 cm below the rim** on every place. A shallow rim removes that without
+giving up the descent: measured on 8 bins episodes, `low_drop` 0.179-0.193 m,
+`payload_bottom` **1.139-1.140** (floor + 39-40 mm, unchanged), and **`below_rim`
++0.013 .. +0.028** - the pads stay **1.3-2.8 cm above the rim** while the payload
+still stops ~3.9 cm above the bin floor, so the free fall is still ~0.04 m. The one
+loss in that cell is a `grasped=False` lychee (the grip class, not the rim), and the
+recycle census settles every placed payload **at the bin centres**
+(`discharged to the bin at (-0.10..-0.11, +-0.54..+0.55)`, 3.0 s) - a 3 cm lip holds
+them. **The margin is a paired design value, not a coincidence**: the descent stops
+the payload at `FRUIT_PLACE_LOW_CLEARANCE` (**25 mm**) and the fingertips sit ~4 mm
+higher, so a rim at `floor + 30 mm` leaves **~13 mm**; lowering the clearance below
+~0.020 puts the pads under the rim again - **keep the pair together**. The belt/rail
+cells never read this field (bins are only built with `FRUIT_OUTPUT_BINS=1`), so the
+scripted acceptance is unaffected. Pinned by `P227ac shallow rim`; the scripted
+single-arm gate (`scripts/283_single_arm_gate.sh`, which runs the *scripted* bins
+cell through the same `_place_low`) is the other consumer.
+
 **P142 (2026-11-11, `logs/p142/`; two defect fixes + a declared metric,
 **nothing adopted, no reference moved**): the direct lane's two *bookkeeping*
 failures are removed and its zero is shown to be the station reselect's timing.

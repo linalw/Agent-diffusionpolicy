@@ -524,7 +524,20 @@ class SceneConfig:
     bin_center_y: float = 0.55
     bin_size: tuple[float, float] = (0.34, 0.30)
     bin_floor_top_z: float = 1.10
-    bin_wall_height: float = 0.16
+    #: P227ac **owner decision C (2026-11-24): a SHALLOW rim.** With the place
+    #: height taken from the bin's own floor (decision B) the accompanied descent
+    #: puts the fingertips at `floor + 0.040..0.055`, i.e. **1.140-1.155** - so a
+    #: 0.16 m wall (rim 1.26) meant the hand went 10.5-12.0 cm below the rim on
+    #: every place. A **0.030 m** wall (rim **1.13**) sits just under the lowest
+    #: fingertip, so the hand stays at or above the rim while the payload still
+    #: descends to 3.8-3.9 cm above the floor: the free fall stays ~0.04 m and the
+    #: pads no longer enter the box. `FRUIT_BIN_WALL_HEIGHT` restores the deep form
+    #: (e.g. 0.16) for a cell that wants it.
+    bin_wall_height: float = field(
+        default_factory=lambda: float(
+            os.environ.get("FRUIT_BIN_WALL_HEIGHT", "0.03") or 0.03
+        )
+    )
 
     # Discharge at the +X end of each output belt. A placed fruit is carried to
     # the end of the belt; without anything there it fell to the floor and the

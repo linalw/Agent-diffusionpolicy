@@ -1481,3 +1481,41 @@ against a 0.061 m plate) and clear of the floor by the fingertip margin. The
 destination index, so `output_bins=0` takes the belt exactly as before (the
 acceptance is the no-harm gate). Pinned by the selfcheck leg
 `P227ac place floor (bin)`.
+
+### 22.16 Owner decision C: a shallow rim, so the accompanied descent stays above it
+
+Decision B took the place height from the bin's own floor, which is right, but its
+consequence was that the hand went **10.5-12.0 cm below the rim** on every place
+(fingertips at `floor + 0.040..0.055`). The owner's answer: make the bin a
+**shallow-rim** one. Done - `bin_wall_height` **0.16 -> 0.030** (rim **1.26 ->
+1.13**), overridable with `FRUIT_BIN_WALL_HEIGHT` for a cell that wants the deep
+form.
+
+Measured on 8 episodes of the bins cell (seed 5), with the accompanied descent
+unchanged:
+
+| quantity | deep rim (0.16) | **shallow rim (0.030)** |
+|---|---|---|
+| `low_drop` | 0.182-0.197 | 0.179-0.193 |
+| `payload_bottom` | 1.139 | 1.139-1.140 (floor + 39-40 mm) |
+| `fingertip_z` | 1.143-1.155 | 1.143-1.158 |
+| **`below_rim`** | **-0.105 .. -0.120** | **+0.013 .. +0.028** |
+| placed | 8/8 | 7/8 |
+
+So the pads now stay **1.3-2.8 cm above the rim** while the payload still descends
+to **~3.9 cm above the bin floor**: the free fall stays ~0.04 m (the reason for
+decision B) and the hand no longer enters the box (the reason for decision C).
+
+**The one loss is not the rim.** It is a `grasped=False` attempt (a 3.0 cm lychee -
+the grip class), and the recycle census shows every placed payload settling **at
+the bin centres** (`discharged to the bin at (-0.10..-0.11, +-0.54..+0.55)`,
+settled 3.0 s), i.e. a 3 cm lip does hold them.
+
+**The margin is 13 mm and it is a design pair, not a coincidence**: the descent
+stops the payload at `FRUIT_PLACE_LOW_CLEARANCE` (25 mm) above the floor and the
+fingertips sit ~4 mm higher, so a rim at `floor + 30 mm` leaves ~13 mm. Lowering
+`FRUIT_PLACE_LOW_CLEARANCE` below ~0.020 would put the pads under the rim again -
+that pair is the thing to keep together if either value is ever retuned.
+
+Pinned by the selfcheck leg `P227ac shallow rim` (the default resolves to 0.030 and
+`FRUIT_BIN_WALL_HEIGHT` overrides it).
