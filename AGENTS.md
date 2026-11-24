@@ -8146,6 +8146,38 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P236 (2026-11-24, `logs/p236/`; one **default-off instrument path**, no behaviour
+change, nothing adopted, no reference moved): the direct single-arm lane gets the
+block report P235 found missing - and it prices a block the record never saw.**
+`FRUIT_CYCLE_REPORT=1` printed **nothing** on the direct lane because
+`_cycle_begin`/`_cycle_mark` live in `_grasp_carry_place_impl` while
+`_cycle_report` is only called by **`note_result`**, which the scripted driver runs
+and the direct entry never does - the marks landed in `None`. Fixed with an
+**ownership test** in `grasp_carry_place` (`_cycle_marks is not None and not
+_cycle_marks`): it begins and reports the cycle when the env owns the attempt,
+`note_result` keeps its own report, and the scripted path is untouched (off is a
+no-op). **Measured at 0.08, 6 placed attempts, both seeds**:
+`place 3.47-3.51 s` (constant), **`close 2.77 s` (constant, 5 of 6)**,
+`release 2.14-2.41`, `grip 1.57-1.59`, `lift 1.18-1.89`, `descent 0.98-2.12`,
+`return 0.50`, **total 11.7-14.1 s**. **The finding**: P91's `[cycle]` audit - which
+priced every "speedable" block - read the **two-line** cell, where `close` is
+**1.36 s**; on the direct single-arm lane it is **2.77 s, twice that**, and it is
+the *fixed* part of the cycle (same on a lychee and a pear, both seeds; it spans
+the coherent track + axis servo + the `_close_attempt` retries). So the lane's
+**grasp establishment is ~4.3 s (`close` + `grip`) = 30 % of the attempt** and no
+record entry had ever priced it. **Read rules carried**: the marks bound *phases*,
+not profile cells - this `release=` includes P142's 0.5 s post-release settle and
+the retreat, so it must **not** be quoted against P86's `release=` cell (2.35 ->
+1.63) or read as "the trim is off"; and `descent` includes the arrival wait (P91:
+`lead/speed - margin`, not shorten-able by a faster leg). **The next lever is now
+measurable**: the two constants are `place 3.48` + `close 2.77` = 6.2 s of the
+~13.3 s cycle. Selfcheck **PASS** with the new leg `P236 direct cycle report`;
+`accept.sh` **7/10, 9.5 s/attempt, `fingerprint: matches`, 190 PASS**, its **459
+`[fruit]` lines 459/459 identical** to `logs/p227/accept_final.log`. Pins:
+`tasks.py` **`a8ca62cf`** (+ `TASKS_MD5` follow), `scripts/selfcheck.sh`;
+references **`61fb5202` / `61fb5202` / `18b101bf`** untouched; ckpt
+`p227_panda156`. Evidence `logs/p236/`.
+
 **P235 (2026-11-24, `logs/p235/`; measurement only - **no `src/`/`configs/` change**):
 the throughput cell is **not readable on this lane** - the leg the place knob moves
 is not the cycle's block.** `FRUIT_SPEED_PLACE=0.52` at 0.08 (the P227r S1 cell

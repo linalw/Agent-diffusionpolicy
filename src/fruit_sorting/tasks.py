@@ -13891,6 +13891,17 @@ class PickAndPlaceTask:
         # predicate (`_grasp_carry_place_impl`) and before `_carry` reads the
         # per-leg floor and the boundary confirmation gate.
         self._resolve_carry_monitor_knobs()
+        #: P236: the **direct lane's block report.** `_cycle_begin`/`_cycle_mark`
+        #: live in `_grasp_carry_place_impl`, but `_cycle_report` is only called by
+        #: `note_result` - and the direct entry never runs it, so
+        #: `FRUIT_CYCLE_REPORT=1` printed **nothing** for the policy handover
+        #: (P235's gap: a place-speed cell could not be read because the block it
+        #: moves had no report). Begin/report the cycle here when the env owns the
+        #: attempt; the scripted `_run_impl` has already begun one, so its path is
+        #: unchanged. Off (`_cycle_marks is None`) is a no-op.
+        _cycle_owned = bool(self._cycle_marks is not None and not self._cycle_marks)
+        if _cycle_owned:
+            self._cycle_begin()
         if not scripted and self._dynamic_trace is not None:
             self._dynamic_trace_sample(
                 "handover", sample, self.arms[arm_name], self.grippers[arm_name], 0.0
@@ -13913,6 +13924,8 @@ class PickAndPlaceTask:
                     f"skip={int(self._carry_monitor_skip)} fired=[{fired}]"
                 )
             self._dynamic_trace_dump(arm_name, scripted, outcome)
+            if _cycle_owned:
+                self._cycle_report()
         return result
 
     def _fruit_state(self, sample) -> tuple[np.ndarray, np.ndarray]:

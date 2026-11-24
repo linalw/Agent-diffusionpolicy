@@ -442,6 +442,24 @@ print(f'primitive estimate ok (pre-grasp {n_pre} reads)')"
 # fire row printed a constant `speed=` under a wave because the trigger read
 # `encoder_speed`, a setpoint echo (P141). The pin is the default-off read, the
 # two field names, and that both `should_fire` sites share the one variable.
+# P236: the direct lane's block report. `_cycle_begin`/`_cycle_mark` live in the
+# impl but `_cycle_report` is only called by `note_result`, which the direct entry
+# never runs - so `FRUIT_CYCLE_REPORT=1` printed nothing for the policy handover
+# (P235's gap). The pin is the ownership test (a scripted `_run_impl` already began
+# one), the begin before the impl and the report in the finally, and that the
+# scripted reporter is untouched.
+run_check "P236 direct cycle report" "$python" -c "
+src = open('src/fruit_sorting/tasks.py', encoding='utf-8').read()
+i = src.index('    def grasp_carry_place(')
+j = src.index('    def _fruit_state(', i)
+blk = src[i:j]
+assert '_cycle_owned' in blk
+assert 'self._cycle_marks is not None and not self._cycle_marks' in blk, 'ownership test'
+assert blk.index('self._cycle_begin()') < blk.index('self._grasp_carry_place_impl('), 'begin before the impl'
+assert 'if _cycle_owned:' in blk and 'self._cycle_report()' in blk
+assert src.count('self._cycle_report()') == 2, 'note_result keeps its own report'
+print('direct cycle report ok (owned by the env, scripted path unchanged)')"
+
 run_check "P233 trigger speed" "$python" -c "
 src = open('src/fruit_sorting/rl_env.py', encoding='utf-8').read()
 assert 'FRUIT_TRIGGER_SURFACE_SPEED' in src
