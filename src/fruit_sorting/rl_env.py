@@ -516,7 +516,7 @@ from .tracking import FruitTracker, track_config_from_env
 #: This env never constructs a cage, so no direct/policy behaviour moves - proven
 #: on the scripted side by `scripts/accept.sh`'s 421/421 byte-identical `[fruit]`
 #: stream (`logs/p107/RESULTS.md` section 5).
-TASKS_MD5 = "b68ac8d1f5c099fe322b8a83cb840bbf"
+TASKS_MD5 = "c470cb18e982b2b42f49aeeccabd330a"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(
@@ -3686,6 +3686,21 @@ class SortingRLEnv:
         #: the first attempt put this before `self.task` existed, the `getattr`
         #: guard swallowed it and the lever was silently inert (P97's defect class).
         self.task.catch_tol_axis = bool(self._catch_tol_axis)
+        #: P258: in a continuous episode the next pick's return lifts the hand
+        #: anyway, so the release's 60-tick retreat/settle is redundant there.
+        #: **Default on since the cell that measured it** (P258: two seeds x 20
+        #: picks at 0.08, **60/60 placed** across control + armed arms, the
+        #: `return` block **0.50 -> 0.00 s** and the attempt **11.91 -> 11.43/11.49 s**,
+        #: i.e. **-0.43 s per pick at no quality cost**). `=0` restores the
+        #: duplicated clearance; a per-episode cell (the shipped harness) never sets
+        #: the attribute and keeps the block.
+        _skip_settle = os.environ.get("FRUIT_CONTINUOUS_SKIP_SETTLE", "1")
+        if _skip_settle not in ("0", "1"):
+            raise ValueError(
+                "FRUIT_CONTINUOUS_SKIP_SETTLE must be '0', '1' or unset "
+                f"(got {_skip_settle!r})"
+            )
+        self.task.skip_release_settle = bool(self._continuous_picks) and _skip_settle == "1"
         if self._catch_tol_axis_origin != "scope-off":
             say(
                 f"[rl] catch tol axis: {'on' if self._catch_tol_axis else 'off'} "

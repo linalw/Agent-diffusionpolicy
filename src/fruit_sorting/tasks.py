@@ -3119,6 +3119,15 @@ class PickAndPlaceTask:
         #: acceptance**, the **hybrid canary** and the **two-line** session on the
         #: shipped 3-D-norm exit, so no reference moves.
         self.catch_tol_axis = os.environ.get("FRUIT_CATCH_TOL_AXIS", "0").strip() == "1"
+        #: P258: **caller-owned**, set by the env when the next pick will run the
+        #: continuous return. In that mode the release's own retreat (a 60-tick
+        #: min-jerk lift of 8 cm, the lowered place ends near the belt) is
+        #: **redundant**: `_continuous_return` re-anchors the drive target and then
+        #: runs `_lift_clear` to `belt_top + 0.30` before its blend. With the
+        #: retreat skipped the hand still clears, and 60 ticks of a 14.1 s pick
+        #: (~4 %) come back. `False` everywhere else - the scripted single arm and
+        #: the two-line hold the shipped block, so their streams cannot move.
+        self.skip_release_settle = False
         self._catch_tol_z = float(os.environ.get("FRUIT_CATCH_TOL_Z", "0.010"))
         self._track_config = track_config_from_env(os.environ, self._track_source)
         #: Velocity relaxation time constant toward the belt's own speed [s];
@@ -17775,6 +17784,12 @@ class PickAndPlaceTask:
             # P32 phase 2: the release -> next pre-pose return replaces the
             # retreat/settle *and* the between-attempt `go_ready` transit (the
             # driver skips it on `at_prepose`). No further arm motion here.
+            pass
+        elif self.skip_release_settle:
+            #: P258: the continuous return's own `_lift_clear` covers the
+            #: clearance this retreat/settle would buy, so the block is skipped
+            #: (see the attribute's note). The payload is already released and
+            #: the return re-anchors on the measured arm before it lifts.
             pass
         elif retreat > 0.0:
             # Re-anchor the drive target on the measured arm first: the pads push

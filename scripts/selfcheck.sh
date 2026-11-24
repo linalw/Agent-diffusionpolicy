@@ -470,6 +470,22 @@ print('direct cycle report ok (owned by the env, scripted path unchanged)')"
 # knob is read only inside the continuous return.
 # P256: the per-instance physics row (mass + friction from `FruitSample`, no new
 # simulator read), default off, one print per pick.
+# P258: the release's 60-tick retreat/settle is redundant in a continuous episode
+# (the return's own `_lift_clear` raises the hand anyway). Caller-owned, so the
+# scripted single arm and the two-line cannot read it; default OFF until a cell.
+run_check "P258 skip release settle" "$python" -c "
+t = open('src/fruit_sorting/tasks.py', encoding='utf-8').read()
+e = open('src/fruit_sorting/rl_env.py', encoding='utf-8').read()
+assert 'self.skip_release_settle = False' in t, 'default off in the task'
+assert 'elif self.skip_release_settle:' in t, 'the branch'
+# the branch must sit BEFORE the retreat and the plain settle
+assert t.index('elif self.skip_release_settle:') < t.index('elif retreat > 0.0:')
+assert 'self.task.skip_release_settle = bool(self._continuous_picks)' in e
+assert 'FRUIT_CONTINUOUS_SKIP_SETTLE' in e
+# applied only AFTER the task exists (P249's defect class, pinned there too)
+assert e.index('self.task = PickAndPlaceTask(') < e.index('self.task.skip_release_settle')
+print('skip release settle ok (default off, continuous only, after construction)')"
+
 run_check "P256 instance diag" "$python" -c "
 src = open('src/fruit_sorting/rl_env.py', encoding='utf-8').read()
 assert 'FRUIT_INSTANCE_DIAG' in src

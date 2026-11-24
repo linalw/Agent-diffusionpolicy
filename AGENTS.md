@@ -8146,6 +8146,34 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P258 (2026-11-25, `logs/p258/`; one **scoped** change, measured then adopted for the
+continuous lane only): the continuous lane did **two clearance motions per pick** -
+removing one is **-0.43 s at 60/60**.** A lowered place ends with its pads near the belt,
+so the release runs a **60-tick min-jerk retreat of 8 cm** (`FRUIT_PLACE_LOW_RETREAT`;
+`FRUIT_RELEASE_RETREAT=0` only swaps it for the plain 60-tick settle - **the same 60
+ticks**) - and in a continuous episode the next thing is `_continuous_return`, which
+starts with `_catch_up_drive` then **`_lift_clear` to `belt_top + 0.30`**, i.e. the very
+clearance the retreat had just bought. **The build is caller-owned and scoped**:
+`task.skip_release_settle` (default `False`) set only when `_continuous_picks` is
+non-zero, `FRUIT_CONTINUOUS_SKIP_SETTLE` (default **on** since this phase, `=0`
+restores), the branch **before** the retreat and the plain settle, and the env applying
+it **after** `PickAndPlaceTask(...)` - **P249's defect class**, pinned by the same leg.
+**The cells** (0.08, 20 picks per cell, one continuous episode): control (P257, seed 905)
+**20/20, total 11.91 s, `return` block 0.50 s**; skip-settle **s905 20/20, 11.43 s** and
+**s906 20/20, 11.49 s**, both with **`return` 0.00 s** - and **every other block
+unchanged to the hundredth** (place 3.48, release 2.16, grip 1.58, close 1.10, seat
+0.17, lift 1.25, descent 1.19-1.25), so the delta is **exactly** the `return` block.
+**Quality: 60/60 placed** across the three cells, and it **cannot** be a quality trade by
+construction - the payload is released *before* the settle, so the removed motion only
+moves an **open hand**. **Worth**: `14.08 -> 13.60 s/pick` (**-3.4 %**), **4.26 -> 4.41
+picks/min** at the 0.08 deployment rate unchanged; the same block exists at 0.12 so the
+saving transfers (not measured there). **No-harm**: `accept.sh` **`fingerprint: matches`**
+with its **459 `[fruit]` lines 459/459 identical** to `logs/p227/accept_final.log` (a
+per-episode cell never sets the attribute); `selfcheck.sh` **PASS (0 failures, 1
+skipped)**. Pins: `tasks.py` **`c470cb18`**, `rl_env.py` (+ the `TASKS_MD5` follow),
+`scripts/selfcheck.sh`; references **`61fb5202` / `61fb5202` / `18b101bf`** untouched;
+ckpt `p227_panda156`. Evidence `logs/p258/`.
+
 **P257 (2026-11-25, `logs/p257/`; the release-candidate check, **no `src/` change**):
 **the cell is arm-bound** - 0.12 buys no throughput and costs 13.6 points on success.**
 Two **20-pick** continuous cells on a fresh seed (905): **0.08 20/20** (`gap` 270,
