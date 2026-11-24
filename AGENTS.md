@@ -8146,6 +8146,31 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P255 (2026-11-25, `logs/p255/`; a one-species continuous cell, **no `src/` change**):
+the tail is **one instance, not the smallest size class** - and this **corrects**
+P250/P251's own causal claim.** `FRUIT_SUPPLY_SPECIES=lychee`, `v=0.08`, continuous, 10
+picks per seed: **s903 10/10, s904 10/10 = 20/20 = 100 %**, with **2.8 cm drawn twice
+and both placed** (2.8/3.4/3.7/3.0/3.1/2.8/3.3/2.9/3.3/3.3 and
+3.6/3.1/3.5/3.7/2.9/3.0/3.6/3.5/3.7/2.9). **So the 2.8 cm size is not the problem**, and
+the **17 failures P250 counted are still one body** (every one `d=2.8 cm, arm=left`,
+seed 901's first draw), while seeds 903/904's mixed-pool cells placed 10/10 each
+(P253). The tail is therefore a **per-draw instance** and the **80 % 0-4 cm bucket is
+that instance's incidence in the mixed corpus, not a size effect** - `docs/SINGLE_ARM_SPEC.md`
+now says so in place. **What survives unchanged from P250/P251** is the failure *chain*
+measured on that body: the catch-up ends 39-46 mm off, `grip` **4.53 s** against 1.58 on
+placements, the joint lag **0.18-0.27 rad** against 0.11, no limit clipping, no
+singularity, no start-offset separation, and the gain is not the actuator. **What does
+not survive is attaching it to a size class.** **Read rule added**: a size bucket is
+not a class when the same size passes in a different pool - before quoting a bucket run
+the one-species cell for that species (10 minutes); P250's census could not separate
+them because the 2.8 cm size appeared **only** at seed 901's first position. **For the
+objective**: 0.08 reads **98 % mixed / 100 % on the hardest single species**, and the
+generalisation claim is **not** size- or species-limited in 2.8-7.0 cm - the residual is
+a **per-instance tail** (~43 % when that draw appears). Pins unchanged: `tasks.py`
+**`b68ac8d1`**, references **`61fb5202` / `61fb5202` / `18b101bf`**, ckpt
+`p227_panda156`; `accept.sh` stands at P254's **459/459 + `fingerprint: matches`**.
+Evidence `logs/p255/`.
+
 **P254 (2026-11-25, `logs/p254/`; one **default-off knob**, nothing adopted): the
 continuous return's blend clock is a **time/accuracy dial**, and the shipped fixed clock
 is near the sweet spot.** `_continuous_return` = `_lift_clear` (cap 150) + a **fixed 90**
@@ -8310,7 +8335,9 @@ looks like an episode-position defect - **ep 0 38/55 = 69.1 %** against **ep >= 
 species the separation is complete: **lychee ep 0 13/30 = 43.3 % against ep >= 1
 29/29 = 100 %**, while the *other* small class drawn at ep 0 (strawberry) passes
 **23/23**. **Every lychee failure is the same body** (`d=2.8 cm, arm=left`, seed 901's
-first draw), so the class is **"the pool's smallest instance"** - not "episode 0",
+first draw), so the class is **one body** - P250 called it "the pool's smallest instance", and
+**P255 corrects that**: a lychee-only pool draws 2.8 cm twice and places both (20/20),
+so the size is not the term, the *draw* is - not "episode 0",
 not "a small fruit", not a cold start (the first decision's `[lat] d` is 51-171 on
 **every** run and does not order the outcome: 171 passes, 130 fails). **The failure
 budget in one table**: 0-4 cm **72/90 = 80.0 %**, 4-5 **18/20 = 90.0 %**, 5-6
