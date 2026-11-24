@@ -8006,20 +8006,22 @@ measured `fruit left the pick station ... aborting the attempt instead of chasin
 it` path) with its own note. **Its status is recorded honestly: the path is rare** -
 one fire in the delivered clip's 26 picks, **none** in 8+8 episodes at 0.10 m, none
 in 3 at a forced 1 mm (the first close succeeded in all of them) - so it is pinned
-by shape (`P227ac close chase cap`) and not exercised end to end. **Owner decision
-A (2026-11-24), the place-height question**: `_place_low`'s floor is
-`cfg.output_belt_top_z` **unconditionally** (1.35) while the bins are a 1.10 m floor
-with a 1.26 m rim, so `need = bottom - 1.35 - 0.025` is **-0.057..-0.073** and the
-accompanied descent is **skipped** - the payload is released **~5 cm above the rim**
-(`below_rim` +0.052..+0.058, `fingertip_z` 1.312-1.318, `low_drop` 0.000) and falls
-**0.20 m** onto the bin floor. **The owner chose to keep it**: honouring the bin
-floor would stop the payload at `bin_floor_top_z + 25 mm` and drive the pads **0.19 m
-below the rim, into the box** - the reach the complaint rejects. The branch is now
-**explicit** (`cfg.output_bins` -> `info["bin_hold"]`, the decision in a comment)
-because it used to be arithmetic that holds only while `output_belt_top_z` sits
-above a bins payload's bottom, so a bin-geometry change would have flipped it
-silently; re-measured **6/6 placed** with `bin_hold=1`, pads **+0.05..+0.06 m above
-the rim**, pinned by `P227ac bins hold (decision A)`. Instrument:
+by shape (`P227ac close chase cap`) and not exercised end to end. **Owner decision B
+(2026-11-24), the place-height question: the height is the BIN's, not the belt's** -
+the owner rejected the "keep the free fall" framing outright ("the height should be
+decided by the bin itself - why is it still the belt?"), and they were right. The
+defect: `_place_low`'s floor was `cfg.output_belt_top_z` **unconditionally** (1.35)
+while the bins are a **1.10** floor with a 1.26 rim, so `need = bottom - 1.35 -
+0.025` was **-0.057..-0.073** on every bins leg and the accompanied descent was
+**skipped** - the payload was released ~5 cm above the rim and fell **0.20 m**.
+`_place_low` now takes the **destination's** surface (`bin_floor_top_z` for a bin,
+`output_belt_top_z` otherwise) with `bin_index` threaded in. Re-measured **6/6
+placed**: `low_drop` **0.000 -> 0.182-0.197 m**, the payload stops **3.8-3.9 cm
+above the bin floor**, the fingertips **4.0-5.5 cm above the floor** and 10.5-12.0 cm
+below the rim - inside the mouth, 9+ cm clear of the walls, clear of the floor by
+the fingertip margin. **The belt/rail cells are untouched** (the branch needs
+`output_bins` *and* a destination index), so the acceptance is the no-harm gate.
+Pinned by `P227ac place floor (bin)`. Instrument:
 **`FRUIT_PLACE_HEIGHT_DIAG=1`** prints one `[place] bin= floor= rim= jaw_z=
 payload_bottom= fingertip_z= low_need= low_drop= bin_hold= below_floor= below_rim=`
 row per place leg (four reads the caller already has, plus config arithmetic).

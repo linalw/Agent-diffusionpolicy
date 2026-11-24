@@ -17403,7 +17403,8 @@ class PickAndPlaceTask:
                 )
             if place_low:
                 centre, low_info = self._place_low(
-                    arm_name, sample, centre, quat, gap, place_trace
+                    arm_name, sample, centre, quat, gap, place_trace,
+                    bin_index=bin_index,
                 )
             if os.environ.get("FRUIT_PLACE_HEIGHT_DIAG", "0") == "1":
                 #: P227ac: **what the hand's lowest part is, and what surface it is
@@ -17431,7 +17432,7 @@ class PickAndPlaceTask:
                     f"fingertip_z={_tip:.3f} "
                     f"low_need={float(low_info.get('need', float('nan'))):+.3f} "
                     f"low_drop={float(low_info.get('drop', 0.0)):.3f} "
-                    f"bin_hold={int(bool(low_info.get('bin_hold', False)))} "
+                    f"bin_hold={int(bool(getattr(self.cfg, 'output_bins', False)))} "
                     f"below_floor={float(_tip) - _floor:+.3f} "
                     f"below_rim={'%.3f' % (_rim and float(_tip) - _rim) if _rim is not None else 'n/a'}"
                 )
@@ -17812,7 +17813,8 @@ class PickAndPlaceTask:
     # ------------------------------------------------------------------ #
     # Lowered place / landing trace (v5 directive, phase A)
     # ------------------------------------------------------------------ #
-    def _place_low(self, arm_name, sample, centre, quat, gap, trace=None):
+    def _place_low(self, arm_name, sample, centre, quat, gap, trace=None,
+                   bin_index=None):
         """Descend with the payload to a small clearance above the output belt.
 
         The shipped place (since v5-A, `FRUIT_PLACE_LOW=1`): the historical 10 cm
@@ -17834,7 +17836,25 @@ class PickAndPlaceTask:
         shipped line (`FRUIT_PLACE_LOW` default 1); `=0` restores the historical
         free-drop release bit-for-bit.
         """
-        floor = float(self.cfg.output_belt_top_z)
+        #: P227ac **decision B (owner, 2026-11-24): the place height is the
+        #: DESTINATION's surface.** With side bins the surface the payload must
+        #: clear is the **bin floor** (`bin_floor_top_z`, 1.10), not the belt top
+        #: (1.35) - the belt is not under the payload at that pose at all. Using the
+        #: belt made `need = bottom - 1.35 - 0.025` **negative** on every bins leg,
+        #: so the accompanied descent was skipped and the payload was released ~5 cm
+        #: above the rim and fell **0.20 m** onto the bin floor (measured). With the
+        #: bin's own floor the descent runs: the payload stops
+        #: `FRUIT_PLACE_LOW_CLEARANCE` above the bin floor and the pads stop at the
+        #: fingertip bound, so the free fall drops from 0.20 m to ~0.03 m. The
+        #: belt/rail cells keep `output_belt_top_z` bit for bit.
+        if (
+            bool(getattr(self.cfg, "output_bins", False))
+            and isinstance(bin_index, int)
+            and 0 <= int(bin_index) < 2
+        ):
+            floor = float(self.cfg.bin_floor_top_z)
+        else:
+            floor = float(self.cfg.output_belt_top_z)
         clearance = float(os.environ.get("FRUIT_PLACE_LOW_CLEARANCE", "0.025"))
         ceiling = float(os.environ.get("FRUIT_PLACE_LOW_MAX_DROP", "0.30"))
         margin = float(os.environ.get("FRUIT_PLACE_LOW_FINGER_MARGIN", "0.005"))
@@ -17856,20 +17876,6 @@ class PickAndPlaceTask:
             "ticks": 0,
         }
         need = float(info["need"])
-        #: P227ac, **owner decision A (2026-11-24): a bins cell does NOT take the
-        #: accompanied descent.** The release stays above the bin rim and the
-        #: payload falls the ~0.20 m onto the bin floor, because the alternative -
-        #: `floor = bin_floor_top_z` - stops the payload at floor+25 mm and drives
-        #: the pads **0.19 m below the rim, into the box**, which is the reach the
-        #: owner rejected. Made **explicit** rather than left to arithmetic: until
-        #: this branch the ship was correct only because `output_belt_top_z`
-        #: (1.35) happens to sit above a bins payload's bottom, so changing the bin
-        #: geometry would have flipped the behaviour silently. `low_drop=0` is
-        #: therefore a decision here, and `FRUIT_PLACE_HEIGHT_DIAG=1` prints
-        #: `bin_hold=1` with it.
-        if bool(getattr(self.cfg, "output_bins", False)):
-            info["bin_hold"] = True
-            return np.asarray(centre, dtype=float), info
         if need <= 1e-4:
             return np.asarray(centre, dtype=float), info
         # Optional wrist hold for the vertical descent, applied *before* the

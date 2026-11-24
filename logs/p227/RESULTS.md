@@ -1452,25 +1452,32 @@ abnormal reach into the already-measured clean abort; its effect on a cell that
 actually draws a disturbed close is the open item, and the delivered clip's pick 4
 is the case to replay when one is available.
 
-**Owner decision A, taken 2026-11-24, and now explicit in the code.** The bins
-cell **keeps its release above the rim and accepts the ~0.20 m free fall**; the
-accompanied descent - which would stop the payload at `bin_floor_top_z + 25 mm`
-and drive the pads **0.19 m below the rim, into the box** - is the reach the owner
-rejects. The behaviour was already right, but only *by arithmetic*: `need` is
-negative because `output_belt_top_z` (1.35) sits above a bins payload's bottom, so
-a change to the bin geometry would have flipped it silently. `_place_low` now has
-an **explicit branch** for `cfg.output_bins` (a comment naming this decision, and
-`info["bin_hold"]`), and `FRUIT_PLACE_HEIGHT_DIAG=1` prints `bin_hold=1` with
-`low_drop=0.000` beside the heights. Measured after the change (6 episodes,
-6/6 placed):
+**Owner decision B, taken 2026-11-24: the place height is the BIN's, not the
+belt's.** The first pass framed this as a trade (release above the rim vs an
+accompanied descent) and the owner rejected the framing: *the height should be
+decided by the bin itself - why is it still the belt?* They are right, and the code
+now does it: `_place_low` takes the **destination's** surface, `bin_floor_top_z`
+(1.10) when the destination is a bin and `output_belt_top_z` otherwise, with the
+destination threaded in as `bin_index`. The belt was never under the payload at
+that pose, so the old floor made `need = bottom - 1.35 - 0.025` negative on every
+bins leg and silently skipped the descent.
+
+Measured after the change (6 episodes, **6/6 placed**):
 
 ```
-[place] bin=1 floor=1.100 rim=1.260 jaw_z=1.376 payload_bottom=1.318
-        fingertip_z=1.318 low_need=-0.057 low_drop=0.000 bin_hold=1
-        below_floor=+0.218 below_rim=0.058
-[place] bin=0 ... low_need=-0.068 low_drop=0.000 bin_hold=1 below_rim=0.053
+[place] bin=1 floor=1.100 rim=1.260 jaw_z=1.198 payload_bottom=1.139
+        fingertip_z=1.143 low_need=+0.193 low_drop=0.193 bin_hold=1
+        below_floor=+0.043 below_rim=-0.117
+[place] bin=0 ... low_need=+0.197 low_drop=0.197 payload_bottom=1.139
+        below_floor=+0.040 below_rim=-0.120
 ```
 
-So the pads stay **+0.05 .. +0.06 m above the rim** and **+0.21 m above the bin
-floor** on every leg, and the free fall is a named, owned trade rather than an
-accident. Pinned by the selfcheck leg `P227ac bins hold (decision A)`.
+So `low_drop` goes **0.000 -> 0.182-0.197 m**, the payload stops **3.8-3.9 cm above
+the bin floor** (it used to be released ~5 cm above the rim and fall 0.20 m), and
+the fingertips stop **4.0-5.5 cm above the floor / 10.5-12.0 cm below the rim** -
+inside the mouth, clear of the walls (the bin's inner half-width is 0.15-0.17 m
+against a 0.061 m plate) and clear of the floor by the fingertip margin. The
+**belt/rail cells are untouched**: the branch needs `cfg.output_bins` *and* a
+destination index, so `output_bins=0` takes the belt exactly as before (the
+acceptance is the no-harm gate). Pinned by the selfcheck leg
+`P227ac place floor (bin)`.
