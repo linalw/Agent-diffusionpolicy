@@ -163,6 +163,9 @@ scripts/selfcheck.sh; scripts/accept.sh
 * **诊断格不是速率**：同一配置加一行逐 tick 打印，6 集计数可差两次。
 * 带速格的"不接合"是**边界**，不是 0%。
 * 延迟必须按 `FRUIT_EVAL_LATENCY=auto` 评估；`d=0` 报的是机器没有的延迟。
+* **一集有两行 `[rl] episode N:`**：第一行是**宣告**（`... lychee grade=A d=2.8cm bin=0 arm=left y=+0.613
+  presentation=direct`），第二行是**结果**（带 `success= grasped= placed=`）。所以
+  `grep -c "rl] episode"` 会把一集**数成两集**——统计时按 `success=` 过滤（本页所有数字都这么做）。
 
 ## 8. 出处
 
