@@ -3101,6 +3101,19 @@ class PickAndPlaceTask:
         #: exits on its 200-tick budget (1.67 s) rather than on convergence. This is
         #: the vertical feed-forward that term implies. Zero is the shipped path.
         self._catch_z_ff = float(os.environ.get("FRUIT_CATCH_Z_FF", "0.0")) / 1000.0
+        #: P243 (`FRUIT_CATCH_TOL_AXIS=1`, default off): the catch-up's **exit
+        #: criterion** applied to the direction the task needs. P241/P242 measured
+        #: the shipped 3-D norm exit against a 6 mm tolerance while the hand holds a
+        #: **6.6 mm steady-state vertical error** - a gravity/reach limit the
+        #: controller cannot remove - so the loop waits for a number that never
+        #: arrives and exits on its 200-tick budget (1.44 s, P239). Offsetting the
+        #: command fixes the time but costs an 11 % runaway class (P242); **this
+        #: option moves nothing**: it accepts the belt-direction error at the shipped
+        #: tolerance and the vertical one at `FRUIT_CATCH_TOL_Z` (default 10 mm,
+        #: which contains the measured 6.6). The command is unchanged, so the
+        #: runaway region is never entered.
+        self._catch_tol_axis = os.environ.get("FRUIT_CATCH_TOL_AXIS", "0").strip() == "1"
+        self._catch_tol_z = float(os.environ.get("FRUIT_CATCH_TOL_Z", "0.010"))
         self._track_config = track_config_from_env(os.environ, self._track_source)
         #: Velocity relaxation time constant toward the belt's own speed [s];
         #: 0 disables the prior. 0.3 s follows a real manoeuvre inside a third of
@@ -15495,6 +15508,16 @@ class PickAndPlaceTask:
                     )
                     if catch_residual < catch_tol:
                         break
+                    if self._catch_tol_axis:
+                        #: P243: the axis-aware exit. `y` is the direction the
+                        #: catch must win (the belt); `z` carries a steady-state
+                        #: error the arm cannot remove, so it is held to its own
+                        #: bound instead of being folded into the norm.
+                        if (
+                            abs(float(catch_residual_vec[1])) <= catch_tol
+                            and abs(float(catch_residual_vec[2])) <= self._catch_tol_z
+                        ):
+                            break
                     # Direction-aware lead: only catch *up* when the tip is
                     # behind the fruit. When the tip is already downstream, a
                     # lead would command it further away from a fruit that is

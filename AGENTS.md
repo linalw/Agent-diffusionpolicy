@@ -8146,6 +8146,33 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P243 (2026-11-25, `logs/p243/`; one **default-off knob**, nothing adopted, no
+reference moved): the axis-aware exit recovers the 1.44 s with **no quality price** -
+and the runaways are an **x** excursion, so P242's association was wrong.**
+`FRUIT_CATCH_TOL_AXIS=1` replaces the catch-up's 3-D-norm exit with two per-axis
+conditions - **`|y| <= 6 mm`** (the belt direction, unchanged) and
+**`|z| <= 10 mm`** (the gravity droop, contained) - and **moves no command**. 12
+attempts, both seeds: **`catch ticks` 200 -> 21-42 on 11 of 12 (median 23)**,
+**`seat` 1.67 -> 0.17-0.34 s**, **11/12 placed**, i.e. **-1.44 s of ~13.3 s (-11 %)**
+at both seeds. **P2 falsified, usefully**: the registration predicted zero runaways
+on the argument that P242's came from the 6.6 mm offset; **there is one with the
+shipped command** - `ticks=69 residual=97.2mm (x=-96.9 y=+4.6 z=-7.0)`, i.e. a
+**97 mm across-belt excursion** with ordinary y and z. So the runaway class is
+**not** the offset's (P242's association was spurious: the components row did not
+exist before P241, so its two instances could not be inspected), it is **`x`**, and
+its rate across the three cells that print it is **~3/42 = 7 %**. **P1/P3/P4 PASS.**
+**The condition the win depends on, stated**: it works because at 0.08 the belt
+direction is already **5.2-5.8 mm inside 6 mm** - the loop was only ever blocked by
+`z` - so it is a **speed-dependent** recovery and will revert to the budget when the
+belt speeds up. **Ranking**: the axis exit **dominates** P242's command offset (same
+-1.44 s, command untouched, and the offset has no advantage now that the runaway is
+not its); it stays **default off** until a powered cell, and **the x excursion is the
+open object** on this axis (instrument exists, mechanism does not). Selfcheck
+**PASS**; `accept.sh` **fingerprint: matches**, its **459 `[fruit]` lines 459/459
+identical** to `logs/p227/accept_final.log`. Pins: `tasks.py` **`58460874`** (+ the
+`TASKS_MD5` follow); references **`61fb5202` / `61fb5202` / `18b101bf`** untouched;
+ckpt `p227_panda156`. Evidence `logs/p243/`.
+
 **P241/P242 (2026-11-25, `logs/p241/`, `logs/p242/`; one **default-off knob** plus
 the field that found it; **nothing adopted**, no reference moved): the 1.44 s
 catch-up tax is a **6.6 mm steady-state VERTICAL error**, and a constant command
