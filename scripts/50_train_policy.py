@@ -28,6 +28,15 @@ def main() -> int:
     parser.add_argument("--image-size", type=int, default=int(os.environ.get("IMG", "128")))
     parser.add_argument("--num-diffusion-steps", type=int,
                         default=int(os.environ.get("DIFFUSION_STEPS", "100")))
+    parser.add_argument(
+        "--num-skills", type=int,
+        default=int(os.environ.get("FRUIT_TRAIN_SKILLS", "5")),
+        help="skill-routed experts. 5 = the shipped MoE; **1 = a single expert and "
+             "no router** (P227ad: with the scripted primitive owning the contact "
+             "phase only the approach expert is ever executed, and the store's "
+             "place class is 42 windows of 23123, so the other four are dead "
+             "weight). num_skills=1 turns the router losses off.",
+    )
     parser.add_argument("--beta-schedule", choices=["linear", "cosine"],
                         default=os.environ.get("BETA_SCHEDULE", "cosine"),
                         help="noise schedule; cosine reaches ~zero alpha at t=max "
@@ -45,6 +54,7 @@ def main() -> int:
         image_size=args.image_size,
         num_diffusion_steps=args.num_diffusion_steps,
         beta_schedule=args.beta_schedule,
+        num_skills=int(args.num_skills),
     )
     return 0
 

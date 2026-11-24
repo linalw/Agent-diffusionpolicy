@@ -4852,6 +4852,7 @@ class SortingRLEnv:
         self._percept_err_vec = []
         self._percept_err_vec_close = []
         self._percept_last_err = float("nan")
+        self._fire_src_logged = False
         self._goal = self._goal_vector(
             target["position"], target["velocity"], target["diameter"], bin_index
         )
@@ -8264,12 +8265,22 @@ class SortingRLEnv:
                         [self._trigger_station[0], self._trigger_station[1], jaw[2]],
                         dtype=float,
                     )
+                _fire_pos, _fire_vel, _fire_src = self._fruit_for_trigger(
+                    self._sample
+                )
+                if self._goal_perception and not self._fire_src_logged:
+                    self._fire_src_logged = True
+                    self._say(
+                        f"[fire] source={_fire_src} "
+                        f"(goal_source={self._goal_source}) - the trigger reads the "
+                        f"{'tracker estimate' if _fire_src == 'percept' else 'simulator'}"
+                    )
                 intercept, intercept_info = should_fire(
                     self.trigger_settings,
-                    fruit,
+                    _fire_pos,
                     reference,
                     encoder_speed=encoder,
-                    measured_velocity=self.spawner.velocity(self._sample),
+                    measured_velocity=_fire_vel,
                     finger=finger,
                     jaw_pos=jaw,
                     station=self._trigger_station,
@@ -8302,12 +8313,13 @@ class SortingRLEnv:
                         presented_fruit = np.asarray(
                             self.spawner.position(presented), dtype=float
                         )
+                        p_pos, p_vel, _ = self._fruit_for_trigger(presented)
                         p_fire, p_info = should_fire(
                             self.trigger_settings,
-                            presented_fruit,
+                            p_pos,
                             reference,
                             encoder_speed=encoder,
-                            measured_velocity=self.spawner.velocity(presented),
+                            measured_velocity=p_vel,
                             finger=finger,
                             jaw_pos=jaw,
                             station=self._trigger_station,
@@ -8441,6 +8453,33 @@ class SortingRLEnv:
                 self._note_gate_refuse(
                     self._sample.index, gate_refuse, finger, distance
                 )
+
+    def _fruit_for_trigger(self, sample):
+        """`(position, velocity, source)` for the fire decision.
+
+        P227ad: **the trigger must not read the simulator when the goal is
+        measured.** With `FRUIT_GOAL_SOURCE=perception` the tracker already
+        publishes an estimate *at the current tick* (`predict_at(horizon)` with
+        the coast cap), so the fire decision uses the same numbers the policy
+        sees. Unset, this returns the simulator's state exactly as before - the
+        shipped path is unchanged, and the `source` tag is what lets a log name
+        which one it used.
+        """
+        if (
+            getattr(self, "_goal_perception", False)
+            and self._percept_pos is not None
+            and self._percept_vel is not None
+        ):
+            return (
+                np.asarray(self._percept_pos, dtype=float),
+                np.asarray(self._percept_vel, dtype=float),
+                "percept",
+            )
+        return (
+            np.asarray(self.spawner.position(sample), dtype=float),
+            np.asarray(self.spawner.velocity(sample), dtype=float),
+            "truth",
+        )
 
     def _note_skip(self, t_arrive: float) -> None:
         """P227aa: one row per skipped attempt (reporting only, zero reads)."""

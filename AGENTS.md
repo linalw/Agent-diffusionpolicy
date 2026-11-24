@@ -8059,6 +8059,51 @@ scripted acceptance is unaffected. Pinned by `P227ac shallow rim`; the scripted
 single-arm gate (`scripts/283_single_arm_gate.sh`, which runs the *scripted* bins
 cell through the same `_place_low`) is the other consumer.
 
+**P227ad (2026-11-24, `logs/p227/`; a training flag, a trigger wire and a
+measured simplification - **no default flipped**, references untouched): the owner
+asked two questions that turned out to be the same question - *the fruit's position
+and velocity must come from the model, reality will not give truth*, and *if the
+model only approaches, are the other skill experts useless?* - and both are now
+answered with measurements.** **(1) The router's other four experts are dead weight
+at deployment, and that is measured**: on 400 store windows the router switches by
+phase with 0.93-0.99 confidence (approach **0.982**, grasp **0.925**, lift
+**0.992**) but **only the approach chunk is ever executed** (the primitive takes over
+at the handover), and the store has **42 place windows of 23 123** and **no recovery
+windows** - two of the five experts are barely trained. **Route A was built and
+measured**: `--num-skills` (env `FRUIT_TRAIN_SKILLS`) with **1** expert and the
+router losses switched off (with one expert `cross_entropy(1 logit, label 3)` is an
+out-of-range index - on CUDA that surfaces as `device-side assert triggered` at the
+next kernel, which is how the first run died). Same store, same 12 epochs:
+**3.80 M params (-17 %)**, **best val 0.0266** (vs 0.0276), latency **36.5 / 65.0 ms**
+against **29.3 / 62.8**, all-window action error **0.105 vs 0.100**, and the
+**approach phase - the only one deployed - 0.075 vs 0.061 rad**. **The compute does
+not change and that is the finding**: `_mix_experts` skips every expert whose weight
+is ~0, so the 5-expert model already runs one expert per forward - the MoE costs
+**parameters, not time**. Lane endpoint 6 episodes/arm: **1 expert 11/12** against
+**5 experts 12/12** (a draw at n=12), so **route A is a simplification and the
+default stays the 5-expert model**; `--num-skills 1` is the documented smaller form.
+**(2) The decision layer now runs with no simulator truth in it.** The goal already
+had `FRUIT_GOAL_SOURCE=perception` (depth + mask -> trimmed sphere fit ->
+`FruitTracker`, published every observation tick as `predict_at(horizon)`, i.e. a
+predicted *current* position, coast-capped). The missing wire was the **fire
+decision**: new `_fruit_for_trigger()` makes **both** `should_fire` call sites read
+the tracker's estimate for position and velocity, with a per-attempt
+`[fire] source=percept|truth` row so the log cannot confuse them; unset returns the
+simulator's state bit for bit. Measured: **6/6 `[fire] source=percept` per cell and
+5/6 placed at both seeds (10/12 vs 12/12 with truth - a draw at n=12)**, the
+estimate at **-0.118..-0.122 m/s against the belt's -0.120 (1.7 %)**, diameters
+28.4-61.0 mm against a 29.6-69.6 mm pool, sphere-fit rms **0.21-0.51 mm**,
+`missing=0`, 0-2 rejected frames per attempt; the two losses are **`grasped=False`
+at normal leads** (2.04 / 2.06 s), the grip class the record owns. **The honest
+limit**: the **contact layer is still truth-fed** - `grasp_carry_place` reads
+`spawner.position/velocity` (117 sites) - so the split is *decision* (goal + fire,
+model-derived) versus *contact* (scripted, truth-fed); closing the second half means
+giving the primitive a hand-state + force path instead of a fruit position, which is
+the `SIM_LIMIT.md` work and the named next step, not a claim. Pins: `train.py`,
+`scripts/50_train_policy.py`, `rl_env.py`, `scripts/selfcheck.sh`
+(`P227ad trigger source`); checkpoint `checkpoints/p227_panda1e` (3.80 M, val
+0.0266). References **61fb5202 / 61fb5202 / 18b101bf** untouched.
+
 **P142 (2026-11-11, `logs/p142/`; two defect fixes + a declared metric,
 **nothing adopted, no reference moved**): the direct lane's two *bookkeeping*
 failures are removed and its zero is shown to be the station reselect's timing.

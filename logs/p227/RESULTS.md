@@ -1548,3 +1548,93 @@ placed / failed / not-this-arm's - and a two-way denominator silently books the
 third as the second. Any comparison of two cells that differ in *whether they hand
 off* must either exclude the hand-offs from both denominators or report all three
 counts.
+
+### 22.18 Route A: removing the skill router costs parameters, not compute, and does not help the phase that is used
+
+The owner's observation: with the scripted primitive owning the contact phase, the
+model only ever executes its **approach** chunk - so are the other four skill
+experts dead weight? Measured on the router itself (400 random store windows,
+`last_router_weights`):
+
+| true phase | mean router weights (approach, grasp, lift, place, recovery) | argmax |
+|---|---|---|
+| approach (n=143) | **[0.982**, 0.009, 0.006, 0.002, 0] | 143/143 -> expert 0 |
+| grasp (n=39) | [0.027, **0.925**, 0.046, 0.002, 0] | 38/39 -> expert 1 |
+| lift (n=218) | [0.001, 0.005, **0.992**, 0.002, 0] | 217/218 -> expert 2 |
+| **place** | **0 windows sampled** (the store has **42 of 23 123**) | - |
+| **recovery** | **0 windows** | - |
+
+So the router works (0.93-0.99 confidence by phase), and at deployment **expert 0
+is the only one whose output is executed** - the other four are computed-and-
+discarded, and two of them are barely trained (place = 0.18 % of the store,
+recovery = none). The observation is correct.
+
+**Route A was trained and measured**: `--num-skills 1` (new; with one expert the
+router losses are switched off, because `cross_entropy(1 logit, label 3)` is an
+out-of-range index - on CUDA that surfaces as `device-side assert triggered` at the
+next kernel, which is how the first attempt died). Same store, same 12 epochs, same
+recipe:
+
+| | 5 experts (shipped) | **1 expert** |
+|---|---|---|
+| parameters | 4.59 M | **3.80 M** (-17 %) |
+| best val loss | 0.0276 | **0.0266** |
+| inference p50 / p95 (DDIM 16) | **29.3 / 62.8 ms** | 36.5 / 65.0 ms |
+| action error, all windows | **0.100 rad** | 0.105 |
+| action error, **approach** (the phase deployed) | **0.061 rad** | 0.075 |
+| phase agreement | 95 % | **97 %** |
+
+**The compute is unchanged, and that is the finding**: `_mix_experts` **skips any
+expert whose weight is ~0**, so the 5-expert model already runs **one** expert per
+forward. The MoE costs **parameters, not time**, and its removal does not make
+inference faster (the quoted p50 difference is within this box's spread - p95s
+agree). The approach phase - the only one executed - is **0.014 rad worse**.
+
+**The lane endpoint, both routes measured** (6 episodes per arm, the shipped cell):
+
+| cell | model | goal / trigger source | seed 5 | seed 902 | total |
+|---|---|---|---|---|---|
+| A (baseline) | 5 experts | truth | 6/6 | 6/6 | **12/12** |
+| B (route A) | **1 expert** | truth | 6/6 | 5/6 | **11/12** |
+| C (perception) | 5 experts | **tracker estimate** | 5/6 | 5/6 | **10/12** |
+
+All three clear the 0.60 floor. **The differences are a draw at these n** (12 vs 11
+vs 10 of 12; Fisher on 12/12 against 10/12 is p ~ 0.5), so:
+
+* **Route A is a simplification, not a win.** -17 % parameters, a slightly better
+  val loss (0.0266 vs 0.0276), the same latency, and **0.014 rad worse on the
+  approach phase** - the one phase deployment executes. **The default stays the
+  5-expert model**; `--num-skills 1` is the documented, measured smaller form (and
+  the honest one: with the primitive owning contact, four of the five experts are
+  computed-and-discarded, two of them barely trained).
+
+### 22.19 The decision layer now runs with no simulator truth in it
+
+The owner's other directive: the fruit's position and velocity must come from the
+model's own estimate, because reality will not hand them over. Two wires were
+needed:
+
+1. **the goal** - `FRUIT_GOAL_SOURCE=perception` (already existed): depth + instance
+   mask -> trimmed sphere fit -> `FruitTracker`, published **every observation
+   tick** as `predict_at(horizon)` (a predicted *current* position, coast-capped),
+   so the policy conditions on the estimate and not on a stale measurement;
+2. **the fire decision** - new `_fruit_for_trigger()` (P227ad): with the perception
+   goal armed, **both** `should_fire` call sites take the tracker's estimate for the
+   position and the velocity instead of `spawner.position/velocity`, and the attempt
+   prints one `[fire] source=percept|truth` row so a log cannot confuse them. Unset,
+   the helper returns the simulator's state exactly as before.
+
+**Measured (cells C1/C2)**: 6/6 `[fire] source=percept` per cell, **5/6 placed at
+both seeds** (10/12 pooled, against 12/12 with truth - a draw at n=12). The estimate
+itself: velocity **-0.118 .. -0.122 m/s** against the belt's **-0.120** (1.7 %),
+diameters 28.4-61.0 mm against a 29.6-69.6 mm pool, sphere-fit rms **0.21-0.51 mm**,
+`missing=0` frames, 0-2 `rejected` per attempt. The two losses are **`grasped=False`
+at normal leads** (`t_arrive` 2.04 and 2.06 s) - the grip class the record already
+owns, not a perception failure.
+
+**What is still truth, stated so the claim is not over-read**: the **contact
+layer** - `grasp_carry_place` still reads `spawner.position/velocity` (117 sites).
+The split that now holds is *decision* (goal + fire, model-derived) versus *contact*
+(scripted, truth-fed). Closing the second half means giving the primitive its own
+hand-state + force path rather than a fruit position - which is the `SIM_LIMIT.md`
+work, and is the named next step, not something this cell claims.

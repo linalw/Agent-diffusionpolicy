@@ -80,6 +80,14 @@ def train(
     router_loss_weight: float = 0.1,
     balance_loss_weight: float = 0.01,
 ) -> str:
+    if int(num_skills) <= 1:
+        #: P227ad: a single expert has nothing to route - the softmax is 1.0 by
+        #: construction - and the hard-routing term would index a 5-class label
+        #: into a 1-class one-hot. Zero the routing losses so the run is a plain
+        #: conditional UNet with one residual expert.
+        hard_epochs = 0
+        router_loss_weight = 0.0
+        balance_loss_weight = 0.0
     torch.manual_seed(seed)
     np.random.seed(seed)
     device = device or ("cuda" if torch.cuda.is_available() else "cpu")
@@ -148,8 +156,16 @@ def train(
             )
             loss = torch.nn.functional.mse_loss(predicted, noise)
             logits = model.last_router_logits
-            router_loss = torch.nn.functional.cross_entropy(logits, skill)
-            balance = model.load_balancing_loss(model.last_router_weights)
+            if int(num_skills) > 1:
+                router_loss = torch.nn.functional.cross_entropy(logits, skill)
+                balance = model.load_balancing_loss(model.last_router_weights)
+            else:
+                #: P227ad: with one expert there is no routing to learn, and
+                #: `cross_entropy(1 logit, label 3)` is an **out-of-range index**
+                #: - on CUDA that surfaces as `device-side assert triggered` at the
+                #: next kernel, not at the gather. Keep the metrics defined.
+                router_loss = torch.zeros((), device=loss.device)
+                balance = torch.zeros((), device=loss.device)
             total = loss + router_loss_weight * router_loss
             if not hard:
                 total = total + balance_loss_weight * balance
@@ -162,7 +178,10 @@ def train(
             metrics["router_loss"] += float(router_loss.item()) * action.shape[0]
             metrics["balance"] += float(balance.item()) * action.shape[0]
             with torch.no_grad():
-                correct = (logits.argmax(dim=-1) == skill).float().sum().item()
+                correct = (
+                    (logits.argmax(dim=-1) == skill).float().sum().item()
+                    if int(num_skills) > 1 else float(action.shape[0])
+                )
             metrics["router_acc"] += correct
             metrics["seen"] += action.shape[0]
 
