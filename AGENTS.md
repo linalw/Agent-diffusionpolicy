@@ -8146,6 +8146,37 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P253 (2026-11-25, `logs/p253/`; four fresh-seed continuous cells, **no `src/` change**):
+**0.08 deployment = 49/50 = 98 %** on four seeds, and the 0.12 step is a **cadence**
+limit, not the grasp.** One continuous episode of 10 picks per cell, the P227z/P249
+recipe, `FRUIT_SKIP_LATE` at its new single-arm default (0): **0.08 - s901 9/10,
+s902 10/10, s903 10/10, s904 10/10 (+ the new-default confirmation 10/10) = 49/50 =
+98.0 %**, **0 hand-offs**, `gap_ticks` median **267-269** against the 263-tick pure
+return, `[cycle] total` **11.74-12.12 s** - **no cell below 9/10**. **0.12 - s901
+8/10, s902 7/10, s903 9/10, s904 7/10 = 31/40 = 77.5 %** over four seeds, confirming
+P252's 75 % (against **55 %** with the multi-arm skip rule). **And the 0.12 losses are
+a different class**: the `FRUIT_FALL_DIAG` cell classifies `fruit fell off the line` for
+the first time - `[fall] idx=11 pos=(+0.273,-0.897,+0.906) belt_top=1.170 held=False
+attached=False`, i.e. **`y=-0.897` is past the despawn (-0.70) and `z=0.906` is 0.26 m
+below the belt top: the fruit rode past the station uncaught and fell off the end** -
+**not** the park slot (P139's artefact) and **not** a dropped payload. So the 0.12 split
+is **2 pass-by (cadence) + 3 grip** (`did not follow the gripper` on 6.1-6.7 cm *and*
+3.4-4.4 cm - **both size ends, so not the 2.8 cm class**), and the term the pass-bys
+point at is the **arm's 263-tick return against the fruit's arrival** - P252's topology
+finding, now with position evidence. **The next lever at 0.12 is therefore the
+inter-pick return, not the small-fruit grasp.** **An instrument gap, named**: motion
+quality of the no-skip arm is **still unmeasured** - the existing `[emit]` row
+(`FRUIT_EMIT_DIAG=1`, P53) **is unusable in continuous mode**: its counters reset at
+every pick boundary and the run prints one row for the last pick with `ticks=1`, which
+is not a measurement; the fix is an instrument change (accumulate across picks or print
+per pick) and its own default-off phase. **Reading rule**: each cell is one draw and
+they are not independent, but five cells at 0.08 with none below 9/10 is the honest
+aggregate, and the two speeds differ by **20.5 points** - the size of the cadence step,
+not of a grasp difference. Pins unchanged: `tasks.py` **`b68ac8d1`**, `rl_env.py`
+`TASKS_MD5` follow, references **`61fb5202` / `61fb5202` / `18b101bf`**, ckpt
+`p227_panda156` - `accept.sh` stands at P250's **459/459 + `fingerprint: matches`**.
+Evidence `logs/p253/` (+ `logs/p253/p253_report.py`).
+
 **P252 (2026-11-25, `logs/p252/`; the **deployment shape** measured, no `src/` change -
 `--continuous` and `FRUIT_CONTINUOUS_TRANSIT` already existed): continuous, no per-pick
 reset, **19/20 = 95 % at 0.08 m/s and ~12.0 s/cycle**.** Every number this engagement
