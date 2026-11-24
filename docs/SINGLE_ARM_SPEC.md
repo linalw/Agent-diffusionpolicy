@@ -121,5 +121,5 @@ scripts/selfcheck.sh; scripts/accept.sh
 
 `docs/ARCHITECTURE_4T.md` §12（架构与实测状态）、`AGENTS.md` 的 P228–P247 段（每项的判决与钉子）、
 `logs/p228`–`logs/p246`（原始日志）。所有参考未被本段改动：
-`configs/motion_reference.json` = `..._twoline.json` = `30fb99f8`、
-`..._single.json` = `8952c320`。
+`configs/motion_reference.json` = `..._twoline.json` = **`61fb5202`**、
+`..._single.json` = **`18b101bf`**（P136 起；`30fb99f8` / `8952c320` 是 P136 之前的存档）。
