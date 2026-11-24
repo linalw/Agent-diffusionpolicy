@@ -15435,9 +15435,6 @@ class PickAndPlaceTask:
                     else os.environ.get("FRUIT_DYNAMIC_CATCH_LEAD", "0.25")
                 )
                 catch_residual = float("inf")
-                #: P241: initialised with the scalar so the `[catch]` row cannot
-                #: NameError on a zero-budget loop.
-                catch_residual_vec = np.zeros(3)
                 #: P135: the last closing lead and the tick count, defined even
                 #: when the loop breaks on its first tick (the `[catch]` row).
                 lead_now = catch_lead_s
@@ -15497,25 +15494,19 @@ class PickAndPlaceTask:
                             ]
                         )
                     catch_residual = float(np.linalg.norm(tip - desired_tip))
-                    #: P241: the residual's **components**. P240 extended the
-                    #: belt-direction lead by exactly the measured lag and the
-                    #: norm did not move (and one attempt ran away), so the norm
-                    #: cannot say whether the floor is `y` (still chasing the belt)
-                    #: or `z` (the hand cannot reach the commanded standoff). One
-                    #: subtraction on arrays this line already has.
-                    catch_residual_vec = np.asarray(tip, dtype=float) - np.asarray(
-                        desired_tip, dtype=float
-                    )
                     if catch_residual < catch_tol:
                         break
                     if self._catch_tol_axis:
-                        #: P243: the axis-aware exit. `y` is the direction the
-                        #: catch must win (the belt); `z` carries a steady-state
-                        #: error the arm cannot remove, so it is held to its own
-                        #: bound instead of being folded into the norm.
+                        #: P243's axis-aware exit. `y` is the direction the catch
+                        #: must win (the belt); `z` carries a steady-state error the
+                        #: arm cannot remove, so it is held to its own bound instead
+                        #: of being folded into the norm. Two scalar differences,
+                        #: not a vector allocation (P244: the components' per-tick
+                        #: subtraction was the instrument-suspect term).
                         if (
-                            abs(float(catch_residual_vec[1])) <= catch_tol
-                            and abs(float(catch_residual_vec[2])) <= self._catch_tol_z
+                            abs(float(tip[1]) - float(desired_tip[1])) <= catch_tol
+                            and abs(float(tip[2]) - float(desired_tip[2]))
+                            <= self._catch_tol_z
                         ):
                             break
                     # Direction-aware lead: only catch *up* when the tip is
@@ -15609,12 +15600,20 @@ class PickAndPlaceTask:
                 if self._track_diag:
                     # P135: the convergence cost of the catch-up - the number a
                     # "faster correction" claim has to move. Off by default.
+                    # P244: the components are computed **here, once**, from the
+                    # loop's surviving `tip`/`desired_tip` - the diagnostic must not
+                    # cost a per-tick subtraction (that was the instrument-suspect
+                    # term in the excursion census; shipped cells show 0/30 with it
+                    # absent and 4/42 with it per-tick).
+                    _vec = np.asarray(tip, dtype=float) - np.asarray(
+                        desired_tip, dtype=float
+                    )
                     say(
                         f"[catch] idx={int(sample.index)} arm={arm_name} "
                         f"ticks={catch_used} residual={catch_residual * 1000:.1f}mm "
-                        f"(x={float(catch_residual_vec[0]) * 1000:+.1f} "
-                        f"y={float(catch_residual_vec[1]) * 1000:+.1f} "
-                        f"z={float(catch_residual_vec[2]) * 1000:+.1f}) "
+                        f"(x={float(_vec[0]) * 1000:+.1f} "
+                        f"y={float(_vec[1]) * 1000:+.1f} "
+                        f"z={float(_vec[2]) * 1000:+.1f}) "
                         f"lead={lead_now * 1000:.0f}ms"
                     )
                 if (

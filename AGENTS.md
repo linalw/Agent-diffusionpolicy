@@ -8146,6 +8146,41 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P245 (2026-11-25, `logs/p245/`; one **instrument fix**, no behaviour change):
+the per-tick subtraction is **exonerated**, the 1.44 s recovery **stands**, and the
+last open object on this axis is **seed 901's first catch**.**
+`FRUIT_TRACK_DIAG=1` with the residual's components now computed **once at the
+loop's exit** (P244 suspected the per-tick `tip - desired_tip` of perturbing the
+first catch). 12 attempts, both seeds: **the excursion survives** - `54.5 mm
+(x=+39.2 y=-36.0 z=+12.2)`, 200 ticks - on **seed 901's episode 0**, with 11/12
+placed and the other eleven catches at the shipped floor (6.5-6.7 mm / 200 ticks,
+two at 27-28). **So the instrument is not the cause**, and P244's suspicion is
+refuted by its own control. **The association that is left is perfect and
+unexplained**: every excursion across P241-P245 is **seed 901's first catch**
+(41.6 / 419.1 / 97.2 / 1079.4 / 54.5 mm), **none** at seed 902's first (5.8-7.1),
+and the P236-P240 cells - which ran seed 901 **without** `FRUIT_TRACK_DIAG` - show
+**0/6** there. **It has no mechanism**: on the direct lane `_track_diag` gates only
+(i) `_track_row`, which is called from **`note_result`** (`tasks.py:4071`) and the
+direct path never runs it, and (ii) the `[catch]` row, which prints **after** the
+loop it would have to perturb - a print issued after the fact cannot move the ticks
+before it. Five of five at p = 0.5 is 1 in 32: unlikely, and still not a mechanism.
+**What the arc establishes with the excursion out of the way**: the catch-up's exit
+is a **6.6 mm vertical steady-state error** (P241), the shipped loop therefore exits
+on its **200-tick budget** (P239), and the **axis-aware exit recovers 1.44 s on 11 of
+12 with the command untouched** (P243) - the excursion is neither the component
+field (this phase) nor the command offset (P243/P245), so the recovery stands. **The
+only open object on this axis is seed 901's first catch**, which is an
+**initialisation** question, not a lever: once per run, first episode, one seed,
+0-1 placement. Its instruments already exist (`FRUIT_DIRECT_START_ALIGN` / the
+start-pose family, the reset's teleport-plus-settle, `FRUIT_TRACK_MEAS_WAIT`); the
+cheapest discriminator is a **1-episode cell per seed** reading the cycle's
+`descent` for episode 0. **Not run** - recorded rather than opening a sixth sub-arc
+on one seed's first attempt. Selfcheck **PASS (0 failures, 1 skipped)**;
+`accept.sh` **fingerprint: matches**, its **459 `[fruit]` lines 459/459 identical**
+to `logs/p227/accept_final.log`. Pins: `tasks.py` **`9ce34845`** (+ the `TASKS_MD5`
+follow); references **`61fb5202` / `61fb5202` / `18b101bf`** untouched; ckpt
+`p227_panda156`. Evidence `logs/p245/`.
+
 **P244 (2026-11-25, `logs/p244/`; measurement only, no `src/` change): the
 "7 % x excursion" is **instrument-suspect and WITHDRAWN** - P243's class claim does
 not survive the audit.** The four gross catch-up excursions are **41.6 / 97.2 /
