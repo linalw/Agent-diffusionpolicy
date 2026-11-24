@@ -1360,24 +1360,27 @@ being the return transit and the three rules**:
 | 22.10 (`skip26`, **confounded**) | **off** (teleport) | on | 25/26 | 120-150 |
 | 22.14 (`video_panda_final`) | **on** | **on** | **13/26** | 263-647 |
 
-**The three rules are a safety envelope with no count benefit, and that is now
-measured without a confound**: transit on, rules off 16/26 against transit on,
-rules on **13/26**, Fisher **p = 0.577**. They bound the command and refuse
-doomed attempts; they do not place more fruit.
+**CORRECTED (22.17): the "16 vs 13" comparison uses the wrong denominator.** The
+raw placed-per-offered count treats a **hand-off as a failure**, which is exactly
+what the owner's multi-arm semantics say it is not. Counted properly, the skip rule
+is doing its job:
 
-**What the teleport was worth is the phase's other correction**: 25/26 against
-13/26 is Fisher **p = 0.0003**, and 25/26 against 16/26 is **p = 0.0048**. A
-teleport returns the arm to the wait pose in one tick, so the next fruit is never
-missed while the arm travels - i.e. **the continuous cell's count is dominated by
-the return's cost**, and any cell that teleports is not a continuous cell. This is
-the same mechanism 22.12 found from the other side (slowing the return 90 -> 180
-ticks cost 16 of 26 placements).
+| cell | offered | placed | skipped (`no lead`) | attempted | **placed / attempted** | handed off |
+|---|---|---|---|---|---|---|
+| rules off (22.8) | 26 | 16 | 0 | 26 | **16/26 = 62 %** | 0 % |
+| rules on | 26 | 13 | **10** | **16** | **13/16 = 81 %** | **38 %** |
 
-So the honest summary of the whole `P227aa` family: **the return is a throughput
-object, not a cosmetic one** (2.2 s per pick, and the difference between 13 and 25
-placements at n=26), and the safety rules are worth shipping because they bound
-what the arm can be commanded to do - measured 6/6 in the 6-pick arm and neutral
-here - not because they raise the rate.
+So the line **places 81 % of what it attempts** (against 62 % when it attempts
+everything) and **hands off 38 %** of the offered fruit to the next arm - the
+behaviour the owner asked for. The class ledger says the same: `grip/carry loss`
+**7 -> 1** (Fisher **p = 0.0496** on offered fruit), i.e. attempting a fruit that
+has already arrived late is what produces the grip failures.
+
+**What is still not claimed**: the placed-per-attempted difference (13/16 vs 16/26)
+is **p = 0.30** at n=26 - a direction, not a rate. What *is* claimed is the
+hand-off (10/26) and the grip-loss reduction (p = 0.05), and that the earlier
+"the rules do not buy anything" sentence was measured on a denominator that
+penalises the very behaviour the rules implement.
 
 **The clip that carries the return** (`logs/video_panda_final/`, 3965 frames,
 **4 min 24 s** at 15 fps, `gap_ticks` 263-647 on every transition, 13/26 placed)
@@ -1519,3 +1522,29 @@ that pair is the thing to keep together if either value is ever retuned.
 
 Pinned by the selfcheck leg `P227ac shallow rim` (the default resolves to 0.030 and
 `FRUIT_BIN_WALL_HEIGHT` overrides it).
+
+### 22.17 The denominator question, raised by the owner's "is the model even driving?" question
+
+Answering "what does the model actually do" forced a recount of the delivered clip,
+and the recount found that **the skip rule fired 10 times in it** (the owner's
+question surfaced this: 12 rows with `decision == ticks` are the 16-tick skips, not
+model failures). That exposed a measurement error of mine: 22.14 compared the two
+cells on **placed per offered**, which counts a deliberate hand-off as a failure.
+The correct table, with `skipped: no lead` separated:
+
+| cell | offered | placed | skipped | attempted | placed/attempted | handed off |
+|---|---|---|---|---|---|---|
+| rules off (22.8) | 26 | 16 | 0 | 26 | **62 %** | 0 % |
+| rules on (delivered clip) | 26 | 13 | **10** | **16** | **81 %** | **38 %** |
+
+`grip/carry loss` **7 -> 1** (Fisher **p = 0.0496**), i.e. the failures that
+disappear are the ones caused by attempting a fruit that had already arrived.
+**The placed-per-attempted difference is p = 0.30** at n=26: a direction, not a
+rate; the hand-off count and the grip-loss reduction are the claims.
+
+**Read rule, and it is the same mistake as 22.12/22.13's image metric in a
+different coat**: a cell with a **hand-off** has three outcomes, not two -
+placed / failed / not-this-arm's - and a two-way denominator silently books the
+third as the second. Any comparison of two cells that differ in *whether they hand
+off* must either exclude the hand-offs from both denominators or report all three
+counts.

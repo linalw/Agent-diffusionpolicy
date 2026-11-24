@@ -7950,15 +7950,24 @@ it **does not separate the two cases either** (67 events above 20 grey levels in
 the clip with the return against 79 in the one that teleports, 242 vs 165 frames
 over threshold - a closing gripper, a catch and a snap look alike). **Read rule:
 a continuous clip's continuity is proved by `gap_ticks` or by a joint trace, never
-by an image metric.** **The un-confounded counts** (26 picks, seed 902, one reset,
-the only variables being the transit and the three rules): transit **on**/rules
-off **16/26**, transit **on**/rules **on 13/26** (Fisher **p = 0.58**), transit
-**off**/rules on **25/26** - so **the three rules are a safety envelope with no
-count benefit, and the teleport is what inflates a count** (25 vs 13, **p =
-0.0003**; 25 vs 16, **p = 0.0048**) because it returns the arm in one tick. 22.10's
-16 -> 25 is therefore **confounded and is marked so in `logs/p227/RESULTS.md`**;
-the honest sentence is 22.12's, one level up: **the return is a throughput
-object** (2.2 s per pick, 13 vs 25 placements at n = 26), not a cosmetic one.
+by an image metric.** **The counts are three-way, and my first read of them was wrong** (26 picks, seed
+902, one reset, only the transit and the three rules varying): transit **on**/rules
+off **16 placed of 26 offered, 0 skipped**; transit **on**/rules **on 13 placed, 10
+skipped (`no lead`), 16 attempted**; transit **off** (teleport)/rules on **25
+placed, 0 skipped**. A **hand-off is not a failure** - it is the owner's multi-arm
+semantics - so the right denominators are **placed per attempted** and the hand-off
+rate: **81 % (13/16)** with the rules against **62 % (16/26)** without, having
+handed **38 %** of the offered fruit to the next arm, and the class that disappears
+is exactly the doomed attempt (`grip/carry loss` **7 -> 1**, Fisher **p = 0.0496**);
+the placed-per-attempted difference itself is **p = 0.30** at n = 26, a direction
+and not a rate. **The teleport is still what inflates a raw count** (25 vs 13, **p =
+0.0003**; 25 vs 16, **p = 0.0048**) because it returns the arm in one tick, and
+22.10's 16 -> 25 stays **confounded and marked so in `logs/p227/RESULTS.md`**. **The
+read rule**: a cell with a hand-off has three outcomes (placed / failed / not-this-
+arm's), and a two-way denominator books the third as the second - the same class of
+error as 22.12/22.13's image metric, in a different coat. The honest sentence one
+level up is 22.12's: **the return is a throughput object** (2.2 s per pick), not a
+cosmetic one.
 **Two guards ship**: `121_policy_video.py` prints `[video] WARNING: --continuous
 without FRUIT_CONTINUOUS_TRANSIT=1 - every pick boundary will TELEPORT the arm
 back to the wait pose ...` at the one call site a demo uses (the knob stays opt-in
