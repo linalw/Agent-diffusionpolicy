@@ -8146,6 +8146,32 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P246 (2026-11-25, `logs/p246/`; a **reading of existing logs**, no run, no `src/`
+change): the first-attempt excursion is **not initialisation, not the diagnostic,
+not attributable** - and is closed as open with its bounds measured.** P245's
+"initialisation" hypothesis (first fruit far upstream + arm parked, catch-up budget
+short) is **refuted on the disk**: every run's `episode 0` row prints its fruit and
+arrival, and the **same `lychee grade=A d=2.8cm arm=left y=+0.596`** appears in a
+**clean** cell (P236) and in an **excursion** cell (P245), while seed 902's first
+fruit is **further** upstream (`strawberry y=+0.610`) and clean. **The other named
+mechanisms are refuted too**: not the catch-row diagnostic (P239/P240 ran it, 18
+attempts clean; P245 ran only it and is not), not the cycle report (P241-P244 had it
+and all show one), not the per-tick component subtraction (P245 removed it and the
+excursion stays), not the command offset (it appears on the shipped command). **No
+measured variable separates the clean cells from the excursion cells**, so the class
+is **real, reproducible in some runs, and unattributed**: at most **one episode per
+run** (the first), **0-1 placement**, never in the five later episodes. **Recorded
+as open with its bounds, not narrated as a lever** - the record's rule is that an
+unexplained class is not a lever, and **no rate is quoted** for it (the earlier
+"7 %" was withdrawn in P244 and this phase removes the last mechanism that could
+have supported a variant). **Unchanged for the objective**: 0.08 **11/12 = 91.7 %**,
+cycle ~13.3 s; the catch-up's exit is a **6.6 mm vertical steady-state error**
+(P241); the shipped loop exits on its **200-tick budget** (P239); the **axis-aware
+exit recovers 1.44 s on 11 of 12 with the command untouched** (P243) → cycle
+**~11.9 s (-11 %)**. Pins unchanged: `tasks.py` **`9ce34845`**, `rl_env.py`
+untouched; references **`61fb5202` / `61fb5202` / `18b101bf`**; ckpt
+`p227_panda156`. Evidence `logs/p246/`.
+
 **P245 (2026-11-25, `logs/p245/`; one **instrument fix**, no behaviour change):
 the per-tick subtraction is **exonerated**, the 1.44 s recovery **stands**, and the
 last open object on this axis is **seed 901's first catch**.**
