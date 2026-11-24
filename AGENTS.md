@@ -8146,6 +8146,32 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P240 (2026-11-24, `logs/p240/`; measurement only, no `src/` change): the
+catch-up's residual is **not** a following lag - the belt-direction lead does not
+move it, and a larger lead runs away.** `FRUIT_DIRECT_CATCH_LEAD` 0.25 -> **0.33**
+(+82 ms, exactly the measured 6.6 mm / 0.08 m/s lag), seed 901 x 3, both arms
+instrumented: **the residual is unchanged (6.6 / 6.7 mm)**, `catch ticks` stays
+**200**, `seat` stays **1.67 s** - and **one attempt runs away to 102.3 mm** and
+costs a placement (**2/3 against 3/3**). So **P1 is falsified**: a pure time lag
+would shrink when the lead is extended; this one is invariant, i.e. its dominant
+component is in a direction the lead cannot touch. **The hypothesis this leaves**
+(not tested here): the stop point is `fruit + [0, 0, standoff]` (P227o's fix, 42 mm
+on this hand), so a **z** error explains everything measured - the residual is a
+**floor** at 6.6-6.7 mm that no lead moves, 0.6 mm above a round 6 mm tolerance,
+and (P239) `seat` is bimodal only because two attempts happened to cross 5.7-5.8.
+**The instrument is one field**: the residual's **components** (`x= y= z=`) in the
+`[catch]` row - one subtraction on arrays the row already has - and it decides
+between "the lead is still wrong" (y) and "the hand cannot reach the commanded
+standoff" (z). **Not added this phase**, deliberately: the phase's lesson is that
+a mechanism claim needs its discriminating instrument first. **Also closed**: the
+docstring sentence "a 0.18 s lead left the tip riding ~6-7 mm behind the fruit" is
+a **description** of the floor, not a cure - the 6-7 mm is reproduced at **two**
+leads; and `FRUIT_DIRECT_CATCH_MAX = 0.035 m` is load-bearing (it is what the
+overshoot runs into, which is why the failure is a runaway and not a bias). Pins
+unchanged: `tasks.py` **`e72b2c7c`**, `rl_env.py` untouched; references
+**`61fb5202` / `61fb5202` / `18b101bf`**; ckpt `p227_panda156`. Evidence
+`logs/p240/`.
+
 **P239 (2026-11-24, `logs/p239/`; measurement only, no `src/` change): the catch-up
 exits on its **budget**, not on convergence - the exit tolerance sits below the
 controller's own steady-state lag.** `FRUIT_CYCLE_REPORT=1` + `FRUIT_TRACK_DIAG=1`
