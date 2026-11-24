@@ -17431,6 +17431,7 @@ class PickAndPlaceTask:
                     f"fingertip_z={_tip:.3f} "
                     f"low_need={float(low_info.get('need', float('nan'))):+.3f} "
                     f"low_drop={float(low_info.get('drop', 0.0)):.3f} "
+                    f"bin_hold={int(bool(low_info.get('bin_hold', False)))} "
                     f"below_floor={float(_tip) - _floor:+.3f} "
                     f"below_rim={'%.3f' % (_rim and float(_tip) - _rim) if _rim is not None else 'n/a'}"
                 )
@@ -17855,6 +17856,20 @@ class PickAndPlaceTask:
             "ticks": 0,
         }
         need = float(info["need"])
+        #: P227ac, **owner decision A (2026-11-24): a bins cell does NOT take the
+        #: accompanied descent.** The release stays above the bin rim and the
+        #: payload falls the ~0.20 m onto the bin floor, because the alternative -
+        #: `floor = bin_floor_top_z` - stops the payload at floor+25 mm and drives
+        #: the pads **0.19 m below the rim, into the box**, which is the reach the
+        #: owner rejected. Made **explicit** rather than left to arithmetic: until
+        #: this branch the ship was correct only because `output_belt_top_z`
+        #: (1.35) happens to sit above a bins payload's bottom, so changing the bin
+        #: geometry would have flipped the behaviour silently. `low_drop=0` is
+        #: therefore a decision here, and `FRUIT_PLACE_HEIGHT_DIAG=1` prints
+        #: `bin_hold=1` with it.
+        if bool(getattr(self.cfg, "output_bins", False)):
+            info["bin_hold"] = True
+            return np.asarray(centre, dtype=float), info
         if need <= 1e-4:
             return np.asarray(centre, dtype=float), info
         # Optional wrist hold for the vertical descent, applied *before* the

@@ -1451,3 +1451,26 @@ chasing it" path, which the 22.9-22.14 cells run. So the cap converts that
 abnormal reach into the already-measured clean abort; its effect on a cell that
 actually draws a disturbed close is the open item, and the delivered clip's pick 4
 is the case to replay when one is available.
+
+**Owner decision A, taken 2026-11-24, and now explicit in the code.** The bins
+cell **keeps its release above the rim and accepts the ~0.20 m free fall**; the
+accompanied descent - which would stop the payload at `bin_floor_top_z + 25 mm`
+and drive the pads **0.19 m below the rim, into the box** - is the reach the owner
+rejects. The behaviour was already right, but only *by arithmetic*: `need` is
+negative because `output_belt_top_z` (1.35) sits above a bins payload's bottom, so
+a change to the bin geometry would have flipped it silently. `_place_low` now has
+an **explicit branch** for `cfg.output_bins` (a comment naming this decision, and
+`info["bin_hold"]`), and `FRUIT_PLACE_HEIGHT_DIAG=1` prints `bin_hold=1` with
+`low_drop=0.000` beside the heights. Measured after the change (6 episodes,
+6/6 placed):
+
+```
+[place] bin=1 floor=1.100 rim=1.260 jaw_z=1.376 payload_bottom=1.318
+        fingertip_z=1.318 low_need=-0.057 low_drop=0.000 bin_hold=1
+        below_floor=+0.218 below_rim=0.058
+[place] bin=0 ... low_need=-0.068 low_drop=0.000 bin_hold=1 below_rim=0.053
+```
+
+So the pads stay **+0.05 .. +0.06 m above the rim** and **+0.21 m above the bin
+floor** on every leg, and the free fall is a named, owned trade rather than an
+accident. Pinned by the selfcheck leg `P227ac bins hold (decision A)`.

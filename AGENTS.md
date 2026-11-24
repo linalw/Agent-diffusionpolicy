@@ -7984,6 +7984,49 @@ on a 2-pick cell: RAM 2/2 placed, 360 frames; disk 2/2, 358 frames, 716 JPEGs
 **error references** with a banner in their READMEs. References
 **61fb5202 / 61fb5202 / 18b101bf** untouched.
 
+**P227ac (2026-11-24, `logs/p227/`; one knob and one explicit branch, both default
+off / behaviour-preserving, no reference moved): "the arm reaches under the bin" is
+**measured false**, and the odd posture is an **unbounded close chase**.** Measured
+with `RL_ENV_DEBUG=1` over 8 bins episodes (177 sampled decisions): the jaw stays at
+`y` **-0.108..+0.011**, `z` **1.259..1.335**, `x` 0.212..0.381, while the bins are
+at `|y| = 0.55` (inner face 0.40), floor **1.10**, rim **1.26** - **zero** samples
+below the floor, **zero** with `|y| > 0.40`, and the nearest wall **0.29 m** away.
+The bins sit **behind** the robot (`x = -0.10`) while the arm works on the belt, so
+a side or overhead camera overlaps them at a depth 0.3-0.4 m away: the "under the
+bin" sighting is **perspective**, and `docs/`-style read rules apply - a claim about
+where the hand is comes from `jaw=(x,y,z)`, never from a silhouette. **The posture
+is real and had no bound**: the delivered clip's pick 4 reads `close: fruit drifted
+**380 mm** off the pick centre (cross-belt); re-closing on it where it is`, and on
+that attempt the arm's **j4 extended 0.85 rad** where placements span **0.42-0.46**
+- the re-close follows the fruit to wherever it drifted (`gripper.follow_centre(
+fruit_now)`) and only the **last** attempt aborted. New
+**`FRUIT_CLOSE_DRIFT_MAX=<m>`** (default off = the shipped path bit for bit, strict
+parse) sends a re-close beyond the threshold down the **existing** abort body (the
+measured `fruit left the pick station ... aborting the attempt instead of chasing
+it` path) with its own note. **Its status is recorded honestly: the path is rare** -
+one fire in the delivered clip's 26 picks, **none** in 8+8 episodes at 0.10 m, none
+in 3 at a forced 1 mm (the first close succeeded in all of them) - so it is pinned
+by shape (`P227ac close chase cap`) and not exercised end to end. **Owner decision
+A (2026-11-24), the place-height question**: `_place_low`'s floor is
+`cfg.output_belt_top_z` **unconditionally** (1.35) while the bins are a 1.10 m floor
+with a 1.26 m rim, so `need = bottom - 1.35 - 0.025` is **-0.057..-0.073** and the
+accompanied descent is **skipped** - the payload is released **~5 cm above the rim**
+(`below_rim` +0.052..+0.058, `fingertip_z` 1.312-1.318, `low_drop` 0.000) and falls
+**0.20 m** onto the bin floor. **The owner chose to keep it**: honouring the bin
+floor would stop the payload at `bin_floor_top_z + 25 mm` and drive the pads **0.19 m
+below the rim, into the box** - the reach the complaint rejects. The branch is now
+**explicit** (`cfg.output_bins` -> `info["bin_hold"]`, the decision in a comment)
+because it used to be arithmetic that holds only while `output_belt_top_z` sits
+above a bins payload's bottom, so a bin-geometry change would have flipped it
+silently; re-measured **6/6 placed** with `bin_hold=1`, pads **+0.05..+0.06 m above
+the rim**, pinned by `P227ac bins hold (decision A)`. Instrument:
+**`FRUIT_PLACE_HEIGHT_DIAG=1`** prints one `[place] bin= floor= rim= jaw_z=
+payload_bottom= fingertip_z= low_need= low_drop= bin_hold= below_floor= below_rim=`
+row per place leg (four reads the caller already has, plus config arithmetic).
+Pins: `tasks.py`, `rl_env.py` (`TASKS_MD5` follow), `scripts/selfcheck.sh`;
+references **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
+`logs/p227/{RESULTS.md 22.15,jaw_space.log,bin_hold.log,cap_0.10.log,cap_forced.log}`.
+
 **P142 (2026-11-11, `logs/p142/`; two defect fixes + a declared metric,
 **nothing adopted, no reference moved**): the direct lane's two *bookkeeping*
 failures are removed and its zero is shown to be the station reselect's timing.
