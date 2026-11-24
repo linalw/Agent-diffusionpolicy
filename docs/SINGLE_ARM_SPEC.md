@@ -48,7 +48,7 @@
 | 块 | 秒 | 可动? |
 |---|---|---|
 | `place` = clear 0.43 + blend 1.58 + 转位/低放 1.47 | **2.99**（P259：blend 150→90） | clear 是梨的保护（P227p），不动 |
-| `release`（tramp + 进料报告） | 2.16 | dwell 已修剪 |
+| `release` = `rel_low` 1.29 + 斜坡 0.47 | **1.70**（P260：pad/finger hold→1） | 下放是 P227ac 的伴随下放 |
 | ~~`return` 0.50~~ | **0.00**（P258：与返回的 `_lift_clear` 重复，已去） | 已落袋 |
 | `grip` 探针/验证 | **1.58** | 常数 |
 | **`seat` 追够** | **0.17–1.67** | **唯一双峰 → 见 §4** |
@@ -153,14 +153,8 @@ SKIP_SELFCHECK=1 scripts/283_single_arm_gate.sh 6 5
 # 单臂学习车道（91.7%，按集）
 SKIP_SELFCHECK=1 scripts/284_single_arm_policy_gate.sh 6 901 0.60
 
-# 部署形态（连续 10 次取放，无按集重置；实测 19/20）
-SKIP_SELFCHECK=1 FRUIT_BELT_SPEED=0.08 FRUIT_ARM_KIND=franka FRUIT_OUTPUT_BINS=1 \
-  FRUIT_BIARM=0 FRUIT_CAMERA_RES=240,424 FRUIT_DIRECT_START_ALIGN=family \
-  FRUIT_START_FAMILY=configs/start_pose_family_panda.json FRUIT_POLICY_ACTION_HOLD=4 \
-  FRUIT_POLICY_TRIGGER=arrival FRUIT_POLICY_TARGET_RATE=5.45 FRUIT_POLICY_JOINT_CLAMP=1 \
-  FRUIT_SKIP_LATE=0 FRUIT_EVAL_LATENCY=auto FRUIT_CONTINUOUS_TRANSIT=1 \
-  scripts/run.sh scripts/110_rl_rollout.py --presentation direct --episodes 1 \
-  --continuous 10 --seeds 901 --ckpt checkpoints/p227_panda156/policy_best.pt
+# 部署形态（连续，无按集重置）——一条命令
+SKIP_SELFCHECK=1 scripts/290_single_arm_continuous.sh 20 905 0.08
 
 # 带速阶梯 / 扰动 / 分轴退出
 scripts/288_speed_ladder.sh                      # SPEEDS / SEEDS / EPISODES / OUT

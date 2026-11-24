@@ -8146,6 +8146,43 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P260 (2026-11-25, `logs/p260/`; one **second-level instrument**, one measured
+**recipe** change, and the deployment cell becomes a script): `release` decomposes to
+**rel_low 1.29 + rel_pads 0.67 + rel_fing 0.27 = 2.23 s**, and **hold=1 is -0.45 s at
+39/40**.** `_cycle_mark` records the duration since the previous mark, so inserting marks
+inside `release` would change the shipped `[cycle]` row for every existing report - the
+split is therefore behind a **second switch**, `FRUIT_CYCLE_SUB=1` (with
+`FRUIT_CYCLE_REPORT=1`), adding `rel_low` / `rel_pads` / `rel_fing`; unset, the row is
+byte-identical (pinned by the `P260 cycle sub` leg). **The split** (0.08, seed 905, 10
+picks): **`rel_low` 1.29 s** (the accompanied `_place_low` descent plus the relax),
+**`rel_pads` 0.67 s** (the 40-step pad ramp at **2 ticks/step**), **`rel_fing` 0.27 s**
+(the 16-step finger ramp at 2 ticks/step) - so **0.94 s of a 10.85 s attempt is the ramps'
+two-tick hold**. **Measured**: `FRUIT_RELEASE_PAD_HOLD=1 FRUIT_RELEASE_FINGER_HOLD=1`
+reads `release` **2.17 -> 1.72 / 1.70 s**, attempt **10.96 -> 10.48 / 10.56 s**
+(**-0.48 / -0.40**), **20/20 + 19/20 = 39/40**, and the single loss is
+**`grasped=False`** (peach 5.9 cm, `grasp_lift` stored pad centre 100 mm off) - the
+**grasp class**, not a release or landing loss: **every placement landed**. **Why it is a
+recipe setting and not a default**: the holds live in the release profile
+(`_speed["release_pad_hold"]`), which the **two-line also reads**, so a default would move
+the two-line acceptance and owe a reference re-record (P87/P88/P89's price); the free
+scope is the single-arm deployment recipe, so the two settings went there and `=2`
+restores. **The deployment cell is now one command**: `scripts/290_single_arm_continuous.sh
+[picks] [seed] [speed]` carries the whole recipe (the cell, the six P227z interface
+settings, the deployment shape, `FRUIT_SKIP_LATE=0`, the two release holds, the cycle
+report) and deliberately does **not** name the three shipped defaults (P249's axis exit,
+P259's blend 90); its first cell reads **20/20, cycle 10.49 s, gap 257**. **The cycle
+now**: **13.55 -> 12.13** (P249) **-> 11.43** (P258) **-> 10.85** (P259) **-> 10.49 s**
+(P260) = **-22.6 %** over the arc at 98.6 % pooled success (0.08) and 100 % on the
+hardest single species; the remaining blocks are `place` 2.96, `release` 1.70, `grip`
+1.58, `lift` 1.90, `close` 1.10, `descent` 1.1, `seat` 0.17. **Honest caveat unchanged**:
+`gap` is bimodal per cell (257-432), so throughput is a **range (4.4-4.7 picks/min)**,
+never a point. **No-harm**: the sub-marks are gated on `FRUIT_CYCLE_SUB` **and** on
+`FRUIT_CYCLE_REPORT` (which the acceptance does not set) - `accept.sh`
+**`fingerprint: matches`** with **459/459 identical**, `selfcheck.sh` **PASS (0 failures,
+1 skipped)**. Pins: `tasks.py` **`37888fb9`**, `rl_env.py` (`TASKS_MD5` follow),
+`scripts/selfcheck.sh`, `scripts/290_single_arm_continuous.sh`; references **`61fb5202` /
+`61fb5202` / `18b101bf`** untouched; ckpt `p227_panda156`. Evidence `logs/p260/`.
+
 **P259 (2026-11-25, `logs/p259/`; one measurement cell + one adopted default,
 **Panda-only by construction**): the place blend was **2-4x over-timed** - `place`
 **3.48 -> 2.99 s**, the attempt **-0.47 / -0.70 s** at **39/40**.** The `place` block

@@ -3002,6 +3002,12 @@ class PickAndPlaceTask:
         #: Sequence number for the direct-path trace dumps (`_dynamic_trace_dump`).
         #: Diagnostics only; never read by the shipped control path.
         self._trace_dump_seq = 0
+        #: P260: **second-level** marks inside the release block (default off), so
+        #: the shipped `[cycle]` row keeps its shape for every existing report: an
+        #: opt-in sub-split of `release` into `rel_low` (the accompanied descent and
+        #: the relax), `rel_pads` (the dwell and the 40-step pad ramp) and `rel_fing`
+        #: (the 16-step finger ramp). Only read when `FRUIT_CYCLE_REPORT=1` too.
+        self._cycle_sub = os.environ.get("FRUIT_CYCLE_SUB", "0") == "1"
         #: Opt-in per-attempt cycle breakdown (`FRUIT_CYCLE_REPORT=1`). Pure
         #: `SimulationManager` simulation-time reads at phase boundaries - no
         #: link/tactile readback - so it is the non-invasive reporting class
@@ -17700,6 +17706,8 @@ class PickAndPlaceTask:
                                 )
                             self._place_probe(place_trace, sample, "relax", _index, float(value))
                 gap = relax_gap
+            if self._cycle_sub:
+                self._cycle_mark("rel_low")
             for _index in range(max(0, int(os.environ.get("FRUIT_RELEASE_DWELL", _speed["release_dwell"])))):
                 gripper.follow_centre(centre, quat, gap)
                 self._step_sim(1)
@@ -17714,6 +17722,8 @@ class PickAndPlaceTask:
                     if release_debug:
                         self._release_probe(arm_name, sample, trace, "pads", _index, float(value))
                     self._place_probe(place_trace, sample, "pads", _index, float(value))
+            if self._cycle_sub:
+                self._cycle_mark("rel_pads")
             self._closed_gap[arm_name] = None
             self._force_servo_reset(arm_name)
             self._gripper_offset[arm_name] = None
@@ -17750,6 +17760,10 @@ class PickAndPlaceTask:
                 if _credited:
                     say(f"[release] resync credit={_credited} "
                         f"total={self._ready_skip_credit}")
+        if self._cycle_sub:
+            #: closes `rel_fing` = the dwell/pads boundary to here, i.e. the
+            #: 16-step finger ramp plus everything the release does after the pads.
+            self._cycle_mark("rel_fing")
         self._cycle_mark("release")
         if self._prepared_on:
             # P32 phase 2, stage 2 (the release): the operative read. The supply

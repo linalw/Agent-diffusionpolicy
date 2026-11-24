@@ -473,6 +473,21 @@ print('direct cycle report ok (owned by the env, scripted path unchanged)')"
 # P258: the release's 60-tick retreat/settle is redundant in a continuous episode
 # (the return's own `_lift_clear` raises the hand anyway). Caller-owned, so the
 # scripted single arm and the two-line cannot read it; default OFF until a cell.
+# P260: the release block's second-level marks (default off, so the shipped
+# `[cycle]` row keeps its shape for every existing report).
+run_check "P260 cycle sub" "$python" -c "
+t = open('src/fruit_sorting/tasks.py', encoding='utf-8').read()
+assert 'FRUIT_CYCLE_SUB' in t
+assert t.count('if self._cycle_sub:') == 3, t.count('if self._cycle_sub:')
+for name in ('rel_low','rel_pads','rel_fing'):
+    assert f'self._cycle_mark(\"{name}\")' in t, name
+# the sub-marks sit inside the release block: after the place mark, before release
+i_place = t.index('self._cycle_mark(\"place\")')
+i_low = t.index('self._cycle_mark(\"rel_low\")')
+i_release = t.index('self._cycle_mark(\"release\")')
+assert i_place < i_low < i_release
+print('cycle sub ok (3 gated marks inside release, default off)')"
+
 run_check "P258 skip release settle" "$python" -c "
 t = open('src/fruit_sorting/tasks.py', encoding='utf-8').read()
 e = open('src/fruit_sorting/rl_env.py', encoding='utf-8').read()
