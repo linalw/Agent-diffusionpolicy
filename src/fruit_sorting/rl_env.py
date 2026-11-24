@@ -3407,6 +3407,17 @@ class SortingRLEnv:
         #: ones are perception in a real cell (after the grasp the payload follows
         #: the hand, which the code dead-reckons). Arming this requires the
         #: perception goal - there is no estimate otherwise.
+        #: P233 (`FRUIT_TRIGGER_SURFACE_SPEED=1`, default off): the intercept
+        #: trigger's approach speed must be the belt it **is**, not the setpoint it
+        #: was initialised with. P232 measured the defect: under a 0.04-0.06 m/s
+        #: wave every fire row still printed `speed=0.080m/s/encoder`, i.e.
+        #: `t_arrive = dy / 0.08` against a fruit moving 0.02-0.14 - up to 2x wrong
+        #: in the one number the handover is scheduled on. `Conveyor.surface_speed`
+        #: is the value the collider is driven with (P141); this routes it to the
+        #: trigger. Off = the shipped `encoder_speed` read, byte for byte.
+        self._trigger_surface_speed = (
+            os.environ.get("FRUIT_TRIGGER_SURFACE_SPEED", "0").strip() == "1"
+        )
         self._primitive_estimate = (
             os.environ.get("FRUIT_PRIMITIVE_ESTIMATE", "0").strip() == "1"
         )
@@ -8463,7 +8474,15 @@ class SortingRLEnv:
             if self.trigger_settings.enabled:
                 encoder = None
                 if self.spawner.belt is not None:
-                    encoder = getattr(self.spawner.belt, "encoder_speed", None)
+                    # P233: the belt the fruit actually rides (`surface_speed`) or
+                    # the shipped setpoint echo (`encoder_speed`). Both are signed
+                    # like `cfg.belt_speed`, which is what `transport_speed` takes.
+                    _field = (
+                        "surface_speed"
+                        if self._trigger_surface_speed
+                        else "encoder_speed"
+                    )
+                    encoder = getattr(self.spawner.belt, _field, None)
                 reference = jaw
                 if self.trigger_settings.frame == "station":
                     reference = np.array(

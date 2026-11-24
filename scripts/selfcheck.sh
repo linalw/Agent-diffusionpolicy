@@ -437,6 +437,22 @@ print(f'primitive estimate ok (pre-grasp {n_pre} reads)')"
 # phase and not the approach. The pin is: the env's `advance` ticks it too, the
 # call is guarded for the `__init__` prime (no task yet), it is inert unless the
 # wave is armed, and `advance`'s stepping rule is unchanged.
+# P233: the trigger's approach speed must be the belt it is on
+# (`FRUIT_TRIGGER_SURFACE_SPEED=1`, default off). P232 measured the defect: the
+# fire row printed a constant `speed=` under a wave because the trigger read
+# `encoder_speed`, a setpoint echo (P141). The pin is the default-off read, the
+# two field names, and that both `should_fire` sites share the one variable.
+run_check "P233 trigger speed" "$python" -c "
+src = open('src/fruit_sorting/rl_env.py', encoding='utf-8').read()
+assert 'FRUIT_TRIGGER_SURFACE_SPEED' in src
+assert 'self._trigger_surface_speed = (' in src
+i = src.index('_field = (')
+blk = src[i:i + 260]
+assert 'surface_speed' in blk and 'encoder_speed' in blk, 'both sources must be named'
+assert 'self._trigger_surface_speed' in blk, 'the knob must select the field'
+assert src.count('encoder_speed=encoder') == 2, 'both should_fire sites share it'
+print('trigger speed ok (default off, surface_speed routed, one variable)')"
+
 run_check "P232 belt wave" "$python" -c "
 src = open('src/fruit_sorting/rl_env.py', encoding='utf-8').read()
 i = src.index('    def advance(self, steps: int) -> None:')

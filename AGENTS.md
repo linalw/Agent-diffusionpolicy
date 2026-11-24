@@ -8146,6 +8146,35 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P233 (2026-11-24, `logs/p233/`; one **default-off correctness fix**, **not
+adopted**, no reference moved): the trigger now sees the belt it is on, and the
+disturbance loss is the **speed ceiling**, not the schedule.**
+`FRUIT_TRIGGER_SURFACE_SPEED=1` routes `Conveyor.surface_speed` (P141) to both
+`should_fire` sites instead of `encoder_speed` - the setpoint echo P232 caught
+printing `speed=0.080` under a wave. Cell: `v=0.18`, wave `0.03` (surface
+**0.15-0.21**), seed 901 x 6, A shipped vs B fixed. **P1 PASSES decisively**: B's
+fire row prints **five distinct speeds** (0.151/0.162/0.164/0.171/0.210) where A
+prints one value six times. **P2 needed a correction**: the registration predicted
+the signature on `dy`, which scatters in **both** arms (sd 3.56 vs 3.91 cm) because
+`lead` carries the jaw-station distance (P228's nuisance variable again); the
+branch-free field is **`t_arrive` itself**, and it tightens **sd 0.20 -> 0.15 s**
+(a 25 % reduction, and the minimum rises 0.94 -> 1.12 s) - at 0.18 m/s, 0.20 s of
+sd is **36 mm** of mis-scheduled travel. **The count is a tie** (4/6 both, both
+failures the grip class), so P3 is not established and P4 does not fire. **The
+phase's real finding is the ladder's shape**: at `v=0.18` a **±17 %** wave costs a
+quarter of the placements - 0.18 constant **11/12** (P229) against **8/12 = 67 %**
+pooled here - while at 0.08 a **±75 %** wave was free (P232). The fix does **not**
+recover them because the failure is the **crest**: 0.21 m/s is past the usable
+ceiling (~0.18-0.20), and no scheduling arithmetic changes how fast a fruit moves.
+**So the disturbance tolerance is bounded by the speed ceiling, not the trigger**,
+and a deployment's spec is the line's **peak** surface speed, not its mean. The
+fix stays default off (a correctness fix with a count-null needs the two-line gate,
+both references and a store re-baseline - P87's price for a smaller effect). Pins:
+`rl_env.py` (the knob + the field selection at both sites), `scripts/selfcheck.sh`
+(leg `P233 trigger speed`); `tasks.py` **`c16c8291`** unchanged; references
+**`61fb5202` / `61fb5202` / `18b101bf`** untouched; ckpt `p227_panda156`. Evidence
+`logs/p233/`.
+
 **P232 (2026-11-24, `logs/p232/`; one **instrument fix** in `rl_env.advance`,
 nothing adopted, no reference moved): the objective's first disturbance rung -
 **a real line's speed varies - costs zero placements, and the trigger is blind to
