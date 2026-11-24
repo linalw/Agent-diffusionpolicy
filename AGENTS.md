@@ -8146,6 +8146,31 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P257 (2026-11-25, `logs/p257/`; the release-candidate check, **no `src/` change**):
+**the cell is arm-bound** - 0.12 buys no throughput and costs 13.6 points on success.**
+Two **20-pick** continuous cells on a fresh seed (905): **0.08 20/20** (`gap` 270,
+`[cycle]` 11.91 s) and **0.12 20/20** (270, 11.94 s) - **the same cadence at both
+speeds**, which is the finding. **Pooled over every continuous cell this engagement has
+run (the recipe as shipped)**: **0.08 - 6 cells, seeds 901-905, 69/70 = 98.6 %**, cycle
+**11.84 s** + gap **2.25 s** = **14.08 s/pick = 4.26 picks/min**; **0.12 - 5 cells,
+seeds 901-905, 51/60 = 85.0 %**, 11.89 + 2.74 = **14.63 s/pick = 4.10 picks/min** (the
+`s/pick` numbers are arithmetic from the two measured quantities, not a separate
+measurement; cells are one draw each and the pooled count is what ran, not a rate
+certificate). **So raising the belt 0.08 -> 0.12 costs 13.6 points of success and 3.8 %
+of throughput, and the mechanism is structural**: the attempt is **11.8-11.9 s at both
+speeds** (the arm's own work - `place` 3.48, `release` 2.2, `grip` 1.58, `ramp` 1.10,
+`lift` 1.2 - plus the arrival wait the belt only shortens when the arm is *already*
+waiting) and the return is 2.25-2.74 s at both. **The line speed is not in this cell's
+throughput equation, while it is in the loss equation** (P253: the 0.12 losses are
+pass-bys and grip; the 0.08 losses are one instance in 70 picks). **That redirects the
+improvement path**: the throughput lever here is the **arm's cycle**, not the conveyor -
+a faster line helps only an arrival-bound cell, and P91 measured the same on the
+two-line (the `descent` block is `lead/speed - margin`, so a faster leg just waits
+longer). The remaining cycle blocks are all measured and three profile cells are
+negative (P88/P89/P235/P254). Pins unchanged: `tasks.py` **`b68ac8d1`**, references
+**`61fb5202` / `61fb5202` / `18b101bf`**, ckpt `p227_panda156`; `accept.sh` stands at
+P256's **459/459 + `fingerprint: matches`**. Evidence `logs/p257/`.
+
 **P256 (2026-11-25, `logs/p256/`; one **default-off instrument** and two cells,
 nothing adopted): the instance's **mass and friction do not separate** the outcome, and
 the tail is **broader than one body** - which corrects P255's scope.** The instrument
