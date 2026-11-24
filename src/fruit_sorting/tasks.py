@@ -15624,7 +15624,16 @@ class PickAndPlaceTask:
                 self.grippers[arm_name].close_begin()
             if self._cage_book is not None:
                 self._cage_probe_phase("close")
+            #: P237: sub-marks inside the `close` block, which P236 measured at
+            #: **2.77 s** on this lane (twice the two-line's 1.36 s) without saying
+            #: what is in it. `seat` ends the pre-close work (coherent track, the
+            #: axis servo, the seat); one `attempt` per `_close_attempt` prices the
+            #: ramps including the retry. `_cycle_mark` is a no-op unless
+            #: `FRUIT_CYCLE_REPORT=1`, so the printed segment list gains labels
+            #: only in an armed cell.
+            self._cycle_mark("seat")
             for _close_attempt in range(close_attempts):
+                self._cycle_mark("attempt")
                 last_cmd = grip_gap
                 #: R11-B C1 delivered-command cursor: with the rate cap on, the
                 #: *delivered* gap may never step down faster than the cap,

@@ -8146,6 +8146,36 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P237 (2026-11-24, `logs/p237/`; two **default-off sub-marks**, no behaviour change,
+nothing adopted): the `close` block is `seat + ramp`, and **`seat` is a cross-layer
+attitude cost the primitive pays for the approach.** Two `_cycle_mark`s inside the
+close (`seat` before the `_close_attempt` loop, one `attempt` per try; no-ops
+unless `FRUIT_CYCLE_REPORT=1`) decompose P236's 2.77 s over 8 attempts at 0.08:
+**`ramp` is a constant 1.10 s** (6/6 placed attempts, four fruits, both seeds - the
+profile, not the fruit) and **`seat` is bimodal: 1.67 s on 4 of 6, 0.23 / 0.67 on
+the other two**. `1.67 s = 200 ticks`, and the only loop that can run that long is
+the **attitude servo** (`FRUIT_AXIS_SERVO`, default **180** iterations, one
+`ik_step` + `_step_sim(1)` each) plus the coherent track - so **when the approach
+leaves the wrist near vertical the servo exits in ~28 ticks (0.23 s); otherwise it
+runs to its cap**. **That is 4T's interface cost made visible**: the approach owns
+the attitude, the primitive owns the pads' squareness, and **neither layer is
+charged for the 1.44 s the primitive spends re-establishing the attitude the
+approach did not arrive with.** The cycle is now decomposed: **place 3.48, release
+2.16-2.27 (incl. the 0.5 s settle), grip 1.58, seat 0.23-or-1.67, descent 1.5-4.9
+(incl. the wait), lift ~1.2, ramp 1.10, return 0.50** - **~10 s fixed of ~13.5
+(75 %)**, and `seat` is the only *bimodal* block, i.e. the only one where the same
+cell is already **1.44 s faster on some attempts**. **The lever it names, not
+built**: make the approach arrive with the tool axis vertical - either a
+training/conditioning change on the last chunk or an explicit wrist command at the
+handover - worth **-1.44 s/attempt (~11 %)** and success-neutral if the attitude is
+right; **the cap alone (`FRUIT_AXIS_SERVO` 180 -> 60) is NOT the lever** (it would
+truncate the servo while the attitude is still wrong, and P64/P65 measured the
+attitude as load-bearing). Selfcheck **PASS**; `accept.sh` **fingerprint: matches**,
+its **459 `[fruit]` lines 459/459 identical** to `logs/p227/accept_final.log`.
+Pins: `tasks.py` **`74300602`** (+ `TASKS_MD5` follow); references
+**`61fb5202` / `61fb5202` / `18b101bf`** untouched; ckpt `p227_panda156`.
+Evidence `logs/p237/`.
+
 **P236 (2026-11-24, `logs/p236/`; one **default-off instrument path**, no behaviour
 change, nothing adopted, no reference moved): the direct single-arm lane gets the
 block report P235 found missing - and it prices a block the record never saw.**
