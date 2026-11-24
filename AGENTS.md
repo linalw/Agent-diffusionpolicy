@@ -8146,6 +8146,32 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P247 (2026-11-25, `logs/p247/`; measurement only, no `src/`/`configs/` change;
+the **handover page** `docs/SINGLE_ARM_SPEC.md` lands with it): the axis-aware exit
+holds in a fresh cell - **15/16**, and **26/28 pooled** with P243.** `v=0.08`,
+`FRUIT_CATCH_TOL_AXIS=1`, seeds 901/902 x **8**: seed 901 **7/8** (catch ticks
+**200**, 21, 33, 21, 21, 21, 21, 21), seed 902 **8/8** (24, 21, 39, 24, 41, 21, 21,
+21), residuals **8.6-10.5 mm** everywhere but the single outlier (**36.9 mm**). So
+**the 200-tick tax is gone on 27 of 28** - not a branch, not a seed - the **placed
+count is at parity** with the shipped 11/12 (26/28 = **92.9 %**), and the saving is
+the measured **-1.44 s of ~13.3 s (-11 %)**. **The one 200-tick row is seed 901's
+episode 0 again** - the same position as every excursion in P241-P246 and the one
+attempt of the 16 that did not place - i.e. exactly the bound P246 recorded (at most
+one per run, first episode, 0-1 placement); it **stays open, no rate quoted**.
+**Promotion to default still owes P93's powered cell (~40/arm), the two-line gate,
+both references and a store re-baseline** - this phase adds the parity-plus-saving
+the decision starts from. **`docs/SINGLE_ARM_SPEC.md`** is the one-page handover:
+what the cell is, the delivered spec by speed (0.06/0.08/0.12/0.18 = 11/10/11/11 of
+12, 0.20 = 58 %, >=0.22 does not engage), the cycle decomposition, the 1.44 s
+mechanism and its status, **the eight closed levers with one line each**, the four
+open items (first-attempt excursion, vertical integral/gravity feed-forward, faster
+belts need hardware, perception contact layer), the reproduce commands and the four
+read rules (a 6-episode cell is a draw; a diag cell is not a rate; "does not
+engage" is a boundary not 0 %; evaluate latency at `FRUIT_EVAL_LATENCY=auto`).
+Pins unchanged: `tasks.py` **`9ce34845`**, `rl_env.py` untouched; references
+**`61fb5202` / `61fb5202` / `18b101bf`**; ckpt `p227_panda156`. Evidence
+`logs/p247/`, `docs/SINGLE_ARM_SPEC.md`.
+
 **P246 (2026-11-25, `logs/p246/`; a **reading of existing logs**, no run, no `src/`
 change): the first-attempt excursion is **not initialisation, not the diagnostic,
 not attributable** - and is closed as open with its bounds measured.** P245's
