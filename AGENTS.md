@@ -8146,6 +8146,30 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P248 (2026-11-25, `logs/p248/`; measurement only, no `src/`/`configs/` change; the
+**powered cell** the axis exit owed): **P1/P2/P3 all PASS - the axis-aware exit is
+a candidate default on 40 attempts per arm.** 2 arms x 2 seeds x **20 episodes =
+40/arm**, identical instrumentation both arms, `PREREG.md` pinned first. **Placed:
+C shipped 38/40 = 95.0 %, T axis exit 40/40 = 100 %** - the bar was `T >= C - 2`
+and the observed +2 is **a draw at n=40 (Fisher p = 0.49)**, so the claim is **"no
+quality cost at 40 attempts"**, not "better". **Mechanism**: catch-up ticks median
+**200 -> 21** (bar <= 45; **35 of 40** control catches ran the full budget, **0 of
+40** treatment), `seat` median **1.67 -> 0.17 s** (bar <= 0.40, p90 0.35). **Cycle**:
+`[cycle] total` **13.55 -> 12.13 s = -1.42 s** (bar >= 0.8) and the independent
+episode-ticks reading **-1.38 s/attempt** (17.11 -> 15.73), agreeing to 0.04 s.
+**P4 (reported, not gated)**: the **control** arm carries the runaway (**1113.7
+mm**), the treatment **none** - one more confirmation of P246: **the excursion is
+not the lever's**. **The flip is NOT taken here**: the knob is read at task
+construction, so a default moves **every** path (scripted acceptance, two-line
+session, collector) and the record's price is the **two-line gate**, **both motion
+references re-recorded** from same-batch runs and **every store re-baselined** -
+a separate priced step and the **owner's decision**. **The cheaper scoped form is
+named, not built**: gate it to `two_line`/`direct` with the `_dynamic_profile`
+pattern P87/P88/P89 used, which keeps the scripted acceptance untouched. Pins
+unchanged: `tasks.py` **`9ce34845`**, `rl_env.py` untouched; references
+**`61fb5202` / `61fb5202` / `18b101bf`**; ckpt `p227_panda156`. Evidence
+`logs/p248/`.
+
 **P247 (2026-11-25, `logs/p247/`; measurement only, no `src/`/`configs/` change;
 the **handover page** `docs/SINGLE_ARM_SPEC.md` lands with it): the axis-aware exit
 holds in a fresh cell - **15/16**, and **26/28 pooled** with P243.** `v=0.08`,
