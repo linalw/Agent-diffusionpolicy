@@ -8146,6 +8146,30 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P234 (2026-11-24, `logs/p234/`; measurement only - **no `src/`/`configs/` change**):
+the **spatial** disturbance rung - a **0.22 m** lateral band costs nothing at 0.08,
+so the lateral axis is **not** the binding disturbance.** `FRUIT_SUPPLY_X_MIN=0.17
+FRUIT_SUPPLY_X_MAX=0.39` (shipped `0.20-0.36`), `v=0.08`, seeds 901/902 x 6 reads
+**12/12 = 100 %** (the shipped band's own cell is 11/12), and the `[supply] scatter`
+row confirms the planned band. **The registered prediction (falls below 9/12) is
+falsified - P4 applies** - with the caveat the phase states: **12 attempts cannot
+price a rare event** (P38 put the below-floor class at ~0.06 %/episode), so the
+sentence is *no cost observed at 12 attempts*, not *the tails are free*. **The
+diag cell is a different branch and says so**: `FRUIT_FIRE_DIAG=1` on the same
+band and seed reads **4/6** - the P230/P232 lesson at the level of a *count*, so a
+diag cell's rate is never the cell's rate. **A number that does not match the
+record**: the delivered `fruit_x` reads **0.169** - below the shipped floor (0.20)
+**and** below the arm's documented admission floor (P38: right 0.1730, left 0.1800)
+- and **it fired and was attempted**, so either the floor's single-`station_x`
+derivation does not describe this cell's gate or the `[fire]` row's `fruit_x` is
+not the gate's input; **the floor must not be quoted as a hard bound** until a
+gate-tick row prints `dx`, `lateral` and the x each side used. **The ladder now
+reads**: temporal 0.08 free to **±75 %**, temporal 0.18 costs at **±17 %** (P233),
+spatial 0.08 free at **0.22 m** - **the bound is speed**. Pins unchanged:
+`tasks.py` **`c16c8291`**, `rl_env.py` untouched by this phase, references
+**`61fb5202` / `61fb5202` / `18b101bf`**; ckpt `p227_panda156`. Evidence
+`logs/p234/`.
+
 **P233 (2026-11-24, `logs/p233/`; one **default-off correctness fix**, **not
 adopted**, no reference moved): the trigger now sees the belt it is on, and the
 disturbance loss is the **speed ceiling**, not the schedule.**
