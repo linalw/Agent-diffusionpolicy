@@ -67,11 +67,14 @@ trigger.** That is the sentence the ladder was for.
   (±17 %), because the crest crosses the usable ceiling. A deployment's spec is
   therefore "**max surface speed** matters, not the mean" - a line that averages
   0.18 but peaks at 0.21 is a 0.21 line for this hand.
-* The **next rung** if the objective's speed is pushed: a **peak-speed limiter**
-  (hold the belt at or below the usable ceiling and let the queue absorb the
-  crest) - which is a supply/scheduling lever on the *line*, not on the arm, and
-  is the kind of thing the papers' schedulers (conveyor PnP, AHEAD's
-  `T_lead`) assume rather than test.
+* **SCOPE CORRECTION (same day).** §5 names a **peak-speed limiter** as the next
+  rung; that is **not available to this cell**. The owner's standing constraint
+  (P119, 2026-11-06: *the dynamic scattered pipeline must be preserved - no
+  diverter, stop gate, guide/limit or pause*) forbids exactly this kind of
+  intervention on the line. The limiter is therefore a **line-design note for a
+  buyer** (a line whose peak stays at or below the hand's ceiling), **not a lever
+  this record may build**. What remains buildable here is the arm side, and it is
+  measured closed (P229/P230/P231).
 
 ## 6. Pins
 

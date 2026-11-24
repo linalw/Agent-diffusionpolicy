@@ -8174,6 +8174,12 @@ both references and a store re-baseline - P87's price for a smaller effect). Pin
 (leg `P233 trigger speed`); `tasks.py` **`c16c8291`** unchanged; references
 **`61fb5202` / `61fb5202` / `18b101bf`** untouched; ckpt `p227_panda156`. Evidence
 `logs/p233/`.
+**Scope correction carried in the same phase**: the "peak-speed limiter" named as
+the next rung is **not available to this cell** - the owner's standing constraint
+(P119: *the dynamic scattered pipeline must be preserved - no diverter, stop gate,
+guide/limit or pause*) forbids intervening on the line. It is a **line-design note
+for a buyer**, not a lever this record may build; the arm side is measured closed
+(P229/P230/P231).
 
 **P232 (2026-11-24, `logs/p232/`; one **instrument fix** in `rl_env.advance`,
 nothing adopted, no reference moved): the objective's first disturbance rung -
