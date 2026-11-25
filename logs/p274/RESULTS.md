@@ -52,3 +52,31 @@ No `src/` or `configs/` change (the tree is P268's: `tasks.py` `141cd178`, refer
 **`61fb5202` / `61fb5202` / `18b101bf`**, ckpt `p227_panda156`); `scripts/selfcheck.sh`
 **PASS (0 failures, 1 skipped)**; `accept.sh` stands at P268's **459/459 +
 `fingerprint: matches`**. Evidence `logs/p274/`.
+
+---
+
+## 5. Horizon audit: no anomaly, and the one number that could drift does not
+
+Searched both 40-pick cells for the classes a long run exposes:
+
+| pattern | s907 | s913 |
+|---|---|---|
+| `held=True` at a discharge | 0 | 0 |
+| `sample swapped` / `not protected` | 0 | 0 |
+| `fruit fell off the line` | 0 | 0 |
+| `no eligible fruit` / `[skip]` | 0 | 0 |
+| traceback / wedge | 0 | 0 |
+
+**And the one reading that could drift does not**: the `carry ... stored pad centre N mm`
+row, split by leg -
+
+| leg | n per cell | range |
+|---|---|---|
+| **`grasp_lift`** (payload in the hand) | **40** | **99-144 mm** (s907) / **98-134 mm** (s913) |
+| `place0` / `place1` (payload **released**) | 20 / 20 | 541-762 / 1424-1725 mm |
+
+**The lift-leg offset is stable across 40 picks in both seeds**, so the `_gripper_offset`
+bookkeeping does not accumulate - which is the P94 defect class and the one thing a recycling
+pool could plausibly break. **The place-leg numbers are the released-payload case** (the offset
+is meaningless once the fruit is gone) and they are exactly what the guard's `hand_is_jaw`
+fallback handles, so a large value there is expected, not an anomaly.
