@@ -10068,6 +10068,14 @@ class SortingRLEnv:
             # P142: only printed when it is not the shipped metric, so the
             # default row stays byte-identical (the acceptance's 459 lines).
             + ("" if endpoint == "final" else f" endpoint={endpoint}")
+            # P275: the *measured* diameter, beside the class label's `d=` - the
+            # evidence that the goal's diameter is a measurement and how far off
+            # it is. Absent unless a camera measured the fruit.
+            + (
+                ""
+                if getattr(self, "_percept_dia", None) is None
+                else f" dia_meas={float(self._percept_dia) * 100:.1f}cm"
+            )
             + (
                 ""
                 if not self._handover_diag
