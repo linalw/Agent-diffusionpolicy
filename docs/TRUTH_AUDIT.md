@@ -14,7 +14,7 @@
 |---|---|---|---|---|---|
 | 1 | **策略的目标向量**（果子位置 3 + 速度 3 + 直径 1 + 箱号 1） | `rl_env.py:2335` `FRUIT_GOAL_SOURCE` | **`truth`** | 检测/分割 + 跟踪；箱号来自指令/分派 | `FRUIT_GOAL_SOURCE=perception`：位置 err p50 **1.9–9.5 mm**、速度 **0.124–0.135 vs 0.120**；决策层 **10/12**（真值 **12/12**）· P145/P227ad |
 | 2 | **到达触发的位置与速度**（`t_arrive`、`dx/dy`） | `rl_env._fruit_for_trigger` | **`truth`**（除非 1 开了） | 同上，且必须是**当前 tick 的估计** | 与 1 同一开关；日志里 `[fire] source=percept|truth` 明写用了哪个 · P227ad |
-| 3 | **原语的抓取前读数**（下降瞄点、追够目标、闭合跟随） | `tasks.py` 中 **92 处** `spawner.position/velocity(sample)` | **`truth`** | 同上 + 高帧率可用（接触期） | `FRUIT_PRIMITIVE_ESTIMATE=1`（需要 1 也开）：**2/6**——瓶颈是**接触期只有 15–18% 帧可用**，不是估计器（可见时 4.70 mm）· P227ae |
+| 3 | **原语的抓取前读数**（下降瞄点、追够目标、闭合跟随、抓取验证） | `tasks.py` 中 **102 处** `spawner.position/velocity(...)`（其中只有 **18** 处经 `_fruit_state` 可被估计器接管） | **`truth`** | 同上 + 高帧率可用（接触期） | `FRUIT_PRIMITIVE_ESTIMATE=1`（需要 1 也开）：**2/6**——瓶颈是**接触期只有 15–18% 帧可用**，不是估计器（可见时 4.70 mm）· P227ae |
 | 4 | **起始位姿对齐**（`..._START_ALIGN=family`） | `rl_env._aligned_start` 读 `spawner.position(sample)[0]` | **`truth`** | 用"上一次观测到的果子 x"或固定起始位姿 | 未单独测；`=0` 走固定 IK 形式（但配方用 family） |
 | 5 | **实例掩码**（图像里的那一颗） | `instance_id_segmentation`（相机 annotator） | **完美掩码** | 检测器/分割器 | 无掩码的腕部深度窗口**不行**：中心误差 **44–62 mm**（头部 1.7–2.1 mm）· P214 |
 | 6 | **深度** | `distance_to_image_plane` | **无噪声** | 真实深度（有噪声/空洞） | 未建模；球拟合 rms 0.2–0.7 mm 是"无噪声下"的数 |
@@ -23,6 +23,32 @@
 | 9 | **成功判定与账本**（`placed`、箱/托盘普查、`discharged`） | `tasks.py:17942` `cfg.on_output_belt(pos)` 等 | **truth** | 出料端计数/视觉 | 这是**评估**用真值，合法，但**不能当控制输入**引用 |
 | 10 | 供给/回收/按集重置 | `spawner.reset/prime/respawn` | 脚手架 | 真实供料线 | 不属于物理，P274 的 40 连取已证明回收**不自伤** |
 
+---
+
+## 1b. "决策层真值无关"**到底**指什么（只覆盖两件事）
+
+P227ad 的"decision layer"是一个**很窄**的定义，不是"策略整条链路"：
+
+| 属于"决策层" | 代码 | 开关 |
+|---|---|---|
+| ① 策略**条件化的目标向量**（8 维：位置/速度/直径/箱号） | `_begin_pick` / `_observe` 组 goal | `FRUIT_GOAL_SOURCE=perception` |
+| ② **交给原语的那一刻**（`t_arrive`、`dx/dy`） | `_fruit_for_trigger`（两处 `should_fire`） | 同上（跟着 ① 走） |
+
+**只有这两件事。**交接之后的一切仍读真值：
+
+| 仍读真值（交接后） | 例子（`tasks.py`） |
+|---|---|
+| 抓取瞄点 | `grasp_goal = spawner.position(sample) + …` |
+| 下降 / 追够的每 tick 参考 | `fruit_now`、`dynamic_v` |
+| 闭合跟随与**抓取验证** | `if fruit_z − z_before > 4 mm` |
+| 破带起飞 / pluck dwell | `fruit_now`、`fruit_v_now` |
+| 伴降（下放到箱底） | `fruit_now` |
+| 成功判定 | `pos = spawner.position(sample)` → `placed` |
+| 起始位姿对齐 | `spawner.position(sample)[0]`（果子 x） |
+
+**抓后不读真值**：一旦夹住，载荷位姿由 `_gripper_offset` 死算（`rot.T @ (payload − tcp)`）——所以真值依赖**集中在"交接后、夹住前"**，也正好是现实里最难的窗口（相机被手挡住、只有 15–18% 帧可用）。
+
+---
 ---
 
 ## 2. 这对"可部署"意味着什么（三条分开说）
