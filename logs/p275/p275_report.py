@@ -25,6 +25,12 @@ JUDGE = re.compile(
     r"\(lift=([-+0-9.]+)m force=([0-9.]+)N span=([0-9.]+)mm ok=(\d+)/(\d+)\)"
 )
 CENSUS = re.compile(r"^\[truth\] ep=\d+\s+(\d+)\s+(\S+)$", re.M)
+SELECT = re.compile(
+    r"\[select\] percept: (\d+) detection\(s\), (\d+) on a live fruit, "
+    r"(\d+) unmatched"
+)
+SELECT_FB = re.compile(r"\[select\] ep=\d+ source=percept truth_fallbacks=(\d+)")
+FIRE_SRC = re.compile(r"\[fire\] source=(percept|truth)")
 
 
 def read(path: str) -> str:
@@ -83,6 +89,42 @@ def main(argv: list[str]) -> int:
             f"{tag:6s} {len(rows):>5d} {agree:>6d} {fp:>3d} {fn:>3d}  "
             f"{bad if bad else 'none'}"
         )
+
+    print()
+    print("=" * 78)
+    print("2b. SELECTOR - what the perception candidate list actually saw")
+    print("=" * 78)
+    print(f"{'arm':6s} {'frames':>7s} {'det':>5s} {'live':>5s} {'unmatched':>10s} "
+          f"{'fallbacks':>10s}")
+    for tag, txt in data.items():
+        rows = SELECT.findall(txt)
+        fbs = [int(x) for x in SELECT_FB.findall(txt)]
+        if not rows and not fbs:
+            print(f"{tag:6s} {'-':>7s} {'-':>5s} {'-':>5s} {'-':>10s} {'-':>10s}"
+                  "  (truth selector)")
+            continue
+        det = sum(int(r[0]) for r in rows)
+        live = sum(int(r[1]) for r in rows)
+        unm = sum(int(r[2]) for r in rows)
+        print(f"{tag:6s} {len(rows):>7d} {det:>5d} {live:>5d} {unm:>10d} "
+              f"{sum(fbs):>10d}")
+    print("  `fallbacks` > 0 means that episode's selection went back to the")
+    print("  simulator - a truth-free claim must quote it.")
+
+    print()
+    print("=" * 78)
+    print("2c. TRIGGER SOURCE - did the fire decision read the tracker or the simulator?")
+    print("=" * 78)
+    print(f"{'arm':6s} {'percept':>8s} {'truth':>7s}   (one row per attempt)")
+    for tag, txt in data.items():
+        src = FIRE_SRC.findall(txt)
+        if not src:
+            print(f"{tag:6s} {'-':>8s} {'-':>7s}   (goal source is not perception)")
+            continue
+        pc = sum(1 for x in src if x == "percept")
+        tr = len(src) - pc
+        print(f"{tag:6s} {pc:>8d} {tr:>7d}"
+              + ("   <- some fires fell back to truth" if tr else ""))
 
     print()
     print("=" * 78)
