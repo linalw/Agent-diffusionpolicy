@@ -8146,6 +8146,39 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P267 (2026-11-25, `logs/p267/`; one env knob, two cells, **no `src/` change**; nothing
+adopted): the catch tolerance's real effect is on the **true-stall rate**, not on the
+count.** At 0.12 (`FRUIT_TRACK_DIAG=1`, 20 picks x 2 seeds per arm, control from P266):
+**C 6 mm -> 24/40 placed, 34 catches, 11 rows >= 100 ticks, 10 true stalls (29 %), 1
+slow-converged**; **T 7 mm -> 32/40, 36 catches, 11 rows >= 100, 3 true stalls (8 %), 6
+slow-converged**. **The count is a branch and is not claimed** (the sequences are identical
+for the first 6 picks then re-draw), but a *true stall* is a **physical state** (residual
+**> 20 mm** at the exit), so **10 of 34 catches against 3 of 36** is a **catch-level**
+statement (p ~ 0.03) over different instances. **And it is the same 3 as P266's guard by a
+different route**: the guard breaks when the residual plateaus, the tolerance exits the axis
+window 1 mm earlier, and **both read 10 -> 3** - so the mechanism is that **the long chase is
+itself the damage**: the pads spend the budget in contact with a fruit they are not
+converging on, and stopping earlier either way means most stalls never happen. P266's route
+could not be adopted because it also truncated chases that were *converging*; the tolerance
+has not that defect (it truncates only inside the window it calls success). **Why it is still
+not adopted**: **P48 measured 6 mm as the grasp/no-grasp boundary**, but on the
+**pre-axis-exit** loop where the norm was the whole test - the axis exit (P243) already
+allows `|z| <= 10`, so the shipped 6 mm is now a **y-only** bound; at 7 mm the close starts
+with `|y| <= 7`, at worst 1 mm further off, the count went the right way (+8, a branch) and
+**no place-side loss appeared**, but one draw per arm cannot certify a 1 mm change against a
+boundary measured on a different loop. **A promotion owes P93's powered shape (>= 40 per arm
+at two seeds) with the catch-level true-stall rate as the primary and the count as the
+report** - the same shape P248 used for the axis exit. **The mechanism-based form of the same
+lever, named and not built**: during the catch-up the pads already read the tactile force
+every tick (`follow_centre`), so the loop can exit when **the contact force is high while the
+residual is not falling** - "pushing, not closing" - which distinguishes a converging chase
+from a shoving one *physically*, exactly what a clock cannot; it is a new exit on the shared
+catch path, so it owes a pre-registration with the stall rate as its endpoint and P103's
+interval price registered in advance. Pins unchanged: `tasks.py` **`835ce78f`**, references
+**`61fb5202` / `61fb5202` / `18b101bf`**, ckpt `p227_panda156`; `selfcheck.sh` **PASS (0
+failures, 1 skipped)**; `accept.sh` stands at P266's **459/459 + `fingerprint: matches`**.
+Evidence `logs/p267/`.
+
 **P266 (2026-11-25, `logs/p266/`; one default-off guard, PREREG pinned first, **not
 adopted**): the stall guard **cannot separate a slow convergence from a stall** - and
 **P265's y-sign reading is corrected**.** `FRUIT_CATCH_STALL_TICKS=60` (default 0) breaks the
