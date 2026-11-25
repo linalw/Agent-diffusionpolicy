@@ -8146,6 +8146,34 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P268 (2026-11-25, `logs/p268/`; one default-off force exit, PREREG pinned first, **P1
+fails** - and the way it fails **closes the 0.12 acquisition arc**): the true stall is a
+**free-space chase**.** `FRUIT_CATCH_FORCE_EXIT=<N>` (default 0; with the knob off **not even
+the tactile read exists**) breaks the catch-up when **the pad force stays >= N for 30 ticks**
+*and* the residual is no better than 30 ticks ago - "pushing, not closing". **Cells** (0.12,
+`FRUIT_TRACK_DIAG=1`, 20 picks x 2 seeds per arm, control from P266): **C 24/40, 34 catches,
+11 rows >= 100 ticks, 10 true stalls (29 %)** against **T (`=2 N`) 30/40, 38 catches, 9 rows
+>= 100, 8 true stalls (21 %)**. **The registered bar was <= 5/34 (or the long rows halving);
+T reads 8/38 - 2 of the 10 stalls were cut and 8 were not.** **And that is the finding**:
+the exit needs 30 sustained ticks of >= 2 N, and **in a chase the pads sit open at
+`gap_open` (~98 mm) behind a fruit 47-55 mm ahead - for most of those rows they never touch
+it**. So **the true stall is a free-space chase**: the pads are not shoving a fruit they are
+in contact with, they are too far behind and too slow - which is exactly why a **clock** fails
+(P266 cut converging chases), a **tolerance** moves the class but crosses P48's 6 mm boundary
+(P267: 29 % -> 8 %, unpriced at power), and a **force** criterion cannot see it (this phase:
+only 2 of 10 ever had the contact it needs). **The PREREG's falsifier fired**, so per its own
+rule **the 0.12 acquisition class closes as hardware** - the only software lever the record
+leaves is the **arrival side** (`past_aim` vs upstream, P109's window, **narrow**, far end =
+the bistable runaway at 4 of 4 seeds), beyond which it is the **y-axis** (hardware/controller)
+or the grasp (`logs/p42/SIM_LIMIT.md`). **The 0.12 step therefore stands where P264/P267 left
+it**: **72.5-85 %** across draws with **two classes** - the grip/hold class (hardware) and this
+free-space chase (arrival side or axis) - and the cycle work touches neither. **No-harm**: the
+knob is default-off, the tactile read is inside the gate, and the exit adds no `notes` entry -
+`accept.sh` **`fingerprint: matches`** with **459/459 identical**, `selfcheck.sh` **PASS (0
+failures, 1 skipped)**. Pins: `tasks.py` **`141cd178`**, `rl_env.py` (`TASKS_MD5` follow),
+`scripts/selfcheck.sh`, `logs/p268/PREREG.md`; references **`61fb5202` / `61fb5202` /
+`18b101bf`** untouched; ckpt `p227_panda156`. Evidence `logs/p268/`.
+
 **P267 (2026-11-25, `logs/p267/`; one env knob, two cells, **no `src/` change**; nothing
 adopted): the catch tolerance's real effect is on the **true-stall rate**, not on the
 count.** At 0.12 (`FRUIT_TRACK_DIAG=1`, 20 picks x 2 seeds per arm, control from P266):

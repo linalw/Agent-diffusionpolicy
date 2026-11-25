@@ -477,6 +477,18 @@ print('direct cycle report ok (owned by the env, scripted path unchanged)')"
 # `[cycle]` row keeps its shape for every existing report).
 # P261: the lift height reaches only the left arm; the both-arms form is opt-in.
 # P266: the catch-up's behind-the-fruit stall guard (default off, no note, bounded).
+# P268: the catch-up's force exit ("pushing, not closing"): off by default, and with the
+# knob off not even the tactile read exists.
+run_check "P268 catch force exit" "$python" -c "
+t = open('src/fruit_sorting/tasks.py', encoding='utf-8').read()
+assert 'FRUIT_CATCH_FORCE_EXIT' in t
+assert 'os.environ.get(\"FRUIT_CATCH_FORCE_EXIT\", \"0\")' in t, 'default off'
+assert 'if force_exit > 0.0:' in t, 'the whole block is gated'
+assert 'force_slow >= 30' in t and 'force_trace[-31] - 0.0005' in t, 'both conditions'
+assert 'self.tactile.read()' in t[t.index('if force_exit > 0.0:'):t.index('if force_exit > 0.0:')+400], \
+    'the read is inside the gate'
+print('catch force exit ok (off by default, gated read, force AND plateau)')"
+
 run_check "P266 catch stall guard" "$python" -c "
 t = open('src/fruit_sorting/tasks.py', encoding='utf-8').read()
 assert 'FRUIT_CATCH_STALL_TICKS' in t

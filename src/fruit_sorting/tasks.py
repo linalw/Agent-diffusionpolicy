@@ -15473,6 +15473,30 @@ class PickAndPlaceTask:
                         f"{stall_window}"
                     )
                 stall_trace: list[float] = []
+                #: P268: the **force exit** ("pushing, not closing"). During the
+                #: catch-up the pads track the fruit **open** at `gap_open`, so any
+                #: pad force in that window is contact on a fruit the pads are not
+                #: yet around. P266/P267 measured that the long chase is itself the
+                #: damage (the true-stall rate falls 10/34 -> 3/36 under two
+                #: different truncations) and that a clock cannot tell a converging
+                #: chase from a shoving one; the force can. `0` = off, and then not
+                #: even the tactile read exists.
+                try:
+                    force_exit = float(
+                        os.environ.get("FRUIT_CATCH_FORCE_EXIT", "0") or 0.0
+                    )
+                except ValueError:
+                    raise ValueError(
+                        "FRUIT_CATCH_FORCE_EXIT must be a number of newtons "
+                        f"(0 = off), got {os.environ.get('FRUIT_CATCH_FORCE_EXIT')!r}"
+                    ) from None
+                if not math.isfinite(force_exit) or force_exit < 0.0:
+                    raise ValueError(
+                        "FRUIT_CATCH_FORCE_EXIT must be finite and >= 0 (0 = off), "
+                        f"got {force_exit!r}"
+                    )
+                force_slow = 0
+                force_trace: list[float] = []
                 catch_tol = float(os.environ.get("FRUIT_DYNAMIC_CATCH_TOL", "0.006"))
                 # The close's 0.18 s lead is measured against a hand already
                 # moving with the fruit; the catch-up starts from rest and the
@@ -15565,6 +15589,28 @@ class PickAndPlaceTask:
                                 #: budget. No `notes` entry: the attempt's class is
                                 #: unchanged (it fails the same way, sooner).
                                 break
+                    if force_exit > 0.0:
+                        #: P268: one tactile set per tick, only with the knob on.
+                        force_trace.append(float(catch_residual))
+                        _f = float(
+                            self.tactile.read()
+                            .get(arm.spec.side, _EMPTY_TACTILE)
+                            .normal_force
+                        )
+                        if _f >= force_exit:
+                            force_slow += 1
+                        else:
+                            force_slow = 0
+                        #: 30 sustained ticks of force **and** the residual no better
+                        #: than it was 30 ticks ago: the pads are pushing the fruit,
+                        #: not closing on it. (Both conditions, so a loaded grip
+                        #: that is still converging is never cut.)
+                        if (
+                            force_slow >= 30
+                            and len(force_trace) > 30
+                            and catch_residual > force_trace[-31] - 0.0005
+                        ):
+                            break
                     if catch_residual < catch_tol:
                         break
                     if self.catch_tol_axis:
