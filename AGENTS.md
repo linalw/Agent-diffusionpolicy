@@ -8146,6 +8146,36 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P262 (2026-11-25, `logs/p262/`; two candidate knobs, one closed as inert and one
+adopted into the deployment recipe; **no `src/` or `configs/` change**): the settle
+threshold was **5x stricter than the arm needs** - **-0.27 s at 60/60**.** `grip` (1.58 s)
+is the belt-break ramp (`lift_takeoff` **0.78**) plus `_settle_to_rest`
+(`lift_settle` **0.79**), so the settle is the largest *wait* after the fruit-arrival one.
+**`FRUIT_PLACE_LOW_TUCK_SETTLE=0` is inert on this hand** (20 picks x 2 seeds: **10.03 ->
+10.03 / 9.88 s**, nothing) - the 30-tick "tuck" sits in a branch the **jaw hand** does not
+take (the Panda's pads *are* the fingers), so it is already skipped here; recorded so it
+is not re-tried. **`FRUIT_SETTLE_EPS` 0.002 -> 0.01 is the win**: `_settle_to_rest` exits
+below **2 mm/s** for five ticks and after the belt-break the arm is dragged at 0.08 m/s, so
+2 mm/s means waiting for it to be essentially stopped - at 10 mm/s `lift_settle`
+**0.79 -> 0.48 / 0.47 s**, the attempt **10.03 -> 9.66 / 9.76 s**, **40/40 placed**. **And
+the reason the settle exists was checked, not assumed**: a leg started on a moving arm
+shows as an acceleration spike, and the `[motion]` read on both arms gives the lift leg's
+`|a|cmd` **0.74 unchanged**, the **line's `|a|max` 31.7 against the control's 35.7**
+(lower), ticks 93-101 and `clean_slip` 0.0 mm unchanged. **It lives in the recipe, not a
+default**: `FRUIT_SETTLE_EPS` is read by **every** `_settle_to_rest`, the two-line's
+included, so a default would move the two-line acceptance and owe a reference re-record;
+it is a `scripts/290_single_arm_continuous.sh` setting (with the measurement in its
+header), `=0.002` restores. **The recipe cell confirms it carries** (seed 909, everything
+else at the defaults): **20/20, cycle 9.71 s** - pooled over the three cells **60/60 =
+100 %**, cycle median **9.71 s**. **Cycle now**: 13.55 -> 12.13 (P249) -> 11.43 (P258) ->
+10.85 (P259) -> 10.49 (P260) -> 9.97 (P261) -> **9.71 s** = **-28.3 %** over the arc at
+~99 % placed; remaining blocks `place` 3.01, `rel_low` 1.23 (the accompanied descent at
+the profile's own 0.30 m/s cap), `grip` **1.26**, `descent` 1.1-1.9, `close` 1.10, `lift`
+1.20. `gap` is still bimodal, so throughput is a **range (~4.7-4.9 picks/min)**. Pins
+unchanged: `tasks.py` **`6e1600ac`**, `rl_env.py` (`_lift_dz_arms`), references
+**`61fb5202` / `61fb5202` / `18b101bf`**, ckpt `p227_panda156`; `selfcheck.sh` **PASS (0
+failures, 1 skipped)**. Evidence `logs/p262/`.
+
 **P261 (2026-11-25, `logs/p261/`; a **structural asymmetry** found and shipped as the
 direct lane's default): the lift height reached **only the left arm** - aligning the right
 is **-0.52 s at 79/80**.** The phase first had to correct its own reading of the block

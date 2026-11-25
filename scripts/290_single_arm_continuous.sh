@@ -32,6 +32,14 @@
 #     FRUIT_RELEASE_FINGER_HOLD=1       per step: `release` 2.17 -> 1.70 s,
 #                                       39/40 placed, the one loss at the grasp
 #     FRUIT_CYCLE_REPORT=1              the block report
+#     FRUIT_SETTLE_EPS=0.01             (P262) the `_settle_to_rest` exit: 2 mm/s
+#                                       is stricter than the arm needs -
+#                                       `lift_settle` 0.79 -> 0.47 s, the attempt
+#                                       -0.32 s at 40/40, and the line's `|a|max`
+#                                       is 31.7 against the 2 mm/s control's 35.7
+#                                       (no acceleration penalty). It is a shared
+#                                       knob (the two-line's own settles read it),
+#                                       so it lives here and not in a default.
 #
 # Everything the caller exports is passed through (a checkpoint, an instruction,
 # a profit), so this is also the runner for a different pool or a different
@@ -74,6 +82,7 @@ FRUIT_SKIP_LATE="${FRUIT_SKIP_LATE:-0}" \
 FRUIT_RELEASE_PAD_HOLD="${FRUIT_RELEASE_PAD_HOLD:-1}" \
 FRUIT_RELEASE_FINGER_HOLD="${FRUIT_RELEASE_FINGER_HOLD:-1}" \
 FRUIT_CYCLE_REPORT=1 \
+FRUIT_SETTLE_EPS="${FRUIT_SETTLE_EPS:-0.01}" \
     scripts/run.sh scripts/110_rl_rollout.py \
         --presentation direct --episodes 1 --continuous "$picks" \
         --seeds "$seed" --ckpt "$ckpt" \
