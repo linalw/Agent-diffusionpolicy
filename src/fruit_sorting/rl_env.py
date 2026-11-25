@@ -3527,6 +3527,10 @@ class SortingRLEnv:
         self._select_from = _sel
         self._select_fallbacks = 0
         self._sel_percept = None
+        #: the last frame's detections, keyed by prim path - the start-pose
+        #: family reads the *chosen* fruit's measured x from here rather than
+        #: asking the simulator which pose to stand in
+        self._select_dets: dict = {}
         #: P227ad: **keep the camera running inside the primitive.** Measured: with
         #: the pre-grasp reads on the estimate but no measurement during the contact
         #: phase, the tracker's last update is ~10 s old by the time the pads close
@@ -4991,7 +4995,15 @@ class SortingRLEnv:
             # 1-2 cm error in x moves the pose by ~e-3 rad.
             _src = os.environ.get("FRUIT_START_ALIGN_FROM", "truth").strip().lower()
             _pp = getattr(self, "_percept_pos", None)
-            if _src in ("percept", "perception") and _pp is not None:
+            #: the selector's own measurement of *this* fruit is the best x: the
+            #: frame was taken at the selection instant, so it is fresher than the
+            #: tracker's (which starts empty) and it is the fruit being picked.
+            _det = getattr(self, "_select_dets", {}).get(
+                getattr(self._sample, "prim_path", "")
+            )
+            if _src in ("percept", "perception") and _det is not None:
+                fx = float(np.asarray(_det["position"], dtype=float)[0])
+            elif _src in ("percept", "perception") and _pp is not None:
                 fx = float(np.asarray(_pp, dtype=float)[0])
             elif _src in ("percept", "perception"):
                 _lo = float(getattr(self.cfg, "supply_x_min", self.cfg.pick_x))
@@ -8916,6 +8928,7 @@ class SortingRLEnv:
             self.task,
             paths=[s.prim_path for s in self.spawner.active if not s.parked],
         )
+        self._select_dets = dets
         if not dets:
             return None
         by_path = {
