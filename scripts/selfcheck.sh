@@ -482,6 +482,9 @@ print('direct cycle report ok (owned by the env, scripted path unchanged)')"
 # P275: the truth-free grasp judge (force + measured pad span), default off.
 # P275: the truth-read census, and the two elements it forced (diameter, start x).
 # P275: the selector can be built from one camera frame instead of the spawner.
+# P275: `detect_all` executed on a synthetic frame (labels -> mask -> fit -> ROI -> bias).
+run_check "P275 detect all" "$python" scripts/291_p275_detect_selftest.py
+
 run_check "P275 select from percept" "$python" -c "
 p = open('src/fruit_sorting/perception.py', encoding='utf-8').read()
 assert 'def detect_all(' in p
