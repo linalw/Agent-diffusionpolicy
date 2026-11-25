@@ -8146,6 +8146,37 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P265 (2026-11-25, `logs/p265/`; a diagnostic cell, **no `src/` change**): the 0.12 catch
+failures are **upstream arrivals**, and **P264's "scheduling" reading is corrected**.** P264
+wrote that the 12 pass-by losses are "a scheduling property (the fruit reaches the station
+while the arm is still on the previous pick)" - **wrong, and the code says so**: an episode
+ends on `fruit fell off the line` only when the **selected** fruit is 0.25 m below the belt
+top (`_episode_events`), so the class is **the selected fruit was missed in the catch and
+rode off the end**; the scheduling guard P264 proposed has nothing to act on. **What the
+catch does at 0.12** (two 10-pick cells, `FRUIT_TRACK_DIAG=1`, the `[catch]` rows carry the
+residual's components): **converged rows 20-28 ticks, 7.8-8.8 mm, `x ~ 0`, `y ~ -5.8`, `z ~
+-6.5`** against **stalled rows 200 ticks with `y` POSITIVE (+10.6 / +12.8 / +27.9 / +28.7 /
++37.6 mm)** - the hand is **upstream of the fruit** - plus one 1633 mm runaway (the P251
+lost/recycled-body artefact). **So the signature is unambiguous**: the fast cases are "the
+fruit arrives into the pads" (`y` slightly negative, the lead working) and the stalls are
+"**the pads are behind the fruit and cannot overtake the belt**" - at 0.12 the fruit moves
+1 mm/tick, so a 30 mm deficit is 200 ticks of chasing, exactly the budget; **and that is
+speed-dependent, which is why 0.08 does not show it** (0.67 mm/tick closes the same deficit
+inside the budget, P243's 21-42 ticks on 27 of 28). **The lever is therefore the arrival
+side**, and the window is the one P109 mapped: **more** margin -> further upstream -> this
+failure; **less** -> `past_aim` -> P109's **bistable** outcome (converge or 233-269 mm run
+away, 5 of 79 attempts, the placed count at 4 of 4 seeds). **The shipped 0.15 is already on
+the safe side of it**, which is why this failure is the opposite one. **The named next step
+is a bounded downstream bias with a guard** (aim a few mm past the fruit *and* stop when the
+catch-up's `y` residual is positive and not shrinking, instead of spending the whole
+200-tick budget), and its registration must carry P103's measured price of a reaction
+(**−0 ticks, +15 % interval** when it re-draws the slot loop). **The mechanism sentence for
+the record**: *at 0.12 the pads must not end up behind the fruit - the arm cannot overtake
+the belt, and 200 ticks is not enough to try.* Pins unchanged: `tasks.py` **`e733c1f8`**,
+references **`61fb5202` / `61fb5202` / `18b101bf`**, ckpt `p227_panda156`; `selfcheck.sh`
+**PASS (0 failures, 1 skipped)**; `accept.sh` stands at P263's **459/459 + `fingerprint:
+matches`**. Evidence `logs/p265/`.
+
 **P264 (2026-11-25, `logs/p264/`; the 0.12 cells **re-measured on the current recipe**,
 no `src/` change): **the throughput work does not move 0.12** - the step is still its two
 classes.** Every 0.12 number in the record predates the throughput arc (85.0 % was measured
