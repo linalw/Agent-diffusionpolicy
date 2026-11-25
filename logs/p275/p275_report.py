@@ -24,7 +24,10 @@ JUDGE = re.compile(
     r"\[task\] grasp judge idx=(\d+) arm=(\w+) sensors=(\w+) truth=(\w+) "
     r"\(lift=([-+0-9.]+)m force=([0-9.]+)N span=([0-9.]+)mm ok=(\d+)/(\d+)\)"
 )
-CENSUS = re.compile(r"^\[truth\] ep=\d+\s+(\d+)\s+(\S+)$", re.M)
+#: the harness prefixes every `say` row with `[fruit] `, so the anchor is the
+#: marker, not the line start.
+CENSUS = re.compile(r"\[truth\] ep=\d+\s+(\d+)\s+(\S+)$", re.M)
+CENSUS_TOTAL = re.compile(r"\[truth\] ep=\d+ simulator fruit-state reads so far: (\d+)")
 SELECT = re.compile(
     r"\[select\] percept: (\d+) detection\(s\), (\d+) on a live fruit, "
     r"(\d+) unmatched"
@@ -139,7 +142,10 @@ def main(argv: list[str]) -> int:
         tot: dict[str, int] = {}
         for n, site in blocks:
             tot[site] = max(tot.get(site, 0), int(n))
-        print(f"\n{tag}: {sum(tot.values())} reads over {len(blocks)} episode prints")
+        total = sum(tot.values())
+        last = CENSUS_TOTAL.findall(txt)
+        print(f"\n{tag}: {total} reads over {len(blocks)} site-rows"
+              + (f" (the env's own counter: {last[-1]})" if last else ""))
         for site, n in sorted(tot.items(), key=lambda kv: -kv[1]):
             print(f"    {n:7d}  {site}")
 
