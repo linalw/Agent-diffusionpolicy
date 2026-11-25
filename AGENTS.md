@@ -8146,6 +8146,34 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P273 (2026-11-25, `logs/p273/`; the **difference** endpoint P271 asked for, powered -
+4 fresh seeds, 80 picks per arm, the trace on **both** arms; **nothing adopted**): the
+tolerance's difference **flips sign** on fresh seeds, so the lever **closes as not
+reproduced**.** Cells (0.12, seeds **909-912**, 20 picks each = **8 cells / 80 per arm**,
+`FRUIT_PLACE_TRACE=1` + `FRUIT_CARRY_DIAG=1` + `FRUIT_TRACK_DIAG=1` on both): **C 6 mm
+63/80 = 79 %, 74 catches, 7 true stalls (9.5 %), 63/63 `on_belt`**; **T 7 mm 62/80 = 78 %, 75
+catches, 12 true stalls (16.0 %), 62/62 `on_belt`**; **zero `grasped=True placed=False` in
+either arm**; cycle **9.61 / 9.57 s**. **P1 FAILS on the sign** - the bar was "T at least 5
+points **lower**" and the measurement is **6.5 points higher** (C-T = **-6.5**), Fisher exact
+two-sided **p = 0.326**; **P2 passes** (62 >= 63-4, no place-leg loss); **P3 flat**. **Three
+batches, three readings, the last one reverses**: P269 (40/arm, trace **off**) **19 % -> 9 %
+(-10)**; P271 (40/arm, trace on) **14 % -> 11 % (-3)**; **P273 (80/arm, trace on) 9.5 % ->
+16.0 % (+6.5)** - **the largest and freshest batch reverses the first**, and the two "positive"
+batches were **40-pick draws** (7 and 5 stalls). **So the class effect is closed as NOT
+REPRODUCED** (not "unresolved"): the 7 mm exit does **not** reduce the true-stall rate, and the
+shipped **6 mm stands** - no default, no reference, no store, no further cell on it. **The whole
+0.12 acquisition sub-arc is now closed with a mechanism each**: the **clock** (P266: truncates
+converging chases), the **force** (P268: 8 of 10 stalls have no contact), the **tolerance**
+(this phase: sign flips) - what is left is **the arrival side** (P109's window, whose far end is
+the bistable runaway at 4 of 4 seeds) or the **y-axis/hardware**, and the grip/hold class
+(`logs/p42/SIM_LIMIT.md`). **Read rule this arc earns**: a class-level effect that **changes
+sign** across three batches of 40-80 picks per arm is not a lever - **one 40-pick batch cannot
+rank two exits**, and an effect that survives only at 40 is a draw with extra steps. No
+`src/`/`configs/` change (tree is P268's, `tasks.py` **`141cd178`**), references **`61fb5202` /
+`61fb5202` / `18b101bf`** untouched, ckpt `p227_panda156`; `selfcheck.sh` **PASS (0 failures, 1
+skipped)**; `accept.sh` stands at P268's **459/459 + `fingerprint: matches`**. Evidence
+`logs/p273/` (`PREREG.md` pinned before the cells).
+
 **P272 (2026-11-25, `logs/p272/`; the two disturbance cells **on the current deployment
 recipe**, **no `src/` change**, nothing adopted): the recipe holds under **both** disturbances -
 **39/40 with the loss in the known class**.** The record's disturbance numbers (P232's `±75 %`
