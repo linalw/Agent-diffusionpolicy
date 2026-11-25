@@ -529,6 +529,10 @@ print('truth census ok (off by default, nominal diameter, start-x source)')"
 # P276: the pre-grasp contact reads go through the one estimate door; the
 # post-grasp / evaluation / recovery reads must NOT (the payload follows the hand,
 # and a belt estimate there is a lie).
+# P277: the wrist view executed on a synthetic frame - the prior as a preference,
+# the raster control missing by 8 cm, the paper preset's field of view.
+run_check "P277 wrist view" "$python" scripts/292_p277_wrist_selftest.py
+
 run_check "P276 contact estimate" "$python" -c "
 import re
 src = open('src/fruit_sorting/tasks.py', encoding='utf-8').read()

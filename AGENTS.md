@@ -8146,6 +8146,73 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P277 (2026-11-25/26, `logs/p277/`; default off, **nothing adopted**, no reference
+moved): the owner's option A - use the wrist view, try compatible ways, take a wrist
+RGB-D camera's usual parameters - is built and measured, and the answer separates two
+things that were being run together: **the wrist is a good sensor (|e| p50 6.3-8.6 mm,
+min 0.6 mm) and it does not rescue the contact phase (40 % against 100 % truth, 47.4 %
+contact-on-estimate).** `src/fruit_sorting/wrist.py` is one rig with three mask-free
+isolation methods - `raster` (P214's image disk, kept as the **control**), `prior` (3-D
+neighbourhood + **voxel connected components** + a jaw anchor) and `colour` (the same plus
+a colour model taken from **the head's own accepted mask**, the only label this build has)
+- plus `FRUIT_WRIST_PRESET=paper`: **640×480 @ 30 Hz, HFOV 68.9°**, near 3 cm, i.e. the
+common wrist RGB-D stream. **The compatibility is the annotator rule**: with a measure
+mode armed the wrist is authored **RGB-D only** and the head keeps the single
+`instance_id_segmentation` (P213's limit), so the second view costs the first one nothing -
+and `FRUIT_WRIST` implies the cameras, so a mode can never be set with no camera. **Three
+real defects were found, each by an instrument rather than by reading**: **(1) the eye was
+on the wrong side** - `approach_axis()` is **+z** (measured: `axis=(0.00,0.00,+1.00)`, jaw
+z=1.241, fruit z~1.20), so the shipped `jaw - back*axis` put the camera **6 cm below the
+jaw, against the belt, looking up**; it is now above the jaw looking down
+(`FRUIT_WRIST_EYE`); **(2) `measure` never rendered** between the pose write and
+`get_data`, so it read the previous frame; **(3) the camera was authored with
+`tick_rate=30.0`**, a timed sensor that hands back its **build-time** frame - two poses
+12 cm apart returned the *same* picture, and `tick_rate=0.0` (the working `close` camera
+in `121_policy_video.py`'s own authoring) plus the sensor's `set_world_poses` fixed it.
+The frame dump (`FRUIT_WRIST_DUMP`, PPM + npy) is what located (1) and (3): before, the
+view was "a grey band and one finger", after it the errors appeared at **4.3/4.4/12.8 mm**.
+**Scope, stated**: this proves *this tree's* path was reading a frozen frame; P214's
+44-62 mm is consistent with the same defect but its log does not record its authoring
+(**not claimed as the same cause**), and P135's 3.54 mm was measured on its own bench and
+is **not re-judged**. **Two more must-fixes came from the data**: the first "cluster" grew
+a 12 mm ball around one seed and read `diameter 19 vs 60 mm` **89 times** on a real 6 cm
+fruit (a 12 mm ball cannot hold a 60 mm object) - replaced by voxel connectivity; and with
+no range gate the selector accepted the belt and the background (**|e| p50 307 mm**,
+diameter p50 1.9 cm) - a 0.25 m camera-range gate, a 250 px minimum and a 20 mm
+diameter-consistency term fixed the tail. **The measurement** (0.08, seeds 913/914 x 10,
+same recipe as P276's `TFs`): **`prior` 3/10 + 2/10 = 5/20 = 25 %**, **`colour` 4/10 +
+4/10 = 8/20 = 40 %** (one further `colour` cell 6/10), against **contact-on-estimate 9/19
+= 47.4 %** and **all-truth 20/20 = 100 %**; wrist accuracy **`colour` |e| p50 8.6 / 6.3 mm**
+(n=217/145, min 0.6-1.7) while **`prior` cannot isolate** (`rms 7 mm`, 3 % acceptance,
+`no plausible cluster` dominant) because **the pads touch the fruit exactly when the
+measurement matters** and a depth connected component merges them. **And the decisive
+number says the tail did not move**: with the wrist on, "estimate minus truth" at the
+contact instant is `12.9 15.1 16.0 16.1 19.1 47.3 85.0 93.6 131.3 mm` (**p50 19.1, 3/9 >
+50 mm, max 131**) against P276's `10.2 10.7 15.6 22.4 23.6 81.3 97.6 109.9` (p50 23.0,
+3/8 > 50) - 12-16 % acceptance is not enough to keep the filter fresh at the close, and
+the frames it loses are the ones where a pad is in front of the fruit, i.e. the same
+occlusion that blinds the head, from another direction. **Verdict: the wrist is a usable
+sensor whose isolation only holds while the pads are open, which is definitionally not
+the contact phase** - so this cell's answer is not a better filter or better lens, it is
+**force-first closing** (`SIM_LIMIT.md`'s line, the tactile is already in the loop and the
+grasp verdict is already force-based) or **a learned segmenter on the wrist RGB** - P214's
+named piece, which is now a real option for the first time because the camera moves.
+**Offline proof of the design choice**: `scripts/292_p277_wrist_selftest.py` executes the
+rig on a synthetic frame and reads **0.0-4.0 mm with the prior 80 mm - and 40 cm - off**
+(the prior is a preference, not a filter), the `raster` control is **rejected**, and the
+paper preset's field of view is **68.9°**. No-harm: `scripts/accept.sh` with every knob
+unset is **7/10 = 70 %, `fingerprint: matches`, `190: PASS`** with its **459 `[fruit]`
+lines 458/459 identical** (a measure mode is what authors the cameras, so unset builds
+none); `scripts/selfcheck.sh` **PASS (0 failures, 1 skipped)** with the new `P277 wrist
+view` leg and `P213 wrist annotators` re-pinned to the *meaning* (the head list is still
+the default with no mode; a mode authors RGB-D only). Pins: `wrist.py` **`4246ae2c`**,
+`scene.py` **`f2b9beb0`**, `rl_env.py` **`40cf9e4c`** (`TASKS_MD5` unchanged -
+`tasks.py` **`332ed2f4`** is P276's), `scripts/292_p277_wrist_selftest.py`
+**`b38d935b`**, `scripts/276_p213_wrist_annotators_selftest.py` **`7a5a16ea`**,
+`scripts/selfcheck.sh` **`80096b57`**, `logs/p277/PREREG.md` **`b0c5a0ec`**,
+`RESULTS.md` **`7ac34147`**; references **`61fb5202` / `61fb5202` / `18b101bf`**
+untouched; ckpt `p227_panda156`. Evidence `logs/p277/`.
+
 **P276 (2026-11-25, `logs/p276/`; default off, **nothing adopted**, no reference
 moved): P275's named next item - the **contact phase** - is done and **it does not
 work**: routing the 18 pre-grasp contact reads through `_fruit_state` takes 0.08 from

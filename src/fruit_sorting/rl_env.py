@@ -2625,6 +2625,32 @@ class SortingRLEnv:
         #: fruit is occluded (the hand hides it for ~0.5 s at the close). Beyond
         #: this the prediction is held at the cap, not extrapolated further.
         self._percept_coast_s = float(os.environ.get("FRUIT_PERCEPTION_COAST_S", "1.0"))
+        #: P277: **the wrist view as a second measurement.** The head loses the
+        #: fruit to the arm through the descent and the close (P276: the estimate
+        #: freezes at the coast cap, 80 mm at 0.08 m/s, and the pads close on air).
+        #: An eye-in-hand camera is mounted at the jaw, so the fruit it is about to
+        #: grasp is the one thing it cannot miss. This build supports **one
+        #: annotated camera** (P213), so the wrist is RGB-D only and the fruit is
+        #: isolated without an instance mask - `raster` is P214's image-disk bench
+        #: kept as the control, `prior` is a 3-D neighbourhood, `colour` adds a
+        #: colour model taken from the head's own mask. Off by default.
+        from .wrist import mode_from_env as _wrist_mode_env
+
+        self._wrist_mode = _wrist_mode_env()
+        self._wrist_where = os.environ.get(
+            "FRUIT_WRIST_WHERE", "contact"
+        ).strip().lower()
+        if self._wrist_where not in ("contact", "always"):
+            raise ValueError(
+                "FRUIT_WRIST_WHERE must be 'contact' or 'always', got "
+                f"{os.environ.get('FRUIT_WRIST_WHERE')!r}"
+            )
+        self._wrist_rigs: dict = {}
+        self._in_primitive = False
+        self._head_colour = None
+        self._wrist_diag = (
+            os.environ.get("FRUIT_WRIST_DIAG", "0").strip() == "1"
+        )
         #: Bench-only error samples (truth is read for the column, never used).
         self._percept_errs: list[float] = []
         self._percept_errs_close: list[float] = []
@@ -5734,6 +5760,12 @@ class SortingRLEnv:
                             target_id = int(key)
                             break
                     mask = (seg == target_id).astype(np.float32)
+                    #: P277: the wrist's `colour` mode needs a model of *this*
+                    #: fruit, and the head's own mask is the only label there is.
+                    if rgb is not None and float(mask.sum()) > 20:
+                        from .wrist import colour_model_from_mask
+
+                        self._head_colour = colour_model_from_mask(rgb, mask)
         if self._loop_timing:
             # P43 L2: the camera stage (every `get_data` read of the observation
             # plus the mask arithmetic) and the observation count. `push_frame`
@@ -5761,6 +5793,8 @@ class SortingRLEnv:
                 self._goal[6] = float(self._sample.diameter)
             except Exception:  # noqa: BLE001 - bench column only
                 pass
+        if self._wrist_mode != "off":
+            self._wrist_tick()
         if (getattr(self, "_goal_perception", False)
                 and self._percept_tracker is not None and self._goal.size >= 7):
             # P145c: the goal moves with the fruit **every** observation tick, and
@@ -8881,6 +8915,82 @@ class SortingRLEnv:
         self._prim_t = now
         self._observe(force=True)
 
+    def _wrist_tick(self) -> None:
+        """P277: one wrist measurement into the **same** tracker.
+
+        This is the whole point of the second view: the head's `measure` is
+        refused while the arm occludes the fruit, the filter coasts, and P276
+        measured the cost (80 mm at the 1 s cap, the pads close on air). A
+        measurement from the jaw keeps `tr.t` current, so `predict_at` never has
+        to extrapolate through an occlusion.
+
+        The **prior** is the tracker's own prediction - deliberately, because that
+        is the number that goes wrong; `wrist.WristRig` treats it as a preference
+        and picks the nearest plausible cluster, so a coasted prior still finds
+        the fruit. The colour model, when `mode=colour`, comes from the head's own
+        accepted mask (the only label in the build, P213).
+        """
+        if self._sample is None:
+            return
+        if self._wrist_where == "contact" and not self._in_primitive:
+            return
+        prior = None
+        radius = 0.030
+        if self._percept_tracker is not None:
+            horizon = float(self._sim_time()) - float(self._percept_tracker.t)
+            horizon = min(max(horizon, 0.0), float(self._percept_coast_s))
+            prior = np.asarray(self._percept_tracker.predict_at(horizon), dtype=float)
+            if self._percept_dia is not None:
+                radius = 0.5 * float(self._percept_dia)
+        elif self._goal.size >= 7:
+            prior = np.asarray(self._goal[0:3], dtype=float)
+        if prior is None:
+            return
+        rig = self._wrist_rigs.get(self._active)
+        if rig is None:
+            from .wrist import WristRig
+
+            rig = WristRig(
+                self.scene, self.task, self._active, self._wrist_mode,
+                render=self._RenderingManager.render,
+            )
+            self._wrist_rigs[self._active] = rig
+        det = rig.measure(prior, radius, colour_model=self._head_colour)
+        if det is None:
+            return
+        if self._percept_cfg is None:
+            self._percept_cfg = track_config_from_env(os.environ, "depth")
+            self._percept_bias = np.asarray(_calibration_bias("head"), dtype=float)
+        centre = np.asarray(det["position"], dtype=float) - np.asarray(
+            _calibration_bias("wrist"), dtype=float
+        )
+        now = float(self._sim_time())
+        if self._percept_tracker is None:
+            self._percept_tracker = FruitTracker(
+                self._percept_cfg, belt_velocity=None, tau=0.0
+            )
+            self._percept_tracker.reset(centre, now)
+        else:
+            self._percept_tracker.update(centre, now)
+        self._percept_pos = np.asarray(self._percept_tracker.position, dtype=float)
+        self._percept_vel = np.asarray(self._percept_tracker.velocity, dtype=float)
+        self._percept_dia = float(det["diameter"])
+        self._percept_frames += 1
+        if self._wrist_diag:
+            #: bench column only: the wrist's own error against the simulator.
+            try:
+                truth = np.asarray(self.spawner.position(self._sample), dtype=float)
+                err = (centre - truth) * 1000.0
+                self._say(
+                    f"[wrist] idx={int(self._sample.index)} mode={self._wrist_mode} "
+                    f"err=({err[0]:+.1f},{err[1]:+.1f},{err[2]:+.1f})mm "
+                    f"|e|={float(np.linalg.norm(err)):.1f}mm "
+                    f"px={int(det['pixels'])} rms={float(det['rms']) * 1000:.2f}mm "
+                    f"dia={float(det['diameter']) * 100:.1f}cm"
+                )
+            except Exception:  # noqa: BLE001 - bench column only
+                pass
+
     def _estimate_now(self):
         """`(position, velocity)` from the tracker **at this tick**, or None.
 
@@ -9827,6 +9937,7 @@ class SortingRLEnv:
                 f"[prim] source={'percept' if _est is not None else 'truth'} "
                 f"(pre-grasp reads; post-grasp follows the hand)"
             )
+        self._in_primitive = True
         _prev_hook = getattr(self.task, "primitive_tick_hook", None)
         if self._primitive_percept:
             self._prim_t = -1.0e9
@@ -9839,6 +9950,7 @@ class SortingRLEnv:
                 self._active, self._sample, self._bin_index, result, verbose=self.verbose
             )
         finally:
+            self._in_primitive = False
             if self._primitive_percept:
                 self.task.primitive_tick_hook = _prev_hook
             self.task.fruit_estimate = None
@@ -10058,6 +10170,11 @@ class SortingRLEnv:
                 f"truth_fallbacks={self._select_fallbacks}"
             )
             self._select_fallbacks = 0
+        if self._wrist_mode != "off":
+            for _side, _rig in sorted(self._wrist_rigs.items()):
+                self._say(f"[wrist] ep={self._episode} {_side}: {_rig.summary()}")
+                _rig.attempts = _rig.accepted = _rig.rejected = 0
+                _rig.reasons = {}
         self._say(
             f"[rl] episode {self._episode}: {self._sample.category} "
             f"d={self._sample.diameter * 100:.1f}cm bin={self._bin_index} "

@@ -1,0 +1,59 @@
+=== scripted line: 10 attempts, HEADLESS=1 ===
+[fruit] [stats] attempts=10 successes=7 diverted=0 success_rate=70% sim=95.1s total, 9.5s/attempt, 13.6s/success gate_open=0.0s total, queue_peak=0 recirculated=0 encoder=-0.120 m/s nominal (command -0.120, no cleats to measure travel)
+[fruit] [run] summary: 7/10 successful
+[fruit] [biarm] scheduler: FRUIT_BIARM=1(default) FRUIT_BIARM_TWOLINE=1(default)
+[fruit] [biarm] two-line scheduler: left station y=+0.000, right station y=-0.100 (separation 0.100 m)
+
+=== motion gate (session: two-line) ===
+190: two-line gate: reference=configs/motion_reference.json floor=0.60
+logs/accept.log: 10 descent leg(s), line=dynamic
+   #   dist samples  |v|max  budget   |a|max   |dv|  a_med  peak@  a_win5  verdict
+   1   5.6c      89   0.109   0.161     1.98  0.016   0.25   0.02    0.77  ok
+   2   5.7c      89   0.107   0.160     1.48  0.012   0.29   0.01    0.54  ok
+   3   5.6c      89   0.108   0.161     1.91  0.016   0.24   0.02    0.74  ok
+   4   5.8c      91   0.110   0.161     1.36  0.011   0.24   0.02    0.43  ok
+   5   5.5c      86   0.110   0.160     2.28  0.019   0.24   0.01    0.91  ok
+   6   5.6c      89   0.108   0.161     1.92  0.016   0.22   0.02    0.66  ok
+   7   5.7c      90   0.109   0.160     1.65  0.014   0.24   0.02    0.54  ok
+   8   5.6c      88   0.126   0.161     7.06  0.059   0.35   0.55    2.57  ok (rough)
+   9   5.5c      87   0.109   0.160     2.23  0.019   0.24   0.01    0.87  ok
+  10   5.7c      90   0.109   0.160     1.59  0.013   0.25   0.02    0.52  ok
+  worst: |v|max=0.1260 m/s (budget 0.160-0.161), lurch=0.059 m/s/tick (budget 0.291096), a_win5=2.570 m/s^2 (carrying budget 2, warning)
+
+logs/accept.log: 18 carry leg(s)
+  leg              dist    cone  over    slip in-hand |v| recov  verdict
+  grasp_lift         3c   1.52x    9%   22.2mm      0.091     0  ok (cone 1.52x reported) (hand 0.64 m/s: rescued)
+  place1            36c   1.21x    4%   80.1mm      0.165     0  ok (cone 1.21x reported)
+  grasp_lift        21c   0.89x    0% 1390.6mm      4.996     0  ok
+  grasp_lift         5c   1.59x   12%   29.0mm      0.134     0  ok (cone 1.59x reported) (hand 0.82 m/s: rescued)
+  grasp_lift        21c   0.88x    0%   25.0mm      0.043     0  ok
+  place1            42c   1.17x    6%   76.8mm      0.151     0  ok (cone 1.17x reported)
+  place0            62c   0.86x    0%   83.2mm      0.057     0  ok
+  grasp_lift        21c   0.89x    0%   20.9mm      0.076     0  ok
+  place1            41c   0.93x    0%   46.9mm      0.056     0  ok
+  grasp_lift        21c   0.88x    0%   24.5mm      0.040     0  ok
+  place0            56c   0.86x    0%   82.9mm      0.061     0  ok
+  grasp_lift        21c   0.88x    0%  270.4mm      0.794     0  ok
+  place0            57c   0.86x    0%  949.5mm      1.373     0  ok
+  grasp_lift        18c   1.09x    1% 1333.0mm      5.002     0  ok (cone 1.09x reported)
+  grasp_lift        21c   0.92x    0%   32.8mm      0.068     0  ok
+  grasp_lift        21c   0.88x    0%   23.9mm      0.045     0  ok
+  place1            30c   1.15x    2%   74.4mm      0.186     0  ok (cone 1.15x reported)
+  place0            58c   0.86x    0%   84.6mm      0.068     0  ok
+  worst held-grip cone: 1.59x budget (budget 1x)
+  hand speed: worst 0.823 m/s; 2/18 leg(s) over 0.45 m/s (reported, not gated) - every other leg sits at the commanded 0.176-0.371
+
+  success: 7/10 = 70% (floor 60% - override)
+  fingerprint: matches configs/motion_reference.json
+
+PASS: every descent is inside its profile's speed and lurch bound, the carry cone/slip is reported, and the success rate is at or above the dynamic line's floor
+note: 7 warning(s) (reported, not gating):
+  - descent 8 (5.6 cm): a_win5=2.57 over the 2 m/s^2 carrying budget - reported, not gated (see the module docstring)
+  - carry grasp_lift: cone=1.52x over the 1x budget with slip=22.2mm - reported on the dynamic line, not gated
+  - carry place1: cone=1.21x over the 1x budget with slip=80.1mm - reported on the dynamic line, not gated
+  - carry grasp_lift: cone=1.59x over the 1x budget with slip=29.0mm - reported on the dynamic line, not gated
+  - carry place1: cone=1.17x over the 1x budget with slip=76.8mm - reported on the dynamic line, not gated
+  - carry grasp_lift: cone=1.09x over the 1x budget with slip=1333.0mm - reported on the dynamic line, not gated
+  - carry place1: cone=1.15x over the 1x budget with slip=74.4mm - reported on the dynamic line, not gated
+190: PASS logs/accept.log
+190: every log matches configs/motion_reference.json and is at or above the two-line floor 0.60

@@ -953,7 +953,14 @@ class SortingScene:
         # 12 cm, which is the view a real cell uses. One per arm, authored at a
         # fixed world pose here and *driven* every measurement by `set_wrist_pose`
         # (the hand's own pose is the only thing that has to be right).
-        if os.environ.get("FRUIT_WRIST_CAMERA", "0") == "1":
+        # P277: the measure mode (`FRUIT_WRIST=prior|colour|raster`) implies the
+        # cameras - a mode with no camera would be silent.
+        _wrist_want = (
+            os.environ.get("FRUIT_WRIST_CAMERA", "0") == "1"
+            or os.environ.get("FRUIT_WRIST", "off").strip().lower()
+            not in ("", "off", "0")
+        )
+        if _wrist_want:
             if "robot" not in parts:
                 say("[wrist] ignored: the wrist camera needs the 'robot' part")
             else:
@@ -1166,22 +1173,31 @@ class SortingScene:
         # *instance_id_segmentation* annotator took the head's mask away; an
         # RGB+depth wrist is the probe that separates the annotator conflict from
         # the camera itself. Unset is the P135 list byte for byte.
+        #: P277: **one annotated camera per run** is this build's limit (P213: a
+        #: second `instance_id_segmentation` takes the head's mask away). So when
+        #: the measure mode is armed the wrist is authored **RGB-D only**, and the
+        #: head keeps the mask - which is what makes the second view "compatible"
+        #: rather than a trade. An explicit `FRUIT_WRIST_ANNOTATORS` still wins.
+        from .wrist import mode_from_env as _wrist_mode, wrist_spec_from_env
+
+        _measure_mode = _wrist_mode()
+        _default_ann = "rgb,distance_to_image_plane"
+        if _measure_mode == "off":
+            _default_ann = os.environ.get(
+                "FRUIT_CAMERA_ANNOTATORS",
+                "rgb,distance_to_image_plane,instance_id_segmentation",
+            )
         annotators = [
             a.strip()
-            for a in os.environ.get(
-                "FRUIT_WRIST_ANNOTATORS",
-                os.environ.get(
-                    "FRUIT_CAMERA_ANNOTATORS",
-                    "rgb,distance_to_image_plane,instance_id_segmentation",
-                ),
-            ).split(",")
+            for a in os.environ.get("FRUIT_WRIST_ANNOTATORS", _default_ann).split(",")
             if a.strip()
         ]
-        resolution = tuple(
-            int(v)
-            for v in os.environ.get(
-                "FRUIT_WRIST_RES", "240,424"
-            ).split(",")
+        #: paper-standard RGB-D wrist (640x480, ~69 deg HFOV, 30 Hz) or the
+        #: shipped 240x424; explicit env wins either way.
+        resolution, _wfocal, _wax, _way, _whz = wrist_spec_from_env(
+            default_res=(240, 424),
+            default_focal=float(cfg.camera_focal_length),
+            default_aperture=(0.036, 0.02025),
         )
         self.wrist_cameras = {}
         self._wrist_ops = {}
@@ -1191,19 +1207,21 @@ class SortingScene:
             # render. (A camera looking straight down its own up-axis makes
             # `look_at_quat` degenerate - measured, it authors a zero-norm
             # quaternion and the RtxCamera constructor raises.)
+            #: P277: **`tick_rate=0.0`, i.e. manual.** A timed sensor renders on its
+            #: own schedule and hands back that cached frame; with our explicit
+            #: `RenderingManager.render()` the picture never moved (measured: two
+            #: poses 12 cm apart returned the same image, which is why every earlier
+            #: wrist number was read on the build-time view). The working `close`
+            #: camera in `121_policy_video.py` is authored exactly this way.
             camera = RtxCamera(
                 path,
-                tick_rate=30.0,
+                tick_rate=0.0,
                 positions=[(0.0, 0.0, 3.0)],
                 orientations=[look_at_quat((0.0, 0.0, 3.0), (0.0, 0.2, 2.9))],
             )
-            camera.camera.set_focal_lengths(
-                float(os.environ.get("FRUIT_WRIST_FOCAL", str(cfg.camera_focal_length)))
-            )
+            camera.camera.set_focal_lengths(_wfocal)
             # Wider than the head: at 12 cm the grasp point is 6-8 cm wide.
-            aperture = os.environ.get("FRUIT_WRIST_APERTURE", "0.036,0.02025")
-            ax, ay = (float(v) for v in aperture.split(","))
-            camera.camera.set_apertures((ax, ay))
+            camera.camera.set_apertures((_wax, _way))
             camera.camera.set_focus_distances(0.2)
             camera.camera.set_clipping_ranges(
                 float(os.environ.get("FRUIT_WRIST_NEAR", "0.03")), 10.0
@@ -1243,6 +1261,18 @@ class SortingScene:
         from .common import look_at_quat as _look_at
 
         quat = _look_at(position, target)
+        #: P277: **the camera object, not only the USD attributes.** Writing the
+        #: xform ops left the render product at its *build-time* pose - measured:
+        #: two runs 12 cm apart returned the same picture (a distant belt and one
+        #: finger), which is what every earlier wrist number was measured on.
+        #: `set_world_poses` is the sensor's own supported path.
+        try:
+            camera.set_world_poses(
+                positions=[[float(v) for v in position]],
+                orientations=[[float(q) for q in quat]],
+            )
+        except Exception:  # noqa: BLE001 - fall back to the USD ops below
+            pass
         ops = getattr(self, "_wrist_ops", {}).get(side)
         if ops is None:
             return
