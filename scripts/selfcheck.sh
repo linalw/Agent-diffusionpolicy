@@ -475,10 +475,24 @@ print('direct cycle report ok (owned by the env, scripted path unchanged)')"
 # scripted single arm and the two-line cannot read it; default OFF until a cell.
 # P260: the release block's second-level marks (default off, so the shipped
 # `[cycle]` row keeps its shape for every existing report).
+# P261: the lift height reaches only the left arm; the both-arms form is opt-in.
+run_check "P261 lift dz both" "$python" -c "
+import os
+src = open('src/fruit_sorting/rl_env.py', encoding='utf-8').read()
+assert 'FRUIT_LIFT_DZ_BOTH' in src
+assert 'def _lift_dz_arms(' in src, 'the one arm-set helper'
+assert 'return {\"left\": float(dz), \"right\": float(dz)}' in src, 'both by default'
+assert 'return {\"left\": float(dz)}' in src, 'the left-only restore'
+assert 'os.environ.get(\"FRUIT_LIFT_DZ_BOTH\", \"1\")' in src, 'default on since P261'
+assert 'must be ' in src
+# both return sites go through the helper
+assert src.count('_lift_dz_arms(') == 3, src.count('_lift_dz_arms(')
+print('lift dz both ok (both by default, left-only restore, one helper)')"
+
 run_check "P260 cycle sub" "$python" -c "
 t = open('src/fruit_sorting/tasks.py', encoding='utf-8').read()
 assert 'FRUIT_CYCLE_SUB' in t
-assert t.count('if self._cycle_sub:') == 3, t.count('if self._cycle_sub:')
+assert t.count('if self._cycle_sub:') == 5, t.count('if self._cycle_sub:')
 for name in ('rel_low','rel_pads','rel_fing'):
     assert f'self._cycle_mark(\"{name}\")' in t, name
 # the sub-marks sit inside the release block: after the place mark, before release

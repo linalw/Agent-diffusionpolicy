@@ -8146,6 +8146,43 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P261 (2026-11-25, `logs/p261/`; a **structural asymmetry** found and shipped as the
+direct lane's default): the lift height reached **only the left arm** - aligning the right
+is **-0.52 s at 79/80**.** The phase first had to correct its own reading of the block
+labels: **`grip` is not the load leg** - it is the belt-break ramp (**0.78 s**) plus
+`_settle_to_rest` (**0.79 s**) - and **`lift` *is* the `grasp_lift` leg** (two added
+second-level marks, `lift_takeoff` / `lift_settle`, made that unambiguous). With them the
+leg splits **by arm** in two independent cells: **right 177-191 ticks / 25 cm** against
+**left 100 ticks / 9 cm** (`[motion] carry grasp_lift: <cm>, <ticks>`), because **P66/P71's
+lift-height offset reaches only the left**: `resolve_lift_dz` returns `{"left": dz}` and
+`lift_dz_for` gives the right `None`, i.e. the shipped `belt_top + 0.28` base while the
+left rides the measured `0.20 m` rung - and **the right serves 62.5 % of the pool**
+(grades B and C). **The knob** (`FRUIT_LIFT_DZ_BOTH`) is one helper `_lift_dz_arms(dz)`
+returning the arm set, **default both since this phase**, `=0` the left-only resolution
+P66/P71 built, strict parsing. **The cells**: control (left-only, P260's recipe) **20/20,
+`lift` 1.25 s, `total` 10.49 s**; both-arms **s905 20/20 9.96**, **s906 20/20 9.89**,
+**s907 20/20 10.03**, **s908 19/20 9.98** - **79/80 = 98.8 % placed, cycle median 9.97 s
+(-0.52 s, -5 %)**, the right's leg reading **93-100 ticks**, i.e. **exactly the left's**.
+**Safe**: the right's `place` transit now clears the belt by **`clr = +104 mm`**
+(`clr_edge` +104) against P71's **+14..+50** on the left at the same rung, so the right is
+the *more* comfortable side; the single loss is the long-standing grasp class. **No
+collateral**: `resolve_lift_dz` returns `(None, False)` for **every presentation but
+`direct`**, so the scripted single arm, the two-line, the collector and the canary run with
+no target arithmetic - `accept.sh` **`fingerprint: matches`** with **459/459 identical**.
+**Provenance needed no new field** (the manifest's `scene.lift.dz` is already a `{arm: m}`
+map, so a left-only store and a both-arms store are distinguishable by its keys - the
+concern was checked and found unfounded, nothing added). **Two pins re-pinned to the new
+shape, not a new meaning**: `236` (P66) now sets `FRUIT_LIFT_DZ_BOTH=0` inside its `main`
+and keeps asserting the left-only resolution it was written for, while the new `P261 lift
+dz both` leg pins the helper, the both default, the restore and that **both return sites go
+through the helper**. **Cycle now**: 13.55 -> 12.13 (P249) -> 11.43 (P258) -> 10.85 (P259)
+-> 10.49 (P260) -> **9.97 s** = **-26.4 %** over the arc at 98.8 % placed; `gap` is still
+bimodal per cell, so throughput is a **range (~4.6-4.8 picks/min)**. Pins: `rl_env.py`
+(`_lift_dz_arms` + its two call sites), `scripts/236_p66_lift_selftest.py`,
+`scripts/selfcheck.sh`; `tasks.py` **`6e1600ac`** (this phase's sub-marks); references
+**`61fb5202` / `61fb5202` / `18b101bf`** untouched; ckpt `p227_panda156`. Evidence
+`logs/p261/`.
+
 **P260 (2026-11-25, `logs/p260/`; one **second-level instrument**, one measured
 **recipe** change, and the deployment cell becomes a script): `release` decomposes to
 **rel_low 1.29 + rel_pads 0.67 + rel_fing 0.27 = 2.23 s**, and **hold=1 is -0.45 s at

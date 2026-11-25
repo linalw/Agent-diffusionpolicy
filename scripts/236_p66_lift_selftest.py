@@ -108,6 +108,11 @@ def load_function(name: str, path: Path, extra: dict | None = None) -> tuple:
 
 
 def main() -> int:
+    # P261: this leg pins the **left-only** resolution P66/P71 built (the rung as
+    # the direct default, and the shipped height as the explicit restore). The
+    # both-arms form is P261's own leg (`P261 lift dz both`) and is now the default,
+    # so the left-only shape is restored here explicitly rather than imitated.
+    os.environ.setdefault("FRUIT_LIFT_DZ_BOTH", "0")
     from fruit_sorting.rl_env import (
         LIFT_DZ_DIRECT_DEFAULT,
         LIFT_DZ_HAND_ADD,

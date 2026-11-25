@@ -516,7 +516,7 @@ from .tracking import FruitTracker, track_config_from_env
 #: This env never constructs a cage, so no direct/policy behaviour moves - proven
 #: on the scripted side by `scripts/accept.sh`'s 421/421 byte-identical `[fruit]`
 #: stream (`logs/p107/RESULTS.md` section 5).
-TASKS_MD5 = "37888fb91f355a516176e5aefd10ee04"
+TASKS_MD5 = "6e1600ac7a71e553923942a6cd9eb0e5"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(
@@ -722,6 +722,31 @@ LIFT_DZ_DIRECT_DEFAULT = -0.08
 LIFT_DZ_HAND_ADD = 0.08
 
 
+def _lift_dz_arms(dz: float) -> dict[str, float]:
+    """P261: **which arms** the lift-height offset reaches.
+
+    Default **both** since the cell that measured it: the single-arm cell's
+    `left`/`right` labels are one physical Panda, so left-only left the *right*
+    label at the shipped `belt_top + 0.28` base while the left rode the measured
+    `0.20 m` rung. Measured on the deployment cell (0.08, 20 picks per cell):
+    the right's lift leg was **25 cm / 177-191 ticks** against the left's
+    **9 cm / 100**, and the right serves **62.5 %** of the pool (grades B and C).
+    With both arms at the rung the right's leg reads **93-100 ticks**, the attempt
+    **10.49 -> 9.96 / 9.89 s** and **40/40** picks placed, with the right's place
+    transit clearing the belt by **+104 mm** (`clr`, P71 measured +14..+50 on the
+    left). `FRUIT_LIFT_DZ_BOTH=0` restores the left-only resolution.
+    """
+    raw = os.environ.get("FRUIT_LIFT_DZ_BOTH", "1")
+    if raw not in ("0", "1"):
+        raise ValueError(
+            "FRUIT_LIFT_DZ_BOTH must be '0', '1' or unset "
+            f"(got {raw!r})"
+        )
+    if raw == "1":
+        return {"left": float(dz), "right": float(dz)}
+    return {"left": float(dz)}
+
+
 def resolve_lift_dz(
     presentation: str, env_value: str | None
 ) -> tuple[dict[str, float] | None, bool]:
@@ -751,6 +776,14 @@ def resolve_lift_dz(
     * `direct`, value unset -> `({"left": LIFT_DZ_DIRECT_DEFAULT}, True)`: the
       P71 default, and the manifest's `defaulted: true` tells a post-flip
       store from an explicit arm;
+    * `FRUIT_LIFT_DZ_BOTH=1` (P261, default off) applies the **same** resolved
+      `dz` to **both** arms. The single-arm cell's two labels are one physical
+      Panda, so `left`/`right` are the same arm - yet the shipped resolution
+      reaches only `left`, which leaves the **right** at the shipped 0.28 m
+      base while the left rides the measured 0.20 m rung. Measured on the
+      deployment cell: the lift leg is **25 cm / 190 ticks on the right against
+      9 cm / 100 ticks on the left**, and the right serves **62.5 %** of the
+      pool (grades B and C). This is the knob that prices aligning them.
     * `direct`, value set -> `({"left": dz}, False)`, parsed strictly. `+0.08`
       restores the shipped height (the same two float adds, so a `+0.08` arm's
       targets are bit-identical to the pre-P71 unset path); an empty value is
@@ -765,7 +798,7 @@ def resolve_lift_dz(
     text = "" if env_value is None else str(env_value).strip()
     if env_value is None or not text:
         if env_value is None:
-            return {"left": LIFT_DZ_DIRECT_DEFAULT}, True
+            return _lift_dz_arms(LIFT_DZ_DIRECT_DEFAULT), True
         return {"left": LIFT_DZ_HAND_ADD}, False
     try:
         dz = float(text)
@@ -775,7 +808,7 @@ def resolve_lift_dz(
         ) from None
     if not math.isfinite(dz):
         raise ValueError(f"FRUIT_LIFT_DZ={env_value!r} is not finite")
-    return {"left": dz}, False
+    return _lift_dz_arms(dz), False
 
 
 def resolve_lift_climb(

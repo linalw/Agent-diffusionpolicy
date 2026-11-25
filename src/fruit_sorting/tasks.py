@@ -17361,6 +17361,10 @@ class PickAndPlaceTask:
                     pause == 0
                     or int(ramp_book["sustained"]) >= max(1, pause - 2)
                 )
+            if self._cycle_sub:
+                #: P261: closes `lift_takeoff` = the belt-break ramp (and whatever
+                #: the take-off did before it), so the settle's own cost is visible.
+                self._cycle_mark("lift_takeoff")
             self._settle_to_rest(arm, max_ticks=120)
             if self._pluck_dwell > 0:
                 # R11-B C3 (see the knob block in `__init__`): a commanded-
@@ -17386,6 +17390,10 @@ class PickAndPlaceTask:
                         "pluck_dwell", sample, arm, self.grippers[arm_name], hold_gap
                     )
                 self._closed_gap[arm_name] = float(hold_gap)
+        if self._cycle_sub:
+            #: P261: closes `lift_settle` = the `_settle_to_rest` plus the pluck
+            #: dwell, i.e. the wait between the belt-break and the lift leg.
+            self._cycle_mark("lift_settle")
         self._cycle_mark("grip")
         if hub:
             # P30-B: the carrying hub is the *end* of the `grasp_lift` leg
