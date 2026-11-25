@@ -8146,6 +8146,30 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P272 (2026-11-25, `logs/p272/`; the two disturbance cells **on the current deployment
+recipe**, **no `src/` change**, nothing adopted): the recipe holds under **both** disturbances -
+**39/40 with the loss in the known class**.** The record's disturbance numbers (P232's `±75 %`
+belt wave **11/12**, P234's lateral band **12/12**) were **per-episode and pre-P249** - the
+throughput arc changed the cycle by 28 % afterwards, so the deployment shape had to carry its
+own cells. **Cells** (`scripts/290_single_arm_continuous.sh`, `v=0.08`, seed 907, 20 picks):
+**A belt wave `AMP=0.06 HZ=0.5` (0.02-0.14 m/s, ±75 %) -> 19/20, cycle 9.61 s**, the one loss
+`fruit did not follow the gripper` (kiwi 5.5 cm); **B lateral band 0.17-0.39 -> 20/20, cycle
+9.66 s**; **pooled 39/40 = 97.5 %** against the **nominal 139/140 = 99.3 % at 9.9 s**. **So the
+disturbances cost nothing measurable** and the single loss is the **grip/carry** class
+(`grasped=False`) - the record's hardware question, not a disturbance effect. **And the cycle
+does not move under the wave** (9.61 against 9.9 s, inside the cell-to-cell spread), which is
+**P257 restated under a ±75 % speed disturbance**: the attempt is the arm's own work, so a
+varying belt changes *when* the fruit arrives, not how long the pick takes. **The per-episode
+cells agree** (11/12 and 12/12), so the recipe change bought and cost no tolerance. **Honest
+caveat unchanged**: one cell each, one seed - "costs nothing" is a **draw**, not a proof of
+zero. **The delivered spec now**: 0.08 continuous **99.3 %** nominal, **19/20** under the ±75 %
+wave, **20/20** under the wide lateral band, **100 %** on the hardest single species, at a
+**9.6-9.9 s** attempt and **4.3-5.0 picks/min**; 0.12 **72.5-85 %** with its two classes; cycle
+**-28 %**. No `src/`/`configs/` change (tree is P268's, `tasks.py` **`141cd178`**), references
+**`61fb5202` / `61fb5202` / `18b101bf`** untouched, ckpt `p227_panda156`; `selfcheck.sh`
+**PASS (0 failures, 1 skipped)**; `accept.sh` stands at P268's **459/459 + `fingerprint:
+matches`**. Evidence `logs/p272/`.
+
 **P271 (2026-11-25, `logs/p270/` C arm completing P270's pair; **nothing adopted**): the
 re-registration **passes its letter** and the class effect **does not reproduce**.** Both arms
 with the landing trace (0.12, seeds 907/908, 20 picks each, `FRUIT_PLACE_TRACE=1` +
