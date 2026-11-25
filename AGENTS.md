@@ -8146,6 +8146,34 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P264 (2026-11-25, `logs/p264/`; the 0.12 cells **re-measured on the current recipe**,
+no `src/` change): **the throughput work does not move 0.12** - the step is still its two
+classes.** Every 0.12 number in the record predates the throughput arc (85.0 % was measured
+with a **11.9 s** attempt; the recipe now runs **9.6 s**), so the arm returns sooner
+relative to the fruit and the question was whether the pass-by class shrinks. **Cells**:
+**s905 14/20, s906 15/20 = 29/40 = 72.5 %** at attempt **9.52 / 9.59 s**, and **every loss
+is `grasped=False`** with the class mix **exactly P253's**: **7 `fruit did not follow the
+gripper` against 3**, **4 `fruit fell off the line` against 2**. **85 % (n=60) against
+72.5 % (n=40) is p ~ 0.13** - a draw at these sizes, and **no claim is made either way**;
+what *is* solid is that the mechanisms are unchanged and in the same proportion. **The 0.08
+number on the current recipe** is **139/140 = 99.3 %** (P261's four cells 79/80 + P262's
+three 60/60) at a 9.7 s attempt - so the arc's throughput work cost the target-speed cell
+nothing measurably (98.6 % before it, 99.3 % on it, same drawn pool). **What that says about
+the speed step**: 0.08 -> 0.12 still costs **13-26 points** depending on the draw with the
+same two classes, and a **5 % shorter cycle does not touch either** - the **pass-by** class
+is a *scheduling* property (the fruit reaches the station while the arm is still on the
+previous pick, so a 5 % cycle gain moves it ~5 %, inside the draw) and the **grip** class is
+the assembled hardware/physics question (`logs/p42/SIM_LIMIT.md`). **So the 0.12 lever is
+not the cycle**, and the earlier conclusion stands: the useful ceiling is set by the contact
+phase - P229's `v_max` equation (0.2055 m/s engagement) is not what binds at 0.12, the
+*grasp* is. **Delivered spec now**: 0.08 continuous **99.3 %** at **9.7 s**, **~4.7-4.9
+picks/min**; 0.08 hardest single species **100 %**; 0.12 **72.5-85 %** across draws at
+9.55 s; the belt speed a **loss** lever not a throughput one (P257); the cycle's remaining
+blocks at their measured floor or protected (P263). Pins unchanged: `tasks.py`
+**`e733c1f8`**, references **`61fb5202` / `61fb5202` / `18b101bf`**, ckpt
+`p227_panda156`; `selfcheck.sh` **PASS (0 failures, 1 skipped)**; `accept.sh` stands at
+P263's **459/459 + `fingerprint: matches`**. Evidence `logs/p264/`.
+
 **P263 (2026-11-25, `logs/p263/`; two second-level marks and one measurement, **nothing
 adopted**): `place` decomposes to **clear 0.78 + blend 1.08 + Cartesian 1.14**, and the
 blend's settle is **transferred, not saved**.** New `FRUIT_CYCLE_SUB` marks
