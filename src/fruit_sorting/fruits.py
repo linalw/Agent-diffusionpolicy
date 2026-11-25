@@ -21,6 +21,53 @@ from isaacsim.core.experimental.prims import RigidPrim
 from .assets import SceneConfig
 from .bed import BedPlan, BedSchedule
 from .common import say
+# --------------------------------------------------------------------------- #
+# P275: the **truth-read census**.
+#
+# The cell must be deployable, so every read of the simulator's fruit state is a
+# debt the record has to name. `FRUIT_TRUTH_AUDIT=1` counts them **by caller**, so
+# a "truth-free" claim can be checked instead of argued: the table says which
+# functions still read the simulator and how often. Off by default, and the read
+# is one dict lookup plus one frame walk inside `position`/`velocity` - the
+# instrument is for an audit cell, never a performance cell.
+_TRUTH_AUDIT = os.environ.get("FRUIT_TRUTH_AUDIT", "0").strip().lower() in (
+    "1", "census", "true", "yes"
+)
+_TRUTH_CENSUS: dict[str, int] = {}
+
+
+def _truth_read(kind: str) -> None:
+    """Count one simulator fruit-state read by its caller's function name."""
+    import sys
+
+    caller = "?"
+    try:
+        caller = sys._getframe(2).f_code.co_name
+    except Exception:  # noqa: BLE001 - counting is best-effort, never fatal
+        pass
+    key = f"{caller}.{kind}"
+    _TRUTH_CENSUS[key] = _TRUTH_CENSUS.get(key, 0) + 1
+
+
+def truth_read_census() -> dict[str, int]:
+    """The counts so far, sorted by call site (descending)."""
+    return dict(sorted(_TRUTH_CENSUS.items(), key=lambda kv: -kv[1]))
+
+
+def truth_read_total() -> int:
+    return int(sum(_TRUTH_CENSUS.values()))
+
+
+def print_truth_read_census(prefix: str = "[truth]") -> None:
+    """One table of every simulator fruit-state read, by caller."""
+    if not _TRUTH_AUDIT:
+        return
+    total = truth_read_total()
+    say(f"{prefix} simulator fruit-state reads so far: {total}")
+    for key, n in truth_read_census().items():
+        say(f"{prefix}   {n:7d}  {key}")
+
+
 from .meshes import (
     FRUIT_SHAPES,
     author_fruit,
@@ -2879,6 +2926,8 @@ class FruitSpawner:
             return 0.0
 
     def position(self, sample: FruitSample) -> np.ndarray:
+        if _TRUTH_AUDIT:
+            _truth_read("position")
         pos = self._rigids[sample.index].get_world_poses()[0]
         return np.asarray(pos.numpy() if hasattr(pos, "numpy") else pos)[0]
 
@@ -2931,6 +2980,8 @@ class FruitSpawner:
         )
 
     def velocity(self, sample: FruitSample) -> np.ndarray:
+        if _TRUTH_AUDIT:
+            _truth_read("velocity")
         vel = self._rigids[sample.index].get_velocities()[0]
         return np.asarray(vel.numpy() if hasattr(vel, "numpy") else vel)[0]
 

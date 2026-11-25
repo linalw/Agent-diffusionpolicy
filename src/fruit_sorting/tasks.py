@@ -3125,6 +3125,66 @@ class PickAndPlaceTask:
         #: acceptance**, the **hybrid canary** and the **two-line** session on the
         #: shipped 3-D-norm exit, so no reference moves.
         self.catch_tol_axis = os.environ.get("FRUIT_CATCH_TOL_AXIS", "0").strip() == "1"
+        #: P275: **how the grasp is judged.** `truth` (the shipped path) reads the
+        #: simulator - "the payload's z rose > 4 mm" at the probe and "peak lift >
+        #: 50 mm" at the score. Both are simulator state, which a real cell does not
+        #: have, so `FRUIT_GRASP_JUDGE=force` replaces **both** decisions with the
+        #: robot's own sensors: the pads' summed tactile force stays at or above
+        #: `FRUIT_GRASP_JUDGE_FORCE` (2 N, a fifth of the measured 9.8 N pinch)
+        #: through the window **and** the measured pad separation is at least
+        #: `FRUIT_GRASP_JUDGE_SPAN` (20 mm, which is what rejects "the pads met each
+        #: other" - P103's `fmax 213 N` row at `sep_min 0.2 mm`). The record's own
+        #: numbers make this the natural channel: held legs read `force_min`
+        #: 9.6-9.9 N, escape legs read `0.00 N` (P75/P41/P103).
+        _judge = os.environ.get("FRUIT_GRASP_JUDGE", "truth").strip().lower()
+        if _judge not in ("truth", "force"):
+            raise ValueError(
+                "FRUIT_GRASP_JUDGE must be 'truth' or 'force', got "
+                f"{os.environ.get('FRUIT_GRASP_JUDGE')!r}"
+            )
+        self._grasp_judge = _judge
+        try:
+            self._grasp_judge_force = float(
+                os.environ.get("FRUIT_GRASP_JUDGE_FORCE", "2.0")
+            )
+            self._grasp_judge_ticks = int(
+                os.environ.get("FRUIT_GRASP_JUDGE_TICKS", "10")
+            )
+            self._grasp_judge_span = float(
+                os.environ.get("FRUIT_GRASP_JUDGE_SPAN", "0.020")
+            )
+        except ValueError:
+            raise ValueError(
+                "FRUIT_GRASP_JUDGE_FORCE/_TICKS/_SPAN must be numbers "
+                f"(got {os.environ.get('FRUIT_GRASP_JUDGE_FORCE')!r} / "
+                f"{os.environ.get('FRUIT_GRASP_JUDGE_TICKS')!r} / "
+                f"{os.environ.get('FRUIT_GRASP_JUDGE_SPAN')!r})"
+            ) from None
+        try:
+            #: P275: the **matched settle**. The sensor judge spends
+            #: `FRUIT_GRASP_JUDGE_TICKS` physics steps deciding; a control that
+            #: judges on truth has to spend the same ticks or the A/B measures the
+            #: settle, not the judgement (P262: a settle is the next leg's
+            #: start-up credit). 0 - the default, and the shipped path - spends
+            #: none.
+            self._grasp_judge_settle = int(
+                os.environ.get("FRUIT_GRASP_JUDGE_SETTLE", "0")
+            )
+        except ValueError:
+            raise ValueError(
+                "FRUIT_GRASP_JUDGE_SETTLE must be an integer, got "
+                f"{os.environ.get('FRUIT_GRASP_JUDGE_SETTLE')!r}"
+            ) from None
+        if self._grasp_judge_settle < 0:
+            raise ValueError(
+                "FRUIT_GRASP_JUDGE_SETTLE must be >= 0, got "
+                f"{self._grasp_judge_settle}"
+            )
+        if self._grasp_judge_ticks < 1:
+            raise ValueError(
+                "FRUIT_GRASP_JUDGE_TICKS must be >= 1, got "
+                f"{self._grasp_judge_ticks}"
+            )
         #: P258: **caller-owned**, set by the env when the next pick will run the
         #: continuous return. In that mode the release's own retreat (a 60-tick
         #: min-jerk lift of 8 cm, the lowered place ends near the belt) is
@@ -4253,6 +4313,35 @@ class PickAndPlaceTask:
             return float(own)
         jaw_z = float(self.arms[side].jaw_centre()[2])
         return max(0.02, jaw_z - self._fingertip_lowest_z(side))
+
+    def _grasp_judge_held(self, side: str, ticks: int | None = None) -> bool:
+        """P275: a **truth-free** grasp judgement from the robot's own sensors.
+
+        The pads' summed tactile force must stay at or above
+        `FRUIT_GRASP_JUDGE_FORCE` for the whole window (one dip allowed, the
+        `ramp_book["sustained"]` convention) **and** the measured pad separation
+        must reach `FRUIT_GRASP_JUDGE_SPAN` - the span term is what rejects the
+        "pads met each other" false positive (`sep_min 0.2 mm` / `closed 15 mm`
+        with `fmax` up to 213 N, P103). Costs `ticks` physics steps per call.
+        """
+        n = max(1, int(self._grasp_judge_ticks if ticks is None else ticks))
+        ok = 0
+        span = 0.0
+        force = 0.0
+        for _ in range(n):
+            self._step_sim(1)
+            force = float(
+                self.tactile.read()
+                .get(self.arms[side].spec.side, _EMPTY_TACTILE)
+                .normal_force
+            )
+            span = self._hand_separation(side)
+            if force >= self._grasp_judge_force and span >= self._grasp_judge_span:
+                ok += 1
+        held = ok >= max(1, n - 1)
+        #: the decision's own numbers, so the per-attempt row can print them
+        self._grasp_judge_last = (bool(held), float(force), float(span), int(ok), int(n))
+        return held
 
     def _hand_separation(self, side: str) -> float:
         """Measured grip span: the hand's own aperture if it has one, else the jaws.
@@ -17070,7 +17159,17 @@ class PickAndPlaceTask:
                         self._step_sim(1)
             finally:
                 arm.max_step = previous_test_step
-            if float(self.spawner.position(sample)[2]) - z_before > 0.004:
+            if self._grasp_judge == "force":
+                #: P275: the probe's "did it take" is the force+span window.
+                _took = self._grasp_judge_held(arm_name)
+            else:
+                if self._grasp_judge_settle:
+                    #: the matched settle (see the knob) - only ever non-zero in a
+                    #: A/B control for the sensor judge.
+                    for _ in range(int(self._grasp_judge_settle)):
+                        self._step_sim(1)
+                _took = float(self.spawner.position(sample)[2]) - z_before > 0.004
+            if _took:
                 if self._dynamic_capture_active:
                     # Do *not* park the hand at a fixed point after the probe:
                     # the velocity-matched belt-clear below takes over from the
@@ -17526,7 +17625,24 @@ class PickAndPlaceTask:
             result.peak_lift = max(float(self._dynamic_peak_z), z_after) - z_before
         else:
             result.peak_lift = z_after - z_before
-        result.grasped = result.peak_lift > 0.05
+        if self._grasp_judge == "force":
+            #: P275: the score's label is the sensors', not the simulator's. The
+            #: truth `peak_lift` is still computed above as the **evaluation**
+            #: column (it is what a same-seed control is scored by), and the row
+            #: prints both so a cell can count agreements.
+            result.grasped = self._grasp_judge_held(arm_name)
+            _j, _f, _sp, _ok, _n = getattr(
+                self, "_grasp_judge_last", (bool(result.grasped), 0.0, 0.0, 0, 0)
+            )
+            say(
+                f"[task] grasp judge idx={int(sample.index)} arm={arm_name} "
+                f"sensors={'held' if _j else 'lost'} "
+                f"truth={'held' if result.peak_lift > 0.05 else 'lost'} "
+                f"(lift={result.peak_lift:+.3f}m force={_f:.2f}N "
+                f"span={_sp * 1000:.1f}mm ok={_ok}/{_n})"
+            )
+        else:
+            result.grasped = result.peak_lift > 0.05
         if result.grasped:
             # Remember the configuration that worked: it is the best seed for the
             # next episode on this arm.

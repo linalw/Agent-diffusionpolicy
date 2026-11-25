@@ -479,6 +479,50 @@ print('direct cycle report ok (owned by the env, scripted path unchanged)')"
 # P266: the catch-up's behind-the-fruit stall guard (default off, no note, bounded).
 # P268: the catch-up's force exit ("pushing, not closing"): off by default, and with the
 # knob off not even the tactile read exists.
+# P275: the truth-free grasp judge (force + measured pad span), default off.
+# P275: the truth-read census, and the two elements it forced (diameter, start x).
+run_check "P275 truth census" "$python" -c "
+f = open('src/fruit_sorting/fruits.py', encoding='utf-8').read()
+assert '_TRUTH_AUDIT' in f and 'FRUIT_TRUTH_AUDIT' in f
+assert 'def print_truth_read_census(' in f and 'def truth_read_census(' in f
+# the two simulator fruit-state reads are the two that count
+for name in ('def position(self, sample: FruitSample)', 'def velocity(self, sample: FruitSample)'):
+    i = f.index(name)
+    j = f.index('return', i)
+    assert '_truth_read(' in f[i:j], name
+# off by default
+assert 'os.environ.get(\"FRUIT_TRUTH_AUDIT\", \"0\")' in f
+r = open('src/fruit_sorting/rl_env.py', encoding='utf-8').read()
+assert 'print_truth_read_census(' in r, 'the env must print it'
+# the diameter leak: perception mode must not keep the caller's (truth) value
+g = r[r.index('def _goal_vector('):]
+g = g[:g.index('return', g.index('FRUIT_GOAL_NOMINAL_DIA'))]
+assert 'FRUIT_GOAL_NOMINAL_DIA' in g, 'the nominal diameter fallback'
+# the start-pose x source
+assert 'FRUIT_START_ALIGN_FROM' in r
+print('truth census ok (off by default, nominal diameter, start-x source)')"
+
+run_check "P275 grasp judge" "$python" -c "
+t = open('src/fruit_sorting/tasks.py', encoding='utf-8').read()
+assert 'FRUIT_GRASP_JUDGE' in t
+assert 'os.environ.get(\"FRUIT_GRASP_JUDGE\", \"truth\")' in t, 'default truth'
+assert 'def _grasp_judge_held(' in t
+assert 'self._hand_separation(side)' in t, 'the pad span term'
+assert 'self.tactile.read()' in t[t.index('def _grasp_judge_held('):t.index('def _grasp_judge_held(')+900]
+assert 'if self._grasp_judge == \"force\":' in t
+# the truth read must be in the else branch of the probe gate
+i = t.index('if self._grasp_judge == \"force\":')
+j = t.index('_took = float(self.spawner.position(sample)[2]) - z_before > 0.004')
+assert i < j, 'the truth read must sit after the force branch'
+# the matched settle: 0 by default, and it only ever runs in the truth branch
+assert 'FRUIT_GRASP_JUDGE_SETTLE' in t
+assert 'os.environ.get(\"FRUIT_GRASP_JUDGE_SETTLE\", \"0\")' in t, 'settle default 0'
+# the matched settle must sit INSIDE the truth branch, before the truth read
+_else = t.index('else:', i)
+assert _else < t.index('if self._grasp_judge_settle:', _else) < j, \
+    'the matched settle belongs to the truth branch'
+print('grasp judge ok (off by default, sensors only when armed)')"
+
 run_check "P268 catch force exit" "$python" -c "
 t = open('src/fruit_sorting/tasks.py', encoding='utf-8').read()
 assert 'FRUIT_CATCH_FORCE_EXIT' in t

@@ -516,7 +516,7 @@ from .tracking import FruitTracker, track_config_from_env
 #: This env never constructs a cage, so no direct/policy behaviour moves - proven
 #: on the scripted side by `scripts/accept.sh`'s 421/421 byte-identical `[fruit]`
 #: stream (`logs/p107/RESULTS.md` section 5).
-TASKS_MD5 = "141cd178e462f9602547c82816fd04f4"
+TASKS_MD5 = "90f6770b765d35c1bb82cc77b8498838"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(
@@ -4964,7 +4964,23 @@ class SortingRLEnv:
         if mode not in ("family", "demo"):
             return None
         try:
-            fx = float(self.spawner.position(self._sample)[0])
+            # P275: **where the start-pose x comes from.** The family is indexed by
+            # the fruit's x, and the shipped path reads the simulator for it - one
+            # truth read per pick. `FRUIT_START_ALIGN_FROM=percept` takes the x from
+            # the last camera estimate instead (and, before the first frame, the
+            # band's own centre x), so a deployable cell never asks the simulator
+            # which pose to stand in. The family's fit is over the band, so a
+            # 1-2 cm error in x moves the pose by ~e-3 rad.
+            _src = os.environ.get("FRUIT_START_ALIGN_FROM", "truth").strip().lower()
+            _pp = getattr(self, "_percept_pos", None)
+            if _src in ("percept", "perception") and _pp is not None:
+                fx = float(np.asarray(_pp, dtype=float)[0])
+            elif _src in ("percept", "perception"):
+                _lo = float(getattr(self.cfg, "supply_x_min", self.cfg.pick_x))
+                _hi = float(getattr(self.cfg, "supply_x_max", self.cfg.pick_x))
+                fx = 0.5 * (_lo + _hi)
+            else:
+                fx = float(self.spawner.position(self._sample)[0])
             path = os.environ.get(
                 "FRUIT_START_FAMILY", "configs/start_pose_family.json"
             )
@@ -5849,8 +5865,15 @@ class SortingRLEnv:
             if self._percept_pos is not None:
                 position = np.asarray(self._percept_pos, dtype=np.float32)[:3]
                 velocity = np.asarray(self._percept_vel, dtype=np.float32)[:3]
-                if self._percept_dia is not None:
-                    diameter = float(self._percept_dia)
+                # P275: **no silent truth fallback.** A frame with no fitted radius
+                # used to keep the value the caller passed in, which is the
+                # simulator's diameter - a leak a truth-free claim cannot carry.
+                # The nominal is the pool's mid-size, named and overridable.
+                diameter = (
+                    float(self._percept_dia)
+                    if self._percept_dia is not None
+                    else float(os.environ.get("FRUIT_GOAL_NOMINAL_DIA", "0.060"))
+                )
             else:
                 # No frame yet: the cell's own geometry (the belt's pick point and
                 # a nominal upstream lead), never the simulator's fruit state. The
@@ -9923,6 +9946,15 @@ class SortingRLEnv:
             self._outcome.update(report)
         if self._loop_timing and not cont:
             self._say(self._loop_episode_row())
+        # P275: the truth-read census, cumulative, printed once per episode when
+        # `FRUIT_TRUTH_AUDIT=1`. It answers "what still reads the simulator" with a
+        # table of call sites instead of an argument; off, this is one no-op.
+        if os.environ.get("FRUIT_TRUTH_AUDIT", "0").strip().lower() in (
+            "1", "census", "true", "yes"
+        ):
+            from .fruits import print_truth_read_census
+
+            print_truth_read_census(f"[truth] ep={self._episode}")
         self._say(
             f"[rl] episode {self._episode}: {self._sample.category} "
             f"d={self._sample.diameter * 100:.1f}cm bin={self._bin_index} "
