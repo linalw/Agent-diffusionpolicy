@@ -541,6 +541,11 @@ assert i < j, 'the truth read must sit after the force branch'
 # the matched settle: 0 by default, and it only ever runs in the truth branch
 assert 'FRUIT_GRASP_JUDGE_SETTLE' in t
 assert 'os.environ.get(\"FRUIT_GRASP_JUDGE_SETTLE\", \"0\")' in t, 'settle default 0'
+# the probe decision prints its own numbers, with no truth column
+assert '[task] grasp probe idx=' in t
+_pe = t.index('[task] grasp probe idx=')
+assert t.rindex('if self._grasp_judge == \"force\":', 0, _pe) > t.rindex('else:', 0, _pe), \
+    'the probe row belongs to the force branch'
 # the matched settle must sit INSIDE the truth branch, before the truth read
 _else = t.index('else:', i)
 assert _else < t.index('if self._grasp_judge_settle:', _else) < j, \

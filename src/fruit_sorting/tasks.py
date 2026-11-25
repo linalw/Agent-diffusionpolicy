@@ -17162,6 +17162,21 @@ class PickAndPlaceTask:
             if self._grasp_judge == "force":
                 #: P275: the probe's "did it take" is the force+span window.
                 _took = self._grasp_judge_held(arm_name)
+                #: and it says so, with its own numbers only - no truth column,
+                #: because this decision is on the control path. Its cost shows
+                #: up as a retry, its error as a wrong retry.
+                _jf, _jsp, _jok, _jn = (
+                    float(getattr(self, "_grasp_judge_last", (0, 0.0, 0.0, 0, 0))[1]),
+                    float(getattr(self, "_grasp_judge_last", (0, 0.0, 0.0, 0, 0))[2]),
+                    int(getattr(self, "_grasp_judge_last", (0, 0.0, 0.0, 0, 0))[3]),
+                    int(getattr(self, "_grasp_judge_last", (0, 0.0, 0.0, 0, 0))[4]),
+                )
+                say(
+                    f"[task] grasp probe idx={int(sample.index)} arm={arm_name} "
+                    f"sensors={'held' if _took else 'lost'} "
+                    f"force={_jf:.2f}N span={_jsp * 1000:.1f}mm ok={_jok}/{_jn} "
+                    f"probe={_regrasp}"
+                )
             else:
                 if self._grasp_judge_settle:
                     #: the matched settle (see the knob) - only ever non-zero in a
