@@ -201,3 +201,15 @@ python3 scripts/121_policy_video.py --ckpt checkpoints/p227_panda156/policy_best
   --episodes 1 --continuous 10 --capture-every 2 --views observer,overhead \
   --frames-dir logs/video_single_arm/frames --out-dir logs/video_single_arm --horizon 12000
 ```
+
+---
+
+## 9. 演示视频（2026-11-25）
+
+**录制命令与结果**见 `logs/video_single_arm/README.md`：0.08 m/s、**连续 10 次取放、10/10 放置**、
+**130.9 s @ 15 fps**、960×540，两个视角（`observer` 第三人称标注 / `overhead` 俯视）。
+
+- 工作副本：`logs/video_single_arm/{observer.mp4,overhead.mp4,video.json}`
+- 归档：`/media/ubuntu/66A27065A2703B9D/project/Agent-diffusionpolicy/log/video/deploy_0.08_cont10_s907/`
+- 看点：等待 → 模型接近 → 追够/闭合/破带/静止/抬升/转位/伴降/释放 → **真实返回航段**（不是瞬移）
+- 读法：**一个 episode 不是速率**；延迟用回路内的 66 ms，不用离线台的 26.4 ms
