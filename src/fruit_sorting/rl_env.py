@@ -516,7 +516,7 @@ from .tracking import FruitTracker, track_config_from_env
 #: This env never constructs a cage, so no direct/policy behaviour moves - proven
 #: on the scripted side by `scripts/accept.sh`'s 421/421 byte-identical `[fruit]`
 #: stream (`logs/p107/RESULTS.md` section 5).
-TASKS_MD5 = "6e1600ac7a71e553923942a6cd9eb0e5"
+TASKS_MD5 = "e733c1f8c3f1c1afb322968a09e53dd7"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(

@@ -492,8 +492,9 @@ print('lift dz both ok (both by default, left-only restore, one helper)')"
 run_check "P260 cycle sub" "$python" -c "
 t = open('src/fruit_sorting/tasks.py', encoding='utf-8').read()
 assert 'FRUIT_CYCLE_SUB' in t
-assert t.count('if self._cycle_sub:') == 5, t.count('if self._cycle_sub:')
-for name in ('rel_low','rel_pads','rel_fing'):
+assert t.count('if self._cycle_sub:') == 7, t.count('if self._cycle_sub:')
+for name in ('rel_low','rel_pads','rel_fing','lift_takeoff','lift_settle',
+             'place_clear','place_blend'):
     assert f'self._cycle_mark(\"{name}\")' in t, name
 # the sub-marks sit inside the release block: after the place mark, before release
 i_place = t.index('self._cycle_mark(\"place\")')

@@ -8146,6 +8146,36 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P263 (2026-11-25, `logs/p263/`; two second-level marks and one measurement, **nothing
+adopted**): `place` decomposes to **clear 0.78 + blend 1.08 + Cartesian 1.14**, and the
+blend's settle is **transferred, not saved**.** New `FRUIT_CYCLE_SUB` marks
+(`place_clear`, `place_blend`) split the place leg: **`place_clear` 0.78 s** (the 0.10 m
+clear's own 0.43 from P259 plus ~0.35 of between-leg bookkeeping), **`place_blend`
+1.08 s** (the joint blend to `bin{i}_above`: **90 ticks + a 40-tick settle**), and the
+**Cartesian 1.14 s** (the `[motion]` row reads **5 cm / 81 ticks at `|v|cmd` 0.142**, i.e.
+the jerk-limited profile's own average 0.142/1.875 = 0.076 - no cap). **The settle test**:
+`FRUIT_PLACE_BLEND_SETTLE=10` reads `place_blend` **1.08 -> 0.83 s** but the Cartesian
+**1.14 -> 1.33 s** - the arm has not arrived at `bin_above`, so *that* leg pays the
+residual: the block moves **2.22 -> 2.16 (-0.06)** and the attempt is a **wash** (9.71
+against **9.71 / 9.75**), with **20/20 both seeds**, so it is not a quality trade either -
+**no trade at all**. **Not adopted.** **The rule this phase promotes**, after P237
+(`seat`/`ramp`), P254 (the return blend) and this: **a settle is not a wait to delete, it
+is the start-up credit the next leg spends - measure the pair, never the segment.** **What
+is left in `place`**: the clear's 0.43 is P227p's pear insurance, the blend's 0.75 is
+already at its arithmetic floor (P259), the settle is load-bearing, and the Cartesian runs
+at the profile's own average - so **`place` is at its measured floor** with the shipped
+profile, and the only untested lever (the place profile's speed) was already measured
+negative by P88/P227r. **Cycle stands at 9.71 s** (-28.3 % over the arc from 13.55) at
+~99 % placed; the blocks with any headroom are `rel_low` **1.23** (the accompanied descent
+at its 0.30 m/s cap) and `close` **1.10**, whose speed R11-B/P18b measured *positively*
+(a slower close converts the carried class) so shortening it is contraindicated. **No-harm**:
+the marks are gated on `FRUIT_CYCLE_SUB` **and** `FRUIT_CYCLE_REPORT` -
+`accept.sh` **`fingerprint: matches`** with **459/459 identical**, `selfcheck.sh` **PASS (0
+failures, 1 skipped)**, the P260 leg's pin extended to the seven sub-marks. Pins:
+`tasks.py` **`e733c1f8`**, `rl_env.py` (`TASKS_MD5` follow), `scripts/selfcheck.sh`;
+references **`61fb5202` / `61fb5202` / `18b101bf`** untouched; ckpt `p227_panda156`.
+Evidence `logs/p263/`.
+
 **P262 (2026-11-25, `logs/p262/`; two candidate knobs, one closed as inert and one
 adopted into the deployment recipe; **no `src/` or `configs/` change**): the settle
 threshold was **5x stricter than the arm needs** - **-0.27 s at 60/60**.** `grip` (1.58 s)

@@ -6163,6 +6163,11 @@ class PickAndPlaceTask:
                         max_steps=int(os.environ.get("FRUIT_PLACE_CLEAR_STEPS", "120")),
                         tolerance=0.012,
                     )
+                    if self._cycle_sub:
+                        #: P263: closes `place_clear` = the lift-mark to the end of
+                        #: the 0.10 m clear move (i.e. the clear's own clock plus the
+                        #: between-leg bookkeeping).
+                        self._cycle_mark("place_clear")
                     self._blend_to(
                         side,
                         np.asarray(above, dtype=float),
@@ -6179,6 +6184,11 @@ class PickAndPlaceTask:
                         ticks=int(os.environ.get("FRUIT_PLACE_BLEND_TICKS", "90")),
                         settle=int(os.environ.get("FRUIT_PLACE_BLEND_SETTLE", "40")),
                     )
+                    if self._cycle_sub:
+                        #: P263: closes `place_blend` = the joint blend (ticks +
+                        #: settle) to `bin{i}_above`; the rest of `place` is the
+                        #: Cartesian run to the bin.
+                        self._cycle_mark("place_blend")
         # P39 attitude readout (`FRUIT_CARRY_ATTITUDE=1`, default off): read once
         # per leg and printed at the leg's end, on both exits of this method.
         # Reporting only - with the knob unset nothing below runs.
