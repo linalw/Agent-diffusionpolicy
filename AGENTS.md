@@ -8146,6 +8146,29 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P274 (2026-11-25, `logs/p274/`; the **horizon** question, **no `src/` change**, nothing
+adopted): the deployment cell holds over **40 consecutive picks** - **80/80 on two seeds**.** The
+record's longest continuous cell was **20 picks** (P253/P257) and **26** once (P227ab); a real
+cell runs for hours, so long-horizon stability (repeated pool recycling, supply fatigue, drift)
+had to be measured. **Cells** (`scripts/290_single_arm_continuous.sh 40 <seed> 0.08`): **seed 907
+40/40, cycle 9.69 s, `gap` 257 -> 5.07 picks/min**; **seed 913 40/40, cycle 9.71 s, `gap` 324 ->
+4.83 picks/min**; **pooled 80/80 = 100 %**, 78 `discharged to the bin`, **0 recirculated** - 16
+fruits cycling **2.5 times** each with no stall, no lost slot and no accumulation. **No drift**:
+the attempt cycle is identical to the 20-pick cells (9.6-9.9 s) and the per-decile placement
+deltas are flat (8/9/9/9 on both, the first "8" being the boundary print starting at pick 2).
+**And the rate is the `gap`'s, not the cycle's** (257 against 324 ticks = the record's bimodal
+`gap`, P269's rule): **5.07 vs 4.83 picks/min on the same 9.7 s attempt** - quote the range,
+never a point. **The delivered spec now**: 0.08 continuous **139/140 = 99.3 %** over 20 picks and
+**80/80 = 100 %** over 40-pick episodes at **4.8-5.1 picks/min**; **19/20** under the ±75 % belt
+wave and **20/20** under the wide lateral band (P272); **100 %** on the hardest single species
+(P255); 0.12 **72.5-85 %** with its two classes closed as software levers (P273); cycle **-28 %**.
+**Honest caveat**: two seeds, one cell each; "no drift" is over **40 picks per cell** (2.5 pool
+cycles), not over an hour - the recycled-pool behaviour is the part that could still bite at
+100+ picks, and the per-cycle identity instrument for it is not in place. No `src/`/`configs/`
+change (tree is P268's, `tasks.py` **`141cd178`**), references **`61fb5202` / `61fb5202` /
+`18b101bf`** untouched, ckpt `p227_panda156`; `selfcheck.sh` **PASS (0 failures, 1 skipped)**;
+`accept.sh` stands at P268's **459/459 + `fingerprint: matches`**. Evidence `logs/p274/`.
+
 **P273 (2026-11-25, `logs/p273/`; the **difference** endpoint P271 asked for, powered -
 4 fresh seeds, 80 picks per arm, the trace on **both** arms; **nothing adopted**): the
 tolerance's difference **flips sign** on fresh seeds, so the lever **closes as not
