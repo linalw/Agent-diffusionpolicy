@@ -526,6 +526,32 @@ assert 'FRUIT_GOAL_NOMINAL_DIA' in g, 'the nominal diameter fallback'
 assert 'FRUIT_START_ALIGN_FROM' in r
 print('truth census ok (off by default, nominal diameter, start-x source)')"
 
+# P276: the pre-grasp contact reads go through the one estimate door; the
+# post-grasp / evaluation / recovery reads must NOT (the payload follows the hand,
+# and a belt estimate there is a lie).
+run_check "P276 contact estimate" "$python" -c "
+import re
+src = open('src/fruit_sorting/tasks.py', encoding='utf-8').read()
+start = src.index('def _grasp_carry_place_impl(')
+nxt = src.index(chr(10) + '    def ', start)   # the next method's def
+body = src[start:nxt]
+# 17 doors were already here (P227ad) and P276 added 14 more, covering 18 reads
+calls = body.count('self._fruit_state(sample)')
+assert calls == 31, calls
+assert body.count('fruit_now, fruit_v_now = self._fruit_state(sample)') == 4
+# the evaluation and the judge keep the simulator
+assert 'z_before = float(self.spawner.position(sample)[2])' in body
+assert 'z_after = float(self.spawner.position(sample)[2])' in body
+assert '_took = float(self.spawner.position(sample)[2]) - z_before > 0.004' in body
+# the close's drift verification deliberately stays on truth: a belt estimate
+# would make it vacuous (both terms move with the belt)
+assert 'fruit_end = np.asarray(self.spawner.position(sample), dtype=float)' in body
+# the fallback is bit-for-bit the simulator, so the unarmed path is inert
+i = src.index('def _fruit_state(')
+assert 'return (' in src[i:i+2200]
+assert 'np.asarray(self.spawner.position(sample), dtype=float),' in src[i:i+2200]
+print('contact estimate ok (14 doors = 18 reads; evaluation, judge and drift stay on truth)')"
+
 run_check "P275 grasp judge" "$python" -c "
 t = open('src/fruit_sorting/tasks.py', encoding='utf-8').read()
 assert 'FRUIT_GRASP_JUDGE' in t

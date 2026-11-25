@@ -15947,11 +15947,11 @@ class PickAndPlaceTask:
                 sep_prev: float | None = None
                 for _close_step, gap in enumerate(close_ramp):
                     cmd = float(gap)
-                    fruit_now = np.asarray(self.spawner.position(sample), dtype=float)
+                    fruit_now = np.asarray(self._fruit_state(sample)[0], dtype=float)
                     centre = fruit_now
                     if dynamic_capture:
                         if _close_step % 8 == 0:
-                            dynamic_v = np.asarray(self.spawner.velocity(sample), dtype=float)
+                            dynamic_v = np.asarray(self._fruit_state(sample)[1], dtype=float)
                         # R11-B C2 (see the knob block in `__init__`): the
                         # contact window (the load phase onward) may use its own
                         # feed-forward lead, which places the payload differently
@@ -16553,7 +16553,7 @@ class PickAndPlaceTask:
             # the fruit is held by friction alone.
             self._grip_quat[arm_name] = np.asarray(quat, dtype=float).copy()
             self._grip_centre[arm_name] = np.asarray(
-                self.spawner.position(sample), dtype=float
+                self._fruit_state(sample)[0], dtype=float
             ).copy()
             if os.environ.get("FRUIT_GRIPPER_DEBUG") == "1":
                 say(
@@ -16581,7 +16581,7 @@ class PickAndPlaceTask:
                     # fruit, but an uncommanded arm lets the belt drag it out
                     # during the hold (the baseline slip was measured at
                     # `logs/dynamic_trace_00`).
-                    centre_now = np.asarray(self.spawner.position(sample), dtype=float)
+                    centre_now = np.asarray(self._fruit_state(sample)[0], dtype=float)
                     if lock_x and frozen_x is not None:
                         # Same closing-axis freeze as the close: while the grip
                         # is being taken, following the fruit's measured x turns
@@ -16592,7 +16592,7 @@ class PickAndPlaceTask:
                             vx_now = abs(
                                 float(
                                     np.asarray(
-                                        self.spawner.velocity(sample), dtype=float
+                                        self._fruit_state(sample)[1], dtype=float
                                     )[0]
                                 )
                             )
@@ -16704,7 +16704,7 @@ class PickAndPlaceTask:
             # frame ~7 cm above the fruit and closes the fingers *there* - running
             # it with a fruit already in the jaws would pull the fruit out of the
             # grip. The test lift that follows aims at the tracked jaw target.
-            grasp_goal = np.asarray(self.spawner.position(sample), dtype=float) + np.array(
+            grasp_goal = np.asarray(self._fruit_state(sample)[0], dtype=float) + np.array(
                 [0.0, 0.0, self._pad_standoff(self._dynamic_capture_active, sample)]
             )
             grasp_config = arm.joint_positions()
@@ -17082,8 +17082,8 @@ class PickAndPlaceTask:
                         # drift reference and response budget carry over).
                         self._slide_gate_begin_phase(slide_book, "probe1")
                     for _probe in range(probe_ticks):
-                        fruit_now = np.asarray(self.spawner.position(sample), dtype=float)
-                        dynamic_v = np.asarray(self.spawner.velocity(sample), dtype=float)
+                        fruit_now = np.asarray(self._fruit_state(sample)[0], dtype=float)
+                        dynamic_v = np.asarray(self._fruit_state(sample)[1], dtype=float)
                         if self._force_servo:
                             # Servo mode: the squeeze follows the measured
                             # contact instead of the open-loop 1 mm ramp.
@@ -17241,12 +17241,7 @@ class PickAndPlaceTask:
                         float(gap_open) if regrasp_from_open else keep_gap
                     )
                     for _ in range(40):
-                        fruit_now = np.asarray(
-                            self.spawner.position(sample), dtype=float
-                        )
-                        fruit_v_now = np.asarray(
-                            self.spawner.velocity(sample), dtype=float
-                        )
+                        fruit_now, fruit_v_now = self._fruit_state(sample)
                         arm.ik_step(
                             arm.tcp_target_for_jaw(
                                 fruit_now
@@ -17276,12 +17271,7 @@ class PickAndPlaceTask:
                             ]
                         )
                         for gap in reseat_close:
-                            fruit_now = np.asarray(
-                                self.spawner.position(sample), dtype=float
-                            )
-                            fruit_v_now = np.asarray(
-                                self.spawner.velocity(sample), dtype=float
-                            )
+                            fruit_now, fruit_v_now = self._fruit_state(sample)
                             arm.ik_step(
                                 arm.tcp_target_for_jaw(
                                     fruit_now
@@ -17310,8 +17300,7 @@ class PickAndPlaceTask:
                         )
                 else:
                     for _ in range(40):
-                        fruit_now = np.asarray(self.spawner.position(sample), dtype=float)
-                        fruit_v_now = np.asarray(self.spawner.velocity(sample), dtype=float)
+                        fruit_now, fruit_v_now = self._fruit_state(sample)
                         rot_now = _quat_matrix(np.asarray(arm.tcp_pose()[1], dtype=float))
                         tip = np.asarray(arm.jaw_centre(), dtype=float) + rot_now @ np.array(
                             [0.0, 0.0, finger_len]
@@ -17329,8 +17318,7 @@ class PickAndPlaceTask:
                         self.grippers[arm_name].follow_centre(fruit_now, quat_now, gap_open)
                         self._step_sim(1)
                     for gap in min_jerk_ramp(gap_open, grip_gap, 45):
-                        fruit_now = np.asarray(self.spawner.position(sample), dtype=float)
-                        fruit_v_now = np.asarray(self.spawner.velocity(sample), dtype=float)
+                        fruit_now, fruit_v_now = self._fruit_state(sample)
                         arm.ik_step(
                             arm.tcp_target_for_jaw(
                                 fruit_now
@@ -17365,14 +17353,14 @@ class PickAndPlaceTask:
                 quat_now = np.asarray(arm.tcp_pose()[1], dtype=float)
                 for _ in range(30):
                     self.grippers[arm_name].follow_centre(
-                        np.asarray(self.spawner.position(sample), dtype=float),
+                        np.asarray(self._fruit_state(sample)[0], dtype=float),
                         quat_now,
                         gap_open_now,
                     )
                     self._step_sim(1)
                 for gap in min_jerk_ramp(gap_open_now, grip_gap, 45):
                     self.grippers[arm_name].follow_centre(
-                        np.asarray(self.spawner.position(sample), dtype=float),
+                        np.asarray(self._fruit_state(sample)[0], dtype=float),
                         quat_now,
                         float(gap),
                     )
