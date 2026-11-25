@@ -8146,6 +8146,42 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P266 (2026-11-25, `logs/p266/`; one default-off guard, PREREG pinned first, **not
+adopted**): the stall guard **cannot separate a slow convergence from a stall** - and
+**P265's y-sign reading is corrected**.** `FRUIT_CATCH_STALL_TICKS=60` (default 0) breaks the
+catch-up after 60 ticks when the hand is upstream and the residual has improved by < 0.5 mm
+- `n = 60` is 2x the slowest converged catch (28), so a convertible catch cannot be
+truncated by construction. **Cells** (0.12, `FRUIT_TRACK_DIAG=1`, 20 picks x 2 seeds per
+arm): **C 24/40** (34 catches, 11 rows >= 100 ticks) against **T 34/40** (38 catches, 7 rows
+>= 100) - and **P1 fails by its registered letter: T still carries 200-tick rows**. **It
+fails because there are two classes and only one is a stall**: **slow-but-converged
+101-187 ticks, residual 8.7-8.9 mm (the normal value), `y` +5.6..+6.0 (a tenth of a mm
+outside the 6 mm axis window) - these PLACE**; against **true stalls 200 ticks, residual
+47-55 mm, `y` +47..+55 - these fail**. Per arm **C 10 true stalls / 1 slow-converged**, **T
+3 / 4** - so the guard fires on the *slow-but-converged* class, truncating a chase that
+would have placed, and **cannot** touch the true stalls (they start 47-55 mm behind).
+**Correction to P265**: that phase read the class by **y's sign**, but the *normal*
+converged residual is **`y ~ +-5.8`** (the sign varies with the approach side), so a
+positive `y` is what a **healthy** catch looks like - the discriminator is the
+**magnitude** (47-55 mm vs 5.8-8.9), and P265's 157/187-tick rows would have been called
+stalls while they are **successes**. **What survives**: at 0.12 the arm's y-speed is the
+binding term (a 47 mm deficit is 200 ticks of chasing; P243's 0.08 cells close it inside the
+budget) and the arrival side is the lever. **The count is a branch and the phase says so**:
+C 24/40 against T 34/40 is nominally p ~ 0.04 but the two arms' sequences are identical for
+the **first 6 picks** and then re-draw (one changed tick count re-times the slot loop and
+re-draws the supply), so with P1 failing it is **not attributable**. **Not adopted** - not
+harmful (T placed more and the truncations are on attempts that place) but its mechanism is a
+**clock on successes, not a rescue**. **What the two classes need**: the slow-but-converged
+class a **tolerance** that does not wait for `y` to cross the last 0.1 mm
+(`FRUIT_DYNAMIC_CATCH_TOL` 6 -> 7 mm would exit at ~20 ticks; **P48 measured 6 mm as the
+grasp/no-grasp boundary**, so that test must carry the count); the true stall the **arrival
+side** (P109's window) or a faster y-axis - hardware/controller, not a guard. **No-harm**:
+the knob is default-off and adds no `notes` entry (pinned), `accept.sh` **`fingerprint:
+matches`** with **459/459 identical**, `selfcheck.sh` **PASS (0 failures, 1 skipped)**.
+Pins: `tasks.py` **`835ce78f`**, `rl_env.py` (`TASKS_MD5` follow), `scripts/selfcheck.sh`,
+`logs/p266/PREREG.md`; references **`61fb5202` / `61fb5202` / `18b101bf`** untouched; ckpt
+`p227_panda156`. Evidence `logs/p266/`.
+
 **P265 (2026-11-25, `logs/p265/`; a diagnostic cell, **no `src/` change**): the 0.12 catch
 failures are **upstream arrivals**, and **P264's "scheduling" reading is corrected**.** P264
 wrote that the 12 pass-by losses are "a scheduling property (the fruit reaches the station

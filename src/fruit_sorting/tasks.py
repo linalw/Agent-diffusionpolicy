@@ -15456,6 +15456,23 @@ class PickAndPlaceTask:
                 # break test stays the *measured* tip-to-fruit distance, so the
                 # residual stays an honest number.
                 catch_ticks = int(os.environ.get("FRUIT_DYNAMIC_CATCH_TICKS", "200"))
+                #: P266: the **behind-the-fruit stall guard** (default 0 = off, the
+                #: shipped loop bit for bit). At 0.12 the failing catches are the
+                #: ones where the hand is still **upstream** of the fruit after the
+                #: descent (`y` +10.6..+37.6 mm, P265): the fruit moves 1 mm/tick,
+                #: so a 30 mm deficit needs the whole 200-tick budget and the
+                #: attempt is decided. After `n` ticks, if the hand is upstream and
+                #: the residual has improved by less than 0.5 mm over those `n`
+                #: ticks, the loop breaks. `n = 60` is 2x the slowest converged
+                #: catch measured (28), so a catch that would have made it cannot be
+                #: truncated by construction.
+                stall_window = int(os.environ.get("FRUIT_CATCH_STALL_TICKS", "0"))
+                if stall_window < 0:
+                    raise ValueError(
+                        "FRUIT_CATCH_STALL_TICKS must be >= 0 (0 = off), got "
+                        f"{stall_window}"
+                    )
+                stall_trace: list[float] = []
                 catch_tol = float(os.environ.get("FRUIT_DYNAMIC_CATCH_TOL", "0.006"))
                 # The close's 0.18 s lead is measured against a hand already
                 # moving with the fruit; the catch-up starts from rest and the
@@ -15535,6 +15552,19 @@ class PickAndPlaceTask:
                             ]
                         )
                     catch_residual = float(np.linalg.norm(tip - desired_tip))
+                    if stall_window > 0:
+                        stall_trace.append(float(catch_residual))
+                        if len(stall_trace) > stall_window:
+                            _ref = stall_trace[-1 - stall_window]
+                            if (
+                                float(tip[1]) > float(fruit_now[1])
+                                and stall_trace[-1] > _ref - 0.0005
+                            ):
+                                #: P266: behind the fruit and not converging - the
+                                #: loop has lost; break instead of spending the
+                                #: budget. No `notes` entry: the attempt's class is
+                                #: unchanged (it fails the same way, sooner).
+                                break
                     if catch_residual < catch_tol:
                         break
                     if self.catch_tol_axis:

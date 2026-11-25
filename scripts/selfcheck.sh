@@ -476,6 +476,18 @@ print('direct cycle report ok (owned by the env, scripted path unchanged)')"
 # P260: the release block's second-level marks (default off, so the shipped
 # `[cycle]` row keeps its shape for every existing report).
 # P261: the lift height reaches only the left arm; the both-arms form is opt-in.
+# P266: the catch-up's behind-the-fruit stall guard (default off, no note, bounded).
+run_check "P266 catch stall guard" "$python" -c "
+t = open('src/fruit_sorting/tasks.py', encoding='utf-8').read()
+assert 'FRUIT_CATCH_STALL_TICKS' in t
+assert 'os.environ.get(\"FRUIT_CATCH_STALL_TICKS\", \"0\")' in t, 'default off'
+assert 'if stall_window > 0:' in t
+assert 'float(tip[1]) > float(fruit_now[1])' in t, 'the upstream test'
+assert '_ref - 0.0005' in t, 'the improvement bar'
+assert 'notes.append' not in t[t.index('P266: behind the fruit'):t.index('P266: behind the fruit')+600], \
+    'the guard adds no note'
+print('catch stall guard ok (off by default, upstream-only, no note)')"
+
 run_check "P261 lift dz both" "$python" -c "
 import os
 src = open('src/fruit_sorting/rl_env.py', encoding='utf-8').read()
