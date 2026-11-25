@@ -17082,6 +17082,33 @@ class PickAndPlaceTask:
                         # drift reference and response budget carry over).
                         self._slide_gate_begin_phase(slide_book, "probe1")
                     for _probe in range(probe_ticks):
+                        if (
+                            os.environ.get("FRUIT_ESTIMATE_DIAG", "0").strip() == "1"
+                            and _regrasp == 0
+                            and _probe == 0
+                        ):
+                            #: P276 mechanism cell: **estimate minus truth** at
+                            #: the contact instant, world and hand frame, in mm.
+                            #: A truth read for the diagnostic only - the row
+                            #: exists solely with `FRUIT_ESTIMATE_DIAG=1`, never
+                            #: on a control path.
+                            _est_p = np.asarray(
+                                self._fruit_state(sample)[0], dtype=float
+                            )
+                            _tru_p = np.asarray(
+                                self.spawner.position(sample), dtype=float
+                            )
+                            _d = (_est_p - _tru_p) * 1000.0
+                            _rot = _quat_matrix(
+                                np.asarray(arm.tcp_pose()[1], dtype=float)
+                            )
+                            _dl = _rot.T @ _d
+                            say(
+                                f"[task] est offset idx={int(sample.index)} "
+                                f"d=({_d[0]:+.1f},{_d[1]:+.1f},{_d[2]:+.1f})mm "
+                                f"tool=({_dl[0]:+.1f},{_dl[1]:+.1f},{_dl[2]:+.1f})mm "
+                                f"|d|={float(np.linalg.norm(_d)):.1f}mm"
+                            )
                         fruit_now = np.asarray(self._fruit_state(sample)[0], dtype=float)
                         dynamic_v = np.asarray(self._fruit_state(sample)[1], dtype=float)
                         if self._force_servo:

@@ -8146,6 +8146,68 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P276 (2026-11-25, `logs/p276/`; default off, **nothing adopted**, no reference
+moved): P275's named next item - the **contact phase** - is done and **it does not
+work**: routing the 18 pre-grasp contact reads through `_fruit_state` takes 0.08 from
+**20/20 = 100 % to 9/19 = 47.4 %**, and the mechanism is quantified rather than argued.
+**The build** is one routing, no new knob: `_fruit_state` already returns the estimate
+when armed and the simulator **bit for bit** when not, so the 18 reads (the close ramp's
+per-tick `fruit_now`/`dynamic_v`, the grip-centre anchor, the dwell, the **grasp aim**,
+the probe loop, both re-grasp loops, both fallback ramps and the two hand ramps) become
+estimate-driven with `FRUIT_PRIMITIVE_ESTIMATE=1` alone - and the unarmed path is inert
+by construction, **proved** by `accept.sh` **459 lines / 458 identical** (the scripted
+line runs the same primitive, so it exercises the routed sites). **Deliberately NOT
+routed, each for a stated reason**: the probe's `z_before` and the score's
+`_dynamic_peak_z`/`z_after` (**evaluation**), `_took` (the judge's document, replaced by
+`FRUIT_GRASP_JUDGE=force` when armed), the close's `drift` verification `fruit_end`
+(routing `delta` to a belt estimate makes the check **vacuous** - both terms move with
+the belt), the re-seat/recovery reads, the take-off/pluck (payload already in the pads
+and the tracker is watching the **belt**), and the 12 `say` diagnostics. **The
+measurement** (`logs/p276b/`, 0.08, seeds 913/914 x 10, **identical instrumentation on
+both arms**): **C 20/20 against TFs 9/19 = 47.4 %** (P275's decision-only arm read 17/20
+= 85 %), while the sensor judge stays **19/19 agreement, 0 false positives** and the
+selector **72 frames / 220 detections / 0 unmatched / 0 fallbacks**. **The mechanism,
+in millimetres** (`FRUIT_ESTIMATE_DIAG=1`, `logs/p276c/D_s913.log`): "estimate minus
+truth" at the contact instant is **10.2 / 10.7 / 15.6 / 22.4 / 23.6 mm** on the attempts
+that place or nearly do, and **81.3 / 97.6 / 109.9 mm** on the ones that close on air
+(`force=0.00 N`, the pads closing to 22-40 mm), the error almost entirely in **+y
+(upstream)** - the estimate lags the fruit. The arithmetic closes: `FRUIT_PERCEPTION_COAST_S`
+defaults to **1.0 s**, the belt runs 0.08 m/s, and **80 mm** is exactly what a frozen
+`predict_at` leaves behind while the fruit keeps moving; a hand that occludes the head
+camera through the descent and the close exceeds that cap, and the gap grows
+**linearly**. **The cap is a dial, not a fix**: `FRUIT_PERCEPTION_COAST_S=2.0` reads
+**5/10** with the tail **worse** (**192 mm** = 2.4 s of extrapolation), which is P135's
+own reason for having the cap - so it is not adopted. **This is P227ae's sentence, now
+priced**: the contact phase's gate is **measurement availability (15-18 % of frames)**,
+not estimator accuracy (4.70 mm when it can see). **The phase's second product is an
+instrument correction**: `_truth_read` now keys by **caller:line**, because P275's
+function-level census could not separate per-tick **control** from per-tick
+**evaluation** inside a 3 984-line primitive - and re-read, the pre-grasp **control**
+truth is **~300 reads per 10 picks** (down from ~5 500), of which `_apply:8582`'s contact
+servo is **3 411** (post-grasp), `_episode_events` is **3 563** and the peak-hold
+**952** (both **evaluation**, legitimate but must be named), the close's drift check
+**8** (deliberate) and `_approach_depth`/`_dynamic_aim` **266 + 24** (pre-grasp, not yet
+routed - small and named). **Judged against P1 the function-level clause fails and the
+line-level reading passes**; the record keeps both. **The judge's negative side is
+measured for the first time**: across 52 judgements it never says "held" on a lost
+payload (**FP 0**), and its one disagreement is `sensors=lost truth=held (lift=+0.051 m)`
+- ten times over the 50 mm label threshold, i.e. inside the band where the **label**
+is marginal. **Read rules**: a lock-step comparison ("byte-identical replay") is only
+valid on the **scripted** line - the direct loop renders frames and is not reproducible
+(PREREG A1, the same class of defect as P269's absolute bar); a routing whose fallback
+is the same call is proved inert by the **scripted** acceptance, not by a direct replay;
+and a function-level truth census **cannot** answer "how much control truth is left" -
+the line is the unit. No-harm: `scripts/accept.sh` with every knob unset is **7/10 =
+70 %, `fingerprint: matches`, `190: PASS`** with its **459 `[fruit]` lines 458/459
+identical**; `scripts/selfcheck.sh` **PASS (0 failures, 1 skipped)** with the new
+`P276 contact estimate` leg (32 doors in the primitive, the evaluation/judge/drift
+exclusions asserted, and `_fruit_state`'s simulator fallback pinned). Pins: `tasks.py`
+**`332ed2f4`**, `fruits.py` **`060d59b1`** (the line-level census), `rl_env.py`
+**`f4b66e69`** (`TASKS_MD5` follow), `scripts/selfcheck.sh` **`1f186ab2`**,
+`logs/p276/PREREG.md` **`7cb91b2d`**, `RESULTS.md` **`cb2a6f5d`**; references
+**`61fb5202` / `61fb5202` / `18b101bf`** untouched; ckpt `p227_panda156`. Evidence
+`logs/p276/`, `logs/p276b/`, `logs/p276c/`.
+
 **P275 (2026-11-25, `logs/p275/`; every knob default off, **nothing adopted**, no
 reference moved): the owner's truth directive - *only* the instance mask, the depth, the
 tactile force and the bin index may come from the simulator - is implemented for the whole

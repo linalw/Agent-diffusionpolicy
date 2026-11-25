@@ -41,11 +41,19 @@ def _truth_read(kind: str) -> None:
     import sys
 
     caller = "?"
+    line = 0
     try:
-        caller = sys._getframe(2).f_code.co_name
+        #: P276: **the line, not just the function.** A 3 984-line primitive holds
+        #: per-tick control reads, per-tick *evaluation* reads (the peak-hold) and
+        #: per-attempt bookkeeping; a function-level key cannot separate them, so
+        #: "how much control truth is left" could only be argued. With the line,
+        #: it is a table row.
+        frame = sys._getframe(2)
+        caller = frame.f_code.co_name
+        line = int(frame.f_lineno)
     except Exception:  # noqa: BLE001 - counting is best-effort, never fatal
         pass
-    key = f"{caller}.{kind}"
+    key = f"{caller}:{line}.{kind}"
     _TRUTH_CENSUS[key] = _TRUTH_CENSUS.get(key, 0) + 1
 
 

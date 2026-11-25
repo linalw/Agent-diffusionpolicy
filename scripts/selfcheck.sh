@@ -537,7 +537,7 @@ nxt = src.index(chr(10) + '    def ', start)   # the next method's def
 body = src[start:nxt]
 # 17 doors were already here (P227ad) and P276 added 14 more, covering 18 reads
 calls = body.count('self._fruit_state(sample)')
-assert calls == 31, calls
+assert calls == 32, calls
 assert body.count('fruit_now, fruit_v_now = self._fruit_state(sample)') == 4
 # the evaluation and the judge keep the simulator
 assert 'z_before = float(self.spawner.position(sample)[2])' in body
