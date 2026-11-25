@@ -8168,9 +8168,8 @@ place leg and one released off-target give the **same `False`**. **Neither cell 
 `FRUIT_CARRY_DIAG` or `FRUIT_PLACE_TRACE`, so the class is not observable here** - and the
 clause's re-registration ("no place-leg loss with the payload present at the release")
 **cannot be read from these cells either**; it needs one cell with `FRUIT_PLACE_TRACE=1`,
-which reports `on_belt` at the release. **The verdict does not move**: the letter fails and
-the tolerance stays at 6 mm. **The letter stands: the tolerance stays at 6 mm** - no default,
-no reference, no store. **The clause is recorded as badly designed** (P100 A4 / P103 G5 /
+which reports `on_belt` at the release. **The verdict does not move**: the letter fails,
+**the tolerance stays at 6 mm** - no default, no reference, no store. **The clause is recorded as badly designed** (P100 A4 / P103 G5 /
 P262's precedent): a `grasped=True placed=False` bucket mixes "lost in the hand" with "missed
 the target", so the correct form is **"no place-leg loss with the payload present at the
 release"** - and **the re-entry is one clause**: re-register that term and repeat at **these
