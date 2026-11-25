@@ -8146,6 +8146,38 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P269 (2026-11-25, `logs/p269/`; the **powered cell** PREREG'd for the catch exit tolerance,
+fresh seeds 907/908, 40 per arm, **nothing adopted**): the tolerance **halves the true-stall
+rate at the registered power** - and **fails P2 on one row of a different class**.** `C 6 mm`
+reads **32/40 = 80 %, 37 catches, 7 true stalls (19 %)**, `T 7 mm` reads **30/40 = 75 %, 34
+catches, 3 true stalls (9 %)**; per cell `C_s907 17/20`, `C_s908 15/20`, `T_s907 15/20`,
+`T_s908 15/20`. **P1 (the class endpoint) PASSES at the registered power** - **9 % against
+19 %**, 3 of 34 catches against 7 of 37 - the strongest statement the record has about the
+0.12 acquisition class, and it **reproduces P267's single-draw 29 % -> 8 % at a fresh seed
+pair**. **P2 FAILS by its letter**: the count clause passes (`30 >= 32 - 2`, a draw, p ~ 0.8)
+but the **"no place-side loss"** clause fails on **one** `grasped=True placed=False` row
+(`T_s908` episode 8, kiwi 5.3 cm, right) while C has none in this batch. **And that row is not
+the class the clause was aimed at**: its own `notes` carry **only** the intercept trigger - **no
+failure note** - and its fire was **late** (`dy=-4.0 cm`, `t_arrive=0.00 s`, the fruit already
+inside the window), i.e. the record's **`grasped, not placed (no note)`** bucket that **P100's
+A4 and P103's G5 both found in controls**, not a landing miss; the clause was written for "the
+1 mm further offset at the close costs landings", a place-leg loss **with the payload present
+at the release**, and this is the carry class five seconds earlier on an attempt whose
+geometry was lost at the fire. **The letter stands: the tolerance stays at 6 mm** - no default,
+no reference, no store. **The clause is recorded as badly designed** (P100 A4 / P103 G5 /
+P262's precedent): a `grasped=True placed=False` bucket mixes "lost in the hand" with "missed
+the target", so the correct form is **"no place-leg loss with the payload present at the
+release"** - and **the re-entry is one clause**: re-register that term and repeat at **these
+same seeds** (the cells are on disk, so the count/class read is unchanged and only the clause's
+reading is re-scoped). **P3 (report) is flat**: cycle **9.63 vs 9.70 s**, `s/pick` **12.80 vs
+12.85**. **The 0.12 step's honest sentence is unchanged**: 72.5-85 % across draws, the
+grip/hold class (hardware) and the free-space chase (arrival side or axis, P268), with the
+tolerance's class effect **measured but unpriced**. No `src/`/`configs/` change (tree is P268's:
+`tasks.py` **`141cd178`**), references **`61fb5202` / `61fb5202` / `18b101bf`** untouched, ckpt
+`p227_panda156`; `selfcheck.sh` **PASS (0 failures, 1 skipped)**; `accept.sh` stands at P268's
+**459/459 + `fingerprint: matches`**. Evidence `logs/p269/` (`p269_report.py` reads it,
+MISSING != zero; `METHOD.md` carries the two harness hazards).
+
 **P268 (2026-11-25, `logs/p268/`; one default-off force exit, PREREG pinned first, **P1
 fails** - and the way it fails **closes the 0.12 acquisition arc**): the true stall is a
 **free-space chase**.** `FRUIT_CATCH_FORCE_EXIT=<N>` (default 0; with the knob off **not even
