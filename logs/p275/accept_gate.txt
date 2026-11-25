@@ -1,0 +1,26 @@
+P275 gate evidence (the shipped acceptance, every P275 knob unset)
+==============================================================
+
+Command : SKIP_SELFCHECK=1 scripts/accept.sh
+Log     : logs/accept.log   (459 [fruit] lines; 458/459 byte-identical to
+                             logs/p136/accept_final.log - the one difference is
+                             P227i's arm-spec build row, already on the record)
+
+190: PASS logs/accept.log
+190: every log matches configs/motion_reference_twoline.json and is at or above
+     the two-line floor 0.60
+     -> 7/10 = 70 % placed, 9.5 s/attempt, fingerprint: matches
+
+Plain 105 on the same log:
+  FAIL: success 7/10 below 75 %
+  ^ EXPECTED and not a regression: 105 carries the *single-arm* 0.75 floor. The
+    shipped acceptance is the two-line cell, whose own gate is scripts/190 at the
+    0.60 floor (AGENTS section 2, "Tooling note"). Motion budgets pass; the only
+    failing clause is that rate.
+
+selfcheck: failed=0 skipped=1 (72.0 s), with the four P275 legs:
+  P275 grasp judge / P275 truth census / P275 select from percept / P275 detect all
+
+References untouched: configs/motion_reference.json           61fb5202
+                     configs/motion_reference_twoline.json   61fb5202
+                     configs/motion_reference_single.json     18b101bf
