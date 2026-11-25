@@ -8156,14 +8156,20 @@ catches, 3 true stalls (9 %)**; per cell `C_s907 17/20`, `C_s908 15/20`, `T_s907
 0.12 acquisition class, and it **reproduces P267's single-draw 29 % -> 8 % at a fresh seed
 pair**. **P2 FAILS by its letter**: the count clause passes (`30 >= 32 - 2`, a draw, p ~ 0.8)
 but the **"no place-side loss"** clause fails on **one** `grasped=True placed=False` row
-(`T_s908` episode 8, kiwi 5.3 cm, right) while C has none in this batch. **And that row is not
-the class the clause was aimed at**: its own `notes` carry **only** the intercept trigger - **no
-failure note** - and its fire was **late** (`dy=-4.0 cm`, `t_arrive=0.00 s`, the fruit already
-inside the window), i.e. the record's **`grasped, not placed (no note)`** bucket that **P100's
-A4 and P103's G5 both found in controls**, not a landing miss; the clause was written for "the
-1 mm further offset at the close costs landings", a place-leg loss **with the payload present
-at the release**, and this is the carry class five seconds earlier on an attempt whose
-geometry was lost at the fire. **The letter stands: the tolerance stays at 6 mm** - no default,
+(`T_s908` episode 8, kiwi 5.3 cm, right) while C has none in this batch. **And that row is
+UNCLASSIFIED in this batch - a first reading ("the carry class five seconds earlier") is
+withdrawn**: it was inferred from the absence of a failure note, and the evidence does not
+support it. Its `notes` carry **only** the intercept trigger (`dy=-4.0 cm`, `t_arrive=0.00 s`,
+a **late fire** on a fruit already inside the window - the `grasped, not placed (no note)`
+bucket that P100's A4 and P103's G5 found **in controls**), its `[cycle]` row carries
+**`place`/`release`/`return`** so the release block **did** run, and `placed` is
+`bool(cfg.on_output_belt(pos))` at the sample (`tasks.py:17942`) - so a payload lost in the
+place leg and one released off-target give the **same `False`**. **Neither cell carries
+`FRUIT_CARRY_DIAG` or `FRUIT_PLACE_TRACE`, so the class is not observable here** - and the
+clause's re-registration ("no place-leg loss with the payload present at the release")
+**cannot be read from these cells either**; it needs one cell with `FRUIT_PLACE_TRACE=1`,
+which reports `on_belt` at the release. **The verdict does not move**: the letter fails and
+the tolerance stays at 6 mm. **The letter stands: the tolerance stays at 6 mm** - no default,
 no reference, no store. **The clause is recorded as badly designed** (P100 A4 / P103 G5 /
 P262's precedent): a `grasped=True placed=False` bucket mixes "lost in the hand" with "missed
 the target", so the correct form is **"no place-leg loss with the payload present at the
