@@ -3160,6 +3160,44 @@ class PickAndPlaceTask:
                 f"{os.environ.get('FRUIT_GRASP_JUDGE_TICKS')!r} / "
                 f"{os.environ.get('FRUIT_GRASP_JUDGE_SPAN')!r})"
             ) from None
+        #: P278: **force-first closing.** P276/P277 put the contact failure on one
+        #: sentence: at the close the fruit is already **downstream** of the hand
+        #: (`est offset +80..110 mm in y`, and the belt runs -y), so a close that
+        #: waits for it to drift in cannot work - it does not come back. The one
+        #: action that reaches it is a **downstream sweep** with the pads held open,
+        #: closing the moment the tactile sees contact. The force is the channel
+        #: that is right when the position is wrong (P41/P75/P103: held legs
+        #: 9.6-9.9 N, empty 0.00 N, no overlap).
+        try:
+            #: **millimetres** of commanded travel (the record quotes reach in mm;
+            #: `FRUIT_CLOSE_SWEEP=80` is 8 cm). A bare number was read as metres on
+            #: the first cell and swept 80 000 mm - the arm sat at its limit for
+            #: 400 s of simulated time.
+            self._close_sweep = float(
+                os.environ.get("FRUIT_CLOSE_SWEEP", "0")
+            ) / 1000.0
+            self._close_sweep_speed = float(
+                os.environ.get("FRUIT_CLOSE_SWEEP_SPEED", "0.20")
+            )
+            self._close_sweep_stale = float(
+                os.environ.get("FRUIT_CLOSE_SWEEP_STALE", "0.30")
+            )
+            self._close_sweep_force = float(
+                os.environ.get("FRUIT_CLOSE_SWEEP_FORCE", "1.0")
+            )
+        except ValueError:
+            raise ValueError(
+                "FRUIT_CLOSE_SWEEP/_SPEED/_STALE/_FORCE must be numbers (got "
+                f"{os.environ.get('FRUIT_CLOSE_SWEEP')!r} / "
+                f"{os.environ.get('FRUIT_CLOSE_SWEEP_SPEED')!r} / "
+                f"{os.environ.get('FRUIT_CLOSE_SWEEP_STALE')!r} / "
+                f"{os.environ.get('FRUIT_CLOSE_SWEEP_FORCE')!r})"
+            ) from None
+        if self._close_sweep < 0.0 or self._close_sweep_speed <= 0.0:
+            raise ValueError(
+                "FRUIT_CLOSE_SWEEP must be >= 0 and _SPEED > 0 (got "
+                f"{self._close_sweep} / {self._close_sweep_speed})"
+            )
         try:
             #: P275: the **matched settle**. The sensor judge spends
             #: `FRUIT_GRASP_JUDGE_TICKS` physics steps deciding; a control that
@@ -4342,6 +4380,23 @@ class PickAndPlaceTask:
         #: the decision's own numbers, so the per-attempt row can print them
         self._grasp_judge_last = (bool(held), float(force), float(span), int(ok), int(n))
         return held
+
+    def _estimate_age_s(self) -> float:
+        """Seconds since the tracker's last **measurement** (0 = no estimate)."""
+        fn = getattr(self, "fruit_estimate_age", None)
+        if fn is None:
+            return 0.0
+        try:
+            return float(fn())
+        except Exception:  # noqa: BLE001 - a stub caller has no tracker
+            return 0.0
+
+    def _tactile_force(self, side: str) -> float:
+        """This pad's summed normal force [N] - the channel the sweep listens to."""
+        try:
+            return float(self.tactile.read().get(side, _EMPTY_TACTILE).normal_force)
+        except Exception:  # noqa: BLE001 - a stub tactile reads nothing
+            return 0.0
 
     def _hand_separation(self, side: str) -> float:
         """Measured grip span: the hand's own aperture if it has one, else the jaws.
@@ -15945,6 +16000,65 @@ class PickAndPlaceTask:
                 x_pinned = lock_x
                 contact_run = 0
                 sep_prev: float | None = None
+                #: P278: **the downstream sweep, before the ramp.** When the estimate
+                #: is stale the hand is parked 80-110 mm *upstream* of the fruit (P276:
+                #: `est offset +y`, the belt runs -y), so the close would happen in
+                #: empty space. Sweep downstream faster than the belt with the pads
+                #: held at `wide` and turn the ramp on the moment the tactile loads;
+                #: then skip the fast phase (the pads are already at `wide`).
+                if (
+                    self._close_sweep > 0.0
+                    and dynamic_capture
+                    and self._estimate_age_s() >= self._close_sweep_stale
+                ):
+                    _age = self._estimate_age_s()
+                    _anchor = np.asarray(arm.jaw_centre(), dtype=float).copy()
+                    _step = self._close_sweep_speed * CONTROL_DT
+                    _n = max(1, min(240, int(round(self._close_sweep / max(_step, 1e-9)))))
+                    _y0 = float(_anchor[1])
+                    _last_y = _y0
+                    _stall = 0
+                    _contact = False
+                    _stalled = False
+                    for _k in range(_n):
+                        _fn = np.asarray(self._fruit_state(sample)[0], dtype=float)
+                        _ctr = np.array(
+                            [_anchor[0], _y0 - _step * (_k + 1), _fn[2]], dtype=float
+                        )
+                        arm.ik_step(
+                            arm.tcp_target_for_jaw(
+                                _ctr
+                                + np.array([0.0, 0.0, self._pad_standoff(True, sample)])
+                            )
+                        )
+                        self.grippers[arm_name].follow_centre(_ctr, quat, float(wide))
+                        self._step_sim(1)
+                        _jaw_y = float(np.asarray(arm.jaw_centre(), dtype=float)[1])
+                        if abs(_jaw_y - _last_y) < 0.0005:
+                            _stall += 1
+                        else:
+                            _stall = 0
+                        _last_y = _jaw_y
+                        if self._tactile_force(arm_name) >= self._close_sweep_force:
+                            _contact = True
+                            break
+                        if _stall >= 12:
+                            #: the arm is against its workspace limit: it will never
+                            #: reach whatever is downstream, so stop spending time.
+                            _stalled = True
+                            break
+                    _moved = (_y0 - _last_y) * 1000.0
+                    say(
+                        f"[task] close sweep: {_moved:.0f} mm achieved "
+                        f"({_k + 1} ticks), contact={'yes' if _contact else 'no'}"
+                        f"{', stalled' if _stalled else ''}, "
+                        f"force={self._tactile_force(arm_name):.2f}N, "
+                        f"est_age={_age:.2f}s"
+                    )
+                    if _contact and dynamic_capture:
+                        # the pads are already at `wide`; the ship's fast phase would
+                        # re-open them, so start the ramp at the load phase.
+                        close_ramp = close_ramp[int(fast_ticks):]
                 for _close_step, gap in enumerate(close_ramp):
                     cmd = float(gap)
                     fruit_now = np.asarray(self._fruit_state(sample)[0], dtype=float)

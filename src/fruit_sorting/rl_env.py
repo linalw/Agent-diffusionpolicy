@@ -516,7 +516,7 @@ from .tracking import FruitTracker, track_config_from_env
 #: This env never constructs a cage, so no direct/policy behaviour moves - proven
 #: on the scripted side by `scripts/accept.sh`'s 421/421 byte-identical `[fruit]`
 #: stream (`logs/p107/RESULTS.md` section 5).
-TASKS_MD5 = "332ed2f47124535d12d121d32a41da87"
+TASKS_MD5 = "ad64ef590f97ad5f9c1dc891653d26ec"
 
 #: Repository root, derived from this file (`src/fruit_sorting/rl_env.py`).
 _REPO_ROOT = os.path.dirname(
@@ -2651,6 +2651,8 @@ class SortingRLEnv:
         self._wrist_diag = (
             os.environ.get("FRUIT_WRIST_DIAG", "0").strip() == "1"
         )
+        #: P279: collect labelled wrist frames (one annotated camera at a time).
+        self._wrist_labels = os.environ.get("FRUIT_WRIST_LABELS", "").strip()
         #: Bench-only error samples (truth is read for the column, never used).
         self._percept_errs: list[float] = []
         self._percept_errs_close: list[float] = []
@@ -5793,7 +5795,9 @@ class SortingRLEnv:
                 self._goal[6] = float(self._sample.diameter)
             except Exception:  # noqa: BLE001 - bench column only
                 pass
-        if self._wrist_mode != "off":
+        if self._wrist_labels:
+            self._wrist_capture()
+        elif self._wrist_mode != "off":
             self._wrist_tick()
         if (getattr(self, "_goal_perception", False)
                 and self._percept_tracker is not None and self._goal.size >= 7):
@@ -8991,6 +8995,21 @@ class SortingRLEnv:
             except Exception:  # noqa: BLE001 - bench column only
                 pass
 
+    def _wrist_capture(self) -> None:
+        """P279: one labelled wrist frame per observation, while the hand works."""
+        if self._sample is None or not self._in_primitive:
+            return
+        rig = self._wrist_rigs.get(self._active)
+        if rig is None:
+            from .wrist import WristRig
+
+            rig = WristRig(
+                self.scene, self.task, self._active, "off",
+                render=self._RenderingManager.render,
+            )
+            self._wrist_rigs[self._active] = rig
+        rig.capture(getattr(self._sample, "prim_path", ""))
+
     def _estimate_now(self):
         """`(position, velocity)` from the tracker **at this tick**, or None.
 
@@ -9930,6 +9949,19 @@ class SortingRLEnv:
             self.task.dispatch_destination(result, self._bin_index)
         _est = self._estimate_now if self._primitive_estimate else None
         self.task.fruit_estimate = _est
+        #: P278: the **age** of the estimate, so the close can decide whether a
+        #: position-following ramp makes sense at all. A lambda, because the
+        #: tracker may not exist yet and its `t` moves with every measurement.
+        if self._primitive_estimate:
+            def _est_age():
+                tr = getattr(self, "_percept_tracker", None)
+                if tr is None:
+                    return 1.0e9
+                return float(self._sim_time()) - float(tr.t)
+
+            self.task.fruit_estimate_age = _est_age
+        else:
+            self.task.fruit_estimate_age = None
         if self._primitive_estimate:
             #: P227ad: the row prints only when the lever is armed, so the shipped
             #: direct path keeps its log line for line.
@@ -9939,7 +9971,10 @@ class SortingRLEnv:
             )
         self._in_primitive = True
         _prev_hook = getattr(self.task, "primitive_tick_hook", None)
-        if self._primitive_percept:
+        if self._primitive_percept or self._wrist_labels:
+            #: P279: the collection pass needs the same hook - `_observe` only runs
+            #: between decisions otherwise, and `_in_primitive` is False there, so a
+            #: capture keyed on it would never fire (measured: 0 frames).
             self._prim_t = -1.0e9
             #: `_step_sim` is the primitive's own tick path (the `_tick_frame` sites
             #: are only 15 named legs, which is why a `frame_callback` hook never
@@ -9951,9 +9986,10 @@ class SortingRLEnv:
             )
         finally:
             self._in_primitive = False
-            if self._primitive_percept:
+            if self._primitive_percept or self._wrist_labels:
                 self.task.primitive_tick_hook = _prev_hook
             self.task.fruit_estimate = None
+            self.task.fruit_estimate_age = None
             if self._sort_armed:
                 self.task.clear_dispatch()
         if self._sort_armed and getattr(result, "destination", None) is not None:

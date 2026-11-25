@@ -8146,6 +8146,67 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P279 (2026-11-26, `logs/p279/`; default off, **nothing adopted**, no reference
+moved): the owner's option **B** - a learned segmenter on the wrist - is built end to end
+and it is **the best of the four software levers and still a draw**: **11/20 = 55 %**
+against the no-lever arm's **9/19 = 47.4 %** (Fisher p ~ 0.75), with the truth baseline at
+**20/20**. The evidence that justified building it came first: P277's rejections are **not
+empty frames** (`px_med` 826 / 3607 / 4436 / 7797 / 9525) but blobs that fail the fit
+(`rms 4.3-8.6 mm`, `no plausible cluster`) - the fruit is *there* and **merged** with
+something, which a fruit-only mask would fix. **The collection order is forced by this
+build**: one annotated camera per run (P213), so labels can only be taken on a pass where
+the **wrist** holds the instance annotator - `FRUIT_WRIST_LABELS=<dir>` authors it that way
+and writes `rgb.npy` / `depth.npy` / `mask.npy` per frame, and that pass runs the **truth
+goal** (the head has no mask on it), so its **12/12 placed is a data-source run, not a
+performance cell** (stated in the PREREG). **The store**: 1600 frames from 12 continuous
+picks (1.3 GB). **The trainer** (`scripts/293_p279_wrist_seg_train.py`): 4-channel
+RGB+depth at 160x120, an 84 593-parameter encoder/decoder, BCE + Dice, 1360/240 split ->
+**validation IoU 0.976** (the registered bar was 0.60). **The deployment**
+(`FRUIT_WRIST=learned`): the wrist is RGB-D only so the head keeps its annotator, the net
+masks the frame, the points are back-projected and the cluster/colour passes are **skipped**
+(the mask *is* the isolation), then the same sanity gates (range 0.25 m, jaw 0.12 m,
+diameter 20 mm). **What it fixed and what it did not**: the wrist's *accuracy* was already
+6-9 mm (P277) and stays there, and the *rejection reason moved* from "colour cannot
+separate" to **`mask covered 0-1 px`** and `rms 6-8 mm` - i.e. **on those frames the net
+sees nothing either**, because a pad is in front of the fruit. Acceptance 13-33 %.
+**Three implementation defects are recorded because each cost a run**: the capture never
+fired (the `primitive_tick_hook` - the only place `_observe` runs inside the primitive - was
+installed only for `FRUIT_PRIMITIVE_PERCEPT`, so 0 frames were saved; it is now installed for
+the label pass too); `pool` pooled the **channel** axis as height, so the loader produced
+**241 input channels** (channels-first before pooling, and the selfcheck leg now asserts the
+shape); and the trainer moved the whole store to the GPU at once (27.6 GiB OOM) - batches
+move now. Pins: `wrist.py` **`bbf33f12`**, `scene.py` **`339f292c`**, `rl_env.py`
+**`714d8b36`** (`tasks.py` **`ad64ef59`** is P278's), `scripts/293_p279_wrist_seg_train.py`
+**`6f8e8062`**, `scripts/selfcheck.sh` **`0b150ba7`**, `logs/p279/PREREG.md` **`7cf0ec10`**,
+`RESULTS.md` **`2f7728fd`**, checkpoint `wrist_seg.pt` **`f91093da`**; references
+**`61fb5202` / `61fb5202` / `18b101bf`** untouched. Evidence `logs/p279/`.
+
+**P278 (2026-11-26, `logs/p278/`; default off, **nothing adopted**, no reference moved):
+the owner's option **A** - force-first closing - is built, finds contact, and **does not
+convert**: **7/20 = 35 %** against the no-lever arm's 9/19 and the tight baseline's 20/20.**
+The mechanism it attacks is P276's sentence, re-derived with the **sign** right: `est offset`
+is **+y** while the belt runs **-y**, so at the close the fruit is **downstream** of the hand
+- "open the pads and wait for it to drift in" cannot work, it does not come back. The one
+action that reaches it is a **downstream sweep**: **`FRUIT_CLOSE_SWEEP=<mm>`** (0 = off, the
+shipped path bit for bit), armed only when the estimate is stale
+(`FRUIT_CLOSE_SWEEP_STALE` 0.30 s), holds the pads at `wide`, drives the hand downstream at
+`FRUIT_CLOSE_SWEEP_SPEED` **0.20 m/s** (belt 0.08 -> 0.12 m/s of closing), and turns the
+ramp on the moment the **tactile** reaches `FRUIT_CLOSE_SWEEP_FORCE` 1.0 N, skipping the
+ramp's fast phase so the pads do not re-open. The force is the channel that is right when the
+position is wrong (P41/P75/P103: held legs 9.6-9.9 N, empty 0.00 N, no overlap). **Measured**:
+the sweep **does find contact** (`contact=yes` on nearly every attempt, achieved travel
+0-42 mm, e.g. `42 mm achieved (45 ticks), contact=yes, force=1.28N, est_age=1.01s`), and the
+cell still reads **35 %** - because contact is not a grasp: the judge's rows are still half
+`sensors=lost truth=lost (lift=+0.000)`, i.e. the pads met **something** (an edge, a 1 N
+graze), not the fruit between them. **One defect cost a run and is recorded (PREREG A1)**:
+the knob was read as **metres**, so the first cell swept **80 000 mm** - 400 s of simulated
+time with the arm pinned at its workspace limit, and the logged "travel" was the *command*,
+not the motion. It is **millimetres** now, with a **stall guard** (12 ticks under 0.5 mm of
+measured jaw y ends it) and the row prints **achieved** travel. Pins: `tasks.py`
+**`ad64ef59`**, `scripts/selfcheck.sh` **`0b150ba7`**, `logs/p278/PREREG.md`
+**`166cfb51`**; references **`61fb5202` / `61fb5202` / `18b101bf`** untouched. Evidence
+`logs/p278/`.
+
 **P277 (2026-11-25/26, `logs/p277/`; default off, **nothing adopted**, no reference
 moved): the owner's option A - use the wrist view, try compatible ways, take a wrist
 RGB-D camera's usual parameters - is built and measured, and the answer separates two

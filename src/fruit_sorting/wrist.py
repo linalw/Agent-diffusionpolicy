@@ -42,6 +42,7 @@ what keeps `predict_at` fresh through the contact phase.
 
 from __future__ import annotations
 
+import json
 import math
 import os
 
@@ -63,10 +64,10 @@ PAPER_PRESET = {
     "hz": 30.0,
 }
 
-MODES = ("off", "raster", "prior", "colour")
+MODES = ("off", "raster", "prior", "colour", "learned")
 
 
-def wrist_spec_from_env(default_res=(240, 424), default_focal=None,
+def wrist_spec_from_env(default_res=(240, 424), default_focal=0.035,
                         default_aperture=(0.036, 0.02025)):
     """`(resolution, focal, aperture_x, aperture_y, hz)` for the wrist pair."""
     preset = os.environ.get("FRUIT_WRIST_PRESET", "shipped").strip().lower()
@@ -83,8 +84,6 @@ def wrist_spec_from_env(default_res=(240, 424), default_focal=None,
     res_raw = os.environ.get("FRUIT_WRIST_RES", "").strip()
     if res_raw:
         res = tuple(int(v) for v in res_raw.split(","))
-    if focal is None:
-        raise ValueError("wrist_spec_from_env needs a default focal length")
     ap_raw = os.environ.get("FRUIT_WRIST_APERTURE", "").strip()
     if ap_raw:
         ap = tuple(float(v) for v in ap_raw.split(","))
@@ -101,6 +100,76 @@ def mode_from_env() -> str:
     return raw
 
 
+def pool_rgb(rgb, h: int, w: int) -> np.ndarray:
+    """`(H, W, 3)` -> `(3, h, w)`. Channels-first **before** pooling, or the
+    channel axis is treated as height (the same defect the trainer hit)."""
+    a = np.asarray(rgb, dtype=np.float32)[..., :3].transpose(2, 0, 1)
+    return pool_any(a, h, w)
+
+
+def pool_depth(depth, h: int, w: int) -> np.ndarray:
+    return pool_any(np.asarray(depth, dtype=np.float32), h, w)
+
+
+def pool_any(a: np.ndarray, h: int, w: int) -> np.ndarray:
+    """Mean-pool an image (and its channel axis) to (h, w)."""
+    a = np.asarray(a, dtype=np.float32)
+    h0, w0 = a.shape[-2:]
+    fy, fx = max(1, h0 // h), max(1, w0 // w)
+    if fy > 1 or fx > 1:
+        a = a[..., : fy * h, : fx * w]
+        a = a.reshape(*a.shape[:-2], h, fy, w, fx).mean(axis=(-3, -1))
+    return a
+
+
+def upscale_mask(mask: np.ndarray, shape) -> np.ndarray:
+    """Nearest-neighbour upscale of a low-res boolean mask to `shape`."""
+    h, w = int(shape[0]), int(shape[1])
+    ys = (np.arange(h) * mask.shape[0] // h).clip(0, mask.shape[0] - 1)
+    xs = (np.arange(w) * mask.shape[1] // w).clip(0, mask.shape[1] - 1)
+    return mask[ys][:, xs]
+
+
+def _build_seg_net(h: int, w: int, meta: dict):
+    """The same architecture `scripts/293_p279_wrist_seg_train.py` trains."""
+    import torch.nn as nn
+
+    class TinySeg(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.e1 = nn.Sequential(nn.Conv2d(4, 16, 3, padding=1), nn.ReLU(),
+                                    nn.Conv2d(16, 16, 3, padding=1), nn.ReLU())
+            self.e2 = nn.Sequential(nn.Conv2d(16, 32, 3, stride=2, padding=1), nn.ReLU(),
+                                    nn.Conv2d(32, 32, 3, padding=1), nn.ReLU())
+            self.e3 = nn.Sequential(nn.Conv2d(32, 64, 3, stride=2, padding=1), nn.ReLU(),
+                                    nn.Conv2d(64, 64, 3, padding=1), nn.ReLU())
+            self.d2 = nn.ConvTranspose2d(64, 32, 2, stride=2)
+            self.d1 = nn.ConvTranspose2d(64, 16, 2, stride=2)
+            self.out = nn.Conv2d(32, 1, 1)
+
+        def forward(self, z):
+            a = self.e1(z)
+            b = self.e2(a)
+            c = self.e3(b)
+            u = torch_cat(torch_relu(self.d2(c)), b)
+            v = torch_cat(torch_relu(self.d1(u)), a)
+            return self.out(v)
+
+    return TinySeg()
+
+
+def torch_cat(a, b):
+    import torch
+
+    return torch.cat([a, b], 1)
+
+
+def torch_relu(a):
+    import torch
+
+    return torch.relu(a)
+
+
 class WristRig:
     """One arm's wrist camera: aim it, render it, and measure without a mask."""
 
@@ -109,7 +178,19 @@ class WristRig:
         self.task = task
         self.side = side
         self.mode = mode
-        self.spec = spec or wrist_spec_from_env()
+        if spec is None:
+            cfg = getattr(task, "cfg", None)
+            spec = wrist_spec_from_env(
+                default_focal=(
+                    float(getattr(cfg, "camera_focal_length", 0.035))
+                    if cfg is not None else 0.035
+                ),
+                default_aperture=(
+                    tuple(getattr(cfg, "camera_aperture", (0.036, 0.02025)))
+                    if cfg is not None else (0.036, 0.02025)
+                ),
+            )
+        self.spec = spec
         #: **the render is not optional.** `set_wrist_pose` writes USD attributes;
         #: without a render between it and `get_data` the sensor returns the frame
         #: from its *build-time* pose - measured: two runs 12 cm apart returned the
@@ -153,6 +234,16 @@ class WristRig:
         #: is assumed, and `ffmpeg` reads PPM.
         self.dump_dir = os.environ.get("FRUIT_WRIST_DUMP", "").strip()
         self.dumps = 0
+        #: P279: **the collection pass for a learned segmenter.** Armed with
+        #: `FRUIT_WRIST_LABELS=<dir>`, the run authors the wrist **with** the
+        #: instance annotator (so the head loses its mask - that is fine here, the
+        #: goal is truth-fed on this pass), poses/renders per observation and
+        #: writes `rgb.npy` + `depth.npy` + `mask.npy` per frame. The result is the
+        #: only way to get wrist labels in this build: one annotated camera at a
+        #: time (P213), so the labels are collected when the *wrist* holds it.
+        self.label_dir = os.environ.get("FRUIT_WRIST_LABELS", "").strip()
+        self.saved = 0
+        self.label_max = int(os.environ.get("FRUIT_WRIST_LABELS_MAX", "1200"))
 
     # -- aim ---------------------------------------------------------- #
     def aim(self, target=None) -> np.ndarray | None:
@@ -245,7 +336,7 @@ class WristRig:
             if depth.ndim == 3:
                 depth = depth[..., 0]
         rgb = None
-        if self.mode == "colour" or self.dump_dir:
+        if self.mode in ("colour", "learned") or self.dump_dir:
             raw_rgb = sensor.get_data("rgb")
             if raw_rgb is not None:
                 rgb = np.asarray(raw_rgb[0].numpy())
@@ -347,6 +438,105 @@ class WristRig:
         self.reasons[why] = self.reasons.get(why, 0) + 1
         return None
 
+    # -- the learned mask (P279) -------------------------------------- #
+    @staticmethod
+    def _seg_net():
+        """The trained segmenter, loaded once per process (None if absent)."""
+        cached = getattr(WristRig, "_seg_cache", None)
+        if cached is not None:
+            return cached
+        path = os.environ.get("FRUIT_WRIST_SEG", "checkpoints/wrist_seg.pt")
+        WristRig._seg_cache = False
+        try:
+            import torch
+
+            from . import wrist as _self
+
+            meta_path = os.path.splitext(path)[0] + ".json"
+            with open(meta_path) as fh:
+                meta = json.load(fh)
+            net = _self._build_seg_net(int(meta["h"]), int(meta["w"]), meta)
+            net.load_state_dict(torch.load(path, map_location="cpu"))
+            net.eval()
+            WristRig._seg_cache = (net, meta, torch)
+            say(f"[wrist] segmenter {path} (val IoU {meta.get('val_iou'):.3f})")
+        except Exception as exc:  # noqa: BLE001 - a missing net is a named refusal
+            say(f"[wrist] segmenter unavailable ({type(exc).__name__}: {exc})")
+        return WristRig._seg_cache
+
+    def _learned_mask(self, rgb, depth):
+        """Run the segmenter on one wrist frame; returns a boolean mask or None."""
+        loaded = self._seg_net()
+        if not loaded:
+            return None
+        net, meta, torch = loaded
+        h, w = int(meta["h"]), int(meta["w"])
+        scale = float(meta.get("depth_scale", 0.30))
+        img = pool_rgb(rgb, h, w) / 255.0
+        d = pool_depth(depth, h, w)
+        d = np.clip(np.nan_to_num(d, nan=1.0), 0.0, scale) / scale
+        x = np.concatenate([img, d[None]], axis=0)[None].astype(np.float32)
+        with torch.no_grad():
+            logits = net(torch.from_numpy(x))
+            prob = torch.sigmoid(logits)[0, 0].numpy()
+        small = prob > 0.5
+        if small.shape != depth.shape:
+            from .wrist import upscale_mask
+
+            small = upscale_mask(small, depth.shape)
+        return small
+
+    def capture(self, sample_prim: str) -> bool:
+        """One labelled wrist frame for the segmenter dataset (P279)."""
+        if not self.label_dir:
+            return False
+        if self.saved >= self.label_max:
+            return False
+        eye = self.aim(None)
+        if eye is None:
+            return False
+        self._render()
+        entry = getattr(self.scene, "wrist_cameras", {}).get(self.side)
+        if entry is None:
+            return False
+        sensor = entry[1]
+        raw_d = sensor.get_data("distance_to_image_plane")
+        raw_rgb = sensor.get_data("rgb")
+        if raw_d is None or raw_rgb is None:
+            return False
+        depth = np.asarray(raw_d[0].numpy(), dtype=np.float32)
+        if depth.ndim == 3:
+            depth = depth[..., 0]
+        rgb = np.asarray(raw_rgb[0].numpy())[..., :3].astype(np.uint8)
+        mask = None
+        raw_seg = sensor.get_data("instance_id_segmentation")
+        if raw_seg is not None:
+            seg = np.asarray(raw_seg[0].numpy())
+            while seg.ndim > 2:
+                seg = seg[..., 0]
+            info = raw_seg[1] if isinstance(raw_seg, tuple) and len(raw_seg) > 1 else {}
+            labels = info.get("idToLabels", {}) if isinstance(info, dict) else {}
+            target = 0
+            for key, value in labels.items():
+                if sample_prim and sample_prim in str(value):
+                    target = int(key)
+                    break
+            if target:
+                mask = (seg == target)
+        if mask is None or int(mask.sum()) < 30:
+            return False
+        try:
+            os.makedirs(self.label_dir, exist_ok=True)
+            stem = os.path.join(self.label_dir, f"{self.side}_{self.saved:05d}")
+            np.save(stem + "_rgb.npy", rgb)
+            np.save(stem + "_depth.npy", depth)
+            np.save(stem + "_mask.npy", mask)
+            self.saved += 1
+        except Exception as exc:  # noqa: BLE001 - a capture must never kill the cell
+            say(f"[wrist] label save failed: {type(exc).__name__}: {exc}")
+            return False
+        return True
+
     # -- measure ------------------------------------------------------ #
     def measure(self, prior_pos, prior_radius: float, colour_model=None):
         """One wrist measurement near `prior_pos`, or None (with a counted reason)."""
@@ -395,15 +585,16 @@ class WristRig:
             #: **The prior is a preference, not a filter.** It is the thing that
             #: can be wrong (P276: 80 mm of coast), so a ball around it would miss
             #: exactly when the wrist is needed. Back-project everything, keep the
-            #: loose neighbourhood, cluster it, and take the cluster nearest the
-            #: prior whose fitted size is plausible.
+            #: loose neighbourhood, then isolate by colour, by the learned mask, or
+            #: by connected components.
             py, px = np.mgrid[0:h:self.stride, 0:w:self.stride]
             pix = np.stack([px.ravel(), py.ravel()], axis=1)
             z = depth[pix[:, 1], pix[:, 0]].astype(float)
             finite = np.isfinite(z) & (z > 0.03)
             if int(finite.sum()) < self.min_pixels:
                 return self._reject("no valid depth")
-            points = model.backproject(depth, pix[finite])
+            sub = pix[finite]
+            points = model.backproject(depth, sub)
             keep = (
                 np.linalg.norm(points - np.asarray(anchor, float), axis=1)
                 <= self.reach
@@ -413,19 +604,35 @@ class WristRig:
                 self.pixels = int(keep.sum())
                 return self._reject(f"no points near the prior ({int(keep.sum())})")
             points = points[keep]
+            sub = sub[keep]
             if self.mode == "colour" and colour_model is not None and rgb is not None:
                 mean, std = colour_model
-                cols = rgb[pix[:, 1], pix[:, 0]][finite].astype(float)[keep]
+                cols = rgb[sub[:, 1], sub[:, 0]].astype(float)
                 d = np.abs(cols - np.asarray(mean, float)) / np.maximum(
                     np.asarray(std, float), 6.0
                 )
                 cmask = d.max(axis=1) <= self.colour_tol
                 if int(cmask.sum()) >= self.min_pixels:
                     points = points[cmask]
-            points = self._cluster_near(points, anchor)
-            if points is None:
-                return self._reject("no plausible cluster")
-
+                    sub = sub[cmask]
+            elif self.mode == "learned":
+                if rgb is None:
+                    return self._reject("learned needs rgb")
+                m = self._learned_mask(rgb, depth)
+                if m is None:
+                    return self._reject("no segmenter")
+                msub = np.asarray(m)[sub[:, 1], sub[:, 0]].astype(bool)
+                points = points[msub]
+                sub = sub[msub]
+                if len(points) < self.min_pixels:
+                    self.pixels = int(len(points))
+                    return self._reject(f"mask covered {len(points)} px")
+            if self.mode != "learned":
+                #: the mask **is** the isolation; a cluster pass on top of it would
+                #: only re-introduce the merge the mask removed.
+                points = self._cluster_near(points, anchor)
+                if points is None:
+                    return self._reject("no plausible cluster")
         if len(points) < self.min_pixels:
             self.pixels = int(len(points))
             return self._reject(f"too few points ({len(points)})")

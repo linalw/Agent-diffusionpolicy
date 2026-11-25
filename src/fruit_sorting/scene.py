@@ -957,6 +957,7 @@ class SortingScene:
         # cameras - a mode with no camera would be silent.
         _wrist_want = (
             os.environ.get("FRUIT_WRIST_CAMERA", "0") == "1"
+            or bool(os.environ.get("FRUIT_WRIST_LABELS", "").strip())
             or os.environ.get("FRUIT_WRIST", "off").strip().lower()
             not in ("", "off", "0")
         )
@@ -1182,7 +1183,15 @@ class SortingScene:
 
         _measure_mode = _wrist_mode()
         _default_ann = "rgb,distance_to_image_plane"
-        if _measure_mode == "off":
+        if os.environ.get("FRUIT_WRIST_LABELS", "").strip():
+            #: P279's **collection pass**: the wrist is the one annotated camera, so
+            #: the segmenter gets labels. The head loses its mask on this pass only;
+            #: the goal is truth-fed here, so the run is still a valid data source.
+            _default_ann = os.environ.get(
+                "FRUIT_CAMERA_ANNOTATORS",
+                "rgb,distance_to_image_plane,instance_id_segmentation",
+            )
+        elif _measure_mode == "off":
             _default_ann = os.environ.get(
                 "FRUIT_CAMERA_ANNOTATORS",
                 "rgb,distance_to_image_plane,instance_id_segmentation",

@@ -531,6 +531,53 @@ print('truth census ok (off by default, nominal diameter, start-x source)')"
 # and a belt estimate there is a lie).
 # P277: the wrist view executed on a synthetic frame - the prior as a preference,
 # the raster control missing by 8 cm, the paper preset's field of view.
+# P278: the force-first sweep - off by default, gated on all three terms, millimetres,
+# a stall guard, and it only skips the ramp's fast phase when the tactile loaded.
+# P279: the segmenter's plumbing - the channel order (the trainer/loader once
+# pooled the *channel* axis as height and produced 241 input channels), the
+# checkpoint's key set against the deploy builder, and a real forward pass.
+run_check "P279 wrist segmenter" "$python" -c "
+import sys; sys.path.insert(0, 'src')
+import numpy as np
+from fruit_sorting import wrist as W
+img = W.pool_rgb(np.zeros((240, 424, 3), dtype=np.uint8), 120, 160)
+assert img.shape == (3, 120, 160), img.shape
+assert W.pool_depth(np.zeros((240, 424), dtype=np.float32), 120, 160).shape == (120, 160)
+m = W.upscale_mask(np.zeros((120, 160), dtype=bool), (240, 424))
+assert m.shape == (240, 424), m.shape
+assert 'learned' in W.MODES
+import json, os
+ck = 'checkpoints/wrist_seg.pt'
+if os.path.exists(ck):
+    meta = json.load(open(os.path.splitext(ck)[0] + '.json'))
+    net = W._build_seg_net(meta['h'], meta['w'], meta)
+    import torch
+    net.load_state_dict(torch.load(ck, map_location='cpu')); net.eval()
+    x = torch.zeros(1, 4, meta['h'], meta['w'])
+    with torch.no_grad():
+        y = net(x)
+    assert tuple(y.shape) == (1, 1, meta['h'], meta['w']), y.shape
+    print('   forward ok at', meta['h'], 'x', meta['w'], 'val IoU', meta['val_iou'])
+else:
+    print('   (no checkpoint yet - shape checks only)')
+print('segmenter ok (channels-first, mask upscale, forward)')"
+
+run_check "P278 close sweep" "$python" -c "
+t = open('src/fruit_sorting/tasks.py', encoding='utf-8').read()
+assert 'FRUIT_CLOSE_SWEEP' in t
+assert 'os.environ.get(\"FRUIT_CLOSE_SWEEP\", \"0\")\n            ) / 1000.0' in t, 'millimetres, default off'
+i = t.index('                if (\n                    self._close_sweep > 0.0')
+blk = t[i:t.index('                for _close_step, gap in enumerate(close_ramp):', i)]
+assert 'and dynamic_capture' in blk
+assert 'self._estimate_age_s() >= self._close_sweep_stale' in blk, 'only when the estimate is stale'
+assert 'self._tactile_force(arm_name) >= self._close_sweep_force' in blk, 'force decides'
+assert 'follow_centre(_ctr, quat, float(wide))' in blk, 'the pads stay open while sweeping'
+assert '_y0 - _step * (_k + 1)' in blk, 'downstream is -y'
+assert 'if _stall >= 12:' in blk, 'a workspace stall ends the sweep'
+assert 'close_ramp[int(fast_ticks):]' in blk, 'the fast phase is skipped only on contact'
+assert 'contact=' in blk and 'achieved' in blk, 'the row reports what moved, not what was asked'
+print('close sweep ok (mm, off by default, tactile-gated, downstream, stall-guarded)')"
+
 run_check "P277 wrist view" "$python" scripts/292_p277_wrist_selftest.py
 
 run_check "P276 contact estimate" "$python" -c "
@@ -539,9 +586,10 @@ src = open('src/fruit_sorting/tasks.py', encoding='utf-8').read()
 start = src.index('def _grasp_carry_place_impl(')
 nxt = src.index(chr(10) + '    def ', start)   # the next method's def
 body = src[start:nxt]
-# 17 doors were already here (P227ad) and P276 added 14 more, covering 18 reads
+# 17 doors were already here (P227ad), P276 added 14 (18 reads) and P278's
+# sweep adds one more inside the same function
 calls = body.count('self._fruit_state(sample)')
-assert calls == 32, calls
+assert calls == 33, calls
 assert body.count('fruit_now, fruit_v_now = self._fruit_state(sample)') == 4
 # the evaluation and the judge keep the simulator
 assert 'z_before = float(self.spawner.position(sample)[2])' in body
