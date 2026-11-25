@@ -8146,6 +8146,35 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P270 (2026-11-25, `logs/p270/`; two cells with the landing trace, **no `src/` change**,
+nothing adopted): with `FRUIT_PLACE_TRACE=1` **every release lands** - the P2 clause's corrected
+form **passes where it can be read**.** The cells are P269's open question: that phase failed P2
+on one `grasped=True placed=False` row it could not classify, because `placed` is
+`bool(cfg.on_output_belt(pos))` at the sample (`tasks.py:17942`) so "lost in the place leg" and
+"released off-target" read the same `False`, and neither cell carried the place trace. **This
+phase runs the same arm (`FRUIT_DYNAMIC_CATCH_TOL=0.007`), the same seeds (907/908), 20 picks
+each, with `FRUIT_PLACE_TRACE=1` + `FRUIT_CARRY_DIAG=1` + `FRUIT_TRACK_DIAG=1`**:
+**`T_tr_s907 18/20` and `T_tr_s908 16/20` = 34/40 = 85 %**, **34 place traces, 34/34
+`on_belt=True`, 0 False**, and **no `grasped=True placed=False` row at all** - the losses (2
+and 4) are all upstream of the place. **The landing height corroborates the bins cell**:
+`release_bottom = -211.8 / -211.9 mm` against the belt top, i.e. the payload's bottom sits
+**38 mm above the 1.10 m bin floor**, matching P227ac's measured 39-40 mm for the accompanied
+descent. **Settled**: the class the clause guards against (a place-leg loss **with the payload
+present at the release**) is **absent** in the arm where the clause failed, at the same seeds,
+with the instrument that can see it. **Not settled**: the original row's class - it **did not
+recur** (the trace adds per-place rows, so the branch differs), so it stays **unclassified** and
+P269's withdrawal stands. **And it does not license the tolerance**: this is the **T arm only**,
+and the PREREG's shape needs both arms; a **C arm with the same trace** (2 more cells) is what a
+full re-registration would read - nothing ships on a clause read alone. **The tolerance's state,
+once**: the **class** effect is measured at the registered power (**19 % -> 9 %**, P269), the
+**quality** clause passes in its corrected form where readable (**34/34 on the belt**), the
+**count** is a draw (30 vs 32 of 40), and **the decision is not adopted** - it stays at 6 mm, and
+an adoption would owe the four items PREREG lists (two more seeds, the two-line gate, both
+references, every store). No `src/`/`configs/` change (tree is P268's, `tasks.py`
+**`141cd178`**), references **`61fb5202` / `61fb5202` / `18b101bf`** untouched, ckpt
+`p227_panda156`; `selfcheck.sh` **PASS (0 failures, 1 skipped)**; `accept.sh` stands at P268's
+**459/459 + `fingerprint: matches`**. Evidence `logs/p270/`.
+
 **P269 (2026-11-25, `logs/p269/`; the **powered cell** PREREG'd for the catch exit tolerance,
 fresh seeds 907/908, 40 per arm, **nothing adopted**): the tolerance **halves the true-stall
 rate at the registered power** - and **fails P2 on one row of a different class**.** `C 6 mm`
