@@ -87,7 +87,7 @@ P227ad 的"decision layer"是一个**很窄**的定义，不是"策略整条链�
 |---|---|---|
 | **直径** | `if self._percept_dia is not None: goal[6] = …` | 拟合没给出半径时**回落到选择时的真值直径**（静默的） |
 | **箱号** | `bin_index = 0 if grade == "A" else 1`；指令按 `species/size/grade` 匹配 | `grade` 是**仿真抽取的标签**，不是视觉；现实要靠分级器/人工指令 |
-| **选哪一颗** | `select_target` 在 `state["position"]/["diameter"]/["grade"]` 上跑 | 选择本身用真值状态；目标的"值"可以测，但"选谁"不能 |
+| **选哪一颗** | `select_target` 在 `state["position"]/["diameter"]/["grade"]` 上跑 | 选择本身用真值状态。**P275 建了替代**：`FRUIT_SELECT_FROM=percept` 用一帧分割+球拟合生成候选表（身份来自掩码、状态来自拟合），规则不变；无检测时回落真值并在 episode 行打印 `truth_fallbacks=` |
 
 **一句话**：**目标的 6 个测量维（位置/速度）可以真值无关；直径在拟合失败时回落、
 箱号来自标签、而"选哪一颗"仍是真值决策。**
@@ -103,6 +103,7 @@ P227ad 的"decision layer"是一个**很窄**的定义，不是"策略整条链�
 | **判定的匹配 settle** | `FRUIT_GRASP_JUDGE_SETTLE=<n>` | `0` | 传感判定要 `_step_sim`，那**同时是一个 settle**；真值臂拿同样的 tick，A/B 才对得上 |
 | **直径不再回落真值** | `FRUIT_GOAL_NOMINAL_DIA` | `0.060` | 感知模式下拟合没给半径时用名义值，而不是静默用调用者传进来的真值直径 |
 | **起始位姿 x** | `FRUIT_START_ALIGN_FROM=truth\|percept` | `truth` | `percept` 用末次相机估计的 x；没有帧时用供料带中心 x（不是真值） |
+| **选果** | `FRUIT_SELECT_FROM=truth\|percept` | `truth` | 一帧分割+逐实例球拟合生成候选表；三个选择调用点都换；无检测回落真值并计数 |
 | **真值债务表** | `FRUIT_TRUTH_AUDIT=1` | 关 | 在 `FruitSpawner.position/velocity` 上按**调用者函数名**计数，每 episode 打印累计表。关时是一次字典判断 |
 
 **判定的计数陷阱（已量）**：0.12 上 传感判定 95 % vs 出厂 75 %——但那是它自带的 10 tick

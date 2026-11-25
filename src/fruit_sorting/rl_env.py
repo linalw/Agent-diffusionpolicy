@@ -3509,6 +3509,24 @@ class SortingRLEnv:
         self._primitive_estimate = (
             os.environ.get("FRUIT_PRIMITIVE_ESTIMATE", "0").strip() == "1"
         )
+        #: P275: **where the selector's candidate list comes from.** `truth` (the
+        #: shipped path) reads every live fruit's pose from the spawner.
+        #: `percept` builds the same list from **one camera frame**: the instance
+        #: segmentation names the fruit (identity from perception, not from the
+        #: spawner's list) and a trimmed sphere fit gives its centre and diameter,
+        #: so "which fruit is in the window, where, how big" no longer reads the
+        #: simulator. The belt's own commanded speed supplies the velocity term
+        #: (a robot actuator value, not fruit state). Falls back to the truth list
+        #: when the frame has no detection, and the episode row says how often.
+        _sel = os.environ.get("FRUIT_SELECT_FROM", "truth").strip().lower()
+        if _sel not in ("truth", "percept"):
+            raise ValueError(
+                "FRUIT_SELECT_FROM must be 'truth' or 'percept', got "
+                f"{os.environ.get('FRUIT_SELECT_FROM')!r}"
+            )
+        self._select_from = _sel
+        self._select_fallbacks = 0
+        self._sel_percept = None
         #: P227ad: **keep the camera running inside the primitive.** Measured: with
         #: the pre-grasp reads on the estimate but no measurement during the contact
         #: phase, the tracker's last update is ~10 s old by the time the pads close
@@ -4896,7 +4914,7 @@ class SortingRLEnv:
                 # shipped farthest-upstream pick stays byte-identical. An
                 # explicit `FRUIT_SELECT_NEAREST_ABOVE_FLOOR` wins either way.
                 target_state = self.task.select_target(
-                    self.spawner.state(), reach_anywhere=False, direct=True,
+                    self._selector_states(), reach_anywhere=False, direct=True,
                     diag=diag,
                 )
             if target_state is not None or rounds >= 40:
@@ -8870,6 +8888,69 @@ class SortingRLEnv:
             np.asarray(tr.velocity, dtype=float),
         )
 
+    def _selector_states(self) -> list[dict]:
+        """P275: the selector's candidate list - measured, or the shipped truth."""
+        if self._select_from != "percept":
+            return self.spawner.state()
+        states = self._percept_states()
+        if states is None:
+            self._select_fallbacks += 1
+            return self.spawner.state()
+        return states
+
+    def _percept_states(self):
+        """One frame -> the same state dicts the selector expects, or None.
+
+        Only the **measured** fields are taken from the fit (`position`,
+        `diameter`); `index`/`prim_path` come from the segmentation's own label,
+        which is identity, not state. The label fields (`grade`, `mass`,
+        `friction`, `ripeness`, `defective`) ride along for bookkeeping and the
+        bin mapping - the permitted "which box" input - and are never read by the
+        single arm's eligibility rule (that reads position and diameter only).
+        """
+        if self._sel_percept is None:
+            from .perception import perception_from_env
+
+            self._sel_percept = perception_from_env(self.scene, self.cfg)
+        dets = self._sel_percept.detect_all(self.task)
+        if not dets:
+            return None
+        by_path = {
+            s.prim_path: s for s in self.spawner.active if not s.parked
+        }
+        belt_v = 0.0
+        try:
+            belt_v = float(self.task._belt_speed_estimate())
+        except Exception:  # noqa: BLE001 - a stub task has no belt model
+            belt_v = float(self.cfg.belt_speed)
+        out = []
+        unmatched = 0
+        for path, det in dets.items():
+            sample = by_path.get(path)
+            if sample is None:
+                unmatched += 1
+                continue
+            out.append(
+                {
+                    "index": int(sample.index),
+                    "prim_path": path,
+                    "category": sample.category,
+                    "diameter": float(det["diameter"]),
+                    "mass": float(sample.mass),
+                    "friction": float(sample.friction),
+                    "grade": sample.grade,
+                    "ripeness": sample.ripeness,
+                    "defective": sample.defective,
+                    "position": np.asarray(det["position"], dtype=float),
+                    "velocity": np.array([0.0, -belt_v, 0.0], dtype=float),
+                }
+            )
+        self._say(
+            f"[select] percept: {len(dets)} detection(s), {len(out)} on a live "
+            f"fruit, {unmatched} unmatched"
+        )
+        return out or None
+
     def _fruit_for_trigger(self, sample):
         """`(position, velocity, source)` for the fire decision.
 
@@ -9084,7 +9165,7 @@ class SortingRLEnv:
         station_x = float(self._trigger_station[0])
         lateral = float(self.trigger_settings.lateral)
         state = self.task.select_target(
-            self.spawner.state(),
+            self._selector_states(),
             reach_anywhere=False,
             # P121: with an instruction the selection is by destination, and the
             # *arm* is the capability map's answer - the bin is not a lane.
@@ -9955,6 +10036,12 @@ class SortingRLEnv:
             from .fruits import print_truth_read_census
 
             print_truth_read_census(f"[truth] ep={self._episode}")
+        if self._select_from == "percept":
+            self._say(
+                f"[select] ep={self._episode} source=percept "
+                f"truth_fallbacks={self._select_fallbacks}"
+            )
+            self._select_fallbacks = 0
         self._say(
             f"[rl] episode {self._episode}: {self._sample.category} "
             f"d={self._sample.diameter * 100:.1f}cm bin={self._bin_index} "
@@ -10113,7 +10200,8 @@ class SortingRLEnv:
         while True:
             diag = [] if self._bed_diag else None
             target = self.task.select_target(
-                self.spawner.state(), reach_anywhere=False, direct=True, diag=diag
+                self._selector_states(), reach_anywhere=False, direct=True,
+                diag=diag,
             )
             if target is not None:
                 break

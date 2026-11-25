@@ -481,6 +481,27 @@ print('direct cycle report ok (owned by the env, scripted path unchanged)')"
 # knob off not even the tactile read exists.
 # P275: the truth-free grasp judge (force + measured pad span), default off.
 # P275: the truth-read census, and the two elements it forced (diameter, start x).
+# P275: the selector can be built from one camera frame instead of the spawner.
+run_check "P275 select from percept" "$python" -c "
+p = open('src/fruit_sorting/perception.py', encoding='utf-8').read()
+assert 'def detect_all(' in p
+# it must not disturb the tracked target's filter state
+body = p[p.index('def detect_all('):]
+body = body[:body.index('def summary(')]
+for forbidden in ('last_radius =', 'last_centre =', 'last_estimate ='):
+    assert forbidden not in body, forbidden
+assert 'instance_id_segmentation' in body and '_fit_sphere(' in body
+r = open('src/fruit_sorting/rl_env.py', encoding='utf-8').read()
+assert 'FRUIT_SELECT_FROM' in r
+assert 'os.environ.get(\"FRUIT_SELECT_FROM\", \"truth\")' in r, 'default truth'
+assert 'def _selector_states(' in r and 'def _percept_states(' in r
+# both selector call sites go through the resolver
+assert r.count('self._selector_states()') == 3
+assert 'self.spawner.state(), reach_anywhere=False' not in r
+# a fallback can never be silent
+assert 'truth_fallbacks=' in r
+print('select from percept ok (off by default, both sites, fallback named)')"
+
 run_check "P275 truth census" "$python" -c "
 f = open('src/fruit_sorting/fruits.py', encoding='utf-8').read()
 assert '_TRUTH_AUDIT' in f and 'FRUIT_TRUTH_AUDIT' in f

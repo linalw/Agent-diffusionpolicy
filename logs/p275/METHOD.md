@@ -73,6 +73,35 @@ held  ⇔  Σ tactile.normal_force ≥ 2 N   在窗口内(10 tick, 允许 1 次�
 | 直径（拟合失败时） | 静默回落真值 | `FRUIT_GOAL_NOMINAL_DIA=0.060` |
 | **选哪一颗** | `select_target` 在真值状态上跑 | **未解决**：列进债务表（要一个"窗口内检测+轮询"的选择器，是下一阶段） |
 
+## 4b. 选果：`FRUIT_SELECT_FROM=percept`
+
+选择器（"选哪一颗"）出厂吃 `spawner.state()`——每颗活果的真值位姿。这是最后一处
+**位置**真值进入决策的地方，也是 owner 约束里必须补的那一块。
+
+`FRUIT_SELECT_FROM=percept` 把候选表换成**一帧**：
+
+```
+渲染一次
+  └─ instance_id_segmentation 的 idToLabels  ──▶ 每颗果子的 prim 名（**身份来自感知**）
+      + distance_to_image_plane
+          └─ 逐实例：去边裁检查 → 最少像素 → 反投影 → 深度带 → 裁剪球拟合 → 工作区 ROI
+              └─ position, diameter（**状态来自测量**）
+```
+
+* **身份**用分割标签（允许的"实例掩码"），**状态**用拟合；两者都不读 `spawner`。
+* 速度用**带速指令**（机器人自己的执行器值，不是果子状态）：`[0, -v_belt, 0]`。
+* 返回的字典与 `spawner.state()` 同键，所以选择器的**规则本身不动**（上游优先、地板、
+  横向带、直径上限、重试上限），它只是换了一份输入。
+* `index`/`prim_path` 仍映射回 `FruitSample`——那是**簿记身份**（要驱动刚体），不是状态。
+* 无检测时**回落真值表**，并且**说出来**：episode 行打印 `[select] ep=N source=percept
+  truth_fallbacks=M`。`M > 0` 就是"这一格并不是完全真值无关"。
+* 三个调用点都换（reset 的选择、P56 的途中再选、P38 的 reseed）。
+
+**为什么用 `detect_all` 而不是 `measure`**：`measure` 是**跟踪那一颗**的，它维护
+`last_radius/last_centre/last_estimate`；选择器不能扰动滤波器状态，所以 `detect_all`
+是一次独立的、无状态的逐实例拟合（selfcheck 的钉子就钉这条：`detect_all` 里
+不许出现 `last_radius =` 等三个赋值）。
+
 ## 5. 复现
 
 ```bash

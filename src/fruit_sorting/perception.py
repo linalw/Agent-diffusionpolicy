@@ -510,6 +510,104 @@ class FruitPerception:
             return None
 
     # ------------------------------------------------------------------ #
+    def detect_all(self, task, sensor=None, camera_path: str | None = None):
+        """Sphere-fit **every fruit instance** visible in one frame.
+
+        P275: the selector needs "which fruit is in the window, where, how big",
+        and a deployable cell answers that from the same frame the tracker uses.
+        One render, one segmentation read, then a fit per instance - the labels
+        name the prim, so identity comes from perception rather than from the
+        spawner's list.
+
+        Returns ``{prim_path: {"position", "radius", "diameter", "rms",
+        "pixels", "t"}}`` (empty when there is no frame). Deliberately does not
+        touch ``last_radius``/``last_centre``/``last_estimate``: those belong to
+        the tracked target, and a selector must not disturb the filter.
+        """
+        out: dict[str, dict] = {}
+        if task is None:
+            return out
+        camera_sensor = self.scene.camera_sensor if sensor is None else sensor
+        if camera_path is not None:
+            self.camera.update_pose(self.scene, camera_path)
+        try:
+            self._render(task)
+            raw_depth = camera_sensor.get_data("distance_to_image_plane")
+            raw = camera_sensor.get_data("instance_id_segmentation")
+            if raw_depth is None or raw is None:
+                self.failures += 1
+                self.last_error = "no frame (detect_all)"
+                return out
+            depth = np.asarray(raw_depth[0].numpy(), dtype=np.float32)
+            if depth.ndim == 3:
+                depth = depth[..., 0]
+            if depth.ndim != 2:
+                return out
+            seg = np.asarray(raw[0].numpy())
+            while seg.ndim > 2:
+                seg = seg[..., 0]
+            info = raw[1] if isinstance(raw, tuple) and len(raw) > 1 else {}
+            labels = info.get("idToLabels", {}) if isinstance(info, dict) else {}
+            h, w = seg.shape[:2]
+            now = float(task._sim_time())
+            for key, value in labels.items():
+                prim_path = str(value)
+                if "Fruit" not in prim_path:
+                    continue
+                mask = seg == int(key)
+                if self.clip_margin > 0:
+                    m = int(self.clip_margin)
+                    if (
+                        mask[:m].any()
+                        or mask[-m:].any()
+                        or mask[:, :m].any()
+                        or mask[:, -m:].any()
+                    ):
+                        continue
+                pixels = np.argwhere(mask)[:, ::-1]  # (u, v)
+                if len(pixels) < self.min_pixels:
+                    continue
+                pixels = pixels[:: self.stride]
+                points = self.camera.backproject(depth, pixels)
+                z = depth[pixels[:, 1], pixels[:, 0]].astype(float)
+                finite = np.isfinite(z) & (z > 0.05)
+                if not np.any(finite):
+                    continue
+                band = np.abs(z - np.median(z[finite])) <= 0.05
+                points = points[finite & band]
+                if len(points) < 12:
+                    continue
+                centre, radius, rms = _fit_sphere(points, trim=self.trim)
+                if centre is None or not math.isfinite(radius) or radius <= 0.005:
+                    continue
+                centre = np.asarray(centre, dtype=float) - self.bias[
+                    "wrist" if camera_path and "Wrist" in camera_path else "head"
+                ]
+                if self.roi is not None:
+                    x_lo, x_hi, y_lo, y_hi, z_lo, z_hi = self.roi
+                    if not (
+                        x_lo <= centre[0] <= x_hi
+                        and y_lo <= centre[1] <= y_hi
+                        and z_lo <= centre[2] <= z_hi
+                    ):
+                        continue
+                out[prim_path] = {
+                    "position": np.asarray(centre, dtype=float),
+                    "radius": float(radius),
+                    "diameter": float(2.0 * radius),
+                    "rms": float(rms),
+                    "pixels": int(len(points)),
+                    "t": now,
+                }
+            self.renders += 1
+            self.frames += 1
+            return out
+        except Exception as exc:  # noqa: BLE001 - a perception fault must not kill the cell
+            self.failures += 1
+            self.last_error = f"{type(exc).__name__}: {exc}"
+            return out
+
+    # ------------------------------------------------------------------ #
     def summary(self) -> dict:
         return {
             "renders": int(self.renders),

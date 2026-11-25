@@ -31,6 +31,7 @@ TF_BUNDLE=(
   FRUIT_GRASP_JUDGE=force
   FRUIT_GRASP_JUDGE_TICKS=10
   FRUIT_START_ALIGN_FROM=percept
+  FRUIT_SELECT_FROM=percept
 )
 
 # --- group 1: is the judge's count its own, or the settle's? --------------
