@@ -510,7 +510,8 @@ class FruitPerception:
             return None
 
     # ------------------------------------------------------------------ #
-    def detect_all(self, task, sensor=None, camera_path: str | None = None):
+    def detect_all(self, task, sensor=None, camera_path: str | None = None,
+                   paths=None):
         """Sphere-fit **every fruit instance** visible in one frame.
 
         P275: the selector needs "which fruit is in the window, where, how big",
@@ -518,6 +519,13 @@ class FruitPerception:
         One render, one segmentation read, then a fit per instance - the labels
         name the prim, so identity comes from perception rather than from the
         spawner's list.
+
+        `paths` is the caller's list of **names to look for**, resolved the way
+        `_mask` resolves its own target: the label's value stringifies to a dict
+        (`{'class': '/World/Fruit_03'}`), so the match is a substring test, and the
+        returned key is the caller's own path. That is identity bookkeeping (the
+        mask still says *which* instance is visible and the fit says *where*); the
+        detector never reports a fruit the caller did not name.
 
         Returns ``{prim_path: {"position", "radius", "diameter", "rms",
         "pixels", "t"}}`` (empty when there is no frame). Deliberately does not
@@ -551,9 +559,21 @@ class FruitPerception:
             h, w = seg.shape[:2]
             now = float(task._sim_time())
             for key, value in labels.items():
-                prim_path = str(value)
-                if "Fruit" not in prim_path:
-                    continue
+                text = str(value)
+                # `_mask`'s own rule: the label stringifies to a dict, so the
+                # prim path is a substring, not the whole value.
+                prim_path = None
+                if paths:
+                    for want in paths:
+                        if want and want in text:
+                            prim_path = want
+                            break
+                    if prim_path is None:
+                        continue
+                else:
+                    if "Fruit" not in text:
+                        continue
+                    prim_path = text
                 mask = seg == int(key)
                 if self.clip_margin > 0:
                     m = int(self.clip_margin)

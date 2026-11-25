@@ -36,6 +36,10 @@ FRUIT = [
 ]
 #: a decoy that is labelled but outside the ROI, and one that is not a fruit
 DECOY = [("/World/OutputBelt2", (-0.30, 0.55, 1.30), 0.05, 21)]
+#: the caller's own name list - identity bookkeeping, not a measurement. The
+#: decoy is deliberately *not* in it: a labelled body the caller did not name (the
+#: output belt) must never become a candidate.
+PATHS = [p for p, *_ in FRUIT]
 
 
 class FakeCamera:
@@ -67,7 +71,9 @@ def build_frame():
     seg = np.zeros((H, W), dtype=np.int32)
     labels = {"0": "BACKGROUND"}
     for path, centre, radius, ident in FRUIT + DECOY:
-        labels[str(ident)] = path
+        # the real annotator stringifies a small dict, which is why `_mask` (and
+        # now `detect_all`) match the prim path as a *substring*
+        labels[str(ident)] = str({"class": path})
         cx, cy, cz = centre
         uu, vv = np.meshgrid(np.arange(W), np.arange(H))
         dx = (uu - CX) / F
@@ -156,9 +162,9 @@ def main(argv):
 
     # 1. no ROI: every labelled fruit is detected, and the decoy is not a fruit
     obj = make_perception(sensor)
-    dets = P.FruitPerception.detect_all(obj, FakeTask())
+    dets = P.FruitPerception.detect_all(obj, FakeTask(), paths=PATHS)
     assert set(dets) == {p for p, *_ in FRUIT}, sorted(dets)
-    assert DECOY[0][0] not in dets, "a non-fruit label must not become a candidate"
+    assert DECOY[0][0] not in dets, "a labelled body the caller did not name is not a candidate"
 
     # 2. the fit recovers centre and radius
     worst_c = worst_r = 0.0
@@ -176,13 +182,19 @@ def main(argv):
     # 3. the workcell ROI filters a body that is not in the cell
     roi = (-0.20, 0.20, -0.20, 0.20, 1.00, 1.80)
     obj2 = make_perception(sensor, roi=roi)
-    dets2 = P.FruitPerception.detect_all(obj2, FakeTask())
+    dets2 = P.FruitPerception.detect_all(obj2, FakeTask(), paths=PATHS)
     assert set(dets2) == {p for p, *_ in FRUIT}, sorted(dets2)
     assert not any(p == DECOY[0][0] for p in dets2)
 
+    # 3a. a look-alike name must not steal a key (the substring rule's trap)
+    obj2b = make_perception(sensor)
+    tricky = PATHS + ["/World/Fruit_00_stem"]
+    dets2b = P.FruitPerception.detect_all(obj2b, FakeTask(), paths=tricky)
+    assert set(dets2b) == {p for p, *_ in FRUIT}, sorted(dets2b)
+
     # 3b. an ROI that excludes everything returns an empty dict, not a raise
     obj3 = make_perception(sensor, roi=(5.0, 6.0, 5.0, 6.0, 5.0, 6.0))
-    assert P.FruitPerception.detect_all(obj3, FakeTask()) == {}
+    assert P.FruitPerception.detect_all(obj3, FakeTask(), paths=PATHS) == {}
 
     # 4. the tracked target's filter state is untouched
     for o in (obj, obj2, obj3):
@@ -193,7 +205,7 @@ def main(argv):
     # 5. the calibration bias is applied to the returned centre
     obj4 = make_perception(sensor)
     obj4.bias = {"head": np.array([0.010, -0.005, 0.002]), "wrist": np.zeros(3)}
-    dets4 = P.FruitPerception.detect_all(obj4, FakeTask())
+    dets4 = P.FruitPerception.detect_all(obj4, FakeTask(), paths=PATHS)
     # `measure` subtracts the mount bias (it is an offset to remove), and
     # `detect_all` uses the same convention - the sign is part of the contract.
     shift = dets4[FRUIT[0][0]]["position"] - dets[FRUIT[0][0]]["position"]
@@ -205,7 +217,7 @@ def main(argv):
             return None
 
     obj5 = make_perception(DeadSensor(depth, seg, info))
-    assert P.FruitPerception.detect_all(obj5, FakeTask()) == {}
+    assert P.FruitPerception.detect_all(obj5, FakeTask(), paths=PATHS) == {}
     assert obj5.failures == 1
 
     if verbose:

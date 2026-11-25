@@ -8912,7 +8912,10 @@ class SortingRLEnv:
             from .perception import perception_from_env
 
             self._sel_percept = perception_from_env(self.scene, self.cfg)
-        dets = self._sel_percept.detect_all(self.task)
+        dets = self._sel_percept.detect_all(
+            self.task,
+            paths=[s.prim_path for s in self.spawner.active if not s.parked],
+        )
         if not dets:
             return None
         by_path = {
