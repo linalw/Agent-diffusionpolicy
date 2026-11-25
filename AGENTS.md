@@ -8146,6 +8146,82 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P275 (2026-11-25, `logs/p275/`; every knob default off, **nothing adopted**, no
+reference moved): the owner's truth directive - *only* the instance mask, the depth, the
+tactile force and the bin index may come from the simulator - is implemented for the whole
+**decision layer** and measured: **at 0.08 the cell drops one placement in ten (19/20 -> 17/20)
+while the goal, the fire decision, the fruit choice, the start pose, the diameter and the
+grasp verdict all become measurements**, and the debt table says exactly which reads remain.**
+Five things were built, each a knob, each default-off: **(1) the grasp judge**
+(`FRUIT_GRASP_JUDGE=truth|force`) replaces **both** truth decisions - the probe's "did it
+take" (`fruit_z - z_before > 4 mm`) and the score's `peak_lift > 50 mm` - with *tactile force
+>= `FRUIT_GRASP_JUDGE_FORCE` (2 N, a fifth of the measured 9.6-9.9 N pinch) **and** measured
+pad span >= `FRUIT_GRASP_JUDGE_SPAN` (20 mm, which is what rejects "the pads met each other":
+P103's `sep_min 0.2 mm` / `fmax 213 N` / `closed 15 mm` row is a 200 N-class force with an
+empty hand)*, over `FRUIT_GRASP_JUDGE_TICKS` (10), allowing one dip; **(2) the matched
+settle** (`FRUIT_GRASP_JUDGE_SETTLE`, default 0) because a sensor judgement *is* a settle -
+measured, and the phase's sharpest correction: the first 0.12 cells read **38/40 = 95 %**
+against the shipped **33/40 = 82.5 %**, which looks like a +12.5-point win and is **the 10
+ticks, not the judgement** - with the ticks matched, **truth+settle 17/20 and force+settle
+17/20** (seed 909, 20 picks each), so the judge is **count-neutral** and is scored on
+**fidelity**: **17/17 (J) and 18/18 (TFs) agreement, 0 false positives**; **(3) the selector
+from one frame** (`FRUIT_SELECT_FROM=percept`): `perception.detect_all` renders once, reads
+the instance segmentation, resolves each label to the caller's prim path and fits a trimmed
+sphere per instance - **identity from the mask, state from the fit** - and the same three
+`select_target` call sites (the reset's, P56's mid-episode re-selection, P38's reseed) take
+that list instead of `spawner.state()`; **(4) the start pose's x** from the **selected
+fruit's own measurement** (`FRUIT_START_ALIGN_FROM=percept`), not the belt centre and not the
+simulator; **(5) the census** (`FRUIT_TRUTH_AUDIT=1`): every `FruitSpawner.position/velocity`
+call counted **by caller name** and printed once per episode, so "what still reads the
+simulator" is a table, not an argument. Also closed: the **silent diameter leak** (a frame
+with no fitted radius used to keep the caller's truth diameter; now
+`FRUIT_GOAL_NOMINAL_DIA` = 0.060) and the episode row now prints the **measured** diameter
+(`dia_meas=`). **The measurement** (`logs/p275b/`, 0.08, seeds 913/914 x 10 continuous picks,
+same recipe, one tree): **C 19/20 = 95 % (9/10, 10/10) against TFs 17/20 = 85 % (8/10,
+9/10)** - one cell is one branch draw (P93), so the number is the **cost's size**, not a rate;
+**selector 23 frames, 87 detections, 87 mapped to a live fruit, `unmatched` 0,
+`truth_fallbacks` 0**; **`[fire] source=` 20 percept / 0 truth**. **The debt table** (two
+cells, 20 attempts, cumulative): eliminated outright - `_fruit_for_trigger` **1 309 + 1 309 ->
+0**, the selector's `state` **60 + 60 -> 0**, `_aligned_start` **9 -> 0**, `_fruit_state`
+**1 673 + 1 673 -> 0** (the estimate was always available, so no fallback fired) - against
+**10 980 control-path reads left**, of which **5 547 = 87 %** are **pre-grasp**
+(`_grasp_carry_place_impl` 3 843 + `_apply`'s contact servo 1 704) and the rest post-grasp
+(`_carry_leg` 3 226, `_place_low` 1 281, small sites 926); the supply machinery
+(`update` + `enforce_transport`) is the belt's own controller at ~267 k and is not a
+perception input; `_episode_events`/`_finalize` (1 855 / 10) are the **evaluation** column,
+which is legitimate and must be named as such. **A real defect was found by the stub test
+before the cell could hide it**: `idToLabels` **stringifies a dict**
+(`{'class': '/World/Fruit_03'}`), so keying the detections by the raw value matched **nothing**
+- exactly `_mask`'s reason for its substring test - and the selector would have fallen back to
+truth on every pick while reporting a perfect cell; it now resolves the way `_mask` does,
+`scripts/291_p275_detect_selftest.py` executes `detect_all` on a synthetic frame (three
+spheres, a decoy label, an ROI, a bias, a look-alike name) to **0.00 mm** centre/radius and
+pins that the tracked target's filter state (`last_radius`/`last_centre`/`last_estimate`) is
+**never** touched. **Read rules**: a judgement that spends ticks is a **settle** and must be
+compared tick-matched; a judge is scored on **agreement**, never on the count; a truth census
+that prints nothing is `MISSING`, not zero (the report's first regex missed the harness's
+`[fruit] ` prefix and read all four arms as unmeasured - fixed, and the four arms carry 190
+rows each); and **any truth fallback must print**, which is why the episode row carries
+`truth_fallbacks=`. No-harm: `scripts/accept.sh` with every knob unset is **7/10 = 70 %,
+`fingerprint: matches`, `190: PASS`** with its **459 `[fruit]` lines 458/459 identical**
+(the one difference is P227i's arm-spec build row, on the record);
+`scripts/selfcheck.sh` **PASS (0 failures, 1 skipped)** with four new legs
+(`P275 grasp judge`, `P275 truth census`, `P275 select from percept`, `P275 detect all`).
+**Not claimed**: the contact phase is still truth-fed, so `TFs` is "decision-layer truth-free,
+contact-layer truth-fed" - the split P227ad named, now with the debt enumerated; and the
+selection's `grade`/`mass`/`friction` still ride along from the sample as **bookkeeping**
+(only the bin mapping is permitted, and the single arm's eligibility rule reads position and
+diameter only). **Named next, priced, not built**: route the 48 direct reads in
+`_grasp_carry_place_impl` through `_fruit_state` - mechanical, but it changes the catch-up's
+and the close's per-tick reference, and P227ae measured that contact-phase camera availability
+at **15-18 %** (0.12 read 2/6), so it needs its own cell at 0.08. Pins: `tasks.py`
+**`5709cf02`**, `rl_env.py` **`c06f63ab`** (`TASKS_MD5` follow), `perception.py`
+**`e039f73a`**, `fruits.py` **`590ad613`**, `scripts/291_p275_detect_selftest.py`
+**`b78a1a73`**, `scripts/selfcheck.sh` **`1256f4e0`**, `logs/p275/PREREG.md` **`220927e0`**,
+`METHOD.md` **`99679768`**, `p275_report.py` **`33d1c178`**; references **`61fb5202` /
+`61fb5202` / `18b101bf`** untouched; ckpt `p227_panda156`. Evidence `logs/p275/`,
+`logs/p275b/`.
+
 **P274 (2026-11-25, `logs/p274/`; the **horizon** question, **no `src/` change**, nothing
 adopted): the deployment cell holds over **40 consecutive picks** - **80/80 on two seeds**.** The
 record's longest continuous cell was **20 picks** (P253/P257) and **26** once (P227ab); a real
