@@ -33,6 +33,26 @@ FRUIT_SETTLE_EPS=0.01 FRUIT_CYCLE_REPORT=1 \
 - **归档**（mp4 不入 git）：
   `/media/ubuntu/66A27065A2703B9D/project/Agent-diffusionpolicy/log/video/deploy_0.08_cont10_s907/`
 
+## 第二段：站台近景（6 次取放，30 fps）
+
+```bash
+# 同一套配方，只换成 observer + close 两个视角、capture-every 1
+... scripts/121_policy_video.py --ckpt checkpoints/p227_panda156/policy_best.pt \
+  --episodes 1 --continuous 6 --seed 913 --capture-every 1 --views observer,close \
+  --frames-dir logs/video_single_arm_close/frames --out-dir logs/video_single_arm_close \
+  --horizon 9000
+```
+
+| 项 | 值 |
+|---|---|
+| 放置 | **6/6** |
+| 时长 / 帧 | **78.3 s @ 30 fps**，2350 帧，960×540 |
+| 视角 | `observer` + **`gripper`**（固定在取料站上方的近景机位，正对抓取点） |
+| 工作副本 | `logs/video_single_arm_close/{observer.mp4, gripper.mp4, video.json, stills/}` |
+
+**近景帧**：`stills/gripper_t{8,14,20}s.jpg`。**t=20 s 那帧就是"指间夹着果子、已离带上升"**（另见
+`gripper_t14s.jpg`：模型接近时的手位与带上散料）。这一段用 `capture-every 1`（30 fps），所以抓取瞬间不会掉帧。
+
 ## 看点（按时间轴）
 
 1. **0–3 s**：臂在等待位姿，果子随带进入选择窗；模型开始接近（不是瞬移，`FRUIT_CONTINUOUS_TRANSIT=1`）。

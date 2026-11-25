@@ -209,7 +209,15 @@ python3 scripts/121_policy_video.py --ckpt checkpoints/p227_panda156/policy_best
 **录制命令与结果**见 `logs/video_single_arm/README.md`：0.08 m/s、**连续 10 次取放、10/10 放置**、
 **130.9 s @ 15 fps**、960×540，两个视角（`observer` 第三人称标注 / `overhead` 俯视）。
 
-- 工作副本：`logs/video_single_arm/{observer.mp4,overhead.mp4,video.json}`
-- 归档：`/media/ubuntu/66A27065A2703B9D/project/Agent-diffusionpolicy/log/video/deploy_0.08_cont10_s907/`
+两段视频，同一套配方：
+
+| 段 | 次数 | 视角 | 时长 / 帧 | 放置 |
+|---|---|---|---|---|
+| **长片段** | 10 | `observer` + `overhead`（俯视，含两条出料线） | 130.9 s @ **15 fps**，1964 帧 | **10/10** |
+| **近景段** | 6 | `observer` + **`gripper`**（站台上方近景，正对抓取点） | 78.3 s @ **30 fps**，2350 帧 | **6/6** |
+
+- 工作副本：`logs/video_single_arm/{observer,overhead}.mp4` 与 `logs/video_single_arm_close/{observer,gripper}.mp4`（各带 `stills/`）
+- 归档：`/media/ubuntu/66A27065A2703B9D/project/Agent-diffusionpolicy/log/video/deploy_0.08_cont10_s907/`（长片段在根，近景在 `close6/`）
+- **最能说明问题的一帧**：`close6/stills/gripper_t20s.jpg`——指间夹着果子、已离带上升
 - 看点：等待 → 模型接近 → 追够/闭合/破带/静止/抬升/转位/伴降/释放 → **真实返回航段**（不是瞬移）
 - 读法：**一个 episode 不是速率**；延迟用回路内的 66 ms，不用离线台的 26.4 ms
