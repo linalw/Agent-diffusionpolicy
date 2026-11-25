@@ -8146,6 +8146,36 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P271 (2026-11-25, `logs/p270/` C arm completing P270's pair; **nothing adopted**): the
+re-registration **passes its letter** and the class effect **does not reproduce**.** Both arms
+with the landing trace (0.12, seeds 907/908, 20 picks each, `FRUIT_PLACE_TRACE=1` +
+`FRUIT_CARRY_DIAG=1` + `FRUIT_TRACK_DIAG=1` on **both**): **C 6 mm 34/40, 37 catches, 5 true
+stalls (14 %)**, **T 7 mm 34/40, 38 catches, 4 true stalls (11 %)**, and **34/34 `on_belt` on
+both arms with 0 `grasped=True placed=False`**. **The registered endpoints both pass** (P1's
+absolute bar `T <= 15 %` -> 11 %; P2's count 34 >= 32 and no place-leg loss; P3 flat) - **and it
+must not be read as a win**: **14 % against 11 %** (5 of 37 vs 4 of 38) is a **draw**, while
+**P269 measured 19 % -> 9 % on the same seeds without the trace** - so **the tolerance's class
+effect did not reproduce under the trace instrumentation and the honest state is
+UNRESOLVED** (one batch halves the class, the other moves it 3 points inside a 40-pick draw).
+**And the PREREG's P1 was written as an absolute bar** (`T <= 15 %`) rather than a
+**difference** - a **design defect** for a branch-dependent quantity, because it can be passed
+by a branch where *both* arms are low, and it was: C itself read 14 %, so the bar would also
+have passed with the knob **off**. **Verdict: nothing adopted** - the tolerance stays at 6 mm
+(no default, no reference, no store); what would settle it is a **difference** endpoint with a
+**paired** design (both arms, same seeds, trace **on** for both) at >= 2 fresh seeds and
+**powered**, and an adoption would then owe PREREG's four items (two more seeds, the two-line
+gate, both references, every store). **Read rule added**: an **absolute** bar on a
+branch-dependent class rate is not a test of a lever - the control's own level can satisfy it;
+register the **difference**, and register it **powered**. **Where the 0.12 step stands after the
+whole arc**: 72.5-85 % across draws; the two classes are the **grip/hold** (hardware,
+`logs/p42/SIM_LIMIT.md`) and the **free-space chase** (arrival side or the y-axis, P268); the
+clock and force exits are **closed** (P266/P268), the tolerance is **unresolved** (this phase),
+and the cycle work (-28 % on the attempt, 0.08 at **99.3 %**) **does not touch 0.12's success**
+(P264). No `src/`/`configs/` change (tree is P268's, `tasks.py` **`141cd178`**), references
+**`61fb5202` / `61fb5202` / `18b101bf`** untouched, ckpt `p227_panda156`; `selfcheck.sh`
+**PASS (0 failures, 1 skipped)**; `accept.sh` stands at P268's **459/459 + `fingerprint:
+matches`**. Evidence `logs/p270/`, `logs/p271/`.
+
 **P270 (2026-11-25, `logs/p270/`; two cells with the landing trace, **no `src/` change**,
 nothing adopted): with `FRUIT_PLACE_TRACE=1` **every release lands** - the P2 clause's corrected
 form **passes where it can be read**.** The cells are P269's open question: that phase failed P2
