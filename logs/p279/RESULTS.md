@@ -98,6 +98,18 @@ python3 scripts/293_p279_wrist_seg_train.py --labels logs/p279/labels --out chec
 FRUIT_WRIST=learned <TFs 配方> scripts/290_single_arm_continuous.sh 10 913 0.08
 ```
 
+## 4b. 演示视频
+
+`logs/video_p279/`（归档在 `/media/.../log/video/p279_learned_seg_s913/`）：seed 913、
+0.08、连续 8 次取放 **3/8**（一格分支，不是速率），111.7 s @15 fps，两视角 + **腕部叠加片**。
+
+**`wrist.mp4` 是本阶段最能说明问题的一条**：腕部相机自己的画面 + 分割器掩码（红色 + 黄轮廓），
+顶部绿条是掩码覆盖率。**`stills/wrist_t22s.jpg`** 里一颗番茄被掩码精确包住、同框的青柠不被框
+（按实例学，不是颜色阈值）；**`wrist_t14s.jpg`** 里同一套掩码只剩边缘几条像素——
+**那不是网络坏了，是垫片挡在相机与果子之间**，正是"精度够、可见率不够"这句话的画面版。
+
+命令与"能看/不能看"的清单在 `logs/video_p279/README.md`。
+
 ## 5. 门禁
 
 `scripts/selfcheck.sh` **PASS（0 failures, 1 skipped）**，新增 `P278 close sweep`、`P279 wrist

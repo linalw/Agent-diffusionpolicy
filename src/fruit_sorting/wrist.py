@@ -433,6 +433,18 @@ class WristRig:
         except Exception as exc:  # noqa: BLE001 - a dump must never kill the cell
             say(f"[wrist] dump failed: {type(exc).__name__}: {exc}")
 
+    def _dump_mask(self, mask) -> None:
+        """Save the predicted mask beside the dumped frame (same stem)."""
+        if not self.dump_dir or self.dumps <= 0:
+            return
+        if self.dumps > int(os.environ.get("FRUIT_WRIST_DUMP_MAX", "4")):
+            return
+        try:
+            stem = os.path.join(self.dump_dir, f"wrist_{self.side}_{self.dumps - 1:02d}")
+            np.save(stem + "_pred.npy", np.asarray(mask))
+        except Exception:  # noqa: BLE001 - a dump must never kill the cell
+            pass
+
     def _reject(self, why: str):
         self.rejected += 1
         self.reasons[why] = self.reasons.get(why, 0) + 1
@@ -621,6 +633,8 @@ class WristRig:
                 m = self._learned_mask(rgb, depth)
                 if m is None:
                     return self._reject("no segmenter")
+                #: the demo's other half: the frame *and* what the net predicted on it
+                self._dump_mask(m)
                 msub = np.asarray(m)[sub[:, 1], sub[:, 0]].astype(bool)
                 points = points[msub]
                 sub = sub[msub]

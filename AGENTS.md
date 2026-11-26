@@ -8169,6 +8169,14 @@ diameter 20 mm). **What it fixed and what it did not**: the wrist's *accuracy* w
 6-9 mm (P277) and stays there, and the *rejection reason moved* from "colour cannot
 separate" to **`mask covered 0-1 px`** and `rms 6-8 mm` - i.e. **on those frames the net
 sees nothing either**, because a pad is in front of the fruit. Acceptance 13-33 %.
+**The demo clip** (`logs/video_p279/`, archived beside the earlier ones): seed 913, 0.08,
+**3/8** in one 8-pick episode (a branch), `observer.mp4` + the station close-up, and - the
+informative one - **`wrist.mp4`, the wrist's own frame with the net's mask overlaid**
+(`logs/p279/make_wrist_clip.py`; `FRUIT_WRIST=learned`'s dump writes `_pred.npy` beside the
+PPM). Its two stills are the phase in one pair: `wrist_t22s.jpg` has a tomato wrapped by the
+mask while a lime in the same frame is **not** masked (instance, not colour), and
+`wrist_t14s.jpg` has the same mask down to a few edge pixels because **a pad is in front of
+the fruit** - the "accuracy is enough, sight rate is not" sentence as a picture.
 **Three implementation defects are recorded because each cost a run**: the capture never
 fired (the `primitive_tick_hook` - the only place `_observe` runs inside the primitive - was
 installed only for `FRUIT_PRIMITIVE_PERCEPT`, so 0 frames were saved; it is now installed for
