@@ -8146,6 +8146,42 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P283 (2026-11-26, `logs/p283/`; measurement only - **no `src/` change**, nothing
+adopted): the owner's "what about the other fruits?" is answered from the logs already on
+disk plus two one-species cells, and the finding corrects the shape of the whole arc:
+**the truth-free cost is per species, and it is not a grip failure - it is a *width* failure
+at the close.** **The census** (`species_census.py`, the `[rl] episode` rows: 410 truth-fed
+deployment attempts from P259-P274 against 149 truth-free ones from P276-P282) reads
+**99 % against 50 %**, with the gradient **pear 98 -> 12 % (3/25)**, apple 100 -> 42 %
+(11/26), kiwi 100 -> 57, orange 100 -> 59, tomato 100 -> 65, peach 98 -> 71; and
+**strawberry/lychee are unmeasured in the truth-free block** (n = 1 / 0) because the mixed
+pool rarely presents them. **The pear is not a pooling artefact**: per lever it is 0-1/4 in
+*every* one (pad+light+colour 1/4, learned 0/4, pad 1/3, jaw 0/3, sweep 1/5, jaw colour 0/2,
+no lever 0/3). **The two ends, one cell each** (the best truth-free config, pad + light +
+`colour`, 0.08, seed 913): **pear 3/10**, **lychee 4/9** - both *below* the mixed pool's
+13/20, the opposite direction to the truth-fed line (P255's lychee-only cell is 20/20), so
+it is recorded and not concluded at n = 9/10. **The mechanism is the phase's product**: the
+judge rows say the failures are `force = 0.00 N` with a **`span` nowhere near the fruit** -
+the pear stops at **22.6 / 23.8 / 32.0 / 42.9 mm** on a 62 mm fruit, the lychee at **0.0 /
+0.0 / 5.3 mm** on a 30 mm one - while the successes sit at 55-71 mm / 27-33 mm with 4.6-7.7 N.
+The close's target is `deep = pinch_width x 0.98` and `pinch_width` comes from the fruit's
+pose, so **23-43 mm means the estimate reported a 24-44 mm fruit and 0 mm means it reported
+nothing** (`mask covered 0 px`). **So these are not grip failures** - not force, not material,
+not the hand - **they are closes with no credible measurement behind them**, which also
+explains P282's puzzle: a better mask fixed the |e| p90 (1427 -> 18 mm) and not the count,
+because **the worst failures are "no measurement", not "20 mm off"**. **A cheap, priced, NOT
+implemented lever falls straight out**: a **width-plausibility gate before the close**
+(`FRUIT_CLOSE_WIDTH_MIN_FRAC`, e.g. `< 0.5 x dia_approach` or below the pads' mechanical
+floor -> do not close; abort and re-aim/re-select). The table says such a gate refuses only
+closes that provably fail (every success has `span` at the fruit's width), so it trades one
+grown attempt for one 1.24-1.50 s probe (P40's measured failed-probe cost). **Honest lines**:
+no species rate is claimed (n = 9-10 per cell; the census is a branch draw, P93), the
+single-vs-mixed direction is two cells, and the small class is unmeasured. Pins:
+`logs/p283/species_census.py` **`5424c7a0`**, `RESULTS.md` **`73990f18`**, `run_p283.sh`
+**`08d86c69`**; `src/` unchanged from P282 (`scene.py` **`da1f7db1`**, `wrist.py`
+**`8b7d9e58`**, `rl_env.py` **`a9c47f3d`**, `tasks.py` **`ad64ef59`**); references
+**`61fb5202` / `61fb5202` / `18b101bf`** untouched. Evidence `logs/p283/`.
+
 **P282 (2026-11-26, `logs/p282/`; two default-off light knobs, **nothing adopted**,
 no reference moved): the owner's "the scene is so dark - add some ambient light" is answered
 with **two levers, both off by default**, and it is the piece the pad mount needed: the
