@@ -52,24 +52,49 @@ def main(argv=None) -> int:
     ap.add_argument("--out", default="logs/video_p279/wrist.mp4")
     ap.add_argument("--fps", type=int, default=30)
     ap.add_argument("--scale", type=int, default=2, help="integer upscale for viewing")
+    ap.add_argument("--no-mask", action="store_true",
+                    help="no overlay: the frames as the camera saw them (colour mode "
+                         "does not dump a prediction)")
     args = ap.parse_args(argv)
 
-    frames = sorted(glob.glob(os.path.join(args.dir, "wrist_*_pred.npy")))
+    if args.no_mask:
+        #: the colour mode has no prediction to overlay; order by **write time**,
+        #: because the two sides interleave and a name sort would put one arm first
+        frames = sorted(
+            glob.glob(os.path.join(args.dir, "wrist_*.ppm")),
+            key=os.path.getmtime,
+        )
+    else:
+        frames = sorted(
+            glob.glob(os.path.join(args.dir, "wrist_*_pred.npy")),
+            key=os.path.getmtime,
+        )
     if not frames:
-        print(f"no predictions under {args.dir}", file=sys.stderr)
+        print(f"no frames under {args.dir}", file=sys.stderr)
         return 2
     tmp = os.path.join(os.path.dirname(args.out) or ".", "_wrist_overlay")
     os.makedirs(tmp, exist_ok=True)
     n = 0
-    for pred_path in frames:
-        stem = pred_path[: -len("_pred.npy")]
-        ppm = stem + ".ppm"
-        if not os.path.exists(ppm):
-            continue
+    for entry in frames:
+        if args.no_mask:
+            ppm = entry
+            pred = None
+        else:
+            stem = entry[: -len("_pred.npy")]
+            ppm = stem + ".ppm"
+            if not os.path.exists(ppm):
+                continue
+            pred = True
         img = read_ppm(ppm)
         h, w = img.shape[:2]
-        pred = upscale(np.load(pred_path).astype(bool), h, w)
         out = img.astype(np.float32)
+        if args.no_mask:
+            out = np.repeat(np.repeat(out, args.scale, axis=0), args.scale, axis=1)
+            write_ppm(os.path.join(tmp, f"{n:05d}.ppm"),
+                      np.clip(out, 0, 255).astype(np.uint8))
+            n += 1
+            continue
+        pred = upscale(np.load(entry).astype(bool), h, w)
         # a red wash where the net says "fruit", plus a bright outline
         tint = np.array([255.0, 60.0, 40.0], dtype=np.float32)
         out[pred] = 0.45 * out[pred] + 0.55 * tint
