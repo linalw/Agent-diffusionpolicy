@@ -1210,6 +1210,7 @@ class SortingScene:
         )
         self.wrist_cameras = {}
         self._wrist_ops = {}
+        self._wrist_light_ops = {}
         for side in ("left", "right"):
             path = f"/World/WristCamera_{side}"
             # Any non-degenerate pose: `set_wrist_pose` runs before the first
@@ -1247,6 +1248,24 @@ class SortingScene:
             sensor = CameraSensor(camera, resolution=resolution, annotators=annotators)
             self.wrist_cameras[side] = (camera, sensor)
             self._wrist_ops[side] = (translate_op, orient_op)
+            #: P282: **the wrist ring light.** A real eye-in-hand camera carries one
+            #: for exactly this reason - the view sits between two plates and sees
+            #: no studio light. 0 (the default) authors nothing at all.
+            _ring = float(os.environ.get("FRUIT_LIGHT_WRIST", "0"))
+            if _ring > 0.0:
+                from isaacsim.core.experimental.objects import SphereLight
+
+                light_path = f"/World/WristLight_{side}"
+                light = SphereLight(light_path, positions=[(0.0, 0.0, 3.0)],
+                                    radii=[float(os.environ.get("FRUIT_LIGHT_WRIST_R", "0.02"))])
+                light.set_intensities(_ring)
+                light.set_colors([1.0, 0.98, 0.95])
+                lprim = self.stage.GetPrimAtPath(light_path)
+                lx = UsdGeom.Xformable(lprim)
+                lx.ClearXformOpOrder()
+                self._wrist_light_ops[side] = lx.AddTranslateOp(
+                    UsdGeom.XformOp.PrecisionDouble
+                )
         say(
             f"wrist cameras: {len(self.wrist_cameras)} at {resolution}, "
             f"annotators={annotators}"
@@ -1287,6 +1306,9 @@ class SortingScene:
             return
         translate_op, orient_op = ops
         translate_op.Set(_Gf.Vec3d(*[float(v) for v in position]))
+        _lops = getattr(self, "_wrist_light_ops", {}).get(side)
+        if _lops is not None:
+            _lops.Set(_Gf.Vec3d(*[float(v) for v in position]))
         orient_op.Set(
             _Gf.Quatd(
                 float(quat[0]),
@@ -2385,10 +2407,18 @@ class SortingScene:
         )
         _set_color(back, (0.55, 0.56, 0.58))
 
-        # Sky / ambient dome.
+        # Sky / ambient dome. P282: the cell is dark by design (a studio set),
+        # and a camera **between the pads** sees almost none of it - the fruit is
+        # shadowed from the dome, the sun and the fill panel at once. The multiplier
+        # is the global lever; 1.0 is the shipped intensity bit for bit.
+        _amb = float(os.environ.get("FRUIT_LIGHT_DOME", "1.0"))
+        if _amb <= 0.0:
+            raise ValueError(f"FRUIT_LIGHT_DOME must be > 0, got {_amb}")
         dome = DomeLight("/World/SkyDome", positions=[0.0, 0.0, 6.0])
-        dome.set_intensities(140.0)
+        dome.set_intensities(140.0 * _amb)
         dome.set_colors([0.72, 0.80, 0.92])
+        if _amb != 1.0:
+            say(f"sky dome x{_amb:g} -> {140.0 * _amb:.0f}")
 
         # Sun: a few degrees wide so shadows have a soft edge.
         sun = DistantLight("/World/Sun", positions=[3.5, -3.0, 6.0])

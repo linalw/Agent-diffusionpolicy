@@ -538,6 +538,18 @@ print('truth census ok (off by default, nominal diameter, start-x source)')"
 # checkpoint's key set against the deploy builder, and a real forward pass.
 # P281: the pad mount - jaw-relative by default, and on the pad it is built from the
 # hand's own measured span and grasp standoff (a constant put the eye on the belt).
+# P282: the two light knobs are inert at their defaults (dome x1, no ring light).
+run_check "P282 lighting" "$python" -c "
+t = open('src/fruit_sorting/scene.py', encoding='utf-8').read()
+assert 'os.environ.get(\"FRUIT_LIGHT_DOME\", \"1.0\")' in t, 'dome default 1.0'
+assert 'dome.set_intensities(140.0 * _amb)' in t
+assert 'os.environ.get(\"FRUIT_LIGHT_WRIST\", \"0\")' in t, 'ring light default off'
+i = t.index('if _ring > 0.0:')
+j = t.index('self._wrist_light_ops[side]', i)
+assert 'SphereLight' in t[i:j] or 'SphereLight(' in t[i:j], 'the ring is a real light'
+assert '_wrist_light_ops' in t and '_lops.Set(' in t, 'the ring follows the camera'
+print('lighting ok (dome x1 and no ring by default, the ring rides the camera')"
+
 run_check "P281 wrist mount" "$python" -c "
 w = open('src/fruit_sorting/wrist.py', encoding='utf-8').read()
 assert 'FRUIT_WRIST_MOUNT' in w

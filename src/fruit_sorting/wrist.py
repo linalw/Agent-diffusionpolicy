@@ -548,7 +548,7 @@ class WristRig:
             small = upscale_mask(small, depth.shape)
         return small
 
-    def capture(self, sample_prim: str) -> bool:
+    def capture(self, sample_prim: str, sample=None) -> bool:
         """One labelled wrist frame for the segmenter dataset (P279)."""
         if not self.label_dir:
             return False

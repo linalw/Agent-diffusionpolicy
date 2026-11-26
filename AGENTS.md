@@ -8146,6 +8146,42 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P282 (2026-11-26, `logs/p282/`; two default-off light knobs, **nothing adopted**,
+no reference moved): the owner's "the scene is so dark - add some ambient light" is answered
+with **two levers, both off by default**, and it is the piece the pad mount needed: the
+wrist's view between two plates sees almost none of the studio set, and with light it goes
+from a **backlit silhouette to normal exposure**. `FRUIT_LIGHT_DOME=<mult>` scales the sky
+dome (140 -> 140x, **1.0 = the shipped intensity bit for bit**) and
+`FRUIT_LIGHT_WRIST=<intensity>` authors a **ring light that rides the camera** (a SphereLight
+moved in `set_wrist_pose`, i.e. exactly the part a real eye-in-hand camera carries; **0 =
+nothing authored**). Measured at `dome x2 + ring 600`: the wrist frames' mean luma 52.03 ->
+52.81, **p10 23.35 -> 30.29, max 105.5 -> 135.8**, and the picture is a properly exposed
+fruit with the pads beside it and the belt visible (`logs/p282/lit/frame40.jpg`). **A light
+is a scene change** (it changes the render, hence the policy's input, hence the branch), so
+every comparison in the phase is **within one light** and nothing crosses it. **The
+recollection the pad view needed** (`FRUIT_WRIST_MOUNT=pad` + the light, 12 picks -> **1800
+frames**, that pass truth-goaled so 12/12 is a data source) trains to **val IoU 0.993**
+(`checkpoints/wrist_seg_pad.pt`, **`747033ab`**) - better than the jaw view's 0.976.
+**The same-light A/B** (`logs/p282/run_p282.sh`, 0.08, seeds 913/914 x 10): **`colour`
+13/20 = 65 % against `learned` 11/20 = 55 %** (Fisher p ~ 0.75), and the split is the phase's
+finding: **the segmenter is the strictly better *sensor* and the worse *unit*** - |e| p50
+**4.5 / 5.6 mm against 6.8 / 8.6**, **p90 18 / 19 mm against 81 / 1427 mm** (the colour gate
+has a **1.4 m wrong-lock** the mask removes), acceptance **50 / 33 % against 35 / 26 %** -
+**yet two fewer placements**, and the failure mix shifts from `never-grasped 7` +
+`did not follow 6` to `never-grasped 8` + **`fruit fell off the line` 4** (the other arm has
+none). **So the deployable choice on this view is `colour`, not `learned`** - and that is the
+fourth time the record's sentence repeats: once the fruit is *visible* enough, more sensing
+accuracy stops converting, and the binding term is the contact itself. **Honest lines**: 65 %
+against P281's 60 % is **cross-light and not comparable** (PREREG), 11 vs 13 is a draw, and
+the light is a scene change with its own branch. No-harm: `accept.sh` with both knobs unset
+is **7/10, `fingerprint: matches`, `190: PASS`**, 459 lines / 458 identical (the scripted
+line has no camera, so this is an import guard, stated as such); `selfcheck.sh` **PASS** with
+the new `P282 lighting` leg (dome x1 and no ring by default, the ring rides the camera).
+Pins: `scene.py` **`da1f7db1`**, `wrist.py` **`8b7d9e58`**, `rl_env.py` **`a9c47f3d`**,
+`scripts/selfcheck.sh` **`56ba22c0`**, `logs/p282/PREREG.md` **`78d6b8c3`**, `RESULTS.md`
+**`59a53a97`**; `tasks.py` **`ad64ef59`** (unchanged); references **`61fb5202` / `61fb5202` /
+`18b101bf`** untouched. Evidence `logs/p282/` (cells `A_*`, `B_*`, labels, `lit/`).
+
 **P281 (2026-11-26, `logs/p281/`; default off, **nothing adopted**, no reference
 moved, one `src/` change): P280's named next item - the **finger-mounted** camera - is built
 and it is **the first lever whose mechanism AND its outcome move the same way**: on the

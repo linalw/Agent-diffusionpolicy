@@ -9009,7 +9009,7 @@ class SortingRLEnv:
                 render=self._RenderingManager.render,
             )
             self._wrist_rigs[self._active] = rig
-        rig.capture(getattr(self._sample, "prim_path", ""))
+        rig.capture(getattr(self._sample, "prim_path", ""), sample=self._sample)
 
     def _estimate_now(self):
         """`(position, velocity)` from the tracker **at this tick**, or None.
