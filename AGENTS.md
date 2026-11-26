@@ -8146,6 +8146,42 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P280 (2026-11-26, `logs/p280/`; measurement only - **no `src/` change**, nothing
+adopted): the owner's "would a Piper arm occlude the wrist camera less?" is answered by
+measuring **what is occluding it now**, and the answer is **the hand, not the arm** - so the
+subset of the idea that is right is about the **gripper**, and the cells already run on a
+small one. **The instrument** (`logs/p280/occlusion.py`) uses the wrist's own depth dump: in
+a 6 cm-away view, "pixels nearer than the fruit" can only be the robot, so the frame splits
+into the fruit's mask and the robot in front of it - no new render, no scene change. **The
+census** (1198 frames from `logs/video_p279/wrist`): the fruit's mask is **6.15 / 2.91 /
+2.12 %** of the frame in the approach / middle / close thirds while the robot in front of it
+is **55.6 / 37.7 / 25.3 %**, and **793 of 803** frames have the occluder covering **more
+than half the fruit's area** (occluder/fruit area p50 **10.4x**). So the owner's premise
+holds - the robot eats a quarter to a half of the wrist's view - but **it is the fingers and
+the palm**: the camera sits 6 cm behind the jaw, so the arm's links are behind the camera.
+**This also corrects an implicit detail of P277/P279's story**: those cells ran
+`FRUIT_ARM_KIND=franka`, i.e. already a **Panda** (76 mm plates, compact palm), not the wide
+OpenArm - so "swap in a slimmer arm" starts from a small gripper. **The cheap test the census
+licenses, run**: the two mount knobs already existed (`FRUIT_WRIST_BACK` / `_SIDE`), and the
+pad's outer face is at +-59 mm, so the shipped `SIDE=0.045` is *inside* the hand's footprint.
+At `SIDE=0.09`: the approach occlusion falls **55.6 -> 33.5 %** but the **close** occlusion
+**rises 25.3 -> 42.3 %**, the close mask improves slightly (**2.12 -> 3.58 %**), the ratio
+stays **10.9x** and the cell reads **4/10 against the baseline's 5/10** - one branch draw
+(P93), no claim either way. **The lesson is geometric**: with the camera on the **jaw**, no
+4.5 cm lateral move clears the line of sight, because at the close **the hand is on both
+sides of the fruit**. **Verdict on the Piper**: the direction is right, the part is wrong, and
+the price is high - **there is no Piper asset locally** (repo and the Isaac library were both
+searched), and an arm kind is an `ArmSpec` row plus `configs/waypoints_<arm>.json` (the
+calibration flow), a measured tool offset, a face offset, the tactile link list and a
+re-collection of P279's segmenter (a different hand in view) - P227i to P227r is six measured
+phases of exactly that. **Named next, both cheaper than a new arm**: a **finger-mounted**
+camera (the offset is jaw-relative today; anchored on the pad's outer face looking inward puts
+the gap between the plates in the line of sight instead of the hand - small code, judged by
+this same census), or a **side-view prism**. Pins: `logs/p280/occlusion.py` **`2506424a`**,
+`RESULTS.md` **`7cd0051a`**; `src/` unchanged from P279 (`wrist.py` **`bbf33f12`**,
+`tasks.py` **`ad64ef59`**, `rl_env.py` **`714d8b36`**); references **`61fb5202` /
+`61fb5202` / `18b101bf`** untouched. Evidence `logs/p280/`, `logs/video_p279/wrist`.
+
 **P279 (2026-11-26, `logs/p279/`; default off, **nothing adopted**, no reference
 moved): the owner's option **B** - a learned segmenter on the wrist - is built end to end
 and it is **the best of the four software levers and still a draw**: **11/20 = 55 %**
