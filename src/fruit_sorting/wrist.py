@@ -246,7 +246,7 @@ class WristRig:
         self.label_max = int(os.environ.get("FRUIT_WRIST_LABELS_MAX", "1200"))
 
     # -- aim ---------------------------------------------------------- #
-    def aim(self, target=None) -> np.ndarray | None:
+    def aim(self, target=None, sample=None) -> np.ndarray | None:
         """Put the camera behind/above the jaw, looking at the **jaw**.
 
         Aiming at the prior was the first design and the probe cell killed it:
@@ -273,6 +273,56 @@ class WristRig:
         #: the hand: the dumped frame showed the belt and one finger, no fruit - and
         #: that is the origin of P135/P214's 44-62 mm "noisy" wrist. The camera has
         #: to be **above** the jaw looking **down** at the fruit.
+        #: P281: **the mount is the lever the occlusion census named.** On the jaw,
+        #: the robot covers 25-56 % of the frame (P280) and no lateral move clears
+        #: it, because at the close the hand is on both sides of the fruit. On the
+        #: **outer face of a pad, looking inward**, the near pad is *behind* the
+        #: camera and the line of sight runs through the gap between the plates -
+        #: and it is perpendicular to the closing axis, so it sees the y-z plane,
+        #: i.e. **the along-belt term that is 80-110 mm wrong**.
+        #:
+        #: Everything is robot state: the jaw, the tool frame, and the measured pad
+        #: span. `FRUIT_WRIST_MOUNT=jaw` is the shipped mount, bit for bit.
+        _mount = os.environ.get("FRUIT_WRIST_MOUNT", "jaw").strip().lower()
+        if _mount == "pad":
+            try:
+                span = float(self.task._hand_separation(self.side))
+            except Exception:  # noqa: BLE001 - a stub task has no span
+                span = 0.098
+            _out = float(os.environ.get("FRUIT_WRIST_PAD_OUT", "0.012"))
+            #: the height is the **hand's own** grasp standoff, not a constant:
+            #: the OpenArm's is 70 mm and this arm's is 42 mm (P227j), and using the
+            #: wrong one puts the eye on the belt (measured: the first pad-mount
+            #: frame was belt and floor, no fruit). The env still overrides.
+            _drop_env = os.environ.get("FRUIT_WRIST_PAD_DROP", "").strip()
+            if _drop_env:
+                _drop = float(_drop_env)
+            else:
+                try:
+                    _drop = float(self.task._pad_standoff(True, sample))
+                except Exception:  # noqa: BLE001 - a stub task keeps the default
+                    _drop = 0.045
+            _aim = float(os.environ.get("FRUIT_WRIST_PAD_AIM", "0.050"))
+            _sgn = -1.0 if os.environ.get(
+                "FRUIT_WRIST_PAD_SIDE", "+"
+            ).strip().startswith("-") else 1.0
+            half = 0.5 * span + _out
+            eye = (
+                jaw
+                + _sgn * half * side_vec
+                - _drop * axis
+            )
+            self.last_target = eye - _sgn * _aim * side_vec
+            self.scene.set_wrist_pose(self.side, eye, self.last_target)
+            if os.environ.get("FRUIT_WRIST_GEOM", "0").strip() == "1":
+                say(
+                    f"[wrist] geom mount=pad jaw=({jaw[0]:+.3f},{jaw[1]:+.3f},"
+                    f"{jaw[2]:+.3f}) span={span * 1000:.0f}mm "
+                    f"eye=({eye[0]:+.3f},{eye[1]:+.3f},{eye[2]:+.3f}) "
+                    f"target=({self.last_target[0]:+.3f},"
+                    f"{self.last_target[1]:+.3f},{self.last_target[2]:+.3f})"
+                )
+            return eye
         _sign = -1.0 if os.environ.get(
             "FRUIT_WRIST_EYE", "above"
         ).strip().lower() == "below" else 1.0
@@ -504,7 +554,7 @@ class WristRig:
             return False
         if self.saved >= self.label_max:
             return False
-        eye = self.aim(None)
+        eye = self.aim(None, sample=sample)
         if eye is None:
             return False
         self._render()
@@ -550,7 +600,8 @@ class WristRig:
         return True
 
     # -- measure ------------------------------------------------------ #
-    def measure(self, prior_pos, prior_radius: float, colour_model=None):
+    def measure(self, prior_pos, prior_radius: float, colour_model=None,
+                sample=None):
         """One wrist measurement near `prior_pos`, or None (with a counted reason)."""
         if self.mode == "off":
             return None
@@ -561,7 +612,7 @@ class WristRig:
             return None
         self._last_prior = prior_pos
         self.attempts += 1
-        eye = self.aim(None)
+        eye = self.aim(None, sample=sample)
         if eye is None:
             return self._reject("no wrist camera")
         self._render()
@@ -578,7 +629,12 @@ class WristRig:
         # camera-frame prior (for the raster gate) - `backproject` returns world
         _proj = prior_pos if (self.mode == "raster" and prior_pos is not None) else anchor
         p_cam = (np.asarray(_proj, dtype=float) - model.translation) @ model.rotation
-        if float(p_cam[2]) >= -0.03:
+        #: P281: **this gate belongs to `raster` only.** It exists to project the
+        #: prior into the image; the 3-D modes back-project the depth and do not
+        #: need the prior in front of the lens. Applied to them it rejected 55 of
+        #: 211 measurements on the pad mount, where the camera looks *across* the
+        #: gap and the prior is legitimately off-axis.
+        if self.mode == "raster" and float(p_cam[2]) >= -0.03:
             return self._reject("prior behind the camera")
 
         if self.mode == "raster":

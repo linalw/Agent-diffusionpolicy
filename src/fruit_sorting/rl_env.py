@@ -8959,7 +8959,8 @@ class SortingRLEnv:
                 render=self._RenderingManager.render,
             )
             self._wrist_rigs[self._active] = rig
-        det = rig.measure(prior, radius, colour_model=self._head_colour)
+        det = rig.measure(prior, radius, colour_model=self._head_colour,
+                         sample=self._sample)
         if det is None:
             return
         if self._percept_cfg is None:

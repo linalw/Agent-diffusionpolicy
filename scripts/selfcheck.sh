@@ -536,6 +536,22 @@ print('truth census ok (off by default, nominal diameter, start-x source)')"
 # P279: the segmenter's plumbing - the channel order (the trainer/loader once
 # pooled the *channel* axis as height and produced 241 input channels), the
 # checkpoint's key set against the deploy builder, and a real forward pass.
+# P281: the pad mount - jaw-relative by default, and on the pad it is built from the
+# hand's own measured span and grasp standoff (a constant put the eye on the belt).
+run_check "P281 wrist mount" "$python" -c "
+w = open('src/fruit_sorting/wrist.py', encoding='utf-8').read()
+assert 'FRUIT_WRIST_MOUNT' in w
+assert 'os.environ.get(\"FRUIT_WRIST_MOUNT\", \"jaw\")' in w, 'default is the shipped mount'
+i = w.index('        if _mount == \"pad\":')
+blk = w[i:w.index('        _sign = -1.0 if os.environ.get(', i)]
+assert 'self.task._hand_separation(self.side)' in blk, 'span from the hand'
+assert 'self.task._pad_standoff(True, sample)' in blk, 'height from the hand'
+assert 'set_wrist_pose' in blk
+# the projection gate must not reach the 3-D modes
+j = w.index('if self.mode == \"raster\" and float(p_cam[2]) >= -0.03:')
+assert j > 0
+print('wrist mount ok (jaw default, pad from robot state, raster-only projection gate')"
+
 run_check "P279 wrist segmenter" "$python" -c "
 import sys; sys.path.insert(0, 'src')
 import numpy as np

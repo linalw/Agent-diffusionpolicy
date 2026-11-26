@@ -8146,6 +8146,42 @@ Pins: `tasks.py` (`_fruit_state`, the `_step_sim` hook), `rl_env.py`
 **61fb5202 / 61fb5202 / 18b101bf** untouched. Evidence
 `logs/p227/{RESULTS.md 22.20, policy_cell_*_s5/s902.log}`.
 
+**P281 (2026-11-26, `logs/p281/`; default off, **nothing adopted**, no reference
+moved, one `src/` change): P280's named next item - the **finger-mounted** camera - is built
+and it is **the first lever whose mechanism AND its outcome move the same way**: on the
+**outer face of a pad looking inward**, the close-phase occlusion falls **25.3 -> 8.7 %**
+(occluder/fruit area **10.4x -> 2.67x**, frames where the occluder covers over half the
+fruit **793/803 -> 569/969**), the wrist's accuracy improves (**|e| p50 8.6 -> 5.5 mm**, min
+0.5), its **acceptance doubles (13 -> 31 %)**, and the cell reads **12/20 = 60 %** against the
+no-lever arm's 9/19 (Fisher p ~ 0.54 - **still a draw at n=20**, but the only lever so far
+where all four move the right way). **The geometry is all robot state**:
+`FRUIT_WRIST_MOUNT=pad` (default `jaw` = the shipped mount, bit for bit) puts the eye at
+`jaw + (span/2 + 12 mm) * x_axis - pad_standoff * z_axis` and aims it **along -x across the
+gap**, so the near pad is *behind* the camera and the fruit sits between the plates;
+`span` is `task._hand_separation(side)` (the measured 80 mm) and the height is
+`task._pad_standoff(True, sample)` - **both must be the hand's own numbers**, and that is
+the phase's sharpest lesson: a constant 0.070 (the OpenArm's) put the eye at
+`z = 1.175`, i.e. **on the belt**, and the first pad-mount frame was belt and floor with no
+fruit; the Panda's 42 mm puts it at `z = 1.198`, the fruit's equator, and the dumped frame
+then shows the two pads **beside** the view and a lime **fully visible** in the gap
+(`logs/p281/wrist_pad/wrist_left_02.jpg`). **A real bug the mount exposed**: the
+`prior behind the camera` gate (`p_cam[2] >= -0.03`) exists to project the prior into the
+image for `raster`, but it sat in front of **all** modes; on a side-looking camera a prior
+that is legitimately off-axis rejected **55 of 211** measurements, and it is now inside the
+`raster` branch only. **What was measured with what**: the pad view is one the P279 segmenter
+has never seen (`mask covered 0 px`, out of distribution), so the cells use `colour` - which
+needs no retraining - and the **recollection is the named next step** (the P279
+collect/train/deploy pipeline is ready, ~35 min for a round trip). **Two seeds, both 6/10**;
+the honesty lines: 12/20 vs 9/19 is p ~ 0.54 and is **not** a rate, and the camera is
+**virtual** - a 6 cm eye on a 10 mm plate needs a bracket or a side-view prism on a real
+machine, which is a hardware item (recorded, not claimed). No-harm: `accept.sh` **7/10,
+`fingerprint: matches`, `190: PASS`**, 459 lines / 458 identical; `selfcheck.sh` **PASS** with
+the new `P281 wrist mount` leg (jaw default, the span and standoff read from the hand, the
+projection gate confined to `raster`). Pins: `wrist.py` **`dc803884`**, `rl_env.py`
+**`09baf1a6`**, `scripts/selfcheck.sh` **`32e99ed0`**, `logs/p281/RESULTS.md`
+**`45405968`**; `tasks.py` **`ad64ef59`** (unchanged); references **`61fb5202` / `61fb5202` /
+`18b101bf`** untouched. Evidence `logs/p281/`, `logs/p280/occlusion.py`, `logs/p281/wrist_pad/`.
+
 **P280 (2026-11-26, `logs/p280/`; measurement only - **no `src/` change**, nothing
 adopted): the owner's "would a Piper arm occlude the wrist camera less?" is answered by
 measuring **what is occluding it now**, and the answer is **the hand, not the arm** - so the
